@@ -3,6 +3,7 @@
 HamHUD's SmartBeaconing as Dire Wolf implements it, with speeds in km/h. The module is pure:
 it decides, it sends nothing.
 """
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal
@@ -15,6 +16,7 @@ Reason = Literal["start", "time", "turn", "request"]
 @dataclass(frozen=True)
 class SmartSettings:
     """The seven numbers of the algorithm; the operator picks a preset (`PRESETS`), not numbers."""
+
     fast_kmh: float = 100.0
     fast_sec: float = 60.0
     slow_kmh: float = 8.0
@@ -28,16 +30,25 @@ class SmartSettings:
 TRAVEL = ("car", "bicycle", "foot", "boat")
 # car is Dire Wolf's default; the others are chosen for slower movement
 PRESETS: dict[str, SmartSettings] = {
-    "car": SmartSettings(fast_kmh=100, fast_sec=60, slow_kmh=8, slow_sec=1800, turn_min_deg=30, turn_min_sec=15, turn_slope=255),
-    "bicycle": SmartSettings(fast_kmh=30, fast_sec=60, slow_kmh=4, slow_sec=1800, turn_min_deg=35, turn_min_sec=20, turn_slope=255),
-    "foot": SmartSettings(fast_kmh=7, fast_sec=120, slow_kmh=1.5, slow_sec=1800, turn_min_deg=45, turn_min_sec=60, turn_slope=100),
-    "boat": SmartSettings(fast_kmh=40, fast_sec=60, slow_kmh=3, slow_sec=1800, turn_min_deg=20, turn_min_sec=30, turn_slope=255),
+    "car": SmartSettings(
+        fast_kmh=100, fast_sec=60, slow_kmh=8, slow_sec=1800, turn_min_deg=30, turn_min_sec=15, turn_slope=255
+    ),
+    "bicycle": SmartSettings(
+        fast_kmh=30, fast_sec=60, slow_kmh=4, slow_sec=1800, turn_min_deg=35, turn_min_sec=20, turn_slope=255
+    ),
+    "foot": SmartSettings(
+        fast_kmh=7, fast_sec=120, slow_kmh=1.5, slow_sec=1800, turn_min_deg=45, turn_min_sec=60, turn_slope=100
+    ),
+    "boat": SmartSettings(
+        fast_kmh=40, fast_sec=60, slow_kmh=3, slow_sec=1800, turn_min_deg=20, turn_min_sec=30, turn_slope=255
+    ),
 }
 
 
 @dataclass(frozen=True)
 class Sent:
     """The last beacon: when it went out and the course the station had then (None if none)."""
+
     at: datetime
     course_deg: int | None
 
@@ -45,6 +56,7 @@ class Sent:
 @dataclass(frozen=True)
 class Decision:
     """Whether to beacon now and why (None: not now), and when the next beacon by time is due."""
+
     reason: Reason | None
     next_due: datetime | None
 
@@ -66,7 +78,14 @@ def heading_change_deg(now_deg: int, then_deg: int) -> int:
     return min(difference, 360 - difference)
 
 
-def decide(settings: SmartSettings, last: Sent | None, now: datetime, speed_kmh: float | None, course_deg: int | None, request: bool = False) -> Decision:
+def decide(
+    settings: SmartSettings,
+    last: Sent | None,
+    now: datetime,
+    speed_kmh: float | None,
+    course_deg: int | None,
+    request: bool = False,
+) -> Decision:
     """Return the decision for a fix at `now` given the last beacon (None: no beacon yet).
 
     No speed counts as standing still, no course as no turn. Order: request, start, time, turn.

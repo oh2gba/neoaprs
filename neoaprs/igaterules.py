@@ -2,6 +2,7 @@
 
 Pure code; services/igate.py keeps duplicates, counts and the connection. The path is kept as
 heard with `,qAO,IGATECALL` appended (aprs-is.net IGate details)."""
+
 import re
 from dataclasses import dataclass
 
@@ -19,14 +20,39 @@ ALIASES = ("WIDE", "TRACE", "RELAY", "TCP", "NOGATE", "RFONLY", "SERVER", "BEACO
 # an element of a path on the air (stricter than callsign.PATH_ELEMENT)
 _PATH_ELEMENT = re.compile(r"[A-Za-z0-9]{1,9}(?:-[A-Za-z0-9]{1,2})?\*?")
 
-TCPIP, NOGATE, QUERY, SOURCE, OWN, NEWLINE, LONG, FRAME, DUPLICATE, OFFLINE, NOT_AIR = "tcpip", "nogate", "query", "source", "own", "newline", "long", "frame", "duplicate", "offline", "not_air"
-REASON_WORDS = {TCPIP: "TCPIP", NOGATE: "NOGATE", QUERY: "query", SOURCE: "bad source", OWN: "own", NEWLINE: "line break", LONG: "too long", FRAME: "bad frame", DUPLICATE: "duplicate", OFFLINE: "offline", NOT_AIR: "not from the air"}
+TCPIP, NOGATE, QUERY, SOURCE, OWN, NEWLINE, LONG, FRAME, DUPLICATE, OFFLINE, NOT_AIR = (
+    "tcpip",
+    "nogate",
+    "query",
+    "source",
+    "own",
+    "newline",
+    "long",
+    "frame",
+    "duplicate",
+    "offline",
+    "not_air",
+)
+REASON_WORDS = {
+    TCPIP: "TCPIP",
+    NOGATE: "NOGATE",
+    QUERY: "query",
+    SOURCE: "bad source",
+    OWN: "own",
+    NEWLINE: "line break",
+    LONG: "too long",
+    FRAME: "bad frame",
+    DUPLICATE: "duplicate",
+    OFFLINE: "offline",
+    NOT_AIR: "not from the air",
+}
 # why a packet was not gated
 
 
 @dataclass(frozen=True, slots=True)
 class Gate:
     """A packet as it goes to APRS-IS before the q construct."""
+
     source: str
     destination: str
     path: str
@@ -59,7 +85,9 @@ def _header_reason(path: list[str]) -> str | None:
         return TCPIP
     if names & NO_GATE_MARKERS:
         return NOGATE
-    if any(_never_on_air(element) for element in path) or any(_PATH_ELEMENT.fullmatch(element) is None for element in path):
+    if any(_never_on_air(element) for element in path) or any(
+        _PATH_ELEMENT.fullmatch(element) is None for element in path
+    ):
         return FRAME
     return None
 

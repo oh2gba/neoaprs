@@ -3,6 +3,7 @@
 `qAR`/`qAO` name an iGate that heard the packet on the radio; `qAC`, `qAS`, `qAX`, `qAU` or
 `TCPIP*` mean a client sent it into the network. Pure code.
 """
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
@@ -20,6 +21,7 @@ MarkKind = Literal["rf", "gated", "igate", "app"]
 @dataclass(frozen=True, slots=True)
 class Reach:
     """How an internet packet got there: an iGate heard it (with `hops`), or an app sent it."""
+
     kind: Kind
     igate: str = ""
     hops: tuple[str, ...] = ()
@@ -29,7 +31,9 @@ def reach_of_path(path: tuple[str, ...]) -> Reach | None:
     """Return the way an APRS-IS path says the packet got into the network, or None."""
     at = next((i for i, element in enumerate(path) if is_q_construct(element)), None)
     if at is None:
-        return Reach("app") if any(element.rstrip("*").startswith(tuple(INTERNET_MARKERS)) for element in path) else None
+        return (
+            Reach("app") if any(element.rstrip("*").startswith(tuple(INTERNET_MARKERS)) for element in path) else None
+        )
     code, after = path[at], path[at + 1].rstrip("*") if at + 1 < len(path) else ""
     if code in CLIENT_QS:
         return Reach("app")
@@ -49,6 +53,7 @@ class RouteMark:
 
     `at` is when it was heard, `lat`/`lon` where its station was then (None if unknown).
     """
+
     kind: MarkKind
     hops: tuple[str, ...]
     gate: str
@@ -73,5 +78,4 @@ def pushed(marks: tuple[RouteMark, ...], mark: RouteMark) -> tuple[RouteMark, ..
     """Return a station's routes with the route just heard, latest first (two kept)."""
     if marks and marks[0].same_route(mark):
         return (mark, *marks[1:])
-    return (mark, *marks[:MARKS_KEPT - 1])
-
+    return (mark, *marks[: MARKS_KEPT - 1])

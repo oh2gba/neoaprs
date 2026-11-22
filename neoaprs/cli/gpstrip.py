@@ -2,16 +2,17 @@
 
 The geometry is flat (metres converted to degrees), accurate enough for a lap of a few kilometres.
 `Trip.step()` advances one second and returns the position."""
+
 import math
 from dataclasses import dataclass
 
-METRES_PER_DEGREE = 111194.9            # per degree of latitude
+METRES_PER_DEGREE = 111194.9  # per degree of latitude
 ACCEL_MS2 = 1.5
 DECEL_MS2 = 2.0
-CORNER_MS = 8.0                         # corner speed (29 km/h)
+CORNER_MS = 8.0  # corner speed (29 km/h)
 TURN_DEG_PER_SEC = 45.0
-STOP_SEC = 90                           # stop in the middle of the last leg
-START_SEC = 10                          # standing time before setting off
+STOP_SEC = 90  # stop in the middle of the last leg
+START_SEC = 10  # standing time before setting off
 ALTITUDE_M = 31.0
 
 
@@ -19,7 +20,7 @@ ALTITUDE_M = 31.0
 class Leg:
     heading_deg: int
     length_m: float
-    stop_at_m: float | None = None      # distance along the leg at which to stop
+    stop_at_m: float | None = None  # distance along the leg at which to stop
 
 
 LAP = (Leg(0, 1200.0), Leg(90, 800.0), Leg(180, 1200.0), Leg(270, 800.0, stop_at_m=400.0))
@@ -50,7 +51,7 @@ class Trip:
         self.heading = float(legs[0].heading_deg)
         self.leg = 0
         self.along_m = 0.0
-        self.paused = START_SEC                 # seconds of standing left
+        self.paused = START_SEC  # seconds of standing left
         self.stopped_on_leg = False
 
     def sample(self) -> Sample:
@@ -71,9 +72,11 @@ class Trip:
         to_stop = None if leg.stop_at_m is None or self.stopped_on_leg else leg.stop_at_m - self.along_m
         braking_for_stop = to_stop is not None and to_stop <= to_end
         distance, end_speed = (to_stop, 0.0) if braking_for_stop and to_stop is not None else (to_end, CORNER_MS)
-        allowed = math.sqrt(end_speed ** 2 + 2.0 * DECEL_MS2 * max(distance, 0.0))
+        allowed = math.sqrt(end_speed**2 + 2.0 * DECEL_MS2 * max(distance, 0.0))
         target = min(self.cruise_ms, allowed)
-        speed = min(self.speed_ms + ACCEL_MS2, target) if target > self.speed_ms else max(self.speed_ms - DECEL_MS2, target)
+        speed = (
+            min(self.speed_ms + ACCEL_MS2, target) if target > self.speed_ms else max(self.speed_ms - DECEL_MS2, target)
+        )
         self._move((self.speed_ms + speed) / 2.0)
         self.speed_ms = speed
         self.heading = _turned(self.heading, float(self.legs[self.leg].heading_deg), TURN_DEG_PER_SEC)

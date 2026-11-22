@@ -2,6 +2,7 @@
 
 Every test is exactly one of unit, integration or safety.
 """
+
 import inspect
 import subprocess
 from collections.abc import Iterable
@@ -37,7 +38,12 @@ def kind_of(item: pytest.Item) -> str:
     function = getattr(item, "obj", None)
     names = names_in(function)
     module = getattr(item, "module", None)
-    if inspect.iscoroutinefunction(function) or names & INTEGRATION_NAMES or any(n.startswith("Fake") for n in names) or (module is not None and touches_the_daemon(module)):
+    if (
+        inspect.iscoroutinefunction(function)
+        or names & INTEGRATION_NAMES
+        or any(n.startswith("Fake") for n in names)
+        or (module is not None and touches_the_daemon(module))
+    ):
         return "integration"
     return "unit"
 

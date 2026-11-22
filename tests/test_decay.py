@@ -1,29 +1,88 @@
 """The schedules of what we send of our own accord (neoaprs/decay.py): the net cycle time of a path,
 the decay of an object, the kill and the plans of a bulletin and an announcement."""
+
 import pytest
 
-from neoaprs.decay import ANNOUNCEMENT, BULLETIN, KILL_SENDS, bulletin_wait_sec, hops, kill_wait_sec, net_cycle_sec, object_wait_sec
+from neoaprs.decay import (
+    ANNOUNCEMENT,
+    BULLETIN,
+    KILL_SENDS,
+    bulletin_wait_sec,
+    hops,
+    kill_wait_sec,
+    net_cycle_sec,
+    object_wait_sec,
+)
 
 
-@pytest.mark.parametrize("path, count", [
-    ((), 0), (("WIDE1-1",), 1), (("WIDE1-1", "WIDE2-1"), 2), (("WIDE2-2",), 2), (("WIDE3-3",), 3), (("OH2RCH-2",), 1), (("OH2RCH-2", "OH2RDG", "OH2RCH-1"), 3), (("WIDE1-1*", "WIDE2-1"), 2),
-    (("TRACE3-3",), 3), (("WIDE2-1", "RFONLY"), 1), (("NOGATE",), 0), (("WIDE1-1", "TCPIP"), 1), (("RELAY",), 1), (("WIDE2",), 2),
-    (("SS3-3",), 3), (("HOP7-7",), 7), (("FI2-2",), 2), (("FI2-2*",), 2), (("WIDE1-1", "SS2-2"), 3), (("ARISS",), 1), (("WIDEX1",), 1)])
+@pytest.mark.parametrize(
+    "path, count",
+    [
+        ((), 0),
+        (("WIDE1-1",), 1),
+        (("WIDE1-1", "WIDE2-1"), 2),
+        (("WIDE2-2",), 2),
+        (("WIDE3-3",), 3),
+        (("OH2RCH-2",), 1),
+        (("OH2RCH-2", "OH2RDG", "OH2RCH-1"), 3),
+        (("WIDE1-1*", "WIDE2-1"), 2),
+        (("TRACE3-3",), 3),
+        (("WIDE2-1", "RFONLY"), 1),
+        (("NOGATE",), 0),
+        (("WIDE1-1", "TCPIP"), 1),
+        (("RELAY",), 1),
+        (("WIDE2",), 2),
+        (("SS3-3",), 3),
+        (("HOP7-7",), 7),
+        (("FI2-2",), 2),
+        (("FI2-2*",), 2),
+        (("WIDE1-1", "SS2-2"), 3),
+        (("ARISS",), 1),
+        (("WIDEX1",), 1),
+    ],
+)
 def test_a_path_asks_for_the_hops_its_calls_and_aliases_have_left(path: tuple[str, ...], count: int) -> None:
     assert hops(path) == count
 
 
-@pytest.mark.parametrize("path, minutes", [((), 10), (("WIDE1-1",), 10), (("WIDE1-1", "WIDE2-1"), 20), (("WIDE2-2",), 20), (("WIDE3-3",), 30), (("A1", "B2", "C3", "D4"), 30), (("SS3-3",), 30), (("SS2-2",), 20)])
-def test_the_net_cycle_time_is_10_minutes_to_one_digipeater_20_to_two_and_30_from_three_on(path: tuple[str, ...], minutes: int) -> None:
+@pytest.mark.parametrize(
+    "path, minutes",
+    [
+        ((), 10),
+        (("WIDE1-1",), 10),
+        (("WIDE1-1", "WIDE2-1"), 20),
+        (("WIDE2-2",), 20),
+        (("WIDE3-3",), 30),
+        (("A1", "B2", "C3", "D4"), 30),
+        (("SS3-3",), 30),
+        (("SS2-2",), 20),
+    ],
+)
+def test_the_net_cycle_time_is_10_minutes_to_one_digipeater_20_to_two_and_30_from_three_on(
+    path: tuple[str, ...], minutes: int
+) -> None:
     assert net_cycle_sec(path) == minutes * 60
 
 
 def test_an_object_decays_from_a_minute_by_doubling_up_to_the_net_cycle_time_of_its_path() -> None:
     assert [object_wait_sec(n, ("WIDE2-1",)) for n in range(1, 9)] == [60, 120, 240, 480, 600, 600, 600, 600]
-    assert [object_wait_sec(n, ("WIDE1-1", "WIDE2-1")) for n in range(1, 9)] == [60, 120, 240, 480, 960, 1200, 1200, 1200]
+    assert [object_wait_sec(n, ("WIDE1-1", "WIDE2-1")) for n in range(1, 9)] == [
+        60,
+        120,
+        240,
+        480,
+        960,
+        1200,
+        1200,
+        1200,
+    ]
     assert [object_wait_sec(n, ("WIDE3-3",)) for n in range(1, 9)] == [60, 120, 240, 480, 960, 1800, 1800, 1800]
-    assert [object_wait_sec(n, (), 1800) for n in range(1, 9)] == [60, 120, 240, 480, 960, 1800, 1800, 1800], "a radio's floor above the net cycle: the decay stays, the repeats keep the floor"
-    assert [object_wait_sec(n, ("WIDE3-3",), 600) for n in (1, 6)] == [60, 1800], "a floor below the net cycle changes nothing"
+    assert [object_wait_sec(n, (), 1800) for n in range(1, 9)] == [60, 120, 240, 480, 960, 1800, 1800, 1800], (
+        "a radio's floor above the net cycle: the decay stays, the repeats keep the floor"
+    )
+    assert [object_wait_sec(n, ("WIDE3-3",), 600) for n in (1, 6)] == [60, 1800], (
+        "a floor below the net cycle changes nothing"
+    )
 
 
 def test_a_kill_is_sent_three_times_a_minute_and_two_apart() -> None:

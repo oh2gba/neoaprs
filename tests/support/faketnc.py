@@ -2,6 +2,7 @@
 `TncBrain` is what the TNC does with the bytes written to it; it sits behind a TCP server
 (`FakeTncServer`) or a port that takes a speed (`FakeEar`).
 """
+
 import asyncio
 
 from neoaprs import ax25, kiss
@@ -16,7 +17,7 @@ class TncBrain:
     def __init__(self, kind: str) -> None:
         self.kind = kind
         self.in_kiss = kind == "kiss"
-        self.writes: list[bytes] = []                 # everything written to it, as it was written
+        self.writes: list[bytes] = []  # everything written to it, as it was written
 
     def greeting(self) -> bytes:
         return kiss.encode(ax25.encode(UI)) if self.kind == "kiss" else b""
@@ -45,13 +46,14 @@ class TncBrain:
 # When a TNC that has something to say says it after a connection, and says it once more
 GREETING_PAUSES = (0.05, 0.1)
 
+
 class FakeTncServer:
     """A TNC behind a TCP port of the loopback."""
 
     def __init__(self, kind: str) -> None:
         self.brain = TncBrain(kind)
         self.connections = 0
-        self.closed = 0                               # connections the other side has closed
+        self.closed = 0  # connections the other side has closed
         self.url = ""
         self._server: asyncio.Server | None = None
 
@@ -88,7 +90,7 @@ class FakeEar(Ear):
     """A port that is not one: opening it opens nothing. Which TNC answers is chosen by the path and
     the speed it is opened at (`brains`); a path in `refused` cannot be opened."""
 
-    opened: list[tuple[str, int]] = []                # every open, in order (`ears` gives each class its own)
+    opened: list[tuple[str, int]] = []  # every open, in order (`ears` gives each class its own)
     closed: list[tuple[str, int]] = []
     brains: dict[tuple[str, int], TncBrain] = {}
     refused: set[str] = set()

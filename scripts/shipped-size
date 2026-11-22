@@ -12,6 +12,7 @@
 
 Sizes are in MB of 1,000,000 bytes. $GITHUB_STEP_SUMMARY, if set, also gets the Markdown.
 Exit code: 0; 1 when a name given to --absent is there; 2 when a path is missing or unreadable."""
+
 import argparse
 import os
 import re
@@ -23,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 LARGEST = 30
-GROUPS = 40                                            # groups printed by name; the rest is one line
+GROUPS = 40  # groups printed by name; the rest is one line
 MB = 1_000_000
 
 
@@ -84,7 +85,14 @@ def tree_lines(report: TreeReport, title: str) -> list[str]:
 
 
 def tree_markdown(report: TreeReport, title: str) -> list[str]:
-    lines = [f"### {title}", "", f"{mb(report.total)} in {report.files} files ({report.total} bytes)", "", "| group | size |", "|---|---:|"]
+    lines = [
+        f"### {title}",
+        "",
+        f"{mb(report.total)} in {report.files} files ({report.total} bytes)",
+        "",
+        "| group | size |",
+        "|---|---:|",
+    ]
     groups = sorted(report.groups.items(), key=lambda item: (-item[1], item[0]))
     lines += [f"| `{name}` | {mb(size)} |" for name, size in groups[:GROUPS]]
     rest = groups[GROUPS:]
@@ -127,7 +135,9 @@ def parse_listing(text: str, program: str = "") -> ArchiveReport:
         if columns is None:
             columns = [word.strip().lower() for word in line.split(",")]
             if "length" not in columns or "name" not in columns:
-                raise Unreadable(f"the listing of {program or 'the program'} has a PYZ part whose columns are {line.strip()!r}: no length and name to read")
+                raise Unreadable(
+                    f"the listing of {program or 'the program'} has a PYZ part whose columns are {line.strip()!r}: no length and name to read"
+                )
             continue
         named = QUOTED_NAME.search(line)
         if named is None:
@@ -135,7 +145,9 @@ def parse_listing(text: str, program: str = "") -> ArchiveReport:
         name = named.group("single") if named.group("single") is not None else named.group("double")
         fields = [word.strip() for word in line[: named.start()].rstrip().rstrip(",").split(",")]
         if len(fields) != len(columns) - 1:
-            raise Unreadable(f"the listing of {program or 'the program'} has an entry that does not fit its columns: {line.strip()!r}")
+            raise Unreadable(
+                f"the listing of {program or 'the program'} has an entry that does not fit its columns: {line.strip()!r}"
+            )
         size = int(fields[columns.index("length")])
         top = name.split(".", 1)[0]
         report.entries += 1
@@ -157,21 +169,31 @@ def find_viewer(given: str = "") -> str:
             return str(here / name)
     found = shutil.which("pyi-archive_viewer")
     if found is None:
-        raise Unreadable("pyi-archive_viewer is not beside this Python nor on the PATH: run this with the Python of the build environment, or give --viewer")
+        raise Unreadable(
+            "pyi-archive_viewer is not beside this Python nor on the PATH: run this with the Python of the build environment, or give --viewer"
+        )
     return found
 
 
 def list_archive(viewer: str, program: Path, run: Callable[[list[str]], str] | None = None) -> str:
     def default(argv: list[str]) -> str:
-        done = subprocess.run(argv, stdin=subprocess.DEVNULL, capture_output=True, text=True, errors="replace", timeout=300)
+        done = subprocess.run(
+            argv, stdin=subprocess.DEVNULL, capture_output=True, text=True, errors="replace", timeout=300
+        )
         if done.returncode != 0:
-            raise Unreadable(f"{' '.join(argv)} ended with {done.returncode}: {(done.stderr or done.stdout).strip()[-400:]}")
+            raise Unreadable(
+                f"{' '.join(argv)} ended with {done.returncode}: {(done.stderr or done.stdout).strip()[-400:]}"
+            )
         return done.stdout
+
     return (run or default)([viewer, "-l", "-r", str(program)])
 
 
 def archive_lines(report: ArchiveReport) -> list[str]:
-    lines = [f"{report.program}: its PYZ is {mb(report.total)} in {report.entries} modules (compressed, {report.total} bytes)", "  by top package:"]
+    lines = [
+        f"{report.program}: its PYZ is {mb(report.total)} in {report.entries} modules (compressed, {report.total} bytes)",
+        "  by top package:",
+    ]
     packages = sorted(report.packages.items(), key=lambda item: (-item[1], item[0]))
     lines += [f"    {mb(size):>10}  {name}" for name, size in packages[:GROUPS]]
     rest = packages[GROUPS:]
@@ -181,13 +203,21 @@ def archive_lines(report: ArchiveReport) -> list[str]:
 
 
 def archive_markdown(report: ArchiveReport) -> list[str]:
-    lines = [f"### {report.program}: the PYZ", "", f"{mb(report.total)} in {report.entries} modules (compressed)", "", "| package | size |", "|---|---:|"]
+    lines = [
+        f"### {report.program}: the PYZ",
+        "",
+        f"{mb(report.total)} in {report.entries} modules (compressed)",
+        "",
+        "| package | size |",
+        "|---|---:|",
+    ]
     packages = sorted(report.packages.items(), key=lambda item: (-item[1], item[0]))
     lines += [f"| `{name}` | {mb(size)} |" for name, size in packages[:GROUPS]]
     return [*lines, ""]
 
 
 # ---- the command ----
+
 
 def present(names: Iterable[str], root: Path | None = None, archive: ArchiveReport | None = None) -> list[str]:
     """Return those names of --absent that are there: a path under `root` or a top package."""
@@ -206,13 +236,25 @@ def summary_file(env: Mapping[str, str] = os.environ) -> Path | None:
 
 
 def main(argv: Sequence[str] | None = None, run: Callable[[list[str]], str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="shipped-size", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog="shipped-size", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("paths", nargs="+", type=Path, metavar="PATH")
     parser.add_argument("--depth", type=int, default=1, help="how many folders deep a group is (default 1)")
-    parser.add_argument("--pyi-archive", action="store_true", help="the paths are programs of PyInstaller: print their PYZ by top package")
-    parser.add_argument("--viewer", default="", help="pyi-archive_viewer, when it is not beside this Python or on the PATH")
-    parser.add_argument("--modules", action="store_true", help="with --pyi-archive: every module of the archive, one line each")
-    parser.add_argument("--absent", action="append", default=[], metavar="NAME", help="fail when NAME is there (repeatable)")
+    parser.add_argument(
+        "--pyi-archive",
+        action="store_true",
+        help="the paths are programs of PyInstaller: print their PYZ by top package",
+    )
+    parser.add_argument(
+        "--viewer", default="", help="pyi-archive_viewer, when it is not beside this Python or on the PATH"
+    )
+    parser.add_argument(
+        "--modules", action="store_true", help="with --pyi-archive: every module of the archive, one line each"
+    )
+    parser.add_argument(
+        "--absent", action="append", default=[], metavar="NAME", help="fail when NAME is there (repeatable)"
+    )
     parser.add_argument("--title", default="", help="the heading of the printout")
     args = parser.parse_args(argv)
     if args.depth < 1:

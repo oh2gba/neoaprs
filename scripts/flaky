@@ -16,6 +16,7 @@
 Each run uses one of four settings (runner or half size, file order or shuffled). The report goes to
 FOLDER/report.txt. Exit code: 0 all passed, 1 a test failed or a run hung, 2 docker or git missing.
 """
+
 import argparse
 import concurrent.futures
 import importlib.machinery
@@ -45,14 +46,17 @@ WIDTH = "200"
 HUNG_GRACE_SEC = 30.0
 # Lines of the faulthandler_timeout stack shown in the report.
 STACK_LINES = 40
-LOG_TAIL_LINES = 12                                     # log lines of a run that missed the tests
+LOG_TAIL_LINES = 12  # log lines of a run that missed the tests
 
 # What scripts/check puts before each output line of a failed stage.
 STAGE_PREFIX = "      | "
 # A test id may have spaces in its brackets.
 FAILED = re.compile(r"^(?:      \| )?(?:FAILED|ERROR) ([^\s\[]+(?:\[.*?\])?)(?: - (.*))?$", re.M)
 OVER_LIMIT = re.compile(r"^(?:      \| )?(.+?) ran over its time limit of (\S+) s", re.M)
-SUMMARY = re.compile(r"^(?:      \| )?(?:=+ )?((?:\d+ (?:failed|passed|skipped|error|errors|xfailed|xpassed|warnings?|deselected|rerun)(?:, )?)+) in [\d.]+s", re.M)
+SUMMARY = re.compile(
+    r"^(?:      \| )?(?:=+ )?((?:\d+ (?:failed|passed|skipped|error|errors|xfailed|xpassed|warnings?|deselected|rerun)(?:, )?)+) in [\d.]+s",
+    re.M,
+)
 
 
 def load_container() -> ModuleType:
@@ -72,9 +76,10 @@ def say(text: str) -> None:
 @dataclass(frozen=True)
 class Plan:
     """What run `number` (from 0) does."""
+
     number: int
     starved: bool
-    seed: int | None                                    # the shuffle's seed, None for the order of the files
+    seed: int | None  # the shuffle's seed, None for the order of the files
 
     @property
     def setting(self) -> str:
@@ -89,7 +94,11 @@ def plan(number: int) -> Plan:
 def command(run: Plan, ci_commands: Sequence[str]) -> list[str]:
     """Return the container command: the CI's install and tests, with the shuffle seed."""
     install, tests = ci_commands[0], ci_commands[-1]
-    options = f"PYTEST_ADDOPTS={shlex.quote(f'-p tests.support.shuffle --shuffle-seed {run.seed}')} " if run.seed is not None else ""
+    options = (
+        f"PYTEST_ADDOPTS={shlex.quote(f'-p tests.support.shuffle --shuffle-seed {run.seed}')} "
+        if run.seed is not None
+        else ""
+    )
     return ["bash", "-c", f"{install} && COLUMNS={WIDTH} {options}{tests}"]
 
 
@@ -99,11 +108,11 @@ class Result:
     code: int = 0
     seconds: float = 0.0
     hung: bool = False
-    failures: dict[str, str] = field(default_factory=dict)      # test -> its first failing line
+    failures: dict[str, str] = field(default_factory=dict)  # test -> its first failing line
     # pytest's last line ("2 failed, 9000 passed"), when it got that far
     summary: str = ""
     log: Path = Path()
-    stack: list[str] = field(default_factory=list)              # what faulthandler_timeout printed, for a run that hung
+    stack: list[str] = field(default_factory=list)  # what faulthandler_timeout printed, for a run that hung
     # the end of the log, for a run that did not reach the tests
     tail: list[str] = field(default_factory=list)
 
@@ -128,9 +137,9 @@ def read_log(text: str, result: Result) -> None:
     lines = [line.removeprefix(STAGE_PREFIX) for line in text.splitlines()]
     fired = [index for index, line in enumerate(lines) if line.startswith("Timeout (")]
     if fired:
-        rest = lines[fired[-1]:fired[-1] + STACK_LINES]
+        rest = lines[fired[-1] : fired[-1] + STACK_LINES]
         # the dump ends at the first empty line
-        result.stack = rest[:next((index for index, line in enumerate(rest) if not line.strip()), len(rest))]
+        result.stack = rest[: next((index for index, line in enumerate(rest) if not line.strip()), len(rest))]
     if not result.summary and not result.failures and (result.code != 0 or result.hung):
         result.tail = [line for line in lines if line.strip()][-LOG_TAIL_LINES:]
 
@@ -226,11 +235,22 @@ def report(results: list[Result]) -> list[str]:
     for result in results:
         what = "hung" if result.hung else "had a test that ran over two minutes"
         if result.stack:
-            lines += ["", f"run {result.run.number + 1} {what} ({result.run.setting}); the stack that faulthandler_timeout printed last:", *(f"    {line}" for line in result.stack)]
+            lines += [
+                "",
+                f"run {result.run.number + 1} {what} ({result.run.setting}); the stack that faulthandler_timeout printed last:",
+                *(f"    {line}" for line in result.stack),
+            ]
         elif result.hung:
-            lines += ["", f"run {result.run.number + 1} hung ({result.run.setting}) with no stack in its log: the log is {result.log}"]
+            lines += [
+                "",
+                f"run {result.run.number + 1} hung ({result.run.setting}) with no stack in its log: the log is {result.log}",
+            ]
         if result.tail:
-            lines += ["", f"run {result.run.number + 1} did not get to the tests (exit {result.code}); the end of its log:", *(f"    {line}" for line in result.tail)]
+            lines += [
+                "",
+                f"run {result.run.number + 1} did not get to the tests (exit {result.code}); the end of its log:",
+                *(f"    {line}" for line in result.tail),
+            ]
     green = sum(1 for result in results if result.word == "ok")
     lines += ["", f"{green} of {len(results)} runs green; {len(count)} tests failed in at least one run"]
     return lines
@@ -243,11 +263,25 @@ def default_parallel(container: ModuleType) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="flaky", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog="flaky", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--runs", type=int, default=DEFAULT_RUNS, help="the number of runs (default 20)")
-    parser.add_argument("--parallel", type=int, default=None, help="containers at once (default: groups of four threads, at most 4)")
-    parser.add_argument("--limit-minutes", type=float, default=DEFAULT_LIMIT_MINUTES, help="a run longer than this is ended and listed as hung (default 45)")
-    parser.add_argument("--out", type=Path, default=ROOT / "build" / "flaky", help="the folder of the logs and the report (default build/flaky)")
+    parser.add_argument(
+        "--parallel", type=int, default=None, help="containers at once (default: groups of four threads, at most 4)"
+    )
+    parser.add_argument(
+        "--limit-minutes",
+        type=float,
+        default=DEFAULT_LIMIT_MINUTES,
+        help="a run longer than this is ended and listed as hung (default 45)",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=ROOT / "build" / "flaky",
+        help="the folder of the logs and the report (default build/flaky)",
+    )
     args = parser.parse_args(argv)
     if args.runs < 1 or args.limit_minutes <= 0 or (args.parallel is not None and args.parallel < 1):
         parser.error("--runs and --parallel are 1 or more, --limit-minutes more than 0")
@@ -270,7 +304,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     say(f"{args.runs} runs, {parallel} at a time, each under {args.limit_minutes:g} minutes; logs in {args.out}")
     results: list[Result] = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=parallel) as pool:
-        futures = [pool.submit(execute, plan(number), container.CI_COMMANDS, args.out, args.limit_minutes * 60, runs) for number in range(args.runs)]
+        futures = [
+            pool.submit(execute, plan(number), container.CI_COMMANDS, args.out, args.limit_minutes * 60, runs)
+            for number in range(args.runs)
+        ]
         for future in concurrent.futures.as_completed(futures):
             results.append(future.result())
             print(run_line(results[-1]), flush=True)
@@ -279,7 +316,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 130
     lines = report(results)
     (args.out / "report.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(*lines[len(results):], sep="\n")
+    print(*lines[len(results) :], sep="\n")
     return 0 if all(result.word == "ok" for result in results) else 1
 
 

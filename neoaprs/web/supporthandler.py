@@ -3,6 +3,7 @@
 The body is `{"page": {...}}`, at most 256 KB; the route is protected like the page's socket.
 One bundle is made at a time (a second gets 429). The latest is kept for an hour for Send.
 """
+
 import asyncio
 import json
 import logging
@@ -61,9 +62,22 @@ class Bundler:
 
             def build() -> tuple[str, bytes]:
                 from neoaprs.cli.supportmake import make_bundle
+
                 with tempfile.TemporaryDirectory(prefix="neoaprs-support-") as folder:
-                    made = make_bundle(ctl.data_dir, Path(folder), live=live, page=page, page_errors=recorded, install=ctl.install, running=True, by="the running daemon, asked by the page", now=ctl.clock, call=ctl.config.station_call)
+                    made = make_bundle(
+                        ctl.data_dir,
+                        Path(folder),
+                        live=live,
+                        page=page,
+                        page_errors=recorded,
+                        install=ctl.install,
+                        running=True,
+                        by="the running daemon, asked by the page",
+                        now=ctl.clock,
+                        call=ctl.config.station_call,
+                    )
                     return made.path.name, made.path.read_bytes()
+
             return await asyncio.to_thread(build)
         finally:
             self.busy = False
@@ -79,7 +93,11 @@ class SupportBundle(SecurityHeaders):
         self.size = 0
 
     def prepare(self) -> None:
-        if refuse_foreign_host(self, self.server) or refuse_plain(self, self.server) or refuse_unless_logged_in(self, self.server):
+        if (
+            refuse_foreign_host(self, self.server)
+            or refuse_plain(self, self.server)
+            or refuse_unless_logged_in(self, self.server)
+        ):
             return
         refuse_foreign_origin(self.request)
         widen = getattr(self.request.connection, "set_max_body_size", None)
@@ -113,7 +131,9 @@ class SupportBundle(SecurityHeaders):
             return await self.server.bundles.make(page)
         except Exception:
             log.exception("the support bundle for the page could not be made")
-            raise tornado.web.HTTPError(500, reason="Internal Server Error: the support bundle could not be made, the log says why") from None
+            raise tornado.web.HTTPError(
+                500, reason="Internal Server Error: the support bundle could not be made, the log says why"
+            ) from None
 
     async def post(self) -> None:
         page = self.json_body()["page"]

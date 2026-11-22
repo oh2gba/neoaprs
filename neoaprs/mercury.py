@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from .coded import CodedError
+
 # re-exported
 from .mercurycards import (
     PAIR as PAIR,
@@ -51,11 +52,22 @@ BUSY_HOLD_MAX_SEC = 20.0
 LEADIN_MS = 150
 
 # (band in metres, dial in MHz), USB; proposals in the IARU Region 1 digimode segments
-FREQUENCIES: tuple[tuple[int, str], ...] = ((80, "3.5850"), (40, "7.0541"), (30, "10.1462"), (20, "14.1070"), (6, "50.6200"))
+FREQUENCIES: tuple[tuple[int, str], ...] = (
+    (80, "3.5850"),
+    (40, "7.0541"),
+    (30, "10.1462"),
+    (20, "14.1070"),
+    (6, "50.6200"),
+)
 DIAL_BAND = 40  # the band the page shows
 DIAL_TEXT = f"{dict(FREQUENCIES)[DIAL_BAND]} MHz USB"
 
-SUGGESTED: tuple[tuple[str, str], ...] = (("80 m", "3.5850 MHz USB"), ("40 m", "7.0541 MHz USB"), ("20 m", "14.1070 MHz USB"), ("6 m", "50.6200 MHz USB"))
+SUGGESTED: tuple[tuple[str, str], ...] = (
+    ("80 m", "3.5850 MHz USB"),
+    ("40 m", "7.0541 MHz USB"),
+    ("20 m", "14.1070 MHz USB"),
+    ("6 m", "50.6200 MHz USB"),
+)
 
 PTT_KINDS = ("vox", "cm108", "rts", "dtr")
 # these name a port after a colon: `rts:/dev/ttyUSB0`
@@ -92,6 +104,7 @@ def speaker_audio(capture_fifo: str, playback_fifo: str) -> list[str]:
 @dataclass(frozen=True)
 class Keying:
     """How the radio is keyed (setting `mercury/keying`)."""
+
     kind: str
     device: str = ""
 
@@ -109,8 +122,18 @@ def keying_of(text: str) -> Keying:
     kind, _, device = value.partition(":")
     kind, device = kind.strip().lower(), device.strip()
     # a port is one word, so it cannot add a line to a configuration
-    if kind not in PTT_KINDS or (kind in PTT_WITH_DEVICE) != bool(device) or len(device) > 255 or not device.isprintable() or any(c.isspace() for c in device):
-        raise CodedError(f"{text!r} is not a way of keying the radio: vox, cm108, rts:PORT or dtr:PORT", "setting.not_keying", value=text)
+    if (
+        kind not in PTT_KINDS
+        or (kind in PTT_WITH_DEVICE) != bool(device)
+        or len(device) > 255
+        or not device.isprintable()
+        or any(c.isspace() for c in device)
+    ):
+        raise CodedError(
+            f"{text!r} is not a way of keying the radio: vox, cm108, rts:PORT or dtr:PORT",
+            "setting.not_keying",
+            value=text,
+        )
     return Keying(kind, device)
 
 
@@ -134,9 +157,28 @@ def ports_from(broadcast_port: int) -> tuple[int, int]:
     return broadcast_port, broadcast_port + CONTROL_OFFSET
 
 
-def command(program: Sequence[str], config_file: str, sound_card: str, keying: Keying, broadcast_port: int = BROADCAST_PORT, control_port: int = CONTROL_PORT, audio: Sequence[str] = ()) -> list[str]:
+def command(
+    program: Sequence[str],
+    config_file: str,
+    sound_card: str,
+    keying: Keying,
+    broadcast_port: int = BROADCAST_PORT,
+    control_port: int = CONTROL_PORT,
+    audio: Sequence[str] = (),
+) -> list[str]:
     """Return the command line that starts Mercury; `audio` replaces the sound card."""
-    argv = [*program, "-C", config_file, "-m", str(MODE_INDEX), "-b", str(broadcast_port), "-p", str(control_port), *audio]
+    argv = [
+        *program,
+        "-C",
+        config_file,
+        "-m",
+        str(MODE_INDEX),
+        "-b",
+        str(broadcast_port),
+        "-p",
+        str(control_port),
+        *audio,
+    ]
     capture, playback = endpoints(sound_card) if not audio else ("", "")
     if capture:
         argv += ["-i", capture]
@@ -156,20 +198,22 @@ def ini_text(keying: Keying, tx_gain_db: int = 0, ui_port: int = 0) -> str:
     line = keying.kind if keying.kind in PTT_WITH_DEVICE else "rts"
     leadin = f"tx_leadin_ms = {LEADIN_MS}\n" if keying.kind == "vox" else ""
     ui = f"[main]\nui_enabled = true\nui_port = {ui_port}\nwaterfall_enabled = false\n" if ui_port else ""
-    return ("; written by NeoAPRS at every start; the command line carries the rest\n"
-            "[ptt]\n"
-            f"line = {line}\n"
-            f"{ui}"
-            "[audio]\n"
-            f"tx_gain_db = {tx_gain_db}\n"
-            f"{leadin}"
-            "[channel]\n"
-            "busy_detect = true\n"
-            f"busy_threshold_db = {BUSY_THRESHOLD_DB}\n"
-            "[store]\n"
-            "enabled = false\n"
-            "[tnc]\n"
-            "keepalive_s = 10\n")
+    return (
+        "; written by NeoAPRS at every start; the command line carries the rest\n"
+        "[ptt]\n"
+        f"line = {line}\n"
+        f"{ui}"
+        "[audio]\n"
+        f"tx_gain_db = {tx_gain_db}\n"
+        f"{leadin}"
+        "[channel]\n"
+        "busy_detect = true\n"
+        f"busy_threshold_db = {BUSY_THRESHOLD_DB}\n"
+        "[store]\n"
+        "enabled = false\n"
+        "[tnc]\n"
+        "keepalive_s = 10\n"
+    )
 
 
 @dataclass(frozen=True)
@@ -214,11 +258,20 @@ def card_reason(card: str, setting: str, cards: Sequence[SoundCard]) -> str:
 
 def propose_sound_card(cards: Sequence[SoundCard]) -> str:
     """Return the sound card id the page proposes when the setting is empty."""
-    return choose_sound_card(cards) or next((c.id for c in cards if c.default), "") or next((c.id for c in cards if c.playback and c.capture), "") or (cards[0].id if cards else "")
+    return (
+        choose_sound_card(cards)
+        or next((c.id for c in cards if c.default), "")
+        or next((c.id for c in cards if c.playback and c.capture), "")
+        or (cards[0].id if cards else "")
+    )
 
 
 def radio_serial_ports(ports: Sequence[SerialPort]) -> list[SerialPort]:
-    return [p for p in ports if p.vid is not None and p.vid in _RADIO_SERIAL_VID and not p.device.lower().startswith(("bt://", "ble://"))]
+    return [
+        p
+        for p in ports
+        if p.vid is not None and p.vid in _RADIO_SERIAL_VID and not p.device.lower().startswith(("bt://", "ble://"))
+    ]
 
 
 def choose_keying(card_name: str, ports: Sequence[SerialPort]) -> Keying:
@@ -295,6 +348,6 @@ def split_control_lines(buffer: bytearray) -> list[str]:
         if cut < 0:
             return lines
         line = bytes(buffer[:cut]).decode("ascii", "replace").strip()
-        del buffer[:cut + 1]
+        del buffer[: cut + 1]
         if line:
             lines.append(line)

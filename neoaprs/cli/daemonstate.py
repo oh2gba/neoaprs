@@ -2,6 +2,7 @@
 
 That is: whether one holds the data folder's lock, where its page is (the address file, else the
 log line "web page at ..."), whether the page answers, and the end of its log."""
+
 import http.client
 import urllib.error
 import urllib.request
@@ -17,7 +18,7 @@ from neoaprs.supportsql import open_readonly
 
 from .logfile import LOG_NAME, PAGE_LINE, START_LINE, read_page
 
-SCAN_BYTES = 256 * 1024                  # tail of the log searched for the page address
+SCAN_BYTES = 256 * 1024  # tail of the log searched for the page address
 PROBE_SEC = 2.0
 # The page is local, so an environment proxy must not be used.
 LOCAL_ONLY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -52,7 +53,7 @@ def page_url(data_dir: Path) -> str | None:
     found: str | None = None
     for line in tail(data_dir / LOG_NAME, 100_000):
         if START_LINE in line:
-            found = None                                   # a new run supersedes earlier lines
+            found = None  # a new run supersedes earlier lines
         match = PAGE_LINE.search(line)
         if match:
             found = match.group(1)

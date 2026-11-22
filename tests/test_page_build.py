@@ -2,6 +2,7 @@
 The first tests look at page/ alone; the last builds ui/ into a temporary folder and compares, and
 is skipped without node.
 """
+
 import hashlib
 import os
 import re
@@ -19,20 +20,36 @@ VITE = UI / "node_modules" / ".bin" / "vite"
 HINT = "run scripts/build-page and commit neoaprs/page/"
 
 SHIPPED = (
-    "symbols/primary.png", "symbols/alternate.png", "symbols/overlay.png", "symbols/SOURCE.txt", "symbols/COPYRIGHT.txt",
-    "fonts/NotoSans-Regular/0-255.pbf", "fonts/NotoSans-Medium/0-255.pbf", "fonts/OFL.txt",
+    "symbols/primary.png",
+    "symbols/alternate.png",
+    "symbols/overlay.png",
+    "symbols/SOURCE.txt",
+    "symbols/COPYRIGHT.txt",
+    "fonts/NotoSans-Regular/0-255.pbf",
+    "fonts/NotoSans-Medium/0-255.pbf",
+    "fonts/OFL.txt",
     # The desktop app's window asks for it at every start: without it the log said 404 each time
     "favicon.ico",
-    "manifest.webmanifest", "sw.js", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
+    "manifest.webmanifest",
+    "sw.js",
+    "icons/icon.svg",
+    "icons/icon-192.png",
+    "icons/icon-512.png",
+    "icons/icon-maskable-512.png",
+    "icons/apple-touch-icon.png",
 )
 
 
 def tree(folder: Path) -> dict[str, str]:
     """Every file under `folder` (relative path) with the hash of its content."""
-    return {p.relative_to(folder).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(folder.rglob("*")) if p.is_file()}
+    return {
+        p.relative_to(folder).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sorted(folder.rglob("*"))
+        if p.is_file()
+    }
 
 
-NODE_NEEDED = (22, 12)                                   # what the page's build tools need (as scripts/check)
+NODE_NEEDED = (22, 12)  # what the page's build tools need (as scripts/check)
 
 
 def node_version(node: str) -> tuple[int, ...]:
@@ -50,10 +67,15 @@ def node_dir() -> str | None:
     if found and node_version(found) >= NODE_NEEDED:
         return str(Path(found).parent)
     if sys.platform == "win32":
-        return None                                      # (no nvm there, and no pwd)
+        return None  # (no nvm there, and no pwd)
     import pwd
+
     versions = Path(pwd.getpwuid(os.getuid()).pw_dir) / ".nvm" / "versions" / "node"
-    newest = sorted(versions.glob("v*/bin/node"), key=lambda p: [int(n) for n in re.findall(r"\d+", p.parent.parent.name)]) if versions.is_dir() else []
+    newest = (
+        sorted(versions.glob("v*/bin/node"), key=lambda p: [int(n) for n in re.findall(r"\d+", p.parent.parent.name)])
+        if versions.is_dir()
+        else []
+    )
     return str(newest[-1].parent) if newest and node_version(str(newest[-1])) >= NODE_NEEDED else None
 
 
@@ -64,9 +86,13 @@ def test_the_built_page_is_there_and_works_from_any_path() -> None:
     refs = [r for r in re.findall(r'(?:src|href)="([^"]+)"', html) if not r.startswith("data:")]
     assert refs, "index.html names no script and no style sheet"
     for ref in refs:
-        assert ref.startswith("./"), f"{ref}: a path from the root of the site would break the page behind a prefix; the build must use base './'"
+        assert ref.startswith("./"), (
+            f"{ref}: a path from the root of the site would break the page behind a prefix; the build must use base './'"
+        )
         assert ref[2:] in files, f"{ref} is named in index.html but is not in page/: {HINT}"
-    assert all(re.search(r"-[\w-]{8}\.(m?js|css)$", name) for name in files if name.startswith("assets/")), "the files in assets/ carry the hash of their content"
+    assert all(re.search(r"-[\w-]{8}\.(m?js|css)$", name) for name in files if name.startswith("assets/")), (
+        "the files in assets/ carry the hash of their content"
+    )
 
 
 def test_the_page_lives_under_the_content_security_policy_of_the_daemon() -> None:
@@ -75,10 +101,16 @@ def test_the_page_lives_under_the_content_security_policy_of_the_daemon() -> Non
     html = (PAGE / "index.html").read_text(encoding="utf-8")
     assert not re.search(r"<script(?![^>]*\bsrc=)", html), "an inline script is not allowed by script-src 'self'"
     assert not re.search(r"\son\w+=", html), "an inline event handler is not allowed"
-    assert not re.search(r"https?://", html.replace("http://www.w3.org/2000/svg", "")), "the shell names an address that is not the page's own"
+    assert not re.search(r"https?://", html.replace("http://www.w3.org/2000/svg", "")), (
+        "the shell names an address that is not the page's own"
+    )
     files = tree(PAGE)
-    assert any(re.fullmatch(r"assets/maplibre-gl-worker-[\w-]{8}\.mjs", n) for n in files), "the map's worker file is not in page/assets: MapLibre would make one from a blob, which the policy forbids"
-    assert not any(n.endswith(".map") or any(part.startswith(".") for part in n.split("/")) for n in files), "the daemon serves no source map and nothing whose name begins with a dot"
+    assert any(re.fullmatch(r"assets/maplibre-gl-worker-[\w-]{8}\.mjs", n) for n in files), (
+        "the map's worker file is not in page/assets: MapLibre would make one from a blob, which the policy forbids"
+    )
+    assert not any(n.endswith(".map") or any(part.startswith(".") for part in n.split("/")) for n in files), (
+        "the daemon serves no source map and nothing whose name begins with a dot"
+    )
 
 
 def test_the_files_the_page_reads_at_run_time_are_shipped() -> None:
@@ -95,7 +127,10 @@ def test_the_worker_is_named_by_the_files_of_the_page_it_belongs_to() -> None:
     committed files, which finds a page/ that was edited by hand or built from another ui/ without
     node."""
     hash_ = hashlib.sha256()
-    for path in sorted((p for p in PAGE.rglob("*") if p.is_file() and p.relative_to(PAGE).as_posix() != "sw.js"), key=lambda p: p.relative_to(PAGE).as_posix().encode()):
+    for path in sorted(
+        (p for p in PAGE.rglob("*") if p.is_file() and p.relative_to(PAGE).as_posix() != "sw.js"),
+        key=lambda p: p.relative_to(PAGE).as_posix().encode(),
+    ):
         hash_.update(path.relative_to(PAGE).as_posix().encode() + b"\0" + path.read_bytes() + b"\0")
     worker = (PAGE / "sw.js").read_text(encoding="utf-8")
     assert f'const BUILD = "{hash_.hexdigest()[:10]}";' in worker, f"sw.js does not name the files of page/: {HINT}"
@@ -107,19 +142,31 @@ def test_nothing_of_the_page_reads_the_version_of_neoaprs() -> None:
     page."""
     build = [UI / "vite.config.ts", UI / "env.d.ts", *(p for p in (UI / "sw").rglob("*") if p.is_file())]
     for source in build:
-        assert "__init__.py" not in source.read_text(encoding="utf-8"), f"{source.relative_to(ROOT)} reads the version of NeoAPRS: the page learns it from hello"
+        assert "__init__.py" not in source.read_text(encoding="utf-8"), (
+            f"{source.relative_to(ROOT)} reads the version of NeoAPRS: the page learns it from hello"
+        )
     for source in (p for p in (UI / "src").rglob("*") if p.suffix in (".ts", ".vue") and ".test." not in p.name):
-        assert "PAGE_VERSION" not in source.read_text(encoding="utf-8"), f"{source.relative_to(ROOT)} has the version of NeoAPRS built in: the page learns it from hello"
+        assert "PAGE_VERSION" not in source.read_text(encoding="utf-8"), (
+            f"{source.relative_to(ROOT)} has the version of NeoAPRS built in: the page learns it from hello"
+        )
 
 
-@pytest.mark.skipif(node_dir() is None, reason="no node 22.12 or newer (on the PATH or in ~/.nvm): the page is not rebuilt to compare")
-@pytest.mark.skipif(not VITE.exists(), reason="ui/node_modules is not installed (cd ui && npm ci): the page is not rebuilt to compare")
+@pytest.mark.skipif(
+    node_dir() is None, reason="no node 22.12 or newer (on the PATH or in ~/.nvm): the page is not rebuilt to compare"
+)
+@pytest.mark.skipif(
+    not VITE.exists(), reason="ui/node_modules is not installed (cd ui && npm ci): the page is not rebuilt to compare"
+)
 def test_the_page_is_what_the_source_builds(tmp_path: Path) -> None:
     fresh_dir = tmp_path / "fresh"
     env = {**os.environ, "PATH": f"{node_dir()}{os.pathsep}{os.environ['PATH']}", "NEOAPRS_OUT": str(fresh_dir)}
-    r = subprocess.run([str(VITE), "build", "--logLevel", "error"], cwd=UI, env=env, capture_output=True, text=True, timeout=300)
+    r = subprocess.run(
+        [str(VITE), "build", "--logLevel", "error"], cwd=UI, env=env, capture_output=True, text=True, timeout=300
+    )
     assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
     fresh, kept = tree(fresh_dir), tree(PAGE)
-    assert sorted(fresh) == sorted(kept), f"page/ and a fresh build have different files: only built {sorted(set(fresh) - set(kept))}, only in page/ {sorted(set(kept) - set(fresh))}; {HINT}"
+    assert sorted(fresh) == sorted(kept), (
+        f"page/ and a fresh build have different files: only built {sorted(set(fresh) - set(kept))}, only in page/ {sorted(set(kept) - set(fresh))}; {HINT}"
+    )
     stale = [name for name in fresh if fresh[name] != kept[name]]
     assert not stale, f"page/ is out of date ({', '.join(stale)}): {HINT}"

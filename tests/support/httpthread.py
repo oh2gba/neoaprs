@@ -1,4 +1,5 @@
 """A small HTTP server of a test, served on a thread of its own."""
+
 import socketserver
 import threading
 

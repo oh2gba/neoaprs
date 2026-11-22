@@ -1,6 +1,7 @@
 """How this copy was installed (neoaprs/versions.py `install_kind`, neoaprs/cli/installkind.py): the
 kind from what the process can see, with the facts faked in a folder of the test; and what the page
 is told of it in `hello`."""
+
 import sys
 from typing import get_args
 from pathlib import Path
@@ -8,31 +9,44 @@ from pathlib import Path
 import pytest
 
 from neoaprs.cli import installkind
-from neoaprs.cli.installkind import DEB_PREFIX, app_bundle_environment, deb_environment, detect, is_checkout, service_set, uv_tool_environment
+from neoaprs.cli.installkind import (
+    DEB_PREFIX,
+    app_bundle_environment,
+    deb_environment,
+    detect,
+    is_checkout,
+    service_set,
+    uv_tool_environment,
+)
 from neoaprs.versions import InstallInfo, InstallKind, install_kind
 from tests.support.env import Env
 
 INSTALL_KINDS = get_args(InstallKind)
 
 
-@pytest.mark.parametrize("frozen, appimage, bundle, deb, checkout, uv_tool, kind", [
-    (True, None, False, False, False, False, "windows-installer"),
-    # (a frozen program is the installer's whatever else holds)
-    (True, "/x/NeoAPRS.AppImage", True, True, True, True, "windows-installer"),
-    (False, "/home/u/NeoAPRS.AppImage", False, False, False, False, "appimage"),
-    (False, "/home/u/NeoAPRS.AppImage", True, True, True, True, "appimage"),
-    (False, None, True, False, False, False, "macos-app"),
-    # (the app's Python is in no clone and no tool folder, but the bundle decides)
-    (False, None, True, True, True, True, "macos-app"),
-    (False, None, False, True, False, False, "deb"),
-    (False, None, False, True, True, True, "deb"),
-    (False, None, False, False, True, False, "source"),
-    # (a clone made with `uv sync` has a uv environment too)
-    (False, None, False, False, True, True, "source"),
-    (False, None, False, False, False, True, "uv-tool"),
-    (False, None, False, False, False, False, "pip"),
-])
-def test_the_kind_follows_what_the_process_can_see_in_this_order(frozen: bool, appimage: str | None, bundle: bool, deb: bool, checkout: bool, uv_tool: bool, kind: str) -> None:
+@pytest.mark.parametrize(
+    "frozen, appimage, bundle, deb, checkout, uv_tool, kind",
+    [
+        (True, None, False, False, False, False, "windows-installer"),
+        # (a frozen program is the installer's whatever else holds)
+        (True, "/x/NeoAPRS.AppImage", True, True, True, True, "windows-installer"),
+        (False, "/home/u/NeoAPRS.AppImage", False, False, False, False, "appimage"),
+        (False, "/home/u/NeoAPRS.AppImage", True, True, True, True, "appimage"),
+        (False, None, True, False, False, False, "macos-app"),
+        # (the app's Python is in no clone and no tool folder, but the bundle decides)
+        (False, None, True, True, True, True, "macos-app"),
+        (False, None, False, True, False, False, "deb"),
+        (False, None, False, True, True, True, "deb"),
+        (False, None, False, False, True, False, "source"),
+        # (a clone made with `uv sync` has a uv environment too)
+        (False, None, False, False, True, True, "source"),
+        (False, None, False, False, False, True, "uv-tool"),
+        (False, None, False, False, False, False, "pip"),
+    ],
+)
+def test_the_kind_follows_what_the_process_can_see_in_this_order(
+    frozen: bool, appimage: str | None, bundle: bool, deb: bool, checkout: bool, uv_tool: bool, kind: str
+) -> None:
     assert install_kind(frozen, appimage, deb, checkout, uv_tool, bundle) == kind
     assert kind in INSTALL_KINDS
 
@@ -44,7 +58,9 @@ def test_there_are_seven_kinds() -> None:
 def test_the_macos_app_is_the_python_laid_out_as_resources_of_a_bundle_with_its_info_plist(tmp_path: Path) -> None:
     resources = tmp_path / "Applications" / "NeoAPRS.app" / "Contents" / "Resources"
     resources.mkdir(parents=True)
-    assert not app_bundle_environment(str(resources)), "a folder that only looks like a bundle is none without Info.plist"
+    assert not app_bundle_environment(str(resources)), (
+        "a folder that only looks like a bundle is none without Info.plist"
+    )
     (resources.parent / "Info.plist").write_text("<plist/>", encoding="utf-8")
     assert app_bundle_environment(str(resources))
     assert not app_bundle_environment(str(resources.parent)), "Contents is not the prefix"
@@ -59,7 +75,9 @@ def test_the_deb_is_the_python_of_opt_neoaprs(tmp_path: Path) -> None:
     assert not deb_environment("/usr")
     (tmp_path / "real").mkdir()
     (tmp_path / "link").symlink_to(tmp_path / "real")
-    assert deb_environment(str(tmp_path / "link"), str(tmp_path / "real")), "a prefix that is a link to the folder is the folder"
+    assert deb_environment(str(tmp_path / "link"), str(tmp_path / "real")), (
+        "a prefix that is a link to the folder is the folder"
+    )
 
 
 def test_a_uv_tool_environment_has_the_receipt_or_is_in_the_tool_folder(tmp_path: Path) -> None:
@@ -103,11 +121,25 @@ def test_detect_puts_the_facts_together_and_names_the_appimage_file_only_for_an_
     resources.mkdir(parents=True)
     (resources.parent / "Info.plist").write_text("<plist/>", encoding="utf-8")
     assert detect(False, None, str(resources), None, False, {}, "arm64") == InstallInfo("macos-app", "", False, "arm64")
-    assert detect(False, None, str(resources), None, True, {}, "x86_64") == InstallInfo("macos-app", "", True, ""), "an Intel Mac has no file of the release"
+    assert detect(False, None, str(resources), None, True, {}, "x86_64") == InstallInfo("macos-app", "", True, ""), (
+        "an Intel Mac has no file of the release"
+    )
 
 
-@pytest.mark.parametrize("machine, arch", [("x86_64", "amd64"), ("AMD64", "amd64"), ("aarch64", "arm64"), ("arm64", "arm64"), ("armv7l", ""), ("riscv64", "")])
-def test_a_deb_install_names_the_architecture_of_its_package_and_no_other_kind_does(machine: str, arch: str, tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "machine, arch",
+    [
+        ("x86_64", "amd64"),
+        ("AMD64", "amd64"),
+        ("aarch64", "arm64"),
+        ("arm64", "arm64"),
+        ("armv7l", ""),
+        ("riscv64", ""),
+    ],
+)
+def test_a_deb_install_names_the_architecture_of_its_package_and_no_other_kind_does(
+    machine: str, arch: str, tmp_path: Path
+) -> None:
     assert detect(False, None, DEB_PREFIX, None, True, {}, machine) == InstallInfo("deb", "", True, arch)
     assert detect(False, None, str(tmp_path / "venv"), None, True, {}, machine) == InstallInfo("pip", "", True, "")
 
@@ -148,7 +180,12 @@ async def test_a_page_is_told_how_the_daemon_was_installed_in_hello(tmp_path: Pa
     await e.start()
     page = await e.ws()
     hello = await page.expect("hello")
-    assert hello["install"] == {"kind": "appimage", "appimage": "/home/u/NeoAPRS-0.3.0-x86_64.AppImage", "service": True, "arch": ""}
+    assert hello["install"] == {
+        "kind": "appimage",
+        "appimage": "/home/u/NeoAPRS-0.3.0-x86_64.AppImage",
+        "service": True,
+        "arch": "",
+    }
     await e.stop()
 
 

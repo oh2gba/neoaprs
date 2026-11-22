@@ -18,6 +18,7 @@
 
 Exit code: the command's, 125 when docker failed, 2 when not set up. Needs docker and git.
 """
+
 import argparse
 import contextlib
 import fcntl
@@ -48,17 +49,20 @@ RUNNER_FILE = ROOT / "packaging" / "ci" / "runner.json"
 SYS_CPU = Path("/sys/devices/system/cpu")
 # The system's loader; its --help says which x86-64 levels run here.
 LOADER = Path("/lib64/ld-linux-x86-64.so.2")
-V3_SUPPORTED = "x86-64-v3 (supported"                # how its --help says v3 runs
+V3_SUPPORTED = "x86-64-v3 (supported"  # how its --help says v3 runs
 
-IMAGE = "neoaprs-ci"                                   # the tag is the Dockerfile's digest
+IMAGE = "neoaprs-ci"  # the tag is the Dockerfile's digest
 WORK = "/home/runner/work"
 TREE = "neoaprs"
 TRACKED = "tracked"
 # Files of access tokens begin like this and are never packed.
 NEVER_PACKED = ".secrets"
 # The caches all runs share; the last holds Mercury's source archive.
-VOLUMES = {"neoaprs-ci-uv": "/home/runner/.cache/uv", "neoaprs-ci-npm": "/home/runner/.npm",
-           "neoaprs-ci-build": "/home/runner/.cache/neoaprs-build"}
+VOLUMES = {
+    "neoaprs-ci-uv": "/home/runner/.cache/uv",
+    "neoaprs-ci-npm": "/home/runner/.npm",
+    "neoaprs-ci-build": "/home/runner/.cache/neoaprs-build",
+}
 # Label with the threads a container holds, so a concurrent run avoids them.
 CPUS_LABEL = "eu.oh2gba.neoaprs.check-cpus"
 SHM = "1g"  # docker's 64 MB is too little for Qt
@@ -70,11 +74,12 @@ CREATE_PATIENCE_SEC = 60.0
 @dataclass(frozen=True)
 class Size:
     """How much of the machine a container gets."""
+
     threads: int
     memory_gb: int
 
 
-RUNNER = Size(threads=4, memory_gb=16)                 # GitHub's Linux runner (public repository)
+RUNNER = Size(threads=4, memory_gb=16)  # GitHub's Linux runner (public repository)
 STARVED = Size(threads=2, memory_gb=7)
 
 # The commands of the job `python` of ci.yml; a test compares them.
@@ -127,6 +132,7 @@ def say(text: str) -> None:
 
 # ---- the threads a run gets ----
 
+
 def parse_cpu_list(text: str) -> tuple[int, ...]:
     """Return the thread numbers of the kernel's list ("0,16", "0-3")."""
     threads: list[int] = []
@@ -157,8 +163,23 @@ def choose_cpus(cores: Sequence[tuple[int, ...]], threads: int, taken: Iterable[
 
 
 def taken_cpus() -> list[int]:
-    done = subprocess.run(["docker", "ps", "--all", "--filter", f"label={CPUS_LABEL}", "--filter", "status=created", "--filter", "status=running", "--format", f'{{{{.Label "{CPUS_LABEL}"}}}}'],
-                          capture_output=True, text=True)
+    done = subprocess.run(
+        [
+            "docker",
+            "ps",
+            "--all",
+            "--filter",
+            f"label={CPUS_LABEL}",
+            "--filter",
+            "status=created",
+            "--filter",
+            "status=running",
+            "--format",
+            f'{{{{.Label "{CPUS_LABEL}"}}}}',
+        ],
+        capture_output=True,
+        text=True,
+    )
     threads: list[int] = []
     for line in done.stdout.split() if done.returncode == 0 else []:
         with contextlib.suppress(ValueError):
@@ -175,12 +196,13 @@ def start_lock() -> Iterator[None]:
     except OSError:
         yield
         return
-    with handle:                                        # closing releases the lock
+    with handle:  # closing releases the lock
         fcntl.flock(handle, fcntl.LOCK_EX)
         yield
 
 
 # ---- the tree that goes in ----
+
 
 class NotPacked(Exception):
     """The reason, in words for the user, why the tree cannot go in."""
@@ -200,7 +222,9 @@ def check_repository(root: Path) -> None:
     done = git(root, "rev-parse", "--show-toplevel")
     top = os.fsdecode(done.stdout.removesuffix(b"\n"))
     if done.returncode != 0 or not top or Path(top).resolve() != root.resolve():
-        raise NotPacked(f"{root} is not the working tree of a git repository (the tree that goes in is the one git lists)")
+        raise NotPacked(
+            f"{root} is not the working tree of a git repository (the tree that goes in is the one git lists)"
+        )
 
 
 def listed(root: Path, *flags: str) -> list[str]:
@@ -266,6 +290,7 @@ def pack(root: Path, out: IO[bytes]) -> None:
 
 # ---- docker ----
 
+
 def image_tag(dockerfile: Path = DOCKERFILE) -> str:
     return f"{IMAGE}:{hashlib.sha256(dockerfile.read_bytes()).hexdigest()[:12]}"
 
@@ -278,8 +303,29 @@ def docker_build(tag: str) -> list[str]:
 def docker_run(tag: str, size: Size, cpus: Sequence[int], commands: Sequence[str], cidfile: Path) -> list[str]:
     """Return the `docker run` command: removed on exit, pinned to CPUs and memory, tar on stdin."""
     cpu_set, memory = ",".join(str(cpu) for cpu in cpus), f"{size.memory_gb}g"
-    line = ["docker", "run", "--rm", "--interactive", "--init", "--pull", "never", "--cidfile", str(cidfile), "--label", f"{CPUS_LABEL}={cpu_set}",
-            "--cpuset-cpus", cpu_set, "--memory", memory, "--memory-swap", memory, "--shm-size", SHM, "--workdir", WORK]
+    line = [
+        "docker",
+        "run",
+        "--rm",
+        "--interactive",
+        "--init",
+        "--pull",
+        "never",
+        "--cidfile",
+        str(cidfile),
+        "--label",
+        f"{CPUS_LABEL}={cpu_set}",
+        "--cpuset-cpus",
+        cpu_set,
+        "--memory",
+        memory,
+        "--memory-swap",
+        memory,
+        "--shm-size",
+        SHM,
+        "--workdir",
+        WORK,
+    ]
     for name, value in ENVIRONMENT.items():
         line += ["--env", f"{name}={value}"]
     for volume, path in VOLUMES.items():
@@ -290,7 +336,12 @@ def docker_run(tag: str, size: Size, cpus: Sequence[int], commands: Sequence[str
 def ensure_image() -> str | None:
     """Return the image name, building it if missing; None if the build failed."""
     tag = image_tag()
-    if subprocess.run(["docker", "image", "inspect", tag], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode != 0:
+    if (
+        subprocess.run(
+            ["docker", "image", "inspect", tag], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        ).returncode
+        != 0
+    ):
         say(f"building {tag} from {DOCKERFILE.relative_to(ROOT)}")
         with DOCKERFILE.open("rb") as dockerfile:
             if subprocess.run(docker_build(tag), stdin=dockerfile, stdout=sys.stderr).returncode != 0:
@@ -314,7 +365,11 @@ class Container:
 
     def remove(self) -> None:
         if self.made():
-            subprocess.run(["docker", "rm", "--force", self.cidfile.read_text(encoding="ascii").strip()], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(
+                ["docker", "rm", "--force", self.cidfile.read_text(encoding="ascii").strip()],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
         elif self.client is not None and self.client.poll() is None:
             self.client.terminate()
 
@@ -328,10 +383,12 @@ class Container:
             signal.signal(number, self.stop)
         self.client = subprocess.Popen(line, stdin=tar, start_new_session=True)
         deadline = time.monotonic() + CREATE_PATIENCE_SEC
-        while not self.made() and self.client.poll() is None and self.stopped_by is None and time.monotonic() < deadline:
+        while (
+            not self.made() and self.client.poll() is None and self.stopped_by is None and time.monotonic() < deadline
+        ):
             time.sleep(0.05)
         if self.stopped_by is not None:
-            self.remove()                               # a signal that came before the client
+            self.remove()  # a signal that came before the client
 
     def wait(self) -> int:
         """Return the run's exit code: the command's, or 128 plus the signal number."""
@@ -355,6 +412,7 @@ def run(tag: str, size: Size, cores: Sequence[tuple[int, ...]], commands: Sequen
 
 
 # ---- this machine, what the image follows, and the images of other Dockerfiles ----
+
 
 def runs_v3(loader: Path = LOADER) -> bool:
     """Return whether the system's loader (`ld.so --help`) says x86-64-v3 programs run here."""
@@ -388,7 +446,9 @@ def size_bytes(text: str) -> int | None:
 
 def other_images(tag: str) -> list[tuple[str, int | None]] | None:
     """Return the images with another tag than `tag`, with sizes; None if docker fails."""
-    done = subprocess.run(["docker", "image", "ls", IMAGE, "--format", "{{.Tag}}\t{{.Size}}"], capture_output=True, text=True)
+    done = subprocess.run(
+        ["docker", "image", "ls", IMAGE, "--format", "{{.Tag}}\t{{.Size}}"], capture_output=True, text=True
+    )
     if done.returncode != 0:
         return None
     images = []
@@ -407,7 +467,9 @@ def gigabytes(images: Sequence[tuple[str, int | None]]) -> str:
 def say_other_images(tag: str) -> None:
     images = other_images(tag)
     if images:
-        say(f"{len(images)} other {IMAGE} image{'s' if len(images) != 1 else ''} on this machine, {gigabytes(images)} (--prune removes those no container uses)")
+        say(
+            f"{len(images)} other {IMAGE} image{'s' if len(images) != 1 else ''} on this machine, {gigabytes(images)} (--prune removes those no container uses)"
+        )
 
 
 def prune(tag: str) -> int:
@@ -419,27 +481,41 @@ def prune(tag: str) -> int:
     for image in images:
         done = subprocess.run(["docker", "image", "rm", image[0]], capture_output=True, text=True)
         (removed if done.returncode == 0 else kept).append(image)
-    say(f"removed {len(removed)} image{'s' if len(removed) != 1 else ''} of other Dockerfiles ({gigabytes(removed)})" + (f"; kept {len(kept)} that a container uses: {', '.join(name for name, _ in kept)}" if kept else ""))
+    say(
+        f"removed {len(removed)} image{'s' if len(removed) != 1 else ''} of other Dockerfiles ({gigabytes(removed)})"
+        + (f"; kept {len(kept)} that a container uses: {', '.join(name for name, _ in kept)}" if kept else "")
+    )
     return 0
 
 
 # ---- the command ----
 
+
 def split_command(argv: Sequence[str]) -> tuple[list[str], list[str]]:
     if "--" not in argv:
         return list(argv), []
     at = list(argv).index("--")
-    return list(argv[:at]), list(argv[at + 1:])
+    return list(argv[:at]), list(argv[at + 1 :])
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     own, command = split_command(sys.argv[1:] if argv is None else argv)
-    parser = argparse.ArgumentParser(prog="check-in-container", usage="scripts/check-in-container [--job python|sim] [--starved] [--image-only] [--prune] [-- COMMAND...]", description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--job", choices=sorted(CI_JOBS), default="python", help="the CI job whose commands are run (python by default)")
+    parser = argparse.ArgumentParser(
+        prog="check-in-container",
+        usage="scripts/check-in-container [--job python|sim] [--starved] [--image-only] [--prune] [-- COMMAND...]",
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--job", choices=sorted(CI_JOBS), default="python", help="the CI job whose commands are run (python by default)"
+    )
     parser.add_argument("--starved", action="store_true", help="half a runner: two threads of one core and 7 GB")
-    parser.add_argument("--image-only", action="store_true", help="build the image when it is missing, print its name and stop")
-    parser.add_argument("--prune", action="store_true", help="remove the images of other Dockerfiles that no container uses, and stop")
+    parser.add_argument(
+        "--image-only", action="store_true", help="build the image when it is missing, print its name and stop"
+    )
+    parser.add_argument(
+        "--prune", action="store_true", help="remove the images of other Dockerfiles that no container uses, and stop"
+    )
     args = parser.parse_args(own)
     for tool in ("docker", "git"):
         if shutil.which(tool) is None:
@@ -471,9 +547,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         say_other_images(tag)
         cores = read_cores()
         if not cores:
-            say(f"the cores of this machine are not listed in {SYS_CPU}: without them the container would get every thread")
+            say(
+                f"the cores of this machine are not listed in {SYS_CPU}: without them the container would get every thread"
+            )
             return NOT_SET_UP
-        return run(tag, STARVED if args.starved else RUNNER, cores, [shlex.join(command)] if command else list(CI_JOBS[args.job]), tar)
+        return run(
+            tag,
+            STARVED if args.starved else RUNNER,
+            cores,
+            [shlex.join(command)] if command else list(CI_JOBS[args.job]),
+            tar,
+        )
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 
 A fresh Windows installs a missing root only when a browser asks for one, so Python alone can fail
 certificate verification. Extra roots change no check: name, dates and chain are still verified."""
+
 import functools
 import http.client
 import logging
@@ -21,6 +22,7 @@ def https_context() -> ssl.SSLContext:
     context = ssl.create_default_context()
     try:
         import certifi
+
         context.load_verify_locations(cafile=certifi.where())
     except (ImportError, OSError) as e:
         log.info("the https requests trust the system's root certificates only: %s", e)
@@ -38,7 +40,15 @@ class NotDowngraded(urllib.request.HTTPRedirectHandler):
     def check(self, newurl: str) -> None:
         """Raise to refuse the address."""
 
-    def redirect_request(self, req: urllib.request.Request, fp: IO[bytes], code: int, msg: str, headers: http.client.HTTPMessage, newurl: str) -> urllib.request.Request | None:
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: IO[bytes],
+        code: int,
+        msg: str,
+        headers: http.client.HTTPMessage,
+        newurl: str,
+    ) -> urllib.request.Request | None:
         if req.full_url.startswith("https://") and not newurl.startswith("https://"):
             raise urllib.error.HTTPError(req.full_url, code, "redirect from https to http", headers, fp)
         self.check(newurl)

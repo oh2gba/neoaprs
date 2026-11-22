@@ -2,6 +2,7 @@
 (mercuryui.py) against a fake server: handshake and refusals, messages, commands, and the spectrum
 feed asked for only when wanted.
 """
+
 import asyncio
 import logging
 import struct
@@ -27,7 +28,9 @@ def test_a_frame_is_final_with_its_length_in_the_shortest_form_and_masked_when_g
     assert frame(BINARY, bytes(200))[:4] == b"\x82\x7e\x00\xc8"
     assert frame(BINARY, bytes(70000))[:10] == b"\x82\x7f" + struct.pack(">Q", 70000)
     masked = frame(TEXT, b"abcd", b"\x01\x02\x03\x04")
-    assert masked == b"\x81\x84\x01\x02\x03\x04" + bytes(x ^ y for x, y in zip(b"abcd", b"\x01\x02\x03\x04\x01\x02\x03\x04", strict=False))
+    assert masked == b"\x81\x84\x01\x02\x03\x04" + bytes(
+        x ^ y for x, y in zip(b"abcd", b"\x01\x02\x03\x04\x01\x02\x03\x04", strict=False)
+    )
 
 
 async def test_the_client_reads_text_and_binary_messages_and_sends_commands_that_are_answered() -> None:
@@ -46,7 +49,9 @@ async def test_the_client_reads_text_and_binary_messages_and_sends_commands_that
         await client.send_text('{"command": "set_waterfall", "value": "on"}')
         assert await asyncio.wait_for(client.recv(), 3) == (True, b'{"status":"ok"}')
         got = await asyncio.wait_for(client.recv(), 3)
-        assert got is not None and not got[0] and parse_spectrum(got[1]) is not None, "then the spectrum, as binary frames"
+        assert got is not None and not got[0] and parse_spectrum(got[1]) is not None, (
+            "then the spectrum, as binary frames"
+        )
         client.close()
         assert ui.commands == [("set_tx_gain", "3"), ("nonsense", ""), ("set_waterfall", "on")]
     finally:
@@ -60,6 +65,7 @@ async def raw_server(reply: bytes, then: bytes = b"") -> tuple[asyncio.Server, i
         await writer.drain()
         await asyncio.sleep(0.2)
         writer.close()
+
     server = await asyncio.start_server(serve, "127.0.0.1", 0)
     return server, server.sockets[0].getsockname()[1]
 
@@ -69,7 +75,9 @@ async def test_a_server_that_does_not_upgrade_or_answers_for_another_key_is_refu
     with pytest.raises(WebSocketError, match="did not upgrade"):
         await WebSocketClient.connect("127.0.0.1", port)
     server.close()
-    server, port = await raw_server(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: AAAA\r\n\r\n")
+    server, port = await raw_server(
+        b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: AAAA\r\n\r\n"
+    )
     with pytest.raises(WebSocketError, match="not the one for this key"):
         await WebSocketClient.connect("127.0.0.1", port)
     server.close()
@@ -100,30 +108,42 @@ class Upgrading:
     async def start(self) -> None:
         async def serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
             head = (await reader.readuntil(b"\r\n\r\n")).decode()
-            key = next(line.split(":", 1)[1].strip() for line in head.split("\r\n") if line.lower().startswith("sec-websocket-key"))
-            writer.write(f"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept_of(key)}\r\n\r\n".encode() + self.frames)
+            key = next(
+                line.split(":", 1)[1].strip()
+                for line in head.split("\r\n")
+                if line.lower().startswith("sec-websocket-key")
+            )
+            writer.write(
+                f"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept_of(key)}\r\n\r\n".encode()
+                + self.frames
+            )
             await writer.drain()
             try:
                 self.received = await asyncio.wait_for(reader.read(100), 1.0)
             except TimeoutError:
                 pass
             writer.close()
+
         self.server = await asyncio.start_server(serve, "127.0.0.1", 0)
         self.port = self.server.sockets[0].getsockname()[1]
 
 
-async def test_fragments_are_joined_a_ping_is_answered_a_close_ends_it_and_a_message_that_is_too_long_is_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_fragments_are_joined_a_ping_is_answered_a_close_ends_it_and_a_message_that_is_too_long_is_skipped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr("neoaprs.websocketclient.MAX_MESSAGE", 100)
-    first = b"\x01\x03abc"                                                # a text frame, not final
-    last = b"\x80\x03def"                                                 # its continuation, final
+    first = b"\x01\x03abc"  # a text frame, not final
+    last = b"\x80\x03def"  # its continuation, final
     ping = b"\x89\x02hi"
-    long = b"\x82\x7e" + struct.pack(">H", 300) + bytes(300)                # 300 bytes: more than the 100 allowed
+    long = b"\x82\x7e" + struct.pack(">H", 300) + bytes(300)  # 300 bytes: more than the 100 allowed
     short = b"\x82\x02ok"
     close = b"\x88\x02\x03\xe8"
     server = Upgrading(first + ping + last + long + short + close)
     await server.start()
     client = await WebSocketClient.connect("127.0.0.1", server.port)
-    assert await asyncio.wait_for(client.recv(), 3) == (True, b"abcdef"), "the ping between the fragments is answered and the fragments are one message"
+    assert await asyncio.wait_for(client.recv(), 3) == (True, b"abcdef"), (
+        "the ping between the fragments is answered and the fragments are one message"
+    )
     assert await asyncio.wait_for(client.recv(), 3) == (False, b"ok"), "the long message is skipped"
     assert await asyncio.wait_for(client.recv(), 3) is None and client.closed
     await until(lambda: len(server.received) >= 2)
@@ -146,12 +166,15 @@ async def test_a_frame_with_extension_bits_is_a_protocol_error() -> None:
 
 # ---- the link to Mercury's UI
 
+
 class Link:
     def __init__(self, ui: FakeUi) -> None:
         self.texts: list[str] = []
         self.spectra = 0
         self.states: list[bool] = []
-        self.ui = MercuryUi("127.0.0.1", ui.port, self.texts.append, self._binary, self.states.append, backoff=Backoff([0.05, 0.05]))
+        self.ui = MercuryUi(
+            "127.0.0.1", ui.port, self.texts.append, self._binary, self.states.append, backoff=Backoff([0.05, 0.05])
+        )
 
     def _binary(self, data: bytes) -> None:
         if parse_spectrum(data) is not None:
@@ -219,7 +242,9 @@ async def test_a_link_that_dropped_is_opened_again_and_what_is_wanted_is_asked_f
         await fake.aclose()
 
 
-async def test_a_server_that_is_not_there_is_told_once_and_the_link_opens_when_it_comes(caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_server_that_is_not_there_is_told_once_and_the_link_opens_when_it_comes(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     fake = FakeUi(status_sec=10.0)
     probe = await asyncio.start_server(lambda r, w: None, "127.0.0.1", 0)
     fake.port = probe.sockets[0].getsockname()[1]
@@ -228,11 +253,17 @@ async def test_a_server_that_is_not_there_is_told_once_and_the_link_opens_when_i
     link = Link(fake)
     with caplog.at_level(logging.DEBUG, logger="neoaprs.mercury"):
         link.ui.start()
-        retried = lambda: [r for r in caplog.records if r.levelno == logging.DEBUG and f"UI interface on port {fake.port}:" in r.getMessage()]  # noqa: E731
+        retried = lambda: [  # noqa: E731
+            r
+            for r in caplog.records
+            if r.levelno == logging.DEBUG and f"UI interface on port {fake.port}:" in r.getMessage()
+        ]
         # attempts, not a time: a refused connection takes Windows about 2 s, Linux none
         await until(lambda: len(retried()) >= 2, 15.0)
         told = [r for r in caplog.records if r.levelno == logging.INFO and "cannot be reached" in r.getMessage()]
-        assert len(told) == 1 and not link.ui.connected and link.states == [], "one line in the log for any number of attempts"
+        assert len(told) == 1 and not link.ui.connected and link.states == [], (
+            "one line in the log for any number of attempts"
+        )
         await fake.start()
         await until(lambda: link.ui.connected)
     await link.ui.stop()
@@ -257,6 +288,7 @@ async def test_a_handler_that_fails_does_not_end_the_link(caplog: pytest.LogCapt
 
     def broken(text: str) -> None:
         raise ValueError("nope")
+
     ui = MercuryUi("127.0.0.1", fake.port, broken, lambda data: None, lambda up: None, backoff=QUICK)
     ui.start()
     try:

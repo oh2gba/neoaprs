@@ -2,13 +2,19 @@
 before it: `pytest -p tests.support.shuffle --shuffle-seed 7`. Modules are shuffled, tests within a
 module are shuffled, each module is kept together; the same seed gives the same order.
 """
+
 import random
 
 import pytest
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
-    parser.addoption("--shuffle-seed", type=int, default=None, help="run the tests in the order this number makes (modules, and the tests of each module)")
+    parser.addoption(
+        "--shuffle-seed",
+        type=int,
+        default=None,
+        help="run the tests in the order this number makes (modules, and the tests of each module)",
+    )
 
 
 def shuffled(items: list[pytest.Item], seed: int) -> list[pytest.Item]:

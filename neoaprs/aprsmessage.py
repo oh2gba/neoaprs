@@ -25,7 +25,7 @@ def _split_id(text: str) -> tuple[str, str | None]:
     found = _NUMBER.search(text)
     if found is None:
         return text, None
-    return text[:found.start()], found.group(1)
+    return text[: found.start()], found.group(1)
 
 
 def reply_ack_of(text: str) -> str | None:
@@ -41,10 +41,10 @@ def _split(body: bytes) -> tuple[str, str] | None:
 
     An unpadded addressee (`KH2Z:hi`, ended by the first colon) is accepted.
     """
-    end = _ADDRESSEE_LEN if body[_ADDRESSEE_LEN:_ADDRESSEE_LEN + 1] == b":" else body.find(b":", 0, _ADDRESSEE_LEN)
+    end = _ADDRESSEE_LEN if body[_ADDRESSEE_LEN : _ADDRESSEE_LEN + 1] == b":" else body.find(b":", 0, _ADDRESSEE_LEN)
     if end < 0:
         return None
-    return decode_text(body[:end]).rstrip(" "), decode_text(body[end + 1:]).rstrip("\r\n")
+    return decode_text(body[:end]).rstrip(" "), decode_text(body[end + 1 :]).rstrip("\r\n")
 
 
 def line_of(info: bytes) -> str | None:
@@ -64,14 +64,26 @@ def parse_message(body: bytes) -> Message:
     bare = text.rstrip(_TRAILING)
     ack = _ACK.match(bare)
     if ack:
-        return Message(addressee, "", ack_id=ack.group(2)) if ack.group(1) == "ack" else Message(addressee, "", rej_id=ack.group(2))
+        return (
+            Message(addressee, "", ack_id=ack.group(2))
+            if ack.group(1) == "ack"
+            else Message(addressee, "", rej_id=ack.group(2))
+        )
     head, msg_id = _split_id(bare)
     return Message(addressee, text) if msg_id is None else Message(addressee, head, msg_id)
 
 
 def _check_addressee(addressee: str) -> str:
-    if not 1 <= len(addressee) <= _ADDRESSEE_LEN or addressee != addressee.strip() or ":" in addressee or not addressee.isascii() or not addressee.isprintable():
-        raise MessageError(f"{addressee!r} cannot be the addressee of a message", "message.addressee", addressee=addressee)
+    if (
+        not 1 <= len(addressee) <= _ADDRESSEE_LEN
+        or addressee != addressee.strip()
+        or ":" in addressee
+        or not addressee.isascii()
+        or not addressee.isprintable()
+    ):
+        raise MessageError(
+            f"{addressee!r} cannot be the addressee of a message", "message.addressee", addressee=addressee
+        )
     return addressee.ljust(_ADDRESSEE_LEN)
 
 

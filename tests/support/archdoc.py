@@ -3,6 +3,7 @@
 They are the blocks between `<!-- doc-arch:NAME -->` and `<!-- /doc-arch -->`; `scripts/doc-arch
 --write` makes them and `tests/test_docs.py` fails when one differs.
 """
+
 import re
 from collections.abc import Sequence
 
@@ -10,7 +11,13 @@ from tests import test_architecture as arch
 
 BLOCK = re.compile(r"(<!-- doc-arch:(\w+)[^>\n]*-->\n)(.*?)(<!-- /doc-arch -->)", re.S)
 # The packages that are one layer whole.
-SPECIAL = {layer: ", and " + " and ".join(f"everything in `{package.replace('.', '/')}/`" for package, of in arch.PACKAGE_LAYERS.items() if of == layer) for layer in set(arch.PACKAGE_LAYERS.values())} | {"delivery": ""}
+SPECIAL = {
+    layer: ", and "
+    + " and ".join(
+        f"everything in `{package.replace('.', '/')}/`" for package, of in arch.PACKAGE_LAYERS.items() if of == layer
+    )
+    for layer in set(arch.PACKAGE_LAYERS.values())
+} | {"delivery": ""}
 
 
 def _row(*cells: object) -> str:
@@ -47,38 +54,61 @@ def rules() -> str:
     pairs = ", ".join(f"`{a}` and `{b}`" for a, b in sorted(arch.ADAPTER_SIBLINGS)) or "none yet"
     tornado = ", ".join(f"`{m}`" for m in sorted(arch.TORNADO_HOMES))
     pydantic = ", ".join(_path(m) for m in sorted(arch.PYDANTIC_HOMES)) or "none yet"
-    return "\n".join([
-        f"* The I/O libraries that foundation and domain may not import (pyserial, `serial`, is one of them): `{' '.join(sorted(arch.IO_LIBRARIES))}`.",
-        "* pyserial (`serial`) only in the adapters layer.",
-        f"* Among the adapters only the bases every feed shares may be imported: {bases}; and the sibling pairs: {pairs}.",
-        f"* bleak (the extra `ble`) only in {', '.join(_path(m) for m in sorted(arch.BLEAK_HOMES))}.",
-        f"* Tornado only in {tornado + ' and ' if tornado else ''}`neoaprs/web/`.",
-        f"* pydantic only in the wire modules of `neoaprs/web/`: {pydantic}.",
-        f"* The desktop app's toolkits (`{' '.join(sorted(arch.TOOLKITS))}`, the extra `app`) only in the shells: {', '.join(_path(m) for m in sorted(arch.TOOLKIT_HOMES))}.",
-    ]) + "\n"
+    return (
+        "\n".join(
+            [
+                f"* The I/O libraries that foundation and domain may not import (pyserial, `serial`, is one of them): `{' '.join(sorted(arch.IO_LIBRARIES))}`.",
+                "* pyserial (`serial`) only in the adapters layer.",
+                f"* Among the adapters only the bases every feed shares may be imported: {bases}; and the sibling pairs: {pairs}.",
+                f"* bleak (the extra `ble`) only in {', '.join(_path(m) for m in sorted(arch.BLEAK_HOMES))}.",
+                f"* Tornado only in {tornado + ' and ' if tornado else ''}`neoaprs/web/`.",
+                f"* pydantic only in the wire modules of `neoaprs/web/`: {pydantic}.",
+                f"* The desktop app's toolkits (`{' '.join(sorted(arch.TOOLKITS))}`, the extra `app`) only in the shells: {', '.join(_path(m) for m in sorted(arch.TOOLKIT_HOMES))}.",
+            ]
+        )
+        + "\n"
+    )
 
 
 def allowed() -> str:
-    rows = [(f"`{a}` imports `{b}`", why) for (a, b), why in sorted(arch.ALLOWED.items())] or [("-", "nothing is allowed against the layers")]
+    rows = [(f"`{a}` imports `{b}`", why) for (a, b), why in sorted(arch.ALLOWED.items())] or [
+        ("-", "nothing is allowed against the layers")
+    ]
     return _table(("import against the layers (`ALLOWED`)", "why it is there"), rows)
 
 
 def wiring() -> str:
     roots = ", ".join(f"`{r}`" for r in sorted(arch.COMPOSITION_ROOTS)) or "none"
-    rows: list[tuple[object, ...]] = [(f"`{rel}`", n, why) for rel, (n, why) in sorted(arch.CONNECTS.items())] or [("-", "-", "nothing connects a signal outside the places above")]
-    return f"Places for `Signal.connect` (`COMPOSITION_ROOTS`): {roots}.\n\n" + _table(("connects outside them (`CONNECTS`)", "how many", "why"), rows)
+    rows: list[tuple[object, ...]] = [(f"`{rel}`", n, why) for rel, (n, why) in sorted(arch.CONNECTS.items())] or [
+        ("-", "-", "nothing connects a signal outside the places above")
+    ]
+    return f"Places for `Signal.connect` (`COMPOSITION_ROOTS`): {roots}.\n\n" + _table(
+        ("connects outside them (`CONNECTS`)", "how many", "why"), rows
+    )
 
 
 def sql_homes() -> str:
-    return _table(("file (`SQL_HOMES`)", "what it is"), [(f"`{rel}`", why) for rel, why in sorted(arch.SQL_HOMES.items())])
+    return _table(
+        ("file (`SQL_HOMES`)", "what it is"), [(f"`{rel}`", why) for rel, why in sorted(arch.SQL_HOMES.items())]
+    )
 
 
 def sql_elsewhere() -> str:
-    rows: list[tuple[object, ...]] = [(f"`{rel}`", "yes" if imports else "no", calls, why) for rel, (imports, calls, why) in sorted(arch.SQL_ELSEWHERE.items())] or [("-", "-", "-", "no file outside the homes touches SQL")]
+    rows: list[tuple[object, ...]] = [
+        (f"`{rel}`", "yes" if imports else "no", calls, why)
+        for rel, (imports, calls, why) in sorted(arch.SQL_ELSEWHERE.items())
+    ] or [("-", "-", "-", "no file outside the homes touches SQL")]
     return _table(("file (`SQL_ELSEWHERE`)", "imports `sqlite3`", "calls of `execute`", "why"), rows)
 
 
-MAKERS = {"layers": layers, "rules": rules, "allowed": allowed, "wiring": wiring, "sql_homes": sql_homes, "sql_elsewhere": sql_elsewhere}
+MAKERS = {
+    "layers": layers,
+    "rules": rules,
+    "allowed": allowed,
+    "wiring": wiring,
+    "sql_homes": sql_homes,
+    "sql_elsewhere": sql_elsewhere,
+}
 
 
 def blocks_of(text: str) -> dict[str, str]:
@@ -93,6 +123,8 @@ def stale_blocks(text: str) -> list[str]:
 
 def refreshed(text: str) -> str:
     """The text with every block made again from the data."""
+
     def one(m: re.Match[str]) -> str:
         return m.group(1) + MAKERS[m.group(2)]() + m.group(4)
+
     return BLOCK.sub(one, text)

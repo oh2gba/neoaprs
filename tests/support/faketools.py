@@ -1,6 +1,7 @@
 """Stand-ins for `systemctl`, `loginctl` and `launchctl`: small scripts first on the PATH that
 record what they were asked and answer the few questions put to them.
 """
+
 import os
 import stat
 from pathlib import Path
@@ -23,7 +24,9 @@ exit 0
 
 
 class FakeTools:
-    def __init__(self, folder: Path, calls_file: Path, names: tuple[str, ...] = ("systemctl", "loginctl", "launchctl")) -> None:
+    def __init__(
+        self, folder: Path, calls_file: Path, names: tuple[str, ...] = ("systemctl", "loginctl", "launchctl")
+    ) -> None:
         if os.name == "nt":
             pytest.skip("the stand-ins are shell scripts: POSIX only")
         folder.mkdir(parents=True, exist_ok=True)

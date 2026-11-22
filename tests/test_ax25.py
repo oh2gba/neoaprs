@@ -9,7 +9,9 @@ NAMES = sorted(p.stem for p in (FIXTURES / "ax25").glob("*.bin"))
 
 
 def raw_address(text: str, flag: bool = False, last: bool = False, ssid: int = 0) -> bytes:
-    return bytes(ord(c) << 1 for c in text.ljust(6)) + bytes([0x60 | ssid << 1 | (0x80 if flag else 0) | (1 if last else 0)])
+    return bytes(ord(c) << 1 for c in text.ljust(6)) + bytes(
+        [0x60 | ssid << 1 | (0x80 if flag else 0) | (1 if last else 0)]
+    )
 
 
 def raw_frame(*addresses: bytes, tail: bytes = b"\x03\xf0hi") -> bytes:
@@ -21,6 +23,7 @@ def raw_frame(*addresses: bytes, tail: bytes = b"\x03\xf0hi") -> bytes:
 
 # ---- Address -------------------------------------------------------------------------------------
 
+
 def test_address_text() -> None:
     assert str(Address("OH2GBA", 7)) == "OH2GBA-7"
     assert str(Address("OH2GBA")) == "OH2GBA"
@@ -28,12 +31,15 @@ def test_address_text() -> None:
     assert str(Address("RELAY", 0, True)) == "RELAY*"
 
 
-@pytest.mark.parametrize("text, expected", [
-    ("OH2GBA-7", Address("OH2GBA", 7)),
-    ("oh2gba", Address("OH2GBA")),
-    ("WIDE1-1*", Address("WIDE1", 1, True)),
-    ("RELAY*", Address("RELAY", 0, True)),
-])
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("OH2GBA-7", Address("OH2GBA", 7)),
+        ("oh2gba", Address("OH2GBA")),
+        ("WIDE1-1*", Address("WIDE1", 1, True)),
+        ("RELAY*", Address("RELAY", 0, True)),
+    ],
+)
 def test_address_parse(text: str, expected: Address) -> None:
     assert Address.parse(text) == expected
     assert Address.parse(str(expected)) == expected
@@ -45,7 +51,23 @@ def test_address_parse_refuses(text: str) -> None:
         Address.parse(text)
 
 
-@pytest.mark.parametrize("args", [("",), ("TOOLONG",), ("OH2GBA", 16), ("OH2GBA", -1), ("A>B",), ("A,B",), ("A:B",), ("A*",), ("A-1",), ("A B",), ("Å",), ("A\x7f",)])
+@pytest.mark.parametrize(
+    "args",
+    [
+        ("",),
+        ("TOOLONG",),
+        ("OH2GBA", 16),
+        ("OH2GBA", -1),
+        ("A>B",),
+        ("A,B",),
+        ("A:B",),
+        ("A*",),
+        ("A-1",),
+        ("A B",),
+        ("Å",),
+        ("A\x7f",),
+    ],
+)
 def test_address_refuses_what_cannot_be_on_the_air_or_in_the_text_form(args: tuple[object, ...]) -> None:
     with pytest.raises(Ax25Error):
         Address(*args)  # type: ignore[arg-type]
@@ -57,6 +79,7 @@ def test_ax25_error_is_a_value_error() -> None:
 
 # ---- Frame ---------------------------------------------------------------------------------------
 
+
 def make_frame(*path: str, info: bytes = b"!x") -> Frame:
     return Frame(Address("APRS"), Address("OH2GBA", 7), tuple(Address.parse(p) for p in path), info=info)
 
@@ -65,7 +88,7 @@ def test_frame_defaults_and_is_ui() -> None:
     frame = make_frame()
     assert (frame.control, frame.pid, frame.info.__class__) == (0x03, 0xF0, bytes)
     assert frame.is_ui
-    assert Frame(frame.destination, frame.source, control=0x13).is_ui          # poll/final bit set
+    assert Frame(frame.destination, frame.source, control=0x13).is_ui  # poll/final bit set
     assert not Frame(frame.destination, frame.source, control=0x3F).is_ui
     assert not Frame(frame.destination, frame.source, pid=0xCF).is_ui
 
@@ -80,7 +103,10 @@ def test_path_text_marks_the_last_digipeater_passed() -> None:
 
 def test_tnc2() -> None:
     assert make_frame().tnc2() == "OH2GBA-7>APRS:!x"
-    assert make_frame("WIDE1-1*", "WIDE2-1*", info=b">caf\xe9 \xff").tnc2() == "OH2GBA-7>APRS,WIDE1-1,WIDE2-1*:>caf\xe9 \xff"
+    assert (
+        make_frame("WIDE1-1*", "WIDE2-1*", info=b">caf\xe9 \xff").tnc2()
+        == "OH2GBA-7>APRS,WIDE1-1,WIDE2-1*:>caf\xe9 \xff"
+    )
 
 
 def test_frame_refuses_nine_digipeaters_and_odd_fields() -> None:
@@ -98,13 +124,26 @@ def test_frame_refuses_nine_digipeaters_and_odd_fields() -> None:
 
 # ---- decode and encode ---------------------------------------------------------------------------
 
+
 def test_decode_by_hand() -> None:
-    data = raw_address("APRS", flag=True) + raw_address("OH2GBA", ssid=7) + raw_address("WIDE1", flag=True, last=True, ssid=1) + b"\x03\xf0!6010.50N/02456.25E>"
-    assert decode(data) == Frame(Address("APRS"), Address("OH2GBA", 7), (Address("WIDE1", 1, True),), info=b"!6010.50N/02456.25E>")
+    data = (
+        raw_address("APRS", flag=True)
+        + raw_address("OH2GBA", ssid=7)
+        + raw_address("WIDE1", flag=True, last=True, ssid=1)
+        + b"\x03\xf0!6010.50N/02456.25E>"
+    )
+    assert decode(data) == Frame(
+        Address("APRS"), Address("OH2GBA", 7), (Address("WIDE1", 1, True),), info=b"!6010.50N/02456.25E>"
+    )
 
 
 def test_decode_writes_a_lower_case_letter_in_capitals() -> None:
-    data = raw_address("aprs", flag=True) + raw_address("oh2gba", ssid=7) + raw_address("Wide1", flag=True, last=True, ssid=1) + b"\x03\xf0!x"
+    data = (
+        raw_address("aprs", flag=True)
+        + raw_address("oh2gba", ssid=7)
+        + raw_address("Wide1", flag=True, last=True, ssid=1)
+        + b"\x03\xf0!x"
+    )
     frame = decode(data)
     assert (str(frame.destination), str(frame.source), str(frame.path[0])) == ("APRS", "OH2GBA-7", "WIDE1-1*")
     assert frame.tnc2() == "OH2GBA-7>APRS,WIDE1-1*:!x"
@@ -112,10 +151,10 @@ def test_decode_writes_a_lower_case_letter_in_capitals() -> None:
 
 def test_decode_reads_the_ssid_from_bits_1_to_4_only() -> None:
     data = raw_address("APRS") + raw_address("OH2GBA", last=True) + b"\x03\xf0"
-    patched = data[:13] + bytes([0xFF]) + data[14:]                  # 0xFF: every bit of the source's seventh byte set
+    patched = data[:13] + bytes([0xFF]) + data[14:]  # 0xFF: every bit of the source's seventh byte set
     frame = decode(patched)
     assert frame.source == Address("OH2GBA", 15)
-    assert not frame.source.repeated                                  # the C bit of the source is not a repeated flag
+    assert not frame.source.repeated  # the C bit of the source is not a repeated flag
 
 
 def test_decode_ignores_the_c_bits() -> None:
@@ -153,18 +192,24 @@ def test_a_short_call_is_padded_with_spaces_and_comes_back_without() -> None:
     assert encode(frame)[:7] == raw_address("A", flag=True)
 
 
-@pytest.mark.parametrize("data, reason", [
-    (b"", "shorter"),
-    (b"\x00" * 14, "shorter"),
-    # 15 bytes, no end bit anywhere
-    (raw_address("APRS") + raw_address("OH2GBA") + b"\x03", "never ends"),
-    (raw_address("APRS") + raw_address("OH2GBA") + raw_address("WIDE1") + b"\x03\xf0x", "never ends"),
-    (raw_address("APRS", last=True) + raw_address("OH2GBA") + b"\x03\xf0hi", "no source"),
-    (raw_address("APRS") + raw_address("OH2GBA") + raw_address("WIDE1", last=True), "no control"),
-    (raw_address("APRS", ssid=1) + raw_address("OH2GBA", last=True) + b"\x03", "no PID"),
-    (b"".join(raw_address(f"D{i}") for i in range(10)) + raw_address("X", last=True) + b"\x03\xf0", "more than 8 digipeaters"),
-    (b"".join(raw_address(f"D{i}") for i in range(10)) + b"\x03\xf0hello", "more than 8 digipeaters"),
-])
+@pytest.mark.parametrize(
+    "data, reason",
+    [
+        (b"", "shorter"),
+        (b"\x00" * 14, "shorter"),
+        # 15 bytes, no end bit anywhere
+        (raw_address("APRS") + raw_address("OH2GBA") + b"\x03", "never ends"),
+        (raw_address("APRS") + raw_address("OH2GBA") + raw_address("WIDE1") + b"\x03\xf0x", "never ends"),
+        (raw_address("APRS", last=True) + raw_address("OH2GBA") + b"\x03\xf0hi", "no source"),
+        (raw_address("APRS") + raw_address("OH2GBA") + raw_address("WIDE1", last=True), "no control"),
+        (raw_address("APRS", ssid=1) + raw_address("OH2GBA", last=True) + b"\x03", "no PID"),
+        (
+            b"".join(raw_address(f"D{i}") for i in range(10)) + raw_address("X", last=True) + b"\x03\xf0",
+            "more than 8 digipeaters",
+        ),
+        (b"".join(raw_address(f"D{i}") for i in range(10)) + b"\x03\xf0hello", "more than 8 digipeaters"),
+    ],
+)
 def test_decode_refuses(data: bytes, reason: str) -> None:
     with pytest.raises(Ax25Error, match=reason):
         decode(data)
@@ -202,8 +247,13 @@ def test_eight_digipeaters_are_allowed_and_nine_are_not() -> None:
 
 def test_encode_sets_the_c_bits_the_reserved_bits_and_the_end_bit() -> None:
     frame = make_frame("WIDE1-1*", "WIDE2-1", info=b"hi")
-    expected = (raw_address("APRS", flag=True) + raw_address("OH2GBA", ssid=7) + raw_address("WIDE1", flag=True, ssid=1)
-                + raw_address("WIDE2", last=True, ssid=1) + b"\x03\xf0hi")
+    expected = (
+        raw_address("APRS", flag=True)
+        + raw_address("OH2GBA", ssid=7)
+        + raw_address("WIDE1", flag=True, ssid=1)
+        + raw_address("WIDE2", last=True, ssid=1)
+        + b"\x03\xf0hi"
+    )
     assert encode(frame) == expected
 
 
@@ -227,8 +277,11 @@ def test_encode_refuses_an_information_field_over_256_bytes() -> None:
 
 # ---- the fixtures --------------------------------------------------------------------------------
 
+
 def test_the_fixtures_are_there() -> None:
-    assert {"position_unrepeated", "position_digipeated", "no_path", "eight_digipeaters", "mic_e", "non_ui"} <= set(NAMES)
+    assert {"position_unrepeated", "position_digipeated", "no_path", "eight_digipeaters", "mic_e", "non_ui"} <= set(
+        NAMES
+    )
 
 
 @pytest.mark.parametrize("name", NAMES)
@@ -250,7 +303,9 @@ def test_fixture_monitor_text() -> None:
     assert texts["position_unrepeated"] == "OH2GBA-7>APRS,WIDE1-1,WIDE2-1:!6010.50N/02456.25E>NeoAPRS test"
     assert texts["position_digipeated"] == "OH2GBA-7>APRS,WIDE1-1,WIDE2-1*:!6010.50N/02456.25E>NeoAPRS test"
     assert texts["no_path"] == "OH2GBA>APRS:=6010.50N/02456.25E-no path, short"
-    assert texts["eight_digipeaters"].startswith("OH2GBA-9>APRS,OH2RDU,OH2RDG,OH3RDX-1*,WIDE1-1,WIDE2-2,TCPIP,N0CALL-15,OH1A:")
+    assert texts["eight_digipeaters"].startswith(
+        "OH2GBA-9>APRS,OH2RDU,OH2RDG,OH3RDX-1*,WIDE1-1,WIDE2-2,TCPIP,N0CALL-15,OH1A:"
+    )
     assert texts["mic_e"].startswith("OH2GBA-9>T7SYRS,WIDE1-1*:`c5\x7f\x1c\x9f>")
     assert texts["non_ui"] == "OH2GBA-7>OH2XYZ,OH2RDU:\xf0hello"
 

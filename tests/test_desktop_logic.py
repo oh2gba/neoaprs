@@ -1,6 +1,7 @@
 """Tests for the desktop app logic without a window or tray: which addresses stay in the window, the
 tray menu, attach-or-start, remembered state, shell choice and fallbacks.
 """
+
 import json
 import logging
 import subprocess
@@ -24,14 +25,33 @@ PAGE = "http://127.0.0.1:7303/"
 
 # ---- which addresses stay in the window
 
-@pytest.mark.parametrize("url, where", [
-    (PAGE, "window"), ("http://127.0.0.1:7303/#/stations?x=1", "window"), ("http://127.0.0.1:7303/ws", "window"), ("HTTP://127.0.0.1:7303/", "window"),
-    ("about:blank", "window"), ("blob:http://127.0.0.1:7303/3f6a", "window"),
-    ("http://127.0.0.1:7304/", "browser"), ("https://127.0.0.1:7303/", "browser"), ("http://localhost:7303/", "browser"), ("http://127.0.0.1.example.org:7303/", "browser"),
-    ("https://www.qrz.com/db/OH2GBA", "browser"), ("https://www.openstreetmap.org/copyright", "browser"), ("mailto:oh2gba@example.org", "browser"),
-    ("blob:https://evil.example/3f6a", "block"), ("data:text/html,<b>x</b>", "block"), ("file:///etc/passwd", "block"), ("javascript:alert(1)", "block"), ("ftp://example.org/", "block"),
-    ("", "block"), ("http://[::1", "block"), ("http://127.0.0.1:notaport/", "block"),
-])
+
+@pytest.mark.parametrize(
+    "url, where",
+    [
+        (PAGE, "window"),
+        ("http://127.0.0.1:7303/#/stations?x=1", "window"),
+        ("http://127.0.0.1:7303/ws", "window"),
+        ("HTTP://127.0.0.1:7303/", "window"),
+        ("about:blank", "window"),
+        ("blob:http://127.0.0.1:7303/3f6a", "window"),
+        ("http://127.0.0.1:7304/", "browser"),
+        ("https://127.0.0.1:7303/", "browser"),
+        ("http://localhost:7303/", "browser"),
+        ("http://127.0.0.1.example.org:7303/", "browser"),
+        ("https://www.qrz.com/db/OH2GBA", "browser"),
+        ("https://www.openstreetmap.org/copyright", "browser"),
+        ("mailto:oh2gba@example.org", "browser"),
+        ("blob:https://evil.example/3f6a", "block"),
+        ("data:text/html,<b>x</b>", "block"),
+        ("file:///etc/passwd", "block"),
+        ("javascript:alert(1)", "block"),
+        ("ftp://example.org/", "block"),
+        ("", "block"),
+        ("http://[::1", "block"),
+        ("http://127.0.0.1:notaport/", "block"),
+    ],
+)
 def test_links_stay_in_the_window_only_when_they_are_the_daemons_page(url: str, where: str) -> None:
     assert links.route(url, PAGE) == where
 
@@ -52,13 +72,20 @@ def test_only_what_goes_to_the_browser_is_handed_to_it(monkeypatch: pytest.Monke
     opened: list[str] = []
     monkeypatch.setattr(links.webbrowser, "open", lambda url: opened.append(url) or True)
     assert links.open_external("https://www.qrz.com/db/OH2GBA", PAGE)
-    assert not links.open_external(PAGE, PAGE) and not links.open_external("file:///etc/passwd", PAGE) and not links.open_external("javascript:alert(1)", PAGE)
+    assert (
+        not links.open_external(PAGE, PAGE)
+        and not links.open_external("file:///etc/passwd", PAGE)
+        and not links.open_external("javascript:alert(1)", PAGE)
+    )
     assert opened == ["https://www.qrz.com/db/OH2GBA"]
     monkeypatch.setattr(links.webbrowser, "open", lambda url: False)
-    assert not links.open_external("https://example.org/", PAGE), "a browser that could not be started is a failure the caller can say"
+    assert not links.open_external("https://example.org/", PAGE), (
+        "a browser that could not be started is a failure the caller can say"
+    )
 
 
 # ---- the tray menu is data
+
 
 class FakeAutoStart:
     def __init__(self, on: bool = False, fail: str = "") -> None:
@@ -80,16 +107,29 @@ class FakeDaemon(Daemon):
     """The daemons of the app as a script: `up` is whether one holds the folder, `stops` what was
     asked to stop, `page` what the wait finds."""
 
-    def __init__(self, up: bool = False, page: str | None = PAGE, child_alive: bool = True, stops: bool = True, network: bool = True) -> None:
+    def __init__(
+        self,
+        up: bool = False,
+        page: str | None = PAGE,
+        child_alive: bool = True,
+        stops: bool = True,
+        network: bool = True,
+    ) -> None:
         self.up, self.page, self.child_alive, self.ends, self.served_to_network = up, page, child_alive, stops, network
         self.started: list[Path] = []
         self.stopped: list[Path] = []
-        super().__init__(running=lambda data: self.up, start=self._start, wait=lambda data, child, seconds: self.page, stop=self._stop, network=lambda data: self.served_to_network)
+        super().__init__(
+            running=lambda data: self.up,
+            start=self._start,
+            wait=lambda data, child, seconds: self.page,
+            stop=self._stop,
+            network=lambda data: self.served_to_network,
+        )
 
     def _start(self, data: Path) -> "subprocess.Popen[bytes]":
         self.started.append(data)
         self.up = True
-        return types.SimpleNamespace(poll=lambda: None if self.child_alive else 2, returncode=2)       # type: ignore[return-value]
+        return types.SimpleNamespace(poll=lambda: None if self.child_alive else 2, returncode=2)  # type: ignore[return-value]
 
     def _stop(self, data: Path, seconds: float) -> bool:
         self.stopped.append(data)
@@ -97,7 +137,9 @@ class FakeDaemon(Daemon):
         return self.ends
 
 
-def actions_for(owned: bool, window: bool = True, autostart: FakeAutoStart | None = None, daemon: FakeDaemon | None = None) -> tuple[AppActions, FakeFrame, FakeDaemon, list[str]]:
+def actions_for(
+    owned: bool, window: bool = True, autostart: FakeAutoStart | None = None, daemon: FakeDaemon | None = None
+) -> tuple[AppActions, FakeFrame, FakeDaemon, list[str]]:
     frame, daemon = FakeFrame(window), daemon or FakeDaemon()
     opened: list[str] = []
     actions = AppActions(Session(Path("data"), PAGE, owned), frame, autostart, daemon, lambda url: opened.append(url))
@@ -110,18 +152,30 @@ def labels(items: list[Item]) -> list[str]:
 
 def test_the_menu_of_an_app_that_started_the_daemon() -> None:
     actions, *_ = actions_for(owned=True, autostart=FakeAutoStart(on=True))
-    assert actions.items() == [Item(OPEN, "Open NeoAPRS"), Item(BROWSER, "Open in browser"), Item(AUTOSTART, "Start at sign-in", checked=True), Item(SUPPORT, "Collect support logs"), Item("-", "-", separator=True), Item(QUIT, "Stop and quit")]
+    assert actions.items() == [
+        Item(OPEN, "Open NeoAPRS"),
+        Item(BROWSER, "Open in browser"),
+        Item(AUTOSTART, "Start at sign-in", checked=True),
+        Item(SUPPORT, "Collect support logs"),
+        Item("-", "-", separator=True),
+        Item(QUIT, "Stop and quit"),
+    ]
 
 
 def test_the_menu_of_an_app_attached_to_a_service_says_the_service_keeps_running() -> None:
     actions, *_ = actions_for(owned=False, autostart=FakeAutoStart())
-    assert actions.items()[-1] == Item(QUIT, "Quit (NeoAPRS keeps running as a service)") and KEEPS_RUNNING in actions.items()[-1].label
+    assert (
+        actions.items()[-1] == Item(QUIT, "Quit (NeoAPRS keeps running as a service)")
+        and KEEPS_RUNNING in actions.items()[-1].label
+    )
     assert actions.items()[2] == Item(AUTOSTART, "Start at sign-in", checked=False)
 
 
 def test_without_a_window_open_is_the_browser_and_without_autostart_there_is_no_checkbox() -> None:
     actions, frame, _, opened = actions_for(owned=True, window=False, autostart=None)
-    assert labels(actions.items()) == ["Open NeoAPRS", "Collect support logs", "Stop and quit"], "Open in browser would only repeat Open"
+    assert labels(actions.items()) == ["Open NeoAPRS", "Collect support logs", "Stop and quit"], (
+        "Open in browser would only repeat Open"
+    )
     actions.run(OPEN)
     assert opened == [PAGE] and frame.shown == 0
 
@@ -130,7 +184,9 @@ def test_open_in_browser_is_in_the_menu_only_while_the_page_is_served_to_the_net
     actions, _, daemon, _ = actions_for(owned=True)
     assert BROWSER in [i.key for i in actions.items()]
     daemon.served_to_network = False
-    assert labels(actions.items()) == ["Open NeoAPRS", "Collect support logs", "Stop and quit"], "the window is the one way in"
+    assert labels(actions.items()) == ["Open NeoAPRS", "Collect support logs", "Stop and quit"], (
+        "the window is the one way in"
+    )
     daemon.served_to_network = True
     assert BROWSER in [i.key for i in actions.items()], "the menu follows the switch while the app runs"
 
@@ -145,9 +201,13 @@ def test_the_watch_tells_the_menu_when_the_page_goes_to_the_network_or_off_it_an
         return daemon.served_to_network
 
     daemon.network = served
-    watch = DaemonWatch(Session(DATA, PAGE, owned=False), lambda: None, daemon, every=0.02, network_moved=changed.release)
+    watch = DaemonWatch(
+        Session(DATA, PAGE, owned=False), lambda: None, daemon, every=0.02, network_moved=changed.release
+    )
     watch.start()
-    assert looked.acquire(timeout=5) and looked.acquire(timeout=5) and not changed.acquire(timeout=0.1), "the first look only remembers"
+    assert looked.acquire(timeout=5) and looked.acquire(timeout=5) and not changed.acquire(timeout=0.1), (
+        "the first look only remembers"
+    )
     daemon.served_to_network = True
     assert changed.acquire(timeout=5)
     daemon.served_to_network = False
@@ -158,6 +218,7 @@ def test_the_watch_tells_the_menu_when_the_page_goes_to_the_network_or_off_it_an
 
 def test_the_note_of_the_daemon_on_the_network_is_read_from_the_data_folder(tmp_path: Path) -> None:
     from neoaprs.cli.logfile import network_is_on, remove_page, write_network
+
     assert not network_is_on(tmp_path)
     write_network(tmp_path, True)
     assert network_is_on(tmp_path)
@@ -298,7 +359,9 @@ MOVED = "http://127.0.0.1:7310/"
 
 
 @pytest.mark.parametrize("owned", [True, False])
-def test_the_watch_follows_the_page_to_another_address_for_the_apps_own_daemon_and_for_one_it_attached_to(owned: bool) -> None:
+def test_the_watch_follows_the_page_to_another_address_for_the_apps_own_daemon_and_for_one_it_attached_to(
+    owned: bool,
+) -> None:
     """The daemon started again and serves its page on another port (the one it had was taken): the
     file it writes says where, and the app is told once for each new address. The lock of a daemon
     the app does not own is never asked for it."""
@@ -323,7 +386,9 @@ def test_the_watch_follows_the_page_to_another_address_for_the_apps_own_daemon_a
         return all(looked.acquire(timeout=5) for _ in range(times))
 
     daemon.address = address
-    watch = DaemonWatch(Session(DATA, PAGE, owned=owned), lambda: moved.append("gone"), daemon, every=0.02, moved=follow)
+    watch = DaemonWatch(
+        Session(DATA, PAGE, owned=owned), lambda: moved.append("gone"), daemon, every=0.02, moved=follow
+    )
     watch.start()
     assert looks(2) and moved == [], "the address the app has: nothing to do"
     where[0] = None
@@ -339,9 +404,22 @@ def test_the_watch_follows_the_page_to_another_address_for_the_apps_own_daemon_a
     assert asked == []
 
 
-@pytest.mark.parametrize("elsewhere", ["http://example.org/", "http://example.org:7303/", "http://127.0.0.1:7310@example.org/", "https://127.0.0.1:7303/", "http://localhost:7310/", "http://127.0.0.1.example.org:7310/",
-                                       "http://[::1]:7310/", "http://127.0.0.1:notaport/"])
-def test_the_watch_never_sends_the_window_to_another_host_whatever_the_daemons_file_says(elsewhere: str, caplog: pytest.LogCaptureFixture) -> None:
+@pytest.mark.parametrize(
+    "elsewhere",
+    [
+        "http://example.org/",
+        "http://example.org:7303/",
+        "http://127.0.0.1:7310@example.org/",
+        "https://127.0.0.1:7303/",
+        "http://localhost:7310/",
+        "http://127.0.0.1.example.org:7310/",
+        "http://[::1]:7310/",
+        "http://127.0.0.1:notaport/",
+    ],
+)
+def test_the_watch_never_sends_the_window_to_another_host_whatever_the_daemons_file_says(
+    elsewhere: str, caplog: pytest.LogCaptureFixture
+) -> None:
     """The file in the data folder is read as an address (neoaprs/cli/logfile.py lets any host
     through); the window only ever follows the page to another port of the host it is on."""
     moved: list[str] = []
@@ -375,7 +453,9 @@ def test_a_watch_that_is_given_nothing_to_follow_runs_only_for_a_daemon_the_app_
     attached = DaemonWatch(Session(DATA, PAGE, owned=False), lambda: None, FakeDaemon(up=True), every=0.02)
     attached.start()
     assert not attached.thread.is_alive()
-    followed = DaemonWatch(Session(DATA, PAGE, owned=False), lambda: None, FakeDaemon(up=True), every=0.02, moved=lambda url: None)
+    followed = DaemonWatch(
+        Session(DATA, PAGE, owned=False), lambda: None, FakeDaemon(up=True), every=0.02, moved=lambda url: None
+    )
     followed.start()
     assert followed.thread.is_alive()
     followed.cancel()
@@ -399,45 +479,90 @@ def test_a_page_that_moved_is_loaded_in_the_window_and_is_what_open_in_browser_o
 
 def test_the_app_follows_the_page_from_the_moment_it_is_ready(tmp_path: Path) -> None:
     from neoaprs.desktop.single import SingleApp
-    ctx = shell.ShellContext(Session(tmp_path, PAGE, owned=False), False, True, None, SingleApp(tmp_path), FakeDaemon(up=True))
+
+    ctx = shell.ShellContext(
+        Session(tmp_path, PAGE, owned=False), False, True, None, SingleApp(tmp_path), FakeDaemon(up=True)
+    )
     actions = ctx.actions_for(FakeFrame())
     ctx.ready(actions)
     try:
-        assert ctx.watch is not None and ctx.watch.moved == actions.page_moved and ctx.watch.thread.is_alive(), "also for a daemon the app attached to: a service restarts too"
+        assert ctx.watch is not None and ctx.watch.moved == actions.page_moved and ctx.watch.thread.is_alive(), (
+            "also for a daemon the app attached to: a service restarts too"
+        )
     finally:
         ctx.close()
 
 
 # ---- what the app remembers
 
-def test_the_window_is_remembered_with_its_place_and_whether_it_is_maximized_and_a_bad_file_gives_the_default(tmp_path: Path) -> None:
+
+def test_the_window_is_remembered_with_its_place_and_whether_it_is_maximized_and_a_bad_file_gives_the_default(
+    tmp_path: Path,
+) -> None:
     assert appstate.load_window(tmp_path) == appstate.WindowState(1280, 800, None, None, False)
     appstate.save_window(tmp_path, appstate.WindowState(1000, 700, -1920, 24, True))
     assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700, -1920, 24, True)
     appstate.save_window(tmp_path, appstate.WindowState(1000, 700))
-    assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700), "a window that was never moved has no place"
+    assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700), (
+        "a window that was never moved has no place"
+    )
     (tmp_path / appstate.STATE_NAME).write_text('{"width": 1000, "height": 700}', encoding="utf-8")
-    assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700), "the file of an earlier version, with the size alone"
-    for text in ("", "not json", "[]", '{"width": "wide", "height": 5}', '{"width": 10, "height": 10}', '{"width": 1000}', '{"width": true, "height": true}', '{"width": 99999, "height": 700}'):
+    assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700), (
+        "the file of an earlier version, with the size alone"
+    )
+    for text in (
+        "",
+        "not json",
+        "[]",
+        '{"width": "wide", "height": 5}',
+        '{"width": 10, "height": 10}',
+        '{"width": 1000}',
+        '{"width": true, "height": true}',
+        '{"width": 99999, "height": 700}',
+    ):
         (tmp_path / appstate.STATE_NAME).write_text(text, encoding="utf-8")
         assert appstate.load_window(tmp_path) == appstate.DEFAULT_WINDOW, text
-    (tmp_path / appstate.STATE_NAME).write_text('{"width": 1000, "height": 700, "x": "left", "y": 5, "maximized": "yes"}', encoding="utf-8")
-    assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700), "a place that is not two numbers is none, and maximized is only true"
+    (tmp_path / appstate.STATE_NAME).write_text(
+        '{"width": 1000, "height": 700, "x": "left", "y": 5, "maximized": "yes"}', encoding="utf-8"
+    )
+    assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700), (
+        "a place that is not two numbers is none, and maximized is only true"
+    )
 
 
 def test_the_windows_placement_is_kept_beside_the_size_and_a_placement_that_is_nonsense_is_none(tmp_path: Path) -> None:
     placed = appstate.WindowState(1000, 700, None, None, True, (-1700, 60, -700, 760))
     appstate.save_window(tmp_path, placed)
     assert appstate.load_window(tmp_path) == placed
-    assert json.loads((tmp_path / appstate.STATE_NAME).read_text(encoding="utf-8")) == {"width": 1000, "height": 700, "maximized": True, "normal": [-1700, 60, -700, 760]}
-    for normal in ("[0, 0, 1000]", "[0, 0, 1000, \"700\"]", "[0, 0, true, 700]", "[0, 0, 100, 100]", "[0, 0, 99999, 700]", "[-40000, 0, -39000, 700]", "{\"left\": 0}", "null"):
-        (tmp_path / appstate.STATE_NAME).write_text('{"width": 1000, "height": 700, "maximized": true, "normal": %s}' % normal, encoding="utf-8")
+    assert json.loads((tmp_path / appstate.STATE_NAME).read_text(encoding="utf-8")) == {
+        "width": 1000,
+        "height": 700,
+        "maximized": True,
+        "normal": [-1700, 60, -700, 760],
+    }
+    for normal in (
+        "[0, 0, 1000]",
+        '[0, 0, 1000, "700"]',
+        "[0, 0, true, 700]",
+        "[0, 0, 100, 100]",
+        "[0, 0, 99999, 700]",
+        "[-40000, 0, -39000, 700]",
+        '{"left": 0}',
+        "null",
+    ):
+        (tmp_path / appstate.STATE_NAME).write_text(
+            '{"width": 1000, "height": 700, "maximized": true, "normal": %s}' % normal, encoding="utf-8"
+        )
         assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700, None, None, True), normal
     appstate.save_window(tmp_path, appstate.WindowState(1000, 700, None, None, False, (0, 0, 10, 10)))
-    assert "normal" not in json.loads((tmp_path / appstate.STATE_NAME).read_text(encoding="utf-8")), "a rectangle that is nonsense is not written"
+    assert "normal" not in json.loads((tmp_path / appstate.STATE_NAME).read_text(encoding="utf-8")), (
+        "a rectangle that is nonsense is not written"
+    )
 
 
-def test_the_size_of_a_window_that_is_hidden_or_minimised_is_not_saved_and_a_place_that_is_nonsense_is_left_out(tmp_path: Path) -> None:
+def test_the_size_of_a_window_that_is_hidden_or_minimised_is_not_saved_and_a_place_that_is_nonsense_is_left_out(
+    tmp_path: Path,
+) -> None:
     appstate.save_window(tmp_path, appstate.WindowState(1000, 700, 10, 20))
     appstate.save_window(tmp_path, appstate.WindowState(0, 0, 10, 20))
     appstate.save_window(tmp_path, appstate.WindowState(160, 28, 10, 20))
@@ -454,11 +579,13 @@ def test_the_web_engine_gets_its_storage_in_the_data_folder(tmp_path: Path) -> N
 
 # ---- which shell this computer can run
 
+
 def importer(missing: set[str]) -> Any:
     def load(name: str) -> object:
         if name in missing or any(name.startswith(m + ".") for m in missing):
             raise ModuleNotFoundError(f"No module named {name!r}")
         return types.ModuleType(name)
+
     return load
 
 
@@ -469,22 +596,34 @@ def test_linux_with_the_web_engine_has_the_window_and_the_tray() -> None:
 
 def test_linux_without_the_web_engine_has_the_tray_and_the_browser() -> None:
     choice = shell.choose("linux", importer({"PySide6.QtWebEngineWidgets"}))
-    assert choice.module == "neoaprs.desktop.qtshell" and not choice.window and "QtWebEngineWidgets" in choice.describe() and "no window" in choice.describe()
+    assert (
+        choice.module == "neoaprs.desktop.qtshell"
+        and not choice.window
+        and "QtWebEngineWidgets" in choice.describe()
+        and "no window" in choice.describe()
+    )
 
 
 def test_linux_without_qt_has_the_browser_only() -> None:
     choice = shell.choose("linux", importer({"PySide6"}))
-    assert choice.module is None and not choice.window and "browser" in choice.describe() and "PySide6" in choice.describe()
+    assert (
+        choice.module is None
+        and not choice.window
+        and "browser" in choice.describe()
+        and "PySide6" in choice.describe()
+    )
 
 
 def test_a_toolkit_that_is_installed_and_broken_is_a_fallback_and_not_a_crash() -> None:
     def broken(name: str) -> object:
         raise OSError("libEGL.so.1: cannot open shared object file")
+
     choice = shell.choose("linux", broken)
     assert choice.module is None and "libEGL" in choice.describe()
 
 
 # ---- the web window on Linux and macOS, the trial: NEOAPRS_WINDOW=web chooses it in place of Qt's
+
 
 def gtk_importer(missing: set[str], typelibs: set[tuple[str, str]], named: list[str] | None = None) -> Any:
     """`importer` with a `gi` whose require_version knows the namespaces and versions of `typelibs`
@@ -501,7 +640,9 @@ def gtk_importer(missing: set[str], typelibs: set[tuple[str, str]], named: list[
             raise ValueError(f"Namespace {namespace} not available for version {version}")
         required[namespace] = version
 
-    repository = types.SimpleNamespace(enumerate_versions=lambda namespace: [v for n, v in sorted(typelibs) if n == namespace])
+    repository = types.SimpleNamespace(
+        enumerate_versions=lambda namespace: [v for n, v in sorted(typelibs) if n == namespace]
+    )
 
     def load(name: str) -> object:
         module = plain(name)
@@ -511,6 +652,7 @@ def gtk_importer(missing: set[str], typelibs: set[tuple[str, str]], named: list[
         elif name == "gi.repository.GLib":
             module.set_prgname = (named if named is not None else []).append  # type: ignore[attr-defined]
         return module
+
     return load
 
 
@@ -523,27 +665,40 @@ def ground(monkeypatch: pytest.MonkeyPatch) -> list[int]:
     """gtkenv's ground stood in for (it would set the variables of this process): how often it was
     laid."""
     laid: list[int] = []
-    monkeypatch.setattr("neoaprs.desktop.gtkenv.prepare", lambda: laid.append(1) or ["the carried typelibs of girepository-tray"])
+    monkeypatch.setattr(
+        "neoaprs.desktop.gtkenv.prepare", lambda: laid.append(1) or ["the carried typelibs of girepository-tray"]
+    )
     return laid
 
 
 def test_without_the_switch_linux_keeps_the_qt_window(ground: list[int]) -> None:
     for environ in ({}, {"NEOAPRS_WINDOW": "qt"}, {"NEOAPRS_WINDOW": ""}):
-        assert shell.choose("linux", gtk_importer(set(), GTK), environ=environ) == shell.Choice("neoaprs.desktop.qtshell", True)
+        assert shell.choose("linux", gtk_importer(set(), GTK), environ=environ) == shell.Choice(
+            "neoaprs.desktop.qtshell", True
+        )
     assert ground == [], "nothing of GTK is touched while the trial is off"
 
 
-def test_with_the_switch_linux_has_the_web_window_and_its_tray_and_the_program_is_named_first(ground: list[int]) -> None:
+def test_with_the_switch_linux_has_the_web_window_and_its_tray_and_the_program_is_named_first(
+    ground: list[int],
+) -> None:
     named: list[str] = []
     environ = dict(WEB)
     choice = shell.choose("linux", gtk_importer(set(), GTK, named), environ=environ)
-    assert choice == shell.Choice("neoaprs.desktop.webshell", True, (), True) and "window and tray (neoaprs.desktop.webshell)" in choice.describe()
+    assert (
+        choice == shell.Choice("neoaprs.desktop.webshell", True, (), True)
+        and "window and tray (neoaprs.desktop.webshell)" in choice.describe()
+    )
     assert named == ["neoaprs"] and ground == [1]
-    assert environ["PYSTRAY_BACKEND"] == "appindicator", "pystray's other backends show nothing on Wayland, and its gtk one is never wanted"
+    assert environ["PYSTRAY_BACKEND"] == "appindicator", (
+        "pystray's other backends show nothing on Wayland, and its gtk one is never wanted"
+    )
 
 
 def test_the_webkitgtk_4_0_api_of_ubuntu_22_04_is_taken_when_4_1_is_not_there(ground: list[int]) -> None:
-    choice = shell.choose("linux", gtk_importer(set(), {("Gtk", "3.0"), ("WebKit2", "4.0"), ("Soup", "2.4")}), environ=dict(WEB))
+    choice = shell.choose(
+        "linux", gtk_importer(set(), {("Gtk", "3.0"), ("WebKit2", "4.0"), ("Soup", "2.4")}), environ=dict(WEB)
+    )
     assert (choice.module, choice.window, choice.tray) == ("neoaprs.desktop.webshell", True, True)
 
 
@@ -554,11 +709,15 @@ def test_webkit_4_1_without_its_soup_3_typelib_takes_the_4_0_api_that_is_there(g
 
 
 def test_the_qt_windows_start_imports_nothing_of_the_web_windows_ground() -> None:
-    program = ("import sys\n"
-               "from neoaprs.desktop import cmd, shell\n"
-               "shell.choose('linux', lambda name: object(), environ={})\n"
-               "print(sorted(n for n in ('neoaprs.desktop.gtkenv', 'ctypes', '_ctypes') if n in sys.modules))\n")
-    done = subprocess.run([sys.executable, "-c", program], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=True)
+    program = (
+        "import sys\n"
+        "from neoaprs.desktop import cmd, shell\n"
+        "shell.choose('linux', lambda name: object(), environ={})\n"
+        "print(sorted(n for n in ('neoaprs.desktop.gtkenv', 'ctypes', '_ctypes') if n in sys.modules))\n"
+    )
+    done = subprocess.run(
+        [sys.executable, "-c", program], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=True
+    )
     # (on Windows the splash, splash.py, imports ctypes for itself: the Qt window is never started
     # there, gtkenv is never imported)
     windows_splash = ["_ctypes", "ctypes"] if sys.platform == "win32" else []
@@ -568,7 +727,11 @@ def test_the_qt_windows_start_imports_nothing_of_the_web_windows_ground() -> Non
 def test_without_webkitgtk_it_is_the_tray_and_the_browser_and_the_log_names_the_package(ground: list[int]) -> None:
     choice = shell.choose("linux", gtk_importer(set(), {("Gtk", "3.0")}), environ=dict(WEB))
     assert (choice.module, choice.window, choice.tray) == ("neoaprs.desktop.webshell", False, True)
-    assert "no WebKitGTK" in choice.describe() and "libwebkit2gtk-4.1-0" in choice.describe() and "no window, the tray and the browser" in choice.describe()
+    assert (
+        "no WebKitGTK" in choice.describe()
+        and "libwebkit2gtk-4.1-0" in choice.describe()
+        and "no window, the tray and the browser" in choice.describe()
+    )
 
 
 def test_a_tray_that_does_not_load_leaves_the_window_without_one(ground: list[int]) -> None:
@@ -577,41 +740,61 @@ def test_a_tray_that_does_not_load_leaves_the_window_without_one(ground: list[in
             # (what pystray's import ends with when the typelib is missing)
             raise ValueError("Namespace AyatanaAppIndicator3 not available")
         return gtk_importer(set(), GTK)(name)
+
     choice = shell.choose("linux", broken_tray, environ=dict(WEB))
     assert (choice.module, choice.window, choice.tray) == ("neoaprs.desktop.webshell", True, False)
-    assert "window, no tray icon: closing the window quits" in choice.describe() and "AyatanaAppIndicator3" in choice.describe()
+    assert (
+        "window, no tray icon: closing the window quits" in choice.describe()
+        and "AyatanaAppIndicator3" in choice.describe()
+    )
 
 
 def test_with_neither_the_web_window_nor_its_tray_it_is_the_browser_only(ground: list[int]) -> None:
     # (pystray's backends need gi too)
     choice = shell.choose("linux", gtk_importer({"gi", "pystray"}, GTK), environ=dict(WEB))
-    assert choice.module is None and not choice.window and not choice.tray and "gi: ModuleNotFoundError" in choice.describe()
+    assert (
+        choice.module is None
+        and not choice.window
+        and not choice.tray
+        and "gi: ModuleNotFoundError" in choice.describe()
+    )
 
 
 def test_with_the_switch_macos_has_the_web_window_on_wkwebview_and_the_tray_in_the_menu_bar(ground: list[int]) -> None:
-    assert shell.choose("darwin", importer(set()), environ=dict(WEB)) == shell.Choice("neoaprs.desktop.webshell", True, (), True)
+    assert shell.choose("darwin", importer(set()), environ=dict(WEB)) == shell.Choice(
+        "neoaprs.desktop.webshell", True, (), True
+    )
     assert shell.choose("darwin", importer({"PyObjCTools"}), environ=dict(WEB)).tray is False
     assert shell.choose("darwin", importer({"WebKit"}), environ=dict(WEB)).window is False
     assert ground == [], "GTK's ground is Linux's"
 
 
 def test_windows_runs_the_web_shell_whatever_the_switch_says() -> None:
-    assert shell.choose("win32", importer(set()), lambda: True, environ={"NEOAPRS_WINDOW": "qt"}) == shell.Choice("neoaprs.desktop.webshell", True)
+    assert shell.choose("win32", importer(set()), lambda: True, environ={"NEOAPRS_WINDOW": "qt"}) == shell.Choice(
+        "neoaprs.desktop.webshell", True
+    )
 
 
 def test_windows_has_the_window_and_the_tray_when_webview2_is_there() -> None:
     assert shell.choose("win32", importer(set()), lambda: True) == shell.Choice("neoaprs.desktop.webshell", True)
-    assert shell.choose("win32", importer({"PIL"}), lambda: True) == shell.Choice("neoaprs.desktop.webshell", True), "the tray needs no Pillow: the app does not ship it"
+    assert shell.choose("win32", importer({"PIL"}), lambda: True) == shell.Choice("neoaprs.desktop.webshell", True), (
+        "the tray needs no Pillow: the app does not ship it"
+    )
 
 
-@pytest.mark.parametrize("missing, runtime, module, window", [
-    # no WebView2 runtime: pywebview would fall back to the old Internet Explorer engine, which
-    # cannot show the page
-    (set(), False, "neoaprs.desktop.webshell", False),
-    ({"webview"}, True, "neoaprs.desktop.webshell", False),        # pywebview is not installed
-    ({"pystray"}, True, None, False),
-])
-def test_windows_falls_back_to_the_tray_or_the_browser(missing: set[str], runtime: bool, module: str | None, window: bool) -> None:
+@pytest.mark.parametrize(
+    "missing, runtime, module, window",
+    [
+        # no WebView2 runtime: pywebview would fall back to the old Internet Explorer engine, which
+        # cannot show the page
+        (set(), False, "neoaprs.desktop.webshell", False),
+        ({"webview"}, True, "neoaprs.desktop.webshell", False),  # pywebview is not installed
+        ({"pystray"}, True, None, False),
+    ],
+)
+def test_windows_falls_back_to_the_tray_or_the_browser(
+    missing: set[str], runtime: bool, module: str | None, window: bool
+) -> None:
     choice = shell.choose("win32", importer(missing), lambda: runtime)
     assert (choice.module, choice.window) == (module, window) and choice.why
 
@@ -653,7 +836,9 @@ def test_the_webview2_runtime_is_looked_for_where_its_updater_writes_it() -> Non
 def test_a_switch_flipped_after_the_menu_was_built_and_before_the_first_look_is_told() -> None:
     daemon = FakeDaemon(up=True, network=False)
     changed = threading.Semaphore(0)
-    watch = DaemonWatch(Session(DATA, PAGE, owned=False), lambda: None, daemon, every=0.3, network_moved=changed.release)
+    watch = DaemonWatch(
+        Session(DATA, PAGE, owned=False), lambda: None, daemon, every=0.3, network_moved=changed.release
+    )
     watch.start()
     daemon.served_to_network = True
     assert changed.acquire(timeout=5)

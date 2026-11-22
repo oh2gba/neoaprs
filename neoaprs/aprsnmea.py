@@ -3,6 +3,7 @@
 GGA, GLL, RMC and WPL give positions; any talker is accepted. The symbol comes from the packet's
 destination or source call (`tracker_symbol`); the sentence has none.
 """
+
 import math
 import re
 from datetime import UTC, datetime
@@ -23,7 +24,7 @@ class NmeaError(ValueError):
 
 
 def _checksum_ok(text: str, given: str | None) -> bool:
-    return given is None or reduce(lambda a, c: a ^ ord(c), text[1:text.rindex("*")], 0) == int(given, 16)
+    return given is None or reduce(lambda a, c: a ^ ord(c), text[1 : text.rindex("*")], 0) == int(given, 16)
 
 
 def _coordinate(value: str, hemisphere: str, negative: str, positive: str, limit: int) -> float:
@@ -41,7 +42,9 @@ def _place(fields: list[str], at: int) -> tuple[float, float]:
     """Return latitude and longitude from four fields (ddmm.mmm, N/S, dddmm.mmm, E/W)."""
     if len(fields) < at + 4:
         raise NmeaError("sentence cut short")
-    return _coordinate(fields[at], fields[at + 1], "S", "N", 90), _coordinate(fields[at + 2], fields[at + 3], "W", "E", 180)
+    return _coordinate(fields[at], fields[at + 1], "S", "N", 90), _coordinate(
+        fields[at + 2], fields[at + 3], "W", "E", 180
+    )
 
 
 def _time(field: str, now: datetime) -> datetime | None:
@@ -101,12 +104,23 @@ def parse_nmea(info: bytes, source: str, destination: str, now: datetime) -> Pos
     if kind == "WPL":
         return _position(*_place(fields, 0), source, destination, comment=fields[4].strip() if len(fields) > 4 else "")
     if kind == "GLL":
-        return _position(*_place(fields, 0), source, destination, at=_time(fields[4], now) if len(fields) > 4 else None) if _valid(fields, 5, "A") else None
+        return (
+            _position(*_place(fields, 0), source, destination, at=_time(fields[4], now) if len(fields) > 4 else None)
+            if _valid(fields, 5, "A")
+            else None
+        )
     if kind == "RMC":
         if len(fields) < 9 or not _valid(fields, 1, "A"):
             return None
         course, speed = motion(round(_measured(fields[7]) or 0), _measured(fields[6]) or 0.0)
-        return _position(*_place(fields, 2), source, destination, course=course, speed=speed, at=_date_time(fields[0], fields[8], now))
+        return _position(
+            *_place(fields, 2),
+            source,
+            destination,
+            course=course,
+            speed=speed,
+            at=_date_time(fields[0], fields[8], now),
+        )
     # GGA: field 5 is the quality, 0 is no fix
     if len(fields) < 9 or not fields[5].isdigit() or int(fields[5]) == 0:
         return None
@@ -119,8 +133,17 @@ def _valid(fields: list[str], index: int, good: str) -> bool:
     return len(fields) <= index or fields[index].upper() in (good, "", "D")
 
 
-def _position(lat: float, lon: float, source: str, destination: str, *, course: int | None = None, speed: float | None = None, altitude: float | None = None,
-              at: datetime | None = None, comment: str = "") -> Position:
+def _position(
+    lat: float,
+    lon: float,
+    source: str,
+    destination: str,
+    *,
+    course: int | None = None,
+    speed: float | None = None,
+    altitude: float | None = None,
+    at: datetime | None = None,
+    comment: str = "",
+) -> Position:
     table, code = tracker_symbol(source, destination)
     return Position(lat, lon, table, code, comment, course, speed, altitude, at)
-

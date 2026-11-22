@@ -1,6 +1,7 @@
 """Tests for the `neoaprs` command: command selection, the daemon as the default, each command's
 parser, and the commands run as processes (`map`, `db`, `doctor`, `--version`).
 """
+
 import os
 import subprocess
 import sys
@@ -18,7 +19,9 @@ from tests.support.proc import STOP_PATIENCE_SEC
 def process(*args: str, home: Path, extra: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG")}
     env.update({"HOME": str(home), "PYTHONPATH": str(ROOT), **(extra or {})})
-    return subprocess.run([sys.executable, "-m", "neoaprs", *args], cwd=home, env=env, capture_output=True, text=True, timeout=120)
+    return subprocess.run(
+        [sys.executable, "-m", "neoaprs", *args], cwd=home, env=env, capture_output=True, text=True, timeout=120
+    )
 
 
 @pytest.fixture
@@ -26,18 +29,28 @@ def daemon_calls(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
     """`run_daemon` is not run: what it is given is written down."""
     calls: list[list[str]] = []
     import neoaprs.daemon
+
     monkeypatch.setattr(neoaprs.daemon, "main", lambda argv=None, prog="neoaprs": calls.append(list(argv or [])) or 0)
     return calls
 
 
 def test_no_command_and_run_are_the_daemon_with_its_flags(daemon_calls: list[list[str]]) -> None:
-    assert cli.main([]) == 0 and cli.main(["--data", "x", "--port", "socket://127.0.0.1:8001", "--web-port", "0", "--debug"]) == 0
+    assert (
+        cli.main([]) == 0
+        and cli.main(["--data", "x", "--port", "socket://127.0.0.1:8001", "--web-port", "0", "--debug"]) == 0
+    )
     assert cli.main(["run"]) == 0 and cli.main(["run", "--data", "y", "--debug"]) == 0
-    assert daemon_calls == [[], ["--data", "x", "--port", "socket://127.0.0.1:8001", "--web-port", "0", "--debug"], [], ["--data", "y", "--debug"]]
+    assert daemon_calls == [
+        [],
+        ["--data", "x", "--port", "socket://127.0.0.1:8001", "--web-port", "0", "--debug"],
+        [],
+        ["--data", "y", "--debug"],
+    ]
 
 
 def test_the_daemons_own_parser_is_what_decides_its_flags() -> None:
     import neoaprs.daemon as daemon
+
     args = daemon.build_parser().parse_args(["--data", "d", "--port", "COM3", "--web-port", "7400", "--debug"])
     assert (args.data, args.port, args.web_port, args.debug) == ("d", "COM3", 7400, True)
     with pytest.raises(SystemExit):
@@ -53,7 +66,24 @@ def test_a_command_is_dispatched_with_the_rest_of_the_line(monkeypatch: pytest.M
     for name in cli.COMMANDS:
         assert cli.main([name, "--flag", "x"]) == 0
     assert seen == {name: ["--flag", "x"] for name in cli.COMMANDS}
-    assert set(cli.COMMANDS) == set(cli.HANDLERS) == {"run", "service", "map", "db", "replay", "gps-replay", "capture", "doctor", "support", "open", "stop", "app"}
+    assert (
+        set(cli.COMMANDS)
+        == set(cli.HANDLERS)
+        == {
+            "run",
+            "service",
+            "map",
+            "db",
+            "replay",
+            "gps-replay",
+            "capture",
+            "doctor",
+            "support",
+            "open",
+            "stop",
+            "app",
+        }
+    )
 
 
 def test_an_unknown_command_is_refused_and_help_lists_the_commands(capsys: pytest.CaptureFixture[str]) -> None:
@@ -68,12 +98,22 @@ def test_version_is_the_one_version_of_the_package(tmp_path: Path) -> None:
     done = process("--version", home=tmp_path)
     assert done.returncode == 0 and done.stdout.strip() == f"{PROGRAM} {VERSION}"
     import tomllib
+
     meta = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert "version" not in meta["project"] and meta["project"]["dynamic"] == ["version"] and meta["tool"]["hatch"]["version"]["path"] == "neoaprs/__init__.py"
-    assert meta["project"]["scripts"] == {"neoaprs": "neoaprs.cli:main"} and meta["project"]["gui-scripts"] == {"neoaprsw": "neoaprs.cli:gui_main", "neoaprs-app": "neoaprs.desktop.cmd:gui_main"}
+    assert (
+        "version" not in meta["project"]
+        and meta["project"]["dynamic"] == ["version"]
+        and meta["tool"]["hatch"]["version"]["path"] == "neoaprs/__init__.py"
+    )
+    assert meta["project"]["scripts"] == {"neoaprs": "neoaprs.cli:main"} and meta["project"]["gui-scripts"] == {
+        "neoaprsw": "neoaprs.cli:gui_main",
+        "neoaprs-app": "neoaprs.desktop.cmd:gui_main",
+    }
 
 
-def test_the_windowless_entry_replaces_the_streams_it_does_not_have(monkeypatch: pytest.MonkeyPatch, daemon_calls: list[list[str]]) -> None:
+def test_the_windowless_entry_replaces_the_streams_it_does_not_have(
+    monkeypatch: pytest.MonkeyPatch, daemon_calls: list[list[str]]
+) -> None:
     monkeypatch.setattr(sys, "stdout", None)
     monkeypatch.setattr(sys, "stderr", None)
     monkeypatch.setattr(sys, "argv", ["neoaprsw", "run", "--data", "z"])
@@ -85,6 +125,7 @@ def test_the_windowless_entry_replaces_the_streams_it_does_not_have(monkeypatch:
 
 
 # ---- the parsers ----
+
 
 def test_the_service_parser_takes_an_action_and_its_options() -> None:
     parser = servicecmd.parser()
@@ -118,14 +159,26 @@ def test_capture_records_a_tcp_tnc_into_a_file(tmp_path: Path) -> None:
     the file is the bytes, and the frames are counted."""
     from tests.test_replay import CAPTURE
     from neoaprs.cli.replaycmd import frames_of
-    server = subprocess.Popen([sys.executable, "-m", "neoaprs", "replay", str(CAPTURE), "--interval", "0.05"], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    server = subprocess.Popen(
+        [sys.executable, "-m", "neoaprs", "replay", str(CAPTURE), "--interval", "0.05"],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
     try:
         assert server.stdout is not None
         address = server.stdout.readline().strip()
         out = tmp_path / "recorded.bin"
-        done = process("capture", "--port", address, "--seconds", "3", str(out), home=tmp_path, extra={"PYTHONPATH": str(ROOT)})
+        done = process(
+            "capture", "--port", address, "--seconds", "3", str(out), home=tmp_path, extra={"PYTHONPATH": str(ROOT)}
+        )
         assert done.returncode == 0, done.stderr
-        assert b"".join(frames_of(out.read_bytes())) == b"".join(frames_of(CAPTURE.read_bytes())) and "4 KISS frames" in done.stderr
+        assert (
+            b"".join(frames_of(out.read_bytes())) == b"".join(frames_of(CAPTURE.read_bytes()))
+            and "4 KISS frames" in done.stderr
+        )
     finally:
         server.terminate()
         server.communicate(timeout=STOP_PATIENCE_SEC)
@@ -133,9 +186,26 @@ def test_capture_records_a_tcp_tnc_into_a_file(tmp_path: Path) -> None:
 
 # ---- as processes ----
 
+
 def test_map_is_the_map_command_line_under_the_main_command(tmp_path: Path) -> None:
     (tmp_path / "20261020.pmtiles").write_bytes(planet())
-    done = process("map", "--data", str(tmp_path / "data"), "--source", str(tmp_path / "20261020.pmtiles"), "--lat", "60.17", "--lon", "24.94", "--radius", "40", "--maxzoom", "14", "--dry-run", home=tmp_path)
+    done = process(
+        "map",
+        "--data",
+        str(tmp_path / "data"),
+        "--source",
+        str(tmp_path / "20261020.pmtiles"),
+        "--lat",
+        "60.17",
+        "--lon",
+        "24.94",
+        "--radius",
+        "40",
+        "--maxzoom",
+        "14",
+        "--dry-run",
+        home=tmp_path,
+    )
     assert done.returncode == 0, done.stderr
     assert "MB for 40 km round us to zoom 14 (" in done.stdout and " tiles), from build 20261020" in done.stdout
     helped = process("map", "--help", home=tmp_path)
@@ -144,7 +214,10 @@ def test_map_is_the_map_command_line_under_the_main_command(tmp_path: Path) -> N
 
 def test_db_through_the_main_command_sets_and_reads_a_setting(tmp_path: Path) -> None:
     data = str(tmp_path / "data")
-    assert process("db", "--data", data, "set", "station/call", "oh2gba-9", home=tmp_path).stdout.strip() == "station/call = OH2GBA-9"
+    assert (
+        process("db", "--data", data, "set", "station/call", "oh2gba-9", home=tmp_path).stdout.strip()
+        == "station/call = OH2GBA-9"
+    )
     assert process("db", "--data", data, "get", "station/call", home=tmp_path).stdout.strip() == "OH2GBA-9"
     done = process("db", "--data", data, "get", "web/colour", home=tmp_path)
     assert done.returncode == 2 and "no such setting" in done.stderr and done.stderr.startswith("neoaprs db:")
@@ -165,4 +238,3 @@ def test_the_default_data_folder_is_the_same_for_every_command(tmp_path: Path) -
         assert parser_default == str(servicecmd.default_data_dir())
     done = process("doctor", home=tmp_path, extra={"NEOAPRS_DATA_DIR": str(place)})
     assert f"data folder {place}" in done.stdout
-

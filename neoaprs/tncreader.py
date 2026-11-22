@@ -22,6 +22,7 @@ log = logging.getLogger("neoaprs.tnc")
 
 class Line(Protocol):
     """What the reader needs of the Tnc."""
+
     stats: TncStats
     state: Source.State
     profile: Profile
@@ -137,7 +138,7 @@ class Reader:
         self.detector.rearm()
         piece = kiss.FEND in chunk
         # what precedes the first FEND is the tail of a frame, never text
-        mode = self.detector.feed(chunk[chunk.index(kiss.FEND):] if piece else chunk)
+        mode = self.detector.feed(chunk[chunk.index(kiss.FEND) :] if piece else chunk)
         enter = tnc.profile.detect_command_mode and mode is Mode.MONITOR and not piece
         tnc._hear("; entering KISS" if enter else "")
         if enter:
@@ -154,13 +155,26 @@ class Reader:
         # told first: a due repeat of the entry must not make the Tnc usable meanwhile
         if not self.told_text:
             self.told_text = True
-            tnc._set_problem("the TNC sends text, not KISS frames: it is in command mode" + (" and the entry did not change that" if self.entered else f" and the profile {tnc.profile.name!r} does not enter KISS"))
+            tnc._set_problem(
+                "the TNC sends text, not KISS frames: it is in command mode"
+                + (
+                    " and the entry did not change that"
+                    if self.entered
+                    else f" and the profile {tnc.profile.name!r} does not enter KISS"
+                )
+            )
             tnc._note(tnc.problem)
-        if tnc.profile.detect_command_mode and not self.kiss_seen and self.again.due(asyncio.get_running_loop().time(), self.settle_until):
+        if (
+            tnc.profile.detect_command_mode
+            and not self.kiss_seen
+            and self.again.due(asyncio.get_running_loop().time(), self.settle_until)
+        ):
             why, level = self.again.repeat()
             self.enter_kiss(port, why, level)
 
-    def enter_kiss(self, port: TncPort, why: str = "the TNC was in command mode", level: int = logging.INFO, note: bool = True) -> None:
+    def enter_kiss(
+        self, port: TncPort, why: str = "the TNC was in command mode", level: int = logging.INFO, note: bool = True
+    ) -> None:
         """Run the profile's entry steps, then the settle time that discards what the TNC says.
 
         `level` is the log level; `note` says whether the terminal gets a line too.

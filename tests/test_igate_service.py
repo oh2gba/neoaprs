@@ -2,6 +2,7 @@
 server lines, ungated ones are counted by reason, duplicates within 30 seconds are gated once, and
 without a passcode it only listens.
 """
+
 import logging
 from datetime import timedelta
 from dataclasses import replace
@@ -23,6 +24,7 @@ OWN_LINE = "OH2GBA-10>" + TOCALL + ",TCPIP*:" + POSITION.decode()
 
 # ---- gating
 
+
 async def test_what_the_radio_hears_is_on_the_server_as_a_line_with_qao_and_our_call() -> None:
     server = await fake_aprsis()
     w = await iworld(server)
@@ -35,25 +37,38 @@ async def test_what_the_radio_hears_is_on_the_server_as_a_line_with_qao_and_our_
 async def test_every_rule_counts_what_it_kept_off_the_server_by_its_reason() -> None:
     server = await fake_aprsis()
     w = await iworld(server)
-    for kwargs in ({"path": "TCPIP*"}, {"path": "WIDE1*,TCPXX"}, {"path": "NOGATE"}, {"path": "RFONLY"}, {"info": b"?APRS?"}, {"source": "N0CALL"}, {"source": "OH2GBA-10"}, {"info": b"}OH7ABC>APRS,TCPIP,OH7JHF-1*:>x", "source": "OH7JHF-1"}):
-        w.hear(**kwargs)                                                  # type: ignore[arg-type]
+    for kwargs in (
+        {"path": "TCPIP*"},
+        {"path": "WIDE1*,TCPXX"},
+        {"path": "NOGATE"},
+        {"path": "RFONLY"},
+        {"info": b"?APRS?"},
+        {"source": "N0CALL"},
+        {"source": "OH2GBA-10"},
+        {"info": b"}OH7ABC>APRS,TCPIP,OH7JHF-1*:>x", "source": "OH7JHF-1"},
+    ):
+        w.hear(**kwargs)  # type: ignore[arg-type]
     w.hear(direction="out")
     assert dict(w.igate.dropped) == {TCPIP: 3, NOGATE: 2, QUERY: 1, SOURCE: 1, OWN: 1} and w.igate.gated == 0
     await w.until_sent(1)
     assert server.packets == [OWN_LINE], "(only our own position: none of the nine packets)"
 
 
-async def test_a_packet_from_the_internet_or_made_up_by_the_dummy_radio_is_never_gated_and_is_counted_as_not_from_the_air() -> None:
+async def test_a_packet_from_the_internet_or_made_up_by_the_dummy_radio_is_never_gated_and_is_counted_as_not_from_the_air() -> (
+    None
+):
     server = await fake_aprsis()
     w = await iworld(server)
-    heard = w.hear()                                                      # (a real one, gated: the control)
+    heard = w.hear()  # (a real one, gated: the control)
     w.igate.on_packet(replace(heard, via="is"))
     w.igate.on_packet(replace(heard, via="dummy"))
     w.igate.on_packet(replace(heard, via="dummy", info=b"!6011.00N/02456.00E>Other"))
     assert w.igate.gated == 1 and w.igate.dropped[NOT_AIR] == 3 and dict(w.igate.dropped) == {NOT_AIR: 3}
     await w.until_sent(2)
     await idle_for(0.1)
-    assert sorted(server.packets) == sorted([LINE, OWN_LINE]), "(only the real packet and our own position reached the server)"
+    assert sorted(server.packets) == sorted([LINE, OWN_LINE]), (
+        "(only the real packet and our own position reached the server)"
+    )
 
 
 async def test_a_packet_that_was_not_on_the_air_is_not_from_the_air_even_when_the_igate_is_not_logged_in() -> None:
@@ -75,11 +90,11 @@ async def test_the_same_packet_heard_again_within_30_seconds_is_gated_once_and_a
     w = await iworld(server)
     w.hear(path="WIDE1-1*,WIDE2-1")
     w.clock.advance(5)
-    w.hear(path="OH2RDG*,WIDE2-1")                                        # (the path is not part of it)
+    w.hear(path="OH2RDG*,WIDE2-1")  # (the path is not part of it)
     w.clock.advance(24)
-    w.hear(destination="APZ123-2")                                        # (nor is the destination's SSID)
+    w.hear(destination="APZ123-2")  # (nor is the destination's SSID)
     assert w.igate.gated == 1 and w.igate.dropped[DUPLICATE] == 2
-    w.clock.advance(2)                                                    # (31 s after the first)
+    w.clock.advance(2)  # (31 s after the first)
     w.hear()
     assert w.igate.gated == 2 and w.igate.dropped[DUPLICATE] == 2
     w.hear(info=b"!6010.00N/02456.00E>Other")
@@ -110,7 +125,13 @@ async def test_the_igate_that_is_off_connects_to_nothing_and_counts_nothing() ->
     w = await iworld(server, wait=False, igate_enabled=False)
     w.hear()
     await idle_for(0.2)
-    assert w.igate.state == "off" and w.igate.problem == "" and server.connections == 0 and w.igate.gated == 0 and not w.igate.dropped
+    assert (
+        w.igate.state == "off"
+        and w.igate.problem == ""
+        and server.connections == 0
+        and w.igate.gated == 0
+        and not w.igate.dropped
+    )
 
 
 async def test_what_the_server_sends_is_read_by_the_connection_and_is_nothing_to_the_service() -> None:
@@ -124,14 +145,23 @@ async def test_what_the_server_sends_is_read_by_the_connection_and_is_nothing_to
 
 # ---- the state
 
-async def test_an_igate_without_a_passcode_listens_only_gates_nothing_sends_no_position_and_a_passcode_makes_it_gate() -> None:
+
+async def test_an_igate_without_a_passcode_listens_only_gates_nothing_sends_no_position_and_a_passcode_makes_it_gate() -> (
+    None
+):
     server = await fake_aprsis(verified=False)
     w = await iworld(server, igate_password="")
-    assert w.igate.state == "listening" and w.igate.problem == "" and server.logins[0].startswith("user OH2GBA-10 pass -1 vers ")
+    assert (
+        w.igate.state == "listening"
+        and w.igate.problem == ""
+        and server.logins[0].startswith("user OH2GBA-10 pass -1 vers ")
+    )
     w.hear()
     w.hear(path="TCPIP*")
     await idle_for(0.2)
-    assert server.packets == [] and w.igate.gated == 0 and not w.igate.dropped, "(nothing gated, nothing counted, our position not sent)"
+    assert server.packets == [] and w.igate.gated == 0 and not w.igate.dropped, (
+        "(nothing gated, nothing counted, our position not sent)"
+    )
     server.verified = True
     w.save(igate_password="19628")
     await until(lambda: w.igate.state == "connected")
@@ -193,31 +223,37 @@ async def test_the_connection_lost_and_made_again_gates_again() -> None:
 FILTER = "r/60.17/24.94/150"
 
 
-async def test_the_filter_round_our_position_is_in_the_login_and_is_sent_again_when_we_have_moved_more_than_10_km() -> None:
+async def test_the_filter_round_our_position_is_in_the_login_and_is_sent_again_when_we_have_moved_more_than_10_km() -> (
+    None
+):
     server = await fake_aprsis()
     w = await iworld(server)
     assert server.logins[0].endswith(f" filter {FILTER}")
-    w.place = (60.20, 24.99)                                              # (about 4 km)
+    w.place = (60.20, 24.99)  # (about 4 km)
     w.igate.tick()
     # (about 9 km from where the filter was set, and the filter is still the first)
     w.place = (60.17, 25.10)
     w.igate.tick()
     await idle_for(0.1)
     assert [c for c in server.comments if c.startswith("#filter")] == []
-    w.place = (60.17, 25.14)                                              # (about 11 km)
+    w.place = (60.17, 25.14)  # (about 11 km)
     w.igate.tick()
     await until(lambda: "#filter r/60.17/25.14/150" in server.comments)
-    w.place = (60.17, 25.20)                                              # (6 km from the new one)
+    w.place = (60.17, 25.20)  # (6 km from the new one)
     w.igate.tick()
     await idle_for(0.1)
-    assert [c for c in server.comments if c.startswith("#filter")] == ["#filter r/60.17/25.14/150"] and server.connections == 1
+    assert [c for c in server.comments if c.startswith("#filter")] == [
+        "#filter r/60.17/25.14/150"
+    ] and server.connections == 1
 
 
-async def test_the_radius_of_the_filter_is_the_radius_of_the_map_in_the_login_and_a_change_of_it_sends_the_filter_again() -> None:
+async def test_the_radius_of_the_filter_is_the_radius_of_the_map_in_the_login_and_a_change_of_it_sends_the_filter_again() -> (
+    None
+):
     server = await fake_aprsis()
     w = await iworld(server, map_radius_km=60)
     assert server.logins[0].endswith(" filter r/60.17/24.94/60")
-    w.save(map_radius_km=60)                                              # (the same radius: nothing is sent)
+    w.save(map_radius_km=60)  # (the same radius: nothing is sent)
     await idle_for(0.1)
     assert [c for c in server.comments if c.startswith("#filter")] == []
     w.save(map_radius_km=250)
@@ -245,7 +281,9 @@ async def test_a_new_login_after_a_loss_carries_the_filter_we_have_now() -> None
     assert server.logins[1].endswith(" filter r/61.50/23.76/150")
 
 
-async def test_the_listening_igate_has_the_filter_too_and_the_hour_says_how_many_packets_were_read(caplog: pytest.LogCaptureFixture) -> None:
+async def test_the_listening_igate_has_the_filter_too_and_the_hour_says_how_many_packets_were_read(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.INFO)
     server = await fake_aprsis(verified=False)
     w = await iworld(server, igate_password="")
@@ -259,6 +297,7 @@ async def test_the_listening_igate_has_the_filter_too_and_the_hour_says_how_many
 
 
 # ---- our own position
+
 
 async def test_the_position_of_a_station_that_stays_goes_to_the_server_at_the_login_and_every_30_minutes() -> None:
     server = await fake_aprsis()
@@ -319,7 +358,9 @@ async def test_a_beacon_is_not_sent_to_the_server_while_the_igate_is_not_logged_
     assert server.packets == []
 
 
-async def test_nothing_of_ours_is_sent_to_the_server_while_the_radio_is_a_dummy_and_the_position_goes_when_it_is_a_real_one() -> None:
+async def test_nothing_of_ours_is_sent_to_the_server_while_the_radio_is_a_dummy_and_the_position_goes_when_it_is_a_real_one() -> (
+    None
+):
     server = await fake_aprsis()
     # (the settings say the radio that is on is the Dummy one: the iGate reads it there)
     w = await iworld(server, wait=False, tnc_profile="dummy")
@@ -337,20 +378,36 @@ async def test_nothing_of_ours_is_sent_to_the_server_while_the_radio_is_a_dummy_
     moving = await iworld(await fake_aprsis(), gps_source="gpsd", hf_enabled=True, hf_profile="dummy-hf")
     moving.igate.beacon_sent(frame_of(source="OH2GBA-10", destination=TOCALL, info=b"=/5L!!<*e7>7P["))
     await idle_for(0.1)
-    assert moving.server.packets == [], "(the beacon sent while the Dummy HF radio is on is a packet of a made-up station too)"
+    assert moving.server.packets == [], (
+        "(the beacon sent while the Dummy HF radio is on is a packet of a made-up station too)"
+    )
 
 
-@pytest.mark.parametrize(("changes", "made_up"), [({}, False), ({"tnc_profile": "dummy"}, True), ({"tnc_profile": "dummy", "fm_enabled": False, "hf_enabled": True}, False),
-                                                  ({"hf_enabled": True, "hf_profile": "dummy-hf"}, True), ({"hf_enabled": False, "hf_profile": "dummy-hf"}, False), ({"tnc_profile": "no such type"}, False)])
+@pytest.mark.parametrize(
+    ("changes", "made_up"),
+    [
+        ({}, False),
+        ({"tnc_profile": "dummy"}, True),
+        ({"tnc_profile": "dummy", "fm_enabled": False, "hf_enabled": True}, False),
+        ({"hf_enabled": True, "hf_profile": "dummy-hf"}, True),
+        ({"hf_enabled": False, "hf_profile": "dummy-hf"}, False),
+        ({"tnc_profile": "no such type"}, False),
+    ],
+)
 def test_a_dummy_radio_is_one_of_a_dummy_type_that_is_enabled(changes: dict[str, object], made_up: bool) -> None:
-    config = replace(ON_AIR, **changes)                                        # type: ignore[arg-type]
+    config = replace(ON_AIR, **changes)  # type: ignore[arg-type]
     assert dummy_on(config) is made_up
-    assert Igate(AprsIs(FixedClock()), lambda: config, lambda: b"", lambda: None).made_up() is made_up, "the iGate's own check, unless the composition root gives it another"
+    assert Igate(AprsIs(FixedClock()), lambda: config, lambda: b"", lambda: None).made_up() is made_up, (
+        "the iGate's own check, unless the composition root gives it another"
+    )
 
 
 # ---- the log
 
-async def test_the_log_has_the_login_and_each_gated_packet_and_never_the_password(caplog: pytest.LogCaptureFixture) -> None:
+
+async def test_the_log_has_the_login_and_each_gated_packet_and_never_the_password(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.DEBUG)
     server = await fake_aprsis()
     w = await iworld(server, igate_password="31415")
@@ -386,8 +443,12 @@ async def test_the_hour_is_one_line_at_info_with_what_was_not_gated(caplog: pyte
     assert said not in caplog.text, "(not before the hour is over)"
     w.clock.advance(1)
     w.igate.tick()
-    assert [(r.levelno, r.message) for r in caplog.records if r.message.startswith("igate: 3 packets")] == [(logging.INFO, said)]
-    assert w.igate.summary() == "igate: 0 packets gated in the last hour", "(the next hour starts from nothing, the totals go on)"
+    assert [(r.levelno, r.message) for r in caplog.records if r.message.startswith("igate: 3 packets")] == [
+        (logging.INFO, said)
+    ]
+    assert w.igate.summary() == "igate: 0 packets gated in the last hour", (
+        "(the next hour starts from nothing, the totals go on)"
+    )
     assert w.igate.gated == 3 and w.igate.dropped[TCPIP] == 5
     w.hear(info=b"!6010.00N/02456.00E>9")
     assert w.igate.summary() == "igate: 1 packet gated in the last hour"
@@ -395,14 +456,32 @@ async def test_the_hour_is_one_line_at_info_with_what_was_not_gated(caplog: pyte
 
 # ---- the structure
 
+
 def test_the_service_has_no_radio_to_send_with() -> None:
     import inspect
 
     import neoaprs.services.igate as module
+
     source = inspect.getsource(module)
     imported = {line.split()[1] for line in source.splitlines() if line.startswith(("from ", "import "))}
-    assert not {name for name in imported if name.startswith(("neoaprs.tnc", "neoaprs.kiss", "neoaprs.serialport", "neoaprs.interlock", "neoaprs.services.sender", "neoaprs.services.digipeater", "neoaprs.services.beacon"))}
-    assert not {name for name in vars(module) if name in ("Tnc", "Radio", "Sender", "Interlock", "Digipeater", "Beacon")}
+    assert not {
+        name
+        for name in imported
+        if name.startswith(
+            (
+                "neoaprs.tnc",
+                "neoaprs.kiss",
+                "neoaprs.serialport",
+                "neoaprs.interlock",
+                "neoaprs.services.sender",
+                "neoaprs.services.digipeater",
+                "neoaprs.services.beacon",
+            )
+        )
+    }
+    assert not {
+        name for name in vars(module) if name in ("Tnc", "Radio", "Sender", "Interlock", "Digipeater", "Beacon")
+    }
     assert "send_frame" not in source
 
 
@@ -417,14 +496,19 @@ async def test_the_igate_and_its_connection_hold_nothing_that_can_send_a_frame()
 # ---- the edges: a packet that is no frame, a link that went down, a table that grows, a start
 # twice
 
+
 async def test_a_packet_whose_bytes_are_no_frame_is_counted_as_such_and_gated_nowhere() -> None:
     server = await fake_aprsis()
     w = await iworld(server)
     w.igate.on_packet(replace(w.hear(source="OH2ABC-1"), raw=b"\x00\x01"))
-    assert dict(w.igate.dropped)[FRAME] == 1 and w.igate.gated == 1, "(the packet heard first was gated; the one with broken bytes was not)"
+    assert dict(w.igate.dropped)[FRAME] == 1 and w.igate.gated == 1, (
+        "(the packet heard first was gated; the one with broken bytes was not)"
+    )
 
 
-async def test_a_line_the_connection_will_not_take_is_counted_as_not_gated_when_it_went_down_between_the_check_and_the_write(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_line_the_connection_will_not_take_is_counted_as_not_gated_when_it_went_down_between_the_check_and_the_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     server = await fake_aprsis()
     w = await iworld(server)
     monkeypatch.setattr(w.link, "send_line", lambda line: False)

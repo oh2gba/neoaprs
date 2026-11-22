@@ -2,6 +2,7 @@
 for real on a clone of a made-up repository with a bare origin, a fake `gh` and a fake `bws` handing
 out a test key.
 """
+
 import base64
 import hashlib
 import http.server
@@ -32,15 +33,31 @@ pytestmark = posix_only
 ROOT = Path(__file__).resolve().parent.parent
 VERSION = "0.9.1"
 TAG = f"v{VERSION}"
-ASSETS = sorted([f"neoaprs-{VERSION}.tar.gz", f"neoaprs-{VERSION}-py3-none-any.whl", "install.sh", f"NeoAPRS-Setup-{VERSION}.exe", f"NeoAPRS-{VERSION}-x86_64.AppImage", f"NeoAPRS-{VERSION}-arm64.dmg", f"neoaprs_{VERSION}_amd64.deb", f"neoaprs_{VERSION}_arm64.deb",
-                 # What the release run uploads to the draft
-                 "NeoAPRS-Setup.exe", "NeoAPRS-x86_64.AppImage", "NeoAPRS-arm64.dmg", "neoaprs_amd64.deb", "neoaprs_arm64.deb", "SHA256SUMS"])
+ASSETS = sorted(
+    [
+        f"neoaprs-{VERSION}.tar.gz",
+        f"neoaprs-{VERSION}-py3-none-any.whl",
+        "install.sh",
+        f"NeoAPRS-Setup-{VERSION}.exe",
+        f"NeoAPRS-{VERSION}-x86_64.AppImage",
+        f"NeoAPRS-{VERSION}-arm64.dmg",
+        f"neoaprs_{VERSION}_amd64.deb",
+        f"neoaprs_{VERSION}_arm64.deb",
+        # What the release run uploads to the draft
+        "NeoAPRS-Setup.exe",
+        "NeoAPRS-x86_64.AppImage",
+        "NeoAPRS-arm64.dmg",
+        "neoaprs_amd64.deb",
+        "neoaprs_arm64.deb",
+        "SHA256SUMS",
+    ]
+)
 # The made-up files: each holds its own name, which SUMS hashes
 CONTENTS = {name: name for name in ASSETS if name != "SHA256SUMS"}
 # And the release once it is signed
 SIGNED = sorted([*ASSETS, "SHA256SUMS.sig"])
 SUMS = "".join(f"{hashlib.sha256(name.encode()).hexdigest()}  {name}\n" for name in ASSETS if name != "SHA256SUMS")
-SECRET_ID = "00000000-0000-4000-8000-000000000001"          # (made up: the form of an id, nothing of a real one)
+SECRET_ID = "00000000-0000-4000-8000-000000000001"  # (made up: the form of an id, nothing of a real one)
 
 FAKE_GH = '''#!{python}
 """A gh that keeps the state of the runs and of the release in {state} and logs every call to {log}."""
@@ -133,13 +150,23 @@ if args[:3] != ["secret", "get", "{secret_id}"]:
 print(json.dumps({{"id": "{secret_id}", "key": "neoaprs_update_signing_key", "value": open("{seed_file}").read().strip(), "note": ""}}))
 '''
 
+
 def switches_on() -> dict[str, Any]:
     """What GitHub answers for the repository's switches when all are on (gh fills {owner}/{repo} in
     itself; the script writes them as placeholders and the fake takes them literally)."""
     repo = "repos/{owner}/{repo}"
-    return {repo: {"security_and_analysis": {"secret_scanning": {"status": "enabled"}, "secret_scanning_push_protection": {"status": "enabled"}}},
-            f"{repo}/vulnerability-alerts": "204", f"{repo}/code-scanning/default-setup": {"state": "configured", "languages": ["python"]},
-            f"{repo}/immutable-releases": {"enabled": True, "enforced_by_owner": False}, f"{repo}/actions/permissions": {"enabled": True, "allowed_actions": "all", "sha_pinning_required": True}}
+    return {
+        repo: {
+            "security_and_analysis": {
+                "secret_scanning": {"status": "enabled"},
+                "secret_scanning_push_protection": {"status": "enabled"},
+            }
+        },
+        f"{repo}/vulnerability-alerts": "204",
+        f"{repo}/code-scanning/default-setup": {"state": "configured", "languages": ["python"]},
+        f"{repo}/immutable-releases": {"enabled": True, "enforced_by_owner": False},
+        f"{repo}/actions/permissions": {"enabled": True, "allowed_actions": "all", "sha_pinning_required": True},
+    }
 
 
 SCRIPT = '#!/usr/bin/env bash\necho "{name}" >> "{log}"\n{body}\n'
@@ -181,23 +208,47 @@ class Rig:
         self.seed_file.write_text(base64.b64encode(self.seed).decode(), encoding="ascii")
         self.env = {k: v for k, v in self.env.items() if not k.startswith("BWS_") and k != "NEOAPRS_SIGNING_SECRET_ID"}
         self.env.update(NEOAPRS_SIGNING_SECRET_ID=SECRET_ID, BWS_SERVER_URL="https://vault.bitwarden.invalid")
-        self.env.update(PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}", HOME=str(tmp / "home"), GIT_AUTHOR_NAME="John", GIT_AUTHOR_EMAIL="john@example.invalid", GIT_COMMITTER_NAME="John", GIT_COMMITTER_EMAIL="john@example.invalid",
-                        GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull, LC_ALL="C.UTF-8",
-                        # The clone has no .gitignore: a __pycache__ the script's import of neoaprs/
-                        # would leave is no stray file of the tree
-                        PYTHONDONTWRITEBYTECODE="1")
+        self.env.update(
+            PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}",
+            HOME=str(tmp / "home"),
+            GIT_AUTHOR_NAME="John",
+            GIT_AUTHOR_EMAIL="john@example.invalid",
+            GIT_COMMITTER_NAME="John",
+            GIT_COMMITTER_EMAIL="john@example.invalid",
+            GIT_CONFIG_GLOBAL=os.devnull,
+            GIT_CONFIG_SYSTEM=os.devnull,
+            LC_ALL="C.UTF-8",
+            # The clone has no .gitignore: a __pycache__ the script's import of neoaprs/
+            # would leave is no stray file of the tree
+            PYTHONDONTWRITEBYTECODE="1",
+        )
         (tmp / "home").mkdir()
-        self.state: dict[str, Any] = {"auth": True, "appear_after": 1, "looks": {}, "runs": [], "rate_limited": 0, "api": switches_on(), "base": base, "log": "python (ubuntu-latest)\tpytest\t2026-10-26T08:00:00Z FAILED tests/test_flaky.py::test_it - assert 1 == 2\n"
-                                      "python (ubuntu-latest)\tpytest\t2026-10-26T08:00:01Z 1 failed, 3000 passed\npython (ubuntu-latest)\tpytest\t2026-10-26T08:00:02Z uploading cache",
-                                      "ci.yml": {"plan": ["success"]}, "release.yml": {"plan": ["success"]}, "release": {"made": False, "draft": True, "assets": ASSETS,
-                                                                                                                    "files": {**CONTENTS, "SHA256SUMS": SUMS}}}
+        self.state: dict[str, Any] = {
+            "auth": True,
+            "appear_after": 1,
+            "looks": {},
+            "runs": [],
+            "rate_limited": 0,
+            "api": switches_on(),
+            "base": base,
+            "log": "python (ubuntu-latest)\tpytest\t2026-10-26T08:00:00Z FAILED tests/test_flaky.py::test_it - assert 1 == 2\n"
+            "python (ubuntu-latest)\tpytest\t2026-10-26T08:00:01Z 1 failed, 3000 passed\npython (ubuntu-latest)\tpytest\t2026-10-26T08:00:02Z uploading cache",
+            "ci.yml": {"plan": ["success"]},
+            "release.yml": {"plan": ["success"]},
+            "release": {"made": False, "draft": True, "assets": ASSETS, "files": {**CONTENTS, "SHA256SUMS": SUMS}},
+        }
         self.save_state()
         make_executable(self.bin / "gh", FAKE_GH.format(python=sys.executable, state=self.state_file, log=self.log))
-        make_executable(self.bin / "bws", FAKE_BWS.format(python=sys.executable, log=self.log, secret_id=SECRET_ID, seed_file=self.seed_file))
+        make_executable(
+            self.bin / "bws",
+            FAKE_BWS.format(python=sys.executable, log=self.log, secret_id=SECRET_ID, seed_file=self.seed_file),
+        )
         subprocess.run(["git", "init", "-q", "--bare", "-b", "master", str(self.remote)], check=True, env=self.env)
         hook = f'#!/usr/bin/env bash\nwhile read old new ref; do\n  echo "push $ref" >> "{self.log}"\n  case "$ref" in\n    refs/tags/*) [ -e "{tmp}/reject-tags" ] && {{ echo "tag refused" >&2; exit 1; }} ;;\n    *) [ -e "{tmp}/reject-heads" ] && {{ echo "push refused" >&2; exit 1; }} ;;\n  esac\ndone\nexit 0\n'
         make_executable(self.remote / "hooks" / "pre-receive", hook)
-        subprocess.run(["git", "clone", "-q", str(self.remote), str(self.work)], check=True, env=self.env, capture_output=True)
+        subprocess.run(
+            ["git", "clone", "-q", str(self.remote), str(self.work)], check=True, env=self.env, capture_output=True
+        )
         self.git("symbolic-ref", "HEAD", "refs/heads/master")
         (self.work / "scripts").mkdir(exist_ok=True)
         shutil.copy(ROOT / "scripts" / "release", self.work / "scripts" / "release")
@@ -205,23 +256,49 @@ class Rig:
         for module in ("updateasset.py", "versions.py"):
             (self.work / "neoaprs").mkdir(exist_ok=True)
             shutil.copy(ROOT / "neoaprs" / module, self.work / "neoaprs" / module)
-        mine = base64.b64encode(Ed25519PrivateKey.from_private_bytes(self.seed).public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)).decode()
+        mine = base64.b64encode(
+            Ed25519PrivateKey.from_private_bytes(self.seed).public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+        ).decode()
         asset = self.work / "neoaprs" / "updateasset.py"
         # The clone's program carries the test's public key
         asset.write_text(asset.read_text(encoding="utf-8").replace(PUBLIC_KEY, mine), encoding="utf-8")
-        make_executable(self.work / "scripts" / "check", SCRIPT.format(name="check", log=self.log, body=f'[ -e "{tmp}/check-fails" ] && {{ echo "check: pytest failed"; exit 1; }}\nexit 0'))
-        make_executable(self.work / "scripts" / "build-page", SCRIPT.format(name="build-page", log=self.log, body=f'[ -e "{tmp}/page-differs" ] && echo "built differently" > neoaprs/page/index.html\nexit 0'))
-        make_executable(self.work / "server" / "deploy.sh", SCRIPT.format(name="deploy", log=self.log, body=f'[ -e "{tmp}/deploy-fails" ] && exit 1\nexit 0'))
+        make_executable(
+            self.work / "scripts" / "check",
+            SCRIPT.format(
+                name="check",
+                log=self.log,
+                body=f'[ -e "{tmp}/check-fails" ] && {{ echo "check: pytest failed"; exit 1; }}\nexit 0',
+            ),
+        )
+        make_executable(
+            self.work / "scripts" / "build-page",
+            SCRIPT.format(
+                name="build-page",
+                log=self.log,
+                body=f'[ -e "{tmp}/page-differs" ] && echo "built differently" > neoaprs/page/index.html\nexit 0',
+            ),
+        )
+        make_executable(
+            self.work / "server" / "deploy.sh",
+            SCRIPT.format(name="deploy", log=self.log, body=f'[ -e "{tmp}/deploy-fails" ] && exit 1\nexit 0'),
+        )
         (self.work / "neoaprs" / "page").mkdir(parents=True)
-        (self.work / "neoaprs" / "__init__.py").write_text('"""A made-up NeoAPRS."""\n\nVERSION = "0.9.0"\nTOCALL = "APZNEO"\n', encoding="utf-8")
+        (self.work / "neoaprs" / "__init__.py").write_text(
+            '"""A made-up NeoAPRS."""\n\nVERSION = "0.9.0"\nTOCALL = "APZNEO"\n', encoding="utf-8"
+        )
         (self.work / "neoaprs" / "page" / "index.html").write_text("page", encoding="utf-8")
         (self.work / "ui").mkdir()
         (self.work / "ui" / "main.ts").write_text("1", encoding="utf-8")
-        (self.work / "CHANGELOG.md").write_text("# Changelog\n\n## Unreleased\n\n## 0.9.0\n\nThe first.\n", encoding="utf-8")
+        (self.work / "CHANGELOG.md").write_text(
+            "# Changelog\n\n## Unreleased\n\n## 0.9.0\n\nThe first.\n", encoding="utf-8"
+        )
         self.commit("0.9.0: the changelog section and the version")
         self.git("tag", "v0.9.0")
         self.git("push", "-q", "origin", "master", "v0.9.0")
-        self.write("CHANGELOG.md", "# Changelog\n\n## Unreleased\n\nA new thing the release brings.\n\n## 0.9.0\n\nThe first.\n")
+        self.write(
+            "CHANGELOG.md",
+            "# Changelog\n\n## Unreleased\n\nA new thing the release brings.\n\n## 0.9.0\n\nThe first.\n",
+        )
         self.commit("A new thing")
         self.git("push", "-q", "origin", "master")
         self.log.write_text("", encoding="utf-8")
@@ -260,16 +337,27 @@ class Rig:
 
     def another_clone_pushes(self) -> None:
         other = self.tmp / "other"
-        subprocess.run(["git", "clone", "-q", str(self.remote), str(other)], check=True, env=self.env, capture_output=True)
+        subprocess.run(
+            ["git", "clone", "-q", str(self.remote), str(other)], check=True, env=self.env, capture_output=True
+        )
         (other / "elsewhere.txt").write_text("a commit from another computer", encoding="utf-8")
         self.git("add", "-A", cwd=other)
         self.git("commit", "-q", "-m", "elsewhere", cwd=other)
         self.git("push", "-q", "origin", "master", cwd=other)
-        self.log.write_text(self.log.read_text(encoding="utf-8").replace("push refs/heads/master\n", ""), encoding="utf-8")
+        self.log.write_text(
+            self.log.read_text(encoding="utf-8").replace("push refs/heads/master\n", ""), encoding="utf-8"
+        )
 
     # ---- running and reading
     def release(self, *args: str, version: str = VERSION) -> subprocess.CompletedProcess[str]:
-        return subprocess.run([sys.executable, str(self.work / "scripts" / "release"), version, "--interval", "0", *args], cwd=self.work, env=self.env, capture_output=True, text=True, timeout=120)
+        return subprocess.run(
+            [sys.executable, str(self.work / "scripts" / "release"), version, "--interval", "0", *args],
+            cwd=self.work,
+            env=self.env,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
 
     def calls(self) -> list[str]:
         return [line for line in self.log.read_text(encoding="utf-8").splitlines() if line]
@@ -301,8 +389,13 @@ class Rig:
     def changed(self) -> dict[str, str]:
         """The repository's state, and the calls but the reading of the switches (`gh api`, which
         changes nothing and which a dry run makes too)."""
-        return {"head": self.git("rev-parse", "HEAD"), "origin": self.git("rev-parse", "master", cwd=self.remote), "tags": self.git("tag", "--list"), "status": self.git("status", "--porcelain"),
-                "calls": "\n".join(call for call in self.calls() if not call.startswith("gh api "))}
+        return {
+            "head": self.git("rev-parse", "HEAD"),
+            "origin": self.git("rev-parse", "master", cwd=self.remote),
+            "tags": self.git("tag", "--list"),
+            "status": self.git("status", "--porcelain"),
+            "calls": "\n".join(call for call in self.calls() if not call.startswith("gh api ")),
+        }
 
     def commit_of_release(self) -> str:
         return self.git("log", "-1", "--format=%H", "-S" + f'VERSION = "{VERSION}"', "--", "neoaprs/__init__.py")
@@ -323,9 +416,31 @@ def rig(tmp_path: Path, downloads: str) -> Rig:
     return Rig(tmp_path, downloads)
 
 
-SIGN = ["release view", "download SHA256SUMS", *[f"download {name}" for name in ASSETS if name != "SHA256SUMS"], "bws", "upload", "download SHA256SUMS", "download SHA256SUMS.sig", "edit"]
+SIGN = [
+    "release view",
+    "download SHA256SUMS",
+    *[f"download {name}" for name in ASSETS if name != "SHA256SUMS"],
+    "bws",
+    "upload",
+    "download SHA256SUMS",
+    "download SHA256SUMS.sig",
+    "edit",
+]
 VERIFY = ["release view", "download SHA256SUMS", "download SHA256SUMS.sig"]
-FULL_RUN = ["check", "push master", "list ci.yml", "list ci.yml", "watch ci.yml", f"push tag {TAG}", "release view", "list release.yml", "list release.yml", "watch release.yml", *SIGN, *VERIFY]
+FULL_RUN = [
+    "check",
+    "push master",
+    "list ci.yml",
+    "list ci.yml",
+    "watch ci.yml",
+    f"push tag {TAG}",
+    "release view",
+    "list release.yml",
+    "list release.yml",
+    "watch release.yml",
+    *SIGN,
+    *VERIFY,
+]
 
 
 def assert_released(rig: Rig) -> None:
@@ -334,13 +449,18 @@ def assert_released(rig: Rig) -> None:
     commit = rig.commit_of_release()
     assert rig.git("log", "-1", "--format=%s", commit) == f"{VERSION}: the changelog section and the version"
     assert rig.git("diff", "--name-only", f"{commit}~1", commit).splitlines() == ["CHANGELOG.md", "neoaprs/__init__.py"]
-    assert rig.git("rev-parse", f"{TAG}^{{commit}}") == commit == rig.git("rev-parse", f"{TAG}^{{commit}}", cwd=rig.remote) and rig.git("rev-parse", "master", cwd=rig.remote) == rig.git("rev-parse", "HEAD")
+    assert rig.git("rev-parse", f"{TAG}^{{commit}}") == commit == rig.git(
+        "rev-parse", f"{TAG}^{{commit}}", cwd=rig.remote
+    ) and rig.git("rev-parse", "master", cwd=rig.remote) == rig.git("rev-parse", "HEAD")
     assert 'VERSION = "0.9.1"' in (rig.work / "neoaprs" / "__init__.py").read_text(encoding="utf-8")
-    assert (rig.work / "CHANGELOG.md").read_text(encoding="utf-8") == "# Changelog\n\n## Unreleased\n\n## 0.9.1\n\nA new thing the release brings.\n\n## 0.9.0\n\nThe first.\n"
+    assert (rig.work / "CHANGELOG.md").read_text(
+        encoding="utf-8"
+    ) == "# Changelog\n\n## Unreleased\n\n## 0.9.1\n\nA new thing the release brings.\n\n## 0.9.0\n\nThe first.\n"
     assert rig.git("status", "--porcelain") == "" and rig.git("tag", "--list", "v0.9.*").split() == ["v0.9.0", TAG]
 
 
 # ---- the steps, in order ----
+
 
 def test_a_release_goes_through_the_steps_in_order_and_leaves_one_commit_and_one_tag(rig: Rig) -> None:
     done = rig.release()
@@ -348,8 +468,27 @@ def test_a_release_goes_through_the_steps_in_order_and_leaves_one_commit_and_one
     assert rig.kinds() == FULL_RUN
     assert_released(rig)
     steps = re.findall(r"^\[(\d+)/14\] (\w+):", done.stdout, flags=re.M)
-    assert [name for _, name in steps] == ["checks", "switches", "version", "changelog", "page", "check", "commit", "push", "ci", "tag", "release", "sign", "verify", "deploy"]
-    assert "ui/ has not changed since v0.9.0" in done.stdout and "release 0.9.1 is done" in done.stdout and "the notes begin: A new thing the release brings." in done.stdout
+    assert [name for _, name in steps] == [
+        "checks",
+        "switches",
+        "version",
+        "changelog",
+        "page",
+        "check",
+        "commit",
+        "push",
+        "ci",
+        "tag",
+        "release",
+        "sign",
+        "verify",
+        "deploy",
+    ]
+    assert (
+        "ui/ has not changed since v0.9.0" in done.stdout
+        and "release 0.9.1 is done" in done.stdout
+        and "the notes begin: A new thing the release brings." in done.stdout
+    )
     assert "server/deploy.sh" in done.stdout and "deploy" not in rig.kinds()
 
 
@@ -359,7 +498,10 @@ def test_the_page_is_built_only_when_ui_changed_since_the_last_tag_and_must_be_w
     done = rig.release()
     assert done.returncode == 0, done.stdout + done.stderr
     assert rig.kinds()[:2] == ["build-page", "check"] and "the committed page is what ui/ builds" in done.stdout
-    assert rig.git("diff", "--name-only", f"{rig.commit_of_release()}~1", rig.commit_of_release()).splitlines() == ["CHANGELOG.md", "neoaprs/__init__.py"], "the release commit holds no page"
+    assert rig.git("diff", "--name-only", f"{rig.commit_of_release()}~1", rig.commit_of_release()).splitlines() == [
+        "CHANGELOG.md",
+        "neoaprs/__init__.py",
+    ], "the release commit holds no page"
 
 
 def test_a_committed_page_that_is_not_what_ui_builds_stops_the_release_and_leaves_the_tree_as_it_was(rig: Rig) -> None:
@@ -368,13 +510,22 @@ def test_a_committed_page_that_is_not_what_ui_builds_stops_the_release_and_leave
     rig.flag("page-differs")
     before = rig.changed()
     done = rig.release()
-    assert done.returncode == 1 and "the committed page is not what ui/ builds" in done.stdout and "scripts/build-page" in done.stdout
+    assert (
+        done.returncode == 1
+        and "the committed page is not what ui/ builds" in done.stdout
+        and "scripts/build-page" in done.stdout
+    )
     after = rig.changed()
     assert after["origin"] == before["origin"] and after["head"] == before["head"] and after["tags"] == before["tags"]
-    assert "neoaprs/page" not in after["status"] and (rig.work / "neoaprs" / "page" / "index.html").read_text(encoding="utf-8") == "page"
+    assert (
+        "neoaprs/page" not in after["status"]
+        and (rig.work / "neoaprs" / "page" / "index.html").read_text(encoding="utf-8") == "page"
+    )
     assert "check" not in rig.kinds() and not [c for c in rig.calls() if c.startswith("gh run")]
     rig.flag("page-differs", False)
-    assert rig.release().returncode == 0, "and with the page committed, the same command goes on from the version it wrote"
+    assert rig.release().returncode == 0, (
+        "and with the page committed, the same command goes on from the version it wrote"
+    )
     assert_released(rig)
 
 
@@ -382,8 +533,24 @@ def test_a_dry_run_prints_the_steps_and_changes_nothing(rig: Rig) -> None:
     before = rig.changed()
     done = rig.release("--dry-run")
     assert done.returncode == 0, done.stdout + done.stderr
-    assert rig.changed() == before and all(call.startswith("gh api ") for call in rig.calls()), "no commit, no push, no check, nothing of GitHub but the reading of the switches"
-    for word in ("switches: ", "all 6 switches are on", "would write VERSION", "would rename", "would run scripts/check", "would commit", "would push master", "would wait for the ci.yml run", "would tag v0.9.1", "would wait for the release.yml run", "would sign SHA256SUMS of the draft v0.9.1", "would check that v0.9.1 is published", "dry run: nothing was changed"):
+    assert rig.changed() == before and all(call.startswith("gh api ") for call in rig.calls()), (
+        "no commit, no push, no check, nothing of GitHub but the reading of the switches"
+    )
+    for word in (
+        "switches: ",
+        "all 6 switches are on",
+        "would write VERSION",
+        "would rename",
+        "would run scripts/check",
+        "would commit",
+        "would push master",
+        "would wait for the ci.yml run",
+        "would tag v0.9.1",
+        "would wait for the release.yml run",
+        "would sign SHA256SUMS of the draft v0.9.1",
+        "would check that v0.9.1 is published",
+        "dry run: nothing was changed",
+    ):
         assert word in done.stdout, word
     assert (rig.work / "CHANGELOG.md").read_text(encoding="utf-8").count("## 0.9.1") == 0
 
@@ -392,7 +559,12 @@ def test_a_dry_run_says_what_a_finished_release_has_done_already(rig: Rig) -> No
     assert rig.release().returncode == 0
     done = rig.release("--dry-run")
     assert done.returncode == 0, done.stdout
-    assert "skipped: VERSION is written already" in done.stdout and "skipped" in done.stdout.split("[8/14]")[1] and "is on origin/master" in done.stdout and f"{TAG} is on" in done.stdout
+    assert (
+        "skipped: VERSION is written already" in done.stdout
+        and "skipped" in done.stdout.split("[8/14]")[1]
+        and "is on origin/master" in done.stdout
+        and f"{TAG} is on" in done.stdout
+    )
 
 
 def test_deploy_runs_the_deploy_script_at_the_end_only_when_asked(rig: Rig) -> None:
@@ -413,13 +585,18 @@ def test_a_deploy_that_fails_is_told_and_the_release_stays_done(rig: Rig) -> Non
 
 # ---- what it refuses, before it changes anything ----
 
+
 def refusal(rig: Rig, why: str, *args: str, version: str = VERSION) -> None:
     before = rig.changed()
     done = rig.release(*args, version=version)
     assert done.returncode == 1 and "stopped:" in done.stdout and why in done.stdout, done.stdout + done.stderr
     after = rig.changed()
-    assert after["head"] == before["head"] and after["origin"] == before["origin"] and after["tags"] == before["tags"], "a refusal changes no commit, no branch of origin and no tag"
-    assert (rig.work / "CHANGELOG.md").read_text(encoding="utf-8").count("## 0.9.1") == 0 and 'VERSION = "0.9.0"' in (rig.work / "neoaprs" / "__init__.py").read_text(encoding="utf-8")
+    assert (
+        after["head"] == before["head"] and after["origin"] == before["origin"] and after["tags"] == before["tags"]
+    ), "a refusal changes no commit, no branch of origin and no tag"
+    assert (rig.work / "CHANGELOG.md").read_text(encoding="utf-8").count("## 0.9.1") == 0 and 'VERSION = "0.9.0"' in (
+        rig.work / "neoaprs" / "__init__.py"
+    ).read_text(encoding="utf-8")
     assert not any(k in rig.kinds() for k in ("check", "push master", "build-page"))
 
 
@@ -460,7 +637,15 @@ def test_it_refuses_a_changelog_without_notes_under_unreleased(rig: Rig) -> None
     refusal(rig, "`## Unreleased` of CHANGELOG.md has no notes")
 
 
-@pytest.mark.parametrize(("version", "why"), [("0.9.0", "tag v0.9.0 exists"), ("0.8.9", "is not greater than 0.9.0"), ("1.0", "is not a version"), ("v0.9.1", "is not a version")])
+@pytest.mark.parametrize(
+    ("version", "why"),
+    [
+        ("0.9.0", "tag v0.9.0 exists"),
+        ("0.8.9", "is not greater than 0.9.0"),
+        ("1.0", "is not a version"),
+        ("v0.9.1", "is not a version"),
+    ],
+)
 def test_it_refuses_a_version_that_is_not_new_and_greater(rig: Rig, version: str, why: str) -> None:
     if version == "0.9.0":
         rig.git("tag", "-d", "v0.9.0")
@@ -468,7 +653,11 @@ def test_it_refuses_a_version_that_is_not_new_and_greater(rig: Rig, version: str
         rig.git("tag", "v0.9.0", "HEAD")
         rig.git("push", "-q", "-f", "origin", "v0.9.0")
     done = rig.release(version=version)
-    assert done.returncode == 1 and "stopped:" in done.stdout and (why in done.stdout or version == "0.9.0" and "tag v0.9.0 exists" in done.stdout), done.stdout
+    assert (
+        done.returncode == 1
+        and "stopped:" in done.stdout
+        and (why in done.stdout or version == "0.9.0" and "tag v0.9.0 exists" in done.stdout)
+    ), done.stdout
     assert "check" not in rig.kinds() and rig.git("status", "--porcelain") == ""
 
 
@@ -488,21 +677,35 @@ def test_a_dry_run_names_what_a_real_run_would_refuse_and_goes_on_with_the_steps
     rig.git("switch", "-q", "-c", "feature")
     rig.write("README.md", "dirty")
     done = rig.release("--dry-run")
-    assert done.returncode == 1 and "WOULD REFUSE: not on master (on feature)" in done.stdout and "[14/14] deploy" in done.stdout and "the dry run found" in done.stdout
+    assert (
+        done.returncode == 1
+        and "WOULD REFUSE: not on master (on feature)" in done.stdout
+        and "[14/14] deploy" in done.stdout
+        and "the dry run found" in done.stdout
+    )
 
 
 # ---- run again after a failure at each step ----
 
-def test_scripts_check_that_fails_leaves_the_version_written_and_nothing_committed_and_the_same_command_goes_on(rig: Rig) -> None:
+
+def test_scripts_check_that_fails_leaves_the_version_written_and_nothing_committed_and_the_same_command_goes_on(
+    rig: Rig,
+) -> None:
     rig.flag("check-fails")
     first = rig.release()
     assert first.returncode == 1 and "scripts/check failed: nothing is committed" in first.stdout
-    assert rig.git("diff", "--name-only").splitlines() == ["CHANGELOG.md", "neoaprs/__init__.py"] and rig.git("log", "-1", "--format=%s") == "A new thing"
+    assert (
+        rig.git("diff", "--name-only").splitlines() == ["CHANGELOG.md", "neoaprs/__init__.py"]
+        and rig.git("log", "-1", "--format=%s") == "A new thing"
+    )
     assert rig.kinds() == ["check"]
     rig.flag("check-fails", False)
     again = rig.release()
     assert again.returncode == 0, again.stdout + again.stderr
-    assert "skipped: VERSION is written already" in again.stdout and "skipped: the section 0.9.1 is written already" in again.stdout
+    assert (
+        "skipped: VERSION is written already" in again.stdout
+        and "skipped: the section 0.9.1 is written already" in again.stdout
+    )
     assert rig.kinds() == ["check", *FULL_RUN]
     assert_released(rig)
 
@@ -520,7 +723,11 @@ def test_a_push_that_fails_leaves_the_commit_and_the_command_pushes_it_without_a
     first = rig.release()
     assert first.returncode == 1 and "push refused" in first.stdout + first.stderr
     commit = rig.commit_of_release()
-    assert rig.git("rev-parse", "HEAD") == commit and rig.git("rev-parse", "master", cwd=rig.remote) != commit and rig.git("tag", "--list", TAG) == ""
+    assert (
+        rig.git("rev-parse", "HEAD") == commit
+        and rig.git("rev-parse", "master", cwd=rig.remote) != commit
+        and rig.git("tag", "--list", TAG) == ""
+    )
     rig.flag("reject-heads", False)
     assert rig.release().returncode == 0
     assert rig.commit_of_release() == commit and rig.git("rev-list", "--count", f"v0.9.0..{TAG}") == "2"
@@ -533,12 +740,22 @@ def test_a_failed_ci_run_is_shown_with_its_failed_jobs_and_tests_and_no_tag_is_m
     rig.save_state()
     first = rig.release()
     assert first.returncode == 1
-    for text in ("FAILED: run 100", "job python (ubuntu-latest): failure (step: pytest)", "FAILED tests/test_flaky.py::test_it - assert 1 == 2", "1 failed, 3000 passed", "--rerun"):
+    for text in (
+        "FAILED: run 100",
+        "job python (ubuntu-latest): failure (step: pytest)",
+        "FAILED tests/test_flaky.py::test_it - assert 1 == 2",
+        "1 failed, 3000 passed",
+        "--rerun",
+    ):
         assert text in first.stdout, text
-    assert "uploading cache" not in first.stdout and "job page" not in first.stdout, "only the failed jobs and the lines of the failed tests"
+    assert "uploading cache" not in first.stdout and "job page" not in first.stdout, (
+        "only the failed jobs and the lines of the failed tests"
+    )
     assert rig.git("tag", "--list", TAG) == "" and "rerun" not in rig.kinds() and rig.kinds()[-1] == "watch ci.yml"
     again = rig.release()
-    assert again.returncode == 1 and "rerun" not in rig.kinds() and rig.git("tag", "--list", TAG) == "", "without --rerun a failed run stays failed"
+    assert again.returncode == 1 and "rerun" not in rig.kinds() and rig.git("tag", "--list", TAG) == "", (
+        "without --rerun a failed run stays failed"
+    )
 
 
 def test_rerun_runs_the_failed_jobs_of_ci_once_and_the_release_goes_on(rig: Rig) -> None:
@@ -557,7 +774,9 @@ def test_rerun_runs_the_failed_jobs_only_once_per_run(rig: Rig) -> None:
     done = rig.release("--rerun")
     assert done.returncode == 1 and "has been run again already" in done.stdout and rig.kinds().count("rerun") == 1
     assert rig.git("tag", "--list", TAG) == ""
-    assert rig.release("--rerun").returncode == 1 and rig.kinds().count("rerun") == 1, "a run that was run again does not get a third go from the script"
+    assert rig.release("--rerun").returncode == 1 and rig.kinds().count("rerun") == 1, (
+        "a run that was run again does not get a third go from the script"
+    )
 
 
 def test_a_tag_push_that_fails_keeps_the_local_tag_and_the_command_pushes_it(rig: Rig) -> None:
@@ -576,26 +795,46 @@ def test_a_failed_release_run_is_shown_and_run_again_with_rerun_and_the_tag_is_n
     rig.state["release.yml"]["plan"] = ["failure", "success"]
     rig.save_state()
     first = rig.release()
-    assert first.returncode == 1 and "FAILED: run 101" in first.stdout and "release.yml run 101 failed" in first.stdout and "the next version (a tag is never moved)" in first.stdout
+    assert (
+        first.returncode == 1
+        and "FAILED: run 101" in first.stdout
+        and "release.yml run 101 failed" in first.stdout
+        and "the next version (a tag is never moved)" in first.stdout
+    )
     tagged = rig.git("rev-parse", TAG, cwd=rig.remote)
     done = rig.release("--rerun")
     assert done.returncode == 0, done.stdout + done.stderr
     assert rig.git("rev-parse", TAG, cwd=rig.remote) == tagged
-    assert rig.kinds().count(f"push tag {TAG}") == 1 and rig.kinds().count("rerun") == 1 and rig.kinds().count("check") == 1 and rig.kinds().count("watch ci.yml") == 1
+    assert (
+        rig.kinds().count(f"push tag {TAG}") == 1
+        and rig.kinds().count("rerun") == 1
+        and rig.kinds().count("check") == 1
+        and rig.kinds().count("watch ci.yml") == 1
+    )
     assert_released(rig)
 
 
-def test_a_draft_short_of_files_or_a_release_with_a_dead_link_stops_the_run_and_nothing_before_is_done_again(rig: Rig, downloads: str) -> None:
+def test_a_draft_short_of_files_or_a_release_with_a_dead_link_stops_the_run_and_nothing_before_is_done_again(
+    rig: Rig, downloads: str
+) -> None:
     rig.state["release"]["assets"] = [a for a in ASSETS if a != "NeoAPRS-Setup.exe"]
     rig.save_state()
     short = rig.release()
-    assert short.returncode == 1 and "the draft v0.9.1 has no ['NeoAPRS-Setup.exe']" in short.stdout and "bws" not in rig.kinds(), "nothing is signed for a draft that is short of a file"
+    assert (
+        short.returncode == 1
+        and "the draft v0.9.1 has no ['NeoAPRS-Setup.exe']" in short.stdout
+        and "bws" not in rig.kinds()
+    ), "nothing is signed for a draft that is short of a file"
     rig.state = rig.load_state()
     rig.state["release"]["assets"] = ASSETS
     rig.save_state()
     Downloads.missing = {f"NeoAPRS-Setup-{VERSION}.exe"}
     dead = rig.release()
-    assert dead.returncode == 1 and f"the download link of NeoAPRS-Setup-{VERSION}.exe does not answer" in dead.stdout and "status 404" in dead.stdout
+    assert (
+        dead.returncode == 1
+        and f"the download link of NeoAPRS-Setup-{VERSION}.exe does not answer" in dead.stdout
+        and "status 404" in dead.stdout
+    )
     Downloads.missing = set()
     rig.state = rig.load_state()
     rig.state["release"]["assets"] = [a for a in SIGNED if a != "NeoAPRS-arm64.dmg"]
@@ -607,7 +846,13 @@ def test_a_draft_short_of_files_or_a_release_with_a_dead_link_stops_the_run_and_
     rig.save_state()
     done = rig.release()
     assert done.returncode == 0, done.stdout
-    assert rig.kinds().count("check") == 1 and rig.kinds().count("push master") == 1 and rig.kinds().count(f"push tag {TAG}") == 1 and rig.kinds().count("watch ci.yml") == 1 and rig.kinds().count("watch release.yml") == 1
+    assert (
+        rig.kinds().count("check") == 1
+        and rig.kinds().count("push master") == 1
+        and rig.kinds().count(f"push tag {TAG}") == 1
+        and rig.kinds().count("watch ci.yml") == 1
+        and rig.kinds().count("watch release.yml") == 1
+    )
     assert rig.kinds().count("bws") == 1 and rig.kinds().count("edit") == 1, "signed once, published once"
     assert_released(rig)
 
@@ -617,7 +862,9 @@ def test_a_release_run_that_ends_without_success_stops_the_script(rig: Rig) -> N
     rig.save_state()
     stopped = rig.release()
     assert stopped.returncode == 1 and "release.yml run 101 failed" in stopped.stdout and "--rerun" in stopped.stdout
-    assert rig.git("tag", "--list", TAG, cwd=rig.remote) == TAG, "the tag stays: the run is run again, the tag is not made again"
+    assert rig.git("tag", "--list", TAG, cwd=rig.remote) == TAG, (
+        "the tag stays: the run is run again, the tag is not made again"
+    )
 
 
 def test_a_finished_release_run_again_does_nothing_and_says_what_it_skipped(rig: Rig) -> None:
@@ -626,7 +873,9 @@ def test_a_finished_release_run_again_does_nothing_and_says_what_it_skipped(rig:
     again = rig.release()
     assert again.returncode == 0, again.stdout + again.stderr
     new = rig.calls()[marker:]
-    assert not any(c in ("check", "push refs/heads/master") or c.startswith(("push ", "gh run watch", "gh run rerun")) for c in new), new
+    assert not any(
+        c in ("check", "push refs/heads/master") or c.startswith(("push ", "gh run watch", "gh run rerun")) for c in new
+    ), new
     assert "skipped" in again.stdout and "release 0.9.1 is done" in again.stdout
     assert_released(rig)
 
@@ -644,12 +893,18 @@ def test_gh_that_stays_rate_limited_is_given_up_with_a_hint(rig: Rig) -> None:
     rig.state["rate_limited"] = 100
     rig.save_state()
     done = rig.release()
-    assert done.returncode == 1 and "gh auth status" in done.stdout and done.stdout.count("GitHub's rate limit; waiting") == 5
+    assert (
+        done.returncode == 1
+        and "gh auth status" in done.stdout
+        and done.stdout.count("GitHub's rate limit; waiting") == 5
+    )
     assert rig.git("tag", "--list", TAG) == ""
 
 
 def test_the_script_answers_help_and_names_its_flags() -> None:
-    done = subprocess.run([sys.executable, str(ROOT / "scripts" / "release"), "--help"], capture_output=True, text=True, timeout=30)
+    done = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "release"), "--help"], capture_output=True, text=True, timeout=30
+    )
     assert done.returncode == 0
     for flag in ("--dry-run", "--rerun", "--deploy", "--interval"):
         assert flag in done.stdout
@@ -657,9 +912,14 @@ def test_the_script_answers_help_and_names_its_flags() -> None:
 
 # ---- a fix after the release commit ----
 
+
 def commit_args(rig: Rig) -> list[str]:
     """The shas that the calls of `gh run list --commit` named."""
-    return [line.split("--commit ")[1].split()[0] for line in rig.calls() if line.startswith("gh run list") and "--commit " in line]
+    return [
+        line.split("--commit ")[1].split()[0]
+        for line in rig.calls()
+        if line.startswith("gh run list") and "--commit " in line
+    ]
 
 
 def ci_fails_then_a_fix_is_pushed(rig: Rig, fix_file: str = "fix.txt", fix_text: str = "the fix") -> str:
@@ -685,10 +945,25 @@ def test_a_fix_after_a_failed_ci_run_makes_head_the_release_and_the_tag_goes_on_
     done = rig.release()
     assert done.returncode == 0, done.stdout + done.stderr
     assert "the release is HEAD: 1 commit after the release commit" in done.stdout and "same version" in done.stdout
-    assert rig.kinds() == ["list ci.yml", "list ci.yml", "watch ci.yml", f"push tag {TAG}", "release view", "list release.yml", "list release.yml", "watch release.yml", *SIGN, *VERIFY], "no second check, no second commit, no push of master"
+    assert rig.kinds() == [
+        "list ci.yml",
+        "list ci.yml",
+        "watch ci.yml",
+        f"push tag {TAG}",
+        "release view",
+        "list release.yml",
+        "list release.yml",
+        "watch release.yml",
+        *SIGN,
+        *VERIFY,
+    ], "no second check, no second commit, no push of master"
     assert set(commit_args(rig)) == {head}, "CI is looked for by the full sha of HEAD"
-    assert rig.git("rev-parse", f"{TAG}^{{commit}}") == head == rig.git("rev-parse", f"{TAG}^{{commit}}", cwd=rig.remote), "the tag is on HEAD, not on the release commit"
-    assert rig.git("rev-list", "--count", f"{release_commit}..{TAG}") == "1" and rig.commit_of_release() == release_commit
+    assert (
+        rig.git("rev-parse", f"{TAG}^{{commit}}") == head == rig.git("rev-parse", f"{TAG}^{{commit}}", cwd=rig.remote)
+    ), "the tag is on HEAD, not on the release commit"
+    assert (
+        rig.git("rev-list", "--count", f"{release_commit}..{TAG}") == "1" and rig.commit_of_release() == release_commit
+    )
     assert rig.git("status", "--porcelain") == "" and rig.git("rev-parse", "master", cwd=rig.remote) == head
 
 
@@ -711,11 +986,18 @@ def test_a_tag_push_that_failed_on_head_is_made_again_on_head(rig: Rig) -> None:
     ci_fails_then_a_fix_is_pushed(rig)
     head = rig.git("rev-parse", "HEAD")
     rig.flag("reject-tags")
-    assert rig.release().returncode == 1 and rig.git("rev-parse", f"{TAG}^{{commit}}") == head and rig.git("tag", "--list", TAG, cwd=rig.remote) == ""
+    assert (
+        rig.release().returncode == 1
+        and rig.git("rev-parse", f"{TAG}^{{commit}}") == head
+        and rig.git("tag", "--list", TAG, cwd=rig.remote) == ""
+    )
     rig.flag("reject-tags", False)
     done = rig.release()
     assert done.returncode == 0, done.stdout + done.stderr
-    assert "the release is HEAD: 1 commit after" in done.stdout and rig.git("rev-parse", f"{TAG}^{{commit}}", cwd=rig.remote) == head
+    assert (
+        "the release is HEAD: 1 commit after" in done.stdout
+        and rig.git("rev-parse", f"{TAG}^{{commit}}", cwd=rig.remote) == head
+    )
 
 
 def test_a_dry_run_after_a_fix_says_the_release_is_head_and_changes_nothing(rig: Rig) -> None:
@@ -729,12 +1011,17 @@ def test_a_dry_run_after_a_fix_says_the_release_is_head_and_changes_nothing(rig:
     assert rig.changed() == before
 
 
-@pytest.mark.parametrize(("what", "why"), [
-    ("version", "VERSION is 0.9.2 in"),
-    ("section", "the section 0.9.1 of CHANGELOG.md is not what the release commit has"),
-    ("notes", "has notes under `## Unreleased`"),
-])
-def test_a_head_that_changed_the_version_or_the_changelog_section_is_not_the_release_and_is_refused(rig: Rig, what: str, why: str) -> None:
+@pytest.mark.parametrize(
+    ("what", "why"),
+    [
+        ("version", "VERSION is 0.9.2 in"),
+        ("section", "the section 0.9.1 of CHANGELOG.md is not what the release commit has"),
+        ("notes", "has notes under `## Unreleased`"),
+    ],
+)
+def test_a_head_that_changed_the_version_or_the_changelog_section_is_not_the_release_and_is_refused(
+    rig: Rig, what: str, why: str
+) -> None:
     ci_fails_then_a_fix_is_pushed(rig)
     init = (rig.work / "neoaprs" / "__init__.py").read_text(encoding="utf-8")
     log = (rig.work / "CHANGELOG.md").read_text(encoding="utf-8")
@@ -747,11 +1034,25 @@ def test_a_head_that_changed_the_version_or_the_changelog_section_is_not_the_rel
     rig.publish("A second commit after the release commit")
     before = rig.changed()
     done = rig.release()
-    assert done.returncode == 1 and "stopped:" in done.stdout and why in done.stdout and "not the same release" in done.stdout, done.stdout
+    assert (
+        done.returncode == 1
+        and "stopped:" in done.stdout
+        and why in done.stdout
+        and "not the same release" in done.stdout
+    ), done.stdout
     after = rig.changed()
-    assert after["head"] == before["head"] and after["origin"] == before["origin"] and after["tags"] == before["tags"] == "v0.9.0" and after["calls"] == "", "a refusal makes no commit, no tag, no call"
+    assert (
+        after["head"] == before["head"]
+        and after["origin"] == before["origin"]
+        and after["tags"] == before["tags"] == "v0.9.0"
+        and after["calls"] == ""
+    ), "a refusal makes no commit, no tag, no call"
     dry = rig.release("--dry-run")
-    assert dry.returncode == 1 and "WOULD REFUSE: HEAD is 2 commit(s) after the release commit" in dry.stdout and why in dry.stdout
+    assert (
+        dry.returncode == 1
+        and "WOULD REFUSE: HEAD is 2 commit(s) after the release commit" in dry.stdout
+        and why in dry.stdout
+    )
 
 
 def test_a_head_that_is_not_pushed_is_not_the_release(rig: Rig) -> None:
@@ -759,7 +1060,11 @@ def test_a_head_that_is_not_pushed_is_not_the_release(rig: Rig) -> None:
     rig.write("local.txt", "x")
     rig.commit("Not pushed")
     done = rig.release()
-    assert done.returncode == 1 and "commit(s) that origin/master has not" in done.stdout and rig.git("tag", "--list", TAG) == ""
+    assert (
+        done.returncode == 1
+        and "commit(s) that origin/master has not" in done.stdout
+        and rig.git("tag", "--list", TAG) == ""
+    )
     dry = rig.release("--dry-run")
     assert dry.returncode == 1 and "but not on origin/master" in dry.stdout
 
@@ -772,8 +1077,12 @@ def test_a_tag_on_the_release_commit_is_never_moved_to_head(rig: Rig) -> None:
     marker = len(rig.calls())
     again = rig.release()
     assert again.returncode == 0, again.stdout + again.stderr
-    assert "the release is HEAD" not in again.stdout and rig.git("rev-parse", f"{TAG}^{{commit}}") == tagged == rig.git("rev-parse", f"{TAG}^{{commit}}", cwd=rig.remote)
-    assert not [c for c in rig.calls()[marker:] if c.startswith(("push ", "gh run watch"))] and set(commit_args(rig)) == {tagged}
+    assert "the release is HEAD" not in again.stdout and rig.git("rev-parse", f"{TAG}^{{commit}}") == tagged == rig.git(
+        "rev-parse", f"{TAG}^{{commit}}", cwd=rig.remote
+    )
+    assert not [c for c in rig.calls()[marker:] if c.startswith(("push ", "gh run watch"))] and set(
+        commit_args(rig)
+    ) == {tagged}
 
 
 def test_a_tag_on_another_commit_than_the_release_is_still_refused_when_head_is_ahead(rig: Rig) -> None:
@@ -797,9 +1106,24 @@ def api_calls(rig: Rig) -> list[str]:
 def test_the_switches_are_read_with_gh_api_before_anything_else_and_nothing_is_written(rig: Rig) -> None:
     done = rig.release()
     assert done.returncode == 0, done.stdout + done.stderr
-    assert sorted(api_calls(rig)) == sorted(f"gh api {path}" for path in (REPO, f"{REPO}/vulnerability-alerts", f"{REPO}/code-scanning/default-setup", f"{REPO}/immutable-releases", f"{REPO}/actions/permissions")), "each answer is asked for once"
-    assert rig.calls().index(api_calls(rig)[0]) < min(i for i, call in enumerate(rig.calls()) if call in ("check", "push refs/heads/master")), "before anything is committed or pushed"
-    assert not [c for c in rig.calls() if c.startswith("gh api") and any(flag in c for flag in ("-X", "--method", "-f ", "-F ", "--input"))], "read only"
+    assert sorted(api_calls(rig)) == sorted(
+        f"gh api {path}"
+        for path in (
+            REPO,
+            f"{REPO}/vulnerability-alerts",
+            f"{REPO}/code-scanning/default-setup",
+            f"{REPO}/immutable-releases",
+            f"{REPO}/actions/permissions",
+        )
+    ), "each answer is asked for once"
+    assert rig.calls().index(api_calls(rig)[0]) < min(
+        i for i, call in enumerate(rig.calls()) if call in ("check", "push refs/heads/master")
+    ), "before anything is committed or pushed"
+    assert not [
+        c
+        for c in rig.calls()
+        if c.startswith("gh api") and any(flag in c for flag in ("-X", "--method", "-f ", "-F ", "--input"))
+    ], "read only"
 
 
 def off(rig: Rig, path: str, answer: Any) -> None:
@@ -810,15 +1134,42 @@ def off(rig: Rig, path: str, answer: Any) -> None:
     rig.save_state()
 
 
-@pytest.mark.parametrize("path, answer, name", [
-    (REPO, {"security_and_analysis": {"secret_scanning": {"status": "disabled"}, "secret_scanning_push_protection": {"status": "enabled"}}}, "secret scanning is off"),
-    (REPO, {"security_and_analysis": {"secret_scanning": {"status": "enabled"}, "secret_scanning_push_protection": {"status": "disabled"}}}, "push protection of secret scanning is off"),
-    (f"{REPO}/vulnerability-alerts", None, "Dependabot alerts is off"),
-    (f"{REPO}/code-scanning/default-setup", {"state": "not-configured"}, "code scanning (default setup) is off"),
-    (f"{REPO}/immutable-releases", {"enabled": False, "enforced_by_owner": False}, "immutable releases is off"),
-    (f"{REPO}/actions/permissions", {"enabled": True, "allowed_actions": "all", "sha_pinning_required": False}, "actions pinned by commit (SHA pinning required) is off"),
-])
-def test_a_switch_that_is_off_stops_the_release_by_its_name_before_anything_is_done(rig: Rig, path: str, answer: Any, name: str) -> None:
+@pytest.mark.parametrize(
+    "path, answer, name",
+    [
+        (
+            REPO,
+            {
+                "security_and_analysis": {
+                    "secret_scanning": {"status": "disabled"},
+                    "secret_scanning_push_protection": {"status": "enabled"},
+                }
+            },
+            "secret scanning is off",
+        ),
+        (
+            REPO,
+            {
+                "security_and_analysis": {
+                    "secret_scanning": {"status": "enabled"},
+                    "secret_scanning_push_protection": {"status": "disabled"},
+                }
+            },
+            "push protection of secret scanning is off",
+        ),
+        (f"{REPO}/vulnerability-alerts", None, "Dependabot alerts is off"),
+        (f"{REPO}/code-scanning/default-setup", {"state": "not-configured"}, "code scanning (default setup) is off"),
+        (f"{REPO}/immutable-releases", {"enabled": False, "enforced_by_owner": False}, "immutable releases is off"),
+        (
+            f"{REPO}/actions/permissions",
+            {"enabled": True, "allowed_actions": "all", "sha_pinning_required": False},
+            "actions pinned by commit (SHA pinning required) is off",
+        ),
+    ],
+)
+def test_a_switch_that_is_off_stops_the_release_by_its_name_before_anything_is_done(
+    rig: Rig, path: str, answer: Any, name: str
+) -> None:
     off(rig, path, answer)
     refusal(rig, name)
     assert rig.calls().count("check") == 0
@@ -828,18 +1179,44 @@ def test_every_switch_that_is_off_is_named_in_the_one_refusal(rig: Rig) -> None:
     off(rig, f"{REPO}/vulnerability-alerts", None)
     off(rig, f"{REPO}/immutable-releases", {"enabled": False})
     done = rig.release()
-    assert done.returncode == 1 and "Dependabot alerts is off" in done.stdout and "immutable releases is off" in done.stdout
+    assert (
+        done.returncode == 1
+        and "Dependabot alerts is off" in done.stdout
+        and "immutable releases is off" in done.stdout
+    )
 
 
-@pytest.mark.parametrize("path, answer, name", [
-    (REPO, {"name": "neoaprs"}, "secret scanning: cannot be read"),
-    (REPO, {"security_and_analysis": {"secret_scanning": {"state": "enabled"}, "secret_scanning_push_protection": {"status": "enabled"}}}, "secret scanning: cannot be read"),
-    (f"{REPO}/code-scanning/default-setup", {"status": "configured"}, "code scanning (default setup): cannot be read"),
-    (f"{REPO}/immutable-releases", {"enabled": "true"}, "immutable releases: cannot be read"),
-    (f"{REPO}/actions/permissions", {"enabled": True}, "actions pinned by commit (SHA pinning required): cannot be read"),
-    (f"{REPO}/actions/permissions", [], "actions pinned by commit (SHA pinning required): cannot be read"),
-])
-def test_an_answer_that_cannot_be_read_is_a_refusal_that_says_so_and_no_pass(rig: Rig, path: str, answer: Any, name: str) -> None:
+@pytest.mark.parametrize(
+    "path, answer, name",
+    [
+        (REPO, {"name": "neoaprs"}, "secret scanning: cannot be read"),
+        (
+            REPO,
+            {
+                "security_and_analysis": {
+                    "secret_scanning": {"state": "enabled"},
+                    "secret_scanning_push_protection": {"status": "enabled"},
+                }
+            },
+            "secret scanning: cannot be read",
+        ),
+        (
+            f"{REPO}/code-scanning/default-setup",
+            {"status": "configured"},
+            "code scanning (default setup): cannot be read",
+        ),
+        (f"{REPO}/immutable-releases", {"enabled": "true"}, "immutable releases: cannot be read"),
+        (
+            f"{REPO}/actions/permissions",
+            {"enabled": True},
+            "actions pinned by commit (SHA pinning required): cannot be read",
+        ),
+        (f"{REPO}/actions/permissions", [], "actions pinned by commit (SHA pinning required): cannot be read"),
+    ],
+)
+def test_an_answer_that_cannot_be_read_is_a_refusal_that_says_so_and_no_pass(
+    rig: Rig, path: str, answer: Any, name: str
+) -> None:
     off(rig, path, answer)
     refusal(rig, name)
 
@@ -856,20 +1233,34 @@ def test_an_answer_that_is_empty_or_no_json_is_cannot_be_read_and_no_pass(rig: R
     off(rig, f"{REPO}/immutable-releases", {"__raw__": ""})
     off(rig, f"{REPO}/code-scanning/default-setup", {"__raw__": "<html>oops</html>"})
     done = rig.release()
-    assert done.returncode == 1 and "immutable releases: cannot be read (the answer is not JSON)" in done.stdout and "code scanning (default setup): cannot be read (the answer is not JSON)" in done.stdout
+    assert (
+        done.returncode == 1
+        and "immutable releases: cannot be read (the answer is not JSON)" in done.stdout
+        and "code scanning (default setup): cannot be read (the answer is not JSON)" in done.stdout
+    )
 
 
-def test_dependabot_alerts_that_fail_with_another_error_than_not_found_cannot_be_read_and_are_not_called_off(rig: Rig) -> None:
+def test_dependabot_alerts_that_fail_with_another_error_than_not_found_cannot_be_read_and_are_not_called_off(
+    rig: Rig,
+) -> None:
     off(rig, f"{REPO}/vulnerability-alerts", {"__error__": "gh: Server Error (HTTP 500)"})
     done = rig.release()
-    assert done.returncode == 1 and "Dependabot alerts: cannot be read (gh failed: gh: Server Error (HTTP 500))" in done.stdout and "Dependabot alerts is off" not in done.stdout
+    assert (
+        done.returncode == 1
+        and "Dependabot alerts: cannot be read (gh failed: gh: Server Error (HTTP 500))" in done.stdout
+        and "Dependabot alerts is off" not in done.stdout
+    )
 
 
 def test_a_403_is_a_missing_permission_that_is_not_waited_out_as_a_rate_limit(rig: Rig) -> None:
     for path in list(rig.state["api"]):
         off(rig, path, {"__error__": "gh: Resource not accessible by personal access token (HTTP 403)"})
     done = rig.release("--dry-run")
-    assert done.returncode == 1 and "secret scanning: cannot be read" in done.stdout and "Dependabot alerts: cannot be read" in done.stdout
+    assert (
+        done.returncode == 1
+        and "secret scanning: cannot be read" in done.stdout
+        and "Dependabot alerts: cannot be read" in done.stdout
+    )
     assert "rate limit" not in done.stdout and len(api_calls(rig)) == 5, "each answer asked for once, no waiting"
 
 
@@ -877,5 +1268,10 @@ def test_a_dry_run_asks_for_the_switches_and_names_the_one_that_is_off(rig: Rig)
     off(rig, f"{REPO}/code-scanning/default-setup", {"state": "not-configured"})
     before = rig.changed()
     done = rig.release("--dry-run")
-    assert done.returncode == 1 and "WOULD REFUSE: a switch of the repository on GitHub is not on: code scanning (default setup) is off" in done.stdout and "[14/14] deploy" in done.stdout
+    assert (
+        done.returncode == 1
+        and "WOULD REFUSE: a switch of the repository on GitHub is not on: code scanning (default setup) is off"
+        in done.stdout
+        and "[14/14] deploy" in done.stdout
+    )
     assert rig.changed() == before and len(api_calls(rig)) == 5 and all(c.startswith("gh api ") for c in rig.calls())

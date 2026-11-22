@@ -3,6 +3,7 @@
 Directed queries (?APRSP, ?APRSS, ?APRSD, ?APRST, ?APRSH, ?APRSO, ?APRSM) and the general
 queries ?APRS? and ?IGATE? are answered here; ?WX? is recognised and never answered.
 """
+
 import asyncio
 import logging
 import random
@@ -38,9 +39,13 @@ DIRECT_WINDOW = timedelta(hours=1)
 MAX_DIRECT_MESSAGES = 2
 # the V is the specification's mark of a positive value
 _NUMBER = r"V?\s*([-+]?\d+(?:\.\d+)?)"
-_FOOTPRINT = re.compile(rf"\?(?:APRS|IGATE)\?(?:\s*{_NUMBER}\s*[,\s]\s*{_NUMBER}\s*[,\s]\s*(\d{{1,4}}))?", re.IGNORECASE)
+_FOOTPRINT = re.compile(
+    rf"\?(?:APRS|IGATE)\?(?:\s*{_NUMBER}\s*[,\s]\s*{_NUMBER}\s*[,\s]\s*(\d{{1,4}}))?", re.IGNORECASE
+)
 # keyed without a trailing "?": ?PING? has one, and a radio may add one to the others
-_DIRECTED = {QUERY_TEXT[kind]: kind for kind in ("position", "status", "directs", "path", "objects", "messages")} | {QUERY_TEXT["ping"].removesuffix("?"): "path"}
+_DIRECTED = {QUERY_TEXT[kind]: kind for kind in ("position", "status", "directs", "path", "objects", "messages")} | {
+    QUERY_TEXT["ping"].removesuffix("?"): "path"
+}
 _PACED = ("objects", "messages")
 HEARD_HOURS = 8
 _HEARD = re.compile(re.escape(QUERY_TEXT["heard"]) + rf"\s*({INTERNET_NAME.pattern})?")
@@ -69,6 +74,7 @@ class HeardLog(Protocol):
 class IgateCounts(Protocol):
     @property
     def state(self) -> str: ...
+
     gated: int
 
 
@@ -117,6 +123,7 @@ def path_text(packet: Packet) -> str:
 @dataclass(frozen=True)
 class Footprint:
     """The circle of stations a general query addresses: centre in degrees, radius in miles."""
+
     lat: float
     lon: float
     miles: int
@@ -166,7 +173,11 @@ def direct_on(station: Station, radio: AirRadio | None, now: datetime) -> dateti
     if radio is None:
         at = station.last_direct_at
     elif not radio.allowed.paths:
-        at = None if any(hop.endswith("*") for hop in station.heard_on(radio.id).last_path) else station.heard_on(radio.id).last_at
+        at = (
+            None
+            if any(hop.endswith("*") for hop in station.heard_on(radio.id).last_path)
+            else station.heard_on(radio.id).last_at
+        )
     else:
         routes = station.routes_on(radio.id)
         at = None if routes is None else routes.last_direct_at
@@ -181,12 +192,28 @@ def heard_text(call: str, counts: Sequence[int] | None) -> str:
 
 
 class Queries:
-    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, beacon: Frames, status: Callable[[AnswerRadio], ax25.Frame | None], book: Stations, paths: Paths,
-                 clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC), objects: Objects = _NOTHING, messages: Messages = _NOTHING,  # noqa: S311  (pause before an answer, no secret)
-                 spacing_sec: float = SPACING_SEC, heard: HeardLog | None = None, igate: IgateCounts | None = None, budget: AnswerBudget | None = None) -> None:
+    def __init__(
+        self,
+        radios: RadioPick | Radio,
+        config: ConfigSource,
+        beacon: Frames,
+        status: Callable[[AnswerRadio], ax25.Frame | None],
+        book: Stations,
+        paths: Paths,
+        clock: Clock = utcnow,
+        delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC),  # noqa: S311
+        objects: Objects = _NOTHING,
+        messages: Messages = _NOTHING,
+        spacing_sec: float = SPACING_SEC,
+        heard: HeardLog | None = None,
+        igate: IgateCounts | None = None,
+        budget: AnswerBudget | None = None,
+    ) -> None:
         self._config = config
         self._given = radios
-        self._answers = Answers(radios, config, paths, spacing_sec, budget if budget is not None else AnswerBudget(clock))
+        self._answers = Answers(
+            radios, config, paths, spacing_sec, budget if budget is not None else AnswerBudget(clock)
+        )
         self._beacon = beacon
         self._status = status
         self._book = book
@@ -208,13 +235,21 @@ class Queries:
             return
         decoded = packet.decoded
         if isinstance(decoded, Message):
-            if decoded.ack_id is None and decoded.rej_id is None and addressed_to(decoded.addressee, self._config().station_call):
+            if (
+                decoded.ack_id is None
+                and decoded.rej_id is None
+                and addressed_to(decoded.addressee, self._config().station_call)
+            ):
                 self._to_us(packet, decoded.text.strip().upper())
         elif isinstance(decoded, Other) and decoded.kind == "query":
             if (kind := general_kind(decoded.text)) is not None:
                 self._general(packet, decoded.text, kind)
             elif decoded.text.strip().upper().startswith(_NOT_ANSWERED):
-                log.debug("the general query %s of %s has nothing to be answered with here", decoded.text.strip(), packet.sender)
+                log.debug(
+                    "the general query %s of %s has nothing to be answered with here",
+                    decoded.text.strip(),
+                    packet.sender,
+                )
 
     def _to_us(self, packet: Packet, text: str) -> None:
         """Answer the upper-case message text if it is a directed query, trailing `?` optional."""
@@ -234,7 +269,9 @@ class Queries:
         if query == "heard":
             if self._starts_heard(packet, key, argument):
                 # a radio switched off while the log is read answers nothing, and no other does
-                self._answers.tasks.spawn(self._heard_answer(packet, key, argument, self._came_on(packet)), "query-heard")
+                self._answers.tasks.spawn(
+                    self._heard_answer(packet, key, argument, self._came_on(packet)), "query-heard"
+                )
             return
         radio = self._came_on(packet)
         try:
@@ -254,24 +291,39 @@ class Queries:
         if query == "status":
             return [self._status(radio)]
         if query == "directs":
-            return [self._answers.message(asker, text) for text in directs_messages(self._directs(packet.heard_at, radio))]
+            return [
+                self._answers.message(asker, text) for text in directs_messages(self._directs(packet.heard_at, radio))
+            ]
         if query == "objects":
-            return [our_frame(self._config(), (), info_of(o, self.clock())) for o in self._objects.records() if o.alive][:ANSWER_FRAMES_MAX]
+            return [
+                our_frame(self._config(), (), info_of(o, self.clock())) for o in self._objects.records() if o.alive
+            ][:ANSWER_FRAMES_MAX]
         if query == "messages":
             # a sealed message goes again as it went on the air, never as written
-            return [self._answers.message(asker, r.wire if r.wire is not None else r.text, r.msg_id) for r in self._unsettled(asker)]
+            return [
+                self._answers.message(asker, r.wire if r.wire is not None else r.text, r.msg_id)
+                for r in self._unsettled(asker)
+            ]
         return [self._answers.message(asker, path_text(packet))]
 
     def _unsettled(self, asker: str) -> list[MessageRecord]:
         """Return the latest ANSWER_FRAMES_MAX unsettled messages to the asker, oldest first."""
-        ours = [r for r in self._messages.records() if r.direction == "out" and r.msg_id is not None and r.state in UNSETTLED and same_call(r.to_call, asker)]
+        ours = [
+            r
+            for r in self._messages.records()
+            if r.direction == "out" and r.msg_id is not None and r.state in UNSETTLED and same_call(r.to_call, asker)
+        ]
         return sorted(ours, key=lambda r: r.id)[-ANSWER_FRAMES_MAX:]
 
     # ---- ?APRSH
     def _starts_heard(self, packet: Packet, key: str, call: str | None) -> bool:
         """Return whether ?APRSH is answered (log exists, call not ours); copies count too."""
         if self._heard is None or call is None or same_call(call, self._config().station_call):
-            log.debug("the heard query of %s is not answered: %s", packet.sender, "no call" if call is None else "nothing to look in" if self._heard is None else "it is about us")
+            log.debug(
+                "the heard query of %s is not answered: %s",
+                packet.sender,
+                "no call" if call is None else "nothing to look in" if self._heard is None else "it is about us",
+            )
             return False
         self._answers.note(packet.sender, key, packet.heard_at)
         return True
@@ -285,7 +337,14 @@ class Queries:
         # a station known from the internet alone was never heard on the air
         known = any(counts) or (found is not None and not found.internet_only)
         try:
-            self._answers.deliver(packet.sender, key, [self._answers.message(packet.sender, heard_text(call, counts if known else None))], packet.heard_at, False, radio=radio)
+            self._answers.deliver(
+                packet.sender,
+                key,
+                [self._answers.message(packet.sender, heard_text(call, counts if known else None))],
+                packet.heard_at,
+                False,
+                radio=radio,
+            )
         except (ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:
             log.warning("the %s query of %s was not answered: %s", key, packet.sender, e)
 
@@ -308,11 +367,22 @@ class Queries:
             return
         until = self._general_until.get(kind)
         if until is not None and packet.heard_at < until:
-            log.debug("the general query %s of %s is not taken: one was taken less than %d s ago", kind, packet.sender, GENERAL_EVERY_SEC)
+            log.debug(
+                "the general query %s of %s is not taken: one was taken less than %d s ago",
+                kind,
+                packet.sender,
+                GENERAL_EVERY_SEC,
+            )
             return
         self._general_until[kind] = packet.heard_at + timedelta(seconds=GENERAL_EVERY_SEC)
         delay = self._delay()
-        log.info("the general query %s of %s: our %s go out in %.0f s", kind, packet.sender, "position and status" if kind == GENERAL else "capabilities", delay)
+        log.info(
+            "the general query %s of %s: our %s go out in %.0f s",
+            kind,
+            packet.sender,
+            "position and status" if kind == GENERAL else "capabilities",
+            delay,
+        )
         self._answers.tasks.spawn(self._later(delay, packet.sender, kind, self._came_on(packet)), "query-general")
 
     def _no_igate(self) -> str:
@@ -341,7 +411,9 @@ class Queries:
         assert self._igate is not None
         return our_frame(self._config(), (), capabilities_info(len(self._directs(self.clock())), self._igate.gated))
 
-    def _send_frames(self, asker: str, makers: Sequence[Callable[[], ax25.Frame | None]], radio: AirRadio | None) -> None:
+    def _send_frames(
+        self, asker: str, makers: Sequence[Callable[[], ax25.Frame | None]], radio: AirRadio | None
+    ) -> None:
         """Make frames separately so one failure keeps the rest; send all or none (budget)."""
         frames: list[ax25.Frame] = []
         for make in makers:
@@ -357,5 +429,9 @@ class Queries:
     # ---- the answers
     def _directs(self, now: datetime, radio: AirRadio | None = None) -> list[str]:
         """Return the calls heard direct within DIRECT_WINDOW, latest first, on `radio` or any."""
-        heard = [(at, s.call) for s in self._book.stations() if s.kind == "station" and not s.is_me and (at := direct_on(s, radio, now)) is not None]
+        heard = [
+            (at, s.call)
+            for s in self._book.stations()
+            if s.kind == "station" and not s.is_me and (at := direct_on(s, radio, now)) is not None
+        ]
         return [call for _, call in sorted(heard, reverse=True)]

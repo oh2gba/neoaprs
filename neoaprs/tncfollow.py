@@ -3,6 +3,7 @@
 The Tnc remembers the adapter behind the named port and, if that port is gone, opens the port the
 adapter is on now (Linux searches instead). The memory is made in a task after the open.
 """
+
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
@@ -36,7 +37,14 @@ class AdapterFollow:
     def knows(self, path: str) -> bool:
         return self._remembered(path) is not None
 
-    async def open(self, path: str, named: bool, opener: Callable[[str], Awaitable[Port]], note: Callable[[str], None], taken: Callable[[str], str] = lambda path: "") -> tuple[Port, str]:
+    async def open(
+        self,
+        path: str,
+        named: bool,
+        opener: Callable[[str], Awaitable[Port]],
+        note: Callable[[str], None],
+        taken: Callable[[str], str] = lambda path: "",
+    ) -> tuple[Port, str]:
         """Open `path`, or the adapter's new port if that fails; return the port and its path.
 
         A new port that is another radio's (`taken` says why) is left alone. Raise SerialError.
@@ -44,11 +52,21 @@ class AdapterFollow:
         try:
             return await opener(path), path
         except SerialError:
-            moved = await asyncio.to_thread(serialprobe.moved_to, self._remembered(path), path) if self.following(path, named) else None
+            moved = (
+                await asyncio.to_thread(serialprobe.moved_to, self._remembered(path), path)
+                if self.following(path, named)
+                else None
+            )
             if moved is None:
                 raise
             if why := taken(moved):
-                log.info("%s: %s is gone; an adapter like it is on %s, which is left alone: %s", self._label(), path, moved, why)
+                log.info(
+                    "%s: %s is gone; an adapter like it is on %s, which is left alone: %s",
+                    self._label(),
+                    path,
+                    moved,
+                    why,
+                )
                 raise
         note(f"{path} is gone; the adapter is on {moved}")
         log.warning("%s: %s is gone; the adapter is on %s", self._label(), path, moved)

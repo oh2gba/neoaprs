@@ -2,6 +2,7 @@
 attempt made, until the first is acked, rejected, failed or cancelled; different stations do not
 wait for each other.
 """
+
 import json
 from collections.abc import Callable
 from pathlib import Path
@@ -23,8 +24,10 @@ async def rig(tmp_path: Path) -> Rig:
 @pytest.fixture
 def another(rig: Rig) -> Callable[..., Rig]:
     """A second messaging on the same database, as after a restart of the daemon."""
+
     def make(**changes: object) -> Rig:
         return Rig(rig.log, rig.clock, rig.tnc, **changes)
+
     return make
 
 
@@ -39,18 +42,24 @@ async def acked(rig: Rig, msg_id: str, call: str = "OH2RDG") -> None:
     await rig.pass_time(0)
 
 
-async def test_a_second_message_to_a_station_waits_with_no_attempt_while_the_first_is_unacked_and_goes_when_it_is_acked(rig: Rig) -> None:
+async def test_a_second_message_to_a_station_waits_with_no_attempt_while_the_first_is_unacked_and_goes_when_it_is_acked(
+    rig: Rig,
+) -> None:
     await rig.m.send("OH2RDG", "a")
     second = await rig.m.send("OH2RDG", "b")
     assert (second.state, second.attempts) == ("sending", 0) and rig.m.queued(second) and not rig.m.queued(rig.state(1))
     assert texts(rig) == ["a{01}"]
     await rig.pass_time(32)
     await rig.pass_time(32)
-    assert texts(rig) == ["a{01}"] * 3 and rig.state(2).attempts == 0, "the first is sent again; the second waits for it, however long"
+    assert texts(rig) == ["a{01}"] * 3 and rig.state(2).attempts == 0, (
+        "the first is sent again; the second waits for it, however long"
+    )
     await acked(rig, "01")
     assert texts(rig) == ["a{01}"] * 3 + ["b{02}"] and not rig.m.queued(rig.state(2))
     await rig.pass_time(32)
-    assert texts(rig)[-1] == "b{02}" and rig.state(2).attempts == 2, "and it has its own schedule from its first attempt"
+    assert texts(rig)[-1] == "b{02}" and rig.state(2).attempts == 2, (
+        "and it has its own schedule from its first attempt"
+    )
 
 
 @pytest.mark.parametrize("how", ["failed", "rejected", "cancelled"])
@@ -85,10 +94,12 @@ async def test_messages_to_two_stations_go_side_by_side_and_a_queue_of_one_does_
     await rig.m.send("OH2RDG", "a")
     await rig.m.send("OH2AAA", "x")
     await rig.m.send("OH2RDG", "b")
-    await rig.m.send("OH2AAA-7", "y")                                             # (another ssid is another station)
+    await rig.m.send("OH2AAA-7", "y")  # (another ssid is another station)
     assert texts(rig) == ["a{01}", "x{02}", "y{04}"] and rig.m.queued(rig.state(3))
     await acked(rig, "02", "OH2AAA")
-    assert texts(rig) == ["a{01}", "x{02}", "y{04}"], "the ack of the other station's message lets nothing of OH2RDG's go"
+    assert texts(rig) == ["a{01}", "x{02}", "y{04}"], (
+        "the ack of the other station's message lets nothing of OH2RDG's go"
+    )
     await acked(rig, "01")
     assert texts(rig)[-1] == "b{03}" and rig.state(3).attempts == 1
 
@@ -96,17 +107,25 @@ async def test_messages_to_two_stations_go_side_by_side_and_a_queue_of_one_does_
 async def test_the_email_gateway_a_bulletin_and_a_query_neither_wait_nor_hold_one_up(rig: Rig) -> None:
     await rig.m.send("EMAIL-2", "me@example.org one")
     await rig.m.send("EMAIL-2", "me@example.org two")
-    assert len(rig.lines()) == 2 and not any(rig.m.queued(r) for r in rig.m.records()), "the gateway is not expected to ack: both go at once"
+    assert len(rig.lines()) == 2 and not any(rig.m.queued(r) for r in rig.m.records()), (
+        "the gateway is not expected to ack: both go at once"
+    )
     await rig.m.send("OH2RDG", "a")
     await rig.m.asking.ask("OH2RDG", "status")
     await rig.m.send("BLN1", "Road closed")
     await rig.m.send("BLN1", "Road open")
-    assert texts(rig)[2:] == ["a{03}", "?APRSS", "Road closed", "Road open"], "a query to a station a message is being sent to goes at once, and so do bulletins"
+    assert texts(rig)[2:] == ["a{03}", "?APRSS", "Road closed", "Road open"], (
+        "a query to a station a message is being sent to goes at once, and so do bulletins"
+    )
     await rig.m.send("OH2RDG", "b")
-    assert texts(rig)[-1] == "Road open" and rig.m.queued(rig.state(rig.m.records()[-1].id)), "the query did not take the place of the message on the air"
+    assert texts(rig)[-1] == "Road open" and rig.m.queued(rig.state(rig.m.records()[-1].id)), (
+        "the query did not take the place of the message on the air"
+    )
 
 
-async def test_after_a_restart_the_message_on_the_air_goes_on_and_the_waiting_one_still_waits_for_it(rig: Rig, another: Callable[..., Rig]) -> None:
+async def test_after_a_restart_the_message_on_the_air_goes_on_and_the_waiting_one_still_waits_for_it(
+    rig: Rig, another: Callable[..., Rig]
+) -> None:
     await rig.m.send("OH2RDG", "a")
     await rig.m.send("OH2RDG", "b")
     await rig.settled()
@@ -134,7 +153,9 @@ async def test_a_waiting_message_can_be_cancelled_and_is_never_sent_and_the_next
     assert (rig.state(2).attempts, rig.state(3).state) == (0, "failed")
 
 
-async def test_a_retry_while_another_message_to_the_station_is_on_the_air_waits_its_turn_and_then_goes_before_newer_ones(rig: Rig) -> None:
+async def test_a_retry_while_another_message_to_the_station_is_on_the_air_waits_its_turn_and_then_goes_before_newer_ones(
+    rig: Rig,
+) -> None:
     await rig.m.send("OH2RDG", "a")
     for step in RUN_OUT:
         await rig.pass_time(step)
@@ -145,23 +166,33 @@ async def test_a_retry_while_another_message_to_the_station_is_on_the_air_waits_
     assert (again.state, again.attempts) == ("sending", 0) and rig.m.queued(again) and rig.m.queued(rig.state(3))
     assert texts(rig)[-1] == "b{02}"
     await acked(rig, "02")
-    assert texts(rig)[-1] == "a{01}", "the retried message is the oldest of those waiting (the lowest number), so it goes before c, which was written after it"
+    assert texts(rig)[-1] == "a{01}", (
+        "the retried message is the oldest of those waiting (the lowest number), so it goes before c, which was written after it"
+    )
     await acked(rig, "01")
     assert texts(rig)[-1] == "c{03}"
 
 
-async def test_the_page_row_says_queued_for_the_waiting_one_and_sending_when_its_turn_comes_and_it_is_told_again_then(rig: Rig) -> None:
+async def test_the_page_row_says_queued_for_the_waiting_one_and_sending_when_its_turn_comes_and_it_is_told_again_then(
+    rig: Rig,
+) -> None:
     await rig.m.send("OH2RDG", "a")
     await rig.m.send("OH2RDG", "b")
     row = message_row(rig.state(2), queued=rig.m.queued(rig.state(2)))
-    assert (row["state"], row["attempts"]) == ("queued", 0) and message_row(rig.state(1), queued=rig.m.queued(rig.state(1)))["state"] == "sending"
+    assert (row["state"], row["attempts"]) == ("queued", 0) and message_row(
+        rig.state(1), queued=rig.m.queued(rig.state(1))
+    )["state"] == "sending"
     rig.changed.clear()
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="01"))
-    assert [(r.id, r.state, r.attempts) for r in rig.changed] == [(1, "acked", 1), (2, "sending", 0)], "the waiting one is told again when the first settles: the page asks again whether it waits"
+    assert [(r.id, r.state, r.attempts) for r in rig.changed] == [(1, "acked", 1), (2, "sending", 0)], (
+        "the waiting one is told again when the first settles: the page asks again whether it waits"
+    )
     assert message_row(rig.state(2), queued=rig.m.queued(rig.state(2)))["state"] == "sending"
 
 
-async def test_the_pages_see_the_second_message_as_queued_and_then_as_sending_when_the_first_is_acked(tmp_path: Path) -> None:
+async def test_the_pages_see_the_second_message_as_queued_and_then_as_sending_when_the_first_is_acked(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "first"})
     await page.until(lambda: page.topics["messages"].get("1", {}).get("attempts") == 1)

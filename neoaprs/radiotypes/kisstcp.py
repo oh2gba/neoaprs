@@ -2,6 +2,7 @@
 
 The port may also be a tcp:// address. The "tnc" driver.
 """
+
 from dataclasses import replace
 
 from neoaprs.configtypes import int_in
@@ -16,9 +17,29 @@ PORT = replace(SERIAL_PORT, claims=None)
 TCP_PORT_RANGE = (1, 65535)  # the range of tcp/port (config.RANGES)
 TCP_HOST = Field("tcp_host", "text", host_name, "127.0.0.1", together="tcp", text="radio.field.tcp_host")
 # 8001 is Direwolf, 8100 the sound-card modems
-TCP_PORT = Field("tcp_port", "int", int_in(*TCP_PORT_RANGE), "8001", range=TCP_PORT_RANGE, together="tcp", text="radio.field.tcp_port")
+TCP_PORT = Field(
+    "tcp_port",
+    "int",
+    int_in(*TCP_PORT_RANGE),
+    "8001",
+    range=TCP_PORT_RANGE,
+    together="tcp",
+    text="radio.field.tcp_port",
+)
 
 TYPES: tuple[RadioType, ...] = (
-    RadioType(KISS_TCP.key, "fm", KISS_TCP.name, f"radio.type.{KISS_TCP.key}", KISS_TCP.transport, "tnc", KISS_TCP.key, fields_of((PORT, TCP_HOST, TCP_PORT), FM_ALLOWED), FM_LIMITS, FM_ALLOWED,
-              TERMINAL_ONLY, dummy=False),
+    RadioType(
+        KISS_TCP.key,
+        "fm",
+        KISS_TCP.name,
+        f"radio.type.{KISS_TCP.key}",
+        KISS_TCP.transport,
+        "tnc",
+        KISS_TCP.key,
+        fields_of((PORT, TCP_HOST, TCP_PORT), FM_ALLOWED),
+        FM_LIMITS,
+        FM_ALLOWED,
+        TERMINAL_ONLY,
+        dummy=False,
+    ),
 )

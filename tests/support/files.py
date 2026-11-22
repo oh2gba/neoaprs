@@ -1,5 +1,5 @@
-"""The files under tests/fixtures and the reading of a file that a program of the test is writing.
-"""
+"""The files under tests/fixtures and the reading of a file that a program of the test is writing."""
+
 import asyncio
 import time
 from collections.abc import Callable
@@ -49,6 +49,8 @@ async def until_written(path: Path, complete: Callable[[str], bool] = whole_line
     """`read_when` for a test that runs on the loop: the loop goes on while it waits."""
     deadline = asyncio.get_running_loop().time() + seconds
     while (text := text_if_readable(path)) is None or not complete(text):
-        assert asyncio.get_running_loop().time() < deadline, f"{path.name} was not written in {seconds:g} s; what it had: {text!r}"
+        assert asyncio.get_running_loop().time() < deadline, (
+            f"{path.name} was not written in {seconds:g} s; what it had: {text!r}"
+        )
         await asyncio.sleep(0.01)
     return text

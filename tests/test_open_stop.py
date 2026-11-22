@@ -2,6 +2,7 @@
 started detached, a running one is left alone, the browser is asked for the page, and `stop` ends
 the daemon through the file.
 """
+
 import asyncio
 import http.client
 import http.server
@@ -31,7 +32,15 @@ def environment() -> dict[str, str]:
 
 
 def command(*args: str, timeout: float = 90) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([sys.executable, "-m", "neoaprs", *args], cwd=ROOT, env=environment(), capture_output=True, text=True, timeout=timeout, creationflags=NEW_GROUP)
+    return subprocess.run(
+        [sys.executable, "-m", "neoaprs", *args],
+        cwd=ROOT,
+        env=environment(),
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        creationflags=NEW_GROUP,
+    )
 
 
 @pytest.fixture
@@ -73,7 +82,7 @@ def test_the_stop_file_is_asked_for_seen_and_taken_away(tmp_path: Path) -> None:
     stopfile.request(tmp_path)
     assert stopfile.requested(tmp_path) and (tmp_path / "neoaprs.stop").is_file()
     stopfile.clear(tmp_path)
-    stopfile.clear(tmp_path)                                               # (nothing to take away is no error)
+    stopfile.clear(tmp_path)  # (nothing to take away is no error)
     assert not stopfile.requested(tmp_path)
 
 
@@ -88,7 +97,9 @@ async def test_the_watch_ends_the_run_when_the_file_appears_and_deletes_it(tmp_p
     assert not stopfile.requested(tmp_path)
 
 
-def test_stop_with_no_daemon_says_so_and_clears_a_request_that_was_left(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_stop_with_no_daemon_says_so_and_clears_a_request_that_was_left(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     stopfile.request(tmp_path)
     assert stopcmd.main(["--data", str(tmp_path)]) == 0
     assert "not running" in capsys.readouterr().err and not stopfile.requested(tmp_path)
@@ -120,7 +131,9 @@ def test_a_stop_request_left_in_the_folder_does_not_end_the_next_daemon(data: Pa
     assert is_running(data) and not stopfile.requested(data)
 
 
-def test_open_asks_the_browser_for_the_address_the_daemon_logged(data: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_open_asks_the_browser_for_the_address_the_daemon_logged(
+    data: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     assert command("open", "--data", str(data), "--no-browser").returncode == 0
     url = page_url(data)
     assert url is not None
@@ -133,7 +146,9 @@ def test_open_asks_the_browser_for_the_address_the_daemon_logged(data: Path, mon
     assert f"open {url} yourself" in capsys.readouterr().err
 
 
-def test_open_reports_a_daemon_that_ends_before_its_page_is_up(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_open_reports_a_daemon_that_ends_before_its_page_is_up(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     monkeypatch.setattr(opencmd, "daemon_argv", lambda data: [sys.executable, "-c", "raise SystemExit(3)"])
     shown: list[str] = []
     monkeypatch.setattr(opencmd, "tell_the_user", lambda text: shown.append(text))
@@ -159,7 +174,13 @@ def test_open_gives_up_when_no_page_comes_in_time(tmp_path: Path, monkeypatch: p
 
 def test_the_commands_are_known_to_the_neoaprs_command() -> None:
     from neoaprs import cli
-    assert "open" in cli.COMMANDS and "stop" in cli.COMMANDS and cli.HANDLERS["open"] is cli._open and cli.HANDLERS["stop"] is cli._stop
+
+    assert (
+        "open" in cli.COMMANDS
+        and "stop" in cli.COMMANDS
+        and cli.HANDLERS["open"] is cli._open
+        and cli.HANDLERS["stop"] is cli._stop
+    )
 
 
 # ---- where the page is
@@ -177,7 +198,10 @@ def wait_until(condition: Callable[..., object], *args: object, seconds: float =
 def log_with_a_page(data: Path, lines_after: int) -> None:
     data.mkdir(parents=True, exist_ok=True)
     filler = "2026-10-22 12:00:30Z  INFO  beacon sent: OH2GBA-9>APOTC1,WIDE1-1:!6010.00N/02456.00E>\n" * lines_after
-    (data / LOG_NAME).write_text(f"2026-10-22 12:00:00Z  INFO  NeoAPRS 0.14.0 starting, data in {data}\n2026-10-22 12:00:01Z  INFO  web page at {PAGE}\n{filler}", encoding="utf-8")
+    (data / LOG_NAME).write_text(
+        f"2026-10-22 12:00:00Z  INFO  NeoAPRS 0.14.0 starting, data in {data}\n2026-10-22 12:00:01Z  INFO  web page at {PAGE}\n{filler}",
+        encoding="utf-8",
+    )
 
 
 def test_the_address_the_daemon_wrote_is_found_however_long_the_log_has_grown_since(tmp_path: Path) -> None:
@@ -188,11 +212,13 @@ def test_the_address_the_daemon_wrote_is_found_however_long_the_log_has_grown_si
     write_page(tmp_path, "http://127.0.0.1:7305/")
     assert page_url(tmp_path) == "http://127.0.0.1:7305/" and read_page(tmp_path) == "http://127.0.0.1:7305/"
     remove_page(tmp_path)
-    remove_page(tmp_path)                                                  # (nothing to take away is no error)
+    remove_page(tmp_path)  # (nothing to take away is no error)
     assert read_page(tmp_path) is None and page_url(tmp_path) is None
 
 
-@pytest.mark.parametrize("text", ["", "not an address", "http://", "https://127.0.0.1:7304/", "http://127.0.0.1:7303/ and more"])
+@pytest.mark.parametrize(
+    "text", ["", "not an address", "http://", "https://127.0.0.1:7304/", "http://127.0.0.1:7303/ and more"]
+)
 def test_a_file_that_holds_no_address_is_no_address_and_the_log_is_looked_at(tmp_path: Path, text: str) -> None:
     log_with_a_page(tmp_path, 3)
     (tmp_path / PAGE_FILE).write_text(text + "\n", encoding="ascii")
@@ -217,7 +243,9 @@ class Answer(http.server.BaseHTTPRequestHandler):
         return None
 
 
-def test_the_page_of_the_daemon_is_asked_for_directly_whatever_proxy_the_environment_names(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_page_of_the_daemon_is_asked_for_directly_whatever_proxy_the_environment_names(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Answer)
     serve(server)
     try:
@@ -233,7 +261,9 @@ def test_the_page_of_the_daemon_is_asked_for_directly_whatever_proxy_the_environ
         server.server_close()
 
 
-def test_the_daemon_writes_its_page_into_the_data_folder_and_takes_it_away_at_a_clean_stop_and_says_each_warning_once(data: Path) -> None:
+def test_the_daemon_writes_its_page_into_the_data_folder_and_takes_it_away_at_a_clean_stop_and_says_each_warning_once(
+    data: Path,
+) -> None:
     opened = command("open", "--data", str(data), "--no-browser", "--timeout", "60")
     assert opened.returncode == 0, opened
     url = opened.stdout.strip()
@@ -254,7 +284,9 @@ def test_the_daemon_writes_its_page_into_the_data_folder_and_takes_it_away_at_a_
         link.close()
         wait_until(said, name)
     log = log_with_filler.read_text(encoding="utf-8")
-    assert log.count("'first-evil.example' was refused") == 1 and log.count("'second-evil.example' was refused") == 1, "(a daemon that was started by a command did not write its stderr into the log)"
+    assert log.count("'first-evil.example' was refused") == 1 and log.count("'second-evil.example' was refused") == 1, (
+        "(a daemon that was started by a command did not write its stderr into the log)"
+    )
     launch = data / LAUNCH_NAME
     if sys.platform == "win32":
         assert not launch.exists(), "(a daemon without a console writes nothing before it has its log)"
@@ -264,10 +296,17 @@ def test_the_daemon_writes_its_page_into_the_data_folder_and_takes_it_away_at_a_
     assert not (data / PAGE_FILE).exists()
 
 
-def test_a_data_folder_that_cannot_be_used_is_one_sentence_and_exit_1(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_data_folder_that_cannot_be_used_is_one_sentence_and_exit_1(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     afile = tmp_path / "afile"
     afile.write_text("not a folder")
     shown: list[str] = []
     monkeypatch.setattr(opencmd, "tell_the_user", lambda text: shown.append(text))
     assert opencmd.main(["--data", str(afile / "inside"), "--no-browser", "--timeout", "1"]) == 1
-    assert len(shown) == 1 and "could not be started" in shown[0] and "Traceback" not in shown[0] and str(afile / "inside") in shown[0]
+    assert (
+        len(shown) == 1
+        and "could not be started" in shown[0]
+        and "Traceback" not in shown[0]
+        and str(afile / "inside") in shown[0]
+    )

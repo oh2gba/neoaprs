@@ -3,6 +3,7 @@
 Windows always uses it (WebView2); Linux and macOS use it when NEOAPRS_WINDOW=web asks for it.
 pywebview owns the main thread; the toolkits are imported inside functions (tests fake them).
 """
+
 import contextlib
 import importlib
 import logging
@@ -57,10 +58,10 @@ class WebFrame:
     def __init__(self, with_window: bool) -> None:
         self.has_window = with_window
         self.window: Any = None
-        self.keeper: WindowKeeper | None = None      # Windows: the placement
-        self.sizes: SizeKeeper | None = None          # Linux and macOS: the size keeper
+        self.keeper: WindowKeeper | None = None  # Windows: the placement
+        self.sizes: SizeKeeper | None = None  # Linux and macOS: the size keeper
         self.icon: Any = None
-        self.actions: AppActions | None = None      # set once the session is there
+        self.actions: AppActions | None = None  # set once the session is there
         self.api = LinkApi()
         self.quitting = threading.Event()
         # Set when the app is to end; the main thread waits on it without a window.
@@ -69,7 +70,7 @@ class WebFrame:
         self.closed = False
         # Guards `actions` and `closed` (close button thread vs. session thread).
         self.lock = threading.Lock()
-        self.stop_loop: Callable[[], None] | None = None   # ends the tray's own loop (no window)
+        self.stop_loop: Callable[[], None] | None = None  # ends the tray's own loop (no window)
 
     def show_window(self) -> None:
         """Show the window, un-minimised, and maximized if it was left so.
@@ -78,7 +79,9 @@ class WebFrame:
         if self.window is None or (self.keeper is not None and self.keeper.open()):
             return
         self.window.show()
-        maximized = (self.keeper is not None and self.keeper.maximized) or (self.sizes is not None and self.sizes.maximized)
+        maximized = (self.keeper is not None and self.keeper.maximized) or (
+            self.sizes is not None and self.sizes.maximized
+        )
         if SYSTEM == "linux" or not maximized:
             self.window.restore()
         if maximized:
@@ -98,7 +101,7 @@ class WebFrame:
             self.sizes.stop()
             self.sizes.save()
         if self.window is not None:
-            self.window.destroy()                   # `run` stops the icon afterwards
+            self.window.destroy()  # `run` stops the icon afterwards
         if self.stop_loop is not None:
             self.stop_loop()
 
@@ -125,6 +128,7 @@ def tray_menu(pystray: Any, frame: WebFrame) -> Any:
     """Return the tray menu, rebuilt from `frame.actions.items()` each time pystray asks.
 
     pystray counts parameters with defaults, so each action is its own closure."""
+
     def entries() -> Any:
         actions = frame.actions
         if actions is None:
@@ -134,7 +138,13 @@ def tray_menu(pystray: Any, frame: WebFrame) -> Any:
             if item.separator:
                 yield pystray.Menu.SEPARATOR
                 continue
-            yield pystray.MenuItem(item.label, _run(actions, item.key), checked=None if item.checked is None else _shows(item.checked), default=item.key == OPEN)
+            yield pystray.MenuItem(
+                item.label,
+                _run(actions, item.key),
+                checked=None if item.checked is None else _shows(item.checked),
+                default=item.key == OPEN,
+            )
+
     return pystray.Menu(entries)
 
 
@@ -196,7 +206,14 @@ def make_window(frame: WebFrame, launch: Launch) -> Any:
         width, height = appstate.clamp(right - left, bottom - top)
         where = {"x": left, "y": top}
     elif SYSTEM == "win32":
-        log.info("window: file: no placement (old: %dx%d at %s,%s maximized=%s): the default size in the middle of the screen", state.width, state.height, state.x, state.y, state.maximized)
+        log.info(
+            "window: file: no placement (old: %dx%d at %s,%s maximized=%s): the default size in the middle of the screen",
+            state.width,
+            state.height,
+            state.x,
+            state.y,
+            state.maximized,
+        )
         width, height = appstate.DEFAULT_SIZE
     else:
         width, height = state.width, state.height
@@ -204,9 +221,25 @@ def make_window(frame: WebFrame, launch: Launch) -> Any:
             # Saved in desktop coordinates; pywebview's GTK window adds the monitor corner.
             origin_x, origin_y = webdesk.screen_origin(SYSTEM)
             where = {"x": state.x - origin_x, "y": state.y - origin_y}
-        log.info("window: file: %dx%d at %s maximized=%s", width, height, where or "the middle of the screen", state.maximized)
-    window = webview.create_window("NeoAPRS", html=loading.HTML, width=width, height=height, **where, maximized=state.maximized, hidden=launch.hidden, text_select=True, js_api=frame.api,
-                                   background_color=loading.background(system_dark()))
+        log.info(
+            "window: file: %dx%d at %s maximized=%s",
+            width,
+            height,
+            where or "the middle of the screen",
+            state.maximized,
+        )
+    window = webview.create_window(
+        "NeoAPRS",
+        html=loading.HTML,
+        width=width,
+        height=height,
+        **where,
+        maximized=state.maximized,
+        hidden=launch.hidden,
+        text_select=True,
+        js_api=frame.api,
+        background_color=loading.background(system_dark()),
+    )
     frame.window = window
     if SYSTEM == "win32":
         keep_placement(frame, window, WindowKeeper(launch.data, state, window))
@@ -225,13 +258,13 @@ def keep_placement(frame: WebFrame, window: Any, keeper: WindowKeeper) -> None:
     def closing() -> bool:
         log.debug("window: event closing [%s]", threading.current_thread().name)
         if frame.quitting.is_set():
-            return True                             # Quit already saved the placement
+            return True  # Quit already saved the placement
         keeper.save("hide")
         window.hide()
-        return False                                 # False cancels the close
+        return False  # False cancels the close
 
     def shown() -> None:
-        splash.done()                               # the window is visible, so the start splash can go
+        splash.done()  # the window is visible, so the start splash can go
         keeper.shown()
 
     window.events.closing += closing
@@ -246,7 +279,9 @@ def dark_scheme(registry: Any = None) -> bool:
     """Return whether Windows apps use the dark scheme; False if unreadable."""
     try:
         winreg = registry if registry is not None else importlib.import_module("winreg")
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize") as key:
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+        ) as key:
             light, _kind = winreg.QueryValueEx(key, "AppsUseLightTheme")
     except (ImportError, OSError):
         return False

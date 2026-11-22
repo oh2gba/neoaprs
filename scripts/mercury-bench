@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Bench APRS over two real Mercury modems cross-wired through named pipes, with no radio (Linux).
 
-  scripts/mercury-bench                 run it: a table of the steps and times, exit 0 if all passed
-  scripts/mercury-bench --keep          keep the folders (daemon logs, Mercury output), say where"""
+scripts/mercury-bench                 run it: a table of the steps and times, exit 0 if all passed
+scripts/mercury-bench --keep          keep the folders (daemon logs, Mercury output), say where"""
+
 import argparse
 import asyncio
 import os
@@ -19,7 +20,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from neoaprs.mercuryhelper import find  # noqa: E402  (the daemon package of this checkout)
-from tests.support.realmercury import RATE, SAMPLE_BYTES, Failure, Page, fifo, start_daemon, start_mercury, stop, wait_for_page, write_settings  # noqa: E402
+from tests.support.realmercury import (  # noqa: E402
+    RATE,
+    SAMPLE_BYTES,
+    Failure,
+    Page,
+    fifo,
+    start_daemon,
+    start_mercury,
+    stop,
+    wait_for_page,
+    write_settings,
+)
 
 # (broadcast, control) of each Mercury: the control port is 200 above the KISS port.
 A_PORTS, B_PORTS = (18100, 18300), (18110, 18310)
@@ -105,7 +117,9 @@ def run(args: argparse.Namespace) -> int:
     shipped = find()
     binary = args.mercury or (shipped[0] if shipped else "")
     if not binary:
-        raise Failure("no Mercury in this checkout: build it with scripts/build-mercury --install, or give --mercury PATH")
+        raise Failure(
+            "no Mercury in this checkout: build it with scripts/build-mercury --install, or give --mercury PATH"
+        )
     folder = Path(tempfile.mkdtemp(prefix="mercury-bench-"))
     a_out, a_in, b_out, b_in = (fifo(folder, name) for name in ("a-out", "a-in", "b-out", "b-in"))
     processes: list[tuple[str, subprocess.Popen[bytes]]] = []
@@ -116,13 +130,36 @@ def run(args: argparse.Namespace) -> int:
         processes.append(("Mercury B", start_mercury(binary, folder, "b", b_in, b_out, B_PORTS)))
         for pacer in pacers:
             pacer.start()
-        say(f"two Mercury instances started from {binary}, their audio paced through named pipes at {RATE} samples a second")
+        say(
+            f"two Mercury instances started from {binary}, their audio paced through named pipes at {RATE} samples a second"
+        )
         data_a, data_b = folder / "a", folder / "b"
         # Radio 1 is an FM radio that is off, radio 2 the HF radio of --hf-port.
         hf_alone = (("kiss", False), ("mercury", True))
         # A path setting, to see it ignored over HF; no timed beacon.
-        write_settings(data_a, {"station/call": "OH2A", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "0", "radio/1/path": "WIDE1-1,WIDE2-1", "messages/alert": "false"}, radios=hf_alone)
-        write_settings(data_b, {"station/call": "OH2B", "station/lat": "61.50", "station/lon": "23.80", "beacon/interval_min": "0", "messages/alert": "false"}, radios=hf_alone)
+        write_settings(
+            data_a,
+            {
+                "station/call": "OH2A",
+                "station/lat": "60.17",
+                "station/lon": "24.94",
+                "beacon/interval_min": "0",
+                "radio/1/path": "WIDE1-1,WIDE2-1",
+                "messages/alert": "false",
+            },
+            radios=hf_alone,
+        )
+        write_settings(
+            data_b,
+            {
+                "station/call": "OH2B",
+                "station/lat": "61.50",
+                "station/lon": "23.80",
+                "beacon/interval_min": "0",
+                "messages/alert": "false",
+            },
+            radios=hf_alone,
+        )
         daemons = [start_daemon(data_a, A_PORTS), start_daemon(data_b, B_PORTS)]
         processes += [("daemon A", daemons[0]), ("daemon B", daemons[1])]
         bases = [wait_for_page(daemons[0], data_a, args.timeout), wait_for_page(daemons[1], data_b, args.timeout)]
@@ -154,15 +191,25 @@ def run(args: argparse.Namespace) -> int:
         for pacer in pacers:
             pacer.stopping.set()
         if args.keep:
-            say(f"kept {folder}: the daemons' data folders a/ and b/ (neoaprs.log in each) and mercury-a.log, mercury-b.log")
+            say(
+                f"kept {folder}: the daemons' data folders a/ and b/ (neoaprs.log in each) and mercury-a.log, mercury-b.log"
+            )
         else:
             shutil.rmtree(folder, ignore_errors=True)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="two Mercury instances over named pipes and two NeoAPRS daemons on them: a beacon, a message and its ack, a refusal")
-    parser.add_argument("--mercury", metavar="PATH", help="the Mercury program (default: the one scripts/build-mercury --install put in the venv)")
-    parser.add_argument("--timeout", type=float, default=60.0, metavar="SEC", help="how long each wait may take; default %(default)s")
+    parser = argparse.ArgumentParser(
+        description="two Mercury instances over named pipes and two NeoAPRS daemons on them: a beacon, a message and its ack, a refusal"
+    )
+    parser.add_argument(
+        "--mercury",
+        metavar="PATH",
+        help="the Mercury program (default: the one scripts/build-mercury --install put in the venv)",
+    )
+    parser.add_argument(
+        "--timeout", type=float, default=60.0, metavar="SEC", help="how long each wait may take; default %(default)s"
+    )
     parser.add_argument("--keep", action="store_true", help="keep the folders of the run and say where they are")
     args = parser.parse_args()
     if sys.platform == "win32":

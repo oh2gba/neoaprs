@@ -40,6 +40,7 @@ Transport = Literal["serial", "tcp", "dummy", "modem"]
 @dataclass(frozen=True)
 class Limits:
     """What the device cannot do."""
+
     max_frame: int | None
     beacon_min_min: int
     beacon_jitter_sec: int
@@ -61,6 +62,7 @@ class Limits:
 @dataclass(frozen=True)
 class Allowed:
     """What was decided for the type: a control exists only where it is True."""
+
     paths: bool
     digipeat: bool
     smart_beacon: bool
@@ -71,6 +73,7 @@ class Allowed:
 @dataclass(frozen=True)
 class Can:
     """What the type can do; the controls of its box follow."""
+
     find: bool
     terminal: bool
     tune: bool
@@ -85,6 +88,7 @@ class Can:
 @dataclass(frozen=True)
 class Field:
     """One setting of a radio, by its own key."""
+
     key: str
     kind: FieldKind
     parse: Callable[[str], Any]

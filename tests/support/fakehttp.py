@@ -1,6 +1,7 @@
 """A small HTTP server on a free loopback port whose answers a test lays down path by path: a body,
 a status, a redirect, a cut-short or chunked body, an answer that is not HTTP, or silence.
 """
+
 import asyncio
 from dataclasses import dataclass, field
 
@@ -37,15 +38,24 @@ class FakeHttp(LoopbackServer):
             self.requests.append(path)
             route = self.routes.get(path, Route(status=404))
             if route.hang:
-                await reader.read()                       # until the client gives up and closes
+                await reader.read()  # until the client gives up and closes
                 return
             if route.raw is not None:
                 writer.write(route.raw)
             elif route.chunked_cut is not None:
-                writer.write(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" + b"%x\r\n" % (len(route.chunked_cut) + 100) + route.chunked_cut)
+                writer.write(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+                    + b"%x\r\n" % (len(route.chunked_cut) + 100)
+                    + route.chunked_cut
+                )
             else:
                 length = len(route.body) if route.announce is None else route.announce
-                lines = [f"HTTP/1.1 {route.status} {'OK' if route.status == 200 else 'Other'}", f"Content-Length: {length}", "Connection: close", *(f"{k}: {v}" for k, v in route.headers.items())]
+                lines = [
+                    f"HTTP/1.1 {route.status} {'OK' if route.status == 200 else 'Other'}",
+                    f"Content-Length: {length}",
+                    "Connection: close",
+                    *(f"{k}: {v}" for k, v in route.headers.items()),
+                ]
                 writer.write(("\r\n".join(lines) + "\r\n\r\n").encode("latin-1") + route.body)
             await writer.drain()
         except (asyncio.IncompleteReadError, ConnectionError, asyncio.CancelledError):

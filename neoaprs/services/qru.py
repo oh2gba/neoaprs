@@ -2,6 +2,7 @@
 
 A station messages `QRU` with INFO, a group name or NEXT, and an optional range in km. Requests
 heard on the radio are answered with message and object frames, nearest first."""
+
 import logging
 import re
 from collections import Counter
@@ -45,6 +46,7 @@ class Stations(Protocol):
 @dataclass(frozen=True)
 class Request:
     """A request to QRU: `word` is INFO, NEXT or a group name; `km` is None for the default."""
+
     word: str
     km: int | None
 
@@ -80,12 +82,24 @@ def info_texts(call: str, groups: Sequence[tuple[str, int]], km: int) -> list[st
 
 
 class Qru:
-    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, objects: Objects, book: Stations, paths: Paths, clock: Clock = utcnow, spacing_sec: float = SPACING_SEC,
-                 first_wait_sec: float = FIRST_WAIT_SEC, budget: AnswerBudget | None = None) -> None:
+    def __init__(
+        self,
+        radios: RadioPick | Radio,
+        config: ConfigSource,
+        objects: Objects,
+        book: Stations,
+        paths: Paths,
+        clock: Clock = utcnow,
+        spacing_sec: float = SPACING_SEC,
+        first_wait_sec: float = FIRST_WAIT_SEC,
+        budget: AnswerBudget | None = None,
+    ) -> None:
         self._config = config
         self.first_wait_sec = first_wait_sec
         self._given = radios
-        self._answers = Answers(radios, config, paths, spacing_sec, budget if budget is not None else AnswerBudget(clock))
+        self._answers = Answers(
+            radios, config, paths, spacing_sec, budget if budget is not None else AnswerBudget(clock)
+        )
         self._objects = objects
         self._book = book
         self.clock = clock
@@ -99,7 +113,12 @@ class Qru:
     def heard(self, packet: Packet, message: Message) -> bool:
         """Answer a message to QRU; return False if it is no request, so the inbox keeps it."""
         request = request_of(message.text)
-        if not packet.on_air or packet.via == RF_GATED or request is None or not any(o.alive and o.qru_group for o in self._objects.records()):
+        if (
+            not packet.on_air
+            or packet.via == RF_GATED
+            or request is None
+            or not any(o.alive and o.qru_group for o in self._objects.records())
+        ):
             return False
         asker, key = packet.sender, f"QRU {request.word} {request.km or ''}".strip()
         if self._answers.refused() or not answerable(as_pick(self._given, self._config), packet):
@@ -110,7 +129,16 @@ class Qru:
         try:
             frames = self._frames(asker, request, packet.heard_at)
             if frames:
-                self._answers.deliver(asker, key, frames, packet.heard_at, True, rf_only=True, first_after_sec=self.first_wait_sec, radio=as_pick(self._given, self._config).for_packet(packet))
+                self._answers.deliver(
+                    asker,
+                    key,
+                    frames,
+                    packet.heard_at,
+                    True,
+                    rf_only=True,
+                    first_after_sec=self.first_wait_sec,
+                    radio=as_pick(self._given, self._config).for_packet(packet),
+                )
             else:
                 log.debug("the request %r of %s to QRU: nothing to answer with", key, asker)
         except (ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:
@@ -128,16 +156,38 @@ class Qru:
             _, group, km, done = seen
         else:
             group, km, done = request.word, request.km or RANGE_KM, 0
-        near = [o for o in self._objects.records() if o.alive and o.qru_group and (where is None or distance_km(*where, o.lat, o.lon) <= km)]
+        near = [
+            o
+            for o in self._objects.records()
+            if o.alive and o.qru_group and (where is None or distance_km(*where, o.lat, o.lon) <= km)
+        ]
         if request.word == "INFO":
             counts = sorted(Counter(o.qru_group for o in near).items())
-            return [] if not counts else [self._answers.message(asker, text) for text in info_texts(self._config().station_call, counts, km)]
+            return (
+                []
+                if not counts
+                else [
+                    self._answers.message(asker, text) for text in info_texts(self._config().station_call, counts, km)
+                ]
+            )
         return self._group_frames(asker, group, km, done, near, where, at)
 
-    def _group_frames(self, asker: str, group: str, km: int, done: int, near: list[OwnObject], where: tuple[float, float] | None, at: datetime) -> list[ax25.Frame]:
+    def _group_frames(
+        self,
+        asker: str,
+        group: str,
+        km: int,
+        done: int,
+        near: list[OwnObject],
+        where: tuple[float, float] | None,
+        at: datetime,
+    ) -> list[ax25.Frame]:
         """Return the next objects after `done`, nearest first, and the summary."""
-        ours = sorted((o for o in near if o.qru_group == group), key=lambda o: (0.0 if where is None else distance_km(*where, o.lat, o.lon), o.created_at, o.name))
-        page = ours[done:done + ANSWER_FRAMES_MAX]
+        ours = sorted(
+            (o for o in near if o.qru_group == group),
+            key=lambda o: (0.0 if where is None else distance_km(*where, o.lat, o.lon), o.created_at, o.name),
+        )
+        page = ours[done : done + ANSWER_FRAMES_MAX]
         if not page:
             return []
         c = self._config()

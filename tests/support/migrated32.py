@@ -1,6 +1,7 @@
 """Migrations 32 and 33 (neoaprs/migrationsteps32.py) for the tests: a database of the version
 before them, the steps run one by one, and the way back for `tests/support/migrated.step_back`.
 """
+
 import sqlite3
 from collections.abc import Callable
 from pathlib import Path
@@ -41,6 +42,7 @@ def old_database(path: str | Path, clock: Clock = utcnow) -> sqlite3.Connection:
     connection on which a test inserts rows of that version and then runs the steps."""
     # here, not at the top: migrated.py's step_back takes undo_32 and undo_33 from this module
     from tests.support.migrated import opened, step_back
+
     opened(path, clock).close()
     db = connect(path)
     if schema_version(db) > 30:
@@ -94,6 +96,7 @@ def newest(path: str | Path, clock: Clock = utcnow) -> "Opened":
     where the runner does not list those steps yet. What a test of an older migration reads
     its rows back from."""
     from tests.support.migrated import opened
+
     found = opened(path, clock)
     through_33(found.db)
     return found
@@ -103,7 +106,9 @@ def heard_by(db: sqlite3.Connection) -> dict[str, dict[int, tuple[int, str | Non
     """What each radio heard of each station (`station_radio`): call to (radio to (how many, when
     the last, the path of the last))."""
     found: dict[str, dict[int, tuple[int, str | None, str]]] = {}
-    for call, radio, heard, last_at, last_path in db.execute("SELECT call, radio_id, heard, last_at, last_path FROM station_radio ORDER BY call, radio_id"):
+    for call, radio, heard, last_at, last_path in db.execute(
+        "SELECT call, radio_id, heard, last_at, last_path FROM station_radio ORDER BY call, radio_id"
+    ):
         found.setdefault(str(call), {})[int(radio)] = (int(heard), last_at, str(last_path))
     return found
 
@@ -112,25 +117,33 @@ def heard_by(db: sqlite3.Connection) -> dict[str, dict[int, tuple[int, str | Non
 # the path to `station_path`: a subquery to read in the place of the table, for the tests of the
 # older migrations (`f"SELECT call, path, hide_after_min FROM {SAID} ORDER BY call"`). The path is
 # the station's on radio 1; a station of which only a path is said has the time its path was set.
-SAID = ("(SELECT c.call AS call, (SELECT path FROM station_path p WHERE p.call = c.call AND p.radio_id = 1) AS path, s.hide_after_min AS hide_after_min, s.attempts AS attempts, COALESCE(s.rf_only, 0) AS rf_only, "
-        "COALESCE(s.alert_on_air, 0) AS alert_on_air, s.alert_within_km AS alert_within_km, COALESCE(s.alert_direct, 0) AS alert_direct, "
-        "COALESCE(s.updated_at, (SELECT updated_at FROM station_path p WHERE p.call = c.call AND p.radio_id = 1)) AS updated_at "
-        "FROM (SELECT call FROM station_pref UNION SELECT call FROM station_path WHERE radio_id = 1) c LEFT JOIN station_pref s ON s.call = c.call)")
+SAID = (
+    "(SELECT c.call AS call, (SELECT path FROM station_path p WHERE p.call = c.call AND p.radio_id = 1) AS path, s.hide_after_min AS hide_after_min, s.attempts AS attempts, COALESCE(s.rf_only, 0) AS rf_only, "
+    "COALESCE(s.alert_on_air, 0) AS alert_on_air, s.alert_within_km AS alert_within_km, COALESCE(s.alert_direct, 0) AS alert_direct, "
+    "COALESCE(s.updated_at, (SELECT updated_at FROM station_path p WHERE p.call = c.call AND p.radio_id = 1)) AS updated_at "
+    "FROM (SELECT call FROM station_pref UNION SELECT call FROM station_path WHERE radio_id = 1) c LEFT JOIN station_pref s ON s.call = c.call)"
+)
 
 
 def said_of(db: sqlite3.Connection) -> list[tuple[str, str | None, int]]:
     """(call, its path on radio 1, RF only) of every station the operator said something of, by
     call: the path from `station_path`, RF only from `station_pref`, as migration 33 keeps them."""
-    return [(str(call), path, int(rf_only)) for call, path, rf_only in db.execute(f"SELECT call, path, rf_only FROM {SAID} ORDER BY call")]
+    return [
+        (str(call), path, int(rf_only))
+        for call, path, rf_only in db.execute(f"SELECT call, path, rf_only FROM {SAID} ORDER BY call")
+    ]
 
 
 def shaped(path: Path, clock: Clock = utcnow, radios: tuple[tuple[int, str, str, int, int], ...] = (FM, HF)) -> Path:
     """A new database file for a Db to open, with `radios` in it (today's two, both on, when not
     given). The path, so that `store_at(shaped(path))` reads as one."""
     from tests.support.migrated import opened
+
     opened(path, clock).close()
     db = connect(path)
-    db.executemany("INSERT OR IGNORE INTO radio (id, kind, type, name, enabled, position) VALUES (?, ?, ?, '', ?, ?)", radios)
+    db.executemany(
+        "INSERT OR IGNORE INTO radio (id, kind, type, name, enabled, position) VALUES (?, ?, ?, '', ?, ?)", radios
+    )
     db.close()
     return path
 
@@ -139,17 +152,19 @@ def shaped(path: Path, clock: Clock = utcnow, radios: tuple[tuple[int, str, str,
 # columns after `packets`), word for word: `undo_33` makes it again from this text, so that a test
 # of an older migration has the table a file of version 30 has (`last_path` NOT NULL with no
 # default, every column in its place), which a column added back could not give.
-STATION_30 = ("CREATE TABLE station (\n        call TEXT NOT NULL PRIMARY KEY CONSTRAINT station_call_present CHECK (call <> ''),\n        kind TEXT NOT NULL CONSTRAINT station_kind CHECK (kind IN ('station', 'object', 'item')),\n"
-              "        reported_by TEXT NOT NULL,\n        symbol_table TEXT NOT NULL,\n        symbol_code TEXT NOT NULL,\n        lat REAL CONSTRAINT station_lat_range CHECK (lat BETWEEN -90 AND 90),\n"
-              "        lon REAL CONSTRAINT station_lon_range CHECK (lon BETWEEN -180 AND 180),\n        altitude_m REAL,\n        course_deg INTEGER,\n        speed_kmh REAL,\n        first_heard TEXT NOT NULL,\n"
-              "        last_heard TEXT NOT NULL,\n        last_position_at TEXT,\n        last_status TEXT NOT NULL,\n        last_comment TEXT NOT NULL,\n        packets INTEGER NOT NULL CONSTRAINT station_packets_count CHECK (packets >= 0),\n"
-              "        last_path TEXT NOT NULL, heard_rf INTEGER NOT NULL DEFAULT 0 CONSTRAINT station_heard_rf_count CHECK (heard_rf >= 0), heard_rf_gated INTEGER NOT NULL DEFAULT 0 CONSTRAINT station_heard_rf_gated_count CHECK (heard_rf_gated >= 0), "
-              "heard_is INTEGER NOT NULL DEFAULT 0 CONSTRAINT station_heard_is_count CHECK (heard_is >= 0), heard_dummy INTEGER NOT NULL DEFAULT 0 CONSTRAINT station_heard_dummy_count CHECK (heard_dummy >= 0), "
-              f"last_rf_at TEXT CONSTRAINT station_last_rf_at_form CHECK (last_rf_at GLOB {FORM}), last_rf_gated_at TEXT CONSTRAINT station_last_rf_gated_at_form CHECK (last_rf_gated_at GLOB {FORM}), "
-              f"last_is_at TEXT CONSTRAINT station_last_is_at_form CHECK (last_is_at GLOB {FORM}), last_dummy_at TEXT CONSTRAINT station_last_dummy_at_form CHECK (last_dummy_at GLOB {FORM}), "
-              "position_via TEXT CONSTRAINT station_position_via CHECK (position_via IN ('rf', 'rf-gated', 'is', 'dummy')), heard_fm INTEGER NOT NULL DEFAULT 0 CONSTRAINT station_heard_fm_count CHECK (heard_fm >= 0), "
-              "heard_hf INTEGER NOT NULL DEFAULT 0 CONSTRAINT station_heard_hf_count CHECK (heard_hf >= 0), last_fm_at TEXT, last_hf_at TEXT, snr REAL, rssi REAL, signal_at TEXT,\n"
-              "        CONSTRAINT station_position_together CHECK ((lat IS NULL) = (lon IS NULL))\n    ) STRICT")
+STATION_30 = (
+    "CREATE TABLE station (\n        call TEXT NOT NULL PRIMARY KEY CONSTRAINT station_call_present CHECK (call <> ''),\n        kind TEXT NOT NULL CONSTRAINT station_kind CHECK (kind IN ('station', 'object', 'item')),\n"
+    "        reported_by TEXT NOT NULL,\n        symbol_table TEXT NOT NULL,\n        symbol_code TEXT NOT NULL,\n        lat REAL CONSTRAINT station_lat_range CHECK (lat BETWEEN -90 AND 90),\n"
+    "        lon REAL CONSTRAINT station_lon_range CHECK (lon BETWEEN -180 AND 180),\n        altitude_m REAL,\n        course_deg INTEGER,\n        speed_kmh REAL,\n        first_heard TEXT NOT NULL,\n"
+    "        last_heard TEXT NOT NULL,\n        last_position_at TEXT,\n        last_status TEXT NOT NULL,\n        last_comment TEXT NOT NULL,\n        packets INTEGER NOT NULL CONSTRAINT station_packets_count CHECK (packets >= 0),\n"
+    "        last_path TEXT NOT NULL, heard_rf INTEGER NOT NULL DEFAULT 0 CONSTRAINT station_heard_rf_count CHECK (heard_rf >= 0), heard_rf_gated INTEGER NOT NULL DEFAULT 0 CONSTRAINT station_heard_rf_gated_count CHECK (heard_rf_gated >= 0), "
+    "heard_is INTEGER NOT NULL DEFAULT 0 CONSTRAINT station_heard_is_count CHECK (heard_is >= 0), heard_dummy INTEGER NOT NULL DEFAULT 0 CONSTRAINT station_heard_dummy_count CHECK (heard_dummy >= 0), "
+    f"last_rf_at TEXT CONSTRAINT station_last_rf_at_form CHECK (last_rf_at GLOB {FORM}), last_rf_gated_at TEXT CONSTRAINT station_last_rf_gated_at_form CHECK (last_rf_gated_at GLOB {FORM}), "
+    f"last_is_at TEXT CONSTRAINT station_last_is_at_form CHECK (last_is_at GLOB {FORM}), last_dummy_at TEXT CONSTRAINT station_last_dummy_at_form CHECK (last_dummy_at GLOB {FORM}), "
+    "position_via TEXT CONSTRAINT station_position_via CHECK (position_via IN ('rf', 'rf-gated', 'is', 'dummy')), heard_fm INTEGER NOT NULL DEFAULT 0 CONSTRAINT station_heard_fm_count CHECK (heard_fm >= 0), "
+    "heard_hf INTEGER NOT NULL DEFAULT 0 CONSTRAINT station_heard_hf_count CHECK (heard_hf >= 0), last_fm_at TEXT, last_hf_at TEXT, snr REAL, rssi REAL, signal_at TEXT,\n"
+    "        CONSTRAINT station_position_together CHECK ((lat IS NULL) = (lon IS NULL))\n    ) STRICT"
+)
 
 
 def undo_33(db: sqlite3.Connection) -> None:
@@ -162,8 +177,10 @@ def undo_33(db: sqlite3.Connection) -> None:
     db.execute(STATION_30)
     kept = ", ".join(name for name in columns(db, "station_33"))
     of = "FROM station_radio r WHERE r.call = s.call"
-    db.execute(f"INSERT INTO station ({kept}, heard_fm, last_fm_at, heard_hf, last_hf_at, last_path) SELECT {kept}, COALESCE((SELECT heard {of} AND r.radio_id = 1), 0), (SELECT last_at {of} AND r.radio_id = 1), "
-               f"COALESCE((SELECT heard {of} AND r.radio_id = 2), 0), (SELECT last_at {of} AND r.radio_id = 2), COALESCE((SELECT last_path {of} ORDER BY r.last_at DESC, r.radio_id LIMIT 1), '') FROM station_33 s")
+    db.execute(
+        f"INSERT INTO station ({kept}, heard_fm, last_fm_at, heard_hf, last_hf_at, last_path) SELECT {kept}, COALESCE((SELECT heard {of} AND r.radio_id = 1), 0), (SELECT last_at {of} AND r.radio_id = 1), "
+        f"COALESCE((SELECT heard {of} AND r.radio_id = 2), 0), (SELECT last_at {of} AND r.radio_id = 2), COALESCE((SELECT last_path {of} ORDER BY r.last_at DESC, r.radio_id LIMIT 1), '') FROM station_33 s"
+    )
     db.execute("DROP TABLE station_radio")
     db.execute("DROP TABLE station_33")
     db.execute("ALTER TABLE station_pref RENAME TO station_pref_33")
@@ -180,16 +197,26 @@ def undo_33(db: sqlite3.Connection) -> None:
         CONSTRAINT station_pref_says_something CHECK (path IS NOT NULL OR hide_after_min IS NOT NULL OR attempts IS NOT NULL OR rf_only = 1 OR alert_on_air = 1 OR alert_within_km IS NOT NULL OR alert_direct = 1)
     ) STRICT""")
     kept = "hide_after_min, attempts, rf_only, alert_on_air, alert_within_km, alert_direct, updated_at"
-    db.execute(f"INSERT INTO station_pref (call, path, {kept}) SELECT call, (SELECT path FROM station_path p WHERE p.call = s.call AND p.radio_id = 1), {kept} FROM station_pref_33 s")
-    db.execute("INSERT INTO station_pref (call, path, updated_at) SELECT call, path, updated_at FROM station_path WHERE radio_id = 1 AND call NOT IN (SELECT call FROM station_pref)")
+    db.execute(
+        f"INSERT INTO station_pref (call, path, {kept}) SELECT call, (SELECT path FROM station_path p WHERE p.call = s.call AND p.radio_id = 1), {kept} FROM station_pref_33 s"
+    )
+    db.execute(
+        "INSERT INTO station_pref (call, path, updated_at) SELECT call, path, updated_at FROM station_path WHERE radio_id = 1 AND call NOT IN (SELECT call FROM station_pref)"
+    )
     db.execute("DROP TABLE station_pref_33")
     db.execute("DROP TABLE station_path")
-    db.execute("ALTER TABLE own_object ADD COLUMN radio TEXT NOT NULL DEFAULT 'fm' CONSTRAINT own_object_radio CHECK (radio IN ('fm', 'hf', 'both'))")
+    db.execute(
+        "ALTER TABLE own_object ADD COLUMN radio TEXT NOT NULL DEFAULT 'fm' CONSTRAINT own_object_radio CHECK (radio IN ('fm', 'hf', 'both'))"
+    )
     db.execute("UPDATE own_object SET radio = CASE radios WHEN '2' THEN 'hf' WHEN '1,2' THEN 'both' ELSE 'fm' END")
     db.execute("ALTER TABLE own_object DROP COLUMN radios")
     if "_m31" not in tables(db):
-        db.execute("CREATE TABLE _m31 (hf_exists INTEGER NOT NULL, fm_on INTEGER NOT NULL, hf_on INTEGER NOT NULL) STRICT")
-        db.execute("INSERT INTO _m31 (hf_exists, fm_on, hf_on) SELECT EXISTS (SELECT 1 FROM radio WHERE id = 2), COALESCE((SELECT enabled FROM radio WHERE id = 1), 0), COALESCE((SELECT enabled FROM radio WHERE id = 2), 0)")
+        db.execute(
+            "CREATE TABLE _m31 (hf_exists INTEGER NOT NULL, fm_on INTEGER NOT NULL, hf_on INTEGER NOT NULL) STRICT"
+        )
+        db.execute(
+            "INSERT INTO _m31 (hf_exists, fm_on, hf_on) SELECT EXISTS (SELECT 1 FROM radio WHERE id = 2), COALESCE((SELECT enabled FROM radio WHERE id = 1), 0), COALESCE((SELECT enabled FROM radio WHERE id = 2), 0)"
+        )
 
 
 def undo_32(db: sqlite3.Connection) -> None:
@@ -197,9 +224,21 @@ def undo_32(db: sqlite3.Connection) -> None:
     `packet.radio`, `message.radio` and `message_attempt.radio` are the words again (`fm`, `hf`, ''
     for none), each column as migration 25 made it and in its place among the columns of version 30.
     """
-    for table, after in (("packet", (("snr", "REAL"), ("rssi", "REAL"))), ("message", (("failure", "TEXT CONSTRAINT message_failure CHECK (failure_back IN ('too_long_for_radio'))"), ("snr", "REAL"), ("rssi", "REAL"))),
-                         ("message_attempt", ())):
-        db.execute(f"ALTER TABLE {table} ADD COLUMN radio_word TEXT NOT NULL DEFAULT '' CONSTRAINT {table}_radio CHECK (radio_word IN ('', 'fm', 'hf'))")
+    for table, after in (
+        ("packet", (("snr", "REAL"), ("rssi", "REAL"))),
+        (
+            "message",
+            (
+                ("failure", "TEXT CONSTRAINT message_failure CHECK (failure_back IN ('too_long_for_radio'))"),
+                ("snr", "REAL"),
+                ("rssi", "REAL"),
+            ),
+        ),
+        ("message_attempt", ()),
+    ):
+        db.execute(
+            f"ALTER TABLE {table} ADD COLUMN radio_word TEXT NOT NULL DEFAULT '' CONSTRAINT {table}_radio CHECK (radio_word IN ('', 'fm', 'hf'))"
+        )
         db.execute(f"UPDATE {table} SET radio_word = CASE radio WHEN 1 THEN 'fm' WHEN 2 THEN 'hf' ELSE '' END")
         db.execute(f"ALTER TABLE {table} DROP COLUMN radio")
         db.execute(f"ALTER TABLE {table} RENAME COLUMN radio_word TO radio")

@@ -2,6 +2,7 @@
 and the L2CAP socket answers the service-directory question as a device does. No real socket is
 made.
 """
+
 import asyncio
 import socket
 import struct
@@ -33,7 +34,10 @@ def uuid16(value: int) -> bytes:
 def record(channel: int) -> bytes:
     """What a device lists for a service: the attribute 4 (protocols) with L2CAP and RFCOMM on
     `channel`."""
-    return sequence(element(1, struct.pack(">H", 4)), sequence(sequence(uuid16(0x0100)), sequence(uuid16(0x0003), element(1, bytes([channel])))))
+    return sequence(
+        element(1, struct.pack(">H", 4)),
+        sequence(sequence(uuid16(0x0100)), sequence(uuid16(0x0003), element(1, bytes([channel])))),
+    )
 
 
 def answer(transaction: int, attribute_lists: bytes, continuation: bytes = b"") -> bytes:
@@ -88,16 +92,16 @@ class FakeBluetooth:
 
     def __init__(self, monkeypatch: pytest.MonkeyPatch, channel: int | None = 2, address: str = ADDRESS) -> None:
         self.address, self.channel = address, channel
-        self.connects: list[tuple[str, int]] = []              # every RFCOMM connection made, whether it worked or not
+        self.connects: list[tuple[str, int]] = []  # every RFCOMM connection made, whether it worked or not
         self.sdp_connects: list[tuple[str, int]] = []
-        self.error: OSError | None = None                      # the next RFCOMM connections fail with it
+        self.error: OSError | None = None  # the next RFCOMM connections fail with it
         self.sdp_error: OSError | None = None
         # The channels the directory lists, when they are not just `channel`
         self.listed: list[int] | None = None
-        self.garbage = False                                   # the directory answers with nonsense
-        self.parts = 1                                         # the answer comes in this many pieces (continuations)
+        self.garbage = False  # the directory answers with nonsense
+        self.parts = 1  # the answer comes in this many pieces (continuations)
         self.asked: list[FakeL2cap] = []
-        self.peer: socket.socket | None = None                 # the device's end of the link
+        self.peer: socket.socket | None = None  # the device's end of the link
         self._pending: list[socket.socket] = []
         monkeypatch.setattr(btserial, "available", lambda: True)
         monkeypatch.setattr(btserial, "new_rfcomm_socket", self._new_rfcomm)
@@ -129,7 +133,7 @@ class FakeBluetooth:
         channels = self.listed if self.listed is not None else [self.channel] if self.channel is not None else []
         lists = sequence(*(record(c) for c in channels))
         size = -(-len(lists) // self.parts)
-        pieces = [lists[i:i + size] for i in range(0, len(lists), size)]
+        pieces = [lists[i : i + size] for i in range(0, len(lists), size)]
         # The question ends with the continuation: none, or the number of the piece the device gave
         index = question[-1]
         return [answer(transaction, pieces[index], bytes([index + 1]) if index + 1 < len(pieces) else b"")]
@@ -180,4 +184,3 @@ class FakeBluetooth:
         for theirs in self._pending:
             theirs.close()
         self._pending.clear()
-

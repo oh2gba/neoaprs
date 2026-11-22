@@ -2,6 +2,7 @@
 
 `Lines` caps line length and rate, so a flooding or non-AIS source cannot hold the daemon.
 """
+
 import asyncio
 import errno
 import logging
@@ -61,7 +62,9 @@ class Lines:
         return self._count <= self.per_sec
 
 
-async def connect(host: str, port: int, timeout_sec: float = CONNECT_SEC) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+async def connect(
+    host: str, port: int, timeout_sec: float = CONNECT_SEC
+) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
     """Open the connection; raise OSError or TimeoutError if it cannot be made or is refused."""
     nodevices.check_host(host, "the AIS receiver", logging.INFO)
     # the default port is one a real modem on this computer may listen on
@@ -80,14 +83,20 @@ def _keepalive(writer: asyncio.StreamWriter) -> None:
         return
     try:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        for name, value in (("TCP_KEEPIDLE", KEEPALIVE_IDLE_SEC), ("TCP_KEEPINTVL", KEEPALIVE_INTERVAL_SEC), ("TCP_KEEPCNT", KEEPALIVE_PROBES)):
+        for name, value in (
+            ("TCP_KEEPIDLE", KEEPALIVE_IDLE_SEC),
+            ("TCP_KEEPINTVL", KEEPALIVE_INTERVAL_SEC),
+            ("TCP_KEEPCNT", KEEPALIVE_PROBES),
+        ):
             if hasattr(socket, name):
                 sock.setsockopt(socket.IPPROTO_TCP, getattr(socket, name), value)
     except OSError as e:
         log.debug("keepalive not set: %r", e)
 
 
-async def read(reader: asyncio.StreamReader, lines: Lines, handle: Callable[[list[str]], None], clock: Callable[[], float]) -> None:
+async def read(
+    reader: asyncio.StreamReader, lines: Lines, handle: Callable[[list[str]], None], clock: Callable[[], float]
+) -> None:
     """Read to the end, passing each batch of lines to `handle`; an OSError ends the loop."""
     while chunk := await reader.read(CHUNK):
         if batch := lines.feed(chunk, clock()):

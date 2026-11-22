@@ -2,6 +2,7 @@
 
 `DemoRadio` is a KISS TNC on a loopback port; `history(...)` runs a daemon on a clock moved back in
 time. Calls are made up (`OH2Zxx`); the places are real, the movements are not."""
+
 import asyncio
 import math
 import os
@@ -22,7 +23,7 @@ from neoaprs.source import Source
 
 HOST = "127.0.0.1"
 ME = "OH2GBA"
-HOME = (60.2231, 24.7152)                              # Espoo
+HOME = (60.2231, 24.7152)  # Espoo
 SAMPLE = Path(__file__).resolve().parent.parent / "neoaprs" / "samples" / "thd7.kiss"
 PATH = "WIDE1-1,WIDE2-1"
 # the daemon's radio that the DemoRadio is: radio 1, given by --port
@@ -96,7 +97,16 @@ class DemoRadio:
 def on_air(source: str, info: bytes, path: str = "WIDE1-1", destination: str = "APRS") -> bytes:
     """Return a frame from `source` as the TNC hands it over; a star on a digipeater marks it
     used."""
-    return kiss.encode(ax25.encode(ax25.Frame(ax25.Address.parse(destination), ax25.Address.parse(source), tuple(ax25.Address.parse(p) for p in path.split(",") if p), info=info)))
+    return kiss.encode(
+        ax25.encode(
+            ax25.Frame(
+                ax25.Address.parse(destination),
+                ax25.Address.parse(source),
+                tuple(ax25.Address.parse(p) for p in path.split(",") if p),
+                info=info,
+            )
+        )
+    )
 
 
 def _dm(value: float, degrees_width: int, plus: str, minus: str) -> str:
@@ -109,16 +119,31 @@ def _dm(value: float, degrees_width: int, plus: str, minus: str) -> str:
     return f"{whole:0{degrees_width}d}{minutes:05.2f}{sign}"
 
 
-def position(lat: float, lon: float, symbol: str, comment: str = "", course: int | None = None, knots: float | None = None) -> bytes:
+def position(
+    lat: float, lon: float, symbol: str, comment: str = "", course: int | None = None, knots: float | None = None
+) -> bytes:
     """An uncompressed position without time stamp: `!6012.34N/02456.78E>090/012comment`."""
     motion = f"{course % 360:03d}/{int(round(knots or 0)):03d}" if course is not None else ""
     return f"!{_dm(lat, 2, 'N', 'S')}{symbol[0]}{_dm(lon, 3, 'E', 'W')}{symbol[1]}{motion}{comment}".encode()
 
 
-def weather_report(lat: float, lon: float, comment: str, direction: int, wind_kmh: float, gust_kmh: float, temp_c: float, rain_mm_h: float, rain_24h_mm: float, rain_today_mm: float,
-                   humidity: int, hpa: float) -> bytes:
+def weather_report(
+    lat: float,
+    lon: float,
+    comment: str,
+    direction: int,
+    wind_kmh: float,
+    gust_kmh: float,
+    temp_c: float,
+    rain_mm_h: float,
+    rain_24h_mm: float,
+    rain_today_mm: float,
+    humidity: int,
+    hpa: float,
+) -> bytes:
     """A position with the weather symbol and its fields (wind in mph, temperature in degrees F,
     rain in hundredths of an inch, pressure in tenths of a hPa)."""
+
     def mph(kmh: float) -> int:
         return int(round(kmh / 1.609344))
 
@@ -133,6 +158,7 @@ def weather_report(lat: float, lon: float, comment: str, direction: int, wind_km
 
 def along(points: list[tuple[float, float]], count: int) -> list[tuple[float, float, int]]:
     """Return `count` places spread evenly along the line through `points`, each with its course."""
+
     def leg(a: tuple[float, float], b: tuple[float, float]) -> float:
         return math.hypot(b[0] - a[0], (b[1] - a[1]) * math.cos(math.radians(a[0])))
 
@@ -166,7 +192,7 @@ class Clock:
 
 @dataclass
 class Event:
-    ago: float                                                   # minutes before now
+    ago: float  # minutes before now
     action: Callable[["Scene"], Awaitable[None]]
 
 
@@ -218,8 +244,16 @@ class Scene:
     async def say_to_me(self, source: str, text: str, msg_id: str, path: str = "OH2RCH-2*") -> None:
         await self.hear(source, b":" + format_message(ME, text, msg_id), path)
 
-    async def send(self, to: str, text: str, ack_after_sec: float | None = 6, ack_path: str = "OH2RCH-2*", tries: int = 1, wrap: str | None = None,
-                   heard: list[tuple[str, ...]] | None = None) -> None:
+    async def send(
+        self,
+        to: str,
+        text: str,
+        ack_after_sec: float | None = 6,
+        ack_path: str = "OH2RCH-2*",
+        tries: int = 1,
+        wrap: str | None = None,
+        heard: list[tuple[str, ...]] | None = None,
+    ) -> None:
         """Send a message; the other station acks at our `tries`th transmission, or never (None)."""
         if heard is not None:
             self.heard_back[text] = heard
@@ -252,16 +286,29 @@ class Scene:
             await self.hear(to, info, ack_path)
         await _until(lambda: current().state == "acked")
 
-
     def own_due(self) -> bool:
         """Is an object or a bulletin of ours due, or being sent (by the clock of the day)?"""
         now = self.clock()
-        due = [self.ctl.ownobjects.next_at(o.name) for o in self.ctl.ownobjects.records()] + [self.ctl.ownbulletins.next_at(b.slot) for b in self.ctl.ownbulletins.records()]
+        due = [self.ctl.ownobjects.next_at(o.name) for o in self.ctl.ownobjects.records()] + [
+            self.ctl.ownbulletins.next_at(b.slot) for b in self.ctl.ownbulletins.records()
+        ]
         return any(when is not None and when <= now for when in due)
 
-    async def own_object(self, name: str, kind: str, lat: float, lon: float, symbol: str, comment: str, path: str | None = None, qru_group: str = "") -> None:
+    async def own_object(
+        self,
+        name: str,
+        kind: str,
+        lat: float,
+        lon: float,
+        symbol: str,
+        comment: str,
+        path: str | None = None,
+        qru_group: str = "",
+    ) -> None:
         """Make an object or item (the Objects tab's `object_set`) on the DemoRadio's radio."""
-        self.ctl.ownobjects.set(name, kind, lat, lon, symbol[0], symbol[1], comment, path=path, qru_group=qru_group, radios=(DEMO_RADIO,))
+        self.ctl.ownobjects.set(
+            name, kind, lat, lon, symbol[0], symbol[1], comment, path=path, qru_group=qru_group, radios=(DEMO_RADIO,)
+        )
         await _until(lambda: (held := self.ctl.ownobjects.get(name)) is not None and held.sent >= 1)
 
     async def own_bulletin(self, slot: str, text: str) -> None:
@@ -284,7 +331,10 @@ async def _until(condition: Callable[[], object], timeout_sec: float = 8.0) -> N
 
 # ---- the day
 
-def _weather_station(call: str, lat: float, lon: float, comment: str, base_c: float, base_hpa: float, local_hour_now: float, path: str) -> list[Event]:
+
+def _weather_station(
+    call: str, lat: float, lon: float, comment: str, base_c: float, base_hpa: float, local_hour_now: float, path: str
+) -> list[Event]:
     """Return 24 hours of reports every 10 minutes; the temperature follows the sun, a front
     brings rain."""
     events: list[Event] = []
@@ -292,9 +342,14 @@ def _weather_station(call: str, lat: float, lon: float, comment: str, base_c: fl
     for step in range(144, 0, -1):
         ago = step * 10 - 5
         hour = (local_hour_now - ago / 60) % 24
-        temp = base_c + 3.2 * math.sin((hour - 9) / 24 * 2 * math.pi) - (0.8 if 5 < ago / 60 < 9 else 0) + 0.15 * math.sin(step * 1.7)
+        temp = (
+            base_c
+            + 3.2 * math.sin((hour - 9) / 24 * 2 * math.pi)
+            - (0.8 if 5 < ago / 60 < 9 else 0)
+            + 0.15 * math.sin(step * 1.7)
+        )
         # the front passed 7 hours ago
-        front = math.exp(-((ago / 60 - 7.0) / 2.2) ** 2)
+        front = math.exp(-(((ago / 60 - 7.0) / 2.2) ** 2))
         rain = round(max(0.0, 2.4 * front - 0.25 + 0.15 * math.sin(step * 2.3)), 1)
         rain_total += rain / 6
         hpa = base_hpa + 6.5 * (1 - ago / 1440) - 3.0 * front + 0.2 * math.sin(step / 5)
@@ -302,12 +357,36 @@ def _weather_station(call: str, lat: float, lon: float, comment: str, base_c: fl
         gust = wind * 1.7 + 2
         direction = int(215 - 60 * front + 8 * math.sin(step / 4))
         humidity = int(min(99, 72 + 22 * front + 8 * math.sin((hour - 3) / 24 * 2 * math.pi) * -1))
-        info = weather_report(lat, lon, comment, direction, max(wind, 0.5), gust, temp, rain * 3, rain_total, rain_total * 0.7, humidity, hpa)
+        info = weather_report(
+            lat,
+            lon,
+            comment,
+            direction,
+            max(wind, 0.5),
+            gust,
+            temp,
+            rain * 3,
+            rain_total,
+            rain_total * 0.7,
+            humidity,
+            hpa,
+        )
         events.append(Event(ago, lambda s, c=call, i=info: s.hear(c, i, path)))
     return events
 
 
-def _mover(call: str, symbol: str, comment: str, points: list[tuple[float, float]], count: int, start_ago: float, end_ago: float, knots: float, path: str, destination: str = "APRS") -> list[Event]:
+def _mover(
+    call: str,
+    symbol: str,
+    comment: str,
+    points: list[tuple[float, float]],
+    count: int,
+    start_ago: float,
+    end_ago: float,
+    knots: float,
+    path: str,
+    destination: str = "APRS",
+) -> list[Event]:
     events = []
     for i, (lat, lon, course) in enumerate(along(points, count)):
         ago = start_ago + (end_ago - start_ago) * i / (count - 1)
@@ -316,7 +395,18 @@ def _mover(call: str, symbol: str, comment: str, points: list[tuple[float, float
     return events
 
 
-def _fixed(call: str, ago: float, symbol: str, lat: float, lon: float, comment: str, path: str = "OH2RCH-2*", repeats: int = 1, every: float = 30, destination: str = "APRS") -> list[Event]:
+def _fixed(
+    call: str,
+    ago: float,
+    symbol: str,
+    lat: float,
+    lon: float,
+    comment: str,
+    path: str = "OH2RCH-2*",
+    repeats: int = 1,
+    every: float = 30,
+    destination: str = "APRS",
+) -> list[Event]:
     info = position(lat, lon, symbol, comment)
     return [Event(ago + i * every, lambda s: s.hear(call, info, path, destination)) for i in range(repeats)]
 
@@ -326,13 +416,18 @@ def _text(source: str, ago: float, text: str, msg_id: str, path: str = "OH2RCH-2
 
 
 def _out(ago: float, to: str, text: str, **options: object) -> Event:
-    return Event(ago, lambda s: s.send(to, text, **options))     # type: ignore[arg-type]
+    return Event(ago, lambda s: s.send(to, text, **options))  # type: ignore[arg-type]
 
 
 def _gateway(ago: float, text: str, msg_id: str, igate: str = "OH2ZIG-10") -> Event:
     """Return a message from the email gateway EMAIL-2 to us, gated by an iGate as a third-party
     frame."""
-    return Event(ago, lambda s: s.hear(igate, b"}EMAIL-2>APRS,TCPIP," + igate.encode() + b"*:" + b":" + format_message(ME, text, msg_id), ""))
+    return Event(
+        ago,
+        lambda s: s.hear(
+            igate, b"}EMAIL-2>APRS,TCPIP," + igate.encode() + b"*:" + b":" + format_message(ME, text, msg_id), ""
+        ),
+    )
 
 
 def _board(source: str, ago: float, slot: str, text: str, path: str = "OH2RCH-2*") -> Event:
@@ -353,33 +448,131 @@ def events(local_hour_now: float) -> list[Event]:
     day.append(Event(1370, _path_of_the_partner))
     day += _fixed("OH2RDG", 25, "N#", 60.1245, 24.4970, "PHG8470/R,W,T,Wn,Tn Kirkkonummi", repeats=6, every=35)
     day += _fixed("OH2RDS", 47, "N#", 60.2777, 25.2543, "PHG8470/R,W,T,Wn,Tn Sipoo", repeats=5, every=40)
-    day += _fixed("OH2RCH-2", 9, "/#", 60.2000, 24.9600, "PHG7470/W2 Helsinki Kumpula digi", path="", repeats=8, every=20)
+    day += _fixed(
+        "OH2RCH-2", 9, "/#", 60.2000, 24.9600, "PHG7470/W2 Helsinki Kumpula digi", path="", repeats=8, every=20
+    )
     day += _fixed("OH2RDK-7", 63, "/&", 60.1650, 24.9467, "432.500MHz T088 -760 Helsinki 70 cm", repeats=4, every=50)
-    day += _fixed("OH2ZIG-10", 18, "/&", 60.4030, 25.0970, "RX iGate Tuusula", path="OH2RCH-2*,OH2RDK-7*", repeats=5, every=25)
+    day += _fixed(
+        "OH2ZIG-10", 18, "/&", 60.4030, 25.0970, "RX iGate Tuusula", path="OH2RCH-2*,OH2RDK-7*", repeats=5, every=25
+    )
     # (a Kenwood TH-D74; 25 W, 80 ft, 6 dB, favouring the east: the card's Device row and antenna
     # arrow)
-    day += _fixed("OH2ZPK", 10, "/-", 60.2934, 25.0378, "PHG5362Jari, Vantaa, 2 m net Tue 20:00", path="OH2RCH-2*", repeats=14, every=22, destination="APK004")
+    day += _fixed(
+        "OH2ZPK",
+        10,
+        "/-",
+        60.2934,
+        25.0378,
+        "PHG5362Jari, Vantaa, 2 m net Tue 20:00",
+        path="OH2RCH-2*",
+        repeats=14,
+        every=22,
+        destination="APK004",
+    )
     day += _fixed("OH2ZVT-7", 330, "/>", 60.4160, 24.3220, "Vihti, parked", path="OH2RDG*", repeats=2, every=20)
-    day += _fixed("OH2RDG-3", 41, "/r", 60.1330, 24.5240, "145.650MHz T088 -060 Kirkkonummi repeater", path="OH2RDG*", repeats=2, every=60)
+    day += _fixed(
+        "OH2RDG-3",
+        41,
+        "/r",
+        60.1330,
+        24.5240,
+        "145.650MHz T088 -060 Kirkkonummi repeater",
+        path="OH2RDG*",
+        repeats=2,
+        every=60,
+    )
     # Two weather stations, 24 hours of reports each
     day += _weather_station("OH2ZWA", 60.1840, 24.8280, "Otaniemi WX", 6.4, 1015.0, local_hour_now, "OH2RCH-2*")
     day += _weather_station("OH2ZWB", 59.9770, 24.4210, "Porkkala WX", 7.4, 1014.0, local_hour_now, "")
     # Stations on the move
-    day += _mover("OH2ZMA-9", "/>", "Pekka on the road", [(60.1180, 24.4350), (60.1330, 24.5600), (60.1490, 24.6450), (60.1610, 24.7300), (60.1700, 24.7900), (60.1660, 24.8450), (60.1640, 24.8800)], 26, 100, 4, 46, "OH2RCH-2*", "APOT21")
-    day += _mover("OH3ZHK-7", "/[", "Hiking in Nuuksio", [(60.3100, 24.5000), (60.3140, 24.5060), (60.3180, 24.5040), (60.3215, 24.5120), (60.3240, 24.5200)], 14, 115, 8, 2, "WIDE1-1", "APDR16")
-    day += _mover("OH2ZSV-5", "/Y", "s/y Tuuli, Gulf of Finland", [(60.0600, 24.7000), (60.0800, 24.8200), (60.1050, 24.9100), (60.1250, 24.9650)], 20, 300, 12, 6, "OH2RCH-2*")
-    day += _mover("OH2ZBK-8", "/b", "Rannikkoreitti", [(60.1800, 24.6200), (60.1840, 24.6600), (60.1900, 24.7000)], 10, 70, 28, 7, "OH2RCH-2*")
+    day += _mover(
+        "OH2ZMA-9",
+        "/>",
+        "Pekka on the road",
+        [
+            (60.1180, 24.4350),
+            (60.1330, 24.5600),
+            (60.1490, 24.6450),
+            (60.1610, 24.7300),
+            (60.1700, 24.7900),
+            (60.1660, 24.8450),
+            (60.1640, 24.8800),
+        ],
+        26,
+        100,
+        4,
+        46,
+        "OH2RCH-2*",
+        "APOT21",
+    )
+    day += _mover(
+        "OH3ZHK-7",
+        "/[",
+        "Hiking in Nuuksio",
+        [(60.3100, 24.5000), (60.3140, 24.5060), (60.3180, 24.5040), (60.3215, 24.5120), (60.3240, 24.5200)],
+        14,
+        115,
+        8,
+        2,
+        "WIDE1-1",
+        "APDR16",
+    )
+    day += _mover(
+        "OH2ZSV-5",
+        "/Y",
+        "s/y Tuuli, Gulf of Finland",
+        [(60.0600, 24.7000), (60.0800, 24.8200), (60.1050, 24.9100), (60.1250, 24.9650)],
+        20,
+        300,
+        12,
+        6,
+        "OH2RCH-2*",
+    )
+    day += _mover(
+        "OH2ZBK-8",
+        "/b",
+        "Rannikkoreitti",
+        [(60.1800, 24.6200), (60.1840, 24.6600), (60.1900, 24.7000)],
+        10,
+        70,
+        28,
+        7,
+        "OH2RCH-2*",
+    )
     # Messages
-    day.append(_out(1000, "OH2ZXA", "Hello, are you there?", ack_after_sec=None,
-                    heard=[("OH2RCH-2*,WIDE2-1", "~OH2ZIG-10"), (), ("OH2RCH-2*,WIDE2-1",), (), (), ()]))
+    day.append(
+        _out(
+            1000,
+            "OH2ZXA",
+            "Hello, are you there?",
+            ack_after_sec=None,
+            heard=[("OH2RCH-2*,WIDE2-1", "~OH2ZIG-10"), (), ("OH2RCH-2*,WIDE2-1",), (), (), ()],
+        )
+    )
     day.append(_text("OH2ZMA-9", 300, "Test from the car, do you copy?", "07"))
     day.append(_out(298, "OH2ZMA-9", "Copy 5/9, you show on the map", ack_after_sec=5))
-    day.append(Event(240, lambda s: s.hear("OH2ZMA-9", b":" + format_message("OH2ZPK", "Moi Jari, tonight at 20?", "03"), "OH2RCH-2*")))
+    day.append(
+        Event(
+            240,
+            lambda s: s.hear(
+                "OH2ZMA-9", b":" + format_message("OH2ZPK", "Moi Jari, tonight at 20?", "03"), "OH2RCH-2*"
+            ),
+        )
+    )
     day.append(_text("OH2ZPK", 190, "Moi John! Are you QRV on the 2 m net tonight?", "41", "OH2RCH-2*"))
     day.append(_out(175, "OH2ZPK", "Moi Jari! Yes, 144.800 at 20:00", ack_after_sec=7, heard=[("OH2RCH-2*,OH2RDG*",)]))
     day.append(_text("OH2ZPK", 160, "Great. I take the TH-D74 to the lake on Saturday", "42", "OH2RCH-2*,OH2RDK-7*"))
-    day.append(_out(150, "OH2ZPK", "Nice! Beacon every 5 min so I can follow you on the map", ack_after_sec=8, ack_path="OH2RDG*", tries=2,
-                    heard=[(), ("OH2RCH-2*,OH2RDG",)]))
+    day.append(
+        _out(
+            150,
+            "OH2ZPK",
+            "Nice! Beacon every 5 min so I can follow you on the map",
+            ack_after_sec=8,
+            ack_path="OH2RDG*",
+            tries=2,
+            heard=[(), ("OH2RCH-2*,OH2RDG",)],
+        )
+    )
     day.append(_text("OH3ZHK-7", 95, "At the Nuuksio car park, 3 km to the lookout", "17", "WIDE1-1"))
     day.append(_out(90, "OH3ZHK-7", "Enjoy! Send a position from the top", ack_after_sec=9, ack_path=""))
     day.append(_text("OH2ZPK", 40, "Heading out now, my signal is on the map soon", "43", "OH2RCH-2*"))
@@ -390,10 +583,28 @@ def events(local_hour_now: float) -> list[Event]:
     # Email through the gateway: its acks and replies come as third-party frames from an iGate. One
     # mail never gets its ack (it shows "Not confirmed"), and the gateway forwards a mail to us
     day.append(_out(250, "EMAIL-2", "jane@example.com New antenna is up: 5 dB more on 2 m!", ack_after_sec=None))
-    day.append(_out(150, "EMAIL-2", "jane@example.com Back at the shack by 18, QRV on 2 m", ack_after_sec=14, wrap="OH2ZIG-10", ack_path=""))
+    day.append(
+        _out(
+            150,
+            "EMAIL-2",
+            "jane@example.com Back at the shack by 18, QRV on 2 m",
+            ack_after_sec=14,
+            wrap="OH2ZIG-10",
+            ack_path="",
+        )
+    )
     day.append(_out(100, "EMAIL-2", "get", ack_after_sec=9, wrap="OH2ZIG-10", ack_path=""))
     day.append(_gateway(97, "jane@example.com Great, see you at the net tonight! 73 Jane", "g2"))
-    day.append(_out(14, "EMAIL-2", "bob@example.org Hamfest in Espoo on Saturday 10:00, see you there", ack_after_sec=11, wrap="OH2ZIG-10", ack_path=""))
+    day.append(
+        _out(
+            14,
+            "EMAIL-2",
+            "bob@example.org Hamfest in Espoo on Saturday 10:00, see you there",
+            ack_after_sec=11,
+            wrap="OH2ZIG-10",
+            ack_path="",
+        )
+    )
     day.append(_gateway(8, "Msg sent to bob@example.org", "g3"))
     # The message board
     day.append(_board("OH2ZIG-10", 250, "BLN1", "2 m net every Tuesday 20:00 on 144.800 MHz FM, all welcome"))
@@ -405,10 +616,31 @@ def events(local_hour_now: float) -> list[Event]:
     # Objects, items and bulletins of our own: a net-control point, a meeting place for Saturday and
     # an item for the hamfest, and two on the board
     day.append(Event(171, lambda s: s.own_bulletin("BLN2", "2 m net tonight 20:00 on 144.800 MHz, net control OH2GBA")))
-    day.append(Event(92, lambda s: s.own_object("NETCTRL", "object", 60.2208, 24.8085, "/-", "2 m net Tue 20:00, 144.800 MHz", qru_group="CLUB")))
-    day.append(Event(68, lambda s: s.own_object("HAMFEST", "item", 60.2052, 24.6720, "/K", "Hamfest Sat 10:00, talk-in 145.500", qru_group="CLUB")))
-    day.append(Event(53, lambda s: s.own_bulletin("BLNL", "Field day at the lake on Saturday 10:00, see item MEETSPOT")))
-    day.append(Event(27, lambda s: s.own_object("MEETSPOT", "item", 60.1585, 24.7110, "/;", "Meeting place, car park by the shore")))
+    day.append(
+        Event(
+            92,
+            lambda s: s.own_object(
+                "NETCTRL", "object", 60.2208, 24.8085, "/-", "2 m net Tue 20:00, 144.800 MHz", qru_group="CLUB"
+            ),
+        )
+    )
+    day.append(
+        Event(
+            68,
+            lambda s: s.own_object(
+                "HAMFEST", "item", 60.2052, 24.6720, "/K", "Hamfest Sat 10:00, talk-in 145.500", qru_group="CLUB"
+            ),
+        )
+    )
+    day.append(
+        Event(53, lambda s: s.own_bulletin("BLNL", "Field day at the lake on Saturday 10:00, see item MEETSPOT"))
+    )
+    day.append(
+        Event(
+            27,
+            lambda s: s.own_object("MEETSPOT", "item", 60.1585, 24.7110, "/;", "Meeting place, car park by the shore"),
+        )
+    )
     return sorted(day, key=lambda e: -e.ago)
 
 
@@ -440,7 +672,7 @@ async def history(data_dir: Path, radio: DemoRadio) -> int:
     # (... and opens no device and reaches nothing but this computer: neoaprs/nodevices.py; its
     # radio is the DemoRadio on the loopback)
     os.environ["NEOAPRS_NO_DEVICES"] = "1"
-    local = datetime.now(timezone(timedelta(hours=3)))          # Finland in the summer time of October
+    local = datetime.now(timezone(timedelta(hours=3)))  # Finland in the summer time of October
     local_hour_now = local.hour + local.minute / 60
     clock = Clock()
     clock.ago(1450)
@@ -453,7 +685,7 @@ async def history(data_dir: Path, radio: DemoRadio) -> int:
     await ctl.start()
     try:
         await _until(lambda: demo_radio(ctl).state is Source.State.CONNECTED and radio.connected, 30)
-        await asyncio.sleep(3.5)                                    # the TNC settles after the open
+        await asyncio.sleep(3.5)  # the TNC settles after the open
         scene = Scene(ctl, radio, clock)
         played = 0
         for event in events(local_hour_now):

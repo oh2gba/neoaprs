@@ -3,6 +3,7 @@
 The page shows them as markdown in the update dialog (What's new): for the latest release, and
 for the notes of an update just installed. No I/O here; the daily update check fetches the file.
 """
+
 import re
 from dataclasses import dataclass
 

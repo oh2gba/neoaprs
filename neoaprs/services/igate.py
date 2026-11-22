@@ -3,6 +3,7 @@
 Without a valid passcode it only listens. Packets heard on the air go through igaterules.py. Our
 position goes out as `OURCALL>APZNEO,TCPIP*:`, the only path a client may use (aprs-is.net).
 """
+
 import asyncio
 import logging
 from collections import Counter
@@ -57,17 +58,33 @@ class Wanted(NamedTuple):
 
 
 class Igate:
-    def __init__(self, link: AprsIs, config: ConfigSource, position: Callable[[], bytes], where: Callable[[], tuple[float, float] | None], clock: Clock = utcnow, duplicate_sec: float = DIGI_DUPLICATE_SEC,
-                 position_sec: float = POSITION_SEC, mobile_every_sec: float = MOBILE_EVERY_SEC, summary_sec: float = SUMMARY_SEC, tick_sec: float = TICK_SEC) -> None:
+    def __init__(
+        self,
+        link: AprsIs,
+        config: ConfigSource,
+        position: Callable[[], bytes],
+        where: Callable[[], tuple[float, float] | None],
+        clock: Clock = utcnow,
+        duplicate_sec: float = DIGI_DUPLICATE_SEC,
+        position_sec: float = POSITION_SEC,
+        mobile_every_sec: float = MOBILE_EVERY_SEC,
+        summary_sec: float = SUMMARY_SEC,
+        tick_sec: float = TICK_SEC,
+    ) -> None:
         self._link = link
         self._config = config
-        self._position = position                                    # raises ValueError if there is none
-        self._where = where                                          # latitude and longitude, or None
+        self._position = position  # raises ValueError if there is none
+        self._where = where  # latitude and longitude, or None
         self._filter_at: tuple[float, float] | None = None
         self._filter_km = 0
         self._read_mark = (0, 0)
         self.clock = clock
-        self.position_sec, self.mobile_every_sec, self.summary_sec, self.tick_sec = position_sec, mobile_every_sec, summary_sec, tick_sec
+        self.position_sec, self.mobile_every_sec, self.summary_sec, self.tick_sec = (
+            position_sec,
+            mobile_every_sec,
+            summary_sec,
+            tick_sec,
+        )
         self.changed: Signal[[]] = Signal("igate.changed")
         self.gated = 0
         self.dropped: Counter[str] = Counter()
@@ -127,7 +144,13 @@ class Igate:
         self._was_verified = False
         self._read_mark = (0, 0)
         if wanted.enabled:
-            log.info("igate: on, %s; logging in to %s:%d as %s", "a receive-only iGate" if wanted.password else "listening only, no passcode", wanted.host, wanted.port, wanted.call or "(no call set)")
+            log.info(
+                "igate: on, %s; logging in to %s:%d as %s",
+                "a receive-only iGate" if wanted.password else "listening only, no passcode",
+                wanted.host,
+                wanted.port,
+                wanted.call or "(no call set)",
+            )
             self._running = True
             self._link.configure(wanted.host, wanted.port, wanted.call, wanted.password)
             await self._link.start()
@@ -194,7 +217,11 @@ class Igate:
     def _refresh_filter(self) -> None:
         """Set the range filter when our position is known and after a move over FILTER_MOVE_KM."""
         here, km = self._where(), self._config().map_radius_km
-        if here is None or (self._filter_at is not None and km == self._filter_km and distance_km(*self._filter_at, *here) <= FILTER_MOVE_KM):
+        if here is None or (
+            self._filter_at is not None
+            and km == self._filter_km
+            and distance_km(*self._filter_at, *here) <= FILTER_MOVE_KM
+        ):
             return
         self._filter_at, self._filter_km = here, km
         self._link.set_filter(range_filter(*here, km))
@@ -213,7 +240,9 @@ class Igate:
         text = f"igate: {'1 packet' if n == 1 else f'{n} packets'} gated in the last hour"
         missed = sum(self._hour_dropped.values())
         if missed:
-            text += f", {missed} not gated: " + ", ".join(f"{count} {REASON_WORDS.get(reason, reason)}" for reason, count in self._hour_dropped.most_common())
+            text += f", {missed} not gated: " + ", ".join(
+                f"{count} {REASON_WORDS.get(reason, reason)}" for reason, count in self._hour_dropped.most_common()
+            )
         return text
 
     def on_packet(self, packet: Packet) -> None:

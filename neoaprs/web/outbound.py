@@ -3,6 +3,7 @@
 It encodes messages as compact JSON frames, caps frame size and runs the outgoing check against
 protocol.py (NEOAPRS_VALIDATE_OUT=1).
 """
+
 import json
 import logging
 import math
@@ -57,7 +58,10 @@ def encode(message: dict[str, Any]) -> str:
     kind = f"{message.get('type', '?')} {message.get('topic', '')}".strip()
     if kind not in NOT_FINITE_SEEN:
         NOT_FINITE_SEEN.add(kind)
-        log.warning("a %s message holds a number that is not finite (NaN or infinity): it is sent as null (reported once for each kind)", kind)
+        log.warning(
+            "a %s message holds a number that is not finite (NaN or infinity): it is sent as null (reported once for each kind)",
+            kind,
+        )
     return json.dumps(_finite(message), separators=(",", ":"), default=str, allow_nan=False)
 
 
@@ -72,7 +76,9 @@ def _type_of(text: str) -> str:
 def _why(e: ValidationError, skip: int = 1) -> str:
     """Return the fields and their problems; the first `skip` location items are the union tag."""
     errors = e.errors(include_url=False, include_input=False)
-    return "; ".join(f"{'.'.join(str(x) for x in err['loc'][skip:])}: {err['msg']}" for err in errors[:4]) + (f" (and {len(errors) - 4} more)" if len(errors) > 4 else "")
+    return "; ".join(f"{'.'.join(str(x) for x in err['loc'][skip:])}: {err['msg']}" for err in errors[:4]) + (
+        f" (and {len(errors) - 4} more)" if len(errors) > 4 else ""
+    )
 
 
 def _validate(adapter: "TypeAdapter[Any]", value: Any, what: str) -> None:
@@ -122,11 +128,23 @@ class Publisher:
 
     def send_frame(self, conn: Connection, text: str) -> None:
         """Send an already encoded frame, applying the size cap and the outgoing check."""
-# Tell the page rather than cut it off with an unwritable frame.
+        # Tell the page rather than cut it off with an unwritable frame.
         if len(text) > MAX_MESSAGE:
             kind = _type_of(text)
-            log.warning("a %s message of %.0f MB was not sent to %s: more than %d MB", kind, len(text) / MEGABYTE, conn.ip, MAX_MESSAGE // MEGABYTE)
-            text = encode(error_message(f"The answer is {len(text) / MEGABYTE:.0f} MB, too big to send ({MAX_MESSAGE // MEGABYTE} MB at most)", code="too_big", params={"kind": kind, "megabytes": len(text) // MEGABYTE, "max": MAX_MESSAGE // MEGABYTE}))
+            log.warning(
+                "a %s message of %.0f MB was not sent to %s: more than %d MB",
+                kind,
+                len(text) / MEGABYTE,
+                conn.ip,
+                MAX_MESSAGE // MEGABYTE,
+            )
+            text = encode(
+                error_message(
+                    f"The answer is {len(text) / MEGABYTE:.0f} MB, too big to send ({MAX_MESSAGE // MEGABYTE} MB at most)",
+                    code="too_big",
+                    params={"kind": kind, "megabytes": len(text) // MEGABYTE, "max": MAX_MESSAGE // MEGABYTE},
+                )
+            )
         self._check(text)
         conn.client.send_json(text)
 

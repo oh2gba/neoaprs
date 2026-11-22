@@ -2,6 +2,7 @@
 
 The choice is `email/radio`. An email goes out once, on one enabled radio that can send; no I/O.
 """
+
 from collections.abc import Iterable
 
 from .radiospec import RadioId, RadioSpec, senders, unheard_radio

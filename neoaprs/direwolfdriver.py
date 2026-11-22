@@ -3,6 +3,7 @@
 The modem starts first because it chooses the KISS port. Until it has chosen one the line has no
 port, so it never connects to another radio's Direwolf. A card or keying change restarts the radio.
 """
+
 import logging
 from pathlib import Path
 from typing import NamedTuple
@@ -41,11 +42,21 @@ def direwolf_words(spec: RadioSpec) -> str:
     """Describe the radio being started, for the log."""
     card, keying = direwolf_settings(spec).modem
     started = "which is not started" if nodevices.on() else "started by NeoAPRS"
-    return f"Direwolf on the sound card {card or '(the daemon\'s choice)'}, keyed by {keying or '(the daemon\'s choice)'}, {started}"
+    return f"Direwolf on the sound card {card or "(the daemon's choice)"}, keyed by {keying or "(the daemon's choice)"}, {started}"
 
 
 class DirewolfDriver:
-    def __init__(self, spec: RadioSpec, claims: Claims, folder: Path, clock: Clock = utcnow, line: Tnc | None = None, *, modem: DirewolfModem | None = None, mixer: Mixer | None = None) -> None:
+    def __init__(
+        self,
+        spec: RadioSpec,
+        claims: Claims,
+        folder: Path,
+        clock: Clock = utcnow,
+        line: Tnc | None = None,
+        *,
+        modem: DirewolfModem | None = None,
+        mixer: Mixer | None = None,
+    ) -> None:
         self.id = spec.id
         self.claims = claims
         self._line = line if line is not None else Tnc(clock=clock, profile=PROFILE)
@@ -75,8 +86,17 @@ class DirewolfDriver:
 
     def _point(self) -> None:
         """Point the stopped line at the modem's KISS port, or at none without devices."""
-        no_line = (nodevices.refused(NO_DIREWOLF, logging.INFO) if self._spec.enabled else nodevices.on()) or not port_chosen(self._modem)
-        self._line.port, self._line.baud, self._line.profile, self._line.fallback_probe, self._line.skip, self._line.pattern = ("" if no_line else tcp_url(HOST, self._modem.kiss_port)), LINE_SPEED, PROFILE, False, (), ""
+        no_line = (
+            nodevices.refused(NO_DIREWOLF, logging.INFO) if self._spec.enabled else nodevices.on()
+        ) or not port_chosen(self._modem)
+        (
+            self._line.port,
+            self._line.baud,
+            self._line.profile,
+            self._line.fallback_probe,
+            self._line.skip,
+            self._line.pattern,
+        ) = ("" if no_line else tcp_url(HOST, self._modem.kiss_port)), LINE_SPEED, PROFILE, False, (), ""
 
     def restart_key(self, spec: RadioSpec, station: Config, run: RunOverrides) -> tuple[object, ...]:
         """Return the sound card and keying; the transmit level and card levels are applied live."""
@@ -92,7 +112,12 @@ class DirewolfDriver:
     async def start(self) -> None:
         spec = self._spec
         try:
-            await self._modem.start(spec.value("sound_card"), spec.value("keying"), spec.value("tx_gain_db"), left_out(self._station, spec.id))
+            await self._modem.start(
+                spec.value("sound_card"),
+                spec.value("keying"),
+                spec.value("tx_gain_db"),
+                left_out(self._station, spec.id),
+            )
         except Exception:
             log.exception("Direwolf could not be started")
         self._point()

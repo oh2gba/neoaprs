@@ -11,6 +11,7 @@ Without --port, every port of the default serial/pattern (/dev/serial/by-id/*, /
 AX.25 packet in it is used. A quiet band may need --port; on Windows and macOS the port is always
 named. The daemon must not be running (the port is opened exclusively). OUT is not
 overwritten without --force. Ctrl-C stops early and keeps what has arrived."""
+
 import argparse
 import asyncio
 import os
@@ -30,7 +31,9 @@ SHOWN_BYTES = 16
 
 
 def parse(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="neoaprs capture", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog="neoaprs capture", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("out", metavar="OUT", help="the file the raw bytes are written to")
     parser.add_argument("--port", help="the serial port (default: probe the USB serial ports)")
     parser.add_argument("--baud", type=int, default=9600, help="the baud rate (default 9600)")
@@ -44,7 +47,9 @@ async def find_port(baud: int) -> str | None:
     for path, what in boards.items():
         say(f"capture: skipping {path}: {what}")
     if not paths:
-        say("capture: no USB serial port to look at here; give the port with --port (COM3, /dev/ttyUSB0, socket://127.0.0.1:8001)")
+        say(
+            "capture: no USB serial port to look at here; give the port with --port (COM3, /dev/ttyUSB0, socket://127.0.0.1:8001)"
+        )
         return None
     say(f"capture: listening for a KISS frame on {', '.join(paths)} ({PROBE_SECONDS:.0f} s each)")
     found = await probe(paths, baud, PROBE_SECONDS, lambda data: looks_valid(data, False))
@@ -67,7 +72,9 @@ async def record(path: str, baud: int, seconds: float, out_path: str) -> int:
         totals["bytes"] += len(chunk)
         for frame in decoder.feed(chunk):
             totals["frames"] += 1
-            say(f"frame {totals['frames']}: port {frame.port} command {frame.command} {len(frame.payload)} bytes: {frame.payload[:SHOWN_BYTES].hex(' ')}")
+            say(
+                f"frame {totals['frames']}: port {frame.port} command {frame.command} {len(frame.payload)} bytes: {frame.payload[:SHOWN_BYTES].hex(' ')}"
+            )
 
     def on_dropped(reason: str) -> None:
         nonlocal exit_code
@@ -130,4 +137,3 @@ def main(argv: list[str]) -> int:
     except KeyboardInterrupt:
         say("capture: stopped; what came is in " + args.out)
         return 0
-

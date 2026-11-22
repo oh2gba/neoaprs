@@ -3,6 +3,7 @@
 `named_radio` and `sending_radio` give the refusals shared by every command that names a radio.
 A refusal that names a radio also carries its id (`radio`).
 """
+
 import logging
 import re
 from collections.abc import Awaitable, Callable, Iterator, Sequence
@@ -40,11 +41,21 @@ def radio_refused(name: str, id: RadioId | None = None, specs: Sequence[RadioSpe
         yield
     except RadioError as e:
         if e.code == "radio.name_taken":
-            raise UserError(f"{name}: the name {e.params['name']!r} is another radio's already: give this one another", "radio.name_taken", None, e.params) from None
+            raise UserError(
+                f"{name}: the name {e.params['name']!r} is another radio's already: give this one another",
+                "radio.name_taken",
+                None,
+                e.params,
+            ) from None
         if id is None:
             raise UserError(f"{name}: {e}", e.code, None, e.params) from None
         if e.code == "radio.type_kind":  # the CLI sentence names the key and type key typed
-            raise UserError(f"{name}: radio {e.params['name']} takes only a type of its own kind ({e.params['kind']})", "radio.type_kind", None, {**e.params, "radio": id}) from None
+            raise UserError(
+                f"{name}: radio {e.params['name']} takes only a type of its own kind ({e.params['kind']})",
+                "radio.type_kind",
+                None,
+                {**e.params, "radio": id},
+            ) from None
         if e.code == "radio.last_enabled":
             raise UserError(name + ": " + str(e), "radio.last_enabled", None, {**e.params, "radio": id}) from None
         if e.code == "radio.unknown" and removed_name(id, specs) is not None:
@@ -58,7 +69,9 @@ def no_radio(name: str, id: RadioId, specs: Sequence[RadioSpec]) -> UserError:
     """Return `radio.unknown` for the id, saying so when the radio is removed."""
     removed = removed_name(id, specs)
     if removed is not None:
-        return UserError(f"{name}: radio {removed} is removed", "radio.unknown", params={"radio": id, "name": removed, "removed": 1})
+        return UserError(
+            f"{name}: radio {removed} is removed", "radio.unknown", params={"radio": id, "name": removed, "removed": 1}
+        )
     return UserError(f"{name}: there is no radio {id}", "radio.unknown", params={"radio": id})
 
 
@@ -83,11 +96,23 @@ def sending_radio(ctx: Ctx, name: str, id: RadioId | None) -> RadioId | None:
         return None
     radio = named_radio(ctx, name, id)
     if not radio.spec.enabled:
-        raise UserError(f"{name}: radio {radio.name} is off: turn it on first", "radio.off", params={"name": radio.name, "radio": id})
+        raise UserError(
+            f"{name}: radio {radio.name} is off: turn it on first",
+            "radio.off",
+            params={"name": radio.name, "radio": id},
+        )
     if not radio.rtype.can.transmit:
-        raise UserError(f"{name}: radio {radio.name} only receives: nothing can be sent on it", "radio.receive_only", params={"name": radio.name, "radio": id})
+        raise UserError(
+            f"{name}: radio {radio.name} only receives: nothing can be sent on it",
+            "radio.receive_only",
+            params={"name": radio.name, "radio": id},
+        )
     if not radio.usable:
-        raise UserError(f"{name}: radio {radio.name} is not connected", "radio.not_connected", params={"name": radio.name, "radio": id})
+        raise UserError(
+            f"{name}: radio {radio.name} is not connected",
+            "radio.not_connected",
+            params={"name": radio.name, "radio": id},
+        )
     return id
 
 
@@ -103,12 +128,25 @@ def refuse_label(name: str, typed: str | None, specs: Sequence[RadioSpec], own: 
     Raise `radio.name_taken` if another radio has it now, else `radio.name_label`.
     """
     wanted = (typed or "").strip()
-    if not LABEL.fullmatch(wanted.casefold()) or any(s.id == own and s.name.casefold() == wanted.casefold() for s in specs):
+    if not LABEL.fullmatch(wanted.casefold()) or any(
+        s.id == own and s.name.casefold() == wanted.casefold() for s in specs
+    ):
         return
-    other = next((s for s in live(specs) if s.id != own and not s.name and log_name(s, specs).casefold() == wanted.casefold()), None)
+    other = next(
+        (s for s in live(specs) if s.id != own and not s.name and log_name(s, specs).casefold() == wanted.casefold()),
+        None,
+    )
     if other is not None:
-        raise UserError(f"{name}: the name {wanted!r} is another radio's already: give this one another", "radio.name_taken", params={"name": wanted, "radio": other.id})
-    raise UserError(f"{name}: the name {wanted!r} is how a radio without a name of its own is called: give this one another", "radio.name_label", params={"name": wanted})
+        raise UserError(
+            f"{name}: the name {wanted!r} is another radio's already: give this one another",
+            "radio.name_taken",
+            params={"name": wanted, "radio": other.id},
+        )
+    raise UserError(
+        f"{name}: the name {wanted!r} is how a radio without a name of its own is called: give this one another",
+        "radio.name_label",
+        params={"name": wanted},
+    )
 
 
 @command(RadioAdd)
@@ -131,7 +169,11 @@ async def radio_remove(ctx: Ctx, cmd: RadioRemove) -> None:
 @command(RadioChange)
 async def radio_change(ctx: Ctx, cmd: RadioChange) -> None:
     # Only the fields the command gives are changed.
-    columns = {column: value for column in ("name", "type", "enabled", "position") if (value := getattr(cmd, column)) is not None}
+    columns = {
+        column: value
+        for column in ("name", "type", "enabled", "position")
+        if (value := getattr(cmd, column)) is not None
+    }
     refuse_label(cmd.cmd, cmd.name, ctx.ctl.config.radios, cmd.radio)
     with radio_refused(cmd.cmd, cmd.radio, ctx.ctl.config.radios):
         _stored(cmd.cmd, await ctx.ctl.change_radio(cmd.radio, **columns))
@@ -152,7 +194,11 @@ def may_transmit(ctx: Ctx, name: str) -> None:
 
 
 def _no_modem(name: str, radio: LiveRadio[Any]) -> UserError:
-    return UserError(f"{name}: radio {radio.name} has no modem running", "radio.no_modem", params={"name": radio.name, "radio": radio.id})
+    return UserError(
+        f"{name}: radio {radio.name} has no modem running",
+        "radio.no_modem",
+        params={"name": radio.name, "radio": radio.id},
+    )
 
 
 def _modem(ctx: Ctx, name: str, id: RadioId) -> tuple[LiveRadio[Any], Any]:
@@ -209,7 +255,11 @@ async def radio_scope(ctx: Ctx, cmd: RadioScope) -> None:
     radio = named_radio(ctx, cmd.cmd, cmd.radio)
     modem = radio.driver.modem
     if not isinstance(modem, Mercury) or not radio.rtype.can.scope:
-        raise UserError(f"{cmd.cmd}: radio {radio.name} has no scope", "radio.no_scope", params={"name": radio.name, "radio": radio.id})
+        raise UserError(
+            f"{cmd.cmd}: radio {radio.name} has no scope",
+            "radio.no_scope",
+            params={"name": radio.name, "radio": radio.id},
+        )
     ctx.scopes.feed(radio.id, modem).ask(ctx.conn, True)
 
 
@@ -237,7 +287,11 @@ async def station_radio(ctx: Ctx, cmd: StationRadio) -> None:
         raise UserError(f"{cmd.cmd}: {e}", e.code, params=e.params) from None
     # a receive-only radio is no radio for messages
     if cmd.radio is not None and not (radio := named_radio(ctx, cmd.cmd, cmd.radio)).rtype.can.transmit:
-        raise UserError(f"{cmd.cmd}: radio {radio.name} only receives: nothing can be sent on it", "radio.receive_only", params={"name": radio.name, "radio": radio.id})
+        raise UserError(
+            f"{cmd.cmd}: radio {radio.name} only receives: nothing can be sent on it",
+            "radio.receive_only",
+            params={"name": radio.name, "radio": radio.id},
+        )
     if not ctx.ctl.radios.choose(call, cmd.radio) and cmd.radio is not None:  # None (daemon's choice) always succeeds
         raise no_radio(cmd.cmd, cmd.radio, ctx.ctl.config.radios)
     station = ctx.ctl.stationbook.get(call)

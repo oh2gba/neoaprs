@@ -9,10 +9,11 @@ then, and the seal fails on a nested bundle that is not signed yet (the helper a
 QtWebEngineCore.framework) or, while other files under the bundle are being replaced, on a file that
 is gone for a moment. The bundles are signed afterwards, from the inside out, by
 scripts/build-macos-app. Standard library only."""
+
 import sys
 from pathlib import Path
 
-MAGIC = {b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe"}          # Mach-O 64, 32, and a universal file
+MAGIC = {b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe"}  # Mach-O 64, 32, and a universal file
 
 
 def bundle_program(path: Path) -> bool:
@@ -32,7 +33,11 @@ def mach_o(path: Path) -> bool:
 def sign_list(root: Path) -> list[Path]:
     """The Mach-O files under `root` that are signed by themselves, in path order; links and bundle
     programs left out."""
-    return sorted(path for path in root.rglob("*") if path.is_file() and not path.is_symlink() and not bundle_program(path) and mach_o(path))
+    return sorted(
+        path
+        for path in root.rglob("*")
+        if path.is_file() and not path.is_symlink() and not bundle_program(path) and mach_o(path)
+    )
 
 
 def main(argv: list[str]) -> int:

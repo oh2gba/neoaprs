@@ -5,6 +5,7 @@
     scripts/css-unused.py ROOT         the same for another tree
 
 Classes built at run time are listed in PREFIXES with the file that builds them."""
+
 import re
 import sys
 from pathlib import Path
@@ -46,7 +47,11 @@ def defined_classes(css: str) -> set[str]:
 def page_sources(root: Path) -> dict[str, str]:
     """Return the files that write class names (not tests or style sheets), by path under ui/src."""
     src = root / "ui" / "src"
-    files = [p for p in [*src.rglob("*.vue"), *src.rglob("*.ts")] if not p.name.endswith(".test.ts") and "test" not in p.relative_to(src).parts]
+    files = [
+        p
+        for p in [*src.rglob("*.vue"), *src.rglob("*.ts")]
+        if not p.name.endswith(".test.ts") and "test" not in p.relative_to(src).parts
+    ]
     found = {p.relative_to(src).as_posix(): p.read_text(encoding="utf-8") for p in files}
     index = root / "ui" / "index.html"
     if index.is_file():
@@ -62,14 +67,20 @@ def problems(root: Path) -> list[str]:
     out: list[str] = []
     for prefix, where in PREFIXES.items():
         if not any(name.startswith(prefix) for name in classes):
-            out.append(f"the prefix {prefix!r} of PREFIXES has no rule in the style sheets: take it out of scripts/css-unused.py")
+            out.append(
+                f"the prefix {prefix!r} of PREFIXES has no rule in the style sheets: take it out of scripts/css-unused.py"
+            )
         elif f"{prefix}${{" not in sources.get(where, ""):
-            out.append(f"the prefix {prefix!r} is not built in {where} any more (`{prefix}${{...}}`): its rules are dead, or the code moved (scripts/css-unused.py)")
+            out.append(
+                f"the prefix {prefix!r} is not built in {where} any more (`{prefix}${{...}}`): its rules are dead, or the code moved (scripts/css-unused.py)"
+            )
     for name in sorted(classes):
         if name.startswith(tuple(PREFIXES) + LIBRARY_PREFIXES):
             continue
         if not re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", everything):
-            out.append(f"the class .{name} has a rule but no .vue, .ts or .html file of ui/ mentions it: delete the rule")
+            out.append(
+                f"the class .{name} has a rule but no .vue, .ts or .html file of ui/ mentions it: delete the rule"
+            )
     return out
 
 

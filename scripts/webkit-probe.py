@@ -8,6 +8,7 @@ the time to first paint, and the engine.
 
 --engine web (default): pywebview on WebKitGTK, with a Python that has pywebview and gi.
 --engine qt: the Qt window (QWebEngineView), with PySide6-WebEngine. Needs a display."""
+
 import argparse
 import importlib
 import json
@@ -17,7 +18,7 @@ import time
 from typing import Any
 
 STARTED = time.monotonic()
-SETTLE_SEC = 3.0                     # the page and its first tiles, before the map is moved
+SETTLE_SEC = 3.0  # the page and its first tiles, before the map is moved
 
 # Starts the counting and the moving; READ gives what was counted, as JSON text.
 START = """(function () {
@@ -55,12 +56,14 @@ def report(engine: str, said: str, loaded_at: float) -> None:
 
 def with_webkit(url: str, seconds: float) -> int:
     from neoaprs.desktop import gtkenv, shell
+
     gtkenv.prepare()
     problem = shell.gtk_window_problem(importlib.import_module)
     if problem is not None:
         print(f"webkit-probe: no web window here: {problem}", file=sys.stderr)
         return 1
     import webview
+
     window = webview.create_window("NeoAPRS probe", url, width=1280, height=800)
     loaded = threading.Event()
     window.events.loaded += loaded.set
@@ -86,6 +89,7 @@ def with_qt(url: str, seconds: float) -> int:
     from PySide6.QtCore import QTimer, QUrl
     from PySide6.QtWebEngineWidgets import QWebEngineView
     from PySide6.QtWidgets import QApplication
+
     app = QApplication(sys.argv[:1])
     view = QWebEngineView()
     view.resize(1280, 800)
@@ -108,9 +112,13 @@ def with_qt(url: str, seconds: float) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(prog="webkit-probe.py", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog="webkit-probe.py", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--url", required=True, help="the daemon's page")
-    parser.add_argument("--seconds", type=float, default=20.0, help="how long the map is moved and counted; default %(default)s")
+    parser.add_argument(
+        "--seconds", type=float, default=20.0, help="how long the map is moved and counted; default %(default)s"
+    )
     parser.add_argument("--engine", choices=("web", "qt"), default="web")
     args = parser.parse_args()
     return with_qt(args.url, args.seconds) if args.engine == "qt" else with_webkit(args.url, args.seconds)

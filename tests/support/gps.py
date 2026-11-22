@@ -1,6 +1,7 @@
 """A GPS for the tests: NMEA sentences with checksums, a fake gpsd on a free loopback port, and a
 stand-in for the GPS service that the beacon is given.
 """
+
 import asyncio
 import json
 from datetime import datetime
@@ -29,7 +30,15 @@ def _place(lat: float, lon: float) -> str:
     return f"{la},{ns},{lo},{ew}"
 
 
-def rmc(lat: float, lon: float, knots: float = 0.0, course: float | None = 0.0, valid: bool = True, time: str = "123519", date: str = "251026") -> str:
+def rmc(
+    lat: float,
+    lon: float,
+    knots: float = 0.0,
+    course: float | None = 0.0,
+    valid: bool = True,
+    time: str = "123519",
+    date: str = "251026",
+) -> str:
     """A GPRMC sentence; with `valid` False its status is V (no fix) and the position is empty."""
     course_text = "" if course is None else f"{course:.1f}"
     if not valid:
@@ -37,16 +46,31 @@ def rmc(lat: float, lon: float, knots: float = 0.0, course: float | None = 0.0, 
     return nmea(f"GPRMC,{time},A,{_place(lat, lon)},{knots:.1f},{course_text},{date},,,A")
 
 
-def gga(lat: float, lon: float, altitude: float = 31.4, satellites: int = 9, quality: int = 1, time: str = "123519") -> str:
+def gga(
+    lat: float, lon: float, altitude: float = 31.4, satellites: int = 9, quality: int = 1, time: str = "123519"
+) -> str:
     """A GPGGA sentence; quality 0 is no fix."""
     if quality == 0:
         return nmea(f"GPGGA,{time},,,,,0,00,99.99,,,,,,")
     return nmea(f"GPGGA,{time},{_place(lat, lon)},{quality},{satellites:02d},0.9,{altitude:.1f},M,19.5,M,,")
 
 
-def tpv(lat: float | None, lon: float | None, speed: float | None = 0.0, track: float | None = 0.0, mode: int = 3, alt: float | None = 31.4, **extra: Any) -> dict[str, Any]:
+def tpv(
+    lat: float | None,
+    lon: float | None,
+    speed: float | None = 0.0,
+    track: float | None = 0.0,
+    mode: int = 3,
+    alt: float | None = 31.4,
+    **extra: Any,
+) -> dict[str, Any]:
     """A gpsd TPV report (speed in metres per second)."""
-    report: dict[str, Any] = {"class": "TPV", "device": "/dev/ttyUSB1", "mode": mode, "time": "2026-10-25T12:00:00.000Z"}
+    report: dict[str, Any] = {
+        "class": "TPV",
+        "device": "/dev/ttyUSB1",
+        "mode": mode,
+        "time": "2026-10-25T12:00:00.000Z",
+    }
     for key, value in (("lat", lat), ("lon", lon), ("speed", speed), ("track", track), ("altMSL", alt)):
         if value is not None:
             report[key] = value
@@ -135,5 +159,13 @@ class FakeFixes:
         return self.why
 
 
-def fix_at(at: datetime, lat: float = 60.43, lon: float = 24.145, speed_kmh: float | None = 0.0, course_deg: int | None = 0, altitude_m: float | None = 31.4, satellites: int | None = 9) -> Fix:
+def fix_at(
+    at: datetime,
+    lat: float = 60.43,
+    lon: float = 24.145,
+    speed_kmh: float | None = 0.0,
+    course_deg: int | None = 0,
+    altitude_m: float | None = 31.4,
+    satellites: int | None = 9,
+) -> Fix:
     return Fix(lat, lon, at, speed_kmh, course_deg, altitude_m, satellites)

@@ -1,6 +1,7 @@
 """Tests for what a page on another device may not do (neoaprs/web/confighandlers.py, `LOCAL_ONLY`
 of neoaprs/web/access.py): change settings that name a program or address, and run the alert test. A
 request is made to look remote by saying no address is the loopback (`away`)."""
+
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -60,7 +61,9 @@ def test_the_list_is_the_settings_that_name_a_program_or_an_address() -> None:
     assert LOCAL_ONLY == NEW_VALUES.keys()
 
 
-async def test_a_page_of_another_device_is_told_so_and_this_computer_is_too(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_page_of_another_device_is_told_so_and_this_computer_is_too(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     e = await served(tmp_path)
     here = await e.ws()
     assert (await here.expect("hello"))["local"] is True
@@ -71,7 +74,9 @@ async def test_a_page_of_another_device_is_told_so_and_this_computer_is_too(tmp_
 
 
 @pytest.mark.parametrize("key", sorted(NEW_VALUES))
-async def test_a_page_of_another_device_cannot_change_a_setting_that_names_a_program_or_an_address(tmp_path: Path, away: None, key: str) -> None:
+async def test_a_page_of_another_device_cannot_change_a_setting_that_names_a_program_or_an_address(
+    tmp_path: Path, away: None, key: str
+) -> None:
     e = await served(tmp_path)
     page = await from_afar(e)
     before, stored = e.ctl.config, await e.ctl.store.settings()
@@ -79,11 +84,15 @@ async def test_a_page_of_another_device_cannot_change_a_setting_that_names_a_pro
     error = await page.expect("error")
     assert (error["cmd"], error["key"], error["code"]) == ("set_config", key, "setting.local_only")
     assert error["text"] == f"set_config: {key}: only a page on the computer NeoAPRS runs on can do this"
-    assert e.ctl.config == before and await e.ctl.store.settings() == stored, "nothing is stored, not even the other value of the same change"
+    assert e.ctl.config == before and await e.ctl.store.settings() == stored, (
+        "nothing is stored, not even the other value of the same change"
+    )
     await e.stop()
 
 
-async def test_a_radios_own_setting_reaches_the_list_too(tmp_path: Path, away: None, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_radios_own_setting_reaches_the_list_too(
+    tmp_path: Path, away: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """No radio's own setting names a program or an address today; one that did would be listed as
     `radio/*/<key>` and refused to a page of another device for every radio.
     """
@@ -95,7 +104,12 @@ async def test_a_radios_own_setting_reaches_the_list_too(tmp_path: Path, away: N
     error = await page.expect("error")
     assert (error["cmd"], error["key"], error["code"]) == ("set_config", "radio/1/path", "setting.local_only")
     assert e.ctl.config == before and await e.ctl.store.radios() == stored, "nothing is stored"
-    await page.send({"cmd": "set_config", "values": {"radio/1/path": before.radio(1).settings.get("path", "WIDE1-1,WIDE2-1"), "map/radius_km": "200"}})     # type: ignore[union-attr]
+    await page.send(
+        {
+            "cmd": "set_config",
+            "values": {"radio/1/path": before.radio(1).settings.get("path", "WIDE1-1,WIDE2-1"), "map/radius_km": "200"},
+        }
+    )  # type: ignore[union-attr]
     await until(lambda: e.ctl.config.map_radius_km == 200)
     assert len(page.of("error")) == 1, "the value in force is let through"
     await e.stop()
@@ -114,13 +128,22 @@ async def test_a_page_of_another_device_cannot_run_the_alert_test(tmp_path: Path
     await e.stop()
 
 
-async def test_a_page_of_another_device_changes_every_other_setting_and_switches_the_alert(tmp_path: Path, away: None) -> None:
+async def test_a_page_of_another_device_changes_every_other_setting_and_switches_the_alert(
+    tmp_path: Path, away: None
+) -> None:
     e = await served(tmp_path)
     page = await from_afar(e)
     command = e.ctl.config.messages_alert_command
-    await page.send({"cmd": "set_config", "values": {"map/radius_km": "200", "messages/alert": "false", "messages/alert_command": command}})
+    await page.send(
+        {
+            "cmd": "set_config",
+            "values": {"map/radius_km": "200", "messages/alert": "false", "messages/alert_command": command},
+        }
+    )
     await until(lambda: e.ctl.config.map_radius_km == 200 and e.ctl.config.messages_alert is False)
-    assert e.ctl.config.messages_alert_command == command, "a value that is the one in force changes nothing and is let through"
+    assert e.ctl.config.messages_alert_command == command, (
+        "a value that is the one in force changes nothing and is let through"
+    )
     assert page.of("error") == []
     await e.stop()
 

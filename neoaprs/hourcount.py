@@ -3,6 +3,7 @@
 A packet of minute `m` counts until minute `m + 60` begins. Packets are noted in the order heard;
 one older than the newest noted is counted with it.
 """
+
 from datetime import datetime
 
 WINDOW_MIN = 60

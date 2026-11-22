@@ -3,6 +3,7 @@
 The text comes from the radio through Hamlib rigctld (`status/source` `rig`) or from
 `station/status` (`text`). A report goes out per radio when its interval has passed.
 """
+
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
@@ -50,8 +51,16 @@ def clipped(text: str, max_length: int = MAX_STATUS) -> str:
 
 
 class RigStatus:
-    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, frames: BeaconFrames | Beacon, clock: Clock = utcnow, poll_sec: float = POLL_SEC, read: Reader = read_rig,
-                 memory: Memory | None = None) -> None:
+    def __init__(
+        self,
+        radios: RadioPick | Radio,
+        config: ConfigSource,
+        frames: BeaconFrames | Beacon,
+        clock: Clock = utcnow,
+        poll_sec: float = POLL_SEC,
+        read: Reader = read_rig,
+        memory: Memory | None = None,
+    ) -> None:
         self._radios = radios
         self._config = config
         self._interlock = Interlock(config)
@@ -86,7 +95,10 @@ class RigStatus:
             self.last_text = await self._remembered.get(STATUS_TEXT) or ""
         if is_pick(self._radios):
             for spec in live(self._config().radios):
-                if spec.id not in self.sent_on and (at := await self._remembered.get_time(memory_key_of(spec.id), self.clock())) is not None:
+                if (
+                    spec.id not in self.sent_on
+                    and (at := await self._remembered.get_time(memory_key_of(spec.id), self.clock())) is not None
+                ):
                     self.sent_on[spec.id] = at
         self._tasks.spawn(self._run(), "rigstatus")
 
@@ -116,7 +128,13 @@ class RigStatus:
         found: list[tuple[RadioId, AirRadio | None, int]] = []
         for id in send_on_radios("status", c.radios):
             spec = c.radio(id)
-            found.append((id, self._radios.get(id), c.status_interval_min if spec is None else beacon_interval(c.status_interval_min, spec)))
+            found.append(
+                (
+                    id,
+                    self._radios.get(id),
+                    c.status_interval_min if spec is None else beacon_interval(c.status_interval_min, spec),
+                )
+            )
         return found
 
     def _counts_from(self, id: RadioId) -> datetime | None:
@@ -133,7 +151,11 @@ class RigStatus:
         The next send is None if not timed; the interval is 0 if the status does not go there."""
         c = self._config()
         spec = c.radio(id)
-        minutes = next((m for target, _, m in self._targets(c) if target == id), 0) if spec is not None and spec.enabled and not spec.removed else 0
+        minutes = (
+            next((m for target, _, m in self._targets(c) if target == id), 0)
+            if spec is not None and spec.enabled and not spec.removed
+            else 0
+        )
         last = self.sent_on.get(id)
         timed = minutes > 0 and c.beacon_on and c.status_choice != "off" and last is not None
         return last, last + timedelta(minutes=minutes) if timed and last is not None else None, minutes
@@ -163,7 +185,11 @@ class RigStatus:
             return reason
         text = await self._current(c)
         if text is None:
-            return Reason("the radio does not answer", "status.rig_away") if self._rig_problem else Reason("the status has no radio to come from: set Rigctld", "status.no_rig")
+            return (
+                Reason("the radio does not answer", "status.rig_away")
+                if self._rig_problem
+                else Reason("the status has no radio to come from: set Rigctld", "status.no_rig")
+            )
         if not text:
             return NO_TEXT
         return self._try(text)
@@ -194,7 +220,11 @@ class RigStatus:
         for gone in self._joined.keys() - {id for id, _, _ in targets}:
             # a radio that left joins again at the next interval, not at once
             del self._joined[gone]
-        due = [(id, radio) for id, radio, minutes in targets if (since := self._counts_from(id)) is None or now - since >= timedelta(minutes=minutes)]
+        due = [
+            (id, radio)
+            for id, radio, minutes in targets
+            if (since := self._counts_from(id)) is None or now - since >= timedelta(minutes=minutes)
+        ]
         if due:
             self._try(text, due)
 
@@ -237,7 +267,13 @@ class RigStatus:
         self.last_sent_at, self.last_text, self.sent_on[id] = now, text, now
         self._told.pop(id, None)
         self._told.pop(0, None)
-        self._remembered.put({STATUS_SENT: stamp(now), STATUS_TEXT: text, **({memory_key_of(id): stamp(now)} if is_pick(self._radios) else {})})
+        self._remembered.put(
+            {
+                STATUS_SENT: stamp(now),
+                STATUS_TEXT: text,
+                **({memory_key_of(id): stamp(now)} if is_pick(self._radios) else {}),
+            }
+        )
         log.info("status sent: %s", frame.tnc2())
         return ""
 

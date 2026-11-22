@@ -12,6 +12,7 @@ its own rules; a message to each FM and LoRa home station, acked from there). On
 
 NEOAPRS_NO_DEVICES=1: no device, no Mercury, nothing on the air. Exit code 0 when every radio did
 what it should, 1 at the first that did not, 2 for a wrong argument."""
+
 import argparse
 import asyncio
 import contextlib
@@ -53,9 +54,23 @@ def operators_folder(data: Path) -> str:
     loader.exec_module(demo)
     return str(demo.operators_folder(data, demo.own_data_folder()))
 
-STATION = {"station/call": "OH2TST", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "20", "messages/alert": "false"}
+
+STATION = {
+    "station/call": "OH2TST",
+    "station/lat": "60.17",
+    "station/lon": "24.94",
+    "beacon/interval_min": "20",
+    "messages/alert": "false",
+}
 # The radios in the order of their boxes.
-SIX = (("fm", "dummy"), ("hf", "dummy-hf"), ("fm", "dummy"), ("hf", "dummy-hf"), ("hf", "dummy-hf"), ("lora", "dummy-lora"))
+SIX = (
+    ("fm", "dummy"),
+    ("hf", "dummy-hf"),
+    ("fm", "dummy"),
+    ("hf", "dummy-hf"),
+    ("hf", "dummy-hf"),
+    ("lora", "dummy-lora"),
+)
 # Ends of the calls of the home station of a Dummy FM world and of the LoRa world, which answer.
 HOME = {"fm": "ABC", "lora": "KOT"}
 # Stations a radio must have heard before its world counts as heard: FM 12, HF cities 6, LoRa 4.
@@ -71,12 +86,25 @@ def start_daemon(program: list[str], data: Path) -> "subprocess.Popen[bytes]":
     data.mkdir(parents=True, exist_ok=True)
     out = (data.parent / f"{data.name}.out").open("wb")
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG")}
-    env.update({"NEOAPRS_NO_DEVICES": "1", "NEOAPRS_UPDATE_CHECK": "0", "NEOAPRS_SERIAL_PATTERN": "/dev/neoaprs-sim-no-such-port*"})
-    flags = subprocess.CREATE_NEW_PROCESS_GROUP if smoke.WINDOWS else 0          # type: ignore[attr-defined, unused-ignore]
+    env.update(
+        {
+            "NEOAPRS_NO_DEVICES": "1",
+            "NEOAPRS_UPDATE_CHECK": "0",
+            "NEOAPRS_SERIAL_PATTERN": "/dev/neoaprs-sim-no-such-port*",
+        }
+    )
+    flags = subprocess.CREATE_NEW_PROCESS_GROUP if smoke.WINDOWS else 0  # type: ignore[attr-defined, unused-ignore]
     # Its own group or session: the terminal's Ctrl+C reaches only this script, which stops the
     # daemon with one signal; a second signal while it closes would end it at once.
-    return subprocess.Popen([*program, "--data", str(data), "--web-port", "0"], stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, env=env, creationflags=flags,
-                            start_new_session=not smoke.WINDOWS)
+    return subprocess.Popen(
+        [*program, "--data", str(data), "--web-port", "0"],
+        stdin=subprocess.DEVNULL,
+        stdout=out,
+        stderr=subprocess.STDOUT,
+        env=env,
+        creationflags=flags,
+        start_new_session=not smoke.WINDOWS,
+    )
 
 
 def rows(page: Any) -> dict[str, dict[str, Any]]:
@@ -85,7 +113,11 @@ def rows(page: Any) -> dict[str, dict[str, Any]]:
 
 async def answer(page: Any, since: int, what: str, done: Any, seconds: float) -> None:
     """Wait for `done(page)` or a refusal of the command sent at `since` (a Failure)."""
-    await page.until(what, lambda p: p.refusal(since, "radio_add", "radio_change", "beacon_now", "send_message") is not None or done(p), seconds)
+    await page.until(
+        what,
+        lambda p: p.refusal(since, "radio_add", "radio_change", "beacon_now", "send_message") is not None or done(p),
+        seconds,
+    )
     if refused := page.refusal(since, "radio_add", "radio_change", "beacon_now", "send_message"):
         raise smoke.Failure(f"{what}: refused: {refused.get('text')}")
 
@@ -102,13 +134,33 @@ async def make_six(page: Any, seconds: float) -> list[int]:
             since = await page.send({"cmd": "radio_change", "radio": id, "type": type, "enabled": True})
         else:
             since = await page.send({"cmd": "radio_add", "type": type})
-            await answer(page, since, f"a {type} radio added", lambda p, since=since: any(m.get("type") == "radio_added" for m in p.messages[since:]), seconds)
+            await answer(
+                page,
+                since,
+                f"a {type} radio added",
+                lambda p, since=since: any(m.get("type") == "radio_added" for m in p.messages[since:]),
+                seconds,
+            )
             id = int(next(m for m in page.messages[since:] if m.get("type") == "radio_added")["id"])
-        await answer(page, since, f"radio {id} made {type}", lambda p, id=id, type=type: (rows(p).get(str(id)) or {}).get("type") == type and (rows(p).get(str(id)) or {}).get("enabled"), seconds)
+        await answer(
+            page,
+            since,
+            f"radio {id} made {type}",
+            lambda p, id=id, type=type: (
+                (rows(p).get(str(id)) or {}).get("type") == type and (rows(p).get(str(id)) or {}).get("enabled")
+            ),
+            seconds,
+        )
         ids.append(id)
     for id in (i for left in free.values() for i in left):
         since = await page.send({"cmd": "radio_change", "radio": id, "enabled": False})
-        await answer(page, since, f"radio {id} switched off", lambda p, id=id: not (rows(p).get(str(id)) or {}).get("enabled"), seconds)
+        await answer(
+            page,
+            since,
+            f"radio {id} switched off",
+            lambda p, id=id: not (rows(p).get(str(id)) or {}).get("enabled"),
+            seconds,
+        )
     return ids
 
 
@@ -124,16 +176,24 @@ def heard_by(page: Any) -> dict[int, set[str]]:
 
 def out_on(page: Any, id: int, kind: str) -> list[dict[str, Any]]:
     """Return our packets of a kind that went out on a radio, from the topic `packets`."""
-    return [row for row in (page.topics.get("packets") or {}).values() if row.get("direction") == "out" and row.get("radio_id") == id and row.get("kind") == kind]
+    return [
+        row
+        for row in (page.topics.get("packets") or {}).values()
+        if row.get("direction") == "out" and row.get("radio_id") == id and row.get("kind") == kind
+    ]
 
 
 def check_worlds(page: Any, ids: list[int]) -> dict[int, set[str]]:
     heard = heard_by(page)
     kinds = {id: kind for id, (kind, _type) in zip(ids, SIX, strict=True)}
     for id in ids:
-        others = set().union(*(heard.get(other, set()) for other in ids if other != id and (kinds[id] != "hf" or kinds[other] != "hf")))
+        others = set().union(
+            *(heard.get(other, set()) for other in ids if other != id and (kinds[id] != "hf" or kinds[other] != "hf"))
+        )
         if shared := heard.get(id, set()) & others:
-            raise smoke.Failure(f"radio {id} ({kinds[id]}) heard stations of another radio's world: {', '.join(sorted(shared))}")
+            raise smoke.Failure(
+                f"radio {id} ({kinds[id]}) heard stations of another radio's world: {', '.join(sorted(shared))}"
+            )
     return heard
 
 
@@ -152,27 +212,70 @@ async def run(args: argparse.Namespace) -> None:
         page = await smoke.PageSocket.open(base)
         ids = await make_six(page, args.timeout)
         kinds = {id: kind for id, (kind, _type) in zip(ids, SIX, strict=True)}
-        await page.until("every radio connected", lambda p: all((rows(p).get(str(id)) or {}).get("state") == "connected" for id in ids), args.timeout)
-        await page.until("every radio's world heard", lambda p: all(len(heard_by(p).get(id, ())) >= ENOUGH[kinds[id]] for id in ids), args.timeout)
+        await page.until(
+            "every radio connected",
+            lambda p: all((rows(p).get(str(id)) or {}).get("state") == "connected" for id in ids),
+            args.timeout,
+        )
+        await page.until(
+            "every radio's world heard",
+            lambda p: all(len(heard_by(p).get(id, ())) >= ENOUGH[kinds[id]] for id in ids),
+            args.timeout,
+        )
         heard = check_worlds(page, ids)
         since = await page.send({"cmd": "beacon_now"})
-        await answer(page, since, "a beacon on every radio", lambda p: all(out_on(p, id, "position") for id in ids), args.timeout)
-        homes = {id: next(call for call in sorted(heard[id]) if call.split("-")[0].endswith(HOME[kinds[id]])) for id in ids if kinds[id] in HOME}
+        await answer(
+            page, since, "a beacon on every radio", lambda p: all(out_on(p, id, "position") for id in ids), args.timeout
+        )
+        homes = {
+            id: next(call for call in sorted(heard[id]) if call.split("-")[0].endswith(HOME[kinds[id]]))
+            for id in ids
+            if kinds[id] in HOME
+        }
         for call in homes.values():
             await page.send({"cmd": "send_message", "to": call, "text": f"six radios, to {call}"})
-        await page.until("each home station's ack", lambda p: all(any(row.get("to_call") == call and row.get("state") == "acked" for row in (p.topics.get("messages") or {}).values()) for call in homes.values()), args.timeout)
+        await page.until(
+            "each home station's ack",
+            lambda p: all(
+                any(
+                    row.get("to_call") == call and row.get("state") == "acked"
+                    for row in (p.topics.get("messages") or {}).values()
+                )
+                for call in homes.values()
+            ),
+            args.timeout,
+        )
         for id in ids:
             row, beacon = rows(page)[str(id)], out_on(page, id, "position")[-1]
-            message = [m for m in out_on(page, id, "message") if id in homes and f":{homes[id]}" in m.get("tnc2", "").replace(" ", "")]
+            message = [
+                m
+                for m in out_on(page, id, "message")
+                if id in homes and f":{homes[id]}" in m.get("tnc2", "").replace(" ", "")
+            ]
             if kinds[id] == "hf" and beacon.get("path"):
-                raise smoke.Failure(f"radio {id}: the beacon went out by {beacon.get('path')} on HF, where nothing is repeated")
+                raise smoke.Failure(
+                    f"radio {id}: the beacon went out by {beacon.get('path')} on HF, where nothing is repeated"
+                )
             if kinds[id] == "lora" and beacon.get("path") != ["WIDE1-1"]:
                 raise smoke.Failure(f"radio {id}: the LoRa beacon went out by {beacon.get('path')}, not WIDE1-1")
             if id in homes and not message:
-                raise smoke.Failure(f"radio {id}: the message to {homes[id]}, the station only it heard, did not go out on it")
+                raise smoke.Failure(
+                    f"radio {id}: the message to {homes[id]}, the station only it heard, did not go out on it"
+                )
             said = f", the message to {homes[id]} acked" if id in homes else ""
-            say(f"radio {id} ({row.get('type')}, {kinds[id]} {row.get('number')}): {row.get('state')}, heard {len(heard[id])} stations, Beacon now by {','.join(beacon.get('path') or []) or 'no path'}{said}")
-        others = [id for id in ids if any(m.get("radio_id") == id for m in (page.topics.get("packets") or {}).values() if m.get("direction") == "out" and m.get("kind") == "message") and id not in homes]
+            say(
+                f"radio {id} ({row.get('type')}, {kinds[id]} {row.get('number')}): {row.get('state')}, heard {len(heard[id])} stations, Beacon now by {','.join(beacon.get('path') or []) or 'no path'}{said}"
+            )
+        others = [
+            id
+            for id in ids
+            if any(
+                m.get("radio_id") == id
+                for m in (page.topics.get("packets") or {}).values()
+                if m.get("direction") == "out" and m.get("kind") == "message"
+            )
+            and id not in homes
+        ]
         if others:
             raise smoke.Failure(f"a message went out on radios no message was for: {others}")
 
@@ -203,7 +306,9 @@ def wait_for_page(daemon: "subprocess.Popen[bytes]", log: Path, offset: int, sec
         try:
             with log.open("rb") as file:
                 file.seek(offset)
-                found = re.search(r"web page at (http://127\.0\.0\.1:\d+/)", file.read().decode("utf-8", errors="replace"))
+                found = re.search(
+                    r"web page at (http://127\.0\.0\.1:\d+/)", file.read().decode("utf-8", errors="replace")
+                )
         except OSError:
             found = None
         if found:
@@ -254,15 +359,21 @@ async def keep_then_stop(daemon: "subprocess.Popen[bytes]", stop_daemon: Callabl
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(prog="sim-radios", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog="sim-radios", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--keep", action="store_true", help="leave the daemon up for the page until Ctrl+C")
     parser.add_argument("--data", metavar="FOLDER", help="the data folder (default: a new one under work/sim-radios/)")
     parser.add_argument("--command", metavar="PATH", help="the neoaprs command (default: this Python with -m neoaprs)")
-    parser.add_argument("--timeout", type=float, default=180.0, metavar="SEC", help="how long each wait may take; default %(default)s")
+    parser.add_argument(
+        "--timeout", type=float, default=180.0, metavar="SEC", help="how long each wait may take; default %(default)s"
+    )
     args = parser.parse_args()
     why = operators_folder(Path(args.data)) if args.data else ""
     if why:
-        print(f"sim-radios: refused: {why}; give a folder of its own (for example work/sim-radios/mine)", file=sys.stderr)
+        print(
+            f"sim-radios: refused: {why}; give a folder of its own (for example work/sim-radios/mine)", file=sys.stderr
+        )
         return 2
     try:
         asyncio.run(run(args))

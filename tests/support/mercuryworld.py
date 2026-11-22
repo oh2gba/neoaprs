@@ -28,7 +28,7 @@ class FmStation(FakeRadio):
         super().__init__()
         self.air = air
         self._decoder = kiss.KissDecoder()
-        self.frames_in: list[bytes] = []            # what this radio was given to send
+        self.frames_in: list[bytes] = []  # what this radio was given to send
 
     def heard_bytes(self, data: bytes) -> None:
         super().heard_bytes(data)
@@ -66,13 +66,33 @@ class World:
         self.stations: dict[str, Env] = {}
         remember_stop(self.air.aclose)
 
-    async def add(self, call: str, lat: float = HELSINKI[0], lon: float = HELSINKI[1], fm: bool = False, hf: bool = True, **settings: str) -> Env:
+    async def add(
+        self,
+        call: str,
+        lat: float = HELSINKI[0],
+        lon: float = HELSINKI[1],
+        fm: bool = False,
+        hf: bool = True,
+        **settings: str,
+    ) -> Env:
         """A station with this call at this place, on the HF air (and on the FM air with `fm`;
         `hf=False` for one with the FM radio alone), not yet started."""
         # No timed beacon unless a test asks for one: it would key in the middle of what the test
         # watches
-        rows = {"station/call": call, "station/lat": str(lat), "station/lon": str(lon), "beacon/interval_min": "0", "messages/alert": "false", **settings}
-        e = Env(self.dir / call.replace("-", "_"), radio=self.fm_air.station() if fm else False, hf=self.air.station() if hf else None, settings=rows)
+        rows = {
+            "station/call": call,
+            "station/lat": str(lat),
+            "station/lon": str(lon),
+            "beacon/interval_min": "0",
+            "messages/alert": "false",
+            **settings,
+        }
+        e = Env(
+            self.dir / call.replace("-", "_"),
+            radio=self.fm_air.station() if fm else False,
+            hf=self.air.station() if hf else None,
+            settings=rows,
+        )
         e.ctl.messaging.tick_sec = TICK_SEC
         e.ctl.messaging.pace.spacing_sec = 0.0
         # Our objects go at the test's pace too
@@ -88,14 +108,14 @@ class World:
             await e.start()
         for e in self.stations.values():
             if e.hf_radio is not None:
-                await until(lambda e=e: e.hf.usable and e.mercury.running)        # type: ignore[misc]
+                await until(lambda e=e: e.hf.usable and e.mercury.running)  # type: ignore[misc]
             if e.radio is not None:
-                await until(lambda e=e: e.tnc.usable)        # type: ignore[misc]
+                await until(lambda e=e: e.tnc.usable)  # type: ignore[misc]
 
     def pass_time(self, seconds: float) -> None:
         """Every station's clock moves on."""
         for e in self.stations.values():
-            e.now.advance(seconds)       # type: ignore[attr-defined]
+            e.now.advance(seconds)  # type: ignore[attr-defined]
 
     async def settled(self, call: str, timeout_sec: float = 15.0) -> None:
         """Wait until the station's HF radio is free and its retry ticker has seen it so.

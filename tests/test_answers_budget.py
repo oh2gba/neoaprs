@@ -1,6 +1,7 @@
 """Tests for the answer budget (neoaprs/services/answers.py): at most ANSWERS_PER_WINDOW frames in
 ANSWER_WINDOW_SEC for all askers together, and an answer is given whole or not at all.
 """
+
 import asyncio
 import logging
 
@@ -19,12 +20,16 @@ class Rig(ServiceRig):
     def __init__(self) -> None:
         super().__init__()
         self.budget = AnswerBudget(self.clock)
-        self.answers = Answers(pick_of(self), lambda: self.config, lambda call, attempt=None, radio=1: (), budget=self.budget)
+        self.answers = Answers(
+            pick_of(self), lambda: self.config, lambda call, attempt=None, radio=1: (), budget=self.budget
+        )
         remember_stop(self.answers.stop)
 
     def ask(self, asker: str, query: str = "objects", frames: int = 1, paced: bool = False) -> bool:
         """The station `asker` is answered with that many messages."""
-        return self.answers.deliver(asker, query, [self.answers.message(asker, f"answer {n}") for n in range(frames)], self.clock(), paced)
+        return self.answers.deliver(
+            asker, query, [self.answers.message(asker, f"answer {n}") for n in range(frames)], self.clock(), paced
+        )
 
 
 def test_the_budget_is_two_of_the_longest_honest_answers_in_a_minute() -> None:
@@ -67,7 +72,9 @@ async def test_a_paced_answer_is_counted_for_all_its_frames_when_it_starts() -> 
 def test_a_single_frame_sent_without_an_answer_counts_too_and_is_refused_when_the_budget_is_spent() -> None:
     rig = Rig()
     frame = rig.answers.message("OH2RDG", "general")
-    assert [rig.answers.send("OH2RDG", [frame]) for _ in range(ANSWERS_PER_WINDOW + 1)] == [True] * ANSWERS_PER_WINDOW + [False]
+    assert [rig.answers.send("OH2RDG", [frame]) for _ in range(ANSWERS_PER_WINDOW + 1)] == [
+        True
+    ] * ANSWERS_PER_WINDOW + [False]
 
 
 def test_two_services_that_share_a_budget_are_held_to_it_together() -> None:
@@ -110,7 +117,9 @@ def test_a_frame_of_a_paced_answer_counts_from_when_it_went_not_from_when_the_an
             share.went()
         share.close()
     clock.advance(15)
-    assert budget.take(1) is None, "the frames went at 45 s: a minute after the answers were taken they are still in the window"
+    assert budget.take(1) is None, (
+        "the frames went at 45 s: a minute after the answers were taken they are still in the window"
+    )
     clock.advance(45)
     assert budget.take(ANSWERS_PER_WINDOW) is not None
 

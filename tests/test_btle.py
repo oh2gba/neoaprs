@@ -1,6 +1,7 @@
 """Tests for the Bluetooth LE KISS port (neoaprs/btle.py) on a fake bleak and device
 (tests/support/fakeble.py): address and profile, service search, read, write, loss, missing library.
 """
+
 import asyncio
 import sys
 import threading
@@ -19,7 +20,19 @@ from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import KISS
 from tests.support.env import until
-from tests.support.fakeble import ADDRESS, KISS_SERVICE, MOBILINKD, MOBILINKD_NOTIFY, MOBILINKD_WRITE, NUS, NUS_NOTIFY, NUS_WRITE, UART_SERVICE, FakeBle, FakeBleakError
+from tests.support.fakeble import (
+    ADDRESS,
+    KISS_SERVICE,
+    MOBILINKD,
+    MOBILINKD_NOTIFY,
+    MOBILINKD_WRITE,
+    NUS,
+    NUS_NOTIFY,
+    NUS_WRITE,
+    UART_SERVICE,
+    FakeBle,
+    FakeBleakError,
+)
 
 URL = f"ble://{ADDRESS}"
 
@@ -37,14 +50,18 @@ def opened(url: str = URL, timeout: float = 0.2) -> BleSerial:
 
 # ---- the address and the profile
 
-@pytest.mark.parametrize("url,address,profile", [
-    ("ble://00:11:22:33:44:55", "00:11:22:33:44:55", None),
-    ("ble://aa:bb:cc:dd:ee:ff/", "AA:BB:CC:DD:EE:FF", None),
-    ("  BLE://AA-BB-CC-DD-EE-FF/nus ", "AA:BB:CC:DD:EE:FF", "nus"),
-    ("ble://AA:BB:CC:DD:EE:FF/Mobilinkd", "AA:BB:CC:DD:EE:FF", "mobilinkd"),
-    # (macOS gives a device a UUID in place of an address)
-    ("ble://6e6c9c1a-0e5d-4a3b-9d6c-0123456789ab", "6E6C9C1A-0E5D-4A3B-9D6C-0123456789AB", None),
-])
+
+@pytest.mark.parametrize(
+    "url,address,profile",
+    [
+        ("ble://00:11:22:33:44:55", "00:11:22:33:44:55", None),
+        ("ble://aa:bb:cc:dd:ee:ff/", "AA:BB:CC:DD:EE:FF", None),
+        ("  BLE://AA-BB-CC-DD-EE-FF/nus ", "AA:BB:CC:DD:EE:FF", "nus"),
+        ("ble://AA:BB:CC:DD:EE:FF/Mobilinkd", "AA:BB:CC:DD:EE:FF", "mobilinkd"),
+        # (macOS gives a device a UUID in place of an address)
+        ("ble://6e6c9c1a-0e5d-4a3b-9d6c-0123456789ab", "6E6C9C1A-0E5D-4A3B-9D6C-0123456789AB", None),
+    ],
+)
 def test_the_address_and_the_profile_of_a_port(url: str, address: str, profile: str | None) -> None:
     got_address, got_profile = parse_url(url)
     assert got_address == address and (got_profile.name if got_profile else None) == profile
@@ -52,11 +69,28 @@ def test_the_address_and_the_profile_of_a_port(url: str, address: str, profile: 
 
 def test_a_service_uuid_names_a_service_of_no_known_profile() -> None:
     long = profile_for("0000FFE0-0000-1000-8000-00805F9B34FB")
-    assert (long.name, long.service, long.write, long.notify) == ("custom", "0000ffe0-0000-1000-8000-00805f9b34fb", None, None)
+    assert (long.name, long.service, long.write, long.notify) == (
+        "custom",
+        "0000ffe0-0000-1000-8000-00805f9b34fb",
+        None,
+        None,
+    )
     assert profile_for("ffe0").service == long.service
 
 
-@pytest.mark.parametrize("url", ["ble://", "ble://AA:BB", "ble://AA:BB:CC:DD:EE:GG", "ble://AABBCCDDEEFF", "ble://AA:BB:CC:DD:EE:FF/nonsense", "ble://AA:BB:CC:DD:EE:FF/nus/2", "bt://AA:BB:CC:DD:EE:FF", "socket://h:1"])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "ble://",
+        "ble://AA:BB",
+        "ble://AA:BB:CC:DD:EE:GG",
+        "ble://AABBCCDDEEFF",
+        "ble://AA:BB:CC:DD:EE:FF/nonsense",
+        "ble://AA:BB:CC:DD:EE:FF/nus/2",
+        "bt://AA:BB:CC:DD:EE:FF",
+        "socket://h:1",
+    ],
+)
 def test_an_address_that_is_wrong_is_said_in_words(url: str) -> None:
     with pytest.raises(ValueError, match="ble://AA:BB:CC:DD:EE:FF|neither a BLE KISS profile"):
         parse_url(url)
@@ -70,8 +104,9 @@ def test_a_ble_port_is_a_url_without_a_speed_and_without_a_device_file() -> None
 
 # ---- the library that is not installed
 
+
 def test_without_bleak_the_open_says_which_extra_to_install(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setitem(sys.modules, "bleak", None)               # (an import of it fails)
+    monkeypatch.setitem(sys.modules, "bleak", None)  # (an import of it fails)
     with pytest.raises(OSError, match=r"pip install 'neoaprs\[ble\]'.*uv tool install 'neoaprs\[ble\]'"):
         btle.import_bleak()
     with pytest.raises(Exception, match=r"Could not open port ble://.*pip install 'neoaprs\[ble\]'"):
@@ -88,7 +123,7 @@ async def test_the_line_says_it_in_the_same_words(monkeypatch: pytest.MonkeyPatc
 def test_the_library_that_is_installed_has_what_the_port_asks_of_it(monkeypatch: pytest.MonkeyPatch) -> None:
     # (the guard's stand-in goes; the real library is only looked at, never scanned with)
     monkeypatch.delitem(sys.modules, "bleak")
-    bleak = pytest.importorskip("bleak")                          # (the extra `ble`)
+    bleak = pytest.importorskip("bleak")  # (the extra `ble`)
     assert callable(bleak.BleakScanner.find_device_by_address) and issubclass(bleak.BleakError, Exception)
     for name in ("connect", "disconnect", "start_notify", "write_gatt_char"):
         assert callable(getattr(bleak.BleakClient, name)), name
@@ -98,18 +133,26 @@ def test_the_library_that_is_installed_has_what_the_port_asks_of_it(monkeypatch:
 
 # ---- the profile search
 
-def test_the_kiss_service_is_found_and_listened_to_and_the_log_says_so(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+
+def test_the_kiss_service_is_found_and_listened_to_and_the_log_says_so(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level("INFO", logger="neoaprs.btle")
     ble = FakeBle(monkeypatch)
     ser = opened()
     try:
         assert ser.is_open and ble.notifying == MOBILINKD_NOTIFY and ble.scans == [ADDRESS] and ble.connects == 1
-        assert f"{ADDRESS}: connected, using the BLE KISS service of the Mobilinkd TNC3 and TNC4 and the aprs.fi apps (none was named)" in caplog.text
+        assert (
+            f"{ADDRESS}: connected, using the BLE KISS service of the Mobilinkd TNC3 and TNC4 and the aprs.fi apps (none was named)"
+            in caplog.text
+        )
     finally:
         ser.close()
 
 
-def test_the_nordic_uart_service_is_the_next_the_search_tries(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_the_nordic_uart_service_is_the_next_the_search_tries(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level("INFO", logger="neoaprs.btle")
     ble = FakeBle(monkeypatch, UART_SERVICE)
     ser = opened()
@@ -121,7 +164,9 @@ def test_the_nordic_uart_service_is_the_next_the_search_tries(monkeypatch: pytes
         ser.close()
 
 
-def test_a_device_with_both_services_is_used_by_the_first_profile_and_the_one_named_wins(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_device_with_both_services_is_used_by_the_first_profile_and_the_one_named_wins(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     ble = FakeBle(monkeypatch, {**UART_SERVICE, **KISS_SERVICE})
     ser = opened()
     assert ble.notifying == MOBILINKD_NOTIFY
@@ -135,15 +180,21 @@ def test_a_device_with_both_services_is_used_by_the_first_profile_and_the_one_na
 
 def test_a_profile_that_is_named_is_the_only_one_tried(monkeypatch: pytest.MonkeyPatch) -> None:
     ble = FakeBle(monkeypatch, KISS_SERVICE)
-    with pytest.raises(Exception, match=r"Could not open port .*nus.*no Nordic UART Service.*its services: 00000001-ba2a"):
+    with pytest.raises(
+        Exception, match=r"Could not open port .*nus.*no Nordic UART Service.*its services: 00000001-ba2a"
+    ):
         opened(f"{URL}/nus")
     assert ble.disconnects == 1 and ble.notifying is None, "(nothing is left connected)"
     assert ble_threads() == []
 
 
-def test_a_profile_whose_named_characteristics_cannot_do_their_part_is_used_by_what_they_can_do(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_profile_whose_named_characteristics_cannot_do_their_part_is_used_by_what_they_can_do(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     # (a CA2RXU LoRa Tracker: the Nordic UART's two the other way round)
-    ble = FakeBle(monkeypatch, {NUS: [(NUS_WRITE, ["read", "notify"]), (NUS_NOTIFY, ["write", "write-without-response"])]})
+    ble = FakeBle(
+        monkeypatch, {NUS: [(NUS_WRITE, ["read", "notify"]), (NUS_NOTIFY, ["write", "write-without-response"])]}
+    )
     ser = opened(URL + "/nus")
     try:
         assert ble.notifying == NUS_WRITE, "it listens to the one that notifies"
@@ -154,21 +205,34 @@ def test_a_profile_whose_named_characteristics_cannot_do_their_part_is_used_by_w
 
 
 def test_a_device_with_no_kiss_service_lists_what_it_has(monkeypatch: pytest.MonkeyPatch) -> None:
-    ble = FakeBle(monkeypatch, {"0000180f-0000-1000-8000-00805f9b34fb": [("00002a19-0000-1000-8000-00805f9b34fb", ["read", "notify"])]})
+    ble = FakeBle(
+        monkeypatch,
+        {"0000180f-0000-1000-8000-00805f9b34fb": [("00002a19-0000-1000-8000-00805f9b34fb", ["read", "notify"])]},
+    )
     with pytest.raises(Exception, match=r"no BLE KISS service.*its services: 0000180f"):
         opened()
     assert ble.disconnects == 1
 
 
-def test_a_service_named_by_its_uuid_is_used_by_what_its_characteristics_can_do(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_service_named_by_its_uuid_is_used_by_what_its_characteristics_can_do(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     # (an HM-10 module: one characteristic for both ways)
-    uart = {"0000ffe0-0000-1000-8000-00805f9b34fb": [("0000ffe1-0000-1000-8000-00805f9b34fb", ["read", "write-without-response", "notify"])]}
+    uart = {
+        "0000ffe0-0000-1000-8000-00805f9b34fb": [
+            ("0000ffe1-0000-1000-8000-00805f9b34fb", ["read", "write-without-response", "notify"])
+        ]
+    }
     ble = FakeBle(monkeypatch, uart)
     ser = opened(f"{URL}/ffe0")
     try:
         ser.write(b"hi")
         ble.feed(b"there")
-        assert ser.read(5) == b"there" and ble.writes == [(b"hi", False)] and ble.notifying == "0000ffe1-0000-1000-8000-00805f9b34fb"
+        assert (
+            ser.read(5) == b"there"
+            and ble.writes == [(b"hi", False)]
+            and ble.notifying == "0000ffe1-0000-1000-8000-00805f9b34fb"
+        )
     finally:
         ser.close()
 
@@ -182,10 +246,14 @@ def test_a_service_of_a_profile_without_its_characteristics_is_not_taken(monkeyp
 
 # ---- open
 
+
 def test_a_device_the_scan_does_not_find_is_out_of_reach(monkeypatch: pytest.MonkeyPatch) -> None:
     ble = FakeBle(monkeypatch)
     ble.seen = False
-    with pytest.raises(Exception, match=r"Could not open port ble://.*does not answer \(is it switched on, in range and not connected to a phone\?\)"):
+    with pytest.raises(
+        Exception,
+        match=r"Could not open port ble://.*does not answer \(is it switched on, in range and not connected to a phone\?\)",
+    ):
         opened()
     assert ble.connects == 0 and ble_threads() == []
 
@@ -215,6 +283,7 @@ def test_a_port_is_opened_once_and_needs_a_name(monkeypatch: pytest.MonkeyPatch)
 
 # ---- read
 
+
 def test_what_the_device_notifies_is_read_in_the_order_it_came(monkeypatch: pytest.MonkeyPatch) -> None:
     ble = FakeBle(monkeypatch)
     ser = opened()
@@ -225,7 +294,9 @@ def test_what_the_device_notifies_is_read_in_the_order_it_came(monkeypatch: pyte
         while ser.in_waiting < 6 and time.monotonic() < deadline:
             time.sleep(0.01)
         assert ser.in_waiting == 6
-        assert ser.read(4) == b"abcd" and ser.in_waiting == 2 and ser.read(10) == b"ef", "(read ends with the time, not with the size)"
+        assert ser.read(4) == b"abcd" and ser.in_waiting == 2 and ser.read(10) == b"ef", (
+            "(read ends with the time, not with the size)"
+        )
     finally:
         ser.close()
 
@@ -235,14 +306,18 @@ def test_a_read_waits_for_the_timeout_and_returns_what_there_is(monkeypatch: pyt
     ser = opened(timeout=0.15)
     try:
         started = time.monotonic()
-        assert ser.read(1) == b"" and 0.1 <= time.monotonic() - started, "(it waited: a read that gave up early would be no timeout)"
+        assert ser.read(1) == b"" and 0.1 <= time.monotonic() - started, (
+            "(it waited: a read that gave up early would be no timeout)"
+        )
     finally:
         ser.close()
     ser = opened(timeout=120.0)
     try:
         ser.timeout = 0
         started = time.monotonic()
-        assert ser.read(1) == b"" and time.monotonic() - started < 30.0, "(no timeout: no wait, where the one it had was two minutes)"
+        assert ser.read(1) == b"" and time.monotonic() - started < 30.0, (
+            "(no timeout: no wait, where the one it had was two minutes)"
+        )
     finally:
         ser.close()
 
@@ -253,7 +328,9 @@ def test_a_read_returns_as_soon_as_the_bytes_are_there(monkeypatch: pytest.Monke
     try:
         threading.Timer(0.05, ble.feed, args=(b"xy",)).start()
         started = time.monotonic()
-        assert ser.read(2) == b"xy" and time.monotonic() - started < 60.0, "(it did not wait out its timeout of five minutes)"
+        assert ser.read(2) == b"xy" and time.monotonic() - started < 60.0, (
+            "(it did not wait out its timeout of five minutes)"
+        )
     finally:
         ser.close()
 
@@ -264,14 +341,19 @@ def test_cancel_read_ends_a_read_that_is_waiting(monkeypatch: pytest.MonkeyPatch
     try:
         threading.Timer(0.05, ser.cancel_read).start()
         started = time.monotonic()
-        assert ser.read(1) == b"" and time.monotonic() - started < 60.0, "(it did not wait out its timeout of five minutes)"
+        assert ser.read(1) == b"" and time.monotonic() - started < 60.0, (
+            "(it did not wait out its timeout of five minutes)"
+        )
     finally:
         ser.close()
 
 
 # ---- write
 
-def test_a_write_is_cut_to_what_the_link_takes_and_is_without_a_response_where_the_characteristic_allows(monkeypatch: pytest.MonkeyPatch) -> None:
+
+def test_a_write_is_cut_to_what_the_link_takes_and_is_without_a_response_where_the_characteristic_allows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     ble = FakeBle(monkeypatch, chunk=20)
     ser = opened()
     try:
@@ -287,7 +369,9 @@ def test_a_write_is_cut_to_what_the_link_takes_and_is_without_a_response_where_t
         ser.close()
 
 
-def test_a_characteristic_that_wants_a_response_is_written_with_one_in_pieces_of_the_mtu(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_characteristic_that_wants_a_response_is_written_with_one_in_pieces_of_the_mtu(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     ble = FakeBle(monkeypatch, {MOBILINKD: [(MOBILINKD_WRITE, ["write"]), (MOBILINKD_NOTIFY, ["notify"])]}, mtu=247)
     ser = opened()
     try:
@@ -330,6 +414,7 @@ def test_a_write_that_fails_is_an_error_and_the_link_is_lost(monkeypatch: pytest
 
 # ---- the link is lost
 
+
 def test_a_device_that_goes_away_raises_in_the_read_after_what_it_sent_is_read(monkeypatch: pytest.MonkeyPatch) -> None:
     ble = FakeBle(monkeypatch)
     ser = opened(timeout=5.0)
@@ -358,6 +443,7 @@ def test_closing_disconnects_and_ends_the_thread_and_a_closed_port_raises(monkey
 
 
 # ---- as the line of the TNC
+
 
 async def test_the_line_carries_kiss_both_ways(monkeypatch: pytest.MonkeyPatch) -> None:
     ble = FakeBle(monkeypatch)
@@ -408,16 +494,25 @@ async def test_the_tnc_opens_a_ble_port_again_when_the_radio_comes_back(monkeypa
         assert tnc.state is Source.State.CONNECTED and tnc.stats.opens == 1
         # (a BLE link has no speed)
         assert "9600" not in tnc.describe() and tnc.describe().startswith(f"{URL},")
-        ble.feed(encode(ax25.encode(ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA-7"), (), info=b"!6010.00N/02456.00E>hi")), port=0))
+        ble.feed(
+            encode(
+                ax25.encode(
+                    ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA-7"), (), info=b"!6010.00N/02456.00E>hi")
+                ),
+                port=0,
+            )
+        )
         await until(lambda: tnc.stats.frames_in == 1)
-        ble.seen = False                                                 # switched off
+        ble.seen = False  # switched off
         ble.drop()
         await until(lambda: tnc.state is Source.State.WAITING)
         assert tnc.last_error and "lost" in tnc.last_error
         await until(lambda: len(ble.scans) >= 3 and "does not answer" in tnc.problem)
-        ble.seen = True                                                  # switched on, in range
+        ble.seen = True  # switched on, in range
         await until(lambda: tnc.state is Source.State.CONNECTED and tnc.stats.opens == 2)
-        raw = ax25.encode(ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA-7"), (), info=b"!6010.00N/02456.00E>back"))
+        raw = ax25.encode(
+            ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA-7"), (), info=b"!6010.00N/02456.00E>back")
+        )
         assert await tnc.send(raw) is True
         await until(lambda: b"".join(w for w, _ in ble.writes).endswith(encode(raw, port=0)))
     finally:
@@ -428,6 +523,7 @@ async def test_the_tnc_opens_a_ble_port_again_when_the_radio_comes_back(monkeypa
 
 # ---- the edges: a device that does not let go, a write that is cancelled, the calls of a serial
 # port that a BLE link has nothing to do for
+
 
 def wait_for(condition: Callable[[], object], seconds: float = 5.0) -> None:
     deadline = time.monotonic() + seconds
@@ -452,9 +548,11 @@ def test_a_loop_that_is_stopped_twice_says_nothing_and_what_it_still_ran_is_canc
     assert never.cancelled()
 
 
-def test_a_device_that_cannot_be_disconnected_after_a_failed_open_is_told_and_the_open_fails_with_the_first_reason(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_a_device_that_cannot_be_disconnected_after_a_failed_open_is_told_and_the_open_fails_with_the_first_reason(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level("INFO", logger="neoaprs.btle")
-    ble = FakeBle(monkeypatch, {})                                  # (a device with no service at all)
+    ble = FakeBle(monkeypatch, {})  # (a device with no service at all)
     ble.disconnect_error = FakeBleakError("already gone")
     with pytest.raises(Exception, match="no BLE KISS service"):
         opened()
@@ -490,13 +588,15 @@ def test_a_write_that_is_cancelled_is_an_error_and_the_next_write_works(monkeypa
         assert len(failed) == 1 and "the write was cancelled" in str(failed[0])
         ble.hold_writes = False
         assert ser.write(b"y") == 1 and ble.writes[-1][0] == b"y"
-        ser.cancel_write()                                       # (nothing is being written: nothing to cancel)
+        ser.cancel_write()  # (nothing is being written: nothing to cancel)
     finally:
         ble.hold_writes = False
         ser.close()
 
 
-def test_the_calls_a_serial_port_has_and_a_ble_link_does_not_need_do_nothing_or_clear_what_they_can(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_calls_a_serial_port_has_and_a_ble_link_does_not_need_do_nothing_or_clear_what_they_can(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     FakeBle(monkeypatch)
     ser = opened()
     try:
@@ -506,14 +606,16 @@ def test_the_calls_a_serial_port_has_and_a_ble_link_does_not_need_do_nothing_or_
         assert ser.in_waiting == 0
         ser.reset_output_buffer()
         ser.flush()
-        ser.dtr, ser.rts = True, True                            # (no control lines to hold)
+        ser.dtr, ser.rts = True, True  # (no control lines to hold)
         ser.baudrate = 115200
         assert ser.is_open
     finally:
         ser.close()
 
 
-def test_a_device_that_does_not_let_go_at_the_close_is_told_and_the_port_is_closed_all_the_same(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_a_device_that_does_not_let_go_at_the_close_is_told_and_the_port_is_closed_all_the_same(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level("INFO", logger="neoaprs.btle")
     ble = FakeBle(monkeypatch)
     ser = opened()

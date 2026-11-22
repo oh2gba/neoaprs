@@ -2,6 +2,7 @@
 
 `hold` supplies the carrier sense the modem lacks: no frame goes while keyed or busy.
 """
+
 import logging
 import math
 import time
@@ -108,9 +109,13 @@ class Channel:
             self._told_long.discard("busy")
         elif not on and self.busy:
             held = now - self._busy_since
-            log.info("Mercury: the channel was busy for %.1f s%s%s", held, how, f" (our frames were held for the first {BUSY_HOLD_MAX_SEC:g} s)" if held > BUSY_HOLD_MAX_SEC else "")
+            log.info(
+                "Mercury: the channel was busy for %.1f s%s%s",
+                held,
+                how,
+                f" (our frames were held for the first {BUSY_HOLD_MAX_SEC:g} s)" if held > BUSY_HOLD_MAX_SEC else "",
+            )
         self.busy, self._busy_at = on, now
-
 
     def hold(self) -> str:
         """Return why no frame may go now (keyed, or recently busy), or ""."""
@@ -129,8 +134,11 @@ class Channel:
         """Log once per state that a keyed or busy state outlasted the hold."""
         if self.keyed and "keyed" not in self._told_long:
             self._told_long.add("keyed")
-            log.warning("Mercury: PTT ON and no PTT OFF for over %g s: not believed, frames are sent again", KEYED_MAX_SEC)
+            log.warning(
+                "Mercury: PTT ON and no PTT OFF for over %g s: not believed, frames are sent again", KEYED_MAX_SEC
+            )
         if self.busy and "busy" not in self._told_long:
             self._told_long.add("busy")
-            log.warning("Mercury: the channel has been busy for over %g s: it no longer holds our frames", BUSY_HOLD_MAX_SEC)
-
+            log.warning(
+                "Mercury: the channel has been busy for over %g s: it no longer holds our frames", BUSY_HOLD_MAX_SEC
+            )

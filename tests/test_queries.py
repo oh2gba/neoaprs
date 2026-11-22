@@ -2,6 +2,7 @@
 held clock: each query gives the frame it should by the asker's path, and the general query is taken
 once in ten minutes.
 """
+
 import logging
 from datetime import timedelta
 
@@ -13,7 +14,14 @@ from neoaprs.packet import Message, Other, Packet, Status
 from neoaprs.services.beacon import Beacon, BeaconError
 from neoaprs.message import MessageRecord
 from neoaprs.ownobject import make_object
-from neoaprs.services.queries import ANSWER_FRAMES_MAX, GENERAL_DELAY_MAX_SEC, GENERAL_EVERY_SEC, Queries, directs_messages, path_text
+from neoaprs.services.queries import (
+    ANSWER_FRAMES_MAX,
+    GENERAL_DELAY_MAX_SEC,
+    GENERAL_EVERY_SEC,
+    Queries,
+    directs_messages,
+    path_text,
+)
 from neoaprs.source import Source
 from neoaprs.stationbook import StationBook
 from tests.support.clock import FixedClock
@@ -28,16 +36,35 @@ class Rig(ServiceRig):
         self.book = StationBook(self.clock)
         self.book.set_me(self.config.station_call, self.config.station_lat, self.config.station_lon)
         self.paths: dict[str, tuple[str, ...]] = {}
-        self.status_text = ""                                          # what the status service says it sent last
+        self.status_text = ""  # what the status service says it sent last
         self.beacon = Beacon(self.tnc, lambda: self.config, self.clock)
-        self.q = Queries(pick_of(self), lambda: self.config, self.beacon, lambda radio=None: self.beacon.status_frame(self.status_text, radio), self.book, lambda call, attempt=None, radio=1: self.paths.get(call, self.config.beacon_path_calls), self.clock, delay=lambda: delay)
+        self.q = Queries(
+            pick_of(self),
+            lambda: self.config,
+            self.beacon,
+            lambda radio=None: self.beacon.status_frame(self.status_text, radio),
+            self.book,
+            lambda call, attempt=None, radio=1: self.paths.get(call, self.config.beacon_path_calls),
+            self.clock,
+            delay=lambda: delay,
+        )
         remember_stop(self.q.stop)
 
-    def packet(self, source: str, decoded: object, path: tuple[str, ...] = ("OH2RCH-2*",), direction: str = "in", destination: str = "APZNEO", third: object = None) -> Packet:
-        return Packet(self.clock(), direction, b"", source, destination, path, b"", decoded, third, "rf-gated" if third else "rf")    # type: ignore[arg-type]
+    def packet(
+        self,
+        source: str,
+        decoded: object,
+        path: tuple[str, ...] = ("OH2RCH-2*",),
+        direction: str = "in",
+        destination: str = "APZNEO",
+        third: object = None,
+    ) -> Packet:
+        return Packet(
+            self.clock(), direction, b"", source, destination, path, b"", decoded, third, "rf-gated" if third else "rf"
+        )  # type: ignore[arg-type]
 
     def ask(self, source: str, text: str, to: str = "OH2GBA", msg_id: str | None = None, **kwargs: object) -> None:
-        self.q.on_packet(self.packet(source, Message(to, text, msg_id), **kwargs))      # type: ignore[arg-type]
+        self.q.on_packet(self.packet(source, Message(to, text, msg_id), **kwargs))  # type: ignore[arg-type]
 
     def hear_direct(self, call: str, seconds_ago: float = 0.0) -> None:
         """The station was heard direct that long ago (the clock is put back for the moment)."""
@@ -54,11 +81,14 @@ class Rig(ServiceRig):
 
 # ---- the position and the status -----------------------------------------------------------------
 
+
 @pytest.mark.parametrize("to", ["OH2GBA", "oh2gba"])
 def test_aprsp_is_answered_with_the_beacons_position_frame_by_the_beacon_path(to: str) -> None:
     rig = Rig()
     rig.ask("OH2RDG", "?APRSP", to=to)
-    assert rig.tnc.sent == [rig.beacon.frame()] and rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS"]
+    assert rig.tnc.sent == [rig.beacon.frame()] and rig.tnc.lines() == [
+        "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS"
+    ]
 
 
 def test_the_answer_goes_by_the_path_of_the_asker_and_a_direct_one_has_none() -> None:
@@ -90,6 +120,7 @@ def test_a_query_is_read_without_regard_to_case_or_blanks_and_is_ours_only_with_
 
 
 # ---- the directs ---------------------------------------------------------------------------------
+
 
 def test_aprsd_lists_the_calls_heard_direct_in_the_last_hour_the_one_heard_last_first() -> None:
     rig = Rig()
@@ -128,7 +159,7 @@ def test_aprsd_is_split_over_two_messages_of_at_most_67_bytes_and_the_rest_is_le
 def test_directs_messages_fill_a_message_before_starting_the_next() -> None:
     assert directs_messages([]) == ["Directs= none"]
     assert directs_messages(["A", "B"]) == ["Directs= A B"]
-    long = [f"OH2AB{n}-1" for n in range(10)]                                          # 9 characters and a blank each
+    long = [f"OH2AB{n}-1" for n in range(10)]  # 9 characters and a blank each
     texts = directs_messages(long)
     assert len(texts) == 2 and all(len(t) <= MAX_TEXT for t in texts) and texts[0].count("OH2") == 6
     assert len(directs_messages([f"OH2AB{n % 10}-1" for n in range(100)])) == 2
@@ -136,24 +167,37 @@ def test_directs_messages_fill_a_message_before_starting_the_next() -> None:
 
 # ---- the path ------------------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("query", ["?APRST", "?PING?", "?ping?"])
 def test_aprst_and_ping_are_answered_with_the_header_of_the_query_as_we_heard_it(query: str) -> None:
     rig = Rig()
     rig.ask("OH2RDG", query, path=("WIDE1*", "OH2RCH-2*", "WIDE2-1"), destination="APZNEO")
     [frame] = rig.tnc.sent
-    assert rig.message_of(frame) == ("OH2RDG", "OH2RDG>APZNEO,WIDE1*,OH2RCH-2*,WIDE2-1:", None), "the header as the specification's example has it, no Path= in front"
+    assert rig.message_of(frame) == ("OH2RDG", "OH2RDG>APZNEO,WIDE1*,OH2RCH-2*,WIDE2-1:", None), (
+        "the header as the specification's example has it, no Path= in front"
+    )
 
 
 def test_the_path_of_a_direct_query_is_just_the_header_and_a_long_one_loses_its_last_digipeaters() -> None:
     rig = Rig()
     rig.ask("OH2RDG", "?APRST", path=())
     assert rig.message_of(rig.tnc.sent[0])[1] == "OH2RDG>APZNEO:"
-    long = rig.packet("OH2RDG-15", Message("OH2GBA", "?APRST"), path=("OH2RCH-12*", "OH2RCH-13*", "OH2RCH-14*", "OH2RCH-15*", "WIDE2-2", "WIDE3-3"))
+    long = rig.packet(
+        "OH2RDG-15",
+        Message("OH2GBA", "?APRST"),
+        path=("OH2RCH-12*", "OH2RCH-13*", "OH2RCH-14*", "OH2RCH-15*", "WIDE2-2", "WIDE3-3"),
+    )
     text = path_text(long)
-    assert len(text.encode()) <= MAX_TEXT and text.startswith("OH2RDG-15>APZNEO,OH2RCH-12*,OH2RCH-13*") and text.endswith(":") and "WIDE3-3" not in text
+    assert (
+        len(text.encode()) <= MAX_TEXT
+        and text.startswith("OH2RDG-15>APZNEO,OH2RCH-12*,OH2RCH-13*")
+        and text.endswith(":")
+        and "WIDE3-3" not in text
+    )
 
 
 # ---- what a query carries ------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("query", ["?APRSD?", "?APRSP?"])
 def test_a_directed_query_with_a_question_mark_at_its_end_is_answered_like_the_plain_one(query: str) -> None:
@@ -184,7 +228,19 @@ def test_the_same_query_from_the_same_station_within_half_a_minute_is_answered_o
     assert len(rig.tnc.sent) == 3
 
 
-@pytest.mark.parametrize("text, to", [("?APRSP", "OH2XYZ"), ("?APRSPX", "OH2GBA"), ("hello ?APRSP", "OH2GBA"), ("APRSP", "OH2GBA"), ("", "OH2GBA"), ("?APRS", "OH2GBA"), ("?APRSD??", "OH2GBA"), ("?APRSH?", "OH2GBA")])
+@pytest.mark.parametrize(
+    "text, to",
+    [
+        ("?APRSP", "OH2XYZ"),
+        ("?APRSPX", "OH2GBA"),
+        ("hello ?APRSP", "OH2GBA"),
+        ("APRSP", "OH2GBA"),
+        ("", "OH2GBA"),
+        ("?APRS", "OH2GBA"),
+        ("?APRSD??", "OH2GBA"),
+        ("?APRSH?", "OH2GBA"),
+    ],
+)
 def test_what_is_not_a_query_to_us_is_left_alone(text: str, to: str) -> None:
     rig = Rig()
     rig.ask("OH2RDG", text, to=to)
@@ -202,11 +258,14 @@ def test_an_ack_a_reject_our_own_echo_and_a_packet_we_sent_are_not_queries() -> 
 
 def test_the_asker_of_a_third_party_query_is_the_sender_inside() -> None:
     from neoaprs.packet import ThirdParty
+
     rig = Rig()
     rig.ask("OH7JHF-1", "?APRSD", third=ThirdParty("OH2DPN", "APRS", ("TCPIP",)), path=("OH2RCH-3*",))
     assert rig.message_of(rig.tnc.sent[0])[0] == "OH2DPN"
     rig.ask("OH7JHF-1", "?APRST", third=ThirdParty("OH2DPN", "APRS", ("TCPIP",)), path=("OH2RCH-3*",))
-    assert rig.message_of(rig.tnc.sent[1]) == ("OH2DPN", "OH7JHF-1>APZNEO,OH2RCH-3*:", None), "the path of the frame we heard"
+    assert rig.message_of(rig.tnc.sent[1]) == ("OH2DPN", "OH7JHF-1>APZNEO,OH2RCH-3*:", None), (
+        "the path of the frame we heard"
+    )
 
 
 def test_nothing_is_sent_while_the_tnc_is_not_connected_and_the_log_says_so(caplog: pytest.LogCaptureFixture) -> None:
@@ -235,6 +294,7 @@ def test_a_tnc_that_will_not_take_the_frame_is_told(caplog: pytest.LogCaptureFix
 
 # ---- the general query ---------------------------------------------------------------------------
 
+
 def general(rig: Rig, source: str = "OH2RDG", text: str = "?APRS?") -> None:
     rig.q.on_packet(rig.packet(source, Other("query", text)))
 
@@ -247,14 +307,18 @@ async def test_the_general_query_in_a_message_is_not_answered_whoever_it_is_addr
     assert rig.tnc.sent == []
 
 
-async def test_the_general_query_in_the_information_field_of_a_packet_is_answered_with_the_position_and_then_the_status_by_the_path_of_the_asker() -> None:
+async def test_the_general_query_in_the_information_field_of_a_packet_is_answered_with_the_position_and_then_the_status_by_the_path_of_the_asker() -> (
+    None
+):
     rig = Rig(delay=0.05)
     rig.status_text = "QRV 145.500"
     rig.paths["OH2RDG"] = ("OH2RCH-2",)
     general(rig)
     assert rig.tnc.sent == []
     await until(lambda: len(rig.tnc.sent) == 2)
-    assert [f.info for f in rig.tnc.sent] == [rig.beacon.frame().info, b">211200zQRV 145.500"] and {f.path_text for f in rig.tnc.sent} == {"OH2RCH-2"}
+    assert [f.info for f in rig.tnc.sent] == [rig.beacon.frame().info, b">211200zQRV 145.500"] and {
+        f.path_text for f in rig.tnc.sent
+    } == {"OH2RCH-2"}
 
 
 async def test_the_general_query_gives_the_position_alone_while_no_status_has_been_sent() -> None:
@@ -281,11 +345,24 @@ async def test_the_general_query_is_taken_once_in_ten_minutes() -> None:
     await until(lambda: len(rig.tnc.sent) == 2)
 
 
-@pytest.mark.parametrize("text, inside", [
-    ("?APRS?V60.17,24.94,0010", True), ("?APRS? 60.17,24.94,0010", True), ("?APRS?V60.17,24.94,0000", True), ("?APRS?V60.5,24.94,0030", True), ("?APRS?V60.5,24.94,0020", False),
-    ("?APRS?V34.02,-117.15,0200", False), ("?APRS?V60.17,-24.94,1000", False), ("?APRS?V60.17,-24.94,2000", True), ("?APRS?V-33.87,151.21,0100", False), ("?APRS?V60.17,24.94,0010 ", True), ("?aprs?V60.17,24.94,0010", True)])
+@pytest.mark.parametrize(
+    "text, inside",
+    [
+        ("?APRS?V60.17,24.94,0010", True),
+        ("?APRS? 60.17,24.94,0010", True),
+        ("?APRS?V60.17,24.94,0000", True),
+        ("?APRS?V60.5,24.94,0030", True),
+        ("?APRS?V60.5,24.94,0020", False),
+        ("?APRS?V34.02,-117.15,0200", False),
+        ("?APRS?V60.17,-24.94,1000", False),
+        ("?APRS?V60.17,-24.94,2000", True),
+        ("?APRS?V-33.87,151.21,0100", False),
+        ("?APRS?V60.17,24.94,0010 ", True),
+        ("?aprs?V60.17,24.94,0010", True),
+    ],
+)
 async def test_a_footprint_is_honoured_we_answer_only_from_inside_it(text: str, inside: bool) -> None:
-    rig = Rig()                                          # (we are at 60.17 N 24.94 E)
+    rig = Rig()  # (we are at 60.17 N 24.94 E)
     general(rig, text=text)
     if inside:
         await until(lambda: len(rig.tnc.sent) == 1)
@@ -295,8 +372,8 @@ async def test_a_footprint_is_honoured_we_answer_only_from_inside_it(text: str, 
 
 
 async def test_a_footprint_is_tested_against_where_a_moving_station_is_not_against_the_home_it_left() -> None:
-    rig = Rig()                                          # (the home of the settings is 60.17 N 24.94 E)
-    rig.book.set_me("OH2GBA", 34.02, -117.15)           # (the GPS fix: the station book's row follows it)
+    rig = Rig()  # (the home of the settings is 60.17 N 24.94 E)
+    rig.book.set_me("OH2GBA", 34.02, -117.15)  # (the GPS fix: the station book's row follows it)
     general(rig, "OH2RDG", text="?APRS?V60.17,24.94,0010")
     await idle_for(0.1)
     assert rig.tnc.sent == [], "the footprint round the old home is not ours"
@@ -318,14 +395,25 @@ async def test_a_status_that_cannot_be_made_does_not_take_the_position_with_it()
     def broken(radio: object = None) -> ax25.Frame | None:
         raise BeaconError("the status is too long")
 
-    rig.q = Queries(pick_of(rig), lambda: rig.config, rig.beacon, broken, rig.book, lambda call, attempt=None, radio=1: rig.config.beacon_path_calls, rig.clock, delay=lambda: 0.0)
+    rig.q = Queries(
+        pick_of(rig),
+        lambda: rig.config,
+        rig.beacon,
+        broken,
+        rig.book,
+        lambda call, attempt=None, radio=1: rig.config.beacon_path_calls,
+        rig.clock,
+        delay=lambda: 0.0,
+    )
     remember_stop(rig.q.stop)
     general(rig)
     await until(lambda: len(rig.tnc.sent) == 1)
     assert rig.tnc.sent == [rig.beacon.frame()]
 
 
-async def test_a_footprint_that_does_not_read_is_not_answered_and_a_query_outside_the_footprint_does_not_start_the_ten_minutes() -> None:
+async def test_a_footprint_that_does_not_read_is_not_answered_and_a_query_outside_the_footprint_does_not_start_the_ten_minutes() -> (
+    None
+):
     rig = Rig()
     for text in ("?APRS?V60.17,24.94", "?APRS?V95.0,24.94,0010", "?APRS?x", "?APRS?V60.17,24.94,00100"):
         general(rig, text=text)
@@ -361,8 +449,10 @@ async def test_a_general_query_heard_while_the_tnc_is_away_gives_no_answer_when_
 
 # ---- ?APRSO and ?APRSM: several frames, one at a time --------------------------------------------
 
+
 class Held:
     """A service that holds records (our objects, our messages), for the queries to read."""
+
     def __init__(self, records: list[object]) -> None:
         self.held = records
 
@@ -372,8 +462,18 @@ class Held:
 
 def paced_rig(objects: tuple[object, ...] = (), messages: tuple[object, ...] = ()) -> Rig:
     rig = Rig()
-    rig.q = Queries(pick_of(rig), lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call, attempt=None, radio=1: rig.config.beacon_path_calls, rig.clock,
-                    objects=Held(list(objects)), messages=Held(list(messages)), spacing_sec=0.05)                     # type: ignore[arg-type]
+    rig.q = Queries(
+        pick_of(rig),
+        lambda: rig.config,
+        rig.beacon,
+        lambda radio=None: None,
+        rig.book,
+        lambda call, attempt=None, radio=1: rig.config.beacon_path_calls,
+        rig.clock,
+        objects=Held(list(objects)),
+        messages=Held(list(messages)),
+        spacing_sec=0.05,
+    )  # type: ignore[arg-type]
     remember_stop(rig.q.stop)
     return rig
 
@@ -388,7 +488,11 @@ async def test_aprso_is_answered_with_each_live_object_and_item_once_one_at_a_ti
     await until(lambda: len(rig.tnc.sent) == ANSWER_FRAMES_MAX)
     await idle_for(0.2)
     infos = [f.info for f in rig.tnc.sent]
-    assert len(infos) == ANSWER_FRAMES_MAX and infos[0].startswith(b")AID!") and all(i.startswith(b";OBJ") and i[10:11] == b"*" for i in infos[1:]), "a killed object is not sent"
+    assert (
+        len(infos) == ANSWER_FRAMES_MAX
+        and infos[0].startswith(b")AID!")
+        and all(i.startswith(b";OBJ") and i[10:11] == b"*" for i in infos[1:])
+    ), "a killed object is not sent"
     assert {f.path_text for f in rig.tnc.sent} == {"WIDE1-1,WIDE2-1"}
     rig.ask("OH2RDG", "?APRSO")
     await idle_for(0.1)
@@ -397,23 +501,57 @@ async def test_aprso_is_answered_with_each_live_object_and_item_once_one_at_a_ti
 
 async def test_aprsm_sends_again_our_messages_to_the_asker_that_no_ack_settled_and_changes_nothing() -> None:
     at = FixedClock()()
-    rows = [("OH2RDG", "one", "01", "sending"), ("OH2RDG", "two", "02", "acked"), ("OH2RDG", "three", "03", "failed"), ("OH2XYZ", "other", "04", "sending"),
-            ("OH2RDG", "four", "05", "unconfirmed"), ("OH2RDG", "?APRSP", None, "unconfirmed"), ("OH2RDG", "five", "06", "rejected")]
-    messages = [MessageRecord(n, at, "out", "OH2GBA", to, text, ident, state) for n, (to, text, ident, state) in enumerate(rows, start=1)]       # type: ignore[arg-type]
+    rows = [
+        ("OH2RDG", "one", "01", "sending"),
+        ("OH2RDG", "two", "02", "acked"),
+        ("OH2RDG", "three", "03", "failed"),
+        ("OH2XYZ", "other", "04", "sending"),
+        ("OH2RDG", "four", "05", "unconfirmed"),
+        ("OH2RDG", "?APRSP", None, "unconfirmed"),
+        ("OH2RDG", "five", "06", "rejected"),
+    ]
+    messages = [
+        MessageRecord(n, at, "out", "OH2GBA", to, text, ident, state)
+        for n, (to, text, ident, state) in enumerate(rows, start=1)
+    ]  # type: ignore[arg-type]
     messages.append(MessageRecord(9, at, "in", "OH2RDG", "OH2GBA", "theirs", "07", "received"))
     rig = paced_rig(messages=tuple(messages))
     rig.ask("OH2RDG", "?APRSM")
     await until(lambda: len(rig.tnc.sent) == 3)
     await idle_for(0.2)
-    assert [rig.message_of(f) for f in rig.tnc.sent] == [("OH2RDG", "one", "01"), ("OH2RDG", "three", "03"), ("OH2RDG", "four", "05")]
-    assert rig.tnc.sent[0].info == b":OH2RDG   :one{01}" and [m.state for m in messages] == ["sending", "acked", "failed", "sending", "unconfirmed", "unconfirmed", "rejected", "received"]
+    assert [rig.message_of(f) for f in rig.tnc.sent] == [
+        ("OH2RDG", "one", "01"),
+        ("OH2RDG", "three", "03"),
+        ("OH2RDG", "four", "05"),
+    ]
+    assert rig.tnc.sent[0].info == b":OH2RDG   :one{01}" and [m.state for m in messages] == [
+        "sending",
+        "acked",
+        "failed",
+        "sending",
+        "unconfirmed",
+        "unconfirmed",
+        "rejected",
+        "received",
+    ]
     rig.ask("OH2NEW", "?APRSM")
     await idle_for(0.1)
     assert len(rig.tnc.sent) == 3, "nothing is owed to a station we never wrote to: no answer"
 
 
 async def test_aprsm_sends_a_sealed_message_as_it_went_on_the_air_never_its_plaintext() -> None:
-    sealed = MessageRecord(1, FixedClock()(), "out", "OH2GBA", "OH2RDG", "meet at 5 behind the shed", "01", "sending", seal="open", wire="!Eabcdefciphertextxyz")
+    sealed = MessageRecord(
+        1,
+        FixedClock()(),
+        "out",
+        "OH2GBA",
+        "OH2RDG",
+        "meet at 5 behind the shed",
+        "01",
+        "sending",
+        seal="open",
+        wire="!Eabcdefciphertextxyz",
+    )
     rig = paced_rig(messages=(sealed,))
     rig.ask("OH2RDG", "?APRSM")
     await until(lambda: len(rig.tnc.sent) == 1)

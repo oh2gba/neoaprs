@@ -3,6 +3,7 @@
 Never repeated: our own packets, internet packets and duplicates. Nothing goes while the
 interlock refuses or the radio is unusable; a burst limit applies per outgoing radio.
 """
+
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
@@ -34,6 +35,7 @@ FILL_IN = ("WIDE1", 1)
 @dataclass(frozen=True)
 class DigiRow:
     """One row: what is heard on radio `heard` is sent again on radio `sent`."""
+
     heard: RadioId
     sent: RadioId
 
@@ -67,7 +69,7 @@ def repeat(frame: ax25.Frame, ours: tuple[str, int]) -> ax25.Frame | None:
     if hop != FILL_IN and hop != ours:
         return None
     used = ax25.Address(ours[0], ours[1], repeated=True)
-    return replace(frame, path=path[:at] + (used,) + path[at + 1:])
+    return replace(frame, path=path[:at] + (used,) + path[at + 1 :])
 
 
 class Digipeater:
@@ -128,12 +130,16 @@ class Digipeater:
             return
         self._send(radio, heard, frame, spliced(packet.raw, heard, frame), packet, now)
 
-    def _send(self, radio: AirRadio, heard: ax25.Frame, frame: ax25.Frame, raw: bytes, packet: Packet, now: datetime) -> None:
+    def _send(
+        self, radio: AirRadio, heard: ax25.Frame, frame: ax25.Frame, raw: bytes, packet: Packet, now: datetime
+    ) -> None:
         if not radio.usable:
             log.debug("not digipeating %s: %s", heard.tnc2(), radio.why_unusable())
             return
         if self.burst.full(radio.id, now):
-            log.debug("not digipeating %s: %d frames went out in the last %g s", heard.tnc2(), BURST_MAX, BURST_WINDOW_SEC)
+            log.debug(
+                "not digipeating %s: %d frames went out in the last %g s", heard.tnc2(), BURST_MAX, BURST_WINDOW_SEC
+            )
             radio.stats.digipeat_held += 1
             return
         if not radio.send_frame(frame, raw):
@@ -142,7 +148,11 @@ class Digipeater:
         self.burst.take(radio.id, now)
         radio.stats.digipeated += 1
         radio.stats.digipeated_at = now
-        log.info("digipeated %s>%s: the path %s is sent as %s", heard.source, heard.destination, heard.path_text, frame.path_text)
+        log.info(
+            "digipeated %s>%s: the path %s is sent as %s",
+            heard.source,
+            heard.destination,
+            heard.path_text,
+            frame.path_text,
+        )
         self.passer.sent_on(radio, frame, raw, packet)
-
-

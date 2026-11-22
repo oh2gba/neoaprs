@@ -1,6 +1,7 @@
 """One app per data folder: a second `neoaprs-app` raises the first one's window and exits.
 
 The first holds a lock and listens on a loopback port; the second sends `show` (or `quit`)."""
+
 import contextlib
 import os
 import logging
@@ -130,7 +131,6 @@ class SingleApp:
             return int((self.data / PID_NAME).read_text(encoding="ascii").strip())
         except (OSError, ValueError):
             return None
-
 
     def close(self) -> None:
         if self._server is not None:

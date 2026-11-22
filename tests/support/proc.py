@@ -1,6 +1,7 @@
 """End a program the tests started the way its system ends one: SIGTERM or SIGINT on POSIX,
 Ctrl+Break on Windows (which only reaches a child started in its own process group).
 """
+
 import signal
 import subprocess
 import sys

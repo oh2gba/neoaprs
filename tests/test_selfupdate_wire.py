@@ -2,6 +2,7 @@
 `update_now` starts it for the announced version only, `update_cancel` ends the download, and a copy
 that cannot refuses.
 """
+
 import threading
 from pathlib import Path
 
@@ -16,8 +17,15 @@ from tests.support.fakerelease import NAME, SUMS, FakeInstaller, FakeRelease, pu
 async def started(tmp_path: Path, release: FakeRelease | None = None, installer: FakeInstaller | None = None) -> Env:
     e = Env(tmp_path / "data", web=True)
     if release is not None:
-        e.ctl.selfupdate = SelfUpdate(InstallInfo("appimage", str(tmp_path / "NeoAPRS-0.6.7-x86_64.AppImage")), installer or FakeInstaller(tmp_path), e.ctl._announced, (RELEASES, url_allowed),
-                                      release.fetch_sums, release.fetch, key=public())
+        e.ctl.selfupdate = SelfUpdate(
+            InstallInfo("appimage", str(tmp_path / "NeoAPRS-0.6.7-x86_64.AppImage")),
+            installer or FakeInstaller(tmp_path),
+            e.ctl._announced,
+            (RELEASES, url_allowed),
+            release.fetch_sums,
+            release.fetch,
+            key=public(),
+        )
     await e.start()
     e.ctl.updatecheck.latest = Update("0.7.0", "https://evil.example/NeoAPRS.AppImage", "")
     return e
@@ -27,7 +35,15 @@ async def test_a_copy_that_cannot_update_itself_says_so_in_the_topic_and_refuses
     e = await started(tmp_path)
     page = await e.ws()
     state = (await page.expect("state", "update"))["value"]
-    assert state == {"supported": False, "state": "idle", "version": "", "percent": None, "downloaded": 0, "total": None, "problem": ""}
+    assert state == {
+        "supported": False,
+        "state": "idle",
+        "version": "",
+        "percent": None,
+        "downloaded": 0,
+        "total": None,
+        "problem": "",
+    }
     await page.send({"cmd": "update_now", "version": "0.7.0"})
     error = await page.expect("error")
     assert (error["cmd"], error["code"]) == ("update_now", "update.unsupported")
@@ -36,7 +52,9 @@ async def test_a_copy_that_cannot_update_itself_says_so_in_the_topic_and_refuses
     await e.stop()
 
 
-async def test_update_now_is_told_step_by_step_to_every_page_and_fetches_only_from_the_release_of_the_announced_version(tmp_path: Path) -> None:
+async def test_update_now_is_told_step_by_step_to_every_page_and_fetches_only_from_the_release_of_the_announced_version(
+    tmp_path: Path,
+) -> None:
     release = FakeRelease()
     installer = FakeInstaller(tmp_path)
     e = await started(tmp_path, release, installer)
@@ -47,9 +65,21 @@ async def test_update_now_is_told_step_by_step_to_every_page_and_fetches_only_fr
     assert (await page.expect("error"))["code"] == "update.not_announced"
     await page.send({"cmd": "update_now", "version": "0.7.0"})
     await other.until(lambda: other.topics["update"]["state"] == "restarting")
-    assert other.topics["update"] == {"supported": True, "state": "restarting", "version": "0.7.0", "percent": 100, "downloaded": len(release.body), "total": len(release.body), "problem": ""}
+    assert other.topics["update"] == {
+        "supported": True,
+        "state": "restarting",
+        "version": "0.7.0",
+        "percent": 100,
+        "downloaded": len(release.body),
+        "total": len(release.body),
+        "problem": "",
+    }
     # Not the address the version page gave
-    assert release.asked == [f"{RELEASES}/v0.7.0/SHA256SUMS", f"{RELEASES}/v0.7.0/SHA256SUMS.sig", f"{RELEASES}/v0.7.0/{NAME}"]
+    assert release.asked == [
+        f"{RELEASES}/v0.7.0/SHA256SUMS",
+        f"{RELEASES}/v0.7.0/SHA256SUMS.sig",
+        f"{RELEASES}/v0.7.0/{NAME}",
+    ]
     assert [name for _, name, _ in installer.installed] == [NAME]
     await page.send({"cmd": "update_now", "version": "0.7.0"})
     assert (await page.expect("error"))["code"] == "update.busy"
@@ -78,24 +108,34 @@ async def test_a_bad_checksum_is_an_error_in_the_topic(tmp_path: Path) -> None:
     await e.stop()
 
 
-async def test_a_list_signed_by_another_key_is_unverified_in_the_topic_and_nothing_is_downloaded(tmp_path: Path) -> None:
+async def test_a_list_signed_by_another_key_is_unverified_in_the_topic_and_nothing_is_downloaded(
+    tmp_path: Path,
+) -> None:
     release = FakeRelease(signature=sign(SUMS, "0.7.0", bytes(32)).encode())
     installer = FakeInstaller(tmp_path)
     e = await started(tmp_path, release, installer)
     page = await e.ws()
     await page.send({"cmd": "update_now", "version": "0.7.0"})
     await page.until(lambda: page.topics.get("update", {}).get("state") == "error")
-    assert page.topics["update"]["problem"] == "unverified" and not any(url.endswith(NAME) for url in release.asked) and installer.installed == []
+    assert (
+        page.topics["update"]["problem"] == "unverified"
+        and not any(url.endswith(NAME) for url in release.asked)
+        and installer.installed == []
+    )
     await e.stop()
 
 
-async def test_the_restart_of_an_appimage_is_the_daemons_stop_with_the_command_line_to_run_after_it(tmp_path: Path) -> None:
+async def test_the_restart_of_an_appimage_is_the_daemons_stop_with_the_command_line_to_run_after_it(
+    tmp_path: Path,
+) -> None:
     e = await started(tmp_path)
     e.ctl._end_for_restart()
     assert not stopfile.requested(e.ctl.data_dir), "no restart asked for: the daemon goes on"
     e.ctl.restart_into(["/home/ham/NeoAPRS.AppImage", "run"])
     assert e.ctl.reexec == ["/home/ham/NeoAPRS.AppImage", "run"]
-    assert not stopfile.requested(e.ctl.data_dir) and stopfile.restarting(e.ctl.data_dir), "ended only once the page is told"
+    assert not stopfile.requested(e.ctl.data_dir) and stopfile.restarting(e.ctl.data_dir), (
+        "ended only once the page is told"
+    )
     e.ctl._end_for_restart()
     assert stopfile.requested(e.ctl.data_dir)
     stopfile.clear(e.ctl.data_dir)

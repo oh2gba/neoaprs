@@ -2,6 +2,7 @@
 
 The line is listened to, then a carriage return is written: a TNC in KISS mode ignores it, one in
 command mode answers with text and is put into KISS by each askable profile. Nothing goes on air."""
+
 import asyncio
 from dataclasses import dataclass
 

@@ -1,5 +1,6 @@
 """The pause between our own frames on a radio, and the burst of what a radio sends again, when the
 clock is set back."""
+
 from datetime import timedelta
 from types import SimpleNamespace
 
@@ -24,12 +25,12 @@ def test_a_clock_set_back_does_not_hold_the_next_attempt_of_a_message() -> None:
 
 def test_a_clock_set_back_does_not_hold_the_next_object_or_bulletin() -> None:
     clock = FixedClock()
-    sender = Sender(lambda: None, lambda: None, clock, spacing_sec=10.0)        # type: ignore[arg-type]
+    sender = Sender(lambda: None, lambda: None, clock, spacing_sec=10.0)  # type: ignore[arg-type]
     radio = SimpleNamespace(id=1)
     sender._last[1] = clock()
-    assert sender.too_soon(radio)                                              # type: ignore[arg-type]
+    assert sender.too_soon(radio)  # type: ignore[arg-type]
     step_back_an_hour_then_ten_minutes_on(clock)
-    assert not sender.too_soon(radio)                                          # type: ignore[arg-type]
+    assert not sender.too_soon(radio)  # type: ignore[arg-type]
 
 
 def test_a_clock_set_back_does_not_keep_a_full_burst_shut() -> None:

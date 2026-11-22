@@ -1,6 +1,7 @@
 """Two objects of ours at once through the whole daemon and the page socket: both are made, shown,
 sent and found again after a restart and by a freshly loaded page.
 """
+
 from pathlib import Path
 
 from neoaprs.web.protocol import TOPIC_NAMES
@@ -9,7 +10,23 @@ from tests.support.env import Env
 
 
 def values(name: str, kind: str = "object", **changes: object) -> dict[str, object]:
-    return {"cmd": "object_set", "name": name, "kind": kind, "lat": 60.17, "lon": 24.94, "symbol_table": "/", "symbol_code": ">", "comment": f"{name} here", "course_deg": None, "speed_kmh": None, "path": None, "qru_group": "", "on_request": False, "radios": [1], **changes}
+    return {
+        "cmd": "object_set",
+        "name": name,
+        "kind": kind,
+        "lat": 60.17,
+        "lon": 24.94,
+        "symbol_table": "/",
+        "symbol_code": ">",
+        "comment": f"{name} here",
+        "course_deg": None,
+        "speed_kmh": None,
+        "path": None,
+        "qru_group": "",
+        "on_request": False,
+        "radios": [1],
+        **changes,
+    }
 
 
 async def page_of(e: Env):  # type: ignore[no-untyped-def]
@@ -20,7 +37,7 @@ async def page_of(e: Env):  # type: ignore[no-untyped-def]
 
 
 def names(page: object, topic: str) -> set[str]:
-    return set(page.topics[topic])                                              # type: ignore[attr-defined]
+    return set(page.topics[topic])  # type: ignore[attr-defined]
 
 
 async def quick(e: Env) -> None:
@@ -30,7 +47,9 @@ async def quick(e: Env) -> None:
     await e.until_usable()
 
 
-async def test_two_objects_made_one_after_the_other_both_stay_both_are_sent_and_both_survive_a_restart_and_a_new_page(tmp_path: Path) -> None:
+async def test_two_objects_made_one_after_the_other_both_stay_both_are_sent_and_both_survive_a_restart_and_a_new_page(
+    tmp_path: Path,
+) -> None:
     e = Env(tmp_path, web=True)
     await quick(e)
     page = await page_of(e)
@@ -41,10 +60,12 @@ async def test_two_objects_made_one_after_the_other_both_stay_both_are_sent_and_
     assert names(page, "own_objects") == {"ALPHA", "BRAVO"} and {"ALPHA", "BRAVO"} <= names(page, "stations")
     frames = await said(e, 2)
     assert sorted(f.info[:11] for f in frames) == [b";ALPHA    *", b";BRAVO    *"]
-    await page.until(lambda: page.topics["own_objects"]["ALPHA"]["sent"] == 1 and page.topics["own_objects"]["BRAVO"]["sent"] == 1)
+    await page.until(
+        lambda: page.topics["own_objects"]["ALPHA"]["sent"] == 1 and page.topics["own_objects"]["BRAVO"]["sent"] == 1
+    )
     assert names(page, "own_objects") == {"ALPHA", "BRAVO"}
 
-    fresh = await page_of(e)                                                    # a page that is loaded anew
+    fresh = await page_of(e)  # a page that is loaded anew
     assert names(fresh, "own_objects") == {"ALPHA", "BRAVO"} and {"ALPHA", "BRAVO"} <= names(fresh, "stations")
 
     await e.settled()
@@ -58,21 +79,31 @@ async def test_two_objects_made_one_after_the_other_both_stay_both_are_sent_and_
     await again.stop()
 
 
-async def test_changing_or_killing_one_of_two_leaves_the_other_and_an_object_and_an_item_of_different_names_live_together(tmp_path: Path) -> None:
+async def test_changing_or_killing_one_of_two_leaves_the_other_and_an_object_and_an_item_of_different_names_live_together(
+    tmp_path: Path,
+) -> None:
     e = Env(tmp_path, web=True)
     await quick(e)
     page = await page_of(e)
     await page.send(values("ALPHA"))
     await page.send(values("BRAVO", "item"))
     await page.until(lambda: names(page, "own_objects") == {"ALPHA", "BRAVO"})
-    assert (page.topics["own_objects"]["ALPHA"]["kind"], page.topics["own_objects"]["BRAVO"]["kind"]) == ("object", "item")
+    assert (page.topics["own_objects"]["ALPHA"]["kind"], page.topics["own_objects"]["BRAVO"]["kind"]) == (
+        "object",
+        "item",
+    )
     await said(e, 2)
     await page.send(values("ALPHA", comment="changed"))
     await page.until(lambda: page.topics["own_objects"]["ALPHA"]["comment"] == "changed")
-    assert page.topics["own_objects"]["BRAVO"]["comment"] == "BRAVO here" and names(page, "own_objects") == {"ALPHA", "BRAVO"}
+    assert page.topics["own_objects"]["BRAVO"]["comment"] == "BRAVO here" and names(page, "own_objects") == {
+        "ALPHA",
+        "BRAVO",
+    }
     await page.send({"cmd": "object_kill", "name": "ALPHA"})
     # Its kill goes out over three minutes
-    await page.until(lambda: page.topics["own_objects"]["ALPHA"]["state"] == "killing" and "ALPHA" not in names(page, "stations"))
+    await page.until(
+        lambda: page.topics["own_objects"]["ALPHA"]["state"] == "killing" and "ALPHA" not in names(page, "stations")
+    )
     assert page.topics["own_objects"]["BRAVO"]["state"] == "live" and "BRAVO" in names(page, "stations")
     assert [o.name for o in e.ctl.ownobjects.records() if o.alive] == ["BRAVO"]
     await e.stop()

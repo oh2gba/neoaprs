@@ -3,6 +3,7 @@
 `as_pick` adapts an old radio shape to a `RadioPick` (only tests give one). A frame is built for,
 gated by and sent on its own radio.
 """
+
 import logging
 from collections.abc import Callable, Sequence
 from typing import Any, Protocol, TypeIs, runtime_checkable
@@ -17,8 +18,14 @@ from neoaprs.radiospec import RadioSpec, log_name
 from neoaprs.radiotype import FM_ID, HF_ID, Allowed, Kind, Limits, RadioId, RadioType
 from neoaprs.radiotypes import kind_field
 from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, first_sender
+
 # Re-exports.
-from neoaprs.services.radioset import FRAME_ERRORS as FRAME_ERRORS, fit_frame as fit_frame, fixed_prefix as fixed_prefix, our_frame as our_frame
+from neoaprs.services.radioset import (
+    FRAME_ERRORS as FRAME_ERRORS,
+    fit_frame as fit_frame,
+    fixed_prefix as fixed_prefix,
+    our_frame as our_frame,
+)
 from neoaprs.source import Source
 from neoaprs.tncwatchdog import TncStats
 
@@ -31,6 +38,7 @@ Paths = Callable[[str, int | None, RadioId], tuple[str, ...]]
 
 class Radio(Protocol):
     """What the services need of the Tnc: its type and its line."""
+
     @property
     def state(self) -> Source.State: ...
     @property
@@ -46,6 +54,7 @@ class Radio(Protocol):
 @runtime_checkable
 class RadioSet(Radio, Protocol):
     """The old set of radios: itself the default (FM if on, else HF), choosable per station."""
+
     def for_station(self, call: str) -> Radio: ...
     def for_packet(self, packet: Packet) -> Radio: ...
     def of(self, kind: str) -> Radio | None: ...
@@ -135,7 +144,7 @@ class OldRadios:
     def _air(self, radio: Radio | None) -> OldAir | None:
         if radio is None:
             return None
-        found = self._airs.get(id(radio))                  # the OldAir keeps its radio alive, so the id is stable
+        found = self._airs.get(id(radio))  # the OldAir keeps its radio alive, so the id is stable
         if found is None:
             found = self._airs[id(radio)] = OldAir(radio, self._config)
         return found
@@ -152,10 +161,14 @@ class OldRadios:
         return None if kind is None else self._of(kind)
 
     def enabled(self) -> Sequence[AirRadio]:
-        return [air for radio in (self._old.on if isinstance(self._old, RadioSet) else [self._old]) if (air := self._air(radio)) is not None]
+        return [
+            air
+            for radio in (self._old.on if isinstance(self._old, RadioSet) else [self._old])
+            if (air := self._air(radio)) is not None
+        ]
 
     def senders(self) -> Sequence[AirRadio]:
-        return self.enabled()                              # old shapes have no receive-only radio
+        return self.enabled()  # old shapes have no receive-only radio
 
     def for_station(self, call: str) -> AirRadio | None:
         return self._air(self._old.for_station(call) if isinstance(self._old, RadioSet) else self._old)
@@ -190,7 +203,9 @@ def send_on(radios: RadioPick | Radio, config: ConfigSource, key: str) -> list[A
     return [found for id in send_on_radios(key, config().radios) if (found := pick.get(id)) is not None]
 
 
-def asked_radios(radios: RadioPick | Radio, config: ConfigSource, key: str, radio: RadioId | None = None) -> list[AirRadio]:
+def asked_radios(
+    radios: RadioPick | Radio, config: ConfigSource, key: str, radio: RadioId | None = None
+) -> list[AirRadio]:
     """Return the usable radios with Send on ticked (or `radio`); MessagingError if none."""
     pick = as_pick(radios, config)
     if radio is None:
@@ -206,9 +221,19 @@ def asked_radios(radios: RadioPick | Radio, config: ConfigSource, key: str, radi
         named = pick.get(radio)
         if named is None:
             raise MessagingError(f"there is no radio {radio}", "radio.unknown", radio=radio)
-        raise MessagingError(f"radio {named.name or radio} is off: turn it on first", "radio.off", name=named.name or str(radio), radio=radio)
+        raise MessagingError(
+            f"radio {named.name or radio} is off: turn it on first",
+            "radio.off",
+            name=named.name or str(radio),
+            radio=radio,
+        )
     if not any(r.id == radio for r in pick.senders()):
-        raise MessagingError(f"radio {found.name} only receives: nothing can be sent on it", "radio.receive_only", name=found.name, radio=radio)
+        raise MessagingError(
+            f"radio {found.name} only receives: nothing can be sent on it",
+            "radio.receive_only",
+            name=found.name,
+            radio=radio,
+        )
     if not found.usable:
         raise MessagingError.of(found.why_unusable())
     return [found]
@@ -232,7 +257,7 @@ def on_words(radio: AirRadio, radios: RadioPick | Radio, config: ConfigSource) -
     return f" on {radio.name}" if radio.name and len(as_pick(radios, config).enabled()) > 1 else ""
 
 
-RX_ONLY = "RX only: nothing is sent"                                # refusal text while station/transmit is off
+RX_ONLY = "RX only: nothing is sent"  # refusal text while station/transmit is off
 
 
 def transmit_refusal(config: Config, error: type[CodedError] = CodedError) -> CodedError | None:

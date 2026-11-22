@@ -1,6 +1,7 @@
 """Tests for the directed queries (`Asking.ask`, the `query` command): the text sent on the air, the
 one-per-minute limit for each kind and station, the refusals, and the conversation row.
 """
+
 from dataclasses import replace
 from pathlib import Path
 
@@ -24,12 +25,23 @@ async def rig(tmp_path: Path) -> Rig:
 
 # ---- the service
 
-@pytest.mark.parametrize(("kind", "text"), [("position", "?APRSP"), ("status", "?APRSS"), ("heard", "?APRSD"), ("trace", "?APRST")])
+
+@pytest.mark.parametrize(
+    ("kind", "text"), [("position", "?APRSP"), ("status", "?APRSS"), ("heard", "?APRSD"), ("trace", "?APRST")]
+)
 async def test_each_kind_goes_out_as_its_query_text_in_a_message_without_an_id(rig: Rig, kind: str, text: str) -> None:
     record = await rig.m.asking.ask("oh2rdg", kind)
     assert QUERIES[kind] == text
     assert rig.tnc.lines() == [f"OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :{text}"], "no {id}: nobody acks a query"
-    assert (record.direction, record.to_call, record.text, record.msg_id, record.state, record.attempts, record.attempts_max) == ("out", "OH2RDG", text, None, "unconfirmed", 1, 1)
+    assert (
+        record.direction,
+        record.to_call,
+        record.text,
+        record.msg_id,
+        record.state,
+        record.attempts,
+        record.attempts_max,
+    ) == ("out", "OH2RDG", text, None, "unconfirmed", 1, 1)
 
 
 async def test_the_query_goes_by_the_path_of_the_station_and_with_its_ssid(rig: Rig) -> None:
@@ -49,10 +61,18 @@ async def test_the_query_is_kept_as_a_message_of_the_conversation_with_the_stati
     await rig.m.asking.ask("OH2RDG", "heard")
     await rig.settled()
     [kept] = await rig.log.recent()
-    assert (kept.peer, kept.text, kept.msg_id, kept.state, kept.attempts_max) == ("OH2RDG", "?APRSD", None, "unconfirmed", 1)
+    assert (kept.peer, kept.text, kept.msg_id, kept.state, kept.attempts_max) == (
+        "OH2RDG",
+        "?APRSD",
+        None,
+        "unconfirmed",
+        1,
+    )
 
 
-async def test_the_same_query_to_the_same_station_within_a_minute_is_refused_and_nothing_is_sent_or_kept(rig: Rig) -> None:
+async def test_the_same_query_to_the_same_station_within_a_minute_is_refused_and_nothing_is_sent_or_kept(
+    rig: Rig,
+) -> None:
     await rig.m.asking.ask("OH2RDG", "status")
     await rig.pass_time(QUERY_EVERY_SEC - 11)
     with pytest.raises(MessagingError) as refused:
@@ -61,7 +81,9 @@ async def test_the_same_query_to_the_same_station_within_a_minute_is_refused_and
     assert len(rig.tnc.sent) == 1 and len(rig.m.records()) == 1
 
 
-async def test_another_kind_another_station_or_another_ssid_is_not_held_back_and_the_same_query_goes_again_after_the_minute(rig: Rig) -> None:
+async def test_another_kind_another_station_or_another_ssid_is_not_held_back_and_the_same_query_goes_again_after_the_minute(
+    rig: Rig,
+) -> None:
     await rig.m.asking.ask("OH2RDG", "status")
     await rig.m.asking.ask("OH2RDG", "position")
     await rig.m.asking.ask("OH2RCH", "status")
@@ -124,7 +146,9 @@ async def test_queries_written_together_go_out_one_after_the_other(tmp_path: Pat
     r = await started_rig(tmp_path, spacing_sec=5.0)
     first = await r.m.asking.ask("OH2RDG", "status")
     second = await r.m.asking.ask("OH2RDG", "position")
-    assert first.state == "unconfirmed" and second.state == "sending" and len(r.tnc.sent) == 1, "the pacing holds the second back"
+    assert first.state == "unconfirmed" and second.state == "sending" and len(r.tnc.sent) == 1, (
+        "the pacing holds the second back"
+    )
     await r.pass_time(6)
     assert [f.info for f in r.tnc.sent] == [b":OH2RDG   :?APRSS", b":OH2RDG   :?APRSP"]
 
@@ -135,7 +159,13 @@ async def test_a_message_of_ours_that_looks_like_a_query_but_has_an_id_is_an_ord
 
 
 def test_the_kinds_are_the_queries_of_the_specification() -> None:
-    assert QUERIES == {"position": "?APRSP", "status": "?APRSS", "heard": "?APRSD", "trace": "?APRST", "weather": "?WX?"}
+    assert QUERIES == {
+        "position": "?APRSP",
+        "status": "?APRSS",
+        "heard": "?APRSD",
+        "trace": "?APRST",
+        "weather": "?WX?",
+    }
 
 
 async def test_weather_goes_out_as_wx_to_the_station_without_an_id(rig: Rig) -> None:
@@ -150,7 +180,16 @@ async def test_a_custom_query_goes_out_trimmed_and_upper_cased_without_an_id(rig
     assert (record.text, record.msg_id, record.state) == ("?APRSH OH2GBA-15", None, "unconfirmed")
 
 
-@pytest.mark.parametrize(("text", "code"), [("APRSH", "query.form"), ("?", "query.form"), ("?" + "A" * 67, "message.too_long"), ("?APRS{1", "message.forbidden"), ("?APRSÄ", "message.not_ascii")])
+@pytest.mark.parametrize(
+    ("text", "code"),
+    [
+        ("APRSH", "query.form"),
+        ("?", "query.form"),
+        ("?" + "A" * 67, "message.too_long"),
+        ("?APRS{1", "message.forbidden"),
+        ("?APRSÄ", "message.not_ascii"),
+    ],
+)
 async def test_a_custom_query_that_is_no_query_is_refused_and_nothing_is_sent(rig: Rig, text: str, code: str) -> None:
     with pytest.raises(MessagingError) as refused:
         await rig.m.asking.ask("OH2RDG", "custom", text)
@@ -168,6 +207,7 @@ async def test_the_same_custom_query_within_a_minute_is_refused_and_another_text
 
 # ---- the command over the socket
 
+
 def on_the_air(page: WsClient) -> list[dict[str, object]]:
     """The packets of ours the page was told of."""
     return [p for p in page.topics["packets"].values() if p["direction"] == "out"]
@@ -178,7 +218,9 @@ async def hear_station(e: Env, page: WsClient, call: str, info: bytes) -> None:
     await page.until(lambda: call in page.topics["stations"])
 
 
-async def test_query_sends_the_query_as_a_message_without_an_id_and_the_row_is_told_to_every_page(tmp_path: Path) -> None:
+async def test_query_sends_the_query_as_a_message_without_an_id_and_the_row_is_told_to_every_page(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     other = await e.ws()
     await hear_station(e, page, "OH2RDG-7", b"=6010.00N/02456.00E>x")
@@ -188,8 +230,18 @@ async def test_query_sends_the_query_as_a_message_without_an_id_and_the_row_is_t
     assert packet["kind"] == "message" and packet["tnc2"] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG-7 :?APRSS"
     [row] = page.topics["messages"].values()
     message = MessageRow.model_validate(row)
-    assert (message.direction, message.to_call, message.text, message.msg_id, message.state, message.attempts, message.attempts_max) == ("out", "OH2RDG-7", "?APRSS", None, "unconfirmed", 1, 1)
-    await other.until(lambda: other.topics["messages"] == page.topics["messages"] and len(other.topics["messages"]) == 1)
+    assert (
+        message.direction,
+        message.to_call,
+        message.text,
+        message.msg_id,
+        message.state,
+        message.attempts,
+        message.attempts_max,
+    ) == ("out", "OH2RDG-7", "?APRSS", None, "unconfirmed", 1, 1)
+    await other.until(
+        lambda: other.topics["messages"] == page.topics["messages"] and len(other.topics["messages"]) == 1
+    )
     assert page.of("error") == []
 
 
@@ -200,7 +252,11 @@ async def test_query_twice_within_a_minute_is_an_error_with_a_code_and_the_secon
     await page.until(lambda: any(r["attempts"] == 1 for r in page.topics["messages"].values()))
     await page.send({"cmd": "query", "call": "OH2RDG", "kind": "position"})
     error = await page.expect("error")
-    assert (error["cmd"], error["code"], error["params"]) == ("query", "query.too_soon", {"call": "OH2RDG", "seconds": 60})
+    assert (error["cmd"], error["code"], error["params"]) == (
+        "query",
+        "query.too_soon",
+        {"call": "OH2RDG", "seconds": 60},
+    )
     assert error["text"].startswith("query: OH2RDG was asked the same")
     await page.quiet(0.2)
     assert len(page.topics["messages"]) == 1 and len(on_the_air(page)) == 1
@@ -220,7 +276,9 @@ async def test_a_station_whose_position_takes_no_messages_can_still_be_asked_and
     # (a position with no messaging)
     await hear_station(e, page, "OH2PLN", b"!6010.00N/02456.00E>x")
     row = page.topics["stations"]["OH2PLN"]
-    assert row["can_message"] is True and row["may_not_message"] is True, "the operator may write; the page says it may not be read (John, 4 Nov 2026)"
+    assert row["can_message"] is True and row["may_not_message"] is True, (
+        "the operator may write; the page says it may not be read (John, 4 Nov 2026)"
+    )
     await page.send({"cmd": "query", "call": "OH2PLN", "kind": "status"})
     await page.until(lambda: on_the_air(page) != [])
 

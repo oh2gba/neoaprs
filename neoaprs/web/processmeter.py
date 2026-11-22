@@ -2,6 +2,7 @@
 
 Memory comes from `/proc/self/statm` on Linux, `resource` on macOS and winmemory.py on Windows.
 """
+
 import os
 import sys
 import time
@@ -42,6 +43,7 @@ def resident_mb() -> float | None:
         try:
             if sys.platform == "darwin":
                 import resource
+
                 # ru_maxrss is in bytes on macOS and is the peak; the current value has no cheap
                 # source.
                 return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / _MB, 1)
@@ -52,7 +54,12 @@ def resident_mb() -> float | None:
 
 
 class ProcessMeter:
-    def __init__(self, now: Callable[[], float] = time.monotonic, cpu: Callable[[], float] = cpu_seconds, rss: Callable[[], float | None] = resident_mb) -> None:
+    def __init__(
+        self,
+        now: Callable[[], float] = time.monotonic,
+        cpu: Callable[[], float] = cpu_seconds,
+        rss: Callable[[], float | None] = resident_mb,
+    ) -> None:
         self._now, self._cpu, self._rss = now, cpu, rss
         self._last = Sample(now(), cpu())
         self._percent = 0.0

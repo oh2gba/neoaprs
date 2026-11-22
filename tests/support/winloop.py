@@ -6,6 +6,7 @@ armed again, so a thread's `call_soon_threadsafe` goes unnoticed. A thread of th
 therefore posts an empty completion packet to the loop's port a few times a second. The loop's clock
 is not touched.
 """
+
 import asyncio
 import sys
 import threading
@@ -17,7 +18,7 @@ NUDGE_EVERY_SEC = 0.2
 NO_OPERATION = 1
 
 if sys.platform == "win32":
-    import _overlapped                      # type: ignore[import-not-found]  # (the standard library's own module of the proactor loop; it has no stub)
+    import _overlapped  # type: ignore[import-not-found]  # (the standard library's own module of the proactor loop; it has no stub)
 
     _loops: "weakref.WeakSet[asyncio.AbstractEventLoop]" = weakref.WeakSet()
     # A loop is not closed while it is nudged: the handle of a closed port may be another object's
@@ -50,7 +51,7 @@ if sys.platform == "win32":
                 _nudger.start()
         return loop
 else:
-    new_loop = asyncio.new_event_loop        # (asyncio's own: nothing is changed where the fault is not)
+    new_loop = asyncio.new_event_loop  # (asyncio's own: nothing is changed where the fault is not)
 
 
 def nudge(loop: asyncio.AbstractEventLoop) -> bool:

@@ -2,6 +2,7 @@
 
 The information field is a compressed position plus altitude and comment. `MobilePlan` remembers
 the last beacon (time, course, reason) as input to SmartBeaconing."""
+
 from datetime import datetime
 from typing import Protocol
 
@@ -15,19 +16,22 @@ REASONS: tuple[Reason, ...] = ("start", "time", "turn")
 
 class Positions(Protocol):
     """What the mobile beacon needs of the GPS service."""
+
     def current(self) -> Fix | None: ...
     def why_none(self) -> str: ...
 
 
 def mobile_info(config: Config, fix: Fix) -> bytes:
     """Return the information field for this fix; raise ValueError if it cannot be sent."""
-    position = compressed_position(fix.lat, fix.lon, config.station_symbol_table, config.station_symbol_code, fix.course_deg, fix.speed_kmh)
+    position = compressed_position(
+        fix.lat, fix.lon, config.station_symbol_table, config.station_symbol_code, fix.course_deg, fix.speed_kmh
+    )
     return b"=" + position + compressed_comment(fix.altitude_m, config.station_comment).encode("ascii")
 
 
 class MobilePlan:
     def __init__(self) -> None:
-        self.last: Sent | None = None                          # time and course of the last beacon
+        self.last: Sent | None = None  # time and course of the last beacon
         self.last_reason: Reason | None = None
 
     def check(self, settings: SmartSettings, fix: Fix, now: datetime) -> Decision:

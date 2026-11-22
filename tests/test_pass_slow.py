@@ -3,6 +3,7 @@ clock (neoaprs/services/passrows.py, passlimits.py): at most four frames in five
 waiting while the radio is keyed, busy or just handed a frame. The rows themselves are
 tests/test_pass_rows.py's.
 """
+
 import logging
 from dataclasses import replace
 
@@ -103,7 +104,7 @@ def test_a_copy_of_a_frame_held_as_busy_is_dropped_within_the_duplicate_window_e
     rig = pair_rig()
     rig.hf.held = KEYED
     rig.hear(frame("OH2GBA-12", info=msg(1)))
-    rig.hear(frame("OH2GBA-12", source="OH3ABC", info=msg(2)))               # held: another frame waits
+    rig.hear(frame("OH2GBA-12", source="OH3ABC", info=msg(2)))  # held: another frame waits
     rig.hf.held = ""
     rig.digi.passer.tick()
     rig.clock.advance(10)
@@ -156,7 +157,10 @@ def test_a_waiting_frame_whose_pair_no_longer_passes_is_dropped_at_the_tick_and_
         rig.set(radios=tuple(replace(r, enabled=r.id != HF_ID) for r in rig.config.radios))
     rig.hf.held = ""
     rig.digi.passer.tick()
-    rig.set(pairs=(replace(rig.config.pairs[0], enabled=True),), radios=tuple(replace(r, enabled=True) for r in rig.config.radios))
+    rig.set(
+        pairs=(replace(rig.config.pairs[0], enabled=True),),
+        radios=tuple(replace(r, enabled=True) for r in rig.config.radios),
+    )
     rig.digi.passer.tick()
     assert rig.hf.sent == [] and rig.hf.stats.passed == {}
 
@@ -183,7 +187,9 @@ def test_fm_as_the_target_keeps_four_in_ten_seconds_shared_with_the_fill_in() ->
     assert len(rig.tnc.sent) == BURST_MAX and rig.stats.passed[HF_ID].held == 1 and rig.stats.digipeat_held == 0
 
 
-def test_a_copy_of_a_packet_the_floor_held_counts_nothing_within_the_duplicate_window_and_counts_again_after_it() -> None:
+def test_a_copy_of_a_packet_the_floor_held_counts_nothing_within_the_duplicate_window_and_counts_again_after_it() -> (
+    None
+):
     rig = pair_rig()
     beacon = b"!6010.20N/02456.40E-trk"
     rig.hear(frame("OH2GBA-12", info=beacon))
@@ -191,7 +197,7 @@ def test_a_copy_of_a_packet_the_floor_held_counts_nothing_within_the_duplicate_w
     rig.hear(frame("OH2GBA-12", info=b"!6010.20N/02456.40E-next"))
     assert rig.hf.stats.passed[FM_ID].held == 1
     rig.clock.advance(1)
-    rig.hear(frame("OH2RCH*,OH2GBA-12", info=b"!6010.20N/02456.40E-next"))      # (the same beacon through a digipeater)
+    rig.hear(frame("OH2RCH*,OH2GBA-12", info=b"!6010.20N/02456.40E-next"))  # (the same beacon through a digipeater)
     assert rig.hf.stats.passed[FM_ID].held == 1 and len(rig.hf.sent) == 1
     rig.clock.advance(31)
     rig.hear(frame("OH2RCH*,OH2GBA-12", info=b"!6010.20N/02456.40E-next"))

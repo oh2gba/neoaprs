@@ -1,6 +1,7 @@
 """What the program knows of the map's layers of traffic (neoaprs/layerthing.py): the sources a
 station is offered, the one that counts, what a request to a service carries, and how the things are
 cut; and the wire's names of the layers and sources (neoaprs/web/layerwire.py) are the same."""
+
 from datetime import timedelta
 from typing import get_args
 
@@ -8,8 +9,30 @@ import pytest
 
 from neoaprs.clock import utc
 from neoaprs.geo import distance_km
-from neoaprs.layerthing import (AIRCRAFT_SOURCES, FINTRAFFIC_BOX, LAYERS, LIMIT, MAX_AGE_SEC, OWN_RECEIVERS, SERVICES, SHIP_SOURCES, Layer, Source, Thing, backoff_sec, in_force, max_age_sec, nearest, newest, offered, reaches_box,
-                                request_nm, request_point, service_url, within)
+from neoaprs.layerthing import (
+    AIRCRAFT_SOURCES,
+    FINTRAFFIC_BOX,
+    LAYERS,
+    LIMIT,
+    MAX_AGE_SEC,
+    OWN_RECEIVERS,
+    SERVICES,
+    SHIP_SOURCES,
+    Layer,
+    Source,
+    Thing,
+    backoff_sec,
+    in_force,
+    max_age_sec,
+    nearest,
+    newest,
+    offered,
+    reaches_box,
+    request_nm,
+    request_point,
+    service_url,
+    within,
+)
 from neoaprs.web.layerwire import LayerName, SourceName
 
 HELSINKI, FRANKFURT, ESPOO = (60.17, 24.94), (50.11, 8.68), (60.2231, 24.7152)
@@ -23,9 +46,14 @@ def thing(id: str, lat: float, lon: float, **extra: object) -> Thing:
 def test_the_wire_names_the_layers_and_the_sources_as_the_program_does() -> None:
     assert get_args(LayerName) == get_args(Layer) == LAYERS
     assert get_args(SourceName) == get_args(Source)
-    assert set(AIRCRAFT_SOURCES) | set(SHIP_SOURCES) == set(get_args(Source)) and AIRCRAFT_SOURCES[0] == SHIP_SOURCES[0] == "none"
+    assert (
+        set(AIRCRAFT_SOURCES) | set(SHIP_SOURCES) == set(get_args(Source))
+        and AIRCRAFT_SOURCES[0] == SHIP_SOURCES[0] == "none"
+    )
     assert SERVICES == {"adsbfi", "adsblol", "fintraffic"}
-    assert OWN_RECEIVERS == {"radarcape", "receiver"} and not OWN_RECEIVERS & SERVICES, "a Radarcape is an own receiver: no credit, never a service"
+    assert OWN_RECEIVERS == {"radarcape", "receiver"} and not OWN_RECEIVERS & SERVICES, (
+        "a Radarcape is an own receiver: no credit, never a service"
+    )
 
 
 def test_fintraffic_is_offered_at_helsinki_and_not_at_frankfurt_and_every_aircraft_source_everywhere() -> None:
@@ -52,9 +80,14 @@ def test_the_box_is_reached_when_its_nearest_point_is_within_the_radius() -> Non
 
 def test_the_source_in_force_is_the_one_chosen_while_it_is_offered_and_else_none() -> None:
     assert in_force("ships", "fintraffic", offered("ships", HELSINKI, 150)) == "fintraffic"
-    assert in_force("ships", "fintraffic", offered("ships", FRANKFURT, 300)) == "none", "a source not offered counts as none"
+    assert in_force("ships", "fintraffic", offered("ships", FRANKFURT, 300)) == "none", (
+        "a source not offered counts as none"
+    )
     assert in_force("aircraft", "receiver", AIRCRAFT_SOURCES) == "receiver"
-    assert in_force("aircraft", "fintraffic", AIRCRAFT_SOURCES) == "none" and in_force("aircraft", "", AIRCRAFT_SOURCES) == "none"
+    assert (
+        in_force("aircraft", "fintraffic", AIRCRAFT_SOURCES) == "none"
+        and in_force("aircraft", "", AIRCRAFT_SOURCES) == "none"
+    )
 
 
 def test_a_request_carries_the_position_to_one_decimal_and_the_radius_with_its_margin_in_nautical_miles() -> None:
@@ -73,7 +106,9 @@ def test_the_things_are_cut_to_the_circle_and_to_the_nearest_with_every_emergenc
     far = thing("far", ESPOO[0] + 1.0, ESPOO[1])
     far_emergency = thing("sos", ESPOO[0] + 1.5, ESPOO[1], emergency=True)
     kept = nearest([far, far_emergency, *reversed(near)], ESPOO)
-    assert [t.id for t in kept] == [*(t.id for t in near), "sos"], "the 300 nearest, nearest first, and the emergency beyond them"
+    assert [t.id for t in kept] == [*(t.id for t in near), "sos"], (
+        "the 300 nearest, nearest first, and the emergency beyond them"
+    )
     assert [t.id for t in within([far, near[0], far_emergency], ESPOO, 150)] == ["far", "n0"]
     assert [t.id for t in within([far, near[0]], ESPOO, 50)] == ["n0"]
 
@@ -85,7 +120,13 @@ def test_an_own_receivers_things_are_kept_but_for_the_oldest_beyond_the_guard() 
 
 
 def test_how_old_a_thing_may_be_and_how_long_a_failing_feed_waits() -> None:
-    assert (max_age_sec("aircraft", "receiver"), max_age_sec("aircraft", "radarcape"), max_age_sec("aircraft", "adsbfi"), max_age_sec("aircraft", "adsblol"), max_age_sec("ships", "fintraffic"),
-            max_age_sec("ships", "receiver")) == (60, 60, 90, 90, 1800, 1800)
+    assert (
+        max_age_sec("aircraft", "receiver"),
+        max_age_sec("aircraft", "radarcape"),
+        max_age_sec("aircraft", "adsbfi"),
+        max_age_sec("aircraft", "adsblol"),
+        max_age_sec("ships", "fintraffic"),
+        max_age_sec("ships", "receiver"),
+    ) == (60, 60, 90, 90, 1800, 1800)
     assert MAX_AGE_SEC == {"aircraft_receiver": 60, "aircraft_service": 90, "ships": 1800}
     assert [backoff_sec(30, n) for n in (1, 2, 3, 4, 5, 6)] == [60, 120, 240, 480, 900, 900]

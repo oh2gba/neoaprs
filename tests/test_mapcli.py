@@ -2,6 +2,7 @@
 process, cutting the made-up planet from a file: the page's jobs, flags over settings, and the
 failures.
 """
+
 import asyncio
 import os
 import subprocess
@@ -27,11 +28,29 @@ def source(tmp_path: Path) -> Path:
 
 def mapfetch(tmp_path: Path, source: Path, *args: str) -> subprocess.CompletedProcess[str]:
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG")}
-    return subprocess.run([sys.executable, "-m", "neoaprs.services.mapfetch", "--data", str(tmp_path / "data"), "--source", str(source), *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=120)
+    return subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "neoaprs.services.mapfetch",
+            "--data",
+            str(tmp_path / "data"),
+            "--source",
+            str(source),
+            *args,
+        ],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
 
 
 def test_a_dry_run_says_the_size_for_the_flags_and_makes_no_file(tmp_path: Path, source: Path) -> None:
-    done = mapfetch(tmp_path, source, "--lat", "60.17", "--lon", "24.94", "--radius", "40", "--maxzoom", "6", "--dry-run")
+    done = mapfetch(
+        tmp_path, source, "--lat", "60.17", "--lon", "24.94", "--radius", "40", "--maxzoom", "6", "--dry-run"
+    )
     assert done.returncode == 0, done.stderr
     tiles = len(tiles_of(box_around(60.17, 24.94, 40), 0, 6))
     line = done.stdout.strip().splitlines()[-1]
@@ -50,10 +69,16 @@ def test_a_download_makes_the_area_only_because_the_world_ships_with_the_program
     assert header is not None and header.bbox == pytest.approx(box_around(60.17, 24.94, 150), abs=1e-5)
 
 
-async def test_the_position_and_the_map_settings_are_read_from_the_database_of_the_data_folder(tmp_path: Path, source: Path) -> None:
+async def test_the_position_and_the_map_settings_are_read_from_the_database_of_the_data_folder(
+    tmp_path: Path, source: Path
+) -> None:
     (tmp_path / "data").mkdir()
     store = await store_at(tmp_path / "data" / "neoaprs.sqlite")
-    await store.put_settings(Config.checked(Config(), {"station/lat": "64.5", "station/lon": "26.0", "map/radius_km": "30", "map/maxzoom": "10"}).to_data())
+    await store.put_settings(
+        Config.checked(
+            Config(), {"station/lat": "64.5", "station/lon": "26.0", "map/radius_km": "30", "map/maxzoom": "10"}
+        ).to_data()
+    )
     done = await asyncio.to_thread(mapfetch, tmp_path, source, "--dry-run")
     assert done.returncode == 0, done.stderr
     assert "for 30 km round us to zoom 10" in done.stdout
@@ -76,4 +101,8 @@ def test_a_source_that_cannot_be_cut_is_said_with_exit_1_and_leaves_no_file(tmp_
     assert done.returncode == 1 and "the map source cannot be cut: the file is not a PMTiles archive" in done.stderr
     assert not list((tmp_path / "data").glob("*.pmtiles*"))
     missing = mapfetch(tmp_path, tmp_path / "none.pmtiles", "--lat", "60", "--lon", "24")
-    assert missing.returncode == 1 and "none.pmtiles cannot be read" in missing.stderr and str(tmp_path) not in missing.stderr
+    assert (
+        missing.returncode == 1
+        and "none.pmtiles cannot be read" in missing.stderr
+        and str(tmp_path) not in missing.stderr
+    )

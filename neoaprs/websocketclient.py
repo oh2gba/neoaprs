@@ -2,6 +2,7 @@
 
 No extensions, compression or TLS. Tornado has a client but may be imported by neoaprs/web/ only.
 """
+
 import asyncio
 import base64
 import hashlib
@@ -63,7 +64,10 @@ class WebSocketClient:
             lines = head.decode("latin-1").split("\r\n")
             if len(head) > HEADER_MAX or len(lines[0].split()) < 2 or lines[0].split()[1] != "101":
                 raise WebSocketError(f"the server did not upgrade the connection: {lines[0][:80]}")
-            headers = {name.strip().lower(): value.strip() for name, _, value in (line.partition(":") for line in lines[1:] if ":" in line)}
+            headers = {
+                name.strip().lower(): value.strip()
+                for name, _, value in (line.partition(":") for line in lines[1:] if ":" in line)
+            }
             if headers.get("sec-websocket-accept") != accept_of(key):
                 raise WebSocketError("the server's answer to the handshake is not the one for this key")
         except (OSError, asyncio.IncompleteReadError, asyncio.LimitOverrunError, WebSocketError, TimeoutError) as error:

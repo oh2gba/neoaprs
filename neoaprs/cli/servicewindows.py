@@ -2,6 +2,7 @@
 
 The value `NeoAPRS` of the Run key holds the command. It is not a Windows service, because a
 service has no desktop and no user profile. `winreg` is imported late so tests can stub it."""
+
 import importlib
 import subprocess
 import sys
@@ -72,23 +73,38 @@ def installed(plan: Plan) -> tuple[bool, str]:
 def spawn(argv: list[str]) -> None:
     """Start the daemon now, detached from this console; the entry only acts at the next login."""
     flags = DETACHED if sys.platform == "win32" else 0
-    subprocess.Popen(argv, creationflags=flags, close_fds=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.Popen(
+        argv,
+        creationflags=flags,
+        close_fds=True,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 def install(plan: Plan) -> int:
     before = current()
     if before is not None and not ours(before):
-        print(f"the Run entry {VALUE_NAME} exists and is not NeoAPRS's ({before}); remove it in Settings > Apps > Startup or regedit and run this again")
+        print(
+            f"the Run entry {VALUE_NAME} exists and is not NeoAPRS's ({before}); remove it in Settings > Apps > Startup or regedit and run this again"
+        )
         return 1
     command = command_line(plan)
     plan.data.mkdir(parents=True, exist_ok=True)
     write(command)
-    print(f"NeoAPRS will start when you log in: {command}" if before in (None, command) else f"the start at login was changed to: {command}")
+    print(
+        f"NeoAPRS will start when you log in: {command}"
+        if before in (None, command)
+        else f"the start at login was changed to: {command}"
+    )
     if is_running(plan.data):
         print("a daemon is running on this data folder already; it is left alone")
     else:
         spawn(launch_argv(plan))
-        print(f"started it now; its log is {plan.data / LOG_NAME}, its page {page_address(plan.data)} (the setting web/port)")
+        print(
+            f"started it now; its log is {plan.data / LOG_NAME}, its page {page_address(plan.data)} (the setting web/port)"
+        )
     return 0
 
 

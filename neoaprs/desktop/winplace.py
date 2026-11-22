@@ -2,6 +2,7 @@
 
 Read with GetWindowPlacement and restored with SetWindowPlacement through ctypes and user32,
 stored in the app's file (appstate.py). Where `windll` is missing nothing is asked or saved."""
+
 import ctypes
 import logging
 import threading
@@ -28,24 +29,38 @@ class _Point(ctypes.Structure):
 
 
 class _Rect(ctypes.Structure):
-    _fields_ = (("left", ctypes.c_int32), ("top", ctypes.c_int32), ("right", ctypes.c_int32), ("bottom", ctypes.c_int32))
+    _fields_ = (
+        ("left", ctypes.c_int32),
+        ("top", ctypes.c_int32),
+        ("right", ctypes.c_int32),
+        ("bottom", ctypes.c_int32),
+    )
 
     def corners(self) -> Rect:
         return self.left, self.top, self.right, self.bottom
 
 
 class _Placement(ctypes.Structure):
-    _fields_ = (("length", ctypes.c_uint32), ("flags", ctypes.c_uint32), ("showCmd", ctypes.c_uint32), ("ptMinPosition", _Point), ("ptMaxPosition", _Point), ("rcNormalPosition", _Rect))
+    _fields_ = (
+        ("length", ctypes.c_uint32),
+        ("flags", ctypes.c_uint32),
+        ("showCmd", ctypes.c_uint32),
+        ("ptMinPosition", _Point),
+        ("ptMaxPosition", _Point),
+        ("rcNormalPosition", _Rect),
+    )
 
 
 class _MonitorInfo(ctypes.Structure):
     """Win32's MONITORINFO."""
+
     _fields_ = (("cbSize", ctypes.c_uint32), ("rcMonitor", _Rect), ("rcWork", _Rect), ("dwFlags", ctypes.c_uint32))
 
 
 @dataclass(frozen=True)
 class Placement:
     """The result of GetWindowPlacement: show state, flags and the normal (restored) rectangle."""
+
     show_cmd: int
     flags: int
     normal: Rect
@@ -53,7 +68,9 @@ class Placement:
     @property
     def maximized(self) -> bool:
         """Return True if maximized, or minimised from maximized (the taskbar restores that)."""
-        return self.show_cmd == SW_SHOWMAXIMIZED or (self.show_cmd == SW_SHOWMINIMIZED and bool(self.flags & WPF_RESTORETOMAXIMIZED))
+        return self.show_cmd == SW_SHOWMAXIMIZED or (
+            self.show_cmd == SW_SHOWMINIMIZED and bool(self.flags & WPF_RESTORETOMAXIMIZED)
+        )
 
 
 class Win32Window:
@@ -154,9 +171,11 @@ class WindowKeeper:
 
     def told(self, name: str) -> Callable[..., None]:
         """Return a handler for a pywebview window event: log it (DEBUG) and start the timer."""
+
         def handler(*args: Any) -> None:
             log.debug("window: event %s %s [%s]", name, args, threading.current_thread().name)
             self._later()
+
         return handler
 
     def _later(self) -> None:
@@ -189,7 +208,15 @@ class WindowKeeper:
             return
         left, top, right, bottom = now.normal
         state = appstate.WindowState(right - left, bottom - top, None, None, now.maximized, now.normal)
-        log.log(level, "window: %s: read showCmd=%d flags=%d normal=%s, saved maximized=%s", why, now.show_cmd, now.flags, now.normal, state.maximized)
+        log.log(
+            level,
+            "window: %s: read showCmd=%d flags=%d normal=%s, saved maximized=%s",
+            why,
+            now.show_cmd,
+            now.flags,
+            now.normal,
+            state.maximized,
+        )
         with self._lock:
             self.maximized = state.maximized
             if state != self.state:
@@ -202,7 +229,11 @@ class WindowKeeper:
         if win is None or self.state.normal is None:
             return
         done = win.place(self.state.normal, SW_HIDE)
-        log.info("window: start: before it is shown, normal=%s %s", self.state.normal, "placed" if done else "refused by SetWindowPlacement")
+        log.info(
+            "window: start: before it is shown, normal=%s %s",
+            self.state.normal,
+            "placed" if done else "refused by SetWindowPlacement",
+        )
 
     def shown(self) -> None:
         """pywebview's `shown`: apply the placement again to the visible window."""
@@ -222,7 +253,12 @@ class WindowKeeper:
             return False
         now = win.placement() if win.visible() else None
         state = self.state if now is None else replace(self.state, maximized=now.maximized, normal=now.normal)
-        log.info("window: open: %s placement, maximized=%s normal=%s", "the saved" if now is None else "its own", state.maximized, state.normal)
+        log.info(
+            "window: open: %s placement, maximized=%s normal=%s",
+            "the saved" if now is None else "its own",
+            state.maximized,
+            state.normal,
+        )
         self.window.show()
         self.apply("open", state)
         return True
@@ -244,11 +280,32 @@ class WindowKeeper:
             normal = now.normal
         show_cmd = SW_SHOWMAXIMIZED if state.maximized else SW_SHOWNORMAL
         areas, screen = win.monitor(normal), win.screen()
-        log.info("window: %s: apply showCmd=%d normal=%s monitor=%s work=%s dpi=%s screen=%s", why, show_cmd, normal, areas[0] if areas else "?", areas[1] if areas else "?", win.dpi() or "?",
-                 f"{screen[0]}x{screen[1]}" if screen else "?")
+        log.info(
+            "window: %s: apply showCmd=%d normal=%s monitor=%s work=%s dpi=%s screen=%s",
+            why,
+            show_cmd,
+            normal,
+            areas[0] if areas else "?",
+            areas[1] if areas else "?",
+            win.dpi() or "?",
+            f"{screen[0]}x{screen[1]}" if screen else "?",
+        )
         done = win.place(normal, show_cmd)
         after = win.placement()
-        log.info("window: %s: after showCmd=%s normal=%s frame=%s zoomed=%s", why, after.show_cmd if after else "?", after.normal if after else "?", win.frame(), win.zoomed())
+        log.info(
+            "window: %s: after showCmd=%s normal=%s frame=%s zoomed=%s",
+            why,
+            after.show_cmd if after else "?",
+            after.normal if after else "?",
+            win.frame(),
+            win.zoomed(),
+        )
         if not done or after is None or after.show_cmd != show_cmd or after.normal != normal:
-            log.warning("window: %s: the window is not as applied (showCmd=%d normal=%s)%s", why, show_cmd, normal, "" if done else ": SetWindowPlacement failed")
+            log.warning(
+                "window: %s: the window is not as applied (showCmd=%d normal=%s)%s",
+                why,
+                show_cmd,
+                normal,
+                "" if done else ": SetWindowPlacement failed",
+            )
         self.maximized = state.maximized

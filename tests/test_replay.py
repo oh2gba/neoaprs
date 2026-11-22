@@ -2,6 +2,7 @@
 Tnc in the test and as a process by a plain socket. The pseudo-terminal mode is in
 tests/test_scripts.py.
 """
+
 import asyncio
 import socket
 import subprocess
@@ -24,7 +25,10 @@ from tests.support.proc import NEW_GROUP, STOP_PATIENCE_SEC, interrupt
 
 CAPTURE = FIXTURES / "kiss" / "thd7-2026-10-21.bin"
 FRAMES = frames_of(CAPTURE.read_bytes())
-EXPECTED_SOURCES = [f"{a.call}-{a.ssid}" if a.ssid else a.call for a in (ax25.decode(f.payload).source for f in kiss.KissDecoder().feed(CAPTURE.read_bytes()))]
+EXPECTED_SOURCES = [
+    f"{a.call}-{a.ssid}" if a.ssid else a.call
+    for a in (ax25.decode(f.payload).source for f in kiss.KissDecoder().feed(CAPTURE.read_bytes()))
+]
 
 
 async def start(replay: Replay) -> tuple["asyncio.Task[None]", int]:
@@ -42,7 +46,9 @@ async def stop(task: "asyncio.Task[None]") -> None:
 
 def test_the_frames_are_the_frames_of_the_capture_encoded_again() -> None:
     assert len(FRAMES) == 4
-    assert [f.payload for fr in FRAMES for f in kiss.KissDecoder().feed(fr)] == [f.payload for f in kiss.KissDecoder().feed(CAPTURE.read_bytes())]
+    assert [f.payload for fr in FRAMES for f in kiss.KissDecoder().feed(fr)] == [
+        f.payload for f in kiss.KissDecoder().feed(CAPTURE.read_bytes())
+    ]
     assert frames_of(b"no frames here") == []
 
 
@@ -51,7 +57,13 @@ async def test_a_tnc_that_connects_hears_the_capture_as_packets_one_frame_at_a_t
     # sent once)
     replay = Replay(FRAMES, interval=0.05, settle_sec=1.0)
     task, port = await start(replay)
-    tnc = Tnc(f"socket://127.0.0.1:{port}", check_sec=0.0, settle_sec=0.05, backoff=Backoff([0.05, 0.05]), fallback_probe=False)
+    tnc = Tnc(
+        f"socket://127.0.0.1:{port}",
+        check_sec=0.0,
+        settle_sec=0.05,
+        backoff=Backoff([0.05, 0.05]),
+        fallback_probe=False,
+    )
     heard: list[Packet] = []
     tnc.packet.connect(heard.append)
     try:
@@ -92,7 +104,9 @@ async def test_nothing_is_sent_until_a_client_is_there_and_the_frames_go_on_for_
         await stop(task)
 
 
-async def test_with_loop_the_file_starts_again_and_what_the_daemon_writes_is_shown(capsys: pytest.CaptureFixture[str]) -> None:
+async def test_with_loop_the_file_starts_again_and_what_the_daemon_writes_is_shown(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     replay = Replay(FRAMES, interval=0.01, loop=True, settle_sec=0.0)
     task, port = await start(replay)
     try:
@@ -135,7 +149,14 @@ def replay_socket_name(port: int) -> tuple[str, int]:
 
 
 def test_as_a_process_it_prints_the_address_and_plays_to_a_plain_socket_and_ends_on_ctrl_c() -> None:
-    proc = subprocess.Popen([sys.executable, "-m", "neoaprs", "replay", str(CAPTURE), "--interval", "0.05", "--loop"], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=NEW_GROUP)
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "neoaprs", "replay", str(CAPTURE), "--interval", "0.05", "--loop"],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        creationflags=NEW_GROUP,
+    )
     try:
         assert proc.stdout is not None
         address = proc.stdout.readline().strip()
@@ -147,20 +168,39 @@ def test_as_a_process_it_prints_the_address_and_plays_to_a_plain_socket_and_ends
             while len(kiss.KissDecoder().feed(data)) < 9 and time.monotonic() < deadline:
                 data += client.recv(4096)
         frames = kiss.KissDecoder().feed(data)
-        assert len(frames) >= 9 and [f.payload for f in frames[:4]] == [f.payload for f in kiss.KissDecoder().feed(CAPTURE.read_bytes())]
+        assert len(frames) >= 9 and [f.payload for f in frames[:4]] == [
+            f.payload for f in kiss.KissDecoder().feed(CAPTURE.read_bytes())
+        ]
     finally:
         interrupt(proc)
         try:
             out, err = proc.communicate(timeout=STOP_PATIENCE_SEC)
         except subprocess.TimeoutExpired:
             proc.kill()
-            raise AssertionError(f"the replay did not end {STOP_PATIENCE_SEC:g} s after the interrupt; it said: {proc.communicate()[1]}") from None
-    assert proc.returncode == 0 and "waiting for a port to connect" in err and "a port connected" in err and "frame 9 sent" in err and "stopped" in err
+            raise AssertionError(
+                f"the replay did not end {STOP_PATIENCE_SEC:g} s after the interrupt; it said: {proc.communicate()[1]}"
+            ) from None
+    assert (
+        proc.returncode == 0
+        and "waiting for a port to connect" in err
+        and "a port connected" in err
+        and "frame 9 sent" in err
+        and "stopped" in err
+    )
 
 
 def test_the_sample_capture_of_the_package_is_the_capture_of_the_tests_and_is_played_when_no_file_is_named() -> None:
-    assert replaycmd.SAMPLE.read_bytes() == CAPTURE.read_bytes(), "neoaprs/samples/thd7.kiss is a copy of tests/fixtures/kiss/thd7-2026-10-21.bin"
-    proc = subprocess.Popen([sys.executable, "-m", "neoaprs", "replay", "--interval", "0.05"], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=NEW_GROUP)
+    assert replaycmd.SAMPLE.read_bytes() == CAPTURE.read_bytes(), (
+        "neoaprs/samples/thd7.kiss is a copy of tests/fixtures/kiss/thd7-2026-10-21.bin"
+    )
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "neoaprs", "replay", "--interval", "0.05"],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        creationflags=NEW_GROUP,
+    )
     try:
         assert proc.stdout is not None
         address = proc.stdout.readline().strip()
@@ -170,7 +210,9 @@ def test_the_sample_capture_of_the_package_is_the_capture_of_the_tests_and_is_pl
         with socket.create_connection(("127.0.0.1", int(address.rsplit(":", 1)[1])), timeout=5) as client:
             while len(kiss.KissDecoder().feed(data)) < 4 and time.monotonic() < deadline:
                 data += client.recv(4096)
-        assert [f.payload for f in kiss.KissDecoder().feed(data)] == [f.payload for f in kiss.KissDecoder().feed(CAPTURE.read_bytes())]
+        assert [f.payload for f in kiss.KissDecoder().feed(data)] == [
+            f.payload for f in kiss.KissDecoder().feed(CAPTURE.read_bytes())
+        ]
     finally:
         interrupt(proc)
         out, err = proc.communicate(timeout=STOP_PATIENCE_SEC)

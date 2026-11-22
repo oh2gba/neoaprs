@@ -1,4 +1,5 @@
 """What the operator has set for one station: its own path, RF only, and when to be alerted."""
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
@@ -11,6 +12,7 @@ ALERT_KM_MAX = 1000
 @dataclass(frozen=True, slots=True)
 class Alert:
     """When to alert about a station: any of the three, each fired once per crossing."""
+
     # A packet is heard after half an hour or more of silence, or for the first time.
     on_air: bool = False
     # The station comes from farther than this to nearer (None: not watched).
@@ -40,6 +42,7 @@ class Fired:
 
     `km` is the distance of the station for `within`, with one decimal.
     """
+
     call: str
     kind: Literal["on_air", "within", "direct"]
     text: str

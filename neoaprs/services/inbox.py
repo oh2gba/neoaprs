@@ -3,6 +3,7 @@
 A message to us is kept as "received" and acked if it has an id; one to another station is kept
 as "overheard"; an ack or rej to us settles the message of ours it quotes.
 """
+
 import asyncio
 import logging
 from collections.abc import Callable
@@ -37,11 +38,16 @@ def _station(call: str) -> str:
 def _plain_text(packet: Packet, message: Message) -> str:
     """The text of an ack or reject that settled nothing, as written."""
     line = line_of(packet.inner_info)
-    return line if line is not None else ("ack" + message.ack_id if message.ack_id is not None else "rej" + str(message.rej_id))
+    return (
+        line
+        if line is not None
+        else ("ack" + message.ack_id if message.ack_id is not None else "rej" + str(message.rej_id))
+    )
 
 
 class Host(Protocol):
     """What the inbox asks of messaging."""
+
     def records(self) -> list[MessageRecord]: ...
     def put(self, record: MessageRecord) -> None: ...
     def ack(self, to: str, msg_id: str, reply_ack: str | None = None, packet: Packet | None = None) -> None: ...
@@ -49,9 +55,18 @@ class Host(Protocol):
 
 
 class Inbox:
-    def __init__(self, host: Host, config: ConfigSource, messagelog: MessageLog, tasks: TaskSet, board: Callable[[Packet, Message], None] | None = None,
-                 alert: Callable[[MessageRecord], None] | None = None, qru: Callable[[Packet, Message], bool] | None = None,
-                 qru_answer: Callable[[Packet, Message], bool] | None = None, keyring: Keys | None = None) -> None:
+    def __init__(
+        self,
+        host: Host,
+        config: ConfigSource,
+        messagelog: MessageLog,
+        tasks: TaskSet,
+        board: Callable[[Packet, Message], None] | None = None,
+        alert: Callable[[MessageRecord], None] | None = None,
+        qru: Callable[[Packet, Message], bool] | None = None,
+        qru_answer: Callable[[Packet, Message], bool] | None = None,
+        keyring: Keys | None = None,
+    ) -> None:
         self._host = host
         self._keys: Keys = keyring or NoKeys()
         self._qru_answer = qru_answer
@@ -91,7 +106,9 @@ class Inbox:
         line = line_of(packet.inner_info)
         reply = None if line is None else reply_ack_of(line)
         if is_query(message.text):
-            asked = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "received")
+            asked = MessageRecord(
+                0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "received"
+            )
             # A numbered query is acked: without an ack the sender retries five times.
             if message.msg_id is not None and self.heard.ack_due(asked, packet.heard_at):
                 self._host.ack(packet.sender, message.msg_id, reply, packet)
@@ -99,14 +116,33 @@ class Inbox:
         if reply:
             self._settle(packet, reply, "acked")
         text, seal, wire = self._keys.opened(packet.sender, self._config().station_call, message.text)
-        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, text, message.msg_id, "received", route=received_text(packet.path, packet.gate), seal=seal, wire=wire, radio_id=packet.radio_id,
-                               snr=packet.snr, rssi=packet.rssi)
+        record = MessageRecord(
+            0,
+            packet.heard_at,
+            "in",
+            packet.sender,
+            message.addressee,
+            text,
+            message.msg_id,
+            "received",
+            route=received_text(packet.path, packet.gate),
+            seal=seal,
+            wire=wire,
+            radio_id=packet.radio_id,
+            snr=packet.snr,
+            rssi=packet.rssi,
+        )
         fresh = self.heard.note(record, packet.heard_at)
         if message.msg_id is not None:
             if self.heard.ack_due(record, packet.heard_at):
                 self._host.ack(packet.sender, message.msg_id, reply, packet)
             else:
-                log.debug("message %s from %s heard again within %d s of our ack: not acked again", message.msg_id, packet.sender, ACK_AGAIN_SEC)
+                log.debug(
+                    "message %s from %s heard again within %d s of our ack: not acked again",
+                    message.msg_id,
+                    packet.sender,
+                    ACK_AGAIN_SEC,
+                )
             if reply is not None:
                 self.heard.owe_reply(_station(packet.sender), message.msg_id, packet.heard_at)
         if fresh:
@@ -125,14 +161,33 @@ class Inbox:
 
     def _to_qru(self, packet: Packet, message: Message) -> bool:
         """Whether the message is a QRU request the server took; never acked, whatever its id."""
-        return self._qru is not None and message.addressee.strip().upper() == ADDRESSEE and message.ack_id is None and message.rej_id is None and self._qru(packet, message)
+        return (
+            self._qru is not None
+            and message.addressee.strip().upper() == ADDRESSEE
+            and message.ack_id is None
+            and message.rej_id is None
+            and self._qru(packet, message)
+        )
 
     def _overheard(self, packet: Packet, message: Message) -> None:
         """Keep a message to another station once, apart from conversations; skip acks/rejects."""
         if message.ack_id is not None or message.rej_id is not None:
             return
-        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "overheard", route=received_text(packet.path, packet.gate), seal=self._keys.kind(message.text), radio_id=packet.radio_id,
-                               snr=packet.snr, rssi=packet.rssi)
+        record = MessageRecord(
+            0,
+            packet.heard_at,
+            "in",
+            packet.sender,
+            message.addressee,
+            message.text,
+            message.msg_id,
+            "overheard",
+            route=received_text(packet.path, packet.gate),
+            seal=self._keys.kind(message.text),
+            radio_id=packet.radio_id,
+            snr=packet.snr,
+            rssi=packet.rssi,
+        )
         if self.heard.note(record, packet.heard_at):
             self.tasks.spawn(self._keep(record), "message-keep")
 
@@ -151,14 +206,27 @@ class Inbox:
         Ids wrap around, so an older message with the same id is not the one acked.
         """
         source = _station(packet.sender)
-        ours = sorted((r for r in self._host.records() if r.direction == "out" and r.to_call == source and r.msg_id == msg_id), key=lambda r: r.id, reverse=True)
+        ours = sorted(
+            (r for r in self._host.records() if r.direction == "out" and r.to_call == source and r.msg_id == msg_id),
+            key=lambda r: r.id,
+            reverse=True,
+        )
         if not ours:
             log.debug("%s %s from %s settles no message of ours", state, msg_id, packet.sender)
             return False
         self.heard.settled(source)
         record = ours[0]
         if record.state in ACK_SETTLES:
-            self._host.put(replace(record, state=state, acked_at=packet.heard_at if state == "acked" else None, failure=None, snr=packet.snr, rssi=packet.rssi))
+            self._host.put(
+                replace(
+                    record,
+                    state=state,
+                    acked_at=packet.heard_at if state == "acked" else None,
+                    failure=None,
+                    snr=packet.snr,
+                    rssi=packet.rssi,
+                )
+            )
             log.info("message %d to %s is %s", record.id, record.to_call, state)
         return True
 

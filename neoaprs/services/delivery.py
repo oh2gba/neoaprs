@@ -3,6 +3,7 @@
 A copy of our own message heard again is linked to the latest attempt before it. Chains are
 persisted and go with the message.
 """
+
 from collections.abc import Iterable
 from datetime import datetime
 
@@ -47,7 +48,12 @@ class Delivery:
         if not packet.on_air or message.ack_id is not None or message.rej_id is not None:
             return None
         for record in records:
-            if record.direction == "out" and record.msg_id == message.msg_id and (record.wire if record.wire is not None else record.text) == message.text and same_call(record.to_call, message.addressee):
+            if (
+                record.direction == "out"
+                and record.msg_id == message.msg_id
+                and (record.wire if record.wire is not None else record.text) == message.text
+                and same_call(record.to_call, message.addressee)
+            ):
                 attempt = attempt_before(self._chains.get(record.id, []), packet.heard_at)
                 if attempt is not None and self._keep(record, attempt, packet):
                     return record
@@ -58,7 +64,9 @@ class Delivery:
         gate = packet.gate
         if gate:
             inner = () if packet.third_party is None else packet.third_party.path
-            found = [HopSeen(AT_GATE, gate, packet.heard_at, True)] + [HopSeen(p, c, packet.heard_at, True) for p, c in internet_hops(attempt.path, inner, gate)]
+            found = [HopSeen(AT_GATE, gate, packet.heard_at, True)] + [
+                HopSeen(p, c, packet.heard_at, True) for p, c in internet_hops(attempt.path, inner, gate)
+            ]
         else:
             found = [HopSeen(p, c, packet.heard_at, False) for p, c in hops_used(attempt.path, packet.path)]
         new = [seen for seen in found if not attempt.has(seen.position, seen.via_internet)]

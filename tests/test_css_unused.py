@@ -1,6 +1,7 @@
 """Tests for the unused-class check of the style sheets (scripts/css-unused.py, stage ui-lint of
 scripts/check): unused classes are reported, run-time prefixes and map-library classes are not.
 """
+
 import importlib.util
 import subprocess
 import sys
@@ -10,7 +11,7 @@ from types import ModuleType
 import pytest
 from tests.support.ptyline import posix_only
 
-pytestmark = posix_only      # (a development check of the repository, not the product)
+pytestmark = posix_only  # (a development check of the repository, not the product)
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "css-unused.py"
@@ -63,7 +64,9 @@ def test_a_class_is_a_whole_word_and_comments_attributes_and_declarations_are_no
     assert named(root) == [".real-big"]
 
 
-def test_a_class_the_page_builds_at_run_time_is_not_reported_while_its_code_is_there(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_class_the_page_builds_at_run_time_is_not_reported_while_its_code_is_there(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(css_unused, "PREFIXES", {"tone-": "lib/tone.ts"})
     root = tree(tmp_path, ".tone-temp { color: red; } .maplibregl-popup { top: 0; }", "")
     (root / "ui" / "src" / "lib").mkdir()
@@ -82,7 +85,12 @@ def test_a_prefix_with_no_rule_is_reported(tmp_path: Path, monkeypatch: pytest.M
 
 
 def test_tests_and_the_test_folder_do_not_count_as_a_mention(tmp_path: Path) -> None:
-    root = tree(tmp_path, ".only-in-a-test { top: 0; }", "", **{"A.test.ts": "find('.only-in-a-test')", "test__helper.ts": "'only-in-a-test'"})
+    root = tree(
+        tmp_path,
+        ".only-in-a-test { top: 0; }",
+        "",
+        **{"A.test.ts": "find('.only-in-a-test')", "test__helper.ts": "'only-in-a-test'"},
+    )
     assert named(root) == [".only-in-a-test"]
 
 

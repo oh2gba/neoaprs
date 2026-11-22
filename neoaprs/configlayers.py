@@ -1,6 +1,7 @@
 """Settings of the map's traffic layers: aircraft and ship sources and own receivers.
 
 A stored source not offered at the station's position stays stored and counts as none."""
+
 import ipaddress
 import re
 from collections.abc import Callable
@@ -86,6 +87,7 @@ def ais_host_port(value: str) -> tuple[str, int]:
 @dataclass(frozen=True)
 class LayerFields:
     """The `Config` fields of the layer settings."""
+
     map_aircraft: str = "none"
     map_aircraft_host: str = ""
     map_ships: str = "none"

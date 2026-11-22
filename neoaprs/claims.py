@@ -3,6 +3,7 @@
 Resources are serial ports, sound cards, keying lines, Mercury port pairs and the GPS port.
 A claim is the value in force; searches leave out what others hold. No I/O.
 """
+
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
@@ -39,7 +40,14 @@ class Claims:
 
         Return None if held now (or already), else the other holder's claim and change nothing.
         """
-        other = next((c for c in self._held if c.holder != claim.holder and c.value == claim.value and _same_kind(c.kind, claim.kind)), None)
+        other = next(
+            (
+                c
+                for c in self._held
+                if c.holder != claim.holder and c.value == claim.value and _same_kind(c.kind, claim.kind)
+            ),
+            None,
+        )
         if other is not None:
             return other
         if claim not in self._held:

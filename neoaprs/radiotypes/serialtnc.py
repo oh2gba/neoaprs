@@ -2,6 +2,7 @@
 
 The line is a device, or a socket://, ble:// or bt:// address. One driver, "tnc".
 """
+
 from neoaprs.configtypes import optional_int
 from neoaprs.configvalues import port_address
 from neoaprs.radiotype import Can, Field, RadioType
@@ -17,7 +18,20 @@ SERIAL_CAN = Can(find=True, terminal=True, tune=False, key_test=False, scope=Fal
 
 
 def _serial(profile: Profile) -> RadioType:
-    return RadioType(profile.key, "fm", profile.name, f"radio.type.{profile.key}", profile.transport, "tnc", profile.key, fields_of((PORT, BAUD), FM_ALLOWED), FM_LIMITS, FM_ALLOWED, SERIAL_CAN, dummy=False)
+    return RadioType(
+        profile.key,
+        "fm",
+        profile.name,
+        f"radio.type.{profile.key}",
+        profile.transport,
+        "tnc",
+        profile.key,
+        fields_of((PORT, BAUD), FM_ALLOWED),
+        FM_LIMITS,
+        FM_ALLOWED,
+        SERIAL_CAN,
+        dummy=False,
+    )
 
 
 # the page's order: the KISS TNC (TH-D74) above the two Kenwood lines, the TM-D710 above the TH-D7

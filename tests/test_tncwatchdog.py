@@ -2,6 +2,7 @@
 skipped: the quiet period before a check, the check's steps and exits, the silent state's probes,
 and the line going away.
 """
+
 import asyncio
 from datetime import datetime
 
@@ -28,7 +29,7 @@ class WatchedTnc:
         self.calls: list[str] = []
         self.sent: list[bytes] = []
         self.has_line = True
-        self.refuses_write_number = 0                     # the nth write is refused (1 is the first); 0: none
+        self.refuses_write_number = 0  # the nth write is refused (1 is the first); 0: none
         self.alive = True
         self.silent_told: list[str] = []
         self.reopened = 0
@@ -38,7 +39,7 @@ class WatchedTnc:
 
     def look_begin(self) -> bool:
         self.calls.append("begin")
-        self.alive = self.alive and self.has_line                   # (a Tnc with no line has no line to watch either)
+        self.alive = self.alive and self.has_line  # (a Tnc with no line has no line to watch either)
         return self.has_line
 
     def look_send(self, data: bytes) -> bool:
@@ -64,8 +65,7 @@ class WatchedTnc:
 
 @pytest.fixture(autouse=True)
 def no_jitter(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The quiet period is exactly `sec` (its random part is tested in test_tncwatchdog_jitter.py).
-    """
+    """The quiet period is exactly `sec` (its random part is tested in test_tncwatchdog_jitter.py)."""
     monkeypatch.setattr(tncwatchdog.random, "uniform", lambda a, b: 0.0)
 
 
@@ -84,6 +84,7 @@ EXIT = KENWOOD_TNC2.exit_kiss
 
 # ---- the check
 
+
 async def test_a_line_quiet_for_the_period_is_checked_with_the_exit_frame_a_return_and_kiss_on_in_order() -> None:
     tnc = WatchedTnc()
     dog = Watchdog(tnc, 60.0)
@@ -94,7 +95,9 @@ async def test_a_line_quiet_for_the_period_is_checked_with_the_exit_frame_a_retu
         await asyncio.sleep(1.2)
         assert tnc.sent == [EXIT] and tnc.calls == ["begin"], "the exit frame goes first, then the pause"
         await asyncio.sleep(0.5)
-        assert tnc.sent == [EXIT, PROMPT] and tnc.calls == ["begin"], "the return, then it is given its second to be answered"
+        assert tnc.sent == [EXIT, PROMPT] and tnc.calls == ["begin"], (
+            "the return, then it is given its second to be answered"
+        )
         await asyncio.sleep(1.0)
         assert tnc.calls == ["begin", "kiss on"]
         await end(task)
@@ -108,10 +111,12 @@ async def test_any_byte_in_answer_keeps_the_radio_and_the_next_check_is_a_whole_
     async with virtual_time():
         task = await running(dog, tnc)
         await asyncio.sleep(61)
-        tnc.stats.bytes_in += 1                                      # the radio typed "cmd:"
+        tnc.stats.bytes_in += 1  # the radio typed "cmd:"
         dog.heard()
         await asyncio.sleep(3)
-        assert tnc.silent_told == [] and tnc.state is Source.State.CONNECTED and tnc.calls == ["begin", "kiss on", "end"]
+        assert (
+            tnc.silent_told == [] and tnc.state is Source.State.CONNECTED and tnc.calls == ["begin", "kiss on", "end"]
+        )
         await asyncio.sleep(55)
         assert tnc.stats.keepalive_checks == 1, "the quiet period started again from the byte"
         await asyncio.sleep(10)
@@ -165,6 +170,7 @@ async def test_with_the_checks_off_a_radio_that_is_not_silent_ends_the_watch() -
 
 # ---- the exits of a check
 
+
 async def test_a_line_that_is_gone_when_the_check_begins_says_nothing_of_the_radio() -> None:
     tnc = WatchedTnc()
     tnc.has_line = False
@@ -198,8 +204,12 @@ async def test_a_return_that_cannot_be_written_ends_the_check_with_the_radio_not
     assert tnc.sent == [EXIT, PROMPT] and tnc.silent_told == [] and tnc.calls[:2] == ["begin", "end"]
 
 
-@pytest.mark.parametrize(("gone_at", "sent", "calls"), [(60.2, [EXIT], ["begin", "end"]), (61.0, [EXIT, PROMPT], ["begin", "end"])])
-async def test_a_line_replaced_in_the_middle_of_a_check_ends_it_before_the_next_step(gone_at: float, sent: list[bytes], calls: list[str]) -> None:
+@pytest.mark.parametrize(
+    ("gone_at", "sent", "calls"), [(60.2, [EXIT], ["begin", "end"]), (61.0, [EXIT, PROMPT], ["begin", "end"])]
+)
+async def test_a_line_replaced_in_the_middle_of_a_check_ends_it_before_the_next_step(
+    gone_at: float, sent: list[bytes], calls: list[str]
+) -> None:
     """(`alive` says the line the watch was started for is still the Tnc's.)"""
     tnc = WatchedTnc()
     dog = Watchdog(tnc, 60.0)
@@ -213,6 +223,7 @@ async def test_a_line_replaced_in_the_middle_of_a_check_ends_it_before_the_next_
 
 
 # ---- the silent radio
+
 
 async def test_a_silent_radio_is_probed_every_probe_time_and_every_fifth_probe_the_port_is_opened_again() -> None:
     tnc = WatchedTnc()
@@ -228,7 +239,12 @@ async def test_a_silent_radio_is_probed_every_probe_time_and_every_fifth_probe_t
             # A probe takes 3.5 s of its own: the pause, the wait for a reply, the wait for any byte
             await asyncio.sleep(33.5)
         await asyncio.sleep(3)
-        assert tnc.stats.watchdog_probes == 5 and tnc.last_watchdog_action == "reopen" and tnc.stats.port_reopens == 1 and tnc.reopened == 1
+        assert (
+            tnc.stats.watchdog_probes == 5
+            and tnc.last_watchdog_action == "reopen"
+            and tnc.stats.port_reopens == 1
+            and tnc.reopened == 1
+        )
         await end(task)
     assert tnc.silent_told == [], "a probe that gets no answer says nothing new: the radio is silent already"
 
@@ -240,7 +256,7 @@ async def test_a_radio_that_answers_between_two_probes_is_not_probed() -> None:
     async with virtual_time():
         task = await running(dog, tnc)
         await asyncio.sleep(10)
-        tnc.state = Source.State.CONNECTED                          # (a byte came: the Tnc ended the silence itself)
+        tnc.state = Source.State.CONNECTED  # (a byte came: the Tnc ended the silence itself)
         await asyncio.sleep(25)
         assert tnc.stats.watchdog_probes == 0 and tnc.calls == []
         await end(task)
@@ -261,6 +277,10 @@ async def test_a_probe_that_is_answered_resets_the_count_that_decides_the_reopen
 
 # ---- the words
 
-@pytest.mark.parametrize(("seconds", "text"), [(12, "12 s"), (12.34, "12.3 s"), (59.9, "59.9 s"), (60, "1 min"), (900, "15 min"), (90, "1.5 min")])
+
+@pytest.mark.parametrize(
+    ("seconds", "text"),
+    [(12, "12 s"), (12.34, "12.3 s"), (59.9, "59.9 s"), (60, "1 min"), (900, "15 min"), (90, "1.5 min")],
+)
 def test_a_time_is_in_seconds_below_a_minute_and_in_minutes_from_it(seconds: float, text: str) -> None:
     assert how_long(seconds) == text

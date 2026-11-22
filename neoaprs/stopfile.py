@@ -3,6 +3,7 @@
 Files: `neoaprs.stop`, `neoaprs.restarting`, `neoaprs.restart-port` (the page's port, so an open
 browser page keeps its address) and `neoaprs.migrating` (goes stale by itself after a kill).
 """
+
 import asyncio
 import contextlib
 import stat
@@ -75,7 +76,11 @@ def noted_port(data_dir: Path, now: float | None = None) -> int | None:
     path = data_dir / PORT_NAME
     try:
         found = path.lstat()
-        if not stat.S_ISREG(found.st_mode) or found.st_size > PORT_NOTE_BYTES or abs((time.time() if now is None else now) - found.st_mtime) >= PORT_FRESH_SEC:
+        if (
+            not stat.S_ISREG(found.st_mode)
+            or found.st_size > PORT_NOTE_BYTES
+            or abs((time.time() if now is None else now) - found.st_mtime) >= PORT_FRESH_SEC
+        ):
             return None
         with path.open("rb") as f:
             text = f.read(PORT_NOTE_BYTES).decode("ascii").strip()

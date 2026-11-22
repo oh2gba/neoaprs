@@ -3,6 +3,7 @@
 `on_air` builds a frame the TNC would hand over, `from_internet` a packet as APRS-IS hands it on,
 `said` returns the frames the daemon has written.
 """
+
 import asyncio
 from datetime import datetime
 from typing import Protocol
@@ -15,7 +16,16 @@ from neoaprs.packet import Packet
 
 def on_air(source: str, info: bytes, destination: str = "APRS", path: str = "WIDE1-1") -> bytes:
     """A frame from `source`, as the TNC delivers it over KISS."""
-    return kiss.encode(ax25.encode(ax25.Frame(ax25.Address.parse(destination), ax25.Address.parse(source), tuple(ax25.Address.parse(p) for p in path.split(",") if p), info=info)))
+    return kiss.encode(
+        ax25.encode(
+            ax25.Frame(
+                ax25.Address.parse(destination),
+                ax25.Address.parse(source),
+                tuple(ax25.Address.parse(p) for p in path.split(",") if p),
+                info=info,
+            )
+        )
+    )
 
 
 def message_info(addressee: str, text: str, msg_id: str | None = None, reply: str | None = None) -> bytes:
@@ -32,19 +42,21 @@ def reject_info(addressee: str, msg_id: str) -> bytes:
     return f":{addressee:<9}:rej{msg_id}".encode()
 
 
-def from_internet(source: str, info: bytes, at: datetime, destination: str = "APRS", path: str = "TCPIP*,qAC,T2FINLAND") -> Packet:
+def from_internet(
+    source: str, info: bytes, at: datetime, destination: str = "APRS", path: str = "TCPIP*,qAC,T2FINLAND"
+) -> Packet:
     """A packet as APRS-IS hands it on, parsed as `parse_is_line` does; `via` is `is`."""
     return parse_is_line(f"{source}>{destination},{path}:".encode() + info, at)
 
 
 class Hears(Protocol):
     """What `said` needs of a world: the `Env` of tests/support/env.py."""
+
     async def heard(self, count: int = 1, timeout_sec: float = 2.0) -> bytes: ...
 
 
 async def said(radio: Hears, count: int = 1, timeout_sec: float = 2.0) -> list[ax25.Frame]:
-    """The frames the daemon has written to the radio, waiting until `count` arrived or time is up.
-    """
+    """The frames the daemon has written to the radio, waiting until `count` arrived or time is up."""
     out: list[ax25.Frame] = []
     decoder = kiss.KissDecoder()
     loop = asyncio.get_running_loop()

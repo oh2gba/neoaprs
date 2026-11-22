@@ -2,6 +2,7 @@
 
 It starts at login and restarts after a failure. A plist at that path that is not this agent's
 is never touched."""
+
 import os
 import plistlib
 import subprocess
@@ -28,17 +29,19 @@ def render(plan: Plan) -> bytes:
     """Return the plist running `-m neoaprs --data DIR` with this interpreter.
 
     Output from before the daemon logs (a traceback) goes to launchd.log in the data folder."""
-    return plistlib.dumps({
-        "Label": LABEL,
-        "ProgramArguments": [plan.python, "-m", "neoaprs", "--data", str(plan.data)],
-        "RunAtLoad": True,
-        "KeepAlive": {"SuccessfulExit": False},
-        "ThrottleInterval": RESTART_AFTER_SEC,
-        "StandardOutPath": str(plan.data / "launchd.log"),
-        "StandardErrorPath": str(plan.data / "launchd.log"),
-        "WorkingDirectory": str(plan.clone or plan.data),
-        "EnvironmentVariables": {"PYTHONUNBUFFERED": "1"},
-    })
+    return plistlib.dumps(
+        {
+            "Label": LABEL,
+            "ProgramArguments": [plan.python, "-m", "neoaprs", "--data", str(plan.data)],
+            "RunAtLoad": True,
+            "KeepAlive": {"SuccessfulExit": False},
+            "ThrottleInterval": RESTART_AFTER_SEC,
+            "StandardOutPath": str(plan.data / "launchd.log"),
+            "StandardErrorPath": str(plan.data / "launchd.log"),
+            "WorkingDirectory": str(plan.clone or plan.data),
+            "EnvironmentVariables": {"PYTHONUNBUFFERED": "1"},
+        }
+    )
 
 
 def ours(path: Path) -> bool:
@@ -66,7 +69,10 @@ def launchctl(*args: str) -> int:
 
 def loaded() -> bool:
     try:
-        return subprocess.run(["launchctl", "print", f"{domain()}/{LABEL}"], capture_output=True, check=False).returncode == 0  # noqa: S607  (the same launchctl)
+        return (
+            subprocess.run(["launchctl", "print", f"{domain()}/{LABEL}"], capture_output=True, check=False).returncode  # noqa: S607
+            == 0
+        )
     except FileNotFoundError:
         return False
 
@@ -84,11 +90,13 @@ def install(plan: Plan) -> int:
         scratch.write_bytes(content)
         scratch.replace(path)
         print(f"wrote {path} for {plan.python}")
-    launchctl("bootout", f"{domain()}/{LABEL}")               # replaces an agent that is already loaded
+    launchctl("bootout", f"{domain()}/{LABEL}")  # replaces an agent that is already loaded
     if launchctl("bootstrap", domain(), str(path)) != 0:
         print("launchctl did not load the agent; try: launchctl bootstrap " + domain() + " " + path.as_posix())
         return 1
-    print(f"neoaprs runs and starts at login (log: {plan.data / LOG_NAME}); the page is on {page_address(plan.data)} (the setting web/port)")
+    print(
+        f"neoaprs runs and starts at login (log: {plan.data / LOG_NAME}); the page is on {page_address(plan.data)} (the setting web/port)"
+    )
     return 0
 
 

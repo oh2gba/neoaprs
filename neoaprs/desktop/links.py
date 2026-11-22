@@ -2,6 +2,7 @@
 
 Everything but the daemon's own page opens in the system browser, because the window has no
 address bar. Link clicks and new windows are routed with `route`; script navigation is not."""
+
 import webbrowser
 from typing import Literal
 from urllib.parse import urldefrag, urlsplit
@@ -45,8 +46,8 @@ def route(url: str, page: str) -> Route:
     """Return where `url` opens: `window` (the page itself), `browser` (http, https, mailto) or `block`."""
     if url in INSIDE:
         return "window"
-    if url.startswith("blob:"):                               # a blob: address names the origin that made it
-        return "window" if route(url[len("blob:"):], page) == "window" else "block"
+    if url.startswith("blob:"):  # a blob: address names the origin that made it
+        return "window" if route(url[len("blob:") :], page) == "window" else "block"
     here, there = _origin(page), _origin(url)
     if here is not None and there == here:
         return "window"

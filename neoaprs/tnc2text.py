@@ -3,6 +3,7 @@
 Sources: a Yaesu FTM data port with Output PACKET, a TNC-2, KPC-3 or PK-232 in monitor mode.
 Each packet becomes a UI frame with PID F0. A TNC at 7 bits with a parity bit is detected.
 """
+
 import logging
 import re
 from dataclasses import dataclass
@@ -25,13 +26,17 @@ _BREAKS = frozenset(b"\r\n\x11\x13")
 _PROMPT = b"cmd:"
 # a call as loosely as a header can hold one; tnc2line.addresses says why one is invalid
 _PART = rb"[0-9A-Za-z-]{1,12}\*?"
-_MONITOR = re.compile(rb"(?:[0-9A-Za-z/.:-]+ +){0,2}?(?P<chain>%s(?:>%s)+)(?P<path>(?:,%s)*)(?: \[[^\]]*\])?(?::? <(?P<mark>[^>]*)>)?:" % (_PART, _PART, _PART))
+_MONITOR = re.compile(
+    rb"(?:[0-9A-Za-z/.:-]+ +){0,2}?(?P<chain>%s(?:>%s)+)(?P<path>(?:,%s)*)(?: \[[^\]]*\])?(?::? <(?P<mark>[^>]*)>)?:"
+    % (_PART, _PART, _PART)
+)
 _UI_MARK = re.compile(rb"UI[^>]*")
 
 
 @dataclass(frozen=True)
 class Rejected:
     """A line that began like a packet header and is none, with the reason."""
+
     text: str
     reason: str
 
@@ -39,6 +44,7 @@ class Rejected:
 @dataclass(frozen=True)
 class _Head:
     """A header whose information is the next line."""
+
     destination: ax25.Address
     source: ax25.Address
     path: tuple[ax25.Address, ...]
@@ -59,7 +65,11 @@ def _head_of(match: re.Match[bytes]) -> tuple[ax25.Address, ax25.Address, tuple[
         raise _NotAFrame("a header with both a chain of '>' and a path of ','")
     try:
         if chain:
-            [source], [destination], via = addresses([parts[0].rstrip(b"*")]), addresses([parts[-1]]), addresses(parts[1:-1])
+            [source], [destination], via = (
+                addresses([parts[0].rstrip(b"*")]),
+                addresses([parts[-1]]),
+                addresses(parts[1:-1]),
+            )
         else:
             [source, destination], via = addresses(parts), addresses(digis)
     except Tnc2Error as error:
@@ -160,7 +170,7 @@ class TextReader:
             self._held = None
         text = line
         while text.startswith(_PROMPT):
-            text = text[len(_PROMPT):]
+            text = text[len(_PROMPT) :]
         match = _MONITOR.match(text)
         if self._held is not None and match is None:
             if text:  # a prompt alone is no information
@@ -170,7 +180,12 @@ class TextReader:
         self._held = None
         if match is None:
             if _looks_like_header(text):
-                self._out.append(Rejected(line.decode("latin-1"), "a frame that is not AX.25" if b"{" in text else "not a header of a heard packet"))
+                self._out.append(
+                    Rejected(
+                        line.decode("latin-1"),
+                        "a frame that is not AX.25" if b"{" in text else "not a header of a heard packet",
+                    )
+                )
             else:
                 log.debug("tnc: a line of text that is no packet: %r", line[:80])
             return
@@ -179,16 +194,23 @@ class TextReader:
         except _NotAFrame as error:
             self._out.append(Rejected(line.decode("latin-1"), str(error)))
             return
-        info = text[match.end():]
+        info = text[match.end() :]
         if info:
             self._frame(destination, source, path, info, line)
         else:
             self._held = _Head(destination, source, path, self._now)
 
-    def _frame(self, destination: ax25.Address, source: ax25.Address, path: tuple[ax25.Address, ...], info: bytes, line: bytes) -> None:
+    def _frame(
+        self, destination: ax25.Address, source: ax25.Address, path: tuple[ax25.Address, ...], info: bytes, line: bytes
+    ) -> None:
         # a garbled line, two run together: no AX.25 frame carries that
         if len(info) > ax25.MAX_INFO:
-            self._out.append(Rejected(line.decode("latin-1"), f"an information field of {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows"))
+            self._out.append(
+                Rejected(
+                    line.decode("latin-1"),
+                    f"an information field of {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows",
+                )
+            )
             return
         try:
             self._out.append(ax25.Frame(destination, source, path, info=info))

@@ -3,6 +3,7 @@
 A `Source` that reconnects with `Backoff` and never raises; `fixed` is emitted with each fix. gpsd
 is reopened when refused, lost or silent for `GPSD_SILENT_SEC`; a serial port feeds `NmeaFixes`.
 """
+
 import asyncio
 import json
 import logging
@@ -41,7 +42,13 @@ def split_address(target: str) -> tuple[str, int]:
 
 
 class GpsFeed(Source):
-    def __init__(self, clock: Clock = utcnow, backoff: Backoff | None = None, connect_sec: float = CONNECT_SEC, silent_sec: float = GPSD_SILENT_SEC) -> None:
+    def __init__(
+        self,
+        clock: Clock = utcnow,
+        backoff: Backoff | None = None,
+        connect_sec: float = CONNECT_SEC,
+        silent_sec: float = GPSD_SILENT_SEC,
+    ) -> None:
         super().__init__("gps", clock)
         self.kind = "off"  # "off", "gpsd" or "serial"
         self.target = ""  # host:port of the gpsd, or the serial port
@@ -217,7 +224,7 @@ class GpsFeed(Source):
         self._pending += chunk
         while (end := self._pending.find(b"\n")) >= 0:
             line = bytes(self._pending[:end])
-            del self._pending[:end + 1]
+            del self._pending[: end + 1]
             self._nmea_line(line)
         if len(self._pending) > MAX_LINE_BYTES:
             self._pending.clear()
@@ -256,4 +263,3 @@ class GpsFeed(Source):
     def _no_fix(self) -> None:
         if self.state is Source.State.CONNECTED and self.problem != NO_FIX:
             self._set_problem(NO_FIX)
-

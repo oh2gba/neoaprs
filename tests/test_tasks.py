@@ -1,5 +1,6 @@
 """The tasks a part starts (neoaprs/tasks.py): cancelled and waited for, kept while they run, and an
 exception in one handed to the part that started it."""
+
 import asyncio
 import logging
 from typing import Any
@@ -10,7 +11,9 @@ from neoaprs.tasks import TaskSet, cancel_all, every
 from tests.support.env import until
 
 
-async def test_cancel_all_ends_the_tasks_and_waits_for_them_whatever_they_ended_with(caplog: pytest.LogCaptureFixture) -> None:
+async def test_cancel_all_ends_the_tasks_and_waits_for_them_whatever_they_ended_with(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.DEBUG, "neoaprs.tasks")
     cleaned: list[str] = []
 
@@ -30,14 +33,16 @@ async def test_cancel_all_ends_the_tasks_and_waits_for_them_whatever_they_ended_
     await asyncio.sleep(0)
     await cancel_all(tasks)
     assert all(t.done() for t in tasks) and cleaned == ["sleeper"]
-    assert any("ended with" in r.getMessage() and "fails while it is cancelled" in r.getMessage() for r in caplog.records)
+    assert any(
+        "ended with" in r.getMessage() and "fails while it is cancelled" in r.getMessage() for r in caplog.records
+    )
 
 
 async def test_the_task_that_asks_is_left_alone() -> None:
     done: list[str] = []
 
     async def stopper() -> None:
-        await cancel_all([asyncio.current_task()])        # type: ignore[list-item]
+        await cancel_all([asyncio.current_task()])  # type: ignore[list-item]
         done.append("reached")
 
     await asyncio.ensure_future(stopper())
@@ -80,7 +85,9 @@ async def test_a_task_that_fails_is_handed_to_the_owner_and_a_cancelled_one_is_n
 
 @pytest.mark.expects_errors
 @pytest.mark.parametrize(("what", "words"), [("", "task bad failed"), ("beacon", "beacon task bad failed")])
-async def test_a_task_set_given_a_logger_logs_the_failure_of_a_task_as_an_error(caplog: pytest.LogCaptureFixture, what: str, words: str) -> None:
+async def test_a_task_set_given_a_logger_logs_the_failure_of_a_task_as_an_error(
+    caplog: pytest.LogCaptureFixture, what: str, words: str
+) -> None:
     tasks = TaskSet(logging.getLogger("neoaprs.test"), what)
 
     async def fails() -> None:
@@ -88,8 +95,12 @@ async def test_a_task_set_given_a_logger_logs_the_failure_of_a_task_as_an_error(
 
     tasks.spawn(fails(), "bad")
     await asyncio.sleep(0.01)
-    assert [(r.name, r.levelno, r.getMessage()) for r in caplog.records] == [("neoaprs.test", logging.ERROR, f"{words}: ValueError('boom')")]
-    assert "in fails" in caplog.text and 'raise ValueError("boom")' in caplog.text, "with the traceback: a task that dies says where"
+    assert [(r.name, r.levelno, r.getMessage()) for r in caplog.records] == [
+        ("neoaprs.test", logging.ERROR, f"{words}: ValueError('boom')")
+    ]
+    assert "in fails" in caplog.text and 'raise ValueError("boom")' in caplog.text, (
+        "with the traceback: a task that dies says where"
+    )
 
 
 async def test_the_cancellation_of_the_task_that_waits_in_cancel_all_is_not_swallowed() -> None:
@@ -100,7 +111,7 @@ async def test_the_cancellation_of_the_task_that_waits_in_cancel_all_is_not_swal
             await asyncio.sleep(60)
         except asyncio.CancelledError:
             cleaning.set()
-            await asyncio.sleep(0.05)                      # (a slow clean-up while it is cancelled)
+            await asyncio.sleep(0.05)  # (a slow clean-up while it is cancelled)
             raise
 
     victim = asyncio.ensure_future(slow_to_end())
@@ -130,7 +141,7 @@ async def test_cancel_all_of_a_caller_that_was_cancelled_earlier_and_goes_on_cle
         try:
             await asyncio.sleep(60)
         except asyncio.CancelledError:
-            await cancel_all([victim])                     # (a shutdown that runs in the finally of a cancelled task)
+            await cancel_all([victim])  # (a shutdown that runs in the finally of a cancelled task)
         return "cleaned"
 
     task = asyncio.ensure_future(cleaner())
@@ -139,7 +150,9 @@ async def test_cancel_all_of_a_caller_that_was_cancelled_earlier_and_goes_on_cle
     assert await task == "cleaned" and victim.cancelled()
 
 
-async def test_every_runs_the_function_each_time_the_wait_is_over_and_goes_on_after_a_round_that_fails(caplog: pytest.LogCaptureFixture) -> None:
+async def test_every_runs_the_function_each_time_the_wait_is_over_and_goes_on_after_a_round_that_fails(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     rounds: list[int] = []
 
     def tick() -> None:
@@ -150,7 +163,9 @@ async def test_every_runs_the_function_each_time_the_wait_is_over_and_goes_on_af
     ticker = asyncio.ensure_future(every(0.01, tick, "the test timer"))
     await until(lambda: len(rounds) >= 4)
     ticker.cancel()
-    assert [(r.levelno, r.getMessage()) for r in caplog.records if r.name == "neoaprs.tasks"] == [(logging.ERROR, "the test timer failed")]
+    assert [(r.levelno, r.getMessage()) for r in caplog.records if r.name == "neoaprs.tasks"] == [
+        (logging.ERROR, "the test timer failed")
+    ]
     assert caplog.records[-1].exc_info is not None
 
 
@@ -168,7 +183,7 @@ async def test_every_awaits_a_function_that_is_async_asks_for_the_wait_each_time
     ticker = asyncio.ensure_future(every(wait, poll, "the poll", at_start=True))
     await asyncio.sleep(0)
     await asyncio.sleep(0)
-    assert rounds == ["poll"] and waits == [0.01]          # (the first round did not wait)
+    assert rounds == ["poll"] and waits == [0.01]  # (the first round did not wait)
     await until(lambda: len(rounds) >= 3)
     ticker.cancel()
     assert len(waits) >= 2

@@ -2,6 +2,7 @@
 
 Kinds: `on_air`, `within` (N km) and `direct`. Each fires once per crossing; the station as it
 is when an alert is set is the starting point."""
+
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -26,11 +27,13 @@ OUTSIDE_MARGIN = 0.1
 # this many km more
 OUTSIDE_MARGIN_MIN_KM = 0.5
 
+
 @dataclass(slots=True)
 class _Seen:
     """What the watch last knew of an alerted station: last heard, last direct, whether near.
 
     `inside` is None when unknown for want of its position or ours."""
+
     heard_at: datetime | None
     direct_at: datetime | None
     inside: bool | None
@@ -130,7 +133,9 @@ class StationAlerts:
             station = self._book.get(call)
             view = None if station is None or station.own else self._view(station)
             if alert.within_km is not None and view is not None:
-                self._place(call, view, alert.within_km, self._seen.setdefault(call, _Seen(None, None, None)), self.clock())
+                self._place(
+                    call, view, alert.within_km, self._seen.setdefault(call, _Seen(None, None, None)), self.clock()
+                )
 
     def _place(self, call: str, view: Station, within_km: int, seen: _Seen, at: datetime) -> None:
         """Update whether the station is near; coming near from outside fires, stamped `at`."""
@@ -150,7 +155,11 @@ class StationAlerts:
         if view is None:
             return _Seen(None, None, None)
         km = None if alert.within_km is None else self._book.distance_km(view)
-        return _Seen(view.last_heard, view.last_direct_at, None if km is None or alert.within_km is None else km <= alert.within_km)
+        return _Seen(
+            view.last_heard,
+            view.last_direct_at,
+            None if km is None or alert.within_km is None else km <= alert.within_km,
+        )
 
     def settings_changed(self, config: Config) -> None:
         self._follow_internet()
@@ -169,4 +178,3 @@ class StationAlerts:
     def _fire(self, fired: Fired) -> None:
         log.info("station alert: %s", fired.text)
         self.fired.emit(fired)
-

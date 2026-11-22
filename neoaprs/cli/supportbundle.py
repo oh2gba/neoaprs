@@ -2,6 +2,7 @@
 
 The zip is renamed into place when complete. Secret values are removed from every member as it is
 written (a safety net behind the redaction by name). Logs are cut to a budget."""
+
 import re
 import zipfile
 from collections.abc import Iterable
@@ -64,11 +65,12 @@ def write_zip(path: Path, members: list[Member], when: datetime, secrets: Iterab
 
 # ---- the logs, within a budget
 
+
 def rotated_logs(folder: Path, name: str) -> list[Path]:
     """Return the log `name` and its rotated files, newest first."""
     found: list[tuple[int, Path]] = []
     for path in folder.glob(name + "*"):
-        suffix = path.name[len(name):]
+        suffix = path.name[len(name) :]
         if suffix == "":
             found.append((0, path))
         elif (match := ROTATED.fullmatch(suffix)) is not None and path.is_file():
@@ -88,7 +90,7 @@ def tail_text(path: Path, budget: int) -> tuple[str, int]:
         data = f.read()
     cut = data.find(b"\n")
     # Drop the partial first line.
-    data = b"" if cut < 0 else data[cut + 1:]
+    data = b"" if cut < 0 else data[cut + 1 :]
     return data.decode("utf-8", errors="replace"), size - len(data)
 
 

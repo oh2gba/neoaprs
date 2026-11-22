@@ -1,5 +1,6 @@
 """The table of ships (neoaprs/shiptable.py): by MMSI, a position and what the ship says of itself
 put together as the page's thing, and the old forgotten."""
+
 from datetime import timedelta
 
 from neoaprs.aisdecode import AisPosition, AisStatic
@@ -9,7 +10,15 @@ from neoaprs.shiptable import ShipTable
 NOW = utc(2026, 11, 18, 12, 0, 0)
 
 
-def pos(mmsi: int = 1001, age: float = 0, sog: float | None = 10.0, cog: float | None = 90.0, heading: int | None = 88, lat: float = 60.1, lon: float = 25.0) -> AisPosition:
+def pos(
+    mmsi: int = 1001,
+    age: float = 0,
+    sog: float | None = 10.0,
+    cog: float | None = 90.0,
+    heading: int | None = 88,
+    lat: float = 60.1,
+    lon: float = 25.0,
+) -> AisPosition:
     return AisPosition(mmsi, lat, lon, NOW - timedelta(seconds=age), sog, cog, heading)
 
 
@@ -18,8 +27,22 @@ def test_a_ship_with_a_position_and_words_is_one_thing() -> None:
     table.position(pos())
     table.static(AisStatic(1001, "AURA", 60, "TALLINN"))
     [thing] = table.things(NOW, 1800)
-    assert (thing.id, thing.lat, thing.lon, thing.at, thing.name, thing.ship_type, thing.destination) == ("1001", 60.1, 25.0, NOW, "AURA", 60, "TALLINN")
-    assert thing.speed_kmh == 10.0 * 1.852 and thing.course_deg == 90 and thing.heading_deg == 88 and thing.emergency is False and thing.altitude_m is None
+    assert (thing.id, thing.lat, thing.lon, thing.at, thing.name, thing.ship_type, thing.destination) == (
+        "1001",
+        60.1,
+        25.0,
+        NOW,
+        "AURA",
+        60,
+        "TALLINN",
+    )
+    assert (
+        thing.speed_kmh == 10.0 * 1.852
+        and thing.course_deg == 90
+        and thing.heading_deg == 88
+        and thing.emergency is False
+        and thing.altitude_m is None
+    )
 
 
 def test_the_direction_is_the_heading_else_the_course_while_under_way_else_none() -> None:

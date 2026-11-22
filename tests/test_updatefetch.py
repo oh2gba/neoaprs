@@ -2,6 +2,7 @@
 the version, platform and installation number and nothing else, and a missing page, a refusal or too
 much data is None.
 """
+
 import asyncio
 import http.server
 import socketserver
@@ -16,35 +17,59 @@ from io import BytesIO
 import pytest
 
 from neoaprs import updatefetch
-from neoaprs.updatefetch import MAX_BYTES, MAX_RETRY_AFTER_SEC, _NotDowngraded, fetch, fetch_url, get, get_answer, request_url, retry_after
+from neoaprs.updatefetch import (
+    MAX_BYTES,
+    MAX_RETRY_AFTER_SEC,
+    _NotDowngraded,
+    fetch,
+    fetch_url,
+    get,
+    get_answer,
+    request_url,
+    retry_after,
+)
 from tests.support.fakeversionpage import version_page
 
 
 def test_the_query_has_the_version_and_the_platform_after_what_the_address_has() -> None:
-    assert request_url("https://oh2gba.eu/neoaprs/version.php", "0.1.0", "linux") == "https://oh2gba.eu/neoaprs/version.php?v=0.1.0&os=linux"
-    assert request_url("https://example.org/v.php?x=1", "0.1.0", "linux-arm") == "https://example.org/v.php?x=1&v=0.1.0&os=linux-arm"
+    assert (
+        request_url("https://oh2gba.eu/neoaprs/version.php", "0.1.0", "linux")
+        == "https://oh2gba.eu/neoaprs/version.php?v=0.1.0&os=linux"
+    )
+    assert (
+        request_url("https://example.org/v.php?x=1", "0.1.0", "linux-arm")
+        == "https://example.org/v.php?x=1&v=0.1.0&os=linux-arm"
+    )
 
 
 def test_the_number_of_the_installation_is_the_last_of_the_query_when_there_is_one() -> None:
     number = "0123456789abcdef0123456789abcdef"
-    assert request_url("https://oh2gba.eu/neoaprs/version.php", "0.1.0", "linux", number) == f"https://oh2gba.eu/neoaprs/version.php?v=0.1.0&os=linux&id={number}"
+    assert (
+        request_url("https://oh2gba.eu/neoaprs/version.php", "0.1.0", "linux", number)
+        == f"https://oh2gba.eu/neoaprs/version.php?v=0.1.0&os=linux&id={number}"
+    )
 
 
 async def test_the_page_is_asked_with_the_version_and_the_platform_and_nothing_else() -> None:
     page = await version_page({"version": "0.2.0", "url": "https://example.org/", "message": ""})
     body = await fetch(page.url, "0.1.0", "linux-appimage")
     assert body is not None and b'"0.2.0"' in body
-    (path, headers), = page.requests
+    ((path, headers),) = page.requests
     assert path == "/version.php?v=0.1.0&os=linux-appimage"
     assert headers["user-agent"] == "NeoAPRS/0.1.0 (linux-appimage)"
-    assert set(headers) <= {"user-agent", "host", "accept-encoding", "connection"}, "no cookie, no identity, nothing else is sent"
+    assert set(headers) <= {"user-agent", "host", "accept-encoding", "connection"}, (
+        "no cookie, no identity, nothing else is sent"
+    )
 
 
 async def test_the_number_is_sent_as_id_and_the_user_agent_does_not_carry_it() -> None:
     page = await version_page({"version": "0.2.0", "url": "", "message": ""})
     await fetch(page.url, "0.1.0", "linux", "0123456789abcdef0123456789abcdef")
-    (path, headers), = page.requests
-    assert path == "/version.php?v=0.1.0&os=linux&id=0123456789abcdef0123456789abcdef" and headers["user-agent"] == "NeoAPRS/0.1.0 (linux)"
+    ((path, headers),) = page.requests
+    assert (
+        path == "/version.php?v=0.1.0&os=linux&id=0123456789abcdef0123456789abcdef"
+        and headers["user-agent"] == "NeoAPRS/0.1.0 (linux)"
+    )
 
 
 async def test_a_page_that_says_no_or_is_not_there_is_none() -> None:
@@ -56,7 +81,9 @@ async def test_a_page_that_says_no_or_is_not_there_is_none() -> None:
 
 
 @pytest.mark.expects_errors
-async def test_an_error_nobody_expected_on_the_thread_is_none_and_not_a_request_that_never_ends(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_an_error_nobody_expected_on_the_thread_is_none_and_not_a_request_that_never_ends(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     def boom(*args: object, **kwargs: object) -> bytes:
         raise RuntimeError("unexpected")
 
@@ -131,7 +158,11 @@ def test_a_retry_after_is_read_safely_and_never_longer_than_an_hour() -> None:
     for text in ("1" * 400, "9" * 5000, "99999999999", "\u0661\u0662"):
         said = retry_after(text)
         assert said is None or 0.0 <= said <= MAX_RETRY_AFTER_SEC
-    assert retry_after("1" * 400) == MAX_RETRY_AFTER_SEC and retry_after("120") == 120.0 and retry_after("\u0661\u0662") is None
+    assert (
+        retry_after("1" * 400) == MAX_RETRY_AFTER_SEC
+        and retry_after("120") == 120.0
+        and retry_after("\u0661\u0662") is None
+    )
     assert retry_after("Fri, 31 Dec 9999 23:59:59 GMT", datetime(2026, 1, 1, tzinfo=UTC)) == MAX_RETRY_AFTER_SEC
 
 

@@ -3,6 +3,7 @@
 Fetched at most once per FREQUENCIES_EVERY_SEC; the last valid list is kept in the settings table.
 It is switched off with the update check.
 """
+
 import asyncio
 import logging
 import os
@@ -14,13 +15,20 @@ from neoaprs.services.updatecheck import ENV_SWITCH, FIRST_SEC
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet
 from neoaprs.updatefetch import fetch_url
-from neoaprs.versions import FREQUENCIES_ROW, FREQUENCIES_URL, Frequency, frequencies_text, on_this_computer, parse_frequencies
+from neoaprs.versions import (
+    FREQUENCIES_ROW,
+    FREQUENCIES_URL,
+    Frequency,
+    frequencies_text,
+    on_this_computer,
+    parse_frequencies,
+)
 
 log = logging.getLogger("neoaprs.update")
 
 FREQUENCIES_EVERY_SEC = 15 * 60.0
 MAX_BYTES = 8192
-ENV_URL = "NEOAPRS_FREQUENCIES_URL"             # a local server instead of FREQUENCIES_URL, for tests
+ENV_URL = "NEOAPRS_FREQUENCIES_URL"  # a local server instead of FREQUENCIES_URL, for tests
 FetchUrl = Callable[[str, str, str, int], Awaitable[bytes | None]]
 
 
@@ -29,8 +37,17 @@ def words(frequencies: list[Frequency]) -> str:
 
 
 class Frequencies:
-    def __init__(self, version: str, platform: str, fetch: FetchUrl = fetch_url, first_sec: float = FIRST_SEC, every_sec: float = FREQUENCIES_EVERY_SEC, environ: Mapping[str, str] = os.environ,
-                 memory: Memory | None = None, clock: Callable[[], float] = time.monotonic) -> None:
+    def __init__(
+        self,
+        version: str,
+        platform: str,
+        fetch: FetchUrl = fetch_url,
+        first_sec: float = FIRST_SEC,
+        every_sec: float = FREQUENCIES_EVERY_SEC,
+        environ: Mapping[str, str] = os.environ,
+        memory: Memory | None = None,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         self.version, self.platform = version, platform
         self._fetch = fetch
         self.first_sec, self.every_sec = first_sec, every_sec
@@ -67,7 +84,12 @@ class Frequencies:
 
     async def _kept(self) -> None:
         """Load the list kept by an earlier run."""
-        if self._memory is not None and not self.listed and (kept := await self._memory.setting(FREQUENCIES_ROW)) and (found := parse_frequencies(kept)):
+        if (
+            self._memory is not None
+            and not self.listed
+            and (kept := await self._memory.setting(FREQUENCIES_ROW))
+            and (found := parse_frequencies(kept))
+        ):
             self.listed = found
             self.changed.emit()
 

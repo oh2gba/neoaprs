@@ -1,6 +1,7 @@
 """Rules for passing a packet between two radios of the station when its path asks for it.
 
 The rule labels (P1, N1, M1 ...) refer to aprs-reference/cross-radio-digipeat-plan.md section 3."""
+
 from collections.abc import Collection, Sequence
 from dataclasses import replace
 
@@ -18,7 +19,7 @@ REPLY_WIDE = "WIDE2-1"
 
 def spliced(raw: bytes, heard: ax25.Frame, frame: ax25.Frame) -> bytes:
     start = 2 * ax25.ADDRESS_LEN
-    return raw[:start] + ax25.encode_path(frame.path) + raw[start + ax25.ADDRESS_LEN * len(heard.path):]
+    return raw[:start] + ax25.encode_path(frame.path) + raw[start + ax25.ADDRESS_LEN * len(heard.path) :]
 
 
 def first_unused(frame: ax25.Frame) -> int | None:
@@ -37,7 +38,7 @@ def cross(frame: ax25.Frame, call: tuple[str, int], ours: Collection[tuple[str, 
     at = first_unused(frame)
     if at is None or (path[at].call, path[at].ssid) != call:
         return None
-    return replace(frame, path=path[:at] + (replace(path[at], repeated=True),) + path[at + 1:])
+    return replace(frame, path=path[:at] + (replace(path[at], repeated=True),) + path[at + 1 :])
 
 
 def not_to_pass(packet: Packet, ours: Collection[str], target_paths: bool) -> bool:

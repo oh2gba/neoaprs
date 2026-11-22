@@ -2,6 +2,7 @@
 
 Used by `neoaprs doctor` and `neoaprs service install`: serial group membership, brltty and
 ModemManager (which grab USB serial adapters), and Firefox as a Flatpak on KDE."""
+
 import glob
 import os
 import shutil
@@ -14,8 +15,18 @@ from pathlib import Path
 # The group owning serial devices: dialout on most distributions, uucp on Arch.
 GROUPS = ("dialout", "uucp")
 DEVICE_GLOBS = ("/dev/ttyUSB*", "/dev/ttyACM*")
-BRLTTY_FILES = ("/usr/bin/brltty", "/usr/sbin/brltty", "/usr/lib/udev/rules.d/85-brltty.rules", "/lib/udev/rules.d/85-brltty.rules")
-MODEMMANAGER_FILES = ("/usr/sbin/ModemManager", "/usr/bin/ModemManager", "/usr/lib/systemd/system/ModemManager.service", "/lib/systemd/system/ModemManager.service")
+BRLTTY_FILES = (
+    "/usr/bin/brltty",
+    "/usr/sbin/brltty",
+    "/usr/lib/udev/rules.d/85-brltty.rules",
+    "/lib/udev/rules.d/85-brltty.rules",
+)
+MODEMMANAGER_FILES = (
+    "/usr/sbin/ModemManager",
+    "/usr/bin/ModemManager",
+    "/usr/lib/systemd/system/ModemManager.service",
+    "/lib/systemd/system/ModemManager.service",
+)
 
 
 @dataclass(frozen=True)
@@ -34,7 +45,11 @@ def decide(wanted: list[str], session: set[str], member: set[str], user: str) ->
             return GroupCheck("ok", group, "")
     for group in wanted:
         if group in member:
-            return GroupCheck("relogin", group, f"{user} is in the group {group}, but this session began before: log out and in again (or reboot)")
+            return GroupCheck(
+                "relogin",
+                group,
+                f"{user} is in the group {group}, but this session began before: log out and in again (or reboot)",
+            )
     return GroupCheck("missing", wanted[0], f"sudo usermod -aG {wanted[0]} {user}   (then log out and in again)")
 
 
@@ -44,6 +59,7 @@ def serial_group_check(devices: list[str] | None = None, user: str | None = None
         return GroupCheck("unknown", "", "")
     import grp
     import getpass
+
     name = user or os.environ.get("USER") or getpass.getuser()
     found = devices if devices is not None else [p for pattern in DEVICE_GLOBS for p in glob.glob(pattern)]
     wanted: list[str] = []
@@ -67,6 +83,7 @@ def _linux() -> bool:
 
 def _group_exists(name: str) -> bool:
     import grp
+
     try:
         grp.getgrnam(name)  # type: ignore[attr-defined, unused-ignore]
     except KeyError:
@@ -76,6 +93,7 @@ def _group_exists(name: str) -> bool:
 
 def _group_name(gid: int) -> str:
     import grp
+
     try:
         return grp.getgrgid(gid).gr_name  # type: ignore[attr-defined, no-any-return, unused-ignore]
     except KeyError:
@@ -118,7 +136,9 @@ def run_flatpak(args: list[str]) -> tuple[int, str]:
     return done.returncode, done.stdout
 
 
-def firefox_flatpak(run: FlatpakRun = run_flatpak, desktop: str | None = None, flatpak_installed: bool | None = None) -> FlatpakFirefox | None:
+def firefox_flatpak(
+    run: FlatpakRun = run_flatpak, desktop: str | None = None, flatpak_installed: bool | None = None
+) -> FlatpakFirefox | None:
     """Check whether Firefox as a Flatpak on KDE loses web notifications (the portal drops them).
 
     Return None where this does not apply (not Linux, not KDE, no flatpak, Firefox not a Flatpak).
@@ -134,7 +154,11 @@ def firefox_flatpak(run: FlatpakRun = run_flatpak, desktop: str | None = None, f
         return None
     settings = "\n".join(
         run(args)[1]
-        for args in (["override", "--user", "--show", FIREFOX_FLATPAK], ["override", "--system", "--show", FIREFOX_FLATPAK], ["info", "--show-permissions", FIREFOX_FLATPAK])
+        for args in (
+            ["override", "--user", "--show", FIREFOX_FLATPAK],
+            ["override", "--system", "--show", FIREFOX_FLATPAK],
+            ["info", "--show-permissions", FIREFOX_FLATPAK],
+        )
     )
     lines = {line.strip() for line in settings.splitlines()}
     fix = []

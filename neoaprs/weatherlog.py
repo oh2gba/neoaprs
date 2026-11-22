@@ -3,6 +3,7 @@
 Like the other logs it returns a failure value instead of raising when the database is closed.
 `backfill` builds the log from the stored packets by parsing each again.
 """
+
 import logging
 from datetime import datetime
 
@@ -14,13 +15,34 @@ from .dblog import DbLog
 from .packet import Packet, channel_of
 from .packetcodec import info_of, parse_stamp, stamp
 from .dberror import Row
-from .weathersql import (count_weather, delete_weather, insert_weather, insert_weather_many, latest_weather, latest_weather_all, prune_weather_before, weather_packets, weather_since)
+from .weathersql import (
+    count_weather,
+    delete_weather,
+    insert_weather,
+    insert_weather_many,
+    latest_weather,
+    latest_weather_all,
+    prune_weather_before,
+    weather_packets,
+    weather_since,
+)
 
 log = logging.getLogger("neoaprs.weatherlog")
 
 Observation = tuple[datetime, Weather]
 # columns after the station and the time, named as Weather's fields
-_VALUES = ("wind_dir", "wind_kmh", "gust_kmh", "temp_c", "humidity", "pressure_hpa", "rain_1h_mm", "rain_24h_mm", "rain_today_mm", "luminosity")
+_VALUES = (
+    "wind_dir",
+    "wind_kmh",
+    "gust_kmh",
+    "temp_c",
+    "humidity",
+    "pressure_hpa",
+    "rain_1h_mm",
+    "rain_24h_mm",
+    "rain_today_mm",
+    "luminosity",
+)
 
 
 def weather_row(station: str, at: datetime, weather: Weather) -> Row:
@@ -33,11 +55,24 @@ def weather_of(row: Row) -> tuple[str, datetime, Weather]:
     return str(station), parse_stamp(str(at)), Weather(**dict(zip(_VALUES, values, strict=True)), raw=str(raw))
 
 
-def report_of(source: str, destination: str, raw: bytes, heard_at: datetime, via: str = "rf") -> tuple[str, Weather] | None:
+def report_of(
+    source: str, destination: str, raw: bytes, heard_at: datetime, via: str = "rf"
+) -> tuple[str, Weather] | None:
     """Parse a stored packet again and return whose weather it holds, or None."""
     info = info_of(raw, via)
     decoded, third_party = parse_packet(info, source, destination, heard_at)
-    return Packet(heard_at, "in", raw, source, destination, (), info, decoded, third_party, channel_of(third_party, via == "is", via == "dummy")).weather_report
+    return Packet(
+        heard_at,
+        "in",
+        raw,
+        source,
+        destination,
+        (),
+        info,
+        decoded,
+        third_party,
+        channel_of(third_party, via == "is", via == "dummy"),
+    ).weather_report
 
 
 def _kept_report(row: Row) -> tuple[datetime, tuple[str, Weather] | None]:
@@ -82,7 +117,13 @@ class WeatherLog(DbLog):
         packets: list[Row] = await self._read(lambda conn: weather_packets(conn, since), [])
         found = self._decoded(packets, _kept_report, "packet")
         rows = [weather_row(report[0], at, report[1]) for at, report in found if report is not None]
-        return await self._write(lambda conn: insert_weather_many(conn, rows), 0, "the weather could not be made from the packets") if rows else 0
+        return (
+            await self._write(
+                lambda conn: insert_weather_many(conn, rows), 0, "the weather could not be made from the packets"
+            )
+            if rows
+            else 0
+        )
 
     async def prune(self, keep_days: int) -> int:
         """Delete observations older than `keep_days` days; return the count."""

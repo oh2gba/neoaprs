@@ -3,6 +3,7 @@
 The frame is `}SRC>DST,TCPIP,IGATE*:info`. A wrapper inside a wrapper, or one with an invalid
 header, is not opened.
 """
+
 from datetime import datetime
 
 from neoaprs.aprsparse import parse

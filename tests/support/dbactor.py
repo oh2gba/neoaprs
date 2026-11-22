@@ -1,4 +1,5 @@
 """Shared by the Db actor tests: a Db on a table of numbers, failing connections, a leak guard."""
+
 import asyncio
 import sqlite3
 import threading
@@ -14,8 +15,10 @@ from tests.support.safety import FaultyConnection, Injected as Injected, raw
 
 T = TypeVar("T")
 THREAD_PREFIX = "neoaprs-db"
-SCHEMA = ("CREATE TABLE IF NOT EXISTS t (n INTEGER PRIMARY KEY, v TEXT NOT NULL)",
-          "CREATE TABLE IF NOT EXISTS pair (n INTEGER NOT NULL, side INTEGER NOT NULL, PRIMARY KEY (n, side))")
+SCHEMA = (
+    "CREATE TABLE IF NOT EXISTS t (n INTEGER PRIMARY KEY, v TEXT NOT NULL)",
+    "CREATE TABLE IF NOT EXISTS pair (n INTEGER NOT NULL, side INTEGER NOT NULL, PRIMARY KEY (n, side))",
+)
 # Appends commit after 20 ms; a failed batch is retried after 10 ms.
 QUICK = Tuning(tick=0.02, retry_sec=0.01)
 
@@ -56,8 +59,7 @@ def faulty_connection(path: str | Path) -> sqlite3.Connection:
 
 
 def arm(conn: sqlite3.Connection, fail_at: int | None, sticky: bool = False) -> None:
-    """From the next statement on, the `fail_at`th (1 is the next) raises what a full disk raises.
-    """
+    """From the next statement on, the `fail_at`th (1 is the next) raises what a full disk raises."""
     assert isinstance(conn, Faulty)
     conn.statements = 0
     conn.log = []
@@ -73,7 +75,9 @@ def statement_of(sql: str) -> Callable[[sqlite3.Connection], object]:
     return lambda conn: conn.execute(sql)
 
 
-async def started(path: Path, opener: Callable[[], sqlite3.Connection] | None = None, tuning: Tuning = QUICK, tables: bool = True) -> Db:
+async def started(
+    path: Path, opener: Callable[[], sqlite3.Connection] | None = None, tuning: Tuning = QUICK, tables: bool = True
+) -> Db:
     db = Db(opener or (lambda: connect(path)), tuning=tuning, name=THREAD_PREFIX + "-test")
     await db.start()
     if tables:

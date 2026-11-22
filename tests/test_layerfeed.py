@@ -2,6 +2,7 @@
 `layer_things`): the table is sent at once, the service is told when looking starts and stops, and
 lagging pages are skipped.
 """
+
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -40,13 +41,43 @@ def test_a_page_that_looks_is_sent_the_table_at_once_and_every_table_after_it() 
     looks = LayerLooks(service)
     conn, client = page()
     looks.look(conn, "aircraft", True)
-    assert sent(client) == [{"type": "layer_things", "layer": "aircraft", "source": "receiver", "away": False, "things": [{
-        "id": "461f2a", "lat": 60.3, "lon": 24.9, "at": "2026-11-18T12:00:00Z", "heading_deg": 225, "speed_kmh": 420.4, "name": "FIN7AB", "emergency": False, "altitude_m": 2438, "vertical_ms": None, "registration": "OH-LZA",
-        "type": "AIRBUS A-321", "category": "", "designator": "", "ship_type": None, "course_deg": None, "destination": "",
-        "origin": "", "origin_place": "", "destination_place": ""}]}]
+    assert sent(client) == [
+        {
+            "type": "layer_things",
+            "layer": "aircraft",
+            "source": "receiver",
+            "away": False,
+            "things": [
+                {
+                    "id": "461f2a",
+                    "lat": 60.3,
+                    "lon": 24.9,
+                    "at": "2026-11-18T12:00:00Z",
+                    "heading_deg": 225,
+                    "speed_kmh": 420.4,
+                    "name": "FIN7AB",
+                    "emergency": False,
+                    "altitude_m": 2438,
+                    "vertical_ms": None,
+                    "registration": "OH-LZA",
+                    "type": "AIRBUS A-321",
+                    "category": "",
+                    "designator": "",
+                    "ship_type": None,
+                    "course_deg": None,
+                    "destination": "",
+                    "origin": "",
+                    "origin_place": "",
+                    "destination_place": "",
+                }
+            ],
+        }
+    ]
     looks.told(LayerTable("aircraft", "receiver", True, ()))
     looks.told(LayerTable("ships", "fintraffic", False, ()))
-    assert [m["away"] for m in sent(client)] == [False, True], "the ships' table goes to nobody: this page does not look at them"
+    assert [m["away"] for m in sent(client)] == [False, True], (
+        "the ships' table goes to nobody: this page does not look at them"
+    )
 
 
 def test_three_pages_are_one_look_for_the_service_and_the_last_one_that_stops_ends_it() -> None:
@@ -79,28 +110,54 @@ def test_a_page_that_is_behind_is_sent_no_table_and_one_that_has_closed_is_not_t
 
 
 def test_the_message_of_an_empty_table_has_its_source_and_no_things() -> None:
-    assert table_message(LayerTable("ships", "none", False, ())) == {"type": "layer_things", "layer": "ships", "source": "none", "away": False, "things": []}
+    assert table_message(LayerTable("ships", "none", False, ())) == {
+        "type": "layer_things",
+        "layer": "ships",
+        "source": "none",
+        "away": False,
+        "things": [],
+    }
 
 
 # ---- on the wire
 
-async def test_the_topic_map_says_both_layers_and_a_look_at_a_layer_without_a_source_stands_and_is_served_once_one_is_chosen(tmp_path: Path) -> None:
+
+async def test_the_topic_map_says_both_layers_and_a_look_at_a_layer_without_a_source_stands_and_is_served_once_one_is_chosen(
+    tmp_path: Path,
+) -> None:
     receiver = await layers_server()
     receiver.route("/tar1090/data/aircraft.json", body=sky(plane("461f2a")))
     e = Env(tmp_path / "data", web=True)
     await e.start()
     tab = await e.ws()
     value = (await tab.expect("state", "map"))["value"]
-    assert value["layers"] == [{"layer": "aircraft", "source": "none", "offered": ["none", "adsbfi", "adsblol", "radarcape", "receiver"], "receiver": None},
-                               {"layer": "ships", "source": "none", "offered": ["none", "fintraffic", "receiver"], "receiver": None}], "the station of the tests is at Helsinki: Fintraffic is offered"
+    assert value["layers"] == [
+        {
+            "layer": "aircraft",
+            "source": "none",
+            "offered": ["none", "adsbfi", "adsblol", "radarcape", "receiver"],
+            "receiver": None,
+        },
+        {"layer": "ships", "source": "none", "offered": ["none", "fintraffic", "receiver"], "receiver": None},
+    ], "the station of the tests is at Helsinki: Fintraffic is offered"
     await tab.send({"cmd": "layer_look", "layer": "aircraft", "on": True})
     first = await tab.expect("layer_things")
     assert (first["source"], first["things"]) == ("none", [])
     await tab.send({"cmd": "set_config", "values": {"map/aircraft": "receiver", "map/aircraft_host": receiver.address}})
     await tab.until(lambda: any(m["type"] == "layer_things" and m["things"] for m in tab.messages), 10.0)
-    await tab.until(lambda: tab.topics["map"]["layers"][0]["receiver"] is not None and tab.topics["map"]["layers"][0]["receiver"]["state"] == "receiving", 10.0)
+    await tab.until(
+        lambda: (
+            tab.topics["map"]["layers"][0]["receiver"] is not None
+            and tab.topics["map"]["layers"][0]["receiver"]["state"] == "receiving"
+        ),
+        10.0,
+    )
     layer = tab.topics["map"]["layers"][0]
-    assert layer["source"] == "receiver" and layer["receiver"]["things"] == 1 and set(layer["receiver"]) == {"state", "things", "heard_at"}, "nothing of its address"
+    assert (
+        layer["source"] == "receiver"
+        and layer["receiver"]["things"] == 1
+        and set(layer["receiver"]) == {"state", "things", "heard_at"}
+    ), "nothing of its address"
     other = await e.ws()
     await other.expect("state", "map")
     await other.quiet(0.5)
@@ -126,11 +183,23 @@ async def test_a_page_that_closes_looks_no_more(tmp_path: Path) -> None:
 def test_an_aircraft_is_sent_with_the_places_of_its_two_airports_and_a_ship_never_with_one() -> None:
     flying = replace(PLANE, origin="ESSA", destination="EFHK")
     row = thing_row(flying, "aircraft")
-    assert (row["origin"], row["origin_place"], row["destination"], row["destination_place"]) == ("ESSA", "Stockholm", "EFHK", "Helsinki")
+    assert (row["origin"], row["origin_place"], row["destination"], row["destination_place"]) == (
+        "ESSA",
+        "Stockholm",
+        "EFHK",
+        "Helsinki",
+    )
     unknown = thing_row(replace(PLANE, origin="ZZZZ", destination=""), "aircraft")
-    assert (unknown["origin"], unknown["origin_place"], unknown["destination"], unknown["destination_place"]) == ("ZZZZ", "", "", ""), "a code the table does not know has no place; none has none"
+    assert (unknown["origin"], unknown["origin_place"], unknown["destination"], unknown["destination_place"]) == (
+        "ZZZZ",
+        "",
+        "",
+        "",
+    ), "a code the table does not know has no place; none has none"
     ship = thing_row(replace(PLANE, destination="EFHK"), "ships")
-    assert (ship["destination"], ship["destination_place"], ship["origin_place"]) == ("EFHK", "", ""), "a ship's destination is its own words, never looked up as an airport"
+    assert (ship["destination"], ship["destination_place"], ship["origin_place"]) == ("EFHK", "", ""), (
+        "a ship's destination is its own words, never looked up as an airport"
+    )
 
 
 def test_an_aircraft_is_sent_with_its_vertical_speed_in_metres_a_second_and_null_when_not_told_and_for_a_ship() -> None:

@@ -1,6 +1,7 @@
 """Properties of AX.25: decode(encode(frame)) is the frame; no bytes make decode fail with anything
 but Ax25Error; an address survives its text.
 """
+
 from hypothesis import given, strategies as st
 
 from neoaprs.ax25 import Address, Ax25Error, Frame, decode, encode
@@ -17,8 +18,12 @@ def frames(draw: st.DrawFn) -> Frame:
     control = draw(st.one_of(st.just(0x03), st.integers(0, 255)))
     is_ui = control & 0xEF == 0x03
     return Frame(
-        draw(plain_addresses), draw(plain_addresses), tuple(draw(st.lists(digipeaters, max_size=8))),
-        control, draw(st.integers(0, 255)) if is_ui else 0xF0, draw(st.binary(max_size=300)),
+        draw(plain_addresses),
+        draw(plain_addresses),
+        tuple(draw(st.lists(digipeaters, max_size=8))),
+        control,
+        draw(st.integers(0, 255)) if is_ui else 0xF0,
+        draw(st.binary(max_size=300)),
     )
 
 

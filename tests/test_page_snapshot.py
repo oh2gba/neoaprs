@@ -2,6 +2,7 @@
 once, so a rebuilt page or switched branch changes nothing until restart and page and daemon are
 always a pair.
 """
+
 import hashlib
 import logging
 from pathlib import Path
@@ -40,13 +41,19 @@ def test_a_snapshot_has_the_files_of_the_folder_and_not_the_hidden_ones_or_the_s
     assert sorted(snapshot.files) == ["assets/index-OLDCSS11.css", "assets/index-OLDOLD11.js", "index.html", "sw.js"]
     assert snapshot.build == "index-OLDOLD11.js" and snapshot.missing() == []
     index = snapshot.get("index.html")
-    assert index is not None and index.data == OLD.encode() and index.etag == '"' + hashlib.sha256(OLD.encode()).hexdigest()[:32] + '"'
+    assert (
+        index is not None
+        and index.data == OLD.encode()
+        and index.etag == '"' + hashlib.sha256(OLD.encode()).hexdigest()[:32] + '"'
+    )
     assert snapshot.size == sum(len(f.data) for f in snapshot.files.values()) and snapshot.get("nothing") is None
     build_page(tmp_path, NEW)
     assert snapshot.get("index.html") == index, "a snapshot does not change when the folder does"
 
 
-def test_a_folder_that_is_not_there_is_an_empty_snapshot_with_no_build(tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_folder_that_is_not_there_is_an_empty_snapshot_with_no_build(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr("neoaprs.web.pagesnapshot.RETRY_SEC", 0.0)
     with caplog.at_level(logging.ERROR, logger="neoaprs.web"):
         snapshot = PageSnapshot.take(tmp_path / "nothing")
@@ -54,7 +61,9 @@ def test_a_folder_that_is_not_there_is_an_empty_snapshot_with_no_build(tmp_path:
     assert "is not whole (no files)" in caplog.text
 
 
-def test_a_folder_swapped_in_the_middle_of_a_read_is_read_again(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_folder_swapped_in_the_middle_of_a_read_is_read_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A build swaps the folder with two renames: index.html of the new build that names a file the
     read did not get is a page of two builds, and it is read again."""
     (tmp_path / "index.html").write_text(OLD, encoding="utf-8")
@@ -70,15 +79,22 @@ def test_a_folder_swapped_in_the_middle_of_a_read_is_read_again(tmp_path: Path, 
     assert len(slept) == 1 and snapshot.missing() == [] and "assets/index-OLDOLD11.js" in snapshot.files
 
 
-def test_a_page_that_stays_incomplete_is_served_as_it_is_and_the_log_says_so(tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_page_that_stays_incomplete_is_served_as_it_is_and_the_log_says_so(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr("neoaprs.web.pagesnapshot.RETRY_SEC", 0.0)
     (tmp_path / "index.html").write_text(OLD, encoding="utf-8")
     with caplog.at_level(logging.ERROR, logger="neoaprs.web"):
         snapshot = PageSnapshot.take(tmp_path)
-    assert snapshot.missing() == ["assets/index-OLDCSS11.css", "assets/index-OLDOLD11.js"] and "is not whole" in caplog.text
+    assert (
+        snapshot.missing() == ["assets/index-OLDCSS11.css", "assets/index-OLDOLD11.js"]
+        and "is not whole" in caplog.text
+    )
 
 
-def test_a_folder_bigger_than_a_page_can_be_is_refused(tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_folder_bigger_than_a_page_can_be_is_refused(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr("neoaprs.web.pagesnapshot.MAX_BYTES", 10)
     monkeypatch.setattr("neoaprs.web.pagesnapshot.RETRY_SEC", 0.0)
     (tmp_path / "index.html").write_text("0123456789abcdef", encoding="utf-8")
@@ -92,11 +108,15 @@ def test_the_built_page_is_small_enough_to_keep_in_memory_and_is_all_there() -> 
     folder = web_server.PAGE_DIR
     snapshot = PageSnapshot.take(folder)
     assert snapshot.size < 16 * 1024 * 1024 < MAX_BYTES, f"the page is {snapshot.size / 1048576:.1f} MB"
-    served = {p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file() and not p.name.endswith(".map")}
+    served = {
+        p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file() and not p.name.endswith(".map")
+    }
     assert set(snapshot.files) == served and snapshot.missing() == [] and snapshot.build.startswith("index-")
 
 
-async def test_a_page_rebuilt_while_the_daemon_runs_changes_nothing_until_it_is_started_again(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_page_rebuilt_while_the_daemon_runs_changes_nothing_until_it_is_started_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     page = tmp_path / "page"
     build_page(page, OLD, worker="// old worker")
     monkeypatch.setattr(web_server, "PAGE_DIR", page)
@@ -125,12 +145,16 @@ async def test_a_page_rebuilt_while_the_daemon_runs_changes_nothing_until_it_is_
     # Started again, it takes the page as it is
     again = Env(tmp_path / "data", web=True)
     await again.start()
-    assert (await again.fetch("/")).body == NEW.encode() and (await again.fetch("/assets/index-NEWNEW11.js")).code == 200
+    assert (await again.fetch("/")).body == NEW.encode() and (
+        await again.fetch("/assets/index-NEWNEW11.js")
+    ).code == 200
     assert (await again.fetch("/assets/index-OLDOLD11.js")).code == 404
     assert (await (await again.ws()).expect("hello"))["page"] == "index-NEWNEW11.js"
 
 
-async def test_the_snapshot_is_served_with_the_headers_of_a_file_from_the_disk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_snapshot_is_served_with_the_headers_of_a_file_from_the_disk(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     page = tmp_path / "page"
     build_page(page, OLD)
     monkeypatch.setattr(web_server, "PAGE_DIR", page)
@@ -138,14 +162,27 @@ async def test_the_snapshot_is_served_with_the_headers_of_a_file_from_the_disk(t
     await e.start()
     shell = await e.fetch("/")
     assert shell.headers["Etag"] == '"' + hashlib.sha256(OLD.encode()).hexdigest()[:32] + '"'
-    assert shell.headers["Cache-Control"] == "no-cache" and shell.headers["Accept-Ranges"] == "bytes" and shell.headers["Last-Modified"]
-    assert shell.headers["Content-Type"].startswith("text/html") and shell.headers["X-Content-Type-Options"] == "nosniff"
+    assert (
+        shell.headers["Cache-Control"] == "no-cache"
+        and shell.headers["Accept-Ranges"] == "bytes"
+        and shell.headers["Last-Modified"]
+    )
+    assert (
+        shell.headers["Content-Type"].startswith("text/html") and shell.headers["X-Content-Type-Options"] == "nosniff"
+    )
     assert (await e.fetch("/", headers={"If-None-Match": shell.headers["Etag"]})).code == 304
     assert (await e.fetch("/", headers={"If-None-Match": '"another"'})).code == 200
     head = await e.fetch("/", method="HEAD")
-    assert head.code == 200 and head.body == b"" and head.headers["Content-Length"] == str(len(OLD)) and head.headers["Etag"] == shell.headers["Etag"]
+    assert (
+        head.code == 200
+        and head.body == b""
+        and head.headers["Content-Length"] == str(len(OLD))
+        and head.headers["Etag"] == shell.headers["Etag"]
+    )
     asset = await e.fetch("/assets/index-OLDOLD11.js")
-    assert asset.headers["Cache-Control"] == "public, max-age=31536000, immutable" and asset.headers["Content-Type"].startswith("text/javascript")
+    assert asset.headers["Cache-Control"] == "public, max-age=31536000, immutable" and asset.headers[
+        "Content-Type"
+    ].startswith("text/javascript")
     part = await e.fetch("/assets/index-OLDOLD11.js", headers={"Range": "bytes=8-10"})
     assert part.code == 206 and part.body == b"log" and part.headers["Content-Range"] == f"bytes 8-10/{len(asset.body)}"
     assert (await e.fetch("/assets/index-OLDOLD11.js", headers={"Range": "bytes=999-"})).code == 416
@@ -154,8 +191,11 @@ async def test_the_snapshot_is_served_with_the_headers_of_a_file_from_the_disk(t
     assert (await e.fetch("/", headers={"Host": "evil.example"})).code == 403
 
 
-async def test_the_page_has_the_same_types_whatever_the_system_table_says(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_page_has_the_same_types_whatever_the_system_table_says(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import mimetypes
+
     page = tmp_path / "page"
     build_page(page, OLD)
     monkeypatch.setattr(web_server, "PAGE_DIR", page)

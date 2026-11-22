@@ -2,6 +2,7 @@
 
 Under the switch no real device is opened and no connection leaves this computer.
 """
+
 import errno
 import ipaddress
 import logging
@@ -34,8 +35,12 @@ def on() -> bool:
 
 def announce() -> None:
     if on():
-        log.info("%s is set: no serial port, Bluetooth device or sound card is opened, the Mercury modem is not started, nothing but this computer is connected to, and the default alert command is not run "
-                 "(the variable is %r: every value but an empty one and 0 sets it)", ENV, os.environ.get(ENV, ""))
+        log.info(
+            "%s is set: no serial port, Bluetooth device or sound card is opened, the Mercury modem is not started, nothing but this computer is connected to, and the default alert command is not run "
+            "(the variable is %r: every value but an empty one and 0 sets it)",
+            ENV,
+            os.environ.get(ENV, ""),
+        )
 
 
 def refused(door: str, level: int = logging.WARNING) -> bool:
@@ -64,7 +69,9 @@ def this_computer(host: str) -> bool:
 
 
 def host_refused(host: str, what: str = "", level: int = logging.WARNING) -> bool:
-    return on() and not this_computer(host) and refused(f"no connection to {host}" + (f" ({what})" if what else ""), level)
+    return (
+        on() and not this_computer(host) and refused(f"no connection to {host}" + (f" ({what})" if what else ""), level)
+    )
 
 
 def check_host(host: str, what: str = "", level: int = logging.WARNING) -> None:
@@ -94,9 +101,15 @@ def direct() -> list[urllib.request.BaseHandler]:
 
 
 def modem_port(number: int) -> bool:
-    if number in (direwolf.OWN_PORT, direwolf.OWN_AGW_PORT, mercury.OWN_UI_PORT) or direwolf.FIRST_PORT <= number < direwolf.FIRST_PORT + direwolf.PORT_TRIES:
+    if (
+        number in (direwolf.OWN_PORT, direwolf.OWN_AGW_PORT, mercury.OWN_UI_PORT)
+        or direwolf.FIRST_PORT <= number < direwolf.FIRST_PORT + direwolf.PORT_TRIES
+    ):
         return True
-    return any(mercury.BROADCAST_PORT <= number - offset < mercury.BROADCAST_PORT + mercury.PORT_TRIES for offset in (0, mercury.CONTROL_OFFSET, mercury.CONTROL_OFFSET + 1, mercury.UI_OFFSET))
+    return any(
+        mercury.BROADCAST_PORT <= number - offset < mercury.BROADCAST_PORT + mercury.PORT_TRIES
+        for offset in (0, mercury.CONTROL_OFFSET, mercury.CONTROL_OFFSET + 1, mercury.UI_OFFSET)
+    )
 
 
 def _tcp_port_refused(port: str, level: int) -> bool:
@@ -104,7 +117,9 @@ def _tcp_port_refused(port: str, level: int) -> bool:
         number = urlsplit(port).port
     except ValueError:
         number = None
-    return (number is None or modem_port(number)) and refused(f"the port {port} is not opened: a modem of this computer may listen there", level)
+    return (number is None or modem_port(number)) and refused(
+        f"the port {port} is not opened: a modem of this computer may listen there", level
+    )
 
 
 def check_port(path: str, level: int = logging.WARNING) -> None:

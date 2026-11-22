@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Print the layer table and the allowed-exceptions lists of tests/test_architecture.py.
-    scripts/doc-arch            print every block
-    scripts/doc-arch --write    rewrite the blocks of docs/ARCHITECTURE.md
-    scripts/doc-arch --check    exit 1 and name the blocks that are out of date"""
+scripts/doc-arch            print every block
+scripts/doc-arch --write    rewrite the blocks of docs/ARCHITECTURE.md
+scripts/doc-arch --check    exit 1 and name the blocks that are out of date"""
+
 import argparse
 import sys
 from pathlib import Path
@@ -14,12 +15,17 @@ DOCUMENT = ROOT / "docs" / "ARCHITECTURE.md"
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="the tables of docs/ARCHITECTURE.md, made from tests/test_architecture.py")
+    parser = argparse.ArgumentParser(
+        description="the tables of docs/ARCHITECTURE.md, made from tests/test_architecture.py"
+    )
     parser.add_argument("--write", action="store_true", help="make the blocks of docs/ARCHITECTURE.md again")
-    parser.add_argument("--check", action="store_true", help="exit 1 when a block of docs/ARCHITECTURE.md is out of date")
+    parser.add_argument(
+        "--check", action="store_true", help="exit 1 when a block of docs/ARCHITECTURE.md is out of date"
+    )
     args = parser.parse_args()
     # This imports the test, which needs pytest; --help does not.
     from tests.support import archdoc
+
     text = DOCUMENT.read_text()
     if args.write:
         DOCUMENT.write_text(archdoc.refreshed(text))

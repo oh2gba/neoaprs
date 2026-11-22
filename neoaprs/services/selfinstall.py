@@ -3,6 +3,7 @@
 The Windows installer runs silently and detached; an AppImage is renamed over the running file and
 restarted. Other kinds get no installer. Two environment variables let a test rehearse an update.
 """
+
 import contextlib
 import logging
 import os
@@ -56,26 +57,47 @@ class Installer(Protocol):
         ...
 
 
-def installer_argv(installer: Path, data_dir: Path, restart: Literal["app", "daemon"], log_file: Path, encryption: bool = False) -> list[str]:
+def installer_argv(
+    installer: Path, data_dir: Path, restart: Literal["app", "daemon"], log_file: Path, encryption: bool = False
+) -> list[str]:
     """Return the installer's command line for an unattended update: silent, no Windows restart.
 
     The installer ends the daemon and app itself; the NEOAPRS* switches say what to start after."""
-    return [str(installer), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/NOCLOSEAPPLICATIONS", "/CURRENTUSER", "/SP-", f"/LOG={log_file}", f"/NEOAPRSRESTART={restart}", f"/NEOAPRSDATA={data_dir}",
-            *(["/NEOAPRSENCRYPTION=1"] if encryption else [])]
+    return [
+        str(installer),
+        "/VERYSILENT",
+        "/SUPPRESSMSGBOXES",
+        "/NORESTART",
+        "/NOCLOSEAPPLICATIONS",
+        "/CURRENTUSER",
+        "/SP-",
+        f"/LOG={log_file}",
+        f"/NEOAPRSRESTART={restart}",
+        f"/NEOAPRSDATA={data_dir}",
+        *(["/NEOAPRSENCRYPTION=1"] if encryption else []),
+    ]
 
 
 def launch_detached(argv: list[str]) -> None:
     """Start a program that outlives the daemon (Windows): no console, own group, no job."""
     devnull = subprocess.DEVNULL
     try:
-        subprocess.Popen(argv, creationflags=DETACHED | BREAKAWAY, close_fds=True, stdin=devnull, stdout=devnull, stderr=devnull)
+        subprocess.Popen(
+            argv, creationflags=DETACHED | BREAKAWAY, close_fds=True, stdin=devnull, stdout=devnull, stderr=devnull
+        )
     except OSError:
         subprocess.Popen(argv, creationflags=DETACHED, close_fds=True, stdin=devnull, stdout=devnull, stderr=devnull)
 
 
 class WindowsSetup:
-    def __init__(self, data_dir: Path, launch: Callable[[list[str]], None] = launch_detached, app_running: Callable[[Path], bool] | None = None, encryption: bool = False,
-                 leaving: Callable[[], None] | None = None) -> None:
+    def __init__(
+        self,
+        data_dir: Path,
+        launch: Callable[[list[str]], None] = launch_detached,
+        app_running: Callable[[Path], bool] | None = None,
+        encryption: bool = False,
+        leaving: Callable[[], None] | None = None,
+    ) -> None:
         self.data_dir = data_dir
         self.encryption = encryption
         self._leaving = leaving or (lambda: None)
@@ -97,7 +119,9 @@ class WindowsSetup:
                 try:
                     earlier.unlink()
                 except OSError as e:
-                    log.warning("Update now: the installer of an earlier update, %s, could not be deleted: %s", earlier, e)
+                    log.warning(
+                        "Update now: the installer of an earlier update, %s, could not be deleted: %s", earlier, e
+                    )
 
     def command(self, installer: Path) -> list[str]:
         restart: Literal["app", "daemon"] = "app" if self._app_running(self.data_dir) else "daemon"
@@ -162,12 +186,24 @@ class Rehearsal:
         return ""
 
     def install(self, file: Path, name: str, version: str) -> None:
-        log.warning("Update now: the install kind is simulated (%s): %s was checked and is deleted; nothing is installed", ENV_KIND, name)
+        log.warning(
+            "Update now: the install kind is simulated (%s): %s was checked and is deleted; nothing is installed",
+            ENV_KIND,
+            name,
+        )
         file.unlink(missing_ok=True)
 
 
-def installer_for(install: InstallInfo, data_dir: Path, restart: Restart, environ: Mapping[str, str] = os.environ, argv: list[str] | None = None, platform: str = sys.platform,
-                  encryption: bool = False, leaving: Callable[[], None] | None = None) -> Installer | None:
+def installer_for(
+    install: InstallInfo,
+    data_dir: Path,
+    restart: Restart,
+    environ: Mapping[str, str] = os.environ,
+    argv: list[str] | None = None,
+    platform: str = sys.platform,
+    encryption: bool = False,
+    leaving: Callable[[], None] | None = None,
+) -> Installer | None:
     """Return the installer of this copy, None where the page shows the steps instead.
 
     `leaving` is called before the Windows installer starts."""
@@ -189,7 +225,14 @@ def loopback_folder(text: str) -> str:
         _ = parts.port
     except ValueError:
         return ""
-    if parts.scheme not in ("http", "https") or (parts.hostname or "") not in LOOPBACK_HOSTS or "@" in parts.netloc or parts.query or parts.fragment or any(c.isspace() for c in base):
+    if (
+        parts.scheme not in ("http", "https")
+        or (parts.hostname or "") not in LOOPBACK_HOSTS
+        or "@" in parts.netloc
+        or parts.query
+        or parts.fragment
+        or any(c.isspace() for c in base)
+    ):
         return ""
     return base
 
@@ -200,7 +243,11 @@ def release_source(environ: Mapping[str, str] = os.environ) -> tuple[str, Callab
     The fake folder replaces GitHub only for a simulated kind or `NEOAPRS_UPDATE_TEST=1`."""
     base = _fake_release(environ)
     if base:
-        log.warning("Update now downloads from %s, not from GitHub (%s)", base, ENV_TEST if environ.get(ENV_TEST) == "1" else ENV_KIND)
+        log.warning(
+            "Update now downloads from %s, not from GitHub (%s)",
+            base,
+            ENV_TEST if environ.get(ENV_TEST) == "1" else ENV_KIND,
+        )
         return base, lambda url: url.startswith(base + "/")
     return RELEASES, url_allowed
 

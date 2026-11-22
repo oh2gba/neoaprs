@@ -6,6 +6,7 @@ It opens no serial port, Bluetooth device or sound card and connects to nothing 
 
   scripts/demo-daemon --data DIR [--web-port PORT] [--traffic]
 --traffic runs scripts/demotraffic.py as the layers' services. Ctrl+C stops both."""
+
 import argparse
 import os
 import subprocess
@@ -73,23 +74,42 @@ def start_traffic(start: Callable[..., Any]) -> Any:
     return process
 
 
-def main(argv: list[str] | None = None, run: Callable[..., int] = subprocess.call, start: Callable[..., Any] = subprocess.Popen) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter)
+def main(
+    argv: list[str] | None = None,
+    run: Callable[..., int] = subprocess.call,
+    start: Callable[..., Any] = subprocess.Popen,
+) -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--data", required=True, type=Path, help="the data folder (never the operator's own)")
     parser.add_argument("--web-port", type=int, default=WEB_PORT, help=f"the page's port (default {WEB_PORT})")
-    parser.add_argument("--traffic", action="store_true", help="made-up aircraft for the map's layers (scripts/demotraffic.py)")
+    parser.add_argument(
+        "--traffic", action="store_true", help="made-up aircraft for the map's layers (scripts/demotraffic.py)"
+    )
     args = parser.parse_args(argv)
     why = operators_folder(args.data, own_data_folder())
     if why:
         print(f"demo-daemon: refused: {why}; give a folder of its own (for example work/demo)", file=sys.stderr)
         return 2
-    command = [python(), "-m", "neoaprs", "--data", str(args.data.expanduser().resolve()), "--web-port", str(args.web_port)]
+    command = [
+        python(),
+        "-m",
+        "neoaprs",
+        "--data",
+        str(args.data.expanduser().resolve()),
+        "--web-port",
+        str(args.web_port),
+    ]
     env = environment(os.environ)
     traffic = None
     if args.traffic:
         traffic = start_traffic(start)
         if traffic is None:
-            print("demo-daemon: refused: the made-up traffic could not be started (its line above says why)", file=sys.stderr)
+            print(
+                "demo-daemon: refused: the made-up traffic could not be started (its line above says why)",
+                file=sys.stderr,
+            )
             return 2
         env["NEOAPRS_LAYERS_URL"] = TRAFFIC_URL
     print("demo-daemon: " + " ".join(command), file=sys.stderr)

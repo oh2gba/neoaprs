@@ -2,6 +2,7 @@
 `may_not_message` (a position's data type identifier says no; a message or ack heard from the
 station says yes), as wire booleans.
 """
+
 import json
 from datetime import timedelta
 from pathlib import Path
@@ -23,15 +24,19 @@ from tests.support.storedb import store_at
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
 POSITION = "6010.00N/02456.00E>x"
-MICE = "S32UVT"                                     # the destination of a Mic-E packet
+MICE = "S32UVT"  # the destination of a Mic-E packet
 MICE_BODY = b'(_fn"Oj/'
 
 
-def heard(info: str | bytes, source: str = "OH2AAA", destination: str = "APRS", at: object = T0, direction: str = "in") -> Packet:
+def heard(
+    info: str | bytes, source: str = "OH2AAA", destination: str = "APRS", at: object = T0, direction: str = "in"
+) -> Packet:
     data = info.encode("latin-1") if isinstance(info, str) else info
     frame = ax25.Frame(ax25.Address.parse(destination), ax25.Address.parse(source), (), info=data)
     decoded, third_party = parse_packet(data, source, destination, T0)
-    return Packet(at, direction, ax25.encode(frame), source, destination, (), data, decoded, third_party, channel_of(third_party))  # type: ignore[arg-type]
+    return Packet(
+        at, direction, ax25.encode(frame), source, destination, (), data, decoded, third_party, channel_of(third_party)
+    )  # type: ignore[arg-type]
 
 
 def takes(station: Station) -> bool:
@@ -47,23 +52,35 @@ def can_message(book: StationBook, call: str = "OH2AAA") -> bool:
     return row.can_message and not row.may_not_message
 
 
-@pytest.mark.parametrize(("identifier", "expected"), [("=", True), ("@092345z", True), ("!", False), ("/092345z", False)])
+@pytest.mark.parametrize(
+    ("identifier", "expected"), [("=", True), ("@092345z", True), ("!", False), ("/092345z", False)]
+)
 def test_a_position_says_by_its_identifier(identifier: str, expected: bool) -> None:
     book = StationBook()
     book.take(heard(identifier + POSITION))
     assert can_message(book) is expected
 
 
-@pytest.mark.parametrize(("identifier", "comment", "expected"), [
-    # A TM-D700 sends ' and its comment starts with ]
-    (b"`", b"", True), (b"'", b"", True), (b"`", b"`hi_%", True), (b"'", b"]hi=", True), (b"`", b">hi&", True),
-    # The type code ' is a radio without messaging (aprs-deviceid)
-    (b"`", b"'hi|3", False), (b"'", b"'hi", False),
-])
-def test_a_mic_e_station_does_messages_unless_its_type_code_is_the_apostrophe(identifier: bytes, comment: bytes, expected: bool) -> None:
+@pytest.mark.parametrize(
+    ("identifier", "comment", "expected"),
+    [
+        # A TM-D700 sends ' and its comment starts with ]
+        (b"`", b"", True),
+        (b"'", b"", True),
+        (b"`", b"`hi_%", True),
+        (b"'", b"]hi=", True),
+        (b"`", b">hi&", True),
+        # The type code ' is a radio without messaging (aprs-deviceid)
+        (b"`", b"'hi|3", False),
+        (b"'", b"'hi", False),
+    ],
+)
+def test_a_mic_e_station_does_messages_unless_its_type_code_is_the_apostrophe(
+    identifier: bytes, comment: bytes, expected: bool
+) -> None:
     book = StationBook()
     book.take(heard(identifier + MICE_BODY + comment, destination=MICE))
-    assert book.get("OH2AAA").has_position and can_message(book) is expected       # type: ignore[union-attr]
+    assert book.get("OH2AAA").has_position and can_message(book) is expected  # type: ignore[union-attr]
 
 
 def test_a_mic_e_position_in_a_third_party_packet_counts_too() -> None:
@@ -143,10 +160,19 @@ def test_a_change_is_signalled_so_that_the_page_hears_of_it() -> None:
 async def test_the_flag_is_found_again_at_the_start(tmp_path: Path) -> None:
     store = await store_at(tmp_path / DB_NAME)
     log, book = PacketLog(store.db, FixedClock()), StationBook()
-    packets = [heard("!" + POSITION, "OH2NO"), heard("=" + POSITION, "OH2YES"), heard("/092345z" + POSITION, "OH2TLK"), heard(b"`" + MICE_BODY, "OH2MIC", MICE),
-               heard(":OH2BBB   :hello", "OH2TLK"), heard(">just a status", "OH2NON"), heard(";FIRE     *092345z6010.00N/02456.00E>", "OH2NO")]
+    packets = [
+        heard("!" + POSITION, "OH2NO"),
+        heard("=" + POSITION, "OH2YES"),
+        heard("/092345z" + POSITION, "OH2TLK"),
+        heard(b"`" + MICE_BODY, "OH2MIC", MICE),
+        heard(":OH2BBB   :hello", "OH2TLK"),
+        heard(">just a status", "OH2NON"),
+        heard(";FIRE     *092345z6010.00N/02456.00E>", "OH2NO"),
+    ]
     for n, p in enumerate(packets):
-        later = Packet(T0 + timedelta(seconds=n), p.direction, p.raw, p.source, p.destination, p.path, p.info, p.decoded)
+        later = Packet(
+            T0 + timedelta(seconds=n), p.direction, p.raw, p.source, p.destination, p.path, p.info, p.decoded
+        )
         book.take(later)
         log.append(later)
     for station in book.stations():
@@ -160,6 +186,6 @@ async def test_the_flag_is_found_again_at_the_start(tmp_path: Path) -> None:
 
     fresh = StationBook()
     fresh.seed(await log.stations())
-    assert takes(fresh.get("OH2NO")) is True                        # type: ignore[arg-type]  # nothing but the cache: it knows nothing yet
+    assert takes(fresh.get("OH2NO")) is True  # type: ignore[arg-type]  # nothing but the cache: it knows nothing yet
     fresh.seed_messaging(await log.messaging_evidence(30))
     assert {s.call: takes(s) for s in fresh.stations()} == expected

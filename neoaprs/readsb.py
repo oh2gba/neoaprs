@@ -3,6 +3,7 @@
 Ground traffic and rows without a recent position are left out. Lists are read one item at a
 time (`loads`), so a long answer read on a thread lets the loop run.
 """
+
 import json
 import math
 import re
@@ -144,7 +145,9 @@ def _vertical(aircraft: dict[str, Any]) -> float | None:
 
 def _emergency(aircraft: dict[str, Any]) -> bool:
     said = aircraft.get("emergency")
-    return (isinstance(said, str) and said.strip().lower() not in ("", "none")) or text_of(aircraft.get("squawk")) in EMERGENCY_SQUAWKS
+    return (isinstance(said, str) and said.strip().lower() not in ("", "none")) or text_of(
+        aircraft.get("squawk")
+    ) in EMERGENCY_SQUAWKS
 
 
 def _thing(aircraft: Any, base: datetime) -> Thing | None:
@@ -160,10 +163,22 @@ def _thing(aircraft: Any, base: datetime) -> Thing | None:
     if seen is not None and seen >= SEEN_MAX_SEC:
         return None
     speed = converted(aircraft.get("gs"), KNOT_KMH, SPEED_KMH_RANGE)
-    return Thing(id=id, lat=lat, lon=lon, at=base - timedelta(seconds=max(seen or 0.0, 0.0)), heading_deg=_heading(aircraft),
-                 speed_kmh=None if speed is None else round(speed, 1), name=text_of(aircraft.get("flight")), emergency=_emergency(aircraft),
-                 altitude_m=_altitude_m(aircraft), vertical_ms=_vertical(aircraft), registration=text_of(aircraft.get("r")), type=text_of(aircraft.get("desc")) or text_of(aircraft.get("t")),
-                 category=text_of(aircraft.get("category")).upper(), designator=text_of(aircraft.get("t")).upper())
+    return Thing(
+        id=id,
+        lat=lat,
+        lon=lon,
+        at=base - timedelta(seconds=max(seen or 0.0, 0.0)),
+        heading_deg=_heading(aircraft),
+        speed_kmh=None if speed is None else round(speed, 1),
+        name=text_of(aircraft.get("flight")),
+        emergency=_emergency(aircraft),
+        altitude_m=_altitude_m(aircraft),
+        vertical_ms=_vertical(aircraft),
+        registration=text_of(aircraft.get("r")),
+        type=text_of(aircraft.get("desc")) or text_of(aircraft.get("t")),
+        category=text_of(aircraft.get("category")).upper(),
+        designator=text_of(aircraft.get("t")).upper(),
+    )
 
 
 def read_aircraft(body: bytes, received_at: datetime | None = None) -> list[Thing] | None:
@@ -221,4 +236,6 @@ def receiver_urls(address: str) -> list[str]:
         return [value]
     host, port = host_port(value or AIRCRAFT_HOST)
     ports = (port,) if port is not None else AIRCRAFT_PORTS
-    return [f"http://{host}{'' if number == 80 else f':{number}'}{place}" for number in ports for place in AIRCRAFT_PLACES]
+    return [
+        f"http://{host}{'' if number == 80 else f':{number}'}{place}" for number in ports for place in AIRCRAFT_PLACES
+    ]

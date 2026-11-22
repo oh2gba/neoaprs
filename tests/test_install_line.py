@@ -1,6 +1,7 @@
 """Tests that the install line of old copies (`curl ... install.sh | sh`) keeps working:
 packaging/install.sh.in is the template the release renders, and nothing is left unrendered.
 """
+
 import re
 import subprocess
 from pathlib import Path
@@ -14,7 +15,9 @@ def render(version: str, url: str) -> str:
 
 
 def test_the_template_renders_to_a_script_with_no_placeholder_left(tmp_path: Path) -> None:
-    script = render("9.9.9", "https://github.com/oh2gba/neoaprs/releases/download/v9.9.9/neoaprs-9.9.9-py3-none-any.whl")
+    script = render(
+        "9.9.9", "https://github.com/oh2gba/neoaprs/releases/download/v9.9.9/neoaprs-9.9.9-py3-none-any.whl"
+    )
     assert not re.search(r"@[A-Z_]+@", script)
     assert 'VERSION="9.9.9"' in script and "neoaprs-9.9.9-py3-none-any.whl" in script
     path = tmp_path / "install.sh"

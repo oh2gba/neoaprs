@@ -1,6 +1,7 @@
 """Small PMTiles v3 archives for the tests of neoaprs/pmtilescut.py, and a reader of their tiles
 written apart from the program's code so that the two check each other.
 """
+
 import functools
 import gzip
 import math
@@ -8,8 +9,20 @@ import struct
 from collections.abc import Iterable
 from typing import Any
 
-FIELDS = ("root_offset", "root_length", "metadata_offset", "metadata_length", "leaf_offset", "leaf_length", "data_offset", "data_length", "addressed", "entries", "contents")
-Entry = tuple[int, int, int, int]               # tile id, run length, length, offset
+FIELDS = (
+    "root_offset",
+    "root_length",
+    "metadata_offset",
+    "metadata_length",
+    "leaf_offset",
+    "leaf_length",
+    "data_offset",
+    "data_length",
+    "addressed",
+    "entries",
+    "contents",
+)
+Entry = tuple[int, int, int, int]  # tile id, run length, length, offset
 
 
 def tile_id(z: int, x: int, y: int) -> int:
@@ -59,20 +72,51 @@ def header(**fields: int) -> bytes:
     numbers = [fields.get(name, 0) for name in FIELDS]
     west, south, east, north = fields.get("bounds", (-1800000000, -850511287, 1800000000, 850511287))  # type: ignore[misc]
     lon, lat = fields.get("center", (0, 0))  # type: ignore[misc]
-    tail = struct.pack("<BBBBBB", fields.get("clustered", 1), fields.get("internal", 2), fields.get("compression", 2), fields.get("kind", 1), fields.get("min_zoom", 0), fields.get("max_zoom", 0))
-    return b"PMTiles" + bytes([fields.get("version", 3)]) + struct.pack("<11Q", *numbers) + tail + struct.pack("<4i", west, south, east, north) + struct.pack("<Bii", fields.get("center_zoom", 0), lon, lat)
+    tail = struct.pack(
+        "<BBBBBB",
+        fields.get("clustered", 1),
+        fields.get("internal", 2),
+        fields.get("compression", 2),
+        fields.get("kind", 1),
+        fields.get("min_zoom", 0),
+        fields.get("max_zoom", 0),
+    )
+    return (
+        b"PMTiles"
+        + bytes([fields.get("version", 3)])
+        + struct.pack("<11Q", *numbers)
+        + tail
+        + struct.pack("<4i", west, south, east, north)
+        + struct.pack("<Bii", fields.get("center_zoom", 0), lon, lat)
+    )
 
 
 def archive_of(root: bytes, leaves: bytes, data: bytes, metadata: bytes = b"{}", **fields: int) -> bytes:
     """The parts in the order go-pmtiles writes them behind a header that says where they are; a
     field given here wins over what the parts say."""
-    places = {"root_offset": 127, "root_length": len(root), "metadata_offset": 127 + len(root), "metadata_length": len(metadata), "leaf_offset": 127 + len(root) + len(metadata),
-              "leaf_length": len(leaves), "data_offset": 127 + len(root) + len(metadata) + len(leaves), "data_length": len(data)}
+    places = {
+        "root_offset": 127,
+        "root_length": len(root),
+        "metadata_offset": 127 + len(root),
+        "metadata_length": len(metadata),
+        "leaf_offset": 127 + len(root) + len(metadata),
+        "leaf_length": len(leaves),
+        "data_offset": 127 + len(root) + len(metadata) + len(leaves),
+        "data_length": len(data),
+    }
     return header(**(places | fields)) + root + metadata + leaves + data
 
 
-def archive(tiles: dict[tuple[int, int, int], bytes], leaf: int | None = None, deep: bool = False, runs: bool = True, shared: bool = True, packed: bool = True,
-            metadata: bytes = b'{"name":"made up"}', **fields: int) -> bytes:
+def archive(
+    tiles: dict[tuple[int, int, int], bytes],
+    leaf: int | None = None,
+    deep: bool = False,
+    runs: bool = True,
+    shared: bool = True,
+    packed: bool = True,
+    metadata: bytes = b'{"name":"made up"}',
+    **fields: int,
+) -> bytes:
     """A clustered archive of the tiles: a content that several tiles have is stored once
     (`shared`), a row of tiles with one content is one entry (`runs`); the root alone, or leaves of
     `leaf` entries."""
@@ -80,7 +124,12 @@ def archive(tiles: dict[tuple[int, int, int], bytes], leaf: int | None = None, d
     data = b""
     stored: dict[bytes, int] = {}
     for tid, content in sorted((tile_id(*key), content) for key, content in tiles.items()):
-        if runs and entries and entries[-1][0] + entries[-1][1] == tid and data[entries[-1][3]:entries[-1][3] + entries[-1][2]] == content:
+        if (
+            runs
+            and entries
+            and entries[-1][0] + entries[-1][1] == tid
+            and data[entries[-1][3] : entries[-1][3] + entries[-1][2]] == content
+        ):
             entries[-1] = (entries[-1][0], entries[-1][1] + 1, entries[-1][2], entries[-1][3])
             continue
         if not (shared and content in stored):
@@ -89,7 +138,14 @@ def archive(tiles: dict[tuple[int, int, int], bytes], leaf: int | None = None, d
         entries.append((tid, 1, len(content), stored[content]))
     root, leaves = _tree(entries, leaf, deep, packed)
     zooms = [z for z, _, _ in tiles]
-    known = {"addressed": sum(e[1] for e in entries), "entries": len(entries), "contents": len(set(e[3] for e in entries)), "min_zoom": min(zooms), "max_zoom": max(zooms), "internal": 2 if packed else 1}
+    known = {
+        "addressed": sum(e[1] for e in entries),
+        "entries": len(entries),
+        "contents": len(set(e[3] for e in entries)),
+        "min_zoom": min(zooms),
+        "max_zoom": max(zooms),
+        "internal": 2 if packed else 1,
+    }
     return archive_of(root, leaves, data, metadata, **(known | fields))
 
 
@@ -99,13 +155,13 @@ def _tree(entries: list[Entry], leaf: int | None, deep: bool, packed: bool) -> t
     leaves = b""
     pointers: list[Entry] = []
     for start in range(0, len(entries), leaf):
-        block = directory(entries[start:start + leaf], packed)
+        block = directory(entries[start : start + leaf], packed)
         pointers.append((entries[start][0], 0, len(block), len(leaves)))
         leaves += block
     if deep:
         upper: list[Entry] = []
         for start in range(0, len(pointers), 2):
-            block = directory(pointers[start:start + 2], packed)
+            block = directory(pointers[start : start + 2], packed)
             upper.append((pointers[start][0], 0, len(block), len(leaves)))
             leaves += block
         pointers = upper
@@ -113,6 +169,7 @@ def _tree(entries: list[Entry], leaf: int | None, deep: bool, packed: bool) -> t
 
 
 # ---- reading
+
 
 def _unpacked(data: bytes, packed: bool) -> list[Entry]:
     body = gzip.decompress(data) if packed else data
@@ -123,7 +180,7 @@ def _unpacked(data: bytes, packed: bool) -> list[Entry]:
             numbers.append(value)
             value, shift = 0, 0
     count = numbers[0]
-    ids, runs, lengths, offsets = (numbers[1 + k * count:1 + (k + 1) * count] for k in range(4))
+    ids, runs, lengths, offsets = (numbers[1 + k * count : 1 + (k + 1) * count] for k in range(4))
     rows: list[Entry] = []
     tid = 0
     for i in range(count):
@@ -136,8 +193,17 @@ def _unpacked(data: bytes, packed: bool) -> list[Entry]:
 def fields_of(data: bytes) -> dict[str, Any]:
     numbers = struct.unpack_from("<11Q", data, 8)
     tail = struct.unpack_from("<BBBBBB4iBii", data, 96)
-    return dict(zip(FIELDS, numbers, strict=True)) | {"clustered": tail[0], "internal": tail[1], "compression": tail[2], "kind": tail[3], "min_zoom": tail[4], "max_zoom": tail[5],
-                                                       "bounds": tail[6:10], "center_zoom": tail[10], "center": tail[11:13]}
+    return dict(zip(FIELDS, numbers, strict=True)) | {
+        "clustered": tail[0],
+        "internal": tail[1],
+        "compression": tail[2],
+        "kind": tail[3],
+        "min_zoom": tail[4],
+        "max_zoom": tail[5],
+        "bounds": tail[6:10],
+        "center_zoom": tail[10],
+        "center": tail[11:13],
+    }
 
 
 def every_tile(data: bytes) -> dict[int, bytes]:
@@ -147,13 +213,14 @@ def every_tile(data: bytes) -> dict[int, bytes]:
     found: dict[int, bytes] = {}
 
     def walk(offset: int, length: int, depth: int) -> None:
-        for tid, run, size, at in _unpacked(data[offset:offset + length], packed):
+        for tid, run, size, at in _unpacked(data[offset : offset + length], packed):
             if run == 0:
                 assert depth < 4
                 walk(int(f["leaf_offset"]) + at, size, depth + 1)
             for k in range(run):
                 start = int(f["data_offset"]) + at
-                found[tid + k] = data[start:start + size]
+                found[tid + k] = data[start : start + size]
+
     walk(int(f["root_offset"]), int(f["root_length"]), 0)
     return found
 
@@ -164,11 +231,20 @@ def tile_at(data: bytes, z: int, x: int, y: int) -> bytes | None:
 
 # ---- sources for the tests of the map
 
+
 @functools.cache
 def planet(max_zoom: int = 6) -> bytes:
     """Every tile of the world from zoom 0 to `max_zoom`, each with a content of its own that says
     where it is, in leaves of 64 entries (the root and one level of leaves)."""
-    return archive({(z, x, y): f"{z}/{x}/{y}".encode() * 2 for z in range(max_zoom + 1) for x in range(1 << z) for y in range(1 << z)}, leaf=64)
+    return archive(
+        {
+            (z, x, y): f"{z}/{x}/{y}".encode() * 2
+            for z in range(max_zoom + 1)
+            for x in range(1 << z)
+            for y in range(1 << z)
+        },
+        leaf=64,
+    )
 
 
 def tiles_of(box: tuple[float, float, float, float], min_zoom: int, max_zoom: int) -> set[tuple[int, int, int]]:
@@ -180,6 +256,7 @@ def tiles_of(box: tuple[float, float, float, float], min_zoom: int, max_zoom: in
         n = 1 << z
         y = (1 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2 * n
         return min(n - 1, max(0, math.floor((lon + 180) / 360 * n))), min(n - 1, max(0, math.floor(y)))
+
     found: set[tuple[int, int, int]] = set()
     for z in range(min_zoom, max_zoom + 1):
         (x0, y0), (x1, y1) = number(west, north, z), number(east, south, z)

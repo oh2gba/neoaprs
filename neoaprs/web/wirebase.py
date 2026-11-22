@@ -1,4 +1,5 @@
 """Base classes of the wire models (strict, TypeScript titles) and the types they share."""
+
 from dataclasses import fields, is_dataclass
 from datetime import datetime
 from typing import Annotated, Any, Literal
@@ -78,25 +79,31 @@ def _message_title(cls: type) -> str:
 
 class _Command(_Model):
     """Base of every command. `cmd` names it."""
+
     model_config = ConfigDict(model_title_generator=_command_title)
 
 
 class _Message(_Model):
     """Base of every message. `type` names it."""
+
     model_config = ConfigDict(model_title_generator=_message_title)
 
 
 class PhgValues(_Model):
     """A station's power, antenna height above average terrain, antenna gain and directivity (`PHG5132`), and the radio range that the formula of the APRS specification gives them."""
+
     power_w: int
     height_m: float
     gain_db: int
-    direction_deg: int | None = Field(description="the direction of the best gain, degrees from north; null for an omni antenna")
+    direction_deg: int | None = Field(
+        description="the direction of the best gain, degrees from north; null for an omni antenna"
+    )
     range_km: float
 
 
 class DfsValues(_Model):
     """The strength of a signal heard by a direction finder (`DFS2360`) with the height, gain and directivity of its antenna."""
+
     strength: int = Field(ge=0, le=9, description="0 to 9; 0 is where the signal is not heard")
     height_m: float
     gain_db: int
@@ -105,6 +112,7 @@ class DfsValues(_Model):
 
 class DfBearingValues(_Model):
     """The bearing and quality of a DF report (`/270/729` after the course and speed)."""
+
     bearing_deg: int
     hits: int = Field(description="0 nothing, 1 to 8 the share of the possible samples that hit, 9 a manual report")
     range_km: float = Field(description="the length the line is drawn to")
@@ -113,15 +121,47 @@ class DfBearingValues(_Model):
 
 class AreaValues(_Model):
     """An area object (the symbol `\\l`): its shape and colour, and how far down and to the right of the object's position it reaches."""
-    shape: Literal["open circle", "line", "open ellipse", "open triangle", "open box", "filled circle", "line down-left", "filled ellipse", "filled triangle", "filled box"] = Field(description="the shape, which the page says in its words")
-    colour: Literal["black", "blue", "green", "cyan", "red", "violet", "yellow", "gray", "dim black", "dim blue", "dim green", "dim cyan", "dim red", "dim violet", "dim yellow", "dim gray", "unknown"] = Field(
-        description="the colour, which the page says in its words; `unknown` for a number the specification has no colour for")
+
+    shape: Literal[
+        "open circle",
+        "line",
+        "open ellipse",
+        "open triangle",
+        "open box",
+        "filled circle",
+        "line down-left",
+        "filled ellipse",
+        "filled triangle",
+        "filled box",
+    ] = Field(description="the shape, which the page says in its words")
+    colour: Literal[
+        "black",
+        "blue",
+        "green",
+        "cyan",
+        "red",
+        "violet",
+        "yellow",
+        "gray",
+        "dim black",
+        "dim blue",
+        "dim green",
+        "dim cyan",
+        "dim red",
+        "dim violet",
+        "dim yellow",
+        "dim gray",
+        "unknown",
+    ] = Field(
+        description="the colour, which the page says in its words; `unknown` for a number the specification has no colour for"
+    )
     lat_offset_deg: float
     lon_offset_deg: float
 
 
 class ExtensionValues(_Model):
     """The data extensions after the symbol of an uncompressed position (taken off the comment); null for what the position did not have."""
+
     phg: PhgValues | None
     range_km: float | None = Field(description="a pre-calculated radio range (`RNG0050`)")
     dfs: DfsValues | None
@@ -131,6 +171,7 @@ class ExtensionValues(_Model):
 
 class LocatorValues(_Model):
     """A Maidenhead locator (grid square) with the symbol that came with it, in a status report or in the status text of a Mic-E packet; the position is the centre of the square."""
+
     grid: str = Field(description="4 or 6 characters, `IO91sx`")
     lat: float
     lon: float
@@ -140,20 +181,26 @@ class LocatorValues(_Model):
 
 class FrequencyValues(_Model):
     """A frequency to call on, from the local information at the start of a comment, a status text or the name of a frequency object (`145.775MHz T100 -060 R40k`); null where the text did not say."""
+
     mhz: float = Field(description="the transmit frequency, MHz")
-    tone_hz: int | None = Field(description="the CTCSS tone of `Tnnn` or `Cnnn`, whole hertz (the tenths are dropped: 107 is 107.2)")
+    tone_hz: int | None = Field(
+        description="the CTCSS tone of `Tnnn` or `Cnnn`, whole hertz (the tenths are dropped: 107 is 107.2)"
+    )
     tone_both: bool = Field(description="`Cnnn`: the tone is needed to receive as well")
     tone_off: bool = Field(description="`Toff`: no tone and no DCS code")
     dcs: str | None = Field(description="the DCS code of `Dnnn`, three digits as sent")
     tone_burst: bool = Field(description="`1750`: a 1750 Hz tone burst opens the repeater")
     narrow: bool = Field(description="the first letter of the tone field was lower case: narrow modulation")
-    offset_khz: int | None = Field(description="the offset from the transmit frequency in kHz (`-060` is -600); 0 is simplex; null when the standard offset is meant")
+    offset_khz: int | None = Field(
+        description="the offset from the transmit frequency in kHz (`-060` is -600); 0 is simplex; null when the standard offset is meant"
+    )
     range_km: float | None = Field(description="the nominal range (`R25m` is 40.2 km)")
     rx_mhz: float | None = Field(description="a separate receive frequency (`FFF.FFFrx`), MHz")
 
 
 class StormValues(_Model):
     """The storm data of a tropical storm, hurricane or tropical depression (APRS101, chapter 12), in metric units; null where the report did not have the field. The movement is the course and speed of the position."""
+
     storm_type: Literal["TS", "HC", "TD"] = Field(description="TS tropical storm, HC hurricane, TD tropical depression")
     wind_kmh: float | None = Field(description="the sustained wind")
     gust_kmh: float | None

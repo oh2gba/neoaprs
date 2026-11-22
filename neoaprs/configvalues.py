@@ -2,6 +2,7 @@
 
 Each maps the text of a value to the value, raising CodedError. The table of settings is in
 config.py."""
+
 import ipaddress
 import re
 from urllib.parse import urlsplit
@@ -27,7 +28,11 @@ def device_globs(text: str) -> str:
     """Return absolute device globs separated by single spaces."""
     parts = text.split()
     if not parts or any(not part.startswith("/") for part in parts):
-        raise CodedError(f"{text!r} is not one or more absolute patterns separated by spaces, such as /dev/ttyUSB*", "setting.not_globs", value=text)
+        raise CodedError(
+            f"{text!r} is not one or more absolute patterns separated by spaces, such as /dev/ttyUSB*",
+            "setting.not_globs",
+            value=text,
+        )
     return text_of(MAX_SERIAL_PATTERN)(" ".join(parts))
 
 
@@ -62,7 +67,9 @@ def antenna_direction(text: str) -> str:
 
 def symbol_table(text: str) -> str:
     if len(text) != 1 or text not in SYMBOL_TABLES:
-        raise CodedError(f"{text!r} is not / or \\ or an overlay character A-Z, 0-9", "setting.not_symbol_table", value=text)
+        raise CodedError(
+            f"{text!r} is not / or \\ or an overlay character A-Z, 0-9", "setting.not_symbol_table", value=text
+        )
     return text
 
 
@@ -112,7 +119,9 @@ def map_source(text: str) -> str:
     if value == "":
         return ""
     if len(value) > MAX_MAP_SOURCE or not value.isprintable() or value.startswith("-"):
-        raise CodedError(f"{text!r} is not a web address or the path of a PMTiles file", "setting.not_map_source", value=text)
+        raise CodedError(
+            f"{text!r} is not a web address or the path of a PMTiles file", "setting.not_map_source", value=text
+        )
     if "://" in value and (urlsplit(value).scheme not in ("http", "https") or " " in value):
         raise CodedError(f"{text!r} is not an http or https address", "setting.not_web_address", value=text)
     return value
@@ -135,14 +144,24 @@ def aprsis_server(text: str) -> str:
     try:
         return hostport(text)
     except CodedError:
-        raise CodedError(f"{text!r} is not host:port (14580 is the usual port of an APRS-IS server)", "setting.not_server", value=text) from None
+        raise CodedError(
+            f"{text!r} is not host:port (14580 is the usual port of an APRS-IS server)",
+            "setting.not_server",
+            value=text,
+        ) from None
 
 
 def passcode(text: str) -> str:
     """Return the APRS-IS passcode as digits, or "" for none; refuse -1 (read-only login)."""
     value = text.strip()
     if value == "-1":
-        raise CodedError("-1 is the passcode for reading only; an iGate needs the passcode of its call", "setting.passcode_read_only", value=text)
+        raise CodedError(
+            "-1 is the passcode for reading only; an iGate needs the passcode of its call",
+            "setting.passcode_read_only",
+            value=text,
+        )
     if value and not (value.isascii() and value.isdigit() and int(value) <= MAX_PASSCODE):
-        raise CodedError(f"the passcode of your call is a number from 0 to {MAX_PASSCODE}", "setting.not_passcode", max=MAX_PASSCODE)
+        raise CodedError(
+            f"the passcode of your call is a number from 0 to {MAX_PASSCODE}", "setting.not_passcode", max=MAX_PASSCODE
+        )
     return str(int(value)) if value else ""

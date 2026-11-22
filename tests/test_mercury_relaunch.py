@@ -2,6 +2,7 @@
 ports it had and the radio comes back; if something else took the pair meanwhile, the modem gets
 another pair.
 """
+
 import socket
 import sys
 from pathlib import Path
@@ -60,7 +61,11 @@ async def test_after_mercury_dies_the_hf_radio_comes_back_on_the_same_ports_by_i
         assert not e.hf.usable, "while the modem is down the radio does not say it listens"
         assert pairs(e) == held, "the pair stays the radio's while its program is down"
         await until_started(lambda: e.mercury.starts == 2 and e.mercury.running and e.hf.usable)
-        assert e.hf.port == port == f"socket://127.0.0.1:{e.mercury.broadcast_port}" and e.mercury.pid != pid and pairs(e) == held
+        assert (
+            e.hf.port == port == f"socket://127.0.0.1:{e.mercury.broadcast_port}"
+            and e.mercury.pid != pid
+            and pairs(e) == held
+        )
     finally:
         await e.stop()
 
@@ -79,13 +84,17 @@ async def test_when_the_pair_was_taken_meanwhile_the_hf_radio_is_pointed_at_the_
             holder.listen()
             await until_started(lambda: e.mercury.starts == 2 and e.mercury.running)
             new = e.mercury.broadcast_port
-            assert new != old and pairs(e) == [Claim("modem_ports", str(new), e.mercury.holder)], "the new pair is held in the place of the old"
+            assert new != old and pairs(e) == [Claim("modem_ports", str(new), e.mercury.holder)], (
+                "the new pair is held in the place of the old"
+            )
             await until_started(lambda: e.hf.port == f"socket://127.0.0.1:{new}" and e.hf.usable)
     finally:
         await e.stop()
 
 
-async def test_a_start_refused_before_its_ports_were_chosen_gives_the_hf_radio_no_port_and_the_start_tried_again_points_it_at_them(tmp_path: Path) -> None:
+async def test_a_start_refused_before_its_ports_were_chosen_gives_the_hf_radio_no_port_and_the_start_tried_again_points_it_at_them(
+    tmp_path: Path,
+) -> None:
     """The card the HF radio is set to is another radio's: its start is refused before it chose its
     ports, and the port it stood on (8100) may be another radio's modem or another program's, so its
     line has none and says why. Once the card is let go, the start tried again chooses its pair and
@@ -101,8 +110,12 @@ async def test_a_start_refused_before_its_ports_were_chosen_gives_the_hf_radio_n
     await e.start(connected=False)
     try:
         await until_started(lambda: e.mercury.state == "waiting" and "is held by" in e.mercury.problem)
-        assert e.hf.port == "" and e.hf.stats.opens == 0 and not e.mercury.ports_chosen, "no port before the modem chose its pair"
+        assert e.hf.port == "" and e.hf.stats.opens == 0 and not e.mercury.ports_chosen, (
+            "no port before the modem chose its pair"
+        )
         claims.release(5, "sound_card")
-        await until_started(lambda: e.mercury.running and e.hf.port == f"socket://127.0.0.1:{e.mercury.broadcast_port}" and e.hf.usable)
+        await until_started(
+            lambda: e.mercury.running and e.hf.port == f"socket://127.0.0.1:{e.mercury.broadcast_port}" and e.hf.usable
+        )
     finally:
         await e.stop()

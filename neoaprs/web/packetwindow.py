@@ -3,6 +3,7 @@
 Two views of the same rows are kept: the latest `size` packets of any channel, and the latest
 `size` that did not come from the internet.
 """
+
 from collections import deque
 from typing import Any
 

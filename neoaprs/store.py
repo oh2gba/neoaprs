@@ -3,6 +3,7 @@
 Also the write-ahead log checkpoint and the copy of the file. The file is migrated before the
 thread uses it.
 """
+
 import logging
 from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
@@ -11,12 +12,23 @@ from typing import NamedTuple, TypeVar
 from .clock import Clock, utcnow
 from .configradios import radios_from_rows
 from .db import Db
+
 # StoreError is re-exported: the rest of the program imports it from here.
 from .dberror import Connection, DbClosed, Row, SqlError, StoreError as StoreError
 from .packetcodec import stamp
 from .radiospec import RadioId, RadioSpec
 from .sendonrule import Kept
-from .radiosql import insert_radio, kept_by_rows, of_removed_radio, put_kept, put_radio_settings, radio_rows, radio_settings, remove_radio, update_radio
+from .radiosql import (
+    insert_radio,
+    kept_by_rows,
+    of_removed_radio,
+    put_kept,
+    put_radio_settings,
+    radio_rows,
+    radio_settings,
+    remove_radio,
+    update_radio,
+)
 from .storesql import Settings, delete_setting, read_setting, read_settings, write_setting, write_settings
 
 log = logging.getLogger("neoaprs.store")
@@ -28,6 +40,7 @@ T = TypeVar("T")
 
 class RadioWrite(NamedTuple):
     """What a save of the settings writes of one radio: changed columns and own settings."""
+
     spec: RadioSpec
     columns: Mapping[str, object] = {}
     values: Mapping[str, str] = {}
@@ -150,27 +163,43 @@ class Store:
         read = await self._read(lambda db: (radio_rows(db), radio_settings(db)), unread, "the radios could not be read")
         return None if read is None else radios_from_rows(*read)
 
-    async def add_radio(self, kind: str, type: str, name: str, enabled: bool, position: int, *, settings: Mapping[str, str] | None = None, kept: Kept | None = None,
-                        by_rows: bool = False) -> RadioId | None:
+    async def add_radio(
+        self,
+        kind: str,
+        type: str,
+        name: str,
+        enabled: bool,
+        position: int,
+        *,
+        settings: Mapping[str, str] | None = None,
+        kept: Kept | None = None,
+        by_rows: bool = False,
+    ) -> RadioId | None:
         """Add a radio with its settings and kept state, in one transaction; return its id or None.
 
         With `by_rows` the kept state is worked out from the rows (a tool run without a daemon).
         """
+
         def add(db: Connection) -> RadioId:
             before = radios_from_rows(radio_rows(db), radio_settings(db)) if by_rows else ()
             made = insert_radio(db, kind, type, name, enabled, position)
             put_radio_settings(db, made, settings or {})
-            if (found := kept_by_rows(db, before) if by_rows else kept):
+            if found := kept_by_rows(db, before) if by_rows else kept:
                 put_kept(db, found)
             return made
+
         return await self._stored(add, None, f"the new {kind} radio could not be stored")
 
     async def change_radio(self, id: RadioId, /, **columns: object) -> bool:
         """Set CHANGEABLE columns of a radio; False if missing, removed or not stored."""
-        return bool(await self._stored(lambda db: update_radio(db, id, **columns), 0, f"radio {id} could not be changed"))
+        return bool(
+            await self._stored(lambda db: update_radio(db, id, **columns), 0, f"radio {id} could not be changed")
+        )
 
     async def put_radio_settings(self, id: RadioId, values: Mapping[str, str]) -> bool:
-        return await self._stored(lambda db: put_radio_settings(db, id, values), False, f"the settings of radio {id} could not be stored")
+        return await self._stored(
+            lambda db: put_radio_settings(db, id, values), False, f"the settings of radio {id} could not be stored"
+        )
 
     async def remove_radio(self, id: RadioId) -> bool:
         """Remove a radio and everything that selects it; False if missing or not stored."""
@@ -194,6 +223,7 @@ class Store:
             if kept:
                 put_kept(db, kept)
             return True
+
         try:
             return await self._stored(put, False, "the settings could not be stored")
         except _Refused:

@@ -2,6 +2,7 @@
 
 The daemon asks daily, sending its version, platform and a random installation number (0 for a
 source-tree run). `NEOAPRS_UPDATE_CHECK=0` switches the check off for one run."""
+
 import asyncio
 import logging
 import os
@@ -47,6 +48,7 @@ class CheckResult:
     """Outcome of an on-request check: `newer` (`version` is the latest), `current` or `no_answer`.
 
     `reason` says why when there was no answer."""
+
     outcome: Literal["newer", "current", "no_answer"]
     version: str = ""
     reason: str = ""
@@ -58,8 +60,19 @@ class CheckResult:
 
 
 class UpdateCheck:
-    def __init__(self, config: ConfigSource, version: str, platform: str, fetch: Fetch, first_sec: float = FIRST_SEC, every_sec: float = EVERY_SEC,
-                 environ: Mapping[str, str] = os.environ, memory: Memory | None = None, fetch_url: FetchUrl = fetch_url, developer: bool = False) -> None:
+    def __init__(
+        self,
+        config: ConfigSource,
+        version: str,
+        platform: str,
+        fetch: Fetch,
+        first_sec: float = FIRST_SEC,
+        every_sec: float = EVERY_SEC,
+        environ: Mapping[str, str] = os.environ,
+        memory: Memory | None = None,
+        fetch_url: FetchUrl = fetch_url,
+        developer: bool = False,
+    ) -> None:
         self._config = config
         self.version = version
         self.platform = platform
@@ -148,7 +161,9 @@ class UpdateCheck:
         if newer != self.latest:
             self.latest = newer
             if newer is not None:
-                log.info("NeoAPRS %s is available (this is %s): %s", newer.version, self.version, newer.url or "no address")
+                log.info(
+                    "NeoAPRS %s is available (this is %s): %s", newer.version, self.version, newer.url or "no address"
+                )
         return newer
 
     async def check(self) -> Update | None:

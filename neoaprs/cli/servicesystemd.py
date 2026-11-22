@@ -2,6 +2,7 @@
 
 It is written from the package's `neoaprs.service` template. A unit this program did not write
 is never touched (its first line says who wrote it). `--linger` starts it at boot."""
+
 import getpass
 import os
 import re
@@ -44,7 +45,11 @@ def render(plan: Plan) -> str:
     template = resources.files("neoaprs.cli").joinpath(UNIT_NAME).read_text(encoding="utf-8")
     if plan.clone is not None:
         folder = str(plan.clone)
-        documentation = "file://" + (folder if PLAIN.fullmatch(folder) else urllib.parse.quote(folder).replace("%", "%%")) + "/README.md"
+        documentation = (
+            "file://"
+            + (folder if PLAIN.fullmatch(folder) else urllib.parse.quote(folder).replace("%", "%%"))
+            + "/README.md"
+        )
     else:
         folder, documentation = "", REPO
     command = quote(plan.appimage) if plan.appimage else f"{quote(plan.python)} -m neoaprs"
@@ -52,14 +57,22 @@ def render(plan: Plan) -> str:
     for line in template.splitlines():
         if "@WORKING_DIRECTORY@" in line and plan.clone is None:
             continue
-        body.append(line.replace("@WORKING_DIRECTORY@", folder.replace("%", "%%")).replace("@DOCUMENTATION@", documentation)
-                    .replace("@COMMAND@", command).replace("@DATA@", quote(str(plan.data))))
+        body.append(
+            line.replace("@WORKING_DIRECTORY@", folder.replace("%", "%%"))
+            .replace("@DOCUMENTATION@", documentation)
+            .replace("@COMMAND@", command)
+            .replace("@DATA@", quote(str(plan.data)))
+        )
     return HEADER + "\n" + "\n".join(body).rstrip("\n") + "\n"
 
 
 def effect(unit: str) -> list[str]:
     """Return the unit's lines without comments and metadata (a comment change needs no restart)."""
-    return [line.strip() for line in unit.splitlines() if line.strip() and not line.lstrip().startswith("#") and not line.startswith(METADATA)]
+    return [
+        line.strip()
+        for line in unit.splitlines()
+        if line.strip() and not line.lstrip().startswith("#") and not line.startswith(METADATA)
+    ]
 
 
 def written_by_us(path: Path) -> bool:
@@ -77,7 +90,9 @@ def installed(plan: Plan) -> tuple[bool, str]:
     path = unit_path()
     if written_by_us(path):
         return True, f"the user unit {path}"
-    return False, "no user unit" if not (path.exists() or path.is_symlink()) else f"{path} exists but was not written by neoaprs"
+    return False, "no user unit" if not (
+        path.exists() or path.is_symlink()
+    ) else f"{path} exists but was not written by neoaprs"
 
 
 def systemctl(*args: str) -> int:
@@ -86,7 +101,9 @@ def systemctl(*args: str) -> int:
         # systemctl is in /usr/bin or /bin depending on the distribution, so the PATH finds it.
         return subprocess.run(["systemctl", "--user", *args], check=False).returncode  # noqa: S607
     except FileNotFoundError:
-        print("systemctl was not found: this computer does not run systemd, so there is no user service to set up; run `neoaprs run` from your session's autostart instead")
+        print(
+            "systemctl was not found: this computer does not run systemd, so there is no user service to set up; run `neoaprs run` from your session's autostart instead"
+        )
         return -1
 
 
@@ -109,7 +126,9 @@ def install(plan: Plan) -> int:
     restart = False
     if path.exists() or path.is_symlink():
         if not written_by_us(path):
-            print(f"{path} exists and was not written by neoaprs; move it away (or `neoaprs service remove` after checking it) and run this again")
+            print(
+                f"{path} exists and was not written by neoaprs; move it away (or `neoaprs service remove` after checking it) and run this again"
+            )
             return 1
         restart = effect(path.read_text(encoding="utf-8")) != effect(unit)
     plan.data.mkdir(parents=True, exist_ok=True)
@@ -124,12 +143,16 @@ def install(plan: Plan) -> int:
         code = systemctl(*step)
         if code != 0:
             if code > 0:
-                print("systemctl did not accept the unit; is there a user session (`systemctl --user status` must work in this terminal)?")
+                print(
+                    "systemctl did not accept the unit; is there a user session (`systemctl --user status` must work in this terminal)?"
+                )
             return 1
     if restart and systemctl("try-restart", UNIT_NAME) == 0:
         print("the unit changed: the service was restarted")
     if held_by_other:
-        print("note: another NeoAPRS holds the data folder, so the service could not start; it starts at the next login or boot after that one has ended")
+        print(
+            "note: another NeoAPRS holds the data folder, so the service could not start; it starts at the next login or boot after that one has ended"
+        )
     after_install(plan)
     return 0
 
@@ -142,13 +165,19 @@ def after_install(plan: Plan) -> None:
         except FileNotFoundError:
             enabled = False
         if not enabled:
-            print(f"note: 'loginctl enable-linger {user}' needs to be run once so that neoaprs starts at boot without a login")
+            print(
+                f"note: 'loginctl enable-linger {user}' needs to be run once so that neoaprs starts at boot without a login"
+            )
     elif ask("loginctl", "show-user", user, "--property=Linger") != "Linger=yes":
-        print(f"note: it runs while you are logged in; to start at boot without a login run once: loginctl enable-linger {user}   (or `neoaprs service install --linger`)")
+        print(
+            f"note: it runs while you are logged in; to start at boot without a login run once: loginctl enable-linger {user}   (or `neoaprs service install --linger`)"
+        )
     group = serial_group_check()
     if group.status in ("missing", "relogin"):
         print(f"note: {user} cannot open the radio's serial port yet: {group.fix}")
-    print(f"neoaprs runs (journal: journalctl --user -u neoaprs -f; log: {plan.data / LOG_NAME}); the page is on {page_address(plan.data)} (the setting web/port)")
+    print(
+        f"neoaprs runs (journal: journalctl --user -u neoaprs -f; log: {plan.data / LOG_NAME}); the page is on {page_address(plan.data)} (the setting web/port)"
+    )
 
 
 def remove(plan: Plan) -> int:

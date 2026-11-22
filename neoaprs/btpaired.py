@@ -3,6 +3,7 @@
 BlueZ answers over the system D-Bus without root: `busctl` first, `bluetoothctl` if it is missing.
 Nothing is connected to or changed; devices with no serial port are left out.
 """
+
 import json
 import logging
 import subprocess
@@ -14,7 +15,16 @@ log = logging.getLogger("neoaprs.btpaired")
 
 SERIAL_PORT_UUID = "00001101-0000-1000-8000-00805f9b34fb"
 ASK_SEC = 4.0
-BUSCTL = ["busctl", "--system", "--json=short", "call", "org.bluez", "/", "org.freedesktop.DBus.ObjectManager", "GetManagedObjects"]
+BUSCTL = [
+    "busctl",
+    "--system",
+    "--json=short",
+    "call",
+    "org.bluez",
+    "/",
+    "org.freedesktop.DBus.ObjectManager",
+    "GetManagedObjects",
+]
 BLUETOOTHCTL = ["bluetoothctl", "devices", "Paired"]
 
 
@@ -27,7 +37,9 @@ class PairedDevice:
 def _run(command: list[str]) -> str:
     """Return the command's output, or "" if it is missing, fails or times out."""
     try:
-        done = subprocess.run(command, capture_output=True, text=True, timeout=ASK_SEC, check=False, stdin=subprocess.DEVNULL)
+        done = subprocess.run(
+            command, capture_output=True, text=True, timeout=ASK_SEC, check=False, stdin=subprocess.DEVNULL
+        )
     except (OSError, subprocess.SubprocessError) as e:
         log.debug("%s: %s", command[0], e)
         return ""

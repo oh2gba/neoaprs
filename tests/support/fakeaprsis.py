@@ -1,6 +1,7 @@
 """A fake APRS-IS server: it greets, answers the login line with `# logresp`, keeps every line it
 receives and sends the client what the test `send`s. The iGate tests give the iGate its `address`.
 """
+
 import asyncio
 
 from tests.support.env import remember_stop
@@ -11,7 +12,14 @@ SERVER_NAME = "TESTSRV"
 
 
 class FakeAprsIs(FakeLineServer):
-    def __init__(self, verified: bool = True, greeting: bytes | None = GREETING, answer: bool = True, silent: bool = False, name: str = SERVER_NAME) -> None:
+    def __init__(
+        self,
+        verified: bool = True,
+        greeting: bytes | None = GREETING,
+        answer: bool = True,
+        silent: bool = False,
+        name: str = SERVER_NAME,
+    ) -> None:
         super().__init__()
         self.verified, self.greeting, self.answer, self.silent, self.name = verified, greeting, answer, silent, name
         self.on_client = self._greet
@@ -56,7 +64,7 @@ class FakeAprsIs(FakeLineServer):
 
 async def fake_aprsis(**options: object) -> FakeAprsIs:
     """A fake APRS-IS server on a free port, stopped by stop_all() when the test is over."""
-    server = FakeAprsIs(**options)                          # type: ignore[arg-type]
+    server = FakeAprsIs(**options)  # type: ignore[arg-type]
     await server.start()
     remember_stop(server.stop)
     return server

@@ -2,6 +2,7 @@
 that lets every request in and an Api that records what it is told, behind a real Tornado server on
 a free port.
 """
+
 import asyncio
 from typing import Any
 
@@ -63,7 +64,9 @@ class FakePageHost:
         return f"ws://127.0.0.1:{self.port}/ws"
 
     async def start(self) -> "FakePageHost":
-        app: Any = tornado.web.Application([(r"/ws", Socket, {"server": self})], websocket_ping_interval=30, websocket_max_message_size=64 * 1024)
+        app: Any = tornado.web.Application(
+            [(r"/ws", Socket, {"server": self})], websocket_ping_interval=30, websocket_max_message_size=64 * 1024
+        )
         sockets = bind_sockets(0, "127.0.0.1")
         self.port = sockets[0].getsockname()[1]
         self._server = tornado.httpserver.HTTPServer(app)

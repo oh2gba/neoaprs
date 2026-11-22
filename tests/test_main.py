@@ -2,6 +2,7 @@
 cleanly on SIGTERM, SIGINT and SIGHUP, refuses a newer database with exit 2, and creates nothing for
 others.
 """
+
 import asyncio
 import io
 import logging
@@ -75,7 +76,17 @@ def environment() -> dict[str, str]:
 
 def start(data: Path, *extra: str) -> "subprocess.Popen[str]":
     port = () if "--port" in extra else ("--port", radio()[1])
-    proc = subprocess.Popen([sys.executable, "-m", "neoaprs", "--data", str(data), *port, "--web-port", "0", *extra], cwd=ROOT, env=environment(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", creationflags=NEW_GROUP)
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "neoaprs", "--data", str(data), *port, "--web-port", "0", *extra],
+        cwd=ROOT,
+        env=environment(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        creationflags=NEW_GROUP,
+    )
     assert proc.stdout is not None and proc.stderr is not None
     _said[proc.pid] = (_Drain(proc.stdout), _Drain(proc.stderr))
     return proc
@@ -150,7 +161,9 @@ def ended(proc: "subprocess.Popen[str]", data: Path, seconds: float = PATIENCE_S
         proc.kill()
         proc.wait()
         out, err = said(proc)
-        raise AssertionError(f"the daemon did not end in {seconds} s\nstdout: {out}\nstderr: {err}\nits log:\n{log_of(data)}") from None
+        raise AssertionError(
+            f"the daemon did not end in {seconds} s\nstdout: {out}\nstderr: {err}\nits log:\n{log_of(data)}"
+        ) from None
 
 
 def without_the_cut_off(err: str) -> str:
@@ -158,7 +171,9 @@ def without_the_cut_off(err: str) -> str:
 
 
 @pytest.mark.parametrize("sig", SIGNALS)
-def test_the_daemon_starts_makes_its_database_and_stops_cleanly_on_a_signal(tmp_path: Path, sig: signal.Signals) -> None:
+def test_the_daemon_starts_makes_its_database_and_stops_cleanly_on_a_signal(
+    tmp_path: Path, sig: signal.Signals
+) -> None:
     data = tmp_path / "data"
     proc = start(data)
     wait_for(data / "neoaprs.log", f"{PROGRAM} is running", proc)
@@ -167,28 +182,45 @@ def test_the_daemon_starts_makes_its_database_and_stops_cleanly_on_a_signal(tmp_
     out, err = ended(proc, data)
     assert proc.returncode == 0, (out, err)
     log = (data / "neoaprs.log").read_text(encoding="utf-8")
-    assert f"{PROGRAM} {VERSION} starting, data in {data}" in log and f"{PROGRAM} is closing" in log and log.rstrip().endswith(f"{PROGRAM} ended")
-    assert " ERROR " not in log and without_the_cut_off(err) == "", f"nothing but warnings and errors goes to stderr, and a clean run has none; the log:\n{log}"
+    assert (
+        f"{PROGRAM} {VERSION} starting, data in {data}" in log
+        and f"{PROGRAM} is closing" in log
+        and log.rstrip().endswith(f"{PROGRAM} ended")
+    )
+    assert " ERROR " not in log and without_the_cut_off(err) == "", (
+        f"nothing but warnings and errors goes to stderr, and a clean run has none; the log:\n{log}"
+    )
     db = sqlite3.connect(data / DB_NAME)
-    assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION and db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    assert (
+        db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+        and db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    )
     db.close()
 
 
 def test_the_lines_of_a_migration_are_in_the_log_and_on_stderr_where_the_journal_has_them(tmp_path: Path) -> None:
     data = tmp_path / "data"
     data.mkdir()
-    version_fifteen(data / DB_NAME, FixedClock(), {"map/maxzoom": "14", "update/url": "http://localhost:9/v.php", "station/call": "OH2GBA"})
+    version_fifteen(
+        data / DB_NAME,
+        FixedClock(),
+        {"map/maxzoom": "14", "update/url": "http://localhost:9/v.php", "station/call": "OH2GBA"},
+    )
     proc = start(data)
     wait_for(data / "neoaprs.log", f"{PROGRAM} is running", proc)
     stop(proc)
     out, err = ended(proc, data)
     log = (data / "neoaprs.log").read_text(encoding="utf-8")
-    for line in ("map/maxzoom reset to the default: 14 → 12", "update/url reset to the default: http://localhost:9/v.php → https://oh2gba.eu/neoaprs/version.php", "is now version 16 (was 15)"):
+    for line in (
+        "map/maxzoom reset to the default: 14 → 12",
+        "update/url reset to the default: http://localhost:9/v.php → https://oh2gba.eu/neoaprs/version.php",
+        "is now version 16 (was 15)",
+    ):
         assert line in log and line in err, (line, log, err)
     assert " INFO  starting" not in err and "is running" not in err, "the rest of the INFO lines stay in the log file"
 
 
-@posix_only      # (modes)
+@posix_only  # (modes)
 def test_the_program_creates_nothing_for_others(tmp_path: Path) -> None:
     data = tmp_path / "data"
     proc = start(data)
@@ -201,7 +233,7 @@ def test_the_program_creates_nothing_for_others(tmp_path: Path) -> None:
     assert stat.S_IMODE((data / DB_NAME).stat().st_mode) == 0o600
 
 
-@posix_only      # (modes)
+@posix_only  # (modes)
 def test_a_data_folder_that_is_there_already_is_made_private_too(tmp_path: Path) -> None:
     data = tmp_path / "data"
     data.mkdir(mode=0o755)
@@ -214,7 +246,17 @@ def test_a_data_folder_that_is_there_already_is_made_private_too(tmp_path: Path)
 
 def test_the_data_folder_is_the_one_in_the_environment_when_none_is_given(tmp_path: Path) -> None:
     data = tmp_path / "from-the-environment"
-    proc = subprocess.Popen([sys.executable, "-m", "neoaprs", "--port", radio()[1], "--web-port", "0"], cwd=ROOT, env={**environment(), "NEOAPRS_DATA_DIR": str(data)}, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", creationflags=NEW_GROUP)
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "neoaprs", "--port", radio()[1], "--web-port", "0"],
+        cwd=ROOT,
+        env={**environment(), "NEOAPRS_DATA_DIR": str(data)},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        creationflags=NEW_GROUP,
+    )
     wait_for(data / "neoaprs.log", f"{PROGRAM} is running", proc)
     stop(proc)
     ended(proc, data)
@@ -228,7 +270,9 @@ def test_debug_logs_more(tmp_path: Path) -> None:
         wait_for(data / "neoaprs.log", f"{PROGRAM} is running", proc)
         stop(proc)
         ended(proc, data)
-    assert " DEBUG " not in (quiet / "neoaprs.log").read_text(encoding="utf-8") and " DEBUG " in (loud / "neoaprs.log").read_text(encoding="utf-8")
+    assert " DEBUG " not in (quiet / "neoaprs.log").read_text(encoding="utf-8") and " DEBUG " in (
+        loud / "neoaprs.log"
+    ).read_text(encoding="utf-8")
 
 
 def test_a_database_of_a_newer_version_is_refused_without_a_restart_loop(tmp_path: Path) -> None:
@@ -244,7 +288,9 @@ def test_a_database_of_a_newer_version_is_refused_without_a_restart_loop(tmp_pat
     # 2: the unit does not restart on it
     assert proc.returncode == 2, (out, err)
     assert "newer NeoAPRS" in (data / "neoaprs.log").read_text(encoding="utf-8") and "newer NeoAPRS" in err
-    assert "there is no copy in the backup folder that this NeoAPRS can open" in (data / "neoaprs.log").read_text(encoding="utf-8")
+    assert "there is no copy in the backup folder that this NeoAPRS can open" in (data / "neoaprs.log").read_text(
+        encoding="utf-8"
+    )
     assert (data / DB_NAME).read_bytes() == before, "the file is not touched"
 
 
@@ -264,17 +310,38 @@ def test_the_unit_does_not_restart_on_the_exit_code_of_a_database_it_cannot_use(
 
 
 def test_version_and_help_do_nothing_else(tmp_path: Path) -> None:
-    done = subprocess.run([sys.executable, "-m", "neoaprs", "--version"], cwd=tmp_path, env={**environment(), "PYTHONPATH": str(ROOT), "HOME": str(tmp_path)}, capture_output=True, text=True, timeout=60)
+    done = subprocess.run(
+        [sys.executable, "-m", "neoaprs", "--version"],
+        cwd=tmp_path,
+        env={**environment(), "PYTHONPATH": str(ROOT), "HOME": str(tmp_path)},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
     assert done.returncode == 0 and done.stdout.strip() == f"{PROGRAM} {VERSION}"
-    helped = subprocess.run([sys.executable, "-m", "neoaprs", "--help"], cwd=tmp_path, env={**environment(), "PYTHONPATH": str(ROOT), "HOME": str(tmp_path)}, capture_output=True, text=True, timeout=60)
-    assert helped.returncode == 0 and "--data" in helped.stdout and "--debug" in helped.stdout and "--port" in helped.stdout
+    helped = subprocess.run(
+        [sys.executable, "-m", "neoaprs", "--help"],
+        cwd=tmp_path,
+        env={**environment(), "PYTHONPATH": str(ROOT), "HOME": str(tmp_path)},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert (
+        helped.returncode == 0
+        and "--data" in helped.stdout
+        and "--debug" in helped.stdout
+        and "--port" in helped.stdout
+    )
     assert list(tmp_path.iterdir()) == [], "nothing was made"
 
 
 def test_the_daemon_on_a_tcp_port_logs_and_keeps_the_capture_and_stops_on_sigterm_in_time(tmp_path: Path) -> None:
     server, path = radio()
     data = tmp_path / "data"
-    assert dbcmd.main(["--data", str(data), "radios", "add", "kiss"]) == 0, "the station's radio, which --port names for this run"
+    assert dbcmd.main(["--data", str(data), "radios", "add", "kiss"]) == 0, (
+        "the station's radio, which --port names for this run"
+    )
     proc = start(data, "--port", path)
     wait_for(data / "neoaprs.log", "tnc: opened", proc)
     server.settimeout(20)
@@ -289,12 +356,20 @@ def test_the_daemon_on_a_tcp_port_logs_and_keeps_the_capture_and_stops_on_sigter
     # that waited for something
     assert proc.returncode == 0 and time.monotonic() - began < 60, (out, err)
     log = (data / "neoaprs.log").read_text(encoding="utf-8")
-    assert "OH2RDK-7>APRX29,OH2RCH-2*,TRACE2-1:!6009.90NT02456.80E&432.500 MHz -> position 60.1650 24.9467 T& 432.500 MHz" in log and log.count(" -> position ") == 4
+    assert (
+        "OH2RDK-7>APRX29,OH2RCH-2*,TRACE2-1:!6009.90NT02456.80E&432.500 MHz -> position 60.1650 24.9467 T& 432.500 MHz"
+        in log
+        and log.count(" -> position ") == 4
+    )
     assert " ERROR " not in log and without_the_cut_off(err) == "", log
     db = sqlite3.connect(data / DB_NAME)
     assert db.execute("SELECT COUNT(*) FROM packet").fetchone()[0] == 4
-    assert [r[0] for r in db.execute("SELECT call FROM station WHERE lat IS NOT NULL AND call <> 'OH2GBA' ORDER BY call")] == ["OH2PU-9", "OH2RDG", "OH2RDK-7", "OH2RDS"]
-    assert db.execute("SELECT COUNT(*) FROM settings").fetchone()[0] == 0, "--port is for this run only: nothing is stored"
+    assert [
+        r[0] for r in db.execute("SELECT call FROM station WHERE lat IS NOT NULL AND call <> 'OH2GBA' ORDER BY call")
+    ] == ["OH2PU-9", "OH2RDG", "OH2RDK-7", "OH2RDS"]
+    assert db.execute("SELECT COUNT(*) FROM settings").fetchone()[0] == 0, (
+        "--port is for this run only: nothing is stored"
+    )
     db.close()
 
 
@@ -312,8 +387,14 @@ def test_the_daemon_serves_the_page_on_a_free_port_it_tells_in_the_log(tmp_path:
     url = page_url(data, proc)
     with urllib.request.urlopen(url, timeout=10) as answer:
         body = answer.read().decode()
-        assert answer.status == 200 and "Content-Security-Policy" in answer.headers and answer.headers["X-Frame-Options"] == "DENY"
-    assert "NeoAPRS" in body and ("scripts/build-page" in body or 'id="app"' in body), "the placeholder, or the built page"
+        assert (
+            answer.status == 200
+            and "Content-Security-Policy" in answer.headers
+            and answer.headers["X-Frame-Options"] == "DENY"
+        )
+    assert "NeoAPRS" in body and ("scripts/build-page" in body or 'id="app"' in body), (
+        "the placeholder, or the built page"
+    )
     stop(proc)
     out, err = ended(proc, data)
     assert proc.returncode == 0, (out, err)
@@ -361,7 +442,12 @@ def test_a_port_that_is_in_use_moves_the_page_to_the_next_free_one_and_the_log_s
     port = int(url.rstrip("/").rsplit(":", 1)[1])
     assert taken < port <= taken + 10, "one of the ten after the port it was asked for"
     log = (data / "neoaprs.log").read_text(encoding="utf-8")
-    assert f"web/port {taken} is in use" in log and f"the page is on port {port}" in log and f"web page at {url}" in log and "without the page" not in log
+    assert (
+        f"web/port {taken} is in use" in log
+        and f"the page is on port {port}" in log
+        and f"web page at {url}" in log
+        and "without the page" not in log
+    )
 
 
 def test_when_the_port_and_the_ten_after_it_are_in_use_the_daemon_runs_without_the_page(tmp_path: Path) -> None:
@@ -373,13 +459,20 @@ def test_when_the_port_and_the_ten_after_it_are_in_use_the_daemon_runs_without_t
         out, err = ended(proc, data)
     assert proc.returncode == 0, (out, err)
     log = (data / "neoaprs.log").read_text(encoding="utf-8")
-    assert f"the web server cannot listen on 127.0.0.1:{taken}" in log and "goes on without the page" in log and "web page at" not in log
+    assert (
+        f"the web server cannot listen on 127.0.0.1:{taken}" in log
+        and "goes on without the page" in log
+        and "web page at" not in log
+    )
     assert "goes on without the page" in err, "an error is on stderr, where systemctl status shows it"
 
 
 # ---- one daemon to a data folder
 
-def test_a_second_daemon_on_the_same_data_folder_refuses_to_start_and_the_first_is_not_disturbed(tmp_path: Path) -> None:
+
+def test_a_second_daemon_on_the_same_data_folder_refuses_to_start_and_the_first_is_not_disturbed(
+    tmp_path: Path,
+) -> None:
     data = tmp_path / "data"
     first = start(data)
     wait_for(data / "neoaprs.log", f"{PROGRAM} is running", first)
@@ -388,15 +481,19 @@ def test_a_second_daemon_on_the_same_data_folder_refuses_to_start_and_the_first_
     out, err = ended(second, data)
     assert second.returncode == 2, (out, err)
     assert "another NeoAPRS is already running with the data folder" in err and str(data) in err and "--data" in err
-    assert (data / "neoaprs.log").read_text(encoding="utf-8").startswith(log_before) and " ERROR " not in (data / "neoaprs.log").read_text(encoding="utf-8"), "the log is the first one's"
+    assert (data / "neoaprs.log").read_text(encoding="utf-8").startswith(log_before) and " ERROR " not in (
+        data / "neoaprs.log"
+    ).read_text(encoding="utf-8"), "the log is the first one's"
     assert first.poll() is None
     stop(first)
     out, err = ended(first, data)
     assert first.returncode == 0, (out, err)
-    third = start(data)                                              # the lock went with the first daemon
+    third = start(data)  # the lock went with the first daemon
     deadline = time.monotonic() + 30
     # The first one's line is in the log already
-    while (data / "neoaprs.log").read_text(encoding="utf-8").count(f"{PROGRAM} is running") < 2 and time.monotonic() < deadline:
+    while (data / "neoaprs.log").read_text(encoding="utf-8").count(
+        f"{PROGRAM} is running"
+    ) < 2 and time.monotonic() < deadline:
         assert third.poll() is None
         time.sleep(0.02)
     stop(third)
@@ -416,6 +513,7 @@ def test_a_daemon_on_another_data_folder_starts_beside_the_first(tmp_path: Path)
 
 
 # ---- the signals, the log
+
 
 @pytest.fixture
 def signals_restored() -> Iterator[None]:
@@ -463,7 +561,11 @@ async def test_the_poll_that_wakes_a_windows_loop_ends_with_the_stop(monkeypatch
 def test_a_program_without_a_console_logs_to_the_file_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys, "stderr", None)
     setup_logging(tmp_path, False)
-    kinds = [type(h) for h in logging.getLogger().handlers if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)]
+    kinds = [
+        type(h)
+        for h in logging.getLogger().handlers
+        if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)
+    ]
     assert not [k for k in kinds if k is logging.StreamHandler]
     logging.getLogger("neoaprs.test").warning("a line")
     assert "a line" in (tmp_path / "neoaprs.log").read_text(encoding="utf-8")
@@ -478,7 +580,9 @@ def rotating(tmp_path: Path) -> tuple[logging.Logger, _LogFile]:
     return logger, handler
 
 
-def test_a_rollover_that_another_program_prevents_does_not_lose_lines_nor_raise(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_rollover_that_another_program_prevents_does_not_lose_lines_nor_raise(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     logger, handler = rotating(tmp_path)
     failed: list[logging.LogRecord] = []
     monkeypatch.setattr(handler, "handleError", failed.append)
@@ -502,7 +606,9 @@ def test_a_rollover_that_another_program_prevents_does_not_lose_lines_nor_raise(
     logger.removeHandler(handler)
 
 
-def test_a_log_that_cannot_be_reopened_after_a_failed_rollover_is_reported_by_the_handler_not_raised(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_log_that_cannot_be_reopened_after_a_failed_rollover_is_reported_by_the_handler_not_raised(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     logger, handler = rotating(tmp_path)
     failed: list[logging.LogRecord] = []
     monkeypatch.setattr(handler, "handleError", failed.append)
@@ -516,7 +622,9 @@ def test_a_log_that_cannot_be_reopened_after_a_failed_rollover_is_reported_by_th
     logger.removeHandler(handler)
 
 
-def test_the_warnings_go_to_stderr_unless_it_is_a_file_where_the_log_would_have_them_twice(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_warnings_go_to_stderr_unless_it_is_a_file_where_the_log_would_have_them_twice(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     root = logging.getLogger()
     before = list(root.handlers)
     try:
@@ -524,13 +632,17 @@ def test_the_warnings_go_to_stderr_unless_it_is_a_file_where_the_log_would_have_
             monkeypatch.setattr(sys, "stderr", io.TextIOWrapper(launch))
             (tmp_path / "a").mkdir()
             setup_logging(tmp_path / "a", False)
-            assert not [h for h in root.handlers if h not in before and not isinstance(h, logging.FileHandler)], "(a file: what is said before the log exists, a traceback, is kept there; the log has the rest)"
+            assert not [h for h in root.handlers if h not in before and not isinstance(h, logging.FileHandler)], (
+                "(a file: what is said before the log exists, a traceback, is kept there; the log has the rest)"
+            )
         for h in [h for h in root.handlers if h not in before]:
             root.removeHandler(h)
         monkeypatch.setattr(sys, "stderr", io.TextIOWrapper(io.BytesIO()))
         (tmp_path / "b").mkdir()
         setup_logging(tmp_path / "b", False)
-        assert [h for h in root.handlers if h not in before and not isinstance(h, logging.FileHandler)], "(not a file: the journal, a terminal, a pipe)"
+        assert [h for h in root.handlers if h not in before and not isinstance(h, logging.FileHandler)], (
+            "(not a file: the journal, a terminal, a pipe)"
+        )
     finally:
         for h in [h for h in root.handlers if h not in before]:
             root.removeHandler(h)
@@ -538,7 +650,9 @@ def test_the_warnings_go_to_stderr_unless_it_is_a_file_where_the_log_would_have_
 
 
 @pytest.mark.parametrize(("value", "debug"), [("1", True), ("0", False), ("", False), ("yes", False)])
-def test_the_debug_variable_is_on_for_1_only(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, value: str, debug: bool) -> None:
+def test_the_debug_variable_is_on_for_1_only(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, value: str, debug: bool
+) -> None:
     seen: list[bool] = []
 
     async def run(args: SimpleNamespace, after: list[list[str]]) -> int:
@@ -551,21 +665,36 @@ def test_the_debug_variable_is_on_for_1_only(monkeypatch: pytest.MonkeyPatch, tm
     assert seen == [debug]
 
 
-def test_a_data_folder_that_cannot_be_made_is_one_sentence_and_exit_1_not_a_traceback(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_data_folder_that_cannot_be_made_is_one_sentence_and_exit_1_not_a_traceback(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     afile = tmp_path / "afile"
     afile.write_text("not a folder")
     for data in (afile, afile / "inside"):
         assert entry.main(["--data", str(data)]) == 1
         err = capsys.readouterr().err
-        assert f"the data folder {data} cannot be made or used" in err and "Traceback" not in err and len(err.strip().splitlines()) == 1
+        assert (
+            f"the data folder {data} cannot be made or used" in err
+            and "Traceback" not in err
+            and len(err.strip().splitlines()) == 1
+        )
 
 
 @posix_only
 def test_a_second_signal_while_the_closing_hangs_ends_the_process_at_once(tmp_path: Path) -> None:
-    script = ("import asyncio, time\nfrom neoaprs.daemon import _stop_on_signals\n"
-              "async def main():\n    stop = _stop_on_signals(asyncio.get_running_loop())\n    print('ready', flush=True)\n    await stop.wait()\n    print('closing', flush=True)\n    time.sleep(120)\n"
-              "asyncio.run(main())\n")
-    proc = subprocess.Popen([sys.executable, "-c", script], cwd=ROOT, env=environment(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    script = (
+        "import asyncio, time\nfrom neoaprs.daemon import _stop_on_signals\n"
+        "async def main():\n    stop = _stop_on_signals(asyncio.get_running_loop())\n    print('ready', flush=True)\n    await stop.wait()\n    print('closing', flush=True)\n    time.sleep(120)\n"
+        "asyncio.run(main())\n"
+    )
+    proc = subprocess.Popen(
+        [sys.executable, "-c", script],
+        cwd=ROOT,
+        env=environment(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
     try:
         assert proc.stdout is not None and proc.stdout.readline().strip() == "ready"
         proc.send_signal(signal.SIGTERM)

@@ -3,6 +3,7 @@
 Only the shipped Direwolf is used, never one from the PATH, and it runs in its own folder so that
 it reads its own device and symbol lists first (deviceid.c:229-243, symbols.c:267-279).
 """
+
 import asyncio
 import contextlib
 import logging
@@ -58,19 +59,35 @@ def is_ours(pid: int, conf: Path, tools: Path | None = None, written: float | No
             args = cmdline.read_bytes().decode("utf-8", "replace").split("\0")
         except OSError:
             return False
-        return any(flag == "-c" and value in (str(conf), str(conf.resolve())) for flag, value in zip(args, args[1:], strict=False))
-    return (sys.platform == "win32" and written is not None and childprogram._running_windows(pid) and is_shipped_image(childprogram._windows_image(pid), tools)
-            and childprogram.made_before(childprogram.windows_created(pid), written))
+        return any(
+            flag == "-c" and value in (str(conf), str(conf.resolve()))
+            for flag, value in zip(args, args[1:], strict=False)
+        )
+    return (
+        sys.platform == "win32"
+        and written is not None
+        and childprogram._running_windows(pid)
+        and is_shipped_image(childprogram._windows_image(pid), tools)
+        and childprogram.made_before(childprogram.windows_created(pid), written)
+    )
 
 
 def is_shipped_image(image: str | None, tools: Path | None = None) -> bool:
-    return image is not None and os.path.normcase(os.path.abspath(image)) == os.path.normcase(str(expected_program(tools).resolve()))
+    return image is not None and os.path.normcase(os.path.abspath(image)) == os.path.normcase(
+        str(expected_program(tools).resolve())
+    )
 
 
 def end_stale(pid_file: Path) -> bool:
     """End a Direwolf an earlier daemon left running for this radio; return whether one ended."""
     conf = pid_file.parent / CONF_FILE
-    return childprogram.end_stale(pid_file, lambda pid, written: is_ours(pid, conf, written=written), "Direwolf", signal.SIGINT if sys.platform != "win32" else signal.SIGTERM, STOP_WAIT_SEC)
+    return childprogram.end_stale(
+        pid_file,
+        lambda pid, written: is_ours(pid, conf, written=written),
+        "Direwolf",
+        signal.SIGINT if sys.platform != "win32" else signal.SIGTERM,
+        STOP_WAIT_SEC,
+    )
 
 
 class LevelNow:
@@ -88,9 +105,12 @@ class LevelNow:
 
 class Program(childprogram.Program):
     """One run of Direwolf with a pipe as input; level reports go to `level_now`."""
+
     name = "Direwolf"
 
-    def __init__(self, on_ended: Callable[[int | None, list[str]], None], on_line: Callable[[str], None] | None = None) -> None:
+    def __init__(
+        self, on_ended: Callable[[int | None, list[str]], None], on_line: Callable[[str], None] | None = None
+    ) -> None:
         super().__init__(on_ended, log, direwolf_log, stdin_pipe=True)
         self._on_line = on_line
         self.level_now = LevelNow()
@@ -101,7 +121,9 @@ class Program(childprogram.Program):
         elif self._on_line is not None:
             loop.call_soon_threadsafe(self._on_line, line)
 
-    def _read(self, process: subprocess.Popen[str], loop: asyncio.AbstractEventLoop, pid_file: Path | None = None) -> None:
+    def _read(
+        self, process: subprocess.Popen[str], loop: asyncio.AbstractEventLoop, pid_file: Path | None = None
+    ) -> None:
         super()._read(process, loop, pid_file)
         # A finished run has no level, but an older run's reader must not clear the current one.
         if self._process in (None, process):

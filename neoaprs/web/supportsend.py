@@ -3,6 +3,7 @@
 The body is `{"page", "note", "file"}`; `file` is true (new bundle), a kept bundle's name, or
 false (note only). The answer is `{"ok": true, "ref"}` or `{"ok": false, "reason"}`.
 """
+
 import json
 import logging
 import os
@@ -58,7 +59,9 @@ def answer_of(status: int, body: bytes) -> Sent:
     if said.get("ok") is True and status == 200 and isinstance(ref, str) and REFERENCE.match(ref):
         return Sent(True, ref=ref)
     reason = said.get("reason")
-    return Sent(False, reason=reason if reason in REASONS else "refused", detail=f"status {status}, {str(reason)[:40]!r}")
+    return Sent(
+        False, reason=reason if reason in REASONS else "refused", detail=f"status {status}, {str(reason)[:40]!r}"
+    )
 
 
 def told(sent: Sent, bundle: tuple[str, bytes] | None, chars: int) -> None:
@@ -67,18 +70,30 @@ def told(sent: Sent, bundle: tuple[str, bytes] | None, chars: int) -> None:
     if bundle is None and sent.ok:
         log.info("feedback sent without the logs: reference %s, a note of %d characters", sent.ref, chars)
     elif bundle is None:
-        log.warning("feedback without the logs not sent: %s (%s), a note of %d characters", sent.reason, sent.detail, chars)
+        log.warning(
+            "feedback without the logs not sent: %s (%s), a note of %d characters", sent.reason, sent.detail, chars
+        )
     elif sent.ok:
         log.info("support logs sent: %s, %s, reference %s, a note of %d characters", bundle[0], size, sent.ref, chars)
     else:
-        log.warning("support logs not sent: %s (%s), %s, a note of %d characters", sent.reason, sent.detail, size, chars)
+        log.warning(
+            "support logs not sent: %s (%s), %s, a note of %d characters", sent.reason, sent.detail, size, chars
+        )
 
 
-async def send_bundle(url: str, bundle: tuple[str, bytes] | None, note: str, call: str, version: str, platform: str) -> Sent:
+async def send_bundle(
+    url: str, bundle: tuple[str, bytes] | None, note: str, call: str, version: str, platform: str
+) -> Sent:
     """Post the note and the bundle (unless the note goes alone); `offline` if unreachable."""
     if bundle is not None and len(bundle[1]) > MAX_SEND_BYTES:
         return Sent(False, reason="too_large", detail="over the limit, not sent")
-    got = await post(url, {"note": note, "call": call, "version": version, "platform": platform}, {} if bundle is None else {"bundle": bundle}, version, platform)
+    got = await post(
+        url,
+        {"note": note, "call": call, "version": version, "platform": platform},
+        {} if bundle is None else {"bundle": bundle},
+        version,
+        platform,
+    )
     if got is None:
         return Sent(False, reason="offline", detail="no connection")
     return answer_of(*got)
@@ -97,7 +112,9 @@ class SupportSend(SupportBundle):
         if not isinstance(note, str):
             raise tornado.web.HTTPError(400, reason="Bad Request: the note is text")
         if not isinstance(file, (bool, str)):
-            raise tornado.web.HTTPError(400, reason="Bad Request: the file is true, false or the name of a downloaded one")
+            raise tornado.web.HTTPError(
+                400, reason="Bad Request: the file is true, false or the name of a downloaded one"
+            )
         # A lone surrogate from JSON cannot be encoded; it becomes "?".
         note = note.strip()[:MAX_NOTE].encode("utf-8", "replace").decode("utf-8")
         if file is False and note == "":
@@ -114,8 +131,16 @@ class SupportSend(SupportBundle):
         ctl = bundler.server.controller
         bundler.sending = True
         try:
-            bundle = None if file is False else bundler.kept if bundler.kept is not None and bundler.kept[0] == file else await self.made(body["page"])
-            sent = await send_bundle(support_url(), bundle, note, ctl.config.station_call, ctl.updatecheck.version, ctl.updatecheck.platform)
+            bundle = (
+                None
+                if file is False
+                else bundler.kept
+                if bundler.kept is not None and bundler.kept[0] == file
+                else await self.made(body["page"])
+            )
+            sent = await send_bundle(
+                support_url(), bundle, note, ctl.config.station_call, ctl.updatecheck.version, ctl.updatecheck.platform
+            )
         finally:
             bundler.sending = False
         if sent.ok:

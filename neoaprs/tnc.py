@@ -3,6 +3,7 @@
 What is sent to the TNC comes from its profile (tncprofile.py). SILENT is an open line to a radio
 that does not answer: nothing is sent until a byte comes.
 """
+
 import asyncio
 import logging
 from collections.abc import Callable
@@ -66,7 +67,13 @@ def _describe(tnc: "Tnc") -> str:
         return f"{modem.describe()}, {tnc.stats.packets} packets"
     if tnc._port is None:
         return f"{tnc.path or tnc.port or 'no port'}{_speed(tnc.path or tnc.port, tnc.baud)}, {tnc.state.value}"
-    mode = "KISS" if tnc._reader.kiss_seen else "text" if tnc.profile.framing == "text" else ("entering KISS" if tnc.entering_kiss else "listening")
+    mode = (
+        "KISS"
+        if tnc._reader.kiss_seen
+        else "text"
+        if tnc.profile.framing == "text"
+        else ("entering KISS" if tnc.entering_kiss else "listening")
+    )
     return f"{tnc.path}{_speed(tnc.path, tnc.baud)}, {mode}, {tnc.stats.packets} packets"
 
 
@@ -93,13 +100,39 @@ def _until_settings_change(tnc: "Tnc", problem: str) -> None:
 class Tnc(TimedSource):
     stats: TncStats
 
-    def __init__(self, port: str = "", baud: int = 9600, profile: Profile = KENWOOD_TNC2, pattern: str = "", clock: Clock = utcnow, probe_seconds: float = 0.0,
-                 backoff: Backoff | None = None, settle_sec: float | None = None, pace: float = 1.0, fallback_probe: bool = True, probe_nudge_sec: float = serialprobe.NUDGE_SEC,
-                 skip: tuple[str, ...] = (), check_sec: float = TNC_CHECK_SEC, check_pause_sec: float = CHECK_PAUSE_SEC, reply_sec: float = REPLY_SEC, answer_sec: float = ANSWER_SEC, probe_sec: float = PROBE_SEC, *, claims: Claims | None = None, search_lock: asyncio.Lock | None = None) -> None:
+    def __init__(
+        self,
+        port: str = "",
+        baud: int = 9600,
+        profile: Profile = KENWOOD_TNC2,
+        pattern: str = "",
+        clock: Clock = utcnow,
+        probe_seconds: float = 0.0,
+        backoff: Backoff | None = None,
+        settle_sec: float | None = None,
+        pace: float = 1.0,
+        fallback_probe: bool = True,
+        probe_nudge_sec: float = serialprobe.NUDGE_SEC,
+        skip: tuple[str, ...] = (),
+        check_sec: float = TNC_CHECK_SEC,
+        check_pause_sec: float = CHECK_PAUSE_SEC,
+        reply_sec: float = REPLY_SEC,
+        answer_sec: float = ANSWER_SEC,
+        probe_sec: float = PROBE_SEC,
+        *,
+        claims: Claims | None = None,
+        search_lock: asyncio.Lock | None = None,
+    ) -> None:
         super().__init__("tnc", clock)
         self.stats = TncStats()
         self.port, self.baud, self.profile, self.pattern = port, baud, profile, pattern or serialprobe.search_pattern()
-        self.probe_seconds, self.probe_nudge_sec, self.skip, self.claims, self.search_lock = probe_seconds, probe_nudge_sec, skip, claims, search_lock
+        self.probe_seconds, self.probe_nudge_sec, self.skip, self.claims, self.search_lock = (
+            probe_seconds,
+            probe_nudge_sec,
+            skip,
+            claims,
+            search_lock,
+        )
         self.where: Callable[[], tuple[float, float] | None] = lambda: None
         self.interlock: Interlock | None = None
         self.modem: Modem | None = None
@@ -111,7 +144,9 @@ class Tnc(TimedSource):
         self.packet: Signal[[Packet]] = Signal("tnc.packet")
         self.path = ""
         self._search = PortSearch(self._spawn, self._note, PROMPT, lambda: self.label)
-        self._entry = KissEntry(self._spawn, lambda data: self._port is not None and self._write(self._port, data), settle_sec, pace)
+        self._entry = KissEntry(
+            self._spawn, lambda data: self._port is not None and self._write(self._port, data), settle_sec, pace
+        )
         self._port: TncPort | None = None
         self._follow = AdapterFollow(lambda: self.label)
         self._watchdog_task: asyncio.Task[None] | None = None
@@ -169,17 +204,46 @@ class Tnc(TimedSource):
                 found[0].close()
                 raise
 
-    async def _find_line(self, reopen: str, named: bool, generation: int) -> tuple[TncPort | DummyPort, str, bytes] | None:
+    async def _find_line(
+        self, reopen: str, named: bool, generation: int
+    ) -> tuple[TncPort | DummyPort, str, bytes] | None:
         """Return the open line, its path and what the search heard; None if `stop` came."""
         if not named and (not self.profile.search or self._modem() is not None):
-            raise NotChosenError("no address is chosen: type the board's address in the settings" if self.profile.transport == "tcp" else "no port is chosen: choose the radio's port in the settings")
-        path, heard = (reopen or self.port, b"") if named else await self._search.find(self.pattern, self.baud, self.probe_seconds, lambda heard: accepts(self.profile, heard), self.profile.can_probe, self.probe_nudge_sec, self.skip, lambda: generation == self._generation, self.port, claims=self.claims, holder=self.radio_id, lock=self.search_lock)
+            raise NotChosenError(
+                "no address is chosen: type the board's address in the settings"
+                if self.profile.transport == "tcp"
+                else "no port is chosen: choose the radio's port in the settings"
+            )
+        path, heard = (
+            (reopen or self.port, b"")
+            if named
+            else await self._search.find(
+                self.pattern,
+                self.baud,
+                self.probe_seconds,
+                lambda heard: accepts(self.profile, heard),
+                self.profile.can_probe,
+                self.probe_nudge_sec,
+                self.skip,
+                lambda: generation == self._generation,
+                self.port,
+                claims=self.claims,
+                holder=self.radio_id,
+                lock=self.search_lock,
+            )
+        )
         if generation != self._generation:
             return None
         if named and not self.is_dummy:
             await may_open(self.claims, self.radio_id, path, self.remembered and not reopen)
         asked = path
-        port, path = await self._follow.open(path, named and not self.is_dummy, lambda where: open_port(self, where), self._note, lambda where: taken(self.claims, self.radio_id, where))
+        port, path = await self._follow.open(
+            path,
+            named and not self.is_dummy,
+            lambda where: open_port(self, where),
+            self._note,
+            lambda where: taken(self.claims, self.radio_id, where),
+        )
         if generation != self._generation:
             port.close()
             return None
@@ -188,7 +252,9 @@ class Tnc(TimedSource):
             self._spawn(self._follow.remember(asked, path))
         return port, path, heard
 
-    def _opened(self, port: TncPort | DummyPort, path: str, heard: bytes, named: bool, reopen: str, silent: bool) -> None:
+    def _opened(
+        self, port: TncPort | DummyPort, path: str, heard: bytes, named: bool, reopen: str, silent: bool
+    ) -> None:
         self._port, self.path = port, path
         self._open_reset()
         self.confirmed = self.confirmed or not named
@@ -197,7 +263,11 @@ class Tnc(TimedSource):
         self.backoff.connected()
         self._set_state(Source.State.SILENT if silent else Source.State.CONNECTED)
         if not reopen:
-            self._note("opened the line to the modem" if self._modem() is not None else f"opened {path}{_speed(path, self.baud)}")
+            self._note(
+                "opened the line to the modem"
+                if self._modem() is not None
+                else f"opened {path}{_speed(path, self.baud)}"
+            )
         log.log(logging.DEBUG if reopen else logging.INFO, "%s: opened %s%s", self.label, path, _speed(path, self.baud))
         if heard and self.profile.detect_command_mode and ModeDetector().feed(heard) is Mode.MONITOR:
             self._reader.enter_kiss(port, "the search found the TNC in command mode")
@@ -210,7 +280,9 @@ class Tnc(TimedSource):
         if (modem := self._modem()) is not None:
             expected = modem.starting()
             problem = modem.problem or f"waiting for {modem.describe()}"
-        self._waiting(problem, self.backoff.next_delay_sec(), self._connect, expected=expected) if again else _until_settings_change(self, problem)
+        self._waiting(
+            problem, self.backoff.next_delay_sec(), self._connect, expected=expected
+        ) if again else _until_settings_change(self, problem)
 
     def _modem(self) -> Modem | None:
         return self.modem if self.profile.transport == "modem" else None
@@ -253,7 +325,13 @@ class Tnc(TimedSource):
             self._reading()
             self._saw(f"another program's station message, not APRS: passed over ({len(kiss_frame.payload)} bytes)")
             return
-        read = read_frame(kiss_frame, self.now(), self.is_dummy, reading=self._reading() if kiss_frame.command == 0 else NO_READING, radio_id=self.radio_id)
+        read = read_frame(
+            kiss_frame,
+            self.now(),
+            self.is_dummy,
+            reading=self._reading() if kiss_frame.command == 0 else NO_READING,
+            radio_id=self.radio_id,
+        )
         if isinstance(read, str):
             self._saw(f"rejected, {read}: {kiss_frame.payload[:40].hex()}")
             return self._reject()
@@ -279,17 +357,33 @@ class Tnc(TimedSource):
     def _start_watchdog(self) -> None:
         self._drop_tasks()
         port = self._port
-        if port is not None and self.profile.can_probe and self.profile.detect_command_mode and (self.watchdog.sec > 0 or self.state is Source.State.SILENT):
+        if (
+            port is not None
+            and self.profile.can_probe
+            and self.profile.detect_command_mode
+            and (self.watchdog.sec > 0 or self.state is Source.State.SILENT)
+        ):
             self.watchdog.opened()
             self._watchdog_task = self._spawn(self.watchdog.run(lambda: port is self._port, not self.confirmed))
 
     @property
     def usable(self) -> bool:
-        return not self.profile.writes_nothing and self.state is Source.State.CONNECTED and self.confirmed and not self._reader.looking and not self._reader.command_mode_unanswered() and asyncio.get_running_loop().time() >= self._reader.settle_until and not self._held() and not self._reader.board_quiet()
+        return (
+            not self.profile.writes_nothing
+            and self.state is Source.State.CONNECTED
+            and self.confirmed
+            and not self._reader.looking
+            and not self._reader.command_mode_unanswered()
+            and asyncio.get_running_loop().time() >= self._reader.settle_until
+            and not self._held()
+            and not self._reader.board_quiet()
+        )
 
     describe, why_unusable = _describe, _why_unusable
     _looking, _entered = property(lambda self: self._reader.looking), property(lambda self: self._reader.entered)
-    entering_kiss = property(lambda self: self._port is not None and self._reader.entered and not self._reader.kiss_seen)
+    entering_kiss = property(
+        lambda self: self._port is not None and self._reader.entered and not self._reader.kiss_seen
+    )
     is_dummy = property(lambda self: self.profile.transport == "dummy")
 
     def look_begin(self) -> bool:
@@ -349,7 +443,13 @@ class Tnc(TimedSource):
         if not self.usable or port is None:
             self._note(f"not sent: {self.why_unusable()}")
             if self.rtype.kind == "hf":
-                log.info("%s: a frame from %s (%d bytes) was not sent: %s", self.label, frame.source, len(raw), self.why_unusable())
+                log.info(
+                    "%s: a frame from %s (%d bytes) was not sent: %s",
+                    self.label,
+                    frame.source,
+                    len(raw),
+                    self.why_unusable(),
+                )
             return False
         if why := self.rtype.limits.too_long(raw, text_of(frame)):
             self._note(_printable(f"not sent: {why}: {frame.tnc2()}"))

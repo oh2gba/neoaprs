@@ -2,6 +2,7 @@
 
 `AskedFeed` paces the questions: interval, back-off, a stop after STOP_CODES, a 429's wait.
 `AskedSource` is the base of a source asked through one feed."""
+
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
@@ -30,8 +31,21 @@ def through(url: str, base: str) -> str:
 class AskedFeed:
     """One feed of questions, asked at most every `every_sec` (monotonic seconds)."""
 
-    def __init__(self, name: str, every_sec: float, clock: Callable[[], float], stops: bool = True, backoff_max_sec: float = BACKOFF_MAX_SEC) -> None:
-        self.name, self.every_sec, self._clock, self.stops, self.backoff_max_sec = name, every_sec, clock, stops, backoff_max_sec
+    def __init__(
+        self,
+        name: str,
+        every_sec: float,
+        clock: Callable[[], float],
+        stops: bool = True,
+        backoff_max_sec: float = BACKOFF_MAX_SEC,
+    ) -> None:
+        self.name, self.every_sec, self._clock, self.stops, self.backoff_max_sec = (
+            name,
+            every_sec,
+            clock,
+            stops,
+            backoff_max_sec,
+        )
         self.asked_at: float | None = None
         self.not_before: float | None = None
         self.failures = 0
@@ -44,7 +58,10 @@ class AskedFeed:
             return None
         if self.asked_at is None and self.not_before is None:
             return 0.0
-        due = max(-float("inf") if self.asked_at is None else self.asked_at + self.every_sec, -float("inf") if self.not_before is None else self.not_before)
+        due = max(
+            -float("inf") if self.asked_at is None else self.asked_at + self.every_sec,
+            -float("inf") if self.not_before is None else self.not_before,
+        )
         return max(0.0, due - self._clock())
 
     def begin(self) -> bool:
@@ -74,17 +91,18 @@ class AskedFeed:
 @dataclass(frozen=True)
 class SourceContext:
     """What a source may read of the daemon, and how it notifies the service."""
+
     layer: Layer
     source: Source
     config: Callable[[], Config]
-    where: Callable[[], tuple[float, float] | None]       # own position, None if unknown
+    where: Callable[[], tuple[float, float] | None]  # own position, None if unknown
     fetch: FetchFeed
     version: str
     platform: str
-    clock: Clock                                          # UTC
-    monotonic: Callable[[], float]                        # for intervals
+    clock: Clock  # UTC
+    monotonic: Callable[[], float]  # for intervals
     services_on: bool
-    base: str               # a local NEOAPRS_LAYERS_URL, else ""
+    base: str  # a local NEOAPRS_LAYERS_URL, else ""
     feed: Callable[[str, float, bool], AskedFeed]
     tell: Callable[[], None]
     changed: Callable[[], None]
@@ -95,12 +113,13 @@ class SourceContext:
 
 class LayerSource(Protocol):
     """A source of a layer as the service drives it."""
+
     @property
     def away(self) -> bool: ...
-    def things(self) -> tuple[Thing, ...]: ...           # not yet aged
-    def receiver(self) -> ReceiverState | None: ...      # None for a service
+    def things(self) -> tuple[Thing, ...]: ...  # not yet aged
+    def receiver(self) -> ReceiverState | None: ...  # None for a service
     def wait_sec(self) -> float | None: ...
-    async def ask(self) -> bool: ...                     # ask if due; return whether it asked
+    async def ask(self) -> bool: ...  # ask if due; return whether it asked
     async def start(self) -> None: ...
     async def stop(self) -> None: ...
 
@@ -109,6 +128,7 @@ class AskedSource:
     """A source asked over HTTP through one feed.
 
     `_question` returns the things to keep, or None after reporting the failure to the feed."""
+
     feed: AskedFeed
 
     def __init__(self, ctx: SourceContext) -> None:

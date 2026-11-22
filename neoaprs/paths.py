@@ -2,6 +2,7 @@
 
 It follows each system's convention: %LOCALAPPDATA% on Windows (not the roaming profile, which
 would copy the database), Application Support on macOS, the XDG data folder elsewhere."""
+
 import os
 import sys
 from pathlib import Path

@@ -3,6 +3,7 @@
 A failing command is answered with `RPRT -n`. Everything that goes wrong is a `RigError` whose
 text is ready for the log.
 """
+
 import asyncio
 from dataclasses import dataclass
 

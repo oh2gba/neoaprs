@@ -3,6 +3,7 @@
 Reads the report `T#sss,aaa,...,bbbbbbbb`, the base-91 telemetry `|ss11...|` of a position comment,
 and the definition messages `PARM.`, `UNIT.`, `EQNS.` and `BITS.`; `describe` combines them.
 """
+
 import re
 from dataclasses import dataclass, replace
 from typing import NamedTuple
@@ -23,6 +24,7 @@ IDENTITY = (0.0, 1.0, 0.0)  # a channel with no equation
 @dataclass(frozen=True, slots=True)
 class Telemetry:
     """A telemetry report; `sequence` is None for `MIC`, `bits` is 0/1 text, B1 first."""
+
     sequence: int | None
     analog: list[float]
     bits: str
@@ -32,6 +34,7 @@ class Telemetry:
 @dataclass(frozen=True, slots=True)
 class TelemetryDefinition:
     """What a station's definition messages have said so far; a list may stop at any field."""
+
     names: tuple[str, ...] = ()
     units: tuple[str, ...] = ()
     coefficients: tuple[tuple[float, float, float], ...] = ()
@@ -65,7 +68,7 @@ def parse_telemetry(info: str) -> Telemetry | None:
     head = _SEQUENCE.match(info)
     if not head:
         return None
-    fields = info[head.end():].split(",")
+    fields = info[head.end() :].split(",")
     count = 0
     while count < min(_ANALOG, len(fields)) and _VALUE.fullmatch(fields[count]):
         count += 1
@@ -76,7 +79,12 @@ def parse_telemetry(info: str) -> Telemetry | None:
     if not all(abs(v) <= VALUE_LIMIT for v in analog):
         return None
     bits = _BITS.match(rest) if count == _ANALOG else None
-    return Telemetry(None if head.group(1) is None else int(head.group(1)), analog, bits.group() if bits else "", rest[bits.end() if bits else 0:].lstrip(",").strip())
+    return Telemetry(
+        None if head.group(1) is None else int(head.group(1)),
+        analog,
+        bits.group() if bits else "",
+        rest[bits.end() if bits else 0 :].lstrip(",").strip(),
+    )
 
 
 def split_comment_telemetry(text: str) -> tuple[str, Telemetry | None]:
@@ -85,17 +93,17 @@ def split_comment_telemetry(text: str) -> tuple[str, Telemetry | None]:
     if not found:
         return text, None
     digits = found.group(1).encode("ascii")
-    values = [base91(digits[i:i + 2]) for i in range(0, len(digits), 2)]
-    sequence, analog = values[0], values[1:1 + _ANALOG]
+    values = [base91(digits[i : i + 2]) for i in range(0, len(digits), 2)]
+    sequence, analog = values[0], values[1 : 1 + _ANALOG]
     bits = "".join("1" if values[-1] >> i & 1 else "0" for i in range(_DIGITAL)) if len(values) == 2 + _ANALOG else ""
-    return (text[:found.start()] + text[found.end():]).strip(), Telemetry(sequence, [float(v) for v in analog], bits)
+    return (text[: found.start()] + text[found.end() :]).strip(), Telemetry(sequence, [float(v) for v in analog], bits)
 
 
 def _numbers(items: list[str]) -> tuple[tuple[float, float, float], ...]:
     """Return the coefficients in groups of three; a short group or a non-number ends the list."""
     groups = []
     for i in range(0, min(len(items), 3 * _ANALOG) - 2, 3):
-        triple = items[i:i + 3]
+        triple = items[i : i + 3]
         if not all(_NUMBER.match(t.strip()) for t in triple):
             break
         numbers = (float(triple[0]), float(triple[1]), float(triple[2]))
@@ -109,9 +117,9 @@ def apply_definition(current: TelemetryDefinition, text: str) -> TelemetryDefini
     """Return `current` updated by a message that is one of the four definitions; else None."""
     head, body = text[:5], text[5:]
     if head == "PARM.":
-        return replace(current, names=tuple(body.split(",")[:_ANALOG + _DIGITAL]))
+        return replace(current, names=tuple(body.split(",")[: _ANALOG + _DIGITAL]))
     if head == "UNIT.":
-        return replace(current, units=tuple(body.split(",")[:_ANALOG + _DIGITAL]))
+        return replace(current, units=tuple(body.split(",")[: _ANALOG + _DIGITAL]))
     if head == "EQNS.":
         return replace(current, coefficients=_numbers(body.split(",")))
     if head == "BITS.":
@@ -134,7 +142,9 @@ def describe(report: Telemetry, definition: TelemetryDefinition | None) -> Telem
     channels = []
     for i, raw in enumerate(report.analog):
         a, b, c = d.coefficients[i] if i < len(d.coefficients) else IDENTITY
-        channels.append(Channel(_at(d.names, i, f"A{i + 1}"), _at(d.units, i, ""), raw, round(a * raw * raw + b * raw + c, 4)))
+        channels.append(
+            Channel(_at(d.names, i, f"A{i + 1}"), _at(d.units, i, ""), raw, round(a * raw * raw + b * raw + c, 4))
+        )
     bits = []
     for i, ch in enumerate(report.bits):
         sense = d.sense[i] if i < len(d.sense) else "1"

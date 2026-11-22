@@ -3,6 +3,7 @@
 One circle for each radio that is on and shares a 1200 baud channel; `changed` is emitted when
 `radii` differ from the previous ones.
 """
+
 import logging
 from collections.abc import Callable, Iterable, Iterator
 
@@ -23,13 +24,20 @@ AIR: RadioId = 0
 
 
 class Aloha:
-    def __init__(self, book: StationBook, clock: Clock = utcnow, every_sec: float = ALOHA_EVERY_SEC, *, radios: Callable[[], Iterable[AirRadio]] | None = None) -> None:
+    def __init__(
+        self,
+        book: StationBook,
+        clock: Clock = utcnow,
+        every_sec: float = ALOHA_EVERY_SEC,
+        *,
+        radios: Callable[[], Iterable[AirRadio]] | None = None,
+    ) -> None:
         self._book = book
         self._radios = radios
         self._clock = clock
         self.every_sec = every_sec
         self.changed: Signal[[]] = Signal("aloha.changed")
-        self.radii: dict[RadioId, float] = {}                 # radius in km by radio id; no entry without a circle
+        self.radii: dict[RadioId, float] = {}  # radius in km by radio id; no entry without a circle
         self._tasks = TaskSet(log, "aloha")
 
     @property

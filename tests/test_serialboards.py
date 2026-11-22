@@ -1,6 +1,7 @@
 """The search leaves development boards alone (neoaprs/serialboards.py): their USB console resets
 the chip when the port is opened. The USB ids come from faked listings of the ports: no device is
 looked at."""
+
 import asyncio
 import logging
 from pathlib import Path
@@ -17,9 +18,37 @@ from neoaprs.tncsearch import PortSearch
 from tests.support.ptyline import posix_only
 
 ESP32 = (0x303A, 0x1001)
-BOARD_IDS = [ESP32, (0x303A, 0x4001), (0x303A, 0x0002), (0x2341, 0x0043), (0x2341, 0x8036), (0x2A03, 0x0043), (0x2E8A, 0x000A), (0x2E8A, 0x0005), (0x239A, 0x8014), (0x16C0, 0x0483), (0x1366, 0x0105), (0x1366, 0x1015),
-             (0x0483, 0x3748), (0x0483, 0x374B), (0x0483, 0x374E), (0x0483, 0x3744)]
-TNC_IDS = [(0x0403, 0x6001), (0x0403, 0x6015), (0x0403, 0x6010), (0x10C4, 0xEA60), (0x1A86, 0x7523), (0x1A86, 0x55D4), (0x067B, 0x2303), (0x0483, 0x5740), (0x16C0, 0x27DD), (0x2166, 0x0001), (0x1D6B, 0x0002)]
+BOARD_IDS = [
+    ESP32,
+    (0x303A, 0x4001),
+    (0x303A, 0x0002),
+    (0x2341, 0x0043),
+    (0x2341, 0x8036),
+    (0x2A03, 0x0043),
+    (0x2E8A, 0x000A),
+    (0x2E8A, 0x0005),
+    (0x239A, 0x8014),
+    (0x16C0, 0x0483),
+    (0x1366, 0x0105),
+    (0x1366, 0x1015),
+    (0x0483, 0x3748),
+    (0x0483, 0x374B),
+    (0x0483, 0x374E),
+    (0x0483, 0x3744),
+]
+TNC_IDS = [
+    (0x0403, 0x6001),
+    (0x0403, 0x6015),
+    (0x0403, 0x6010),
+    (0x10C4, 0xEA60),
+    (0x1A86, 0x7523),
+    (0x1A86, 0x55D4),
+    (0x067B, 0x2303),
+    (0x0483, 0x5740),
+    (0x16C0, 0x27DD),
+    (0x2166, 0x0001),
+    (0x1D6B, 0x0002),
+]
 Ids = dict[str, tuple[int, int] | None]
 
 
@@ -60,7 +89,11 @@ def machine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Ids:
         (tmp_path / name).touch()
     (tmp_path / "serial" / "by-id" / "usb-Espressif_USB_JTAG-if00").symlink_to(tmp_path / "ttyACM0")
     (tmp_path / "serial" / "by-id" / "usb-FTDI_FT232R-if00-port0").symlink_to(tmp_path / "ttyUSB0")
-    monkeypatch.setattr(serialprobe.serial.tools.list_ports, "comports", lambda: [listed(tmp_path / name, found) for name, found in ids.items()])
+    monkeypatch.setattr(
+        serialprobe.serial.tools.list_ports,
+        "comports",
+        lambda: [listed(tmp_path / name, found) for name, found in ids.items()],
+    )
     return ids
 
 
@@ -72,9 +105,17 @@ def pattern_of(root: Path) -> str:
 @posix_only
 def test_the_search_leaves_a_board_out_whatever_name_it_is_found_by(tmp_path: Path, machine: Ids) -> None:
     ports, boards = searchable_ports(pattern_of(tmp_path))
-    assert ports == [str(tmp_path / "serial/by-id/usb-FTDI_FT232R-if00-port0"), str(tmp_path / "ttyACM1"), str(tmp_path / "ttyUSB1")]
-    assert boards == {str(tmp_path / "serial/by-id/usb-Espressif_USB_JTAG-if00"): "an ESP32 development board (USB 303a:1001)"}
-    assert searchable_ports(f"{tmp_path}/ttyACM0")[1] == {str(tmp_path / "ttyACM0"): "an ESP32 development board (USB 303a:1001)"}
+    assert ports == [
+        str(tmp_path / "serial/by-id/usb-FTDI_FT232R-if00-port0"),
+        str(tmp_path / "ttyACM1"),
+        str(tmp_path / "ttyUSB1"),
+    ]
+    assert boards == {
+        str(tmp_path / "serial/by-id/usb-Espressif_USB_JTAG-if00"): "an ESP32 development board (USB 303a:1001)"
+    }
+    assert searchable_ports(f"{tmp_path}/ttyACM0")[1] == {
+        str(tmp_path / "ttyACM0"): "an ESP32 development board (USB 303a:1001)"
+    }
 
 
 # The search runs on Linux, where a by-id name is a link to the device node
@@ -99,7 +140,9 @@ async def find(search: PortSearch, pattern: str) -> str:
 
 # The search runs on Linux, where a by-id name is a link to the device node
 @posix_only
-async def test_the_search_says_once_which_board_it_skipped_and_why(tmp_path: Path, machine: Ids, caplog: pytest.LogCaptureFixture) -> None:
+async def test_the_search_says_once_which_board_it_skipped_and_why(
+    tmp_path: Path, machine: Ids, caplog: pytest.LogCaptureFixture
+) -> None:
     (tmp_path / "ttyACM1").unlink()
     (tmp_path / "ttyUSB0").unlink()
     (tmp_path / "ttyUSB1").unlink()
@@ -109,7 +152,9 @@ async def test_the_search_says_once_which_board_it_skipped_and_why(tmp_path: Pat
         with pytest.raises(SerialError):
             await find(search, pattern_of(tmp_path))
     told = [r.getMessage() for r in caplog.records if "skipping" in r.getMessage()]
-    assert told == [f"tnc: skipping {tmp_path}/serial/by-id/usb-Espressif_USB_JTAG-if00: an ESP32 development board (USB 303a:1001)"]
+    assert told == [
+        f"tnc: skipping {tmp_path}/serial/by-id/usb-Espressif_USB_JTAG-if00: an ESP32 development board (USB 303a:1001)"
+    ]
 
 
 # The search runs on Linux, where a by-id name is a link to the device node
@@ -117,17 +162,26 @@ async def test_the_search_says_once_which_board_it_skipped_and_why(tmp_path: Pat
 async def test_with_nothing_but_boards_the_error_names_them_and_the_way_out(tmp_path: Path, machine: Ids) -> None:
     with pytest.raises(SerialError) as caught:
         await find(port_search(), f"{tmp_path}/ttyACM0")
-    assert "ttyACM0 is an ESP32 development board (USB 303a:1001)" in str(caught.value) and "choose the port by its name" in str(caught.value)
+    assert "ttyACM0 is an ESP32 development board (USB 303a:1001)" in str(
+        caught.value
+    ) and "choose the port by its name" in str(caught.value)
 
 
 def test_the_doctor_marks_a_board_in_its_list(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(doctor, "available_ports", lambda: [PortInfo("/dev/ttyACM0", "USB JTAG/serial debug unit", "USB VID:PID=303A:1001", 0x303A, 0x1001), PortInfo("/dev/ttyUSB0", "FT232R", "USB VID:PID=0403:6001", 0x0403, 0x6001)])
+    monkeypatch.setattr(
+        doctor,
+        "available_ports",
+        lambda: [
+            PortInfo("/dev/ttyACM0", "USB JTAG/serial debug unit", "USB VID:PID=303A:1001", 0x303A, 0x1001),
+            PortInfo("/dev/ttyUSB0", "FT232R", "USB VID:PID=0403:6001", 0x0403, 0x6001),
+        ],
+    )
     text = doctor.check_ports().text
     acm, usb = (line for line in text.splitlines() if line.startswith("    /dev/"))
     assert "an ESP32 development board" in acm and "name the port" in acm and "development board" not in usb
 
 
-@posix_only                       # links in /dev are a Linux thing
+@posix_only  # links in /dev are a Linux thing
 def test_the_list_of_ports_has_the_other_names_of_each_after_it(tmp_path: Path) -> None:
     devices, by_id, dev = tmp_path / "nodes", tmp_path / "by-id", tmp_path / "dev"
     for folder in (devices, by_id, dev):
@@ -137,8 +191,16 @@ def test_the_list_of_ports_has_the_other_names_of_each_after_it(tmp_path: Path) 
     (by_id / "usb-Brainboxes_USB2Serial-if03-port0").symlink_to(devices / "ttyUSB3")
     (dev / "brainbox_3").symlink_to(devices / "ttyUSB3")
     (dev / "stdin").symlink_to(tmp_path / "nowhere")
-    ports = [PortInfo(str(devices / "ttyUSB3"), "USB2Serial 4xRS232", "USB VID:PID=05D1:2072", 0x05D1, 0x2072), PortInfo(str(devices / "ttyUSB4"), "n/a", "n/a", None, None)]
+    ports = [
+        PortInfo(str(devices / "ttyUSB3"), "USB2Serial 4xRS232", "USB VID:PID=05D1:2072", 0x05D1, 0x2072),
+        PortInfo(str(devices / "ttyUSB4"), "n/a", "n/a", None, None),
+    ]
     listed = serialprobe.with_links(ports, (str(by_id), str(dev)))
-    assert [p.device for p in listed] == [str(devices / "ttyUSB3"), str(by_id / "usb-Brainboxes_USB2Serial-if03-port0"), str(dev / "brainbox_3"), str(devices / "ttyUSB4")]
+    assert [p.device for p in listed] == [
+        str(devices / "ttyUSB3"),
+        str(by_id / "usb-Brainboxes_USB2Serial-if03-port0"),
+        str(dev / "brainbox_3"),
+        str(devices / "ttyUSB4"),
+    ]
     assert listed[2].description == f"= {devices / 'ttyUSB3'}, USB2Serial 4xRS232" and listed[2].vid == 0x05D1
     assert serialprobe.with_links(ports, (str(tmp_path / "missing"),)) == ports

@@ -3,6 +3,7 @@
 `current()` is the fix to beacon with (fresh, else None); `mobile_fix()` is the latest fix however
 old. A serial receiver's port is claimed so no radio takes it; if one holds it, the GPS waits.
 """
+
 import asyncio
 import logging
 from datetime import datetime
@@ -28,17 +29,27 @@ GpsReason = Literal["", "no_port", "no_address", "held", "no_answer"]
 
 
 class FeedSettings(NamedTuple):
-    kind: str                   # off, gpsd or serial
-    target: str                 # host:port of the gpsd, or the serial port
+    kind: str  # off, gpsd or serial
+    target: str  # host:port of the gpsd, or the serial port
     baud: int
 
 
 class Gps:
-    def __init__(self, feed: GpsFeed, config: ConfigSource, clock: Clock = utcnow, stale_sec: float = GPS_STALE_SEC, tick_sec: float = TICK_SEC,
-                 place_every_sec: float = GPS_PLACE_EVERY_SEC, place_moved_m: float = GPS_PLACE_MOVED_M, *, claims: Claims | None = None) -> None:
+    def __init__(
+        self,
+        feed: GpsFeed,
+        config: ConfigSource,
+        clock: Clock = utcnow,
+        stale_sec: float = GPS_STALE_SEC,
+        tick_sec: float = TICK_SEC,
+        place_every_sec: float = GPS_PLACE_EVERY_SEC,
+        place_moved_m: float = GPS_PLACE_MOVED_M,
+        *,
+        claims: Claims | None = None,
+    ) -> None:
         self._feed = feed
         self._claims = claims
-        self._held_by = ""                                              # the radio holding the port
+        self._held_by = ""  # the radio holding the port
         self._config = config
         self.clock = clock
         self.stale_sec = stale_sec
@@ -48,7 +59,7 @@ class Gps:
         self.changed: Signal[[]] = Signal("gps.changed")
         self.moved: Signal[[]] = Signal("gps.moved")
         self._fix: Fix | None = None
-        self._placed: tuple[datetime, float, float] | None = None       # when and where the row was put
+        self._placed: tuple[datetime, float, float] | None = None  # when and where the row was put
         self._applied: FeedSettings | None = None
         self._reading = False
         self._apply_task: asyncio.Task[None] | None = None
@@ -156,7 +167,10 @@ class Gps:
         if not self._config().mobile:
             return
         placed = self._placed
-        if placed is not None and ((fix.at - placed[0]).total_seconds() < self.place_every_sec or distance_km(placed[1], placed[2], fix.lat, fix.lon) * 1000.0 < self.place_moved_m):
+        if placed is not None and (
+            (fix.at - placed[0]).total_seconds() < self.place_every_sec
+            or distance_km(placed[1], placed[2], fix.lat, fix.lon) * 1000.0 < self.place_moved_m
+        ):
             return
         self._placed = (fix.at, fix.lat, fix.lon)
         self.moved.emit()
@@ -202,7 +216,15 @@ class Gps:
         if state == "connecting" and self._held_by:
             return "held"
         feed = self._feed.problem
-        return "no_port" if feed == NO_PORT else "no_address" if feed == NO_ADDRESS else "" if feed in ("", NO_FIX) else "no_answer"
+        return (
+            "no_port"
+            if feed == NO_PORT
+            else "no_address"
+            if feed == NO_ADDRESS
+            else ""
+            if feed in ("", NO_FIX)
+            else "no_answer"
+        )
 
     def why_none(self) -> str:
         """Why `current()` is None, as a clause for the log."""
@@ -210,7 +232,13 @@ class Gps:
         if state == "off":
             return "the GPS is off (gps/source)"
         if state == "stale":
-            return f"the latest GPS fix is {round(self.fix_age_sec or 0)} s old" + (f" ({self._feed.problem})" if self._feed.problem else "")
+            return f"the latest GPS fix is {round(self.fix_age_sec or 0)} s old" + (
+                f" ({self._feed.problem})" if self._feed.problem else ""
+            )
         if state == "connecting":
-            return f"the receiver's port is {self._held_by}" if self._held_by else self._feed.problem or f"waiting for {self._feed.describe() or 'the GPS'}"
+            return (
+                f"the receiver's port is {self._held_by}"
+                if self._held_by
+                else self._feed.problem or f"waiting for {self._feed.describe() or 'the GPS'}"
+            )
         return self._feed.problem or "the receiver has no position fix yet"

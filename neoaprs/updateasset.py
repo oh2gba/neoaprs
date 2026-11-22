@@ -3,6 +3,7 @@
 The address is built from the version alone; redirects go only to GitHub's hosts. SHA256SUMS is
 trusted only with its Ed25519 signature (`signed_checksum`).
 """
+
 import base64
 import binascii
 import re
@@ -75,7 +76,12 @@ def url_allowed(url: str) -> bool:
         port = parts.port
     except ValueError:
         return False
-    return parts.scheme == "https" and (parts.hostname or "").lower() in ALLOWED_HOSTS and port in (None, 443) and parts.username is None
+    return (
+        parts.scheme == "https"
+        and (parts.hostname or "").lower() in ALLOWED_HOSTS
+        and port in (None, 443)
+        and parts.username is None
+    )
 
 
 class Unverified(Exception):
@@ -85,6 +91,7 @@ class Unverified(Exception):
 def public_key(text: str = PUBLIC_KEY) -> "Ed25519PublicKey":
     """Return the Ed25519 public key from base64 of its 32 raw bytes; raise ValueError otherwise."""
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
     try:
         raw = base64.b64decode(text.strip(), validate=True)
     except binascii.Error:
@@ -108,12 +115,17 @@ def sign(sums: bytes, version: str, seed: bytes) -> str:
     if len(seed) != 32:
         raise ValueError(f"the signing key is a 32-byte seed, not {len(seed)} bytes")
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-    return base64.b64encode(Ed25519PrivateKey.from_private_bytes(seed).sign(signed_message(sums, version))).decode("ascii") + "\n"
+
+    return (
+        base64.b64encode(Ed25519PrivateKey.from_private_bytes(seed).sign(signed_message(sums, version))).decode("ascii")
+        + "\n"
+    )
 
 
 def check_signature(sums: bytes, signature: bytes, version: str, key: "Ed25519PublicKey") -> None:
     """Raise Unverified unless `signature` is `key`'s signature of `sums` for `version`."""
     from cryptography.exceptions import InvalidSignature
+
     try:
         raw = base64.b64decode(signature.strip(), validate=True)
     except (binascii.Error, ValueError):
@@ -123,7 +135,9 @@ def check_signature(sums: bytes, signature: bytes, version: str, key: "Ed25519Pu
     try:
         key.verify(raw, signed_message(sums, version))
     except InvalidSignature:
-        raise Unverified(f"{SIGNATURE} is not the project's signature of this {CHECKSUMS} as the list of v{version}") from None
+        raise Unverified(
+            f"{SIGNATURE} is not the project's signature of this {CHECKSUMS} as the list of v{version}"
+        ) from None
 
 
 def checksums(sums: bytes) -> dict[str, str]:

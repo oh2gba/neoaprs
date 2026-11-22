@@ -3,13 +3,26 @@
 Read into the layer's things as readsb.py reads readsb's file; fields follow wiki.jetvision.de.
 Ground traffic and rows without a recent position are left out. No I/O.
 """
+
 from datetime import datetime, timedelta
 from typing import Any
 from urllib.parse import urlsplit
 
 from .clock import from_unix
 from .layerthing import RADARCAPE_PLACE, Thing
-from .readsb import ALTITUDE_M_RANGE, EMERGENCY_SQUAWKS, SEEN_MAX_SEC, SPEED_KMH_RANGE, converted, host_port, is_whole_address, loads, number, text_of, vertical_ms
+from .readsb import (
+    ALTITUDE_M_RANGE,
+    EMERGENCY_SQUAWKS,
+    SEEN_MAX_SEC,
+    SPEED_KMH_RANGE,
+    converted,
+    host_port,
+    is_whole_address,
+    loads,
+    number,
+    text_of,
+    vertical_ms,
+)
 from .units import FOOT_M, KNOT_KMH
 
 AIRPORT_CODE_LENGTH = 4
@@ -50,12 +63,30 @@ def _thing(row: Any, received_at: datetime) -> Thing | None:
     at = _at(row, received_at)
     if at is None:
         return None
-    metres, speed, track = converted(row.get("alt"), FOOT_M, ALTITUDE_M_RANGE), converted(row.get("spd"), KNOT_KMH, SPEED_KMH_RANGE), number(row.get("trk"))
+    metres, speed, track = (
+        converted(row.get("alt"), FOOT_M, ALTITUDE_M_RANGE),
+        converted(row.get("spd"), KNOT_KMH, SPEED_KMH_RANGE),
+        number(row.get("trk")),
+    )
     designator = text_of(row.get("typ")).upper()
-    return Thing(id=id, lat=lat, lon=lon, at=at, heading_deg=None if track is None else int(round(track)) % 360, speed_kmh=None if speed is None else round(speed, 1),
-                 name=text_of(row.get("fli")), emergency=number(row.get("alr")) == PERMANENT_ALERT or _squawk(row.get("squ")) in EMERGENCY_SQUAWKS,
-                 altitude_m=None if metres is None else int(round(metres)), vertical_ms=vertical_ms(row.get("vrt")), registration=text_of(row.get("reg")), type=designator, category=category, designator=designator,
-                 destination=_airport(row.get("dst")), origin=_airport(row.get("org")))
+    return Thing(
+        id=id,
+        lat=lat,
+        lon=lon,
+        at=at,
+        heading_deg=None if track is None else int(round(track)) % 360,
+        speed_kmh=None if speed is None else round(speed, 1),
+        name=text_of(row.get("fli")),
+        emergency=number(row.get("alr")) == PERMANENT_ALERT or _squawk(row.get("squ")) in EMERGENCY_SQUAWKS,
+        altitude_m=None if metres is None else int(round(metres)),
+        vertical_ms=vertical_ms(row.get("vrt")),
+        registration=text_of(row.get("reg")),
+        type=designator,
+        category=category,
+        designator=designator,
+        destination=_airport(row.get("dst")),
+        origin=_airport(row.get("org")),
+    )
 
 
 def read_aircraft(body: bytes, received_at: datetime) -> list[Thing] | None:
@@ -85,6 +116,10 @@ def radarcape_url(address: str) -> str | None:
         return None
     if is_whole_address(value):
         whole = urlsplit(value)
-        return value if whole.path not in ("", "/") or whole.query or whole.fragment else f"{whole.scheme.lower()}://{whole.netloc}{RADARCAPE_PLACE}"
+        return (
+            value
+            if whole.path not in ("", "/") or whole.query or whole.fragment
+            else f"{whole.scheme.lower()}://{whole.netloc}{RADARCAPE_PLACE}"
+        )
     host, port = host_port(value)
     return f"http://{host}{'' if port in (None, 80) else f':{port}'}{RADARCAPE_PLACE}"

@@ -1,4 +1,5 @@
 """Command handlers of the sked board: `skeds_wanted`, `sked_post` and `sked_delete`."""
+
 from neoaprs.coded import CodedError, code_of
 from neoaprs.callsign import call_problem
 from neoaprs.skeds import clean_note, when

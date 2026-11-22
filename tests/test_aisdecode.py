@@ -1,5 +1,6 @@
 """The AIS decoder (neoaprs/aisdecode.py): the positions and the words of ships from NMEA sentences,
 the joining of a message's parts, and what is passed over."""
+
 import time
 from datetime import timedelta
 
@@ -31,7 +32,11 @@ def test_every_position_type_decodes_to_its_place_course_and_speed() -> None:
     for kind in (18, 19):
         found = decode(ais.sentences(ais.class_b(230999000, -33.8568, -151.2153, 5.0, 0.0, 0, kind)))[0]
         assert isinstance(found, AisPosition) and found.mmsi == 230999000
-        assert abs(found.lat + 33.8568) < 1e-5 and abs(found.lon + 151.2153) < 1e-5 and (found.sog_kn, found.cog_deg, found.heading_deg) == (5.0, 0.0, 0)
+        assert (
+            abs(found.lat + 33.8568) < 1e-5
+            and abs(found.lon + 151.2153) < 1e-5
+            and (found.sog_kn, found.cog_deg, found.heading_deg) == (5.0, 0.0, 0)
+        )
 
 
 def test_what_is_not_available_is_none() -> None:
@@ -60,11 +65,15 @@ def test_a_type_24_in_its_two_parts_gives_the_name_and_then_the_kind() -> None:
 
 def test_a_ship_type_of_0_or_of_a_reserved_range_is_none() -> None:
     assert decode(ais.sentences(ais.static_b(230555000, 1, ship_type=0))) == [AisStatic(230555000, "", None, "")]
-    assert decode(ais.sentences(ais.static_a(230555000, "X", 200, ""), per=100)) == [AisStatic(230555000, "X", None, "")]
+    assert decode(ais.sentences(ais.static_a(230555000, "X", 200, ""), per=100)) == [
+        AisStatic(230555000, "X", None, "")
+    ]
 
 
 def test_names_lose_their_trailing_padding_and_blanks() -> None:
-    assert decode(ais.sentences(ais.static_a(230555000, "AURA  ", 60, "  "), per=100)) == [AisStatic(230555000, "AURA", 60, "")]
+    assert decode(ais.sentences(ais.static_a(230555000, "AURA  ", 60, "  "), per=100)) == [
+        AisStatic(230555000, "AURA", 60, "")
+    ]
 
 
 def test_a_wrong_checksum_a_half_sentence_and_other_text_are_passed_over() -> None:
@@ -76,7 +85,7 @@ def test_a_wrong_checksum_a_half_sentence_and_other_text_are_passed_over() -> No
 
 def test_a_payload_character_outside_the_armour_is_passed_over_even_with_a_right_checksum() -> None:
     good = ais.sentences(ais.class_a(230123000, 60.0, 24.0))[0]
-    fields = good[1:good.index("*")].split(",")
+    fields = good[1 : good.index("*")].split(",")
     for char in "X[_":
         fields[5] = char + fields[5][1:]
         body = ",".join(fields)
@@ -125,15 +134,22 @@ def test_a_part_left_alone_for_ten_seconds_is_dropped() -> None:
     decoder = AisDecoder()
     assert decoder.feed(first, AT) is None
     assert decoder.feed(second, AT + timedelta(seconds=11)) is None
-    assert decoder.feed(first, AT) is None and decoder.feed(second, AT + timedelta(seconds=9)) == AisStatic(352002374, "LADY", 70, "X")
+    assert decoder.feed(first, AT) is None and decoder.feed(second, AT + timedelta(seconds=9)) == AisStatic(
+        352002374, "LADY", 70, "X"
+    )
 
 
 def test_a_thousand_lines_are_decoded_in_well_under_a_second() -> None:
     lines = [ais.sentences(ais.class_a(230000000 + n, 60.0 + n / 10000, 24.0, 5.0, 90.0, 90))[0] for n in range(500)]
-    lines += [line for n in range(250) for line in ais.sentences(ais.static_a(230000000 + n, f"SHIP {n}", 70, "HELSINKI"))]
+    lines += [
+        line for n in range(250) for line in ais.sentences(ais.static_a(230000000 + n, f"SHIP {n}", 70, "HELSINKI"))
+    ]
     assert len(lines) == 1000
     decoder = AisDecoder()
     started = time.perf_counter()
     found = [decoder.feed(line, AT) for line in lines]
     assert time.perf_counter() - started < 0.5
-    assert sum(isinstance(item, AisPosition) for item in found) == 500 and sum(isinstance(item, AisStatic) for item in found) == 250
+    assert (
+        sum(isinstance(item, AisPosition) for item in found) == 500
+        and sum(isinstance(item, AisStatic) for item in found) == 250
+    )

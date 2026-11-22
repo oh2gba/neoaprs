@@ -1,6 +1,7 @@
 """Tests for the state hub (neoaprs/web/hub.py) with list pages: patches, lagging pages, and the
 packet window and publisher (neoaprs/web/topics.py, outbound.py). Real topics are in
 tests/test_web.py."""
+
 import json
 from typing import Any
 
@@ -50,6 +51,7 @@ def hub_of() -> tuple[StateHub, dict[str, dict[str, Any]], Seconds]:
 
 # ---- what a patch holds --------------------------------------------------------------------------
 
+
 def test_nothing_is_built_for_a_topic_nobody_follows() -> None:
     built: list[str] = []
     hub = StateHub(clock=Seconds())
@@ -62,6 +64,7 @@ def test_nothing_is_built_for_a_topic_nobody_follows() -> None:
     hub.changed("rows", "b")
     hub.flush()
     assert built == ["whole", "b"] and page.frames[-1]["ops"] == [{"op": "set", "key": "b", "value": {"k": "b"}}]
+
 
 def test_a_page_that_opens_is_sent_every_topic_whole() -> None:
     hub, rows, _ = hub_of()
@@ -83,7 +86,14 @@ def test_a_burst_of_changes_to_a_key_is_one_op_and_the_item_is_looked_up_when_th
     rows["b"] = {"n": 1}
     hub.changed("rows", "b")
     assert hub.flush() is None
-    assert page.frames == [{"type": "patch", "topic": "rows", "rev": 1, "ops": [{"op": "set", "key": "a", "value": {"n": 49}}, {"op": "set", "key": "b", "value": {"n": 1}}]}]
+    assert page.frames == [
+        {
+            "type": "patch",
+            "topic": "rows",
+            "rev": 1,
+            "ops": [{"op": "set", "key": "a", "value": {"n": 49}}, {"op": "set", "key": "b", "value": {"n": 1}}],
+        }
+    ]
     assert hub.flush() is None and len(page.frames) == 1, "nothing changed: nothing is told"
 
 
@@ -101,7 +111,7 @@ def test_an_item_that_is_gone_when_the_patch_is_made_is_a_del_and_a_whole_change
     assert page.frames[0]["ops"] == [{"op": "del", "key": "a"}, {"op": "del", "key": "b"}]
     rows["c"] = {"n": 3}
     hub.changed("rows", "c")
-    hub.changed("rows")                                                                       # all of it
+    hub.changed("rows")  # all of it
     # (after a whole change the keys are not needed)
     hub.changed("rows", "d")
     hub.flush()
@@ -122,7 +132,9 @@ def test_a_topic_may_ask_for_a_gap_between_two_patches() -> None:
     assert hub.flush() is None and len(page.frames) == 2 and page.frames[1]["rev"] == 2
 
 
-def test_an_item_that_cannot_be_built_is_left_out_of_the_patch_and_logged_once_and_the_other_keys_are_told(caplog: pytest.LogCaptureFixture) -> None:
+def test_an_item_that_cannot_be_built_is_left_out_of_the_patch_and_logged_once_and_the_other_keys_are_told(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     def item(key: str) -> dict[str, Any] | None:
         if key == "odd":
             raise ValueError("a packet the view cannot read")
@@ -131,15 +143,22 @@ def test_an_item_that_cannot_be_built_is_left_out_of_the_patch_and_logged_once_a
     topic = Topic("rows", dict, item)
     for key in ("a", "odd", "b"):
         topic.touch(key)
-    assert topic.take() == [{"op": "set", "key": "a", "value": {"k": "a"}}, {"op": "set", "key": "b", "value": {"k": "b"}}]
+    assert topic.take() == [
+        {"op": "set", "key": "a", "value": {"k": "a"}},
+        {"op": "set", "key": "b", "value": {"k": "b"}},
+    ]
     assert not topic.pending and topic.take() == [], "the key that failed is not asked for again until it changes"
     assert len([r for r in caplog.records if r.exc_info]) == 1 and "the item odd of rows" in caplog.text
     topic.touch("odd")
     assert topic.take() == []
-    assert len([r for r in caplog.records if r.exc_info]) == 1 and len(caplog.records) == 2, "the second time is a line without the traceback"
+    assert len([r for r in caplog.records if r.exc_info]) == 1 and len(caplog.records) == 2, (
+        "the second time is a line without the traceback"
+    )
 
 
-def test_a_topic_that_cannot_be_built_is_dropped_and_the_topics_after_it_are_still_told(caplog: pytest.LogCaptureFixture) -> None:
+def test_a_topic_that_cannot_be_built_is_dropped_and_the_topics_after_it_are_still_told(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     broken = False
 
     def build() -> dict[str, Any]:
@@ -170,7 +189,7 @@ async def test_the_tick_tells_the_pages_by_itself_and_stops_with_the_hub() -> No
     rows["a"] = {"n": 1}
     hub.changed("rows", "a")
     assert page.frames == [], "not at once: a burst is one patch"
-    await until(lambda: page.frames)                # (the burst is told when the hub's pause is over)
+    await until(lambda: page.frames)  # (the burst is told when the hub's pause is over)
     assert [f["type"] for f in page.frames] == ["patch"]
     hub.changed("rows", "a")
     hub.stop()
@@ -180,7 +199,10 @@ async def test_the_tick_tells_the_pages_by_itself_and_stops_with_the_hub() -> No
 
 # ---- the pages -----------------------------------------------------------------------------------
 
-def test_subscribe_sends_the_topic_again_and_names_the_topics_that_are_not_there_and_unsubscribe_stops_the_patches() -> None:
+
+def test_subscribe_sends_the_topic_again_and_names_the_topics_that_are_not_there_and_unsubscribe_stops_the_patches() -> (
+    None
+):
     hub, rows, _ = hub_of()
     page, other = Page(), Page()
     hub.attach(page)
@@ -216,7 +238,9 @@ def test_a_page_that_is_behind_is_sent_no_patch_and_the_whole_topic_when_it_has_
     assert slow.frames == [] and len(quick.frames) == 2
     slow.held = 0
     assert hub.flush() is None
-    assert [(f["type"], f["topic"], f["rev"]) for f in slow.frames] == [("state", "rows", 2)] and set(slow.frames[0]["value"]) == {"a", "b"}
+    assert [(f["type"], f["topic"], f["rev"]) for f in slow.frames] == [("state", "rows", 2)] and set(
+        slow.frames[0]["value"]
+    ) == {"a", "b"}
     rows["c"] = {"n": 3}
     hub.changed("rows", "c")
     hub.flush()
@@ -284,26 +308,56 @@ def test_a_topic_is_added_once() -> None:
 
 # ---- the window of packets -----------------------------------------------------------------------
 
+
 def packet(n: int) -> Packet:
-    return Packet(heard_at=utc(2026, 10, 21, 12, 0, n % 60), direction="in", raw=b"", source=f"OH2T{n}", destination="APRS", path=(), info=b"", decoded=Position(60.0, 24.0, "/", ">"))
+    return Packet(
+        heard_at=utc(2026, 10, 21, 12, 0, n % 60),
+        direction="in",
+        raw=b"",
+        source=f"OH2T{n}",
+        destination="APRS",
+        path=(),
+        info=b"",
+        decoded=Position(60.0, 24.0, "/", ">"),
+    )
 
 
 def test_the_window_counts_the_packets_up_and_forgets_the_oldest() -> None:
     window = PacketWindow(size=3)
     assert [window.add(packet(n)) for n in range(1, 6)] == [[1], [2], [3], [4, 1], [5, 2]]
-    assert list(window.whole()) == ["3", "4", "5"] and window.item("4") == window.rows[4] and window.item("1") is None and window.item("x") is None and window.item("-1") is None
+    assert (
+        list(window.whole()) == ["3", "4", "5"]
+        and window.item("4") == window.rows[4]
+        and window.item("1") is None
+        and window.item("x") is None
+        and window.item("-1") is None
+    )
 
 
 def test_the_window_starts_with_the_packets_the_database_kept_oldest_first() -> None:
     window = PacketWindow(size=3)
     # (the newest first, as the log gives them; two fall out)
     window.load([packet(n) for n in (9, 8, 7, 6, 5)])
-    assert [r["source"] for r in window.whole().values()] == ["OH2T7", "OH2T8", "OH2T9"] and list(window.whole()) == ["3", "4", "5"]
+    assert [r["source"] for r in window.whole().values()] == ["OH2T7", "OH2T8", "OH2T9"] and list(window.whole()) == [
+        "3",
+        "4",
+        "5",
+    ]
     assert window.add(packet(10)) == [6, 3]
 
 
 def from_net(n: int) -> Packet:
-    return Packet(heard_at=utc(2026, 10, 21, 12, 0, n % 60), direction="in", raw=b"", source=f"OH2N{n}", destination="APRS", path=(), info=b"", decoded=Position(60.0, 24.0, "/", ">"), via="is")
+    return Packet(
+        heard_at=utc(2026, 10, 21, 12, 0, n % 60),
+        direction="in",
+        raw=b"",
+        source=f"OH2N{n}",
+        destination="APRS",
+        path=(),
+        info=b"",
+        decoded=Position(60.0, 24.0, "/", ">"),
+        via="is",
+    )
 
 
 def test_the_window_shows_the_latest_of_all_or_the_latest_that_were_not_from_the_internet_and_keeps_both() -> None:
@@ -313,7 +367,9 @@ def test_the_window_shows_the_latest_of_all_or_the_latest_that_were_not_from_the
         window.add(from_net(n))
     assert list(window.whole()) == ["4", "5", "6"] and window.item("1") is None and window.item("5") == window.rows[5]
     window.internet = False
-    assert list(window.whole()) == ["1"] and window.item("1") == window.rows[1] and window.item("5") is None, "the radio's packet the internet pushed out is shown again"
+    assert list(window.whole()) == ["1"] and window.item("1") == window.rows[1] and window.item("5") is None, (
+        "the radio's packet the internet pushed out is shown again"
+    )
     assert window.add(from_net(7)) == [7, 4] and list(window.whole()) == ["1"]
     window.add(packet(8))
     assert list(window.whole()) == ["1", "8"]
@@ -324,7 +380,18 @@ def test_the_window_shows_the_latest_of_all_or_the_latest_that_were_not_from_the
 def test_the_window_forgets_the_packets_heard_and_keeps_the_ones_we_sent() -> None:
     window = PacketWindow(size=5)
     window.add(packet(1))
-    window.add(Packet(heard_at=utc(2026, 10, 21, 12, 0, 2), direction="out", raw=b"", source="OH2GBA", destination="APRS", path=(), info=b"", decoded=Position(60.0, 24.0, "/", ">")))
+    window.add(
+        Packet(
+            heard_at=utc(2026, 10, 21, 12, 0, 2),
+            direction="out",
+            raw=b"",
+            source="OH2GBA",
+            destination="APRS",
+            path=(),
+            info=b"",
+            decoded=Position(60.0, 24.0, "/", ">"),
+        )
+    )
     window.add(from_net(3))
     window.drop_heard()
     assert [r["direction"] for r in window.whole().values()] == ["out"] and list(window.whole()) == ["2"]
@@ -333,6 +400,7 @@ def test_the_window_forgets_the_packets_heard_and_keeps_the_ones_we_sent() -> No
 
 
 # ---- the publisher -------------------------------------------------------------------------------
+
 
 class Socket:
     def __init__(self) -> None:
@@ -361,12 +429,25 @@ def test_a_message_that_does_not_fit_the_protocol_is_found_when_the_check_is_on(
         conn.send({"type": "pong", "now": "2026-10-21T12:00:00Z", "extra": 1})
         conn.send({"type": "state", "topic": "gps", "rev": 0, "value": {"state": "fix"}})
         conn.send({"type": "state", "topic": "weather", "rev": 0, "value": {}})
-        conn.send({"type": "patch", "topic": "stations", "rev": 1, "ops": [{"op": "set", "key": "OH2X", "value": {"call": "OH2X"}}]})
+        conn.send(
+            {
+                "type": "patch",
+                "topic": "stations",
+                "rev": 1,
+                "ops": [{"op": "set", "key": "OH2X", "value": {"call": "OH2X"}}],
+            }
+        )
         found = list(outbound.VIOLATIONS)
     finally:
         outbound.VIOLATIONS.clear()
     assert len(found) == 5 and all(line.split(":")[0] in ("pong", "state", "patch") for line in found)
-    assert "now" in found[0] and "extra" in found[1] and "the value of gps" in found[2] and "reason: Field required" in found[2] and "weather" in found[3]
+    assert (
+        "now" in found[0]
+        and "extra" in found[1]
+        and "the value of gps" in found[2]
+        and "reason: Field required" in found[2]
+        and "weather" in found[3]
+    )
     assert "the item OH2X of stations" in found[4] and "kind: Field required" in found[4]
     assert len(socket.frames) == 6, "a message that does not fit is sent all the same (the check is for the tests)"
 
@@ -410,7 +491,7 @@ def test_a_closed_connection_is_written_nothing_and_a_broadcast_reaches_the_rest
     conn_a.send(error_message("late"))
     out.broadcast(error_message("to all"))
     assert a.frames == [] and len(b.frames) == 1 and conn_a.closed
-    out.close(a)                                                                                   # again: harmless
+    out.close(a)  # again: harmless
 
 
 def test_every_connection_is_a_link_of_the_hub_and_asks_the_socket_how_much_it_holds() -> None:
@@ -431,16 +512,23 @@ def test_a_topic_named_twice_in_one_subscribe_is_sent_once_in_the_order_given() 
     assert [f["topic"] for f in page.frames] == ["one", "rows"]
 
 
-def test_a_number_that_is_not_finite_goes_out_as_null_with_one_line_for_each_kind_of_message(caplog: pytest.LogCaptureFixture) -> None:
+def test_a_number_that_is_not_finite_goes_out_as_null_with_one_line_for_each_kind_of_message(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     outbound.NOT_FINITE_SEEN.clear()
     socket = Socket()
     conn = Publisher(validate_out=False).open(socket, "127.0.0.1")
     for value in (float("nan"), float("inf"), -float("inf")):
-        conn.send({"type": "state", "topic": "gps", "rev": 1, "value": {"speed": value, "track": [1.5, value], "ok": 2.5}})
+        conn.send(
+            {"type": "state", "topic": "gps", "rev": 1, "value": {"speed": value, "track": [1.5, value], "ok": 2.5}}
+        )
     conn.send({"type": "pong", "now": "2026-10-21T12:00:00Z"})
     # (what a browser's JSON.parse does with NaN)
     strict = json.JSONDecoder(parse_constant=lambda word: (_ for _ in ()).throw(ValueError(word)))
     frames = [strict.decode(text) for text in socket.frames]
-    assert all(f["value"] == {"speed": None, "track": [1.5, None], "ok": 2.5} for f in frames[:3]) and frames[3]["type"] == "pong"
+    assert (
+        all(f["value"] == {"speed": None, "track": [1.5, None], "ok": 2.5} for f in frames[:3])
+        and frames[3]["type"] == "pong"
+    )
     assert len([r for r in caplog.records if "not finite" in r.getMessage()]) == 1 and "state gps" in caplog.text
     outbound.NOT_FINITE_SEEN.clear()

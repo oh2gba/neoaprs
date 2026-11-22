@@ -3,6 +3,7 @@
 One SDP query over L2CAP asks which channel the Serial Port Profile (0x1101) uses; the request
 and answer parsing are pure functions.
 """
+
 import logging
 import socket
 import struct
@@ -33,7 +34,14 @@ class SdpError(Exception):
 
 def request(uuid: int, attribute: int, transaction: int, continuation: bytes = b"\x00") -> bytes:
     """Return a ServiceSearchAttributeRequest for services with `uuid`, asking for `attribute`."""
-    params = bytes([0x35, 3, 0x19]) + struct.pack(">H", uuid) + struct.pack(">H", 1024) + bytes([0x35, 3, 0x09]) + struct.pack(">H", attribute) + continuation
+    params = (
+        bytes([0x35, 3, 0x19])
+        + struct.pack(">H", uuid)
+        + struct.pack(">H", 1024)
+        + bytes([0x35, 3, 0x09])
+        + struct.pack(">H", attribute)
+        + continuation
+    )
     return struct.pack(">BHH", SEARCH_ATTRIBUTES, transaction, len(params)) + params
 
 
@@ -51,10 +59,10 @@ def _take(data: bytes, at: int, depth: int) -> tuple[object, int]:
         width = (1, 2, 4)[size_index - 5]
         if at + width > len(data):
             raise SdpError("an element is cut off")
-        size, at = int.from_bytes(data[at:at + width], "big"), at + width
+        size, at = int.from_bytes(data[at : at + width], "big"), at + width
     if at + size > len(data):
         raise SdpError("an element is cut off")
-    body, end = data[at:at + size], at + size
+    body, end = data[at : at + size], at + size
     if kind in (1, 2, 5):
         return int.from_bytes(body, "big", signed=kind == 2), end
     if kind == 3:
@@ -103,10 +111,10 @@ def read_answer(pdu: bytes, transaction: int) -> tuple[bytes, bytes]:
     sent_transaction, _length, count = struct.unpack(">HHH", pdu[1:7])
     if sent_transaction != transaction:
         raise SdpError("an answer to another question")
-    lists, state = pdu[7:7 + count], pdu[7 + count:]
+    lists, state = pdu[7 : 7 + count], pdu[7 + count :]
     if len(lists) != count or not state or len(state) < 1 + state[0]:
         raise SdpError("the answer is cut off")
-    return lists, state[1:1 + state[0]]
+    return lists, state[1 : 1 + state[0]]
 
 
 def ask(sock: socket.socket) -> bytes:

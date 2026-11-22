@@ -1,4 +1,5 @@
 """The pytest fixtures every test can use. They are wired in by tests/conftest.py (a fixture is found where the conftest imports it)."""
+
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from tests.support.clock import FixedClock
 def protocol_violations() -> Iterator[None]:
     """A message that left the daemon and did not match the protocol models fails the test that sent it."""
     from neoaprs.web.outbound import VIOLATIONS
+
     VIOLATIONS.clear()
     yield
     found = list(VIOLATIONS)

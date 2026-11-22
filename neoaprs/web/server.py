@@ -3,6 +3,7 @@
 It listens on loopback, and on every interface while `web/network` is on, where a device logs in
 with the access key (access.py). The switch is followed without a restart.
 """
+
 import asyncio
 import logging
 import re
@@ -52,6 +53,7 @@ BODY_TIMEOUT_SEC = 30.0
 LOOPBACK = "127.0.0.1"
 HOSTS_FILE = Path("/etc/hosts")
 
+
 def name_loopbacks(hosts: Path = HOSTS_FILE) -> list[str]:
     """Return the extra loopback addresses the hosts file gives this computer's name.
 
@@ -65,9 +67,14 @@ def name_loopbacks(hosts: Path = HOSTS_FILE) -> list[str]:
     found: set[str] = set()
     for line in lines:
         address, *names = line.split("#", 1)[0].split() or [""]
-        if is_loopback(address) and address != LOOPBACK and any(n.lower() == own or n.lower().startswith(f"{own}.") for n in names):
+        if (
+            is_loopback(address)
+            and address != LOOPBACK
+            and any(n.lower() == own or n.lower().startswith(f"{own}.") for n in names)
+        ):
             found.add(address)
     return sorted(found)
+
 
 def default_page_dir() -> Path:
     return PAGE_DIR if (PAGE_DIR / "index.html").is_file() else PLACEHOLDER_DIR
@@ -76,13 +83,20 @@ def default_page_dir() -> Path:
 class WebServer:
     """`start()` listens on `web/port` (0: any free port; `kept_port` first) and returns success."""
 
-    def __init__(self, controller: Controller, config: Config, page_dir: Path | None = None, kept_port: int = 0) -> None:
+    def __init__(
+        self, controller: Controller, config: Config, page_dir: Path | None = None, kept_port: int = 0
+    ) -> None:
         self.controller = controller
         self.config = config
         self.kept_port = kept_port
         self.page_dir = page_dir or default_page_dir()
         self.page = PageSnapshot.take(self.page_dir)
-        log.info("page %s: %d files, %.1f MB, kept in memory", self.page.build or "(none)", len(self.page.files), self.page.size / 1048576)
+        log.info(
+            "page %s: %d files, %.1f MB, kept in memory",
+            self.page.build or "(none)",
+            len(self.page.files),
+            self.page.size / 1048576,
+        )
         self.api = Api(controller, reach=self.reach, secure=lambda: self.secure.state.wire(), page=self.page.build)
         self.access = Access(lambda: controller.config, controller.clock)
         self.address = LOOPBACK  # what it listens on; "" is every interface
@@ -132,11 +146,21 @@ class WebServer:
     def note_foreign_host(self, shown: str) -> None:
         if shown not in self._foreign_seen and len(self._foreign_seen) < 20:
             self._foreign_seen.add(shown)
-            log.warning("a request for the host name %r was refused; if it is a name of this computer, neoaprs db set web/allowed_hosts \"<name>\"", shown)
+            log.warning(
+                'a request for the host name %r was refused; if it is a name of this computer, neoaprs db set web/allowed_hosts "<name>"',
+                shown,
+            )
 
     def _names(self, allowed: Sequence[str]) -> set[str]:
         host = socket.gethostname().lower()
-        return {*OWN_NAMES, "ip6-localhost", "ip6-loopback", host, f"{host}.local", *(host_name(n) for n in allowed)} - {""}
+        return {
+            *OWN_NAMES,
+            "ip6-localhost",
+            "ip6-loopback",
+            host,
+            f"{host}.local",
+            *(host_name(n) for n in allowed),
+        } - {""}
 
     def url(self) -> str:
         """Return the page's URL on this computer."""
@@ -159,25 +183,42 @@ class WebServer:
         await self._ensure_key()
         self._by_name = name_loopbacks()
         self.address = "" if self.controller.config.web_network else LOOPBACK
-        app = tornado.web.Application([
-            (r"/ws", Socket, {"server": self}),
-            (r"/access", Login),
-            (r"/access/new", NewKey),
-            (r"/support/bundle", SupportBundle, {"server": self}),
-            (r"/support/send", SupportSend, {"server": self}),
-            (re.escape(CA_PATH), CaCertificate, {"server": self}),
-            (r"/(basemap\.pmtiles|basemap-world\.pmtiles)", Basemap, {"path": str(self.controller.data_dir), "world": lambda: world_file(self.controller.data_dir)}),
-            (r"/()", Page, {"path": str(self.page_dir), "snapshot": self.page, "default_filename": "index.html"}),
-            (r"/(.*)", Page, {"path": str(self.page_dir), "snapshot": self.page}),
-        ], websocket_ping_interval=30, websocket_ping_timeout=20, websocket_max_message_size=MAX_COMMAND, compress_response=True, log_function=self._log_request, neoaprs_server=self)
+        app = tornado.web.Application(
+            [
+                (r"/ws", Socket, {"server": self}),
+                (r"/access", Login),
+                (r"/access/new", NewKey),
+                (r"/support/bundle", SupportBundle, {"server": self}),
+                (r"/support/send", SupportSend, {"server": self}),
+                (re.escape(CA_PATH), CaCertificate, {"server": self}),
+                (
+                    r"/(basemap\.pmtiles|basemap-world\.pmtiles)",
+                    Basemap,
+                    {"path": str(self.controller.data_dir), "world": lambda: world_file(self.controller.data_dir)},
+                ),
+                (r"/()", Page, {"path": str(self.page_dir), "snapshot": self.page, "default_filename": "index.html"}),
+                (r"/(.*)", Page, {"path": str(self.page_dir), "snapshot": self.page}),
+            ],
+            websocket_ping_interval=30,
+            websocket_ping_timeout=20,
+            websocket_max_message_size=MAX_COMMAND,
+            compress_response=True,
+            log_function=self._log_request,
+            neoaprs_server=self,
+        )
         self._app = app
         await self.api.start()
         server = self._limited(None)
         remove_page(self.controller.data_dir)  # drop a stale address left by an earlier run
         failure = listen_near(server, self.address, c.web_port, self.kept_port)
         if failure is not None:
-            log.error("the web server cannot listen on %s:%d: %s; NeoAPRS goes on without the page", self.address or "every interface", c.web_port, failure,
-                      exc_info=failure)
+            log.error(
+                "the web server cannot listen on %s:%d: %s; NeoAPRS goes on without the page",
+                self.address or "every interface",
+                c.web_port,
+                failure,
+                exc_info=failure,
+            )
             self._server = None
             await self.api.stop()
             return False
@@ -187,7 +228,9 @@ class WebServer:
         log.info(PAGE_FORMAT, self.url())
         self._tell_the_page()
         await self._follow_secure(quiet=True)
-        self.api.tasks.spawn(every(lambda: self.secure.retry_sec, self._recheck_secure, "the secure side check"), "web-https")
+        self.api.tasks.spawn(
+            every(lambda: self.secure.retry_sec, self._recheck_secure, "the secure side check"), "web-https"
+        )
         self._say_reach()
         return True
 
@@ -196,7 +239,10 @@ class WebServer:
         try:
             write_page(self.controller.data_dir, self.url())
         except OSError as e:
-            log.warning("the page's address could not be written into the data folder (%s); the commands look for it in the log", e)
+            log.warning(
+                "the page's address could not be written into the data folder (%s); the commands look for it in the log",
+                e,
+            )
         self._tell_the_network()
 
     def _tell_the_network(self) -> None:
@@ -208,11 +254,21 @@ class WebServer:
 
     def _limited(self, context: ssl.SSLContext | None) -> LimitedHTTPServer:
         assert self._app is not None
-        return LimitedHTTPServer(self._app, xheaders=False, max_body_size=MAX_REQUEST_BODY, idle_connection_timeout=HEADER_TIMEOUT_SEC, body_timeout=BODY_TIMEOUT_SEC, ssl_options=context)
+        return LimitedHTTPServer(
+            self._app,
+            xheaders=False,
+            max_body_size=MAX_REQUEST_BODY,
+            idle_connection_timeout=HEADER_TIMEOUT_SEC,
+            body_timeout=BODY_TIMEOUT_SEC,
+            ssl_options=context,
+        )
 
     def _say_reach(self) -> None:
         if urls := self.reach():
-            log.info("network access is on: other devices open the page at %s and log in with the access key of Settings, Web (on this computer: neoaprs db get web/key)", ", ".join(urls))
+            log.info(
+                "network access is on: other devices open the page at %s and log in with the access key of Settings, Web (on this computer: neoaprs db get web/key)",
+                ", ".join(urls),
+            )
 
     # the switch and the key
     def settings_changed(self, config: Config) -> None:
@@ -237,7 +293,9 @@ class WebServer:
     async def _follow_secure(self, quiet: bool = False) -> None:
         """Make the secure side match `web/https` and the network; cut off pages on a closed port."""
         c = self.controller.config
-        changed = await self.secure.follow(c.web_https and c.web_network and self.address == "", self.address, self.bound_port(), self._limited)
+        changed = await self.secure.follow(
+            c.web_https and c.web_network and self.address == "", self.address, self.bound_port(), self._limited
+        )
         if not self.secure.state.on:
             for client in list(self.api.clients):
                 if isinstance(client, Socket) and client.request.protocol == "https":
@@ -255,7 +313,13 @@ class WebServer:
     async def _ensure_key(self) -> None:
         """Make an access key when the network is on and there is none."""
         c = self.controller.config
-        if c.web_network and not c.web_key and not await self.controller.change_config(lambda base: replace(base, web_key=new_key()) if base.web_network and not base.web_key else base):
+        if (
+            c.web_network
+            and not c.web_key
+            and not await self.controller.change_config(
+                lambda base: replace(base, web_key=new_key()) if base.web_network and not base.web_key else base
+            )
+        ):
             log.error("the access key could not be stored; devices on the network cannot log in")
 
     async def renew_key(self) -> bool:
@@ -275,7 +339,13 @@ class WebServer:
         self.address = address
         failure = self._bind(server, self.port)
         if failure is not None:
-            log.error("the page cannot listen on %s:%d: %s; it stays on %s", address or "every interface", self.port, failure, before or "every interface")
+            log.error(
+                "the page cannot listen on %s:%d: %s; it stays on %s",
+                address or "every interface",
+                self.port,
+                failure,
+                before or "every interface",
+            )
             self.address = before
             self._bind(server, self.port)
 
@@ -303,7 +373,14 @@ class WebServer:
         r = handler.request
         # A 401 on /access is a device asking whether it is let in; not worth logging.
         if handler.get_status() >= 400 and not (handler.get_status() == 401 and r.path == "/access"):
-            log.warning("%d %s %s (%s) %.2fms", handler.get_status(), r.method, one_line(r.path, MAX_LOGGED_PATH), r.remote_ip, 1000.0 * r.request_time())
+            log.warning(
+                "%d %s %s (%s) %.2fms",
+                handler.get_status(),
+                r.method,
+                one_line(r.path, MAX_LOGGED_PATH),
+                r.remote_ip,
+                1000.0 * r.request_time(),
+            )
 
     def bound_port(self) -> int:
         """Return the bound port (port 0 lets the system choose)."""

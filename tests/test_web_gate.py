@@ -9,6 +9,7 @@ http redirects (307) or refuses (403); see the table PLAIN every answer carries 
 What a route does past the gate is in its own tests. A request is made to look as if it came from
 another device by saying that no address is the loopback (`away`).
 """
+
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -36,8 +37,13 @@ POSTED = '{"key": "aaaa-aaaa-aaaa"}'
 # The methods that only ask; every other one changes something, and a browser sends it with the
 # Origin of the page that made it
 READS = ("GET", "HEAD", "OPTIONS")
-BODIED = ("POST", "PUT", "PATCH")               # the methods an HTTP client sends with a body
-HANDSHAKE = {"Connection": "Upgrade", "Upgrade": "websocket", "Sec-WebSocket-Version": "13", "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ=="}
+BODIED = ("POST", "PUT", "PATCH")  # the methods an HTTP client sends with a body
+HANDSHAKE = {
+    "Connection": "Upgrade",
+    "Upgrade": "websocket",
+    "Sec-WebSocket-Version": "13",
+    "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==",
+}
 BASEMAP = r"/(basemap\.pmtiles|basemap-world\.pmtiles)"
 
 # A request for each route whose pattern has a group, which the pattern alone does not say: the
@@ -49,16 +55,45 @@ PATHS = {BASEMAP: "/basemap.pmtiles", r"/()": "/", r"/(.*)": "/index.html"}
 # why it is free). Every other route and method answers it 401.
 FREE: dict[str, tuple[str, int, str]] = {
     r"/()": ("GET HEAD", 200, "the page's shell: it holds the key screen, so it loads before a key can be typed"),
-    r"/(.*)": ("GET HEAD", 200, "the page's own files (the script and the styles of the key screen, the icons, the manifest): the same for everybody, and they hold no data"),
-    r"/access": ("POST", 403, "the login itself: a device without a session posts the access key here, and a wrong key is told so"),
-    re.escape(CA_PATH): ("GET HEAD", 404, "the authority's public certificate, which a device takes before it can open the secure page without a warning; there is none while the secure page is off"),
+    r"/(.*)": (
+        "GET HEAD",
+        200,
+        "the page's own files (the script and the styles of the key screen, the icons, the manifest): the same for everybody, and they hold no data",
+    ),
+    r"/access": (
+        "POST",
+        403,
+        "the login itself: a device without a session posts the access key here, and a wrong key is told so",
+    ),
+    re.escape(CA_PATH): (
+        "GET HEAD",
+        404,
+        "the authority's public certificate, which a device takes before it can open the secure page without a warning; there is none while the secure page is off",
+    ),
 }
 # What plain http still answers a device on the network while the secure page is served: the route
 # -> why.
-PLAIN = {re.escape(CA_PATH): "the certificate is the way to a secure page without a warning, so it is given on the port a device can open before it trusts anything"}
+PLAIN = {
+    re.escape(
+        CA_PATH
+    ): "the certificate is the way to a secure page without a warning, so it is given on the port a device can open before it trusts anything"
+}
 
-HEADERS = {"X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Cross-Origin-Resource-Policy": "same-origin", "Server": "NeoAPRS"}
-POLICY = ("default-src 'self'", "script-src 'self'", "object-src 'none'", "base-uri 'none'", "form-action 'none'", "frame-ancestors 'none'")
+HEADERS = {
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Server": "NeoAPRS",
+}
+POLICY = (
+    "default-src 'self'",
+    "script-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "frame-ancestors 'none'",
+)
 
 
 @pytest.fixture(autouse=True)
@@ -75,10 +110,10 @@ def away(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @dataclass(frozen=True)
 class Route:
-    pattern: str                                        # as neoaprs/web/server.py writes it
+    pattern: str  # as neoaprs/web/server.py writes it
     handler: type[tornado.web.RequestHandler]
-    path: str                                           # a request for it
-    methods: tuple[str, ...]                            # the methods its handler answers
+    path: str  # a request for it
+    methods: tuple[str, ...]  # the methods its handler answers
 
     @property
     def socket(self) -> bool:
@@ -103,17 +138,37 @@ def routes_of(e: Env) -> list[Route]:
     found: list[Route] = []
     for rule in rules:
         matcher, handler = rule.matcher, rule.target
-        assert isinstance(matcher, tornado.routing.PathMatches) and isinstance(handler, type) and issubclass(handler, tornado.web.RequestHandler), f"a route of a kind this file does not know how to ask: {rule!r}"
+        assert (
+            isinstance(matcher, tornado.routing.PathMatches)
+            and isinstance(handler, type)
+            and issubclass(handler, tornado.web.RequestHandler)
+        ), f"a route of a kind this file does not know how to ask: {rule!r}"
         pattern = matcher.regex.pattern.removesuffix("$")
         path = PATHS.get(pattern) or (None if matcher.regex.groups else matcher.reverse())
-        assert path is not None and matcher.regex.match(path), f"the route {pattern} has a pattern no path is made from by itself: give PATHS a path that asks for it"
-        first = next(r.matcher for r in rules if isinstance(r.matcher, tornado.routing.PathMatches) and r.matcher.regex.match(path))
-        assert first is matcher, f"the path {path} for the route {pattern} is answered by the earlier route {first.regex.pattern}"
-        methods = tuple(m for m in handler.SUPPORTED_METHODS if getattr(handler, m.lower()) is not getattr(tornado.web.RequestHandler, m.lower()))
+        assert path is not None and matcher.regex.match(path), (
+            f"the route {pattern} has a pattern no path is made from by itself: give PATHS a path that asks for it"
+        )
+        first = next(
+            r.matcher
+            for r in rules
+            if isinstance(r.matcher, tornado.routing.PathMatches) and r.matcher.regex.match(path)
+        )
+        assert first is matcher, (
+            f"the path {path} for the route {pattern} is answered by the earlier route {first.regex.pattern}"
+        )
+        methods = tuple(
+            m
+            for m in handler.SUPPORTED_METHODS
+            if getattr(handler, m.lower()) is not getattr(tornado.web.RequestHandler, m.lower())
+        )
         found.append(Route(pattern, handler, path, methods))
     patterns = {route.pattern for route in found}
-    assert any(route.socket for route in found) and all(route.methods for route in found), "the routes were not read as they are: the socket is not among them, or a handler answers no method"
-    assert {*PATHS, *FREE, *PLAIN} <= patterns, f"a table of this file names a route the server no longer has: {sorted({*PATHS, *FREE, *PLAIN} - patterns)}"
+    assert any(route.socket for route in found) and all(route.methods for route in found), (
+        "the routes were not read as they are: the socket is not among them, or a handler answers no method"
+    )
+    assert {*PATHS, *FREE, *PLAIN} <= patterns, (
+        f"a table of this file names a route the server no longer has: {sorted({*PATHS, *FREE, *PLAIN} - patterns)}"
+    )
     return found
 
 
@@ -155,18 +210,25 @@ async def ask(e: Env, route: Route, method: str, headers: dict[str, str] | None 
     try:
         return await e.fetch(route.path, headers=headers, method=method, body=POSTED if method in BODIED else None)
     except AssertionError:
-        raise AssertionError(f"{method} {route.pattern} with {sorted(headers or {})} got no answer an HTTP client can read: a socket was opened for it") from None
+        raise AssertionError(
+            f"{method} {route.pattern} with {sorted(headers or {})} got no answer an HTTP client can read: a socket was opened for it"
+        ) from None
 
 
 def lacking(answer: HTTPResponse) -> list[str]:
     """The security headers the answer does not carry (neoaprs/web/headers.py has them and why)."""
     policy = answer.headers.get("Content-Security-Policy", "")
-    return [name for name, value in HEADERS.items() if answer.headers.get(name) != value] + [part for part in POLICY if part not in policy]
+    return [name for name, value in HEADERS.items() if answer.headers.get(name) != value] + [
+        part for part in POLICY if part not in policy
+    ]
 
 
 # ---- the host name -------------------------------------------------------------------------------
 
-async def test_no_route_answers_a_request_for_a_host_name_that_is_not_ours(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+
+async def test_no_route_answers_a_request_for_a_host_name_that_is_not_ours(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     e = await served(tmp_path, NETWORK)
     wrong: list[str] = []
     for who in ("this computer", "another device"):
@@ -176,15 +238,24 @@ async def test_no_route_answers_a_request_for_a_host_name_that_is_not_ours(tmp_p
             answer = await ask(e, route, method, {"Host": FOREIGN, **session(e), **(HANDSHAKE if route.socket else {})})
             if answer.code != 403 or (method != "HEAD" and b"does not answer to the name" not in answer.body):
                 wrong.append(f"{method} {route.pattern} from {who}: {answer.code}")
-    assert wrong == [], "a route answers a request made for the name of another site: its handler's prepare() begins with refuse_foreign_host (neoaprs/web/pagefiles.py)"
+    assert wrong == [], (
+        "a route answers a request made for the name of another site: its handler's prepare() begins with refuse_foreign_host (neoaprs/web/pagefiles.py)"
+    )
 
 
 # ---- the login -----------------------------------------------------------------------------------
 
-async def test_a_device_that_has_not_logged_in_is_refused_on_every_route_that_is_not_free_and_let_in_with_a_session(tmp_path: Path, away: None) -> None:
+
+async def test_a_device_that_has_not_logged_in_is_refused_on_every_route_that_is_not_free_and_let_in_with_a_session(
+    tmp_path: Path, away: None
+) -> None:
     e = await served(tmp_path, NETWORK)
     routes = routes_of(e)
-    stale = [f"{route.pattern}: {FREE[route.pattern][0]}" for route in routes if route.pattern in FREE and not set(FREE[route.pattern][0].split()) <= set(route.methods)]
+    stale = [
+        f"{route.pattern}: {FREE[route.pattern][0]}"
+        for route in routes
+        if route.pattern in FREE and not set(FREE[route.pattern][0].split()) <= set(route.methods)
+    ]
     assert stale == [], "FREE names a method its route does not answer"
     wrong: list[str] = []
     for route, method in asked(routes):
@@ -197,11 +268,16 @@ async def test_a_device_that_has_not_logged_in_is_refused_on_every_route_that_is
             let_in = await ask(e, route, method, {**session(e), **(own_origin(e) if changes(method) else {})})
             if let_in.code in (401, 403) or let_in.code >= 500:
                 wrong.append(f"{method} {route.pattern} with a session: {let_in.code}")
-    assert wrong == [], "a route gives a device that has not logged in something else than this file says: put it behind the login (refuse_unless_logged_in of neoaprs/web/pagefiles.py), or say in FREE why it is free"
-    assert all(len(why) > 30 for _methods, _status, why in FREE.values()) and all(len(why) > 30 for why in PLAIN.values())
+    assert wrong == [], (
+        "a route gives a device that has not logged in something else than this file says: put it behind the login (refuse_unless_logged_in of neoaprs/web/pagefiles.py), or say in FREE why it is free"
+    )
+    assert all(len(why) > 30 for _methods, _status, why in FREE.values()) and all(
+        len(why) > 30 for why in PLAIN.values()
+    )
 
 
 # ---- the page of another site --------------------------------------------------------------------
+
 
 async def taken_from_another_site(e: Env, routes: list[Route], monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """What was not refused although it carried another site's Origin: every changing method and the
@@ -221,10 +297,14 @@ async def taken_from_another_site(e: Env, routes: list[Route], monkeypatch: pyte
     return wrong
 
 
-async def test_a_request_that_changes_something_and_the_handshake_of_a_socket_from_the_page_of_another_site_are_refused_on_every_route(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_request_that_changes_something_and_the_handshake_of_a_socket_from_the_page_of_another_site_are_refused_on_every_route(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     e = await served(tmp_path, NETWORK)
     wrong = await taken_from_another_site(e, routes_of(e), monkeypatch)
-    assert wrong == [], "a route takes a request that changes something (POST, PUT, PATCH, DELETE), or opens a socket, for a script of another site: an Origin that is not the Host is refused in prepare() (a request) or in check_origin (a socket)"
+    assert wrong == [], (
+        "a route takes a request that changes something (POST, PUT, PATCH, DELETE), or opens a socket, for a script of another site: an Origin that is not the Host is refused in prepare() (a request) or in check_origin (a socket)"
+    )
 
 
 class NoGate(tornado.web.RequestHandler):
@@ -237,18 +317,29 @@ class NoGate(tornado.web.RequestHandler):
     patch = delete = put
 
 
-async def test_a_route_that_answers_put_patch_or_delete_is_asked_from_the_page_of_another_site_like_a_post(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_route_that_answers_put_patch_or_delete_is_asked_from_the_page_of_another_site_like_a_post(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     e = await served(tmp_path, NETWORK)
     assert e.server is not None and e.server._app is not None
     e.server._app.add_handlers(r".*", [(r"/made-up", NoGate)])
     made_up = [route for route in routes_of(e) if route.pattern == "/made-up"]
-    assert [route.methods for route in made_up] == [("DELETE", "PATCH", "PUT")], "a route added to the running application is read with the methods its handler answers"
-    assert await taken_from_another_site(e, made_up, monkeypatch) == [f"{method} /made-up from {who}: 204" for who in ("this computer", "another device") for method in ("DELETE", "PATCH", "PUT")]
+    assert [route.methods for route in made_up] == [("DELETE", "PATCH", "PUT")], (
+        "a route added to the running application is read with the methods its handler answers"
+    )
+    assert await taken_from_another_site(e, made_up, monkeypatch) == [
+        f"{method} /made-up from {who}: 204"
+        for who in ("this computer", "another device")
+        for method in ("DELETE", "PATCH", "PUT")
+    ]
 
 
 # ---- plain http beside the secure page -----------------------------------------------------------
 
-async def test_while_the_secure_page_is_served_plain_http_sends_another_device_there_or_refuses_it_on_every_route(tmp_path: Path, away: None) -> None:
+
+async def test_while_the_secure_page_is_served_plain_http_sends_another_device_there_or_refuses_it_on_every_route(
+    tmp_path: Path, away: None
+) -> None:
     e = await served(tmp_path, HTTPS)
     assert e.server is not None
     secure = e.server.secure
@@ -267,20 +358,32 @@ async def test_while_the_secure_page_is_served_plain_http_sends_another_device_t
             else:
                 right = answer.code == 403 and there.encode() in answer.body
             if not right or lacking(answer):
-                wrong.append(f"{method} {route.pattern}{' (a handshake)' if 'Upgrade' in headers else ''}: {answer.code} {answer.headers.get('Location', '')} {lacking(answer)}")
-    assert wrong == [], "a route answers over plain http while the secure page is served: its handler's prepare() calls refuse_plain (neoaprs/web/pagefiles.py) after the host name, or PLAIN says why it stays"
+                wrong.append(
+                    f"{method} {route.pattern}{' (a handshake)' if 'Upgrade' in headers else ''}: {answer.code} {answer.headers.get('Location', '')} {lacking(answer)}"
+                )
+    assert wrong == [], (
+        "a route answers over plain http while the secure page is served: its handler's prepare() calls refuse_plain (neoaprs/web/pagefiles.py) after the host name, or PLAIN says why it stays"
+    )
 
 
 # ---- the headers ---------------------------------------------------------------------------------
+
 
 async def test_every_answer_of_every_route_carries_the_security_headers(tmp_path: Path, away: None) -> None:
     e = await served(tmp_path, NETWORK)
     wrong: list[str] = []
     for route, method in asked(routes_of(e)):
         mine = own_origin(e) if changes(method) else {}
-        kinds = {"without a session": mine, "with a session": {**session(e), **mine}, "for the name of another site": {"Host": FOREIGN}, "from the page of another site": {**session(e), "Origin": f"http://{FOREIGN}"}}
+        kinds = {
+            "without a session": mine,
+            "with a session": {**session(e), **mine},
+            "for the name of another site": {"Host": FOREIGN},
+            "from the page of another site": {**session(e), "Origin": f"http://{FOREIGN}"},
+        }
         for kind, headers in kinds.items():
             answer = await ask(e, route, method, headers)
             if lacking(answer):
                 wrong.append(f"{method} {route.pattern} {kind} ({answer.code}): {lacking(answer)}")
-    assert wrong == [], "an answer went out without the security headers: the handler derives from SecurityHeaders (neoaprs/web/pagefiles.py)"
+    assert wrong == [], (
+        "an answer went out without the security headers: the handler derives from SecurityHeaders (neoaprs/web/pagefiles.py)"
+    )

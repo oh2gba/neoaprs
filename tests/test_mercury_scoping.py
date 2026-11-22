@@ -1,6 +1,7 @@
 """The scope and transmit level in the modem part (neoaprs/mercuryscoping.py, mercurymodem.py): the
 ini, the link to the program's UI, the waterfall rows, the live gain and the peak in the status.
 """
+
 import asyncio
 import json
 import socket
@@ -29,7 +30,9 @@ UI_NEAR = 400
 
 
 def modem(tmp_path: Path, no_ui: bool = False) -> Mercury:
-    m = Mercury(tmp_path, finder=lambda: fakemercury.program(no_ui=no_ui), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+    m = Mercury(
+        tmp_path, finder=lambda: fakemercury.program(no_ui=no_ui), backoff=QUICK, control_backoff=Backoff([0.05, 0.05])
+    )
     m.ports = lambda: []
     return m
 
@@ -48,7 +51,9 @@ def test_the_ui_port_is_the_kiss_port_plus_a_fixed_distance_and_a_pair_whose_ui_
         taken.bind(("127.0.0.1", 0))
         taken.listen()
         port = taken.getsockname()[1] - mercuryhelper.UI_OFFSET
-        assert port > 0 and not mercuryhelper.pair_free(port), "a broadcast port whose UI port something holds is passed over"
+        assert port > 0 and not mercuryhelper.pair_free(port), (
+            "a broadcast port whose UI port something holds is passed over"
+        )
 
 
 async def test_the_ini_has_the_gain_and_the_ui_interface_on_its_own_port_with_the_waterfall_off(tmp_path: Path) -> None:
@@ -57,7 +62,10 @@ async def test_the_ini_has_the_gain_and_the_ui_interface_on_its_own_port_with_th
     try:
         ini = (tmp_path / INI_FILE).read_text()
         assert m.tx_gain_db == -4 and "[audio]\ntx_gain_db = -4\n" in ini
-        assert f"[main]\nui_enabled = true\nui_port = {m.broadcast_port + UI_NEAR}\nwaterfall_enabled = false\n" in ini and m.ui_port == m.broadcast_port + UI_NEAR
+        assert (
+            f"[main]\nui_enabled = true\nui_port = {m.broadcast_port + UI_NEAR}\nwaterfall_enabled = false\n" in ini
+            and m.ui_port == m.broadcast_port + UI_NEAR
+        )
         assert m.control_port == m.broadcast_port + CONTROL_OFFSET
         await until_started(lambda: m.scope)
     finally:
@@ -82,7 +90,9 @@ async def test_a_mercury_something_else_runs_and_the_speaker_of_the_dummy_have_n
     assert s.ui_port == 0
 
 
-async def test_the_feed_is_on_for_the_busy_control_and_rows_of_the_waterfall_are_made_and_kept_whether_a_page_looks_or_not_and_say_where_the_tone_is_and_whether_the_radio_transmits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_feed_is_on_for_the_busy_control_and_rows_of_the_waterfall_are_made_and_kept_whether_a_page_looks_or_not_and_say_where_the_tone_is_and_whether_the_radio_transmits(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     asleep(monkeypatch, 3600.0)
     m = modem(tmp_path)
     told: list[KeptRow] = []
@@ -96,22 +106,32 @@ async def test_the_feed_is_on_for_the_busy_control_and_rows_of_the_waterfall_are
         row = rows[-1]
         tone = round(1500 / 7.8125) - ROW_FIRST_BIN
         assert len(row.bins) == ROW_BINS and row.tx is False and -90 <= row.level <= 0
-        assert row.bins[tone] > row.bins[tone - 5] + 20 and row.bins[tone] == byte_of_db(-30.0), "the fake program's tone at 1500 Hz stands in its own bin of the modem, 7.8 Hz wide"
+        assert row.bins[tone] > row.bins[tone - 5] + 20 and row.bins[tone] == byte_of_db(-30.0), (
+            "the fake program's tone at 1500 Hz stands in its own bin of the modem, 7.8 Hz wide"
+        )
         kept = m.scope_history.after(0, scope_clock())
-        assert [k.seq for k in kept[-len(told):]] == [k.seq for k in told] and all(k.at <= scope_clock() for k in kept), "every row is kept before it is told, with when it was made"
-        assert sys.platform != "linux" or all(k.at > time.monotonic() + 1800 for k in kept), "on the clock that counts the hour the machine was asleep, not on the one that stood still"
+        assert [k.seq for k in kept[-len(told) :]] == [k.seq for k in told] and all(
+            k.at <= scope_clock() for k in kept
+        ), "every row is kept before it is told, with when it was made"
+        assert sys.platform != "linux" or all(k.at > time.monotonic() + 1800 for k in kept), (
+            "on the clock that counts the hour the machine was asleep, not on the one that stood still"
+        )
         m.keyed = True
         mark = len(told)
         await until_started(lambda: len(told) > mark + 2)
-        assert all(k.row.tx for k in told[mark + 2:]), "keyed: the rows are of our own signal"
+        assert all(k.row.tx for k in told[mark + 2 :]), "keyed: the rows are of our own signal"
         assert "set_waterfall off" not in sent(tmp_path), "the feed stays on: the busy control reads it"
     finally:
         m.keyed = False
         await m.stop()
-    assert len(m.scope_history) == 0, "a modem stopped (the HF radio switched off, or started again for another type, sound card or keying): the rows kept are of what is gone"
+    assert len(m.scope_history) == 0, (
+        "a modem stopped (the HF radio switched off, or started again for another type, sound card or keying): the rows kept are of what is gone"
+    )
 
 
-async def test_the_rows_kept_are_forgotten_where_the_channel_is_cleared_and_when_the_program_is_started_anew_and_the_pages_are_told(tmp_path: Path) -> None:
+async def test_the_rows_kept_are_forgotten_where_the_channel_is_cleared_and_when_the_program_is_started_anew_and_the_pages_are_told(
+    tmp_path: Path,
+) -> None:
     m = modem(tmp_path)
     cleared: list[int] = []
     m.scope_cleared.connect(lambda: cleared.append(len(cleared)))
@@ -126,10 +146,10 @@ async def test_the_rows_kept_are_forgotten_where_the_channel_is_cleared_and_when
         assert cleared == [0], "nothing kept, nothing to tell"
         await until_started(lambda: len(m.scope_history) >= 1)
         assert m.scope_history.after(0, scope_clock())[0].seq > last, "the numbers go on"
-        m._start_ui()                                           # (a link of its own is there: nothing happens)
+        m._start_ui()  # (a link of its own is there: nothing happens)
         assert len(m.scope_history) >= 1
         await m._stop_ui()
-        m._start_ui()                                           # (the link made anew, as for a program started again)
+        m._start_ui()  # (the link made anew, as for a program started again)
         assert len(m.scope_history) == 0 and cleared == [0, 1]
     finally:
         await m.stop()
@@ -142,6 +162,7 @@ async def test_the_gain_is_sent_to_the_running_program_and_the_peak_it_says_is_t
     def changed() -> None:
         nonlocal told
         told += 1
+
     m.changed.connect(changed)
     await m.start(HF)
     try:
@@ -170,7 +191,9 @@ async def test_a_mercury_without_the_ui_has_no_scope_and_the_gain_waits_for_the_
     try:
         await until_started(lambda: m.state == "running")
         await asyncio.sleep(0.5)
-        assert not m.scope and not m.live_gain, "no interface: the controller starts the modem again at a change of the gain (it is in the settings the restart is decided by)"
+        assert not m.scope and not m.live_gain, (
+            "no interface: the controller starts the modem again at a change of the gain (it is in the settings the restart is decided by)"
+        )
         assert len(m.scope_history) == 0
         m.set_tx_gain(5)
         assert m.tx_gain_db == 5 and sent(tmp_path) == [], "nothing could be sent"
@@ -190,6 +213,7 @@ async def test_the_link_is_made_again_for_a_program_started_again(tmp_path: Path
         assert pid is not None
         import os
         import signal
+
         killed = scope_clock()
         # Windows has no SIGKILL: its SIGTERM is TerminateProcess, as sudden
         os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))
@@ -197,13 +221,18 @@ async def test_the_link_is_made_again_for_a_program_started_again(tmp_path: Path
         # The link to the new program is made a moment after it runs
         await until_started(lambda: sent(tmp_path).count("set_waterfall on") >= 2)
         assert sent(tmp_path).count("set_waterfall on") >= 2, "the spectrum is asked for again of the new program"
-        assert all(k.at > killed for k in m.scope_history.after(0, scope_clock())), "no row of the program that died is kept"
+        assert all(k.at > killed for k in m.scope_history.after(0, scope_clock())), (
+            "no row of the program that died is kept"
+        )
     finally:
         await m.stop()
 
 
-async def test_the_tune_tone_follows_the_gain_and_is_begun_again_when_the_gain_moves_under_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_tune_tone_follows_the_gain_and_is_begun_again_when_the_gain_moves_under_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from neoaprs import mercurytune
+
     monkeypatch.setattr(mercurytune, "TUNE_SEC", 5.0)
     air = Air(frame_sec=0.2)
     station = air.station()
@@ -218,7 +247,9 @@ async def test_the_tune_tone_follows_the_gain_and_is_begun_again_when_the_gain_m
         await until_started(lambda: station.tuned == ["TUNE -10"])
         m.set_tx_gain(8)
         await until_started(lambda: station.tuned == ["TUNE -10", "TUNE OFF", "TUNE -7"])
-        assert m.test == "tune" and m.hold() == "the radio is transmitting", "the hold stays on while the tone is begun again"
+        assert m.test == "tune" and m.hold() == "the radio is transmitting", (
+            "the hold stays on while the tone is begun again"
+        )
         await asyncio.sleep(0.3)
         await until_started(lambda: m.test == "tune" and station.tuned[-1] == "TUNE -7")
         m.set_tx_gain(-30)
@@ -237,18 +268,23 @@ async def test_the_tune_tone_follows_the_gain_and_is_begun_again_when_the_gain_m
 
 # ---- the automatic channel-busy control
 
+
 def air(tmp_path: Path, blocks: list[list[float]] | None = None, noise_db: float = -60.0) -> None:
     """The air of the fake program's UI: noise at a level and bands lifted by so many dB."""
     (tmp_path / UI_SCENE_FILE).write_text(json.dumps({"blocks": blocks or [], "noise_db": noise_db}), encoding="utf-8")
 
 
-async def test_the_channel_is_busy_by_the_spectrum_for_a_signal_as_wide_as_a_frame_and_not_for_a_carrier_or_a_step(tmp_path: Path) -> None:
+async def test_the_channel_is_busy_by_the_spectrum_for_a_signal_as_wide_as_a_frame_and_not_for_a_carrier_or_a_step(
+    tmp_path: Path,
+) -> None:
     m = modem(tmp_path)
     await m.start(HF)
     try:
         await until_started(lambda: m.scope and m.state == "running")
         await asyncio.sleep(3.0)
-        assert not m.busy and m.hold() == "", "the fake program's air has a carrier at 1500 Hz 30 dB over the noise, which is a run of one band"
+        assert not m.busy and m.hold() == "", (
+            "the fake program's air has a carrier at 1500 Hz 30 dB over the noise, which is a run of one band"
+        )
         air(tmp_path, [[1200, 1800, 12]])
         await until_started(lambda: m.busy and m.hold() == CHANNEL_BUSY)
         assert m.describe().endswith("channel busy")
@@ -261,7 +297,9 @@ async def test_the_channel_is_busy_by_the_spectrum_for_a_signal_as_wide_as_a_fra
         await m.stop()
 
 
-async def test_the_spectrum_is_not_judged_while_the_radio_transmits_and_for_a_moment_after(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_spectrum_is_not_judged_while_the_radio_transmits_and_for_a_moment_after(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # The moment lasts until the test says it is over: a machine that stalls for half a second
     # cannot end it early
     monkeypatch.setattr(mercuryscoping, "AFTER_TX_SEC", 3600.0)
@@ -278,14 +316,16 @@ async def test_the_spectrum_is_not_judged_while_the_radio_transmits_and_for_a_mo
         m._keyed_at = time.monotonic()
         await asyncio.sleep(0.2)
         assert not m.busy, "the end of our own frame is still in the spectrum for a moment"
-        m._keyed_at -= 7200.0                                              # (the moment is over)
+        m._keyed_at -= 7200.0  # (the moment is over)
         await until_started(lambda: m.busy)
     finally:
         m.keyed = False
         await m.stop()
 
 
-async def test_a_radio_that_has_not_transmitted_is_judged_from_the_start_however_young_the_machines_clock_is(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_radio_that_has_not_transmitted_is_judged_from_the_start_however_young_the_machines_clock_is(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The last transmission began at the clock's zero, which on a just-started computer is "a
     moment ago"."""
     # Longer than any machine has been up: only a radio that never transmitted is outside this
@@ -303,7 +343,9 @@ async def test_a_radio_that_has_not_transmitted_is_judged_from_the_start_however
 
 
 async def test_the_moment_after_our_own_frame_is_a_fraction_of_a_second_and_ends_by_itself(tmp_path: Path) -> None:
-    assert 0.3 <= mercuryscoping.AFTER_TX_SEC <= 1.0, "longer than Mercury's own holdoff of 300 ms, and short enough not to hide a station that answers"
+    assert 0.3 <= mercuryscoping.AFTER_TX_SEC <= 1.0, (
+        "longer than Mercury's own holdoff of 300 ms, and short enough not to hide a station that answers"
+    )
     m = modem(tmp_path)
     await m.start(HF)
     try:
@@ -345,13 +387,15 @@ def test_a_spectrum_that_stops_without_a_word_is_given_up_after_a_second() -> No
     m.auto_busy(True, time.monotonic())
     assert m.hold() == CHANNEL_BUSY
     m._auto_at = time.monotonic() - 2.0
-    assert m.hold() == "" and not m.busy and m._auto_at == 0.0, "its busy state is not believed once nothing feeds it: Mercury's (clear) is"
+    assert m.hold() == "" and not m.busy and m._auto_at == 0.0, (
+        "its busy state is not believed once nothing feeds it: Mercury's (clear) is"
+    )
 
 
 async def test_what_a_stopped_program_said_of_the_channel_holds_nothing_after_a_restart(tmp_path: Path) -> None:
     m = Mercury(tmp_path)
     now = time.monotonic()
-    m.auto_busy(False, now)                 # the spectrum is read: clear
+    m.auto_busy(False, now)  # the spectrum is read: clear
     # Mercury's own detector says BUSY ON (a step in the noise): kept, not believed
     m._on_busy(True, now)
     assert not m.busy

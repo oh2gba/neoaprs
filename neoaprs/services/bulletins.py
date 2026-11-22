@@ -3,6 +3,7 @@
 Persisted in the database; `changed` fires for each new or different bulletin, `removed` for each
 deleted one.
 """
+
 from dataclasses import replace
 
 from neoaprs.bulletin import BulletinRecord, board_slot, key_of

@@ -3,6 +3,7 @@
 Order: the only sender, the operator's choice, the radio that heard the station recently
 (local kinds first), the one that heard it last, else the first sender.
 """
+
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timedelta
 
@@ -13,14 +14,18 @@ from .radiotype import LOCAL_KINDS
 RECENT = timedelta(hours=MESSAGE_RADIO_RECENT_HOURS)
 
 
-def message_radio(choice: RadioId | None, heard: Mapping[RadioId, RadioHeard], specs: Iterable[RadioSpec], now: datetime) -> RadioId | None:
+def message_radio(
+    choice: RadioId | None, heard: Mapping[RadioId, RadioHeard], specs: Iterable[RadioSpec], now: datetime
+) -> RadioId | None:
     """Return the id of the radio the message goes out on; None if no enabled radio can send."""
     pool = list(specs)
     on = senders(pool)
     # one radio that sends: that one; else the operator's choice while it names one
     if (picked := in_force_choice(choice, on)) is not None:
         return picked
-    heard_on = [(order, spec, found) for order, spec in enumerate(on) if (found := heard.get(spec.id, NOT_HEARD)).count > 0]
+    heard_on = [
+        (order, spec, found) for order, spec in enumerate(on) if (found := heard.get(spec.id, NOT_HEARD)).count > 0
+    ]
     if not heard_on:
         return unheard_radio(pool)
     recent = [entry for entry in heard_on if entry[2].last_at is not None and entry[2].last_at >= now - RECENT]
@@ -38,7 +43,13 @@ def _when(entry: tuple[int, RadioSpec, RadioHeard]) -> tuple[float, bool, int]:
     return (float("-inf") if found.last_at is None else found.last_at.timestamp(), spec.kind in LOCAL_KINDS, -order)
 
 
-def stood_in(radio: RadioId, choice: RadioId | None, heard: Mapping[RadioId, RadioHeard], known_since: datetime | None, taken_at: datetime) -> bool:
+def stood_in(
+    radio: RadioId,
+    choice: RadioId | None,
+    heard: Mapping[RadioId, RadioHeard],
+    known_since: datetime | None,
+    taken_at: datetime,
+) -> bool:
     """Return whether the radio only stood in for the station's own radio, which was off."""
     if choice == radio or heard.get(radio, NOT_HEARD).count > 0 or known_since is None or known_since > taken_at:
         return False

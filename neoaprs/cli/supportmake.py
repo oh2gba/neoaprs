@@ -1,6 +1,7 @@
 """Make a support bundle: run the gatherers, write the zip, and show where the file went.
 
 A gatherer that fails does not fail the bundle: its file is replaced by `<file>.error.txt`."""
+
 import json
 import logging
 import os
@@ -29,7 +30,17 @@ from .supportreadme import readme_text
 from .supportsummary import DbFacts, Facts, problem_groups, summary_text
 from .systemdescription import system_description
 
-ORDER = ("README.txt", "summary.txt", "settings.json", "state.json", "doctor.txt", "database.txt", "packets.txt", "page.json", "page-errors.json")
+ORDER = (
+    "README.txt",
+    "summary.txt",
+    "settings.json",
+    "state.json",
+    "doctor.txt",
+    "database.txt",
+    "packets.txt",
+    "page.json",
+    "page-errors.json",
+)
 log = logging.getLogger("neoaprs.support")
 
 
@@ -42,6 +53,7 @@ class Made:
 @dataclass
 class Collector:
     """The members of a bundle; a failed step becomes `<name>.error.txt` and a summary note."""
+
     members: dict[str, Member] = field(default_factory=dict)
     failed: dict[str, str] = field(default_factory=dict)
 
@@ -62,6 +74,7 @@ class Collector:
 
     def ordered(self) -> list[Member]:
         """Return README.txt and summary.txt first, then ORDER, error files, logs, the rest."""
+
         def place(member: Member) -> tuple[int, str]:
             name = member.name
             if name in ORDER:
@@ -71,6 +84,7 @@ class Collector:
             if name.startswith("logs/"):
                 return len(ORDER) + 1, ("0" if name.startswith("logs/neoaprs.log") else "1") + name
             return len(ORDER) + 2, name
+
         return sorted(self.members.values(), key=place)
 
 
@@ -78,8 +92,18 @@ def dumped(value: object) -> str:
     return json.dumps(value, indent=2, ensure_ascii=False, default=str) + "\n"
 
 
-def collect(data: Path, now: datetime, live: dict[str, Any] | None, page: dict[str, Any] | None, page_errors: list[dict[str, Any]] | None,
-            install: InstallInfo | None, running: bool | None, by: str, journal: Callable[[], str | None], call: str) -> tuple[list[Member], list[str], str]:
+def collect(
+    data: Path,
+    now: datetime,
+    live: dict[str, Any] | None,
+    page: dict[str, Any] | None,
+    page_errors: list[dict[str, Any]] | None,
+    install: InstallInfo | None,
+    running: bool | None,
+    by: str,
+    journal: Callable[[], str | None],
+    call: str,
+) -> tuple[list[Member], list[str], str]:
     """Return the members, the secret values to keep out of the file, and the call.
 
     `call` is the caller's own, used for the file name when the settings cannot be read.
@@ -98,7 +122,14 @@ def collect(data: Path, now: datetime, live: dict[str, Any] | None, page: dict[s
     col.step("doctor.txt", lambda: gather.doctor_text(data))
     facts: list[DbFacts] = []
     col.step("database.txt", lambda: _database(data, facts))
-    col.step("packets.txt", lambda: gather.packets_text(data) if (data / DB_NAME).is_file() else "There is no database file yet, so there are no packets.\n")
+    col.step(
+        "packets.txt",
+        lambda: (
+            gather.packets_text(data)
+            if (data / DB_NAME).is_file()
+            else "There is no database file yet, so there are no packets.\n"
+        ),
+    )
     col.step("logs/journal.txt", journal)
     if live is not None:
         col.add("state.json", dumped(live))
@@ -110,15 +141,36 @@ def collect(data: Path, now: datetime, live: dict[str, Any] | None, page: dict[s
 
     def summary() -> str:
         db = facts[0] if facts else DbFacts(None, SCHEMA_VERSION, 0, 0, col.failed.get("database.txt", "not read"))
-        known = Facts(VERSION, install or detect_here(data), bool(getattr(sys, "frozen", False)), system_description(), platform.machine(), platform.python_version(), data, now, by,
-                      is_running(data) if running is None else running, gather.started_at(gather.log_lines(daemon_logs)), config, col.failed.get("settings.json", ""), live, page_url(data) or "", db,
-                      problem_groups(gather.log_lines(daemon_logs)), col.members["doctor.txt"].text if "doctor.txt" in col.members else "",
-                      stored.radios.problem if stored is not None and stored.radios is not None else "")
+        known = Facts(
+            VERSION,
+            install or detect_here(data),
+            bool(getattr(sys, "frozen", False)),
+            system_description(),
+            platform.machine(),
+            platform.python_version(),
+            data,
+            now,
+            by,
+            is_running(data) if running is None else running,
+            gather.started_at(gather.log_lines(daemon_logs)),
+            config,
+            col.failed.get("settings.json", ""),
+            live,
+            page_url(data) or "",
+            db,
+            problem_groups(gather.log_lines(daemon_logs)),
+            col.members["doctor.txt"].text if "doctor.txt" in col.members else "",
+            stored.radios.problem if stored is not None and stored.radios is not None else "",
+        )
         return summary_text(known)
 
     col.step("summary.txt", summary)
     col.step("README.txt", lambda: readme_text(col.ordered(), now, VERSION, by))
-    return col.ordered(), gather.secrets_of(stored.rows if stored is not None else {}), config.station_call if config else call
+    return (
+        col.ordered(),
+        gather.secrets_of(stored.rows if stored is not None else {}),
+        config.station_call if config else call,
+    )
 
 
 def _logs(col: Collector, files: list[Path]) -> None:
@@ -132,18 +184,32 @@ def _database(data: Path, facts: list[DbFacts]) -> str:
     return text
 
 
-def make_bundle(data: Path, out_dir: Path, *, live: dict[str, Any] | None = None, page: dict[str, Any] | None = None, page_errors: list[dict[str, Any]] | None = None,
-                install: InstallInfo | None = None, running: bool | None = None, by: str = "neoaprs support, without the daemon", now: Clock = utcnow,
-                journal: Callable[[], str | None] | None = None, call: str = "") -> Made:
+def make_bundle(
+    data: Path,
+    out_dir: Path,
+    *,
+    live: dict[str, Any] | None = None,
+    page: dict[str, Any] | None = None,
+    page_errors: list[dict[str, Any]] | None = None,
+    install: InstallInfo | None = None,
+    running: bool | None = None,
+    by: str = "neoaprs support, without the daemon",
+    now: Clock = utcnow,
+    journal: Callable[[], str | None] | None = None,
+    call: str = "",
+) -> Made:
     """Write the bundle of the data folder into `out_dir` (created if missing); blocking."""
     made_at = now()
-    members, secrets, call = collect(data, made_at, live, page, page_errors, install, running, by, journal or gather.journal_text, call)
+    members, secrets, call = collect(
+        data, made_at, live, page, page_errors, install, running, by, journal or gather.journal_text, call
+    )
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / bundle_name(call, made_at)
     return Made(path, write_zip(path, members, made_at, secrets))
 
 
 # ---- where the file goes, and showing it
+
 
 def desktop_dir(home: Path | None = None, environ: Mapping[str, str] | None = None) -> Path:
     """Return the user's Desktop folder, else the home folder.
@@ -180,7 +246,11 @@ def show_command(path: Path, system: str) -> list[str] | str:
 def show_file(path: Path, system: str | None = None, start: Callable[..., object] = subprocess.Popen) -> bool:
     """Open the file manager at the file; return False if it could not be started."""
     try:
-        start(show_command(path, sys.platform if system is None else system), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        start(
+            show_command(path, sys.platform if system is None else system),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
     except OSError:
         return False
     return True

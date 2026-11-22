@@ -31,6 +31,7 @@ Run it with the venv's python from the repository root:  .venv/bin/python script
 `--check` writes nothing and exits 1 when a file is out of date (tests/test_protocol.py does the
 same).
 """
+
 import json
 import re
 import sys
@@ -53,9 +54,33 @@ from neoaprs import direwolf, mercury, mercuryscope  # noqa: E402
 from neoaprs.web import scopefeed  # noqa: E402
 from neoaprs.ax25 import MAX_PATH  # noqa: E402
 from neoaprs.route import DIRECT_ONLY, FIXED_PATH, RF_ONLY, WIDE_PATH, is_alias, is_marker  # noqa: E402
-from neoaprs.callsign import AMATEUR_BASE_MIN, BASE_MAX, MAX_SSID, PLACEHOLDER_CALLS, CallsignError, call_problem, normal_name, parse_call  # noqa: E402
+from neoaprs.callsign import (  # noqa: E402
+    AMATEUR_BASE_MIN,
+    BASE_MAX,
+    MAX_SSID,
+    PLACEHOLDER_CALLS,
+    CallsignError,
+    call_problem,
+    normal_name,
+    parse_call,
+)
 from neoaprs.pref import ALERT_KM_MAX, ALERT_KM_MIN  # noqa: E402
-from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULT_STATION_HOURS, DEFAULTS, RADIO_STATION_KEYS, LATITUDE, LONGITUDE, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, MIN_STATUS_INTERVAL_MIN, RANGES, STATION_HOURS, SYMBOL_TABLES, Config  # noqa: E402
+from neoaprs.config import (  # noqa: E402
+    ANTENNA_DIRECTIONS,
+    DEFAULT_STATION_HOURS,
+    DEFAULTS,
+    RADIO_STATION_KEYS,
+    LATITUDE,
+    LONGITUDE,
+    MAX_COMMENT,
+    MAX_COMMENT_PHG,
+    MIN_BEACON_INTERVAL_MIN,
+    MIN_STATUS_INTERVAL_MIN,
+    RANGES,
+    STATION_HOURS,
+    SYMBOL_TABLES,
+    Config,
+)
 from neoaprs.configstatus import LONGEST_FREQ, LONGEST_MODE, MAX_STATUS, STATUS_FIELDS, fill_template, status_template  # noqa: E402
 from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
 from neoaprs.qrutext import ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX  # noqa: E402
@@ -67,7 +92,19 @@ from neoaprs.versions import MAX_FREQUENCIES  # noqa: E402
 from neoaprs.services import generalask  # noqa: E402
 from neoaprs.decay import ANNOUNCEMENT, BULLETIN  # noqa: E402
 from neoaprs.ownbulletin import GROUP_MAX, PostError, make_bulletin, slot_of  # noqa: E402
-from neoaprs.ownobject import COMMENT_MAX, COMMENT_MAX_MOTION, COURSE_MAX, ITEM_NAME, NAME_FORBIDDEN, OBJECT_NAME, QRU_GROUP_MAX, QRU_RESERVED, SPEED_MAX_KMH, OwnError, make_object  # noqa: E402
+from neoaprs.ownobject import (  # noqa: E402
+    COMMENT_MAX,
+    COMMENT_MAX_MOTION,
+    COURSE_MAX,
+    ITEM_NAME,
+    NAME_FORBIDDEN,
+    OBJECT_NAME,
+    QRU_GROUP_MAX,
+    QRU_RESERVED,
+    SPEED_MAX_KMH,
+    OwnError,
+    make_object,
+)
 from neoaprs.aprsposition import uncompressed_position  # noqa: E402
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text  # noqa: E402
 from neoaprs.symbols import IGATE_OVERLAYS, MOBILE_CODES, SYMBOL_NAMES  # noqa: E402
@@ -93,6 +130,7 @@ OBJECT_ORDER = "StationRow PacketRow MessageRow DecodedPosition DecodedMessage D
 class Protocol(BaseModel):
     """Both unions and the value of each topic in one document, so that one schema carries every
     definition."""
+
     command: protocol.Command
     message: protocol.Message
     topics: protocol.TopicValues
@@ -112,8 +150,10 @@ def build_schema() -> dict[str, Any]:
     schema["properties"]["message"]["title"] = "Message"
     schema["properties"]["topics"].pop("description", None)
     schema["title"] = "Protocol"
-    schema["description"] = ("The WebSocket protocol of NeoAPRS: `command` is what the page sends (tagged by cmd), `message` what the daemon sends (tagged by type), "
-                             "`topics` the value of each topic the page follows.")
+    schema["description"] = (
+        "The WebSocket protocol of NeoAPRS: `command` is what the page sends (tagged by cmd), `message` what the daemon sends (tagged by type), "
+        "`topics` the value of each topic the page follows."
+    )
     schema["$defs"] = {k: defs[k] for k in sorted(defs)}
     return schema
 
@@ -163,8 +203,12 @@ def _ts(node: dict[str, Any], names: dict[str, str]) -> str:
         return f"({inner})[]" if " | " in inner else f"{inner}[]"
     if kind == "object":
         extra = node.get("additionalProperties")
-        return "{ [key: string]: " + _ts(extra, names) + " }" if isinstance(extra, dict) else "{ [key: string]: unknown }"
-    return {"integer": "number", "number": "number", "string": "string", "boolean": "boolean", "null": "null"}.get(str(kind), "unknown")
+        return (
+            "{ [key: string]: " + _ts(extra, names) + " }" if isinstance(extra, dict) else "{ [key: string]: unknown }"
+        )
+    return {"integer": "number", "number": "number", "string": "string", "boolean": "boolean", "null": "null"}.get(
+        str(kind), "unknown"
+    )
 
 
 def _interface(name: str, model: dict[str, Any], names: dict[str, str]) -> str:
@@ -186,7 +230,9 @@ def types_text(schema: dict[str, Any]) -> str:
     out = [TS_HEAD]
     for prop, title in (("command", "Command"), ("message", "Message")):
         node = schema["properties"][prop]
-        out.append(_comment(node.get("description", "")) + f"export type {title} = {_ts({'anyOf': node['oneOf']}, names)};\n")
+        out.append(
+            _comment(node.get("description", "")) + f"export type {title} = {_ts({'anyOf': node['oneOf']}, names)};\n"
+        )
     for key in sorted(defs, key=lambda k: names[k]):
         out.append(_interface(names[key], defs[key], names))
     return "\n".join(out)
@@ -214,7 +260,12 @@ def _literal(value: Any, indent: int = 0, used: int = 40) -> str:
             return flat
         return "[\n" + "".join(f"{pad}{_literal(x, indent + 1)},\n" for x in value) + "  " * indent + "]"
     if isinstance(value, dict) and any(isinstance(x, list) for x in value.values()):
-        return "{\n" + "".join(f"{pad}{json.dumps(k)}: {_literal(x, indent + 1)},\n" for k, x in value.items()) + "  " * indent + "}"
+        return (
+            "{\n"
+            + "".join(f"{pad}{json.dumps(k)}: {_literal(x, indent + 1)},\n" for k, x in value.items())
+            + "  " * indent
+            + "}"
+        )
     return json.dumps(value)
 
 
@@ -229,17 +280,43 @@ def _number(name: str, value: float, daemon: str) -> str:
 def _profiles() -> str:
     """The TNC profiles the settings form offers, with what the form needs of each: how it is
     reached, its speed, and whether it can be asked if it is there."""
-    rows = [{"key": p.key, "name": p.name, "transport": p.transport, "baud": p.baud, "probe": p.can_probe} for p in PROFILES]
+    rows = [
+        {"key": p.key, "name": p.name, "transport": p.transport, "baud": p.baud, "probe": p.can_probe} for p in PROFILES
+    ]
     hf = [{"key": p.key, "name": p.name, "transport": p.transport} for p in HF_PROFILES]
-    return ("/** The FM types of the flat list of before, in the order Find my radio tries those it can ask (PROFILES of neoaprs/tncprofile.py; the page lists the types in the order of RADIO_TYPES): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */\n"
-            f"export const TNC_PROFILES = {_literal(rows)} as const;\n"
-            "/** A Mercury radio's types (HF_PROFILES of neoaprs/tncprofile.py, the setting hf/profile): the Mercury modem (`modem`) and the Dummy Mercury radio (`dummy`). */\n"
-            f"export const HF_PROFILES = {_literal(hf)} as const;\n")
+    return (
+        "/** The FM types of the flat list of before, in the order Find my radio tries those it can ask (PROFILES of neoaprs/tncprofile.py; the page lists the types in the order of RADIO_TYPES): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */\n"
+        f"export const TNC_PROFILES = {_literal(rows)} as const;\n"
+        "/** A Mercury radio's types (HF_PROFILES of neoaprs/tncprofile.py, the setting hf/profile): the Mercury modem (`modem`) and the Dummy Mercury radio (`dummy`). */\n"
+        f"export const HF_PROFILES = {_literal(hf)} as const;\n"
+    )
 
 
 def _radio_type(t: RadioType) -> dict[str, Any]:
-    fields = [{"key": f.key, "kind": f.kind, "range": None if f.range is None else list(f.range), "choices": list(f.choices), "default": f.default, "together": f.together, "text": f.text} for f in t.fields]
-    return {"key": t.key, "kind": t.kind, "transport": t.transport, "dummy": t.dummy, "text": t.text.replace("-", "_"), "can": vars(t.can), "allowed": vars(t.allowed), "limits": {"max_frame": t.limits.max_frame, "beacon_min_min": t.limits.beacon_min_min}, "recommended_path": t.recommended_path, "fields": fields}
+    fields = [
+        {
+            "key": f.key,
+            "kind": f.kind,
+            "range": None if f.range is None else list(f.range),
+            "choices": list(f.choices),
+            "default": f.default,
+            "together": f.together,
+            "text": f.text,
+        }
+        for f in t.fields
+    ]
+    return {
+        "key": t.key,
+        "kind": t.kind,
+        "transport": t.transport,
+        "dummy": t.dummy,
+        "text": t.text.replace("-", "_"),
+        "can": vars(t.can),
+        "allowed": vars(t.allowed),
+        "limits": {"max_frame": t.limits.max_frame, "beacon_min_min": t.limits.beacon_min_min},
+        "recommended_path": t.recommended_path,
+        "fields": fields,
+    }
 
 
 def _radio_types() -> str:
@@ -247,34 +324,48 @@ def _radio_types() -> str:
     them (neoaprs/radiotypes), each with what it can do, what it may do, its limits and its own
     settings."""
     rows = [_radio_type(t) for kind in KINDS for t in types_of(kind)]
-    return ("/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, how it is reached (`transport`), whether it is a Dummy, which reaches no radio and makes its traffic up (`dummy`: Add radio lists these apart, for trying the program out), its catalogue id (`text`: the key's '-' as '_'), what its box offers (`can`), what we decided it may do (`allowed`), "
-            "its limits, the path of our frames on a radio of it whose own path is empty (`recommended_path`: LoRa WIDE1-1; empty: the recommended path of the station's symbol), and its own settings (`fields`, each `radio/<id>/<key>` of `config.radio_values`: its kind, its range or choices, its default as text, the fields sent together, its catalogue id). */\n"
-            f"export const RADIO_TYPES = {_literal(rows)} as const;\n")
+    return (
+        "/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, how it is reached (`transport`), whether it is a Dummy, which reaches no radio and makes its traffic up (`dummy`: Add radio lists these apart, for trying the program out), its catalogue id (`text`: the key's '-' as '_'), what its box offers (`can`), what we decided it may do (`allowed`), "
+        "its limits, the path of our frames on a radio of it whose own path is empty (`recommended_path`: LoRa WIDE1-1; empty: the recommended path of the station's symbol), and its own settings (`fields`, each `radio/<id>/<key>` of `config.radio_values`: its kind, its range or choices, its default as text, the fields sent together, its catalogue id). */\n"
+        f"export const RADIO_TYPES = {_literal(rows)} as const;\n"
+    )
 
 
 def _symbol_names() -> str:
-    return ("/** The names of the APRS symbols, the codes `!` to `~` in order, of the primary and of the alternate table (SYMBOL_NAMES of neoaprs/symbols.py): the symbol picker lists them. */\n"
-            f"export const SYMBOL_NAMES = {_literal({k: list(v) for k, v in SYMBOL_NAMES.items()})} as const;\n")
+    return (
+        "/** The names of the APRS symbols, the codes `!` to `~` in order, of the primary and of the alternate table (SYMBOL_NAMES of neoaprs/symbols.py): the symbol picker lists them. */\n"
+        f"export const SYMBOL_NAMES = {_literal({k: list(v) for k, v in SYMBOL_NAMES.items()})} as const;\n"
+    )
 
 
 def _mobile_symbols() -> str:
-    return ("/** The codes `!` to `~` of the symbols of a station that moves or is carried, in the primary and in the alternate table (MOBILE_CODES of neoaprs/symbols.py): a station with one of them is recommended WIDE1-1,WIDE2-1, any other WIDE2-1. */\n"
-            f"export const MOBILE_SYMBOLS = {_literal(dict(MOBILE_CODES))} as const;\n")
+    return (
+        "/** The codes `!` to `~` of the symbols of a station that moves or is carried, in the primary and in the alternate table (MOBILE_CODES of neoaprs/symbols.py): a station with one of them is recommended WIDE1-1,WIDE2-1, any other WIDE2-1. */\n"
+        f"export const MOBILE_SYMBOLS = {_literal(dict(MOBILE_CODES))} as const;\n"
+    )
 
 
 def _igate_overlays() -> str:
-    return ("/** The overlays of the gateway symbol `&` that mark an iGate: generic, receive-only, one-hop and two-hop transmit, LoRa (IGATE_OVERLAYS of neoaprs/symbols.py). */\n"
-            f"export const IGATE_OVERLAYS = {_literal(list(IGATE_OVERLAYS))} as const;\n")
+    return (
+        "/** The overlays of the gateway symbol `&` that mark an iGate: generic, receive-only, one-hop and two-hop transmit, LoRa (IGATE_OVERLAYS of neoaprs/symbols.py). */\n"
+        f"export const IGATE_OVERLAYS = {_literal(list(IGATE_OVERLAYS))} as const;\n"
+    )
 
 
 def symbols_text() -> str:
     """The names of the symbols as the English catalogue's messages: `symbol.<table>.<code in hex>`
     for each code "!" to "~" of the primary and of the alternate table, and `symbol.unknown` for
     none."""
-    rows = [f'  "symbol.{table}.{ord("!") + index:02x}": {json.dumps(name)},\n' for table in ("primary", "alternate") for index, name in enumerate(SYMBOL_NAMES[table])]
-    return ("// The names of the APRS symbols, written from the daemon's own list (SYMBOL_NAMES of neoaprs/symbols.py) by scripts/gen-protocol.py: never edited by hand. The id is the table and the code of the symbol in hex\n"
-            "// (`symbol.primary.3e` is the car of `/>`); an overlay table is the alternate one. Another language translates them in its own catalogue; the page falls back to these.\n"
-            "export const symbols = {\n" + "".join(rows) + '  "symbol.unknown": "unknown",\n} as const;\n')
+    rows = [
+        f'  "symbol.{table}.{ord("!") + index:02x}": {json.dumps(name)},\n'
+        for table in ("primary", "alternate")
+        for index, name in enumerate(SYMBOL_NAMES[table])
+    ]
+    return (
+        "// The names of the APRS symbols, written from the daemon's own list (SYMBOL_NAMES of neoaprs/symbols.py) by scripts/gen-protocol.py: never edited by hand. The id is the table and the code of the symbol in hex\n"
+        "// (`symbol.primary.3e` is the car of `/>`); an overlay table is the alternate one. Another language translates them in its own catalogue; the page falls back to these.\n"
+        "export const symbols = {\n" + "".join(rows) + '  "symbol.unknown": "unknown",\n} as const;\n'
+    )
 
 
 def _path_text_max() -> int:
@@ -290,40 +381,113 @@ def _whole(seconds: int, unit_sec: int, what: str) -> int:
     (neoaprs/decay.py) then needs the page's text in another unit, and cannot leave it untrue."""
     count, rest = divmod(seconds, unit_sec)
     if rest or count < 1:
-        raise ValueError(f"{what} is {seconds} s, no whole number of {unit_sec} s: word the choice of the Bulletins form (ui/src/lib/bulletins.ts) in a unit that fits")
+        raise ValueError(
+            f"{what} is {seconds} s, no whole number of {unit_sec} s: word the choice of the Bulletins form (ui/src/lib/bulletins.ts) in a unit that fits"
+        )
     return count
 
 
 def limits() -> dict[str, Any]:
     """Every number the page checks a value against, by area: the daemon's own constants, so that
     the page types none of them again."""
-    ranges = {**{key: {"min": low, "max": high} for key, (low, high) in RANGES.items()}, "station/lat": {"min": LATITUDE[0], "max": LATITUDE[1]}, "station/lon": {"min": LONGITUDE[0], "max": LONGITUDE[1]}}
+    ranges = {
+        **{key: {"min": low, "max": high} for key, (low, high) in RANGES.items()},
+        "station/lat": {"min": LATITUDE[0], "max": LATITUDE[1]},
+        "station/lon": {"min": LONGITUDE[0], "max": LONGITUDE[1]},
+    }
     return {
         "range": ranges,
         "comment": {"max": MAX_COMMENT, "maxWithPhg": MAX_COMMENT_PHG},
         "status": {"max": MAX_STATUS, "widest": dict(zip(STATUS_FIELDS, (LONGEST_FREQ, LONGEST_MODE), strict=True))},
-        "interval": {"beaconMinMin": MIN_BEACON_INTERVAL_MIN, "statusMinMin": MIN_STATUS_INTERVAL_MIN, "hfBeaconMinMin": HF_BEACON_MIN_MIN},
+        "interval": {
+            "beaconMinMin": MIN_BEACON_INTERVAL_MIN,
+            "statusMinMin": MIN_STATUS_INTERVAL_MIN,
+            "hfBeaconMinMin": HF_BEACON_MIN_MIN,
+        },
         "message": {"textMax": MAX_TEXT, "forbidden": FORBIDDEN, "gateway": EMAIL_GATEWAY, "lockedMax": MAX_LOCKED},
-        "call": {"baseMax": BASE_MAX, "amateurBaseMin": AMATEUR_BASE_MIN, "maxSsid": MAX_SSID, "placeholders": sorted(PLACEHOLDER_CALLS)},
-        "path": {"maxCalls": MAX_PATH, "direct": DIRECT_ONLY, "rfOnly": RF_ONLY, "textMax": _path_text_max(), "recommendedMobile": WIDE_PATH, "recommendedFixed": FIXED_PATH},
+        "call": {
+            "baseMax": BASE_MAX,
+            "amateurBaseMin": AMATEUR_BASE_MIN,
+            "maxSsid": MAX_SSID,
+            "placeholders": sorted(PLACEHOLDER_CALLS),
+        },
+        "path": {
+            "maxCalls": MAX_PATH,
+            "direct": DIRECT_ONLY,
+            "rfOnly": RF_ONLY,
+            "textMax": _path_text_max(),
+            "recommendedMobile": WIDE_PATH,
+            "recommendedFixed": FIXED_PATH,
+        },
         "alert": {"kmMin": ALERT_KM_MIN, "kmMax": ALERT_KM_MAX},
         "history": {"maxHours": HISTORY_MAX_HOURS},
-        "object": {"nameMax": OBJECT_NAME[1], "itemNameMin": ITEM_NAME[0], "nameForbidden": NAME_FORBIDDEN, "commentMax": COMMENT_MAX, "commentMaxMotion": COMMENT_MAX_MOTION,
-                   "courseMax": COURSE_MAX, "speedMaxKmh": round(SPEED_MAX_KMH), "qruGroupMax": QRU_GROUP_MAX, "qruReserved": list(QRU_RESERVED)},
-        "bulletin": {"groupMax": GROUP_MAX, "repeatHours": _whole(BULLETIN.lasts, 3600, "how long a bulletin is repeated"),
-                     "announcementRepeatDays": _whole(ANNOUNCEMENT.lasts, 86400, "how long an announcement is repeated")},
+        "object": {
+            "nameMax": OBJECT_NAME[1],
+            "itemNameMin": ITEM_NAME[0],
+            "nameForbidden": NAME_FORBIDDEN,
+            "commentMax": COMMENT_MAX,
+            "commentMaxMotion": COMMENT_MAX_MOTION,
+            "courseMax": COURSE_MAX,
+            "speedMaxKmh": round(SPEED_MAX_KMH),
+            "qruGroupMax": QRU_GROUP_MAX,
+            "qruReserved": list(QRU_RESERVED),
+        },
+        "bulletin": {
+            "groupMax": GROUP_MAX,
+            "repeatHours": _whole(BULLETIN.lasts, 3600, "how long a bulletin is repeated"),
+            "announcementRepeatDays": _whole(ANNOUNCEMENT.lasts, 86400, "how long an announcement is repeated"),
+        },
         "qru": {"kmMax": ASK_KM_MAX, "askEverySec": ASK_EVERY_SEC, "askGapSec": ASK_GAP_SEC},
-        "general": {"askEverySec": generalask.ASK_EVERY_SEC, "countSec": round(generalask.COUNT_FOR.total_seconds()), "quietMin": round(generalask.QUIET_BEFORE.total_seconds() / 60), "queries": dict(generalask.QUERIES)},
+        "general": {
+            "askEverySec": generalask.ASK_EVERY_SEC,
+            "countSec": round(generalask.COUNT_FOR.total_seconds()),
+            "quietMin": round(generalask.QUIET_BEFORE.total_seconds() / 60),
+            "queries": dict(generalask.QUERIES),
+        },
         "station": {"hours": list(STATION_HOURS), "defaultHours": DEFAULT_STATION_HOURS},
         "replay": {"days": list(SPAN_DAYS), "glideMaxMin": GLIDE_MAX_MIN},
-        "scope": {"loHz": mercuryscope.SCOPE_LO_HZ, "hiHz": mercuryscope.SCOPE_HI_HZ, "signalLoHz": mercuryscope.SIGNAL_LO_HZ, "signalHiHz": mercuryscope.SIGNAL_HI_HZ,
-                  "rowBins": mercuryscope.ROW_BINS, "rowFirstBin": mercuryscope.ROW_FIRST_BIN, "rowSpectra": mercuryscope.ROW_SPECTRA, "rowOffsetDb": mercuryscope.ROW_OFFSET_DB, "rowStepDb": mercuryscope.ROW_STEP_DB,
-                  "modemBins": mercuryscope.MODEM_BINS, "modemRate": mercuryscope.MODEM_RATE, "levelMinDbfs": mercuryscope.LEVEL_MIN_DBFS, "levelMaxDbfs": mercuryscope.LEVEL_MAX_DBFS, "levelGoodDbfs": list(mercuryscope.LEVEL_GOOD_DBFS), "peakClipDbfs": mercuryscope.PEAK_CLIP_DBFS,
-                  "historySec": mercuryscope.HISTORY_SEC},
+        "scope": {
+            "loHz": mercuryscope.SCOPE_LO_HZ,
+            "hiHz": mercuryscope.SCOPE_HI_HZ,
+            "signalLoHz": mercuryscope.SIGNAL_LO_HZ,
+            "signalHiHz": mercuryscope.SIGNAL_HI_HZ,
+            "rowBins": mercuryscope.ROW_BINS,
+            "rowFirstBin": mercuryscope.ROW_FIRST_BIN,
+            "rowSpectra": mercuryscope.ROW_SPECTRA,
+            "rowOffsetDb": mercuryscope.ROW_OFFSET_DB,
+            "rowStepDb": mercuryscope.ROW_STEP_DB,
+            "modemBins": mercuryscope.MODEM_BINS,
+            "modemRate": mercuryscope.MODEM_RATE,
+            "levelMinDbfs": mercuryscope.LEVEL_MIN_DBFS,
+            "levelMaxDbfs": mercuryscope.LEVEL_MAX_DBFS,
+            "levelGoodDbfs": list(mercuryscope.LEVEL_GOOD_DBFS),
+            "peakClipDbfs": mercuryscope.PEAK_CLIP_DBFS,
+            "historySec": mercuryscope.HISTORY_SEC,
+        },
         "radio": {"nameMax": MAX_NAME, "frequenciesMax": MAX_FREQUENCIES},
-        "mercury": {"version": mercury.VERSION, "mode": mercury.MODE, "maxFrame": mercury.MAX_PAYLOAD, "frameSec": mercury.FRAME_SEC, "pttKinds": list(mercury.PTT_KINDS), "frequencies": [[band, dial] for band, dial in mercury.FREQUENCIES]},
-        "soundCard": {"version": direwolf.VERSION, "levelMax": direwolf.LEVEL_MAX, "levelLow": direwolf.LEVEL_LOW, "levelHigh": direwolf.LEVEL_HIGH, "levelGood": list(direwolf.LEVEL_GOOD), "txGainMinDb": direwolf.TX_GAIN_MIN_DB, "txGainMaxDb": direwolf.TX_GAIN_MAX_DB},
-        "layers": {"aircraftReceiverAgeSec": layerthing.AIRCRAFT_RECEIVER_AGE_SEC, "aircraftServiceAgeSec": layerthing.AIRCRAFT_SERVICE_AGE_SEC, "shipsAgeSec": layerthing.SHIPS_AGE_SEC, "aisPort": layerthing.AIS_PORT},
+        "mercury": {
+            "version": mercury.VERSION,
+            "mode": mercury.MODE,
+            "maxFrame": mercury.MAX_PAYLOAD,
+            "frameSec": mercury.FRAME_SEC,
+            "pttKinds": list(mercury.PTT_KINDS),
+            "frequencies": [[band, dial] for band, dial in mercury.FREQUENCIES],
+        },
+        "soundCard": {
+            "version": direwolf.VERSION,
+            "levelMax": direwolf.LEVEL_MAX,
+            "levelLow": direwolf.LEVEL_LOW,
+            "levelHigh": direwolf.LEVEL_HIGH,
+            "levelGood": list(direwolf.LEVEL_GOOD),
+            "txGainMinDb": direwolf.TX_GAIN_MIN_DB,
+            "txGainMaxDb": direwolf.TX_GAIN_MAX_DB,
+        },
+        "layers": {
+            "aircraftReceiverAgeSec": layerthing.AIRCRAFT_RECEIVER_AGE_SEC,
+            "aircraftServiceAgeSec": layerthing.AIRCRAFT_SERVICE_AGE_SEC,
+            "shipsAgeSec": layerthing.SHIPS_AGE_SEC,
+            "aisPort": layerthing.AIS_PORT,
+        },
     }
 
 
@@ -336,29 +500,69 @@ def _object(value: Any, indent: int = 0) -> str:
         return json.dumps(value)
     # a dict of plain values, such as a range, is one line
     if value and not any(isinstance(item, dict) for item in value.values()):
-        return "{ " + ", ".join(f"{key if _IDENTIFIER.fullmatch(key) else json.dumps(key)}: {json.dumps(item)}" for key, item in value.items()) + " }"
+        return (
+            "{ "
+            + ", ".join(
+                f"{key if _IDENTIFIER.fullmatch(key) else json.dumps(key)}: {json.dumps(item)}"
+                for key, item in value.items()
+            )
+            + " }"
+        )
     pad = "  " * (indent + 1)
-    rows = (f"{pad}{key if _IDENTIFIER.fullmatch(key) else json.dumps(key)}: {_object(item, indent + 1)},\n" for key, item in value.items())
+    rows = (
+        f"{pad}{key if _IDENTIFIER.fullmatch(key) else json.dumps(key)}: {_object(item, indent + 1)},\n"
+        for key, item in value.items()
+    )
     return "{\n" + "".join(rows) + "  " * indent + "}"
 
 
 def _limits_block() -> str:
-    return ("/** Every number the page checks a value against, by area, from the daemon's own constants (the ranges of the settings by key: RANGES of neoaprs/config.py; the comment, status and message "
-            "lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map, the longer spans of the map's replay, how old a thing of a layer of traffic may be). */\n"
-            f"export const LIMITS = {_object(limits())} as const;\n")
+    return (
+        "/** Every number the page checks a value against, by area, from the daemon's own constants (the ranges of the settings by key: RANGES of neoaprs/config.py; the comment, status and message "
+        "lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map, the longer spans of the map's replay, how old a thing of a layer of traffic may be). */\n"
+        f"export const LIMITS = {_object(limits())} as const;\n"
+    )
 
 
 def lists_text() -> str:
     """The daemon's lists as TypeScript constants: the page reads them instead of keeping a second
     copy."""
     blocks = [
-        _number("PROTOCOL", PROTOCOL, "The version of the messages (PROTOCOL of neoaprs/web/hubwire.py): a `hello` of another number means the page is out of date."),
-        _array("TOPIC_NAMES", protocol.TOPIC_NAMES, "The topics of the hub, in the order the daemon tells them (TopicValues of neoaprs/web/protocol.py)."),
-        _array("MESSAGE_TYPES", sorted(protocol.MESSAGE_NAMES), "Every message the daemon sends (the `type` of the Message union)."),
-        _array("CONFIG_KEYS", CONFIG_KEYS, "The keys of the settings, in the order of the settings form (CONFIG_KEYS of neoaprs/web/views.py): the keys of `config.values`."),
-        _array("RADIO_STATION_KEYS", RADIO_STATION_KEYS, "The station's settings of the radios (RADIO_STATION_KEYS of neoaprs/config.py), which `config.radio_values` carries beside the radios' own `radio/<id>/<key>`."),
-        _array("AIRCRAFT_SOURCES", layerthing.AIRCRAFT_SOURCES, "Where the map's aircraft may come from, the list of Settings, Map in its order (AIRCRAFT_SOURCES of neoaprs/layerthing.py): `map.layers` says which a station is offered."),
-        _array("SHIP_SOURCES", layerthing.SHIP_SOURCES, "Where the map's ships may come from (SHIP_SOURCES of neoaprs/layerthing.py); `fintraffic` is offered only where the map's circle reaches its waters (`map.layers`)."),
+        _number(
+            "PROTOCOL",
+            PROTOCOL,
+            "The version of the messages (PROTOCOL of neoaprs/web/hubwire.py): a `hello` of another number means the page is out of date.",
+        ),
+        _array(
+            "TOPIC_NAMES",
+            protocol.TOPIC_NAMES,
+            "The topics of the hub, in the order the daemon tells them (TopicValues of neoaprs/web/protocol.py).",
+        ),
+        _array(
+            "MESSAGE_TYPES",
+            sorted(protocol.MESSAGE_NAMES),
+            "Every message the daemon sends (the `type` of the Message union).",
+        ),
+        _array(
+            "CONFIG_KEYS",
+            CONFIG_KEYS,
+            "The keys of the settings, in the order of the settings form (CONFIG_KEYS of neoaprs/web/views.py): the keys of `config.values`.",
+        ),
+        _array(
+            "RADIO_STATION_KEYS",
+            RADIO_STATION_KEYS,
+            "The station's settings of the radios (RADIO_STATION_KEYS of neoaprs/config.py), which `config.radio_values` carries beside the radios' own `radio/<id>/<key>`.",
+        ),
+        _array(
+            "AIRCRAFT_SOURCES",
+            layerthing.AIRCRAFT_SOURCES,
+            "Where the map's aircraft may come from, the list of Settings, Map in its order (AIRCRAFT_SOURCES of neoaprs/layerthing.py): `map.layers` says which a station is offered.",
+        ),
+        _array(
+            "SHIP_SOURCES",
+            layerthing.SHIP_SOURCES,
+            "Where the map's ships may come from (SHIP_SOURCES of neoaprs/layerthing.py); `fintraffic` is offered only where the map's circle reaches its waters (`map.layers`).",
+        ),
         _profiles(),
         _radio_types(),
         _symbol_names(),
@@ -371,6 +575,7 @@ def lists_text() -> str:
 
 
 # ---- PROTOCOL.md
+
 
 def binary_text() -> str:
     """The section on the binary frames, with the numbers of the daemon's module."""
@@ -420,7 +625,6 @@ the kind and the radio's id, then a frame of one of the two kinds above, whole (
 | {scopefeed.RADIO_HEADER.size} | the rest | frame | a row (kind `{m.ROW_KIND}`) or the rows kept (kind `{m.HISTORY_KIND}`), byte for byte as above |
 
 """
-
 
 
 PROSE = """# The protocol between the daemon and the page
@@ -588,7 +792,9 @@ def _fields(model: dict[str, Any], names: dict[str, str], tag: str) -> list[str]
         desc = (s.get("description") or "").replace("|", "\\|").replace("\n", " ")
         if note:
             desc = (desc + " " if desc else "") + "(" + "; ".join(note) + ")"
-        rows.append(f"| `{name}` | {_type(s, names).replace('|', '\\|')} | {'' if name in required else 'optional'} | {desc} |")
+        rows.append(
+            f"| `{name}` | {_type(s, names).replace('|', '\\|')} | {'' if name in required else 'optional'} | {desc} |"
+        )
     return rows
 
 
@@ -601,28 +807,47 @@ def doc_text() -> str:
     # every model the schema reaches that is not a command, a message or the topic values: the
     # curated order first, a model it does not name after it, by name
     reached = [name for name in defs if name not in cmd_defs and name not in msg_defs and name != "TopicValues"]
-    objects = [name for name in OBJECT_ORDER if name in reached] + sorted(name for name in reached if name not in OBJECT_ORDER)
+    objects = [name for name in OBJECT_ORDER if name in reached] + sorted(
+        name for name in reached if name not in OBJECT_ORDER
+    )
     out = [PROSE.replace("@@BINARY@@", binary_text()).rstrip("\n"), ""]
 
-    out += ["## Client to server", "",
-            f"{len(cmd_defs)} commands, each a JSON object with `\"cmd\"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.", ""]
+    out += [
+        "## Client to server",
+        "",
+        f'{len(cmd_defs)} commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.',
+        "",
+    ]
     for name in cmd_defs:
         d = defs[name]
         tag = d["properties"]["cmd"]["const"]
         out += [f"### `{tag}`", "", d.get("description", "").strip(), ""]
         if len(d["properties"]) > 1:
             out += _fields(d, names, "cmd") + [""]
-    out += ["## Server to client", "",
-            f"{len(msg_defs)} messages, each a JSON object with `\"type\"`. The first is `hello`. Where a field is `X | null` it is always present, with null.", ""]
+    out += [
+        "## Server to client",
+        "",
+        f'{len(msg_defs)} messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.',
+        "",
+    ]
     for name in msg_defs:
         d = defs[name]
         tag = d["properties"]["type"]["const"]
         out += [f"### `{tag}`", "", d.get("description", "").strip(), ""]
         if len(d["properties"]) > 1:
             out += _fields(d, names, "type") + [""]
-    out += ["## Topics", "", "The value of each topic (`state` carries it, a `replace` op brings a new one).", "", "| topic | value | |", "|---|---|---|"]
+    out += [
+        "## Topics",
+        "",
+        "The value of each topic (`state` carries it, a `replace` op brings a new one).",
+        "",
+        "| topic | value | |",
+        "|---|---|---|",
+    ]
     for name, field in defs["TopicValues"]["properties"].items():
-        out.append(f"| `{name}` | {_type(field, names).replace('|', '\\|')} | {(field.get('description') or '').replace('|', '\\|')} |")
+        out.append(
+            f"| `{name}` | {_type(field, names).replace('|', '\\|')} | {(field.get('description') or '').replace('|', '\\|')} |"
+        )
     out += ["", "## Objects", "", "The objects the commands and the messages are made of.", ""]
     for name in objects:
         d = defs[name]
@@ -633,39 +858,368 @@ def doc_text() -> str:
 
 # ---- vectors.json: the rules that are code, with the results Python gives
 
-CALLS = ["OH2GBA", "oh2gba", " oh2gba ", "OH2GBA-7", "OH2GBA-15", "OH2GBA-16", "OH2GBA-0", "OH2GBA-00", "OH2GBA-07", "OH2GBA-007", "OH2GBA-", "-7", "", "  ", "N0CALL", "n0call-5", "NOCALL", "MYCALL",
-         "AB", "A1", "A1B", "ABC", "123", "1234", "OH2GBAA", "OH2G BA", "OH2GBA/P", "OH2GB\u00c4", "\u00df1A", "W1AW", "K1", "KB1ABC-9", "EMAIL-2", "WIDE1-1", "APZNEO", "TCPIP", "a-b", "OH 2GBA"]
-PATHS = ["", " ", "WIDE1-1,WIDE2-1", "wide1-1, wide2-1", "WIDE2-2", ",", "WIDE1-1,", ",WIDE1-1", "WIDE1-1,,WIDE2-1", "OH2RCH-0", "A,B,C,D,E,F,G,H", "A,B,C,D,E,F,G,H,I", "TOOLONGCALL", "OH2RCH-16", "WIDE1-1,N0CALL"]
+CALLS = [
+    "OH2GBA",
+    "oh2gba",
+    " oh2gba ",
+    "OH2GBA-7",
+    "OH2GBA-15",
+    "OH2GBA-16",
+    "OH2GBA-0",
+    "OH2GBA-00",
+    "OH2GBA-07",
+    "OH2GBA-007",
+    "OH2GBA-",
+    "-7",
+    "",
+    "  ",
+    "N0CALL",
+    "n0call-5",
+    "NOCALL",
+    "MYCALL",
+    "AB",
+    "A1",
+    "A1B",
+    "ABC",
+    "123",
+    "1234",
+    "OH2GBAA",
+    "OH2G BA",
+    "OH2GBA/P",
+    "OH2GB\u00c4",
+    "\u00df1A",
+    "W1AW",
+    "K1",
+    "KB1ABC-9",
+    "EMAIL-2",
+    "WIDE1-1",
+    "APZNEO",
+    "TCPIP",
+    "a-b",
+    "OH 2GBA",
+]
+PATHS = [
+    "",
+    " ",
+    "WIDE1-1,WIDE2-1",
+    "wide1-1, wide2-1",
+    "WIDE2-2",
+    ",",
+    "WIDE1-1,",
+    ",WIDE1-1",
+    "WIDE1-1,,WIDE2-1",
+    "OH2RCH-0",
+    "A,B,C,D,E,F,G,H",
+    "A,B,C,D,E,F,G,H,I",
+    "TOOLONGCALL",
+    "OH2RCH-16",
+    "WIDE1-1,N0CALL",
+]
 MESSAGE_TEXTS = ["Hello", " Hello ", "", "   ", "x" * 67, "x" * 68, " " + "x" * 66 + " "]
-BULLETIN_TEXTS = ["Snow expected", "", "   ", " padded ", "x" * 67, "x" * 68, "with | bar", "with ~ tilde", "with { brace", "tab\there", "\u00e5\u00e4\u00f6", "emoji \U0001f600", "a:b"]
-BULLETIN_SLOTS = [("bulletin", i, "") for i in "0189AZ"] + [("announcement", i, "") for i in "09AZ"] + [("group", i, g) for i in "09A" for g in ("", "HAMS", "HAMS1", "HAMS12", "HA-MS", "ha ms", "ham", "H")]
-OBJECT_NAMES = [("object", n) for n in ("A", "OH2GBA", "NINECHARS", "TENCHARS12", "", " X", "X ", "A B", "has!bang", "has_under", "has|bar", "has~tilde", "caf\u00e9", "lower", "UPPER 1")] + \
-    [("item", n) for n in ("AB", "ABC", "NINECHARS", "TENCHARS12", "", "A_B", "A!")]
-QRU_GROUPS = ["", "  ", "RP70", "rp70", " rp70 ", "LIFEBOAT", "LIFEBOATS", "R P", "RP-70", "INFO", "info", "NEXT", "T2SRV", "A", "0", "\u00c5\u00c4", "RP70!"]
-OBJECT_COMMENTS = [("", False), ("x" * 43, False), ("x" * 44, False), ("x" * 36, True), ("x" * 37, True), ("x" * 43, True), ("with | bar", False), ("with ~ tilde", False), ("caf\u00e9", False), ("tab\there", False), (" padded ", False)]
-SETTING_VALUES = [(key, text) for key in ("station/lat", "station/lon") for text in ("0", "60.17", "-90", "90", "-180", "180", "90.0001", "-90.1", "180.5", "", " 45 ", "abc")] + \
-    [(key, text) for key in ("serial/baud", "tcp/port", "beacon/power_w", "beacon/antenna_height_m", "beacon/antenna_gain_db", "map/radius_km")
-     for text in ("", "0", "1", "9", "10", "299", "300", "1000", "1001", "9999", "10000", "65535", "65536", "921600", "921601", "-1", "1.5", "abc", " 5 ")]
-PHG_CASES = [(p, h, 3, "NE") for p in (0, 1, 2, 5, 25, 81, 100, 9999) for h in (0, 1, 3, 3.048, 4, 10, 20, 100, 9999)] + [(5, 10, g, d) for g in (0, 3, 9, 10, -1) for d in ANTENNA_DIRECTIONS]
-POSITIONS = [(60.17, 24.94), (0.0, 0.0), (-33.8688, 151.2093), (90.0, 180.0), (-90.0, -180.0), (59.999999, 24.999999), (0.03125, 0.09375), (60.169999, -24.940001), (-0.00001, -0.00001), (0.0083333, 100.0)]
-STATUS_TEMPLATES = ["QRV {freq} {mode}", "", "{freq}", "{mode}", "{freq}{freq}{freq}{freq}", "{freq}{freq}{freq}{freq}x", "{fre", "{freq", "{{freq}}", "{FREQ} {mode}", "QRV {freq} " + "x" * 38,
-                    "QRV {freq} " + "x" * 39, "x" * 55, "x" * 56]
-BEACON_BASE = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS",
-               "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0", "beacon/antenna_direction": "omni", "beacon/path": "WIDE1-1,WIDE2-1"}
-STATION_NAMES = ["WINLINK", "OH2XYZ-L", "OH2XYZ-20", "oh2xyz-l", " winlink ", "OH2GBA", "OH2GBA-0", "OH2GBA-15", "OH2GBA-00", "OH2GBA-007", "ABCDEFGHI", "ABCDEFGHIJ", "A", "A-", "-A", "A-B-C", "1", "9-9",
-                 "", "  ", "OH2 XYZ", "OH2XYZ/P", "OH2XYZ_L", "OH2XY*", "EMAIL-2", "\u00c5\u00c4", "\u00df1A", "OH2GB\u00c4", "TCPIP"]
-ROUTE_ELEMENTS = ["WIDE1-1", "WIDE2-2", "WIDE", "WIDE1", "WIDE3-3", "WIDE12-1", "WIDE-1", "WIDE1-100", "wide1-1", "TRACE3-3", "TRACE", "RELAY", "ECHO", "GATE", "TEMP2-2", "TRACK", "SAR", "SAR1-1", "WIDER", "ARISS", "ARISS-1", "APRSAT", "SS3-3", "FI2-2", "HOP7-7", "HOP7", "AB1", "ABCD3-3", "S3-3", "OH2", "OH2-1", "RELAY*", "OH2RCH", "OH2RCH-2",
-                  "WIDE1-1*", "TCPIP", "TCPIP*", "TCPXX", "NOGATE", "RFONLY", "NOTCP", "qAR", "qAO", "qAC", "qA", "q", "qB", "Qar", "NOGATE*", "XTCPIP", "RFONLYX", ""]
-VERSION_PAIRS = [("0.10.0", "0.9.0"), ("0.9.0", "0.10.0"), ("1.0", "1.0.0"), ("1.0.0", "1.0"), ("1.0.0-rc1", "1.0.0"), ("1.0.0", "1.0.0-rc1"), ("1.0.0-rc1", "1.0.0-rc2"), ("1.0.0-RC1", "1.0.0-rc1"), ("1.0.0-rc.2", "1.0.0-rc.10"),
-                 ("1.0.0-alpha", "1.0.0-beta"), ("1.0.0-beta", "1.0.0-alpha"), ("0.14.0", "0.14.0"), ("0.14.1", "0.14.0"), ("0.14.0", "0.14.0.1"), ("1.2.3.4", "1.2.3.5"), ("2", "1.9.9"), ("0.10.0-dev4", "0.10.0"),
-                 (" 1.0.0 ", "1.0.0"), ("1.0.0+build5", "1.0.0"), ("1.0.0", "1.0.0+build5"), ("1.0.0-rc1", "1.0.0-c1"), ("01.0.0", "1.0.0"), ("1.0.0-9", "1.0.0-10"), ("1.0.0-a", "1.0.0-9"), ("0.20.0-rc2", "0.20.0-rc10"), ("0.20.0-rc10", "0.20.0-rc2")]
-BEACONS = [{}, {"beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "beacon/antenna_direction": "NE", "station/comment": "Home"}, {"station/comment": ""}, {"station/call": "oh2gba-7"},
-           {"station/call": ""}, {"station/lat": ""}, {"station/lat": "91"}, {"station/lon": "181"},
-           {"station/symbol_table": "Z", "station/symbol_code": "~"}, {"station/symbol_table": "a"}, {"station/symbol_code": " "}, {"beacon/path": ""}, {"beacon/path": "", "station/symbol_code": ">"}, {"beacon/path": "", "station/symbol_table": "\\", "station/symbol_code": "s"},
-           {"beacon/path": "", "station/symbol_table": "E", "station/symbol_code": ">"}, {"beacon/path": "", "station/symbol_table": "\\", "station/symbol_code": "#"}, {"beacon/path": "", "station/symbol_code": "b"},
-           {"beacon/path": "", "station/symbol_code": "_"}, {"beacon/path": "", "station/symbol_table": "2", "station/symbol_code": "k"}, {"beacon/path": "DIRECT"}, {"beacon/path": "WIDE2-2"}, {"beacon/path": "BAD CALL"},
-           {"station/lat": "0.03125", "station/lon": "0.09375"}, {"station/lat": "-0.00001", "station/lon": "-0.00001"}, {"beacon/power_w": "100", "beacon/antenna_height_m": "9999", "beacon/antenna_gain_db": "9",
-            "beacon/antenna_direction": "N", "station/comment": "x" * 36}]
+BULLETIN_TEXTS = [
+    "Snow expected",
+    "",
+    "   ",
+    " padded ",
+    "x" * 67,
+    "x" * 68,
+    "with | bar",
+    "with ~ tilde",
+    "with { brace",
+    "tab\there",
+    "\u00e5\u00e4\u00f6",
+    "emoji \U0001f600",
+    "a:b",
+]
+BULLETIN_SLOTS = (
+    [("bulletin", i, "") for i in "0189AZ"]
+    + [("announcement", i, "") for i in "09AZ"]
+    + [("group", i, g) for i in "09A" for g in ("", "HAMS", "HAMS1", "HAMS12", "HA-MS", "ha ms", "ham", "H")]
+)
+OBJECT_NAMES = [
+    ("object", n)
+    for n in (
+        "A",
+        "OH2GBA",
+        "NINECHARS",
+        "TENCHARS12",
+        "",
+        " X",
+        "X ",
+        "A B",
+        "has!bang",
+        "has_under",
+        "has|bar",
+        "has~tilde",
+        "caf\u00e9",
+        "lower",
+        "UPPER 1",
+    )
+] + [("item", n) for n in ("AB", "ABC", "NINECHARS", "TENCHARS12", "", "A_B", "A!")]
+QRU_GROUPS = [
+    "",
+    "  ",
+    "RP70",
+    "rp70",
+    " rp70 ",
+    "LIFEBOAT",
+    "LIFEBOATS",
+    "R P",
+    "RP-70",
+    "INFO",
+    "info",
+    "NEXT",
+    "T2SRV",
+    "A",
+    "0",
+    "\u00c5\u00c4",
+    "RP70!",
+]
+OBJECT_COMMENTS = [
+    ("", False),
+    ("x" * 43, False),
+    ("x" * 44, False),
+    ("x" * 36, True),
+    ("x" * 37, True),
+    ("x" * 43, True),
+    ("with | bar", False),
+    ("with ~ tilde", False),
+    ("caf\u00e9", False),
+    ("tab\there", False),
+    (" padded ", False),
+]
+SETTING_VALUES = [
+    (key, text)
+    for key in ("station/lat", "station/lon")
+    for text in ("0", "60.17", "-90", "90", "-180", "180", "90.0001", "-90.1", "180.5", "", " 45 ", "abc")
+] + [
+    (key, text)
+    for key in (
+        "serial/baud",
+        "tcp/port",
+        "beacon/power_w",
+        "beacon/antenna_height_m",
+        "beacon/antenna_gain_db",
+        "map/radius_km",
+    )
+    for text in (
+        "",
+        "0",
+        "1",
+        "9",
+        "10",
+        "299",
+        "300",
+        "1000",
+        "1001",
+        "9999",
+        "10000",
+        "65535",
+        "65536",
+        "921600",
+        "921601",
+        "-1",
+        "1.5",
+        "abc",
+        " 5 ",
+    )
+]
+PHG_CASES = [
+    (p, h, 3, "NE") for p in (0, 1, 2, 5, 25, 81, 100, 9999) for h in (0, 1, 3, 3.048, 4, 10, 20, 100, 9999)
+] + [(5, 10, g, d) for g in (0, 3, 9, 10, -1) for d in ANTENNA_DIRECTIONS]
+POSITIONS = [
+    (60.17, 24.94),
+    (0.0, 0.0),
+    (-33.8688, 151.2093),
+    (90.0, 180.0),
+    (-90.0, -180.0),
+    (59.999999, 24.999999),
+    (0.03125, 0.09375),
+    (60.169999, -24.940001),
+    (-0.00001, -0.00001),
+    (0.0083333, 100.0),
+]
+STATUS_TEMPLATES = [
+    "QRV {freq} {mode}",
+    "",
+    "{freq}",
+    "{mode}",
+    "{freq}{freq}{freq}{freq}",
+    "{freq}{freq}{freq}{freq}x",
+    "{fre",
+    "{freq",
+    "{{freq}}",
+    "{FREQ} {mode}",
+    "QRV {freq} " + "x" * 38,
+    "QRV {freq} " + "x" * 39,
+    "x" * 55,
+    "x" * 56,
+]
+BEACON_BASE = {
+    "station/call": "OH2GBA",
+    "station/lat": "60.17",
+    "station/lon": "24.94",
+    "station/symbol_table": "/",
+    "station/symbol_code": "-",
+    "station/comment": "NeoAPRS",
+    "beacon/power_w": "",
+    "beacon/antenna_height_m": "0",
+    "beacon/antenna_gain_db": "0",
+    "beacon/antenna_direction": "omni",
+    "beacon/path": "WIDE1-1,WIDE2-1",
+}
+STATION_NAMES = [
+    "WINLINK",
+    "OH2XYZ-L",
+    "OH2XYZ-20",
+    "oh2xyz-l",
+    " winlink ",
+    "OH2GBA",
+    "OH2GBA-0",
+    "OH2GBA-15",
+    "OH2GBA-00",
+    "OH2GBA-007",
+    "ABCDEFGHI",
+    "ABCDEFGHIJ",
+    "A",
+    "A-",
+    "-A",
+    "A-B-C",
+    "1",
+    "9-9",
+    "",
+    "  ",
+    "OH2 XYZ",
+    "OH2XYZ/P",
+    "OH2XYZ_L",
+    "OH2XY*",
+    "EMAIL-2",
+    "\u00c5\u00c4",
+    "\u00df1A",
+    "OH2GB\u00c4",
+    "TCPIP",
+]
+ROUTE_ELEMENTS = [
+    "WIDE1-1",
+    "WIDE2-2",
+    "WIDE",
+    "WIDE1",
+    "WIDE3-3",
+    "WIDE12-1",
+    "WIDE-1",
+    "WIDE1-100",
+    "wide1-1",
+    "TRACE3-3",
+    "TRACE",
+    "RELAY",
+    "ECHO",
+    "GATE",
+    "TEMP2-2",
+    "TRACK",
+    "SAR",
+    "SAR1-1",
+    "WIDER",
+    "ARISS",
+    "ARISS-1",
+    "APRSAT",
+    "SS3-3",
+    "FI2-2",
+    "HOP7-7",
+    "HOP7",
+    "AB1",
+    "ABCD3-3",
+    "S3-3",
+    "OH2",
+    "OH2-1",
+    "RELAY*",
+    "OH2RCH",
+    "OH2RCH-2",
+    "WIDE1-1*",
+    "TCPIP",
+    "TCPIP*",
+    "TCPXX",
+    "NOGATE",
+    "RFONLY",
+    "NOTCP",
+    "qAR",
+    "qAO",
+    "qAC",
+    "qA",
+    "q",
+    "qB",
+    "Qar",
+    "NOGATE*",
+    "XTCPIP",
+    "RFONLYX",
+    "",
+]
+VERSION_PAIRS = [
+    ("0.10.0", "0.9.0"),
+    ("0.9.0", "0.10.0"),
+    ("1.0", "1.0.0"),
+    ("1.0.0", "1.0"),
+    ("1.0.0-rc1", "1.0.0"),
+    ("1.0.0", "1.0.0-rc1"),
+    ("1.0.0-rc1", "1.0.0-rc2"),
+    ("1.0.0-RC1", "1.0.0-rc1"),
+    ("1.0.0-rc.2", "1.0.0-rc.10"),
+    ("1.0.0-alpha", "1.0.0-beta"),
+    ("1.0.0-beta", "1.0.0-alpha"),
+    ("0.14.0", "0.14.0"),
+    ("0.14.1", "0.14.0"),
+    ("0.14.0", "0.14.0.1"),
+    ("1.2.3.4", "1.2.3.5"),
+    ("2", "1.9.9"),
+    ("0.10.0-dev4", "0.10.0"),
+    (" 1.0.0 ", "1.0.0"),
+    ("1.0.0+build5", "1.0.0"),
+    ("1.0.0", "1.0.0+build5"),
+    ("1.0.0-rc1", "1.0.0-c1"),
+    ("01.0.0", "1.0.0"),
+    ("1.0.0-9", "1.0.0-10"),
+    ("1.0.0-a", "1.0.0-9"),
+    ("0.20.0-rc2", "0.20.0-rc10"),
+    ("0.20.0-rc10", "0.20.0-rc2"),
+]
+BEACONS = [
+    {},
+    {
+        "beacon/power_w": "5",
+        "beacon/antenna_height_m": "10",
+        "beacon/antenna_gain_db": "3",
+        "beacon/antenna_direction": "NE",
+        "station/comment": "Home",
+    },
+    {"station/comment": ""},
+    {"station/call": "oh2gba-7"},
+    {"station/call": ""},
+    {"station/lat": ""},
+    {"station/lat": "91"},
+    {"station/lon": "181"},
+    {"station/symbol_table": "Z", "station/symbol_code": "~"},
+    {"station/symbol_table": "a"},
+    {"station/symbol_code": " "},
+    {"beacon/path": ""},
+    {"beacon/path": "", "station/symbol_code": ">"},
+    {"beacon/path": "", "station/symbol_table": "\\", "station/symbol_code": "s"},
+    {"beacon/path": "", "station/symbol_table": "E", "station/symbol_code": ">"},
+    {"beacon/path": "", "station/symbol_table": "\\", "station/symbol_code": "#"},
+    {"beacon/path": "", "station/symbol_code": "b"},
+    {"beacon/path": "", "station/symbol_code": "_"},
+    {"beacon/path": "", "station/symbol_table": "2", "station/symbol_code": "k"},
+    {"beacon/path": "DIRECT"},
+    {"beacon/path": "WIDE2-2"},
+    {"beacon/path": "BAD CALL"},
+    {"station/lat": "0.03125", "station/lon": "0.09375"},
+    {"station/lat": "-0.00001", "station/lon": "-0.00001"},
+    {
+        "beacon/power_w": "100",
+        "beacon/antenna_height_m": "9999",
+        "beacon/antenna_gain_db": "9",
+        "beacon/antenna_direction": "N",
+        "station/comment": "x" * 36,
+    },
+]
 
 
 def _call_vector(text: str) -> dict[str, Any]:
@@ -749,7 +1303,18 @@ def _qru_group_vector(group: str) -> dict[str, Any]:
 
 def _comment_vector(comment: str, moving: bool) -> dict[str, Any]:
     try:
-        make_object(datetime(2026, 10, 21, tzinfo=UTC), "OBJ", "object", 60.0, 24.0, "/", ">", comment, 90 if moving else None, None)
+        make_object(
+            datetime(2026, 10, 21, tzinfo=UTC),
+            "OBJ",
+            "object",
+            60.0,
+            24.0,
+            "/",
+            ">",
+            comment,
+            90 if moving else None,
+            None,
+        )
     except OwnError as e:
         return {"comment": comment, "moving": moving, "ok": False, "code": e.code}
     return {"comment": comment, "moving": moving, "ok": True, "code": ""}
@@ -769,7 +1334,9 @@ def _beacon_vector(changes: dict[str, str]) -> dict[str, Any]:
     values = {**BEACON_BASE, **changes}
     try:
         config = Config.checked(DEFAULTS, values)
-        text: str | None = Beacon(SimpleNamespace(max_frame=None, rtype=type_of(DEFAULT_TYPE["fm"])), lambda: config).frame().tnc2()       # type: ignore[arg-type]  (the frame needs only the radio's type)
+        text: str | None = (
+            Beacon(SimpleNamespace(max_frame=None, rtype=type_of(DEFAULT_TYPE["fm"])), lambda: config).frame().tnc2()
+        )  # type: ignore[arg-type]  (the frame needs only the radio's type)
     except (ValueError, BeaconError):
         text = None
     return {"values": values, "text": text}
@@ -792,7 +1359,9 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "parse_calls": [_parse_vector(t) for t in CALLS],
         "station_names": [_name_vector(t) for t in STATION_NAMES],
         "paths": [_path_vector(t) for t in PATHS],
-        "route_elements": [{"input": text, "alias": is_alias(text), "marker": is_marker(text)} for text in ROUTE_ELEMENTS],
+        "route_elements": [
+            {"input": text, "alias": is_alias(text), "marker": is_marker(text)} for text in ROUTE_ELEMENTS
+        ],
         "compare_versions": [{"a": a, "b": b, "order": compare_versions(a, b)} for a, b in VERSION_PAIRS],
         "message_texts": [_message_vector(t) for t in MESSAGE_TEXTS],
         "bulletin_texts": [_bulletin_text_vector(t) for t in BULLETIN_TEXTS],
@@ -801,8 +1370,20 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "object_comments": [_comment_vector(*row) for row in OBJECT_COMMENTS],
         "qru_groups": [_qru_group_vector(group) for group in QRU_GROUPS],
         "settings": [_setting_vector(*row) for row in SETTING_VALUES],
-        "phg": [{"power": p, "height": h, "gain": g, "direction": d, "text": phg_text(p, h, g, d)} for p, h, g, d in PHG_CASES],
-        "positions": [{"lat": lat, "lon": lon, "table": "/", "code": "-", "text": uncompressed_position(lat, lon, "/", "-").decode("ascii")} for lat, lon in POSITIONS],
+        "phg": [
+            {"power": p, "height": h, "gain": g, "direction": d, "text": phg_text(p, h, g, d)}
+            for p, h, g, d in PHG_CASES
+        ],
+        "positions": [
+            {
+                "lat": lat,
+                "lon": lon,
+                "table": "/",
+                "code": "-",
+                "text": uncompressed_position(lat, lon, "/", "-").decode("ascii"),
+            }
+            for lat, lon in POSITIONS
+        ],
         "beacons": [_beacon_vector(changes) for changes in BEACONS],
         "status_templates": [_template_vector(t) for t in STATUS_TEMPLATES],
     }
@@ -810,19 +1391,34 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
 
 def vectors_text() -> str:
     """One case to a line, so that two additions meet in two lines and not in one."""
-    blocks = [f' "{name}": [\n' + ",\n".join(f"  {json.dumps(case, ensure_ascii=True)}" for case in cases) + "\n ]" for name, cases in vectors().items()]
+    blocks = [
+        f' "{name}": [\n' + ",\n".join(f"  {json.dumps(case, ensure_ascii=True)}" for case in cases) + "\n ]"
+        for name, cases in vectors().items()
+    ]
     return "{\n" + ",\n".join(blocks) + "\n}\n"
 
 
 def errors_text() -> str:
     """One code to a line, so that two additions meet in two lines and not in one."""
     codes = error_codes(ROOT / "neoaprs")
-    return "{\n" + ",\n".join(f" {json.dumps(code)}: {json.dumps(entry, ensure_ascii=False)}" for code, entry in codes.items()) + "\n}\n"
+    return (
+        "{\n"
+        + ",\n".join(f" {json.dumps(code)}: {json.dumps(entry, ensure_ascii=False)}" for code, entry in codes.items())
+        + "\n}\n"
+    )
 
 
 def render() -> dict[Path, str]:
     schema = build_schema()
-    return {SCHEMA: json.dumps(schema, indent=2) + "\n", TYPES: types_text(schema), LISTS: lists_text(), VECTORS: vectors_text(), ERRORS: errors_text(), SYMBOLS: symbols_text(), DOC: doc_text()}
+    return {
+        SCHEMA: json.dumps(schema, indent=2) + "\n",
+        TYPES: types_text(schema),
+        LISTS: lists_text(),
+        VECTORS: vectors_text(),
+        ERRORS: errors_text(),
+        SYMBOLS: symbols_text(),
+        DOC: doc_text(),
+    }
 
 
 def main(argv: list[str]) -> int:
@@ -831,7 +1427,11 @@ def main(argv: list[str]) -> int:
         return 0
     files = render()
     if "--check" in argv:
-        stale = [str(p.relative_to(ROOT)) for p, text in files.items() if not p.exists() or p.read_text(encoding="utf-8") != text]
+        stale = [
+            str(p.relative_to(ROOT))
+            for p, text in files.items()
+            if not p.exists() or p.read_text(encoding="utf-8") != text
+        ]
         if stale:
             print("out of date:", ", ".join(stale), "(run scripts/gen-protocol.py)")
             return 1

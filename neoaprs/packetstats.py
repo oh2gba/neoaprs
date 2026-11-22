@@ -2,6 +2,7 @@
 
 A finished hour never changes, so it is counted once and kept; only the running hour is read
 again. The whole answer is cached for FRESH_SEC."""
+
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -31,6 +32,7 @@ Channel = RadioId | None  # a radio id; None for the internet
 @dataclass(frozen=True, slots=True)
 class Counted:
     """The counts the card shows: `heard` per channel and hour from `start`, `sent` per kind."""
+
     start: datetime
     hours: int
     heard: dict[Channel, list[int]] = field(default_factory=dict)
@@ -55,9 +57,9 @@ def _counts(conn: Connection, *, start: str, end: str | None, own: str, internet
 class PacketCounts(DbLog):
     def __init__(self, db: Db | None = None, clock: Clock = utcnow) -> None:
         super().__init__(db, clock, log, "the packet statistics could not be read")
-        self._key: tuple[str, bool] | None = None      # (our call, internet counted) of the kept hours
-        self._over: dict[str, Hours] = {}              # finished hours by hour_text, each counted once
-        self._until: datetime | None = None            # hours before this are in `_over` if they had packets
+        self._key: tuple[str, bool] | None = None  # (our call, internet counted) of the kept hours
+        self._over: dict[str, Hours] = {}  # finished hours by hour_text, each counted once
+        self._until: datetime | None = None  # hours before this are in `_over` if they had packets
         self._answer: tuple[datetime, tuple[str, bool], Counted] | None = None
 
     def clear(self) -> None:
@@ -68,7 +70,11 @@ class PacketCounts(DbLog):
         """Return the current counts for call `own`; APRS-IS packets only if `internet` is true."""
         now = self.clock()
         key = (own, internet)
-        if self._answer is not None and self._answer[1] == key and timedelta(0) <= now - self._answer[0] < timedelta(seconds=FRESH_SEC):
+        if (
+            self._answer is not None
+            and self._answer[1] == key
+            and timedelta(0) <= now - self._answer[0] < timedelta(seconds=FRESH_SEC)
+        ):
             return self._answer[2]
         if key != self._key:
             self._key, self._over, self._until = key, {}, None
@@ -78,7 +84,9 @@ class PacketCounts(DbLog):
         # count finished hours SLICE_HOURS at a time, so other requests are served between reads
         while since < top:
             end = min(top, since + SLICE_HOURS * HOUR)
-            done = await self._read(partial(_counts, start=stamp(since), end=stamp(end), own=own, internet=internet), None)
+            done = await self._read(
+                partial(_counts, start=stamp(since), end=stamp(end), own=own, internet=internet), None
+            )
             if done is None:
                 return Counted(top, 1)
             self._keep(done, since, end, first)
@@ -86,7 +94,11 @@ class PacketCounts(DbLog):
         hour_ago = stamp(now - HOUR)
 
         def read(conn: Connection) -> tuple[str | None, Hours, int]:
-            return oldest_packet(conn), _counts(conn, start=stamp(top), end=None, own=own, internet=internet), repeated_since(conn, hour_ago, own)
+            return (
+                oldest_packet(conn),
+                _counts(conn, start=stamp(top), end=None, own=own, internet=internet),
+                repeated_since(conn, hour_ago, own),
+            )
 
         found = await self._read(read, None)
         if found is None:
@@ -105,7 +117,11 @@ class PacketCounts(DbLog):
         for part, found in enumerate(done):
             for row in found:
                 hours.setdefault(str(row[0]), ([], [], []))[part].append(row)
-        self._over = {hour: rows for hour, rows in self._over.items() if hour >= hour_text(first) and not hour_text(start) <= hour < hour_text(end)} | hours
+        self._over = {
+            hour: rows
+            for hour, rows in self._over.items()
+            if hour >= hour_text(first) and not hour_text(start) <= hour < hour_text(end)
+        } | hours
         self._until = end if self._until is None else max(self._until, end)
 
 
@@ -114,6 +130,7 @@ def _assemble(start: datetime, top: datetime, parts: list[Hours], repeated: int)
     day = hour_text(top - (DAY_HOURS - 1) * HOUR)
     heard_by: dict[Channel, list[int]] = {}
     sent_by: dict[Channel, dict[str, int]] = {}
+
     def at(hour: str) -> int:
         return int((parse_stamp(hour + ":00:00.000000Z") - start) / HOUR)
 

@@ -2,6 +2,7 @@
 install, that a non-PMTiles file is not taken, that the data folder's own map wins, and that the
 daemon serves it.
 """
+
 import re
 import struct
 import sys
@@ -15,7 +16,13 @@ from neoaprs.worldmap import MAPS_DIR, SHIPPED_ZOOM, WORLD_FILE, search_folders,
 from tests.conftest import ROOT
 from tests.support.env import Env
 
-HEADER = b"PMTiles" + bytes([3]) + bytes(92) + struct.pack("<BB4i", 0, SHIPPED_ZOOM, -1800000000, -850000000, 1800000000, 850000000) + bytes(9)
+HEADER = (
+    b"PMTiles"
+    + bytes([3])
+    + bytes(92)
+    + struct.pack("<BB4i", 0, SHIPPED_ZOOM, -1800000000, -850000000, 1800000000, 850000000)
+    + bytes(9)
+)
 
 
 def put(folder: Path, content: bytes = HEADER + b"tiles") -> Path:
@@ -26,17 +33,21 @@ def put(folder: Path, content: bytes = HEADER + b"tiles") -> Path:
 
 # ---- where it is, on each install
 
-@pytest.mark.parametrize("layout", [
-    # A clone: the package is a folder of it (and the venv has it editable)
-    "clone/neoaprs",
-    # A wheel installed (uv tool install, pip, the install script)
-    "venv/lib/python3.13/site-packages/neoaprs",
-    "venv/Lib/site-packages/neoaprs",                                                    # ... on Windows
-    # An AppImage: the wheel in the image's own Python
-    "mount/usr/lib/python3.13/site-packages/neoaprs",
-    # A .deb: the wheel in /opt/neoaprs
-    "opt/neoaprs/lib/python3.13/site-packages/neoaprs",
-])
+
+@pytest.mark.parametrize(
+    "layout",
+    [
+        # A clone: the package is a folder of it (and the venv has it editable)
+        "clone/neoaprs",
+        # A wheel installed (uv tool install, pip, the install script)
+        "venv/lib/python3.13/site-packages/neoaprs",
+        "venv/Lib/site-packages/neoaprs",  # ... on Windows
+        # An AppImage: the wheel in the image's own Python
+        "mount/usr/lib/python3.13/site-packages/neoaprs",
+        # A .deb: the wheel in /opt/neoaprs
+        "opt/neoaprs/lib/python3.13/site-packages/neoaprs",
+    ],
+)
 def test_the_world_map_is_in_the_package_beside_the_code_on_every_kind_of_install(layout: str, tmp_path: Path) -> None:
     package = tmp_path / layout
     shipped = put(package / MAPS_DIR)
@@ -44,16 +55,25 @@ def test_the_world_map_is_in_the_package_beside_the_code_on_every_kind_of_instal
     assert shipped_world(search_folders(code_dir=package)) == shipped
 
 
-def test_the_frozen_windows_app_has_it_in_the_internal_folder_where_pyinstaller_puts_the_packages_files(tmp_path: Path) -> None:
+def test_the_frozen_windows_app_has_it_in_the_internal_folder_where_pyinstaller_puts_the_packages_files(
+    tmp_path: Path,
+) -> None:
     app = tmp_path / "AppData" / "Local" / "Programs" / "NeoAPRS"
     internal = app / "_internal"
     shipped = put(internal / "neoaprs" / MAPS_DIR)
     # the code is in the bundle's archive, so a module's own folder has no maps/ ...
-    folders = search_folders(code_dir=internal / "neoaprs" / "nowhere", frozen=True, bundle=str(internal), executable=str(app / "neoaprs.exe"))
+    folders = search_folders(
+        code_dir=internal / "neoaprs" / "nowhere",
+        frozen=True,
+        bundle=str(internal),
+        executable=str(app / "neoaprs.exe"),
+    )
     assert shipped_world(folders) == shipped
     # ... and with no bundle folder told (a PyInstaller that does not set it), the one beside the
     # executable is found
-    folders = search_folders(code_dir=tmp_path / "nowhere", frozen=True, bundle=None, executable=str(app / "neoaprsw.exe"))
+    folders = search_folders(
+        code_dir=tmp_path / "nowhere", frozen=True, bundle=None, executable=str(app / "neoaprsw.exe")
+    )
     assert internal / "neoaprs" / MAPS_DIR in folders and shipped_world(folders) == shipped
 
 
@@ -74,12 +94,17 @@ def test_a_program_that_is_not_frozen_looks_in_its_own_package_only(tmp_path: Pa
 
 # ---- which file counts
 
+
 def test_a_file_that_is_not_a_pmtiles_archive_is_not_taken_and_the_next_folder_is_looked_in(tmp_path: Path) -> None:
     broken = put(tmp_path / "a", b"<html>")
     good = put(tmp_path / "b")
     assert not usable(broken) and usable(good)
     assert shipped_world([tmp_path / "a", tmp_path / "b"]) == good
-    assert shipped_world([tmp_path / "a"]) is None and shipped_world([]) is None and shipped_world([tmp_path / "gone"]) is None
+    assert (
+        shipped_world([tmp_path / "a"]) is None
+        and shipped_world([]) is None
+        and shipped_world([tmp_path / "gone"]) is None
+    )
     assert not usable(put(tmp_path / "c", HEADER[:60])), "cut short"
 
 
@@ -97,11 +122,17 @@ def test_the_data_folders_own_world_map_is_the_one_when_it_is_good_else_the_ship
 
 # ---- the package
 
+
 def test_the_package_ships_a_small_world_map_to_zoom_4_with_its_build_beside_it() -> None:
     path = ROOT / "neoaprs" / MAPS_DIR / WORLD_FILE
     assert shipped_world() == path, "the program finds its own world map"
     header = read_header(path)
-    assert header is not None and (header.min_zoom, header.max_zoom) == (0, SHIPPED_ZOOM) and header.bbox[0] == -180.0 and header.bbox[2] == 180.0
+    assert (
+        header is not None
+        and (header.min_zoom, header.max_zoom) == (0, SHIPPED_ZOOM)
+        and header.bbox[0] == -180.0
+        and header.bbox[2] == 180.0
+    )
     assert path.stat().st_size <= 8_000_000, "the program carries it in every package"
     assert re.fullmatch(r'\{"build": "\d{8}"\}\n?', path.with_suffix(".json").read_text(encoding="utf-8"))
 
@@ -109,10 +140,17 @@ def test_the_package_ships_a_small_world_map_to_zoom_4_with_its_build_beside_it(
 def test_the_windows_app_is_built_with_every_data_file_of_the_package_and_the_map_is_not_left_out() -> None:
     spec = (ROOT / "packaging" / "windows" / "neoaprs.spec").read_text(encoding="utf-8")
     excludes = re.search(r'collect_data_files\("neoaprs", excludes=\[([^\]]*)\]', spec)
-    assert excludes is not None and "pmtiles" not in excludes.group(1) and "maps" not in excludes.group(1) and "json" not in excludes.group(1)
+    assert (
+        excludes is not None
+        and "pmtiles" not in excludes.group(1)
+        and "maps" not in excludes.group(1)
+        and "json" not in excludes.group(1)
+    )
 
 
-def test_the_release_workflow_looks_for_the_world_map_in_the_frozen_app_and_in_the_installed_one_and_the_smoke_test_asks_for_it() -> None:
+def test_the_release_workflow_looks_for_the_world_map_in_the_frozen_app_and_in_the_installed_one_and_the_smoke_test_asks_for_it() -> (
+    None
+):
     workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     assert "test -f dist/NeoAPRS/_internal/neoaprs/maps/basemap-world.pmtiles" in workflow
     assert "'_internal\\neoaprs\\maps\\basemap-world.pmtiles'" in workflow
@@ -121,6 +159,7 @@ def test_the_release_workflow_looks_for_the_world_map_in_the_frozen_app_and_in_t
 
 # ---- served by the daemon
 
+
 @pytest.fixture
 def shipped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     path = put(tmp_path / "package" / MAPS_DIR, HEADER + b"shipped")
@@ -128,7 +167,9 @@ def shipped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return path
 
 
-async def test_the_daemon_serves_the_world_map_that_ships_when_the_data_folder_has_none(tmp_path: Path, shipped: Path) -> None:
+async def test_the_daemon_serves_the_world_map_that_ships_when_the_data_folder_has_none(
+    tmp_path: Path, shipped: Path
+) -> None:
     e = Env(tmp_path, web=True, radio=False)
     await e.start(connected=False)
     whole = await e.fetch("/basemap-world.pmtiles")
@@ -145,10 +186,14 @@ async def test_the_daemon_serves_the_data_folders_own_world_map_when_it_has_one(
     await e.start(connected=False)
     assert (await e.fetch("/basemap-world.pmtiles")).body == own.read_bytes()
     own.write_bytes(b"half a file")
-    assert (await e.fetch("/basemap-world.pmtiles")).body == shipped.read_bytes(), "a broken file of its own is not served"
+    assert (await e.fetch("/basemap-world.pmtiles")).body == shipped.read_bytes(), (
+        "a broken file of its own is not served"
+    )
 
 
-async def test_with_no_world_map_at_all_the_page_is_told_so_by_a_404(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_with_no_world_map_at_all_the_page_is_told_so_by_a_404(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr("neoaprs.worldmap.search_folders", lambda *args, **kwargs: [])
     e = Env(tmp_path, web=True, radio=False)
     await e.start(connected=False)
@@ -163,5 +208,11 @@ async def test_the_page_is_told_the_world_map_that_ships_is_there_from_the_start
     await e.start(connected=False)
     page = await e.ws()
     value = (await page.expect("state", "map"))["value"]
-    assert value["state"] == "none" and value["world"]["name"] == WORLD_FILE and value["world"]["max_zoom"] == SHIPPED_ZOOM and value["detail"] is None and value["later"] is False
+    assert (
+        value["state"] == "none"
+        and value["world"]["name"] == WORLD_FILE
+        and value["world"]["max_zoom"] == SHIPPED_ZOOM
+        and value["detail"] is None
+        and value["later"] is False
+    )
     assert replace(e.ctl.config).station_position is None

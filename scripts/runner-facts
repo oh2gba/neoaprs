@@ -13,6 +13,7 @@ Facts are compared at runner.json's precision (gcc by major, glibc and PHP by ma
 With --github the output is annotations. Exit 1 when a fact differs, a label moved, an announcement
 is unread or a page could not be fetched; 2 for a wrong argument. See docs/MAINTAINING.md, "When
 GitHub moves an image". Standard library only, Python 3.10 or newer."""
+
 import argparse
 import datetime
 import json
@@ -83,10 +84,17 @@ def agrees(found: str | None, fact: str) -> bool:
 
 # ---- --here ----
 
+
 def first_line(command: Sequence[str], environment: Mapping[str, str] | None = None) -> str | None:
     """What a program prints, or None when it is not there or fails."""
     try:
-        done = subprocess.run(list(command), capture_output=True, text=True, timeout=PATIENCE_SEC, env=None if environment is None else dict(environment))
+        done = subprocess.run(
+            list(command),
+            capture_output=True,
+            text=True,
+            timeout=PATIENCE_SEC,
+            env=None if environment is None else dict(environment),
+        )
     except (OSError, subprocess.SubprocessError):
         return None
     return done.stdout if done.returncode == 0 else None
@@ -111,30 +119,48 @@ def glibc_version(ldd_text: str | None) -> str | None:
     return found.group(1) if found else None
 
 
-def read_here(os_release: Path = OS_RELEASE, run: Callable[[Sequence[str]], str | None] = first_line) -> dict[str, str | None]:
+def read_here(
+    os_release: Path = OS_RELEASE, run: Callable[[Sequence[str]], str | None] = first_line
+) -> dict[str, str | None]:
     """This machine's side of the facts."""
     gcc = run(["gcc", "-dumpfullversion"])
     php = run(["php", "-r", "echo PHP_VERSION;"])
-    return {"os": os_series(os_release), "gcc": gcc.strip() if gcc else None, "march": default_march(run(["gcc", "-Q", "--help=target"])),
-            "glibc": glibc_version(run(["ldd", "--version"])), "php": php.strip() if php else None}
+    return {
+        "os": os_series(os_release),
+        "gcc": gcc.strip() if gcc else None,
+        "march": default_march(run(["gcc", "-Q", "--help=target"])),
+        "glibc": glibc_version(run(["ldd", "--version"])),
+        "php": php.strip() if php else None,
+    }
 
 
 def compare(out: Out, found: Mapping[str, str | None], facts: Mapping[str, str], where: str) -> None:
     """One line of what was read, one error for each fact that parts."""
-    out.info(f"read {where}: " + ", ".join(f"{name} {found.get(name) or 'not found'}" for name in FACTS if name in found))
+    out.info(
+        f"read {where}: " + ", ".join(f"{name} {found.get(name) or 'not found'}" for name in FACTS if name in found)
+    )
     for name in FACTS:
         if name in found and not agrees(found[name], facts[name]):
             out.error(f"{name} is {found[name] or 'not found'} {where}, packaging/ci/runner.json says {facts[name]}")
 
 
-def here(out: Out, runner: Mapping[str, Any], environment: Mapping[str, str], os_release: Path = OS_RELEASE, run: Callable[[Sequence[str]], str | None] = first_line) -> None:
+def here(
+    out: Out,
+    runner: Mapping[str, Any],
+    environment: Mapping[str, str],
+    os_release: Path = OS_RELEASE,
+    run: Callable[[Sequence[str]], str | None] = first_line,
+) -> None:
     compare(out, read_here(os_release, run), runner["facts"], "here")
     image = environment.get("ImageVersion")
     if image:
-        out.notice(f"the runner's image is {image}; runner.json's facts were last checked against {runner['image_version']}")
+        out.notice(
+            f"the runner's image is {image}; runner.json's facts were last checked against {runner['image_version']}"
+        )
 
 
 # ---- --latest ----
+
 
 def macos_version(environment: Mapping[str, str] = os.environ) -> str | None:
     """Return macOS's version from `sw_vers`; an older-SDK Python sees a compatibility number."""
@@ -142,7 +168,14 @@ def macos_version(environment: Mapping[str, str] = os.environ) -> str | None:
     return said.strip() if said and said.strip() else platform.mac_ver()[0] or None
 
 
-def latest(out: Out, runner: Mapping[str, Any], label: str, os_release: Path = OS_RELEASE, windows_version: str | None = None, mac_version: str | None = None) -> None:
+def latest(
+    out: Out,
+    runner: Mapping[str, Any],
+    label: str,
+    os_release: Path = OS_RELEASE,
+    windows_version: str | None = None,
+    mac_version: str | None = None,
+) -> None:
     """Return whether this runner of `label` is the system runner.json's `latest` names."""
     named = runner["latest"][label]
     if label.startswith("ubuntu-"):
@@ -157,10 +190,13 @@ def latest(out: Out, runner: Mapping[str, Any], label: str, os_release: Path = O
         moved = found != named
     out.info(f"{label} is {found or 'not known'} here; runner.json names {named}")
     if moved:
-        out.error(f"{label} is no longer {named} but {found or 'not known'}: the workflows' named runners and runner.json are due to move (docs/MAINTAINING.md)")
+        out.error(
+            f"{label} is no longer {named} but {found or 'not known'}: the workflows' named runners and runner.json are due to move (docs/MAINTAINING.md)"
+        )
 
 
 # ---- --published ----
+
 
 def fetch(url: str, token: str | None = None) -> str:
     """Fetch a GitHub page over https; the token goes only to the API's address."""
@@ -189,7 +225,12 @@ def read_readme(readme: str) -> dict[str, str | None]:
     series = re.search(r"^\s*-\s*OS Version:\s*(\d+\.\d+)", readme, re.M)
     php = re.search(r"^\s*-\s*PHP:?\s+(\d+\.\d+(?:\.\d+)?)", readme, re.M)
     gcc, locales = apt_version(readme, "gcc"), apt_version(readme, "locales")
-    return {"os": series.group(1) if series else None, "gcc": gcc.split("-")[0] if gcc else None, "glibc": locales.split("-")[0] if locales else None, "php": php.group(1) if php else None}
+    return {
+        "os": series.group(1) if series else None,
+        "gcc": gcc.split("-")[0] if gcc else None,
+        "glibc": locales.split("-")[0] if locales else None,
+        "php": php.group(1) if php else None,
+    }
 
 
 def published(out: Out, runner: Mapping[str, Any], get: Callable[[str], str]) -> None:
@@ -208,6 +249,7 @@ def published(out: Out, runner: Mapping[str, Any], get: Callable[[str], str]) ->
 
 # ---- --announcements ----
 
+
 def names_of(runner: Mapping[str, Any]) -> list[str]:
     """Return what an announcement names of ours: a label, a -latest label or the image series."""
     return [*runner["labels"], *runner["latest"], runner["facts"]["os"]]
@@ -218,7 +260,9 @@ def names(text: str, name: str) -> bool:
     return re.search(rf"(?<![\w.]){re.escape(name)}(?!\w)", text, re.I) is not None
 
 
-def unread(issues: Sequence[Mapping[str, Any]], runner: Mapping[str, Any], today: datetime.date) -> list[Mapping[str, Any]]:
+def unread(
+    issues: Sequence[Mapping[str, Any]], runner: Mapping[str, Any], today: datetime.date
+) -> list[Mapping[str, Any]]:
     """Return the open announcements naming ours that are not read, or read until before `today`."""
     read: Mapping[str, str | None] = runner.get("announcements") or {}
     found = []
@@ -252,17 +296,26 @@ def announcements(out: Out, runner: Mapping[str, Any], get: Callable[[str], str]
     for issue in found:
         read_until = (runner.get("announcements") or {}).get(str(issue["number"]))
         state = f"read until {read_until}, which has passed" if read_until else "not read"
-        out.error(f"#{issue['number']} {issue.get('title') or ''} ({state}): read it, act on it, and add it to `announcements` in packaging/ci/runner.json with the day until which it stays read")
+        out.error(
+            f"#{issue['number']} {issue.get('title') or ''} ({state}): read it, act on it, and add it to `announcements` in packaging/ci/runner.json with the day until which it stays read"
+        )
 
 
 # ---- the command ----
 
+
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="runner-facts", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog="runner-facts", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--here", action="store_true", help="this machine's system against runner.json's facts")
-    parser.add_argument("--latest", metavar="LABEL", help="whether this runner of LABEL is the system runner.json names for it")
+    parser.add_argument(
+        "--latest", metavar="LABEL", help="whether this runner of LABEL is the system runner.json names for it"
+    )
     parser.add_argument("--published", action="store_true", help="GitHub's readme of the image against the facts")
-    parser.add_argument("--announcements", action="store_true", help="the open announcements that name our runners and are not read")
+    parser.add_argument(
+        "--announcements", action="store_true", help="the open announcements that name our runners and are not read"
+    )
     parser.add_argument("--github", action="store_true", help="GitHub's annotations instead of plain lines")
     args = parser.parse_args(argv)
     if not (args.here or args.latest or args.published or args.announcements):

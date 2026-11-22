@@ -1,6 +1,7 @@
 """Tests for the receive level feed of a Sound card radio (neoaprs/web/levelfeed.py, `radio_level`):
 only subscribed pages get it, lagging pages are skipped, and modem changes are followed.
 """
+
 from pathlib import Path
 from typing import Any
 
@@ -69,9 +70,15 @@ def test_only_the_pages_that_ask_are_sent_the_level_now_at_once_and_each_change_
     feeds.ask(late, 3, modem)
     assert levels(ca) == [31] and ca.sent[0] == {"type": "radio_level", "radio": 3, "level": 31} and levels(cl) == []
     modem.level_now.said(44)
-    modem.level_now.said(44)                                     # (a level that stays is not said again)
-    other.level_now.said(9)                                      # (another radio's modem, which nobody looks at)
-    assert levels(ca) == [31, 44] and levels(cb) == [] and levels(cl) == [] and told == [(modem, True)] and feeds.pages(3) == 2
+    modem.level_now.said(44)  # (a level that stays is not said again)
+    other.level_now.said(9)  # (another radio's modem, which nobody looks at)
+    assert (
+        levels(ca) == [31, 44]
+        and levels(cb) == []
+        and levels(cl) == []
+        and told == [(modem, True)]
+        and feeds.pages(3) == 2
+    )
     cl.held = 0
     modem.level_now.said(12)
     assert levels(cl) == [12], "a page that has read is sent the next level, which tells it what it missed"
@@ -88,15 +95,22 @@ def test_a_page_that_stops_or_leaves_is_sent_no_more_and_nobody_looking_lets_the
     assert levels(ca) == [None] and levels(cb) == [None, 5]
     feeds.forget(b)
     modem.level_now.said(6)
-    assert levels(cb) == [None, 5] and told == [(modem, True), (modem, False)] and feeds.pages(3) == 0 and len(modem.level_now.changed) == 0
-    feeds.stop(b, 3)                                             # (a stop for a radio nobody looks at is nothing)
+    assert (
+        levels(cb) == [None, 5]
+        and told == [(modem, True), (modem, False)]
+        and feeds.pages(3) == 0
+        and len(modem.level_now.changed) == 0
+    )
+    feeds.stop(b, 3)  # (a stop for a radio nobody looks at is nothing)
     gone, cg = page()
     gone.closed = True
     feeds.ask(gone, 3, modem)
     assert cg.sent == [] and feeds.pages(3) == 0, "a page that left before its command ran is not taken"
 
 
-def test_a_radio_whose_modem_is_another_is_followed_on_the_new_one_and_one_without_a_level_is_said_to_have_none() -> None:
+def test_a_radio_whose_modem_is_another_is_followed_on_the_new_one_and_one_without_a_level_is_said_to_have_none() -> (
+    None
+):
     feeds, told = wired()
     old, new = Modem(), Modem()
     (a, ca) = page()
@@ -115,14 +129,18 @@ def test_a_radio_whose_modem_is_another_is_followed_on_the_new_one_and_one_witho
     assert told[-1] == (new, False) and len(new.level_now.changed) == 0
 
 
-async def test_on_the_wire_a_sound_card_radio_answers_with_its_level_and_a_radio_without_one_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_on_the_wire_a_sound_card_radio_answers_with_its_level_and_a_radio_without_one_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)
     e, ws = await started(tmp_path)
     try:
         id = await added(ws, "direwolf")
         await ws.send({"cmd": "radio_level", "radio": id, "on": True})
         await ws.until(lambda: bool(ws.of("radio_level")))
-        assert ws.of("radio_level")[-1] == {"type": "radio_level", "radio": id, "level": None}, "its Direwolf does not run here"
+        assert ws.of("radio_level")[-1] == {"type": "radio_level", "radio": id, "level": None}, (
+            "its Direwolf does not run here"
+        )
         await ws.send({"cmd": "radio_level", "radio": id, "on": False})
         kiss = await added(ws, "kiss")
         error = await refused(ws, {"cmd": "radio_level", "radio": kiss, "on": True})
@@ -132,7 +150,9 @@ async def test_on_the_wire_a_sound_card_radio_answers_with_its_level_and_a_radio
         await e.stop()
 
 
-async def test_a_sound_card_radio_that_is_off_is_never_refused_and_one_changed_to_another_type_is_let_go_without_a_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_sound_card_radio_that_is_off_is_never_refused_and_one_changed_to_another_type_is_let_go_without_a_refusal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The page asks while the box is in view, whatever the radio does: a radio switched off is
     answered (no level), never refused with a toast; when its type changes while a page looks, the
     stop the page sends as the box goes is not refused either, and the old modem is let go."""

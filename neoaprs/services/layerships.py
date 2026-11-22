@@ -2,6 +2,7 @@
 
 Fintraffic is asked while a page looks, with no station data in the request. An own receiver
 (`map/ships_host`) is read over NMEA. Ships are kept in memory by MMSI and aged."""
+
 import asyncio
 import logging
 from datetime import datetime
@@ -10,15 +11,30 @@ from neoaprs import aisfeed
 from neoaprs.aisdecode import AisDecoder, AisPosition, AisStatic
 from neoaprs.configlayers import ais_host_port
 from neoaprs.digitraffic import read_locations, read_vessels
-from neoaprs.layerthing import AIS_RETRY_SEC, RECEIVER_BOUND, EVERY_SEC, FINTRAFFIC_HEADERS, FINTRAFFIC_LOCATIONS, FINTRAFFIC_VESSELS, MAX_PACKED, MAX_UNPACKED, SHIPS_AGE_SEC, TELL_EVERY_SEC, ReceiverState, Thing, nearest, \
-    newest, within
+from neoaprs.layerthing import (
+    AIS_RETRY_SEC,
+    RECEIVER_BOUND,
+    EVERY_SEC,
+    FINTRAFFIC_HEADERS,
+    FINTRAFFIC_LOCATIONS,
+    FINTRAFFIC_VESSELS,
+    MAX_PACKED,
+    MAX_UNPACKED,
+    SHIPS_AGE_SEC,
+    TELL_EVERY_SEC,
+    ReceiverState,
+    Thing,
+    nearest,
+    newest,
+    within,
+)
 from neoaprs.shiptable import ShipTable
 
 from .layerasked import AskedFeed, AskedSource, SourceContext
 
 log = logging.getLogger("neoaprs.layers")
 
-FEED_TIMEOUT_SEC = 30.0                         # the feed is hundreds of kilobytes; allow a slow line
+FEED_TIMEOUT_SEC = 30.0  # the feed is hundreds of kilobytes; allow a slow line
 
 
 class FintrafficShips(AskedSource):
@@ -63,7 +79,15 @@ class FintrafficShips(AskedSource):
 
     async def _get(self, feed: AskedFeed, url: str) -> bytes | None:
         """Return the body of a 200 answer; None after a failure, which is recorded on the feed."""
-        answer = await self.ctx.fetch(self.ctx.service_url(url), self.ctx.version, self.ctx.platform, FINTRAFFIC_HEADERS, MAX_PACKED, MAX_UNPACKED, timeout_sec=FEED_TIMEOUT_SEC)
+        answer = await self.ctx.fetch(
+            self.ctx.service_url(url),
+            self.ctx.version,
+            self.ctx.platform,
+            FINTRAFFIC_HEADERS,
+            MAX_PACKED,
+            MAX_UNPACKED,
+            timeout_sec=FEED_TIMEOUT_SEC,
+        )
         if answer is not None and answer.status == 200:
             return answer.body
         log.debug("%s: %s", feed.name, "no answer" if answer is None else f"it answered {answer.status}")
@@ -108,7 +132,7 @@ class ShipReceiver:
         self.decoder = AisDecoder()
         self.state = ReceiverState("looking", 0, None)
         self._heard: datetime | None = None
-        self._dirty = False                                  # decoded data not yet told to the pages
+        self._dirty = False  # decoded data not yet told to the pages
         self._last_told: float | None = None
         self._timer: asyncio.TimerHandle | None = None
         self._task: asyncio.Task[None] | None = None
@@ -126,7 +150,7 @@ class ShipReceiver:
         return self.state
 
     def wait_sec(self) -> float | None:
-        return None                                          # listened to, never asked
+        return None  # listened to, never asked
 
     async def ask(self) -> bool:
         return False
@@ -182,7 +206,7 @@ class ShipReceiver:
         for line in batch:
             try:
                 found = self.decoder.feed(line, now)
-            except Exception:                                # a bad line is skipped
+            except Exception:  # a bad line is skipped
                 log.debug("the AIS receiver at %s: a line passed over", self.host, exc_info=True)
                 found = None
             if isinstance(found, AisPosition):
@@ -215,7 +239,11 @@ class ShipReceiver:
         The table is told if `tell` is set or the away state changed."""
         before = self.state
         if state.state != before.state:
-            log.info("the AIS receiver at %s: %s", self.host, {"receiving": "receiving", "no_answer": "no answer", "looking": "looking"}[state.state])
+            log.info(
+                "the AIS receiver at %s: %s",
+                self.host,
+                {"receiving": "receiving", "no_answer": "no answer", "looking": "looking"}[state.state],
+            )
         if state != before:
             self.state = state
             self.ctx.changed()

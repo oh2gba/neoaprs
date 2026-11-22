@@ -17,14 +17,20 @@ IN_A_SENTENCE = ("stats.frames", "pill.radio_waiting_why")
 def english() -> dict[str, str]:
     texts: dict[str, str] = {}
     for path in EN.glob("*.ts"):
-        texts.update(re.findall(r'^\s*"([a-z0-9_.]+)": "((?:[^"\\]|\\.)*)",?$', path.read_text(encoding="utf-8"), re.MULTILINE))
+        texts.update(
+            re.findall(r'^\s*"([a-z0-9_.]+)": "((?:[^"\\]|\\.)*)",?$', path.read_text(encoding="utf-8"), re.MULTILINE)
+        )
     return texts
 
 
 def test_the_manual_quotes_the_marks_and_headings_of_the_page_as_the_page_says_them() -> None:
     texts, manual = english(), PAGE.read_text(encoding="utf-8")
     missing = [f"{id}: **{texts[id]}**" for id in IN_BOLD if f"**{texts[id]}**" not in manual]
-    missing += [f"{id}: {texts[id][0].lower()}{texts[id][1:]}" for id in IN_A_SENTENCE if f"{texts[id][0].lower()}{texts[id][1:]}" not in manual]
+    missing += [
+        f"{id}: {texts[id][0].lower()}{texts[id][1:]}"
+        for id in IN_A_SENTENCE
+        if f"{texts[id][0].lower()}{texts[id][1:]}" not in manual
+    ]
     assert missing == [], missing
 
 

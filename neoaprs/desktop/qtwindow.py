@@ -2,6 +2,7 @@
 
 The profile keeps the page's storage in the data folder; other addresses go to the system
 browser. This is the module that needs the web engine; the tray (qtshell.py) needs only QtWidgets."""
+
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -40,13 +41,19 @@ class AppPage(QWebEnginePage):
 
     Until `page_url` is known it lets the loading page's `data:` address in, once."""
 
-    def __init__(self, profile: QWebEngineProfile, page_url: str | None, parent: QObject | None = None, opener_of: "AppPage | None" = None) -> None:
+    def __init__(
+        self,
+        profile: QWebEngineProfile,
+        page_url: str | None,
+        parent: QObject | None = None,
+        opener_of: "AppPage | None" = None,
+    ) -> None:
         super().__init__(profile, parent)
         self.page_url = page_url
         self.loading = False
         self._main = opener_of
 
-    def acceptNavigationRequest(self, url: QUrl | str, type: QWebEnginePage.NavigationType, isMainFrame: bool) -> bool:  # noqa: A002  (Qt's names)
+    def acceptNavigationRequest(self, url: QUrl | str, type: QWebEnginePage.NavigationType, isMainFrame: bool) -> bool:
         address = url.toString() if isinstance(url, QUrl) else str(url)
         if self.loading and isMainFrame and address.startswith("data:text/html"):
             self.loading = False
@@ -64,7 +71,7 @@ class AppPage(QWebEnginePage):
             log.info("not opened: %s", address)
         return False
 
-    def createWindow(self, type: QWebEnginePage.WebWindowType) -> QWebEnginePage:  # noqa: A002
+    def createWindow(self, type: QWebEnginePage.WebWindowType) -> QWebEnginePage:
         return AppPage(self.profile(), self.page_url, self, opener_of=self._main or self)
 
 
@@ -82,13 +89,20 @@ class AppWindow(QMainWindow):
         self.setWindowIcon(icon)
         state = appstate.load_window(data)
         self.resize(state.width, state.height)
-        if state.x is not None and state.y is not None and QGuiApplication.screenAt(QPoint(state.x + appstate.TITLE_POINT[0], state.y + appstate.TITLE_POINT[1])) is not None:
+        if (
+            state.x is not None
+            and state.y is not None
+            and QGuiApplication.screenAt(QPoint(state.x + appstate.TITLE_POINT[0], state.y + appstate.TITLE_POINT[1]))
+            is not None
+        ):
             self.move(state.x, state.y)
         if state.maximized:
             self.setWindowState(Qt.WindowState.WindowMaximized)
         self.profile = make_profile(data, self)
         self.page = AppPage(self.profile, url, self)
-        self.page.setBackgroundColor(QColor(loading.background(QGuiApplication.styleHints().colorScheme() == Qt.ColorScheme.Dark)))
+        self.page.setBackgroundColor(
+            QColor(loading.background(QGuiApplication.styleHints().colorScheme() == Qt.ColorScheme.Dark))
+        )
         self.view = QWebEngineView(self)
         self.view.setPage(self.page)
         self.setCentralWidget(self.view)
@@ -128,7 +142,9 @@ class AppWindow(QMainWindow):
             # normalGeometry is the widget's; the frame's corner is up and left by the decorations.
             normal = self.normalGeometry()
             frame = self.geometry().topLeft() - self.frameGeometry().topLeft()
-            state = appstate.WindowState(normal.width(), normal.height(), normal.x() - frame.x(), normal.y() - frame.y(), True)
+            state = appstate.WindowState(
+                normal.width(), normal.height(), normal.x() - frame.x(), normal.y() - frame.y(), True
+            )
         else:
             state = appstate.WindowState(self.width(), self.height(), self.pos().x(), self.pos().y(), False)
         appstate.save_window(self.data, state)

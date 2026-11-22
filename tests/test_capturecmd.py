@@ -1,5 +1,6 @@
 """Tests for `neoaprs capture` (neoaprs/cli/capturecmd.py) in the test's own process on a fake
 radio: port choice, a port that goes away, a port that cannot be opened, and Ctrl-C."""
+
 import asyncio
 from typing import Any
 from pathlib import Path
@@ -13,7 +14,9 @@ from tests.support.fakeradio import FakeRadio
 
 
 def frame_bytes() -> bytes:
-    return kiss.encode(ax25.encode(ax25.Frame(ax25.Address.parse("APRS"), ax25.Address.parse("OH2RDG"), (), info=b">on the air")))
+    return kiss.encode(
+        ax25.encode(ax25.Frame(ax25.Address.parse("APRS"), ax25.Address.parse("OH2RDG"), (), info=b">on the air"))
+    )
 
 
 @pytest.fixture
@@ -26,22 +29,34 @@ async def radio() -> FakeRadio:
 
 # ---- which port
 
-async def test_with_no_usb_serial_port_here_the_command_says_to_name_one(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+
+async def test_with_no_usb_serial_port_here_the_command_says_to_name_one(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     monkeypatch.setattr(capturecmd, "can_search", lambda: False)
     assert await capturecmd.find_port(9600) is None
     assert "give the port with --port" in capsys.readouterr().err
 
 
-async def test_the_first_port_that_delivers_a_kiss_frame_is_the_one(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+async def test_the_first_port_that_delivers_a_kiss_frame_is_the_one(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     monkeypatch.setattr(capturecmd, "can_search", lambda: True)
-    monkeypatch.setattr(capturecmd, "searchable_ports", lambda pattern: (["/dev/ttyUSB7"], {"/dev/ttyACM9": "a board, not a radio"}))
+    monkeypatch.setattr(
+        capturecmd, "searchable_ports", lambda pattern: (["/dev/ttyUSB7"], {"/dev/ttyACM9": "a board, not a radio"})
+    )
     asked: list[tuple[list[str], int, float]] = []
 
     async def probe(paths: list[str], baud: int, seconds: float, accept: object) -> str:
         asked.append((paths, baud, seconds))
-        assert callable(accept) and accept(frame_bytes()) and not accept(b"noise"), "a KISS frame with a packet in it is what a radio on that port would say"
-        assert not accept(kiss.encode(b"not a packet")) and not accept(b"\r\ncmd:"), "the Tnc's rule: a frame that is no AX.25 packet, or the text of a TNC in command mode, is no KISS port"
+        assert callable(accept) and accept(frame_bytes()) and not accept(b"noise"), (
+            "a KISS frame with a packet in it is what a radio on that port would say"
+        )
+        assert not accept(kiss.encode(b"not a packet")) and not accept(b"\r\ncmd:"), (
+            "the Tnc's rule: a frame that is no AX.25 packet, or the text of a TNC in command mode, is no KISS port"
+        )
         return paths[0]
+
     monkeypatch.setattr(capturecmd, "probe", probe)
     assert await capturecmd.find_port(1200) == "/dev/ttyUSB7"
     assert asked == [(["/dev/ttyUSB7"], 1200, capturecmd.PROBE_SECONDS)]
@@ -49,12 +64,15 @@ async def test_the_first_port_that_delivers_a_kiss_frame_is_the_one(monkeypatch:
     assert "skipping /dev/ttyACM9: a board, not a radio" in err and "listening for a KISS frame on /dev/ttyUSB7" in err
 
 
-async def test_when_no_port_delivers_a_frame_the_command_says_so_and_suggests_port(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+async def test_when_no_port_delivers_a_frame_the_command_says_so_and_suggests_port(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     monkeypatch.setattr(capturecmd, "can_search", lambda: True)
     monkeypatch.setattr(capturecmd, "searchable_ports", lambda pattern: (["/dev/ttyUSB7"], {}))
 
     async def probe(*args: object) -> None:
         return None
+
     monkeypatch.setattr(capturecmd, "probe", probe)
     args = capturecmd.parse(["out.bin"])
     assert await capturecmd.run(args) == 1
@@ -63,7 +81,10 @@ async def test_when_no_port_delivers_a_frame_the_command_says_so_and_suggests_po
 
 # ---- the recording
 
-async def test_a_port_that_goes_away_ends_the_recording_with_exit_1_and_keeps_what_came(radio: FakeRadio, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+
+async def test_a_port_that_goes_away_ends_the_recording_with_exit_1_and_keeps_what_came(
+    radio: FakeRadio, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     out = tmp_path / "out.bin"
     recording = asyncio.ensure_future(capturecmd.record(radio.url, 9600, 30.0, str(out)))
     # (the port is open: pyserial's open of a socket drops what came before it was done)
@@ -78,7 +99,9 @@ async def test_a_port_that_goes_away_ends_the_recording_with_exit_1_and_keeps_wh
     assert "the port went away" in err and "1 KISS frames" in err and "frame 1: port 0 command 0" in err
 
 
-async def test_a_port_that_cannot_be_opened_is_told_and_leaves_no_file(radio: FakeRadio, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+async def test_a_port_that_cannot_be_opened_is_told_and_leaves_no_file(
+    radio: FakeRadio, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     radio.refuse()
     out = tmp_path / "out.bin"
     assert await capturecmd.record(radio.url, 9600, 1.0, str(out)) == 1
@@ -88,16 +111,19 @@ async def test_a_port_that_cannot_be_opened_is_told_and_leaves_no_file(radio: Fa
 async def test_a_recording_that_runs_its_time_out_is_a_success(radio: FakeRadio, tmp_path: Path) -> None:
     out = tmp_path / "out.bin"
     recording = asyncio.ensure_future(capturecmd.record(radio.url, 9600, 1.0, str(out)))
-    await until(out.exists)                     # (as above)
+    await until(out.exists)  # (as above)
     radio.feed(b"\x00partial")
     assert await asyncio.wait_for(recording, 10) == 0
     assert out.read_bytes() == b"\x00partial"
 
 
-def test_ctrl_c_ends_the_command_with_the_bytes_that_came_kept(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_ctrl_c_ends_the_command_with_the_bytes_that_came_kept(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     def interrupted(coroutine: Any) -> int:
         coroutine.close()
         raise KeyboardInterrupt
+
     monkeypatch.setattr(asyncio, "run", interrupted)
     assert capturecmd.main([str(tmp_path / "out.bin"), "--port", "socket://127.0.0.1:9"]) == 0
     assert f"what came is in {tmp_path / 'out.bin'}" in capsys.readouterr().err
@@ -105,7 +131,10 @@ def test_ctrl_c_ends_the_command_with_the_bytes_that_came_kept(tmp_path: Path, m
 
 # ---- a file that cannot be written
 
-async def test_a_folder_that_is_not_there_is_told_before_any_port_is_opened(radio: FakeRadio, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+
+async def test_a_folder_that_is_not_there_is_told_before_any_port_is_opened(
+    radio: FakeRadio, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     args = capturecmd.parse(["--port", radio.url, str(tmp_path / "missing" / "out.bin")])
     assert await capturecmd.run(args) == 1
     assert radio.connections == 0
@@ -113,8 +142,10 @@ async def test_a_folder_that_is_not_there_is_told_before_any_port_is_opened(radi
     assert err.startswith("capture: ") and "is not a folder" in err and "Traceback" not in err
 
 
-async def test_a_file_that_cannot_be_written_after_the_port_opened_closes_the_port_and_says_so(radio: FakeRadio, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    assert await capturecmd.record(radio.url, 9600, 30.0, str(tmp_path)) == 1             # (OUT is a folder)
+async def test_a_file_that_cannot_be_written_after_the_port_opened_closes_the_port_and_says_so(
+    radio: FakeRadio, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert await capturecmd.record(radio.url, 9600, 30.0, str(tmp_path)) == 1  # (OUT is a folder)
     # (the socket is closed in a thread of its own)
     await until(lambda: radio.clients == 0)
     err = capsys.readouterr().err

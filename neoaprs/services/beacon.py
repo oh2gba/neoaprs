@@ -3,6 +3,7 @@
 A fixed station beacons by interval, a moving one asks SmartBeaconing at every tick; with no fresh
 fix nothing is sent. A refused frame is retried `ATTEMPTS` times, then the interval is skipped.
 """
+
 import logging
 from collections.abc import Callable
 import random
@@ -16,8 +17,14 @@ from neoaprs.config import BEACON_SENT, Config, radio_state_key
 from neoaprs.gpsfix import Fix
 from neoaprs.interlock import Interlock
 from neoaprs.radiospec import RadioId, transmits
-from neoaprs.radiotype import ONLY_RECEIVES as ONLY_RECEIVES                 # re-export
-from neoaprs.services.beaconframe import BeaconError as BeaconError, BeaconFrames, NoFix as NoFix, air_of, phg_text as phg_text
+from neoaprs.radiotype import ONLY_RECEIVES as ONLY_RECEIVES  # re-export
+from neoaprs.services.beaconframe import (
+    BeaconError as BeaconError,
+    BeaconFrames,
+    NoFix as NoFix,
+    air_of,
+    phg_text as phg_text,
+)
 from neoaprs.services.common import ConfigSource, Radio
 from neoaprs.services.memory import Memory, Remembered, stamp
 from neoaprs.services.mobilebeacon import MobilePlan, Positions
@@ -34,8 +41,12 @@ TICK_SEC = 1.0
 RETRY_SEC = 5.0
 MOBILE_GIVE_UP_SEC = 60.0
 ATTEMPTS = 6
-NOT_ON_THIS_RADIO = coded.Reason("the beacon does not go out on this radio (its Send on is not ticked)", "beacon.not_on_radio")
-NOT_TAKEN = coded.Reason("the TNC did not take the frame (it is restarting into KISS mode, or the write failed)", "radio.not_taken")
+NOT_ON_THIS_RADIO = coded.Reason(
+    "the beacon does not go out on this radio (its Send on is not ticked)", "beacon.not_on_radio"
+)
+NOT_TAKEN = coded.Reason(
+    "the TNC did not take the frame (it is restarting into KISS mode, or the write failed)", "radio.not_taken"
+)
 
 
 def no_fix(why: str) -> coded.Reason:
@@ -49,8 +60,19 @@ def memory_key_of(radio: RadioId) -> str:
 
 
 class Beacon:
-    def __init__(self, radio: AirRadio | Radio, config: ConfigSource, clock: Clock = utcnow, first_delay_sec: float = FIRST_DELAY_SEC, tick_sec: float = TICK_SEC,
-                 memory: Memory | None = None, retry_sec: float = RETRY_SEC, gps: Positions | None = None, *, frames: BeaconFrames | None = None) -> None:
+    def __init__(
+        self,
+        radio: AirRadio | Radio,
+        config: ConfigSource,
+        clock: Clock = utcnow,
+        first_delay_sec: float = FIRST_DELAY_SEC,
+        tick_sec: float = TICK_SEC,
+        memory: Memory | None = None,
+        retry_sec: float = RETRY_SEC,
+        gps: Positions | None = None,
+        *,
+        frames: BeaconFrames | None = None,
+    ) -> None:
         if frames is not None and gps is not None and gps is not frames.gps:
             raise ValueError("a beacon given the maker of frames follows the maker's GPS")
         self._old = frames is None  # legacy construction: old radio shape and memory row
@@ -159,7 +181,9 @@ class Beacon:
 
     def settings_changed(self) -> None:
         """Replan at once if the interval or fixed/mobile mode changed; else keep the schedule."""
-        if self._started is not None and (self.interval_min != self._planned_min or self._mobile(self._config()) != self._planned_mobile):
+        if self._started is not None and (
+            self.interval_min != self._planned_min or self._mobile(self._config()) != self._planned_mobile
+        ):
             self._plan(self.interval_min)
 
     @property
@@ -195,7 +219,13 @@ class Beacon:
         c = self._config()
         if interval_min > c.beacon_interval_min and interval_min != self._planned_min:
             where = f"the {self._radio.name} radio" if self._radio.name else "this radio"
-            log.info("the beacon interval %d min is raised to %d on %s: %d minutes is the shortest its type takes", c.beacon_interval_min, interval_min, where, interval_min)
+            log.info(
+                "the beacon interval %d min is raised to %d on %s: %d minutes is the shortest its type takes",
+                c.beacon_interval_min,
+                interval_min,
+                where,
+                interval_min,
+            )
         mobile = self._mobile(c)
         self._planned_min, self._planned_mobile = interval_min, mobile
         self._refused, self._retry_at = 0, None
@@ -268,7 +298,14 @@ class Beacon:
             self._retry_at = now + timedelta(seconds=self.retry_sec)
             return
         mobile = self._mobile(self._config())
-        log.warning("the beacon was refused %d times (%s): %s", self._refused, self.problem, f"tried again in {MOBILE_GIVE_UP_SEC:g} s" if mobile else "skipped (the next one is an interval on, none is made up)")
+        log.warning(
+            "the beacon was refused %d times (%s): %s",
+            self._refused,
+            self.problem,
+            f"tried again in {MOBILE_GIVE_UP_SEC:g} s"
+            if mobile
+            else "skipped (the next one is an interval on, none is made up)",
+        )
         self._refused = 0
         if mobile:
             self._retry_at = now + timedelta(seconds=MOBILE_GIVE_UP_SEC)

@@ -3,6 +3,7 @@
 A time is kept as text in one fixed form (`2026-10-21T12:00:00.000000Z`) that sorts as the time
 does. The JSON of a decoded packet has a `type` and the dataclass fields. Pure code.
 """
+
 import dataclasses
 import json
 import typing
@@ -12,10 +13,32 @@ from typing import Any, Literal, NamedTuple
 from . import ax25
 from .aprsthirdparty import header_of
 from .aprstelemetry import Telemetry
-from .packet import DUMMY, IS, Decoded, ItemReport, Message, ObjectReport, Other, Packet, Position, Status, Undecoded, channel_of, via_of
+from .packet import (
+    DUMMY,
+    IS,
+    Decoded,
+    ItemReport,
+    Message,
+    ObjectReport,
+    Other,
+    Packet,
+    Position,
+    Status,
+    Undecoded,
+    channel_of,
+    via_of,
+)
 
 STAMP_FORM = "%Y-%m-%dT%H:%M:%S.%fZ"
-_BY_KIND: dict[str, type] = {"position": Position, "message": Message, "object": ObjectReport, "item": ItemReport, "status": Status, "other": Other, "undecoded": Undecoded}
+_BY_KIND: dict[str, type] = {
+    "position": Position,
+    "message": Message,
+    "object": ObjectReport,
+    "item": ItemReport,
+    "status": Status,
+    "other": Other,
+    "undecoded": Undecoded,
+}
 KINDS = tuple(_BY_KIND)  # the values of the column `kind`
 # telemetry is kind "other" with a type of its own
 _TYPES: dict[str, type] = {**_BY_KIND, "telemetry": Telemetry}
@@ -23,6 +46,7 @@ _TYPES: dict[str, type] = {**_BY_KIND, "telemetry": Telemetry}
 
 class PacketRow(NamedTuple):
     """The columns of the packet table, in INSERT order."""
+
     heard_at: str
     direction: str
     raw: bytes
@@ -59,7 +83,9 @@ def _plain(value: Any) -> Any:
 
 
 def _dataclass_in(hint: Any) -> type | None:
-    return next((c for c in (hint, *typing.get_args(hint)) if isinstance(c, type) and dataclasses.is_dataclass(c)), None)
+    return next(
+        (c for c in (hint, *typing.get_args(hint)) if isinstance(c, type) and dataclasses.is_dataclass(c)), None
+    )
 
 
 def _build(cls: type, data: dict[str, Any]) -> Any:
@@ -106,8 +132,22 @@ def tnc2(packet: Packet) -> str:
 def packet_row(packet: Packet) -> PacketRow:
     decoded = packet.decoded
     error = decoded.error if isinstance(decoded, Undecoded) else None
-    return PacketRow(stamp(packet.heard_at), packet.direction, packet.raw, packet.source, packet.destination, ",".join(packet.path), packet.kind, packet.summary,
-                     encode_decoded(decoded), error, packet.via, packet.radio_id, packet.snr, packet.rssi)
+    return PacketRow(
+        stamp(packet.heard_at),
+        packet.direction,
+        packet.raw,
+        packet.source,
+        packet.destination,
+        ",".join(packet.path),
+        packet.kind,
+        packet.summary,
+        encode_decoded(decoded),
+        error,
+        packet.via,
+        packet.radio_id,
+        packet.snr,
+        packet.rssi,
+    )
 
 
 def info_of(raw: bytes, via: str) -> bytes:
@@ -128,6 +168,18 @@ def packet_of(row: PacketRow) -> Packet:
     opened = header_of(info)
 
     via = channel_of(None if opened is None else opened[0], row.via == IS, row.via == DUMMY)
-    return Packet(heard_at=parse_stamp(row.heard_at), direction=direction, raw=bytes(row.raw), source=row.source, destination=row.destination,
-                  path=tuple(row.path.split(",")) if row.path else (), info=info, decoded=decode_decoded(row.decoded), third_party=None if opened is None else opened[0], via=via, radio_id=None if row.radio is None else int(row.radio),
-                  snr=None if row.snr is None else float(row.snr), rssi=None if row.rssi is None else float(row.rssi))
+    return Packet(
+        heard_at=parse_stamp(row.heard_at),
+        direction=direction,
+        raw=bytes(row.raw),
+        source=row.source,
+        destination=row.destination,
+        path=tuple(row.path.split(",")) if row.path else (),
+        info=info,
+        decoded=decode_decoded(row.decoded),
+        third_party=None if opened is None else opened[0],
+        via=via,
+        radio_id=None if row.radio is None else int(row.radio),
+        snr=None if row.snr is None else float(row.snr),
+        rssi=None if row.rssi is None else float(row.rssi),
+    )

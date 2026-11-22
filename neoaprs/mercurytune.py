@@ -3,6 +3,7 @@
 The half of `Mercury` (mercurymodem.py) that drives Mercury's TUNE command; no frame is sent
 while a test is on.
 """
+
 import asyncio
 import logging
 
@@ -53,7 +54,11 @@ class Tuning:
             if why == NOT_RUNNING:
                 raise CodedError("the Mercury radio is not running", "hf.not_running")
             # the page says which by `held`
-            raise CodedError(f"the radio is not free: {why}", "hf.held", held="busy" if code_of(why)[0] == "radio.channel_busy" else "transmitting")
+            raise CodedError(
+                f"the radio is not free: {why}",
+                "hf.held",
+                held="busy" if code_of(why)[0] == "radio.channel_busy" else "transmitting",
+            )
         await self._cancel_test()
         if not self._write(tune_command(level_dbfs)):
             log.info("Mercury: %s was refused: the control port is not open", name)

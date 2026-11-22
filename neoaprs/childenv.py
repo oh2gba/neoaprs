@@ -3,17 +3,53 @@
 A child gets only what a program needs in a desktop session: search path, home, language,
 and the display, audio and message bus.
 """
+
 import os
 from collections.abc import Mapping
 from pathlib import PureWindowsPath
 
-_NAMES = frozenset({
-    "PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "LANGUAGE", "TZ", "TERM", "TMPDIR",
-    "DISPLAY", "XAUTHORITY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS", "DESKTOP_SESSION",
-    # Windows: PowerShell, Python and Winsock programs fail to start without these.
-    "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "PATHEXT", "TEMP", "TMP", "USERPROFILE", "USERNAME", "USERDOMAIN", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA",
-    "PROGRAMFILES", "PROGRAMFILES(X86)", "COMMONPROGRAMFILES", "HOMEDRIVE", "HOMEPATH", "PROCESSOR_ARCHITECTURE", "NUMBER_OF_PROCESSORS", "OS", "PSMODULEPATH",
-})
+_NAMES = frozenset(
+    {
+        "PATH",
+        "HOME",
+        "USER",
+        "LOGNAME",
+        "SHELL",
+        "LANG",
+        "LANGUAGE",
+        "TZ",
+        "TERM",
+        "TMPDIR",
+        "DISPLAY",
+        "XAUTHORITY",
+        "WAYLAND_DISPLAY",
+        "DBUS_SESSION_BUS_ADDRESS",
+        "DESKTOP_SESSION",
+        # Windows: PowerShell, Python and Winsock programs fail to start without these.
+        "SYSTEMROOT",
+        "SYSTEMDRIVE",
+        "WINDIR",
+        "COMSPEC",
+        "PATHEXT",
+        "TEMP",
+        "TMP",
+        "USERPROFILE",
+        "USERNAME",
+        "USERDOMAIN",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "PROGRAMDATA",
+        "PROGRAMFILES",
+        "PROGRAMFILES(X86)",
+        "COMMONPROGRAMFILES",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "PROCESSOR_ARCHITECTURE",
+        "NUMBER_OF_PROCESSORS",
+        "OS",
+        "PSMODULEPATH",
+    }
+)
 # Locale, session directories (XDG_RUNTIME_DIR holds the audio and bus sockets), sound system,
 # toolkits.
 _PREFIXES = ("LC_", "XDG_", "WAYLAND_", "PULSE_", "PIPEWIRE_", "ALSA_", "QT_", "GTK_", "GDK_")

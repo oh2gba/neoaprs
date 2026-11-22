@@ -1,6 +1,7 @@
 """Build hook: a wheel has the encrypted-message modules only if built with NEOAPRS_ENCRYPTION=1.
 
 pyproject.toml excludes ENCRYPTION from every wheel; the sdist always has them."""
+
 import os
 from typing import Any
 

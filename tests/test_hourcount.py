@@ -1,5 +1,6 @@
 """The packets of the last hour of a station (neoaprs/hourcount.py): counted for each minute, they
 leave the hour as it moves on."""
+
 from datetime import timedelta
 
 from neoaprs.clock import utc
@@ -33,7 +34,9 @@ def test_a_late_packet_is_counted_with_the_newest_minute() -> None:
     hour = HourCount()
     hour.note(T0 + timedelta(minutes=5))
     hour.note(T0)
-    assert hour.total == 2 and hour.count(T0 + timedelta(minutes=64)) == 2 and hour.count(T0 + timedelta(minutes=66)) == 0
+    assert (
+        hour.total == 2 and hour.count(T0 + timedelta(minutes=64)) == 2 and hour.count(T0 + timedelta(minutes=66)) == 0
+    )
 
 
 def test_a_busy_station_costs_at_most_an_hours_worth_of_minutes() -> None:

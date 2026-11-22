@@ -6,6 +6,7 @@ Run by scripts/build-macos-app after prune.py and before signing. Needs lipo.
     thin.py --check APP     exit 1 naming every file that still has a part that is not arm64
 
 A fat file without arm64 fails the build. Links are not followed."""
+
 import os
 import subprocess
 import sys
@@ -99,7 +100,11 @@ def main(argv: Sequence[str] | None = None, run: Run = run_lipo) -> int:
     if check:
         left = still_fat(root, run)
         if left:
-            print(f"thin: {len(left)} file(s) of {root} still hold more than {KEEP}:\n" + "\n".join(f"  {line}" for line in left), file=sys.stderr)
+            print(
+                f"thin: {len(left)} file(s) of {root} still hold more than {KEEP}:\n"
+                + "\n".join(f"  {line}" for line in left),
+                file=sys.stderr,
+            )
             return 1
         print(f"thin: every Mach-O file of {root} is {KEEP} alone")
         return 0

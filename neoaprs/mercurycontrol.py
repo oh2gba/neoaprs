@@ -2,6 +2,7 @@
 
 Mercury reports PTT, BUSY and SNR there; only `TUNE` is written. The line reconnects after a back-off.
 """
+
 import asyncio
 import logging
 from collections.abc import Callable
@@ -21,7 +22,14 @@ HELD = "Mercury closed its control port at once: another program holds it"
 
 
 class ControlLine:
-    def __init__(self, host: str, port: int, on_event: Callable[[ControlEvent], None], on_state: Callable[[bool, str], None], backoff: Backoff | None = None) -> None:
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        on_event: Callable[[ControlEvent], None],
+        on_state: Callable[[bool, str], None],
+        backoff: Backoff | None = None,
+    ) -> None:
         self.host, self.port = host, port
         self._on_event, self._on_state = on_event, on_state
         self.backoff = backoff or Backoff([1.0, 2.0, 5.0])

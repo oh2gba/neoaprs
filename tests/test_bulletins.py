@@ -1,6 +1,7 @@
 """The message board (neoaprs/services/bulletins.py) on a real bulletin log and a clock the test
 holds: what is kept for a sender and a slot, a text that is replaced, the hearings counted, that
 nothing ages out or is trimmed, the delete, and a restart."""
+
 from pathlib import Path
 
 import pytest
@@ -29,7 +30,12 @@ class Rig:
     def hear(self, sender: str, addressee: str, text: str, via: str = "") -> None:
         third = ThirdParty(sender, "APRS", ("TCPIP",)) if via else None
         message = Message(addressee, text)
-        self.board.heard(Packet(self.clock(), "in", b"", via or sender, "APRS", (), b"", message, third, "rf-gated" if third else "rf"), message)
+        self.board.heard(
+            Packet(
+                self.clock(), "in", b"", via or sender, "APRS", (), b"", message, third, "rf-gated" if third else "rf"
+            ),
+            message,
+        )
 
     async def tick(self, seconds: float = 0.0) -> None:
         self.clock.advance(seconds)
@@ -57,8 +63,19 @@ def keys(rig: Rig) -> list[str]:
 async def test_a_bulletin_is_kept_for_its_sender_and_slot_and_told(rig: Rig) -> None:
     rig.hear("OH2XYZ", "BLN1", "Road closed at Kaivopuisto")
     [one] = rig.board.records()
-    assert (one.sender, one.slot, one.group, one.kind, one.text, one.times_heard) == ("OH2XYZ", "BLN1", "", "bulletin", "Road closed at Kaivopuisto", 1)
-    assert one.first_heard == one.last_heard == rig.clock() and rig.changed == [one] and rig.board.get("OH2XYZ/BLN1") == one
+    assert (one.sender, one.slot, one.group, one.kind, one.text, one.times_heard) == (
+        "OH2XYZ",
+        "BLN1",
+        "",
+        "bulletin",
+        "Road closed at Kaivopuisto",
+        1,
+    )
+    assert (
+        one.first_heard == one.last_heard == rig.clock()
+        and rig.changed == [one]
+        and rig.board.get("OH2XYZ/BLN1") == one
+    )
     await rig.settled()
     assert await rig.log.all() == [one]
 
@@ -67,7 +84,14 @@ async def test_each_kind_is_told_by_its_slot_and_a_group_bulletin_has_its_group(
     for slot in ("BLN1", "BLNA", "BLN3HAMS", "QST", "CQ", "ALL"):
         rig.hear("OH2XYZ", slot, "text")
     found = {b.slot: (b.kind, b.group) for b in rig.board.records()}
-    assert found == {"BLN1": ("bulletin", ""), "BLNA": ("announcement", ""), "BLN3HAMS": ("group", "HAMS"), "QST": ("group", ""), "CQ": ("group", ""), "ALL": ("group", "")}
+    assert found == {
+        "BLN1": ("bulletin", ""),
+        "BLNA": ("announcement", ""),
+        "BLN3HAMS": ("group", "HAMS"),
+        "QST": ("group", ""),
+        "CQ": ("group", ""),
+        "ALL": ("group", ""),
+    }
 
 
 async def test_a_sender_sending_the_slot_again_replaces_the_text_and_starts_the_count(rig: Rig) -> None:
@@ -122,7 +146,9 @@ async def test_a_third_party_bulletin_is_from_the_sender_inside(rig: Rig) -> Non
 
 async def test_a_bulletin_with_no_text_is_not_kept(rig: Rig) -> None:
     rig.hear("OH2XYZ", "BLN1", "   ")
-    rig.board.heard(Packet(rig.clock(), "in", b"", "OH2XYZ", "APRS", (), b"", Message("OH2GBA", "x"), None), Message("OH2GBA", "x"))
+    rig.board.heard(
+        Packet(rig.clock(), "in", b"", "OH2XYZ", "APRS", (), b"", Message("OH2GBA", "x"), None), Message("OH2GBA", "x")
+    )
     assert rig.board.records() == [] and rig.changed == []
 
 
@@ -134,7 +160,9 @@ async def test_nothing_ages_out_not_after_a_day_nor_a_year_and_the_rows_keep_the
     await rig.tick(365 * 86400)
     assert sorted(keys(rig)) == ["OH2XYZ/BLN1", "OH2XYZ/BLN3HAMS", "OH2XYZ/BLNA", "OH2XYZ/QST"] and rig.removed == []
     one = rig.board.get("OH2XYZ/BLN1")
-    assert one is not None and (one.times_heard, one.first_heard, one.last_heard) == (1, first, first), "the times heard and the last hearing stay"
+    assert one is not None and (one.times_heard, one.first_heard, one.last_heard) == (1, first, first), (
+        "the times heard and the last hearing stay"
+    )
     await rig.settled()
     assert len(await rig.log.all()) == 4, "and the database keeps them"
 
@@ -166,7 +194,11 @@ async def test_delete_removes_the_entry_from_the_board_and_the_database_and_tell
     assert keys(rig) == ["OH2XYZ/BLN2"] and rig.removed == [gone] and rig.board.get("OH2XYZ/BLN1") is None
     await rig.settled()
     assert [b.key for b in await rig.log.all()] == ["OH2XYZ/BLN2"]
-    assert rig.board.delete("OH2XYZ", "BLN1") is False and rig.board.delete("OH2NONE", "BLN9") is False and len(rig.removed) == 1
+    assert (
+        rig.board.delete("OH2XYZ", "BLN1") is False
+        and rig.board.delete("OH2NONE", "BLN9") is False
+        and len(rig.removed) == 1
+    )
 
 
 async def test_a_bulletin_sent_again_after_a_delete_is_new(rig: Rig) -> None:
@@ -192,7 +224,9 @@ async def test_a_board_that_is_not_in_a_database_still_works() -> None:
     assert r.log.dropped == 1, "the write that could not be queued is counted"
 
 
-async def test_a_weather_service_bulletin_is_kept_on_the_board_as_the_kind_nws_and_a_restart_finds_it(rig: Rig, tmp_path: Path) -> None:
+async def test_a_weather_service_bulletin_is_kept_on_the_board_as_the_kind_nws_and_a_restart_finds_it(
+    rig: Rig, tmp_path: Path
+) -> None:
     rig.hear("OH2XYZ", "NWS-WARNV", "092010z,THUNDER_STORM,AR_ASHLEY,")
     [one] = rig.board.records()
     assert (one.slot, one.kind, one.group, one.key) == ("NWS-WARNV", "nws", "", "OH2XYZ/NWS-WARNV")

@@ -2,6 +2,7 @@
 
 The file is migrated by `open_database` (migrations.py); ":memory:" is a separate database made
 there."""
+
 from pathlib import Path
 
 from .clock import Clock, utcnow

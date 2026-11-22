@@ -2,6 +2,7 @@
 deleted so the new default (`neoaprs.versions.UPDATE_URL`) is in force; an address set by hand is
 kept.
 """
+
 import logging
 from pathlib import Path
 
@@ -35,18 +36,34 @@ def migrate(folder: Path, stored: dict[str, str]) -> dict[str, str]:
     version_twenty_five(old, clock, stored)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 26
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][25:] == [(26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33]), (34, "_v34", GOLDEN[34]), (35, "_v35", GOLDEN[35])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][25:] == [
+        (26, "_v26", GOLDEN[26]),
+        (27, "_v27", GOLDEN[27]),
+        (28, "_v28", GOLDEN[28]),
+        (29, "_v29", GOLDEN[29]),
+        (30, "_v30", GOLDEN[30]),
+        (31, "_v31", GOLDEN[31]),
+        (32, "_v32", GOLDEN[32]),
+        (33, "_v33", GOLDEN[33]),
+        (34, "_v34", GOLDEN[34]),
+        (35, "_v35", GOLDEN[35]),
+    ]
     found = {str(k): str(v) for k, v in migrated.db.execute("SELECT key, value FROM settings")}
     migrated.close()
     return found
 
 
-def test_the_old_default_is_dropped_and_the_new_one_is_in_force(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_the_old_default_is_dropped_and_the_new_one_is_in_force(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
         found = migrate(tmp_path, {"update/url": OLD_UPDATE_URL, "station/call": "OH2GBA"})
     assert found == {"station/call": "OH2GBA"}
     assert Config.from_data(found).update_url == UPDATE_URL == DEFAULTS.update_url
-    assert "update/url reset to the default: https://oh2gba.eu/neoaprs/version.php → https://neo.oh2gba.eu/version.php" in caplog.text
+    assert (
+        "update/url reset to the default: https://oh2gba.eu/neoaprs/version.php → https://neo.oh2gba.eu/version.php"
+        in caplog.text
+    )
 
 
 def test_an_address_set_by_hand_is_kept(tmp_path: Path) -> None:

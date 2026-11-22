@@ -2,6 +2,7 @@
 Digirigs behind hubs, a dongle and an FTDI cable on the computer, an all-in-one chip, and a
 multi-radio desk.
 """
+
 import sys
 from pathlib import Path
 
@@ -54,9 +55,13 @@ PORTS = ["/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2", "/dev/ttyACM0"]
 @posix_only
 def test_a_cards_ports_are_those_on_its_own_hub_or_its_own_device(sys_root: Path) -> None:
     assert usbtie.tied("plughw:CARD=Device,DEV=0", PORTS, sys_root) == ["/dev/ttyUSB0"]
-    assert usbtie.tied("plughw:2,0", PORTS, sys_root) == ["/dev/ttyUSB1"], "the second Digirig, by the card's number: its own port, not the first one's"
+    assert usbtie.tied("plughw:2,0", PORTS, sys_root) == ["/dev/ttyUSB1"], (
+        "the second Digirig, by the card's number: its own port, not the first one's"
+    )
     assert usbtie.tied("plughw:CARD=AIOC,DEV=0", PORTS, sys_root) == ["/dev/ttyACM0"], "one USB device with both"
-    assert usbtie.tied("plughw:CARD=Dongle,DEV=0", PORTS, sys_root) == [], "two devices on the computer's own hub are not one interface"
+    assert usbtie.tied("plughw:CARD=Dongle,DEV=0", PORTS, sys_root) == [], (
+        "two devices on the computer's own hub are not one interface"
+    )
 
 
 @posix_only
@@ -70,23 +75,37 @@ def test_a_by_id_link_is_the_port_it_points_at(sys_root: Path, tmp_path: Path) -
 
 @posix_only
 def test_where_the_card_is_not_found_on_the_usb_nothing_can_be_told(sys_root: Path, tmp_path: Path) -> None:
-    assert usbtie.tied("plughw:CARD=Nothing,DEV=0", PORTS, sys_root) is None and usbtie.tied("default", PORTS, sys_root) is None
+    assert (
+        usbtie.tied("plughw:CARD=Nothing,DEV=0", PORTS, sys_root) is None
+        and usbtie.tied("default", PORTS, sys_root) is None
+    )
     assert usbtie.tied("plughw:CARD=Device,DEV=0", PORTS, tmp_path / "none") is None
 
 
 def test_under_the_no_devices_switch_nothing_is_read(under_the_switch: None) -> None:  # noqa: F811
-    assert nodevices.on() and usbtie.beside("plughw:CARD=Device,DEV=0", PORTS) is None and usbtie.beside("", PORTS) is None
+    assert (
+        nodevices.on() and usbtie.beside("plughw:CARD=Device,DEV=0", PORTS) is None and usbtie.beside("", PORTS) is None
+    )
 
 
-def test_where_there_is_no_sysfs_nothing_can_be_told_and_the_keying_is_the_computers_one_interface_port(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_where_there_is_no_sysfs_nothing_can_be_told_and_the_keying_is_the_computers_one_interface_port(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(nodevices, "on", lambda: False)
-    monkeypatch.setenv("NEOAPRS_SYS_ROOT", str(tmp_path))                           # (were it read, nothing is there)
+    monkeypatch.setenv("NEOAPRS_SYS_ROOT", str(tmp_path))  # (were it read, nothing is there)
     for system in ("win32", "darwin"):
         monkeypatch.setattr(sys, "platform", system)
-        assert usbtie.beside("{0.0.1.00000000}.{2301}|{0.0.0.00000000}.{ca03}", ["COM3"]) is None and usbtie.beside("plughw:1,0", ["/dev/ttyUSB0"]) is None
+        assert (
+            usbtie.beside("{0.0.1.00000000}.{2301}|{0.0.0.00000000}.{ca03}", ["COM3"]) is None
+            and usbtie.beside("plughw:1,0", ["/dev/ttyUSB0"]) is None
+        )
     digirig, second = SerialPort("COM3", 0x10C4, 0xEA60), SerialPort("COM4", 0x10C4, 0xEA60)
-    assert choose_keying("USB Audio CODEC", [digirig], None) == Keying("rts", "COM3"), "the computer's one such port, for a card that names itself as an interface's"
-    assert choose_keying("USB Audio CODEC", [digirig, second], None) == Keying("vox") and choose_keying("Realtek(R) Audio", [digirig], None) == Keying("vox"), "two such ports, or the computer's own sound: VOX"
+    assert choose_keying("USB Audio CODEC", [digirig], None) == Keying("rts", "COM3"), (
+        "the computer's one such port, for a card that names itself as an interface's"
+    )
+    assert choose_keying("USB Audio CODEC", [digirig, second], None) == Keying("vox") and choose_keying(
+        "Realtek(R) Audio", [digirig], None
+    ) == Keying("vox"), "two such ports, or the computer's own sound: VOX"
 
 
 @pytest.fixture
@@ -119,8 +138,25 @@ def station(tmp_path: Path) -> Path:
     return root
 
 
-STATION = ["/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2", "/dev/ttyUSB3", "/dev/ttyUSB4", "/dev/ttyUSB5", "/dev/ttyUSB6", "/dev/ttyS0", "bt://AA:BB:CC:DD:EE:FF"]
-CARDS = ["plughw:CARD=FTX1,DEV=0", "plughw:CARD=CODEC,DEV=0", "plughw:CARD=Dongle,DEV=0", "plughw:4,0", "plughw:CARD=PCH,DEV=0", "plughw:CARD=Gone,DEV=0"]
+STATION = [
+    "/dev/ttyUSB0",
+    "/dev/ttyUSB1",
+    "/dev/ttyUSB2",
+    "/dev/ttyUSB3",
+    "/dev/ttyUSB4",
+    "/dev/ttyUSB5",
+    "/dev/ttyUSB6",
+    "/dev/ttyS0",
+    "bt://AA:BB:CC:DD:EE:FF",
+]
+CARDS = [
+    "plughw:CARD=FTX1,DEV=0",
+    "plughw:CARD=CODEC,DEV=0",
+    "plughw:CARD=Dongle,DEV=0",
+    "plughw:4,0",
+    "plughw:CARD=PCH,DEV=0",
+    "plughw:CARD=Gone,DEV=0",
+]
 
 
 def _together(cards: dict[str, str | None], ports: dict[str, str | None], card: str) -> list[str]:
@@ -130,10 +166,20 @@ def _together(cards: dict[str, str | None], ports: dict[str, str | None], card: 
 @posix_only
 def test_two_radios_on_one_computer_are_two_groups_each_card_with_its_own_ports(station: Path) -> None:
     cards, ports = usbtie.groups(CARDS, STATION, station)
-    assert _together(cards, ports, "plughw:CARD=FTX1,DEV=0") == ["/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2"], "the FTX-1's three ports: the CP2105's two and the other chip's"
+    assert _together(cards, ports, "plughw:CARD=FTX1,DEV=0") == ["/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2"], (
+        "the FTX-1's three ports: the CP2105's two and the other chip's"
+    )
     assert _together(cards, ports, "plughw:CARD=CODEC,DEV=0") == ["/dev/ttyUSB3", "/dev/ttyUSB4"]
-    assert usbtie.tied("plughw:CARD=FTX1,DEV=0", STATION, station) == ["/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2"], "the keying Direwolf is given follows the same rule"
-    assert all(len(token or "") == 12 and "/" not in (token or "") for token in [*cards.values(), *ports.values()] if token is not None), "a token, no path"
+    assert usbtie.tied("plughw:CARD=FTX1,DEV=0", STATION, station) == [
+        "/dev/ttyUSB0",
+        "/dev/ttyUSB1",
+        "/dev/ttyUSB2",
+    ], "the keying Direwolf is given follows the same rule"
+    assert all(
+        len(token or "") == 12 and "/" not in (token or "")
+        for token in [*cards.values(), *ports.values()]
+        if token is not None
+    ), "a token, no path"
 
 
 @posix_only
@@ -145,26 +191,34 @@ def test_a_lone_cable_and_a_lone_dongle_on_a_desktop_hub_with_nothing_else_are_g
 @posix_only
 def test_a_hub_with_anything_else_on_it_is_no_radios_and_its_devices_stand_alone(station: Path) -> None:
     cards, ports = usbtie.groups(CARDS, STATION, station)
-    assert cards["plughw:4,0"] is not None and _together(cards, ports, "plughw:4,0") == [], "a keyboard beside them: the dongle and the cable are not one radio"
+    assert cards["plughw:4,0"] is not None and _together(cards, ports, "plughw:4,0") == [], (
+        "a keyboard beside them: the dongle and the cable are not one radio"
+    )
     assert ports["/dev/ttyUSB6"] is not None and ports["/dev/ttyUSB6"] not in cards.values()
 
 
 @posix_only
 def test_what_is_not_on_the_usb_or_not_found_has_no_group(station: Path) -> None:
     cards, ports = usbtie.groups(CARDS, STATION, station)
-    assert cards["plughw:CARD=PCH,DEV=0"] is None and cards["plughw:CARD=Gone,DEV=0"] is None, "the mainboard's sound, and a card that is not there"
+    assert cards["plughw:CARD=PCH,DEV=0"] is None and cards["plughw:CARD=Gone,DEV=0"] is None, (
+        "the mainboard's sound, and a card that is not there"
+    )
     assert ports["/dev/ttyS0"] is None and ports["bt://AA:BB:CC:DD:EE:FF"] is None and ports["/dev/ttyUSB0"] is not None
 
 
 @posix_only
 def test_a_tree_that_cannot_be_read_tells_nothing(tmp_path: Path) -> None:
-    (tmp_path / "sys").write_text("", encoding="utf-8")                                    # (not a folder)
+    (tmp_path / "sys").write_text("", encoding="utf-8")  # (not a folder)
     for root in (tmp_path / "none", tmp_path / "sys"):
         cards, ports = usbtie.groups(CARDS, STATION, root)
         assert set(cards.values()) == {None} and set(ports.values()) == {None}
 
 
-def test_under_the_no_devices_switch_or_off_linux_every_token_is_null(under_the_switch: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:  # noqa: F811
+def test_under_the_no_devices_switch_or_off_linux_every_token_is_null(
+    under_the_switch: None,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     read: list[Path] = []
     # Were the tree read, this would say so
     monkeypatch.setattr(usbtie, "groups", lambda *a: read.append(a[2]))
@@ -185,7 +239,9 @@ def test_a_by_id_link_to_a_port_is_in_the_group_of_the_port_it_names(station: Pa
     link = dev / "serial" / "by-id" / "usb-Silicon_Labs_CP2105-if01-port0"
     link.symlink_to(dev / "ttyUSB4")
     cards, ports = usbtie.groups(CARDS, [str(link), "/dev/ttyUSB3"], station)
-    assert ports[str(link)] is not None and ports[str(link)] == ports["/dev/ttyUSB3"] == cards["plughw:CARD=CODEC,DEV=0"], "the link and the port are one device of one radio"
+    assert (
+        ports[str(link)] is not None and ports[str(link)] == ports["/dev/ttyUSB3"] == cards["plughw:CARD=CODEC,DEV=0"]
+    ), "the link and the port are one device of one radio"
 
 
 @posix_only
@@ -197,7 +253,9 @@ def test_a_dongle_and_a_cable_on_a_hub_shared_with_a_keyboard_keep_the_cable_as_
     assert _together(cards, ports, "plughw:4,0") == []
     assert usbtie.tied("plughw:4,0", STATION, station) == ["/dev/ttyUSB6"]
     cable = [SerialPort("/dev/ttyUSB6", 0x0403, 0x6001)]
-    assert choose_keying("USB PnP Sound Device", cable, usbtie.tied("plughw:4,0", ["/dev/ttyUSB6"], station)) == Keying("rts", "/dev/ttyUSB6")
+    assert choose_keying("USB PnP Sound Device", cable, usbtie.tied("plughw:4,0", ["/dev/ttyUSB6"], station)) == Keying(
+        "rts", "/dev/ttyUSB6"
+    )
 
 
 @posix_only
@@ -207,14 +265,25 @@ def test_a_card_with_a_port_of_its_own_on_a_busy_hub_is_keyed_as_it_always_was(s
     VOX."""
     _card(station, 5, "Combo", "1-5/1-5.4/1-5.4:1.0")
     _tty(station, "ttyACM1", "1-5/1-5.4/1-5.4:1.2", usb_serial=False)
-    assert usbtie.tied("plughw:CARD=Combo,DEV=0", ["/dev/ttyUSB6", "/dev/ttyACM1"], station) == ["/dev/ttyUSB6", "/dev/ttyACM1"]
+    assert usbtie.tied("plughw:CARD=Combo,DEV=0", ["/dev/ttyUSB6", "/dev/ttyACM1"], station) == [
+        "/dev/ttyUSB6",
+        "/dev/ttyACM1",
+    ]
     ports = [SerialPort("/dev/ttyUSB6", 0x0403, 0x6001), SerialPort("/dev/ttyACM1", 0x10C4, 0xEA60)]
-    assert choose_keying("USB Audio Device", ports, usbtie.tied("plughw:CARD=Combo,DEV=0", ["/dev/ttyUSB6", "/dev/ttyACM1"], station)) == Keying("vox")
+    assert choose_keying(
+        "USB Audio Device", ports, usbtie.tied("plughw:CARD=Combo,DEV=0", ["/dev/ttyUSB6", "/dev/ttyACM1"], station)
+    ) == Keying("vox")
 
 
 @posix_only
 def test_the_keying_is_chosen_among_the_cards_own_hub_and_never_another_hubs(station: Path) -> None:
-    assert usbtie.tied("plughw:CARD=CODEC,DEV=0", STATION, station) == ["/dev/ttyUSB3", "/dev/ttyUSB4"], "the other radio's CP2105, none of the FTX-1's"
+    assert usbtie.tied("plughw:CARD=CODEC,DEV=0", STATION, station) == ["/dev/ttyUSB3", "/dev/ttyUSB4"], (
+        "the other radio's CP2105, none of the FTX-1's"
+    )
     assert usbtie.tied("plughw:CARD=Dongle,DEV=0", STATION, station) == ["/dev/ttyUSB5"]
-    assert usbtie.tied("plughw:CARD=PCH,DEV=0", STATION, station) is None, "the mainboard's sound is not on the USB: nothing can be told"
-    assert usbtie.tied("plughw:CARD=CODEC,DEV=0", ["/dev/ttyUSB0", "/dev/ttyUSB6"], station) == [], "no port of its group is free: none of another hub's is taken instead"
+    assert usbtie.tied("plughw:CARD=PCH,DEV=0", STATION, station) is None, (
+        "the mainboard's sound is not on the USB: nothing can be told"
+    )
+    assert usbtie.tied("plughw:CARD=CODEC,DEV=0", ["/dev/ttyUSB0", "/dev/ttyUSB6"], station) == [], (
+        "no port of its group is free: none of another hub's is taken instead"
+    )

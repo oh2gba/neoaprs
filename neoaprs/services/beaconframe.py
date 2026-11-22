@@ -3,6 +3,7 @@
 Frames differ between radios only by the radio's path and a comment cut to fit its frame; with no
 fresh fix a moving station has no frame (`NoFix`). `air_of` wraps an old-shape radio.
 """
+
 import logging
 import math
 import re
@@ -163,7 +164,12 @@ class BeaconFrames:
             raise BeaconError.of(problem)
         info = self._position(c)[0]
         if len(info) > ax25.MAX_INFO:
-            raise BeaconError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows", "frame.too_long", length=len(info), max=ax25.MAX_INFO)
+            raise BeaconError(
+                f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows",
+                "frame.too_long",
+                length=len(info),
+                max=ax25.MAX_INFO,
+            )
         return info
 
     def _position(self, c: Config) -> tuple[bytes, Fix | None]:
@@ -175,10 +181,17 @@ class BeaconFrames:
         if c.station_lat is None or c.station_lon is None:
             raise BeaconError("set your position first", "beacon.no_position")
         if not (-90.0 <= c.station_lat <= 90.0 and -180.0 <= c.station_lon <= 180.0):
-            raise BeaconError(f"the position {c.station_lat}, {c.station_lon} is not on the earth", "object.position", lat=c.station_lat, lon=c.station_lon)
+            raise BeaconError(
+                f"the position {c.station_lat}, {c.station_lon} is not on the earth",
+                "object.position",
+                lat=c.station_lat,
+                lon=c.station_lon,
+            )
         _check_symbol(c)
         try:
-            position = uncompressed_position(c.station_lat, c.station_lon, c.station_symbol_table, c.station_symbol_code)
+            position = uncompressed_position(
+                c.station_lat, c.station_lon, c.station_symbol_table, c.station_symbol_code
+            )
         except ValueError as e:
             raise BeaconError.of(e) from None
         return b"=" + position + _phg(c) + _comment_text(c.station_comment).encode("ascii"), None
@@ -202,11 +215,23 @@ class BeaconFrames:
         if refusal := over_the_air_refusal(text):
             raise BeaconError.of(refusal, f"the status: {refusal}")
         if len(text) > MAX_STATUS:
-            raise BeaconError(f"the status is {len(text)} characters, more than the {MAX_STATUS} that fit after its time", "status.too_long", length=len(text), max=MAX_STATUS)
+            raise BeaconError(
+                f"the status is {len(text)} characters, more than the {MAX_STATUS} that fit after its time",
+                "status.too_long",
+                length=len(text),
+                max=MAX_STATUS,
+            )
         info = b">" + self.clock().strftime("%d%H%M").encode("ascii") + b"z" + text.encode("ascii")
         if over := self._over(radio, info):
-            fits_not = Reason(f"the status is too long for radio {radio.name}", "status.too_long_for_radio", radio=radio.id, name=radio.name)
-            raise BeaconError.of(fits_not, f"the status is longer than the radio carries ({over}): it is not cut, and not sent there")
+            fits_not = Reason(
+                f"the status is too long for radio {radio.name}",
+                "status.too_long_for_radio",
+                radio=radio.id,
+                name=radio.name,
+            )
+            raise BeaconError.of(
+                fits_not, f"the status is longer than the radio carries ({over}): it is not cut, and not sent there"
+            )
         return self.frame_for(radio, info)
 
     def _over(self, radio: AirRadio, info: bytes) -> str:
@@ -224,7 +249,12 @@ class BeaconFrames:
         if reason := can_transmit(c):
             raise BeaconError.of(reason)
         if len(info) > ax25.MAX_INFO:
-            raise BeaconError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows", "frame.too_long", length=len(info), max=ax25.MAX_INFO)
+            raise BeaconError(
+                f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows",
+                "frame.too_long",
+                length=len(info),
+                max=ax25.MAX_INFO,
+            )
         if problem := _path_problem(radio, c):
             raise BeaconError.of(problem)
         try:
@@ -234,7 +264,12 @@ class BeaconFrames:
             raise BeaconError.of(e) from None
         if fitted is not frame and self._cut_told.get(radio.id) != fitted.info:
             self._cut_told[radio.id] = fitted.info
-            log.warning("the beacon is %d bytes more than the radio carries (%d): its comment is cut to %r", len(ax25.encode(frame)), radio.max_frame, fitted.info[fixed_prefix(info):].decode("ascii", "replace"))
+            log.warning(
+                "the beacon is %d bytes more than the radio carries (%d): its comment is cut to %r",
+                len(ax25.encode(frame)),
+                radio.max_frame,
+                fitted.info[fixed_prefix(info) :].decode("ascii", "replace"),
+            )
         return fitted
 
 
@@ -255,12 +290,23 @@ def _path_problem(radio: AirRadio, c: Config) -> str:
 
 
 def _check_symbol(c: Config) -> None:
-    if c.station_symbol_table not in SYMBOL_TABLES or len(c.station_symbol_table) != 1 or not "!" <= c.station_symbol_code <= "~" or len(c.station_symbol_code) != 1:
-        raise BeaconError(f"the symbol {c.station_symbol_table!r} {c.station_symbol_code!r} is not a table (/ \\ A-Z 0-9) and one printable character", "object.symbol", table=c.station_symbol_table,
-                          symbol=c.station_symbol_code)
+    if (
+        c.station_symbol_table not in SYMBOL_TABLES
+        or len(c.station_symbol_table) != 1
+        or not "!" <= c.station_symbol_code <= "~"
+        or len(c.station_symbol_code) != 1
+    ):
+        raise BeaconError(
+            f"the symbol {c.station_symbol_table!r} {c.station_symbol_code!r} is not a table (/ \\ A-Z 0-9) and one printable character",
+            "object.symbol",
+            table=c.station_symbol_table,
+            symbol=c.station_symbol_code,
+        )
 
 
 def _phg(c: Config) -> bytes:
     if c.beacon_power_w is None:
         return b""
-    return phg_text(c.beacon_power_w, c.beacon_antenna_height_m, c.beacon_antenna_gain_db, c.beacon_antenna_direction).encode("ascii")
+    return phg_text(
+        c.beacon_power_w, c.beacon_antenna_height_m, c.beacon_antenna_gain_db, c.beacon_antenna_direction
+    ).encode("ascii")

@@ -1,6 +1,7 @@
 """Properties of the APRS decoders: format_message then parse_message round-trips; compress_position
 then parse_position keeps the place within half a metre; the parser never raises.
 """
+
 import math
 import re
 from datetime import UTC, datetime
@@ -15,9 +16,16 @@ from neoaprs.packet import Message
 from tests.test_aprsposition import compress_position
 
 NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
-_ADDRESSEE = st.text(alphabet=st.characters(min_codepoint=33, max_codepoint=126, exclude_characters=":"), min_size=1, max_size=9)
-_TEXT = st.text(alphabet=st.characters(min_codepoint=32, max_codepoint=126, exclude_characters="|~{"), max_size=16).filter(lambda t: not re.match(r"(ack|rej)[A-Za-z0-9]{1,5}(\}[A-Za-z0-9]{0,5})?$", t))
-_ID = st.one_of(st.none(), st.text(alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", min_size=1, max_size=5))
+_ADDRESSEE = st.text(
+    alphabet=st.characters(min_codepoint=33, max_codepoint=126, exclude_characters=":"), min_size=1, max_size=9
+)
+_TEXT = st.text(
+    alphabet=st.characters(min_codepoint=32, max_codepoint=126, exclude_characters="|~{"), max_size=16
+).filter(lambda t: not re.match(r"(ack|rej)[A-Za-z0-9]{1,5}(\}[A-Za-z0-9]{0,5})?$", t))
+_ID = st.one_of(
+    st.none(),
+    st.text(alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", min_size=1, max_size=5),
+)
 
 
 def metres_between(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -44,7 +52,12 @@ def test_a_compressed_position_round_trips_within_half_a_metre(lat: float, lon: 
     assert metres_between(lat, lon, p.lat, p.lon) < 0.5
 
 
-@given(st.floats(min_value=-90, max_value=90), st.floats(min_value=-180, max_value=180), st.sampled_from(["/", "\\", "0", "9", "A", "Z"]), st.integers(min_value=33, max_value=126))
+@given(
+    st.floats(min_value=-90, max_value=90),
+    st.floats(min_value=-180, max_value=180),
+    st.sampled_from(["/", "\\", "0", "9", "A", "Z"]),
+    st.integers(min_value=33, max_value=126),
+)
 def test_the_symbol_survives_compression(lat: float, lon: float, table: str, code: int) -> None:
     """The symbol table and code come back from a compressed position."""
     p = parse_position(compress_position(lat, lon, table, chr(code)), NOW)
@@ -59,7 +72,11 @@ def test_the_parser_never_raises(info: bytes, destination: str) -> None:
 
 
 @settings(max_examples=300)
-@given(st.sampled_from([b"!", b"=", b"/", b"@", b"'", b"`", b":", b";", b")", b">", b"\x1c", b"\x1d"]), st.binary(max_size=60), st.text(alphabet="PQRSTUVWXYZ0123456789", min_size=6, max_size=6))
+@given(
+    st.sampled_from([b"!", b"=", b"/", b"@", b"'", b"`", b":", b";", b")", b">", b"\x1c", b"\x1d"]),
+    st.binary(max_size=60),
+    st.text(alphabet="PQRSTUVWXYZ0123456789", min_size=6, max_size=6),
+)
 def test_the_parser_never_raises_after_a_known_identifier(first: bytes, rest: bytes, destination: str) -> None:
     """parse gives a Decoded for any bytes after an identifier that is decoded."""
     parse(first + rest, "OH2XYZ", destination, NOW)

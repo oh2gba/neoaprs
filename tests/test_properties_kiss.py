@@ -1,5 +1,6 @@
 """Properties of KISS framing: encoded bytes come back as the same frame whatever the chunking of
 the stream, and garbage before a frame never costs the frame."""
+
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -17,7 +18,9 @@ def cut(data: bytes, points: list[int]) -> list[bytes]:
 
 
 @given(payloads, st.integers(0, 15), st.integers(0, 15), st.lists(st.integers(0, 2200), max_size=40))
-def test_any_split_of_an_encoded_frame_yields_that_one_frame(payload: bytes, port: int, command: int, points: list[int]) -> None:
+def test_any_split_of_an_encoded_frame_yields_that_one_frame(
+    payload: bytes, port: int, command: int, points: list[int]
+) -> None:
     decoder = KissDecoder()
     frames: list[KissFrame] = []
     for chunk in cut(encode(payload, port, command), points):

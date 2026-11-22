@@ -3,6 +3,7 @@
 The destination address carries the latitude; the information field the longitude, speed, course
 and symbol. Used by the Dummy radio (dummyscene.py) to make traffic like a car tracker's.
 """
+
 from neoaprs.aprsposition import HUNDREDTHS_PER_DEGREE, north_as_360
 from neoaprs.units import KNOT_KMH
 
@@ -52,11 +53,22 @@ def _motion(course_deg: int, speed_kmh: float) -> bytes:
     return bytes((knots // 10 + 28, knots % 10 * 10 + course // 100 + 28, course % 100 + 28))
 
 
-def mice_packet(lat: float, lon: float, symbol_table: str, symbol_code: str, course_deg: int, speed_kmh: float, comment: str = "", message: tuple[int, int, int] = OFF_DUTY) -> tuple[str, bytes]:
+def mice_packet(
+    lat: float,
+    lon: float,
+    symbol_table: str,
+    symbol_code: str,
+    course_deg: int,
+    speed_kmh: float,
+    comment: str = "",
+    message: tuple[int, int, int] = OFF_DUTY,
+) -> tuple[str, bytes]:
     """Return the destination and information field of a Mic-E position.
 
     The comment may start with ']' and end with '=' to mark a Kenwood mobile.
     """
     longitude, degrees = _longitude(lon)
     destination = _destination(lat, degrees, lon < 0, message)
-    return destination, b"`" + longitude + _motion(course_deg, speed_kmh) + symbol_code.encode("ascii") + symbol_table.encode("ascii") + comment.encode("ascii")
+    return destination, b"`" + longitude + _motion(course_deg, speed_kmh) + symbol_code.encode(
+        "ascii"
+    ) + symbol_table.encode("ascii") + comment.encode("ascii")

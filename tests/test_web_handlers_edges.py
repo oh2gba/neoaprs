@@ -2,6 +2,7 @@
 following topics, a search whose page left, a query for no call, refused settings, and an error the
 page reports.
 """
+
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -42,14 +43,22 @@ async def test_a_page_that_follows_topics_and_leaves_some_of_them_is_not_told_of
 
 async def test_the_status_report_is_refused_while_the_station_only_receives_and_nothing_is_sent(tmp_path: Path) -> None:
     e, page = await with_page(tmp_path)
-    assert await e.ctl.save_config(replace(e.ctl.config, station_transmit=False, station_status="QRV", status_source="text"))
+    assert await e.ctl.save_config(
+        replace(e.ctl.config, station_transmit=False, station_status="QRV", status_source="text")
+    )
     await page.send({"cmd": "status_now"})
     error = await page.expect("error")
-    assert (error["cmd"], error["code"], error["text"]) == ("status_now", "transmit.off", "status_now: RX only: nothing is sent")
+    assert (error["cmd"], error["code"], error["text"]) == (
+        "status_now",
+        "transmit.off",
+        "status_now: RX only: nothing is sent",
+    )
     assert await e.heard(1, 0.2) == b""
 
 
-async def test_a_query_for_something_that_is_not_a_call_is_refused_with_the_reason_and_nothing_is_asked(tmp_path: Path) -> None:
+async def test_a_query_for_something_that_is_not_a_call_is_refused_with_the_reason_and_nothing_is_asked(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     await page.send({"cmd": "query", "call": "not a call!", "kind": "position"})
     error = await page.expect("error")
@@ -57,7 +66,9 @@ async def test_a_query_for_something_that_is_not_a_call_is_refused_with_the_reas
     assert await e.heard(1, 0.2) == b""
 
 
-async def test_settings_that_the_database_would_not_take_are_refused_with_a_code_and_nothing_changes(tmp_path: Path) -> None:
+async def test_settings_that_the_database_would_not_take_are_refused_with_a_code_and_nothing_changes(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     assert e.ctl.db is not None
     # The file is gone from under the daemon: the store says no
@@ -68,7 +79,9 @@ async def test_settings_that_the_database_would_not_take_are_refused_with_a_code
     assert e.ctl.config.map_radius_km != 200
 
 
-async def test_a_check_that_raises_a_plain_value_error_is_the_pages_error_too(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_check_that_raises_a_plain_value_error_is_the_pages_error_too(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     e, page = await with_page(tmp_path)
 
     def odd(cls: type[Config], base: Config, values: Any) -> Config:
@@ -77,12 +90,16 @@ async def test_a_check_that_raises_a_plain_value_error_is_the_pages_error_too(tm
     monkeypatch.setattr(Config, "checked", classmethod(odd))
     await page.send({"cmd": "set_config", "values": {"map/radius_km": "200"}})
     error = await page.expect("error")
-    assert (error["cmd"], error["text"]) == ("set_config", "set_config: an odd value") and error["code"] == "failed", "a check without a code: the page says its plain words, the log has the sentence"
+    assert (error["cmd"], error["text"]) == ("set_config", "set_config: an odd value") and error["code"] == "failed", (
+        "a check without a code: the page says its plain words, the log has the sentence"
+    )
 
 
 async def test_an_error_the_page_reports_when_no_one_keeps_them_is_let_go() -> None:
     ctx = SimpleNamespace(page_errors=None, conn=None)
-    await page_error(ctx, PageError(cmd="page_error", message="boom", stack="", source="vue", at="2026-10-21T12:00:00Z", build="abc"))  # type: ignore[arg-type]
+    await page_error(
+        ctx, PageError(cmd="page_error", message="boom", stack="", source="vue", at="2026-10-21T12:00:00Z", build="abc")
+    )  # type: ignore[arg-type]
 
 
 class Finder:
@@ -110,20 +127,30 @@ class Page:
 
 
 @pytest.mark.parametrize("closed, cancelled", [(True, 1), (False, 0)])
-async def test_a_search_for_the_radio_is_cancelled_when_the_page_that_asked_has_left_and_not_before(closed: bool, cancelled: int) -> None:
+async def test_a_search_for_the_radio_is_cancelled_when_the_page_that_asked_has_left_and_not_before(
+    closed: bool, cancelled: int
+) -> None:
     finder, page = Finder(), Page(closed)
     radio = SimpleNamespace(id=1, name="FM", rtype=type_of("kenwood-tnc2"))
     # Radio 1, which a page that names no radio searches for
-    ctx = SimpleNamespace(ctl=SimpleNamespace(radiofinder=finder, radios=SimpleNamespace(get=lambda id: radio if id == 1 else None)), conn=page)
+    ctx = SimpleNamespace(
+        ctl=SimpleNamespace(radiofinder=finder, radios=SimpleNamespace(get=lambda id: radio if id == 1 else None)),
+        conn=page,
+    )
     await find_radio(ctx, FindRadio(cmd="find_radio"))  # type: ignore[arg-type]
     assert finder.cancelled == cancelled
     assert [m["state"] for m in page.sent] == ["trying", "cancelled"]
 
 
-async def test_the_alert_command_is_not_in_the_log_when_the_settings_are_saved(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_the_alert_command_is_not_in_the_log_when_the_settings_are_saved(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     e, page = await with_page(tmp_path)
     caplog.set_level("INFO", logger="neoaprs.web")
     command = "curl -s https://api.telegram.org/bot123456:ABCdefGhIjKlMnOpQrStUvWxYz/sendMessage -d chat_id=1"
     await page.send({"cmd": "set_config", "values": {"messages/alert_command": command, "map/radius_km": "200"}})
     await page.until(lambda: "settings: map/radius_km = 200" in caplog.text)
-    assert "ABCdef" not in caplog.text and f"settings: messages/alert_command = (set, {len(command)} characters)" in caplog.text
+    assert (
+        "ABCdef" not in caplog.text
+        and f"settings: messages/alert_command = (set, {len(command)} characters)" in caplog.text
+    )

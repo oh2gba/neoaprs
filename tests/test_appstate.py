@@ -1,6 +1,7 @@
 """Tests for the desktop app state in the data folder (neoaprs/desktop/appstate.py): an unwritable
 size is ignored and the app log is a separate file with the requested level.
 """
+
 import logging
 from pathlib import Path
 
@@ -9,7 +10,9 @@ import pytest
 from neoaprs.desktop import appstate
 
 
-def test_a_folder_that_cannot_be_written_does_not_stop_the_app_from_closing(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_a_folder_that_cannot_be_written_does_not_stop_the_app_from_closing(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.DEBUG, "neoaprs.desktop")
     # (the folder is not there: the write is refused)
     appstate.save_window(tmp_path / "gone" / "deeper", appstate.WindowState(1000, 700))
@@ -31,7 +34,9 @@ def root_logger() -> object:
 
 
 @pytest.mark.parametrize("debug, level", [(False, logging.INFO), (True, logging.DEBUG)])
-def test_the_app_logs_to_a_file_of_its_own_at_the_level_asked_for(tmp_path: Path, root_logger: logging.Logger, debug: bool, level: int) -> None:
+def test_the_app_logs_to_a_file_of_its_own_at_the_level_asked_for(
+    tmp_path: Path, root_logger: logging.Logger, debug: bool, level: int
+) -> None:
     appstate.setup_logging(tmp_path, debug)
     assert root_logger.level == level
     logging.getLogger("neoaprs.desktop").info("the window is open")

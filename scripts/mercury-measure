@@ -3,6 +3,7 @@
 
   scripts/mercury-measure frame|decode|vox|acks|busy|autobusy|beacons [options]   (see --help)
 Real Mercury instances, Linux only; nothing is keyed. --report FILE writes the table as JSON."""
+
 import argparse
 import asyncio
 import json
@@ -30,7 +31,16 @@ from neoaprs.radiotype import HF_BEACON_JITTER_SEC  # noqa: E402
 from tests.support.busyeval import Recording, periods_of, replay, score  # noqa: E402
 from tests.support.busyscenes import BusyChannel, Scene  # noqa: E402
 from tests.support.hfchannel import PRESETS, REFERENCE_RMS, Attack, Channel  # noqa: E402
-from tests.support.realmercury import Failure, Page, fifo, start_daemon, start_mercury, stop, wait_for_page, write_settings  # noqa: E402
+from tests.support.realmercury import (  # noqa: E402
+    Failure,
+    Page,
+    fifo,
+    start_daemon,
+    start_mercury,
+    stop,
+    wait_for_page,
+    write_settings,
+)
 
 # 100 bytes: a full frame whatever the payload.
 PAYLOAD = b"OH2A>APNEO1:=6010.20N/02456.40E-a packet of a hundred bytes, as a beacon with a comment is on the air....."
@@ -67,11 +77,31 @@ class Recorder:
 class Modem:
     """A Mercury under measurement: its process, a KISS client and a control-port reader."""
 
-    def __init__(self, name: str, binary: str, folder: Path, channel: Channel, ports: tuple[int, int], threshold: int | None = None, leadin_ms: int = 0, ui_port: int = 0) -> None:
+    def __init__(
+        self,
+        name: str,
+        binary: str,
+        folder: Path,
+        channel: Channel,
+        ports: tuple[int, int],
+        threshold: int | None = None,
+        leadin_ms: int = 0,
+        ui_port: int = 0,
+    ) -> None:
         self.name, self.ports = name, ports
         self.rx, self.tx = fifo(folder, f"{name}-rx"), fifo(folder, f"{name}-tx")
         channel.add(name, self.rx, self.tx)
-        self.process = start_mercury(binary, folder, name.lower(), self.rx, self.tx, ports, busy_threshold_db=threshold, leadin_ms=leadin_ms, ui_port=ui_port)
+        self.process = start_mercury(
+            binary,
+            folder,
+            name.lower(),
+            self.rx,
+            self.tx,
+            ports,
+            busy_threshold_db=threshold,
+            leadin_ms=leadin_ms,
+            ui_port=ui_port,
+        )
         # (when, payload) of every frame heard on the broadcast port.
         self.frames: list[tuple[float, bytes]] = []
         # (when, kind, on) of PTT and BUSY, and (when, "snr", value).
@@ -91,11 +121,16 @@ class Modem:
                 break
             except OSError as e:
                 if self.process.poll() is not None:
-                    raise Failure(f"Mercury {self.name} ended with exit code {self.process.returncode} before its ports were up") from e
+                    raise Failure(
+                        f"Mercury {self.name} ended with exit code {self.process.returncode} before its ports were up"
+                    ) from e
                 if time.monotonic() > deadline:
                     raise Failure(f"Mercury {self.name} did not open its ports within {timeout:g} s") from e
                 await asyncio.sleep(0.2)
-        self._tasks = [asyncio.ensure_future(self._read_kiss(reader)), asyncio.ensure_future(self._read_control(control_reader))]
+        self._tasks = [
+            asyncio.ensure_future(self._read_kiss(reader)),
+            asyncio.ensure_future(self._read_control(control_reader)),
+        ]
 
     async def _read_kiss(self, reader: asyncio.StreamReader) -> None:
         decoder = kiss.KissDecoder()
@@ -152,7 +187,9 @@ def binary_of(args: argparse.Namespace) -> str:
     shipped = find()
     binary = args.mercury or (shipped[0] if shipped else "")
     if not binary:
-        raise Failure("no Mercury in this checkout: build it with scripts/build-mercury --install, or give --mercury PATH")
+        raise Failure(
+            "no Mercury in this checkout: build it with scripts/build-mercury --install, or give --mercury PATH"
+        )
     return binary
 
 
@@ -165,6 +202,7 @@ def pair(args: argparse.Namespace, folder: Path, channel: Channel) -> tuple[Mode
 
 
 # ---- frame
+
 
 async def measure_frame(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
     channel = Channel(snr_db=30.0, seed=args.seed)
@@ -193,25 +231,50 @@ async def measure_frame(args: argparse.Namespace, folder: Path) -> dict[str, Any
             burst = recorder.samples[before:]
             nonzero = [i for i, v in enumerate(burst) if v]
             first, last = nonzero[0], nonzero[-1]
-            samples = burst[first:last + 1]
+            samples = burst[first : last + 1]
             rms = math.sqrt(sum(v * v for v in samples) / len(samples))
             peak = max(abs(v) for v in samples)
-            runs.append({"payload_bytes": len(payload), "samples": len(samples), "air_sec": len(samples) / 8000, "rms": rms, "peak": peak, "ptt_sec": t_off - t_on, "handin_to_ptt_sec": t_on - t0,
-                         "delivery_sec": t_heard - t0, "decode_after_ptt_off_sec": t_heard - t_off, "busy_on_after_ptt_on_sec": busy_on - t_on, "busy_off_after_ptt_off_sec": busy_off - t_off,
-                         "snr_db": b.snr[-1] if b.snr else math.nan})
+            runs.append(
+                {
+                    "payload_bytes": len(payload),
+                    "samples": len(samples),
+                    "air_sec": len(samples) / 8000,
+                    "rms": rms,
+                    "peak": peak,
+                    "ptt_sec": t_off - t_on,
+                    "handin_to_ptt_sec": t_on - t0,
+                    "delivery_sec": t_heard - t0,
+                    "decode_after_ptt_off_sec": t_heard - t_off,
+                    "busy_on_after_ptt_on_sec": busy_on - t_on,
+                    "busy_off_after_ptt_off_sec": busy_off - t_off,
+                    "snr_db": b.snr[-1] if b.snr else math.nan,
+                }
+            )
         mean = {key: statistics.fmean(r[key] for r in runs) for key in runs[0] if key != "payload_bytes"}
         rows = [
             ("frames sent (100 and 32 byte payloads in turn)", f"{len(runs)}, all heard by B"),
-            ("samples of audio in a frame (first to last non-zero), seconds on the air", f"{mean['samples']:.0f} = {mean['air_sec']:.2f} s (payloads differ, the frame does not: {min(r['samples'] for r in runs)} to {max(r['samples'] for r in runs)})"),
+            (
+                "samples of audio in a frame (first to last non-zero), seconds on the air",
+                f"{mean['samples']:.0f} = {mean['air_sec']:.2f} s (payloads differ, the frame does not: {min(r['samples'] for r in runs)} to {max(r['samples'] for r in runs)})",
+            ),
             ("PTT ON to PTT OFF", f"{mean['ptt_sec']:.2f} s"),
             ("hand-in at the KISS port to PTT ON", f"{mean['handin_to_ptt_sec']:.2f} s"),
-            ("hand-in to the frame at B's KISS port (delivery)", f"{mean['delivery_sec']:.2f} s (slowest {max(r['delivery_sec'] for r in runs):.2f})"),
+            (
+                "hand-in to the frame at B's KISS port (delivery)",
+                f"{mean['delivery_sec']:.2f} s (slowest {max(r['delivery_sec'] for r in runs):.2f})",
+            ),
             ("PTT OFF to the frame at B", f"{mean['decode_after_ptt_off_sec']:.2f} s"),
             ("peak of what Mercury plays", f"{mean['peak']:.0f} of 32768 ({db(mean['peak']):.1f} dBFS)"),
-            ("RMS of the frame (the channel's reference level, REFERENCE_RMS)", f"{mean['rms']:.0f} ({db(mean['rms']):.1f} dBFS; the channel assumes {REFERENCE_RMS:.0f}, {db(REFERENCE_RMS):.1f} dBFS)"),
+            (
+                "RMS of the frame (the channel's reference level, REFERENCE_RMS)",
+                f"{mean['rms']:.0f} ({db(mean['rms']):.1f} dBFS; the channel assumes {REFERENCE_RMS:.0f}, {db(REFERENCE_RMS):.1f} dBFS)",
+            ),
             ("crest factor (peak over RMS)", f"{db(mean['peak'], mean['rms']):.1f} dB"),
             ("B's busy detector: BUSY ON after A's PTT ON", f"{mean['busy_on_after_ptt_on_sec']:.2f} s"),
-            ("B's busy detector: BUSY OFF after A's PTT OFF (the hang time)", f"{mean['busy_off_after_ptt_off_sec']:.2f} s"),
+            (
+                "B's busy detector: BUSY OFF after A's PTT OFF (the hang time)",
+                f"{mean['busy_off_after_ptt_off_sec']:.2f} s",
+            ),
             ("SNR B reported (the channel is set to 30 dB)", f"{mean['snr_db']:.1f} dB"),
         ]
         table(rows)
@@ -223,6 +286,7 @@ async def measure_frame(args: argparse.Namespace, folder: Path) -> dict[str, Any
 
 
 # ---- decode
+
 
 async def measure_decode(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
     points = [float(v) for v in args.snr.split(",")]
@@ -250,10 +314,28 @@ async def measure_decode(args: argparse.Namespace, folder: Path) -> dict[str, An
                 del t_off
             delivered = len(b.frames) - heard_before
             reported = b.snr[snr_before:]
-            result = {"snr_db": snr, "fading": args.fading, "sent": args.frames, "delivered": delivered, "snr_reported_mean": statistics.fmean(reported) if reported else None, "seconds": round(time.monotonic() - started, 1)}
+            result = {
+                "snr_db": snr,
+                "fading": args.fading,
+                "sent": args.frames,
+                "delivered": delivered,
+                "snr_reported_mean": statistics.fmean(reported) if reported else None,
+                "seconds": round(time.monotonic() - started, 1),
+            }
             results.append(result)
-            say(f"{args.fading or 'flat'} at {snr:g} dB: {delivered} of {args.frames} delivered" + (f", SNR reported {result['snr_reported_mean']:.1f} dB" if reported else "") + f" ({result['seconds']} s)")
-        rows = [(f"{args.fading or 'flat channel'} at {r['snr_db']:g} dB SNR", f"{r['delivered']} of {r['sent']} frames delivered" + (f", reported SNR {r['snr_reported_mean']:.1f} dB" if r["snr_reported_mean"] is not None else "")) for r in results]
+            say(
+                f"{args.fading or 'flat'} at {snr:g} dB: {delivered} of {args.frames} delivered"
+                + (f", SNR reported {result['snr_reported_mean']:.1f} dB" if reported else "")
+                + f" ({result['seconds']} s)"
+            )
+        rows = [
+            (
+                f"{args.fading or 'flat channel'} at {r['snr_db']:g} dB SNR",
+                f"{r['delivered']} of {r['sent']} frames delivered"
+                + (f", reported SNR {r['snr_reported_mean']:.1f} dB" if r["snr_reported_mean"] is not None else ""),
+            )
+            for r in results
+        ]
         table(rows)
         return {"points": results, "rows": rows}
     finally:
@@ -263,6 +345,7 @@ async def measure_decode(args: argparse.Namespace, folder: Path) -> dict[str, An
 
 
 # ---- vox
+
 
 async def measure_vox(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
     attacks = [float(v) for v in args.attack_ms.split(",")]
@@ -274,7 +357,9 @@ async def measure_vox(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
     attack = Attack(lambda: channel.blocks)
     fading = channel.links[("A", "B")].shaper if args.fading else None
     # A's transmissions lose their first milliseconds before the channel's fading.
-    channel.set_link("A", "B", shaper=attack if fading is None else (lambda block: fading(attack(block))), symmetric=False)
+    channel.set_link(
+        "A", "B", shaper=attack if fading is None else (lambda block: fading(attack(block))), symmetric=False
+    )
     channel.start()
     results: list[dict[str, Any]] = []
     try:
@@ -295,11 +380,27 @@ async def measure_vox(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
                     await asyncio.sleep(1.5)
                 delivered = len(b.frames) - heard_before
                 reported = b.snr[snr_before:]
-                result = {"snr_db": snr, "fading": args.fading, "attack_ms": ms, "leadin_ms": args.leadin_ms, "sent": args.frames, "delivered": delivered,
-                          "snr_reported_mean": statistics.fmean(reported) if reported else None, "seconds": round(time.monotonic() - started, 1)}
+                result = {
+                    "snr_db": snr,
+                    "fading": args.fading,
+                    "attack_ms": ms,
+                    "leadin_ms": args.leadin_ms,
+                    "sent": args.frames,
+                    "delivered": delivered,
+                    "snr_reported_mean": statistics.fmean(reported) if reported else None,
+                    "seconds": round(time.monotonic() - started, 1),
+                }
                 results.append(result)
-                say(f"{args.fading or 'flat'} at {snr:g} dB, first {ms:g} ms muted, lead-in {args.leadin_ms} ms: {delivered} of {args.frames} delivered ({result['seconds']} s)")
-        rows = [(f"{args.fading or 'flat channel'} at {r['snr_db']:g} dB SNR, first {r['attack_ms']:g} ms muted, lead-in {r['leadin_ms']} ms", f"{r['delivered']} of {r['sent']} frames delivered") for r in results]
+                say(
+                    f"{args.fading or 'flat'} at {snr:g} dB, first {ms:g} ms muted, lead-in {args.leadin_ms} ms: {delivered} of {args.frames} delivered ({result['seconds']} s)"
+                )
+        rows = [
+            (
+                f"{args.fading or 'flat channel'} at {r['snr_db']:g} dB SNR, first {r['attack_ms']:g} ms muted, lead-in {r['leadin_ms']} ms",
+                f"{r['delivered']} of {r['sent']} frames delivered",
+            )
+            for r in results
+        ]
         table(rows)
         return {"points": results, "rows": rows}
     finally:
@@ -311,6 +412,8 @@ async def measure_vox(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
 # ---- busy
 
 THRESHOLDS = (10, 12, 14, 16, 18, 20, 24)
+
+
 async def measure_busy(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
     """Try the busy threshold (`channel:busy_threshold_db`) at 10 to 24 dB: first what frames do to
     each receiver at -3 to 20 dB SNR, then how long each reads BUSY in noise scenes."""
@@ -318,7 +421,17 @@ async def measure_busy(args: argparse.Namespace, folder: Path) -> dict[str, Any]
     channel = BusyChannel(snr_db=20.0, seed=args.seed)
     channel.feeds = {}
     a = Modem("A", binary, folder, channel, (args.first_port, args.first_port + 200))
-    receivers = [Modem(f"R{t}", binary, folder, channel, (args.first_port + 10 * (i + 1), args.first_port + 10 * (i + 1) + 200), threshold=t) for i, t in enumerate(THRESHOLDS)]
+    receivers = [
+        Modem(
+            f"R{t}",
+            binary,
+            folder,
+            channel,
+            (args.first_port + 10 * (i + 1), args.first_port + 10 * (i + 1) + 200),
+            threshold=t,
+        )
+        for i, t in enumerate(THRESHOLDS)
+    ]
     channel.start()
     snrs = [float(v) for v in args.snr.split(",")] if not args.snr_default else [-3.0, 0.0, 3.0, 6.0, 10.0, 20.0]
     detection: dict[str, dict[float, int]] = {f"R{t}": {} for t in THRESHOLDS}
@@ -343,12 +456,17 @@ async def measure_busy(args: argparse.Namespace, folder: Path) -> dict[str, Any]
                     seen = any(k == "busy" and on and t_on - 0.2 <= when <= t_off + 0.5 for when, k, on in r.events)
                     detection[r.name][snr] = detection[r.name].get(snr, 0) + seen
             say(f"{snr:g} dB: " + ", ".join(f"{t} dB {detection[f'R{t}'][snr]}/{args.frames}" for t in THRESHOLDS))
-        scenes: list[tuple[str, str, float, float]] = [("white noise", "white", 0.0, 20.0), ("noise through the receiver's filter", "ssb", 0.0, 20.0)]
-        scenes += [(f"filtered noise, carriers {e:g} dB above their band", "carriers", e, 20.0) for e in (6.0, 9.0, 12.0, 15.0)]
+        scenes: list[tuple[str, str, float, float]] = [
+            ("white noise", "white", 0.0, 20.0),
+            ("noise through the receiver's filter", "ssb", 0.0, 20.0),
+        ]
+        scenes += [
+            (f"filtered noise, carriers {e:g} dB above their band", "carriers", e, 20.0) for e in (6.0, 9.0, 12.0, 15.0)
+        ]
         for label, kind, excess, snr in scenes:
             channel.feeds = {r.name: Scene(kind, args.seed + i, excess) for i, r in enumerate(receivers)}
             channel.snr_db = snr
-            await asyncio.sleep(20.0)                                 # floors settle
+            await asyncio.sleep(20.0)  # floors settle
             await run_quiet(label, receivers, quiet, args.quiet_sec)
         channel.feeds = {r.name: Scene("white", args.seed + i) for i, r in enumerate(receivers)}
         for step in (10.0, 20.0):
@@ -356,17 +474,41 @@ async def measure_busy(args: argparse.Namespace, folder: Path) -> dict[str, Any]
             await asyncio.sleep(12.0)
             channel.snr_db = 20.0 - step
             await run_quiet(f"white noise, a step of {step:g} dB", receivers, quiet, args.quiet_sec * 2)
-        rows = [("signal detected (BUSY ON within a frame), frames of " + str(args.frames), "threshold " + "  ".join(f"{t:>3}" for t in THRESHOLDS))]
+        rows = [
+            (
+                "signal detected (BUSY ON within a frame), frames of " + str(args.frames),
+                "threshold " + "  ".join(f"{t:>3}" for t in THRESHOLDS),
+            )
+        ]
         for snr in snrs:
-            rows.append((f"  a frame at {snr:g} dB SNR", "           " + "  ".join(f"{detection[f'R{t}'][snr]:>3}" for t in THRESHOLDS)))
-        rows.append(("quiet channel, seconds read BUSY (events)", "threshold " + "  ".join(f"{t:>3}" for t in THRESHOLDS)))
+            rows.append(
+                (
+                    f"  a frame at {snr:g} dB SNR",
+                    "           " + "  ".join(f"{detection[f'R{t}'][snr]:>3}" for t in THRESHOLDS),
+                )
+            )
+        rows.append(
+            ("quiet channel, seconds read BUSY (events)", "threshold " + "  ".join(f"{t:>3}" for t in THRESHOLDS))
+        )
         for label in quiet["R10"]:
-            rows.append((f"  {label}", "           " + "  ".join(f"{quiet[f'R{t}'][label][1]:>3.0f}" for t in THRESHOLDS)))
+            rows.append(
+                (f"  {label}", "           " + "  ".join(f"{quiet[f'R{t}'][label][1]:>3.0f}" for t in THRESHOLDS))
+            )
         table(rows)
-        say(f"the channel: {channel.blocks} blocks, {channel.late_blocks} started a block late or more, the longest took {1000 * channel.work_sec_max:.0f} ms of 20 and the average {1000 * channel.work_sec_total / max(1, channel.blocks):.1f} ms")
+        say(
+            f"the channel: {channel.blocks} blocks, {channel.late_blocks} started a block late or more, the longest took {1000 * channel.work_sec_max:.0f} ms of 20 and the average {1000 * channel.work_sec_total / max(1, channel.blocks):.1f} ms"
+        )
         if args.keep:
-            Path(folder / "events.json").write_text(json.dumps({r.name: r.events for r in receivers} | {"A": a.events}), encoding="utf-8")
-        return {"thresholds": THRESHOLDS, "detection": {k: {str(s): n for s, n in v.items()} for k, v in detection.items()}, "quiet": quiet, "rows": rows, "frames": args.frames}
+            Path(folder / "events.json").write_text(
+                json.dumps({r.name: r.events for r in receivers} | {"A": a.events}), encoding="utf-8"
+            )
+        return {
+            "thresholds": THRESHOLDS,
+            "detection": {k: {str(s): n for s, n in v.items()} for k, v in detection.items()},
+            "quiet": quiet,
+            "rows": rows,
+            "frames": args.frames,
+        }
     finally:
         for r in receivers:
             r.close()
@@ -374,7 +516,9 @@ async def measure_busy(args: argparse.Namespace, folder: Path) -> dict[str, Any]
         channel.stop()
 
 
-async def run_quiet(label: str, receivers: list[Modem], quiet: dict[str, dict[str, tuple[int, float]]], seconds: float) -> None:
+async def run_quiet(
+    label: str, receivers: list[Modem], quiet: dict[str, dict[str, tuple[int, float]]], seconds: float
+) -> None:
     """Return how long each receiver reads BUSY in the next `seconds`."""
     start = time.monotonic()
     marks = {r.name: len(r.events) for r in receivers}
@@ -382,7 +526,7 @@ async def run_quiet(label: str, receivers: list[Modem], quiet: dict[str, dict[st
     await asyncio.sleep(seconds)
     end = time.monotonic()
     for r in receivers:
-        events = [(when, on) for when, k, on in r.events[marks[r.name]:] if k == "busy"]
+        events = [(when, on) for when, k, on in r.events[marks[r.name] :] if k == "busy"]
         busy_sec, since, count = 0.0, (start if held[r.name] else None), 0
         for when, on in events:
             if on and since is None:
@@ -399,11 +543,26 @@ async def run_quiet(label: str, receivers: list[Modem], quiet: dict[str, dict[st
 # ---- autobusy
 
 AUTO_SCENES: list[list[tuple[str, str, float]]] = [
-    [("white noise", "white", 0.0), ("noise through the receiver's filter", "ssb", 0.0), ("carriers 6 dB over their band", "carriers", 6.0), ("carriers 9 dB over their band", "carriers", 9.0),
-     ("carriers 12 dB over their band", "carriers", 12.0), ("carriers 15 dB over their band", "carriers", 15.0)],
-    [("a step of 10 dB in the noise", "step", 10.0), ("a step of 20 dB in the noise", "step", 20.0), ("a rise of 12 dB over two minutes", "ramp", 12.0), ("bursts of static 15 dB over the noise", "bursts", 15.0),
-     ("noise that wanders by up to 4 dB", "fade", 4.0), ("a voice-like signal 12 dB over the noise", "voice", 12.0)],
-    [("a narrow receiver filter (500 to 2300 Hz)", "narrow", 0.0), ("a narrow filter and a voice-like signal 12 dB over the noise", "narrowvoice", 12.0)],
+    [
+        ("white noise", "white", 0.0),
+        ("noise through the receiver's filter", "ssb", 0.0),
+        ("carriers 6 dB over their band", "carriers", 6.0),
+        ("carriers 9 dB over their band", "carriers", 9.0),
+        ("carriers 12 dB over their band", "carriers", 12.0),
+        ("carriers 15 dB over their band", "carriers", 15.0),
+    ],
+    [
+        ("a step of 10 dB in the noise", "step", 10.0),
+        ("a step of 20 dB in the noise", "step", 20.0),
+        ("a rise of 12 dB over two minutes", "ramp", 12.0),
+        ("bursts of static 15 dB over the noise", "bursts", 15.0),
+        ("noise that wanders by up to 4 dB", "fade", 4.0),
+        ("a voice-like signal 12 dB over the noise", "voice", 12.0),
+    ],
+    [
+        ("a narrow receiver filter (500 to 2300 Hz)", "narrow", 0.0),
+        ("a narrow filter and a voice-like signal 12 dB over the noise", "narrowvoice", 12.0),
+    ],
 ]
 AUTO_SNRS = (20.0, 12.0, 6.0, 3.0, 0.0, -3.0)
 AUTO_SETTLE_SEC = 30.0
@@ -415,7 +574,9 @@ AUTO_QUIET_SEC = 150.0
 class Listener(Modem):
     """An autobusy receiver: a Mercury at NeoAPRS's threshold whose spectrum feed is read."""
 
-    def __init__(self, name: str, scene: str, binary: str, folder: Path, channel: Channel, ports: tuple[int, int]) -> None:
+    def __init__(
+        self, name: str, scene: str, binary: str, folder: Path, channel: Channel, ports: tuple[int, int]
+    ) -> None:
         super().__init__(name, binary, folder, channel, ports, ui_port=ports[0] + UI_OFFSET)
         self.recording = Recording(scene)
         self.link = MercuryUi("127.0.0.1", ports[0] + UI_OFFSET, lambda text: None, self._spectrum, lambda up: None)
@@ -431,7 +592,9 @@ class Listener(Modem):
         self.link.start()
 
 
-async def autobusy_batch(args: argparse.Namespace, folder: Path, scenes: list[tuple[str, str, float]], number: int) -> list[Recording]:
+async def autobusy_batch(
+    args: argparse.Namespace, folder: Path, scenes: list[tuple[str, str, float]], number: int
+) -> list[Recording]:
     """Run one transmitter and a receiver per scene: first the frames, then the quiet part."""
     folder.mkdir(parents=True, exist_ok=True)
     binary = binary_of(args)
@@ -440,8 +603,21 @@ async def autobusy_batch(args: argparse.Namespace, folder: Path, scenes: list[tu
     if args.fading:
         channel.set_fading(args.fading, seed=args.seed)
     a = Modem("A", binary, folder, channel, (args.first_port, args.first_port + 200))
-    listeners = [Listener(f"R{i}", label, binary, folder, channel, (args.first_port + 10 * (i + 1), args.first_port + 10 * (i + 1) + 200)) for i, (label, _, _) in enumerate(scenes)]
-    scene_of = {r.name: Scene(kind, args.seed + 7 * i, excess) for i, (r, (_, kind, excess)) in enumerate(zip(listeners, scenes, strict=True))}
+    listeners = [
+        Listener(
+            f"R{i}",
+            label,
+            binary,
+            folder,
+            channel,
+            (args.first_port + 10 * (i + 1), args.first_port + 10 * (i + 1) + 200),
+        )
+        for i, (label, _, _) in enumerate(scenes)
+    ]
+    scene_of = {
+        r.name: Scene(kind, args.seed + 7 * i, excess)
+        for i, (r, (_, kind, excess)) in enumerate(zip(listeners, scenes, strict=True))
+    }
     channel.feeds = dict(scene_of)
     channel.start()
     try:
@@ -475,7 +651,9 @@ async def autobusy_batch(args: argparse.Namespace, folder: Path, scenes: list[tu
         for r in listeners:
             r.recording.mercury = [(when, on) for when, kind, on in r.events if kind == "busy"]
             r.recording.frames_span, r.recording.quiet_span = (frames_start, frames_end), (quiet_start, quiet_end)
-        say(f"the channel: {channel.blocks} blocks, {channel.late_blocks} started a block late or more, the longest took {1000 * channel.work_sec_max:.0f} ms of 20")
+        say(
+            f"the channel: {channel.blocks} blocks, {channel.late_blocks} started a block late or more, the longest took {1000 * channel.work_sec_max:.0f} ms of 20"
+        )
         return [r.recording for r in listeners]
     finally:
         await asyncio.gather(*(r.link.stop() for r in listeners))
@@ -500,17 +678,28 @@ CANDIDATES: list[tuple[str, Any]] = [
 
 def autobusy_report(recordings: list[Recording]) -> list[tuple[str, str]]:
     rows: list[tuple[str, str]] = []
-    head = "frames seen at " + " ".join(f"{snr:>4g}" for snr in AUTO_SNRS) + " dB    lag  hang   false  quiet  held  longest (s)"
+    head = (
+        "frames seen at "
+        + " ".join(f"{snr:>4g}" for snr in AUTO_SNRS)
+        + " dB    lag  hang   false  quiet  held  longest (s)"
+    )
     for recording in recordings:
         rows.append((recording.scene, head))
-        detectors: list[tuple[str, Any]] = [("Mercury 14 dB, the real one", periods_of(recording.mercury, recording.quiet_span[1]))]
+        detectors: list[tuple[str, Any]] = [
+            ("Mercury 14 dB, the real one", periods_of(recording.mercury, recording.quiet_span[1]))
+        ]
         detectors += [(name, replay(make, recording)) for name, make in CANDIDATES]
         for name, periods in detectors:
             s = score(periods, recording)
             seen = " ".join(f"{s.seen[snr][0]}/{s.seen[snr][1]:<2}".rjust(4) for snr in AUTO_SNRS if snr in s.seen)
             lag = "  -" if s.lag_sec is None else f"{s.lag_sec:3.1f}"
             hang = "  -" if s.hang_sec is None else f"{s.hang_sec:3.1f}"
-            rows.append((f"  {name}", f"{seen}         {lag}   {hang}   {s.false_frames_sec:5.1f}  {s.false_quiet_sec:5.1f} {s.held_quiet_sec:5.1f}  {s.longest_quiet_sec:5.1f}"))
+            rows.append(
+                (
+                    f"  {name}",
+                    f"{seen}         {lag}   {hang}   {s.false_frames_sec:5.1f}  {s.false_quiet_sec:5.1f} {s.held_quiet_sec:5.1f}  {s.longest_quiet_sec:5.1f}",
+                )
+            )
     return rows
 
 
@@ -535,6 +724,7 @@ async def measure_autobusy(args: argparse.Namespace, folder: Path) -> dict[str, 
 
 # ---- acks
 
+
 async def measure_acks(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
     channel = Channel(snr_db=args.snr_one, seed=args.seed)
     binary = binary_of(args)
@@ -553,7 +743,17 @@ async def measure_acks(args: argparse.Namespace, folder: Path) -> dict[str, Any]
         for name, call in (("A", "OH2A"), ("B", "OH2B")):
             data = folder / name.lower()
             # Radio 2 is the HF radio of --hf-port.
-            write_settings(data, {"station/call": call, "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "0", "messages/alert": "false"}, radios=(("kiss", False), ("mercury", True)))
+            write_settings(
+                data,
+                {
+                    "station/call": call,
+                    "station/lat": "60.17",
+                    "station/lon": "24.94",
+                    "beacon/interval_min": "0",
+                    "messages/alert": "false",
+                },
+                radios=(("kiss", False), ("mercury", True)),
+            )
             daemons[name] = start_daemon(data, ports[name])
         bases = {name: wait_for_page(d, folder / name.lower(), args.timeout) for name, d in daemons.items()}
         for name, page in pages.items():
@@ -571,12 +771,16 @@ async def measure_acks(args: argparse.Namespace, folder: Path) -> dict[str, Any]
             started = time.monotonic()
             await a.send({"cmd": "send_message", "to": "OH2B", "text": f"message {n + 1} of {args.messages}"})
             try:
-                took = await a.until(f"the ack of message {n + 1}", lambda before=before: a.acked() > before, args.timeout * 4)
+                took = await a.until(
+                    f"the ack of message {n + 1}", lambda before=before: a.acked() > before, args.timeout * 4
+                )
             except Failure:
                 lost += 1
                 say(f"message {n + 1}: not acked within {args.timeout * 4:g} s")
                 continue
-            record = max((m for m in a.messages().values() if m.get("direction") == "out"), key=lambda m: m.get("id") or 0)
+            record = max(
+                (m for m in a.messages().values() if m.get("direction") == "out"), key=lambda m: m.get("id") or 0
+            )
             tries = int(record.get("attempts") or 1)
             delays.append(took)
             attempts.append(tries)
@@ -590,14 +794,32 @@ async def measure_acks(args: argparse.Namespace, folder: Path) -> dict[str, Any]
         ]
         if first_try:
             rows += [
-                ("ack delay on the first attempt: min / median / mean / max", f"{min(first_try):.1f} / {statistics.median(first_try):.1f} / {statistics.fmean(first_try):.1f} / {max(first_try):.1f} s"),
-                ("the first wait of the retry schedule (FIRST_WAIT_SEC)", f"{FIRST_WAIT_SEC} s: {'every' if max(first_try) < FIRST_WAIT_SEC else 'NOT every'} first-attempt ack inside it, the slowest at {100 * max(first_try) / FIRST_WAIT_SEC:.0f} % of it"),
+                (
+                    "ack delay on the first attempt: min / median / mean / max",
+                    f"{min(first_try):.1f} / {statistics.median(first_try):.1f} / {statistics.fmean(first_try):.1f} / {max(first_try):.1f} s",
+                ),
+                (
+                    "the first wait of the retry schedule (FIRST_WAIT_SEC)",
+                    f"{FIRST_WAIT_SEC} s: {'every' if max(first_try) < FIRST_WAIT_SEC else 'NOT every'} first-attempt ack inside it, the slowest at {100 * max(first_try) / FIRST_WAIT_SEC:.0f} % of it",
+                ),
             ]
         retried = [d for d, t in zip(delays, attempts) if t > 1]
         if retried:
-            rows.append(("acked on a retry: delays", ", ".join(f"{d:.1f} s (attempt {t})" for d, t in zip(delays, attempts) if t > 1)))
+            rows.append(
+                (
+                    "acked on a retry: delays",
+                    ", ".join(f"{d:.1f} s (attempt {t})" for d, t in zip(delays, attempts) if t > 1),
+                )
+            )
         table(rows)
-        return {"delays": delays, "attempts": attempts, "lost": lost, "rows": rows, "snr_db": args.snr_one, "fading": args.fading}
+        return {
+            "delays": delays,
+            "attempts": attempts,
+            "lost": lost,
+            "rows": rows,
+            "snr_db": args.snr_one,
+            "fading": args.fading,
+        }
     finally:
         for page in pages.values():
             page.close()
@@ -609,6 +831,7 @@ async def measure_acks(args: argparse.Namespace, folder: Path) -> dict[str, Any]
 
 
 # ---- beacons
+
 
 def measure_beacons(args: argparse.Namespace) -> dict[str, Any]:
     """Simulate fixed stations on one beacon interval with a random pause of up to J seconds.
@@ -641,14 +864,38 @@ def measure_beacons(args: argparse.Namespace) -> dict[str, Any]:
                     lost += sum(collided)
                 share = lost / sent if sent else 0.0
                 per_hour = lost / (args.rounds * args.hours)
-                results.append({"stations": count, "together": together, "pause_sec": pause, "sent": sent, "lost": lost, "lost_share": share, "lost_per_hour": per_hour})
-                rows.append((f"{count} stations, {'started within one minute' if together else 'random phases'}, pause up to {pause} s", f"{100 * share:.2f} % of beacons lost, {per_hour:.3f} an hour"))
+                results.append(
+                    {
+                        "stations": count,
+                        "together": together,
+                        "pause_sec": pause,
+                        "sent": sent,
+                        "lost": lost,
+                        "lost_share": share,
+                        "lost_per_hour": per_hour,
+                    }
+                )
+                rows.append(
+                    (
+                        f"{count} stations, {'started within one minute' if together else 'random phases'}, pause up to {pause} s",
+                        f"{100 * share:.2f} % of beacons lost, {per_hour:.3f} an hour",
+                    )
+                )
     table(rows)
-    say(f"the pause in the code is {HF_BEACON_JITTER_SEC} s; interval {args.interval_min} min, frame {FRAME_SEC} s, {args.rounds} rounds of {args.hours} hours each")
-    return {"points": results, "rows": rows, "interval_min": args.interval_min, "hours": args.hours, "rounds": args.rounds}
+    say(
+        f"the pause in the code is {HF_BEACON_JITTER_SEC} s; interval {args.interval_min} min, frame {FRAME_SEC} s, {args.rounds} rounds of {args.hours} hours each"
+    )
+    return {
+        "points": results,
+        "rows": rows,
+        "interval_min": args.interval_min,
+        "hours": args.hours,
+        "rounds": args.rounds,
+    }
 
 
 # ---- main
+
 
 def run(args: argparse.Namespace) -> int:
     if args.what == "beacons":
@@ -656,39 +903,130 @@ def run(args: argparse.Namespace) -> int:
     else:
         folder = Path(tempfile.mkdtemp(prefix="mercury-measure-"))
         try:
-            report = asyncio.run({"frame": measure_frame, "decode": measure_decode, "vox": measure_vox, "acks": measure_acks, "busy": measure_busy, "autobusy": measure_autobusy}[args.what](args, folder))
+            report = asyncio.run(
+                {
+                    "frame": measure_frame,
+                    "decode": measure_decode,
+                    "vox": measure_vox,
+                    "acks": measure_acks,
+                    "busy": measure_busy,
+                    "autobusy": measure_autobusy,
+                }[args.what](args, folder)
+            )
         finally:
             if args.keep:
                 say(f"kept {folder}")
             else:
                 shutil.rmtree(folder, ignore_errors=True)
     if args.report:
-        Path(args.report).write_text(json.dumps({"what": args.what, "seed": args.seed, **report}, indent=1, default=str), encoding="utf-8")
+        Path(args.report).write_text(
+            json.dumps({"what": args.what, "seed": args.seed, **report}, indent=1, default=str), encoding="utf-8"
+        )
     return 0
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="the measurements behind NeoAPRS's Mercury numbers, on the simulated channel")
+    parser = argparse.ArgumentParser(
+        description="the measurements behind NeoAPRS's Mercury numbers, on the simulated channel"
+    )
     parser.add_argument("what", choices=("frame", "decode", "vox", "acks", "beacons", "busy", "autobusy"))
-    parser.add_argument("--frames", type=int, default=None, metavar="N", help="frame: how many frames (default 6); decode: frames per point (default 50); vox: frames per point (default 20)")
-    parser.add_argument("--snr", metavar="DB,DB", help="decode, vox: the signal-to-noise ratios in 3 kHz to try; default 0,3,6,9 (decode), 10,3 (vox)")
-    parser.add_argument("--attack-ms", default="0,20,40,60,80,100,150,200", metavar="MS,MS", help="vox: how many milliseconds of every transmission are muted, one point each; default %(default)s")
-    parser.add_argument("--leadin-ms", type=int, default=0, metavar="MS", help="vox: the lead-in tone Mercury plays ahead of the preamble (`tx_leadin_ms`, the build of NeoAPRS only); default %(default)s, Mercury's own frame")
-    parser.add_argument("--snr-one", type=float, default=30.0, metavar="DB", help="acks: the channel's SNR; default %(default)s")
-    parser.add_argument("--fading", choices=tuple(PRESETS), help="decode, vox, acks: the Watterson preset of every link (default: a flat channel)")
-    parser.add_argument("--quiet-sec", type=float, default=None, metavar="SEC", help="busy: how long each noisy scene is listened to; autobusy: the quiet part (default %(default)s, 150 for autobusy)")
-    parser.add_argument("--batch", type=int, choices=(0, 1, 2, 3), default=0, help="autobusy: the first six scenes (1), the second six (2), the two with a narrow filter (3) or all (0); default %(default)s")
+    parser.add_argument(
+        "--frames",
+        type=int,
+        default=None,
+        metavar="N",
+        help="frame: how many frames (default 6); decode: frames per point (default 50); vox: frames per point (default 20)",
+    )
+    parser.add_argument(
+        "--snr",
+        metavar="DB,DB",
+        help="decode, vox: the signal-to-noise ratios in 3 kHz to try; default 0,3,6,9 (decode), 10,3 (vox)",
+    )
+    parser.add_argument(
+        "--attack-ms",
+        default="0,20,40,60,80,100,150,200",
+        metavar="MS,MS",
+        help="vox: how many milliseconds of every transmission are muted, one point each; default %(default)s",
+    )
+    parser.add_argument(
+        "--leadin-ms",
+        type=int,
+        default=0,
+        metavar="MS",
+        help="vox: the lead-in tone Mercury plays ahead of the preamble (`tx_leadin_ms`, the build of NeoAPRS only); default %(default)s, Mercury's own frame",
+    )
+    parser.add_argument(
+        "--snr-one", type=float, default=30.0, metavar="DB", help="acks: the channel's SNR; default %(default)s"
+    )
+    parser.add_argument(
+        "--fading",
+        choices=tuple(PRESETS),
+        help="decode, vox, acks: the Watterson preset of every link (default: a flat channel)",
+    )
+    parser.add_argument(
+        "--quiet-sec",
+        type=float,
+        default=None,
+        metavar="SEC",
+        help="busy: how long each noisy scene is listened to; autobusy: the quiet part (default %(default)s, 150 for autobusy)",
+    )
+    parser.add_argument(
+        "--batch",
+        type=int,
+        choices=(0, 1, 2, 3),
+        default=0,
+        help="autobusy: the first six scenes (1), the second six (2), the two with a narrow filter (3) or all (0); default %(default)s",
+    )
     parser.add_argument("--record", metavar="FILE", help="autobusy: keep what each receiver saw as FILE.N.json")
-    parser.add_argument("--replay", metavar="FILE,FILE", help="autobusy: judge these recordings again instead of running the simulation")
-    parser.add_argument("--messages", type=int, default=20, metavar="N", help="acks: how many messages; default %(default)s")
-    parser.add_argument("--hours", type=int, default=50, metavar="H", help="beacons: hours of simulated time per round; default %(default)s")
-    parser.add_argument("--rounds", type=int, default=400, metavar="R", help="beacons: rounds of H hours (each round draws the stations' phases again; without the pause an overlap of phases lasts the whole round, so many short rounds measure it); default %(default)s")
-    parser.add_argument("--stations", default="2,3,5,10", metavar="N,N", help="beacons: the sizes of the net to try; default %(default)s")
-    parser.add_argument("--interval-min", type=int, default=30, metavar="MIN", help="beacons: the beacon interval; default %(default)s (the floor while the HF radio is on)")
-    parser.add_argument("--mercury", metavar="PATH", help="the Mercury program (default: the one scripts/build-mercury --install put in the venv)")
-    parser.add_argument("--first-port", type=int, default=18500, metavar="N", help="the first of the ports (two Mercury instances: N, N+10 and their control ports 200 above); default %(default)s")
+    parser.add_argument(
+        "--replay", metavar="FILE,FILE", help="autobusy: judge these recordings again instead of running the simulation"
+    )
+    parser.add_argument(
+        "--messages", type=int, default=20, metavar="N", help="acks: how many messages; default %(default)s"
+    )
+    parser.add_argument(
+        "--hours",
+        type=int,
+        default=50,
+        metavar="H",
+        help="beacons: hours of simulated time per round; default %(default)s",
+    )
+    parser.add_argument(
+        "--rounds",
+        type=int,
+        default=400,
+        metavar="R",
+        help="beacons: rounds of H hours (each round draws the stations' phases again; without the pause an overlap of phases lasts the whole round, so many short rounds measure it); default %(default)s",
+    )
+    parser.add_argument(
+        "--stations",
+        default="2,3,5,10",
+        metavar="N,N",
+        help="beacons: the sizes of the net to try; default %(default)s",
+    )
+    parser.add_argument(
+        "--interval-min",
+        type=int,
+        default=30,
+        metavar="MIN",
+        help="beacons: the beacon interval; default %(default)s (the floor while the HF radio is on)",
+    )
+    parser.add_argument(
+        "--mercury",
+        metavar="PATH",
+        help="the Mercury program (default: the one scripts/build-mercury --install put in the venv)",
+    )
+    parser.add_argument(
+        "--first-port",
+        type=int,
+        default=18500,
+        metavar="N",
+        help="the first of the ports (two Mercury instances: N, N+10 and their control ports 200 above); default %(default)s",
+    )
     parser.add_argument("--seed", type=int, default=1, metavar="S")
-    parser.add_argument("--timeout", type=float, default=30.0, metavar="SEC", help="how long one wait may take; default %(default)s")
+    parser.add_argument(
+        "--timeout", type=float, default=30.0, metavar="SEC", help="how long one wait may take; default %(default)s"
+    )
     parser.add_argument("--report", metavar="FILE", help="write the result as JSON here too")
     parser.add_argument("--keep", action="store_true", help="keep the folder of the run")
     args = parser.parse_args()

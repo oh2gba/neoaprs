@@ -2,6 +2,7 @@
 
 Read at most every SKEDS_EVERY_SEC, posted to only on the operator's press; the update-check
 switch turns both off. A secret token lets only this installation delete its skeds."""
+
 import asyncio
 import json
 import logging
@@ -18,7 +19,27 @@ from neoaprs.services.common import ConfigSource
 from neoaprs.services.memory import Memory
 from neoaprs.services.updatecheck import ENV_SWITCH, FIRST_SEC
 from neoaprs.signal import Signal
-from neoaprs.skeds import EMPTY, MAX_LENGTH, MAX_ROWS, OURS_ROW, SKED_TOKEN, SKEDS_ROW, SKEDS_URL, TOKEN, Board, Sked, board_of, board_text, endpoint_url, ids_text, kept_board, kept_ids, our_call, request_body, to_come
+from neoaprs.skeds import (
+    EMPTY,
+    MAX_LENGTH,
+    MAX_ROWS,
+    OURS_ROW,
+    SKED_TOKEN,
+    SKEDS_ROW,
+    SKEDS_URL,
+    TOKEN,
+    Board,
+    Sked,
+    board_of,
+    board_text,
+    endpoint_url,
+    ids_text,
+    kept_board,
+    kept_ids,
+    our_call,
+    request_body,
+    to_come,
+)
 from neoaprs.tasks import TaskSet, every
 from neoaprs.updatefetch import fetch_answer, post_board
 from neoaprs.versions import Frequency, on_this_computer
@@ -49,9 +70,22 @@ class SkedError(CodedError):
 
 
 class Skeds:
-    def __init__(self, version: str, platform: str, config: ConfigSource, frequencies: Callable[[], list[Frequency]] = list, fetch: Fetch = fetch_answer, post: Post = post_board, first_sec: float = FIRST_SEC,
-                 every_sec: float = EVERY_SEC, environ: Mapping[str, str] = os.environ, memory: Memory | None = None, clock: Clock = utcnow, monotonic: Callable[[], float] = time.monotonic,
-                 expire_sec: float = EXPIRE_SEC) -> None:
+    def __init__(
+        self,
+        version: str,
+        platform: str,
+        config: ConfigSource,
+        frequencies: Callable[[], list[Frequency]] = list,
+        fetch: Fetch = fetch_answer,
+        post: Post = post_board,
+        first_sec: float = FIRST_SEC,
+        every_sec: float = EVERY_SEC,
+        environ: Mapping[str, str] = os.environ,
+        memory: Memory | None = None,
+        clock: Clock = utcnow,
+        monotonic: Callable[[], float] = time.monotonic,
+        expire_sec: float = EXPIRE_SEC,
+    ) -> None:
         self.version, self.platform = version, platform
         self._config = config
         # dials suggested for the HF radio; in the topic so the tab need not depend on a radio
@@ -197,7 +231,9 @@ class Skeds:
             on_board = {s.id for s in board.skeds}
             self._ours = [i for i in self._ours if i in on_board]
         if self._memory is not None:
-            await self._memory.put_settings({SKEDS_ROW: board_text(board, self.fetched_at), OURS_ROW: ids_text(self._ours)})
+            await self._memory.put_settings(
+                {SKEDS_ROW: board_text(board, self.fetched_at), OURS_ROW: ids_text(self._ours)}
+            )
         self._tell()
 
     # ---- posting
@@ -246,7 +282,13 @@ class Skeds:
         """Return the endpoint's answer when it says ok; None for a refusal needing no message."""
         if not self.enabled:
             raise SkedError("the HF test board could not be reached just now; try again later", "sked.unreachable")
-        got = await self._post(endpoint_url(self.url), request_body(action, await self._secret(), fields), self.version, self.platform, MAX_BYTES)
+        got = await self._post(
+            endpoint_url(self.url),
+            request_body(action, await self._secret(), fields),
+            self.version,
+            self.platform,
+            MAX_BYTES,
+        )
         if got is None:
             self._unreached()
             raise SkedError("the HF test board could not be reached just now; try again later", "sked.unreachable")
@@ -279,7 +321,9 @@ class Skeds:
                 self._shut = call.split("-")[0]
                 self._tell()
         elif reason == "not_yours" and action == "remove":
-            log.info("the HF test is not ours: it was posted by another installation, or the data folder is another one")
+            log.info(
+                "the HF test is not ours: it was posted by another installation, or the data folder is another one"
+            )
             await self._get()
         else:
             log.warning("the HF test board refused the %s (status %s, reason %r)", action, status, reason)

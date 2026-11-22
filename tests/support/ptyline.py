@@ -2,6 +2,7 @@
 a real device file. The test holds the master; the code under test opens the slave path with
 pyserial.
 """
+
 import os
 import select
 import signal
@@ -15,7 +16,10 @@ from contextlib import contextmanager
 import pytest
 
 # For a test, or `pytestmark = posix_only` for a file
-posix_only = pytest.mark.skipif(sys.platform == "win32", reason="needs a pseudo-terminal, a device file, a POSIX shell, file modes or a signal sent to a process: POSIX only")
+posix_only = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="needs a pseudo-terminal, a device file, a POSIX shell, file modes or a signal sent to a process: POSIX only",
+)
 
 # What only a POSIX system has, by a name that both type checks know (mypy reads the tests for
 # Windows too, and a file that Windows collects must import there): a test that uses these is marked
@@ -49,7 +53,7 @@ def user_id() -> int:
 # The fixture `ptys`: each call is a new pair, (master, slave path)
 Ptys = Callable[[], tuple[int, str]]
 
-_slaves: dict[int, int] = {}                 # master descriptor -> the slave descriptor this helper holds
+_slaves: dict[int, int] = {}  # master descriptor -> the slave descriptor this helper holds
 
 
 def _on_windows() -> bool:
@@ -59,7 +63,8 @@ def _on_windows() -> bool:
 def make_pty() -> tuple[int, str]:
     if _on_windows():
         raise RuntimeError("pseudo-terminals exist on POSIX systems only")
-    import tty                                           # (Windows has none)
+    import tty  # (Windows has none)
+
     master, slave = os.openpty()  # type: ignore[attr-defined, unused-ignore]
     tty.setraw(slave)  # type: ignore[attr-defined, unused-ignore]
     _slaves[master] = slave
@@ -70,7 +75,7 @@ def feed(master_fd: int, data: bytes) -> None:
     """The radio sends `data` to the port."""
     view = memoryview(data)
     while view:
-        view = view[os.write(master_fd, view):]
+        view = view[os.write(master_fd, view) :]
 
 
 def heard(master_fd: int, count: int = 1, timeout_sec: float = 2.0) -> bytes:
@@ -111,7 +116,9 @@ def ptys() -> Iterator[Callable[[], tuple[int, str]]]:
         close_pty(master)
 
 
-_HOLD = "import os, sys, time\nos.open(sys.argv[1], os.O_RDWR | os.O_NOCTTY)\nprint('ready', flush=True)\ntime.sleep(60)\n"
+_HOLD = (
+    "import os, sys, time\nos.open(sys.argv[1], os.O_RDWR | os.O_NOCTTY)\nprint('ready', flush=True)\ntime.sleep(60)\n"
+)
 
 
 @contextmanager

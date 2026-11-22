@@ -2,6 +2,7 @@
 it. `program(...)` is its command. It reads the `-c` configuration, prints its banner, listens on
 its KISS port and gives back every frame it is sent as a frame heard.
 """
+
 import asyncio
 import os
 import signal
@@ -15,15 +16,37 @@ BANNER = "Dire Wolf Release 1.8.1, November 2025 (fake, tests/support/fakedirewo
 WINMM_INPUTS = ("Microphone (Realtek(R) Audio)", "Microphone (USB Audio CODEC)")
 WINMM_OUTPUTS = ("Speakers (Realtek(R) Audio)", "Speakers (USB Audio CODEC)")
 HEARD_FROM = "OH2XYZ"
-MAX_CLIENTS = 3                         # kissnet.c MAX_NET_CLIENTS
-MODES = ("--fail-card", "--wrong-star", "--fail-keying", "--cm108-unknown", "--hidraw-denied", "--several-cm108", "--port-taken", "--ignore-stdin", "--ignore-sigint", "--listen-any")
+MAX_CLIENTS = 3  # kissnet.c MAX_NET_CLIENTS
+MODES = (
+    "--fail-card",
+    "--wrong-star",
+    "--fail-keying",
+    "--cm108-unknown",
+    "--hidraw-denied",
+    "--several-cm108",
+    "--port-taken",
+    "--ignore-stdin",
+    "--ignore-sigint",
+    "--listen-any",
+)
 
 
-def program(*modes: str, die_after_sec: float | None = None, level: int | None = None, busy_sec: float | None = None, idle_level: int | None = None) -> list[str]:
+def program(
+    *modes: str,
+    die_after_sec: float | None = None,
+    level: int | None = None,
+    busy_sec: float | None = None,
+    idle_level: int | None = None,
+) -> list[str]:
     """The command that runs this module as the Direwolf program, whatever the working directory,
     with its modes (MODES) after it."""
     assert all(mode in MODES for mode in modes), modes
-    command = [sys.executable, "-c", f"import sys, runpy; sys.path.insert(0, {str(ROOT)!r}); runpy.run_module('tests.support.fakedirewolf', run_name='__main__')", *modes]
+    command = [
+        sys.executable,
+        "-c",
+        f"import sys, runpy; sys.path.insert(0, {str(ROOT)!r}); runpy.run_module('tests.support.fakedirewolf', run_name='__main__')",
+        *modes,
+    ]
     if die_after_sec is not None:
         command += ["--die-after", str(die_after_sec)]
     if busy_sec is not None:
@@ -81,7 +104,7 @@ class Fake:
         self.argv = argv
         self.conf = _conf(_option(argv, "-c"))
         self.keyed = False
-        self.clients: set[int] = set()          # the places of the KISS clients attached now
+        self.clients: set[int] = set()  # the places of the KISS clients attached now
         self.level = int(_option(argv, "--level") or 48)
         self.done: asyncio.Event | None = None
         self.loop: asyncio.AbstractEventLoop | None = None
@@ -116,7 +139,9 @@ class Fake:
         # kissnet.c: said at every client, and then the next free place is offered
         say(f"Attached to KISS TCP client application {slot} on port {port} ...")
         if len(self.clients) < MAX_CLIENTS:
-            say(f"Ready to accept KISS TCP client application {min(set(range(MAX_CLIENTS)) - self.clients)} on port {port} ...")
+            say(
+                f"Ready to accept KISS TCP client application {min(set(range(MAX_CLIENTS)) - self.clients)} on port {port} ..."
+            )
         try:
             await self.frames(reader, writer)
         finally:
@@ -170,7 +195,9 @@ class Fake:
             say("Pointless to continue without audio device.")
             return 1
         if "--cm108-unknown" in self.argv:
-            say(f"Config file line 6: Could not determine USB Audio GPIO PTT device for audio output {self.conf.get('ADEVICE', '')}.")
+            say(
+                f"Config file line 6: Could not determine USB Audio GPIO PTT device for audio output {self.conf.get('ADEVICE', '')}."
+            )
             say("You must explicitly mention a device name such as /dev/hidraw1.")
         if "--several-cm108" in self.argv:
             say("There are multiple USB Audio Devices with GPIO capability.")
@@ -185,13 +212,19 @@ class Fake:
             say("Bind failed with error: 98")
             say(f"Some other application is probably already using port {self.conf.get('KISSPORT', '')}.")
         else:
-            server = await asyncio.start_server(self.kiss, "0.0.0.0" if "--listen-any" in self.argv else "127.0.0.1", int(self.conf["KISSPORT"]))
+            server = await asyncio.start_server(
+                self.kiss, "0.0.0.0" if "--listen-any" in self.argv else "127.0.0.1", int(self.conf["KISSPORT"])
+            )
             say(f"Ready to accept KISS TCP client application 0 on port {self.conf['KISSPORT']} ...")
             if "--idle-level" in self.argv:
-                stats = asyncio.ensure_future(self.statistics(float(_option(self.argv, "-a") or 60), int(_option(self.argv, "--idle-level"))))
+                stats = asyncio.ensure_future(
+                    self.statistics(float(_option(self.argv, "-a") or 60), int(_option(self.argv, "--idle-level")))
+                )
                 stats.add_done_callback(lambda _: None)
             if "-R" in self.argv:
-                now = asyncio.ensure_future(self.levels_now(int(_option(self.argv, "-R")), int(_option(self.argv, "--idle-level") or 0)))
+                now = asyncio.ensure_future(
+                    self.levels_now(int(_option(self.argv, "-R")), int(_option(self.argv, "--idle-level") or 0))
+                )
                 now.add_done_callback(lambda _: None)
         die_after = float(_option(self.argv, "--die-after")) if "--die-after" in self.argv else None
         try:

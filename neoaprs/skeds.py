@@ -3,6 +3,7 @@
 Nothing the server says is trusted: `parse_board` checks every row and drops a bad row alone.
 `request_body` builds what the daemon posts, so both directions are defined here.
 """
+
 import json
 import re
 import unicodedata
@@ -51,6 +52,7 @@ class Sked:
 @dataclass(frozen=True)
 class Board:
     """The skeds in start order, and whether the board is closed to new ones."""
+
     closed: bool
     skeds: tuple[Sked, ...]
 
@@ -73,7 +75,11 @@ def when(text: object) -> datetime | None:
 
 
 def plain_note(text: object) -> bool:
-    return isinstance(text, str) and len(text) <= MAX_NOTE and all(c == " " or unicodedata.category(c)[0] in NOTE_KINDS for c in text)
+    return (
+        isinstance(text, str)
+        and len(text) <= MAX_NOTE
+        and all(c == " " or unicodedata.category(c)[0] in NOTE_KINDS for c in text)
+    )
 
 
 def clean_note(text: str) -> str:
@@ -96,9 +102,24 @@ def sked_of(entry: object, now: datetime) -> Sked | None:
         return None
     ident, call, dial, note = entry.get("id"), entry.get("call"), entry.get("dial"), entry.get("note", "")
     start, end = when(entry.get("from")), when(entry.get("to"))
-    if not (isinstance(ident, str) and ID.fullmatch(ident) and isinstance(call, str) and isinstance(dial, str) and is_dial(dial) and plain_note(note)):
+    if not (
+        isinstance(ident, str)
+        and ID.fullmatch(ident)
+        and isinstance(call, str)
+        and isinstance(dial, str)
+        and is_dial(dial)
+        and plain_note(note)
+    ):
         return None
-    if start is None or end is None or not start < end <= start + MAX_LENGTH or end <= now or start > now + MAX_AHEAD or not call or our_call(call) != call:
+    if (
+        start is None
+        or end is None
+        or not start < end <= start + MAX_LENGTH
+        or end <= now
+        or start > now + MAX_AHEAD
+        or not call
+        or our_call(call) != call
+    ):
         return None
     return Sked(ident, call, start, end, dial, str(note))
 
@@ -112,7 +133,12 @@ def parse_board(body: bytes | str, now: datetime) -> Board | None:
 
 def board_of(data: Any, now: datetime) -> Board | None:
     """Return the board in a JSON value, or None if it is malformed; a bad row is dropped alone."""
-    if not isinstance(data, dict) or data.get("v") != VERSION or isinstance(data.get("v"), bool) or not isinstance(data.get("skeds"), list):
+    if (
+        not isinstance(data, dict)
+        or data.get("v") != VERSION
+        or isinstance(data.get("v"), bool)
+        or not isinstance(data.get("skeds"), list)
+    ):
         return None
     closed = data.get("closed", False)
     if not isinstance(closed, bool):
@@ -140,11 +166,20 @@ def to_come(skeds: tuple[Sked, ...], now: datetime) -> tuple[Sked, ...]:
 
 
 def board_text(board: Board, fetched: datetime) -> str:
-    return json.dumps({"v": VERSION, "closed": board.closed, "fetched": iso(fetched), "skeds": [row_of(s) for s in board.skeds]})
+    return json.dumps(
+        {"v": VERSION, "closed": board.closed, "fetched": iso(fetched), "skeds": [row_of(s) for s in board.skeds]}
+    )
 
 
 def row_of(sked: Sked) -> dict[str, str]:
-    return {"id": sked.id, "call": sked.call, "from": iso(sked.start) or "", "to": iso(sked.end) or "", "dial": sked.dial, "note": sked.note}
+    return {
+        "id": sked.id,
+        "call": sked.call,
+        "from": iso(sked.start) or "",
+        "to": iso(sked.end) or "",
+        "dial": sked.dial,
+        "note": sked.note,
+    }
 
 
 def kept_board(text: str, now: datetime) -> tuple[Board, datetime | None] | None:

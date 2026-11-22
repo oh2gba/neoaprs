@@ -4,6 +4,7 @@ It has the signal handlers, logging, folder lock, Controller and stop file, with
 so a test can break what the daemon stands on. `signals_restored` gives SIGTERM, SIGINT and SIGHUP
 back.
 """
+
 import argparse
 import asyncio
 import signal

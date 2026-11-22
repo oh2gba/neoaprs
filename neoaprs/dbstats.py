@@ -1,8 +1,9 @@
 """What the database thread measures: queue wait, run time, event-loop delivery delay and counts."""
+
 import threading
 from collections import deque
 
-WINDOW = 4096                       # measurements kept per series for the percentiles
+WINDOW = 4096  # measurements kept per series for the percentiles
 
 
 def percentile(sorted_values: list[float], p: float) -> float:
@@ -27,8 +28,13 @@ class Series:
 
     def summary(self) -> dict[str, float]:
         ordered = sorted(self.values)
-        return {"n": float(self.count), "mean_ms": 1000.0 * self.total / self.count if self.count else 0.0, "p50_ms": 1000.0 * percentile(ordered, 50),
-                "p99_ms": 1000.0 * percentile(ordered, 99), "max_ms": 1000.0 * (ordered[-1] if ordered else 0.0)}
+        return {
+            "n": float(self.count),
+            "mean_ms": 1000.0 * self.total / self.count if self.count else 0.0,
+            "p50_ms": 1000.0 * percentile(ordered, 50),
+            "p99_ms": 1000.0 * percentile(ordered, 99),
+            "max_ms": 1000.0 * (ordered[-1] if ordered else 0.0),
+        }
 
 
 class DbStats:
@@ -37,10 +43,27 @@ class DbStats:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self.wait = Series()                  # queued -> started
-        self.run = Series()                   # started -> finished, the commit included
-        self.delivery = Series()              # answer posted -> loop took it
-        self.counts: dict[str, int] = dict.fromkeys(("reads", "writes", "maintenance", "appends", "batches", "errors", "withdrawn", "cut", "poisoned", "retried", "dropped", "lost", "slow"), 0)
+        self.wait = Series()  # queued -> started
+        self.run = Series()  # started -> finished, the commit included
+        self.delivery = Series()  # answer posted -> loop took it
+        self.counts: dict[str, int] = dict.fromkeys(
+            (
+                "reads",
+                "writes",
+                "maintenance",
+                "appends",
+                "batches",
+                "errors",
+                "withdrawn",
+                "cut",
+                "poisoned",
+                "retried",
+                "dropped",
+                "lost",
+                "slow",
+            ),
+            0,
+        )
         self.max_depth = 0
 
     def count(self, name: str, n: int = 1) -> int:
@@ -66,4 +89,10 @@ class DbStats:
 
     def snapshot(self) -> dict[str, object]:
         with self._lock:
-            return {"queue_wait": self.wait.summary(), "run": self.run.summary(), "loop_delivery": self.delivery.summary(), "max_depth": self.max_depth, **self.counts}
+            return {
+                "queue_wait": self.wait.summary(),
+                "run": self.run.summary(),
+                "loop_delivery": self.delivery.summary(),
+                "max_depth": self.max_depth,
+                **self.counts,
+            }

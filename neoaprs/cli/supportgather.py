@@ -2,6 +2,7 @@
 
 supportmake.py runs them and turns a failure of one into a file that says so. They change
 nothing: the database is opened read-only, and the commands that are run only report."""
+
 import contextlib
 import json
 import logging
@@ -30,7 +31,16 @@ from neoaprs.supportsql import file_facts, latest_packets, latest_undecoded, ope
 
 from . import doctor
 from .logfile import APP_LOG_NAME, LOG_NAME, START_LINE
-from .radiosettings import RADIO_ROWS_FROM, SHOWN_KEYS, in_force, own_fields, shown_settings, stored_own, stored_text_of, value_text
+from .radiosettings import (
+    RADIO_ROWS_FROM,
+    SHOWN_KEYS,
+    in_force,
+    own_fields,
+    shown_settings,
+    stored_own,
+    stored_text_of,
+    value_text,
+)
 from .redaction import hides, shown_value
 from .supportbundle import rotated_logs, tail_text
 from .supportsummary import DbFacts, megabytes, stamp
@@ -59,6 +69,7 @@ class StoredRadios:
     """The radios as stored: rows of `radio` and `radio_setting`, invalid values included.
 
     `problem` is set when the tables exist but could not be read."""
+
     rows: list[Row] = field(default_factory=list)
     settings: list[Row] = field(default_factory=list)
     problem: str = ""
@@ -76,6 +87,7 @@ class StoredRadios:
 @dataclass(frozen=True)
 class Stored:
     """The settings table rows, and the radios if they are in their own tables (else None)."""
+
     rows: dict[str, str]
     radios: StoredRadios | None = None
 
@@ -87,6 +99,7 @@ def config_of(rows: dict[str, str], radios: StoredRadios | None = None) -> Confi
 
 
 # ---- the settings
+
 
 def settings_json(rows: dict[str, str], radios: StoredRadios | None = None) -> str:
     """Return settings.json: the settings in force, which are stored, the radios and pairs.
@@ -114,18 +127,35 @@ def settings_json(rows: dict[str, str], radios: StoredRadios | None = None) -> s
 
 def radio_json(spec: RadioSpec, specs: Sequence[RadioSpec], own: dict[tuple[int, str], str]) -> dict[str, Any]:
     """Return one radio for settings.json: its row, log name, settings in force and as stored."""
+
     def shown(key: str, text: str) -> str:
         return shown_value(f"radio/{spec.id}/{key}", text)
-    return {"id": spec.id, "kind": spec.kind, "type": spec.type, "name": spec.name, "log_name": log_name(spec, specs), "enabled": spec.enabled, "position": spec.position,
-            "removed_at": None if spec.removed_at is None else iso(spec.removed_at), "values": {key: shown(key, value_text(spec, key)) for key in own_fields(spec)},
-            "stored": {key: shown(key, text) for (radio, key), text in sorted(own.items()) if radio == spec.id}}
+
+    return {
+        "id": spec.id,
+        "kind": spec.kind,
+        "type": spec.type,
+        "name": spec.name,
+        "log_name": log_name(spec, specs),
+        "enabled": spec.enabled,
+        "position": spec.position,
+        "removed_at": None if spec.removed_at is None else iso(spec.removed_at),
+        "values": {key: shown(key, value_text(spec, key)) for key in own_fields(spec)},
+        "stored": {key: shown(key, text) for (radio, key), text in sorted(own.items()) if radio == spec.id},
+    }
 
 
 def pair_json(pair: PairSpec, specs: Sequence[RadioSpec], station_call: str) -> dict[str, Any]:
     """Return one pair for settings.json: its radios, SSID, call, and whether they may pair now."""
     low, high = (next((spec for spec in specs if spec.id == id), None) for id in (pair.low, pair.high))
-    return {"low": pair.low, "high": pair.high, "enabled": pair.enabled, "ssid": pair.ssid, "call": call_of(station_call, pair.ssid),
-            "may_pair_now": low is not None and high is not None and may_pair(low, high)}
+    return {
+        "low": pair.low,
+        "high": pair.high,
+        "enabled": pair.enabled,
+        "ssid": pair.ssid,
+        "call": call_of(station_call, pair.ssid),
+        "may_pair_now": low is not None and high is not None and may_pair(low, high),
+    }
 
 
 def secrets_of(rows: dict[str, str]) -> list[str]:
@@ -134,6 +164,7 @@ def secrets_of(rows: dict[str, str]) -> list[str]:
 
 
 # ---- the logs
+
 
 def log_files(data: Path) -> tuple[list[Path], list[Path]]:
     """Return (the daemon's log files, the desktop app's log files), each newest first."""
@@ -163,7 +194,9 @@ def started_at(lines: list[str]) -> datetime | None:
     return None
 
 
-def journal_text(run: Callable[..., Any] = subprocess.run, which: Callable[[str], str | None] = shutil.which) -> str | None:
+def journal_text(
+    run: Callable[..., Any] = subprocess.run, which: Callable[[str], str | None] = shutil.which
+) -> str | None:
     """Return the last journal lines of the NeoAPRS service (Linux, systemd), else None.
 
     A failing command is reported in the text, never raised, so it cannot fail the bundle."""
@@ -171,14 +204,23 @@ def journal_text(run: Callable[..., Any] = subprocess.run, which: Callable[[str]
         return None
     command = ["journalctl", "--user", "-u", "neoaprs", "-n", str(JOURNAL_LINES), "--no-pager", "-o", "short-iso"]
     try:
-        done = run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=JOURNAL_WAIT_SEC)
+        done = run(
+            command, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=JOURNAL_WAIT_SEC
+        )
     except (OSError, subprocess.SubprocessError) as e:
         return f"[{' '.join(command)} could not be run: {type(e).__name__}: {e}]\n"
-    note = f"[{' '.join(command)} ended with {done.returncode}: {done.stderr.strip()[:300]}]\n" if done.returncode else ""
-    return f"[{' '.join(command)}: the NeoAPRS service of this user, which is not necessarily the one of this data folder]\n" + note + str(done.stdout)
+    note = (
+        f"[{' '.join(command)} ended with {done.returncode}: {done.stderr.strip()[:300]}]\n" if done.returncode else ""
+    )
+    return (
+        f"[{' '.join(command)}: the NeoAPRS service of this user, which is not necessarily the one of this data folder]\n"
+        + note
+        + str(done.stdout)
+    )
 
 
 # ---- the doctor
+
 
 def doctor_text(data: Path) -> str:
     """Return what `neoaprs doctor` prints for this data folder."""
@@ -190,6 +232,7 @@ def doctor_text(data: Path) -> str:
 
 
 # ---- the database
+
 
 def _size(path: Path) -> int:
     try:
@@ -209,7 +252,11 @@ def migration_lines(rows: list[tuple[int, str, str, datetime, str]]) -> list[str
         elif digest == "unknown" or source_hash(MIGRATIONS[version - 1]) == "unknown":
             verdict = "source hash not comparable (no source in this build)"
         else:
-            verdict = "source hash matches" if source_hash(MIGRATIONS[version - 1]) == digest else "SOURCE HASH DIFFERS from this NeoAPRS's"
+            verdict = (
+                "source hash matches"
+                if source_hash(MIGRATIONS[version - 1]) == digest
+                else "SOURCE HASH DIFFERS from this NeoAPRS's"
+            )
         lines.append(f"  {version:>3}  {name:<6} applied {stamp(applied)}  {verdict}" + (f"  ({note})" if note else ""))
     return lines
 
@@ -230,18 +277,30 @@ def database_report(data: Path) -> tuple[str, DbFacts]:
         text = f"There is no database file at {path} (the daemon makes it when it first starts).\n"
         return text, DbFacts(None, SCHEMA_VERSION, 0, 0, "there is no database file yet")
     size, wal = _size(path), _size(path.with_name(path.name + "-wal"))
-    lines = [f"File:     {path}", f"Size:     {megabytes(size)} ({size:,} bytes); write-ahead log {megabytes(wal)}, shared memory file {megabytes(_size(path.with_name(path.name + '-shm')))}", ""]
+    lines = [
+        f"File:     {path}",
+        f"Size:     {megabytes(size)} ({size:,} bytes); write-ahead log {megabytes(wal)}, shared memory file {megabytes(_size(path.with_name(path.name + '-shm')))}",
+        "",
+    ]
     conn = open_readonly(path)
     try:
         facts = file_facts(conn)
         version = int(facts["user_version"])
-        lines.append(f"Schema version: {version} (this NeoAPRS expects {SCHEMA_VERSION}){'' if version == SCHEMA_VERSION else '  <-- DIFFERENT'}")
-        lines += [f"SQLite file:    {facts['page_count']} pages of {facts['page_size']} bytes, {facts['freelist_count']} free, journal mode {journal_mode(path)}", "", "Migrations applied:"]
+        lines.append(
+            f"Schema version: {version} (this NeoAPRS expects {SCHEMA_VERSION}){'' if version == SCHEMA_VERSION else '  <-- DIFFERENT'}"
+        )
+        lines += [
+            f"SQLite file:    {facts['page_count']} pages of {facts['page_size']} bytes, {facts['freelist_count']} free, journal mode {journal_mode(path)}",
+            "",
+            "Migrations applied:",
+        ]
         lines += migration_lines(history(conn)) or ["  (none recorded)"]
         lines += ["", "Rows:"] + [f"  {name:<18} {count:>10,}" for name, count in table_counts(conn)]
         lines += ["", "Integrity (PRAGMA quick_check):"]
         if size > QUICK_CHECK_MAX_BYTES:
-            lines.append(f"  skipped: the file is {megabytes(size)}, over the {megabytes(QUICK_CHECK_MAX_BYTES)} that it is checked up to")
+            lines.append(
+                f"  skipped: the file is {megabytes(size)}, over the {megabytes(QUICK_CHECK_MAX_BYTES)} that it is checked up to"
+            )
         else:
             lines += [f"  {line}" for line in quick_check(conn)[:20]]
     finally:
@@ -268,6 +327,7 @@ def read_stored(data: Path) -> Stored:
 
 # ---- the packets
 
+
 def packet_text(row: tuple[Any, ...]) -> str:
     """Return a packet row as a TNC2 line, from the frame or else from the columns."""
     raw = PacketRow(*row)
@@ -292,7 +352,11 @@ def packets_text(data: Path) -> str:
         latest, bad = latest_packets(conn, PACKETS_SHOWN), latest_undecoded(conn, UNDECODED_SHOWN)
     finally:
         conn.close()
-    out = [f"The last {PACKETS_SHOWN} packets heard (in) and sent (out), the newest last; {len(latest)} here.", "These went over the air, where they are public.", ""]
+    out = [
+        f"The last {PACKETS_SHOWN} packets heard (in) and sent (out), the newest last; {len(latest)} here.",
+        "These went over the air, where they are public.",
+        "",
+    ]
     out += [packet_line(row) for row in reversed(latest)] or ["(none)"]
     out += ["", f"The last {UNDECODED_SHOWN} packets that could not be decoded, the newest last; {len(bad)} here.", ""]
     out += [packet_line(row) for row in reversed(bad)] or ["(none)"]

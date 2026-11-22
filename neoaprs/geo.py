@@ -1,6 +1,7 @@
 """Distance and bearing on the earth, the box round a circle, and a track thinned for replay.
 
 Positions are degrees, north and east positive. The earth is a sphere of the mean radius."""
+
 import math
 from collections.abc import Sequence
 from datetime import datetime

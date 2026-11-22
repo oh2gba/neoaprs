@@ -2,6 +2,7 @@
 
 Sends with retries and a per-station queue, handles encrypted messages, incoming acks and
 overheard messages, and picks the radio and path each message goes on."""
+
 import asyncio
 import logging
 from collections.abc import Callable, Iterable
@@ -13,7 +14,19 @@ from neoaprs.aprsmessage import MessageError
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.interlock import Interlock
-from neoaprs.message import ACK_SETTLES, MESSAGES_HELD_MAX, MSG_IDS, MessageRecord, MessagingError, RETRYABLE, Seal, UNCONFIRMED_MAX, addressed_to, attempts_for, check_text
+from neoaprs.message import (
+    ACK_SETTLES,
+    MESSAGES_HELD_MAX,
+    MSG_IDS,
+    MessageRecord,
+    MessagingError,
+    RETRYABLE,
+    Seal,
+    UNCONFIRMED_MAX,
+    addressed_to,
+    attempts_for,
+    check_text,
+)
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, our_call, our_frame
@@ -41,7 +54,12 @@ REPLY_ACK_ROOM = 5
 
 def _in_line(record: MessageRecord) -> bool:
     """Return whether the message is being sent and expects an ack, so it goes one at a time."""
-    return record.direction == "out" and record.state == "sending" and record.msg_id is not None and record.attempts_max > UNCONFIRMED_MAX
+    return (
+        record.direction == "out"
+        and record.state == "sending"
+        and record.msg_id is not None
+        and record.attempts_max > UNCONFIRMED_MAX
+    )
 
 
 def _to_let_go(records: Iterable[MessageRecord]) -> MessageRecord | None:
@@ -59,11 +77,22 @@ def _pace_running(pace: Pace, radios: MessageRadios, record: MessageRecord) -> b
 
 
 class Messaging:
-    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, messagelog: MessageLog, paths: Callable[[str, int | None, RadioId], tuple[str, ...]], clock: Clock = utcnow, tick_sec: float = TICK_SEC,
-                 board: Callable[[Packet, Message], None] | None = None, alert: Callable[[MessageRecord], None] | None = None,
-                 spacing_sec: float = SPACING_SEC, qru: Callable[[Packet, Message], bool] | None = None,
-                 qru_answer: Callable[[Packet, Message], bool] | None = None, keyring: Keys | None = None) -> None:
-        self._given = radios                                    # read through `as_pick` at each call
+    def __init__(
+        self,
+        radios: RadioPick | Radio,
+        config: ConfigSource,
+        messagelog: MessageLog,
+        paths: Callable[[str, int | None, RadioId], tuple[str, ...]],
+        clock: Clock = utcnow,
+        tick_sec: float = TICK_SEC,
+        board: Callable[[Packet, Message], None] | None = None,
+        alert: Callable[[MessageRecord], None] | None = None,
+        spacing_sec: float = SPACING_SEC,
+        qru: Callable[[Packet, Message], bool] | None = None,
+        qru_answer: Callable[[Packet, Message], bool] | None = None,
+        keyring: Keys | None = None,
+    ) -> None:
+        self._given = radios  # read through `as_pick` at each call
         self.keyring: Keys = keyring or NoKeys()
         self._config = config
         interlock = Interlock(config)
@@ -74,8 +103,13 @@ class Messaging:
         self.pace = Pace(clock, spacing_sec)
         self.changed: Signal[[MessageRecord]] = Signal("messaging_changed")
         self.removed: Signal[[MessageRecord]] = Signal("messaging_removed")
-        self._records: dict[int, MessageRecord] = {}            # by id
-        self.acks = Acks(lambda: as_pick(radios, config), interlock, lambda info, to, radio: self._frame(info, to, radio=radio), clock)
+        self._records: dict[int, MessageRecord] = {}  # by id
+        self.acks = Acks(
+            lambda: as_pick(radios, config),
+            interlock,
+            lambda info, to, radio: self._frame(info, to, radio=radio),
+            clock,
+        )
         self.retries = Retries(self, radios, config, interlock, clock, lambda: self.tick_sec, self.acks.flush)
         # Messages whose attempt cannot be made, with the reason; logged once, not every tick.
         self._refused: dict[int, str] = {}
@@ -83,7 +117,9 @@ class Messaging:
         self.message_radios = MessageRadios(radios, config, lambda number: last_run(self.delivery.attempts_of(number)))
         self.asking = Asking(self, clock)
         # `board` takes bulletin and group messages, `alert` the first copy of each message to us.
-        self.inbox = Inbox(self, config, messagelog, TaskSet(log, "messaging"), board, alert, qru, qru_answer, self.keyring)
+        self.inbox = Inbox(
+            self, config, messagelog, TaskSet(log, "messaging"), board, alert, qru, qru_answer, self.keyring
+        )
 
     def records(self) -> list[MessageRecord]:
         """Return the held messages, oldest first."""
@@ -94,11 +130,25 @@ class Messaging:
 
     def queued(self, record: MessageRecord) -> bool:
         """Return whether the message waits for an earlier one to the same station to settle."""
-        return _in_line(record) and record.attempts == 0 and any(other.id != record.id and other.to_call == record.to_call and _in_line(other) and (other.attempts > 0 or other.id < record.id) for other in self._records.values())
+        return (
+            _in_line(record)
+            and record.attempts == 0
+            and any(
+                other.id != record.id
+                and other.to_call == record.to_call
+                and _in_line(other)
+                and (other.attempts > 0 or other.id < record.id)
+                for other in self._records.values()
+            )
+        )
 
     def _line_of(self, record: MessageRecord) -> list[MessageRecord]:
         """Return the other queued messages to the station; this one may change their waiting."""
-        return [other for other in self._records.values() if other.id != record.id and other.to_call == record.to_call and _in_line(other)]
+        return [
+            other
+            for other in self._records.values()
+            if other.id != record.id and other.to_call == record.to_call and _in_line(other)
+        ]
 
     async def start(self) -> None:
         """Load the messages, resume the schedule of those still being sent and start the ticker."""
@@ -106,7 +156,11 @@ class Messaging:
             return
         latest = await self._log.held(MESSAGES_HELD_MAX)
         if len(latest) >= MESSAGES_HELD_MAX:
-            log.warning("the database holds %d messages or more: the latest %d are held and shown, the older stay in the database", MESSAGES_HELD_MAX, MESSAGES_HELD_MAX)
+            log.warning(
+                "the database holds %d messages or more: the latest %d are held and shown, the older stay in the database",
+                MESSAGES_HELD_MAX,
+                MESSAGES_HELD_MAX,
+            )
         heard = [*reversed(latest), *await self._log.sending()]
         for record in heard:
             if record.id not in self._records:
@@ -164,13 +218,39 @@ class Messaging:
         radio = self.message_radios.station(to)
         if radio.state is Source.State.SILENT:
             raise MessagingError.of(radio.why_unusable())
-        self._frame(info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else ""), to, room=0 if once else REPLY_ACK_ROOM, radio=radio)
+        self._frame(
+            info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else ""),
+            to,
+            room=0 if once else REPLY_ACK_ROOM,
+            radio=radio,
+        )
         ident = None if once else self.acks.allocate(self._records.values())
-        record = await self._log.insert(MessageRecord(0, self.clock(), "out", ours, to, text, ident, "sending", attempts_max=1 if once else attempts_for(to), seal=seal, wire=wire))
+        record = await self._log.insert(
+            MessageRecord(
+                0,
+                self.clock(),
+                "out",
+                ours,
+                to,
+                text,
+                ident,
+                "sending",
+                attempts_max=1 if once else attempts_for(to),
+                seal=seal,
+                wire=wire,
+            )
+        )
         if record is None:
             raise MessagingError("the message could not be kept: the database is not open", "failed")
         self.put(record)
-        log.info("message %d to %s is kept: %d characters, at most %d attempts, on the %s radio", record.id, to, len(text), record.attempts_max, radio_word(radio))
+        log.info(
+            "message %d to %s is kept: %d characters, at most %d attempts, on the %s radio",
+            record.id,
+            to,
+            len(text),
+            record.attempts_max,
+            radio_word(radio),
+        )
         return self.attempt(record)
 
     def retry(self, number: int) -> MessageRecord:
@@ -178,10 +258,30 @@ class Messaging:
         our_call(self._config())
         record = self._ours(number)
         if record.state not in RETRYABLE:
-            raise MessagingError(f"message {number} is {record.state}: only a failed, unconfirmed, rejected or cancelled message is sent again", "failed")
-        self._frame(info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, None if record.msg_id is None else ""), record.to_call, None if record.msg_id is None else 1, room=0 if record.msg_id is None else REPLY_ACK_ROOM)
-        log.info("message %d to %s is sent again from the first attempt (it was %s; the operator asked)", number, record.to_call, record.state)
-        record = replace(record, state="sending", attempts=0, last_attempt_at=None, acked_at=None, failure=None, snr=None, rssi=None)
+            raise MessagingError(
+                f"message {number} is {record.state}: only a failed, unconfirmed, rejected or cancelled message is sent again",
+                "failed",
+            )
+        self._frame(
+            info(
+                record.to_call,
+                record.text if record.wire is None else record.wire,
+                record.msg_id,
+                None if record.msg_id is None else "",
+            ),
+            record.to_call,
+            None if record.msg_id is None else 1,
+            room=0 if record.msg_id is None else REPLY_ACK_ROOM,
+        )
+        log.info(
+            "message %d to %s is sent again from the first attempt (it was %s; the operator asked)",
+            number,
+            record.to_call,
+            record.state,
+        )
+        record = replace(
+            record, state="sending", attempts=0, last_attempt_at=None, acked_at=None, failure=None, snr=None, rssi=None
+        )
         self.delivery.restart(number)
         self.message_radios.forget(number)
         self.put(record)
@@ -191,9 +291,17 @@ class Messaging:
         """Stop sending a message and keep it as "cancelled"."""
         record = self._ours(number)
         if record.state != "sending":
-            raise MessagingError(f"message {number} is {record.state}: only a message that is being sent can be cancelled", "failed")
+            raise MessagingError(
+                f"message {number} is {record.state}: only a message that is being sent can be cancelled", "failed"
+            )
         record = replace(record, state="cancelled")
-        log.info("message %d to %s is cancelled (the operator asked): %d of %d attempts were made", number, record.to_call, record.attempts, record.attempts_max)
+        log.info(
+            "message %d to %s is cancelled (the operator asked): %d of %d attempts were made",
+            number,
+            record.to_call,
+            record.attempts,
+            record.attempts_max,
+        )
         self.put(record)
         return record
 
@@ -226,7 +334,9 @@ class Messaging:
                 self.put(replace(record, state="cancelled"))
         count = await self._log.delete_conversation(peer)
         if count is None:
-            raise MessagingError(f"the conversation with {peer} could not be removed: the database would not take it", "failed")
+            raise MessagingError(
+                f"the conversation with {peer} could not be removed: the database would not take it", "failed"
+            )
         if not held and count == 0:
             raise MessagingError(f"there is no conversation with {peer}", "failed")
         for record in held:
@@ -240,10 +350,17 @@ class Messaging:
         sender, addressee = named(from_call), named(to_call)
         # A message still being stored belongs to the pair.
         await asyncio.gather(*self.inbox.tasks, return_exceptions=True)
-        held = [r for r in self._records.values() if r.state == "overheard" and r.from_call == sender and r.to_call == addressee]
+        held = [
+            r
+            for r in self._records.values()
+            if r.state == "overheard" and r.from_call == sender and r.to_call == addressee
+        ]
         count = await self._log.delete_overheard(sender, addressee)
         if count is None:
-            raise MessagingError(f"the overheard messages from {sender} to {addressee} could not be removed: the database would not take it", "failed")
+            raise MessagingError(
+                f"the overheard messages from {sender} to {addressee} could not be removed: the database would not take it",
+                "failed",
+            )
         if not held and count == 0:
             raise MessagingError(f"there is no overheard message from {sender} to {addressee}", "failed")
         for record in held:
@@ -280,7 +397,9 @@ class Messaging:
         except MessagingError:
             return None
 
-    def _frame(self, field: bytes, to: str, attempt: int | None = None, room: int = 0, radio: AirRadio | None = None) -> ax25.Frame:
+    def _frame(
+        self, field: bytes, to: str, attempt: int | None = None, room: int = 0, radio: AirRadio | None = None
+    ) -> ax25.Frame:
         """Return our frame to the station on `radio` (default: the station's own).
 
         Raise MessagingError if the frame plus `room` bytes for a reply-ack exceeds the cap."""
@@ -289,24 +408,39 @@ class Messaging:
         try:
             frame = our_frame(c, reply_path_on(radio, c, self._paths(to, attempt, radio.id)), field)
         except MessagingError:
-            raise                                                   # e.g. an RF-only path that is too long
+            raise  # e.g. an RF-only path that is too long
         except FRAME_ERRORS as e:
             raise MessagingError.of(e, f"the settings make no frame: {e}") from None
         limit = radio.max_frame
         if limit is not None and (length := len(ax25.encode(frame)) + room) > limit:
-            raise MessagingError(f"the message is {length} bytes on the air, the radio carries {limit}: shorten it by {length - limit} characters", "message.too_long_for_radio", length=length, max=limit, cut=length - limit)
+            raise MessagingError(
+                f"the message is {length} bytes on the air, the radio carries {limit}: shorten it by {length - limit} characters",
+                "message.too_long_for_radio",
+                length=length,
+                max=limit,
+                cut=length - limit,
+            )
         return frame
 
     def attempt(self, record: MessageRecord) -> MessageRecord:
         """Transmit the message once if the radio is up, its pause is over and it is not `queued`.
 
         Return the message as it is afterwards."""
-        if self.queued(record) or not self.retries.radio_up(record) or _pace_running(self.pace, self.message_radios, record):
-            return record                                            # still due at the next tick
+        if (
+            self.queued(record)
+            or not self.retries.radio_up(record)
+            or _pace_running(self.pace, self.message_radios, record)
+        ):
+            return record  # still due at the next tick
         reply = None if record.msg_id is None else self.inbox.heard.reply_for(record.to_call, self.clock()) or ""
         try:
             radio = self.message_radios.of(record)
-            frame = self._frame(info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, reply), record.to_call, None if record.msg_id is None else record.attempts + 1, radio=radio)
+            frame = self._frame(
+                info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, reply),
+                record.to_call,
+                None if record.msg_id is None else record.attempts + 1,
+                radio=radio,
+            )
             sent = radio.send_frame(frame)
         except MessagingError as e:
             if e.code == "message.too_long_for_radio":
@@ -324,8 +458,16 @@ class Messaging:
         record = replace(record, attempts=record.attempts + 1, last_attempt_at=at)
         self.delivery.sent(record, tuple(str(a) for a in frame.path), at, radio.id)
         if record.msg_id is None:
-            record = replace(record, state="unconfirmed")                   # sent once; nobody acks it
-        log.info("message %d to %s sent on the %s radio (attempt %d of %d): %s", record.id, record.to_call, radio_word(radio), record.attempts, record.attempts_max, record.text if record.wire is None else record.wire)
+            record = replace(record, state="unconfirmed")  # sent once; nobody acks it
+        log.info(
+            "message %d to %s sent on the %s radio (attempt %d of %d): %s",
+            record.id,
+            record.to_call,
+            radio_word(radio),
+            record.attempts,
+            record.attempts_max,
+            record.text if record.wire is None else record.wire,
+        )
         self.put(record)
         return record
 
@@ -333,8 +475,12 @@ class Messaging:
         """Hold, schedule, store and announce a new or changed message (and the queue it is in)."""
         before = self._records.get(record.id)
         self._records[record.id] = record
-        if before is None and len(self._records) > MESSAGES_HELD_MAX and (oldest := _to_let_go(self._records.values())) is not None:
-            self._drop(oldest.id)                               # stays in the database
+        if (
+            before is None
+            and len(self._records) > MESSAGES_HELD_MAX
+            and (oldest := _to_let_go(self._records.values())) is not None
+        ):
+            self._drop(oldest.id)  # stays in the database
         if record.state != "sending":
             self.message_radios.forget(record.id)
         self.retries.plan(record)
@@ -363,4 +509,6 @@ class Messaging:
         """Acknowledge message `msg_id` of station `to` on the radio the message (`packet`) came on.
 
         The ack is `ackMM`, or `ackMM}` / `ackMM}AA` when the message carried a reply-ack."""
-        self.acks.send(to, msg_id, reply_ack, None if packet is None else ack_radio(as_pick(self._given, self._config), packet, to))
+        self.acks.send(
+            to, msg_id, reply_ack, None if packet is None else ack_radio(as_pick(self._given, self._config), packet, to)
+        )

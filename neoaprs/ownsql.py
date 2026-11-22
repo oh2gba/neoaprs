@@ -1,12 +1,32 @@
 """SQL for `own_object` and `own_bulletin`, the objects and bulletins we send ourselves.
 
 Functions of a connection on the database thread; none begins or commits a transaction."""
+
 import sqlite3
 from collections.abc import Sequence
 
 from .dberror import Row, rows
 
-OBJECT_COLUMNS = ("name", "kind", "lat", "lon", "symbol_table", "symbol_code", "comment", "course_deg", "speed_kmh", "path", "alive", "created_at", "updated_at", "sent", "last_sent_at", "qru_group", "on_request", "radios")
+OBJECT_COLUMNS = (
+    "name",
+    "kind",
+    "lat",
+    "lon",
+    "symbol_table",
+    "symbol_code",
+    "comment",
+    "course_deg",
+    "speed_kmh",
+    "path",
+    "alive",
+    "created_at",
+    "updated_at",
+    "sent",
+    "last_sent_at",
+    "qru_group",
+    "on_request",
+    "radios",
+)
 BULLETIN_COLUMNS = ("slot", "group_name", "text", "created_at", "sent", "first_sent_at", "last_sent_at", "radios")
 
 

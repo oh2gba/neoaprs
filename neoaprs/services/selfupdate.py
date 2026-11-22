@@ -2,6 +2,7 @@
 
 The SHA256SUMS file is trusted only if its signature holds; the file's SHA-256 must then match.
 Any signature failure is the problem `unverified`; one that cannot be fetched is `download`."""
+
 import asyncio
 import logging
 import threading
@@ -63,8 +64,18 @@ class SelfUpdate:
     def _release_key(self) -> "Ed25519PublicKey":
         return self._key() if callable(self._key) else self._key if self._key is not None else public_key()
 
-    def __init__(self, install: InstallInfo, installer: Installer | None, latest: Callable[[], str | None], source: tuple[str, Allowed], fetch_sums: FetchSums = fetch_bytes,
-                 fetch: FetchFile = fetch_file, restart_grace_sec: float = RESTART_GRACE_SEC, end: Callable[[], None] = lambda: None, key: "Ed25519PublicKey | Callable[[], Ed25519PublicKey] | None" = None) -> None:
+    def __init__(
+        self,
+        install: InstallInfo,
+        installer: Installer | None,
+        latest: Callable[[], str | None],
+        source: tuple[str, Allowed],
+        fetch_sums: FetchSums = fetch_bytes,
+        fetch: FetchFile = fetch_file,
+        restart_grace_sec: float = RESTART_GRACE_SEC,
+        end: Callable[[], None] = lambda: None,
+        key: "Ed25519PublicKey | Callable[[], Ed25519PublicKey] | None" = None,
+    ) -> None:
         self.install = install
         self.installer = installer
         # the version the update check announced, None while there is none
@@ -92,22 +103,28 @@ class SelfUpdate:
         return replace(self._job, supported=self.supported)
 
     def _set(self, **change: object) -> None:
-        self._job = replace(self._job, **change)          # type: ignore[arg-type]
+        self._job = replace(self._job, **change)  # type: ignore[arg-type]
         self.changed.emit()
 
     def begin(self, version: str) -> None:
         """Start the update to `version`; raise UpdateNowError if it cannot be started."""
         if self.installer is None:
-            raise UpdateNowError("this copy of NeoAPRS cannot update itself; the page has the steps", "update.unsupported")
+            raise UpdateNowError(
+                "this copy of NeoAPRS cannot update itself; the page has the steps", "update.unsupported"
+            )
         if why := self.installer.blocked():
             # the page words it without the folder; the log has the detail
             log.warning("Update now: %s", why)
             raise UpdateNowError(f"NeoAPRS cannot update itself here: {why}", "update.blocked")
         if version != self._latest():
-            raise UpdateNowError(f"{version} is not the version the update check announced", "update.not_announced", version=version)
+            raise UpdateNowError(
+                f"{version} is not the version the update check announced", "update.not_announced", version=version
+            )
         name = asset_name(self.install.kind, version, self.install.arch)
         if name is None:
-            raise UpdateNowError(f"the release {version} has no file for this copy of NeoAPRS", "update.no_file", version=version)
+            raise UpdateNowError(
+                f"the release {version} has no file for this copy of NeoAPRS", "update.no_file", version=version
+            )
         if self._busy:
             raise UpdateNowError("an update is running already", "update.busy")
         self._busy = True
@@ -155,7 +172,9 @@ class SelfUpdate:
         installer = self.installer
         sums = await in_thread(lambda: self._fetch_sums(asset_url(version, CHECKSUMS, self.base), self._allowed))
         try:
-            signature = await in_thread(lambda: self._fetch_sums(asset_url(version, SIGNATURE, self.base), self._allowed))
+            signature = await in_thread(
+                lambda: self._fetch_sums(asset_url(version, SIGNATURE, self.base), self._allowed)
+            )
         except DownloadError as e:
             if e.status != NOT_THERE:
                 # a failed connection is `download`: a retry may work
@@ -175,12 +194,18 @@ class SelfUpdate:
 
         def progress(done: int, total: int | None) -> None:
             loop.call_soon_threadsafe(self._progress, cancelled, done, total)
-        got = await in_thread(lambda: self._fetch(asset_url(version, name, self.base), part, self._allowed, progress, cancelled))
+
+        got = await in_thread(
+            lambda: self._fetch(asset_url(version, name, self.base), part, self._allowed, progress, cancelled)
+        )
         if cancelled.is_set():
             return
         self._set(state="verifying")
         if got != expected:
-            self._fail("checksum", f"{name} is not the file of the release: its SHA-256 is {got}, the signed SHA256SUMS says {expected}; it was deleted and nothing is installed")
+            self._fail(
+                "checksum",
+                f"{name} is not the file of the release: its SHA-256 is {got}, the signed SHA256SUMS says {expected}; it was deleted and nothing is installed",
+            )
             return
         log.info("Update now: %s has the SHA-256 that the signed SHA256SUMS gives it", name)
         self._set(state="installing")
@@ -189,7 +214,9 @@ class SelfUpdate:
         await asyncio.sleep(TELL_SEC)
         self._end()
         await asyncio.sleep(self.restart_grace_sec)
-        self._fail("no_restart", f"NeoAPRS {version} was installed but NeoAPRS has not restarted; quit it and start it again")
+        self._fail(
+            "no_restart", f"NeoAPRS {version} was installed but NeoAPRS has not restarted; quit it and start it again"
+        )
 
     def _progress(self, cancelled: threading.Event, done: int, total: int | None) -> None:
         if cancelled.is_set() or self._job.state != "downloading":

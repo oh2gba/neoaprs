@@ -3,6 +3,7 @@
 A calibration run (`-x`) swaps the program: stop it, run the test, restart on the same KISS port.
 A swap lets held frames go first and is given up if the radio was stopped or restarted meanwhile.
 """
+
 import asyncio
 import logging
 import time
@@ -75,7 +76,12 @@ class Tuning:
             await self._cancel_test()
             drain, self.test = not self.test, test
             self.changed.emit()
-            log.info("Direwolf: %s for %g s (keyed by %s)", "the tune tones" if test == "tune" else "the keying test", seconds, self.keying.text)
+            log.info(
+                "Direwolf: %s for %g s (keyed by %s)",
+                "the tune tones" if test == "tune" else "the keying test",
+                seconds,
+                self.keying.text,
+            )
             if not await self._stopped(drain):  # the calibration run takes over the sound card
                 return
             await self._run(program, test)
@@ -104,7 +110,11 @@ class Tuning:
         while (self.keyed or self._keyed_upto < self._handed) and loop.time() < until:
             await asyncio.sleep(DRAIN_POLL_SEC)
         if self.keyed or self._keyed_upto < self._handed:
-            log.warning("Direwolf: %d frames handed to it had not gone after %g s; it is stopped all the same", self._handed - self._keyed_upto, DRAIN_SEC)
+            log.warning(
+                "Direwolf: %d frames handed to it had not gone after %g s; it is stopped all the same",
+                self._handed - self._keyed_upto,
+                DRAIN_SEC,
+            )
 
     def hold(self) -> str:
         """Return why no frame may go now (a calibration run has the radio), or ""."""

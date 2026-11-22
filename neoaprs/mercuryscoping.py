@@ -2,12 +2,22 @@
 
 All of it uses Mercury's UI interface, opened only to the program the daemon started.
 """
+
 import logging
 import time
 
 from .mercury import HOST, UI_OFFSET
 from .channelbusy import OccupancyBusy
-from .mercuryscope import KeptRow, RowMeter, ScopeHistory, bands_db, clamp_gain, parse_spectrum, parse_status, scope_clock
+from .mercuryscope import (
+    KeptRow,
+    RowMeter,
+    ScopeHistory,
+    bands_db,
+    clamp_gain,
+    parse_spectrum,
+    parse_status,
+    scope_clock,
+)
 from .mercuryui import MercuryUi
 from .signal import Signal
 from .tasks import TaskSet

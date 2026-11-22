@@ -4,6 +4,7 @@ It shows the page of the daemon that holds the data folder in a window, starting
 `neoaprs open` does and stopping it at Quit. `--tray` starts hidden; `--quit` ends the running app.
 A second app on the same data folder raises the first one's window and ends.
 Exit code 0: it ran and ended; 1: no page came up or the toolkit failed; 2: wrong arguments."""
+
 import argparse
 import importlib
 import logging
@@ -31,13 +32,31 @@ QUIT_WAIT_SEC = 40.0
 
 
 def parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="neoaprs app", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        prog="neoaprs app", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--data", default=str(default_data_dir()), help="the data folder of the daemon; default %(default)s")
-    p.add_argument("--tray", action="store_true", help="start with the window hidden, in the tray (what start at sign-in runs)")
-    p.add_argument("--quit", action="store_true", help="end the app that is running on the data folder (and the daemon too, if the app started it), wait until it has, and exit")
-    p.add_argument("--timeout", type=float, default=60.0, metavar="SEC", help="how long to wait for the daemon's page; default %(default)s")
+    p.add_argument(
+        "--tray", action="store_true", help="start with the window hidden, in the tray (what start at sign-in runs)"
+    )
+    p.add_argument(
+        "--quit",
+        action="store_true",
+        help="end the app that is running on the data folder (and the daemon too, if the app started it), wait until it has, and exit",
+    )
+    p.add_argument(
+        "--timeout",
+        type=float,
+        default=60.0,
+        metavar="SEC",
+        help="how long to wait for the daemon's page; default %(default)s",
+    )
     p.add_argument("--debug", action="store_true", help="log more")
-    p.add_argument("--encryption", action="store_true", help="a daemon the app starts allows encrypted messages (the daemon's --encryption), and so does start at sign-in once it is ticked in the tray menu")
+    p.add_argument(
+        "--encryption",
+        action="store_true",
+        help="a daemon the app starts allows encrypted messages (the daemon's --encryption), and so does start at sign-in once it is ticked in the tray menu",
+    )
     # Passed when the app restarts itself after Update now (renew.py).
     p.add_argument(renew.OWNS_DAEMON, dest="owns_daemon", action="store_true", help=argparse.SUPPRESS)
     return p
@@ -50,7 +69,7 @@ def browser_only(session: Session, choice: Choice, tray: bool) -> int:
     """
     log.warning("%s", choice.describe())
     if choice.why:
-        say(f"app: no window ({choice.why[0]}); `pip install \"neoaprs[app]\"` adds what it needs")
+        say(f'app: no window ({choice.why[0]}); `pip install "neoaprs[app]"` adds what it needs')
     if not tray and not webbrowser.open(session.url):
         say(f"app: no browser could be started; open {session.url} yourself")
     print(session.url, flush=True)
@@ -67,7 +86,9 @@ def run_shell(choice: Choice, launch: Launch) -> int:
     except Exception:
         log.exception("the desktop shell %s could not run", choice.module)
         splash.done()
-        say(f"app: the window could not be started ({choice.module}; see {launch.data / appstate.LOG_NAME}): opening the page in the browser instead")
+        say(
+            f"app: the window could not be started ({choice.module}; see {launch.data / appstate.LOG_NAME}): opening the page in the browser instead"
+        )
         try:
             session = launch.opening.result()
         except NoPage as e:
@@ -112,9 +133,21 @@ def run(args: argparse.Namespace) -> int:
             single.tell_the_other("show")
         return 0
     app_file = renew.AppFile.of(appimage_file())
-    opening = Opening(data, lambda: open_session(data, timeout=args.timeout, encryption=args.encryption, owns=args.owns_daemon)).start()
+    opening = Opening(
+        data, lambda: open_session(data, timeout=args.timeout, encryption=args.encryption, owns=args.owns_daemon)
+    ).start()
     choice = shell.choose()
-    launch = Launch(data, opening, args.tray, choice.window, autostart_for(data, encryption=args.encryption), single, describe=choice.describe(), tray=choice.tray, app_file=app_file)
+    launch = Launch(
+        data,
+        opening,
+        args.tray,
+        choice.window,
+        autostart_for(data, encryption=args.encryption),
+        single,
+        describe=choice.describe(),
+        tray=choice.tray,
+        app_file=app_file,
+    )
     try:
         if choice.module is None:
             splash.done()
@@ -127,10 +160,16 @@ def run(args: argparse.Namespace) -> int:
         code = run_shell(choice, launch)
     finally:
         launch.close()
-    return start_again(launch, app_file, args) if launch.ctx is not None and launch.ctx.renewing() and app_file is not None else code
+    return (
+        start_again(launch, app_file, args)
+        if launch.ctx is not None and launch.ctx.renewing() and app_file is not None
+        else code
+    )
 
 
-def start_again(launch: Launch, app_file: renew.AppFile, args: argparse.Namespace, start: Callable[[list[str]], None] | None = None) -> int:
+def start_again(
+    launch: Launch, app_file: renew.AppFile, args: argparse.Namespace, start: Callable[[list[str]], None] | None = None
+) -> int:
     """Replace this process with the new version; return only if that failed (the daemon stops)."""
     assert launch.ctx is not None
     session = launch.ctx.session

@@ -2,6 +2,7 @@
 and a status library stand-in: the answer names the latest release and the call is logged with time,
 version, platform and installation id.
 """
+
 import asyncio
 import http.server
 import json
@@ -54,7 +55,12 @@ class Page:
         # The port was free when it was probed; a test running beside this one may have taken it
         # since: then php ends at once and another port is tried
         for _ in range(3):
-            self.process = subprocess.Popen([PHP, "-S", f"127.0.0.1:{self.port}", "-t", str(self.folder / "site")], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.process = subprocess.Popen(
+                [PHP, "-S", f"127.0.0.1:{self.port}", "-t", str(self.folder / "site")],
+                env=env,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
             deadline = time.monotonic() + 10
             while time.monotonic() < deadline and self.process.poll() is None:
                 try:
@@ -75,12 +81,20 @@ class Page:
     async def ask(self, query: str = "v=0.1.0&os=linux") -> dict[str, str]:
         def get() -> dict[str, str]:
             with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/version.php?{query}", timeout=15) as response:
-                assert response.headers["Content-Type"] == "application/json; charset=utf-8" and response.headers["Cache-Control"] == "no-store"
-                return json.loads(response.read())                              # type: ignore[no-any-return]
+                assert (
+                    response.headers["Content-Type"] == "application/json; charset=utf-8"
+                    and response.headers["Cache-Control"] == "no-store"
+                )
+                return json.loads(response.read())  # type: ignore[no-any-return]
+
         return await asyncio.to_thread(get)
 
     def log(self) -> list[list[str]]:
-        return [line.split("\t") for path in sorted((self.folder / "site" / "log").glob("starts-*.log")) for line in path.read_text(encoding="utf-8").splitlines()]
+        return [
+            line.split("\t")
+            for path in sorted((self.folder / "site" / "log").glob("starts-*.log"))
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
 
 
 @pytest.fixture
@@ -95,17 +109,31 @@ async def page(tmp_path: Path) -> AsyncIterator[Page]:
 
 
 async def test_the_answer_names_the_latest_release_the_project_page_and_no_message(page: Page) -> None:
-    assert await page.ask() == {"version": "0.2.0", "url": "https://neo.oh2gba.eu/", "message": "", "hf_dial": "7.0541 MHz USB"}
+    assert await page.ask() == {
+        "version": "0.2.0",
+        "url": "https://neo.oh2gba.eu/",
+        "message": "",
+        "hf_dial": "7.0541 MHz USB",
+    }
     assert page.github.requests[0][1]["user-agent"] == "neoaprs-version-page"
 
 
-async def test_the_call_is_logged_as_time_version_platform_and_id_and_handed_to_the_status_application(page: Page) -> None:
+async def test_the_call_is_logged_as_time_version_platform_and_id_and_handed_to_the_status_application(
+    page: Page,
+) -> None:
     await page.ask("v=0.1.0&os=linux-arm")
     await page.ask("v=0.1.0%3Cb%3E&os=")
     (when, version, os_name, number), second = page.log()
-    assert when.endswith("Z") and len(when) == len("2026-10-23T08:45Z") and (version, os_name, number) == ("0.1.0", "linux-arm", "-")
+    assert (
+        when.endswith("Z")
+        and len(when) == len("2026-10-23T08:45Z")
+        and (version, os_name, number) == ("0.1.0", "linux-arm", "-")
+    )
     assert second[1:] == ["0.1.0b", "-", "-"], "what is not a letter, a digit or . _ - is dropped, nothing at all is -"
-    assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == ["neoaprs|0.1.0|linux-arm|", "neoaprs|0.1.0b||"]
+    assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == [
+        "neoaprs|0.1.0|linux-arm|",
+        "neoaprs|0.1.0b||",
+    ]
 
 
 async def test_a_months_log_stops_growing_at_5_megabytes_and_the_call_is_still_answered(page: Page) -> None:
@@ -118,19 +146,47 @@ async def test_a_months_log_stops_growing_at_5_megabytes_and_the_call_is_still_a
 async def test_an_id_of_32_lowercase_hex_characters_is_the_fourth_column(page: Page) -> None:
     await page.ask(f"v=0.1.0&os=linux&id={ID}")
     assert page.log() == [[page.log()[0][0], "0.1.0", "linux", ID]]
-    assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == [f"neoaprs|0.1.0|linux|{ID}"], "the status application is handed the number as its key"
+    assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == [
+        f"neoaprs|0.1.0|linux|{ID}"
+    ], "the status application is handed the number as its key"
 
 
-async def test_the_id_0_of_a_run_that_is_not_a_users_is_logged_as_0_and_not_handed_to_the_status_application(page: Page) -> None:
+async def test_the_id_0_of_a_run_that_is_not_a_users_is_logged_as_0_and_not_handed_to_the_status_application(
+    page: Page,
+) -> None:
     assert (await page.ask("v=0.20.0&os=linux&id=0"))["version"] == "0.2.0"
     assert [row[1:] for row in page.log()] == [["0.20.0", "linux", "0"]], "0 is false in PHP: it must not become -"
     assert not (page.folder / "lib" / "calls.txt").exists(), "the status page counts no developer's run"
     assert (await page.ask(f"v=0.20.0&os=linux&id={ID}"))["version"] == "0.2.0"
-    assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == [f"neoaprs|0.20.0|linux|{ID}"]
+    assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == [
+        f"neoaprs|0.20.0|linux|{ID}"
+    ]
 
 
-@pytest.mark.parametrize("bad", ["", ID.upper(), ID[:-1], ID + "0", "g" * 32, ID[:-1] + "%0A", ID + "%0A", "%20" + ID[1:], "<b>" + ID[3:], "x%09y" + ID[3:], "00", "01", "0%0A", "%200", "0.0", "-0"])
-async def test_an_id_that_is_not_exactly_that_is_ignored_and_the_call_still_answers_and_is_logged(page: Page, bad: str) -> None:
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "",
+        ID.upper(),
+        ID[:-1],
+        ID + "0",
+        "g" * 32,
+        ID[:-1] + "%0A",
+        ID + "%0A",
+        "%20" + ID[1:],
+        "<b>" + ID[3:],
+        "x%09y" + ID[3:],
+        "00",
+        "01",
+        "0%0A",
+        "%200",
+        "0.0",
+        "-0",
+    ],
+)
+async def test_an_id_that_is_not_exactly_that_is_ignored_and_the_call_still_answers_and_is_logged(
+    page: Page, bad: str
+) -> None:
     assert (await page.ask(f"v=0.1.0&os=linux&id={bad}"))["version"] == "0.2.0"
     assert [row[1:] for row in page.log()] == [["0.1.0", "linux", "-"]]
 
@@ -156,10 +212,14 @@ async def test_github_is_asked_once_an_hour_and_the_last_good_answer_stands_whil
     page.github.status = 503
     os.utime(cache, (time.time() - 7200,) * 2)
     assert (await page.ask())["version"] == "0.3.0" and len(page.github.requests) == 3, "GitHub failed: the old answer"
-    assert (await page.ask())["version"] == "0.3.0" and len(page.github.requests) == 3, "and it is not asked again for a few minutes"
+    assert (await page.ask())["version"] == "0.3.0" and len(page.github.requests) == 3, (
+        "and it is not asked again for a few minutes"
+    )
 
 
-async def test_without_a_cache_and_with_github_down_the_version_is_zero_and_the_call_is_logged_all_the_same(page: Page) -> None:
+async def test_without_a_cache_and_with_github_down_the_version_is_zero_and_the_call_is_logged_all_the_same(
+    page: Page,
+) -> None:
     page.github.status = 503
     assert (await page.ask())["version"] == "0.0.0" and len(page.log()) == 1
 
@@ -169,7 +229,6 @@ async def test_a_note_in_message_txt_is_the_message_its_first_line_cut_to_200_ch
     assert (await page.ask())["message"] == "Fixes the map download"
     (page.folder / "site" / "message.txt").write_text("x" * 300, encoding="utf-8")
     assert (await page.ask())["message"] == "x" * 200
-
 
 
 async def test_the_status_application_is_never_handed_the_address(page: Page) -> None:
@@ -199,7 +258,7 @@ async def test_a_redirect_of_github_is_followed(tmp_path: Path) -> None:
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Moved)
     serve(server)
     served = Page(tmp_path, github)
-    served.github = type("Moved", (), {"url": f"http://127.0.0.1:{server.server_address[1]}/repos"})()      # type: ignore[assignment]
+    served.github = type("Moved", (), {"url": f"http://127.0.0.1:{server.server_address[1]}/repos"})()  # type: ignore[assignment]
     served.start()
     try:
         assert (await served.ask())["version"] == "0.2.0"

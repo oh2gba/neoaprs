@@ -39,20 +39,30 @@ def _attached(spec: RadioSpec, run: RunOverrides) -> str:
     return run.hf_port if spec.id == run.attach_to else ""
 
 
-def modem_settings(spec: RadioSpec, run: RunOverrides, modem_port: int = BROADCAST_PORT, unchosen: bool = False) -> ModemSettings:
+def modem_settings(
+    spec: RadioSpec, run: RunOverrides, modem_port: int = BROADCAST_PORT, unchosen: bool = False
+) -> ModemSettings:
     """Return the line's settings; with no devices or `unchosen` ports there is no port unless given."""
     profile = HF_BY_KEY[spec.rtype.profile]
     if profile.transport == "dummy":
         return ModemSettings(DUMMY_PATH, profile)
     attached = _attached(spec, run)
-    no_line = not attached and ((nodevices.refused(NO_MERCURY, logging.INFO) if spec.enabled else nodevices.on()) or unchosen)
-    return ModemSettings(attached or ("" if no_line else tcp_url(HOST, modem_port)), profile, (spec.value("sound_card"), spec.value("keying")))
+    no_line = not attached and (
+        (nodevices.refused(NO_MERCURY, logging.INFO) if spec.enabled else nodevices.on()) or unchosen
+    )
+    return ModemSettings(
+        attached or ("" if no_line else tcp_url(HOST, modem_port)),
+        profile,
+        (spec.value("sound_card"), spec.value("keying")),
+    )
 
 
 def modem_words(spec: RadioSpec, run: RunOverrides) -> str:
     """Return the started radio's words for the log."""
     if HF_BY_KEY[spec.rtype.profile].transport == "dummy":
-        return "the Dummy Mercury radio, made-up stations" + ("" if nodevices.on() else ", and the modem played through the speakers")
+        return "the Dummy Mercury radio, made-up stations" + (
+            "" if nodevices.on() else ", and the modem played through the speakers"
+        )
     if attached := _attached(spec, run):
         return f"the Mercury modem, one something else runs at {attached}"
     return "the Mercury modem, which is not started" if nodevices.on() else "the Mercury modem, started by NeoAPRS"
@@ -72,12 +82,26 @@ def chosen_as_set(before: RadioSpec, after: RadioSpec, state: str, sound_card: s
 
 
 class MercuryDriver:
-    def __init__(self, spec: RadioSpec, claims: Claims, folder: Path, clock: Clock = utcnow, line: Tnc | None = None, *, modem: Mercury | None = None, data_dir: Path | None = None,
-                 mixer: Mixer | None = None) -> None:
+    def __init__(
+        self,
+        spec: RadioSpec,
+        claims: Claims,
+        folder: Path,
+        clock: Clock = utcnow,
+        line: Tnc | None = None,
+        *,
+        modem: Mercury | None = None,
+        data_dir: Path | None = None,
+        mixer: Mixer | None = None,
+    ) -> None:
         self.id = spec.id
         self.claims = claims
         self._line = line if line is not None else Tnc(clock=clock, profile=MERCURY)
-        self._modem = modem if modem is not None else Mercury(data_dir or folder, clock, claims=claims, holder=spec.id, folder=folder)
+        self._modem = (
+            modem
+            if modem is not None
+            else Mercury(data_dir or folder, clock, claims=claims, holder=spec.id, folder=folder)
+        )
         self._line.radio_id = spec.id
         self._line.modem = self._modem
         self._spec, self._station, self._run = spec, DEFAULTS, RunOverrides()
@@ -111,11 +135,21 @@ class MercuryDriver:
     def _point(self) -> None:
         """Give the stopped line its settings."""
         settings = modem_settings(self._spec, self._run, self._modem.broadcast_port, not self._modem.ports_chosen)
-        self._line.port, self._line.baud, self._line.profile, self._line.fallback_probe, self._line.skip, self._line.pattern = settings.port, LINE_SPEED, settings.profile, False, (), ""
+        (
+            self._line.port,
+            self._line.baud,
+            self._line.profile,
+            self._line.fallback_probe,
+            self._line.skip,
+            self._line.pattern,
+        ) = settings.port, LINE_SPEED, settings.profile, False, (), ""
 
     def restart_key(self, spec: RadioSpec, station: Config, run: RunOverrides) -> tuple[object, ...]:
         """Return the settings whose change restarts the radio."""
-        return (modem_settings(spec, run, self._modem.broadcast_port), None if self._modem.live_gain else spec.value("tx_gain_db"))
+        return (
+            modem_settings(spec, run, self._modem.broadcast_port),
+            None if self._modem.live_gain else spec.value("tx_gain_db"),
+        )
 
     def made_explicit(self, before: RadioSpec, after: RadioSpec) -> RadioSpec:
         """Return `before` with the sound card and keying the running modem chose taken as set."""
@@ -129,11 +163,18 @@ class MercuryDriver:
         station = self._station
         if station.radio(self._spec.id) == self._spec:
             return station
-        return replace(station, radios=tuple(sorted((*(s for s in station.radios if s.id != self._spec.id), self._spec), key=lambda s: s.id)))
+        return replace(
+            station,
+            radios=tuple(
+                sorted((*(s for s in station.radios if s.id != self._spec.id), self._spec), key=lambda s: s.id)
+            ),
+        )
 
     async def start(self) -> None:
         try:
-            await self._modem.start(self._modem_config(), _attached(self._spec, self._run), speaker=self._spec.rtype.dummy)
+            await self._modem.start(
+                self._modem_config(), _attached(self._spec, self._run), speaker=self._spec.rtype.dummy
+            )
         except Exception:
             log.exception("the Mercury modem could not be started")
         self._point()

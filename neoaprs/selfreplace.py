@@ -1,4 +1,5 @@
 """File operations for replacing a running AppImage: keep the old file, restore it, exec the new."""
+
 import contextlib
 import logging
 import os
@@ -71,15 +72,23 @@ NO_CLEANUP = "NO_CLEANUP"
 LEFT_TO_THE_STARTER = "neoaprs"
 
 
-def leave_the_folder(environ: MutableMapping[str, str], argv0: str, is_mount: Callable[[str], bool] = os.path.ismount) -> None:
+def leave_the_folder(
+    environ: MutableMapping[str, str], argv0: str, is_mount: Callable[[str], bool] = os.path.ismount
+) -> None:
     """Set `NO_CLEANUP` for the daemon (`argv0`) started from this unpacked AppImage."""
     appdir, appimage = environ.get("APPDIR"), environ.get("APPIMAGE")
     if appdir and appimage and os.path.abspath(appimage) == os.path.abspath(argv0) and not is_mount(appdir):
         environ.setdefault(NO_CLEANUP, LEFT_TO_THE_STARTER)
 
 
-def reexec(argv: list[str], execv: Callable[[str, list[str]], None] | None = None, close: Callable[[], None] = close_inherited, environ: MutableMapping[str, str] = os.environ,
-           is_mount: Callable[[str], bool] = os.path.ismount, put_back: bool = True) -> None:
+def reexec(
+    argv: list[str],
+    execv: Callable[[str, list[str]], None] | None = None,
+    close: Callable[[], None] = close_inherited,
+    environ: MutableMapping[str, str] = os.environ,
+    is_mount: Callable[[str], bool] = os.path.ismount,
+    put_back: bool = True,
+) -> None:
     """Run `argv` in place of this process; if it cannot start, restore and start the old file.
 
     The desktop app passes `put_back` False. Return only if neither starts.
@@ -94,7 +103,10 @@ def reexec(argv: list[str], execv: Callable[[str, list[str]], None] | None = Non
     try:
         execv(argv[0], argv)
     except OSError as e:
-        print(f"neoaprs: the new version could not be started ({e}){'; the old one is put back' if put_back else ''}", file=sys.stderr)
+        print(
+            f"neoaprs: the new version could not be started ({e}){'; the old one is put back' if put_back else ''}",
+            file=sys.stderr,
+        )
     else:
         return
     if not put_back:

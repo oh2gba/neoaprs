@@ -1,5 +1,5 @@
-"""Storm data (neoaprs/aprsstorm.py): APRS101 chapter 12, in the units of the rest of the program.
-"""
+"""Storm data (neoaprs/aprsstorm.py): APRS101 chapter 12, in the units of the rest of the program."""
+
 import pytest
 
 from neoaprs.aprsstorm import Storm, split_storm, storm_text
@@ -32,5 +32,6 @@ def test_a_field_with_too_many_digits_ends_the_data() -> None:
 
 def test_the_storm_in_words() -> None:
     assert storm_text(Storm("HC", 277.8, 370.4, 980, 166.7, 55.6, 74.1)) == (
-        "hurricane, wind 278 km/h, gusts 370 km/h, 980 hPa, hurricane winds to 167 km, storm winds to 56 km, gale winds to 74 km")
+        "hurricane, wind 278 km/h, gusts 370 km/h, 980 hPa, hurricane winds to 167 km, storm winds to 56 km, gale winds to 74 km"
+    )
     assert storm_text(Storm("TD")) == "tropical depression"

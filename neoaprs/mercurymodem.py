@@ -3,6 +3,7 @@
 Started with the Tnc when the radio type is Mercury, restarted after a back-off when it dies and
 stopped with the Tnc. While Mercury keys the radio or hears a signal no frame is handed to it.
 """
+
 import asyncio
 import logging
 from collections.abc import Callable, Sequence
@@ -12,11 +13,39 @@ from . import nodevices
 from .claims import Claim, Claims
 from .clock import Clock, utcnow
 from .config import Config
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET, HOST, MODE, SUGGESTED, TUNE_OFF, Keying, SerialPort, SoundCard, command, ini_text, keying_of, ports_from, propose_keying, propose_sound_card, speaker_audio
+from .mercury import (
+    BROADCAST_PORT,
+    CONTROL_OFFSET,
+    HOST,
+    MODE,
+    SUGGESTED,
+    TUNE_OFF,
+    Keying,
+    SerialPort,
+    SoundCard,
+    command,
+    ini_text,
+    keying_of,
+    ports_from,
+    propose_keying,
+    propose_sound_card,
+    speaker_audio,
+)
 from .mercurycontrol import ControlLine
 from .mercurytune import Tuning
 from .mercuryclaims import INI_FILE, PID_FILE, HeldPorts, Holding, keying_claim, take_folder
-from .mercuryhelper import Command, Program, choose_setup, expected_program, find, foreign_listeners, free_ports, is_shipped, list_sound_cards, next_modem_ports
+from .mercuryhelper import (
+    Command,
+    Program,
+    choose_setup,
+    expected_program,
+    find,
+    foreign_listeners,
+    free_ports,
+    is_shipped,
+    list_sound_cards,
+    next_modem_ports,
+)
 from .mercurychannel import CHANNEL_BUSY, TRANSMITTING, Channel
 from .mercuryscoping import Scoping
 from .mercuryscope import clamp_gain
@@ -34,7 +63,9 @@ from .versions import Frequency
 log = logging.getLogger("neoaprs.mercury")
 
 NOT_INSTALLED = "the Mercury program is not in this installation of NeoAPRS (the AppImage, the .deb and the Windows installer carry it)"
-OPEN_TO_NETWORK = "Mercury listens on the network and is not run: the Mercury NeoAPRS ships listens on this computer only"
+OPEN_TO_NETWORK = (
+    "Mercury listens on the network and is not run: the Mercury NeoAPRS ships listens on this computer only"
+)
 # Mercury runs deaf and mute when its sound card fails, so the program is ended.
 SOUND_CARD_FAILED = "the sound card could not be opened: choose another one in the Sound card field"
 STATES = ("stopped", "starting", "running", "waiting")
@@ -51,7 +82,16 @@ def system_serial_ports() -> list[SerialPort]:
 def left_out(config: Config, but: RadioId) -> tuple[str, ...]:
     """Return the serial ports that key no radio of `but` (others', remembered, GPS, skipped)."""
     named = tuple(c.value for c in named_ports(config, off_too=True) if c.holder != but)
-    return tuple(dict.fromkeys(v for v in (*named, *(claim_value(p) for p in (config.serial_last_port, config.gps_device, *config.serial_skip_paths))) if v))
+    return tuple(
+        dict.fromkeys(
+            v
+            for v in (
+                *named,
+                *(claim_value(p) for p in (config.serial_last_port, config.gps_device, *config.serial_skip_paths)),
+            )
+            if v
+        )
+    )
 
 
 def own_choice(config: Config, holder: RadioId) -> tuple[str, str, int]:
@@ -62,12 +102,31 @@ def own_choice(config: Config, holder: RadioId) -> tuple[str, str, int]:
     return str(spec.value("sound_card")), str(spec.value("keying")), int(spec.value("tx_gain_db"))
 
 
-def proposal(cards: Sequence[SoundCard], ports: Sequence[PortInfo], config: Config, *, claims: Claims | None = None, holder: RadioId = HF_ID) -> tuple[str, str]:
+def proposal(
+    cards: Sequence[SoundCard],
+    ports: Sequence[PortInfo],
+    config: Config,
+    *,
+    claims: Claims | None = None,
+    holder: RadioId = HF_ID,
+) -> tuple[str, str]:
     """Return the card (id) and keying the page proposes while the settings are empty."""
-    serial, held_cards = (claims.held_by_others(holder, "serial"), claims.held_by_others(holder, "sound_card")) if claims is not None else (frozenset[str](), frozenset[str]())
+    serial, held_cards = (
+        (claims.held_by_others(holder, "serial"), claims.held_by_others(holder, "sound_card"))
+        if claims is not None
+        else (frozenset[str](), frozenset[str]())
+    )
     card = propose_sound_card([c for c in cards if c.id not in held_cards])
     leave = left_out(config, holder)
-    return card, propose_keying(cards, card, [SerialPort(p.device, p.vid, p.pid) for p in ports if (key := claim_value(p.device)) not in leave and (not serial or key not in serial)])
+    return card, propose_keying(
+        cards,
+        card,
+        [
+            SerialPort(p.device, p.vid, p.pid)
+            for p in ports
+            if (key := claim_value(p.device)) not in leave and (not serial or key not in serial)
+        ],
+    )
 
 
 def _address(url: str) -> tuple[str, int]:
@@ -80,8 +139,18 @@ def _address(url: str) -> tuple[str, int]:
 class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
     PROGRAM, LOG = "Mercury", log
 
-    def __init__(self, data_dir: Path, clock: Clock = utcnow, finder: Callable[[], Command | None] | None = None, backoff: Backoff | None = None, control_backoff: Backoff | None = None, *,
-                 claims: Claims | None = None, holder: RadioId = HF_ID, folder: Path | None = None) -> None:
+    def __init__(
+        self,
+        data_dir: Path,
+        clock: Clock = utcnow,
+        finder: Callable[[], Command | None] | None = None,
+        backoff: Backoff | None = None,
+        control_backoff: Backoff | None = None,
+        *,
+        claims: Claims | None = None,
+        holder: RadioId = HF_ID,
+        folder: Path | None = None,
+    ) -> None:
         self.data_dir, self.clock = data_dir, clock
         self.claims, self.holder, self.folder = claims, holder, folder
         self._finder = finder or find
@@ -133,7 +202,11 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
             self._hold_pair()
             if keying:
                 self.keying = keying_of(keying)
-            log.info("Mercury is run by something else at %s; its control port %d is listened to", self.attached, self.control_port)
+            log.info(
+                "Mercury is run by something else at %s; its control port %d is listened to",
+                self.attached,
+                self.control_port,
+            )
             self._set("starting", "")
             self._start_control()
             return
@@ -176,7 +249,9 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
             await asyncio.to_thread(take_folder, self.data_dir, self.home, self.holder == HF_ID, program)
         except OSError as e:
             log.warning("Mercury's folder %s could not be made: %s", self.home, os_error_text(e))
-            return self._failed(f"Mercury's folder could not be made in the data folder: {os_error_text(e)}", "not_started")
+            return self._failed(
+                f"Mercury's folder could not be made in the data folder: {os_error_text(e)}", "not_started"
+            )
         await asyncio.to_thread(end_stale, pid_file, self.home / INI_FILE, program)
         audio = await self._speaker_audio() if self.speaker else []
         if audio is None:
@@ -189,10 +264,14 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
     async def _speaker_audio(self) -> list[str] | None:
         """Return the speaker's fifo backend flags (new pipes); None where there are none."""
         self.sound_card, self.keying = "", Keying("vox")
-        log.info("Mercury is started as the speaker of the Dummy Mercury radio: it keys nothing and plays through the computer's sound output")
+        log.info(
+            "Mercury is started as the speaker of the Dummy Mercury radio: it keys nothing and plays through the computer's sound output"
+        )
         self._audio.capture, self._audio.playback = self.home / CAPTURE_FIFO, self.home / PLAYBACK_FIFO
         if not await asyncio.to_thread(self._audio.prepare):
-            log.info("the Dummy Mercury radio's speaker is not started: this system has no named pipes for Mercury's audio, and the modem on the default sound devices would be heard, or hear, for real")
+            log.info(
+                "the Dummy Mercury radio's speaker is not started: this system has no named pipes for Mercury's audio, and the modem on the default sound devices would be heard, or hear, for real"
+            )
             self._set("stopped", "")
             return None
         return speaker_audio(str(self._audio.capture), str(self._audio.playback))
@@ -207,15 +286,33 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
             if card if other.kind == "sound_card" else keying:
                 break
         assert other is not None
-        what = (f"the sound card {self.sound_card}" if self.sound_card else "the system's default sound device") if other.kind == "sound_card" else f"the keying line {self.keying.device}"
+        what = (
+            (f"the sound card {self.sound_card}" if self.sound_card else "the system's default sound device")
+            if other.kind == "sound_card"
+            else f"the keying line {self.keying.device}"
+        )
         return f"{what} is held by {self.claims.words(other.holder) if self.claims is not None else holder_words(other.holder)}"
 
     async def _chosen_and_held(self, program: Command, config: Config) -> Claim | None:
         """Choose and hold the card and keying once; return a blocking claim, else None."""
-        serial, held_cards = (self.claims.held_by_others(self.holder, "serial"), self.claims.held_by_others(self.holder, "sound_card")) if self.claims is not None else (frozenset[str](), frozenset[str]())
+        serial, held_cards = (
+            (self.claims.held_by_others(self.holder, "serial"), self.claims.held_by_others(self.holder, "sound_card"))
+            if self.claims is not None
+            else (frozenset[str](), frozenset[str]())
+        )
         ports = self.ports
-        self.sound_card, self.keying = await asyncio.to_thread(choose_setup, program, *own_choice(config, self.holder)[:2], lambda: [p for p in ports() if not serial or claim_value(p.device) not in serial], left_out(config, self.holder), held_cards, key=claim_value)
-        return self._hold_setup(self.sound_card, keying_claim(self.keying, claim_value(self.keying.device) if self.keying.device else None))
+        self.sound_card, self.keying = await asyncio.to_thread(
+            choose_setup,
+            program,
+            *own_choice(config, self.holder)[:2],
+            lambda: [p for p in ports() if not serial or claim_value(p.device) not in serial],
+            left_out(config, self.holder),
+            held_cards,
+            key=claim_value,
+        )
+        return self._hold_setup(
+            self.sound_card, keying_claim(self.keying, claim_value(self.keying.device) if self.keying.device else None)
+        )
 
     async def _run(self, program: Command, audio: list[str], pid_file: Path) -> None:
         """Choose the ports, write the configuration and start the program on them."""
@@ -229,7 +326,9 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
             ini.write_text(ini_text(keying, self.tx_gain_db, self.ui_port), encoding="utf-8")
         except OSError as e:
             log.warning("Mercury's configuration could not be written to %s: %s", ini, os_error_text(e))
-            return self._failed(f"Mercury's configuration could not be written in the data folder: {os_error_text(e)}", "not_started")
+            return self._failed(
+                f"Mercury's configuration could not be written in the data folder: {os_error_text(e)}", "not_started"
+            )
         argv = command(program, str(ini), self.sound_card, keying, self.broadcast_port, self.control_port, audio)
         try:
             self._program.start(argv, self.home, pid_file)
@@ -263,7 +362,12 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
         """Called from the reader thread when the program ended by itself: restart it."""
         if self.state == "stopped":
             return
-        log.warning("Mercury ended (exit %s) after %d frames keyed; its last lines: %s", code, self.frames_keyed, " | ".join(lines[-3:]) or "(nothing)")
+        log.warning(
+            "Mercury ended (exit %s) after %d frames keyed; its last lines: %s",
+            code,
+            self.frames_keyed,
+            " | ".join(lines[-3:]) or "(nothing)",
+        )
         self._gone(f"Mercury stopped (exit {code}); the log says why", "stopped")
 
     def _audio_error(self, line: str) -> None:
@@ -289,7 +393,9 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
     def _relaunch_later(self) -> None:
         """Schedule a start after the back-off for this wait only; a later wait voids it."""
         self._waits += 1
-        self._tasks.spawn(self._relaunch_after(self.backoff.next_delay_sec(), self._generation, self._waits), "mercury-restart")
+        self._tasks.spawn(
+            self._relaunch_after(self.backoff.next_delay_sec(), self._generation, self._waits), "mercury-restart"
+        )
 
     async def _relaunch_after(self, delay_sec: float, generation: int, wait: int) -> None:
         log.info("Mercury is started again in %g s", delay_sec)
@@ -299,12 +405,27 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
 
     # ---- the control port
     def _start_control(self) -> None:
-        self._control = ControlLine(HOST if not self.attached else _address(self.attached)[0], self.control_port, self._event, self._control_state, self._control_backoff)
+        self._control = ControlLine(
+            HOST if not self.attached else _address(self.attached)[0],
+            self.control_port,
+            self._event,
+            self._control_state,
+            self._control_backoff,
+        )
         self._control.start()
 
     def _control_state(self, up: bool, why: str) -> None:
         if up:
-            if not self.attached and (found := foreign_listeners((self.broadcast_port, self.control_port, self.control_port + 1, *([self.ui_port] if self.ui_port else [])))):
+            if not self.attached and (
+                found := foreign_listeners(
+                    (
+                        self.broadcast_port,
+                        self.control_port,
+                        self.control_port + 1,
+                        *([self.ui_port] if self.ui_port else []),
+                    )
+                )
+            ):
                 self._tasks.spawn(self._refuse_open(found), "mercury-refuse")
                 return
             self.backoff.connected()
@@ -346,10 +467,15 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
         if self.state != "running":
             return f"Mercury {MODE}, {self.state}"
         held = self.hold()
-        words = ("tuning" if self.test == "tune" else "keyed" if self.test == "key" else "transmitting") if held == TRANSMITTING else "channel busy" if held == CHANNEL_BUSY else "listening"
+        words = (
+            ("tuning" if self.test == "tune" else "keyed" if self.test == "key" else "transmitting")
+            if held == TRANSMITTING
+            else "channel busy"
+            if held == CHANNEL_BUSY
+            else "listening"
+        )
         snr = f", SNR {self.snr:.0f} dB" if self.snr is not None else ""
         return f"Mercury {MODE}, {words}{snr}"
-
 
     @property
     def running(self) -> bool:
@@ -366,7 +492,11 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
 
     def _program_to_run(self) -> Command | None:
         """Return the Mercury program of this installation; None under the no-devices switch."""
-        return None if nodevices.refused("the Mercury modem program is not started and its sound cards are not listed") else self._finder()
+        return (
+            None
+            if nodevices.refused("the Mercury modem program is not started and its sound cards are not listed")
+            else self._finder()
+        )
 
     def _clear_channel(self) -> None:
         """Clear what the program said (mercurychannel.py) and forget the scope rows it fed."""

@@ -3,6 +3,7 @@
 A page on another device may change every setting except those in `LOCAL_ONLY` (access.py) and may
 not run the alert test; `Connection.local` says whether the page is on this computer.
 """
+
 import logging
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import replace
@@ -55,7 +56,9 @@ def refuse_from_afar(conn: Connection, keys: Iterable[str]) -> None:
     key = next((k for k in keys if local_only(k)), None)
     if key is not None:
         log.warning("a page of another device (%s) was refused %s: it is set on this computer itself", conn.ip, key)
-        raise SettingError(key, "setting.local_only", {}, f"{key}: only a page on the computer NeoAPRS runs on can do this")
+        raise SettingError(
+            key, "setting.local_only", {}, f"{key}: only a page on the computer NeoAPRS runs on can do this"
+        )
 
 
 def no_radio(key: str, id: RadioId, specs: Sequence[RadioSpec]) -> SettingError:
@@ -65,7 +68,9 @@ def no_radio(key: str, id: RadioId, specs: Sequence[RadioSpec]) -> SettingError:
     """
     removed = removed_name(id, specs)
     if removed is not None:
-        return SettingError(key, "radio.unknown", {"radio": id, "name": removed, "removed": 1}, f"{key}: radio {removed} is removed")
+        return SettingError(
+            key, "radio.unknown", {"radio": id, "name": removed, "removed": 1}, f"{key}: radio {removed} is removed"
+        )
     return SettingError(key, "radio.unknown", {"radio": id}, f"{key}: there is no radio {id}")
 
 
@@ -104,7 +109,9 @@ def with_radio_values(base: Config, values: Mapping[str, str]) -> Config:
             raise no_radio(key, id, base.radios)
         if (own_field := kind_field(spec.kind, field)) is None:
             name = log_name(spec, base.radios)
-            raise SettingError(key, "radio.no_setting", {"name": name, "radio": id}, f"{key}: radio {name} has no such setting")
+            raise SettingError(
+                key, "radio.no_setting", {"name": name, "radio": id}, f"{key}: radio {name} has no such setting"
+            )
         try:
             value = Config.check_radio(spec, field, text)
         except RadioError as e:
@@ -112,7 +119,9 @@ def with_radio_values(base: Config, values: Mapping[str, str]) -> Config:
         if value != spec.settings.get(field, own_field.default):
             # A value equal to the one in force is not written, so a default stays default.
             own.setdefault(id, {})[field] = value
-    radios = tuple(replace(spec, settings={**spec.settings, **own[spec.id]}) if spec.id in own else spec for spec in base.radios)
+    radios = tuple(
+        replace(spec, settings={**spec.settings, **own[spec.id]}) if spec.id in own else spec for spec in base.radios
+    )
     return replace(base, radios=radios)
 
 
@@ -129,17 +138,37 @@ def _same(kind: ResourceKind, a: str, b: str, names: Mapping[int, str]) -> bool:
     return a == b or (kind == "sound_card" and stable_alsa_id(a, names) == stable_alsa_id(b, names))
 
 
-def _holder(spec: RadioSpec, kind: ResourceKind, value: str, after: Config, claims: Claims, moved: set[RadioId | None], names: Mapping[int, str]) -> tuple[str, RadioId] | None:
+def _holder(
+    spec: RadioSpec,
+    kind: ResourceKind,
+    value: str,
+    after: Config,
+    claims: Claims,
+    moved: set[RadioId | None],
+    names: Mapping[int, str],
+) -> tuple[str, RadioId] | None:
     """Return (name, id) of who else holds the device once the save applies (`GPS`, 0), else None.
 
     A radio or GPS changed by this save is judged by its new settings alone, so radios can swap devices.
     """
     for other in after.enabled_radios:
-        if other.id != spec.id and any(one_device(k, kind) and _same(kind, v, value, names) for _, k, v in devices(other)):
+        if other.id != spec.id and any(
+            one_device(k, kind) and _same(kind, v, value, names) for _, k, v in devices(other)
+        ):
             return log_name(other, after.radios), other.id
     if one_device(kind, "gps") and value == _gps_device(after):
         return "GPS", 0
-    held = next((c for c in claims.all() if c.holder != spec.id and c.holder not in moved and _same(kind, c.value, value, names) and one_device(c.kind, kind)), None)
+    held = next(
+        (
+            c
+            for c in claims.all()
+            if c.holder != spec.id
+            and c.holder not in moved
+            and _same(kind, c.value, value, names)
+            and one_device(c.kind, kind)
+        ),
+        None,
+    )
     return None if held is None else (holder_name(held.holder, after.radios), holder_id(held.holder, after.radios))
 
 
@@ -148,12 +177,22 @@ def refuse_held(before: Config, after: Config, claims: Claims) -> None:
 
     A device a radio already named before the save is not rechecked.
     """
-    moved: set[RadioId | None] = {s.id for s in after.radios if (was := before.radio(s.id)) is None or (was.type, was.enabled, was.removed, dict(was.settings)) != (s.type, s.enabled, s.removed, dict(s.settings))}
+    moved: set[RadioId | None] = {
+        s.id
+        for s in after.radios
+        if (was := before.radio(s.id)) is None
+        or (was.type, was.enabled, was.removed, dict(was.settings)) != (s.type, s.enabled, s.removed, dict(s.settings))
+    }
     if (gps := _gps_device(after)) != _gps_device(before):
         # The GPS is changed by this save: judged by its new device alone.
         moved.add(None)
         if gps and (found := _gps_holder(gps, after, claims, moved)) is not None:
-            raise SettingError("gps/device", "radio.resource_held", {"resource": "gps", "holder": found[0], "held_by": found[1]}, f"gps/device: that device is in use by {found[0]}: choose another")
+            raise SettingError(
+                "gps/device",
+                "radio.resource_held",
+                {"resource": "gps", "holder": found[0], "held_by": found[1]},
+                f"gps/device: that device is in use by {found[0]}: choose another",
+            )
     names = alsa_card_names()  # read once: a sound card is one card by number or name
     for spec in after.live_radios:
         was = before.radio(spec.id)
@@ -164,7 +203,12 @@ def refuse_held(before: Config, after: Config, claims: Claims) -> None:
             holder, held_by = found
             key = f"radio/{spec.id}/{field}"
             by = "the GPS receiver" if held_by == 0 else f"radio {holder}"  # held_by 0 is the GPS receiver
-            raise SettingError(key, "radio.resource_held", {"resource": kind, "holder": holder, "held_by": held_by}, f"{key}: the device is in use by {by}: choose another")
+            raise SettingError(
+                key,
+                "radio.resource_held",
+                {"resource": kind, "holder": holder, "held_by": held_by},
+                f"{key}: the device is in use by {by}: choose another",
+            )
 
 
 def _gps_holder(gps: str, after: Config, claims: Claims, moved: set[RadioId | None]) -> tuple[str, RadioId] | None:
@@ -175,8 +219,19 @@ def _gps_holder(gps: str, after: Config, claims: Claims, moved: set[RadioId | No
     for other in after.enabled_radios:
         if any(one_device(k, "gps") and v == gps for _, k, v in devices(other)):
             return log_name(other, after.radios), other.id
-    held = next((c for c in claims.all() if c.holder is not None and c.holder not in moved and c.value == gps and c.kind in PORT_KINDS), None)
-    return None if held is None or held.holder is None else (holder_name(held.holder, after.radios), holder_id(held.holder, after.radios))
+    held = next(
+        (
+            c
+            for c in claims.all()
+            if c.holder is not None and c.holder not in moved and c.value == gps and c.kind in PORT_KINDS
+        ),
+        None,
+    )
+    return (
+        None
+        if held is None or held.holder is None
+        else (holder_name(held.holder, after.radios), holder_id(held.holder, after.radios))
+    )
 
 
 def _own_value(config: Config, key: str) -> str | None:
@@ -198,7 +253,9 @@ def split_values(values: Mapping[str, str]) -> tuple[dict[str, str], dict[str, s
     own: dict[str, str] = {}
     pairs: dict[str, str] = {}
     for key, text in values.items():
-        (own if radio_key_of(key) is not None else pairs if pairsetting.pair_key_of(key) is not None else flat)[key] = text
+        (own if radio_key_of(key) is not None else pairs if pairsetting.pair_key_of(key) is not None else flat)[key] = (
+            text
+        )
     return flat, own, pairs
 
 
@@ -209,8 +266,16 @@ def with_pairs(base: Config, after: Config, pairs: Mapping[str, str], flat: Mapp
             if (spec := base.radio(id)) is None or spec.removed:
                 raise no_radio(key, id, base.radios)
     try:
-        config = replace(after, pairs=pairsetting.with_pair_values(after.station_call, after.radios, after.pairs, pairs, was_call=base.station_call))
-        if "station/call" in flat and (refusal := pairsetting.call_refusal(config.station_call, config.pairs)) is not None:
+        config = replace(
+            after,
+            pairs=pairsetting.with_pair_values(
+                after.station_call, after.radios, after.pairs, pairs, was_call=base.station_call
+            ),
+        )
+        if (
+            "station/call" in flat
+            and (refusal := pairsetting.call_refusal(config.station_call, config.pairs)) is not None
+        ):
             raise refusal
     except pairsetting.PairError as e:
         raise SettingError(e.key, e.code, e.params, str(e)) from None
@@ -221,7 +286,9 @@ def log_pair_changes(before: Config, after: Config) -> None:
     """Log the pair rows a save changed."""
     was = pairsetting.rows_of(before.pairs)
     for key, text in pairsetting.changed_rows(before.pairs, after.pairs).items():
-        log.info("settings: %s = %s (was %s)", key, shown(key, text), shown(key, was.get(key, pairsetting.default_of(key))))
+        log.info(
+            "settings: %s = %s (was %s)", key, shown(key, text), shown(key, was.get(key, pairsetting.default_of(key)))
+        )
 
 
 # Station settings that name one radio by id, each with its Config field.
@@ -233,7 +300,12 @@ def _name_radios(base: Config, config: Config, keys: Iterable[str]) -> None:
     sent = set(keys)
     for key, attr in CHOICES_OF_A_RADIO.items():
         chosen = getattr(config, attr)
-        if key in sent and chosen is not None and chosen != getattr(base, attr) and all(spec.id != chosen for spec in config.live_radios):
+        if (
+            key in sent
+            and chosen is not None
+            and chosen != getattr(base, attr)
+            and all(spec.id != chosen for spec in config.live_radios)
+        ):
             raise no_radio(key, chosen, config.radios)
 
 
@@ -251,7 +323,14 @@ async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
         after = with_pairs(base, with_radio_values(Config.checked(base, flat), own), pairs, flat)
         _name_radios(base, after, flat)
         refuse_held(base, after, ctx.ctl.radios.claims)
-        refuse_from_afar(ctx.conn, [*base.changed(after), *(key for key in own if _own_value(base, key) != _own_value(after, key)), *pairsetting.changed_rows(base.pairs, after.pairs)])
+        refuse_from_afar(
+            ctx.conn,
+            [
+                *base.changed(after),
+                *(key for key in own if _own_value(base, key) != _own_value(after, key)),
+                *pairsetting.changed_rows(base.pairs, after.pairs),
+            ],
+        )
         return after
 
     try:
@@ -265,7 +344,10 @@ async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
         # A check without a code: nothing the operator can mend; the log has it.
         raise UserError(f"set_config: {e}", "failed") from None
     if not stored:
-        raise UserError("set_config: the settings could not be stored (the database would not take them); nothing changed", "setting.not_stored")
+        raise UserError(
+            "set_config: the settings could not be stored (the database would not take them); nothing changed",
+            "setting.not_stored",
+        )
     old, new = before.to_data(), after.to_data()
     for key in before.changed(after):
         log.info("settings: %s = %s (was %s)", key, shown(key, new[key]), shown(key, old[key]))
@@ -274,7 +356,12 @@ async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
         was, now = before.radio(id), after.radio(id)
         if was is not None and now is not None and was.settings.get(field) != now.settings.get(field):
             default = getattr(kind_field(was.kind, field), "default", "")
-            log.info("settings: %s = %s (was %s)", key, shown(key, now.settings.get(field, default)), shown(key, was.settings.get(field, default)))
+            log.info(
+                "settings: %s = %s (was %s)",
+                key,
+                shown(key, now.settings.get(field, default)),
+                shown(key, was.settings.get(field, default)),
+            )
     log_pair_changes(before, after)
 
 
@@ -288,4 +375,13 @@ async def alert_test(ctx: Ctx, cmd: AlertTest) -> None:
         raise UserError(f"{cmd.cmd}: {e}", e.code, e.key, e.params) from None
     except CodedError as e:
         raise UserError(f"{cmd.cmd}: {e}", e.code, None, e.params) from None
-    ctx.conn.send({"type": "alert_result", "ok": outcome.ok, "outcome": outcome.kind, "status": outcome.status, "seconds": float(ctx.ctl.alerts.timeout_sec), "line": outcome.first_line if outcome.kind == "exit" else ""})
+    ctx.conn.send(
+        {
+            "type": "alert_result",
+            "ok": outcome.ok,
+            "outcome": outcome.kind,
+            "status": outcome.status,
+            "seconds": float(ctx.ctl.alerts.timeout_sec),
+            "line": outcome.first_line if outcome.kind == "exit" else "",
+        }
+    )

@@ -1,17 +1,19 @@
 """Recently passed messages, so an ack heard on the far radio goes back once (digipeat plan M2)."""
+
 from dataclasses import dataclass
 from datetime import datetime
 
 from neoaprs.radiotype import RadioId
 from neoaprs.services.passlimits import source_name
 
-PASS_BACK_SEC = 600.0              # longer than our own retry schedule of about 6 minutes
-PASSED_KEEP_MAX = 200              # the oldest go first
+PASS_BACK_SEC = 600.0  # longer than our own retry schedule of about 6 minutes
+PASSED_KEEP_MAX = 200  # the oldest go first
 
 
 @dataclass(frozen=True)
 class Passed:
     """A message passed from radio `heard_on` to radio `sent_on` at `at`."""
+
     source: str
     addressee: str
     msg_id: str
@@ -38,7 +40,9 @@ class PassedMessages:
         while len(self._passed) > PASSED_KEEP_MAX:
             del self._passed[next(iter(self._passed))]
 
-    def answer(self, sender: str, addressee: str, msg_id: str, heard_on: RadioId, now: datetime, take: bool = True) -> Passed | None:
+    def answer(
+        self, sender: str, addressee: str, msg_id: str, heard_on: RadioId, now: datetime, take: bool = True
+    ) -> Passed | None:
         """Return the passed message an ack or rej answers (sent on `heard_on`), or None.
 
         With `take` the entry is removed; otherwise `forget` removes it."""

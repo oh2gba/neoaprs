@@ -35,6 +35,7 @@ ENTRY_AGAIN_MAX_SEC = 60.0  # later repeats double the wait up to this
 @dataclass
 class PassCount:
     """What the pairs passed onto a radio from one other radio."""
+
     sent: int = 0
     sent_at: datetime | None = None
     held: int = 0
@@ -86,7 +87,10 @@ class EntryAgain:
     def repeat(self) -> tuple[str, int]:
         self.count += 1
         self.wait_sec = min(self.wait_sec * 2, ENTRY_AGAIN_MAX_SEC)
-        return f"the TNC is still in command mode (entry {self.count + 1}; the next not before {self.wait_sec:g} s after this one settles)", logging.INFO if self.count == 1 else logging.DEBUG
+        return (
+            f"the TNC is still in command mode (entry {self.count + 1}; the next not before {self.wait_sec:g} s after this one settles)",
+            logging.INFO if self.count == 1 else logging.DEBUG,
+        )
 
 
 def how_long(seconds: float) -> str:
@@ -94,7 +98,15 @@ def how_long(seconds: float) -> str:
 
 
 class Watchdog:
-    def __init__(self, tnc: Watched, sec: float, pause_sec: float = CHECK_PAUSE_SEC, reply_sec: float = REPLY_SEC, answer_sec: float = ANSWER_SEC, probe_sec: float = PROBE_SEC) -> None:
+    def __init__(
+        self,
+        tnc: Watched,
+        sec: float,
+        pause_sec: float = CHECK_PAUSE_SEC,
+        reply_sec: float = REPLY_SEC,
+        answer_sec: float = ANSWER_SEC,
+        probe_sec: float = PROBE_SEC,
+    ) -> None:
         self.tnc = tnc
         # the quiet period that makes a check; 0: no checks (a silent radio is still probed)
         self.sec = sec

@@ -2,6 +2,7 @@
 is ready, the loop's time jumps to the next timer instead of sleeping. Only timer waits are skipped;
 sockets and threads are still polled.
 """
+
 import asyncio
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
@@ -12,8 +13,8 @@ class VirtualTime:
     def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
         self._real_time: Callable[[], float] = loop.time
-        self.skipped = 0.0                                  # seconds of waiting the loop did not do
-        self.in_threads = 0                                 # work handed to the loop's threads that has not come back
+        self.skipped = 0.0  # seconds of waiting the loop did not do
+        self.in_threads = 0  # work handed to the loop's threads that has not come back
 
     def time(self) -> float:
         return self._real_time() + self.skipped
@@ -47,6 +48,7 @@ async def virtual_time() -> AsyncIterator[VirtualTime]:
 
         def back(_: object) -> None:
             clock.in_threads -= 1
+
         future.add_done_callback(back)
         return future
 

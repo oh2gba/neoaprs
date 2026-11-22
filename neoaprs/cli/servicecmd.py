@@ -2,6 +2,7 @@
 
 A systemd user unit on Linux, the Run key on Windows (a Windows service has no desktop) and a
 launchd agent on macOS. This module builds the `Plan` and hands it to the system's module."""
+
 import argparse
 import importlib
 import os
@@ -25,6 +26,7 @@ class Plan:
     """What the service is to run: this interpreter, on this data folder.
 
     `gui_exe` and `pythonw` run it on Windows without a console; `appimage` replaces `python`."""
+
     python: str
     data: Path
     clone: Path | None = None
@@ -54,17 +56,36 @@ def appimage_file() -> str | None:
 def windowless_programs() -> tuple[str | None, str | None]:
     """Return the `neoaprsw` script and `pythonw`; None if absent."""
     here = Path(sys.executable).parent
-    gui = next((str(p) for p in (here / "neoaprsw.exe", here / "neoaprsw") if p.is_file()), None) or shutil.which("neoaprsw")
+    gui = next((str(p) for p in (here / "neoaprsw.exe", here / "neoaprsw") if p.is_file()), None) or shutil.which(
+        "neoaprsw"
+    )
     pythonw = here / "pythonw.exe"
     return gui, str(pythonw) if pythonw.is_file() else None
 
 
 def parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="neoaprs service", description="Run NeoAPRS as a service of your user: it starts at login (at boot too on Linux with --linger) and is kept running.")
-    p.add_argument("action", choices=["install", "remove", "status", "logs"], help="install: set it up and start it; remove: take it away (the data stays); status: is it set up, and does the daemon answer; logs: the end of the daemon's log")
-    p.add_argument("--data", default=str(default_data_dir()), help="the data folder the service runs on; default %(default)s")
-    p.add_argument("--linger", action="store_true", help="install, Linux: also run `loginctl enable-linger`, so that it starts at boot and survives a logout, not only while you are logged in")
-    p.add_argument("--clone", metavar="DIR", help="install, Linux: the folder of the git clone this runs from (the unit then runs in it); found by itself when the package is imported from a clone")
+    p = argparse.ArgumentParser(
+        prog="neoaprs service",
+        description="Run NeoAPRS as a service of your user: it starts at login (at boot too on Linux with --linger) and is kept running.",
+    )
+    p.add_argument(
+        "action",
+        choices=["install", "remove", "status", "logs"],
+        help="install: set it up and start it; remove: take it away (the data stays); status: is it set up, and does the daemon answer; logs: the end of the daemon's log",
+    )
+    p.add_argument(
+        "--data", default=str(default_data_dir()), help="the data folder the service runs on; default %(default)s"
+    )
+    p.add_argument(
+        "--linger",
+        action="store_true",
+        help="install, Linux: also run `loginctl enable-linger`, so that it starts at boot and survives a logout, not only while you are logged in",
+    )
+    p.add_argument(
+        "--clone",
+        metavar="DIR",
+        help="install, Linux: the folder of the git clone this runs from (the unit then runs in it); found by itself when the package is imported from a clone",
+    )
     p.add_argument("-n", "--lines", type=int, default=50, help="logs: how many lines (default 50)")
     return p
 
@@ -72,7 +93,15 @@ def parser() -> argparse.ArgumentParser:
 def make_plan(args: argparse.Namespace) -> Plan:
     gui, pythonw = windowless_programs()
     clone = Path(args.clone).expanduser().resolve() if args.clone else source_tree()
-    return Plan(os.path.abspath(sys.executable), Path(args.data).expanduser().resolve(), clone, args.linger, gui, pythonw, appimage_file())
+    return Plan(
+        os.path.abspath(sys.executable),
+        Path(args.data).expanduser().resolve(),
+        clone,
+        args.linger,
+        gui,
+        pythonw,
+        appimage_file(),
+    )
 
 
 def logs(plan: Plan, lines: int, hint: str) -> int:

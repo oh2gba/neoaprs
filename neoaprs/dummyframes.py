@@ -2,6 +2,7 @@
 
 Information fields of the made-up kinds of station, and how a digipeater repeats a frame.
 """
+
 import math
 from datetime import datetime
 
@@ -41,11 +42,18 @@ def _motion(course: int, speed_kmh: float) -> str:
 
 def fixed(lat: float, lon: float, symbol: str, comment: str, messaging: bool = False) -> bytes:
     """Return a position of a station that stays: `!`, or `=` for one that takes messages."""
-    return (b"=" if messaging else b"!") + uncompressed_position(lat, lon, symbol[0], symbol[1]) + comment.encode("ascii")
+    return (
+        (b"=" if messaging else b"!") + uncompressed_position(lat, lon, symbol[0], symbol[1]) + comment.encode("ascii")
+    )
 
 
 def walking(lat: float, lon: float, symbol: str, comment: str, course: int, speed_kmh: float) -> bytes:
-    return b"=" + uncompressed_position(lat, lon, symbol[0], symbol[1]) + _motion(course, speed_kmh).encode("ascii") + comment.encode("ascii")
+    return (
+        b"="
+        + uncompressed_position(lat, lon, symbol[0], symbol[1])
+        + _motion(course, speed_kmh).encode("ascii")
+        + comment.encode("ascii")
+    )
 
 
 def compressed(lat: float, lon: float, symbol: str, comment: str, course: int, speed_kmh: float) -> bytes:
@@ -56,8 +64,21 @@ def mice(lat: float, lon: float, symbol: str, comment: str, course: int, speed_k
     return mice_packet(lat, lon, symbol[0], symbol[1], course, speed_kmh, comment)
 
 
-def weather(lat: float, lon: float, comment: str, direction: int, wind_kmh: float, gust_kmh: float, temp_c: float, rain_hour_mm: float, rain_day_mm: float, humidity: int, hpa: float) -> bytes:
+def weather(
+    lat: float,
+    lon: float,
+    comment: str,
+    direction: int,
+    wind_kmh: float,
+    gust_kmh: float,
+    temp_c: float,
+    rain_hour_mm: float,
+    rain_day_mm: float,
+    humidity: int,
+    hpa: float,
+) -> bytes:
     """Return a weather station's position; units are mph, degrees F, 0.01 inch, 0.1 hPa."""
+
     def mph(kmh: float) -> int:
         return round(kmh / MILE_KM)
 
@@ -72,7 +93,15 @@ def weather(lat: float, lon: float, comment: str, direction: int, wind_kmh: floa
 
 def object_report(name: str, now: datetime, lat: float, lon: float, symbol: str, comment: str) -> bytes:
     """Return a live object: `;NAME     *DDHHMMz` and its position."""
-    return b";" + name.ljust(9).encode("ascii") + b"*" + now.strftime("%d%H%M").encode("ascii") + b"z" + uncompressed_position(lat, lon, symbol[0], symbol[1]) + comment.encode("ascii")
+    return (
+        b";"
+        + name.ljust(9).encode("ascii")
+        + b"*"
+        + now.strftime("%d%H%M").encode("ascii")
+        + b"z"
+        + uncompressed_position(lat, lon, symbol[0], symbol[1])
+        + comment.encode("ascii")
+    )
 
 
 def status(text: str) -> bytes:

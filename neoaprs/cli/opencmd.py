@@ -5,6 +5,7 @@ page to answer before it opens anything. This is what the Start menu's "NeoAPRS"
 
 Exit code 0: the page is up (and was opened); 1: it did not come up, with the reason. The address
 is printed on stdout."""
+
 import argparse
 import os
 import subprocess
@@ -26,10 +27,16 @@ POLL_SEC = 0.05
 
 
 def parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="neoaprs open", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        prog="neoaprs open", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--data", default=str(default_data_dir()), help="the data folder of the daemon; default %(default)s")
-    p.add_argument("--no-browser", action="store_true", help="start the daemon and print the page's address, but open no browser")
-    p.add_argument("--timeout", type=float, default=60.0, metavar="SEC", help="how long to wait for the page; default %(default)s")
+    p.add_argument(
+        "--no-browser", action="store_true", help="start the daemon and print the page's address, but open no browser"
+    )
+    p.add_argument(
+        "--timeout", type=float, default=60.0, metavar="SEC", help="how long to wait for the page; default %(default)s"
+    )
     return p
 
 
@@ -46,14 +53,25 @@ def daemon_argv(data: Path, encryption: bool = False) -> list[str]:
         return [plan.appimage, "run", "--data", str(data), *extra]
     else:
         frozen = getattr(sys, "frozen", False)
-        return [plan.python, "run", "--data", str(data), *extra] if frozen else [plan.python, "-m", "neoaprs", "run", "--data", str(data), *extra]
+        return (
+            [plan.python, "run", "--data", str(data), *extra]
+            if frozen
+            else [plan.python, "-m", "neoaprs", "run", "--data", str(data), *extra]
+        )
 
 
 def spawn(argv: list[str], data: Path) -> "subprocess.Popen[bytes]":
     """Start the daemon detached; off Windows its output goes to a fresh `launch.log` in `data`."""
     data.mkdir(parents=True, exist_ok=True)
     if sys.platform == "win32":
-        return subprocess.Popen(argv, creationflags=servicewindows.DETACHED, close_fds=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return subprocess.Popen(
+            argv,
+            creationflags=servicewindows.DETACHED,
+            close_fds=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
     else:
         env = dict(os.environ)
         # An AppImage running unpacked must start the daemon unpacked: without FUSE it cannot mount.
@@ -61,11 +79,20 @@ def spawn(argv: list[str], data: Path) -> "subprocess.Popen[bytes]":
         # The unpacked daemon shares this process's folder, which this runtime removes on exit.
         selfreplace.leave_the_folder(env, argv[0])
         with (data / LAUNCH_NAME).open("wb") as log:
-            return subprocess.Popen(argv, start_new_session=True, close_fds=True, stdin=subprocess.DEVNULL, stdout=log, stderr=log, env=env)
+            return subprocess.Popen(
+                argv, start_new_session=True, close_fds=True, stdin=subprocess.DEVNULL, stdout=log, stderr=log, env=env
+            )
 
 
-def wait_for_page(data: Path, child: "subprocess.Popen[bytes] | None", seconds: float, clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep,
-                  *, told: Callable[[], None] | None = None) -> str | None:
+def wait_for_page(
+    data: Path,
+    child: "subprocess.Popen[bytes] | None",
+    seconds: float,
+    clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+    *,
+    told: Callable[[], None] | None = None,
+) -> str | None:
     """Return the page's address once a daemon holds the folder and its page answers, else None.
 
     The page is asked before the lock: checking the lock must not collide with the starting daemon.
@@ -91,6 +118,7 @@ def tell_the_user(text: str) -> None:
     say(text)
     if sys.platform == "win32":
         import ctypes
+
         if ctypes.windll.kernel32.GetConsoleWindow() == 0:
             ctypes.windll.user32.MessageBoxW(None, text, "NeoAPRS", 0x10)
 
@@ -105,10 +133,19 @@ def main(argv: list[str]) -> int:
         except OSError as e:
             tell_the_user(f"open: the daemon could not be started on {data}: {e.strerror or e}")
             return 1
-    url = wait_for_page(data, child, args.timeout, told=lambda: say("open: NeoAPRS is bringing its database up to date; the page opens when that is done"))
+    url = wait_for_page(
+        data,
+        child,
+        args.timeout,
+        told=lambda: say("open: NeoAPRS is bringing its database up to date; the page opens when that is done"),
+    )
     if url is None:
         before = "" if sys.platform == "win32" else f" (what it said before it had a log is in {data / LAUNCH_NAME})"
-        why = f"the daemon ended with exit code {child.returncode}{before}" if child is not None and child.poll() is not None else f"no page within {args.timeout:g} s (is the port taken? see the log)"
+        why = (
+            f"the daemon ended with exit code {child.returncode}{before}"
+            if child is not None and child.poll() is not None
+            else f"no page within {args.timeout:g} s (is the port taken? see the log)"
+        )
         tell_the_user(f"open: NeoAPRS did not come up: {why}. The log is {data / LOG_NAME}")
         return 1
     print(url, flush=True)

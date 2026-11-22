@@ -3,6 +3,7 @@
 Settings are passed on every call, so a driver's results depend on its arguments only; `line` and
 `modem` are read-only so attributes, properties and test doubles all satisfy it.
 """
+
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -19,6 +20,7 @@ from .tnc import Tnc
 @dataclass(frozen=True)
 class RunOverrides:
     """What the process gives for this run only, never stored."""
+
     # --port: radio 1's port.
     port: str = ""
     # Search globs for tests, instead of serial/pattern.

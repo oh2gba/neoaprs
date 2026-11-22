@@ -3,6 +3,7 @@
 A few stations: an iGate repeating WIDE1-1, trackers and a station that takes messages. Each
 radio's seed gives its own world; dummyworlds.py plays it in TNC2 text as a board would.
 """
+
 import heapq
 import math
 import random
@@ -37,7 +38,7 @@ RSSI_RANGE_DBM = (-135.0, -40.0)
 
 def board_line(packet: bytes) -> bytes:
     """Return what a board writes for a heard LoRa packet: the text after the header, then CR LF."""
-    return packet[len(HEADER):] + b"\r\n" if packet.startswith(HEADER) else b""
+    return packet[len(HEADER) :] + b"\r\n" if packet.startswith(HEADER) else b""
 
 
 def board_air(frame: ax25.Frame) -> bytes | None:
@@ -49,6 +50,7 @@ def board_air(frame: ax25.Frame) -> bytes | None:
 @dataclass
 class Actor:
     """A station that sends what `make` gives every `every_sec` (give or take a seventh)."""
+
     call: str
     every_sec: float
     first_sec: float
@@ -106,14 +108,24 @@ class LoraScene:
         """Return the SNR and RSSI of a frame: the last digipeater's or source's, plus fading."""
         sent_by = next((format(a) for a in reversed(frame.path) if a.repeated), str(frame.source)).removesuffix("*")
         actor = next((a for a in self.actors if a.call == sent_by), None)
-        rssi, snr = (actor.rssi_dbm, actor.snr_db) if actor is not None else (RSSI_RANGE_DBM[0] + 10, SNR_RANGE_DB[0] + 5)
+        rssi, snr = (
+            (actor.rssi_dbm, actor.snr_db) if actor is not None else (RSSI_RANGE_DBM[0] + 10, SNR_RANGE_DB[0] + 5)
+        )
         fade = self._fading.uniform(-FADING_DB, FADING_DB)
-        return Reading(snr=round(min(SNR_RANGE_DB[1], max(SNR_RANGE_DB[0], snr + fade)), 1), rssi=round(min(RSSI_RANGE_DBM[1], max(RSSI_RANGE_DBM[0], rssi + fade))))
+        return Reading(
+            snr=round(min(SNR_RANGE_DB[1], max(SNR_RANGE_DB[0], snr + fade)), 1),
+            rssi=round(min(RSSI_RANGE_DBM[1], max(RSSI_RANGE_DBM[0], rssi + fade))),
+        )
 
     def _repeat(self, frame: ax25.Frame, now: datetime) -> None:
         """Queue the iGate's repeat of a frame whose path starts with an unused WIDE1-1."""
         first = frame.path[0] if frame.path else None
-        if first is not None and (first.call, first.ssid, first.repeated) == ("WIDE1", 1, False) and not any(a.repeated for a in frame.path) and str(frame.source) != self.igate:
+        if (
+            first is not None
+            and (first.call, first.ssid, first.repeated) == ("WIDE1", 1, False)
+            and not any(a.repeated for a in frame.path)
+            and str(frame.source) != self.igate
+        ):
             self._put(now + timedelta(seconds=self._rng.uniform(*REPEAT_AFTER_SEC)), repeated(frame, self.igate))
 
     def _put(self, at: datetime, frame: ax25.Frame) -> None:
@@ -141,31 +153,63 @@ class LoraScene:
         if key not in self._answered:
             self._answered.add(key)
             self._ids += 1
-            self._put(now + timedelta(seconds=self._rng.uniform(*ANSWER_AFTER_SEC)), air(talker.call, message(us, HELLO, str(self._ids)), PATH))
+            self._put(
+                now + timedelta(seconds=self._rng.uniform(*ANSWER_AFTER_SEC)),
+                air(talker.call, message(us, HELLO, str(self._ids)), PATH),
+            )
 
     def _build(self) -> list[Actor]:
-        def at(call: str, east: float, north: float, symbol: str, comment: str, path: str, tocall: str = TOCALL) -> Callable[[datetime], list[ax25.Frame]]:
+        def at(
+            call: str, east: float, north: float, symbol: str, comment: str, path: str, tocall: str = TOCALL
+        ) -> Callable[[datetime], list[ax25.Frame]]:
             lat, lon = self.where(east, north)
             return lambda now: [air(call, fixed(lat, lon, symbol, comment, True), path, tocall)]
 
         igate, home = self.igate, call_of(HOME, self.seed)
         actors = [
-            Actor(igate, 900, 5, at(igate, 3.2, 4.1, "L&", "LoRa iGate and digipeater, 433.775 MHz", "", "APLRG1"), -82, 9.0),
+            Actor(
+                igate,
+                900,
+                5,
+                at(igate, 3.2, 4.1, "L&", "LoRa iGate and digipeater, 433.775 MHz", "", "APLRG1"),
+                -82,
+                9.0,
+            ),
             Actor(home, 900, 15, at(home, -6.5, 2.8, "/-", "Home station on LoRa APRS", PATH), -104, 4.0, answers=True),
             self._mover(call_of(CAR, self.seed), "/>", "LoRa tracker", RING_ROAD, 60, 120, 25, -112, -2.0),
-            self._mover(call_of(BIKE, self.seed), "/b", "Pyöräilemässä, LoRa tracker", TOWN_LOOP, 18, 240, 40, -118, -7.0),
+            self._mover(
+                call_of(BIKE, self.seed), "/b", "Pyöräilemässä, LoRa tracker", TOWN_LOOP, 18, 240, 40, -118, -7.0
+            ),
         ]
         for actor in actors:
             actor.next_at = self.started + timedelta(seconds=actor.first_sec)
         return actors
 
-    def _mover(self, call: str, symbol: str, comment: str, route: Route, kmh: float, every: float, first: float, rssi: float, snr: float) -> Actor:
+    def _mover(
+        self,
+        call: str,
+        symbol: str,
+        comment: str,
+        route: Route,
+        kmh: float,
+        every: float,
+        first: float,
+        rssi: float,
+        snr: float,
+    ) -> Actor:
         phase = self._rng.uniform(0, route.length_km)
 
         def make(now: datetime) -> list[ax25.Frame]:
             east, north, course = route.at(phase + kmh * (now - self.started).total_seconds() / 3600)
             lat, lon = self.where(east, north)
             course = (course + self._turn_deg) % 360  # turned with its places
-            return [air(call, b"=" + compressed_position(lat, lon, symbol[0], symbol[1], course, kmh) + comment.encode("utf-8"), PATH, TOCALL)]
+            return [
+                air(
+                    call,
+                    b"=" + compressed_position(lat, lon, symbol[0], symbol[1], course, kmh) + comment.encode("utf-8"),
+                    PATH,
+                    TOCALL,
+                )
+            ]
 
         return Actor(call, every, first, make, rssi, snr)

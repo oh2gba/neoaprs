@@ -1,4 +1,5 @@
 """Alert commands for the tests, as a POSIX shell line or a PowerShell line on Windows."""
+
 import sys
 from pathlib import Path
 
@@ -10,14 +11,16 @@ TIMEOUT_SEC = 60.0 if WINDOWS else 5.0
 SHORT_TIMEOUT_SEC = 3.0 if WINDOWS else 0.2
 # When a started program would make its marker: later than the command is killed.
 SURVIVOR_AFTER_SEC = 5.0 if WINDOWS else 1.0
-FIELDS = '$env:NEOAPRS_FROM,$env:NEOAPRS_TEXT,$env:NEOAPRS_AT,$env:NEOAPRS_MSG_ID'
+FIELDS = "$env:NEOAPRS_FROM,$env:NEOAPRS_TEXT,$env:NEOAPRS_AT,$env:NEOAPRS_MSG_ID"
 
 
 def writing(path: Path, secret: bool = False) -> str:
     """A command that writes the four variables, one per line, then `end` (or the secret, or
     `gone`)."""
     if WINDOWS:
-        last = "$(if($null -eq $env:SECRET_OF_THE_DAEMON){'gone'}else{$env:SECRET_OF_THE_DAEMON})" if secret else "'end'"
+        last = (
+            "$(if($null -eq $env:SECRET_OF_THE_DAEMON){'gone'}else{$env:SECRET_OF_THE_DAEMON})" if secret else "'end'"
+        )
         return f"[IO.File]::WriteAllText('{path}.tmp',((@({FIELDS},{last}) -join \"`n\")+\"`n\"));Move-Item -Force '{path}.tmp' '{path}'"
     last = '"${SECRET_OF_THE_DAEMON-gone}"' if secret else '"end"'
     return f'printf "%s\\n" "$NEOAPRS_FROM" "$NEOAPRS_TEXT" "$NEOAPRS_AT" "$NEOAPRS_MSG_ID" {last} > {path}.tmp && mv {path}.tmp {path}'
@@ -57,8 +60,7 @@ def sleeping() -> str:
 
 
 def starting_a_survivor(marker: Path, after_sec: float) -> str:
-    """A command that starts a program that would make `marker` after `after_sec` and then sleeps.
-    """
+    """A command that starts a program that would make `marker` after `after_sec` and then sleeps."""
     if WINDOWS:
         # No spaces: Start-Process joins the arguments with spaces and does not quote them.
         code = f"import time,pathlib,sys;time.sleep({after_sec});pathlib.Path(sys.argv[1]).touch()"

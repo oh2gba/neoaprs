@@ -3,6 +3,7 @@
 Each station has the two named pipes of Mercury's `-x fifo` audio backend; one thread is the air
 between them at a sound card's pace (8000 samples a second in blocks of 20 ms).
 """
+
 import math
 import os
 import random
@@ -16,9 +17,9 @@ from typing import Any
 
 # POSIX; the Windows type check knows no such name: the benches on named pipes run on Linux
 NONBLOCK: int = getattr(os, "O_NONBLOCK", 0)
-RATE = 8000                                                 # samples a second: Mercury's sound card rate
-SAMPLE_BYTES = 4                                            # s32le
-FULL_SCALE = 32768                                          # int16
+RATE = 8000  # samples a second: Mercury's sound card rate
+SAMPLE_BYTES = 4  # s32le
+FULL_SCALE = 32768  # int16
 # The level SNR is counted against: the RMS of a DATAC3 frame as Mercury plays it on its fifo
 # backend (7276 of 32768, -13.1 dBFS; the same for every payload as a frame is always full size). A
 # transmission at gain 0 dB has this RMS, so the channel's SNR is the signal power against the noise
@@ -45,10 +46,9 @@ def pcm_to_s32le(samples: array[int]) -> bytes:
 
 
 def s32le_to_pcm(data: bytes) -> array[int]:
-    """The int16 samples of s32le bytes (a length that is not a multiple of 4 loses its last bytes).
-    """
+    """The int16 samples of s32le bytes (a length that is not a multiple of 4 loses its last bytes)."""
     words = array("i")
-    words.frombytes(data[:len(data) - len(data) % SAMPLE_BYTES])
+    words.frombytes(data[: len(data) - len(data) % SAMPLE_BYTES])
     if SWAP:
         words.byteswap()
     return array("h", [w >> 16 for w in words])
@@ -63,13 +63,14 @@ class Link:
     gain in dB (`-inf`: no path), a delay in samples, and an optional shaper called with each block,
     delayed and before the gain, for a fading filter (it keeps its own state between blocks and
     returns as many samples as it was given)."""
+
     gain_db: float = 0.0
     delay: int = 0
     shaper: Shaper | None = None
     factor: float = field(init=False, default=1.0)
 
     def __post_init__(self) -> None:
-        self.factor = math.pow(10, self.gain_db / 20)               # (-inf gives 0.0: no path)
+        self.factor = math.pow(10, self.gain_db / 20)  # (-inf gives 0.0: no path)
 
 
 FLAT = Link()
@@ -86,7 +87,12 @@ FLAT = Link()
 # Mercury's docs/MODES.md, calls the poor one "MPP" (multipath poor, 1 Hz and 2 ms) and the moderate
 # one "MPM". "poor" is the channel to show a mode's limits on: a fade of 10 dB or more about once in
 # two seconds.
-PRESETS: dict[str, tuple[float, float]] = {"good": (0.5, 0.1), "moderate": (1.0, 0.5), "poor": (2.0, 1.0), "flutter": (0.5, 10.0)}
+PRESETS: dict[str, tuple[float, float]] = {
+    "good": (0.5, 0.1),
+    "moderate": (1.0, 0.5),
+    "poor": (2.0, 1.0),
+    "flutter": (0.5, 10.0),
+}
 # A Hamming-windowed Hilbert transformer of this many taps turns the real signal into its analytic
 # one: flat within 0.1 dB from 500 to 3500 Hz, which holds the modes (DATAC3 sits at 1219 to 1781
 # Hz), and 23 multiplications a sample; codec2 and Mercury use 257 taps, which pure Python cannot
@@ -133,7 +139,7 @@ class _Tap:
         self.ratio = max(1, int(rate / (TAP_RATE_FACTOR * doppler_hz)))
         low_rate = rate / self.ratio
         half = max(2, math.ceil(math.sqrt(math.log(1 / FIR_FLOOR)) / (2 * math.pi * sigma) * low_rate))
-        self.fir = [math.exp(-4 * math.pi ** 2 * sigma ** 2 * ((k - half) / low_rate) ** 2) for k in range(2 * half + 1)]
+        self.fir = [math.exp(-4 * math.pi**2 * sigma**2 * ((k - half) / low_rate) ** 2) for k in range(2 * half + 1)]
         scale = 1 / math.sqrt(2 * sum(h * h for h in self.fir))
         self.fir = [h * scale for h in self.fir]
         # prefilled, so the process starts in its steady state
@@ -185,7 +191,15 @@ class Fading:
     output lags the input by HILBERT_TAPS // 2 samples (the transformer's delay, 2.9 ms), which the
     pace of a frame does not notice."""
 
-    def __init__(self, preset: str | None = None, delay_ms: float = 2.0, doppler_hz: float = 1.0, seed: int = 0, rate: int = RATE, paths: int = 2) -> None:
+    def __init__(
+        self,
+        preset: str | None = None,
+        delay_ms: float = 2.0,
+        doppler_hz: float = 1.0,
+        seed: int = 0,
+        rate: int = RATE,
+        paths: int = 2,
+    ) -> None:
         if preset is not None:
             if preset not in PRESETS:
                 raise ValueError(f"no fading preset {preset!r}: {', '.join(PRESETS)}")
@@ -217,18 +231,21 @@ class Fading:
         history = self._input + list(samples)
         # the analytic signal at the block's positions, `half` samples late: in-phase the sample
         # itself, quadrature the transformer over the samples round it
-        zi = history[half:half + count]
+        zi = history[half : half + count]
         zq = [0.0] * count
         for m, h in self.taps:
-            zq = [q + h * x for q, x in zip(zq, history[half - m:half - m + count])]
-        self._input = history[-2 * half:]
+            zq = [q + h * x for q, x in zip(zq, history[half - m : half - m + count])]
+        self._input = history[-2 * half :]
         delay = self.delay
         all_i, all_q = self._zi + zi, self._zq + zq
         out = [0.0] * count
         for path_delay, gain, tap in self._paths:
             gains = tap.gains(count)
             start = delay - path_delay
-            out = [y + gain * (g.real * i - g.imag * q) for y, g, i, q in zip(out, gains, all_i[start:start + count], all_q[start:start + count])]
+            out = [
+                y + gain * (g.real * i - g.imag * q)
+                for y, g, i, q in zip(out, gains, all_i[start : start + count], all_q[start : start + count])
+            ]
         if delay:
             self._zi, self._zq = all_i[-delay:], all_q[-delay:]
         return array("h", [32767 if v > 32767 else -32768 if v < -32768 else round(v) for v in out])
@@ -263,7 +280,7 @@ class Attack:
                 first += 1
             self._started = first < len(out)
         count = min(self._left, len(out) - first)
-        out[first:first + count] = array("h", bytes(2 * count))
+        out[first : first + count] = array("h", bytes(2 * count))
         self._left -= count
         return out
 
@@ -271,23 +288,24 @@ class Attack:
 @dataclass(eq=False)
 class Station:
     """One Mercury's two pipes and what the channel counted of it."""
+
     name: str
-    rx_fifo: str                                            # the channel writes what the station hears here
-    tx_fifo: str                                            # the channel reads what the station transmits here
+    rx_fifo: str  # the channel writes what the station hears here
+    tx_fifo: str  # the channel reads what the station transmits here
     # Blocks in which it was keyed (it transmitted samples that are not all zero)
     blocks_sent: int = 0
     # Blocks in which it was not keyed and a transmission of another reached it
     blocks_heard: int = 0
-    overlapped_blocks: int = 0                              # of its keyed blocks, those in which another was keyed too
+    overlapped_blocks: int = 0  # of its keyed blocks, those in which another was keyed too
     # Blocks that could not be written: nobody reads the pipe yet, it is full, or the reader is gone
     dropped: int = 0
     # Blocks in which a part of a block (fewer than 160 samples) waited for the rest of it
     starved: int = 0
-    keyed: bool = False                                     # keyed in the latest block
+    keyed: bool = False  # keyed in the latest block
     _rx_fd: int | None = field(default=None, repr=False)
     _tx_fd: int | None = field(default=None, repr=False)
     _pending: bytearray = field(default_factory=bytearray, repr=False)
-    _stale: int = field(default=0, repr=False)              # blocks the part of a block waited without more
+    _stale: int = field(default=0, repr=False)  # blocks the part of a block waited without more
     # Blocks in which its latest transmission can still be heard (delays)
     _tail: int = field(default=0, repr=False)
     # The samples it transmitted in the latest block, None when it was not keyed
@@ -299,13 +317,26 @@ class Station:
         return self.blocks_sent
 
     def counts(self) -> dict[str, int]:
-        return {"blocks_sent": self.blocks_sent, "blocks_heard": self.blocks_heard, "keyed_blocks": self.keyed_blocks, "overlapped_blocks": self.overlapped_blocks, "dropped": self.dropped, "starved": self.starved}
+        return {
+            "blocks_sent": self.blocks_sent,
+            "blocks_heard": self.blocks_heard,
+            "keyed_blocks": self.keyed_blocks,
+            "overlapped_blocks": self.overlapped_blocks,
+            "dropped": self.dropped,
+            "starved": self.starved,
+        }
 
 
 class Channel:
     """The air: see the module's docstring."""
 
-    def __init__(self, snr_db: float = 30.0, seed: int = 0, block_ms: int = 20, on_block: Callable[[int, frozenset[str]], None] | None = None) -> None:
+    def __init__(
+        self,
+        snr_db: float = 30.0,
+        seed: int = 0,
+        block_ms: int = 20,
+        on_block: Callable[[int, frozenset[str]], None] | None = None,
+    ) -> None:
         if RATE * block_ms % 1000:
             raise ValueError(f"a block of {block_ms} ms is not a whole number of samples at {RATE} a second")
         # Of a transmission at gain 0 dB (REFERENCE_RMS) against the noise in 3 kHz; may be changed
@@ -348,7 +379,9 @@ class Channel:
             self._open_rx(station)
             return station
 
-    def set_link(self, a: str, b: str, gain_db: float = 0.0, delay: int = 0, shaper: Shaper | None = None, symmetric: bool = True) -> None:
+    def set_link(
+        self, a: str, b: str, gain_db: float = 0.0, delay: int = 0, shaper: Shaper | None = None, symmetric: bool = True
+    ) -> None:
         """The path from a to b (and from b to a, with the same values, unless symmetric is False).
         The shaper of a symmetric link is shared by the two directions, so give a stateful one to
         one direction."""
@@ -361,7 +394,9 @@ class Channel:
             for source, target in ((a, b), (b, a)) if symmetric else ((a, b),):
                 self.links[(source, target)] = Link(gain_db, delay, shaper)
             for source in {a, b}:
-                self._max_delay[source] = max((link.delay for (s, _), link in self.links.items() if s == source), default=0)
+                self._max_delay[source] = max(
+                    (link.delay for (s, _), link in self.links.items() if s == source), default=0
+                )
 
     def set_fading(self, preset: str | None, seed: int = 0, **fading: float) -> None:
         """Every link between the stations on the channel now (each direction on its own) goes
@@ -375,7 +410,11 @@ class Channel:
                     if source == target:
                         continue
                     link = self.links.get((source, target), FLAT)
-                    shaper = None if preset is None and not fading else Fading(preset, seed=seed * 1000 + n * len(names) + k, **fading)        # type: ignore[arg-type]
+                    shaper = (
+                        None
+                        if preset is None and not fading
+                        else Fading(preset, seed=seed * 1000 + n * len(names) + k, **fading)  # type: ignore[arg-type]
+                    )
                     self.links[(source, target)] = Link(link.gain_db, link.delay, shaper)
 
     # ---- the thread ----
@@ -435,7 +474,9 @@ class Channel:
         began = time.perf_counter()
         with self._lock:
             number = self.blocks
-            sent = {name: block for name, station in self.stations.items() if (block := self._take(station)) is not None}
+            sent = {
+                name: block for name, station in self.stations.items() if (block := self._take(station)) is not None
+            }
             keyed = frozenset(sent)
             for station in self.stations.values():
                 self._advance(station, sent.get(station.name))
@@ -470,8 +511,8 @@ class Channel:
                 return None
             pending.extend(bytes(self.block_bytes - len(pending)))
             station._stale = 0
-        block = s32le_to_pcm(bytes(pending[:self.block_bytes]))
-        del pending[:self.block_bytes]
+        block = s32le_to_pcm(bytes(pending[: self.block_bytes]))
+        del pending[: self.block_bytes]
         station._stale = 0
         return block if any(block) else None
 
@@ -498,7 +539,7 @@ class Channel:
     def _open_tx(self, station: Station) -> bool:
         try:
             station._tx_fd = os.open(station.tx_fifo, os.O_RDONLY | NONBLOCK)
-        except OSError:                                         # (not made yet: tried again in the next block)
+        except OSError:  # (not made yet: tried again in the next block)
             return False
         return True
 
@@ -510,7 +551,7 @@ class Channel:
     def _open_rx(self, station: Station) -> bool:
         try:
             station._rx_fd = os.open(station.rx_fifo, os.O_WRONLY | NONBLOCK)
-        except OSError:                                         # (ENXIO: Mercury has not opened its side yet)
+        except OSError:  # (ENXIO: Mercury has not opened its side yet)
             return False
         return True
 
@@ -526,13 +567,13 @@ class Channel:
         if delay:
             history = station._history
             history.extend(block if block is not None else array("h", bytes(2 * self.block_samples)))
-            del history[:max(0, len(history) - delay - self.block_samples)]
+            del history[: max(0, len(history) - delay - self.block_samples)]
 
     def _heard(self, source: Station, link: Link) -> array[int]:
         if link.delay:
             history = source._history
             end = len(history) - link.delay
-            samples = history[max(0, end - self.block_samples):end]
+            samples = history[max(0, end - self.block_samples) : end]
             if len(samples) < self.block_samples:
                 samples = array("h", bytes(2 * (self.block_samples - len(samples)))) + samples
         else:
@@ -579,6 +620,11 @@ class Channel:
         with self._lock:
             return {
                 "stations": {name: station.counts() for name, station in self.stations.items()},
-                "totals": {"blocks": self.blocks, "collisions": self.collisions, "late_blocks": self.late_blocks,
-                           "block_ms_mean": 1000 * self.work_sec_total / self.blocks if self.blocks else 0.0, "block_ms_max": 1000 * self.work_sec_max},
+                "totals": {
+                    "blocks": self.blocks,
+                    "collisions": self.collisions,
+                    "late_blocks": self.late_blocks,
+                    "block_ms_mean": 1000 * self.work_sec_total / self.blocks if self.blocks else 0.0,
+                    "block_ms_max": 1000 * self.work_sec_max,
+                },
             }

@@ -16,6 +16,7 @@ scripts/check runs it as the stage `security`, and with --audit as the stage `au
 One line per check, `ok` or `FAIL` with its time, and under a failing one what was found; exit 1
 when any failed. The checks read what git tracks; the programs are the pinned ones that
 scripts/security-tools fetches. A check that cannot run is no pass (docs/security-checks.md)."""
+
 import argparse
 import base64
 import importlib.machinery
@@ -48,25 +49,46 @@ OUR_RULE = "bitwarden-secrets-manager-access-token"
 # scripts/release pushes here: a commit one of its branches has is on GitHub already.
 REMOTE = "origin"
 # git prints the same whatever the developer's settings.
-GIT_PLAIN = ("-c", "core.quotePath=false", "-c", "diff.noprefix=false", "-c", "diff.mnemonicPrefix=false", "-c", "log.showSignature=false")
+GIT_PLAIN = (
+    "-c",
+    "core.quotePath=false",
+    "-c",
+    "diff.noprefix=false",
+    "-c",
+    "diff.mnemonicPrefix=false",
+    "-c",
+    "log.showSignature=false",
+)
 # Given to every git, including the one gitleaks starts, through its environment.
 GIT_SETTINGS = (("color.ui", "false"), ("color.diff", "false"), ("log.showRoot", "true"))
-CHUNK = 1 << 20                             # git output read at a time
+CHUNK = 1 << 20  # git output read at a time
 # Folders gitleaks is shown what its reading of the commits does not see.
 CHANGED, STAGED, MESSAGES = "changed", "staged", "messages"
 SHELL_FOLDERS = ("server", "scripts", "packaging")
 SHEBANG = re.compile(rb"#!\s*/(usr/)?bin/(env\s+)?(ba)?sh\b")
 # Where each tool looks for settings that can switch findings off.
-SETTINGS_FILES = {"shellcheck": (".shellcheckrc", "shellcheckrc"), "zizmor": ("zizmor.yml", "zizmor.yaml", ".zizmor.yml", ".zizmor.yaml")}
+SETTINGS_FILES = {
+    "shellcheck": (".shellcheckrc", "shellcheckrc"),
+    "zizmor": ("zizmor.yml", "zizmor.yaml", ".zizmor.yml", ".zizmor.yaml"),
+}
 # The same from the environment; no program is given them.
 SETTINGS_OF_THE_SHELL = ("SHELLCHECK_OPTS", "ZIZMOR_CONFIG", "GITLEAKS_CONFIG", "GITLEAKS_CONFIG_TOML")
 # shellcheck's comment that disables rules, and what follows it.
-DISABLE = re.compile(rb"^[ \t]*#[ \t]*shellcheck[ \t][^#\n]*?\bdisable=(?P<rules>[^#\s]*)[^#\n]*(?:#(?P<reason>.*))?$", re.MULTILINE)
+DISABLE = re.compile(
+    rb"^[ \t]*#[ \t]*shellcheck[ \t][^#\n]*?\bdisable=(?P<rules>[^#\s]*)[^#\n]*(?:#(?P<reason>.*))?$", re.MULTILINE
+)
 ZIZMOR_SEVERITY = "medium"  # lowest severity that counts; lower ones are not held here
 ZIZMOR_FOUND = range(10, 15)  # zizmor's exit codes for findings, by highest severity
 LOCK_FILES = ("uv.lock", "ui/package-lock.json")
 PSALM_EXTENSIONS = ("dom", "simplexml")  # what Psalm needs of php beyond a bare php-cli
-PSALM_ARGS = ("--config=server/psalm.xml", "--taint-analysis", "--output-format=json", "--no-cache", "--no-progress", "--threads=1")
+PSALM_ARGS = (
+    "--config=server/psalm.xml",
+    "--taint-analysis",
+    "--output-format=json",
+    "--no-cache",
+    "--no-progress",
+    "--threads=1",
+)
 # Where the container sees the tree, so Psalm names files as it does outside.
 PSALM_FOLDER = "/neoaprs"
 DOCKER_FAILED = 125  # docker could not start the container at all
@@ -90,8 +112,10 @@ class Finding:
 
 def load_tools() -> ModuleType:
     """Load scripts/security-tools as a module; the pins live only there."""
-    sys.dont_write_bytecode = True          # no __pycache__ beside the scripts
-    loader = importlib.machinery.SourceFileLoader("security_tools", str(Path(__file__).resolve().parent / "security-tools"))
+    sys.dont_write_bytecode = True  # no __pycache__ beside the scripts
+    loader = importlib.machinery.SourceFileLoader(
+        "security_tools", str(Path(__file__).resolve().parent / "security-tools")
+    )
     spec = importlib.util.spec_from_loader(loader.name, loader)
     if spec is None:
         raise ImportError("scripts/security-tools cannot be loaded")
@@ -109,14 +133,18 @@ def tool(name: str) -> str:
     missing."""
     path: Path = TOOLS.tool_path(name)
     if not path.is_file():
-        raise Failed(f"{name} {TOOLS.TOOLS[name].version} is not in the cache ({path.parent.parent}): scripts/security-tools fetches it")
+        raise Failed(
+            f"{name} {TOOLS.TOOLS[name].version} is not in the cache ({path.parent.parent}): scripts/security-tools fetches it"
+        )
     return str(path)
 
 
 def php() -> str:
     found = shutil.which("php")
     if found is None:
-        raise Failed("php is not installed: the checks of server/ need the php command and its XML extensions (Debian and Ubuntu: apt install php-cli php-xml)")
+        raise Failed(
+            "php is not installed: the checks of server/ need the php command and its XML extensions (Debian and Ubuntu: apt install php-cli php-xml)"
+        )
     return found
 
 
@@ -126,15 +154,33 @@ def plain_environment() -> dict[str, str]:
     count = kept.get("GIT_CONFIG_COUNT", "")
     # The shell's git settings stay; ours come after and decide.
     first = int(count) if count.isdigit() else 0
-    told = {f"GIT_CONFIG_{part}_{first + at}": word for at, setting in enumerate(GIT_SETTINGS) for part, word in zip(("KEY", "VALUE"), setting, strict=True)}
-    return kept | told | {"GIT_CONFIG_COUNT": str(first + len(GIT_SETTINGS)), "GIT_NO_REPLACE_OBJECTS": "1", "NO_COLOR": "1"}
+    told = {
+        f"GIT_CONFIG_{part}_{first + at}": word
+        for at, setting in enumerate(GIT_SETTINGS)
+        for part, word in zip(("KEY", "VALUE"), setting, strict=True)
+    }
+    return (
+        kept
+        | told
+        | {"GIT_CONFIG_COUNT": str(first + len(GIT_SETTINGS)), "GIT_NO_REPLACE_OBJECTS": "1", "NO_COLOR": "1"}
+    )
 
 
 def run(command: list[str], feed: str | None = None) -> subprocess.CompletedProcess[str]:
     """Run the program in the tree's root, feeding `feed`; raise Failed if it cannot start or
     end."""
     try:
-        return subprocess.run(command, cwd=ROOT, check=False, text=True, errors="replace", capture_output=True, timeout=TIMEOUT_SEC, env=plain_environment(), input=feed)
+        return subprocess.run(
+            command,
+            cwd=ROOT,
+            check=False,
+            text=True,
+            errors="replace",
+            capture_output=True,
+            timeout=TIMEOUT_SEC,
+            env=plain_environment(),
+            input=feed,
+        )
     except subprocess.TimeoutExpired:
         raise Failed(f"{Path(command[0]).name} did not end within {TIMEOUT_SEC:.0f} s") from None
     except OSError as error:
@@ -143,7 +189,10 @@ def run(command: list[str], feed: str | None = None) -> subprocess.CompletedProc
 
 def said(done: subprocess.CompletedProcess[str]) -> str:
     """Everything the program printed, or that it printed nothing and how it ended."""
-    return "\n".join(part.strip() for part in (done.stderr, done.stdout) if part.strip()) or f"{Path(str(done.args[0])).name} ended with {done.returncode} and said nothing"
+    return (
+        "\n".join(part.strip() for part in (done.stderr, done.stdout) if part.strip())
+        or f"{Path(str(done.args[0])).name} ended with {done.returncode} and said nothing"
+    )
 
 
 def json_of(text: str) -> Any:
@@ -209,7 +258,15 @@ def has_commits() -> bool:
 def git(*args: str, feed: bytes | None = None) -> bytes:
     """Return what the git command prints, as bytes; raise Failed on error."""
     try:
-        done = subprocess.run(["git", *GIT_PLAIN, *args], cwd=ROOT, check=False, capture_output=True, timeout=TIMEOUT_SEC, input=feed, env=plain_environment())
+        done = subprocess.run(
+            ["git", *GIT_PLAIN, *args],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            timeout=TIMEOUT_SEC,
+            input=feed,
+            env=plain_environment(),
+        )
     except subprocess.TimeoutExpired:
         raise Failed(f"git {args[0]} did not end within {TIMEOUT_SEC:.0f} s") from None
     except OSError as error:
@@ -220,6 +277,7 @@ def git(*args: str, feed: bytes | None = None) -> bytes:
 
 
 # ---- the baseline: what a tool is known to find today
+
 
 def read_baseline() -> dict[str, Entries]:
     if not BASELINE.exists():
@@ -240,7 +298,11 @@ def over_baseline(findings: list[Finding], entries: Entries) -> list[str]:
     lines: list[str] = []
     for key, count in sorted(Counter(finding.key for finding in findings).items()):
         if count > known(entries, key):
-            lines.append(f"new: {key}" if known(entries, key) == 0 else f"more: {key}: {count} now, the baseline has {known(entries, key)}")
+            lines.append(
+                f"new: {key}"
+                if known(entries, key) == 0
+                else f"more: {key}: {count} now, the baseline has {known(entries, key)}"
+            )
             lines += [f"    {finding.place}: {finding.text}" for finding in findings if finding.key == key]
     return lines
 
@@ -250,7 +312,9 @@ def against_baseline(name: str, findings: list[Finding]) -> str:
     entries = read_baseline().get(name, {})
     lines = over_baseline(findings, entries)
     if lines:
-        lines.append(f"fix it, or accept it with its reason: scripts/security-check --update --allow-growth, then the reason in {BASELINE.relative_to(ROOT)} ({GUIDE})")
+        lines.append(
+            f"fix it, or accept it with its reason: scripts/security-check --update --allow-growth, then the reason in {BASELINE.relative_to(ROOT)} ({GUIDE})"
+        )
     bare = [key for key, entry in sorted(entries.items()) if not str(entry.get("reason", "")).strip()]
     lines += [f"no reason: the baseline entry '{key}' needs one ({BASELINE.relative_to(ROOT)})" for key in bare]
     if lines:
@@ -263,23 +327,34 @@ def against_baseline(name: str, findings: list[Finding]) -> str:
 def rebased(findings: list[Finding], entries: Entries) -> Entries:
     """Return today's entries: the count as found and the written reason (empty if new)."""
     counts = Counter(finding.key for finding in findings)
-    return {key: {"count": count, "reason": str(entries.get(key, {}).get("reason", ""))} for key, count in sorted(counts.items())}
+    return {
+        key: {"count": count, "reason": str(entries.get(key, {}).get("reason", ""))}
+        for key, count in sorted(counts.items())
+    }
 
 
 # ---- the checks: each returns a note for its line (mostly none) and raises Failed
 
+
 def check_secret_files() -> str:
     """Look at names only, in the index and among new unignored files; no such file is opened."""
     held = [f"{name} is tracked by git" for name in listed() if holds_tokens(name)]
-    loose = [f"{name} is not ignored by git: the next `git add` of its folder takes it" for name in listed("--others", "--exclude-standard") if holds_tokens(name)]
+    loose = [
+        f"{name} is not ignored by git: the next `git add` of its folder takes it"
+        for name in listed("--others", "--exclude-standard")
+        if holds_tokens(name)
+    ]
     if held or loose:
-        advice = (f"a file or folder of that name holds access tokens and is never committed: a tracked one is taken out (git rm --cached FILE), and .gitignore names `{NEVER_TRACKED}` and `{NEVER_TRACKED}*`; "
-                  f"if a commit has the file already, every token in it is revoked where it is used, first ({GUIDE})")
+        advice = (
+            f"a file or folder of that name holds access tokens and is never committed: a tracked one is taken out (git rm --cached FILE), and .gitignore names `{NEVER_TRACKED}` and `{NEVER_TRACKED}*`; "
+            f"if a commit has the file already, every token in it is revoked where it is used, first ({GUIDE})"
+        )
         raise Failed("\n".join([*held, *loose, advice]))
     return ""
 
 
 # ---- tokens: the access token of the secrets manager, looked for by this script itself
+
 
 def spelled(*units: tuple[bytes, bytes]) -> bytes:
     """Return a bytes pattern for the text, allowing a NUL after each character (UTF-8 and
@@ -291,8 +366,26 @@ HEX, DASH, DOT, WORD = rb"[0-9a-fA-F]", (rb"-", b""), (rb"\.", b""), rb"[0-9A-Za
 KEY = rb"(?:[0-9A-Za-z+/]|\\\x00?/)"  # base64 character; `/` also as JSON writes it
 # The secrets manager's access token: 0.<UUID>.<20+ letters and digits>:<base64 key>. Looser than
 # the real one on purpose: nothing else in the tree has this form.
-TOKEN = re.compile(spelled((rb"0", b""), DOT, (HEX, b"{8}"), DASH, (HEX, b"{4}"), DASH, (HEX, b"{4}"), DASH, (HEX, b"{4}"), DASH, (HEX, b"{12}"), DOT, (WORD, b"{20,}"), (rb":", b""),
-                           (KEY, b"{16,}"), (rb"=", b"{0,2}")))
+TOKEN = re.compile(
+    spelled(
+        (rb"0", b""),
+        DOT,
+        (HEX, b"{8}"),
+        DASH,
+        (HEX, b"{4}"),
+        DASH,
+        (HEX, b"{4}"),
+        DASH,
+        (HEX, b"{4}"),
+        DASH,
+        (HEX, b"{12}"),
+        DOT,
+        (WORD, b"{20,}"),
+        (rb":", b""),
+        (KEY, b"{16,}"),
+        (rb"=", b"{0,2}"),
+    )
+)
 
 
 def line_of(text: bytes, at: int) -> int:
@@ -308,7 +401,7 @@ def hidden(text: str) -> str:
 def path_of(header: bytes) -> str:
     """Return the file a `diff --git a/NAME b/NAME` line is about; renames are not followed."""
     rest = header.removeprefix(b"diff --git ")
-    return rest[:(len(rest) - 1) // 2].decode("utf-8", "replace").strip('"').removeprefix("a/")
+    return rest[: (len(rest) - 1) // 2].decode("utf-8", "replace").strip('"').removeprefix("a/")
 
 
 def place_at(block: bytes, end: int, commit: str, file: str) -> tuple[str, str]:
@@ -317,21 +410,41 @@ def place_at(block: bytes, end: int, commit: str, file: str) -> tuple[str, str]:
     A `commit` or `diff --git` line at the left margin is git's own; content lines have a sign."""
     start = block.rfind(b"\ncommit ", 0, end)
     if start >= 0:
-        commit, file = block[start + 8:start + 18].decode("ascii", "replace"), ""
+        commit, file = block[start + 8 : start + 18].decode("ascii", "replace"), ""
     diff = block.rfind(b"\ndiff --git ", max(start, 0), end)
     if diff >= 0:
         line_end = block.find(b"\n", diff + 1)
-        file = path_of(block[diff + 1:line_end if line_end >= 0 else len(block)])
+        file = path_of(block[diff + 1 : line_end if line_end >= 0 else len(block)])
     return commit, file
 
 
 def log_blocks(revisions: list[str]) -> Iterator[bytes]:
     """Yield what git prints for these commits as blocks of whole lines: the commit, its changes
     against each parent (merges too) and, for a root commit, everything it holds."""
-    command = ["git", *GIT_PLAIN, "log", "--format=raw", "-p", "--diff-merges=separate", "--root", "-U0", "--text", "--no-textconv", "--no-ext-diff", "--no-color", "--no-renames", "--src-prefix=a/",
-               "--dst-prefix=b/", *revisions, "--"]
+    command = [
+        "git",
+        *GIT_PLAIN,
+        "log",
+        "--format=raw",
+        "-p",
+        "--diff-merges=separate",
+        "--root",
+        "-U0",
+        "--text",
+        "--no-textconv",
+        "--no-ext-diff",
+        "--no-color",
+        "--no-renames",
+        "--src-prefix=a/",
+        "--dst-prefix=b/",
+        *revisions,
+        "--",
+    ]
     deadline, rest = time.monotonic() + TIMEOUT_SEC, b"\n"
-    with tempfile.TemporaryFile() as errors, subprocess.Popen(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=errors, env=plain_environment()) as process:
+    with (
+        tempfile.TemporaryFile() as errors,
+        subprocess.Popen(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=errors, env=plain_environment()) as process,
+    ):
         assert process.stdout is not None
         while chunk := process.stdout.read(CHUNK):
             if time.monotonic() > deadline:
@@ -350,7 +463,7 @@ def log_blocks(revisions: list[str]) -> Iterator[bytes]:
 
 def on_a_removed_line(block: bytes, at: int) -> bool:
     """Return whether the place `at` is on a removing line (not the `--- a/NAME` header)."""
-    line = block[block.rfind(b"\n", 0, at) + 1:]
+    line = block[block.rfind(b"\n", 0, at) + 1 :]
     return line.startswith(b"-") and not line.startswith((b"--- a/", b"--- /dev/null"))
 
 
@@ -378,19 +491,28 @@ def objects(names: list[bytes]) -> list[bytes]:
     for name in names:
         end = out.index(b"\n", at)
         header = out[at:end].split()
-        if len(header) != 3:                # `NAME missing`
+        if len(header) != 3:  # `NAME missing`
             raise Failed(f"git has no object {name.decode('ascii', 'replace')}")
         size = int(header[2])
-        contents.append(out[end + 1:end + 1 + size])
+        contents.append(out[end + 1 : end + 1 + size])
         at = end + size + 2
     return contents
 
 
 def tokens_in_tags() -> list[str]:
     """A tag with a message of its own is pushed with that message."""
-    refs = [line.split(b" ", 2) for line in git("for-each-ref", "--format=%(objecttype) %(objectname) %(refname:short)", "refs/tags").splitlines()]
+    refs = [
+        line.split(b" ", 2)
+        for line in git(
+            "for-each-ref", "--format=%(objecttype) %(objectname) %(refname:short)", "refs/tags"
+        ).splitlines()
+    ]
     tags = [(name, ref.decode("utf-8", "replace")) for kind, name, ref in refs if kind == b"tag"]
-    return [f"the tag {ref}: its message" for (_, ref), text in zip(tags, objects([name for name, _ in tags]), strict=True) if TOKEN.search(text)]
+    return [
+        f"the tag {ref}: its message"
+        for (_, ref), text in zip(tags, objects([name for name, _ in tags]), strict=True)
+        if TOKEN.search(text)
+    ]
 
 
 def in_the_tree(path: bytes) -> bytes:
@@ -410,8 +532,11 @@ def tokens_staged_and_in_files() -> tuple[list[str], int]:
     records = [record.partition(b"\t") for record in git("ls-files", "--stage", "-z").split(b"\0") if record]
     # a submodule's content is not in this repository
     entries = [(meta.split()[1], path) for meta, _, path in records if not meta.startswith(b"160000")]
-    lines = [f"the index: {path.decode('utf-8', 'replace')} (as it is staged for the next commit)"
-             for (_, path), content in zip(entries, objects([blob for blob, _ in entries]), strict=True) if TOKEN.search(content) or TOKEN.search(path)]
+    lines = [
+        f"the index: {path.decode('utf-8', 'replace')} (as it is staged for the next commit)"
+        for (_, path), content in zip(entries, objects([blob for blob, _ in entries]), strict=True)
+        if TOKEN.search(content) or TOKEN.search(path)
+    ]
     files = list(dict.fromkeys(path for _, path in entries))
     for path in files:
         content = in_the_tree(path)
@@ -429,19 +554,41 @@ def check_tokens(all_history: bool = False) -> str:
     lines = [*(tokens_in_commits(revisions, all_history) if commits else []), *tokens_in_tags()]
     in_files, files = tokens_staged_and_in_files()
     if lines or in_files:
-        advice = (f"each line is a place where something of the form of the secrets manager's access token stands; it is not shown. Revoke the token in the secrets manager first: a commit that has it "
-                  f"keeps it, whatever the file says now. Then take it out of the file, stage the file again, and make a commit that is not pushed yet anew ({GUIDE})")
+        advice = (
+            f"each line is a place where something of the form of the secrets manager's access token stands; it is not shown. Revoke the token in the secrets manager first: a commit that has it "
+            f"keeps it, whatever the file says now. Then take it out of the file, stage the file again, and make a commit that is not pushed yet anew ({GUIDE})"
+        )
         raise Failed("\n".join([*lines, *in_files, advice]))
-    which = "every commit of every branch and tag" if all_history else f"the commits of the local branches and tags that {REMOTE} does not have yet"
+    which = (
+        "every commit of every branch and tag"
+        if all_history
+        else f"the commits of the local branches and tags that {REMOTE} does not have yet"
+    )
     return f"read: {which} ({commits}), the tags' messages, the index and the {files} tracked files"
 
 
 # ---- gitleaks: every other kind of secret
 
+
 def gitleaks(mode: str, *args: str, feed: str | None = None) -> list[dict[str, Any]]:
     """Run gitleaks in that mode with .gitleaks.toml as its only rules; return its report."""
-    done = run([tool("gitleaks"), mode, "--no-banner", "--no-color", "--redact", "--ignore-gitleaks-allow", "--log-level=warn", "--exit-code=1", "--config=.gitleaks.toml",
-                "--report-format=json", "--report-path=-", *args], feed)
+    done = run(
+        [
+            tool("gitleaks"),
+            mode,
+            "--no-banner",
+            "--no-color",
+            "--redact",
+            "--ignore-gitleaks-allow",
+            "--log-level=warn",
+            "--exit-code=1",
+            "--config=.gitleaks.toml",
+            "--report-format=json",
+            "--report-path=-",
+            *args,
+        ],
+        feed,
+    )
     if done.returncode == 0:
         return []
     leaks = json_of(done.stdout)
@@ -460,7 +607,9 @@ def token_rule_finds() -> None:
 
     A lost rule or too wide an allowlist entry would otherwise let a real one through silently."""
     if not any(leak.get("RuleID") == OUR_RULE for leak in gitleaks("stdin", feed=made_up_token() + "\n")):
-        raise Failed(f"the rule {OUR_RULE} of .gitleaks.toml does not find a token of that form any more (a made-up one was shown to it): a real one would pass ({GUIDE})")
+        raise Failed(
+            f"the rule {OUR_RULE} of .gitleaks.toml does not find a token of that form any more (a made-up one was shown to it): a real one would pass ({GUIDE})"
+        )
 
 
 def lay_messages(folder: Path) -> int:
@@ -524,7 +673,9 @@ def leaks_beside_the_diffs() -> list[str]:
 
 def check_gitleaks() -> str:
     if (ROOT / ".gitleaksignore").exists():
-        raise Failed(".gitleaksignore is not used here: a value that is no secret gets an entry in .gitleaks.toml with its reason")
+        raise Failed(
+            ".gitleaksignore is not used here: a value that is no secret gets an entry in .gitleaks.toml with its reason"
+        )
     config = read_toml(".gitleaks.toml")
     entries = [*config.get("allowlists", []), *([config["allowlist"]] if "allowlist" in config else [])]
     if any(not str(entry.get("description", "")).strip() for entry in entries):
@@ -532,11 +683,18 @@ def check_gitleaks() -> str:
     token_rule_finds()
     # A merge is read as what it changes on its first parent.
     committed = gitleaks("git", "--log-opts=--diff-merges=first-parent HEAD", ".")
-    lines = sorted({f"{leak.get('File')}:{leak.get('StartLine')}: {leak.get('RuleID')}, in commit {str(leak.get('Commit'))[:10]} of {str(leak.get('Date'))[:10]}" for leak in committed})
+    lines = sorted(
+        {
+            f"{leak.get('File')}:{leak.get('StartLine')}: {leak.get('RuleID')}, in commit {str(leak.get('Commit'))[:10]} of {str(leak.get('Date'))[:10]}"
+            for leak in committed
+        }
+    )
     lines += leaks_beside_the_diffs()
     if lines:
-        advice = (f"a real secret that a commit has is revoked where it is used, first; one that is not committed yet is taken out of its file and staged again; a private file that was added by mistake "
-                  f"is taken out of what git tracks (git rm --cached FILE) and named in .gitignore, never in the allowlist; a made-up value gets an entry in .gitleaks.toml with its reason ({GUIDE})")
+        advice = (
+            f"a real secret that a commit has is revoked where it is used, first; one that is not committed yet is taken out of its file and staged again; a private file that was added by mistake "
+            f"is taken out of what git tracks (git rm --cached FILE) and named in .gitignore, never in the allowlist; a made-up value gets an entry in .gitleaks.toml with its reason ({GUIDE})"
+        )
         raise Failed("\n".join([*lines, advice]))
     return ""
 
@@ -558,7 +716,9 @@ def tainted_line(issue: dict[str, Any]) -> str:
     """One of Psalm's reports as lines: where and what, then the way the value took."""
     steps = [step for step in issue.get("taint_trace") or [] if isinstance(step, dict)]
     way = [f"    {step.get('file_name')}:{step.get('line_from')}: {step.get('label')}" for step in steps]
-    return "\n".join([f"{issue.get('file_name')}:{issue.get('line_from')}: {issue.get('type')}: {issue.get('message')}", *way])
+    return "\n".join(
+        [f"{issue.get('file_name')}:{issue.get('line_from')}: {issue.get('type')}: {issue.get('message')}", *way]
+    )
 
 
 def psalm_in_a_container(command: str, phar: str, lacking: str) -> subprocess.CompletedProcess[str]:
@@ -569,16 +729,39 @@ def psalm_in_a_container(command: str, phar: str, lacking: str) -> subprocess.Co
     asked = run([docker, "info", "--format", "{{.ServerVersion}}"]) if docker else None
     if asked is None or asked.returncode != 0:
         why = "docker is not installed" if asked is None else f"docker cannot be used: {said(asked).splitlines()[-1]}"
-        raise Failed(f"{lacking}, and {why}: install the extensions (Debian and Ubuntu: apt install php-xml), or let this user run docker, where Psalm runs in a php image")
+        raise Failed(
+            f"{lacking}, and {why}: install the extensions (Debian and Ubuntu: apt install php-xml), or let this user run docker, where Psalm runs in a php image"
+        )
     minor = run([command, "-r", "echo PHP_MAJOR_VERSION, '.', PHP_MINOR_VERSION;"]).stdout.strip()
     image = TOOLS.PHP_IMAGES.get(minor)
     if not image:
-        raise Failed(f"{lacking}, and no php image is pinned for PHP {minor or '?'} (PHP_IMAGES in scripts/security-tools): install the extensions (Debian and Ubuntu: apt install php-xml), or pin the image")
+        raise Failed(
+            f"{lacking}, and no php image is pinned for PHP {minor or '?'} (PHP_IMAGES in scripts/security-tools): install the extensions (Debian and Ubuntu: apt install php-xml), or pin the image"
+        )
     assert docker is not None
-    done = run([docker, "run", "--rm", "--pull=never", "--network=none", "--volume", f"{ROOT / 'server'}:{PSALM_FOLDER}/server:ro", "--volume", f"{phar}:/psalm.phar:ro", "--workdir", PSALM_FOLDER,
-                image, "php", "/psalm.phar", *PSALM_ARGS])
+    done = run(
+        [
+            docker,
+            "run",
+            "--rm",
+            "--pull=never",
+            "--network=none",
+            "--volume",
+            f"{ROOT / 'server'}:{PSALM_FOLDER}/server:ro",
+            "--volume",
+            f"{phar}:/psalm.phar:ro",
+            "--workdir",
+            PSALM_FOLDER,
+            image,
+            "php",
+            "/psalm.phar",
+            *PSALM_ARGS,
+        ]
+    )
     if done.returncode == DOCKER_FAILED:
-        raise Failed(f"{said(done)}\ndocker could not run the php image; when it is not on this machine yet: docker pull {image}")
+        raise Failed(
+            f"{said(done)}\ndocker could not run the php image; when it is not on this machine yet: docker pull {image}"
+        )
     return done
 
 
@@ -587,14 +770,20 @@ def check_psalm() -> str:
     loaded = {line.strip().lower() for line in run([command, "-m"]).stdout.splitlines()}
     lacking = [extension for extension in PSALM_EXTENSIONS if extension not in loaded]
     if lacking:
-        done = psalm_in_a_container(command, phar, f"this php has no {' and no '.join(lacking)} extension, which Psalm needs")
+        done = psalm_in_a_container(
+            command, phar, f"this php has no {' and no '.join(lacking)} extension, which Psalm needs"
+        )
     else:
         done = run([command, phar, *PSALM_ARGS])
     issues = json_of(done.stdout)
     # 2 is "issues found"; anything else is Psalm failing.
     if done.returncode not in (0, 2) or not isinstance(issues, list):
         raise Failed(said(done))
-    tainted = [issue for issue in issues if isinstance(issue, dict) and (issue.get("is_security") or str(issue.get("type", "")).startswith("Tainted"))]
+    tainted = [
+        issue
+        for issue in issues
+        if isinstance(issue, dict) and (issue.get("is_security") or str(issue.get("type", "")).startswith("Tainted"))
+    ]
     if tainted:
         advice = f"clean the value before it is used, or tell Psalm where it is cleaned (@psalm-taint-escape with the reason beside it; {GUIDE})"
         raise Failed("\n".join([*map(tainted_line, tainted), advice]))
@@ -608,15 +797,29 @@ def is_shell(path: Path) -> bool:
 
 def settings_files(name: str) -> list[Finding]:
     """Return a finding for a tracked settings file of the tool (it is not read)."""
-    return [Finding(f"{file} settings of {name}", file, f"a settings file of {name}: what is switched off is said in the baseline, with its reason") for file in listed() if Path(file).name in SETTINGS_FILES[name]]
+    return [
+        Finding(
+            f"{file} settings of {name}",
+            file,
+            f"a settings file of {name}: what is switched off is said in the baseline, with its reason",
+        )
+        for file in listed()
+        if Path(file).name in SETTINGS_FILES[name]
+    ]
 
 
 def disabled_without_reason(file: str) -> list[Finding]:
     """Return the `# shellcheck disable=...` comments without a reason."""
     text = (ROOT / file).read_bytes()
     bare = [found for found in DISABLE.finditer(text) if not re.search(rb"\w", found.group("reason") or b"")]
-    return [Finding(f"{file} disable={found.group('rules').decode('ascii', 'replace')} without its reason", f"{file}:{line_of(text, found.start())}",
-                    "a rule of shellcheck is switched off and the line does not say why (# shellcheck disable=SC0000   # the reason)") for found in bare]
+    return [
+        Finding(
+            f"{file} disable={found.group('rules').decode('ascii', 'replace')} without its reason",
+            f"{file}:{line_of(text, found.start())}",
+            "a rule of shellcheck is switched off and the line does not say why (# shellcheck disable=SC0000   # the reason)",
+        )
+        for found in bare
+    ]
 
 
 def find_shellcheck() -> list[Finding]:
@@ -629,7 +832,14 @@ def find_shellcheck() -> list[Finding]:
     report = json_of(done.stdout)
     if done.returncode not in (0, 1) or not isinstance(report, dict) or not isinstance(report.get("comments"), list):
         raise Failed(said(done))
-    return findings + [Finding(f"{c.get('file')} SC{c.get('code')}", f"{c.get('file')}:{c.get('line')}", f"SC{c.get('code')} ({c.get('level')}): {c.get('message')}") for c in report["comments"]]
+    return findings + [
+        Finding(
+            f"{c.get('file')} SC{c.get('code')}",
+            f"{c.get('file')}:{c.get('line')}",
+            f"SC{c.get('code')} ({c.get('level')}): {c.get('message')}",
+        )
+        for c in report["comments"]
+    ]
 
 
 def zizmor_finding(record: dict[str, Any]) -> Finding:
@@ -642,7 +852,11 @@ def zizmor_finding(record: dict[str, Any]) -> Finding:
     row = concrete.get("location", {}).get("start_point", {}).get("row")
     line = row + 1 if isinstance(row, int) else "?"
     severity = str(record.get("determinations", {}).get("severity", "")).lower()
-    return Finding(f"{path} {record.get('ident')} {about}".strip(), f"{path}:{line}", f"{record.get('ident')} ({severity}): {record.get('desc')}: {symbolic.get('annotation')}")
+    return Finding(
+        f"{path} {record.get('ident')} {about}".strip(),
+        f"{path}:{line}",
+        f"{record.get('ident')} ({severity}): {record.get('desc')}: {symbolic.get('annotation')}",
+    )
 
 
 def find_zizmor() -> list[Finding]:
@@ -650,7 +864,19 @@ def find_zizmor() -> list[Finding]:
     findings = settings_files("zizmor")
     if not (ROOT / ".github" / "workflows").is_dir():
         return findings
-    done = run([program, "--offline", "--no-progress", "--no-config", "--no-ignores", "--color=never", f"--min-severity={ZIZMOR_SEVERITY}", "--format=json", ".github/workflows"])
+    done = run(
+        [
+            program,
+            "--offline",
+            "--no-progress",
+            "--no-config",
+            "--no-ignores",
+            "--color=never",
+            f"--min-severity={ZIZMOR_SEVERITY}",
+            "--format=json",
+            ".github/workflows",
+        ]
+    )
     records = json_of(done.stdout)
     if (done.returncode != 0 and done.returncode not in ZIZMOR_FOUND) or not isinstance(records, list):
         raise Failed(said(done))
@@ -663,8 +889,19 @@ def check_audit() -> str:
     for table in ("IgnoredVulns", "PackageOverrides"):
         for entry in config.get(table, []):
             if not str(entry.get("reason", "")).strip() or "effectiveUntil" not in entry:
-                raise Failed(f"osv-scanner.toml: the entry {entry.get('id') or entry.get('name')} of {table} needs its reason and the day it ends (effectiveUntil)")
-    done = run([program, "scan", "source", "--no-resolve", "--config=osv-scanner.toml", *[f"--lockfile={name}" for name in LOCK_FILES]])
+                raise Failed(
+                    f"osv-scanner.toml: the entry {entry.get('id') or entry.get('name')} of {table} needs its reason and the day it ends (effectiveUntil)"
+                )
+    done = run(
+        [
+            program,
+            "scan",
+            "source",
+            "--no-resolve",
+            "--config=osv-scanner.toml",
+            *[f"--lockfile={name}" for name in LOCK_FILES],
+        ]
+    )
     if done.returncode != 0:
         advice = f"move the package to a version that has the fix; an advisory that cannot reach NeoAPRS is set aside in osv-scanner.toml with its reason and an end date ({GUIDE})"
         raise Failed("\n".join([said(done), advice]))
@@ -685,6 +922,7 @@ AUDIT = "audit"
 
 
 # ---- the runner
+
 
 def run_check(name: str, check: Callable[[], str]) -> bool:
     """Run the check and print its line with what it found; return whether it passed."""
@@ -709,28 +947,70 @@ def update(allow_growth: bool) -> int:
         return 1
     grown = [line for name, findings in found.items() for line in over_baseline(findings, baseline.get(name, {}))]
     if grown and not allow_growth:
-        print("\n".join([*grown, "the baseline is not made larger; fix the findings (or pass --allow-growth and write the reason of each new entry)"]))
+        print(
+            "\n".join(
+                [
+                    *grown,
+                    "the baseline is not made larger; fix the findings (or pass --allow-growth and write the reason of each new entry)",
+                ]
+            )
+        )
         return 1
     fresh = {name: rebased(findings, baseline.get(name, {})) for name, findings in found.items()}
     BASELINE.write_text(json.dumps(fresh, indent=1) + "\n", encoding="utf-8")
-    waiting = [f"{name}: {key}" for name, entries in fresh.items() for key, entry in entries.items() if not entry["reason"].strip()]
-    sizes = [f"{name} {sum(entry['count'] for entry in entries.values())} finding(s) in {len(entries)} entries" for name, entries in fresh.items()]
+    waiting = [
+        f"{name}: {key}"
+        for name, entries in fresh.items()
+        for key, entry in entries.items()
+        if not entry["reason"].strip()
+    ]
+    sizes = [
+        f"{name} {sum(entry['count'] for entry in entries.values())} finding(s) in {len(entries)} entries"
+        for name, entries in fresh.items()
+    ]
     print(f"baseline written: {', '.join(sizes)}")
     if waiting:
-        print("\n".join(["these entries wait for their reason, and the check fails until each has one:", *[f"    {line}" for line in waiting]]))
+        print(
+            "\n".join(
+                [
+                    "these entries wait for their reason, and the check fails until each has one:",
+                    *[f"    {line}" for line in waiting],
+                ]
+            )
+        )
     return 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--all-history", action="store_true", help=f"the check `tokens` reads every commit of every branch and tag, not only the ones {REMOTE} does not have yet")
+    parser.add_argument(
+        "--all-history",
+        action="store_true",
+        help=f"the check `tokens` reads every commit of every branch and tag, not only the ones {REMOTE} does not have yet",
+    )
     parser.add_argument("--audit", action="store_true", help="the advisory check alone (asks osv.dev)")
-    parser.add_argument("--only", action="append", choices=list(CHECKS), metavar="NAME", help=f"one of the checks: {', '.join(CHECKS)}")
-    parser.add_argument("--update", action="store_true", help="write the baseline of shellcheck and zizmor from today's findings")
-    parser.add_argument("--allow-growth", action="store_true", help="with --update: let the baseline take new findings, which then wait for their reason")
+    parser.add_argument(
+        "--only", action="append", choices=list(CHECKS), metavar="NAME", help=f"one of the checks: {', '.join(CHECKS)}"
+    )
+    parser.add_argument(
+        "--update", action="store_true", help="write the baseline of shellcheck and zizmor from today's findings"
+    )
+    parser.add_argument(
+        "--allow-growth",
+        action="store_true",
+        help="with --update: let the baseline take new findings, which then wait for their reason",
+    )
     args = parser.parse_args()
-    if args.allow_growth and not args.update or sum([args.audit, args.update, bool(args.only)]) > 1 or args.all_history and (args.audit or args.update):
-        parser.error("--audit, --only and --update exclude each other, --allow-growth goes with --update, and --all-history with neither --audit nor --update")
+    if (
+        args.allow_growth
+        and not args.update
+        or sum([args.audit, args.update, bool(args.only)]) > 1
+        or args.all_history
+        and (args.audit or args.update)
+    ):
+        parser.error(
+            "--audit, --only and --update exclude each other, --allow-growth goes with --update, and --all-history with neither --audit nor --update"
+        )
     if args.update:
         return update(args.allow_growth)
     checks = CHECKS | {"tokens": lambda: check_tokens(args.all_history)}

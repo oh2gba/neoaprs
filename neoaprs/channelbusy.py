@@ -3,6 +3,7 @@
 `update(now_sec, bands)` takes the mean dB power of each 150 Hz band from 300 to 2700 Hz and
 returns whether the channel is busy. `MercuryBusy` copies Mercury's detector.
 """
+
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -14,6 +15,7 @@ SILENCE_DB = -180.0
 @dataclass(frozen=True)
 class Timing:
     """BUSY after `debounce_sec` of the reading above its level, CLEAR after `hang_sec` below."""
+
     debounce_sec: float = 0.3
     hang_sec: float = 1.5
 
@@ -90,6 +92,7 @@ class MercuryBusy:
 @dataclass(frozen=True)
 class OccupancySettings:
     """The numbers of OccupancyBusy."""
+
     # A band is lifted at `lift_db` over the quiet reference and stays counted at `keep_db`.
     lift_db: float = 4.0
     keep_db: float = 2.0
@@ -140,7 +143,11 @@ class OccupancyBusy:
         if self._power is None or self._last is None or len(self._power) != len(power):
             self._power = power
         else:
-            alpha = 1 - math.exp(-max(0.0, now - self._last) / self.settings.smooth_sec) if self.settings.smooth_sec > 0 else 1.0
+            alpha = (
+                1 - math.exp(-max(0.0, now - self._last) / self.settings.smooth_sec)
+                if self.settings.smooth_sec > 0
+                else 1.0
+            )
             self._power = [old + alpha * (new - old) for old, new in zip(self._power, power, strict=True)]
         self._last = now
         return [10 * math.log10(p + 1e-30) for p in self._power]
@@ -157,7 +164,10 @@ class OccupancyBusy:
             dt = max(0.0, now - self._floor_at)
             fall = 1 - math.exp(-dt / s.floor_fall_sec) if s.floor_fall_sec > 0 else 1.0
             rise = 0.0 if self._state.busy else 1 - math.exp(-dt / s.floor_rise_sec)
-            self._floor = [low + (fall if band < low else rise) * (band - low) for band, low in zip(smooth, self._floor, strict=True)]
+            self._floor = [
+                low + (fall if band < low else rise) * (band - low)
+                for band, low in zip(smooth, self._floor, strict=True)
+            ]
         self._floor_at = now
         return [band - low for band, low in zip(smooth, self._floor, strict=True)]
 

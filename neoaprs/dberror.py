@@ -2,6 +2,7 @@
 
 `StoreError` is what the rest of the program catches; SQLite's own exceptions are never wrapped.
 SQLite's names are re-exported here so that only the homes of SQL import sqlite3."""
+
 import sqlite3
 from collections.abc import Iterable, Sequence
 from typing import Any

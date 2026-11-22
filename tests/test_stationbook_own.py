@@ -2,6 +2,7 @@
 never pruned or tracked, replaced by another station's report under the name, untouched by its kill,
 and not cached.
 """
+
 from dataclasses import replace
 from datetime import timedelta
 
@@ -16,11 +17,20 @@ T0 = CLOCK()
 
 def ours(name: str = "LEADER", kind: str = "object", **values: object) -> OwnObject:
     fields: dict[str, object] = {"lat": 60.3, "lon": 25.0, "symbol_table": "/", "symbol_code": ">", **values}
-    return make_object(T0, name, kind, **fields)              # type: ignore[arg-type]
+    return make_object(T0, name, kind, **fields)  # type: ignore[arg-type]
 
 
 def heard(name: str, sender: str = "OH2XYZ", alive: bool = True, at: object = T0) -> Packet:
-    return Packet(at, "in", b"", sender, "APRS", ("OH2RCH-2*",), b"", ObjectReport(name, alive, Position(60.5, 25.5, "/", "-", "theirs")))    # type: ignore[arg-type]
+    return Packet(
+        at,
+        "in",
+        b"",
+        sender,
+        "APRS",
+        ("OH2RCH-2*",),
+        b"",
+        ObjectReport(name, alive, Position(60.5, 25.5, "/", "-", "theirs")),
+    )  # type: ignore[arg-type]
 
 
 def book() -> tuple[StationBook, list[str], list[str]]:
@@ -36,25 +46,55 @@ def book() -> tuple[StationBook, list[str], list[str]]:
 
 def test_our_object_is_a_station_of_its_own_marked_ours_with_what_we_send() -> None:
     b, changed, _ = book()
-    station = b.own_object(replace(ours(comment="Rescue 1", course_deg=88, speed_kmh=40.0, path="WIDE2-1"), sent=2, last_sent_at=T0 + timedelta(seconds=60)))
+    station = b.own_object(
+        replace(
+            ours(comment="Rescue 1", course_deg=88, speed_kmh=40.0, path="WIDE2-1"),
+            sent=2,
+            last_sent_at=T0 + timedelta(seconds=60),
+        )
+    )
     assert station is not None and b.get("LEADER") is station and changed == ["LEADER"]
     assert (station.kind, station.own, station.is_me, station.reported_by) == ("object", True, False, "OH2GBA")
-    assert (station.lat, station.lon, station.symbol_table, station.symbol_code, station.last_comment, station.course_deg, station.speed_kmh) == (60.3, 25.0, "/", ">", "Rescue 1", 88, 40.0)
-    assert (station.packets, station.last_heard, station.last_position_at, station.last_path, station.track) == (2, T0 + timedelta(seconds=60), T0, ("WIDE2-1",), [])
+    assert (
+        station.lat,
+        station.lon,
+        station.symbol_table,
+        station.symbol_code,
+        station.last_comment,
+        station.course_deg,
+        station.speed_kmh,
+    ) == (60.3, 25.0, "/", ">", "Rescue 1", 88, 40.0)
+    assert (station.packets, station.last_heard, station.last_position_at, station.last_path, station.track) == (
+        2,
+        T0 + timedelta(seconds=60),
+        T0,
+        ("WIDE2-1",),
+        [],
+    )
     assert station.has_position and b.distance_km(station) is not None
 
 
 def test_an_item_is_one_too() -> None:
     b, _, _ = book()
     station = b.own_object(ours("AID", "item", symbol_table="\\", symbol_code="+"))
-    assert station is not None and (station.kind, station.own, station.symbol_table, station.symbol_code) == ("item", True, "\\", "+")
+    assert station is not None and (station.kind, station.own, station.symbol_table, station.symbol_code) == (
+        "item",
+        True,
+        "\\",
+        "+",
+    )
 
 
 def test_a_change_is_the_same_station_changed_and_told() -> None:
     b, changed, _ = book()
     first = b.own_object(ours())
     second = b.own_object(ours(lat=61.0, comment="moved"))
-    assert second is first and first is not None and (first.lat, first.last_comment) == (61.0, "moved") and changed == ["LEADER", "LEADER"]
+    assert (
+        second is first
+        and first is not None
+        and (first.lat, first.last_comment) == (61.0, "moved")
+        and changed == ["LEADER", "LEADER"]
+    )
 
 
 def test_a_killed_object_is_out_of_the_book_and_told() -> None:
@@ -91,7 +131,7 @@ def test_another_stations_kill_of_the_name_does_not_take_ours_out_and_a_kill_of_
     b, _, removed = book()
     b.own_object(ours())
     assert b.take(heard("LEADER", alive=False)) is None
-    assert b.get("LEADER") is not None and b.get("LEADER").own is True and removed == []              # type: ignore[union-attr]
+    assert b.get("LEADER") is not None and b.get("LEADER").own is True and removed == []  # type: ignore[union-attr]
     b.take(heard("STORM"))
     assert b.take(heard("STORM", alive=False)) is None and b.get("STORM") is None and removed == ["STORM"]
 
@@ -104,9 +144,20 @@ def test_a_copy_of_ours_that_comes_back_makes_no_object_and_moves_only_the_time_
     count = len(b)
     changed.clear()
     later = T0 + timedelta(minutes=5)
-    back = Packet(later, "in", b"", "OH2GBA", "APZNEO", ("OH2RCH-2*",), b"", ObjectReport("LEADER", True, Position(60.3, 25.0, "/", ">")))
+    back = Packet(
+        later,
+        "in",
+        b"",
+        "OH2GBA",
+        "APZNEO",
+        ("OH2RCH-2*",),
+        b"",
+        ObjectReport("LEADER", True, Position(60.3, 25.0, "/", ">")),
+    )
     assert b.take(back) is me and len(b) == count and me.last_heard == later and changed == ["OH2GBA"]
-    item = Packet(later, "in", b"", "OH2GBA", "APZNEO", (), b"", ItemReport("AID", True, Position(60.3, 25.0, "/", "+")))
+    item = Packet(
+        later, "in", b"", "OH2GBA", "APZNEO", (), b"", ItemReport("AID", True, Position(60.3, 25.0, "/", "+"))
+    )
     b.take(item)
     assert b.get("AID") is None and len(b) == count
 
@@ -118,11 +169,11 @@ def test_ours_is_never_pruned_forgotten_or_given_a_track() -> None:
     assert sorted(b.prune(T0 + timedelta(days=1))) == ["OH2XYZ", "OTHER"] and b.get("LEADER") is not None
     assert b.forget("LEADER") is False and b.get("LEADER") is not None
     b.seed_tracks([("LEADER", T0, 61.0, 26.0), ("LEADER", T0 + timedelta(minutes=10), 61.1, 26.1)])
-    assert b.get("LEADER").track == []                                                                # type: ignore[union-attr]
+    assert b.get("LEADER").track == []  # type: ignore[union-attr]
 
 
 def test_it_is_reported_by_our_call_even_after_the_call_changes() -> None:
     b, _, _ = book()
     b.own_object(ours())
     b.set_me("OH2GBA-9", 60.17, 24.94)
-    assert b.get("LEADER").reported_by == "OH2GBA-9"                                                  # type: ignore[union-attr]
+    assert b.get("LEADER").reported_by == "OH2GBA-9"  # type: ignore[union-attr]

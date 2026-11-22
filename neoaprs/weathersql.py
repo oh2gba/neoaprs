@@ -2,13 +2,28 @@
 
 A row is a tuple in the order of WEATHER_COLUMNS. Nothing here begins or commits a transaction.
 """
+
 import sqlite3
 from collections.abc import Sequence
 
 from .dberror import Row, rows
 from .packetsql import HEARD
 
-WEATHER_COLUMNS = ("station", "at", "wind_dir", "wind_kmh", "gust_kmh", "temp_c", "humidity", "pressure_hpa", "rain_1h_mm", "rain_24h_mm", "rain_today_mm", "luminosity", "raw")
+WEATHER_COLUMNS = (
+    "station",
+    "at",
+    "wind_dir",
+    "wind_kmh",
+    "gust_kmh",
+    "temp_c",
+    "humidity",
+    "pressure_hpa",
+    "rain_1h_mm",
+    "rain_24h_mm",
+    "rain_today_mm",
+    "luminosity",
+    "raw",
+)
 _LIST = ", ".join(WEATHER_COLUMNS)
 _PLACES = ", ".join("?" * len(WEATHER_COLUMNS))
 # In SQLite a bare column beside a single MAX() takes the value of the row that has the maximum.
@@ -27,12 +42,16 @@ def insert_weather_many(db: sqlite3.Connection, observations: Sequence[Sequence[
 
 def weather_since(db: sqlite3.Connection, station: str, stamp: str) -> list[Row]:
     """Return the station's observations at or after `stamp`, oldest first."""
-    return rows(db.execute(f"SELECT {_LIST} FROM weather WHERE station = ? AND at >= ? ORDER BY at, rowid", (station, stamp)))
+    return rows(
+        db.execute(f"SELECT {_LIST} FROM weather WHERE station = ? AND at >= ? ORDER BY at, rowid", (station, stamp))
+    )
 
 
 def latest_weather(db: sqlite3.Connection, station: str) -> Row | None:
     """Return the station's newest observation, or None."""
-    row = db.execute(f"SELECT {_LIST} FROM weather WHERE station = ? ORDER BY at DESC, rowid DESC LIMIT 1", (station,)).fetchone()
+    row = db.execute(
+        f"SELECT {_LIST} FROM weather WHERE station = ? ORDER BY at DESC, rowid DESC LIMIT 1", (station,)
+    ).fetchone()
     return None if row is None else tuple(row)
 
 
@@ -60,8 +79,12 @@ def weather_packets(db: sqlite3.Connection, stamp: str) -> list[Row]:
 
     The decoded JSON decides, not the summary; the parser makes the final decision.
     """
-    return rows(db.execute(
-        f"SELECT source, destination, raw, heard_at, via FROM packet WHERE {HEARD} AND heard_at >= ? AND ("
-        "(kind = 'position' AND json_extract(decoded, '$.symbol_code') = '_') OR "
-        "(kind IN ('object', 'item') AND json_extract(decoded, '$.position.symbol_code') = '_') OR "
-        "(kind = 'other' AND (json_extract(decoded, '$.weather') IS NOT NULL OR json_extract(decoded, '$.kind') = 'weather'))) ORDER BY id", (stamp,)))
+    return rows(
+        db.execute(
+            f"SELECT source, destination, raw, heard_at, via FROM packet WHERE {HEARD} AND heard_at >= ? AND ("
+            "(kind = 'position' AND json_extract(decoded, '$.symbol_code') = '_') OR "
+            "(kind IN ('object', 'item') AND json_extract(decoded, '$.position.symbol_code') = '_') OR "
+            "(kind = 'other' AND (json_extract(decoded, '$.weather') IS NOT NULL OR json_extract(decoded, '$.kind') = 'weather'))) ORDER BY id",
+            (stamp,),
+        )
+    )

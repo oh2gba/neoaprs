@@ -3,6 +3,7 @@
 A page is first sent each topic whole (`state`), then changes (`patch`) flushed on a tick. A page
 whose socket holds more than `BEHIND` unread bytes is skipped and resent the whole state later.
 """
+
 import asyncio
 import logging
 import time
@@ -47,7 +48,13 @@ class Peer:
 class Topic:
     """A piece of state the pages follow; `build` makes the whole value, `item` one keyed item."""
 
-    def __init__(self, name: str, build: Callable[[], Any], item: Callable[[str], Any | None] | None = None, interval: float = 0.0) -> None:
+    def __init__(
+        self,
+        name: str,
+        build: Callable[[], Any],
+        item: Callable[[str], Any | None] | None = None,
+        interval: float = 0.0,
+    ) -> None:
         self.name = name
         self.build = build
         self.item = item

@@ -2,6 +2,7 @@
 
 A message keeps its first radio until it ends, unless the operator chooses another one, the
 radio is disabled or a stand-in radio is replaced by one that heard the station."""
+
 import logging
 from collections.abc import Callable, Sequence
 from datetime import datetime
@@ -33,6 +34,7 @@ class Knows(Protocol):
 
 class Kept(NamedTuple):
     """The kept radio, the choice in force when it was taken, and whether it stood in."""
+
     radio: RadioId
     choice: RadioId | None
     stand_in: bool
@@ -89,7 +91,11 @@ def _choice(pick: RadioPick, config: ConfigSource, call: str) -> RadioId | None:
 def _keep(pick: RadioPick, to: str, radio: RadioId, choice: RadioId | None, at: datetime) -> Kept:
     """Return the radio kept from `at`; a stand-in never applies to the email gateway."""
     station = pick.station_of(to) if isinstance(pick, Knows) and to != EMAIL_GATEWAY else None
-    return Kept(radio, choice, station is not None and messagerule.stood_in(radio, choice, station.heard_by, station.first_heard, at))
+    return Kept(
+        radio,
+        choice,
+        station is not None and messagerule.stood_in(radio, choice, station.heard_by, station.first_heard, at),
+    )
 
 
 def _leaves(pick: RadioPick, to: str, kept: Kept, on: bool, choice: RadioId | None) -> str | None:
@@ -97,8 +103,17 @@ def _leaves(pick: RadioPick, to: str, kept: Kept, on: bool, choice: RadioId | No
     if not on:
         return "the radio it went out on is off"
     if choice != kept.choice:
-        return "no radio is chosen for the station any more" if choice is None else "the radio chosen for the station applies now"
-    if kept.stand_in and isinstance(pick, Knows) and (station := pick.station_of(to)) is not None and station.heard_on(kept.radio).count == 0:
+        return (
+            "no radio is chosen for the station any more"
+            if choice is None
+            else "the radio chosen for the station applies now"
+        )
+    if (
+        kept.stand_in
+        and isinstance(pick, Knows)
+        and (station := pick.station_of(to)) is not None
+        and station.heard_on(kept.radio).count == 0
+    ):
         now = pick.for_station(to)
         if now is not None and station.heard_on(now.id).count > 0:
             return "a radio that heard the station is on now"
@@ -106,7 +121,9 @@ def _leaves(pick: RadioPick, to: str, kept: Kept, on: bool, choice: RadioId | No
 
 
 class MessageRadios:
-    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, last: Callable[[int], tuple[RadioId, datetime] | None]) -> None:
+    def __init__(
+        self, radios: RadioPick | Radio, config: ConfigSource, last: Callable[[int], tuple[RadioId, datetime] | None]
+    ) -> None:
         self._given, self._config = radios, config
         self._last = last
         # By message id; None means it left its radio.
@@ -128,7 +145,9 @@ class MessageRadios:
             if radio is not None and why is None:
                 return radio
             self._kept[record.id] = None
-            log.info("message %d to %s goes on the radio the station is reached on now: %s", record.id, record.to_call, why)
+            log.info(
+                "message %d to %s goes on the radio the station is reached on now: %s", record.id, record.to_call, why
+            )
         return self.station(record.to_call)
 
     def peek(self, record: MessageRecord) -> AirRadio:
@@ -143,7 +162,12 @@ class MessageRadios:
 
     def _keeps(self, pick: RadioPick, record: MessageRecord, choice: RadioId | None) -> Kept | None:
         """Return the kept radio, restoring the last attempt's radio after a restart."""
-        if record.id not in self._kept and record.attempts > 0 and (last := self._last(record.id)) is not None and choice in (None, last[0]):
+        if (
+            record.id not in self._kept
+            and record.attempts > 0
+            and (last := self._last(record.id)) is not None
+            and choice in (None, last[0])
+        ):
             return _keep(pick, record.to_call, last[0], choice, last[1])
         return self._kept.get(record.id)
 
@@ -151,7 +175,9 @@ class MessageRadios:
         """Record an attempt on `radio`; it becomes the kept radio if none is kept."""
         if self._kept.get(record.id) is None:
             pick = as_pick(self._given, self._config)
-            self._kept[record.id] = _keep(pick, record.to_call, radio.id, _choice(pick, self._config, record.to_call), at)
+            self._kept[record.id] = _keep(
+                pick, record.to_call, radio.id, _choice(pick, self._config, record.to_call), at
+            )
 
     def forget(self, number: int) -> None:
         """Drop the kept radio, as the message ended or restarts."""

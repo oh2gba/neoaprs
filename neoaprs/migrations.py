@@ -2,6 +2,7 @@
 
 A file of a newer NeoAPRS is refused. A non-empty file is copied whole into backup/ before the
 first step. An applied migration is never edited: a change is a new migration."""
+
 import hashlib
 import inspect
 import shutil
@@ -12,7 +13,21 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
-from .backupfolder import cut_short, drop_older_copies, drop_still, file_version, litter, litter_wait, same_bytes, same_copies, same_second, sweep, taken_copies, way_back, whole
+from .backupfolder import (
+    cut_short,
+    drop_older_copies,
+    drop_still,
+    file_version,
+    litter,
+    litter_wait,
+    same_bytes,
+    same_copies,
+    same_second,
+    sweep,
+    taken_copies,
+    way_back,
+    whole,
+)
 from .clock import Clock, from_unix, to_unix, utcnow
 from .dberror import StoreError
 from .dbfile import DEFAULT_BUSY_MS, configure, copy_database as _copy_database
@@ -37,7 +52,43 @@ def source_hash(step: Callable[[sqlite3.Connection], None]) -> str:
 
 
 # version N is reached by running MIGRATIONS[N - 1] on N - 1
-MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_v1, _v2, _v3, _v4, _v5, _v6, _v7, _v8, _v9, _v10, _v11, _v12, _v13, _v14, _v15, _v16, _v17, _v18, _v19, _v20, _v21, _v22, _v23, _v24, _v25, _v26, _v27, _v28, _v29, _v30, _v31, _v32, _v33, _v34, _v35]
+MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [
+    _v1,
+    _v2,
+    _v3,
+    _v4,
+    _v5,
+    _v6,
+    _v7,
+    _v8,
+    _v9,
+    _v10,
+    _v11,
+    _v12,
+    _v13,
+    _v14,
+    _v15,
+    _v16,
+    _v17,
+    _v18,
+    _v19,
+    _v20,
+    _v21,
+    _v22,
+    _v23,
+    _v24,
+    _v25,
+    _v26,
+    _v27,
+    _v28,
+    _v29,
+    _v30,
+    _v31,
+    _v32,
+    _v33,
+    _v34,
+    _v35,
+]
 SCHEMA_VERSION = len(MIGRATIONS)
 MIB = 1024 * 1024
 # migration 32 rewrites the packet table, so the log holds it twice until it commits
@@ -49,7 +100,9 @@ def schema_version(db: sqlite3.Connection) -> int:
     return int(db.execute("PRAGMA user_version").fetchone()[0])
 
 
-def open_database(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock = utcnow) -> tuple[sqlite3.Connection | None, str]:
+def open_database(
+    path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock = utcnow
+) -> tuple[sqlite3.Connection | None, str]:
     """Return (connection, "") with the database up to date, or (None, reason).
 
     If the copy before a migration cannot be made, nothing is migrated."""
@@ -66,7 +119,10 @@ def open_database(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock
 
         if version > SCHEMA_VERSION:
             db.close()
-            return None, f"{path} is of version {version}, made by a newer NeoAPRS than this one (it knows {SCHEMA_VERSION}); not touched; {way_back(Path(path).absolute().parent, SCHEMA_VERSION)}"
+            return (
+                None,
+                f"{path} is of version {version}, made by a newer NeoAPRS than this one (it knows {SCHEMA_VERSION}); not touched; {way_back(Path(path).absolute().parent, SCHEMA_VERSION)}",
+            )
 
         configure(db, path, busy_ms)
 
@@ -89,7 +145,10 @@ def open_database(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock
         # a refusal makes the daemon exit with 2, which the service unit does not restart; a raw
         # exception would exit with 1 and loop, making a full copy each time
         log.error("the database %s was not migrated: %s: %s", path, type(e).__name__, e)
-        return _refused(db, f"the database {path} was not migrated: {type(e).__name__}: {e} (the step that failed is rolled back; the copy taken before it is in backup/)")
+        return _refused(
+            db,
+            f"the database {path} was not migrated: {type(e).__name__}: {e} (the step that failed is rolled back; the copy taken before it is in backup/)",
+        )
     finally:
         note.stop()
         let_go(lock)  # after the note is gone: the next holder's note survives
@@ -109,7 +168,11 @@ def _refused(db: sqlite3.Connection | None, why: str) -> tuple[None, str]:
 
 def _to_migrate(db: sqlite3.Connection, path: str | Path, version: int) -> bool:
     """Return whether a migration with a copy must run: a non-empty file of an older version."""
-    return version < SCHEMA_VERSION and str(path) != ":memory:" and db.execute("SELECT 1 FROM sqlite_master LIMIT 1").fetchone() is not None
+    return (
+        version < SCHEMA_VERSION
+        and str(path) != ":memory:"
+        and db.execute("SELECT 1 FROM sqlite_master LIMIT 1").fetchone() is not None
+    )
 
 
 # longest wait for another NeoAPRS's migration; its note proves the process lives, not progress
@@ -144,13 +207,20 @@ def _migration_lock(path: Path, busy_ms: int) -> InstanceLock | None:
         if migrating(folder):
             heard = now
             if not told:
-                log.info("the database %s is being brought up to date by another NeoAPRS (a command, or a start beside this one): this one waits until that is done", path)
+                log.info(
+                    "the database %s is being brought up to date by another NeoAPRS (a command, or a start beside this one): this one waits until that is done",
+                    path,
+                )
                 told = True
         elif now - heard >= busy_ms / 1000.0:
-            raise StoreError("another NeoAPRS has its migration in hand but shows no sign that it is still at it (stopped, or stuck); start this one again once that one has ended")
+            raise StoreError(
+                "another NeoAPRS has its migration in hand but shows no sign that it is still at it (stopped, or stuck); start this one again once that one has ended"
+            )
         if now - began >= MIGRATION_WAIT_SEC:
-            raise StoreError(f"another NeoAPRS has been bringing it up to date for {_span(MIGRATION_WAIT_SEC)}, longer than a migration takes: this one waited no longer; "
-                             "let that one end, or end it, and start again")
+            raise StoreError(
+                f"another NeoAPRS has been bringing it up to date for {_span(MIGRATION_WAIT_SEC)}, longer than a migration takes: this one waited no longer; "
+                "let that one end, or end it, and start again"
+            )
         _sleep(WAIT_POLL_SEC)
 
 
@@ -202,7 +272,9 @@ def _step(db: sqlite3.Connection, number: int, clock: Clock) -> bool:
     return True
 
 
-def _copy_first(db: sqlite3.Connection, path: str | Path, version: int, clock: Clock, note: MigratingNote) -> Path | None:
+def _copy_first(
+    db: sqlite3.Connection, path: str | Path, version: int, clock: Clock, note: MigratingNote
+) -> Path | None:
     """Write the migrating note and return the copy the migration stands on; None if no step runs.
 
     Raise StoreError if no copy stands and none can be made."""
@@ -212,13 +284,27 @@ def _copy_first(db: sqlite3.Connection, path: str | Path, version: int, clock: C
         # nobody is migrating, so a temp copy file is dead
         drop_still(litter(Path(path).absolute().parent / "backup"))
     note.start()
-    log.info("the database %s is of version %d, this NeoAPRS needs %d: it is brought up to date now (a large file takes minutes)", path, version, SCHEMA_VERSION)
+    log.info(
+        "the database %s is of version %d, this NeoAPRS needs %d: it is brought up to date now (a large file takes minutes)",
+        path,
+        version,
+        SCHEMA_VERSION,
+    )
     while version < SCHEMA_VERSION:
         standing = _standing_copy(db, Path(path), version)
         if standing is not None:
             _room(db, standing.parent, version, copy=False)
-            why = "taken by a start that did not get through" if file_version(standing) != version else "and the file has not changed since it was taken"
-            log.info("the database %s: the copy of it from before this migration is %s, %s; no other is made", path, standing, why)
+            why = (
+                "taken by a start that did not get through"
+                if file_version(standing) != version
+                else "and the file has not changed since it was taken"
+            )
+            log.info(
+                "the database %s: the copy of it from before this migration is %s, %s; no other is made",
+                path,
+                standing,
+                why,
+            )
             return standing
         try:
             copy = premigration_backup(db, Path(path), version, clock)
@@ -229,7 +315,9 @@ def _copy_first(db: sqlite3.Connection, path: str | Path, version: int, clock: C
         log.info("the database %s: a copy of it is in %s", path, copy)
         return copy
     if version > SCHEMA_VERSION:
-        raise StoreError(f"the database {path} was brought to version {version} by a newer NeoAPRS meanwhile; not touched")
+        raise StoreError(
+            f"the database {path} was brought to version {version} by a newer NeoAPRS meanwhile; not touched"
+        )
     return None
 
 
@@ -258,7 +346,12 @@ def _went_on_from(db: sqlite3.Connection, copy: Path, old: int) -> bool:
 
     The histories must match row for row; no clock is used, since a clock may step back."""
     try:
-        mine = [(int(v), str(h), int(t)) for v, h, t in db.execute("SELECT version, sha256, applied FROM schema_history WHERE version <= ? ORDER BY version", (old + 1,))]
+        mine = [
+            (int(v), str(h), int(t))
+            for v, h, t in db.execute(
+                "SELECT version, sha256, applied FROM schema_history WHERE version <= ? ORDER BY version", (old + 1,)
+            )
+        ]
         theirs = _history_of(copy)
     except sqlite3.Error:
         return False
@@ -269,7 +362,10 @@ def _history_of(copy: Path) -> list[tuple[int, str, int]]:
     """Return (version, sha256, applied) of each step in a copy's schema_history."""
     other = sqlite3.connect(f"{copy.absolute().as_uri()}?mode=ro&immutable=1", uri=True)
     try:
-        return [(int(v), str(h), int(t)) for v, h, t in other.execute("SELECT version, sha256, applied FROM schema_history ORDER BY version")]
+        return [
+            (int(v), str(h), int(t))
+            for v, h, t in other.execute("SELECT version, sha256, applied FROM schema_history ORDER BY version")
+        ]
     finally:
         other.close()
 
@@ -304,7 +400,9 @@ def premigration_backup(db: sqlite3.Connection, path: Path, version: int, clock:
             dest.unlink(missing_ok=True)
             raise sqlite3.DatabaseError(f"the copy is not the file at version {version}")
     except (sqlite3.Error, OSError) as e:
-        raise StoreError(f"the copy of the database before the migration could not be made ({e}); nothing was changed") from e
+        raise StoreError(
+            f"the copy of the database before the migration could not be made ({e}); nothing was changed"
+        ) from e
     return dest
 
 
@@ -337,8 +435,11 @@ def _room(db: sqlite3.Connection, folder: Path, version: int, *, copy: bool) -> 
         if not seen:
             raise
         wait = litter_wait(seen, time.time())
-        log.info("the disk of %s is short of room for the migration while the temporary file of a copy an earlier start did not end is there: it is removed in %d seconds, once it is known to be dead",
-                 folder, round(wait))
+        log.info(
+            "the disk of %s is short of room for the migration while the temporary file of a copy an earlier start did not end is there: it is removed in %d seconds, once it is known to be dead",
+            folder,
+            round(wait),
+        )
         _sleep(wait)
         drop_still(seen)
         _require_room(db, folder, version, copy=copy)
@@ -353,22 +454,39 @@ def _require_room(db: sqlite3.Connection, folder: Path, version: int = SCHEMA_VE
     free = shutil.disk_usage(folder).free
     if free < need:
         short = (need - free + MIB - 1) // MIB
-        made = "for the copy of the database it makes first and for the database's log while it runs" if copy else "for the database's log while it runs"
-        keep = "the copies in backup/ that are not wanted any more can go" if copy else "the copy in backup/ taken before this migration stays: it is the way back"
-        raise StoreError(f"the disk of {folder} has {free // MIB} MB free and the migration needs {need // MIB} MB there {made}; free at least {short} MB there "
-                         f"({keep}) and start again; nothing was changed")
+        made = (
+            "for the copy of the database it makes first and for the database's log while it runs"
+            if copy
+            else "for the database's log while it runs"
+        )
+        keep = (
+            "the copies in backup/ that are not wanted any more can go"
+            if copy
+            else "the copy in backup/ taken before this migration stays: it is the way back"
+        )
+        raise StoreError(
+            f"the disk of {folder} has {free // MIB} MB free and the migration needs {need // MIB} MB there {made}; free at least {short} MB there "
+            f"({keep}) and start again; nothing was changed"
+        )
 
 
 def _record_step(db: sqlite3.Connection, number: int, clock: Clock) -> None:
     step = MIGRATIONS[number - 1]
-    db.execute("INSERT INTO schema_history (version, name, sha256, applied) VALUES (?, ?, ?, ?)", (number, step.__name__, source_hash(step), to_unix(clock())))
+    db.execute(
+        "INSERT INTO schema_history (version, name, sha256, applied) VALUES (?, ?, ?, ?)",
+        (number, step.__name__, source_hash(step), to_unix(clock())),
+    )
 
 
 def history(db: sqlite3.Connection) -> list[tuple[int, str, str, datetime, str]]:
     """Return (version, name, sha256, applied, note) per applied step."""
     try:
-        return [(int(v), str(n), str(h), from_unix(int(t)), str(note)) for v, n, h, t, note
-                in db.execute("SELECT version, name, sha256, applied, note FROM schema_history ORDER BY version")]
+        return [
+            (int(v), str(n), str(h), from_unix(int(t)), str(note))
+            for v, n, h, t, note in db.execute(
+                "SELECT version, name, sha256, applied, note FROM schema_history ORDER BY version"
+            )
+        ]
     except sqlite3.Error:
         return []
 
@@ -384,5 +502,7 @@ def _history_problems(db: sqlite3.Connection) -> list[str]:
         if not 1 <= version <= len(MIGRATIONS):
             out.append(f"schema_history has a step {version} that this NeoAPRS does not know")
         elif digest != "unknown" and source_hash(MIGRATIONS[version - 1]) not in (digest, "unknown"):
-            out.append(f"migration {version} ({MIGRATIONS[version - 1].__name__}) is not the code that was applied: its source has changed since")
+            out.append(
+                f"migration {version} ({MIGRATIONS[version - 1].__name__}) is not the code that was applied: its source has changed since"
+            )
     return out

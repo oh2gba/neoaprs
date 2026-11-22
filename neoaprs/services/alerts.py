@@ -3,6 +3,7 @@
 The text travels in the environment (`NEOAPRS_*`), never in the command line. The command is
 killed after TIMEOUT_SEC; a failure is logged once an hour; nothing here raises.
 """
+
 import asyncio
 import logging
 import os
@@ -45,6 +46,7 @@ POWERSHELL_POSTLUDE = ";if($LASTEXITCODE){exit $LASTEXITCODE}"
 @dataclass(frozen=True)
 class Outcome:
     """How a run ended: `problem` if it could not start or timed out, else its status and output."""
+
     problem: str = ""
     why: Literal["", "timeout", "no_start"] = ""
     status: int = 0
@@ -80,7 +82,15 @@ class Outcome:
 
 def alert_environment(record: MessageRecord, base: dict[str, str] | None = None) -> dict[str, str]:
     """Return the command environment for a message; NUL bytes are dropped from the text."""
-    return _environment("message", f"APRS message from {record.from_call}", record.from_call, record.text, record.at, record.msg_id or "", base)
+    return _environment(
+        "message",
+        f"APRS message from {record.from_call}",
+        record.from_call,
+        record.text,
+        record.at,
+        record.msg_id or "",
+        base,
+    )
 
 
 def station_environment(fired: Fired, base: dict[str, str] | None = None) -> dict[str, str]:
@@ -88,9 +98,20 @@ def station_environment(fired: Fired, base: dict[str, str] | None = None) -> dic
     return _environment("station", f"APRS alert: {fired.call}", fired.call, fired.text, fired.at, "", base)
 
 
-def _environment(kind: str, title: str, sender: str, text: str, at: datetime, msg_id: str, base: dict[str, str] | None) -> dict[str, str]:
+def _environment(
+    kind: str, title: str, sender: str, text: str, at: datetime, msg_id: str, base: dict[str, str] | None
+) -> dict[str, str]:
     env = child_environment() if base is None else base
-    env.update({"NEOAPRS_KIND": kind, "NEOAPRS_TITLE": title, "NEOAPRS_FROM": sender, "NEOAPRS_TEXT": text.replace("\0", ""), "NEOAPRS_AT": iso(at) or "", "NEOAPRS_MSG_ID": msg_id})
+    env.update(
+        {
+            "NEOAPRS_KIND": kind,
+            "NEOAPRS_TITLE": title,
+            "NEOAPRS_FROM": sender,
+            "NEOAPRS_TEXT": text.replace("\0", ""),
+            "NEOAPRS_AT": iso(at) or "",
+            "NEOAPRS_MSG_ID": msg_id,
+        }
+    )
     return env
 
 
@@ -122,7 +143,14 @@ class Alerts:
     def _command(self) -> str:
         """The configured command; empty for the default one under the no-devices switch."""
         command = self._config().messages_alert_command.strip()
-        return "" if command == DEFAULT_ALERT_COMMAND and nodevices.refused("the default alert command is not run (no notification on the desktop, no sound)", logging.INFO) else command
+        return (
+            ""
+            if command == DEFAULT_ALERT_COMMAND
+            and nodevices.refused(
+                "the default alert command is not run (no notification on the desktop, no sound)", logging.INFO
+            )
+            else command
+        )
 
     async def stop(self) -> None:
         """Kill running commands and what they started."""
@@ -155,17 +183,30 @@ class Alerts:
         """Run under `set -e` so a failing step is not hidden by the steps after it."""
         proc: asyncio.subprocess.Process | None = None
         try:
-            proc = await asyncio.create_subprocess_shell("set -e\n" + command, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+            proc = await asyncio.create_subprocess_shell(
+                "set -e\n" + command,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                start_new_session=True,
+            )
             out, err = await asyncio.wait_for(proc.communicate(), self.timeout_sec)
         except TimeoutError:
-            return Outcome(problem=f"the alert command did not end within {self.timeout_sec:g} s: killed", why="timeout")
+            return Outcome(
+                problem=f"the alert command did not end within {self.timeout_sec:g} s: killed", why="timeout"
+            )
         except Exception as e:  # nothing a command does may stop the daemon
             return Outcome(problem=f"the alert command could not run: {e}", why="no_start")
         finally:
             if proc is not None and proc.returncode is None:
                 self._kill(proc)
                 await proc.wait()
-        return Outcome(status=proc.returncode or 0, out=out.decode("utf-8", errors="replace"), err=err.decode("utf-8", errors="replace"))
+        return Outcome(
+            status=proc.returncode or 0,
+            out=out.decode("utf-8", errors="replace"),
+            err=err.decode("utf-8", errors="replace"),
+        )
 
     async def _execute_in_thread(self, command: str, env: dict[str, str]) -> "Outcome":
         """Windows: start PowerShell from a thread; cancellation kills it and its children."""
@@ -177,10 +218,19 @@ class Alerts:
 
     def _run_powershell(self, command: str, env: dict[str, str], running: "_Running") -> "Outcome":
         # one line, since PowerShell runs what it reads line by line
-        script = (POWERSHELL_PRELUDE + command.replace("\r", " ").replace("\n", " ") + POWERSHELL_POSTLUDE + "\n").encode("utf-8")
+        script = (
+            POWERSHELL_PRELUDE + command.replace("\r", " ").replace("\n", " ") + POWERSHELL_POSTLUDE + "\n"
+        ).encode("utf-8")
         try:
             creation = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-            proc = subprocess.Popen([windows_program("WindowsPowerShell", "v1.0", "powershell.exe"), *POWERSHELL_ARGS], env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=creation)
+            proc = subprocess.Popen(
+                [windows_program("WindowsPowerShell", "v1.0", "powershell.exe"), *POWERSHELL_ARGS],
+                env=env,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                creationflags=creation,
+            )
         except Exception as e:
             return Outcome(problem=f"the alert command could not run: {e}", why="no_start")
         running.set(proc)
@@ -189,11 +239,17 @@ class Alerts:
         except subprocess.TimeoutExpired:
             running.kill()
             proc.communicate()
-            return Outcome(problem=f"the alert command did not end within {self.timeout_sec:g} s: killed", why="timeout")
+            return Outcome(
+                problem=f"the alert command did not end within {self.timeout_sec:g} s: killed", why="timeout"
+            )
         except Exception as e:
             running.kill()
             return Outcome(problem=f"the alert command could not run: {e}", why="no_start")
-        return Outcome(status=proc.returncode or 0, out=out.decode("utf-8", errors="replace"), err=err.decode("utf-8", errors="replace"))
+        return Outcome(
+            status=proc.returncode or 0,
+            out=out.decode("utf-8", errors="replace"),
+            err=err.decode("utf-8", errors="replace"),
+        )
 
     @staticmethod
     def _kill(proc: asyncio.subprocess.Process) -> None:
@@ -232,7 +288,13 @@ class _Running:
             return
         try:
             # /T kills the whole tree
-            subprocess.run([windows_program("taskkill.exe"), "/T", "/F", "/PID", str(proc.pid)], stdin=subprocess.DEVNULL, capture_output=True, timeout=10, check=False)
+            subprocess.run(
+                [windows_program("taskkill.exe"), "/T", "/F", "/PID", str(proc.pid)],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                timeout=10,
+                check=False,
+            )
         except Exception:  # noqa: S110  (nothing a command does may stop the daemon; proc.kill below still runs)
             pass
         try:

@@ -2,6 +2,7 @@
 the Windows installer command line (built, never run), the AppImage renamed over the old one, the
 exec of the new file with the old one put back if it cannot start, and the installer of each kind.
 """
+
 import os
 import stat
 import sys
@@ -12,18 +13,43 @@ import pytest
 from neoaprs import selfreplace, stopfile
 from neoaprs.cli.installkind import detect_here, simulated
 from neoaprs.instancelock import APP_LOCK_NAME, InstanceLock
-from neoaprs.services.selfinstall import AppImageSwap, InstallError, Rehearsal, WindowsSetup, installer_for, installer_argv, release_source
+from neoaprs.services.selfinstall import (
+    AppImageSwap,
+    InstallError,
+    Rehearsal,
+    WindowsSetup,
+    installer_for,
+    installer_argv,
+    release_source,
+)
 from neoaprs.updateasset import RELEASES, url_allowed
 from neoaprs.versions import InstallInfo
 
 
 def test_the_installer_runs_silently_without_closing_apps_itself_and_says_what_to_start_again(tmp_path: Path) -> None:
-    argv = installer_argv(Path(r"C:\Users\Ham\AppData\Local\NeoAPRS\update\NeoAPRS-Setup-0.7.0.exe"), Path(r"C:\Users\Ham\AppData\Local\NeoAPRS"), "app", Path(r"C:\Users\Ham\AppData\Local\NeoAPRS\update\install.log"))
-    assert argv == [str(Path(r"C:\Users\Ham\AppData\Local\NeoAPRS\update\NeoAPRS-Setup-0.7.0.exe")), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/NOCLOSEAPPLICATIONS", "/CURRENTUSER", "/SP-",
-                    f"/LOG={Path(r'C:\Users\Ham\AppData\Local\NeoAPRS\update\install.log')}", "/NEOAPRSRESTART=app", f"/NEOAPRSDATA={Path(r'C:\Users\Ham\AppData\Local\NeoAPRS')}"]
+    argv = installer_argv(
+        Path(r"C:\Users\Ham\AppData\Local\NeoAPRS\update\NeoAPRS-Setup-0.7.0.exe"),
+        Path(r"C:\Users\Ham\AppData\Local\NeoAPRS"),
+        "app",
+        Path(r"C:\Users\Ham\AppData\Local\NeoAPRS\update\install.log"),
+    )
+    assert argv == [
+        str(Path(r"C:\Users\Ham\AppData\Local\NeoAPRS\update\NeoAPRS-Setup-0.7.0.exe")),
+        "/VERYSILENT",
+        "/SUPPRESSMSGBOXES",
+        "/NORESTART",
+        "/NOCLOSEAPPLICATIONS",
+        "/CURRENTUSER",
+        "/SP-",
+        f"/LOG={Path(r'C:\Users\Ham\AppData\Local\NeoAPRS\update\install.log')}",
+        "/NEOAPRSRESTART=app",
+        f"/NEOAPRSDATA={Path(r'C:\Users\Ham\AppData\Local\NeoAPRS')}",
+    ]
 
 
-def test_the_windows_installer_is_moved_out_of_its_part_file_and_started_for_the_app_or_the_daemon(tmp_path: Path) -> None:
+def test_the_windows_installer_is_moved_out_of_its_part_file_and_started_for_the_app_or_the_daemon(
+    tmp_path: Path,
+) -> None:
     started: list[list[str]] = []
     setup = WindowsSetup(tmp_path, started.append, app_running=lambda data: data == tmp_path)
     setup.folder.mkdir()
@@ -37,7 +63,10 @@ def test_the_windows_installer_is_moved_out_of_its_part_file_and_started_for_the
     assert installer.read_bytes() == b"MZ" and not part.exists()
     assert sorted(p.name for p in setup.folder.iterdir()) == ["NeoAPRS-Setup-0.7.0.exe", "install.log"]
     assert started == [installer_argv(installer, tmp_path, "app", tmp_path / "update" / "install.log")]
-    assert WindowsSetup(tmp_path, started.append, app_running=lambda data: False).command(installer)[-2] == "/NEOAPRSRESTART=daemon"
+    assert (
+        WindowsSetup(tmp_path, started.append, app_running=lambda data: False).command(installer)[-2]
+        == "/NEOAPRSRESTART=daemon"
+    )
     assert setup.blocked() == ""
 
 
@@ -55,6 +84,7 @@ def test_the_app_counts_as_running_while_it_holds_its_lock_of_the_data_folder(tm
 def test_an_installer_that_cannot_be_started_is_an_install_error(tmp_path: Path) -> None:
     def refuse(argv: list[str]) -> None:
         raise OSError("access denied")
+
     setup = WindowsSetup(tmp_path, refuse, app_running=lambda data: False)
     setup.folder.mkdir()
     (setup.folder / "x.part").write_bytes(b"MZ")
@@ -73,28 +103,37 @@ def appimage_world(tmp_path: Path) -> tuple[Path, Path, list[list[str]], AppImag
     return image, part, restarts, AppImageSwap(image, ["run", "--data", "/home/ham/data"], restarts.append)
 
 
-def test_the_new_appimage_is_renamed_over_the_old_one_which_is_kept_beside_it_and_the_same_file_starts_again(tmp_path: Path) -> None:
+def test_the_new_appimage_is_renamed_over_the_old_one_which_is_kept_beside_it_and_the_same_file_starts_again(
+    tmp_path: Path,
+) -> None:
     image, part, restarts, swap = appimage_world(tmp_path)
     assert swap.folder == image.parent and swap.blocked() == ""
     swap.install(part, "NeoAPRS-0.7.0-x86_64.AppImage", "0.7.0")
     assert image.read_bytes() == b"new version" and not part.exists()
-    if os.name == "posix":                         # (Windows has no execute bits; an AppImage runs on Linux)
+    if os.name == "posix":  # (Windows has no execute bits; an AppImage runs on Linux)
         assert stat.S_IMODE(image.stat().st_mode) & 0o111 == 0o111
     assert (image.parent / (image.name + ".old")).read_bytes() == b"old version"
     assert restarts == [[str(image), "run", "--data", "/home/ham/data"]]
 
 
-def test_the_old_appimage_is_copied_where_the_file_system_has_no_hard_links(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_old_appimage_is_copied_where_the_file_system_has_no_hard_links(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     image, part, _, swap = appimage_world(tmp_path)
 
     def no_link(src: object, dst: object) -> None:
         raise OSError("operation not permitted")
+
     monkeypatch.setattr(os, "link", no_link)
     swap.install(part, "NeoAPRS-0.7.0-x86_64.AppImage", "0.7.0")
-    assert (image.parent / (image.name + ".old")).read_bytes() == b"old version" and image.read_bytes() == b"new version"
+    assert (
+        image.parent / (image.name + ".old")
+    ).read_bytes() == b"old version" and image.read_bytes() == b"new version"
 
 
-@pytest.mark.skipif(sys.platform == "win32" or os.geteuid() == 0, reason="the rights of a folder on POSIX, which root ignores")
+@pytest.mark.skipif(
+    sys.platform == "win32" or os.geteuid() == 0, reason="the rights of a folder on POSIX, which root ignores"
+)
 def test_an_appimage_in_a_folder_its_user_cannot_write_cannot_update_itself(tmp_path: Path) -> None:
     image, part, restarts, swap = appimage_world(tmp_path)
     part.unlink()
@@ -113,19 +152,27 @@ def test_a_rename_that_fails_leaves_the_old_appimage_and_does_not_restart(tmp_pa
     assert image.read_bytes() == b"old version" and restarts == []
 
 
-def test_the_new_file_is_executed_with_the_arguments_and_the_old_one_is_put_back_when_it_cannot_start(tmp_path: Path) -> None:
+def test_the_new_file_is_executed_with_the_arguments_and_the_old_one_is_put_back_when_it_cannot_start(
+    tmp_path: Path,
+) -> None:
     image, part, _, swap = appimage_world(tmp_path)
     swap.install(part, "NeoAPRS-0.7.0-x86_64.AppImage", "0.7.0")
     calls: list[tuple[str, list[str], bytes]] = []
-    selfreplace.reexec([str(image), "run"], lambda path, argv: calls.append((path, argv, Path(path).read_bytes())), close=lambda: None)
+    selfreplace.reexec(
+        [str(image), "run"], lambda path, argv: calls.append((path, argv, Path(path).read_bytes())), close=lambda: None
+    )
     assert calls == [(str(image), [str(image), "run"], b"new version")]
 
     def first_fails(path: str, argv: list[str]) -> None:
         calls.append((path, argv, Path(path).read_bytes()))
         if len(calls) == 2:
             raise OSError("exec format error")
+
     selfreplace.reexec([str(image), "run"], first_fails, close=lambda: None)
-    assert calls[1:] == [(str(image), [str(image), "run"], b"new version"), (str(image), [str(image), "run"], b"old version")]
+    assert calls[1:] == [
+        (str(image), [str(image), "run"], b"new version"),
+        (str(image), [str(image), "run"], b"old version"),
+    ]
     assert not (image.parent / (image.name + ".old")).exists()
 
 
@@ -142,7 +189,12 @@ def test_an_appimage_that_was_unpacked_instead_of_mounted_is_executed_again_the_
     environ = dict(unpacked)
     del environ["APPIMAGE_EXTRACT_AND_RUN"]
     seen: list[str | None] = []
-    selfreplace.reexec(["/home/ham/NeoAPRS.AppImage", "run"], lambda path, argv: seen.append(environ.get("APPIMAGE_EXTRACT_AND_RUN")), close=lambda: None, environ=environ)
+    selfreplace.reexec(
+        ["/home/ham/NeoAPRS.AppImage", "run"],
+        lambda path, argv: seen.append(environ.get("APPIMAGE_EXTRACT_AND_RUN")),
+        close=lambda: None,
+        environ=environ,
+    )
     assert seen == ["1"]
 
 
@@ -163,29 +215,64 @@ def test_a_daemon_with_encrypted_messages_asks_the_installer_to_keep_them(tmp_pa
     installer, log_file = tmp_path / "update" / "NeoAPRS-Setup-0.9.0.exe", tmp_path / "update" / "install.log"
     assert installer_argv(installer, tmp_path, "app", log_file, encryption=True)[-1] == "/NEOAPRSENCRYPTION=1"
     assert "/NEOAPRSENCRYPTION=1" not in installer_argv(installer, tmp_path, "app", log_file)
-    assert WindowsSetup(tmp_path, lambda argv: None, app_running=lambda data: True, encryption=True).command(installer) == installer_argv(installer, tmp_path, "app", log_file, encryption=True)
+    assert WindowsSetup(tmp_path, lambda argv: None, app_running=lambda data: True, encryption=True).command(
+        installer
+    ) == installer_argv(installer, tmp_path, "app", log_file, encryption=True)
 
 
 def test_each_kind_gets_its_installer_on_its_own_system_and_the_others_none(tmp_path: Path) -> None:
-    restart = lambda argv: None                    # noqa: E731
+    restart = lambda argv: None  # noqa: E731
     windows = installer_for(InstallInfo("windows-installer"), tmp_path, restart, {}, platform="win32")
     assert isinstance(windows, WindowsSetup) and windows.folder == tmp_path / "update"
     assert installer_for(InstallInfo("windows-installer"), tmp_path, restart, {}, platform="linux") is None
-    assert not windows.encryption and installer_for(InstallInfo("windows-installer"), tmp_path, restart, {}, platform="win32", encryption=True).encryption  # type: ignore[union-attr]
-    image = installer_for(InstallInfo("appimage", "/home/ham/NeoAPRS.AppImage"), tmp_path, restart, {}, ["app"], platform="linux")
-    assert isinstance(image, AppImageSwap) and image.appimage == Path("/home/ham/NeoAPRS.AppImage") and image.argv == ["app"]
+    assert (
+        not windows.encryption
+        and installer_for(
+            InstallInfo("windows-installer"), tmp_path, restart, {}, platform="win32", encryption=True
+        ).encryption
+    )  # type: ignore[union-attr]
+    image = installer_for(
+        InstallInfo("appimage", "/home/ham/NeoAPRS.AppImage"), tmp_path, restart, {}, ["app"], platform="linux"
+    )
+    assert (
+        isinstance(image, AppImageSwap)
+        and image.appimage == Path("/home/ham/NeoAPRS.AppImage")
+        and image.argv == ["app"]
+    )
     assert installer_for(InstallInfo("appimage", ""), tmp_path, restart, {}, platform="linux") is None
     for kind in ("deb", "uv-tool", "pip", "source"):
-        assert installer_for(InstallInfo(kind, arch="amd64"), tmp_path, restart, {}, platform="linux") is None       # type: ignore[arg-type]
-    assert installer_for(InstallInfo("macos-app", arch="arm64"), tmp_path, restart, {}, platform="darwin") is None, "the macOS app shows the steps: nothing swaps the bundle under a running daemon yet"
+        assert installer_for(InstallInfo(kind, arch="amd64"), tmp_path, restart, {}, platform="linux") is None  # type: ignore[arg-type]
+    assert installer_for(InstallInfo("macos-app", arch="arm64"), tmp_path, restart, {}, platform="darwin") is None, (
+        "the macOS app shows the steps: nothing swaps the bundle under a running daemon yet"
+    )
 
 
 def test_a_simulated_kind_is_rehearsed_the_file_deleted_and_nothing_installed(tmp_path: Path) -> None:
     environ = {"NEOAPRS_INSTALL_KIND": "appimage"}
-    rehearsal = installer_for(InstallInfo("appimage", "/home/ham/NeoAPRS.AppImage"), tmp_path, lambda argv: pytest.fail("restarted"), environ, platform="linux")
+    rehearsal = installer_for(
+        InstallInfo("appimage", "/home/ham/NeoAPRS.AppImage"),
+        tmp_path,
+        lambda argv: pytest.fail("restarted"),
+        environ,
+        platform="linux",
+    )
     assert isinstance(rehearsal, Rehearsal) and rehearsal.folder == tmp_path / "update"
-    assert installer_for(InstallInfo("windows-installer"), tmp_path, lambda argv: None, environ, platform="linux").__class__ is Rehearsal
-    assert installer_for(InstallInfo("deb", arch="arm64"), tmp_path, lambda argv: None, {"NEOAPRS_INSTALL_KIND": "deb"}, platform="linux") is None
+    assert (
+        installer_for(
+            InstallInfo("windows-installer"), tmp_path, lambda argv: None, environ, platform="linux"
+        ).__class__
+        is Rehearsal
+    )
+    assert (
+        installer_for(
+            InstallInfo("deb", arch="arm64"),
+            tmp_path,
+            lambda argv: None,
+            {"NEOAPRS_INSTALL_KIND": "deb"},
+            platform="linux",
+        )
+        is None
+    )
     rehearsal.folder.mkdir()
     part = rehearsal.folder / "x.part"
     part.write_bytes(b"new")
@@ -194,58 +281,92 @@ def test_a_simulated_kind_is_rehearsed_the_file_deleted_and_nothing_installed(tm
 
 
 @pytest.mark.parametrize("switch", [{"NEOAPRS_INSTALL_KIND": "appimage"}, {"NEOAPRS_UPDATE_TEST": "1"}])
-def test_the_files_come_from_a_fake_server_on_the_loopback_for_a_simulated_kind_and_for_the_end_to_end_test(switch: dict[str, str]) -> None:
+def test_the_files_come_from_a_fake_server_on_the_loopback_for_a_simulated_kind_and_for_the_end_to_end_test(
+    switch: dict[str, str],
+) -> None:
     base, allowed = release_source({"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases/", **switch})
     assert base == "http://127.0.0.1:9/releases"
-    assert allowed("http://127.0.0.1:9/releases/v9.9.9/SHA256SUMS") and not allowed("https://github.com/x") and not allowed("http://127.0.0.1:9/other")
+    assert (
+        allowed("http://127.0.0.1:9/releases/v9.9.9/SHA256SUMS")
+        and not allowed("https://github.com/x")
+        and not allowed("http://127.0.0.1:9/other")
+    )
     assert release_source({"NEOAPRS_UPDATE_FROM": "https://localhost:8443", **switch})[0] == "https://localhost:8443"
 
 
-@pytest.mark.parametrize("environ", [
-    {},
-    # No switch: GitHub, whatever the address
-    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases"},
-    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases", "NEOAPRS_UPDATE_TEST": "0"},
-    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases", "NEOAPRS_UPDATE_TEST": "yes"},
-    {"NEOAPRS_UPDATE_TEST": "1"},                                                              # the switch alone: GitHub
-    {"NEOAPRS_UPDATE_FROM": "http://example.org/releases", "NEOAPRS_UPDATE_TEST": "1"},        # only this computer
-    {"NEOAPRS_UPDATE_FROM": "https://github.com.evil.example/x", "NEOAPRS_UPDATE_TEST": "1"},
-    {"NEOAPRS_UPDATE_FROM": "http://192.168.1.2:8000", "NEOAPRS_UPDATE_TEST": "1"},
-    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.2:8000", "NEOAPRS_UPDATE_TEST": "1"},
-    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9@example.org/x", "NEOAPRS_UPDATE_TEST": "1"},
-    {"NEOAPRS_UPDATE_FROM": "http://u@127.0.0.1:9/x", "NEOAPRS_UPDATE_TEST": "1"},
-    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:x/x", "NEOAPRS_UPDATE_TEST": "1"},
-    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/x?y=1", "NEOAPRS_UPDATE_TEST": "1"},
-    {"NEOAPRS_UPDATE_FROM": "file:///tmp/releases", "NEOAPRS_UPDATE_TEST": "1"},
-    {"NEOAPRS_UPDATE_FROM": "ftp://127.0.0.1/releases", "NEOAPRS_UPDATE_TEST": "1"},
-    {"NEOAPRS_UPDATE_FROM": "http://example.org/releases", "NEOAPRS_INSTALL_KIND": "appimage"},
-])
+@pytest.mark.parametrize(
+    "environ",
+    [
+        {},
+        # No switch: GitHub, whatever the address
+        {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases"},
+        {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases", "NEOAPRS_UPDATE_TEST": "0"},
+        {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases", "NEOAPRS_UPDATE_TEST": "yes"},
+        {"NEOAPRS_UPDATE_TEST": "1"},  # the switch alone: GitHub
+        {"NEOAPRS_UPDATE_FROM": "http://example.org/releases", "NEOAPRS_UPDATE_TEST": "1"},  # only this computer
+        {"NEOAPRS_UPDATE_FROM": "https://github.com.evil.example/x", "NEOAPRS_UPDATE_TEST": "1"},
+        {"NEOAPRS_UPDATE_FROM": "http://192.168.1.2:8000", "NEOAPRS_UPDATE_TEST": "1"},
+        {"NEOAPRS_UPDATE_FROM": "http://127.0.0.2:8000", "NEOAPRS_UPDATE_TEST": "1"},
+        {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9@example.org/x", "NEOAPRS_UPDATE_TEST": "1"},
+        {"NEOAPRS_UPDATE_FROM": "http://u@127.0.0.1:9/x", "NEOAPRS_UPDATE_TEST": "1"},
+        {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:x/x", "NEOAPRS_UPDATE_TEST": "1"},
+        {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/x?y=1", "NEOAPRS_UPDATE_TEST": "1"},
+        {"NEOAPRS_UPDATE_FROM": "file:///tmp/releases", "NEOAPRS_UPDATE_TEST": "1"},
+        {"NEOAPRS_UPDATE_FROM": "ftp://127.0.0.1/releases", "NEOAPRS_UPDATE_TEST": "1"},
+        {"NEOAPRS_UPDATE_FROM": "http://example.org/releases", "NEOAPRS_INSTALL_KIND": "appimage"},
+    ],
+)
 def test_the_files_come_from_github_unless_a_switch_names_a_server_on_this_computer(environ: dict[str, str]) -> None:
     assert release_source(environ) == (RELEASES, url_allowed)
 
 
 def test_github_takes_https_to_its_own_hosts_only() -> None:
     assert url_allowed("https://github.com/oh2gba/neoaprs/releases/download/v0.7.0/SHA256SUMS")
-    for url in ("http://github.com/oh2gba/neoaprs/releases/download/v0.7.0/SHA256SUMS", "https://127.0.0.1/v0.7.0/SHA256SUMS", "http://localhost:8000/v0.7.0/SHA256SUMS", "https://github.com:8443/x"):
+    for url in (
+        "http://github.com/oh2gba/neoaprs/releases/download/v0.7.0/SHA256SUMS",
+        "https://127.0.0.1/v0.7.0/SHA256SUMS",
+        "http://localhost:8000/v0.7.0/SHA256SUMS",
+        "https://github.com:8443/x",
+    ):
         assert not url_allowed(url), url
 
 
 def test_the_test_switch_does_not_turn_a_simulated_kind_into_a_real_install(tmp_path: Path) -> None:
     environ = {"NEOAPRS_INSTALL_KIND": "appimage", "NEOAPRS_UPDATE_TEST": "1"}
-    assert isinstance(installer_for(InstallInfo("appimage", "/x/NeoAPRS.AppImage"), tmp_path, lambda argv: None, environ, platform="linux"), Rehearsal)
-    assert isinstance(installer_for(InstallInfo("windows-installer"), tmp_path, lambda argv: None, {"NEOAPRS_UPDATE_TEST": "1"}, platform="win32"), WindowsSetup)
+    assert isinstance(
+        installer_for(
+            InstallInfo("appimage", "/x/NeoAPRS.AppImage"), tmp_path, lambda argv: None, environ, platform="linux"
+        ),
+        Rehearsal,
+    )
+    assert isinstance(
+        installer_for(
+            InstallInfo("windows-installer"),
+            tmp_path,
+            lambda argv: None,
+            {"NEOAPRS_UPDATE_TEST": "1"},
+            platform="win32",
+        ),
+        WindowsSetup,
+    )
 
 
-@pytest.mark.parametrize(("text", "info"), [
-    ("deb", InstallInfo("deb", "", False, "amd64")),
-    ("deb arm64 service", InstallInfo("deb", "", True, "arm64")),
-    ("appimage /home/ham/NeoAPRS-0.6.7-x86_64.AppImage", InstallInfo("appimage", "/home/ham/NeoAPRS-0.6.7-x86_64.AppImage", False, "")),
-    ("windows-installer", InstallInfo("windows-installer")),
-    ("macos-app", InstallInfo("macos-app", "", False, "arm64")),
-    ("source service", InstallInfo("source", "", True, "")),
-    ("", None),
-    ("flatpak", None),
-])
+@pytest.mark.parametrize(
+    ("text", "info"),
+    [
+        ("deb", InstallInfo("deb", "", False, "amd64")),
+        ("deb arm64 service", InstallInfo("deb", "", True, "arm64")),
+        (
+            "appimage /home/ham/NeoAPRS-0.6.7-x86_64.AppImage",
+            InstallInfo("appimage", "/home/ham/NeoAPRS-0.6.7-x86_64.AppImage", False, ""),
+        ),
+        ("windows-installer", InstallInfo("windows-installer")),
+        ("macos-app", InstallInfo("macos-app", "", False, "arm64")),
+        ("source service", InstallInfo("source", "", True, "")),
+        ("", None),
+        ("flatpak", None),
+    ],
+)
 def test_a_simulated_install_kind_is_read_from_its_words(text: str, info: InstallInfo | None) -> None:
     assert simulated(text) == info
 
@@ -271,10 +392,16 @@ def test_the_note_of_the_port_says_where_the_page_was_for_the_daemon_that_starts
     assert stopfile.noted_port(tmp_path) is None, "no note: no restart"
     stopfile.note_port(tmp_path, 7304)
     assert note.read_text(encoding="ascii") == "7304\n" and stopfile.noted_port(tmp_path) == 7304
-    assert not stopfile.restarting(tmp_path), "a note of its own: the app's wait for a daemon that starts again is not its business"
+    assert not stopfile.restarting(tmp_path), (
+        "a note of its own: the app's wait for a daemon that starts again is not its business"
+    )
     mtime = note.stat().st_mtime
-    assert stopfile.noted_port(tmp_path, now=mtime + stopfile.RESTART_FRESH_SEC + 1) == 7304, "the Windows installer takes longer than the app waits for an AppImage"
-    assert stopfile.noted_port(tmp_path, now=mtime + stopfile.PORT_FRESH_SEC + 1) is None, "a restart that never came is not the next start's"
+    assert stopfile.noted_port(tmp_path, now=mtime + stopfile.RESTART_FRESH_SEC + 1) == 7304, (
+        "the Windows installer takes longer than the app waits for an AppImage"
+    )
+    assert stopfile.noted_port(tmp_path, now=mtime + stopfile.PORT_FRESH_SEC + 1) is None, (
+        "a restart that never came is not the next start's"
+    )
     for text in ("0\n", "70000\n", "seven\n", "-1\n", "port 7304\n", ""):
         note.write_text(text, encoding="ascii")
         assert stopfile.noted_port(tmp_path) is None, text
@@ -282,7 +409,9 @@ def test_the_note_of_the_port_says_where_the_page_was_for_the_daemon_that_starts
     assert stopfile.noted_port(tmp_path) is None, "digits of another script are not a port"
     stopfile.note_port(tmp_path, 7304)
     stopfile.note_port(tmp_path, 0)
-    assert not note.exists() and stopfile.noted_port(tmp_path) is None, "a daemon without a page leaves none, and takes an older one away"
+    assert not note.exists() and stopfile.noted_port(tmp_path) is None, (
+        "a daemon without a page leaves none, and takes an older one away"
+    )
     stopfile.note_port(tmp_path, 7304)
     stopfile.mark_restart(tmp_path)
     stopfile.clear_restart(tmp_path)
@@ -291,13 +420,25 @@ def test_the_note_of_the_port_says_where_the_page_was_for_the_daemon_that_starts
 
 def test_the_windows_way_has_the_daemon_note_its_page_before_the_installer_is_started(tmp_path: Path) -> None:
     order: list[str] = []
-    setup = WindowsSetup(tmp_path, launch=lambda argv: order.append("installer"), app_running=lambda data: False, leaving=lambda: order.append("note"))
+    setup = WindowsSetup(
+        tmp_path,
+        launch=lambda argv: order.append("installer"),
+        app_running=lambda data: False,
+        leaving=lambda: order.append("note"),
+    )
     part = tmp_path / "download.part"
     part.write_bytes(b"MZ")
     setup.folder.mkdir()
     setup.install(part, "NeoAPRS-Setup-0.9.0.exe", "0.9.0")
     assert order == ["note", "installer"]
-    made = installer_for(InstallInfo("windows-installer"), tmp_path, lambda argv: None, {}, platform="win32", leaving=lambda: order.append("handed on"))
+    made = installer_for(
+        InstallInfo("windows-installer"),
+        tmp_path,
+        lambda argv: None,
+        {},
+        platform="win32",
+        leaving=lambda: order.append("handed on"),
+    )
     assert isinstance(made, WindowsSetup)
     made._leaving()
     assert order[-1] == "handed on"
@@ -308,7 +449,17 @@ def test_a_note_of_the_port_that_is_no_small_file_of_digits_is_no_note_and_ends_
     than 4300 digits raised ValueError out of the daemon's start), a file of any length, a link, a
     pipe (which would hold the start up for ever), a folder."""
     note = tmp_path / stopfile.PORT_NAME
-    for content in (b"9" * 5000, b"7" * 3_000_000, b"7304" + b" " * 20, b"007304\n", b"7304\n7305\n", b"7304\0", b"+7304", b"0x1c88", b"7 304"):
+    for content in (
+        b"9" * 5000,
+        b"7" * 3_000_000,
+        b"7304" + b" " * 20,
+        b"007304\n",
+        b"7304\n7305\n",
+        b"7304\0",
+        b"+7304",
+        b"0x1c88",
+        b"7 304",
+    ):
         note.write_bytes(content)
         assert stopfile.noted_port(tmp_path) is None, content[:20]
     note.write_bytes(b"7304\r\n")
@@ -334,17 +485,27 @@ def test_a_note_of_the_port_that_is_no_small_file_of_digits_is_no_note_and_ends_
 def test_an_installer_that_could_not_be_started_leaves_no_note_of_a_port(tmp_path: Path) -> None:
     """No installer, no restart: the daemon runs on, and the note it wrote a moment before is not
     for whatever start comes next."""
+
     def refused(argv: list[str]) -> None:
         raise OSError(5, "Access is denied")
 
-    setup = WindowsSetup(tmp_path, launch=refused, app_running=lambda data: False, leaving=lambda: stopfile.note_port(tmp_path, 7304))
+    setup = WindowsSetup(
+        tmp_path, launch=refused, app_running=lambda data: False, leaving=lambda: stopfile.note_port(tmp_path, 7304)
+    )
     part = tmp_path / "download.part"
     part.write_bytes(b"MZ")
     setup.folder.mkdir()
     with pytest.raises(InstallError, match="the installer could not be started"):
         setup.install(part, "NeoAPRS-Setup-0.9.0.exe", "0.9.0")
     assert not (tmp_path / stopfile.PORT_NAME).exists() and stopfile.noted_port(tmp_path) is None
-    started = WindowsSetup(tmp_path, launch=lambda argv: None, app_running=lambda data: False, leaving=lambda: stopfile.note_port(tmp_path, 7304))
+    started = WindowsSetup(
+        tmp_path,
+        launch=lambda argv: None,
+        app_running=lambda data: False,
+        leaving=lambda: stopfile.note_port(tmp_path, 7304),
+    )
     part.write_bytes(b"MZ")
     started.install(part, "NeoAPRS-Setup-0.9.0.exe", "0.9.0")
-    assert stopfile.noted_port(tmp_path) == 7304, "one that started ends the daemon: the note is for the daemon it starts"
+    assert stopfile.noted_port(tmp_path) == 7304, (
+        "one that started ends the daemon: the note is for the daemon it starts"
+    )

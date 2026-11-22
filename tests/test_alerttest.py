@@ -1,6 +1,7 @@
 """The test button of the message alert (`alert_test`, answered with `alert_result`): over the
 socket, against the daemon. The command is the saved one, run as for a real message with a made-up
 one, whatever `messages/alert` says; a fake command writes its environment to a file of the test."""
+
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -8,7 +9,15 @@ from pathlib import Path
 import pytest
 
 from neoaprs.clock import iso
-from tests.support.alertcmd import MISSING_STATUS, SHORT_TIMEOUT_SEC, TIMEOUT_SEC, failing, not_a_program, sleeping, writing
+from tests.support.alertcmd import (
+    MISSING_STATUS,
+    SHORT_TIMEOUT_SEC,
+    TIMEOUT_SEC,
+    failing,
+    not_a_program,
+    sleeping,
+    writing,
+)
 from tests.support.env import Env
 from tests.support.wsclient import WsClient
 from neoaprs.web.protocol import TOPIC_NAMES
@@ -22,20 +31,35 @@ async def started(tmp_path: Path, command: str, **changes: object) -> tuple[Env,
     e = Env(tmp_path, web=True)
     await e.start()
     e.ctl.alerts.timeout_sec = TIMEOUT_SEC
-    assert await e.ctl.save_config(replace(e.ctl.config, messages_alert_command=command, **changes))       # type: ignore[arg-type]
+    assert await e.ctl.save_config(replace(e.ctl.config, messages_alert_command=command, **changes))  # type: ignore[arg-type]
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     return e, page
 
 
-async def test_the_command_runs_with_the_made_up_message_in_its_environment_and_the_answer_is_ran(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_command_runs_with_the_made_up_message_in_its_environment_and_the_answer_is_ran(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("SECRET_OF_THE_DAEMON", "x")
     out = tmp_path / "alert.txt"
     e, page = await started(tmp_path, writing(out, secret=True))
     other = await e.ws()
     await page.send({"cmd": "alert_test"})
-    assert await page.expect("alert_result", timeout=RESULT_SEC) == {"type": "alert_result", "ok": True, "outcome": "ran", "status": 0, "seconds": TIMEOUT_SEC, "line": ""}
-    assert out.read_text(encoding="utf-8").splitlines() == ["NEOAPRS", "This is a test of the NeoAPRS alert", iso(e.now()), "", "gone"], "the same environment as a real alert, with no id and nothing of the daemon's"
+    assert await page.expect("alert_result", timeout=RESULT_SEC) == {
+        "type": "alert_result",
+        "ok": True,
+        "outcome": "ran",
+        "status": 0,
+        "seconds": TIMEOUT_SEC,
+        "line": "",
+    }
+    assert out.read_text(encoding="utf-8").splitlines() == [
+        "NEOAPRS",
+        "This is a test of the NeoAPRS alert",
+        iso(e.now()),
+        "",
+        "gone",
+    ], "the same environment as a real alert, with no id and nothing of the daemon's"
     await other.quiet(0.2)
     assert other.of("alert_result") == [] and page.of("error") == []
     assert page.topics["messages"] == {} and page.topics["packets"] == {}, "a test is no message and sends nothing"
@@ -50,22 +74,40 @@ async def test_the_alert_being_off_is_ignored_and_the_command_is_the_saved_one(t
     out.unlink()
     assert await e.ctl.save_config(replace(e.ctl.config, messages_alert_command="exit 0"))
     await page.send({"cmd": "alert_test"})
-    assert (await page.expect("alert_result", timeout=RESULT_SEC))["ok"] is True and not out.exists(), "the command as it is now saved"
+    assert (await page.expect("alert_result", timeout=RESULT_SEC))["ok"] is True and not out.exists(), (
+        "the command as it is now saved"
+    )
     await e.stop()
 
 
 async def test_a_failing_command_is_ok_false_with_the_exit_code_and_the_first_line_of_stderr(tmp_path: Path) -> None:
     e, page = await started(tmp_path, failing(3, "no display", "second line"))
     await page.send({"cmd": "alert_test"})
-    assert await page.expect("alert_result", timeout=RESULT_SEC) == {"type": "alert_result", "ok": False, "outcome": "exit", "status": 3, "seconds": TIMEOUT_SEC, "line": "no display"}
+    assert await page.expect("alert_result", timeout=RESULT_SEC) == {
+        "type": "alert_result",
+        "ok": False,
+        "outcome": "exit",
+        "status": 3,
+        "seconds": TIMEOUT_SEC,
+        "line": "no display",
+    }
     assert page.of("error") == []
     await e.ctl.save_config(replace(e.ctl.config, messages_alert_command="exit 9"))
     await page.send({"cmd": "alert_test"})
-    assert {k: v for k, v in (await page.expect("alert_result", timeout=RESULT_SEC)).items() if k in ("outcome", "status", "line")} == {"outcome": "exit", "status": 9, "line": ""}
+    assert {
+        k: v
+        for k, v in (await page.expect("alert_result", timeout=RESULT_SEC)).items()
+        if k in ("outcome", "status", "line")
+    } == {"outcome": "exit", "status": 9, "line": ""}
     await e.ctl.save_config(replace(e.ctl.config, messages_alert_command=not_a_program()))
     await page.send({"cmd": "alert_test"})
     result = await page.expect("alert_result", timeout=RESULT_SEC)
-    assert result["ok"] is False and result["outcome"] == "exit" and result["status"] == MISSING_STATUS and result["line"] != ""
+    assert (
+        result["ok"] is False
+        and result["outcome"] == "exit"
+        and result["status"] == MISSING_STATUS
+        and result["line"] != ""
+    )
     await e.stop()
 
 
@@ -73,7 +115,14 @@ async def test_a_command_that_runs_out_of_time_is_killed_and_the_answer_says_so(
     e, page = await started(tmp_path, sleeping())
     e.ctl.alerts.timeout_sec = SHORT_TIMEOUT_SEC
     await page.send({"cmd": "alert_test"})
-    assert await page.expect("alert_result", timeout=RESULT_SEC) == {"type": "alert_result", "ok": False, "outcome": "timeout", "status": 0, "seconds": SHORT_TIMEOUT_SEC, "line": ""}
+    assert await page.expect("alert_result", timeout=RESULT_SEC) == {
+        "type": "alert_result",
+        "ok": False,
+        "outcome": "timeout",
+        "status": 0,
+        "seconds": SHORT_TIMEOUT_SEC,
+        "line": "",
+    }
     await e.stop()
 
 

@@ -1,5 +1,6 @@
 """The beacon interval the status tells the page (neoaprs/web/api.py): the one in force, which is
 the setting raised to the HF floor while the HF radio is on, not the number stored."""
+
 from dataclasses import replace
 from pathlib import Path
 
@@ -13,7 +14,9 @@ async def test_the_status_tells_the_interval_in_force_and_not_the_one_stored(tmp
     e = Env(tmp_path, web=True, radio=air.station(), settings={"beacon/interval_min": "20"})
     await e.start()
     assert e.server is not None
-    assert (await e.server.api.status())["beacon_interval_min"] == 30, "20 stored, 30 at the least while the HF radio is on"
+    assert (await e.server.api.status())["beacon_interval_min"] == 30, (
+        "20 stored, 30 at the least while the HF radio is on"
+    )
     await e.ctl.change_config(lambda c: replace(c, beacon_interval_min=60))
     assert (await e.server.api.status())["beacon_interval_min"] == 60
     await e.ctl.change_config(lambda c: replace(c, beacon_interval_min=0))

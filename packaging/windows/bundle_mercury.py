@@ -3,11 +3,12 @@
 `bundle_mercury.py DIST/NeoAPRS TARBALL` makes DIST/NeoAPRS/bin/mercury/ from the tarball that
 `scripts/build-mercury --windows --tar` makes. It is `bundle_tool.py mercury` under its own name;
 the checks on the tarball are in bundle_tool.py. Run with the Python that has NeoAPRS installed."""
+
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import bundle_tool  # noqa: E402
+import bundle_tool
 
 TOOL = bundle_tool.TOOLS["mercury"]
 WHO = "bundle_mercury"

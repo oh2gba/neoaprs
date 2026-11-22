@@ -1,4 +1,5 @@
 """Limits on frames sent again for other stations: a burst limit, or a budget for a slow radio."""
+
 from collections import deque
 from datetime import datetime, timedelta
 from typing import Literal
@@ -90,7 +91,10 @@ class SlowBudget:
             if sum(1 for _, _, k in self._taken if k == "other") >= SLOW_PASS_OTHER_MAX:
                 return "budget"
             return "floor" if name in self._others else None
-        if kind == "message" and sum(1 for _, n, k in self._taken if k == "message" and n == name) >= SLOW_PASS_PER_SOURCE:
+        if (
+            kind == "message"
+            and sum(1 for _, n, k in self._taken if k == "message" and n == name) >= SLOW_PASS_PER_SOURCE
+        ):
             return "share"
         return None
 

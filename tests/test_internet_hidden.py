@@ -2,6 +2,7 @@
 neoaprs/web/packetwindow.py): with `igate/enabled` off the pages show no internet-only station or
 packet, while the database keeps everything.
 """
+
 import random
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -26,7 +27,11 @@ async def start(tmp_path: Path, enabled: bool = True) -> tuple[Env, WsClient]:
     the radio and then from the internet, OH2NET only from the internet and OH2AIR only on the
     radio; and a page."""
     server = await fake_aprsis()
-    e = Env(tmp_path, web=True, settings={"igate/enabled": str(enabled).lower(), "igate/server": server.address, "igate/password": "19628"})
+    e = Env(
+        tmp_path,
+        web=True,
+        settings={"igate/enabled": str(enabled).lower(), "igate/server": server.address, "igate/password": "19628"},
+    )
     await e.start()
     page = await e.ws()
     await page.until(lambda: "packets" in page.topics and "stations" in page.topics)
@@ -44,19 +49,40 @@ async def switch(page: WsClient, on: bool) -> None:
     await page.send({"cmd": "set_config", "values": {"igate/enabled": str(on).lower()}})
 
 
-async def test_turning_the_internet_off_hides_what_only_it_knows_and_leaves_the_radio_side_of_the_rest_and_turning_it_on_shows_it_again(tmp_path: Path) -> None:
+async def test_turning_the_internet_off_hides_what_only_it_knows_and_leaves_the_radio_side_of_the_rest_and_turning_it_on_shows_it_again(
+    tmp_path: Path,
+) -> None:
     e, page = await start(tmp_path)
     await page.until(lambda: "OH2NET" in page.topics["stations"] and page.topics["stations"]["OH2BT"]["heard_is"] == 1)
     both = page.topics["stations"]["OH2BT"]
-    assert (both["position_via"], round(both["lat"], 3), both["last_is_at"] is not None, both["packets"]) == ("is", 60.206, True, 2)
+    assert (both["position_via"], round(both["lat"], 3), both["last_is_at"] is not None, both["packets"]) == (
+        "is",
+        60.206,
+        True,
+        2,
+    )
     assert sorted(r["via"] for r in page.topics["packets"].values()) == ["is", "is", "rf", "rf"]
 
     await switch(page, False)
     await page.until(lambda: "OH2NET" not in page.topics["stations"])
     assert set(page.topics["stations"]) == {"OH2GBA", "OH2BT", "OH2AIR"}
     both = page.topics["stations"]["OH2BT"]
-    assert (both["heard_is"], both["last_is_at"], both["packets"], both["position_via"], round(both["lat"], 3), round(both["lon"], 3), len(both["track"]), both["last_heard"]) == (0, None, 1, "rf", 61.017, 25.017, 1, both["last_rf_at"])
-    assert (both["heard_rf"], both["last_route"], both["can_message"], both["last_comment"]) == (1, "via OH2RCH-2", True, "by radio")
+    assert (
+        both["heard_is"],
+        both["last_is_at"],
+        both["packets"],
+        both["position_via"],
+        round(both["lat"], 3),
+        round(both["lon"], 3),
+        len(both["track"]),
+        both["last_heard"],
+    ) == (0, None, 1, "rf", 61.017, 25.017, 1, both["last_rf_at"])
+    assert (both["heard_rf"], both["last_route"], both["can_message"], both["last_comment"]) == (
+        1,
+        "via OH2RCH-2",
+        True,
+        "by radio",
+    )
     await page.until(lambda: {r["via"] for r in page.topics["packets"].values()} == {"rf"})
     assert len(page.topics["packets"]) == 2
 
@@ -72,7 +98,9 @@ async def test_turning_the_internet_off_hides_what_only_it_knows_and_leaves_the_
     await e.stop()
 
 
-async def test_a_packet_that_comes_while_the_internet_is_hidden_is_not_shown_and_the_window_keeps_the_radios_packets_the_internet_would_push_out(tmp_path: Path) -> None:
+async def test_a_packet_that_comes_while_the_internet_is_hidden_is_not_shown_and_the_window_keeps_the_radios_packets_the_internet_would_push_out(
+    tmp_path: Path,
+) -> None:
     e, page = await start(tmp_path, enabled=False)
     await page.until(lambda: len(page.topics["packets"]) == 2 and "OH2BT" in page.topics["stations"])
     assert set(page.topics["stations"]) == {"OH2GBA", "OH2BT", "OH2AIR"} and len(page.topics["packets"]) == 2
@@ -85,14 +113,18 @@ async def test_a_packet_that_comes_while_the_internet_is_hidden_is_not_shown_and
     for n in range(window.size + 5):
         e.ctl.hear_internet(from_internet(f"OH2X{n:02d}", NET_AT, e.now() + timedelta(minutes=10, seconds=n)))
     await e.settled()
-    assert len(window.rows) <= 2 * window.size and len(window.whole()) == 2, "the internet's packets are kept for showing them again, the radio's are not pushed out"
+    assert len(window.rows) <= 2 * window.size and len(window.whole()) == 2, (
+        "the internet's packets are kept for showing them again, the radio's are not pushed out"
+    )
     await switch(page, True)
     await page.until(lambda: len(page.topics["packets"]) == window.size)
     assert {r["via"] for r in page.topics["packets"].values()} == {IS}
     await e.stop()
 
 
-async def test_a_restart_with_the_internet_off_still_shows_a_station_heard_both_ways_where_the_radio_put_it(tmp_path: Path) -> None:
+async def test_a_restart_with_the_internet_off_still_shows_a_station_heard_both_ways_where_the_radio_put_it(
+    tmp_path: Path,
+) -> None:
     first, page = await start(tmp_path)
     await switch(page, False)
     await page.until(lambda: "OH2NET" not in page.topics["stations"])
@@ -105,7 +137,13 @@ async def test_a_restart_with_the_internet_off_still_shows_a_station_heard_both_
     assert not second.ctl.config.igate_enabled
     assert set(page.topics["stations"]) == {"OH2GBA", "OH2BT", "OH2AIR"}
     both = page.topics["stations"]["OH2BT"]
-    assert (both["heard_is"], both["position_via"], round(both["lat"], 3), both["packets"], len(both["track"])) == (0, "rf", 61.017, 1, 1)
+    assert (both["heard_is"], both["position_via"], round(both["lat"], 3), both["packets"], len(both["track"])) == (
+        0,
+        "rf",
+        61.017,
+        1,
+        1,
+    )
     assert both["packets_hour"] == 1
     await second.stop()
 
@@ -132,25 +170,65 @@ def view_of(book: StationBook) -> Station:
 
 def test_the_radio_view_of_a_station_whose_only_position_came_from_the_internet_has_no_trace_of_it() -> None:
     book = StationBook()
-    book.take(heard(place(60.1, 24.9, "-", "internet only comment", extensions=Extensions(range_km=40.0), storm=Storm("HC"), sign="55"), T0, IS))
+    book.take(
+        heard(
+            place(
+                60.1,
+                24.9,
+                "-",
+                "internet only comment",
+                extensions=Extensions(range_km=40.0),
+                storm=Storm("HC"),
+                sign="55",
+            ),
+            T0,
+            IS,
+        )
+    )
     book.take(heard(Status("on the air"), T0 + timedelta(minutes=1), RF))
     view = view_of(book)
     assert (view.lat, view.lon, view.last_position_at, view.position_via, view.track) == (None, None, None, None, [])
-    assert (view.symbol_table, view.symbol_code, view.last_comment, view.extensions, view.storm, view.sign) == ("", "", "", None, None, None)
+    assert (view.symbol_table, view.symbol_code, view.last_comment, view.extensions, view.storm, view.sign) == (
+        "",
+        "",
+        "",
+        None,
+        None,
+        None,
+    )
     assert view.last_status == "on the air" and view.packets == 1
     whole = book.get("OH2AAA")
-    assert whole is not None and (whole.symbol_code, whole.last_comment, whole.sign) == ("-", "internet only comment", "55"), "the station itself is as it was"
+    assert whole is not None and (whole.symbol_code, whole.last_comment, whole.sign) == (
+        "-",
+        "internet only comment",
+        "55",
+    ), "the station itself is as it was"
 
 
 def test_the_radio_view_keeps_what_the_radios_position_said_when_a_later_one_from_the_internet_says_otherwise() -> None:
     book = StationBook()
-    book.take(heard(place(60.0, 24.0, ">", "by radio", extensions=Extensions(range_km=40.0), storm=Storm("TS"), sign="12"), T0, RF))
+    book.take(
+        heard(
+            place(60.0, 24.0, ">", "by radio", extensions=Extensions(range_km=40.0), storm=Storm("TS"), sign="12"),
+            T0,
+            RF,
+        )
+    )
     book.take(heard(place(61.0, 25.0, "-", "by the net", sign="99"), T0 + timedelta(minutes=1), IS))
     view = view_of(book)
-    assert (view.lat, view.symbol_code, view.last_comment, view.extensions, view.storm, view.sign) == (60.0, ">", "by radio", Extensions(range_km=40.0), Storm("TS"), "12")
+    assert (view.lat, view.symbol_code, view.last_comment, view.extensions, view.storm, view.sign) == (
+        60.0,
+        ">",
+        "by radio",
+        Extensions(range_km=40.0),
+        Storm("TS"),
+        "12",
+    )
 
 
-def test_the_track_of_the_radio_view_has_the_positions_heard_on_the_radio_before_the_first_packet_from_the_internet_even_when_that_had_no_position() -> None:
+def test_the_track_of_the_radio_view_has_the_positions_heard_on_the_radio_before_the_first_packet_from_the_internet_even_when_that_had_no_position() -> (
+    None
+):
     book = StationBook()
     book.take(heard(place(60.0, 24.0), T0, RF))
     book.take(heard(place(60.01, 24.01), T0 + timedelta(minutes=10), RF))
@@ -168,8 +246,27 @@ def test_a_position_from_the_internet_before_the_radios_does_not_start_the_radio
     assert len(book.get("OH2AAA").track) == 2 and [(lat, lon) for _, lat, lon in view_of(book).track] == [(60.0, 24.0)]  # type: ignore[union-attr]
 
 
-RADIO_FIELDS = ("symbol_table", "symbol_code", "extensions", "storm", "sign", "altitude_m", "course_deg", "speed_kmh", "lat", "lon", "last_position_at", "position_via", "last_comment", "packets", "heard_rf", "heard_rf_gated",
-                "heard_is", "last_heard", "last_path")
+RADIO_FIELDS = (
+    "symbol_table",
+    "symbol_code",
+    "extensions",
+    "storm",
+    "sign",
+    "altitude_m",
+    "course_deg",
+    "speed_kmh",
+    "lat",
+    "lon",
+    "last_position_at",
+    "position_via",
+    "last_comment",
+    "packets",
+    "heard_rf",
+    "heard_rf_gated",
+    "heard_is",
+    "last_heard",
+    "last_path",
+)
 
 
 def session(seed: int) -> tuple[StationBook, StationBook]:
@@ -183,8 +280,16 @@ def session(seed: int) -> tuple[StationBook, StationBook]:
         kind = rnd.choice(["position", "position", "status", "message"])
         decoded: Decoded = Status(rnd.choice(["s1", "s2"])) if kind == "status" else Message("OH2ZZZ", "hi")
         if kind == "position":
-            decoded = place(60 + rnd.random(), 24 + rnd.random(), rnd.choice([">", "-"]), rnd.choice(["a", "b"]), speed_kmh=rnd.choice([None, 10.0]), extensions=rnd.choice([None, Extensions(range_km=20.0), Extensions(range_km=60.0)]),
-                            storm=rnd.choice([None, Storm("TS")]), sign=rnd.choice([None, "12"]))
+            decoded = place(
+                60 + rnd.random(),
+                24 + rnd.random(),
+                rnd.choice([">", "-"]),
+                rnd.choice(["a", "b"]),
+                speed_kmh=rnd.choice([None, 10.0]),
+                extensions=rnd.choice([None, Extensions(range_km=20.0), Extensions(range_km=60.0)]),
+                storm=rnd.choice([None, Storm("TS")]),
+                sign=rnd.choice([None, "12"]),
+            )
         packet = heard(decoded, at, rnd.choice([IS, IS, RF]))
         everything.take(packet)
         if packet.via != IS:

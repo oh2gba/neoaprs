@@ -2,6 +2,7 @@
 
 Tracked from pywebview's events and saved shortly after they stop. The saved size and place are
 those of the unmaximized window; Wayland gives no place (`keep_place`). Events arrive on any thread."""
+
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -28,8 +29,10 @@ class SizeKeeper:
 
     def told(self, name: str) -> Callable[..., None]:
         """Return the handler for pywebview's event `name` (resized and moved carry two numbers)."""
+
         def handler(*args: object) -> None:
             self.event(name, *args)
+
         return handler
 
     def event(self, name: str, *args: object) -> None:
@@ -86,6 +89,11 @@ def _pair(args: tuple[object, ...]) -> tuple[int, int] | None:
     if len(args) < 2:
         return None
     first, second = args[0], args[1]
-    if isinstance(first, bool) or isinstance(second, bool) or not isinstance(first, int | float) or not isinstance(second, int | float):
+    if (
+        isinstance(first, bool)
+        or isinstance(second, bool)
+        or not isinstance(first, int | float)
+        or not isinstance(second, int | float)
+    ):
         return None
     return int(first), int(second)

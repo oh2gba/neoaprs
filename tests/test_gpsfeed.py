@@ -1,6 +1,7 @@
 """Tests for the GPS feed (neoaprs/gpsfeed.py): a gpsd on the loopback and a serial receiver over
 `socket://`, state reporting, reconnection, and errors never reaching the loop.
 """
+
 import asyncio
 import logging
 import socket
@@ -16,7 +17,9 @@ from tests.support.env import remember_stop, until
 from tests.support.gps import FakeGpsd, fake_gpsd, gga, rmc, sky, tpv
 
 
-def feed_of(kind: str, target: str, baud: int = 4800, silent_sec: float = GPSD_SILENT_SEC) -> tuple[GpsFeed, list[Fix], FixedClock]:
+def feed_of(
+    kind: str, target: str, baud: int = 4800, silent_sec: float = GPSD_SILENT_SEC
+) -> tuple[GpsFeed, list[Fix], FixedClock]:
     clock = FixedClock()
     feed = GpsFeed(clock, Backoff([0.05]), connect_sec=1.0, silent_sec=silent_sec)
     feed.configure(kind, target, baud)
@@ -34,7 +37,15 @@ async def free_port() -> int:
     return port
 
 
-@pytest.mark.parametrize(("text", "want"), [("127.0.0.1:2947", ("127.0.0.1", 2947)), ("localhost:1", ("localhost", 1)), ("[::1]:2947", ("::1", 2947)), (" gps.lan:65535 ", ("gps.lan", 65535))])
+@pytest.mark.parametrize(
+    ("text", "want"),
+    [
+        ("127.0.0.1:2947", ("127.0.0.1", 2947)),
+        ("localhost:1", ("localhost", 1)),
+        ("[::1]:2947", ("::1", 2947)),
+        (" gps.lan:65535 ", ("gps.lan", 65535)),
+    ],
+)
 def test_the_address_of_a_gpsd_is_host_and_port(text: str, want: tuple[str, int]) -> None:
     assert split_address(text) == want
 
@@ -46,7 +57,9 @@ def test_an_address_that_is_not_host_and_port_is_refused(text: str) -> None:
 
 
 @pytest.mark.parametrize(("kind", "problem"), [("serial", NO_PORT), ("gpsd", NO_ADDRESS)])
-async def test_a_source_without_its_port_or_address_opens_nothing_and_says_what_to_give(kind: str, problem: str, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_source_without_its_port_or_address_opens_nothing_and_says_what_to_give(
+    kind: str, problem: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     opened: list[object] = []
 
     async def no_connection(*args: object, **kwargs: object) -> None:
@@ -70,6 +83,7 @@ async def test_a_source_without_its_port_or_address_opens_nothing_and_says_what_
 
 # ---- gpsd
 
+
 async def test_a_feed_of_nothing_is_never_started() -> None:
     feed, _, _ = feed_of("off", "")
     await feed.start()
@@ -85,7 +99,7 @@ async def test_the_feed_asks_gpsd_to_watch_and_hands_on_the_fixes_with_the_satel
     gpsd.send(sky(used=8))
     gpsd.send(tpv(60.43, 24.145, speed=15.0, track=269.6))
     await until(lambda: fixes)
-    assert fixes == [Fix(60.43, 24.145, clock(), pytest.approx(54.0), 270, 31.4, 8)]            # type: ignore[list-item]
+    assert fixes == [Fix(60.43, 24.145, clock(), pytest.approx(54.0), 270, 31.4, 8)]  # type: ignore[list-item]
     assert feed.fix == fixes[0] and feed.fix_age_sec == 0.0 and feed.stats.packets == 1
     clock.advance(30)
     assert feed.fix_age_sec == 30.0
@@ -198,6 +212,7 @@ async def test_a_handler_that_fails_does_not_stop_the_feed(caplog: pytest.LogCap
 
     def bad(fix: Fix) -> None:
         raise RuntimeError("a bug in a handler")
+
     feed.fixed.connect(bad)
     await feed.start()
     await until(lambda: gpsd.watching)
@@ -210,6 +225,7 @@ async def test_a_handler_that_fails_does_not_stop_the_feed(caplog: pytest.LogCap
 
 # ---- a serial receiver
 
+
 async def test_a_serial_receiver_is_read_as_nmea_lines_cut_from_the_bytes() -> None:
     port = await fake_gpsd(greet=False)
     feed, fixes, clock = feed_of("serial", port.url)
@@ -217,11 +233,19 @@ async def test_a_serial_receiver_is_read_as_nmea_lines_cut_from_the_bytes() -> N
     await until(lambda: feed.state is Source.State.CONNECTED and port.connections)
     assert feed.describe() == f"GPS on {port.url}"
     data = (rmc(60.43, 24.145, 27.0, 270.0) + gga(60.43, 24.145)).encode()
-    port.send_raw(data[:20])                                                   # (a line arrives in pieces)
+    port.send_raw(data[:20])  # (a line arrives in pieces)
     port.send_raw(data[20:75])
     port.send_raw(data[75:] + rmc(60.4301, 24.1451, 27.0, 271.0).encode())
     await until(lambda: len(fixes) == 2)
-    assert fixes[0] == Fix(pytest.approx(60.43, abs=1e-6), pytest.approx(24.145, abs=1e-6), clock(), pytest.approx(27.0 * 1.852), 270, None, None)        # type: ignore[arg-type]
+    assert fixes[0] == Fix(
+        pytest.approx(60.43, abs=1e-6),
+        pytest.approx(24.145, abs=1e-6),
+        clock(),
+        pytest.approx(27.0 * 1.852),
+        270,
+        None,
+        None,
+    )  # type: ignore[arg-type]
     assert fixes[1].altitude_m == 31.4 and fixes[1].satellites == 9 and fixes[1].course_deg == 271
 
 
@@ -280,9 +304,9 @@ async def test_a_serial_port_that_cannot_be_opened_is_a_problem_in_the_words_of_
 # ---- the edges: an open that ends after the feed was stopped, one that never ends, a report that
 # says nothing twice, and what a stale part may not do
 
+
 class Gate:
-    """An open that waits for the test: `entered` is set when it is under way, `let` ends the wait.
-    """
+    """An open that waits for the test: `entered` is set when it is under way, `let` ends the wait."""
 
     def __init__(self) -> None:
         self.entered = asyncio.Event()
@@ -312,7 +336,9 @@ def test_a_feed_of_a_kind_that_reads_nothing_says_nothing_of_itself() -> None:
     assert feed.describe() == ""
 
 
-async def test_a_gpsd_that_does_not_answer_the_connection_in_time_is_a_problem_and_a_retry(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_gpsd_that_does_not_answer_the_connection_in_time_is_a_problem_and_a_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     tried: list[int] = []
 
     async def hangs(host: str, port: int) -> None:
@@ -327,7 +353,9 @@ async def test_a_gpsd_that_does_not_answer_the_connection_in_time_is_a_problem_a
     assert "no answer in time" in feed.last_error
 
 
-async def test_a_start_that_is_cancelled_while_it_connects_is_not_turned_into_a_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_start_that_is_cancelled_while_it_connects_is_not_turned_into_a_wait(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     gate = Gate()
 
     async def hangs(host: str, port: int) -> None:
@@ -343,7 +371,9 @@ async def test_a_start_that_is_cancelled_while_it_connects_is_not_turned_into_a_
     assert feed.state is Source.State.CONNECTING and feed.problem == ""
 
 
-async def test_a_gpsd_connection_that_fails_after_the_feed_was_stopped_is_not_a_problem_of_the_stopped_feed(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_gpsd_connection_that_fails_after_the_feed_was_stopped_is_not_a_problem_of_the_stopped_feed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     gate = Gate()
 
     async def fails_late(host: str, port: int) -> None:
@@ -360,7 +390,9 @@ async def test_a_gpsd_connection_that_fails_after_the_feed_was_stopped_is_not_a_
     assert feed.state is Source.State.STOPPED and feed.problem == ""
 
 
-async def test_a_gpsd_connection_that_comes_after_the_feed_was_stopped_is_closed_at_once(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_gpsd_connection_that_comes_after_the_feed_was_stopped_is_closed_at_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     gpsd = await fake_gpsd()
     gate = Gate()
     real = asyncio.open_connection
@@ -381,11 +413,15 @@ async def test_a_gpsd_connection_that_comes_after_the_feed_was_stopped_is_closed
     gate.let.set()
     await starting
     assert feed.state is Source.State.STOPPED and feed._writer is None
-    assert len(made) == 1 and made[0].is_closing(), "the connection that came late was closed at once, on our side (Windows tells the other end of it later)"
+    assert len(made) == 1 and made[0].is_closing(), (
+        "the connection that came late was closed at once, on our side (Windows tells the other end of it later)"
+    )
     assert not gpsd.watching, "(it was never asked to watch)"
 
 
-async def test_a_serial_port_that_opens_after_the_feed_was_stopped_is_closed_at_once(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_serial_port_that_opens_after_the_feed_was_stopped_is_closed_at_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     gate = Gate()
     closed: list[str] = []
 
@@ -393,7 +429,7 @@ async def test_a_serial_port_that_opens_after_the_feed_was_stopped_is_closed_at_
         await gate.wait()
 
     monkeypatch.setattr("neoaprs.gpsfeed._GpsPort.open", late)
-    monkeypatch.setattr("neoaprs.gpsfeed._GpsPort.close", lambda self: closed.append(self.path))                    # type: ignore[attr-defined]
+    monkeypatch.setattr("neoaprs.gpsfeed._GpsPort.close", lambda self: closed.append(self.path))  # type: ignore[attr-defined]
     feed, _, _ = feed_of("serial", "/dev/ttyUSB-fake", 4800)
     starting = asyncio.create_task(feed.start())
     await gate.entered.wait()
@@ -422,8 +458,8 @@ async def test_a_reader_of_a_connection_that_is_not_the_feeds_any_more_ends_quie
     class Writer:
         transport = Transport()
 
-    await feed._read_gpsd(StaleReader(b'{"class":"TPV"}\n'), Writer(), 2)                       # type: ignore[arg-type]
-    await feed._read_gpsd(StaleReader(fail=OSError("reset")), Writer(), 2)                      # type: ignore[arg-type]
+    await feed._read_gpsd(StaleReader(b'{"class":"TPV"}\n'), Writer(), 2)  # type: ignore[arg-type]
+    await feed._read_gpsd(StaleReader(fail=OSError("reset")), Writer(), 2)  # type: ignore[arg-type]
     assert fixes == [] and aborted == [] and feed.state is Source.State.STOPPED and feed.stats.bytes_in == 0
 
 
@@ -436,7 +472,9 @@ async def test_bytes_and_a_loss_from_a_port_that_is_not_the_feeds_are_ignored() 
 
 
 @pytest.mark.expects_errors
-async def test_a_fix_whose_signal_fails_is_logged_and_the_feed_goes_on(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_fix_whose_signal_fails_is_logged_and_the_feed_goes_on(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     port = await fake_gpsd(greet=False)
     feed, fixes, _ = feed_of("serial", port.url)
     await feed.start()
@@ -450,10 +488,14 @@ async def test_a_fix_whose_signal_fails_is_logged_and_the_feed_goes_on(monkeypat
     monkeypatch.setattr(feed.fixed, "emit", broken)
     port.send_raw(rmc(60.43, 24.145, 1.0, 10.0).encode())
     await until(lambda: handled)
-    assert "gps: the fix was not taken" in caplog.text and feed.fix is handled[0] and feed.state is Source.State.CONNECTED
+    assert (
+        "gps: the fix was not taken" in caplog.text and feed.fix is handled[0] and feed.state is Source.State.CONNECTED
+    )
 
 
-async def test_a_receiver_that_says_it_has_no_fix_twice_is_told_once_and_one_that_is_not_connected_is_not_blamed(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_receiver_that_says_it_has_no_fix_twice_is_told_once_and_one_that_is_not_connected_is_not_blamed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     port = await fake_gpsd(greet=False)
     feed, _, _ = feed_of("serial", port.url)
     await feed.start()

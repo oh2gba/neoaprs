@@ -3,6 +3,7 @@
 Tornado has no cap: a silent host holds a file descriptor per connection until the header timeout,
 and the daemon needs descriptors for its database, its radio and the log.
 """
+
 import logging
 from typing import Any
 
@@ -67,7 +68,9 @@ class LimitedHTTPServer(tornado.httpserver.HTTPServer):
         if len(self._streams) > 1000:  # drop addresses that went away
             for gone in list(self._streams):
                 self._open_from(gone)
-        if (len(self._open_from(ip)) >= MAX_PER_ADDRESS and not loopback) or (self.open_connections() >= MAX_CONNECTIONS and not self._make_room(ip)):
+        if (len(self._open_from(ip)) >= MAX_PER_ADDRESS and not loopback) or (
+            self.open_connections() >= MAX_CONNECTIONS and not self._make_room(ip)
+        ):
             log.warning("too many connections: one from %s was refused", ip)
             stream.close()
             return None

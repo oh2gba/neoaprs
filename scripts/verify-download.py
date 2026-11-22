@@ -3,6 +3,7 @@
 
   scripts/verify-download.py FILE [--sums SUMS] [--signature SIG] [--version VERSION]
 Both are looked for beside FILE; a file name without a version needs --version. Exit 0: verified."""
+
 import argparse
 import hashlib
 import re
@@ -15,7 +16,9 @@ sys.path.insert(0, str(ROOT))
 from neoaprs.updateasset import CHECKSUMS, SIGNATURE, Unverified, public_key, release_version, signed_checksum  # noqa: E402
 
 # The release files whose name carries the version.
-NAMED_FOR = re.compile(r"NeoAPRS-Setup-(.+)\.exe|NeoAPRS-(.+)-x86_64\.AppImage|NeoAPRS-(.+)-arm64\.dmg|neoaprs_(.+)_(?:amd64|arm64)\.deb")
+NAMED_FOR = re.compile(
+    r"NeoAPRS-Setup-(.+)\.exe|NeoAPRS-(.+)-x86_64\.AppImage|NeoAPRS-(.+)-arm64\.dmg|neoaprs_(.+)_(?:amd64|arm64)\.deb"
+)
 
 
 def sha256(file: Path) -> str:
@@ -31,7 +34,9 @@ def version_of(file: Path) -> str:
     found = NAMED_FOR.fullmatch(file.name)
     version = next((part for part in found.groups() if part), "") if found else ""
     if not release_version(version):
-        raise Unverified(f"the name {file.name} carries no version: give the version of the release it was downloaded from with --version")
+        raise Unverified(
+            f"the name {file.name} carries no version: give the version of the release it was downloaded from with --version"
+        )
     return version
 
 
@@ -43,7 +48,9 @@ def check(file: Path, sums_file: Path, signature_file: Path, version: str | None
     expected = signed_checksum(sums, signature, version, file.name, public_key())
     got = sha256(file)
     if got != expected:
-        raise Unverified(f"{file.name} is not the file of the release: its SHA-256 is {got}, the signed {CHECKSUMS} of v{version} says {expected}")
+        raise Unverified(
+            f"{file.name} is not the file of the release: its SHA-256 is {got}, the signed {CHECKSUMS} of v{version} says {expected}"
+        )
     return f"{file.name} is the file of NeoAPRS {version}: {CHECKSUMS} carries the project's signature and gives it the SHA-256 {got}"
 
 

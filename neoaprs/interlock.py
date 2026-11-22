@@ -3,6 +3,7 @@
 The reason comes from config.can_transmit. A service asks with its kind ("beacon", "message"), the
 Tnc about every frame (kind "frame"). The first refusal of a kind is logged, until the interlock opens.
 """
+
 import logging
 from collections.abc import Callable
 

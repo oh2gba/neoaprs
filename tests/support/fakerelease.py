@@ -1,6 +1,7 @@
 """A release for the Update now tests, with no network: SHA256SUMS, its signature with a key of the
 test's own, an AppImage, and an installer that only records what it was given.
 """
+
 import hashlib
 import re
 import secrets
@@ -19,7 +20,7 @@ SUMS = f"{hashlib.sha256(b'x').hexdigest()}  SHA256SUMS-of-another-file.deb\n{ha
 
 
 OLD_SUM_LINE = re.compile(r"^([0-9a-fA-F]{64}) [ *](.+)$")
-SEED = secrets.token_bytes(32)                       # the test's own signing key, made at each run
+SEED = secrets.token_bytes(32)  # the test's own signing key, made at each run
 
 
 def public(seed: bytes = SEED) -> Ed25519PublicKey:
@@ -51,20 +52,29 @@ class FakeInstaller:
         if self.fail:
             raise InstallError(self.fail)
         self.installed.append((file.read_bytes(), name, version))
-        file.unlink()                          # (a real one moves it)
+        file.unlink()  # (a real one moves it)
 
 
 class FakeRelease:
     """The files of a release as the downloads see them, and what was asked for."""
 
-    def __init__(self, sums: bytes = SUMS, body: bytes = BODY, gate: threading.Event | None = None, fail: str = "", signature: bytes | None = None, version: str = "0.7.0", signature_fails: str = "") -> None:
+    def __init__(
+        self,
+        sums: bytes = SUMS,
+        body: bytes = BODY,
+        gate: threading.Event | None = None,
+        fail: str = "",
+        signature: bytes | None = None,
+        version: str = "0.7.0",
+        signature_fails: str = "",
+    ) -> None:
         self.sums = sums
         # The fetch of the signature fails with this, as a connection that drops does
         self.signature_fails = signature_fails
         # b"" serves no signature: a 404
         self.signature = sign(sums, version, SEED).encode() if signature is None else signature
         self.body = body
-        self.gate = gate                    # the file waits for it after its first piece
+        self.gate = gate  # the file waits for it after its first piece
         self.fail = fail
         self.asked: list[str] = []
 

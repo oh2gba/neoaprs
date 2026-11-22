@@ -3,6 +3,7 @@
 The Dummy and Dummy HF radios use the KISS lines of dummyline.py; the Dummy LoRa radio uses
 `DummyLoraPort`, a board of made-up stations that speaks TNC2 text.
 """
+
 import asyncio
 from collections import deque
 from collections.abc import Callable
@@ -25,8 +26,15 @@ KEPT_SENT = 50  # sent packets kept for inspection
 
 
 class DummyLoraPort(DummyPort):
-    def __init__(self, on_data: Callable[[TncPort, bytes], None], on_lost: Callable[[TncPort, str], None], where: Callable[[], tuple[float, float] | None], clock: Clock, tick_sec: float | None = None,
-                 seed: int = 1) -> None:
+    def __init__(
+        self,
+        on_data: Callable[[TncPort, bytes], None],
+        on_lost: Callable[[TncPort, str], None],
+        where: Callable[[], tuple[float, float] | None],
+        clock: Clock,
+        tick_sec: float | None = None,
+        seed: int = 1,
+    ) -> None:
         super().__init__(on_data, on_lost, where, clock, tick_sec, seed, LoraScene)
         self._lines = LineReader()  # reads the board's text lines into frames
         # packets of ours on the made-up air, the latest last
@@ -60,10 +68,12 @@ class DummyLoraPort(DummyPort):
 
 class LineOwner(Protocol):
     """What a Dummy line needs of the Tnc it is the line of (tnc.py)."""
+
     profile: Profile
     radio_id: int
     clock: Clock
     where: Callable[[], tuple[float, float] | None]
+
     def _on_data(self, port: TncPort, chunk: bytes) -> None: ...
     def _on_lost(self, port: TncPort, reason: str) -> None: ...
     @property
@@ -83,9 +93,23 @@ class World:
 _CITY_CALLS = frozenset(station.call for station in CITIES)
 # the world of each Dummy type, by the key of its profile
 WORLDS: dict[str, World] = {
-    DUMMY.key: World(lambda tnc: DummyPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, seed=tnc.radio_id, scene_of=Scene), "dummy radio", lambda _seed: frozenset()),
-    DUMMY_HF.key: World(lambda tnc: DummyPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, seed=tnc.radio_id, scene_of=HfScene, speaker=tnc.modem), "dummy Mercury radio", lambda _seed: _CITY_CALLS),
-    DUMMY_LORA.key: World(lambda tnc: DummyLoraPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, seed=tnc.radio_id), "dummy LoRa radio", lora_calls),
+    DUMMY.key: World(
+        lambda tnc: DummyPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, seed=tnc.radio_id, scene_of=Scene),
+        "dummy radio",
+        lambda _seed: frozenset(),
+    ),
+    DUMMY_HF.key: World(
+        lambda tnc: DummyPort(
+            tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, seed=tnc.radio_id, scene_of=HfScene, speaker=tnc.modem
+        ),
+        "dummy Mercury radio",
+        lambda _seed: _CITY_CALLS,
+    ),
+    DUMMY_LORA.key: World(
+        lambda tnc: DummyLoraPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, seed=tnc.radio_id),
+        "dummy LoRa radio",
+        lora_calls,
+    ),
 }
 
 

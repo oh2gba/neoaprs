@@ -3,6 +3,7 @@
 A radio is named by its id (`radio`, an integer from 1). Its settings travel in `set_config`
 under `radio/<id>/<key>`. A refusal is an `error` with a `radio.*` or `setting.not_stored` code.
 """
+
 from typing import Annotated, Literal
 
 from pydantic import Field
@@ -22,6 +23,7 @@ class RadioAdd(_Command):
     """Adds a radio of the type (`type`, a `key` of `RADIO_TYPES`): after the others, enabled, with the defaults of its kind, the name typed (empty or left out: none), and started at once. Answered with `radio_added` (its
     id) to the page that asked, at once, and then the `set` of its row in `radios` (the topic is told at most four times a second: the row may come a few messages later, so a page that opens the new radio waits
     for it), or with an `error`: `radio.unknown_type`, `radio.name_form`, `radio.name_taken`, `radio.name_label`, `setting.not_stored`."""
+
     cmd: Literal["radio_add"]
     type: str = Field(min_length=1, max_length=TYPE_ROOM)
     name: str = Field(default="", max_length=RADIO_NAME_ROOM, description="the name typed; left out or empty: none")
@@ -29,6 +31,7 @@ class RadioAdd(_Command):
 
 class RadioAddedMsg(_Message):
     """The answer to `radio_add`, to the page that asked: the id the new radio was given."""
+
     type: Literal["radio_added"]
     id: int = Field(ge=1)
 
@@ -36,6 +39,7 @@ class RadioAddedMsg(_Message):
 class RadioRemove(_Command):
     """Removes the radio: it is stopped for good, and in the same write its id leaves the objects' sets, the stations' choices of it and their paths on it. Its row stays in `radios`, `removed`, so that what came by it keeps
     its name. Answered by the row, or an `error`: `radio.unknown`, `radio.last_enabled` (the last radio that is on stays), `setting.not_stored`."""
+
     cmd: Literal["radio_remove"]
     radio: RadioRef
 
@@ -44,10 +48,13 @@ class RadioChange(_Command):
     """Changes what is given of the radio and nothing else: its `name` (empty: none), its `type` (one of its own kind), its Enable (`enabled`) or its place in the list (`position`, from 1; the others keep theirs, a tie goes by
     id). Stored, then in force; the radio is restarted when its type or its Enable changed what runs. Answered by the row, or an `error`: `radio.unknown`, `radio.last_enabled` (the last radio that is on is not switched off),
     `radio.name_form`, `radio.name_taken`, `radio.name_label`, `radio.type_kind`, `radio.unknown_type`, `setting.not_stored`."""
+
     cmd: Literal["radio_change"]
     radio: RadioRef
     name: str | None = Field(default=None, max_length=RADIO_NAME_ROOM, description="the new name; left out: unchanged")
-    type: str | None = Field(default=None, min_length=1, max_length=TYPE_ROOM, description="the new type; left out: unchanged")
+    type: str | None = Field(
+        default=None, min_length=1, max_length=TYPE_ROOM, description="the new type; left out: unchanged"
+    )
     enabled: bool | None = Field(default=None, description="the new Enable; left out: unchanged")
     position: int | None = Field(default=None, ge=1, le=MAX_POSITION, description="the new place; left out: unchanged")
 
@@ -56,6 +63,7 @@ class RadioTune(_Command):
     """Tune on the radio's modem: with `on`, keys the radio through its keying and sends its modem's tuning tone through its sound card for ten seconds (Mercury a steady 1000 Hz, its own TUNE; Direwolf its two tones by turns), then stops by itself; with `on` false, stops it early. The radio's row says `modem.test: "tune"`
     meanwhile. Answered with an `error` for a radio that is none (`radio.unknown`), whose type has no modem or whose modem is not running (`radio.no_modem`, with its `name`), while RX only is ticked (`transmit.off`) and
     while a frame is on the air or the channel is busy (`hf.held`)."""
+
     cmd: Literal["radio_tune"]
     radio: RadioRef
     on: bool = Field(description="true starts the tone, false stops it")
@@ -64,6 +72,7 @@ class RadioTune(_Command):
 class RadioKeyTest(_Command):
     """The keying test on the radio's modem: keys it for one second, so that the operator sees it go to transmit and come back: with next to no audio (Mercury's TUNE at its quietest level) where the keying is a
     line (RTS, DTR, CM108), with the tune tone where the radio keys on audio (VOX); the radio's row says `modem.test: "key"` meanwhile. The same refusals as `radio_tune`."""
+
     cmd: Literal["radio_key_test"]
     radio: RadioRef
 
@@ -72,6 +81,7 @@ class RadioScope(_Command):
     """The scope of the radio's modem: with `on`, this page is sent the rows of its waterfall as binary frames that name the radio (*Binary frames*), first the rows kept and then the rows as they come, with `on`
     false, or when the page closes, no more. Several radios can be looked at at once. Nothing comes while the radio's modem is not running or has no interface (its row's `modem.scope`). Refused, with `on`, for a radio that is none
     (`radio.unknown`) and for one whose type has no scope (`radio.no_scope`, with its `name`: `can.scope` of its row is false); `on` false is never refused."""
+
     cmd: Literal["radio_scope"]
     radio: RadioRef
     on: bool = Field(description="true starts the rows for this page, false stops them")
@@ -81,6 +91,7 @@ class RadioLevel(_Command):
     """The receive level of a Sound card radio as its Direwolf says it ten times a second: with `on`, this page is sent `radio_level` for that radio, the level now at once and then each change, while it shows the
     level (the radio's box is in view); with `on` false, or when the page closes, no more. A page that is behind is skipped. Every page has the slower `modem.rx_level` of the radio's row. Refused, with `on`, for a
     radio that is none (`radio.unknown`) and for one whose type has no receive level (`radio.no_modem`, with its `name`: `can.rx_level` of its row is false); `on` false is never refused."""
+
     cmd: Literal["radio_level"]
     radio: RadioRef
     on: bool = Field(description="true starts the levels for this page, false stops them")
@@ -88,6 +99,7 @@ class RadioLevel(_Command):
 
 class RadioLevelMsg(_Message):
     """A Sound card radio's receive level as it is now, to a page that asked for it (`radio_level`): on Direwolf's own scale, as the row's `modem.rx_level`; null while its Direwolf does not run."""
+
     type: Literal["radio_level"]
     radio: int = Field(ge=1)
     level: int | None = Field(ge=0)
@@ -99,6 +111,7 @@ class StationRadio(_Command):
     station of the book it is answered by the station's row (and the `radio_now` of each message to it on its way); a call the book does not hold is chosen for too (plan rule 3.2: the choice is kept by call), with no
     answer, and its station's row says it once the station is heard. The call is kept in its normal form, as a message names it (upper case, no SSID 0). Refused with an `error`: `radio.unknown` (no radio of that
     id that is not removed), `radio.receive_only` (a radio of a type that only receives, with its `name`), or a `call.*` code for a text that is no call."""
+
     cmd: Literal["station_radio"]
     call: Call
     radio: RadioRef | None

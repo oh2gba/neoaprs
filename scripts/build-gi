@@ -3,6 +3,7 @@
 
 The result is gi-<version>-linux-x86_64.tar.gz for the AppImage's web window.
   scripts/build-gi [--docker] [--out DIR] [--source FILE]       (options: see --help)"""
+
 from __future__ import annotations
 
 import argparse
@@ -28,18 +29,41 @@ MESON_URL = "https://files.pythonhosted.org/packages/d2/f3/9d53c24a7113e08879b14
 # The sha256 PyPI gives for the wheel; the build refuses to run without it.
 MESON_SHA256 = "3f41f6b03df56bb76836cc33c94e1a404c3584d48b3259540794a60a21fad1f9"
 IMAGE = "ubuntu:22.04"
-APT_PACKAGES = ("python3", "ca-certificates", "gcc", "pkg-config", "ninja-build", "binutils", "libgirepository1.0-dev", "libglib2.0-dev", "libffi-dev",
-                "libayatana-appindicator3-1", "gir1.2-ayatanaappindicator3-0.1", "gir1.2-webkit2-4.1")
+APT_PACKAGES = (
+    "python3",
+    "ca-certificates",
+    "gcc",
+    "pkg-config",
+    "ninja-build",
+    "binutils",
+    "libgirepository1.0-dev",
+    "libglib2.0-dev",
+    "libffi-dev",
+    "libayatana-appindicator3-1",
+    "gir1.2-ayatanaappindicator3-0.1",
+    "gir1.2-webkit2-4.1",
+)
 # Packages whose files are carried, for the versions and copyright files in NOTICES/.
-CARRIED_PACKAGES = ("libayatana-appindicator3-1", "libayatana-indicator3-7", "libayatana-ido3-0.4-0", "libdbusmenu-gtk3-4", "libdbusmenu-glib4", "gir1.2-ayatanaappindicator3-0.1",
-                    "gir1.2-webkit2-4.1", "gir1.2-javascriptcoregtk-4.1", "gir1.2-soup-3.0")
+CARRIED_PACKAGES = (
+    "libayatana-appindicator3-1",
+    "libayatana-indicator3-7",
+    "libayatana-ido3-0.4-0",
+    "libdbusmenu-gtk3-4",
+    "libdbusmenu-glib4",
+    "gir1.2-ayatanaappindicator3-0.1",
+    "gir1.2-webkit2-4.1",
+    "gir1.2-javascriptcoregtk-4.1",
+    "gir1.2-soup-3.0",
+)
 SYSTEM_LIB = Path("/usr/lib/x86_64-linux-gnu")
 SYSTEM_TYPELIBS = SYSTEM_LIB / "girepository-1.0"
 TRAY_TYPELIBS = ("AyatanaAppIndicator3-0.1.typelib",)
 WEBKIT_TYPELIBS = ("WebKit2-4.1.typelib", "JavaScriptCore-4.1.typelib", "Soup-3.0.typelib")
 # What `_gi` and the carried libraries may need (readelf's NEEDED), besides each other.
-NEEDED_OK = re.compile(r"^(libc|libm|libdl|libpthread|librt|ld-linux[\w-]*)\.so|^lib(glib|gobject|gmodule|gio|gthread)-2\.0\.so|^libgirepository-1\.0\.so|^libffi\.so|^lib(gtk|gdk)-3\.so|"
-                       r"^libgdk_pixbuf-2\.0\.so|^lib(pango|pangocairo|pangoft2)-1\.0\.so|^libcairo(-gobject)?\.so|^libatk-1\.0\.so|^libharfbuzz\.so")
+NEEDED_OK = re.compile(
+    r"^(libc|libm|libdl|libpthread|librt|ld-linux[\w-]*)\.so|^lib(glib|gobject|gmodule|gio|gthread)-2\.0\.so|^libgirepository-1\.0\.so|^libffi\.so|^lib(gtk|gdk)-3\.so|"
+    r"^libgdk_pixbuf-2\.0\.so|^lib(pango|pangocairo|pangoft2)-1\.0\.so|^libcairo(-gobject)?\.so|^libatk-1\.0\.so|^libharfbuzz\.so"
+)
 WORK = ROOT / "build" / "gi" / "work"
 DEFAULT_OUT = ROOT / "dist-gi"
 
@@ -71,7 +95,10 @@ def tarball_name() -> str:
 
 
 def cache_dir() -> Path:
-    return Path(os.environ.get("NEOAPRS_BUILD_CACHE") or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "neoaprs-build")
+    return Path(
+        os.environ.get("NEOAPRS_BUILD_CACHE")
+        or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "neoaprs-build"
+    )
 
 
 def sha256(path: Path) -> str:
@@ -100,7 +127,13 @@ def fetch(url: str, digest: str) -> Path:
     last: Exception | None = None
     for attempt in range(3):
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "neoaprs-build-gi"}), timeout=60) as reply, part.open("wb") as out:  # noqa: S310  (pinned https address; kept only with its pinned SHA-256)
+            with (
+                urllib.request.urlopen(  # noqa: S310
+                    urllib.request.Request(url, headers={"User-Agent": "neoaprs-build-gi"}),  # noqa: S310
+                    timeout=60,
+                ) as reply,
+                part.open("wb") as out,
+            ):
                 shutil.copyfileobj(reply, out)
             last = None
             break
@@ -137,7 +170,9 @@ def check_links(paths: list[Path], carried: tuple[str, ...]) -> list[str]:
         names = needed(path)
         for name in names:
             if name not in carried and not NEEDED_OK.match(name):
-                raise BuildError(f"{path.name} needs {name}, which is neither carried nor what a desktop with WebKitGTK has")
+                raise BuildError(
+                    f"{path.name} needs {name}, which is neither carried nor what a desktop with WebKitGTK has"
+                )
         lines.append(f"{path.name}: {', '.join(names)}")
     return lines
 
@@ -161,8 +196,22 @@ def build_gi(source: Path, meson: Path, python: Path, work: Path) -> Path:
     site = work / "stage-site"
     env = {**os.environ, "PYTHONPATH": str(meson_dir)}
     meson_cmd = [sys.executable, "-m", "mesonbuild.mesonmain"]
-    run([*meson_cmd, "setup", str(work / "build"), str(tree), "--buildtype=release", "-Dpycairo=disabled", "-Dtests=false", f"-Dpython={python}",
-         f"-Dpython.platlibdir={site}", f"-Dpython.purelibdir={site}", f"--prefix={work / 'stage-prefix'}"], env=env)
+    run(
+        [
+            *meson_cmd,
+            "setup",
+            str(work / "build"),
+            str(tree),
+            "--buildtype=release",
+            "-Dpycairo=disabled",
+            "-Dtests=false",
+            f"-Dpython={python}",
+            f"-Dpython.platlibdir={site}",
+            f"-Dpython.purelibdir={site}",
+            f"--prefix={work / 'stage-prefix'}",
+        ],
+        env=env,
+    )
     run(["ninja", "-C", str(work / "build")], env=env)
     run([*meson_cmd, "install", "-C", str(work / "build")], env=env)
     package = site / "gi"
@@ -209,9 +258,19 @@ def stage(gi: Path, source_tree: Path, out: Path, carried: tuple[str, ...]) -> P
 def check(folder: Path, python: Path, carried: tuple[str, ...]) -> str:
     """Check the links of `_gi` and the libraries, and import gi with the CPython it was built
     for."""
-    lines = check_links([*sorted((folder / "site-packages" / "gi").glob("_gi*.so")), *(folder / "lib" / name for name in carried)], carried)
-    said = run([str(python), "-I", "-c", "import sys; sys.path.insert(0, sys.argv[1]); import gi; from gi.repository import GLib; print('gi', gi.__version__, 'GLib', GLib.MAJOR_VERSION, GLib.MINOR_VERSION)",
-                str(folder / "site-packages")])
+    lines = check_links(
+        [*sorted((folder / "site-packages" / "gi").glob("_gi*.so")), *(folder / "lib" / name for name in carried)],
+        carried,
+    )
+    said = run(
+        [
+            str(python),
+            "-I",
+            "-c",
+            "import sys; sys.path.insert(0, sys.argv[1]); import gi; from gi.repository import GLib; print('gi', gi.__version__, 'GLib', GLib.MAJOR_VERSION, GLib.MINOR_VERSION)",
+            str(folder / "site-packages"),
+        ]
+    )
     return "\n".join([*lines, said.strip()])
 
 
@@ -230,24 +289,54 @@ def in_docker(out: Path, source: Path | None) -> int:
     cache = cache_dir()
     cache.mkdir(parents=True, exist_ok=True)
     out.mkdir(parents=True, exist_ok=True)
-    inner = ["python3", "/src/scripts/build-gi", "--out", "/out"] + (["--source", f"/cache/{source.name}"] if source else [])
+    inner = ["python3", "/src/scripts/build-gi", "--out", "/out"] + (
+        ["--source", f"/cache/{source.name}"] if source else []
+    )
     if source is not None:
         shutil.copy2(source, cache / source.name)
-    script = (f"set -e; trap 'chown -R {os.getuid()}:{os.getgid()} /out' EXIT; export DEBIAN_FRONTEND=noninteractive; apt-get update -qq; "
-              f"apt-get install -y -qq --no-install-recommends {' '.join(APT_PACKAGES)} >/dev/null; {' '.join(inner)}")
-    command = ["docker", "run", "--rm", "-v", f"{ROOT}:/src:ro", "-v", f"{cache}:/cache", "-v", f"{out}:/out", "-e", "NEOAPRS_BUILD_CACHE=/cache", "-e", "NEOAPRS_GI_WORK=/tmp/gi", IMAGE, "bash", "-c", script]
+    script = (
+        f"set -e; trap 'chown -R {os.getuid()}:{os.getgid()} /out' EXIT; export DEBIAN_FRONTEND=noninteractive; apt-get update -qq; "
+        f"apt-get install -y -qq --no-install-recommends {' '.join(APT_PACKAGES)} >/dev/null; {' '.join(inner)}"
+    )
+    command = [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{ROOT}:/src:ro",
+        "-v",
+        f"{cache}:/cache",
+        "-v",
+        f"{out}:/out",
+        "-e",
+        "NEOAPRS_BUILD_CACHE=/cache",
+        "-e",
+        "NEOAPRS_GI_WORK=/tmp/gi",
+        IMAGE,
+        "bash",
+        "-c",
+        script,
+    ]
     return subprocess.run(command, check=False).returncode
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="build-gi", description="Builds PyGObject for the AppImage's CPython and gathers the tray's library and the WebKit typelibs that the web window carries.")
+    parser = argparse.ArgumentParser(
+        prog="build-gi",
+        description="Builds PyGObject for the AppImage's CPython and gathers the tray's library and the WebKit typelibs that the web window carries.",
+    )
     parser.add_argument("--docker", action="store_true", help=f"build in a fresh {IMAGE} container")
     parser.add_argument("--out", type=Path, help=f"the folder in which {tarball_name()} is made (default dist-gi/)")
-    parser.add_argument("--source", type=Path, help="the pinned PyGObject source archive at hand, instead of the download")
+    parser.add_argument(
+        "--source", type=Path, help="the pinned PyGObject source archive at hand, instead of the download"
+    )
     args = parser.parse_args(argv)
     out = (args.out or DEFAULT_OUT).resolve()
     if not pinned(MESON_SHA256):
-        print(f"build-gi: MESON_SHA256 is not pinned yet: put the sha256 PyPI gives for {MESON_URL.rsplit('/', 1)[1]} into scripts/build-gi", file=sys.stderr)
+        print(
+            f"build-gi: MESON_SHA256 is not pinned yet: put the sha256 PyPI gives for {MESON_URL.rsplit('/', 1)[1]} into scripts/build-gi",
+            file=sys.stderr,
+        )
         return 2
     if args.docker:
         return in_docker(out, args.source.resolve() if args.source else None)
@@ -256,7 +345,10 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     for tool in ("gcc", "ninja", "pkg-config", "readelf", "dpkg-query"):
         if shutil.which(tool) is None:
-            print(f"build-gi: {tool} is not installed (run it with --docker, or install {' '.join(APT_PACKAGES)})", file=sys.stderr)
+            print(
+                f"build-gi: {tool} is not installed (run it with --docker, or install {' '.join(APT_PACKAGES)})",
+                file=sys.stderr,
+            )
             return 1
     started = time.monotonic()
     carried = carried_libraries()

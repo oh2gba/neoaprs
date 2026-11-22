@@ -2,6 +2,7 @@
 that only looks like an ack, bulletin and group messages, queries, telemetry definitions and the
 weather bulletins.
 """
+
 from dataclasses import replace
 from pathlib import Path
 
@@ -26,12 +27,13 @@ def received(rig: Rig) -> list[tuple[str, str | None]]:
 
 # ---- duplicates: sender, id and text
 
+
 async def test_a_new_text_with_an_id_that_was_used_is_a_new_message_that_is_kept_acked_and_alerted(rig: Rig) -> None:
     told: list[MessageRecord] = []
     rig.m.inbox._alert = told.append
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "first", "12"))
     rig.clock.advance(60)
-    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "second", "12"))              # (the sender began its numbering again)
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "second", "12"))  # (the sender began its numbering again)
     await rig.settled()
     assert received(rig) == [("first", "12"), ("second", "12")] and [r.text for r in told] == ["first", "second"]
     assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :ack12"] * 2
@@ -43,14 +45,21 @@ async def test_the_same_text_with_the_same_id_is_a_repeat_whatever_reply_ack_it_
     # The retry carries another AA; the text is without it
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "same", "12", reply="07"))
     await rig.settled()
-    assert received(rig) == [("same", "12")] and rig.tnc.lines()[0].endswith(":ack12}") and rig.tnc.lines()[1].endswith(":ack12}07")
+    assert (
+        received(rig) == [("same", "12")]
+        and rig.tnc.lines()[0].endswith(":ack12}")
+        and rig.tnc.lines()[1].endswith(":ack12}07")
+    )
 
 
 # ---- what is an ack
 
-async def test_a_word_that_begins_like_an_ack_or_a_rej_and_settles_nothing_is_an_ordinary_message_without_an_id(rig: Rig) -> None:
-    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", rej="oin"))                    # "rejoin"
-    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="bar"))                    # "ackbar"
+
+async def test_a_word_that_begins_like_an_ack_or_a_rej_and_settles_nothing_is_an_ordinary_message_without_an_id(
+    rig: Rig,
+) -> None:
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", rej="oin"))  # "rejoin"
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="bar"))  # "ackbar"
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "acknowledged"))
     await rig.settled()
     assert received(rig) == [("rejoin", None), ("ackbar", None), ("acknowledged", None)]
@@ -67,16 +76,22 @@ async def test_an_ack_that_names_a_message_of_ours_is_an_ack_in_whatever_state_t
     assert [m.state for m in rig.m.records()] == ["acked"], "no message came of the later ones, and the state stays"
 
 
-async def test_a_repeated_ack_settles_only_the_newest_message_with_the_id_not_an_older_failed_one_after_the_ids_went_round(rig: Rig) -> None:
-    old = await rig.log.insert(MessageRecord(0, rig.clock(), "out", "OH2GBA", "OH2RDG", "old", "05", "failed", 4, rig.clock()))
-    new = await rig.log.insert(MessageRecord(0, rig.clock(), "out", "OH2GBA", "OH2RDG", "new", "05", "acked", 1, rig.clock(), rig.clock()))
+async def test_a_repeated_ack_settles_only_the_newest_message_with_the_id_not_an_older_failed_one_after_the_ids_went_round(
+    rig: Rig,
+) -> None:
+    old = await rig.log.insert(
+        MessageRecord(0, rig.clock(), "out", "OH2GBA", "OH2RDG", "old", "05", "failed", 4, rig.clock())
+    )
+    new = await rig.log.insert(
+        MessageRecord(0, rig.clock(), "out", "OH2GBA", "OH2RDG", "new", "05", "acked", 1, rig.clock(), rig.clock())
+    )
     assert old is not None and new is not None
     rig.m.put(old)
     rig.m.put(new)
     # The second copy of the ack of the newer message, by another digipeater
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="05"))
     await rig.settled()
-    assert (rig.m.get(old.id).state, rig.m.get(new.id).state) == ("failed", "acked")    # type: ignore[union-attr]
+    assert (rig.m.get(old.id).state, rig.m.get(new.id).state) == ("failed", "acked")  # type: ignore[union-attr]
 
 
 async def test_an_ack_from_another_station_or_with_another_id_is_a_word_like_any_other(rig: Rig) -> None:
@@ -89,7 +104,9 @@ async def test_an_ack_from_another_station_or_with_another_id_is_a_word_like_any
 
 def on_air(rig: Rig, source: str, info: bytes) -> Packet:
     """A packet as the radio would deliver it, the information field read by the parser."""
-    frame = ax25.Frame(ax25.Address.parse("APRS"), ax25.Address.parse(source), (ax25.Address.parse("WIDE1-1"),), info=info)
+    frame = ax25.Frame(
+        ax25.Address.parse("APRS"), ax25.Address.parse(source), (ax25.Address.parse("WIDE1-1"),), info=info
+    )
     return packet_of("in", ax25.encode(frame), frame, rig.clock())
 
 
@@ -101,7 +118,10 @@ async def test_blanks_cr_and_lf_after_an_ack_or_a_message_number_do_not_count(ri
     rig.m.on_packet(on_air(rig, "OH2XYZ", b":OH2GBA   :Hi{7\r\n"))
     await rig.settled()
     assert received(rig) == [("Hello", "12"), ("Hi", "7")]
-    assert rig.tnc.lines()[1:] == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :ack12}", "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2XYZ   :ack7"]
+    assert rig.tnc.lines()[1:] == [
+        "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :ack12}",
+        "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2XYZ   :ack7",
+    ]
 
 
 async def test_a_message_whose_addressee_field_is_a_little_short_is_taken(rig: Rig) -> None:
@@ -112,11 +132,20 @@ async def test_a_message_whose_addressee_field_is_a_little_short_is_taken(rig: R
 
 # ---- bulletins and groups
 
+
 @pytest.mark.parametrize("to", ["BLN1", "BLNA", "BLN3HAMS", "ALL", "CQ", "QST", "NWS-WARNV", "SKYWRN", "CWA"])
-async def test_a_message_to_a_bulletin_or_a_group_goes_out_once_without_an_id_and_is_kept_unconfirmed(rig: Rig, to: str) -> None:
+async def test_a_message_to_a_bulletin_or_a_group_goes_out_once_without_an_id_and_is_kept_unconfirmed(
+    rig: Rig, to: str
+) -> None:
     record = await rig.m.send(to.lower(), "Net tonight at 20")
     assert [f.info for f in rig.tnc.sent] == [f":{to:<9}:Net tonight at 20".encode()], "no id"
-    assert (record.msg_id, record.state, record.attempts, record.attempts_max, record.to_call) == (None, "unconfirmed", 1, 1, to)
+    assert (record.msg_id, record.state, record.attempts, record.attempts_max, record.to_call) == (
+        None,
+        "unconfirmed",
+        1,
+        1,
+        to,
+    )
     await rig.pass_time(7200)
     assert len(rig.tnc.sent) == 1, "never retried"
     await rig.settled()
@@ -148,13 +177,23 @@ async def test_a_text_that_cannot_be_sent_is_refused_for_a_bulletin_as_for_any_m
 
 # ---- queries
 
-@pytest.mark.parametrize("text", ["?APRSP", "?APRSS", "?APRSD", "?APRST", "?PING?", "?APRS?", "?APRSM", "?WX", "?aprsp", "?APRSH OH2XYZ"])
-async def test_a_query_to_us_is_acked_when_it_carries_an_id_and_is_not_a_conversation_message(rig: Rig, text: str) -> None:
+
+@pytest.mark.parametrize(
+    "text", ["?APRSP", "?APRSS", "?APRSD", "?APRST", "?PING?", "?APRS?", "?APRSM", "?WX", "?aprsp", "?APRSH OH2XYZ"]
+)
+async def test_a_query_to_us_is_acked_when_it_carries_an_id_and_is_not_a_conversation_message(
+    rig: Rig, text: str
+) -> None:
     # Numbered against the specification: the ack stops the radio's retries
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", text, "7"))
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", text))
     await rig.settled()
-    assert [f.info for f in rig.tnc.sent] == [b":OH2RDG   :ack7"] and rig.m.records() == [] and await rig.log.recent() == [] and await rig.log.recent(overheard=True) == []
+    assert (
+        [f.info for f in rig.tnc.sent] == [b":OH2RDG   :ack7"]
+        and rig.m.records() == []
+        and await rig.log.recent() == []
+        and await rig.log.recent(overheard=True) == []
+    )
 
 
 async def test_a_text_with_a_question_mark_that_is_no_query_is_a_message(rig: Rig) -> None:
@@ -166,27 +205,55 @@ async def test_a_text_with_a_question_mark_that_is_no_query_is_a_message(rig: Ri
 
 # ---- telemetry definitions
 
-@pytest.mark.parametrize("text", ["PARM.Battery,Btemp,ATemp", "UNIT.v/100,deg.F,deg.F", "EQNS.0,5.2,0,0,.53,-32", "BITS.10110000,N0QBF's Big Balloon"])
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "PARM.Battery,Btemp,ATemp",
+        "UNIT.v/100,deg.F,deg.F",
+        "EQNS.0,5.2,0,0,.53,-32",
+        "BITS.10110000,N0QBF's Big Balloon",
+    ],
+)
 @pytest.mark.parametrize("to", ["OH2GBA", "OH2XYZ"])
-async def test_a_definition_of_telemetry_channels_is_neither_a_message_nor_overheard_nor_acked(rig: Rig, text: str, to: str) -> None:
+async def test_a_definition_of_telemetry_channels_is_neither_a_message_nor_overheard_nor_acked(
+    rig: Rig, text: str, to: str
+) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", to, text, "7"))
     await rig.settled()
-    assert rig.tnc.sent == [] and rig.m.records() == [] and await rig.log.recent() == [] and await rig.log.recent(overheard=True) == [] and rig.board == []
+    assert (
+        rig.tnc.sent == []
+        and rig.m.records() == []
+        and await rig.log.recent() == []
+        and await rig.log.recent(overheard=True) == []
+        and rig.board == []
+    )
 
 
 # ---- weather service bulletins
 
+
 @pytest.mark.parametrize("addressee", ["NWS-WARNV", "NWS-TSTWR", "SKYWRN", "CWASKY"])
-async def test_a_weather_service_bulletin_goes_to_the_board_and_is_neither_overheard_nor_acked(rig: Rig, addressee: str) -> None:
+async def test_a_weather_service_bulletin_goes_to_the_board_and_is_neither_overheard_nor_acked(
+    rig: Rig, addressee: str
+) -> None:
     packet = rig.heard("OH2RDG", addressee, "092010z,THUNDER_STORM,AR_ASHLEY,", "S9JbA")
     rig.m.on_packet(packet)
     await rig.settled()
-    assert [p for p, _ in rig.board] == [packet] and rig.tnc.sent == [] and rig.m.records() == [] and await rig.log.recent(overheard=True) == []
+    assert (
+        [p for p, _ in rig.board] == [packet]
+        and rig.tnc.sent == []
+        and rig.m.records() == []
+        and await rig.log.recent(overheard=True) == []
+    )
 
 
 # ---- the exact addressee
 
-async def test_a_message_is_ours_to_the_call_with_its_ssid_and_not_to_the_base_call_when_ours_has_an_ssid(rig: Rig) -> None:
+
+async def test_a_message_is_ours_to_the_call_with_its_ssid_and_not_to_the_base_call_when_ours_has_an_ssid(
+    rig: Rig,
+) -> None:
     rig.config = replace(rig.config, station_call="OH2GBA-3")
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA-3", "ours", "1"))
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "base", "2"))
@@ -196,25 +263,37 @@ async def test_a_message_is_ours_to_the_call_with_its_ssid_and_not_to_the_base_c
 
 # ---- requests to QRU
 
-async def test_a_request_to_qru_that_the_qru_server_takes_is_never_acked_also_with_an_id_and_is_neither_kept_nor_overheard(rig: Rig) -> None:
+
+async def test_a_request_to_qru_that_the_qru_server_takes_is_never_acked_also_with_an_id_and_is_neither_kept_nor_overheard(
+    rig: Rig,
+) -> None:
     taken: list[tuple[str, str]] = []
     rig.m.inbox._qru = lambda packet, message: taken.append((packet.sender, message.text)) is None
     rig.m.on_packet(rig.heard("OH2RDG", "QRU", "RP70", "7"))
     rig.m.on_packet(rig.heard("OH2RDG", "qru", "INFO"))
     await rig.settled()
-    assert taken == [("OH2RDG", "RP70"), ("OH2RDG", "INFO")] and rig.tnc.sent == [], "a request is a broadcast: an ack from our call would match nothing"
+    assert taken == [("OH2RDG", "RP70"), ("OH2RDG", "INFO")] and rig.tnc.sent == [], (
+        "a request is a broadcast: an ack from our call would match nothing"
+    )
     assert rig.m.records() == [] and await rig.log.recent() == [] and await rig.log.recent(overheard=True) == []
 
 
-async def test_a_request_to_qru_that_is_not_taken_or_has_no_server_is_a_message_overheard_like_any_other(rig: Rig) -> None:
+async def test_a_request_to_qru_that_is_not_taken_or_has_no_server_is_a_message_overheard_like_any_other(
+    rig: Rig,
+) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "QRU", "INFO", "7"))
     rig.m.inbox._qru = lambda packet, message: False
     rig.m.on_packet(rig.heard("OH2ABC", "QRU", "FOOD", "8"))
     await rig.settled()
-    assert [(m.from_call, m.text, m.state) for m in await rig.log.recent(overheard=True)] == [("OH2ABC", "FOOD", "overheard"), ("OH2RDG", "INFO", "overheard")] and rig.tnc.sent == []
+    assert [(m.from_call, m.text, m.state) for m in await rig.log.recent(overheard=True)] == [
+        ("OH2ABC", "FOOD", "overheard"),
+        ("OH2RDG", "INFO", "overheard"),
+    ] and rig.tnc.sent == []
 
 
-async def test_an_ack_or_a_reject_to_qru_and_a_message_to_another_station_are_not_given_to_the_qru_server(rig: Rig) -> None:
+async def test_an_ack_or_a_reject_to_qru_and_a_message_to_another_station_are_not_given_to_the_qru_server(
+    rig: Rig,
+) -> None:
     taken: list[str] = []
     rig.m.inbox._qru = lambda packet, message: taken.append(message.text) is None
     rig.m.on_packet(rig.heard("OH2RDG", "QRU", ack="01"))

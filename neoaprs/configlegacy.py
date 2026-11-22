@@ -2,6 +2,7 @@
 
 `web/bind` is read until the first save writes `web/network`. The radio rules are applied to a
 database by a migration; here they serve only `Config.from_data` without stored radios."""
+
 from collections.abc import Mapping
 
 from .configtypes import boolean
@@ -33,7 +34,11 @@ def with_radios(rows: Mapping[str, str]) -> Mapping[str, str]:
     Applies only when neither `hf/enabled` nor `fm/enabled` has a row."""
     if rows.get("tnc/profile", "").strip() != "mercury" or "hf/enabled" in rows or "fm/enabled" in rows:
         return rows
-    return {**{key: value for key, value in rows.items() if key != "tnc/profile"}, "hf/enabled": "true", "fm/enabled": "false"}
+    return {
+        **{key: value for key, value in rows.items() if key != "tnc/profile"},
+        "hf/enabled": "true",
+        "fm/enabled": "false",
+    }
 
 
 def with_legacy(rows: Mapping[str, str]) -> Mapping[str, str]:

@@ -2,6 +2,7 @@
 loopback server: a non-200 answer, redirects, silence or non-HTTP, a cut body, a full disk and a
 work thread whose loop is gone.
 """
+
 import asyncio
 import threading
 from pathlib import Path
@@ -43,9 +44,13 @@ async def test_a_redirect_to_an_address_that_is_allowed_is_followed_and_one_to_a
     server.route("/file", body=b"the file")
     server.route("/elsewhere", status=302, headers={"Location": "https://evil.example/file?token=1"})
     assert await fetch(server.url("/to-file"), loopback_only(server)) == b"the file"
-    with pytest.raises(DownloadError, match=r"sent on to https://evil.example/file, which is not one of GitHub's addresses"):
+    with pytest.raises(
+        DownloadError, match=r"sent on to https://evil.example/file, which is not one of GitHub's addresses"
+    ):
         await fetch(server.url("/elsewhere"), loopback_only(server))
-    assert server.requests == ["/to-file", "/file", "/elsewhere"], "nothing was asked of the other host (and its token is not in the message)"
+    assert server.requests == ["/to-file", "/file", "/elsewhere"], (
+        "nothing was asked of the other host (and its token is not in the message)"
+    )
 
 
 async def test_a_download_that_ends_somewhere_the_check_does_not_allow_is_closed_and_refused() -> None:
@@ -58,7 +63,7 @@ async def test_a_download_that_ends_somewhere_the_check_does_not_allow_is_closed
 
     def changes_its_mind(url: str) -> bool:
         asked.append(url)
-        return len(asked) < 3                      # the address, the redirect, and then the end of it
+        return len(asked) < 3  # the address, the redirect, and then the end of it
 
     with pytest.raises(DownloadError, match="ended at .*/file, which is not one of GitHub's addresses"):
         await asyncio.to_thread(open_url, server.url("/to-file"), changes_its_mind)
@@ -99,16 +104,27 @@ async def test_a_file_whose_body_stops_in_the_middle_is_cut_short_or_a_download_
     server.route("/chunk", chunked_cut=b"x" * 10)
     allowed = loopback_only(server)
     with pytest.raises(DownloadError, match="cut short: 10 of 100 bytes"):
-        await asyncio.to_thread(fetch_file, server.url("/cut"), tmp_path / "cut", allowed, lambda done, total: None, threading.Event())
+        await asyncio.to_thread(
+            fetch_file, server.url("/cut"), tmp_path / "cut", allowed, lambda done, total: None, threading.Event()
+        )
     with pytest.raises(DownloadError, match="chunk could not be downloaded"):
-        await asyncio.to_thread(fetch_file, server.url("/chunk"), tmp_path / "chunk", allowed, lambda done, total: None, threading.Event())
+        await asyncio.to_thread(
+            fetch_file, server.url("/chunk"), tmp_path / "chunk", allowed, lambda done, total: None, threading.Event()
+        )
 
 
 async def test_a_folder_that_is_not_there_is_a_download_error_and_the_response_is_closed(tmp_path: Path) -> None:
     server = await http_server()
     server.route("/file", body=b"the file")
     with pytest.raises(DownloadError, match="file could not be downloaded"):
-        await asyncio.to_thread(fetch_file, server.url("/file"), tmp_path / "no-such-folder" / "file", loopback_only(server), lambda done, total: None, threading.Event())
+        await asyncio.to_thread(
+            fetch_file,
+            server.url("/file"),
+            tmp_path / "no-such-folder" / "file",
+            loopback_only(server),
+            lambda done, total: None,
+            threading.Event(),
+        )
 
 
 @posix_only
@@ -116,7 +132,14 @@ async def test_a_disk_that_is_full_is_a_download_error_with_the_reason() -> None
     server = await http_server()
     server.route("/file", body=b"the file")
     with pytest.raises(DownloadError, match="No space left on device"):
-        await asyncio.to_thread(fetch_file, server.url("/file"), Path("/dev/full"), loopback_only(server), lambda done, total: None, threading.Event())
+        await asyncio.to_thread(
+            fetch_file,
+            server.url("/file"),
+            Path("/dev/full"),
+            loopback_only(server),
+            lambda done, total: None,
+            threading.Event(),
+        )
 
 
 async def test_a_cancel_during_a_real_download_is_a_cancel_and_not_a_download_error(tmp_path: Path) -> None:
@@ -125,7 +148,14 @@ async def test_a_cancel_during_a_real_download_is_a_cancel_and_not_a_download_er
     cancelled = threading.Event()
     cancelled.set()
     with pytest.raises(Cancelled):
-        await asyncio.to_thread(fetch_file, server.url("/file"), tmp_path / "file", loopback_only(server), lambda done, total: None, cancelled)
+        await asyncio.to_thread(
+            fetch_file,
+            server.url("/file"),
+            tmp_path / "file",
+            loopback_only(server),
+            lambda done, total: None,
+            cancelled,
+        )
 
 
 async def test_a_work_thread_whose_asker_was_cancelled_ends_without_a_word() -> None:
@@ -157,4 +187,3 @@ def test_a_work_thread_whose_loop_is_gone_ends_without_a_word() -> None:
     [thread] = [t for t in threading.enumerate() if t.name == "update-download-orphan"]
     thread.join(5)
     assert not thread.is_alive()
-

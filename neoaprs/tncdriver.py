@@ -59,7 +59,14 @@ def line_settings(spec: RadioSpec, station: Config, run: RunOverrides) -> TncSet
     if profile.transport == "tcp":
         # empty until the board's address is typed: the radio then opens nothing
         host = _own(spec, "tcp_host")
-        return TncSettings(port if names_tcp(port) else tcp_url(host, _own(spec, "tcp_port", 0)) if host else "", baud, profile, False, station.serial_skip_paths, pattern)
+        return TncSettings(
+            port if names_tcp(port) else tcp_url(host, _own(spec, "tcp_port", 0)) if host else "",
+            baud,
+            profile,
+            False,
+            station.serial_skip_paths,
+            pattern,
+        )
     named = port or (_remembered(station, spec.id) if first else "")
     # the search leaves out what other radios hold or are set to (Claims.others)
     return TncSettings(named, baud, profile, profile.search, station.serial_skip_paths, pattern)
@@ -74,12 +81,21 @@ def _remembered(station: Config, mine: RadioId) -> str:
 
 def remembered(spec: RadioSpec, station: Config, run: RunOverrides) -> bool:
     """Return whether the port is only the one radio 1's search found (serial/last_port)."""
-    return not run.port and profile_of(spec).transport == "serial" and not _own(spec, "port") and bool(line_settings(spec, station, run).port)
+    return (
+        not run.port
+        and profile_of(spec).transport == "serial"
+        and not _own(spec, "port")
+        and bool(line_settings(spec, station, run).port)
+    )
 
 
 def radio_words(settings: TncSettings) -> str:
     """Return a radio's settings for the log: what it is and where it is reached."""
-    where = settings.port or (f"the first port that matches {settings.pattern} and {'prints heard packets' if settings.profile.framing == 'text' else 'talks KISS'}" if settings.profile.search and settings.profile.transport == "serial" else "no port chosen yet")
+    where = settings.port or (
+        f"the first port that matches {settings.pattern} and {'prints heard packets' if settings.profile.framing == 'text' else 'talks KISS'}"
+        if settings.profile.search and settings.profile.transport == "serial"
+        else "no port chosen yet"
+    )
     return f"{settings.profile.name},{where}{'' if settings.profile.transport != 'serial' else f' at {settings.baud} baud'}"
 
 
@@ -88,7 +104,15 @@ def apply_tnc_settings(tnc: Tnc, settings: TncSettings) -> None:
 
 
 class TncDriver:
-    def __init__(self, spec: RadioSpec, claims: Claims, clock: Clock = utcnow, line: Tnc | None = None, *, search_lock: asyncio.Lock | None = None) -> None:
+    def __init__(
+        self,
+        spec: RadioSpec,
+        claims: Claims,
+        clock: Clock = utcnow,
+        line: Tnc | None = None,
+        *,
+        search_lock: asyncio.Lock | None = None,
+    ) -> None:
         self.id = spec.id
         self.claims = claims
         # the registry's lock: one radio searches the ports at a time
@@ -135,7 +159,11 @@ class TncDriver:
 
     def found_port(self, spec: RadioSpec, station: Config, run: RunOverrides) -> str:
         """Return the port the search found, to try first next time, or "" if there is none."""
-        if self._line.state is not Source.State.CONNECTED or (spec.id == FM_ID and run.port) or profile_of(spec).transport != "serial":
+        if (
+            self._line.state is not Source.State.CONNECTED
+            or (spec.id == FM_ID and run.port)
+            or profile_of(spec).transport != "serial"
+        ):
             return ""
         path = self._line.path
         return path if path and path not in (_own(spec, "port"), station.serial_last_port) else ""

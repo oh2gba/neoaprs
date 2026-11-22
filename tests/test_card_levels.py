@@ -2,6 +2,7 @@
 (neoaprs/direwolfdriver.py, neoaprs/mercurydriver.py) on a made-up mixer: when levels are applied,
 that a change restarts nothing, and the radios that have no levels.
 """
+
 import asyncio
 import ctypes
 import logging
@@ -40,6 +41,7 @@ class FakeMixer:
     """A made-up mixer: the cards' levels by card (a card absent has none), every write written down
     as (card, tx, rx); `steps` makes a control of fewer steps than 100 (a percent is rounded to
     them)."""
+
     cards: dict[str, Levels]
     writes: list[tuple[str, int | None, int | None]] = field(default_factory=list)
     reads: int = 0
@@ -55,7 +57,10 @@ class FakeMixer:
     def write(self, card: str, tx: int | None, rx: int | None) -> Levels:
         self.writes.append((card, tx, rx))
         now = self.cards.get(card, NONE)
-        self.cards[card] = Levels(self._step(tx) if tx is not None and now.tx is not None else now.tx, self._step(rx) if rx is not None and now.rx is not None else now.rx)
+        self.cards[card] = Levels(
+            self._step(tx) if tx is not None and now.tx is not None else now.tx,
+            self._step(rx) if rx is not None and now.rx is not None else now.rx,
+        )
         return self.read(card)
 
 
@@ -75,24 +80,28 @@ async def test_the_values_are_put_on_the_card_at_the_start_and_again_at_every_st
     mixer, modem = FakeMixer({CARD: Levels(38, 50)}), Modem()
     levels = CardLevels(lambda: modem.sound_card, lambda: modem.starts, mixer)
     await levels.start(80, None)
-    assert mixer.writes == [(CARD, 80, None)] and levels.levels == Levels(80, 50), "the playback value put on, the capture one never set is not written"
+    assert mixer.writes == [(CARD, 80, None)] and levels.levels == Levels(80, 50), (
+        "the playback value put on, the capture one never set is not written"
+    )
     # (the card plugged in again: the system's own level)
     mixer.cards[CARD] = Levels(38, 50)
     modem.starts = 2
     await until(lambda: len(mixer.writes) == 2)
     assert mixer.writes[1] == (CARD, 80, None) and levels.levels == Levels(80, 50)
     await levels.stop()
-    assert levels.levels == Levels(80, 50), "a radio stopped keeps the levels on its row: its Transmit level row stays the card's slider"
+    assert levels.levels == Levels(80, 50), (
+        "a radio stopped keeps the levels on its row: its Transmit level row stays the card's slider"
+    )
 
 
 async def test_the_sliders_come_and_go_only_with_another_card() -> None:
     mixer, modem = FakeMixer({CARD: Levels(38, 50), "plughw:2,0": Levels(70, None)}), Modem()
     levels = CardLevels(lambda: modem.sound_card, lambda: modem.starts, mixer)
     await levels.start(None, None)
-    del mixer.cards[CARD]                                                # (unplugged: the card cannot be read)
+    del mixer.cards[CARD]  # (unplugged: the card cannot be read)
     await asyncio.sleep(0.2)
     assert levels.levels == Levels(38, 50), "the same card unreadable for a while keeps its sliders"
-    modem.sound_card = ""                                                # (the modem waits for a card)
+    modem.sound_card = ""  # (the modem waits for a card)
     await asyncio.sleep(0.2)
     assert levels.levels == Levels(38, 50)
     modem.sound_card = "plughw:2,0"
@@ -106,8 +115,10 @@ async def test_never_set_nothing_is_written_and_the_row_follows_the_card() -> No
     told: list[Levels] = []
     levels.changed.connect(lambda: told.append(levels.levels))
     await levels.start(None, None)
-    assert levels.levels == Levels(38, 50) and all(tx is None and rx is None for _, tx, rx in mixer.writes), "nothing set on the card"
-    mixer.cards[CARD] = Levels(20, 50)                                   # (the desktop's mixer moved it)
+    assert levels.levels == Levels(38, 50) and all(tx is None and rx is None for _, tx, rx in mixer.writes), (
+        "nothing set on the card"
+    )
+    mixer.cards[CARD] = Levels(20, 50)  # (the desktop's mixer moved it)
     await until(lambda: levels.levels == Levels(20, 50))
     assert told == [Levels(38, 50), Levels(20, 50)], "told once for each change, not at every look"
     await levels.stop()
@@ -119,7 +130,9 @@ async def test_a_change_is_set_at_once_and_a_control_of_few_steps_says_the_perce
     await levels.start(None, None)
     levels.want(None, 61)
     await until(lambda: levels.levels.rx == 61)
-    assert mixer.writes[-1] == (CARD, None, 61) and mixer.cards[CARD].rx == 62, "the card holds the step nearest; the row says what was asked"
+    assert mixer.writes[-1] == (CARD, None, 61) and mixer.cards[CARD].rx == 62, (
+        "the card holds the step nearest; the row says what was asked"
+    )
     await asyncio.sleep(0.2)
     assert levels.levels == Levels(38, 61), "and keeps saying it while the card holds that step"
     levels.want(None, 61)
@@ -137,18 +150,32 @@ async def test_a_card_without_controls_and_no_card_have_no_levels() -> None:
 
 
 def spec(id: int = 3, **settings: str) -> RadioSpec:
-    return RadioSpec(id, "fm", "direwolf", "", True, id, settings={"sound_card": CARD, "keying": "vox", "tx_gain_db": "0", "beacon": "true", **settings})
+    return RadioSpec(
+        id,
+        "fm",
+        "direwolf",
+        "",
+        True,
+        id,
+        settings={"sound_card": CARD, "keying": "vox", "tx_gain_db": "0", "beacon": "true", **settings},
+    )
 
 
 def direwolf_driver(tmp_path: Path, mixer: FakeMixer, radio: RadioSpec) -> DirewolfDriver:
     driver = DirewolfDriver(radio, Claims(), radio_folder(tmp_path, radio.id), utcnow, mixer=mixer)
-    driver.modem._finder, driver.modem._lister, driver.modem.backoff = fakedirewolf.program, fakemercury.program, Backoff([0.1, 0.1])
+    driver.modem._finder, driver.modem._lister, driver.modem.backoff = (
+        fakedirewolf.program,
+        fakemercury.program,
+        Backoff([0.1, 0.1]),
+    )
     driver.modem.ports = lambda: []
     driver.configure(radio, DEFAULTS, RunOverrides(check_sec=0.0))
     return driver
 
 
-async def test_a_sound_card_radio_puts_its_levels_on_the_card_and_a_change_of_them_restarts_nothing(tmp_path: Path) -> None:
+async def test_a_sound_card_radio_puts_its_levels_on_the_card_and_a_change_of_them_restarts_nothing(
+    tmp_path: Path,
+) -> None:
     mixer = FakeMixer({CARD: Levels(38, 50)})
     radio = spec(tx_card="70")
     driver = direwolf_driver(tmp_path, mixer, radio)
@@ -156,17 +183,25 @@ async def test_a_sound_card_radio_puts_its_levels_on_the_card_and_a_change_of_th
     await running(driver.modem)
     assert mixer.writes[0] == (CARD, 70, None)
     row = radio_row(radio, (radio,), SimpleNamespace(line=driver.line, beacon=None, driver=driver), Claims())
-    assert row is not None and row["card"] == {"tx": 70, "rx": 50, "read": True}, "the row says the card's levels: the page draws both sliders"
-    assert driver.restart_key(spec(tx_card="30", rx_card="20"), DEFAULTS, RunOverrides()) == driver.restart_key(radio, DEFAULTS, RunOverrides()), "no restart of the radio"
+    assert row is not None and row["card"] == {"tx": 70, "rx": 50, "read": True}, (
+        "the row says the card's levels: the page draws both sliders"
+    )
+    assert driver.restart_key(spec(tx_card="30", rx_card="20"), DEFAULTS, RunOverrides()) == driver.restart_key(
+        radio, DEFAULTS, RunOverrides()
+    ), "no restart of the radio"
     for value in (60, 50, 40):
         driver.card.want(value, 45)
         await until(lambda value=value: mixer.cards[CARD].tx == value)
     await asyncio.sleep(0.3)
-    assert len(fakedirewolf.runs(radio_folder(tmp_path, 3))) == 1 and driver.modem.starts == 1, "Direwolf was started once: a change of the card's level is set on the card alone"
+    assert len(fakedirewolf.runs(radio_folder(tmp_path, 3))) == 1 and driver.modem.starts == 1, (
+        "Direwolf was started once: a change of the card's level is set on the card alone"
+    )
     await driver.stop()
 
 
-async def test_a_sound_card_radio_set_to_the_card_another_radio_holds_never_reads_or_sets_its_levels(tmp_path: Path) -> None:
+async def test_a_sound_card_radio_set_to_the_card_another_radio_holds_never_reads_or_sets_its_levels(
+    tmp_path: Path,
+) -> None:
     """Two radios set to one card: the second's start is refused, and its values are not written on
     the card the first transmits on, nor is that card read for its row."""
     mixer = FakeMixer({CARD: Levels(38, 50)})
@@ -180,28 +215,49 @@ async def test_a_sound_card_radio_set_to_the_card_another_radio_holds_never_read
         await asyncio.sleep(0.3)
         driver.card.want(90, 90)
         await asyncio.sleep(0.1)
-        assert mixer.writes == [] and mixer.reads == 0 and driver.card.levels == NONE and mixer.cards[CARD] == Levels(38, 50)
+        assert (
+            mixer.writes == []
+            and mixer.reads == 0
+            and driver.card.levels == NONE
+            and mixer.cards[CARD] == Levels(38, 50)
+        )
     finally:
         await driver.stop()
 
 
-async def test_the_mercury_radios_card_has_levels_and_the_dummy_and_an_attached_mercury_have_none(tmp_path: Path) -> None:
+async def test_the_mercury_radios_card_has_levels_and_the_dummy_and_an_attached_mercury_have_none(
+    tmp_path: Path,
+) -> None:
     mixer = FakeMixer({CARD: Levels(38, 50)})
-    hf = RadioSpec(2, "hf", "mercury", "", True, 2, settings={"sound_card": CARD, "keying": "vox", "tx_gain_db": "0", "beacon": "true", "rx_card": "30"})
+    hf = RadioSpec(
+        2,
+        "hf",
+        "mercury",
+        "",
+        True,
+        2,
+        settings={"sound_card": CARD, "keying": "vox", "tx_gain_db": "0", "beacon": "true", "rx_card": "30"},
+    )
     claims = Claims()
     driver = MercuryDriver(hf, claims, radio_folder(tmp_path, 2), utcnow, mixer=mixer)
     driver.modem.sound_card = CARD
     driver.configure(hf, DEFAULTS, RunOverrides())
-    assert driver._own_card() == "", "a card the radio does not hold (its start was refused, the card let go) is not its to set"
+    assert driver._own_card() == "", (
+        "a card the radio does not hold (its start was refused, the card let go) is not its to set"
+    )
     claims.hold(Claim("sound_card", CARD, 2))
     assert driver._own_card() == CARD
     driver.configure(hf, DEFAULTS, RunOverrides(hf_port="socket://127.0.0.1:9", attach_to=2))
     assert driver._own_card() == "", "a Mercury something else runs: its card is not ours to set"
     dummy = RadioSpec(4, "hf", "dummy-hf", "", True, 4, settings={"beacon": "true"})
-    assert MercuryDriver(dummy, Claims(), radio_folder(tmp_path, 4), utcnow, mixer=mixer)._own_card() == "", "the Dummy radio's sound is the computer's own"
+    assert MercuryDriver(dummy, Claims(), radio_folder(tmp_path, 4), utcnow, mixer=mixer)._own_card() == "", (
+        "the Dummy radio's sound is the computer's own"
+    )
 
 
-async def test_several_presses_of_the_transmit_level_are_one_start_of_direwolf_and_keying_still_restarts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_several_presses_of_the_transmit_level_are_one_start_of_direwolf_and_keying_still_restarts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(direwolftune, "SETTLE_SEC", 0.3)
     m = direwolf_modem(tmp_path)
     await m.start(CARD, "vox", 0)
@@ -215,13 +271,16 @@ async def test_several_presses_of_the_transmit_level_are_one_start_of_direwolf_a
     runs = fakedirewolf.runs(radio_folder(tmp_path, 3))
     assert len(runs) == 2, "four presses, one start again with the last level"
     driver = direwolf_driver(tmp_path, FakeMixer({}), spec())
-    assert driver.restart_key(spec(keying="rts:/dev/ttyUSB7"), DEFAULTS, RunOverrides()) != driver.restart_key(spec(), DEFAULTS, RunOverrides()), "a change of the keying restarts the radio"
+    assert driver.restart_key(spec(keying="rts:/dev/ttyUSB7"), DEFAULTS, RunOverrides()) != driver.restart_key(
+        spec(), DEFAULTS, RunOverrides()
+    ), "a change of the keying restarts the radio"
     await m.stop()
 
 
 class FailingMixer:
     """A mixer whose every call fails with a fault that is no OSError (a wrong argument of a ctypes
     call)."""
+
     calls = 0
 
     def read(self, card: str) -> Levels:
@@ -232,7 +291,9 @@ class FailingMixer:
         return self.read(card)
 
 
-async def test_a_mixer_that_fails_starts_the_radio_without_sliders_and_says_it_once(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_mixer_that_fails_starts_the_radio_without_sliders_and_says_it_once(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     mixer, radio = FailingMixer(), spec(tx_card="70")
     driver = direwolf_driver(tmp_path, mixer, radio)
     caplog.set_level(logging.INFO, "neoaprs.soundmixer")
@@ -244,7 +305,9 @@ async def test_a_mixer_that_fails_starts_the_radio_without_sliders_and_says_it_o
         said = [r for r in caplog.records if r.name == "neoaprs.soundmixer" and "could not be had" in r.getMessage()]
         assert len(said) == 1 and said[0].levelno == logging.INFO, "said once for the card, never as an error"
         row = radio_row(radio, (radio,), SimpleNamespace(line=driver.line, beacon=None, driver=driver), Claims())
-        assert row is not None and row["card"] == {"tx": None, "rx": None, "read": True}, "no sliders: the row has the modem's - and +"
+        assert row is not None and row["card"] == {"tx": None, "rx": None, "read": True}, (
+            "no sliders: the row has the modem's - and +"
+        )
         assert driver.modem.state == "running"
     finally:
         await driver.stop()
@@ -253,6 +316,7 @@ async def test_a_mixer_that_fails_starts_the_radio_without_sliders_and_says_it_o
 async def test_a_card_whose_mixer_fails_after_a_start_keeps_the_radio_running() -> None:
     """The fault comes from the system's mixer on Windows (a Core Audio call that raises something
     else than OSError): the same end, no levels."""
+
     class Raising:
         def get(self, device: str) -> float | None:
             raise ValueError("a COM call answered nonsense")
@@ -267,7 +331,9 @@ async def test_a_card_whose_mixer_fails_after_a_start_keeps_the_radio_running() 
     await levels.stop()
 
 
-async def test_the_levels_are_known_once_the_radios_card_was_read_or_where_there_is_nothing_to_wait_for(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_levels_are_known_once_the_radios_card_was_read_or_where_there_is_nothing_to_wait_for(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     modem = Modem("")
     modem.starts = 0
     levels = CardLevels(lambda: modem.sound_card, lambda: modem.starts, FakeMixer({CARD: Levels(38, 50)}))
@@ -279,7 +345,9 @@ async def test_the_levels_are_known_once_the_radios_card_was_read_or_where_there
     assert levels.levels == Levels(38, 50)
     await levels.stop()
     assert levels.known, "stopped: still the card's levels as read last"
-    assert CardLevels(lambda: CARD, lambda: 1, FakeMixer({}), own=lambda: False).known, "no card of the radio's own by its kind"
+    assert CardLevels(lambda: CARD, lambda: 1, FakeMixer({}), own=lambda: False).known, (
+        "no card of the radio's own by its kind"
+    )
     # (the switch is lifted in a test's own process: this is a daemon under it, on any system)
     monkeypatch.setattr(nodevices, "on", lambda: True)
     assert CardLevels(lambda: CARD, lambda: 1).known, "the no-devices switch: no mixer at all"
@@ -290,14 +358,24 @@ async def test_the_levels_are_known_once_the_radios_card_was_read_or_where_there
     assert CardLevels(lambda: CARD, lambda: 1).known, "Linux without the ALSA library (the guards' load finds none)"
     monkeypatch.setattr(soundmixer, "load_alsa", lambda: object())
     assert not CardLevels(lambda: CARD, lambda: 1).known, "Linux with the library: the card is to be read first"
-    hf = RadioSpec(2, "hf", "mercury", "", True, 2, settings={"sound_card": CARD, "keying": "vox", "tx_gain_db": "0", "beacon": "true"})
+    hf = RadioSpec(
+        2,
+        "hf",
+        "mercury",
+        "",
+        True,
+        2,
+        settings={"sound_card": CARD, "keying": "vox", "tx_gain_db": "0", "beacon": "true"},
+    )
     driver = MercuryDriver(hf, Claims(), radio_folder(tmp_path, 2), utcnow, mixer=FakeMixer({}))
     driver.configure(hf, DEFAULTS, RunOverrides())
     assert not driver.card.known
     driver.configure(hf, DEFAULTS, RunOverrides(hf_port="socket://127.0.0.1:9", attach_to=2))
     assert driver.card.known, "a Mercury something else runs"
     dummy = RadioSpec(4, "hf", "dummy-hf", "", True, 4, settings={"beacon": "true"})
-    assert MercuryDriver(dummy, Claims(), radio_folder(tmp_path, 4), utcnow, mixer=FakeMixer({})).card.known, "the Dummy radio"
+    assert MercuryDriver(dummy, Claims(), radio_folder(tmp_path, 4), utcnow, mixer=FakeMixer({})).card.known, (
+        "the Dummy radio"
+    )
 
 
 async def test_a_mercury_radio_on_the_systems_default_device_keeps_its_transmit_levels_buttons(tmp_path: Path) -> None:
@@ -305,31 +383,46 @@ async def test_a_mercury_radio_on_the_systems_default_device_keeps_its_transmit_
     finds none to choose: no card of its own name to read, so its row has the modem's - and + once
     it runs."""
     mixer = FakeMixer({CARD: Levels(38, 50)})
-    hf = RadioSpec(2, "hf", "mercury", "", True, 2, settings={"sound_card": "", "keying": "vox", "tx_gain_db": "0", "beacon": "true"})
+    hf = RadioSpec(
+        2,
+        "hf",
+        "mercury",
+        "",
+        True,
+        2,
+        settings={"sound_card": "", "keying": "vox", "tx_gain_db": "0", "beacon": "true"},
+    )
     driver = MercuryDriver(hf, Claims(), radio_folder(tmp_path, 2), utcnow, mixer=mixer)
     driver.configure(hf, DEFAULTS, RunOverrides())
     assert not driver.card.known, "not started yet: the card it will run on is not known"
-    driver.modem.sound_card, driver.modem.starts = "", 1                 # (its program started on the default device)
+    driver.modem.sound_card, driver.modem.starts = "", 1  # (its program started on the default device)
     await driver.card.start(None, None)
     try:
         await asyncio.sleep(0.2)
         row = radio_row(hf, (hf,), SimpleNamespace(line=driver.line, beacon=None, driver=driver), Claims())
-        assert row is not None and row["card"] == {"tx": None, "rx": None, "read": True}, "the row has the modem's - and +"
+        assert row is not None and row["card"] == {"tx": None, "rx": None, "read": True}, (
+            "the row has the modem's - and +"
+        )
         assert mixer.reads == 0 and mixer.writes == [], "and the mixer is not asked"
     finally:
         await driver.card.stop()
 
 
-@pytest.mark.parametrize(("gain", "card", "written", "levels"), [
-    # the card's slider is the transmit level: both values are put on the card
-    ("0", Levels(38, 50), (70, 20), Levels(70, 20)),
-    # the modem's - and + are: the card's playback level stays as the system has it, the capture one
-    # is set
-    ("-12", Levels(38, 50), (None, 20), Levels(38, 20)),
-    # no playback control: nothing of it to set, the - and + are the transmit level
-    ("0", Levels(None, 50), (70, 20), Levels(None, 20)),
-])
-async def test_the_playback_value_is_put_on_the_card_only_while_the_modems_gain_is_zero(tmp_path: Path, gain: str, card: Levels, written: tuple[int | None, int | None], levels: Levels) -> None:
+@pytest.mark.parametrize(
+    ("gain", "card", "written", "levels"),
+    [
+        # the card's slider is the transmit level: both values are put on the card
+        ("0", Levels(38, 50), (70, 20), Levels(70, 20)),
+        # the modem's - and + are: the card's playback level stays as the system has it, the capture one
+        # is set
+        ("-12", Levels(38, 50), (None, 20), Levels(38, 20)),
+        # no playback control: nothing of it to set, the - and + are the transmit level
+        ("0", Levels(None, 50), (70, 20), Levels(None, 20)),
+    ],
+)
+async def test_the_playback_value_is_put_on_the_card_only_while_the_modems_gain_is_zero(
+    tmp_path: Path, gain: str, card: Levels, written: tuple[int | None, int | None], levels: Levels
+) -> None:
     mixer = FakeMixer({CARD: card})
     radio = spec(tx_gain_db=gain, tx_card="70", rx_card="20")
     driver = direwolf_driver(tmp_path, mixer, radio)
@@ -339,6 +432,8 @@ async def test_the_playback_value_is_put_on_the_card_only_while_the_modems_gain_
         assert mixer.writes[0] == (CARD, *written) and driver.card.levels == levels
         driver.card.want(*cardlevels.wanted(spec(tx_gain_db=gain, tx_card="90", rx_card="20")))
         await asyncio.sleep(0.2)
-        assert (mixer.writes[-1][1] == 90) is (gain == "0"), "a change of the value is set at once only where it is the transmit level"
+        assert (mixer.writes[-1][1] == 90) is (gain == "0"), (
+            "a change of the value is set at once only where it is the transmit level"
+        )
     finally:
         await driver.stop()

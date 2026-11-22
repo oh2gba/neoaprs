@@ -3,6 +3,7 @@
 The automatic checkpoint and `journal_size_limit` bound the log. A checkpoint stops at the oldest
 snapshot a reader holds, so a long read transaction lets the log grow.
 """
+
 import sqlite3
 
 # the file is truncated to this when the log restarts

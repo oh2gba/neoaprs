@@ -2,6 +2,7 @@
 
 Runs on the database thread; returns False or an empty result instead of raising when the database
 is not open. A bulletin is keyed by sender and slot."""
+
 import logging
 
 from .bulletin import BulletinRecord, board_slot
@@ -17,7 +18,15 @@ log = logging.getLogger("neoaprs.bulletinlog")
 
 def bulletin_row(record: BulletinRecord) -> Row:
     """Return the columns of the bulletin table, in order."""
-    return (record.sender, record.slot, record.group, record.text, stamp(record.first_heard), stamp(record.last_heard), record.times_heard)
+    return (
+        record.sender,
+        record.slot,
+        record.group,
+        record.text,
+        stamp(record.first_heard),
+        stamp(record.last_heard),
+        record.times_heard,
+    )
 
 
 def bulletin_of(row: Row) -> BulletinRecord:
@@ -26,7 +35,16 @@ def bulletin_of(row: Row) -> BulletinRecord:
     found = board_slot(str(slot))
     if found is None:
         raise ValueError(f"{slot!r} is no slot of the board")
-    return BulletinRecord(str(sender), found.slot, found.group, found.kind, str(text), parse_stamp(str(first)), parse_stamp(str(last)), int(times))
+    return BulletinRecord(
+        str(sender),
+        found.slot,
+        found.group,
+        found.kind,
+        str(text),
+        parse_stamp(str(first)),
+        parse_stamp(str(last)),
+        int(times),
+    )
 
 
 class BulletinLog(DbLog):

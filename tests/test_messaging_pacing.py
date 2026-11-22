@@ -1,6 +1,7 @@
 """Several messages written at once go out one after the other: `spacing_sec` between two attempts
 on one radio (services/pace.py), and a message on another radio does not wait for that pause.
 """
+
 from pathlib import Path
 
 import pytest
@@ -27,7 +28,9 @@ async def test_the_first_message_goes_at_once_and_the_others_written_with_it_fol
     assert len(rig.tnc.sent) == 2
     await rig.pass_time(10)
     assert len(rig.tnc.sent) == 3
-    assert [line.split("::")[1][:9].strip() for line in rig.tnc.lines()] == ["OH2AAA", "OH2BBB", "OH2CCC"], "in the order they were written"
+    assert [line.split("::")[1][:9].strip() for line in rig.tnc.lines()] == ["OH2AAA", "OH2BBB", "OH2CCC"], (
+        "in the order they were written"
+    )
     assert [rig.state(n).attempts for n in (1, 2, 3)] == [1, 1, 1]
 
 
@@ -63,7 +66,9 @@ async def test_the_pause_between_attempts_is_each_radios_own(tmp_path: Path) -> 
     await two.start()
     await two.m.send("OH2AAA", "on FM")
     await two.m.send("OH2FAR", "on HF")
-    assert (len(two.tnc.sent), len(hf.sent)) == (1, 1), "written at the same moment to stations on two radios: both go at once (before: HF waited for FM's pause)"
+    assert (len(two.tnc.sent), len(hf.sent)) == (1, 1), (
+        "written at the same moment to stations on two radios: both go at once (before: HF waited for FM's pause)"
+    )
     await two.m.send("OH2BBB", "FM again")
     await two.m.send("OH2FAB", "HF again")
     assert (len(two.tnc.sent), len(hf.sent)) == (1, 1), "a second on each radio waits for that radio's pause"

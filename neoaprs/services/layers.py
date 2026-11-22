@@ -2,6 +2,7 @@
 
 A source is asked only while a page looks at its layer, as often as its feed allows.
 NEOAPRS_UPDATE_CHECK=0 asks no service; NEOAPRS_LAYERS_URL replaces the services even then."""
+
 import asyncio
 import logging
 import os
@@ -12,7 +13,27 @@ from urllib.parse import urlsplit
 from neoaprs import radarcape, readsb
 from neoaprs.clock import Clock, utcnow
 from neoaprs.config import Config
-from neoaprs.layerthing import AGE_CHECK_SEC, EVERY_SEC, LAYERS, MAX_PACKED, MAX_UNPACKED, OWN_RECEIVERS, Layer, LayerState, LayerTable, ReceiverState, Source, Thing, in_force, max_age_sec, nearest, newest, offered, service_url, within
+from neoaprs.layerthing import (
+    AGE_CHECK_SEC,
+    EVERY_SEC,
+    LAYERS,
+    MAX_PACKED,
+    MAX_UNPACKED,
+    OWN_RECEIVERS,
+    Layer,
+    LayerState,
+    LayerTable,
+    ReceiverState,
+    Source,
+    Thing,
+    in_force,
+    max_age_sec,
+    nearest,
+    newest,
+    offered,
+    service_url,
+    within,
+)
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet
 from neoaprs.updatefetch import fetch_feed
@@ -25,10 +46,10 @@ from .updatecheck import ENV_SWITCH
 log = logging.getLogger("neoaprs.layers")
 
 ENV_URL = "NEOAPRS_LAYERS_URL"
-RECEIVER_TIMEOUT_SEC = 4.0                      # per place tried
-RECEIVER_BACKOFF_MAX_SEC = 60.0                 # short, as a receiver on the local network returns soon
+RECEIVER_TIMEOUT_SEC = 4.0  # per place tried
+RECEIVER_BACKOFF_MAX_SEC = 60.0  # short, as a receiver on the local network returns soon
 SERVICE_NAMES = {"adsbfi": "adsb.fi", "adsblol": "adsb.lol", "fintraffic": "Fintraffic"}
-NO_WAIT_SEC = 1.0                               # pause when another asker took the feed first
+NO_WAIT_SEC = 1.0  # pause when another asker took the feed first
 
 
 Reader = Callable[[bytes, datetime], list[Thing] | None]
@@ -51,7 +72,11 @@ class AircraftService(AskedSource):
 
     def __init__(self, ctx: SourceContext) -> None:
         super().__init__(ctx)
-        self.feed = ctx.feed(SERVICE_NAMES.get(ctx.source, ctx.source), EVERY_SEC["adsbfi" if ctx.source == "adsbfi" else "adsblol"], True)
+        self.feed = ctx.feed(
+            SERVICE_NAMES.get(ctx.source, ctx.source),
+            EVERY_SEC["adsbfi" if ctx.source == "adsbfi" else "adsblol"],
+            True,
+        )
 
     @property
     def away(self) -> bool:
@@ -67,9 +92,21 @@ class AircraftService(AskedSource):
         radius = self.ctx.config().map_radius_km
         url = self.ctx.service_url(service_url(self.ctx.source, *position, radius))
         answer = await self.ctx.fetch(url, self.ctx.version, self.ctx.platform, {}, MAX_PACKED, MAX_UNPACKED)
-        things = await asyncio.to_thread(_served, answer.body, self.ctx.clock(), position, radius) if answer is not None and answer.status == 200 else None
+        things = (
+            await asyncio.to_thread(_served, answer.body, self.ctx.clock(), position, radius)
+            if answer is not None and answer.status == 200
+            else None
+        )
         if things is None:
-            log.debug("%s: %s", self.feed.name, "no answer" if answer is None else f"the answer {answer.status} is not readsb's JSON" if answer.status == 200 else f"it answered {answer.status}")
+            log.debug(
+                "%s: %s",
+                self.feed.name,
+                "no answer"
+                if answer is None
+                else f"the answer {answer.status} is not readsb's JSON"
+                if answer.status == 200
+                else f"it answered {answer.status}",
+            )
             self.feed.failed(None if answer is None or answer.status == 200 else answer)
         return things
 
@@ -83,13 +120,20 @@ class AircraftReceiver(AskedSource):
     """The operator's own readsb receiver (map/aircraft_host); subclasses set name, places and read.
 
     The first place that answers is kept; the search starts again after a failure."""
+
     name = "the aircraft receiver"
     places: Callable[[str], list[str]] = staticmethod(readsb.receiver_urls)
     read: Reader = staticmethod(readsb.read_aircraft)
 
     def __init__(self, ctx: SourceContext) -> None:
         super().__init__(ctx)
-        self.feed = AskedFeed(self.name, EVERY_SEC["aircraft_receiver"], ctx.monotonic, stops=False, backoff_max_sec=RECEIVER_BACKOFF_MAX_SEC)
+        self.feed = AskedFeed(
+            self.name,
+            EVERY_SEC["aircraft_receiver"],
+            ctx.monotonic,
+            stops=False,
+            backoff_max_sec=RECEIVER_BACKOFF_MAX_SEC,
+        )
         self.urls = self.places(ctx.config().map_aircraft_host)
         # Only the host goes to the log, never the address as typed.
         self.host = (urlsplit(self.urls[0]).hostname or "?") if self.urls else ""
@@ -106,9 +150,15 @@ class AircraftReceiver(AskedSource):
 
     async def _question(self) -> list[Thing] | None:
         for url in [self.found] if self.found is not None else self.urls:
-            answer = await self.ctx.fetch(url, self.ctx.version, self.ctx.platform, {}, MAX_PACKED, MAX_UNPACKED, timeout_sec=RECEIVER_TIMEOUT_SEC)
+            answer = await self.ctx.fetch(
+                url, self.ctx.version, self.ctx.platform, {}, MAX_PACKED, MAX_UNPACKED, timeout_sec=RECEIVER_TIMEOUT_SEC
+            )
             now = self.ctx.clock()
-            read = await asyncio.to_thread(_received, self.read, answer.body, now) if answer is not None and answer.status == 200 else None
+            read = (
+                await asyncio.to_thread(_received, self.read, answer.body, now)
+                if answer is not None and answer.status == 200
+                else None
+            )
             if read is not None:
                 self.found = url
                 self._state(ReceiverState("receiving", read[0], now))
@@ -120,7 +170,12 @@ class AircraftReceiver(AskedSource):
 
     def _state(self, state: ReceiverState) -> None:
         if state.state != self.state.state:
-            log.info("%s %s: %s", self.name, f"at {self.host}" if self.host else "without an address", {"receiving": "receiving", "no_answer": "no answer", "looking": "looking"}[state.state])
+            log.info(
+                "%s %s: %s",
+                self.name,
+                f"at {self.host}" if self.host else "without an address",
+                {"receiving": "receiving", "no_answer": "no answer", "looking": "looking"}[state.state],
+            )
         if state != self.state:
             self.state = state
             self.ctx.changed()
@@ -128,14 +183,21 @@ class AircraftReceiver(AskedSource):
 
 class Radarcape(AircraftReceiver):
     """The operator's own Radarcape (map/aircraft_host); with no address nothing is asked."""
+
     name = "the Radarcape"
     places = staticmethod(_radarcape_urls)
     read = staticmethod(radarcape.read_aircraft)
 
 
 Maker = Callable[[SourceContext], LayerSource]
-SOURCES: dict[tuple[Layer, Source], Maker] = {("aircraft", "adsbfi"): AircraftService, ("aircraft", "adsblol"): AircraftService, ("aircraft", "radarcape"): Radarcape, ("aircraft", "receiver"): AircraftReceiver,
-                                              ("ships", "fintraffic"): FintrafficShips, ("ships", "receiver"): ShipReceiver}
+SOURCES: dict[tuple[Layer, Source], Maker] = {
+    ("aircraft", "adsbfi"): AircraftService,
+    ("aircraft", "adsblol"): AircraftService,
+    ("aircraft", "radarcape"): Radarcape,
+    ("aircraft", "receiver"): AircraftReceiver,
+    ("ships", "fintraffic"): FintrafficShips,
+    ("ships", "receiver"): ShipReceiver,
+}
 # The source in force and, for a receiver, its address; a source is made again when either changes.
 Key = tuple[Source, str]
 
@@ -149,9 +211,25 @@ def _address(config: Config, layer: Layer) -> str:
 
 
 class Layers:
-    def __init__(self, config: Callable[[], Config], where: Callable[[], tuple[float, float] | None], version: str, platform: str, fetch: FetchFeed = fetch_feed, clock: Clock = utcnow,
-                 environ: Mapping[str, str] = os.environ, monotonic: Callable[[], float] | None = None) -> None:
-        self._config, self._where, self.version, self.platform, self._fetch, self._clock = config, where, version, platform, fetch, clock
+    def __init__(
+        self,
+        config: Callable[[], Config],
+        where: Callable[[], tuple[float, float] | None],
+        version: str,
+        platform: str,
+        fetch: FetchFeed = fetch_feed,
+        clock: Clock = utcnow,
+        environ: Mapping[str, str] = os.environ,
+        monotonic: Callable[[], float] | None = None,
+    ) -> None:
+        self._config, self._where, self.version, self.platform, self._fetch, self._clock = (
+            config,
+            where,
+            version,
+            platform,
+            fetch,
+            clock,
+        )
         self._monotonic = monotonic or (lambda: asyncio.get_running_loop().time())
         given = environ.get(ENV_URL, "").strip()
         self.base = given if on_this_computer(given) else ""
@@ -180,7 +258,11 @@ class Layers:
             source = in_force(layer, chosen(config, layer), offer)
             held = self._held.get(layer)
             made = held[1] if held is not None and held[0][0] == source else None
-            found.append(LayerState(layer, source, offer, made.receiver() if made is not None and source in OWN_RECEIVERS else None))
+            found.append(
+                LayerState(
+                    layer, source, offer, made.receiver() if made is not None and source in OWN_RECEIVERS else None
+                )
+            )
         return found
 
     def table(self, layer: Layer) -> LayerTable:
@@ -192,7 +274,12 @@ class Layers:
         if made is None:
             return LayerTable(layer, source, False, ())
         now, limit = self._clock(), max_age_sec(layer, source)
-        return LayerTable(layer, source, made.away, tuple(thing for thing in made.things() if (now - thing.at).total_seconds() <= limit))
+        return LayerTable(
+            layer,
+            source,
+            made.away,
+            tuple(thing for thing in made.things() if (now - thing.at).total_seconds() <= limit),
+        )
 
     def watch(self, layer: Layer, on: bool) -> None:
         """Start or stop asking the layer's source as a page begins or ends looking at it."""
@@ -248,8 +335,22 @@ class Layers:
             self._retired.remove(old)
 
     def _context(self, layer: Layer, source: Source) -> SourceContext:
-        return SourceContext(layer, source, self._config, self._where, self._fetch, self.version, self.platform, self._clock, self._monotonic, self.services_on, self.base, self._feed,
-                             lambda: self._tell_from(layer, source), self._maybe_changed)
+        return SourceContext(
+            layer,
+            source,
+            self._config,
+            self._where,
+            self._fetch,
+            self.version,
+            self.platform,
+            self._clock,
+            self._monotonic,
+            self.services_on,
+            self.base,
+            self._feed,
+            lambda: self._tell_from(layer, source),
+            self._maybe_changed,
+        )
 
     def _feed(self, name: str, every_sec: float, stops: bool) -> AskedFeed:
         """Return the feed of that name; it outlives sources, so a stopped service stays stopped."""
@@ -261,7 +362,13 @@ class Layers:
     def _run(self, layer: Layer) -> None:
         held = self._held.get(layer)
         runner = self._runners.get(layer)
-        if self.running and layer in self._watched and held is not None and held[1] is not None and (runner is None or runner.done()):
+        if (
+            self.running
+            and layer in self._watched
+            and held is not None
+            and held[1] is not None
+            and (runner is None or runner.done())
+        ):
             self._runners[layer] = self._tasks.spawn(self._asking(layer, held[1]), f"layers-{layer}")
 
     def _stop_runner(self, layer: Layer) -> None:

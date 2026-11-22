@@ -2,6 +2,7 @@
 
 Rows `pair/<low>/<high>/enabled` and `.../ssid`; a pair's call is the base call plus its SSID.
 """
+
 import logging
 import re
 from collections.abc import Iterable, Mapping, Sequence
@@ -24,6 +25,7 @@ _SSID = int_in(1, MAX_SSID)
 @dataclass(frozen=True)
 class PairSpec:
     """One pair of radios as its rows say: ids (low < high), whether enabled, and its SSID."""
+
     low: RadioId
     high: RadioId
     enabled: bool = False
@@ -39,6 +41,7 @@ class PairSpec:
 @dataclass(frozen=True)
 class PairFields:
     """The field of `Config` that the pairs' rows are."""
+
     pairs: tuple[PairSpec, ...] = ()  # pairs with a stored row, by (low, high)
 
 
@@ -111,12 +114,19 @@ def pair_of(pairs: Iterable[PairSpec], a: RadioId, b: RadioId) -> PairSpec:
 
 def may_pair(a: RadioSpec, b: RadioSpec) -> bool:
     """Return whether two live transmitting radios, both Dummy or both real, may form a pair."""
-    return a.id != b.id and not a.removed and not b.removed and transmits(a) and transmits(b) and a.rtype.dummy == b.rtype.dummy
+    return (
+        a.id != b.id
+        and not a.removed
+        and not b.removed
+        and transmits(a)
+        and transmits(b)
+        and a.rtype.dummy == b.rtype.dummy
+    )
 
 
 def offered(radios: Iterable[RadioSpec]) -> list[tuple[RadioId, RadioId]]:
     specs = sorted((spec for spec in radios if not spec.removed), key=lambda spec: spec.id)
-    return [(a.id, b.id) for i, a in enumerate(specs) for b in specs[i + 1:] if may_pair(a, b)]
+    return [(a.id, b.id) for i, a in enumerate(specs) for b in specs[i + 1 :] if may_pair(a, b)]
 
 
 def pair_values(radios: Iterable[RadioSpec], pairs: Iterable[PairSpec]) -> dict[str, str]:
@@ -153,7 +163,10 @@ def own_calls(station_call: str, pairs: Iterable[PairSpec]) -> tuple[str, ...]:
 
 def _taken(station_call: str, pairs: Iterable[PairSpec], pair: tuple[RadioId, RadioId]) -> set[int]:
     """Return the SSIDs another pair may not use."""
-    return {_station_ssid(station_call), *(spec.ssid for spec in pairs if spec.enabled and spec.ssid is not None and (spec.low, spec.high) != pair)}
+    return {
+        _station_ssid(station_call),
+        *(spec.ssid for spec in pairs if spec.enabled and spec.ssid is not None and (spec.low, spec.high) != pair),
+    }
 
 
 def free_ssid(station_call: str, pairs: Iterable[PairSpec], pair: tuple[RadioId, RadioId]) -> int | None:
@@ -179,7 +192,9 @@ def _checked_radios(key: str, radios: Sequence[RadioSpec], low: RadioId, high: R
         raise PairError(f"{key}: a Dummy radio and a real one make no pair", "pair.dummy_and_real", key=key)
 
 
-def _put(radios: Sequence[RadioSpec], found: dict[tuple[RadioId, RadioId], PairSpec], values: Mapping[str, str]) -> tuple[set[tuple[RadioId, RadioId]], set[tuple[RadioId, RadioId]]]:
+def _put(
+    radios: Sequence[RadioSpec], found: dict[tuple[RadioId, RadioId], PairSpec], values: Mapping[str, str]
+) -> tuple[set[tuple[RadioId, RadioId]], set[tuple[RadioId, RadioId]]]:
     """Put the values into `found`; return the pairs sent with an SSID, and those sent empty."""
     named: set[tuple[RadioId, RadioId]] = set()
     emptied: set[tuple[RadioId, RadioId]] = set()
@@ -201,7 +216,12 @@ def _put(radios: Sequence[RadioSpec], found: dict[tuple[RadioId, RadioId], PairS
     return named, emptied
 
 
-def _refuse_named(station_call: str, found: Mapping[tuple[RadioId, RadioId], PairSpec], named: set[tuple[RadioId, RadioId]], filled: set[tuple[RadioId, RadioId]]) -> None:
+def _refuse_named(
+    station_call: str,
+    found: Mapping[tuple[RadioId, RadioId], PairSpec],
+    named: set[tuple[RadioId, RadioId]],
+    filled: set[tuple[RadioId, RadioId]],
+) -> None:
     """Refuse an SSID sent for an enabled pair that is the station's or another pair's."""
     for pair in sorted(named):
         spec = found[pair]
@@ -214,21 +234,33 @@ def _refuse_named(station_call: str, found: Mapping[tuple[RadioId, RadioId], Pai
             raise PairError(f"{key}: {call} is the call of another pair", "pair.call_taken", key=key, call=call)
 
 
-def _moving(station_call: str, pairs: Iterable[PairSpec], found: Mapping[tuple[RadioId, RadioId], PairSpec], candidates: set[tuple[RadioId, RadioId]]) -> set[tuple[RadioId, RadioId]]:
+def _moving(
+    station_call: str,
+    pairs: Iterable[PairSpec],
+    found: Mapping[tuple[RadioId, RadioId], PairSpec],
+    candidates: set[tuple[RadioId, RadioId]],
+) -> set[tuple[RadioId, RadioId]]:
     """Return the enabled pairs, sent with no SSID, whose stored SSID is missing or now taken."""
     enabled = [spec for spec in pairs if spec.enabled and spec.ssid is not None]
     holding: set[int] = set()
     moving: set[tuple[RadioId, RadioId]] = set()
     for pair in sorted(candidates):
         ssid = found[pair].ssid
-        if ssid is None or ssid == _station_ssid(station_call) or ssid in holding or any(spec.ssid == ssid for spec in enabled if (spec.low, spec.high) != pair):
+        if (
+            ssid is None
+            or ssid == _station_ssid(station_call)
+            or ssid in holding
+            or any(spec.ssid == ssid for spec in enabled if (spec.low, spec.high) != pair)
+        ):
             moving.add(pair)
         else:
             holding.add(ssid)
     return moving
 
 
-def _fill(station_call: str, found: dict[tuple[RadioId, RadioId], PairSpec], filled: set[tuple[RadioId, RadioId]]) -> None:
+def _fill(
+    station_call: str, found: dict[tuple[RadioId, RadioId], PairSpec], filled: set[tuple[RadioId, RadioId]]
+) -> None:
     """Give each of the `filled` pairs without a usable SSID the highest free one."""
     for pair in sorted(filled):
         spec = found[pair]
@@ -240,7 +272,14 @@ def _fill(station_call: str, found: dict[tuple[RadioId, RadioId], PairSpec], fil
             found[pair] = replace(spec, ssid=ssid)
 
 
-def with_pair_values(station_call: str, radios: Sequence[RadioSpec], pairs: tuple[PairSpec, ...], values: Mapping[str, str], *, was_call: str | None = None) -> tuple[PairSpec, ...]:
+def with_pair_values(
+    station_call: str,
+    radios: Sequence[RadioSpec],
+    pairs: tuple[PairSpec, ...],
+    values: Mapping[str, str],
+    *,
+    was_call: str | None = None,
+) -> tuple[PairSpec, ...]:
     """Return `pairs` with these pair keys put in, checked; raise PairError for a refusal.
 
     An enabled pair with no usable SSID gets the highest free one; unnamed pairs never change.
@@ -249,9 +288,16 @@ def with_pair_values(station_call: str, radios: Sequence[RadioSpec], pairs: tupl
     named, emptied = _put(radios, found, values)
     for pair in emptied:
         if found[pair].enabled:
-            found[pair] = replace(found[pair], ssid=next((spec.ssid for spec in pairs if (spec.low, spec.high) == pair), None))
+            found[pair] = replace(
+                found[pair], ssid=next((spec.ssid for spec in pairs if (spec.low, spec.high) == pair), None)
+            )
     touched = {(found_key[0], found_key[1]) for key in values if (found_key := pair_key_of(key)) is not None}
-    filled = _moving(station_call if was_call is None else was_call, pairs, found, {pair for pair in touched - named if found[pair].enabled})
+    filled = _moving(
+        station_call if was_call is None else was_call,
+        pairs,
+        found,
+        {pair for pair in touched - named if found[pair].enabled},
+    )
     _refuse_named(station_call, found, named, filled)
     _fill(station_call, found, filled)
     stored = {(spec.low, spec.high) for spec in pairs}
@@ -263,7 +309,12 @@ def call_refusal(station_call: str, pairs: Iterable[PairSpec]) -> PairError | No
     ssid = _station_ssid(station_call)
     if ssid and any(spec.enabled and spec.ssid == ssid for spec in pairs):
         call = station_call
-        return PairError(f"station/call: {call} is the call of a pair of your radios", "setting.call_of_pair", key="station/call", call=call)
+        return PairError(
+            f"station/call: {call} is the call of a pair of your radios",
+            "setting.call_of_pair",
+            key="station/call",
+            call=call,
+        )
     return None
 
 

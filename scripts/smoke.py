@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Smoke test of an installed NeoAPRS: a fake KISS TNC feeds a daemon, which is then checked.
 
-  scripts/smoke.py                          the daemon of this interpreter: python -m neoaprs
-  scripts/smoke.py --command VENV/bin/neoaprs    the installed command (as CI runs it)"""
+scripts/smoke.py                          the daemon of this interpreter: python -m neoaprs
+scripts/smoke.py --command VENV/bin/neoaprs    the installed command (as CI runs it)"""
+
 import argparse
 import asyncio
 import json
@@ -37,6 +38,7 @@ class Failure(Exception):
 
 class FakeTnc:
     """A KISS TNC on the loopback: each client is sent the capture; what it writes is discarded."""
+
     DELAY_SEC = 0.5
     REPEAT_SEC = 3.0
 
@@ -105,14 +107,21 @@ def log_tail(data: Path, lines: int = 25) -> str:
 
 def start_daemon(program: list[str], data: Path, tnc: FakeTnc) -> subprocess.Popen[bytes]:
     out = (data.parent / "daemon.out").open("wb")
-    flags = subprocess.CREATE_NEW_PROCESS_GROUP if WINDOWS else 0          # type: ignore[attr-defined, unused-ignore]  (Ctrl+Break reaches this child only)
+    flags = subprocess.CREATE_NEW_PROCESS_GROUP if WINDOWS else 0  # type: ignore[attr-defined, unused-ignore]  (Ctrl+Break reaches this child only)
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG")}
     # The daemon has a radio (--port), searches no serial port and does not ask the version page.
     env.setdefault("NEOAPRS_SERIAL_PATTERN", "/dev/neoaprs-smoke-no-such-port*")
     env["NEOAPRS_UPDATE_CHECK"] = "0"
     # No device is opened and nothing but this computer is reached (neoaprs/nodevices.py).
     env["NEOAPRS_NO_DEVICES"] = "1"
-    return subprocess.Popen([*program, "--data", str(data), "--port", tnc.url, "--web-port", "0"], stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, env=env, creationflags=flags)
+    return subprocess.Popen(
+        [*program, "--data", str(data), "--port", tnc.url, "--web-port", "0"],
+        stdin=subprocess.DEVNULL,
+        stdout=out,
+        stderr=subprocess.STDOUT,
+        env=env,
+        creationflags=flags,
+    )
 
 
 def wait_for_page(daemon: subprocess.Popen[bytes], data: Path, seconds: float) -> str:
@@ -122,7 +131,9 @@ def wait_for_page(daemon: subprocess.Popen[bytes], data: Path, seconds: float) -
         if daemon.poll() is not None:
             raise Failure(f"the daemon ended with exit code {daemon.returncode} before the page was up")
         try:
-            found = re.search(r"web page at (http://127\.0\.0\.1:\d+/)", (data / LOG).read_text(encoding="utf-8", errors="replace"))
+            found = re.search(
+                r"web page at (http://127\.0\.0\.1:\d+/)", (data / LOG).read_text(encoding="utf-8", errors="replace")
+            )
         except OSError:
             found = None
         if found:
@@ -140,7 +151,9 @@ def check_the_page(base: str) -> None:
     status, headers, body = fetch(base)
     html = body.decode("utf-8", errors="replace")
     if status != 200 or '<div id="app"' not in html:
-        raise Failure(f"GET / answered {status} and the page has no <div id=\"app\"> (the built page is not in the package?)")
+        raise Failure(
+            f'GET / answered {status} and the page has no <div id="app"> (the built page is not in the package?)'
+        )
     if "Content-Security-Policy" not in headers:
         raise Failure("GET / has no Content-Security-Policy header")
     scripts = re.findall(r'src="\./(assets/[^"]+\.js)"', html)
@@ -161,7 +174,9 @@ def check_the_world_map(base: str) -> None:
     except OSError as e:
         raise Failure(f"GET /basemap-world.pmtiles: {e} (the world map is not in the package?)") from None
     if status != 206 or head[:7] != b"PMTiles" or len(head) != 127 or head[101] < 4:
-        raise Failure(f"GET /basemap-world.pmtiles answered {status} with {len(head)} bytes that are no PMTiles header to zoom 4")
+        raise Failure(
+            f"GET /basemap-world.pmtiles answered {status} with {len(head)} bytes that are no PMTiles header to zoom 4"
+        )
     say(f"the world map is served (to zoom {head[101]})")
 
 
@@ -177,7 +192,11 @@ async def watch_the_socket(base: str, seconds: float) -> tuple[str, int]:
         # A hello that names no topic `radios` is a Failure here, before the wait.
         wire = page.wire
         await give_radio(page, "fm", FIRST_RADIO, {}, seconds)
-        await page.until(f"the FM radio connected and a packet (the topic {wire})", lambda p: radio_state(p.topics, "fm") == "connected" and bool(p.topics.get("packets")), seconds)
+        await page.until(
+            f"the FM radio connected and a packet (the topic {wire})",
+            lambda p: radio_state(p.topics, "fm") == "connected" and bool(p.topics.get("packets")),
+            seconds,
+        )
         return "connected", len(page.topics["packets"])
     finally:
         page.close()
@@ -188,13 +207,18 @@ def wire_of(hello: dict[str, Any]) -> str:
     topics = hello.get("topics") or []
     if RADIOS in topics:
         return RADIOS
-    raise Failure(f"the daemon tells of no radio: its hello does not list the topic {RADIOS} ({', '.join(topics) or 'no topic'})")
+    raise Failure(
+        f"the daemon tells of no radio: its hello does not list the topic {RADIOS} ({', '.join(topics) or 'no topic'})"
+    )
 
 
 def live_radios(topics: dict[str, Any], kind: str) -> list[dict[str, Any]]:
     """Return the radios of a kind that are not removed, by position; [] until the topic is told."""
     rows = (topics.get(RADIOS) or {}).values()
-    return sorted((row for row in rows if row.get("kind") == kind and not row.get("removed")), key=lambda row: (row.get("position", 0), row.get("id", 0)))
+    return sorted(
+        (row for row in rows if row.get("kind") == kind and not row.get("removed")),
+        key=lambda row: (row.get("position", 0), row.get("id", 0)),
+    )
 
 
 def radio_of(topics: dict[str, Any], kind: str) -> dict[str, Any] | None:
@@ -219,9 +243,15 @@ def heard_on(topics: dict[str, Any], row: dict[str, Any], kind: str) -> int:
 
     A radio not yet told counts 0; a row without `heard` is a Failure."""
     if "heard" not in row:
-        raise Failure(f"the row of {row.get('call')} says nothing of what the {kind} radios heard: it has no heard (by radio)")
+        raise Failure(
+            f"the row of {row.get('call')} says nothing of what the {kind} radios heard: it has no heard (by radio)"
+        )
     kinds = {str(radio.get("id")): radio.get("kind") for radio in (topics.get(RADIOS) or {}).values()}
-    return sum(int((heard or {}).get("count") or 0) for id, heard in (row.get("heard") or {}).items() if kinds.get(str(id)) == kind)
+    return sum(
+        int((heard or {}).get("count") or 0)
+        for id, heard in (row.get("heard") or {}).items()
+        if kinds.get(str(id)) == kind
+    )
 
 
 class PageSocket:
@@ -238,6 +268,7 @@ class PageSocket:
     async def open(cls, base: str, seconds: float = 15.0) -> "PageSocket":
         """The socket of the page at `base` (`http://127.0.0.1:PORT/`), its hello read."""
         from tornado.websocket import websocket_connect
+
         connection = await websocket_connect("ws://" + base.removeprefix("http://") + "ws", connect_timeout=seconds)
         raw = await asyncio.wait_for(connection.read_message(), seconds)
         hello = json.loads(raw) if raw is not None else {}
@@ -267,7 +298,9 @@ class PageSocket:
             left = deadline - loop.time()
             if left <= 0:
                 refused = [m.get("text") for m in self.messages if m.get("type") == "error"]
-                raise Failure(f"{what}: not within {seconds:g} s (the FM radio {radio_state(self.topics, 'fm')!r}, the Mercury radio {radio_state(self.topics, 'hf')!r}, refusals {refused})")
+                raise Failure(
+                    f"{what}: not within {seconds:g} s (the FM radio {radio_state(self.topics, 'fm')!r}, the Mercury radio {radio_state(self.topics, 'hf')!r}, refusals {refused})"
+                )
             try:
                 raw = await asyncio.wait_for(self.connection.read_message(), min(left, 1.0))
             except TimeoutError:
@@ -291,7 +324,13 @@ class PageSocket:
     async def set_config(self, values: dict[str, str], seconds: float) -> None:
         """Save settings as the settings form does and wait until `config` has them."""
         since = await self.send({"cmd": "set_config", "values": values})
-        await self.until(f"the settings {', '.join(values)} saved", lambda p: p.refusal(since, "set_config") is not None or all(p.config().get(k) == v for k, v in values.items()), seconds)
+        await self.until(
+            f"the settings {', '.join(values)} saved",
+            lambda p: (
+                p.refusal(since, "set_config") is not None or all(p.config().get(k) == v for k, v in values.items())
+            ),
+            seconds,
+        )
         if refused := self.refusal(since, "set_config"):
             raise Failure(f"set_config was refused: {refused.get('text')}")
 
@@ -304,11 +343,22 @@ async def give_radio(page: PageSocket, kind: str, radio_type: str, values: dict[
 
     Waits until the daemon says so; a refusal is a Failure. Return the radio's id."""
     # A hello without it is a Failure, before the wait.
-    await page.until(f"the settings and the radios told (the topic {page.wire})", lambda p: "config" in p.topics and RADIOS in p.topics, seconds)
+    await page.until(
+        f"the settings and the radios told (the topic {page.wire})",
+        lambda p: "config" in p.topics and RADIOS in p.topics,
+        seconds,
+    )
     radio = next(iter(live_radios(page.topics, kind)), None)
     if radio is None:
         since = await page.send({"cmd": "radio_add", "type": radio_type})
-        await page.until(f"a {radio_type} radio added", lambda p: p.refusal(since, "radio_add") is not None or any(m.get("type") == "radio_added" for m in p.messages[since:]), seconds)
+        await page.until(
+            f"a {radio_type} radio added",
+            lambda p: (
+                p.refusal(since, "radio_add") is not None
+                or any(m.get("type") == "radio_added" for m in p.messages[since:])
+            ),
+            seconds,
+        )
         if refused := page.refusal(since, "radio_add"):
             raise Failure(f"radio_add was refused: {refused.get('text')}")
         added = next(m for m in page.messages[since:] if m.get("type") == "radio_added")["id"]
@@ -318,7 +368,14 @@ async def give_radio(page: PageSocket, kind: str, radio_type: str, values: dict[
     change = {key: value for key, value in (("type", radio_type), ("enabled", True)) if radio.get(key) != value}
     if change:
         since = await page.send({"cmd": "radio_change", "radio": id, **change})
-        await page.until(f"radio {id} made {change}", lambda p: p.refusal(since, "radio_change") is not None or all(((p.topics.get(RADIOS) or {}).get(str(id)) or {}).get(k) == v for k, v in change.items()), seconds)
+        await page.until(
+            f"radio {id} made {change}",
+            lambda p: (
+                p.refusal(since, "radio_change") is not None
+                or all(((p.topics.get(RADIOS) or {}).get(str(id)) or {}).get(k) == v for k, v in change.items())
+            ),
+            seconds,
+        )
         if refused := page.refusal(since, "radio_change"):
             raise Failure(f"radio_change was refused: {refused.get('text')}")
     if values:
@@ -342,7 +399,7 @@ def apply(topics: dict[str, Any], message: dict[str, Any]) -> None:
 
 
 def stop_gracefully(daemon: subprocess.Popen[bytes], seconds: float) -> int:
-    daemon.send_signal(signal.CTRL_BREAK_EVENT if WINDOWS else signal.SIGTERM)       # type: ignore[attr-defined, unused-ignore]
+    daemon.send_signal(signal.CTRL_BREAK_EVENT if WINDOWS else signal.SIGTERM)  # type: ignore[attr-defined, unused-ignore]
     try:
         return daemon.wait(seconds)
     except subprocess.TimeoutExpired:
@@ -352,7 +409,14 @@ def stop_gracefully(daemon: subprocess.Popen[bytes], seconds: float) -> int:
 def check_the_end(data: Path, code: int) -> None:
     if code != 0:
         raise Failure(f"the daemon ended with exit code {code}, not 0")
-    last = next((line for line in reversed((data / LOG).read_text(encoding="utf-8", errors="replace").splitlines()) if line.strip()), "")
+    last = next(
+        (
+            line
+            for line in reversed((data / LOG).read_text(encoding="utf-8", errors="replace").splitlines())
+            if line.strip()
+        ),
+        "",
+    )
     if not last.endswith("NeoAPRS ended"):
         raise Failure(f"the last line of the log is {last!r}, not '... NeoAPRS ended'")
     db = sqlite3.connect(data / DATABASE)
@@ -385,7 +449,10 @@ def run(args: argparse.Namespace) -> None:
         code = stop_gracefully(daemon, args.timeout)
         check_the_end(data, code)
     except Failure as e:
-        print(f"smoke: FAILED: {e}\n--- the end of the log ---\n{log_tail(data)}\n--- output of the daemon ---\n{(folder / 'daemon.out').read_text(errors='replace')[-2000:]}", file=sys.stderr)
+        print(
+            f"smoke: FAILED: {e}\n--- the end of the log ---\n{log_tail(data)}\n--- output of the daemon ---\n{(folder / 'daemon.out').read_text(errors='replace')[-2000:]}",
+            file=sys.stderr,
+        )
         raise
     finally:
         if daemon.poll() is None:
@@ -396,10 +463,21 @@ def run(args: argparse.Namespace) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Smoke test of an installed NeoAPRS: a fake KISS TNC on a TCP port, the daemon started on a temporary data folder, the page and its WebSocket checked, a clean stop.")
-    parser.add_argument("--command", metavar="PATH", help="the neoaprs command to test (default: this Python with -m neoaprs)")
-    parser.add_argument("--capture", default=str(FIXTURE), metavar="FILE", help="the KISS capture the fake TNC plays; default %(default)s")
-    parser.add_argument("--timeout", type=float, default=60.0, metavar="SEC", help="how long each wait may take; default %(default)s")
+    parser = argparse.ArgumentParser(
+        description="Smoke test of an installed NeoAPRS: a fake KISS TNC on a TCP port, the daemon started on a temporary data folder, the page and its WebSocket checked, a clean stop."
+    )
+    parser.add_argument(
+        "--command", metavar="PATH", help="the neoaprs command to test (default: this Python with -m neoaprs)"
+    )
+    parser.add_argument(
+        "--capture",
+        default=str(FIXTURE),
+        metavar="FILE",
+        help="the KISS capture the fake TNC plays; default %(default)s",
+    )
+    parser.add_argument(
+        "--timeout", type=float, default=60.0, metavar="SEC", help="how long each wait may take; default %(default)s"
+    )
     args = parser.parse_args()
     try:
         run(args)

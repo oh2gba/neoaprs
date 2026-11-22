@@ -5,20 +5,26 @@ Compressed positions write the overlays 0-9 as a-j; `table_of` turns those back.
 """
 
 # the 94 names of the codes "!" to "~", in order (APRS Protocol Reference 1.0.1 and 1.2)
-_PRIMARY = ("Police|reserved|Digipeater|Phone|DX cluster|HF gateway|Small aircraft|Mobile satellite station|Wheelchair|Snowmobile|Red Cross|Boy Scouts|House|X|Red dot|"
-            + "Circle|" * 10
-            + "Fire|Campground|Motorcycle|Railroad engine|Car|File server|Hurricane|Aid station|BBS|Canoe|reserved|Eyeball|Farm vehicle|Grid square|Hotel|TCP/IP|reserved|School|PC user"
-            "|Mac|NTS station|Balloon|Police car|reserved|Recreational vehicle|Space shuttle|SSTV|Bus|ATV|National weather service site|Helicopter|Yacht|Windows|Jogger|Triangle (DF)"
-            "|PBBS|Large aircraft|Weather station|Satellite dish|Ambulance|Bicycle|Incident command post|Fire department|Horse|Fire truck|Glider|Hospital|IOTA|Jeep|Truck|Laptop"
-            "|Mic-E repeater|Node|Emergency operations center|Rover|Grid square|Antenna|Power boat|Truck stop|Truck (18 wheeler)|Van|Water station|X-APRS|Yagi at QTH|Shelter"
-            "|reserved|TNC stream switch|reserved|TNC stream switch").split("|")
-_ALTERNATE = ("Emergency|reserved|Digipeater|Bank or ATM|Power plant|Gateway|Crash site|Cloudy|Firenet MEO|Snow|Church|Girl Scouts|House (HF)|Ambiguous|Waypoint destination"
-              "|Circle (IRLP, Echolink, WIRES)|" + "reserved|" * 7
-              + "Network node|Gas station|Hail|Park or picnic area|Advisory (gale flag)|APRStt (DTMF)|Car|Information kiosk|Hurricane|Numbered box|Blowing snow|Coast Guard|Drizzle"
-              "|Smoke|Freezing rain|Snow shower|Haze|Rain shower|Lightning|Kenwood|Lighthouse|MARS|Navigation buoy|Rocket|Parking|Earthquake|Restaurant|Satellite|Thunderstorm|Sunny"
-              "|VORTAC|NWS site|Pharmacy|Radios and devices|reserved|Wall cloud|GPS|reserved|Large aircraft|Weather station (green)|Rain|ARRL, ARES, WinLink, D-Star|Blowing dust or sand"
-              "|Civil Defense|DX spot|Sleet|Funnel cloud|Gale flags|Ham store|Point of interest|Work zone|Special vehicle|Area|Value sign|Triangle|Small circle|Partly cloudy|reserved"
-              "|Restrooms|Ship or boat|Tornado|Truck|Van|Flood|Wreck or obstruction|Skywarn|Shelter|Fog|TNC stream switch|reserved|TNC stream switch").split("|")
+_PRIMARY = (
+    "Police|reserved|Digipeater|Phone|DX cluster|HF gateway|Small aircraft|Mobile satellite station|Wheelchair|Snowmobile|Red Cross|Boy Scouts|House|X|Red dot|"
+    + "Circle|" * 10
+    + "Fire|Campground|Motorcycle|Railroad engine|Car|File server|Hurricane|Aid station|BBS|Canoe|reserved|Eyeball|Farm vehicle|Grid square|Hotel|TCP/IP|reserved|School|PC user"
+    "|Mac|NTS station|Balloon|Police car|reserved|Recreational vehicle|Space shuttle|SSTV|Bus|ATV|National weather service site|Helicopter|Yacht|Windows|Jogger|Triangle (DF)"
+    "|PBBS|Large aircraft|Weather station|Satellite dish|Ambulance|Bicycle|Incident command post|Fire department|Horse|Fire truck|Glider|Hospital|IOTA|Jeep|Truck|Laptop"
+    "|Mic-E repeater|Node|Emergency operations center|Rover|Grid square|Antenna|Power boat|Truck stop|Truck (18 wheeler)|Van|Water station|X-APRS|Yagi at QTH|Shelter"
+    "|reserved|TNC stream switch|reserved|TNC stream switch"
+).split("|")
+_ALTERNATE = (
+    "Emergency|reserved|Digipeater|Bank or ATM|Power plant|Gateway|Crash site|Cloudy|Firenet MEO|Snow|Church|Girl Scouts|House (HF)|Ambiguous|Waypoint destination"
+    "|Circle (IRLP, Echolink, WIRES)|"
+    + "reserved|"
+    * 7
+    + "Network node|Gas station|Hail|Park or picnic area|Advisory (gale flag)|APRStt (DTMF)|Car|Information kiosk|Hurricane|Numbered box|Blowing snow|Coast Guard|Drizzle"
+    "|Smoke|Freezing rain|Snow shower|Haze|Rain shower|Lightning|Kenwood|Lighthouse|MARS|Navigation buoy|Rocket|Parking|Earthquake|Restaurant|Satellite|Thunderstorm|Sunny"
+    "|VORTAC|NWS site|Pharmacy|Radios and devices|reserved|Wall cloud|GPS|reserved|Large aircraft|Weather station (green)|Rain|ARRL, ARES, WinLink, D-Star|Blowing dust or sand"
+    "|Civil Defense|DX spot|Sleet|Funnel cloud|Gale flags|Ham store|Point of interest|Work zone|Special vehicle|Area|Value sign|Triangle|Small circle|Partly cloudy|reserved"
+    "|Restrooms|Ship or boat|Tornado|Truck|Van|Flood|Wreck or obstruction|Skywarn|Shelter|Fog|TNC stream switch|reserved|TNC stream switch"
+).split("|")
 
 _OVERLAYS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -39,12 +45,44 @@ def table_of(table: str) -> str | None:
 # symbols of a station that moves, by name, per table; they decide the recommended path
 # (route.recommended_path): mobile WIDE1-1,WIDE2-1, fixed WIDE2-2
 MOBILE_NAMES = {
-    "primary": ("Small aircraft", "Mobile satellite station", "Wheelchair", "Snowmobile", "Motorcycle", "Railroad engine", "Car", "Canoe", "Farm vehicle", "Balloon", "Police car", "Recreational vehicle",
-                "Space shuttle", "Bus", "ATV", "Helicopter", "Yacht", "Jogger", "Large aircraft", "Ambulance", "Bicycle", "Horse", "Fire truck", "Glider", "Jeep", "Truck", "Rover", "Power boat",
-                "Truck (18 wheeler)", "Van"),
+    "primary": (
+        "Small aircraft",
+        "Mobile satellite station",
+        "Wheelchair",
+        "Snowmobile",
+        "Motorcycle",
+        "Railroad engine",
+        "Car",
+        "Canoe",
+        "Farm vehicle",
+        "Balloon",
+        "Police car",
+        "Recreational vehicle",
+        "Space shuttle",
+        "Bus",
+        "ATV",
+        "Helicopter",
+        "Yacht",
+        "Jogger",
+        "Large aircraft",
+        "Ambulance",
+        "Bicycle",
+        "Horse",
+        "Fire truck",
+        "Glider",
+        "Jeep",
+        "Truck",
+        "Rover",
+        "Power boat",
+        "Truck (18 wheeler)",
+        "Van",
+    ),
     "alternate": ("Car", "Large aircraft", "Special vehicle", "Ship or boat", "Truck", "Van"),
 }
-MOBILE_CODES = {table: "".join(chr(33 + i) for i, name in enumerate(SYMBOL_NAMES[table]) if name in names) for table, names in MOBILE_NAMES.items()}
+MOBILE_CODES = {
+    table: "".join(chr(33 + i) for i, name in enumerate(SYMBOL_NAMES[table]) if name in names)
+    for table, names in MOBILE_NAMES.items()
+}
 
 # overlays of the gateway symbol `&` that mark an iGate: generic, receive-only, one-hop and
 # two-hop transmit, LoRa
@@ -70,11 +108,43 @@ def symbol_name(table: str, code: str) -> str:
 
 
 # icon a tracker gets from the SSID of its source call (APRS101 ch. 4): primary table code
-_SSID_ICONS = {1: "a", 2: "U", 3: "f", 4: "b", 5: "Y", 6: "X", 7: "'", 8: "s", 9: ">", 10: "<", 11: "O", 12: "j", 13: "R", 14: "k", 15: "v"}
+_SSID_ICONS = {
+    1: "a",
+    2: "U",
+    3: "f",
+    4: "b",
+    5: "Y",
+    6: "X",
+    7: "'",
+    8: "s",
+    9: ">",
+    10: "<",
+    11: "O",
+    12: "j",
+    13: "R",
+    14: "k",
+    15: "v",
+}
 _UNKNOWN = ("\\", ".")  # unknown / indeterminate position
 # (first code, the x of GPSxyz, the y of that code)
-_GPS_PRIMARY = ((33, "B", 66), (48, "P", 48), (58, "M", 82), (65, "P", 65), (91, "H", 83), (97, "L", 65), (123, "J", 49))
-_GPS_ALTERNATE = ((33, "O", 66), (48, "A", 48), (58, "N", 82), (65, "A", 65), (91, "D", 83), (97, "S", 65), (123, "Q", 49))
+_GPS_PRIMARY = (
+    (33, "B", 66),
+    (48, "P", 48),
+    (58, "M", 82),
+    (65, "P", 65),
+    (91, "H", 83),
+    (97, "L", 65),
+    (123, "J", 49),
+)
+_GPS_ALTERNATE = (
+    (33, "O", 66),
+    (48, "A", 48),
+    (58, "N", 82),
+    (65, "A", 65),
+    (91, "D", 83),
+    (97, "S", 65),
+    (123, "Q", 49),
+)
 
 
 def _gps_code(table: str, code: int) -> str:

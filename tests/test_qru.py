@@ -2,6 +2,7 @@
 the list of groups, the objects of a group near the asker, the limit and `NEXT`, the range, and the
 answers never given.
 """
+
 import asyncio
 import logging
 from datetime import datetime
@@ -40,11 +41,31 @@ class Rig(ServiceRig):
         self.paths: dict[str, tuple[str, ...]] = {}
         # The station's radios as the registry gives them: radio 1 on the stub line
         self.radios = pick_of(self)
-        self.qru = Qru(self.radios, lambda: self.config, self.objects, self.book, lambda call, attempt=None, radio=1: self.paths.get(call, self.config.beacon_path_calls), self.clock, spacing_sec=0.02, first_wait_sec=first_wait_sec)
+        self.qru = Qru(
+            self.radios,
+            lambda: self.config,
+            self.objects,
+            self.book,
+            lambda call, attempt=None, radio=1: self.paths.get(call, self.config.beacon_path_calls),
+            self.clock,
+            spacing_sec=0.02,
+            first_wait_sec=first_wait_sec,
+        )
         remember_stop(self.qru.stop)
 
-    def add(self, name: str, group: str, lat: float = 60.2, lon: float = 24.9, on_request: bool = False, kind: str = "object", comment: str = "") -> OwnObject:
-        made = make_object(self.clock(), name, kind, lat, lon, "/", "r", comment, qru_group=group, on_request=on_request)
+    def add(
+        self,
+        name: str,
+        group: str,
+        lat: float = 60.2,
+        lon: float = 24.9,
+        on_request: bool = False,
+        kind: str = "object",
+        comment: str = "",
+    ) -> OwnObject:
+        made = make_object(
+            self.clock(), name, kind, lat, lon, "/", "r", comment, qru_group=group, on_request=on_request
+        )
         self.objects.held.append(made)
         return made
 
@@ -53,7 +74,18 @@ class Rig(ServiceRig):
 
     def ask(self, source: str, text: str, to: str = "QRU", msg_id: str | None = None, via: Via = "rf") -> bool:
         third = ThirdParty(source, "APRS") if via == "rf-gated" else None
-        packet = Packet(self.clock(), "in", b"", "OH2GATE" if third else source, "APRS", ("OH2RCH-2*",), b"", Message(to, text, msg_id), third, via)
+        packet = Packet(
+            self.clock(),
+            "in",
+            b"",
+            "OH2GATE" if third else source,
+            "APRS",
+            ("OH2RCH-2*",),
+            b"",
+            Message(to, text, msg_id),
+            third,
+            via,
+        )
         return self.qru.heard(packet, Message(to, text, msg_id))
 
     def texts(self) -> list[str]:
@@ -65,14 +97,48 @@ class Rig(ServiceRig):
 
 # ---- reading a request ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("text, expected", [("INFO", Request("INFO", None)), ("info 250", Request("INFO", 250)), ("?", Request("INFO", None)), ("? 20", Request("INFO", 20)), (" rp70 ", Request("RP70", None)),
-                                            ("RP70 150", Request("RP70", 150)), ("?INFO", Request("INFO", None)), ("?test", Request("TEST", None)), ("?POST 20000", Request("POST", 20000)), ("?RP70 150", Request("RP70", 150)),
-                                            ("next", Request("NEXT", None)), ("LIFEBOAT", Request("LIFEBOAT", None)), ("T2SRV 99999", Request("T2SRV", 99999))])
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("INFO", Request("INFO", None)),
+        ("info 250", Request("INFO", 250)),
+        ("?", Request("INFO", None)),
+        ("? 20", Request("INFO", 20)),
+        (" rp70 ", Request("RP70", None)),
+        ("RP70 150", Request("RP70", 150)),
+        ("?INFO", Request("INFO", None)),
+        ("?test", Request("TEST", None)),
+        ("?POST 20000", Request("POST", 20000)),
+        ("?RP70 150", Request("RP70", 150)),
+        ("next", Request("NEXT", None)),
+        ("LIFEBOAT", Request("LIFEBOAT", None)),
+        ("T2SRV 99999", Request("T2SRV", 99999)),
+    ],
+)
 def test_a_request_is_a_word_and_a_distance_in_kilometres(text: str, expected: Request) -> None:
     assert request_of(text) == expected
 
 
-@pytest.mark.parametrize("text", ["", "hello there", "RP70 far", "RP70 150 3", "LIFEBOATS", "RP-70", "T2SRV 100000", "INFO?", "?APRSP", "?aprsd 5", "?PING?", "?RP-70", "??", "Are you there?"])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "",
+        "hello there",
+        "RP70 far",
+        "RP70 150 3",
+        "LIFEBOATS",
+        "RP-70",
+        "T2SRV 100000",
+        "INFO?",
+        "?APRSP",
+        "?aprsd 5",
+        "?PING?",
+        "?RP-70",
+        "??",
+        "Are you there?",
+    ],
+)
 def test_a_text_that_is_no_request_is_none(text: str) -> None:
     assert request_of(text) is None
 
@@ -84,11 +150,17 @@ def test_the_list_of_groups_is_one_message_that_ends_with_the_limit_and_the_rang
 def test_a_long_list_goes_over_two_messages_the_first_ending_in_plus_and_what_does_not_fit_is_left_out() -> None:
     groups = [(f"GRP{n:02d}", n + 1) for n in range(30)]
     texts = info_texts("OH2GBA-10", groups, 250)
-    assert len(texts) == 2 and texts[0].endswith("+") and texts[1].endswith(" Max 5@250km") and all(len(t.encode()) <= MAX_TEXT for t in texts)
+    assert (
+        len(texts) == 2
+        and texts[0].endswith("+")
+        and texts[1].endswith(" Max 5@250km")
+        and all(len(t.encode()) <= MAX_TEXT for t in texts)
+    )
     assert 0 < sum(text.count("(") for text in texts) < 30
 
 
 # ---- INFO ----------------------------------------------------------------------------------------
+
 
 def test_info_answers_with_the_groups_near_the_asker_and_how_many_objects_each_has() -> None:
     rig = Rig()
@@ -102,7 +174,9 @@ def test_info_answers_with_the_groups_near_the_asker_and_how_many_objects_each_h
     killed = rig.add("DEAD", "POLI")
     rig.objects.held[-1] = killed.killed(rig.clock())
     assert rig.ask("OH2RDG", "INFO") is True
-    assert rig.texts() == ["de OH2GBA:FOOD(2) FUEL(1) RP70(1) Max 5@50km"], "an object that is on request is a member of its group; a killed one and one with no group are not"
+    assert rig.texts() == ["de OH2GBA:FOOD(2) FUEL(1) RP70(1) Max 5@50km"], (
+        "an object that is on request is a member of its group; a killed one and one with no group are not"
+    )
     assert rig.tnc.sent[0].path_text == "WIDE1-1,WIDE2-1,RFONLY" and rig.names() == []
 
 
@@ -125,7 +199,9 @@ def test_a_station_whose_position_we_do_not_know_is_offered_every_object() -> No
     assert rig.texts() == ["de OH2GBA:FUEL(2) Max 5@50km"]
 
 
-def test_the_answer_goes_by_the_path_of_the_asker_with_rfonly_added_so_that_the_igates_keep_it_off_the_internet() -> None:
+def test_the_answer_goes_by_the_path_of_the_asker_with_rfonly_added_so_that_the_igates_keep_it_off_the_internet() -> (
+    None
+):
     rig = Rig()
     rig.paths["OH2RDG"] = ("OH2RCH-2", "WIDE2-1")
     rig.add("PUMP", "FUEL")
@@ -153,7 +229,9 @@ def test_an_answer_with_a_path_too_long_for_rfonly_is_not_sent(caplog: pytest.Lo
 
 
 @pytest.mark.parametrize("via, taken", [("rf", True), ("dummy", True), ("is", False), ("rf-gated", False)])
-def test_only_a_request_heard_on_the_radio_is_answered_never_one_that_came_by_the_internet(via: Via, taken: bool) -> None:
+def test_only_a_request_heard_on_the_radio_is_answered_never_one_that_came_by_the_internet(
+    via: Via, taken: bool
+) -> None:
     rig = Rig()
     rig.add("PUMP", "FUEL")
     assert rig.ask("OH2RDG", "INFO", via=via) is taken
@@ -169,7 +247,10 @@ def test_a_request_with_a_message_id_is_answered_and_sends_no_ack() -> None:
 
 # ---- a group -------------------------------------------------------------------------------------
 
-async def test_a_group_is_answered_with_its_objects_the_nearest_first_one_at_a_time_and_a_message_that_says_how_many_went() -> None:
+
+async def test_a_group_is_answered_with_its_objects_the_nearest_first_one_at_a_time_and_a_message_that_says_how_many_went() -> (
+    None
+):
     rig = Rig()
     rig.hear_at("OH2RDG", *HELSINKI)
     rig.add("RPFAR", "RP70", 60.45, 24.94, on_request=True, comment="438.850MHz Toff -760")
@@ -182,7 +263,9 @@ async def test_a_group_is_answered_with_its_objects_the_nearest_first_one_at_a_t
     await idle_for(0.1)
     assert rig.names() == ["RPNEAR", "RPFAR"] and rig.texts() == ["Sent 2 RP70 Objects Max 5@50km de OH2GBA"]
     assert rig.tnc.sent[0].info == b";RPNEAR   *211200z6010.80N/02457.00Er438.925MHz Toff -760"
-    assert {f.path_text for f in rig.tnc.sent} == {"WIDE1-1,WIDE2-1,RFONLY"} and [parse_message(f.info[1:]).msg_id for f in rig.tnc.sent if f.info[:1] == b":"] == [None]
+    assert {f.path_text for f in rig.tnc.sent} == {"WIDE1-1,WIDE2-1,RFONLY"} and [
+        parse_message(f.info[1:]).msg_id for f in rig.tnc.sent if f.info[:1] == b":"
+    ] == [None]
 
 
 async def test_an_item_of_the_group_is_sent_as_an_item() -> None:
@@ -200,11 +283,16 @@ async def test_at_most_five_objects_go_out_and_next_sends_the_following_ones() -
         rig.add(f"PUB{n:02d}", "FOOD", 60.17 + n / 1000, 24.94)
     rig.ask("OH2RDG", "FOOD")
     await until(lambda: len(rig.tnc.sent) == ANSWER_FRAMES_MAX + 1)
-    assert rig.names() == [f"PUB{n:02d}" for n in range(5)] and rig.texts() == ["Sent 5 of 12 FOOD Objects, NEXT for more. de OH2GBA"]
+    assert rig.names() == [f"PUB{n:02d}" for n in range(5)] and rig.texts() == [
+        "Sent 5 of 12 FOOD Objects, NEXT for more. de OH2GBA"
+    ]
     rig.clock.advance(60)
     rig.ask("OH2RDG", "next")
     await until(lambda: len(rig.tnc.sent) == 2 * (ANSWER_FRAMES_MAX + 1))
-    assert rig.names()[5:] == [f"PUB{n:02d}" for n in range(5, 10)] and rig.texts()[1] == "Sent 5 of 12 FOOD Objects, NEXT for more. de OH2GBA"
+    assert (
+        rig.names()[5:] == [f"PUB{n:02d}" for n in range(5, 10)]
+        and rig.texts()[1] == "Sent 5 of 12 FOOD Objects, NEXT for more. de OH2GBA"
+    )
     rig.clock.advance(60)
     rig.ask("OH2RDG", "NEXT")
     await until(lambda: len(rig.tnc.sent) == 2 * (ANSWER_FRAMES_MAX + 1) + 3)
@@ -247,7 +335,10 @@ async def test_a_distance_in_the_request_is_the_range_of_the_group() -> None:
 
 # ---- what is not answered ------------------------------------------------------------------------
 
-async def test_nothing_is_answered_where_nothing_is_in_range_or_the_group_has_no_object(caplog: pytest.LogCaptureFixture) -> None:
+
+async def test_nothing_is_answered_where_nothing_is_in_range_or_the_group_has_no_object(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     rig = Rig()
     rig.hear_at("OH2RDG", *HELSINKI)
     rig.add("FAR", "FUEL", 62.5, 24.9)
@@ -318,7 +409,10 @@ async def test_the_clock_of_the_server_stamps_the_objects() -> None:
 
 # ---- the first frame waits for the digipeaters ---------------------------------------------------
 
-async def test_the_first_frame_of_an_answer_waits_about_five_seconds_for_the_digipeaters_to_finish_repeating_the_request_then_the_frames_are_spaced() -> None:
+
+async def test_the_first_frame_of_an_answer_waits_about_five_seconds_for_the_digipeaters_to_finish_repeating_the_request_then_the_frames_are_spaced() -> (
+    None
+):
     rig = Rig(first_wait_sec=FIRST_WAIT_SEC)
     rig.add("PUMP", "FUEL")
     rig.add("WELL", "FUEL", 60.21)
@@ -332,7 +426,9 @@ async def test_the_first_frame_of_an_answer_waits_about_five_seconds_for_the_dig
         await asyncio.sleep(0.51)
         assert len(rig.tnc.sent) == 1, "then the first object"
         await asyncio.sleep(0.05)
-        assert len(rig.tnc.sent) == 3 and rig.texts() == ["Sent 2 FUEL Objects Max 5@50km de OH2GBA"], "the rest, spaced as before"
+        assert len(rig.tnc.sent) == 3 and rig.texts() == ["Sent 2 FUEL Objects Max 5@50km de OH2GBA"], (
+            "the rest, spaced as before"
+        )
         assert FIRST_WAIT_SEC <= time.skipped < FIRST_WAIT_SEC + 1
 
 
@@ -347,7 +443,9 @@ async def test_the_list_of_groups_waits_too() -> None:
         assert rig.texts() == ["de OH2GBA:FUEL(1) Max 5@50km"]
 
 
-async def test_the_copies_of_the_request_that_come_while_the_answer_waits_are_not_answered_again_and_a_stop_ends_the_wait() -> None:
+async def test_the_copies_of_the_request_that_come_while_the_answer_waits_are_not_answered_again_and_a_stop_ends_the_wait() -> (
+    None
+):
     rig = Rig(first_wait_sec=FIRST_WAIT_SEC)
     rig.add("PUMP", "FUEL")
     async with virtual_time():

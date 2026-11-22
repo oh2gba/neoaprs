@@ -2,6 +2,7 @@
 
 The path is printed first, for a daemon given `--port /dev/pts/N`. Nothing is sent while nobody
 has it open, because opening a port discards pending input."""
+
 import os
 import select
 import time

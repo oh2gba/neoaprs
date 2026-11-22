@@ -20,7 +20,15 @@ OUTBOX_MAX = 32
 
 
 class MercuryUi:
-    def __init__(self, host: str, port: int, on_text: Callable[[str], None], on_binary: Callable[[bytes], None], on_state: Callable[[bool], None], backoff: Backoff | None = None) -> None:
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        on_text: Callable[[str], None],
+        on_binary: Callable[[bytes], None],
+        on_state: Callable[[bool], None],
+        backoff: Backoff | None = None,
+    ) -> None:
         self.host, self.port = host, port
         self._on_text, self._on_binary, self._on_state = on_text, on_binary, on_state
         self.backoff = backoff or Backoff([1.0, 2.0, 5.0, 10.0, 30.0])
@@ -75,7 +83,11 @@ class MercuryUi:
         why = os_error_text(error) if isinstance(error, OSError) else str(error) or type(error).__name__
         if not self._told:
             self._told = True
-            log.info("Mercury's UI interface on port %d cannot be reached (%s): there is no scope and no live transmit level, and it is tried again now and then", self.port, why)
+            log.info(
+                "Mercury's UI interface on port %d cannot be reached (%s): there is no scope and no live transmit level, and it is tried again now and then",
+                self.port,
+                why,
+            )
         else:
             log.debug("Mercury's UI interface on port %d: %s", self.port, why)
 

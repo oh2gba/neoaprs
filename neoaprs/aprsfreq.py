@@ -3,6 +3,7 @@
 The text starts with the frequency (`FFF.FFFMHz`), then optional four-byte fields: tone, DCS,
 offset, range, receive frequency. In an object named `FFF.FFxyz` the name is the frequency.
 """
+
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -10,9 +11,27 @@ from typing import Any
 
 from .units import MILE_KM
 
-_MHZ = re.compile(r"(?:(\d{3}\.\d{3}|\d{3}\.\d{2} )|([A-O])(\d{2}\.\d{3}))MHz(?= |$)|(\d{1,2}\.\d{3})GHz(?= |$)", re.IGNORECASE)
+_MHZ = re.compile(
+    r"(?:(\d{3}\.\d{3}|\d{3}\.\d{2} )|([A-O])(\d{2}\.\d{3}))MHz(?= |$)|(\d{1,2}\.\d{3})GHz(?= |$)", re.IGNORECASE
+)
 _NAME = re.compile(r"(\d{3}\.\d{2}\d?+)(?=.)")
-_MICROWAVE_BASE = {"A": 1200, "B": 2300, "C": 2400, "D": 3400, "E": 5600, "F": 5700, "G": 5800, "H": 10100, "I": 10200, "J": 10300, "K": 10400, "L": 10500, "M": 24000, "N": 24100, "O": 24200}
+_MICROWAVE_BASE = {
+    "A": 1200,
+    "B": 2300,
+    "C": 2400,
+    "D": 3400,
+    "E": 5600,
+    "F": 5700,
+    "G": 5800,
+    "H": 10100,
+    "I": 10200,
+    "J": 10300,
+    "K": 10400,
+    "L": 10500,
+    "M": 24000,
+    "N": 24100,
+    "O": 24200,
+}
 _TONE = re.compile(r"([TCDtcd])(\d{3})")
 _TONE_OFF = re.compile(r"([Tt])off", re.IGNORECASE)
 _BURST = re.compile(r"([1l])750")
@@ -25,6 +44,7 @@ _OFFSET_UNIT_KHZ = 10
 @dataclass(frozen=True, slots=True)
 class Frequency:
     """A frequency to call on; None or False means the field was not sent."""
+
     mhz: float
     tone_hz: int | None = None  # whole hertz as sent (107 means 107.2)
     tone_both: bool = False  # `Cnnn`: the tone is needed to receive too
@@ -76,7 +96,14 @@ def _fields(text: str, frequency: Frequency) -> tuple[Frequency, str]:
     rest = text
     while rest:
         word, _, after = rest.lstrip(" ").partition(" ")
-        step = next(((slot, make(found)) for slot, pattern, make in _FIELDS if slot not in taken and (found := pattern.fullmatch(word))), None)
+        step = next(
+            (
+                (slot, make(found))
+                for slot, pattern, make in _FIELDS
+                if slot not in taken and (found := pattern.fullmatch(word))
+            ),
+            None,
+        )
         if step is None:
             break
         taken.add(step[0])
@@ -95,7 +122,7 @@ def split_frequency(text: str) -> tuple[str, Frequency | None]:
     found = _MHZ.match(start)
     if not found:
         return text, None
-    frequency, rest = _fields(start[found.end():], Frequency(_mhz(found)))
+    frequency, rest = _fields(start[found.end() :], Frequency(_mhz(found)))
     return rest, frequency
 
 

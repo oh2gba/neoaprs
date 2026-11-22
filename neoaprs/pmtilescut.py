@@ -3,6 +3,7 @@
 Only the header and the directories the box reaches into are read. The size is known before any
 tile data is fetched (`estimate` is the dry run); a cut over `max_bytes` is refused.
 """
+
 import asyncio
 import contextlib
 import logging
@@ -35,8 +36,18 @@ def part_of(target: Path) -> Path:
 class Cutting:
     """One cut, run in a thread by `estimate()` or `run()`; `stop()` from another thread ends it."""
 
-    def __init__(self, source: str, target: Path, box: Box | None, maxzoom: int, max_bytes: int = MAX_BYTES, threads: int = DOWNLOAD_THREADS,
-                 on_percent: Callable[[int], None] | None = None, pauses: tuple[float, ...] = PAUSES_SEC, on_size: Callable[[int], None] | None = None) -> None:
+    def __init__(
+        self,
+        source: str,
+        target: Path,
+        box: Box | None,
+        maxzoom: int,
+        max_bytes: int = MAX_BYTES,
+        threads: int = DOWNLOAD_THREADS,
+        on_percent: Callable[[int], None] | None = None,
+        pauses: tuple[float, ...] = PAUSES_SEC,
+        on_size: Callable[[int], None] | None = None,
+    ) -> None:
         self.source, self.target, self.box, self.maxzoom = source, target, box, maxzoom
         self.max_bytes = max_bytes
         self.threads = max(1, threads)
@@ -68,7 +79,12 @@ class Cutting:
         if plan.cut.tiles == 0:
             raise CutError("the map source has no tiles in the box")
         if plan.size > self.max_bytes:
-            raise CutError(f"the map would be {plan.size / 1e6:.0f} MB, more than the {self.max_bytes / 1e6:.0f} MB it may be", problem="too_big", size=round(plan.size / 1e6), max=round(self.max_bytes / 1e6))
+            raise CutError(
+                f"the map would be {plan.size / 1e6:.0f} MB, more than the {self.max_bytes / 1e6:.0f} MB it may be",
+                problem="too_big",
+                size=round(plan.size / 1e6),
+                max=round(self.max_bytes / 1e6),
+            )
         return plan
 
     def estimate(self) -> Cut:
@@ -146,8 +162,23 @@ class _File:
 class _Download:
     """Run the requests of a plan on several threads; the first failure stops the others."""
 
-    def __init__(self, reader: Source, plan: Plan, out: _File, halt: Halt, on_percent: Callable[[int], None], on_size: Callable[[int], None]) -> None:
-        self.reader, self.plan, self.out, self.halt, self.on_percent, self.on_size = reader, plan, out, halt, on_percent, on_size
+    def __init__(
+        self,
+        reader: Source,
+        plan: Plan,
+        out: _File,
+        halt: Halt,
+        on_percent: Callable[[int], None],
+        on_size: Callable[[int], None],
+    ) -> None:
+        self.reader, self.plan, self.out, self.halt, self.on_percent, self.on_size = (
+            reader,
+            plan,
+            out,
+            halt,
+            on_percent,
+            on_size,
+        )
         self._lock = threading.Lock()
         self._done = 0
         self._percent = -1
@@ -180,6 +211,7 @@ class _Download:
             if at + len(data) > best:
                 self._advance(at + len(data) - best)
                 best = at + len(data)
+
         self.reader.copy(start, end - start, into)
 
     def _advance(self, count: int) -> None:
@@ -192,14 +224,17 @@ class _Download:
             if percent > self._percent:
                 self._percent = percent
                 self.on_percent(percent)
-            self.on_size(self.plan.data_offset + (self.plan.size - self.plan.data_offset) * self._done // max(1, self.plan.fetched))
-
+            self.on_size(
+                self.plan.data_offset
+                + (self.plan.size - self.plan.data_offset) * self._done // max(1, self.plan.fetched)
+            )
 
     def _report(self, percent: int) -> None:
         with self._lock:
             if percent > self._percent and not self.halt.is_set():
                 self._percent = percent
                 self.on_percent(percent)
+
 
 class _Pieces:
     """Map the bytes of one request to their places in the new tile data; gaps are dropped.
@@ -223,15 +258,24 @@ class _Pieces:
             begin, length = self.sources[self.index], self.lengths[self.index]
             low, high = max(at, begin), min(end, begin + length)
             if low < high:
-                out.append((self.at + low - begin, data[low - at:high - at]))
+                out.append((self.at + low - begin, data[low - at : high - at]))
             if begin + length > end:
                 break
             self.index, self.at = self.index + 1, self.at + length
         return out
 
 
-async def extract(source: str, target: Path, box: Box | None, maxzoom: int, dry_run: bool = False, on_percent: Callable[[int], None] | None = None,
-                  max_bytes: int = MAX_BYTES, threads: int = DOWNLOAD_THREADS, on_size: Callable[[int], None] | None = None) -> Cut:
+async def extract(
+    source: str,
+    target: Path,
+    box: Box | None,
+    maxzoom: int,
+    dry_run: bool = False,
+    on_percent: Callable[[int], None] | None = None,
+    max_bytes: int = MAX_BYTES,
+    threads: int = DOWNLOAD_THREADS,
+    on_size: Callable[[int], None] | None = None,
+) -> Cut:
     """Run a cut for the event loop; the callbacks run on the loop. Raise CutError if it fails.
 
     Cancelling the task stops the cut and waits for its thread.
@@ -245,6 +289,7 @@ async def extract(source: str, target: Path, box: Box | None, maxzoom: int, dry_
         def tell(value: int) -> None:
             with contextlib.suppress(RuntimeError):  # the loop is closed: the program is ending
                 loop.call_soon_threadsafe(call, value)
+
         return tell
 
     cutting = Cutting(source, target, box, maxzoom, max_bytes, threads, from_thread(told), on_size=from_thread(sized))

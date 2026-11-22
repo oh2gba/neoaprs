@@ -3,6 +3,7 @@
 A handler is `async def name(ctx: Ctx, cmd: TheModel) -> None`, registered by `@command(TheModel)`.
 `UserError` is answered to the asker as an `error` message; any other exception is logged first.
 """
+
 import logging
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
@@ -32,7 +33,9 @@ class UserError(Exception):
     The page gets an `error` with `text`, `code`, `params` and `key`.
     """
 
-    def __init__(self, text: str, code: str = "other", key: str | None = None, params: Mapping[str, Param] | None = None) -> None:
+    def __init__(
+        self, text: str, code: str = "other", key: str | None = None, params: Mapping[str, Param] | None = None
+    ) -> None:
         super().__init__(text)
         self.code = code
         self.key = key
@@ -78,12 +81,22 @@ def command[M: BaseModel](model: type[M], into: dict[str, Handler] | None = None
             raise ValueError(f"{name} has two handlers")
         registry[name] = Handler(name, model, fn)
         return fn
+
     return register
 
 
 class Dispatcher:
-    def __init__(self, ctl: Controller, hub: StateHub, status: Callable[[], Awaitable[dict[str, Any]]], registry: dict[str, Handler] | None = None, page_errors: PageErrors | None = None,
-                 scopes: RadioScopes | None = None, levels: RadioLevels | None = None, layers: LayerLooks | None = None) -> None:
+    def __init__(
+        self,
+        ctl: Controller,
+        hub: StateHub,
+        status: Callable[[], Awaitable[dict[str, Any]]],
+        registry: dict[str, Handler] | None = None,
+        page_errors: PageErrors | None = None,
+        scopes: RadioScopes | None = None,
+        levels: RadioLevels | None = None,
+        layers: LayerLooks | None = None,
+    ) -> None:
         self.ctl = ctl
         self.hub = hub
         self.status = status
@@ -95,7 +108,11 @@ class Dispatcher:
         name = raw.get("cmd")
         name = name if isinstance(name, str) else ""
         if name not in COMMAND_NAMES:
-            conn.error(f"unknown command {name[:40]!r}" if name else "a command has a \"cmd\"", code="unknown_command" if name else "no_command", params={"name": name[:40]})
+            conn.error(
+                f"unknown command {name[:40]!r}" if name else 'a command has a "cmd"',
+                code="unknown_command" if name else "no_command",
+                params={"name": name[:40]},
+            )
             return
         try:
             cmd = COMMANDS.validate_python(raw)
@@ -119,4 +136,6 @@ class Dispatcher:
             conn.error(f"{name}: {FAILED}", name, code="failed")
 
     async def _call(self, conn: Connection, name: str, cmd: AnyCommand) -> None:
-        await self.registry[name].fn(Ctx(self.ctl, conn, self.hub, self.status, self.page_errors, self.scopes, self.levels, self.layers), cmd)
+        await self.registry[name].fn(
+            Ctx(self.ctl, conn, self.hub, self.status, self.page_errors, self.scopes, self.levels, self.layers), cmd
+        )

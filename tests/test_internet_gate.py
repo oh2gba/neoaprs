@@ -3,6 +3,7 @@
 the page. The test walks every signal and part that takes a packet, so a newly added part must be
 classified, then feeds a whole daemon packets that would each make it transmit.
 """
+
 import inspect
 import logging
 from dataclasses import replace
@@ -50,10 +51,14 @@ def test_every_radios_line_hands_its_packets_to_the_radios_signal_and_to_nothing
     lines = [radio.line for radio in e.ctl.radios.all()]
     assert lines == [e.tnc, e.hf], "the radios of the registry are the two of the settings"
     for line in lines:
-        assert line.packet._handlers == [e.ctl.radio_packet.emit] and owner(e, line.packet._handlers[0]) == "radio_packet"
+        assert (
+            line.packet._handlers == [e.ctl.radio_packet.emit] and owner(e, line.packet._handlers[0]) == "radio_packet"
+        )
 
 
-def test_the_radios_signal_has_the_parts_of_the_two_lists_and_nothing_else_and_the_ones_that_act_are_behind_the_lock(tmp_path: Path) -> None:
+def test_the_radios_signal_has_the_parts_of_the_two_lists_and_nothing_else_and_the_ones_that_act_are_behind_the_lock(
+    tmp_path: Path,
+) -> None:
     e = Env(tmp_path, radio=False)
     radio = connected(e, "radio")
     assert [name for name, locked in radio if not locked and name != "wiring"] == list(SEEN_BY_ALL)
@@ -97,31 +102,50 @@ def packet_takers(e: Env) -> dict[str, set[str]]:
 # tests/test_internet_services.py
 TAKERS = {
     # SEEN_BY_ALL
-    "packetlog": {"append"}, "stationbook": {"take"}, "weatherlog": {"take"},
+    "packetlog": {"append"},
+    "stationbook": {"take"},
+    "weatherlog": {"take"},
     # ON_AIR_ONLY: messaging and what it hands the packet to
-    "messaging": {"on_packet", "echoed"}, "messaging.inbox": {"on_packet"}, "messaging.delivery": {"heard"},
-    "queries": {"on_packet"}, "qruask": {"on_packet", "answers"}, "generalask": {"on_packet"}, "ownobjects": {"on_packet"}, "igate": {"on_packet"}, "digipeater": {"on_packet"},
+    "messaging": {"on_packet", "echoed"},
+    "messaging.inbox": {"on_packet"},
+    "messaging.delivery": {"heard"},
+    "queries": {"on_packet"},
+    "qruask": {"on_packet", "answers"},
+    "generalask": {"on_packet"},
+    "ownobjects": {"on_packet"},
+    "igate": {"on_packet"},
+    "digipeater": {"on_packet"},
     # (the rows between two radios, handed the packet by the digipeater)
     "digipeater.passer": {"on_packet", "sent_on"},
     # (handed a message by the inbox)
-    "qru": {"heard"}, "bulletins": {"heard"},
+    "qru": {"heard"},
+    "bulletins": {"heard"},
     # (the choice of the radio to answer a packet on, neoaprs/radioregistry.py: it sends nothing
     # itself, and is asked only for a packet of the air)
     "radios": {"for_packet"},
 }
 
 
-def test_every_part_that_takes_a_packet_is_known_and_the_ones_that_act_refuse_what_is_from_the_internet(tmp_path: Path) -> None:
+def test_every_part_that_takes_a_packet_is_known_and_the_ones_that_act_refuse_what_is_from_the_internet(
+    tmp_path: Path,
+) -> None:
     e = Env(tmp_path, radio=False)
     found = packet_takers(e)
-    assert found == TAKERS, "a part takes a packet that this test does not know: the gate must say who sees an internet packet"
+    assert found == TAKERS, (
+        "a part takes a packet that this test does not know: the gate must say who sees an internet packet"
+    )
     assert set(TAKERS) - set(SEEN_BY_ALL) >= set(ON_AIR_ONLY)
     for part in TAKERS:
         for method in TAKERS[part]:
             if part in SEEN_BY_ALL:
                 continue
             source = inspect.getsource(getattr(_resolve(e, part), method))
-            assert "on_air" in source or "GATEABLE" in source or "inbox.on_packet" in source or "self.delivery.heard" in source, f"{part}.{method} does not look at Packet.on_air or GATEABLE"
+            assert (
+                "on_air" in source
+                or "GATEABLE" in source
+                or "inbox.on_packet" in source
+                or "self.delivery.heard" in source
+            ), f"{part}.{method} does not look at Packet.on_air or GATEABLE"
 
 
 def _resolve(e: Env, label: str) -> Any:
@@ -134,21 +158,36 @@ def _resolve(e: Env, label: str) -> Any:
 
 def test_the_connection_to_aprs_is_has_one_outlet_for_what_it_reads_and_it_is_the_gate(tmp_path: Path) -> None:
     e = Env(tmp_path, radio=False)
-    assert e.ctl.aprsis.heard._handlers == [e.ctl.hear_internet], "what the connection reads goes to the one gate and to nothing else"
-    assert all(owner(e, h) != "aprsis" for h in [*e.ctl.radio_packet._handlers, *e.tnc.packet._handlers, *e.hf.packet._handlers]), "(and nothing of the connection is connected to the radios' signal, or to a radio's line)"
-    readers = [(name, value) for name, value in vars(e.ctl.aprsis).items() if hasattr(value, "emit") and name != "heard"]
-    assert [name for name, _ in readers] == ["state_changed", "changed"], "the connection's other signals carry no packet"
+    assert e.ctl.aprsis.heard._handlers == [e.ctl.hear_internet], (
+        "what the connection reads goes to the one gate and to nothing else"
+    )
+    assert all(
+        owner(e, h) != "aprsis"
+        for h in [*e.ctl.radio_packet._handlers, *e.tnc.packet._handlers, *e.hf.packet._handlers]
+    ), "(and nothing of the connection is connected to the radios' signal, or to a radio's line)"
+    readers = [
+        (name, value) for name, value in vars(e.ctl.aprsis).items() if hasattr(value, "emit") and name != "heard"
+    ]
+    assert [name for name, _ in readers] == ["state_changed", "changed"], (
+        "the connection's other signals carry no packet"
+    )
     taken = packet_takers(e)
-    assert "aprsis" not in taken, "(no method of the connection takes a packet: it only makes them, from the lines of the server)"
+    assert "aprsis" not in taken, (
+        "(no method of the connection takes a packet: it only makes them, from the lines of the server)"
+    )
 
 
-def test_a_packet_from_the_internet_is_one_line_of_the_log_at_debug_and_one_of_the_radio_at_info(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_a_packet_from_the_internet_is_one_line_of_the_log_at_debug_and_one_of_the_radio_at_info(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     e = Env(tmp_path, radio=False)
     with caplog.at_level(logging.DEBUG, logger="neoaprs.packets"):
         packet = from_internet("OH2ABC", POSITION, e.now())
         e.ctl.hear_internet(packet)
         e.tnc.packet.emit(replace(packet, via="rf"))
-    levels = [(r.levelno, r.getMessage().startswith("internet ")) for r in caplog.records if r.name == "neoaprs.packets"]
+    levels = [
+        (r.levelno, r.getMessage().startswith("internet ")) for r in caplog.records if r.name == "neoaprs.packets"
+    ]
     assert levels == [(logging.DEBUG, True), (logging.INFO, False)]
 
 
@@ -164,13 +203,15 @@ def test_hear_internet_takes_a_packet_from_the_internet_only(tmp_path: Path) -> 
     assert taken == [packet]
 
 
-def test_a_packet_from_the_internet_that_is_handed_to_the_radios_signal_is_refused_by_every_part_that_acts(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_a_packet_from_the_internet_that_is_handed_to_the_radios_signal_is_refused_by_every_part_that_acts(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     e = Env(tmp_path, radio=False)
     reached: list[str] = []
     for handler in e.ctl.radio_packet._handlers:
         if isinstance(handler, AirOnly):
             name = owner(e, handler)
-            handler.handler = lambda packet, name=name: reached.append(name)           # type: ignore[misc]
+            handler.handler = lambda packet, name=name: reached.append(name)  # type: ignore[misc]
     packet = from_internet("OH2ABC", POSITION, e.now())
     with caplog.at_level(logging.WARNING, logger="neoaprs.wiring"):
         # (through the line of either radio: both go by the one signal and its locks)
@@ -178,13 +219,17 @@ def test_a_packet_from_the_internet_that_is_handed_to_the_radios_signal_is_refus
         e.hf.packet.emit(packet)
     assert reached == [], "no part that acts saw it"
     assert [h.refused for h in e.ctl.radio_packet._handlers if isinstance(h, AirOnly)] == [2] * len(ON_AIR_ONLY)
-    assert len([r for r in caplog.records if "from the internet was handed" in r.getMessage()]) == len(ON_AIR_ONLY), "said once for each"
+    assert len([r for r in caplog.records if "from the internet was handed" in r.getMessage()]) == len(ON_AIR_ONLY), (
+        "said once for each"
+    )
     e.tnc.packet.emit(replace(packet, via="rf"))
     assert reached == list(ON_AIR_ONLY), "a packet of the radio reaches them, in order"
     assert e.ctl.stationbook.get("OH2ABC") is not None, "the book took both"
 
 
-async def test_a_whole_daemon_handed_packets_from_the_internet_that_ask_for_everything_transmits_nothing_and_keeps_what_it_may(tmp_path: Path) -> None:
+async def test_a_whole_daemon_handed_packets_from_the_internet_that_ask_for_everything_transmits_nothing_and_keeps_what_it_may(
+    tmp_path: Path,
+) -> None:
     e = Env(tmp_path, settings={"digi/enabled": "true"})
     await e.start()
     await e.until_usable()
@@ -196,7 +241,7 @@ async def test_a_whole_daemon_handed_packets_from_the_internet_that_ask_for_ever
         # a query to us: answered if it were heard
         from_internet("OH2RDG-7", message_info(ours, "?APRSP"), now),
         from_internet("OH2RDG-7", message_info(ours, "?APRSD"), now),
-        from_internet("OH2RDG-7", b"?APRS?", now),                                                  # the general query
+        from_internet("OH2RDG-7", b"?APRS?", now),  # the general query
         # a bulletin: the message board is for the radio
         from_internet("OH2RDG-7", message_info("BLN1", "Road closed"), now),
         from_internet("OH2RDG-7", message_info("QRU", "INFO"), now),
@@ -212,8 +257,16 @@ async def test_a_whole_daemon_handed_packets_from_the_internet_that_ask_for_ever
     assert e.ctl.messaging.records() == [] and e.ctl.bulletins.records() == []
     assert len(e.ctl.digipeater._seen) == 0 and e.ctl.queries._general_until == {}
     book = e.ctl.stationbook.get("OH2RDG-7")
-    assert book is not None and (book.heard_is, book.heard_rf, book.heard_rf_gated, book.internet_only, book.can_message) == (len(asks), 0, 0, True, False)
-    assert len(await e.packets()) == len(asks) + 1 and {p.via for p in await e.packets()} == {IS}, "the packet log kept them all, as from the internet"
+    assert book is not None and (
+        book.heard_is,
+        book.heard_rf,
+        book.heard_rf_gated,
+        book.internet_only,
+        book.can_message,
+    ) == (len(asks), 0, 0, True, False)
+    assert len(await e.packets()) == len(asks) + 1 and {p.via for p in await e.packets()} == {IS}, (
+        "the packet log kept them all, as from the internet"
+    )
     assert await e.ctl.weatherlog.latest("N0WX") is not None, "the weather log took the observation"
     assert e.ctl.aloha.radius_km is None and e.ctl.stationbook.me is not None
     # the same packets on the radio are what they would have been: the control that shows the test
@@ -225,9 +278,19 @@ async def test_a_whole_daemon_handed_packets_from_the_internet_that_ask_for_ever
 
 
 @pytest.mark.parametrize("passcode", ["19628", ""])
-async def test_a_whole_daemon_whose_connection_reads_packets_that_ask_for_everything_transmits_nothing_and_keeps_what_it_may(tmp_path: Path, passcode: str) -> None:
+async def test_a_whole_daemon_whose_connection_reads_packets_that_ask_for_everything_transmits_nothing_and_keeps_what_it_may(
+    tmp_path: Path, passcode: str
+) -> None:
     server = await fake_aprsis(verified=bool(passcode))
-    e = Env(tmp_path, settings={"digi/enabled": "true", "igate/enabled": "true", "igate/server": server.address, "igate/password": passcode})
+    e = Env(
+        tmp_path,
+        settings={
+            "digi/enabled": "true",
+            "igate/enabled": "true",
+            "igate/server": server.address,
+            "igate/password": passcode,
+        },
+    )
     await e.start()
     await e.until_usable()
     await until(lambda: e.ctl.igate.state == ("connected" if passcode else "listening"))
@@ -239,7 +302,7 @@ async def test_a_whole_daemon_whose_connection_reads_packets_that_ask_for_everyt
         # a query to us: answered if it were heard
         (message_info(ours, "?APRSP"), path),
         (message_info(ours, "?APRSD"), path),
-        (b"?APRS?", path),                                                                           # the general query
+        (b"?APRS?", path),  # the general query
         # a bulletin: the message board is for the radio
         (message_info("BLN1", "Road closed"), path),
         (message_info("QRU", "INFO"), path),
@@ -256,26 +319,50 @@ async def test_a_whole_daemon_whose_connection_reads_packets_that_ask_for_everyt
     assert e.ctl.messaging.records() == [] and e.ctl.bulletins.records() == []
     assert len(e.ctl.digipeater._seen) == 0 and e.ctl.queries._general_until == {}
     book = e.ctl.stationbook.get("OH2RDG-7")
-    assert book is not None and (book.heard_is, book.heard_rf, book.internet_only, book.can_message) == (len(asks), 0, True, False)
+    assert book is not None and (book.heard_is, book.heard_rf, book.internet_only, book.can_message) == (
+        len(asks),
+        0,
+        True,
+        False,
+    )
     assert {p.via for p in await e.packets()} == {IS}, "the packet log kept them all, as from the internet"
     assert await e.ctl.weatherlog.latest("N0WX") is not None
     assert e.ctl.igate.gated == 0 and not e.ctl.igate.dropped, "none of it reached the iGate"
-    assert [line for line in server.packets if not line.startswith(f"{ours}>")] == [], "and nothing of it went back to the server"
+    assert [line for line in server.packets if not line.startswith(f"{ours}>")] == [], (
+        "and nothing of it went back to the server"
+    )
     await e.stop()
 
 
 async def test_the_page_is_told_the_packets_from_the_internet_and_the_stations_they_make(tmp_path: Path) -> None:
     server = await fake_aprsis()
-    e = Env(tmp_path, web=True, settings={"igate/enabled": "true", "igate/server": server.address, "igate/password": "19628"})
+    e = Env(
+        tmp_path,
+        web=True,
+        settings={"igate/enabled": "true", "igate/server": server.address, "igate/password": "19628"},
+    )
     await e.start()
     page = await e.ws()
     await page.until(lambda: "packets" in page.topics and "stations" in page.topics)
     e.ctl.hear_internet(from_internet("OH2ABC", POSITION, e.now()))
     await until(lambda: len(page.topics["packets"]) == 1 and "OH2ABC" in page.topics["stations"])
     [row] = page.topics["packets"].values()
-    assert (row["via"], row["gate"], row["route"], row["path"], row["source"]) == ("is", "", "", ["TCPIP*", "qAC", "T2FINLAND"], "OH2ABC")
+    assert (row["via"], row["gate"], row["route"], row["path"], row["source"]) == (
+        "is",
+        "",
+        "",
+        ["TCPIP*", "qAC", "T2FINLAND"],
+        "OH2ABC",
+    )
     station = page.topics["stations"]["OH2ABC"]
-    assert (station["heard_is"], station["heard_rf"], station["heard_rf_gated"], station["position_via"], station["can_message"], station["last_route"]) == (1, 0, 0, "is", False, "")
+    assert (
+        station["heard_is"],
+        station["heard_rf"],
+        station["heard_rf_gated"],
+        station["position_via"],
+        station["can_message"],
+        station["last_route"],
+    ) == (1, 0, 0, "is", False, "")
     await e.stop()
 
 
@@ -292,24 +379,52 @@ async def test_a_restart_finds_the_stations_by_channel_and_the_routes_only_of_th
     book = second.ctl.stationbook
     rdg, net = book.get("OH2RDG"), book.get("OH2NET")
     assert rdg is not None and net is not None
-    assert (rdg.heard_rf, rdg.heard_is, rdg.internet_only, rdg.last_is_at is not None, rdg.last_rf_at is not None, rdg.position_via) == (1, 1, False, True, True, "rf")
-    assert (net.heard_rf, net.heard_is, net.internet_only, net.position_via, net.can_message, net.deliveries.by_route, net.last_path) == (0, 1, True, "is", False, {}, ())
-    assert rdg.deliveries.direct + sum(rdg.deliveries.by_route.values()) == 1, "the routes were counted again from the packets of the radio; the one of the internet is none"
+    assert (
+        rdg.heard_rf,
+        rdg.heard_is,
+        rdg.internet_only,
+        rdg.last_is_at is not None,
+        rdg.last_rf_at is not None,
+        rdg.position_via,
+    ) == (1, 1, False, True, True, "rf")
+    assert (
+        net.heard_rf,
+        net.heard_is,
+        net.internet_only,
+        net.position_via,
+        net.can_message,
+        net.deliveries.by_route,
+        net.last_path,
+    ) == (0, 1, True, "is", False, {}, ())
+    assert rdg.deliveries.direct + sum(rdg.deliveries.by_route.values()) == 1, (
+        "the routes were counted again from the packets of the radio; the one of the internet is none"
+    )
     assert len([p for p in await second.packets() if p.via == IS]) == 2
     await second.stop()
 
 
-async def test_the_dummy_radio_with_the_igate_on_marks_everything_dummy_works_for_messaging_and_puts_nothing_on_the_internet(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_dummy_radio_with_the_igate_on_marks_everything_dummy_works_for_messaging_and_puts_nothing_on_the_internet(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(dummyline, "TICK_SEC", 0.01)
     server = await fake_aprsis()
-    settings = {"tnc/profile": "dummy", "station/lat": "60.2231", "station/lon": "24.7152", "igate/enabled": "true", "igate/server": server.address, "igate/password": "19628"}
+    settings = {
+        "tnc/profile": "dummy",
+        "station/lat": "60.2231",
+        "station/lon": "24.7152",
+        "igate/enabled": "true",
+        "igate/server": server.address,
+        "igate/password": "19628",
+    }
     e = await quick_start(tmp_path, messaging=True, unpaced=True, radio=False, settings=settings)
     await until(lambda: e.ctl.igate.state == "connected")
-    assert e.tnc.is_dummy and not hasattr(e.tnc, "dummy"), "the profile is the one source of truth: the Tnc has no flag of its own"
+    assert e.tnc.is_dummy and not hasattr(e.tnc, "dummy"), (
+        "the profile is the one source of truth: the Tnc has no flag of its own"
+    )
     ours = e.ctl.config.station_call
     record = await e.ctl.messaging.send("Q1ABC", "Hello")
     for _ in range(300):
-        e.now.advance(2)                                                                    # type: ignore[attr-defined]
+        e.now.advance(2)  # type: ignore[attr-defined]
         await idle_for(0.02)
         answered = [r for r in e.ctl.messaging.records() if r.direction == "in" and r.from_call == "Q1ABC"]
         if len([x for x in e.ctl.stationbook.stations() if x.call != ours]) >= 8 and answered:
@@ -318,11 +433,19 @@ async def test_the_dummy_radio_with_the_igate_on_marks_everything_dummy_works_fo
     assert sent is not None and sent.acked_at is not None, "the dummy station acknowledged the message"
     assert [r.text for r in answered] == ["Hello from the dummy radio"], "and answered it"
     stations = [s for s in e.ctl.stationbook.stations() if s.call != ours]
-    sender = lambda s: s.reported_by if s.kind != "station" else s.call                     # noqa: E731  (an object has a name of its own; its sender is a made-up Q-call)
-    assert len(stations) >= 8 and all(sender(s).startswith("Q") and s.heard_dummy > 0 and (s.heard_rf, s.heard_rf_gated, s.heard_is) == (0, 0, 0) and not s.internet_only for s in stations)
+    sender = lambda s: s.reported_by if s.kind != "station" else s.call  # noqa: E731  (an object has a name of its own; its sender is a made-up Q-call)
+    assert len(stations) >= 8 and all(
+        sender(s).startswith("Q")
+        and s.heard_dummy > 0
+        and (s.heard_rf, s.heard_rf_gated, s.heard_is) == (0, 0, 0)
+        and not s.internet_only
+        for s in stations
+    )
     assert all(s.position_via in (None, "dummy") for s in stations)
     packets = await e.packets()
-    assert {p.via for p in packets} == {"dummy"} and {p.direction for p in packets} == {"in", "out"}, "what the Dummy radio hears and what is sent to it are all its own"
+    assert {p.via for p in packets} == {"dummy"} and {p.direction for p in packets} == {"in", "out"}, (
+        "what the Dummy radio hears and what is sent to it are all its own"
+    )
     assert all(p.via not in GATEABLE for p in packets)
     assert e.ctl.igate.gated == 0 and e.ctl.igate.dropped["not_air"] > 0, "every packet was counted as not from the air"
     await idle_for(0.2)

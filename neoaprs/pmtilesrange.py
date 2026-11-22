@@ -3,6 +3,7 @@
 A server must answer a range request with 206 and the matching Content-Range. A failed request
 is repeated after each pause in `pauses`; a stop is checked between pieces of `CHUNK` bytes.
 """
+
 import contextlib
 import http.client
 import logging
@@ -130,8 +131,9 @@ def read(source: Source, offset: int, length: int) -> bytes:
     held = bytearray()
 
     def keep(at: int, piece: bytes) -> None:
-        del held[at - offset:]
+        del held[at - offset :]
         held.extend(piece)
+
     source.copy(offset, length, keep)
     return bytes(held)
 
@@ -167,7 +169,9 @@ class FileSource:
 
 
 class HttpSource:
-    def __init__(self, url: str, halt: Halt, pauses: tuple[float, ...] = PAUSES_SEC, timeout_sec: float = TIMEOUT_SEC) -> None:
+    def __init__(
+        self, url: str, halt: Halt, pauses: tuple[float, ...] = PAUSES_SEC, timeout_sec: float = TIMEOUT_SEC
+    ) -> None:
         self.url = url
         # Size of the archive, from the first answer.
         self.size = -1
@@ -185,9 +189,17 @@ class HttpSource:
                 if self._halt.is_set():
                     raise CutError(STOPPED) from None
                 if pause is None:
-                    log.warning("the map server did not give bytes %d to %d after %d tries: %s", offset, offset + length - 1, attempt, e)
+                    log.warning(
+                        "the map server did not give bytes %d to %d after %d tries: %s",
+                        offset,
+                        offset + length - 1,
+                        attempt,
+                        e,
+                    )
                     raise CutError(UNREACHABLE, problem="unreachable") from None
-                log.info("the map server did not give bytes %d to %d (try %d): %s", offset, offset + length - 1, attempt, e)
+                log.info(
+                    "the map server did not give bytes %d to %d (try %d): %s", offset, offset + length - 1, attempt, e
+                )
             if self._halt.wait(pause):
                 raise CutError(STOPPED)
 
@@ -211,13 +223,17 @@ class HttpSource:
             response.close()
 
     def _request(self, offset: int, length: int) -> http.client.HTTPResponse:
-        request = urllib.request.Request(self.url, headers={"User-Agent": USER_AGENT, "Range": f"bytes={offset}-{offset + length - 1}"})  # noqa: S310  (http or https only)
+        request = urllib.request.Request(  # noqa: S310
+            self.url, headers={"User-Agent": USER_AGENT, "Range": f"bytes={offset}-{offset + length - 1}"}
+        )
         if self._halt.is_set():
             raise CutError(STOPPED)
         try:
             # Under the no-devices switch a server that is not on this computer is not reachable.
             nodevices.check_url(self.url)
-            response: http.client.HTTPResponse = urllib.request.build_opener(https_handler(), Redirected, *nodevices.direct()).open(request, timeout=self._timeout)
+            response: http.client.HTTPResponse = urllib.request.build_opener(
+                https_handler(), Redirected, *nodevices.direct()
+            ).open(request, timeout=self._timeout)
         except urllib.error.HTTPError as e:
             e.close()
             if e.code in TRY_LATER:
@@ -241,14 +257,20 @@ class HttpSource:
     def _check(self, response: http.client.HTTPResponse, offset: int, length: int) -> None:
         """Raise CutError unless the answer is the range asked for, from an archive of same size."""
         if response.status != 206:
-            raise CutError(f"the map server answered {response.status} to a range request and not 206: it cannot be cut from")
+            raise CutError(
+                f"the map server answered {response.status} to a range request and not 206: it cannot be cut from"
+            )
         said = (response.headers.get("Content-Range") or "").strip()
         found = _RANGE.fullmatch(said)
         if found is None or (int(found.group(1)), int(found.group(2))) != (offset, offset + length - 1):
-            raise CutError(f"the map server answered bytes {said[:80]!r} where bytes {offset} to {offset + length - 1} were asked for")
+            raise CutError(
+                f"the map server answered bytes {said[:80]!r} where bytes {offset} to {offset + length - 1} were asked for"
+            )
         total = int(found.group(3))
         if self.size >= 0 and total != self.size:
-            raise CutError(f"the archive on the map server changed while it was cut (its size was {self.size} bytes and is {total})")
+            raise CutError(
+                f"the archive on the map server changed while it was cut (its size was {self.size} bytes and is {total})"
+            )
         self.size = total
         announced = response.headers.get("Content-Length")
         if announced is not None and announced.strip() != str(length):

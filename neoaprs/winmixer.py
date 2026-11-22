@@ -3,6 +3,7 @@
 COM is called through function tables, so no package is needed. A card is the pair of Core Audio
 endpoint ids the HF modem lists (mercurycards.PAIR); an unplugged device has no level.
 """
+
 import logging
 from typing import Any, Protocol
 
@@ -60,16 +61,31 @@ class CoreAudio:
 
     def get(self, device: str) -> float | None:
         import ctypes
+
         level = ctypes.c_float()
-        return level.value if self._with_volume(device, lambda volume, call: call(volume, GET_SCALAR, ctypes.POINTER(ctypes.c_float))(volume, ctypes.byref(level)) == 0) else None
+        return (
+            level.value
+            if self._with_volume(
+                device,
+                lambda volume, call: (
+                    call(volume, GET_SCALAR, ctypes.POINTER(ctypes.c_float))(volume, ctypes.byref(level)) == 0
+                ),
+            )
+            else None
+        )
 
     def put(self, device: str, scalar: float) -> None:
         import ctypes
-        self._with_volume(device, lambda volume, call: call(volume, SET_SCALAR, ctypes.c_float, ctypes.c_void_p)(volume, scalar, None) == 0)
+
+        self._with_volume(
+            device,
+            lambda volume, call: call(volume, SET_SCALAR, ctypes.c_float, ctypes.c_void_p)(volume, scalar, None) == 0,
+        )
 
     def _with_volume(self, device: str, use: Any) -> bool:
         """Run `use(volume, call)` on the device's IAudioEndpointVolume; False if none or failed."""
         import ctypes
+
         try:
             ole = ctypes.WinDLL("ole32")  # type: ignore[attr-defined, unused-ignore]
         except (OSError, AttributeError) as e:
@@ -98,12 +114,31 @@ class CoreAudio:
             return ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, *argtypes)(table[index])
 
         enumerator, endpoint, volume = ctypes.c_void_p(), ctypes.c_void_p(), ctypes.c_void_p()
-        if ole.CoCreateInstance(ctypes.byref(guid(CLSID_ENUMERATOR)), None, CLSCTX_ALL, ctypes.byref(guid(IID_ENUMERATOR)), ctypes.byref(enumerator)) != 0:
+        if (
+            ole.CoCreateInstance(
+                ctypes.byref(guid(CLSID_ENUMERATOR)),
+                None,
+                CLSCTX_ALL,
+                ctypes.byref(guid(IID_ENUMERATOR)),
+                ctypes.byref(enumerator),
+            )
+            != 0
+        ):
             return False
         try:
-            if call(enumerator, GET_DEVICE, ctypes.c_wchar_p, ctypes.c_void_p)(enumerator, device, ctypes.byref(endpoint)) != 0:
+            if (
+                call(enumerator, GET_DEVICE, ctypes.c_wchar_p, ctypes.c_void_p)(
+                    enumerator, device, ctypes.byref(endpoint)
+                )
+                != 0
+            ):
                 return False
-            if call(endpoint, ACTIVATE, ctypes.c_void_p, ctypes.c_ulong, ctypes.c_void_p, ctypes.c_void_p)(endpoint, ctypes.byref(guid(IID_ENDPOINT_VOLUME)), CLSCTX_ALL, None, ctypes.byref(volume)) != 0:
+            if (
+                call(endpoint, ACTIVATE, ctypes.c_void_p, ctypes.c_ulong, ctypes.c_void_p, ctypes.c_void_p)(
+                    endpoint, ctypes.byref(guid(IID_ENDPOINT_VOLUME)), CLSCTX_ALL, None, ctypes.byref(volume)
+                )
+                != 0
+            ):
                 return False
             return bool(use(volume, call))
         finally:

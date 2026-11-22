@@ -2,6 +2,7 @@
 
 Run under strace by tests/safety/test_db_actor_lifecycle.py to see whether the commit was synced.
 """
+
 import asyncio
 import os
 import sqlite3

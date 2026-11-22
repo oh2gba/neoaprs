@@ -3,6 +3,7 @@
 See spec chapter 14: a message without an id to `BLN` + identifier (`BLN0`..`BLN9` bulletin,
 `BLNA`..`BLNZ` announcement, `BLN3HAMS` group). One is kept per slot; a new text restarts it.
 """
+
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -49,14 +50,30 @@ def slot_of(slot: str) -> tuple[str, str, Kind]:
     """Return the slot as sent, its group and kind; raise PostError if it is not one we may post."""
     name = slot.strip().upper()
     found = board_slot(name)
-    if found is None or found.kind not in ("bulletin", "announcement", "group") or not name.startswith("BLN") or len(name) > 9:
-        raise PostError(f"{slot!r} is not BLN0 to BLN9, BLNA to BLNZ or BLN, a digit and a group of at most {GROUP_MAX} characters", "bulletin.slot", value=slot, group_max=GROUP_MAX)
+    if (
+        found is None
+        or found.kind not in ("bulletin", "announcement", "group")
+        or not name.startswith("BLN")
+        or len(name) > 9
+    ):
+        raise PostError(
+            f"{slot!r} is not BLN0 to BLN9, BLNA to BLNZ or BLN, a digit and a group of at most {GROUP_MAX} characters",
+            "bulletin.slot",
+            value=slot,
+            group_max=GROUP_MAX,
+        )
     if found.kind == "group" and (not name[3].isdigit() or not found.group.isalnum()):
         raise PostError(f"{slot!r}: a group bulletin is BLN, a digit and the group", "bulletin.group", value=slot)
-    return found.slot, found.group, "group" if found.group else "announcement" if found.kind == "announcement" else "bulletin"
+    return (
+        found.slot,
+        found.group,
+        "group" if found.group else "announcement" if found.kind == "announcement" else "bulletin",
+    )
 
 
-def make_bulletin(now: datetime, slot: str, text: str, before: OwnBulletin | None = None, radios: Iterable[RadioId] = (FM_ID,)) -> OwnBulletin:
+def make_bulletin(
+    now: datetime, slot: str, text: str, before: OwnBulletin | None = None, radios: Iterable[RadioId] = (FM_ID,)
+) -> OwnBulletin:
     """Return the bulletin of this slot, text and radios, or raise PostError.
 
     With `before` the time of its last packet is kept; the schedule starts again.

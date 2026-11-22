@@ -1,6 +1,7 @@
 """One app to a data folder: the second one finds the lock taken, says `show` (or `quit`) to the
 first one on the loopback and ends; what is said before the first one has a window is kept until it
 has."""
+
 import ctypes
 import os
 import socket
@@ -49,7 +50,9 @@ def test_what_is_said_before_there_is_a_window_waits_for_one(tmp_path: Path) -> 
     heard: list[str] = []
     got = threading.Event()
     first.handle(lambda command: (heard.append(command), got.set()))
-    assert wait(got) and heard == ["show"], "said before the handler was there, heard once it was (or at once: both orders end the same)"
+    assert wait(got) and heard == ["show"], (
+        "said before the handler was there, heard once it was (or at once: both orders end the same)"
+    )
     first.close()
 
 
@@ -68,7 +71,9 @@ def test_only_show_and_quit_are_understood(tmp_path: Path) -> None:
     first.close()
 
 
-def test_a_stale_port_file_is_a_failure_to_say_so_and_not_a_hang(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_stale_port_file_is_a_failure_to_say_so_and_not_a_hang(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(single, "FIND_SEC", 0.3)
     # (nothing listens on the port 9 of the loopback)
     (tmp_path / PORT_NAME).write_text("9\n", encoding="ascii")
@@ -101,6 +106,7 @@ def _ended_pid() -> int:
 # ---- the edges: a lock that cannot be looked at, a handler that fails, a client that says nothing,
 # and the process check of each system
 
+
 def test_a_lock_that_cannot_be_looked_at_is_no_app_running(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     (tmp_path / LOCK_NAME).write_text("")
 
@@ -127,7 +133,9 @@ def test_what_was_said_before_the_handler_is_given_to_it_in_order_when_it_comes(
 
 
 @pytest.mark.expects_errors
-def test_a_handler_that_fails_is_logged_and_the_next_command_still_comes_to_it(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_a_handler_that_fails_is_logged_and_the_next_command_still_comes_to_it(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     app = SingleApp(tmp_path)
     heard: list[str] = []
 
@@ -142,7 +150,9 @@ def test_a_handler_that_fails_is_logged_and_the_next_command_still_comes_to_it(t
     assert heard == ["show", "quit"] and "show: the app could not do what the second one asked" in caplog.text
 
 
-def test_a_client_that_says_nothing_does_not_hold_up_the_next_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_client_that_says_nothing_does_not_hold_up_the_next_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(single, "HEAR_SEC", 0.1)
     first = SingleApp(tmp_path)
     assert first.acquire()
@@ -185,8 +195,7 @@ class FakeOs:
 
 
 class FakeKernel32:
-    """The three calls of the Windows API that the check makes, for the processes that are running.
-    """
+    """The three calls of the Windows API that the check makes, for the processes that are running."""
 
     def __init__(self, running: set[int]) -> None:
         self.running = running
@@ -198,7 +207,7 @@ class FakeKernel32:
         return pid + 1000 if pid in self.running or pid == 777 else 0
 
     def WaitForSingleObject(self, handle: int, wait_ms: int) -> int:
-        return 0x102 if handle - 1000 in self.running else 0                  # WAIT_TIMEOUT: still running; 0: it ended
+        return 0x102 if handle - 1000 in self.running else 0  # WAIT_TIMEOUT: still running; 0: it ended
 
     def CloseHandle(self, handle: int) -> None:
         self.closed.append(handle)
@@ -212,12 +221,18 @@ def windows(monkeypatch: pytest.MonkeyPatch) -> FakeKernel32:
     return kernel
 
 
-def test_on_windows_a_process_is_asked_for_by_its_handle_and_alive_while_the_wait_on_it_times_out(windows: FakeKernel32) -> None:
+def test_on_windows_a_process_is_asked_for_by_its_handle_and_alive_while_the_wait_on_it_times_out(
+    windows: FakeKernel32,
+) -> None:
     assert process_alive(4242)
-    assert windows.opened == [(0x00100000 | 0x1000, False, 4242)] and windows.closed == [5242], "(synchronize and query: the handle is let go)"
+    assert windows.opened == [(0x00100000 | 0x1000, False, 4242)] and windows.closed == [5242], (
+        "(synchronize and query: the handle is let go)"
+    )
 
 
-def test_on_windows_a_process_that_has_ended_is_not_alive_and_one_that_cannot_be_opened_is_not_either(windows: FakeKernel32) -> None:
+def test_on_windows_a_process_that_has_ended_is_not_alive_and_one_that_cannot_be_opened_is_not_either(
+    windows: FakeKernel32,
+) -> None:
     assert not process_alive(777)
     assert windows.closed == [1777]
     windows.closed.clear()

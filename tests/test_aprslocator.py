@@ -1,12 +1,22 @@
 """Maidenhead locators in a status report, in Mic-E status text and in the locator beacon."""
+
 import pytest
 
 from neoaprs.aprslocator import Locator, grid_centre, split_beacon, split_locator
 
 
-@pytest.mark.parametrize(("grid", "lat", "lon"), [
-    ("IO91", 51.5, -1.0), ("IO91sx", 51.97917, -0.45833), ("IO91SX", 51.97917, -0.45833), ("KP20", 60.5, 25.0), ("AA00", -89.5, -179.0), ("RR99", 89.5, 179.0), ("JJ00aa", 0.02083, 0.04167),
-])
+@pytest.mark.parametrize(
+    ("grid", "lat", "lon"),
+    [
+        ("IO91", 51.5, -1.0),
+        ("IO91sx", 51.97917, -0.45833),
+        ("IO91SX", 51.97917, -0.45833),
+        ("KP20", 60.5, 25.0),
+        ("AA00", -89.5, -179.0),
+        ("RR99", 89.5, 179.0),
+        ("JJ00aa", 0.02083, 0.04167),
+    ],
+)
 def test_the_centre_of_a_square(grid: str, lat: float, lon: float) -> None:
     assert grid_centre(grid) == (pytest.approx(lat, abs=1e-4), pytest.approx(lon, abs=1e-4))
 
@@ -23,10 +33,27 @@ def test_a_locator_with_its_symbol_and_the_text_after_it() -> None:
     assert loc is not None and loc.symbol_table == "\\"
 
 
-@pytest.mark.parametrize("text", ["", "IO91", "IO91s", "IO91sx", "IO91sx/", "IO91sx/GHello", "io91sx/G", "SS91/G", "IO91sx#G", "IO9/G", "Hello", " IO91sx/G",
-                                  # (a bare six-character grid before text is text: its sub-square
-                                  # is not a symbol)
-                                  "IO91SX hello", "KP20LE QTH Helsinki"])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "",
+        "IO91",
+        "IO91s",
+        "IO91sx",
+        "IO91sx/",
+        "IO91sx/GHello",
+        "io91sx/G",
+        "SS91/G",
+        "IO91sx#G",
+        "IO9/G",
+        "Hello",
+        " IO91sx/G",
+        # (a bare six-character grid before text is text: its sub-square
+        # is not a symbol)
+        "IO91SX hello",
+        "KP20LE QTH Helsinki",
+    ],
+)
 def test_text_that_is_no_locator(text: str) -> None:
     assert split_locator(text) == (None, text)
 

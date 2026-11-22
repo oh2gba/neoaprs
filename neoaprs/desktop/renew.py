@@ -1,6 +1,7 @@
 """Restart the app as the new version after an AppImage update.
 
 Once the app's file is replaced, the app ends (daemon left running) and re-executes it."""
+
 import contextlib
 import logging
 import os
@@ -17,8 +18,14 @@ log = logging.getLogger("neoaprs.desktop")
 
 OWNS_DAEMON = "--owns-daemon"
 # Programs the web engines start beside the app (bwrap and xdg-dbus-proxy serve WebKitGTK only).
-HELPERS = ("QtWebEngineProcess", "WebKitWebProcess", "WebKitNetworkProcess", "WebKitGPUProcess",
-           "bwrap", "xdg-dbus-proxy")
+HELPERS = (
+    "QtWebEngineProcess",
+    "WebKitWebProcess",
+    "WebKitNetworkProcess",
+    "WebKitGPUProcess",
+    "bwrap",
+    "xdg-dbus-proxy",
+)
 # The system keeps only this many characters of a program's name as the process name.
 NAME_LEN = 15
 HELPERS_END_SEC = 1.0
@@ -40,6 +47,7 @@ def identity(path: str) -> Identity | None:
 @dataclass
 class AppFile:
     """The AppImage the app runs from; `replaced()` is True once a new, steady file is there."""
+
     path: str
     started: Identity
     look: Callable[[str], Identity | None] = identity
@@ -65,7 +73,15 @@ class AppFile:
 
 def argv(appimage: str, data: Path, encryption: bool, debug: bool) -> list[str]:
     """Return the command line that restarts the app from the new file."""
-    return [appimage, "app", "--data", str(data), OWNS_DAEMON, *(["--encryption"] if encryption else []), *(["--debug"] if debug else [])]
+    return [
+        appimage,
+        "app",
+        "--data",
+        str(data),
+        OWNS_DAEMON,
+        *(["--encryption"] if encryption else []),
+        *(["--debug"] if debug else []),
+    ]
 
 
 def start_again(command: list[str], reexec: Callable[..., None] = selfreplace.reexec) -> None:
@@ -111,8 +127,14 @@ def _waited_for(pid: int, block: bool = False) -> bool:
         return done == pid
 
 
-def end_helpers(pids: Iterable[int] | None = None, kill: Callable[[int, int], None] = os.kill, waited_for: Callable[..., bool] = _waited_for, seconds: float = HELPERS_END_SEC,
-                clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep) -> None:
+def end_helpers(
+    pids: Iterable[int] | None = None,
+    kill: Callable[[int, int], None] = os.kill,
+    waited_for: Callable[..., bool] = _waited_for,
+    seconds: float = HELPERS_END_SEC,
+    clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+) -> None:
     """End the web engine's processes before the exec (SIGTERM, then kill); no-op on Windows."""
     left = [] if sys.platform == "win32" else helpers() if pids is None else list(pids)
     if not left:

@@ -3,6 +3,7 @@
 `neoaprs/maps/basemap-world.pmtiles` is the world to zoom 4 (about 6 MB); `scripts/fetch-worldmap`
 regenerates it. It is package data, served when the data folder has no usable file of its own.
 """
+
 import sys
 from pathlib import Path
 
@@ -14,7 +15,9 @@ SHIPPED_ZOOM = 4
 MAPS_DIR = "maps"
 
 
-def search_folders(code_dir: Path | None = None, frozen: bool | None = None, bundle: str | None = None, executable: str | None = None) -> list[Path]:
+def search_folders(
+    code_dir: Path | None = None, frozen: bool | None = None, bundle: str | None = None, executable: str | None = None
+) -> list[Path]:
     """Return the folders the shipped map may be in: beside this module, and when frozen, in the bundle."""
     here = (code_dir if code_dir is not None else Path(__file__).resolve().parent) / MAPS_DIR
     folders = [here]

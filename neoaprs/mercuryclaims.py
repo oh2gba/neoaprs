@@ -2,6 +2,7 @@
 
 The claims half of `Mercury`. Without the claims table a modem holds nothing and probes for ports.
 """
+
 import logging
 import os
 import sys
@@ -69,7 +70,9 @@ def take_folder(data_dir: Path, folder: Path, inherit: bool = True, program: Com
             else:
                 old.unlink()
         except OSError as e:
-            log.warning("Mercury's old %s in the data folder could not be moved to %s: %s", name, folder, os_error_text(e))
+            log.warning(
+                "Mercury's old %s in the data folder could not be moved to %s: %s", name, folder, os_error_text(e)
+            )
 
 
 def end_left_behind(data_dir: Path) -> None:
@@ -138,7 +141,11 @@ class Holding:
         return held_card(self.claims, self.holder, self.sound_card)
 
     def held(self) -> list[Claim]:
-        return [] if self.claims is None else [c for c in self.claims.all() if c.holder == self.holder and c.kind in MODEM_KINDS]
+        return (
+            []
+            if self.claims is None
+            else [c for c in self.claims.all() if c.holder == self.holder and c.kind in MODEM_KINDS]
+        )
 
     def _choose_ports(self) -> None:
         """Choose and hold the pair of ports; raise OSError when none is free."""
@@ -147,7 +154,11 @@ class Holding:
         log.info("Mercury ports: %d for KISS, %d for control", self.broadcast_port, self.control_port)
         self._hold_pair()
         if taken is not None:
-            log.warning("Mercury's ports %d and %d were taken while it was down: it is started on %d and %d, and the Mercury radio is pointed at them", *taken, *self._held.pair)
+            log.warning(
+                "Mercury's ports %d and %d were taken while it was down: it is started on %d and %d, and the Mercury radio is pointed at them",
+                *taken,
+                *self._held.pair,
+            )
             self.ports_changed.emit()
         elif first and self.state == "waiting":
             self.ports_changed.emit()
@@ -159,7 +170,9 @@ class Holding:
         self.claims.release(self.holder, "modem_ports")
         # Only a Mercury run elsewhere can sit on a held pair.
         if self.claims.hold(pair) is not None:
-            log.warning("Mercury's ports %d and %d are held by another radio's modem", self.broadcast_port, self.control_port)
+            log.warning(
+                "Mercury's ports %d and %d are held by another radio's modem", self.broadcast_port, self.control_port
+            )
 
     def _hold_setup(self, sound_card: str, keying_port: str | None) -> Claim | None:
         """Hold the sound card and keying line; return another radio's claim on one, holding neither."""
@@ -167,7 +180,10 @@ class Holding:
             return None
         self.claims.release(self.holder, "sound_card")
         self.claims.release(self.holder, "keying")
-        for claim in (card_claim(sound_card, self.holder), *([Claim("keying", keying_port, self.holder)] if keying_port else [])):
+        for claim in (
+            card_claim(sound_card, self.holder),
+            *([Claim("keying", keying_port, self.holder)] if keying_port else []),
+        ):
             if (other := self.claims.hold(claim)) is not None:
                 self.claims.release(self.holder, "sound_card")
                 return other

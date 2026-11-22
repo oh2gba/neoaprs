@@ -3,6 +3,7 @@
 A KISS frame has no flags and no checksum. An address is 7 bytes: six characters shifted left,
 then SSID, flag bit and last-address bit. A frame that is not UI keeps its control byte and rest.
 """
+
 from dataclasses import dataclass
 
 from neoaprs.callsign import CallsignError, format_call, parse_call
@@ -114,7 +115,7 @@ def _decode_addresses(data: bytes) -> tuple[list[Address], int]:
     addresses: list[Address] = []
     pos = 0
     while True:
-        chunk = data[pos:pos + ADDRESS_LEN]
+        chunk = data[pos : pos + ADDRESS_LEN]
         if len(chunk) < ADDRESS_LEN:
             raise Ax25Error("the address field never ends: the frame stops before an address has its last-address bit")
         address, last = _decode_address(chunk, len(addresses))

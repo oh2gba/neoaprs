@@ -1,6 +1,7 @@
 """Tests for the Controller (neoaprs/controller.py): the database opens and closes with the daemon,
 and the radios take the settings first and start last, each in its own task.
 """
+
 import asyncio
 import contextlib
 import os
@@ -34,7 +35,10 @@ async def test_the_start_makes_the_data_folder_and_the_database_and_the_stop_clo
     assert not e.ctl.running and e.ctl.db is None
     await e.start()
     assert e.ctl.running and e.ctl.db is not None and e.ctl.db.is_open and e.ctl.store.is_open()
-    assert await e.ctl.store.put_setting("station/call", "OH2GBA") and (tmp_path / "not" / "there" / "yet" / DB_NAME).is_file()
+    assert (
+        await e.ctl.store.put_setting("station/call", "OH2GBA")
+        and (tmp_path / "not" / "there" / "yet" / DB_NAME).is_file()
+    )
     await e.stop()
     assert not e.ctl.running and not e.ctl.db.is_open and not e.ctl.store.is_open()
 
@@ -84,7 +88,9 @@ async def test_a_database_of_a_newer_version_is_refused_with_the_reason_and_leav
 
 
 @pytest.mark.expects_errors
-async def test_a_task_that_fails_is_told_in_the_log_and_the_stop_ends_the_rest(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_task_that_fails_is_told_in_the_log_and_the_stop_ends_the_rest(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     e = Env(tmp_path)
     await e.start()
 
@@ -106,15 +112,38 @@ async def test_a_task_that_fails_is_told_in_the_log_and_the_stop_ends_the_rest(t
 async def test_the_start_reads_the_settings_and_puts_us_in_the_station_book(tmp_path: Path) -> None:
     first = Env(tmp_path, radio=False, operator=False)
     await first.start(connected=False)
-    assert first.ctl.config.to_data() == DEFAULTS.to_data() and first.ctl.config.email_choice is None, "every setting is its default, today's flat keys of the radios too"
-    assert [(s.id, s.kind, s.type, s.enabled, s.settings) for s in first.ctl.config.radios] == [(1, "fm", "kiss", True, {})], "radio 1, which the Env added to the new installation, with the defaults of its type"
-    await first.ctl.store.put_settings({"station/call": "oh2gba-7", "station/lat": "61.5", "station/lon": "25.5", "map/radius_km": "bad", "web/port": "8080", "web/allowed_hosts": "pi", "log/keep_days": "400", "update/check": "false"})
+    assert first.ctl.config.to_data() == DEFAULTS.to_data() and first.ctl.config.email_choice is None, (
+        "every setting is its default, today's flat keys of the radios too"
+    )
+    assert [(s.id, s.kind, s.type, s.enabled, s.settings) for s in first.ctl.config.radios] == [
+        (1, "fm", "kiss", True, {})
+    ], "radio 1, which the Env added to the new installation, with the defaults of its type"
+    await first.ctl.store.put_settings(
+        {
+            "station/call": "oh2gba-7",
+            "station/lat": "61.5",
+            "station/lon": "25.5",
+            "map/radius_km": "bad",
+            "web/port": "8080",
+            "web/allowed_hosts": "pi",
+            "log/keep_days": "400",
+            "update/check": "false",
+        }
+    )
     await first.stop()
     second = Env(tmp_path, radio=False, operator=False)
     await second.start(connected=False)
     c = second.ctl.config
-    assert (c.station_call, c.station_lat, c.station_lon, c.web_port, c.map_radius_km) == ("OH2GBA-7", 61.5, 25.5, 8080, 150), "a value that is wrong is the default"
-    assert c.web_allowed_hosts == "pi", "the port and the hosts of the page are not on the page, and are settings all the same"
+    assert (c.station_call, c.station_lat, c.station_lon, c.web_port, c.map_radius_km) == (
+        "OH2GBA-7",
+        61.5,
+        25.5,
+        8080,
+        150,
+    ), "a value that is wrong is the default"
+    assert c.web_allowed_hosts == "pi", (
+        "the port and the hosts of the page are not on the page, and are settings all the same"
+    )
     me = second.ctl.stationbook.me
     assert me is not None and (me.call, me.lat, me.lon, me.is_me) == ("OH2GBA-7", 61.5, 25.5, True)
     await second.stop()
@@ -130,22 +159,47 @@ async def test_the_start_does_not_wait_for_the_search_and_the_stop_ends_it(tmp_p
     assert asyncio.get_running_loop().time() - began < 2.0 and e.ctl.running
     await until(lambda: e.tnc.state is Source.State.CONNECTING)
     await e.stop()
-    assert asyncio.get_running_loop().time() - began < 5.0 and e.tnc.state is Source.State.STOPPED and len(e.ctl.tasks) == 0 and len(e.tnc._tasks) == 0
+    assert (
+        asyncio.get_running_loop().time() - began < 5.0
+        and e.tnc.state is Source.State.STOPPED
+        and len(e.ctl.tasks) == 0
+        and len(e.tnc._tasks) == 0
+    )
 
 
 async def test_the_stop_ends_the_radio_the_tasks_and_the_database(tmp_path: Path) -> None:
     e = Env(tmp_path)
     await e.start()
-    assert e.tnc.state is Source.State.CONNECTED and {t.get_name() for t in e.ctl.tasks} >= {"prune", "backup-sweep", "station-flush"}
-    assert all(radio.beacon.running == radio.spec.enabled for radio in e.ctl.radios.all()) and e.beacon.running and e.ctl.radios.get(HF_ID) is None
+    assert e.tnc.state is Source.State.CONNECTED and {t.get_name() for t in e.ctl.tasks} >= {
+        "prune",
+        "backup-sweep",
+        "station-flush",
+    }
+    assert (
+        all(radio.beacon.running == radio.spec.enabled for radio in e.ctl.radios.all())
+        and e.beacon.running
+        and e.ctl.radios.get(HF_ID) is None
+    )
     await e.stop()
-    assert e.tnc.state is Source.State.STOPPED and len(e.ctl.tasks) == 0 and e.ctl.db is not None and not e.ctl.db.is_open and not e.ctl.packetlog.is_open()
-    assert [(radio.state, radio.beacon.running) for radio in e.ctl.radios.all()] == [(Source.State.STOPPED, False)], "every radio of the registry, and its beacon (no HF radio was set up)"
+    assert (
+        e.tnc.state is Source.State.STOPPED
+        and len(e.ctl.tasks) == 0
+        and e.ctl.db is not None
+        and not e.ctl.db.is_open
+        and not e.ctl.packetlog.is_open()
+    )
+    assert [(radio.state, radio.beacon.running) for radio in e.ctl.radios.all()] == [(Source.State.STOPPED, False)], (
+        "every radio of the registry, and its beacon (no HF radio was set up)"
+    )
     assert e.hf.state is Source.State.STOPPED, "and the HF radio's line the test handed in, which stayed stopped"
 
 
-async def test_the_backup_folder_is_swept_again_after_the_start_so_that_the_file_of_a_copy_a_kill_ended_does_not_stay(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    assert controller_module.BACKUP_SWEEP_FIRST_SEC > LITTER_AGE_SEC, "the file of a copy a kill ended just before the start is dead by the time of the sweep"
+async def test_the_backup_folder_is_swept_again_after_the_start_so_that_the_file_of_a_copy_a_kill_ended_does_not_stay(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert controller_module.BACKUP_SWEEP_FIRST_SEC > LITTER_AGE_SEC, (
+        "the file of a copy a kill ended just before the start is dead by the time of the sweep"
+    )
     monkeypatch.setattr(controller_module, "BACKUP_SWEEP_FIRST_SEC", 0.01)
     folder = tmp_path / "backup"
     folder.mkdir()
@@ -169,24 +223,44 @@ async def test_the_backup_folder_is_swept_again_after_the_start_so_that_the_file
     assert written.exists() and kept.exists()
 
 
-async def test_every_radio_has_the_settings_that_were_read_before_any_part_is_started_and_is_started_after_them(tmp_path: Path) -> None:
+async def test_every_radio_has_the_settings_that_were_read_before_any_part_is_started_and_is_started_after_them(
+    tmp_path: Path,
+) -> None:
     """What the parts ask of a radio, such as whether it is a Dummy radio (the iGate, at its start),
     is true before they start; the radios themselves are started last, each in its own task."""
-    e = Env(tmp_path, radio=False, settings={"tnc/profile": "dummy", "serial/baud": "1200", "hf/enabled": "true", "hf/profile": "dummy-hf"})
+    e = Env(
+        tmp_path,
+        radio=False,
+        settings={"tnc/profile": "dummy", "serial/baud": "1200", "hf/enabled": "true", "hf/profile": "dummy-hf"},
+    )
     # (no program: the Dummy HF radio works without its speaker)
     e.mercury._finder = lambda: None
     seen: list[tuple[object, ...]] = []
     start = e.ctl.bulletins.start
 
     async def first_part() -> None:
-        seen.append((e.tnc.is_dummy, e.tnc.baud, e.hf.is_dummy, e.tnc.state, e.hf.state, [radio.id for radio in e.ctl.radios.enabled()], sorted(t.get_name() for t in e.ctl.tasks)))
+        seen.append(
+            (
+                e.tnc.is_dummy,
+                e.tnc.baud,
+                e.hf.is_dummy,
+                e.tnc.state,
+                e.hf.state,
+                [radio.id for radio in e.ctl.radios.enabled()],
+                sorted(t.get_name() for t in e.ctl.tasks),
+            )
+        )
         await start()
 
     # The first part the start brings up
     e.ctl.bulletins.start = first_part  # type: ignore[method-assign]
-    assert not e.tnc.is_dummy and not e.hf.is_dummy and [radio.id for radio in e.ctl.radios.enabled()] == [1], "the defaults, until the settings are read"
+    assert not e.tnc.is_dummy and not e.hf.is_dummy and [radio.id for radio in e.ctl.radios.enabled()] == [1], (
+        "the defaults, until the settings are read"
+    )
     await e.start()
-    assert seen == [(True, 1200, True, Source.State.STOPPED, Source.State.STOPPED, [1, 2], [])], "configured, and not started yet: no task of a radio is running"
+    assert seen == [(True, 1200, True, Source.State.STOPPED, Source.State.STOPPED, [1, 2], [])], (
+        "configured, and not started yet: no task of a radio is running"
+    )
     await until(lambda: e.tnc.state is Source.State.CONNECTED and e.hf.state is Source.State.CONNECTED)
     # (the task of each start ends with it)
     await until(lambda: not {"tnc", "hf"} & {t.get_name() for t in e.ctl.tasks})
@@ -198,13 +272,17 @@ async def test_the_settings_are_stored_and_read_back_by_the_next_run(tmp_path: P
     await e.start(connected=False)
     new = replace(e.ctl.config, station_comment="mobile", beacon_interval_min=20)
     assert await e.ctl.save_config(new) and e.ctl.config is new
-    assert (await e.ctl.store.settings())["beacon/interval_min"] == "20" and Config.from_data(await e.ctl.store.settings(), radios=await e.ctl.store.radios()) == new
+    assert (await e.ctl.store.settings())["beacon/interval_min"] == "20" and Config.from_data(
+        await e.ctl.store.settings(), radios=await e.ctl.store.radios()
+    ) == new
     await e.stop()
     assert not await e.ctl.save_config(replace(new, beacon_interval_min=0)), "the database is closed: nothing is stored"
     assert e.ctl.config is new
 
 
-async def test_a_save_writes_only_the_settings_it_changes_so_that_one_set_from_the_command_line_meanwhile_stays(tmp_path: Path) -> None:
+async def test_a_save_writes_only_the_settings_it_changes_so_that_one_set_from_the_command_line_meanwhile_stays(
+    tmp_path: Path,
+) -> None:
     e = Env(tmp_path, radio=False)
     await e.start(connected=False)
     # (`neoaprs db set igate/password 12345` from another process)
@@ -229,32 +307,42 @@ class Eager(Tnc):
         self.packet.emit(self.waiting)
 
 
-async def test_the_radio_is_started_after_the_parts_that_take_its_packets_so_that_the_ack_it_hears_first_settles_our_message(tmp_path: Path) -> None:
+async def test_the_radio_is_started_after_the_parts_that_take_its_packets_so_that_the_ack_it_hears_first_settles_our_message(
+    tmp_path: Path,
+) -> None:
     clock = FixedClock()
     ack = Packet(clock(), "in", b"", "OH2RDG", "APRS", (), b":OH2GBA   :ack01", Message("OH2GBA", "", None, "01"))
     ctl = Controller(tmp_path, clock, lines={FM_ID: Eager(clock, ack)}, check_sec=0)
     await ctl.open_database()
     await ctl.store.put_setting("station/call", "OH2GBA")
-    assert await ctl.store.add_radio("fm", "kiss", "", True, 1) == FM_ID              # (radio 1, the line handed in)
-    kept = await ctl.messagelog.insert(MessageRecord(0, clock(), "out", "OH2GBA", "OH2RDG", "Hello", "01", "sending", 1, clock()))
+    assert await ctl.store.add_radio("fm", "kiss", "", True, 1) == FM_ID  # (radio 1, the line handed in)
+    kept = await ctl.messagelog.insert(
+        MessageRecord(0, clock(), "out", "OH2GBA", "OH2RDG", "Hello", "01", "sending", 1, clock())
+    )
     assert kept is not None
     try:
         await ctl.start()
-        await until(lambda: ctl.messaging.get(kept.id) is not None and ctl.messaging.get(kept.id).state == "acked")      # type: ignore[union-attr]
-        assert [m.text for m in ctl.messaging.records() if m.state == "received"] == [], "the ack is not kept as a message"
+        await until(lambda: ctl.messaging.get(kept.id) is not None and ctl.messaging.get(kept.id).state == "acked")  # type: ignore[union-attr]
+        assert [m.text for m in ctl.messaging.records() if m.state == "received"] == [], (
+            "the ack is not kept as a message"
+        )
     finally:
         await ctl.stop()
 
 
-async def test_one_part_that_fails_to_stop_does_not_leave_the_others_running(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_one_part_that_fails_to_stop_does_not_leave_the_others_running(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     e = Env(tmp_path)
     await e.start()
 
     async def fails() -> None:
         raise RuntimeError("cannot stop")
 
-    e.ctl.queries.stop = fails                                      # type: ignore[method-assign]
+    e.ctl.queries.stop = fails  # type: ignore[method-assign]
     with caplog.at_level("ERROR", "neoaprs.controller"):
         await e.stop()
     assert "the queries could not be stopped" in caplog.text
-    assert e.tnc.state is Source.State.STOPPED and len(e.ctl.tasks) == 0 and e.ctl.db is not None and not e.ctl.db.is_open
+    assert (
+        e.tnc.state is Source.State.STOPPED and len(e.ctl.tasks) == 0 and e.ctl.db is not None and not e.ctl.db.is_open
+    )

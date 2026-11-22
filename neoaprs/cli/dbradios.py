@@ -1,6 +1,7 @@
 """`neoaprs db radios` and `neoaprs db radios add`: list the stored radios and add one.
 
 A radio is added with the checks of the page's Add (radioedits.new_radio)."""
+
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime
@@ -22,6 +23,7 @@ PROG = "neoaprs db"
 @dataclass(frozen=True)
 class Radios:
     """The radios as the daemon reads them, and their settings as stored (invalid texts too)."""
+
     specs: tuple[RadioSpec, ...] = ()
     own: Mapping[tuple[int, str], str] = field(default_factory=dict)
 
@@ -58,10 +60,14 @@ async def show_radios(store: Any) -> int:
     keys = {spec.id: own_fields(spec) for spec in radios}
     width = max(len(f"radio/{id}/{key}") for id, own in keys.items() for key in own)
     for spec in sorted(radios, key=lambda s: (s.removed_at is not None, s.position, s.id)):
-        print(f"radio {spec.id}  {log_name(spec, radios)}  {spec.kind}  {spec.type}  {radio_state(spec)}  (position {spec.position})")
+        print(
+            f"radio {spec.id}  {log_name(spec, radios)}  {spec.kind}  {spec.type}  {radio_state(spec)}  (position {spec.position})"
+        )
         for key in keys[spec.id]:
             name = f"radio/{spec.id}/{key}"
-            print(f"  {name:<{width}}  {shown_value(name, value_text(spec, key)):<18}  {'stored' if (spec.id, key) in stored.own else 'default'}")
+            print(
+                f"  {name:<{width}}  {shown_value(name, value_text(spec, key)):<18}  {'stored' if (spec.id, key) in stored.own else 'default'}"
+            )
     return 0
 
 
@@ -78,5 +84,7 @@ async def add_radio(store: Store, type: str, name: str, on: bool) -> int:
         say(f"{PROG}: the radio could not be stored")
         return 1
     added = replace(spec, id=id)
-    print(f"radio {id}  {log_name(added, (*radios, added))}  {spec.kind}  {spec.type}  {radio_state(added)}  (position {spec.position})")
+    print(
+        f"radio {id}  {log_name(added, (*radios, added))}  {spec.kind}  {spec.type}  {radio_state(added)}  (position {spec.position})"
+    )
     return 0

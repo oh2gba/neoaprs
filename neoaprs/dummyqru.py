@@ -3,6 +3,7 @@
 It serves two groups round the station, RP70 (a repeater) and FOOD (a cafe), so asking for local
 info can be tried without a radio. A request is a broadcast and gets no ack.
 """
+
 import re
 from collections.abc import Callable
 from datetime import datetime
@@ -24,7 +25,13 @@ FIRST_SEC, STEP_SEC = 2.5, 1.2
 _REQUEST = re.compile(r"\??([A-Z0-9]{1,8})(?: \d{1,5})?")
 
 
-def answer(text: str, us: str, now: datetime, where: Callable[[float, float], tuple[float, float]], named: Callable[[str], str] = str) -> list[tuple[float, ax25.Frame]]:
+def answer(
+    text: str,
+    us: str,
+    now: datetime,
+    where: Callable[[float, float], tuple[float, float]],
+    named: Callable[[str], str] = str,
+) -> list[tuple[float, ax25.Frame]]:
     """Return the frames answering the request `text` of the station `us`, each with its delay.
 
     None for text that is no request or a group not served.
@@ -37,6 +44,9 @@ def answer(text: str, us: str, now: datetime, where: Callable[[float, float], tu
         listing = " ".join(f"{group}({len(objects)})" for group, objects in sorted(GROUPS.items()))
         return [(FIRST_SEC, air(SERVER, message(us, f"de {SERVER}:{listing} Max 5@{RANGE_KM}km")))]
     objects = GROUPS.get(word, [])
-    frames = [air(SERVER, object_report(named(name), now, *where(east, north), symbol, comment)) for name, symbol, comment, east, north in objects]
+    frames = [
+        air(SERVER, object_report(named(name), now, *where(east, north), symbol, comment))
+        for name, symbol, comment, east, north in objects
+    ]
     frames.append(air(SERVER, message(us, f"Sent {len(objects)} {word} Objects Max 5@{RANGE_KM}km de {SERVER}")))
     return [(FIRST_SEC + STEP_SEC * n, frame) for n, frame in enumerate(frames)] if objects else []

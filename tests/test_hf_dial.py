@@ -1,5 +1,6 @@
 """Tests for the HF dial from the version page (`hf_dial`, neoaprs/versions.py): the update check
 keeps and reports it, and the HF box suggests it for 40 m when there is no project list."""
+
 import json
 from pathlib import Path
 
@@ -25,20 +26,35 @@ class Page:
 
 def test_the_answer_carries_a_dial_of_the_form_and_drops_any_other() -> None:
     assert (update := parse_update(answer(hf_dial="7.0443 MHz USB"))) is not None and update.hf_dial == "7.0443 MHz USB"
-    assert (update := parse_update(answer(hf_dial=" 14.1070 MHz USB "))) is not None and update.hf_dial == "14.1070 MHz USB"
+    assert (
+        update := parse_update(answer(hf_dial=" 14.1070 MHz USB "))
+    ) is not None and update.hf_dial == "14.1070 MHz USB"
     for bad in ("7.0443", "7.0443 MHz", "7,0443 MHz USB", "7.0443 MHz FM", "<b>7.0443 MHz USB</b>", "1234.5 MHz USB"):
         assert (update := parse_update(answer(hf_dial=bad))) is not None and update.hf_dial == "", bad
-    assert (update := parse_update(answer())) is not None and update.hf_dial == "", "a page older than 0.16.1 names none"
+    assert (update := parse_update(answer())) is not None and update.hf_dial == "", (
+        "a page older than 0.16.1 names none"
+    )
 
 
 async def test_a_dial_is_kept_told_and_survives_a_restart(tmp_path: Path) -> None:
     store = await store_at(tmp_path / "neoaprs.sqlite")
     told: list[str] = []
-    service = UpdateCheck(lambda: _config(), "0.1.0", "linux", Page(answer(hf_dial="7.0443 MHz USB"), answer(), answer(hf_dial="7.0443 MHz USB")), environ={}, memory=store)
+    service = UpdateCheck(
+        lambda: _config(),
+        "0.1.0",
+        "linux",
+        Page(answer(hf_dial="7.0443 MHz USB"), answer(), answer(hf_dial="7.0443 MHz USB")),
+        environ={},
+        memory=store,
+    )
     remember_stop(service.stop)
     service.dial_changed.connect(told.append)
     await service.check()
-    assert service.hf_dial == "7.0443 MHz USB" and told == ["7.0443 MHz USB"] and await store.setting(HF_DIAL) == "7.0443 MHz USB"
+    assert (
+        service.hf_dial == "7.0443 MHz USB"
+        and told == ["7.0443 MHz USB"]
+        and await store.setting(HF_DIAL) == "7.0443 MHz USB"
+    )
     await service.check()
     await service.check()
     assert told == ["7.0443 MHz USB"], "an answer with none, and the same one again, tell nothing"
@@ -54,7 +70,9 @@ async def test_a_dial_is_kept_told_and_survives_a_restart(tmp_path: Path) -> Non
 async def test_check_now_takes_the_dial_too(tmp_path: Path) -> None:
     store = await store_at(tmp_path / "neoaprs.sqlite")
     told: list[str] = []
-    service = UpdateCheck(lambda: _config(), "0.1.0", "linux", Page(answer(hf_dial="7.0443 MHz USB")), environ={}, memory=store)
+    service = UpdateCheck(
+        lambda: _config(), "0.1.0", "linux", Page(answer(hf_dial="7.0443 MHz USB")), environ={}, memory=store
+    )
     remember_stop(service.stop)
     service.dial_changed.connect(told.append)
     await service.check_now()
@@ -69,4 +87,5 @@ def test_the_dial_of_the_page_is_the_forty_metre_one_of_the_box_until_the_projec
 
 def _config():  # type: ignore[no-untyped-def]
     from neoaprs.config import DEFAULTS
+
     return DEFAULTS

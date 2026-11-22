@@ -2,6 +2,7 @@
 has a scope sends its rows in frames naming it, a page may watch several radios, and a radio without
 a scope is refused.
 """
+
 import asyncio
 from dataclasses import replace
 from pathlib import Path
@@ -31,7 +32,7 @@ async def test_each_radio_with_a_scope_sends_its_rows_named_radio_2_too(tmp_path
     e, page = await started(tmp_path, {"hf/enabled": "true", "hf/profile": "mercury"})
     await page.until(lambda: page.topics["radios"].get("2", {}).get("type") == "mercury")
     three = await added(page, "mercury")
-    modem = e.ctl.radios.get(three).driver.modem                      # type: ignore[union-attr]
+    modem = e.ctl.radios.get(three).driver.modem  # type: ignore[union-attr]
     assert modem is not None and modem is not e.mercury, "a radio of its own has a modem of its own"
     await at_rest(modem)
     await at_rest(e.mercury)
@@ -39,7 +40,9 @@ async def test_each_radio_with_a_scope_sends_its_rows_named_radio_2_too(tmp_path
     await page.send({"cmd": "radio_scope", "radio": three, "on": True})
     radio, history = named((await page.frames(1))[0])
     rows = parse_history(history)
-    assert radio == three and rows is not None and [row for row, _ in rows] == [replace(ROW, level=-50)], "first the rows its modem kept, in a frame that names it"
+    assert radio == three and rows is not None and [row for row, _ in rows] == [replace(ROW, level=-50)], (
+        "first the rows its modem kept, in a frame that names it"
+    )
     made(e.mercury, ROW)
     made(modem, ROW)
     radio, row = named((await page.frames(2))[1])
@@ -54,12 +57,18 @@ async def test_each_radio_with_a_scope_sends_its_rows_named_radio_2_too(tmp_path
     await both.send({"cmd": "radio_scope", "radio": HF_ID, "on": True})
     await both.send({"cmd": "radio_scope", "radio": three, "on": True})
     firsts = [named(frame) for frame in await both.frames(2)]
-    assert sorted(radio for radio, _ in firsts) == [HF_ID, three] and all(frame[0] == 2 for _, frame in firsts), "each radio's rows kept, each named"
+    assert sorted(radio for radio, _ in firsts) == [HF_ID, three] and all(frame[0] == 2 for _, frame in firsts), (
+        "each radio's rows kept, each named"
+    )
     made(e.mercury, replace(ROW, tx=True))
     made(modem, replace(ROW, level=-30))
-    assert named((await alone.frames(2))[1]) == (HF_ID, (await alone.frames(2))[1][5:]) and parse_row(named(alone.binary[1])[1]) == replace(ROW, tx=True)
+    assert named((await alone.frames(2))[1]) == (HF_ID, (await alone.frames(2))[1][5:]) and parse_row(
+        named(alone.binary[1])[1]
+    ) == replace(ROW, tx=True)
     rows_of = {radio: parse_row(frame) for radio, frame in map(named, (await both.frames(4))[2:])}
-    assert rows_of == {HF_ID: replace(ROW, tx=True), three: replace(ROW, level=-30)}, "a page that looks at two radios has both, each by its radio"
+    assert rows_of == {HF_ID: replace(ROW, tx=True), three: replace(ROW, level=-30)}, (
+        "a page that looks at two radios has both, each by its radio"
+    )
     assert all(frame[0] == RADIO_KIND for frame in both.binary + alone.binary)
     assert len(page.binary) == 3 and parse_row(named(page.binary[2])[1]) == replace(ROW, level=-30)
 
@@ -77,9 +86,11 @@ async def test_each_radio_with_a_scope_sends_its_rows_named_radio_2_too(tmp_path
 async def test_a_radio_whose_type_has_no_scope_is_refused_with_its_name_and_a_stop_never_is(tmp_path: Path) -> None:
     e, page = await started(tmp_path)
     dummy = await added(page, "dummy-hf", "Attic")
-    for command, code, params in (({"cmd": "radio_scope", "radio": dummy, "on": True}, "radio.no_scope", {"name": "Attic", "radio": dummy}),
-                                  ({"cmd": "radio_scope", "radio": 1, "on": True}, "radio.no_scope", {"name": "FM", "radio": 1}),
-                                  ({"cmd": "radio_scope", "radio": 9, "on": True}, "radio.unknown", {"radio": 9})):
+    for command, code, params in (
+        ({"cmd": "radio_scope", "radio": dummy, "on": True}, "radio.no_scope", {"name": "Attic", "radio": dummy}),
+        ({"cmd": "radio_scope", "radio": 1, "on": True}, "radio.no_scope", {"name": "FM", "radio": 1}),
+        ({"cmd": "radio_scope", "radio": 9, "on": True}, "radio.unknown", {"radio": 9}),
+    ):
         error = await refused(page, command)
         assert (error["code"], error["params"]) == (code, params), command
     assert error["text"] == "radio_scope: there is no radio 9"
@@ -95,7 +106,7 @@ async def test_the_scope_of_a_radio_removed_lets_go_of_its_modem(tmp_path: Path)
     modem's rows."""
     e, page = await started(tmp_path, {"hf/enabled": "true", "hf/profile": "mercury"})
     three = await added(page, "mercury")
-    modem = e.ctl.radios.get(three).driver.modem                      # type: ignore[union-attr]
+    modem = e.ctl.radios.get(three).driver.modem  # type: ignore[union-attr]
     assert modem is not None
     await at_rest(modem)
     await page.send({"cmd": "radio_scope", "radio": three, "on": True})
@@ -103,7 +114,9 @@ async def test_the_scope_of_a_radio_removed_lets_go_of_its_modem(tmp_path: Path)
     followed = len(modem.scope_row)
     assert followed >= 1 and e.server is not None and e.server.api.topics.scopes.pages(three) == 1
     assert await e.ctl.remove_radio(three)
-    assert e.server.api.topics.scopes.pages(three) == 0 and len(modem.scope_row) == followed - 1, "the feed let go of the removed radio's modem"
+    assert e.server.api.topics.scopes.pages(three) == 0 and len(modem.scope_row) == followed - 1, (
+        "the feed let go of the removed radio's modem"
+    )
     made(modem, ROW)
     await page.quiet(0.2)
     assert len(page.binary) == 1, "and its rows reach no page"

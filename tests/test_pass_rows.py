@@ -2,6 +2,7 @@
 stub lines and a held clock: a packet whose first unused hop is the pair's call goes out once on the
 other radio, marked used.
 """
+
 import logging
 from dataclasses import replace
 from datetime import timedelta
@@ -33,7 +34,7 @@ def pair_rig(*pairs: PairSpec, fill_in: bool = False, **changes: object) -> Rig:
 
 
 def spec(id: RadioId, kind: str, type: str, **settings: str) -> RadioSpec:
-    return RadioSpec(id, kind, type, "", True, id, settings=settings)       # type: ignore[arg-type]
+    return RadioSpec(id, kind, type, "", True, id, settings=settings)  # type: ignore[arg-type]
 
 
 def own_rig(specs: tuple[RadioSpec, ...], *pairs: PairSpec, **changes: object) -> Rig:
@@ -51,7 +52,9 @@ def test_a_request_on_fm_gives_one_frame_on_hf_with_the_call_marked_used_and_non
     rig.hear(frame("OH2RCH-2*,OH2GBA-12,WIDE1-1", info=msg()))
     assert rig.hf.lines() == [f"OH2XYZ>APRS,OH2RCH-2,OH2GBA-12*,WIDE1-1:{msg().decode()}"] and rig.tnc.sent == []
     [sent] = rig.hf.sent
-    assert [hop.repeated for hop in sent.path] == [True, True, False], "the hops before keep their marks, the ones after stay unused"
+    assert [hop.repeated for hop in sent.path] == [True, True, False], (
+        "the hops before keep their marks, the ones after stay unused"
+    )
     assert rig.hf.stats.digipeated == 1 and rig.hf.stats.passed == {FM_ID: PassCount(sent=1, sent_at=rig.clock())}
 
 
@@ -80,7 +83,9 @@ def test_with_the_fill_in_on_a_request_after_wide1_1_gives_one_frame_on_each_rad
     assert rig.hf.lines() == [f"OH2XYZ>APRS,OH2GBA,OH2GBA-12*:{msg().decode()}"]
 
 
-@pytest.mark.parametrize("path", ["WIDE1-1", "WIDE2-2", "WIDE1-1,WIDE2-1", "OH2GBA", "OH2GBA-11", "WIDE2-2,OH2GBA-12", "OH2GBA-12*", ""])
+@pytest.mark.parametrize(
+    "path", ["WIDE1-1", "WIDE2-2", "WIDE1-1,WIDE2-1", "OH2GBA", "OH2GBA-11", "WIDE2-2,OH2GBA-12", "OH2GBA-12*", ""]
+)
 def test_a_path_that_does_not_name_the_pair_call_next_crosses_nowhere(path: str) -> None:
     rig = pair_rig(fill_in=True)
     rig.hear(frame(path, info=msg()))
@@ -104,12 +109,16 @@ def test_three_radios_with_two_pairs_send_each_request_on_its_own_target_only() 
     rig = own_rig(THREE, PAIR, PairSpec(1, 3, True, 11))
     rig.hear(frame("OH2GBA-12", info=msg(1)))
     rig.hear(frame("OH2GBA-11", info=msg(2)))
-    assert [f.info for f in rig.line(2).sent] == [msg(1)] and [f.info for f in rig.line(3).sent] == [msg(2)] and rig.line(1).sent == []
+    assert (
+        [f.info for f in rig.line(2).sent] == [msg(1)]
+        and [f.info for f in rig.line(3).sent] == [msg(2)]
+        and rig.line(1).sent == []
+    )
 
 
 def test_a_frame_too_long_for_hf_is_not_sent_and_is_counted_too_long() -> None:
     rig = pair_rig()
-    rig.hear(frame("OH2GBA-12", info=b">" + b"x" * 100))                   # (124 bytes: Mercury carries 123)
+    rig.hear(frame("OH2GBA-12", info=b">" + b"x" * 100))  # (124 bytes: Mercury carries 123)
     assert rig.hf.sent == [] and rig.hf.stats.passed == {FM_ID: PassCount(too_long=1)} and rig.hf.stats.digipeated == 0
 
 
@@ -150,8 +159,8 @@ def test_our_own_packet_and_our_passed_frame_heard_back_are_not_passed() -> None
     rig = pair_rig()
     rig.hear(frame("OH2GBA-12", source="OH2GBA", info=b">our status"))
     rig.hear(frame("OH2GBA-12", source="OH2GBA-12", info=b">a pair call"))
-    rig.hear(frame("OH2GBA-12*", info=msg()), radio_id=HF_ID)               # (one of ours heard back)
-    rig.hear(frame("OH2GBA-12*,OH2GBA-12", info=msg(13)), radio_id=HF_ID)    # (and one that would name it again)
+    rig.hear(frame("OH2GBA-12*", info=msg()), radio_id=HF_ID)  # (one of ours heard back)
+    rig.hear(frame("OH2GBA-12*,OH2GBA-12", info=msg(13)), radio_id=HF_ID)  # (and one that would name it again)
     assert rig.tnc.sent == rig.hf.sent == []
 
 
@@ -202,12 +211,13 @@ def band(*ends: tuple[Rig, RadioId]) -> None:
         took = line.send_frame
 
         def send(f: ax25.Frame, raw: bytes | None = None, rig: Rig = rig, took: object = took) -> bool:
-            done = bool(took(f, raw))                                                     # type: ignore[operator]
+            done = bool(took(f, raw))  # type: ignore[operator]
             for other, other_id in ends:
                 if other is not rig:
                     other.hear(f, "in", other_id)
             return done
-        line.send_frame = send                                                            # type: ignore[method-assign]
+
+        line.send_frame = send  # type: ignore[method-assign]
 
 
 @pytest.mark.parametrize("both_hear_it", [True, False])
@@ -221,7 +231,9 @@ def test_two_gateways_that_name_each_other_in_turn_send_one_frame_each_at_most_t
         g2.hear(heard)
     g1.hear(heard)
     sent = [len(g.line(id).sent) for g in (g1, g2) for id in (FM_ID, HF_ID)]
-    assert sent == ([0, 1, 0, 0] if both_hear_it else [0, 1, 1, 0]), "G1 once onto HF; G2 onto its FM only when it had not heard the original there"
+    assert sent == ([0, 1, 0, 0] if both_hear_it else [0, 1, 1, 0]), (
+        "G1 once onto HF; G2 onto its FM only when it had not heard the original there"
+    )
     g1.clock.advance(60)
     assert [len(g.line(id).sent) for g in (g1, g2) for id in (FM_ID, HF_ID)] == sent
 
@@ -238,18 +250,24 @@ def test_the_counts_are_the_target_radios_by_direction_and_every_change_is_told(
     assert rig.hf.stats.passed == {FM_ID: PassCount(sent=1, sent_at=rig.clock() - timedelta(seconds=1), too_long=1)}
     assert rig.stats.passed == {HF_ID: PassCount(sent=2, sent_at=rig.clock())}
     assert (rig.stats.digipeated, rig.hf.stats.digipeated) == (2, 1)
-    assert told == [HF_ID, FM_ID, FM_ID, HF_ID], "a frame too long changes no counter of the line and is told all the same"
+    assert told == [HF_ID, FM_ID, FM_ID, HF_ID], (
+        "a frame too long changes no counter of the line and is told all the same"
+    )
 
 
-def test_a_passed_frame_is_told_at_info_and_a_held_one_at_info_once_and_never_as_a_warning(caplog: pytest.LogCaptureFixture) -> None:
+def test_a_passed_frame_is_told_at_info_and_a_held_one_at_info_once_and_never_as_a_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.DEBUG, "neoaprs.digipeater")
     rig = pair_rig()
     rig.hear(frame("OH2GBA-12", info=msg()))
     for n in range(2):
         rig.hear(frame("OH2GBA-12", info=b">" + b"x" * (100 + n)))
     infos = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
-    assert infos == ["passed OH2XYZ>APRS from FM to Mercury: the path OH2GBA-12 is sent as OH2GBA-12*",
-                     "Mercury: a packet of OH2XYZ from FM is not passed: too long: 124 bytes, the radio carries 123"]
+    assert infos == [
+        "passed OH2XYZ>APRS from FM to Mercury: the path OH2GBA-12 is sent as OH2GBA-12*",
+        "Mercury: a packet of OH2XYZ from FM is not passed: too long: 124 bytes, the radio carries 123",
+    ]
     assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
 
 
@@ -258,7 +276,7 @@ async def test_the_digipeaters_timer_starts_and_stops_and_a_frame_that_waits_is_
     await rig.digi.start()
     assert len(rig.digi.tasks) == 1
     rig.hear(frame("OH2GBA-12", info=msg(1)))
-    rig.hear(frame("OH2GBA-12", info=msg(2), source="OH3ABC"))              # (waits out the gap after the first)
+    rig.hear(frame("OH2GBA-12", info=msg(2), source="OH3ABC"))  # (waits out the gap after the first)
     await rig.digi.stop()
     assert len(rig.digi.tasks) == 0
     rig.clock.advance(SLOW_HANDOVER_SEC)
@@ -284,7 +302,9 @@ def test_a_kenwoods_ack_heard_on_fm_for_a_message_passed_from_hf_goes_back_on_hf
     passed_from_hf(rig)
     rig.hear(frame("WIDE1-1,WIDE2-1", source="OH2GAX", info=ACK))
     assert rig.hf.lines() == [f"OH2GAX>APRS,OH2GBA-12*:{ACK.decode()}"]
-    assert len(rig.tnc.sent) == (2 if fill_in else 1), "the fill-in's own copy on FM, which does not go back with its hop"
+    assert len(rig.tnc.sent) == (2 if fill_in else 1), (
+        "the fill-in's own copy on FM, which does not go back with its hop"
+    )
     rig.clock.advance(31)
     rig.hear(frame("WIDE1-1,WIDE2-1", source="OH2GAX", info=ACK))
     assert len(rig.hf.sent) == 1, "a second copy, after the duplicate window, answers nothing"
@@ -361,14 +381,18 @@ def test_an_ack_back_falls_under_the_budget_of_hf() -> None:
     assert len(rig.hf.sent) == 4 and rig.hf.stats.passed[FM_ID].held == 1
 
 
-def test_an_ack_whose_path_would_have_more_than_eight_hops_back_sends_nothing_and_raises_nothing_and_a_later_copy_goes_back() -> None:
+def test_an_ack_whose_path_would_have_more_than_eight_hops_back_sends_nothing_and_raises_nothing_and_a_later_copy_goes_back() -> (
+    None
+):
     rig = pair_rig()
     passed_from_hf(rig)
     rig.hear(frame(",".join(f"OH2RC{n}*" for n in range(8)), source="OH2GAX", info=ACK))
     assert rig.hf.sent == [] and rig.hf.stats.passed == {}
     rig.clock.advance(31)
     rig.hear(frame("WIDE1-1", source="OH2GAX", info=ACK))
-    assert rig.hf.lines() == [f"OH2GAX>APRS,OH2GBA-12*:{ACK.decode()}"], "the copy refused leaves the message for the next copy of the ack"
+    assert rig.hf.lines() == [f"OH2GAX>APRS,OH2GBA-12*:{ACK.decode()}"], (
+        "the copy refused leaves the message for the next copy of the ack"
+    )
 
 
 def test_an_ack_that_names_the_pair_call_goes_once_by_its_path() -> None:
@@ -377,4 +401,6 @@ def test_an_ack_that_names_the_pair_call_goes_once_by_its_path() -> None:
     rig.hear(frame("OH2GBA-12", source="OH2GAX", info=ACK))
     rig.clock.advance(31)
     rig.hear(frame("WIDE1-1", source="OH2GAX", info=ACK))
-    assert rig.hf.lines() == [f"OH2GAX>APRS,OH2GBA-12*:{ACK.decode()}"], "the request passed it, and its entry is used up"
+    assert rig.hf.lines() == [f"OH2GAX>APRS,OH2GBA-12*:{ACK.decode()}"], (
+        "the request passed it, and its entry is used up"
+    )

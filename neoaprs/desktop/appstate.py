@@ -2,6 +2,7 @@
 
 The window geometry, the app log and the web engine's storage folders. A file that cannot be
 read gives the default, never an error: the window must open."""
+
 import json
 import logging
 import logging.handlers
@@ -28,6 +29,7 @@ class WindowState:
     """The window as it was left: size and place when not maximized, in logical pixels.
 
     On Windows `normal` is the rcNormalPosition rectangle and takes precedence; Qt has None."""
+
     width: int
     height: int
     x: int | None = None
@@ -54,7 +56,12 @@ def webkit_dir(data: Path) -> Path:
 
 
 def clamp(width: object, height: object) -> tuple[int, int]:
-    if isinstance(width, int) and isinstance(height, int) and not isinstance(width, bool) and not isinstance(height, bool):
+    if (
+        isinstance(width, int)
+        and isinstance(height, int)
+        and not isinstance(width, bool)
+        and not isinstance(height, bool)
+    ):
         if MIN_SIZE[0] <= width <= MAX_SIZE[0] and MIN_SIZE[1] <= height <= MAX_SIZE[1]:
             return width, height
     return DEFAULT_SIZE
@@ -62,13 +69,24 @@ def clamp(width: object, height: object) -> tuple[int, int]:
 
 def place(x: object, y: object) -> tuple[int | None, int | None]:
     """Return the place if both are sane integers (negative is valid), else Nones."""
-    if isinstance(x, int) and isinstance(y, int) and not isinstance(x, bool) and not isinstance(y, bool) and abs(x) <= MAX_PLACE and abs(y) <= MAX_PLACE:
+    if (
+        isinstance(x, int)
+        and isinstance(y, int)
+        and not isinstance(x, bool)
+        and not isinstance(y, bool)
+        and abs(x) <= MAX_PLACE
+        and abs(y) <= MAX_PLACE
+    ):
         return x, y
     return None, None
 
 
 def rect(value: object) -> tuple[int, int, int, int] | None:
-    if not isinstance(value, list) or len(value) != 4 or not all(isinstance(v, int) and not isinstance(v, bool) and abs(v) <= MAX_PLACE for v in value):
+    if (
+        not isinstance(value, list)
+        or len(value) != 4
+        or not all(isinstance(v, int) and not isinstance(v, bool) and abs(v) <= MAX_PLACE for v in value)
+    ):
         return None
     left, top, right, bottom = value
     if clamp(right - left, bottom - top) != (right - left, bottom - top):

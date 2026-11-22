@@ -2,6 +2,7 @@
 goes out as a KISS frame and is on the map as ours, a copy heard back makes no second one, and a
 kill is sent three times.
 """
+
 from pathlib import Path
 
 import pytest
@@ -21,8 +22,15 @@ async def started(tmp_path: Path, **kwargs: object) -> Env:
 
 
 def make(e: Env, name: str = "LEADER", **values: object) -> None:
-    fields: dict[str, object] = {"lat": 60.17, "lon": 24.94, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", **values}
-    e.ctl.ownobjects.set(name, "object", **fields)                           # type: ignore[arg-type]
+    fields: dict[str, object] = {
+        "lat": 60.17,
+        "lon": 24.94,
+        "symbol_table": "/",
+        "symbol_code": ">",
+        "comment": "Rescue 1",
+        **values,
+    }
+    e.ctl.ownobjects.set(name, "object", **fields)  # type: ignore[arg-type]
 
 
 def own(e: Env, name: str = "LEADER") -> Station:
@@ -37,16 +45,31 @@ async def test_an_object_goes_out_as_a_kiss_frame_and_is_on_the_map_as_ours(tmp_
     [frame] = await said(e)
     assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:" + OBJECT_INFO.decode() and frame.is_ui
     station = own(e)
-    assert (station.kind, station.own, station.is_me, station.reported_by, station.lat, station.lon, station.symbol_code, station.last_comment) == ("object", True, False, "OH2GBA", 60.17, 24.94, ">", "Rescue 1")
+    assert (
+        station.kind,
+        station.own,
+        station.is_me,
+        station.reported_by,
+        station.lat,
+        station.lon,
+        station.symbol_code,
+        station.last_comment,
+    ) == ("object", True, False, "OH2GBA", 60.17, 24.94, ">", "Rescue 1")
     [sent] = [p for p in await e.packets() if p.direction == "out"]
     assert sent.kind == "object" and sent.source == "OH2GBA" and sent.radio_id == FM_ID
     main = next(iter(e.ctl.sender.radios.senders()), None)
-    assert main is not None and main.id == FM_ID and [r.id for r in e.ctl.sender.radios.enabled()] == [FM_ID], "the FM radio alone is on: it carries everything"
-    assert "LEADER" not in [s.call for s in await e.stations()], "our object is not in the station cache: the table of our own objects keeps it"
+    assert main is not None and main.id == FM_ID and [r.id for r in e.ctl.sender.radios.enabled()] == [FM_ID], (
+        "the FM radio alone is on: it carries everything"
+    )
+    assert "LEADER" not in [s.call for s in await e.stations()], (
+        "our object is not in the station cache: the table of our own objects keeps it"
+    )
     await e.stop()
 
 
-async def test_a_copy_of_our_object_that_a_digipeater_repeats_or_the_tnc_echoes_makes_no_second_object(tmp_path: Path) -> None:
+async def test_a_copy_of_our_object_that_a_digipeater_repeats_or_the_tnc_echoes_makes_no_second_object(
+    tmp_path: Path,
+) -> None:
     e = await started(tmp_path)
     make(e)
     [frame] = await said(e)
@@ -55,9 +78,13 @@ async def test_a_copy_of_our_object_that_a_digipeater_repeats_or_the_tnc_echoes_
     e.feed(on_air("OH2GBA", frame.info, "APZNEO", "WIDE1-1"))
     await until(lambda: e.tnc.stats.packets >= 2)
     await e.settled()
-    assert len(e.ctl.stationbook) == before and [s.call for s in e.ctl.stationbook.stations() if s.kind == "object"] == ["LEADER"]
+    assert len(e.ctl.stationbook) == before and [
+        s.call for s in e.ctl.stationbook.stations() if s.kind == "object"
+    ] == ["LEADER"]
     station = own(e)
-    assert station.own and station.reported_by == "OH2GBA" and station.packets == 1, "it is still the one we send: what is heard back is nobody's report"
+    assert station.own and station.reported_by == "OH2GBA" and station.packets == 1, (
+        "it is still the one we send: what is heard back is nobody's report"
+    )
     assert [o.name for o in e.ctl.ownobjects.records()] == ["LEADER"]
     assert [s.call for s in await e.stations()].count("LEADER") == 0
     await e.stop()
@@ -69,7 +96,9 @@ async def test_the_object_of_another_station_is_still_heard_shown_and_cached_nex
     e.feed(on_air("OH2XYZ", b";STORM    *211200z6020.00N/02500.00E>Storm cell", "APRS", "WIDE1-1"))
     await until(lambda: e.ctl.stationbook.get("STORM") is not None)
     storm = e.ctl.stationbook.get("STORM")
-    assert storm is not None and (storm.kind, storm.own, storm.reported_by) == ("object", False, "OH2XYZ") and own(e).own
+    assert (
+        storm is not None and (storm.kind, storm.own, storm.reported_by) == ("object", False, "OH2XYZ") and own(e).own
+    )
     assert "STORM" in [s.call for s in await e.stations()]
     await e.stop()
 
@@ -82,7 +111,7 @@ async def test_another_station_that_reports_our_object_takes_it_over_and_we_stop
     await until(lambda: e.ctl.ownobjects.get("LEADER") is None)
     station = own(e)
     assert (station.own, station.reported_by, station.lat) == (False, "OH2XYZ", 60.5), "the map shows theirs"
-    e.now.advance(3600)                                                     # type: ignore[attr-defined]
+    e.now.advance(3600)  # type: ignore[attr-defined]
     await idle_for(0.15)
     assert await said(e, 1, 0.2) == []
     await e.settled()
@@ -101,18 +130,24 @@ async def test_another_stations_kill_of_the_name_of_our_object_does_not_end_it(t
     await e.stop()
 
 
-async def test_the_decay_goes_on_by_the_clock_and_a_kill_is_sent_three_times_and_then_the_object_is_off_the_map(tmp_path: Path) -> None:
+async def test_the_decay_goes_on_by_the_clock_and_a_kill_is_sent_three_times_and_then_the_object_is_off_the_map(
+    tmp_path: Path,
+) -> None:
     e = await started(tmp_path)
     make(e)
     [first] = await said(e)
-    e.now.advance(60)                                                       # type: ignore[attr-defined]
+    e.now.advance(60)  # type: ignore[attr-defined]
     [second] = await said(e)
-    assert first.info[:11] == second.info[:11] == b";LEADER   *" and first.info[11:18] == b"211200z" and second.info[11:18] == b"211201z", "each copy carries the time it is sent"
+    assert (
+        first.info[:11] == second.info[:11] == b";LEADER   *"
+        and first.info[11:18] == b"211200z"
+        and second.info[11:18] == b"211201z"
+    ), "each copy carries the time it is sent"
     killed = e.ctl.ownobjects.kill("LEADER")
     assert killed is not None and e.ctl.stationbook.get("LEADER") is None, "it leaves the map at once"
     frames = []
     for _ in range(3):
-        e.now.advance(180)                                                  # type: ignore[attr-defined]
+        e.now.advance(180)  # type: ignore[attr-defined]
         frames += await said(e)
     assert [f.info[:11] for f in frames] == [b";LEADER   _"] * 3
     await until(lambda: e.ctl.ownobjects.get("LEADER") is None)
@@ -121,7 +156,9 @@ async def test_the_decay_goes_on_by_the_clock_and_a_kill_is_sent_three_times_and
     await e.stop()
 
 
-async def test_a_bulletin_goes_out_and_the_copy_that_is_heard_back_is_not_a_bulletin_of_somebody_else(tmp_path: Path) -> None:
+async def test_a_bulletin_goes_out_and_the_copy_that_is_heard_back_is_not_a_bulletin_of_somebody_else(
+    tmp_path: Path,
+) -> None:
     e = await started(tmp_path)
     e.ctl.ownbulletins.post("BLN1", "Road closed at Kaivopuisto")
     [frame] = await said(e)
@@ -166,18 +203,22 @@ async def test_a_restart_finds_both_puts_the_objects_on_the_map_and_goes_on_with
     await second.until_usable()
     station = own(second)
     assert station.own and station.symbol_code == ">" and station.last_comment == "Rescue 1" and station.packets == 1
-    assert [(o.name, o.sent) for o in second.ctl.ownobjects.records()] == [("LEADER", 1)] and [(b.slot, b.sent) for b in second.ctl.ownbulletins.records()] == [("BLN1", 1)]
+    assert [(o.name, o.sent) for o in second.ctl.ownobjects.records()] == [("LEADER", 1)] and [
+        (b.slot, b.sent) for b in second.ctl.ownbulletins.records()
+    ] == [("BLN1", 1)]
     assert await said(second, 1, 0.2) == [], "nothing is sent for the restart"
-    e_clock.advance(60)                                                     # type: ignore[attr-defined]
+    e_clock.advance(60)  # type: ignore[attr-defined]
     [frame] = await said(second)
     assert frame.info[:11] == b";LEADER   *"
-    e_clock.advance(60)                                                     # type: ignore[attr-defined]
+    e_clock.advance(60)  # type: ignore[attr-defined]
     [bulletin] = await said(second)
     assert bulletin.info == b":BLN1     :kept bulletin"
     await second.stop()
 
 
-async def test_the_page_makes_changes_and_kills_an_object_and_posts_and_deletes_a_bulletin_and_is_told_what_changes(tmp_path: Path) -> None:
+async def test_the_page_makes_changes_and_kills_an_object_and_posts_and_deletes_a_bulletin_and_is_told_what_changes(
+    tmp_path: Path,
+) -> None:
     e = Env(tmp_path, web=True)
     e.ctl.ownobjects.tick_sec = e.ctl.ownbulletins.tick_sec = 0.02
     e.ctl.sender.spacing_sec = 0.0
@@ -186,22 +227,51 @@ async def test_the_page_makes_changes_and_kills_an_object_and_posts_and_deletes_
     page = await e.ws()
     await page.expect("hello")
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    values = {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60.17, "lon": 24.94, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 40, "path": None, "qru_group": "", "on_request": False, "radios": [1]}
+    values = {
+        "cmd": "object_set",
+        "name": "LEADER",
+        "kind": "object",
+        "lat": 60.17,
+        "lon": 24.94,
+        "symbol_table": "/",
+        "symbol_code": ">",
+        "comment": "Rescue 1",
+        "course_deg": 88,
+        "speed_kmh": 40,
+        "path": None,
+        "qru_group": "",
+        "on_request": False,
+        "radios": [1],
+    }
     await page.send(values)
     await page.until(lambda: "LEADER" in page.topics["own_objects"] and "LEADER" in page.topics["stations"])
     row = OwnObjectRow.model_validate(page.topics["own_objects"]["LEADER"])
-    assert (row.state, row.kind, row.course_deg, row.path) == ("live", "object", 88, None) and page.topics["stations"]["LEADER"]["own"] is True and page.topics["stations"]["LEADER"]["reported_by"] == "OH2GBA"
+    assert (
+        (row.state, row.kind, row.course_deg, row.path) == ("live", "object", 88, None)
+        and page.topics["stations"]["LEADER"]["own"] is True
+        and page.topics["stations"]["LEADER"]["reported_by"] == "OH2GBA"
+    )
     [frame] = await said(e)
     assert frame.info.endswith(b">088/022Rescue 1") and frame.info.startswith(b";LEADER   *")
     await page.until(lambda: page.topics["own_objects"]["LEADER"]["sent"] == 1)
     await page.send({**values, "comment": "Moved", "lat": 60.2})
-    await page.until(lambda: page.topics["own_objects"]["LEADER"]["comment"] == "Moved" and page.topics["stations"]["LEADER"]["lat"] == 60.2)
+    await page.until(
+        lambda: (
+            page.topics["own_objects"]["LEADER"]["comment"] == "Moved"
+            and page.topics["stations"]["LEADER"]["lat"] == 60.2
+        )
+    )
     await page.send({"cmd": "forget_station", "call": "LEADER"})
     await page.expect("error")
     await page.send({**values, "name": "OH2GBA"})
     assert "our own call" in (await page.expect("error"))["text"]
     await page.send({"cmd": "object_kill", "name": "LEADER"})
-    await page.until(lambda: "LEADER" not in page.topics["stations"] and page.topics["own_objects"].get("LEADER", {}).get("state") == "killing")
+    await page.until(
+        lambda: (
+            "LEADER" not in page.topics["stations"]
+            and page.topics["own_objects"].get("LEADER", {}).get("state") == "killing"
+        )
+    )
     await page.send({"cmd": "object_kill", "name": "NOBODY"})
     assert "no object or item" in (await page.expect("error"))["text"]
 
@@ -218,7 +288,9 @@ async def test_the_page_makes_changes_and_kills_an_object_and_posts_and_deletes_
     await e.stop()
 
 
-async def test_the_page_gives_an_object_a_qru_group_and_the_flag_and_is_told_a_group_that_is_none(tmp_path: Path) -> None:
+async def test_the_page_gives_an_object_a_qru_group_and_the_flag_and_is_told_a_group_that_is_none(
+    tmp_path: Path,
+) -> None:
     e = Env(tmp_path, web=True)
     e.ctl.ownobjects.tick_sec = 0.02
     await e.start()
@@ -226,17 +298,42 @@ async def test_the_page_gives_an_object_a_qru_group_and_the_flag_and_is_told_a_g
     page = await e.ws()
     await page.expect("hello")
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    values = {"cmd": "object_set", "name": "PUB", "kind": "object", "lat": 60.17, "lon": 24.94, "symbol_table": "/", "symbol_code": "r", "comment": "Pub", "course_deg": None, "speed_kmh": None, "path": None,
-              "qru_group": "FOOD", "on_request": True, "radios": [1]}
+    values = {
+        "cmd": "object_set",
+        "name": "PUB",
+        "kind": "object",
+        "lat": 60.17,
+        "lon": 24.94,
+        "symbol_table": "/",
+        "symbol_code": "r",
+        "comment": "Pub",
+        "course_deg": None,
+        "speed_kmh": None,
+        "path": None,
+        "qru_group": "FOOD",
+        "on_request": True,
+        "radios": [1],
+    }
     await page.send(values)
     await page.until(lambda: "PUB" in page.topics["own_objects"])
     row = OwnObjectRow.model_validate(page.topics["own_objects"]["PUB"])
-    assert (row.qru_group, row.on_request, row.state, row.sent, row.next_at) == ("FOOD", True, "live", 0, None) and page.topics["stations"]["PUB"]["own"] is True
+    assert (row.qru_group, row.on_request, row.state, row.sent, row.next_at) == (
+        "FOOD",
+        True,
+        "live",
+        0,
+        None,
+    ) and page.topics["stations"]["PUB"]["own"] is True
     await idle_for(0.2)
     assert page.topics["own_objects"]["PUB"]["sent"] == 0, "nothing is sent on a schedule"
     await page.send({**values, "qru_group": "INFO"})
     error = await page.expect("error")
     assert error["code"] == "object.qru_group" and error["cmd"] == "object_set"
     await page.send({**values, "qru_group": "", "on_request": False})
-    await page.until(lambda: page.topics["own_objects"]["PUB"]["on_request"] is False and page.topics["own_objects"]["PUB"]["next_at"] is not None)
+    await page.until(
+        lambda: (
+            page.topics["own_objects"]["PUB"]["on_request"] is False
+            and page.topics["own_objects"]["PUB"]["next_at"] is not None
+        )
+    )
     await e.stop()

@@ -3,6 +3,7 @@
 The registry makes and drops radios as the settings change (`sync`), runs one lifecycle for every
 type (`restart`) and is the one place that chooses a radio for a message, a packet or an email.
 """
+
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
@@ -35,10 +36,18 @@ from .tncwatchdog import TncStats
 log = logging.getLogger("neoaprs.controller")
 
 # The driver factory by RadioType.driver; the last argument is the shared search lock.
-DRIVERS: dict[str, Callable[[RadioSpec, Claims, Clock, Path, Tnc | None, Mercury | None, asyncio.Lock], RadioDriver]] = {
-    "tnc": lambda spec, claims, clock, data_dir, line, modem, lock: TncDriver(spec, claims, clock, line, search_lock=lock),
-    "mercury": lambda spec, claims, clock, data_dir, line, modem, lock: MercuryDriver(spec, claims, radio_folder(data_dir, spec.id), clock, line, modem=modem, data_dir=data_dir),
-    "direwolf": lambda spec, claims, clock, data_dir, line, modem, lock: DirewolfDriver(spec, claims, radio_folder(data_dir, spec.id), clock, line),
+DRIVERS: dict[
+    str, Callable[[RadioSpec, Claims, Clock, Path, Tnc | None, Mercury | None, asyncio.Lock], RadioDriver]
+] = {
+    "tnc": lambda spec, claims, clock, data_dir, line, modem, lock: TncDriver(
+        spec, claims, clock, line, search_lock=lock
+    ),
+    "mercury": lambda spec, claims, clock, data_dir, line, modem, lock: MercuryDriver(
+        spec, claims, radio_folder(data_dir, spec.id), clock, line, modem=modem, data_dir=data_dir
+    ),
+    "direwolf": lambda spec, claims, clock, data_dir, line, modem, lock: DirewolfDriver(
+        spec, claims, radio_folder(data_dir, spec.id), clock, line
+    ),
 }
 # Whether this installation carries the driver's program; an unlisted driver needs none.
 CARRIED: dict[str, Callable[[], bool]] = {"direwolf": lambda: direwolfprogram.find() is not None}
@@ -62,7 +71,18 @@ def is_dummy(spec: RadioSpec) -> bool:
 def unavailable_types() -> tuple[str, ...]:
     """Return the keys of types this installation cannot run (no-devices: by system only)."""
     by_system = radiotypes.unavailable_types()
-    return by_system if nodevices.on() else (*by_system, *(t.key for t in radiotypes.TYPES if t.key not in by_system and t.driver in CARRIED and not CARRIED[t.driver]()))
+    return (
+        by_system
+        if nodevices.on()
+        else (
+            *by_system,
+            *(
+                t.key
+                for t in radiotypes.TYPES
+                if t.key not in by_system and t.driver in CARRIED and not CARRIED[t.driver]()
+            ),
+        )
+    )
 
 
 def driver_key(spec: RadioSpec) -> str:
@@ -70,11 +90,23 @@ def driver_key(spec: RadioSpec) -> str:
     return spec.rtype.driver
 
 
-def make_driver(spec: RadioSpec, claims: Claims, clock: Clock, data_dir: Path, line: Tnc | None = None, modem: Mercury | None = None, *, search_lock: asyncio.Lock | None = None) -> RadioDriver:
+def make_driver(
+    spec: RadioSpec,
+    claims: Claims,
+    clock: Clock,
+    data_dir: Path,
+    line: Tnc | None = None,
+    modem: Mercury | None = None,
+    *,
+    search_lock: asyncio.Lock | None = None,
+) -> RadioDriver:
     """Return the driver of the radio's type; `line` and `modem` are given by tests."""
     key = driver_key(spec)
     if key not in DRIVERS:
-        raise RadioTypeError(f"the type {spec.type!r} names the driver {key!r}, which is none (the drivers are {', '.join(DRIVERS)})", "failed")
+        raise RadioTypeError(
+            f"the type {spec.type!r} names the driver {key!r}, which is none (the drivers are {', '.join(DRIVERS)})",
+            "failed",
+        )
     return DRIVERS[key](spec, claims, clock, data_dir, line, modem, search_lock or asyncio.Lock())
 
 
@@ -95,7 +127,11 @@ def changed_words(before: tuple[object, ...], after: tuple[object, ...]) -> str:
     for field in fields:
         was, now = getattr(old, field), getattr(new, field)
         if field == "modem":
-            parts += [f"{what} {a or 'default'} -> {b or 'default'}" for what, a, b in zip(("sound card", "keying"), was, now, strict=True) if a != b]
+            parts += [
+                f"{what} {a or 'default'} -> {b or 'default'}"
+                for what, a, b in zip(("sound card", "keying"), was, now, strict=True)
+                if a != b
+            ]
         elif was != now:
             parts.append(f"{_SHOWN.get(field, field)} {_shown(was)} -> {_shown(now)}")
     if before[-1] != after[-1]:
@@ -105,6 +141,7 @@ def changed_words(before: tuple[object, ...], after: tuple[object, ...]) -> str:
 
 class RadioBeacon(Protocol):
     """What the registry asks of a radio's beacon timer."""
+
     @property
     def sent(self) -> Signal[[ax25.Frame]]: ...
     async def start(self) -> None: ...
@@ -115,6 +152,7 @@ class RadioBeacon(Protocol):
 @runtime_checkable
 class ChoosesForItself(Protocol):
     """A driver whose radio chooses what its settings leave empty (sound card, keying)."""
+
     def made_explicit(self, before: RadioSpec, after: RadioSpec) -> RadioSpec:
         """Return `before` with the radio's own choices marked set where `after` has them."""
         ...
@@ -125,6 +163,7 @@ B = TypeVar("B", bound=RadioBeacon)
 
 class LiveRadio(Generic[B]):
     """One radio at run time, as services (`AirRadio`), the lifecycle and the page see it."""
+
     # Its own timer, made by the composition root.
     beacon: B
 
@@ -201,9 +240,19 @@ class LiveRadio(Generic[B]):
 
 
 class RadioRegistry(StationChoices, Generic[B]):
-    def __init__(self, claims: Claims, make_driver: Callable[[RadioSpec], RadioDriver], make_beacon: Callable[[LiveRadio[B]], B], config: Callable[[], Config], book: StationBook,
-                 remember: Callable[[str], None] = lambda text: None, flush: Callable[[], Awaitable[None]] | None = None, *, clock: Clock = utcnow,
-                 run: Callable[[], RunOverrides] = RunOverrides) -> None:
+    def __init__(
+        self,
+        claims: Claims,
+        make_driver: Callable[[RadioSpec], RadioDriver],
+        make_beacon: Callable[[LiveRadio[B]], B],
+        config: Callable[[], Config],
+        book: StationBook,
+        remember: Callable[[str], None] = lambda text: None,
+        flush: Callable[[], Awaitable[None]] | None = None,
+        *,
+        clock: Clock = utcnow,
+        run: Callable[[], RunOverrides] = RunOverrides,
+    ) -> None:
         super().__init__(book, remember, flush, known=lambda id: any(spec.id == id for spec in config().live_radios))
         self.claims = claims
         claims.named, claims.name_of = lambda: named_ports(self._config()), self.name_of
@@ -247,7 +296,11 @@ class RadioRegistry(StationChoices, Generic[B]):
     def for_station(self, call: str) -> LiveRadio[B] | None:
         """Return the radio a message to the station goes out on."""
         config, station = self._config(), self._book.get(call)
-        return self._of(messagerule.message_radio(self.choice(call), station.heard_by if station is not None else {}, config.radios, self._clock()))
+        return self._of(
+            messagerule.message_radio(
+                self.choice(call), station.heard_by if station is not None else {}, config.radios, self._clock()
+            )
+        )
 
     def station_of(self, call: str) -> Station | None:
         """Return the station as the book has it, including what each radio heard of it."""
@@ -299,7 +352,9 @@ class RadioRegistry(StationChoices, Generic[B]):
             return True
         if (spec.id, spec.type) not in self._unknown:
             self._unknown.add((spec.id, spec.type))
-            log.warning("radio %d is of the type %s, which this NeoAPRS does not have: it is left off", spec.id, spec.type)
+            log.warning(
+                "radio %d is of the type %s, which this NeoAPRS does not have: it is left off", spec.id, spec.type
+            )
         return False
 
     def _made(self, spec: RadioSpec) -> LiveRadio[B]:
@@ -308,14 +363,19 @@ class RadioRegistry(StationChoices, Generic[B]):
         self.wire(radio)
         return radio
 
-    def _change(self, radio: LiveRadio[B], old: RadioSpec, before: Config, new: RadioSpec, after: Config, run: RunOverrides) -> str | None:
+    def _change(
+        self, radio: LiveRadio[B], old: RadioSpec, before: Config, new: RadioSpec, after: Config, run: RunOverrides
+    ) -> str | None:
         """Return why the radio must restart for the new settings, or None if nothing changed."""
         if driver_key(new) != radio.driver_key:
             return f"type {old.rtype.name} -> {new.rtype.name}"
         driver = radio.driver
         if isinstance(driver, ChoosesForItself):
             old = driver.made_explicit(old, new)
-        was, now = (*driver.restart_key(old, before, run), old.enabled), (*driver.restart_key(new, after, run), new.enabled)
+        was, now = (
+            (*driver.restart_key(old, before, run), old.enabled),
+            (*driver.restart_key(new, after, run), new.enabled),
+        )
         return changed_words(was, now) if was != now else None
 
     def restart_key(self, id: RadioId, config: Config) -> tuple[object, ...]:

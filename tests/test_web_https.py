@@ -2,6 +2,7 @@
 TLS with a real client that trusts the authority, the redirect for another device, the authority's
 download, and nothing changing while the setting is off.
 """
+
 import asyncio
 import json
 import logging
@@ -72,10 +73,25 @@ def ca_file(e: Env) -> str:
     return str(e.dir / "tls" / "ca.crt")
 
 
-async def https_fetch(e: Env, path: str = "/", headers: dict[str, str] | None = None, method: str = "GET", body: str | None = None, host: str = "127.0.0.1") -> HTTPResponse:
+async def https_fetch(
+    e: Env,
+    path: str = "/",
+    headers: dict[str, str] | None = None,
+    method: str = "GET",
+    body: str | None = None,
+    host: str = "127.0.0.1",
+) -> HTTPResponse:
     """A request over TLS that trusts the authority and nothing else; an answer of 400 or more is
     returned."""
-    request = HTTPRequest(f"https://{host}:{secure_port(e)}{path}", method=method, headers=headers, body=body, ca_certs=ca_file(e), follow_redirects=False, validate_cert=True)
+    request = HTTPRequest(
+        f"https://{host}:{secure_port(e)}{path}",
+        method=method,
+        headers=headers,
+        body=body,
+        ca_certs=ca_file(e),
+        follow_redirects=False,
+        validate_cert=True,
+    )
     try:
         return await AsyncHTTPClient().fetch(request)
     except HTTPClientError as error:
@@ -83,12 +99,26 @@ async def https_fetch(e: Env, path: str = "/", headers: dict[str, str] | None = 
         return error.response
 
 
-def plain(e: Env, path: str = "/", host: str | None = None, method: str = "GET", body: str | None = None, headers: dict[str, str] | None = None) -> "asyncio.Future[HTTPResponse]":
-    return asyncio.ensure_future(e.fetch(path, headers={**({} if host is None else {"Host": host}), **(headers or {})}, method=method, body=body))
+def plain(
+    e: Env,
+    path: str = "/",
+    host: str | None = None,
+    method: str = "GET",
+    body: str | None = None,
+    headers: dict[str, str] | None = None,
+) -> "asyncio.Future[HTTPResponse]":
+    return asyncio.ensure_future(
+        e.fetch(path, headers={**({} if host is None else {"Host": host}), **(headers or {})}, method=method, body=body)
+    )
 
 
 async def secure_ws(e: Env, cookie: str | None = None) -> WsClient:
-    request = HTTPRequest(f"wss://127.0.0.1:{secure_port(e)}/ws", headers=None if cookie is None else {"Cookie": cookie}, ca_certs=ca_file(e), connect_timeout=5)
+    request = HTTPRequest(
+        f"wss://127.0.0.1:{secure_port(e)}/ws",
+        headers=None if cookie is None else {"Cookie": cookie},
+        ca_certs=ca_file(e),
+        connect_timeout=5,
+    )
     page = WsClient(await websocket_connect(request))
     e.pages.append(page)
     return page
@@ -107,6 +137,7 @@ async def names_served(e: Env) -> set[str]:
 async def until_served(e: Env, name: str) -> None:
     async def served() -> bool:
         return name in await names_served(e)
+
     await until_async(served, 5.0)
 
 
@@ -117,7 +148,10 @@ def names_of(cert: x509.Certificate) -> set[str]:
 
 # ---- the secure page -----------------------------------------------------------------------------
 
-async def test_the_page_is_served_over_tls_on_the_port_after_the_plain_one_to_a_client_that_trusts_the_authority(tmp_path: Path) -> None:
+
+async def test_the_page_is_served_over_tls_on_the_port_after_the_plain_one_to_a_client_that_trusts_the_authority(
+    tmp_path: Path,
+) -> None:
     e = await served(tmp_path, HTTPS)
     assert e.server is not None
     assert 0 < e.port < secure_port(e) <= e.port + PORT_TRIES
@@ -130,13 +164,25 @@ async def test_the_page_is_served_over_tls_on_the_port_after_the_plain_one_to_a_
 async def test_a_client_that_does_not_trust_the_authority_is_refused_by_the_handshake(tmp_path: Path) -> None:
     e = await served(tmp_path, HTTPS)
     with pytest.raises(ssl.SSLError):
-        await asyncio.to_thread(ssl.create_default_context().wrap_socket(socket.socket(), server_hostname="127.0.0.1").connect, ("127.0.0.1", secure_port(e)))
+        await asyncio.to_thread(
+            ssl.create_default_context().wrap_socket(socket.socket(), server_hostname="127.0.0.1").connect,
+            ("127.0.0.1", secure_port(e)),
+        )
 
 
-async def test_the_certificate_names_the_computer_and_its_addresses_and_is_signed_by_the_authority_that_is_offered(tmp_path: Path) -> None:
+async def test_the_certificate_names_the_computer_and_its_addresses_and_is_signed_by_the_authority_that_is_offered(
+    tmp_path: Path,
+) -> None:
     e = await served(tmp_path, HTTPS)
     cert = await served_certificate(e)
-    assert {socket.gethostname().lower(), f"{socket.gethostname().lower()}.local", "localhost", "127.0.0.1", "::1", LAN} <= names_of(cert)
+    assert {
+        socket.gethostname().lower(),
+        f"{socket.gethostname().lower()}.local",
+        "localhost",
+        "127.0.0.1",
+        "::1",
+        LAN,
+    } <= names_of(cert)
     ca = x509.load_der_x509_certificate((await e.fetch("/neoaprs-ca.crt")).body)
     cert.verify_directly_issued_by(ca)
 
@@ -150,7 +196,9 @@ async def test_the_socket_works_over_tls_and_the_page_is_told_about_the_secure_c
     ca = (await e.fetch("/neoaprs-ca.crt")).body
     assert config["https"] == {"on": True, "port": secure_port(e), "fingerprint": fingerprint_of(ca), "reason": ""}
     host = socket.gethostname().lower()
-    assert config["urls"] == [f"https://{LAN}:{secure_port(e)}/", f"https://{host}.local:{secure_port(e)}/"], "the page is opened at the secure address"
+    assert config["urls"] == [f"https://{LAN}:{secure_port(e)}/", f"https://{host}.local:{secure_port(e)}/"], (
+        "the page is opened at the secure address"
+    )
 
 
 async def test_the_access_checks_are_the_same_on_the_secure_port(tmp_path: Path, away: None) -> None:
@@ -165,7 +213,9 @@ async def test_the_access_checks_are_the_same_on_the_secure_port(tmp_path: Path,
     answer = await https_fetch(e, "/access", method="POST", body=json.dumps({"key": KEY}))
     assert answer.code == 204
     header = answer.headers["Set-Cookie"]
-    assert header.startswith(f"{COOKIE}=") and "Secure" in header and "HttpOnly" in header, "the cookie of a secure page is for secure pages"
+    assert header.startswith(f"{COOKIE}=") and "Secure" in header and "HttpOnly" in header, (
+        "the cookie of a secure page is for secure pages"
+    )
     cookie = header.split(";")[0]
     page = await secure_ws(e, cookie)
     await page.expect("hello")
@@ -179,20 +229,29 @@ async def test_the_session_made_on_the_plain_port_is_not_marked_secure(tmp_path:
 
 # ---- the plain port ------------------------------------------------------------------------------
 
-async def test_a_device_on_the_plain_port_is_sent_to_the_same_address_on_the_secure_one(tmp_path: Path, away: None) -> None:
+
+async def test_a_device_on_the_plain_port_is_sent_to_the_same_address_on_the_secure_one(
+    tmp_path: Path, away: None
+) -> None:
     e = await served(tmp_path, HTTPS)
     answer = await plain(e, "/index.html?x=1", host=f"{LAN}:{e.port}")
     assert answer.code == 307 and answer.headers["Location"] == f"https://{LAN}:{secure_port(e)}/index.html?x=1"
     local = f"{socket.gethostname().lower()}.local"
-    assert (await plain(e, "/", host=f"{local}:{e.port}")).headers["Location"] == f"https://{local}:{secure_port(e)}/", "by name as well"
+    assert (await plain(e, "/", host=f"{local}:{e.port}")).headers[
+        "Location"
+    ] == f"https://{local}:{secure_port(e)}/", "by name as well"
     assert (await plain(e, "/", host=f"{LAN}:{e.port}", method="HEAD")).code == 307
-    assert (await plain(e, "/", host="evil.example")).code == 403, "a name that is not ours is refused before it is redirected"
+    assert (await plain(e, "/", host="evil.example")).code == 403, (
+        "a name that is not ours is refused before it is redirected"
+    )
 
 
 async def test_a_request_line_with_an_absolute_address_is_not_sent_anywhere(tmp_path: Path, away: None) -> None:
     e = await served(tmp_path, HTTPS)
     reader, writer = await asyncio.open_connection("127.0.0.1", e.port)
-    writer.write(f"GET http://evil.example/x?y=1 HTTP/1.1\r\nHost: {LAN}:{e.port}\r\nConnection: close\r\n\r\n".encode())
+    writer.write(
+        f"GET http://evil.example/x?y=1 HTTP/1.1\r\nHost: {LAN}:{e.port}\r\nConnection: close\r\n\r\n".encode()
+    )
     head = (await asyncio.wait_for(reader.read(), 5)).decode("latin-1")
     writer.close()
     assert " 404 " in head.splitlines()[0]
@@ -219,12 +278,18 @@ async def test_an_address_in_brackets_is_redirected_in_brackets(tmp_path: Path, 
     assert answer.headers["Location"] == f"https://[fe80::1]:{secure_port(e)}/"
 
 
-async def test_the_socket_the_login_and_the_map_are_refused_on_the_plain_port_with_a_reason(tmp_path: Path, away: None) -> None:
+async def test_the_socket_the_login_and_the_map_are_refused_on_the_plain_port_with_a_reason(
+    tmp_path: Path, away: None
+) -> None:
     e = await served(tmp_path, HTTPS)
     (tmp_path / "basemap.pmtiles").write_bytes(b"0123456789")
     with pytest.raises(HTTPClientError) as refused:
         await e.ws()
-    assert refused.value.code == 403 and refused.value.response is not None and f"https://127.0.0.1:{secure_port(e)}/" in refused.value.response.body.decode()
+    assert (
+        refused.value.code == 403
+        and refused.value.response is not None
+        and f"https://127.0.0.1:{secure_port(e)}/" in refused.value.response.body.decode()
+    )
     for path, method in (("/access", "POST"), ("/access/new", "POST"), ("/basemap.pmtiles", "GET")):
         answer = await plain(e, path, method=method, body="{}" if method == "POST" else None)
         assert "Set-Cookie" not in answer.headers, path
@@ -236,18 +301,31 @@ async def test_the_loopback_keeps_its_plain_port_with_no_redirect_and_a_socket(t
     assert (await e.fetch("/")).code == 200 and (await e.fetch("/access")).code == 204
     page = await e.ws()
     await page.expect("hello")
-    assert (await e.fetch("/", headers={"X-Forwarded-For": "203.0.113.9"})).code == 307, "a request through a proxy on this computer is not this computer"
+    assert (await e.fetch("/", headers={"X-Forwarded-For": "203.0.113.9"})).code == 307, (
+        "a request through a proxy on this computer is not this computer"
+    )
 
 
 # ---- the authority's certificate -----------------------------------------------------------------
 
-async def test_the_authority_certificate_is_a_download_in_der_on_both_ports_for_anyone_and_never_a_key(tmp_path: Path, away: None) -> None:
+
+async def test_the_authority_certificate_is_a_download_in_der_on_both_ports_for_anyone_and_never_a_key(
+    tmp_path: Path, away: None
+) -> None:
     e = await served(tmp_path, HTTPS)
-    expected = x509.load_pem_x509_certificate((tmp_path / "tls" / "ca.crt").read_bytes()).public_bytes(serialization.Encoding.DER)
-    for answer in (await e.fetch("/neoaprs-ca.crt", headers={"Host": f"{LAN}:{e.port}"}), await https_fetch(e, "/neoaprs-ca.crt")):
+    expected = x509.load_pem_x509_certificate((tmp_path / "tls" / "ca.crt").read_bytes()).public_bytes(
+        serialization.Encoding.DER
+    )
+    for answer in (
+        await e.fetch("/neoaprs-ca.crt", headers={"Host": f"{LAN}:{e.port}"}),
+        await https_fetch(e, "/neoaprs-ca.crt"),
+    ):
         assert answer.code == 200 and answer.body == expected, "the plain port does not redirect it"
         assert answer.headers["Content-Type"] == "application/x-x509-ca-cert"
-        assert 'filename="NeoAPRS-CA.crt"' in answer.headers["Content-Disposition"] and "attachment" in answer.headers["Content-Disposition"]
+        assert (
+            'filename="NeoAPRS-CA.crt"' in answer.headers["Content-Disposition"]
+            and "attachment" in answer.headers["Content-Disposition"]
+        )
         assert b"PRIVATE" not in answer.body
     assert (await e.fetch("/neoaprs-ca.crt", headers={"Host": "evil.example"})).code == 403
     for name in ("ca.key", "server.key", "tls/ca.key", "tls/server.key"):
@@ -262,6 +340,7 @@ async def test_the_log_has_no_key(tmp_path: Path, caplog: pytest.LogCaptureFixtu
 
 
 # ---- while it is off -----------------------------------------------------------------------------
+
 
 async def test_with_the_setting_off_nothing_changes(tmp_path: Path, away: None) -> None:
     e = await served(tmp_path, {"web/network": "true", "web/key": KEY})
@@ -282,7 +361,10 @@ async def test_the_setting_without_the_network_does_nothing_either(tmp_path: Pat
 
 # ---- the switch ----------------------------------------------------------------------------------
 
-async def test_the_switch_starts_and_stops_the_secure_page_while_the_daemon_runs_and_the_page_is_told(tmp_path: Path) -> None:
+
+async def test_the_switch_starts_and_stops_the_secure_page_while_the_daemon_runs_and_the_page_is_told(
+    tmp_path: Path,
+) -> None:
     e = await served(tmp_path, {"web/network": "true", "web/key": KEY})
     page = await e.ws()
     await page.until(lambda: "config" in page.topics)
@@ -320,7 +402,10 @@ async def test_the_network_off_stops_the_secure_page_too(tmp_path: Path) -> None
 
 # ---- the certificate follows the computer --------------------------------------------------------
 
-async def test_a_new_address_of_the_computer_is_in_the_certificate_after_the_next_change_of_the_settings_and_the_authority_stays(tmp_path: Path, lan: Lan) -> None:
+
+async def test_a_new_address_of_the_computer_is_in_the_certificate_after_the_next_change_of_the_settings_and_the_authority_stays(
+    tmp_path: Path, lan: Lan
+) -> None:
     e = await served(tmp_path, HTTPS)
     before = await served_certificate(e)
     fingerprint = (await e.fetch("/neoaprs-ca.crt")).body
@@ -330,10 +415,14 @@ async def test_a_new_address_of_the_computer_is_in_the_certificate_after_the_nex
     await until_served(e, "10.1.2.3")
     after = await served_certificate(e)
     assert after.serial_number != before.serial_number and (await e.fetch("/neoaprs-ca.crt")).body == fingerprint
-    assert (await https_fetch(e, host="127.0.0.1")).code == 200, "the new certificate is the one the clients get, and they still trust it"
+    assert (await https_fetch(e, host="127.0.0.1")).code == 200, (
+        "the new certificate is the one the clients get, and they still trust it"
+    )
 
 
-async def test_the_certificate_is_looked_at_now_and_then_without_a_change_of_the_settings(tmp_path: Path, lan: Lan, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_certificate_is_looked_at_now_and_then_without_a_change_of_the_settings(
+    tmp_path: Path, lan: Lan, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(secureside, "RECHECK_SEC", 0.05)
     e = await served(tmp_path, HTTPS)
     lan.addresses = ["10.9.8.7"]
@@ -342,9 +431,12 @@ async def test_the_certificate_is_looked_at_now_and_then_without_a_change_of_the
 
 # ---- when it cannot start ------------------------------------------------------------------------
 
+
 @pytest.mark.expects_errors
-async def test_if_the_certificates_cannot_be_made_the_plain_page_goes_on_and_the_page_is_told_why(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    (tmp_path / "tls").write_text("in the way")                  # where the folder of the keys should be
+async def test_if_the_certificates_cannot_be_made_the_plain_page_goes_on_and_the_page_is_told_why(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    (tmp_path / "tls").write_text("in the way")  # where the folder of the keys should be
     e = Env(tmp_path, web=True, settings=HTTPS, clock=utcnow)
     await e.start()
     assert e.server is not None
@@ -352,13 +444,17 @@ async def test_if_the_certificates_cannot_be_made_the_plain_page_goes_on_and_the
     page = await e.ws()
     await page.until(lambda: "config" in page.topics)
     https = page.topics["config"]["https"]
-    assert https["on"] is False and https["port"] == 0 and https["reason"] == "certificates" and https["fingerprint"] == ""
+    assert (
+        https["on"] is False and https["port"] == 0 and https["reason"] == "certificates" and https["fingerprint"] == ""
+    )
     assert any("secure connection is not working" in r.getMessage() for r in caplog.records)
     assert (await e.fetch("/neoaprs-ca.crt")).code == 404
 
 
 @pytest.mark.expects_errors
-async def test_if_no_port_after_the_plain_one_is_free_the_plain_page_goes_on_and_the_page_is_told_why(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_if_no_port_after_the_plain_one_is_free_the_plain_page_goes_on_and_the_page_is_told_why(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     e = await served(tmp_path, {"web/network": "true", "web/key": KEY})
     held: list[socket.socket] = []
     try:

@@ -1,6 +1,7 @@
 """Tests for small command-line pieces (neoaprs/__main__.py, neoaprs/cli/output.py,
 neoaprs/cli/uncaught.py): module selection, Ctrl+Break, stderr messages, the uncaught-error hook.
 """
+
 import asyncio
 import inspect
 import logging
@@ -17,7 +18,9 @@ import pytest
 from neoaprs.cli import capturecmd, output, replaycmd, uncaught
 
 
-def test_importing_the_main_module_runs_nothing_and_running_it_ends_with_the_exit_code_of_the_command(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_importing_the_main_module_runs_nothing_and_running_it_ends_with_the_exit_code_of_the_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     called: list[bool] = []
     monkeypatch.setattr("neoaprs.cli.main", lambda: called.append(True) or 7)
     sys.modules.pop("neoaprs.__main__", None)
@@ -29,7 +32,9 @@ def test_importing_the_main_module_runs_nothing_and_running_it_ends_with_the_exi
     assert stop.value.code == 7 and called == [True]
 
 
-def test_where_the_system_has_ctrl_break_it_ends_the_program_like_ctrl_c_and_where_it_has_not_nothing_is_set(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_where_the_system_has_ctrl_break_it_ends_the_program_like_ctrl_c_and_where_it_has_not_nothing_is_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     set_for: list[tuple[int, object]] = []
     monkeypatch.setattr(signal, "signal", lambda number, handler: set_for.append((number, handler)))
     monkeypatch.delattr(signal, "SIGBREAK", raising=False)
@@ -40,14 +45,18 @@ def test_where_the_system_has_ctrl_break_it_ends_the_program_like_ctrl_c_and_whe
     assert set_for == [(21, signal.default_int_handler)]
 
 
-def test_a_message_for_a_person_goes_to_stderr_and_leaves_stdout_to_the_scripts(capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_message_for_a_person_goes_to_stderr_and_leaves_stdout_to_the_scripts(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     output.say("neoaprs: the port is taken")
     captured = capsys.readouterr()
     assert captured.out == "" and captured.err == "neoaprs: the port is taken\n"
 
 
 @pytest.mark.expects_errors
-def test_an_exception_that_ends_the_program_is_only_logged_when_python_is_not_to_print_it_too(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_an_exception_that_ends_the_program_is_only_logged_when_python_is_not_to_print_it_too(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
     printed: list[type] = []
     monkeypatch.setattr(sys, "excepthook", lambda kind, error, trace: printed.append(kind))
     restore = uncaught.install(logging.getLogger("neoaprs.test"))
@@ -59,24 +68,34 @@ def test_an_exception_that_ends_the_program_is_only_logged_when_python_is_not_to
 
 
 @pytest.mark.expects_errors
-def test_a_thread_that_ends_with_an_exit_or_with_nothing_to_say_is_not_logged_and_a_chained_one_is_printed_too(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_thread_that_ends_with_an_exit_or_with_nothing_to_say_is_not_logged_and_a_chained_one_is_printed_too(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
     printed: list[BaseException | None] = []
     monkeypatch.setattr(threading, "excepthook", lambda args: printed.append(args.exc_value))
     restore = uncaught.install(logging.getLogger("neoaprs.test"), chain=True)
     try:
         thread = threading.Thread(name="neoaprs-test-thread")
         for kind, error in ((SystemExit, SystemExit(0)), (None, None), (ValueError, ValueError("a thread went wrong"))):
-            threading.excepthook(SimpleNamespace(exc_type=kind, exc_value=error, exc_traceback=None, thread=thread))   # type: ignore[arg-type]
-        threading.excepthook(SimpleNamespace(exc_type=KeyError, exc_value=KeyError("k"), exc_traceback=None, thread=None))   # type: ignore[arg-type]
+            threading.excepthook(SimpleNamespace(exc_type=kind, exc_value=error, exc_traceback=None, thread=thread))  # type: ignore[arg-type]
+        threading.excepthook(
+            SimpleNamespace(exc_type=KeyError, exc_value=KeyError("k"), exc_traceback=None, thread=None)
+        )  # type: ignore[arg-type]
     finally:
         restore()
     records = [r for r in caplog.records if r.name == "neoaprs.test"]
-    assert [r.getMessage() for r in records] == ["uncaught exception in the thread neoaprs-test-thread", "uncaught exception in the thread ?"]
+    assert [r.getMessage() for r in records] == [
+        "uncaught exception in the thread neoaprs-test-thread",
+        "uncaught exception in the thread ?",
+    ]
     assert [type(e) for e in printed] == [ValueError, KeyError]
 
 
-def test_the_app_on_a_data_folder_that_cannot_be_made_says_one_sentence_and_ends_with_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_app_on_a_data_folder_that_cannot_be_made_says_one_sentence_and_ends_with_1(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from neoaprs.desktop import cmd as app
+
     afile = tmp_path / "afile"
     afile.write_text("not a folder")
     shown: list[str] = []
@@ -86,7 +105,9 @@ def test_the_app_on_a_data_folder_that_cannot_be_made_says_one_sentence_and_ends
     assert not (afile / "inside").exists()
 
 
-def test_ctrl_break_while_a_command_runs_ends_it_at_its_next_wait_and_never_in_the_middle_of_a_line(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ctrl_break_while_a_command_runs_ends_it_at_its_next_wait_and_never_in_the_middle_of_a_line(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     # Where the system has no Ctrl+Break, a signal of its own stands for it
     number = getattr(signal, "SIGBREAK", None) or signal.SIGUSR1  # type: ignore[attr-defined, unused-ignore]
     monkeypatch.setattr(signal, "SIGBREAK", number, raising=False)
@@ -107,7 +128,9 @@ def test_ctrl_break_while_a_command_runs_ends_it_at_its_next_wait_and_never_in_t
         with pytest.raises(KeyboardInterrupt):
             asyncio.run(output.interruptible(job))
         assert ran == ["the line after the break ran"]
-        assert signal.getsignal(number) is signal.default_int_handler, "and Ctrl+Break is Ctrl+C again once the command has ended"
+        assert signal.getsignal(number) is signal.default_int_handler, (
+            "and Ctrl+Break is Ctrl+C again once the command has ended"
+        )
     finally:
         signal.signal(number, before)
         signal.signal(signal.SIGINT, interrupt_before)

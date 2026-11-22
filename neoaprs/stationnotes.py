@@ -3,6 +3,7 @@
 That is whether it does messages, its packets of the last hour, frequency, storm data and sign,
 its telemetry and definitions, and whether it is an iGate. Pure code, called by the book.
 """
+
 from collections.abc import Callable, Collection, Iterable, Mapping
 from datetime import datetime
 
@@ -32,7 +33,14 @@ def came_back(path: tuple[str, ...], ours: Collection[str]) -> bool:
     return any(hop.endswith("*") and any(same_call(hop[:-1], call) for call in ours) for hop in used_path(path))
 
 
-def note_heard(station: Station, packet: Packet, route: bool = True, *, carries_path: Callable[[RadioId], bool] = every_radio_carries_path, ours: Collection[str] = ()) -> None:
+def note_heard(
+    station: Station,
+    packet: Packet,
+    route: bool = True,
+    *,
+    carries_path: Callable[[RadioId], bool] = every_radio_carries_path,
+    ours: Collection[str] = (),
+) -> None:
     """Record a received packet: counts and times per channel, and `last_heard`.
 
     Counted for the packet's radio (none: radio 1); with `route` also its route.
@@ -57,8 +65,14 @@ def note_heard(station: Station, packet: Packet, route: bool = True, *, carries_
         station.heard_rf, station.last_rf_at = station.heard_rf + 1, packet.heard_at
     station.last_via = packet.gate
     if route:
-        station.note_route(radio, route_of(packet.path, packet.gate), 1, packet.heard_at, carries_path=carries_path(radio))
-    if station.kind == "station" and (packet.snr is not None or packet.rssi is not None) and route_of(packet.path, packet.gate).direct:
+        station.note_route(
+            radio, route_of(packet.path, packet.gate), 1, packet.heard_at, carries_path=carries_path(radio)
+        )
+    if (
+        station.kind == "station"
+        and (packet.snr is not None or packet.rssi is not None)
+        and route_of(packet.path, packet.gate).direct
+    ):
         station.snr, station.rssi, station.signal_at = packet.snr, packet.rssi, packet.heard_at
 
 
@@ -68,7 +82,9 @@ def note_route_mark(station: Station, packet: Packet, place: tuple[float, float]
     The place is the packet's position, else `place`, else the station's current one.
     """
     if place is None:
-        place = _reported_place(packet.decoded) or (None if station.lat is None or station.lon is None else (station.lat, station.lon))
+        place = _reported_place(packet.decoded) or (
+            None if station.lat is None or station.lon is None else (station.lat, station.lon)
+        )
     reach = reach_of(packet)
     if reach is not None:
         station.internet_reach = reach
@@ -98,7 +114,12 @@ def seed_routes(stations: Mapping[str, Station], packets: Iterable[Packet]) -> N
         decoded = packet.decoded
         if isinstance(decoded, (ObjectReport, ItemReport)) and decoded.alive:
             named = stations.get(decoded.name)
-            if named is not None and named.kind == ("object" if isinstance(decoded, ObjectReport) else "item") and not named.own and not named.is_me:
+            if (
+                named is not None
+                and named.kind == ("object" if isinstance(decoded, ObjectReport) else "item")
+                and not named.own
+                and not named.is_me
+            ):
                 note_route_mark(named, packet, (decoded.position.lat, decoded.position.lon))
 
 
@@ -110,7 +131,9 @@ def note_messaging(station: Station, packet: Packet) -> None:
             station.sent_message = True
     elif isinstance(decoded, Position):
         info = packet.inner_info
-        station.position_messaging = decoded.messaging or (info[:1] in MICE_IDENTIFIERS and info[MICE_BODY:MICE_BODY + 1] != MICE_DUMB)
+        station.position_messaging = decoded.messaging or (
+            info[:1] in MICE_IDENTIFIERS and info[MICE_BODY : MICE_BODY + 1] != MICE_DUMB
+        )
 
 
 def note_position(station: Station, position: Position) -> None:
@@ -160,7 +183,9 @@ def expire_hours(stations: Iterable[Station], now: datetime, changed: Callable[[
         changed(station)
 
 
-def note_gate(stations: Mapping[str, Station], gate: str, count: int = 1, changed: Callable[[Station], None] | None = None) -> None:
+def note_gate(
+    stations: Mapping[str, Station], gate: str, count: int = 1, changed: Callable[[Station], None] | None = None
+) -> None:
     """Count `count` third-party packets for the iGate `gate`, if the book has it (not ours)."""
     station = stations.get(gate) if gate else None
     if station is not None and not station.is_me and count > 0:
@@ -171,11 +196,18 @@ def note_gate(stations: Mapping[str, Station], gate: str, count: int = 1, change
 
 def note_igate(station: Station, decoded: object) -> None:
     """Mark the station as an iGate if a capabilities packet holds the token IGATE."""
-    if isinstance(decoded, Other) and decoded.kind == "capabilities" and decoded.items is not None and any(token.upper() == IGATE for token in decoded.items):
+    if (
+        isinstance(decoded, Other)
+        and decoded.kind == "capabilities"
+        and decoded.items is not None
+        and any(token.upper() == IGATE for token in decoded.items)
+    ):
         station.igate = True
 
 
-def note_telemetry(stations: Mapping[str, Station], definitions: dict[str, TelemetryDefinition], packet: Packet) -> Station | None:
+def note_telemetry(
+    stations: Mapping[str, Station], definitions: dict[str, TelemetryDefinition], packet: Packet
+) -> Station | None:
     """Keep a telemetry report as the sender's latest, or a definition message in `definitions`.
 
     Return the station that gained a definition, if it is in the book.
@@ -205,16 +237,51 @@ def note_radio_place(station: Station, packet: Packet, position: Position, repla
     The place is copied to `Station.radio` at the first internet packet; later positions move it.
     """
     place = station.radio
-    if (place is None and not replay and station.position_via not in (None, IS) and station.lat is not None and station.lon is not None and station.last_position_at is not None
-            and (packet.via == IS or station.heard_is > 0)):
+    if (
+        place is None
+        and not replay
+        and station.position_via not in (None, IS)
+        and station.lat is not None
+        and station.lon is not None
+        and station.last_position_at is not None
+        and (packet.via == IS or station.heard_is > 0)
+    ):
         assert station.position_via is not None
-        place = station.radio = RadioPlace(station.lat, station.lon, station.last_position_at, station.position_via, station.symbol_table, station.symbol_code, station.altitude_m, station.course_deg,
-                                           station.speed_kmh, station.last_comment, list(station.track), station.extensions, station.storm, station.sign)
+        place = station.radio = RadioPlace(
+            station.lat,
+            station.lon,
+            station.last_position_at,
+            station.position_via,
+            station.symbol_table,
+            station.symbol_code,
+            station.altitude_m,
+            station.course_deg,
+            station.speed_kmh,
+            station.last_comment,
+            list(station.track),
+            station.extensions,
+            station.storm,
+            station.sign,
+        )
     if packet.via == IS or (place is None and station.heard_is == 0):
         return
     track = [] if place is None else place.track
-    station.radio = RadioPlace(position.lat, position.lon, packet.heard_at, packet.via, position.symbol_table, position.symbol_code, position.altitude_m, position.course_deg, position.speed_kmh,
-                               position.comment, track, position.extensions or (None if place is None else place.extensions), position.storm, position.sign)
+    station.radio = RadioPlace(
+        position.lat,
+        position.lon,
+        packet.heard_at,
+        packet.via,
+        position.symbol_table,
+        position.symbol_code,
+        position.altitude_m,
+        position.course_deg,
+        position.speed_kmh,
+        position.comment,
+        track,
+        position.extensions or (None if place is None else place.extensions),
+        position.storm,
+        position.sign,
+    )
     add_track_point(track, packet.heard_at, position.lat, position.lon)
 
 
@@ -229,5 +296,12 @@ def seed_radio(stations: Mapping[str, Station], packets: Iterable[Packet]) -> No
         else:
             continue
         station = stations.get(name)
-        if packet.direction == "in" and packet.via != IS and station is not None and not station.is_me and not station.own and station.heard_is > 0:
+        if (
+            packet.direction == "in"
+            and packet.via != IS
+            and station is not None
+            and not station.is_me
+            and not station.own
+            and station.heard_is > 0
+        ):
             note_radio_place(station, packet, position, replay=True)

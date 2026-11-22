@@ -3,6 +3,7 @@ scripts/build-mercury's Windows options, packaging/windows/bundle_mercury.py and
 packaging/windows/smoke_mercury.py (the reading of `netstat -ano` and the verdict on the program's
 sockets). The workflow wiring is in tests/test_release.py.
 """
+
 import importlib.machinery
 import importlib.util
 import io
@@ -73,7 +74,9 @@ def make_pe(imports: list[str], machine: int = 0x8664, version: bool = True, del
     struct.pack_into("<I", optional, 112 + 8 * 1, imports_rva)
     struct.pack_into("<I", optional, 112 + 8 * 13, delay_rva)
     coff = struct.pack("<HHIIIHH", machine, 1, 0, 0, 0, len(optional), 0x22)
-    section = struct.pack("<8sIIIIIIHHI", b".rdata", len(body), section_rva, len(body), section_raw, 0, 0, 0, 0, 0x40000040)
+    section = struct.pack(
+        "<8sIIIIIIHHI", b".rdata", len(body), section_rva, len(body), section_raw, 0, 0, 0, 0, 0x40000040
+    )
     head = bytearray(0x40)
     head[:2] = b"MZ"
     struct.pack_into("<I", head, 0x3C, 0x40)
@@ -83,52 +86,94 @@ def make_pe(imports: list[str], machine: int = 0x8664, version: bool = True, del
 
 # ---- scripts/build-mercury --windows
 
-def test_the_windows_build_is_made_the_way_mercurys_own_windows_target_makes_it_with_nothing_but_hamlib_and_the_tls_left_out(build: types.ModuleType) -> None:
+
+def test_the_windows_build_is_made_the_way_mercurys_own_windows_target_makes_it_with_nothing_but_hamlib_and_the_tls_left_out(
+    build: types.ModuleType,
+) -> None:
     objects, program = build.make_commands(windows=True)
     for command in (objects, program):
         assert command[0] == "make" and command[1].startswith("-j")
-        assert {"OS=Windows_NT", "CC=x86_64-w64-mingw32-gcc", "AR=x86_64-w64-mingw32-ar", "HAVE_HAMLIB=0", "WS_TLS=0", f"GIT_HASH={mercury.SOURCE_COMMIT[:8]}"} <= set(command)
+        assert {
+            "OS=Windows_NT",
+            "CC=x86_64-w64-mingw32-gcc",
+            "AR=x86_64-w64-mingw32-ar",
+            "HAVE_HAMLIB=0",
+            "WS_TLS=0",
+            f"GIT_HASH={mercury.SOURCE_COMMIT[:8]}",
+        } <= set(command)
         assert {"HAMLIB_CFLAGS=", "HAMLIB_LDFLAGS=", "WS_TLS_CFLAGS=", "WS_TLS_LDFLAGS="} <= set(command)
-        assert not any(word.startswith(("HAVE_HIDAPI", "HIDAPI_")) for word in command), "hidapi stays in: it keys a CM108 chip on Windows"
-        assert not any(word.startswith("FFAUDIO_LINKFLAGS") for word in command), "the Makefile's own Windows link flags (DirectSound, Winsock, the runtime's threads, linked in) are used"
+        assert not any(word.startswith(("HAVE_HIDAPI", "HIDAPI_")) for word in command), (
+            "hidapi stays in: it keys a CM108 chip on Windows"
+        )
+        assert not any(word.startswith("FFAUDIO_LINKFLAGS") for word in command), (
+            "the Makefile's own Windows link flags (DirectSound, Winsock, the runtime's threads, linked in) are used"
+        )
         assert "EXTRA_LDFLAGS=-s -static" in command, "stripped, and no DLL of MinGW asked for"
-        assert not any(word.startswith("MERCURY_HOST") for word in command), "the standalone program (the default) carries the UI interface's websocket server, which the HF box's scope and Transmit level read, on Windows as on Linux"
-    assert objects[-1] == "internal_deps" and program[-1] == "mercury.exe", "the objects first, then the link: two makes, because the two goals would run side by side"
+        assert not any(word.startswith("MERCURY_HOST") for word in command), (
+            "the standalone program (the default) carries the UI interface's websocket server, which the HF box's scope and Transmit level read, on Windows as on Linux"
+        )
+    assert objects[-1] == "internal_deps" and program[-1] == "mercury.exe", (
+        "the objects first, then the link: two makes, because the two goals would run side by side"
+    )
     (linux,) = build.make_commands(windows=False)
     if sys.platform == "linux":
-        assert "HAVE_HIDAPI=0" in linux and "OS=Windows_NT" not in linux and "mercury.exe" not in linux, "the Linux command is as it was"
+        assert "HAVE_HIDAPI=0" in linux and "OS=Windows_NT" not in linux and "mercury.exe" not in linux, (
+            "the Linux command is as it was"
+        )
 
 
 def test_the_windows_tarball_is_named_for_the_version_and_the_64_bit_pc(build: types.ModuleType) -> None:
     assert build.tarball_name(system="win32") == f"mercury-{mercury.VERSION}-windows-x86_64.tar.gz"
-    assert build.tarball_name("aarch64", "win32") == f"mercury-{mercury.VERSION}-windows-x86_64.tar.gz", "built on whatever machine, for the 64-bit PC"
+    assert build.tarball_name("aarch64", "win32") == f"mercury-{mercury.VERSION}-windows-x86_64.tar.gz", (
+        "built on whatever machine, for the 64-bit PC"
+    )
     assert build.machine_name("arm64", "win32") == "x86_64"
     assert build.tarball_name("x86_64", "linux") == f"mercury-{mercury.VERSION}-linux-x86_64.tar.gz"
     assert build.tarball_name("arm64", "darwin") == f"mercury-{mercury.VERSION}-macos-arm64.tar.gz"
 
 
-def test_the_usage_names_the_windows_option_and_it_is_refused_with_install_and_off_linux(build: types.ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
-    done = subprocess.run([sys.executable, str(SCRIPT), "--help"], check=False, capture_output=True, text=True, timeout=60)
+def test_the_usage_names_the_windows_option_and_it_is_refused_with_install_and_off_linux(
+    build: types.ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    done = subprocess.run(
+        [sys.executable, str(SCRIPT), "--help"], check=False, capture_output=True, text=True, timeout=60
+    )
     assert done.returncode == 0 and "--windows" in done.stdout and "MinGW-w64" in done.stdout
     assert build.main(["--windows", "--install"]) == 1
     assert "--install" in capsys.readouterr().err or sys.platform != "linux"
 
 
-def test_a_missing_cross_compiler_is_said_before_anything_is_fetched_or_built(build: types.ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_missing_cross_compiler_is_said_before_anything_is_fetched_or_built(
+    build: types.ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     if sys.platform != "linux":
         pytest.skip("the cross build is made on Linux")
-    monkeypatch.setattr(build.shutil, "which", lambda tool: None if tool == "x86_64-w64-mingw32-gcc" else f"/usr/bin/{tool}")
-    monkeypatch.setattr(build, "fetch_source", lambda: pytest.fail("nothing is fetched before the tools are known to be there"))
+    monkeypatch.setattr(
+        build.shutil, "which", lambda tool: None if tool == "x86_64-w64-mingw32-gcc" else f"/usr/bin/{tool}"
+    )
+    monkeypatch.setattr(
+        build, "fetch_source", lambda: pytest.fail("nothing is fetched before the tools are known to be there")
+    )
     assert build.main(["--windows"]) == 1
     assert "x86_64-w64-mingw32-gcc is not installed" in capsys.readouterr().err
 
 
-def test_the_loopback_patch_covers_the_listeners_and_the_web_pages_socket_and_the_build_checks_both(build: types.ModuleType) -> None:
+def test_the_loopback_patch_covers_the_listeners_and_the_web_pages_socket_and_the_build_checks_both(
+    build: types.ModuleType,
+) -> None:
     text = LOOPBACK_PATCH.read_text(encoding="utf-8")
-    assert "--- a/gui_interface/websocket/mercury_websocket.c" in text and '+    opts.bind_addr = "127.0.0.1";' in text and "-    opts.bind_addr = NULL;" in text
+    assert (
+        "--- a/gui_interface/websocket/mercury_websocket.c" in text
+        and '+    opts.bind_addr = "127.0.0.1";' in text
+        and "-    opts.bind_addr = NULL;" in text
+    )
     script = SCRIPT.read_text(encoding="utf-8")
-    assert "WEBSOCKET_BIND not in" in script and "WEBSOCKET_FILE" in script, "the build looks for the bind after the patch"
-    assert "no firewall rule" in text.lower() or "firewall rule to stand in" in text, "the patch says that no firewall rule stands in for it any more"
+    assert "WEBSOCKET_BIND not in" in script and "WEBSOCKET_FILE" in script, (
+        "the build looks for the bind after the patch"
+    )
+    assert "no firewall rule" in text.lower() or "firewall rule to stand in" in text, (
+        "the patch says that no firewall rule stands in for it any more"
+    )
 
 
 def test_the_ffcpu_patch_defines_the_name_the_link_needs_and_the_build_checks_for_it(build: types.ModuleType) -> None:
@@ -136,9 +181,15 @@ def test_the_ffcpu_patch_defines_the_name_the_link_needs_and_the_build_checks_fo
     never defines."""
     text = (ROOT / "packaging" / "mercury" / "ffcpu.patch").read_text(encoding="utf-8")
     added = [line for line in text.splitlines() if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
-    assert "--- a/audioio/audioio.c" in text and "+int _ffcpu_features;" in added and not [line for line in added if line.startswith("-")], "one definition, nothing taken away"
+    assert (
+        "--- a/audioio/audioio.c" in text
+        and "+int _ffcpu_features;" in added
+        and not [line for line in added if line.startswith("-")]
+    ), "one definition, nothing taken away"
     script = SCRIPT.read_text(encoding="utf-8")
-    assert "apply_patch(tree, FFCPU_PATCH)" in script and "FFCPU_NAME not in" in script and "ffcpu.patch" in script, "the build applies it on every system, looks for the definition after it and says so in SOURCE.txt"
+    assert "apply_patch(tree, FFCPU_PATCH)" in script and "FFCPU_NAME not in" in script and "ffcpu.patch" in script, (
+        "the build applies it on every system, looks for the definition after it and says so in SOURCE.txt"
+    )
     assert build.FFCPU_FILE == "audioio/audioio.c" and build.FFCPU_NAME == "int _ffcpu_features;"
 
 
@@ -146,12 +197,21 @@ def test_the_flush_patch_flushes_each_log_line_and_the_build_checks_for_it(build
     """On Windows Mercury's stderr lines come only when the program ends (the C runtime buffers a
     pipe)."""
     text = (ROOT / "packaging" / "mercury" / "flush.patch").read_text(encoding="utf-8")
-    assert "--- a/common/hermes_log.c" in text and "+        fflush(stderr);" in text and [line for line in text.splitlines() if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))] == ["+        fflush(stderr);"], "one line added, nothing else"
+    assert (
+        "--- a/common/hermes_log.c" in text
+        and "+        fflush(stderr);" in text
+        and [line for line in text.splitlines() if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
+        == ["+        fflush(stderr);"]
+    ), "one line added, nothing else"
     script = SCRIPT.read_text(encoding="utf-8")
-    assert "apply_patch(tree, FLUSH_PATCH)" in script and "LOG_FLUSH not in" in script, "the build applies it on every system and looks for the flush after it"
+    assert "apply_patch(tree, FLUSH_PATCH)" in script and "LOG_FLUSH not in" in script, (
+        "the build applies it on every system and looks for the flush after it"
+    )
 
 
-def test_the_patches_apply_to_the_pinned_source_for_windows_too_when_the_archive_is_at_hand(build: types.ModuleType, tmp_path: Path) -> None:
+def test_the_patches_apply_to_the_pinned_source_for_windows_too_when_the_archive_is_at_hand(
+    build: types.ModuleType, tmp_path: Path
+) -> None:
     archive = build.cache_dir() / f"mercury-{mercury.VERSION}-{mercury.SOURCE_COMMIT[:8]}.tar.gz"
     if not archive.is_file() or build.sha256(archive) != mercury.SOURCE_SHA256 or sys.platform == "win32":
         pytest.skip("the pinned source archive is in the build cache after any build of Mercury")
@@ -160,22 +220,41 @@ def test_the_patches_apply_to_the_pinned_source_for_windows_too_when_the_archive
     assert 'opts.bind_addr = "127.0.0.1"' in (tree / build.WEBSOCKET_FILE).read_text(encoding="utf-8")
     assert "INADDR_ANY" not in (tree / build.LISTENERS_FILE).read_text(encoding="utf-8")
     assert "audio:tx_leadin_ms" in (tree / build.LEADIN_FILE).read_text(encoding="utf-8")
-    assert 'LoadLibraryW(L"dsound.dll")' in (tree / build.DSOUND_FILE).read_text(encoding="utf-8") and "-ldsound" not in (tree / "Makefile").read_text(encoding="utf-8"), "DirectSound is loaded on first use, not linked"
+    assert 'LoadLibraryW(L"dsound.dll")' in (tree / build.DSOUND_FILE).read_text(
+        encoding="utf-8"
+    ) and "-ldsound" not in (tree / "Makefile").read_text(encoding="utf-8"), (
+        "DirectSound is loaded on first use, not linked"
+    )
     log_writer = (tree / build.LOG_FILE).read_text(encoding="utf-8")
-    entry = log_writer[log_writer.index("static void print_entry"):log_writer.index("static void *log_worker")]
-    assert entry.count('fprintf(stderr, "%s %s [%s] [%s] %s\\n"') == 1 and entry.count("fflush(stderr);") == 1, "each line on stderr is flushed: Windows buffers a pipe"
-    assert "pulse_stub" not in (tree / "audioio" / "ffaudio" / "ffaudio" / "pulse.c").read_text(encoding="utf-8"), "the stub over PulseAudio is for Linux only"
-    assert (tree / build.HIDAPI_DIR / "src" / "hid.c").is_file() and (tree / build.HIDAPI_DIR / "LICENSE.txt").is_file(), "the vendored hidapi and its licence are in the source"
+    entry = log_writer[log_writer.index("static void print_entry") : log_writer.index("static void *log_worker")]
+    assert entry.count('fprintf(stderr, "%s %s [%s] [%s] %s\\n"') == 1 and entry.count("fflush(stderr);") == 1, (
+        "each line on stderr is flushed: Windows buffers a pipe"
+    )
+    assert "pulse_stub" not in (tree / "audioio" / "ffaudio" / "ffaudio" / "pulse.c").read_text(encoding="utf-8"), (
+        "the stub over PulseAudio is for Linux only"
+    )
+    assert (tree / build.HIDAPI_DIR / "src" / "hid.c").is_file() and (
+        tree / build.HIDAPI_DIR / "LICENSE.txt"
+    ).is_file(), "the vendored hidapi and its licence are in the source"
 
 
-def test_the_import_table_of_a_program_is_read_and_a_dll_that_does_not_come_with_windows_is_refused(build: types.ModuleType, tmp_path: Path) -> None:
+def test_the_import_table_of_a_program_is_read_and_a_dll_that_does_not_come_with_windows_is_refused(
+    build: types.ModuleType, tmp_path: Path
+) -> None:
     program = tmp_path / "mercury.exe"
     ok = ["KERNEL32.dll", "WS2_32.dll", "ole32.dll", "USER32.dll", "msvcrt.dll", "api-ms-win-crt-runtime-l1-1-0.dll"]
     program.write_bytes(make_pe(ok, delay=["SETUPAPI.dll"]))
     machine, names = build.pe_imports(program)
     assert machine == 0x8664 and names == [*ok, "SETUPAPI.dll"], "the delay-loaded ones too"
     assert build.check_windows(tmp_path).startswith("imports: ")
-    for foreign in ("libwinpthread-1.dll", "libgcc_s_seh-1.dll", "libhamlib-4.dll", "libusb-1.0.dll", "libssl-3-x64.dll", "msvcr100.dll"):
+    for foreign in (
+        "libwinpthread-1.dll",
+        "libgcc_s_seh-1.dll",
+        "libhamlib-4.dll",
+        "libusb-1.0.dll",
+        "libssl-3-x64.dll",
+        "msvcr100.dll",
+    ):
         program.write_bytes(make_pe([*ok, foreign]))
         with pytest.raises(build.BuildError, match=re.escape(foreign)):
             build.check_windows(tmp_path)
@@ -189,7 +268,9 @@ def test_the_import_table_of_a_program_is_read_and_a_dll_that_does_not_come_with
         build.check_windows(tmp_path)
 
 
-def test_a_program_for_another_machine_or_of_another_version_or_no_program_is_refused(build: types.ModuleType, tmp_path: Path) -> None:
+def test_a_program_for_another_machine_or_of_another_version_or_no_program_is_refused(
+    build: types.ModuleType, tmp_path: Path
+) -> None:
     program = tmp_path / "mercury.exe"
     program.write_bytes(make_pe(["KERNEL32.dll"], machine=0xAA64))
     with pytest.raises(build.BuildError, match="not for x86-64 Windows"):
@@ -203,7 +284,9 @@ def test_a_program_for_another_machine_or_of_another_version_or_no_program_is_re
             build.pe_imports(program)
 
 
-def test_the_windows_folder_holds_the_program_the_licences_and_the_source_offer_and_nothing_else(build: types.ModuleType, tmp_path: Path) -> None:
+def test_the_windows_folder_holds_the_program_the_licences_and_the_source_offer_and_nothing_else(
+    build: types.ModuleType, tmp_path: Path
+) -> None:
     tree = tmp_path / "tree"
     (tree / build.HIDAPI_DIR).mkdir(parents=True)
     (tree / "mercury.exe").write_bytes(make_pe(["KERNEL32.dll"]))
@@ -212,9 +295,29 @@ def test_the_windows_folder_holds_the_program_the_licences_and_the_source_offer_
     (tree / build.HIDAPI_DIR / "LICENSE.txt").write_text("hidapi", encoding="utf-8")
     (tree / build.HIDAPI_DIR / "LICENSE-bsd.txt").write_text("bsd", encoding="utf-8")
     folder = build.stage_windows(tree, tmp_path / "out", 0.0)
-    assert sorted(path.name for path in folder.iterdir()) == ["LICENSE", "LICENSE-freedv", "LICENSE-hidapi-bsd.txt", "LICENSE-hidapi.txt", "SOURCE.txt", "mercury.exe"]
+    assert sorted(path.name for path in folder.iterdir()) == [
+        "LICENSE",
+        "LICENSE-freedv",
+        "LICENSE-hidapi-bsd.txt",
+        "LICENSE-hidapi.txt",
+        "SOURCE.txt",
+        "mercury.exe",
+    ]
     offer = (folder / "SOURCE.txt").read_text(encoding="utf-8")
-    for fact in (mercury.SOURCE_URL, mercury.SOURCE_COMMIT, mercury.SOURCE_SHA256, f"Mercury {mercury.VERSION}", "OS=Windows_NT", "x86_64-w64-mingw32-gcc", "loopback.patch", "leadin.patch", "dsound.patch", "flush.patch", "hidapi", "winpthreads"):
+    for fact in (
+        mercury.SOURCE_URL,
+        mercury.SOURCE_COMMIT,
+        mercury.SOURCE_SHA256,
+        f"Mercury {mercury.VERSION}",
+        "OS=Windows_NT",
+        "x86_64-w64-mingw32-gcc",
+        "loopback.patch",
+        "leadin.patch",
+        "dsound.patch",
+        "flush.patch",
+        "hidapi",
+        "winpthreads",
+    ):
         assert fact in offer, fact
     assert "hamlib and OpenSSL are not in this build" in offer
     assert "watterson" not in offer, "the simulator is not part of the Windows folder"
@@ -229,11 +332,18 @@ def test_the_windows_folder_holds_the_program_the_licences_and_the_source_offer_
 
 # ---- packaging/windows/bundle_mercury.py
 
+
 def make_tarball(path: Path, **override: bytes | None) -> Path:
     """The tarball the build makes (or a bad one: a member with the bytes given, or None to leave it
     out), at `path`."""
     offer = f"Mercury {mercury.VERSION}, Rhizomatica's HF modem\nCommit: {mercury.SOURCE_COMMIT}\nSHA-256 of the source archive: {mercury.SOURCE_SHA256}\n".encode()
-    members: dict[str, bytes | None] = {"mercury.exe": b"MZ program", "SOURCE.txt": offer, "LICENSE": b"GPL text", "LICENSE-freedv": b"LGPL", "LICENSE-hidapi.txt": b"hidapi"}
+    members: dict[str, bytes | None] = {
+        "mercury.exe": b"MZ program",
+        "SOURCE.txt": offer,
+        "LICENSE": b"GPL text",
+        "LICENSE-freedv": b"LGPL",
+        "LICENSE-hidapi.txt": b"hidapi",
+    }
     members.update(override)
     with tarfile.open(path, "w:gz") as tar:
         folder = tarfile.TarInfo("mercury")
@@ -250,23 +360,40 @@ def make_tarball(path: Path, **override: bytes | None) -> Path:
 def test_bundle_mercury_has_no_pins_of_its_own_and_fetches_nothing() -> None:
     source = (ROOT / "packaging" / "windows" / "bundle_mercury.py").read_text(encoding="utf-8")
     assert 'bundle_tool.TOOLS["mercury"]' in source, "the checks and the pins are those of bundle_tool.py"
-    assert "urllib" not in source and "https://" not in source and "http://" not in source and not re.search(r"\b[0-9a-f]{64}\b", source)
+    assert (
+        "urllib" not in source
+        and "https://" not in source
+        and "http://" not in source
+        and not re.search(r"\b[0-9a-f]{64}\b", source)
+    )
     assert "WINDOWS_URL" not in source and "WINDOWS_SHA256" not in source
 
 
-def test_bundle_mercury_puts_the_program_and_the_licences_in_bin_mercury(bundle: types.ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_bundle_mercury_puts_the_program_and_the_licences_in_bin_mercury(
+    bundle: types.ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     archive = make_tarball(tmp_path / bundle.tarball_name())
     monkeypatch.setattr(sys, "argv", ["bundle_mercury.py", str(tmp_path / "NeoAPRS"), str(archive)])
     assert bundle.main() == 0
     folder = tmp_path / "NeoAPRS" / "bin" / "mercury"
-    assert sorted(p.name for p in folder.iterdir()) == ["LICENSE", "LICENSE-freedv", "LICENSE-hidapi.txt", "SOURCE.txt", "mercury.exe"]
+    assert sorted(p.name for p in folder.iterdir()) == [
+        "LICENSE",
+        "LICENSE-freedv",
+        "LICENSE-hidapi.txt",
+        "SOURCE.txt",
+        "mercury.exe",
+    ]
     assert (folder / "mercury.exe").read_bytes() == b"MZ program" and (folder / "LICENSE").read_bytes() == b"GPL text"
     assert "mercury.exe (10 bytes)" in capsys.readouterr().out
     (folder / "stale.dll").write_bytes(b"old")
-    assert bundle.main() == 0 and not (folder / "stale.dll").exists(), "a folder of an earlier run is made again, not added to"
+    assert bundle.main() == 0 and not (folder / "stale.dll").exists(), (
+        "a folder of an earlier run is made again, not added to"
+    )
 
 
-def test_bundle_mercury_refuses_what_is_not_the_pinned_mercury_for_windows_and_keeps_nothing(bundle: types.ModuleType, tmp_path: Path) -> None:
+def test_bundle_mercury_refuses_what_is_not_the_pinned_mercury_for_windows_and_keeps_nothing(
+    bundle: types.ModuleType, tmp_path: Path
+) -> None:
     refused: list[tuple[str, dict[str, bytes | None], str]] = [
         ("a member out of the folder", {"../evil.dll": b"x"}, "outside the folder"),
         ("a DLL beside the program", {"libwinpthread-1.dll": b"MZ"}, "not a file the app takes"),
@@ -274,7 +401,11 @@ def test_bundle_mercury_refuses_what_is_not_the_pinned_mercury_for_windows_and_k
         ("no program", {"mercury.exe": None}, "lacks mercury.exe"),
         ("no licence", {"LICENSE": None}, "lacks mercury.exe, SOURCE.txt or LICENSE"),
         ("a program that is not one", {"mercury.exe": b"\x7fELF"}, "not a program for Windows"),
-        ("a source offer of another Mercury", {"SOURCE.txt": b"Mercury 0.0.1, built"}, "not a Mercury built from the pinned source"),
+        (
+            "a source offer of another Mercury",
+            {"SOURCE.txt": b"Mercury 0.0.1, built"},
+            "not a Mercury built from the pinned source",
+        ),
     ]
     for number, (what, override, message) in enumerate(refused):
         (tmp_path / str(number)).mkdir()
@@ -306,9 +437,20 @@ Active Connections
 """
 
 
-def test_the_netstat_table_is_read_for_the_listeners_of_one_process_whatever_the_language_of_windows(smoke: types.ModuleType) -> None:
-    assert smoke.listening(NETSTAT, 4242) == {8100: {"127.0.0.1"}, 8300: {"127.0.0.1"}, 8301: {"127.0.0.1"}, 9000: {"::1"}}, "an established connection and the state's word do not matter; an IPv6 address has its brackets off"
-    assert smoke.listening(NETSTAT, 1136) == {135: {"0.0.0.0"}} and smoke.listening(NETSTAT, 7) == {} and smoke.listening("", 1) == {}
+def test_the_netstat_table_is_read_for_the_listeners_of_one_process_whatever_the_language_of_windows(
+    smoke: types.ModuleType,
+) -> None:
+    assert smoke.listening(NETSTAT, 4242) == {
+        8100: {"127.0.0.1"},
+        8300: {"127.0.0.1"},
+        8301: {"127.0.0.1"},
+        9000: {"::1"},
+    }, "an established connection and the state's word do not matter; an IPv6 address has its brackets off"
+    assert (
+        smoke.listening(NETSTAT, 1136) == {135: {"0.0.0.0"}}
+        and smoke.listening(NETSTAT, 7) == {}
+        and smoke.listening("", 1) == {}
+    )
 
 
 def test_the_verdict_wants_every_port_and_the_loopback_alone(smoke: types.ModuleType) -> None:
@@ -316,8 +458,12 @@ def test_the_verdict_wants_every_port_and_the_loopback_alone(smoke: types.Module
     assert smoke.verdict({8100: {"127.0.0.1"}, 8300: {"127.0.0.1"}, 8301: {"127.0.0.1"}}, ports) == ""
     assert smoke.verdict({8100: {"127.0.0.1"}, 8300: {"127.0.0.1"}}, ports) == "not listening yet on [8301]"
     assert "0.0.0.0" in smoke.verdict({8100: {"0.0.0.0"}, 8300: {"127.0.0.1"}, 8301: {"127.0.0.1"}}, ports)
-    assert "::" in smoke.verdict({8100: {"127.0.0.1", "::"}, 8300: {"127.0.0.1"}, 8301: {"127.0.0.1"}}, ports), "a port that listens on the loopback and elsewhere too is refused"
-    assert smoke.verdict({9000: {"0.0.0.0"}, 8100: {"127.0.0.1"}, 8300: {"127.0.0.1"}, 8301: {"127.0.0.1"}}, ports) == "", "a socket of the program on a port that is not one of the three is not this check's"
+    assert "::" in smoke.verdict({8100: {"127.0.0.1", "::"}, 8300: {"127.0.0.1"}, 8301: {"127.0.0.1"}}, ports), (
+        "a port that listens on the loopback and elsewhere too is refused"
+    )
+    assert (
+        smoke.verdict({9000: {"0.0.0.0"}, 8100: {"127.0.0.1"}, 8300: {"127.0.0.1"}, 8301: {"127.0.0.1"}}, ports) == ""
+    ), "a socket of the program on a port that is not one of the three is not this check's"
 
 
 class Child:
@@ -359,10 +505,33 @@ def test_the_watch_gives_up_when_the_program_ends_or_the_time_is_over(smoke: typ
     assert problem == "not listening yet on [8300, 8301]" and set(found) == {8100}
 
 
-def test_the_smoke_test_is_a_script_that_says_what_it_is_and_the_free_ports_are_a_set_of_four(smoke: types.ModuleType) -> None:
-    done = subprocess.run([sys.executable, str(ROOT / "packaging" / "windows" / "smoke_mercury.py"), "--help"], check=False, capture_output=True, text=True, timeout=60)
+def test_the_smoke_test_is_a_script_that_says_what_it_is_and_the_free_ports_are_a_set_of_four(
+    smoke: types.ModuleType,
+) -> None:
+    done = subprocess.run(
+        [sys.executable, str(ROOT / "packaging" / "windows" / "smoke_mercury.py"), "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
     assert done.returncode == 0 and "127.0.0.1" in done.stdout and "netstat" in done.stdout
     broadcast, control, data, ui = smoke.free_ports()
-    assert control == broadcast + 200 and data == control + 1 and ui == broadcast + mercury.UI_OFFSET, "the UI interface's port is the daemon's own (neoaprs/mercury.py)"
-    assert (broadcast, control, data) == mercuryhelper.pair_ports(broadcast)[:3] and mercuryhelper.pair_ports(broadcast)[3] == broadcast + mercuryhelper.UI_OFFSET, "the four ports of a pair as the daemon hands pairs out to the radios' modems (the UI port nearer in the tests: tests/support/fixtures.py)"
-    assert subprocess.run([sys.executable, str(ROOT / "packaging" / "windows" / "smoke_mercury.py"), "nothing-here.exe"], check=False, capture_output=True, text=True, timeout=60).returncode == 1
+    assert control == broadcast + 200 and data == control + 1 and ui == broadcast + mercury.UI_OFFSET, (
+        "the UI interface's port is the daemon's own (neoaprs/mercury.py)"
+    )
+    assert (broadcast, control, data) == mercuryhelper.pair_ports(broadcast)[:3] and mercuryhelper.pair_ports(
+        broadcast
+    )[3] == broadcast + mercuryhelper.UI_OFFSET, (
+        "the four ports of a pair as the daemon hands pairs out to the radios' modems (the UI port nearer in the tests: tests/support/fixtures.py)"
+    )
+    assert (
+        subprocess.run(
+            [sys.executable, str(ROOT / "packaging" / "windows" / "smoke_mercury.py"), "nothing-here.exe"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        ).returncode
+        == 1
+    )

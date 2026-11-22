@@ -1,6 +1,7 @@
 """Tests for the channel-busy detectors (neoaprs/channelbusy.py) on made-up bands: the debounce,
 Mercury's own detector, and the spectrum-based OccupancyBusy that NeoAPRS uses instead.
 """
+
 import math
 import random
 from collections.abc import Callable, Sequence
@@ -11,7 +12,7 @@ from neoaprs.channelbusy import SILENCE_DB, Debounce, MercuryBusy, OccupancyBusy
 
 BANDS = 17
 STEP_SEC = 0.05
-FRAME = range(6, 10)                     # the four bands a frame fills (1187 to 1781 Hz)
+FRAME = range(6, 10)  # the four bands a frame fills (1187 to 1781 Hz)
 
 
 class Air:
@@ -30,7 +31,13 @@ class Air:
             out[band] = 10 * math.log10(10 ** (out[band] / 10) + 10 ** ((out[band] + db) / 10))
         return out
 
-    def run(self, detector: OccupancyBusy | MercuryBusy, seconds: float, lifted: dict[int, float] | None = None, noise: Callable[[float], float] | None = None) -> list[bool]:
+    def run(
+        self,
+        detector: OccupancyBusy | MercuryBusy,
+        seconds: float,
+        lifted: dict[int, float] | None = None,
+        noise: Callable[[float], float] | None = None,
+    ) -> list[bool]:
         """The detector's state after each spectrum of `seconds` of the same air (a spectrum every
         STEP_SEC); `noise` says how many dB the whole noise is up at the second since the start of
         this run."""
@@ -51,17 +58,32 @@ def frame(db: float) -> dict[int, float]:
 
 # ---- the debounce
 
+
 def test_a_state_asserts_after_the_debounce_and_releases_after_the_hang_and_a_gap_starts_the_time_again() -> None:
     d = Debounce(Timing(0.3, 1.5))
     assert [d.update(t, True, False) for t in (0.0, 0.2, 0.31)] == [False, False, True]
     assert [d.update(t, False, False) for t in (1.0, 2.0)] == [True, True], "neither above nor below the release: held"
     assert [d.update(t, False, True) for t in (3.0, 4.0, 4.6)] == [True, True, False]
     d = Debounce(Timing(0.3, 1.5))
-    assert [d.update(t, t not in (0.2,), False) for t in (0.0, 0.2, 0.4, 0.6, 0.8)] == [False, False, False, False, True], "a dip below starts the 0.3 s again"
-    assert [d.update(t, False, t != 1.4) for t in (1.0, 1.2, 1.4, 1.6, 2.8, 3.2)] == [True, True, True, True, True, False], "and a rise over the release starts the hang again"
+    assert [d.update(t, t not in (0.2,), False) for t in (0.0, 0.2, 0.4, 0.6, 0.8)] == [
+        False,
+        False,
+        False,
+        False,
+        True,
+    ], "a dip below starts the 0.3 s again"
+    assert [d.update(t, False, t != 1.4) for t in (1.0, 1.2, 1.4, 1.6, 2.8, 3.2)] == [
+        True,
+        True,
+        True,
+        True,
+        True,
+        False,
+    ], "and a rise over the release starts the hang again"
 
 
 # ---- Mercury's own detector
+
 
 def test_mercurys_detector_is_quiet_on_noise_busy_on_a_frame_after_the_debounce_and_clear_after_the_hang() -> None:
     air, d = Air(), MercuryBusy()
@@ -72,7 +94,9 @@ def test_mercurys_detector_is_quiet_on_noise_busy_on_a_frame_after_the_debounce_
     assert 1.2 < (first(states, False) or 0) < 2.0, "the hang: 1.5 s after the last of the signal"
 
 
-def test_mercurys_detector_takes_a_step_of_20_db_in_the_noise_for_a_signal_for_minutes_and_a_step_of_10_db_for_none() -> None:
+def test_mercurys_detector_takes_a_step_of_20_db_in_the_noise_for_a_signal_for_minutes_and_a_step_of_10_db_for_none() -> (
+    None
+):
     """The facts that cost the channel its 20 s cap (docs/mercury.md): the floor follows a rise of
     the noise slowly, a minute or two for a big step."""
     air, d = Air(), MercuryBusy()
@@ -102,13 +126,16 @@ def test_digital_silence_is_no_quiet_channel_for_either_detector() -> None:
 
 # ---- the automatic control
 
+
 def test_the_occupancy_detector_is_quiet_on_noise_for_ten_minutes_at_any_level() -> None:
     for level in (-60.0, -30.0, -5.0):
         air, d = Air(seed=3, level=level), OccupancyBusy()
         assert not any(air.run(d, 600.0)), level
 
 
-def test_a_frame_is_busy_after_a_fraction_of_a_second_at_any_noise_level_and_clear_about_a_second_and_a_half_after_it() -> None:
+def test_a_frame_is_busy_after_a_fraction_of_a_second_at_any_noise_level_and_clear_about_a_second_and_a_half_after_it() -> (
+    None
+):
     for level in (-60.0, -30.0, -5.0):
         air, d = Air(seed=2, level=level), OccupancyBusy()
         air.run(d, 30.0)
@@ -129,7 +156,13 @@ def test_a_weak_frame_is_seen_down_to_where_the_modem_decodes_and_noise_alone_is
 
 
 def test_a_carrier_or_two_bands_is_no_frame_and_three_bands_are() -> None:
-    for lifted, busy in (({3: 30.0}, False), ({7: 25.0, 8: 25.0}, False), ({7: 12.0, 8: 12.0, 9: 12.0}, True), ({0: 12.0, 1: 12.0, 2: 12.0}, True), ({7: 30.0, 9: 30.0, 11: 30.0}, False)):
+    for lifted, busy in (
+        ({3: 30.0}, False),
+        ({7: 25.0, 8: 25.0}, False),
+        ({7: 12.0, 8: 12.0, 9: 12.0}, True),
+        ({0: 12.0, 1: 12.0, 2: 12.0}, True),
+        ({7: 30.0, 9: 30.0, 11: 30.0}, False),
+    ):
         air, d = Air(seed=4), OccupancyBusy()
         air.run(d, 30.0)
         assert any(air.run(d, 6.0, lifted)) is busy, lifted
@@ -154,7 +187,9 @@ def test_a_rise_of_the_noise_over_the_whole_passband_is_no_signal_a_step_a_drift
     assert not any(air.run(d, 150.0, noise=lambda t: min(12.0, t / 10.0))), "a rise of 12 dB over two minutes"
     air, d = Air(seed=6), OccupancyBusy()
     air.run(d, 30.0)
-    assert not any(air.run(d, 60.0, noise=lambda t: 18.0 if (t % 4.0) < 0.15 else 0.0)), "static 18 dB over the noise, 150 ms every 4 s"
+    assert not any(air.run(d, 60.0, noise=lambda t: 18.0 if (t % 4.0) < 0.15 else 0.0)), (
+        "static 18 dB over the noise, 150 ms every 4 s"
+    )
 
 
 def test_the_slopes_of_a_narrow_filter_are_no_signal_with_the_floors_and_a_signal_without_them() -> None:
@@ -191,7 +226,9 @@ def test_the_transmitters_own_signal_is_forgotten_by_a_pause_and_the_floors_are_
     d.pause()
     assert not d.busy
     states = air.run(d, 3.0, frame(12.0))
-    assert first(states) is not None and (first(states) or 9.0) < 1.0, "the floors are still the quiet ones: a signal that is there after the pause is seen at once"
+    assert first(states) is not None and (first(states) or 9.0) < 1.0, (
+        "the floors are still the quiet ones: a signal that is there after the pause is seen at once"
+    )
 
 
 def test_a_spectrum_of_another_size_starts_the_floors_again() -> None:
@@ -204,6 +241,8 @@ def test_a_spectrum_of_another_size_starts_the_floors_again() -> None:
 
 
 @pytest.mark.parametrize("make", [MercuryBusy, OccupancyBusy])
-def test_a_detector_that_has_just_begun_does_not_make_a_signal_of_the_first_reading(make: Callable[[], OccupancyBusy | MercuryBusy]) -> None:
+def test_a_detector_that_has_just_begun_does_not_make_a_signal_of_the_first_reading(
+    make: Callable[[], OccupancyBusy | MercuryBusy],
+) -> None:
     d = make()
     assert not d.update(0.0, [-30.0] * BANDS) and not d.busy

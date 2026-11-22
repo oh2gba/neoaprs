@@ -1,10 +1,16 @@
 """How a packet reached us: the route read from its AX.25 path, and a station's route counts."""
+
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import NamedTuple
 
-from neoaprs.policy import HEARD_PATH_ATTEMPTS, HEARD_PATH_MAX_DIGIPEATERS, HEARD_PATH_MIN_PACKETS, HEARD_PATH_WINDOW_MIN
+from neoaprs.policy import (
+    HEARD_PATH_ATTEMPTS,
+    HEARD_PATH_MAX_DIGIPEATERS,
+    HEARD_PATH_MIN_PACKETS,
+    HEARD_PATH_WINDOW_MIN,
+)
 from neoaprs.symbols import is_mobile
 
 UNKNOWN = "?"
@@ -42,6 +48,7 @@ class Route:
 
 class Alias(NamedTuple):
     """A path element standing for whichever digipeater answers it."""
+
     prefix: str
     n: int | None
     left: int | None
@@ -166,7 +173,9 @@ class Deliveries:
     def recent(self, hops: tuple[str, ...], now: datetime) -> tuple[int, datetime | None]:
         """Return (packets of the route in the window, time of the latest); () is direct."""
         kept = self.times.get(hops, [])
-        return sum(1 for when in kept if now - when <= timedelta(minutes=HEARD_PATH_WINDOW_MIN)), (kept[-1] if kept else None)
+        return sum(1 for when in kept if now - when <= timedelta(minutes=HEARD_PATH_WINDOW_MIN)), (
+            kept[-1] if kept else None
+        )
 
     def best(self) -> Route | None:
         """Return the route most packets came by, direct included; ties: fewer hops."""

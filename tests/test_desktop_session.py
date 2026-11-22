@@ -1,6 +1,7 @@
 """Tests for the app's attach-or-own decision against real daemons: with none running one is started
 and owned, and Quit stops it; a running one is attached to and left running.
 """
+
 from pathlib import Path
 
 from neoaprs import PROGRAM
@@ -22,5 +23,7 @@ def test_a_daemon_that_runs_is_attached_to_and_survives_the_app(data: Path) -> N
     session = open_session(data, timeout=60)
     assert not session.owned and page_answers(session.url)
     assert stop_owned(session) and is_running(data), "Quit does not stop a daemon the app did not start"
-    assert (data / "neoaprs.log").read_text(encoding="utf-8").count(" starting, data in ") == 1, "no second daemon was started"
+    assert (data / "neoaprs.log").read_text(encoding="utf-8").count(" starting, data in ") == 1, (
+        "no second daemon was started"
+    )
     assert command("stop", "--data", str(data)).returncode == 0 and not is_running(data)

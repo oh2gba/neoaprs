@@ -2,6 +2,7 @@
 A board has no TNC command mode: no KISS ON is sent. The line is split into KISS frames and text
 lines; frames wait for a signal reading where the board reports one.
 """
+
 import asyncio
 import itertools
 import logging
@@ -173,7 +174,11 @@ class LoraBoard:
             self._tnc._note("the board sends KISS")
         if frame.command == 0:
             return self._data(frame.payload)
-        if frame.command == 7 and self._tnc.profile.board_readings and (reading := signal_report(frame.payload)) is not None:
+        if (
+            frame.command == 7
+            and self._tnc.profile.board_readings
+            and (reading := signal_report(frame.payload)) is not None
+        ):
             return self._report(reading)
         self._tnc._saw(f"KISS command {frame.command} from the board: passed over ({len(frame.payload)} bytes)")
 
@@ -204,7 +209,11 @@ class LoraBoard:
         """Handle esp32_loraprs's KISS command 7, sent right after its frame."""
         if not self._reports:
             self._reports = True
-            log.debug("%s: the board says the signal after each frame (%s); its frames wait for it from now on", self._tnc.label, reading)
+            log.debug(
+                "%s: the board says the signal after each frame (%s); its frames wait for it from now on",
+                self._tnc.label,
+                reading,
+            )
             return
         self._release(self._following.report(reading, self._now()))
 
@@ -261,7 +270,11 @@ class LoraBoard:
             self._asking = False
             if self._list and self._tnc._port is self._port:
                 self._list = False
-                log.info("%s: the board's list of heard packets did not answer (%s): packets come without their signal", self._tnc.label, e)
+                log.info(
+                    "%s: the board's list of heard packets did not answer (%s): packets come without their signal",
+                    self._tnc.label,
+                    e,
+                )
                 self._release(self._following.release())
             return
         self._asking = False
@@ -292,7 +305,14 @@ class LoraBoard:
     def _newest(self, entries: list[loralist.Heard], now: float) -> list[tuple[str, Reading]]:
         out: list[tuple[str, Reading]] = []
         for key in reversed(self._following.keys()):
-            entry = next((e for e in reversed(entries) if e.key == self._held[key][1] and (e.when, e.key, e.reading) not in self._used), None)
+            entry = next(
+                (
+                    e
+                    for e in reversed(entries)
+                    if e.key == self._held[key][1] and (e.when, e.key, e.reading) not in self._used
+                ),
+                None,
+            )
             if entry is not None:
                 self._used.append((entry.when, entry.key, entry.reading))
             out += self._following.report(NO_READING if entry is None else entry.reading, now, key)
@@ -321,7 +341,9 @@ class LoraBoard:
                 out += self._following.report(NO_READING if text in lost_texts else reading, now, key)
         return out
 
-    def _named(self, asked: list[tuple[str, str]], entries: list[loralist.Heard], at: int) -> tuple[list[tuple[str, str, Reading]], list[tuple[str, str]]]:
+    def _named(
+        self, asked: list[tuple[str, str]], entries: list[loralist.Heard], at: int
+    ) -> tuple[list[tuple[str, str, Reading]], list[tuple[str, str]]]:
         """Return the frames matched to entries from `at` on, and those without one."""
         given: list[tuple[str, str, Reading]] = []
         lost: list[tuple[str, str]] = []
@@ -368,7 +390,13 @@ class LoraBoard:
         """Handle a packet that came as text: nudge once per open; send nothing until KISS comes."""
         tnc = self._tnc
         # over BLE the Tracker transmits every write to its TNC2 service: never nudge there
-        if tnc.profile.nudge and not self._nudged and tnc._port is not None and not tnc.profile.receive_only and not is_ble(tnc.path):
+        if (
+            tnc.profile.nudge
+            and not self._nudged
+            and tnc._port is not None
+            and not tnc.profile.receive_only
+            and not is_ble(tnc.path)
+        ):
             self._nudged = True
             tnc._write(tnc._port, tnc.profile.nudge)
         if not self.text_since_kiss:

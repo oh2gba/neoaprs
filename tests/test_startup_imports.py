@@ -2,6 +2,7 @@
 `--help` import neither the web server nor its libraries, and a plain daemon start does not import
 the certificate library.
 """
+
 import subprocess
 import sys
 from pathlib import Path
@@ -14,9 +15,27 @@ from tests.support.proc import NEW_GROUP, stop
 from tests.test_main import ended, environment, wait_for
 
 # what only the daemon needs: the page's server and the libraries of its messages
-WEB = ("tornado", "pydantic", "pydantic_core", "cryptography", "neoaprs.web", "neoaprs.controller", "neoaprs.app", "neoaprs.config")
+WEB = (
+    "tornado",
+    "pydantic",
+    "pydantic_core",
+    "cryptography",
+    "neoaprs.web",
+    "neoaprs.controller",
+    "neoaprs.app",
+    "neoaprs.config",
+)
 # what a daemon without https and without a support bundle does not need before it listens
-NOT_YET = ("cryptography", "neoaprs.web.tls", "neoaprs.cli.supportmake", "neoaprs.cli.supportgather", "neoaprs.cli.supportbundle", "neoaprs.cli.supportsummary", "neoaprs.cli.supportreadme", "neoaprs.cli.doctor")
+NOT_YET = (
+    "cryptography",
+    "neoaprs.web.tls",
+    "neoaprs.cli.supportmake",
+    "neoaprs.cli.supportgather",
+    "neoaprs.cli.supportbundle",
+    "neoaprs.cli.supportsummary",
+    "neoaprs.cli.supportreadme",
+    "neoaprs.cli.doctor",
+)
 
 
 def environment_of_a_start() -> dict[str, str]:
@@ -25,7 +44,11 @@ def environment_of_a_start() -> dict[str, str]:
 
 def modules_of(importtime: str) -> set[str]:
     """The names of the modules that `-X importtime` (on stderr) lists."""
-    return {line.rsplit("|", 1)[1].strip() for line in importtime.splitlines() if line.startswith("import time:") and "|" in line}
+    return {
+        line.rsplit("|", 1)[1].strip()
+        for line in importtime.splitlines()
+        if line.startswith("import time:") and "|" in line
+    }
 
 
 def loaded(modules: set[str], names: tuple[str, ...]) -> list[str]:
@@ -35,7 +58,15 @@ def loaded(modules: set[str], names: tuple[str, ...]) -> list[str]:
 
 @pytest.mark.parametrize("flag", ["--version", "--help"])
 def test_the_short_commands_do_not_import_the_web_server_or_its_libraries(flag: str) -> None:
-    done = subprocess.run([sys.executable, "-X", "importtime", "-m", "neoaprs", flag], cwd=ROOT, env=environment_of_a_start(), capture_output=True, text=True, encoding="utf-8", check=True)
+    done = subprocess.run(
+        [sys.executable, "-X", "importtime", "-m", "neoaprs", flag],
+        cwd=ROOT,
+        env=environment_of_a_start(),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=True,
+    )
     assert PROGRAM in done.stdout if flag == "--version" else "commands (" in done.stdout
     assert loaded(modules_of(done.stderr), WEB) == []
 
@@ -47,8 +78,17 @@ def run_until_listening(data: Path, *extra: str) -> set[str]:
     data.parent.mkdir(parents=True, exist_ok=True)
     listing = data.parent / "importtime.txt"
     with listing.open("w", encoding="utf-8", errors="replace") as err:
-        proc = subprocess.Popen([sys.executable, "-X", "importtime", "-m", "neoaprs", "--data", str(data), "--web-port", "0", *extra], cwd=ROOT, env=environment_of_a_start(), stdout=subprocess.DEVNULL, stderr=err,
-                                text=True, encoding="utf-8", errors="replace", creationflags=NEW_GROUP)
+        proc = subprocess.Popen(
+            [sys.executable, "-X", "importtime", "-m", "neoaprs", "--data", str(data), "--web-port", "0", *extra],
+            cwd=ROOT,
+            env=environment_of_a_start(),
+            stdout=subprocess.DEVNULL,
+            stderr=err,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            creationflags=NEW_GROUP,
+        )
         wait_for(data / "neoaprs.log", f"{PROGRAM} is running", proc)
         stop(proc)
         ended(proc, data)
@@ -57,7 +97,9 @@ def run_until_listening(data: Path, *extra: str) -> set[str]:
     return modules_of(written)
 
 
-def test_a_plain_start_of_the_daemon_does_not_import_the_certificates_library_or_the_support_bundle(tmp_path: Path) -> None:
+def test_a_plain_start_of_the_daemon_does_not_import_the_certificates_library_or_the_support_bundle(
+    tmp_path: Path,
+) -> None:
     modules = run_until_listening(tmp_path / "data")
     assert "neoaprs.web.server" in modules and "tornado" in modules, "the listing is of the daemon"
     assert loaded(modules, NOT_YET) == []

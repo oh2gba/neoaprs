@@ -3,6 +3,7 @@
 Requests are answered from memory, so a rebuilt page on disk changes nothing until the daemon
 restarts; page and daemon always match.
 """
+
 import hashlib
 import logging
 import re
@@ -64,7 +65,9 @@ class PageSnapshot:
         index = self.files.get("index.html")
         if index is None:
             return []
-        return sorted({name for name in REFERENCE.findall(index.data.decode("utf-8", "replace")) if name not in self.files})
+        return sorted(
+            {name for name in REFERENCE.findall(index.data.decode("utf-8", "replace")) if name not in self.files}
+        )
 
     @classmethod
     def take(cls, folder: Path) -> "PageSnapshot":
@@ -76,13 +79,22 @@ class PageSnapshot:
             try:
                 snapshot = cls(dict(_read(folder)))
             except OSError as e:
-                log.warning("the page folder %s cannot be read (%s)%s", folder, e, "; reading it again" if attempt < ATTEMPTS else "")
+                log.warning(
+                    "the page folder %s cannot be read (%s)%s",
+                    folder,
+                    e,
+                    "; reading it again" if attempt < ATTEMPTS else "",
+                )
                 snapshot = cls({})
             if snapshot.files and not snapshot.missing():
                 return snapshot
             if attempt < ATTEMPTS:
                 time.sleep(RETRY_SEC)
-        log.error("the page in %s is not whole (%s); it is served as it is", folder, ", ".join(snapshot.missing()) or "no files")
+        log.error(
+            "the page in %s is not whole (%s); it is served as it is",
+            folder,
+            ", ".join(snapshot.missing()) or "no files",
+        )
         return snapshot
 
 
@@ -92,11 +104,17 @@ def _read(folder: Path) -> Iterator[tuple[str, PageFile]]:
     A swap in between then shows as a missing file, not as a mix of two builds.
     """
     total = 0
-    paths = sorted((p for p in folder.rglob("*") if p.is_file() and not is_hidden(p.relative_to(folder))), key=lambda p: (p.relative_to(folder).as_posix() != "index.html", p.as_posix()))
+    paths = sorted(
+        (p for p in folder.rglob("*") if p.is_file() and not is_hidden(p.relative_to(folder))),
+        key=lambda p: (p.relative_to(folder).as_posix() != "index.html", p.as_posix()),
+    )
     for path in paths:
         data = path.read_bytes()
         total += len(data)
         if total > MAX_BYTES:
             raise OSError(f"more than {MAX_BYTES} bytes")
         modified = datetime.fromtimestamp(int(path.stat().st_mtime), UTC)
-        yield path.relative_to(folder).as_posix(), PageFile(data, '"' + hashlib.sha256(data).hexdigest()[:32] + '"', modified)
+        yield (
+            path.relative_to(folder).as_posix(),
+            PageFile(data, '"' + hashlib.sha256(data).hexdigest()[:32] + '"', modified),
+        )

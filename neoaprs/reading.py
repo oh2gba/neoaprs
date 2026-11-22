@@ -2,6 +2,7 @@
 
 Mercury says it before the frame (`Pending`), a LoRa board after it (`Following`). Pure code.
 """
+
 from dataclasses import dataclass
 from typing import Generic, Literal, TypeVar
 

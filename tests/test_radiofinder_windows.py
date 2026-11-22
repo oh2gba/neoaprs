@@ -2,6 +2,7 @@
 the system lists (COM ports, /dev/cu.*), USB adapters first, and a port another program or radio
 holds is passed over.
 """
+
 import logging
 import sys
 import threading
@@ -35,7 +36,11 @@ WINDOWS = [
     listed("COM5", "USB Serial Port (COM5)", "USB VID:PID=0403:6001 SER=A1", 0x0403, 0x6001),
     listed("COM7", "Mobilinkd TNC3 (COM7)", "USB VID:PID=0483:5740 SER=2", 0x0483, 0x5740),
     listed("COM8", "USB Serial Device (COM8)", "USB VID:PID=303A:1001 SER=3", *ESP32),
-    listed("COM9", "Standard Serial over Bluetooth link (COM9)", "BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0000\\7&1&0&0"),
+    listed(
+        "COM9",
+        "Standard Serial over Bluetooth link (COM9)",
+        "BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0000\\7&1&0&0",
+    ),
     listed("COM10", "USB Serial Port (COM10)", "USB VID:PID=0403:6015 SER=B2", 0x0403, 0x6015),
 ]
 
@@ -49,17 +54,29 @@ def windows(monkeypatch: pytest.MonkeyPatch) -> None:
 
 # ---- which ports are listed
 
-def test_find_my_radio_is_made_on_linux_windows_and_macos_and_the_search_that_runs_by_itself_on_linux_only(monkeypatch: pytest.MonkeyPatch) -> None:
-    for platform, find, search in (("linux", True, True), ("win32", True, False), ("darwin", True, False), ("freebsd14", False, False)):
+
+def test_find_my_radio_is_made_on_linux_windows_and_macos_and_the_search_that_runs_by_itself_on_linux_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for platform, find, search in (
+        ("linux", True, True),
+        ("win32", True, False),
+        ("darwin", True, False),
+        ("freebsd14", False, False),
+    ):
         monkeypatch.setattr(sys, "platform", platform)
         assert (serialprobe.can_find(), serialprobe.can_search()) == (find, search)
 
 
-def test_the_ports_of_windows_are_the_com_ports_with_the_usb_adapters_first_the_boards_left_out_and_the_bluetooth_ones_last(windows: None) -> None:
+def test_the_ports_of_windows_are_the_com_ports_with_the_usb_adapters_first_the_boards_left_out_and_the_bluetooth_ones_last(
+    windows: None,
+) -> None:
     ports = serialprobe.system_ports()
     # Natural order inside each group; COM8 is an ESP32 board
     assert [p.device for p in ports] == ["COM3", "COM4", "COM5", "COM7", "COM10", "COM1", "COM9"]
-    assert ports[0] == PortInfo("COM3", "Prolific USB-to-Serial Comm Port (COM3)", "USB VID:PID=067B:2303 SER=5", 0x067B, 0x2303)
+    assert ports[0] == PortInfo(
+        "COM3", "Prolific USB-to-Serial Comm Port (COM3)", "USB VID:PID=067B:2303 SER=5", 0x067B, 0x2303
+    )
     assert [serialprobe.is_bluetooth_com(p) for p in ports] == [False] * 6 + [True]
 
 
@@ -69,7 +86,14 @@ def test_a_paired_bluetooth_serial_port_is_a_com_port_with_no_speed(windows: Non
 
 
 def test_the_candidates_on_windows_are_the_listed_ports_without_the_skipped_ones(windows: None) -> None:
-    assert radiofinder.candidates(serialprobe.DEFAULT_PATTERN, ("com4",)) == ["COM3", "COM5", "COM7", "COM10", "COM1", "COM9"]
+    assert radiofinder.candidates(serialprobe.DEFAULT_PATTERN, ("com4",)) == [
+        "COM3",
+        "COM5",
+        "COM7",
+        "COM10",
+        "COM1",
+        "COM9",
+    ]
 
 
 def test_a_pattern_of_globs_does_not_stand_for_the_ports_of_windows(windows: None) -> None:
@@ -82,10 +106,24 @@ def test_a_system_that_lists_nothing_has_no_candidates(monkeypatch: pytest.Monke
     assert radiofinder.candidates(serialprobe.DEFAULT_PATTERN, ()) == []
 
 
-def test_the_ports_of_macos_are_the_cu_devices_without_the_ones_that_are_no_adapter(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_ports_of_macos_are_the_cu_devices_without_the_ones_that_are_no_adapter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(sys, "platform", "darwin")
-    monkeypatch.setattr(serialprobe.serial.tools.list_ports, "comports", lambda: [listed("/dev/cu.usbserial-A1", "FT232R USB UART", "USB VID:PID=0403:6001", 0x0403, 0x6001)])
-    monkeypatch.setattr(serialprobe.glob, "glob", lambda pattern: ["/dev/cu.Bluetooth-Incoming-Port", "/dev/cu.TNC-SPP", "/dev/cu.debug-console", "/dev/cu.usbserial-A1"] if pattern == "/dev/cu.*" else [])
+    monkeypatch.setattr(
+        serialprobe.serial.tools.list_ports,
+        "comports",
+        lambda: [listed("/dev/cu.usbserial-A1", "FT232R USB UART", "USB VID:PID=0403:6001", 0x0403, 0x6001)],
+    )
+    monkeypatch.setattr(
+        serialprobe.glob,
+        "glob",
+        lambda pattern: (
+            ["/dev/cu.Bluetooth-Incoming-Port", "/dev/cu.TNC-SPP", "/dev/cu.debug-console", "/dev/cu.usbserial-A1"]
+            if pattern == "/dev/cu.*"
+            else []
+        ),
+    )
     assert [p.device for p in serialprobe.system_ports()] == ["/dev/cu.usbserial-A1", "/dev/cu.TNC-SPP"]
     assert radiofinder.candidates(serialprobe.DEFAULT_PATTERN, ()) == ["/dev/cu.usbserial-A1", "/dev/cu.TNC-SPP"]
 
@@ -96,6 +134,7 @@ def test_where_find_my_radio_is_not_made_there_is_no_port_to_try(monkeypatch: py
 
 
 # ---- the search itself
+
 
 async def test_a_bluetooth_com_port_is_tried_once_and_found_without_a_speed(windows: None) -> None:
     async with virtual_time():
@@ -108,7 +147,9 @@ async def test_a_bluetooth_com_port_is_tried_once_and_found_without_a_speed(wind
         assert rig.tried[-1].total == len(SPEEDS) + 1
 
 
-async def test_the_com_ports_are_tried_in_order_each_at_the_usual_speeds_and_the_first_tnc_that_answers_is_found(windows: None) -> None:
+async def test_the_com_ports_are_tried_in_order_each_at_the_usual_speeds_and_the_first_tnc_that_answers_is_found(
+    windows: None,
+) -> None:
     async with virtual_time():
         brains = {("COM5", 57600): TncBrain("tnc2")}
         ear = ears(brains)
@@ -165,8 +206,17 @@ class FakeSerial:
         self._stop.set()
 
 
-async def test_a_port_that_another_program_has_is_passed_over_with_the_words_of_the_open_and_the_next_one_is_found(windows: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    packet = ax25.encode(ax25.Frame(ax25.Address.parse("APRS"), ax25.Address.parse("Q1ABC"), (ax25.Address.parse("WIDE1-1"),), info=b"!6010.00N/02456.00E-"))
+async def test_a_port_that_another_program_has_is_passed_over_with_the_words_of_the_open_and_the_next_one_is_found(
+    windows: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    packet = ax25.encode(
+        ax25.Frame(
+            ax25.Address.parse("APRS"),
+            ax25.Address.parse("Q1ABC"),
+            (ax25.Address.parse("WIDE1-1"),),
+            info=b"!6010.00N/02456.00E-",
+        )
+    )
     fake = type("Fake", (FakeSerial,), {"opens": [], "in_use": {"COM3"}, "said": {"COM4": kiss.encode(packet)}})
     monkeypatch.setattr(serialport.serial, "serial_for_url", lambda url, **settings: fake(url))
     monkeypatch.setattr(serialport.os, "name", "nt")
@@ -179,8 +229,17 @@ async def test_a_port_that_another_program_has_is_passed_over_with_the_words_of_
     assert [(t.port, t.baud, t.number, t.total) for t in rig.tried] == [("COM3", 9600, 1, 21), ("COM4", 9600, 8, 21)]
 
 
-async def test_a_com_port_another_radio_holds_is_passed_over_whatever_case_it_is_written_in_and_never_opened(windows: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    packet = ax25.encode(ax25.Frame(ax25.Address.parse("APRS"), ax25.Address.parse("Q1ABC"), (ax25.Address.parse("WIDE1-1"),), info=b"!6010.00N/02456.00E-"))
+async def test_a_com_port_another_radio_holds_is_passed_over_whatever_case_it_is_written_in_and_never_opened(
+    windows: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    packet = ax25.encode(
+        ax25.Frame(
+            ax25.Address.parse("APRS"),
+            ax25.Address.parse("Q1ABC"),
+            (ax25.Address.parse("WIDE1-1"),),
+            info=b"!6010.00N/02456.00E-",
+        )
+    )
     fake = type("Fake", (FakeSerial,), {"opens": [], "in_use": set(), "said": {"COM4": kiss.encode(packet)}})
     monkeypatch.setattr(serialport.serial, "serial_for_url", lambda url, **settings: fake(url))
     monkeypatch.setattr(serialport.os, "name", "nt")

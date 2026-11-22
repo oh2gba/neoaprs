@@ -1,6 +1,7 @@
 """MapRig: the map download service (neoaprs/services/mapfetch.py) cutting the made-up planet of
 tests/support/madepmtiles.py from a range server on the loopback, with the statuses it announced.
 """
+
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
@@ -30,7 +31,9 @@ def config_for(server: RangeServer, **fields: Any) -> Config:
 
 
 class MapRig:
-    def __init__(self, data: Path, server: RangeServer, config: Callable[[], Config], patience: Patience = PATIENCE) -> None:
+    def __init__(
+        self, data: Path, server: RangeServer, config: Callable[[], Config], patience: Patience = PATIENCE
+    ) -> None:
         self.data, self.server = data, server
         self.service = MapFetch(data, config, FixedClock(), patience=patience, world=own_world)
         self.seen: list[MapStatus] = []

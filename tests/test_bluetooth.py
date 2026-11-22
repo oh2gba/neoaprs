@@ -1,6 +1,7 @@
 """Tests for the classic Bluetooth serial port (neoaprs/btserial.py, btsdp.py, btpaired.py) on a
 fake device (tests/support/fakebluetooth.py): addresses, service lookup, I/O, reconnection and
 pairing."""
+
 import errno
 import json
 import socket
@@ -38,28 +39,51 @@ def device(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeBluetooth]:
 
 # ---- the address
 
-@pytest.mark.parametrize("url,expected", [
-    ("bt://00:11:22:33:44:55", ("00:11:22:33:44:55", None)),
-    ("bt://aa:bb:cc:dd:ee:ff", ("AA:BB:CC:DD:EE:FF", None)),
-    ("BT://AA-BB-CC-DD-EE-FF/2", ("AA:BB:CC:DD:EE:FF", 2)),
-    ("  bt://AA:BB:CC:DD:EE:FF/30/ ", ("AA:BB:CC:DD:EE:FF", 30)),
-])
+
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        ("bt://00:11:22:33:44:55", ("00:11:22:33:44:55", None)),
+        ("bt://aa:bb:cc:dd:ee:ff", ("AA:BB:CC:DD:EE:FF", None)),
+        ("BT://AA-BB-CC-DD-EE-FF/2", ("AA:BB:CC:DD:EE:FF", 2)),
+        ("  bt://AA:BB:CC:DD:EE:FF/30/ ", ("AA:BB:CC:DD:EE:FF", 30)),
+    ],
+)
 def test_a_bluetooth_port_is_an_address_and_maybe_a_channel(url: str, expected: tuple[str, int | None]) -> None:
     assert parse_url(url) == expected
 
 
-@pytest.mark.parametrize("url", ["bt://", "bt://AA:BB", "bt://AA:BB:CC:DD:EE:GG", "bt://AA:BB:CC:DD:EE:FF/0", "bt://AA:BB:CC:DD:EE:FF/31", "bt://AA:BB:CC:DD:EE:FF/x", "bt://AA:BB:CC:DD:EE:FF/2/3", "bt://AABBCCDDEEFF", "socket://h:1"])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "bt://",
+        "bt://AA:BB",
+        "bt://AA:BB:CC:DD:EE:GG",
+        "bt://AA:BB:CC:DD:EE:FF/0",
+        "bt://AA:BB:CC:DD:EE:FF/31",
+        "bt://AA:BB:CC:DD:EE:FF/x",
+        "bt://AA:BB:CC:DD:EE:FF/2/3",
+        "bt://AABBCCDDEEFF",
+        "socket://h:1",
+    ],
+)
 def test_an_address_that_is_not_one_is_refused_with_the_way_to_write_it(url: str) -> None:
     with pytest.raises(ValueError, match="bt://AA:BB:CC:DD:EE:FF|RFCOMM channel"):
         parse_url(url)
 
 
 def test_a_bluetooth_port_is_a_url_and_a_socket_without_a_file_or_a_speed() -> None:
-    assert is_bluetooth(URL) and is_bluetooth(" BT://x") and not is_bluetooth("/dev/rfcomm0") and not is_bluetooth("socket://h:1")
+    assert (
+        is_bluetooth(URL)
+        and is_bluetooth(" BT://x")
+        and not is_bluetooth("/dev/rfcomm0")
+        and not is_bluetooth("socket://h:1")
+    )
     assert is_url(URL) and is_socket(URL) and port_key(URL) == URL.lower() and held_by(URL) == ""
 
 
 # ---- the service directory
+
 
 def test_the_question_is_the_serial_port_service_and_its_protocols() -> None:
     assert btsdp.request(0x1101, 4, 1).hex() == "060001000d3503191101040035030900" + "0400"
@@ -72,7 +96,10 @@ def test_the_answer_gives_the_rfcomm_channel() -> None:
 
 
 def test_the_first_of_several_services_is_the_one_and_other_protocols_are_not_channels() -> None:
-    other = sequence(element(1, struct.pack(">H", 4)), sequence(sequence(uuid16(0x0100)), sequence(uuid16(0x000F), element(1, bytes([9])))))
+    other = sequence(
+        element(1, struct.pack(">H", 4)),
+        sequence(sequence(uuid16(0x0100)), sequence(uuid16(0x000F), element(1, bytes([9])))),
+    )
     assert btsdp.rfcomm_channels(btsdp.parse_elements(sequence(other, record(5), record(3)))) == [5, 3]
 
 
@@ -114,6 +141,7 @@ def test_a_device_that_cannot_be_reached_is_not_asked_twice(device: FakeBluetoot
 
 # ---- open, read, write, close
 
+
 async def test_the_port_opens_on_the_channel_in_the_address_and_carries_bytes_both_ways(device: FakeBluetooth) -> None:
     chunks: list[bytes] = []
     port = SerialPort(f"{URL}/2", 9600)
@@ -146,7 +174,9 @@ async def test_without_a_channel_the_device_says_which(device: FakeBluetooth) ->
 
 
 @linux_only
-async def test_a_device_that_lists_no_serial_port_is_tried_on_the_usual_channels_and_the_log_says_which_connected(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_device_that_lists_no_serial_port_is_tried_on_the_usual_channels_and_the_log_says_which_connected(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level("INFO", logger="neoaprs.btserial")
     device = FakeBluetooth(monkeypatch, channel=3)
     device.garbage = True
@@ -154,14 +184,18 @@ async def test_a_device_that_lists_no_serial_port_is_tried_on_the_usual_channels
     await port.open()
     try:
         assert device.connects == [(ADDRESS, 1), (ADDRESS, 2), (ADDRESS, 3)]
-        assert f"{ADDRESS}: connected on RFCOMM channel 3" in caplog.text and "nothing on RFCOMM channel 1" in caplog.text
+        assert (
+            f"{ADDRESS}: connected on RFCOMM channel 3" in caplog.text and "nothing on RFCOMM channel 1" in caplog.text
+        )
     finally:
         port.close()
         device.close()
 
 
 @linux_only
-async def test_a_listed_channel_that_is_not_served_is_followed_by_the_usual_ones(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_listed_channel_that_is_not_served_is_followed_by_the_usual_ones(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     device = FakeBluetooth(monkeypatch, channel=1)
     device.listed = [5, 4]
     port = SerialPort(URL)
@@ -174,7 +208,9 @@ async def test_a_listed_channel_that_is_not_served_is_followed_by_the_usual_ones
 
 
 @linux_only
-async def test_a_device_that_serves_nothing_anywhere_says_connection_refused_after_the_last_channel(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_device_that_serves_nothing_anywhere_says_connection_refused_after_the_last_channel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     device = FakeBluetooth(monkeypatch, channel=9)
     device.garbage = True
     with pytest.raises(SerialError, match="Connection refused"):
@@ -198,12 +234,17 @@ async def test_what_is_written_just_before_the_close_still_goes_out(device: Fake
     assert await device.said(10) == b"last words"
 
 
-@pytest.mark.parametrize("error,words", [
-    (OSError(errno.ECONNREFUSED, "Connection refused"), "Connection refused"),
-    (OSError(errno.EHOSTDOWN, "Host is down"), "Host is down"),
-    (TimeoutError("timed out"), "no answer from the device"),
-])
-async def test_a_device_that_does_not_answer_is_an_error_with_its_words(device: FakeBluetooth, error: OSError, words: str) -> None:
+@pytest.mark.parametrize(
+    "error,words",
+    [
+        (OSError(errno.ECONNREFUSED, "Connection refused"), "Connection refused"),
+        (OSError(errno.EHOSTDOWN, "Host is down"), "Host is down"),
+        (TimeoutError("timed out"), "no answer from the device"),
+    ],
+)
+async def test_a_device_that_does_not_answer_is_an_error_with_its_words(
+    device: FakeBluetooth, error: OSError, words: str
+) -> None:
     device.fail(error)
     port = SerialPort(f"{URL}/2")
     with pytest.raises(SerialError) as e:
@@ -218,7 +259,9 @@ async def test_a_wrong_channel_is_refused_by_the_device(device: FakeBluetooth) -
     assert device.connects == [(ADDRESS, 7)]
 
 
-async def test_an_address_that_is_wrong_and_a_system_without_bluetooth_are_said_in_words(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_an_address_that_is_wrong_and_a_system_without_bluetooth_are_said_in_words(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     with pytest.raises(SerialError, match="bt://AA:BB:CC:DD:EE:FF"):
         await SerialPort("bt://nonsense").open()
     monkeypatch.setattr("neoaprs.btserial.available", lambda: False)
@@ -234,6 +277,7 @@ def test_the_port_class_is_the_socket_port_of_pyserial() -> None:
 
 # ---- the link is lost, and found again
 
+
 async def test_a_device_that_goes_away_drops_the_line(device: FakeBluetooth) -> None:
     reasons: list[str] = []
     port = SerialPort(f"{URL}/2")
@@ -246,30 +290,41 @@ async def test_a_device_that_goes_away_drops_the_line(device: FakeBluetooth) -> 
 
 
 async def test_the_tnc_opens_a_bluetooth_port_again_when_the_radio_comes_back(device: FakeBluetooth) -> None:
-    tnc = Tnc(f"{URL}/2", profile=KISS, backoff=Backoff([0.05, 0.05]), fallback_probe=False, check_sec=0.0, settle_sec=0.0)
+    tnc = Tnc(
+        f"{URL}/2", profile=KISS, backoff=Backoff([0.05, 0.05]), fallback_probe=False, check_sec=0.0, settle_sec=0.0
+    )
     await tnc.start()
     try:
         assert tnc.state is Source.State.CONNECTED and tnc.stats.opens == 1
         # (a Bluetooth link has no speed)
         assert "9600" not in tnc.describe() and tnc.describe().startswith(f"{URL}/2,")
         await device.connected()
-        device.fail(OSError(errno.EHOSTDOWN, "Host is down"))            # switched off
+        device.fail(OSError(errno.EHOSTDOWN, "Host is down"))  # switched off
         device.drop()
         await until(lambda: tnc.state is Source.State.WAITING)
         assert tnc.last_error and "lost" in tnc.last_error
         # tried again, and the radio said why not
         await until(lambda: len(device.connects) >= 3 and "Host is down" in tnc.problem)
-        device.fail(None)                                               # switched on, in range
+        device.fail(None)  # switched on, in range
         await until(lambda: tnc.state is Source.State.CONNECTED and tnc.stats.opens == 2)
         await device.connected()
-        device.feed(encode(ax25.encode(ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA-7"), (), info=b"!6010.00N/02456.00E>hi")), port=0))
+        device.feed(
+            encode(
+                ax25.encode(
+                    ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA-7"), (), info=b"!6010.00N/02456.00E>hi")
+                ),
+                port=0,
+            )
+        )
         await until(lambda: tnc.stats.frames_in == 1)
     finally:
         await tnc.stop()
     assert tnc.state is Source.State.STOPPED and device.connects[-1] == (ADDRESS, 2)
 
 
-async def test_the_search_for_the_radio_does_not_look_at_bluetooth(device: FakeBluetooth, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+async def test_the_search_for_the_radio_does_not_look_at_bluetooth(
+    device: FakeBluetooth, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     asked: list[list[str]] = []
     monkeypatch.setattr(btpaired, "_run", lambda command: asked.append(command) or "")
     tnc = Tnc(pattern=str(tmp_path / "*"), backoff=Backoff([30.0]), fallback_probe=True)
@@ -283,18 +338,31 @@ async def test_the_search_for_the_radio_does_not_look_at_bluetooth(device: FakeB
 
 # ---- the paired devices
 
+
 def prop(kind: str, data: object) -> dict[str, object]:
     return {"type": kind, "data": data}
 
 
-def device_object(address: str, name: str, *, paired: bool = True, uuids: list[str] | None = None, alias: str | None = None) -> dict[str, dict[str, object]]:
-    props: dict[str, object] = {"Address": prop("s", address), "Name": prop("s", name), "Alias": prop("s", alias or name), "Paired": prop("b", paired), "Connected": prop("b", False)}
+def device_object(
+    address: str, name: str, *, paired: bool = True, uuids: list[str] | None = None, alias: str | None = None
+) -> dict[str, dict[str, object]]:
+    props: dict[str, object] = {
+        "Address": prop("s", address),
+        "Name": prop("s", name),
+        "Alias": prop("s", alias or name),
+        "Paired": prop("b", paired),
+        "Connected": prop("b", False),
+    }
     if uuids is not None:
         props["UUIDs"] = prop("as", uuids)
     return {"org.bluez.Device1": props, "org.freedesktop.DBus.Properties": {}}
 
 
-SPP, HEADSET, GATT = "00001101-0000-1000-8000-00805f9b34fb", "0000111e-0000-1000-8000-00805f9b34fb", "0000180f-0000-1000-8000-00805f9b34fb"
+SPP, HEADSET, GATT = (
+    "00001101-0000-1000-8000-00805f9b34fb",
+    "0000111e-0000-1000-8000-00805f9b34fb",
+    "0000180f-0000-1000-8000-00805f9b34fb",
+)
 
 
 def busctl_output() -> str:
@@ -303,13 +371,19 @@ def busctl_output() -> str:
     objects = {
         "/org/bluez": {"org.bluez.AgentManager1": {}},
         "/org/bluez/hci0": {"org.bluez.Adapter1": {"Address": prop("s", "80:00:00:00:00:01")}},
-        "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_01": device_object("AA:BB:CC:DD:EE:01", "TH-D74", uuids=[SPP.upper(), HEADSET]),
+        "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_01": device_object(
+            "AA:BB:CC:DD:EE:01", "TH-D74", uuids=[SPP.upper(), HEADSET]
+        ),
         "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_02": device_object("AA:BB:CC:DD:EE:02", "Mobilinkd TNC3", uuids=[SPP]),
         "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_03": device_object("AA:BB:CC:DD:EE:03", "Headset", uuids=[HEADSET]),
-        "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_04": device_object("AA:BB:CC:DD:EE:04", "Seen but not paired", paired=False, uuids=[SPP]),
+        "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_04": device_object(
+            "AA:BB:CC:DD:EE:04", "Seen but not paired", paired=False, uuids=[SPP]
+        ),
         "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_05": device_object("AA:BB:CC:DD:EE:05", "Sensor", uuids=[GATT]),
         "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_06": device_object("AA:BB:CC:DD:EE:06", "Not yet resolved"),
-        "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_07": device_object("AA:BB:CC:DD:EE:07", "", uuids=[SPP], alias="AA-BB-CC-DD-EE-07"),
+        "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_07": device_object(
+            "AA:BB:CC:DD:EE:07", "", uuids=[SPP], alias="AA-BB-CC-DD-EE-07"
+        ),
     }
     return json.dumps({"type": "a{oa{sa{sv}}}", "data": [objects]})
 
@@ -317,20 +391,41 @@ def busctl_output() -> str:
 def test_the_paired_devices_with_a_serial_port_come_from_the_words_of_bluez() -> None:
     found = btpaired.from_busctl(busctl_output())
     assert [(d.address, d.name) for d in found] == [
-        ("AA:BB:CC:DD:EE:01", "TH-D74"), ("AA:BB:CC:DD:EE:02", "Mobilinkd TNC3"), ("AA:BB:CC:DD:EE:06", "Not yet resolved"), ("AA:BB:CC:DD:EE:07", "")]
+        ("AA:BB:CC:DD:EE:01", "TH-D74"),
+        ("AA:BB:CC:DD:EE:02", "Mobilinkd TNC3"),
+        ("AA:BB:CC:DD:EE:06", "Not yet resolved"),
+        ("AA:BB:CC:DD:EE:07", ""),
+    ]
 
 
-@pytest.mark.parametrize("output", ["", "not json", "{}", '{"data": []}', '{"data": [3]}', '{"data": [{"/x": 3}]}', '{"data": [{"/x": {"org.bluez.Device1": 3}}]}'])
+@pytest.mark.parametrize(
+    "output",
+    [
+        "",
+        "not json",
+        "{}",
+        '{"data": []}',
+        '{"data": [3]}',
+        '{"data": [{"/x": 3}]}',
+        '{"data": [{"/x": {"org.bluez.Device1": 3}}]}',
+    ],
+)
 def test_an_answer_that_is_not_the_list_gives_no_devices(output: str) -> None:
     assert btpaired.from_busctl(output) == []
 
 
 def test_bluetoothctl_lines_are_the_fallback() -> None:
     text = "Device aa:bb:cc:dd:ee:01 TH-D74\nDevice AA:BB:CC:DD:EE:02 Mobilinkd TNC3\nDevice AA:BB:CC:DD:EE:03\nNEW Device x y\n\nnonsense\n"
-    assert [(d.address, d.name) for d in btpaired.from_bluetoothctl(text)] == [("AA:BB:CC:DD:EE:01", "TH-D74"), ("AA:BB:CC:DD:EE:02", "Mobilinkd TNC3"), ("AA:BB:CC:DD:EE:03", "")]
+    assert [(d.address, d.name) for d in btpaired.from_bluetoothctl(text)] == [
+        ("AA:BB:CC:DD:EE:01", "TH-D74"),
+        ("AA:BB:CC:DD:EE:02", "Mobilinkd TNC3"),
+        ("AA:BB:CC:DD:EE:03", ""),
+    ]
 
 
-def test_the_devices_are_asked_for_with_busctl_and_by_bluetoothctl_where_there_is_no_busctl(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_devices_are_asked_for_with_busctl_and_by_bluetoothctl_where_there_is_no_busctl(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(btpaired.sys, "platform", "linux")
     asked: list[str] = []
 
@@ -338,11 +433,23 @@ def test_the_devices_are_asked_for_with_busctl_and_by_bluetoothctl_where_there_i
         asked.append(command[0])
         return busctl_output() if command[0] == "busctl" else "Device AA:BB:CC:DD:EE:09 Fallback\n"
 
-    assert [d.name for d in btpaired.paired_devices(run)] == ["", "Mobilinkd TNC3", "Not yet resolved", "TH-D74"] and asked == ["busctl"]
+    assert [d.name for d in btpaired.paired_devices(run)] == [
+        "",
+        "Mobilinkd TNC3",
+        "Not yet resolved",
+        "TH-D74",
+    ] and asked == ["busctl"]
     asked.clear()
-    assert [d.name for d in btpaired.paired_devices(lambda c: "" if c[0] == "busctl" or asked.append(c[0]) else "")] == []
+    assert [
+        d.name for d in btpaired.paired_devices(lambda c: "" if c[0] == "busctl" or asked.append(c[0]) else "")
+    ] == []
     assert asked == ["bluetoothctl"]
-    assert [d.address for d in btpaired.paired_devices(lambda c: "Device AA:BB:CC:DD:EE:09 Fallback\n" if c[0] == "bluetoothctl" else "")] == ["AA:BB:CC:DD:EE:09"]
+    assert [
+        d.address
+        for d in btpaired.paired_devices(
+            lambda c: "Device AA:BB:CC:DD:EE:09 Fallback\n" if c[0] == "bluetoothctl" else ""
+        )
+    ] == ["AA:BB:CC:DD:EE:09"]
 
 
 def test_no_devices_where_there_is_no_bluez_and_none_on_other_systems(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -367,13 +474,16 @@ def test_the_port_list_names_them_bt_and_the_name_of_the_device(monkeypatch: pyt
     monkeypatch.setattr(btpaired, "_run", lambda command: busctl_output())
     ports = serialprobe.paired_bluetooth_ports()
     assert [(p.device, p.description) for p in ports] == [
-        ("bt://AA:BB:CC:DD:EE:07", "Bluetooth device"), ("bt://AA:BB:CC:DD:EE:02", "Bluetooth: Mobilinkd TNC3"), ("bt://AA:BB:CC:DD:EE:06", "Bluetooth: Not yet resolved"), ("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74")]
+        ("bt://AA:BB:CC:DD:EE:07", "Bluetooth device"),
+        ("bt://AA:BB:CC:DD:EE:02", "Bluetooth: Mobilinkd TNC3"),
+        ("bt://AA:BB:CC:DD:EE:06", "Bluetooth: Not yet resolved"),
+        ("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74"),
+    ]
     assert all(p.hwid == "" and p.vid is None and p.pid is None for p in ports)
 
 
 def test_listing_never_makes_a_socket(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The list is read from BlueZ's records: a device is not connected to, nor asked, to be listed.
-    """
+    """The list is read from BlueZ's records: a device is not connected to, nor asked, to be listed."""
     monkeypatch.setattr(btpaired.sys, "platform", "linux")
     monkeypatch.setattr(btpaired, "_run", lambda command: busctl_output())
     monkeypatch.setattr(socket, "socket", lambda *a, **k: pytest.fail("a socket was made to list the devices"))
@@ -382,6 +492,7 @@ def test_listing_never_makes_a_socket(monkeypatch: pytest.MonkeyPatch) -> None:
 
 # ---- the edges: elements of every kind, a directory that never ends, the sockets, a port opened
 # twice
+
 
 def test_a_nil_and_a_text_are_elements_like_the_numbers() -> None:
     assert btsdp.parse_elements(b"\x00") == [None]
@@ -411,10 +522,12 @@ def test_a_directory_that_goes_on_asking_to_be_continued_is_given_up() -> None:
             return answer(self.transaction, b"", b"\x01")
 
     with pytest.raises(btsdp.SdpError, match="does not end"):
-        btsdp.ask(Endless())                                          # type: ignore[arg-type]
+        btsdp.ask(Endless())  # type: ignore[arg-type]
 
 
-def test_the_sockets_of_the_directory_and_of_the_port_are_made_of_the_kinds_bluetooth_has(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_sockets_of_the_directory_and_of_the_port_are_made_of_the_kinds_bluetooth_has(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     made: list[tuple[int, int, int]] = []
     monkeypatch.setattr(socket, "AF_BLUETOOTH", 32, raising=False)
     monkeypatch.setattr(socket, "BTPROTO_L2CAP", 0, raising=False)
@@ -442,7 +555,9 @@ def test_bluetooth_sockets_are_made_on_linux_builds_that_have_them_only(monkeypa
     assert btserial.available() is False
 
 
-def test_a_connect_that_fails_with_something_that_is_no_os_error_closes_the_socket_and_raises_it(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_connect_that_fails_with_something_that_is_no_os_error_closes_the_socket_and_raises_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     closed: list[bool] = []
 
     class Odd:

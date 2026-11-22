@@ -2,6 +2,7 @@
 
 scripts/gen-protocol.py writes the result as ui/src/protocol/errors.json, which the page's
 catalogue must cover. In a template `{name}` is a value, `{{` a brace, `{*}` other text."""
+
 import ast
 import re
 from pathlib import Path
@@ -45,13 +46,22 @@ def _params(call: ast.Call) -> dict[str, str]:
     dicts = [kw.value for kw in call.keywords if kw.arg == "params"] + [a for a in call.args if isinstance(a, ast.Dict)]
     for d in dicts:
         if isinstance(d, ast.Dict):
-            found.update({k.value: _same(v) for k, v in zip(d.keys, d.values, strict=True) if isinstance(k, ast.Constant)})
-    found.update({kw.arg: _same(kw.value) for kw in call.keywords if kw.arg and kw.arg not in ("code", "params", "key")})
+            found.update(
+                {k.value: _same(v) for k, v in zip(d.keys, d.values, strict=True) if isinstance(k, ast.Constant)}
+            )
+    found.update(
+        {kw.arg: _same(kw.value) for kw in call.keywords if kw.arg and kw.arg not in ("code", "params", "key")}
+    )
     return found
 
 
 def _codes(node: ast.expr | None) -> list[str]:
-    if isinstance(node, ast.Constant) and isinstance(node.value, str) and CODE.fullmatch(node.value) and node.value != "other":
+    if (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and CODE.fullmatch(node.value)
+        and node.value != "other"
+    ):
         return [node.value]
     if isinstance(node, ast.IfExp):
         return _codes(node.body) + _codes(node.orelse)
@@ -60,7 +70,13 @@ def _codes(node: ast.expr | None) -> list[str]:
 
 def _refusal(call: ast.Call) -> tuple[list[str], ast.expr | None] | None:
     """Return the codes and sentence of a call that is a refusal with a code, else None."""
-    name = call.func.id if isinstance(call.func, ast.Name) else call.func.attr if isinstance(call.func, ast.Attribute) else ""
+    name = (
+        call.func.id
+        if isinstance(call.func, ast.Name)
+        else call.func.attr
+        if isinstance(call.func, ast.Attribute)
+        else ""
+    )
     keyword = next((kw.value for kw in call.keywords if kw.arg == "code"), None)
     if keyword is not None:
         return _codes(keyword), call.args[0] if call.args else None
@@ -88,7 +104,9 @@ def found_in(source: str) -> dict[str, list[dict[str, Any]]]:
         codes, text = refusal
         params = _params(call)
         for code, sentence in zip(codes, _sentences(text, len(codes), params), strict=True):
-            out.setdefault(code, []).append({"params": sorted(params), "text": None if sentence is None else PREFIX.sub("", sentence)})
+            out.setdefault(code, []).append(
+                {"params": sorted(params), "text": None if sentence is None else PREFIX.sub("", sentence)}
+            )
     return out
 
 

@@ -2,6 +2,7 @@
 lines, a real log and a held clock: the schedule of each kind, replacement in a slot, delete and the
 radios they go out on.
 """
+
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -30,7 +31,12 @@ class Rig(OwnRig):
         super().__init__(log, clock, **changes)
         self.hf = StubTnc()
         lines = {FM_ID: self.tnc, HF_ID: self.hf}
-        self.sender = Sender(RegistryShape([LiveShape(spec, self.config.radios, lines[spec.id]) for spec in self.config.radios]), lambda: self.config, clock, spacing_sec=10.0)     # type: ignore[arg-type]
+        self.sender = Sender(
+            RegistryShape([LiveShape(spec, self.config.radios, lines[spec.id]) for spec in self.config.radios]),
+            lambda: self.config,
+            clock,
+            spacing_sec=10.0,
+        )  # type: ignore[arg-type]
         self.posts = OwnBulletins(self.sender, lambda: self.config, log, clock, tick_sec=3600.0)
         self.record(self.posts)
 
@@ -55,14 +61,22 @@ async def rig(tmp_path: Path) -> Rig:
     return await rig_at(tmp_path)
 
 
-async def test_a_bulletin_goes_out_at_once_after_2_and_6_minutes_and_then_every_20_minutes_for_4_hours_and_is_then_over(rig: Rig) -> None:
+async def test_a_bulletin_goes_out_at_once_after_2_and_6_minutes_and_then_every_20_minutes_for_4_hours_and_is_then_over(
+    rig: Rig,
+) -> None:
     posted = rig.posts.post("BLN1", "Road closed at Kaivopuisto")
     rig.run(5 * 3600)
     assert rig.offsets() == [0, 120, 360, *range(1560, 13561, 1200)] and len(rig.offsets()) == 14
     assert all(info == b":BLN1     :Road closed at Kaivopuisto" for _, info in rig.sent)
     ended = rig.posts.get("BLN1")
-    assert ended is not None and ended.sent == 14 and rig.posts.next_at("BLN1") is None, "it stays on the board as ended"
-    assert posted.sent == 0 and ended.first_sent_at == rig.begin and ended.last_sent_at == rig.begin + timedelta(seconds=13560)
+    assert ended is not None and ended.sent == 14 and rig.posts.next_at("BLN1") is None, (
+        "it stays on the board as ended"
+    )
+    assert (
+        posted.sent == 0
+        and ended.first_sent_at == rig.begin
+        and ended.last_sent_at == rig.begin + timedelta(seconds=13560)
+    )
 
 
 async def test_an_announcement_goes_out_early_and_then_every_hour_for_72_hours(rig: Rig) -> None:
@@ -82,7 +96,9 @@ async def test_a_group_bulletin_goes_to_its_group_by_the_beacons_path_on_the_bul
 
 
 @pytest.mark.parametrize(("table", "code", "path"), [("/", "-", "WIDE2-2"), ("/", ">", "WIDE1-1,WIDE2-1")])
-async def test_a_bulletin_goes_by_the_recommended_path_of_the_stations_symbol(tmp_path: Path, table: str, code: str, path: str) -> None:
+async def test_a_bulletin_goes_by_the_recommended_path_of_the_stations_symbol(
+    tmp_path: Path, table: str, code: str, path: str
+) -> None:
     rig = await rig_at(tmp_path, beacon_path="", station_symbol_table=table, station_symbol_code=code)
     rig.posts.post("BLN1", "Net tonight")
     rig.run(10)
@@ -97,12 +113,19 @@ async def test_the_next_time_is_told_and_what_is_overdue_says_so(rig: Rig) -> No
     assert rig.posts.next_at("BLN2") is None and rig.posts.get("BLN2") is None
 
 
-async def test_a_new_text_for_a_slot_replaces_the_old_one_and_the_schedule_starts_again_never_within_a_minute(rig: Rig) -> None:
+async def test_a_new_text_for_a_slot_replaces_the_old_one_and_the_schedule_starts_again_never_within_a_minute(
+    rig: Rig,
+) -> None:
     rig.posts.post("BLN1", "one")
     rig.run(10)
     rig.posts.post("BLN1", "two")
     rig.run(500)
-    assert [t for t, _ in rig.sent] == [0, 60, 180, 420] and [info[-3:] for _, info in rig.sent] == [b"one", b"two", b"two", b"two"]
+    assert [t for t, _ in rig.sent] == [0, 60, 180, 420] and [info[-3:] for _, info in rig.sent] == [
+        b"one",
+        b"two",
+        b"two",
+        b"two",
+    ]
     assert [b.slot for b in rig.posts.records()] == ["BLN1"], "one entry for a slot"
     await rig.settled()
     assert [b.text for b in await rig.log.bulletins()] == ["two"]
@@ -114,7 +137,7 @@ async def test_a_bulletin_that_is_over_is_posted_again_with_the_same_text_and_go
     assert len(rig.sent) == 14 and rig.posts.next_at("BLN1") is None
     rig.posts.post("BLN1", "same")
     rig.run(300)
-    assert len(rig.sent) == 16 and rig.posts.get("BLN1").sent == 2                            # type: ignore[union-attr]
+    assert len(rig.sent) == 16 and rig.posts.get("BLN1").sent == 2  # type: ignore[union-attr]
 
 
 async def test_deleting_a_bulletin_stops_it_and_takes_it_off_the_board_and_out_of_the_database(rig: Rig) -> None:
@@ -124,7 +147,9 @@ async def test_deleting_a_bulletin_stops_it_and_takes_it_off_the_board_and_out_o
     assert rig.posts.delete("BLN1") and not rig.posts.delete("BLN1") and not rig.posts.delete("BLN9")
     assert [b.slot for b in rig.removed] == ["BLN1"]
     rig.run(700)
-    assert [info for _, info in rig.sent if b"gone" in info] == [b":BLN1     :gone"], "it was sent once before it was deleted, never after"
+    assert [info for _, info in rig.sent if b"gone" in info] == [b":BLN1     :gone"], (
+        "it was sent once before it was deleted, never after"
+    )
     await rig.settled()
     assert [b.slot for b in await rig.log.bulletins()] == ["BLN2"]
 
@@ -136,7 +161,9 @@ async def test_nothing_is_posted_while_the_call_is_not_set(tmp_path: Path) -> No
     assert rig.posts.records() == [] and rig.tnc.sent == []
 
 
-async def test_nothing_is_sent_while_the_call_is_gone_and_one_packet_goes_out_when_it_is_back(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+async def test_nothing_is_sent_while_the_call_is_gone_and_one_packet_goes_out_when_it_is_back(
+    rig: Rig, caplog: pytest.LogCaptureFixture
+) -> None:
     rig.posts.post("BLN1", "x")
     rig.config = replace(rig.config, station_call="")
     rig.run(1000)
@@ -146,7 +173,9 @@ async def test_nothing_is_sent_while_the_call_is_gone_and_one_packet_goes_out_wh
     assert rig.offsets() == [1000]
 
 
-async def test_the_radio_that_is_silent_holds_it_back_and_it_is_not_made_up_when_the_radio_is_back(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+async def test_the_radio_that_is_silent_holds_it_back_and_it_is_not_made_up_when_the_radio_is_back(
+    rig: Rig, caplog: pytest.LogCaptureFixture
+) -> None:
     rig.posts.post("BLN1", "x")
     rig.run(0)
     rig.tnc.state = Source.State.SILENT
@@ -156,11 +185,13 @@ async def test_the_radio_that_is_silent_holds_it_back_and_it_is_not_made_up_when
     rig.run(100)
     assert rig.offsets() == [0, 3000], "one, not the ones that were due on the way"
     rig.run(1000)
-    assert rig.offsets() == [0, 3000, 3000 + 240] and rig.posts.get("BLN1").sent == 3                  # type: ignore[union-attr]
+    assert rig.offsets() == [0, 3000, 3000 + 240] and rig.posts.get("BLN1").sent == 3  # type: ignore[union-attr]
 
 
 @pytest.mark.parametrize(("fm", "hf", "on"), [(True, True, "fm"), (True, False, "fm"), (False, True, "hf")])
-async def test_a_new_bulletin_goes_on_the_first_radio_that_can_send_the_fm_one_while_it_is_on_else_the_hf_one_by_its_own_path(tmp_path: Path, fm: bool, hf: bool, on: str) -> None:
+async def test_a_new_bulletin_goes_on_the_first_radio_that_can_send_the_fm_one_while_it_is_on_else_the_hf_one_by_its_own_path(
+    tmp_path: Path, fm: bool, hf: bool, on: str
+) -> None:
     rig = await rig_at(tmp_path, fm_enabled=fm, hf_enabled=hf)
     rig.posts.post("BLN1", "Net tonight")
     rig.run(10)
@@ -169,7 +200,9 @@ async def test_a_new_bulletin_goes_on_the_first_radio_that_can_send_the_fm_one_w
     assert sent[0].path_text == ("WIDE1-1,WIDE2-1" if on == "fm" else ""), "beacon/path on the FM radio, no path on HF"
 
 
-async def test_the_post_boxs_ticks_go_with_the_text_a_text_for_a_slot_of_ours_replaces_its_radios_and_a_new_one_starts_as_the_last(tmp_path: Path) -> None:
+async def test_the_post_boxs_ticks_go_with_the_text_a_text_for_a_slot_of_ours_replaces_its_radios_and_a_new_one_starts_as_the_last(
+    tmp_path: Path,
+) -> None:
     """What the Post box sends (BulletinCompose.vue: the radios ticked with every Post while several
     can send), counted per radio: the first text on FM alone, the same slot posted again on the
     Mercury radio alone goes there from its first frame, and a slot never posted starts as the one
@@ -180,13 +213,23 @@ async def test_the_post_boxs_ticks_go_with_the_text_a_text_for_a_slot_of_ours_re
     assert (len(rig.tnc.sent), len(rig.hf.sent)) == (1, 0)
     rig.posts.post("BLN1", "Net moved", [HF_ID])
     rig.run(600)
-    assert (len(rig.tnc.sent), len(rig.hf.sent)) == (1, 3), "the replaced text and its repeats on the new radio alone: 1, 3 and 7 minutes after the first"
-    assert rig.posts.get("BLN1").radios == (HF_ID,) and rig.posts.new_radios() == (HF_ID,)                   # type: ignore[union-attr]
-    assert rig.posts.post("BLN2", "Club news").radios == (HF_ID,), "a new one with no ticks named: as the one posted last"
+    assert (len(rig.tnc.sent), len(rig.hf.sent)) == (1, 3), (
+        "the replaced text and its repeats on the new radio alone: 1, 3 and 7 minutes after the first"
+    )
+    assert rig.posts.get("BLN1").radios == (HF_ID,) and rig.posts.new_radios() == (HF_ID,)  # type: ignore[union-attr]
+    assert rig.posts.post("BLN2", "Club news").radios == (HF_ID,), (
+        "a new one with no ticks named: as the one posted last"
+    )
 
 
 async def test_a_slot_or_a_text_that_cannot_be_sent_is_refused_with_the_reason(rig: Rig) -> None:
-    for slot, text, why in (("BLN", "x", "is not BLN0"), ("QST", "x", "is not BLN0"), ("BLN1", "", "empty"), ("BLN1", "x" * 68, "at most 67"), ("BLN1", "a|b", "forbidden|cannot carry|not allowed")):
+    for slot, text, why in (
+        ("BLN", "x", "is not BLN0"),
+        ("QST", "x", "is not BLN0"),
+        ("BLN1", "", "empty"),
+        ("BLN1", "x" * 68, "at most 67"),
+        ("BLN1", "a|b", "forbidden|cannot carry|not allowed"),
+    ):
         with pytest.raises(PostError, match=why):
             rig.posts.post(slot, text)
     assert rig.posts.records() == []
@@ -213,9 +256,13 @@ async def test_a_restart_goes_on_where_the_schedule_stopped_and_an_ended_one_sta
 
     first.clock.advance(100)
     second = await Rig(first.log, first.clock).start()
-    assert [(b.slot, b.sent) for b in second.posts.records()] == [("BLN1", 2), ("BLNA", 2)] and [b.slot for b in second.changed] == ["BLN1", "BLNA"]
+    assert [(b.slot, b.sent) for b in second.posts.records()] == [("BLN1", 2), ("BLNA", 2)] and [
+        b.slot for b in second.changed
+    ] == ["BLN1", "BLNA"]
     second.run(400)
-    assert [(t, info[1:5]) for t, info in second.sent] == [(130, b"BLN1"), (140, b"BLNA")], "each is due 240 seconds after its second packet; nothing is sent for the restart"
+    assert [(t, info[1:5]) for t, info in second.sent] == [(130, b"BLN1"), (140, b"BLNA")], (
+        "each is due 240 seconds after its second packet; nothing is sent for the restart"
+    )
 
 
 async def test_one_that_is_over_is_still_there_after_a_restart_and_sends_nothing(tmp_path: Path) -> None:
@@ -238,4 +285,10 @@ async def test_the_bulletins_are_kept_with_their_text_and_the_times_of_what_was_
     rig.run(130)
     await rig.settled()
     [kept] = await rig.log.bulletins()
-    assert kept == rig.posts.get("BLN3HAMS") and (kept.group, kept.kind, kept.sent, kept.first_sent_at, kept.last_sent_at) == ("HAMS", "group", 2, rig.begin, rig.begin + timedelta(seconds=120))
+    assert kept == rig.posts.get("BLN3HAMS") and (
+        kept.group,
+        kept.kind,
+        kept.sent,
+        kept.first_sent_at,
+        kept.last_sent_at,
+    ) == ("HAMS", "group", 2, rig.begin, rig.begin + timedelta(seconds=120))

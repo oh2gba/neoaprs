@@ -3,6 +3,7 @@
 A `TncPort` that opens nothing: a task hands the scene's due frames to the Tnc as KISS, and
 frames the Tnc writes are shown to the scene and never sent on.
 """
+
 import asyncio
 import logging
 from collections.abc import Callable
@@ -24,6 +25,7 @@ TICK_SEC = 0.5  # how often the scene is asked what is due
 
 class SceneLike(Protocol):
     """A made-up world: what is due, the reading of each frame, a reaction to what we sent."""
+
     @property
     def description(self) -> str: ...
     def due(self, now: datetime) -> list[ax25.Frame]: ...
@@ -36,14 +38,29 @@ SceneFactory = Callable[[tuple[float, float] | None, datetime, int], SceneLike]
 
 class Speaker(Protocol):
     """Plays the frames of the Dummy HF radio aloud (the Mercury modem, mercurymodem.py)."""
+
     def play(self, data: bytes) -> None: ...
 
 
 class DummyPort(TncPort):
-    def __init__(self, on_data: Callable[[TncPort, bytes], None], on_lost: Callable[[TncPort, str], None], where: Callable[[], tuple[float, float] | None], clock: Clock, tick_sec: float | None = None,
-                 seed: int = 1, scene_of: SceneFactory = Scene, speaker: Speaker | None = None) -> None:
+    def __init__(
+        self,
+        on_data: Callable[[TncPort, bytes], None],
+        on_lost: Callable[[TncPort, str], None],
+        where: Callable[[], tuple[float, float] | None],
+        clock: Clock,
+        tick_sec: float | None = None,
+        seed: int = 1,
+        scene_of: SceneFactory = Scene,
+        speaker: Speaker | None = None,
+    ) -> None:
         super().__init__(DUMMY_PATH, 0, on_data, on_lost)
-        self._where, self._clock, self._tick_sec, self._seed = where, clock, TICK_SEC if tick_sec is None else tick_sec, seed
+        self._where, self._clock, self._tick_sec, self._seed = (
+            where,
+            clock,
+            TICK_SEC if tick_sec is None else tick_sec,
+            seed,
+        )
         # `seed` picks the world: the radio's id.
         self._scene_of, self._speaker = scene_of, speaker
         self.scene: SceneLike | None = None

@@ -2,6 +2,7 @@
 `status`): the fingerprint is reported and a key made only while the daemon runs with the encryption
 flag.
 """
+
 from pathlib import Path
 
 from neoaprs.services.keyring import Keyring
@@ -14,7 +15,7 @@ async def test_the_page_sees_the_fingerprint_and_makes_a_new_key_only_while_encr
     page = await e.ws()
     ring = e.ctl.keyring
     assert isinstance(ring, Keyring)
-    ring.allowed = True                                               # (an earlier run with the flag)
+    ring.allowed = True  # (an earlier run with the flag)
     ring.ensure_own()
     first = ring.fingerprint()
     assert first

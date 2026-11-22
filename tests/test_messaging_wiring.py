@@ -1,6 +1,7 @@
 """Messaging inside the whole daemon with a pseudo-terminal radio: a message goes out as a KISS
 frame, an incoming one is kept and acked, an ack settles it, a restart resumes, and pruning.
 """
+
 import asyncio
 import logging
 from datetime import timedelta
@@ -33,8 +34,17 @@ async def test_a_message_goes_out_as_a_kiss_frame_and_is_in_the_packet_log_as_a_
     [frame] = await said(e)
     assert frame.tnc2() == WORKED and frame.is_ui
     [sent] = await e.packets()
-    assert (sent.direction, sent.source, sent.destination, sent.path) == ("out", "OH2GBA", "APZNEO", ("WIDE1-1", "WIDE2-1"))
-    assert isinstance(sent.decoded, Message) and (sent.decoded.addressee, sent.decoded.text, sent.decoded.msg_id) == ("OH2RDG", "Hello Pekka", "01")
+    assert (sent.direction, sent.source, sent.destination, sent.path) == (
+        "out",
+        "OH2GBA",
+        "APZNEO",
+        ("WIDE1-1", "WIDE2-1"),
+    )
+    assert isinstance(sent.decoded, Message) and (sent.decoded.addressee, sent.decoded.text, sent.decoded.msg_id) == (
+        "OH2RDG",
+        "Hello Pekka",
+        "01",
+    )
     assert await kept(e) == [record] and record.state == "sending" and record.attempts == 1
     assert e.ctl.stationbook.get("OH2RDG") is None, "a packet we sent makes no station"
     await e.stop()
@@ -48,7 +58,7 @@ async def test_an_ack_through_the_line_settles_the_message_and_the_database_has_
     await until(lambda: e.ctl.messaging.records()[0].state == "acked")
     [row] = await kept(e)
     assert (row.state, row.attempts, row.acked_at) == ("acked", 1, e.now())
-    e.now.advance(3600)                                                     # type: ignore[attr-defined]
+    e.now.advance(3600)  # type: ignore[attr-defined]
     await idle_for(0.15)
     assert await said(e, 1, 0.2) == [], "an acked message is not sent again"
     await e.stop()
@@ -72,11 +82,18 @@ async def test_a_message_sent_to_us_is_kept_and_the_ack_is_on_the_line_and_in_th
     assert ack.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG-7 :ack12"
     await until(lambda: len(e.ctl.messaging.records()) == 1)
     [row] = await kept(e)
-    assert (row.direction, row.from_call, row.to_call, row.text, row.msg_id, row.state) == ("in", "OH2RDG-7", "OH2GBA", "Moi!", "12", "received")
+    assert (row.direction, row.from_call, row.to_call, row.text, row.msg_id, row.state) == (
+        "in",
+        "OH2RDG-7",
+        "OH2GBA",
+        "Moi!",
+        "12",
+        "received",
+    )
     assert [p.direction for p in reversed(await e.packets())] == ["in", "out"], "the message, then our ack"
     station = e.ctl.stationbook.get("OH2RDG-7")
     assert station is not None and station.packets == 1
-    e.now.advance(30)                                                        # type: ignore[attr-defined]  # it did not hear the ack: it sends it again, and that is thirty seconds after our ack
+    e.now.advance(30)  # type: ignore[attr-defined]  # it did not hear the ack: it sends it again, and that is thirty seconds after our ack
     e.feed(on_air("OH2RDG-7", message_info("OH2GBA", "Moi!", "12")))
     await until(lambda: e.tnc.stats.packets == 2)
     assert len(await said(e)) == 1
@@ -84,17 +101,27 @@ async def test_a_message_sent_to_us_is_kept_and_the_ack_is_on_the_line_and_in_th
     await e.stop()
 
 
-async def test_a_message_to_somebody_else_is_in_the_packet_log_and_kept_as_overheard_and_not_acked(tmp_path: Path) -> None:
+async def test_a_message_to_somebody_else_is_in_the_packet_log_and_kept_as_overheard_and_not_acked(
+    tmp_path: Path,
+) -> None:
     e = await started(tmp_path)
     e.feed(on_air("OH2RDG", message_info("OH2XYZ", "not for us", "3")))
     await until(lambda: e.tnc.stats.packets == 1)
     assert await said(e, 1, 0.3) == [] and await kept(e) == [] and len(await e.packets()) == 1
     [row] = await e.ctl.messagelog.recent(overheard=True)
-    assert (row.state, row.direction, row.from_call, row.to_call, row.text) == ("overheard", "in", "OH2RDG", "OH2XYZ", "not for us")
+    assert (row.state, row.direction, row.from_call, row.to_call, row.text) == (
+        "overheard",
+        "in",
+        "OH2RDG",
+        "OH2XYZ",
+        "not for us",
+    )
     await e.stop()
 
 
-async def test_the_ack_and_the_messages_to_a_station_go_by_its_remembered_path_which_a_restart_remembers(tmp_path: Path) -> None:
+async def test_the_ack_and_the_messages_to_a_station_go_by_its_remembered_path_which_a_restart_remembers(
+    tmp_path: Path,
+) -> None:
     first = await started(tmp_path)
     await first.ctl.prefbook.set_path("OH2RDG-7", "OH2RCH-2,WIDE2-1")
     first.feed(on_air("OH2RDG-7", message_info("OH2GBA", "Moi!", "12")))
@@ -117,9 +144,12 @@ async def test_a_restart_finds_the_messages_and_goes_on_with_the_one_being_sent(
     second = Env(tmp_path)
     second.ctl.messaging.tick_sec = 0.02
     await second.start()
-    assert [(m.direction, m.text, m.state) for m in second.ctl.messaging.records()] == [("out", "Hello Pekka", "sending"), ("in", "Moi!", "received")]
+    assert [(m.direction, m.text, m.state) for m in second.ctl.messaging.records()] == [
+        ("out", "Hello Pekka", "sending"),
+        ("in", "Moi!", "received"),
+    ]
     await second.until_usable()
-    second.now.advance(33)                                                  # type: ignore[attr-defined]
+    second.now.advance(33)  # type: ignore[attr-defined]
     await until(lambda: second.ctl.messaging.records()[0].attempts == 2)
     assert [f.tnc2() for f in await said(second)] == [WORKED]
     assert (await second.ctl.messaging.send("OH2RDG", "second")).msg_id == "02", "the ids go on from the latest we sent"
@@ -132,7 +162,7 @@ async def test_with_the_cable_pulled_the_message_waits_and_goes_out_when_the_rad
     await until(lambda: e.tnc.state is Source.State.WAITING)
     record = await e.ctl.messaging.send("OH2RDG", "Hello Pekka")
     assert (record.state, record.attempts) == ("sending", 0)
-    e.now.advance(300)                                                      # type: ignore[attr-defined]
+    e.now.advance(300)  # type: ignore[attr-defined]
     await idle_for(0.15)
     assert e.ctl.messaging.records()[0].attempts == 0
     await e.plug()
@@ -144,11 +174,19 @@ async def test_with_the_cable_pulled_the_message_waits_and_goes_out_when_the_rad
 
 async def test_the_daily_prune_removes_no_message_however_old(tmp_path: Path) -> None:
     e = await started(tmp_path)
-    await e.ctl.messagelog.insert(MessageRecord(0, utc(2026, 9, 1), "in", "OH2RDG", "OH2GBA", "ancient", "1", "received"))
-    await e.ctl.messagelog.insert(MessageRecord(0, e.now() - timedelta(days=1), "in", "OH2RDG", "OH2GBA", "yesterday", "2", "received"))
+    await e.ctl.messagelog.insert(
+        MessageRecord(0, utc(2026, 9, 1), "in", "OH2RDG", "OH2GBA", "ancient", "1", "received")
+    )
+    await e.ctl.messagelog.insert(
+        MessageRecord(0, e.now() - timedelta(days=1), "in", "OH2RDG", "OH2GBA", "yesterday", "2", "received")
+    )
     await e.settled()
     packets, stations = await e.ctl.prune()
-    assert sorted(m.text for m in await e.ctl.messagelog.recent()) == ["ancient", "yesterday"] and packets == 0 and stations == []
+    assert (
+        sorted(m.text for m in await e.ctl.messagelog.recent()) == ["ancient", "yesterday"]
+        and packets == 0
+        and stations == []
+    )
     await e.stop()
 
 
@@ -178,32 +216,55 @@ async def test_an_ack_the_internet_sent_and_an_igate_put_on_the_air_settles_the_
     [row] = await kept(e)
     assert (row.state, row.attempts, row.acked_at) == ("acked", 1, e.now())
     station = e.ctl.stationbook.get("OH2DPN")
-    assert station is not None and station.packets == 1 and e.ctl.stationbook.get("OH7JHF-1") is None, "the packet counts for the sender inside, the iGate is no station"
+    assert station is not None and station.packets == 1 and e.ctl.stationbook.get("OH7JHF-1") is None, (
+        "the packet counts for the sender inside, the iGate is no station"
+    )
     await e.stop()
 
 
-async def test_a_message_the_internet_sent_is_received_once_and_acked_to_the_inner_sender_and_the_route_says_where_it_came_in(tmp_path: Path) -> None:
+async def test_a_message_the_internet_sent_is_received_once_and_acked_to_the_inner_sender_and_the_route_says_where_it_came_in(
+    tmp_path: Path,
+) -> None:
     e = await started(tmp_path)
     e.feed(on_air("OH7JHF-1", GATED_MESSAGE, path="OH2RCH-3*"))
     await until(lambda: e.tnc.stats.packets == 1)
     [ack] = await said(e)
-    assert ack.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2BEA-9 :ack06", "the ack goes to the sender inside, not to the iGate"
+    assert ack.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2BEA-9 :ack06", (
+        "the ack goes to the sender inside, not to the iGate"
+    )
     await until(lambda: len(e.ctl.messaging.records()) == 1)
     # The same message, heard direct as well
     e.feed(on_air("OH2BEA-9", message_info("OH2GBA", "Test ok", "06"), path=""))
     await until(lambda: e.tnc.stats.packets == 2)
-    assert await said(e, 1, 0.3) == [], "the copy that came direct, within thirty seconds of our ack, is not acked again"
+    assert await said(e, 1, 0.3) == [], (
+        "the copy that came direct, within thirty seconds of our ack, is not acked again"
+    )
     [row] = await kept(e)
-    assert (row.from_call, row.to_call, row.text, row.msg_id, row.state) == ("OH2BEA-9", "OH2GBA", "Test ok", "06", "received")
+    assert (row.from_call, row.to_call, row.text, row.msg_id, row.state) == (
+        "OH2BEA-9",
+        "OH2GBA",
+        "Test ok",
+        "06",
+        "received",
+    )
     assert row.route == "via OH7JHF-1 (internet) → OH2RCH-3", "the copy that came first is the one that was kept"
     station = e.ctl.stationbook.get("OH2BEA-9")
-    assert station is not None and station.packets == 2 and station.deliveries.gated == 1 and station.deliveries.direct == 1
-    assert station.best_route is not None and station.best_route.direct, "only the direct delivery is a route to send by"
+    assert (
+        station is not None
+        and station.packets == 2
+        and station.deliveries.gated == 1
+        and station.deliveries.direct == 1
+    )
+    assert station.best_route is not None and station.best_route.direct, (
+        "only the direct delivery is a route to send by"
+    )
     await e.stop()
 
 
 @pytest.mark.parametrize("sender", ["OH2XYZ-L", "OH2XYZ-20", "WINLINK"])
-async def test_a_message_from_an_internet_station_whose_name_is_no_ax25_call_is_shown_acked_and_answered(tmp_path: Path, sender: str) -> None:
+async def test_a_message_from_an_internet_station_whose_name_is_no_ax25_call_is_shown_acked_and_answered(
+    tmp_path: Path, sender: str
+) -> None:
     e = await started(tmp_path)
     e.feed(on_air("OH7JHF-1", f"}}{sender}>APRS,TCPIP,OH7JHF-1*::OH2GBA   :Moi!{{12".encode(), path="OH2RCH-3*"))
     await until(lambda: e.tnc.stats.packets == 1)
@@ -219,7 +280,7 @@ async def test_a_message_from_an_internet_station_whose_name_is_no_ax25_call_is_
     [frame] = await said(e)
     assert frame.tnc2() == f"OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::{sender:<9}:Hi{{01}}" and reply.to_call == sender
     e.feed(on_air("OH7JHF-1", f"}}{sender}>APRS,TCPIP,OH7JHF-1*::OH2GBA   :ack01".encode(), path="OH2RCH-3*"))
-    await until(lambda: e.ctl.messaging.get(reply.id) is not None and e.ctl.messaging.get(reply.id).state == "acked")    # type: ignore[union-attr]
+    await until(lambda: e.ctl.messaging.get(reply.id) is not None and e.ctl.messaging.get(reply.id).state == "acked")  # type: ignore[union-attr]
     assert await e.ctl.messaging.delete_conversation(sender) == 2
     await e.stop()
 
@@ -240,10 +301,10 @@ async def test_three_copies_of_a_message_within_six_seconds_are_one_ack_on_the_l
     await until(lambda: e.tnc.stats.packets == 1)
     [ack] = await said(e)
     assert ack.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG-7 :ack12"
-    e.now.advance(3)                                                        # type: ignore[attr-defined]
+    e.now.advance(3)  # type: ignore[attr-defined]
     e.feed(on_air("OH2RDG-7", message_info("OH2GBA", "Moi!", "12"), path="OH2RCH-3*"))
     await until(lambda: e.tnc.stats.packets == 2)
-    e.now.advance(3)                                                        # type: ignore[attr-defined]
+    e.now.advance(3)  # type: ignore[attr-defined]
     e.feed(on_air("OH7JHF-1", b"}OH2RDG-7>APRS,TCPIP,OH7JHF-1*::OH2GBA   :Moi!{12", path="OH2RCH-3*"))
     await until(lambda: e.tnc.stats.packets == 3)
     assert await said(e, 1, 0.3) == [], "the other two copies are not acked"
@@ -254,7 +315,10 @@ async def test_three_copies_of_a_message_within_six_seconds_are_one_ack_on_the_l
 
 # ---- RF only: RFONLY is the last element of every path we send to the station
 
-async def test_a_message_and_our_ack_to_an_rf_only_station_end_with_rfonly_and_the_chain_does_not_hold_it(tmp_path: Path) -> None:
+
+async def test_a_message_and_our_ack_to_an_rf_only_station_end_with_rfonly_and_the_chain_does_not_hold_it(
+    tmp_path: Path,
+) -> None:
     e = await started(tmp_path)
     await e.ctl.prefbook.set_rf_only("OH2RDG", True)
     await e.ctl.messaging.send("OH2RDG", "Hello Pekka")
@@ -272,23 +336,35 @@ async def test_a_message_and_our_ack_to_an_rf_only_station_end_with_rfonly_and_t
     await e.stop()
 
 
-async def test_the_station_path_comes_before_rfonly_and_a_path_that_has_rfonly_or_nogate_gets_no_second(tmp_path: Path) -> None:
+async def test_the_station_path_comes_before_rfonly_and_a_path_that_has_rfonly_or_nogate_gets_no_second(
+    tmp_path: Path,
+) -> None:
     e = await started(tmp_path)
     await e.ctl.prefbook.set_rf_only("OH2RDG", True)
     frames: list[str] = []
-    for path, text in (("OH2RCH-2,WIDE2-1", "one"), ("RFONLY,OH2RCH-2", "two"), ("OH2RCH-2,NOGATE", "three"), ("DIRECT", "four")):
+    for path, text in (
+        ("OH2RCH-2,WIDE2-1", "one"),
+        ("RFONLY,OH2RCH-2", "two"),
+        ("OH2RCH-2,NOGATE", "three"),
+        ("DIRECT", "four"),
+    ):
         await e.ctl.prefbook.set_path("OH2RDG", path)
         record = await e.ctl.messaging.send("OH2RDG", text)
         frames += [f.tnc2() for f in await said(e)]
         # One message to a station is on the air at a time: the next goes when this one is settled
         e.ctl.messaging.cancel(record.id)
     assert frames == [
-        "OH2GBA>APZNEO,OH2RCH-2,WIDE2-1,RFONLY::OH2RDG   :one{01}", "OH2GBA>APZNEO,RFONLY,OH2RCH-2::OH2RDG   :two{02}",
-        "OH2GBA>APZNEO,OH2RCH-2,NOGATE::OH2RDG   :three{03}", "OH2GBA>APZNEO,RFONLY::OH2RDG   :four{04}"]
+        "OH2GBA>APZNEO,OH2RCH-2,WIDE2-1,RFONLY::OH2RDG   :one{01}",
+        "OH2GBA>APZNEO,RFONLY,OH2RCH-2::OH2RDG   :two{02}",
+        "OH2GBA>APZNEO,OH2RCH-2,NOGATE::OH2RDG   :three{03}",
+        "OH2GBA>APZNEO,RFONLY::OH2RDG   :four{04}",
+    ]
     await e.stop()
 
 
-async def test_with_eight_digipeaters_already_a_message_to_an_rf_only_station_is_refused_and_a_waiting_one_waits_and_goes_when_the_path_is_shorter(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_with_eight_digipeaters_already_a_message_to_an_rf_only_station_is_refused_and_a_waiting_one_waits_and_goes_when_the_path_is_shorter(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     e = await started(tmp_path)
     eight = ",".join(f"OH2RC{n}" for n in range(8))
     await e.ctl.prefbook.set_path("OH2RDG", eight)
@@ -299,11 +375,17 @@ async def test_with_eight_digipeaters_already_a_message_to_an_rf_only_station_is
     with pytest.raises(MessagingError, match="path too long for RF only"):
         await e.ctl.messaging.send("OH2RDG", "refused")
     assert [r.text for r in e.ctl.messaging.records()] == ["waits"], "a refused message is not kept"
-    e.now.advance(60)                                                              # type: ignore[attr-defined]  # the second attempt of the first message is due
+    e.now.advance(60)  # type: ignore[attr-defined]  # the second attempt of the first message is due
     with caplog.at_level(logging.WARNING, "neoaprs.messaging"):
         await idle_for(0.3)
-    assert await said(e, 1, 0.2) == [] and e.ctl.messaging.records()[0].attempts == 1 and e.ctl.messaging.records()[0].state == "sending"
-    assert len([r for r in caplog.records if "path too long for RF only" in r.getMessage()]) == 1, "told once, not at every tick"
+    assert (
+        await said(e, 1, 0.2) == []
+        and e.ctl.messaging.records()[0].attempts == 1
+        and e.ctl.messaging.records()[0].state == "sending"
+    )
+    assert len([r for r in caplog.records if "path too long for RF only" in r.getMessage()]) == 1, (
+        "told once, not at every tick"
+    )
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi!", "12")))
     await until(lambda: e.tnc.stats.packets == 1)
     assert await said(e, 1, 0.3) == [], "an ack that cannot go by that path is not sent"

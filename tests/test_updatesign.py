@@ -2,6 +2,7 @@
 key is pinned in one place, a list is believed only with the signature of exactly the version asked
 for, and every failure is the one problem `unverified` with the file never downloaded.
 """
+
 import base64
 import hashlib
 import secrets
@@ -14,7 +15,16 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from neoaprs.services.selfinstall import release_key
 from neoaprs.services.selfupdate import SelfUpdate
-from neoaprs.updateasset import PUBLIC_KEY, RELEASES, Unverified, public_key, sign, signed_checksum, signed_message, url_allowed
+from neoaprs.updateasset import (
+    PUBLIC_KEY,
+    RELEASES,
+    Unverified,
+    public_key,
+    sign,
+    signed_checksum,
+    signed_message,
+    url_allowed,
+)
 from neoaprs.versions import InstallInfo
 from tests.support.env import until
 from tests.support.fakerelease import BODY, NAME, SEED, SUMS, FakeInstaller, FakeRelease, old_checksum_for, public
@@ -25,7 +35,7 @@ MINE = hashlib.sha256(BODY).hexdigest()
 
 
 def raw(key: object) -> bytes:
-    return key.public_bytes(Encoding.Raw, PublicFormat.Raw)        # type: ignore[attr-defined, no-any-return]
+    return key.public_bytes(Encoding.Raw, PublicFormat.Raw)  # type: ignore[attr-defined, no-any-return]
 
 
 def test_the_projects_public_key_is_pinned() -> None:
@@ -34,11 +44,17 @@ def test_the_projects_public_key_is_pinned() -> None:
 
 
 def test_the_public_key_is_in_one_place_of_the_program() -> None:
-    holders = [p.relative_to(ROOT).as_posix() for p in (ROOT / "neoaprs").rglob("*.py") if PUBLIC_KEY in p.read_text(encoding="utf-8")]
+    holders = [
+        p.relative_to(ROOT).as_posix()
+        for p in (ROOT / "neoaprs").rglob("*.py")
+        if PUBLIC_KEY in p.read_text(encoding="utf-8")
+    ]
     assert holders == ["neoaprs/updateasset.py"]
 
 
-@pytest.mark.parametrize("text", ["", "not base64!", base64.b64encode(bytes(31)).decode(), base64.b64encode(bytes(33)).decode()])
+@pytest.mark.parametrize(
+    "text", ["", "not base64!", base64.b64encode(bytes(31)).decode(), base64.b64encode(bytes(33)).decode()]
+)
 def test_a_public_key_that_is_not_32_bytes_of_base64_is_none(text: str) -> None:
     with pytest.raises(ValueError):
         public_key(text)
@@ -51,10 +67,18 @@ def test_a_list_signed_for_its_version_gives_the_files_sum() -> None:
     assert signed_message(SUMS, "0.7.0") == b"NeoAPRS SHA256SUMS v0.7.0\n" + SUMS
 
 
-def bad(sums: bytes = SUMS, signature: bytes | None = None, version: str = "0.7.0", signed_for: str = "0.7.0", seed: bytes = SEED) -> str:
+def bad(
+    sums: bytes = SUMS,
+    signature: bytes | None = None,
+    version: str = "0.7.0",
+    signed_for: str = "0.7.0",
+    seed: bytes = SEED,
+) -> str:
     """Why `signed_checksum` does not believe this list (it must not)."""
     with pytest.raises(Unverified) as refused:
-        signed_checksum(sums, sign(sums, signed_for, seed).encode() if signature is None else signature, version, NAME, public())
+        signed_checksum(
+            sums, sign(sums, signed_for, seed).encode() if signature is None else signature, version, NAME, public()
+        )
     return str(refused.value)
 
 
@@ -77,10 +101,12 @@ def test_a_signature_over_a_different_list_does_not_hold() -> None:
 def test_a_truncated_signature_does_not_hold(cut: int) -> None:
     whole = base64.b64decode(sign(SUMS, "0.7.0", SEED))
     assert bad(signature=base64.b64encode(whole[:-cut]))
-    assert bad(signature=sign(SUMS, "0.7.0", SEED).encode()[:-cut - 2])
+    assert bad(signature=sign(SUMS, "0.7.0", SEED).encode()[: -cut - 2])
 
 
-@pytest.mark.parametrize("signature", [b"", b"\n", b"not base64 at all", base64.b64encode(bytes(64)), base64.b64encode(bytes(range(65)))])
+@pytest.mark.parametrize(
+    "signature", [b"", b"\n", b"not base64 at all", base64.b64encode(bytes(64)), base64.b64encode(bytes(range(65)))]
+)
 def test_a_signature_that_is_none_does_not_hold(signature: bytes) -> None:
     assert bad(signature=signature)
 
@@ -113,47 +139,84 @@ def test_signing_takes_a_32_byte_seed_and_a_version_of_a_release() -> None:
 
 
 def test_the_list_a_release_carries_is_read_by_the_programs_from_before_the_signature_unchanged() -> None:
-    names = ["neoaprs-0.7.0.tar.gz", "neoaprs-0.7.0-py3-none-any.whl", "install.sh", "NeoAPRS-Setup-0.7.0.exe", NAME, "NeoAPRS-0.7.0-arm64.dmg", "neoaprs_0.7.0_amd64.deb", "neoaprs_0.7.0_arm64.deb",
-             "NeoAPRS-Setup.exe", "NeoAPRS-x86_64.AppImage", "NeoAPRS-arm64.dmg", "neoaprs_amd64.deb", "neoaprs_arm64.deb"]
+    names = [
+        "neoaprs-0.7.0.tar.gz",
+        "neoaprs-0.7.0-py3-none-any.whl",
+        "install.sh",
+        "NeoAPRS-Setup-0.7.0.exe",
+        NAME,
+        "NeoAPRS-0.7.0-arm64.dmg",
+        "neoaprs_0.7.0_amd64.deb",
+        "neoaprs_0.7.0_arm64.deb",
+        "NeoAPRS-Setup.exe",
+        "NeoAPRS-x86_64.AppImage",
+        "NeoAPRS-arm64.dmg",
+        "neoaprs_amd64.deb",
+        "neoaprs_arm64.deb",
+    ]
     # What `sha256sum -- *` writes
     sums = "".join(f"{hashlib.sha256(name.encode()).hexdigest()}  {name}\n" for name in sorted(names)).encode()
     signature = sign(sums, "0.7.0", SEED).encode()
     for name in names:
-        assert old_checksum_for(sums, name) == signed_checksum(sums, signature, "0.7.0", name, public()) == hashlib.sha256(name.encode()).hexdigest()
+        assert (
+            old_checksum_for(sums, name)
+            == signed_checksum(sums, signature, "0.7.0", name, public())
+            == hashlib.sha256(name.encode()).hexdigest()
+        )
     # The signature is a file beside the list: the list is not changed by it
     assert b"SHA256SUMS" not in sums
 
 
 def service(tmp_path: Path, release: FakeRelease, installer: FakeInstaller, key: bool = True) -> SelfUpdate:
-    return SelfUpdate(InstallInfo("appimage", str(tmp_path / "NeoAPRS-0.6.7-x86_64.AppImage")), installer, lambda: "0.7.0", (RELEASES, url_allowed), release.fetch_sums, release.fetch,
-                      key=public() if key else None)
+    return SelfUpdate(
+        InstallInfo("appimage", str(tmp_path / "NeoAPRS-0.6.7-x86_64.AppImage")),
+        installer,
+        lambda: "0.7.0",
+        (RELEASES, url_allowed),
+        release.fetch_sums,
+        release.fetch,
+        key=public() if key else None,
+    )
 
 
 def twice(sums: bytes) -> bytes:
     return sums + sums.splitlines(keepends=True)[-1]
 
 
-@pytest.mark.parametrize("release", [
-    FakeRelease(signature=b""),                                                                          # no SHA256SUMS.sig
-    FakeRelease(signature=sign(SUMS, "0.7.0", SEED).encode()[:40]),                                      # truncated
-    FakeRelease(signature=sign(SUMS, "0.7.0", secrets.token_bytes(32)).encode()),                        # another key
-    FakeRelease(signature=sign(f"{OTHER}  {NAME}\n".encode(), "0.7.0", SEED).encode()),                 # over another list
-    # The signed list of an older release
-    FakeRelease(version="0.6.9"),
-    FakeRelease(sums=b""),                                                                               # empty, and signed
-    # The file named twice, and signed
-    FakeRelease(sums=twice(SUMS)),
-    # Another file only, and signed
-    FakeRelease(sums=f"{OTHER}  NeoAPRS-Setup-0.7.0.exe\n".encode()),
-], ids=["no-signature", "truncated", "another-key", "another-list", "downgrade", "empty", "doubled", "another-file"])
-async def test_every_way_the_check_fails_is_the_one_problem_unverified_and_nothing_is_downloaded(tmp_path: Path, release: FakeRelease) -> None:
+@pytest.mark.parametrize(
+    "release",
+    [
+        FakeRelease(signature=b""),  # no SHA256SUMS.sig
+        FakeRelease(signature=sign(SUMS, "0.7.0", SEED).encode()[:40]),  # truncated
+        FakeRelease(signature=sign(SUMS, "0.7.0", secrets.token_bytes(32)).encode()),  # another key
+        FakeRelease(signature=sign(f"{OTHER}  {NAME}\n".encode(), "0.7.0", SEED).encode()),  # over another list
+        # The signed list of an older release
+        FakeRelease(version="0.6.9"),
+        FakeRelease(sums=b""),  # empty, and signed
+        # The file named twice, and signed
+        FakeRelease(sums=twice(SUMS)),
+        # Another file only, and signed
+        FakeRelease(sums=f"{OTHER}  NeoAPRS-Setup-0.7.0.exe\n".encode()),
+    ],
+    ids=["no-signature", "truncated", "another-key", "another-list", "downgrade", "empty", "doubled", "another-file"],
+)
+async def test_every_way_the_check_fails_is_the_one_problem_unverified_and_nothing_is_downloaded(
+    tmp_path: Path, release: FakeRelease
+) -> None:
     release.asked.clear()
     installer = FakeInstaller(tmp_path)
     job = service(tmp_path, release, installer)
     job.begin("0.7.0")
     await until(lambda: job.status().state == "error")
-    assert job.status().problem == "unverified" and "could not be checked" in job.status().detail and "nothing is installed" in job.status().detail
-    assert release.asked == [f"{RELEASES}/v0.7.0/SHA256SUMS", f"{RELEASES}/v0.7.0/SHA256SUMS.sig"] and installer.installed == []
+    assert (
+        job.status().problem == "unverified"
+        and "could not be checked" in job.status().detail
+        and "nothing is installed" in job.status().detail
+    )
+    assert (
+        release.asked == [f"{RELEASES}/v0.7.0/SHA256SUMS", f"{RELEASES}/v0.7.0/SHA256SUMS.sig"]
+        and installer.installed == []
+    )
     assert list(tmp_path.iterdir()) == []
     await job.stop()
 
@@ -174,19 +237,49 @@ FAKE = {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases", "NEOAPRS_UPDATE_TE
 
 def test_the_key_of_neoaprs_update_key_is_taken_only_with_the_fake_release_of_this_computer() -> None:
     assert base64.b64encode(raw(release_key({**FAKE, "NEOAPRS_UPDATE_KEY": TEST_KEY}))).decode() == TEST_KEY
-    assert base64.b64encode(raw(release_key({"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases", "NEOAPRS_INSTALL_KIND": "appimage", "NEOAPRS_UPDATE_KEY": TEST_KEY}))).decode() == TEST_KEY
+    assert (
+        base64.b64encode(
+            raw(
+                release_key(
+                    {
+                        "NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases",
+                        "NEOAPRS_INSTALL_KIND": "appimage",
+                        "NEOAPRS_UPDATE_KEY": TEST_KEY,
+                    }
+                )
+            )
+        ).decode()
+        == TEST_KEY
+    )
 
 
-@pytest.mark.parametrize("environ", [
-    # GitHub: only the project's key
-    {"NEOAPRS_UPDATE_KEY": TEST_KEY},
-    {"NEOAPRS_UPDATE_KEY": TEST_KEY, "NEOAPRS_UPDATE_TEST": "1"},
-    {"NEOAPRS_UPDATE_KEY": TEST_KEY, "NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases"},                      # no switch: GitHub
-    {"NEOAPRS_UPDATE_KEY": TEST_KEY, "NEOAPRS_UPDATE_FROM": "http://example.org/releases", "NEOAPRS_UPDATE_TEST": "1"},
-    {**FAKE, "NEOAPRS_UPDATE_KEY": "not a key"},
-    {**FAKE, "NEOAPRS_UPDATE_KEY": base64.b64encode(bytes(31)).decode()},
-    FAKE,
-    {},
-], ids=["github", "test-switch-alone", "no-switch", "not-this-computer", "not-a-key", "short-key", "no-key", "nothing"])
+@pytest.mark.parametrize(
+    "environ",
+    [
+        # GitHub: only the project's key
+        {"NEOAPRS_UPDATE_KEY": TEST_KEY},
+        {"NEOAPRS_UPDATE_KEY": TEST_KEY, "NEOAPRS_UPDATE_TEST": "1"},
+        {"NEOAPRS_UPDATE_KEY": TEST_KEY, "NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases"},  # no switch: GitHub
+        {
+            "NEOAPRS_UPDATE_KEY": TEST_KEY,
+            "NEOAPRS_UPDATE_FROM": "http://example.org/releases",
+            "NEOAPRS_UPDATE_TEST": "1",
+        },
+        {**FAKE, "NEOAPRS_UPDATE_KEY": "not a key"},
+        {**FAKE, "NEOAPRS_UPDATE_KEY": base64.b64encode(bytes(31)).decode()},
+        FAKE,
+        {},
+    ],
+    ids=[
+        "github",
+        "test-switch-alone",
+        "no-switch",
+        "not-this-computer",
+        "not-a-key",
+        "short-key",
+        "no-key",
+        "nothing",
+    ],
+)
 def test_anything_else_is_the_projects_key(environ: dict[str, str]) -> None:
     assert raw(release_key(environ)) == base64.b64decode(PUBLIC_KEY)

@@ -2,6 +2,7 @@
 kind and architecture, its address from the version alone, the hosts a download may go to, and the
 SHA256SUMS line.
 """
+
 import hashlib
 
 import pytest
@@ -12,40 +13,57 @@ from neoaprs.updateasset import RELEASES, asset_name, asset_url, release_version
 from tests.support.fakerelease import old_checksum_for as checksum_for
 
 
-@pytest.mark.parametrize(("kind", "arch", "name"), [
-    ("windows-installer", "", "NeoAPRS-Setup-0.7.0.exe"),
-    ("appimage", "", "NeoAPRS-0.7.0-x86_64.AppImage"),
-    ("macos-app", "arm64", "NeoAPRS-0.7.0-arm64.dmg"),
-    ("macos-app", "", None),                             # (an Intel Mac: the release has no app for it)
-    ("macos-app", "x86_64", None),
-    ("deb", "amd64", "neoaprs_0.7.0_amd64.deb"),
-    ("deb", "arm64", "neoaprs_0.7.0_arm64.deb"),
-    ("deb", "", None),                                   # (a machine the release has no package for)
-    ("deb", "armhf", None),
-    # An install of the wheel, which a release does not carry: the page sends it to the release
-    # page.
-    ("uv-tool", "", None),
-    ("pip", "", None),
-    ("source", "", None),
-])
+@pytest.mark.parametrize(
+    ("kind", "arch", "name"),
+    [
+        ("windows-installer", "", "NeoAPRS-Setup-0.7.0.exe"),
+        ("appimage", "", "NeoAPRS-0.7.0-x86_64.AppImage"),
+        ("macos-app", "arm64", "NeoAPRS-0.7.0-arm64.dmg"),
+        ("macos-app", "", None),  # (an Intel Mac: the release has no app for it)
+        ("macos-app", "x86_64", None),
+        ("deb", "amd64", "neoaprs_0.7.0_amd64.deb"),
+        ("deb", "arm64", "neoaprs_0.7.0_arm64.deb"),
+        ("deb", "", None),  # (a machine the release has no package for)
+        ("deb", "armhf", None),
+        # An install of the wheel, which a release does not carry: the page sends it to the release
+        # page.
+        ("uv-tool", "", None),
+        ("pip", "", None),
+        ("source", "", None),
+    ],
+)
 def test_the_file_of_the_release_for_each_kind_and_architecture(kind: str, arch: str, name: str | None) -> None:
-    assert asset_name(kind, "0.7.0", arch) == name        # type: ignore[arg-type]
+    assert asset_name(kind, "0.7.0", arch) == name  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize(("version", "wheel"), [
-    ("0.7.0", "0.7.0"),
-    ("0.10.0-rc1", "0.10.0rc1"),
-    ("1.0.0-rc.2", "1.0.0rc2"),
-    ("1.0.0-alpha", "1.0.0a0"),
-    ("1.0.0-beta.2", "1.0.0b2"),
-    ("1.0.0-dev3", "1.0.0.dev3"),
-])
-def test_the_sdist_is_named_by_the_pep_440_form_of_the_version_and_the_other_files_by_the_version_as_written(version: str, wheel: str) -> None:
-    assert wheel_version(version) == wheel == str(Version(version)), "the name the build (packaging) gives the sdist and the wheel"
-    assert asset_name("pip", version) is None and asset_name("uv-tool", version) is None, "no file of a release updates an install of the wheel"
-    assert asset_name("appimage", version) == f"NeoAPRS-{version}-x86_64.AppImage" and asset_name("deb", version, "arm64") == f"neoaprs_{version}_arm64.deb"
+@pytest.mark.parametrize(
+    ("version", "wheel"),
+    [
+        ("0.7.0", "0.7.0"),
+        ("0.10.0-rc1", "0.10.0rc1"),
+        ("1.0.0-rc.2", "1.0.0rc2"),
+        ("1.0.0-alpha", "1.0.0a0"),
+        ("1.0.0-beta.2", "1.0.0b2"),
+        ("1.0.0-dev3", "1.0.0.dev3"),
+    ],
+)
+def test_the_sdist_is_named_by_the_pep_440_form_of_the_version_and_the_other_files_by_the_version_as_written(
+    version: str, wheel: str
+) -> None:
+    assert wheel_version(version) == wheel == str(Version(version)), (
+        "the name the build (packaging) gives the sdist and the wheel"
+    )
+    assert asset_name("pip", version) is None and asset_name("uv-tool", version) is None, (
+        "no file of a release updates an install of the wheel"
+    )
+    assert (
+        asset_name("appimage", version) == f"NeoAPRS-{version}-x86_64.AppImage"
+        and asset_name("deb", version, "arm64") == f"neoaprs_{version}_arm64.deb"
+    )
     assert asset_name("macos-app", version, "arm64") == f"NeoAPRS-{version}-arm64.dmg"
-    assert asset_url(version, f"neoaprs-{wheel}.tar.gz") == f"{RELEASES}/v{version}/neoaprs-{wheel}.tar.gz", "the tag keeps the version as written"
+    assert asset_url(version, f"neoaprs-{wheel}.tar.gz") == f"{RELEASES}/v{version}/neoaprs-{wheel}.tar.gz", (
+        "the tag keeps the version as written"
+    )
 
 
 def test_a_suffix_that_is_not_a_pre_release_of_pep_440_is_left_as_it_is() -> None:
@@ -58,7 +76,23 @@ def test_a_release_version_is_digits_and_dots_with_an_optional_suffix(version: s
     assert asset_name("appimage", version) == f"NeoAPRS-{version}-x86_64.AppImage"
 
 
-@pytest.mark.parametrize("version", ["", "1.0", "1", "0.7.0/../../evil", "0.7.0?x=1", "0.7.0#a", "v0.7.0", "0.7.0 ", "0.7.0+build", "0.7.0-", "１.0.0", "0.7.0\n"])
+@pytest.mark.parametrize(
+    "version",
+    [
+        "",
+        "1.0",
+        "1",
+        "0.7.0/../../evil",
+        "0.7.0?x=1",
+        "0.7.0#a",
+        "v0.7.0",
+        "0.7.0 ",
+        "0.7.0+build",
+        "0.7.0-",
+        "１.0.0",
+        "0.7.0\n",
+    ],
+)
 def test_a_version_that_is_not_plainly_one_builds_no_file_and_no_address(version: str) -> None:
     assert not release_version(version)
     assert asset_name("windows-installer", version) is None
@@ -68,29 +102,35 @@ def test_a_version_that_is_not_plainly_one_builds_no_file_and_no_address(version
 
 def test_the_address_is_the_github_release_of_the_tag_of_the_version_and_nothing_else() -> None:
     assert RELEASES == "https://github.com/oh2gba/neoaprs/releases/download"
-    assert asset_url("0.7.0", "NeoAPRS-Setup-0.7.0.exe") == "https://github.com/oh2gba/neoaprs/releases/download/v0.7.0/NeoAPRS-Setup-0.7.0.exe"
+    assert (
+        asset_url("0.7.0", "NeoAPRS-Setup-0.7.0.exe")
+        == "https://github.com/oh2gba/neoaprs/releases/download/v0.7.0/NeoAPRS-Setup-0.7.0.exe"
+    )
     assert asset_url("0.7.0", "SHA256SUMS") == "https://github.com/oh2gba/neoaprs/releases/download/v0.7.0/SHA256SUMS"
     for name in ("../x", "a/b", "", "x?y", ".hidden", "x\n"):
         with pytest.raises(ValueError):
             asset_url("0.7.0", name)
 
 
-@pytest.mark.parametrize(("url", "ok"), [
-    ("https://github.com/oh2gba/neoaprs/releases/download/v0.7.0/SHA256SUMS", True),
-    ("https://objects.githubusercontent.com/github-production-release-asset/1/2?X-Amz=1", True),
-    ("https://release-assets.githubusercontent.com/github-production-release-asset/1/2?sig=1", True),
-    ("https://GitHub.com/oh2gba/neoaprs/releases/download/v0.7.0/x", True),
-    ("https://github.com:443/x", True),
-    ("http://github.com/oh2gba/neoaprs/releases/download/v0.7.0/x", False),
-    ("https://github.com.evil.example/x", False),
-    ("https://evil.example/github.com/x", False),
-    ("https://user@github.com/x", False),
-    ("https://github.com:8443/x", False),
-    ("ftp://github.com/x", False),
-    ("file:///etc/passwd", False),
-    ("https://oh2gba.github.io/neoaprs/", False),             # (the version page's own address is no source of files)
-    ("https://[::1]:x/", False),
-])
+@pytest.mark.parametrize(
+    ("url", "ok"),
+    [
+        ("https://github.com/oh2gba/neoaprs/releases/download/v0.7.0/SHA256SUMS", True),
+        ("https://objects.githubusercontent.com/github-production-release-asset/1/2?X-Amz=1", True),
+        ("https://release-assets.githubusercontent.com/github-production-release-asset/1/2?sig=1", True),
+        ("https://GitHub.com/oh2gba/neoaprs/releases/download/v0.7.0/x", True),
+        ("https://github.com:443/x", True),
+        ("http://github.com/oh2gba/neoaprs/releases/download/v0.7.0/x", False),
+        ("https://github.com.evil.example/x", False),
+        ("https://evil.example/github.com/x", False),
+        ("https://user@github.com/x", False),
+        ("https://github.com:8443/x", False),
+        ("ftp://github.com/x", False),
+        ("file:///etc/passwd", False),
+        ("https://oh2gba.github.io/neoaprs/", False),  # (the version page's own address is no source of files)
+        ("https://[::1]:x/", False),
+    ],
+)
 def test_a_download_may_go_only_to_github_over_https(url: str, ok: bool) -> None:
     assert url_allowed(url) is ok
 
@@ -113,5 +153,15 @@ def test_a_file_that_sha256sums_does_not_name_or_names_twice_with_two_sums_has_n
     assert checksum_for(f"{SUM}  NeoAPRS-Setup-0.7.0.exe.sig\n".encode(), "NeoAPRS-Setup-0.7.0.exe") is None
     assert checksum_for(b"", "NeoAPRS-Setup-0.7.0.exe") is None
     assert checksum_for(f"{SUM[:-1]}  NeoAPRS-Setup-0.7.0.exe\n".encode(), "NeoAPRS-Setup-0.7.0.exe") is None
-    assert checksum_for(f"{SUM}  NeoAPRS-Setup-0.7.0.exe\n{OTHER}  NeoAPRS-Setup-0.7.0.exe\n".encode(), "NeoAPRS-Setup-0.7.0.exe") is None
-    assert checksum_for(f"{SUM}  NeoAPRS-Setup-0.7.0.exe\n{SUM}  NeoAPRS-Setup-0.7.0.exe\n".encode(), "NeoAPRS-Setup-0.7.0.exe") == SUM
+    assert (
+        checksum_for(
+            f"{SUM}  NeoAPRS-Setup-0.7.0.exe\n{OTHER}  NeoAPRS-Setup-0.7.0.exe\n".encode(), "NeoAPRS-Setup-0.7.0.exe"
+        )
+        is None
+    )
+    assert (
+        checksum_for(
+            f"{SUM}  NeoAPRS-Setup-0.7.0.exe\n{SUM}  NeoAPRS-Setup-0.7.0.exe\n".encode(), "NeoAPRS-Setup-0.7.0.exe"
+        )
+        == SUM
+    )

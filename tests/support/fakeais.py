@@ -1,5 +1,6 @@
 """A fake AIS receiver on a free loopback port: a TCP server that sends the test's NMEA lines to
 each connection."""
+
 import asyncio
 
 from tests.support.env import remember_stop, until
@@ -36,7 +37,7 @@ class FakeAis(LoopbackServer):
         self.connections += 1
         self.writers.append(writer)
         try:
-            await reader.read()                         # (it reads nothing from us: this ends when we close)
+            await reader.read()  # (it reads nothing from us: this ends when we close)
         except ConnectionError:
             pass
         finally:

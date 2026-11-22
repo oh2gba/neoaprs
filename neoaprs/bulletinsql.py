@@ -1,6 +1,7 @@
 """SQL statements of the bulletin table, run on the database thread (asked for by bulletinlog.py).
 
 A row is a tuple in the order of BULLETIN_COLUMNS. Nothing here begins or commits a transaction."""
+
 import sqlite3
 from collections.abc import Sequence
 
@@ -14,7 +15,10 @@ _UPDATE = ", ".join(f"{c} = excluded.{c}" for c in BULLETIN_COLUMNS[2:])
 
 def save_bulletin(db: sqlite3.Connection, row: Sequence[object]) -> None:
     """Insert a bulletin, replacing the one with the same sender and slot."""
-    db.execute(f"INSERT INTO bulletin ({_LIST}) VALUES ({_PLACES}) ON CONFLICT(sender, slot) DO UPDATE SET {_UPDATE}", tuple(row))
+    db.execute(
+        f"INSERT INTO bulletin ({_LIST}) VALUES ({_PLACES}) ON CONFLICT(sender, slot) DO UPDATE SET {_UPDATE}",
+        tuple(row),
+    )
 
 
 def delete_bulletin(db: sqlite3.Connection, sender: str, slot: str) -> int:

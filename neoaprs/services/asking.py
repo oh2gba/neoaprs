@@ -3,6 +3,7 @@
 A query is a message sent once without an id; the same one to the same station is refused
 (`query.too_soon`) within QUERY_EVERY_SEC.
 """
+
 from datetime import datetime
 from typing import Protocol
 
@@ -14,6 +15,7 @@ from neoaprs.message import QUERIES, QUERY_EVERY_SEC, MessageRecord, MessagingEr
 
 class Sender(Protocol):
     """What asking needs of messaging."""
+
     async def send(self, to_call: str, text: str, once: bool = False) -> MessageRecord: ...
 
 
@@ -34,7 +36,9 @@ class Asking:
         last = self._asked.get((to, text))
         if last is not None and (wait := QUERY_EVERY_SEC - (now - last).total_seconds()) > 0:
             seconds = max(1, round(wait))
-            raise MessagingError(f"{to} was asked the same a moment ago: wait {seconds} s", "query.too_soon", call=to, seconds=seconds)
+            raise MessagingError(
+                f"{to} was asked the same a moment ago: wait {seconds} s", "query.too_soon", call=to, seconds=seconds
+            )
         self._asked[(to, text)] = now  # before the await
         try:
             return await self._messages.send(to, text, once=True)

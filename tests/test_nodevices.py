@@ -2,6 +2,7 @@
 makes a daemon's search look at a pattern that matches nothing, and the guards of
 tests/support/guards.py fail a test that opens a device file anyway.
 """
+
 import os
 import stat
 import subprocess
@@ -60,14 +61,34 @@ def test_a_process_a_test_starts_inherits_the_variable_and_searches_no_port(tmp_
     """`neoaprs capture` with no port lists the ports its search would listen to: here there are
     none, so it says so and ends at once, without a look at /dev."""
     out = tmp_path / "out.kiss"
-    done = subprocess.run([sys.executable, "-m", "neoaprs", "capture", str(out)], cwd=ROOT, env={**os.environ, "PYTHONPATH": str(ROOT)}, capture_output=True, text=True, timeout=60)
+    done = subprocess.run(
+        [sys.executable, "-m", "neoaprs", "capture", str(out)],
+        cwd=ROOT,
+        env={**os.environ, "PYTHONPATH": str(ROOT)},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
     assert done.returncode == 1 and "no USB serial port to look at here" in done.stderr + done.stdout, done
     assert not out.exists()
 
 
 # ---- the guards
 
-@pytest.mark.parametrize("path", ["/dev/ttyACM0", "/dev/ttyUSB3", "/dev/ttyS0", "/dev/brainbox_2", "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit-if00", "/dev/rfcomm0", "/dev/cu.usbserial-1410", b"/dev/ttyACM1"])
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/dev/ttyACM0",
+        "/dev/ttyUSB3",
+        "/dev/ttyS0",
+        "/dev/brainbox_2",
+        "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit-if00",
+        "/dev/rfcomm0",
+        "/dev/cu.usbserial-1410",
+        b"/dev/ttyACM1",
+    ],
+)
 def test_the_serial_guard_refuses_the_serial_devices(path: str | bytes) -> None:
     radio = guards.SerialGuard()
     with pytest.raises(guards.RadioTouched):
@@ -76,7 +97,9 @@ def test_the_serial_guard_refuses_the_serial_devices(path: str | bytes) -> None:
 
 
 @posix_only
-def test_the_serial_guard_looks_through_a_link_and_knows_a_device_by_its_number(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_serial_guard_looks_through_a_link_and_knows_a_device_by_its_number(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     link = tmp_path / "mine"
     link.symlink_to("/dev/ttyACM0")
     radio = guards.SerialGuard()
@@ -84,7 +107,9 @@ def test_the_serial_guard_looks_through_a_link_and_knows_a_device_by_its_number(
         radio.check(link)
     node = SimpleNamespace(st_mode=stat.S_IFCHR | 0o660, st_rdev=makedev(188, 3))
     real_stat = os.stat
-    monkeypatch.setattr(guards.os, "stat", lambda path, *a, **k: node if path == "/dev/my-adapter" else real_stat(path, *a, **k))
+    monkeypatch.setattr(
+        guards.os, "stat", lambda path, *a, **k: node if path == "/dev/my-adapter" else real_stat(path, *a, **k)
+    )
     with pytest.raises(guards.RadioTouched):
         radio.check("/dev/my-adapter")
     assert radio.refused == [str(link), "/dev/my-adapter"]
@@ -103,13 +128,33 @@ def test_the_serial_guard_lets_a_pseudo_terminal_through() -> None:
         os.close(master)
 
 
-@pytest.mark.parametrize("args", [
-    [sys.executable, "-m", "neoaprs", "--data", "d"], [sys.executable, "-m", "neoaprs.services.mapfetch"], ["/venv/bin/neoaprs", "run"], ["neoaprs"], ["C:\\venv\\Scripts\\neoaprs.exe"], ["/x/neoaprs-app"], "neoaprs run"])
+@pytest.mark.parametrize(
+    "args",
+    [
+        [sys.executable, "-m", "neoaprs", "--data", "d"],
+        [sys.executable, "-m", "neoaprs.services.mapfetch"],
+        ["/venv/bin/neoaprs", "run"],
+        ["neoaprs"],
+        ["C:\\venv\\Scripts\\neoaprs.exe"],
+        ["/x/neoaprs-app"],
+        "neoaprs run",
+    ],
+)
 def test_the_process_guard_refuses_neoaprs_with_an_environment_that_lacks_a_variable(args: object) -> None:
     processes = guards.ProcessGuard()
     both = {guards.SEARCH_VARIABLE: "/dev/none*", guards.UPDATE_VARIABLE: "0"}
     all_three = {**both, guards.DEVICES_VARIABLE: "1"}
-    for env in ({}, {"HOME": "/h"}, {guards.SEARCH_VARIABLE: ""}, {guards.SEARCH_VARIABLE: "/dev/none*"}, {guards.UPDATE_VARIABLE: "0"}, {**all_three, guards.UPDATE_VARIABLE: "1"}, both, {**both, guards.DEVICES_VARIABLE: "0"}, {**both, guards.DEVICES_VARIABLE: " "}):
+    for env in (
+        {},
+        {"HOME": "/h"},
+        {guards.SEARCH_VARIABLE: ""},
+        {guards.SEARCH_VARIABLE: "/dev/none*"},
+        {guards.UPDATE_VARIABLE: "0"},
+        {**all_three, guards.UPDATE_VARIABLE: "1"},
+        both,
+        {**both, guards.DEVICES_VARIABLE: "0"},
+        {**both, guards.DEVICES_VARIABLE: " "},
+    ):
         with pytest.raises(guards.RadioTouched):
             processes.check(args, env)
     assert len(processes.refused) == 9
@@ -119,8 +164,14 @@ def test_the_process_guard_lets_through_what_cannot_search() -> None:
     processes = guards.ProcessGuard()
     # The environment of this process, which has the variable
     processes.check([sys.executable, "-m", "neoaprs", "--data", "d"], None)
-    processes.check([sys.executable, "-m", "neoaprs", "--data", "d"], {guards.SEARCH_VARIABLE: "/dev/none*", guards.UPDATE_VARIABLE: "0", guards.DEVICES_VARIABLE: "1"})
-    processes.check([sys.executable, "-m", "neoaprs", "--data", "d"], {guards.SEARCH_VARIABLE: "/dev/none*", guards.UPDATE_VARIABLE: "0", guards.DEVICES_VARIABLE: "true"})
+    processes.check(
+        [sys.executable, "-m", "neoaprs", "--data", "d"],
+        {guards.SEARCH_VARIABLE: "/dev/none*", guards.UPDATE_VARIABLE: "0", guards.DEVICES_VARIABLE: "1"},
+    )
+    processes.check(
+        [sys.executable, "-m", "neoaprs", "--data", "d"],
+        {guards.SEARCH_VARIABLE: "/dev/none*", guards.UPDATE_VARIABLE: "0", guards.DEVICES_VARIABLE: "true"},
+    )
     processes.check(["git", "status"], {})
     processes.check([sys.executable, "-m", "pytest"], {})
     processes.check(["/x/neoaprs-tool/other"], {})

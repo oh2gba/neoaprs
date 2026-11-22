@@ -3,6 +3,7 @@
 `Fix.at` is the program's clock at reception. Speed is km/h, course whole degrees, altitude metres
 above mean sea level. Pure code.
 """
+
 import math
 import re
 from collections.abc import Mapping
@@ -38,7 +39,7 @@ def _number(value: object) -> float | None:
     if isinstance(value, bool):
         return None
     try:
-        number = float(value)                                  # type: ignore[arg-type]
+        number = float(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return None
     return number if math.isfinite(number) else None
@@ -79,13 +80,25 @@ class NmeaFixes:
             self.fix, self._rmc_at, self._altitude, self.said_none = None, None, None, True
             return None
         fields = text.split("*")[0].split(",")[1:]
-        return self._rmc(position.lat, position.lon, fields, now) if found.group(1) == "RMC" else self._gga(position.lat, position.lon, fields, now)
+        return (
+            self._rmc(position.lat, position.lon, fields, now)
+            if found.group(1) == "RMC"
+            else self._gga(position.lat, position.lon, fields, now)
+        )
 
     def _rmc(self, lat: float, lon: float, fields: list[str], now: datetime) -> Fix:
         speed = _number(fields[6])
         altitude, satellites = self._recent_gga(now)
         self._rmc_at = now
-        self.fix = Fix(lat, lon, now, None if speed is None else speed * KNOT_KMH, _course(_number(fields[7])), altitude, satellites)
+        self.fix = Fix(
+            lat,
+            lon,
+            now,
+            None if speed is None else speed * KNOT_KMH,
+            _course(_number(fields[7])),
+            altitude,
+            satellites,
+        )
         return self.fix
 
     def _gga(self, lat: float, lon: float, fields: list[str], now: datetime) -> Fix | None:
@@ -133,10 +146,25 @@ def fix_from_gpsd(report: Mapping[str, Any], now: datetime, satellites: int | No
         return None
     mode = report.get("mode")
     lat, lon = _number(report.get("lat")), _number(report.get("lon"))
-    if not isinstance(mode, int) or isinstance(mode, bool) or mode < 2 or lat is None or lon is None or not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+    if (
+        not isinstance(mode, int)
+        or isinstance(mode, bool)
+        or mode < 2
+        or lat is None
+        or lon is None
+        or not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0)
+    ):
         return None
     speed = _number(report.get("speed"))
-    return Fix(lat, lon, now, None if speed is None else max(0.0, speed * MS_KMH), _course(_number(report.get("track"))), _altitude(report), satellites)
+    return Fix(
+        lat,
+        lon,
+        now,
+        None if speed is None else max(0.0, speed * MS_KMH),
+        _course(_number(report.get("track"))),
+        _altitude(report),
+        satellites,
+    )
 
 
 class GpsdFixes:

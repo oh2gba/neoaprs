@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Refresh neoaprs/airportdata.py from OurAirports' airports.csv (public domain).
 
-  scripts/gen-airports.py [--from FILE]    write the module from the list's address or FILE
-  scripts/gen-airports.py --check FILE     write nothing; exit 1 if the module differs"""
+scripts/gen-airports.py [--from FILE]    write the module from the list's address or FILE
+scripts/gen-airports.py --check FILE     write nothing; exit 1 if the module differs"""
+
 import argparse
 import csv
 import hashlib
@@ -18,14 +19,21 @@ ROOT = Path(__file__).resolve().parent.parent
 TARGET = ROOT / "neoaprs" / "airportdata.py"
 URL = "https://davidmegginson.github.io/ourairports-data/airports.csv"
 KINDS = {"large_airport", "medium_airport"}
-BRACKETED = re.compile(r"\([^()]*\)")            # bracketed additions to a place
+BRACKETED = re.compile(r"\([^()]*\)")  # bracketed additions to a place
 PER_LINE = 3
 CODE_LENGTH = 4
 
 
 def code_of(row: dict[str, str]) -> str:
     """Return the upper-case ICAO code (`icao_code`, `gps_code` or `ident`), or ""."""
-    code = next((value.strip() for value in (row.get("icao_code", ""), row.get("gps_code", ""), row.get("ident", "")) if value.strip()), "")
+    code = next(
+        (
+            value.strip()
+            for value in (row.get("icao_code", ""), row.get("gps_code", ""), row.get("ident", ""))
+            if value.strip()
+        ),
+        "",
+    )
     return code.upper() if len(code) == CODE_LENGTH and code.isascii() and code.isalnum() else ""
 
 
@@ -56,8 +64,11 @@ def module_text(table: list[tuple[str, str]], digest: str, date: str) -> str:
         '"""The airports, a snapshot: the place of each large or medium airport by its ICAO code, which a card names the departure and the destination of an aircraft from. Written by scripts/gen-airports.py, never edited by hand.\n\n'
         "Source: airports.csv of OurAirports, https://ourairports.com/data/, public domain. This module is that list reduced to the code and the place (the municipality, or the airport's name where there is none).\n"
         f"Snapshot of {date}, sha256 of the source file {digest}.\n"
-        '"""\n')
-    lines = [", ".join(literal(row) for row in table[i:i + PER_LINE * 5]) + "," for i in range(0, len(table), PER_LINE * 5)]
+        '"""\n'
+    )
+    lines = [
+        ", ".join(literal(row) for row in table[i : i + PER_LINE * 5]) + "," for i in range(0, len(table), PER_LINE * 5)
+    ]
     return head + "AIRPORTS: tuple[tuple[str, str], ...] = (\n" + "".join(f"    {line}\n" for line in lines) + ")\n"
 
 
@@ -71,7 +82,9 @@ def source_of(args: argparse.Namespace) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Refreshes neoaprs/airportdata.py from OurAirports' airports.csv.")
     ap.add_argument("--from", dest="source", metavar="FILE", help="read this airports.csv instead of fetching the list")
-    ap.add_argument("--check", metavar="FILE", help="write nothing; exit 1 when the module is not what this airports.csv makes")
+    ap.add_argument(
+        "--check", metavar="FILE", help="write nothing; exit 1 when the module is not what this airports.csv makes"
+    )
     args = ap.parse_args()
     text = Path(args.check).read_text(encoding="utf-8") if args.check else source_of(args)
     table = rows(text)

@@ -3,6 +3,7 @@
 Fixed stations hundreds of kilometres away beacon direct; one answers a message at HF pace.
 Each frame carries the SNR a Mercury would report (`reading_of`).
 """
+
 import heapq
 import random
 from dataclasses import dataclass
@@ -69,7 +70,10 @@ class HfScene:
         self._count = 0
         self._ids = 0
         self._answered: set[tuple[str, str]] = set()
-        self.actors = [Actor(station, now + timedelta(seconds=first)) for station, first in zip(STATIONS, FIRST_BEACONS_SEC, strict=True)]
+        self.actors = [
+            Actor(station, now + timedelta(seconds=first))
+            for station, first in zip(STATIONS, FIRST_BEACONS_SEC, strict=True)
+        ]
 
     @property
     def description(self) -> str:
@@ -117,5 +121,7 @@ class HfScene:
         if key not in self._answered:
             self._answered.add(key)
             self._ids += 1
-            self._put(now + timedelta(seconds=self._rng.uniform(*ANSWER_AFTER_SEC)), air(talker.call, message(us, HELLO, str(self._ids)), DIRECT))
-
+            self._put(
+                now + timedelta(seconds=self._rng.uniform(*ANSWER_AFTER_SEC)),
+                air(talker.call, message(us, HELLO, str(self._ids)), DIRECT),
+            )

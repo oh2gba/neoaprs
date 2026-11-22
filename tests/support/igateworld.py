@@ -2,6 +2,7 @@
 (tests/support/fakeaprsis.py), a clock the test holds, and packets as the radio would have heard
 them.
 """
+
 from dataclasses import replace
 
 from neoaprs import ax25
@@ -19,17 +20,38 @@ POSITION = b"=6010.00N/02456.00EdNeoAPRS"
 PLACE = (60.17, 24.94)
 
 
-def frame_of(source: str = "OH2XYZ-9", destination: str = "APZ123", path: str = "WIDE1-1*,WIDE2-1", info: bytes = b"!6010.00N/02456.00E>Test") -> ax25.Frame:
-    return ax25.Frame(ax25.Address.parse(destination), ax25.Address.parse(source), tuple(ax25.Address.parse(hop) for hop in path.split(",") if hop), info=info)
+def frame_of(
+    source: str = "OH2XYZ-9",
+    destination: str = "APZ123",
+    path: str = "WIDE1-1*,WIDE2-1",
+    info: bytes = b"!6010.00N/02456.00E>Test",
+) -> ax25.Frame:
+    return ax25.Frame(
+        ax25.Address.parse(destination),
+        ax25.Address.parse(source),
+        tuple(ax25.Address.parse(hop) for hop in path.split(",") if hop),
+        info=info,
+    )
 
 
 class IWorld:
     def __init__(self, server: FakeAprsIs, place: tuple[float, float] | None = PLACE, **changes: object) -> None:
         self.server = server
         self.clock = FixedClock()
-        self.config_now: Config = replace(ON_AIR, **{"station_call": "OH2GBA-10", "igate_enabled": True, "igate_server": server.address, "igate_password": "19628", **changes})       # type: ignore[arg-type]
+        self.config_now: Config = replace(
+            ON_AIR,
+            **{  # type: ignore[arg-type]
+                "station_call": "OH2GBA-10",
+                "igate_enabled": True,
+                "igate_server": server.address,
+                "igate_password": "19628",
+                **changes,
+            },
+        )
         self.position_info: bytes | None = POSITION
-        self.link = AprsIs(self.clock, Backoff([0.05]), connect_sec=1.0, greeting_sec=0.5, login_sec=0.5, lost_sec=5.0, quiet_sec=5.0)
+        self.link = AprsIs(
+            self.clock, Backoff([0.05]), connect_sec=1.0, greeting_sec=0.5, login_sec=0.5, lost_sec=5.0, quiet_sec=5.0
+        )
         # Where we are: the filter of the connection is round it
         self.place = place
         self.igate = Igate(self.link, self._settings, self._position, lambda: self.place, self.clock, tick_sec=3600.0)
@@ -45,12 +67,19 @@ class IWorld:
         return self.position_info
 
     def save(self, **changes: object) -> None:
-        self.config_now = replace(self.config_now, **changes)                                      # type: ignore[arg-type]
+        self.config_now = replace(self.config_now, **changes)  # type: ignore[arg-type]
         self.igate.settings_changed()
 
-    def hear(self, source: str = "OH2XYZ-9", destination: str = "APZ123", path: str = "WIDE1-1*,WIDE2-1", info: bytes = b"!6010.00N/02456.00E>Test", direction: str = "in") -> Packet:
+    def hear(
+        self,
+        source: str = "OH2XYZ-9",
+        destination: str = "APZ123",
+        path: str = "WIDE1-1*,WIDE2-1",
+        info: bytes = b"!6010.00N/02456.00E>Test",
+        direction: str = "in",
+    ) -> Packet:
         f = frame_of(source, destination, path, info)
-        packet = packet_of(direction, ax25.encode(f), f, self.clock())                              # type: ignore[arg-type]
+        packet = packet_of(direction, ax25.encode(f), f, self.clock())  # type: ignore[arg-type]
         self.igate.on_packet(packet)
         return packet
 
@@ -58,7 +87,9 @@ class IWorld:
         await until(lambda: len(self.server.packets) >= count)
 
 
-async def iworld(server: FakeAprsIs, wait: bool = True, place: tuple[float, float] | None = PLACE, **changes: object) -> IWorld:
+async def iworld(
+    server: FakeAprsIs, wait: bool = True, place: tuple[float, float] | None = PLACE, **changes: object
+) -> IWorld:
     w = IWorld(server, place, **changes)
     await w.igate.start()
     if wait:

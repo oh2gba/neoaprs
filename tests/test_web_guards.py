@@ -1,5 +1,6 @@
 """What one failing round or one hostile request must not do to the web server: end a timer for
 good, fill or forge the log, answer 500 to a body that is not JSON."""
+
 import asyncio
 import logging
 import socket
@@ -14,7 +15,9 @@ from tests.test_secureside import PLAIN_PORT, factory, made
 
 
 @pytest.mark.expects_errors
-async def test_the_status_timer_goes_on_after_a_round_that_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_status_timer_goes_on_after_a_round_that_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr("neoaprs.web.api.STATUS_EVERY_SEC", 0.05)
     e = Env(tmp_path, web=True)
     await e.start()
@@ -28,13 +31,15 @@ async def test_the_status_timer_goes_on_after_a_round_that_failed(tmp_path: Path
             raise RuntimeError("the database hiccups")
         return await real()
 
-    e.ctl.packetlog.count = count_but_fail_once                  # type: ignore[method-assign]
+    e.ctl.packetlog.count = count_but_fail_once  # type: ignore[method-assign]
     await until(lambda: len(calls) >= 3)
-    e.ctl.packetlog.count = real                                 # type: ignore[method-assign]
+    e.ctl.packetlog.count = real  # type: ignore[method-assign]
 
 
 @pytest.mark.expects_errors
-async def test_the_secure_side_check_goes_on_after_a_round_that_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_secure_side_check_goes_on_after_a_round_that_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(secureside, "RECHECK_SEC", 0.05)
     e = Env(tmp_path, web=True)
     await e.start()
@@ -46,12 +51,14 @@ async def test_the_secure_side_check_goes_on_after_a_round_that_failed(tmp_path:
         if len(calls) == 1:
             raise RuntimeError("a round that fails")
 
-    e.server._follow_secure = fail_once                          # type: ignore[method-assign]
+    e.server._follow_secure = fail_once  # type: ignore[method-assign]
     await until(lambda: len(calls) >= 3)
 
 
 @pytest.mark.expects_errors
-async def test_a_long_path_and_a_line_separator_in_a_path_are_one_short_line_of_the_log(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_long_path_and_a_line_separator_in_a_path_are_one_short_line_of_the_log(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     e = await served(tmp_path)
     caplog.set_level(logging.WARNING)
     for raw in (b"/" + b"a" * 60000, b"/x\x85A", b"/x\xe2\x80\xa8A"):
@@ -65,7 +72,11 @@ async def test_a_long_path_and_a_line_separator_in_a_path_are_one_short_line_of_
 
 
 @pytest.mark.expects_errors
-async def test_a_body_nested_too_deep_is_a_bad_request_and_no_error_of_the_log(tmp_path: Path, away: None, caplog: pytest.LogCaptureFixture) -> None:  # noqa: F811
+async def test_a_body_nested_too_deep_is_a_bad_request_and_no_error_of_the_log(
+    tmp_path: Path,
+    away: None,  # noqa: F811
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     e = await served(tmp_path, NETWORK)
     assert (await e.fetch("/access", method="POST", body="[" * 30000)).code == 400
     cookie = cookie_of(await log_in(e))
@@ -73,7 +84,9 @@ async def test_a_body_nested_too_deep_is_a_bad_request_and_no_error_of_the_log(t
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
 
-async def test_the_connections_of_the_secure_port_end_when_the_secure_side_is_turned_off(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_connections_of_the_secure_port_end_when_the_secure_side_is_turned_off(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     side = made(tmp_path)
     monkeypatch.setattr(secureside, "lan_addresses", lambda: ["192.168.1.20"])
     await side.follow(True, "127.0.0.1", PLAIN_PORT, factory)
@@ -83,6 +96,6 @@ async def test_the_connections_of_the_secure_port_end_when_the_secure_side_is_tu
     async def closes() -> None:
         closed.append(1)
 
-    side.server.close_all_connections = closes                   # type: ignore[method-assign]
+    side.server.close_all_connections = closes  # type: ignore[method-assign]
     await side.follow(False, "127.0.0.1", PLAIN_PORT, factory)
     assert closed == [1] and side.server is None

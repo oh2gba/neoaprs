@@ -1,6 +1,7 @@
 """Shared by the Find my radio tests (neoaprs/services/radiofinder.py): a finder over a fixed list
 of ports with a record of what it did to the line, and the short timing a fake TNC is searched with.
 """
+
 from typing import Any
 
 from neoaprs.radiosearch import Trying
@@ -15,7 +16,7 @@ class Rig:
     """A finder over a fixed list of ports (`finder` goes to it: the `line` of a fake port, ...)."""
 
     def __init__(self, ports: list[str], timing: Timing = QUICK, **finder: Any) -> None:
-        self.events: list[str] = []                        # what was done to the radio's own line: "hold", "release"
+        self.events: list[str] = []  # what was done to the radio's own line: "hold", "release"
         self.tried: list[Trying] = []
 
         async def listed() -> list[str]:

@@ -2,6 +2,7 @@
 every frame (packaging/mercury/leadin.patch), because a VOX opens only after hearing audio for its
 attack time.
 """
+
 import asyncio
 import os
 import re
@@ -29,17 +30,25 @@ PAYLOAD = b"OH2A>APNEO1:=6010.20N/02456.40E-a packet for the lead-in"
 
 def test_the_patch_adds_the_key_to_the_source_and_the_build_applies_it_and_says_so() -> None:
     text = PATCH.read_text(encoding="utf-8")
-    assert text.count('+#define CFG_KEY_TX_LEADIN_MS        "audio:tx_leadin_ms"') == 1 and "+++ b/modem/modem.c" in text and "+++ b/common/mercury_engine.c" in text
+    assert (
+        text.count('+#define CFG_KEY_TX_LEADIN_MS        "audio:tx_leadin_ms"') == 1
+        and "+++ b/modem/modem.c" in text
+        and "+++ b/common/mercury_engine.c" in text
+    )
     assert "+int  modem_get_tx_leadin_ms(void);" in text and "tx_leadin_ms = 0" in text, "off unless the ini says so"
     script = SCRIPT.read_text(encoding="utf-8")
-    assert "leadin.patch" in script and "LEADIN_KEY" in script, "applied after the loopback patch, and the key looked for in the patched source"
-    assert "leadin.patch" in script[script.index("SOURCE.txt"):], "the source offer names the change (GPL)"
+    assert "leadin.patch" in script and "LEADIN_KEY" in script, (
+        "applied after the loopback patch, and the key looked for in the patched source"
+    )
+    assert "leadin.patch" in script[script.index("SOURCE.txt") :], "the source offer names the change (GPL)"
 
 
 def test_the_document_has_the_table_and_the_lead_in_the_daemon_writes_is_the_one_it_measured() -> None:
     text = DOC.read_text(encoding="utf-8")
     assert "scripts/mercury-measure vox" in text and "What `scripts/mercury-measure vox` measured" in text
-    assert re.search(rf"`LEADIN_MS` \({mercury.LEADIN_MS} ms\)", text), "the value of the constant is the one the document gives"
+    assert re.search(rf"`LEADIN_MS` \({mercury.LEADIN_MS} ms\)", text), (
+        "the value of the constant is the one the document gives"
+    )
 
 
 def deliver_ports(case: int) -> tuple[tuple[int, int], tuple[int, int]]:
@@ -57,6 +66,7 @@ async def heard(reader: asyncio.StreamReader, seconds: float) -> bool:
             if decoder.feed(data):
                 return True
         return False
+
     try:
         return await asyncio.wait_for(one(), seconds)
     except TimeoutError:
@@ -74,7 +84,10 @@ async def delivered(program: str, folder: Path, case: int, leadin_ms: int) -> in
         channel.add(name, rx, tx)
     channel.set_link("A", "B", shaper=Attack(lambda: channel.blocks, ATTACK_MS), symmetric=False)
     channel.start()
-    processes = [start_mercury(program, folder, "a", *pipes["A"], sender, busy_detect=False, leadin_ms=leadin_ms), start_mercury(program, folder, "b", *pipes["B"], receiver, busy_detect=False)]
+    processes = [
+        start_mercury(program, folder, "a", *pipes["A"], sender, busy_detect=False, leadin_ms=leadin_ms),
+        start_mercury(program, folder, "b", *pipes["B"], receiver, busy_detect=False),
+    ]
     writers: list[asyncio.StreamWriter] = []
     try:
         streams = []
@@ -105,7 +118,18 @@ async def delivered(program: str, folder: Path, case: int, leadin_ms: int) -> in
 
 async def test_a_frame_that_loses_its_first_100_ms_is_heard_with_the_lead_in_and_not_without(tmp_path: Path) -> None:
     program = find()
-    if program is None or not hasattr(os, "mkfifo") or "tx_leadin_ms" not in (Path(program[0]).parent / "SOURCE.txt").read_text(encoding="utf-8", errors="replace"):
-        pytest.skip("the Mercury that scripts/build-mercury --install builds (with the lead-in) and named pipes are needed")
-    without, with_leadin = await asyncio.gather(delivered(program[0], tmp_path / "without", 0, 0), delivered(program[0], tmp_path / "with", 1, mercury.LEADIN_MS))
-    assert (without, with_leadin) == (0, FRAMES), f"without the lead-in {without} of {FRAMES}, with {mercury.LEADIN_MS} ms of it {with_leadin} of {FRAMES}"
+    if (
+        program is None
+        or not hasattr(os, "mkfifo")
+        or "tx_leadin_ms" not in (Path(program[0]).parent / "SOURCE.txt").read_text(encoding="utf-8", errors="replace")
+    ):
+        pytest.skip(
+            "the Mercury that scripts/build-mercury --install builds (with the lead-in) and named pipes are needed"
+        )
+    without, with_leadin = await asyncio.gather(
+        delivered(program[0], tmp_path / "without", 0, 0),
+        delivered(program[0], tmp_path / "with", 1, mercury.LEADIN_MS),
+    )
+    assert (without, with_leadin) == (0, FRAMES), (
+        f"without the lead-in {without} of {FRAMES}, with {mercury.LEADIN_MS} ms of it {with_leadin} of {FRAMES}"
+    )

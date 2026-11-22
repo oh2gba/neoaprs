@@ -2,6 +2,7 @@
 log and come back, the station cache keeps the last one, a message keeps its packet's, and the
 signal series reads direct packets.
 """
+
 import asyncio
 import json
 from dataclasses import replace
@@ -27,32 +28,73 @@ from tests.support.wireworld import T0
 from tests.test_messagelog import came, opened, out, settled
 
 
-def heard(source: str, at: datetime, snr: float | None, rssi: float | None = None, path: tuple[str, ...] = (), text: str = "!6027.11N/02216.00E-") -> Packet:
+def heard(
+    source: str,
+    at: datetime,
+    snr: float | None,
+    rssi: float | None = None,
+    path: tuple[str, ...] = (),
+    text: str = "!6027.11N/02216.00E-",
+) -> Packet:
     """A packet as the radio gave it, its frame and what it decodes to (the log reads the packets
     back from their frames), with the readings the radio measured."""
     info = text.encode("latin-1")
-    frame = ax25.Frame(ax25.Address("APRS"), ax25.Address.parse(source), tuple(ax25.Address.parse(p) for p in path), info=info)
-    return Packet(at, "in", ax25.encode(frame), source, "APRS", tuple(str(a) for a in frame.path), info, parse(info, source, "APRS", at), radio_id=HF_ID, snr=snr, rssi=rssi)
+    frame = ax25.Frame(
+        ax25.Address("APRS"), ax25.Address.parse(source), tuple(ax25.Address.parse(p) for p in path), info=info
+    )
+    return Packet(
+        at,
+        "in",
+        ax25.encode(frame),
+        source,
+        "APRS",
+        tuple(str(a) for a in frame.path),
+        info,
+        parse(info, source, "APRS", at),
+        radio_id=HF_ID,
+        snr=snr,
+        rssi=rssi,
+    )
 
 
 async def test_a_packets_readings_are_kept_and_come_back_and_one_without_has_none(tmp_path: Path) -> None:
     store = await store_at(tmp_path / DB_NAME)
     log = PacketLog(store.db, FixedClock())
-    for packet in (heard("Q3TKU", T0, -2.5), heard("OH2LRA-7", T0 + timedelta(seconds=1), 7.25, -112.0), heard("OH2RDG", T0 + timedelta(seconds=2), None)):
+    for packet in (
+        heard("Q3TKU", T0, -2.5),
+        heard("OH2LRA-7", T0 + timedelta(seconds=1), 7.25, -112.0),
+        heard("OH2RDG", T0 + timedelta(seconds=2), None),
+    ):
         assert log.append(packet)
     back = await log.recent(10)
-    assert [(p.source, p.snr, p.rssi) for p in back] == [("OH2RDG", None, None), ("OH2LRA-7", 7.25, -112.0), ("Q3TKU", -2.5, None)]
+    assert [(p.source, p.snr, p.rssi) for p in back] == [
+        ("OH2RDG", None, None),
+        ("OH2LRA-7", 7.25, -112.0),
+        ("Q3TKU", -2.5, None),
+    ]
 
 
-async def test_the_signal_series_is_the_packets_heard_direct_from_the_station_in_the_span_the_oldest_first(tmp_path: Path) -> None:
+async def test_the_signal_series_is_the_packets_heard_direct_from_the_station_in_the_span_the_oldest_first(
+    tmp_path: Path,
+) -> None:
     store = await store_at(tmp_path / DB_NAME)
     log = PacketLog(store.db, FixedClock())
-    for packet in (heard("Q3TKU", T0 - timedelta(hours=25), 1.0), heard("Q3TKU", T0 - timedelta(hours=2), -2.5), heard("Q3TKU", T0 - timedelta(hours=1), None),
-                   heard("Q3TKU", T0 - timedelta(minutes=30), 9.0, path=("OH2RCH-2*",)), heard("Q3TKU", T0 - timedelta(minutes=10), 4.0, -101.0), heard("Q5OUL", T0 - timedelta(minutes=5), 3.0)):
+    for packet in (
+        heard("Q3TKU", T0 - timedelta(hours=25), 1.0),
+        heard("Q3TKU", T0 - timedelta(hours=2), -2.5),
+        heard("Q3TKU", T0 - timedelta(hours=1), None),
+        heard("Q3TKU", T0 - timedelta(minutes=30), 9.0, path=("OH2RCH-2*",)),
+        heard("Q3TKU", T0 - timedelta(minutes=10), 4.0, -101.0),
+        heard("Q5OUL", T0 - timedelta(minutes=5), 3.0),
+    ):
         assert log.append(packet)
-    assert await log.readings("Q3TKU", T0 - timedelta(hours=24)) == [(T0 - timedelta(hours=2), -2.5, None), (T0 - timedelta(minutes=10), 4.0, -101.0)], \
-        "the one before the span, the one without a reading, the digipeater's copy and the other station's are left out"
-    assert await log.readings("Q3TKU", T0 - timedelta(hours=24), count=1) == [(T0 - timedelta(minutes=10), 4.0, -101.0)], "at most so many, the latest"
+    assert await log.readings("Q3TKU", T0 - timedelta(hours=24)) == [
+        (T0 - timedelta(hours=2), -2.5, None),
+        (T0 - timedelta(minutes=10), 4.0, -101.0),
+    ], "the one before the span, the one without a reading, the digipeater's copy and the other station's are left out"
+    assert await log.readings("Q3TKU", T0 - timedelta(hours=24), count=1) == [
+        (T0 - timedelta(minutes=10), 4.0, -101.0)
+    ], "at most so many, the latest"
     assert await log.readings("OH2NONE", T0 - timedelta(hours=24)) == []
 
 
@@ -63,7 +105,10 @@ async def test_the_station_cache_keeps_the_last_reading_with_its_time(tmp_path: 
     assert log.save_station(station) and log.save_station(replace(station, call="OH2RDG", snr=None, signal_at=None))
     log.flush_stations()
     kept = {s.call: s for s in await log.stations()}
-    assert (kept["Q3TKU"].snr, kept["Q3TKU"].rssi, kept["Q3TKU"].signal_at) == (-2.5, None, T0) and (kept["OH2RDG"].snr, kept["OH2RDG"].signal_at) == (None, None)
+    assert (kept["Q3TKU"].snr, kept["Q3TKU"].rssi, kept["Q3TKU"].signal_at) == (-2.5, None, T0) and (
+        kept["OH2RDG"].snr,
+        kept["OH2RDG"].signal_at,
+    ) == (None, None)
 
 
 async def test_a_message_keeps_the_reading_of_its_packet_and_ours_the_acks(tmp_path: Path) -> None:
@@ -80,9 +125,24 @@ async def test_a_message_keeps_the_reading_of_its_packet_and_ours_the_acks(tmp_p
     assert (await log.recent())[1].snr is None, "sent anew, it has no answer yet"
 
 
-async def test_the_daemon_on_the_dummy_hf_radio_tells_the_snr_of_the_packets_the_stations_our_message_its_answer_and_the_series(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_daemon_on_the_dummy_hf_radio_tells_the_snr_of_the_packets_the_stations_our_message_its_answer_and_the_series(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(dummyline, "TICK_SEC", 0.01)
-    e = Env(tmp_path, radio=False, web=True, settings={"station/call": "OH2GBA", "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "messages/alert": "false"})
+    e = Env(
+        tmp_path,
+        radio=False,
+        web=True,
+        settings={
+            "station/call": "OH2GBA",
+            "fm/enabled": "false",
+            "hf/enabled": "true",
+            "hf/profile": "dummy-hf",
+            "station/lat": "60.17",
+            "station/lon": "24.94",
+            "messages/alert": "false",
+        },
+    )
     # No speaker: the Dummy HF radio works without it
     e.mercury._finder = lambda: None
     await e.start()
@@ -90,7 +150,7 @@ async def test_the_daemon_on_the_dummy_hf_radio_tells_the_snr_of_the_packets_the
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     for _ in range(400):
-        e.now.advance(5)                                                         # type: ignore[attr-defined]
+        e.now.advance(5)  # type: ignore[attr-defined]
         await asyncio.sleep(0.01)
         turku = e.ctl.stationbook.get("Q3TKU")
         if turku is not None and turku.snr is not None:
@@ -99,21 +159,38 @@ async def test_the_daemon_on_the_dummy_hf_radio_tells_the_snr_of_the_packets_the
     assert turku is not None and turku.snr is not None and turku.signal_at == turku.last_heard and turku.rssi is None
     record = await e.ctl.messaging.send("Q3TKU", "hello Turku")
     for _ in range(1000):
-        e.now.advance(1)                                                         # type: ignore[attr-defined]
+        e.now.advance(1)  # type: ignore[attr-defined]
         await asyncio.sleep(0.01)
         answered = [r for r in e.ctl.messaging.records() if r.direction == "in" and r.from_call == "Q3TKU"]
         mine = e.ctl.messaging.get(record.id)
         if answered and mine is not None and mine.state == "acked":
             break
     mine = e.ctl.messaging.get(record.id)
-    assert mine is not None and mine.state == "acked" and mine.snr is not None, "our message has the SNR of the ack that came back"
-    assert answered and answered[0].snr is not None and answered[0].radio_id == HF_ID, "the answer has the SNR of the packet that carried it"
+    assert mine is not None and mine.state == "acked" and mine.snr is not None, (
+        "our message has the SNR of the ack that came back"
+    )
+    assert answered and answered[0].snr is not None and answered[0].radio_id == HF_ID, (
+        "the answer has the SNR of the packet that carried it"
+    )
     await e.settled()
-    await page.until(lambda: any(row["snr"] is not None for row in page.topics["packets"].values()) and page.topics["messages"].get(str(record.id), {}).get("snr") == mine.snr)
-    assert page.topics["stations"]["Q3TKU"]["snr"] is not None and list(e.hf.profile.readings) == ["snr"] and list(e.tnc.profile.readings) == []
+    await page.until(
+        lambda: (
+            any(row["snr"] is not None for row in page.topics["packets"].values())
+            and page.topics["messages"].get(str(record.id), {}).get("snr") == mine.snr
+        )
+    )
+    assert (
+        page.topics["stations"]["Q3TKU"]["snr"] is not None
+        and list(e.hf.profile.readings) == ["snr"]
+        and list(e.tnc.profile.readings) == []
+    )
     await page.send({"cmd": "signal_series", "call": "Q3TKU", "hours": 24})
     answer = SignalSeriesMsg.model_validate_json(json.dumps(await page.expect("signal_series")))
-    assert answer.call == "Q3TKU" and answer.points and all(snr is not None and rssi is None for _, snr, rssi in answer.points)
+    assert (
+        answer.call == "Q3TKU"
+        and answer.points
+        and all(snr is not None and rssi is None for _, snr, rssi in answer.points)
+    )
     await page.send({"cmd": "signal_series", "call": "", "hours": 24})
     assert (await page.expect("error"))["cmd"] == "signal_series"
     await e.stop()

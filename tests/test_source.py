@@ -1,5 +1,6 @@
 """What every feed of packets looks like from outside (neoaprs/source.py): the state and the
 problem, the lines it keeps, its tasks, and the back-off between two tries."""
+
 import asyncio
 import errno
 import socket
@@ -21,7 +22,9 @@ class Dummy(Source):
         self._set_state(Source.State.STOPPED)
 
 
-def test_the_back_off_goes_up_to_the_last_delay_and_starts_over_when_a_connection_stayed_up(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_back_off_goes_up_to_the_last_delay_and_starts_over_when_a_connection_stayed_up(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     now = [100.0]
     monkeypatch.setattr("neoaprs.source._time.monotonic", lambda: now[0])
     b = Backoff()
@@ -45,8 +48,12 @@ def test_the_words_of_an_os_error_are_the_systems() -> None:
     assert os_error_text(FileNotFoundError(errno.ENOENT, "ignored")) == "No such file or directory"
     assert os_error_text(OSError("odd")) == "odd" and os_error_text(OSError(0, "from strerror")) == "from strerror"
     assert os_error_text(ValueError()) == "ValueError" and os_error_text(ValueError("bad")) == "bad"
-    assert os_error_text(socket.gaierror(-3, "Temporary failure in name resolution")) == NO_LOOKUP, "the resolver's code is never shown as 'Unknown error -3'"
-    assert os_error_text(OSError(-2, "Name or service not known")) == "Name or service not known", "the system's words before its number"
+    assert os_error_text(socket.gaierror(-3, "Temporary failure in name resolution")) == NO_LOOKUP, (
+        "the resolver's code is never shown as 'Unknown error -3'"
+    )
+    assert os_error_text(OSError(-2, "Name or service not known")) == "Name or service not known", (
+        "the system's words before its number"
+    )
 
 
 async def test_state_changes_are_told_once_each_and_the_problem_is_kept() -> None:
@@ -65,7 +72,9 @@ async def test_state_changes_are_told_once_each_and_the_problem_is_kept() -> Non
     s._set_state(Source.State.WAITING, "No such file or directory")
     assert s.state is Source.State.WAITING and s.problem == s.last_error == "No such file or directory"
     s._set_state(Source.State.WAITING, "Permission denied")
-    assert s.problem == "No such file or directory" and s.last_error == "Permission denied", "the first problem is what is shown, the last is what happened last"
+    assert s.problem == "No such file or directory" and s.last_error == "Permission denied", (
+        "the first problem is what is shown, the last is what happened last"
+    )
     s._set_state(Source.State.CONNECTING)
     assert s.problem == ""
     s._set_problem("the radio is off")

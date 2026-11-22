@@ -2,6 +2,7 @@
 
 `set` makes or changes an object or item and restarts its decay; `kill` ends one. Sends follow
 the schedule in decay.py; another station reporting an object of our name takes it over."""
+
 import logging
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import replace
@@ -33,8 +34,16 @@ MAX_OBJECTS = 50
 class OwnObjects(Repeater[str]):
     kind = "object"
 
-    def __init__(self, sender: Sender, config: ConfigSource, ownlog: OwnLog, is_station: Callable[[str], bool] = lambda name: False, clock: Clock = utcnow, tick_sec: float = TICK_SEC,
-                 memory: Memory | None = None) -> None:
+    def __init__(
+        self,
+        sender: Sender,
+        config: ConfigSource,
+        ownlog: OwnLog,
+        is_station: Callable[[str], bool] = lambda name: False,
+        clock: Clock = utcnow,
+        tick_sec: float = TICK_SEC,
+        memory: Memory | None = None,
+    ) -> None:
         super().__init__(sender, clock, tick_sec)
         self._config = config
         self._log = ownlog
@@ -94,8 +103,23 @@ class OwnObjects(Repeater[str]):
         await self.stop_ticker()
         await self._remembered.flush()
 
-    def set(self, name: str, kind: str, lat: float, lon: float, symbol_table: str, symbol_code: str, comment: str = "", course_deg: int | None = None, speed_kmh: float | None = None,
-            path: str | None = None, qru_group: str = "", on_request: bool = False, *, radios: Iterable[RadioId] | None = None) -> OwnObject:
+    def set(
+        self,
+        name: str,
+        kind: str,
+        lat: float,
+        lon: float,
+        symbol_table: str,
+        symbol_code: str,
+        comment: str = "",
+        course_deg: int | None = None,
+        speed_kmh: float | None = None,
+        path: str | None = None,
+        qru_group: str = "",
+        on_request: bool = False,
+        *,
+        radios: Iterable[RadioId] | None = None,
+    ) -> OwnObject:
         """Make or change the object or item and send it at once; raise OwnError if refused.
 
         Without `radios` a new object uses `new_radios` and a changed one keeps its own."""
@@ -108,11 +132,29 @@ class OwnObjects(Repeater[str]):
             raise OwnError(f"{name} is a station, not the name of an object", "object.is_station", name=name)
         before = self._objects.get(name)
         if before is None and len(self._objects) >= MAX_OBJECTS:
-            raise OwnError(f"{MAX_OBJECTS} objects and items are being sent: kill one first", "object.full", max=MAX_OBJECTS)
+            raise OwnError(
+                f"{MAX_OBJECTS} objects and items are being sent: kill one first", "object.full", max=MAX_OBJECTS
+            )
         named = radios is not None
         if radios is None:
             radios = before.radios if before is not None else self.new_radios()
-        obj = make_object(self.clock(), name, kind, lat, lon, symbol_table, symbol_code, comment, course_deg, speed_kmh, path, before, qru_group, on_request, radios=radios)
+        obj = make_object(
+            self.clock(),
+            name,
+            kind,
+            lat,
+            lon,
+            symbol_table,
+            symbol_code,
+            comment,
+            course_deg,
+            speed_kmh,
+            path,
+            before,
+            qru_group,
+            on_request,
+            radios=radios,
+        )
         if named and obj.radios != self.last_radios:
             self.last_radios = obj.radios
             self._remembered.put({NEW_OBJECTS: text_of(obj.radios)})
@@ -139,7 +181,7 @@ class OwnObjects(Repeater[str]):
 
     def _store(self, obj: OwnObject) -> None:
         if obj.sent == 0:
-            self._new_round(obj.name)                         # new, changed or killed: fresh round on every radio
+            self._new_round(obj.name)  # new, changed or killed: fresh round on every radio
         self._objects[obj.name] = obj
         self._log.save_object(obj)
         self.changed.emit(obj)
@@ -174,7 +216,13 @@ class OwnObjects(Repeater[str]):
         """Return the wait after the latest packet: the longest over the radios of one round."""
         config = self._config()
         radios = self._sender.radios_for(obj.radios)
-        return max((object_wait_sec(obj.sent, path_on(radio, config, obj.path_calls), repeat_floor_sec(radio.limits)) for radio in radios), default=object_wait_sec(obj.sent, self.path_of(obj)))
+        return max(
+            (
+                object_wait_sec(obj.sent, path_on(radio, config, obj.path_calls), repeat_floor_sec(radio.limits))
+                for radio in radios
+            ),
+            default=object_wait_sec(obj.sent, self.path_of(obj)),
+        )
 
     def _transmit(self, key: str, now: datetime) -> bool:
         """Run the round on its radios; when done, count one more send.
@@ -204,7 +252,13 @@ class OwnObjects(Repeater[str]):
     def on_packet(self, packet: Packet) -> None:
         """Drop our object when another station reports it alive (it has taken it over)."""
         report = packet.decoded
-        if packet.direction != "in" or not packet.on_air or packet.via == DUMMY or not isinstance(report, (ObjectReport, ItemReport)) or not report.alive:
+        if (
+            packet.direction != "in"
+            or not packet.on_air
+            or packet.via == DUMMY
+            or not isinstance(report, (ObjectReport, ItemReport))
+            or not report.alive
+        ):
             return
         obj = self._objects.get(report.name)
         if obj is None or not obj.alive or same_call(packet.sender, self._config().station_call):

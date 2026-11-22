@@ -1,5 +1,6 @@
 """The list of heard packets a LoRa board's web page answers (neoaprs/loralist.py `parse`), on its
 own: what is wrong of an answer is told in words that hold no control character of the board's."""
+
 import pytest
 
 from neoaprs.loralist import ListError, parse

@@ -2,6 +2,7 @@
 
 All answer only for a known Host name and carry the security headers.
 """
+
 import datetime
 import logging
 import os
@@ -51,8 +52,12 @@ def refuse_foreign_host(handler: tornado.web.RequestHandler, server: HostGate) -
     handler.set_status(403)
     handler.set_header("Content-Type", "text/plain; charset=utf-8")
     handler.set_header("X-Content-Type-Options", "nosniff")
-    handler.finish(f"NeoAPRS does not answer to the name {shown!r}.\n"
-                   "If it is a name of this computer, allow it: neoaprs db set web/allowed_hosts \"" + (host_name(shown) or "name") + "\" (several names: separate them by commas), then restart NeoAPRS.\n")
+    handler.finish(
+        f"NeoAPRS does not answer to the name {shown!r}.\n"
+        'If it is a name of this computer, allow it: neoaprs db set web/allowed_hosts "'
+        + (host_name(shown) or "name")
+        + '" (several names: separate them by commas), then restart NeoAPRS.\n'
+    )
     return True
 
 
@@ -82,7 +87,11 @@ def send_to_this_computer(handler: tornado.web.RequestHandler, server: HostGate)
     """
     request = handler.request
     target = server.this_computer_target(request)
-    if target is None or request.method not in ("GET", "HEAD") or request.headers.get("Upgrade", "").lower() == "websocket":
+    if (
+        target is None
+        or request.method not in ("GET", "HEAD")
+        or request.headers.get("Upgrade", "").lower() == "websocket"
+    ):
         return False
     handler.redirect(f"{target}{same_place(request)}", status=307)
     return True
@@ -115,7 +124,13 @@ class TextErrors(tornado.web.RequestHandler):
         if isinstance(value, tornado.web.HTTPError):
             super().log_exception(typ, value, tb)  # Tornado logs an HTTPError with its message and no request
             return
-        log.error("Uncaught exception %s %s (%s)", self.request.method, one_line(self.request.path, MAX_LOGGED_PATH), self.request.remote_ip, exc_info=(typ, value, tb))
+        log.error(
+            "Uncaught exception %s %s (%s)",
+            self.request.method,
+            one_line(self.request.path, MAX_LOGGED_PATH),
+            self.request.remote_ip,
+            exc_info=(typ, value, tb),
+        )
 
 
 class SecurityHeaders(TextErrors):
@@ -204,7 +219,9 @@ class Page(Files):
 
     def set_extra_headers(self, path: str) -> None:
         # A name under assets/ carries a content hash, so it never changes.
-        self.set_header("Cache-Control", "public, max-age=31536000, immutable" if is_hashed_asset(PurePath(path)) else "no-cache")
+        self.set_header(
+            "Cache-Control", "public, max-age=31536000, immutable" if is_hashed_asset(PurePath(path)) else "no-cache"
+        )
         self.set_header("X-Content-Type-Options", "nosniff")
 
 
@@ -214,7 +231,12 @@ class Basemap(Files):
     The world map is the data folder's file when valid, else the shipped one.
     """
 
-    def initialize(self, path: str, default_filename: str | None = None, world: Callable[[], Path | None] | None = None) -> None:  # type: ignore[override]
+    def initialize(
+        self,
+        path: str,
+        default_filename: str | None = None,
+        world: Callable[[], Path | None] | None = None,  # type: ignore[override]
+    ) -> None:
         super().initialize(path, default_filename)
         self._world = world
 
@@ -241,8 +263,14 @@ class Basemap(Files):
         if path == WORLD_FILE and self._world is not None:
             found = self._world()
             if found is None:
-                raise tornado.web.HTTPError(404, reason="Not Found: there is no world map (the one that ships with the program is missing and the data folder's is not a PMTiles file)")
+                raise tornado.web.HTTPError(
+                    404,
+                    reason="Not Found: there is no world map (the one that ships with the program is missing and the data folder's is not a PMTiles file)",
+                )
             self.root = os.path.abspath(found.parent)  # the shipped file has the same name in another folder
         if not os.path.isfile(os.path.join(self.root, path)):
-            raise tornado.web.HTTPError(404, reason="Not Found: the base map is not in the data folder, fetch it in the Settings tab, Map, Download")
+            raise tornado.web.HTTPError(
+                404,
+                reason="Not Found: the base map is not in the data folder, fetch it in the Settings tab, Map, Download",
+            )
         await super().get(path, include_body)

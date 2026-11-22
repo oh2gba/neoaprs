@@ -1,4 +1,5 @@
 """Where the data is kept when nobody says (neoaprs/paths.py)."""
+
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -31,12 +32,15 @@ def test_else_the_local_share_of_the_home(monkeypatch: pytest.MonkeyPatch) -> No
 
 # ---- the other systems: the module sees the platform as the test says (nothing global is changed)
 
+
 def platform(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
     monkeypatch.setattr(paths, "sys", SimpleNamespace(platform=name))
     monkeypatch.delenv("NEOAPRS_DATA_DIR", raising=False)
 
 
-def test_windows_keeps_the_data_in_the_local_app_data_not_the_roaming_one(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_windows_keeps_the_data_in_the_local_app_data_not_the_roaming_one(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     platform(monkeypatch, "win32")
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg"))

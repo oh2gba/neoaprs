@@ -3,6 +3,7 @@
 One interval for the station (`beacon/interval_min`, 0 for off), raised on each radio to that
 radio's own floor. Each radio has its own "beacon" tick (Send on), and so have the other senders.
 """
+
 from collections.abc import Iterable
 
 from .radiospec import RadioId, RadioSpec, enabled, in_force_set, log_name

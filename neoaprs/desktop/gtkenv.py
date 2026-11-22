@@ -2,6 +2,7 @@
 
 Adds the AppImage's carried GTK pieces where the system lacks them, and turns on WebKit's
 sandbox where bubblewrap can run. Outside the AppImage (a checkout) the first part does nothing."""
+
 import ctypes
 import os
 import shutil
@@ -12,13 +13,27 @@ from pathlib import Path
 
 CARRIED = Path(sys.prefix) / "lib" / "neoaprs-gtk"
 # In dependency order: each needs the ones before it.
-LIBRARIES = ("libdbusmenu-glib.so.4", "libdbusmenu-gtk3.so.4", "libayatana-ido3-0.4.so.0", "libayatana-indicator3.so.7", "libayatana-appindicator3.so.1")
+LIBRARIES = (
+    "libdbusmenu-glib.so.4",
+    "libdbusmenu-gtk3.so.4",
+    "libayatana-ido3-0.4.so.0",
+    "libayatana-indicator3.so.7",
+    "libayatana-appindicator3.so.1",
+)
 TRAY_TYPELIB = "AyatanaAppIndicator3-0.1.typelib"
 WEBKIT_TYPELIB = "WebKit2-4.1.typelib"
 WEBKIT_LIBRARY = "libwebkit2gtk-4.1.so.0"
 # Debian and Ubuntu package name (Fedora: webkit2gtk4.1); named in the log if no window opens.
 WEBKIT_PACKAGE = "libwebkit2gtk-4.1-0"
-SYSTEM_TYPELIBS = tuple(Path(p) for p in ("/usr/lib/x86_64-linux-gnu/girepository-1.0", "/usr/lib/aarch64-linux-gnu/girepository-1.0", "/usr/lib64/girepository-1.0", "/usr/lib/girepository-1.0"))
+SYSTEM_TYPELIBS = tuple(
+    Path(p)
+    for p in (
+        "/usr/lib/x86_64-linux-gnu/girepository-1.0",
+        "/usr/lib/aarch64-linux-gnu/girepository-1.0",
+        "/usr/lib64/girepository-1.0",
+        "/usr/lib/girepository-1.0",
+    )
+)
 SANDBOX = "WEBKIT_FORCE_SANDBOX"
 SANDBOX_TOOLS = ("bwrap", "xdg-dbus-proxy")
 # Run `true` in bubblewrap with every kind of namespace: what the sandbox needs of this system.
@@ -61,7 +76,11 @@ def typelib_path(carried: Path, load: Loader, system: Sequence[Path]) -> list[st
     folders: list[str] = []
     if (carried / "girepository-tray").is_dir() and not has_typelib(TRAY_TYPELIB, system):
         folders.append(str(carried / "girepository-tray"))
-    if (carried / "girepository-webkit").is_dir() and not has_typelib(WEBKIT_TYPELIB, system) and loads(WEBKIT_LIBRARY, load):
+    if (
+        (carried / "girepository-webkit").is_dir()
+        and not has_typelib(WEBKIT_TYPELIB, system)
+        and loads(WEBKIT_LIBRARY, load)
+    ):
         folders.append(str(carried / "girepository-webkit"))
     return folders
 
@@ -76,22 +95,46 @@ def _read(path: Path) -> str:
 def bubblewrap_runs(bwrap: str) -> bool:
     """Return whether bubblewrap can start a program in namespaces here."""
     try:
-        return subprocess.run([bwrap, *SANDBOX_TRY], stdin=subprocess.DEVNULL, capture_output=True, timeout=SANDBOX_TRY_SEC, check=False).returncode == 0
+        return (
+            subprocess.run(
+                [bwrap, *SANDBOX_TRY],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                timeout=SANDBOX_TRY_SEC,
+                check=False,
+            ).returncode
+            == 0
+        )
     except (OSError, subprocess.SubprocessError):
         return False
 
 
-def sandbox_possible(proc: Path = Path("/proc"), which: Callable[[str], str | None] = shutil.which, tries: Callable[[str], bool] = bubblewrap_runs) -> bool:
+def sandbox_possible(
+    proc: Path = Path("/proc"),
+    which: Callable[[str], str | None] = shutil.which,
+    tries: Callable[[str], bool] = bubblewrap_runs,
+) -> bool:
     """Return whether the web content's sandbox can run: user namespaces, tools and a trial run."""
     kernel = proc / "sys" / "kernel"
-    if _read(kernel / "apparmor_restrict_unprivileged_userns") == "1" or _read(kernel / "unprivileged_userns_clone") == "0" or _read(proc / "sys" / "user" / "max_user_namespaces") == "0":
+    if (
+        _read(kernel / "apparmor_restrict_unprivileged_userns") == "1"
+        or _read(kernel / "unprivileged_userns_clone") == "0"
+        or _read(proc / "sys" / "user" / "max_user_namespaces") == "0"
+    ):
         return False
     found = [which(tool) for tool in SANDBOX_TOOLS]
     return all(found) and tries(str(found[0]))
 
 
-def prepare(carried: Path = CARRIED, environ: MutableMapping[str, str] = os.environ, load: Loader = load_global, system: Sequence[Path] = SYSTEM_TYPELIBS, proc: Path = Path("/proc"),
-            which: Callable[[str], str | None] = shutil.which, tries: Callable[[str], bool] = bubblewrap_runs) -> list[str]:
+def prepare(
+    carried: Path = CARRIED,
+    environ: MutableMapping[str, str] = os.environ,
+    load: Loader = load_global,
+    system: Sequence[Path] = SYSTEM_TYPELIBS,
+    proc: Path = Path("/proc"),
+    which: Callable[[str], str | None] = shutil.which,
+    tries: Callable[[str], bool] = bubblewrap_runs,
+) -> list[str]:
     """Prepare the environment once (later calls do nothing); return what was done, for the log."""
     global _done
     if _done is not None:
@@ -111,6 +154,8 @@ def prepare(carried: Path = CARRIED, environ: MutableMapping[str, str] = os.envi
         environ[SANDBOX] = "1"
         said.append("the web content in WebKit's sandbox")
     else:
-        said.append("the web content without WebKit's sandbox (no user namespaces here, or no bubblewrap): only NeoAPRS's own page in the window")
+        said.append(
+            "the web content without WebKit's sandbox (no user namespaces here, or no bubblewrap): only NeoAPRS's own page in the window"
+        )
     _done = said
     return said

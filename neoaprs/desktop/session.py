@@ -2,6 +2,7 @@
 
 The app attaches to an existing daemon and leaves it running at Quit; otherwise it starts and
 owns one, stops it at Quit, and ends if something else stops it."""
+
 import logging
 import subprocess
 import threading
@@ -43,6 +44,7 @@ def _start_detached(data: Path, encryption: bool = False) -> "subprocess.Popen[b
 @dataclass
 class Daemon:
     """The operations on daemons, as functions that a test can replace."""
+
     running: Callable[[Path], bool] = is_running
     start: Callable[[Path], "subprocess.Popen[bytes]"] = _start_detached
     wait: Callable[[Path, "subprocess.Popen[bytes] | None", float], str | None] = opencmd.wait_for_page
@@ -52,7 +54,13 @@ class Daemon:
     network: Callable[[Path], bool] = network_is_on
 
 
-def open_session(data: Path, daemon: Daemon | None = None, timeout: float = START_TIMEOUT_SEC, encryption: bool = False, owns: bool = False) -> Session:
+def open_session(
+    data: Path,
+    daemon: Daemon | None = None,
+    timeout: float = START_TIMEOUT_SEC,
+    encryption: bool = False,
+    owns: bool = False,
+) -> Session:
     """Attach to the data folder's daemon, or start one. Raise NoPage if no page comes up.
 
     `owns`: the app was restarted by an update and owns the daemon it finds."""
@@ -103,7 +111,12 @@ class Opening:
             self._finish(None, e)
         except Exception as e:
             log.exception("the daemon on %s could not be started", self.data)
-            self._finish(None, NoPage(f"the daemon could not be started on {self.data}: {e.strerror if isinstance(e, OSError) and e.strerror else e}"))
+            self._finish(
+                None,
+                NoPage(
+                    f"the daemon could not be started on {self.data}: {e.strerror if isinstance(e, OSError) and e.strerror else e}"
+                ),
+            )
 
     def _finish(self, session: Session | None, error: NoPage | None) -> None:
         with self._guard:
@@ -147,8 +160,17 @@ class DaemonWatch:
 
     Only the port may change: an address on another host is never followed."""
 
-    def __init__(self, session: Session, gone: Callable[[], None], daemon: Daemon | None = None, every: float = WATCH_SEC, moved: Callable[[str], None] | None = None,
-                 app_file: AppFile | None = None, renewed: Callable[[], None] | None = None, network_moved: Callable[[], None] | None = None) -> None:
+    def __init__(
+        self,
+        session: Session,
+        gone: Callable[[], None],
+        daemon: Daemon | None = None,
+        every: float = WATCH_SEC,
+        moved: Callable[[str], None] | None = None,
+        app_file: AppFile | None = None,
+        renewed: Callable[[], None] | None = None,
+        network_moved: Callable[[], None] | None = None,
+    ) -> None:
         self.session = session
         self.gone = gone
         self.moved = moved
@@ -206,14 +228,27 @@ class DaemonWatch:
         now = self.daemon.network(self.session.data)
         before, self.network = self.network, now
         if before is not None and before != now:
-            log.info("the page of the daemon on %s is %s the network now", self.session.data, "served to" if now else "no longer served to")
+            log.info(
+                "the page of the daemon on %s is %s the network now",
+                self.session.data,
+                "served to" if now else "no longer served to",
+            )
             self.network_moved()
 
     def _renewed(self) -> bool:
         """Call `renewed` and return True when the app's file is new and the running daemon has no restart pending."""
-        if self.app_file is None or self.renewed is None or not self.app_file.replaced() or self.daemon.restarting(self.session.data):
+        if (
+            self.app_file is None
+            or self.renewed is None
+            or not self.app_file.replaced()
+            or self.daemon.restarting(self.session.data)
+        ):
             return False
-        log.info("the app's file %s is a new version and the daemon on %s runs it: the app starts again", self.app_file.path, self.session.data)
+        log.info(
+            "the app's file %s is a new version and the daemon on %s runs it: the app starts again",
+            self.app_file.path,
+            self.session.data,
+        )
         self.renewed()
         return True
 
@@ -225,9 +260,19 @@ class DaemonWatch:
             return
         if not same_host(url, self.session.url):
             if url != self.refused:
-                log.warning("the file of the daemon on %s names %s as its page, which is not on the host of %s: the app stays where it is", self.session.data, url, self.session.url)
+                log.warning(
+                    "the file of the daemon on %s names %s as its page, which is not on the host of %s: the app stays where it is",
+                    self.session.data,
+                    url,
+                    self.session.url,
+                )
                 self.refused = url
             return
-        log.info("the page of the daemon on %s is at %s now (it was at %s): the app follows", self.session.data, url, self.url)
+        log.info(
+            "the page of the daemon on %s is at %s now (it was at %s): the app follows",
+            self.session.data,
+            url,
+            self.url,
+        )
         self.url = url
         self.moved(url)

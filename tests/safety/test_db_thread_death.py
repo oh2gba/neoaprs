@@ -2,6 +2,7 @@
 committing a batch of appends, ends the thread; everything that was asked and not done is answered
 with DbClosed (nobody waits for ever), the one who asks next is refused, and nothing of the batch is
 kept."""
+
 import asyncio
 import sqlite3
 import threading
@@ -19,6 +20,7 @@ from tests.support.riggedsql import plain
 class Broken(sqlite3.Connection):
     """A connection whose library breaks (what is not an sqlite3.Error) at the next BEGIN IMMEDIATE
     once `broken` is set."""
+
     broken = threading.Event()
 
     def execute(self, sql: str, *args: object) -> sqlite3.Cursor:
@@ -28,7 +30,9 @@ class Broken(sqlite3.Connection):
 
 
 @pytest.mark.expects_errors
-async def test_a_thread_that_dies_while_committing_a_batch_answers_what_ended_the_batch_and_what_was_queued_behind_it(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_thread_that_dies_while_committing_a_batch_answers_what_ended_the_batch_and_what_was_queued_behind_it(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     path = tmp_path / "x.sqlite"
     broken = threading.Event()
     connection_class = type("Mine", (Broken,), {"broken": broken})

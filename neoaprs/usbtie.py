@@ -3,6 +3,7 @@
 A USB radio carries its sound and serial chips behind a small hub of its own (`_Tree.group`);
 keying a port elsewhere would key another radio. `together` gives each an opaque group token.
 """
+
 import hashlib
 import os
 import re
@@ -27,7 +28,7 @@ def _usb_place(path: Path) -> tuple[str, str] | None:
         return None
     device = found[-1]
     hub = str(Path(*parts[:device])) if _DEVICE.match(parts[device - 1]) else ""
-    return str(Path(*parts[:device + 1])), hub
+    return str(Path(*parts[: device + 1])), hub
 
 
 def _card_number(card_id: str, sys_root: Path) -> int | None:
@@ -37,7 +38,9 @@ def _card_number(card_id: str, sys_root: Path) -> int | None:
         return None
     for folder in sorted((sys_root / "class" / "sound").glob("card[0-9]*")):
         try:
-            if folder.name[4:].isdigit() and (folder / "id").read_text(encoding="utf-8", errors="replace").strip() == m.group(1):
+            if folder.name[4:].isdigit() and (folder / "id").read_text(
+                encoding="utf-8", errors="replace"
+            ).strip() == m.group(1):
                 return int(folder.name[4:])
         except OSError:
             continue
@@ -66,7 +69,9 @@ class _Tree:
             children = [str(Path(hub) / c.name) for c in Path(hub).iterdir() if _DEVICE.match(c.name)]
         except OSError:
             return False
-        return bool(children) and all(c in self.members for c in children) and sum(c in self.sound for c in children) == 1
+        return (
+            bool(children) and all(c in self.members for c in children) and sum(c in self.sound for c in children) == 1
+        )
 
     def group(self, place: tuple[str, str] | None) -> str | None:
         if place is None:
@@ -76,7 +81,11 @@ class _Tree:
 
     def card(self, card_id: str) -> str | None:
         number = _card_number(card_id, self.root)
-        return None if number is None else self.group(_usb_place((self.root / "class" / "sound" / f"card{number}" / "device").resolve()))
+        return (
+            None
+            if number is None
+            else self.group(_usb_place((self.root / "class" / "sound" / f"card{number}" / "device").resolve()))
+        )
 
     def port(self, device: str) -> str | None:
         try:
@@ -114,16 +123,24 @@ def _token(group: str | None) -> str | None:
     return None if group is None else hashlib.sha256(group.encode()).hexdigest()[:12]
 
 
-def groups(card_ids: Sequence[str], devices: Sequence[str], sys_root: Path = SYS) -> tuple[dict[str, str | None], dict[str, str | None]]:
+def groups(
+    card_ids: Sequence[str], devices: Sequence[str], sys_root: Path = SYS
+) -> tuple[dict[str, str | None], dict[str, str | None]]:
     """Return the group token of each sound card and serial device; reads sysfs (use a thread)."""
     tree = _Tree(sys_root)
-    return ({c: _token(tree.card(c)) for c in card_ids},
-            {d: None if d.lower().startswith(("bt://", "ble://")) else _token(tree.port(d)) for d in devices})
+    return (
+        {c: _token(tree.card(c)) for c in card_ids},
+        {d: None if d.lower().startswith(("bt://", "ble://")) else _token(tree.port(d)) for d in devices},
+    )
 
 
 def _here() -> Path | None:
     """Return the sysfs of this computer, or None off Linux; NEOAPRS_SYS_ROOT is for tests."""
-    return Path(os.environ.get("NEOAPRS_SYS_ROOT") or SYS) if sys.platform.startswith("linux") and not nodevices.on() else None
+    return (
+        Path(os.environ.get("NEOAPRS_SYS_ROOT") or SYS)
+        if sys.platform.startswith("linux") and not nodevices.on()
+        else None
+    )
 
 
 def beside(card_id: str, devices: Sequence[str]) -> list[str] | None:
@@ -133,4 +150,8 @@ def beside(card_id: str, devices: Sequence[str]) -> list[str] | None:
 
 def together(card_ids: Sequence[str], devices: Sequence[str]) -> tuple[dict[str, str | None], dict[str, str | None]]:
     root = _here()
-    return groups(card_ids, devices, root) if root is not None else ({c: None for c in card_ids}, {d: None for d in devices})
+    return (
+        groups(card_ids, devices, root)
+        if root is not None
+        else ({c: None for c in card_ids}, {d: None for d in devices})
+    )

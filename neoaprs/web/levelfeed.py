@@ -3,6 +3,7 @@
 A page more than the hub's `BEHIND` bytes behind is skipped. A new viewer gets the current level
 at once; the level is followed only while some page looks.
 """
+
 from collections.abc import Callable, Mapping
 from typing import Protocol
 

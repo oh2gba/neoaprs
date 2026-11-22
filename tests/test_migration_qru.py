@@ -1,6 +1,7 @@
 """Migration 18 (neoaprs/migrationsteps12to21.py): the QRU group and on-request flag of our objects;
 existing objects get no group and the schedule, and the table refuses an impossible group.
 """
+
 import sqlite3
 from pathlib import Path
 
@@ -35,15 +36,48 @@ def test_every_object_there_is_keeps_its_values_and_gets_no_group_and_the_schedu
     migrated = opened(old, clock)
     fresh = opened(tmp_path / DB_NAME, clock)
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 18
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][17:] == [(18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33]), (34, "_v34", GOLDEN[34]), (35, "_v35", GOLDEN[35])]
-    assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
-    assert migrated.db.execute("SELECT name, comment, sent, qru_group, on_request FROM own_object").fetchall() == [("LEADER", "Rescue 1", 2, "", 0)]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][17:] == [
+        (18, "_v18", GOLDEN[18]),
+        (19, "_v19", GOLDEN[19]),
+        (20, "_v20", GOLDEN[20]),
+        (21, "_v21", GOLDEN[21]),
+        (22, "_v22", GOLDEN[22]),
+        (23, "_v23", GOLDEN[23]),
+        (24, "_v24", GOLDEN[24]),
+        (25, "_v25", GOLDEN[25]),
+        (26, "_v26", GOLDEN[26]),
+        (27, "_v27", GOLDEN[27]),
+        (28, "_v28", GOLDEN[28]),
+        (29, "_v29", GOLDEN[29]),
+        (30, "_v30", GOLDEN[30]),
+        (31, "_v31", GOLDEN[31]),
+        (32, "_v32", GOLDEN[32]),
+        (33, "_v33", GOLDEN[33]),
+        (34, "_v34", GOLDEN[34]),
+        (35, "_v35", GOLDEN[35]),
+    ]
+    assert shape(migrated.db) == shape(fresh.db), (
+        "a migrated database has exactly the tables, indexes and checks of a new one"
+    )
+    assert migrated.db.execute("SELECT name, comment, sent, qru_group, on_request FROM own_object").fetchall() == [
+        ("LEADER", "Rescue 1", 2, "", 0)
+    ]
     for opened_ in (migrated, fresh):
         opened_.close()
 
 
-@pytest.mark.parametrize("group, flag, check", [("rp70", 0, "own_object_qru_group_form"), ("LIFEBOATS", 0, "own_object_qru_group_form"), ("R P", 0, "own_object_qru_group_form"), ("RP70", 2, "own_object_on_request")])
-def test_the_table_refuses_a_group_that_is_not_one_and_a_flag_that_is_not_a_flag(tmp_path: Path, group: str, flag: int, check: str) -> None:
+@pytest.mark.parametrize(
+    "group, flag, check",
+    [
+        ("rp70", 0, "own_object_qru_group_form"),
+        ("LIFEBOATS", 0, "own_object_qru_group_form"),
+        ("R P", 0, "own_object_qru_group_form"),
+        ("RP70", 2, "own_object_on_request"),
+    ],
+)
+def test_the_table_refuses_a_group_that_is_not_one_and_a_flag_that_is_not_a_flag(
+    tmp_path: Path, group: str, flag: int, check: str
+) -> None:
     db = opened(tmp_path / DB_NAME, FixedClock())
     db.db.execute(OLD_INSERT, OBJECT)
     with pytest.raises(sqlite3.IntegrityError, match=check):

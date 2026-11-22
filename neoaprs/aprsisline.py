@@ -3,6 +3,7 @@
 The packet has no AX.25 frame. The q-construct in the path says how it entered the network;
 the call after it is the server or iGate.
 """
+
 import re
 from datetime import datetime
 from typing import NamedTuple
@@ -82,4 +83,15 @@ def parse_is_line(line: bytes | str, now: datetime) -> Packet:
     if len(path) > PATH_MAX or not _path_is_sound(path):
         raise IsLineError("the path has an element that is none")
     decoded, third_party = parse_packet(info, names[0], names[1], now)
-    return Packet(heard_at=now, direction="in", raw=data, source=names[0], destination=names[1], path=tuple(path), info=info, decoded=decoded, third_party=third_party, via=IS)
+    return Packet(
+        heard_at=now,
+        direction="in",
+        raw=data,
+        source=names[0],
+        destination=names[1],
+        path=tuple(path),
+        info=info,
+        decoded=decoded,
+        third_party=third_party,
+        via=IS,
+    )

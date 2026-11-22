@@ -4,6 +4,7 @@
 TCP ports (KISS, control, ARQ data, UI websocket) appear in `netstat -ano`. It fails when any
 is bound to an address other than 127.0.0.1: those ports have no password. The Windows half of the
 check in scripts/build-mercury."""
+
 import socket
 import subprocess
 import sys
@@ -28,7 +29,12 @@ def listening(netstat: str, pid: int) -> dict[int, set[str]]:
     found: dict[int, set[str]] = {}
     for line in netstat.splitlines():
         fields = line.split()
-        if len(fields) != 5 or fields[0].upper() != "TCP" or fields[-1] != str(pid) or fields[2] not in ("0.0.0.0:0", "[::]:0", "*:*"):
+        if (
+            len(fields) != 5
+            or fields[0].upper() != "TCP"
+            or fields[-1] != str(pid)
+            or fields[2] not in ("0.0.0.0:0", "[::]:0", "*:*")
+        ):
             continue
         address, _, port = fields[1].rpartition(":")
         if port.isdigit():
@@ -41,7 +47,11 @@ def verdict(found: dict[int, set[str]], ports: set[int]) -> str:
     missing = sorted(ports - found.keys())
     if missing:
         return f"not listening yet on {missing}"
-    elsewhere = {port: sorted(addresses) for port, addresses in sorted(found.items()) if port in ports and addresses != {LOOPBACK}}
+    elsewhere = {
+        port: sorted(addresses)
+        for port, addresses in sorted(found.items())
+        if port in ports and addresses != {LOOPBACK}
+    }
     if elsewhere:
         return f"listens on an address that is not 127.0.0.1: {elsewhere}"
     return ""
@@ -66,10 +76,23 @@ def free_ports() -> tuple[int, int, int, int]:
 
 
 def table() -> str:
-    return subprocess.run(["netstat", "-ano"], check=False, capture_output=True, text=True, timeout=60, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+    return subprocess.run(
+        ["netstat", "-ano"],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    ).stdout
 
 
-def watch(child: "subprocess.Popen[bytes]", ports: set[int], read_table: Callable[[], str] = table, wait_sec: float = WAIT_SEC, pause_sec: float = 0.5) -> tuple[str, dict[int, set[str]]]:
+def watch(
+    child: "subprocess.Popen[bytes]",
+    ports: set[int],
+    read_table: Callable[[], str] = table,
+    wait_sec: float = WAIT_SEC,
+    pause_sec: float = 0.5,
+) -> tuple[str, dict[int, set[str]]]:
     """Wait for every port to listen, the program to end or `wait_sec`; return verdict,
     listeners."""
     deadline = time.monotonic() + wait_sec
@@ -95,11 +118,35 @@ def main() -> int:
     broadcast, control, data, ui = free_ports()
     with tempfile.TemporaryDirectory(prefix="mercury-smoke-", ignore_cleanup_errors=True) as folder:
         ini = Path(folder) / "mercury.ini"
-        ini.write_text(f"[store]\nenabled = false\n[main]\nui_enabled = true\nui_port = {ui}\nwaterfall_enabled = false\n", encoding="utf-8")
-        argv = [str(program), "-C", str(ini), "-m", "1", "-x", "null", "-b", str(broadcast), "-p", str(control), "-P", "none"]
+        ini.write_text(
+            f"[store]\nenabled = false\n[main]\nui_enabled = true\nui_port = {ui}\nwaterfall_enabled = false\n",
+            encoding="utf-8",
+        )
+        argv = [
+            str(program),
+            "-C",
+            str(ini),
+            "-m",
+            "1",
+            "-x",
+            "null",
+            "-b",
+            str(broadcast),
+            "-p",
+            str(control),
+            "-P",
+            "none",
+        ]
         # A pipe nobody reads would fill and stop the program, so the output goes to a file.
         out = open(Path(folder) / "mercury.out", "wb")
-        child = subprocess.Popen(argv, cwd=folder, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        child = subprocess.Popen(
+            argv,
+            cwd=folder,
+            stdin=subprocess.DEVNULL,
+            stdout=out,
+            stderr=subprocess.STDOUT,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
         try:
             problem, found = watch(child, {broadcast, control, data, ui})
         finally:
@@ -113,9 +160,14 @@ def main() -> int:
             log = (Path(folder) / "mercury.out").read_text(encoding="utf-8", errors="replace")
     shown = {port: sorted(addresses) for port, addresses in sorted(found.items())}
     if problem:
-        print(f"smoke_mercury: {problem} (sockets of process {child.pid}: {shown})\n" + "\n".join(log.splitlines()[-20:]), file=sys.stderr)
+        print(
+            f"smoke_mercury: {problem} (sockets of process {child.pid}: {shown})\n" + "\n".join(log.splitlines()[-20:]),
+            file=sys.stderr,
+        )
         return 1
-    print(f"smoke_mercury: {program.name} listens on 127.0.0.1 only: ports {broadcast}, {control}, {data} and {ui} ({shown})")
+    print(
+        f"smoke_mercury: {program.name} listens on 127.0.0.1 only: ports {broadcast}, {control}, {data} and {ui} ({shown})"
+    )
     return 0
 
 

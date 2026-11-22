@@ -69,7 +69,12 @@ def parse_spectrum(frame: bytes) -> Spectrum | None:
     if len(frame) < SPECTRUM_HEADER.size:
         return None
     magic, bins, rate = SPECTRUM_HEADER.unpack_from(frame)
-    if magic != SPECTRUM_MAGIC or not 0 < bins <= SPECTRUM_MAX_BINS or rate <= 0 or len(frame) != SPECTRUM_HEADER.size + 4 * bins:
+    if (
+        magic != SPECTRUM_MAGIC
+        or not 0 < bins <= SPECTRUM_MAX_BINS
+        or rate <= 0
+        or len(frame) != SPECTRUM_HEADER.size + 4 * bins
+    ):
         return None
     db = struct.unpack_from(f"<{bins}f", frame, SPECTRUM_HEADER.size)
     return None if any(math.isnan(v) or v == math.inf for v in db) else Spectrum(rate, db)
@@ -119,7 +124,9 @@ def _bin_of(hz: float, spectrum: Spectrum) -> int:
 def level_dbfs(spectrum: Spectrum, lo_hz: float = SCOPE_LO_HZ, hi_hz: float = SCOPE_HI_HZ) -> float:
     """Return the RMS level of the audio in the band in dBFS (a full-scale sine reads -3)."""
     lo, hi = _bin_of(lo_hz, spectrum), _bin_of(hi_hz, spectrum)
-    variance = sum(10 ** ((spectrum.db[i] + FULL_SCALE_DB) / 10) / WINDOW_POWER for i in range(lo, hi + 1)) / len(spectrum.db)
+    variance = sum(10 ** ((spectrum.db[i] + FULL_SCALE_DB) / 10) / WINDOW_POWER for i in range(lo, hi + 1)) / len(
+        spectrum.db
+    )
     return 10 * math.log10(variance + 1e-30) - SAMPLE_FULL_SCALE_DB
 
 
@@ -157,14 +164,17 @@ class RowMeter:
         if tx != self._tx:
             self.reset()
             self._tx = tx
-        powers = [10 ** (v / 10) for v in spectrum.db[LEVEL_FIRST_BIN:ROW_FIRST_BIN + ROW_BINS]]
-        self._power = [total + power for total, power in zip(self._power, powers[ROW_FIRST_BIN - LEVEL_FIRST_BIN:])]
+        powers = [10 ** (v / 10) for v in spectrum.db[LEVEL_FIRST_BIN : ROW_FIRST_BIN + ROW_BINS]]
+        self._power = [total + power for total, power in zip(self._power, powers[ROW_FIRST_BIN - LEVEL_FIRST_BIN :])]
         self._level += sum(powers) * LEVEL_OF_POWER
         self._count += 1
         if self._count < ROW_SPECTRA:
             return None
         count = self._count
-        bins = bytes(max(0, min(255, round((10 * math.log10(p / count + 1e-30) - ROW_OFFSET_DB) / ROW_STEP_DB))) for p in self._power)
+        bins = bytes(
+            max(0, min(255, round((10 * math.log10(p / count + 1e-30) - ROW_OFFSET_DB) / ROW_STEP_DB)))
+            for p in self._power
+        )
         level = 10 * math.log10(self._level / count + 1e-30)
         self.reset()
         return ScopeRow(bins, max(LEVEL_MIN_DBFS, min(LEVEL_MAX_DBFS, round(level))), tx)
@@ -230,7 +240,10 @@ def history_frame(rows: Sequence[KeptRow], now: float, wall_ms: float) -> bytes:
 
     With no rows it is the header alone, which makes the page forget its rows.
     """
-    return HISTORY_HEADER.pack(HISTORY_KIND, wall_ms) + b"".join(HISTORY_ROW.pack(ROW_TX if k.row.tx else 0, k.row.level, max(0, round((now - k.at) * 1000))) + k.row.bins for k in rows)
+    return HISTORY_HEADER.pack(HISTORY_KIND, wall_ms) + b"".join(
+        HISTORY_ROW.pack(ROW_TX if k.row.tx else 0, k.row.level, max(0, round((now - k.at) * 1000))) + k.row.bins
+        for k in rows
+    )
 
 
 def parse_history(frame: bytes) -> list[tuple[ScopeRow, int]] | None:
@@ -241,7 +254,7 @@ def parse_history(frame: bytes) -> list[tuple[ScopeRow, int]] | None:
     rows = []
     for start in range(HISTORY_HEADER.size, len(frame), size):
         flags, level, age = HISTORY_ROW.unpack_from(frame, start)
-        rows.append((ScopeRow(frame[start + HISTORY_ROW.size:start + size], level, bool(flags & ROW_TX)), age))
+        rows.append((ScopeRow(frame[start + HISTORY_ROW.size : start + size], level, bool(flags & ROW_TX)), age))
     return rows
 
 
@@ -257,7 +270,7 @@ def parse_row(frame: bytes) -> ScopeRow | None:
     if len(frame) != ROW_HEADER.size + ROW_BINS:
         return None
     kind, flags, level = ROW_HEADER.unpack_from(frame)
-    return ScopeRow(frame[ROW_HEADER.size:], level, bool(flags & ROW_TX)) if kind == ROW_KIND else None
+    return ScopeRow(frame[ROW_HEADER.size :], level, bool(flags & ROW_TX)) if kind == ROW_KIND else None
 
 
 BAND_HZ = 150.0

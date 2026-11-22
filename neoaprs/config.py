@@ -2,6 +2,7 @@
 
 The table of keys, types and limits, and `Config.from_data` / `Config.to_data`. A wrong stored value
 falls back to its default; `Config.check` is the strict form and raises SettingError."""
+
 import logging
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
@@ -12,12 +13,60 @@ from .callsign import call_problem
 from .coded import CodedError, Param, Reason
 from .configlegacy import with_legacy, with_network
 from .configlayers import LAYER_ROWS, LayerFields
-from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, host_port as _host_port, hostport, status_source, status_template, status_text
-from .configradios import DEFAULT_RADIOS, FLAT_HOMES, FlatFields, RadioViews, accepting_flat, path_text, radio_key_of as radio_key_of, radio_state_key as radio_state_key, radios_from_flat as radios_from_flat
+from .configstatus import (
+    DEFAULT_STATUS_TEMPLATE,
+    MAX_STATUS,
+    host_port as _host_port,
+    hostport,
+    status_source,
+    status_template,
+    status_text,
+)
+from .configradios import (
+    DEFAULT_RADIOS,
+    FLAT_HOMES,
+    FlatFields,
+    RadioViews,
+    accepting_flat,
+    path_text,
+    radio_key_of as radio_key_of,
+    radio_state_key as radio_state_key,
+    radios_from_flat as radios_from_flat,
+)
 from .mercuryscope import TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
 from .pairsetting import PairFields, pairs_from_rows
-from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, hf_profile, host_list, host_name, map_source, mercury_keying, passcode, port_address, symbol_code, symbol_table, tnc_profile
-from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
+from .configvalues import (
+    ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS,
+    SYMBOL_TABLES as SYMBOL_TABLES,
+    antenna_direction,
+    aprsis_server,
+    device_globs,
+    digipeater_path,
+    hf_profile,
+    host_list,
+    host_name,
+    map_source,
+    mercury_keying,
+    passcode,
+    port_address,
+    symbol_code,
+    symbol_table,
+    tnc_profile,
+)
+from .configtypes import (
+    access_key,
+    boolean,
+    call_or_empty,
+    int_among,
+    int_in,
+    int_or_off,
+    optional_float,
+    optional_int,
+    over_the_air_refusal,
+    text_of,
+    web_address,
+    word_among,
+)
 from .beaconrule import SETTING_MIN_MIN, station_interval
 from .radiospec import FM_ID, RadioId, RadioSpec
 from .radiotype import stored_text as _show
@@ -35,6 +84,7 @@ class SettingError(CodedError):
     def __init__(self, key: str, code: str, params: Mapping[str, Param], text: str) -> None:
         super().__init__(text, code, **params)
         self.key = key
+
 
 RECEIVE_ONLY = Reason("receive only: transmitting is switched off", "transmit.off")
 LISTENS_ONLY = Reason("receive only: no radio that is on can send", "transmit.off")
@@ -133,7 +183,12 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("web_port", "web/port", int_in(0, 65535)),
     Setting("web_allowed_hosts", "web/allowed_hosts", host_list),
     # 0: the beacon is off, also for a moving station.
-    Setting("beacon_interval_min", "beacon/interval_min", int_or_off(*RANGES["beacon/interval_min"]), MIN_BEACON_INTERVAL_MIN),
+    Setting(
+        "beacon_interval_min",
+        "beacon/interval_min",
+        int_or_off(*RANGES["beacon/interval_min"]),
+        MIN_BEACON_INTERVAL_MIN,
+    ),
     # Empty: the path recommended for the symbol; DIRECT: none.
     Setting("beacon_path", "beacon/path", digipeater_path),
     Setting("messages_alert", "messages/alert", boolean),
@@ -141,7 +196,9 @@ SETTINGS: tuple[Setting, ...] = (
     # off, text or rig. Empty: see Config.status_choice.
     Setting("status_source", "status/source", status_source),
     Setting("status_rigctld", "status/rigctld", hostport),
-    Setting("status_interval_min", "status/interval_min", int_in(*RANGES["status/interval_min"]), MIN_STATUS_INTERVAL_MIN),
+    Setting(
+        "status_interval_min", "status/interval_min", int_in(*RANGES["status/interval_min"]), MIN_STATUS_INTERVAL_MIN
+    ),
     Setting("status_template", "status/template", status_template),
     Setting("map_radius_km", "map/radius_km", int_in(*RANGES["map/radius_km"])),
     Setting("map_maxzoom", "map/maxzoom", int_in(*RANGES["map/maxzoom"])),
@@ -247,7 +304,9 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
     def radio_refusal(self, key: str = "hf/enabled") -> SettingError | None:
         """Return a refusal if no radio would stay on, else None."""
         if not self.enabled_radios:
-            return SettingError(key, "radio.last_enabled", {}, f"{key}: at least one radio stays on: turn another radio on first")
+            return SettingError(
+                key, "radio.last_enabled", {}, f"{key}: at least one radio stays on: turn another radio on first"
+            )
         return None
 
     @property
@@ -267,8 +326,12 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
     def port_refusal(self, key: str = "tnc/profile") -> SettingError | None:
         """Return a refusal if a TCP profile is combined with a serial port (`tcp://` is fine)."""
         if self.profile.transport == "tcp" and self.serial_port and not names_tcp(self.serial_port):
-            return SettingError(key, "setting.profile_port", {"profile": self.profile.name, "port": self.serial_port},
-                                f"{key}: {self.profile.name} connects over TCP (tcp/host and tcp/port), not to the serial port {self.serial_port}: clear serial/port, or choose a serial TNC")
+            return SettingError(
+                key,
+                "setting.profile_port",
+                {"profile": self.profile.name, "port": self.serial_port},
+                f"{key}: {self.profile.name} connects over TCP (tcp/host and tcp/port), not to the serial port {self.serial_port}: clear serial/port, or choose a serial TNC",
+            )
         return None
 
     @property
@@ -316,8 +379,12 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
         limit = self.comment_limit
         if len(self.station_comment) <= limit:
             return None
-        return SettingError("station/comment", "setting.comment_too_long", {"length": len(self.station_comment), "limit": limit},
-                            f"station/comment: {len(self.station_comment)} characters is more than the {limit} allowed with the PHG extension (clear beacon/power_w to send none)")
+        return SettingError(
+            "station/comment",
+            "setting.comment_too_long",
+            {"length": len(self.station_comment), "limit": limit},
+            f"station/comment: {len(self.station_comment)} characters is more than the {limit} allowed with the PHG extension (clear beacon/power_w to send none)",
+        )
 
     def comment_problem(self) -> str:
         return str(refusal) if (refusal := self.comment_refusal()) else ""
@@ -329,15 +396,26 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
         The first wrong value or broken rule between settings raises SettingError."""
         parsed = {key: cls.check(key, text) for key, text in values.items()}
         rows = {key: text for key, text in {**base.to_data(), **parsed}.items() if BY_KEY[key].attr not in FLAT_HOMES}
-        flat = {BY_KEY[key].attr: cls.parse(key, text) for key, text in parsed.items() if BY_KEY[key].attr in FLAT_HOMES}
+        flat = {
+            BY_KEY[key].attr: cls.parse(key, text) for key, text in parsed.items() if BY_KEY[key].attr in FLAT_HOMES
+        }
         config = replace(cls.from_data(rows, radios=base.radios), pairs=base.pairs, **flat)
         if COMMENT_KEYS & parsed.keys() and (refusal := config.comment_refusal()):
             raise refusal
         if STATUS_KEYS & parsed.keys() and config.status_source == "rig" and not config.status_rigctld:
-            raise SettingError("status/source", "setting.status_needs_rigctld", {}, "status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)")
-        if (set_now := [key for key in ("fm/enabled", "hf/enabled") if key in parsed]) and (refusal := config.radio_refusal(set_now[0])):
+            raise SettingError(
+                "status/source",
+                "setting.status_needs_rigctld",
+                {},
+                "status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)",
+            )
+        if (set_now := [key for key in ("fm/enabled", "hf/enabled") if key in parsed]) and (
+            refusal := config.radio_refusal(set_now[0])
+        ):
             raise refusal
-        if PORT_KEYS & parsed.keys() and (refusal := config.port_refusal("tnc/profile" if "tnc/profile" in parsed else "serial/port")):
+        if PORT_KEYS & parsed.keys() and (
+            refusal := config.port_refusal("tnc/profile" if "tnc/profile" in parsed else "serial/port")
+        ):
             raise refusal
         return config
 
@@ -360,7 +438,9 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
                         log.warning("%s; %d is used", e, raised)
                         values[setting.attr] = raised
                     else:
-                        log.warning("%s; the default %s is used", e, _show(getattr(DEFAULTS, setting.attr)) or "(empty)")
+                        log.warning(
+                            "%s; the default %s is used", e, _show(getattr(DEFAULTS, setting.attr)) or "(empty)"
+                        )
         return cls(**values)
 
     def to_data(self) -> dict[str, str]:
@@ -371,7 +451,9 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
         """Return the value of one setting from its text; raise SettingError if invalid."""
         setting = BY_KEY.get(key)
         if setting is None:
-            raise SettingError(key, "setting.unknown", {}, f"{key}: no such setting (the settings are {', '.join(KEYS)})")
+            raise SettingError(
+                key, "setting.unknown", {}, f"{key}: no such setting (the settings are {', '.join(KEYS)})"
+            )
         try:
             return setting.parse(text)
         except CodedError as e:

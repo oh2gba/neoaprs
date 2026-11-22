@@ -3,6 +3,7 @@
 Files in `tls/` of the data folder, owner-only: the CA (ten years, kept while its files exist)
 and the server certificate (at most 800 days; Apple's limit is 825). Keys are never served.
 """
+
 import hashlib
 import logging
 import os
@@ -59,7 +60,7 @@ class Certificates:
 
 def fingerprint_of(der: bytes) -> str:
     digest = hashlib.sha256(der).hexdigest().upper()
-    return ":".join(digest[i:i + 2] for i in range(0, len(digest), 2))
+    return ":".join(digest[i : i + 2] for i in range(0, len(digest), 2))
 
 
 def wanted_names(host: str, addresses: Iterable[str], more: Iterable[str] = ()) -> Names:
@@ -93,7 +94,10 @@ def _names_of(cert: x509.Certificate) -> Names:
         san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
     except x509.ExtensionNotFound:
         return ()
-    return (*(n.lower() for n in san.get_values_for_type(x509.DNSName)), *(str(ip) for ip in san.get_values_for_type(x509.IPAddress)))
+    return (
+        *(n.lower() for n in san.get_values_for_type(x509.DNSName)),
+        *(str(ip) for ip in san.get_values_for_type(x509.IPAddress)),
+    )
 
 
 def _write_private(path: Path, data: bytes) -> None:
@@ -109,42 +113,93 @@ def _write_private(path: Path, data: bytes) -> None:
 
 
 def _pem_key(key: ec.EllipticCurvePrivateKey) -> bytes:
-    return key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+    return key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+    )
 
 
 def _pem_cert(cert: x509.Certificate) -> bytes:
     return cert.public_bytes(serialization.Encoding.PEM)
 
 
-def _builder(subject: x509.Name, issuer: x509.Name, key: ec.EllipticCurvePrivateKey, now: datetime, days: int) -> x509.CertificateBuilder:
-    return (x509.CertificateBuilder().subject_name(subject).issuer_name(issuer).public_key(key.public_key()).serial_number(x509.random_serial_number())
-            .not_valid_before(now - BACKDATE).not_valid_after(now + timedelta(days=days)))
+def _builder(
+    subject: x509.Name, issuer: x509.Name, key: ec.EllipticCurvePrivateKey, now: datetime, days: int
+) -> x509.CertificateBuilder:
+    return (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - BACKDATE)
+        .not_valid_after(now + timedelta(days=days))
+    )
 
 
 def make_ca(host: str, now: datetime) -> tuple[ec.EllipticCurvePrivateKey, x509.Certificate]:
     key = ec.generate_private_key(ec.SECP256R1())
-    name = x509.Name([x509.NameAttribute(NameOID.ORGANIZATION_NAME, "NeoAPRS"), x509.NameAttribute(NameOID.COMMON_NAME, f"NeoAPRS local CA ({host})"[:NAME_MAX])])
-    cert = (_builder(name, name, key, now, CA_DAYS)
-            .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
-            .add_extension(x509.KeyUsage(digital_signature=False, content_commitment=False, key_encipherment=False, data_encipherment=False, key_agreement=False, key_cert_sign=True, crl_sign=True,
-                                         encipher_only=False, decipher_only=False), critical=True)
-            .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
-            .sign(key, hashes.SHA256()))
+    name = x509.Name(
+        [
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "NeoAPRS"),
+            x509.NameAttribute(NameOID.COMMON_NAME, f"NeoAPRS local CA ({host})"[:NAME_MAX]),
+        ]
+    )
+    cert = (
+        _builder(name, name, key, now, CA_DAYS)
+        .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=False,
+                content_commitment=False,
+                key_encipherment=False,
+                data_encipherment=False,
+                key_agreement=False,
+                key_cert_sign=True,
+                crl_sign=True,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=True,
+        )
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
+        .sign(key, hashes.SHA256())
+    )
     return key, cert
 
 
-def make_server(ca_key: ec.EllipticCurvePrivateKey, ca: x509.Certificate, host: str, names: Names, now: datetime) -> tuple[ec.EllipticCurvePrivateKey, x509.Certificate]:
+def make_server(
+    ca_key: ec.EllipticCurvePrivateKey, ca: x509.Certificate, host: str, names: Names, now: datetime
+) -> tuple[ec.EllipticCurvePrivateKey, x509.Certificate]:
     key = ec.generate_private_key(ec.SECP256R1())
-    subject = x509.Name([x509.NameAttribute(NameOID.ORGANIZATION_NAME, "NeoAPRS"), x509.NameAttribute(NameOID.COMMON_NAME, (host or "neoaprs")[:NAME_MAX])])
-    cert = (_builder(subject, ca.subject, key, now, SERVER_DAYS)
-            .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
-            .add_extension(x509.KeyUsage(digital_signature=True, content_commitment=False, key_encipherment=False, data_encipherment=False, key_agreement=False, key_cert_sign=False, crl_sign=False,
-                                         encipher_only=False, decipher_only=False), critical=True)
-            .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
-            .add_extension(x509.SubjectAlternativeName(_general_names(names)), critical=False)
-            .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
-            .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()), critical=False)
-            .sign(ca_key, hashes.SHA256()))
+    subject = x509.Name(
+        [
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "NeoAPRS"),
+            x509.NameAttribute(NameOID.COMMON_NAME, (host or "neoaprs")[:NAME_MAX]),
+        ]
+    )
+    cert = (
+        _builder(subject, ca.subject, key, now, SERVER_DAYS)
+        .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=True,
+                content_commitment=False,
+                key_encipherment=False,
+                data_encipherment=False,
+                key_agreement=False,
+                key_cert_sign=False,
+                crl_sign=False,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=True,
+        )
+        .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+        .add_extension(x509.SubjectAlternativeName(_general_names(names)), critical=False)
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()), critical=False)
+        .sign(ca_key, hashes.SHA256())
+    )
     return key, cert
 
 
@@ -152,7 +207,9 @@ def _public_bytes(key: PublicKeyTypes) -> bytes:
     return key.public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
 
 
-def renewal_reason(cert: x509.Certificate, key: ec.EllipticCurvePrivateKey, ca: x509.Certificate, names: Names, now: datetime) -> str:
+def renewal_reason(
+    cert: x509.Certificate, key: ec.EllipticCurvePrivateKey, ca: x509.Certificate, names: Names, now: datetime
+) -> str:
     """Return why the server certificate must be remade, or "" when it is good."""
     try:
         cert.verify_directly_issued_by(ca)
@@ -198,7 +255,14 @@ class CertificateStore:
         except OSError as e:
             raise TlsError(f"the certificates in {self.folder} could not be written or read: {e}") from e
         der = ca.public_bytes(serialization.Encoding.DER)
-        return Certificates(der, fingerprint_of(der), self._path("server.crt"), self._path("server.key"), _names_of(cert), cert.not_valid_after_utc)
+        return Certificates(
+            der,
+            fingerprint_of(der),
+            self._path("server.crt"),
+            self._path("server.key"),
+            _names_of(cert),
+            cert.not_valid_after_utc,
+        )
 
     def _ca(self, host: str, now: datetime) -> tuple[ec.EllipticCurvePrivateKey, x509.Certificate]:
         key_file, cert_file = self._path("ca.key"), self._path("ca.crt")
@@ -214,18 +278,28 @@ class CertificateStore:
             loaded = serialization.load_pem_private_key(key_file.read_bytes(), None)
             cert = x509.load_pem_x509_certificate(cert_file.read_bytes())
         except ValueError as e:
-            raise TlsError(f"{key_file} or {cert_file} cannot be read ({e}); move the folder {self.folder} away to make new ones") from e
+            raise TlsError(
+                f"{key_file} or {cert_file} cannot be read ({e}); move the folder {self.folder} away to make new ones"
+            ) from e
         if not isinstance(loaded, ec.EllipticCurvePrivateKey):
-            raise TlsError(f"{key_file} is not an elliptic-curve key; move the folder {self.folder} away to make new ones")
+            raise TlsError(
+                f"{key_file} is not an elliptic-curve key; move the folder {self.folder} away to make new ones"
+            )
         if cert.not_valid_after_utc - now < timedelta(days=RENEW_BEFORE_DAYS):
-            log.warning("NeoAPRS's certificate authority in %s runs out within %d days; a new one is made, and the devices have to trust it again", self.folder, RENEW_BEFORE_DAYS)
+            log.warning(
+                "NeoAPRS's certificate authority in %s runs out within %d days; a new one is made, and the devices have to trust it again",
+                self.folder,
+                RENEW_BEFORE_DAYS,
+            )
             key, cert = make_ca(host, now)
             _write_private(key_file, _pem_key(key))
             _write_private(cert_file, _pem_cert(cert))
             return key, cert
         return loaded, cert
 
-    def _server(self, ca_key: ec.EllipticCurvePrivateKey, ca: x509.Certificate, host: str, names: Names, now: datetime) -> tuple[ec.EllipticCurvePrivateKey, x509.Certificate]:
+    def _server(
+        self, ca_key: ec.EllipticCurvePrivateKey, ca: x509.Certificate, host: str, names: Names, now: datetime
+    ) -> tuple[ec.EllipticCurvePrivateKey, x509.Certificate]:
         key_file, cert_file = self._path("server.key"), self._path("server.crt")
         reason = "it is not there"
         if key_file.is_file() and cert_file.is_file():

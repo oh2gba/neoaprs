@@ -1,6 +1,7 @@
 """Tests for the GPS service (neoaprs/services/gps.py) on the real feed and a fake gpsd with a test
 clock: the state from `off` to `stale`, the beacon fix, `moved`, and feed restarts on new settings.
 """
+
 import logging
 from datetime import timedelta
 
@@ -32,7 +33,13 @@ class Rig(ServiceRig):
 
 def test_a_gps_that_is_off_is_off_and_has_no_fix_and_no_problem() -> None:
     rig = Rig(gps_source="off")
-    assert (rig.gps.state, rig.gps.problem, rig.gps.current(), rig.gps.fix, rig.gps.fix_age_sec) == ("off", "", None, None, None)
+    assert (rig.gps.state, rig.gps.problem, rig.gps.current(), rig.gps.fix, rig.gps.fix_age_sec) == (
+        "off",
+        "",
+        None,
+        None,
+        None,
+    )
     assert rig.gps.why_none() == "the GPS is off (gps/source)"
 
 
@@ -42,7 +49,11 @@ async def test_the_state_goes_from_connecting_to_no_fix_to_fix_to_stale() -> Non
     assert rig.gps.state == "connecting" and rig.gps.why_none() == "waiting for the GPS"
     await rig.gps.start()
     await until(lambda: rig.feed.state is Source.State.CONNECTED and gpsd.watching)
-    assert rig.gps.state == "no_fix" and rig.gps.problem == "the receiver has no position fix yet" and rig.gps.current() is None
+    assert (
+        rig.gps.state == "no_fix"
+        and rig.gps.problem == "the receiver has no position fix yet"
+        and rig.gps.current() is None
+    )
     gpsd.send(tpv(60.43, 24.145, speed=15.0, track=270.0))
     await until(lambda: rig.gps.fix is not None)
     fix = rig.gps.fix
@@ -68,11 +79,16 @@ async def test_a_gpsd_that_is_not_there_is_connecting_with_the_reason() -> None:
     assert rig.gps.state == "connecting" and why in rig.gps.problem.lower() and rig.gps.problem == rig.feed.problem
 
 
-@pytest.mark.parametrize(("changes", "problem"), [
-    ({"gps_source": "serial", "gps_device": ""}, NO_PORT),
-    ({"gps_source": "gpsd", "gps_host": ""}, NO_ADDRESS),
-])
-async def test_a_source_without_its_port_or_address_is_connecting_and_says_what_to_give(changes: dict[str, str], problem: str) -> None:
+@pytest.mark.parametrize(
+    ("changes", "problem"),
+    [
+        ({"gps_source": "serial", "gps_device": ""}, NO_PORT),
+        ({"gps_source": "gpsd", "gps_host": ""}, NO_ADDRESS),
+    ],
+)
+async def test_a_source_without_its_port_or_address_is_connecting_and_says_what_to_give(
+    changes: dict[str, str], problem: str
+) -> None:
     rig = Rig(**changes)
     await rig.gps.start()
     await until(lambda: rig.gps.problem == problem)
@@ -101,7 +117,10 @@ async def test_a_stale_fix_tells_the_feeds_problem_too() -> None:
     rig.clock.advance(200)
     gpsd.send(tpv(None, None, mode=1))
     await until(lambda: rig.feed.problem != "")
-    assert rig.gps.state == "stale" and rig.gps.problem == "the latest GPS fix is 200 s old (the receiver has no position fix yet)"
+    assert (
+        rig.gps.state == "stale"
+        and rig.gps.problem == "the latest GPS fix is 200 s old (the receiver has no position fix yet)"
+    )
 
 
 async def test_the_fix_to_put_our_row_at_is_the_latest_even_when_it_is_old_and_only_for_a_mobile_station() -> None:
@@ -135,19 +154,20 @@ async def test_changed_is_told_for_a_fix_and_for_a_fix_that_grows_old() -> None:
 
 # ---- moved
 
+
 def test_our_row_follows_the_first_fix_then_after_five_seconds_and_ten_metres() -> None:
     rig = Rig()
     rig.gps.take(fix_at(rig.clock()))
     assert rig.moved == 1
     rig.clock.advance(10)
-    rig.gps.take(fix_at(rig.clock(), lat=60.43002))                                  # 2 m
+    rig.gps.take(fix_at(rig.clock(), lat=60.43002))  # 2 m
     assert rig.moved == 1, "far too near"
     rig.clock.advance(1)
     # 11 m, 11 seconds after the row was put
     rig.gps.take(fix_at(rig.clock(), lat=60.4301))
     assert rig.moved == 2
     rig.clock.advance(2)
-    rig.gps.take(fix_at(rig.clock(), lat=60.4310))                                   # 100 m but 2 seconds after
+    rig.gps.take(fix_at(rig.clock(), lat=60.4310))  # 100 m but 2 seconds after
     assert rig.moved == 2, "not more often than every 5 seconds"
     rig.clock.advance(3)
     rig.gps.take(fix_at(rig.clock(), lat=60.4310))
@@ -159,7 +179,7 @@ def test_ten_metres_is_counted_from_where_the_row_was_put_not_from_the_last_fix(
     rig.gps.take(fix_at(rig.clock()))
     for step in range(1, 12):
         rig.clock.advance(6)
-        rig.gps.take(fix_at(rig.clock(), lat=60.43 + step * 0.00002))                 # 2.2 m a step
+        rig.gps.take(fix_at(rig.clock(), lat=60.43 + step * 0.00002))  # 2.2 m a step
     assert rig.moved == 1 + 2, "at 11 m and at 22 m"
 
 
@@ -172,6 +192,7 @@ def test_our_row_does_not_follow_a_gps_while_the_beacon_is_not_mobile() -> None:
 
 
 # ---- the settings
+
 
 async def test_a_change_of_the_source_starts_the_feed_afresh_and_forgets_the_fix() -> None:
     first, second = await fake_gpsd(), await fake_gpsd()
@@ -186,7 +207,7 @@ async def test_a_change_of_the_source_starts_the_feed_afresh_and_forgets_the_fix
     assert rig.gps.fix is None and rig.feed.target == second.address
     second.send(tpv(60.5, 24.2))
     await until(lambda: rig.gps.fix is not None)
-    assert rig.gps.fix.lat == 60.5                                                      # type: ignore[union-attr, attr-defined]
+    assert rig.gps.fix.lat == 60.5  # type: ignore[union-attr, attr-defined]
 
 
 async def test_a_gps_switched_off_stops_the_feed() -> None:
@@ -200,13 +221,19 @@ async def test_a_gps_switched_off_stops_the_feed() -> None:
     assert rig.gps.state == "off" and rig.gps.fix is None
 
 
-async def test_switching_the_source_to_off_while_a_feed_runs_logs_gps_off_once(caplog: pytest.LogCaptureFixture) -> None:
+async def test_switching_the_source_to_off_while_a_feed_runs_logs_gps_off_once(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.INFO, "neoaprs.gps")
     gpsd = await fake_gpsd()
     rig = Rig(gps_source="gpsd", gps_host=gpsd.address)
     await rig.gps.start()
     await until(lambda: gpsd.watching)
-    texts = lambda: [m for m in (r.getMessage() for r in caplog.records if r.name == "neoaprs.gps") if m == "gps: off" or m.startswith("gps: reading")]       # noqa: E731
+    texts = lambda: [  # noqa: E731
+        m
+        for m in (r.getMessage() for r in caplog.records if r.name == "neoaprs.gps")
+        if m == "gps: off" or m.startswith("gps: reading")
+    ]
     assert texts() == [f"gps: reading gpsd at {gpsd.address}"]
     rig.set(gps_source="off")
     rig.gps.settings_changed()
@@ -221,7 +248,9 @@ async def test_switching_the_source_to_off_while_a_feed_runs_logs_gps_off_once(c
     assert texts().count("gps: off") == 1
 
 
-async def test_a_gps_that_was_never_on_logs_nothing_when_it_stays_off_or_the_program_ends(caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_gps_that_was_never_on_logs_nothing_when_it_stays_off_or_the_program_ends(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.INFO, "neoaprs.gps")
     off = Rig(gps_source="off")
     await off.gps.start()
@@ -238,7 +267,9 @@ async def test_a_gps_that_was_never_on_logs_nothing_when_it_stays_off_or_the_pro
     assert "gps: off" not in [r.getMessage() for r in caplog.records if r.name == "neoaprs.gps"]
 
 
-async def test_turning_the_gps_on_again_after_off_reads_again_and_a_second_off_is_logged_again(caplog: pytest.LogCaptureFixture) -> None:
+async def test_turning_the_gps_on_again_after_off_reads_again_and_a_second_off_is_logged_again(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.INFO, "neoaprs.gps")
     gpsd = await fake_gpsd()
     rig = Rig(gps_source="gpsd", gps_host=gpsd.address)
@@ -248,8 +279,17 @@ async def test_turning_the_gps_on_again_after_off_reads_again_and_a_second_off_i
         rig.set(gps_source=source, gps_host=gpsd.address)
         rig.gps.settings_changed()
         await idle_for(0.1)
-    said = [m for m in (r.getMessage() for r in caplog.records if r.name == "neoaprs.gps") if m == "gps: off" or m.startswith("gps: reading")]
-    assert said == [f"gps: reading gpsd at {gpsd.address}", "gps: off", f"gps: reading gpsd at {gpsd.address}", "gps: off"]
+    said = [
+        m
+        for m in (r.getMessage() for r in caplog.records if r.name == "neoaprs.gps")
+        if m == "gps: off" or m.startswith("gps: reading")
+    ]
+    assert said == [
+        f"gps: reading gpsd at {gpsd.address}",
+        "gps: off",
+        f"gps: reading gpsd at {gpsd.address}",
+        "gps: off",
+    ]
 
 
 async def test_the_serial_settings_are_what_the_feed_is_given() -> None:

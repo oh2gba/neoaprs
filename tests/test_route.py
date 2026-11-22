@@ -1,32 +1,57 @@
 """How a packet reached us (neoaprs/route.py): the route from the starred addresses of a path, its
 text, the path to send by, and the count of a station's routes.
 """
+
 from datetime import timedelta
 
 import pytest
 
 from neoaprs.clock import utc
-from neoaprs.route import ROUTES_KEPT, WIDE_PATH, Alias, Deliveries, Route, automatic_path, digipeaters, heard_path, is_alias, is_marker, parse_alias, received_text, recommended_path, rf_only_path, route_of, route_text, suggested_path, used_path
+from neoaprs.route import (
+    ROUTES_KEPT,
+    WIDE_PATH,
+    Alias,
+    Deliveries,
+    Route,
+    automatic_path,
+    digipeaters,
+    heard_path,
+    is_alias,
+    is_marker,
+    parse_alias,
+    received_text,
+    recommended_path,
+    rf_only_path,
+    route_of,
+    route_text,
+    suggested_path,
+    used_path,
+)
 
 
-@pytest.mark.parametrize("path, hops, heard_from, direct, anonymous, text", [
-    ((), (), None, True, 0, "direct"),
-    # Nothing used: heard from the sender itself
-    (("WIDE1-1", "WIDE2-1"), (), None, True, 0, "direct"),
-    (("OH2RCH-2*",), ("OH2RCH-2",), "OH2RCH-2", False, 0, "via OH2RCH-2"),
-    # An alias that was not used is not part of the route
-    (("OH2RCH-3*", "TRACE2-1"), ("OH2RCH-3",), "OH2RCH-3", False, 0, "via OH2RCH-3"),
-    (("WIDE1*", "OH2RCH-2*", "WIDE2-2"), ("?", "OH2RCH-2"), "OH2RCH-2", False, 1, "via ? → OH2RCH-2"),
-    (("OH2RCH-1*", "OH2RCH-3*"), ("OH2RCH-1", "OH2RCH-3"), "OH2RCH-3", False, 0, "via OH2RCH-1 → OH2RCH-3"),
-    # The TH-D7's monitor text: only what is starred counts
-    (("WIDE1", "OH2RCH-2*"), ("OH2RCH-2",), "OH2RCH-2", False, 0, "via OH2RCH-2"),
-    # The last hop has no call: nobody to name
-    (("WIDE2-1*",), ("?",), None, False, 1, "via ?"),
-    (("TRACE2-1*", "OH2RCH-3*"), ("?", "OH2RCH-3"), "OH2RCH-3", False, 1, "via ? → OH2RCH-3"),
-    (("WIDE1*", "WIDE2-1*"), ("?", "?"), None, False, 2, "via ? → ?"),
-    (("OH2RCH-2*", "WIDE2-1*"), ("OH2RCH-2", "?"), None, False, 1, "via OH2RCH-2 → ?"),
-])
-def test_the_route_of_a_path(path: tuple[str, ...], hops: tuple[str, ...], heard_from: str | None, direct: bool, anonymous: int, text: str) -> None:
+@pytest.mark.parametrize(
+    "path, hops, heard_from, direct, anonymous, text",
+    [
+        ((), (), None, True, 0, "direct"),
+        # Nothing used: heard from the sender itself
+        (("WIDE1-1", "WIDE2-1"), (), None, True, 0, "direct"),
+        (("OH2RCH-2*",), ("OH2RCH-2",), "OH2RCH-2", False, 0, "via OH2RCH-2"),
+        # An alias that was not used is not part of the route
+        (("OH2RCH-3*", "TRACE2-1"), ("OH2RCH-3",), "OH2RCH-3", False, 0, "via OH2RCH-3"),
+        (("WIDE1*", "OH2RCH-2*", "WIDE2-2"), ("?", "OH2RCH-2"), "OH2RCH-2", False, 1, "via ? → OH2RCH-2"),
+        (("OH2RCH-1*", "OH2RCH-3*"), ("OH2RCH-1", "OH2RCH-3"), "OH2RCH-3", False, 0, "via OH2RCH-1 → OH2RCH-3"),
+        # The TH-D7's monitor text: only what is starred counts
+        (("WIDE1", "OH2RCH-2*"), ("OH2RCH-2",), "OH2RCH-2", False, 0, "via OH2RCH-2"),
+        # The last hop has no call: nobody to name
+        (("WIDE2-1*",), ("?",), None, False, 1, "via ?"),
+        (("TRACE2-1*", "OH2RCH-3*"), ("?", "OH2RCH-3"), "OH2RCH-3", False, 1, "via ? → OH2RCH-3"),
+        (("WIDE1*", "WIDE2-1*"), ("?", "?"), None, False, 2, "via ? → ?"),
+        (("OH2RCH-2*", "WIDE2-1*"), ("OH2RCH-2", "?"), None, False, 1, "via OH2RCH-2 → ?"),
+    ],
+)
+def test_the_route_of_a_path(
+    path: tuple[str, ...], hops: tuple[str, ...], heard_from: str | None, direct: bool, anonymous: int, text: str
+) -> None:
     route = route_of(path)
     assert (route.hops, route.heard_from, route.direct, route.anonymous) == (hops, heard_from, direct, anonymous)
     assert route_text(route) == text == received_text(path)
@@ -37,23 +62,49 @@ def test_the_aliases_are_kept_as_the_path_wrote_them() -> None:
     assert route_of(("TRACE2-1*",)).written == ("TRACE2-1",)
 
 
-@pytest.mark.parametrize("alias", ["WIDE1", "WIDE2-1", "TRACE2-2", "TRACE3", "RELAY", "ECHO", "GATE", "TEMP1-1", "SAR", "TRACK1", "SS3-3", "HOP7-7", "FI2-2", "FI2", "CA2-1", "ARISS", "APRSAT"])
+@pytest.mark.parametrize(
+    "alias",
+    [
+        "WIDE1",
+        "WIDE2-1",
+        "TRACE2-2",
+        "TRACE3",
+        "RELAY",
+        "ECHO",
+        "GATE",
+        "TEMP1-1",
+        "SAR",
+        "TRACK1",
+        "SS3-3",
+        "HOP7-7",
+        "FI2-2",
+        "FI2",
+        "CA2-1",
+        "ARISS",
+        "APRSAT",
+    ],
+)
 def test_an_alias_is_an_anonymous_hop(alias: str) -> None:
     assert route_of((alias + "*",)).anonymous == 1
 
 
-@pytest.mark.parametrize("call", ["OH2RCH", "OH2RCH-2", "WIDEX1", "OH7JHF-1", "K1ABC-15", "W1AW", "SSSS3-3", "S3-3", "", "-1", "TCPIP"])
+@pytest.mark.parametrize(
+    "call", ["OH2RCH", "OH2RCH-2", "WIDEX1", "OH7JHF-1", "K1ABC-15", "W1AW", "SSSS3-3", "S3-3", "", "-1", "TCPIP"]
+)
 def test_a_call_is_not_an_alias(call: str) -> None:
     assert route_of((call + "*",)).anonymous == 0
 
 
-@pytest.mark.parametrize("path, text, sent_by", [
-    ((), "direct", ""),
-    (("OH2RCH-2*",), "via OH2RCH-2", "OH2RCH-2"),
-    (("OH2RCH-1*", "OH2RCH-3*"), "via OH2RCH-1 → OH2RCH-3", "OH2RCH-3,OH2RCH-1"),
-    (("WIDE1*", "OH2RCH-2*"), "via ? → OH2RCH-2", WIDE_PATH),
-    (("WIDE2-1*",), "via ?", WIDE_PATH),
-])
+@pytest.mark.parametrize(
+    "path, text, sent_by",
+    [
+        ((), "direct", ""),
+        (("OH2RCH-2*",), "via OH2RCH-2", "OH2RCH-2"),
+        (("OH2RCH-1*", "OH2RCH-3*"), "via OH2RCH-1 → OH2RCH-3", "OH2RCH-3,OH2RCH-1"),
+        (("WIDE1*", "OH2RCH-2*"), "via ? → OH2RCH-2", WIDE_PATH),
+        (("WIDE2-1*",), "via ?", WIDE_PATH),
+    ],
+)
 def test_the_path_to_send_by_is_the_route_turned_round(path: tuple[str, ...], text: str, sent_by: str) -> None:
     route = route_of(path)
     assert route_text(route) == text and suggested_path(route) == sent_by
@@ -64,7 +115,9 @@ def test_a_third_party_packet_starts_at_its_gate() -> None:
     assert (route.hops, route.gate, route.direct, route.heard_from) == (("OH2RCH-3",), "OH7JHF-1", False, "OH2RCH-3")
     assert route_text(route) == "via OH7JHF-1 (internet) → OH2RCH-3"
     heard_direct = route_of((), "OH7JHF-1")
-    assert (heard_direct.direct, heard_direct.heard_from) == (False, "OH7JHF-1") and route_text(heard_direct) == "via OH7JHF-1 (internet)"
+    assert (heard_direct.direct, heard_direct.heard_from) == (False, "OH7JHF-1") and route_text(
+        heard_direct
+    ) == "via OH7JHF-1 (internet)"
     assert received_text(("WIDE1*",), "OH7JHF-1") == "via OH7JHF-1 (internet) → ?"
 
 
@@ -112,9 +165,14 @@ def test_only_the_eight_most_frequent_routes_are_kept_and_the_one_heard_longest_
     d = Deliveries()
     for n in range(ROUTES_KEPT):
         d.note(Route((f"DIGI{n}",), f"DIGI{n}", False))
-    d.note(Route(("DIGI0",), "DIGI0", False), 4)                      # (heard again: now the newest, and the most)
+    d.note(Route(("DIGI0",), "DIGI0", False), 4)  # (heard again: now the newest, and the most)
     d.note(Route(("NEW",), "NEW", False))
-    assert len(d.by_route) == ROUTES_KEPT and ("DIGI1",) not in d.by_route and ("NEW",) in d.by_route and d.by_route[("DIGI0",)] == 5
+    assert (
+        len(d.by_route) == ROUTES_KEPT
+        and ("DIGI1",) not in d.by_route
+        and ("NEW",) in d.by_route
+        and d.by_route[("DIGI0",)] == 5
+    )
 
 
 def test_a_third_party_delivery_is_counted_apart_and_is_never_the_best_route() -> None:
@@ -135,13 +193,30 @@ def test_the_time_of_the_latest_direct_packet_is_kept_with_the_count_and_nothing
     d.note(route_of(()), 2, t)
     d.note(route_of(()), 1, t + timedelta(minutes=5))
     d.note(route_of(()), 1, t + timedelta(minutes=1))
-    assert d.direct == 4 and d.last_direct_at == t + timedelta(minutes=5), "the latest wins, whatever the order they are noted in"
+    assert d.direct == 4 and d.last_direct_at == t + timedelta(minutes=5), (
+        "the latest wins, whatever the order they are noted in"
+    )
     d.note(route_of(()), 1)
     assert d.direct == 5 and d.last_direct_at == t + timedelta(minutes=5), "a count without a time leaves it"
 
 
-@pytest.mark.parametrize("address, marker", [("RFONLY", True), ("NOGATE", True), ("TCPIP", True), ("TCPIP*", True), ("TCPXX*", True), ("NOTCP", True), ("qAR", True), ("qAC", True),
-                                             ("OH2RCH-2", False), ("WIDE1-1", False), ("WIDE2*", False), ("RELAY", False)])
+@pytest.mark.parametrize(
+    "address, marker",
+    [
+        ("RFONLY", True),
+        ("NOGATE", True),
+        ("TCPIP", True),
+        ("TCPIP*", True),
+        ("TCPXX*", True),
+        ("NOTCP", True),
+        ("qAR", True),
+        ("qAC", True),
+        ("OH2RCH-2", False),
+        ("WIDE1-1", False),
+        ("WIDE2*", False),
+        ("RELAY", False),
+    ],
+)
 def test_the_markers_for_the_igates_are_no_digipeaters(address: str, marker: bool) -> None:
     assert is_marker(address) is marker
 
@@ -152,10 +227,20 @@ def test_the_digipeaters_of_a_path_leave_out_its_markers_and_keep_the_order() ->
     assert digipeaters(()) == ()
 
 
-@pytest.mark.parametrize("path, made", [
-    ((), ("RFONLY",)), (("OH2RCH-2", "WIDE2-1"), ("OH2RCH-2", "WIDE2-1", "RFONLY")), (("OH2RCH-2", "RFONLY"), ("OH2RCH-2", "RFONLY")), (("NOGATE",), ("NOGATE",)),
-    (("OH2RCH-2", "NOGATE", "WIDE2-1"), ("OH2RCH-2", "NOGATE", "WIDE2-1")), (("RFONLY", "OH2RCH-2"), ("RFONLY", "OH2RCH-2"))])
-def test_rf_only_adds_rfonly_at_the_end_unless_the_path_says_it_already(path: tuple[str, ...], made: tuple[str, ...]) -> None:
+@pytest.mark.parametrize(
+    "path, made",
+    [
+        ((), ("RFONLY",)),
+        (("OH2RCH-2", "WIDE2-1"), ("OH2RCH-2", "WIDE2-1", "RFONLY")),
+        (("OH2RCH-2", "RFONLY"), ("OH2RCH-2", "RFONLY")),
+        (("NOGATE",), ("NOGATE",)),
+        (("OH2RCH-2", "NOGATE", "WIDE2-1"), ("OH2RCH-2", "NOGATE", "WIDE2-1")),
+        (("RFONLY", "OH2RCH-2"), ("RFONLY", "OH2RCH-2")),
+    ],
+)
+def test_rf_only_adds_rfonly_at_the_end_unless_the_path_says_it_already(
+    path: tuple[str, ...], made: tuple[str, ...]
+) -> None:
     assert rf_only_path(path) == made
 
 
@@ -236,7 +321,9 @@ def test_a_path_heard_longer_ago_than_an_hour_is_none() -> None:
     heard_at(d, 90)
     heard_at(d, 61)
     assert heard_path(d, NOW) is None
-    assert heard_path(d, NOW - timedelta(minutes=20)) == ("OH2RCH-2",), "twenty minutes earlier both of them were within the hour"
+    assert heard_path(d, NOW - timedelta(minutes=20)) == ("OH2RCH-2",), (
+        "twenty minutes earlier both of them were within the hour"
+    )
 
 
 def test_only_the_first_two_attempts_go_by_the_heard_path() -> None:
@@ -264,31 +351,66 @@ def test_a_group_seeded_from_the_database_brings_its_two_latest_times() -> None:
     assert heard_path(d, NOW) == ("OH2RCH-2",)
 
 
-@pytest.mark.parametrize(("table", "code", "path"), [("/", "-", "WIDE2-2"), ("/", "#", "WIDE2-2"), ("/", ">", WIDE_PATH), ("\\", "s", WIDE_PATH), ("J", "^", WIDE_PATH), ("/", "?", "WIDE2-2"), ("", "", "WIDE2-2")])
-def test_the_recommended_path_is_the_fill_in_hop_and_a_wide_hop_for_a_mobile_symbol_and_two_wide_hops_for_any_other(table: str, code: str, path: str) -> None:
+@pytest.mark.parametrize(
+    ("table", "code", "path"),
+    [
+        ("/", "-", "WIDE2-2"),
+        ("/", "#", "WIDE2-2"),
+        ("/", ">", WIDE_PATH),
+        ("\\", "s", WIDE_PATH),
+        ("J", "^", WIDE_PATH),
+        ("/", "?", "WIDE2-2"),
+        ("", "", "WIDE2-2"),
+    ],
+)
+def test_the_recommended_path_is_the_fill_in_hop_and_a_wide_hop_for_a_mobile_symbol_and_two_wide_hops_for_any_other(
+    table: str, code: str, path: str
+) -> None:
     assert recommended_path(table, code) == path
 
 
-@pytest.mark.parametrize("address, expected", [
-    ("WIDE2-1", Alias("WIDE", 2, 1)), ("WIDE2-2*", Alias("WIDE", 2, 2)), ("TRACE3-3", Alias("TRACE", 3, 3)), ("SS3-3", Alias("SS", 3, 3)), ("HOP7-7", Alias("HOP", 7, 7)), ("FI2", Alias("FI", 2, None)),
-    ("RELAY", Alias("RELAY", None, None)), ("ARISS", Alias("ARISS", None, None)), ("WIDE", Alias("WIDE", None, None)), ("OH2RCH-2", None)])
-def test_an_alias_has_its_prefix_the_class_of_digipeater_and_the_hops_left(address: str, expected: Alias | None) -> None:
+@pytest.mark.parametrize(
+    "address, expected",
+    [
+        ("WIDE2-1", Alias("WIDE", 2, 1)),
+        ("WIDE2-2*", Alias("WIDE", 2, 2)),
+        ("TRACE3-3", Alias("TRACE", 3, 3)),
+        ("SS3-3", Alias("SS", 3, 3)),
+        ("HOP7-7", Alias("HOP", 7, 7)),
+        ("FI2", Alias("FI", 2, None)),
+        ("RELAY", Alias("RELAY", None, None)),
+        ("ARISS", Alias("ARISS", None, None)),
+        ("WIDE", Alias("WIDE", None, None)),
+        ("OH2RCH-2", None),
+    ],
+)
+def test_an_alias_has_its_prefix_the_class_of_digipeater_and_the_hops_left(
+    address: str, expected: Alias | None
+) -> None:
     assert parse_alias(address) == expected and is_alias(address) is (expected is not None)
 
 
-@pytest.mark.parametrize("address, hops", [("WIDE2-2", 2), ("WIDE2-1", 1), ("WIDE3", 3), ("SS3-3", 3), ("HOP7-7", 7), ("RELAY", 1), ("WIDE2-0", 0)])
+@pytest.mark.parametrize(
+    "address, hops",
+    [("WIDE2-2", 2), ("WIDE2-1", 1), ("WIDE3", 3), ("SS3-3", 3), ("HOP7-7", 7), ("RELAY", 1), ("WIDE2-0", 0)],
+)
 def test_the_hops_an_alias_asks_for_are_the_number_left_else_the_class_else_one(address: str, hops: int) -> None:
     alias = parse_alias(address)
     assert alias is not None and alias.hops == hops
 
 
-@pytest.mark.parametrize("path, made", [
-    # One star, as a monitor writes it: everything before it was used
-    (("OH2RCH-2", "OH2RDG*", "WIDE2-1"), ("OH2RCH-2*", "OH2RDG*", "WIDE2-1")),
-    (("A", "B", "C*", "D"), ("A*", "B*", "C*", "D")),
-    # Every hop starred, as the AX.25 bits give it
-    (("A*", "B*"), ("A*", "B*")),
-    (("WIDE1", "OH2RCH-2*"), ("WIDE1*", "OH2RCH-2*")),
-    (("WIDE1-1", "WIDE2-1"), ("WIDE1-1", "WIDE2-1")), ((), ())])
+@pytest.mark.parametrize(
+    "path, made",
+    [
+        # One star, as a monitor writes it: everything before it was used
+        (("OH2RCH-2", "OH2RDG*", "WIDE2-1"), ("OH2RCH-2*", "OH2RDG*", "WIDE2-1")),
+        (("A", "B", "C*", "D"), ("A*", "B*", "C*", "D")),
+        # Every hop starred, as the AX.25 bits give it
+        (("A*", "B*"), ("A*", "B*")),
+        (("WIDE1", "OH2RCH-2*"), ("WIDE1*", "OH2RCH-2*")),
+        (("WIDE1-1", "WIDE2-1"), ("WIDE1-1", "WIDE2-1")),
+        ((), ()),
+    ],
+)
 def test_a_path_with_one_star_has_every_address_before_it_used(path: tuple[str, ...], made: tuple[str, ...]) -> None:
     assert used_path(path) == made

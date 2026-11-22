@@ -2,6 +2,7 @@
 
 Datetimes are UTC-aware; positions decimal degrees, speeds km/h, altitudes metres.
 """
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
@@ -64,6 +65,7 @@ class Position:
 @dataclass(frozen=True, slots=True)
 class Message:
     """A text message; an ack has `ack_id` set and no text, a reject `rej_id`."""
+
     addressee: str
     text: str
     msg_id: str | None = None
@@ -98,6 +100,7 @@ class Status:
 @dataclass(frozen=True, slots=True)
 class Other:
     """A data type recognised but not fully decoded: `kind` is a word, `text` the info field."""
+
     kind: str
     text: str
     weather: Weather | None = None
@@ -108,6 +111,7 @@ class Other:
 @dataclass(frozen=True, slots=True)
 class Undecoded:
     """A field that should have decoded and did not: `error` for the log, `code` what failed."""
+
     error: str
     text: str
     code: str = "damaged"
@@ -116,7 +120,16 @@ class Undecoded:
 UNDECODED_CODES = ("empty", "position", "mice", "message", "nmea", "damaged")
 Decoded = Position | Message | ObjectReport | ItemReport | Status | Other | Telemetry | Undecoded
 
-_KINDS: dict[type, str] = {Position: "position", Message: "message", ObjectReport: "object", ItemReport: "item", Status: "status", Other: "other", Telemetry: "other", Undecoded: "undecoded"}
+_KINDS: dict[type, str] = {
+    Position: "position",
+    Message: "message",
+    ObjectReport: "object",
+    ItemReport: "item",
+    Status: "status",
+    Other: "other",
+    Telemetry: "other",
+    Undecoded: "undecoded",
+}
 
 
 def _line(text: str) -> str:
@@ -129,7 +142,15 @@ def _where(p: Position) -> str:
     extensions = f" [{', '.join(extension_lines(p.extensions))}]" if p.extensions else ""
     local = f" (time {p.timestamp:%d %H:%M} local)" if p.timestamp and p.timestamp_local else ""
     locator = f" locator {p.locator.grid}" if p.locator else ""
-    local_info = "".join(f" [{text}]" for text in (p.frequency and frequency_text(p.frequency), p.storm and storm_text(p.storm), p.sign and f"sign {p.sign}") if text)
+    local_info = "".join(
+        f" [{text}]"
+        for text in (
+            p.frequency and frequency_text(p.frequency),
+            p.storm and storm_text(p.storm),
+            p.sign and f"sign {p.sign}",
+        )
+        if text
+    )
     return f"{p.lat:.4f} {p.lon:.4f} {p.symbol_table}{p.symbol_code}{local}{locator}{extensions}{local_info}{weather}{comment}"
 
 
@@ -165,6 +186,7 @@ def _summary_of(d: Decoded) -> str:
 @dataclass(frozen=True, slots=True)
 class ThirdParty:
     """The header of a packet wrapped in a third-party frame (`}SRC>DST,PATH:info`)."""
+
     source: str
     destination: str
     path: tuple[str, ...] = ()
@@ -199,6 +221,7 @@ def channel_of(third_party: "ThirdParty | None", internet: bool = False, dummy: 
 @dataclass(frozen=True, slots=True)
 class Packet:
     """A packet that reached us; `via` is its channel. An `is` packet has no AX.25 frame."""
+
     heard_at: datetime
     direction: Literal["in", "out"]
     raw: bytes

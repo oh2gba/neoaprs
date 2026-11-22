@@ -3,6 +3,7 @@
 `cancel_all` ends tasks and waits for each, `TaskSet` is the tasks one owner starts, `every` is the
 loop of a timer.
 """
+
 import asyncio
 import inspect
 import logging
@@ -37,7 +38,9 @@ async def cancel_all(tasks: Iterable[asyncio.Task[Any]]) -> None:
 Round = Callable[[], Awaitable[object] | object]
 
 
-async def every(sec: float | Callable[[], float], fn: Round, what: str, first: float | None = None, at_start: bool = False) -> None:
+async def every(
+    sec: float | Callable[[], float], fn: Round, what: str, first: float | None = None, at_start: bool = False
+) -> None:
     """Wait `sec` seconds (or the function's result), run `fn`, repeat; exceptions are logged.
 
     `first` is the wait before the first round; `at_start` runs it at once.
@@ -71,7 +74,9 @@ class TaskSet:
     """
 
     def __init__(self, failed: Callable[[asyncio.Task[Any]], None] | logging.Logger, what: str = "") -> None:
-        self._failed: Callable[[asyncio.Task[Any]], None] = failed if callable(failed) else partial(_log_failure, failed, f"{what} task" if what else "task")
+        self._failed: Callable[[asyncio.Task[Any]], None] = (
+            failed if callable(failed) else partial(_log_failure, failed, f"{what} task" if what else "task")
+        )
         self._tasks: dict[asyncio.Task[Any], None] = {}
 
     def spawn(self, coro: Coroutine[Any, Any, None], name: str | None = None) -> asyncio.Task[None]:

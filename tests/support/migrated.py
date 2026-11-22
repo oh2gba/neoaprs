@@ -1,6 +1,7 @@
 """A database file as the migrations leave it, for the migration tests: `Opened(path)` runs
 `open_database` and holds the connection it gives, on this thread.
 """
+
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -77,7 +78,17 @@ def step_back(db: sqlite3.Connection, version: int) -> None:
         db.execute("ALTER TABLE own_object DROP COLUMN on_request")
     if version < 21:
         db.execute("ALTER TABLE packet DROP COLUMN via")
-        for column in ("heard_rf", "heard_rf_gated", "heard_is", "heard_dummy", "last_rf_at", "last_rf_gated_at", "last_is_at", "last_dummy_at", "position_via"):
+        for column in (
+            "heard_rf",
+            "heard_rf_gated",
+            "heard_is",
+            "heard_dummy",
+            "last_rf_at",
+            "last_rf_gated_at",
+            "last_is_at",
+            "last_dummy_at",
+            "position_via",
+        ):
             db.execute(f"ALTER TABLE station DROP COLUMN {column}")
     if version < 22:
         # `station_pref` made again as migration 12 made it, without the columns of the alerts: a

@@ -3,6 +3,7 @@
 A frame is FEND, a command byte (port high nibble, command low), the escaped data, FEND. The
 decoder keeps a partial frame between calls and counts what it drops as untrustworthy.
 """
+
 from dataclasses import dataclass
 
 FEND = 0xC0

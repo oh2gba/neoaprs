@@ -25,6 +25,7 @@ ignores it. Lines that begin with # are comments. The never-drop files (NEVER_DR
 whatever the list says. A .dll or .pyd that is in the folder and not in the list is named, without
 failing: a new package's DLLs go into the list in the commit that brings them. Nothing but the
 Python standard library is used."""
+
 import fnmatch
 import re
 import sys
@@ -64,7 +65,12 @@ NEVER_DROP = (
     "_internal/neoaprs/desktop/icon.ico",
 )
 NATIVE = (".dll", ".pyd")
-DATA = ("_internal/base_library.zip", "_internal/certifi/cacert.pem", "_internal/neoaprs/maps/basemap-world.pmtiles", "_internal/neoaprs/desktop/icon.ico")
+DATA = (
+    "_internal/base_library.zip",
+    "_internal/certifi/cacert.pem",
+    "_internal/neoaprs/maps/basemap-world.pmtiles",
+    "_internal/neoaprs/desktop/icon.ico",
+)
 HEADER = """# The files the Windows app's folder (dist/NeoAPRS) must have, checked by packaging/windows/must_ship.py after PyInstaller in the release workflow: a build that lacks one fails.
 # Made from a real build (must_ship.py --write); a line goes only in the commit that removes its file on purpose, and that commit names the clean install on the Windows 11 N machine that proves it.
 """
@@ -105,13 +111,20 @@ def unlisted(lines: Iterable[str], files: Sequence[str]) -> list[str]:
 def covers(lines: Iterable[str], pattern: str) -> bool:
     """Whether some line of the list holds a file that `pattern` names: the pattern itself, or a
     path it matches."""
-    return any(line.lower() == pattern or (not is_pattern(line) and fnmatch.fnmatchcase(line.lower(), pattern)) for line in lines)
+    return any(
+        line.lower() == pattern or (not is_pattern(line) and fnmatch.fnmatchcase(line.lower(), pattern))
+        for line in lines
+    )
 
 
 def made_list(tree: Path) -> str:
     """The list of a folder: its .dll and .pyd files and the data files, as they are spelled
     there."""
-    names = sorted(path.relative_to(tree).as_posix() for path in tree.rglob("*") if path.is_file() and (path.suffix.lower() in NATIVE or path.relative_to(tree).as_posix().lower() in DATA))
+    names = sorted(
+        path.relative_to(tree).as_posix()
+        for path in tree.rglob("*")
+        if path.is_file() and (path.suffix.lower() in NATIVE or path.relative_to(tree).as_posix().lower() in DATA)
+    )
     return HEADER + "".join(f"{name}\n" for name in sorted(names, key=str.lower))
 
 
@@ -119,7 +132,9 @@ def check(list_text: str, tree: Path) -> tuple[list[str], list[str]]:
     """What is missing (the list's lines and the never-drop ones) and what is unlisted."""
     lines = read_list(list_text)
     files = files_of(tree)
-    gone = missing(lines, files) + [pattern for pattern in missing(NEVER_DROP, files) if pattern not in [line.lower() for line in lines]]
+    gone = missing(lines, files) + [
+        pattern for pattern in missing(NEVER_DROP, files) if pattern not in [line.lower() for line in lines]
+    ]
     return gone, unlisted(lines, files)
 
 
@@ -159,7 +174,10 @@ def excluded(args: Sequence[str]) -> int:
     print(f"must_ship: {module} is excluded, and imported by {', '.join(found) if found else 'no module'}")
     wrong = [name for name in found if name not in allowed]
     if wrong:
-        print(f"must_ship: {module} is left out of the app, and these import it, so their import fails in the frozen app: {', '.join(wrong)}", file=sys.stderr)
+        print(
+            f"must_ship: {module} is left out of the app, and these import it, so their import fails in the frozen app: {', '.join(wrong)}",
+            file=sys.stderr,
+        )
         return 1
     return 0
 
@@ -185,7 +203,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         absent = missing(NEVER_DROP, files_of(tree))
         if absent:
             print(made_list(tree), end="")
-            print(f"must_ship: {tree} lacks what the app cannot run without, so no list is made of it: {', '.join(absent)} (above: the list the folder would give)", file=sys.stderr)
+            print(
+                f"must_ship: {tree} lacks what the app cannot run without, so no list is made of it: {', '.join(absent)} (above: the list the folder would give)",
+                file=sys.stderr,
+            )
             return 1
         listing.write_text(made_list(tree), encoding="utf-8", newline="\n")
         print(f"must_ship: {listing} lists {len(read_list(listing.read_text(encoding='utf-8')))} files of {tree}")
@@ -195,9 +216,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
     gone, extra = check(listing.read_text(encoding="utf-8"), tree)
     for name in extra:
-        print(f"must_ship: {name} is in the folder and not in {listing.name} (a new file: add it to the list in the commit that brings it)")
+        print(
+            f"must_ship: {name} is in the folder and not in {listing.name} (a new file: add it to the list in the commit that brings it)"
+        )
     if gone:
-        print(f"must_ship: {tree} lacks {len(gone)} file(s) the app needs, of {listing.name}:\n" + "\n".join(f"  {line}" for line in gone), file=sys.stderr)
+        print(
+            f"must_ship: {tree} lacks {len(gone)} file(s) the app needs, of {listing.name}:\n"
+            + "\n".join(f"  {line}" for line in gone),
+            file=sys.stderr,
+        )
         return 1
     print(f"must_ship: every file of {listing.name} is in {tree}")
     return 0

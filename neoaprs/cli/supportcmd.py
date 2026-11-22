@@ -13,6 +13,7 @@ path and what to do with it.
 `--show` opens the file manager at the file. `--pause` waits for Enter before it ends when it runs
 in a console (what the Windows Start menu entry "NeoAPRS support logs" does, so that its window
 stays to be read)."""
+
 import argparse
 import sys
 from pathlib import Path
@@ -25,9 +26,18 @@ from .supportreadme import MAIL, SEND_WORDS
 
 
 def parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="neoaprs support", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--data", default=str(default_data_dir()), help="the data folder to make the bundle of; default %(default)s")
-    p.add_argument("--out", default="", metavar="FOLDER", help="the folder the file goes to; default your Desktop folder if there is one, else your home folder")
+    p = argparse.ArgumentParser(
+        prog="neoaprs support", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p.add_argument(
+        "--data", default=str(default_data_dir()), help="the data folder to make the bundle of; default %(default)s"
+    )
+    p.add_argument(
+        "--out",
+        default="",
+        metavar="FOLDER",
+        help="the folder the file goes to; default your Desktop folder if there is one, else your home folder",
+    )
     p.add_argument("--show", action="store_true", help="open the file manager at the file")
     p.add_argument("--pause", action="store_true", help="wait for Enter before ending, when this runs in a console")
     return p
@@ -35,7 +45,9 @@ def parser() -> argparse.ArgumentParser:
 
 def tell(made: Made) -> None:
     print(made.path)
-    say(f"support file made ({made_text(made)}): {made.path}\n\nSend it to {MAIL} with a few words: {SEND_WORDS}.\nOpen README.txt in it first if you want to see what is in it.")
+    say(
+        f"support file made ({made_text(made)}): {made.path}\n\nSend it to {MAIL} with a few words: {SEND_WORDS}.\nOpen README.txt in it first if you want to see what is in it."
+    )
 
 
 def pause() -> None:

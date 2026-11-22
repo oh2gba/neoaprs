@@ -16,6 +16,7 @@ A `Scene` stands in for the channel's `random.Random` (tests/support/hfchannel.p
 
 The time of an event is counted from `arm()`, which the measurement calls when the quiet part begins
 (the scene counts samples, 8000 a second)."""
+
 import math
 import random
 from collections.abc import Callable
@@ -25,11 +26,11 @@ from tests.support.hfchannel import RATE, Channel
 
 # The bands of Mercury's detector (modem/channel_busy.h BUSY_BAND_HZ).
 RECEIVER_BAND_HZ = 150.0
-EVENT_SEC = 20.0                            # when an event of a scene begins, after `arm()`
+EVENT_SEC = 20.0  # when an event of a scene begins, after `arm()`
 RAMP_SEC = 120.0
 VOICE_SEC = 60.0
 BURST_SEC = 0.15
-BURST_GAP_SEC = 4.0                         # the mean gap between two bursts
+BURST_GAP_SEC = 4.0  # the mean gap between two bursts
 FADE_TAU_SEC = 4.0
 KINDS = ("white", "ssb", "carriers", "step", "ramp", "bursts", "fade", "voice", "narrow", "narrowvoice")
 
@@ -75,11 +76,15 @@ class Scene:
         self.filter = Bandpass(500.0, 2300.0) if kind.startswith("narrow") else Bandpass(300.0, 2700.0)
         self.second = Bandpass(500.0, 2300.0) if kind.startswith("narrow") else None
         self.scale = 1.0
-        self.n = 0                                  # samples drawn
-        self.armed: int | None = None               # the sample count at `arm()`
+        self.n = 0  # samples drawn
+        self.armed: int | None = None  # the sample count at `arm()`
         if kind in ("ssb", "carriers", "narrow", "narrowvoice"):
             self.scale = self._unit(self._shape)
-        self.carriers = [(2 * math.pi * hz / 8000.0, self.rng.uniform(0, 2 * math.pi)) for hz in (600.0, 1300.0, 2100.0)] if kind == "carriers" else []
+        self.carriers = (
+            [(2 * math.pi * hz / 8000.0, self.rng.uniform(0, 2 * math.pi)) for hz in (600.0, 1300.0, 2100.0)]
+            if kind == "carriers"
+            else []
+        )
         self.voice_filter = Bandpass(300.0, 2700.0)
         self.voice_low = 0.0
         self.voice_scale = self._voice_unit() if kind in ("voice", "narrowvoice") else 1.0
@@ -109,7 +114,9 @@ class Scene:
         return 1.0 / math.sqrt(sum(v * v for v in probe) / len(probe))
 
     def _voice_sample(self) -> float:
-        self.voice_low += (self.voice_filter(self.rng.gauss(0.0, 1.0)) - self.voice_low) * (1.0 - math.exp(-2 * math.pi * 800.0 / RATE))
+        self.voice_low += (self.voice_filter(self.rng.gauss(0.0, 1.0)) - self.voice_low) * (
+            1.0 - math.exp(-2 * math.pi * 800.0 / RATE)
+        )
         return self.voice_low
 
     def arm(self) -> None:
@@ -126,7 +133,11 @@ class Scene:
 
     def gauss(self, mu: float, sigma: float) -> float:
         t = self.seconds()
-        value = self.rng.gauss(0.0, 1.0) if self.kind in ("white", "step", "ramp", "bursts", "fade", "voice") else self._shape(self.rng.gauss(0.0, 1.0)) * self.scale
+        value = (
+            self.rng.gauss(0.0, 1.0)
+            if self.kind in ("white", "step", "ramp", "bursts", "fade", "voice")
+            else self._shape(self.rng.gauss(0.0, 1.0)) * self.scale
+        )
         gain_db = self._gain_db(t)
         value *= sigma * math.pow(10.0, gain_db / 20.0)
         if self.carriers:
@@ -167,7 +178,11 @@ class Scene:
             return 0.0
         if self._voice_left <= 0:
             self._voice_on = not self._voice_on
-            length = self.rng.uniform(0.1, 0.3) if self._voice_on else (1.0 if self.rng.random() < 0.15 else self.rng.uniform(0.05, 0.3))
+            length = (
+                self.rng.uniform(0.1, 0.3)
+                if self._voice_on
+                else (1.0 if self.rng.random() < 0.15 else self.rng.uniform(0.05, 0.3))
+            )
             self._voice_left = int(length * RATE)
         self._voice_left -= 1
         if not self._voice_on:

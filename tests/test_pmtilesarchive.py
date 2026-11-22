@@ -2,6 +2,7 @@
 and box from a header, a file moved into place, and whether a daily build exists, asked of a
 loopback range server.
 """
+
 import asyncio
 import os
 from pathlib import Path
@@ -24,7 +25,11 @@ def test_the_zooms_and_the_box_are_read_from_the_header_of_an_archive(tmp_path: 
     assert read_header(tmp_path / "short") is None
     (tmp_path / "planet").write_bytes(planet())
     header = read_header(tmp_path / "planet")
-    assert header is not None and (header.min_zoom, header.max_zoom) == (0, 6) and header.bbox == pytest.approx((-180.0, -85.0511287, 180.0, 85.0511287))
+    assert (
+        header is not None
+        and (header.min_zoom, header.max_zoom) == (0, 6)
+        and header.bbox == pytest.approx((-180.0, -85.0511287, 180.0, 85.0511287))
+    )
     (tmp_path / "small").write_bytes(archive({(3, 4, 5): b"x"}, bounds=(240000000, 590000000, 250000000, 600000000)))  # type: ignore[arg-type]
     small = read_header(tmp_path / "small")
     assert small is not None and (small.min_zoom, small.max_zoom, small.bbox) == (3, 3, (24.0, 59.0, 25.0, 60.0))
@@ -37,7 +42,9 @@ def test_a_file_replaces_the_one_before_it(tmp_path: Path) -> None:
     assert (tmp_path / "old").read_bytes() == b"new" and not (tmp_path / "new").exists()
 
 
-def test_a_target_that_another_program_holds_is_tried_again_and_then_given_up(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_target_that_another_program_holds_is_tried_again_and_then_given_up(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     real, slept, refusals = os.replace, [], [0]
     monkeypatch.setattr(pmtilesarchive.time, "sleep", slept.append)
 
@@ -46,6 +53,7 @@ def test_a_target_that_another_program_holds_is_tried_again_and_then_given_up(tm
         if refusals[0] <= 3:
             raise PermissionError("[WinError 32] in use by another process")
         real(source, target)
+
     monkeypatch.setattr(pmtilesarchive.os, "replace", busy)
     (tmp_path / "new").write_bytes(b"new")
     replace_file(tmp_path / "new", tmp_path / "old")

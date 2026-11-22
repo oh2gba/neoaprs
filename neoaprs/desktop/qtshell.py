@@ -2,6 +2,7 @@
 
 Without the web engine only the tray runs and the page opens in the browser. The window is made
 first, showing the loading page, while the daemon comes up; `build(ctx)` makes the rest."""
+
 import logging
 import webbrowser
 from importlib import resources
@@ -31,6 +32,7 @@ def icon_path() -> Path:
 
 class QtFrame(QObject):
     """The `Frame` of the Qt shell. Other threads use the signals to reach the main thread, in order."""
+
     show_requested = Signal()
     quit_requested = Signal()
     tell_requested = Signal(str)
@@ -47,7 +49,7 @@ class QtFrame(QObject):
         self.tell_requested.connect(self._tell)
         self.load_requested.connect(self._load)
         self.refresh_requested.connect(self._refresh)
-        self.rebuild: Callable[[], None] | None = None     # rebuilds the tray menu (set once it exists)
+        self.rebuild: Callable[[], None] | None = None  # rebuilds the tray menu (set once it exists)
 
     def show_window(self) -> None:
         self.show_requested.emit()
@@ -132,7 +134,13 @@ def make_tray(built: Built, icon: QIcon) -> QSystemTrayIcon:
     tray.setToolTip("NeoAPRS")
     tray.setContextMenu(built.menu)
     built.menu.aboutToShow.connect(lambda: fill_menu(built))
-    tray.activated.connect(lambda reason: built.actions.show() if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick) else None)
+    tray.activated.connect(
+        lambda reason: (
+            built.actions.show()
+            if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick)
+            else None
+        )
+    )
     built.frame.tray = tray
     built.frame.rebuild = lambda: fill_menu(built)
     fill_menu(built)
@@ -189,6 +197,7 @@ def build(ctx: ShellContext, app: QApplication | None = None, window: "AppWindow
     tray = make_tray(built, icon)
     if ctx.window:
         from .qtwindow import AppWindow
+
         window = window or AppWindow(ctx.session.data, ctx.session.url, icon, lambda: True)
         window.on_close = lambda: close_hides(tray, actions)
         frame.window = window
@@ -205,6 +214,7 @@ def close_hides(tray: QSystemTrayIcon, actions: AppActions) -> bool:
 
 class Opened(QObject):
     """Carries the session's arrival to the main thread; queued, so it is heard once the loop runs."""
+
     arrived = Signal()
 
 
@@ -212,7 +222,9 @@ def start(built: Built, ctx: ShellContext) -> None:
     """Start the tray, end the wait for the session, and load the page in the window (or the browser)."""
     window = built.window
     if built.tray is None or (window is None and not QSystemTrayIcon.isSystemTrayAvailable()):
-        raise RuntimeError("this desktop has no system tray and the web engine is not installed: there is nothing to show")
+        raise RuntimeError(
+            "this desktop has no system tray and the web engine is not installed: there is nothing to show"
+        )
     await_tray(built, built.tray)
     ctx.ready(built.actions)
     if window is not None:
@@ -225,6 +237,7 @@ def start(built: Built, ctx: ShellContext) -> None:
 def loading_window(launch: Launch) -> "AppWindow":
     """Return the startup window with the loading page, raised unless starting in the tray."""
     from .qtwindow import AppWindow
+
     window = AppWindow(launch.data, None, QIcon(str(icon_path())), lambda: True)
     window.show_loading()
     if not launch.hidden:
@@ -262,7 +275,7 @@ def run(launch: Launch) -> int:
         except NoPage as e:
             failed.append(e)
             window.hide()
-            QApplication.exit(1)                                     # ends the loop without asking a window to close
+            QApplication.exit(1)  # ends the loop without asking a window to close
             return
         kept.append(build(ctx, app, window))
         if closed:

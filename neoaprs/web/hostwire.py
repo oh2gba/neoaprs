@@ -1,4 +1,5 @@
 """Wire models of the daemon itself: hello, ping, status, update check, release notes and error."""
+
 from typing import Literal
 
 from pydantic import Field
@@ -10,35 +11,56 @@ from .wirebase import Iso, _Command, _Message, _Model
 
 class Ping(_Command):
     """Answered with `pong`."""
+
     cmd: Literal["ping"]
 
 
 class AskStatus(_Command):
     """Answered with `status` at once (the daemon also sends one every 10 s)."""
+
     cmd: Literal["status"]
 
 
 class InstallInfo(_Model):
     """How this copy of the daemon was installed, which is what the steps of an update depend on (neoaprs/versions.py, neoaprs/cli/installkind.py)."""
-    kind: InstallKind = Field(description="`windows-installer` (the frozen program of the installer), `appimage`, `macos-app` (the Python inside NeoAPRS.app), `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (`uv tool install` of the wheel, which releases before 0.16 offered), `pip` (a plain environment with the wheel) or `source` (a clone of the repository)")
+
+    kind: InstallKind = Field(
+        description="`windows-installer` (the frozen program of the installer), `appimage`, `macos-app` (the Python inside NeoAPRS.app), `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (`uv tool install` of the wheel, which releases before 0.16 offered), `pip` (a plain environment with the wheel) or `source` (a clone of the repository)"
+    )
     appimage: str = Field(description="the AppImage file this runs from; empty for the other kinds")
-    service: bool = Field(description="whether a service starts it: the systemd unit, the launchd agent or the Windows Run key")
-    arch: str = Field(description="the architecture of the file it was installed from: `amd64` or `arm64` for a .deb, `arm64` for the macOS app; empty for the other kinds, and for a machine the release has no file for")
+    service: bool = Field(
+        description="whether a service starts it: the systemd unit, the launchd agent or the Windows Run key"
+    )
+    arch: str = Field(
+        description="the architecture of the file it was installed from: `amd64` or `arm64` for a .deb, `arm64` for the macOS app; empty for the other kinds, and for a machine the release has no file for"
+    )
 
 
 class Hello(_Message):
     """The first message of a connection; `status` and the `state` of every topic follow it at once, so a page need not ask for them."""
+
     type: Literal["hello"]
-    protocol: int = Field(description="the version of these messages: a page built for another one loads itself again, and when that does not help it does not run (it shows a notice and keeps the socket closed)")
-    version: str = Field(description="the version of the daemon, which the page shows (Settings → Update check); the page has no version of its own and does not compare this one")
-    page: str = Field(description="the build of the page this daemon serves, the name of its main script (`index-<hash>.js` of assets/); the daemon serves the page it took when it started, so this is the build a browser gets from it. A page of another build loads itself again, once for each build, and shows a notice when that does not help; empty when the daemon has no built page")
+    protocol: int = Field(
+        description="the version of these messages: a page built for another one loads itself again, and when that does not help it does not run (it shows a notice and keeps the socket closed)"
+    )
+    version: str = Field(
+        description="the version of the daemon, which the page shows (Settings → Update check); the page has no version of its own and does not compare this one"
+    )
+    page: str = Field(
+        description="the build of the page this daemon serves, the name of its main script (`index-<hash>.js` of assets/); the daemon serves the page it took when it started, so this is the build a browser gets from it. A page of another build loads itself again, once for each build, and shows a notice when that does not help; empty when the daemon has no built page"
+    )
     install: InstallInfo = Field(description="how this daemon was installed, for the steps of an update")
-    local: bool = Field(description="whether this page is on the computer the daemon runs on (the loopback, with a request addressed to it): only such a page changes the settings that name a program or an address the daemon runs or fetches from (messages/alert_command, update/url, map/source, web/allowed_hosts) and runs the alert's Test; a page of another device does not show them")
-    topics: list[str] = Field(description="the topics the page is following from the start: all of them (a page may `unsubscribe` from one)")
+    local: bool = Field(
+        description="whether this page is on the computer the daemon runs on (the loopback, with a request addressed to it): only such a page changes the settings that name a program or an address the daemon runs or fetches from (messages/alert_command, update/url, map/source, web/allowed_hosts) and runs the alert's Test; a page of another device does not show them"
+    )
+    topics: list[str] = Field(
+        description="the topics the page is following from the start: all of them (a page may `unsubscribe` from one)"
+    )
 
 
 class UpdateInfo(_Model):
     """A newer version than the daemon's, as the version page named it (services/updatecheck.py)."""
+
     version: str = Field(description="the latest version")
     url: str = Field(description="where to get it: an https address, or empty")
     message: str = Field(description="a short note from the project, at most 200 characters; empty for none")
@@ -46,70 +68,124 @@ class UpdateInfo(_Model):
 
 class Status(_Message):
     """What the daemon is, for the status bar: sent after `hello`, every 10 s, when asked (`status`), and when a packet of ours has gone out (the count of packets and the beacon's times have changed). It also says what the daemon costs the machine: the CPU share, the resident memory and the uptime."""
+
     type: Literal["status"]
     version: str = Field(description="the version of the daemon")
     started_at: Iso = Field(description="when the daemon started")
     packets: int = Field(description="how many packets the database holds")
     stations: int = Field(description="how many stations the station book holds")
-    call: str = Field(description="our own call, from the settings; empty while none is set (nothing is transmitted then)")
+    call: str = Field(
+        description="our own call, from the settings; empty while none is set (nothing is transmitted then)"
+    )
     lat: float | None = Field(description="our own latitude, from the settings; null while none is set")
     lon: float | None = Field(description="our own longitude, from the settings; null while none is set")
-    beacon_interval_min: int = Field(description="minutes between our position packets on some radio: `beacon/interval_min` as it is in force, the shortest of the radios the beacon goes out on (each raised to its own floor; each radio's own is `beacon.interval_min` of its row in `radios`); 0 is off")
-    beacon_last_sent: Iso | None = Field(description="when the latest beacon was sent on any radio, by the timer or on request; null for none since the daemon started")
-    beacon_next_due: Iso | None = Field(description="when the next timed beacon is due on any radio the beacon goes out on (each radio's own is its row's `beacon`); null while none is planned")
-    unheard_radio: int | None = Field(description="the radio a message to a call no radio heard goes out on (its id), and a text to an addressee that is no station (CQ, ALL, QST): the first radio that can send, in the order of the boxes. Route shows it as what Automatic gives. Null while no radio that can send is on")
-    email_radio: int | None = Field(description="the radio an email to the gateway goes out on (its id), of any kind: the one radio that can send; else the one chosen (`email/radio`, the select of the E-mail tab) while it is on and can send; else the first radio that can send, in the order of the boxes. Null while no radio that can send is on, and Send of an email is off")
-    unavailable_types: list[str] = Field(description="the types of radio (keys of `RADIO_TYPES`) whose program this kind of installation does not carry (a Mac carries no Direwolf): the page does not offer them, and `radio_add` refuses them (`radio.unknown_type`)")
-    new_object_radios: list[int] = Field(description="the radios a new object is ticked for (their ids, ascending), when `object_set` names none: with one radio that can send, that one; else those of the object saved last with radios named while one of them is on, else the first radio that can send")
-    new_bulletin_radios: list[int] = Field(description="the radios a new bulletin goes on (their ids, ascending), when `bulletin_post` names none: as `new_object_radios`, by the bulletin posted last with radios named")
-    station_status: str = Field(description="the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone")
-    station_status_last_sent: Iso | None = Field(description="when the latest status report was sent (kept over a restart); null for none yet")
-    rig_state: Literal["off", "on", "unused"] = Field(description="whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while the status does not come from a radio (`status/source` is `text` or `off`)")
-    cpu_percent: float = Field(description="the daemon's CPU time (user and system) as a share of one core, in percent to a tenth, since the previous status that was at least a second before; the first counts from the start")
-    rss_mb: float | None = Field(description="the daemon's resident memory in megabytes, to a tenth; null where the system does not say")
+    beacon_interval_min: int = Field(
+        description="minutes between our position packets on some radio: `beacon/interval_min` as it is in force, the shortest of the radios the beacon goes out on (each raised to its own floor; each radio's own is `beacon.interval_min` of its row in `radios`); 0 is off"
+    )
+    beacon_last_sent: Iso | None = Field(
+        description="when the latest beacon was sent on any radio, by the timer or on request; null for none since the daemon started"
+    )
+    beacon_next_due: Iso | None = Field(
+        description="when the next timed beacon is due on any radio the beacon goes out on (each radio's own is its row's `beacon`); null while none is planned"
+    )
+    unheard_radio: int | None = Field(
+        description="the radio a message to a call no radio heard goes out on (its id), and a text to an addressee that is no station (CQ, ALL, QST): the first radio that can send, in the order of the boxes. Route shows it as what Automatic gives. Null while no radio that can send is on"
+    )
+    email_radio: int | None = Field(
+        description="the radio an email to the gateway goes out on (its id), of any kind: the one radio that can send; else the one chosen (`email/radio`, the select of the E-mail tab) while it is on and can send; else the first radio that can send, in the order of the boxes. Null while no radio that can send is on, and Send of an email is off"
+    )
+    unavailable_types: list[str] = Field(
+        description="the types of radio (keys of `RADIO_TYPES`) whose program this kind of installation does not carry (a Mac carries no Direwolf): the page does not offer them, and `radio_add` refuses them (`radio.unknown_type`)"
+    )
+    new_object_radios: list[int] = Field(
+        description="the radios a new object is ticked for (their ids, ascending), when `object_set` names none: with one radio that can send, that one; else those of the object saved last with radios named while one of them is on, else the first radio that can send"
+    )
+    new_bulletin_radios: list[int] = Field(
+        description="the radios a new bulletin goes on (their ids, ascending), when `bulletin_post` names none: as `new_object_radios`, by the bulletin posted last with radios named"
+    )
+    station_status: str = Field(
+        description="the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone"
+    )
+    station_status_last_sent: Iso | None = Field(
+        description="when the latest status report was sent (kept over a restart); null for none yet"
+    )
+    rig_state: Literal["off", "on", "unused"] = Field(
+        description="whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while the status does not come from a radio (`status/source` is `text` or `off`)"
+    )
+    cpu_percent: float = Field(
+        description="the daemon's CPU time (user and system) as a share of one core, in percent to a tenth, since the previous status that was at least a second before; the first counts from the start"
+    )
+    rss_mb: float | None = Field(
+        description="the daemon's resident memory in megabytes, to a tenth; null where the system does not say"
+    )
     uptime_sec: int = Field(description="seconds since the daemon started, by its clock")
-    update: UpdateInfo | None = Field(description="the latest version while it is newer than this one, from the daily update check; null when there is none or the check has not been answered")
-    message_key: str = Field(description="the fingerprint of our own key for encrypted messages (16 hex characters in four groups), made at the start of a daemon run with `--encryption`; empty while there is none (the daemon runs without the flag, or the key could not be made), which is also how the page knows the feature is not there")
+    update: UpdateInfo | None = Field(
+        description="the latest version while it is newer than this one, from the daily update check; null when there is none or the check has not been answered"
+    )
+    message_key: str = Field(
+        description="the fingerprint of our own key for encrypted messages (16 hex characters in four groups), made at the start of a daemon run with `--encryption`; empty while there is none (the daemon runs without the flag, or the key could not be made), which is also how the page knows the feature is not there"
+    )
 
 
 class CheckUpdate(_Command):
     """Asks the version page now, the question of the daily update check; the daily schedule is left as it was. Answered with `update_result` and then a `status` (with the newer version, if there is one) to the page that asked."""
+
     cmd: Literal["update_check"]
 
 
 class UpdateResultMsg(_Message):
     """The answer to `update_check`: what the version page said, or why it said nothing."""
+
     type: Literal["update_result"]
-    outcome: Literal["newer", "current", "no_answer"] = Field(description="`newer`: a newer version is out; `current`: this is the latest; `no_answer`: the page could not be reached or did not name a version")
-    version: str = Field(description="the latest version for `newer`, this version for `current`; empty for `no_answer`")
-    reason: Literal["", "offline", "bad_answer"] = Field(description="for `no_answer` why, as a code the page says in its words: `offline` the update server did not answer (is there a connection?), `bad_answer` it gave no usable answer; empty otherwise")
+    outcome: Literal["newer", "current", "no_answer"] = Field(
+        description="`newer`: a newer version is out; `current`: this is the latest; `no_answer`: the page could not be reached or did not name a version"
+    )
+    version: str = Field(
+        description="the latest version for `newer`, this version for `current`; empty for `no_answer`"
+    )
+    reason: Literal["", "offline", "bad_answer"] = Field(
+        description="for `no_answer` why, as a code the page says in its words: `offline` the update server did not answer (is there a connection?), `bad_answer` it gave no usable answer; empty otherwise"
+    )
 
 
 class ReleaseNotes(_Command):
     """Asks what is new up to `version`: the newer one the update check found (what an update brings, from this version on), or this version itself (what the update the page's browser has seen brought: the notes of this
     version, or with `since` of every version after that one). The changelog of the project at the tag of `version` (neoaprs/releasenotes.py), fetched once. Answered with `release_notes`."""
+
     cmd: Literal["release_notes"]
-    version: str = Field(description="the newer version, as `status.update.version` names it, or this one, as `hello.version` names it; another is answered with no sections")
-    since: str = Field(default="", description="the sections of the versions newer than this one; empty: this version for the newer one, and for this one its own section alone")
+    version: str = Field(
+        description="the newer version, as `status.update.version` names it, or this one, as `hello.version` names it; another is answered with no sections"
+    )
+    since: str = Field(
+        default="",
+        description="the sections of the versions newer than this one; empty: this version for the newer one, and for this one its own section alone",
+    )
 
 
 class NoteSection(_Model):
     """One version's section of the changelog."""
+
     version: str = Field(description="the version the section is of")
-    text: str = Field(description="the section as it is written, markdown: paragraphs, `- ` bullets, `**bold**` and `code`")
+    text: str = Field(
+        description="the section as it is written, markdown: paragraphs, `- ` bullets, `**bold**` and `code`"
+    )
 
 
 class ReleaseNotesMsg(_Message):
     """The answer to `release_notes`: the sections of the versions asked for, the newest first; none with `problem` saying why (the notes could not be fetched, or the version is neither the newer one known nor this one)."""
+
     type: Literal["release_notes"]
     version: str = Field(description="the version asked for")
     since: str = Field(description="the `since` asked for, empty when there was none")
     sections: list[NoteSection] = Field(description="the newest first; empty with `problem`")
-    problem: Literal["", "unreachable", "unknown_version"] = Field(description="why there are no sections, as a code: `unreachable` the notes could not be fetched, `unknown_version` the version is neither the newer one known nor this one; empty when there are")
+    problem: Literal["", "unreachable", "unknown_version"] = Field(
+        description="why there are no sections, as a code: `unreachable` the notes could not be fetched, `unknown_version` the version is neither the newer one known nor this one; empty when there are"
+    )
 
 
 class Pong(_Message):
     """The answer to `ping`."""
+
     type: Literal["pong"]
     now: Iso = Field(description="the daemon's clock")
 
@@ -118,9 +194,20 @@ class Error(_Message):
     """A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed. A page goes by `cmd`, `key`
     and `code` (with the sentence of `why` for a refusal that passes another's on); `text` is the English sentence for the log, which the page never shows: a code it has no sentence for is said with its plain
     words of a failure."""
+
     type: Literal["error"]
-    cmd: str = Field(description="the command it answers; empty for a frame that was no command (not JSON, not an object, no `cmd`, an unknown one)")
-    key: str | None = Field(description="the setting it is about (`set_config`), a key of `CONFIG_KEYS`; null for any other error")
-    code: str = Field(description="a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `failed` for one the operator can do nothing about; `other` for an error that has no code")
-    params: dict[str, str | int | float] = Field(description="the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`, and `why`, the code of the reason, for a refusal that passes another's on (`status.not_sent`, `beacon.not_sent`, `transmit.call`); empty when there are none")
-    text: str = Field(description="what could not be done and why, in a sentence in English: the command, then the setting if there is one, then the reason (`set_config: station/lat: 95 is not between -90 and 90`)")
+    cmd: str = Field(
+        description="the command it answers; empty for a frame that was no command (not JSON, not an object, no `cmd`, an unknown one)"
+    )
+    key: str | None = Field(
+        description="the setting it is about (`set_config`), a key of `CONFIG_KEYS`; null for any other error"
+    )
+    code: str = Field(
+        description="a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `failed` for one the operator can do nothing about; `other` for an error that has no code"
+    )
+    params: dict[str, str | int | float] = Field(
+        description="the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`, and `why`, the code of the reason, for a refusal that passes another's on (`status.not_sent`, `beacon.not_sent`, `transmit.call`); empty when there are none"
+    )
+    text: str = Field(
+        description="what could not be done and why, in a sentence in English: the command, then the setting if there is one, then the reason (`set_config: station/lat: 95 is not between -90 and 90`)"
+    )

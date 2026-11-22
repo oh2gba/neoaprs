@@ -3,6 +3,7 @@
 A route is a few corners in km east and north of the station, walked at a steady speed round and
 round, or there and back, within about six kilometres of the centre.
 """
+
 import math
 from dataclasses import dataclass
 
@@ -52,9 +53,10 @@ def around(centre: tuple[float, float], east_km: float, north_km: float) -> tupl
 # a ring of main streets, about 22 km
 TOWN_LOOP = Route(((-3.0, -2.0), (-3.2, 1.5), (-1.0, 3.0), (2.5, 3.2), (4.0, 0.8), (3.2, -2.4), (0.0, -3.0)), loop=True)
 # a wider round
-DELIVERY_ROUND = Route(((-5.0, -1.0), (-1.5, -2.2), (2.0, -1.2), (5.5, 1.5), (3.0, 4.2), (-1.0, 3.6), (-4.2, 2.8)), loop=True)
+DELIVERY_ROUND = Route(
+    ((-5.0, -1.0), (-1.5, -2.2), (2.0, -1.2), (5.5, 1.5), (3.0, 4.2), (-1.0, 3.6), (-4.2, 2.8)), loop=True
+)
 # out along the ring road and back
 RING_ROAD = Route(((-5.5, -3.5), (-2.0, -4.0), (2.0, -3.6), (5.0, -1.0)), loop=False)
 # round a park, about a kilometre
 PARK_PATH = Route(((1.2, 0.8), (1.6, 1.1), (1.9, 0.7), (1.6, 0.3)), loop=True)
-

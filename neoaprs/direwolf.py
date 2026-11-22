@@ -3,6 +3,7 @@
 Pure values and functions, no I/O. Direwolf keys the radio itself and does not digipeat or gate.
 The patched build (packaging/direwolf/) adds `-Q`, `-G` and `-R`; docs/direwolf.md has the sources.
 """
+
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -43,8 +44,17 @@ TUNE_SEC = 10.0
 KEY_TEST_SEC = 1.0
 TESTS = {"tune": "a", "key": "p"}
 
-PROFILE = Profile("direwolf", "Sound card", "modem", None, (), None, False, False,
-                  "Direwolf 1.8.1, which NeoAPRS carries, on the radio's sound card: AFSK 1200, keyed by a CM108 pin, RTS or DTR, or VOX.")
+PROFILE = Profile(
+    "direwolf",
+    "Sound card",
+    "modem",
+    None,
+    (),
+    None,
+    False,
+    False,
+    "Direwolf 1.8.1, which NeoAPRS carries, on the radio's sound card: AFSK 1200, keyed by a CM108 pin, RTS or DTR, or VOX.",
+)
 
 
 def gain_percent(gain_db: int) -> int:
@@ -58,7 +68,9 @@ def ptt_line(keying: Keying) -> str:
     if keying.kind == "cm108":
         return "PTT CM108\n"
     if any(c.isspace() for c in keying.device) or not keying.device.isprintable():
-        raise ValueError(f"Direwolf cannot key by the device {keying.device!r}: it has a space or a character that is not printable")
+        raise ValueError(
+            f"Direwolf cannot key by the device {keying.device!r}: it has a space or a character that is not printable"
+        )
     return f"PTT {keying.device} {keying.kind.upper()}\n"
 
 
@@ -73,17 +85,19 @@ def adevice(sound_card: str, numbers: tuple[int, int] | None = None) -> str:
 
 def conf_text(device: str, keying: Keying, kiss_port: int) -> str:
     """Return the configuration. `KISSPORT 0` clears the default slot; ADEVICE precedes PTT."""
-    return ("# written by NeoAPRS at every start\n"
-            f"ADEVICE {device}\n"
-            "ACHANNELS 1\n"
-            "CHANNEL 0\n"
-            "MODEM 1200\n"
-            f"TXTAIL {TXTAIL_MS // 10}\n"
-            f"{ptt_line(keying)}"
-            "KISSPORT 0\n"
-            f"KISSPORT {kiss_port}\n"
-            "AGWPORT 0\n"
-            "DNSSD 0\n")
+    return (
+        "# written by NeoAPRS at every start\n"
+        f"ADEVICE {device}\n"
+        "ACHANNELS 1\n"
+        "CHANNEL 0\n"
+        "MODEM 1200\n"
+        f"TXTAIL {TXTAIL_MS // 10}\n"
+        f"{ptt_line(keying)}"
+        "KISSPORT 0\n"
+        f"KISSPORT {kiss_port}\n"
+        "AGWPORT 0\n"
+        "DNSSD 0\n"
+    )
 
 
 def command(program: Sequence[str], conf_file: str, gain_db: int = 0, test: str = "", vox: bool = False) -> list[str]:
@@ -102,7 +116,9 @@ _AIOC = re.compile(r"all-in-one", re.IGNORECASE)  # the AIOC's USB product strin
 
 def own_card(cards: Sequence[SoundCard]) -> str:
     """Return the sound card to use when none is set, never the computer's own sound."""
-    return choose_sound_card(cards) or next((c.id for c in cards if c.default and c.playback and c.capture and _RADIO_CARD.search(c.name)), "")
+    return choose_sound_card(cards) or next(
+        (c.id for c in cards if c.default and c.playback and c.capture and _RADIO_CARD.search(c.name)), ""
+    )
 
 
 def choose_keying(card_name: str, ports: Sequence[SerialPort], tied: Sequence[str] | None = None) -> Keying:
@@ -110,7 +126,9 @@ def choose_keying(card_name: str, ports: Sequence[SerialPort], tied: Sequence[st
     if _AIOC.search(card_name or ""):
         return Keying("cm108")
     usb = radio_serial_ports(ports)
-    near = [p for p in usb if p.device in tied] if tied is not None else usb if _RADIO_CARD.search(card_name or "") else []
+    near = (
+        [p for p in usb if p.device in tied] if tied is not None else usb if _RADIO_CARD.search(card_name or "") else []
+    )
     return Keying("rts", near[0].device) if len(near) == 1 else Keying("vox")
 
 
@@ -124,14 +142,29 @@ _DEVICE = re.compile(r"^ ([* ])  (\d+): (.*?)(?:   \(channels? [\d &]+\))?$")
 _AUDIO_FAILED = ("Could not open audio device", "Pointless to continue without audio device")
 # Serial port not openable (ptt.c:945-956), no CM108 chip (config.c:2185), HID not openable or
 # writable (cm108.c:1013, 948, 1059).
-_KEYING_FAILED = re.compile(r"^ERROR can't open device .* for channel \d+ PTT control"
-                            r"|Could not determine USB Audio GPIO PTT device"
-                            r"|^Could not open \S+ for write"
-                            r"|^Write to \S+ failed, n=")
-_WRONG_DEVICE = ("doesn't match any of the", "Invalid input (receive) audio device", "Invalid output (transmit) audio device")
+_KEYING_FAILED = re.compile(
+    r"^ERROR can't open device .* for channel \d+ PTT control"
+    r"|Could not determine USB Audio GPIO PTT device"
+    r"|^Could not open \S+ for write"
+    r"|^Write to \S+ failed, n="
+)
+_WRONG_DEVICE = (
+    "doesn't match any of the",
+    "Invalid input (receive) audio device",
+    "Invalid output (transmit) audio device",
+)
 SEVERAL_CM108 = "There are multiple USB Audio Devices with GPIO capability."
-_ERRORS = (*_AUDIO_FAILED, "Bind failed with error", "Some other application is probably already using port", "ERROR", *_WRONG_DEVICE, SEVERAL_CM108, "Could not determine USB Audio GPIO PTT device",
-           "for write", "failed, n=")
+_ERRORS = (
+    *_AUDIO_FAILED,
+    "Bind failed with error",
+    "Some other application is probably already using port",
+    "ERROR",
+    *_WRONG_DEVICE,
+    SEVERAL_CM108,
+    "Could not determine USB Audio GPIO PTT device",
+    "for write",
+    "failed, n=",
+)
 
 
 # `-d n` prints a frame from the client, then its bytes (kiss_frame.c:464, 938-972).
@@ -202,6 +235,7 @@ def is_error(line: str) -> bool:
 @dataclass
 class DeviceLists:
     """The starred device of each WinMM list (audio_win.c:379-490)."""
+
     section: str = ""
     selected: dict[str, tuple[int, str]] | None = None
 
@@ -218,4 +252,6 @@ class DeviceLists:
 
     def wrong(self, meant: tuple[int, int]) -> bool:
         chosen = self.selected or {}
-        return any(chosen[way][0] != number for way, number in zip(("input", "output"), meant, strict=True) if way in chosen)
+        return any(
+            chosen[way][0] != number for way, number in zip(("input", "output"), meant, strict=True) if way in chosen
+        )

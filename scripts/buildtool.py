@@ -2,6 +2,7 @@
 
 Fetching and patching the pinned source, ldd/readelf checks, PE import tables, socket tables and
 tarballs. Python 3.10 compatible; imports nothing of the daemon."""
+
 import hashlib
 import os
 import platform
@@ -20,7 +21,9 @@ PE_MACHINE_X64 = 0x8664
 # DLLs a Windows program may not import because they do not come with Windows: MinGW's, a
 # library's (hamlib, libusb, OpenSSL, zlib) or a runtime needing a redistributable. msvcrt.dll
 # and the universal runtime are fine.
-WINDOWS_DLL_NEVER = re.compile(r"^(lib|zlib|mingw|msvcr(?!t\.)|msvcp|vcruntime|vcomp|concrt|vccorlib|ucrtbased)", re.IGNORECASE)
+WINDOWS_DLL_NEVER = re.compile(
+    r"^(lib|zlib|mingw|msvcr(?!t\.)|msvcp|vcruntime|vcomp|concrt|vccorlib|ucrtbased)", re.IGNORECASE
+)
 # dsound.dll needs ResampleDmo.dll, which an "N" edition lacks; Windows then refuses to start the
 # program.
 WINDOWS_DLL_NOT_EVERYWHERE = {"dsound.dll"}
@@ -45,7 +48,10 @@ def machine_name(machine: Optional[str] = None, system: str = sys.platform) -> s
 
 
 def cache_dir() -> Path:
-    return Path(os.environ.get("NEOAPRS_BUILD_CACHE") or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "neoaprs-build")
+    return Path(
+        os.environ.get("NEOAPRS_BUILD_CACHE")
+        or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "neoaprs-build"
+    )
 
 
 def sha256(path: Path) -> str:
@@ -71,7 +77,10 @@ def fetch_source(url: str, pinned_sha256: str, name: str, agent: str) -> Path:
     last: Optional[Exception] = None
     for attempt in range(3):
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": agent}), timeout=60) as reply, part.open("wb") as out:  # noqa: S310  (pinned https address; kept only with its pinned SHA-256)
+            with (
+                urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": agent}), timeout=60) as reply,  # noqa: S310
+                part.open("wb") as out,
+            ):
                 shutil.copyfileobj(reply, out)
             last = None
             break
@@ -125,9 +134,18 @@ def run(command: List[str]) -> str:
 def apply_patch(tree: Path, patch: Path) -> None:
     if not patch.is_file():
         raise BuildError(f"{patch} is missing")
-    done = subprocess.run(["patch", "-p1", "--forward", "--batch", "-i", str(patch)], cwd=tree, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    done = subprocess.run(
+        ["patch", "-p1", "--forward", "--batch", "-i", str(patch)],
+        cwd=tree,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
     if done.returncode != 0:
-        raise BuildError(f"{patch.name} does not apply to the pinned source (patch exited {done.returncode}):\n{done.stdout}")
+        raise BuildError(
+            f"{patch.name} does not apply to the pinned source (patch exited {done.returncode}):\n{done.stdout}"
+        )
 
 
 def libraries(program: Path, run: Run = run) -> Dict[str, str]:
@@ -143,7 +161,14 @@ def libraries(program: Path, run: Run = run) -> Dict[str, str]:
     return found
 
 
-def check_links(program: Path, folder: Path, needed_ok: Pattern[str], needed_never: Sequence[str], own: Sequence[str], run: Run = run) -> str:
+def check_links(
+    program: Path,
+    folder: Path,
+    needed_ok: Pattern[str],
+    needed_never: Sequence[str],
+    own: Sequence[str],
+    run: Run = run,
+) -> str:
     """Return the ldd output after checking it: only `needed_ok` libraries, none of `needed_never`,
     none missing, and each of `own` taken from the folder's lib/."""
     text = run(["ldd", str(program)])
@@ -154,7 +179,9 @@ def check_links(program: Path, folder: Path, needed_ok: Pattern[str], needed_nev
         if not path and not needed_ok.match(name):
             raise BuildError(f"{program.name} needs {name}, which is not found:\n{text}")
         if not needed_ok.match(name):
-            raise BuildError(f"{program.name} links {name} ({path}), which is none of {', '.join(own)} and glibc:\n{text}")
+            raise BuildError(
+                f"{program.name} links {name} ({path}), which is none of {', '.join(own)} and glibc:\n{text}"
+            )
     for name in own:
         path = found.get(name, "")
         if not path or Path(path).resolve() != (folder / "lib" / name).resolve():
@@ -171,7 +198,10 @@ def runpath(program: Path, run: Run = run) -> str:
 
 def glibc_needed(path: Path, run: Run = run) -> str:
     """Return the newest glibc symbol version PATH asks for."""
-    versions = {tuple(int(part) for part in found.split(".")) for found in re.findall(r"GLIBC_(\d+(?:\.\d+)+)", run(["readelf", "--dyn-syms", "--wide", str(path)]))}
+    versions = {
+        tuple(int(part) for part in found.split("."))
+        for found in re.findall(r"GLIBC_(\d+(?:\.\d+)+)", run(["readelf", "--dyn-syms", "--wide", str(path)]))
+    }
     return ".".join(str(part) for part in max(versions)) if versions else "none"
 
 
@@ -183,7 +213,7 @@ def pe_imports(path: Path) -> Tuple[int, List[str]]:
     if data[:2] != b"MZ" or len(data) < 0x40:
         raise ValueError(f"{path.name} is not a program for Windows (no MZ header)")
     pe = struct.unpack_from("<I", data, 0x3C)[0]
-    if data[pe:pe + 4] != b"PE\0\0":
+    if data[pe : pe + 4] != b"PE\0\0":
         raise ValueError(f"{path.name} is not a program for Windows (no PE signature)")
     machine, count, _, _, _, optional_size, _ = struct.unpack_from("<HHIIIHH", data, pe + 4)
     optional = pe + 24
@@ -205,9 +235,9 @@ def pe_imports(path: Path) -> Tuple[int, List[str]]:
         if rva == 0:
             continue
         at = offset(rva)
-        while data[at:at + length] != bytes(length):
+        while data[at : at + length] != bytes(length):
             start = offset(struct.unpack_from("<I", data, at + name_at)[0])
-            names.append(data[start:data.index(b"\0", start)].decode("ascii"))
+            names.append(data[start : data.index(b"\0", start)].decode("ascii"))
             at += length
     return machine, names
 
@@ -216,10 +246,15 @@ def check_imports(program: Path, names: Sequence[str]) -> None:
     """Raise BuildError naming imports that do not come with every Windows."""
     foreign = [name for name in names if WINDOWS_DLL_NEVER.match(name)]
     if foreign:
-        raise BuildError(f"{program.name} imports {', '.join(foreign)}, which do not come with Windows and would have to travel with it:\n  " + "\n  ".join(names))
+        raise BuildError(
+            f"{program.name} imports {', '.join(foreign)}, which do not come with Windows and would have to travel with it:\n  "
+            + "\n  ".join(names)
+        )
     fragile = [name for name in names if name.lower() in WINDOWS_DLL_NOT_EVERYWHERE]
     if fragile:
-        raise BuildError(f"{program.name} imports {', '.join(fragile)}, which stops it before it runs on a Windows without the Media Feature Pack")
+        raise BuildError(
+            f"{program.name} imports {', '.join(fragile)}, which stops it before it runs on a Windows without the Media Feature Pack"
+        )
 
 
 def listeners(ports: Set[int], tables: Sequence[str] = ("/proc/net/tcp", "/proc/net/tcp6")) -> Dict[int, Set[str]]:

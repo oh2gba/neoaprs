@@ -22,7 +22,7 @@ def names_card(device: str, card: str, numbered: bool = True) -> bool:
     want = f"{plain(card)})"
     for at in range(len(device)):
         if device.startswith(" (", at):
-            rest = plain(device[at + 2:])
+            rest = plain(device[at + 2 :])
             whole = rest == want
             cut = len(device) >= NAME_MAX and len(rest) > 0 and want.startswith(rest)
             if whole or cut:
@@ -37,7 +37,9 @@ def match(card: str, inputs: Sequence[str], outputs: Sequence[str]) -> tuple[int
 
 
 def _named(card: str, names: Sequence[str]) -> list[int]:
-    return [n for n, name in enumerate(names) if names_card(name, card)] or [n for n, name in enumerate(names) if names_card(name, card, numbered=False)]
+    return [n for n, name in enumerate(names) if names_card(name, card)] or [
+        n for n, name in enumerate(names) if names_card(name, card, numbered=False)
+    ]
 
 
 def devices() -> tuple[list[str], list[str]]:
@@ -51,8 +53,16 @@ def _winmm_devices() -> tuple[list[str], list[str]]:
 
     # WAVEINCAPSA and WAVEOUTCAPSA share their head: manufacturer, product, driver version, name.
     class Caps(ctypes.Structure):
-        _fields_ = [("wMid", wintypes.WORD), ("wPid", wintypes.WORD), ("vDriverVersion", wintypes.UINT), ("szPname", ctypes.c_char * (NAME_MAX + 1)),
-                    ("dwFormats", wintypes.DWORD), ("wChannels", wintypes.WORD), ("wReserved1", wintypes.WORD), ("dwSupport", wintypes.DWORD)]
+        _fields_ = [
+            ("wMid", wintypes.WORD),
+            ("wPid", wintypes.WORD),
+            ("vDriverVersion", wintypes.UINT),
+            ("szPname", ctypes.c_char * (NAME_MAX + 1)),
+            ("dwFormats", wintypes.DWORD),
+            ("wChannels", wintypes.WORD),
+            ("wReserved1", wintypes.WORD),
+            ("dwSupport", wintypes.DWORD),
+        ]
 
     try:
         winmm = ctypes.WinDLL("winmm")  # type: ignore[attr-defined, unused-ignore]

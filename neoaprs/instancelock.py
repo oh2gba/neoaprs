@@ -2,12 +2,13 @@
 
 The lock is `fcntl.flock` on POSIX and `msvcrt.locking` on Windows; the system releases it when the
 process ends, so a crash leaves nothing to clean up."""
+
 import os
 import sys
 from pathlib import Path
 
 LOCK_NAME = "neoaprs.lock"
-APP_LOCK_NAME = "neoaprs-app.lock"           # the desktop app's lock of the data folder
+APP_LOCK_NAME = "neoaprs-app.lock"  # the desktop app's lock of the data folder
 
 
 class AlreadyRunning(Exception):
@@ -28,17 +29,21 @@ class InstanceLock:
             self._lock(fd)
         except OSError as e:
             os.close(fd)
-            raise AlreadyRunning(f"another NeoAPRS is already running with the data folder {self.path.parent} (lock file {self.path.name}); stop it first, or give this one another folder with --data") from e
+            raise AlreadyRunning(
+                f"another NeoAPRS is already running with the data folder {self.path.parent} (lock file {self.path.name}); stop it first, or give this one another folder with --data"
+            ) from e
         self._fd = fd
 
     @staticmethod
     def _lock(fd: int) -> None:
         if sys.platform == "win32":
             import msvcrt
+
             # the first byte, even past the end of the file; fails at once if held
             msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
         else:
             import fcntl
+
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
     def release(self) -> None:
@@ -49,6 +54,7 @@ class InstanceLock:
         try:
             if sys.platform == "win32":
                 import msvcrt
+
                 msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
         except OSError:
             pass

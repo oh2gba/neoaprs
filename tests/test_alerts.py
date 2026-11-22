@@ -1,6 +1,7 @@
 """Tests for the message alert (neoaprs/services/alerts.py): the command runs once for the first
 copy of a message to us, with sender, text, time and id in its environment, and not for other
 traffic."""
+
 import asyncio
 import logging
 from dataclasses import replace
@@ -14,7 +15,20 @@ from neoaprs.config import MAX_ALERT_COMMAND, Config
 from neoaprs.message import MessageRecord
 from neoaprs.pref import Fired
 from neoaprs.services.alerts import Alerts, alert_environment
-from tests.support.alertcmd import MISSING_STATUS, SHORT_TIMEOUT_SEC, SURVIVOR_AFTER_SEC, TIMEOUT_SEC, WINDOWS, failing, missing_notifier, not_a_program, starting_a_survivor, then_succeeds, writing, writing_titled
+from tests.support.alertcmd import (
+    MISSING_STATUS,
+    SHORT_TIMEOUT_SEC,
+    SURVIVOR_AFTER_SEC,
+    TIMEOUT_SEC,
+    WINDOWS,
+    failing,
+    missing_notifier,
+    not_a_program,
+    starting_a_survivor,
+    then_succeeds,
+    writing,
+    writing_titled,
+)
 from tests.support.air import message_info, on_air, said
 from tests.support.clock import FixedClock
 from tests.support.env import Env, idle_for, ON_AIR, remember_stop, until
@@ -26,9 +40,13 @@ def record(text: str = "Moi, tulossa kahville?", msg_id: str | None = "12") -> M
 
 
 class Rig:
-    def __init__(self, tmp_path: Path, command: str | None = None, timeout_sec: float = TIMEOUT_SEC, **changes: object) -> None:
+    def __init__(
+        self, tmp_path: Path, command: str | None = None, timeout_sec: float = TIMEOUT_SEC, **changes: object
+    ) -> None:
         self.out = tmp_path / "alert.txt"
-        self.config: Config = replace(ON_AIR, **{"messages_alert_command": command if command is not None else writing(self.out), **changes})       # type: ignore[arg-type]
+        self.config: Config = replace(
+            ON_AIR, **{"messages_alert_command": command if command is not None else writing(self.out), **changes}
+        )  # type: ignore[arg-type]
         self.clock = FixedClock()
         self.alerts = Alerts(lambda: self.config, self.clock, timeout_sec)
         # what the alerts logged while they ran: the reason when the command left no file
@@ -66,30 +84,61 @@ async def test_the_command_runs_with_the_sender_the_text_the_time_and_the_id_in_
 
 async def test_a_message_without_an_id_has_an_empty_id_and_odd_text_stays_text(tmp_path: Path) -> None:
     rig = Rig(tmp_path)
-    rig.alerts.alert(record('$(touch pwned); `id` "quoted" \'x\' ; rm -rf ~ åäö', None))
+    rig.alerts.alert(record("$(touch pwned); `id` \"quoted\" 'x' ; rm -rf ~ åäö", None))
     await rig.finished()
-    assert rig.written() == ["OH2RDG-7", '$(touch pwned); `id` "quoted" \'x\' ; rm -rf ~ åäö', "2026-10-21T12:00:00Z", "", "end"]
-    assert not (tmp_path / "pwned").exists() and not Path("pwned").exists(), "the text is data in the environment, never shell"
+    assert rig.written() == [
+        "OH2RDG-7",
+        "$(touch pwned); `id` \"quoted\" 'x' ; rm -rf ~ åäö",
+        "2026-10-21T12:00:00Z",
+        "",
+        "end",
+    ]
+    assert not (tmp_path / "pwned").exists() and not Path("pwned").exists(), (
+        "the text is data in the environment, never shell"
+    )
 
 
-def test_the_environment_is_the_few_names_a_desktop_program_needs_and_the_six_variables_and_nothing_of_the_daemons(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_environment_is_the_few_names_a_desktop_program_needs_and_the_six_variables_and_nothing_of_the_daemons(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("SECRET_OF_THE_DAEMON", "x")
     monkeypatch.setenv("CREDENTIALS_DIRECTORY", "/run/credentials")
     monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/run/user/1000/bus")
     monkeypatch.setenv("XDG_RUNTIME_DIR", "/run/user/1000")
     env = alert_environment(record("a\0b"))
-    assert env["NEOAPRS_TEXT"] == "ab" and env["DBUS_SESSION_BUS_ADDRESS"] == "unix:path=/run/user/1000/bus" and env["XDG_RUNTIME_DIR"] == "/run/user/1000"
+    assert (
+        env["NEOAPRS_TEXT"] == "ab"
+        and env["DBUS_SESSION_BUS_ADDRESS"] == "unix:path=/run/user/1000/bus"
+        and env["XDG_RUNTIME_DIR"] == "/run/user/1000"
+    )
     assert "SECRET_OF_THE_DAEMON" not in env and "CREDENTIALS_DIRECTORY" not in env
-    assert sorted(k for k in env if k.startswith("NEOAPRS_")) == ["NEOAPRS_AT", "NEOAPRS_FROM", "NEOAPRS_KIND", "NEOAPRS_MSG_ID", "NEOAPRS_TEXT", "NEOAPRS_TITLE"]
+    assert sorted(k for k in env if k.startswith("NEOAPRS_")) == [
+        "NEOAPRS_AT",
+        "NEOAPRS_FROM",
+        "NEOAPRS_KIND",
+        "NEOAPRS_MSG_ID",
+        "NEOAPRS_TEXT",
+        "NEOAPRS_TITLE",
+    ]
     assert (env["NEOAPRS_KIND"], env["NEOAPRS_TITLE"]) == ("message", "APRS message from OH2RDG-7")
 
 
-async def test_the_alert_of_a_station_runs_the_same_command_with_its_own_kind_and_title_and_follows_the_same_switch(tmp_path: Path) -> None:
+async def test_the_alert_of_a_station_runs_the_same_command_with_its_own_kind_and_title_and_follows_the_same_switch(
+    tmp_path: Path,
+) -> None:
     fired = Fired("OH2XYZ", "within", "OH2XYZ is 8.2 km from you", FixedClock()(), 8.2)
     rig = Rig(tmp_path, command=writing_titled(tmp_path / "alert.txt"))
     rig.alerts.station(fired)
     await rig.finished()
-    assert rig.written() == ["station", "APRS alert: OH2XYZ", "OH2XYZ", "OH2XYZ is 8.2 km from you", "2026-10-21T12:00:00Z", "", "end"]
+    assert rig.written() == [
+        "station",
+        "APRS alert: OH2XYZ",
+        "OH2XYZ",
+        "OH2XYZ is 8.2 km from you",
+        "2026-10-21T12:00:00Z",
+        "",
+        "end",
+    ]
     rig.out.unlink()
     rig.config = replace(rig.config, messages_alert=False)
     rig.alerts.station(fired)
@@ -122,7 +171,9 @@ async def test_a_query_is_answered_and_not_announced(tmp_path: Path) -> None:
     assert not rig.out.exists()
 
 
-async def test_a_failing_command_is_told_once_an_hour_and_harms_nothing(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_failing_command_is_told_once_an_hour_and_harms_nothing(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.DEBUG, "neoaprs.alerts")
     rig = Rig(tmp_path, command=failing(3, "no display"))
     for _ in range(3):
@@ -138,14 +189,18 @@ async def test_a_failing_command_is_told_once_an_hour_and_harms_nothing(tmp_path
     rig.alerts.alert(record())
     await rig.finished()
     assert len([r for r in caplog.records if r.levelno == logging.WARNING]) == 2
-    assert any("no display" in r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG), "the output is in the log at DEBUG"
-    rig.config = replace(rig.config, messages_alert_command=writing(rig.out))        # the next message works again
+    assert any("no display" in r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG), (
+        "the output is in the log at DEBUG"
+    )
+    rig.config = replace(rig.config, messages_alert_command=writing(rig.out))  # the next message works again
     rig.alerts.alert(record("fine"))
     await rig.finished()
     assert rig.written()[1] == "fine"
 
 
-async def test_a_command_that_cannot_start_is_a_failure_not_a_crash(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_command_that_cannot_start_is_a_failure_not_a_crash(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.WARNING, "neoaprs.alerts")
     rig = Rig(tmp_path, command=not_a_program())
     rig.alerts.alert(record())
@@ -153,7 +208,9 @@ async def test_a_command_that_cannot_start_is_a_failure_not_a_crash(tmp_path: Pa
     assert any(f"status {MISSING_STATUS}" in r.getMessage() for r in caplog.records)
 
 
-async def test_a_command_that_runs_out_of_time_is_killed_with_what_it_started(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_command_that_runs_out_of_time_is_killed_with_what_it_started(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.WARNING, "neoaprs.alerts")
     marker = tmp_path / "survivor"
     rig = Rig(tmp_path, command=starting_a_survivor(marker, SURVIVOR_AFTER_SEC), timeout_sec=SHORT_TIMEOUT_SEC)
@@ -175,14 +232,24 @@ async def test_only_a_few_alerts_run_at_once(tmp_path: Path) -> None:
 
 def test_the_default_command_of_each_system_notifies_with_the_variables_and_is_data_never_interpolated() -> None:
     assert DEFAULT_ALERT_COMMAND == (WINDOWS_ALERT_COMMAND if WINDOWS else LINUX_ALERT_COMMAND)
-    assert "$NEOAPRS_TITLE" in LINUX_ALERT_COMMAND and "$NEOAPRS_TEXT" in LINUX_ALERT_COMMAND and LINUX_ALERT_COMMAND.endswith("message-new-instant.oga")
-    assert "$env:NEOAPRS_TITLE" in WINDOWS_ALERT_COMMAND and "$env:NEOAPRS_TEXT" in WINDOWS_ALERT_COMMAND and "%" not in WINDOWS_ALERT_COMMAND
-    assert "APRS message from" not in LINUX_ALERT_COMMAND + WINDOWS_ALERT_COMMAND, "the title is the alert's own: the alert of a station is no message"
+    assert (
+        "$NEOAPRS_TITLE" in LINUX_ALERT_COMMAND
+        and "$NEOAPRS_TEXT" in LINUX_ALERT_COMMAND
+        and LINUX_ALERT_COMMAND.endswith("message-new-instant.oga")
+    )
+    assert (
+        "$env:NEOAPRS_TITLE" in WINDOWS_ALERT_COMMAND
+        and "$env:NEOAPRS_TEXT" in WINDOWS_ALERT_COMMAND
+        and "%" not in WINDOWS_ALERT_COMMAND
+    )
+    assert "APRS message from" not in LINUX_ALERT_COMMAND + WINDOWS_ALERT_COMMAND, (
+        "the title is the alert's own: the alert of a station is no message"
+    )
     assert "\n" not in WINDOWS_ALERT_COMMAND and len(WINDOWS_ALERT_COMMAND) <= MAX_ALERT_COMMAND
 
 
-
 # ---- inside the daemon: which messages get here --------------------------------------------------
+
 
 async def started(tmp_path: Path) -> tuple[Env, Path]:
     e = Env(tmp_path)
@@ -210,15 +277,15 @@ async def test_a_message_to_us_runs_the_alert_once_for_the_first_copy_only(tmp_p
 
 async def test_what_is_not_a_message_to_us_runs_nothing(tmp_path: Path) -> None:
     e, out = await started(tmp_path)
-    e.feed(on_air("OH2XYZ", message_info("BLN1", "Road closed", "5")))               # a bulletin
-    e.feed(on_air("OH2XYZ", message_info("QST", "Club news")))                       # a group message
-    e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSP")))                       # a query
+    e.feed(on_air("OH2XYZ", message_info("BLN1", "Road closed", "5")))  # a bulletin
+    e.feed(on_air("OH2XYZ", message_info("QST", "Club news")))  # a group message
+    e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSP")))  # a query
     # a message to somebody else, overheard
     e.feed(on_air("OH2RDG", message_info("OH2ABC", "Hello Pekka", "3")))
     await until(lambda: e.tnc.stats.packets == 4)
     await idle_for(0.4)
     assert not out.exists()
-    e.feed(on_air("OH2RDG", message_info("OH2GBA-9", "not ours", "4")))              # another SSID is another station
+    e.feed(on_air("OH2RDG", message_info("OH2GBA-9", "not ours", "4")))  # another SSID is another station
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Now it is for us")))
     assert (await until_written(out)).splitlines()[1] == "Now it is for us"
     await e.stop()
@@ -240,7 +307,7 @@ async def test_a_broken_command_does_not_harm_the_daemon_and_the_message_is_kept
 
 async def test_the_clock_of_a_message_is_the_time_it_was_heard(tmp_path: Path) -> None:
     e, out = await started(tmp_path)
-    e.now.advance(timedelta(hours=3, minutes=7, seconds=5).total_seconds())            # type: ignore[attr-defined]
+    e.now.advance(timedelta(hours=3, minutes=7, seconds=5).total_seconds())  # type: ignore[attr-defined]
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Late")))
     assert (await until_written(out)).splitlines()[2] == "2026-10-21T15:07:05Z"
     await e.stop()
@@ -249,7 +316,11 @@ async def test_the_clock_of_a_message_is_the_time_it_was_heard(tmp_path: Path) -
 async def test_a_step_that_fails_fails_the_command_even_when_a_later_step_succeeds(tmp_path: Path) -> None:
     """The line runs under set -e: `notify-send ...; paplay ...` with no notify-send must not count
     as ran because the sound played."""
-    alerts = Alerts(lambda: replace(ON_AIR, messages_alert_command=then_succeeds(missing_notifier())), clock=FixedClock(), timeout_sec=TIMEOUT_SEC)
+    alerts = Alerts(
+        lambda: replace(ON_AIR, messages_alert_command=then_succeeds(missing_notifier())),
+        clock=FixedClock(),
+        timeout_sec=TIMEOUT_SEC,
+    )
     outcome = await alerts.test()
     ok, text = outcome.ok, outcome.short
     assert not ok

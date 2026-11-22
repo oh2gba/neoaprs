@@ -2,6 +2,7 @@
 
 `cipher.py` and `keyring.py` are in a wheel only when it is built with NEOAPRS_ENCRYPTION=1.
 Without them `keyring_for` returns `NoKeys`: every text is a plain message and nothing is sealed."""
+
 import importlib.util
 import logging
 from datetime import datetime
@@ -41,6 +42,7 @@ def _not_built() -> MessagingError:
 
 class NoKeys:
     """Keys of a build without encrypted messages: every text is plain, sealing is refused."""
+
     enabled = False
 
     def __init__(self) -> None:
@@ -89,8 +91,16 @@ def built_in() -> bool:
 def keyring_for(data_dir: Path, messagelog: MessageLog, clock: Clock, allowed: bool) -> Keys:
     """Return the real key ring if built in (`allowed`: --encryption given), else `NoKeys`."""
     built = built_in()
-    log.info("encrypted messages: %s", "not in this build" if not built else "allowed (--encryption)" if allowed else "off (the daemon was started without --encryption)")
+    log.info(
+        "encrypted messages: %s",
+        "not in this build"
+        if not built
+        else "allowed (--encryption)"
+        if allowed
+        else "off (the daemon was started without --encryption)",
+    )
     if not built:
         return NoKeys()
     from neoaprs.services.keyring import Keyring
+
     return Keyring(data_dir, messagelog, clock, allowed=allowed)

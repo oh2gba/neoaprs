@@ -3,6 +3,7 @@
 `fit` is the one place that makes our frame for a radio. These live here so every service may
 import this module while it imports none of theirs.
 """
+
 import logging
 import re
 from collections.abc import Sequence
@@ -44,6 +45,7 @@ class AirRadio(Protocol):
     def name(self) -> str:
         """radiospec.log_name."""
         ...
+
     @property
     def limits(self) -> Limits: ...
     @property
@@ -52,6 +54,7 @@ class AirRadio(Protocol):
     def stats(self) -> TncStats:
         """The line's counters."""
         ...
+
     @property
     def state(self) -> Source.State: ...
     @property
@@ -71,6 +74,7 @@ class RadioPick(Protocol):
     def senders(self) -> Sequence[AirRadio]:
         """The enabled radios that can send, by position: a receive-only radio is never one."""
         ...
+
     def for_station(self, call: str) -> AirRadio | None: ...
     def for_packet(self, packet: Packet) -> AirRadio | None: ...
     def email(self) -> AirRadio | None: ...
@@ -78,7 +82,12 @@ class RadioPick(Protocol):
 
 def our_frame(config: Config, path: tuple[str, ...], info: bytes) -> ax25.Frame:
     """Return our frame to the tocall via `path`; raise one of FRAME_ERRORS."""
-    return ax25.Frame(ax25.Address.parse(TOCALL), ax25.Address.parse(config.station_call), tuple(ax25.Address.parse(call) for call in path), info=info)
+    return ax25.Frame(
+        ax25.Address.parse(TOCALL),
+        ax25.Address.parse(config.station_call),
+        tuple(ax25.Address.parse(call) for call in path),
+        info=info,
+    )
 
 
 def fixed_prefix(info: bytes) -> int:
@@ -101,14 +110,16 @@ def fixed_prefix(info: bytes) -> int:
         return min(len(info), 8 if re.match(rb">\d{6}z", info) else 1)
     else:
         return len(info)
-    position = UNCOMPRESSED if info[body:body + 1].isdigit() else COMPRESSED
+    position = UNCOMPRESSED if info[body : body + 1].isdigit() else COMPRESSED
     end = body + position
-    if _EXTENSION.match(info[end:end + 7]):
+    if _EXTENSION.match(info[end : end + 7]):
         end += 7
     return min(len(info), end)
 
 
-def fit_frame(frame: ax25.Frame, max_frame: int | None, max_text: int | None = None, max_kiss: int | None = None) -> ax25.Frame:
+def fit_frame(
+    frame: ax25.Frame, max_frame: int | None, max_text: int | None = None, max_kiss: int | None = None
+) -> ax25.Frame:
     """Return the frame with its information cut from the end to fit the limits.
 
     Raise ValueError if it is too long even without its comment."""
@@ -120,8 +131,10 @@ def fit_frame(frame: ax25.Frame, max_frame: int | None, max_text: int | None = N
         return frame
     keep = fixed_prefix(frame.info)
     if len(frame.info) - over < keep:
-        raise ValueError(f"the frame is {over} bytes over the {limit}{what} the radio carries, and shortening its comment is not enough")
-    return replace(frame, info=frame.info[:len(frame.info) - over])
+        raise ValueError(
+            f"the frame is {over} bytes over the {limit}{what} the radio carries, and shortening its comment is not enough"
+        )
+    return replace(frame, info=frame.info[: len(frame.info) - over])
 
 
 def path_on(radio: AirRadio, config: Config, path: tuple[str, ...] | None) -> tuple[str, ...]:
@@ -131,7 +144,11 @@ def path_on(radio: AirRadio, config: Config, path: tuple[str, ...] | None) -> tu
     if path is not None:
         return path
     chosen = path_choice(str(radio.choice("path")))
-    return tuple(c for c in (recommended_path(radio.kind) or config.recommended_path).split(",") if c) if chosen is None else chosen
+    return (
+        tuple(c for c in (recommended_path(radio.kind) or config.recommended_path).split(",") if c)
+        if chosen is None
+        else chosen
+    )
 
 
 def reply_path_on(radio: AirRadio, config: Config, path: tuple[str, ...] | None) -> tuple[str, ...]:
@@ -149,7 +166,13 @@ def fit(radio: AirRadio, config: Config, info: bytes, path: tuple[str, ...] | No
     except FRAME_ERRORS as e:
         raise SendError(str(e)) from None
     if fitted is not frame:
-        log.warning("%s: a frame of ours is %d bytes more than the radio carries (%d): its comment is cut: %s", radio.name, len(ax25.encode(frame)) - len(ax25.encode(fitted)), radio.max_frame, fitted.tnc2())
+        log.warning(
+            "%s: a frame of ours is %d bytes more than the radio carries (%d): its comment is cut: %s",
+            radio.name,
+            len(ax25.encode(frame)) - len(ax25.encode(fitted)),
+            radio.max_frame,
+            fitted.tnc2(),
+        )
     return fitted
 
 
@@ -178,5 +201,9 @@ def answerable(pick: RadioPick, packet: Packet) -> bool:
     came = pick.for_packet(packet)
     if came is not None and sends(pick, came):
         return True
-    log.debug("a query of %s is not answered: heard on %s", packet.sender, "a radio that is no longer on" if came is None else f"{came.name}, a radio that sends nothing")
+    log.debug(
+        "a query of %s is not answered: heard on %s",
+        packet.sender,
+        "a radio that is no longer on" if came is None else f"{came.name}, a radio that sends nothing",
+    )
     return False

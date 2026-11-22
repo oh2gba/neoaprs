@@ -1,6 +1,7 @@
 """Tests for the ALOHA circle (neoaprs/aloha.py, neoaprs/services/aloha.py) on made-up stations at
 known distances: station kinds, edge cases, the refreshing service and the per-radio circles.
 """
+
 import asyncio
 from datetime import datetime, timedelta
 from types import SimpleNamespace
@@ -28,7 +29,19 @@ HOME = (60.0, 24.0)
 def at_km(call: str, km: float, code: str = "-", table: str = "/", **kw: object) -> Station:
     """A station `km` north of HOME, heard just now."""
     heard = kw.pop("last_heard", NOW)
-    return Station(call, first_heard=NOW, last_heard=heard, last_rf_at=heard, heard_rf=1, lat=HOME[0] + km / KM_PER_DEGREE, lon=HOME[1], symbol_table=table, symbol_code=code, last_position_at=NOW, **kw)  # type: ignore[arg-type]
+    return Station(
+        call,
+        first_heard=NOW,
+        last_heard=heard,
+        last_rf_at=heard,
+        heard_rf=1,
+        lat=HOME[0] + km / KM_PER_DEGREE,
+        lon=HOME[1],
+        symbol_table=table,
+        symbol_code=code,
+        last_position_at=NOW,
+        **kw,
+    )  # type: ignore[arg-type]
 
 
 def homes(count: int, first_km: float = 1.0, step_km: float = 1.0) -> list[Station]:
@@ -46,9 +59,9 @@ def test_the_circle_ends_at_the_station_where_the_load_reaches_1800_packets() ->
     found = circle(HOME, stations, NOW)
     assert found is not None
     assert found.stations == 900 and found.radius_km == pytest.approx(900.0, abs=0.01)
-    assert circle(HOME, homes(899), NOW) is None                # 1798 packets: the channel is not full
+    assert circle(HOME, homes(899), NOW) is None  # 1798 packets: the channel is not full
     found = circle(HOME, stations + homes(50, 2000.0), NOW)
-    assert found is not None and found.stations == 900          # the stations beyond the edge do not move it
+    assert found is not None and found.stations == 900  # the stations beyond the edge do not move it
 
 
 def test_the_stations_are_taken_from_the_nearest_whatever_the_order_they_are_given_in() -> None:
@@ -65,7 +78,7 @@ def test_the_weights_of_the_kinds_add_up() -> None:
     # a car not moving: 7 packets
     parked = [at_km(f"OH2P{n:02d}", 1.0 + n, code=">", speed_kmh=0.0) for n in range(258)]
     found = circle(HOME, parked, NOW)
-    assert found is not None and found.stations == 258          # 257 x 7 = 1799
+    assert found is not None and found.stations == 258  # 257 x 7 = 1799
     # a weather station: 6 packets
     weather = [at_km(f"OH2W{n:03d}", 1.0 + n, code="_") for n in range(300)]
     found = circle(HOME, weather, NOW)
@@ -75,15 +88,15 @@ def test_the_weights_of_the_kinds_add_up() -> None:
 def test_every_digipeater_makes_the_stations_beyond_it_count_once_more() -> None:
     # 3 packets, then C is 2
     near_digi = [at_km("OH2RCH-2", 1.0, code="#")]
-    others = [at_km(f"OH2H{n:03d}", 2.0 + n) for n in range(450)]                              # 2 x 2 = 4 packets each
+    others = [at_km(f"OH2H{n:03d}", 2.0 + n) for n in range(450)]  # 2 x 2 = 4 packets each
     found = circle(HOME, near_digi + others, NOW)
-    assert found is not None and found.stations == 1 + 450      # 3 + 449 x 4 = 1799, the 450th home station makes 1803
+    assert found is not None and found.stations == 1 + 450  # 3 + 449 x 4 = 1799, the 450th home station makes 1803
     assert found.radius_km == pytest.approx(451.0, abs=0.01)
     assert circle(HOME, near_digi + others[:449], NOW) is None
     two = [at_km("OH2RCH-2", 1.0, code="#"), at_km("OH2RCH-3", 2.0, code="#", table="1")]
     # 3, then 3 x 2, then 6 per home station
     found = circle(HOME, two + [at_km(f"OH2H{n:03d}", 3.0 + n) for n in range(400)], NOW)
-    assert found is not None and found.stations == 2 + 299      # 9 + 298 x 6 = 1797, the 299th home station makes 1803
+    assert found is not None and found.stations == 2 + 299  # 9 + 298 x 6 = 1797, the 299th home station makes 1803
 
 
 def test_the_digipeater_adds_its_own_packets_before_the_count_rises() -> None:
@@ -100,8 +113,8 @@ def test_the_kinds_by_symbol_and_speed() -> None:
     assert kind_of(at_km("A", 1, code=">")) == "mobile"
     assert kind_of(at_km("A", 1, code=">", speed_kmh=3.0)) == "mobile"
     assert kind_of(at_km("A", 1, code=">", speed_kmh=40.0)) == "moving"
-    assert kind_of(at_km("A", 1, code="b", speed_kmh=20.0)) == "moving"       # a bicycle
-    assert kind_of(at_km("A", 1, code="-", speed_kmh=40.0)) == "home"        # a house does not move
+    assert kind_of(at_km("A", 1, code="b", speed_kmh=20.0)) == "moving"  # a bicycle
+    assert kind_of(at_km("A", 1, code="-", speed_kmh=40.0)) == "home"  # a house does not move
     assert kind_of(at_km("A", 1, code="-", table="/")) == "home"
 
 
@@ -115,7 +128,9 @@ def test_a_station_that_is_not_on_the_channel_is_left_out() -> None:
     just = utc(2026, 10, 21, 11, 0, 0)
     assert ALOHA_WINDOW_MIN == 60 and circle(HOME, [replace_heard(s, just) for s in stations], NOW) is not None
     assert circle(HOME, [replace_heard(s, NOW, kind="object") for s in stations], NOW) is None
-    gated = [replace_heard(s, NOW, last_rf_at=None, heard_rf=0, heard_rf_gated=1, last_rf_gated_at=NOW) for s in stations]
+    gated = [
+        replace_heard(s, NOW, last_rf_at=None, heard_rf=0, heard_rf_gated=1, last_rf_gated_at=NOW) for s in stations
+    ]
     # (an iGate put them on the air: they are not on the channel from where they are)
     assert circle(HOME, gated, NOW) is None
     internet = [replace_heard(s, NOW, last_rf_at=None, heard_rf=0, heard_is=1, last_is_at=NOW) for s in stations]
@@ -133,7 +148,17 @@ def test_a_station_that_is_not_on_the_channel_is_left_out() -> None:
 
 
 def replace_heard(s: Station, heard: datetime, **kw: object) -> Station:
-    out = Station(s.call, first_heard=NOW, last_heard=heard, last_rf_at=heard, heard_rf=1, lat=s.lat, lon=s.lon, symbol_table=s.symbol_table, symbol_code=s.symbol_code)
+    out = Station(
+        s.call,
+        first_heard=NOW,
+        last_heard=heard,
+        last_rf_at=heard,
+        heard_rf=1,
+        lat=s.lat,
+        lon=s.lon,
+        symbol_table=s.symbol_table,
+        symbol_code=s.symbol_code,
+    )
     for key, value in kw.items():
         setattr(out, key, value)
     return out
@@ -151,26 +176,32 @@ def test_the_circle_of_a_radio_counts_the_stations_that_radio_heard() -> None:
     found = circle(HOME, fm + hf, NOW)
     assert found is not None and found.stations == 900, "without a radio named: every station of the air, as before"
     assert circle(HOME, fm + hf, NOW, FM_ID) is None, "the FM radio's channel has half of them: not full"
-    assert circle(HOME, fm + heard_on(homes(450, first_km=451.0), FM_ID, HF_ID), NOW, FM_ID) is not None, "a station both radios heard is on the FM channel"
+    assert circle(HOME, fm + heard_on(homes(450, first_km=451.0), FM_ID, HF_ID), NOW, FM_ID) is not None, (
+        "a station both radios heard is on the FM channel"
+    )
     late = heard_on(homes(450, first_km=451.0), FM_ID, at=NOW - timedelta(minutes=ALOHA_WINDOW_MIN + 1))
     for station in late:
         station.heard_by[HF_ID] = RadioHeard(1, NOW)
     assert circle(HOME, fm + late, NOW, FM_ID) is None, "heard on the air lately, but on FM too long ago"
 
 
-def test_the_service_draws_a_circle_for_each_radio_it_is_given_whose_type_shares_a_channel_from_what_that_radio_heard() -> None:
+def test_the_service_draws_a_circle_for_each_radio_it_is_given_whose_type_shares_a_channel_from_what_that_radio_heard() -> (
+    None
+):
     clock = FixedClock(NOW)
     book = StationBook(clock)
     book.seed(heard_on(homes(900), FM_ID) + heard_on(others(900, 2000.0), 3))
     book.set_me("OH2GBA", *HOME)
     on: list[object] = [SimpleNamespace(id=FM_ID, allowed=FM_ALLOWED)]
-    aloha = Aloha(book, clock, radios=lambda: on)               # type: ignore[arg-type, return-value]
+    aloha = Aloha(book, clock, radios=lambda: on)  # type: ignore[arg-type, return-value]
     aloha.refresh()
     assert aloha.radii == {FM_ID: 900.0}, "the FM radio heard them"
     on.append(SimpleNamespace(id=HF_ID, allowed=HF_ALLOWED))
     on.append(SimpleNamespace(id=3, allowed=FM_ALLOWED))
     aloha.refresh()
-    assert list(aloha.radii.items()) == [(FM_ID, 900.0), (3, pytest.approx(2899.0, abs=0.1))], "one for each FM radio, in the order of the boxes; none for HF"
+    assert list(aloha.radii.items()) == [(FM_ID, 900.0), (3, pytest.approx(2899.0, abs=0.1))], (
+        "one for each FM radio, in the order of the boxes; none for HF"
+    )
     on[:] = [SimpleNamespace(id=HF_ID, allowed=HF_ALLOWED)]
     aloha.refresh()
     assert aloha.radii == {} and aloha.radius_km is None, "an HF radio has no 1200 baud channel"
@@ -188,7 +219,7 @@ def test_the_service_tells_a_change_of_any_one_circle() -> None:
     book.seed(heard_on(homes(900), FM_ID))
     book.set_me("OH2GBA", *HOME)
     on: list[object] = [SimpleNamespace(id=FM_ID, allowed=FM_ALLOWED)]
-    aloha = Aloha(book, clock, radios=lambda: on)               # type: ignore[arg-type, return-value]
+    aloha = Aloha(book, clock, radios=lambda: on)  # type: ignore[arg-type, return-value]
     told: list[dict[RadioId, float]] = []
     aloha.changed.connect(lambda: told.append(dict(aloha.radii)))
     aloha.refresh()
@@ -220,14 +251,14 @@ def test_the_service_works_the_circle_out_and_tells_when_it_changes() -> None:
     told: list[float | None] = []
     aloha.changed.connect(lambda: told.append(aloha.radius_km))
     aloha.refresh()
-    assert aloha.radius_km is None and told == []               # no position of ours yet
+    assert aloha.radius_km is None and told == []  # no position of ours yet
     book.set_me("OH2GBA", *HOME)
     aloha.refresh()
     aloha.refresh()
-    assert aloha.radius_km == 900.0 and told == [900.0]         # (and a second refresh with nothing new tells nothing)
+    assert aloha.radius_km == 900.0 and told == [900.0]  # (and a second refresh with nothing new tells nothing)
     clock.advance(2 * 3600)
     aloha.refresh()
-    assert aloha.radius_km is None and told == [900.0, None]    # the stations were heard too long ago
+    assert aloha.radius_km is None and told == [900.0, None]  # the stations were heard too long ago
 
 
 async def test_the_service_runs_on_its_timer() -> None:
@@ -257,9 +288,23 @@ async def test_the_page_is_told_the_radius_in_the_topic_map_and_when_our_positio
     assert page.topics["map"]["aloha"] == []
     lat, lon = e.ctl.config.station_position or (0.0, 0.0)
     now = e.ctl.clock()
-    stations = [Station(f"OH2H{n:03d}", first_heard=now, last_heard=now, last_rf_at=now, heard_rf=1, lat=lat + (1.0 + n) / KM_PER_DEGREE, lon=lon, symbol_code="-", symbol_table="/", last_position_at=now,
-                        # (heard by radio 1, the FM radio, as the book counts them)
-                        heard_by={FM_ID: RadioHeard(1, now)}) for n in range(900)]
+    stations = [
+        Station(
+            f"OH2H{n:03d}",
+            first_heard=now,
+            last_heard=now,
+            last_rf_at=now,
+            heard_rf=1,
+            lat=lat + (1.0 + n) / KM_PER_DEGREE,
+            lon=lon,
+            symbol_code="-",
+            symbol_table="/",
+            last_position_at=now,
+            # (heard by radio 1, the FM radio, as the book counts them)
+            heard_by={FM_ID: RadioHeard(1, now)},
+        )
+        for n in range(900)
+    ]
     e.ctl.stationbook.seed(stations)
     e.ctl.aloha.refresh()
     await page.until(lambda: page.topics["map"]["aloha"] != [])
@@ -274,8 +319,24 @@ async def test_the_stations_the_hf_radio_heard_make_no_circle_on_the_map(tmp_pat
     await e.start(connected=False)
     lat, lon = e.ctl.config.station_position or (0.0, 0.0)
     now = e.ctl.clock()
-    e.ctl.stationbook.seed([Station(f"OH2H{n:03d}", first_heard=now, last_heard=now, last_rf_at=now, heard_rf=1, lat=lat + (1.0 + n) / KM_PER_DEGREE, lon=lon, symbol_code="-", symbol_table="/",
-                                    last_position_at=now, heard_by={HF_ID: RadioHeard(1, now)}) for n in range(900)])
+    e.ctl.stationbook.seed(
+        [
+            Station(
+                f"OH2H{n:03d}",
+                first_heard=now,
+                last_heard=now,
+                last_rf_at=now,
+                heard_rf=1,
+                lat=lat + (1.0 + n) / KM_PER_DEGREE,
+                lon=lon,
+                symbol_code="-",
+                symbol_table="/",
+                last_position_at=now,
+                heard_by={HF_ID: RadioHeard(1, now)},
+            )
+            for n in range(900)
+        ]
+    )
     e.ctl.aloha.refresh()
     assert e.ctl.aloha.radius_km is None
 
@@ -285,10 +346,53 @@ def test_a_station_only_an_igate_put_on_a_radios_channel_is_not_in_that_radios_c
     (stationnotes.note_heard, as the book notes them): not on the FM channel, though the FM radio
     heard it last."""
     s = at_km("OH1ABC", 5.0)
-    note_heard(s, Packet(NOW - timedelta(minutes=5), "in", b"", "OH1ABC", "APRS", (), b">hello", Other("status", ">hello"), radio_id=HF_ID))
-    note_heard(s, Packet(NOW - timedelta(minutes=1), "in", b"", "OH2IGATE", "APRS", ("WIDE2-1",), b">hello", Other("status", ">hello"), ThirdParty("OH1ABC", "APRS"), "rf-gated", radio_id=FM_ID))
+    note_heard(
+        s,
+        Packet(
+            NOW - timedelta(minutes=5),
+            "in",
+            b"",
+            "OH1ABC",
+            "APRS",
+            (),
+            b">hello",
+            Other("status", ">hello"),
+            radio_id=HF_ID,
+        ),
+    )
+    note_heard(
+        s,
+        Packet(
+            NOW - timedelta(minutes=1),
+            "in",
+            b"",
+            "OH2IGATE",
+            "APRS",
+            ("WIDE2-1",),
+            b">hello",
+            Other("status", ">hello"),
+            ThirdParty("OH1ABC", "APRS"),
+            "rf-gated",
+            radio_id=FM_ID,
+        ),
+    )
     since = NOW - timedelta(minutes=ALOHA_WINDOW_MIN)
-    assert s.heard_on(FM_ID).last_at == NOW - timedelta(minutes=1) and counted(s, since, HF_ID), "the FM radio heard of it, the HF radio heard it"
+    assert s.heard_on(FM_ID).last_at == NOW - timedelta(minutes=1) and counted(s, since, HF_ID), (
+        "the FM radio heard of it, the HF radio heard it"
+    )
     assert not counted(s, since, FM_ID), "not on the FM channel from where it is (before: counted)"
-    note_heard(s, Packet(NOW, "in", b"", "OH1ABC", "APRS", ("OH2RCH-2*", "WIDE2*"), b">hello", Other("status", ">hello"), radio_id=FM_ID))
+    note_heard(
+        s,
+        Packet(
+            NOW,
+            "in",
+            b"",
+            "OH1ABC",
+            "APRS",
+            ("OH2RCH-2*", "WIDE2*"),
+            b">hello",
+            Other("status", ">hello"),
+            radio_id=FM_ID,
+        ),
+    )
     assert counted(s, since, FM_ID), "heard by a digipeater on the FM channel: it is on it"

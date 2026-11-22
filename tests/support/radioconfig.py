@@ -1,6 +1,7 @@
 """Settings with radios, for the tests that hold a Config: a station's radios are the rows of
 `radio` and `radio_setting` (neoaprs/radiospec.py), and `Config.radios` holds them as stored.
 """
+
 from dataclasses import replace
 from typing import Any
 
@@ -24,7 +25,15 @@ def radio(id: RadioId, type: str = "", enabled: bool | None = None, **settings: 
     """A radio of the id (its kind the type's, else KINDS'), at the place of its id, with these own
     settings."""
     kind = BY_KEY[type].kind if type else KINDS.get(id, "fm")
-    return RadioSpec(id, kind, type or DEFAULT_TYPE[kind], "", ON.get(id, True) if enabled is None else enabled, id, settings={key: stored_text(value) for key, value in settings.items()})
+    return RadioSpec(
+        id,
+        kind,
+        type or DEFAULT_TYPE[kind],
+        "",
+        ON.get(id, True) if enabled is None else enabled,
+        id,
+        settings={key: stored_text(value) for key, value in settings.items()},
+    )
 
 
 def with_radio(config: Config, id: RadioId, type: str = "", enabled: bool | None = None, **settings: Any) -> Config:
@@ -34,7 +43,12 @@ def with_radio(config: Config, id: RadioId, type: str = "", enabled: bool | None
     if spec is None:
         made = radio(id, type, enabled, **settings)
     else:
-        made = replace(spec, type=type or spec.type, enabled=spec.enabled if enabled is None else enabled, settings={**spec.settings, **{key: stored_text(value) for key, value in settings.items()}})
+        made = replace(
+            spec,
+            type=type or spec.type,
+            enabled=spec.enabled if enabled is None else enabled,
+            settings={**spec.settings, **{key: stored_text(value) for key, value in settings.items()}},
+        )
     return replace(config, radios=tuple(sorted((*(s for s in config.radios if s.id != id), made), key=lambda s: s.id)))
 
 
@@ -67,7 +81,6 @@ def hf_line(config: Config, port: str = "", modem_port: int = BROADCAST_PORT) ->
 
 
 def hf_said(config: Config, port: str) -> str:
-    """Radio 2's words for the log (mercurydriver.modem_words), with the Mercury given for the run.
-    """
+    """Radio 2's words for the log (mercurydriver.modem_words), with the Mercury given for the run."""
     spec, _ = _spec(config, HF_ID)
     return modem_words(spec, RunOverrides(hf_port=port))

@@ -2,6 +2,7 @@
 fake radio never written to while off, whatever is due. A new message and a retry are refused with
 `transmit.off`.
 """
+
 import asyncio
 from dataclasses import replace
 from pathlib import Path
@@ -31,13 +32,16 @@ async def quiet(e: Env, seconds: float = 0.4) -> None:
 
 # ---- the rule and the setting --------------------------------------------------------------------
 
+
 def test_transmitting_is_on_by_default_and_off_is_the_first_reason() -> None:
     assert Config().station_transmit is True and Config.from_data({"station/call": "OH2GBA"}).station_transmit is True
     on = Config.from_data({"station/call": "OH2GBA"})
     assert can_transmit(on) is None
     off = replace(on, station_transmit=False)
     assert can_transmit(off) == RECEIVE_ONLY == OFF
-    assert can_transmit(replace(Config(), station_transmit=False)) == OFF, "without a call too, the switch is what is said"
+    assert can_transmit(replace(Config(), station_transmit=False)) == OFF, (
+        "without a call too, the switch is what is said"
+    )
 
 
 def test_the_setting_takes_true_and_false_and_refuses_the_rest() -> None:
@@ -50,43 +54,64 @@ def test_the_setting_takes_true_and_false_and_refuses_the_rest() -> None:
 
 # ---- the whole daemon ----------------------------------------------------------------------------
 
+
 async def test_nothing_reaches_the_radio_while_it_is_off_and_what_waited_goes_when_it_is_on(tmp_path: Path) -> None:
-    e = await quick_start(tmp_path, beacon=True, messaging=True, rigstatus=True, own=True, unpaced=True, settings={"digi/enabled": "true", "beacon/interval_min": "30", "station/status": "QRV"})
+    e = await quick_start(
+        tmp_path,
+        beacon=True,
+        messaging=True,
+        rigstatus=True,
+        own=True,
+        unpaced=True,
+        settings={"digi/enabled": "true", "beacon/interval_min": "30", "station/status": "QRV"},
+    )
     await e.until_connected()
     e.ctl.ownobjects.set("LEADER", "object", lat=60.17, lon=24.94, symbol_table="/", symbol_code=">")
     sent = await e.ctl.messaging.send("OH2RDG", "Hello")
     assert sent.attempts == 1
     await idle_for(0.3)
     await e.heard(1, 0.1)
-    while await e.heard(1, 0.3):                                            # (what went out while it was on)
+    while await e.heard(1, 0.3):  # (what went out while it was on)
         pass
     out_before = len([p for p in await e.packets() if p.direction == "out"])
     # The status has changed, so it is due
     assert await e.ctl.save_config(replace(e.ctl.config, station_transmit=False, station_status="QRV again"))
-    e.now.advance(3 * 3600)                                                 # type: ignore[attr-defined]
+    e.now.advance(3 * 3600)  # type: ignore[attr-defined]
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi!", "12"), path="OH2RCH-2*"))
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSP"), path="OH2RCH-2*"))
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSD"), path="OH2RCH-2*"))
-    e.feed(on_air("OH2XYZ", BUSY, path="WIDE1-1,WIDE2-1"))                  # (the digipeater is on)
+    e.feed(on_air("OH2XYZ", BUSY, path="WIDE1-1,WIDE2-1"))  # (the digipeater is on)
     await until(lambda: e.tnc.stats.packets == 4)
     await quiet(e, 0.8)
     assert e.beacon.last_sent is None and e.beacon.problem == OFF and e.tnc.stats.digipeated == 0
     record = e.ctl.messaging.get(sent.id)
-    assert record is not None and record.state == "sending" and record.attempts == 1, "the message waits, with its attempts"
+    assert record is not None and record.state == "sending" and record.attempts == 1, (
+        "the message waits, with its attempts"
+    )
     assert not e.beacon.send_now("request") and await e.ctl.rigstatus.send_now() == OFF
     assert len([p for p in await e.packets() if p.direction == "out"]) == out_before, "no frame was even made"
     await switch(e, True)
     await until(lambda: (r := e.ctl.messaging.get(sent.id)) is not None and r.attempts == 2)
     frames: list[str] = []
-    wanted = (lambda f: f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:="), lambda f: ":Hello{" in f, lambda f: ":>" in f and "QRV again" in f)
+    wanted = (
+        lambda f: f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:="),
+        lambda f: ":Hello{" in f,
+        lambda f: ":>" in f and "QRV again" in f,
+    )
     # The object is due too: the frames come in no fixed order, and a busy machine is slow
     deadline = asyncio.get_running_loop().time() + 10.0
     while not all(any(w(f) for f in frames) for w in wanted) and asyncio.get_running_loop().time() < deadline:
         frames += [f.tnc2() for f in await said(e, 1, 0.5)]
     # And whatever follows at once: a second beacon would be here
     frames += [f.tnc2() for f in await said(e, 99, 0.5)]
-    assert any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames) and any(":Hello{" in f for f in frames) and any(":>" in f and "QRV again" in f for f in frames)
-    assert len([f for f in frames if f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=")]) == 1, "one beacon, not one for each interval that passed"
+    assert (
+        any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames)
+        and any(":Hello{" in f for f in frames)
+        and any(":>" in f and "QRV again" in f for f in frames)
+    )
+    assert len([f for f in frames if f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=")]) == 1, (
+        "one beacon, not one for each interval that passed"
+    )
     assert not any("ack12" in f for f in frames), "the ack that was not sent is not made up afterwards"
     await e.stop()
 
@@ -119,7 +144,7 @@ async def test_a_message_that_is_being_sent_waits_without_using_up_an_attempt_or
     await switch(e, False)
     # Far more than its four attempts and their waits
     for _ in range(6):
-        e.now.advance(1200)                                                 # type: ignore[attr-defined]
+        e.now.advance(1200)  # type: ignore[attr-defined]
         await idle_for(0.1)
     record = e.ctl.messaging.get(sent.id)
     assert record is not None and (record.state, record.attempts) == ("sending", 1)
@@ -128,7 +153,9 @@ async def test_a_message_that_is_being_sent_waits_without_using_up_an_attempt_or
     await until(lambda: (r := e.ctl.messaging.get(sent.id)) is not None and r.attempts >= 2)
     assert (await said(e))[0].tnc2().endswith(":Hello{01}")
     record = e.ctl.messaging.get(sent.id)
-    assert record is not None and record.state == "sending", "it goes on with the schedule it had: not failed, and its attempts are the four that are left to make"
+    assert record is not None and record.state == "sending", (
+        "it goes on with the schedule it had: not failed, and its attempts are the four that are left to make"
+    )
     await e.stop()
 
 
@@ -136,15 +163,15 @@ async def test_a_message_that_was_waiting_for_its_last_ack_does_not_fail_while_i
     e = await quick_start(tmp_path, messaging=True, unpaced=True)
     sent = await e.ctl.messaging.send("OH2RDG", "Hello")
     for step in range(3):
-        e.now.advance(1000)                                                 # type: ignore[attr-defined]
+        e.now.advance(1000)  # type: ignore[attr-defined]
         await until(lambda step=step: (r := e.ctl.messaging.get(sent.id)) is not None and r.attempts > step + 1)
-    assert e.ctl.messaging.get(sent.id).attempts == 4                      # type: ignore[union-attr]
+    assert e.ctl.messaging.get(sent.id).attempts == 4  # type: ignore[union-attr]
     await switch(e, False)
-    e.now.advance(7200)                                                     # type: ignore[attr-defined]
+    e.now.advance(7200)  # type: ignore[attr-defined]
     await idle_for(0.2)
-    assert e.ctl.messaging.get(sent.id).state == "sending"                  # type: ignore[union-attr]
-    e.feed(on_air("OH2RDG", b":OH2GBA   :ack" + sent.msg_id.encode(), path="OH2RCH-2*"))      # type: ignore[union-attr]
-    await until(lambda: e.ctl.messaging.get(sent.id).state == "acked")      # type: ignore[union-attr]
+    assert e.ctl.messaging.get(sent.id).state == "sending"  # type: ignore[union-attr]
+    e.feed(on_air("OH2RDG", b":OH2GBA   :ack" + sent.msg_id.encode(), path="OH2RCH-2*"))  # type: ignore[union-attr]
+    await until(lambda: e.ctl.messaging.get(sent.id).state == "acked")  # type: ignore[union-attr]
     await e.stop()
 
 
@@ -165,14 +192,19 @@ async def test_the_switch_is_kept_in_the_database_and_holds_after_a_restart(tmp_
     await third.stop()
 
 
-async def test_over_the_socket_the_switch_is_a_setting_and_beacon_now_and_a_message_are_refused_with_the_code(tmp_path: Path) -> None:
+async def test_over_the_socket_the_switch_is_a_setting_and_beacon_now_and_a_message_are_refused_with_the_code(
+    tmp_path: Path,
+) -> None:
     e = Env(tmp_path, web=True)
     await e.start()
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) >= 7)
     await page.send({"cmd": "set_config", "values": {"station/transmit": "false"}})
     await page.until(lambda: page.topics["config"]["values"]["station/transmit"] == "false")
-    for command, name in (({"cmd": "beacon_now"}, "beacon_now"), ({"cmd": "send_message", "to": "OH2RDG", "text": "Hello"}, "send_message")):
+    for command, name in (
+        ({"cmd": "beacon_now"}, "beacon_now"),
+        ({"cmd": "send_message", "to": "OH2RDG", "text": "Hello"}, "send_message"),
+    ):
         await page.send(command)
         error = await page.expect("error")
         assert (error["text"], error["code"]) == (f"{name}: {NOTHING_SENT}", "transmit.off")
@@ -183,7 +215,9 @@ async def test_over_the_socket_the_switch_is_a_setting_and_beacon_now_and_a_mess
     await e.stop()
 
 
-async def test_the_tickbox_of_the_page_takes_effect_at_once_with_no_restart_and_what_is_asked_goes_again_when_it_is_back(tmp_path: Path) -> None:
+async def test_the_tickbox_of_the_page_takes_effect_at_once_with_no_restart_and_what_is_asked_goes_again_when_it_is_back(
+    tmp_path: Path,
+) -> None:
     e = await quick_start(tmp_path, beacon=True, messaging=True, unpaced=True, web=True)
     await e.until_connected()
     page = await e.ws()
@@ -200,18 +234,30 @@ async def test_the_tickbox_of_the_page_takes_effect_at_once_with_no_restart_and_
     await page.send({"cmd": "beacon_now"})
     frames: list[str] = []
     deadline = asyncio.get_running_loop().time() + 10.0
-    while not (any(":Hello again{" in f for f in frames) and any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames)) and asyncio.get_running_loop().time() < deadline:
+    while (
+        not (
+            any(":Hello again{" in f for f in frames)
+            and any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames)
+        )
+        and asyncio.get_running_loop().time() < deadline
+    ):
         frames += [f.tnc2() for f in await said(e, 1, 0.5)]
-    assert any(":Hello again{" in f for f in frames) and any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames), frames
+    assert any(":Hello again{" in f for f in frames) and any(
+        f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames
+    ), frames
     assert not any(":Hello{" in f for f in frames), "the refused message was not kept and sent later"
     await e.stop()
 
 
-async def test_a_database_left_in_rx_only_by_an_earlier_version_opens_rx_only_and_the_tickbox_of_the_page_sets_it_free_at_once(tmp_path: Path) -> None:
+async def test_a_database_left_in_rx_only_by_an_earlier_version_opens_rx_only_and_the_tickbox_of_the_page_sets_it_free_at_once(
+    tmp_path: Path,
+) -> None:
     """0.9 took the switch off the page while `station/transmit` went on acting: a station that had
     been switched off stayed RX only with no way back. The page has the switch again, and nothing is
     changed behind it."""
-    e = await quick_start(tmp_path, beacon=True, messaging=True, unpaced=True, web=True, settings={"station/transmit": "false"})
+    e = await quick_start(
+        tmp_path, beacon=True, messaging=True, unpaced=True, web=True, settings={"station/transmit": "false"}
+    )
     await e.until_connected()
     assert e.ctl.config.station_transmit is False
     page = await e.ws()
@@ -224,7 +270,10 @@ async def test_a_database_left_in_rx_only_by_an_earlier_version_opens_rx_only_an
     await page.send({"cmd": "beacon_now"})
     frames: list[str] = []
     deadline = asyncio.get_running_loop().time() + 10.0
-    while not any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames) and asyncio.get_running_loop().time() < deadline:
+    while (
+        not any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames)
+        and asyncio.get_running_loop().time() < deadline
+    ):
         frames += [f.tnc2() for f in await said(e, 1, 0.5)]
     assert any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames), frames
     await e.stop()

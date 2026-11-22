@@ -2,6 +2,7 @@
 page passes; a changed, missing or moved file is a finding, and so is every private place that does
 not answer 403.
 """
+
 import http.server
 import importlib.machinery
 import importlib.util
@@ -22,12 +23,28 @@ pytestmark = posix_only
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "site-check"
-SITE = {"index.html": b"<html>home</html>", "faq.html": b"<html>faq</html>", "shots/a.png": b"\x89PNG made up", "frequencies.json": b"[]"}
-NEO = {".htaccess": b"Options -Indexes\n", "private/.htaccess": b"Require all denied\n", "support/send.php": b"<?php // endpoint\n", "api/v1/view.php": b"<?php // endpoint\n", "support/.user.ini": b"x\n"}
+SITE = {
+    "index.html": b"<html>home</html>",
+    "faq.html": b"<html>faq</html>",
+    "shots/a.png": b"\x89PNG made up",
+    "frequencies.json": b"[]",
+}
+NEO = {
+    ".htaccess": b"Options -Indexes\n",
+    "private/.htaccess": b"Require all denied\n",
+    "support/send.php": b"<?php // endpoint\n",
+    "api/v1/view.php": b"<?php // endpoint\n",
+    "support/.user.ini": b"x\n",
+}
 
 
 def git(repo: Path, *args: str) -> None:
-    subprocess.run(["git", "-C", str(repo), "-c", "user.name=Made Up", "-c", "user.email=made-up@example.invalid", *args], check=True, capture_output=True, env={"PATH": os.environ["PATH"], "HOME": str(repo.parent)})
+    subprocess.run(
+        ["git", "-C", str(repo), "-c", "user.name=Made Up", "-c", "user.email=made-up@example.invalid", *args],
+        check=True,
+        capture_output=True,
+        env={"PATH": os.environ["PATH"], "HOME": str(repo.parent)},
+    )
 
 
 def commit(repo: Path) -> None:
@@ -73,7 +90,12 @@ class Host:
                 return
             code = host.status.get(path)
             if code is None:
-                private = path.startswith(("/private", "/log/")) or path in ("/.htaccess", "/.user.ini", "/support/.user.ini", "/skeds.json.part")
+                private = path.startswith(("/private", "/log/")) or path in (
+                    "/.htaccess",
+                    "/.user.ini",
+                    "/support/.user.ini",
+                    "/skeds.json.part",
+                )
                 code = 200 if path in host.files else 403 if private else 404
             body = host.files.get(path, b"") if code == 200 else b""
             handler.send_response(code)
@@ -115,17 +137,30 @@ def host(repo: Path) -> Iterator[tuple[Host, str]]:
 
 
 def check(url: str, repo: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([sys.executable, "-I", str(SCRIPT), url, "--root", str(repo)], capture_output=True, text=True, timeout=120, env={"PATH": os.environ["PATH"], "HOME": str(repo.parent)})
+    return subprocess.run(
+        [sys.executable, "-I", str(SCRIPT), url, "--root", str(repo)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env={"PATH": os.environ["PATH"], "HOME": str(repo.parent)},
+    )
 
 
 def test_a_page_as_committed_with_every_private_place_forbidden_passes(repo: Path, host: tuple[Host, str]) -> None:
     served, url = host
     done = check(url, repo)
     places = module().private_places(repo, datetime.now(UTC))
-    assert done.returncode == 0 and done.stdout == f"site-check: 4 files compared, {len(places)} private places asked, 0 findings\n", done.stdout
+    assert (
+        done.returncode == 0
+        and done.stdout == f"site-check: 4 files compared, {len(places)} private places asked, 0 findings\n"
+    ), done.stdout
     assert all(place in served.asked for place in places)
     assert set(served.methods) == {"GET"}, "nothing but GET is sent"
-    assert "/private/support/salt" in served.asked and "/support/.user.ini" in served.asked and "/private/.htaccess" in served.asked
+    assert (
+        "/private/support/salt" in served.asked
+        and "/support/.user.ini" in served.asked
+        and "/private/.htaccess" in served.asked
+    )
 
 
 def test_a_changed_a_missing_and_a_moved_file_are_findings(repo: Path, host: tuple[Host, str]) -> None:
@@ -135,7 +170,11 @@ def test_a_changed_a_missing_and_a_moved_file_are_findings(repo: Path, host: tup
     served.moved.add("/shots/a.png")
     done = check(url, repo)
     assert done.returncode == 1
-    assert done.stdout.splitlines()[:3] == ["changed: /faq.html", "missing: /frequencies.json (status 404)", "not served: /shots/a.png (status 301)"]
+    assert done.stdout.splitlines()[:3] == [
+        "changed: /faq.html",
+        "missing: /frequencies.json (status 404)",
+        "not served: /shots/a.png (status 301)",
+    ]
 
 
 def test_the_index_is_compared_at_the_address_of_the_root_too(repo: Path, host: tuple[Host, str]) -> None:
@@ -160,7 +199,13 @@ def test_a_private_place_that_is_not_403_is_a_finding_whatever_it_answers(repo: 
 
 def test_the_places_of_the_sked_board_are_asked_too(repo: Path, host: tuple[Host, str]) -> None:
     served, url = host
-    for place in ("/private/skeds/rate.json", "/private/skeds/salt", "/private/skeds/lock", "/private/logs/skeds.log", "/skeds.json.part"):
+    for place in (
+        "/private/skeds/rate.json",
+        "/private/skeds/salt",
+        "/private/skeds/lock",
+        "/private/logs/skeds.log",
+        "/skeds.json.part",
+    ):
         assert place in module().private_places(repo, datetime.now(UTC)), place
     served.files["/skeds.json.part"] = b"{}"
     assert "not forbidden: /skeds.json.part (status 200, it must be 403)" in check(url, repo).stdout
@@ -172,10 +217,14 @@ def test_the_logs_of_the_version_page_of_this_month_and_the_last_are_asked(repo:
     served.status[f"/log/starts-{now:%Y-%m}.log"] = 200
     assert f"not forbidden: /log/starts-{now:%Y-%m}.log (status 200, it must be 403)" in check(url, repo).stdout
     loaded = module()
-    assert loaded.private_places(repo, datetime(2026, 1, 15, tzinfo=UTC)).count("/log/starts-2025-12.log") == 1, "the last month of the year before"
+    assert loaded.private_places(repo, datetime(2026, 1, 15, tzinfo=UTC)).count("/log/starts-2025-12.log") == 1, (
+        "the last month of the year before"
+    )
 
 
-def test_a_tracked_helper_and_a_tracked_hidden_file_must_be_forbidden_and_an_endpoint_is_not_asked(repo: Path, host: tuple[Host, str]) -> None:
+def test_a_tracked_helper_and_a_tracked_hidden_file_must_be_forbidden_and_an_endpoint_is_not_asked(
+    repo: Path, host: tuple[Host, str]
+) -> None:
     served, url = host
     helper = repo / "server" / "neo" / "lib" / "skeds-store.php"
     helper.parent.mkdir()
@@ -187,10 +236,16 @@ def test_a_tracked_helper_and_a_tracked_hidden_file_must_be_forbidden_and_an_end
     served.files["/lib/skeds-store.php"] = b"<?php // a helper\n"
     done = check(url, repo)
     assert done.stdout.splitlines()[0] == "not forbidden: /lib/skeds-store.php (status 200, it must be 403)"
-    assert "/skeds/.htaccess" in served.asked and "/support/send.php" not in served.asked and "/api/v1/view.php" not in served.asked
+    assert (
+        "/skeds/.htaccess" in served.asked
+        and "/support/send.php" not in served.asked
+        and "/api/v1/view.php" not in served.asked
+    )
 
 
-def test_a_file_that_is_on_the_server_and_not_committed_is_not_asked_for_and_an_untracked_local_one_is_not_expected(repo: Path, host: tuple[Host, str]) -> None:
+def test_a_file_that_is_on_the_server_and_not_committed_is_not_asked_for_and_an_untracked_local_one_is_not_expected(
+    repo: Path, host: tuple[Host, str]
+) -> None:
     served, url = host
     (repo / "site" / "draft.html").write_text("not committed", encoding="utf-8")
     served.files["/planted.php"] = b"<?php system($_GET['c']);"
@@ -207,13 +262,17 @@ def test_a_file_that_is_deleted_from_the_disk_is_still_what_is_committed(repo: P
     assert check(url, repo).stdout.splitlines()[0] == "missing: /faq.html (status 404)"
 
 
-def test_the_live_file_is_compared_with_the_committed_one_and_not_with_the_one_edited_on_the_disk(repo: Path, host: tuple[Host, str]) -> None:
+def test_the_live_file_is_compared_with_the_committed_one_and_not_with_the_one_edited_on_the_disk(
+    repo: Path, host: tuple[Host, str]
+) -> None:
     served, url = host
     (repo / "site" / "frequencies.json").write_bytes(b'["a value pasted for a test"]')
     assert check(url, repo).returncode == 0, "the live page is what is committed"
     served.files["/frequencies.json"] = b'["a value pasted for a test"]'
     done = check(url, repo)
-    assert done.returncode == 1 and done.stdout.splitlines()[0] == "changed: /frequencies.json", "the deployed disk file is not the committed one"
+    assert done.returncode == 1 and done.stdout.splitlines()[0] == "changed: /frequencies.json", (
+        "the deployed disk file is not the committed one"
+    )
 
 
 def test_a_link_in_the_tree_is_no_file_to_compare(repo: Path, host: tuple[Host, str]) -> None:
@@ -233,15 +292,32 @@ def test_a_checkout_without_a_commit_is_exit_code_2(tmp_path: Path, host: tuple[
     assert done.returncode == 2 and done.stdout == "" and "could not be read" in done.stderr
 
 
-@pytest.mark.parametrize("address", ["http://example.invalid", "https://neo.example.invalid/path", "ftp://127.0.0.1", "https://user@neo.example.invalid", "127.0.0.1:80", "https://neo.example.invalid?x=1"])
-def test_an_address_that_is_not_the_page_s_own_https_one_is_refused_before_anything_is_asked(repo: Path, address: str) -> None:
+@pytest.mark.parametrize(
+    "address",
+    [
+        "http://example.invalid",
+        "https://neo.example.invalid/path",
+        "ftp://127.0.0.1",
+        "https://user@neo.example.invalid",
+        "127.0.0.1:80",
+        "https://neo.example.invalid?x=1",
+    ],
+)
+def test_an_address_that_is_not_the_page_s_own_https_one_is_refused_before_anything_is_asked(
+    repo: Path, address: str
+) -> None:
     done = check(address, repo)
     assert done.returncode == 2 and done.stdout == "" and done.stderr.startswith("site-check: ")
 
 
 def test_a_host_that_does_not_answer_is_one_line_and_exit_code_2(repo: Path) -> None:
-    done = check("http://127.0.0.1:9", repo)       # (the discard port: nothing listens)
-    assert done.returncode == 2 and done.stdout == "" and len(done.stderr.splitlines()) == 1 and "no answer from http://127.0.0.1:9" in done.stderr
+    done = check("http://127.0.0.1:9", repo)  # (the discard port: nothing listens)
+    assert (
+        done.returncode == 2
+        and done.stdout == ""
+        and len(done.stderr.splitlines()) == 1
+        and "no answer from http://127.0.0.1:9" in done.stderr
+    )
 
 
 def module() -> ModuleType:
@@ -259,5 +335,12 @@ def test_every_endpoint_it_leaves_alone_is_a_php_file_the_repository_tracks() ->
     shows here or on the live page."""
     loaded = module()
     assert set(loaded.PUBLIC_PHP) <= {name for name in loaded.tracked(ROOT, "server/neo") if name.endswith(".php")}
-    endpoints = {name for name in loaded.tracked(ROOT, "server/neo") if name.endswith(".php") and "$_SERVER['REQUEST_METHOD']" in (ROOT / "server" / "neo" / name).read_text(encoding="utf-8")}
-    assert endpoints == set(loaded.PUBLIC_PHP), "a PHP file that reads the request's method is an endpoint the web calls: it answers by itself (405 to a GET), and is no private place"
+    endpoints = {
+        name
+        for name in loaded.tracked(ROOT, "server/neo")
+        if name.endswith(".php")
+        and "$_SERVER['REQUEST_METHOD']" in (ROOT / "server" / "neo" / name).read_text(encoding="utf-8")
+    }
+    assert endpoints == set(loaded.PUBLIC_PHP), (
+        "a PHP file that reads the request's method is an endpoint the web calls: it answers by itself (405 to a GET), and is no private place"
+    )

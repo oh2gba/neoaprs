@@ -1,6 +1,7 @@
 """Tests for the wall round the traffic layers on a whole daemon: aircraft reach the page and appear
 nowhere in the station book, packets, `stations` topic or database.
 """
+
 import sqlite3
 from pathlib import Path
 
@@ -24,15 +25,25 @@ def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def readsb_file() -> tuple[str, bytes]:
-    return "/tar1090/data/aircraft.json", sky(plane(IDS[0], flight="FIN7AB"), plane(IDS[1], r="OH-LZA", lat=60.18, lon=24.95), plane(IDS[2], lat=59.0, lon=20.0))
+    return "/tar1090/data/aircraft.json", sky(
+        plane(IDS[0], flight="FIN7AB"),
+        plane(IDS[1], r="OH-LZA", lat=60.18, lon=24.95),
+        plane(IDS[2], lat=59.0, lon=20.0),
+    )
 
 
 def radarcape_list() -> tuple[str, bytes]:
-    return PLACE, cape(cape_row(IDS[0], fli="FIN7AB"), cape_row(IDS[1], fli=None, reg="OH-LZA", lat=60.18, lon=24.95), cape_row(IDS[2], fli=None, lat=59.0, lon=20.0))
+    return PLACE, cape(
+        cape_row(IDS[0], fli="FIN7AB"),
+        cape_row(IDS[1], fli=None, reg="OH-LZA", lat=60.18, lon=24.95),
+        cape_row(IDS[2], fli=None, lat=59.0, lon=20.0),
+    )
 
 
 @pytest.mark.parametrize("source", ["receiver", "radarcape"])
-async def test_the_aircraft_of_a_receiver_reach_the_page_and_nothing_else(source: str, tmp_path: Path, under_the_switch: None) -> None:
+async def test_the_aircraft_of_a_receiver_reach_the_page_and_nothing_else(
+    source: str, tmp_path: Path, under_the_switch: None
+) -> None:
     receiver = await layers_server()
     path, body = readsb_file() if source == "receiver" else radarcape_list()
     receiver.route(path, body=body)
@@ -49,8 +60,11 @@ async def test_the_aircraft_of_a_receiver_reach_the_page_and_nothing_else(source
 
     def leaks(text: str) -> bool:
         return any(name in text.lower() for name in names)
+
     assert not any(leaks(station.call) for station in e.ctl.stationbook.stations()), "the station book"
-    assert not leaks(repr(tab.topics["stations"])) and not leaks(repr(tab.topics["packets"])), "the topics stations and packets"
+    assert not leaks(repr(tab.topics["stations"])) and not leaks(repr(tab.topics["packets"])), (
+        "the topics stations and packets"
+    )
     assert e.server is not None and not leaks(repr(e.server.api.topics.window.whole())), "the page's packets"
     assert await e.ctl.packetlog.count() == 0
     await e.settled()
@@ -60,7 +74,7 @@ async def test_the_aircraft_of_a_receiver_reach_the_page_and_nothing_else(source
         tables = [row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")]
         assert tables
         for table in tables:
-            for row in db.execute(f'SELECT * FROM "{table}"'):          # noqa: S608  (the names of the database's own tables)
+            for row in db.execute(f'SELECT * FROM "{table}"'):
                 assert not leaks(repr(row)), f"the table {table}: {row!r}"
     finally:
         db.close()

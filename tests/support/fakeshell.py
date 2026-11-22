@@ -2,6 +2,7 @@
 the toolkit as the app logic sees it, and `run` is a shell that `neoaprs.desktop.cmd.run` can be
 given by name.
 """
+
 import threading
 from collections.abc import Callable
 
@@ -36,7 +37,7 @@ class FakeFrame:
         self.loaded.append(url)
 
 
-FRAMES: list[FakeFrame] = []                        # the frame of every run, newest last
+FRAMES: list[FakeFrame] = []  # the frame of every run, newest last
 # What a test wants done once the app is ready (runs in the shell's thread)
 STEPS: list[Callable[[FakeFrame], None]] = []
 # What the shell did, in order (a test that wants the time of each replaces `event`)

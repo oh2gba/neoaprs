@@ -3,6 +3,7 @@
 Every `tick_sec` it sends the thing due longest when the sender is ready. A subclass defines
 `_keys`, `_due` and `_transmit`. A thing on several radios goes out in rounds (`_round`).
 """
+
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
@@ -51,7 +52,9 @@ class Repeater[K](ABC):
         self._taken.pop(key, None)
         self._round_at.pop(key, None)
 
-    def _round(self, key: K, radios: list[AirRadio], info: bytes, path: tuple[str, ...] | None, now: datetime) -> tuple[bool, set[RadioId]]:
+    def _round(
+        self, key: K, radios: list[AirRadio], info: bytes, path: tuple[str, ...] | None, now: datetime
+    ) -> tuple[bool, set[RadioId]]:
         """Run one tick of the round; return whether it is done and the ids that took it.
 
         A connected radio that takes no frame holds the round up for ROUND_HOLD_SEC at most."""
@@ -64,7 +67,9 @@ class Repeater[K](ABC):
         if not taken:
             return False, went
         began = self._round_at.setdefault(key, now)
-        if any(radio.id not in taken and radio.state is Source.State.CONNECTED for radio in radios) and now - began < timedelta(seconds=ROUND_HOLD_SEC):
+        if any(
+            radio.id not in taken and radio.state is Source.State.CONNECTED for radio in radios
+        ) and now - began < timedelta(seconds=ROUND_HOLD_SEC):
             return False, went
         self._new_round(key)
         return True, went

@@ -1,5 +1,6 @@
 """The station book (neoaprs/stationbook.py): what a packet does to it, the track, objects and
 items, us, pruning, and the signals; with the packets of the live capture and made-up ones."""
+
 from dataclasses import replace
 from datetime import datetime, timedelta
 
@@ -27,11 +28,32 @@ T0 = utc(2026, 10, 21, 12, 0, 0)
 
 
 def position(lat: float = 60.17, lon: float = 24.94, **kw: object) -> Position:
-    return Position(lat=lat, lon=lon, symbol_table=str(kw.pop("symbol_table", "/")), symbol_code=str(kw.pop("symbol_code", ">")), **kw)  # type: ignore[arg-type]
+    return Position(
+        lat=lat,
+        lon=lon,
+        symbol_table=str(kw.pop("symbol_table", "/")),
+        symbol_code=str(kw.pop("symbol_code", ">")),
+        **kw,
+    )  # type: ignore[arg-type]
 
 
-def packet(decoded: object, source: str = "OH2AAA", at: datetime = T0, direction: str = "in", path: tuple[str, ...] = ("OH2RCH-2*",)) -> Packet:
-    return Packet(heard_at=at, direction=direction, raw=b"", source=source, destination="APRS", path=path, info=b"", decoded=decoded)  # type: ignore[arg-type]
+def packet(
+    decoded: object,
+    source: str = "OH2AAA",
+    at: datetime = T0,
+    direction: str = "in",
+    path: tuple[str, ...] = ("OH2RCH-2*",),
+) -> Packet:
+    return Packet(
+        heard_at=at,
+        direction=direction,
+        raw=b"",
+        source=source,
+        destination="APRS",
+        path=path,
+        info=b"",
+        decoded=decoded,
+    )  # type: ignore[arg-type]
 
 
 def capture() -> list[Packet]:
@@ -39,7 +61,18 @@ def capture() -> list[Packet]:
     for frame in KissDecoder().feed(fixture_bytes("kiss/thd7-2026-10-21.bin")):
         f = ax25.decode(frame.payload)
         source, destination = str(f.source), str(f.destination)
-        out.append(Packet(T0, "in", frame.payload, source, destination, tuple(str(a) for a in f.path), f.info, aprsparse.parse(f.info, source, destination, T0)))
+        out.append(
+            Packet(
+                T0,
+                "in",
+                frame.payload,
+                source,
+                destination,
+                tuple(str(a) for a in f.path),
+                f.info,
+                aprsparse.parse(f.info, source, destination, T0),
+            )
+        )
     return out
 
 
@@ -57,8 +90,19 @@ def test_the_live_capture_gives_four_stations_with_positions() -> None:
         assert book.take(p) is not None
     assert sorted(s.call for s in book.stations()) == ["OH2PU-9", "OH2RDG", "OH2RDK-7", "OH2RDS"]
     rdk = book.get("OH2RDK-7")
-    assert rdk is not None and rdk.has_position and (rdk.lat, rdk.lon) == (pytest.approx(60.165), pytest.approx(24.946667)) and (rdk.symbol_table, rdk.symbol_code) == ("T", "&")
-    assert rdk.last_comment == "432.500 MHz" and rdk.packets == 1 and rdk.last_path == ("OH2RCH-2*", "TRACE2-1") and rdk.kind == "station" and rdk.first_heard == T0
+    assert (
+        rdk is not None
+        and rdk.has_position
+        and (rdk.lat, rdk.lon) == (pytest.approx(60.165), pytest.approx(24.946667))
+        and (rdk.symbol_table, rdk.symbol_code) == ("T", "&")
+    )
+    assert (
+        rdk.last_comment == "432.500 MHz"
+        and rdk.packets == 1
+        and rdk.last_path == ("OH2RCH-2*", "TRACE2-1")
+        and rdk.kind == "station"
+        and rdk.first_heard == T0
+    )
     pu = book.get("OH2PU-9")
     assert pu is not None and pu.course_deg == 356 and pu.speed_kmh == 0.0 and len(pu.track) == 1
 
@@ -67,11 +111,20 @@ def test_a_position_updates_the_sender_and_counts() -> None:
     book, heard = StationBook(), None
     heard = Heard(book)
     book.take(packet(position(60.0, 24.0, comment="first", altitude_m=12.0, course_deg=90, speed_kmh=40.0)))
-    later = book.take(packet(position(60.5, 24.5, comment="second"), at=T0 + timedelta(minutes=10), path=("WIDE1-1*", "OH2RCH-2")))
+    later = book.take(
+        packet(position(60.5, 24.5, comment="second"), at=T0 + timedelta(minutes=10), path=("WIDE1-1*", "OH2RCH-2"))
+    )
     assert later is book.get("OH2AAA") and later is not None
     assert (later.lat, later.lon, later.last_comment, later.packets) == (60.5, 24.5, "second", 2)
-    assert (later.altitude_m, later.course_deg, later.speed_kmh) == (None, None, None), "a position without them says the station has none"
-    assert later.first_heard == T0 and later.last_heard == T0 + timedelta(minutes=10) and later.last_position_at == T0 + timedelta(minutes=10) and later.last_path == ("WIDE1-1*", "OH2RCH-2")
+    assert (later.altitude_m, later.course_deg, later.speed_kmh) == (None, None, None), (
+        "a position without them says the station has none"
+    )
+    assert (
+        later.first_heard == T0
+        and later.last_heard == T0 + timedelta(minutes=10)
+        and later.last_position_at == T0 + timedelta(minutes=10)
+        and later.last_path == ("WIDE1-1*", "OH2RCH-2")
+    )
     assert heard.changed == [("OH2AAA", 1), ("OH2AAA", 2)]
 
 
@@ -102,10 +155,10 @@ def test_packets_we_sent_are_not_taken() -> None:
 def test_the_track_takes_a_position_that_moved_or_one_after_five_minutes() -> None:
     book = StationBook()
     book.take(packet(position(60.0, 24.0), at=T0))
-    book.take(packet(position(60.00005, 24.0), at=T0 + timedelta(seconds=30)))              # 5.6 m: not moved
+    book.take(packet(position(60.00005, 24.0), at=T0 + timedelta(seconds=30)))  # 5.6 m: not moved
     s = book.get("OH2AAA")
     assert s is not None and len(s.track) == 1
-    book.take(packet(position(60.0002, 24.0), at=T0 + timedelta(seconds=60)))               # 22 m: moved
+    book.take(packet(position(60.0002, 24.0), at=T0 + timedelta(seconds=60)))  # 22 m: moved
     assert len(s.track) == 2
     # The same place, not yet five minutes
     book.take(packet(position(60.0002, 24.0), at=T0 + timedelta(seconds=60 + 299)))
@@ -121,14 +174,27 @@ def test_the_track_keeps_the_latest_fifty() -> None:
     for n in range(TRACK_MAX + 20):
         book.take(packet(position(60.0 + n * 0.001, 24.0), at=T0 + timedelta(minutes=n)))
     s = book.get("OH2AAA")
-    assert s is not None and len(s.track) == TRACK_MAX and s.track[0][1] == pytest.approx(60.0 + 20 * 0.001) and s.packets == TRACK_MAX + 20
+    assert (
+        s is not None
+        and len(s.track) == TRACK_MAX
+        and s.track[0][1] == pytest.approx(60.0 + 20 * 0.001)
+        and s.packets == TRACK_MAX + 20
+    )
 
 
 def test_an_object_is_a_station_of_its_own_and_the_sender_is_heard_too() -> None:
     book, heard = StationBook(), None
     heard = Heard(book)
-    about = book.take(packet(ObjectReport("FIRE", True, position(60.3, 25.0, comment="smoke", symbol_code="f")), source="OH2OBJ"))
-    assert about is not None and about.call == "FIRE" and about.kind == "object" and about.reported_by == "OH2OBJ" and (about.lat, about.lon) == (60.3, 25.0)
+    about = book.take(
+        packet(ObjectReport("FIRE", True, position(60.3, 25.0, comment="smoke", symbol_code="f")), source="OH2OBJ")
+    )
+    assert (
+        about is not None
+        and about.call == "FIRE"
+        and about.kind == "object"
+        and about.reported_by == "OH2OBJ"
+        and (about.lat, about.lon) == (60.3, 25.0)
+    )
     assert about.last_comment == "smoke" and about.packets == 1 and about.symbol_code == "f"
     sender = book.get("OH2OBJ")
     assert sender is not None and sender.kind == "station" and not sender.has_position and sender.packets == 1
@@ -138,8 +204,17 @@ def test_an_object_is_a_station_of_its_own_and_the_sender_is_heard_too() -> None
 def test_an_item_is_a_station_of_kind_item_and_a_new_report_moves_it() -> None:
     book = StationBook()
     book.take(packet(ItemReport("BUOY1", True, position(59.9, 24.0)), source="OH2OBJ"))
-    again = book.take(packet(ItemReport("BUOY1", True, position(59.95, 24.0)), source="OH2OTH", at=T0 + timedelta(minutes=1)))
-    assert again is not None and again.kind == "item" and again.reported_by == "OH2OTH" and again.lat == 59.95 and again.packets == 2 and len(again.track) == 2
+    again = book.take(
+        packet(ItemReport("BUOY1", True, position(59.95, 24.0)), source="OH2OTH", at=T0 + timedelta(minutes=1))
+    )
+    assert (
+        again is not None
+        and again.kind == "item"
+        and again.reported_by == "OH2OTH"
+        and again.lat == 59.95
+        and again.packets == 2
+        and len(again.track) == 2
+    )
 
 
 def test_a_killed_object_or_item_is_removed_and_told() -> None:
@@ -147,8 +222,13 @@ def test_a_killed_object_or_item_is_removed_and_told() -> None:
     heard = Heard(book)
     book.take(packet(ObjectReport("FIRE", True, position()), source="OH2OBJ"))
     book.take(packet(ItemReport("BUOY1", True, position()), source="OH2OBJ"))
-    assert book.take(packet(ObjectReport("FIRE", False, position()), source="OH2OBJ", at=T0 + timedelta(minutes=1))) is None
-    assert book.take(packet(ItemReport("BUOY1", False, position()), source="OH2OBJ", at=T0 + timedelta(minutes=1))) is None
+    assert (
+        book.take(packet(ObjectReport("FIRE", False, position()), source="OH2OBJ", at=T0 + timedelta(minutes=1)))
+        is None
+    )
+    assert (
+        book.take(packet(ItemReport("BUOY1", False, position()), source="OH2OBJ", at=T0 + timedelta(minutes=1))) is None
+    )
     assert book.take(packet(ObjectReport("NEVER", False, position()), source="OH2OBJ")) is None
     assert sorted(s.call for s in book.stations()) == ["OH2OBJ"] and heard.removed == ["FIRE", "BUOY1"]
 
@@ -157,7 +237,13 @@ def test_set_me_puts_our_station_in_the_book_and_gives_distance_and_bearing() ->
     book = StationBook(lambda: T0)
     heard = Heard(book)
     me = book.set_me("OH2GBA", 60.17, 24.94)
-    assert me.is_me and me is book.me and (me.lat, me.lon) == (60.17, 24.94) and book.get("OH2GBA") is me and heard.changed == [("OH2GBA", 0)]
+    assert (
+        me.is_me
+        and me is book.me
+        and (me.lat, me.lon) == (60.17, 24.94)
+        and book.get("OH2GBA") is me
+        and heard.changed == [("OH2GBA", 0)]
+    )
     book.set_me("OH2GBA", 60.17, 24.94)
     assert len(heard.changed) == 1, "nothing changed, nothing told"
     # One degree of longitude east, 55.4 km at this latitude
@@ -185,7 +271,9 @@ def test_a_new_call_makes_the_old_one_an_ordinary_station_and_a_packet_from_us_k
     assert not old.is_me and book.me is not old and book.me is not None and book.me.call == "OH2GBA"
     # Our beacon, digipeated and heard
     book.take(packet(position(60.1, 24.1), source="OH2GBA", path=("WIDE1-1*",)))
-    assert book.me is not None and book.me.is_me and book.me.packets == 0, "heard, but not counted as a packet of a station we hear"
+    assert book.me is not None and book.me.is_me and book.me.packets == 0, (
+        "heard, but not counted as a packet of a station we hear"
+    )
 
 
 def test_set_me_gives_our_row_the_symbol_and_the_comment_of_the_settings_and_tells_when_they_change() -> None:
@@ -199,18 +287,39 @@ def test_set_me_gives_our_row_the_symbol_and_the_comment_of_the_settings_and_tel
     assert len(heard.changed) == 2 and (me.symbol_table, me.symbol_code, me.last_comment) == ("\\", ">", "mobile")
 
 
-def test_set_me_for_a_moving_station_gives_our_row_the_course_speed_altitude_and_time_of_the_fix_and_tells_when_they_change() -> None:
+def test_set_me_for_a_moving_station_gives_our_row_the_course_speed_altitude_and_time_of_the_fix_and_tells_when_they_change() -> (
+    None
+):
     book = StationBook(lambda: T0)
     heard = Heard(book)
     fixed_at = T0 + timedelta(seconds=7)
-    me = book.set_me("OH2GBA", 60.43, 24.145, "/", ">", "NeoAPRS", course_deg=270, speed_kmh=54.0, altitude_m=31.4, at=fixed_at)
-    assert (me.course_deg, me.speed_kmh, me.altitude_m, me.last_position_at) == (270, 54.0, 31.4, fixed_at) and len(heard.changed) == 1
-    book.set_me("OH2GBA", 60.43, 24.145, "/", ">", "NeoAPRS", course_deg=270, speed_kmh=54.0, altitude_m=31.4, at=fixed_at + timedelta(seconds=1))
+    me = book.set_me(
+        "OH2GBA", 60.43, 24.145, "/", ">", "NeoAPRS", course_deg=270, speed_kmh=54.0, altitude_m=31.4, at=fixed_at
+    )
+    assert (me.course_deg, me.speed_kmh, me.altitude_m, me.last_position_at) == (270, 54.0, 31.4, fixed_at) and len(
+        heard.changed
+    ) == 1
+    book.set_me(
+        "OH2GBA",
+        60.43,
+        24.145,
+        "/",
+        ">",
+        "NeoAPRS",
+        course_deg=270,
+        speed_kmh=54.0,
+        altitude_m=31.4,
+        at=fixed_at + timedelta(seconds=1),
+    )
     assert len(heard.changed) == 1, "nothing but the time of the fix changed, nothing told"
-    book.set_me("OH2GBA", 60.43, 24.145, "/", ">", "NeoAPRS", course_deg=180, speed_kmh=54.0, altitude_m=31.4, at=fixed_at)
+    book.set_me(
+        "OH2GBA", 60.43, 24.145, "/", ">", "NeoAPRS", course_deg=180, speed_kmh=54.0, altitude_m=31.4, at=fixed_at
+    )
     assert len(heard.changed) == 2 and me.course_deg == 180
     book.set_me("OH2GBA", 60.17, 24.94, "/", "-", "NeoAPRS")
-    assert (me.course_deg, me.speed_kmh, me.altitude_m) == (None, None, None) and (me.lat, me.lon) == (60.17, 24.94), "at home again: no motion"
+    assert (me.course_deg, me.speed_kmh, me.altitude_m) == (None, None, None) and (me.lat, me.lon) == (60.17, 24.94), (
+        "at home again: no motion"
+    )
     assert book.me_position == (60.17, 24.94)
 
 
@@ -223,7 +332,16 @@ def test_a_packet_from_our_own_call_heard_on_the_air_moves_only_the_time_we_were
     # An echo of the TNC or a digipeater's copy, with another position
     taken = book.take(packet(position(61.0, 25.0), source="OH2GBA", path=("OH2RCH-2*",), at=later))
     assert taken is me and me.last_heard == later
-    assert (me.lat, me.lon, me.symbol_table, me.symbol_code, me.last_comment, me.packets, me.last_path, me.track) == (60.17, 24.94, "/", "-", "NeoAPRS", 0, (), [])
+    assert (me.lat, me.lon, me.symbol_table, me.symbol_code, me.last_comment, me.packets, me.last_path, me.track) == (
+        60.17,
+        24.94,
+        "/",
+        "-",
+        "NeoAPRS",
+        0,
+        (),
+        [],
+    )
     assert heard.changed == [("OH2GBA", 0)]
     assert book.take(packet(position(), source="OH2GBA", direction="out")) is None, "what we send is not heard"
 
@@ -233,7 +351,12 @@ def test_forget_removes_a_station_and_tells_but_not_ours() -> None:
     heard = Heard(book)
     book.set_me("OH2GBA", 60.1, 24.1)
     book.take(packet(position()))
-    assert book.forget("OH2AAA") and not book.forget("OH2AAA") and not book.forget("OH2GBA") and book.get("OH2GBA") is not None
+    assert (
+        book.forget("OH2AAA")
+        and not book.forget("OH2AAA")
+        and not book.forget("OH2GBA")
+        and book.get("OH2GBA") is not None
+    )
     assert heard.removed == ["OH2AAA"]
 
 
@@ -246,7 +369,12 @@ def test_forget_all_removes_every_station_but_ours_and_tells_once() -> None:
     book.take(packet(position(), "OH2BBB"))
     book.own_object(OwnObject("LEADER", "object", 60.0, 24.0, "/", ">", created_at=T0, updated_at=T0, comment="x"))
     assert book.forget_all() == 2
-    assert sorted(s.call for s in book.stations()) == ["LEADER", "OH2GBA"] and cleared == [True] and heard.removed == [] and book.get("OH2GBA") is not None
+    assert (
+        sorted(s.call for s in book.stations()) == ["LEADER", "OH2GBA"]
+        and cleared == [True]
+        and heard.removed == []
+        and book.get("OH2GBA") is not None
+    )
     assert book.forget_all() == 0
 
 
@@ -266,8 +394,13 @@ def test_seed_fills_the_book_without_a_word_and_gives_each_position_a_track() ->
     heard = Heard(book)
     book.set_me("OH2GBA", 60.1, 24.1)
     del heard.changed[:]
-    book.seed([Station("OH2OLD", first_heard=T0, last_heard=T0, lat=60.0, lon=24.0, last_position_at=T0, packets=7), Station("OH2GBA", first_heard=T0, last_heard=T0),
-               Station("OH2NOPOS", first_heard=T0, last_heard=T0)])
+    book.seed(
+        [
+            Station("OH2OLD", first_heard=T0, last_heard=T0, lat=60.0, lon=24.0, last_position_at=T0, packets=7),
+            Station("OH2GBA", first_heard=T0, last_heard=T0),
+            Station("OH2NOPOS", first_heard=T0, last_heard=T0),
+        ]
+    )
     assert heard.changed == [] and len(book) == 3
     old = book.get("OH2OLD")
     assert old is not None and old.track == [(T0, 60.0, 24.0)] and not old.is_me
@@ -279,6 +412,7 @@ def test_seed_fills_the_book_without_a_word_and_gives_each_position_a_track() ->
 
 # ---- how the packets reached us (neoaprs/route.py)
 
+
 def test_a_packet_heard_over_hf_is_hfs_route_and_no_route_for_a_message_by_fm() -> None:
     """Rule 3.3: the HF radio keeps how the station's packets reached it (every frame there direct),
     and the station's routes as a whole, which an FM message's path and the page read, are those of
@@ -288,17 +422,30 @@ def test_a_packet_heard_over_hf_is_hfs_route_and_no_route_for_a_message_by_fm() 
     book.take(packet(Status("x"), path=("OH2RCH-2*",)))
     book.take(replace(packet(Status("x"), path=()), radio_id=HF_ID))
     station = book.get("OH2AAA")
-    assert station is not None and station.deliveries.direct == 0 and station.heard_on(HF_ID).count == 1 and station.deliveries.heard_via() == [("OH2RCH-2", 1)]
-    assert (station.routes[HF_ID].direct, station.routes[HF_ID].by_route, station.routes[FM_ID].heard_via()) == (1, {}, [("OH2RCH-2", 1)]), "each radio's own routes"
-    assert station.last_direct_at is None and station.best_route == Route(("OH2RCH-2",), "OH2RCH-2", False), "heard direct only over HF: not direct for the station's routes"
-    assert station.heard_by == {FM_ID: RadioHeard(1, T0, ("OH2RCH-2*",)), HF_ID: RadioHeard(1, T0, ())}, "a packet made without a radio is radio 1's; each radio keeps the path it heard the station by"
+    assert (
+        station is not None
+        and station.deliveries.direct == 0
+        and station.heard_on(HF_ID).count == 1
+        and station.deliveries.heard_via() == [("OH2RCH-2", 1)]
+    )
+    assert (station.routes[HF_ID].direct, station.routes[HF_ID].by_route, station.routes[FM_ID].heard_via()) == (
+        1,
+        {},
+        [("OH2RCH-2", 1)],
+    ), "each radio's own routes"
+    assert station.last_direct_at is None and station.best_route == Route(("OH2RCH-2",), "OH2RCH-2", False), (
+        "heard direct only over HF: not direct for the station's routes"
+    )
+    assert station.heard_by == {FM_ID: RadioHeard(1, T0, ("OH2RCH-2*",)), HF_ID: RadioHeard(1, T0, ())}, (
+        "a packet made without a radio is radio 1's; each radio keeps the path it heard the station by"
+    )
 
 
 def test_a_packet_that_names_no_radio_is_counted_as_radio_1s() -> None:
     book = StationBook()
     for radio_id in (FM_ID, HF_ID, None):
         book.take(replace(packet(Status("x"), path=()), radio_id=radio_id))
-    assert book.get("OH2AAA").heard_by == {FM_ID: RadioHeard(2, T0, ()), HF_ID: RadioHeard(1, T0, ())}      # type: ignore[union-attr]
+    assert book.get("OH2AAA").heard_by == {FM_ID: RadioHeard(2, T0, ()), HF_ID: RadioHeard(1, T0, ())}  # type: ignore[union-attr]
 
 
 def test_every_packet_of_a_station_counts_the_route_it_came_by() -> None:
@@ -325,22 +472,40 @@ def test_an_object_counts_its_route_for_the_station_that_reported_it_not_for_the
     book = StationBook()
     book.take(packet(ObjectReport("FIRE", True, position()), source="OH2REP", path=("OH2RCH-2*",)))
     reporter, thing = book.get("OH2REP"), book.get("FIRE")
-    assert reporter is not None and thing is not None and reporter.deliveries.heard_via() == [("OH2RCH-2", 1)] and thing.best_route is None
+    assert (
+        reporter is not None
+        and thing is not None
+        and reporter.deliveries.heard_via() == [("OH2RCH-2", 1)]
+        and thing.best_route is None
+    )
 
 
 def test_the_routes_of_the_packets_the_database_kept_are_counted_for_the_stations_in_the_book() -> None:
     book = StationBook()
     book.seed([Station("OH2AAA", first_heard=T0, last_heard=T0), Station("OH2BBB", first_heard=T0, last_heard=T0)])
     later = T0 + timedelta(minutes=5)
-    book.seed_deliveries([("OH2AAA", ("OH2RCH-3*",), "", 2, T0, None), ("OH2GONE", ("OH2RCH-2*",), "", 5, T0, None), ("OH2AAA", ("OH2RCH-2*",), "", 4, T0, None), ("OH2BBB", (), "", 1, later, None),
-                           ("OH2BBB", ("OH2RCH-2*",), "OH7JHF-1", 3, later, None)])
+    book.seed_deliveries(
+        [
+            ("OH2AAA", ("OH2RCH-3*",), "", 2, T0, None),
+            ("OH2GONE", ("OH2RCH-2*",), "", 5, T0, None),
+            ("OH2AAA", ("OH2RCH-2*",), "", 4, T0, None),
+            ("OH2BBB", (), "", 1, later, None),
+            ("OH2BBB", ("OH2RCH-2*",), "OH7JHF-1", 3, later, None),
+        ]
+    )
     a, b = book.get("OH2AAA"), book.get("OH2BBB")
     assert a is not None and b is not None and book.get("OH2GONE") is None
     best = a.best_route
-    assert best is not None and best.hops == ("OH2RCH-2",) and a.deliveries.heard_via() == [("OH2RCH-2", 4), ("OH2RCH-3", 2)]
+    assert (
+        best is not None
+        and best.hops == ("OH2RCH-2",)
+        and a.deliveries.heard_via() == [("OH2RCH-2", 4), ("OH2RCH-3", 2)]
+    )
     assert a.last_path == ("OH2RCH-2*",)
     assert (b.deliveries.direct, b.deliveries.gated, b.last_via) == (1, 3, "OH7JHF-1")
-    assert (a.last_direct_at, b.last_direct_at) == (None, later), "only a direct group gives the time of the last direct packet"
+    assert (a.last_direct_at, b.last_direct_at) == (None, later), (
+        "only a direct group gives the time of the last direct packet"
+    )
 
 
 def test_a_packet_heard_direct_gives_the_time_of_the_last_direct_packet_and_no_other_packet_does() -> None:
@@ -351,9 +516,13 @@ def test_a_packet_heard_direct_gives_the_time_of_the_last_direct_packet_and_no_o
     book.take(packet(Status("near"), source="OH2AAA", path=(), at=T0 + timedelta(minutes=2)))
     assert station.last_direct_at == T0 + timedelta(minutes=2)
     book.take(packet(Status("far"), source="OH2AAA", path=("OH2RCH-2*",), at=T0 + timedelta(minutes=9)))
-    assert station.last_direct_at == T0 + timedelta(minutes=2) and station.deliveries.direct == 1, "a packet by a digipeater is not direct"
+    assert station.last_direct_at == T0 + timedelta(minutes=2) and station.deliveries.direct == 1, (
+        "a packet by a digipeater is not direct"
+    )
     book.take(packet(Status("not repeated yet"), source="OH2AAA", path=("WIDE1-1",), at=T0 + timedelta(minutes=10)))
-    assert station.last_direct_at == T0 + timedelta(minutes=10), "a path with no star is a packet that came straight from the sender"
+    assert station.last_direct_at == T0 + timedelta(minutes=10), (
+        "a path with no star is a packet that came straight from the sender"
+    )
 
 
 def test_an_object_has_no_direct_time_and_neither_has_a_packet_from_an_igate() -> None:
@@ -361,22 +530,60 @@ def test_an_object_has_no_direct_time_and_neither_has_a_packet_from_an_igate() -
     book.take(packet(ObjectReport("FIRE", True, position()), source="OH2REP", path=()))
     thing, reporter = book.get("FIRE"), book.get("OH2REP")
     assert thing is not None and reporter is not None and thing.last_direct_at is None and reporter.last_direct_at == T0
-    book.take(Packet(heard_at=T0, direction="in", raw=b"", source="OH7JHF-1", destination="APRS", path=(), info=b"", decoded=Status("x"), third_party=ThirdParty("OH2DPN", "APRS", ("TCPIP",)), via="rf-gated"))
+    book.take(
+        Packet(
+            heard_at=T0,
+            direction="in",
+            raw=b"",
+            source="OH7JHF-1",
+            destination="APRS",
+            path=(),
+            info=b"",
+            decoded=Status("x"),
+            third_party=ThirdParty("OH2DPN", "APRS", ("TCPIP",)),
+            via="rf-gated",
+        )
+    )
     gated = book.get("OH2DPN")
     assert gated is not None and gated.last_direct_at is None and gated.deliveries.gated == 1
 
 
 # ---- third-party packets: the station is the sender inside
 
-def gated(decoded: object, inner: str = "OH2DPN", gate: str = "OH7JHF-1", at: datetime = T0, path: tuple[str, ...] = ("OH2RCH-3*",)) -> Packet:
-    return Packet(heard_at=at, direction="in", raw=b"", source=gate, destination="APRS", path=path, info=b"", decoded=decoded, third_party=ThirdParty(inner, "APJYC1", ("TCPIP", gate + "*")), via="rf-gated")  # type: ignore[arg-type]
+
+def gated(
+    decoded: object,
+    inner: str = "OH2DPN",
+    gate: str = "OH7JHF-1",
+    at: datetime = T0,
+    path: tuple[str, ...] = ("OH2RCH-3*",),
+) -> Packet:
+    return Packet(
+        heard_at=at,
+        direction="in",
+        raw=b"",
+        source=gate,
+        destination="APRS",
+        path=path,
+        info=b"",
+        decoded=decoded,
+        third_party=ThirdParty(inner, "APJYC1", ("TCPIP", gate + "*")),
+        via="rf-gated",
+    )  # type: ignore[arg-type]
 
 
 def test_a_third_party_position_moves_the_station_inside_and_not_the_igate() -> None:
     book = StationBook()
     taken = book.take(gated(position(61.0, 25.0, comment="from the net")))
     assert taken is book.get("OH2DPN") and taken is not None
-    assert (taken.lat, taken.lon, taken.last_comment, taken.packets, taken.last_via, taken.last_path) == (61.0, 25.0, "from the net", 1, "OH7JHF-1", ("OH2RCH-3*",))
+    assert (taken.lat, taken.lon, taken.last_comment, taken.packets, taken.last_via, taken.last_path) == (
+        61.0,
+        25.0,
+        "from the net",
+        1,
+        "OH7JHF-1",
+        ("OH2RCH-3*",),
+    )
     assert book.get("OH7JHF-1") is None, "the iGate heard nothing at that position"
     assert taken.deliveries.gated == 1 and taken.deliveries.best() is None, "it is no route to send by"
 
@@ -385,7 +592,12 @@ def test_a_third_party_object_is_reported_by_the_station_inside() -> None:
     book = StationBook()
     book.take(gated(ObjectReport("FIRE", True, position())))
     thing = book.get("FIRE")
-    assert thing is not None and thing.reported_by == "OH2DPN" and thing.last_via == "OH7JHF-1" and book.get("OH7JHF-1") is None
+    assert (
+        thing is not None
+        and thing.reported_by == "OH2DPN"
+        and thing.last_via == "OH7JHF-1"
+        and book.get("OH7JHF-1") is None
+    )
 
 
 def test_our_own_packet_gated_back_to_us_moves_only_our_last_heard() -> None:
@@ -393,10 +605,15 @@ def test_our_own_packet_gated_back_to_us_moves_only_our_last_heard() -> None:
     me = book.set_me("OH2GBA", 60.0, 24.0)
     before = me.last_heard
     book.take(gated(position(61.0, 25.0), inner="OH2GBA", at=T0 + timedelta(hours=1)))
-    assert (me.lat, me.lon, me.packets, me.last_heard) == (60.0, 24.0, 0, T0 + timedelta(hours=1)) and me.last_heard != before and book.get("OH7JHF-1") is None
+    assert (
+        (me.lat, me.lon, me.packets, me.last_heard) == (60.0, 24.0, 0, T0 + timedelta(hours=1))
+        and me.last_heard != before
+        and book.get("OH7JHF-1") is None
+    )
 
 
 # ---- iGates: third-party packets a station put on the air, and a capabilities packet
+
 
 def test_an_igate_in_the_book_counts_the_third_party_packets_it_put_on_the_air_and_is_signalled() -> None:
     book = StationBook()
@@ -406,9 +623,13 @@ def test_an_igate_in_the_book_counts_the_third_party_packets_it_put_on_the_air_a
     book.take(gated(Status("two"), inner="OH2XYZ", at=T0 + timedelta(seconds=5)))
     gate, inner = book.get("OH7JHF-1"), book.get("OH2DPN")
     assert gate is not None and inner is not None
-    assert (gate.gated, gate.packets, gate.deliveries.gated) == (2, 1, 0), "its own packets are one, the ones it wrapped are two"
+    assert (gate.gated, gate.packets, gate.deliveries.gated) == (2, 1, 0), (
+        "its own packets are one, the ones it wrapped are two"
+    )
     assert (inner.gated, inner.deliveries.gated) == (0, 1), "the station inside was gated, it did not gate"
-    assert [call for call, _ in heard.changed].count("OH7JHF-1") == 2, "each wrapped packet tells the page the gate's new count"
+    assert [call for call, _ in heard.changed].count("OH7JHF-1") == 2, (
+        "each wrapped packet tells the page the gate's new count"
+    )
 
 
 def test_an_igate_that_is_not_in_the_book_and_ourselves_are_not_counted_and_not_made_a_station() -> None:
@@ -423,12 +644,23 @@ def test_an_igate_that_is_not_in_the_book_and_ourselves_are_not_counted_and_not_
 def test_the_third_party_packets_the_database_kept_are_counted_for_the_igates_in_the_book() -> None:
     book = StationBook()
     book.seed([Station("OH7JHF-1", first_heard=T0, last_heard=T0), Station("OH2DPN", first_heard=T0, last_heard=T0)])
-    book.seed_deliveries([("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 3, T0, None), ("OH2XYZ", (), "OH7JHF-1", 2, T0, None), ("OH2DPN", (), "OH2GONE", 4, T0, None), ("OH2DPN", (), "", 1, T0, None)])
+    book.seed_deliveries(
+        [
+            ("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 3, T0, None),
+            ("OH2XYZ", (), "OH7JHF-1", 2, T0, None),
+            ("OH2DPN", (), "OH2GONE", 4, T0, None),
+            ("OH2DPN", (), "", 1, T0, None),
+        ]
+    )
     gate, inner = book.get("OH7JHF-1"), book.get("OH2DPN")
-    assert gate is not None and inner is not None and (gate.gated, inner.gated) == (5, 0), "a sender that is not in the book still counts for its gate; a gate that is not in the book counts for nobody"
+    assert gate is not None and inner is not None and (gate.gated, inner.gated) == (5, 0), (
+        "a sender that is not in the book still counts for its gate; a gate that is not in the book counts for nobody"
+    )
 
 
-def test_a_capabilities_packet_with_the_igate_token_says_the_station_is_an_igate_live_and_from_the_packets_kept() -> None:
+def test_a_capabilities_packet_with_the_igate_token_says_the_station_is_an_igate_live_and_from_the_packets_kept() -> (
+    None
+):
     book = StationBook()
     caps = Other("capabilities", "<IGATE,MSG_CNT=2,LOC_CNT=10", items={"IGATE": "", "MSG_CNT": "2", "LOC_CNT": "10"})
     book.take(packet(caps, source="OH7JHF-1", path=()))
@@ -455,7 +687,9 @@ def test_a_weather_position_keeps_the_latest_observation_and_when_it_was_heard()
     station = book.get("OH2MUI")
     assert station is not None and (station.weather, station.weather_at) == (later, T0 + timedelta(minutes=10))
     book.take(packet(position(symbol_code="_"), "OH2MUI", at=T0 + timedelta(minutes=20)))
-    assert (station.weather, station.weather_at) == (later, T0 + timedelta(minutes=10)), "a position with no weather leaves the last observation where it was"
+    assert (station.weather, station.weather_at) == (later, T0 + timedelta(minutes=10)), (
+        "a position with no weather leaves the last observation where it was"
+    )
 
 
 def test_a_positionless_weather_report_gives_the_sender_its_weather_and_no_position() -> None:
@@ -487,6 +721,7 @@ def test_the_weather_log_seeds_the_stations_in_the_book_and_leaves_the_others_ou
 
 # ---- the tracks the database kept
 
+
 def moved(n: int, minutes: int = 1) -> tuple[str, datetime, float, float]:
     return ("OH2GAX-9", T0 + timedelta(minutes=minutes * n), 60.0 + n * 0.001, 24.0)
 
@@ -505,22 +740,41 @@ def test_a_position_that_did_not_move_joins_the_track_only_after_five_minutes() 
     book = StationBook()
     book.seed([Station("OH2AAA", first_heard=T0, last_heard=T0)])
     book.seed_tracks([("OH2AAA", T0 + timedelta(minutes=m), 60.0, 24.0) for m in (0, 1, 2, 3, 5, 6, 10)])
-    assert [t for t, _, _ in book.get("OH2AAA").track] == [T0, T0 + timedelta(minutes=5), T0 + timedelta(minutes=10)]    # type: ignore[union-attr]
+    assert [t for t, _, _ in book.get("OH2AAA").track] == [T0, T0 + timedelta(minutes=5), T0 + timedelta(minutes=10)]  # type: ignore[union-attr]
 
 
 def test_the_tracks_replace_the_one_point_a_station_was_seeded_with_and_leave_the_others_and_us_alone() -> None:
     book = StationBook()
     book.set_me("OH2GBA", 60.17, 24.94)
-    book.seed([Station("OH2AAA", first_heard=T0, last_heard=T0, lat=1.0, lon=1.0, last_position_at=T0), Station("OH2BBB", first_heard=T0, last_heard=T0, lat=2.0, lon=2.0, last_position_at=T0)])
-    book.seed_tracks([("OH2AAA", T0, 60.0, 24.0), ("OH2AAA", T0 + timedelta(minutes=1), 60.01, 24.0), ("OH2GBA", T0, 61.0, 25.0), ("OH2NONE", T0, 1.0, 1.0)])
+    book.seed(
+        [
+            Station("OH2AAA", first_heard=T0, last_heard=T0, lat=1.0, lon=1.0, last_position_at=T0),
+            Station("OH2BBB", first_heard=T0, last_heard=T0, lat=2.0, lon=2.0, last_position_at=T0),
+        ]
+    )
+    book.seed_tracks(
+        [
+            ("OH2AAA", T0, 60.0, 24.0),
+            ("OH2AAA", T0 + timedelta(minutes=1), 60.01, 24.0),
+            ("OH2GBA", T0, 61.0, 25.0),
+            ("OH2NONE", T0, 1.0, 1.0),
+        ]
+    )
     aaa, bbb, me = book.get("OH2AAA"), book.get("OH2BBB"), book.me
     assert aaa is not None and [(lat, lon) for _, lat, lon in aaa.track] == [(60.0, 24.0), (60.01, 24.0)]
-    assert bbb is not None and bbb.track == [(T0, 2.0, 2.0)], "a station with no position kept has the one point it was seeded with"
+    assert bbb is not None and bbb.track == [(T0, 2.0, 2.0)], (
+        "a station with no position kept has the one point it was seeded with"
+    )
     assert me is not None and me.track == [] and book.get("OH2NONE") is None
 
 
 # ---- telemetry, locators and data extensions
-DEFINITIONS = ("PARM.Battery,Btemp,ATemp,Pres,Alt,Camra", "UNIT.v/100,deg.F,deg.F,Mbar,Kft,Click", "EQNS.0,5.2,0,0,.53,-32,3,4.39,49,-32,3,18,1,2,3", "BITS.10110000,N0QBF's Big Balloon")
+DEFINITIONS = (
+    "PARM.Battery,Btemp,ATemp,Pres,Alt,Camra",
+    "UNIT.v/100,deg.F,deg.F,Mbar,Kft,Click",
+    "EQNS.0,5.2,0,0,.53,-32,3,4.39,49,-32,3,18,1,2,3",
+    "BITS.10110000,N0QBF's Big Balloon",
+)
 REPORT = Telemetry(5, [199, 0, 255, 73, 123], "01101001")
 
 
@@ -529,7 +783,11 @@ def test_a_telemetry_report_is_the_latest_of_its_sender() -> None:
     book.take(packet(REPORT, source="N0QBF-11"))
     later = Telemetry(6, [1, 2, 3, 4, 5], "00000000")
     station = book.take(packet(later, source="N0QBF-11", at=T0 + timedelta(minutes=10)))
-    assert station is not None and (station.telemetry, station.telemetry_at, station.packets) == (later, T0 + timedelta(minutes=10), 2)
+    assert station is not None and (station.telemetry, station.telemetry_at, station.packets) == (
+        later,
+        T0 + timedelta(minutes=10),
+        2,
+    )
     assert book.get("N0QBF-11") is station and book.get("OH2AAA") is None
 
 
@@ -537,16 +795,33 @@ def test_the_base91_telemetry_in_the_comment_of_a_position_is_the_latest_report_
     book = StationBook()
     book.take(packet(REPORT, source="N0QBF-11"))
     position = aprsparse.parse(b"!4903.50N/07201.75W-Balloon|ss11|!W12!", "N0QBF-11", "APRS", T0)
-    assert isinstance(position, Position) and position.comment == "Balloon" and position.telemetry == Telemetry(7544, [1472], "")
+    assert (
+        isinstance(position, Position)
+        and position.comment == "Balloon"
+        and position.telemetry == Telemetry(7544, [1472], "")
+    )
     station = book.take(packet(position, source="N0QBF-11", at=T0 + timedelta(minutes=1)))
-    assert station is not None and (station.telemetry, station.telemetry_at) == (Telemetry(7544, [1472], ""), T0 + timedelta(minutes=1))
-    book.take(packet(aprsparse.parse(b"!4903.50N/07201.75W-no telemetry", "N0QBF-11", "APRS", T0), source="N0QBF-11", at=T0 + timedelta(minutes=2)))
+    assert station is not None and (station.telemetry, station.telemetry_at) == (
+        Telemetry(7544, [1472], ""),
+        T0 + timedelta(minutes=1),
+    )
+    book.take(
+        packet(
+            aprsparse.parse(b"!4903.50N/07201.75W-no telemetry", "N0QBF-11", "APRS", T0),
+            source="N0QBF-11",
+            at=T0 + timedelta(minutes=2),
+        )
+    )
     assert station.telemetry == Telemetry(7544, [1472], ""), "a position without it leaves the latest report"
 
 
 def test_the_base91_telemetry_of_a_mic_e_packet_comes_before_its_dao_and_type_code() -> None:
     position = aprsparse.parse(b'`(_fn"Oj/`Hi|ss1122|!w5L!_%', "OH2AAA", "S32UVT", T0)
-    assert isinstance(position, Position) and position.comment == "Mic-E: Returning - Hi" and position.telemetry == Telemetry(7544, [1472, 1564], "")
+    assert (
+        isinstance(position, Position)
+        and position.comment == "Mic-E: Returning - Hi"
+        and position.telemetry == Telemetry(7544, [1472, 1564], "")
+    )
 
 
 def test_the_definitions_are_the_addressees_and_a_message_to_another_station_is_not_one() -> None:
@@ -555,7 +830,12 @@ def test_the_definitions_are_the_addressees_and_a_message_to_another_station_is_
         book.take(packet(Message("N0QBF-11", text), source="N0QBF-11"))
     book.take(packet(Message("OH2GBA", "PARM.nothing")))
     definition = book.telemetry_definition("N0QBF-11")
-    assert definition is not None and definition.names[0] == "Battery" and definition.sense == "10110000" and definition.project == "N0QBF's Big Balloon"
+    assert (
+        definition is not None
+        and definition.names[0] == "Battery"
+        and definition.sense == "10110000"
+        and definition.project == "N0QBF's Big Balloon"
+    )
     assert book.telemetry_definition("OH2GBA") is not None and book.telemetry_definition("OH2AAA") is None
     book.take(packet(Message("N0QBF-11", "just text", "12"), source="N0QBF-11"))
     book.take(packet(Message("N0QBF-11", "", ack_id="3"), source="OH2AAA"))
@@ -566,7 +846,7 @@ def test_a_definition_that_arrives_after_the_report_signals_the_station() -> Non
     book, heard = StationBook(), []
     book.take(packet(REPORT, source="N0QBF-11"))
     book.changed.connect(lambda s: heard.append(s.call))
-    book.take(packet(Message("N0QBF-11", DEFINITIONS[0]), source="OH2AAA"))              # (another station sent it)
+    book.take(packet(Message("N0QBF-11", DEFINITIONS[0]), source="OH2AAA"))  # (another station sent it)
     assert heard == ["N0QBF-11", "OH2AAA"]
 
 
@@ -600,7 +880,7 @@ def test_status_and_position_details_follow_the_latest_packet_that_has_them() ->
     # A position without them keeps the last: a PHG in one beacon text of several
     assert station.extensions == ext
     book.take(packet(position(extensions=Extensions(range_km=12.0)), at=T0 + timedelta(minutes=4)))
-    assert station.extensions == Extensions(range_km=12.0)                                                # (new ones replace them)
+    assert station.extensions == Extensions(range_km=12.0)  # (new ones replace them)
     book.take(packet(position(locator=Locator("KP20", 60.5, 25.0, "/", "G")), at=T0 + timedelta(minutes=4)))
     assert station.locator is not None and station.locator.grid == "KP20"
 
@@ -608,18 +888,34 @@ def test_status_and_position_details_follow_the_latest_packet_that_has_them() ->
 def test_the_details_are_read_again_from_the_latest_packets_at_the_start() -> None:
     book = StationBook()
     book.seed([Station("N0QBF-11", first_heard=T0, last_heard=T0), Station("OH2AAA", first_heard=T0, last_heard=T0)])
-    newest_first = [packet(Telemetry(6, [1, 2, 3, 4, 5], "00000000"), source="N0QBF-11", at=T0 + timedelta(minutes=2)), packet(Message("N0QBF-11", "PARM.Second"), source="N0QBF-11", at=T0 + timedelta(minutes=2)),
-                    packet(Status("x", locator=Locator("IO91", 51.5, -1.0, "/", "-")), at=T0 + timedelta(minutes=1)), packet(position(extensions=Extensions(range_km=10.0))),
-                    packet(REPORT, source="N0QBF-11"), packet(Message("N0QBF-11", "PARM.First,Second"), source="N0QBF-11"), packet(REPORT, source="NOBODY"),
-                    packet(Telemetry(9, [9, 9, 9, 9, 9], "11111111"), source="N0QBF-11", direction="out")]
+    newest_first = [
+        packet(Telemetry(6, [1, 2, 3, 4, 5], "00000000"), source="N0QBF-11", at=T0 + timedelta(minutes=2)),
+        packet(Message("N0QBF-11", "PARM.Second"), source="N0QBF-11", at=T0 + timedelta(minutes=2)),
+        packet(Status("x", locator=Locator("IO91", 51.5, -1.0, "/", "-")), at=T0 + timedelta(minutes=1)),
+        packet(position(extensions=Extensions(range_km=10.0))),
+        packet(REPORT, source="N0QBF-11"),
+        packet(Message("N0QBF-11", "PARM.First,Second"), source="N0QBF-11"),
+        packet(REPORT, source="NOBODY"),
+        packet(Telemetry(9, [9, 9, 9, 9, 9], "11111111"), source="N0QBF-11", direction="out"),
+    ]
     heard = Heard(book)
     book.seed_details(newest_first)
     telemetry = book.get("N0QBF-11")
-    assert telemetry is not None and telemetry.telemetry is not None and telemetry.telemetry.sequence == 6 and telemetry.telemetry_at == T0 + timedelta(minutes=2)
+    assert (
+        telemetry is not None
+        and telemetry.telemetry is not None
+        and telemetry.telemetry.sequence == 6
+        and telemetry.telemetry_at == T0 + timedelta(minutes=2)
+    )
     definition = book.telemetry_definition("N0QBF-11")
-    assert definition is not None and definition.names == ("Second",)                                    # (the later message wins)
+    assert definition is not None and definition.names == ("Second",)  # (the later message wins)
     station = book.get("OH2AAA")
-    assert station is not None and station.extensions == Extensions(range_km=10.0) and station.locator is not None and station.locator.grid == "IO91"
+    assert (
+        station is not None
+        and station.extensions == Extensions(range_km=10.0)
+        and station.locator is not None
+        and station.locator.grid == "IO91"
+    )
     assert book.get("NOBODY") is None and heard.changed == []
 
 
@@ -652,17 +948,29 @@ def test_a_storm_and_a_signpost_are_the_station_of_the_object() -> None:
     brenda, sign = book.get("BRENDA"), book.get("I91 3N")
     assert brenda is not None and brenda.storm == storm and brenda.sign is None
     assert sign is not None and sign.sign == "55" and sign.storm is None
-    book.take(packet(ItemReport("I91 3N", True, position(symbol_table="\\", symbol_code="m", sign="40")), at=T0 + timedelta(minutes=1)))
+    book.take(
+        packet(
+            ItemReport("I91 3N", True, position(symbol_table="\\", symbol_code="m", sign="40")),
+            at=T0 + timedelta(minutes=1),
+        )
+    )
     assert sign.sign == "40"
 
 
 def test_the_frequency_of_a_station_and_the_local_data_of_an_object_are_read_again_at_the_start() -> None:
     book = StationBook()
-    book.seed([Station("OH2AAA", first_heard=T0, last_heard=T0), Station("BRENDA", first_heard=T0, last_heard=T0, kind="object", reported_by="OH2AAA")])
+    book.seed(
+        [
+            Station("OH2AAA", first_heard=T0, last_heard=T0),
+            Station("BRENDA", first_heard=T0, last_heard=T0, kind="object", reported_by="OH2AAA"),
+        ]
+    )
     storm = Storm("TS", 92.6)
-    newest_first = [packet(Status("later", frequency=Frequency(145.5)), at=T0 + timedelta(minutes=2)),
-                    packet(ObjectReport("BRENDA", True, position(storm=storm, sign="1")), at=T0 + timedelta(minutes=1)),
-                    packet(position(frequency=Frequency(145.775)))]
+    newest_first = [
+        packet(Status("later", frequency=Frequency(145.5)), at=T0 + timedelta(minutes=2)),
+        packet(ObjectReport("BRENDA", True, position(storm=storm, sign="1")), at=T0 + timedelta(minutes=1)),
+        packet(position(frequency=Frequency(145.775))),
+    ]
     book.seed_details(newest_first)
     station, brenda = book.get("OH2AAA"), book.get("BRENDA")
     assert station is not None and station.frequency == Frequency(145.5)
@@ -671,15 +979,31 @@ def test_the_frequency_of_a_station_and_the_local_data_of_an_object_are_read_aga
 
 # ---- a name is one entry: the station that transmits wins it -------------------------------------
 
-def test_an_object_under_the_call_of_a_station_in_the_book_leaves_the_station_alone_and_its_kill_does_not_take_it_out() -> None:
+
+def test_an_object_under_the_call_of_a_station_in_the_book_leaves_the_station_alone_and_its_kill_does_not_take_it_out() -> (
+    None
+):
     book = StationBook(lambda: T0)
     heard = Heard(book)
     book.take(packet(position(), source="OH2RCH-2"))
-    assert book.take(packet(ObjectReport("OH2RCH-2", True, position(60.3, 25.0)), source="OH2CLB")) is None, "the club's object of the digipeater does not stand in for the digipeater"
+    assert book.take(packet(ObjectReport("OH2RCH-2", True, position(60.3, 25.0)), source="OH2CLB")) is None, (
+        "the club's object of the digipeater does not stand in for the digipeater"
+    )
     digi = book.get("OH2RCH-2")
-    assert digi is not None and digi.kind == "station" and digi.reported_by == "" and (digi.lat, digi.lon) == (60.17, 24.94) and digi.packets == 1
-    assert book.take(packet(ObjectReport("OH2RCH-2", False, position()), source="OH2CLB", at=T0 + timedelta(minutes=1))) is None
-    assert book.get("OH2RCH-2") is digi and heard.removed == [] and book.get("OH2CLB") is not None, "the kill of the object does not take the station out; the sender is heard"
+    assert (
+        digi is not None
+        and digi.kind == "station"
+        and digi.reported_by == ""
+        and (digi.lat, digi.lon) == (60.17, 24.94)
+        and digi.packets == 1
+    )
+    assert (
+        book.take(packet(ObjectReport("OH2RCH-2", False, position()), source="OH2CLB", at=T0 + timedelta(minutes=1)))
+        is None
+    )
+    assert book.get("OH2RCH-2") is digi and heard.removed == [] and book.get("OH2CLB") is not None, (
+        "the kill of the object does not take the station out; the sender is heard"
+    )
 
 
 def test_a_station_that_transmits_under_the_name_of_an_object_heard_is_the_station_from_then_on() -> None:
@@ -688,9 +1012,22 @@ def test_a_station_that_transmits_under_the_name_of_an_object_heard_is_the_stati
     before = book.get("OH2RCH-2")
     assert before is not None and before.kind == "object"
     station = book.take(packet(position(messaging=True), source="OH2RCH-2", at=T0 + timedelta(minutes=1)))
-    assert station is not None and station is not before and station.kind == "station" and station.reported_by == "" and station.packets == 1 and (station.lat, station.lon) == (60.17, 24.94)
+    assert (
+        station is not None
+        and station is not before
+        and station.kind == "station"
+        and station.reported_by == ""
+        and station.packets == 1
+        and (station.lat, station.lon) == (60.17, 24.94)
+    )
     assert station.can_message, "a station, not somebody's object: it can be written to"
-    assert book.take(packet(ObjectReport("OH2RCH-2", True, position(60.3, 25.0)), source="OH2CLB", at=T0 + timedelta(minutes=2))) is None and book.get("OH2RCH-2") is station
+    assert (
+        book.take(
+            packet(ObjectReport("OH2RCH-2", True, position(60.3, 25.0)), source="OH2CLB", at=T0 + timedelta(minutes=2))
+        )
+        is None
+        and book.get("OH2RCH-2") is station
+    )
 
 
 def test_a_station_that_beacons_under_the_name_of_an_object_of_ours_leaves_ours_alone_and_is_not_recorded() -> None:
@@ -701,8 +1038,19 @@ def test_a_station_that_beacons_under_the_name_of_an_object_of_ours_leaves_ours_
     assert mine is not None
     heard.changed.clear()
     assert book.take(packet(position(10.0, 11.0), source="OH2XYZ", at=T0 + timedelta(minutes=1))) is None
-    assert book.get("OH2XYZ") is mine and mine.own and mine.kind == "object" and (mine.lat, mine.lon) == (61.0, 25.0) and mine.reported_by == "OH2GBA" and mine.packets == 0 and heard.changed == []
-    assert book.take(packet(ObjectReport("OH2XYZ", False, position()), source="OH2AAA", at=T0 + timedelta(minutes=2))) is None, "another station's kill of the name does not end ours either"
+    assert (
+        book.get("OH2XYZ") is mine
+        and mine.own
+        and mine.kind == "object"
+        and (mine.lat, mine.lon) == (61.0, 25.0)
+        and mine.reported_by == "OH2GBA"
+        and mine.packets == 0
+        and heard.changed == []
+    )
+    assert (
+        book.take(packet(ObjectReport("OH2XYZ", False, position()), source="OH2AAA", at=T0 + timedelta(minutes=2)))
+        is None
+    ), "another station's kill of the name does not end ours either"
     assert book.get("OH2XYZ") is mine and (mine.lat, mine.lon) == (61.0, 25.0) and heard.removed == []
 
 

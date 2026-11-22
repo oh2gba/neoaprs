@@ -1,6 +1,7 @@
 """Typed shapes written against the radio seams' Protocols, so that mypy holds the Protocols to
 them: a registry radio, a frozen value, a registry, and a driver with and without a modem.
 """
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -29,6 +30,7 @@ class ModemOfTest(Mercury):
 class LiveShape:
     """A radio of the registry as 1.7 has it: its id, kind, name, limits and allowed read from the
     spec in force (a rename or a change of type replaces the spec), the rest from its line."""
+
     def __init__(self, spec: RadioSpec, specs: tuple[RadioSpec, ...], line: Tnc) -> None:
         self.spec, self.specs, self.line = spec, specs, line
 
@@ -81,6 +83,7 @@ class LiveShape:
 @dataclass(frozen=True)
 class FrozenAir:
     """A radio as a test writes one: a frozen value that sends nothing."""
+
     spec: RadioSpec
     id: RadioId
     kind: Kind
@@ -112,6 +115,7 @@ def frozen_air(spec: RadioSpec) -> FrozenAir:
 
 class RegistryShape:
     """The registry as 1.7 has it: `enabled` gives its own radios as a list."""
+
     def __init__(self, radios: list[LiveShape]) -> None:
         self.radios = radios
 
@@ -141,6 +145,7 @@ class RegistryShape:
 
 class _Driver:
     """What both drivers of a test have: a test's own line, the settings they were given."""
+
     def __init__(self, line: LineOfTest) -> None:
         self.line = line
         self.configured: list[tuple[RadioSpec, Config, RunOverrides]] = []
@@ -164,12 +169,14 @@ class _Driver:
 
 class DriverShape(_Driver):
     """A driver of a type with no modem."""
+
     modem = None
     card = None
 
 
 class ModemDriverShape(_Driver):
     """A driver with a test's own modem, a plain attribute."""
+
     def __init__(self, line: LineOfTest, modem: ModemOfTest) -> None:
         super().__init__(line)
         self.modem = modem

@@ -3,6 +3,7 @@
 Frames go out by the asker's path on the radio the request came on, paced; all answers together
 are held to ANSWERS_PER_WINDOW frames in ANSWER_WINDOW_SEC. Nothing is sent under the interlock.
 """
+
 import asyncio
 import logging
 from collections.abc import Sequence
@@ -20,7 +21,7 @@ from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.recent import Recent
 from neoaprs.route import rf_only_path
 from neoaprs.services.common import ConfigSource, OldAir, Paths, Radio, our_frame
-from neoaprs.services.common import as_pick as as_pick      # re-exported for the messaging services
+from neoaprs.services.common import as_pick as as_pick  # re-exported for the messaging services
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, first_sender, path_on
 from neoaprs.tasks import TaskSet
@@ -82,7 +83,14 @@ class Share:
 
 
 class Answers:
-    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, paths: Paths, spacing_sec: float = SPACING_SEC, budget: AnswerBudget | None = None) -> None:
+    def __init__(
+        self,
+        radios: RadioPick | Radio,
+        config: ConfigSource,
+        paths: Paths,
+        spacing_sec: float = SPACING_SEC,
+        budget: AnswerBudget | None = None,
+    ) -> None:
         self._given = radios
         self._config = config
         self._paths = paths
@@ -112,7 +120,17 @@ class Answers:
         """Build our frame carrying a message to the asker, with no id unless `msg_id` is given."""
         return our_frame(self._config(), (), b":" + format_message(asker, text, msg_id, None if msg_id is None else ""))
 
-    def deliver(self, asker: str, query: str, frames: Sequence[ax25.Frame], at: datetime, paced: bool, rf_only: bool = False, first_after_sec: float = 0.0, radio: AirRadio | None = None) -> bool:
+    def deliver(
+        self,
+        asker: str,
+        query: str,
+        frames: Sequence[ax25.Frame],
+        at: datetime,
+        paced: bool,
+        rf_only: bool = False,
+        first_after_sec: float = 0.0,
+        radio: AirRadio | None = None,
+    ) -> bool:
         """Send the frames of the answer to `query` on `radio` (default: first sender); True if so.
 
         Paced: the first at once (or after `first_after_sec`), the rest SPACING_SEC apart.
@@ -121,11 +139,24 @@ class Answers:
             return False
         share = self._budget.take(len(frames))
         if share is None:
-            log.debug("the %s query of %s is not answered: %d frames of answers went out in the last %g s", query, asker, ANSWERS_PER_WINDOW, ANSWER_WINDOW_SEC)
+            log.debug(
+                "the %s query of %s is not answered: %d frames of answers went out in the last %g s",
+                query,
+                asker,
+                ANSWERS_PER_WINDOW,
+                ANSWER_WINDOW_SEC,
+            )
             return False
         if paced and first_after_sec > 0:
             self.note(asker, query, at)
-            log.info("the %s query of %s is answered with %d frames, the first in %g s, %g s apart", query, asker, len(frames), first_after_sec, self._spacing)
+            log.info(
+                "the %s query of %s is answered with %d frames, the first in %g s, %g s apart",
+                query,
+                asker,
+                len(frames),
+                first_after_sec,
+                self._spacing,
+            )
             self.tasks.spawn(self._rest(asker, list(frames), rf_only, share, first_after_sec, radio), "query-paced")
             return True
         if paced:
@@ -133,7 +164,9 @@ class Answers:
                 share.close()
                 return False
             self.note(asker, query, at)
-            log.info("the %s query of %s is answered with %d frames, %g s apart", query, asker, len(frames), self._spacing)
+            log.info(
+                "the %s query of %s is answered with %d frames, %g s apart", query, asker, len(frames), self._spacing
+            )
             if len(frames) > 1:
                 self.tasks.spawn(self._rest(asker, list(frames[1:]), rf_only, share, None, radio), "query-paced")
             else:
@@ -147,7 +180,15 @@ class Answers:
         log.info("the %s query of %s is answered", query, asker)
         return True
 
-    async def _rest(self, asker: str, frames: list[ax25.Frame], rf_only: bool, share: Share, first_after_sec: float | None = None, radio: AirRadio | None = None) -> None:
+    async def _rest(
+        self,
+        asker: str,
+        frames: list[ax25.Frame],
+        rf_only: bool,
+        share: Share,
+        first_after_sec: float | None = None,
+        radio: AirRadio | None = None,
+    ) -> None:
         """Send the remaining frames SPACING_SEC apart, the first after `first_after_sec`."""
         try:
             for number, frame in enumerate(frames):
@@ -157,13 +198,20 @@ class Answers:
         finally:
             share.close()
 
-    def send(self, asker: str, frames: Sequence[ax25.Frame], rf_only: bool = False, radio: AirRadio | None = None) -> bool:
+    def send(
+        self, asker: str, frames: Sequence[ax25.Frame], rf_only: bool = False, radio: AirRadio | None = None
+    ) -> bool:
         """Send all frames at once if the budget has room, else none; return whether all went."""
         if not frames or self.refused():
             return False
         share = self._budget.take(len(frames))
         if share is None:
-            log.debug("an answer to %s is not sent: %d frames of answers went out in the last %g s", asker, ANSWERS_PER_WINDOW, ANSWER_WINDOW_SEC)
+            log.debug(
+                "an answer to %s is not sent: %d frames of answers went out in the last %g s",
+                asker,
+                ANSWERS_PER_WINDOW,
+                ANSWER_WINDOW_SEC,
+            )
             return False
         went = [self._went(share, asker, frame, rf_only, radio) for frame in frames]
         share.close()

@@ -3,6 +3,7 @@
 Mercury runs on its fifo audio backend; the daemon is the sound card's clock and feeds the
 playback pipe to a system player. POSIX only. Nothing here is required: failures are only logged.
 """
+
 import asyncio
 import contextlib
 import logging
@@ -171,10 +172,14 @@ class SpeakerAudio:
             command = self._player_command()
             self.player_said = True
             if command is None:
-                log.info("no player for the Dummy Mercury radio's audio (pw-play, paplay or aplay): the frames are not heard")
+                log.info(
+                    "no player for the Dummy Mercury radio's audio (pw-play, paplay or aplay): the frames are not heard"
+                )
                 return
             try:
-                self._player = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                self._player = subprocess.Popen(
+                    command, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
                 log.info("the Dummy Mercury radio's audio goes to %s", command[0])
             except OSError as e:
                 log.info("the player %s could not be started: %s", command[0], os_error_text(e))
@@ -186,7 +191,10 @@ class SpeakerAudio:
             self._player.stdin.flush()
             self.bytes_played += len(data)
         except (OSError, ValueError) as e:
-            log.info("the player of the Dummy Mercury radio's audio ended: %s", os_error_text(e) if isinstance(e, OSError) else e)
+            log.info(
+                "the player of the Dummy Mercury radio's audio ended: %s",
+                os_error_text(e) if isinstance(e, OSError) else e,
+            )
             self._end_player()
 
     def _end_player(self) -> None:

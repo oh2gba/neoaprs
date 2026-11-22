@@ -1,5 +1,6 @@
 """What the station book says of what a station runs and of how many packets it sent in the last
 hour (neoaprs/station.py, stationnotes.py), and what the page is told of both."""
+
 import json
 from datetime import UTC, datetime, timedelta
 
@@ -12,7 +13,7 @@ from neoaprs.web.views import station_row
 from tests.support.clock import FixedClock
 
 T0 = datetime(2026, 10, 21, 12, 0, 30, tzinfo=UTC)
-WORKED = b'(_fn"Oj/'                                      # a Mic-E body for the destination S32UVT
+WORKED = b'(_fn"Oj/'  # a Mic-E body for the destination S32UVT
 
 
 def heard(info: bytes, source: str, destination: str = "APRS", at: datetime = T0, direction: str = "in") -> Packet:
@@ -88,7 +89,7 @@ def test_recount_tells_the_stations_whose_hour_became_shorter_and_only_those() -
     clock.advance(20 * 60)
     book.recount()
     assert told == []
-    clock.advance(15 * 60)                                      # (the first packet of OH2AAA is an hour old)
+    clock.advance(15 * 60)  # (the first packet of OH2AAA is an hour old)
     book.recount()
     assert told == [("OH2AAA", 1)]
     book.recount()
@@ -99,7 +100,12 @@ def test_the_book_starts_with_the_packets_of_the_last_hour_the_log_kept() -> Non
     clock = FixedClock(T0)
     # A start: the stations come from the cache, the hour from the log
     book = StationBook(clock=clock)
-    book.seed([Station("OH2AAA", first_heard=T0, last_heard=T0, packets=40), Station("OH2BBB", first_heard=T0, last_heard=T0, packets=7)])
+    book.seed(
+        [
+            Station("OH2AAA", first_heard=T0, last_heard=T0, packets=40),
+            Station("OH2BBB", first_heard=T0, last_heard=T0, packets=7),
+        ]
+    )
     kept = [heard(b"!4903.50N/07201.75W-Test", "OH2AAA", at=T0 - timedelta(minutes=m)) for m in (50, 30, 5)]
     kept.append(heard(b"!4903.50N/07201.75W-Test", "OH2GONE", at=T0))
     kept.append(heard(b"!4903.50N/07201.75W-Test", "OH2BBB", at=T0, direction="out"))
@@ -112,5 +118,10 @@ def test_the_book_starts_with_the_packets_of_the_last_hour_the_log_kept() -> Non
 def test_the_device_is_read_again_from_the_latest_packets_at_the_start() -> None:
     book = StationBook()
     book.seed([Station("OH2AAA", first_heard=T0, last_heard=T0)])
-    book.seed_details([heard(b"!4903.50N/07201.75W-Test", "OH2AAA", "APRS", at=T0), heard(b"!4903.50N/07201.75W-Test", "OH2AAA", "APDR15", at=T0 - timedelta(minutes=1))])
+    book.seed_details(
+        [
+            heard(b"!4903.50N/07201.75W-Test", "OH2AAA", "APRS", at=T0),
+            heard(b"!4903.50N/07201.75W-Test", "OH2AAA", "APDR15", at=T0 - timedelta(minutes=1)),
+        ]
+    )
     assert row_of(book, "OH2AAA").device == "APRSdroid"

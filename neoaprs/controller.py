@@ -2,6 +2,7 @@
 
 The Controller starts and stops the parts, restarts a radio when its settings change and prunes
 the database daily. The radios start last, each in its own task, and stop first."""
+
 import asyncio
 import logging
 import time
@@ -44,7 +45,11 @@ BEACON_NAMES: dict[RadioId, str] = {FM_ID: "the beacon", HF_ID: "the Mercury bea
 
 def made_up_alone(was: RadioSpec, config: Config) -> frozenset[str]:
     """Return the calls a leaving Dummy radio made up that no other Dummy radio makes up too."""
-    others = (made_up_calls(spec.rtype.profile, spec.id) for spec in enabled(config.radios) if is_dummy(spec) and spec.id != was.id)
+    others = (
+        made_up_calls(spec.rtype.profile, spec.id)
+        for spec in enabled(config.radios)
+        if is_dummy(spec) and spec.id != was.id
+    )
     return made_up_calls(was.rtype.profile, was.id) - frozenset().union(*others)
 
 
@@ -53,9 +58,25 @@ WebFactory = Callable[["Controller", Config], Frontend]
 
 
 class Controller(Services):
-    def __init__(self, data_directory: str | Path, clock: Clock = utcnow, store: Store | None = None, busy_ms: int = DEFAULT_BUSY_MS, port: str = "", web: WebFactory | None = None, pattern: str = "", install: InstallInfo = PLAIN_INSTALL, check_sec: float = TNC_CHECK_SEC, auto_map: bool = False, encryption: bool = False,
-                 hf_port: str = "", lines: Mapping[RadioId, Tnc] | None = None) -> None:
-        super().__init__(Path(data_directory), clock, store, port, pattern, install, auto_map, encryption, hf_port, lines)
+    def __init__(
+        self,
+        data_directory: str | Path,
+        clock: Clock = utcnow,
+        store: Store | None = None,
+        busy_ms: int = DEFAULT_BUSY_MS,
+        port: str = "",
+        web: WebFactory | None = None,
+        pattern: str = "",
+        install: InstallInfo = PLAIN_INSTALL,
+        check_sec: float = TNC_CHECK_SEC,
+        auto_map: bool = False,
+        encryption: bool = False,
+        hf_port: str = "",
+        lines: Mapping[RadioId, Tnc] | None = None,
+    ) -> None:
+        super().__init__(
+            Path(data_directory), clock, store, port, pattern, install, auto_map, encryption, hf_port, lines
+        )
         self._web_factory = web
         self.check_sec = check_sec
         self.busy_ms = busy_ms
@@ -119,10 +140,16 @@ class Controller(Services):
         rows, radios = await self.store.settings(), await self.store.read_radios()
         self.radios_unread = radios is None
         if radios is None:
-            log.warning("the radios could not be read (the log above says why): no radio runs, and no radio is added nor a station's radio stored until the next start")
+            log.warning(
+                "the radios could not be read (the log above says why): no radio runs, and no radio is added nor a station's radio stored until the next start"
+            )
         self.config = Config.from_data(rows, radios=radios or ())
         defaults = DEFAULTS.to_data()
-        self._implied = {key for key, text in self.config.to_data().items() if key in STATION_KEYS and key not in rows and text != defaults[key]}
+        self._implied = {
+            key
+            for key, text in self.config.to_data().items()
+            if key in STATION_KEYS and key not in rows and text != defaults[key]
+        }
 
     async def _load_keys(self) -> None:
         """Load the keyring; a key file that cannot be made is logged and the daemon goes on."""
@@ -146,10 +173,36 @@ class Controller(Services):
 
     def _stops(self) -> list[tuple[str, Callable[[], Awaitable[None]]]]:
         """Return what the stop ends, in order: the page, Find my radio and the Tnc first."""
-        return [("the page", self._stop_web), ("the map's layers", self.layers.stop), ("Find my radio", self.radiofinder.stop), ("the Tnc", self._stop_radios), ("the update check", self.updatecheck.stop), ("the suggested frequencies", self.frequencies.stop), ("the HF test board", self.skeds.stop), ("the ALOHA circle", self.aloha.stop),
-                ("Update now", self.selfupdate.stop), ("the automatic map", self.mapauto.stop), ("the map job", self.mapfetch.stop), ("the queries", self.queries.stop), ("the QRU server", self.qru.stop),
-                ("asking QRU", self.qruask.stop), ("the digipeater", self.digipeater.stop), ("messaging", self.messaging.stop), ("the alerts", self.alerts.stop), ("the status", self.rigstatus.stop), ("the bulletins of ours", self.ownbulletins.stop),
-                ("the objects of ours", self.ownobjects.stop), ("the iGate", self.igate.stop), *((BEACON_NAMES.get(radio.id) or f"the {radio.name} beacon", radio.beacon.stop) for radio in reversed(self.radios.all())), ("the GPS", self.gps.stop), ("the radio choices", self.radios.flush), ("the tasks", self.tasks.cancel_all)]
+        return [
+            ("the page", self._stop_web),
+            ("the map's layers", self.layers.stop),
+            ("Find my radio", self.radiofinder.stop),
+            ("the Tnc", self._stop_radios),
+            ("the update check", self.updatecheck.stop),
+            ("the suggested frequencies", self.frequencies.stop),
+            ("the HF test board", self.skeds.stop),
+            ("the ALOHA circle", self.aloha.stop),
+            ("Update now", self.selfupdate.stop),
+            ("the automatic map", self.mapauto.stop),
+            ("the map job", self.mapfetch.stop),
+            ("the queries", self.queries.stop),
+            ("the QRU server", self.qru.stop),
+            ("asking QRU", self.qruask.stop),
+            ("the digipeater", self.digipeater.stop),
+            ("messaging", self.messaging.stop),
+            ("the alerts", self.alerts.stop),
+            ("the status", self.rigstatus.stop),
+            ("the bulletins of ours", self.ownbulletins.stop),
+            ("the objects of ours", self.ownobjects.stop),
+            ("the iGate", self.igate.stop),
+            *(
+                (BEACON_NAMES.get(radio.id) or f"the {radio.name} beacon", radio.beacon.stop)
+                for radio in reversed(self.radios.all())
+            ),
+            ("the GPS", self.gps.stop),
+            ("the radio choices", self.radios.flush),
+            ("the tasks", self.tasks.cancel_all),
+        ]
 
     # ---- the page
     async def _start_web(self) -> None:
@@ -193,8 +246,21 @@ class Controller(Services):
         for record in self.messaging.records():
             if record.state == "sending" and record.to_call in made_up:
                 self.messaging.cancel(record.id)
-                log.info("message %d to %s cancelled: %s that makes %s up is left", record.id, record.to_call, words, record.to_call)
-        gone = [s.call for s in self.stationbook.stations() if s.call in made_up and s.heard_dummy > 0 and s.heard_rf == s.heard_rf_gated == s.heard_is == 0 and self.stationbook.forget(s.call)]
+                log.info(
+                    "message %d to %s cancelled: %s that makes %s up is left",
+                    record.id,
+                    record.to_call,
+                    words,
+                    record.to_call,
+                )
+        gone = [
+            s.call
+            for s in self.stationbook.stations()
+            if s.call in made_up
+            and s.heard_dummy > 0
+            and s.heard_rf == s.heard_rf_gated == s.heard_is == 0
+            and self.stationbook.forget(s.call)
+        ]
         if gone:
             log.info("forgot the made-up stations of %s: %s", words, ", ".join(gone))
 
@@ -240,7 +306,11 @@ class Controller(Services):
         """Store the changed rows in one transaction, then put the settings in force."""
         config, kept = self.kept_change(self.config, config)
         stored, data = set(self.config.changed(config)) | self._implied, config.to_data()
-        rows = {key: text for key, text in data.items() if key in stored and key in STATION_KEYS} | ({LAST_PORT: data["serial/last_port"]} if "serial/last_port" in stored else {}) | pairsetting.changed_rows(self.config.pairs, config.pairs)
+        rows = (
+            {key: text for key, text in data.items() if key in stored and key in STATION_KEYS}
+            | ({LAST_PORT: data["serial/last_port"]} if "serial/last_port" in stored else {})
+            | pairsetting.changed_rows(self.config.pairs, config.pairs)
+        )
         writes = radioedits.radio_writes(self.config.radios, config.radios)
         if (refused := radioedits.refusal(self.config.radios, config.radios)) is not None:
             log.error("the settings were not stored: %s", refused)
@@ -263,7 +333,11 @@ class Controller(Services):
             radio.beacon.settings_changed()
         self.igate.settings_changed()
         for id in restart:
-            log.info("the %s radio is restarted because its settings changed: %s", self.radios.name_of(id), self.radios.why[id])
+            log.info(
+                "the %s radio is restarted because its settings changed: %s",
+                self.radios.name_of(id),
+                self.radios.why[id],
+            )
             self.start_radio(id)
         for was in enabled(previous.radios):
             if is_dummy(was) and was.id not in now_dummy:
@@ -279,12 +353,23 @@ class Controller(Services):
         async with self.config_lock:
             spec = radioedits.new_radio(self.config, type, name, enabled)
             if self.radios_unread:
-                log.warning("the radio is not added: the radios could not be read at the start, and none is added until the next start")
+                log.warning(
+                    "the radio is not added: the radios could not be read at the start, and none is added until the next start"
+                )
                 return None
-            _, kept = self.kept_change(self.config, radioedits.put(self.config, replace(spec, id=max((s.id for s in self.config.radios), default=0) + 1)))
+            _, kept = self.kept_change(
+                self.config,
+                radioedits.put(self.config, replace(spec, id=max((s.id for s in self.config.radios), default=0) + 1)),
+            )
             id = await self.store.add_radio(spec.kind, spec.type, spec.name, spec.enabled, spec.position, kept=kept)
             if id is not None:
-                log.info("radio %d is added: the type %s (%s)%s", id, spec.type, KIND_WORDS[spec.kind], f", named {spec.name}" if spec.name else "")
+                log.info(
+                    "radio %d is added: the type %s (%s)%s",
+                    id,
+                    spec.type,
+                    KIND_WORDS[spec.kind],
+                    f", named {spec.name}" if spec.name else "",
+                )
                 self._in_force(radioedits.put(radioedits.with_kept(self.config, kept), replace(spec, id=id)))
                 self.keep(kept)
             return id
@@ -337,7 +422,12 @@ class Controller(Services):
         await every(PRUNE_EVERY_SEC, self.prune, "the daily care of the database", at_start=True)
 
     async def _sweep_backup(self) -> None:
-        await every(PRUNE_EVERY_SEC, lambda: asyncio.to_thread(sweep, self.data_dir / FOLDER_NAME, time.time()), "the sweep of the backup folder", first=BACKUP_SWEEP_FIRST_SEC)
+        await every(
+            PRUNE_EVERY_SEC,
+            lambda: asyncio.to_thread(sweep, self.data_dir / FOLDER_NAME, time.time()),
+            "the sweep of the backup folder",
+            first=BACKUP_SWEEP_FIRST_SEC,
+        )
 
     async def _recount_minutely(self) -> None:
         await every(RECOUNT_EVERY_SEC, self.stationbook.recount, "the recount of the station book")

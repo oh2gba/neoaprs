@@ -3,6 +3,7 @@
 The English sentence is for the log; the page translates by `code` and `params`. `Reason` is a
 string that carries a code before it becomes a refusal.
 """
+
 from typing import Self
 
 type Param = str | int | float
@@ -12,6 +13,7 @@ class Reason(str):
     """An English clause for the log with a stable `code` and `params`; equal to its text.
 
     Example: `Reason("the radio is silent", "radio.silent")`."""
+
     code: str
     params: dict[str, Param]
 

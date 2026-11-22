@@ -2,6 +2,7 @@
 then daily, takes a newer version into `latest` and nothing else, is off when the environment says
 so, and a failing page changes nothing.
 """
+
 import json
 import re
 from dataclasses import replace
@@ -19,14 +20,16 @@ from tests.support.env import Env, idle_for, remember_stop, until
 from tests.support.fakeversionpage import version_page
 from tests.support.storedb import store_at
 
-NEWER = json.dumps({"version": "0.2.0", "url": "https://oh2gba.github.io/neoaprs/", "message": "Fixes the map download"}).encode()
+NEWER = json.dumps(
+    {"version": "0.2.0", "url": "https://oh2gba.github.io/neoaprs/", "message": "Fixes the map download"}
+).encode()
 
 
 class Page:
     def __init__(self, *answers: bytes | None) -> None:
         self.answers = list(answers)
         self.asked: list[tuple[str, str, str]] = []
-        self.ids: list[str] = []                         # the installation number of each question
+        self.ids: list[str] = []  # the installation number of each question
 
     async def __call__(self, address: str, version: str, platform: str, install_id: str) -> bytes | None:
         self.asked.append((address, version, platform))
@@ -34,8 +37,16 @@ class Page:
         return self.answers.pop(0) if self.answers else None
 
 
-def check(page: Page, config: Config = DEFAULTS, environ: dict[str, str] | None = None, memory: Store | None = None, **times: float) -> UpdateCheck:
-    service = UpdateCheck(lambda: config, "0.1.0", "linux", page, environ={} if environ is None else environ, memory=memory, **times)
+def check(
+    page: Page,
+    config: Config = DEFAULTS,
+    environ: dict[str, str] | None = None,
+    memory: Store | None = None,
+    **times: float,
+) -> UpdateCheck:
+    service = UpdateCheck(
+        lambda: config, "0.1.0", "linux", page, environ={} if environ is None else environ, memory=memory, **times
+    )
     remember_stop(service.stop)
     return service
 
@@ -45,7 +56,11 @@ async def test_a_newer_version_is_kept_with_its_address_and_note() -> None:
     service = check(page)
     answer = await service.check()
     assert answer is not None and service.latest == answer
-    assert (answer.version, answer.url, answer.message) == ("0.2.0", "https://oh2gba.github.io/neoaprs/", "Fixes the map download")
+    assert (answer.version, answer.url, answer.message) == (
+        "0.2.0",
+        "https://oh2gba.github.io/neoaprs/",
+        "Fixes the map download",
+    )
     assert page.asked == [("https://neo.oh2gba.eu/version.php", "0.1.0", "linux")]
 
 
@@ -102,7 +117,9 @@ async def test_against_a_fake_version_page_on_the_loopback(tmp_path: Path) -> No
     assert re.fullmatch(r"/version\.php\?v=0\.1\.0&os=linux-arm&id=[0-9a-f]{32}", fake.requests[0][0])
 
 
-async def test_the_daemon_asks_its_page_and_tells_a_page_of_the_browser_the_newer_version(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_daemon_asks_its_page_and_tells_a_page_of_the_browser_the_newer_version(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv(ENV_SWITCH, "1")
     fake = await version_page({"version": "9.9.9", "url": "https://oh2gba.github.io/neoaprs/", "message": "News"})
     e = Env(tmp_path, web=True, settings={"update/url": fake.url})
@@ -113,7 +130,11 @@ async def test_the_daemon_asks_its_page_and_tells_a_page_of_the_browser_the_newe
     await until(lambda: e.ctl.updatecheck.latest is not None)
     await page.send({"cmd": "status"})
     await page.until(lambda: page.of("status")[-1]["update"] is not None)
-    assert page.of("status")[-1]["update"] == {"version": "9.9.9", "url": "https://oh2gba.github.io/neoaprs/", "message": "News"}
+    assert page.of("status")[-1]["update"] == {
+        "version": "9.9.9",
+        "url": "https://oh2gba.github.io/neoaprs/",
+        "message": "News",
+    }
     assert status["update"] is None and status["version"] == VERSION
     assert fake.requests[0][0].startswith("/version.php?v=" + VERSION + "&os=")
     kept = await e.ctl.store.setting(INSTALL_ID)
@@ -122,8 +143,7 @@ async def test_the_daemon_asks_its_page_and_tells_a_page_of_the_browser_the_newe
 
 
 class Changelog:
-    """The changelog of the latest release, as the fetch of its address answers: the text, or None.
-    """
+    """The changelog of the latest release, as the fetch of its address answers: the text, or None."""
 
     def __init__(self, text: str | None) -> None:
         self.text = text
@@ -137,15 +157,24 @@ class Changelog:
 NOTES = "# Changelog\n\n## Unreleased\n\n## 0.2.0\n\n- Two.\n\n## 0.1.1\n\n- One and a bit.\n\n## 0.1.0\n\n- One.\n"
 
 
-async def test_what_is_new_is_the_changelog_at_the_tag_of_the_newer_version_fetched_once_and_only_for_that_version() -> None:
+async def test_what_is_new_is_the_changelog_at_the_tag_of_the_newer_version_fetched_once_and_only_for_that_version() -> (
+    None
+):
     changelog = Changelog(NOTES)
     service = UpdateCheck(lambda: DEFAULTS, "0.1.0", "linux", Page(NEWER), environ={}, fetch_url=changelog)
     remember_stop(service.stop)
-    assert await service.release_notes("0.2.0") == ([], "unknown_version"), "nothing is fetched for a version the check has not found"
+    assert await service.release_notes("0.2.0") == ([], "unknown_version"), (
+        "nothing is fetched for a version the check has not found"
+    )
     await service.check()
     found, problem = await service.release_notes("0.2.0")
-    assert problem == "" and [(s.version, s.text) for s in found] == [("0.2.0", "- Two."), ("0.1.1", "- One and a bit.")]
-    assert changelog.asked == [("https://raw.githubusercontent.com/oh2gba/neoaprs/v0.2.0/CHANGELOG.md", "0.1.0", "linux", MAX_BYTES)]
+    assert problem == "" and [(s.version, s.text) for s in found] == [
+        ("0.2.0", "- Two."),
+        ("0.1.1", "- One and a bit."),
+    ]
+    assert changelog.asked == [
+        ("https://raw.githubusercontent.com/oh2gba/neoaprs/v0.2.0/CHANGELOG.md", "0.1.0", "linux", MAX_BYTES)
+    ]
     assert await service.release_notes("0.2.0") == (found, "") and len(changelog.asked) == 1, "kept"
     assert await service.release_notes("0.3.0") == ([], "unknown_version") and len(changelog.asked) == 1
 
@@ -161,15 +190,23 @@ async def test_release_notes_that_cannot_be_fetched_say_so_and_are_asked_for_aga
     assert problem == "" and len(found) == 2 and len(changelog.asked) == 2
 
 
-async def test_what_the_update_we_have_had_brought_is_the_changelog_at_our_own_tag_our_section_or_every_one_since_a_version() -> None:
+async def test_what_the_update_we_have_had_brought_is_the_changelog_at_our_own_tag_our_section_or_every_one_since_a_version() -> (
+    None
+):
     changelog = Changelog(NOTES)
     service = UpdateCheck(lambda: DEFAULTS, "0.2.0", "linux", Page(), environ={}, fetch_url=changelog)
     remember_stop(service.stop)
     found, problem = await service.release_notes("0.2.0")
-    assert problem == "" and [(s.version, s.text) for s in found] == [("0.2.0", "- Two.")], "without `since`, our own section alone; no update check is needed"
-    assert changelog.asked == [("https://raw.githubusercontent.com/oh2gba/neoaprs/v0.2.0/CHANGELOG.md", "0.2.0", "linux", MAX_BYTES)]
+    assert problem == "" and [(s.version, s.text) for s in found] == [("0.2.0", "- Two.")], (
+        "without `since`, our own section alone; no update check is needed"
+    )
+    assert changelog.asked == [
+        ("https://raw.githubusercontent.com/oh2gba/neoaprs/v0.2.0/CHANGELOG.md", "0.2.0", "linux", MAX_BYTES)
+    ]
     found, problem = await service.release_notes("0.2.0", since="0.1.0")
-    assert problem == "" and [s.version for s in found] == ["0.2.0", "0.1.1"] and len(changelog.asked) == 1, "every version after the one the page last saw, from the changelog kept"
+    assert problem == "" and [s.version for s in found] == ["0.2.0", "0.1.1"] and len(changelog.asked) == 1, (
+        "every version after the one the page last saw, from the changelog kept"
+    )
     assert await service.release_notes("0.2.0", since="0.2.0") == ([], "")
     assert await service.release_notes("0.1.1") == ([], "unknown_version") and len(changelog.asked) == 1
 
@@ -194,24 +231,34 @@ async def test_our_own_notes_that_cannot_be_fetched_say_so() -> None:
     assert await service.release_notes("0.2.0", since="0.1.0") == ([], "unreachable")
 
 
-async def test_the_page_asks_the_daemon_what_is_new_and_gets_the_sections(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_page_asks_the_daemon_what_is_new_and_gets_the_sections(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv(ENV_SWITCH, "1")
     fake = await version_page({"version": "9.9.9", "url": "https://oh2gba.github.io/neoaprs/", "message": "News"})
     e = Env(tmp_path, web=True, settings={"update/url": fake.url})
     e.ctl.updatecheck.first_sec = 0.05
-    e.ctl.updatecheck._fetch_url = Changelog("## 9.9.9\n\nEverything is new.\n\n## 0.0.1\n\nOld.\n")        # type: ignore[attr-defined]  # the fetch of the changelog, without the internet
+    e.ctl.updatecheck._fetch_url = Changelog("## 9.9.9\n\nEverything is new.\n\n## 0.0.1\n\nOld.\n")  # type: ignore[attr-defined]  # the fetch of the changelog, without the internet
     await e.start()
     page = await e.ws()
     await until(lambda: e.ctl.updatecheck.latest is not None)
     await page.send({"cmd": "release_notes", "version": "9.9.9"})
     answer = await page.expect("release_notes")
-    assert answer == {"type": "release_notes", "version": "9.9.9", "since": "", "sections": [{"version": "9.9.9", "text": "Everything is new."}], "problem": ""}
+    assert answer == {
+        "type": "release_notes",
+        "version": "9.9.9",
+        "since": "",
+        "sections": [{"version": "9.9.9", "text": "Everything is new."}],
+        "problem": "",
+    }
     await page.send({"cmd": "release_notes", "version": "8.0.0"})
     answer = await page.expect("release_notes")
     assert answer["sections"] == [] and answer["problem"] == "unknown_version"
     await page.send({"cmd": "release_notes", "version": VERSION, "since": "0.0.0"})
     answer = await page.expect("release_notes")
-    assert answer["version"] == VERSION and answer["since"] == "0.0.0" and answer["problem"] == "", "our own version, with the page's `since` given back"
+    assert answer["version"] == VERSION and answer["since"] == "0.0.0" and answer["problem"] == "", (
+        "our own version, with the page's `since` given back"
+    )
     await e.stop()
 
 
@@ -227,6 +274,7 @@ async def test_a_daemon_of_the_tests_asks_nothing(tmp_path: Path) -> None:
 
 # ---- the number of the installation --------------------------------------------------------------
 
+
 async def test_the_number_is_made_once_as_32_hex_characters_kept_in_the_database_and_sent_as_id(tmp_path: Path) -> None:
     store = await store_at(tmp_path / "neoaprs.sqlite")
     page = Page(NEWER, NEWER)
@@ -239,7 +287,9 @@ async def test_the_number_is_made_once_as_32_hex_characters_kept_in_the_database
     assert await store.setting(INSTALL_ID) == number
 
 
-async def test_a_restart_on_the_same_database_sends_the_same_number_and_another_database_another(tmp_path: Path) -> None:
+async def test_a_restart_on_the_same_database_sends_the_same_number_and_another_database_another(
+    tmp_path: Path,
+) -> None:
     store = await store_at(tmp_path / "one.sqlite")
     first, second = Page(NEWER), Page(NEWER)
     await check(first, memory=store).check()

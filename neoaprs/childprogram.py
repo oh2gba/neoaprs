@@ -3,6 +3,7 @@
 Starts it, logs its output, stops it, and ends a run left behind by a crashed daemon.
 Subclasses supply the name, the warnings, the handling of a line and how it is asked to end.
 """
+
 import asyncio
 import logging
 import os
@@ -76,7 +77,12 @@ def _listeners(tables: Sequence[str], ports: Iterable[int]) -> dict[int, set[str
 
 def foreign_listeners(ports: Iterable[int]) -> list[str]:
     """Return the listeners on `ports` outside the loopback, as `address:port` in kernel hex."""
-    return [f"{address}:{port}" for port, addresses in sorted(_listeners(_tables(), ports).items()) for address in sorted(addresses) if address not in LOOPBACK_HEX]
+    return [
+        f"{address}:{port}"
+        for port, addresses in sorted(_listeners(_tables(), ports).items())
+        for address in sorted(addresses)
+        if address not in LOOPBACK_HEX
+    ]
 
 
 def listened(ports: Iterable[int]) -> set[int]:
@@ -105,6 +111,7 @@ GONE_POLL_SEC = 0.05
 def _asked_of_windows_process[T](pid: int, ask: Callable[[Any, Any, Any], T], unknown: T) -> T:
     """Return `ask(ctypes, kernel32, handle)`, or `unknown` if the process cannot be opened."""
     import ctypes
+
     kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined, unused-ignore]
     handle = kernel32.OpenProcess(0x1000, False, pid)
     if not handle:
@@ -119,6 +126,7 @@ def _running_windows(pid: int) -> bool:
     def still_active(ctypes: Any, kernel32: Any, handle: Any) -> bool:
         code = ctypes.c_ulong()
         return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259
+
     return _asked_of_windows_process(pid, still_active, False)
 
 
@@ -126,16 +134,24 @@ def _windows_image(pid: int) -> str | None:
     def image(ctypes: Any, kernel32: Any, handle: Any) -> str | None:
         size = ctypes.c_ulong(32768)
         buffer = ctypes.create_unicode_buffer(size.value)
-        return str(buffer.value[:size.value]) if kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)) else None
+        return (
+            str(buffer.value[: size.value])
+            if kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size))
+            else None
+        )
+
     return _asked_of_windows_process(pid, image, None)
 
 
 def windows_created(pid: int) -> float | None:
     def created(ctypes: Any, kernel32: Any, handle: Any) -> float | None:
         made, ended, kernel, user = (ctypes.c_ulonglong() for _ in range(4))
-        if not kernel32.GetProcessTimes(handle, ctypes.byref(made), ctypes.byref(ended), ctypes.byref(kernel), ctypes.byref(user)):
+        if not kernel32.GetProcessTimes(
+            handle, ctypes.byref(made), ctypes.byref(ended), ctypes.byref(kernel), ctypes.byref(user)
+        ):
             return None
         return float((made.value - FILETIME_1970) / 1e7)
+
     return _asked_of_windows_process(pid, created, None)
 
 
@@ -176,7 +192,13 @@ def image_is(image: str | None, file: str) -> bool:
     return image is not None and image.replace("\\", "/").rsplit("/", 1)[-1].lower() == file.lower()
 
 
-def end_stale(pid_file: Path, ours: Callable[[int, float], bool], what: str, ask: signal.Signals = signal.SIGTERM, wait_sec: float = 0.0) -> bool:
+def end_stale(
+    pid_file: Path,
+    ours: Callable[[int, float], bool],
+    what: str,
+    ask: signal.Signals = signal.SIGTERM,
+    wait_sec: float = 0.0,
+) -> bool:
     """End a run left by an earlier daemon, whose id is in `pid_file`; return whether one was ended.
 
     The process is sent `ask` if `ours(pid, written)` holds. The file is always consumed.
@@ -188,7 +210,9 @@ def end_stale(pid_file: Path, ours: Callable[[int, float], bool], what: str, ask
     try:
         pid_file.unlink(missing_ok=True)
     except OSError as e:
-        logging.getLogger(f"neoaprs.{what.lower()}").warning("the file of a %s left behind, %s, could not be removed: %s", what, pid_file, os_error_text(e))
+        logging.getLogger(f"neoaprs.{what.lower()}").warning(
+            "the file of a %s left behind, %s, could not be removed: %s", what, pid_file, os_error_text(e)
+        )
     try:
         pid = int(text.strip())
     except ValueError:
@@ -199,7 +223,9 @@ def end_stale(pid_file: Path, ours: Callable[[int, float], bool], what: str, ask
         os.kill(pid, ask)
     except OSError:
         return False
-    logging.getLogger(f"neoaprs.{what.lower()}").warning("a %s left behind by an earlier run (process %d) was ended", what, pid)
+    logging.getLogger(f"neoaprs.{what.lower()}").warning(
+        "a %s left behind by an earlier run (process %d) was ended", what, pid
+    )
     deadline = time.monotonic() + wait_sec
     while time.monotonic() < deadline and not gone(pid):
         time.sleep(GONE_POLL_SEC)
@@ -208,10 +234,17 @@ def end_stale(pid_file: Path, ours: Callable[[int, float], bool], what: str, ask
 
 # ---- the run
 
+
 def end_tree(process: subprocess.Popen[str], wait_sec: float) -> None:
     """Windows: end the process and its children with `taskkill /T /F` (a launcher leaves a child)."""
     try:
-        subprocess.run([windows_program("taskkill.exe"), "/PID", str(process.pid), "/T", "/F"], capture_output=True, timeout=wait_sec, check=False, creationflags=HIDDEN_WINDOW)
+        subprocess.run(
+            [windows_program("taskkill.exe"), "/PID", str(process.pid), "/T", "/F"],
+            capture_output=True,
+            timeout=wait_sec,
+            check=False,
+            creationflags=HIDDEN_WINDOW,
+        )
     except (OSError, subprocess.TimeoutExpired) as e:
         log.debug("taskkill could not end the tree of process %d: %s", process.pid, e)
     try:
@@ -240,9 +273,17 @@ def _unlink_own(pid_file: Path, pid: int) -> None:
 
 class Program:
     """One run of a program; a subclass sets `name` and implements `_heard` and `_end`."""
+
     name = "program"
 
-    def __init__(self, on_ended: Callable[[int | None, list[str]], None], owner_log: logging.Logger, program_log: logging.Logger, *, stdin_pipe: bool = False) -> None:
+    def __init__(
+        self,
+        on_ended: Callable[[int | None, list[str]], None],
+        owner_log: logging.Logger,
+        program_log: logging.Logger,
+        *,
+        stdin_pipe: bool = False,
+    ) -> None:
         self._on_ended = on_ended
         self._log, self._program_log = owner_log, program_log
         self._stdin_pipe = stdin_pipe  # the program ends when its stdin closes (Direwolf -Q)
@@ -269,10 +310,24 @@ class Program:
         """
         loop = asyncio.get_running_loop()
         if self.running:
-            self._log.error("%s was started while a run of it was still on (process %s): that run is ended first", self.name, self.pid)
+            self._log.error(
+                "%s was started while a run of it was still on (process %s): that run is ended first",
+                self.name,
+                self.pid,
+            )
             self.stop()
-        self._process = subprocess.Popen(argv, cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE if self._stdin_pipe else subprocess.DEVNULL, text=True, encoding="utf-8",
-                                         errors="replace", env=environment(argv), creationflags=HIDDEN_WINDOW)
+        self._process = subprocess.Popen(
+            argv,
+            cwd=str(cwd),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.PIPE if self._stdin_pipe else subprocess.DEVNULL,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=environment(argv),
+            creationflags=HIDDEN_WINDOW,
+        )
         self._pid_file = pid_file
         self.lines_read = 0
         if pid_file is not None:
@@ -281,9 +336,13 @@ class Program:
             except OSError as e:
                 self._log.debug("the %s pid file could not be written: %s", self.name, e)
         self._log.info("%s started (process %d): %s", self.name, self._process.pid, " ".join(argv))
-        threading.Thread(target=self._read, args=(self._process, loop, pid_file), name=f"{self.name.lower()}-output", daemon=True).start()
+        threading.Thread(
+            target=self._read, args=(self._process, loop, pid_file), name=f"{self.name.lower()}-output", daemon=True
+        ).start()
 
-    def _read(self, process: subprocess.Popen[str], loop: asyncio.AbstractEventLoop, pid_file: Path | None = None) -> None:
+    def _read(
+        self, process: subprocess.Popen[str], loop: asyncio.AbstractEventLoop, pid_file: Path | None = None
+    ) -> None:
         assert process.stdout is not None
         for raw in process.stdout:
             line = raw.rstrip()

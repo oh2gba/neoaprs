@@ -2,6 +2,7 @@
 (neoaprs/stopfile.py) kept fresh by the migration, the wait of `neoaprs open` and the desktop app
 that lasts while it is fresh, and the limits of that wait.
 """
+
 import itertools
 import logging
 import os
@@ -65,13 +66,18 @@ def migrate_in_a_thread(path: Path) -> tuple[threading.Thread, list[str]]:
         why.append(reason)
         if db is not None:
             db.close()
+
     thread = threading.Thread(target=run, name="test-migration")
     thread.start()
     return thread, why
 
 
-@pytest.mark.parametrize("fails", [pytest.param(False, id="gets through"), pytest.param(True, id="fails", marks=pytest.mark.expects_errors)])
-def test_a_migration_that_takes_its_time_keeps_its_note_fresh_and_takes_it_away_at_its_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fails: bool) -> None:
+@pytest.mark.parametrize(
+    "fails", [pytest.param(False, id="gets through"), pytest.param(True, id="fails", marks=pytest.mark.expects_errors)]
+)
+def test_a_migration_that_takes_its_time_keeps_its_note_fresh_and_takes_it_away_at_its_end(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fails: bool
+) -> None:
     step = SlowStep()
     step.fail = fails
     path = a_file_to_migrate(tmp_path, monkeypatch, step)
@@ -82,28 +88,33 @@ def test_a_migration_that_takes_its_time_keeps_its_note_fresh_and_takes_it_away_
         assert migrating(tmp_path), "while a step runs the note is there and fresh"
         monkeypatch.setattr(daemonstate, "is_running", lambda _: True)
         running, line = daemonstate.describe(tmp_path)
-        assert running and line == "a daemon is running and is bringing its database up to date; its page comes when that is done"
+        assert (
+            running
+            and line == "a daemon is running and is bringing its database up to date; its page comes when that is done"
+        )
         assert doctor.check_daemon(tmp_path).status == "ok", "doctor tells no fault of a daemon that is busy migrating"
     finally:
         step.go.set()
         thread.join(30)
     assert why == (["database or disk is full"] if fails else [""])
-    assert not (tmp_path / MIGRATING_NAME).exists() and not migrating(tmp_path), "the note goes with the end of the migration, whole or not"
+    assert not (tmp_path / MIGRATING_NAME).exists() and not migrating(tmp_path), (
+        "the note goes with the end of the migration, whole or not"
+    )
 
 
 def test_a_file_at_its_version_or_new_gets_no_note(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     written: list[Path] = []
     monkeypatch.setattr(MigratingNote, "start", lambda self: written.append(self.path))
-    opened(tmp_path / DB_NAME).close()               # (a new file: nothing in it to bring up to date)
-    opened(tmp_path / DB_NAME).close()               # (at its version)
+    opened(tmp_path / DB_NAME).close()  # (a new file: nothing in it to bring up to date)
+    opened(tmp_path / DB_NAME).close()  # (at its version)
     assert written == []
 
 
 def test_the_note_is_written_again_while_it_is_held_and_one_a_kill_left_goes_stale(tmp_path: Path) -> None:
     note = MigratingNote(tmp_path, beat_sec=0.02)
-    note.stop()                                      # (not started: nothing)
+    note.stop()  # (not started: nothing)
     note.start()
-    note.start()                                     # (once is enough)
+    note.start()  # (once is enough)
     old = time.time() - MIGRATING_FRESH_SEC - 5
     os.utime(note.path, (old, old))
     assert not migrating(tmp_path)
@@ -116,13 +127,17 @@ def test_the_note_is_written_again_while_it_is_held_and_one_a_kill_left_goes_sta
     assert not note.path.exists()
     left = tmp_path / MIGRATING_NAME
     left.write_text("migrating\n", encoding="ascii")
-    assert migrating(tmp_path) and not migrating(tmp_path, now=left.stat().st_mtime + MIGRATING_FRESH_SEC + 1), "the note of a migration that a kill ended is stale after a while"
+    assert migrating(tmp_path) and not migrating(tmp_path, now=left.stat().st_mtime + MIGRATING_FRESH_SEC + 1), (
+        "the note of a migration that a kill ended is stale after a while"
+    )
     unwritable = MigratingNote(tmp_path / "a file" / "below")
     unwritable.start()
     unwritable.stop()
 
 
-def test_the_wait_for_the_page_does_not_run_out_while_the_database_is_brought_up_to_date(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_wait_for_the_page_does_not_run_out_while_the_database_is_brought_up_to_date(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The page's 60 seconds (here 5 of virtual time) would end long before the migration does (here
     100): the wait goes on while the note is fresh, starts its seconds again at its end, and the
     page is there when the rest of the start has come; `told` is said once."""
@@ -141,20 +156,24 @@ def test_the_wait_for_the_page_does_not_run_out_while_the_database_is_brought_up
         now[0] += 1.0
         if now[0] == 100.0:
             step.go.set()
-            thread.join(30)                          # (the migration has ended and taken its note away)
+            thread.join(30)  # (the migration has ended and taken its note away)
         if now[0] == 103.0:
-            page.set()                               # (the rest of the start: the page listens)
+            page.set()  # (the rest of the start: the page listens)
         time.sleep(0.001)
 
     try:
-        url = opencmd.wait_for_page(tmp_path, None, 5.0, clock=lambda: now[0], sleep=sleep, told=lambda: told.append("migrating"))
+        url = opencmd.wait_for_page(
+            tmp_path, None, 5.0, clock=lambda: now[0], sleep=sleep, told=lambda: told.append("migrating")
+        )
     finally:
         step.go.set()
         thread.join(30)
     assert url == URL and now[0] == 103.0 and told == ["migrating"] and why == [""]
 
 
-def test_the_wait_runs_out_as_before_when_no_migration_runs_or_its_note_is_stale(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_wait_runs_out_as_before_when_no_migration_runs_or_its_note_is_stale(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(opencmd, "page_url", lambda _: None)
     left = tmp_path / MIGRATING_NAME
     left.write_text("migrating\n", encoding="ascii")
@@ -166,12 +185,17 @@ def test_the_wait_runs_out_as_before_when_no_migration_runs_or_its_note_is_stale
         now[0] += 1.0
 
     told: list[str] = []
-    assert opencmd.wait_for_page(tmp_path, None, 5.0, clock=lambda: now[0], sleep=sleep, told=lambda: told.append("x")) is None
+    assert (
+        opencmd.wait_for_page(tmp_path, None, 5.0, clock=lambda: now[0], sleep=sleep, told=lambda: told.append("x"))
+        is None
+    )
     assert now[0] == 5.0 and told == []
     assert stopfile.migrating(tmp_path) is False
 
 
-def test_a_note_ahead_of_the_clock_is_not_fresh_and_a_start_with_nothing_to_migrate_removes_a_stale_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_note_ahead_of_the_clock_is_not_fresh_and_a_start_with_nothing_to_migrate_removes_a_stale_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A migration killed (a power cut) on a machine whose clock goes back at the next boot (a
     Raspberry Pi without a clock of its own) leaves a note dated ahead of the clock: it is not
     fresh, so the wait for the page runs out as before and doctor does not say a migration runs; and
@@ -208,7 +232,7 @@ def test_a_note_ahead_of_the_clock_is_not_fresh_and_a_start_with_nothing_to_migr
 # child is named by the number the test gave it (its last argument), not by its process id: on
 # Windows the python of a virtual environment is a launcher that starts the interpreter as a process
 # of its own, so the id the test has of its child is not the one the child reads of itself.
-STEPS = r'''
+STEPS = r"""
 import os, time
 from pathlib import Path
 WHO = globals().get("WHO") or str(os.getpid())
@@ -226,14 +250,17 @@ def k2_second(db):
         time.sleep(0.02)
     db.execute("CREATE TABLE k2_second (x INTEGER)")
     db.execute("UPDATE settings SET value = value || ' (and the second step)' WHERE key = 'station/call'")
-'''
+"""
 
-OTHER = r'''
+OTHER = (
+    r"""
 import logging, os, sys
 from pathlib import Path
 from neoaprs import migrations
 path, HELD, busy, WHO = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
-''' + STEPS + r'''
+"""
+    + STEPS
+    + r"""
 logging.basicConfig(filename=str(Path(HELD) / f"log-{WHO}"), level=logging.INFO, format="%(message)s")
 migrations.MIGRATIONS = [*migrations.MIGRATIONS, k2_first, k2_second]
 migrations.SCHEMA_VERSION = len(migrations.MIGRATIONS)
@@ -242,7 +269,8 @@ if db is None:
     print(why)
     raise SystemExit(3)
 db.close()
-'''
+"""
+)
 NEWEST = SCHEMA_VERSION + 2
 
 
@@ -256,7 +284,7 @@ def a_station_to_migrate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tup
     held = tmp_path / "held"
     held.mkdir()
     steps: dict[str, object] = {"HELD": str(held)}
-    exec(STEPS, steps)                                          # noqa: S102  (the test's own made-up steps, as the child runs them)
+    exec(STEPS, steps)
     monkeypatch.setattr(migrations_module, "MIGRATIONS", [*MIGRATIONS, steps["k2_first"], steps["k2_second"]])
     monkeypatch.setattr(migrations_module, "SCHEMA_VERSION", NEWEST)
     return path, held
@@ -267,7 +295,12 @@ def another_neoaprs(path: Path, held: Path, busy_ms: int = 30000) -> "subprocess
     set`, has the tools' busy time); it ends with 0 when it opened the file, 3 when refused."""
     root = Path(__file__).resolve().parents[1]
     name = next(_names)
-    proc = subprocess.Popen([sys.executable, "-c", OTHER, str(path), str(held), str(busy_ms), str(name)], cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    proc = subprocess.Popen(
+        [sys.executable, "-c", OTHER, str(path), str(held), str(busy_ms), str(name)],
+        cwd=root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
     _who[proc.pid] = name
     _watched.append((held, proc))
     return proc
@@ -325,6 +358,7 @@ def open_in_a_thread(path: Path, busy_ms: int) -> tuple[threading.Thread, list[t
         out.append((why, -1 if db is None else int(db.execute("PRAGMA user_version").fetchone()[0])))
         if db is not None:
             db.close()
+
     thread = threading.Thread(target=run, name="test-open")
     thread.start()
     return thread, out
@@ -352,7 +386,9 @@ def ended(child: "subprocess.Popen[bytes]") -> None:
     child.communicate(timeout=60)
 
 
-def test_a_start_while_another_neoaprs_migrates_the_file_waits_for_it_says_so_once_and_comes_up_at_the_newest_version(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_a_start_while_another_neoaprs_migrates_the_file_waits_for_it_says_so_once_and_comes_up_at_the_newest_version(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     """The daemon starts while a tool migrates the file (the tool is in a step that takes longer
     than the daemon's busy time): the daemon waits for it, says so once, and opens the file at the
     newest version with nothing of its own to do: no copy of its own, no step run twice; before this
@@ -366,7 +402,7 @@ def test_a_start_while_another_neoaprs_migrates_the_file_waits_for_it_says_so_on
         assert migrating(tmp_path) and version_of(path) == SCHEMA_VERSION + 1
         thread, out = open_in_a_thread(path, busy_ms=300)
         until(lambda: said(caplog, WAITS) == 1, "the start says that it waits")
-        time.sleep(1.0)                                         # (three times the busy time)
+        time.sleep(1.0)  # (three times the busy time)
         assert thread.is_alive() and out == [], "it waits past its busy time"
         (held / "go").touch()
         thread.join(60)
@@ -376,15 +412,23 @@ def test_a_start_while_another_neoaprs_migrates_the_file_waits_for_it_says_so_on
         ended(tool)
     assert out == [("", NEWEST)]
     assert said(caplog, WAITS) == 1, "said once"
-    assert said(caplog, "is now version") == 0 and said(caplog, "a copy of it is in") == 0 and in_the_second_step(held) == {who(tool)}, "the start ran no step and made no copy"
+    assert (
+        said(caplog, "is now version") == 0
+        and said(caplog, "a copy of it is in") == 0
+        and in_the_second_step(held) == {who(tool)}
+    ), "the start ran no step and made no copy"
     [copy] = taken(tmp_path)
-    assert copy.startswith(f"premigrate-v{SCHEMA_VERSION}-to-v{NEWEST}-") and copy.endswith(".sqlite"), "one copy, the tool's, of the old version"
+    assert copy.startswith(f"premigrate-v{SCHEMA_VERSION}-to-v{NEWEST}-") and copy.endswith(".sqlite"), (
+        "one copy, the tool's, of the old version"
+    )
     assert not (tmp_path / MIGRATING_NAME).exists()
 
 
 @pytest.mark.parametrize("note", ["stale", "ahead of the clock"])
 @pytest.mark.parametrize("holder", ["a writer of the file", "the migration's lock"])
-def test_a_note_that_is_not_fresh_is_never_waited_on_and_a_file_held_meanwhile_is_refused_within_the_busy_time(tmp_path: Path, caplog: pytest.LogCaptureFixture, note: str, holder: str) -> None:
+def test_a_note_that_is_not_fresh_is_never_waited_on_and_a_file_held_meanwhile_is_refused_within_the_busy_time(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, note: str, holder: str
+) -> None:
     """A note a kill left (stale, or dated ahead of a clock that went back) is not a migration that
     runs: a file another writer holds is refused as before ("database is locked") after the busy
     time, and a migration's lock that is held with no fresh note (its process stuck) is refused
@@ -415,7 +459,11 @@ def test_a_note_that_is_not_fresh_is_never_waited_on_and_a_file_held_meanwhile_i
             took = time.monotonic() - began
     finally:
         holds.close() if isinstance(holds, sqlite3.Connection) else holds.release()
-    assert db is None and ("locked" in why if holder == "a writer of the file" else "shows no sign that it is still at it (stopped, or stuck)" in why), why
+    assert db is None and (
+        "locked" in why
+        if holder == "a writer of the file"
+        else "shows no sign that it is still at it (stopped, or stuck)" in why
+    ), why
     # The wrong behaviour, a wait on the note, would last MIGRATION_WAIT_SEC: an hour; the ceiling
     # leaves a busy machine its time
     assert 0.3 <= took < 30.0, took
@@ -424,7 +472,9 @@ def test_a_note_that_is_not_fresh_is_never_waited_on_and_a_file_held_meanwhile_i
 
 
 @pytest.mark.expects_errors
-def test_the_wait_has_a_bound(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_the_wait_has_a_bound(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     """A migration whose process lives but never ends is waited for MIGRATION_WAIT_SEC and no
     longer: refused, saying why, with nothing changed."""
     caplog.set_level(logging.INFO, MIGRATION_LOG)
@@ -446,13 +496,19 @@ def test_the_wait_has_a_bound(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, c
     finally:
         note.stop()
         lock.release()
-    assert db is None and "another NeoAPRS has been bringing it up to date for 0.8 seconds, longer than a migration takes: this one waited no longer" in why, why
-    assert 0.8 <= took < 30.0 and said(caplog, WAITS) == 1       # (a wait without its bound would last for ever)
+    assert (
+        db is None
+        and "another NeoAPRS has been bringing it up to date for 0.8 seconds, longer than a migration takes: this one waited no longer"
+        in why
+    ), why
+    assert 0.8 <= took < 30.0 and said(caplog, WAITS) == 1  # (a wait without its bound would last for ever)
     assert version_of(path) == SCHEMA_VERSION and not (tmp_path / "backup").exists()
 
 
 @pytest.mark.expects_errors
-def test_a_migration_that_stops_showing_it_is_at_it_while_waited_for_is_refused_after_the_busy_time(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_a_migration_that_stops_showing_it_is_at_it_while_waited_for_is_refused_after_the_busy_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     """The other's note was fresh, so this one waited; then it stops being written while the lock
     stays held (a tool stopped with Ctrl-Z in its step, or stuck): the wait ends the busy time after
     the note went stale, refused with a reason that names no seconds it did not wait (it waited
@@ -482,13 +538,17 @@ def test_a_migration_that_stops_showing_it_is_at_it_while_waited_for_is_refused_
         note.stop()
         lock.release()
     [(why, version)] = out
-    assert version == -1 and "shows no sign that it is still at it (stopped, or stuck)" in why and "seconds" not in why, why
+    assert (
+        version == -1 and "shows no sign that it is still at it (stopped, or stuck)" in why and "seconds" not in why
+    ), why
     # A wait on past the stale note would last MIGRATION_WAIT_SEC: an hour
     assert 0.3 <= took < 30.0 and waited >= 0.9, (took, waited)
     assert said(caplog, WAITS) == 1 and version_of(path) == SCHEMA_VERSION and not (tmp_path / "backup").exists()
 
 
-def test_a_start_with_nothing_to_migrate_does_not_wait_or_take_the_lock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_a_start_with_nothing_to_migrate_does_not_wait_or_take_the_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     """A new file and a file at the newest version open as before, at once: the migration's lock is
     not looked at (here another holds it, with a fresh note), nothing sleeps, and no lock file is
     made."""
@@ -497,8 +557,8 @@ def test_a_start_with_nothing_to_migrate_does_not_wait_or_take_the_lock(tmp_path
     monkeypatch.setattr(migrations_module, "_sleep", slept.append)
     path = tmp_path / DB_NAME
     began = time.monotonic()
-    opened(path).close()                                        # (new)
-    opened(path).close()                                        # (at its version)
+    opened(path).close()  # (new)
+    opened(path).close()  # (at its version)
     alone = time.monotonic() - began
     assert not (tmp_path / MIGRATE_LOCK_NAME).exists(), "no lock file for a start with nothing to migrate"
     lock = InstanceLock(tmp_path, MIGRATE_LOCK_NAME)

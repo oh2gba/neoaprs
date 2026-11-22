@@ -1,4 +1,5 @@
 """Wire model of the topic `gps`."""
+
 from typing import Literal
 
 from pydantic import Field
@@ -8,19 +9,32 @@ from .wirebase import Iso, _Model
 
 class GpsState(_Model):
     """The GPS receiver and what the beacon does with it: the latest fix, whether it can be used, and the beacon of a moving station. Told whole as it changes, at most once a second."""
+
     source: Literal["off", "gpsd", "serial"] = Field(description="`gps/source` as in force: where the fixes come from")
-    state: Literal["off", "connecting", "no_fix", "fix", "stale"] = Field(description="`off`: no source is set; `connecting`: the line to gpsd or the receiver is not up and no fix has come; `no_fix`: it is up and the receiver has no fix; `fix`: the latest fix is fresh; "
-                                                                                       "`stale`: the latest fix is older than 120 seconds and is not used (a mobile beacon sends nothing on it)")
-    reason: Literal["", "no_port", "no_address", "held", "no_answer"] = Field(description="why there is no fix to use, as a code the page says in its words, where `state` does not say it already (the log has the feed's own words): `no_port` no port of the receiver is set; "
-                                                                                 "`no_address` no address of gpsd is set; `held` the receiver's port is held by a radio; `no_answer` the receiver or gpsd does not answer, or its line was lost; empty for `off`, `fix`, `stale` and a plain wait or no fix")
-    lat: float | None = Field(description="the latest fix, degrees north; null before the first fix of the source (a stale fix is still told, with its `fix_at`)")
+    state: Literal["off", "connecting", "no_fix", "fix", "stale"] = Field(
+        description="`off`: no source is set; `connecting`: the line to gpsd or the receiver is not up and no fix has come; `no_fix`: it is up and the receiver has no fix; `fix`: the latest fix is fresh; "
+        "`stale`: the latest fix is older than 120 seconds and is not used (a mobile beacon sends nothing on it)"
+    )
+    reason: Literal["", "no_port", "no_address", "held", "no_answer"] = Field(
+        description="why there is no fix to use, as a code the page says in its words, where `state` does not say it already (the log has the feed's own words): `no_port` no port of the receiver is set; "
+        "`no_address` no address of gpsd is set; `held` the receiver's port is held by a radio; `no_answer` the receiver or gpsd does not answer, or its line was lost; empty for `off`, `fix`, `stale` and a plain wait or no fix"
+    )
+    lat: float | None = Field(
+        description="the latest fix, degrees north; null before the first fix of the source (a stale fix is still told, with its `fix_at`)"
+    )
     lon: float | None = Field(description="the latest fix, degrees east")
     altitude_m: float | None = Field(description="metres above mean sea level; null when the fix has none")
     speed_kmh: float | None = Field(description="kilometres per hour; null when the fix has none")
     course_deg: int | None = Field(description="degrees from north, 0 to 359; null when the fix has none")
     satellites: int | None = Field(description="the satellites used for the fix; null when the source does not say")
     fix_at: Iso | None = Field(description="when the latest fix was received, by the daemon's clock")
-    mobile: bool = Field(description="`gps/source` is not `off`: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `reason` say")
-    next_beacon_at: Iso | None = Field(description="when the next beacon by time is due, for the speed of the latest fix (a turn sends one sooner); null unless the beacon is mobile and has a fresh fix and has sent its first")
-    last_beacon_reason: Literal["", "start", "time", "turn", "request"] = Field(description="why the latest mobile beacon of this run went out: `start` (the first fix), `time`, `turn` (a corner), `request` (Beacon now); empty before the first")
+    mobile: bool = Field(
+        description="`gps/source` is not `off`: the beacon follows the GPS. With no fresh fix nothing is sent at all (never the home position), which `state` and `reason` say"
+    )
+    next_beacon_at: Iso | None = Field(
+        description="when the next beacon by time is due, for the speed of the latest fix (a turn sends one sooner); null unless the beacon is mobile and has a fresh fix and has sent its first"
+    )
+    last_beacon_reason: Literal["", "start", "time", "turn", "request"] = Field(
+        description="why the latest mobile beacon of this run went out: `start` (the first fix), `time`, `turn` (a corner), `request` (Beacon now); empty before the first"
+    )
     last_beacon_at: Iso | None = Field(description="when it went out; null before the first")

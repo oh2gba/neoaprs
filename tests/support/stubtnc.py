@@ -1,6 +1,7 @@
 """A stub Tnc for the tests of the parts that send frames on a schedule (services/sender.py): a
 state the test sets, whether it takes a frame, and every frame it was given.
 """
+
 from dataclasses import replace
 from typing import Any
 
@@ -18,7 +19,14 @@ HF_WITH_PATHS = replace(type_of("mercury"), allowed=replace(type_of("mercury").a
 
 
 class StubTnc:
-    def __init__(self, state: Source.State = Source.State.CONNECTED, max_frame: int | None = None, rtype: RadioType | None = None, *, id: RadioId | None = None) -> None:
+    def __init__(
+        self,
+        state: Source.State = Source.State.CONNECTED,
+        max_frame: int | None = None,
+        rtype: RadioType | None = None,
+        *,
+        id: RadioId | None = None,
+    ) -> None:
         self.state = state
         self.sent: list[ax25.Frame] = []
         # The bytes given with a frame (the digipeater's), as they were given
@@ -143,7 +151,7 @@ class StubRegistry:
         return [radio for radio in (self.fm, self.hf) if radio.id in self.on]
 
     def senders(self) -> list[StubTnc]:
-        return self.enabled()                    # (both stubs can send)
+        return self.enabled()  # (both stubs can send)
 
     @property
     def main(self) -> StubTnc | None:

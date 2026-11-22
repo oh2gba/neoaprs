@@ -1,6 +1,7 @@
 """Tests for the Windows loading window (neoaprs/desktop/splash.py) with real Win32 calls: shown,
 sized, centred, no taskbar button, no focus, gone when removed. Needs a visible Windows desktop;
 skipped elsewhere (a service or SSH window station is hidden)."""
+
 import ctypes
 import sys
 import time
@@ -27,11 +28,23 @@ def shown_desktop() -> bool:
 
         user32 = ctypes.windll.user32
         user32.GetProcessWindowStation.restype = ctypes.c_void_p
-        user32.GetUserObjectInformationW.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+        user32.GetUserObjectInformationW.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_int,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD),
+        ]
         flags, needed = Flags(), wintypes.DWORD()
         station = user32.GetProcessWindowStation()
         # (UOI_FLAGS, WSF_VISIBLE)
-        visible = bool(station and user32.GetUserObjectInformationW(station, 1, ctypes.byref(flags), ctypes.sizeof(flags), ctypes.byref(needed)) and flags.flags & 1)
+        visible = bool(
+            station
+            and user32.GetUserObjectInformationW(
+                station, 1, ctypes.byref(flags), ctypes.sizeof(flags), ctypes.byref(needed)
+            )
+            and flags.flags & 1
+        )
     return visible
 
 
@@ -44,11 +57,17 @@ def wait_for(done: Callable[[], bool]) -> bool:
     return True
 
 
-@pytest.mark.skipif(not shown_desktop(), reason="needs a Windows desktop that is shown (not a service's or an SSH session's, and no other system)")
-def test_the_loading_window_is_shown_in_the_middle_of_the_work_area_without_the_focus_and_is_gone_when_taken_away() -> None:
+@pytest.mark.skipif(
+    not shown_desktop(),
+    reason="needs a Windows desktop that is shown (not a service's or an SSH session's, and no other system)",
+)
+def test_the_loading_window_is_shown_in_the_middle_of_the_work_area_without_the_focus_and_is_gone_when_taken_away() -> (
+    None
+):
     # (always, where the test is not skipped: said so that both type checks read the calls)
     if sys.platform == "win32":
         from ctypes import wintypes
+
         user32 = ctypes.windll.user32
         user32.FindWindowW.restype = ctypes.c_void_p
         user32.FindWindowW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
@@ -64,15 +83,24 @@ def test_the_loading_window_is_shown_in_the_middle_of_the_work_area_without_the_
         assert not window(), "no loading window before the test"
         splash.show([])
         try:
-            assert wait_for(lambda: bool(window()) and bool(user32.IsWindowVisible(window()))), "the window is made and shown"
+            assert wait_for(lambda: bool(window()) and bool(user32.IsWindowVisible(window()))), (
+                "the window is made and shown"
+            )
             rect, area = wintypes.RECT(), wintypes.RECT()
             # (SPI_GETWORKAREA)
-            assert user32.GetWindowRect(window(), ctypes.byref(rect)) and user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(area), 0)
+            assert user32.GetWindowRect(window(), ctypes.byref(rect)) and user32.SystemParametersInfoW(
+                0x0030, 0, ctypes.byref(area), 0
+            )
             scale = user32.GetDpiForSystem() / 96
             width, height = rect.right - rect.left, rect.bottom - rect.top
-            assert abs(width - 360 * scale) <= 2 and abs(height - 120 * scale) <= 2, f"its size follows the screen's scale: {width} x {height} at {scale:g}"
-            assert abs((rect.left + rect.right) - (area.left + area.right)) <= 4 and abs((rect.top + rect.bottom) - (area.top + area.bottom)) <= 4, "in the middle of the work area"
-            style = user32.GetWindowLongW(window(), -20)                                        # (GWL_EXSTYLE)
+            assert abs(width - 360 * scale) <= 2 and abs(height - 120 * scale) <= 2, (
+                f"its size follows the screen's scale: {width} x {height} at {scale:g}"
+            )
+            assert (
+                abs((rect.left + rect.right) - (area.left + area.right)) <= 4
+                and abs((rect.top + rect.bottom) - (area.top + area.bottom)) <= 4
+            ), "in the middle of the work area"
+            style = user32.GetWindowLongW(window(), -20)  # (GWL_EXSTYLE)
             # (WS_EX_TOOLWINDOW, not WS_EX_APPWINDOW)
             assert style & 0x80 and not style & 0x40000, "a tool window: no button on the taskbar"
             assert user32.GetForegroundWindow() != window(), "it does not take the focus"

@@ -1,6 +1,7 @@
 """Tests for the non-Win32 parts of the Windows splash (neoaprs/desktop/splash.py): argument check,
 data folder check, place and colours, the handle that removes it, and light imports.
 """
+
 import argparse
 import os
 import subprocess
@@ -16,7 +17,20 @@ from tests.test_desktop_cmd import World
 from tests.test_desktop_webshell import Rig, handler, launch, quit_through_the_menu
 
 ROOT = Path(__file__).resolve().parent.parent
-HEAVY = ("tornado", "pydantic", "cryptography", "webview", "PySide6", "neoaprs.web", "neoaprs.daemon", "neoaprs.cli", "neoaprs.desktop.cmd", "pathlib", "logging", "asyncio")
+HEAVY = (
+    "tornado",
+    "pydantic",
+    "cryptography",
+    "webview",
+    "PySide6",
+    "neoaprs.web",
+    "neoaprs.daemon",
+    "neoaprs.cli",
+    "neoaprs.desktop.cmd",
+    "pathlib",
+    "logging",
+    "asyncio",
+)
 
 
 @pytest.fixture
@@ -36,36 +50,101 @@ def counted(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
 # ---- the quick look at the arguments
 
-@pytest.mark.parametrize("argv", [[], ["--debug"], ["--encryption"], ["--timeout", "30"], ["--timeout=30"], ["--debug", "--encryption", "--timeout", "5"], ["--enc"], ["--deb"], ["--ti", "9"]])
-def test_the_app_started_from_the_start_menu_with_any_options_that_show_a_window_shows_the_splash_on_the_default_data_folder(argv: list[str], data: Path) -> None:
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        [],
+        ["--debug"],
+        ["--encryption"],
+        ["--timeout", "30"],
+        ["--timeout=30"],
+        ["--debug", "--encryption", "--timeout", "5"],
+        ["--enc"],
+        ["--deb"],
+        ["--ti", "9"],
+    ],
+)
+def test_the_app_started_from_the_start_menu_with_any_options_that_show_a_window_shows_the_splash_on_the_default_data_folder(
+    argv: list[str], data: Path
+) -> None:
     assert splash.window_now(argv) == str(data)
 
 
-@pytest.mark.parametrize("argv", [["--data", "D"], ["--data=D"], ["--da", "D"], ["--debug", "--data", "D", "--encryption"], ["--data", "X", "--data", "D"]])
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--data", "D"],
+        ["--data=D"],
+        ["--da", "D"],
+        ["--debug", "--data", "D", "--encryption"],
+        ["--data", "X", "--data", "D"],
+    ],
+)
 def test_the_data_folder_is_the_one_the_arguments_name_last(argv: list[str], data: Path, tmp_path: Path) -> None:
     given = [str(tmp_path / "D") if arg == "D" else arg.replace("=D", f"={tmp_path / 'D'}") for arg in argv]
     assert splash.window_now(given) == str(tmp_path / "D")
-    assert splash.window_now(argv) == os.path.abspath("D"), "a relative folder is the working folder's, as the app makes it"
+    assert splash.window_now(argv) == os.path.abspath("D"), (
+        "a relative folder is the working folder's, as the app makes it"
+    )
 
 
-@pytest.mark.parametrize("argv", [["--tray"], ["--quit"], ["-h"], ["--help"], ["--debug", "--tray"], ["--tr"], ["--q"], ["--he"], ["--data", "D", "--quit"], ["--tray", "--encryption"]])
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--tray"],
+        ["--quit"],
+        ["-h"],
+        ["--help"],
+        ["--debug", "--tray"],
+        ["--tr"],
+        ["--q"],
+        ["--he"],
+        ["--data", "D", "--quit"],
+        ["--tray", "--encryption"],
+    ],
+)
 def test_no_splash_where_the_arguments_say_no_window_now(argv: list[str], data: Path) -> None:
     assert splash.window_now(argv) is None
 
 
-@pytest.mark.parametrize("argv", [["--d"], ["--data"], ["--timeout"], ["--debug=1"], ["--nonsense"], ["run"], ["-x"], ["--"], ["--data", "D", "extra"]])
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--d"],
+        ["--data"],
+        ["--timeout"],
+        ["--debug=1"],
+        ["--nonsense"],
+        ["run"],
+        ["-x"],
+        ["--"],
+        ["--data", "D", "extra"],
+    ],
+)
 def test_no_splash_for_what_the_parser_refuses_or_cannot_be_sure_of(argv: list[str], data: Path) -> None:
-    assert splash.window_now(argv) is None, "--d is --data or --debug: argparse refuses it, and a refusal shows no window"
+    assert splash.window_now(argv) is None, (
+        "--d is --data or --debug: argparse refuses it, and a refusal shows no window"
+    )
 
 
 def test_the_quick_look_knows_every_option_of_the_apps_parser_and_whether_it_takes_a_value() -> None:
     real = {name: action.nargs != 0 for action in cmd.parser()._actions for name in action.option_strings}
-    assert real == splash.OPTIONS, "an option of cmd.parser is in splash.OPTIONS too, and in NO_WINDOW when it means no window now"
-    helps = {name for action in cmd.parser()._actions if isinstance(action, argparse._HelpAction) for name in action.option_strings}
+    assert real == splash.OPTIONS, (
+        "an option of cmd.parser is in splash.OPTIONS too, and in NO_WINDOW when it means no window now"
+    )
+    helps = {
+        name
+        for action in cmd.parser()._actions
+        if isinstance(action, argparse._HelpAction)
+        for name in action.option_strings
+    }
     assert set(splash.NO_WINDOW) == helps | {"--tray", "--quit"}
 
 
-def test_the_default_data_folder_is_the_one_of_neoaprs_paths_on_every_system(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_the_default_data_folder_is_the_one_of_neoaprs_paths_on_every_system(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.delenv("NEOAPRS_DATA_DIR", raising=False)
     for platform in ("win32", "darwin", "linux"):
         monkeypatch.setattr(sys, "platform", platform)
@@ -82,6 +161,7 @@ def test_the_default_data_folder_is_the_one_of_neoaprs_paths_on_every_system(mon
 
 # ---- the look at an app that holds the data folder already
 
+
 def test_an_app_that_holds_the_folder_is_seen_by_its_files_and_nothing_is_locked_to_find_out(tmp_path: Path) -> None:
     first = single.SingleApp(tmp_path)
     assert not splash.running(str(tmp_path))
@@ -94,7 +174,9 @@ def test_an_app_that_holds_the_folder_is_seen_by_its_files_and_nothing_is_locked
 
 
 def test_a_port_file_that_a_crash_left_is_no_app(tmp_path: Path) -> None:
-    gone = subprocess.run([sys.executable, "-c", "import os; print(os.getpid())"], capture_output=True, text=True, check=True).stdout.strip()
+    gone = subprocess.run(
+        [sys.executable, "-c", "import os; print(os.getpid())"], capture_output=True, text=True, check=True
+    ).stdout.strip()
     (tmp_path / splash.PORT_NAME).write_text("7399\n", encoding="ascii")
     (tmp_path / splash.PID_NAME).write_text(f"{gone}\n", encoding="ascii")
     assert not splash.running(str(tmp_path))
@@ -102,10 +184,15 @@ def test_a_port_file_that_a_crash_left_is_no_app(tmp_path: Path) -> None:
     assert not splash.running(str(tmp_path))
     (tmp_path / splash.PID_NAME).unlink()
     assert not splash.running(str(tmp_path))
-    assert splash.alive(os.getpid()) == single.process_alive(os.getpid()) is True and splash.alive(int(gone)) == single.process_alive(int(gone)) is False
+    assert (
+        splash.alive(os.getpid()) == single.process_alive(os.getpid()) is True
+        and splash.alive(int(gone)) == single.process_alive(int(gone)) is False
+    )
 
 
-def test_show_starts_the_splash_once_only_on_windows_and_only_for_a_window_now(data: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_show_starts_the_splash_once_only_on_windows_and_only_for_a_window_now(
+    data: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     started: list[splash.Splash] = []
     monkeypatch.setattr(splash, "run", started.append)
     monkeypatch.setattr(splash, "_current", None)
@@ -132,6 +219,7 @@ def test_no_splash_when_an_app_holds_the_folder_already(data: Path, monkeypatch:
 
 
 # ---- the handle, the place, the colours
+
 
 def test_the_handle_closes_the_window_once_whenever_it_is_asked(monkeypatch: pytest.MonkeyPatch) -> None:
     posted: list[int] = []
@@ -171,27 +259,38 @@ def test_the_splash_is_the_size_at_the_dpi_in_the_middle_of_the_work_area_on_the
 
 # ---- where the app takes it away
 
+
 @pytest.fixture
 def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> World:
     return World(tmp_path, monkeypatch)
 
 
-def test_the_app_takes_it_away_when_a_second_start_finds_the_first_and_when_it_ends(world: World, counted: list[str]) -> None:
+def test_the_app_takes_it_away_when_a_second_start_finds_the_first_and_when_it_ends(
+    world: World, counted: list[str]
+) -> None:
     first = single.SingleApp(world.data)
     assert first.acquire()
     assert world.run() == 0 and counted == ["done"], "at once, before it tells the first one"
     first.close()
     counted.clear()
-    assert cmd.main(["--data", str(world.data), "--quit"]) == 0 and counted == ["done"], "every way out of the app's main takes it away"
+    assert cmd.main(["--data", str(world.data), "--quit"]) == 0 and counted == ["done"], (
+        "every way out of the app's main takes it away"
+    )
 
 
-def test_the_app_takes_it_away_before_a_message_box_which_it_would_cover(world: World, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_the_app_takes_it_away_before_a_message_box_which_it_would_cover(
+    world: World, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     order: list[str] = []
     monkeypatch.setattr(splash, "done", lambda: order.append("done"))
     monkeypatch.setattr(cmd.opencmd, "tell_the_user", lambda text: order.append("told"))
-    starting = cmd.Launch(world.data, cmd.Opening(world.data, world.open_session), False, True, None, single.SingleApp(world.data))
+    starting = cmd.Launch(
+        world.data, cmd.Opening(world.data, world.open_session), False, True, None, single.SingleApp(world.data)
+    )
     assert starting.no_page(cmd.NoPage("no page came up")) == 1
-    assert order == ["done", "told"], "no page came: the message box is not under the splash, which is on top of everything"
+    assert order == ["done", "told"], (
+        "no page came: the message box is not under the splash, which is on top of everything"
+    )
     order.clear()
     (tmp_path / "file").write_text("", encoding="ascii")
     assert cmd.main(["--data", str(tmp_path / "file" / "data")]) == 1
@@ -209,7 +308,9 @@ def test_the_app_takes_it_away_when_the_arguments_are_refused(counted: list[str]
     assert counted == ["done"]
 
 
-def test_the_windows_shell_takes_it_away_when_the_window_is_shown(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, counted: list[str]) -> None:
+def test_the_windows_shell_takes_it_away_when_the_window_is_shown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, counted: list[str]
+) -> None:
     rig = Rig(tmp_path, monkeypatch)
     thread = launch(rig)
     assert counted == []
@@ -218,7 +319,9 @@ def test_the_windows_shell_takes_it_away_when_the_window_is_shown(tmp_path: Path
     quit_through_the_menu(rig, thread)
 
 
-def test_the_windows_shell_takes_it_away_when_there_is_no_window_to_wait_for(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, counted: list[str]) -> None:
+def test_the_windows_shell_takes_it_away_when_there_is_no_window_to_wait_for(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, counted: list[str]
+) -> None:
     rig = Rig(tmp_path, monkeypatch, window=False)
     thread = launch(rig)
     assert counted == ["done"]
@@ -226,7 +329,9 @@ def test_the_windows_shell_takes_it_away_when_there_is_no_window_to_wait_for(tmp
 
 
 @pytest.mark.expects_errors
-def test_the_windows_shell_takes_it_away_when_the_web_engine_cannot_start(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, counted: list[str]) -> None:
+def test_the_windows_shell_takes_it_away_when_the_web_engine_cannot_start(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, counted: list[str]
+) -> None:
     rig = Rig(tmp_path, monkeypatch, start_fails=True)
     thread = launch(rig)
     assert counted == ["done"]
@@ -235,21 +340,50 @@ def test_the_windows_shell_takes_it_away_when_the_web_engine_cannot_start(tmp_pa
 
 # ---- the entry's way to it
 
+
 def test_the_entrys_way_to_the_splash_imports_nothing_heavy(tmp_path: Path) -> None:
     """What packaging/windows/neoaprs_entry.py does for the app's role before it imports the app:
     the role, the splash's module, and its look at the arguments and at the data folder."""
-    code = ("import sys; sys.path.insert(0, sys.argv[1]); import neoaprs_entry; from neoaprs.desktop import splash; assert neoaprs_entry.role('C:/NeoAPRS/neoaprs-app.exe') == 'app'; "
-            "data = splash.window_now([]); assert data and not splash.running(data); splash.show([]); splash.done()")
-    env = {**os.environ, "NEOAPRS_DATA_DIR": str(tmp_path / "data"), "NEOAPRS_NO_DEVICES": "1", "NEOAPRS_UPDATE_CHECK": "0"}
-    run = subprocess.run([sys.executable, "-X", "importtime", "-c", code, str(ROOT / "packaging" / "windows")], capture_output=True, text=True, env=env, cwd=tmp_path, timeout=60)
+    code = (
+        "import sys; sys.path.insert(0, sys.argv[1]); import neoaprs_entry; from neoaprs.desktop import splash; assert neoaprs_entry.role('C:/NeoAPRS/neoaprs-app.exe') == 'app'; "
+        "data = splash.window_now([]); assert data and not splash.running(data); splash.show([]); splash.done()"
+    )
+    env = {
+        **os.environ,
+        "NEOAPRS_DATA_DIR": str(tmp_path / "data"),
+        "NEOAPRS_NO_DEVICES": "1",
+        "NEOAPRS_UPDATE_CHECK": "0",
+    }
+    run = subprocess.run(
+        [sys.executable, "-X", "importtime", "-c", code, str(ROOT / "packaging" / "windows")],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=tmp_path,
+        timeout=60,
+    )
     assert run.returncode == 0, run.stderr
     imported = {line.split("|")[-1].strip() for line in run.stderr.splitlines() if line.startswith("import time:")}
     assert "neoaprs.desktop.splash" in imported
-    assert sorted(name for name in imported if any(name == heavy or name.startswith(heavy + ".") for heavy in HEAVY)) == []
+    assert (
+        sorted(name for name in imported if any(name == heavy or name.startswith(heavy + ".") for heavy in HEAVY)) == []
+    )
 
 
-@pytest.mark.parametrize("program, role", [("neoaprs.exe", "cli"), ("neoaprsw.exe", "daemon"), ("neoaprs-app.exe", "app"), ("NeoAPRS-App.EXE", "app"), ("python.exe", "cli")])
-def test_the_entry_tells_the_role_by_the_programs_name(program: str, role: str, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    "program, role",
+    [
+        ("neoaprs.exe", "cli"),
+        ("neoaprsw.exe", "daemon"),
+        ("neoaprs-app.exe", "app"),
+        ("NeoAPRS-App.EXE", "app"),
+        ("python.exe", "cli"),
+    ],
+)
+def test_the_entry_tells_the_role_by_the_programs_name(
+    program: str, role: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.syspath_prepend(str(ROOT / "packaging" / "windows"))
     import neoaprs_entry  # type: ignore[import-not-found]
+
     assert neoaprs_entry.role(f"C:/Program Files/NeoAPRS/{program}") == role

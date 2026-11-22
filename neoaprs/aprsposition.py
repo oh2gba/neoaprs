@@ -2,6 +2,7 @@
 
 `parse_position` takes the bytes after the data type identifier ("!", "=", "/" or "@").
 """
+
 import math
 import re
 from dataclasses import replace
@@ -140,12 +141,12 @@ def _coordinate(text: str, whole_digits: int, negative: str, positive: str) -> t
     if blanks > 4 or any(digits[i] != " " for i in blank_order[:blanks]):
         raise PositionError(f"bad ambiguity in {text!r}")
     plain = digits.replace(" ", "0")
-    if not (plain[:w + 2] + plain[w + 3:]).isdigit():
+    if not (plain[: w + 2] + plain[w + 3 :]).isdigit():
         raise PositionError(f"bad coordinate {text!r}")
-    whole, minutes = int(plain[:w]), int(plain[w:w + 2])
+    whole, minutes = int(plain[:w]), int(plain[w : w + 2])
     if minutes > 59 or whole > (90 if w == 2 else 180):
         raise PositionError(f"coordinate {text!r} out of range")
-    value = degrees(whole, minutes * 100 + int(plain[w + 3:]), blanks)
+    value = degrees(whole, minutes * 100 + int(plain[w + 3 :]), blanks)
     value = min(value, 90.0 if w == 2 else 180.0)
     return (-value if sign == negative else value), blanks
 
@@ -191,10 +192,10 @@ def _compressed_motion(cs: bytes, t: int) -> tuple[int | None, float | None, flo
         return None, None, 1.002 ** base91(cs) * FOOT_M, None
     if c <= 89:
         # course 0 with a speed is north; with none it is no data
-        course, speed = motion(north_as_360(c * 4) if s else c * 4, 1.08 ** s - 1)
+        course, speed = motion(north_as_360(c * 4) if s else c * 4, 1.08**s - 1)
         return course, speed, None, None
     # c is 90, the `{` of the radio range: 2 * 1.08 ** s miles
-    return None, None, None, Extensions(range_km=round(2 * 1.08 ** s * MILE_KM, 1))
+    return None, None, None, Extensions(range_km=round(2 * 1.08**s * MILE_KM, 1))
 
 
 def _compressed(rest: bytes) -> _Fix:
@@ -233,7 +234,9 @@ def _course_speed_of(course_text: str, speed_text: str) -> tuple[int | None, flo
     """Return course and speed of the halves of `CSE/SPD` (three digits, or dots/blanks)."""
     if course_text.isdigit() and speed_text.isdigit():
         return motion(int(course_text), int(speed_text))
-    return (course_of(int(course_text)) if course_text.isdigit() else None), (int(speed_text) * KNOT_KMH if speed_text.isdigit() else None)
+    return (course_of(int(course_text)) if course_text.isdigit() else None), (
+        int(speed_text) * KNOT_KMH if speed_text.isdigit() else None
+    )
 
 
 def _data_extension(text: str, table: str, code: str) -> tuple[str, int | None, float | None, Extensions | None]:
@@ -257,7 +260,7 @@ def _comment_and_extensions(text: str, table: str, code: str, extensions: bool) 
     found = _ALTITUDE.search(text)
     if found:
         altitude = int(found.group(1)) * FOOT_M
-        text = text[:found.start()] + text[found.end():]
+        text = text[: found.start()] + text[found.end() :]
     return _Tail(text.strip(), course, speed, altitude, ext)
 
 
@@ -309,20 +312,45 @@ def parse_position(body: bytes, now: datetime, *, messaging: bool = False) -> Po
     comment, extra = split_dao(comment)
     # a compressed position is finer already; an ambiguous one claims no precision
     lat, lon = (fix.lat, fix.lon) if compressed or fix.ambiguity else with_dao(fix.lat, fix.lon, extra)
-    return Position(lat, lon, fix.table, fix.code, comment, tail.course if tail.course is not None else fix.course, tail.speed if tail.speed is not None else fix.speed,
-                    tail.altitude if tail.altitude is not None else fix.altitude, timestamp, messaging, compressed, fix.ambiguity, _with_wind(weather, fix.wind), tail.extensions or fix.extensions, local, telemetry=telemetry, frequency=frequency, storm=storm, sign=sign)
+    return Position(
+        lat,
+        lon,
+        fix.table,
+        fix.code,
+        comment,
+        tail.course if tail.course is not None else fix.course,
+        tail.speed if tail.speed is not None else fix.speed,
+        tail.altitude if tail.altitude is not None else fix.altitude,
+        timestamp,
+        messaging,
+        compressed,
+        fix.ambiguity,
+        _with_wind(weather, fix.wind),
+        tail.extensions or fix.extensions,
+        local,
+        telemetry=telemetry,
+        frequency=frequency,
+        storm=storm,
+        sign=sign,
+    )
 
 
 def _coordinate_text(value: float, whole_digits: int, negative: str, positive: str) -> str:
     """Return DDMM.mmN or DDDMM.mmE, minutes rounded to hundredths (60 carries into degrees)."""
     total = round(abs(value) * HUNDREDTHS_PER_DEGREE)
     degrees, rest = divmod(total, HUNDREDTHS_PER_DEGREE)
-    return f"{degrees:0{whole_digits}d}{rest // 100:02d}.{rest % 100:02d}{negative if value < 0 and total else positive}"
+    return (
+        f"{degrees:0{whole_digits}d}{rest // 100:02d}.{rest % 100:02d}{negative if value < 0 and total else positive}"
+    )
 
 
 def uncompressed_position(lat: float, lon: float, symbol_table: str, symbol_code: str) -> bytes:
     """Return the 19 bytes DDMM.mmN/DDDMM.mmE- : latitude, symbol table, longitude, symbol code."""
-    return f"{_coordinate_text(lat, 2, 'S', 'N')}{symbol_table}{_coordinate_text(lon, 3, 'W', 'E')}{symbol_code}".encode("ascii")
+    return (
+        f"{_coordinate_text(lat, 2, 'S', 'N')}{symbol_table}{_coordinate_text(lon, 3, 'W', 'E')}{symbol_code}".encode(
+            "ascii"
+        )
+    )
 
 
 # longest comment after a compressed position (APRS101 ch. 9), altitude included
@@ -356,7 +384,14 @@ def _course_speed(course_deg: int | None, speed_kmh: float | None) -> bytes:
     return bytes((33 + c, 33 + s, 33 + _TYPE_RMC_CURRENT))
 
 
-def compressed_position(lat: float, lon: float, symbol_table: str, symbol_code: str, course_deg: int | None = None, speed_kmh: float | None = None) -> bytes:
+def compressed_position(
+    lat: float,
+    lon: float,
+    symbol_table: str,
+    symbol_code: str,
+    course_deg: int | None = None,
+    speed_kmh: float | None = None,
+) -> bytes:
     """Return the 13 bytes `/YYYYXXXX$csT` of a compressed position (APRS101 ch. 9).
 
     Course and speed give `cs`, else the blank form. Raise ValueError for a position off the earth or an invalid symbol.
@@ -365,9 +400,15 @@ def compressed_position(lat: float, lon: float, symbol_table: str, symbol_code: 
         raise ValueError(f"the position {lat}, {lon} is not on the earth")
     if len(symbol_code) != 1 or not "!" <= symbol_code <= "~":
         raise ValueError(f"the symbol code {symbol_code!r} is not one printable character")
-    top = 91 ** _BASE91_DIGITS - 1
+    top = 91**_BASE91_DIGITS - 1
     y, x = min(top, round(380926 * (90.0 - lat))), min(top, round(190463 * (180.0 + lon)))
-    return _compressed_table(symbol_table).encode("ascii") + base91_text(y, _BASE91_DIGITS) + base91_text(x, _BASE91_DIGITS) + symbol_code.encode("ascii") + _course_speed(course_deg, speed_kmh)
+    return (
+        _compressed_table(symbol_table).encode("ascii")
+        + base91_text(y, _BASE91_DIGITS)
+        + base91_text(x, _BASE91_DIGITS)
+        + symbol_code.encode("ascii")
+        + _course_speed(course_deg, speed_kmh)
+    )
 
 
 def altitude_text(altitude_m: float) -> str:
@@ -382,4 +423,4 @@ def compressed_comment(altitude_m: float | None, comment: str) -> str:
     All of it may be 40 characters (COMPRESSED_COMMENT_MAX); a long comment is cut to fit.
     """
     altitude = "" if altitude_m is None else altitude_text(altitude_m)
-    return altitude + comment[:COMPRESSED_COMMENT_MAX - len(altitude)]
+    return altitude + comment[: COMPRESSED_COMMENT_MAX - len(altitude)]

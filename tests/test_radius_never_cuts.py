@@ -1,6 +1,7 @@
 """The map Radius (`map/radius_km`) sets the detailed map download, the APRS-IS circle and the
 objects' QRU box and nothing else: a station heard on a radio is stored and shown wherever it is.
 """
+
 from pathlib import Path
 
 from neoaprs.geo import distance_km
@@ -10,11 +11,13 @@ from tests.support.fakemercury import Air
 
 FAR_OBJECT = ("FARBOX", ";FARBOX   *092345z3351.00S/15112.00Er")  # an object in Sydney, heard on FM
 HOME = (60.17, 24.94)
-FAR_FM = ("VK2FAR", "!3351.00S/15112.00E>far on FM")       # Sydney, about 15000 km away
-FAR_HF = ("W6FAR", "!3746.00N/12225.00W>far on HF")        # San Francisco, about 8800 km away
+FAR_FM = ("VK2FAR", "!3351.00S/15112.00E>far on FM")  # Sydney, about 15000 km away
+FAR_HF = ("W6FAR", "!3746.00N/12225.00W>far on HF")  # San Francisco, about 8800 km away
 
 
-async def test_a_station_heard_on_an_fm_radio_and_one_on_an_hf_radio_far_outside_the_radius_are_kept_and_told_to_the_page(tmp_path: Path) -> None:
+async def test_a_station_heard_on_an_fm_radio_and_one_on_an_hf_radio_far_outside_the_radius_are_kept_and_told_to_the_page(
+    tmp_path: Path,
+) -> None:
     air = Air(frame_sec=0.2)
     e = Env(tmp_path, hf=air.station(), web=True, settings={"map/radius_km": "10"})
     await e.start()

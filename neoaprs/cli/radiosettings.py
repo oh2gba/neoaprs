@@ -2,6 +2,7 @@
 
 Used by `neoaprs db`, `doctor` and the support bundle. Pure except `radio_tables`, which
 raises when the tables cannot be read, so such a file is never taken for one without radios."""
+
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
@@ -92,9 +93,19 @@ def reached(spec: RadioSpec) -> list[tuple[str, str]]:
         speed = spec.value("baud") or profile_baud(rtype) or 9600
         return [("Port", spec.value("port") or "(found by searching)"), ("Speed", f"{speed} baud")]
     if rtype.transport == "tcp":
-        return [("Port", f"{spec.value('tcp_host')}:{spec.value('tcp_port')}" if spec.value("tcp_host") else "(no address chosen)")]
+        return [
+            (
+                "Port",
+                f"{spec.value('tcp_host')}:{spec.value('tcp_port')}"
+                if spec.value("tcp_host")
+                else "(no address chosen)",
+            )
+        ]
     if rtype.transport == "modem":
-        return [("Sound card", spec.value("sound_card") or "(the daemon's choice)"), ("Keying", spec.value("keying") or "(the daemon's choice)")]
+        return [
+            ("Sound card", spec.value("sound_card") or "(the daemon's choice)"),
+            ("Keying", spec.value("keying") or "(the daemon's choice)"),
+        ]
     return [("Traffic", "made up: nothing goes on the air")]
 
 
@@ -125,4 +136,3 @@ def profile_baud(rtype: RadioType) -> int | None:
 def is_mercury(spec: RadioSpec) -> bool:
     rtype = type_or_none(spec)
     return rtype is not None and rtype.transport == "modem"
-

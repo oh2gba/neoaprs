@@ -2,6 +2,7 @@
 from another thread reaches a loop whose self-pipe reader is dead, and a loop with nothing to do is
 not kept busy.
 """
+
 import asyncio
 import sys
 import threading
@@ -32,7 +33,7 @@ async def test_an_answer_from_a_thread_reaches_a_loop_whose_self_pipe_is_no_long
     loop = asyncio.get_running_loop()
     # A run arms its reader after the first step of what it runs
     await asyncio.sleep(0.05)
-    reader = loop._self_reading_future                      # type: ignore[attr-defined]
+    reader = loop._self_reading_future  # type: ignore[attr-defined]
     assert reader is not None
     # The reader ends as asyncio ends it at the end of a run, and nothing arms it again in this one
     reader.cancel()
@@ -60,6 +61,7 @@ def test_a_closed_loop_is_not_nudged_and_an_idle_one_stays_asleep() -> None:
             for _ in range(3):
                 await asyncio.sleep(0.3)
                 count()
+
         loop.run_until_complete(idle())
         # A nudge wakes the loop and runs nothing of the test's: the three sleeps ended by their own
         # timers

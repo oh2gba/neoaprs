@@ -3,6 +3,7 @@
 
   scripts/release VERSION [--dry-run] [--rerun] [--deploy] [--interval SECONDS] | --verify
 See docs/MAINTAINING.md, "A release"."""
+
 import argparse
 import base64
 import binascii
@@ -26,7 +27,17 @@ sys.path.insert(0, str(ROOT))
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: E402
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat  # noqa: E402
 
-from neoaprs.updateasset import CHECKSUMS, PUBLIC_KEY, SIGNATURE, Unverified, check_signature, checksums, public_key, sign, wheel_version  # noqa: E402
+from neoaprs.updateasset import (  # noqa: E402
+    CHECKSUMS,
+    PUBLIC_KEY,
+    SIGNATURE,
+    Unverified,
+    check_signature,
+    checksums,
+    public_key,
+    sign,
+    wheel_version,
+)
 
 INIT = ROOT / "neoaprs" / "__init__.py"
 CHANGELOG = ROOT / "CHANGELOG.md"
@@ -51,10 +62,20 @@ SIGNING_VARIABLES = ("BWS_ACCESS_TOKEN", SIGNING_KEY_ID_VARIABLE)
 # (gh fills {owner}/{repo}) and how to read it.
 SWITCHES = (
     ("secret scanning", "repos/{owner}/{repo}", ("security_and_analysis", "secret_scanning", "status"), "enabled"),
-    ("push protection of secret scanning", "repos/{owner}/{repo}", ("security_and_analysis", "secret_scanning_push_protection", "status"), "enabled"),
+    (
+        "push protection of secret scanning",
+        "repos/{owner}/{repo}",
+        ("security_and_analysis", "secret_scanning_push_protection", "status"),
+        "enabled",
+    ),
     ("code scanning (default setup)", "repos/{owner}/{repo}/code-scanning/default-setup", ("state",), "configured"),
     ("immutable releases", "repos/{owner}/{repo}/immutable-releases", ("enabled",), True),
-    ("actions pinned by commit (SHA pinning required)", "repos/{owner}/{repo}/actions/permissions", ("sha_pinning_required",), True),
+    (
+        "actions pinned by commit (SHA pinning required)",
+        "repos/{owner}/{repo}/actions/permissions",
+        ("sha_pinning_required",),
+        True,
+    ),
 )
 # Answers 204 when on, 404 when off.
 ALERTS = ("Dependabot alerts", "repos/{owner}/{repo}/vulnerability-alerts")
@@ -68,9 +89,25 @@ def assets_of(version: str) -> list[str]:
     """Return the names of the 15 files of a release (see release.yml), SHA256SUMS.sig included."""
     # The build names the sdist by the PEP 440 form: 1.0.0rc1 for 1.0.0-rc1.
     wheel = wheel_version(version)
-    return sorted([f"neoaprs-{wheel}.tar.gz", f"neoaprs-{wheel}-py3-none-any.whl", "install.sh", f"NeoAPRS-Setup-{version}.exe", f"NeoAPRS-{version}-x86_64.AppImage", f"NeoAPRS-{version}-arm64.dmg",
-                   f"neoaprs_{version}_amd64.deb", f"neoaprs_{version}_arm64.deb", "NeoAPRS-Setup.exe", "NeoAPRS-x86_64.AppImage", "NeoAPRS-arm64.dmg",
-                   "neoaprs_amd64.deb", "neoaprs_arm64.deb", CHECKSUMS, SIGNATURE])
+    return sorted(
+        [
+            f"neoaprs-{wheel}.tar.gz",
+            f"neoaprs-{wheel}-py3-none-any.whl",
+            "install.sh",
+            f"NeoAPRS-Setup-{version}.exe",
+            f"NeoAPRS-{version}-x86_64.AppImage",
+            f"NeoAPRS-{version}-arm64.dmg",
+            f"neoaprs_{version}_amd64.deb",
+            f"neoaprs_{version}_arm64.deb",
+            "NeoAPRS-Setup.exe",
+            "NeoAPRS-x86_64.AppImage",
+            "NeoAPRS-arm64.dmg",
+            "neoaprs_amd64.deb",
+            "neoaprs_arm64.deb",
+            CHECKSUMS,
+            SIGNATURE,
+        ]
+    )
 
 
 def signing_seed(environ: Mapping[str, str] = os.environ) -> bytes:
@@ -79,7 +116,9 @@ def signing_seed(environ: Mapping[str, str] = os.environ) -> bytes:
     The value is never printed or put in a command line, and a refusal never quotes bws's output."""
     secret_id = environ.get(SIGNING_KEY_ID_VARIABLE, "").strip()
     if not secret_id:
-        raise Refusal(f"{SIGNING_KEY_ID_VARIABLE} names no secret: set it to the id of the signing key's secret in Bitwarden Secrets Manager, and BWS_ACCESS_TOKEN for bws")
+        raise Refusal(
+            f"{SIGNING_KEY_ID_VARIABLE} names no secret: set it to the id of the signing key's secret in Bitwarden Secrets Manager, and BWS_ACCESS_TOKEN for bws"
+        )
     argv = ["bws", "secret", "get", secret_id, "--output", "json"]
     if environ.get("BWS_SERVER_URL"):
         argv += ["--server-url", environ["BWS_SERVER_URL"]]
@@ -90,7 +129,9 @@ def signing_seed(environ: Mapping[str, str] = os.environ) -> bytes:
     except subprocess.TimeoutExpired:
         raise Refusal(f"bws did not answer within {BWS_SEC} s") from None
     if done.returncode != 0:
-        raise Refusal(f"bws could not read the secret {secret_id} (exit code {done.returncode}): {done.stderr.decode('utf-8', errors='replace').strip()[:300]}")
+        raise Refusal(
+            f"bws could not read the secret {secret_id} (exit code {done.returncode}): {done.stderr.decode('utf-8', errors='replace').strip()[:300]}"
+        )
     try:
         seed = base64.b64decode(json.loads(done.stdout)["value"].strip(), validate=True)
     except (ValueError, KeyError, TypeError, AttributeError, binascii.Error):
@@ -107,7 +148,9 @@ def child_environment(environ: Mapping[str, str] = os.environ) -> dict[str, str]
 
 def public_half(seed: bytes) -> str:
     """The base64 of the raw public key of the seed, as PUBLIC_KEY is written."""
-    return base64.b64encode(Ed25519PrivateKey.from_private_bytes(seed).public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)).decode("ascii")
+    return base64.b64encode(
+        Ed25519PrivateKey.from_private_bytes(seed).public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    ).decode("ascii")
 
 
 def parse(version: str) -> tuple[int, int, int, tuple[int, str]]:
@@ -135,17 +178,21 @@ class Release:
         self.first: str | None = None
         # How many commits self.commit is after self.first.
         self.after = 0
-        self.last_tag = ""                                             # newest release before this one
-        self.refusals: list[str] = []                                  # what a dry run would stop for
+        self.last_tag = ""  # newest release before this one
+        self.refusals: list[str] = []  # what a dry run would stop for
 
     # ---- the tools: git, gh, the shell
     def run(self, *args: str, check: bool = True, capture: bool = True, **kw: Any) -> subprocess.CompletedProcess[str]:
         try:
-            done = subprocess.run(list(args), cwd=ROOT, text=True, capture_output=capture, env=child_environment(), **kw)
+            done = subprocess.run(
+                list(args), cwd=ROOT, text=True, capture_output=capture, env=child_environment(), **kw
+            )
         except FileNotFoundError:
             raise Refusal(f"{args[0]} is not installed") from None
         if check and done.returncode != 0:
-            raise Refusal(f"`{' '.join(args)}` failed ({done.returncode}): {(done.stderr or done.stdout).strip()[:400]}")
+            raise Refusal(
+                f"`{' '.join(args)}` failed ({done.returncode}): {(done.stderr or done.stdout).strip()[:400]}"
+            )
         return done
 
     def git(self, *args: str, check: bool = True) -> str:
@@ -162,7 +209,11 @@ class Release:
             time.sleep(delay)
             delay *= 2
         if check and done.returncode != 0:
-            hint = " Is gh logged in (gh auth status)? Wait for the limit to pass and run the same command again." if RATE_LIMIT.search(done.stderr) else ""
+            hint = (
+                " Is gh logged in (gh auth status)? Wait for the limit to pass and run the same command again."
+                if RATE_LIMIT.search(done.stderr)
+                else ""
+            )
             raise Refusal(f"`gh {' '.join(args)}` failed: {(done.stderr or done.stdout).strip()[:400]}.{hint}")
         return done
 
@@ -191,7 +242,9 @@ class Release:
 
     def find_commit(self) -> str | None:
         """Return the oldest commit that wrote `VERSION = "<version>"`, the release commit."""
-        found = self.git("log", "-S" + f'VERSION = "{self.version}"', "--format=%H", "--", "neoaprs/__init__.py", check=False).split()
+        found = self.git(
+            "log", "-S" + f'VERSION = "{self.version}"', "--format=%H", "--", "neoaprs/__init__.py", check=False
+        ).split()
         return found[-1] if found else None
 
     def started(self) -> bool:
@@ -205,7 +258,9 @@ class Release:
         if branch != "master":
             self.refuse(f"not on master (on {branch}): git switch master")
         self.commit = self.first = self.find_commit()
-        tags = sorted((t[1:] for t in self.git("tag", "--list", "v*").split() if t != self.tag and SEMVER.match(t[1:])), key=parse)
+        tags = sorted(
+            (t[1:] for t in self.git("tag", "--list", "v*").split() if t != self.tag and SEMVER.match(t[1:])), key=parse
+        )
         self.last_tag = f"v{tags[-1]}" if tags else ""
         if tags and parse(self.version) <= parse(tags[-1]):
             self.refuse(f"{self.version} is not greater than {tags[-1]}, the newest release")
@@ -219,7 +274,9 @@ class Release:
         if not self.dry_run:
             auth = self.run("gh", "auth", "status", check=False)
             if auth.returncode != 0:
-                raise Refusal("gh is not logged in: gh auth login (the script uses your own gh; the anonymous API hits GitHub's rate limit)")
+                raise Refusal(
+                    "gh is not logged in: gh auth login (the script uses your own gh; the anonymous API hits GitHub's rate limit)"
+                )
 
     def switch_answer(self, path: str) -> subprocess.CompletedProcess[str]:
         """Ask once: a 403 is a missing permission and no rate limit, so it is not waited out."""
@@ -232,7 +289,11 @@ class Release:
             if path not in cache:
                 done = self.switch_answer(path)
                 try:
-                    cache[path] = json.loads(done.stdout) if done.returncode == 0 else f"gh failed: {(done.stderr or done.stdout).strip()[:120]}"
+                    cache[path] = (
+                        json.loads(done.stdout)
+                        if done.returncode == 0
+                        else f"gh failed: {(done.stderr or done.stdout).strip()[:120]}"
+                    )
                 except ValueError:
                     cache[path] = "the answer is not JSON"
             found = cache[path]
@@ -241,14 +302,20 @@ class Release:
             if isinstance(cache[path], str):
                 problems.append(f"{name}: cannot be read ({cache[path]})")
             elif found is None or type(found) is not type(wanted):
-                problems.append(f"{name}: cannot be read (GitHub's answer has no {'.'.join(field)} of the form expected)")
+                problems.append(
+                    f"{name}: cannot be read (GitHub's answer has no {'.'.join(field)} of the form expected)"
+                )
             elif found != wanted:
                 problems.append(f"{name} is off (GitHub says {json.dumps(found)})")
         name, path = ALERTS
         done = self.switch_answer(path)
         if done.returncode != 0:
             text = done.stderr + done.stdout
-            problems.append(f"{name} is off" if re.search(r"\b404\b|Not Found", text) else f"{name}: cannot be read (gh failed: {text.strip()[:120]})")
+            problems.append(
+                f"{name} is off"
+                if re.search(r"\b404\b|Not Found", text)
+                else f"{name}: cannot be read (gh failed: {text.strip()[:120]})"
+            )
         return problems
 
     def step_switches(self) -> str:
@@ -256,7 +323,11 @@ class Release:
         dry run."""
         problems = self.switch_problems()
         if problems:
-            self.refuse("a switch of the repository on GitHub is not on: " + "; ".join(problems) + ". Switch it on in the repository's settings (Security) and run the same command again")
+            self.refuse(
+                "a switch of the repository on GitHub is not on: "
+                + "; ".join(problems)
+                + ". Switch it on in the repository's settings (Security) and run the same command again"
+            )
             return ""
         return f"all {len(SWITCHES) + 1} switches are on"
 
@@ -281,7 +352,11 @@ class Release:
                 say("  (origin could not be asked: not compared)")
                 return
             theirs = asked.stdout.split()[0]
-            if self.git("rev-parse", "HEAD") != theirs and self.run("git", "cat-file", "-e", theirs, check=False).returncode == 0 and self.run("git", "merge-base", "--is-ancestor", "HEAD", theirs, check=False).returncode == 0:
+            if (
+                self.git("rev-parse", "HEAD") != theirs
+                and self.run("git", "cat-file", "-e", theirs, check=False).returncode == 0
+                and self.run("git", "merge-base", "--is-ancestor", "HEAD", theirs, check=False).returncode == 0
+            ):
                 self.refuse("master is behind origin/master: git pull")
             return
         self.git("fetch", "origin", "master")
@@ -290,12 +365,16 @@ class Release:
         if behind != "0":
             self.refuse(f"master is {behind} commit(s) behind origin/master: git pull")
         elif ahead and ahead != [self.commit]:
-            self.refuse(f"master has {len(ahead)} commit(s) that origin/master has not, and they are not just the release commit: push or review them first")
+            self.refuse(
+                f"master has {len(ahead)} commit(s) that origin/master has not, and they are not just the release commit: push or review them first"
+            )
 
     def tag_shas(self) -> set[str]:
         """Return the commits the tag names, here and on origin."""
         local = self.git("rev-parse", "--verify", "--quiet", f"{self.tag}^{{commit}}", check=False)
-        remote = self.run("git", "ls-remote", "origin", f"refs/tags/{self.tag}^{{}}", f"refs/tags/{self.tag}", check=False).stdout.split()[:1]
+        remote = self.run(
+            "git", "ls-remote", "origin", f"refs/tags/{self.tag}^{{}}", f"refs/tags/{self.tag}", check=False
+        ).stdout.split()[:1]
         return {sha for sha in (local, remote[0] if remote else "") if sha}
 
     def defect(self, sha: str) -> str:
@@ -322,24 +401,35 @@ class Release:
         tagged = self.tag_shas()
         if len(tagged) == 1:
             (named,) = tagged
-            if named != self.first and self.run("git", "merge-base", "--is-ancestor", self.first, named, check=False).returncode == 0 and self.run("git", "merge-base", "--is-ancestor", named, head, check=False).returncode == 0 and not self.defect(named):
+            if (
+                named != self.first
+                and self.run("git", "merge-base", "--is-ancestor", self.first, named, check=False).returncode == 0
+                and self.run("git", "merge-base", "--is-ancestor", named, head, check=False).returncode == 0
+                and not self.defect(named)
+            ):
                 self.commit = named
             else:
                 # The tag is on the release commit, or check_tag refuses it.
                 return
         elif not tagged and head != self.first:
             if self.run("git", "merge-base", "--is-ancestor", head, "origin/master", check=False).returncode != 0:
-                self.refuse(f"HEAD {head[:9]} is after the release commit {self.first[:9]} but not on origin/master: push it, or take it off")
+                self.refuse(
+                    f"HEAD {head[:9]} is after the release commit {self.first[:9]} but not on origin/master: push it, or take it off"
+                )
                 return
             why = self.defect(head)
             if why:
-                self.refuse(f"HEAD is {self.git('rev-list', '--count', f'{self.first}..HEAD')} commit(s) after the release commit {self.first[:9]}, and it is not the same release: {why}; a tag is never moved, and the release commit is not the release if a fix came after it")
+                self.refuse(
+                    f"HEAD is {self.git('rev-list', '--count', f'{self.first}..HEAD')} commit(s) after the release commit {self.first[:9]}, and it is not the same release: {why}; a tag is never moved, and the release commit is not the release if a fix came after it"
+                )
                 return
             self.commit = head
         else:
             return
         self.after = int(self.git("rev-list", "--count", f"{self.first}..{self.commit}"))
-        say(f"  the release is {'HEAD' if self.commit == head else str(self.commit)[:9]}: {self.after} commit{'' if self.after == 1 else 's'} after the release commit {str(self.first)[:9]}, same version")
+        say(
+            f"  the release is {'HEAD' if self.commit == head else str(self.commit)[:9]}: {self.after} commit{'' if self.after == 1 else 's'} after the release commit {str(self.first)[:9]}, same version"
+        )
 
     def target(self) -> str:
         """What the steps of ci and tag say they are about."""
@@ -351,7 +441,9 @@ class Release:
             self.refuse("CHANGELOG.md has no `## Unreleased` heading")
         elif self.commit:
             if f"\n## {self.version}\n" not in "\n" + self.git("show", f"{self.commit}:CHANGELOG.md"):
-                self.refuse(f"the commit {self.commit[:9]} sets the version but CHANGELOG.md has no section {self.version} in it")
+                self.refuse(
+                    f"the commit {self.commit[:9]} sets the version but CHANGELOG.md has no section {self.version} in it"
+                )
             say(f"  (the release commit {str(self.first)[:9]} is made already)")
         elif self.version in sections:
             say(f"  (the section {self.version} is written already)")
@@ -360,17 +452,23 @@ class Release:
 
     def check_tag(self) -> None:
         local = self.git("rev-parse", "--verify", "--quiet", f"{self.tag}^{{commit}}", check=False)
-        remote = self.run("git", "ls-remote", "origin", f"refs/tags/{self.tag}^{{}}", f"refs/tags/{self.tag}", check=False).stdout.split()[:1]
+        remote = self.run(
+            "git", "ls-remote", "origin", f"refs/tags/{self.tag}^{{}}", f"refs/tags/{self.tag}", check=False
+        ).stdout.split()[:1]
         for where, sha in (("here", local), ("on origin", remote[0] if remote else "")):
             if sha and sha != self.commit:
-                self.refuse(f"the tag {self.tag} exists {where} at {sha[:9]}, which is not the release commit: a tag is never moved; take the next version")
+                self.refuse(
+                    f"the tag {self.tag} exists {where} at {sha[:9]}, which is not the release commit: a tag is never moved; take the next version"
+                )
 
     def step_bump(self) -> str:
         if self.current() == self.version:
             return "skipped: VERSION is written already"
         if self.dry_run:
             return f'would write VERSION = "{self.version}"'
-        INIT.write_text(VERSION_LINE.sub(f'VERSION = "{self.version}"', INIT.read_text(encoding="utf-8"), count=1), encoding="utf-8")
+        INIT.write_text(
+            VERSION_LINE.sub(f'VERSION = "{self.version}"', INIT.read_text(encoding="utf-8"), count=1), encoding="utf-8"
+        )
         return "done"
 
     def step_changelog(self) -> str:
@@ -379,7 +477,10 @@ class Release:
         if self.dry_run:
             return f"would rename `## Unreleased` to `## {self.version}` and add an empty one above it"
         text = CHANGELOG.read_text(encoding="utf-8")
-        CHANGELOG.write_text(re.sub(r"^## Unreleased[ \t]*\n", f"## Unreleased\n\n## {self.version}\n", text, count=1, flags=re.M), encoding="utf-8")
+        CHANGELOG.write_text(
+            re.sub(r"^## Unreleased[ \t]*\n", f"## Unreleased\n\n## {self.version}\n", text, count=1, flags=re.M),
+            encoding="utf-8",
+        )
         first = next((line for line in self.sections()[1][self.version].splitlines() if line.strip()), "")
         return f"done; the notes begin: {first[:100]}"
 
@@ -395,7 +496,11 @@ class Release:
         if changed:
             self.git("restore", "--source=HEAD", "--staged", "--worktree", "--", "neoaprs/page")
             self.git("clean", "-fdq", "--", "neoaprs/page")
-            raise Refusal("the committed page is not what ui/ builds (" + "; ".join(changed.splitlines()[:4]) + "): run scripts/build-page, commit neoaprs/page/ and run the same command again; the tree is as it was")
+            raise Refusal(
+                "the committed page is not what ui/ builds ("
+                + "; ".join(changed.splitlines()[:4])
+                + "): run scripts/build-page, commit neoaprs/page/ and run the same command again; the tree is as it was"
+            )
         return "done: the committed page is what ui/ builds"
 
     def step_check(self) -> str:
@@ -404,14 +509,16 @@ class Release:
         if self.dry_run:
             return "would run scripts/check"
         if self.run(str(ROOT / "scripts" / "check"), check=False, capture=False).returncode != 0:
-            raise Refusal(f"scripts/check failed: nothing is committed; fix it and run `{COMMAND} {self.version}` again (the version and the changelog stay as written)")
+            raise Refusal(
+                f"scripts/check failed: nothing is committed; fix it and run `{COMMAND} {self.version}` again (the version and the changelog stay as written)"
+            )
         return "done"
 
     def step_commit(self) -> str:
         if self.commit:
             return f"skipped: {str(self.first)[:9]} sets the version already"
         if self.dry_run:
-            return f"would commit neoaprs/__init__.py and CHANGELOG.md as \"{self.version}: the changelog section and the version\""
+            return f'would commit neoaprs/__init__.py and CHANGELOG.md as "{self.version}: the changelog section and the version"'
         self.git("add", "neoaprs/__init__.py", "CHANGELOG.md")
         self.git("commit", "-q", "-m", f"{self.version}: the changelog section and the version")
         self.commit = self.git("rev-parse", "HEAD")
@@ -433,7 +540,10 @@ class Release:
         return "done"
 
     def step_tag(self) -> str:
-        have_local = self.git("rev-parse", "--verify", "--quiet", f"{self.tag}^{{commit}}", check=False) == self.commit and self.commit is not None
+        have_local = (
+            self.git("rev-parse", "--verify", "--quiet", f"{self.tag}^{{commit}}", check=False) == self.commit
+            and self.commit is not None
+        )
         remote = self.run("git", "ls-remote", "--tags", "origin", self.tag, check=False).stdout.strip() != ""
         if have_local and remote:
             return f"skipped: {self.tag} is on {str(self.commit)[:9]} here and on origin"
@@ -446,7 +556,16 @@ class Release:
 
     # ---- GitHub: the runs and the release
     def runs(self, workflow: str, **find: str) -> list[dict[str, Any]]:
-        args = ["run", "list", "--workflow", workflow, "--json", "databaseId,status,conclusion,headSha,url,attempt", "--limit", "20"]
+        args = [
+            "run",
+            "list",
+            "--workflow",
+            workflow,
+            "--json",
+            "databaseId,status,conclusion,headSha,url,attempt",
+            "--limit",
+            "20",
+        ]
         for key, value in find.items():
             if key == "commit" and not FULL_SHA.match(value):
                 raise Refusal(f"gh run list --commit needs the full sha, not {value!r} (a bug of this script)")
@@ -465,7 +584,9 @@ class Release:
             say(f"  no {workflow} run for {what} yet")
             self.pause()
         if run is None:
-            raise Refusal(f"no {workflow} run for {what} was started: look at the Actions tab, then run the same command again")
+            raise Refusal(
+                f"no {workflow} run for {what} was started: look at the Actions tab, then run the same command again"
+            )
         rerun_done = False
         while True:
             run = self.settle(run["databaseId"])
@@ -473,8 +594,14 @@ class Release:
                 return f"done: {workflow} run {run['databaseId']} passed"
             self.show_failure(run)
             if not self.rerun or rerun_done or run.get("attempt", 1) > 1:
-                again = "it has been run again already" if self.rerun or run.get("attempt", 1) > 1 else f"for a flaky test or a runner that failed run `{COMMAND} {self.version} --rerun`"
-                raise Refusal(f"the {workflow} run {run['databaseId']} failed ({run['url']}); {again}; a failure of the code needs a fix on master and the next version (a tag is never moved)")
+                again = (
+                    "it has been run again already"
+                    if self.rerun or run.get("attempt", 1) > 1
+                    else f"for a flaky test or a runner that failed run `{COMMAND} {self.version} --rerun`"
+                )
+                raise Refusal(
+                    f"the {workflow} run {run['databaseId']} failed ({run['url']}); {again}; a failure of the code needs a fix on master and the next version (a tag is never moved)"
+                )
             say(f"  --rerun: running the failed jobs of run {run['databaseId']} again, once")
             self.gh("run", "rerun", str(run["databaseId"]), "--failed")
             rerun_done = True
@@ -484,15 +611,34 @@ class Release:
         """Watch a run until completed; `gh run watch` may end early on a network fault, so ask
         again."""
         while True:
-            run = self.ghjson("run", "view", str(run_id), "--json", "databaseId,status,conclusion,url,attempt,headSha,jobs")
+            run = self.ghjson(
+                "run", "view", str(run_id), "--json", "databaseId,status,conclusion,url,attempt,headSha,jobs"
+            )
             if run["status"] == "completed":
                 return run  # type: ignore[no-any-return]
-            self.run("gh", "run", "watch", str(run_id), "--exit-status", "--interval", str(max(int(self.interval), 1)), check=False, capture=False)
+            self.run(
+                "gh",
+                "run",
+                "watch",
+                str(run_id),
+                "--exit-status",
+                "--interval",
+                str(max(int(self.interval), 1)),
+                check=False,
+                capture=False,
+            )
             self.pause()
 
     def show_failure(self, run: dict[str, Any]) -> None:
         failed = [j for j in run.get("jobs", []) if j.get("conclusion") not in ("success", "skipped", None)]
-        say(f"  FAILED: run {run['databaseId']} {run['url']}" + (f" (commit {run['headSha']}: for gh run list --commit the full sha is needed)" if run.get("headSha") else ""))
+        say(
+            f"  FAILED: run {run['databaseId']} {run['url']}"
+            + (
+                f" (commit {run['headSha']}: for gh run list --commit the full sha is needed)"
+                if run.get("headSha")
+                else ""
+            )
+        )
         for job in failed:
             steps = [s["name"] for s in job.get("steps", []) if s.get("conclusion") == "failure"]
             say(f"    job {job['name']}: {job.get('conclusion')}" + (f" (step: {', '.join(steps)})" if steps else ""))
@@ -527,11 +673,20 @@ class Release:
     def release_file(self, name: str) -> bytes:
         """The file `name` of the release (a draft too), its bytes as they are."""
         try:
-            done = subprocess.run(["gh", "release", "download", self.tag, "--pattern", name, "--output", "-"], cwd=ROOT, capture_output=True, timeout=300, check=False, env=child_environment())
+            done = subprocess.run(
+                ["gh", "release", "download", self.tag, "--pattern", name, "--output", "-"],
+                cwd=ROOT,
+                capture_output=True,
+                timeout=300,
+                check=False,
+                env=child_environment(),
+            )
         except FileNotFoundError:
             raise Refusal("gh is not installed") from None
         if done.returncode != 0:
-            raise Refusal(f"{name} of {self.tag} could not be downloaded: {done.stderr.decode('utf-8', errors='replace').strip()[:400]}")
+            raise Refusal(
+                f"{name} of {self.tag} could not be downloaded: {done.stderr.decode('utf-8', errors='replace').strip()[:400]}"
+            )
         return done.stdout
 
     def signature_problem(self) -> str:
@@ -552,7 +707,9 @@ class Release:
             return f"would sign {CHECKSUMS} of the draft {self.tag} with the key read by bws, upload {SIGNATURE}, check it with the program's public key and publish the release"
         release = self.published()
         if release is None:
-            raise Refusal(f"the release {self.tag} does not exist: the release run did not make it; look at its jobs and run the same command again (with --rerun for a failed job)")
+            raise Refusal(
+                f"the release {self.tag} does not exist: the release run did not make it; look at its jobs and run the same command again (with --rerun for a failed job)"
+            )
         names = {a["name"] for a in release["assets"]}
         if SIGNATURE in names and not self.signature_problem():
             if release["isDraft"]:
@@ -560,10 +717,14 @@ class Release:
                 return f"skipped: {SIGNATURE} holds already; the release is published"
             return f"skipped: {SIGNATURE} holds already"
         if not release["isDraft"]:
-            raise Refusal(f"the release {self.tag} is published and its {SIGNATURE} does not hold: a published release is not signed after the fact; take the next version")
+            raise Refusal(
+                f"the release {self.tag} is published and its {SIGNATURE} does not hold: a published release is not signed after the fact; take the next version"
+            )
         missing = sorted(set(assets_of(self.version)) - {SIGNATURE} - names)
         if missing:
-            raise Refusal(f"the draft {self.tag} has no {missing}: the release run did not upload every file; run it again (--rerun) and then the same command")
+            raise Refusal(
+                f"the draft {self.tag} has no {missing}: the release run did not upload every file; run it again (--rerun) and then the same command"
+            )
         sums = self.release_file(CHECKSUMS)
         try:
             listed = checksums(sums)
@@ -571,10 +732,14 @@ class Release:
             raise Refusal(f"the draft's {CHECKSUMS} is not signed: {e}") from None
         for name, digest in sorted(listed.items()):
             if hashlib.sha256(self.release_file(name)).hexdigest() != digest.lower():
-                raise Refusal(f"the draft {self.tag} has a {name} that is not the one {CHECKSUMS} names: upload the files of the release run again (--rerun) and then the same command; nothing is signed")
+                raise Refusal(
+                    f"the draft {self.tag} has a {name} that is not the one {CHECKSUMS} names: upload the files of the release run again (--rerun) and then the same command; nothing is signed"
+                )
         seed = signing_seed()
         if public_half(seed) != PUBLIC_KEY:
-            raise Refusal("the key read from Bitwarden is not the one whose public half the program carries (neoaprs/updateasset.py, PUBLIC_KEY): nothing is signed")
+            raise Refusal(
+                "the key read from Bitwarden is not the one whose public half the program carries (neoaprs/updateasset.py, PUBLIC_KEY): nothing is signed"
+            )
         signature = sign(sums, self.version, seed)
         del seed
         with tempfile.TemporaryDirectory(prefix="neoaprs-sign-") as folder:
@@ -583,7 +748,9 @@ class Release:
             self.gh("release", "upload", self.tag, str(path), "--clobber")
         problem = self.signature_problem()
         if problem:
-            raise Refusal(f"the {SIGNATURE} uploaded to the draft {self.tag} does not hold: {problem}; the release stays a draft")
+            raise Refusal(
+                f"the {SIGNATURE} uploaded to the draft {self.tag} does not hold: {problem}; the release stays a draft"
+            )
         self.gh("release", "edit", self.tag, "--draft=false")
         return f"done: {CHECKSUMS} of {self.tag} is signed, the signature holds with the program's public key, and the release is published"
 
@@ -592,12 +759,18 @@ class Release:
             return f"would check that {self.tag} is published, not a draft, has {len(assets_of(self.version))} files, that its {SIGNATURE} holds and that every download link answers"
         release = self.published()
         if release is None:
-            raise Refusal(f"the release {self.tag} does not exist: the release run did not make it; look at its jobs and run the same command again (with --rerun for a failed job)")
+            raise Refusal(
+                f"the release {self.tag} does not exist: the release run did not make it; look at its jobs and run the same command again (with --rerun for a failed job)"
+            )
         if release["isDraft"]:
-            raise Refusal(f"the release {self.tag} is still a draft: the step sign publishes it once {CHECKSUMS} is signed")
+            raise Refusal(
+                f"the release {self.tag} is still a draft: the step sign publishes it once {CHECKSUMS} is signed"
+            )
         names = sorted(a["name"] for a in release["assets"])
         if names != assets_of(self.version):
-            raise Refusal(f"the release has the files {names}, not {assets_of(self.version)}: missing {sorted(set(assets_of(self.version)) - set(names))}, extra {sorted(set(names) - set(assets_of(self.version)))}")
+            raise Refusal(
+                f"the release has the files {names}, not {assets_of(self.version)}: missing {sorted(set(assets_of(self.version)) - set(names))}, extra {sorted(set(names) - set(assets_of(self.version)))}"
+            )
         signed = self.signature_problem()
         if signed:
             raise Refusal(f"the signature of the release {self.tag} does not hold: {signed}")
@@ -636,32 +809,72 @@ def steps(r: Release) -> list[tuple[str, str, Callable[[], str]]]:
     def checks() -> str:
         r.step_checks()
         return ""
+
     return [
-        ("checks", "on master, clean, up to date with origin, notes under Unreleased, the version new and greater, no tag elsewhere", checks),
-        ("switches", "the repository's switches on GitHub are on: secret scanning and its push protection, Dependabot alerts, code scanning, immutable releases, actions pinned by commit (read only)", r.step_switches),
+        (
+            "checks",
+            "on master, clean, up to date with origin, notes under Unreleased, the version new and greater, no tag elsewhere",
+            checks,
+        ),
+        (
+            "switches",
+            "the repository's switches on GitHub are on: secret scanning and its push protection, Dependabot alerts, code scanning, immutable releases, actions pinned by commit (read only)",
+            r.step_switches,
+        ),
         ("version", f'neoaprs/__init__.py: VERSION = "{r.version}"', r.step_bump),
-        ("changelog", f"CHANGELOG.md: `## Unreleased` becomes `## {r.version}`, with an empty one above", r.step_changelog),
-        ("page", "build the page only if ui/ changed since the last tag, and fail if the committed one is not what ui/ builds", r.step_page),
+        (
+            "changelog",
+            f"CHANGELOG.md: `## Unreleased` becomes `## {r.version}`, with an empty one above",
+            r.step_changelog,
+        ),
+        (
+            "page",
+            "build the page only if ui/ changed since the last tag, and fail if the committed one is not what ui/ builds",
+            r.step_page,
+        ),
         ("check", "scripts/check", r.step_check),
         ("commit", f'commit "{r.version}: the changelog section and the version"', r.step_commit),
         ("push", "push master", r.step_push),
         ("ci", "wait for the CI run of the release commit", r.step_ci),
         ("tag", f"tag {r.tag} on the release commit and push the tag (a tag is never moved)", r.step_tag),
         ("release", f"wait for the release run of {r.tag}", r.step_release_run),
-        ("sign", f"sign {CHECKSUMS} of the draft with the key from Bitwarden, check {SIGNATURE} with the program's public key, publish the release", r.step_sign),
-        ("verify", f"the release is published, not a draft, has its 15 files, {SIGNATURE} holds, every download link answers", r.step_verify),
+        (
+            "sign",
+            f"sign {CHECKSUMS} of the draft with the key from Bitwarden, check {SIGNATURE} with the program's public key, publish the release",
+            r.step_sign,
+        ),
+        (
+            "verify",
+            f"the release is published, not a draft, has its 15 files, {SIGNATURE} holds, every download link answers",
+            r.step_verify,
+        ),
         ("deploy", "deploy the version page (server/deploy.sh), with --deploy", r.step_deploy),
     ]
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Make a release in one command; run it again after a failure and it goes on where it stopped.", epilog="docs/MAINTAINING.md, 'A release'")
+    parser = argparse.ArgumentParser(
+        description="Make a release in one command; run it again after a failure and it goes on where it stopped.",
+        epilog="docs/MAINTAINING.md, 'A release'",
+    )
     parser.add_argument("version", help="the new version, such as 0.9.2 (or 1.0.0-rc1)")
     parser.add_argument("--dry-run", action="store_true", help="print the steps and change nothing")
-    parser.add_argument("--rerun", action="store_true", help="run the failed jobs of a failed CI or release run again, once")
+    parser.add_argument(
+        "--rerun", action="store_true", help="run the failed jobs of a failed CI or release run again, once"
+    )
     parser.add_argument("--deploy", action="store_true", help="upload the version page at the end (server/deploy.sh)")
-    parser.add_argument("--interval", type=float, default=15.0, metavar="SECONDS", help="seconds between two looks at GitHub (default %(default)s)")
-    parser.add_argument("--verify", action="store_true", help="only check the published release: its files, the signature of SHA256SUMS and the download links")
+    parser.add_argument(
+        "--interval",
+        type=float,
+        default=15.0,
+        metavar="SECONDS",
+        help="seconds between two looks at GitHub (default %(default)s)",
+    )
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="only check the published release: its files, the signature of SHA256SUMS and the download links",
+    )
     args = parser.parse_args(argv)
     r = Release(args.version, args.dry_run and not args.verify, args.rerun, args.deploy, args.interval)
     try:

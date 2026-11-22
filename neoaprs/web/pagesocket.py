@@ -1,4 +1,5 @@
 """The page's WebSocket (`/ws`), one handler per browser tab."""
+
 import asyncio
 import logging
 from typing import Any, Protocol

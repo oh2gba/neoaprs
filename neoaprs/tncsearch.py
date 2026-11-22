@@ -3,6 +3,7 @@ long as it takes, and the port whose bytes look like the radio's is the answer.
 
 The search skips ports others hold (`Claims.others`) and gives its turn up while another waits.
 """
+
 import asyncio
 import logging
 import os
@@ -46,11 +47,16 @@ def turn_sec(nudge: bool, nudge_sec: float) -> float:
 
 def claimed(claims: Claims | None, holder: RadioId, named: bool = True) -> dict[str, str]:
     """Return the serial devices that are others' (what the search of `holder` leaves out)."""
-    return {} if claims is None else {value: f"held by {claims.words(other)}" for value, other in claims.others(holder, "serial", named).items()}
+    return (
+        {}
+        if claims is None
+        else {
+            value: f"held by {claims.words(other)}" for value, other in claims.others(holder, "serial", named).items()
+        }
+    )
 
 
 class Others(Mapping[str, str]):
-
     def __init__(self, claims: Claims | None, holder: RadioId) -> None:
         self._claims, self._holder = claims, holder
 
@@ -124,7 +130,13 @@ def release_port(claims: Claims | None, holder: RadioId) -> None:
 
 
 class PortSearch:
-    def __init__(self, spawn: Callable[[Coroutine[Any, Any, None]], "asyncio.Task[None]"], note: Callable[[str], None], nudge: bytes, label: Callable[[], str] = lambda: "tnc") -> None:
+    def __init__(
+        self,
+        spawn: Callable[[Coroutine[Any, Any, None]], "asyncio.Task[None]"],
+        note: Callable[[str], None],
+        nudge: bytes,
+        label: Callable[[], str] = lambda: "tnc",
+    ) -> None:
         self._spawn = spawn
         self._nudge = nudge  # written to quiet ports: a TNC in command mode answers
         self._note = note
@@ -144,16 +156,38 @@ class PortSearch:
 
     @property
     def words(self) -> str:
-        return f"listening on {', '.join(self.listening)} for the radio" if self.listening else WAITING if self.waiting else ""
+        return (
+            f"listening on {', '.join(self.listening)} for the radio"
+            if self.listening
+            else WAITING
+            if self.waiting
+            else ""
+        )
 
-    async def find(self, pattern: str, baud: int, seconds: float, looks_valid: Callable[[bytes], bool], nudge: bool, nudge_sec: float, skip: tuple[str, ...], wanted: Callable[[], bool], also: str = "", *,
-                   claims: Claims | None = None, holder: RadioId = FM_ID, lock: asyncio.Lock | None = None) -> tuple[str, bytes]:
+    async def find(
+        self,
+        pattern: str,
+        baud: int,
+        seconds: float,
+        looks_valid: Callable[[bytes], bool],
+        nudge: bool,
+        nudge_sec: float,
+        skip: tuple[str, ...],
+        wanted: Callable[[], bool],
+        also: str = "",
+        *,
+        claims: Claims | None = None,
+        holder: RadioId = FM_ID,
+        lock: asyncio.Lock | None = None,
+    ) -> tuple[str, bytes]:
         """Return the port of the radio and what it was heard to say.
 
         Raise SerialError if there is none; return ("", b"") when `wanted()` turned false.
         """
         if not self.possible:
-            raise NotChosenError("no port is chosen: the radio is not looked for among the ports on this system, so choose its port in the settings")
+            raise NotChosenError(
+                "no port is chosen: the radio is not looked for among the ports on this system, so choose its port in the settings"
+            )
         loop, others = asyncio.get_running_loop(), Others(claims, holder)
         deadline = loop.time() + seconds if seconds else None
         found: tuple[str, bytes] | None = None
@@ -165,7 +199,13 @@ class PortSearch:
                 try:
                     # what is left of the whole wait, never 0 (that is no limit)
                     left = seconds if deadline is None else max(deadline - loop.time(), 0.001)
-                    found = await self._find(pattern, baud, left, looks_valid, nudge, nudge_sec, skip, wanted, also, others, lock) if wanted() else ("", b"")
+                    found = (
+                        await self._find(
+                            pattern, baud, left, looks_valid, nudge, nudge_sec, skip, wanted, also, others, lock
+                        )
+                        if wanted()
+                        else ("", b"")
+                    )
                     if found is not None and found[0] and serialprobe.claim_value(found[0]) in others:
                         # another radio's since a save a moment ago
                         found = None
@@ -195,13 +235,27 @@ class PortSearch:
         finally:
             self.waiting = False
 
-    async def _find(self, pattern: str, baud: int, seconds: float, looks_valid: Callable[[bytes], bool], nudge: bool, nudge_sec: float, skip: tuple[str, ...], wanted: Callable[[], bool], also: str,
-                    others: Mapping[str, str], lock: asyncio.Lock | None) -> tuple[str, bytes] | None:
+    async def _find(
+        self,
+        pattern: str,
+        baud: int,
+        seconds: float,
+        looks_valid: Callable[[bytes], bool],
+        nudge: bool,
+        nudge_sec: float,
+        skip: tuple[str, ...],
+        wanted: Callable[[], bool],
+        also: str,
+        others: Mapping[str, str],
+        lock: asyncio.Lock | None,
+    ) -> tuple[str, bytes] | None:
         """Run one turn; return (port, bytes), ("", b"") if unwanted, or None if given up."""
         paths, boards = await self._listing(pattern, also)
         if not paths:
             if boards:
-                raise SerialError(f"no port to listen to: {'; '.join(f'{path} is {what}' for path, what in boards.items())}, which the search leaves alone; choose the port by its name in the settings to use it")
+                raise SerialError(
+                    f"no port to listen to: {'; '.join(f'{path} is {what}' for path, what in boards.items())}, which the search leaves alone; choose the port by its name in the settings to use it"
+                )
             raise SerialError(f"no port matches {pattern}")
         outcome: list[tuple[str, bytes] | None] = []
         given: list[bool] = []
@@ -215,7 +269,21 @@ class PortSearch:
 
         async def search() -> None:
             try:
-                outcome.append(await serialprobe.probe_heard(paths, baud, seconds, looks_valid, self._nudge if nudge else None, nudge_sec, self._opened, skip, relist, others, self._nudged))
+                outcome.append(
+                    await serialprobe.probe_heard(
+                        paths,
+                        baud,
+                        seconds,
+                        looks_valid,
+                        self._nudge if nudge else None,
+                        nudge_sec,
+                        self._opened,
+                        skip,
+                        relist,
+                        others,
+                        self._nudged,
+                    )
+                )
             except _TurnOver:
                 given.append(True)
                 self._say("the search gives its turn to another radio")
@@ -233,14 +301,24 @@ class PortSearch:
         # turn given up: the ports are closed and the search goes on in its next turn
         return None if given else self._answer(outcome, paths, others, skip)
 
-    def _answer(self, outcome: list[tuple[str, bytes] | None], paths: list[str], others: Mapping[str, str], skip: tuple[str, ...]) -> tuple[str, bytes]:
+    def _answer(
+        self,
+        outcome: list[tuple[str, bytes] | None],
+        paths: list[str],
+        others: Mapping[str, str],
+        skip: tuple[str, ...],
+    ) -> tuple[str, bytes]:
         """Return the port and what it said, else raise SerialError saying why each port failed."""
         if not outcome:
             raise SerialError("the search for the radio failed")
         if outcome[0] is None:
             if not self._searched:
                 never = {serialprobe.port_key(p) for p in skip}
-                why = [f"{path} {others.get(key) or ('on the skip list' if key in never else 'held by another program or not openable')}" for path in paths for key in (serialprobe.port_key(path),)]
+                why = [
+                    f"{path} {others.get(key) or ('on the skip list' if key in never else 'held by another program or not openable')}"
+                    for path in paths
+                    for key in (serialprobe.port_key(path),)
+                ]
                 raise SerialError(f"no port could be listened to: {', '.join(why)}")
             raise SerialError(f"no port delivers KISS frames (tried {', '.join(self._searched)})")
         return outcome[0]

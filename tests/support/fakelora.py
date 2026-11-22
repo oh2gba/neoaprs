@@ -2,6 +2,7 @@
 The bytes are the firmwares' own, not made by our encoder, so a test with our code on one end cannot
 hide a mismatch.
 """
+
 import asyncio
 import json
 import struct
@@ -21,12 +22,18 @@ MAX_KISS_BUFFER = 1024
 FEND, FESC, TFEND, TFESC = 0xC0, 0xDB, 0xDC, 0xDD
 HAS_BEEN_DIGIPITED, IS_LAST = 0b10000000, 0b1
 MOBILINKD = "00000001-ba2a-46c9-ae49-01b0961f68bb"
-TRACKER_KISS: Services = {MOBILINKD: [("00000002-ba2a-46c9-ae49-01b0961f68bb", ["write", "write-without-response"]), ("00000003-ba2a-46c9-ae49-01b0961f68bb", ["read", "notify"])]}
+TRACKER_KISS: Services = {
+    MOBILINKD: [
+        ("00000002-ba2a-46c9-ae49-01b0961f68bb", ["write", "write-without-response"]),
+        ("00000003-ba2a-46c9-ae49-01b0961f68bb", ["read", "notify"]),
+    ]
+}
 # tracker-ble_utils.cpp 37-39: TX is 6E400002, RX 6E400003, the other way round of Nordic's
 TRACKER_UART: Services = {NUS: [(NUS_WRITE, ["read", "notify"]), (NUS_NOTIFY, ["write", "write-without-response"])]}
 
 
 # ---- CA2RXU's kiss_utils.cpp (the iGate's and the Tracker's are the same functions)
+
 
 def encode_address(address: bytes) -> bytes:
     """encodeAddressAX25: six characters shifted, the call cut to six without a word, the SSID after
@@ -37,7 +44,7 @@ def encode_address(address: bytes) -> bytes:
             address = address[:-1]
         address += b"-0"
     separator = address.index(b"-")
-    digits = bytes(c for c in address[separator + 1:].split(b"*")[0] if 0x30 <= c <= 0x39)
+    digits = bytes(c for c in address[separator + 1 :].split(b"*")[0] if 0x30 <= c <= 0x39)
     ssid = int(digits or b"0")
     out = bytes((address[i] if i < separator and i < len(address) else 0x20) << 1 & 0xFF for i in range(6))
     return out + bytes([(ssid << 1) & 0xFF | 0b01100000 | (HAS_BEEN_DIGIPITED if digipeated else 0)])
@@ -57,7 +64,7 @@ def encode_kiss(text: bytes) -> bytes:
     if b":" in text and b">" in text:
         colon = text.index(b":")
         address, destination_written = b"", False
-        for c in text[:colon + 1]:
+        for c in text[: colon + 1]:
             if c in b":>,":
                 if not destination_written and c in b",:":
                     frame = encode_address(address) + frame
@@ -67,14 +74,16 @@ def encode_kiss(text: bytes) -> bytes:
                 address = b""
             else:
                 address += bytes([c])
-        frame = frame[:-1] + bytes([frame[-1] | IS_LAST]) + b"\x03\xf0" + text[colon + 1:]
+        frame = frame[:-1] + bytes([frame[-1] | IS_LAST]) + b"\x03\xf0" + text[colon + 1 :]
     return encapsulate(frame)
 
 
 def _decode_address(field: bytes, relay: bool) -> tuple[bytes, bool]:
     call = bytes(c >> 1 for c in field[:6] if c >> 1 != 0x20)
     ssid = (field[6] >> 1) & 0x0F
-    return call + (b"-%d" % ssid if ssid else b"") + (b"*" if relay and field[6] & HAS_BEEN_DIGIPITED else b""), bool(field[6] & IS_LAST)
+    return call + (b"-%d" % ssid if ssid else b"") + (b"*" if relay and field[6] & HAS_BEEN_DIGIPITED else b""), bool(
+        field[6] & IS_LAST
+    )
 
 
 def decapsulate(frame: bytes) -> bytes:
@@ -101,10 +110,10 @@ def decode_kiss(frame: bytes) -> tuple[bool, bytes]:
     source, last = _decode_address(body[7:14], False)
     text, index = source + b">" + destination, 14
     while not last and index + 7 < len(body):
-        digi, last = _decode_address(body[index:index + 7], True)
+        digi, last = _decode_address(body[index : index + 7], True)
         text += b"," + digi
         index += 7
-    return True, text + b":" + body[index + 2:]
+    return True, text + b":" + body[index + 2 :]
 
 
 def sanitize(text: bytes) -> str:
@@ -115,6 +124,7 @@ def sanitize(text: bytes) -> str:
 
 # ---- DL9SAU's encode_snr_rssi_in_path (TTGO_T-Beam_LoRa_APRS.ino 4930-4958)
 
+
 def q_element(snr: int, rssi: int) -> bytes:
     snr = max(-99, min(99, snr))
     rssi = max(-259, min(0, rssi))
@@ -124,12 +134,26 @@ def q_element(snr: int, rssi: int) -> bytes:
 
 
 class Board:
-    def __init__(self, firmware: str, *, kiss: bool = True, call: bytes = b"OH2LRG-10", tx_active: bool = True, accept_own: bool = False) -> None:
-        self.firmware, self.kiss, self.call, self.tx_active, self.accept_own = firmware, kiss and firmware != "tracker", call, tx_active, accept_own
+    def __init__(
+        self,
+        firmware: str,
+        *,
+        kiss: bool = True,
+        call: bytes = b"OH2LRG-10",
+        tx_active: bool = True,
+        accept_own: bool = False,
+    ) -> None:
+        self.firmware, self.kiss, self.call, self.tx_active, self.accept_own = (
+            firmware,
+            kiss and firmware != "tracker",
+            call,
+            tx_active,
+            accept_own,
+        )
         # What the board writes to its client (set by the end it sits behind)
         self.out: Callable[[bytes], None] = lambda data: None
-        self.transmitted: list[bytes] = []                             # what it keyed on LoRa
-        self.writes: list[bytes] = []                                  # every buffer a client wrote, as it came
+        self.transmitted: list[bytes] = []  # what it keyed on LoRa
+        self.writes: list[bytes] = []  # every buffer a client wrote, as it came
         # The iGate's list of heard packets, the last 10 (web_utils.cpp 160-176)
         self.received: list[dict[str, object]] = []
         self._input = b""
@@ -143,9 +167,20 @@ class Board:
         packet = HEADER + text
         if self.firmware in ("igate", "console"):
             self._heard += 1
-            self.received = [*self.received, {"rxDate": "2026-11-15", "rxTime": f"12:{self._heard // 60:02d}:{self._heard % 60:02d}", "packet": sanitize(packet[3:]), "RSSI": rssi, "SNR": snr}][-10:]
+            self.received = [
+                *self.received,
+                {
+                    "rxDate": "2026-11-15",
+                    "rxTime": f"12:{self._heard // 60:02d}:{self._heard % 60:02d}",
+                    "packet": sanitize(packet[3:]),
+                    "RSSI": rssi,
+                    "SNR": snr,
+                },
+            ][-10:]
         if self.firmware == "console":
-            return self.out(b"<--- LoRa Packet Rx (RSSI:%d | SNR:%.2f | FreqErr:-123) : " % (rssi, snr) + text + b"\r\n")
+            return self.out(
+                b"<--- LoRa Packet Rx (RSSI:%d | SNR:%.2f | FreqErr:-123) : " % (rssi, snr) + text + b"\r\n"
+            )
         if self.firmware == "dl9sau":
             colon = text.index(b":")
             return self.out(encode_kiss(text[:colon] + b"," + q_element(round(snr), rssi) + text[colon:]))
@@ -271,7 +306,7 @@ class Board:
             end = self._input.find(bytes([FEND]), 1)
             if end == -1:
                 break
-            frame, self._input = self._input[:end + 1], self._input[end + 1:]
+            frame, self._input = self._input[: end + 1], self._input[end + 1 :]
             if len(frame) >= 4:
                 is_data, packet = decode_kiss(frame)
                 send = send or is_data
@@ -306,13 +341,13 @@ def board_on_ble(monkeypatch: pytest.MonkeyPatch, board: Board) -> FakeBle:
 
     def notify(data: bytes) -> None:
         for i in range(0, len(data), 512):
-            ble.feed(data[i:i + 512])
+            ble.feed(data[i : i + 512])
 
     board.out = notify
     original = ble.BleakClient.write_gatt_char
 
     async def written(client: object, char: object, data: bytes, response: bool) -> None:
-        await original(client, char, data, response)       # type: ignore[arg-type]
+        await original(client, char, data, response)  # type: ignore[arg-type]
         board.hear(bytes(data))
 
     monkeypatch.setattr(ble.BleakClient, "write_gatt_char", written)
@@ -335,9 +370,19 @@ class ListServer(LoopbackServer):
             if self.answer == "hang":
                 await reader.read()
                 return
-            status, body = (b"200 OK", self.board.json()) if self.answer == "list" and path == "/received-packets.json" else \
-                (b"200 OK", b"<html>not JSON</html>") if self.answer == "junk" else (b"401 Unauthorized" if self.answer == "401" else b"404 Not Found", b"")
-            writer.write(b"HTTP/1.1 " + status + b"\r\nContent-Type: application/json\r\nContent-Length: %d\r\nConnection: close\r\n\r\n" % len(body) + body)
+            status, body = (
+                (b"200 OK", self.board.json())
+                if self.answer == "list" and path == "/received-packets.json"
+                else (b"200 OK", b"<html>not JSON</html>")
+                if self.answer == "junk"
+                else (b"401 Unauthorized" if self.answer == "401" else b"404 Not Found", b"")
+            )
+            writer.write(
+                b"HTTP/1.1 "
+                + status
+                + b"\r\nContent-Type: application/json\r\nContent-Length: %d\r\nConnection: close\r\n\r\n" % len(body)
+                + body
+            )
             await writer.drain()
         except (asyncio.IncompleteReadError, ConnectionError, asyncio.CancelledError):
             pass

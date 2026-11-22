@@ -2,6 +2,7 @@
 
 The flat keys (tnc/profile, hf/enabled, ...) are views of radio 1 (FM) and radio 2 (HF);
 `FLAT_HOMES` says where each lives."""
+
 import logging
 import re
 from collections.abc import Iterable, Mapping, Sequence
@@ -19,9 +20,19 @@ log = logging.getLogger("neoaprs.config")
 
 # Flat attribute of Config -> (radio, column or own key).
 FLAT_HOMES: Mapping[str, tuple[RadioId, str]] = {
-    "tnc_profile": (FM_ID, "type"), "fm_enabled": (FM_ID, "enabled"), "serial_port": (FM_ID, "port"), "serial_baud": (FM_ID, "baud"), "tcp_host": (FM_ID, "tcp_host"), "tcp_port": (FM_ID, "tcp_port"),
-    "beacon_path": (FM_ID, "path"), "digi_enabled": (FM_ID, "digipeat"),
-    "hf_profile": (HF_ID, "type"), "hf_enabled": (HF_ID, "enabled"), "mercury_sound_card": (HF_ID, "sound_card"), "mercury_keying": (HF_ID, "keying"), "mercury_tx_gain_db": (HF_ID, "tx_gain_db"),
+    "tnc_profile": (FM_ID, "type"),
+    "fm_enabled": (FM_ID, "enabled"),
+    "serial_port": (FM_ID, "port"),
+    "serial_baud": (FM_ID, "baud"),
+    "tcp_host": (FM_ID, "tcp_host"),
+    "tcp_port": (FM_ID, "tcp_port"),
+    "beacon_path": (FM_ID, "path"),
+    "digi_enabled": (FM_ID, "digipeat"),
+    "hf_profile": (HF_ID, "type"),
+    "hf_enabled": (HF_ID, "enabled"),
+    "mercury_sound_card": (HF_ID, "sound_card"),
+    "mercury_keying": (HF_ID, "keying"),
+    "mercury_tx_gain_db": (HF_ID, "tx_gain_db"),
 }
 FLAT_KINDS: Mapping[RadioId, Kind] = {FM_ID: "fm", HF_ID: "hf"}
 # Whether the radio is on when a flat key creates it.
@@ -30,7 +41,15 @@ FLAT_ON: Mapping[RadioId, bool] = {FM_ID: True, HF_ID: False}
 
 def _default_radio(id: RadioId) -> RadioSpec:
     kind = FLAT_KINDS[id]
-    return RadioSpec(id, kind, DEFAULT_TYPE[kind], "", FLAT_ON[id], id, settings=MappingProxyType({f.key: f.default for f in kind_fields(kind)}))
+    return RadioSpec(
+        id,
+        kind,
+        DEFAULT_TYPE[kind],
+        "",
+        FLAT_ON[id],
+        id,
+        settings=MappingProxyType({f.key: f.default for f in kind_fields(kind)}),
+    )
 
 
 DEFAULT_RADIOS: tuple[RadioSpec, ...] = (_default_radio(FM_ID), _default_radio(HF_ID))
@@ -67,12 +86,29 @@ class FlatRadios(Protocol):
 
 def radios_from_flat(config: FlatRadios) -> tuple[RadioSpec, ...]:
     """Return radio 1 (FM) and radio 2 (HF) as the flat values say, with the beacon on."""
-    fm = {"port": config.serial_port, "baud": stored_text(config.serial_baud), "tcp_host": config.tcp_host, "tcp_port": stored_text(config.tcp_port),
-          "beacon": "true", "path": config.beacon_path, "digipeat": stored_text(config.digi_enabled)}
-    hf = {"sound_card": config.mercury_sound_card, "keying": config.mercury_keying, "tx_gain_db": stored_text(config.mercury_tx_gain_db), "beacon": "true"}
-    flat = (RadioSpec(FM_ID, "fm", config.tnc_profile, "", config.fm_enabled, 1, settings=fm), RadioSpec(HF_ID, "hf", config.hf_profile, "", config.hf_enabled, 2, settings=hf))
+    fm = {
+        "port": config.serial_port,
+        "baud": stored_text(config.serial_baud),
+        "tcp_host": config.tcp_host,
+        "tcp_port": stored_text(config.tcp_port),
+        "beacon": "true",
+        "path": config.beacon_path,
+        "digipeat": stored_text(config.digi_enabled),
+    }
+    hf = {
+        "sound_card": config.mercury_sound_card,
+        "keying": config.mercury_keying,
+        "tx_gain_db": stored_text(config.mercury_tx_gain_db),
+        "beacon": "true",
+    }
+    flat = (
+        RadioSpec(FM_ID, "fm", config.tnc_profile, "", config.fm_enabled, 1, settings=fm),
+        RadioSpec(HF_ID, "hf", config.hf_profile, "", config.hf_enabled, 2, settings=hf),
+    )
     # Fields no flat key holds get their defaults.
-    return tuple(replace(spec, settings={**{f.key: f.default for f in kind_fields(spec.kind)}, **spec.settings}) for spec in flat)
+    return tuple(
+        replace(spec, settings={**{f.key: f.default for f in kind_fields(spec.kind)}, **spec.settings}) for spec in flat
+    )
 
 
 def radios_from_rows(rows: Iterable[Sequence[Any]], settings: Iterable[Sequence[Any]]) -> tuple[RadioSpec, ...]:
@@ -87,7 +123,18 @@ def radios_from_rows(rows: Iterable[Sequence[Any]], settings: Iterable[Sequence[
         if kind not in KINDS:
             log.warning("radio %s is of the kind %r, which is none: it is left out", id, kind)
             continue
-        found.append(RadioSpec(int(id), kind, str(type), str(name), bool(on), int(position), None if removed_at is None else parse_stamp(str(removed_at)), _checked(int(id), kind, own.get(int(id), {}))))
+        found.append(
+            RadioSpec(
+                int(id),
+                kind,
+                str(type),
+                str(name),
+                bool(on),
+                int(position),
+                None if removed_at is None else parse_stamp(str(removed_at)),
+                _checked(int(id), kind, own.get(int(id), {})),
+            )
+        )
     return _kind_words_dropped(tuple(sorted(found, key=lambda spec: spec.id)))
 
 
@@ -205,22 +252,33 @@ def flat_moved(attr: str, radios: Iterable[RadioSpec]) -> CodedError | None:
     if field in ("type", "enabled"):
         return CodedError(f"no such setting: it is radio_change's {field} now", "setting.unknown")
     found = flat_now(attr, radios)
-    return CodedError(f"no such setting: it is radio/{'<id>' if found is None else found.id}/{field} now", "setting.unknown")
+    return CodedError(
+        f"no such setting: it is radio/{'<id>' if found is None else found.id}/{field} now", "setting.unknown"
+    )
 
 
 def flat_now(attr: str, radios: Iterable[RadioSpec]) -> RadioSpec | None:
     """Return the lowest-id live radio of the attribute's kind, or None."""
-    return min((spec for spec in live(radios) if spec.kind == FLAT_KINDS[FLAT_HOMES[attr][0]]), key=lambda spec: spec.id, default=None)
+    return min(
+        (spec for spec in live(radios) if spec.kind == FLAT_KINDS[FLAT_HOMES[attr][0]]),
+        key=lambda spec: spec.id,
+        default=None,
+    )
 
 
 def _view(attr: str) -> property:
-    return property(lambda self: flat_value(self.radios, attr), doc=f"The flat view `{attr}` of radio {FLAT_HOMES[attr][0]} (configradios.FLAT_HOMES).")
+    return property(
+        lambda self: flat_value(self.radios, attr),
+        doc=f"The flat view `{attr}` of radio {FLAT_HOMES[attr][0]} (configradios.FLAT_HOMES).",
+    )
 
 
 if TYPE_CHECKING:
+
     @dataclass(frozen=True)
     class FlatFields:
         """For the type checker the flat names are fields of Config."""
+
         tnc_profile: str = ""
         serial_port: str = ""
         serial_baud: int | None = None
@@ -235,6 +293,7 @@ if TYPE_CHECKING:
         beacon_path: str = ""
         digi_enabled: bool = False
 else:
+
     class FlatFields:
         """The flat names of radios 1 and 2 on `Config`: properties over the radios."""
 
@@ -291,4 +350,3 @@ class RadioViews:
             raise RadioError(f"{named}: {e}", e.code, **e.params) from None
         except ValueError as e:
             raise RadioError(f"{named}: {e}", "failed") from None
-

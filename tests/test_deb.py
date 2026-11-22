@@ -1,6 +1,7 @@
 """The Debian package (scripts/build-deb, packaging/deb/): the pieces of it are read as files, and
 the maintainer scripts and the command are run with a fake systemctl. The package itself is built,
 installed with apt and run against a fake TNC by the release workflow's job `deb`."""
+
 import os
 import re
 import subprocess
@@ -21,13 +22,17 @@ def test_each_architecture_has_a_python_pinned_by_version_and_digest() -> None:
     pins = {m[0]: (m[1], m[2]) for m in re.findall(r'^PYTHON_(amd64|arm64)="(\S+) ([0-9a-f]{64}) \S+"', SCRIPT, re.M)}
     assert set(pins) == {"amd64", "arm64"} and pins["amd64"][1] != pins["arm64"][1]
     assert "x86_64-unknown-linux-gnu" in pins["amd64"][0] and "aarch64-unknown-linux-gnu" in pins["arm64"][0]
-    assert re.search(r'^PYTHON_RELEASE="https://github\.com/[^"]*/download/\d+"$', SCRIPT, re.M), "a fixed release of python-build-standalone"
+    assert re.search(r'^PYTHON_RELEASE="https://github\.com/[^"]*/download/\d+"$', SCRIPT, re.M), (
+        "a fixed release of python-build-standalone"
+    )
     appimage = (ROOT / "scripts" / "build-appimage").read_text(encoding="utf-8")
-    assert pins["amd64"][0] in appimage and pins["amd64"][1] in appimage, "the CPython of the amd64 package is the AppImage's"
+    assert pins["amd64"][0] in appimage and pins["amd64"][1] in appimage, (
+        "the CPython of the amd64 package is the AppImage's"
+    )
 
 
 def test_the_package_goes_where_the_install_kind_looks() -> None:
-    assert re.search(rf'^PREFIX={re.escape(DEB_PREFIX)}$', SCRIPT, re.M)
+    assert re.search(rf"^PREFIX={re.escape(DEB_PREFIX)}$", SCRIPT, re.M)
     assert 'ln -s "$PREFIX/bin/neoaprs" "$pkg/usr/bin/neoaprs"' in SCRIPT
 
 
@@ -37,17 +42,32 @@ def test_the_name_of_the_file_is_the_one_the_update_panel_links() -> None:
 
 
 def test_a_pre_release_sorts_before_its_release_for_dpkg_and_the_wheel_is_found_by_its_pep_440_name() -> None:
-    assert 'deb_version="${version//-/\\~}"' in SCRIPT and "-e \"s|@DEB_VERSION@|$deb_version|\"" in SCRIPT, "the Version field has 1.0.0~rc1 for 1.0.0-rc1"
-    assert 'neoaprs-"$wheel_version"-*.whl' in SCRIPT and "wheel_version(sys.argv[1])" in SCRIPT, "the wheel the build made is named 1.0.0rc1"
+    assert 'deb_version="${version//-/\\~}"' in SCRIPT and '-e "s|@DEB_VERSION@|$deb_version|"' in SCRIPT, (
+        "the Version field has 1.0.0~rc1 for 1.0.0-rc1"
+    )
+    assert 'neoaprs-"$wheel_version"-*.whl' in SCRIPT and "wheel_version(sys.argv[1])" in SCRIPT, (
+        "the wheel the build made is named 1.0.0rc1"
+    )
 
 
 def test_the_control_file_has_every_field_the_build_fills_in() -> None:
     control = (DEB / "control.in").read_text(encoding="utf-8")
     fields = dict(re.findall(r"^([A-Z][\w-]+): (.*)$", control, re.M))
-    assert {"Package", "Version", "Architecture", "Maintainer", "Installed-Size", "Depends", "Section", "Priority", "Homepage", "Description"} <= set(fields)
+    assert {
+        "Package",
+        "Version",
+        "Architecture",
+        "Maintainer",
+        "Installed-Size",
+        "Depends",
+        "Section",
+        "Priority",
+        "Homepage",
+        "Description",
+    } <= set(fields)
     assert fields["Package"] == "neoaprs" and fields["Depends"].startswith("libc6 (>= @GLIBC@)")
     for placeholder in set(re.findall(r"@([A-Z_]+)@", control)):
-        assert f's|@{placeholder}@|' in SCRIPT, f"the build does not fill in @{placeholder}@"
+        assert f"s|@{placeholder}@|" in SCRIPT, f"the build does not fill in @{placeholder}@"
     assert control.endswith("\n") and not any(line.rstrip() != line for line in control.splitlines())
 
 
@@ -74,8 +94,12 @@ def test_the_command_runs_the_python_beside_it_isolated(tmp_path: Path) -> None:
     fake.chmod(0o755)
     link = tmp_path / "usr-bin-neoaprs"
     link.symlink_to(folder / "neoaprs")
-    out = subprocess.run([str(link), "service", "install", "--data", "a b"], capture_output=True, text=True, check=True).stdout
-    assert out == "-I|-m|neoaprs|service|install|--data|a b|", "the link finds the Python beside the command, not beside the link"
+    out = subprocess.run(
+        [str(link), "service", "install", "--data", "a b"], capture_output=True, text=True, check=True
+    ).stdout
+    assert out == "-I|-m|neoaprs|service|install|--data|a b|", (
+        "the link finds the Python beside the command, not beside the link"
+    )
 
 
 def run_postinst(tmp_path: Path, *args: str) -> str:
@@ -84,7 +108,9 @@ def run_postinst(tmp_path: Path, *args: str) -> str:
     (fakebin / "systemctl").write_text(f'#!/bin/sh\necho "systemctl $*" >> {tmp_path}/calls\n', encoding="utf-8")
     (fakebin / "systemctl").chmod(0o755)
     env = {**os.environ, "PATH": f"{fakebin}:{os.environ['PATH']}"}
-    return subprocess.run(["sh", str(DEB / "postinst"), *args], capture_output=True, text=True, check=True, env=env).stdout
+    return subprocess.run(
+        ["sh", str(DEB / "postinst"), *args], capture_output=True, text=True, check=True, env=env
+    ).stdout
 
 
 def test_a_fresh_install_says_what_comes_next_and_restarts_nothing(tmp_path: Path) -> None:
@@ -93,7 +119,9 @@ def test_a_fresh_install_says_what_comes_next_and_restarts_nothing(tmp_path: Pat
     assert not (tmp_path / "calls").exists()
 
 
-def test_an_upgrade_by_an_ordinary_user_or_on_another_root_asks_no_systemd_and_says_how_to_restart(tmp_path: Path) -> None:
+def test_an_upgrade_by_an_ordinary_user_or_on_another_root_asks_no_systemd_and_says_how_to_restart(
+    tmp_path: Path,
+) -> None:
     out = run_postinst(tmp_path, "configure", "0.3.0")
     assert "systemctl --user restart neoaprs" in out and "dialout" not in out
     assert not (tmp_path / "calls").exists(), "only root, on the machine's own root, asks the user managers"
@@ -109,28 +137,42 @@ def test_removal_takes_the_folder_and_leaves_the_data_and_says_so(tmp_path: Path
     (root / "opt" / "neoaprs" / "lib" / "__pycache__").mkdir(parents=True)
     (root / "opt" / "neoaprs" / "lib" / "__pycache__" / "x.pyc").write_bytes(b"")
     env = {**os.environ, "DPKG_ROOT": str(root)}
-    kept = subprocess.run(["sh", str(DEB / "postrm"), "upgrade", "0.4.0"], capture_output=True, text=True, check=True, env=env)
+    kept = subprocess.run(
+        ["sh", str(DEB / "postrm"), "upgrade", "0.4.0"], capture_output=True, text=True, check=True, env=env
+    )
     assert kept.stdout == "" and (root / "opt" / "neoaprs").exists(), "an upgrade removes nothing"
-    gone = subprocess.run(["sh", str(DEB / "postrm"), "remove"], capture_output=True, text=True, check=True, env=env).stdout
+    gone = subprocess.run(
+        ["sh", str(DEB / "postrm"), "remove"], capture_output=True, text=True, check=True, env=env
+    ).stdout
     assert not (root / "opt" / "neoaprs").exists()
     assert "~/.local/share/neoaprs is left" in gone and "systemctl --user disable --now neoaprs" in gone
 
 
 def build(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["bash", str(ROOT / "scripts" / "build-deb"), *args], capture_output=True, text=True, timeout=30)
+    return subprocess.run(
+        ["bash", str(ROOT / "scripts" / "build-deb"), *args], capture_output=True, text=True, timeout=30
+    )
 
 
-def test_the_package_carries_mercury_at_opt_neoaprs_tools_without_its_simulators_and_counts_it_in_the_glibc_it_needs() -> None:
+def test_the_package_carries_mercury_at_opt_neoaprs_tools_without_its_simulators_and_counts_it_in_the_glibc_it_needs() -> (
+    None
+):
     unpack = 'tar -xzf "$mercury" -C "$app/tools" --exclude=\'mercury/dev\''
-    assert unpack in SCRIPT and f"{DEB_PREFIX}/tools/mercury" == "/opt/neoaprs/tools/mercury", "$app is /opt/neoaprs: neoaprs/bundled.py looks in <sys.prefix>/tools/mercury"
-    assert SCRIPT.index('ln -s "$PREFIX/bin/neoaprs"') < SCRIPT.index(unpack) < SCRIPT.index("# The lowest glibc"), "unpacked before the permissions are set, the sizes and the md5sums are made, and the glibc is looked up"
+    assert unpack in SCRIPT and f"{DEB_PREFIX}/tools/mercury" == "/opt/neoaprs/tools/mercury", (
+        "$app is /opt/neoaprs: neoaprs/bundled.py looks in <sys.prefix>/tools/mercury"
+    )
+    assert SCRIPT.index('ln -s "$PREFIX/bin/neoaprs"') < SCRIPT.index(unpack) < SCRIPT.index("# The lowest glibc"), (
+        "unpacked before the permissions are set, the sizes and the md5sums are made, and the glibc is looked up"
+    )
     assert "-o -name 'python3.13' -o -name mercury \\)" in SCRIPT, "the program asks glibc for something too"
     assert "lib/libasound.so.2 share/alsa/alsa.conf" in SCRIPT
 
 
 def test_a_build_without_mercury_must_say_so_and_the_tarball_must_be_of_the_architecture(tmp_path: Path) -> None:
     refused = build("--arch", "amd64", "--out", str(tmp_path / "out"))
-    assert refused.returncode == 2 and "--mercury TARBALL" in refused.stderr and "--no-mercury" in refused.stderr, "a release can never silently lack Mercury"
+    assert refused.returncode == 2 and "--mercury TARBALL" in refused.stderr and "--no-mercury" in refused.stderr, (
+        "a release can never silently lack Mercury"
+    )
     x86, arm = tmp_path / "mercury-1.9.24-linux-x86_64.tar.gz", tmp_path / "mercury-1.9.24-linux-aarch64.tar.gz"
     x86.write_bytes(b"")
     arm.write_bytes(b"")
@@ -143,16 +185,34 @@ def test_a_build_without_mercury_must_say_so_and_the_tarball_must_be_of_the_arch
 
 def test_the_copyright_file_names_mercury_by_its_pinned_source_and_the_alsa_library() -> None:
     from neoaprs import mercury
+
     text = (DEB / "copyright").read_text(encoding="utf-8")
     paragraph = next(p for p in text.split("\n\n") if p.startswith("Files: opt/neoaprs/tools/mercury/*"))
-    assert "Rhizomatica" in paragraph and "License: GPL-3.0-or-later" in paragraph and mercury.SOURCE_URL in paragraph and mercury.SOURCE_SHA256 in paragraph, "the source the pins name"
+    assert (
+        "Rhizomatica" in paragraph
+        and "License: GPL-3.0-or-later" in paragraph
+        and mercury.SOURCE_URL in paragraph
+        and mercury.SOURCE_SHA256 in paragraph
+    ), "the source the pins name"
     alsa = next(p for p in text.split("\n\n") if p.startswith("Files: opt/neoaprs/tools/mercury/lib/*"))
     assert "License: LGPL-2.1\n" in alsa and "/usr/share/common-licenses/LGPL-2.1" in alsa
-    assert text.index("Files: opt/neoaprs/tools/mercury/*") < text.index("Files: opt/neoaprs/tools/mercury/lib/*") < text.index("\nLicense: GPL-3.0-or-later\n This program"), "the last paragraph that matches a file wins, and the licence texts come at the end"
+    assert (
+        text.index("Files: opt/neoaprs/tools/mercury/*")
+        < text.index("Files: opt/neoaprs/tools/mercury/lib/*")
+        < text.index("\nLicense: GPL-3.0-or-later\n This program")
+    ), "the last paragraph that matches a file wins, and the licence texts come at the end"
 
 
 def test_the_package_is_packed_with_xz_at_its_highest_level_and_its_tree_and_file_are_measured() -> None:
-    assert 'dpkg-deb --root-owner-group -Zxz -z9 --build "$pkg" "$target"' in SCRIPT, "xz -9: a few percent of the download, and 65 MiB to unpack, which a Pi Zero 2 W has"
-    assert SCRIPT.index('shipped-size" --depth 6 --title') < SCRIPT.index("dpkg-deb --root-owner-group") < SCRIPT.index('shipped-size" "$target"'), "the tree before it is packed, the file after"
-    assert "the archive's dbm module" in SCRIPT and SCRIPT.index("the archive's dbm module") < SCRIPT.index('prune.py" --python-only "$app"'), "whether the archive has _dbm is said before prune.py takes it out"
+    assert 'dpkg-deb --root-owner-group -Zxz -z9 --build "$pkg" "$target"' in SCRIPT, (
+        "xz -9: a few percent of the download, and 65 MiB to unpack, which a Pi Zero 2 W has"
+    )
+    assert (
+        SCRIPT.index('shipped-size" --depth 6 --title')
+        < SCRIPT.index("dpkg-deb --root-owner-group")
+        < SCRIPT.index('shipped-size" "$target"')
+    ), "the tree before it is packed, the file after"
+    assert "the archive's dbm module" in SCRIPT and SCRIPT.index("the archive's dbm module") < SCRIPT.index(
+        'prune.py" --python-only "$app"'
+    ), "whether the archive has _dbm is said before prune.py takes it out"
     assert "libpython3*" not in SCRIPT, "prune.py --python-only takes the shared libpython out (tests/test_appimage.py)"

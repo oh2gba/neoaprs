@@ -4,6 +4,7 @@ A bundle has no database file: its `settings.json` lists the stored settings row
 `state.json` whether each radio heard anything. Secrets and changed commands are only said to be
 set, so their rows are left out and their keys are returned.
 """
+
 import json
 import re
 import zipfile
@@ -23,27 +24,42 @@ STATE_BACK = {new: old for old, new in STATE_31.items()}
 HIDDEN = re.compile(r"\(set, \d+ characters\)")
 # At most this many packets are made for a radio that heard some.
 PACKETS_MADE = 20
-PACKET = ("INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded, via, radio) "
-          "VALUES (?, 'in', x'00', ?, 'APRS', '', 'status', 'made from a support bundle', '{}', 'rf', ?)")
+PACKET = (
+    "INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded, via, radio) "
+    "VALUES (?, 'in', x'00', ?, 'APRS', '', 'status', 'made from a support bundle', '{}', 'rf', ?)"
+)
 
 
 def bundle_files(bundle: Path) -> tuple[dict[str, Any], dict[str, Any] | None]:
     """`settings.json` and `state.json` (None when absent) of a bundle zip or folder."""
     if bundle.is_dir():
         state = bundle / "state.json"
-        return json.loads((bundle / "settings.json").read_text(encoding="utf-8")), json.loads(state.read_text(encoding="utf-8")) if state.exists() else None
+        return json.loads((bundle / "settings.json").read_text(encoding="utf-8")), json.loads(
+            state.read_text(encoding="utf-8")
+        ) if state.exists() else None
     with zipfile.ZipFile(bundle) as z:
-        return json.loads(z.read("settings.json")), json.loads(z.read("state.json")) if "state.json" in z.namelist() else None
+        return json.loads(z.read("settings.json")), json.loads(
+            z.read("state.json")
+        ) if "state.json" in z.namelist() else None
 
 
 def stored_rows(settings: Mapping[str, Any]) -> tuple[dict[str, str], list[str]]:
     """The settings rows a bundle tells (key to stored text) and the keys it only says are set."""
     unstored = set(settings.get("defaults_are_used_for", []))
     differs: Mapping[str, str] = settings.get("stored_text_differs", {})
-    told = {**{key: differs.get(key, value) for key, value in settings.get("values", {}).items() if key not in unstored}, **settings.get("other_rows", {})}
+    told = {
+        **{key: differs.get(key, value) for key, value in settings.get("values", {}).items() if key not in unstored},
+        **settings.get("other_rows", {}),
+    }
     # The choices are by id, which migration 31 reads by word.
     if "radios" in settings and "messages/radio_by_station" in told:
-        told["messages/radio_by_station"] = json.dumps({call: {1: "fm", 2: "hf"}.get(radio, radio) for call, radio in json.loads(told["messages/radio_by_station"]).items()}, sort_keys=True)
+        told["messages/radio_by_station"] = json.dumps(
+            {
+                call: {1: "fm", 2: "hf"}.get(radio, radio)
+                for call, radio in json.loads(told["messages/radio_by_station"]).items()
+            },
+            sort_keys=True,
+        )
     # Radios 1 and 2 are rows of their own: made again as the version 30 rows migration 31 reads.
     if "radios" in settings:
         told = {**told, **rows_of_radios(settings["radios"])}
@@ -51,7 +67,11 @@ def stored_rows(settings: Mapping[str, Any]) -> tuple[dict[str, str], list[str]]
         if new in told:
             told[old] = told.pop(new)
     hidden = sorted(key for key, text in told.items() if HIDDEN.fullmatch(str(text)))
-    return {key: "" if text == "(empty)" and (is_secret(key) or key in FREE_TEXT_SECRETS) else str(text) for key, text in told.items() if key not in hidden}, hidden
+    return {
+        key: "" if text == "(empty)" and (is_secret(key) or key in FREE_TEXT_SECRETS) else str(text)
+        for key, text in told.items()
+        if key not in hidden
+    }, hidden
 
 
 def rows_of_radios(radios: list[Mapping[str, Any]]) -> dict[str, str]:
@@ -73,7 +93,11 @@ def heard(state: Mapping[str, Any] | None) -> dict[str, int]:
     if state is None:
         return {}
     radios = {entry.get("id"): entry.get("tnc") for entry in state.get("radios") or [] if isinstance(entry, dict)}
-    lines = {"fm": radios.get(1), "hf": radios.get(2)} if radios else {"fm": state.get("tnc"), "hf": (state.get("hf") or {}).get("tnc")}
+    lines = (
+        {"fm": radios.get(1), "hf": radios.get(2)}
+        if radios
+        else {"fm": state.get("tnc"), "hf": (state.get("hf") or {}).get("tnc")}
+    )
     return {radio: int(((line or {}).get("stats") or {}).get("packets") or 0) for radio, line in lines.items()}
 
 
@@ -88,7 +112,9 @@ def bundle_database(path: Path, bundle: Path, clock: Clock = utcnow) -> list[str
         db.execute("BEGIN")
         db.executemany("INSERT INTO settings (key, value) VALUES (?, ?)", sorted(rows.items()))
         for radio, count in heard(state).items():
-            db.executemany(PACKET, [(stamp(clock()), f"BUNDLE-{n % 15 + 1}", radio) for n in range(min(count, PACKETS_MADE))])
+            db.executemany(
+                PACKET, [(stamp(clock()), f"BUNDLE-{n % 15 + 1}", radio) for n in range(min(count, PACKETS_MADE))]
+            )
         db.execute("COMMIT")
     finally:
         db.close()

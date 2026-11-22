@@ -1,6 +1,7 @@
 """Tests for `neoaprs app` end to end with a fake shell and daemon (tests/support/fakeshell.py): a
 second app, window fallbacks, a page that does not come up, a failing shell, and `--quit`.
 """
+
 import subprocess
 import sys
 import threading
@@ -41,7 +42,9 @@ class World:
         monkeypatch.setattr(cmd.webbrowser, "open", lambda url: self.browser.append(url) or True)
         monkeypatch.setattr(cmd, "open_session", self.open_session)
         monkeypatch.setattr(cmd.shell, "choose", lambda: self.choice)
-        monkeypatch.setattr(cmd, "autostart_for", lambda data, encryption=False: self.encryption.append(("autostart", encryption)))
+        monkeypatch.setattr(
+            cmd, "autostart_for", lambda data, encryption=False: self.encryption.append(("autostart", encryption))
+        )
         monkeypatch.setattr(cmd.opencmd, "tell_the_user", self.said.append)
         monkeypatch.setattr(cmd, "say", self.said.append)
 
@@ -67,15 +70,24 @@ def test_the_app_started_with_encryption_starts_its_daemon_so_and_start_at_sign_
     # (the daemon is opened in a thread of its own, beside the rest)
     assert world.run("--tray") == 0 and sorted(world.encryption) == [("autostart", False), ("daemon", False)]
     world.encryption.clear()
-    assert world.run("--tray", "--encryption") == 0 and sorted(world.encryption) == [("autostart", True), ("daemon", True)], "OH2GAX, 4 Nov 2026: Windows had no way to start the daemon with it"
+    assert world.run("--tray", "--encryption") == 0 and sorted(world.encryption) == [
+        ("autostart", True),
+        ("daemon", True),
+    ], "OH2GAX, 4 Nov 2026: Windows had no way to start the daemon with it"
 
 
-def test_with_no_shell_the_page_goes_to_the_browser_and_the_daemon_is_left_running(world: World, capsys: pytest.CaptureFixture[str]) -> None:
+def test_with_no_shell_the_page_goes_to_the_browser_and_the_daemon_is_left_running(
+    world: World, capsys: pytest.CaptureFixture[str]
+) -> None:
     world.choice = Choice(None, False, ("PySide6: ModuleNotFoundError: No module named 'PySide6'",))
     assert world.run() == 0
     assert world.browser == [PAGE] and capsys.readouterr().out.strip() == PAGE
-    assert any("neoaprs stop" in line for line in world.said), "the app started the daemon and is about to be gone: it says how to end it"
-    assert any("neoaprs[app]" in line and "PySide6" in line for line in world.said), "it says what is missing and how to get it"
+    assert any("neoaprs stop" in line for line in world.said), (
+        "the app started the daemon and is about to be gone: it says how to end it"
+    )
+    assert any("neoaprs[app]" in line and "PySide6" in line for line in world.said), (
+        "it says what is missing and how to get it"
+    )
     assert not SingleApp(world.data).running(), "the app lets go of the folder"
 
 
@@ -142,7 +154,9 @@ def test_a_second_app_that_is_the_one_of_start_at_sign_in_does_not_raise_the_win
 
 
 @pytest.mark.expects_errors
-def test_a_shell_that_cannot_start_is_said_and_the_page_goes_to_the_browser(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_shell_that_cannot_start_is_said_and_the_page_goes_to_the_browser(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
     broken = types.ModuleType("neoaprs_test_broken_shell")
 
     def run(ctx: object) -> int:
@@ -161,7 +175,9 @@ def test_quit_with_no_app_running_is_fine(tmp_path: Path, capsys: pytest.Capture
     assert "not running" in capsys.readouterr().err
 
 
-def test_quit_tells_the_app_and_waits_until_it_has_let_go_of_the_folder(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_quit_tells_the_app_and_waits_until_it_has_let_go_of_the_folder(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     app = SingleApp(tmp_path)
     assert app.acquire()
     app.handle(lambda command: threading.Timer(0.3, app.close).start() if command == "quit" else None)
@@ -171,7 +187,9 @@ def test_quit_tells_the_app_and_waits_until_it_has_let_go_of_the_folder(tmp_path
     assert "has ended" in capsys.readouterr().err and not app.running()
 
 
-def test_quit_that_is_not_obeyed_says_so(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_quit_that_is_not_obeyed_says_so(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     monkeypatch.setattr(cmd, "QUIT_WAIT_SEC", 0.5)
     app = SingleApp(tmp_path)
     assert app.acquire()
@@ -182,6 +200,7 @@ def test_quit_that_is_not_obeyed_says_so(tmp_path: Path, monkeypatch: pytest.Mon
 
 def test_the_command_is_neoaprs_app_and_neoaprs_app_runs_the_same(capsys: pytest.CaptureFixture[str]) -> None:
     from neoaprs import cli
+
     assert "app" in cli.COMMANDS and cli.HANDLERS["app"] is cli._app
     with pytest.raises(SystemExit) as stop:
         cli.main(["app", "--help"])
@@ -214,14 +233,21 @@ def _ended_pid() -> int:
 # ---- the edges: no browser to open the page in, the whole command line, and the program with no
 # console
 
-def test_with_no_shell_and_no_browser_the_address_is_printed_and_the_person_is_told_to_open_it(world: World, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+
+def test_with_no_shell_and_no_browser_the_address_is_printed_and_the_person_is_told_to_open_it(
+    world: World, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     world.choice = Choice(None, False)
     monkeypatch.setattr(cmd.webbrowser, "open", lambda url: False)
     assert world.run() == 0
-    assert capsys.readouterr().out == PAGE + "\n" and any("no browser could be started" in text and PAGE in text for text in world.said)
+    assert capsys.readouterr().out == PAGE + "\n" and any(
+        "no browser could be started" in text and PAGE in text for text in world.said
+    )
 
 
-def test_the_command_line_makes_the_data_folder_sets_up_the_log_and_the_hook_for_what_nothing_caught_and_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_command_line_makes_the_data_folder_sets_up_the_log_and_the_hook_for_what_nothing_caught_and_runs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     seen: dict[str, object] = {}
     monkeypatch.setattr(cmd.appstate, "setup_logging", lambda data, debug: seen.update(logging=(data, debug)))
     monkeypatch.setattr(cmd.uncaught, "install", lambda log, chain=False: seen.update(hook=chain))
@@ -231,13 +257,15 @@ def test_the_command_line_makes_the_data_folder_sets_up_the_log_and_the_hook_for
     assert data.is_dir() and seen == {"logging": (data.resolve(), True), "hook": True, "run": (True, True)}
 
 
-def test_the_program_with_no_console_gets_streams_that_swallow_what_is_printed_and_runs_the_same_command(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_program_with_no_console_gets_streams_that_swallow_what_is_printed_and_runs_the_same_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(sys, "stdout", None)
     monkeypatch.setattr(sys, "stderr", None)
     monkeypatch.setattr(cmd, "main", lambda: 3)
     try:
         assert cmd.gui_main() == 3
-        print("nowhere", file=sys.stderr)                                        # (neither stream is there to fail)
+        print("nowhere", file=sys.stderr)  # (neither stream is there to fail)
         print("nothing")
     finally:
         for stream in (sys.stdout, sys.stderr):

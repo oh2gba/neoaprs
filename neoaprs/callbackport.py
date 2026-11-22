@@ -3,6 +3,7 @@
 It is the base of the Tnc's line (tncport.py) and of the GPS receiver's (gpsfeed.py). Each callback
 is given the port itself, so an owner that has opened another port since can tell a late call.
 """
+
 from collections.abc import Callable
 from typing import Self, cast
 
@@ -13,7 +14,9 @@ class CallbackPort(SerialPort):
     _on_data: Callable[[Self, bytes], None]
     _on_lost: Callable[[Self, str], None]
 
-    def __init__(self, path: str, baud: int, on_data: Callable[[Self, bytes], None], on_lost: Callable[[Self, str], None]) -> None:
+    def __init__(
+        self, path: str, baud: int, on_data: Callable[[Self, bytes], None], on_lost: Callable[[Self, str], None]
+    ) -> None:
         super().__init__(path, baud)
         self._on_data = on_data
         self._on_lost = on_lost

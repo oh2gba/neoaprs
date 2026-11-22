@@ -2,6 +2,7 @@
 
 A packet heard on one radio of a pair goes out once on the other when its path names the pair's
 call. The target radio's limits apply and the ack of a passed message goes back once."""
+
 import logging
 from collections import Counter
 from collections.abc import Collection, Sequence
@@ -33,9 +34,13 @@ log = logging.getLogger("neoaprs.digipeater")
 
 # Reasons a slow radio takes no frame that a waiting frame sits out.
 WAITS_FOR = frozenset({"radio.transmitting", "radio.channel_busy"})
-HELD_WORDS = {"budget": "the radio took the most frames it takes from the pairs in 5 minutes", "share": "the station's share of messages in 5 minutes went out",
-              "floor": "a packet of the station that is no message went out within the radio's floor", "burst": "the most frames the radio sends again in a burst went out",
-              "busy": "the radio was keyed or busy for too long, or another frame waits for it"}
+HELD_WORDS = {
+    "budget": "the radio took the most frames it takes from the pairs in 5 minutes",
+    "share": "the station's share of messages in 5 minutes went out",
+    "floor": "a packet of the station that is no message went out within the radio's floor",
+    "burst": "the most frames the radio sends again in a burst went out",
+    "busy": "the radio was keyed or busy for too long, or another frame waits for it",
+}
 
 Ready = Literal["now", "wait", "no"]
 
@@ -43,6 +48,7 @@ Ready = Literal["now", "wait", "no"]
 @dataclass(frozen=True)
 class PairRow:
     """One direction of a pair: a packet heard on `heard` naming `call` goes out on `sent`."""
+
     heard: RadioId
     sent: RadioId
     call: tuple[str, int]
@@ -51,6 +57,7 @@ class PairRow:
 @dataclass(frozen=True)
 class _Offer:
     """A frame a row would send, with its source packet, duplicate key and original path."""
+
     row: PairRow
     frame: ax25.Frame
     raw: bytes
@@ -109,7 +116,15 @@ def _answered(packet: Packet) -> str | None:
 
 
 class Passer:
-    def __init__(self, radios: RadioPick, config: ConfigSource, interlock: Interlock, burst: Burst, counted: Signal[[RadioId]], clock: Clock = utcnow) -> None:
+    def __init__(
+        self,
+        radios: RadioPick,
+        config: ConfigSource,
+        interlock: Interlock,
+        burst: Burst,
+        counted: Signal[[RadioId]],
+        clock: Clock = utcnow,
+    ) -> None:
         self._radios = radios
         self._config = config
         self._interlock = interlock
@@ -189,14 +204,30 @@ class Passer:
         if passed is None:
             return
         config = self._config()
-        row = next((r for r in rows_in_force(config, self._radios.senders()) if (r.heard, r.sent) == (heard_on, passed.heard_on)), None)
-        if row is None or (heard.source.call, heard.source.ssid) in _calls(own_calls(config.station_call, config.pairs)):
+        row = next(
+            (
+                r
+                for r in rows_in_force(config, self._radios.senders())
+                if (r.heard, r.sent) == (heard_on, passed.heard_on)
+            ),
+            None,
+        )
+        if row is None or (heard.source.call, heard.source.ssid) in _calls(
+            own_calls(config.station_call, config.pairs)
+        ):
             return
-        if any(hop.call in INTERNET_MARKERS or (hop.repeated and (hop.call, hop.ssid) == row.call) for hop in heard.path):
+        if any(
+            hop.call in INTERNET_MARKERS or (hop.repeated and (hop.call, hop.ssid) == row.call) for hop in heard.path
+        ):
             return
         path = back_path(heard.path, row.call)
         if len(path) > ax25.MAX_PATH:
-            log.debug("the ack of %s is not passed back: its path would have %d hops, AX.25 carries %d", heard.source, len(path), ax25.MAX_PATH)
+            log.debug(
+                "the ack of %s is not passed back: its path would have %d hops, AX.25 carries %d",
+                heard.source,
+                len(path),
+                ax25.MAX_PATH,
+            )
             return
         out = replace(heard, path=path)
         # With no path the source carried the end-of-address mark, which must not stay.
@@ -211,7 +242,10 @@ class Passer:
         if target is None:
             return
         config = self._config()
-        if not_to_pass(packet, own_calls(config.station_call, config.pairs), target.allowed.paths) or self._interlock.refused("digipeat") is not None:
+        if (
+            not_to_pass(packet, own_calls(config.station_call, config.pairs), target.allowed.paths)
+            or self._interlock.refused("digipeat") is not None
+        ):
             return
         if self._duplicate(target.id, offer.key, now):
             return
@@ -229,16 +263,37 @@ class Passer:
             self._go(target, offer, now)
         elif ready == "wait":
             self._waiting[target.id] = offer
-            log.debug("%s: a packet of %s from %s waits: %s", target.name, packet.source, self._name(row.heard), target.why_unusable() or "a frame was handed to it a moment ago")
+            log.debug(
+                "%s: a packet of %s from %s waits: %s",
+                target.name,
+                packet.source,
+                self._name(row.heard),
+                target.why_unusable() or "a frame was handed to it a moment ago",
+            )
         else:
-            log.debug("%s: a packet of %s from %s is not passed: %s", target.name, packet.source, self._name(row.heard), target.why_unusable())
+            log.debug(
+                "%s: a packet of %s from %s is not passed: %s",
+                target.name,
+                packet.source,
+                self._name(row.heard),
+                target.why_unusable(),
+            )
 
     def _try(self, radio: RadioId, offer: _Offer, now: datetime) -> None:
         """Handle the waiting frame at a tick: drop it uncounted, hold it, or send it."""
         target, packet = self._radios.get(radio), offer.packet
-        if target is None or offer.row not in rows_in_force(self._config(), self._radios.senders()) or self._interlock.refused("digipeat") is not None or self.table(radio).lately(offer.key, now):
+        if (
+            target is None
+            or offer.row not in rows_in_force(self._config(), self._radios.senders())
+            or self._interlock.refused("digipeat") is not None
+            or self.table(radio).lately(offer.key, now)
+        ):
             del self._waiting[radio]
-            log.debug("a packet of %s waiting for %s is dropped: its pair, the radio or the station no longer passes it, or the radio heard it", packet.source, self._name(radio))
+            log.debug(
+                "a packet of %s waiting for %s is dropped: its pair, the radio or the station no longer passes it, or the radio heard it",
+                packet.source,
+                self._name(radio),
+            )
             return
         if (now - packet.heard_at).total_seconds() > DIGI_DUPLICATE_SEC:
             del self._waiting[radio]
@@ -255,12 +310,18 @@ class Passer:
         if ready == "now":
             self._go(target, offer, now)
         else:
-            log.debug("%s: a packet of %s that waited is not passed: %s", target.name, packet.source, target.why_unusable())
+            log.debug(
+                "%s: a packet of %s that waited is not passed: %s", target.name, packet.source, target.why_unusable()
+            )
 
     def _duplicate(self, radio: RadioId, key: DuplicateKey, now: datetime) -> bool:
         """Return whether the radio heard, sent, holds or awaits the packet lately (N3)."""
         waiting = self._waiting.get(radio)
-        return self.table(radio).lately(key, now) or self._held_table(radio).lately(key, now) or (waiting is not None and waiting.key == key)
+        return (
+            self.table(radio).lately(key, now)
+            or self._held_table(radio).lately(key, now)
+            or (waiting is not None and waiting.key == key)
+        )
 
     def _budget(self, target: AirRadio) -> SlowBudget:
         """Return the slow radio's budget, recreated when its floor changes."""
@@ -290,7 +351,12 @@ class Passer:
         """Send the frame; if taken, update tables, limits and counts and offer it to its rows."""
         packet = offer.packet
         if not target.send_frame(offer.frame, offer.raw):
-            log.debug("%s: the frame of %s passed from %s was not taken", target.name, packet.source, self._name(offer.row.heard))
+            log.debug(
+                "%s: the frame of %s passed from %s was not taken",
+                target.name,
+                packet.source,
+                self._name(offer.row.heard),
+            )
             return
         self.table(target.id).note(offer.key, now)
         self._handed[target.id] = now
@@ -304,7 +370,15 @@ class Passer:
         count.sent += 1
         count.sent_at = now
         self._counted.emit(target.id)
-        log.info("passed %s>%s from %s to %s: the path %s is sent as %s", packet.source, packet.destination, self._name(offer.row.heard), target.name, offer.was, offer.frame.path_text)
+        log.info(
+            "passed %s>%s from %s to %s: the path %s is sent as %s",
+            packet.source,
+            packet.destination,
+            self._name(offer.row.heard),
+            target.name,
+            offer.was,
+            offer.frame.path_text,
+        )
         self._remember(offer, now)
         self.sent_on(target, offer.frame, offer.raw, packet)
 
@@ -331,7 +405,14 @@ class Passer:
         told = (row.heard, row.sent, reason)
         level = logging.DEBUG if told in self._told else logging.INFO
         self._told.add(told)
-        log.log(level, "%s: a packet of %s from %s is not passed: %s", target.name, offer.packet.source, self._name(row.heard), words or HELD_WORDS[reason])
+        log.log(
+            level,
+            "%s: a packet of %s from %s is not passed: %s",
+            target.name,
+            offer.packet.source,
+            self._name(row.heard),
+            words or HELD_WORDS[reason],
+        )
 
     def _name(self, radio: RadioId) -> str:
         found = self._radios.get(radio)

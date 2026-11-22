@@ -2,6 +2,7 @@
 
 Nothing here begins or commits a transaction: a write is atomic in the caller's transaction.
 """
+
 import json
 import sqlite3
 from collections.abc import Iterable, Mapping
@@ -33,7 +34,10 @@ def radio_settings(db: sqlite3.Connection) -> list[Row]:
 
 def insert_radio(db: sqlite3.Connection, kind: str, type: str, name: str, enabled: bool, position: int) -> int:
     """Insert a radio and return its id, which is never reused (AUTOINCREMENT)."""
-    cursor = db.execute("INSERT INTO radio (kind, type, name, enabled, position) VALUES (?, ?, ?, ?, ?)", (kind, type, name, int(enabled), position))
+    cursor = db.execute(
+        "INSERT INTO radio (kind, type, name, enabled, position) VALUES (?, ?, ?, ?, ?)",
+        (kind, type, name, int(enabled), position),
+    )
     assert cursor.lastrowid is not None
     return cursor.lastrowid
 
@@ -44,9 +48,13 @@ def update_radio(db: sqlite3.Connection, id: int, /, **columns: object) -> int:
     Raise ValueError for any other column.
     """
     if not columns or not set(columns) <= set(CHANGEABLE):
-        raise ValueError(f"a radio's {', '.join(sorted(set(columns) - set(CHANGEABLE))) or 'nothing'} cannot be set: its columns are {', '.join(CHANGEABLE)}")
+        raise ValueError(
+            f"a radio's {', '.join(sorted(set(columns) - set(CHANGEABLE))) or 'nothing'} cannot be set: its columns are {', '.join(CHANGEABLE)}"
+        )
     values = [int(value) if isinstance(value, bool) else value for value in columns.values()]
-    return db.execute(f"UPDATE radio SET {', '.join(f'{c} = ?' for c in columns)} WHERE id = ? AND removed_at IS NULL", (*values, id)).rowcount
+    return db.execute(
+        f"UPDATE radio SET {', '.join(f'{c} = ?' for c in columns)} WHERE id = ? AND removed_at IS NULL", (*values, id)
+    ).rowcount
 
 
 def put_radio_settings(db: sqlite3.Connection, id: int, values: Mapping[str, str]) -> bool:
@@ -54,14 +62,21 @@ def put_radio_settings(db: sqlite3.Connection, id: int, values: Mapping[str, str
     if db.execute("SELECT 1 FROM radio WHERE id = ? AND removed_at IS NULL", (id,)).fetchone() is None:
         return False
     for key, value in values.items():
-        db.execute("INSERT INTO radio_setting (radio_id, key, value) VALUES (?, ?, ?) ON CONFLICT(radio_id, key) DO UPDATE SET value = excluded.value, rev = radio_setting.rev + 1", (id, key, value))
+        db.execute(
+            "INSERT INTO radio_setting (radio_id, key, value) VALUES (?, ?, ?) ON CONFLICT(radio_id, key) DO UPDATE SET value = excluded.value, rev = radio_setting.rev + 1",
+            (id, key, value),
+        )
     return True
 
 
 def of_removed_radio(db: sqlite3.Connection, keys: Iterable[str]) -> bool:
     """Return whether a `radio/<id>/..` or `pair/..` key belongs to a removed radio."""
-    ids = {found[0] for key in keys if (found := radio_key_of(key)) is not None} | {id for key in keys if (pair := pair_key_of(key)) is not None for id in pair[:2]}
-    return any(db.execute("SELECT 1 FROM radio WHERE id = ? AND removed_at IS NOT NULL", (id,)).fetchone() for id in ids)
+    ids = {found[0] for key in keys if (found := radio_key_of(key)) is not None} | {
+        id for key in keys if (pair := pair_key_of(key)) is not None for id in pair[:2]
+    }
+    return any(
+        db.execute("SELECT 1 FROM radio WHERE id = ? AND removed_at IS NOT NULL", (id,)).fetchone() for id in ids
+    )
 
 
 def _out_of_sets(db: sqlite3.Connection, id: int) -> None:
@@ -97,7 +112,9 @@ def remove_radio(db: sqlite3.Connection, id: int, at: str) -> int:
     if row is not None:
         chosen = _choices(str(row[0]))
         if id in chosen.values():
-            write_setting(db, CHOICES, json.dumps({call: radio for call, radio in chosen.items() if radio != id}, sort_keys=True))
+            write_setting(
+                db, CHOICES, json.dumps({call: radio for call, radio in chosen.items() if radio != id}, sort_keys=True)
+            )
     db.execute("DELETE FROM settings WHERE key GLOB ?", (f"radio/{int(id)}/*",))
     for (key,) in db.execute("SELECT key FROM settings WHERE key GLOB 'pair/*'").fetchall():
         if (pair := pair_key_of(str(key))) is not None and id in pair[:2]:
@@ -119,7 +136,10 @@ def put_kept(db: sqlite3.Connection, kept: Kept) -> None:
 def kept_by_rows(db: sqlite3.Connection, before: Iterable[RadioSpec]) -> Kept:
     """Return what the change from `before` to the stored radios keeps in force."""
     after = radios_from_rows(radio_rows(db), radio_settings(db))
-    sets = [{str(name): ids_of(str(radios)) for name, radios in db.execute(f"SELECT {key}, radios FROM {table}")} for table, key in (("own_object", "name"), ("own_bulletin", "slot"))]
+    sets = [
+        {str(name): ids_of(str(radios)) for name, radios in db.execute(f"SELECT {key}, radios FROM {table}")}
+        for table, key in (("own_object", "name"), ("own_bulletin", "slot"))
+    ]
     row = db.execute("SELECT value FROM settings WHERE key = ?", (EMAIL_RADIO,)).fetchone()
     email = ids_of(str(row[0])) if row is not None else ()
     return kept_in_force(before, after, sets[0], sets[1], email[0] if len(email) == 1 else None)

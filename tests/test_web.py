@@ -2,6 +2,7 @@
 (tests/support/wsclient.py). The hello and topics, the capture as patches, the commands, files, the
 Host check and security headers.
 """
+
 import asyncio
 import json
 import struct
@@ -30,10 +31,17 @@ from neoaprs.web.bulletinwire import BulletinRow
 from neoaprs.web.messagewire import MessageRow
 from neoaprs.web.stationwire import StationRow
 
-SECURITY = ("Content-Security-Policy", "X-Frame-Options", "Referrer-Policy", "X-Content-Type-Options", "Cross-Origin-Resource-Policy")
+SECURITY = (
+    "Content-Security-Policy",
+    "X-Frame-Options",
+    "Referrer-Policy",
+    "X-Content-Type-Options",
+    "Cross-Origin-Resource-Policy",
+)
 
 
 # ---- the hello and the topics --------------------------------------------------------------------
+
 
 async def test_a_fresh_install_is_told_to_the_page_as_no_call_and_no_position(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True, operator=False)
@@ -42,7 +50,11 @@ async def test_a_fresh_install_is_told_to_the_page_as_no_call_and_no_position(tm
     status = await page.expect("status")
     assert (status["call"], status["lat"], status["lon"]) == ("", None, None)
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    assert list(page.topics["stations"]) == [] and page.topics["config"]["values"]["station/call"] == "" and page.topics["config"]["values"]["station/lat"] == ""
+    assert (
+        list(page.topics["stations"]) == []
+        and page.topics["config"]["values"]["station/call"] == ""
+        and page.topics["config"]["values"]["station/lat"] == ""
+    )
 
 
 async def test_a_page_that_opens_is_sent_hello_the_status_and_every_topic_whole(tmp_path: Path) -> None:
@@ -50,9 +62,38 @@ async def test_a_page_that_opens_is_sent_hello_the_status_and_every_topic_whole(
     await e.start()
     page = await e.ws()
     hello = await page.expect("hello")
-    assert hello["version"] == VERSION and hello["protocol"] == 1 and hello["topics"] == list(TOPIC_NAMES) == ["stations", "packets", "radios", "config", "station_prefs", "messages", "station_keys", "bulletins", "own_objects", "own_bulletins", "map", "update", "gps", "igate", "qru", "skeds", "general"]
+    assert (
+        hello["version"] == VERSION
+        and hello["protocol"] == 1
+        and hello["topics"]
+        == list(TOPIC_NAMES)
+        == [
+            "stations",
+            "packets",
+            "radios",
+            "config",
+            "station_prefs",
+            "messages",
+            "station_keys",
+            "bulletins",
+            "own_objects",
+            "own_bulletins",
+            "map",
+            "update",
+            "gps",
+            "igate",
+            "qru",
+            "skeds",
+            "general",
+        ]
+    )
     status = await page.expect("status")
-    assert status["version"] == VERSION and status["packets"] == 0 and status["stations"] == 1 and (status["call"], status["lat"], status["lon"]) == ("OH2GBA", 60.17, 24.94)
+    assert (
+        status["version"] == VERSION
+        and status["packets"] == 0
+        and status["stations"] == 1
+        and (status["call"], status["lat"], status["lon"]) == ("OH2GBA", 60.17, 24.94)
+    )
     assert (status["beacon_interval_min"], status["beacon_last_sent"], status["beacon_next_due"]) == (0, None, None)
     assert status["station_status_last_sent"] is None
     states = {m["topic"]: m for m in page.of("state")}
@@ -61,13 +102,30 @@ async def test_a_page_that_opens_is_sent_hello_the_status_and_every_topic_whole(
         states = {m["topic"]: m for m in page.of("state")}
     assert set(states) == set(TOPIC_NAMES) and all(m["rev"] == 0 for m in states.values())
     stations = states["stations"]["value"]
-    assert list(stations) == ["OH2GBA"] and stations["OH2GBA"]["is_me"] is True and stations["OH2GBA"]["distance_km"] is None
+    assert (
+        list(stations) == ["OH2GBA"]
+        and stations["OH2GBA"]["is_me"] is True
+        and stations["OH2GBA"]["distance_km"] is None
+    )
     assert states["packets"]["value"] == {}
     assert states["radios"]["value"]["1"]["state"] == "connected" and list(states["radios"]["value"]) == ["1"]
     # email/radio is told in radio_values, and every radio's own setting
-    config, wire = states["config"]["value"], lambda values: {key: text for key, text in values.items() if key in CONFIG_KEYS}
-    assert {key: config[key] for key in ("values", "defaults", "urls", "https")} == {"values": wire({**DEFAULTS.to_data(), **OPERATOR}), "defaults": wire(DEFAULTS.to_data()), "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "reason": ""}}
-    assert config["radio_values"]["email/radio"] == "" and "station/main_radio" not in config["radio_values"] and config["radio_values"]["radio/1/path"] == OPERATOR["beacon/path"] and set(config["radio_values"]) == set(config["radio_defaults"])
+    config, wire = (
+        states["config"]["value"],
+        lambda values: {key: text for key, text in values.items() if key in CONFIG_KEYS},
+    )
+    assert {key: config[key] for key in ("values", "defaults", "urls", "https")} == {
+        "values": wire({**DEFAULTS.to_data(), **OPERATOR}),
+        "defaults": wire(DEFAULTS.to_data()),
+        "urls": [],
+        "https": {"on": False, "port": 0, "fingerprint": "", "reason": ""},
+    }
+    assert (
+        config["radio_values"]["email/radio"] == ""
+        and "station/main_radio" not in config["radio_values"]
+        and config["radio_values"]["radio/1/path"] == OPERATOR["beacon/path"]
+        and set(config["radio_values"]) == set(config["radio_defaults"])
+    )
     assert states["messages"]["value"] == {} and states["station_prefs"]["value"] == {}
     for name, message in states.items():
         # The value is of the type TopicValues says
@@ -82,16 +140,36 @@ async def test_the_capture_comes_as_four_packets_and_the_stations_they_are_from(
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     frames = await e.play()
     assert frames == 4
-    await page.until(lambda: len(page.topics["packets"]) == 4 and {"OH2RDG", "OH2RDK-7", "OH2RDS", "OH2PU-9"} <= set(page.topics["stations"]))
+    await page.until(
+        lambda: (
+            len(page.topics["packets"]) == 4
+            and {"OH2RDG", "OH2RDK-7", "OH2RDS", "OH2PU-9"} <= set(page.topics["stations"])
+        )
+    )
     sets = [op for op in page.ops("packets") if op["op"] == "set"]
-    assert len(sets) == 4 and [op["value"]["id"] for op in sets] == [1, 2, 3, 4] and [op["key"] for op in sets] == ["1", "2", "3", "4"]
+    assert (
+        len(sets) == 4
+        and [op["value"]["id"] for op in sets] == [1, 2, 3, 4]
+        and [op["key"] for op in sets] == ["1", "2", "3", "4"]
+    )
     rows = list(page.topics["packets"].values())
-    assert {r["source"] for r in rows} == {"OH2RDG", "OH2RDK-7", "OH2RDS", "OH2PU-9"} and all(r["kind"] == "position" and r["direction"] == "in" for r in rows)
-    assert all(r["decoded"]["type"] == "position" and r["tnc2"].startswith(r["source"] + ">") and "summary" not in r for r in rows), "the page makes the summary in its words"
+    assert {r["source"] for r in rows} == {"OH2RDG", "OH2RDK-7", "OH2RDS", "OH2PU-9"} and all(
+        r["kind"] == "position" and r["direction"] == "in" for r in rows
+    )
+    assert all(
+        r["decoded"]["type"] == "position" and r["tnc2"].startswith(r["source"] + ">") and "summary" not in r
+        for r in rows
+    ), "the page makes the summary in its words"
     station = page.topics["stations"]["OH2RDK-7"]
     row = StationRow.model_validate_json(json.dumps(station))
     assert row.kind == "station" and row.packets == 1 and row.is_me is False and row.symbol_code != ""
-    assert row.lat is not None and row.distance_km is not None and row.distance_km > 0 and row.bearing_deg is not None and len(row.track) == 1
+    assert (
+        row.lat is not None
+        and row.distance_km is not None
+        and row.distance_km > 0
+        and row.bearing_deg is not None
+        and len(row.track) == 1
+    )
     assert row.last_path and row.first_heard == row.last_heard
     for call, row_ in page.topics["stations"].items():
         StationRow.model_validate_json(json.dumps(row_))
@@ -107,9 +185,16 @@ async def test_the_row_of_a_radio_follows_its_line_and_comes_at_most_four_times_
     await e.play()
     await page.until(lambda: page.topics["radios"]["1"]["stats"]["packets"] == 4)
     row = page.topics["radios"]["1"]
-    assert row["state"] == "connected" and row["stats"]["frames_in"] == 4 and row["stats"]["last_packet"] and len(row["lines"]) <= 100
+    assert (
+        row["state"] == "connected"
+        and row["stats"]["frames_in"] == 4
+        and row["stats"]["last_packet"]
+        and len(row["lines"]) <= 100
+    )
     assert any("OH2RDK-7" in line["text"] for line in row["lines"])
-    assert len(page.of("patch", "radios")) <= 4, "the lines and the counters of one burst are told together, not one by one"
+    assert len(page.of("patch", "radios")) <= 4, (
+        "the lines and the counters of one burst are told together, not one by one"
+    )
 
 
 async def test_the_keep_alive_counters_are_in_the_radios_row_and_a_silent_radio_says_since_when(tmp_path: Path) -> None:
@@ -118,7 +203,11 @@ async def test_the_keep_alive_counters_are_in_the_radios_row_and_a_silent_radio_
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     row = page.topics["radios"]["1"]
-    assert (row["stats"]["keepalive_checks"], row["stats"]["watchdog_probes"], row["stats"]["port_reopens"]) == (0, 0, 0) and e.tnc.last_watchdog_action == ""
+    assert (row["stats"]["keepalive_checks"], row["stats"]["watchdog_probes"], row["stats"]["port_reopens"]) == (
+        0,
+        0,
+        0,
+    ) and e.tnc.last_watchdog_action == ""
     e.tnc.set_check(0.1)
     await page.until(lambda: page.topics["radios"]["1"]["stats"]["keepalive_checks"] == 1)
     assert (e.tnc.last_watchdog_action, e.tnc.last_watchdog_at) == ("check", e.now())
@@ -144,7 +233,9 @@ async def test_a_setting_that_counts_at_once_needs_no_restart_and_is_what_the_ne
     await e.stop()
     again = Env(tmp_path)
     await again.start()
-    assert again.tnc.watchdog.sec == 0.0 and again.ctl.config.map_radius_km == 200, "the settings are what the next start reads"
+    assert again.tnc.watchdog.sec == 0.0 and again.ctl.config.map_radius_km == 200, (
+        "the settings are what the next start reads"
+    )
     await again.stop()
 
 
@@ -170,11 +261,16 @@ async def test_a_restarted_daemon_opens_with_the_packets_the_database_kept(tmp_p
     page = await second.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     rows = sorted(page.topics["packets"].values(), key=lambda r: r["id"])
-    assert len(rows) == 4 and [r["id"] for r in rows] == [1, 2, 3, 4] and {r["source"] for r in rows} == {"OH2RDG", "OH2RDK-7", "OH2RDS", "OH2PU-9"}
+    assert (
+        len(rows) == 4
+        and [r["id"] for r in rows] == [1, 2, 3, 4]
+        and {r["source"] for r in rows} == {"OH2RDG", "OH2RDK-7", "OH2RDS", "OH2PU-9"}
+    )
     assert len(page.topics["stations"]) == 5
 
 
 # ---- the commands --------------------------------------------------------------------------------
+
 
 async def test_ping_is_answered_and_status_on_request(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
@@ -188,52 +284,115 @@ async def test_ping_is_answered_and_status_on_request(tmp_path: Path) -> None:
     assert page.of("status")[-1]["packets"] == 4 and page.of("status")[-1]["stations"] == 5
 
 
-async def test_list_ports_is_answered_with_the_ports_of_the_machine_and_whether_the_radio_is_looked_for(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_list_ports_is_answered_with_the_ports_of_the_machine_and_whether_the_radio_is_looked_for(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from neoaprs.serialprobe import PortInfo
-    monkeypatch.setattr(web_handlers, "available_ports", lambda: [PortInfo("COM3", "USB Serial Port (COM3)", "USB VID:PID=0403:6001", 0x0403, 0x6001), PortInfo("COM4", "Bluetooth", "BTHENUM", None, None)])
+
+    monkeypatch.setattr(
+        web_handlers,
+        "available_ports",
+        lambda: [
+            PortInfo("COM3", "USB Serial Port (COM3)", "USB VID:PID=0403:6001", 0x0403, 0x6001),
+            PortInfo("COM4", "Bluetooth", "BTHENUM", None, None),
+        ],
+    )
     monkeypatch.setattr(web_handlers, "can_search", lambda: False)
     monkeypatch.setattr(web_handlers, "can_find", lambda: True)
     e = Env(tmp_path, web=True)
     await e.start()
     page = await e.ws()
     await page.send({"cmd": "list_ports"})
-    assert await page.expect("ports") == {"type": "ports", "search": False, "find": True, "ports": [
-        {"device": "COM3", "description": "USB Serial Port (COM3)", "hwid": "USB VID:PID=0403:6001", "vid": 1027, "pid": 24577, "held_by": None, "usb_group": None},
-        {"device": "COM4", "description": "Bluetooth", "hwid": "BTHENUM", "vid": None, "pid": None, "held_by": None, "usb_group": None}], "sound_cards": [], "keying": "", "radio": None}
+    assert await page.expect("ports") == {
+        "type": "ports",
+        "search": False,
+        "find": True,
+        "ports": [
+            {
+                "device": "COM3",
+                "description": "USB Serial Port (COM3)",
+                "hwid": "USB VID:PID=0403:6001",
+                "vid": 1027,
+                "pid": 24577,
+                "held_by": None,
+                "usb_group": None,
+            },
+            {
+                "device": "COM4",
+                "description": "Bluetooth",
+                "hwid": "BTHENUM",
+                "vid": None,
+                "pid": None,
+                "held_by": None,
+                "usb_group": None,
+            },
+        ],
+        "sound_cards": [],
+        "keying": "",
+        "radio": None,
+    }
     monkeypatch.setattr(web_handlers, "available_ports", lambda: [])
     await page.send({"cmd": "list_ports"})
     await page.until(lambda: len(page.of("ports")) == 2)
     assert page.of("ports")[-1]["ports"] == []
 
 
-async def test_list_ports_says_which_ports_sit_together_on_one_usb_device_by_a_token_alone(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_list_ports_says_which_ports_sit_together_on_one_usb_device_by_a_token_alone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from neoaprs.serialprobe import PortInfo
-    monkeypatch.setattr(web_handlers, "available_ports", lambda: [PortInfo("/dev/ttyUSB0", "CP2105", "USB VID:PID=10C4:EA70", 0x10C4, 0xEA70), PortInfo("/dev/ttyS0", "ttyS0", "n/a", None, None)])
+
+    monkeypatch.setattr(
+        web_handlers,
+        "available_ports",
+        lambda: [
+            PortInfo("/dev/ttyUSB0", "CP2105", "USB VID:PID=10C4:EA70", 0x10C4, 0xEA70),
+            PortInfo("/dev/ttyS0", "ttyS0", "n/a", None, None),
+        ],
+    )
     asked: list[tuple[list[str], list[str]]] = []
 
     def together(cards: list[str], devices: list[str]) -> tuple[dict[str, str | None], dict[str, str | None]]:
         asked.append((list(cards), list(devices)))
         return {}, {"/dev/ttyUSB0": "0123456789ab", "/dev/ttyS0": None}
+
     monkeypatch.setattr(web_handlers, "together", together)
     e = Env(tmp_path, web=True)
     await e.start()
     page = await e.ws()
     await page.send({"cmd": "list_ports"})
     ports = (await page.expect("ports"))["ports"]
-    assert {p["device"]: p["usb_group"] for p in ports if p["device"] in ("/dev/ttyUSB0", "/dev/ttyS0")} == {"/dev/ttyUSB0": "0123456789ab", "/dev/ttyS0": None}
+    assert {p["device"]: p["usb_group"] for p in ports if p["device"] in ("/dev/ttyUSB0", "/dev/ttyS0")} == {
+        "/dev/ttyUSB0": "0123456789ab",
+        "/dev/ttyS0": None,
+    }
     assert asked and asked[0][0] == [] and "/dev/ttyUSB0" in asked[0][1]
 
 
-async def test_list_ports_ends_with_the_paired_bluetooth_devices(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_list_ports_ends_with_the_paired_bluetooth_devices(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from neoaprs.serialprobe import PortInfo
-    monkeypatch.setattr(web_handlers, "available_ports", lambda: [PortInfo("/dev/ttyUSB0", "CP2102", "USB VID:PID=10C4:EA60", 0x10C4, 0xEA60)])
-    monkeypatch.setattr(web_handlers, "paired_bluetooth_ports", lambda: [PortInfo("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74", "", None, None)])
+
+    monkeypatch.setattr(
+        web_handlers,
+        "available_ports",
+        lambda: [PortInfo("/dev/ttyUSB0", "CP2102", "USB VID:PID=10C4:EA60", 0x10C4, 0xEA60)],
+    )
+    monkeypatch.setattr(
+        web_handlers,
+        "paired_bluetooth_ports",
+        lambda: [PortInfo("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74", "", None, None)],
+    )
     e = Env(tmp_path, web=True)
     await e.start()
     page = await e.ws()
     await page.send({"cmd": "list_ports"})
     ports = (await page.expect("ports"))["ports"]
-    assert [(p["device"], p["description"]) for p in ports if p["device"].startswith(("bt://", "/dev/ttyUSB0"))] == [("/dev/ttyUSB0", "CP2102"), ("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74")]
+    assert [(p["device"], p["description"]) for p in ports if p["device"].startswith(("bt://", "/dev/ttyUSB0"))] == [
+        ("/dev/ttyUSB0", "CP2102"),
+        ("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74"),
+    ]
 
 
 async def as_the_operator_left_it(e: Env) -> bool:
@@ -242,9 +401,13 @@ async def as_the_operator_left_it(e: Env) -> bool:
     radio 1's own (the start wrote the radio of a database that had none), and the settings in force
     those of ON_AIR, key by key, with the radios as they are stored."""
     radios = await e.ctl.store.radios()
-    return (await e.ctl.store.settings() == {key: text for key, text in OPERATOR.items() if key in STATION_KEYS}
-            and [(s.id, s.kind, s.type, s.enabled, dict(s.settings)) for s in radios] == [(1, "fm", "kenwood-tnc2", True, {"path": "WIDE1-1,WIDE2-1"})]
-            and e.ctl.config.to_data() == ON_AIR.to_data() and e.ctl.config.radios == radios)
+    return (
+        await e.ctl.store.settings() == {key: text for key, text in OPERATOR.items() if key in STATION_KEYS}
+        and [(s.id, s.kind, s.type, s.enabled, dict(s.settings)) for s in radios]
+        == [(1, "fm", "kenwood-tnc2", True, {"path": "WIDE1-1,WIDE2-1"})]
+        and e.ctl.config.to_data() == ON_AIR.to_data()
+        and e.ctl.config.radios == radios
+    )
 
 
 async def test_a_frame_that_is_not_a_command_is_an_error_and_changes_nothing(tmp_path: Path) -> None:
@@ -258,26 +421,48 @@ async def test_a_frame_that_is_not_a_command_is_an_error_and_changes_nothing(tmp
     # the picture is taken
     await page.quiet(0.4)
     before = json.dumps(page.topics, sort_keys=True)
-    bad = ['not json', '[1, 2]', '{"cmd": "nope"}', '{}', '{"cmd": 7}', '{"cmd": "ping", "extra": 1}', '{"cmd": "forget_station"}', '{"cmd": "forget_station", "call": 5}',
-           '{"cmd": "set_config", "values": {"station/lat": 61}}', '{"cmd": "subscribe", "topics": "stations"}', '{"cmd": "set_config", "values": NaN}']
+    bad = [
+        "not json",
+        "[1, 2]",
+        '{"cmd": "nope"}',
+        "{}",
+        '{"cmd": 7}',
+        '{"cmd": "ping", "extra": 1}',
+        '{"cmd": "forget_station"}',
+        '{"cmd": "forget_station", "call": 5}',
+        '{"cmd": "set_config", "values": {"station/lat": 61}}',
+        '{"cmd": "subscribe", "topics": "stations"}',
+        '{"cmd": "set_config", "values": NaN}',
+    ]
     for text in bad:
         await page.send_text(text)
     await page.until(lambda: len(page.of("error")) == len(bad))
     errors = [m["text"] for m in page.of("error")]
     assert any("That is not JSON" in t for t in errors) and any("JSON object" in t for t in errors)
-    assert any("unknown command 'nope'" in t for t in errors) and any("extra" in t for t in errors) and any("call: is missing" in t for t in errors)
+    assert (
+        any("unknown command 'nope'" in t for t in errors)
+        and any("extra" in t for t in errors)
+        and any("call: is missing" in t for t in errors)
+    )
     assert all(isinstance(t, str) and 0 < len(t) < 300 for t in errors)
     await page.quiet(0.4)
     assert json.dumps(page.topics, sort_keys=True) == before, "nothing changed"
     assert await as_the_operator_left_it(e) and e.ctl.stationbook.get("OH2RDK-7") is not None
 
 
-async def test_set_config_with_a_key_or_a_value_that_is_wrong_is_an_error_naming_the_key_and_changes_nothing(tmp_path: Path) -> None:
+async def test_set_config_with_a_key_or_a_value_that_is_wrong_is_an_error_naming_the_key_and_changes_nothing(
+    tmp_path: Path,
+) -> None:
     e = Env(tmp_path, web=True)
     await e.start()
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    for values, key in (({"neoaprs/web/colour": "red"}, "neoaprs/web/colour"), ({"station/lat": "95"}, "station/lat"), ({"station/call": "oh2xyz", "web/port": "http"}, "web/port"), ({"serial/baud": "fast"}, "serial/baud")):
+    for values, key in (
+        ({"neoaprs/web/colour": "red"}, "neoaprs/web/colour"),
+        ({"station/lat": "95"}, "station/lat"),
+        ({"station/call": "oh2xyz", "web/port": "http"}, "web/port"),
+        ({"serial/baud": "fast"}, "serial/baud"),
+    ):
         await page.send({"cmd": "set_config", "values": values})
         error = await page.expect("error")
         assert error["text"].startswith("set_config: ") and key in error["text"], error
@@ -293,7 +478,9 @@ async def test_set_config_changes_the_settings_and_the_page_is_told_them_again(t
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     await page.send({"cmd": "set_config", "values": {"station/comment": "mobile", "station/call": "oh2gba-9"}})
     await page.until(lambda: page.topics["config"]["values"]["station/comment"] == "mobile")
-    assert page.topics["config"]["values"]["station/call"] == "OH2GBA-9", "the value is written the way the daemon writes it"
+    assert page.topics["config"]["values"]["station/call"] == "OH2GBA-9", (
+        "the value is written the way the daemon writes it"
+    )
     assert page.topics["config"]["defaults"]["station/comment"] == "NeoAPRS"
     assert (await e.ctl.store.settings())["station/call"] == "OH2GBA-9" and e.ctl.config.station_comment == "mobile"
     # Our own station is the new call; the old one is a station like any other
@@ -359,18 +546,22 @@ async def test_subscribe_and_unsubscribe(tmp_path: Path) -> None:
     assert page.of("patch", "packets") == [] and page.topics["packets"] == {}
     await page.send({"cmd": "subscribe", "topics": ["packets", "weather"]})
     assert "weather" in (await page.expect("error"))["text"]
-    await page.until(lambda: len(page.topics["packets"]) == 4)                                         # (told whole again)
+    await page.until(lambda: len(page.topics["packets"]) == 4)  # (told whole again)
     assert len(page.of("state", "packets")) == 2
 
 
 async def test_beacon_now_sends_our_position_and_the_pages_are_told_the_packet_and_the_status(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
     await e.start()
-    await e.until_usable()                                                                            # (the TNC has settled)
+    await e.until_usable()  # (the TNC has settled)
     page = await e.ws()
     other = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES) and len(page.of("status")) == 1)
-    assert page.of("status")[0]["beacon_last_sent"] is None and page.of("status")[0]["beacon_next_due"] is None and page.of("status")[0]["beacon_interval_min"] == 0
+    assert (
+        page.of("status")[0]["beacon_last_sent"] is None
+        and page.of("status")[0]["beacon_next_due"] is None
+        and page.of("status")[0]["beacon_interval_min"] == 0
+    )
     # The beacon is off by default: Beacon now is refused until it is on
     await page.send({"cmd": "set_config", "values": {"beacon/interval_min": "1440"}})
     await page.until(lambda: page.topics["config"]["values"]["beacon/interval_min"] == "1440")
@@ -378,7 +569,11 @@ async def test_beacon_now_sends_our_position_and_the_pages_are_told_the_packet_a
     await page.until(lambda: len(page.topics["packets"]) == 1)
     [row] = page.topics["packets"].values()
     assert row["direction"] == "out" and row["source"] == "OH2GBA" and row["kind"] == "position"
-    assert row["tnc2"] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS" and row["decoded"]["lat"] == 60.17 and row["decoded"]["symbol_code"] == "-"
+    assert (
+        row["tnc2"] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS"
+        and row["decoded"]["lat"] == 60.17
+        and row["decoded"]["symbol_code"] == "-"
+    )
     assert [op["op"] for op in page.ops("packets")] == ["set"]
     await other.until(lambda: len(other.topics["packets"]) == 1)
     # Told at once, not at the next ten seconds
@@ -421,7 +616,10 @@ async def test_the_status_tells_the_interval_and_when_the_next_beacon_is_due(tmp
     await page.send({"cmd": "set_config", "values": {"beacon/interval_min": "20", "radio/1/path": "wide2-2"}})
     await page.until(lambda: page.topics["config"]["values"]["beacon/interval_min"] == "20")
     assert page.topics["config"]["radio_values"]["radio/1/path"] == "WIDE2-2"
-    assert page.topics["config"]["radio_defaults"]["radio/1/path"] == "" and "beacon/compressed" not in page.topics["config"]["values"]
+    assert (
+        page.topics["config"]["radio_defaults"]["radio/1/path"] == ""
+        and "beacon/compressed" not in page.topics["config"]["values"]
+    )
     await page.send({"cmd": "status"})
     await page.until(lambda: page.of("status")[-1]["beacon_interval_min"] == 20)
     assert page.of("status")[-1]["beacon_next_due"] is not None and page.of("status")[-1]["beacon_last_sent"] is None
@@ -432,7 +630,11 @@ async def test_the_beacon_settings_are_checked_by_the_settings_command(tmp_path:
     await e.start()
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    for key, value in (("beacon/path", "WIDE1-1,TOOLONGCALL"), ("status/source", "radio"), ("beacon/interval_min", "1441")):
+    for key, value in (
+        ("beacon/path", "WIDE1-1,TOOLONGCALL"),
+        ("status/source", "radio"),
+        ("beacon/interval_min", "1441"),
+    ):
         await page.send({"cmd": "set_config", "values": {key: value}})
         assert key in (await page.expect("error"))["text"]
     assert await as_the_operator_left_it(e)
@@ -460,16 +662,25 @@ async def test_a_page_that_goes_away_is_forgotten(tmp_path: Path) -> None:
 
 # ---- the files and the names ---------------------------------------------------------------------
 
-async def test_the_placeholder_is_served_while_the_page_is_not_built(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+
+async def test_the_placeholder_is_served_while_the_page_is_not_built(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(web_server, "PAGE_DIR", tmp_path / "no-page")
     e = Env(tmp_path / "data", web=True)
     await e.start()
     answer = await e.fetch("/")
-    assert answer.code == 200 and b"the page is not built: scripts/build-page" in answer.body and answer.headers["Cache-Control"] == "no-cache"
+    assert (
+        answer.code == 200
+        and b"the page is not built: scripts/build-page" in answer.body
+        and answer.headers["Cache-Control"] == "no-cache"
+    )
     assert (await e.fetch("/index.html")).code == 200
 
 
-async def test_the_built_page_is_served_with_its_assets_kept_and_nothing_else(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_built_page_is_served_with_its_assets_kept_and_nothing_else(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     page = tmp_path / "page"
     (page / "assets").mkdir(parents=True)
     (page / "index.html").write_text('<div id="app"></div>')
@@ -483,7 +694,14 @@ async def test_the_built_page_is_served_with_its_assets_kept_and_nothing_else(tm
     assert root.code == 200 and b'id="app"' in root.body
     asset = await e.fetch("/assets/index-abc123.js")
     assert asset.code == 200 and asset.headers["Cache-Control"] == "public, max-age=31536000, immutable"
-    for path in ("/nothing.html", "/.secret", "/assets/index-abc123.js.map", "/../neoaprs/__init__.py", "/%2e%2e/neoaprs/__init__.py", "/assets/"):
+    for path in (
+        "/nothing.html",
+        "/.secret",
+        "/assets/index-abc123.js.map",
+        "/../neoaprs/__init__.py",
+        "/%2e%2e/neoaprs/__init__.py",
+        "/assets/",
+    ):
         answer = await e.fetch(path)
         assert answer.code in (403, 404), path
         assert b"VERSION" not in answer.body and len(answer.body) < 200, "a line of text, not a page"
@@ -493,33 +711,56 @@ async def test_the_base_map_is_a_404_without_the_file_and_serves_byte_ranges_wit
     e = Env(tmp_path, web=True)
     await e.start()
     missing = await e.fetch("/basemap.pmtiles")
-    assert missing.code == 404 and missing.headers["Content-Type"].startswith("text/plain") and len(missing.body) < 200 and b"Settings tab" in missing.reason.encode() + missing.body
+    assert (
+        missing.code == 404
+        and missing.headers["Content-Type"].startswith("text/plain")
+        and len(missing.body) < 200
+        and b"Settings tab" in missing.reason.encode() + missing.body
+    )
     content = bytes(range(256)) * 40
     (tmp_path / "basemap.pmtiles").write_bytes(content)
     whole = await e.fetch("/basemap.pmtiles")
     assert whole.code == 200 and whole.body == content and whole.headers["Accept-Ranges"] == "bytes"
     part = await e.fetch("/basemap.pmtiles", headers={"Range": "bytes=100-299"})
-    assert part.code == 206 and part.body == content[100:300] and part.headers["Content-Range"] == f"bytes 100-299/{len(content)}"
+    assert (
+        part.code == 206
+        and part.body == content[100:300]
+        and part.headers["Content-Range"] == f"bytes 100-299/{len(content)}"
+    )
     tail = await e.fetch("/basemap.pmtiles", headers={"Range": "bytes=-16"})
     assert tail.code == 206 and tail.body == content[-16:]
     assert (await e.fetch("/basemap.pmtiles", method="HEAD")).headers["Content-Length"] == str(len(content))
     assert (await e.fetch("/basemap.pmtiles", headers={"Range": f"bytes={len(content) + 5}-"})).code == 416
     for key in SECURITY:
         assert part.headers[key]
-    assert (await e.fetch("/basemap-world.pmtiles")).body[:7] == b"PMTiles", "the world map is its own file: the one that ships with the program, from a data folder that has none"
+    assert (await e.fetch("/basemap-world.pmtiles")).body[:7] == b"PMTiles", (
+        "the world map is its own file: the one that ships with the program, from a data folder that has none"
+    )
     # The data folder's own world map has a PMTiles header: a file without one is not served
-    own = b"PMTiles\x03" + bytes(92) + struct.pack("<BB4i", 0, 5, -1800000000, -850000000, 1800000000, 850000000) + bytes(9) + content[:500]
+    own = (
+        b"PMTiles\x03"
+        + bytes(92)
+        + struct.pack("<BB4i", 0, 5, -1800000000, -850000000, 1800000000, 850000000)
+        + bytes(9)
+        + content[:500]
+    )
     (tmp_path / "basemap-world.pmtiles").write_bytes(own)
     world = await e.fetch("/basemap-world.pmtiles", headers={"Range": "bytes=10-19"})
     assert world.code == 206 and world.body == own[10:20]
-    assert (await e.fetch("/basemap-world.pmtiles.part")).code in (403, 404) and (await e.fetch("/neoaprs.sqlite")).code in (403, 404), "no other file of the data folder is reachable"
+    assert (await e.fetch("/basemap-world.pmtiles.part")).code in (403, 404) and (
+        await e.fetch("/neoaprs.sqlite")
+    ).code in (403, 404), "no other file of the data folder is reachable"
 
 
-async def test_the_tag_of_a_map_file_is_its_size_and_time_and_the_file_is_never_read_to_make_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+async def test_the_tag_of_a_map_file_is_its_size_and_time_and_the_file_is_never_read_to_make_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     """Tornado 6.6 gives no tag to a file over 64 MB and logs an error; the detailed map is over a
     hundred, and hashing it stopped the loop."""
+
     def never(abspath: str) -> str:
         raise AssertionError(f"the map file {abspath} was read to make its tag")
+
     monkeypatch.setattr(pagefiles.Basemap, "get_content_version", classmethod(lambda cls, abspath: never(abspath)))
     e = Env(tmp_path, web=True)
     await e.start()
@@ -527,7 +768,11 @@ async def test_the_tag_of_a_map_file_is_its_size_and_time_and_the_file_is_never_
     file.write_bytes(bytes(1000))
     first = await e.fetch("/basemap.pmtiles", headers={"Range": "bytes=0-9"})
     tag = first.headers["Etag"]
-    assert first.code == 206 and tag.startswith('"') and (await e.fetch("/basemap.pmtiles", headers={"Range": "bytes=10-19"})).headers["Etag"] == tag
+    assert (
+        first.code == 206
+        and tag.startswith('"')
+        and (await e.fetch("/basemap.pmtiles", headers={"Range": "bytes=10-19"})).headers["Etag"] == tag
+    )
     assert (await e.fetch("/basemap.pmtiles", headers={"If-None-Match": tag})).code == 304
     # The map fetched again: another file under the same name
     file.write_bytes(bytes(1001))
@@ -547,10 +792,25 @@ async def test_the_security_headers_are_on_every_answer(tmp_path: Path) -> None:
     for answer in answers:
         for key in SECURITY:
             assert answer.headers.get(key), (answer.request.url, answer.code, key)
-        assert answer.headers["X-Frame-Options"] == "DENY" and answer.headers["X-Content-Type-Options"] == "nosniff" and answer.headers["Server"] == "NeoAPRS"
+        assert (
+            answer.headers["X-Frame-Options"] == "DENY"
+            and answer.headers["X-Content-Type-Options"] == "nosniff"
+            and answer.headers["Server"] == "NeoAPRS"
+        )
     csp = answers[0].headers["Content-Security-Policy"]
-    assert "default-src 'self'" in csp and "script-src 'self'" in csp and "worker-src 'self'" in csp and f"ws://127.0.0.1:{e.port}" in csp and "frame-ancestors 'none'" in csp
-    assert "unsafe-eval" not in csp and "http:" not in csp and "https:" not in csp and "script-src 'self' 'unsafe" not in csp
+    assert (
+        "default-src 'self'" in csp
+        and "script-src 'self'" in csp
+        and "worker-src 'self'" in csp
+        and f"ws://127.0.0.1:{e.port}" in csp
+        and "frame-ancestors 'none'" in csp
+    )
+    assert (
+        "unsafe-eval" not in csp
+        and "http:" not in csp
+        and "https:" not in csp
+        and "script-src 'self' 'unsafe" not in csp
+    )
 
 
 async def test_a_foreign_host_name_is_refused_with_403_and_a_name_in_the_settings_is_not(tmp_path: Path) -> None:
@@ -588,6 +848,7 @@ async def test_names_in_web_allowed_hosts_and_the_name_of_the_machine_are_ours(t
         assert (await second.fetch("/", headers={"Host": host, **proxied})).code == 200, host
     assert (await second.fetch("/", headers={"Host": "other.example"})).code == 403
     import socket
+
     assert (await second.fetch("/", headers={"Host": socket.gethostname(), **proxied})).code == 200
 
 
@@ -609,15 +870,19 @@ async def test_a_command_that_is_too_big_closes_the_socket(tmp_path: Path) -> No
     await page.send_text('{"cmd": "ping", "pad": "' + "x" * (web_server.MAX_COMMAND + 10) + '"}')
     await page.until(lambda: page.closed_with is not None)
     assert page.closed_with is not None
-    assert page.closed_with[0] == 1009 or (sys.platform == "win32" and page.closed_with[0] is None), "the close code (Windows may reset the connection before the client has read it)"
+    assert page.closed_with[0] == 1009 or (sys.platform == "win32" and page.closed_with[0] is None), (
+        "the close code (Windows may reset the connection before the client has read it)"
+    )
 
 
-async def test_connections_are_capped_and_a_connection_over_the_cap_is_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+async def test_connections_are_capped_and_a_connection_over_the_cap_is_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     monkeypatch.setattr("neoaprs.web.connections.MAX_CONNECTIONS", 3)
     e = Env(tmp_path, web=True)
     await e.start()
     held = [await asyncio.open_connection("127.0.0.1", e.port) for _ in range(3)]
-    await idle_for(0.1)                                              # (the server has taken them in)
+    await idle_for(0.1)  # (the server has taken them in)
     reader, writer = await asyncio.open_connection("127.0.0.1", e.port)
     try:
         writer.write(b"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
@@ -634,32 +899,55 @@ async def test_connections_are_capped_and_a_connection_over_the_cap_is_closed(tm
 
 # ---- messages ------------------------------------------------------------------------------------
 
+
 async def with_page(tmp_path: Path, **options: Any) -> tuple[Env, WsClient]:
     e = Env(tmp_path, web=True, **options)
     e.ctl.messaging.tick_sec = 0.02
     e.ctl.messaging.pace.spacing_sec = 0.0
     e.ctl.bulletins.tick_sec = 0.02  # type: ignore[attr-defined]
     await e.start()
-    await e.until_usable()                                                                            # (the TNC has settled)
+    await e.until_usable()  # (the TNC has settled)
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     return e, page
 
 
-async def test_send_message_sends_it_and_the_pages_are_told_the_packet_and_the_message_as_sending(tmp_path: Path) -> None:
+async def test_send_message_sends_it_and_the_pages_are_told_the_packet_and_the_message_as_sending(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     other = await e.ws()
     await page.send({"cmd": "send_message", "to": "oh2rdg", "text": "Hello Pekka"})
-    await page.until(lambda: len(page.topics["packets"]) == 1 and any(r["attempts"] == 1 for r in page.topics["messages"].values()))
+    await page.until(
+        lambda: len(page.topics["packets"]) == 1 and any(r["attempts"] == 1 for r in page.topics["messages"].values())
+    )
     [packet] = page.topics["packets"].values()
-    assert packet["direction"] == "out" and packet["kind"] == "message" and packet["tnc2"] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Hello Pekka{01}"
+    assert (
+        packet["direction"] == "out"
+        and packet["kind"] == "message"
+        and packet["tnc2"] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Hello Pekka{01}"
+    )
     assert [op["op"] for op in page.ops("packets")] == ["set"]
     [row] = page.topics["messages"].values()
     message = MessageRow.model_validate_json(json.dumps(row))
-    assert (message.id, message.direction, message.from_call, message.to_call, message.text, message.msg_id, message.state, message.attempts) == (1, "out", "OH2GBA", "OH2RDG", "Hello Pekka", "01", "sending", 1)
+    assert (
+        message.id,
+        message.direction,
+        message.from_call,
+        message.to_call,
+        message.text,
+        message.msg_id,
+        message.state,
+        message.attempts,
+    ) == (1, "out", "OH2GBA", "OH2RDG", "Hello Pekka", "01", "sending", 1)
     assert message.at == iso(e.now()) and message.last_attempt_at == iso(e.now()) and message.acked_at is None
     sets = [op for op in page.ops("messages") if op["op"] == "set"]
-    assert sets and sets[0]["key"] == "1" and all(op["key"] == "1" for op in sets) and sets[-1]["value"]["state"] == "sending"
+    assert (
+        sets
+        and sets[0]["key"] == "1"
+        and all(op["key"] == "1" for op in sets)
+        and sets[-1]["value"]["state"] == "sending"
+    )
     await other.until(lambda: other.topics["messages"].get("1", {}).get("attempts") == 1)
     assert page.of("error") == []
 
@@ -675,7 +963,9 @@ async def test_an_ack_through_the_line_makes_the_message_acked_on_every_page(tmp
     assert len(page.topics["packets"]) == 2, "our message, and the ack that was heard"
 
 
-async def test_a_copy_of_our_message_heard_back_is_a_set_of_its_row_with_the_hops_heard_and_the_ack_marks_the_attempt_it_answers(tmp_path: Path) -> None:
+async def test_a_copy_of_our_message_heard_back_is_a_set_of_its_row_with_the_hops_heard_and_the_ack_marks_the_attempt_it_answers(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     other = await e.ws()
     await page.send({"cmd": "set_station_path", "call": "OH2RDG", "path": "OH2RCH-2,OH2RDG"})
@@ -683,33 +973,52 @@ async def test_a_copy_of_our_message_heard_back_is_a_set_of_its_row_with_the_hop
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "Hello Pekka"})
     await page.until(lambda: page.topics["messages"].get("1", {}).get("attempts") == 1)
     sent = MessageRow.model_validate_json(json.dumps(page.topics["messages"]["1"]))
-    assert [(a.sent_at, [(h.call, h.heard, h.heard_at, h.by_internet) for h in a.hops], a.internet, a.acked) for a in sent.attempts_detail] == [
-        (iso(e.now()), [("OH2RCH-2", False, None, False), ("OH2RDG", False, None, False)], None, False)]
+    assert [
+        (a.sent_at, [(h.call, h.heard, h.heard_at, h.by_internet) for h in a.hops], a.internet, a.acked)
+        for a in sent.attempts_detail
+    ] == [(iso(e.now()), [("OH2RCH-2", False, None, False), ("OH2RDG", False, None, False)], None, False)]
     sets = len([op for op in page.ops("messages") if op["op"] == "set"])
     e.feed(on_air("OH2GBA", message_info("OH2RDG", "Hello Pekka", "01"), path="OH2RCH-2*,OH2RDG"))
     await page.until(lambda: page.topics["messages"]["1"]["attempts_detail"][0]["hops"][0]["heard"])
-    assert len([op for op in page.ops("messages") if op["op"] == "set"]) == sets + 1, "a hop that is heard is one more set of the row"
+    assert len([op for op in page.ops("messages") if op["op"] == "set"]) == sets + 1, (
+        "a hop that is heard is one more set of the row"
+    )
     row = MessageRow.model_validate_json(json.dumps(page.topics["messages"]["1"]))
-    assert [(h.call, h.heard, h.heard_at, h.by_internet) for h in row.attempts_detail[0].hops] == [("OH2RCH-2", True, iso(e.now()), False), ("OH2RDG", False, None, False)] and row.attempts == 1
+    assert [(h.call, h.heard, h.heard_at, h.by_internet) for h in row.attempts_detail[0].hops] == [
+        ("OH2RCH-2", True, iso(e.now()), False),
+        ("OH2RDG", False, None, False),
+    ] and row.attempts == 1
     e.feed(on_air("OH7JHF-1", b"}OH2GBA>APZNEO,TCPIP,OH7JHF-1*::OH2RDG   :Hello Pekka{01}", path="OH2RCH-3*"))
     await page.until(lambda: page.topics["messages"]["1"]["attempts_detail"][0]["internet"] == "OH7JHF-1")
     await other.until(lambda: other.topics["messages"]["1"]["attempts_detail"][0]["internet"] == "OH7JHF-1")
     assert other.topics["messages"] == page.topics["messages"]
     e.feed(on_air("OH2RDG", ack_info("OH2GBA", "01")))
     await page.until(lambda: page.topics["messages"]["1"]["state"] == "acked")
-    assert [a["acked"] for a in page.topics["messages"]["1"]["attempts_detail"]] == [True] and len(page.topics["messages"]) == 1, "our own copies are no messages of the list"
+    assert [a["acked"] for a in page.topics["messages"]["1"]["attempts_detail"]] == [True] and len(
+        page.topics["messages"]
+    ) == 1, "our own copies are no messages of the list"
     late = await e.ws()
     await late.until(lambda: len(late.of("state")) == len(TOPIC_NAMES))
     assert late.topics["messages"] == page.topics["messages"], "a page that comes later is sent the chain whole"
     assert page.of("error") == []
 
 
-async def test_a_message_sent_to_us_is_a_row_with_state_received_and_our_ack_is_the_packet_after_it(tmp_path: Path) -> None:
+async def test_a_message_sent_to_us_is_a_row_with_state_received_and_our_ack_is_the_packet_after_it(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     e.feed(on_air("OH2RDG-7", message_info("OH2GBA", "Moi!", "12")))
     await page.until(lambda: len(page.topics["messages"]) == 1 and len(page.topics["packets"]) == 2)
     row = MessageRow.model_validate_json(json.dumps(page.topics["messages"]["1"]))
-    assert (row.direction, row.from_call, row.to_call, row.text, row.msg_id, row.state, row.attempts) == ("in", "OH2RDG-7", "OH2GBA", "Moi!", "12", "received", 0)
+    assert (row.direction, row.from_call, row.to_call, row.text, row.msg_id, row.state, row.attempts) == (
+        "in",
+        "OH2RDG-7",
+        "OH2GBA",
+        "Moi!",
+        "12",
+        "received",
+        0,
+    )
     assert row.attempts_detail == [], "a message that came in has no attempts"
     assert sorted(r["tnc2"] for r in page.topics["packets"].values())[0].endswith("::OH2RDG-7 :ack12")
     late = await e.ws()
@@ -717,10 +1026,22 @@ async def test_a_message_sent_to_us_is_a_row_with_state_received_and_our_ack_is_
     assert late.topics["messages"] == page.topics["messages"], "a page that comes later is sent the messages whole"
 
 
-@pytest.mark.parametrize("to, text, reason", [
-    ("", "x", "at least 1"), ("TOOLONGCALL", "x", "call"), ("OH2 RDG", "x", "call"), ("OH2GBA", "x", "own call"), ("OH2RDG", "", "empty"), ("OH2RDG", "x" * 68, "68 characters"), ("OH2RDG", "a{b", "{"),
-    ("OH2RDG", "a\nb", "control")])
-async def test_a_bad_addressee_or_text_is_an_error_that_says_why_and_nothing_is_sent_or_kept(tmp_path: Path, to: str, text: str, reason: str) -> None:
+@pytest.mark.parametrize(
+    "to, text, reason",
+    [
+        ("", "x", "at least 1"),
+        ("TOOLONGCALL", "x", "call"),
+        ("OH2 RDG", "x", "call"),
+        ("OH2GBA", "x", "own call"),
+        ("OH2RDG", "", "empty"),
+        ("OH2RDG", "x" * 68, "68 characters"),
+        ("OH2RDG", "a{b", "{"),
+        ("OH2RDG", "a\nb", "control"),
+    ],
+)
+async def test_a_bad_addressee_or_text_is_an_error_that_says_why_and_nothing_is_sent_or_kept(
+    tmp_path: Path, to: str, text: str, reason: str
+) -> None:
     e, page = await with_page(tmp_path)
     await page.send({"cmd": "send_message", "to": to, "text": text})
     error = (await page.expect("error"))["text"]
@@ -740,7 +1061,11 @@ async def test_a_message_sent_while_the_tnc_is_not_connected_is_kept_and_goes_ou
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "later"})
     await page.until(lambda: page.topics["messages"].get("1", {}).get("state") == "sending")
-    assert page.topics["messages"]["1"]["attempts"] == 0 and page.topics["messages"]["1"]["last_attempt_at"] is None and page.of("error") == []
+    assert (
+        page.topics["messages"]["1"]["attempts"] == 0
+        and page.topics["messages"]["1"]["last_attempt_at"] is None
+        and page.of("error") == []
+    )
     await e.plug()
     await e.until_connected()
     await page.until(lambda: page.topics["messages"]["1"]["attempts"] == 1)
@@ -758,13 +1083,17 @@ async def test_message_cancel_and_message_retry_change_the_row_and_say_why_when_
     await page.until(lambda: len(page.of("error")) == 2)
     assert "message_cancel: " in page.of("error")[-1]["text"] and "cancelled" in page.of("error")[-1]["text"]
     await page.send({"cmd": "message_retry", "id": 1})
-    await page.until(lambda: page.topics["messages"]["1"]["state"] == "sending" and page.topics["messages"]["1"]["attempts"] == 1)
+    await page.until(
+        lambda: page.topics["messages"]["1"]["state"] == "sending" and page.topics["messages"]["1"]["attempts"] == 1
+    )
     await page.send({"cmd": "message_retry", "id": 99})
     await page.until(lambda: len(page.of("error")) == 3)
     assert "no message 99" in page.of("error")[-1]["text"]
 
 
-async def test_message_delete_removes_the_row_from_the_database_and_every_page_and_says_why_when_it_cannot(tmp_path: Path) -> None:
+async def test_message_delete_removes_the_row_from_the_database_and_every_page_and_says_why_when_it_cannot(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     other = await e.ws()
     await other.until(lambda: len(other.of("state")) == len(TOPIC_NAMES))
@@ -776,7 +1105,9 @@ async def test_message_delete_removes_the_row_from_the_database_and_every_page_a
     await page.until(lambda: "1" not in page.topics["messages"])
     await other.until(lambda: "1" not in other.topics["messages"])
     assert [op for op in page.ops("messages") if op["op"] == "del"] == [{"op": "del", "key": "1"}]
-    assert sorted(m.id for m in await e.ctl.messagelog.recent()) == [2] and [m.id for m in await e.ctl.messagelog.recent(overheard=True)] == [3]
+    assert sorted(m.id for m in await e.ctl.messagelog.recent()) == [2] and [
+        m.id for m in await e.ctl.messagelog.recent(overheard=True)
+    ] == [3]
     await page.send({"cmd": "message_delete", "id": 3})
     await page.send({"cmd": "message_delete", "id": 2})
     await page.until(lambda: page.topics["messages"] == {})
@@ -789,7 +1120,9 @@ async def test_message_delete_removes_the_row_from_the_database_and_every_page_a
     assert page.of("error")[-1]["text"].startswith("message_delete: id: ")
 
 
-async def test_conversation_delete_removes_every_message_with_the_station_from_the_database_and_every_page(tmp_path: Path) -> None:
+async def test_conversation_delete_removes_every_message_with_the_station_from_the_database_and_every_page(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     other = await e.ws()
     await other.until(lambda: len(other.of("state")) == len(TOPIC_NAMES))
@@ -798,7 +1131,12 @@ async def test_conversation_delete_removes_every_message_with_the_station_from_t
     await page.send({"cmd": "send_message", "to": "OH2AAA", "text": "Hello you"})
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi!", "3")))
     e.feed(on_air("OH2RDG", message_info("OH2CCC", "overheard", "4")))
-    await page.until(lambda: len(page.topics["messages"]) == 4 and all(r["attempts"] == 1 for r in page.topics["messages"].values() if r["state"] == "sending"))
+    await page.until(
+        lambda: (
+            len(page.topics["messages"]) == 4
+            and all(r["attempts"] == 1 for r in page.topics["messages"].values() if r["state"] == "sending")
+        )
+    )
     await other.until(lambda: len(other.topics["messages"]) == 4)
     ids = {r["text"]: key for key, r in page.topics["messages"].items()}
     await page.send({"cmd": "conversation_delete", "call": "oh2rdg"})
@@ -806,17 +1144,27 @@ async def test_conversation_delete_removes_every_message_with_the_station_from_t
     await page.until(lambda: sorted(page.topics["messages"]) == kept)
     await other.until(lambda: sorted(other.topics["messages"]) == kept)
     assert sorted(op["key"] for op in other.ops("messages") if op["op"] == "del") == sorted([ids["Hello"], ids["Moi!"]])
-    assert page.topics["messages"][ids["overheard"]]["state"] == "overheard" and page.topics["messages"][ids["Hello you"]]["state"] == "sending"
-    assert [m.text for m in await e.ctl.messagelog.recent()] == ["Hello you"] and [m.text for m in await e.ctl.messagelog.recent(overheard=True)] == ["overheard"]
+    assert (
+        page.topics["messages"][ids["overheard"]]["state"] == "overheard"
+        and page.topics["messages"][ids["Hello you"]]["state"] == "sending"
+    )
+    assert [m.text for m in await e.ctl.messagelog.recent()] == ["Hello you"] and [
+        m.text for m in await e.ctl.messagelog.recent(overheard=True)
+    ] == ["overheard"]
     assert page.topics["station_prefs"]["OH2RDG"]["path"] == "OH2RCH-2", "the station's path is kept"
     await page.send({"cmd": "conversation_delete", "call": "OH2RDG"})
-    assert "conversation_delete: " in (await page.expect("error"))["text"] and "no conversation with OH2RDG" in page.of("error")[-1]["text"]
+    assert (
+        "conversation_delete: " in (await page.expect("error"))["text"]
+        and "no conversation with OH2RDG" in page.of("error")[-1]["text"]
+    )
     await page.send({"cmd": "conversation_delete", "call": ""})
     await page.until(lambda: len(page.of("error")) == 2)
     assert page.of("error")[-1]["text"].startswith("conversation_delete: call: ")
 
 
-async def test_overheard_delete_removes_the_overheard_messages_of_a_pair_from_the_database_and_every_page_and_no_conversation(tmp_path: Path) -> None:
+async def test_overheard_delete_removes_the_overheard_messages_of_a_pair_from_the_database_and_every_page_and_no_conversation(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     other = await e.ws()
     await other.until(lambda: len(other.of("state")) == len(TOPIC_NAMES))
@@ -832,19 +1180,30 @@ async def test_overheard_delete_removes_the_overheard_messages_of_a_pair_from_th
     kept = sorted([ids["Hello you"], ids["Moi!"], ids["elsewhere"]])
     await page.until(lambda: sorted(page.topics["messages"]) == kept)
     await other.until(lambda: sorted(other.topics["messages"]) == kept)
-    assert sorted(op["key"] for op in other.ops("messages") if op["op"] == "del") == sorted([ids["first"], ids["second"]])
-    assert [m.text for m in await e.ctl.messagelog.recent(overheard=True)] == ["elsewhere"] and sorted(m.text for m in await e.ctl.messagelog.recent()) == ["Hello you", "Moi!"]
+    assert sorted(op["key"] for op in other.ops("messages") if op["op"] == "del") == sorted(
+        [ids["first"], ids["second"]]
+    )
+    assert [m.text for m in await e.ctl.messagelog.recent(overheard=True)] == ["elsewhere"] and sorted(
+        m.text for m in await e.ctl.messagelog.recent()
+    ) == ["Hello you", "Moi!"]
     await page.send({"cmd": "overheard_delete", "from_call": "OH2AAA", "to_call": "OH2BBB"})
-    assert "overheard_delete: " in (await page.expect("error"))["text"] and "no overheard message from OH2AAA to OH2BBB" in page.of("error")[-1]["text"]
+    assert (
+        "overheard_delete: " in (await page.expect("error"))["text"]
+        and "no overheard message from OH2AAA to OH2BBB" in page.of("error")[-1]["text"]
+    )
     await page.send({"cmd": "overheard_delete", "from_call": "OH2AAA", "to_call": "OH2GBA"})
     await page.until(lambda: len(page.of("error")) == 2)
-    assert "no overheard message" in page.of("error")[-1]["text"] and sorted(page.topics["messages"]) == kept, "a conversation is never removed by it"
+    assert "no overheard message" in page.of("error")[-1]["text"] and sorted(page.topics["messages"]) == kept, (
+        "a conversation is never removed by it"
+    )
     await page.send({"cmd": "overheard_delete", "from_call": "", "to_call": "OH2BBB"})
     await page.until(lambda: len(page.of("error")) == 3)
     assert page.of("error")[-1]["text"].startswith("overheard_delete: from_call: ")
 
 
-async def test_a_message_is_sent_4_times_and_one_to_the_email_gateway_twice_and_the_setting_of_an_older_version_is_refused(tmp_path: Path) -> None:
+async def test_a_message_is_sent_4_times_and_one_to_the_email_gateway_twice_and_the_setting_of_an_older_version_is_refused(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     assert "messages/attempts" not in page.topics["config"]["values"]
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "one"})
@@ -877,14 +1236,19 @@ async def test_a_restarted_daemon_opens_with_the_messages_the_database_kept(tmp_
     await second.start()
     again = await second.ws()
     await again.until(lambda: len(again.of("state")) == len(TOPIC_NAMES))
-    assert {k: (r["direction"], r["text"], r["state"]) for k, r in again.topics["messages"].items()} == {"1": ("out", "Hello", "sending"), "2": ("in", "Moi!", "received")}
+    assert {k: (r["direction"], r["text"], r["state"]) for k, r in again.topics["messages"].items()} == {
+        "1": ("out", "Hello", "sending"),
+        "2": ("in", "Moi!", "received"),
+    }
 
 
 def pref(path: str | None, rf_only: bool = False) -> dict[str, object]:
     return {"path": path, "rf_only": rf_only, "alert": None}
 
 
-async def test_set_station_path_and_clear_station_path_change_the_entry_of_the_topic_and_the_path_of_the_message(tmp_path: Path) -> None:
+async def test_set_station_path_and_clear_station_path_change_the_entry_of_the_topic_and_the_path_of_the_message(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     other = await e.ws()
     await page.send({"cmd": "set_station_path", "call": "oh2rdg", "path": "oh2rch-2, wide2-1"})
@@ -896,14 +1260,20 @@ async def test_set_station_path_and_clear_station_path_change_the_entry_of_the_t
     await page.until(lambda: page.topics["station_prefs"].get("OH2XYZ") == pref(""), timeout=5)
     await page.send({"cmd": "clear_station_path", "call": "OH2RDG"})
     await page.until(lambda: "OH2RDG" not in page.topics["station_prefs"])
-    assert page.topics["station_prefs"] == {"OH2XYZ": pref("")} and [op["op"] for op in page.ops("station_prefs")] == ["set", "set", "del"]
+    assert page.topics["station_prefs"] == {"OH2XYZ": pref("")} and [op["op"] for op in page.ops("station_prefs")] == [
+        "set",
+        "set",
+        "del",
+    ]
     assert page.of("error") == []
     late = await e.ws()
     await late.until(lambda: len(late.of("state")) == len(TOPIC_NAMES))
     assert late.topics["station_prefs"] == {"OH2XYZ": pref("")}
 
 
-async def test_set_station_rf_only_changes_the_entry_keeps_the_rest_and_the_next_message_goes_with_rfonly_and_the_chain_shows_no_such_hop(tmp_path: Path) -> None:
+async def test_set_station_rf_only_changes_the_entry_keeps_the_rest_and_the_next_message_goes_with_rfonly_and_the_chain_shows_no_such_hop(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     other = await e.ws()
     await page.send({"cmd": "set_station_rf_only", "call": "oh2rdg", "on": True})
@@ -913,43 +1283,75 @@ async def test_set_station_rf_only_changes_the_entry_keeps_the_rest_and_the_next
     await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,OH2RDG", True)})
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "Hello"})
     # The two rows come in one flush, in the hub's order of the topics: the packet's first
-    await page.until(lambda: any("OH2RCH-2,OH2RDG,RFONLY" in r["tnc2"] for r in page.topics["packets"].values()) and page.topics["messages"]["1"]["attempts"] == 1)
+    await page.until(
+        lambda: (
+            any("OH2RCH-2,OH2RDG,RFONLY" in r["tnc2"] for r in page.topics["packets"].values())
+            and page.topics["messages"]["1"]["attempts"] == 1
+        )
+    )
     row = MessageRow.model_validate_json(json.dumps(page.topics["messages"]["1"]))
     assert [h.call for h in row.attempts_detail[0].hops] == ["OH2RCH-2", "OH2RDG"], "RFONLY is no hop of the chain"
     await page.send({"cmd": "set_station_rf_only", "call": "OH2RDG", "on": False})
     await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,OH2RDG", False)})
     await page.send({"cmd": "clear_station_path", "call": "OH2RDG"})
     await page.until(lambda: page.topics["station_prefs"] == {})
-    assert [(op["op"], op["key"]) for op in page.ops("station_prefs")] == [("set", "OH2RDG"), ("set", "OH2RDG"), ("set", "OH2RDG"), ("del", "OH2RDG")] and page.of("error") == []
+    assert [(op["op"], op["key"]) for op in page.ops("station_prefs")] == [
+        ("set", "OH2RDG"),
+        ("set", "OH2RDG"),
+        ("set", "OH2RDG"),
+        ("del", "OH2RDG"),
+    ] and page.of("error") == []
     late = await e.ws()
     await late.until(lambda: len(late.of("state")) == len(TOPIC_NAMES))
     assert late.topics["station_prefs"] == {}
 
 
-async def test_set_station_rf_only_for_the_email_gateway_is_an_error_that_says_why_and_changes_nothing(tmp_path: Path) -> None:
+async def test_set_station_rf_only_for_the_email_gateway_is_an_error_that_says_why_and_changes_nothing(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     await page.send({"cmd": "set_station_rf_only", "call": "email-2", "on": True})
     await page.until(lambda: len(page.of("error")) == 1)
-    assert page.of("error")[0]["text"] == "set_station_rf_only: EMAIL-2 cannot be RF only: the email gateway is on the internet"
+    assert (
+        page.of("error")[0]["text"]
+        == "set_station_rf_only: EMAIL-2 cannot be RF only: the email gateway is on the internet"
+    )
     await page.send({"cmd": "set_station_rf_only", "call": "email-2", "on": False})
     await page.send({"cmd": "ping"})
     await page.until(lambda: len(page.of("pong")) == 1)
     assert page.topics["station_prefs"] == {} and len(page.of("error")) == 1 and page.ops("station_prefs") == []
 
 
-@pytest.mark.parametrize("command", [{"cmd": "set_station_attempts", "call": "OH2RDG", "attempts": 2}, {"cmd": "clear_station_attempts", "call": "OH2RDG"},
-                                     {"cmd": "set_station_timeout", "call": "OH2RDG", "minutes": 45}, {"cmd": "clear_station_timeout", "call": "OH2RDG"}])
-async def test_the_commands_for_the_attempts_and_the_timeout_of_a_station_are_gone(tmp_path: Path, command: dict[str, object]) -> None:
+@pytest.mark.parametrize(
+    "command",
+    [
+        {"cmd": "set_station_attempts", "call": "OH2RDG", "attempts": 2},
+        {"cmd": "clear_station_attempts", "call": "OH2RDG"},
+        {"cmd": "set_station_timeout", "call": "OH2RDG", "minutes": 45},
+        {"cmd": "clear_station_timeout", "call": "OH2RDG"},
+    ],
+)
+async def test_the_commands_for_the_attempts_and_the_timeout_of_a_station_are_gone(
+    tmp_path: Path, command: dict[str, object]
+) -> None:
     e, page = await with_page(tmp_path)
     await page.send(command)
     assert command["cmd"] in (await page.expect("error"))["text"]
     assert page.topics["station_prefs"] == {}
 
 
-@pytest.mark.parametrize("command, reason", [
-    ({"cmd": "set_station_path", "call": "TOOLONGCALL", "path": ""}, "call"), ({"cmd": "set_station_path", "call": "OH2RDG", "path": "WIDE 1"}, "call"),
-    ({"cmd": "set_station_path", "call": "OH2RDG", "path": ",".join(["WIDE1-1"] * 9)}, "more than the 8"), ({"cmd": "clear_station_path", "call": "TOOLONGCALL"}, "call")])
-async def test_a_bad_path_or_call_is_an_error_that_says_why_and_changes_nothing(tmp_path: Path, command: dict[str, str], reason: str) -> None:
+@pytest.mark.parametrize(
+    "command, reason",
+    [
+        ({"cmd": "set_station_path", "call": "TOOLONGCALL", "path": ""}, "call"),
+        ({"cmd": "set_station_path", "call": "OH2RDG", "path": "WIDE 1"}, "call"),
+        ({"cmd": "set_station_path", "call": "OH2RDG", "path": ",".join(["WIDE1-1"] * 9)}, "more than the 8"),
+        ({"cmd": "clear_station_path", "call": "TOOLONGCALL"}, "call"),
+    ],
+)
+async def test_a_bad_path_or_call_is_an_error_that_says_why_and_changes_nothing(
+    tmp_path: Path, command: dict[str, str], reason: str
+) -> None:
     e, page = await with_page(tmp_path)
     await page.send(command)
     error = (await page.expect("error"))["text"]
@@ -957,17 +1359,26 @@ async def test_a_bad_path_or_call_is_an_error_that_says_why_and_changes_nothing(
     assert page.topics["station_prefs"] == {}
 
 
-async def test_an_overheard_message_is_a_row_of_the_topic_with_state_overheard_and_no_ack_goes_out(tmp_path: Path) -> None:
+async def test_an_overheard_message_is_a_row_of_the_topic_with_state_overheard_and_no_ack_goes_out(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     e.feed(on_air("OH2RDG", message_info("OH2XYZ", "not for us", "3")))
     await page.until(lambda: len(page.topics["messages"]) == 1)
     row = MessageRow.model_validate_json(json.dumps(page.topics["messages"]["1"]))
-    assert (row.state, row.direction, row.from_call, row.to_call, row.attempts) == ("overheard", "in", "OH2RDG", "OH2XYZ", 0)
+    assert (row.state, row.direction, row.from_call, row.to_call, row.attempts) == (
+        "overheard",
+        "in",
+        "OH2RDG",
+        "OH2XYZ",
+        0,
+    )
     await page.quiet(0.2)
     assert [r["direction"] for r in page.topics["packets"].values()] == ["in"]
 
 
 # ---- how a packet reached us ---------------------------------------------------------------------
+
 
 async def test_the_capture_rows_say_how_each_packet_and_each_station_was_reached(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
@@ -976,11 +1387,24 @@ async def test_the_capture_rows_say_how_each_packet_and_each_station_was_reached
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     await e.play()
     await page.until(lambda: len(page.topics["packets"]) == 4 and len(page.topics["stations"]) >= 5)
-    assert {r["route"] for r in page.topics["packets"].values()} == {"via OH2RCH-2"} and {r["gate"] for r in page.topics["packets"].values()} == {""} and {r["via"] for r in page.topics["packets"].values()} == {"rf"}
+    assert (
+        {r["route"] for r in page.topics["packets"].values()} == {"via OH2RCH-2"}
+        and {r["gate"] for r in page.topics["packets"].values()} == {""}
+        and {r["via"] for r in page.topics["packets"].values()} == {"rf"}
+    )
     rdk = StationRow.model_validate_json(json.dumps(page.topics["stations"]["OH2RDK-7"]))
-    assert (rdk.last_route, rdk.heard_direct, rdk.heard_rf_gated, rdk.heard_via, rdk.best_route, rdk.suggested_path) == ("via OH2RCH-2", 0, 0, [("OH2RCH-2", 1)], "via OH2RCH-2", "OH2RCH-2")
+    assert (
+        rdk.last_route,
+        rdk.heard_direct,
+        rdk.heard_rf_gated,
+        rdk.heard_via,
+        rdk.best_route,
+        rdk.suggested_path,
+    ) == ("via OH2RCH-2", 0, 0, [("OH2RCH-2", 1)], "via OH2RCH-2", "OH2RCH-2")
     me = StationRow.model_validate_json(json.dumps(page.topics["stations"]["OH2GBA"]))
-    assert (me.last_route, me.heard_via, me.best_route, me.suggested_path) == ("", [], "", None), "nothing is known of how we are reached"
+    assert (me.last_route, me.heard_via, me.best_route, me.suggested_path) == ("", [], "", None), (
+        "nothing is known of how we are reached"
+    )
     await e.stop()
 
 
@@ -993,19 +1417,33 @@ async def test_a_message_keeps_the_route_it_came_by_and_a_page_that_comes_later_
     await page.send({"cmd": "send_message", "to": "OH2RDG-7", "text": "Hei"})
     await page.until(lambda: len(page.topics["messages"]) == 3)
     ours = MessageRow.model_validate_json(json.dumps(page.topics["messages"]["3"]))
-    assert ours.route == "" and {r["route"] for r in page.topics["packets"].values() if r["direction"] == "out"} == {""}, "the packets we sent have no route"
+    assert ours.route == "" and {r["route"] for r in page.topics["packets"].values() if r["direction"] == "out"} == {
+        ""
+    }, "the packets we sent have no route"
     station = StationRow.model_validate_json(json.dumps(page.topics["stations"]["OH2RDG-7"]))
-    assert (station.heard_direct, station.heard_via, station.best_route, station.suggested_path) == (1, [("OH2RCH-2", 1)], "direct", ""), "one direct, one through an unnamed hop and OH2RCH-2: direct wins the tie"
+    assert (station.heard_direct, station.heard_via, station.best_route, station.suggested_path) == (
+        1,
+        [("OH2RCH-2", 1)],
+        "direct",
+        "",
+    ), "one direct, one through an unnamed hop and OH2RCH-2: direct wins the tie"
     await e.stop()
     again = Env(tmp_path, web=True)
     await again.start()
     late = await again.ws()
     await late.until(lambda: len(late.of("state")) == len(TOPIC_NAMES))
-    assert [r["route"] for r in late.topics["messages"].values() if r["direction"] == "in"] == ["via ? → OH2RCH-2", "direct"]
-    assert late.topics["stations"]["OH2RDG-7"]["heard_direct"] == 1 and late.topics["stations"]["OH2RDG-7"]["heard_via"] == [["OH2RCH-2", 1]], "the station book counts again from the packets the database kept"
+    assert [r["route"] for r in late.topics["messages"].values() if r["direction"] == "in"] == [
+        "via ? → OH2RCH-2",
+        "direct",
+    ]
+    assert late.topics["stations"]["OH2RDG-7"]["heard_direct"] == 1 and late.topics["stations"]["OH2RDG-7"][
+        "heard_via"
+    ] == [["OH2RCH-2", 1]], "the station book counts again from the packets the database kept"
 
 
-async def test_a_third_party_ack_and_message_are_rows_for_the_sender_inside_and_the_gate_is_no_route_to_send_by(tmp_path: Path) -> None:
+async def test_a_third_party_ack_and_message_are_rows_for_the_sender_inside_and_the_gate_is_no_route_to_send_by(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     await page.send({"cmd": "send_message", "to": "OH2DPN", "text": "Hello"})
     await page.until(lambda: page.topics["messages"].get("1", {}).get("attempts") == 1)
@@ -1013,13 +1451,25 @@ async def test_a_third_party_ack_and_message_are_rows_for_the_sender_inside_and_
     e.feed(on_air("OH7JHF-1", b"}OH2BEA-9>APY300,TCPIP,OH7JHF-1*::OH2GBA   :Test ok{06", path="OH2RCH-3*"))
     await page.until(lambda: page.topics["messages"]["1"]["state"] == "acked" and "2" in page.topics["messages"])
     received = MessageRow.model_validate_json(json.dumps(page.topics["messages"]["2"]))
-    assert (received.from_call, received.text, received.route) == ("OH2BEA-9", "Test ok", "via OH7JHF-1 (internet) → OH2RCH-3")
+    assert (received.from_call, received.text, received.route) == (
+        "OH2BEA-9",
+        "Test ok",
+        "via OH7JHF-1 (internet) → OH2RCH-3",
+    )
     third = [r for r in page.topics["packets"].values() if r["gate"]]
-    assert [r["source"] for r in third] == ["OH7JHF-1", "OH7JHF-1"] and {r["route"] for r in third} == {"via OH7JHF-1 (internet) → OH2RCH-3"}
+    assert [r["source"] for r in third] == ["OH7JHF-1", "OH7JHF-1"] and {r["route"] for r in third} == {
+        "via OH7JHF-1 (internet) → OH2RCH-3"
+    }
     assert all(r["path"] == ["OH2RCH-3*"] for r in third)
     assert "OH7JHF-1" not in page.topics["stations"]
     sender = StationRow.model_validate_json(json.dumps(page.topics["stations"]["OH2BEA-9"]))
-    assert (sender.heard_rf_gated, sender.heard_direct, sender.heard_via, sender.best_route, sender.suggested_path) == (1, 0, [], "", None)
+    assert (sender.heard_rf_gated, sender.heard_direct, sender.heard_via, sender.best_route, sender.suggested_path) == (
+        1,
+        0,
+        [],
+        "",
+        None,
+    )
     assert sender.last_route == "via OH7JHF-1 (internet) → OH2RCH-3"
     await e.stop()
 
@@ -1041,23 +1491,38 @@ async def test_an_igate_row_counts_the_third_party_packets_it_put_on_the_air_and
 
 # ---- the message board ---------------------------------------------------------------------------
 
+
 async def test_a_bulletin_is_a_row_of_the_topic_keyed_by_sender_and_slot_and_never_ages_out(tmp_path: Path) -> None:
     e, page = await with_page(tmp_path)
     e.feed(on_air("OH2XYZ", message_info("BLN3HAMS", "Net tonight 20:00", "5")))
     await page.until(lambda: "OH2XYZ/BLN3HAMS" in page.topics["bulletins"])
     row = BulletinRow.model_validate_json(json.dumps(page.topics["bulletins"]["OH2XYZ/BLN3HAMS"]))
-    assert (row.sender, row.slot, row.group, row.kind, row.text, row.times_heard) == ("OH2XYZ", "BLN3HAMS", "HAMS", "group", "Net tonight 20:00", 1)
-    assert row.first_heard == row.last_heard == iso(e.now()) and page.topics["messages"] == {}, "it is no message of a conversation"
-    e.now.advance(60)                                                                                   # type: ignore[attr-defined]
+    assert (row.sender, row.slot, row.group, row.kind, row.text, row.times_heard) == (
+        "OH2XYZ",
+        "BLN3HAMS",
+        "HAMS",
+        "group",
+        "Net tonight 20:00",
+        1,
+    )
+    assert row.first_heard == row.last_heard == iso(e.now()) and page.topics["messages"] == {}, (
+        "it is no message of a conversation"
+    )
+    e.now.advance(60)  # type: ignore[attr-defined]
     e.feed(on_air("OH2XYZ", message_info("BLN3HAMS", "Net tonight 20:00", "5")))
     await page.until(lambda: page.topics["bulletins"]["OH2XYZ/BLN3HAMS"]["times_heard"] == 2)
     assert [op["op"] for op in page.ops("bulletins")] == ["set", "set"]
     late = await e.ws()
     await late.until(lambda: len(late.of("state")) == len(TOPIC_NAMES))
-    assert late.topics["bulletins"]["OH2XYZ/BLN3HAMS"]["times_heard"] == 2, "a page that comes later is told the board whole"
-    e.now.advance(30 * 86400)                                                                           # type: ignore[attr-defined]
+    assert late.topics["bulletins"]["OH2XYZ/BLN3HAMS"]["times_heard"] == 2, (
+        "a page that comes later is told the board whole"
+    )
+    e.now.advance(30 * 86400)  # type: ignore[attr-defined]
     await page.quiet(0.3)
-    assert "OH2XYZ/BLN3HAMS" in page.topics["bulletins"] and [op["op"] for op in page.ops("bulletins")] == ["set", "set"], "nothing ages out"
+    assert "OH2XYZ/BLN3HAMS" in page.topics["bulletins"] and [op["op"] for op in page.ops("bulletins")] == [
+        "set",
+        "set",
+    ], "nothing ages out"
     assert page.of("error") == []
     await e.stop()
 
@@ -1074,12 +1539,17 @@ async def test_a_station_row_says_when_the_station_was_last_heard_direct(tmp_pat
     await e.stop()
 
 
-def test_the_page_build_is_the_main_script_of_the_page_served(tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_page_build_is_the_main_script_of_the_page_served(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr("neoaprs.web.pagesnapshot.RETRY_SEC", 0.0)
     from neoaprs.web.server import PAGE_DIR
+
     (tmp_path / "assets").mkdir()
     (tmp_path / "assets" / "index-DefyaO5x.js").write_text("1", encoding="utf-8")
-    (tmp_path / "index.html").write_text('<script type="module" crossorigin src="./assets/index-DefyaO5x.js"></script>', encoding="utf-8")
+    (tmp_path / "index.html").write_text(
+        '<script type="module" crossorigin src="./assets/index-DefyaO5x.js"></script>', encoding="utf-8"
+    )
     assert PageSnapshot.take(tmp_path).build == "index-DefyaO5x.js"
     assert PageSnapshot.take(tmp_path / "nothing").build == "" and "not whole" in caplog.text
     built = PageSnapshot.take(PAGE_DIR).build

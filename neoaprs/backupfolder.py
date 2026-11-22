@@ -3,6 +3,7 @@
 A copy is written as `<name>.tmp` and renamed when whole; a migration stands on one copy, the
 database as the previous version left it. Files put there by hand are never touched.
 """
+
 import os
 import re
 import shlex
@@ -40,7 +41,12 @@ def sweep(folder: Path, now: float) -> list[str]:
     for name in sorted(names):
         path = folder / name
         try:
-            if LITTER.match(name) and path.is_file() and not path.is_symlink() and now - path.stat().st_mtime > LITTER_AGE_SEC:
+            if (
+                LITTER.match(name)
+                and path.is_file()
+                and not path.is_symlink()
+                and now - path.stat().st_mtime > LITTER_AGE_SEC
+            ):
                 path.unlink()
                 removed.append(name)
         except OSError:
@@ -111,6 +117,7 @@ def drop_older_copies(folder: Path, keep: str) -> list[str]:
 @dataclass(frozen=True)
 class Taken:
     """A pre-migration copy as its name says: version before, version after, and time taken."""
+
     path: Path
     old: int
     new: int
@@ -148,7 +155,12 @@ def whole(path: Path, version: int) -> bool:
         beside = any(path.with_name(path.name + suffix).exists() for suffix in ("-journal", "-wal"))
     except OSError:
         return False
-    if len(head) < HEADER_BYTES or not head.startswith(SQLITE_MAGIC) or beside or struct.unpack(">I", head[60:64])[0] != version:
+    if (
+        len(head) < HEADER_BYTES
+        or not head.startswith(SQLITE_MAGIC)
+        or beside
+        or struct.unpack(">I", head[60:64])[0] != version
+    ):
         return False
     page = int(struct.unpack(">H", head[16:18])[0])
     page = 65536 if page == 1 else page
@@ -164,7 +176,9 @@ def cut_short(folder: Path, found: int) -> list[Taken]:
     """Return the whole copies of older versions taken by a migration that went above `found`.
 
     Oldest version first, newest first within a version."""
-    return sorted((t for t in taken_copies(folder) if t.old < found < t.new and whole(t.path, t.old)), key=lambda t: t.old)
+    return sorted(
+        (t for t in taken_copies(folder) if t.old < found < t.new and whole(t.path, t.old)), key=lambda t: t.old
+    )
 
 
 def before_copy(folder: Path) -> Taken | None:
@@ -321,9 +335,13 @@ def _hold(data_dir: Path) -> list[InstanceLock]:
         except (AlreadyRunning, OSError) as e:
             _release(held)
             if isinstance(e, AlreadyRunning) and name == MIGRATE_LOCK_NAME:
-                raise RestoreRefused("NeoAPRS is writing to the database or bringing it up to date now: try again when that is done") from e
+                raise RestoreRefused(
+                    "NeoAPRS is writing to the database or bringing it up to date now: try again when that is done"
+                ) from e
             if isinstance(e, AlreadyRunning):
-                raise RestoreRefused(f"NeoAPRS is running with the data folder {data_dir}: stop it first (`neoaprs stop`)") from e
+                raise RestoreRefused(
+                    f"NeoAPRS is running with the data folder {data_dir}: stop it first (`neoaprs stop`)"
+                ) from e
             raise RestoreRefused(f"the data folder {data_dir} cannot be used: {e.strerror or e}") from e
         held.append(lock)
     return held
@@ -344,7 +362,9 @@ def restore(data_dir: Path, db_name: str, name: str, knows: int, clock: Clock = 
     if copy is None:
         raise RestoreRefused(f"there is no database copy {name} in the backup folder (`neoaprs db restore` lists them)")
     if not can_open(copy, knows):
-        raise RestoreRefused(f"{name} is of version {copy.version}, which this NeoAPRS cannot open (it knows {knows}): choose another copy, or use the NeoAPRS that made it")
+        raise RestoreRefused(
+            f"{name} is of version {copy.version}, which this NeoAPRS cannot open (it knows {knows}): choose another copy, or use the NeoAPRS that made it"
+        )
     locks = _hold(data_dir)
     try:
         return copy, _put_in_place(data_dir, db_name, copy, clock)
@@ -359,7 +379,9 @@ def _put_in_place(data_dir: Path, db_name: str, copy: Copy, clock: Clock) -> Pat
     try:
         _write_private(copy.path, tmp)
     except OSError as e:
-        raise RestoreRefused(f"the copy could not be put in place ({e.strerror or e}); the database is as it was") from e
+        raise RestoreRefused(
+            f"the copy could not be put in place ({e.strerror or e}); the database is as it was"
+        ) from e
     stem = _aside_stem(data_dir, db_name, clock)
     moved: list[tuple[Path, Path]] = []
     try:
@@ -377,7 +399,9 @@ def _put_in_place(data_dir: Path, db_name: str, copy: Copy, clock: Clock) -> Pat
             except OSError:
                 pass
         tmp.unlink(missing_ok=True)
-        raise RestoreRefused(f"the copy could not be put in place ({e.strerror or e}); the database is as it was") from e
+        raise RestoreRefused(
+            f"the copy could not be put in place ({e.strerror or e}); the database is as it was"
+        ) from e
     fsync_dir(target.parent)
     return data_dir / f"{stem}.sqlite" if moved else None
 

@@ -1,6 +1,7 @@
 """Tests for the suggested HF frequencies (neoaprs/services/frequencies.py, neoaprs/versions.py):
 the `site/frequencies.json` file and its checks, when the service fetches it, the kept last good
 list, fallbacks, and the `frequencies` and `radios` topics."""
+
 import json
 import logging
 from pathlib import Path
@@ -11,7 +12,16 @@ from neoaprs import mercury
 from neoaprs.mercurymodem import Mercury
 from neoaprs.services.frequencies import ENV_URL, FREQUENCIES_EVERY_SEC, Frequencies
 from neoaprs.services.updatecheck import ENV_SWITCH
-from neoaprs.versions import FREQUENCIES_ROW, FREQUENCIES_URL, MAX_FREQUENCIES, Frequency, frequencies_text, on_this_computer, parse_frequencies, suggested
+from neoaprs.versions import (
+    FREQUENCIES_ROW,
+    FREQUENCIES_URL,
+    MAX_FREQUENCIES,
+    Frequency,
+    frequencies_text,
+    on_this_computer,
+    parse_frequencies,
+    suggested,
+)
 from tests.support.env import Env, remember_stop, until
 from tests.support.fakemercury import Air
 from tests.support.storedb import store_at
@@ -19,7 +29,12 @@ from tests.support.storedb import store_at
 ROOT = Path(__file__).resolve().parent.parent
 FILE = b'{"frequencies": [{"band": "80 m", "dial": "3.5850 MHz USB"}, {"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}, {"band": "6 m", "dial": "50.6200 MHz USB"}]}'
 # (the name is older than 6 m and 80 m: the project's list as shipped)
-TWO = [Frequency("80 m", "3.5850 MHz USB"), Frequency("40 m", "7.0541 MHz USB"), Frequency("20 m", "14.1070 MHz USB"), Frequency("6 m", "50.6200 MHz USB")]
+TWO = [
+    Frequency("80 m", "3.5850 MHz USB"),
+    Frequency("40 m", "7.0541 MHz USB"),
+    Frequency("20 m", "14.1070 MHz USB"),
+    Frequency("6 m", "50.6200 MHz USB"),
+]
 BUILT_IN = [Frequency(band, dial) for band, dial in mercury.SUGGESTED]
 
 
@@ -46,38 +61,90 @@ class Clock:
         return self.now
 
 
-def service(server: Server, clock: Clock | None = None, environ: dict[str, str] | None = None, **more: object) -> Frequencies:
-    made = Frequencies("0.17.0", "linux", server, first_sec=0.05, environ={} if environ is None else environ, clock=clock or Clock(), **more)       # type: ignore[arg-type]
+def service(
+    server: Server, clock: Clock | None = None, environ: dict[str, str] | None = None, **more: object
+) -> Frequencies:
+    made = Frequencies(
+        "0.17.0",
+        "linux",
+        server,
+        first_sec=0.05,
+        environ={} if environ is None else environ,
+        clock=clock or Clock(),
+        **more,
+    )  # type: ignore[arg-type]
     remember_stop(made.stop)
     return made
 
 
 # ---- the file
 
+
 def test_the_file_of_the_site_is_a_list_the_daemon_understands_and_the_site_checks_the_same_two_forms() -> None:
     body = (ROOT / "site" / "frequencies.json").read_bytes()
     assert parse_frequencies(body) == TWO
-    assert [(int(f.band.split()[0]), f.dial.split()[0]) for f in TWO] == [(b, dict(mercury.FREQUENCIES)[b]) for b in (80, 40, 20, 6)], "the file ships the dials of FREQUENCIES"
+    assert [(int(f.band.split()[0]), f.dial.split()[0]) for f in TWO] == [
+        (b, dict(mercury.FREQUENCIES)[b]) for b in (80, 40, 20, 6)
+    ], "the file ships the dials of FREQUENCIES"
 
 
 def test_every_entry_is_checked_and_a_bad_one_is_dropped_a_band_once_and_four_at_most() -> None:
     good = {"band": "30 m", "dial": "10.1462 MHz USB"}
     assert parse_frequencies(json.dumps({"frequencies": [good]})) == [Frequency("30 m", "10.1462 MHz USB")]
-    for bad in ({"band": "40", "dial": "7.0541 MHz USB"}, {"band": "40 m", "dial": "7.0541"}, {"band": "40 m", "dial": "7.0541 MHz FM"}, {"band": "<b>40 m</b>", "dial": "7.0541 MHz USB"}, {"band": "40 m"}, {"dial": "7.0541 MHz USB"},
-                {"band": 40, "dial": "7.0541 MHz USB"}, "7.0541 MHz USB", None, {"band": "40 m", "dial": "1234.5 MHz USB"}, {"band": "1000 m", "dial": "7.0541 MHz USB"}):
-        assert parse_frequencies(json.dumps({"frequencies": [bad, good]})) == [Frequency("30 m", "10.1462 MHz USB")], bad
+    for bad in (
+        {"band": "40", "dial": "7.0541 MHz USB"},
+        {"band": "40 m", "dial": "7.0541"},
+        {"band": "40 m", "dial": "7.0541 MHz FM"},
+        {"band": "<b>40 m</b>", "dial": "7.0541 MHz USB"},
+        {"band": "40 m"},
+        {"dial": "7.0541 MHz USB"},
+        {"band": 40, "dial": "7.0541 MHz USB"},
+        "7.0541 MHz USB",
+        None,
+        {"band": "40 m", "dial": "1234.5 MHz USB"},
+        {"band": "1000 m", "dial": "7.0541 MHz USB"},
+    ):
+        assert parse_frequencies(json.dumps({"frequencies": [bad, good]})) == [Frequency("30 m", "10.1462 MHz USB")], (
+            bad
+        )
 
     def entry(band: str, dial: str) -> dict[str, str]:
         return {"band": band, "dial": dial}
 
-    found = parse_frequencies(json.dumps({"frequencies": [entry("40 m", "7.0541 MHz USB"), entry("40 m", "7.0600 MHz USB"), entry(" 20 m ", " 14.1070 MHz USB "), entry("30 m", "10.1462 MHz USB"), entry("17 m", "18.1000 MHz USB"),
-                                                           entry("80 m", "3.5850 MHz USB")]}))
-    assert found == [Frequency("40 m", "7.0541 MHz USB"), Frequency("20 m", "14.1070 MHz USB"), Frequency("30 m", "10.1462 MHz USB"), Frequency("17 m", "18.1000 MHz USB")], "a band once, spaces cut, four at most (MAX_FREQUENCIES: the room of the HF box)"
+    found = parse_frequencies(
+        json.dumps(
+            {
+                "frequencies": [
+                    entry("40 m", "7.0541 MHz USB"),
+                    entry("40 m", "7.0600 MHz USB"),
+                    entry(" 20 m ", " 14.1070 MHz USB "),
+                    entry("30 m", "10.1462 MHz USB"),
+                    entry("17 m", "18.1000 MHz USB"),
+                    entry("80 m", "3.5850 MHz USB"),
+                ]
+            }
+        )
+    )
+    assert found == [
+        Frequency("40 m", "7.0541 MHz USB"),
+        Frequency("20 m", "14.1070 MHz USB"),
+        Frequency("30 m", "10.1462 MHz USB"),
+        Frequency("17 m", "18.1000 MHz USB"),
+    ], "a band once, spaces cut, four at most (MAX_FREQUENCIES: the room of the HF box)"
     assert MAX_FREQUENCIES == 4
 
 
 def test_a_file_that_is_no_list_or_has_no_good_entry_is_none() -> None:
-    for body in (b"", b"not json", b"[]", b'{"frequencies": "7.0541"}', b'{"frequencies": []}', b'{"frequencies": [{"band": "x"}]}', b'{"other": 1}', b"null"):
+    for body in (
+        b"",
+        b"not json",
+        b"[]",
+        b'{"frequencies": "7.0541"}',
+        b'{"frequencies": []}',
+        b'{"frequencies": [{"band": "x"}]}',
+        b'{"other": 1}',
+        b"null",
+    ):
         assert parse_frequencies(body) is None, body
 
 
@@ -85,7 +152,9 @@ def test_the_box_shows_the_projects_list_else_the_version_pages_dial_else_the_bu
     assert suggested(TWO, "7.0443 MHz USB", BUILT_IN, "40 m") == TWO
     assert suggested([], "7.0443 MHz USB", BUILT_IN, "40 m") == [Frequency("40 m", "7.0443 MHz USB")]
     assert suggested([], "", BUILT_IN, "40 m") == BUILT_IN == TWO
-    assert [dict(mercury.FREQUENCIES)[int(band.split()[0])] + " MHz USB" for band, _ in mercury.SUGGESTED] == [dial for _, dial in mercury.SUGGESTED], "the built-in four are dials of FREQUENCIES"
+    assert [dict(mercury.FREQUENCIES)[int(band.split()[0])] + " MHz USB" for band, _ in mercury.SUGGESTED] == [
+        dial for _, dial in mercury.SUGGESTED
+    ], "the built-in four are dials of FREQUENCIES"
 
 
 def test_the_list_is_kept_as_the_file_has_it_and_comes_back_the_same() -> None:
@@ -96,16 +165,31 @@ def test_the_address_is_the_projects_unless_a_server_on_this_computer_is_named()
     assert FREQUENCIES_URL == "https://neo.oh2gba.eu/frequencies.json"
     for good in ("http://127.0.0.1:8123/frequencies.json", "https://localhost/f.json"):
         assert on_this_computer(good), good
-    for bad in ("https://neo.oh2gba.eu/frequencies.json", "http://127.0.0.1.evil.example/f.json", "http://user@127.0.0.1/f.json", "ftp://127.0.0.1/f", "http://127.0.0.1:port/f", "http://127.0.0.1/a b"):
+    for bad in (
+        "https://neo.oh2gba.eu/frequencies.json",
+        "http://127.0.0.1.evil.example/f.json",
+        "http://user@127.0.0.1/f.json",
+        "ftp://127.0.0.1/f",
+        "http://127.0.0.1:port/f",
+        "http://127.0.0.1/a b",
+    ):
         assert not on_this_computer(bad), bad
     assert service(Server()).url == FREQUENCIES_URL
-    assert service(Server(), environ={ENV_URL: "http://127.0.0.1:8123/frequencies.json"}).url == "http://127.0.0.1:8123/frequencies.json"
-    assert service(Server(), environ={ENV_URL: "https://evil.example/frequencies.json"}).url == FREQUENCIES_URL, "only a server of this computer is taken"
+    assert (
+        service(Server(), environ={ENV_URL: "http://127.0.0.1:8123/frequencies.json"}).url
+        == "http://127.0.0.1:8123/frequencies.json"
+    )
+    assert service(Server(), environ={ENV_URL: "https://evil.example/frequencies.json"}).url == FREQUENCIES_URL, (
+        "only a server of this computer is taken"
+    )
 
 
 # ---- the service
 
-async def test_the_server_is_asked_a_minute_after_the_start_and_the_list_is_told_and_logged(caplog: pytest.LogCaptureFixture) -> None:
+
+async def test_the_server_is_asked_a_minute_after_the_start_and_the_list_is_told_and_logged(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     server = Server(FILE)
     made = service(server)
     told = []
@@ -114,7 +198,11 @@ async def test_the_server_is_asked_a_minute_after_the_start_and_the_list_is_told
         await made.start()
         await until(lambda: made.listed == TWO)
     assert told == [TWO] and server.asked == [(FREQUENCIES_URL, "0.17.0", "linux", 8192)] and made.asked == 1
-    assert any("the project suggests the frequencies 80 m 3.5850 MHz USB, 40 m 7.0541 MHz USB, 20 m 14.1070 MHz USB, 6 m 50.6200 MHz USB (was none)" in r.getMessage() for r in caplog.records), "a change of the list is a line at INFO"
+    assert any(
+        "the project suggests the frequencies 80 m 3.5850 MHz USB, 40 m 7.0541 MHz USB, 20 m 14.1070 MHz USB, 6 m 50.6200 MHz USB (was none)"
+        in r.getMessage()
+        for r in caplog.records
+    ), "a change of the list is a line at INFO"
 
 
 async def test_a_page_that_shows_the_box_asks_at_most_every_fifteen_minutes_however_many_pages_there_are() -> None:
@@ -164,7 +252,7 @@ async def test_a_server_that_is_not_there_or_a_file_that_is_bad_leaves_the_last_
     made.changed.connect(lambda: told.append(1))
     for expect in (1, 2, 3, 4):
         made.wanted()
-        await until(lambda expect=expect: made.asked == expect and len(server.asked) == expect)       # type: ignore[misc]
+        await until(lambda expect=expect: made.asked == expect and len(server.asked) == expect)  # type: ignore[misc]
         clock.now += FREQUENCIES_EVERY_SEC + 1
     assert made.listed == TWO and told == [1], "the same list again is told once, nothing else"
 
@@ -189,7 +277,9 @@ async def test_the_last_good_list_is_kept_and_told_at_the_next_start_before_the_
     made.wanted()
     await until(lambda: made.listed == TWO)
     await until(lambda: True)
-    assert parse_frequencies(await store.setting(FREQUENCIES_ROW) or "") == TWO, "kept in the settings table, as a row that is not a setting"
+    assert parse_frequencies(await store.setting(FREQUENCIES_ROW) or "") == TWO, (
+        "kept in the settings table, as a row that is not a setting"
+    )
     told = []
     again = Frequencies("0.17.0", "linux", Server(None), first_sec=3600.0, environ={}, memory=store)
     remember_stop(again.stop)
@@ -206,6 +296,7 @@ async def test_the_last_good_list_is_kept_and_told_at_the_next_start_before_the_
 
 # ---- the box
 
+
 async def test_the_modem_of_the_hf_radio_has_the_list_and_a_page_that_shows_the_box_asks_for_it(tmp_path: Path) -> None:
     air = Air(frame_sec=0.2)
     station = air.station()
@@ -215,9 +306,14 @@ async def test_the_modem_of_the_hf_radio_has_the_list_and_a_page_that_shows_the_
     e.ctl.frequencies._fetch = server
     e.ctl.frequencies._environ = {}
     page = await e.ws()
-    modem = lambda: page.topics.get("radios", {}).get("2", {}).get("modem") or {}        # noqa: E731
+    modem = lambda: page.topics.get("radios", {}).get("2", {}).get("modem") or {}  # noqa: E731
     await page.until(lambda: modem().get("state") == "running")
-    assert modem()["frequencies"] == [{"band": "80 m", "dial": "3.5850 MHz USB"}, {"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}, {"band": "6 m", "dial": "50.6200 MHz USB"}], "the built-in four until something better is known"
+    assert modem()["frequencies"] == [
+        {"band": "80 m", "dial": "3.5850 MHz USB"},
+        {"band": "40 m", "dial": "7.0541 MHz USB"},
+        {"band": "20 m", "dial": "14.1070 MHz USB"},
+        {"band": "6 m", "dial": "50.6200 MHz USB"},
+    ], "the built-in four until something better is known"
     assert "dial" not in modem()
     server.answers = [json.dumps({"frequencies": [{"band": "30 m", "dial": "10.1462 MHz USB"}]}).encode()]
     await page.send({"cmd": "frequencies"})
@@ -230,13 +326,22 @@ async def test_the_modem_of_the_hf_radio_has_the_list_and_a_page_that_shows_the_
     await air.aclose()
 
 
-async def test_four_frequencies_go_through_the_topics_radios_and_skeds_as_the_wire_says_one_to_four(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_four_frequencies_go_through_the_topics_radios_and_skeds_as_the_wire_says_one_to_four(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """versions.MAX_FREQUENCIES is four (the box keeps room for four lines): the wire's lists take
     four, and every message that leaves is checked against the models (NEOAPRS_VALIDATE_OUT=1)."""
     monkeypatch.setenv("NEOAPRS_VALIDATE_OUT", "1")
     # (not the built-in four: the change is seen)
-    four = [{"band": "80 m", "dial": "3.5850 MHz USB"}, {"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "30 m", "dial": "10.1462 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}]
-    assert MAX_FREQUENCIES == 4 and parse_frequencies(json.dumps({"frequencies": four}).encode()) == [Frequency(f["band"], f["dial"]) for f in four]
+    four = [
+        {"band": "80 m", "dial": "3.5850 MHz USB"},
+        {"band": "40 m", "dial": "7.0541 MHz USB"},
+        {"band": "30 m", "dial": "10.1462 MHz USB"},
+        {"band": "20 m", "dial": "14.1070 MHz USB"},
+    ]
+    assert MAX_FREQUENCIES == 4 and parse_frequencies(json.dumps({"frequencies": four}).encode()) == [
+        Frequency(f["band"], f["dial"]) for f in four
+    ]
     air = Air(frame_sec=0.2)
     station = air.station()
     e = Env(tmp_path, radio=station, web=True)
@@ -248,7 +353,9 @@ async def test_four_frequencies_go_through_the_topics_radios_and_skeds_as_the_wi
     await page.until(lambda: (page.topics.get("radios", {}).get("2", {}).get("modem") or {}).get("state") == "running")
     await page.send({"cmd": "frequencies"})
     await page.until(lambda: page.topics["radios"]["2"]["modem"]["frequencies"] == four)
-    await page.until(lambda: [{"band": f["band"], "dial": f["dial"]} for f in page.topics["skeds"]["frequencies"]] == four)
+    await page.until(
+        lambda: [{"band": f["band"], "dial": f["dial"]} for f in page.topics["skeds"]["frequencies"]] == four
+    )
     assert len(server.asked) == 1 and not page.of("error")
     await e.stop()
     await air.aclose()

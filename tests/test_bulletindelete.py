@@ -1,6 +1,7 @@
 """The command `bulletin_delete` over the socket: the entry leaves the board, the database and every
 page (a `del` of the topic `bulletins`), a bulletin sent again is new, and nothing else is touched.
 """
+
 import json
 from pathlib import Path
 
@@ -25,11 +26,15 @@ async def with_board(tmp_path: Path) -> tuple[Env, WsClient]:
 async def test_bulletin_delete_removes_the_entry_from_every_page_and_the_database(tmp_path: Path) -> None:
     e, page = await with_board(tmp_path)
     other = await e.ws()
-    await other.until(lambda: len(other.of("state")) == len(TOPIC_NAMES) and "OH2XYZ/BLN3HAMS" in other.topics["bulletins"])
+    await other.until(
+        lambda: len(other.of("state")) == len(TOPIC_NAMES) and "OH2XYZ/BLN3HAMS" in other.topics["bulletins"]
+    )
     await page.send({"cmd": "bulletin_delete", "sender": "OH2XYZ", "slot": "BLN3HAMS"})
     await page.until(lambda: "OH2XYZ/BLN3HAMS" not in page.topics["bulletins"])
     await other.until(lambda: "OH2XYZ/BLN3HAMS" not in other.topics["bulletins"])
-    assert page.ops("bulletins")[-1] == {"op": "del", "key": "OH2XYZ/BLN3HAMS"} and list(page.topics["bulletins"]) == ["OH2ABC/QST"]
+    assert page.ops("bulletins")[-1] == {"op": "del", "key": "OH2XYZ/BLN3HAMS"} and list(page.topics["bulletins"]) == [
+        "OH2ABC/QST"
+    ]
     await e.settled()
     assert [b.key for b in await e.ctl.bulletinlog.all()] == ["OH2ABC/QST"]
     assert page.of("error") == []
@@ -38,12 +43,12 @@ async def test_bulletin_delete_removes_the_entry_from_every_page_and_the_databas
 
 async def test_a_bulletin_sent_again_after_the_delete_is_a_new_entry_heard_once(tmp_path: Path) -> None:
     e, page = await with_board(tmp_path)
-    e.now.advance(60)                                                                                   # type: ignore[attr-defined]
+    e.now.advance(60)  # type: ignore[attr-defined]
     e.feed(on_air("OH2XYZ", message_info("BLN3HAMS", "Net tonight 20:00", "5")))
     await page.until(lambda: page.topics["bulletins"]["OH2XYZ/BLN3HAMS"]["times_heard"] == 2)
     await page.send({"cmd": "bulletin_delete", "sender": "OH2XYZ", "slot": "BLN3HAMS"})
     await page.until(lambda: "OH2XYZ/BLN3HAMS" not in page.topics["bulletins"])
-    e.now.advance(60)                                                                                   # type: ignore[attr-defined]
+    e.now.advance(60)  # type: ignore[attr-defined]
     e.feed(on_air("OH2XYZ", message_info("BLN3HAMS", "Net tonight 20:00", "5")))
     await page.until(lambda: "OH2XYZ/BLN3HAMS" in page.topics["bulletins"])
     row = BulletinRow.model_validate_json(json.dumps(page.topics["bulletins"]["OH2XYZ/BLN3HAMS"]))

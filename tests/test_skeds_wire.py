@@ -1,6 +1,7 @@
 """The sked board through the page socket: the topic `skeds` and the commands `skeds_wanted`,
 `sked_post` and `sked_delete`, against a small local server (tests/support/fakeskeds.py).
 """
+
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -12,7 +13,12 @@ from tests.support.env import Env
 from tests.support.fakeskeds import FakeSkeds, skeds_server
 from tests.support.wsclient import WsClient
 
-BUILT_IN = [{"band": "80 m", "dial": "3.5850 MHz USB"}, {"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}, {"band": "6 m", "dial": "50.6200 MHz USB"}]
+BUILT_IN = [
+    {"band": "80 m", "dial": "3.5850 MHz USB"},
+    {"band": "40 m", "dial": "7.0541 MHz USB"},
+    {"band": "20 m", "dial": "14.1070 MHz USB"},
+    {"band": "6 m", "dial": "50.6200 MHz USB"},
+]
 
 
 def when(hours: float) -> str:
@@ -20,7 +26,14 @@ def when(hours: float) -> str:
 
 
 def post(**more: Any) -> dict[str, Any]:
-    return {"cmd": "sked_post", "from": when(2), "to": when(4), "dial": "7.0541 MHz USB", "note": "Mercury, 10 W", **more}
+    return {
+        "cmd": "sked_post",
+        "from": when(2),
+        "to": when(4),
+        "dial": "7.0541 MHz USB",
+        "note": "Mercury, 10 W",
+        **more,
+    }
 
 
 async def started(tmp_path: Path, server: FakeSkeds | None = None, on: bool = True, **settings: str) -> Env:
@@ -37,7 +50,9 @@ async def topic(e: Env) -> tuple[WsClient, dict[str, Any]]:
     return page, value
 
 
-async def test_the_topic_is_off_while_the_update_check_is_off_and_has_the_dials_the_hf_box_suggests(tmp_path: Path) -> None:
+async def test_the_topic_is_off_while_the_update_check_is_off_and_has_the_dials_the_hf_box_suggests(
+    tmp_path: Path,
+) -> None:
     e = await started(tmp_path)
     page, value = await topic(e)
     assert value == {"state": "off", "fetched_at": None, "frequencies": BUILT_IN, "rows": []}
@@ -50,7 +65,9 @@ async def test_the_topic_is_off_while_the_update_check_is_off_and_has_the_dials_
     await e.stop()
 
 
-async def test_a_page_that_shows_the_tab_has_the_board_read_and_told_to_every_page_and_a_404_is_a_board_with_no_skeds(tmp_path: Path) -> None:
+async def test_a_page_that_shows_the_tab_has_the_board_read_and_told_to_every_page_and_a_404_is_a_board_with_no_skeds(
+    tmp_path: Path,
+) -> None:
     server = await skeds_server()
     e = await started(tmp_path, server)
     page, value = await topic(e)
@@ -65,9 +82,13 @@ async def test_a_page_that_shows_the_tab_has_the_board_read_and_told_to_every_pa
     await e.stop()
 
 
-async def test_a_post_is_told_with_ours_and_a_delete_takes_it_off_and_a_row_of_somebody_else_has_no_ours(tmp_path: Path) -> None:
+async def test_a_post_is_told_with_ours_and_a_delete_takes_it_off_and_a_row_of_somebody_else_has_no_ours(
+    tmp_path: Path,
+) -> None:
     server = await skeds_server()
-    server.rows = [{"id": "7f3a9c21d4e0", "call": "OH2XYZ", "from": when(1), "to": when(3), "dial": "14.1070 MHz USB", "note": ""}]
+    server.rows = [
+        {"id": "7f3a9c21d4e0", "call": "OH2XYZ", "from": when(1), "to": when(3), "dial": "14.1070 MHz USB", "note": ""}
+    ]
     e = await started(tmp_path, server)
     page, _ = await topic(e)
     await page.send({"cmd": "skeds_wanted"})
@@ -76,14 +97,23 @@ async def test_a_post_is_told_with_ours_and_a_delete_takes_it_off_and_a_row_of_s
     await page.send(post())
     await page.until(lambda: len(page.topics["skeds"]["rows"]) == 2)
     mine = next(r for r in page.topics["skeds"]["rows"] if r["call"] == "OH2GBA")
-    assert mine["ours"] is True and mine["dial"] == "7.0541 MHz USB" and mine["note"] == "Mercury, 10 W" and set(mine) == {"id", "call", "from", "to", "dial", "note", "ours"}
-    assert [r["from"] for r in page.topics["skeds"]["rows"]] == sorted(r["from"] for r in page.topics["skeds"]["rows"]), "the nearest first"
+    assert (
+        mine["ours"] is True
+        and mine["dial"] == "7.0541 MHz USB"
+        and mine["note"] == "Mercury, 10 W"
+        and set(mine) == {"id", "call", "from", "to", "dial", "note", "ours"}
+    )
+    assert [r["from"] for r in page.topics["skeds"]["rows"]] == sorted(
+        r["from"] for r in page.topics["skeds"]["rows"]
+    ), "the nearest first"
     await page.send({"cmd": "sked_delete", "id": mine["id"]})
     await page.until(lambda: len(page.topics["skeds"]["rows"]) == 1)
     assert page.topics["skeds"]["rows"][0]["id"] == "7f3a9c21d4e0"
     await page.send({"cmd": "sked_delete", "id": "7f3a9c21d4e0"})
     await page.quiet(0.3)
-    assert [r["id"] for r in page.topics["skeds"]["rows"]] == ["7f3a9c21d4e0"], "not ours: nothing is said and nothing is deleted"
+    assert [r["id"] for r in page.topics["skeds"]["rows"]] == ["7f3a9c21d4e0"], (
+        "not ours: nothing is said and nothing is deleted"
+    )
     await e.stop()
 
 
@@ -91,7 +121,12 @@ async def test_the_refusals_come_with_codes_and_a_closed_board_is_a_state_not_an
     server = await skeds_server()
     e = await started(tmp_path, server)
     page, _ = await topic(e)
-    for reason, status, code in (("rate", 429, "sked.rate"), ("full", 409, "sked.full"), ("past", 422, "sked.past"), ("bad_request", 400, "sked.unreachable")):
+    for reason, status, code in (
+        ("rate", 429, "sked.rate"),
+        ("full", 409, "sked.full"),
+        ("past", 422, "sked.past"),
+        ("bad_request", 400, "sked.unreachable"),
+    ):
         server.refuse = (reason, status)
         await page.send(post())
         error = await page.expect("error")
@@ -104,9 +139,13 @@ async def test_the_refusals_come_with_codes_and_a_closed_board_is_a_state_not_an
     await e.stop()
 
 
-async def test_a_sked_that_has_ended_by_the_daemons_clock_leaves_the_topic_and_a_new_call_tells_it_again(tmp_path: Path) -> None:
+async def test_a_sked_that_has_ended_by_the_daemons_clock_leaves_the_topic_and_a_new_call_tells_it_again(
+    tmp_path: Path,
+) -> None:
     server = await skeds_server()
-    server.rows = [{"id": "7f3a9c21d4e0", "call": "OH2XYZ", "from": when(-1), "to": when(1), "dial": "14.1070 MHz USB", "note": ""}]
+    server.rows = [
+        {"id": "7f3a9c21d4e0", "call": "OH2XYZ", "from": when(-1), "to": when(1), "dial": "14.1070 MHz USB", "note": ""}
+    ]
     e = await started(tmp_path, server)
     e.ctl.skeds.expire_sec = 0.05
     page, _ = await topic(e)
@@ -125,7 +164,9 @@ async def test_the_dials_of_the_topic_follow_the_dials_of_the_radio(tmp_path: Pa
     e.ctl.frequencies.listed = [Frequency("30 m", "10.1462 MHz USB")]
     e.ctl.frequencies.changed.emit()
     await page.until(lambda: page.topics["skeds"]["frequencies"] == [{"band": "30 m", "dial": "10.1462 MHz USB"}])
-    assert e.ctl.suggested_frequencies == [Frequency("30 m", "10.1462 MHz USB")], "the same dials as an HF radio's box: the station's"
+    assert e.ctl.suggested_frequencies == [Frequency("30 m", "10.1462 MHz USB")], (
+        "the same dials as an HF radio's box: the station's"
+    )
     await e.stop()
 
 
@@ -136,10 +177,24 @@ async def test_a_post_with_no_call_is_refused_and_a_command_that_is_not_right_is
     await page.send(post())
     error = await page.expect("error")
     assert error["cmd"] == "sked_post" and "set your call first" in error["text"]
-    assert (error["code"], error["params"]["why"]) == ("transmit.call", "call.none"), "coded: the page says it in its language"
-    for broken in (post(dial="7.0541 MHz FM"), post(dial="7.0541 MHz USB\n"), post(**{"from": "2026-02-30T18:00:00Z"}), post(**{"from": when(4), "to": when(2)}), post(**{"from": when(2), "to": when(30)}),
-                   post(note="x" * 321), {**post(), "call": "OH2XYZ"}, {k: v for k, v in post().items() if k != "from"}, {**post(), "from_": when(2)}, {"cmd": "sked_delete", "id": "7F3A9C21D4E0"}, {"cmd": "sked_delete", "id": "../../etc/pa"},
-                   {"cmd": "sked_delete"}, {"cmd": "skeds_wanted", "now": True}):
+    assert (error["code"], error["params"]["why"]) == ("transmit.call", "call.none"), (
+        "coded: the page says it in its language"
+    )
+    for broken in (
+        post(dial="7.0541 MHz FM"),
+        post(dial="7.0541 MHz USB\n"),
+        post(**{"from": "2026-02-30T18:00:00Z"}),
+        post(**{"from": when(4), "to": when(2)}),
+        post(**{"from": when(2), "to": when(30)}),
+        post(note="x" * 321),
+        {**post(), "call": "OH2XYZ"},
+        {k: v for k, v in post().items() if k != "from"},
+        {**post(), "from_": when(2)},
+        {"cmd": "sked_delete", "id": "7F3A9C21D4E0"},
+        {"cmd": "sked_delete", "id": "../../etc/pa"},
+        {"cmd": "sked_delete"},
+        {"cmd": "skeds_wanted", "now": True},
+    ):
         await page.send(broken)
         assert (await page.expect("error"))["code"] == "invalid", broken
     assert server.posts == []

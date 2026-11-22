@@ -3,6 +3,7 @@
 An exact tocall wins over a wildcard, then the wildcard with most literal characters. A Mic-E
 packet carries its latitude in the destination, so its device comes from the comment. Unknown is "".
 """
+
 import re
 from collections.abc import Iterable
 from functools import cache
@@ -25,7 +26,12 @@ class DeviceTable:
     first.
     """
 
-    def __init__(self, tocalls: Iterable[tuple[str, str]], mice: Iterable[tuple[str, str]], legacy: Iterable[tuple[str, str, str]]) -> None:
+    def __init__(
+        self,
+        tocalls: Iterable[tuple[str, str]],
+        mice: Iterable[tuple[str, str]],
+        legacy: Iterable[tuple[str, str, str]],
+    ) -> None:
         self._exact: dict[str, str] = {}
         patterns: list[tuple[int, int, re.Pattern[str], str]] = []
         for order, (tocall, name) in enumerate(tocalls):
@@ -33,7 +39,9 @@ class DeviceTable:
                 self._exact.setdefault(tocall, name)
                 continue
             written = sum(c not in _WILDCARDS for c in tocall)
-            patterns.append((-written, order, re.compile("".join(_WILDCARDS.get(c) or re.escape(c) for c in tocall)), name))
+            patterns.append(
+                (-written, order, re.compile("".join(_WILDCARDS.get(c) or re.escape(c) for c in tocall)), name)
+            )
         self._patterns = [(pattern, name) for _, _, pattern, name in sorted(patterns, key=lambda p: p[:2])]
         self._mice = dict(mice)
         self._legacy = {(prefix, suffix): name for prefix, suffix, name in legacy}

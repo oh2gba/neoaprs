@@ -1,4 +1,5 @@
 """Wire models of the base map: the topic `map` and the commands that start and end a map job."""
+
 from typing import Literal
 
 from pydantic import Field
@@ -11,77 +12,125 @@ Box = list[float]
 
 class MapFileInfo(_Model):
     """A map file in the data folder."""
-    name: str = Field(description="`basemap.pmtiles` (the detailed map) or `basemap-world.pmtiles` (the world: zoom 4 when it is the one that ships with the program, zoom 5 when the daemon made it)")
+
+    name: str = Field(
+        description="`basemap.pmtiles` (the detailed map) or `basemap-world.pmtiles` (the world: zoom 4 when it is the one that ships with the program, zoom 5 when the daemon made it)"
+    )
     bytes: int = Field(ge=0)
     modified: Iso = Field(description="when the file was made")
-    bbox: Box | None = Field(min_length=4, max_length=4, description="the area it covers, [west, south, east, north] in degrees, as its header says; null for a file whose header cannot be read")
+    bbox: Box | None = Field(
+        min_length=4,
+        max_length=4,
+        description="the area it covers, [west, south, east, north] in degrees, as its header says; null for a file whose header cannot be read",
+    )
     min_zoom: int | None
-    max_zoom: int | None = Field(description="the deepest zoom it has tiles for; the page draws a deeper one from these")
-    build: str = Field(description="the day (`20261022`) of the Protomaps build it was cut from; empty if not known (a file made by hand)")
+    max_zoom: int | None = Field(
+        description="the deepest zoom it has tiles for; the page draws a deeper one from these"
+    )
+    build: str = Field(
+        description="the day (`20261022`) of the Protomaps build it was cut from; empty if not known (a file made by hand)"
+    )
 
 
 class MapSizeEstimate(_Model):
     """What a dry run said: how big the detailed map will be for the area and the zoom it was made for."""
+
     bytes: int = Field(ge=0, description="the tiles it will hold")
     tiles: int = Field(ge=0)
-    radius_km: int = Field(description="the radius it was estimated for; it is stale when `map/radius_km` is another number now")
+    radius_km: int = Field(
+        description="the radius it was estimated for; it is stale when `map/radius_km` is another number now"
+    )
     maxzoom: int = Field(description="the zoom it was estimated for")
     box: Box = Field(min_length=4, max_length=4, description="the area, [west, south, east, north]")
-    build: str = Field(description="the day of the build it was estimated from; empty for a source that is not a daily build")
+    build: str = Field(
+        description="the day of the build it was estimated from; empty for a source that is not a daily build"
+    )
 
 
 class MapRetry(_Model):
     """A download that did not move for a while is begun again: the page says "no progress: trying again (2 of 3)"."""
+
     attempt: int = Field(ge=1, description="the try that is begun")
     tries: int = Field(ge=1, description="the tries in all")
 
 
 class MapProblem(_Model):
     """Why a map job failed, as a code the page says in its words, with the values of its sentence (the log has the details)."""
+
     code: Literal["no_position", "busy", "slow", "unreachable", "no_build", "too_big", "no_space", "failed"] = Field(
         description="`no_position` the station has no position; `slow` the map server was too slow; `unreachable` it could not be reached; `no_build` no daily build was found (`days`: how far back it was looked for); "
-                    "`too_big` the map would be bigger than it may be (`size` and `max`, in MB); `no_space` the disk is full; `failed` anything else (the log says why)")
+        "`too_big` the map would be bigger than it may be (`size` and `max`, in MB); `no_space` the disk is full; `failed` anything else (the log says why)"
+    )
     params: dict[str, int] = Field(description="the values of the sentence, by name; empty for a code that has none")
 
 
 class AlohaCircle(_Model):
     """The ALOHA circle of one radio: the distance within which the stations that radio heard would fill its 1200 baud channel (WB4APR's method, worked out again every minute)."""
+
     radio: int = Field(description="the radio's id")
     km: float = Field(ge=0, description="the radius round our position, in km to a tenth")
 
 
 class MapState(_Model):
     """The base map: the files, the area and detail the settings ask for, the size estimated, the job that is running, the ALOHA circles and the layers of traffic. The value of the topic `map`, told whole at most four times a second."""
+
     state: Literal["none", "estimating", "downloading", "ready", "error"] = Field(
-        description="`none`: there is no detailed map. `ready`: there is one. `estimating` and `downloading`: a job is running (`step` and `percent` say how far). `error`: the last job failed and `problem` says why; the map files are as they were")
+        description="`none`: there is no detailed map. `ready`: there is one. `estimating` and `downloading`: a job is running (`step` and `percent` say how far). `error`: the last job failed and `problem` says why; the map files are as they were"
+    )
     step: Literal["", "build", "world", "area"] = Field(
-        description="what the running job is doing: looking for the latest build (`build`), making the world map (`world`) or the detailed map (`area`); empty while no job runs")
-    percent: int | None = Field(ge=0, le=100, description="how far the step is; null when it cannot say (the build has no bar)")
-    downloaded: int | None = Field(ge=0, description="the size so far of the file the step is making, in bytes (it grows while the download moves); null when no file is being made yet")
-    retry: MapRetry | None = Field(description="a download that has not moved for a while is begun again: which try this is; null when all is well")
-    blocked: Literal["", "no_position", "busy"] = Field(description="why no job can be started now: `no_position` the station has no position, `busy` a job is running; empty when one can")
+        description="what the running job is doing: looking for the latest build (`build`), making the world map (`world`) or the detailed map (`area`); empty while no job runs"
+    )
+    percent: int | None = Field(
+        ge=0, le=100, description="how far the step is; null when it cannot say (the build has no bar)"
+    )
+    downloaded: int | None = Field(
+        ge=0,
+        description="the size so far of the file the step is making, in bytes (it grows while the download moves); null when no file is being made yet",
+    )
+    retry: MapRetry | None = Field(
+        description="a download that has not moved for a while is begun again: which try this is; null when all is well"
+    )
+    blocked: Literal["", "no_position", "busy"] = Field(
+        description="why no job can be started now: `no_position` the station has no position, `busy` a job is running; empty when one can"
+    )
     problem: MapProblem | None = Field(description="why the last job failed; null if it did not, and while a job runs")
-    estimate: MapSizeEstimate | None = Field(description="the latest dry run (`map_estimate`); null before one, and after a download")
+    estimate: MapSizeEstimate | None = Field(
+        description="the latest dry run (`map_estimate`); null before one, and after a download"
+    )
     radius_km: int = Field(description="`map/radius_km`")
     maxzoom: int = Field(description="`map/maxzoom`")
-    box: Box | None = Field(min_length=4, max_length=4, description="the area those settings make round our position, [west, south, east, north]; null without a position")
+    box: Box | None = Field(
+        min_length=4,
+        max_length=4,
+        description="the area those settings make round our position, [west, south, east, north]; null without a position",
+    )
     detail: MapFileInfo | None = Field(description="`basemap.pmtiles`; null if it is not there")
-    world: MapFileInfo | None = Field(description="`basemap-world.pmtiles`: the data folder's own when it has one, else the one that ships with the program; null if there is neither (a base map the page cannot draw)")
-    later: bool = Field(description="the detailed map was begun without being asked for (a place was set, or the setup guide said the map is wanted) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there")
-    aloha: list[AlohaCircle] = Field(description="the ALOHA circles round our position, one for each radio that is on whose type shares a 1200 baud channel (FM) and whose stations heard fill it, in the order of "
-                                                 "the boxes; none without a position")
-    layers: list[MapLayer] = Field(description="the layers of traffic, the aircraft and then the ships: where each one's things come from now, what Settings offers, and an own receiver's state")
+    world: MapFileInfo | None = Field(
+        description="`basemap-world.pmtiles`: the data folder's own when it has one, else the one that ships with the program; null if there is neither (a base map the page cannot draw)"
+    )
+    later: bool = Field(
+        description="the detailed map was begun without being asked for (a place was set, or the setup guide said the map is wanted) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there"
+    )
+    aloha: list[AlohaCircle] = Field(
+        description="the ALOHA circles round our position, one for each radio that is on whose type shares a 1200 baud channel (FM) and whose stations heard fill it, in the order of "
+        "the boxes; none without a position"
+    )
+    layers: list[MapLayer] = Field(
+        description="the layers of traffic, the aircraft and then the ships: where each one's things come from now, what Settings offers, and an own receiver's state"
+    )
 
 
 class MapEstimate(_Command):
     """Starts a dry run: how big the detailed map for `map/radius_km` and `map/maxzoom` round our position will be. Answered by the topic `map` (state `estimating`, then `estimate` filled in), or by an `error` when no job can start
     (no position, or a job is running)."""
+
     cmd: Literal["map_estimate"]
 
 
 class MapFetch(_Command):
     """Starts making the maps: the world map first when it is not there, then the detailed map for `map/radius_km` and `map/maxzoom` round our position, from `map/source` or the latest daily build. The progress is the topic
     `map`. An `error` when no job can start (no position, or a job is running)."""
+
     cmd: Literal["map_fetch"]
 
 
@@ -89,9 +138,11 @@ class MapWanted(_Command):
     """The setup guide went on from its Position step with the place the daemon has: the map of the area is wanted. The daemon begins making the detailed map for `map/radius_km` round our position, as `map_fetch` does (the
     progress is the topic `map`), unless the detailed map that is there covers the place already or a job is running; it is never an error, and without a position nothing happens. A new place saved with `set_config` asks
     the same by itself. The job is not the operator's: when it fails it is tried again at the next start of the daemon (`later` of the topic `map`), and `map_cancel` ends it."""
+
     cmd: Literal["map_wanted"]
 
 
 class MapCancel(_Command):
     """Ends the running job; the files it was making are removed and the maps stay as they were. An `error` when no job is running."""
+
     cmd: Literal["map_cancel"]

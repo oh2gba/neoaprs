@@ -3,6 +3,7 @@ the systemd folder, scripts and documents are listed, and the changelog has its 
 
 The tests read files and run `--help` of the scripts; nothing touches a database, a service or the
 network. Tests that need git are skipped one by one where git is missing."""
+
 import os
 import re
 import shutil
@@ -28,7 +29,9 @@ def listed(prefix: str = "") -> list[str] | None:
     """The files git tracks under `prefix`; None where there is no git."""
     if not HAS_GIT:
         return None
-    done = subprocess.run(["git", "ls-files", "-z", "--", prefix or "."], cwd=ROOT, capture_output=True, text=True, check=True)
+    done = subprocess.run(
+        ["git", "ls-files", "-z", "--", prefix or "."], cwd=ROOT, capture_output=True, text=True, check=True
+    )
     return [p for p in done.stdout.split("\0") if p and (ROOT / p).is_file()]
 
 
@@ -46,21 +49,53 @@ def test_without_git_the_module_is_collected_and_only_the_tests_that_need_git_ar
     """
     nowhere = tmp_path / "no-programs"
     nowhere.mkdir()
-    env = {"PATH": str(nowhere), "HOME": os.environ.get("HOME", str(tmp_path)), "TMPDIR": tempfile.gettempdir(), "NEOAPRS_NO_DEVICES": "1", "NEOAPRS_UPDATE_CHECK": "0", "LC_ALL": "C.UTF-8"}
-    done = subprocess.run([sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-p", "no:xdist", "--collect-only", str(Path(__file__).relative_to(ROOT))], cwd=ROOT, env=env,
-                          capture_output=True, text=True, timeout=120)
+    env = {
+        "PATH": str(nowhere),
+        "HOME": os.environ.get("HOME", str(tmp_path)),
+        "TMPDIR": tempfile.gettempdir(),
+        "NEOAPRS_NO_DEVICES": "1",
+        "NEOAPRS_UPDATE_CHECK": "0",
+        "LC_ALL": "C.UTF-8",
+    }
+    done = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-p",
+            "no:cacheprovider",
+            "-p",
+            "no:xdist",
+            "--collect-only",
+            str(Path(__file__).relative_to(ROOT)),
+        ],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
     assert done.returncode == 0, (done.stdout + done.stderr)[-1500:]
     collected = re.findall(r"(?:::|<Function )(test_\w+)", done.stdout)
-    assert {"test_the_changelog_has_its_unreleased_section_first_and_no_commit_hashes", "test_nothing_that_is_tracked_is_also_ignored", "test_the_index_lists_every_document"} <= set(collected), done.stdout[-800:]
+    assert {
+        "test_the_changelog_has_its_unreleased_section_first_and_no_commit_hashes",
+        "test_nothing_that_is_tracked_is_also_ignored",
+        "test_the_index_lists_every_document",
+    } <= set(collected), done.stdout[-800:]
     # (and no line of a module skipped, or of an error)
     assert re.fullmatch(r"\d+ tests collected in [\d.]+s", done.stdout.strip().splitlines()[-1]), done.stdout[-800:]
 
 
 # ---- the scripts: a header that says what a script is for, and --help ----
 
+
 def script_files(files: list[str] | None = None) -> list[Path]:
     """The scripts' files, of what git tracks (`files`: a listing made already)."""
-    return [ROOT / p for p in (tracked("scripts") if files is None else files) if p.count("/") == 1 and not p.endswith(".json")]
+    return [
+        ROOT / p
+        for p in (tracked("scripts") if files is None else files)
+        if p.count("/") == 1 and not p.endswith(".json")
+    ]
 
 
 def runnable_scripts(files: list[str] | None = None) -> list[Path]:
@@ -94,12 +129,16 @@ def test_there_are_tools_to_look_at() -> None:
 @needs_git
 @pytest.mark.parametrize("path", SCRIPTS, ids=lambda p: p.name)
 def test_every_script_starts_with_a_comment_that_says_what_it_is_for(path: Path) -> None:
-    assert len(header_of(path)) >= 40, f"{path.name}: no header comment after the shebang that says what the script is for"
+    assert len(header_of(path)) >= 40, (
+        f"{path.name}: no header comment after the shebang that says what the script is for"
+    )
 
 
 def test_every_library_of_the_scripts_has_a_docstring() -> None:
     libraries = [p for p in script_files() if p not in runnable_scripts() and p.suffix == ".py"]
-    assert [p.name for p in libraries if not p.read_text(encoding="utf-8").startswith('"""')] == [], "a module docstring on the first line says what a library of the scripts holds"
+    assert [p.name for p in libraries if not p.read_text(encoding="utf-8").startswith('"""')] == [], (
+        "a module docstring on the first line says what a library of the scripts holds"
+    )
 
 
 def run_help(path: Path, tmp_path: Path) -> subprocess.CompletedProcess[str]:
@@ -107,29 +146,48 @@ def run_help(path: Path, tmp_path: Path) -> subprocess.CompletedProcess[str]:
     not be able to reach the user's files or services."""
     home = tmp_path / "home"
     home.mkdir(exist_ok=True)
-    env = {"PATH": os.environ["PATH"], "HOME": str(home), "NEOAPRS_PYTHON": sys.executable, "NEOAPRS_DATA_DIR": str(tmp_path / "data"), "LC_ALL": "C.UTF-8", "PYTHONPATH": str(ROOT), "NEOAPRS_SERIAL_PATTERN": os.environ["NEOAPRS_SERIAL_PATTERN"], "NEOAPRS_UPDATE_CHECK": "0"}
+    env = {
+        "PATH": os.environ["PATH"],
+        "HOME": str(home),
+        "NEOAPRS_PYTHON": sys.executable,
+        "NEOAPRS_DATA_DIR": str(tmp_path / "data"),
+        "LC_ALL": "C.UTF-8",
+        "PYTHONPATH": str(ROOT),
+        "NEOAPRS_SERIAL_PATTERN": os.environ["NEOAPRS_SERIAL_PATTERN"],
+        "NEOAPRS_UPDATE_CHECK": "0",
+    }
     command = [sys.executable, str(path), "--help"] if path.suffix == ".py" else [str(path), "--help"]
     return subprocess.run(command, cwd=tmp_path, env=env, capture_output=True, text=True, timeout=120)
 
 
 def tree_state() -> str:
-    return subprocess.run(["git", "status", "--porcelain", "--", "scripts", "systemd", "neoaprs/page", "docs"], cwd=ROOT, capture_output=True, text=True).stdout
+    return subprocess.run(
+        ["git", "status", "--porcelain", "--", "scripts", "systemd", "neoaprs/page", "docs"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    ).stdout
 
 
 @needs_git
 @pytest.mark.parametrize("path", SCRIPTS, ids=lambda p: p.name)
 def test_every_script_answers_help_and_changes_nothing(path: Path, tmp_path: Path) -> None:
     source = path.read_text(encoding="utf-8")
-    assert re.search(r"--help|argparse", source), f"{path.name} does not handle --help (it would be run with it, so it is not tried)"
+    assert re.search(r"--help|argparse", source), (
+        f"{path.name} does not handle --help (it would be run with it, so it is not tried)"
+    )
     before = tree_state()
     done = run_help(path, tmp_path)
     assert done.returncode == 0, f"{path.name} --help: exit {done.returncode}: {(done.stdout + done.stderr)[-400:]}"
     assert len(done.stdout.strip()) >= 40, f"{path.name} --help printed nothing useful: {done.stdout!r}"
     assert tree_state() == before, f"{path.name} --help changed the tree"
-    assert not list((tmp_path / "home").iterdir()) and not (tmp_path / "data").exists(), f"{path.name} --help wrote files"
+    assert not list((tmp_path / "home").iterdir()) and not (tmp_path / "data").exists(), (
+        f"{path.name} --help wrote files"
+    )
 
 
 # ---- the documents: one index of them all ----
+
 
 def documents() -> list[str]:
     return [p for p in tracked() if p.endswith(".md")]
@@ -158,8 +216,12 @@ def test_every_document_a_document_names_is_there() -> None:
     gone = []
     for path in documents():
         text = (ROOT / path).read_text(encoding="utf-8")
-        for name in set(re.findall(r"`((?:[\w.-]+/)*[\w.-]+\.md)`", text)) | set(re.findall(r"\]\(((?:[\w.-]+/)*[\w.-]+\.md)[)#]", text)):
-            if not any((base / name).is_file() for base in (ROOT, ROOT / Path(path).parent, ROOT / "docs")) and not name.startswith(".."):
+        for name in set(re.findall(r"`((?:[\w.-]+/)*[\w.-]+\.md)`", text)) | set(
+            re.findall(r"\]\(((?:[\w.-]+/)*[\w.-]+\.md)[)#]", text)
+        ):
+            if not any(
+                (base / name).is_file() for base in (ROOT, ROOT / Path(path).parent, ROOT / "docs")
+            ) and not name.startswith(".."):
                 gone.append(f"{path}: {name}")
     assert not gone, f"documents name files that are not there: {gone}"
 
@@ -167,20 +229,29 @@ def test_every_document_a_document_names_is_there() -> None:
 # the scripts and the units: one line for each, in the development guide and the README of the
 # systemd folder
 
+
 def table_rows(text: str, heading: str) -> list[str]:
     """The table rows (`| ... |`) between a heading line that starts with `heading` and the next
     heading."""
-    section = re.split(r"^#+ ", text.split(f"\n{heading}", 1)[1], maxsplit=1, flags=re.M)[0] if f"\n{heading}" in text else ""
+    section = (
+        re.split(r"^#+ ", text.split(f"\n{heading}", 1)[1], maxsplit=1, flags=re.M)[0] if f"\n{heading}" in text else ""
+    )
     return [line for line in section.splitlines() if line.startswith("| `")]
 
 
-def test_every_script_has_a_line_in_the_table_of_scripts_in_the_development_guide_and_the_table_names_no_script_that_is_gone() -> None:
+def test_every_script_has_a_line_in_the_table_of_scripts_in_the_development_guide_and_the_table_names_no_script_that_is_gone() -> (
+    None
+):
     rows = table_rows((ROOT / "docs" / "development.md").read_text(encoding="utf-8"), "## Scripts")
     assert len(rows) >= 3
     named = {n: row for row in rows for n in re.findall(r"`scripts/([\w.-]+)`", row.split("|")[1])}
     files = {p.name for p in script_files()}
-    assert not files - set(named), f"scripts without a line in docs/development.md, 'Scripts': {sorted(files - set(named))}"
-    assert not set(named) - files, f"docs/development.md, 'Scripts' names scripts that are gone: {sorted(set(named) - files)}"
+    assert not files - set(named), (
+        f"scripts without a line in docs/development.md, 'Scripts': {sorted(files - set(named))}"
+    )
+    assert not set(named) - files, (
+        f"docs/development.md, 'Scripts' names scripts that are gone: {sorted(set(named) - files)}"
+    )
     thin = [n for n, row in named.items() if len(row.split("|")[2].strip()) < 25]
     assert not thin, f"a line that does not say what the script is for: {thin}"
 
@@ -189,60 +260,117 @@ def test_every_unit_has_a_line_in_the_readme_of_the_systemd_folder() -> None:
     units = {p for p in tracked() if p.endswith(".service")}
     assert units
     # the one table of that file
-    rows = [line for line in (ROOT / "systemd" / "README.md").read_text(encoding="utf-8").splitlines() if line.startswith("| `")]
+    rows = [
+        line
+        for line in (ROOT / "systemd" / "README.md").read_text(encoding="utf-8").splitlines()
+        if line.startswith("| `")
+    ]
     named = {re.match(r"\| `([^`]+)`", row).group(1): row for row in rows}  # type: ignore[union-attr]
     assert not units - set(named), f"systemd/README.md has no line for: {sorted(units - set(named))}"
     assert not set(named) - units, f"systemd/README.md names units that are gone: {sorted(set(named) - units)}"
-    assert all(len(row.split("|")[2].strip()) >= 40 for row in named.values()), "a unit line must say what the unit does"
+    assert all(len(row.split("|")[2].strip()) >= 40 for row in named.values()), (
+        "a unit line must say what the unit does"
+    )
 
 
-def test_the_unit_is_a_template_that_names_the_interpreter_the_data_folder_and_the_clone_by_placeholders_and_the_port_of_the_page() -> None:
+def test_the_unit_is_a_template_that_names_the_interpreter_the_data_folder_and_the_clone_by_placeholders_and_the_port_of_the_page() -> (
+    None
+):
     unit = (ROOT / "neoaprs" / "cli" / "neoaprs.service").read_text(encoding="utf-8")
-    assert "WorkingDirectory=@WORKING_DIRECTORY@\n" in unit and "ExecStart=@COMMAND@ --data @DATA@\n" in unit and "Documentation=@DOCUMENTATION@\n" in unit
+    assert (
+        "WorkingDirectory=@WORKING_DIRECTORY@\n" in unit
+        and "ExecStart=@COMMAND@ --data @DATA@\n" in unit
+        and "Documentation=@DOCUMENTATION@\n" in unit
+    )
     assert "/home/" not in unit, "no path of a machine in the tracked file"
     assert "7303" in unit.split("[Service]")[0]
-    for key in ("Restart=always", "RestartPreventExitStatus=2", "StartLimitBurst=5", "KillSignal=SIGTERM", "WantedBy=default.target"):
+    for key in (
+        "Restart=always",
+        "RestartPreventExitStatus=2",
+        "StartLimitBurst=5",
+        "KillSignal=SIGTERM",
+        "WantedBy=default.target",
+    ):
         assert key in unit, key
 
 
 # ---- the changelog ----
 
+
 def test_the_changelog_has_its_unreleased_section_first_and_no_commit_hashes() -> None:
     text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     headings = re.findall(r"^## (.+)$", text, re.M)
-    assert headings and headings[0] == "Unreleased", headings                 # newest first
+    assert headings and headings[0] == "Unreleased", headings  # newest first
     assert not re.search(r"\b[0-9a-f]{7,40}\b", re.sub(r"`[^`]*`", "", text)), "no commit hashes in the changelog"
 
 
 # ---- .gitignore ----
+
 
 def ignored(path: str) -> bool:
     return subprocess.run(["git", "check-ignore", "-q", "--no-index", path], cwd=ROOT).returncode == 0
 
 
 @needs_git
-@pytest.mark.parametrize("path", [
-    # the data, and anything that holds a secret
-    "data/neoaprs.sqlite", "data/backup/premigrate-v1-to-v2.sqlite", "neoaprs.sqlite", "copy.sqlite-wal", "key.pem", "tls.key", ".env",
-    # the base map
-    "data/basemap.pmtiles", "basemap.pmtiles.part", "neoaprs/maps/other.pmtiles",
-    # environments and builds
-    ".venv/bin/python", ".venv-20261011T124153820Z-orig/bin/python", "ui/node_modules/vue/index.js", "ui/dist/index.html", "ui/dist.prev-1/index.html",
-    "neoaprs/__pycache__/x.pyc", "scripts/__pycache__/x.pyc", ".pytest_cache/x", ".mypy_cache/x", ".ruff_cache/x", ".hypothesis/x", ".coverage", "test-results/x",
-])
+@pytest.mark.parametrize(
+    "path",
+    [
+        # the data, and anything that holds a secret
+        "data/neoaprs.sqlite",
+        "data/backup/premigrate-v1-to-v2.sqlite",
+        "neoaprs.sqlite",
+        "copy.sqlite-wal",
+        "key.pem",
+        "tls.key",
+        ".env",
+        # the base map
+        "data/basemap.pmtiles",
+        "basemap.pmtiles.part",
+        "neoaprs/maps/other.pmtiles",
+        # environments and builds
+        ".venv/bin/python",
+        ".venv-20261011T124153820Z-orig/bin/python",
+        "ui/node_modules/vue/index.js",
+        "ui/dist/index.html",
+        "ui/dist.prev-1/index.html",
+        "neoaprs/__pycache__/x.pyc",
+        "scripts/__pycache__/x.pyc",
+        ".pytest_cache/x",
+        ".mypy_cache/x",
+        ".ruff_cache/x",
+        ".hypothesis/x",
+        ".coverage",
+        "test-results/x",
+    ],
+)
 def test_gitignore_keeps_out_the_data_the_environments_and_the_caches(path: str) -> None:
     assert ignored(path), f"{path} would be committed by `git add .`"
 
 
 @needs_git
-@pytest.mark.parametrize("path", ["neoaprs/page/index.html", "neoaprs/page/assets/index-x.js", "neoaprs/data/x.py", "neoaprs/maps/basemap-world.pmtiles", "tests/fixtures/capture.kiss", "docs/README.md", "neoaprs/cli/neoaprs.service", "ui/src/main.ts", "uv.lock"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "neoaprs/page/index.html",
+        "neoaprs/page/assets/index-x.js",
+        "neoaprs/data/x.py",
+        "neoaprs/maps/basemap-world.pmtiles",
+        "tests/fixtures/capture.kiss",
+        "docs/README.md",
+        "neoaprs/cli/neoaprs.service",
+        "ui/src/main.ts",
+        "uv.lock",
+    ],
+)
 def test_gitignore_does_not_hide_what_belongs_in_the_repository(path: str) -> None:
     assert not ignored(path), f"{path} is ignored"
 
 
 @needs_git
 def test_nothing_that_is_tracked_is_also_ignored() -> None:
-    done = subprocess.run(["git", "ls-files", "-ci", "--exclude-standard"], cwd=ROOT, capture_output=True, text=True, check=True)
+    done = subprocess.run(
+        ["git", "ls-files", "-ci", "--exclude-standard"], cwd=ROOT, capture_output=True, text=True, check=True
+    )
     assert not done.stdout.split(), f"tracked and ignored at once: {done.stdout.split()}"
 
 

@@ -1,5 +1,6 @@
 """How a connection to the database file is set up (neoaprs/dbfile.py), the transaction helper of
 the tools, the whole checked copy, and the limits of the write-ahead log (neoaprs/walcare.py)."""
+
 import os
 import sqlite3
 import sys
@@ -10,13 +11,16 @@ import pytest
 from neoaprs import walcare
 from neoaprs.dbfile import DEFAULT_BUSY_MS, connect, copy_database, private, transaction
 
-PROC = Path("/proc/self/fd").is_dir()               # where a descriptor can be turned into the path it names
+PROC = Path("/proc/self/fd").is_dir()  # where a descriptor can be turned into the path it names
 
 
 def test_a_connection_is_wal_synchronous_full_with_the_busy_time_and_a_private_file(tmp_path: Path) -> None:
     path = tmp_path / "x.sqlite"
     db = connect(path, busy_ms=1234)
-    values = [db.execute(f"PRAGMA {p}").fetchone()[0] for p in ("journal_mode", "synchronous", "busy_timeout", "journal_size_limit", "wal_autocheckpoint")]
+    values = [
+        db.execute(f"PRAGMA {p}").fetchone()[0]
+        for p in ("journal_mode", "synchronous", "busy_timeout", "journal_size_limit", "wal_autocheckpoint")
+    ]
     assert values == ["wal", 2, 1234, walcare.WAL_LIMIT_BYTES, walcare.AUTOCHECKPOINT_PAGES]
     assert DEFAULT_BUSY_MS == 30000
     if sys.platform != "win32":
@@ -58,7 +62,9 @@ def test_a_transaction_commits_all_of_it_or_rolls_all_of_it_back(tmp_path: Path)
     db.close()
 
 
-def test_a_copy_is_whole_checked_private_synced_and_leaves_nothing_behind(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_copy_is_whole_checked_private_synced_and_leaves_nothing_behind(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     db = connect(tmp_path / "x.sqlite")
     db.execute("CREATE TABLE t (n INTEGER PRIMARY KEY, v TEXT)")
     db.executemany("INSERT INTO t VALUES (?, ?)", [(n, "x" * 100) for n in range(200)])
@@ -78,9 +84,14 @@ def test_a_copy_is_whole_checked_private_synced_and_leaves_nothing_behind(tmp_pa
         assert (dest.stat().st_mode & 0o777) == 0o600
     assert synced, "the copy is synced"
     if PROC:
-        assert any(p.endswith(".tmp") for p in synced) and str(dest.parent) in synced and str(dest.parent.parent) in synced, "the file, the folder, and the folder that holds a new folder"
+        assert (
+            any(p.endswith(".tmp") for p in synced) and str(dest.parent) in synced and str(dest.parent.parent) in synced
+        ), "the file, the folder, and the folder that holds a new folder"
     copy = sqlite3.connect(dest)
-    assert copy.execute("SELECT COUNT(*) FROM t").fetchone()[0] == 200 and copy.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    assert (
+        copy.execute("SELECT COUNT(*) FROM t").fetchone()[0] == 200
+        and copy.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    )
     assert copy.execute("PRAGMA journal_mode").fetchone()[0] == "delete", "one self-contained file"
     copy.close()
     db.close()

@@ -1,4 +1,5 @@
 """The helper that serves a test's small HTTP server on a thread."""
+
 import http.server
 import threading
 import urllib.request
@@ -24,7 +25,7 @@ def test_the_listening_socket_has_a_limit_the_connections_have_none_and_a_shutdo
     thread = serve(server)
     try:
         assert server.socket.gettimeout() == ACCEPT_SEC, "accept never waits for ever for a connection that is gone"
-        with urllib.request.urlopen(f"http://127.0.0.1:{server.server_address[1]}/", timeout=5) as answer:     # noqa: S310
+        with urllib.request.urlopen(f"http://127.0.0.1:{server.server_address[1]}/", timeout=5) as answer:
             assert answer.read() == b"ok"
         assert limits == [None], "a connection the server hands out is as it was: without a limit"
     finally:

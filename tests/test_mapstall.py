@@ -2,6 +2,7 @@
 status says so, the job fails with a plain text after the last try, and slow but moving is not a
 stall.
 """
+
 import asyncio
 from collections.abc import Callable
 from dataclasses import replace
@@ -42,7 +43,13 @@ class Rig(MapRig):
         return self.server.asked.count((0, 126))
 
     def with_patience(self, patience: Patience) -> None:
-        self.service = MapFetch(self.data, lambda: replace(ON_AIR, map_source=self.server.url), FixedClock(), patience=patience, world=own_world)
+        self.service = MapFetch(
+            self.data,
+            lambda: replace(ON_AIR, map_source=self.server.url),
+            FixedClock(),
+            patience=patience,
+            world=own_world,
+        )
         remember_stop(self.service.stop)
         self.service.changed.connect(lambda: self.seen.append(self.service.status()))
 
@@ -56,6 +63,7 @@ async def test_a_download_that_stands_still_is_ended_and_begun_again_and_the_pag
     def let_the_next_try_through() -> None:
         if rig.service.status().note:
             rig.server.hold_from = None
+
     rig.service.changed.connect(let_the_next_try_through)
     await rig.service.fetch()
     assert rig.notes()[0] == "no progress: trying again (2 of 3)" and len(set(rig.notes())) == 1
@@ -66,7 +74,7 @@ async def test_a_download_that_stands_still_is_ended_and_begun_again_and_the_pag
     assert noted.state == "downloading" and noted.step == "world" and noted.percent is None, "the bar begins again"
     assert not [s for s in rig.seen if s.note and s.percent is not None], "the note goes when the download moves"
     assert sorted(p.name for p in rig.data.glob("*.pmtiles*")) == ["basemap-world.pmtiles", "basemap.pmtiles"]
-    await until_started(lambda: rig.server.holding == 0)       # (the connections of the try that stood still were shut)
+    await until_started(lambda: rig.server.holding == 0)  # (the connections of the try that stood still were shut)
 
 
 async def test_after_the_last_try_the_job_fails_with_a_plain_text_and_the_old_map_stays(rig: Rig) -> None:
@@ -75,7 +83,9 @@ async def test_after_the_last_try_the_job_fails_with_a_plain_text_and_the_old_ma
     await rig.idle()
     status = rig.status()
     assert status.state == "error" and status.problem == SLOW == "the map server is too slow now; try again later"
-    assert rig.notes()[:2] == ["no progress: trying again (2 of 3)", "no progress: trying again (3 of 3)"] and set(rig.notes()) <= set(rig.notes()[:2])
+    assert rig.notes()[:2] == ["no progress: trying again (2 of 3)", "no progress: trying again (3 of 3)"] and set(
+        rig.notes()
+    ) <= set(rig.notes()[:2])
     assert rig.tries() == 3, "three cuts in all"
     assert status.note == "" and status.downloaded is None and status.percent is None
     assert (rig.data / DETAIL).read_bytes() == b"the old map" and (rig.data / WORLD).read_bytes() == b"the old world"
@@ -87,12 +97,17 @@ async def test_a_failure_of_the_server_that_cannot_get_better_is_not_retried(rig
     rig.server.mode = "missing"
     rig.service.begin("fetch")
     await rig.idle()
-    assert rig.status().state == "error" and rig.status().problem == "the map server answered 404 Not Found" and rig.tries() == 1 and rig.notes() == []
+    assert (
+        rig.status().state == "error"
+        and rig.status().problem == "the map server answered 404 Not Found"
+        and rig.tries() == 1
+        and rig.notes() == []
+    )
 
 
 async def test_the_size_of_what_has_come_is_told_while_the_download_moves(rig: Rig) -> None:
     rig.old_map()
-    rig.server.hold_from = data_offset(planet()) + 3000        # (the tiles before it come, the others are held)
+    rig.server.hold_from = data_offset(planet()) + 3000  # (the tiles before it come, the others are held)
     rig.service.begin("fetch")
     await until_started(lambda: (rig.status().downloaded or 0) > 0)
     assert rig.status().step == "area" and rig.status().note == ""
@@ -102,7 +117,9 @@ async def test_the_size_of_what_has_come_is_told_while_the_download_moves(rig: R
     assert rig.status().downloaded is None
 
 
-async def test_a_download_that_moves_only_in_the_size_of_what_has_come_is_not_a_stall(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_download_that_moves_only_in_the_size_of_what_has_come_is_not_a_stall(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A cut that tells no percent for longer than the patience, while the size of what has come
     grows, goes on: the size is a sign of life as well."""
     rig.old_map()
@@ -110,8 +127,15 @@ async def test_a_download_that_moves_only_in_the_size_of_what_has_come_is_not_a_
     rig.with_patience(Patience(0.5, 1, 0.05, 0.05))
     runs: list[Path] = []
 
-    async def growing(source: str, final: Path, box: Box | None, maxzoom: int, dry_run: bool = False, on_percent: Callable[[int], None] | None = None,
-                      on_size: Callable[[int], None] | None = None) -> None:
+    async def growing(
+        source: str,
+        final: Path,
+        box: Box | None,
+        maxzoom: int,
+        dry_run: bool = False,
+        on_percent: Callable[[int], None] | None = None,
+        on_size: Callable[[int], None] | None = None,
+    ) -> None:
         runs.append(final)
         assert on_size is not None
         # 1.2 s of a size that grows and a bar that does not move, with a patience of 0.5 s and no
@@ -121,6 +145,7 @@ async def test_a_download_that_moves_only_in_the_size_of_what_has_come_is_not_a_
             on_size(500 * step)
             await asyncio.sleep(0.1)
         part_of(final).replace(final)
+
     monkeypatch.setattr(mapfetch, "extract", growing)
     await rig.service.fetch()
     assert rig.status().state == "ready" and runs == [rig.data / DETAIL] and rig.notes() == []

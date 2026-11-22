@@ -2,6 +2,7 @@
 
 No command runs while a migration is in progress. A write (`set`) holds the migration lock,
 and is refused while a daemon holds the folder and the file is older than this version."""
+
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -14,9 +15,11 @@ from neoaprs.supportsql import live_version
 
 MIGRATING = "NeoAPRS is bringing it up to date now (a large file takes minutes); try again when that is done"
 WRITING = "another `neoaprs db` command is writing it now; try again when that is done"
-BEFORE = ("NeoAPRS is running with this folder and the database is not up to date yet: if it has just started, it is bringing it up to date, so try again in a minute; if it is the version "
-          "before, stop it (`neoaprs stop`), and the new one brings it up to date at its start")
-TURN_POLL_SEC = 0.05            # retry interval while another write holds the lock
+BEFORE = (
+    "NeoAPRS is running with this folder and the database is not up to date yet: if it has just started, it is bringing it up to date, so try again in a minute; if it is the version "
+    "before, stop it (`neoaprs stop`), and the new one brings it up to date at its start"
+)
+TURN_POLL_SEC = 0.05  # retry interval while another write holds the lock
 
 
 @contextmanager

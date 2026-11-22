@@ -1,6 +1,7 @@
 """The limits of what the station sends again: a fast radio's burst, a slow radio's budget, shares
 and floor, and the kinds of packet they count.
 """
+
 from datetime import timedelta
 
 import pytest
@@ -79,7 +80,9 @@ def at_pace(budget: SlowBudget, clock: FixedClock, source: str, kind: PassKind) 
     return reason
 
 
-def test_five_stations_messages_in_a_minute_give_four_and_then_the_budget_holds_the_fifth_until_the_first_is_five_minutes_old() -> None:
+def test_five_stations_messages_in_a_minute_give_four_and_then_the_budget_holds_the_fifth_until_the_first_is_five_minutes_old() -> (
+    None
+):
     clock = FixedClock()
     budget = SlowBudget(30)
     first = clock.now

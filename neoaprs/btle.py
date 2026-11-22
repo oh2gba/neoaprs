@@ -3,6 +3,7 @@
 PROFILE is a name from `PROFILES` or a GATT service UUID; on macOS ADDRESS is a CoreBluetooth UUID.
 bleak, an optional extra, runs on its own thread and loop. A lost link raises from `read`/`write`.
 """
+
 import asyncio
 import concurrent.futures
 import logging
@@ -39,6 +40,7 @@ T = TypeVar("T")
 @dataclass(frozen=True)
 class Profile:
     """A GATT service that carries a KISS stream; None for `write` or `notify` takes the first fit."""
+
     name: str
     title: str
     service: str
@@ -47,8 +49,20 @@ class Profile:
 
 
 PROFILES = (
-    Profile("mobilinkd", "BLE KISS service of the Mobilinkd TNC3 and TNC4 and the aprs.fi apps", "00000001-ba2a-46c9-ae49-01b0961f68bb", "00000002-ba2a-46c9-ae49-01b0961f68bb", "00000003-ba2a-46c9-ae49-01b0961f68bb"),
-    Profile("nus", "Nordic UART Service", "6e400001-b5a3-f393-e0a9-e50e24dcca9e", "6e400002-b5a3-f393-e0a9-e50e24dcca9e", "6e400003-b5a3-f393-e0a9-e50e24dcca9e"),
+    Profile(
+        "mobilinkd",
+        "BLE KISS service of the Mobilinkd TNC3 and TNC4 and the aprs.fi apps",
+        "00000001-ba2a-46c9-ae49-01b0961f68bb",
+        "00000002-ba2a-46c9-ae49-01b0961f68bb",
+        "00000003-ba2a-46c9-ae49-01b0961f68bb",
+    ),
+    Profile(
+        "nus",
+        "Nordic UART Service",
+        "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+        "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
+        "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
+    ),
 )
 
 
@@ -79,7 +93,9 @@ def parse_url(path: str) -> tuple[str, Profile | None]:
     """
     match = _URL.match(path.strip())
     if match is None:
-        raise ValueError(f"{path!r} is not a Bluetooth LE port: write ble://AA:BB:CC:DD:EE:FF, or ble://AA:BB:CC:DD:EE:FF/nus with the profile ({', '.join(p.name for p in PROFILES)}) or a service UUID")
+        raise ValueError(
+            f"{path!r} is not a Bluetooth LE port: write ble://AA:BB:CC:DD:EE:FF, or ble://AA:BB:CC:DD:EE:FF/nus with the profile ({', '.join(p.name for p in PROFILES)}) or a service UUID"
+        )
     address = match.group(1).upper()
     if len(address) == 17:  # a Bluetooth address may use dashes; a UUID is longer
         address = address.replace("-", ":")
@@ -106,10 +122,22 @@ def _find(services: Any, profile: Profile) -> tuple[Any, Any] | None:
     service = next((s for s in services if s.uuid == profile.service), None)
     if service is None:
         return None
-    named = (service.get_characteristic(profile.write), service.get_characteristic(profile.notify)) if profile.write and profile.notify else (None, None)
-    if named[0] is not None and named[1] is not None and _WRITES & set(named[0].properties) and _NOTIFIES & set(named[1].properties):
+    named = (
+        (service.get_characteristic(profile.write), service.get_characteristic(profile.notify))
+        if profile.write and profile.notify
+        else (None, None)
+    )
+    if (
+        named[0] is not None
+        and named[1] is not None
+        and _WRITES & set(named[0].properties)
+        and _NOTIFIES & set(named[1].properties)
+    ):
         return named
-    pair = (next((c for c in service.characteristics if _WRITES & set(c.properties)), None), next((c for c in service.characteristics if _NOTIFIES & set(c.properties)), None))
+    pair = (
+        next((c for c in service.characteristics if _WRITES & set(c.properties)), None),
+        next((c for c in service.characteristics if _NOTIFIES & set(c.properties)), None),
+    )
     return None if pair[0] is None or pair[1] is None else pair
 
 
@@ -181,13 +209,15 @@ class _Link:
     async def send(self, data: bytes) -> None:
         size = self.chunk()
         for start in range(0, len(data), size):
-            await self.client.write_gatt_char(self.write, data[start:start + size], response=self.response)
+            await self.client.write_gatt_char(self.write, data[start : start + size], response=self.response)
 
     async def disconnect(self) -> None:
         await self.client.disconnect()
 
 
-async def open_link(bleak: Any, address: str, wanted: Profile | None, on_data: Callable[[bytes], None], on_lost: Callable[[str], None]) -> _Link:
+async def open_link(
+    bleak: Any, address: str, wanted: Profile | None, on_data: Callable[[bytes], None], on_lost: Callable[[str], None]
+) -> _Link:
     """Find the device, connect, pick the service and start notifications.
 
     Nothing stays connected if it fails.
@@ -195,7 +225,9 @@ async def open_link(bleak: Any, address: str, wanted: Profile | None, on_data: C
     device = await bleak.BleakScanner.find_device_by_address(address, timeout=SCAN_SEC)
     if device is None:
         raise TimeoutError(f"{address} was not seen in {SCAN_SEC:.0f} s")
-    client = bleak.BleakClient(device, disconnected_callback=lambda _client: on_lost("the device disconnected"), timeout=CONNECT_SEC)
+    client = bleak.BleakClient(
+        device, disconnected_callback=lambda _client: on_lost("the device disconnected"), timeout=CONNECT_SEC
+    )
     try:
         await client.connect()
         profile, write, notify = _pick(client.services, wanted)
@@ -255,7 +287,11 @@ class BleSerial(serial.SerialBase):  # type: ignore[misc]
         self.is_open = True
 
     def _cannot_open(self, e: BaseException) -> "serial.SerialException":
-        why = "the device does not answer (is it switched on, in range and not connected to a phone?)" if isinstance(e, TimeoutError) else str(e)
+        why = (
+            "the device does not answer (is it switched on, in range and not connected to a phone?)"
+            if isinstance(e, TimeoutError)
+            else str(e)
+        )
         return serial.SerialException(f"Could not open port {self.portstr}: {why}")
 
     def _received(self, data: bytes) -> None:

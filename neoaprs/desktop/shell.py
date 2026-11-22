@@ -2,6 +2,7 @@
 
 A shell is `webshell` (pywebview and pystray) or `qtshell` (Qt); `choose` probes by importing.
 With no toolkit the app only opens the page in the browser."""
+
 import importlib
 import logging
 import os
@@ -27,7 +28,11 @@ log = logging.getLogger("neoaprs.desktop")
 TRAY_WAIT_SEC = 60.0
 TRAY_POLL_SEC = 2.0
 WEBVIEW2_CLIENT = "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
-WEBVIEW2_KEYS = (("HKEY_LOCAL_MACHINE", r"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients"), ("HKEY_LOCAL_MACHINE", r"SOFTWARE\Microsoft\EdgeUpdate\Clients"), ("HKEY_CURRENT_USER", r"SOFTWARE\Microsoft\EdgeUpdate\Clients"))
+WEBVIEW2_KEYS = (
+    ("HKEY_LOCAL_MACHINE", r"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients"),
+    ("HKEY_LOCAL_MACHINE", r"SOFTWARE\Microsoft\EdgeUpdate\Clients"),
+    ("HKEY_CURRENT_USER", r"SOFTWARE\Microsoft\EdgeUpdate\Clients"),
+)
 Importer = Callable[[str], Any]
 # "web" selects the web shell on Linux and macOS instead of Qt; anything else means Qt.
 WINDOW_SWITCH = "NEOAPRS_WINDOW"
@@ -39,6 +44,7 @@ PROGRAM = "neoaprs"
 @dataclass(frozen=True)
 class Choice:
     """The chosen shell: its `module` (None: none can run), whether it has a `window` or a `tray`, and `why` for the log."""
+
     module: str | None
     window: bool
     why: tuple[str, ...] = ()
@@ -99,6 +105,7 @@ def gtk_window_problem(importer: Importer) -> str | None:
     """Return None if gi, GTK 3, WebKitGTK and pywebview load, else what is missing; sets GLib's program name."""
     # Imported only for the web window, so the Qt window's start loads none of it.
     from . import gtkenv
+
     try:
         gi = importer("gi")
     except Exception as e:
@@ -124,6 +131,7 @@ def choose_web(platform: str, importer: Importer, environ: Any) -> Choice:
     else:
         # Imported only for the web window, so Qt's start loads none of it (ctypes included).
         from . import gtkenv
+
         ground = gtkenv.prepare()
         if ground:
             log.info("the web window's ground: %s", "; ".join(ground))
@@ -136,7 +144,12 @@ def choose_web(platform: str, importer: Importer, environ: Any) -> Choice:
     return Choice(WEB_SHELL, window_problem is None, why, tray=tray_problem is None)
 
 
-def choose(platform: str | None = None, importer: Importer = importlib.import_module, runtime: Callable[[], bool] = webview2_runtime, environ: Any = None) -> Choice:
+def choose(
+    platform: str | None = None,
+    importer: Importer = importlib.import_module,
+    runtime: Callable[[], bool] = webview2_runtime,
+    environ: Any = None,
+) -> Choice:
     platform = sys.platform if platform is None else platform
     environ = os.environ if environ is None else environ
     why: list[str] = []
@@ -161,6 +174,7 @@ def choose(platform: str | None = None, importer: Importer = importlib.import_mo
 @dataclass
 class ShellContext:
     """What a shell is given to run; `ready(actions)` connects the app lock and the daemon watch to the actions."""
+
     session: Session
     hidden: bool
     window: bool
@@ -177,7 +191,15 @@ class ShellContext:
     def ready(self, actions: AppActions) -> None:
         self.actions = actions
         self.single.handle(lambda command: actions.show() if command == "show" else actions.run(QUIT))
-        self.watch = DaemonWatch(self.session, actions.daemon_gone, self.daemon, moved=actions.page_moved, app_file=self.app_file, renewed=actions.renew, network_moved=actions.network_moved)
+        self.watch = DaemonWatch(
+            self.session,
+            actions.daemon_gone,
+            self.daemon,
+            moved=actions.page_moved,
+            app_file=self.app_file,
+            renewed=actions.renew,
+            network_moved=actions.network_moved,
+        )
         self.watch.start()
 
     def renewing(self) -> bool:
@@ -195,6 +217,7 @@ class Launch:
     """What a shell starts with before the daemon's page is there.
 
     The shell shows its window at once and asks `context(session)` once `opening` has the session."""
+
     data: Path
     opening: Opening
     hidden: bool
@@ -210,12 +233,29 @@ class Launch:
     @classmethod
     def of(cls, ctx: ShellContext) -> "Launch":
         """Return the launch for a context whose session is already there."""
-        return cls(ctx.session.data, Opening.opened(ctx.session), ctx.hidden, ctx.window, ctx.autostart, ctx.single, ctx.daemon, ctx=ctx)
+        return cls(
+            ctx.session.data,
+            Opening.opened(ctx.session),
+            ctx.hidden,
+            ctx.window,
+            ctx.autostart,
+            ctx.single,
+            ctx.daemon,
+            ctx=ctx,
+        )
 
     def context(self, session: Session) -> ShellContext:
         if self.ctx is None:
-            log.info("NeoAPRS app on %s, page %s, %s daemon; %s", self.data, session.url, "its own" if session.owned else "a running", self.describe)
-            self.ctx = ShellContext(session, self.hidden, self.window, self.autostart, self.single, self.daemon, app_file=self.app_file)
+            log.info(
+                "NeoAPRS app on %s, page %s, %s daemon; %s",
+                self.data,
+                session.url,
+                "its own" if session.owned else "a running",
+                self.describe,
+            )
+            self.ctx = ShellContext(
+                session, self.hidden, self.window, self.autostart, self.single, self.daemon, app_file=self.app_file
+            )
         return self.ctx
 
     def no_page(self, error: NoPage) -> int:

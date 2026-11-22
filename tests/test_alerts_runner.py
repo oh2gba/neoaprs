@@ -29,16 +29,14 @@ class FakeProc:
     """A process the fake Popen made: what `communicate` answers (an exception is raised, once, then
     the next answer comes) and whether it has ended."""
 
-    def __init__(
-        self, answers: list[Any], returncode: int = 0, ended: bool = False
-    ) -> None:
+    def __init__(self, answers: list[Any], returncode: int = 0, ended: bool = False) -> None:
         self.answers, self.returncode, self.ended = list(answers), returncode, ended
         self.pid = 4242
         self.killed = 0
         self.timeouts: list[float | None] = []
         self.inputs: list[bytes | None] = []
 
-    def communicate(self, input: bytes | None = None, timeout: float | None = None) -> tuple[bytes, bytes]:  # noqa: A002  (Popen's name)
+    def communicate(self, input: bytes | None = None, timeout: float | None = None) -> tuple[bytes, bytes]:
         self.timeouts.append(timeout)
         self.inputs.append(input)
         answer = self.answers.pop(0) if self.answers else (b"", b"")
@@ -76,7 +74,7 @@ class FakeSubprocess:
         self.started: list[tuple[list[str], dict[str, Any]]] = []
         self.taskkills: list[list[str]] = []
 
-    def Popen(self, argv: list[str], **kwargs: Any) -> FakeProc:  # noqa: N802
+    def Popen(self, argv: list[str], **kwargs: Any) -> FakeProc:
         if self.popen_error is not None:
             raise self.popen_error
         self.started.append((argv, kwargs))
@@ -112,16 +110,14 @@ async def test_the_windows_run_gives_powershell_the_line_on_standard_input_and_t
     alerts = windows(monkeypatch, fake)
     assert ran_or_why(await alerts.test()) == (True, "ran")
     [(argv, kwargs)] = fake.started
-    assert argv == [windows_program("WindowsPowerShell", "v1.0", "powershell.exe"), *POWERSHELL_ARGS] and argv[-2:] == ["-Command", "-"]
+    assert argv == [windows_program("WindowsPowerShell", "v1.0", "powershell.exe"), *POWERSHELL_ARGS] and argv[-2:] == [
+        "-Command",
+        "-",
+    ]
     assert not {"-EncodedCommand", "-ExecutionPolicy", "Bypass"} & set(argv)
     assert proc.inputs == [(POWERSHELL_PRELUDE + "Write-Host hi" + POWERSHELL_POSTLUDE + "\n").encode("utf-8")]
-    assert (
-        kwargs["env"]["NEOAPRS_FROM"] == "NEOAPRS"
-        and kwargs["stdin"] == subprocess.PIPE
-    )
-    assert proc.timeouts == [7.0] and proc.killed == 0 and fake.taskkills == [], (
-        "a run that ended is not killed"
-    )
+    assert kwargs["env"]["NEOAPRS_FROM"] == "NEOAPRS" and kwargs["stdin"] == subprocess.PIPE
+    assert proc.timeouts == [7.0] and proc.killed == 0 and fake.taskkills == [], "a run that ended is not killed"
 
 
 async def test_the_windows_run_tells_the_status_and_the_first_line_of_what_the_command_said_on_stderr(
@@ -137,9 +133,7 @@ async def test_the_windows_run_tells_the_status_and_the_first_line_of_what_the_c
 async def test_a_windows_run_that_cannot_start_is_a_failure_not_a_crash(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    alerts = windows(
-        monkeypatch, FakeSubprocess(popen_error=FileNotFoundError("powershell.exe"))
-    )
+    alerts = windows(monkeypatch, FakeSubprocess(popen_error=FileNotFoundError("powershell.exe")))
     ok, text = ran_or_why(await alerts.test())
     assert not ok and text == "the alert command could not run: powershell.exe"
 
@@ -154,13 +148,10 @@ async def test_a_windows_run_that_runs_out_of_time_is_killed_with_what_it_starte
         False,
         "the alert command did not end within 7 s: killed",
     )
-    assert (
-        fake.taskkills == [[windows_program("taskkill.exe"), "/T", "/F", "/PID", "4242"]]
-        and proc.killed == 1
-    ), "the tree is ended, then the process itself"
-    assert len(proc.timeouts) == 2, (
-        "and what it wrote is collected, so that nothing is left to wait for"
+    assert fake.taskkills == [[windows_program("taskkill.exe"), "/T", "/F", "/PID", "4242"]] and proc.killed == 1, (
+        "the tree is ended, then the process itself"
     )
+    assert len(proc.timeouts) == 2, "and what it wrote is collected, so that nothing is left to wait for"
 
 
 async def test_a_windows_run_whose_wait_fails_is_killed_and_told(
@@ -182,9 +173,7 @@ async def test_a_failed_run_is_logged_through_the_hourly_warning_on_windows_too(
     caplog.set_level(logging.WARNING, "neoaprs.alerts")
     alerts = windows(monkeypatch, FakeSubprocess(popen_error=OSError("gone")))
     await alerts._run("Write-Host hi", {}, "OH2RDG")
-    assert [r.getMessage() for r in caplog.records] == [
-        "the alert command could not run: gone (told once an hour)"
-    ]
+    assert [r.getMessage() for r in caplog.records] == ["the alert command could not run: gone (told once an hour)"]
 
 
 def test_a_process_that_has_ended_or_was_never_made_is_not_killed() -> None:
@@ -256,9 +245,7 @@ async def test_a_shell_that_cannot_be_started_is_a_failure_not_a_crash(
         raise OSError("no fork")
 
     monkeypatch.setattr(alerts_module.asyncio, "create_subprocess_shell", refuse)
-    alerts = Alerts(
-        lambda: replace(ON_AIR, messages_alert_command="true"), FixedClock()
-    )
+    alerts = Alerts(lambda: replace(ON_AIR, messages_alert_command="true"), FixedClock())
     assert ran_or_why(await alerts.test()) == (False, "the alert command could not run: no fork")
 
 
@@ -270,12 +257,5 @@ async def test_the_test_button_with_no_command_is_an_error_the_page_shows() -> N
 
 def test_an_outcome_tells_what_the_page_is_shown() -> None:
     assert Outcome(problem="could not run").short == "could not run"
-    assert (
-        Outcome(status=2).short == "exit code 2"
-        and Outcome(status=2, err="\n  bad  \n").short == "exit code 2: bad"
-    )
-    assert (
-        Outcome(out="a", err="b").output == "ab"
-        and not Outcome(status=1).ok
-        and Outcome().ok
-    )
+    assert Outcome(status=2).short == "exit code 2" and Outcome(status=2, err="\n  bad  \n").short == "exit code 2: bad"
+    assert Outcome(out="a", err="b").output == "ab" and not Outcome(status=1).ok and Outcome().ok

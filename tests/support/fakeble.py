@@ -2,6 +2,7 @@
 `FakeBle` is both the library (`BleakScanner`, `BleakClient`, `BleakError`) and the device behind
 it; no scan is made and no radio is touched.
 """
+
 import asyncio
 from collections.abc import Callable
 from typing import Any
@@ -11,10 +12,20 @@ import pytest
 from neoaprs import btle
 
 ADDRESS = "00:11:22:33:44:55"
-MOBILINKD, MOBILINKD_WRITE, MOBILINKD_NOTIFY = "00000001-ba2a-46c9-ae49-01b0961f68bb", "00000002-ba2a-46c9-ae49-01b0961f68bb", "00000003-ba2a-46c9-ae49-01b0961f68bb"
-NUS, NUS_WRITE, NUS_NOTIFY = "6e400001-b5a3-f393-e0a9-e50e24dcca9e", "6e400002-b5a3-f393-e0a9-e50e24dcca9e", "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
+MOBILINKD, MOBILINKD_WRITE, MOBILINKD_NOTIFY = (
+    "00000001-ba2a-46c9-ae49-01b0961f68bb",
+    "00000002-ba2a-46c9-ae49-01b0961f68bb",
+    "00000003-ba2a-46c9-ae49-01b0961f68bb",
+)
+NUS, NUS_WRITE, NUS_NOTIFY = (
+    "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+    "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
+    "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
+)
 Services = dict[str, list[tuple[str, list[str]]]]
-KISS_SERVICE: Services = {MOBILINKD: [(MOBILINKD_WRITE, ["write-without-response"]), (MOBILINKD_NOTIFY, ["read", "notify"])]}
+KISS_SERVICE: Services = {
+    MOBILINKD: [(MOBILINKD_WRITE, ["write-without-response"]), (MOBILINKD_NOTIFY, ["read", "notify"])]
+}
 UART_SERVICE: Services = {NUS: [(NUS_WRITE, ["write", "write-without-response"]), (NUS_NOTIFY, ["notify"])]}
 
 
@@ -24,7 +35,11 @@ class FakeBleakError(Exception):
 
 class FakeCharacteristic:
     def __init__(self, uuid: str, properties: list[str], max_write_without_response_size: int) -> None:
-        self.uuid, self.properties, self.max_write_without_response_size = uuid, properties, max_write_without_response_size
+        self.uuid, self.properties, self.max_write_without_response_size = (
+            uuid,
+            properties,
+            max_write_without_response_size,
+        )
 
 
 class FakeService:
@@ -38,14 +53,25 @@ class FakeService:
 class FakeBle:
     BleakError = FakeBleakError
 
-    def __init__(self, monkeypatch: pytest.MonkeyPatch, services: Services | None = None, *, address: str = ADDRESS, mtu: int = 23, chunk: int = 20) -> None:
+    def __init__(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        services: Services | None = None,
+        *,
+        address: str = ADDRESS,
+        mtu: int = 23,
+        chunk: int = 20,
+    ) -> None:
         self.address, self.mtu = address, mtu
-        self.services = [FakeService(s, [FakeCharacteristic(c, props, chunk) for c, props in chars]) for s, chars in (KISS_SERVICE if services is None else services).items()]
-        self.seen = True                                             # the scan finds the device
+        self.services = [
+            FakeService(s, [FakeCharacteristic(c, props, chunk) for c, props in chars])
+            for s, chars in (KISS_SERVICE if services is None else services).items()
+        ]
+        self.seen = True  # the scan finds the device
         self.connect_error: Exception | None = None
-        self.write_error: Exception | None = None                    # the next write fails with it
-        self.disconnect_error: Exception | None = None               # a disconnect fails with it
-        self.hold_writes = False                                     # a write does not come back (the link is stuck)
+        self.write_error: Exception | None = None  # the next write fails with it
+        self.disconnect_error: Exception | None = None  # a disconnect fails with it
+        self.hold_writes = False  # a write does not come back (the link is stuck)
         self.scans: list[str] = []
         self.connects, self.disconnects = 0, 0
         self.writes: list[tuple[bytes, bool]] = []
@@ -63,7 +89,9 @@ class FakeBle:
                 return address if ble.seen and address.lower() == ble.address.lower() else None
 
         class BleakClient(FakeClient):
-            def __init__(self, device: str, disconnected_callback: Callable[[Any], None] | None = None, timeout: float = 30.0) -> None:
+            def __init__(
+                self, device: str, disconnected_callback: Callable[[Any], None] | None = None, timeout: float = 30.0
+            ) -> None:
                 super().__init__(ble, device, disconnected_callback)
 
         self.BleakScanner, self.BleakClient = BleakScanner, BleakClient

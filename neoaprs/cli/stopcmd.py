@@ -6,6 +6,7 @@ and waits until the daemon releases the instance lock. Exit code 0: it is not ru
 did not end in time.
 The Windows uninstaller and the Start menu's "Stop NeoAPRS" use it. A service manager (systemd,
 launchd) restarts the daemon again: use `systemctl --user stop neoaprs` there."""
+
 import argparse
 import logging
 import time
@@ -23,9 +24,13 @@ POLL_SEC = 0.25
 
 
 def parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="neoaprs stop", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        prog="neoaprs stop", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--data", default=str(default_data_dir()), help="the data folder of the daemon; default %(default)s")
-    p.add_argument("--timeout", type=float, default=30.0, metavar="SEC", help="how long to wait for it to end; default %(default)s")
+    p.add_argument(
+        "--timeout", type=float, default=30.0, metavar="SEC", help="how long to wait for it to end; default %(default)s"
+    )
     return p
 
 
@@ -60,5 +65,7 @@ def main(argv: list[str]) -> int:
     if stop_daemon(data, args.timeout):
         say("stop: NeoAPRS has ended")
         return 0
-    say(f"stop: NeoAPRS on {data} did not end within {args.timeout:g} s; look at its log, or end the process neoaprsw.exe / neoaprs in the task manager")
+    say(
+        f"stop: NeoAPRS on {data} did not end within {args.timeout:g} s; look at its log, or end the process neoaprsw.exe / neoaprs in the task manager"
+    )
     return 1

@@ -2,6 +2,7 @@
 that tests/test_seams.py and tests/test_radioregistry.py hold it to, over the cases of both radios
 on or off, heard on each or not, and the operator's choice of either.
 """
+
 from neoaprs.radiospec import FM_ID, HF_ID, RadioId
 
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """What the upgrade check of scripts/check-installs asks of an installed NeoAPRS, in its container.
 
-  install-probe.py seed   --command PROGRAM --data FOLDER --out FILE
-  install-probe.py verify --command PROGRAM --data FOLDER --in FILE --version V"""
+install-probe.py seed   --command PROGRAM --data FOLDER --out FILE
+install-probe.py verify --command PROGRAM --data FOLDER --in FILE --version V"""
+
 import argparse
 import asyncio
 import importlib.util
@@ -15,7 +16,6 @@ from pathlib import Path
 from types import ModuleType
 from collections.abc import Awaitable, Callable
 from typing import Any
-
 
 
 def load_smoke() -> ModuleType:
@@ -43,6 +43,7 @@ FM_TYPE = "kiss"
 class OldRelease:
     """A release before separate radios: its FM radio is on from the start (topic `tnc`), its HF
     radio is the settings `hf/enabled` and `hf/profile`."""
+
     TOPIC = "tnc"
     HF_SETTINGS = {"hf/enabled": "true", "hf/profile": HF_TYPE}
 
@@ -68,7 +69,12 @@ class Seen:
         self.errors = [str(m.get("text")) for m in page.messages if m.get("type") == "error"]
 
 
-async def follow(base: str, ready: Callable[[Seen], bool], seconds: float, work: Callable[["smoke.PageSocket"], Awaitable[None]] | None = None) -> Seen:
+async def follow(
+    base: str,
+    ready: Callable[[Seen], bool],
+    seconds: float,
+    work: Callable[["smoke.PageSocket"], Awaitable[None]] | None = None,
+) -> Seen:
     """Open /ws as the page does, run `work` on it, and read until `ready(seen)` or the time is
     up."""
     page = await smoke.PageSocket.open(base)
@@ -79,8 +85,10 @@ async def follow(base: str, ready: Callable[[Seen], bool], seconds: float, work:
             await page.until("what was waited for", lambda p: ready(Seen(p)), seconds)
         except smoke.Failure:
             seen = Seen(page)
-            raise smoke.Failure(f"within {seconds:g} s the page was not told what was waited for (settings {has_settings(seen)}, message {has_message(seen)}, {len(stations_of(seen))} stations, "
-                                f"the FM radio {fm_state(seen)!r}, errors {seen.errors})") from None
+            raise smoke.Failure(
+                f"within {seconds:g} s the page was not told what was waited for (settings {has_settings(seen)}, message {has_message(seen)}, {len(stations_of(seen))} stations, "
+                f"the FM radio {fm_state(seen)!r}, errors {seen.errors})"
+            ) from None
         return Seen(page)
     finally:
         page.close()
@@ -93,7 +101,9 @@ def wait_for_page(daemon: "subprocess.Popen[bytes]", log: Path, offset: int, sec
         if daemon.poll() is not None:
             raise smoke.Failure(f"the daemon ended with exit code {daemon.returncode} before the page was up")
         try:
-            found = re.search(r"web page at (http://127\.0\.0\.1:\d+/)", log.read_bytes()[offset:].decode("utf-8", errors="replace"))
+            found = re.search(
+                r"web page at (http://127\.0\.0\.1:\d+/)", log.read_bytes()[offset:].decode("utf-8", errors="replace")
+            )
         except OSError:
             found = None
         if found:
@@ -174,8 +184,22 @@ def seed(args: argparse.Namespace) -> None:
     def work(base: str) -> None:
         seen = asyncio.run(follow(base, seed_ready, args.timeout, lambda page: seed_commands(page, args.timeout)))
         stations = stations_of(seen)
-        Path(args.out).write_text(json.dumps({"stations": stations, "message": MESSAGE_TEXT, "settings": SETTINGS, "hf_radio": HF_TYPE, "from_version": seen.hello.get("version")}), encoding="utf-8")
-        smoke.say(f"the old daemon ({seen.hello.get('version')}) has {len(stations)} stations, one message and both radios set")
+        Path(args.out).write_text(
+            json.dumps(
+                {
+                    "stations": stations,
+                    "message": MESSAGE_TEXT,
+                    "settings": SETTINGS,
+                    "hf_radio": HF_TYPE,
+                    "from_version": seen.hello.get("version"),
+                }
+            ),
+            encoding="utf-8",
+        )
+        smoke.say(
+            f"the old daemon ({seen.hello.get('version')}) has {len(stations)} stations, one message and both radios set"
+        )
+
     run_with_daemon(args, work)
 
 
@@ -183,27 +207,49 @@ def verify(args: argparse.Namespace) -> None:
     expected = json.loads(Path(args.input).read_text(encoding="utf-8"))
 
     def work(base: str) -> None:
-        seen = asyncio.run(follow(base, lambda each: bool(each.hello) and has_message(each) and has_settings(each) and bool(stations_of(each)), args.timeout))
+        seen = asyncio.run(
+            follow(
+                base,
+                lambda each: bool(each.hello) and has_message(each) and has_settings(each) and bool(stations_of(each)),
+                args.timeout,
+            )
+        )
         version = seen.hello.get("version")
         if version != args.version:
-            raise smoke.Failure(f"the daemon says it is {version!r}, not {args.version!r}: the old program is still the one that runs")
+            raise smoke.Failure(
+                f"the daemon says it is {version!r}, not {args.version!r}: the old program is still the one that runs"
+            )
         missing = sorted(set(expected["stations"]) - set(stations_of(seen)))
         if missing:
             raise smoke.Failure(f"stations of the old daemon are gone: {', '.join(missing)}")
-        smoke.say(f"the new daemon ({version}) has the {len(expected['stations'])} stations, the message and the settings of {expected['from_version']}")
+        smoke.say(
+            f"the new daemon ({version}) has the {len(expected['stations'])} stations, the message and the settings of {expected['from_version']}"
+        )
+
     run_with_daemon(args, work)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="What the upgrade check asks of an installed NeoAPRS: seed the old daemon's data, verify the new one's.")
+    parser = argparse.ArgumentParser(
+        description="What the upgrade check asks of an installed NeoAPRS: seed the old daemon's data, verify the new one's."
+    )
     parser.add_argument("action", choices=["seed", "verify"])
     parser.add_argument("--command", required=True, metavar="PATH", help="the neoaprs command")
-    parser.add_argument("--data", required=True, metavar="FOLDER", help="the data folder of the daemon (the same for both)")
+    parser.add_argument(
+        "--data", required=True, metavar="FOLDER", help="the data folder of the daemon (the same for both)"
+    )
     parser.add_argument("--out", metavar="FILE", help="seed: where what the old daemon has is written")
     parser.add_argument("--in", dest="input", metavar="FILE", help="verify: what seed wrote")
     parser.add_argument("--version", metavar="V", help="verify: the version the new daemon must say")
-    parser.add_argument("--capture", default=str(smoke.FIXTURE), metavar="FILE", help="the KISS capture the fake TNC plays; default %(default)s")
-    parser.add_argument("--timeout", type=float, default=90.0, metavar="SEC", help="how long each wait may take; default %(default)s")
+    parser.add_argument(
+        "--capture",
+        default=str(smoke.FIXTURE),
+        metavar="FILE",
+        help="the KISS capture the fake TNC plays; default %(default)s",
+    )
+    parser.add_argument(
+        "--timeout", type=float, default=90.0, metavar="SEC", help="how long each wait may take; default %(default)s"
+    )
     args = parser.parse_args()
     if (args.action == "seed" and not args.out) or (args.action == "verify" and not (args.input and args.version)):
         parser.error("seed needs --out, verify needs --in and --version")

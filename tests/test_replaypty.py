@@ -2,23 +2,26 @@
 what the other end writes is shown while the replay waits, a frame is dropped where nobody reads,
 and Ctrl-C ends it.
 """
+
 import os
 import sys
 from collections.abc import Iterator
 
 import pytest
 
-if sys.platform == "win32":                                          # (the module itself needs pty and termios)
+if sys.platform == "win32":  # (the module itself needs pty and termios)
     pytest.skip("a pseudo-terminal is POSIX only", allow_module_level=True)
 
-from neoaprs.cli import replaypty  # noqa: E402
-from neoaprs.cli.replaypty import Line, play_on_pty  # noqa: E402
-from tests.support.ptyline import Ptys, posix_only  # noqa: E402
+from neoaprs.cli import replaypty
+from neoaprs.cli.replaypty import Line, play_on_pty
+from tests.support.ptyline import Ptys, posix_only
 
 pytestmark = posix_only
 
 
-def test_what_the_other_end_writes_is_shown_while_the_replay_waits(ptys: Ptys, capsys: pytest.CaptureFixture[str]) -> None:
+def test_what_the_other_end_writes_is_shown_while_the_replay_waits(
+    ptys: Ptys, capsys: pytest.CaptureFixture[str]
+) -> None:
     master, path = ptys()
     os.set_blocking(master, False)
     port = os.open(path, os.O_RDWR | os.O_NOCTTY)
@@ -44,13 +47,22 @@ def test_a_frame_goes_to_the_port_that_has_the_line_open(ptys: Ptys, capsys: pyt
     assert "frame 1 sent (5 bytes)" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("error, told", [(BlockingIOError(), "frame 2 dropped: the pseudo-terminal is full, nobody reads it"), (OSError("Input/output error"), "frame 2 not sent: Input/output error")])
-def test_a_frame_that_cannot_be_written_is_told_not_raised(ptys: Ptys, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], error: OSError, told: str) -> None:
+@pytest.mark.parametrize(
+    "error, told",
+    [
+        (BlockingIOError(), "frame 2 dropped: the pseudo-terminal is full, nobody reads it"),
+        (OSError("Input/output error"), "frame 2 not sent: Input/output error"),
+    ],
+)
+def test_a_frame_that_cannot_be_written_is_told_not_raised(
+    ptys: Ptys, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], error: OSError, told: str
+) -> None:
     master, _ = ptys()
     line = Line(master)
 
     def refuse(fd: int, data: bytes) -> int:
         raise error
+
     monkeypatch.setattr(replaypty.os, "write", refuse)
     line.send(b"x", 2)
     assert told in capsys.readouterr().err
@@ -58,8 +70,7 @@ def test_a_frame_that_cannot_be_written_is_told_not_raised(ptys: Ptys, monkeypat
 
 @pytest.fixture
 def close_the_masters(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """play_on_pty never closes its pseudo-terminal (the process ends with Ctrl-C): the test does.
-    """
+    """play_on_pty never closes its pseudo-terminal (the process ends with Ctrl-C): the test does."""
     masters: list[int] = []
     real = os.openpty
 
@@ -67,6 +78,7 @@ def close_the_masters(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         pair = real()
         masters.append(pair[0])
         return pair
+
     monkeypatch.setattr(os, "openpty", openpty)
     yield
     for master in masters:
@@ -94,16 +106,26 @@ class FakeLine:
             raise KeyboardInterrupt
 
 
-def test_the_file_is_played_once_and_the_replay_waits_for_ctrl_c(close_the_masters: None, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_the_file_is_played_once_and_the_replay_waits_for_ctrl_c(
+    close_the_masters: None, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     monkeypatch.setattr(replaypty, "Line", lambda master: FakeLine(master, pauses=3))
     assert play_on_pty([b"a", b"b"], 0.5, loop=False) == 0
     line = FakeLine.made
-    assert line.sent == [(b"a", 1), (b"b", 2)] and line.pauses == [0.5, 0.5, 1.0], "a pause after each frame, then the waiting for Ctrl-C"
+    assert line.sent == [(b"a", 1), (b"b", 2)] and line.pauses == [0.5, 0.5, 1.0], (
+        "a pause after each frame, then the waiting for Ctrl-C"
+    )
     captured = capsys.readouterr()
-    assert captured.out.startswith("/dev/pts/") and "the file is played; Ctrl-C ends it" in captured.err and "replay: stopped" in captured.err
+    assert (
+        captured.out.startswith("/dev/pts/")
+        and "the file is played; Ctrl-C ends it" in captured.err
+        and "replay: stopped" in captured.err
+    )
 
 
-def test_a_looping_replay_plays_the_frames_again_and_again(close_the_masters: None, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_looping_replay_plays_the_frames_again_and_again(
+    close_the_masters: None, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     monkeypatch.setattr(replaypty, "Line", lambda master: FakeLine(master, pauses=5))
     assert play_on_pty([b"a", b"b"], 0.1, loop=True) == 0
     assert FakeLine.made.sent == [(b"a", 1), (b"b", 2), (b"a", 3), (b"b", 4), (b"a", 5)]

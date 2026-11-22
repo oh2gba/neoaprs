@@ -1,6 +1,7 @@
 """Tests for the delivery chain of a message (neoaprs/services/delivery.py, chain.py) with a stub
 Tnc and a real database: copies of our own message heard back are linked to it and to the
 attempt."""
+
 from dataclasses import replace
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from tests.support.clock import FixedClock
 from tests.support.storedb import sql, store_at
 from tests.test_messaging import Rig
 
-SEEN = tuple[int, str, bool]                    # (position, call, via_internet) of a hop that was heard
+SEEN = tuple[int, str, bool]  # (position, call, via_internet) of a hop that was heard
 
 
 class Chain:
@@ -34,15 +35,50 @@ class Chain:
     def clock(self) -> FixedClock:
         return self.rig.clock
 
-    def copy(self, path: str, text: str = "Hello Pekka", msg_id: str | None = "01", to: str = "OH2RDG", source: str = "OH2GBA", ack: str | None = None) -> Packet:
+    def copy(
+        self,
+        path: str,
+        text: str = "Hello Pekka",
+        msg_id: str | None = "01",
+        to: str = "OH2RDG",
+        source: str = "OH2GBA",
+        ack: str | None = None,
+    ) -> Packet:
         """A packet heard from `source` with this path (a star on each address that has been
         repeated, as the radio gave them), a message to `to`."""
-        return Packet(self.clock(), "in", b"", source, "APZNEO", tuple(p for p in path.split(",") if p), b"", Message(to, "" if ack else text, None if ack else msg_id, ack))
+        return Packet(
+            self.clock(),
+            "in",
+            b"",
+            source,
+            "APZNEO",
+            tuple(p for p in path.split(",") if p),
+            b"",
+            Message(to, "" if ack else text, None if ack else msg_id, ack),
+        )
 
-    def gated(self, inner: str, gate: str = "OH7JHF-1", text: str = "Hello Pekka", msg_id: str | None = "01", to: str = "OH2RDG") -> Packet:
+    def gated(
+        self,
+        inner: str,
+        gate: str = "OH7JHF-1",
+        text: str = "Hello Pekka",
+        msg_id: str | None = "01",
+        to: str = "OH2RDG",
+    ) -> Packet:
         """The same message wrapped by an iGate: the frame heard is the gate's, the packet inside is
         ours with `inner` as its path."""
-        return Packet(self.clock(), "in", b"", gate, "APRS", ("OH2RCH-3*",), b"", Message(to, text, msg_id), ThirdParty("OH2GBA", "APZNEO", tuple(p for p in inner.split(",") if p)), "rf-gated")
+        return Packet(
+            self.clock(),
+            "in",
+            b"",
+            gate,
+            "APRS",
+            ("OH2RCH-3*",),
+            b"",
+            Message(to, text, msg_id),
+            ThirdParty("OH2GBA", "APZNEO", tuple(p for p in inner.split(",") if p)),
+            "rf-gated",
+        )
 
     def hear(self, packet: Packet) -> None:
         self.rig.m.on_packet(packet)
@@ -76,8 +112,14 @@ async def test_every_attempt_keeps_the_time_it_was_sent_and_the_path_it_went_by(
     first = chain.clock()
     await chain.rig.m.send("OH2RDG", "Hello Pekka")
     await chain.rig.pass_time(32)
-    assert [(a.number, a.sent_at, a.path, a.seen) for a in chain.rig.m.delivery.attempts_of(1)] == [(1, first, ("OH2RCH-2", "OH2RDG"), ()), (2, chain.clock(), ("OH2RCH-2", "OH2RDG"), ())]
-    assert [row[:2] + row[3:] for row in await chain.rows("message_attempt")] == [(1, 1, "OH2RCH-2,OH2RDG", 1), (1, 2, "OH2RCH-2,OH2RDG", 1)], "the path and the radio of each attempt"
+    assert [(a.number, a.sent_at, a.path, a.seen) for a in chain.rig.m.delivery.attempts_of(1)] == [
+        (1, first, ("OH2RCH-2", "OH2RDG"), ()),
+        (2, chain.clock(), ("OH2RCH-2", "OH2RDG"), ()),
+    ]
+    assert [row[:2] + row[3:] for row in await chain.rows("message_attempt")] == [
+        (1, 1, "OH2RCH-2,OH2RDG", 1),
+        (1, 2, "OH2RCH-2,OH2RDG", 1),
+    ], "the path and the radio of each attempt"
     assert [a.radio_id for a in chain.rig.m.delivery.attempts_of(1)] == [FM_ID, FM_ID], "the id of the radio it went on"
 
 
@@ -86,13 +128,24 @@ async def test_an_attempt_records_the_id_of_whatever_radio_it_went_on_and_the_lo
     delivery = chain.rig.m.delivery
     for number, radio in ((2, HF_ID), (3, 3), (4, None)):
         delivery.sent(replace(record, attempts=number), ("OH2RCH-2",), chain.clock(), radio)
-    assert [a.radio_id for a in delivery.attempts_of(1)] == [FM_ID, HF_ID, 3, None], "the attempt holds the id itself, of a third radio too"
-    assert [row[1:2] + row[3:] for row in await chain.rows("message_attempt")] == [(1, "OH2RCH-2,OH2RDG", 1), (2, "OH2RCH-2", 2), (3, "OH2RCH-2", 3), (4, "OH2RCH-2", None)]
+    assert [a.radio_id for a in delivery.attempts_of(1)] == [FM_ID, HF_ID, 3, None], (
+        "the attempt holds the id itself, of a third radio too"
+    )
+    assert [row[1:2] + row[3:] for row in await chain.rows("message_attempt")] == [
+        (1, "OH2RCH-2,OH2RDG", 1),
+        (2, "OH2RCH-2", 2),
+        (3, "OH2RCH-2", 3),
+        (4, "OH2RCH-2", None),
+    ]
     again = await chain.restarted()
-    assert [a.radio_id for a in again.rig.m.delivery.attempts_of(1)] == [FM_ID, HF_ID, 3, None], "the column is the id: a third radio's attempt comes back as it went"
+    assert [a.radio_id for a in again.rig.m.delivery.attempts_of(1)] == [FM_ID, HF_ID, 3, None], (
+        "the column is the id: a third radio's attempt comes back as it went"
+    )
 
 
-async def test_a_copy_with_the_first_digipeater_used_marks_hop_1_and_a_later_copy_with_the_second_marks_hop_2(chain: Chain) -> None:
+async def test_a_copy_with_the_first_digipeater_used_marks_hop_1_and_a_later_copy_with_the_second_marks_hop_2(
+    chain: Chain,
+) -> None:
     await chain.rig.m.send("OH2RDG", "Hello Pekka")
     chain.clock.advance(2)
     chain.hear(chain.copy("OH2RCH-2*,OH2RDG"))
@@ -102,7 +155,9 @@ async def test_a_copy_with_the_first_digipeater_used_marks_hop_1_and_a_later_cop
     chain.hear(chain.copy("OH2RCH-2*,OH2RDG*"))
     assert chain.seen() == [[(1, "OH2RCH-2", False), (2, "OH2RDG", False)]]
     hops = await chain.rows("message_hop")
-    assert [r[2] for r in hops] == [1, 2] and hops[0][4] < hops[1][4], "each hop has the time of the first copy that showed it"
+    assert [r[2] for r in hops] == [1, 2] and hops[0][4] < hops[1][4], (
+        "each hop has the time of the first copy that showed it"
+    )
 
 
 async def test_a_copy_heard_again_with_nothing_new_changes_nothing_and_tells_nobody(chain: Chain) -> None:
@@ -136,21 +191,31 @@ async def test_an_alias_of_the_path_is_recorded_as_the_call_that_used_it(tmp_pat
 async def test_a_copy_belongs_to_the_latest_attempt_sent_before_it_was_heard(chain: Chain) -> None:
     await chain.rig.m.send("OH2RDG", "Hello Pekka")
     chain.clock.advance(10)
-    chain.hear(chain.copy("OH2RCH-2*,OH2RDG"))                          # (attempt 1)
-    await chain.rig.pass_time(22)                                      # (attempt 2 goes out at 32 s)
+    chain.hear(chain.copy("OH2RCH-2*,OH2RDG"))  # (attempt 1)
+    await chain.rig.pass_time(22)  # (attempt 2 goes out at 32 s)
     chain.clock.advance(1)
     chain.hear(chain.copy("OH2RCH-2*,OH2RDG*"))
     assert chain.seen() == [[(1, "OH2RCH-2", False)], [(1, "OH2RCH-2", False), (2, "OH2RDG", False)]]
 
 
-async def test_a_copy_gated_back_by_an_igate_marks_the_attempt_as_seen_over_the_internet_with_the_gates_call(chain: Chain) -> None:
+async def test_a_copy_gated_back_by_an_igate_marks_the_attempt_as_seen_over_the_internet_with_the_gates_call(
+    chain: Chain,
+) -> None:
     await chain.rig.m.send("OH2RDG", "Hello Pekka")
     chain.hear(chain.gated("TCPIP,OH7JHF-1*"))
-    assert chain.seen() == [[(0, "OH7JHF-1", True)]], "its own path names no hop of ours: only that it came back by the gate"
+    assert chain.seen() == [[(0, "OH7JHF-1", True)]], (
+        "its own path names no hop of ours: only that it came back by the gate"
+    )
     chain.clock.advance(2)
     chain.hear(chain.gated("OH2RCH-2*,OH2RDG*,qAR,OH7JHF-1", gate="OH7JHF-2"))
-    assert chain.seen() == [[(0, "OH7JHF-1", True), (1, "OH2RCH-2", True), (2, "OH2RDG", True)]], "the first gate stays, and the hops the inner path names are marked over the internet"
-    assert [tuple(r)[2:4] + (r[5],) for r in await chain.rows("message_hop")] == [(0, "OH7JHF-1", 1), (1, "OH2RCH-2", 1), (2, "OH2RDG", 1)]
+    assert chain.seen() == [[(0, "OH7JHF-1", True), (1, "OH2RCH-2", True), (2, "OH2RDG", True)]], (
+        "the first gate stays, and the hops the inner path names are marked over the internet"
+    )
+    assert [tuple(r)[2:4] + (r[5],) for r in await chain.rows("message_hop")] == [
+        (0, "OH7JHF-1", 1),
+        (1, "OH2RCH-2", 1),
+        (2, "OH2RDG", 1),
+    ]
 
 
 async def test_a_hop_heard_by_radio_and_over_the_internet_is_kept_for_both(chain: Chain) -> None:
@@ -160,12 +225,29 @@ async def test_a_hop_heard_by_radio_and_over_the_internet_is_kept_for_both(chain
     assert chain.seen() == [[(1, "OH2RCH-2", False), (0, "OH7JHF-1", True), (1, "OH2RCH-2", True)]]
 
 
-@pytest.mark.parametrize("what", ["another addressee", "another id", "another text", "no id", "an ack", "a message from another station", "a message to us"])
+@pytest.mark.parametrize(
+    "what",
+    [
+        "another addressee",
+        "another id",
+        "another text",
+        "no id",
+        "an ack",
+        "a message from another station",
+        "a message to us",
+    ],
+)
 async def test_a_copy_of_anything_but_our_message_is_not_linked(chain: Chain, what: str) -> None:
     await chain.rig.m.send("OH2RDG", "Hello Pekka")
-    packet = {"another addressee": chain.copy("OH2RCH-2*", to="OH2XYZ"), "another id": chain.copy("OH2RCH-2*", msg_id="02"), "another text": chain.copy("OH2RCH-2*", text="Hello Matti"),
-              "no id": chain.copy("OH2RCH-2*", msg_id=None), "an ack": chain.copy("OH2RCH-2*", ack="01"), "a message from another station": chain.copy("OH2RCH-2*", source="OH2XYZ"),
-              "a message to us": chain.copy("OH2RCH-2*", to="OH2GBA")}[what]
+    packet = {
+        "another addressee": chain.copy("OH2RCH-2*", to="OH2XYZ"),
+        "another id": chain.copy("OH2RCH-2*", msg_id="02"),
+        "another text": chain.copy("OH2RCH-2*", text="Hello Matti"),
+        "no id": chain.copy("OH2RCH-2*", msg_id=None),
+        "an ack": chain.copy("OH2RCH-2*", ack="01"),
+        "a message from another station": chain.copy("OH2RCH-2*", source="OH2XYZ"),
+        "a message to us": chain.copy("OH2RCH-2*", to="OH2GBA"),
+    }[what]
     told = len(chain.told)
     chain.hear(packet)
     assert chain.seen() == [[]] and len(chain.told) == told and await chain.rows("message_hop") == []
@@ -203,7 +285,9 @@ async def test_a_message_that_is_deleted_takes_its_chain_with_it_and_another_mes
     chain.hear(chain.copy("OH2RCH-2*", to="OH2AAA", text="Second", msg_id="02"))
     assert len(await chain.rows("message_hop")) == 2
     await chain.rig.m.delete(1)
-    assert [tuple(r)[:2] for r in await chain.rows("message_hop")] == [(2, 1)] and [tuple(r)[:2] for r in await chain.rows("message_attempt")] == [(2, 1)]
+    assert [tuple(r)[:2] for r in await chain.rows("message_hop")] == [(2, 1)] and [
+        tuple(r)[:2] for r in await chain.rows("message_attempt")
+    ] == [(2, 1)]
     assert chain.rig.m.delivery.attempts_of(1) == ()
 
 
@@ -213,7 +297,9 @@ async def test_a_conversation_that_is_deleted_takes_the_chains_of_its_messages_w
     chain.hear(chain.copy("OH2RCH-2*,OH2RDG"))
     chain.hear(chain.copy("OH2RCH-2*", to="OH2AAA", text="Other station", msg_id="02"))
     assert await chain.rig.m.delete_conversation("OH2RDG") == 1
-    assert [tuple(r)[:2] for r in await chain.rows("message_hop")] == [(2, 1)] and [tuple(r)[:2] for r in await chain.rows("message_attempt")] == [(2, 1)]
+    assert [tuple(r)[:2] for r in await chain.rows("message_hop")] == [(2, 1)] and [
+        tuple(r)[:2] for r in await chain.rows("message_attempt")
+    ] == [(2, 1)]
 
 
 async def test_a_message_that_is_sent_again_starts_a_new_chain(chain: Chain) -> None:

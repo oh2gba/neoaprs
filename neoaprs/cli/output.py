@@ -1,10 +1,11 @@
 """Messages for people go to stderr, so that stdout (a port, a table) stays usable by scripts."""
+
 import signal
 import sys
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
 
-SETTLE_SEC = 0.5                    # opening a serial port may clear its input buffer
+SETTLE_SEC = 0.5  # opening a serial port may clear its input buffer
 
 
 def ctrl_break_is_ctrl_c() -> None:

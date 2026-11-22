@@ -1,6 +1,7 @@
 """The radio a message of ours goes out on (neoaprs/messagerule.py), as a table: the operator's
 choice while its radio is on, the radio heard most recently within six hours, and the fallbacks.
 """
+
 from datetime import datetime, timedelta
 
 import pytest
@@ -21,12 +22,25 @@ def ago(hours: float) -> datetime:
 MONITOR = 5
 
 
-def radios(*off: RadioId, removed: tuple[RadioId, ...] = (), order: tuple[RadioId, ...] = (FM_ID, HF_ID, FM2, LORA)) -> tuple[RadioSpec, ...]:
+def radios(
+    *off: RadioId, removed: tuple[RadioId, ...] = (), order: tuple[RadioId, ...] = (FM_ID, HF_ID, FM2, LORA)
+) -> tuple[RadioSpec, ...]:
     """FM (1), HF (2), a second FM radio (3), a LoRa radio (4) and a monitor that only receives (5,
     where `order` names it), by position in `order`; those in `off` not enabled, those in `removed`
     removed."""
-    kinds = {FM_ID: ("fm", "kiss"), HF_ID: ("hf", "mercury"), FM2: ("fm", "kiss"), LORA: ("lora", "dummy-lora"), MONITOR: ("fm", "tnc-text")}
-    return tuple(RadioSpec(id, kinds[id][0], kinds[id][1], "", id not in off, order.index(id) + 1, ago(100) if id in removed else None) for id in order)
+    kinds = {
+        FM_ID: ("fm", "kiss"),
+        HF_ID: ("hf", "mercury"),
+        FM2: ("fm", "kiss"),
+        LORA: ("lora", "dummy-lora"),
+        MONITOR: ("fm", "tnc-text"),
+    }
+    return tuple(
+        RadioSpec(
+            id, kinds[id][0], kinds[id][1], "", id not in off, order.index(id) + 1, ago(100) if id in removed else None
+        )
+        for id in order
+    )
 
 
 def heard(**by: float | None) -> dict[RadioId, RadioHeard]:
@@ -56,16 +70,52 @@ CASES = [
     ("neither within six hours, FM later", None, heard(fm=7, hf=9), FM_HF, FM_ID),
     ("two local radios within the time: the one heard later", None, heard(fm=3, fm2=1, hf=0.1), radios(LORA), FM2),
     ("LoRa is a local kind too", None, heard(lora=2, hf=0.1), radios(FM_ID, FM2), LORA),
-    ("at the same moment: a local kind first", None, {FM_ID: RadioHeard(1, ago(1)), HF_ID: RadioHeard(1, ago(1))}, FM_HF, FM_ID),
-    ("at the same moment over six hours ago, HF first by position: a local kind first", None, {FM_ID: RadioHeard(1, ago(8)), HF_ID: RadioHeard(1, ago(8))}, radios(FM2, LORA, order=(HF_ID, FM_ID, FM2, LORA)), FM_ID),
-    ("at the same moment on two FM radios: the first by position", None, heard(fm=1, fm2=1), radios(HF_ID, LORA, order=(FM2, FM_ID, HF_ID, LORA)), FM2),
+    (
+        "at the same moment: a local kind first",
+        None,
+        {FM_ID: RadioHeard(1, ago(1)), HF_ID: RadioHeard(1, ago(1))},
+        FM_HF,
+        FM_ID,
+    ),
+    (
+        "at the same moment over six hours ago, HF first by position: a local kind first",
+        None,
+        {FM_ID: RadioHeard(1, ago(8)), HF_ID: RadioHeard(1, ago(8))},
+        radios(FM2, LORA, order=(HF_ID, FM_ID, FM2, LORA)),
+        FM_ID,
+    ),
+    (
+        "at the same moment on two FM radios: the first by position",
+        None,
+        heard(fm=1, fm2=1),
+        radios(HF_ID, LORA, order=(FM2, FM_ID, HF_ID, LORA)),
+        FM2,
+    ),
     ("heard with no time: heard, but not lately", None, heard(fm=None, hf=8), FM_HF, HF_ID),
     ("heard on no radio with a time", None, heard(fm=None, hf=None), FM_HF, FM_ID),
     ("never heard: the first radio that can send, in the order of the boxes", None, {}, FM_HF, FM_ID),
     ("never heard, HF's box the first", None, {}, radios(FM2, LORA, order=(HF_ID, FM_ID, FM2, LORA)), HF_ID),
-    ("never heard, the first box off: the next that is on", None, {}, radios(HF_ID, order=(HF_ID, LORA, FM_ID, FM2)), LORA),
-    ("never heard, the first box removed: the next that is on", None, {}, radios(removed=(FM2,), order=(FM2, HF_ID, FM_ID, LORA)), HF_ID),
-    ("never heard, the first box a monitor that only receives: the first that can send", None, {}, radios(FM2, order=(MONITOR, LORA, FM_ID, HF_ID, FM2)), LORA),
+    (
+        "never heard, the first box off: the next that is on",
+        None,
+        {},
+        radios(HF_ID, order=(HF_ID, LORA, FM_ID, FM2)),
+        LORA,
+    ),
+    (
+        "never heard, the first box removed: the next that is on",
+        None,
+        {},
+        radios(removed=(FM2,), order=(FM2, HF_ID, FM_ID, LORA)),
+        HF_ID,
+    ),
+    (
+        "never heard, the first box a monitor that only receives: the first that can send",
+        None,
+        {},
+        radios(FM2, order=(MONITOR, LORA, FM_ID, HF_ID, FM2)),
+        LORA,
+    ),
     ("heard only on a radio that is off: as never heard", None, heard(hf=0.1), radios(HF_ID, LORA), FM_ID),
     ("one enabled radio: that one, whatever is chosen", HF_ID, heard(hf=0.1), radios(HF_ID, FM2, LORA), FM_ID),
     ("one enabled radio: that one, whatever heard the station", None, heard(fm=0.1), radios(FM_ID, FM2, LORA), HF_ID),
@@ -74,7 +124,13 @@ CASES = [
 
 
 @pytest.mark.parametrize(("case", "choice", "seen", "specs", "expected"), CASES, ids=[case[0] for case in CASES])
-def test_the_radio_of_a_message(case: str, choice: RadioId | None, seen: dict[RadioId, RadioHeard], specs: tuple[RadioSpec, ...], expected: RadioId | None) -> None:
+def test_the_radio_of_a_message(
+    case: str,
+    choice: RadioId | None,
+    seen: dict[RadioId, RadioHeard],
+    specs: tuple[RadioSpec, ...],
+    expected: RadioId | None,
+) -> None:
     assert pick(choice, seen, specs) == expected, case
 
 
@@ -83,7 +139,9 @@ def test_the_radio_of_a_call_no_radio_heard_is_the_first_that_can_send_in_the_or
     "Automatic: NAME" before Send)."""
     boxes = radios(FM2, order=(MONITOR, LORA, FM_ID, HF_ID, FM2))
     assert unheard_radio(boxes) == LORA
-    assert unheard_radio(radios(FM_ID, HF_ID, FM2, LORA)) is None and unheard_radio(()) is None, "no radio that can send: none"
+    assert unheard_radio(radios(FM_ID, HF_ID, FM2, LORA)) is None and unheard_radio(()) is None, (
+        "no radio that can send: none"
+    )
     for specs in (ALL, FM_HF, boxes):
         assert pick(None, {}, specs) == unheard_radio(specs), "a call never heard, by the rule"
 
@@ -93,9 +151,15 @@ def test_the_six_hours_are_counted_from_now_to_the_minute() -> None:
     assert pick(None, heard(fm=inside, hf=0.1), FM_HF) == FM_ID
     assert pick(None, heard(fm=outside, hf=0.1), FM_HF) == HF_ID
     six = NOW - timedelta(hours=MESSAGE_RADIO_RECENT_HOURS)
-    assert pick(None, {FM_ID: RadioHeard(1, six), HF_ID: RadioHeard(1, ago(0.1))}, FM_HF) == FM_ID, "heard six hours ago to the second: within"
-    assert pick(None, {FM_ID: RadioHeard(1, six - timedelta(seconds=1)), HF_ID: RadioHeard(1, ago(0.1))}, FM_HF) == HF_ID, "a second more: not"
-    assert pick(None, {FM_ID: RadioHeard(1, NOW + timedelta(minutes=5)), HF_ID: RadioHeard(1, ago(0.1))}, FM_HF) == FM_ID, "a time after now (a clock that stepped back) is recent"
+    assert pick(None, {FM_ID: RadioHeard(1, six), HF_ID: RadioHeard(1, ago(0.1))}, FM_HF) == FM_ID, (
+        "heard six hours ago to the second: within"
+    )
+    assert (
+        pick(None, {FM_ID: RadioHeard(1, six - timedelta(seconds=1)), HF_ID: RadioHeard(1, ago(0.1))}, FM_HF) == HF_ID
+    ), "a second more: not"
+    assert (
+        pick(None, {FM_ID: RadioHeard(1, NOW + timedelta(minutes=5)), HF_ID: RadioHeard(1, ago(0.1))}, FM_HF) == FM_ID
+    ), "a time after now (a clock that stepped back) is recent"
 
 
 def test_today_two_radios_choose_as_before_while_the_station_was_heard_lately() -> None:
@@ -118,15 +182,31 @@ STOOD_IN = [
     ("Route names another radio: HF still stood in", HF_ID, FM2, heard(fm=1), ago(2), True),
     ("never heard by any radio: the first that can send, the rule's choice", HF_ID, None, {}, None, False),
     ("in the book from the internet alone: as never heard", HF_ID, None, {}, ago(2), False),
-    ("first heard after the radio was given: the radio of a station never heard then", HF_ID, None, heard(fm=0.5), ago(0.5), False),
+    (
+        "first heard after the radio was given: the radio of a station never heard then",
+        HF_ID,
+        None,
+        heard(fm=0.5),
+        ago(0.5),
+        False,
+    ),
     ("first heard when the radio was given, to the second: heard by then", HF_ID, None, heard(fm=1), ago(1), True),
     ("heard on a radio of any kind: FM stood in for LoRa", FM_ID, None, heard(lora=3), ago(3), True),
     ("a count of 0 is not heard", HF_ID, None, {FM_ID: RadioHeard(0, ago(2))}, ago(2), False),
 ]
 
 
-@pytest.mark.parametrize(("case", "radio", "choice", "seen", "known", "expected"), STOOD_IN, ids=[case[0] for case in STOOD_IN])
-def test_a_radio_that_only_stood_in_for_the_stations_own(case: str, radio: RadioId, choice: RadioId | None, seen: dict[RadioId, RadioHeard], known: datetime | None, expected: bool) -> None:
+@pytest.mark.parametrize(
+    ("case", "radio", "choice", "seen", "known", "expected"), STOOD_IN, ids=[case[0] for case in STOOD_IN]
+)
+def test_a_radio_that_only_stood_in_for_the_stations_own(
+    case: str,
+    radio: RadioId,
+    choice: RadioId | None,
+    seen: dict[RadioId, RadioHeard],
+    known: datetime | None,
+    expected: bool,
+) -> None:
     """The radio a message was given an hour ago (messagerule.stood_in), from what each radio heard
     of the station and when the station was first in the book."""
     assert stood_in(radio, choice, seen, known, ago(1)) is expected, case

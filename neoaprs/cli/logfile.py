@@ -1,6 +1,7 @@
 """The log lines and files the daemon writes so that commands can find it, and their formats.
 
 The daemon writes them, commands read them, and only this module knows their format."""
+
 import os
 import re
 from pathlib import Path
@@ -66,7 +67,7 @@ def page_of_the_run_before(data_dir: Path) -> str | None:
     except OSError:
         return None
     if cut:
-        text = text[text.find(b"\n") + 1:]                   # drop the partial first line
+        text = text[text.find(b"\n") + 1 :]  # drop the partial first line
     starts = [found.start() for found in RUN_START.finditer(text)]
     if not starts:
         return None

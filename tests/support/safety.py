@@ -1,6 +1,7 @@
 """Shared by the safety tests: a database connection that fails on demand, and a second connection
 that sees only what is committed.
 """
+
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,7 @@ class FaultyConnection(sqlite3.Connection):
     `fail_at`: the number of the statement (1 is the next one) or None; `sticky`: every statement
     from that one on fails (the disk stays full), but not the ROLLBACK, which needs no space;
     `statements`: how many were issued, `log`: their text."""
+
     fail_at: int | None = None
     sticky: bool = False
     message: str = "database or disk is full"
@@ -33,7 +35,10 @@ class FaultyConnection(sqlite3.Connection):
             self.log = []
         self.statements += 1
         self.log.append(" ".join(sql.split())[:80])
-        if self.fail_at is not None and (self.statements == self.fail_at or (self.sticky and self.statements > self.fail_at and not sql.lstrip().upper().startswith("ROLLBACK"))):
+        if self.fail_at is not None and (
+            self.statements == self.fail_at
+            or (self.sticky and self.statements > self.fail_at and not sql.lstrip().upper().startswith("ROLLBACK"))
+        ):
             raise Injected(self.message)
 
     def execute(self, sql: str, *args: Any) -> sqlite3.Cursor:

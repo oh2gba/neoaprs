@@ -9,24 +9,52 @@ and the modules the desktop app imports. Qt libraries stay only if a kept file n
   prune.py --macos RESOURCES      scripts/build-macos-app: Contents/Resources, Qt as frameworks and .dylib plugins
 
 On Linux the shared libpython and `_dbm` go too; the macOS launcher needs libpython."""
+
 import re
 import shutil
 import sys
 from pathlib import Path
 
 # Modules the web engine's module imports in turn.
-PYTHON_MODULES = {"QtCore", "QtGui", "QtWidgets", "QtNetwork", "QtWebEngineCore", "QtWebEngineWidgets", "QtWebChannel", "QtPrintSupport"}
+PYTHON_MODULES = {
+    "QtCore",
+    "QtGui",
+    "QtWidgets",
+    "QtNetwork",
+    "QtWebEngineCore",
+    "QtWebEngineWidgets",
+    "QtWebChannel",
+    "QtPrintSupport",
+}
 PLUGINS = {
     "platforms": {"libqxcb.so", "libqoffscreen.so", "libqwayland.so"},
-    "platformthemes": None, "platforminputcontexts": {"libcomposeplatforminputcontextplugin.so", "libibusplatforminputcontextplugin.so"},
-    "imageformats": {"libqgif.so", "libqico.so", "libqjpeg.so", "libqsvg.so", "libqwebp.so"}, "iconengines": None, "tls": None, "networkinformation": None,
-    "xcbglintegrations": None, "wayland-decoration-client": None, "wayland-graphics-integration-client": None, "wayland-shell-integration": None,
-# Plugin folder -> files that stay (None: all). egldeviceintegrations: only eglfs loads it.
+    "platformthemes": None,
+    "platforminputcontexts": {"libcomposeplatforminputcontextplugin.so", "libibusplatforminputcontextplugin.so"},
+    "imageformats": {"libqgif.so", "libqico.so", "libqjpeg.so", "libqsvg.so", "libqwebp.so"},
+    "iconengines": None,
+    "tls": None,
+    "networkinformation": None,
+    "xcbglintegrations": None,
+    "wayland-decoration-client": None,
+    "wayland-graphics-integration-client": None,
+    "wayland-shell-integration": None,
+    # Plugin folder -> files that stay (None: all). egldeviceintegrations: only eglfs loads it.
 }
 MAC_PLUGINS = {
-    "platforms": {"libqcocoa.dylib", "libqoffscreen.dylib"}, "styles": None,
-    "imageformats": {"libqgif.dylib", "libqicns.dylib", "libqico.dylib", "libqjpeg.dylib", "libqsvg.dylib", "libqwebp.dylib"}, "iconengines": None, "tls": None, "networkinformation": None,
-# The same for macOS: .dylib plugins, Cocoa only.
+    "platforms": {"libqcocoa.dylib", "libqoffscreen.dylib"},
+    "styles": None,
+    "imageformats": {
+        "libqgif.dylib",
+        "libqicns.dylib",
+        "libqico.dylib",
+        "libqjpeg.dylib",
+        "libqsvg.dylib",
+        "libqwebp.dylib",
+    },
+    "iconengines": None,
+    "tls": None,
+    "networkinformation": None,
+    # The same for macOS: .dylib plugins, Cocoa only.
 }
 # The web engine falls back to this locale.
 LOCALE = "en-US.pak"
@@ -49,14 +77,27 @@ def prune_python(usr: Path, macos: bool = False) -> None:
         remove(lib / name)
     for path in list(lib.glob("lib-dynload/_tkinter*")) + list(lib.glob("config-3.13-*")):
         remove(path)
-    patterns = ["lib/tcl*", "lib/tk*", "lib/itcl*", "lib/thread*", "lib/libtcl*", "lib/pkgconfig", "include", "share", "bin/python*-config", "lib/python3.13/site-packages/pip-*"]
+    patterns = [
+        "lib/tcl*",
+        "lib/tk*",
+        "lib/itcl*",
+        "lib/thread*",
+        "lib/libtcl*",
+        "lib/pkgconfig",
+        "include",
+        "share",
+        "bin/python*-config",
+        "lib/python3.13/site-packages/pip-*",
+    ]
     if not macos:
         patterns += ["lib/libpython3*", "lib/python3.13/lib-dynload/_dbm*"]
     for pattern in patterns:
         for path in usr.glob(pattern):
             remove(path)
     site = lib / "site-packages"
-    for path in list(lib.rglob("__pycache__")) + [p for p in site.rglob("*") if p.is_dir() and p.name in ("test", "tests")]:
+    for path in list(lib.rglob("__pycache__")) + [
+        p for p in site.rglob("*") if p.is_dir() and p.name in ("test", "tests")
+    ]:
         remove(path)
     for path in list(site.rglob("*.pyi")):
         remove(path)
@@ -145,7 +186,17 @@ def prune_frameworks(site: Path, qt: Path) -> None:
     """Remove every framework in Qt's lib/ that no kept file names, directly or through another."""
     frameworks = {path.name: path for path in (qt / "lib").glob("*.framework")}
     dylibs = {path.name: path for folder in (site / "PySide6", site / "shiboken6") for path in folder.glob("*.dylib")}
-    roots = [p for pattern in ("PySide6/*.so", "PySide6/Qt/plugins/**/*.dylib", "shiboken6/*.so", "shiboken6/*.dylib", "PySide6/*.dylib") for p in site.glob(pattern)]
+    roots = [
+        p
+        for pattern in (
+            "PySide6/*.so",
+            "PySide6/Qt/plugins/**/*.dylib",
+            "shiboken6/*.so",
+            "shiboken6/*.dylib",
+            "PySide6/*.dylib",
+        )
+        for p in site.glob(pattern)
+    ]
     needed: set[str] = set()
     todo = list(roots)
     while todo:
@@ -156,7 +207,11 @@ def prune_frameworks(site: Path, qt: Path) -> None:
             if found in frameworks:
                 needed.add(found)
                 current = frameworks[found] / "Versions" / "A"
-                todo.extend(p for p in (current / found.removesuffix(".framework"), *current.glob("Helpers/**/*")) if p.is_file())
+                todo.extend(
+                    p
+                    for p in (current / found.removesuffix(".framework"), *current.glob("Helpers/**/*"))
+                    if p.is_file()
+                )
             elif found in dylibs:
                 needed.add(found)
                 todo.append(dylibs[found])
@@ -170,7 +225,11 @@ def prune_libraries(site: Path, qt: Path) -> None:
     libs = {path.name: path for path in (qt / "lib").iterdir()}
     for other in (site / "PySide6" / "lib", site / "shiboken6"):
         libs.update({path.name: path for path in other.glob("lib*.so*")})
-    roots = [p for pattern in ("PySide6/*.so", "PySide6/Qt/plugins/**/*.so", "PySide6/Qt/libexec/*", "shiboken6/*.so") for p in site.glob(pattern)]
+    roots = [
+        p
+        for pattern in ("PySide6/*.so", "PySide6/Qt/plugins/**/*.so", "PySide6/Qt/libexec/*", "shiboken6/*.so")
+        for p in site.glob(pattern)
+    ]
     needed: set[str] = set()
     todo = list(roots)
     while todo:

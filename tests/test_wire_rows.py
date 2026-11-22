@@ -2,6 +2,7 @@
 every kind is held to a golden file (tests/fixtures/wire/rows.json), and every row to its model.
 Change the wire on purpose, then rewrite the file with `python -m tests.test_wire_rows`.
 """
+
 import json
 from typing import Any
 
@@ -26,7 +27,17 @@ from tests.support.files import FIXTURES
 
 GOLDEN = FIXTURES / "wire" / "rows.json"
 MODELS = {
-    "stations": StationRow, "packets": PacketRow, "messages": MessageRow, "bulletins": BulletinRow, "own_objects": OwnObjectRow, "own_bulletins": OwnBulletinRow, "station_prefs": StationPref, "station_keys": StationKey, "gps": GpsState, "igate": IgateState, "qru": QruState,
+    "stations": StationRow,
+    "packets": PacketRow,
+    "messages": MessageRow,
+    "bulletins": BulletinRow,
+    "own_objects": OwnObjectRow,
+    "own_bulletins": OwnBulletinRow,
+    "station_prefs": StationPref,
+    "station_keys": StationKey,
+    "gps": GpsState,
+    "igate": IgateState,
+    "qru": QruState,
 }
 
 
@@ -77,9 +88,26 @@ def test_every_row_of_the_world_is_a_row_of_its_model(topic: str) -> None:
 def test_the_world_has_a_row_of_every_kind() -> None:
     rows = as_json()
     stations = rows["stations"].values()
-    assert {s["kind"] for s in stations} == {"station", "object", "item"} and any(s["own"] for s in stations) and any(s["is_me"] for s in stations)
-    assert any(s["weather"] for s in stations) and any(s["telemetry"] for s in stations) and any(s["locator"] for s in stations) and any(s["extensions"] for s in stations)
-    assert {p["decoded"]["type"] for p in rows["packets"].values()} >= {"position", "message", "object", "item", "status", "other", "undecoded"}
+    assert (
+        {s["kind"] for s in stations} == {"station", "object", "item"}
+        and any(s["own"] for s in stations)
+        and any(s["is_me"] for s in stations)
+    )
+    assert (
+        any(s["weather"] for s in stations)
+        and any(s["telemetry"] for s in stations)
+        and any(s["locator"] for s in stations)
+        and any(s["extensions"] for s in stations)
+    )
+    assert {p["decoded"]["type"] for p in rows["packets"].values()} >= {
+        "position",
+        "message",
+        "object",
+        "item",
+        "status",
+        "other",
+        "undecoded",
+    }
     assert {m["state"] for m in rows["messages"].values()} == {"acked", "failed", "sending", "received", "overheard"}
     assert {o["state"] for o in rows["own_objects"].values()} == {"live", "killing"}
 
@@ -90,6 +118,7 @@ def test_a_field_the_model_does_not_have_is_refused_and_a_field_the_object_does_
 
     class Short:
         wind_dir = 1
+
     with pytest.raises(AttributeError):
         WeatherValues.row(Short())
 
@@ -102,6 +131,7 @@ def test_the_helper_makes_times_text_and_tuples_lists() -> None:
     class Thing:
         at = wireworld.T0
         path = ("A", "B*")
+
     assert Model.row(Thing()) == {"at": "2026-10-21T12:00:00Z", "path": ["A", "B*"]}
 
 

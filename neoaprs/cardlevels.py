@@ -3,6 +3,7 @@
 The values of `tx_card` and `rx_card` are put on the card at every modem start and on change;
 the card is polled while the radio runs. Playback is the radio's only while `tx_gain_db` is 0.
 """
+
 import asyncio
 import logging
 import sys
@@ -22,7 +23,13 @@ NO_DEVICES = "the sound cards' own levels are not read or set"
 
 
 class CardLevels:
-    def __init__(self, card: Callable[[], str], starts: Callable[[], int], mixer: Mixer | None = None, own: Callable[[], bool] = lambda: True) -> None:
+    def __init__(
+        self,
+        card: Callable[[], str],
+        starts: Callable[[], int],
+        mixer: Mixer | None = None,
+        own: Callable[[], bool] = lambda: True,
+    ) -> None:
         self._card, self._starts = card, starts  # the modem's card; modem start count
         self._own = own  # whether the radio has a card of its own
         self._mixer = mixer or SystemMixer()
@@ -63,7 +70,9 @@ class CardLevels:
         """Set a changed value on the card at once."""
         before, self._wanted = self._wanted, (tx, rx)
         if (tx, rx) != before and self._put_on is not None:
-            self._tasks.spawn(self._write(tx if tx != before[0] else None, rx if rx != before[1] else None), "card-levels-set")
+            self._tasks.spawn(
+                self._write(tx if tx != before[0] else None, rx if rx != before[1] else None), "card-levels-set"
+            )
 
     async def round(self) -> None:
         """Put the values on the card after a modem start or card change, else read the card."""
@@ -71,7 +80,11 @@ class CardLevels:
         if card and (card, starts) != self._put_on:
             self._put_on, self._asked = (card, starts), {}
             if self._wanted != (None, None):
-                log.info("the sound card %s is set to the radio's levels (playback %s, capture %s)", card, *(f"{v} %" if v is not None else "as it is" for v in self._wanted))
+                log.info(
+                    "the sound card %s is set to the radio's levels (playback %s, capture %s)",
+                    card,
+                    *(f"{v} %" if v is not None else "as it is" for v in self._wanted),
+                )
             await self._write(*self._wanted)
         elif card:
             self._show(self._said(await self._call(card, lambda: self._mixer.read(card))), card)
@@ -92,7 +105,9 @@ class CardLevels:
             except Exception:
                 if card not in self._faulted:
                     self._faulted.add(card)
-                    log.info("the own levels of the sound card %s could not be had: it has no sliders", card, exc_info=True)
+                    log.info(
+                        "the own levels of the sound card %s could not be had: it has no sliders", card, exc_info=True
+                    )
                 return NONE
 
     def _said(self, levels: Levels) -> Levels:
@@ -109,7 +124,9 @@ class CardLevels:
         if not card:
             return
         if card == self._of:
-            levels = Levels(self.levels.tx if levels.tx is None else levels.tx, self.levels.rx if levels.rx is None else levels.rx)
+            levels = Levels(
+                self.levels.tx if levels.tx is None else levels.tx, self.levels.rx if levels.rx is None else levels.rx
+            )
         self._of = card
         if levels != self.levels or not self.read:
             self.levels, self.read = levels, True
@@ -150,4 +167,3 @@ class SystemMixer:
     def write(self, card: str, tx: int | None, rx: int | None) -> Levels:
         mixer = self._system()
         return NONE if mixer is None or not card else mixer.write(card, tx, rx)
-

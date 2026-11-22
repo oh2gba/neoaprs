@@ -1,6 +1,7 @@
 """Messaging (neoaprs/services/messaging.py) on stub radios, a real message log and a held clock:
 message and ack bytes, checks, ids, the attempt schedule, acks and rejects, retry and cancel.
 """
+
 import asyncio
 import logging
 from collections.abc import Callable
@@ -95,7 +96,9 @@ class StubPick:
     settings choose (`email/radio`) while it is on, else on radio 1 while it is on, else on the
     first. `lines[id]` is the stub line of each radio."""
 
-    def __init__(self, radios: list[LineAir], hf_stations: tuple[str, ...] = (), chosen: dict[str, RadioId] | None = None) -> None:
+    def __init__(
+        self, radios: list[LineAir], hf_stations: tuple[str, ...] = (), chosen: dict[str, RadioId] | None = None
+    ) -> None:
         self.radios, self.hf_stations = radios, hf_stations
         self.chosen = chosen if chosen is not None else {}
         self.on: set[RadioId] = {radio.id for radio in radios}
@@ -118,8 +121,7 @@ class StubPick:
         return next(iter(self.enabled()), None)
 
     def choice(self, call: str) -> RadioId | None:
-        """The operator's radio for the station, as stored (the registry's StationChoices.choice).
-        """
+        """The operator's radio for the station, as stored (the registry's StationChoices.choice)."""
         return self.chosen.get(call)
 
     def for_station(self, call: str) -> LineAir | None:
@@ -155,17 +157,34 @@ def pick_of(rig: ServiceRig, hf: StubTnc | None = None) -> StubPick:
 
 
 class Rig(ServiceRig):
-    def __init__(self, log: MessageLog, clock: FixedClock, tnc: StubTnc | None = None, spacing_sec: float = 0.0, keyring: Keyring | None = None, **changes: object) -> None:
+    def __init__(
+        self,
+        log: MessageLog,
+        clock: FixedClock,
+        tnc: StubTnc | None = None,
+        spacing_sec: float = 0.0,
+        keyring: Keyring | None = None,
+        **changes: object,
+    ) -> None:
         super().__init__(clock, tnc, **changes)
         self.log = log
         # How the packets of each station reached us (the station book's, here by hand)
         self.deliveries: dict[str, Deliveries] = {}
         self.prefs = PrefBook(log, lambda: self.config, self.deliveries.get, clock)
-        self.board: list[tuple[Packet, Message]] = []                   # what messaging handed to the message board
+        self.board: list[tuple[Packet, Message]] = []  # what messaging handed to the message board
         # The station's radios as the registry gives them: the stub line's radio
         self.radios = pick_of(self)
-        self.m = Messaging(self.radios, lambda: self.config, log, self.prefs.path_for, clock, tick_sec=TICK, board=lambda packet, message: self.board.append((packet, message)),
-                        spacing_sec=spacing_sec, keyring=keyring)
+        self.m = Messaging(
+            self.radios,
+            lambda: self.config,
+            log,
+            self.prefs.path_for,
+            clock,
+            tick_sec=TICK,
+            board=lambda packet, message: self.board.append((packet, message)),
+            spacing_sec=spacing_sec,
+            keyring=keyring,
+        )
         remember_stop(self.m.stop)
         self.record(self.m)
 
@@ -193,13 +212,28 @@ class Rig(ServiceRig):
         self.clock.advance(seconds)
         await idle_for(TICK * 6)
 
-    def heard(self, source: str, addressee: str, text: str = "", msg_id: str | None = None, ack: str | None = None, rej: str | None = None, direction: str = "in",
-              reply: str | None = None) -> Packet:
+    def heard(
+        self,
+        source: str,
+        addressee: str,
+        text: str = "",
+        msg_id: str | None = None,
+        ack: str | None = None,
+        rej: str | None = None,
+        direction: str = "in",
+        reply: str | None = None,
+    ) -> Packet:
         """A packet of a message heard: `reply` is the reply-ack part of its number
         (`{msg_id}reply`; "" for `{msg_id}`), and the information field is what the air would have
         had."""
         decoded = Message(addressee, text, msg_id, ack, rej)
-        line = f"ack{ack}" if ack is not None else f"rej{rej}" if rej is not None else text + ("" if msg_id is None else f"{{{msg_id}" + ("" if reply is None else f"}}{reply}"))
+        line = (
+            f"ack{ack}"
+            if ack is not None
+            else f"rej{rej}"
+            if rej is not None
+            else text + ("" if msg_id is None else f"{{{msg_id}" + ("" if reply is None else f"}}{reply}"))
+        )
         info = f":{addressee:<9}:{line}".encode()
         return Packet(self.clock(), direction, b"", source, "APRS", ("WIDE1*", "OH2RCH-2*", "WIDE2-2"), info, decoded)  # type: ignore[arg-type]
 
@@ -227,28 +261,39 @@ async def rig(tmp_path: Path) -> Rig:
 def give(monkeypatch: pytest.MonkeyPatch) -> Callable[[int], None]:
     """Gives the messages sent from now on `count` attempts: the count of a message an earlier
     version sent is any of 1 to 10, and the code decides only 4 and 2."""
+
     def make(count: int) -> None:
         monkeypatch.setattr(messaging_module, "attempts_for", lambda to: count)
+
     return make
 
 
 @pytest.fixture
 def another(rig: Rig) -> Callable[..., Rig]:
     """A second messaging on the same database, as after a restart of the daemon."""
+
     def make(**changes: object) -> Rig:
         return Rig(rig.log, rig.clock, rig.tnc, **changes)
+
     return make
 
 
 # ---- sending -------------------------------------------------------------------------------------
 
+
 async def test_a_message_goes_out_at_once_as_the_frame_the_settings_make_and_is_kept_as_sending(rig: Rig) -> None:
     record = await rig.m.send("oh2rdg", "Hello Pekka")
     assert rig.tnc.lines() == [WORKED]
     [frame] = rig.tnc.sent
-    assert frame.info == b":OH2RDG   :Hello Pekka{01}" and frame.is_ui and (str(frame.source), str(frame.destination), frame.path_text) == ("OH2GBA", "APZNEO", "WIDE1-1,WIDE2-1")
+    assert (
+        frame.info == b":OH2RDG   :Hello Pekka{01}"
+        and frame.is_ui
+        and (str(frame.source), str(frame.destination), frame.path_text) == ("OH2GBA", "APZNEO", "WIDE1-1,WIDE2-1")
+    )
     assert ax25.decode(ax25.encode(frame)) == frame
-    assert record == MessageRecord(1, rig.clock(), "out", "OH2GBA", "OH2RDG", "Hello Pekka", "01", "sending", 1, rig.clock())
+    assert record == MessageRecord(
+        1, rig.clock(), "out", "OH2GBA", "OH2RDG", "Hello Pekka", "01", "sending", 1, rig.clock()
+    )
     await rig.settled()
     assert await rig.log.recent() == [record]
 
@@ -272,7 +317,9 @@ async def test_the_message_ids_go_01_02_03_and_on_after_a_restart(rig: Rig, anot
     await restarted.m.stop()
 
 
-async def test_the_ids_are_two_characters_01_to_99_then_a0_to_zz_and_go_round_past_those_still_being_sent(rig: Rig) -> None:
+async def test_the_ids_are_two_characters_01_to_99_then_a0_to_zz_and_go_round_past_those_still_being_sent(
+    rig: Rig,
+) -> None:
     await rig.log.insert(MessageRecord(0, rig.clock(), "out", "OH2GBA", "OH2XYZ", "pending", "01", "sending"))
     await rig.log.insert(MessageRecord(0, rig.clock(), "out", "OH2GBA", "OH2RDG", "old", "9Z", "acked"))
     other = Rig(rig.log, rig.clock, rig.tnc)
@@ -293,7 +340,9 @@ async def test_an_id_of_an_older_program_is_none_of_ours_and_the_numbers_begin_a
 
 async def test_all_1296_ids_in_use_leave_no_id_for_another_message(rig: Rig) -> None:
     for ident in MSG_IDS:
-        await rig.log.insert(MessageRecord(0, rig.clock(), "out", "OH2GBA", "OH2XYZ", "pending", ident, "sending", 1, rig.clock()))
+        await rig.log.insert(
+            MessageRecord(0, rig.clock(), "out", "OH2GBA", "OH2XYZ", "pending", ident, "sending", 1, rig.clock())
+        )
     other = Rig(rig.log, rig.clock, rig.tnc)
     await other.start()
     with pytest.raises(MessagingError, match="1296"):
@@ -306,18 +355,38 @@ async def test_a_message_of_a_station_with_a_ssid_goes_to_that_call_and_a_zero_s
     assert (await rig.m.send(" oh2rdg-12 ", "x")).to_call == "OH2RDG-12"
 
 
-@pytest.mark.parametrize("to, text, reason", [
-    ("", "x", "call"), ("TOOLONGCALL", "x", "call"), ("OH2RDG_7", "x", "call"), ("OH2 RDG", "x", "call"), ("OH2GBA", "x", "our own"), ("oh2gba-0", "x", "our own"),
-    ("OH2RDG", "", "empty"), ("OH2RDG", " ", "empty"), ("OH2RDG", "x" * 68, "68 characters"), ("OH2RDG", "Hyvää", "printable ASCII"), ("OH2RDG", "a{b", "{"), ("OH2RDG", "a|b", "|"), ("OH2RDG", "a~b", "~"),
-    ("OH2RDG", "a\tb", "control"), ("OH2RDG", "ack12", "ack")])
-async def test_an_addressee_or_a_text_that_is_refused_is_told_why_and_nothing_is_kept_or_sent(rig: Rig, to: str, text: str, reason: str) -> None:
+@pytest.mark.parametrize(
+    "to, text, reason",
+    [
+        ("", "x", "call"),
+        ("TOOLONGCALL", "x", "call"),
+        ("OH2RDG_7", "x", "call"),
+        ("OH2 RDG", "x", "call"),
+        ("OH2GBA", "x", "our own"),
+        ("oh2gba-0", "x", "our own"),
+        ("OH2RDG", "", "empty"),
+        ("OH2RDG", " ", "empty"),
+        ("OH2RDG", "x" * 68, "68 characters"),
+        ("OH2RDG", "Hyvää", "printable ASCII"),
+        ("OH2RDG", "a{b", "{"),
+        ("OH2RDG", "a|b", "|"),
+        ("OH2RDG", "a~b", "~"),
+        ("OH2RDG", "a\tb", "control"),
+        ("OH2RDG", "ack12", "ack"),
+    ],
+)
+async def test_an_addressee_or_a_text_that_is_refused_is_told_why_and_nothing_is_kept_or_sent(
+    rig: Rig, to: str, text: str, reason: str
+) -> None:
     with pytest.raises(MessagingError, match=reason):
         await rig.m.send(to, text)
     await rig.settled()
     assert rig.tnc.sent == [] and await rig.log.recent() == [] and rig.m.records() == [] and rig.changed == []
 
 
-async def test_only_our_call_with_its_ssid_is_ours_to_refuse_and_the_base_call_and_another_ssid_are_stations(rig: Rig) -> None:
+async def test_only_our_call_with_its_ssid_is_ours_to_refuse_and_the_base_call_and_another_ssid_are_stations(
+    rig: Rig,
+) -> None:
     rig.config = replace(rig.config, station_call="OH2GBA-7")
     with pytest.raises(MessagingError, match="our own"):
         await rig.m.send("OH2GBA-7", "x")
@@ -342,7 +411,10 @@ async def test_the_text_may_be_up_to_67_characters_of_printable_ascii_and_nothin
 
 # ---- the schedule --------------------------------------------------------------------------------
 
-async def test_the_attempts_are_made_0_32_64_and_128_seconds_after_the_first_and_then_the_message_has_failed(rig: Rig) -> None:
+
+async def test_the_attempts_are_made_0_32_64_and_128_seconds_after_the_first_and_then_the_message_has_failed(
+    rig: Rig,
+) -> None:
     record = await rig.m.send("OH2RDG", "Hello")
     assert record.attempts_max == 4
     seen = []
@@ -368,7 +440,9 @@ async def attempts_at(rig: Rig, offsets: tuple[int, ...], wait: int = 240, end: 
     here = 0
     for n, offset in enumerate(offsets[1:], start=1):
         await rig.pass_time(offset - here - 1)
-        assert len(rig.tnc.sent) == n and rig.state().state == "sending", f"attempt {n + 1} is not due a second before {offset}"
+        assert len(rig.tnc.sent) == n and rig.state().state == "sending", (
+            f"attempt {n + 1} is not due a second before {offset}"
+        )
         await rig.pass_time(1)
         assert len(rig.tnc.sent) == n + 1
         here = offset
@@ -379,7 +453,9 @@ async def attempts_at(rig: Rig, offsets: tuple[int, ...], wait: int = 240, end: 
 
 
 @pytest.mark.parametrize("count, offsets", [(3, (0, 32, 64)), (10, (0, 32, 64, 128, 256, 512, 1024, 1984, 2944, 3904))])
-async def test_a_message_with_more_attempts_than_a_new_one_has_waits_that_double_up_to_960_seconds(rig: Rig, give: Callable[[int], None], count: int, offsets: tuple[int, ...]) -> None:
+async def test_a_message_with_more_attempts_than_a_new_one_has_waits_that_double_up_to_960_seconds(
+    rig: Rig, give: Callable[[int], None], count: int, offsets: tuple[int, ...]
+) -> None:
     give(count)
     record = await rig.m.send("OH2RDG", "Hello")
     assert record.attempts_max == count and len(rig.tnc.sent) == 1
@@ -389,7 +465,9 @@ async def test_a_message_with_more_attempts_than_a_new_one_has_waits_that_double
 
 
 @pytest.mark.parametrize("count, offsets", [(1, (0,)), (2, (0, 32))])
-async def test_a_message_that_was_given_one_or_two_attempts_and_got_no_ack_is_unconfirmed_not_failed(rig: Rig, give: Callable[[int], None], count: int, offsets: tuple[int, ...]) -> None:
+async def test_a_message_that_was_given_one_or_two_attempts_and_got_no_ack_is_unconfirmed_not_failed(
+    rig: Rig, give: Callable[[int], None], count: int, offsets: tuple[int, ...]
+) -> None:
     give(count)
     record = await rig.m.send("OH2RDG", "Hello")
     assert record.attempts_max == count
@@ -400,13 +478,17 @@ async def test_a_message_that_was_given_one_or_two_attempts_and_got_no_ack_is_un
     assert [(m.state, m.attempts, m.attempts_max) for m in await rig.log.recent()] == [("unconfirmed", count, count)]
 
 
-async def test_a_message_that_was_given_three_attempts_has_failed_when_they_are_used_up(rig: Rig, give: Callable[[int], None]) -> None:
+async def test_a_message_that_was_given_three_attempts_has_failed_when_they_are_used_up(
+    rig: Rig, give: Callable[[int], None]
+) -> None:
     give(3)
     await rig.m.send("OH2RDG", "Hello")
     await attempts_at(rig, (0, 32, 64))
 
 
-async def test_a_message_is_sent_4_times_and_one_to_the_email_gateway_twice_whatever_the_stations_and_settings_hold(rig: Rig, another: Callable[..., Rig]) -> None:
+async def test_a_message_is_sent_4_times_and_one_to_the_email_gateway_twice_whatever_the_stations_and_settings_hold(
+    rig: Rig, another: Callable[..., Rig]
+) -> None:
     assert rig.log.db is not None
     await keep_old_attempts(rig.log.db, "OH2RDG", 1, "WIDE2-1")
     await keep_old_attempts(rig.log.db, "EMAIL-2", 9)
@@ -432,12 +514,16 @@ async def test_a_bulletin_is_sent_once(rig: Rig) -> None:
 async def test_the_email_gateway_gets_the_message_twice_the_same_and_it_is_then_unconfirmed(rig: Rig) -> None:
     await rig.m.send("EMAIL-2", "me@example.org Hello")
     await rig.pass_time(32)
-    assert len(rig.tnc.sent) == 2 and len({f.tnc2() for f in rig.tnc.sent}) == 1, "the gateway takes the repeat as the same message by its id"
+    assert len(rig.tnc.sent) == 2 and len({f.tnc2() for f in rig.tnc.sent}) == 1, (
+        "the gateway takes the repeat as the same message by its id"
+    )
     await rig.pass_time(240)
     assert rig.state().state == "unconfirmed" and len(rig.tnc.sent) == 2
 
 
-async def test_a_message_keeps_the_number_of_attempts_it_was_sent_with_after_a_restart(rig: Rig, another: Callable[..., Rig], give: Callable[[int], None]) -> None:
+async def test_a_message_keeps_the_number_of_attempts_it_was_sent_with_after_a_restart(
+    rig: Rig, another: Callable[..., Rig], give: Callable[[int], None]
+) -> None:
     give(3)
     await rig.m.send("OH2RDG", "first")
     give(5)
@@ -448,14 +534,23 @@ async def test_a_message_keeps_the_number_of_attempts_it_was_sent_with_after_a_r
     assert [m.attempts_max for m in await rig.log.recent()] == [5, 3], "the number is in the database"
     again = another()
     await again.start()
-    assert [(m.id, m.attempts_max) for m in again.m.records()] == [(1, 3), (2, 5)], "and is what the message has after a restart, whatever the rule is then"
+    assert [(m.id, m.attempts_max) for m in again.m.records()] == [(1, 3), (2, 5)], (
+        "and is what the message has after a restart, whatever the rule is then"
+    )
     await rig.m.stop()
     again.tnc.sent.clear()
-    for step, expected in ((32, [(1, 2), (2, 2)]), (32, [(1, 3), (2, 3)]), (64, [(1, 3), (2, 4)]), (128, [(1, 3), (2, 5)])):
+    for step, expected in (
+        (32, [(1, 2), (2, 2)]),
+        (32, [(1, 3), (2, 3)]),
+        (64, [(1, 3), (2, 4)]),
+        (128, [(1, 3), (2, 5)]),
+    ):
         await again.pass_time(step)
         assert [(m.id, m.attempts) for m in again.m.records()] == expected
     await again.pass_time(60)
-    assert [(m.id, m.state) for m in again.m.records()] == [(1, "failed"), (2, "sending")], "three attempts and the wait are over for the first, the second's fifth is waited for still"
+    assert [(m.id, m.state) for m in again.m.records()] == [(1, "failed"), (2, "sending")], (
+        "three attempts and the wait are over for the first, the second's fifth is waited for still"
+    )
 
 
 async def test_an_ack_from_the_addressee_with_our_id_settles_the_message_and_ends_the_attempts(rig: Rig) -> None:
@@ -473,8 +568,13 @@ async def test_an_ack_from_the_addressee_with_our_id_settles_the_message_and_end
 
 async def test_the_ack_must_come_from_the_addressee_quote_our_id_and_be_for_us(rig: Rig) -> None:
     await rig.m.send("OH2RDG", "Hello")
-    for packet in (rig.heard("OH2RDG-7", "OH2GBA", ack="01"), rig.heard("OH2XYZ", "OH2GBA", ack="01"), rig.heard("OH2RDG", "OH2GBA", ack="02"), rig.heard("OH2RDG", "OH2XYZ", ack="01"),
-                   rig.heard("OH2RDG", "OH2GBA", ack="01", direction="out")):
+    for packet in (
+        rig.heard("OH2RDG-7", "OH2GBA", ack="01"),
+        rig.heard("OH2XYZ", "OH2GBA", ack="01"),
+        rig.heard("OH2RDG", "OH2GBA", ack="02"),
+        rig.heard("OH2RDG", "OH2XYZ", ack="01"),
+        rig.heard("OH2RDG", "OH2GBA", ack="01", direction="out"),
+    ):
         rig.m.on_packet(packet)
     assert rig.state().state == "sending"
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="01"))
@@ -514,7 +614,9 @@ async def test_an_ack_that_comes_late_still_settles_a_message_that_has_failed_or
 
 
 @pytest.mark.parametrize("count", [1, 2])
-async def test_an_ack_that_comes_after_the_message_is_unconfirmed_still_settles_it_and_so_does_a_rej(rig: Rig, give: Callable[[int], None], count: int) -> None:
+async def test_an_ack_that_comes_after_the_message_is_unconfirmed_still_settles_it_and_so_does_a_rej(
+    rig: Rig, give: Callable[[int], None], count: int
+) -> None:
     give(count)
     await rig.m.send("OH2RDG", "a")
     await rig.m.send("OH2RDG", "b")
@@ -529,7 +631,9 @@ async def test_an_ack_that_comes_after_the_message_is_unconfirmed_still_settles_
     assert [m.state for m in await rig.log.recent()] == ["rejected", "acked"]
 
 
-async def test_the_ack_settles_the_newest_message_with_that_id_to_that_station(rig: Rig, another: Callable[..., Rig]) -> None:
+async def test_the_ack_settles_the_newest_message_with_that_id_to_that_station(
+    rig: Rig, another: Callable[..., Rig]
+) -> None:
     for n in range(2):
         await rig.log.insert(MessageRecord(0, rig.clock(), "out", "OH2GBA", "OH2RDG", f"old {n}", "01", "failed", 6))
     restarted = another()
@@ -540,6 +644,7 @@ async def test_the_ack_settles_the_newest_message_with_that_id_to_that_station(r
 
 
 # ---- retry and cancel ----------------------------------------------------------------------------
+
 
 async def test_cancel_stops_a_message_that_is_being_sent_and_nothing_else(rig: Rig) -> None:
     await rig.m.send("OH2RDG", "Hello")
@@ -555,7 +660,9 @@ async def test_cancel_stops_a_message_that_is_being_sent_and_nothing_else(rig: R
 
 
 @pytest.mark.parametrize("how", ["failed", "rejected", "cancelled"])
-async def test_retry_sends_a_message_that_did_not_get_through_again_with_the_schedule_from_the_start(rig: Rig, how: str) -> None:
+async def test_retry_sends_a_message_that_did_not_get_through_again_with_the_schedule_from_the_start(
+    rig: Rig, how: str
+) -> None:
     await rig.m.send("OH2RDG", "Hello")
     if how == "cancelled":
         rig.m.cancel(1)
@@ -567,14 +674,18 @@ async def test_retry_sends_a_message_that_did_not_get_through_again_with_the_sch
     assert rig.state().state == how
     before = len(rig.tnc.sent)
     again = rig.m.retry(1)
-    assert (again.state, again.attempts, again.msg_id, again.acked_at) == ("sending", 1, "01", None) and len(rig.tnc.sent) == before + 1
+    assert (again.state, again.attempts, again.msg_id, again.acked_at) == ("sending", 1, "01", None) and len(
+        rig.tnc.sent
+    ) == before + 1
     await rig.pass_time(31)
     assert len(rig.tnc.sent) == before + 1
     await rig.pass_time(1)
     assert len(rig.tnc.sent) == before + 2 and rig.state().attempts == 2
 
 
-async def test_retry_sends_an_unconfirmed_message_again_with_the_count_it_has_and_it_is_unconfirmed_again(rig: Rig, give: Callable[[int], None]) -> None:
+async def test_retry_sends_an_unconfirmed_message_again_with_the_count_it_has_and_it_is_unconfirmed_again(
+    rig: Rig, give: Callable[[int], None]
+) -> None:
     give(2)
     await rig.m.send("OH2RDG", "Hello")
     for step in RUN_OUT:
@@ -583,7 +694,9 @@ async def test_retry_sends_an_unconfirmed_message_again_with_the_count_it_has_an
     give(6)
     before = len(rig.tnc.sent)
     again = rig.m.retry(1)
-    assert (again.state, again.attempts, again.attempts_max, again.acked_at) == ("sending", 1, 2, None) and len(rig.tnc.sent) == before + 1
+    assert (again.state, again.attempts, again.attempts_max, again.acked_at) == ("sending", 1, 2, None) and len(
+        rig.tnc.sent
+    ) == before + 1
     await rig.pass_time(32)
     assert len(rig.tnc.sent) == before + 2
     for step in RUN_OUT:
@@ -611,6 +724,7 @@ async def test_only_a_message_that_did_not_get_through_can_be_sent_again_and_onl
 
 # ---- delete --------------------------------------------------------------------------------------
 
+
 async def test_delete_removes_a_message_of_any_kind_from_the_database_the_records_and_the_pages(rig: Rig) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "hi", "5"))
     rig.m.on_packet(rig.heard("OH2AAA", "OH2BBB", "overheard", "6"))
@@ -631,7 +745,11 @@ async def test_delete_cancels_a_message_that_is_being_sent_first_and_no_attempt_
     record = await rig.m.send("OH2RDG", "ours")
     rig.changed.clear()
     await rig.m.delete(record.id)
-    assert [m.state for m in rig.changed] == ["cancelled"] and rig.removed[-1].state == "cancelled" and rig.m.records() == []
+    assert (
+        [m.state for m in rig.changed] == ["cancelled"]
+        and rig.removed[-1].state == "cancelled"
+        and rig.m.records() == []
+    )
     await rig.pass_time(3600)
     assert len(rig.tnc.sent) == 1 and rig.m.records() == []
     await rig.settled()
@@ -664,7 +782,9 @@ async def test_deleting_a_conversation_stops_its_waiting_messages_and_the_email_
     assert [f.info for f in rig.tnc.sent if b"chat" in f.info or b"jane@" in f.info] == []
 
 
-async def test_delete_of_a_message_there_is_not_is_refused_and_so_is_one_the_database_would_not_remove(rig: Rig) -> None:
+async def test_delete_of_a_message_there_is_not_is_refused_and_so_is_one_the_database_would_not_remove(
+    rig: Rig,
+) -> None:
     with pytest.raises(MessagingError, match="no message 7"):
         await rig.m.delete(7)
     record = await rig.m.send("OH2RDG", "ours")
@@ -675,7 +795,9 @@ async def test_delete_of_a_message_there_is_not_is_refused_and_so_is_one_the_dat
     rig.log.db = None
     with pytest.raises(MessagingError, match="could not be removed"):
         await rig.m.delete(kept.id)
-    assert rig.m.get(kept.id) is not None and rig.state(kept.id).state == "cancelled", "what the database still has is what is held"
+    assert rig.m.get(kept.id) is not None and rig.state(kept.id).state == "cancelled", (
+        "what the database still has is what is held"
+    )
 
 
 async def test_delete_conversation_removes_every_message_with_the_station_and_nothing_else(rig: Rig) -> None:
@@ -691,29 +813,46 @@ async def test_delete_conversation_removes_every_message_with_the_station_and_no
     rig.removed.clear()
     assert await rig.m.delete_conversation("oh2rdg") == 2
     assert sorted(m.text for m in rig.removed) == ["hi", "ours"]
-    assert sorted(m.text for m in rig.m.records()) == ["other friend", "ours to the other", "overheard from him", "overheard to him"]
+    assert sorted(m.text for m in rig.m.records()) == [
+        "other friend",
+        "ours to the other",
+        "overheard from him",
+        "overheard to him",
+    ]
     await rig.settled()
     assert sorted(m.text for m in await rig.log.recent()) == ["other friend", "ours to the other"]
     assert sorted(m.text for m in await rig.log.recent(overheard=True)) == ["overheard from him", "overheard to him"]
-    assert rig.prefs.path_for("OH2RDG") == ("OH2RCH-2", "RFONLY") and rig.prefs.all()["OH2RDG"].rf_only, "the path and RF only are the station's, not the conversation's"
+    assert rig.prefs.path_for("OH2RDG") == ("OH2RCH-2", "RFONLY") and rig.prefs.all()["OH2RDG"].rf_only, (
+        "the path and RF only are the station's, not the conversation's"
+    )
 
 
-async def test_delete_conversation_stops_the_messages_being_sent_and_goes_by_the_peer_not_by_the_records(rig: Rig) -> None:
+async def test_delete_conversation_stops_the_messages_being_sent_and_goes_by_the_peer_not_by_the_records(
+    rig: Rig,
+) -> None:
     record = await rig.m.send("OH2RDG", "ours")
     await rig.m.send("OH2RDG-7", "another ssid")
     rig.changed.clear()
     assert await rig.m.delete_conversation("OH2RDG") == 1
-    assert [m.state for m in rig.changed] == ["cancelled"] and rig.removed[-1].id == record.id and [m.text for m in rig.m.records()] == ["another ssid"]
+    assert (
+        [m.state for m in rig.changed] == ["cancelled"]
+        and rig.removed[-1].id == record.id
+        and [m.text for m in rig.m.records()] == ["another ssid"]
+    )
     sent = len(rig.tnc.sent)
     await rig.pass_time(3600)
-    assert len(rig.tnc.sent) > sent and not any("::OH2RDG   :" in line for line in rig.tnc.lines()[sent:]), "the other station's message goes on, the conversation's does not"
+    assert len(rig.tnc.sent) > sent and not any("::OH2RDG   :" in line for line in rig.tnc.lines()[sent:]), (
+        "the other station's message goes on, the conversation's does not"
+    )
     await rig.settled()
     assert [m.text for m in await rig.log.recent()] == ["another ssid"]
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="01"))
     assert [m.text for m in rig.m.records()] == ["another ssid"], "an ack for a message that is gone settles nothing"
 
 
-async def test_delete_conversation_of_a_station_there_is_no_conversation_with_is_refused_and_so_is_a_database_that_would_not(rig: Rig) -> None:
+async def test_delete_conversation_of_a_station_there_is_no_conversation_with_is_refused_and_so_is_a_database_that_would_not(
+    rig: Rig,
+) -> None:
     with pytest.raises(MessagingError, match="no conversation with OH2RDG"):
         await rig.m.delete_conversation("OH2RDG")
     with pytest.raises(MessagingError):
@@ -726,7 +865,9 @@ async def test_delete_conversation_of_a_station_there_is_no_conversation_with_is
     rig.log.db = None
     with pytest.raises(MessagingError, match="could not be removed"):
         await rig.m.delete_conversation("OH2RDG")
-    assert rig.state(kept.id).state == "cancelled" and len(rig.m.records()) == 2, "what the database still has is what is held"
+    assert rig.state(kept.id).state == "cancelled" and len(rig.m.records()) == 2, (
+        "what the database still has is what is held"
+    )
 
 
 async def test_delete_conversation_reaches_the_messages_older_than_the_window_the_daemon_holds(rig: Rig) -> None:
@@ -757,7 +898,9 @@ async def test_delete_overheard_removes_the_messages_of_that_pair_only(rig: Rig)
     assert sorted(m.text for m in await rig.log.recent()) == ["ours to him", "to us"], "a conversation is not touched"
 
 
-async def test_delete_overheard_of_a_pair_there_is_none_of_is_refused_and_so_is_a_database_that_would_not(rig: Rig) -> None:
+async def test_delete_overheard_of_a_pair_there_is_none_of_is_refused_and_so_is_a_database_that_would_not(
+    rig: Rig,
+) -> None:
     with pytest.raises(MessagingError, match="no overheard message from OH2AAA to OH2BBB"):
         await rig.m.delete_overheard("OH2AAA", "OH2BBB")
     rig.m.on_packet(rig.heard("OH2AAA", "OH2GBA", "to us", "5"))
@@ -777,7 +920,10 @@ async def test_delete_overheard_of_a_pair_there_is_none_of_is_refused_and_so_is_
 
 # ---- the radio away ------------------------------------------------------------------------------
 
-async def test_with_the_tnc_away_the_message_is_kept_its_attempt_waits_and_the_log_says_so_once(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+
+async def test_with_the_tnc_away_the_message_is_kept_its_attempt_waits_and_the_log_says_so_once(
+    rig: Rig, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.WARNING, "neoaprs.messaging")
     rig.tnc.state = Source.State.WAITING
     record = await rig.m.send("OH2RDG", "Hello Pekka")
@@ -793,7 +939,9 @@ async def test_with_the_tnc_away_the_message_is_kept_its_attempt_waits_and_the_l
     assert rig.state().attempts == 2
 
 
-async def test_with_the_radio_silent_a_message_is_refused_and_one_that_was_sent_waits_and_resumes_when_the_radio_answers(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+async def test_with_the_radio_silent_a_message_is_refused_and_one_that_was_sent_waits_and_resumes_when_the_radio_answers(
+    rig: Rig, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.WARNING, "neoaprs.messaging")
     await rig.m.send("OH2RDG", "Hello Pekka")
     await rig.pass_time(20)
@@ -803,7 +951,9 @@ async def test_with_the_radio_silent_a_message_is_refused_and_one_that_was_sent_
     assert len(rig.m.records()) == 1
     for _ in range(5):
         await rig.pass_time(600)
-    assert len(rig.tnc.sent) == 1 and rig.state().attempts == 1 and rig.state().state == "sending", "no attempt is used up"
+    assert len(rig.tnc.sent) == 1 and rig.state().attempts == 1 and rig.state().state == "sending", (
+        "no attempt is used up"
+    )
     assert len([r for r in caplog.records if "the radio is silent" in r.getMessage()]) == 1
     await rig.radio(Source.State.CONNECTED)
     await rig.pass_time(11)
@@ -852,25 +1002,34 @@ async def test_a_tnc_that_will_not_take_the_frame_is_not_an_attempt_and_is_tried
 
 # ---- messages that come in -----------------------------------------------------------------------
 
+
 async def test_a_message_to_us_is_kept_and_answered_at_once_with_an_ack(rig: Rig) -> None:
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", "Moi!", "12"))
-    assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG-7 :ack12"], "the ack is on the air before the message is on the disk"
+    assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG-7 :ack12"], (
+        "the ack is on the air before the message is on the disk"
+    )
     [frame] = rig.tnc.sent
     assert frame.info == b":OH2RDG-7 :ack12"
     await rig.settled()
     [record] = rig.m.records()
-    assert record == MessageRecord(1, rig.clock(), "in", "OH2RDG-7", "OH2GBA", "Moi!", "12", "received", route="via ? → OH2RCH-2")
+    assert record == MessageRecord(
+        1, rig.clock(), "in", "OH2RDG-7", "OH2GBA", "Moi!", "12", "received", route="via ? → OH2RCH-2"
+    )
     assert await rig.log.recent() == [record] and rig.changed == [record]
 
 
-async def test_a_message_without_an_id_is_kept_and_not_acked_a_copy_of_it_within_thirty_seconds_is_not_kept_again_and_the_same_text_minutes_later_is_a_new_one(rig: Rig) -> None:
+async def test_a_message_without_an_id_is_kept_and_not_acked_a_copy_of_it_within_thirty_seconds_is_not_kept_again_and_the_same_text_minutes_later_is_a_new_one(
+    rig: Rig,
+) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "no id"))
     await rig.settled()
     assert rig.tnc.sent == [] and [(m.text, m.msg_id) for m in rig.m.records()] == [("no id", None)]
     rig.clock.advance(1)
-    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "no id"))                  # (the second digipeater's copy)
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "no id"))  # (the second digipeater's copy)
     await rig.settled()
-    assert len(rig.m.records()) == 1 and rig.tnc.sent == [], "the same sender, addressee and text within the copies of one transmission is one message"
+    assert len(rig.m.records()) == 1 and rig.tnc.sent == [], (
+        "the same sender, addressee and text within the copies of one transmission is one message"
+    )
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "another text"))
     rig.m.on_packet(rig.heard("OH2XYZ", "OH2GBA", "no id"))
     await rig.settled()
@@ -881,7 +1040,9 @@ async def test_a_message_without_an_id_is_kept_and_not_acked_a_copy_of_it_within
     assert [m.text for m in rig.m.records()] == ["no id", "another text", "no id", "no id"]
 
 
-async def test_a_message_is_ours_only_to_our_call_with_its_ssid_and_not_to_our_base_call_or_another_ssid(rig: Rig) -> None:
+async def test_a_message_is_ours_only_to_our_call_with_its_ssid_and_not_to_our_base_call_or_another_ssid(
+    rig: Rig,
+) -> None:
     rig.config = replace(rig.config, station_call="OH2GBA-7")
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "to the base call", "1"))
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA-7", "to us", "2"))
@@ -889,7 +1050,9 @@ async def test_a_message_is_ours_only_to_our_call_with_its_ssid_and_not_to_our_b
     await rig.settled()
     assert [m.text for m in rig.m.records() if m.state == "received"] == ["to us"]
     assert [m.text for m in rig.m.records() if m.state == "overheard"] == ["to the base call", "to another"]
-    assert [f.info for f in rig.tnc.sent] == [b":OH2RDG   :ack2"], "the ones to another call are overheard, and not acked"
+    assert [f.info for f in rig.tnc.sent] == [b":OH2RDG   :ack2"], (
+        "the ones to another call are overheard, and not acked"
+    )
     rig.config = replace(rig.config, station_call="OH2GBA")
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA-0", "zero is none", "4"))
     assert rig.tnc.sent[-1].info == b":OH2RDG   :ack4"
@@ -901,11 +1064,17 @@ async def test_a_message_of_our_own_call_or_sent_by_us_is_nothing_to_messaging(r
     rig.m.on_packet(rig.heard("OH2GBA", "OH2RDG", "what we sent, heard back", "3"))
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "ours but our own", "4", direction="out"))
     await rig.settled()
-    assert rig.tnc.sent == [] and rig.m.records() == [] and await rig.log.recent() == [] and await rig.log.recent(overheard=True) == []
+    assert (
+        rig.tnc.sent == []
+        and rig.m.records() == []
+        and await rig.log.recent() == []
+        and await rig.log.recent(overheard=True) == []
+    )
 
 
 async def test_a_packet_that_is_no_message_is_nothing_to_messaging(rig: Rig) -> None:
     from neoaprs.packet import Status
+
     rig.m.on_packet(Packet(rig.clock(), "in", b"", "OH2RDG", "APRS", (), b">hi", Status("hi")))
     assert rig.tnc.sent == [] and rig.m.records() == []
 
@@ -919,30 +1088,36 @@ async def test_a_repeat_within_half_an_hour_is_acked_again_and_not_kept_again(ri
     await rig.settled()
     assert len(rig.tnc.sent) == 3 and set(rig.tnc.lines()) == {"OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :ack12"}
     assert len(rig.m.records()) == 1 and len(await rig.log.recent()) == 1
-    rig.clock.advance(60)                                           # (30 minutes after the first)
+    rig.clock.advance(60)  # (30 minutes after the first)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     await rig.settled()
     assert len(rig.tnc.sent) == 4 and len(rig.m.records()) == 2, "after half an hour the same id is a new message"
 
 
-async def test_the_copies_of_a_message_within_ten_seconds_get_one_ack_between_them(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+async def test_the_copies_of_a_message_within_ten_seconds_get_one_ack_between_them(
+    rig: Rig, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.DEBUG, "neoaprs.messaging")
-    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))                  # (by way of the first digipeater)
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))  # (by way of the first digipeater)
     rig.clock.advance(3)
-    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))                  # (by way of the second)
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))  # (by way of the second)
     rig.clock.advance(3)
-    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))                  # (the internet copy, an iGate's)
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))  # (the internet copy, an iGate's)
     await rig.settled()
     assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :ack12"] and len(rig.m.records()) == 1
-    assert sum("not acked again" in r.getMessage() for r in caplog.records) == 2, "the copies that were not answered are noted in the log"
+    assert sum("not acked again" in r.getMessage() for r in caplog.records) == 2, (
+        "the copies that were not answered are noted in the log"
+    )
 
 
-async def test_a_copy_thirty_seconds_or_more_after_our_last_ack_is_acked_again_and_29_seconds_is_not_enough(rig: Rig) -> None:
+async def test_a_copy_thirty_seconds_or_more_after_our_last_ack_is_acked_again_and_29_seconds_is_not_enough(
+    rig: Rig,
+) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     rig.clock.advance(29)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     assert len(rig.tnc.sent) == 1, "a digipeater drops a duplicate for 30 s: an ack again within them would be lost"
-    rig.clock.advance(1)                                                          # (30 s after the first ack)
+    rig.clock.advance(1)  # (30 s after the first ack)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     assert len(rig.tnc.sent) == 2
     # The thirty seconds count from the last ack, not from the first
@@ -965,8 +1140,15 @@ async def test_a_copy_after_half_an_hour_is_a_new_message_and_is_acked(rig: Rig)
     assert len(rig.tnc.sent) == 2 and len(rig.m.records()) == 2
 
 
-async def test_a_copy_an_igate_put_on_the_air_within_thirty_seconds_of_our_ack_is_not_acked_and_one_after_them_is(rig: Rig) -> None:
-    gated = replace(rig.heard("OH7JHF-1", "OH2GBA", "Moi!", "12"), source="OH7JHF-1", third_party=ThirdParty("OH2RDG", "APRS", ("TCPIP", "OH7JHF-1*")), via="rf-gated")
+async def test_a_copy_an_igate_put_on_the_air_within_thirty_seconds_of_our_ack_is_not_acked_and_one_after_them_is(
+    rig: Rig,
+) -> None:
+    gated = replace(
+        rig.heard("OH7JHF-1", "OH2GBA", "Moi!", "12"),
+        source="OH7JHF-1",
+        third_party=ThirdParty("OH2RDG", "APRS", ("TCPIP", "OH7JHF-1*")),
+        via="rf-gated",
+    )
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     rig.clock.advance(4)
     rig.m.on_packet(replace(gated, heard_at=rig.clock()))
@@ -1001,7 +1183,9 @@ async def test_the_same_id_from_another_station_or_another_id_from_the_same_one_
     assert [m.text for m in rig.m.records()] == ["a", "b", "c"]
 
 
-async def test_after_a_restart_a_repeat_of_a_message_that_was_kept_is_acked_and_not_kept_again(rig: Rig, another: Callable[..., Rig]) -> None:
+async def test_after_a_restart_a_repeat_of_a_message_that_was_kept_is_acked_and_not_kept_again(
+    rig: Rig, another: Callable[..., Rig]
+) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     await rig.settled()
     await rig.m.stop()
@@ -1013,7 +1197,9 @@ async def test_after_a_restart_a_repeat_of_a_message_that_was_kept_is_acked_and_
     await restarted.m.stop()
 
 
-async def test_an_ack_that_cannot_be_sent_is_told_and_the_message_is_kept_all_the_same(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+async def test_an_ack_that_cannot_be_sent_is_told_and_the_message_is_kept_all_the_same(
+    rig: Rig, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.WARNING, "neoaprs.messaging")
     rig.tnc.takes = False
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
@@ -1026,10 +1212,14 @@ async def test_a_conversation_goes_both_ways_in_one_table(rig: Rig) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="01"))
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi moi", "A1"))
     await rig.settled()
-    assert [(m.direction, m.state, m.peer) for m in await rig.log.recent()] == [("in", "received", "OH2RDG"), ("out", "acked", "OH2RDG")]
+    assert [(m.direction, m.state, m.peer) for m in await rig.log.recent()] == [
+        ("in", "received", "OH2RDG"),
+        ("out", "acked", "OH2RDG"),
+    ]
 
 
 # ---- keeping and telling -------------------------------------------------------------------------
+
 
 async def test_every_new_or_changed_message_is_told_with_the_message_as_it_is(rig: Rig) -> None:
     await rig.m.send("OH2RDG", "Moi")
@@ -1049,10 +1239,28 @@ async def test_no_message_is_dropped_by_count_or_by_age_and_a_message_being_sent
     assert len(await rig.log.recent(1000)) == 701
 
 
-async def test_a_start_holds_every_message_the_database_has_old_ones_and_overheard_ones_too(rig: Rig, another: Callable[..., Rig]) -> None:
+async def test_a_start_holds_every_message_the_database_has_old_ones_and_overheard_ones_too(
+    rig: Rig, another: Callable[..., Rig]
+) -> None:
     old = rig.clock() - timedelta(days=400)
-    for text, state, direction in (("old out", "acked", "out"), ("old in", "received", "in"), ("old chatter", "overheard", "in"), ("old pending", "sending", "out")):
-        await rig.log.insert(MessageRecord(0, old, direction, "OH2GBA" if direction == "out" else "OH2XYZ", "OH2RDG" if direction == "out" else "OH2GBA", text, "7", state))  # type: ignore[arg-type]
+    for text, state, direction in (
+        ("old out", "acked", "out"),
+        ("old in", "received", "in"),
+        ("old chatter", "overheard", "in"),
+        ("old pending", "sending", "out"),
+    ):
+        await rig.log.insert(
+            MessageRecord(
+                0,
+                old,
+                direction,
+                "OH2GBA" if direction == "out" else "OH2XYZ",
+                "OH2RDG" if direction == "out" else "OH2GBA",
+                text,
+                "7",
+                state,
+            )
+        )  # type: ignore[arg-type]
     await rig.m.stop()
     restarted = another()
     await restarted.start()
@@ -1060,7 +1268,9 @@ async def test_a_start_holds_every_message_the_database_has_old_ones_and_overhea
     await restarted.m.stop()
 
 
-async def test_a_database_with_more_than_the_most_gives_the_latest_and_a_warning(rig: Rig, another: Callable[..., Rig], monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_database_with_more_than_the_most_gives_the_latest_and_a_warning(
+    rig: Rig, another: Callable[..., Rig], monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     for n in range(5):
         await rig.log.insert(MessageRecord(0, rig.clock(), "in", "OH2XYZ", "OH2GBA", f"m{n}", str(n), "received"))
     await rig.m.stop()
@@ -1073,14 +1283,22 @@ async def test_a_database_with_more_than_the_most_gives_the_latest_and_a_warning
     await restarted.m.stop()
 
 
-async def test_a_long_run_holds_no_more_than_the_most_the_oldest_settled_going_first_and_never_one_being_sent(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_long_run_holds_no_more_than_the_most_the_oldest_settled_going_first_and_never_one_being_sent(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(messaging_module, "MESSAGES_HELD_MAX", 3)
     ours = await rig.m.send("OH2RDG", "ours")
     for n in range(4):
         rig.m.on_packet(rig.heard("OH2XYZ", "OH2GBA", f"m{n}", str(n)))
         await rig.settled()
-    assert [m.text for m in rig.m.records()] == ["ours", "m2", "m3"] and rig.m.get(ours.id) is not None and rig.m.get(ours.id).state == "sending"      # type: ignore[union-attr]
-    assert [m.text for m in rig.removed] == ["m0", "m1"] and len(await rig.log.recent()) == 5, "what leaves memory stays in the database"
+    assert (
+        [m.text for m in rig.m.records()] == ["ours", "m2", "m3"]
+        and rig.m.get(ours.id) is not None
+        and rig.m.get(ours.id).state == "sending"
+    )  # type: ignore[union-attr]
+    assert [m.text for m in rig.removed] == ["m0", "m1"] and len(await rig.log.recent()) == 5, (
+        "what leaves memory stays in the database"
+    )
 
 
 async def test_the_daily_care_forgets_the_memory_of_old_hearings_but_no_message(rig: Rig) -> None:
@@ -1090,10 +1308,14 @@ async def test_the_daily_care_forgets_the_memory_of_old_hearings_but_no_message(
     rig.m.forget_heard(30)
     rig.m.on_packet(rig.heard("OH2XYZ", "OH2GBA", "old in", "3"))
     await rig.settled()
-    assert len(rig.m.records()) == 2 and rig.removed == [], "the repeat of a message forgotten long ago is a new message; the first stays"
+    assert len(rig.m.records()) == 2 and rig.removed == [], (
+        "the repeat of a message forgotten long ago is a new message; the first stays"
+    )
 
 
-async def test_a_restart_goes_on_with_the_schedule_of_the_messages_that_were_being_sent(rig: Rig, another: Callable[..., Rig]) -> None:
+async def test_a_restart_goes_on_with_the_schedule_of_the_messages_that_were_being_sent(
+    rig: Rig, another: Callable[..., Rig]
+) -> None:
     await rig.m.send("OH2RDG", "Hello")
     await rig.pass_time(33)
     assert len(rig.tnc.sent) == 2
@@ -1106,11 +1328,15 @@ async def test_a_restart_goes_on_with_the_schedule_of_the_messages_that_were_bei
     await restarted.pass_time(28)
     assert restarted.tnc.sent == []
     await restarted.pass_time(30)
-    assert len(restarted.tnc.sent) == 1 and restarted.state().attempts == 3, "the third attempt is due 64 s after the first"
+    assert len(restarted.tnc.sent) == 1 and restarted.state().attempts == 3, (
+        "the third attempt is due 64 s after the first"
+    )
     await restarted.m.stop()
 
 
-async def test_a_message_that_was_waiting_for_the_radio_when_the_daemon_stopped_is_sent_after_the_start(rig: Rig, another: Callable[..., Rig]) -> None:
+async def test_a_message_that_was_waiting_for_the_radio_when_the_daemon_stopped_is_sent_after_the_start(
+    rig: Rig, another: Callable[..., Rig]
+) -> None:
     rig.tnc.state = Source.State.WAITING
     await rig.m.send("OH2RDG", "Hello Pekka")
     await rig.settled()
@@ -1144,13 +1370,18 @@ async def test_a_message_that_came_in_just_before_the_stop_is_kept(rig: Rig) -> 
 
 # ---- the path of each station --------------------------------------------------------------------
 
+
 async def test_a_message_goes_by_way_of_the_path_of_its_station_and_the_others_by_the_beacon_path(rig: Rig) -> None:
     await rig.prefs.set_path("OH2RDG", "OH2RCH-2,WIDE2-1")
     await rig.prefs.set_path("OH2DIR", "DIRECT")
     await rig.m.send("OH2RDG", "a")
     await rig.m.send("OH2DIR", "b")
     await rig.m.send("OH2XYZ", "c")
-    assert rig.tnc.lines() == ["OH2GBA>APZNEO,OH2RCH-2,WIDE2-1::OH2RDG   :a{01}", "OH2GBA>APZNEO::OH2DIR   :b{02}", "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2XYZ   :c{03}"]
+    assert rig.tnc.lines() == [
+        "OH2GBA>APZNEO,OH2RCH-2,WIDE2-1::OH2RDG   :a{01}",
+        "OH2GBA>APZNEO::OH2DIR   :b{02}",
+        "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2XYZ   :c{03}",
+    ]
 
 
 def hear(rig: Rig, call: str, *path: str, minutes_ago: float = 1.0) -> None:
@@ -1175,7 +1406,9 @@ async def test_the_first_two_attempts_go_by_the_path_heard_and_the_last_two_by_t
     await rig.m.send("OH2RDG", "a")
     await run_out(rig)
     assert sent_paths(rig) == ["OH2RCH-3,OH2RCH-1", "OH2RCH-3,OH2RCH-1", "WIDE1-1,WIDE2-1", "WIDE1-1,WIDE2-1"]
-    assert [a.path for a in rig.m.delivery.attempts_of(1)] == [("OH2RCH-3", "OH2RCH-1")] * 2 + [("WIDE1-1", "WIDE2-1")] * 2, "the chain records the path of each attempt"
+    assert [a.path for a in rig.m.delivery.attempts_of(1)] == [("OH2RCH-3", "OH2RCH-1")] * 2 + [
+        ("WIDE1-1", "WIDE2-1")
+    ] * 2, "the chain records the path of each attempt"
 
 
 async def test_a_station_heard_direct_twice_is_sent_to_direct_for_the_first_two_attempts(rig: Rig) -> None:
@@ -1200,7 +1433,9 @@ async def test_a_path_that_goes_stale_between_attempts_is_not_used(rig: Rig) -> 
     hear(rig, "OH2RDG", "OH2RCH-2*", minutes_ago=58)
     await rig.m.send("OH2RDG", "a")
     await rig.pass_time(121)
-    assert sent_paths(rig) == ["OH2RCH-2", "WIDE1-1,WIDE2-1"], "when the second attempt is made one of the two packets is more than an hour old"
+    assert sent_paths(rig) == ["OH2RCH-2", "WIDE1-1,WIDE2-1"], (
+        "when the second attempt is made one of the two packets is more than an hour old"
+    )
 
 
 async def test_nothing_heard_is_the_beacon_path_for_every_attempt(rig: Rig) -> None:
@@ -1265,11 +1500,24 @@ async def test_the_beacon_path_that_is_direct_only_is_the_fallback_and_no_path_i
     assert sent_paths(rig) == ["OH2RCH-2", "OH2RCH-2", "", ""]
     rig.config = replace(rig.config, beacon_path="")
     await rig.m.send("OH2XYZ", "b")
-    assert sent_paths(rig)[-1] == "WIDE2-2", "an empty beacon path is the recommended one, which for a fixed station (the house) is WIDE2-2"
+    assert sent_paths(rig)[-1] == "WIDE2-2", (
+        "an empty beacon path is the recommended one, which for a fixed station (the house) is WIDE2-2"
+    )
 
 
-@pytest.mark.parametrize(("table", "code", "recommended"), [("/", "-", "WIDE2-2"), ("/", "_", "WIDE2-2"), ("/", ">", "WIDE1-1,WIDE2-1"), ("\\", "s", "WIDE1-1,WIDE2-1"), ("E", "k", "WIDE1-1,WIDE2-1")])
-async def test_the_recommended_path_of_the_symbol_is_the_fallback_of_a_message_the_email_gateway_and_an_ack(rig: Rig, table: str, code: str, recommended: str) -> None:
+@pytest.mark.parametrize(
+    ("table", "code", "recommended"),
+    [
+        ("/", "-", "WIDE2-2"),
+        ("/", "_", "WIDE2-2"),
+        ("/", ">", "WIDE1-1,WIDE2-1"),
+        ("\\", "s", "WIDE1-1,WIDE2-1"),
+        ("E", "k", "WIDE1-1,WIDE2-1"),
+    ],
+)
+async def test_the_recommended_path_of_the_symbol_is_the_fallback_of_a_message_the_email_gateway_and_an_ack(
+    rig: Rig, table: str, code: str, recommended: str
+) -> None:
     rig.config = replace(rig.config, beacon_path="", station_symbol_table=table, station_symbol_code=code)
     await rig.m.send("OH2XYZ", "hello")
     await rig.m.send("EMAIL-2", "me@example.org hello")
@@ -1290,18 +1538,25 @@ async def test_the_attempts_and_a_retry_use_the_path_the_station_has_then(rig: R
     assert rig.tnc.sent[-1].path_text == "WIDE1-1,WIDE2-1"
 
 
-async def test_the_ack_goes_by_way_of_the_remembered_path_of_the_station_and_by_the_beacon_path_otherwise(rig: Rig) -> None:
+async def test_the_ack_goes_by_way_of_the_remembered_path_of_the_station_and_by_the_beacon_path_otherwise(
+    rig: Rig,
+) -> None:
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", "one", "1"))
     assert rig.tnc.lines()[-1] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG-7 :ack1"
     await rig.prefs.set_path("OH2RDG-7", "OH2RCH-2,WIDE2-1")
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", "two", "2"))
     rig.m.on_packet(rig.heard("OH2XYZ", "OH2GBA", "three", "3"))
-    assert rig.tnc.lines()[-2:] == ["OH2GBA>APZNEO,OH2RCH-2,WIDE2-1::OH2RDG-7 :ack2", "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2XYZ   :ack3"]
+    assert rig.tnc.lines()[-2:] == [
+        "OH2GBA>APZNEO,OH2RCH-2,WIDE2-1::OH2RDG-7 :ack2",
+        "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2XYZ   :ack3",
+    ]
     await rig.prefs.set_path("OH2RDG-7", "DIRECT")
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", "four", "4"))
     assert rig.tnc.lines()[-1] == "OH2GBA>APZNEO::OH2RDG-7 :ack4", "direct is a path too"
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "five", "5"))
-    assert rig.tnc.lines()[-1] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :ack5", "the path is of the station and its SSID"
+    assert rig.tnc.lines()[-1] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :ack5", (
+        "the path is of the station and its SSID"
+    )
 
 
 async def test_a_repeat_is_acked_again_by_the_path_it_has_then_and_kept_once(rig: Rig) -> None:
@@ -1310,41 +1565,59 @@ async def test_a_repeat_is_acked_again_by_the_path_it_has_then_and_kept_once(rig
     rig.clock.advance(120)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi", "9"))
     await rig.settled()
-    assert [f.path_text for f in rig.tnc.sent] == ["WIDE1-1,WIDE2-1", "WIDE2-2"] and len([m for m in rig.m.records() if m.state == "received"]) == 1
+    assert [f.path_text for f in rig.tnc.sent] == ["WIDE1-1,WIDE2-1", "WIDE2-2"] and len(
+        [m for m in rig.m.records() if m.state == "received"]
+    ) == 1
 
 
-async def test_an_ack_goes_out_for_every_distinct_message_to_us_that_has_an_id_and_for_none_that_has_not(rig: Rig) -> None:
+async def test_an_ack_goes_out_for_every_distinct_message_to_us_that_has_an_id_and_for_none_that_has_not(
+    rig: Rig,
+) -> None:
     for n, (source, msg_id) in enumerate([("OH2RDG", "1"), ("OH2RDG", "2"), ("OH2XYZ", "1"), ("OH2RDG", None)]):
         rig.m.on_packet(rig.heard(source, "OH2GBA", f"text {n}", msg_id))
     await rig.settled()
-    assert [f.info for f in rig.tnc.sent] == [b":OH2RDG   :ack1", b":OH2RDG   :ack2", b":OH2XYZ   :ack1"] and len(rig.m.records()) == 4
+    assert [f.info for f in rig.tnc.sent] == [b":OH2RDG   :ack1", b":OH2RDG   :ack2", b":OH2XYZ   :ack1"] and len(
+        rig.m.records()
+    ) == 4
 
 
 # ---- messages we only overhear -------------------------------------------------------------------
+
 
 async def test_a_message_to_another_station_is_kept_as_overheard_and_never_acked(rig: Rig) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "OH2XYZ", "not for us", "3"))
     await rig.settled()
     assert rig.tnc.sent == []
     [record] = rig.m.records()
-    assert record == MessageRecord(1, rig.clock(), "in", "OH2RDG", "OH2XYZ", "not for us", "3", "overheard", route="via ? → OH2RCH-2")
+    assert record == MessageRecord(
+        1, rig.clock(), "in", "OH2RDG", "OH2XYZ", "not for us", "3", "overheard", route="via ? → OH2RCH-2"
+    )
     assert await rig.log.recent() == [] and await rig.log.recent(overheard=True) == [record] and rig.changed == [record]
 
 
-async def test_a_repeat_of_an_overheard_message_is_kept_once_within_half_an_hour_and_one_without_an_id_by_its_text(rig: Rig) -> None:
+async def test_a_repeat_of_an_overheard_message_is_kept_once_within_half_an_hour_and_one_without_an_id_by_its_text(
+    rig: Rig,
+) -> None:
     for text, msg_id in (("a", "3"), ("a", "3"), ("b", None), ("b", None), ("c", "4"), ("a", "4")):
         rig.m.on_packet(rig.heard("OH2RDG", "OH2XYZ", text, msg_id))
     rig.m.on_packet(rig.heard("OH2RDG", "OH2ABC", "a", "3"))
     rig.m.on_packet(rig.heard("OH2AAA", "OH2XYZ", "a", "3"))
     await rig.settled()
     assert [(m.from_call, m.to_call, m.text, m.msg_id) for m in rig.m.records()] == [
-        ("OH2RDG", "OH2XYZ", "a", "3"), ("OH2RDG", "OH2XYZ", "b", None), ("OH2RDG", "OH2XYZ", "c", "4"), ("OH2RDG", "OH2XYZ", "a", "4"), ("OH2RDG", "OH2ABC", "a", "3"),
-        ("OH2AAA", "OH2XYZ", "a", "3")]
+        ("OH2RDG", "OH2XYZ", "a", "3"),
+        ("OH2RDG", "OH2XYZ", "b", None),
+        ("OH2RDG", "OH2XYZ", "c", "4"),
+        ("OH2RDG", "OH2XYZ", "a", "4"),
+        ("OH2RDG", "OH2ABC", "a", "3"),
+        ("OH2AAA", "OH2XYZ", "a", "3"),
+    ]
     rig.clock.advance(10 * 60)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2XYZ", "a", "3"))
     rig.m.on_packet(rig.heard("OH2RDG", "OH2XYZ", "b", None))
     await rig.settled()
-    assert [m.text for m in rig.m.records()][6:] == ["b"], "a numbered one is a repeat for half an hour, one without an id only for the copies of one transmission"
+    assert [m.text for m in rig.m.records()][6:] == ["b"], (
+        "a numbered one is a repeat for half an hour, one without an id only for the copies of one transmission"
+    )
     rig.clock.advance(21 * 60)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2XYZ", "a", "3"))
     await rig.settled()
@@ -1359,15 +1632,24 @@ async def test_the_acks_and_rejects_between_other_stations_are_not_messages_and_
 
 
 @pytest.mark.parametrize("addressee", ["BLN1", "BLN9", "BLNA", "BLNZ", "BLN3HAMS", "ALL", "CQ", "QST"])
-async def test_a_message_to_a_bulletin_or_a_group_goes_to_the_board_and_is_neither_overheard_nor_acked_though_it_carries_an_id(rig: Rig, addressee: str) -> None:
+async def test_a_message_to_a_bulletin_or_a_group_goes_to_the_board_and_is_neither_overheard_nor_acked_though_it_carries_an_id(
+    rig: Rig, addressee: str
+) -> None:
     packet = rig.heard("OH2RDG", addressee, "net tonight 20:00", "7")
     rig.m.on_packet(packet)
     await rig.settled()
     assert rig.board == [(packet, Message(addressee, "net tonight 20:00", "7"))]
-    assert rig.m.records() == [] and rig.tnc.sent == [] and await rig.log.recent(overheard=True) == [] and rig.changed == []
+    assert (
+        rig.m.records() == []
+        and rig.tnc.sent == []
+        and await rig.log.recent(overheard=True) == []
+        and rig.changed == []
+    )
 
 
-async def test_an_ack_or_a_reject_to_a_bulletin_is_nothing_and_a_message_to_a_station_is_not_the_boards(rig: Rig) -> None:
+async def test_an_ack_or_a_reject_to_a_bulletin_is_nothing_and_a_message_to_a_station_is_not_the_boards(
+    rig: Rig,
+) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "BLN1", ack="7"))
     rig.m.on_packet(rig.heard("OH2RDG", "QST", rej="7"))
     rig.m.on_packet(rig.heard("OH2RDG", "OH2XYZ", "hello"))
@@ -1381,7 +1663,9 @@ async def test_a_message_we_hear_from_ourselves_to_a_bulletin_is_not_the_boards(
 
 
 async def test_without_a_board_a_message_to_a_bulletin_is_overheard(rig: Rig) -> None:
-    alone = Messaging(rig.radios, lambda: rig.config, rig.log, rig.prefs.path_for, rig.clock, tick_sec=TICK, spacing_sec=0.0)
+    alone = Messaging(
+        rig.radios, lambda: rig.config, rig.log, rig.prefs.path_for, rig.clock, tick_sec=TICK, spacing_sec=0.0
+    )
     remember_stop(alone.stop)
     alone.on_packet(rig.heard("OH2RDG", "BLN1", "net tonight 20:00"))
     await asyncio.gather(*alone.inbox.tasks)
@@ -1401,7 +1685,9 @@ async def test_overheard_messages_are_not_limited_and_push_out_nothing(rig: Rig)
     assert len(await rig.log.recent(overheard=True, count=1000)) == 260
 
 
-async def test_after_a_restart_the_overheard_messages_are_there_and_a_repeat_is_not_kept_again(rig: Rig, another: Callable[..., Rig]) -> None:
+async def test_after_a_restart_the_overheard_messages_are_there_and_a_repeat_is_not_kept_again(
+    rig: Rig, another: Callable[..., Rig]
+) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "OH2XYZ", "not for us", "3"))
     await rig.settled()
     await rig.m.stop()
@@ -1432,25 +1718,35 @@ async def test_a_call_that_is_none_cannot_have_its_path_cleared(rig: Rig) -> Non
 
 # ---- what the log says of a message --------------------------------------------------------------
 
-async def test_the_log_says_when_a_message_is_kept_on_which_radio_it_went_when_it_is_retried_cancelled_and_acked(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+
+async def test_the_log_says_when_a_message_is_kept_on_which_radio_it_went_when_it_is_retried_cancelled_and_acked(
+    rig: Rig, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.INFO, "neoaprs.messaging")
     await rig.m.send("OH2RDG", "Hello Pekka")
     rig.m.cancel(1)
     rig.m.retry(1)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="01"))
     said = [r.getMessage() for r in caplog.records if r.name == "neoaprs.messaging"]
-    assert said == ["message 1 to OH2RDG is kept: 11 characters, at most 4 attempts, on the fm radio",
-                    "message 1 to OH2RDG sent on the fm radio (attempt 1 of 4): Hello Pekka",
-                    "message 1 to OH2RDG is cancelled (the operator asked): 1 of 4 attempts were made",
-                    "message 1 to OH2RDG is sent again from the first attempt (it was cancelled; the operator asked)",
-                    "message 1 to OH2RDG sent on the fm radio (attempt 1 of 4): Hello Pekka",
-                    "message 1 to OH2RDG is acked"]
+    assert said == [
+        "message 1 to OH2RDG is kept: 11 characters, at most 4 attempts, on the fm radio",
+        "message 1 to OH2RDG sent on the fm radio (attempt 1 of 4): Hello Pekka",
+        "message 1 to OH2RDG is cancelled (the operator asked): 1 of 4 attempts were made",
+        "message 1 to OH2RDG is sent again from the first attempt (it was cancelled; the operator asked)",
+        "message 1 to OH2RDG sent on the fm radio (attempt 1 of 4): Hello Pekka",
+        "message 1 to OH2RDG is acked",
+    ]
 
 
-async def test_the_log_says_when_the_radio_takes_frames_again_and_for_how_long_it_was_away(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+async def test_the_log_says_when_the_radio_takes_frames_again_and_for_how_long_it_was_away(
+    rig: Rig, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.INFO, "neoaprs.messaging")
     await rig.m.send("OH2RDG", "Hello Pekka")
     await rig.radio(Source.State.WAITING)
     await rig.pass_time(10)
     await rig.radio(Source.State.CONNECTED)
-    assert any("the fm radio takes frames again after" in r.getMessage() and "moved on by that time" in r.getMessage() for r in caplog.records)
+    assert any(
+        "the fm radio takes frames again after" in r.getMessage() and "moved on by that time" in r.getMessage()
+        for r in caplog.records
+    )

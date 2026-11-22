@@ -2,6 +2,7 @@
 
 Pure functions of a count and a path. The wait doubles for each transmission until the path's
 net cycle time (10 minutes for 0-1 digipeaters, 20 for two, 30 for more)."""
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 

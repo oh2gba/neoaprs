@@ -2,6 +2,7 @@
 a pseudo-terminal radio: the exact frames for a message, its ack and a reply-ack, and what a
 reply-ack settles.
 """
+
 from pathlib import Path
 
 from neoaprs.message import MessageRecord
@@ -29,9 +30,11 @@ async def test_a_message_with_nothing_to_acknowledge_goes_out_as_text_and_the_nu
     await e.stop()
 
 
-async def test_a_message_with_a_reply_ack_number_is_acked_with_a_copy_of_the_number_and_its_aa_settles_our_message(tmp_path: Path) -> None:
+async def test_a_message_with_a_reply_ack_number_is_acked_with_a_copy_of_the_number_and_its_aa_settles_our_message(
+    tmp_path: Path,
+) -> None:
     e = await started(tmp_path)
-    await e.ctl.messaging.send("OH2RDG", "Hello Pekka")                       # {01}
+    await e.ctl.messaging.send("OH2RDG", "Hello Pekka")  # {01}
     await said(e)
     # Their message 05, with the reply-ack 01: "I have your 01"
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Hei Pekka", "05", "01"), path="OH2RCH-2*"))
@@ -39,26 +42,36 @@ async def test_a_message_with_a_reply_ack_number_is_acked_with_a_copy_of_the_num
     [ack] = await said(e)
     assert ack.tnc2() == SENT + "ack05}01", "the ack is the number as it came"
     await until(lambda: e.ctl.messaging.records()[0].state == "acked" and len(e.ctl.messaging.records()) == 2)
-    assert [(m.direction, m.text, m.msg_id, m.state) for m in e.ctl.messaging.records()] == [("out", "Hello Pekka", "01", "acked"), ("in", "Hei Pekka", "05", "received")]
+    assert [(m.direction, m.text, m.msg_id, m.state) for m in e.ctl.messaging.records()] == [
+        ("out", "Hello Pekka", "01", "acked"),
+        ("in", "Hei Pekka", "05", "received"),
+    ]
     await e.stop()
 
 
-async def test_the_aa_of_another_station_or_of_no_message_of_ours_settles_nothing_and_the_message_is_still_kept_and_acked(tmp_path: Path) -> None:
+async def test_the_aa_of_another_station_or_of_no_message_of_ours_settles_nothing_and_the_message_is_still_kept_and_acked(
+    tmp_path: Path,
+) -> None:
     e = await started(tmp_path)
     await e.ctl.messaging.send("OH2RDG", "Hello Pekka")
     await said(e)
-    e.feed(on_air("OH2XYZ", message_info("OH2GBA", "Hi", "05", "01")))        # (not the station we sent 01 to)
-    e.feed(on_air("OH2RDG", message_info("OH2GBA", "Hej", "06", "77")))       # (no message 77 of ours)
+    e.feed(on_air("OH2XYZ", message_info("OH2GBA", "Hi", "05", "01")))  # (not the station we sent 01 to)
+    e.feed(on_air("OH2RDG", message_info("OH2GBA", "Hej", "06", "77")))  # (no message 77 of ours)
     await until(lambda: e.tnc.stats.packets == 2)
-    assert [f.tnc2() for f in await said(e, 2)] == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2XYZ   :ack05}01", SENT + "ack06}77"]
+    assert [f.tnc2() for f in await said(e, 2)] == [
+        "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2XYZ   :ack05}01",
+        SENT + "ack06}77",
+    ]
     await until(lambda: len(e.ctl.messaging.records()) == 3)
     assert e.ctl.messaging.records()[0].state == "sending"
     await e.stop()
 
 
-async def test_a_message_that_says_it_knows_reply_acks_is_acked_with_the_exact_copy_of_its_number_and_the_next_message_to_it_carries_it(tmp_path: Path) -> None:
+async def test_a_message_that_says_it_knows_reply_acks_is_acked_with_the_exact_copy_of_its_number_and_the_next_message_to_it_carries_it(
+    tmp_path: Path,
+) -> None:
     e = await started(tmp_path)
-    e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi", "05", "")))         # {05}
+    e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi", "05", "")))  # {05}
     await until(lambda: e.tnc.stats.packets == 1)
     [ack] = await said(e)
     assert ack.tnc2() == SENT + "ack05}", "the ack of {05} is ack05}, the number as it came"
@@ -67,7 +80,9 @@ async def test_a_message_that_says_it_knows_reply_acks_is_acked_with_the_exact_c
     await e.stop()
 
 
-async def test_a_message_from_a_station_that_does_not_know_reply_acks_is_acked_plainly_and_nothing_rides_on_ours(tmp_path: Path) -> None:
+async def test_a_message_from_a_station_that_does_not_know_reply_acks_is_acked_plainly_and_nothing_rides_on_ours(
+    tmp_path: Path,
+) -> None:
     e = await started(tmp_path)
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi", "05")))
     await until(lambda: e.tnc.stats.packets == 1)
@@ -77,19 +92,23 @@ async def test_a_message_from_a_station_that_does_not_know_reply_acks_is_acked_p
     await e.stop()
 
 
-async def test_every_attempt_carries_the_latest_message_that_is_owed_an_ack_and_a_station_that_answers_is_owed_none(tmp_path: Path) -> None:
+async def test_every_attempt_carries_the_latest_message_that_is_owed_an_ack_and_a_station_that_answers_is_owed_none(
+    tmp_path: Path,
+) -> None:
     e = await started(tmp_path)
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi", "05", "")))
     await until(lambda: e.tnc.stats.packets == 1)
     await said(e)
-    await e.ctl.messaging.send("OH2RDG", "Moikka")                            # attempt 1: {01}05
-    e.now.advance(2)                                                        # type: ignore[attr-defined]
+    await e.ctl.messaging.send("OH2RDG", "Moikka")  # attempt 1: {01}05
+    e.now.advance(2)  # type: ignore[attr-defined]
     # They do not hear us: a newer message of theirs
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi taas", "06", "")))
     await until(lambda: e.tnc.stats.packets == 2)
-    e.now.advance(30)                                                       # type: ignore[attr-defined]
+    e.now.advance(30)  # type: ignore[attr-defined]
     await until(lambda: sent_one(e).attempts == 2)
-    assert [f.tnc2() for f in await said(e, 3)] == [SENT + "Moikka{01}05", SENT + "ack06}", DIRECT + "Moikka{01}06"], "the retry keeps the number 01 and carries the latest AA"
+    assert [f.tnc2() for f in await said(e, 3)] == [SENT + "Moikka{01}05", SENT + "ack06}", DIRECT + "Moikka{01}06"], (
+        "the retry keeps the number 01 and carries the latest AA"
+    )
     e.feed(on_air("OH2RDG", ack_info("OH2GBA", "01")))
     await until(lambda: sent_one(e).state == "acked")
     await e.ctl.messaging.send("OH2RDG", "Kiitos")

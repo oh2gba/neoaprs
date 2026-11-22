@@ -2,6 +2,7 @@
 
 The job (mapfetch.py) begins when a new place is set, unless the detailed map covers it.
 The row `map/auto` is `wanted` until a map exists or the operator cancelled; each start retries."""
+
 import asyncio
 import logging
 
@@ -30,7 +31,12 @@ def inside(box: Box, lat: float, lon: float) -> bool:
 
 def contains(outer: Box, inner: Box) -> bool:
     """Return whether `inner` lies in `outer`, within EDGE."""
-    return outer[0] - EDGE <= inner[0] and outer[1] - EDGE <= inner[1] and inner[2] <= outer[2] + EDGE and inner[3] <= outer[3] + EDGE
+    return (
+        outer[0] - EDGE <= inner[0]
+        and outer[1] - EDGE <= inner[1]
+        and inner[2] <= outer[2] + EDGE
+        and inner[3] <= outer[3] + EDGE
+    )
 
 
 def covers(detail: MapFile | None, lat: float, lon: float, radius_km: int) -> bool:
@@ -41,15 +47,17 @@ def covers(detail: MapFile | None, lat: float, lon: float, radius_km: int) -> bo
 
 
 class MapAuto:
-    def __init__(self, fetch: MapFetch, config: ConfigSource, memory: Memory | None = None, enabled: bool = True) -> None:
+    def __init__(
+        self, fetch: MapFetch, config: ConfigSource, memory: Memory | None = None, enabled: bool = True
+    ) -> None:
         self._fetch = fetch
         self._config = config
         self._enabled = enabled
         self._remembered = Remembered(memory)
         self._tasks = TaskSet(self._failed)
         self._state = ""
-        self._mine = False                      # the job was begun here, not by the operator
-        self._box: Box | None = None            # area of that job
+        self._mine = False  # the job was begun here, not by the operator
+        self._box: Box | None = None  # area of that job
         self._restarting = False
         self._was_busy = False
 
@@ -108,7 +116,9 @@ class MapAuto:
         config = self._config()
         place = config.station_position
         self._box = box_around(*place, config.map_radius_km) if place is not None else None
-        log.info("the detailed map is being made %d km round the station, without being asked for", config.map_radius_km)
+        log.info(
+            "the detailed map is being made %d km round the station, without being asked for", config.map_radius_km
+        )
 
     async def _again(self) -> None:
         try:

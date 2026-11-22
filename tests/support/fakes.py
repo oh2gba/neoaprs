@@ -1,5 +1,5 @@
-"""Fakes for the tests: a line based TCP server on a free loopback port, and a rigctld made of it.
-"""
+"""Fakes for the tests: a line based TCP server on a free loopback port, and a rigctld made of it."""
+
 import asyncio
 from collections.abc import Awaitable, Callable
 
@@ -85,6 +85,6 @@ class FakeRigctld(FakeLineServer):
 
 async def rigctld(**options: object) -> FakeRigctld:
     """A fake rigctld listening on a free port, stopped by stop_all() when the test is over."""
-    rig = await FakeRigctld(**options).start()                     # type: ignore[arg-type]
+    rig = await FakeRigctld(**options).start()  # type: ignore[arg-type]
     remember_stop(rig.stop)
     return rig

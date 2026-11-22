@@ -5,6 +5,7 @@ A frame is seen by a busy period that touches the time it was on the air (PTT ON
 after PTT OFF). A BUSY holds our frames for at most BUSY_HOLD_MAX_SEC (neoaprs/mercury.py), so the
 held seconds of a period are the smaller of its length and that cap.
 """
+
 import json
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, field
@@ -30,7 +31,7 @@ class Detector(Protocol):
 
 @dataclass
 class Recording:
-    scene: str                                            # what the receiver heard, in words
+    scene: str  # what the receiver heard, in words
     # (when, the bands in dB), on the measurement's clock.
     spectra: list[tuple[float, list[float]]] = field(default_factory=list)
     # (PTT ON, PTT OFF, SNR in 3 kHz) of the transmitted frames.
@@ -47,8 +48,14 @@ class Recording:
     @classmethod
     def load(cls, path: Path) -> "Recording":
         data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
-        return cls(data["scene"], [(t, b) for t, b in data["spectra"]], [(a, b, c) for a, b, c in data["frames"]], [(t, on) for t, on in data["mercury"]],
-                   (data["frames_span"][0], data["frames_span"][1]), (data["quiet_span"][0], data["quiet_span"][1]))
+        return cls(
+            data["scene"],
+            [(t, b) for t, b in data["spectra"]],
+            [(a, b, c) for a, b, c in data["frames"]],
+            [(t, on) for t, on in data["mercury"]],
+            (data["frames_span"][0], data["frames_span"][1]),
+            (data["quiet_span"][0], data["quiet_span"][1]),
+        )
 
 
 Period = tuple[float, float]
@@ -82,8 +89,7 @@ def replay(make: Callable[[], Detector], recording: Recording) -> list[Period]:
 
 
 def periods_of(events: Sequence[tuple[float, bool]], end: float) -> list[Period]:
-    """The busy periods of a series of BUSY ON / OFF lines, closed at `end` when the last one is ON.
-    """
+    """The busy periods of a series of BUSY ON / OFF lines, closed at `end` when the last one is ON."""
     periods: list[Period] = []
     since: float | None = None
     for when, on in events:
@@ -111,7 +117,7 @@ class Score:
     hang_sec: float | None
     # Busy seconds in the part with frames, away from the frames.
     false_frames_sec: float
-    false_quiet_sec: float                                 # busy seconds in the quiet part
+    false_quiet_sec: float  # busy seconds in the quiet part
     # Seconds of the quiet part the radio would be held (each period at most BUSY_HOLD_MAX_SEC).
     held_quiet_sec: float
     # The longest busy period of the quiet part.
@@ -134,7 +140,16 @@ def score(periods: Sequence[Period], recording: Recording) -> Score:
         clear.append((on, off + CLEAR_AFTER_SEC))
     frames_start, frames_end = recording.frames_span
     quiet = recording.quiet_span
-    false_frames = sum(overlap(p, (frames_start, frames_end)) for p in periods) - sum(overlap(p, c) for p in periods for c in clear)
+    false_frames = sum(overlap(p, (frames_start, frames_end)) for p in periods) - sum(
+        overlap(p, c) for p in periods for c in clear
+    )
     in_quiet = [(max(p[0], quiet[0]), min(p[1], quiet[1])) for p in periods if overlap(p, quiet) > 0]
-    return Score({snr: (n[0], n[1]) for snr, n in sorted(seen.items())}, sum(lags) / len(lags) if lags else None, sum(hangs) / len(hangs) if hangs else None,
-                 max(0.0, false_frames), sum(b - a for a, b in in_quiet), sum(min(b - a, BUSY_HOLD_MAX_SEC) for a, b in in_quiet), max((b - a for a, b in in_quiet), default=0.0))
+    return Score(
+        {snr: (n[0], n[1]) for snr, n in sorted(seen.items())},
+        sum(lags) / len(lags) if lags else None,
+        sum(hangs) / len(hangs) if hangs else None,
+        max(0.0, false_frames),
+        sum(b - a for a, b in in_quiet),
+        sum(min(b - a, BUSY_HOLD_MAX_SEC) for a, b in in_quiet),
+        max((b - a for a, b in in_quiet), default=0.0),
+    )

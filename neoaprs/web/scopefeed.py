@@ -3,6 +3,7 @@
 A page gets the kept rows first, then every newer row; a page more than `BEHIND` bytes behind is
 skipped. Frames name the radio: `RADIO_KIND`, the radio id, then the mercuryscope.py frame.
 """
+
 import struct
 import time
 from collections.abc import Callable, Mapping
@@ -28,7 +29,7 @@ def parse_radio_frame(frame: bytes) -> tuple[RadioId, bytes] | None:
     """Return (radio id, inner frame) of a radio frame, or None for another kind."""
     if len(frame) <= RADIO_HEADER.size or frame[0] != RADIO_KIND:
         return None
-    return RADIO_HEADER.unpack_from(frame)[1], frame[RADIO_HEADER.size:]
+    return RADIO_HEADER.unpack_from(frame)[1], frame[RADIO_HEADER.size :]
 
 
 class ScopeFeed:
@@ -64,7 +65,7 @@ class ScopeFeed:
             held = self._sent.get(conn)
             if held is not None and kept and kept[0].seq < held <= kept[-1].seq:
                 # Resend from the row before `held` so the page can find where they join.
-                kept = kept[held - 1 - kept[0].seq:]
+                kept = kept[held - 1 - kept[0].seq :]
             self._send_history(conn, kept, now)
         self._catch_up(conn)
 

@@ -2,6 +2,7 @@
 
 The shape is layerthing.Thing. Memory only; no I/O.
 """
+
 from dataclasses import replace
 from datetime import datetime, timedelta
 
@@ -31,7 +32,7 @@ class ShipTable:
         if last is None or p.at >= last.at:
             self._positions[p.mmsi] = p
             if self._bound is not None and len(self._positions) > 2 * self._bound:
-                newest = sorted(self._positions.values(), key=lambda held: held.at, reverse=True)[:self._bound]
+                newest = sorted(self._positions.values(), key=lambda held: held.at, reverse=True)[: self._bound]
                 self._positions = {held.mmsi: held for held in newest}
 
     def static(self, s: AisStatic) -> None:
@@ -39,20 +40,30 @@ class ShipTable:
         before = self._statics.get(s.mmsi)
         if before is not None:
             old = before[0]
-            s = replace(s, name=s.name or old.name, ship_type=s.ship_type if s.ship_type is not None else old.ship_type, destination=s.destination or old.destination)
+            s = replace(
+                s,
+                name=s.name or old.name,
+                ship_type=s.ship_type if s.ship_type is not None else old.ship_type,
+                destination=s.destination or old.destination,
+            )
         self._statics.pop(s.mmsi, None)  # so that the dict's order is the order of arrival
         self._statics[s.mmsi] = (s, self._clock())
         if self._bound is not None and len(self._statics) > 2 * self._bound:
-            self._statics = dict(list(self._statics.items())[-self._bound:])
-
+            self._statics = dict(list(self._statics.items())[-self._bound :])
 
     def things(self, now: datetime, max_age_sec: float) -> list[Thing]:
         """Return the ships whose position is at most `max_age_sec` old, as things.
 
         Older ones, and words kept without a position for over 24 hours, are forgotten.
         """
-        self._positions = {mmsi: p for mmsi, p in self._positions.items() if (now - p.at).total_seconds() <= max_age_sec}
-        self._statics = {mmsi: kept for mmsi, kept in self._statics.items() if now - kept[1] <= STATIC_KEEP or mmsi in self._positions}
+        self._positions = {
+            mmsi: p for mmsi, p in self._positions.items() if (now - p.at).total_seconds() <= max_age_sec
+        }
+        self._statics = {
+            mmsi: kept
+            for mmsi, kept in self._statics.items()
+            if now - kept[1] <= STATIC_KEEP or mmsi in self._positions
+        }
         return [self._thing(p) for p in self._positions.values()]
 
     def _thing(self, p: AisPosition) -> Thing:
@@ -65,5 +76,15 @@ class ShipTable:
             heading = course
         else:
             heading = None
-        return Thing(id=str(p.mmsi), lat=p.lat, lon=p.lon, at=p.at, heading_deg=heading, speed_kmh=None if p.sog_kn is None else p.sog_kn * KNOT_KMH,
-                     name=static.name if static else "", ship_type=static.ship_type if static else None, course_deg=course, destination=static.destination if static else "")
+        return Thing(
+            id=str(p.mmsi),
+            lat=p.lat,
+            lon=p.lon,
+            at=p.at,
+            heading_deg=heading,
+            speed_kmh=None if p.sog_kn is None else p.sog_kn * KNOT_KMH,
+            name=static.name if static else "",
+            ship_type=static.ship_type if static else None,
+            course_deg=course,
+            destination=static.destination if static else "",
+        )

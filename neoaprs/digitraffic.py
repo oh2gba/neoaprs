@@ -3,6 +3,7 @@
 Pure code: the answer arrives as bytes from another module. An answer in an unexpected form is
 None (the caller counts a failure); a single incomplete ship is skipped.
 """
+
 import json
 import math
 from typing import Any
@@ -41,7 +42,14 @@ def _position(feature: object) -> AisPosition | None:
     coordinates = geometry.get("coordinates")
     mmsi = props.get("mmsi", feature.get("mmsi"))
     stamp = _number(props.get("timestampExternal"))
-    if not isinstance(coordinates, list) or len(coordinates) < 2 or not isinstance(mmsi, int) or isinstance(mmsi, bool) or not 0 < mmsi <= 999999999 or stamp is None:
+    if (
+        not isinstance(coordinates, list)
+        or len(coordinates) < 2
+        or not isinstance(mmsi, int)
+        or isinstance(mmsi, bool)
+        or not 0 < mmsi <= 999999999
+        or stamp is None
+    ):
         return None
     lon, lat = _number(coordinates[0]), _number(coordinates[1])
     if lon is None or lat is None or abs(lon) > 180 or abs(lat) > 90:
@@ -52,7 +60,10 @@ def _position(feature: object) -> AisPosition | None:
     except (OverflowError, ValueError):
         return None
     return AisPosition(
-        mmsi=mmsi, lat=lat, lon=lon, at=at,
+        mmsi=mmsi,
+        lat=lat,
+        lon=lon,
+        at=at,
         sog_kn=None if sog is None or sog < 0 or sog >= _SOG_NA else sog,
         cog_deg=None if cog is None or not 0 <= cog < _COG_NA else cog,
         heading_deg=None if heading is None or not 0 <= heading < 360 or heading == _HEADING_NA else int(heading),
@@ -71,7 +82,12 @@ def read_locations(body: bytes | str) -> list[AisPosition] | None:
 def _static(entry: object) -> AisStatic | None:
     if not isinstance(entry, dict):
         return None
-    mmsi, name, kind, destination = entry.get("mmsi"), entry.get("name"), entry.get("shipType"), entry.get("destination")
+    mmsi, name, kind, destination = (
+        entry.get("mmsi"),
+        entry.get("name"),
+        entry.get("shipType"),
+        entry.get("destination"),
+    )
     if not isinstance(mmsi, int) or isinstance(mmsi, bool) or not 0 < mmsi <= 999999999:
         return None
     return AisStatic(

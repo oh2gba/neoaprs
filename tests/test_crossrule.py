@@ -1,5 +1,6 @@
 """The pure rules of passing a packet between two radios (neoaprs/crossrule.py): the request and its
 step, what is never passed, the slow radios and the reply paths."""
+
 from datetime import datetime, timezone
 
 import pytest
@@ -18,7 +19,12 @@ POSITION = b"!6010.20N/02456.40E-test"
 
 
 def frame(path: str, source: str = "OH2XYZ", info: bytes = POSITION, destination: str = "APRS") -> ax25.Frame:
-    return ax25.Frame(ax25.Address.parse(destination), ax25.Address.parse(source), tuple(ax25.Address.parse(p) for p in path.split(",") if p), info=info)
+    return ax25.Frame(
+        ax25.Address.parse(destination),
+        ax25.Address.parse(source),
+        tuple(ax25.Address.parse(p) for p in path.split(",") if p),
+        info=info,
+    )
 
 
 def packet_for(info: bytes, path: str = "OH2GBA-12", source: str = "OH2XYZ", dummy: bool = False) -> Packet:
@@ -40,10 +46,29 @@ def test_the_hop_is_marked_where_it_stands_after_used_hops_and_nothing_else_chan
     out = cross(f, PAIR, OURS)
     assert out is not None
     assert [str(a) for a in out.path] == ["OH2RCH-2*", "OH2GBA-12*", "WIDE2-1", "OH2ABC-1"]
-    assert (out.source, out.destination, out.info, out.control, out.pid) == (f.source, f.destination, f.info, f.control, f.pid)
+    assert (out.source, out.destination, out.info, out.control, out.pid) == (
+        f.source,
+        f.destination,
+        f.info,
+        f.control,
+        f.pid,
+    )
 
 
-@pytest.mark.parametrize("path", ["WIDE1-1", "WIDE1-1,WIDE2-1", "OH2GBA", "OH2GBA-11", "OH2GBA-13", "WIDE2-1,OH2GBA-12", "OH2RCH-2*", "", "OH2GBA-12*"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "WIDE1-1",
+        "WIDE1-1,WIDE2-1",
+        "OH2GBA",
+        "OH2GBA-11",
+        "OH2GBA-13",
+        "WIDE2-1,OH2GBA-12",
+        "OH2RCH-2*",
+        "",
+        "OH2GBA-12*",
+    ],
+)
 def test_any_other_first_unused_hop_or_none_is_no_request(path: str) -> None:
     assert cross(frame(path), PAIR, OURS) is None
 
@@ -147,27 +172,34 @@ def test_the_sound_card_and_the_fm_types_are_fast_and_mercury_is_slow() -> None:
     assert not any(slow_channel(t.limits) for t in TYPES if t.driver == "direwolf")
 
 
-@pytest.mark.parametrize("last, reply", [
-    (("OH2GBA-12*",), ("OH2GBA-12",)),
-    (("OH2RCH-2*", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
-    (("WIDE1*", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
-    (("OH2GBA*", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
-    (("OH2GBA-2*", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
-    (("OH2RCH-2*", "OH2GBA*", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
-    ((), ()),
-    (("WIDE1*",), ()),
-    (("OH2RCH-2*", "WIDE2-1*"), ()),
-    (("OH2GBA-12*", "OH2ABC-3"), ("OH2GBA-12",)),
-    (("OH2RCH-2", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
-    (("OH2GBA", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
-    (("WIDE1", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
-])
-def test_the_reply_path_goes_through_the_last_used_hop_when_it_is_a_gateway(last: tuple[str, ...], reply: tuple[str, ...]) -> None:
+@pytest.mark.parametrize(
+    "last, reply",
+    [
+        (("OH2GBA-12*",), ("OH2GBA-12",)),
+        (("OH2RCH-2*", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
+        (("WIDE1*", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
+        (("OH2GBA*", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
+        (("OH2GBA-2*", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
+        (("OH2RCH-2*", "OH2GBA*", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
+        ((), ()),
+        (("WIDE1*",), ()),
+        (("OH2RCH-2*", "WIDE2-1*"), ()),
+        (("OH2GBA-12*", "OH2ABC-3"), ("OH2GBA-12",)),
+        (("OH2RCH-2", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
+        (("OH2GBA", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
+        (("WIDE1", "OH2GBA-12*"), ("OH2GBA-12", "WIDE2-1")),
+    ],
+)
+def test_the_reply_path_goes_through_the_last_used_hop_when_it_is_a_gateway(
+    last: tuple[str, ...], reply: tuple[str, ...]
+) -> None:
     assert reply_path(last, {"OH2ABC", "OH2ABC-1"}) == reply
 
 
 def test_after_two_pair_calls_in_turn_the_reply_names_the_last_one_and_comes_back_one_crossing() -> None:
-    assert reply_path(("OH2GBA-11*", "OH2GBA-12*"), {"OH2ABC"}) == ("OH2GBA-12", "WIDE2-1"), "any used hop before the gateway's call may be a digipeater on the way, so one wide hop follows"
+    assert reply_path(("OH2GBA-11*", "OH2GBA-12*"), {"OH2ABC"}) == ("OH2GBA-12", "WIDE2-1"), (
+        "any used hop before the gateway's call may be a digipeater on the way, so one wide hop follows"
+    )
 
 
 def test_a_last_used_hop_that_is_one_of_our_own_calls_gives_no_reply_path() -> None:

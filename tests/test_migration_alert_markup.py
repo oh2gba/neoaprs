@@ -2,6 +2,7 @@
 escapes & < > for the notifier. A stored command equal to the earlier default is deleted; the
 operator's own is kept.
 """
+
 import logging
 from pathlib import Path
 
@@ -16,9 +17,11 @@ from tests.support.clock import FixedClock
 from tests.support.migrated import opened, step_back
 from tests.test_migrations import GOLDEN, raw
 
-V22_LINUX_ALERT = ('(notify-send -- "$NEOAPRS_TITLE" "$NEOAPRS_TEXT" 2>/dev/null || kdialog --title "$NEOAPRS_TITLE" --passivepopup "$NEOAPRS_TEXT" 10); '
-                   # What every save of the settings stored from migration 22 on, on Linux and macOS
-                   'paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga')
+V22_LINUX_ALERT = (
+    '(notify-send -- "$NEOAPRS_TITLE" "$NEOAPRS_TEXT" 2>/dev/null || kdialog --title "$NEOAPRS_TITLE" --passivepopup "$NEOAPRS_TEXT" 10); '
+    # What every save of the settings stored from migration 22 on, on Linux and macOS
+    "paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga"
+)
 
 
 def version_twenty_six(path: Path, clock: FixedClock, stored: dict[str, str]) -> None:
@@ -39,13 +42,25 @@ def migrate(folder: Path, stored: dict[str, str]) -> dict[str, str]:
     version_twenty_six(old, clock, stored)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 27
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][26:] == [(27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33]), (34, "_v34", GOLDEN[34]), (35, "_v35", GOLDEN[35])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][26:] == [
+        (27, "_v27", GOLDEN[27]),
+        (28, "_v28", GOLDEN[28]),
+        (29, "_v29", GOLDEN[29]),
+        (30, "_v30", GOLDEN[30]),
+        (31, "_v31", GOLDEN[31]),
+        (32, "_v32", GOLDEN[32]),
+        (33, "_v33", GOLDEN[33]),
+        (34, "_v34", GOLDEN[34]),
+        (35, "_v35", GOLDEN[35]),
+    ]
     found = {str(k): str(v) for k, v in migrated.db.execute("SELECT key, value FROM settings")}
     migrated.close()
     return found
 
 
-def test_the_default_of_migration_22_is_dropped_and_the_new_one_is_in_force(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_the_default_of_migration_22_is_dropped_and_the_new_one_is_in_force(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
         found = migrate(tmp_path, {"messages/alert_command": V22_LINUX_ALERT, "station/call": "OH2GBA"})
     assert found == {"station/call": "OH2GBA"}
@@ -54,8 +69,13 @@ def test_the_default_of_migration_22_is_dropped_and_the_new_one_is_in_force(tmp_
     assert "messages/alert_command was the old default" in caplog.text
 
 
-@pytest.mark.parametrize("own", ['curl -s -d "$NEOAPRS_TEXT" https://ntfy.sh/x', V22_LINUX_ALERT + " ", LINUX_ALERT_COMMAND, WINDOWS_ALERT_COMMAND])
-def test_a_command_of_the_operators_own_the_new_default_and_the_default_of_windows_are_kept(tmp_path: Path, own: str, caplog: pytest.LogCaptureFixture) -> None:
+@pytest.mark.parametrize(
+    "own",
+    ['curl -s -d "$NEOAPRS_TEXT" https://ntfy.sh/x', V22_LINUX_ALERT + " ", LINUX_ALERT_COMMAND, WINDOWS_ALERT_COMMAND],
+)
+def test_a_command_of_the_operators_own_the_new_default_and_the_default_of_windows_are_kept(
+    tmp_path: Path, own: str, caplog: pytest.LogCaptureFixture
+) -> None:
     with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
         found = migrate(tmp_path, {"messages/alert_command": own})
     assert found == {"messages/alert_command": own} and "old default" not in caplog.text

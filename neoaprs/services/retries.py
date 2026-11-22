@@ -3,6 +3,7 @@
 Tracks when each message needs attention (message.due_at); a ticker runs the attempt that is due or
 ends a message that used its last. Waits do not run while the radio is away.
 """
+
 import asyncio
 import logging
 from collections.abc import Callable
@@ -25,6 +26,7 @@ log = logging.getLogger("neoaprs.messaging")
 
 class Host(Protocol):
     """What the schedule asks of messaging."""
+
     def get(self, number: int) -> MessageRecord | None: ...
     def attempt(self, record: MessageRecord) -> MessageRecord: ...
     def put(self, record: MessageRecord) -> None: ...
@@ -33,7 +35,16 @@ class Host(Protocol):
 
 
 class Retries:
-    def __init__(self, host: Host, radios: RadioPick | Radio, config: ConfigSource, interlock: Interlock, clock: Clock, tick_sec: Callable[[], float], first: Callable[[], None] | None = None) -> None:
+    def __init__(
+        self,
+        host: Host,
+        radios: RadioPick | Radio,
+        config: ConfigSource,
+        interlock: Interlock,
+        clock: Clock,
+        tick_sec: Callable[[], float],
+        first: Callable[[], None] | None = None,
+    ) -> None:
         self._host = host
         self._given = radios
         self._config = config
@@ -90,7 +101,10 @@ class Retries:
             if radio is None and record is not None:
                 log.warning("message %d to %s waits: it has no radio to go on now", record.id, record.to_call)
             elif radio is not None:
-                log.warning("a message is waiting and %s: its attempts wait for the radio (none is used up)", radio.why_unusable())
+                log.warning(
+                    "a message is waiting and %s: its attempts wait for the radio (none is used up)",
+                    radio.why_unusable(),
+                )
         return False
 
     async def _run(self) -> None:
@@ -118,7 +132,14 @@ class Retries:
                 continue
             if record.attempts >= record.attempts_max:
                 state: State = "unconfirmed" if record.attempts_max <= UNCONFIRMED_MAX else "failed"
-                log.log(logging.INFO if state == "unconfirmed" else logging.WARNING, "message %d to %s is %s: no answer after %d attempts", record.id, record.to_call, state, record.attempts)
+                log.log(
+                    logging.INFO if state == "unconfirmed" else logging.WARNING,
+                    "message %d to %s is %s: no answer after %d attempts",
+                    record.id,
+                    record.to_call,
+                    state,
+                    record.attempts,
+                )
                 self._host.put(replace(record, state=state))
             else:
                 self._host.attempt(record)
@@ -140,7 +161,11 @@ class Retries:
         self._told_down.discard(key)
         span = self._down.pop(key, None)
         if span is not None and span[1] > span[0]:
-            log.info("the %s radio takes frames again after %d s: the waits of the messages on it are moved on by that time", radio_word(radio), (span[1] - span[0]).total_seconds())
+            log.info(
+                "the %s radio takes frames again after %d s: the waits of the messages on it are moved on by that time",
+                radio_word(radio),
+                (span[1] - span[0]).total_seconds(),
+            )
             self._move_on(span[1] - span[0], key)
 
     def _move_on(self, away: timedelta, key: RadioId) -> None:

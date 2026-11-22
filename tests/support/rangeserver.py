@@ -1,6 +1,7 @@
 """A loopback web server that serves one file with range requests (206 and Content-Range) and the
 ways one goes wrong, for the cut of the base map (neoaprs/pmtilescut.py).
 """
+
 import asyncio
 import re
 
@@ -52,7 +53,11 @@ class RangeServer(LoopbackServer):
             await self._hold(reader, writer, b"")
             return
         if self.mode == "moved":
-            writer.write(f"HTTP/1.1 302 Found\r\nLocation: {self.moved_to}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".encode("latin-1"))
+            writer.write(
+                f"HTTP/1.1 302 Found\r\nLocation: {self.moved_to}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".encode(
+                    "latin-1"
+                )
+            )
             return
         if self.mode == "missing":
             writer.write(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
@@ -64,11 +69,15 @@ class RangeServer(LoopbackServer):
                 self.sent += 65536
                 await writer.drain()
         shift = 1 if self.mode == "wrong" else 0
-        body = self.data[first + shift:last + 1 + shift]
-        writer.write(f"HTTP/1.1 206 Partial Content\r\nContent-Range: bytes {first + shift}-{last + shift}/{len(self.data)}\r\nContent-Length: {len(body)}\r\nConnection: close\r\n\r\n".encode("latin-1"))
+        body = self.data[first + shift : last + 1 + shift]
+        writer.write(
+            f"HTTP/1.1 206 Partial Content\r\nContent-Range: bytes {first + shift}-{last + shift}/{len(self.data)}\r\nContent-Length: {len(body)}\r\nConnection: close\r\n\r\n".encode(
+                "latin-1"
+            )
+        )
         if self.cut:
             self.cut -= 1
-            body = body[:len(body) // 2]
+            body = body[: len(body) // 2]
         elif self.hold_from is not None and first >= self.hold_from:
             await self._hold(reader, writer, body[:1])
             return

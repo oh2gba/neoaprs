@@ -1,6 +1,7 @@
 """Tests for the map layer settings (neoaprs/configlayers.py): `map/aircraft`, `map/aircraft_host`,
 `map/ships` and `map/ships_host`, their validation, defaults, and form place.
 """
+
 import json
 from pathlib import Path
 
@@ -21,12 +22,28 @@ KEY = "k7m2-x9pq-4hrt"
 
 def test_the_four_settings_come_straight_after_the_maps_source_with_their_defaults() -> None:
     at = KEYS.index("map/source")
-    assert KEYS[at + 1:at + 5] == LAYER_KEYS == tuple(key for _attr, key, _parse in LAYER_ROWS)
-    assert {key: DEFAULTS.to_data()[key] for key in LAYER_KEYS} == {"map/aircraft": "none", "map/aircraft_host": "", "map/ships": "none", "map/ships_host": ""}
-    assert (DEFAULTS.map_aircraft, DEFAULTS.map_aircraft_host, DEFAULTS.map_ships, DEFAULTS.map_ships_host) == ("none", "", "none", "")
+    assert KEYS[at + 1 : at + 5] == LAYER_KEYS == tuple(key for _attr, key, _parse in LAYER_ROWS)
+    assert {key: DEFAULTS.to_data()[key] for key in LAYER_KEYS} == {
+        "map/aircraft": "none",
+        "map/aircraft_host": "",
+        "map/ships": "none",
+        "map/ships_host": "",
+    }
+    assert (DEFAULTS.map_aircraft, DEFAULTS.map_aircraft_host, DEFAULTS.map_ships, DEFAULTS.map_ships_host) == (
+        "none",
+        "",
+        "none",
+        "",
+    )
 
 
-@pytest.mark.parametrize(("key", "words"), [("map/aircraft", ("none", "adsbfi", "adsblol", "radarcape", "receiver")), ("map/ships", ("none", "fintraffic", "receiver"))])
+@pytest.mark.parametrize(
+    ("key", "words"),
+    [
+        ("map/aircraft", ("none", "adsbfi", "adsblol", "radarcape", "receiver")),
+        ("map/ships", ("none", "fintraffic", "receiver")),
+    ],
+)
 def test_a_source_is_one_of_its_layers_words_in_any_case(key: str, words: tuple[str, ...]) -> None:
     for word in words:
         assert Config.check(key, f" {word.upper()} ") == word
@@ -36,15 +53,50 @@ def test_a_source_is_one_of_its_layers_words_in_any_case(key: str, words: tuple[
         assert (refused.value.key, refused.value.code) == (key, "setting.not_among")
 
 
-@pytest.mark.parametrize("text", ["192.168.1.20", "pi.local", "[fe80::1]", "pi.local:8080", "192.168.1.20:30005", "[fe80::1]:8080", "adsb_feeder", "http://pi.local/tar1090/data/aircraft.json",
-                                  "https://192.168.1.20:8443/data/aircraft.json"])
-def test_an_aircraft_receivers_address_is_a_host_a_host_and_port_or_a_whole_web_address_kept_as_typed(text: str) -> None:
+@pytest.mark.parametrize(
+    "text",
+    [
+        "192.168.1.20",
+        "pi.local",
+        "[fe80::1]",
+        "pi.local:8080",
+        "192.168.1.20:30005",
+        "[fe80::1]:8080",
+        "adsb_feeder",
+        "http://pi.local/tar1090/data/aircraft.json",
+        "https://192.168.1.20:8443/data/aircraft.json",
+    ],
+)
+def test_an_aircraft_receivers_address_is_a_host_a_host_and_port_or_a_whole_web_address_kept_as_typed(
+    text: str,
+) -> None:
     assert receiver_address(f"  {text} ") == text
     assert Config.check("map/aircraft_host", text) == text
 
 
-@pytest.mark.parametrize("text", ["fe80::1", "pi local", "pi.local:", "pi.local:0", "pi.local:65536", "pi.local:http", "ftp://pi.local/x", "http://", "http:///data", "file:///etc/passwd", "-help", "pi..local",
-                                  "http://pi.local:99999/", "a\tb", "x" * 501, "pi.local/data", "pi.local:\u0663\u0660", "pi.local:\uff18\uff10"])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "fe80::1",
+        "pi local",
+        "pi.local:",
+        "pi.local:0",
+        "pi.local:65536",
+        "pi.local:http",
+        "ftp://pi.local/x",
+        "http://",
+        "http:///data",
+        "file:///etc/passwd",
+        "-help",
+        "pi..local",
+        "http://pi.local:99999/",
+        "a\tb",
+        "x" * 501,
+        "pi.local/data",
+        "pi.local:\u0663\u0660",
+        "pi.local:\uff18\uff10",
+    ],
+)
 def test_anything_else_is_not_the_address_of_a_receiver(text: str) -> None:
     with pytest.raises(CodedError) as refused:
         receiver_address(text)
@@ -54,22 +106,51 @@ def test_anything_else_is_not_the_address_of_a_receiver(text: str) -> None:
     assert (said.value.key, said.value.code) == ("map/aircraft_host", "setting.not_receiver")
 
 
-@pytest.mark.parametrize("text", ["192.168.1.20", "ais.local", "[fe80::1]", "ais.local:10110", "192.168.1.20:2000", "[fe80::1]:1"])
+@pytest.mark.parametrize(
+    "text", ["192.168.1.20", "ais.local", "[fe80::1]", "ais.local:10110", "192.168.1.20:2000", "[fe80::1]:1"]
+)
 def test_an_ais_receivers_address_is_a_host_or_a_host_and_port(text: str) -> None:
     assert ais_address(f" {text}  ") == text
     assert Config.check("map/ships_host", text) == text
 
 
-@pytest.mark.parametrize("text", ["http://ais.local:10110", "tcp://ais.local", "ais.local:0", "ais.local:65536", "ais.local:", "fe80::1", "ais local", "x" * 501, "ais.local:\uff11\uff10"])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "http://ais.local:10110",
+        "tcp://ais.local",
+        "ais.local:0",
+        "ais.local:65536",
+        "ais.local:",
+        "fe80::1",
+        "ais local",
+        "x" * 501,
+        "ais.local:\uff11\uff10",
+    ],
+)
 def test_a_web_address_or_a_wrong_port_is_not_the_address_of_an_ais_receiver(text: str) -> None:
     with pytest.raises(SettingError) as refused:
         Config.check("map/ships_host", text)
-    assert (refused.value.key, refused.value.code, refused.value.params) == ("map/ships_host", "setting.not_receiver", {"value": text})
+    assert (refused.value.key, refused.value.code, refused.value.params) == (
+        "map/ships_host",
+        "setting.not_receiver",
+        {"value": text},
+    )
 
 
-@pytest.mark.parametrize(("text", "pair"), [("", ("127.0.0.1", 10110)), ("ais.local", ("ais.local", 10110)), ("192.168.1.20:2000", ("192.168.1.20", 2000)), ("[fe80::1]", ("fe80::1", 10110)),
-                                            ("[fe80::1]:1", ("fe80::1", 1))])
-def test_an_ais_receivers_address_is_connected_to_at_its_host_and_port_and_at_10110_when_none_is_given(text: str, pair: tuple[str, int]) -> None:
+@pytest.mark.parametrize(
+    ("text", "pair"),
+    [
+        ("", ("127.0.0.1", 10110)),
+        ("ais.local", ("ais.local", 10110)),
+        ("192.168.1.20:2000", ("192.168.1.20", 2000)),
+        ("[fe80::1]", ("fe80::1", 10110)),
+        ("[fe80::1]:1", ("fe80::1", 1)),
+    ],
+)
+def test_an_ais_receivers_address_is_connected_to_at_its_host_and_port_and_at_10110_when_none_is_given(
+    text: str, pair: tuple[str, int]
+) -> None:
     assert ais_host_port(ais_address(text)) == pair
 
 
@@ -79,12 +160,29 @@ def test_an_empty_address_is_this_computer_and_is_kept_empty() -> None:
 
 
 def test_a_stored_value_is_read_back_and_a_wrong_one_falls_back_to_its_default() -> None:
-    rows = {"map/aircraft": "receiver", "map/aircraft_host": "pi.local:8080", "map/ships": "fintraffic", "map/ships_host": "ais.local"}
+    rows = {
+        "map/aircraft": "receiver",
+        "map/aircraft_host": "pi.local:8080",
+        "map/ships": "fintraffic",
+        "map/ships_host": "ais.local",
+    }
     config = Config.from_data(rows)
-    assert (config.map_aircraft, config.map_aircraft_host, config.map_ships, config.map_ships_host) == ("receiver", "pi.local:8080", "fintraffic", "ais.local")
+    assert (config.map_aircraft, config.map_aircraft_host, config.map_ships, config.map_ships_host) == (
+        "receiver",
+        "pi.local:8080",
+        "fintraffic",
+        "ais.local",
+    )
     assert {key: config.to_data()[key] for key in LAYER_KEYS} == rows
-    wrong = Config.from_data({"map/aircraft": "radar", "map/aircraft_host": "pi local", "map/ships": "adsbfi", "map/ships_host": "http://x"})
-    assert (wrong.map_aircraft, wrong.map_aircraft_host, wrong.map_ships, wrong.map_ships_host) == ("none", "", "none", "")
+    wrong = Config.from_data(
+        {"map/aircraft": "radar", "map/aircraft_host": "pi local", "map/ships": "adsbfi", "map/ships_host": "http://x"}
+    )
+    assert (wrong.map_aircraft, wrong.map_aircraft_host, wrong.map_ships, wrong.map_ships_host) == (
+        "none",
+        "",
+        "none",
+        "",
+    )
 
 
 def test_fintraffic_is_stored_wherever_the_station_is() -> None:
@@ -114,14 +212,21 @@ def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(nodevices.ENV, "1")
 
 
-async def test_a_page_of_another_device_with_the_key_sets_every_setting_of_the_layers(tmp_path: Path, from_another_device: None, under_the_switch: None) -> None:
+async def test_a_page_of_another_device_with_the_key_sets_every_setting_of_the_layers(
+    tmp_path: Path, from_another_device: None, under_the_switch: None
+) -> None:
     e = Env(tmp_path, web=True, settings={"web/network": "true", "web/key": KEY})
     await e.start()
     answer = await e.fetch("/access", method="POST", body=json.dumps({"key": KEY}))
     assert answer.code == 204
     page = await e.ws(cookie=answer.headers["Set-Cookie"].split(";", 1)[0])
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    values = {"map/aircraft": "receiver", "map/aircraft_host": "192.168.1.30:8080", "map/ships": "receiver", "map/ships_host": "192.168.1.31:10110"}
+    values = {
+        "map/aircraft": "receiver",
+        "map/aircraft_host": "192.168.1.30:8080",
+        "map/ships": "receiver",
+        "map/ships_host": "192.168.1.31:10110",
+    }
     await page.send({"cmd": "set_config", "values": values})
     await page.until(lambda: e.ctl.config.map_ships_host == "192.168.1.31:10110")
     assert {key: (await e.ctl.store.settings())[key] for key in LAYER_KEYS} == values

@@ -3,6 +3,7 @@
 A handler asks the daemon to change and reports a refusal as `UserError`; pages learn of the
 change from the signals in topics.py, never from the handler.
 """
+
 import asyncio
 import logging
 from collections.abc import Iterator
@@ -37,7 +38,18 @@ from .hostwire import AskStatus, CheckUpdate, Ping, ReleaseNotes
 from .hubwire import Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch, MapWanted
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
-from .messagewire import ConversationDelete, ForgetStationKey, MessageCancel, MessageDelete, MessageRetry, NewMessageKey, OverheardDelete, QueryStation, SendKey, SendMessage
+from .messagewire import (
+    ConversationDelete,
+    ForgetStationKey,
+    MessageCancel,
+    MessageDelete,
+    MessageRetry,
+    NewMessageKey,
+    OverheardDelete,
+    QueryStation,
+    SendKey,
+    SendMessage,
+)
 from .qruwire import AskQru
 from .generalwire import GeneralQuery
 from .portwire import FindRadio, FindRadioCancel, ListPorts
@@ -77,8 +89,14 @@ async def status(ctx: Ctx, cmd: AskStatus) -> None:
 async def subscribe(ctx: Ctx, cmd: Subscribe) -> None:
     unknown = ctx.hub.subscribe(ctx.conn, cmd.topics)
     if unknown:
-        raise UserError("subscribe: no topic " + ", ".join(repr(n[:40]) for n in unknown[:3]) + (f" (and {len(unknown) - 3} more)" if len(unknown) > 3 else "") + f" (the topics are {', '.join(ctx.hub.topics)})", "topic.unknown",
-                        params={"names": ", ".join(n[:40] for n in unknown[:3])})
+        raise UserError(
+            "subscribe: no topic "
+            + ", ".join(repr(n[:40]) for n in unknown[:3])
+            + (f" (and {len(unknown) - 3} more)" if len(unknown) > 3 else "")
+            + f" (the topics are {', '.join(ctx.hub.topics)})",
+            "topic.unknown",
+            params={"names": ", ".join(n[:40] for n in unknown[:3])},
+        )
 
 
 @command(Unsubscribe)
@@ -91,11 +109,19 @@ async def forget_station(ctx: Ctx, cmd: ForgetStation) -> None:
     book = ctx.ctl.stationbook
     station = book.get(cmd.call)
     if station is None:
-        raise UserError(f"forget_station: there is no station {cmd.call!r}", "station.unknown", params={"call": cmd.call})
+        raise UserError(
+            f"forget_station: there is no station {cmd.call!r}", "station.unknown", params={"call": cmd.call}
+        )
     if station.own:
-        raise UserError(f"forget_station: {cmd.call} is an object of ours: kill it (object_kill)", "station.is_object", params={"call": cmd.call})
+        raise UserError(
+            f"forget_station: {cmd.call} is an object of ours: kill it (object_kill)",
+            "station.is_object",
+            params={"call": cmd.call},
+        )
     if not book.forget(cmd.call):
-        raise UserError(f"forget_station: {cmd.call} is our own station, which stays", "station.is_own", params={"call": cmd.call})
+        raise UserError(
+            f"forget_station: {cmd.call} is our own station, which stays", "station.is_own", params={"call": cmd.call}
+        )
 
 
 @command(ForgetAllStations)
@@ -105,7 +131,14 @@ async def forget_all_stations(ctx: Ctx, cmd: ForgetAllStations) -> None:
 
 def _holder(claims: Claims, kind: ResourceKind, value: str | None) -> int | None:
     """Return the holder of the device (a radio id, 0 for the GPS receiver), or None."""
-    held = next((c for c in claims.all() if value is not None and c.value == value and (c.kind == kind or {c.kind, kind} <= PORT_KINDS)), None)
+    held = next(
+        (
+            c
+            for c in claims.all()
+            if value is not None and c.value == value and (c.kind == kind or {c.kind, kind} <= PORT_KINDS)
+        ),
+        None,
+    )
     return None if held is None else held.holder or 0
 
 
@@ -124,12 +157,46 @@ async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
     if isinstance(modem, DirewolfModem) and radio is not None:
         holder = radio.id
         # sysfs: which ports belong to the card.
-        pick, keying = await asyncio.to_thread(lambda: sound_card_proposal(cards, ports, left_out(ctx.ctl.config, holder), claims=claims, holder=holder))
+        pick, keying = await asyncio.to_thread(
+            lambda: sound_card_proposal(cards, ports, left_out(ctx.ctl.config, holder), claims=claims, holder=holder)
+        )
     else:
-        pick, keying = ("", "") if radio is None else proposal(cards, ports, ctx.ctl.config, claims=claims, holder=radio.id)
-    ctx.conn.send({"type": "ports", "radio": cmd.radio, "search": can_search(), "find": can_find(), "keying": keying,
-                   "ports": [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid, "held_by": _holder(claims, "serial", claim_value(p.device)), "usb_group": on_port.get(p.device)} for p in ports],
-                   "sound_cards": [{"id": c.id, "name": c.name, "numbered": c.numbered, "default": c.default, "pick": c.id == pick, "held_by": _holder(claims, "sound_card", c.id), "usb_group": on_card.get(c.id)} for c in cards]})
+        pick, keying = (
+            ("", "") if radio is None else proposal(cards, ports, ctx.ctl.config, claims=claims, holder=radio.id)
+        )
+    ctx.conn.send(
+        {
+            "type": "ports",
+            "radio": cmd.radio,
+            "search": can_search(),
+            "find": can_find(),
+            "keying": keying,
+            "ports": [
+                {
+                    "device": p.device,
+                    "description": p.description,
+                    "hwid": p.hwid,
+                    "vid": p.vid,
+                    "pid": p.pid,
+                    "held_by": _holder(claims, "serial", claim_value(p.device)),
+                    "usb_group": on_port.get(p.device),
+                }
+                for p in ports
+            ],
+            "sound_cards": [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "numbered": c.numbered,
+                    "default": c.default,
+                    "pick": c.id == pick,
+                    "held_by": _holder(claims, "sound_card", c.id),
+                    "usb_group": on_card.get(c.id),
+                }
+                for c in cards
+            ],
+        }
+    )
 
 
 @command(FindRadio)
@@ -141,15 +208,33 @@ async def find_radio(ctx: Ctx, cmd: FindRadio) -> None:
     radio = FM_ID if cmd.radio is None else cmd.radio
     named = named_radio(ctx, cmd.cmd, radio)  # radio 1 when none is named; `radio.unknown` once removed
     if not named.rtype.can.transmit:
-        raise UserError(f"{cmd.cmd}: radio {named.name} only receives: nothing is written to its line", "radio.receive_only", params={"name": named.name, "radio": named.id})
+        raise UserError(
+            f"{cmd.cmd}: radio {named.name} only receives: nothing is written to its line",
+            "radio.receive_only",
+            params={"name": named.name, "radio": named.id},
+        )
     if cmd.radio is not None and not named.rtype.can.find:
-        raise UserError(f"{cmd.cmd}: radio {named.name} has no serial line to look for", "radio.no_line", params={"name": named.name, "radio": named.id})
+        raise UserError(
+            f"{cmd.cmd}: radio {named.name} has no serial line to look for",
+            "radio.no_line",
+            params={"name": named.name, "radio": named.id},
+        )
     base = {"radio": cmd.radio, "radio_type": "", "profile": "", "number": 0, "total": 0}
 
     def trying(step: Trying) -> None:
         if ctx.conn.closed:  # the asking page left, so nobody will store the answer
             finder.cancel()
-        ctx.conn.send({**base, "type": "radio_search", "state": "trying", "port": step.port, "baud": step.baud, "number": step.number, "total": step.total})
+        ctx.conn.send(
+            {
+                **base,
+                "type": "radio_search",
+                "state": "trying",
+                "port": step.port,
+                "baud": step.baud,
+                "number": step.number,
+                "total": step.total,
+            }
+        )
 
     try:
         found = await finder.find(trying, radio)
@@ -158,7 +243,17 @@ async def find_radio(ctx: Ctx, cmd: FindRadio) -> None:
     if found is None:
         ctx.conn.send({**base, "type": "radio_search", "state": "cancelled", "port": "", "baud": None})
     else:
-        ctx.conn.send({**base, "type": "radio_search", "state": "found", "port": found.port, "baud": found.baud, "profile": found.profile, "radio_type": found.profile})
+        ctx.conn.send(
+            {
+                **base,
+                "type": "radio_search",
+                "state": "found",
+                "port": found.port,
+                "baud": found.baud,
+                "profile": found.profile,
+                "radio_type": found.profile,
+            }
+        )
 
 
 @command(FindRadioCancel)
@@ -183,7 +278,9 @@ async def beacon_now(ctx: Ctx, cmd: BeaconNow) -> None:
         if why == "transmit.off":
             raise UserError("beacon_now: RX only: nothing is sent", "transmit.off")
         # The page words it from `why`.
-        raise UserError(f"beacon_now: nothing was sent: {beacon.problem}", "beacon.not_sent", params={"why": why, **params})
+        raise UserError(
+            f"beacon_now: nothing was sent: {beacon.problem}", "beacon.not_sent", params={"why": why, **params}
+        )
 
 
 @command(StatusNow)
@@ -235,7 +332,11 @@ async def query_station(ctx: Ctx, cmd: QueryStation) -> None:
         if station is None:
             raise UserError(f"{cmd.cmd}: there is no station {call!r}", "station.unknown", params={"call": call})
         if not station.can_message:
-            raise UserError(f"{cmd.cmd}: {call} does not take messages: there is nobody to ask", "query.not_capable", params={"call": call})
+            raise UserError(
+                f"{cmd.cmd}: {call} does not take messages: there is nobody to ask",
+                "query.not_capable",
+                params={"call": call},
+            )
         await ctx.ctl.messaging.asking.ask(call, cmd.kind, cmd.text)
 
 
@@ -320,7 +421,15 @@ async def update_check(ctx: Ctx, cmd: CheckUpdate) -> None:
 @command(ReleaseNotes)
 async def release_notes(ctx: Ctx, cmd: ReleaseNotes) -> None:
     found, problem = await ctx.ctl.updatecheck.release_notes(cmd.version, cmd.since)
-    ctx.conn.send({"type": "release_notes", "version": cmd.version, "since": cmd.since, "sections": [asdict(section) for section in found], "problem": problem})
+    ctx.conn.send(
+        {
+            "type": "release_notes",
+            "version": cmd.version,
+            "since": cmd.since,
+            "sections": [asdict(section) for section in found],
+            "problem": problem,
+        }
+    )
 
 
 @command(UpdateNow)
@@ -344,7 +453,11 @@ async def update_cancel(ctx: Ctx, cmd: UpdateCancel) -> None:
 @command(BulletinDelete)
 async def bulletin_delete(ctx: Ctx, cmd: BulletinDelete) -> None:
     if not ctx.ctl.bulletins.delete(cmd.sender, cmd.slot):
-        raise UserError(f"bulletin_delete: there is no entry {cmd.sender}/{cmd.slot} on the board", "bulletin.not_on_board", params={"sender": cmd.sender, "slot": cmd.slot})
+        raise UserError(
+            f"bulletin_delete: there is no entry {cmd.sender}/{cmd.slot} on the board",
+            "bulletin.not_on_board",
+            params={"sender": cmd.sender, "slot": cmd.slot},
+        )
 
 
 def start_map_job(ctx: Ctx, job: Job, name: str) -> None:
@@ -353,7 +466,10 @@ def start_map_job(ctx: Ctx, job: Job, name: str) -> None:
     except MapError as e:
         if e.problem == "busy":
             raise UserError(f"{name}: a map job is running already", "map.busy") from None
-        raise UserError(f"{name}: the station has no position yet: set Latitude and Longitude (the map is cut round them)", "map.no_position") from None
+        raise UserError(
+            f"{name}: the station has no position yet: set Latitude and Longitude (the map is cut round them)",
+            "map.no_position",
+        ) from None
 
 
 @command(ObjectSet)
@@ -361,7 +477,21 @@ async def object_set(ctx: Ctx, cmd: ObjectSet) -> None:
     for id in cmd.radios:
         named_radio(ctx, cmd.cmd, id)
     with refused(cmd.cmd):
-        ctx.ctl.ownobjects.set(cmd.name, cmd.kind, cmd.lat, cmd.lon, cmd.symbol_table, cmd.symbol_code, cmd.comment, cmd.course_deg, cmd.speed_kmh, cmd.path, cmd.qru_group, cmd.on_request, radios=cmd.radios)
+        ctx.ctl.ownobjects.set(
+            cmd.name,
+            cmd.kind,
+            cmd.lat,
+            cmd.lon,
+            cmd.symbol_table,
+            cmd.symbol_code,
+            cmd.comment,
+            cmd.course_deg,
+            cmd.speed_kmh,
+            cmd.path,
+            cmd.qru_group,
+            cmd.on_request,
+            radios=cmd.radios,
+        )
 
 
 @command(ObjectKill)
@@ -381,7 +511,11 @@ async def bulletin_post(ctx: Ctx, cmd: BulletinPost) -> None:
 @command(BulletinUnpost)
 async def bulletin_unpost(ctx: Ctx, cmd: BulletinUnpost) -> None:
     if not ctx.ctl.ownbulletins.delete(cmd.slot):
-        raise UserError(f"bulletin_unpost: there is no bulletin {cmd.slot} of ours", "bulletin.not_posted", params={"slot": cmd.slot})
+        raise UserError(
+            f"bulletin_unpost: there is no bulletin {cmd.slot} of ours",
+            "bulletin.not_posted",
+            params={"slot": cmd.slot},
+        )
 
 
 @command(MapEstimate)

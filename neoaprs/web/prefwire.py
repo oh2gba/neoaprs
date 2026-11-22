@@ -1,4 +1,5 @@
 """Wire models of per-station settings: `station_prefs`, its commands and `station_alert`."""
+
 from typing import Literal
 
 from pydantic import Field
@@ -10,18 +11,32 @@ from .wirebase import Call, Iso, PathText, _Command, _Message, _Model
 class AlertWhen(_Model):
     """When the operator is told about a station: any of the three, each once for each time it happens (it is not told again for every packet), by the message `station_alert` to every page and by the alert command of
     the settings (`messages/alert`, `messages/alert_command`), as a message to us is."""
-    on_air: bool = Field(description="a packet of the station is heard after it was silent for 30 minutes or more, or for the first time; a packet over the internet counts while `igate/enabled` is on")
-    within_km: int | None = Field(ge=ALERT_KM_MIN, le=ALERT_KM_MAX, description="its position comes from farther to this many km from us or nearer (it is outside again only some way beyond: a tenth more, at least 0.5 km); "
-                                                                          "null if the distance is not watched. A station that is that near already when the alert is set is not told until it has been outside")
-    direct: bool = Field(description="a packet of it is heard direct (no digipeater) after none was for 30 minutes or more")
+
+    on_air: bool = Field(
+        description="a packet of the station is heard after it was silent for 30 minutes or more, or for the first time; a packet over the internet counts while `igate/enabled` is on"
+    )
+    within_km: int | None = Field(
+        ge=ALERT_KM_MIN,
+        le=ALERT_KM_MAX,
+        description="its position comes from farther to this many km from us or nearer (it is outside again only some way beyond: a tenth more, at least 0.5 km); "
+        "null if the distance is not watched. A station that is that near already when the alert is set is not told until it has been outside",
+    )
+    direct: bool = Field(
+        description="a packet of it is heard direct (no digipeater) after none was for 30 minutes or more"
+    )
 
 
 class StationPref(_Model):
     """What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path of its
     own, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`."""
-    path: str | None = Field(description="the digipeaters that a message to the station, and the ack of a message from it, go by way of: calls separated by commas, empty for direct (no digipeaters at all); "
-                                         "null if none is set, and the setting `beacon/path` counts")
-    rf_only: bool = Field(description="true if everything sent to the station (a message and each attempt of it, an ack, the answer to a query) has `RFONLY` as the last element of its path, which iGates that honour it do not put on the internet")
+
+    path: str | None = Field(
+        description="the digipeaters that a message to the station, and the ack of a message from it, go by way of: calls separated by commas, empty for direct (no digipeaters at all); "
+        "null if none is set, and the setting `beacon/path` counts"
+    )
+    rf_only: bool = Field(
+        description="true if everything sent to the station (a message and each attempt of it, an ack, the answer to a query) has `RFONLY` as the last element of its path, which iGates that honour it do not put on the internet"
+    )
     alert: AlertWhen | None = Field(description="when the operator is told about the station; null if no alert is set")
 
 
@@ -29,24 +44,33 @@ class SetStationPath(_Command):
     """Gives a station a path of its own: the digipeaters that a message to it, and the ack of a message from it, go by way of. `path` is up to 8 digipeater calls separated by commas, checked as the setting
     `beacon/path` is, or `DIRECT` for a path of its own with no digipeaters at all; an empty `path` is no path of its own, as `clear_station_path` makes it. Answered by the `set` of the station's entry in the topic `station_prefs`
     (its `rf_only` is whatever it was), or by an `error` that names the reason."""
+
     cmd: Literal["set_station_path"]
     call: Call
     path: PathText
-    radio: int | None = Field(default=None, ge=1, description="the radio the path is for (plan rule 3.3: a path belongs to the radio it was set on), its id; left out: radio 1, whose path is the entry's `path`; another radio's is the station's row's `paths`")
+    radio: int | None = Field(
+        default=None,
+        ge=1,
+        description="the radio the path is for (plan rule 3.3: a path belongs to the radio it was set on), its id; left out: radio 1, whose path is the entry's `path`; another radio's is the station's row's `paths`",
+    )
 
 
 class ClearStationPath(_Command):
     """Takes a station's own path away, so that it has the path of the setting `beacon/path` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `path`
     (or the `del` of the entry when it was not RF only either), or by an `error`."""
+
     cmd: Literal["clear_station_path"]
     call: Call
-    radio: int | None = Field(default=None, ge=1, description="the radio whose path for the station is taken away, its id; left out: radio 1")
+    radio: int | None = Field(
+        default=None, ge=1, description="the radio whose path for the station is taken away, its id; left out: radio 1"
+    )
 
 
 class SetStationRfOnly(_Command):
     """Makes everything we send to a station RF only, or not: `RFONLY` is added as the last element of the path of each message and attempt, each ack and each answer to a query (a path that holds `RFONLY` or `NOGATE`
     already gets no second one). A path that would be more than 8 elements with it is refused when a message is sent ("path too long for RF only"). The email gateway `EMAIL-2` is on the internet and is refused. Answered by the `set`
     of the station's entry in the topic `station_prefs` (its other parts are whatever they were), or by the `del` of the entry when `on` is false and nothing else is set, or by an `error` that names the reason."""
+
     cmd: Literal["set_station_rf_only"]
     call: Call
     on: bool
@@ -55,6 +79,7 @@ class SetStationRfOnly(_Command):
 class SetStationAlert(_Command):
     """Sets when the operator is told about a station (see `AlertWhen`): `on_air`, `within_km` (1 to 1000, null for none) and `direct`, any of them at once; all off takes the alert away. Our own station and our own objects and items
     are refused. Answered by the `set` of the station's entry in the topic `station_prefs` (its path and RF only are whatever they were), or by its `del` when nothing else is set and the alert is taken away, or by an `error`."""
+
     cmd: Literal["set_station_alert"]
     call: Call
     on_air: bool
@@ -64,8 +89,13 @@ class SetStationAlert(_Command):
 
 class StationAlertMsg(_Message):
     """An alert set on a station fired (`set_station_alert`): told to every page that is open, once. The page alerts as for a message to us (the sound, the notification, the browser tab, as its own choice says) and shows it in its toast."""
+
     type: Literal["station_alert"]
     call: str = Field(description="the station")
-    kind: Literal["on_air", "within", "direct"] = Field(description="what happened: it came on the air, it came within the distance, it was heard direct")
-    at: Iso = Field(description="when the packet that fired it was heard (for `within`, when the station's position was, or when ours moved)")
+    kind: Literal["on_air", "within", "direct"] = Field(
+        description="what happened: it came on the air, it came within the distance, it was heard direct"
+    )
+    at: Iso = Field(
+        description="when the packet that fired it was heard (for `within`, when the station's position was, or when ours moved)"
+    )
     km: float | None = Field(description="for `within`, how far the station is, km with one decimal; else null")

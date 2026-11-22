@@ -1,4 +1,5 @@
 """A stand-in for the sked server (server/neo/api/v1/skeds.php) on a free loopback port."""
+
 import asyncio
 import json
 from typing import Any
@@ -9,11 +10,11 @@ from tests.support.loopbackserver import LoopbackServer
 
 class FakeSkeds(LoopbackServer):
     def __init__(self) -> None:
-        self.rows: list[dict[str, str]] | None = None          # None: no board yet
+        self.rows: list[dict[str, str]] | None = None  # None: no board yet
         self.closed = False
         self.raw: bytes | None = None
         self.refuse: tuple[str, int] | None = None
-        self.owners: dict[str, str] = {}                        # id -> the token that posted it
+        self.owners: dict[str, str] = {}  # id -> the token that posted it
         self.posts: list[dict[str, Any]] = []
         self.gets: list[tuple[str, dict[str, str]]] = []
         self.counter = 0
@@ -33,7 +34,16 @@ class FakeSkeds(LoopbackServer):
         if body.get("action") == "add":
             self.counter += 1
             ident = f"{self.counter:012x}"
-            rows.append({"id": ident, "call": body["call"], "from": body["from"], "to": body["to"], "dial": body["dial"], "note": body.get("note", "")})
+            rows.append(
+                {
+                    "id": ident,
+                    "call": body["call"],
+                    "from": body["from"],
+                    "to": body["to"],
+                    "dial": body["dial"],
+                    "note": body.get("note", ""),
+                }
+            )
             self.owners[ident] = body["token"]
             self.rows = sorted(rows, key=lambda r: (r["from"], r["id"]))
             return 200, {"ok": True, "id": ident, "board": self.board()}
@@ -58,7 +68,10 @@ class FakeSkeds(LoopbackServer):
                 self.gets.append((head[0], headers))
                 status = 404 if self.rows is None else 200
                 sent = self.raw if self.raw is not None else json.dumps(self.board()).encode()
-            writer.write(f"HTTP/1.0 {status} X\r\nContent-Type: application/json\r\nContent-Length: {len(sent)}\r\n\r\n".encode() + sent)
+            writer.write(
+                f"HTTP/1.0 {status} X\r\nContent-Type: application/json\r\nContent-Length: {len(sent)}\r\n\r\n".encode()
+                + sent
+            )
             await writer.drain()
         except (asyncio.IncompleteReadError, ConnectionError, asyncio.CancelledError):
             pass

@@ -3,6 +3,7 @@
 The destination carries the latitude digits and message, north, offset and west bits; the body
 carries longitude, speed, course, symbol, then an optional altitude and the comment.
 """
+
 import re
 from datetime import datetime
 from typing import NamedTuple
@@ -37,6 +38,7 @@ class MicEError(ValueError):
 
 class _Char(NamedTuple):
     """What a destination character says: digit (None for blank), message bit, custom flag."""
+
     digit: int | None
     bit: int
     custom: bool
@@ -73,7 +75,7 @@ def _latitude(chars: list[_Char]) -> tuple[float, int]:
     blanks = 0
     while blanks < 4 and digits[5 - blanks] is None:
         blanks += 1
-    if any(d is None for d in digits[:6 - blanks]):
+    if any(d is None for d in digits[: 6 - blanks]):
         raise MicEError("blank digits inside the latitude")
     plain = [d or 0 for d in digits]
     whole, minutes, hundredths = plain[0] * 10 + plain[1], plain[2] * 10 + plain[3], plain[4] * 10 + plain[5]
@@ -115,6 +117,7 @@ def _motion(body: bytes) -> tuple[int | None, float | None]:
 
 class MicType(NamedTuple):
     """The radio's type code (`lead`), its `suffix` (bytes telling models apart) and the `text`."""
+
     lead: bytes
     suffix: bytes
     text: bytes
@@ -148,7 +151,7 @@ def _altitude_in(rest: bytes) -> tuple[float | None, bytes]:
     found = _ALTITUDE.match(rest)
     if not found:
         return None, rest
-    return base91(found.group(1)) - 10000.0, rest[:found.start()] + rest[found.end():]
+    return base91(found.group(1)) - 10000.0, rest[: found.start()] + rest[found.end() :]
 
 
 def _altitude_and_comment(rest: bytes) -> tuple[float | None, str, Locator | None]:
@@ -182,4 +185,17 @@ def parse_mice(destination: str, body: bytes, now: datetime) -> Position:
     name = _message_name(chars)
     if name is not None and name != _DEFAULT_MESSAGE:
         comment = f"Mic-E: {name} - {comment}" if comment else f"Mic-E: {name}"
-    return Position(lat, lon, table, chr(body[6]), comment, course, speed, altitude, ambiguity=blanks, locator=locator, telemetry=telemetry, frequency=frequency)
+    return Position(
+        lat,
+        lon,
+        table,
+        chr(body[6]),
+        comment,
+        course,
+        speed,
+        altitude,
+        ambiguity=blanks,
+        locator=locator,
+        telemetry=telemetry,
+        frequency=frequency,
+    )

@@ -3,6 +3,7 @@
 It enters no KISS and writes nothing. If a KISS UI frame arrives on an open, the line is read
 as KISS from then on, still never written.
 """
+
 import asyncio
 import logging
 from datetime import datetime
@@ -76,7 +77,11 @@ class TextLineReader(Reader):
                 self._packet(item)
         if self.text.seven_bit and not self.told_bits:
             self.told_bits = True
-            log.info("%s: the TNC sends 7-bit characters (%s parity): letters outside ASCII are lost", tnc.label, self.text.parity)
+            log.info(
+                "%s: the TNC sends 7-bit characters (%s parity): letters outside ASCII are lost",
+                tnc.label,
+                self.text.parity,
+            )
 
     def _packet(self, frame: ax25.Frame) -> None:
         tnc = self._text_line

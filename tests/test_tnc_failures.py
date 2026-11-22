@@ -2,6 +2,7 @@
 is skipped: what a real line does badly. An open that fails, a refused write, a line lost while
 asking, a stop during a retry, and the KISS entry repeats that wait longer each time.
 """
+
 import asyncio
 import logging
 import threading
@@ -53,6 +54,7 @@ async def started(**kwargs: object) -> AsyncIterator[Tnc]:
 
 # ---- the open
 
+
 async def test_an_open_that_is_refused_waits_and_tries_again_after_the_back_off(ports: FakePorts) -> None:
     ports.open_error = SerialError("socket://fake-tnc:1: connection refused")
     loop = asyncio.get_running_loop()
@@ -68,10 +70,16 @@ async def test_an_open_that_is_refused_waits_and_tries_again_after_the_back_off(
 
 
 @pytest.mark.expects_errors
-async def test_an_open_that_raises_something_nobody_listed_is_logged_and_waited_out_like_a_refusal(ports: FakePorts, caplog: pytest.LogCaptureFixture) -> None:
+async def test_an_open_that_raises_something_nobody_listed_is_logged_and_waited_out_like_a_refusal(
+    ports: FakePorts, caplog: pytest.LogCaptureFixture
+) -> None:
     ports.open_error = RuntimeError("the driver is confused")
     async with started(backoff=QUICK) as tnc:
-        assert tnc.state is Source.State.WAITING and tnc.problem == "the radio could not be opened; the log says why" and "the driver is confused" in caplog.text
+        assert (
+            tnc.state is Source.State.WAITING
+            and tnc.problem == "the radio could not be opened; the log says why"
+            and "the driver is confused" in caplog.text
+        )
         assert "tnc: connecting failed" in caplog.text
         ports.open_error = None
         await until(lambda: tnc.state is Source.State.CONNECTED)
@@ -107,6 +115,7 @@ async def test_start_on_a_tnc_that_runs_stops_it_first_and_opens_the_line_afresh
 
 # ---- a line that is lost, and one that is not the Tnc's any more
 
+
 async def test_bytes_and_a_loss_from_a_port_that_is_not_the_tncs_any_more_are_ignored(ports: FakePorts) -> None:
     async with started(backoff=QUICK) as tnc:
         old = ports.port
@@ -128,10 +137,16 @@ async def test_a_lost_line_says_why_it_is_lost_not_what_was_wrong_with_the_line_
         ports.port.feed(MONITOR_LINE)
         assert "command mode" in tnc.problem
         ports.port.lose("the cable was pulled")
-        assert tnc.state is Source.State.WAITING and "the cable was pulled" in tnc.problem and "command mode" not in tnc.problem
+        assert (
+            tnc.state is Source.State.WAITING
+            and "the cable was pulled" in tnc.problem
+            and "command mode" not in tnc.problem
+        )
 
 
-async def test_a_loss_that_comes_while_the_tasks_end_does_not_open_the_line_again_after_the_stop(ports: FakePorts) -> None:
+async def test_a_loss_that_comes_while_the_tasks_end_does_not_open_the_line_again_after_the_stop(
+    ports: FakePorts,
+) -> None:
     async with virtual_time(), started(check_sec=60.0, backoff=QUICK) as tnc:
         port = ports.port
         stopper = asyncio.create_task(tnc.stop())
@@ -140,7 +155,9 @@ async def test_a_loss_that_comes_while_the_tasks_end_does_not_open_the_line_agai
         port.lose("the cable was pulled")
         await stopper
         await asyncio.sleep(30.0)
-        assert tnc.state is Source.State.STOPPED and len(ports.opened) == 1 and len(tnc._tasks) == 0 and not port.is_open
+        assert (
+            tnc.state is Source.State.STOPPED and len(ports.opened) == 1 and len(tnc._tasks) == 0 and not port.is_open
+        )
 
 
 async def test_a_retry_that_was_made_before_a_stop_connects_nothing_after_it(ports: FakePorts) -> None:
@@ -167,7 +184,9 @@ async def test_a_stop_while_the_start_is_opening_the_line_leaves_no_port_open(po
     assert tnc.state is Source.State.STOPPED and not ports.port.is_open and tnc._port is None
 
 
-async def test_the_scan_for_a_program_that_holds_the_port_is_not_made_on_the_loop(ports: FakePorts, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_scan_for_a_program_that_holds_the_port_is_not_made_on_the_loop(
+    ports: FakePorts, monkeypatch: pytest.MonkeyPatch
+) -> None:
     threads: list[int] = []
 
     def held_by(path: str) -> str:
@@ -181,7 +200,9 @@ async def test_the_scan_for_a_program_that_holds_the_port_is_not_made_on_the_loo
     assert threads and threading.get_ident() not in threads
 
 
-async def test_a_line_that_cannot_be_handed_over_is_closed_and_not_kept(ports: FakePorts, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_line_that_cannot_be_handed_over_is_closed_and_not_kept(
+    ports: FakePorts, monkeypatch: pytest.MonkeyPatch
+) -> None:
     tnc = Tnc(PATH, check_sec=0.0)
 
     def refuse() -> None:
@@ -203,18 +224,25 @@ async def test_asking_a_tnc_that_has_no_line_is_refused_and_a_reopen_of_nothing_
 
 # ---- a write that is refused
 
+
 async def test_a_write_that_fails_is_told_the_line_counts_as_lost_and_the_frame_is_not_sent(ports: FakePorts) -> None:
     frame = ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA-7"), (), info=b"!6010.00N/02456.00E>hello")
     async with started(backoff=QUICK) as tnc:
         ports.write_error = SerialError("the line is gone")
         assert not tnc.send_frame(frame)
-        assert tnc.stats.bytes_out == 0 and tnc.state is Source.State.WAITING and "write failed: the line is gone" in "\n".join(tnc.lines)
+        assert (
+            tnc.stats.bytes_out == 0
+            and tnc.state is Source.State.WAITING
+            and "write failed: the line is gone" in "\n".join(tnc.lines)
+        )
         ports.write_error = None
         await until(lambda: tnc.state is Source.State.CONNECTED)
         assert tnc.send_frame(frame), "the next line takes it"
 
 
-async def test_text_from_the_radio_when_the_first_step_of_the_entry_cannot_be_written_enters_nothing(ports: FakePorts) -> None:
+async def test_text_from_the_radio_when_the_first_step_of_the_entry_cannot_be_written_enters_nothing(
+    ports: FakePorts,
+) -> None:
     async with virtual_time(), started() as tnc:
         ports.write_error = SerialError("no room")
         ports.port.feed(MONITOR_LINE)
@@ -223,7 +251,10 @@ async def test_text_from_the_radio_when_the_first_step_of_the_entry_cannot_be_wr
 
 # ---- the repeats of the entry
 
-async def test_the_repeats_of_the_entry_wait_longer_each_time_and_only_the_first_is_told_above_debug(ports: FakePorts, caplog: pytest.LogCaptureFixture) -> None:
+
+async def test_the_repeats_of_the_entry_wait_longer_each_time_and_only_the_first_is_told_above_debug(
+    ports: FakePorts, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.DEBUG)
     async with virtual_time(), started() as tnc:
         port = ports.port
@@ -236,7 +267,9 @@ async def test_the_repeats_of_the_entry_wait_longer_each_time_and_only_the_first
             assert len(port.written) == 1 + repeat, f"not before {wait} s have passed since the entry settled"
             await asyncio.sleep(wait / 2 + 0.05)
             port.feed(MONITOR_LINE)
-            assert len(port.written) == 2 + repeat and port.written[-1] == ENTER_KISS, f"again, {wait} s after the settle"
+            assert len(port.written) == 2 + repeat and port.written[-1] == ENTER_KISS, (
+                f"again, {wait} s after the settle"
+            )
         told = [rec.levelno for rec in caplog.records if "still in command mode" in rec.getMessage()]
         assert told == [logging.INFO, logging.DEBUG, logging.DEBUG, logging.DEBUG, logging.DEBUG]
         assert sum("still in command mode" in line for line in tnc.lines) == 5, "every repeat is a line in the terminal"
@@ -244,6 +277,7 @@ async def test_the_repeats_of_the_entry_wait_longer_each_time_and_only_the_first
 
 
 # ---- the entry (neoaprs/tncentry.py) and the port (neoaprs/tncport.py) on their own
+
 
 class EntryRig:
     """A KissEntry whose line is a list of what was written, with its steps spawned as tasks."""
@@ -289,7 +323,7 @@ async def test_an_entry_that_is_over_when_its_next_step_is_due_or_whose_step_is_
     async with virtual_time():
         rig = EntryRig()
         rig.entry.begin(KENWOOD_D710, lambda: rig.alive)
-        rig.accepts = False                                                   # (the line refuses the second step)
+        rig.accepts = False  # (the line refuses the second step)
         await asyncio.gather(*rig.tasks)
     assert len(rig.written) == 2
 
@@ -322,5 +356,5 @@ async def test_a_write_to_a_port_that_failed_is_a_lost_line_told_to_the_owner_on
         assert lost == ["the write timed out"]
     finally:
         port.close()
-        await until(lambda: radio.clients == 0)                           # (a socket is closed in a thread of its own)
+        await until(lambda: radio.clients == 0)  # (a socket is closed in a thread of its own)
         await radio.aclose()

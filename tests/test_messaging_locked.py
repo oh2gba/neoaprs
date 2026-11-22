@@ -2,6 +2,7 @@
 ciphertext and is kept as written, the other station opens it, and refusals, key announcements and
 key changes.
 """
+
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -56,8 +57,10 @@ async def rig(tmp_path: Path) -> Rig:
 def another(rig: Rig) -> Callable[..., Rig]:
     """A second messaging with its ring on the same folder and database, as after a restart of the
     daemon."""
+
     def make(encrypt: bool = True) -> Rig:
         return Rig(rig.folder, rig.log, rig.clock, encrypt)
+
     return make
 
 
@@ -66,13 +69,21 @@ async def with_peer_key(rig: Rig, call: str = "OH2RDG-7") -> None:
 
 
 # ---- sending
-async def test_a_locked_message_goes_on_the_air_as_ciphertext_is_kept_as_what_was_written_and_opens_at_the_other_station(rig: Rig) -> None:
+async def test_a_locked_message_goes_on_the_air_as_ciphertext_is_kept_as_what_was_written_and_opens_at_the_other_station(
+    rig: Rig,
+) -> None:
     await with_peer_key(rig)
     record = await rig.m.send("oh2rdg-7", "Moi, täällä ok", locked=True)
     [frame] = rig.tnc.sent
     wire = frame.info.decode()[11:].split("{")[0]
     assert frame.info.startswith(b":OH2RDG-7 :!E") and frame.info.endswith(b"{01}") and len(wire) <= 67
-    assert record.text == "Moi, täällä ok" and record.seal == "open" and record.wire == wire and record.state == "sending" and record.attempts == 1
+    assert (
+        record.text == "Moi, täällä ok"
+        and record.seal == "open"
+        and record.wire == wire
+        and record.state == "sending"
+        and record.attempts == 1
+    )
     assert cipher.open_sealed(rig.peer_shared(), "OH2GBA", "OH2RDG-7", wire) == "Moi, täällä ok"
     await rig.settled()
     [kept] = await rig.log.recent()
@@ -97,17 +108,33 @@ async def test_a_digipeaters_copy_of_a_locked_message_is_linked_to_its_attempt(r
     record = await rig.m.send("OH2RDG-7", "secret words", locked=True)
     assert record.wire is not None and record.msg_id is not None
     info = f":{'OH2RDG-7':<9}:{record.wire}{{{record.msg_id}".encode()
-    rig.m.on_packet(Packet(rig.clock(), "in", b"", "OH2GBA", "APZNEO", ("OH2RCH-2*", "WIDE2-1"), info, Message("OH2RDG-7", record.wire, record.msg_id)))
+    rig.m.on_packet(
+        Packet(
+            rig.clock(),
+            "in",
+            b"",
+            "OH2GBA",
+            "APZNEO",
+            ("OH2RCH-2*", "WIDE2-1"),
+            info,
+            Message("OH2RDG-7", record.wire, record.msg_id),
+        )
+    )
     assert [seen.call for seen in rig.m.delivery.attempts_of(record.id)[0].seen] == ["OH2RCH-2"]
 
 
-@pytest.mark.parametrize(("encrypt", "key", "text", "code", "params"), [
-    (False, True, "Hello", "lock.off", {}),
-    (True, False, "Hello", "lock.no_key", {"call": "OH2RDG-7"}),
-    (True, True, "ä" * 18, "lock.too_long", {"length": 36, "max": 34}),
-    (True, True, "a\tb", "lock.unprintable", {}),
-])
-async def test_a_locked_message_is_refused_with_the_reason_and_nothing_is_kept_or_sent(rig: Rig, encrypt: bool, key: bool, text: str, code: str, params: dict[str, object]) -> None:
+@pytest.mark.parametrize(
+    ("encrypt", "key", "text", "code", "params"),
+    [
+        (False, True, "Hello", "lock.off", {}),
+        (True, False, "Hello", "lock.no_key", {"call": "OH2RDG-7"}),
+        (True, True, "ä" * 18, "lock.too_long", {"length": 36, "max": 34}),
+        (True, True, "a\tb", "lock.unprintable", {}),
+    ],
+)
+async def test_a_locked_message_is_refused_with_the_reason_and_nothing_is_kept_or_sent(
+    rig: Rig, encrypt: bool, key: bool, text: str, code: str, params: dict[str, object]
+) -> None:
     rig.ring.allowed = encrypt
     if key:
         await with_peer_key(rig)
@@ -127,7 +154,12 @@ async def test_a_bulletin_cannot_be_locked(rig: Rig) -> None:
 async def test_our_key_is_announced_by_hand_as_an_ordinary_message_and_only_while_the_setting_is_on(rig: Rig) -> None:
     record = await rig.m.send_key("oh2rdg-7")
     [frame] = rig.tnc.sent
-    assert frame.info == f":OH2RDG-7 :{rig.ring.key_text()}{{01}}".encode() and record.seal == "key" and record.text == rig.ring.key_text() and record.wire is None
+    assert (
+        frame.info == f":OH2RDG-7 :{rig.ring.key_text()}{{01}}".encode()
+        and record.seal == "key"
+        and record.text == rig.ring.key_text()
+        and record.wire is None
+    )
     assert cipher.key_of_message(record.text) == rig.ring.own_public()
     rig.ring.allowed = False
     with pytest.raises(MessagingError) as off:
@@ -139,7 +171,9 @@ async def test_our_key_is_announced_by_hand_as_an_ordinary_message_and_only_whil
 
 
 # ---- receiving
-async def test_a_key_a_station_announces_is_taken_and_acked_and_a_different_one_later_is_shown_and_not_taken(rig: Rig) -> None:
+async def test_a_key_a_station_announces_is_taken_and_acked_and_a_different_one_later_is_shown_and_not_taken(
+    rig: Rig,
+) -> None:
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", cipher.key_message(PEER_PUBLIC), "12"))
     assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG-7 :ack12"]
     await rig.settled()
@@ -149,17 +183,28 @@ async def test_a_key_a_station_announces_is_taken_and_acked_and_a_different_one_
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", cipher.key_message(OTHER_PUBLIC), "13"))
     await rig.settled()
     other = rig.state(2)
-    assert other.seal == "key_other" and rig.ring.peer_key("OH2RDG-7") == PEER_PUBLIC and rig.tnc.lines()[-1].endswith(":ack13")
+    assert (
+        other.seal == "key_other"
+        and rig.ring.peer_key("OH2RDG-7") == PEER_PUBLIC
+        and rig.tnc.lines()[-1].endswith(":ack13")
+    )
 
 
-async def test_a_sealed_message_to_us_is_opened_kept_with_the_text_inside_and_acked_and_a_copy_is_not_kept_again(rig: Rig) -> None:
+async def test_a_sealed_message_to_us_is_opened_kept_with_the_text_inside_and_acked_and_a_copy_is_not_kept_again(
+    rig: Rig,
+) -> None:
     await with_peer_key(rig)
     wire = rig.peer_seals("Terve, kuuluuko?")
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", wire, "21"))
     assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG-7 :ack21"]
     await rig.settled()
     [record] = rig.m.records()
-    assert record.text == "Terve, kuuluuko?" and record.seal == "open" and record.wire == wire and record.state == "received"
+    assert (
+        record.text == "Terve, kuuluuko?"
+        and record.seal == "open"
+        and record.wire == wire
+        and record.state == "received"
+    )
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", wire, "21"))
     await rig.settled()
     assert len(rig.m.records()) == 1, "a digipeater's copy is the same message"
@@ -167,26 +212,48 @@ async def test_a_sealed_message_to_us_is_opened_kept_with_the_text_inside_and_ac
     assert kept == record
 
 
-async def test_a_sealed_message_that_does_not_open_here_is_kept_shut_as_it_came(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_sealed_message_that_does_not_open_here_is_kept_shut_as_it_came(
+    rig: Rig, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.INFO, logger="neoaprs.keyring")
     rig.ring.ensure_own()
     stranger = cipher.seal(cipher.shared_key(PEER_PRIVATE, OTHER_PUBLIC), "OH2RDG-7", "OH2GBA", "for somebody else")
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", stranger, "31"))
     await rig.settled()
     [record] = rig.m.records()
-    assert record.seal == "shut" and record.text == stranger and record.wire is None and "does not open here (no key)" in caplog.text
+    assert (
+        record.seal == "shut"
+        and record.text == stranger
+        and record.wire is None
+        and "does not open here (no key)" in caplog.text
+    )
     await with_peer_key(rig)
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", stranger, "32"))
     await rig.settled()
     assert rig.state(2).seal == "shut" and "another key, or damaged" in caplog.text
 
 
-async def test_what_is_overheard_of_other_stations_locked_traffic_is_shut_and_a_key_they_announce_is_not_taken(rig: Rig) -> None:
-    rig.m.on_packet(rig.heard("OH2AAA", "OH2BBB", cipher.seal(cipher.shared_key(PEER_PRIVATE, OTHER_PUBLIC), "OH2AAA", "OH2BBB", "theirs"), "5"))
+async def test_what_is_overheard_of_other_stations_locked_traffic_is_shut_and_a_key_they_announce_is_not_taken(
+    rig: Rig,
+) -> None:
+    rig.m.on_packet(
+        rig.heard(
+            "OH2AAA",
+            "OH2BBB",
+            cipher.seal(cipher.shared_key(PEER_PRIVATE, OTHER_PUBLIC), "OH2AAA", "OH2BBB", "theirs"),
+            "5",
+        )
+    )
     rig.m.on_packet(rig.heard("OH2AAA", "OH2BBB", cipher.key_message(PEER_PUBLIC), "6"))
     await rig.settled()
     sealed, key = rig.m.records()
-    assert sealed.state == "overheard" and sealed.seal == "shut" and key.seal == "key" and rig.ring.peer_key("OH2AAA") is None and rig.tnc.sent == []
+    assert (
+        sealed.state == "overheard"
+        and sealed.seal == "shut"
+        and key.seal == "key"
+        and rig.ring.peer_key("OH2AAA") is None
+        and rig.tnc.sent == []
+    )
 
 
 async def test_a_plain_message_is_as_it_was(rig: Rig) -> None:
@@ -208,15 +275,22 @@ async def test_the_messages_come_back_with_what_they_are_after_a_restart(rig: Ri
     again = another()
     await again.start()
     first, second = again.m.records()
-    assert (first.seal, first.text, first.wire) == ("open", "Kept", sent.wire) and (second.seal, second.text) == ("open", "Back")
+    assert (first.seal, first.text, first.wire) == ("open", "Kept", sent.wire) and (second.seal, second.text) == (
+        "open",
+        "Back",
+    )
     assert again.ring.peer_key("OH2RDG-7") == PEER_PUBLIC and again.ring.fingerprint() == rig.ring.fingerprint()
     await again.pass_time(32)
-    assert again.tnc.sent[-1].info.startswith(f":OH2RDG-7 :{sent.wire}".encode()), "the attempt after the restart sends the same bytes"
+    assert again.tnc.sent[-1].info.startswith(f":OH2RDG-7 :{sent.wire}".encode()), (
+        "the attempt after the restart sends the same bytes"
+    )
     await again.m.stop()
 
 
 # ---- a key or a sender that cannot be used
-async def test_a_key_that_cannot_make_a_shared_key_leaves_a_locked_message_from_that_station_shut_and_acked_and_a_locked_message_to_it_refused(rig: Rig) -> None:
+async def test_a_key_that_cannot_make_a_shared_key_leaves_a_locked_message_from_that_station_shut_and_acked_and_a_locked_message_to_it_refused(
+    rig: Rig,
+) -> None:
     # A key of 32 zero bytes: X25519 with it is no exchange, and the keyring keeps no such key
     assert await rig.ring.take("OH2RDG-7", bytes(32), rig.clock()) == "" and rig.ring.shared_with("OH2RDG-7") is None
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", rig.peer_seals("Hello"), "51"))

@@ -1,5 +1,6 @@
 """What the fake loopback servers share: a listening asyncio server on a free port, started and
 stopped."""
+
 import asyncio
 from typing import Self
 

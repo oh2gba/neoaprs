@@ -1,6 +1,7 @@
 """Migration 29 (neoaprs/migrationsteps22on.py): `web/allowed_hosts` is validated, so a stored value
 is rewritten in the form the check takes and every name in it stays allowed.
 """
+
 import logging
 from pathlib import Path
 
@@ -35,20 +36,33 @@ def migrate(folder: Path, stored: dict[str, str]) -> dict[str, str]:
     version_twenty_eight(old, clock, stored)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 29
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][28:] == [(29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33]), (34, "_v34", GOLDEN[34]), (35, "_v35", GOLDEN[35])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][28:] == [
+        (29, "_v29", GOLDEN[29]),
+        (30, "_v30", GOLDEN[30]),
+        (31, "_v31", GOLDEN[31]),
+        (32, "_v32", GOLDEN[32]),
+        (33, "_v33", GOLDEN[33]),
+        (34, "_v34", GOLDEN[34]),
+        (35, "_v35", GOLDEN[35]),
+    ]
     found = {str(k): str(v) for k, v in migrated.db.execute("SELECT key, value FROM settings")}
     migrated.close()
     return found
 
 
-@pytest.mark.parametrize(("stored", "now"), [
-    ("proxy.example.com nas.lan", "proxy.example.com, nas.lan"),
-    ("proxy.example.com, nas.lan:7303", "proxy.example.com, nas.lan"),
-    ("x, nas.", "x, nas"),
-    ("[::1]:7303 10.0.0.1:80 fe80::1", "[::1], 10.0.0.1, fe80::1"),
-    ("pi pi.local pi", "pi, pi.local"),
-])
-def test_a_value_the_server_took_is_written_in_the_checked_form_and_every_name_in_it_stays_allowed(tmp_path: Path, stored: str, now: str, caplog: pytest.LogCaptureFixture) -> None:
+@pytest.mark.parametrize(
+    ("stored", "now"),
+    [
+        ("proxy.example.com nas.lan", "proxy.example.com, nas.lan"),
+        ("proxy.example.com, nas.lan:7303", "proxy.example.com, nas.lan"),
+        ("x, nas.", "x, nas"),
+        ("[::1]:7303 10.0.0.1:80 fe80::1", "[::1], 10.0.0.1, fe80::1"),
+        ("pi pi.local pi", "pi, pi.local"),
+    ],
+)
+def test_a_value_the_server_took_is_written_in_the_checked_form_and_every_name_in_it_stays_allowed(
+    tmp_path: Path, stored: str, now: str, caplog: pytest.LogCaptureFixture
+) -> None:
     with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
         found = migrate(tmp_path, {KEY: stored, "station/call": "OH2GBA"})
     assert found == {KEY: now, "station/call": "OH2GBA"}
@@ -56,7 +70,9 @@ def test_a_value_the_server_took_is_written_in_the_checked_form_and_every_name_i
     assert f"web/allowed_hosts written in the form that is checked now: {stored!r} → {now!r}" in caplog.text
 
 
-def test_what_is_not_a_name_or_an_address_is_left_out_and_the_log_names_it(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_what_is_not_a_name_or_an_address_is_left_out_and_the_log_names_it(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
         found = migrate(tmp_path, {KEY: "nas.lan http://x x/y"})
     assert found == {KEY: "nas.lan"}
@@ -68,7 +84,9 @@ def test_a_value_of_nothing_but_what_is_not_a_name_is_deleted(tmp_path: Path) ->
 
 
 @pytest.mark.parametrize("stored", ["aprs.example, pi", "10.0.0.1, pi ,[::1]", "a,b", "my_box"])
-def test_a_value_in_the_checked_form_is_not_touched(tmp_path: Path, stored: str, caplog: pytest.LogCaptureFixture) -> None:
+def test_a_value_in_the_checked_form_is_not_touched(
+    tmp_path: Path, stored: str, caplog: pytest.LogCaptureFixture
+) -> None:
     with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
         assert migrate(tmp_path, {KEY: stored}) == {KEY: stored}
     assert KEY not in caplog.text

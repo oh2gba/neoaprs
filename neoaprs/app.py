@@ -3,6 +3,7 @@
 Wiring is in wiring.py, start and stop in controller.py. Radios are made from `Config.radios`,
 again by the controller once the stored radios are read; a test may pass a line per radio id.
 """
+
 import asyncio
 import logging
 import platform
@@ -83,6 +84,7 @@ Radio = LiveRadio[Beacon]
 
 class Frontend(Protocol):
     """The page's server: started after the radios, stopped before them."""
+
     async def start(self) -> bool: ...
     async def stop(self) -> None: ...
     def settings_changed(self, config: Config) -> None: ...
@@ -92,6 +94,7 @@ class Frontend(Protocol):
 @dataclass(frozen=True)
 class PositionFrames:
     """Our position packet for the radio an answer goes on."""
+
     made: Callable[[AirRadio | None], ax25.Frame]
 
     def frame(self, radio: AirRadio | None = None) -> ax25.Frame:
@@ -104,8 +107,19 @@ class Services:
     # Set when the stored radios could not be read: no radio is added until the next start.
     radios_unread = False
 
-    def __init__(self, data_dir: Path, clock: Clock = utcnow, store: Store | None = None, port: str = "", pattern: str = "", install: InstallInfo = PLAIN_INSTALL, auto_map: bool = False, encryption: bool = False,
-                 hf_port: str = "", lines: Mapping[RadioId, Tnc] | None = None) -> None:
+    def __init__(
+        self,
+        data_dir: Path,
+        clock: Clock = utcnow,
+        store: Store | None = None,
+        port: str = "",
+        pattern: str = "",
+        install: InstallInfo = PLAIN_INSTALL,
+        auto_map: bool = False,
+        encryption: bool = False,
+        hf_port: str = "",
+        lines: Mapping[RadioId, Tnc] | None = None,
+    ) -> None:
         self.data_dir = data_dir
         self.encryption = encryption
         self.clock = clock
@@ -120,17 +134,35 @@ class Services:
         self.suggested_frequencies = [Frequency(band, dial) for band, dial in SUGGESTED]
         interlock = Interlock(lambda: self.config)
         # Only radios that may carry a path give routes; own copies heard back are ignored.
-        self.stationbook = StationBook(clock, carries_path=lambda radio: carries_path(self.config.radios, radio), own_calls=lambda: pairsetting.own_calls(self.config.station_call, self.config.pairs))
+        self.stationbook = StationBook(
+            clock,
+            carries_path=lambda radio: carries_path(self.config.radios, radio),
+            own_calls=lambda: pairsetting.own_calls(self.config.station_call, self.config.pairs),
+        )
         self.radio_packet: Signal[[Packet]] = Signal("radio.packet")
         self.radio_changed: Signal[[RadioId]] = Signal("radio.changed")
         kept = Remembered(self.store)
-        self.radios: RadioRegistry[Beacon] = RadioRegistry(claims, lambda spec: self._make_driver(spec, interlock), self._make_beacon, lambda: self.config, self.stationbook,
-                                                           lambda text: None if self.radios_unread else kept.put({MESSAGE_RADIOS: text}), kept.flush,
-                                                           clock=clock, run=lambda: self.run)
+        self.radios: RadioRegistry[Beacon] = RadioRegistry(
+            claims,
+            lambda spec: self._make_driver(spec, interlock),
+            self._make_beacon,
+            lambda: self.config,
+            self.stationbook,
+            lambda text: None if self.radios_unread else kept.put({MESSAGE_RADIOS: text}),
+            kept.flush,
+            clock=clock,
+            run=lambda: self.run,
+        )
         self._make_radio_parts(clock)
         self._make_logs(clock)
         self.aprsis = AprsIs(clock)
-        self.igate = Igate(self.aprsis, lambda: self.config, self.beacon_frames.position_info, lambda: self.stationbook.me_position, clock)
+        self.igate = Igate(
+            self.aprsis,
+            lambda: self.config,
+            self.beacon_frames.position_info,
+            lambda: self.stationbook.me_position,
+            clock,
+        )
         self._make_messaging(clock)
         self._make_map_and_update(data_dir, install, auto_map, clock)
         self.digipeater = Digipeater(self.radios, lambda: self.config, clock)
@@ -147,11 +179,24 @@ class Services:
     @property
     def run(self) -> RunOverrides:
         """Return the run-only overrides (neoaprs/radiodriver.py), read afresh each time."""
-        return RunOverrides(self.port_override, self.pattern_override, self.hf_port_override, self.check_sec, modem_radio(self.config.radios))
+        return RunOverrides(
+            self.port_override,
+            self.pattern_override,
+            self.hf_port_override,
+            self.check_sec,
+            modem_radio(self.config.radios),
+        )
 
     def _make_driver(self, spec: RadioSpec, interlock: Interlock) -> RadioDriver:
         """Return the driver of the radio's type, using the line a test handed in for it, if any."""
-        driver = make_driver(spec, self.radios.claims, self.clock, self.data_dir, self.lines.get(spec.id), search_lock=self.radios.search_lock)
+        driver = make_driver(
+            spec,
+            self.radios.claims,
+            self.clock,
+            self.data_dir,
+            self.lines.get(spec.id),
+            search_lock=self.radios.search_lock,
+        )
         driver.line.where = lambda: self.config.station_position
         driver.line.interlock = interlock
         return driver
@@ -184,7 +229,14 @@ class Services:
         """Make the parts that keep rows in the database."""
         self.packetlog = PacketLog(clock=clock)  # Every packet and the station cache.
         self.messagelog = MessageLog(clock=clock)  # Messages sent and received.
-        self.prefbook = PrefBook(self.messagelog, lambda: self.config, self._deliveries, clock, paths=self.messagelog, gateway=self._gateway_path)
+        self.prefbook = PrefBook(
+            self.messagelog,
+            lambda: self.config,
+            self._deliveries,
+            clock,
+            paths=self.messagelog,
+            gateway=self._gateway_path,
+        )
         # Keys for encrypted messages: ours in the data folder, the stations' with the messages.
         self.keyring = keyring_for(self.data_dir, self.messagelog, clock, self.encryption)
         self.weatherlog = WeatherLog(clock=clock)  # Observations of the weather stations.
@@ -196,16 +248,49 @@ class Services:
     def _make_messaging(self, clock: Clock) -> None:
         """Make the scheduled senders, the QRU parts, messaging and the query answers."""
         self.sender = Sender(self.radios, lambda: self.config, clock)
-        self.ownobjects = OwnObjects(self.sender, lambda: self.config, self.ownlog, self._is_station, clock, memory=self.store)
+        self.ownobjects = OwnObjects(
+            self.sender, lambda: self.config, self.ownlog, self._is_station, clock, memory=self.store
+        )
         self.ownbulletins = OwnBulletins(self.sender, lambda: self.config, self.ownlog, clock, memory=self.store)
         # Answer frames per minute, shared by the QRU server and the queries.
         answer_budget = AnswerBudget(clock)
-        self.qru = Qru(self.radios, lambda: self.config, self.ownobjects, self.stationbook, self.prefbook.path_for, clock, budget=answer_budget)
+        self.qru = Qru(
+            self.radios,
+            lambda: self.config,
+            self.ownobjects,
+            self.stationbook,
+            self.prefbook.path_for,
+            clock,
+            budget=answer_budget,
+        )
         self.qruask = QruAsk(self.radios, lambda: self.config, self.prefbook.path_for, clock)
         self.generalask = GeneralAsk(self.radios, lambda: self.config, self.stationbook, clock)
-        self.messaging = Messaging(self.radios, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, qru=self.qru.heard, qru_answer=self.qruask.answers, keyring=self.keyring)
-        self.queries = Queries(self.radios, lambda: self.config, PositionFrames(self.position_frame), self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
-                               messages=self.messaging, heard=self.packetlog, igate=self.igate, budget=answer_budget)
+        self.messaging = Messaging(
+            self.radios,
+            lambda: self.config,
+            self.messagelog,
+            self.prefbook.path_for,
+            clock,
+            board=self.bulletins.heard,
+            alert=self.alerts.alert,
+            qru=self.qru.heard,
+            qru_answer=self.qruask.answers,
+            keyring=self.keyring,
+        )
+        self.queries = Queries(
+            self.radios,
+            lambda: self.config,
+            PositionFrames(self.position_frame),
+            self.rigstatus.status_frame,
+            self.stationbook,
+            self.prefbook.path_for,
+            clock,
+            objects=self.ownobjects,
+            messages=self.messaging,
+            heard=self.packetlog,
+            igate=self.igate,
+            budget=answer_budget,
+        )
 
     def _make_map_and_update(self, data_dir: Path, install: InstallInfo, auto_map: bool, clock: Clock) -> None:
         """Make the base map, ALOHA, traffic layers, Find my radio and the update parts."""
@@ -213,13 +298,49 @@ class Services:
         self.mapauto = MapAuto(self.mapfetch, lambda: self.config, self.store, auto_map)
         # ALOHA circles (rule 3.8) for each radio that is on and shares a 1200 baud channel.
         self.aloha = Aloha(self.stationbook, clock, radios=self.radios.enabled)
-        self.radiofinder = RadioFinder(self._radio_ports, self.hold_radio, self.release_radio, claims=self.radios.claims, search_lock=self.radios.search_lock)
+        self.radiofinder = RadioFinder(
+            self._radio_ports,
+            self.hold_radio,
+            self.release_radio,
+            claims=self.radios.claims,
+            search_lock=self.radios.search_lock,
+        )
         self.install = install
-        self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update, memory=self.store, developer=install.kind == "source")
-        self.frequencies = Frequencies(VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), memory=self.store)
-        self.skeds = Skeds(VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), lambda: self.config, lambda: self.suggested_frequencies, memory=self.store)
-        self.layers = Layers(lambda: self.config, lambda: self.stationbook.me_position, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), clock=clock)
-        self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into, encryption=self.encryption, leaving=self.note_page_port), self._announced, release_source(), end=self._end_for_restart, key=release_key)
+        self.updatecheck = UpdateCheck(
+            lambda: self.config,
+            VERSION,
+            platform_name(sys.platform, platform.machine(), install.kind == "appimage"),
+            fetch_update,
+            memory=self.store,
+            developer=install.kind == "source",
+        )
+        self.frequencies = Frequencies(
+            VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), memory=self.store
+        )
+        self.skeds = Skeds(
+            VERSION,
+            platform_name(sys.platform, platform.machine(), install.kind == "appimage"),
+            lambda: self.config,
+            lambda: self.suggested_frequencies,
+            memory=self.store,
+        )
+        self.layers = Layers(
+            lambda: self.config,
+            lambda: self.stationbook.me_position,
+            VERSION,
+            platform_name(sys.platform, platform.machine(), install.kind == "appimage"),
+            clock=clock,
+        )
+        self.selfupdate = SelfUpdate(
+            install,
+            installer_for(
+                install, data_dir, self.restart_into, encryption=self.encryption, leaving=self.note_page_port
+            ),
+            self._announced,
+            release_source(),
+            end=self._end_for_restart,
+            key=release_key,
+        )
         # Command to run in place of this process once it has ended (AppImage update).
         self.reexec: list[str] | None = None
 
@@ -257,7 +378,9 @@ class Services:
         found = self.stationbook.get(call)
         if found is None:
             return ()
-        return reply_path(found.heard_on(radio).last_path, pairsetting.own_calls(self.config.station_call, self.config.pairs))
+        return reply_path(
+            found.heard_on(radio).last_path, pairsetting.own_calls(self.config.station_call, self.config.pairs)
+        )
 
     async def _radio_ports(self) -> list[str]:
         """Return the ports Find my radio tries: the search's candidates, less held ones."""

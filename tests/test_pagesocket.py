@@ -2,6 +2,7 @@
 (tests/support/fakepagehost.py): a non-text frame, a raising command, a push to a closed socket, a
 page cut off, and the count of what it holds.
 """
+
 import asyncio
 import logging
 
@@ -27,7 +28,9 @@ async def test_a_text_frame_is_a_command_and_a_binary_frame_that_is_no_text_is_i
     await ws.write_message(b'{"cmd": "ping"}', binary=True)
     await ws.write_message('{"cmd": "pong"}')
     await until(lambda: len(host.api.commands) == 2)
-    assert host.api.commands == [(socket, '{"cmd": "ping"}'), (socket, '{"cmd": "pong"}')], "the one that was not text did not reach the Api, and the socket is open"
+    assert host.api.commands == [(socket, '{"cmd": "ping"}'), (socket, '{"cmd": "pong"}')], (
+        "the one that was not text did not reach the Api, and the socket is open"
+    )
     ws.close()
 
 
@@ -36,14 +39,18 @@ async def test_a_binary_frame_is_written_as_a_binary_frame_and_to_a_closing_sock
     ws, socket = await connected(host)
     socket.send_binary(b"\x01\x00\xd7abc")
     socket.send_json('{"type": "pong"}')
-    assert await ws.read_message() == b"\x01\x00\xd7abc" and await ws.read_message() == '{"type": "pong"}', "the one is bytes and the other text, in the order they were written"
+    assert await ws.read_message() == b"\x01\x00\xd7abc" and await ws.read_message() == '{"type": "pong"}', (
+        "the one is bytes and the other text, in the order they were written"
+    )
     socket.close()
     socket.send_binary(b"\x01")
     assert host.api.detached[:1] == [socket], "as a text frame to a closed socket is"
     ws.close()
 
 
-async def test_a_push_to_a_socket_that_is_closing_is_dropped_and_the_page_is_forgotten_at_once(caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_push_to_a_socket_that_is_closing_is_dropped_and_the_page_is_forgotten_at_once(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     host = await page_host()
     ws, socket = await connected(host)
     # The daemon's side begins to close; Tornado has not yet told the Api
@@ -59,42 +66,49 @@ async def test_a_push_to_a_socket_that_is_closing_is_dropped_and_the_page_is_for
     await until(lambda: len(host.api.detached) >= 2)
 
 
-async def test_a_page_that_does_not_read_is_cut_off_when_its_buffer_is_full_and_the_others_are_not(caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_page_that_does_not_read_is_cut_off_when_its_buffer_is_full_and_the_others_are_not(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     host = await page_host()
     ws, socket = await connected(host)
     other = await websocket_connect(host.url)
     await until(lambda: len(host.api.sockets) == 2)
-    stream = socket.ws_connection.stream                                          # type: ignore[union-attr]
+    stream = socket.ws_connection.stream  # type: ignore[union-attr]
     stream.max_write_buffer_size = 100
     with caplog.at_level(logging.WARNING, "neoaprs.web"):
         socket.send_json("x" * 1000)
-    assert [r.getMessage() for r in caplog.records if "cut off" in r.getMessage()] == ["a page that does not read was cut off (127.0.0.1)"]
+    assert [r.getMessage() for r in caplog.records if "cut off" in r.getMessage()] == [
+        "a page that does not read was cut off (127.0.0.1)"
+    ]
     assert stream.closed()
     assert await ws.read_message() is None, "the page sees its socket close"
     await other.write_message('{"cmd": "ping"}')
     await until(lambda: len(host.api.commands) == 1)
-    assert not host.api.sockets[1].ws_connection.stream.closed()                  # type: ignore[union-attr]
+    assert not host.api.sockets[1].ws_connection.stream.closed()  # type: ignore[union-attr]
     other.close()
 
 
-async def test_what_the_socket_holds_that_the_page_has_not_read_is_counted_and_a_socket_without_a_stream_holds_nothing() -> None:
+async def test_what_the_socket_holds_that_the_page_has_not_read_is_counted_and_a_socket_without_a_stream_holds_nothing() -> (
+    None
+):
     host = await page_host()
     ws, socket = await connected(host)
     assert socket.buffered() == 0
-    socket.ws_connection.stream._write_buffer.append(b"x" * 10)                 # type: ignore[union-attr]
+    socket.ws_connection.stream._write_buffer.append(b"x" * 10)  # type: ignore[union-attr]
     assert socket.buffered() == 10
     ws.close()
-    await until(lambda: host.api.detached == [socket])                          # (the server's side is closed now)
+    await until(lambda: host.api.detached == [socket])  # (the server's side is closed now)
     socket.ws_connection = None
     assert socket.buffered() == 0
 
 
 async def test_the_socket_that_a_page_opens_is_a_proved_one_and_the_write_limit_is_set() -> None:
     from neoaprs.web.outbound import MAX_WRITE_BUFFER
+
     host = await page_host()
     ws, socket = await connected(host)
-    assert host.proved == [socket.ws_connection.stream]                         # type: ignore[union-attr]
-    assert socket.ws_connection.stream.max_write_buffer_size == MAX_WRITE_BUFFER    # type: ignore[union-attr]
+    assert host.proved == [socket.ws_connection.stream]  # type: ignore[union-attr]
+    assert socket.ws_connection.stream.max_write_buffer_size == MAX_WRITE_BUFFER  # type: ignore[union-attr]
     ws.close()
 
 

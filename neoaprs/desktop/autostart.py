@@ -2,6 +2,7 @@
 
 It starts `neoaprs-app --tray`: on Windows the `NeoAPRS` Run key value (shared with
 `neoaprs service install`), on Linux the XDG autostart file."""
+
 import os
 import shutil
 import subprocess
@@ -28,16 +29,27 @@ class AutoStart(Protocol):
     def disable(self) -> None: ...
 
 
-def app_command(data: Path, platform: str | None = None, frozen: bool | None = None, executable: str | None = None, which: Callable[[str], str | None] = shutil.which,
-                appimage: Callable[[], str | None] = servicecmd.appimage_file, encryption: bool = False) -> list[str]:
+def app_command(
+    data: Path,
+    platform: str | None = None,
+    frozen: bool | None = None,
+    executable: str | None = None,
+    which: Callable[[str], str | None] = shutil.which,
+    appimage: Callable[[], str | None] = servicecmd.appimage_file,
+    encryption: bool = False,
+) -> list[str]:
     """Return the command line that starts the app in the tray.
 
     An AppImage starts the file itself (its mount vanishes). `--data` only if not the default."""
     platform = sys.platform if platform is None else platform
     frozen = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
-    here = (PureWindowsPath if platform == "win32" else PurePosixPath)(sys.executable if executable is None else executable)
+    here = (PureWindowsPath if platform == "win32" else PurePosixPath)(
+        sys.executable if executable is None else executable
+    )
     suffix = ".exe" if platform == "win32" else ""
-    tail = (["--tray"] if data.resolve() == default_data_dir().resolve() else ["--tray", "--data", str(data)]) + (["--encryption"] if encryption else [])
+    tail = (["--tray"] if data.resolve() == default_data_dir().resolve() else ["--tray", "--data", str(data)]) + (
+        ["--encryption"] if encryption else []
+    )
     image = appimage() if platform.startswith("linux") else None
     if image:
         return [image, "app", *tail]
@@ -47,7 +59,9 @@ def app_command(data: Path, platform: str | None = None, frozen: bool | None = N
     program = str(script) if Path(script).is_file() else which(APP_NAME)
     if program:
         return [program, *tail]
-    python = here.with_name("pythonw.exe") if platform == "win32" and Path(here.with_name("pythonw.exe")).is_file() else here
+    python = (
+        here.with_name("pythonw.exe") if platform == "win32" and Path(here.with_name("pythonw.exe")).is_file() else here
+    )
     return [str(python), "-m", "neoaprs", "app", *tail]
 
 
@@ -55,9 +69,17 @@ def desktop_exec(argv: list[str]) -> str:
     """Return the Exec line of a desktop entry, quoted as the Desktop Entry specification says.
 
     The file format's own escaping applies first, so each quoting backslash is doubled."""
+
     def one(arg: str) -> str:
-        arg = arg.replace("\\", "\\" * 4).replace('"', '\\' * 2 + '"').replace("`", '\\' * 2 + "`").replace("$", '\\' * 2 + "$").replace("%", "%%")
+        arg = (
+            arg.replace("\\", "\\" * 4)
+            .replace('"', "\\" * 2 + '"')
+            .replace("`", "\\" * 2 + "`")
+            .replace("$", "\\" * 2 + "$")
+            .replace("%", "%%")
+        )
         return f'"{arg}"' if any(c in arg for c in " \t\n\"'\\><~|&;*?#()`$") else arg
+
     return " ".join(one(a) for a in argv)
 
 
@@ -78,7 +100,9 @@ class RunKeyAutoStart:
         try:
             current = servicewindows.current()
             if current is not None and not servicewindows.ours(current):
-                raise AutoStartError(f"the Run entry {servicewindows.VALUE_NAME} exists and is not NeoAPRS's ({current}); remove it in Settings > Apps > Startup first")
+                raise AutoStartError(
+                    f"the Run entry {servicewindows.VALUE_NAME} exists and is not NeoAPRS's ({current}); remove it in Settings > Apps > Startup first"
+                )
             servicewindows.write(self.command)
         except OSError as e:
             raise AutoStartError(f"the Run entry could not be changed: {e}") from e
@@ -104,8 +128,10 @@ class DesktopFileAutoStart:
         return is_file(self.path)
 
     def enable(self) -> None:
-        text = ("[Desktop Entry]\nType=Application\nName=NeoAPRS\nComment=APRS client, in the tray\n"
-                f"Exec={desktop_exec(self.command)}\nTerminal=false\nX-GNOME-Autostart-enabled=true\n")
+        text = (
+            "[Desktop Entry]\nType=Application\nName=NeoAPRS\nComment=APRS client, in the tray\n"
+            f"Exec={desktop_exec(self.command)}\nTerminal=false\nX-GNOME-Autostart-enabled=true\n"
+        )
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self.path.write_text(text, encoding="utf-8")

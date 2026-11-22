@@ -1,6 +1,7 @@
 """What the daemon costs the machine (neoaprs/web/processmeter.py): the CPU share from two samples,
 the meter that takes them, and the three status fields over the socket.
 """
+
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -15,9 +16,19 @@ from neoaprs.web.processmeter import MIN_SPAN_SEC, ProcessMeter, Sample, cpu_per
 
 # ---- the share of the CPU ------------------------------------------------------------------------
 
-@pytest.mark.parametrize("before, after, percent", [
-    (Sample(0.0, 0.0), Sample(10.0, 0.03), 0.3), (Sample(5.0, 1.0), Sample(15.0, 6.0), 50.0), (Sample(0.0, 0.0), Sample(10.0, 10.0), 100.0), (Sample(0.0, 0.0), Sample(10.0, 25.0), 250.0),
-    (Sample(0.0, 0.0), Sample(10.0, 0.0), 0.0), (Sample(0.0, 0.0), Sample(3.0, 0.0449), 1.5), (Sample(0.0, 0.0), Sample(3.0, 0.0451), 1.5)])
+
+@pytest.mark.parametrize(
+    "before, after, percent",
+    [
+        (Sample(0.0, 0.0), Sample(10.0, 0.03), 0.3),
+        (Sample(5.0, 1.0), Sample(15.0, 6.0), 50.0),
+        (Sample(0.0, 0.0), Sample(10.0, 10.0), 100.0),
+        (Sample(0.0, 0.0), Sample(10.0, 25.0), 250.0),
+        (Sample(0.0, 0.0), Sample(10.0, 0.0), 0.0),
+        (Sample(0.0, 0.0), Sample(3.0, 0.0449), 1.5),
+        (Sample(0.0, 0.0), Sample(3.0, 0.0451), 1.5),
+    ],
+)
 def test_the_share_is_the_cpu_time_over_the_wall_time_to_a_tenth(before: Sample, after: Sample, percent: float) -> None:
     assert cpu_percent(before, after) == percent
 
@@ -29,6 +40,7 @@ def test_a_span_that_is_none_or_backwards_and_a_cpu_clock_that_went_back_are_zer
 
 
 # ---- the meter -----------------------------------------------------------------------------------
+
 
 class Dials:
     """A clock and a CPU time the test turns."""
@@ -82,6 +94,7 @@ def test_a_meter_whose_system_does_not_say_has_no_memory_and_still_the_share() -
 
 # ---- the other systems
 
+
 @pytest.mark.skipif(sys.platform == "win32", reason="Windows has it")
 def test_the_working_set_is_not_there_to_read_off_windows() -> None:
     assert winmemory.working_set_mb() is None
@@ -119,7 +132,9 @@ class FakePsapi:
 
 
 @pytest.mark.parametrize("works, expected", [(True, 50.0), (False, None)])
-def test_windows_gives_the_working_set_in_megabytes_when_psapi_answers_and_none_when_it_does_not(monkeypatch: pytest.MonkeyPatch, works: bool, expected: float | None) -> None:
+def test_windows_gives_the_working_set_in_megabytes_when_psapi_answers_and_none_when_it_does_not(
+    monkeypatch: pytest.MonkeyPatch, works: bool, expected: float | None
+) -> None:
     monkeypatch.setattr(winmemory, "sys", SimpleNamespace(platform="win32"))
     monkeypatch.setattr(winmemory.ctypes, "WinDLL", lambda name, use_last_error=False: FakePsapi(works), raising=False)
     assert winmemory.working_set_mb() == expected
@@ -140,12 +155,16 @@ def test_macos_reads_the_peak_in_bytes(monkeypatch: pytest.MonkeyPatch) -> None:
     assert resident_mb() == 64.0
 
 
-def test_a_system_that_says_darwin_without_resource_has_no_memory_and_the_meter_still_samples(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_system_that_says_darwin_without_resource_has_no_memory_and_the_meter_still_samples(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(processmeter, "sys", SimpleNamespace(platform="darwin"))
     # None in sys.modules: the import fails with ImportError, as on Windows
     monkeypatch.setitem(sys.modules, "resource", None)
     assert resident_mb() is None
-    assert ProcessMeter(now=lambda: 0.0, cpu=lambda: 0.0).sample() == (0.0, None), "the status still goes, without the one figure"
+    assert ProcessMeter(now=lambda: 0.0, cpu=lambda: 0.0).sample() == (0.0, None), (
+        "the status still goes, without the one figure"
+    )
 
 
 def test_a_system_without_proc_has_no_memory(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -158,6 +177,7 @@ def test_a_system_without_proc_has_no_memory(monkeypatch: pytest.MonkeyPatch) ->
 
 
 # ---- over the socket -----------------------------------------------------------------------------
+
 
 async def test_the_status_over_the_socket_has_the_share_the_memory_and_the_uptime(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)

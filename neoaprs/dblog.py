@@ -2,6 +2,7 @@
 
 Holds the `Db` and the ways to ask it. Each returns a default or False instead of raising when the
 database is not open or refuses the statement."""
+
 import logging
 from collections.abc import Callable, Iterable
 
@@ -14,9 +15,9 @@ class DbLog:
     def __init__(self, db: Db | None, clock: Clock, logger: logging.Logger, unreadable: str) -> None:
         self.db = db
         self.clock = clock
-        self.dropped = 0                                 # appends refused by a full or closed queue
+        self.dropped = 0  # appends refused by a full or closed queue
         self._logger = logger
-        self._unreadable = unreadable                    # logged when a read fails
+        self._unreadable = unreadable  # logged when a read fails
 
     def use(self, db: Db) -> None:
         """Use this Db, whose file is already migrated."""
@@ -57,9 +58,11 @@ class DbLog:
 
     async def _done(self, fn: Callable[[Connection], object], what: str) -> bool:
         """Return whether the write was done."""
+
         def run(conn: Connection) -> bool:
             fn(conn)
             return True
+
         return await self._write(run, False, what)
 
     def _decoded[R, V](self, rows: Iterable[R], of: Callable[[R], V], table: str) -> list[V]:
@@ -69,6 +72,7 @@ class DbLog:
             try:
                 found.append(of(row))
             except Exception as e:
-                self._logger.warning("a row of the %s table could not be read (%s: %s); it is left out", table, type(e).__name__, e)
+                self._logger.warning(
+                    "a row of the %s table could not be read (%s: %s); it is left out", table, type(e).__name__, e
+                )
         return found
-

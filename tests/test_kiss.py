@@ -1,5 +1,6 @@
 """KISS framing (neoaprs/kiss.py): every rule of the decoder and the encoder on explicit byte
 strings."""
+
 import pytest
 
 from neoaprs.kiss import FEND, FESC, MAX_FRAME, TFEND, TFESC, KissDecoder, KissFrame, encode
@@ -10,6 +11,7 @@ def test_the_constants_are_those_of_the_kiss_protocol() -> None:
 
 
 # ---- encode
+
 
 def test_encode_wraps_the_payload_in_fends_with_the_command_byte_first() -> None:
     assert encode(b"abc") == b"\xc0\x00abc\xc0"
@@ -38,6 +40,7 @@ def test_encode_refuses_a_port_or_command_that_does_not_fit_four_bits(port: int,
 
 
 # ---- decode
+
 
 def test_a_frame_in_one_piece() -> None:
     decoder = KissDecoder()

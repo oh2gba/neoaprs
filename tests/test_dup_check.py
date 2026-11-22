@@ -1,6 +1,7 @@
 """Tests for the duplication ratchet (scripts/dup-check, scripts/dup-compare.py): new or larger
 clones fail, removed ones do not. A stand-in writes the jscpd report, so the comparison logic is
 tested."""
+
 import importlib.util
 import json
 import os
@@ -32,28 +33,85 @@ compare = load_compare()
 
 
 def clone(a: str, b: str, lines: int = 12, a_start: int = 10, b_start: int = 40) -> dict[str, object]:
-    return {"format": "python", "lines": lines, "firstFile": {"name": a, "start": a_start}, "secondFile": {"name": b, "start": b_start}}
+    return {
+        "format": "python",
+        "lines": lines,
+        "firstFile": {"name": a, "start": a_start},
+        "secondFile": {"name": b, "start": b_start},
+    }
 
 
 def report(*clones: dict[str, object], lines: int = 0, percentage: float = 0.0) -> dict[str, object]:
     return {"duplicates": list(clones), "statistics": {"total": {"duplicatedLines": lines, "percentage": percentage}}}
 
 
-BASELINE = compare.summarize(report(clone("neoaprs/a.py", "neoaprs/b.py", 12), clone("neoaprs/a.py", "neoaprs/b.py", 15), clone("neoaprs/web/x.py", "neoaprs/y.py", 20), lines=45, percentage=0.4))
+BASELINE = compare.summarize(
+    report(
+        clone("neoaprs/a.py", "neoaprs/b.py", 12),
+        clone("neoaprs/a.py", "neoaprs/b.py", 15),
+        clone("neoaprs/web/x.py", "neoaprs/y.py", 20),
+        lines=45,
+        percentage=0.4,
+    )
+)
 
 
 def test_a_clone_is_the_pair_of_files_and_line_numbers_do_not_matter() -> None:
-    assert BASELINE["pairs"] == {"neoaprs/a.py <-> neoaprs/b.py": {"clones": 2, "lines": 27}, "neoaprs/web/x.py <-> neoaprs/y.py": {"clones": 1, "lines": 20}}
-    moved = compare.summarize(report(clone("neoaprs/b.py", "neoaprs/a.py", 12, 300, 5), clone("neoaprs/a.py", "neoaprs/b.py", 15, 99, 7), clone("neoaprs/y.py", "neoaprs/web/x.py", 20), lines=45, percentage=0.4))
+    assert BASELINE["pairs"] == {
+        "neoaprs/a.py <-> neoaprs/b.py": {"clones": 2, "lines": 27},
+        "neoaprs/web/x.py <-> neoaprs/y.py": {"clones": 1, "lines": 20},
+    }
+    moved = compare.summarize(
+        report(
+            clone("neoaprs/b.py", "neoaprs/a.py", 12, 300, 5),
+            clone("neoaprs/a.py", "neoaprs/b.py", 15, 99, 7),
+            clone("neoaprs/y.py", "neoaprs/web/x.py", 20),
+            lines=45,
+            percentage=0.4,
+        )
+    )
     assert compare.problems(moved, BASELINE) == []
 
 
 def test_a_new_clone_a_larger_clone_and_more_duplicated_lines_are_found() -> None:
-    new = compare.summarize(report(*[clone("neoaprs/a.py", "neoaprs/b.py", 12), clone("neoaprs/a.py", "neoaprs/b.py", 15), clone("neoaprs/web/x.py", "neoaprs/y.py", 20), clone("neoaprs/c.py", "neoaprs/d.py", 11)], lines=56, percentage=0.5))
-    assert compare.problems(new, BASELINE) == ["new clone: neoaprs/c.py <-> neoaprs/d.py (1 clone(s), 11 lines): give the code one home", "duplicated lines went up: 56 (0.5%), baseline 45 (0.4%)"]
-    larger = compare.summarize(report(clone("neoaprs/a.py", "neoaprs/b.py", 12), clone("neoaprs/a.py", "neoaprs/b.py", 18), clone("neoaprs/web/x.py", "neoaprs/y.py", 20), lines=45, percentage=0.4))
-    assert compare.problems(larger, BASELINE) == ["larger clone: neoaprs/a.py <-> neoaprs/b.py is now 2 clone(s), 30 lines (baseline 2, 27)"]
-    third = compare.summarize(report(clone("neoaprs/a.py", "neoaprs/b.py", 12), clone("neoaprs/a.py", "neoaprs/b.py", 15), clone("neoaprs/a.py", "neoaprs/b.py", 10), clone("neoaprs/web/x.py", "neoaprs/y.py", 20), lines=45, percentage=0.4))
+    new = compare.summarize(
+        report(
+            *[
+                clone("neoaprs/a.py", "neoaprs/b.py", 12),
+                clone("neoaprs/a.py", "neoaprs/b.py", 15),
+                clone("neoaprs/web/x.py", "neoaprs/y.py", 20),
+                clone("neoaprs/c.py", "neoaprs/d.py", 11),
+            ],
+            lines=56,
+            percentage=0.5,
+        )
+    )
+    assert compare.problems(new, BASELINE) == [
+        "new clone: neoaprs/c.py <-> neoaprs/d.py (1 clone(s), 11 lines): give the code one home",
+        "duplicated lines went up: 56 (0.5%), baseline 45 (0.4%)",
+    ]
+    larger = compare.summarize(
+        report(
+            clone("neoaprs/a.py", "neoaprs/b.py", 12),
+            clone("neoaprs/a.py", "neoaprs/b.py", 18),
+            clone("neoaprs/web/x.py", "neoaprs/y.py", 20),
+            lines=45,
+            percentage=0.4,
+        )
+    )
+    assert compare.problems(larger, BASELINE) == [
+        "larger clone: neoaprs/a.py <-> neoaprs/b.py is now 2 clone(s), 30 lines (baseline 2, 27)"
+    ]
+    third = compare.summarize(
+        report(
+            clone("neoaprs/a.py", "neoaprs/b.py", 12),
+            clone("neoaprs/a.py", "neoaprs/b.py", 15),
+            clone("neoaprs/a.py", "neoaprs/b.py", 10),
+            clone("neoaprs/web/x.py", "neoaprs/y.py", 20),
+            lines=45,
+            percentage=0.4,
+        )
+    )
     assert compare.problems(third, BASELINE)
 
 
@@ -77,13 +135,17 @@ def stand_in(tmp_path: Path, rep: dict[str, object]) -> dict[str, str]:
     """A jscpd that records its arguments and writes `rep` where --output says."""
     (tmp_path / "report.json").write_text(json.dumps(rep))
     stub = tmp_path / "fake-jscpd"
-    stub.write_text(f'#!/usr/bin/env bash\necho "$@" > "{tmp_path}/args"\nwhile [ $# -gt 0 ]; do [ "$1" = --output ] && out="$2"; shift; done\ncp "{tmp_path}/report.json" "$out/jscpd-report.json"\n')
+    stub.write_text(
+        f'#!/usr/bin/env bash\necho "$@" > "{tmp_path}/args"\nwhile [ $# -gt 0 ]; do [ "$1" = --output ] && out="$2"; shift; done\ncp "{tmp_path}/report.json" "$out/jscpd-report.json"\n'
+    )
     stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
     return {"NEOAPRS_JSCPD": str(stub), "NEOAPRS_PYTHON": sys.executable}
 
 
 def dup_check(tree: Path, env: dict[str, str], *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["scripts/dup-check", *args], cwd=tree, env={**os.environ, **env}, capture_output=True, text=True, timeout=60)
+    return subprocess.run(
+        ["scripts/dup-check", *args], cwd=tree, env={**os.environ, **env}, capture_output=True, text=True, timeout=60
+    )
 
 
 def test_the_script_writes_the_first_baseline_passes_on_the_same_clones_and_fails_on_a_new_one(tree: Path) -> None:
@@ -93,12 +155,23 @@ def test_the_script_writes_the_first_baseline_passes_on_the_same_clones_and_fail
     assert saved["pairs"] == {"neoaprs/a.py <-> neoaprs/b.py": {"clones": 1, "lines": 12}}
     assert dup_check(tree, env).returncode == 0
 
-    env = stand_in(tree, report(clone("neoaprs/a.py", "neoaprs/b.py", 12), clone("neoaprs/c.py", "neoaprs/web/d.py", 30), lines=42, percentage=0.4))
+    env = stand_in(
+        tree,
+        report(
+            clone("neoaprs/a.py", "neoaprs/b.py", 12),
+            clone("neoaprs/c.py", "neoaprs/web/d.py", 30),
+            lines=42,
+            percentage=0.4,
+        ),
+    )
     failed = dup_check(tree, env)
     assert failed.returncode == 1 and "new clone: neoaprs/c.py <-> neoaprs/web/d.py" in failed.stdout
     # the baseline is not made larger by --update
     refused = dup_check(tree, env, "--update")
-    assert refused.returncode == 1 and json.loads((tree / "scripts" / "dup-baseline.json").read_text(encoding="utf-8")) == saved
+    assert (
+        refused.returncode == 1
+        and json.loads((tree / "scripts" / "dup-baseline.json").read_text(encoding="utf-8")) == saved
+    )
 
 
 def test_the_script_asks_jscpd_for_the_agreed_limits_over_the_python_tree(tree: Path) -> None:

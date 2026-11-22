@@ -2,6 +2,7 @@
 place, no launchctl, an existing agent, a launchd that will not load it, and a remove with nothing
 to remove.
 """
+
 import plistlib
 from pathlib import Path
 from types import SimpleNamespace
@@ -50,13 +51,17 @@ def test_the_agent_lives_in_the_launch_agents_of_the_users_library(mac: Launchct
     assert servicelaunchd.plist_path() == mac.plist
 
 
-def test_a_system_with_no_launchctl_is_told_it_is_not_macos_and_has_no_agent_loaded(mac: Launchctl, capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_system_with_no_launchctl_is_told_it_is_not_macos_and_has_no_agent_loaded(
+    mac: Launchctl, capsys: pytest.CaptureFixture[str]
+) -> None:
     mac.present = False
     assert servicelaunchd.launchctl("bootout", "gui/501/x") == -1 and "this is not macOS" in capsys.readouterr().out
     assert servicelaunchd.loaded() is False
 
 
-def test_an_agent_that_is_there_with_the_same_content_is_not_written_again(mac: Launchctl, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_an_agent_that_is_there_with_the_same_content_is_not_written_again(
+    mac: Launchctl, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     plan = plan_in(tmp_path)
     assert servicelaunchd.install(plan) == 0 and "wrote" in capsys.readouterr().out
     before = mac.plist.stat().st_mtime_ns
@@ -65,14 +70,21 @@ def test_an_agent_that_is_there_with_the_same_content_is_not_written_again(mac: 
     assert plistlib.loads(mac.plist.read_bytes())["Label"] == servicelaunchd.LABEL
 
 
-def test_a_launchd_that_does_not_load_the_agent_says_how_to_try_by_hand(mac: Launchctl, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_launchd_that_does_not_load_the_agent_says_how_to_try_by_hand(
+    mac: Launchctl, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     mac.code = 5
     assert servicelaunchd.install(plan_in(tmp_path)) == 1
     out = capsys.readouterr().out
-    assert "launchctl did not load the agent; try: launchctl bootstrap gui/501 " + mac.plist.as_posix() in out and "runs and starts at login" not in out
+    assert (
+        "launchctl did not load the agent; try: launchctl bootstrap gui/501 " + mac.plist.as_posix() in out
+        and "runs and starts at login" not in out
+    )
 
 
-def test_removing_what_was_never_installed_unloads_nothing_and_deletes_nothing_and_says_the_service_is_gone(mac: Launchctl, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_removing_what_was_never_installed_unloads_nothing_and_deletes_nothing_and_says_the_service_is_gone(
+    mac: Launchctl, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     assert servicelaunchd.remove(plan_in(tmp_path)) == 0
     assert mac.calls == [["launchctl", "bootout", "gui/501/eu.oh2gba.neoaprs"]]
     out = capsys.readouterr().out

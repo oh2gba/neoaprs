@@ -3,6 +3,7 @@
 Runs only on a click of the page. The result is the port, speed and profile, which the page puts
 into the settings. The search is one asyncio task, so a cancel ends it and closes the open port.
 """
+
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable, Collection
@@ -57,8 +58,17 @@ def candidates(pattern: str, skip: tuple[str, ...]) -> list[str]:
 
 
 class RadioFinder:
-    def __init__(self, ports: Callable[[], Awaitable[list[str]]], hold: Hold, release: Release, timing: Timing | None = None,
-                 line: Callable[[str, int], Ear] = Ear, *, claims: Claims | None = None, search_lock: asyncio.Lock | None = None) -> None:
+    def __init__(
+        self,
+        ports: Callable[[], Awaitable[list[str]]],
+        hold: Hold,
+        release: Release,
+        timing: Timing | None = None,
+        line: Callable[[str, int], Ear] = Ear,
+        *,
+        claims: Claims | None = None,
+        search_lock: asyncio.Lock | None = None,
+    ) -> None:
         self.ports = ports
         # given the radio's id when `find` is given one, else called without arguments
         self._hold, self._release = hold, release
@@ -86,7 +96,9 @@ class RadioFinder:
             paths = self._unclaimed(await self.ports(), radio)
             log.info("find the radio: trying %s", ", ".join(paths) or "no port")
             if not paths:
-                raise RadioSearchError("there is no port to try: none is listed that the search looks at", "radio.no_ports")
+                raise RadioSearchError(
+                    "there is no port to try: none is listed that the search looks at", "radio.no_ports"
+                )
             outcome: list[Found | None] = []
             self._task = self._tasks.spawn(self._run(paths, trying, outcome, radio), "radio-search")
             try:
@@ -102,8 +114,16 @@ class RadioFinder:
                 raise RadioSearchError("the search for the radio failed", "radio.failed")
             if outcome[0] is None:
                 log.info("find the radio: no radio answered on %s", ", ".join(paths))
-                raise RadioSearchError("no radio answered on the ports tried (a KISS TNC says nothing until it hears a packet: try again when the channel is busy)", "radio.not_found")
-            log.info("find the radio: found on %s at %s, profile %s", outcome[0].port, outcome[0].baud or "no speed", outcome[0].profile)
+                raise RadioSearchError(
+                    "no radio answered on the ports tried (a KISS TNC says nothing until it hears a packet: try again when the channel is busy)",
+                    "radio.not_found",
+                )
+            log.info(
+                "find the radio: found on %s at %s, profile %s",
+                outcome[0].port,
+                outcome[0].baud or "no speed",
+                outcome[0].profile,
+            )
             return outcome[0]
         finally:
             self._busy = False
@@ -130,7 +150,9 @@ class RadioFinder:
             log.info("find the radio: passing over %s: held by %s", path, claims.words(held[port_key(path)]))
         return [p for p in paths if port_key(p) not in held]
 
-    async def _run(self, paths: list[str], trying: Callable[[Trying], None], outcome: list[Found | None], radio: RadioId | None) -> None:
+    async def _run(
+        self, paths: list[str], trying: Callable[[Trying], None], outcome: list[Found | None], radio: RadioId | None
+    ) -> None:
         self._speedless = await asyncio.to_thread(serialprobe.bluetooth_com_keys)
         try:
             await self._let_go(radio)
@@ -140,7 +162,9 @@ class RadioFinder:
                 total, number = sum(len(speeds_for(p, self._speedless)) for p in paths), 0
                 for path in paths:
                     # a port that a save gave another radio meanwhile is passed over
-                    found = await self._try_port(path, number, total, trying) if self._unclaimed([path], radio) else None
+                    found = (
+                        await self._try_port(path, number, total, trying) if self._unclaimed([path], radio) else None
+                    )
                     number += len(speeds_for(path, self._speedless))
                     if found is not None:
                         outcome.append(found)

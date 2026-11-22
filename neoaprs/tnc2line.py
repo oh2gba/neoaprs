@@ -2,6 +2,7 @@
 
 A LoRa packet is `SRC>DST,PATH:information` after a three-byte header, at most 255 bytes.
 """
+
 import re
 from dataclasses import dataclass
 
@@ -40,7 +41,12 @@ def frame_of(text: bytes) -> ax25.Frame:
         raise Tnc2Error("only a digipeater can be marked as repeated")
     last = max((i for i, d in enumerate(digis) if d.repeated), default=-1)
     try:
-        return ax25.Frame(dst, src, tuple(ax25.Address(d.call, d.ssid, i <= last) for i, d in enumerate(digis)), info=text[head.end():])
+        return ax25.Frame(
+            dst,
+            src,
+            tuple(ax25.Address(d.call, d.ssid, i <= last) for i, d in enumerate(digis)),
+            info=text[head.end() :],
+        )
     except ax25.Ax25Error as error:
         raise Tnc2Error(str(error)) from None
 
@@ -61,12 +67,13 @@ def from_air(packet: bytes) -> ax25.Frame:
     """Return the frame of a LoRa packet; raise Tnc2Error."""
     if not packet.startswith(HEADER):
         raise Tnc2Error("not a LoRa APRS packet: it does not begin with the header of one")
-    return frame_of(packet[len(HEADER):])
+    return frame_of(packet[len(HEADER) :])
 
 
 @dataclass(frozen=True)
 class TextLine:
     """One line a board wrote: the packet (`frame`), or why it is none (`why`)."""
+
     text: bytes
     frame: ax25.Frame | None = None
     why: str = ""
@@ -100,7 +107,9 @@ def read_line(text: bytes) -> TextLine:
     if _HEAD.match(text) is None:
         return TextLine(text[:MAX_LINE])
     if len(text) > MAX_TEXT:
-        return TextLine(text[:MAX_LINE], why=f"{len(text)} bytes, longer than any LoRa packet ({MAX_TEXT} bytes of text)")
+        return TextLine(
+            text[:MAX_LINE], why=f"{len(text)} bytes, longer than any LoRa packet ({MAX_TEXT} bytes of text)"
+        )
     try:
         return TextLine(text, frame_of(text))
     except Tnc2Error as error:

@@ -1,6 +1,7 @@
 """The database file: how a connection is set up and how a whole copy is made.
 
 Shared so the `Db` actor and the Store configure connections and make copies the same way."""
+
 import os
 import sqlite3
 from collections.abc import Callable

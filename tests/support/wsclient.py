@@ -1,6 +1,7 @@
 """A browser tab for the tests: a WebSocket client against the daemon's /ws that keeps every message
 it is sent and the topics as the page would have them.
 """
+
 import asyncio
 import json
 from collections.abc import Callable
@@ -15,10 +16,10 @@ class WsClient:
         self.messages: list[dict[str, Any]] = []
         # The binary frames (the rows of the waterfall), which are no messages
         self.binary: list[bytes] = []
-        self.topics: dict[str, Any] = {}                     # the page's copy of each topic
+        self.topics: dict[str, Any] = {}  # the page's copy of each topic
         self.revs: dict[str, int] = {}
         self.closed_with: tuple[int | None, str | None] | None = None
-        self._read = 0                                      # messages[:_read] have been returned by recv / expect
+        self._read = 0  # messages[:_read] have been returned by recv / expect
         self._arrived = asyncio.Event()
         self.task = asyncio.get_running_loop().create_task(self._reader(), name="test-ws-reader")
 
@@ -109,7 +110,9 @@ class WsClient:
             try:
                 message = await self.recv(max(0.0, deadline - asyncio.get_running_loop().time()))
             except AssertionError:
-                raise AssertionError(f"no {kind}{' of ' + topic if topic else ''} message came; got {[self._label(m) for m in self.messages]}") from None
+                raise AssertionError(
+                    f"no {kind}{' of ' + topic if topic else ''} message came; got {[self._label(m) for m in self.messages]}"
+                ) from None
             if message["type"] == kind and (topic is None or message.get("topic") == topic):
                 return message
 
@@ -120,17 +123,21 @@ class WsClient:
     async def until(self, condition: Callable[[], object], timeout: float = 5.0) -> None:
         """Waits until the condition holds (it is looked at when a message arrives). A condition
         that looks at a topic or a row that has not come yet (KeyError) does not hold yet."""
+
         def holds() -> bool:
             try:
                 return bool(condition())
             except KeyError:
                 return False
+
         deadline = asyncio.get_running_loop().time() + timeout
         while not holds():
             try:
                 await self._wait(deadline)
             except TimeoutError:
-                raise AssertionError(f"the condition did not come true; got {[self._label(m) for m in self.messages]}") from None
+                raise AssertionError(
+                    f"the condition did not come true; got {[self._label(m) for m in self.messages]}"
+                ) from None
             if self.closed_with is not None and not holds():
                 raise AssertionError(f"the socket was closed {self.closed_with}")
 
@@ -152,6 +159,11 @@ async def connect(port: int, host: str | None = None, origin: str | None = None,
     """The daemon's socket at 127.0.0.1:port; `host`, `origin` and `cookie` set those headers when
     given."""
     from tornado.httpclient import HTTPRequest
-    headers = {**({} if host is None else {"Host": host}), **({} if origin is None else {"Origin": origin}), **({} if cookie is None else {"Cookie": cookie})}
+
+    headers = {
+        **({} if host is None else {"Host": host}),
+        **({} if origin is None else {"Origin": origin}),
+        **({} if cookie is None else {"Cookie": cookie}),
+    }
     request = HTTPRequest(f"ws://127.0.0.1:{port}/ws", headers=headers or None, connect_timeout=5)
     return WsClient(await websocket_connect(request))

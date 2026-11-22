@@ -2,6 +2,7 @@
 
 A station's first announced key is trusted; a different key is refused until it is forgotten.
 """
+
 import logging
 import os
 from datetime import datetime
@@ -21,7 +22,7 @@ FILE = "message.key"
 
 
 def _b64(key: bytes) -> str:
-    return cipher.key_message(key)[len(cipher.KEY_MARK):]
+    return cipher.key_message(key)[len(cipher.KEY_MARK) :]
 
 
 def _station(call: str) -> str:
@@ -63,7 +64,9 @@ class Keyring:
     def refuse_unless_on(self) -> None:
         """Raise MessagingError (`lock.off`) while encrypted messages are not allowed."""
         if not self.enabled:
-            raise MessagingError("encrypted messages are not allowed: NeoAPRS was started without --encryption", "lock.off")
+            raise MessagingError(
+                "encrypted messages are not allowed: NeoAPRS was started without --encryption", "lock.off"
+            )
 
     def _read_own(self) -> bytes | None:
         try:
@@ -158,7 +161,11 @@ class Keyring:
             station = sender
         inside = None if shared is None else cipher.open_sealed(shared, station, ours, text)
         if inside is None:
-            log.info("an encrypted message from %s does not open here (%s)", sender, "no key" if shared is None else "another key, or damaged")
+            log.info(
+                "an encrypted message from %s does not open here (%s)",
+                sender,
+                "no key" if shared is None else "another key, or damaged",
+            )
             return text, "shut", None
         return inside, "open", text
 
@@ -185,13 +192,20 @@ class Keyring:
         """
         station = _station(call)
         if not cipher.is_usable_key(key):
-            log.warning("%s announced a key no shared key can be made with (%s): not taken", station, cipher.fingerprint(key))
+            log.warning(
+                "%s announced a key no shared key can be made with (%s): not taken", station, cipher.fingerprint(key)
+            )
             return ""
         kept = self._peers.get(station)
         if kept is not None:
             if kept[0] == key:
                 return "key"
-            log.warning("%s announced a key (%s) that differs from the one kept (%s): not taken; forget the old one if the station has a new key", station, cipher.fingerprint(key), cipher.fingerprint(kept[0]))
+            log.warning(
+                "%s announced a key (%s) that differs from the one kept (%s): not taken; forget the old one if the station has a new key",
+                station,
+                cipher.fingerprint(key),
+                cipher.fingerprint(kept[0]),
+            )
             return "key_other"
         self._peers[station] = (key, at)
         if not await self._log.save_key(station, _b64(key), at):

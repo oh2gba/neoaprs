@@ -1,6 +1,7 @@
 """The one place through which scheduled own frames (objects, bulletins) go out.
 
 Frames go one at a time per radio, `spacing_sec` apart, and only while the radio is usable."""
+
 import logging
 from collections.abc import Iterable
 from datetime import datetime
@@ -20,7 +21,9 @@ log = logging.getLogger("neoaprs.sender")
 
 
 class Sender:
-    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, clock: Clock = utcnow, spacing_sec: float = SPACING_SEC) -> None:
+    def __init__(
+        self, radios: RadioPick | Radio, config: ConfigSource, clock: Clock = utcnow, spacing_sec: float = SPACING_SEC
+    ) -> None:
         self._radios = radios
         self._config = config
         self._interlock = Interlock(config)

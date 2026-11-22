@@ -12,6 +12,7 @@ driven round and round. A client that sends `?WATCH={"enable":true,"json":true}`
 does, gets a TPV report each INTERVAL seconds (a second by default; a smaller number drives faster
 than real time) and a SKY report every fifth. The drive advances only while a client watches, and
 resumes from where it stopped. Ctrl-C ends it."""
+
 import argparse
 import asyncio
 import json
@@ -28,16 +29,50 @@ DEFAULT_AT = "60.43,24.145"
 SKY_EVERY = 5
 SATELLITES = 9
 VERSION = {"class": "VERSION", "release": "3.25", "rev": "neoaprs gps-replay", "proto_major": 3, "proto_minor": 14}
-DEVICES = {"class": "DEVICES", "devices": [{"class": "DEVICE", "path": "/dev/gps-replay", "driver": "NMEA0183", "activated": "2026-01-01T00:00:00.000Z"}]}
-WATCH = {"class": "WATCH", "enable": True, "json": True, "nmea": False, "raw": 0, "scaled": False, "timing": False, "split24": False, "pps": False}
+DEVICES = {
+    "class": "DEVICES",
+    "devices": [
+        {"class": "DEVICE", "path": "/dev/gps-replay", "driver": "NMEA0183", "activated": "2026-01-01T00:00:00.000Z"}
+    ],
+}
+WATCH = {
+    "class": "WATCH",
+    "enable": True,
+    "json": True,
+    "nmea": False,
+    "raw": 0,
+    "scaled": False,
+    "timing": False,
+    "split24": False,
+    "pps": False,
+}
 
 
 def parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="neoaprs gps-replay", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--at", default=DEFAULT_AT, metavar="LAT,LON", help=f"where the drive starts, decimal degrees (default {DEFAULT_AT})")
+    p = argparse.ArgumentParser(
+        prog="neoaprs gps-replay", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p.add_argument(
+        "--at",
+        default=DEFAULT_AT,
+        metavar="LAT,LON",
+        help=f"where the drive starts, decimal degrees (default {DEFAULT_AT})",
+    )
     p.add_argument("--kmh", type=float, default=50.0, help="the cruising speed in km/h (default 50)")
-    p.add_argument("--port", type=int, default=DEFAULT_PORT, metavar="P", help=f"the TCP port to listen on, on {HOST} (default {DEFAULT_PORT}; 0 takes a free one)")
-    p.add_argument("--interval", type=float, default=1.0, metavar="S", help="seconds between two reports, each a second of driving (default 1.0)")
+    p.add_argument(
+        "--port",
+        type=int,
+        default=DEFAULT_PORT,
+        metavar="P",
+        help=f"the TCP port to listen on, on {HOST} (default {DEFAULT_PORT}; 0 takes a free one)",
+    )
+    p.add_argument(
+        "--interval",
+        type=float,
+        default=1.0,
+        metavar="S",
+        help="seconds between two reports, each a second of driving (default 1.0)",
+    )
     return p
 
 
@@ -55,12 +90,31 @@ def position(text: str) -> tuple[float, float]:
 
 def tpv(sample: Sample, now: datetime) -> dict[str, object]:
     """Return the gpsd TPV report for this sample."""
-    return {"class": "TPV", "device": "/dev/gps-replay", "mode": 3, "time": now.strftime("%Y-%m-%dT%H:%M:%S.000Z"), "lat": round(sample.lat, 9), "lon": round(sample.lon, 9),
-            "altHAE": round(sample.altitude_m + 20.0, 1), "altMSL": sample.altitude_m, "alt": sample.altitude_m, "track": float(sample.course_deg), "speed": round(sample.speed_ms, 3), "climb": 0.0}
+    return {
+        "class": "TPV",
+        "device": "/dev/gps-replay",
+        "mode": 3,
+        "time": now.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        "lat": round(sample.lat, 9),
+        "lon": round(sample.lon, 9),
+        "altHAE": round(sample.altitude_m + 20.0, 1),
+        "altMSL": sample.altitude_m,
+        "alt": sample.altitude_m,
+        "track": float(sample.course_deg),
+        "speed": round(sample.speed_ms, 3),
+        "climb": 0.0,
+    }
 
 
 def sky() -> dict[str, object]:
-    return {"class": "SKY", "device": "/dev/gps-replay", "nSat": SATELLITES + 3, "uSat": SATELLITES, "hdop": 1.1, "satellites": [{"PRN": n, "used": n <= SATELLITES} for n in range(1, SATELLITES + 4)]}
+    return {
+        "class": "SKY",
+        "device": "/dev/gps-replay",
+        "nSat": SATELLITES + 3,
+        "uSat": SATELLITES,
+        "hdop": 1.1,
+        "satellites": [{"PRN": n, "used": n <= SATELLITES} for n in range(1, SATELLITES + 4)],
+    }
 
 
 def line(report: Mapping[str, object]) -> bytes:
@@ -70,7 +124,9 @@ def line(report: Mapping[str, object]) -> bytes:
 class FakeGpsd:
     """The server: a client that has asked to watch receives the drive."""
 
-    def __init__(self, trip: Trip, interval: float, port: int = DEFAULT_PORT, ready: asyncio.Future[int] | None = None) -> None:
+    def __init__(
+        self, trip: Trip, interval: float, port: int = DEFAULT_PORT, ready: asyncio.Future[int] | None = None
+    ) -> None:
         self.trip, self.interval, self.port, self.ready = trip, interval, port, ready
         self.watchers: list[asyncio.StreamWriter] = []
         self.reports = 0
@@ -147,7 +203,9 @@ def main(argv: list[str]) -> int:
         port = ready.result()
         with break_as_interrupt():
             print(f"{HOST}:{port}", flush=True)
-            say(f"gps-replay: a drive from {lat:g},{lon:g} at {args.kmh:g} km/h; give the daemon gps/source gpsd, gps/host {HOST}:{port}; Ctrl-C ends it")
+            say(
+                f"gps-replay: a drive from {lat:g},{lon:g} at {args.kmh:g} km/h; give the daemon gps/source gpsd, gps/host {HOST}:{port}; Ctrl-C ends it"
+            )
             await task
 
     try:

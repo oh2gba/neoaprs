@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Compare the live project page with what is committed; the private places must answer 403.
 
-    scripts/site-check https://neo.oh2gba.eu          the page and its private places
-    scripts/site-check URL --root DIR                  the committed files of another checkout"""
+scripts/site-check https://neo.oh2gba.eu          the page and its private places
+scripts/site-check URL --root DIR                  the committed files of another checkout"""
+
 import argparse
 import hashlib
 import subprocess
@@ -22,14 +23,30 @@ WORKERS = 8
 PUBLIC_PHP = ("api/v1/view.php", "support/send.php", "api/v1/skeds.php")
 # Places that must answer 403 whatever the repository holds.
 PRIVATE = (
-    "/private/", "/private/support/", "/private/support/rate.json", "/private/support/salt", "/private/logs/support.log", "/private/.htaccess",
-    "/private/skeds/", "/private/skeds/rate.json", "/private/skeds/salt", "/private/skeds/lock", "/private/logs/skeds.log", "/skeds.json.part",
-    "/.htaccess", "/.user.ini", "/support/.user.ini", "/log/", "/log/.htaccess", "/log/latest.json",
+    "/private/",
+    "/private/support/",
+    "/private/support/rate.json",
+    "/private/support/salt",
+    "/private/logs/support.log",
+    "/private/.htaccess",
+    "/private/skeds/",
+    "/private/skeds/rate.json",
+    "/private/skeds/salt",
+    "/private/skeds/lock",
+    "/private/logs/skeds.log",
+    "/skeds.json.part",
+    "/.htaccess",
+    "/.user.ini",
+    "/support/.user.ini",
+    "/log/",
+    "/log/.htaccess",
+    "/log/latest.json",
 )
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     """Do not follow redirects: a file that has moved is not the committed one."""
+
     def redirect_request(self, *args: object, **kwargs: object) -> None:
         return None
 
@@ -46,13 +63,15 @@ def base_of(text: str) -> str:
 
 def tracked(root: Path, folder: str) -> dict[str, str]:
     """Return the regular files of the last commit under `folder`, sorted, with their blob ids."""
-    done = subprocess.run(["git", "-C", str(root), "ls-tree", "-r", "-z", "HEAD", "--", folder], capture_output=True, check=True)
+    done = subprocess.run(
+        ["git", "-C", str(root), "ls-tree", "-r", "-z", "HEAD", "--", folder], capture_output=True, check=True
+    )
     found: dict[str, str] = {}
     for entry in done.stdout.decode("utf-8").split("\0"):
         info, _, path = entry.partition("\t")
         mode, _, rest = info.partition(" ")
         if mode in ("100644", "100755") and path.startswith(folder + "/"):
-            found[path[len(folder) + 1:]] = rest.split(" ")[1]
+            found[path[len(folder) + 1 :]] = rest.split(" ")[1]
     return dict(sorted(found.items()))
 
 
@@ -126,9 +145,16 @@ def forbidden(base: str, root: Path, today: datetime) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(description="the live project page against what is committed, and its private places")
+    parser = argparse.ArgumentParser(
+        description="the live project page against what is committed, and its private places"
+    )
     parser.add_argument("url", help="the page's address, https://neo.oh2gba.eu")
-    parser.add_argument("--root", type=Path, default=ROOT, help="the checkout whose committed files are the right ones (default: this one)")
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=ROOT,
+        help="the checkout whose committed files are the right ones (default: this one)",
+    )
     args = parser.parse_args(argv)
     try:
         base = base_of(args.url)
@@ -148,7 +174,9 @@ def main(argv: list[str]) -> int:
     for line in findings:
         print(line)
     count = len(tracked(args.root, "site"))
-    print(f"site-check: {count} files compared, {len(private_places(args.root, datetime.now(UTC)))} private places asked, {len(findings)} findings")
+    print(
+        f"site-check: {count} files compared, {len(private_places(args.root, datetime.now(UTC)))} private places asked, {len(findings)} findings"
+    )
     return 1 if findings else 0
 
 

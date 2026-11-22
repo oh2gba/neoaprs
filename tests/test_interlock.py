@@ -1,6 +1,7 @@
 """Tests for the transmit interlock (`config.can_transmit`, services/interlock.py, the Tnc's
 `permit`): a station with no call or a placeholder call transmits nothing, and the defaults are such
 a station."""
+
 import logging
 from dataclasses import replace
 from pathlib import Path
@@ -18,8 +19,14 @@ SET_FIRST = "set your call first"
 
 # ---- the rules -----------------------------------------------------------------------------------
 
+
 def test_the_defaults_are_a_station_with_no_call_and_no_position() -> None:
-    assert (DEFAULTS.station_call, DEFAULTS.station_lat, DEFAULTS.station_lon, DEFAULTS.station_position) == ("", None, None, None)
+    assert (DEFAULTS.station_call, DEFAULTS.station_lat, DEFAULTS.station_lon, DEFAULTS.station_position) == (
+        "",
+        None,
+        None,
+        None,
+    )
     assert (DEFAULTS.beacon_interval_min, DEFAULTS.station_status, DEFAULTS.station_comment) == (0, "", "NeoAPRS")
     assert can_transmit(Config()) == SET_FIRST
 
@@ -54,10 +61,11 @@ def test_the_settings_take_an_empty_call_and_an_empty_position_and_write_them_em
 
 # ---- the whole daemon ----------------------------------------------------------------------------
 
+
 async def started(tmp_path: Path, **changes: object) -> Env:
     e = await quick_start(tmp_path, beacon=True, messaging=True, rigstatus=True, operator=False)
     if changes:
-        assert await e.ctl.save_config(replace(e.ctl.config, **changes))    # type: ignore[arg-type]
+        assert await e.ctl.save_config(replace(e.ctl.config, **changes))  # type: ignore[arg-type]
     return e
 
 
@@ -68,12 +76,14 @@ async def quiet(e: Env, seconds: float = 0.4) -> None:
     assert await e.heard(1, seconds) == b"", "something was transmitted"
 
 
-async def test_a_fresh_install_transmits_nothing_whatever_it_is_asked_or_due(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_fresh_install_transmits_nothing_whatever_it_is_asked_or_due(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.INFO)
     e = await started(tmp_path, beacon_interval_min=10, station_status="QRV", station_lat=60.17, station_lon=24.94)
     assert e.ctl.config.station_call == "" and e.ctl.stationbook.me is None
-    e.now.advance(3600)                                                     # type: ignore[attr-defined]
-    await quiet(e)                                                          # the beacon is due, the status is due
+    e.now.advance(3600)  # type: ignore[attr-defined]
+    await quiet(e)  # the beacon is due, the status is due
     assert e.beacon.last_sent is None and e.beacon.problem == SET_FIRST and e.ctl.rigstatus.last_text == ""
     with pytest.raises(MessagingError, match=SET_FIRST):
         await e.ctl.messaging.send("OH2RDG", "Hello")
@@ -82,12 +92,22 @@ async def test_a_fresh_install_transmits_nothing_whatever_it_is_asked_or_due(tmp
     assert not e.tnc.send_frame(frame), "the Tnc itself refuses, whoever built the frame"
     await quiet(e)
     assert [p for p in await e.packets() if p.direction == "out"] == []
-    told = [r.getMessage() for r in caplog.records if "no beacon sent" in r.getMessage() or "no status sent" in r.getMessage() or "no frame sent" in r.getMessage()]
-    assert sorted(told) == ["no beacon sent: set your call first", "no frame sent: set your call first", "no status sent: set your call first"], "each refusal is told once, not once per try"
+    told = [
+        r.getMessage()
+        for r in caplog.records
+        if "no beacon sent" in r.getMessage() or "no status sent" in r.getMessage() or "no frame sent" in r.getMessage()
+    ]
+    assert sorted(told) == [
+        "no beacon sent: set your call first",
+        "no frame sent: set your call first",
+        "no status sent: set your call first",
+    ], "each refusal is told once, not once per try"
     await e.stop()
 
 
-async def test_a_call_that_is_a_placeholder_gets_no_ack_and_no_answer_to_a_query(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_call_that_is_a_placeholder_gets_no_ack_and_no_answer_to_a_query(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.INFO)
     e = await started(tmp_path, station_call="N0CALL", station_lat=60.17, station_lon=24.94)
     assert can_transmit(e.ctl.config) is not None
@@ -101,13 +121,17 @@ async def test_a_call_that_is_a_placeholder_gets_no_ack_and_no_answer_to_a_query
     with pytest.raises(MessagingError, match=SET_FIRST):
         await e.ctl.messaging.send("OH2RDG", "Hello")
     refusals = [r.getMessage() for r in caplog.records if r.name == "neoaprs.interlock"]
-    assert len(refusals) == len(set(refusals)) and any("no ack sent" in m for m in refusals) and any("no query answer sent" in m for m in refusals), "once for each kind"
+    assert (
+        len(refusals) == len(set(refusals))
+        and any("no ack sent" in m for m in refusals)
+        and any("no query answer sent" in m for m in refusals)
+    ), "once for each kind"
     await e.stop()
 
 
 async def test_with_a_call_set_the_same_things_go_out_and_a_waiting_beacon_goes_when_it_is_set(tmp_path: Path) -> None:
     e = await started(tmp_path, beacon_interval_min=10, station_lat=60.17, station_lon=24.94)
-    e.now.advance(3600)                                                     # type: ignore[attr-defined]
+    e.now.advance(3600)  # type: ignore[attr-defined]
     await quiet(e)
     assert e.beacon.last_sent is None
     assert await e.ctl.save_config(replace(e.ctl.config, station_call="OH2GBA"))
@@ -142,7 +166,7 @@ async def test_no_position_means_no_beacon_and_no_own_station_but_messages_go(tm
 
 async def test_the_tnc_is_still_switched_to_kiss_with_no_call_set_that_is_no_transmission(tmp_path: Path) -> None:
     e = await started(tmp_path, tnc_profile="kenwood-tnc2")
-    await until(lambda: e.tnc.stats.opens >= 2)                             # (the TNC was restarted for its profile)
+    await until(lambda: e.tnc.stats.opens >= 2)  # (the TNC was restarted for its profile)
     await e.until_connected()
     # a TNC in command mode, monitoring
     e.feed(b"OH2FZV-2>VP1R61,WIDE1,OH2RCH-2*:!6010.00N/02456.00E>test\r\n")

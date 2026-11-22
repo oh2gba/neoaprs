@@ -1,6 +1,7 @@
 """Tests that each service ignores a packet that came from the internet (`Packet.via` is `is`): the
 same packet heard on the radio makes the service act, the internet copy does nothing.
 """
+
 from dataclasses import replace
 from pathlib import Path
 
@@ -35,20 +36,28 @@ def test_the_digipeater_repeats_a_packet_of_the_radio_and_not_the_same_packet_fr
     rig.digi.on_packet(internet(on_the_radio))
     assert rig.tnc.sent == [] and len(rig.digi._seen) == 0, "nothing sent, and not remembered as heard either"
     rig.digi.on_packet(on_the_radio)
-    assert rig.lines() == [f"OH2XYZ>APRS,OH2GBA*:{INFO.decode()}"], "the radio's copy is repeated, which an earlier internet copy did not prevent"
+    assert rig.lines() == [f"OH2XYZ>APRS,OH2GBA*:{INFO.decode()}"], (
+        "the radio's copy is repeated, which an earlier internet copy did not prevent"
+    )
 
 
-async def test_the_igate_puts_a_packet_of_the_radio_on_the_server_and_not_the_same_packet_from_the_internet_or_the_dummy_radio() -> None:
+async def test_the_igate_puts_a_packet_of_the_radio_on_the_server_and_not_the_same_packet_from_the_internet_or_the_dummy_radio() -> (
+    None
+):
     server = await fake_aprsis()
     w = await iworld(server)
     heard = w.hear()
     w.igate.on_packet(internet(heard))
     w.igate.on_packet(replace(heard, via="dummy"))
-    assert w.igate.gated == 1 and w.igate.dropped["not_air"] == 2, "only the radio's copy was gated, and the other two are counted"
+    assert w.igate.gated == 1 and w.igate.dropped["not_air"] == 2, (
+        "only the radio's copy was gated, and the other two are counted"
+    )
     assert w.igate.gated_hour.count(w.igate.clock()) == 1, "and counted in the last hour, for the statistics card"
     await w.until_sent(2)
     await idle_for(0.1)
-    assert [line for line in server.packets if line.startswith("OH2XYZ-9>")] == ["OH2XYZ-9>APZ123,WIDE1-1*,WIDE2-1,qAO,OH2GBA-10:!6010.00N/02456.00E>Test"]
+    assert [line for line in server.packets if line.startswith("OH2XYZ-9>")] == [
+        "OH2XYZ-9>APZ123,WIDE1-1*,WIDE2-1,qAO,OH2GBA-10:!6010.00N/02456.00E>Test"
+    ]
 
 
 def test_the_queries_answer_a_query_from_the_radio_and_none_from_the_internet() -> None:
@@ -91,10 +100,14 @@ async def test_messaging_keeps_and_acks_a_message_of_the_radio_and_neither_from_
     asked = rig.heard("OH2RDG", "OH2GBA", "Moi!", "12")
     rig.m.on_packet(internet(asked))
     await rig.settled()
-    assert rig.m.records() == [] and rig.tnc.sent == [] and rig.m.inbox.heard._at == {} and rig.m.inbox.heard._acked == {}
+    assert (
+        rig.m.records() == [] and rig.tnc.sent == [] and rig.m.inbox.heard._at == {} and rig.m.inbox.heard._acked == {}
+    )
     rig.m.on_packet(asked)
     await rig.settled()
-    assert [(r.from_call, r.text, r.state) for r in rig.m.records()] == [("OH2RDG", "Moi!", "received")] and len(rig.tnc.sent) == 1, "on the radio it is kept and acked"
+    assert [(r.from_call, r.text, r.state) for r in rig.m.records()] == [("OH2RDG", "Moi!", "received")] and len(
+        rig.tnc.sent
+    ) == 1, "on the radio it is kept and acked"
 
 
 async def test_an_ack_and_a_rej_from_the_internet_settle_no_message_of_ours(tmp_path: Path) -> None:

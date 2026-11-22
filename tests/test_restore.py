@@ -2,6 +2,7 @@
 command that restores it, and `neoaprs db restore` lists the copies and puts one back, never while
 the data folder is held.
 """
+
 import os
 import shlex
 import sqlite3
@@ -75,7 +76,9 @@ def test_a_newer_file_with_a_usable_copy_names_the_copy_with_its_date_and_the_co
     assert marker_of(data / DB_NAME) == "newer file"
 
 
-def test_the_date_is_that_of_the_name_when_the_file_times_are_lost_and_the_command_is_quoted_for_a_folder_with_a_space(tmp_path: Path) -> None:
+def test_the_date_is_that_of_the_name_when_the_file_times_are_lost_and_the_command_is_quoted_for_a_folder_with_a_space(
+    tmp_path: Path,
+) -> None:
     folder = tmp_path / "my data"
     make_db(folder / DB_NAME, NEWER, "newer file")
     a = folder / "backup" / f"premigrate-v1-to-v{SCHEMA_VERSION}-20261101-120000.sqlite"
@@ -83,7 +86,7 @@ def test_the_date_is_that_of_the_name_when_the_file_times_are_lost_and_the_comma
     make_db(a, SCHEMA_VERSION, "a")
     make_db(b, SCHEMA_VERSION, "b")
     dated(a, 1_795_000_000)
-    dated(b, 1_795_000_000)                                     # a folder copied without its times: all the same
+    dated(b, 1_795_000_000)  # a folder copied without its times: all the same
     ok, why = open_database(folder / DB_NAME)
     assert b.name in why and "2026-11-05 09:00 UTC" in why
     command = why.split("run `")[1].split("`")[0]
@@ -98,14 +101,21 @@ def test_a_newer_file_without_a_usable_copy_says_so_plainly(data: Path) -> None:
     make_db(data / "backup" / "by-hand.sqlite", NEWER, "also newer")
     (data / "backup" / "premigrate-v1-to-v2-20260101-000000.sqlite").write_bytes(b"not a database at all")
     ok, why = open_database(data / DB_NAME)
-    assert not ok and "there is no copy in the backup folder that this NeoAPRS can open" in why and "restore" not in why and "stays with you" in why
+    assert (
+        not ok
+        and "there is no copy in the backup folder that this NeoAPRS can open" in why
+        and "restore" not in why
+        and "stays with you" in why
+    )
     folder_less = data.parent / "other"
     make_db(folder_less / DB_NAME, NEWER, "x")
     ok, why = open_database(folder_less / DB_NAME)
     assert not ok and "there is no copy in the backup folder that this NeoAPRS can open" in why
 
 
-def test_the_list_shows_date_version_and_size_and_marks_what_this_version_cannot_open(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_the_list_shows_date_version_and_size_and_marks_what_this_version_cannot_open(
+    data: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     good = data / "backup" / "mine.sqlite"
     bad = data / "backup" / "later.sqlite"
     make_db(good, SCHEMA_VERSION, "mine")
@@ -122,7 +132,9 @@ def test_the_list_shows_date_version_and_size_and_marks_what_this_version_cannot
     assert restore_cli(data.parent / "empty") == 0 and "no copy" in capsys.readouterr().err
 
 
-def test_the_list_marks_the_copy_the_neoaprs_before_opens_and_no_other(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_the_list_marks_the_copy_the_neoaprs_before_opens_and_no_other(
+    data: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     old, middle = SCHEMA_VERSION - 3, SCHEMA_VERSION - 1
     before = data / "backup" / f"premigrate-v{old}-to-v{SCHEMA_VERSION}-20261101-120000.sqlite"
     later = data / "backup" / f"premigrate-v{middle}-to-v{SCHEMA_VERSION}-20261102-120000.sqlite"
@@ -144,7 +156,9 @@ def test_the_list_marks_the_copy_the_neoaprs_before_opens_and_no_other(data: Pat
     assert "taken before the update" not in capsys.readouterr().out
 
 
-def test_a_restore_puts_the_copy_in_place_and_keeps_the_present_file_under_a_name_that_says_when(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_restore_puts_the_copy_in_place_and_keeps_the_present_file_under_a_name_that_says_when(
+    data: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     copy = data / "backup" / "mine.sqlite"
     make_db(copy, SCHEMA_VERSION, "the copy")
     (data / f"{DB_NAME}-wal").write_bytes(b"frames the crash left")
@@ -153,7 +167,9 @@ def test_a_restore_puts_the_copy_in_place_and_keeps_the_present_file_under_a_nam
     assert "is now the database" in capsys.readouterr().err
     assert marker_of(data / DB_NAME) == "the copy" and copy.is_file() and marker_of(copy) == "the copy"
     kept = sorted(p.name for p in data.glob("neoaprs-set-aside-*"))
-    assert len(kept) == 2 and kept[0].endswith(".sqlite") and kept[1].endswith(".sqlite-wal"), "the file and the log that belongs to it go together"
+    assert len(kept) == 2 and kept[0].endswith(".sqlite") and kept[1].endswith(".sqlite-wal"), (
+        "the file and the log that belongs to it go together"
+    )
     assert marker_of(data / kept[0]) == "newer file"
     assert not (data / f"{DB_NAME}-wal").exists(), "a log of the old file is never applied to the copy"
     # Windows has no such bits: the folder's own access list holds there
@@ -178,7 +194,9 @@ def test_restore_with_no_database_in_place_just_puts_the_copy(tmp_path: Path) ->
 
 
 @pytest.mark.parametrize("lock_name", ["neoaprs.lock", APP_LOCK_NAME])
-def test_restore_is_refused_while_a_neoaprs_holds_the_data_folder_and_nothing_changes(data: Path, lock_name: str, capsys: pytest.CaptureFixture[str]) -> None:
+def test_restore_is_refused_while_a_neoaprs_holds_the_data_folder_and_nothing_changes(
+    data: Path, lock_name: str, capsys: pytest.CaptureFixture[str]
+) -> None:
     make_db(data / "backup" / "mine.sqlite", SCHEMA_VERSION, "the copy")
     holder = InstanceLock(data, lock_name)
     holder.acquire()
@@ -189,11 +207,15 @@ def test_restore_is_refused_while_a_neoaprs_holds_the_data_folder_and_nothing_ch
     finally:
         holder.release()
     assert marker_of(data / DB_NAME) == "newer file" and not list(data.glob("neoaprs-set-aside-*"))
-    assert restore_cli(data, "mine.sqlite") == 0, "and with the lock let go it goes through (the refusal left no lock behind)"
+    assert restore_cli(data, "mine.sqlite") == 0, (
+        "and with the lock let go it goes through (the refusal left no lock behind)"
+    )
 
 
 @pytest.mark.parametrize("migrating", [True, False], ids=["a migration", "a set"])
-def test_restore_is_refused_while_a_neoaprs_migrates_or_writes_the_file_and_the_file_is_not_touched(data: Path, migrating: bool, capsys: pytest.CaptureFixture[str]) -> None:
+def test_restore_is_refused_while_a_neoaprs_migrates_or_writes_the_file_and_the_file_is_not_touched(
+    data: Path, migrating: bool, capsys: pytest.CaptureFixture[str]
+) -> None:
     """The lock of the migration is held by `neoaprs db set` for its whole run, and by a migration
     from before its copy: on POSIX the rename would go through under their open file, and what they
     write would land in the file put aside."""
@@ -205,22 +227,33 @@ def test_restore_is_refused_while_a_neoaprs_migrates_or_writes_the_file_and_the_
     if migrating:
         note.start()
     try:
-        with pytest.raises(RestoreRefused, match="^NeoAPRS is writing to the database or bringing it up to date now: try again when that is done$"):
+        with pytest.raises(
+            RestoreRefused,
+            match="^NeoAPRS is writing to the database or bringing it up to date now: try again when that is done$",
+        ):
             backupfolder.restore(data, DB_NAME, "mine.sqlite", SCHEMA_VERSION)
         capsys.readouterr()
         assert restore_cli(data, "mine.sqlite") == 1 and "try again when that is done" in capsys.readouterr().err
     finally:
         note.stop()
         holder.release()
-    assert (data / DB_NAME).read_bytes() == before and not list(data.glob("neoaprs-set-aside-*")), "byte for byte as it was"
-    assert restore_cli(data, "mine.sqlite") == 0, "and with the lock let go it goes through (the refusal left no lock of the daemon behind)"
+    assert (data / DB_NAME).read_bytes() == before and not list(data.glob("neoaprs-set-aside-*")), (
+        "byte for byte as it was"
+    )
+    assert restore_cli(data, "mine.sqlite") == 0, (
+        "and with the lock let go it goes through (the refusal left no lock of the daemon behind)"
+    )
 
 
 def test_a_copy_this_version_cannot_open_is_refused(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
     make_db(data / "backup" / "later.sqlite", NEWER, "later")
     capsys.readouterr()
     assert restore_cli(data, "later.sqlite") == 1
-    assert "cannot open" in capsys.readouterr().err and marker_of(data / DB_NAME) == "newer file" and not list(data.glob("neoaprs-set-aside-*"))
+    assert (
+        "cannot open" in capsys.readouterr().err
+        and marker_of(data / DB_NAME) == "newer file"
+        and not list(data.glob("neoaprs-set-aside-*"))
+    )
 
 
 @pytest.mark.parametrize("name", ["missing.sqlite", "../neoaprs.sqlite", "notes.txt", "backup/mine.sqlite"])
@@ -231,28 +264,38 @@ def test_a_name_that_is_not_a_copy_in_the_backup_folder_is_refused(data: Path, n
     assert marker_of(data / DB_NAME) == "newer file"
 
 
-def test_a_copy_that_cannot_be_written_in_place_leaves_the_database_as_it_was(data: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_copy_that_cannot_be_written_in_place_leaves_the_database_as_it_was(
+    data: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     make_db(data / "backup" / "mine.sqlite", SCHEMA_VERSION, "the copy")
 
     def fail(source: Path, target: Path) -> None:
         raise OSError(28, "No space left on device")
+
     monkeypatch.setattr(backupfolder, "_write_private", fail)
     with pytest.raises(RestoreRefused, match="as it was"):
         backupfolder.restore(data, DB_NAME, "mine.sqlite", SCHEMA_VERSION)
     assert marker_of(data / DB_NAME) == "newer file" and not list(data.glob("neoaprs-set-aside-*"))
 
 
-def test_the_files_moved_aside_come_back_when_the_write_fails_and_when_a_move_fails(data: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_files_moved_aside_come_back_when_the_write_fails_and_when_a_move_fails(
+    data: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     make_db(data / "backup" / "mine.sqlite", SCHEMA_VERSION, "the copy")
     (data / f"{DB_NAME}-wal").write_bytes(b"log")
     (data / f"{DB_NAME}-shm").write_bytes(b"shm")
 
     def fail(source: Path, target: Path) -> None:
         raise OSError(5, "Input/output error")
+
     monkeypatch.setattr(backupfolder, "_write_private", fail)
     with pytest.raises(RestoreRefused):
         backupfolder.restore(data, DB_NAME, "mine.sqlite", SCHEMA_VERSION)
-    assert (data / f"{DB_NAME}-wal").read_bytes() == b"log" and (data / f"{DB_NAME}-shm").read_bytes() == b"shm" and not list(data.glob("neoaprs-set-aside-*"))
+    assert (
+        (data / f"{DB_NAME}-wal").read_bytes() == b"log"
+        and (data / f"{DB_NAME}-shm").read_bytes() == b"shm"
+        and not list(data.glob("neoaprs-set-aside-*"))
+    )
     monkeypatch.undo()
     # Opening the file lets SQLite drop a log it cannot use
     assert marker_of(data / DB_NAME) == "newer file"
@@ -263,26 +306,42 @@ def test_the_files_moved_aside_come_back_when_the_write_fails_and_when_a_move_fa
         if self.name.endswith("-wal") and "set-aside" in str(target):
             raise OSError(13, "Permission denied")
         return real(self, target)
+
     monkeypatch.setattr(Path, "rename", rename)
     with pytest.raises(RestoreRefused, match="as it was"):
         backupfolder.restore(data, DB_NAME, "mine.sqlite", SCHEMA_VERSION)
-    assert (data / f"{DB_NAME}-wal").read_bytes() == b"log" and not list(data.glob("neoaprs-set-aside-*")) and marker_of(data / DB_NAME) == "newer file"
+    assert (
+        (data / f"{DB_NAME}-wal").read_bytes() == b"log"
+        and not list(data.glob("neoaprs-set-aside-*"))
+        and marker_of(data / DB_NAME) == "newer file"
+    )
 
 
-def test_a_restore_cut_short_while_the_copy_is_written_leaves_the_database_in_its_place(data: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_restore_cut_short_while_the_copy_is_written_leaves_the_database_in_its_place(
+    data: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     make_db(data / "backup" / "mine.sqlite", SCHEMA_VERSION, "the copy")
 
     def killed(source: object, target: object) -> None:
         # As far as the files go, a kill or a power cut in the middle of the copy
         raise KeyboardInterrupt
+
     monkeypatch.setattr(backupfolder.shutil, "copyfileobj", killed)
     with pytest.raises(KeyboardInterrupt):
         backupfolder.restore(data, DB_NAME, "mine.sqlite", SCHEMA_VERSION)
-    assert marker_of(data / DB_NAME) == "newer file" and not list(data.glob("neoaprs-set-aside-*")) and not (data / f"{DB_NAME}.tmp").exists()
+    assert (
+        marker_of(data / DB_NAME) == "newer file"
+        and not list(data.glob("neoaprs-set-aside-*"))
+        and not (data / f"{DB_NAME}.tmp").exists()
+    )
 
 
 def test_copies_made_in_the_same_second_are_listed_in_the_order_they_were_made_the_last_first(tmp_path: Path) -> None:
     stem = f"premigrate-v{SCHEMA_VERSION - 1}-to-v{SCHEMA_VERSION}-20261113-120000"
     for name in (f"{stem}.sqlite", f"{stem}-2.sqlite", f"{stem}-10.sqlite"):
         make_db(tmp_path / name, SCHEMA_VERSION, name)
-    assert [c.name for c in backupfolder.copies(tmp_path)] == [f"{stem}-10.sqlite", f"{stem}-2.sqlite", f"{stem}.sqlite"]
+    assert [c.name for c in backupfolder.copies(tmp_path)] == [
+        f"{stem}-10.sqlite",
+        f"{stem}-2.sqlite",
+        f"{stem}.sqlite",
+    ]

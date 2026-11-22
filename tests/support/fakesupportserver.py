@@ -1,6 +1,7 @@
 """A fake server for Send logs on a free loopback port: it reads the multipart form the daemon posts
 and keeps what it held.
 """
+
 import asyncio
 import json
 from dataclasses import dataclass, field
@@ -21,9 +22,10 @@ class Received:
 
 
 def parse_form(content_type: str, body: bytes) -> tuple[dict[str, str], dict[str, tuple[str, bytes]]]:
-    """(the text fields, the files as name -> (file name, content)) of a multipart/form-data body.
-    """
-    message = BytesParser(policy=policy.default).parsebytes(f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode() + body)
+    """(the text fields, the files as name -> (file name, content)) of a multipart/form-data body."""
+    message = BytesParser(policy=policy.default).parsebytes(
+        f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode() + body
+    )
     fields: dict[str, str] = {}
     files: dict[str, tuple[str, bytes]] = {}
     for part in message.iter_parts():
@@ -63,7 +65,10 @@ class FakeSupportServer(LoopbackServer):
                 await reader.read()
                 return
             sent = self.body if self.body is not None else json.dumps(self.answer).encode()
-            writer.write(f"HTTP/1.0 {self.status} X\r\nContent-Type: application/json\r\nContent-Length: {len(sent)}\r\n\r\n".encode() + sent)
+            writer.write(
+                f"HTTP/1.0 {self.status} X\r\nContent-Type: application/json\r\nContent-Length: {len(sent)}\r\n\r\n".encode()
+                + sent
+            )
             await writer.drain()
         except (asyncio.IncompleteReadError, ConnectionError, asyncio.CancelledError):
             pass

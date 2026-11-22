@@ -3,6 +3,7 @@ fifo backend and its four TCP ports are each bound to 127.0.0.1 and nothing else
 built program is (after `scripts/build-mercury --install`) and is skipped elsewhere; also holds the
 patch and build script.
 """
+
 import os
 import subprocess
 import sys
@@ -20,13 +21,22 @@ SCRIPT = ROOT / "scripts" / "build-mercury"
 
 def test_the_patch_binds_both_listeners_to_the_loopback_and_the_build_applies_and_checks_it() -> None:
     text = PATCH.read_text(encoding="utf-8")
-    assert text.count("-    local_addr.sin_addr.s_addr = INADDR_ANY;") == 2 and text.count("+    local_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);") == 2, "the two binds of Mercury 1.9.24, and nothing else"
-    assert text.count("--- a/data_interfaces/tcp_interfaces.c") == 1 and "+++ b/data_interfaces/tcp_interfaces.c" in text
+    assert (
+        text.count("-    local_addr.sin_addr.s_addr = INADDR_ANY;") == 2
+        and text.count("+    local_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);") == 2
+    ), "the two binds of Mercury 1.9.24, and nothing else"
+    assert (
+        text.count("--- a/data_interfaces/tcp_interfaces.c") == 1 and "+++ b/data_interfaces/tcp_interfaces.c" in text
+    )
     script = SCRIPT.read_text(encoding="utf-8")
     tool = (SCRIPT.parent / "buildtool.py").read_text(encoding="utf-8")
-    assert "apply_patch(tree, LOOPBACK_PATCH)" in script and '"patch", "-p1"' in tool and "INADDR_ANY" in script, "applied before the build (scripts/buildtool.py runs patch), and the file checked after it"
-    assert "def check_loopback" in script and "/proc/net/tcp" in script, "the built program is started and its ports read from the kernel's table"
-    assert "loopback.patch" in script[script.index("SOURCE.txt"):], "the source offer names the change (GPL)"
+    assert "apply_patch(tree, LOOPBACK_PATCH)" in script and '"patch", "-p1"' in tool and "INADDR_ANY" in script, (
+        "applied before the build (scripts/buildtool.py runs patch), and the file checked after it"
+    )
+    assert "def check_loopback" in script and "/proc/net/tcp" in script, (
+        "the built program is started and its ports read from the kernel's table"
+    )
+    assert "loopback.patch" in script[script.index("SOURCE.txt") :], "the source offer names the change (GPL)"
 
 
 def test_the_shipped_mercury_listens_on_the_loopback_only(tmp_path: Path) -> None:
@@ -40,13 +50,45 @@ def test_the_shipped_mercury_listens_on_the_loopback_only(tmp_path: Path) -> Non
     capture, playback, ini = tmp_path / "capture", tmp_path / "playback", tmp_path / "mercury.ini"
     os.mkfifo(capture)
     os.mkfifo(playback)
-    ini.write_text(f"[store]\nenabled = false\n[main]\nui_enabled = true\nui_port = {ui}\nwaterfall_enabled = false\n", encoding="utf-8")
-    argv = [*program, "-C", str(ini), "-m", "1", "-x", "fifo", "-i", str(capture), "-o", str(playback), "-b", str(broadcast), "-p", str(control), "-P", "none"]
-    child = subprocess.Popen(argv, cwd=str(tmp_path), env=environment(program), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    ini.write_text(
+        f"[store]\nenabled = false\n[main]\nui_enabled = true\nui_port = {ui}\nwaterfall_enabled = false\n",
+        encoding="utf-8",
+    )
+    argv = [
+        *program,
+        "-C",
+        str(ini),
+        "-m",
+        "1",
+        "-x",
+        "fifo",
+        "-i",
+        str(capture),
+        "-o",
+        str(playback),
+        "-b",
+        str(broadcast),
+        "-p",
+        str(control),
+        "-P",
+        "none",
+    ]
+    child = subprocess.Popen(
+        argv,
+        cwd=str(tmp_path),
+        env=environment(program),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
     try:
         deadline = time.monotonic() + 30.0
         while True:
-            tables = [Path(name).read_text(encoding="ascii") for name in ("/proc/net/tcp", "/proc/net/tcp6") if Path(name).is_file()]
+            tables = [
+                Path(name).read_text(encoding="ascii")
+                for name in ("/proc/net/tcp", "/proc/net/tcp6")
+                if Path(name).is_file()
+            ]
             found = _listeners(tables, ports)
             if set(found) == set(ports) or time.monotonic() > deadline or child.poll() is not None:
                 break
@@ -58,5 +100,9 @@ def test_the_shipped_mercury_listens_on_the_loopback_only(tmp_path: Path) -> Non
         except subprocess.TimeoutExpired:
             child.kill()
             child.wait()
-    assert set(found) == set(ports), f"the program listens on its four ports (the UI interface's included) (found {found}; exit {child.returncode})"
-    assert all(addresses == {LOOPBACK_HEX[0]} for addresses in found.values()), f"each on 127.0.0.1 and nowhere else: {found}"
+    assert set(found) == set(ports), (
+        f"the program listens on its four ports (the UI interface's included) (found {found}; exit {child.returncode})"
+    )
+    assert all(addresses == {LOOPBACK_HEX[0]} for addresses in found.values()), (
+        f"each on 127.0.0.1 and nowhere else: {found}"
+    )

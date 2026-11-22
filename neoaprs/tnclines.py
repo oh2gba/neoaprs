@@ -28,4 +28,7 @@ class TimedSource(Source):
         """Return the latest `count` lines, oldest first, each with its time and its text without
         the time of day.
         """
-        return [(at, line[LINE_TIME_WIDTH:]) for at, line in zip(list(self.line_times)[-count:], list(self.lines)[-count:], strict=False)]
+        return [
+            (at, line[LINE_TIME_WIDTH:])
+            for at, line in zip(list(self.line_times)[-count:], list(self.lines)[-count:], strict=False)
+        ]

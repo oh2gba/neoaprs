@@ -2,6 +2,7 @@
 
 The state lives in rows of the settings table, outside `Config`. Writes run in a task so the
 send path never waits for the database; without a `Memory` nothing is remembered."""
+
 import asyncio
 import logging
 from collections.abc import Mapping
@@ -16,6 +17,7 @@ log = logging.getLogger("neoaprs.memory")
 
 class Memory(Protocol):
     """The part of the Store used here."""
+
     async def setting(self, key: str) -> str | None: ...
     async def put_settings(self, data: dict[str, str]) -> bool: ...
 

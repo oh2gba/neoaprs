@@ -1,6 +1,7 @@
 """Read the CA2RXU LoRa APRS iGate's list of recently heard packets with their RSSI and SNR.
 Only `GET /received-packets.json` is requested; the board's configuration is never touched.
 """
+
 import asyncio
 import json
 import math
@@ -24,6 +25,7 @@ class ListError(OSError):
 @dataclass(frozen=True)
 class Heard:
     """One list entry: the key, the board's date and time, and the signal reading."""
+
     key: str
     when: str
     reading: Reading
@@ -44,7 +46,11 @@ async def _fetch(host: str, port: int) -> list[Heard]:
     except OSError as e:
         raise ListError(f"cannot connect: {e}") from None
     try:
-        writer.write(f"GET {PATH} HTTP/1.0\r\nHost: {bracketed(host)}\r\nAccept: application/json\r\n\r\n".encode("ascii", "replace"))
+        writer.write(
+            f"GET {PATH} HTTP/1.0\r\nHost: {bracketed(host)}\r\nAccept: application/json\r\n\r\n".encode(
+                "ascii", "replace"
+            )
+        )
         await writer.drain()
         answer = await reader.read(MAX_BODY)
         while chunk := await reader.read(MAX_BODY):
@@ -84,4 +90,8 @@ def _entry(e: Any) -> Heard | None:
         snr, rssi = float(e["SNR"]), float(e["RSSI"])
     except (ValueError, TypeError, KeyError, OverflowError):
         return None
-    return Heard(e["packet"], f"{e.get('rxDate', '')} {e.get('rxTime', '')}", Reading(snr=snr, rssi=rssi)) if math.isfinite(snr) and math.isfinite(rssi) else None
+    return (
+        Heard(e["packet"], f"{e.get('rxDate', '')} {e.get('rxTime', '')}", Reading(snr=snr, rssi=rssi))
+        if math.isfinite(snr) and math.isfinite(rssi)
+        else None
+    )

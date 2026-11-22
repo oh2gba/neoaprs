@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Print the settings table and fixed values of docs/manual/settings.md (from neoaprs/config.py).
-    scripts/doc-settings            print every block
-    scripts/doc-settings --write    rewrite the blocks of docs/manual/settings.md
-    scripts/doc-settings --check    exit 1 and name the blocks that are out of date"""
+scripts/doc-settings            print every block
+scripts/doc-settings --write    rewrite the blocks of docs/manual/settings.md
+scripts/doc-settings --check    exit 1 and name the blocks that are out of date"""
+
 import argparse
 import sys
 from pathlib import Path
@@ -14,11 +15,16 @@ DOCUMENT = ROOT / "docs" / "manual" / "settings.md"
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="the table of settings of docs/manual/settings.md, made from neoaprs/config.py")
+    parser = argparse.ArgumentParser(
+        description="the table of settings of docs/manual/settings.md, made from neoaprs/config.py"
+    )
     parser.add_argument("--write", action="store_true", help="make the blocks of docs/manual/settings.md again")
-    parser.add_argument("--check", action="store_true", help="exit 1 when a block of docs/manual/settings.md is out of date")
+    parser.add_argument(
+        "--check", action="store_true", help="exit 1 when a block of docs/manual/settings.md is out of date"
+    )
     args = parser.parse_args()
-    from tests.support import settingsdoc      # imports the program; --help does not
+    from tests.support import settingsdoc  # imports the program; --help does not
+
     text = DOCUMENT.read_text()
     if args.write:
         DOCUMENT.write_text(settingsdoc.refreshed(text))
@@ -26,7 +32,10 @@ def main() -> int:
     if args.check:
         stale = settingsdoc.stale_blocks(text)
         if stale:
-            print(f"docs/manual/settings.md: out of date: {', '.join(stale)} (scripts/doc-settings --write)", file=sys.stderr)
+            print(
+                f"docs/manual/settings.md: out of date: {', '.join(stale)} (scripts/doc-settings --write)",
+                file=sys.stderr,
+            )
         return 1 if stale else 0
     for name, make in settingsdoc.MAKERS.items():
         print(f"<!-- doc-settings:{name} -->\n{make()}<!-- /doc-settings -->\n")

@@ -2,6 +2,7 @@
 
 One process, one asyncio loop. Signals or `neoaprs.stop` end it; a second signal ends it at once.
 Exit code 2: the database cannot be used or another NeoAPRS holds the data folder."""
+
 import argparse
 import asyncio
 import contextlib
@@ -50,6 +51,7 @@ class _UtcFormatter(logging.Formatter):
 
 class _LogFile(logging.handlers.RotatingFileHandler):
     """Rotating log that survives a failed rollover (Windows: another program holds the file)."""
+
     RETRY_SEC = 60.0
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -110,7 +112,11 @@ def _private_data_dir(data_dir: Path, log: logging.Logger) -> None:
         # The umask covers new files; a folder that already exists is made private here.
         os.chmod(data_dir, 0o700)
     except OSError as e:
-        log.warning("the data directory %s could not be made private (%s): other users of this computer may be able to read the database", data_dir, e)
+        log.warning(
+            "the data directory %s could not be made private (%s): other users of this computer may be able to read the database",
+            data_dir,
+            e,
+        )
 
 
 def _stop_on_signals(loop: asyncio.AbstractEventLoop) -> asyncio.Event:
@@ -199,18 +205,37 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
     from .config import Config
     from .controller import Controller
     from .web.server import WebServer
+
     install = detect_here(data_dir)
-    log.info("running on %s, %s, Python %s, installed as %s, pid %d", system_description(), platform.machine(), platform.python_version(), install.kind, os.getpid())
+    log.info(
+        "running on %s, %s, Python %s, installed as %s, pid %d",
+        system_description(),
+        platform.machine(),
+        platform.python_version(),
+        install.kind,
+        os.getpid(),
+    )
     restore = uncaught.install(log)
     asyncio.get_running_loop().set_exception_handler(uncaught.loop_handler(log))
 
     stay_on = kept_port(data_dir)
 
     def page(ctl: Controller, config: Config) -> WebServer:
-        return WebServer(ctl, config if args.web_port is None else replace(config, web_port=args.web_port), kept_port=stay_on)
+        return WebServer(
+            ctl, config if args.web_port is None else replace(config, web_port=args.web_port), kept_port=stay_on
+        )
 
     # busy_ms: wait at most a few seconds behind another database writer.
-    controller = Controller(data_dir, busy_ms=3000, port=args.port, hf_port=getattr(args, "hf_port", ""), web=page, install=install, auto_map=True, encryption=args.encryption)
+    controller = Controller(
+        data_dir,
+        busy_ms=3000,
+        port=args.port,
+        hf_port=getattr(args, "hf_port", ""),
+        web=page,
+        install=install,
+        auto_map=True,
+        encryption=args.encryption,
+    )
     controller.debug = args.debug
     controller.updatecheck.developer = developers_run(install)
     stop = _stop_on_signals(asyncio.get_running_loop())
@@ -249,6 +274,7 @@ async def _serve(controller: "Controller", stop: asyncio.Event, log: logging.Log
     log.info("%s is running", PROGRAM)
     stopfile.clear_restart(controller.data_dir)
     from .cli.servicecmd import appimage_file
+
     selfreplace.remove_old(appimage_file())
     await stop.wait()
     log.info("%s is closing", PROGRAM)
@@ -258,13 +284,39 @@ async def _serve(controller: "Controller", stop: asyncio.Event, log: logging.Log
 
 
 def build_parser(prog: str = "neoaprs") -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog=prog, description="An APRS client: reads the KISS port of a radio and shows the stations it hears.")
-    parser.add_argument("--data", default=str(default_data_dir()), help="the data directory: neoaprs.sqlite (everything NeoAPRS keeps) and the log; default %(default)s")
-    parser.add_argument("--port", default="", metavar="PATH", help="radio 1's port for this run only (its own port is not changed): /dev/ttyUSB0, COM3, socket://host:port for your own Direwolf or soundmodem (Direwolf: socket://127.0.0.1:8001), bt://AA:BB:CC:DD:EE:FF for a paired Bluetooth device (Linux), ble://AA:BB:CC:DD:EE:FF for a Bluetooth LE KISS TNC (needs the extra ble), a replay's pseudo-terminal")
-    parser.add_argument("--hf-port", default="", metavar="URL", help="the first Mercury radio's modem for this run only, one that something else runs (socket://127.0.0.1:8100: its KISS port, the control port 200 above), instead of the one the daemon starts; the benches' way")
-    parser.add_argument("--web-port", type=_port, default=None, metavar="N", help="the page's port for this run only (the setting web/port is not changed); 0 is a free port, which the log tells; after Update now the page stays on the port it was on")
+    parser = argparse.ArgumentParser(
+        prog=prog, description="An APRS client: reads the KISS port of a radio and shows the stations it hears."
+    )
+    parser.add_argument(
+        "--data",
+        default=str(default_data_dir()),
+        help="the data directory: neoaprs.sqlite (everything NeoAPRS keeps) and the log; default %(default)s",
+    )
+    parser.add_argument(
+        "--port",
+        default="",
+        metavar="PATH",
+        help="radio 1's port for this run only (its own port is not changed): /dev/ttyUSB0, COM3, socket://host:port for your own Direwolf or soundmodem (Direwolf: socket://127.0.0.1:8001), bt://AA:BB:CC:DD:EE:FF for a paired Bluetooth device (Linux), ble://AA:BB:CC:DD:EE:FF for a Bluetooth LE KISS TNC (needs the extra ble), a replay's pseudo-terminal",
+    )
+    parser.add_argument(
+        "--hf-port",
+        default="",
+        metavar="URL",
+        help="the first Mercury radio's modem for this run only, one that something else runs (socket://127.0.0.1:8100: its KISS port, the control port 200 above), instead of the one the daemon starts; the benches' way",
+    )
+    parser.add_argument(
+        "--web-port",
+        type=_port,
+        default=None,
+        metavar="N",
+        help="the page's port for this run only (the setting web/port is not changed); 0 is a free port, which the log tells; after Update now the page stays on the port it was on",
+    )
     parser.add_argument("--debug", action="store_true", help="log more (also NEOAPRS_DEBUG=1)")
-    parser.add_argument("--encryption", action="store_true", help="allow encrypted messages between two stations that have each other's key: for exceptional circumstances only, and only in a build made with NEOAPRS_ENCRYPTION=1")
+    parser.add_argument(
+        "--encryption",
+        action="store_true",
+        help="allow encrypted messages between two stations that have each other's key: for exceptional circumstances only, and only in a build made with NEOAPRS_ENCRYPTION=1",
+    )
     parser.add_argument("--version", action="version", version=f"{PROGRAM} {VERSION}")
     return parser
 

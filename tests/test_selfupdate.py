@@ -2,6 +2,7 @@
 the addresses built from the announced version alone, the SHA-256 check, a cancel, the refusals, and
 an install after which NeoAPRS does not restart.
 """
+
 import asyncio
 import hashlib
 import threading
@@ -16,11 +17,28 @@ from neoaprs.versions import InstallInfo
 from tests.support.env import until
 from tests.support.fakerelease import BODY, NAME, FakeInstaller, FakeRelease, public
 
-def service(tmp_path: Path, release: FakeRelease, installer: FakeInstaller | None = None, latest: str | None = "0.7.0", grace: float = 30.0) -> tuple[SelfUpdate, list[str]]:
-    job = SelfUpdate(InstallInfo("appimage", str(tmp_path / "NeoAPRS-0.6.7-x86_64.AppImage")), installer if installer is not None else FakeInstaller(tmp_path),
-                     lambda: latest, (RELEASES, url_allowed), release.fetch_sums, release.fetch, restart_grace_sec=grace, key=public())
+
+def service(
+    tmp_path: Path,
+    release: FakeRelease,
+    installer: FakeInstaller | None = None,
+    latest: str | None = "0.7.0",
+    grace: float = 30.0,
+) -> tuple[SelfUpdate, list[str]]:
+    job = SelfUpdate(
+        InstallInfo("appimage", str(tmp_path / "NeoAPRS-0.6.7-x86_64.AppImage")),
+        installer if installer is not None else FakeInstaller(tmp_path),
+        lambda: latest,
+        (RELEASES, url_allowed),
+        release.fetch_sums,
+        release.fetch,
+        restart_grace_sec=grace,
+        key=public(),
+    )
     states: list[str] = []
-    job.changed.connect(lambda: states.append(job.status().state) if not states or states[-1] != job.status().state else None)
+    job.changed.connect(
+        lambda: states.append(job.status().state) if not states or states[-1] != job.status().state else None
+    )
     return job, states
 
 
@@ -33,9 +51,19 @@ async def test_the_update_downloads_checks_installs_and_waits_for_the_restart(tm
     await until(lambda: job.status().state == "restarting")
     assert states == ["downloading", "verifying", "installing", "restarting"]
     assert installer.installed == [(BODY, NAME, "0.7.0")]
-    assert release.asked == [f"{RELEASES}/v0.7.0/SHA256SUMS", f"{RELEASES}/v0.7.0/SHA256SUMS.sig", f"{RELEASES}/v0.7.0/{NAME}"]
+    assert release.asked == [
+        f"{RELEASES}/v0.7.0/SHA256SUMS",
+        f"{RELEASES}/v0.7.0/SHA256SUMS.sig",
+        f"{RELEASES}/v0.7.0/{NAME}",
+    ]
     status = job.status()
-    assert (status.version, status.percent, status.downloaded, status.total, status.problem) == ("0.7.0", 100, len(BODY), len(BODY), "")
+    assert (status.version, status.percent, status.downloaded, status.total, status.problem) == (
+        "0.7.0",
+        100,
+        len(BODY),
+        len(BODY),
+        "",
+    )
     assert not (tmp_path / f"{NAME}.part").exists()
     await job.stop()
 
@@ -43,12 +71,21 @@ async def test_the_update_downloads_checks_installs_and_waits_for_the_restart(tm
 async def test_the_daemon_is_ended_only_after_the_page_has_been_told_it_restarts(tmp_path: Path) -> None:
     release = FakeRelease()
     seen: list[str] = []
-    job = SelfUpdate(InstallInfo("appimage", str(tmp_path / "NeoAPRS-0.6.7-x86_64.AppImage")), FakeInstaller(tmp_path), lambda: "0.7.0", (RELEASES, url_allowed), release.fetch_sums, release.fetch,
-                     restart_grace_sec=30.0, end=lambda: seen.append(job.status().state), key=public())
+    job = SelfUpdate(
+        InstallInfo("appimage", str(tmp_path / "NeoAPRS-0.6.7-x86_64.AppImage")),
+        FakeInstaller(tmp_path),
+        lambda: "0.7.0",
+        (RELEASES, url_allowed),
+        release.fetch_sums,
+        release.fetch,
+        restart_grace_sec=30.0,
+        end=lambda: seen.append(job.status().state),
+        key=public(),
+    )
     job.begin("0.7.0")
     await until(lambda: job.status().state == "restarting")
     told = asyncio.get_running_loop().time()
-    assert seen == []                                   # (not at once: the page's socket gets the state first)
+    assert seen == []  # (not at once: the page's socket gets the state first)
     await until(lambda: seen != [])
     assert seen == ["restarting"] and asyncio.get_running_loop().time() - told >= TELL_SEC * 0.8
     await job.stop()
@@ -60,11 +97,17 @@ async def test_a_file_whose_sha256_is_not_the_one_of_sha256sums_is_deleted_and_n
     job.begin("0.7.0")
     await until(lambda: job.status().state == "error")
     assert states == ["downloading", "verifying", "error"]
-    assert job.status().problem == "checksum" and "is not the file of the release" in job.status().detail and "nothing is installed" in job.status().detail
+    assert (
+        job.status().problem == "checksum"
+        and "is not the file of the release" in job.status().detail
+        and "nothing is installed" in job.status().detail
+    )
     assert installer.installed == [] and list(tmp_path.iterdir()) == []
 
 
-async def test_a_part_file_that_cannot_be_deleted_does_not_keep_the_update_busy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_part_file_that_cannot_be_deleted_does_not_keep_the_update_busy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     real = Path.unlink
 
     def held(path: Path, missing_ok: bool = False) -> None:
@@ -80,7 +123,7 @@ async def test_a_part_file_that_cannot_be_deleted_does_not_keep_the_update_busy(
     await job.stop()
     assert job.status().problem == "checksum"
     monkeypatch.setattr(Path, "unlink", real)
-    job.begin("0.7.0")                                                        # not refused as busy
+    job.begin("0.7.0")  # not refused as busy
     await job.stop()
 
 
@@ -91,10 +134,15 @@ async def test_a_file_that_the_signed_sha256sums_does_not_name_is_not_even_downl
     job.begin("0.7.0")
     await until(lambda: job.status().state == "error")
     assert job.status().problem == "unverified" and f"names no {NAME}" in job.status().detail
-    assert release.asked == [f"{RELEASES}/v0.7.0/SHA256SUMS", f"{RELEASES}/v0.7.0/SHA256SUMS.sig"] and installer.installed == []
+    assert (
+        release.asked == [f"{RELEASES}/v0.7.0/SHA256SUMS", f"{RELEASES}/v0.7.0/SHA256SUMS.sig"]
+        and installer.installed == []
+    )
 
 
-async def test_a_signature_that_could_not_be_fetched_is_a_download_to_try_again_and_one_not_there_is_unverified(tmp_path: Path) -> None:
+async def test_a_signature_that_could_not_be_fetched_is_a_download_to_try_again_and_one_not_there_is_unverified(
+    tmp_path: Path,
+) -> None:
     release = FakeRelease(signature_fails="SHA256SUMS.sig could not be fetched: timed out")
     job, _ = service(tmp_path, release)
     job.begin("0.7.0")
@@ -117,7 +165,7 @@ async def test_a_download_that_fails_or_an_install_that_fails_is_an_error_that_s
     job.begin("0.7.0")
     await until(lambda: job.status().state == "error")
     assert job.status().problem == "install" and not (tmp_path / f"{NAME}.part").exists()
-    job.begin("0.7.0")                         # (after an error it can be tried again)
+    job.begin("0.7.0")  # (after an error it can be tried again)
     await until(lambda: job.status().state == "error")
 
 
@@ -130,7 +178,7 @@ async def test_a_cancel_ends_the_download_and_leaves_nothing(tmp_path: Path) -> 
     job.cancel()
     assert job.status().state == "idle" and job.status().version == ""
     with pytest.raises(UpdateNowError) as busy:
-        job.begin("0.7.0")                     # (the piece in flight ends first)
+        job.begin("0.7.0")  # (the piece in flight ends first)
     assert busy.value.code == "update.busy"
     gate.set()
     await until(lambda: not (tmp_path / f"{NAME}.part").exists())
@@ -143,6 +191,7 @@ async def test_a_cancel_ends_the_download_and_leaves_nothing(tmp_path: Path) -> 
 
 class SlowSignature(FakeRelease):
     """A release without a signature (a 404) whose signature is fetched only when `gate` opens."""
+
     def __init__(self) -> None:
         super().__init__(signature=b"")
         self.gate = threading.Event()
@@ -155,7 +204,9 @@ class SlowSignature(FakeRelease):
         return super().fetch_sums(url, allowed)
 
 
-async def test_a_cancel_while_the_signature_is_fetched_stays_a_cancel_when_that_fetch_then_fails(tmp_path: Path) -> None:
+async def test_a_cancel_while_the_signature_is_fetched_stays_a_cancel_when_that_fetch_then_fails(
+    tmp_path: Path,
+) -> None:
     release = SlowSignature()
     job, states = service(tmp_path, release)
     job.begin("0.7.0")
@@ -173,12 +224,17 @@ async def test_an_install_after_which_neoaprs_does_not_restart_says_so(tmp_path:
     assert job.status().problem == "no_restart" and "has not restarted" in job.status().detail
 
 
-@pytest.mark.parametrize(("latest", "asked", "code"), [
-    (None, "0.7.0", "update.not_announced"),
-    ("0.7.1", "0.7.0", "update.not_announced"),
-    ("0.7", "0.7", "update.no_file"),
-])
-async def test_only_the_version_the_update_check_announced_is_installed(tmp_path: Path, latest: str | None, asked: str, code: str) -> None:
+@pytest.mark.parametrize(
+    ("latest", "asked", "code"),
+    [
+        (None, "0.7.0", "update.not_announced"),
+        ("0.7.1", "0.7.0", "update.not_announced"),
+        ("0.7", "0.7", "update.no_file"),
+    ],
+)
+async def test_only_the_version_the_update_check_announced_is_installed(
+    tmp_path: Path, latest: str | None, asked: str, code: str
+) -> None:
     release = FakeRelease()
     job, _ = service(tmp_path, release, latest=latest)
     with pytest.raises(UpdateNowError) as refused:
@@ -186,7 +242,9 @@ async def test_only_the_version_the_update_check_announced_is_installed(tmp_path
     assert refused.value.code == code and release.asked == [] and job.status().state == "idle"
 
 
-async def test_a_copy_without_an_installer_or_with_a_folder_it_cannot_write_cannot_update_itself(tmp_path: Path) -> None:
+async def test_a_copy_without_an_installer_or_with_a_folder_it_cannot_write_cannot_update_itself(
+    tmp_path: Path,
+) -> None:
     job = SelfUpdate(InstallInfo("deb", arch="arm64"), None, lambda: "0.7.0", (RELEASES, url_allowed))
     assert not job.status().supported
     with pytest.raises(UpdateNowError) as refused:
@@ -196,7 +254,9 @@ async def test_a_copy_without_an_installer_or_with_a_folder_it_cannot_write_cann
     assert not job.status().supported
     with pytest.raises(UpdateNowError) as blocked:
         job.begin("0.7.0")
-    assert blocked.value.code == "update.blocked" and blocked.value.params == {}, "the page says it in its words, without the folder: the log has it"
+    assert blocked.value.code == "update.blocked" and blocked.value.params == {}, (
+        "the page says it in its words, without the folder: the log has it"
+    )
 
 
 async def test_a_second_update_while_one_runs_is_refused(tmp_path: Path) -> None:

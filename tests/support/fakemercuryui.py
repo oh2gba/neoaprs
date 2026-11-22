@@ -1,6 +1,7 @@
 """The UI interface of a Mercury stand-in: a WebSocket server on the loopback that upgrades GET
 /websocket, sends a `status` message twice a second and answers text commands as Mercury does.
 """
+
 import asyncio
 import contextlib
 import json
@@ -49,7 +50,10 @@ class FakeUi:
     async def start(self, host: str = "127.0.0.1") -> None:
         self._server = await asyncio.start_server(self._client, host, self.port)
         self.port = self._server.sockets[0].getsockname()[1]
-        self._tasks = [asyncio.get_running_loop().create_task(self._status()), asyncio.get_running_loop().create_task(self._spectrum())]
+        self._tasks = [
+            asyncio.get_running_loop().create_task(self._status()),
+            asyncio.get_running_loop().create_task(self._spectrum()),
+        ]
 
     async def aclose(self) -> None:
         for task in self._tasks:
@@ -73,7 +77,19 @@ class FakeUi:
         self._clients.clear()
 
     def status_text(self) -> str:
-        return json.dumps({"type": "status", "bitrate": 0, "snr": 0.0, "tx_gain_db": self.gain_db, "tx_peak_dbfs": self.peak_dbfs, "waterfall": self.waterfall, "audio_ok": True, "audio_error": "", "busy": ""})
+        return json.dumps(
+            {
+                "type": "status",
+                "bitrate": 0,
+                "snr": 0.0,
+                "tx_gain_db": self.gain_db,
+                "tx_peak_dbfs": self.peak_dbfs,
+                "waterfall": self.waterfall,
+                "audio_ok": True,
+                "audio_error": "",
+                "busy": "",
+            }
+        )
 
     def spectrum_db(self) -> list[float]:
         scene: dict[str, object] = {}
@@ -83,7 +99,11 @@ class FakeUi:
             except (OSError, ValueError):
                 scene = {}
         noise = scene.get("noise_db", self.noise_db)
-        db = [float(noise) + random.gauss(0.0, 0.7) for _ in range(BINS)] if isinstance(noise, int | float) else [self.noise_db] * BINS
+        db = (
+            [float(noise) + random.gauss(0.0, 0.7) for _ in range(BINS)]
+            if isinstance(noise, int | float)
+            else [self.noise_db] * BINS
+        )
         if self.tone_hz is not None:
             db[round(self.tone_hz / (RATE / 2 / BINS))] = self.tone_db
         blocks = scene.get("blocks", [])
@@ -114,13 +134,18 @@ class FakeUi:
         self._open.add(writer)
         try:
             head = (await reader.readuntil(b"\r\n\r\n")).decode("latin-1")
-            headers = {n.strip().lower(): v.strip() for n, _, v in (line.partition(":") for line in head.split("\r\n")[1:] if ":" in line)}
+            headers = {
+                n.strip().lower(): v.strip()
+                for n, _, v in (line.partition(":") for line in head.split("\r\n")[1:] if ":" in line)
+            }
             if not self.upgrade or "sec-websocket-key" not in headers:
                 writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
                 await writer.drain()
                 writer.close()
                 return
-            writer.write(f"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept_of(headers['sec-websocket-key'])}\r\n\r\n".encode())
+            writer.write(
+                f"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept_of(headers['sec-websocket-key'])}\r\n\r\n".encode()
+            )
             self.connections += 1
             self._clients.append(writer)
             writer.write(frame(TEXT, self.status_text().encode()))

@@ -3,6 +3,7 @@
 Writes only after a verified login; every non-comment server line goes to the signal `heard`.
 Protocol: https://www.aprs-is.net/Connecting.aspx (`pass -1` listens only).
 """
+
 import asyncio
 import logging
 import re
@@ -61,7 +62,9 @@ def range_filter(lat: float, lon: float, km: int) -> str:
 
 def login_line(call: str, password: str, filter_spec: str = "") -> bytes:
     """Return the login line, the only place the password becomes text; none means `pass -1`."""
-    text = f"user {call} pass {password or READ_ONLY} vers {PROGRAM} {VERSION}" + (f" filter {filter_spec}" if filter_spec else "")
+    text = f"user {call} pass {password or READ_ONLY} vers {PROGRAM} {VERSION}" + (
+        f" filter {filter_spec}" if filter_spec else ""
+    )
     return text.encode("ascii") + CRLF
 
 
@@ -76,8 +79,18 @@ def _snippet(line: bytes) -> str:
 
 
 class AprsIs(Source):
-    def __init__(self, clock: Clock = utcnow, backoff: Backoff | None = None, connect_sec: float = CONNECT_SEC, greeting_sec: float = GREETING_SEC, login_sec: float = LOGIN_SEC,
-                 quiet_sec: float = QUIET_SEC, lost_sec: float = LOST_SEC, write_sec: float = WRITE_SEC, queue_max: int = QUEUE_MAX) -> None:
+    def __init__(
+        self,
+        clock: Clock = utcnow,
+        backoff: Backoff | None = None,
+        connect_sec: float = CONNECT_SEC,
+        greeting_sec: float = GREETING_SEC,
+        login_sec: float = LOGIN_SEC,
+        quiet_sec: float = QUIET_SEC,
+        lost_sec: float = LOST_SEC,
+        write_sec: float = WRITE_SEC,
+        queue_max: int = QUEUE_MAX,
+    ) -> None:
         super().__init__("aprsis", clock)
         self.host, self.port, self.call, self._password = "", 0, "", ""
         self.backoff = backoff or Backoff()
@@ -196,7 +209,9 @@ class AprsIs(Source):
             raise
         # a feed never raises into its loop: it says why and tries again
         except Exception as e:
-            return f"{self.target}: " + (os_error_text(e) if isinstance(e, OSError) else str(e) or type(e).__name__), _reason_of(e)
+            return f"{self.target}: " + (
+                os_error_text(e) if isinstance(e, OSError) else str(e) or type(e).__name__
+            ), _reason_of(e)
         finally:
             self._drop_session()
             if writer is not None:
@@ -255,7 +270,17 @@ class AprsIs(Source):
         self._set_state(Source.State.CONNECTED)
         if self.filter and self.filter != sent_filter:
             self._enqueue(f"#filter {self.filter}".encode("ascii"))
-        text = f"logged in as {self.call}, " + ("verified" if verified else "listening only" if self.read_only else f"not verified ({UNVERIFIED}), listening only") + (f", server {name}" if name else "")
+        text = (
+            f"logged in as {self.call}, "
+            + (
+                "verified"
+                if verified
+                else "listening only"
+                if self.read_only
+                else f"not verified ({UNVERIFIED}), listening only"
+            )
+            + (f", server {name}" if name else "")
+        )
         self._note(text)
         (log.warning if self.unverified else log.info)("aprsis: %s", text)
 
@@ -267,7 +292,10 @@ class AprsIs(Source):
 
     # ---- while logged in
     async def _serve(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        tasks = [asyncio.create_task(self._read(reader), name="aprsis-read"), asyncio.create_task(self._write(writer), name="aprsis-write")]
+        tasks = [
+            asyncio.create_task(self._read(reader), name="aprsis-read"),
+            asyncio.create_task(self._write(writer), name="aprsis-write"),
+        ]
         try:
             done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
             for task in done:
@@ -322,7 +350,9 @@ class AprsIs(Source):
                 async with asyncio.timeout(self.write_sec):
                     await writer.drain()
             except TimeoutError:
-                raise ConnectionError(f"the server does not take what is sent (nothing in {self.write_sec:g} s)") from None
+                raise ConnectionError(
+                    f"the server does not take what is sent (nothing in {self.write_sec:g} s)"
+                ) from None
             if not line.startswith(b"#"):
                 self.stats.packets += 1
                 self.stats.last_packet = self.now()

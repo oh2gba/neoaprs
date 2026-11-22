@@ -2,6 +2,7 @@
 clock: the decay schedule, a change that restarts it, a kill sent three times and forgotten, and the
 radios they use.
 """
+
 from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -21,7 +22,7 @@ from tests.support.rig import OwnRig
 from tests.support.seamshapes import LiveShape, RegistryShape
 from tests.support.storedb import log_at
 
-STEP = 5                                                    # seconds the clock moves between two looks at it
+STEP = 5  # seconds the clock moves between two looks at it
 LAT, LON = 60.17, 24.94
 
 
@@ -42,9 +43,11 @@ class Rig(OwnRig):
         super().__init__(log, clock, **changes)
         fm = self.config.radio(FM_ID)
         assert fm is not None
-        self.radio = shape(fm, self.config.radios, self.tnc)                   # type: ignore[arg-type]
+        self.radio = shape(fm, self.config.radios, self.tnc)  # type: ignore[arg-type]
         self.sender = Sender(RegistryShape([self.radio]), lambda: self.config, clock, spacing_sec=10.0)
-        self.objects = OwnObjects(self.sender, lambda: self.config, log, lambda name: name == "OH2RDG", clock, tick_sec=3600.0)
+        self.objects = OwnObjects(
+            self.sender, lambda: self.config, log, lambda name: name == "OH2RDG", clock, tick_sec=3600.0
+        )
         self.record(self.objects)
 
     async def start(self) -> "Rig":
@@ -54,7 +57,7 @@ class Rig(OwnRig):
 
     def make(self, name: str = "LEADER", kind: str = "object", **values: object) -> OwnObject:
         fields: dict[str, object] = {"lat": LAT, "lon": LON, "symbol_table": "/", "symbol_code": ">", **values}
-        return self.objects.set(name, kind, **fields)                  # type: ignore[arg-type]
+        return self.objects.set(name, kind, **fields)  # type: ignore[arg-type]
 
     def run(self, seconds: int) -> None:
         """Looks at the clock every STEP seconds for this long, the first look now."""
@@ -78,16 +81,31 @@ async def rig(tmp_path: Path) -> Rig:
 
 # ---- the schedule --------------------------------------------------------------------------------
 
-async def test_a_new_object_goes_out_at_once_then_after_1_2_4_minutes_and_on_to_the_net_cycle_time_of_its_path(rig: Rig) -> None:
+
+async def test_a_new_object_goes_out_at_once_then_after_1_2_4_minutes_and_on_to_the_net_cycle_time_of_its_path(
+    rig: Rig,
+) -> None:
     rig.make(comment="Rescue 1")
     rig.run(5000)
-    assert rig.offsets() == [0, 60, 180, 420, 900, 1860, 3060, 4260], "the beacon's path has two digipeaters: a net cycle of 20 minutes"
+    assert rig.offsets() == [0, 60, 180, 420, 900, 1860, 3060, 4260], (
+        "the beacon's path has two digipeaters: a net cycle of 20 minutes"
+    )
     first = rig.tnc.sent[0]
-    assert (str(first.destination), str(first.source), first.path_text, first.is_ui) == ("APZNEO", "OH2GBA", "WIDE1-1,WIDE2-1", True)
-    assert rig.sent[0][1] == b";LEADER   *211200z6010.20N/02456.40E>Rescue 1" and rig.sent[1][1] == b";LEADER   *211201z6010.20N/02456.40E>Rescue 1", "each copy carries the time it is sent"
+    assert (str(first.destination), str(first.source), first.path_text, first.is_ui) == (
+        "APZNEO",
+        "OH2GBA",
+        "WIDE1-1,WIDE2-1",
+        True,
+    )
+    assert (
+        rig.sent[0][1] == b";LEADER   *211200z6010.20N/02456.40E>Rescue 1"
+        and rig.sent[1][1] == b";LEADER   *211201z6010.20N/02456.40E>Rescue 1"
+    ), "each copy carries the time it is sent"
 
 
-@pytest.mark.parametrize("path, expected", [("WIDE2-1", [0, 60, 180, 420, 900, 1500, 2100]), ("WIDE3-3", [0, 60, 180, 420, 900, 1860, 3660])])
+@pytest.mark.parametrize(
+    "path, expected", [("WIDE2-1", [0, 60, 180, 420, 900, 1500, 2100]), ("WIDE3-3", [0, 60, 180, 420, 900, 1860, 3660])]
+)
 async def test_the_net_cycle_time_follows_the_path_of_the_object(rig: Rig, path: str, expected: list[int]) -> None:
     rig.make(path=path)
     rig.run(3700 if path == "WIDE3-3" else 2100)
@@ -103,21 +121,31 @@ async def test_an_object_goes_by_its_own_path_else_by_the_beacons(tmp_path: Path
     assert [f.path_text for f in rig.tnc.sent] == ["WIDE2-2", "OH2RCH-2"]
 
 
-@pytest.mark.parametrize(("table", "code", "path"), [("/", "-", "WIDE2-2"), ("/", ">", "WIDE1-1,WIDE2-1"), ("\\", "s", "WIDE1-1,WIDE2-1")])
-async def test_an_object_without_a_path_goes_by_the_recommended_path_of_the_stations_symbol(tmp_path: Path, table: str, code: str, path: str) -> None:
+@pytest.mark.parametrize(
+    ("table", "code", "path"), [("/", "-", "WIDE2-2"), ("/", ">", "WIDE1-1,WIDE2-1"), ("\\", "s", "WIDE1-1,WIDE2-1")]
+)
+async def test_an_object_without_a_path_goes_by_the_recommended_path_of_the_stations_symbol(
+    tmp_path: Path, table: str, code: str, path: str
+) -> None:
     rig = await rig_at(tmp_path, beacon_path="", station_symbol_table=table, station_symbol_code=code)
     rig.make("ONE")
     rig.make("TWO", path="OH2RCH-2")
     rig.run(20)
-    assert [f.path_text for f in rig.tnc.sent] == [path, "OH2RCH-2"], "the symbol of the object does not matter: the station's does"
+    assert [f.path_text for f in rig.tnc.sent] == [path, "OH2RCH-2"], (
+        "the symbol of the object does not matter: the station's does"
+    )
 
 
-async def test_a_path_with_rfonly_or_nogate_is_taken_and_they_count_no_digipeater_for_the_net_cycle_time(rig: Rig) -> None:
+async def test_a_path_with_rfonly_or_nogate_is_taken_and_they_count_no_digipeater_for_the_net_cycle_time(
+    rig: Rig,
+) -> None:
     rig.make("ONE", path="WIDE2-1,RFONLY")
     rig.make("TWO", path="OH2RCH-2,NOGATE")
     rig.run(1000)
     assert [f.path_text for f in rig.tnc.sent[:2]] == ["WIDE2-1,RFONLY", "OH2RCH-2,NOGATE"]
-    assert [t for t, info in rig.sent if info[1:4] == b"ONE"] == [0, 60, 180, 420, 900], "one digipeater: a net cycle of 10 minutes, whatever follows it"
+    assert [t for t, info in rig.sent if info[1:4] == b"ONE"] == [0, 60, 180, 420, 900], (
+        "one digipeater: a net cycle of 10 minutes, whatever follows it"
+    )
 
 
 async def test_an_item_is_sent_as_an_item_without_a_time_stamp(rig: Rig) -> None:
@@ -141,7 +169,9 @@ async def test_a_change_after_a_long_quiet_spell_goes_out_at_once_and_decays_fro
     assert rig.offsets() == [0, 60, 180, 420, 900]
     rig.make(lat=61.0)
     rig.run(300)
-    assert rig.offsets() == [0, 60, 180, 420, 900, 1000, 1060, 1180], "the change goes out at once (the last packet is more than a minute old), and its decay starts from a minute"
+    assert rig.offsets() == [0, 60, 180, 420, 900, 1000, 1060, 1180], (
+        "the change goes out at once (the last packet is more than a minute old), and its decay starts from a minute"
+    )
 
 
 async def test_the_same_values_again_change_nothing_and_send_nothing(rig: Rig) -> None:
@@ -163,6 +193,7 @@ async def test_one_that_was_killed_and_made_again_is_alive_and_decays_from_the_s
 
 # ---- the kill ------------------------------------------------------------------------------------
 
+
 async def test_a_kill_is_sent_three_times_and_then_the_object_is_forgotten(rig: Rig) -> None:
     rig.make(comment="gone soon")
     rig.run(0)
@@ -172,7 +203,11 @@ async def test_a_kill_is_sent_three_times_and_then_the_object_is_forgotten(rig: 
     assert rig.offsets() == [0, 60, 120, 240]
     assert [info[:11] for _, info in rig.sent] == [b";LEADER   *", b";LEADER   _", b";LEADER   _", b";LEADER   _"]
     assert rig.sent[1][1] == b";LEADER   _211201z6010.20N/02456.40E>gone soon"
-    assert rig.objects.get("LEADER") is None and rig.objects.records() == [] and [o.name for o in rig.removed] == ["LEADER"]
+    assert (
+        rig.objects.get("LEADER") is None
+        and rig.objects.records() == []
+        and [o.name for o in rig.removed] == ["LEADER"]
+    )
     await rig.settled()
     assert await rig.log.objects() == []
 
@@ -208,10 +243,13 @@ async def test_a_kill_waits_for_the_radio_and_is_still_sent_three_times_when_it_
     assert rig.offsets() == [0] and rig.objects.get("LEADER") is not None
     rig.tnc.state = Source.State.CONNECTED
     rig.run(300)
-    assert [info[:11] for _, info in rig.sent] == [b";LEADER   *"] + [b";LEADER   _"] * 3 and rig.objects.get("LEADER") is None
+    assert [info[:11] for _, info in rig.sent] == [b";LEADER   *"] + [b";LEADER   _"] * 3 and rig.objects.get(
+        "LEADER"
+    ) is None
 
 
 # ---- the interlock, the radio and the pace -------------------------------------------------------
+
 
 async def test_nothing_is_made_while_the_call_is_not_set(tmp_path: Path) -> None:
     rig = await rig_at(tmp_path, station_call="")
@@ -220,7 +258,9 @@ async def test_nothing_is_made_while_the_call_is_not_set(tmp_path: Path) -> None
     assert rig.objects.records() == [] and rig.tnc.sent == []
 
 
-async def test_nothing_is_sent_while_the_call_is_gone_and_what_was_due_goes_out_when_it_is_back(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+async def test_nothing_is_sent_while_the_call_is_gone_and_what_was_due_goes_out_when_it_is_back(
+    rig: Rig, caplog: pytest.LogCaptureFixture
+) -> None:
     rig.make()
     rig.config = replace(rig.config, station_call="")
     rig.run(300)
@@ -230,17 +270,25 @@ async def test_nothing_is_sent_while_the_call_is_gone_and_what_was_due_goes_out_
     assert rig.offsets() == [300] and rig.tnc.sent[0].source.call == "OH2GBA"
 
 
-async def test_the_radio_that_is_silent_holds_everything_back_and_one_packet_goes_out_when_it_is_back_however_many_were_missed(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+async def test_the_radio_that_is_silent_holds_everything_back_and_one_packet_goes_out_when_it_is_back_however_many_were_missed(
+    rig: Rig, caplog: pytest.LogCaptureFixture
+) -> None:
     rig.make()
     rig.run(0)
     rig.tnc.state = Source.State.SILENT
     rig.run(7200)
-    assert rig.offsets() == [0] and caplog.text.count("is due and") == 1 and "goes out when the radio is back" in caplog.text
+    assert (
+        rig.offsets() == [0]
+        and caplog.text.count("is due and") == 1
+        and "goes out when the radio is back" in caplog.text
+    )
     rig.tnc.state = Source.State.CONNECTED
     rig.run(60)
     assert rig.offsets() == [0, 7200], "one packet, not one for each interval that went by"
     rig.run(200)
-    assert rig.offsets() == [0, 7200, 7320], "and the schedule goes on from it: its count was 2, the next wait is two minutes"
+    assert rig.offsets() == [0, 7200, 7320], (
+        "and the schedule goes on from it: its count was 2, the next wait is two minutes"
+    )
 
 
 @pytest.mark.parametrize("state", [Source.State.WAITING, Source.State.STOPPED])
@@ -262,7 +310,9 @@ async def test_a_tnc_that_would_not_take_the_frame_is_tried_again_at_the_next_lo
     assert rig.offsets() == [30]
 
 
-async def test_several_objects_that_are_due_together_go_out_one_after_the_other_ten_seconds_apart_the_oldest_due_first(rig: Rig) -> None:
+async def test_several_objects_that_are_due_together_go_out_one_after_the_other_ten_seconds_apart_the_oldest_due_first(
+    rig: Rig,
+) -> None:
     for name in ("ONE", "TWO", "THREE"):
         rig.make(name)
         rig.clock.advance(1)
@@ -270,23 +320,32 @@ async def test_several_objects_that_are_due_together_go_out_one_after_the_other_
     assert [(t, info[1:6].strip()) for t, info in rig.sent] == [(3, b"ONE"), (13, b"TWO"), (23, b"THREE")]
 
 
-async def test_a_frame_that_cannot_be_made_is_told_once_and_does_not_hold_the_others_up(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_frame_that_cannot_be_made_is_told_once_and_does_not_hold_the_others_up(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     rig = await rig_at(tmp_path, Capped)
     rig.make("BAD", path=",".join(["WIDE1-1"] * 8))
     rig.make("GOOD", path="WIDE2-1")
     rig.run(30)
-    assert [f.path_text for f in rig.tnc.sent] == ["WIDE2-1"], "the object with one digipeater goes out, the one whose eight digipeaters leave no room in the radio's 100 bytes cannot"
-    assert caplog.text.count("cannot be sent") == 1 and "shortening its comment is not enough" in caplog.text, "told once, not at every look"
-    assert rig.objects.get("BAD").sent == 0 and rig.objects.next_at("BAD") is not None, "it waits"         # type: ignore[union-attr]
+    assert [f.path_text for f in rig.tnc.sent] == ["WIDE2-1"], (
+        "the object with one digipeater goes out, the one whose eight digipeaters leave no room in the radio's 100 bytes cannot"
+    )
+    assert caplog.text.count("cannot be sent") == 1 and "shortening its comment is not enough" in caplog.text, (
+        "told once, not at every look"
+    )
+    assert rig.objects.get("BAD").sent == 0 and rig.objects.next_at("BAD") is not None, "it waits"  # type: ignore[union-attr]
 
 
 # ---- the names and the number --------------------------------------------------------------------
+
 
 async def test_an_object_cannot_have_our_call_or_the_name_of_a_station(rig: Rig) -> None:
     for name, why in (("OH2GBA", "our own call"), ("oh2gba", "our own call"), ("OH2RDG", "a station")):
         with pytest.raises(OwnError, match=why):
             rig.make(name)
-    assert rig.make("OH2GBA-7").name == "OH2GBA-7", "another SSID is another call, and an object of any name may be made"
+    assert rig.make("OH2GBA-7").name == "OH2GBA-7", (
+        "another SSID is another call, and an object of any name may be made"
+    )
 
 
 async def test_there_is_a_limit_to_the_objects_on_the_air(rig: Rig) -> None:
@@ -299,6 +358,7 @@ async def test_there_is_a_limit_to_the_objects_on_the_air(rig: Rig) -> None:
 
 # ---- a restart -----------------------------------------------------------------------------------
 
+
 async def test_a_restart_goes_on_where_the_schedule_stopped(tmp_path: Path) -> None:
     first = await rig_at(tmp_path)
     first.make(comment="kept", course_deg=88, speed_kmh=36 * 1.852)
@@ -310,10 +370,21 @@ async def test_a_restart_goes_on_where_the_schedule_stopped(tmp_path: Path) -> N
     first.clock.advance(30)
     second = await Rig(first.log, first.clock).start()
     [obj] = second.objects.records()
-    assert (obj.name, obj.comment, obj.course_deg, obj.sent, obj.alive, obj.last_sent_at) == ("LEADER", "kept", 88, 2, True, first.begin + timedelta(seconds=60))
-    assert [o.name for o in second.changed] == ["LEADER"], "the objects are told at the start: the station book gets them from that"
+    assert (obj.name, obj.comment, obj.course_deg, obj.sent, obj.alive, obj.last_sent_at) == (
+        "LEADER",
+        "kept",
+        88,
+        2,
+        True,
+        first.begin + timedelta(seconds=60),
+    )
+    assert [o.name for o in second.changed] == ["LEADER"], (
+        "the objects are told at the start: the station book gets them from that"
+    )
     second.run(200)
-    assert second.sent == [(90, b";LEADER   *211203z6010.20N/02456.40E>088/036kept")], "the next is due 120 seconds after the one at 60: 90 seconds after the restart"
+    assert second.sent == [(90, b";LEADER   *211203z6010.20N/02456.40E>088/036kept")], (
+        "the next is due 120 seconds after the one at 60: 90 seconds after the restart"
+    )
 
 
 async def test_a_kill_that_was_not_sent_yet_is_still_sent_after_a_restart(tmp_path: Path) -> None:
@@ -342,23 +413,35 @@ async def test_the_objects_are_kept_with_their_values_and_what_is_sent(tmp_path:
     await rig.settled()
     kept = {o.name: o for o in await rig.log.objects()}
     assert kept["AID"] == rig.objects.get("AID") and kept["LEADER"] == rig.objects.get("LEADER")
-    assert (kept["AID"].kind, kept["AID"].path, kept["AID"].sent) == ("item", "WIDE2-1", 1) and (kept["LEADER"].course_deg, kept["LEADER"].speed_kmh) == (0, 12.5)
+    assert (kept["AID"].kind, kept["AID"].path, kept["AID"].sent) == ("item", "WIDE2-1", 1) and (
+        kept["LEADER"].course_deg,
+        kept["LEADER"].speed_kmh,
+    ) == (0, 12.5)
 
 
 # ---- another station -----------------------------------------------------------------------------
 
-async def test_another_station_that_reports_an_object_of_ours_takes_it_over_and_we_stop_without_a_kill(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+
+async def test_another_station_that_reports_an_object_of_ours_takes_it_over_and_we_stop_without_a_kill(
+    rig: Rig, caplog: pytest.LogCaptureFixture
+) -> None:
     rig.make()
     rig.run(0)
     rig.objects.on_packet(reported("LEADER", rig.clock()))
-    assert rig.objects.get("LEADER") is None and [o.name for o in rig.removed] == ["LEADER"] and "OH2XYZ took over our object LEADER" in caplog.text
+    assert (
+        rig.objects.get("LEADER") is None
+        and [o.name for o in rig.removed] == ["LEADER"]
+        and "OH2XYZ took over our object LEADER" in caplog.text
+    )
     rig.run(600)
     assert rig.offsets() == [0]
     await rig.settled()
     assert await rig.log.objects() == []
 
 
-async def test_a_copy_of_our_own_object_that_comes_back_is_no_takeover_and_neither_is_a_kill_or_another_name(rig: Rig) -> None:
+async def test_a_copy_of_our_own_object_that_comes_back_is_no_takeover_and_neither_is_a_kill_or_another_name(
+    rig: Rig,
+) -> None:
     rig.make()
     rig.objects.on_packet(reported("LEADER", rig.clock(), sender="OH2GBA"))
     rig.objects.on_packet(reported("LEADER", rig.clock(), alive=False))
@@ -370,7 +453,9 @@ async def test_a_copy_of_our_own_object_that_comes_back_is_no_takeover_and_neith
 async def test_a_made_up_station_of_the_dummy_radio_takes_nothing_over(rig: Rig) -> None:
     rig.make()
     rig.objects.on_packet(replace(reported("LEADER", rig.clock()), via="dummy"))
-    assert rig.objects.get("LEADER") is not None and rig.removed == [], "an object of the operator's is not lost to a station that is not there"
+    assert rig.objects.get("LEADER") is not None and rig.removed == [], (
+        "an object of the operator's is not lost to a station that is not there"
+    )
 
 
 async def test_an_object_that_is_on_request_is_kept_and_never_sent_on_the_schedule(rig: Rig) -> None:
@@ -383,9 +468,15 @@ async def test_an_object_that_is_on_request_is_kept_and_never_sent_on_the_schedu
     assert [info[:10] for _, info in rig.sent] == [b";BEACONED "], "a group alone does not stop the schedule"
 
 
-async def test_an_object_that_is_on_request_is_removed_at_once_by_a_kill_and_one_made_on_request_stops_its_schedule(rig: Rig) -> None:
+async def test_an_object_that_is_on_request_is_removed_at_once_by_a_kill_and_one_made_on_request_stops_its_schedule(
+    rig: Rig,
+) -> None:
     rig.make(qru_group="FOOD", on_request=True)
-    assert rig.objects.kill("LEADER") is None and rig.objects.get("LEADER") is None and [o.name for o in rig.removed] == ["LEADER"]
+    assert (
+        rig.objects.kill("LEADER") is None
+        and rig.objects.get("LEADER") is None
+        and [o.name for o in rig.removed] == ["LEADER"]
+    )
     rig.make("SENT")
     rig.run(10)
     assert len(rig.sent) == 1

@@ -1,4 +1,5 @@
 """IP address parsing and the LAN address of this computer."""
+
 import ipaddress
 import socket
 

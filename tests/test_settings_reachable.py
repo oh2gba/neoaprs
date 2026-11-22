@@ -2,6 +2,7 @@
 stop something the page offers is never on it: it stays reachable on the page, or a migration resets
 it when its control is removed (CONVENTIONS.md, "Removing a control from the page").
 """
+
 import re
 
 from neoaprs.config import SETTINGS
@@ -56,7 +57,9 @@ def page_leaves_out() -> set[str]:
 
 
 def test_the_settings_the_page_leaves_out_are_the_ones_listed_here_each_with_its_reason() -> None:
-    assert page_leaves_out() == set(NOT_ON_THE_PAGE), "ui/src/lib/settings.ts (NOT_ON_THE_PAGE) and tests/test_settings_reachable.py must list the same settings"
+    assert page_leaves_out() == set(NOT_ON_THE_PAGE), (
+        "ui/src/lib/settings.ts (NOT_ON_THE_PAGE) and tests/test_settings_reachable.py must list the same settings"
+    )
     assert all(reason.strip() for reason in NOT_ON_THE_PAGE.values())
     keys = {s.key for s in SETTINGS}
     assert set(NOT_ON_THE_PAGE) <= keys, "a listed setting is gone from neoaprs/config.py"
@@ -94,14 +97,23 @@ def field_keys() -> set[str]:
 def on_the_page(key: str) -> bool:
     """Whether a radio's field is on the page: the flat key that is its view, for some radio, is a
     setting the page shows."""
-    return any(own == key and flat not in page_leaves_out() and flat not in NOT_ON_THE_PAGE for (_, own), flat in KEY_OF_BEFORE.items())
+    return any(
+        own == key and flat not in page_leaves_out() and flat not in NOT_ON_THE_PAGE
+        for (_, own), flat in KEY_OF_BEFORE.items()
+    )
 
 
 def test_every_field_of_every_type_is_on_the_page_or_listed_here_with_its_reason() -> None:
     keys = field_keys()
-    assert set(NOT_YET_ON_THE_PAGE) <= keys and all(reason.strip() for reason in NOT_YET_ON_THE_PAGE.values()), "a listed field is gone from the types"
-    assert sorted(key for key in keys if not on_the_page(key) and key not in NOT_YET_ON_THE_PAGE) == [], "a field of a type that the page cannot reach: give it its control, or its reason here"
-    assert not [key for key in NOT_YET_ON_THE_PAGE if on_the_page(key)], "a field that the page shows is not to be listed"
+    assert set(NOT_YET_ON_THE_PAGE) <= keys and all(reason.strip() for reason in NOT_YET_ON_THE_PAGE.values()), (
+        "a listed field is gone from the types"
+    )
+    assert sorted(key for key in keys if not on_the_page(key) and key not in NOT_YET_ON_THE_PAGE) == [], (
+        "a field of a type that the page cannot reach: give it its control, or its reason here"
+    )
+    assert not [key for key in NOT_YET_ON_THE_PAGE if on_the_page(key)], (
+        "a field that the page shows is not to be listed"
+    )
 
 
 def test_a_field_that_can_block_a_feature_is_on_the_page() -> None:

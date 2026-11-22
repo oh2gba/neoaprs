@@ -2,6 +2,7 @@
 every system. The code under test opens its `url` (`socket://127.0.0.1:PORT`); what it writes and
 what the test feeds it are plain bytes.
 """
+
 import asyncio
 import socket
 import sys
@@ -9,7 +10,11 @@ from typing import cast
 
 
 # A refused connection in the system's words.
-REFUSED = "No connection could be made because the target machine actively refused it" if sys.platform == "win32" else "Connection refused"
+REFUSED = (
+    "No connection could be made because the target machine actively refused it"
+    if sys.platform == "win32"
+    else "Connection refused"
+)
 
 
 class FakeRadio:
@@ -17,12 +22,12 @@ class FakeRadio:
         self._sock: socket.socket | None = self._listening(0)
         self.port: int = self._sock.getsockname()[1]
         self.url = f"socket://127.0.0.1:{self.port}"
-        self.connections = 0                              # how many times the code under test connected
+        self.connections = 0  # how many times the code under test connected
         self._server: asyncio.Server | None = None
         self._clients: list[asyncio.Transport] = []
         self._heard = bytearray()
-        self._unsent = bytearray()                        # what was fed while nobody was connected
-        self._held: socket.socket | None = None          # the port while it refuses (refuse)
+        self._unsent = bytearray()  # what was fed while nobody was connected
+        self._held: socket.socket | None = None  # the port while it refuses (refuse)
 
     @staticmethod
     def _holding(port: int) -> socket.socket | None:
@@ -99,8 +104,7 @@ class FakeRadio:
 
     # ---- the cable
     def drop(self) -> None:
-        """Closes the connections: the code under test finds its line lost. The radio still listens.
-        """
+        """Closes the connections: the code under test finds its line lost. The radio still listens."""
         clients, self._clients = self._clients, []
         for client in clients:
             client.close()
@@ -135,7 +139,7 @@ class FakeRadio:
                 await asyncio.wait_for(server.wait_closed(), 1.0)
             except TimeoutError:
                 pass
-        if self._sock is not None:                         # made but never served
+        if self._sock is not None:  # made but never served
             self._sock.close()
             self._sock = None
         if self._held is not None:

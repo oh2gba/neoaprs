@@ -1,6 +1,7 @@
 """Tests for the Dummy Mercury radio (neoaprs/dummyhfscene.py, dummyline.py, profile `dummy-hf`):
 slow beacons from distant stations, packets marked `dummy`, no modem started, and cleanup when the
 radio stops being a Dummy (Controller._leave_dummy)."""
+
 import asyncio
 import contextlib
 import logging
@@ -53,14 +54,26 @@ def play(scene: HfScene, seconds: int, step: int = 5) -> list[tuple[int, ax25.Fr
 
 
 def test_the_profile_is_the_hf_radios_second_type_with_the_rules_of_hf_and_no_line() -> None:
-    assert HF_PROFILES == (MERCURY, DUMMY_HF) and hf_profile_of("dummy-hf") is DUMMY_HF and hf_profile_of(" mercury ") is MERCURY
-    assert DUMMY_HF.transport == "dummy" and type_of(DUMMY_HF.key).kind == "hf" and type_of(DUMMY_HF.key).limits.max_frame == 123 and not DUMMY_HF.can_probe and DUMMY_HF.baud is None
+    assert (
+        HF_PROFILES == (MERCURY, DUMMY_HF)
+        and hf_profile_of("dummy-hf") is DUMMY_HF
+        and hf_profile_of(" mercury ") is MERCURY
+    )
+    assert (
+        DUMMY_HF.transport == "dummy"
+        and type_of(DUMMY_HF.key).kind == "hf"
+        and type_of(DUMMY_HF.key).limits.max_frame == 123
+        and not DUMMY_HF.can_probe
+        and DUMMY_HF.baud is None
+    )
     with pytest.raises(Exception, match="not a type of a Mercury radio") as refused:
         hf_profile_of("dummy")
     assert getattr(refused.value, "code", "") == "setting.not_hf_profile"
 
 
-def test_the_stations_are_fixed_hundreds_of_kilometres_away_on_the_q_prefix_and_every_frame_is_direct_and_decodes() -> None:
+def test_the_stations_are_fixed_hundreds_of_kilometres_away_on_the_q_prefix_and_every_frame_is_direct_and_decodes() -> (
+    None
+):
     frames = play(HfScene(HELSINKI, START), 3 * 3600)
     assert frames, "something came"
     calls = {str(f.source) for _, f in frames}
@@ -70,23 +83,37 @@ def test_the_stations_are_fixed_hundreds_of_kilometres_away_on_the_q_prefix_and_
         read = read_frame(kiss_frame, START, True, radio_id=HF_ID)
         assert not isinstance(read, str), read
         packet = read[0]
-        assert packet.via == "dummy" and packet.radio_id == HF_ID and frame.path == () and isinstance(packet.decoded, Position)
+        assert (
+            packet.via == "dummy"
+            and packet.radio_id == HF_ID
+            and frame.path == ()
+            and isinstance(packet.decoded, Position)
+        )
         assert 140 < distance_km(*HELSINKI, packet.decoded.lat, packet.decoded.lon) < 1200
-        assert packet.decoded.course_deg is None and packet.decoded.speed_kmh is None and packet.decoded.messaging, "a fixed station that takes messages"
+        assert packet.decoded.course_deg is None and packet.decoded.speed_kmh is None and packet.decoded.messaging, (
+            "a fixed station that takes messages"
+        )
 
 
 def test_the_first_beacons_come_within_two_minutes_and_then_every_half_hour_to_an_hour_with_the_random_pause() -> None:
     scene = HfScene(HELSINKI, START)
     first = play(scene, 130, step=1)
-    assert [t for t, _ in first] == [int(s) for s in FIRST_BEACONS_SEC] and len({str(f.source) for _, f in first}) == len(STATIONS)
+    assert [t for t, _ in first] == [int(s) for s in FIRST_BEACONS_SEC] and len(
+        {str(f.source) for _, f in first}
+    ) == len(STATIONS)
     assert first[0][0] <= 10, "the map fills while the operator watches"
     later = play(HfScene(HELSINKI, START), 6 * 3600, step=1)
     for station in STATIONS:
         times = [t for t, f in later if str(f.source) == station.call]
         gaps = [b - a for a, b in zip(times, times[1:])]
-        assert gaps and all(station.every_sec <= gap <= station.every_sec + HF_BEACON_JITTER_SEC + 1 for gap in gaps), (station.call, gaps)
+        assert gaps and all(station.every_sec <= gap <= station.every_sec + HF_BEACON_JITTER_SEC + 1 for gap in gaps), (
+            station.call,
+            gaps,
+        )
         assert 1800 <= station.every_sec <= 3600
-    assert len({str(f.source) for _, f in later}) == len(STATIONS) and len(later) < 60, "a Mercury channel is a quiet one"
+    assert len({str(f.source) for _, f in later}) == len(STATIONS) and len(later) < 60, (
+        "a Mercury channel is a quiet one"
+    )
 
 
 def from_us(info: bytes) -> ax25.Frame:
@@ -103,8 +130,15 @@ def test_the_nearest_station_acks_a_message_a_frame_each_way_later_and_answers_o
     heard = [(t - 200, f) for t, f in play(scene, 260, step=1) if t > 200]
     acks = [(t, f) for t, f in heard if parse_message(f.info[1:]).ack_id == "7"]
     texts = [(t, f) for t, f in heard if parse_message(f.info[1:]).text == HELLO]
-    assert len(acks) == 1 and len(texts) == 1 and str(acks[0][1].source) == talker.call and str(texts[0][1].source) == talker.call
-    assert abs(acks[0][0] - ACK_AFTER_SEC) < 1 and ACK_AFTER_SEC == 2 * DELIVERY_SEC and texts[0][0] > acks[0][0], "the ack a frame's time each way later, the text after it"
+    assert (
+        len(acks) == 1
+        and len(texts) == 1
+        and str(acks[0][1].source) == talker.call
+        and str(texts[0][1].source) == talker.call
+    )
+    assert abs(acks[0][0] - ACK_AFTER_SEC) < 1 and ACK_AFTER_SEC == 2 * DELIVERY_SEC and texts[0][0] > acks[0][0], (
+        "the ack a frame's time each way later, the text after it"
+    )
     assert all(str(f.source) != ME for _, f in heard), "no digipeater on Mercury: nothing of ours comes back"
     # (a retry: acked again, not answered again)
     scene.react(from_us(b":" + talker.call.ljust(9).encode() + b":Hello{7"), START + timedelta(seconds=300))
@@ -112,7 +146,9 @@ def test_the_nearest_station_acks_a_message_a_frame_each_way_later_and_answers_o
     assert [parse_message(f.info[1:]).ack_id for f in again] == ["7"]
     other = next(s for s in STATIONS if not s.answers)
     scene.react(from_us(b":" + other.call.ljust(9).encode() + b":Hello{8"), START + timedelta(seconds=400))
-    assert [f for t, f in play(scene, 500, step=1) if t > 400] == [], "the other stations take a message and stay quiet, as most do"
+    assert [f for t, f in play(scene, 500, step=1) if t > 400] == [], (
+        "the other stations take a message and stay quiet, as most do"
+    )
 
 
 @pytest.fixture
@@ -136,56 +172,107 @@ class Spoken:
         self.frames.append(data)
 
 
-async def test_the_tnc_with_the_dummy_hf_profile_hears_the_stations_on_the_radio_hf_marked_dummy_plays_what_it_sends_and_opens_nothing(fast: None, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_tnc_with_the_dummy_hf_profile_hears_the_stations_on_the_radio_hf_marked_dummy_plays_what_it_sends_and_opens_nothing(
+    fast: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
     tried = refuse_the_world(monkeypatch)
     clock = FixedClock(START)
     tnc = Tnc(profile=DUMMY_HF, port=DUMMY_PATH, clock=clock)
     spoken = Spoken()
-    tnc.modem = spoken                                                           # type: ignore[assignment]
+    tnc.modem = spoken  # type: ignore[assignment]
     heard: list[tuple[str, str, str, str]] = []
     tnc.packet.connect(lambda p: heard.append((p.direction, p.source, p.via, p.radio_id)))
     await tnc.start()
-    assert tnc.state is Source.State.CONNECTED and tnc.usable and tnc.is_dummy and tnc.rtype.kind == "hf" and tnc.max_frame == 123
+    assert (
+        tnc.state is Source.State.CONNECTED
+        and tnc.usable
+        and tnc.is_dummy
+        and tnc.rtype.kind == "hf"
+        and tnc.max_frame == 123
+    )
     await until_started(lambda: tnc.confirmed)
     assert tnc.send_frame(from_us(b":Q3TKU    :Hello{5"))
     for _ in range(40):
         clock.advance(5)
         await asyncio.sleep(0.02)
     await tnc.stop()
-    assert len(spoken.frames) == 1 and spoken.frames[0].startswith(b"\xc0"), "what we sent went to the speaker as KISS bytes"
-    assert {s for d, s, _, _ in heard if d == "in"} >= {"Q3TKU", "Q5OUL"} and all(v == "dummy" and r == HF_ID for _, _, v, r in heard)
+    assert len(spoken.frames) == 1 and spoken.frames[0].startswith(b"\xc0"), (
+        "what we sent went to the speaker as KISS bytes"
+    )
+    assert {s for d, s, _, _ in heard if d == "in"} >= {"Q3TKU", "Q5OUL"} and all(
+        v == "dummy" and r == HF_ID for _, _, v, r in heard
+    )
     assert any(d == "in" and s == "Q3TKU" for d, s, _, _ in heard) and tnc.stats.rejected == 0
     assert tried == [] and "dummy Mercury radio" in tnc.describe() and "nothing goes on the air" in tnc.describe()
 
 
-async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_hf_starts_mercury_as_the_speaker_and_plays_the_beacon(tmp_path: Path, fast: None, caplog: pytest.LogCaptureFixture) -> None:
+async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_hf_starts_mercury_as_the_speaker_and_plays_the_beacon(
+    tmp_path: Path, fast: None, caplog: pytest.LogCaptureFixture
+) -> None:
     """Where there are named pipes (Linux, macOS) the bundled Mercury is started on its fifo backend
     as the speaker and the beacon goes to it; on Windows the speaker is not started (the modem on
     the default sound devices would be heard, and hear, for real) and the Dummy Mercury radio runs
     without the sound: the made-up stations are heard all the same."""
     caplog.set_level(logging.INFO, logger="neoaprs.mercury")
-    e = Env(tmp_path, radio=False, settings={"fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30"})
+    e = Env(
+        tmp_path,
+        radio=False,
+        settings={
+            "fm/enabled": "false",
+            "hf/enabled": "true",
+            "hf/profile": "dummy-hf",
+            "station/lat": "60.17",
+            "station/lon": "24.94",
+            "beacon/interval_min": "30",
+        },
+    )
     # (the program that stands in for Mercury: it keeps what its KISS port is given)
     e.mercury._finder = fakemercury.program
     await e.start()
     await until_started(lambda: e.hf.state is Source.State.CONNECTED)
-    assert e.hf.is_dummy and e.hf.rtype.kind == "hf" and e.hf.rtype.transport == "dummy" and not e.hf.rtype.can.tune, "the Dummy Mercury radio: no Mercury of its own to tune"
+    assert e.hf.is_dummy and e.hf.rtype.kind == "hf" and e.hf.rtype.transport == "dummy" and not e.hf.rtype.can.tune, (
+        "the Dummy Mercury radio: no Mercury of its own to tune"
+    )
     radio = e.ctl.radios.get(HF_ID)
-    assert radio is not None and radio.rtype.dummy and radio.rtype.driver == "mercury" and driver_key(radio.spec) == radio.driver_key == "mercury" and isinstance(radio.driver, MercuryDriver), "the modem's driver runs it: the program is its speaker"
-    assert radio.line is e.hf and radio.driver.modem is e.mercury and e.ctl.radios.enabled() == [radio] and e.ctl.radios.senders() == [radio] and (radio.name, radio.max_frame) == ("Mercury", 123)
+    assert (
+        radio is not None
+        and radio.rtype.dummy
+        and radio.rtype.driver == "mercury"
+        and driver_key(radio.spec) == radio.driver_key == "mercury"
+        and isinstance(radio.driver, MercuryDriver)
+    ), "the modem's driver runs it: the program is its speaker"
+    assert (
+        radio.line is e.hf
+        and radio.driver.modem is e.mercury
+        and e.ctl.radios.enabled() == [radio]
+        and e.ctl.radios.senders() == [radio]
+        and (radio.name, radio.max_frame) == ("Mercury", 123)
+    )
     speaking = hasattr(os, "mkfifo")
     if speaking:
-        assert e.mercury.speaker and e.mercury.state in ("starting", "running") and e.mercury.keying.kind == "vox" and e.mercury.sound_card == ""
+        assert (
+            e.mercury.speaker
+            and e.mercury.state in ("starting", "running")
+            and e.mercury.keying.kind == "vox"
+            and e.mercury.sound_card == ""
+        )
         started = next(line for line in caplog.text.splitlines() if "Mercury started" in line)
-        assert (e.mercury.home / "mercury-capture.fifo").exists() and "-x fifo" in started and "-P none" in started and "-m 1" in started, "Mercury runs on the fifo backend, paced by the daemon, where there are named pipes"
+        assert (
+            (e.mercury.home / "mercury-capture.fifo").exists()
+            and "-x fifo" in started
+            and "-P none" in started
+            and "-m 1" in started
+        ), "Mercury runs on the fifo backend, paced by the daemon, where there are named pipes"
         await until_started(lambda: e.mercury.speaker_line.open)
     else:
-        assert e.mercury.state == "stopped" and e.mercury.starts == 0 and "no named pipes" in caplog.text, "on Windows the speaker is not started, and the log says why"
+        assert e.mercury.state == "stopped" and e.mercury.starts == 0 and "no named pipes" in caplog.text, (
+            "on Windows the speaker is not started, and the log says why"
+        )
     # (real seconds: a slow runner needs more than 40 steps of 20 ms to play the made-up day;
     # Windows CI heard 3 stations in that)
     deadline = asyncio.get_running_loop().time() + 20.0
     while asyncio.get_running_loop().time() < deadline:
-        e.now.advance(5)                                                         # type: ignore[attr-defined]
+        e.now.advance(5)  # type: ignore[attr-defined]
         await asyncio.sleep(0.05)
         # (the made-up stations; our own is in the book too, and counted it the wait ended one
         # station early)
@@ -196,41 +283,77 @@ async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_
     assert len(stations) >= 4 and all(s.heard_on(HF_ID).count > 0 and s.heard_on(FM_ID).count == 0 for s in stations)
     if speaking:
         assert e.mercury.speaker_line.played >= 1, "the beacon went to the speaker"
-        await until_started(lambda: (e.mercury.home / fakemercury.BROADCAST_FILE).exists() and (e.mercury.home / fakemercury.BROADCAST_FILE).stat().st_size > 0)
+        await until_started(
+            lambda: (
+                (e.mercury.home / fakemercury.BROADCAST_FILE).exists()
+                and (e.mercury.home / fakemercury.BROADCAST_FILE).stat().st_size > 0
+            )
+        )
     assert e.ctl.config.serial_last_port == ""
     await e.stop()
     assert e.mercury.state == "stopped"
 
 
-async def test_in_the_hf_world_a_dummy_station_hears_the_made_up_stations_and_nothing_of_it_reaches_the_air(tmp_path: Path, fast: None) -> None:
+async def test_in_the_hf_world_a_dummy_station_hears_the_made_up_stations_and_nothing_of_it_reaches_the_air(
+    tmp_path: Path, fast: None
+) -> None:
     w = World(tmp_path, frame_sec=0.2)
     a = await w.add("OH2A")
     b = await w.add("OH2B", lat=61.5, lon=23.8)
-    d = Env(tmp_path / "OH2D", radio=False, settings={"station/call": "OH2D", "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30", "messages/alert": "false"})
+    d = Env(
+        tmp_path / "OH2D",
+        radio=False,
+        settings={
+            "station/call": "OH2D",
+            "fm/enabled": "false",
+            "hf/enabled": "true",
+            "hf/profile": "dummy-hf",
+            "station/lat": "60.17",
+            "station/lon": "24.94",
+            "beacon/interval_min": "30",
+            "messages/alert": "false",
+        },
+    )
     # (no program at all: the speaker is a nice-to-have, and the dummy works without it)
     d.mercury._finder = lambda: None
     await w.start()
     await d.start()
     await until_started(lambda: d.hf.state is Source.State.CONNECTED)
-    assert d.mercury.state == "waiting" and d.hf.usable, "no Mercury: nothing to hear, the Dummy Mercury radio runs all the same"
+    assert d.mercury.state == "waiting" and d.hf.usable, (
+        "no Mercury: nothing to hear, the Dummy Mercury radio runs all the same"
+    )
     assert d.beacon_2.send_now("request")
     for _ in range(30):
-        d.now.advance(5)                                                         # type: ignore[attr-defined]
+        d.now.advance(5)  # type: ignore[attr-defined]
         await asyncio.sleep(0.02)
     assert any(s.call.startswith("Q") and s.heard_on(HF_ID).count > 0 for s in d.ctl.stationbook.stations())
-    assert w.air.delivered == [] and not any(s.call == "OH2D" for s in a.ctl.stationbook.stations()) and not any(s.call == "OH2D" for s in b.ctl.stationbook.stations())
+    assert (
+        w.air.delivered == []
+        and not any(s.call == "OH2D" for s in a.ctl.stationbook.stations())
+        and not any(s.call == "OH2D" for s in b.ctl.stationbook.stations())
+    )
     await d.stop()
 
 
 @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="named pipes: POSIX")
-def test_the_speakers_audio_paces_silence_into_mercurys_capture_pipe_and_hands_what_mercury_plays_to_the_player(tmp_path: Path) -> None:
+def test_the_speakers_audio_paces_silence_into_mercurys_capture_pipe_and_hands_what_mercury_plays_to_the_player(
+    tmp_path: Path,
+) -> None:
     out = tmp_path / "heard.raw"
-    audio = SpeakerAudio(tmp_path, player=lambda: [sys.executable, "-c", "import sys; open(sys.argv[1], 'wb').write(sys.stdin.buffer.read())", str(out)])
+    audio = SpeakerAudio(
+        tmp_path,
+        player=lambda: [
+            sys.executable,
+            "-c",
+            "import sys; open(sys.argv[1], 'wb').write(sys.stdin.buffer.read())",
+            str(out),
+        ],
+    )
     assert audio.prepare() and audio.capture.exists() and audio.playback.exists()
     started = time.monotonic()
     audio.start()
     try:
-        cap = os.open(audio.capture, os.O_RDONLY | NONBLOCK)                 # (Mercury's side of the capture pipe)
+        cap = os.open(audio.capture, os.O_RDONLY | NONBLOCK)  # (Mercury's side of the capture pipe)
         heard = bytearray()
         deadline = started + 60.0
         # (it waits for the blocks and not for a time: a slow machine gets them later)
@@ -263,7 +386,9 @@ def test_the_speakers_audio_paces_silence_into_mercurys_capture_pipe_and_hands_w
     assert out.read_bytes() == b"\x01\x02\x03\x04" * 400 and not audio.capture.exists() and not audio.playback.exists()
 
 
-def test_no_daemon_of_the_tests_finds_a_player_and_the_players_are_looked_for_where_neoaprs_player_path_says(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_no_daemon_of_the_tests_finds_a_player_and_the_players_are_looked_for_where_neoaprs_player_path_says(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Daemons in tests must not play the Dummy Mercury radio's beacons out of the real speakers:
     tests/conftest.py points NEOAPRS_PLAYER_PATH at a folder that is not there.
     """
@@ -273,12 +398,16 @@ def test_no_daemon_of_the_tests_finds_a_player_and_the_players_are_looked_for_wh
     aplay.chmod(0o755)
     monkeypatch.setenv("NEOAPRS_PLAYER_PATH", str(tmp_path))
     found = player_command()
-    assert found is not None and os.path.samefile(found[0], aplay), "(Windows names the file in its own case: the same file, not the same text)"
+    assert found is not None and os.path.samefile(found[0], aplay), (
+        "(Windows names the file in its own case: the same file, not the same text)"
+    )
     assert found[1:] == ["-q", "-t", "raw", "-f", "S32_LE", "-r", "8000", "-c", "1", "-"]
 
 
 @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="named pipes: POSIX")
-def test_the_speakers_audio_says_once_when_there_is_no_player_and_plays_nothing(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_the_speakers_audio_says_once_when_there_is_no_player_and_plays_nothing(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.INFO, logger="neoaprs.mercury")
     audio = SpeakerAudio(tmp_path, player=lambda: None)
     assert audio.prepare()
@@ -306,7 +435,15 @@ def test_the_speakers_audio_says_once_when_there_is_no_player_and_plays_nothing(
 @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="named pipes: POSIX")
 def test_the_speakers_audio_plays_again_after_a_stop_and_never_runs_two_clocks(tmp_path: Path) -> None:
     out = tmp_path / "heard.raw"
-    audio = SpeakerAudio(tmp_path, player=lambda: [sys.executable, "-c", "import sys; open(sys.argv[1], 'wb').write(sys.stdin.buffer.read())", str(out)])
+    audio = SpeakerAudio(
+        tmp_path,
+        player=lambda: [
+            sys.executable,
+            "-c",
+            "import sys; open(sys.argv[1], 'wb').write(sys.stdin.buffer.read())",
+            str(out),
+        ],
+    )
 
     def hand_over(data: bytes) -> None:
         play = None
@@ -348,8 +485,14 @@ def test_the_speakers_audio_plays_again_after_a_stop_and_never_runs_two_clocks(t
     assert out.read_bytes() == b"\x05\x06\x07\x08" * 100
 
 
-async def test_our_position_is_withheld_from_the_internet_while_any_radio_that_is_on_is_a_dummy_and_not_for_one_that_is_off(tmp_path: Path, fast: None) -> None:
-    dummy = Env(tmp_path / "dummy", radio=False, settings={"fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf"})
+async def test_our_position_is_withheld_from_the_internet_while_any_radio_that_is_on_is_a_dummy_and_not_for_one_that_is_off(
+    tmp_path: Path, fast: None
+) -> None:
+    dummy = Env(
+        tmp_path / "dummy",
+        radio=False,
+        settings={"fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf"},
+    )
     dummy.mercury._finder = lambda: None
     await dummy.start()
     assert dummy.ctl.igate.made_up(), "the Dummy Mercury radio, with the FM radio off"
@@ -365,18 +508,32 @@ async def test_our_position_is_withheld_from_the_internet_while_any_radio_that_i
 
 
 @pytest.mark.parametrize("leave", [{"hf_profile": "mercury"}, {"hf_enabled": False, "fm_enabled": True}])
-async def test_a_dummy_hf_radio_that_stops_being_one_cancels_what_was_being_sent_to_its_stations_and_forgets_them(tmp_path: Path, fast: None, caplog: pytest.LogCaptureFixture, leave: dict[str, object]) -> None:
+async def test_a_dummy_hf_radio_that_stops_being_one_cancels_what_was_being_sent_to_its_stations_and_forgets_them(
+    tmp_path: Path, fast: None, caplog: pytest.LogCaptureFixture, leave: dict[str, object]
+) -> None:
     """Nothing made up stays once a real radio is on: when the radio gets another type or is
     switched off, retries to its made-up stations are cancelled so that they cannot hold the real
     channel."""
     caplog.set_level(logging.INFO, logger="neoaprs")
-    e = Env(tmp_path, radio=False, settings={"station/call": ME, "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "messages/alert": "false"})
+    e = Env(
+        tmp_path,
+        radio=False,
+        settings={
+            "station/call": ME,
+            "fm/enabled": "false",
+            "hf/enabled": "true",
+            "hf/profile": "dummy-hf",
+            "station/lat": "60.17",
+            "station/lon": "24.94",
+            "messages/alert": "false",
+        },
+    )
     # (no program at all: the speaker is a nice-to-have, and the dummy works without it)
     e.mercury._finder = lambda: None
     await e.start()
     await until_started(lambda: e.hf.state is Source.State.CONNECTED)
     for _ in range(400):
-        e.now.advance(10)                                                        # type: ignore[attr-defined]
+        e.now.advance(10)  # type: ignore[attr-defined]
         await asyncio.sleep(0.01)
         if sum(1 for s in e.ctl.stationbook.stations() if s.call.startswith("Q")) >= 3:
             break
@@ -387,26 +544,50 @@ async def test_a_dummy_hf_radio_that_stops_being_one_cancels_what_was_being_sent
     assert kuopio.state == "sending" and real.state == "sending"
     made_up = sorted(s.call for s in e.ctl.stationbook.stations() if s.call.startswith("Q"))
     assert await e.ctl.change_config(lambda c: replace(c, station_comment="still a Dummy"))
-    assert getattr(e.ctl.messaging.get(kuopio.id), "state", "") == "sending", "a save that leaves the radio a Dummy cancels nothing"
-    assert made_up and set(made_up) <= {s.call for s in e.ctl.stationbook.stations()}, "and forgets none of its stations"
+    assert getattr(e.ctl.messaging.get(kuopio.id), "state", "") == "sending", (
+        "a save that leaves the radio a Dummy cancels nothing"
+    )
+    assert made_up and set(made_up) <= {s.call for s in e.ctl.stationbook.stations()}, (
+        "and forgets none of its stations"
+    )
     assert await e.ctl.change_config(lambda c: replace(c, **leave))
     assert getattr(e.ctl.messaging.get(kuopio.id), "state", "") == "cancelled"
-    assert getattr(e.ctl.messaging.get(real.id), "state", "") == "sending", "a message to a real station is the operator's to cancel"
-    assert [s.call for s in e.ctl.stationbook.stations() if s.call.startswith("Q")] == [], "the made-up stations are gone"
-    assert "cancelled: the Dummy Mercury radio that makes Q1KUO up is left" in caplog.text and "forgot the made-up stations of the Dummy Mercury radio: " in caplog.text
+    assert getattr(e.ctl.messaging.get(real.id), "state", "") == "sending", (
+        "a message to a real station is the operator's to cancel"
+    )
+    assert [s.call for s in e.ctl.stationbook.stations() if s.call.startswith("Q")] == [], (
+        "the made-up stations are gone"
+    )
+    assert (
+        "cancelled: the Dummy Mercury radio that makes Q1KUO up is left" in caplog.text
+        and "forgot the made-up stations of the Dummy Mercury radio: " in caplog.text
+    )
     radio = e.ctl.radios.get(HF_ID)
-    assert radio is not None and not (radio.spec.enabled and radio.rtype.dummy) and radio.line is e.hf, "the same radio and the same line, a Dummy no longer"
+    assert radio is not None and not (radio.spec.enabled and radio.rtype.dummy) and radio.line is e.hf, (
+        "the same radio and the same line, a Dummy no longer"
+    )
     await e.stop()
 
 
-async def test_an_fm_dummy_radio_that_stops_being_one_takes_nothing_along(tmp_path: Path, fast: None, caplog: pytest.LogCaptureFixture) -> None:
+async def test_an_fm_dummy_radio_that_stops_being_one_takes_nothing_along(
+    tmp_path: Path, fast: None, caplog: pytest.LogCaptureFixture
+) -> None:
     """The FM Dummy's stations are made round the station under calls that are not its own to
     forget: they stay until the daily prune."""
     caplog.set_level(logging.INFO, logger="neoaprs.controller")
-    e = Env(tmp_path, radio=False, settings={"tnc/profile": "dummy", "station/lat": "60.2231", "station/lon": "24.7152", "messages/alert": "false"})
+    e = Env(
+        tmp_path,
+        radio=False,
+        settings={
+            "tnc/profile": "dummy",
+            "station/lat": "60.2231",
+            "station/lon": "24.7152",
+            "messages/alert": "false",
+        },
+    )
     await e.start()
     for _ in range(400):
-        e.now.advance(10)                                                        # type: ignore[attr-defined]
+        e.now.advance(10)  # type: ignore[attr-defined]
         await asyncio.sleep(0.01)
         if sum(1 for s in e.ctl.stationbook.stations() if s.call.startswith("Q")) >= 3:
             break
@@ -417,5 +598,9 @@ async def test_an_fm_dummy_radio_that_stops_being_one_takes_nothing_along(tmp_pa
     assert radio is not None and radio.rtype.dummy and radio.driver_key == "tnc"
     assert await e.ctl.change_config(lambda c: replace(c, tnc_profile="kiss"))
     assert not radio.rtype.dummy and getattr(e.ctl.messaging.get(sent.id), "state", "") == "sending"
-    assert set(heard) <= {s.call for s in e.ctl.stationbook.stations()} and "forgot the made-up stations" not in caplog.text and "cancelled" not in caplog.text
+    assert (
+        set(heard) <= {s.call for s in e.ctl.stationbook.stations()}
+        and "forgot the made-up stations" not in caplog.text
+        and "cancelled" not in caplog.text
+    )
     await e.stop()

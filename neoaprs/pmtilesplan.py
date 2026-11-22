@@ -3,6 +3,7 @@
 The directories that reach into the box are read and the entries of its tiles kept in tile id
 order; each content gets its place when first named, so shared contents are stored once.
 """
+
 import array
 from bisect import bisect_left
 from collections.abc import Iterator
@@ -10,7 +11,23 @@ from dataclasses import dataclass
 from functools import partial
 
 from .mapstate import Box
-from .pmtilesformat import (HEADER_LENGTH, MAX_LEAF, MAX_LEAVES, MAX_ROOT, Entries, FormatError, Header, Leaf, Ranges, cover, decode, directories, header_bytes, touched, unpack)
+from .pmtilesformat import (
+    HEADER_LENGTH,
+    MAX_LEAF,
+    MAX_LEAVES,
+    MAX_ROOT,
+    Entries,
+    FormatError,
+    Header,
+    Leaf,
+    Ranges,
+    cover,
+    decode,
+    directories,
+    header_bytes,
+    touched,
+    unpack,
+)
 from .pmtilesrange import CutError, Halt, Source, in_parallel, read
 
 # Levels of leaves under the root that a reader of the format looks into.
@@ -63,13 +80,24 @@ class Plan:
         return self.cut.bytes
 
 
-def make_plan(reader: Source, header: Header, box: Box | None, maxzoom: int, threads: int, halt: Halt, overfetch: float, max_request: int) -> Plan:
+def make_plan(
+    reader: Source,
+    header: Header,
+    box: Box | None,
+    maxzoom: int,
+    threads: int,
+    halt: Halt,
+    overfetch: float,
+    max_request: int,
+) -> Plan:
     """Return the plan to cut `box` (None: the world) to `maxzoom`.
 
     Raise FormatError for bad directories and CutError for a cut that cannot be made.
     """
     if not header.clustered:
-        raise CutError("the archive is not clustered (its tiles are not in the order of their ids), so it cannot be cut")
+        raise CutError(
+            "the archive is not clustered (its tiles are not in the order of their ids), so it cannot be cut"
+        )
     deepest = min(maxzoom, header.max_zoom)
     if deepest < header.min_zoom:
         raise CutError(f"the archive has no tiles of zoom {maxzoom} or less")
@@ -87,15 +115,45 @@ def make_plan(reader: Source, header: Header, box: Box | None, maxzoom: int, thr
     return Plan(cut, head, sources, lengths, requests, sum(end - start for start, end, *_ in requests))
 
 
-def _header(old: Header, box: Box | None, deepest: int, entries: Entries, contents: int, data_length: int, root: int, metadata: int, leaves: int) -> Header:
+def _header(
+    old: Header,
+    box: Box | None,
+    deepest: int,
+    entries: Entries,
+    contents: int,
+    data_length: int,
+    root: int,
+    metadata: int,
+    leaves: int,
+) -> Header:
     """Return the header of the new archive; bounds are the box's in 1e-7 degrees, truncated."""
     bounds, center = old.bounds_e7, old.center_e7
     if box is not None:
         bounds = (int(box[0] * 1e7), int(box[1] * 1e7), int(box[2] * 1e7), int(box[3] * 1e7))
         center = (int((box[0] + box[2]) / 2 * 1e7), int((box[1] + box[3]) / 2 * 1e7))
     first = HEADER_LENGTH + root + metadata
-    return Header(HEADER_LENGTH, root, HEADER_LENGTH + root, metadata, first, leaves, first + leaves, data_length, sum(entries.run_lengths), len(entries), contents, True,
-                  old.internal_compression, old.tile_compression, old.tile_type, old.min_zoom, deepest, bounds, min(max(old.center_zoom, old.min_zoom), deepest), center)
+    return Header(
+        HEADER_LENGTH,
+        root,
+        HEADER_LENGTH + root,
+        metadata,
+        first,
+        leaves,
+        first + leaves,
+        data_length,
+        sum(entries.run_lengths),
+        len(entries),
+        contents,
+        True,
+        old.internal_compression,
+        old.tile_compression,
+        old.tile_type,
+        old.min_zoom,
+        deepest,
+        bounds,
+        min(max(old.center_zoom, old.min_zoom), deepest),
+        center,
+    )
 
 
 def _entries(reader: Source, header: Header, ranges: Ranges, threads: int, halt: Halt) -> Entries:
@@ -111,33 +169,55 @@ def _entries(reader: Source, header: Header, ranges: Ranges, threads: int, halt:
         read_leaves += len(level)
         below: list[Leaf] = []
         for leaf, data in _leaves(reader, header, level, threads, halt):
-            found, deeper = touched(decode(unpack(data, header.internal_compression, MAX_LEAF)), ranges, leaf[0], leaf[1], MAX_LEAVES - read_leaves - len(below))
+            found, deeper = touched(
+                decode(unpack(data, header.internal_compression, MAX_LEAF)),
+                ranges,
+                leaf[0],
+                leaf[1],
+                MAX_LEAVES - read_leaves - len(below),
+            )
             parts += found
             below += deeper
             held += sum(len(part) for part in found)
             if held > MAX_TILE_ENTRIES:
-                raise CutError(f"the box holds more than {MAX_TILE_ENTRIES} tile entries; a smaller box or a lower zoom is needed")
+                raise CutError(
+                    f"the box holds more than {MAX_TILE_ENTRIES} tile entries; a smaller box or a lower zoom is needed"
+                )
         level = below
     return _joined(parts)
 
 
-def _leaves(reader: Source, header: Header, level: list[Leaf], threads: int, halt: Halt) -> Iterator[tuple[Leaf, bytes]]:
+def _leaves(
+    reader: Source, header: Header, level: list[Leaf], threads: int, halt: Halt
+) -> Iterator[tuple[Leaf, bytes]]:
     """Yield each leaf with its bytes, fetched in requests of neighbouring leaves."""
     chunks: list[list[Leaf]] = []
     for leaf in sorted(level, key=lambda leaf: leaf[3]):
         if leaf[2] > MAX_LEAF or leaf[3] + leaf[2] > header.leaf_length:
-            raise FormatError(f"a leaf directory of the archive ({leaf[2]} bytes at {leaf[3]}) is not inside its {header.leaf_length} bytes of leaves")
+            raise FormatError(
+                f"a leaf directory of the archive ({leaf[2]} bytes at {leaf[3]}) is not inside its {header.leaf_length} bytes of leaves"
+            )
         last = chunks[-1] if chunks else None
-        if last and 0 <= leaf[3] - (last[-1][3] + last[-1][2]) <= LEAF_GAP and leaf[3] + leaf[2] - last[0][3] <= LEAF_CHUNK:
+        if (
+            last
+            and 0 <= leaf[3] - (last[-1][3] + last[-1][2]) <= LEAF_GAP
+            and leaf[3] + leaf[2] - last[0][3] <= LEAF_CHUNK
+        ):
             last.append(leaf)
         else:
             chunks.append([leaf])
     for batch in range(0, len(chunks), threads):
-        group = chunks[batch:batch + threads]
-        got = in_parallel([partial(read, reader, header.leaf_offset + chunk[0][3], chunk[-1][3] + chunk[-1][2] - chunk[0][3]) for chunk in group], halt)
+        group = chunks[batch : batch + threads]
+        got = in_parallel(
+            [
+                partial(read, reader, header.leaf_offset + chunk[0][3], chunk[-1][3] + chunk[-1][2] - chunk[0][3])
+                for chunk in group
+            ],
+            halt,
+        )
         for chunk, data in zip(group, got, strict=True):
             for leaf in chunk:
-                yield leaf, data[leaf[3] - chunk[0][3]:leaf[3] - chunk[0][3] + leaf[2]]
+                yield leaf, data[leaf[3] - chunk[0][3] : leaf[3] - chunk[0][3] + leaf[2]]
 
 
 def _joined(parts: list[Entries]) -> Entries:
@@ -162,7 +242,9 @@ def _reencode(entries: Entries, data_offset: int, data_length: int) -> tuple["ar
     place = 0
     for i, (offset, length) in enumerate(zip(entries.offsets, entries.lengths, strict=True)):
         if offset + length > data_length:
-            raise FormatError(f"a tile of the archive ({length} bytes at {offset}) is not inside its {data_length} bytes of tile data")
+            raise FormatError(
+                f"a tile of the archive ({length} bytes at {offset}) is not inside its {data_length} bytes of tile data"
+            )
         if not in_order or offset > in_order[-1]:
             number = None
         else:
@@ -185,9 +267,13 @@ def _reencode(entries: Entries, data_offset: int, data_length: int) -> tuple["ar
     return sources, lengths
 
 
-def _requests(sources: "array.array[int]", lengths: "array.array[int]", overfetch: float, max_request: int) -> list[Request]:
+def _requests(
+    sources: "array.array[int]", lengths: "array.array[int]", overfetch: float, max_request: int
+) -> list[Request]:
     """Group the pieces into requests, bridging the smallest gaps up to `overfetch` of the data."""
-    gaps = sorted(gap for gap in (sources[i] - sources[i - 1] - lengths[i - 1] for i in range(1, len(sources))) if gap > 0)
+    gaps = sorted(
+        gap for gap in (sources[i] - sources[i - 1] - lengths[i - 1] for i in range(1, len(sources))) if gap > 0
+    )
     budget, allowed = overfetch * sum(lengths), 0
     for gap in gaps:
         budget -= gap
@@ -206,4 +292,3 @@ def _requests(sources: "array.array[int]", lengths: "array.array[int]", overfetc
         requests.append((offset, offset + length, i, i + 1, place))
         place += length
     return requests
-

@@ -2,6 +2,7 @@
 records what it is asked, `FakeLine` is a Tnc whose state the driver sets, `FakeBeacon` knows
 whether it runs, and `spec` and `with_radios` build settings with any number of radios.
 """
+
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from datetime import datetime
@@ -26,10 +27,21 @@ from neoaprs.tncdriver import TncDriver
 from tests.support.clock import FixedClock
 
 
-def spec(id: RadioId, kind: Kind = "fm", type: str = "", name: str = "", enabled: bool = True, position: int | None = None, removed_at: datetime | None = None, **settings: str) -> RadioSpec:
+def spec(
+    id: RadioId,
+    kind: Kind = "fm",
+    type: str = "",
+    name: str = "",
+    enabled: bool = True,
+    position: int | None = None,
+    removed_at: datetime | None = None,
+    **settings: str,
+) -> RadioSpec:
     """A radio as the settings have it: of the kind's default type unless one is named, at the
     position of its id unless one is given, its own settings as text."""
-    return RadioSpec(id, kind, type or DEFAULT_TYPE[kind], name, enabled, id if position is None else position, removed_at, settings)
+    return RadioSpec(
+        id, kind, type or DEFAULT_TYPE[kind], name, enabled, id if position is None else position, removed_at, settings
+    )
 
 
 def with_radios(config: Config, radios: Iterable[RadioSpec]) -> Config:
@@ -63,6 +75,7 @@ class FakeLine(Tnc):
 
 class FakeSettings(NamedTuple):
     """What restarts a fake radio, by name (the registry's words of a change read the names)."""
+
     port: str
     type: str
     skip: tuple[str, ...]
@@ -71,6 +84,7 @@ class FakeSettings(NamedTuple):
 class FakeDriver:
     """A driver that opens nothing: `calls` is what it was asked, in order (`configure`, `start`,
     `stop`); its line is CONNECTED from its start to its stop."""
+
     modem = None
     card = None
 
@@ -128,6 +142,7 @@ class Rig:
     """A registry of fake radios, with what a test looks at: the settings in force, the drivers and
     the beacons it made by radio, the radios it handed to the wiring, the rows it was asked to keep.
     """
+
     config: Config
     clock: FixedClock = field(default_factory=FixedClock)
     book: StationBook = field(init=False)
@@ -143,7 +158,16 @@ class Rig:
 
     def __post_init__(self) -> None:
         self.book = StationBook(self.clock)
-        self.registry = RadioRegistry(self.claims, self._driver, self._beacon, lambda: self.config, self.book, self.kept.append, clock=self.clock, run=lambda: self.run)
+        self.registry = RadioRegistry(
+            self.claims,
+            self._driver,
+            self._beacon,
+            lambda: self.config,
+            self.book,
+            self.kept.append,
+            clock=self.clock,
+            run=lambda: self.run,
+        )
         self.registry.wire = lambda radio: self.wired.append(radio.id)
 
     def _driver(self, made_for: RadioSpec) -> RadioDriver:

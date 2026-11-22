@@ -22,7 +22,9 @@ _TEXT_BYTES = frozenset(range(0x20, 0x7F)) | {0x09, 0x0A, 0x0D, 0x11, 0x13}  # A
 # ends a command-mode text line (a TH-D7 sends XON after its prompt)
 _LINE_BREAKS = re.compile(rb"[\r\n\x11\x13]")
 # a monitored header: TNC-2 and TH-D7 "A>B,C*:", Kantronics "A>B,C <UI>:"
-_TNC2_LINE = re.compile(r"[A-Za-z0-9]{1,6}(?:-\d{1,2})?>[A-Za-z0-9]{1,6}(?:-\d{1,2})?(?:,[A-Za-z0-9-]+\*?)*(?: <UI[^>]*>)?:")
+_TNC2_LINE = re.compile(
+    r"[A-Za-z0-9]{1,6}(?:-\d{1,2})?>[A-Za-z0-9]{1,6}(?:-\d{1,2})?(?:,[A-Za-z0-9-]+\*?)*(?: <UI[^>]*>)?:"
+)
 
 
 class Mode(Enum):
@@ -78,10 +80,10 @@ class TextAfterKiss:
     def feed(self, chunk: bytes) -> bool:
         end = chunk.rfind(kiss.FEND)
         if end >= 0:
-            self._since_fend = bytearray(chunk[end + 1:])
+            self._since_fend = bytearray(chunk[end + 1 :])
         else:
             self._since_fend.extend(chunk)
-            del self._since_fend[:-self.TAIL_BYTES]
+            del self._since_fend[: -self.TAIL_BYTES]
         return typed_text(bytes(self._since_fend))
 
 
@@ -101,17 +103,44 @@ def _text_line(line: bytes) -> bool:
     return "cmd:" in text or _TNC2_LINE.match(text) is not None
 
 
-def packet_of(direction: Literal["in", "out"], raw: bytes, frame: ax25.Frame, now: datetime, dummy: bool = False, reading: Reading = NO_READING, *,
-              radio_id: RadioId | None = FM_ID) -> Packet:
+def packet_of(
+    direction: Literal["in", "out"],
+    raw: bytes,
+    frame: ax25.Frame,
+    now: datetime,
+    dummy: bool = False,
+    reading: Reading = NO_READING,
+    *,
+    radio_id: RadioId | None = FM_ID,
+) -> Packet:
     """Return the packet for an AX.25 frame; its channel is `rf`, `rf-gated` or `dummy`."""
     source, destination = str(frame.source), str(frame.destination)
     decoded, third_party = aprsthirdparty.parse_packet(frame.info, source, destination, now)
-    return Packet(heard_at=now, direction=direction, raw=raw, source=source, destination=destination, path=tuple(str(a) for a in frame.path), info=frame.info, decoded=decoded, third_party=third_party,
-                  via=channel_of(third_party, dummy=dummy), radio_id=radio_id, snr=reading.snr, rssi=reading.rssi)
+    return Packet(
+        heard_at=now,
+        direction=direction,
+        raw=raw,
+        source=source,
+        destination=destination,
+        path=tuple(str(a) for a in frame.path),
+        info=frame.info,
+        decoded=decoded,
+        third_party=third_party,
+        via=channel_of(third_party, dummy=dummy),
+        radio_id=radio_id,
+        snr=reading.snr,
+        rssi=reading.rssi,
+    )
 
 
-def read_frame(kiss_frame: kiss.KissFrame, now: datetime, dummy: bool = False, reading: Reading = NO_READING, *,
-               radio_id: RadioId | None = FM_ID) -> tuple[Packet, ax25.Frame] | str:
+def read_frame(
+    kiss_frame: kiss.KissFrame,
+    now: datetime,
+    dummy: bool = False,
+    reading: Reading = NO_READING,
+    *,
+    radio_id: RadioId | None = FM_ID,
+) -> tuple[Packet, ax25.Frame] | str:
     try:
         if kiss_frame.command != 0:
             return f"KISS command {kiss_frame.command} on port {kiss_frame.port}, ignored"

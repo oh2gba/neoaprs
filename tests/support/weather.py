@@ -1,6 +1,7 @@
 """Weather packets for the tests: a packet as the TNC makes it, and the same packet with the weather
 as plain comment text.
 """
+
 from datetime import datetime
 
 from neoaprs import ax25
@@ -19,10 +20,29 @@ def heard(info: bytes, source: str = "OH2MUI", at: datetime = T0, direction: str
     frame = ax25.Frame(ax25.Address("APRX29"), ax25.Address.parse(source), (ax25.Address.parse("OH2RCH-2"),), info=info)
     decoded, third = parse_packet(info, source, "APRX29", at)
     if old and isinstance(decoded, Position) and decoded.weather is not None:
-        decoded = Position(decoded.lat, decoded.lon, decoded.symbol_table, decoded.symbol_code, decoded.weather.raw + decoded.comment, timestamp=decoded.timestamp, messaging=decoded.messaging)
+        decoded = Position(
+            decoded.lat,
+            decoded.lon,
+            decoded.symbol_table,
+            decoded.symbol_code,
+            decoded.weather.raw + decoded.comment,
+            timestamp=decoded.timestamp,
+            messaging=decoded.messaging,
+        )
     if old and isinstance(decoded, Other):
         decoded = Other(decoded.kind, decoded.text)
-    return Packet(at, direction, ax25.encode(frame), source, "APRX29", ("OH2RCH-2",), info, decoded, third, channel_of(third))  # type: ignore[arg-type]
+    return Packet(
+        at,
+        direction,  # type: ignore[arg-type]
+        ax25.encode(frame),
+        source,
+        "APRX29",
+        ("OH2RCH-2",),
+        info,
+        decoded,
+        third,
+        channel_of(third),
+    )
 
 
 def report(fields: str = REAL, source: str = "OH2MUI", at: datetime = T0, **more: object) -> Packet:

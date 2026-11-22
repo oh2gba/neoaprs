@@ -1,6 +1,7 @@
 """The operating system as a person names it, for the log and the support bundle.
 
 A module of its own, so the daemon need not load the bundle modules to say it."""
+
 import platform
 
 

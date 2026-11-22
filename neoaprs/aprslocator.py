@@ -3,6 +3,7 @@
 A 4 or 6 character locator, the symbol table and code, then (after a space) the text. The
 position of a locator is the centre of its square. Pure code.
 """
+
 import re
 from dataclasses import dataclass
 
@@ -18,6 +19,7 @@ _FIELD, _SQUARE, _SUB = 20.0, 2.0, 2.0 / 24
 @dataclass(frozen=True, slots=True)
 class Locator:
     """A locator with its symbol and the centre of its square (decimal degrees)."""
+
     grid: str
     lat: float
     lon: float
@@ -44,7 +46,7 @@ def split_locator(text: str) -> tuple[Locator | None, str]:
     if table is None or not "!" <= found.group(3) <= "~":
         return None, text
     lat, lon = grid_centre(found.group(1))
-    return Locator(found.group(1), round(lat, 5), round(lon, 5), table, found.group(3)), text[found.end():].lstrip(" ")
+    return Locator(found.group(1), round(lat, 5), round(lon, 5), table, found.group(3)), text[found.end() :].lstrip(" ")
 
 
 def split_beacon(text: str) -> tuple[Locator, str] | None:
@@ -53,6 +55,6 @@ def split_beacon(text: str) -> tuple[Locator, str] | None:
     found = _GRID.match(text)
     if found:
         lat, lon = grid_centre(found.group(1))
-        return Locator(found.group(1), round(lat, 5), round(lon, 5), "/", "G"), text[found.end():].strip()
+        return Locator(found.group(1), round(lat, 5), round(lon, 5), "/", "G"), text[found.end() :].strip()
     locator, rest = split_locator(text)
     return None if locator is None else (locator, rest)

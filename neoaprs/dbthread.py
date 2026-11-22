@@ -1,6 +1,7 @@
 """The thread that owns the database connection and the FIFO queue that feeds it (see db.py).
 
 Operations are READ, WRITE, APPEND (batched, each in a savepoint), MAINT and STOP."""
+
 import asyncio
 import logging
 import queue
@@ -36,13 +37,13 @@ class Kind(Enum):
 class Tuning:
     # Appends are collected this long (or until another operation or batch_max), one sync for all.
     tick: float = 1.0
-    batch_max: int = 2000           # most appends in one transaction
+    batch_max: int = 2000  # most appends in one transaction
     # Most appends waiting; beyond it `write_nowait` returns False.
     max_appends: int = 200_000
     # Attempts at a failing batch, retry_sec * n apart, then it is dropped.
     attempts: int = 3
     retry_sec: float = 0.5
-    slow_sec: float = 0.5           # a longer operation is counted and sometimes logged
+    slow_sec: float = 0.5  # a longer operation is counted and sometimes logged
 
 
 @dataclass(eq=False)
@@ -57,8 +58,20 @@ class Op:
 # Result codes (low byte of `sqlite_errorcode`) that come from the environment, not the statement:
 # locked, no memory, read-only, disk fault, full, cannot open, corrupt, not a database, WAL
 # protocol.
-PLACE_CODES = frozenset({sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED, sqlite3.SQLITE_NOMEM, sqlite3.SQLITE_READONLY, sqlite3.SQLITE_IOERR, sqlite3.SQLITE_FULL, sqlite3.SQLITE_CANTOPEN,
-                         sqlite3.SQLITE_CORRUPT, sqlite3.SQLITE_NOTADB, sqlite3.SQLITE_PROTOCOL})
+PLACE_CODES = frozenset(
+    {
+        sqlite3.SQLITE_BUSY,
+        sqlite3.SQLITE_LOCKED,
+        sqlite3.SQLITE_NOMEM,
+        sqlite3.SQLITE_READONLY,
+        sqlite3.SQLITE_IOERR,
+        sqlite3.SQLITE_FULL,
+        sqlite3.SQLITE_CANTOPEN,
+        sqlite3.SQLITE_CORRUPT,
+        sqlite3.SQLITE_NOTADB,
+        sqlite3.SQLITE_PROTOCOL,
+    }
+)
 
 
 def environmental(e: BaseException) -> bool:
@@ -77,21 +90,31 @@ def often(n: int) -> bool:
 
 
 class DbThread(threading.Thread):
-    def __init__(self, opener: Callable[[], sqlite3.Connection], tuning: Tuning, stats: DbStats, ready: Callable[[BaseException | None], None], exited: Callable[[], None], name: str) -> None:
-        super().__init__(name=name, daemon=True)           # daemon: a program that never closes still ends
+    def __init__(
+        self,
+        opener: Callable[[], sqlite3.Connection],
+        tuning: Tuning,
+        stats: DbStats,
+        ready: Callable[[BaseException | None], None],
+        exited: Callable[[], None],
+        name: str,
+    ) -> None:
+        super().__init__(name=name, daemon=True)  # daemon: a program that never closes still ends
         self._opener, self.tuning, self.stats, self._ready, self._exited = opener, tuning, stats, ready, exited
         self._q: queue.SimpleQueue[Op] = queue.SimpleQueue()
-        self._lock = threading.Lock()                       # guards the closed flag and the append count
+        self._lock = threading.Lock()  # guards the closed flag and the append count
         self._closing = False
         self._appends = 0
-        self._own = False                                   # set while running the thread's own transaction statement
+        self._own = False  # set while running the thread's own transaction statement
         self._query_only = False
 
     # Any thread: put work on the queue.
     def submit(self, op: Op) -> bool:
         """Queue `op`; return False only for an append refused by a full queue."""
         if self.ident is not None and threading.get_ident() == self.ident:
-            raise NestedUse("the database thread was asked to do something from inside a function it is running: do it with the connection that function was given")
+            raise NestedUse(
+                "the database thread was asked to do something from inside a function it is running: do it with the connection that function was given"
+            )
         with self._lock:
             if self._closing:
                 raise DbClosed
@@ -102,7 +125,11 @@ class DbThread(threading.Thread):
         if full:
             dropped = self.stats.count("dropped")
             if often(dropped):
-                log.error("the database queue holds %d appends and is full: %d appends dropped so far", self.tuning.max_appends, dropped)
+                log.error(
+                    "the database queue holds %d appends and is full: %d appends dropped so far",
+                    self.tuning.max_appends,
+                    dropped,
+                )
             return False
         self.stats.depth(self._q.qsize())
         return True
@@ -123,7 +150,7 @@ class DbThread(threading.Thread):
             conn = self._open()
         except BaseException as e:
             self._ready(e)
-            self._abandon()                                 # answer what was asked during the open
+            self._abandon()  # answer what was asked during the open
             self._exited()
             return
         self._ready(None)
@@ -140,11 +167,15 @@ class DbThread(threading.Thread):
         conn = self._opener()
         if conn.isolation_level is not None:
             conn.close()
-            raise DbError("the connection must be made with isolation_level=None: the transactions are the database thread's, not sqlite3's")
+            raise DbError(
+                "the connection must be made with isolation_level=None: the transactions are the database thread's, not sqlite3's"
+            )
         conn.set_authorizer(self._authorize)
         return conn
 
-    def _authorize(self, action: int, arg1: str | None, arg2: str | None, dbname: str | None, source: str | None) -> int:
+    def _authorize(
+        self, action: int, arg1: str | None, arg2: str | None, dbname: str | None, source: str | None
+    ) -> int:
         if action == sqlite3.SQLITE_TRANSACTION and not self._own:
             return sqlite3.SQLITE_DENY
         return sqlite3.SQLITE_OK
@@ -183,7 +214,7 @@ class DbThread(threading.Thread):
     # One awaited operation.
     def _run_one(self, conn: sqlite3.Connection, op: Op) -> None:
         if op.future is not None and op.future.cancelled():
-            self.stats.count("withdrawn")                   # cancelled before it began: it did not happen
+            self.stats.count("withdrawn")  # cancelled before it began: it did not happen
             return
         started = time.perf_counter()
         result: Any = None
@@ -207,7 +238,7 @@ class DbThread(threading.Thread):
         return self._transaction(conn, op.fn, BEGIN_READ if reading else BEGIN_WRITE)
 
     def _begin(self, conn: sqlite3.Connection, begin: str) -> None:
-        self._rollback(conn)                                # a failed ROLLBACK must not leak into this operation
+        self._rollback(conn)  # a failed ROLLBACK must not leak into this operation
         self._sql(conn, begin)
 
     def _transaction(self, conn: sqlite3.Connection, fn: Callable[[sqlite3.Connection], Any], begin: str) -> Any:
@@ -251,7 +282,7 @@ class DbThread(threading.Thread):
         try:
             op.loop.call_soon_threadsafe(self._settle, op.future, result, error, time.perf_counter())
         except RuntimeError:
-            pass                                            # the loop is closed
+            pass  # the loop is closed
 
     def _settle(self, future: "asyncio.Future[Any]", result: Any, error: BaseException | None, posted: float) -> None:
         """Deliver the answer on the event loop and record the loop delay."""
@@ -300,7 +331,9 @@ class DbThread(threading.Thread):
                 if self._try_again(e, attempt, len(batch)):
                     continue
                 break
-            self.stats.done(Kind.APPEND.value, started - batch[0].queued, time.perf_counter() - started, False, len(batch))
+            self.stats.done(
+                Kind.APPEND.value, started - batch[0].queued, time.perf_counter() - started, False, len(batch)
+            )
             self.stats.count("batches")
             return
         self.stats.count("lost", len(batch))
@@ -310,7 +343,12 @@ class DbThread(threading.Thread):
         with self._lock:
             closing = self._closing
         if attempt >= self.tuning.attempts or closing:
-            log.error("the database could not commit %d appends (%s): they are lost%s", size, e, " (the database is closing: no second attempt)" if closing else "")
+            log.error(
+                "the database could not commit %d appends (%s): they are lost%s",
+                size,
+                e,
+                " (the database is closing: no second attempt)" if closing else "",
+            )
             return False
         if often(self.stats.count("retried")):
             log.warning("the database could not commit %d appends (%s): they are tried again", size, e)

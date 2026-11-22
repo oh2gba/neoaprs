@@ -3,6 +3,7 @@
 A copy of our message heard again belongs to the latest attempt sent before it; `hops_used`
 reads its starred addresses against the path we sent. Pure code.
 """
+
 from dataclasses import dataclass, replace
 from datetime import datetime
 
@@ -52,7 +53,7 @@ def hops_used(sent: tuple[str, ...], heard: tuple[str, ...]) -> list[tuple[int, 
             break
         if is_alias(hop):
             # a call named further on in the path is that hop's, not this alias's
-            if used[k] not in sent[index + 1:]:
+            if used[k] not in sent[index + 1 :]:
                 found[index + 1] = used[k]
                 k += 1
         elif hop in used[k:]:

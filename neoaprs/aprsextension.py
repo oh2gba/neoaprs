@@ -3,6 +3,7 @@
 `PHG`, `RNG`, `DFS`, the DF `/BRG/NRQ` report, area object `Tyy/Cxx`, the signpost `{55}`, and
 `!DAO!` anywhere in a comment (APRS 1.2). Course and speed are read by aprsposition.py.
 """
+
 import math
 import re
 from dataclasses import dataclass
@@ -19,13 +20,42 @@ _SIGN = re.compile(r"\{([^{}]{1,3})\}")
 _LINE_DOWN_LEFT = 6
 # an offset is sent as the square root of the degrees times this (areaobjects.txt)
 _AREA_SCALE = 1500
-_SHAPES = ("open circle", "line", "open ellipse", "open triangle", "open box", "filled circle", "line down-left", "filled ellipse", "filled triangle", "filled box")
-_COLOURS = ("black", "blue", "green", "cyan", "red", "violet", "yellow", "gray", "dim black", "dim blue", "dim green", "dim cyan", "dim red", "dim violet", "dim yellow", "dim gray")
+_SHAPES = (
+    "open circle",
+    "line",
+    "open ellipse",
+    "open triangle",
+    "open box",
+    "filled circle",
+    "line down-left",
+    "filled ellipse",
+    "filled triangle",
+    "filled box",
+)
+_COLOURS = (
+    "black",
+    "blue",
+    "green",
+    "cyan",
+    "red",
+    "violet",
+    "yellow",
+    "gray",
+    "dim black",
+    "dim blue",
+    "dim green",
+    "dim cyan",
+    "dim red",
+    "dim violet",
+    "dim yellow",
+    "dim gray",
+)
 
 
 @dataclass(frozen=True, slots=True)
 class Phg:
     """Power, height, gain, directivity and the range the spec's formula gives."""
+
     power_w: int
     height_m: float
     gain_db: int
@@ -44,6 +74,7 @@ class Dfs:
 @dataclass(frozen=True, slots=True)
 class DfBearing:
     """A DF report: bearing, hits (0 none, 1-8 share of samples, 9 manual), range (2^R mi), quality."""
+
     bearing_deg: int
     hits: int
     range_km: float
@@ -53,6 +84,7 @@ class DfBearing:
 @dataclass(frozen=True, slots=True)
 class Area:
     """An area object; offsets (degrees) run down and right from the position."""
+
     shape: str
     colour: str
     lat_offset_deg: float
@@ -83,35 +115,58 @@ def phg_range_km(power_w: int, height_m: float, gain_db: int) -> float:
 
 
 def _phg(found: re.Match[str]) -> Phg:
-    power, height, gain, direction = int(found.group(1)) ** 2, _height_m(found.group(2)), int(found.group(3)), _direction(found.group(4))
+    power, height, gain, direction = (
+        int(found.group(1)) ** 2,
+        _height_m(found.group(2)),
+        int(found.group(3)),
+        _direction(found.group(4)),
+    )
     return Phg(power, round(height, 1), gain, direction, round(phg_range_km(power, height, gain), 1))
 
 
 def _area(found: re.Match[str]) -> Area:
-    shape, lat, tens, colour, lon = int(found.group(1)), int(found.group(2)), found.group(3), int(found.group(4)), int(found.group(5))
+    shape, lat, tens, colour, lon = (
+        int(found.group(1)),
+        int(found.group(2)),
+        found.group(3),
+        int(found.group(4)),
+        int(found.group(5)),
+    )
     index = colour + (10 if tens == "1" else 0)
     lon_offset = lon * lon / _AREA_SCALE
-    return Area(_SHAPES[shape], _COLOURS[index] if index < len(_COLOURS) else "unknown", lat * lat / _AREA_SCALE, -lon_offset if shape == _LINE_DOWN_LEFT else lon_offset)
+    return Area(
+        _SHAPES[shape],
+        _COLOURS[index] if index < len(_COLOURS) else "unknown",
+        lat * lat / _AREA_SCALE,
+        -lon_offset if shape == _LINE_DOWN_LEFT else lon_offset,
+    )
 
 
 def split_extension(text: str, area: bool) -> tuple[Extensions | None, str]:
     """Return the extension at the start of `text` and the rest; `area` is true for symbol `\\l`."""
     if area:
         found = _AREA.match(text)
-        return (Extensions(area=_area(found)), text[found.end():]) if found else (None, text)
+        return (Extensions(area=_area(found)), text[found.end() :]) if found else (None, text)
     if found := _PHG.match(text):
-        return Extensions(phg=_phg(found)), text[found.end():]
+        return Extensions(phg=_phg(found)), text[found.end() :]
     if found := _RNG.match(text):
-        return Extensions(range_km=round(int(found.group(1)) * MILE_KM, 1)), text[found.end():]
+        return Extensions(range_km=round(int(found.group(1)) * MILE_KM, 1)), text[found.end() :]
     if found := _DFS.match(text):
-        return Extensions(dfs=Dfs(int(found.group(1)), round(_height_m(found.group(2)), 1), int(found.group(3)), _direction(found.group(4)))), text[found.end():]
+        return Extensions(
+            dfs=Dfs(
+                int(found.group(1)),
+                round(_height_m(found.group(2)), 1),
+                int(found.group(3)),
+                _direction(found.group(4)),
+            )
+        ), text[found.end() :]
     return None, text
 
 
 def split_sign(text: str) -> tuple[str, str | None]:
     """Split a signpost (`{55}`) from the comment; None if absent."""
     found = _SIGN.match(text)
-    return (text[found.end():].strip(), found.group(1)) if found else (text, None)
+    return (text[found.end() :].strip(), found.group(1)) if found else (text, None)
 
 
 def split_bearing(text: str) -> tuple[DfBearing | None, str]:
@@ -120,7 +175,7 @@ def split_bearing(text: str) -> tuple[DfBearing | None, str]:
     if not found or int(found.group(1)) > 360:
         return None, text
     bearing, hits, rng, quality = int(found.group(1)), int(found.group(2)), int(found.group(3)), int(found.group(4))
-    return DfBearing(bearing % 360, hits, round((1 << rng) * MILE_KM, 1), quality), text[found.end():]
+    return DfBearing(bearing % 360, hits, round((1 << rng) * MILE_KM, 1), quality), text[found.end() :]
 
 
 def _direction_text(direction: int | None) -> str:
@@ -132,7 +187,9 @@ def extension_lines(ext: Extensions) -> list[str]:
     lines = []
     if ext.phg:
         p = ext.phg
-        lines.append(f"PHG {p.power_w} W, {p.height_m:.0f} m, {p.gain_db} dB, {_direction_text(p.direction_deg)}, range {p.range_km:.0f} km")
+        lines.append(
+            f"PHG {p.power_w} W, {p.height_m:.0f} m, {p.gain_db} dB, {_direction_text(p.direction_deg)}, range {p.range_km:.0f} km"
+        )
     if ext.range_km is not None:
         lines.append(f"range {ext.range_km:.0f} km")
     if ext.dfs:
@@ -172,4 +229,6 @@ def with_dao(lat: float, lon: float, extra: tuple[float, float] | None) -> tuple
     """Return latitude and longitude refined by the `!DAO!` minutes, each away from zero."""
     if extra is None:
         return lat, lon
-    return max(-90.0, min(90.0, lat + math.copysign(extra[0] / 60, lat))), max(-180.0, min(180.0, lon + math.copysign(extra[1] / 60, lon)))
+    return max(-90.0, min(90.0, lat + math.copysign(extra[0] / 60, lat))), max(
+        -180.0, min(180.0, lon + math.copysign(extra[1] / 60, lon))
+    )

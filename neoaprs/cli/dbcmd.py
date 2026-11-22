@@ -28,6 +28,7 @@ stations). The daemon may be running; this tool waits a few seconds for the data
 
 --data DIR is the data folder (default: the one the daemon uses). `set`, `radios add` and `restore`
 write; everything else opens the database read-only."""
+
 import argparse
 import asyncio
 import logging
@@ -36,9 +37,27 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from neoaprs.backupfolder import FOLDER_NAME, RestoreRefused, before_copy, can_open, copies, restore, stamp as copy_stamp
+from neoaprs.backupfolder import (
+    FOLDER_NAME,
+    RestoreRefused,
+    before_copy,
+    can_open,
+    copies,
+    restore,
+    stamp as copy_stamp,
+)
 from neoaprs.cli.redaction import shown_value
-from neoaprs.config import BY_KEY, DEFAULTS, HF_DIAL, INSTALL_ID, LAST_PORT, RADIO_STATE, STATE_BEFORE_31, STATE_KEYS, Config
+from neoaprs.config import (
+    BY_KEY,
+    DEFAULTS,
+    HF_DIAL,
+    INSTALL_ID,
+    LAST_PORT,
+    RADIO_STATE,
+    STATE_BEFORE_31,
+    STATE_KEYS,
+    Config,
+)
 from neoaprs.configradios import FLAT_HOMES, FLAT_KINDS, flat_moved, flat_now, radio_key_of
 from neoaprs.configtypes import boolean
 from neoaprs.radiospec import KIND_WORDS, RadioSpec
@@ -67,14 +86,20 @@ WRITE_WAIT_MS = 5000
 
 
 def parse(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog=PROG, description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog=PROG, description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--data", default=str(default_data_dir()), help="the data folder (default %(default)s)")
     commands = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
 
     def command(name: str, help: str) -> argparse.ArgumentParser:
         sub = commands.add_parser(name, help=help)
         # No default here: it would override the value given before the command.
-        sub.add_argument("--data", default=argparse.SUPPRESS, help="the data folder, as given before the command (the subcommand takes it too)")
+        sub.add_argument(
+            "--data",
+            default=argparse.SUPPRESS,
+            help="the data folder, as given before the command (the subcommand takes it too)",
+        )
         return sub
 
     command("list", "every setting")
@@ -84,11 +109,18 @@ def parse(argv: list[str]) -> argparse.Namespace:
     setter.add_argument("value")
     radios = command("radios", "the radios and their own settings, or add one")
     radios.add_argument("add", nargs="?", choices=["add"], help="add a radio of TYPE")
-    radios.add_argument("type", nargs="?", default="", help="the type of the radio to add (kiss, kenwood-tnc2, kiss-tcp, mercury, dummy, dummy-hf ...)")
+    radios.add_argument(
+        "type",
+        nargs="?",
+        default="",
+        help="the type of the radio to add (kiss, kenwood-tnc2, kiss-tcp, mercury, dummy, dummy-hf ...)",
+    )
     radios.add_argument("name", nargs="?", default="", help="its name (none: the type's)")
     radios.add_argument("--off", action="store_true", help="add it switched off")
     command("stations", "the stations the daemon knows")
-    command("restore", "list the copies in the backup folder, or put one back").add_argument("name", nargs="?", default="", help="the copy to put back, as the list names it")
+    command("restore", "list the copies in the backup folder, or put one back").add_argument(
+        "name", nargs="?", default="", help="the copy to put back, as the list names it"
+    )
     packets = command("packets", "the latest packets")
     packets.add_argument("-n", type=int, default=20, help="how many (default 20)")
     return parser.parse_args(argv)
@@ -97,7 +129,12 @@ def parse(argv: list[str]) -> argparse.Namespace:
 def daemon_state(key: str) -> bool:
     """Return True for a row only the daemon writes, which `set` refuses."""
     radio = radio_key_of(key)
-    return key in STATE_KEYS or key in STATE_BEFORE_31 or key == LAST_PORT or (radio is not None and radio[1] in RADIO_STATE and radio[1] != "last_port")
+    return (
+        key in STATE_KEYS
+        or key in STATE_BEFORE_31
+        or key == LAST_PORT
+        or (radio is not None and radio[1] in RADIO_STATE and radio[1] != "last_port")
+    )
 
 
 def kept_note(key: str) -> str:
@@ -111,7 +148,11 @@ def kept_note(key: str) -> str:
         return "whether the update check sends the number 0, so that this run is not counted (set with db set), not a setting"
     if radio_key_of(key) is not None:
         return "kept by the daemon (a radio's own: when its beacon or its status last sent, the port its search found), not a setting"
-    return "kept by the daemon (the number of this installation), not a setting" if key == INSTALL_ID else "stored, not a setting of this NeoAPRS"
+    return (
+        "kept by the daemon (the number of this installation), not a setting"
+        if key == INSTALL_ID
+        else "stored, not a setting of this NeoAPRS"
+    )
 
 
 async def show_settings(store: Any, only: str | None) -> int:
@@ -134,7 +175,9 @@ def before_note(key: str, config: Config) -> str:
     if not found:
         return ""
     where = found.split("no such setting: ", 1)[-1]
-    return f"a key of before, not read: {where}" + ("" if config.live_radios else " (add the radio first: neoaprs db radios add TYPE)")
+    return f"a key of before, not read: {where}" + (
+        "" if config.live_radios else " (add the radio first: neoaprs db radios add TYPE)"
+    )
 
 
 def stored_note(key: str, text: str | None, check: Callable[[str], object]) -> str:
@@ -246,7 +289,9 @@ async def store_radio_setting(store: Store, key: str, value: str) -> int:
     id, own = radio_key_of(key) or (0, "")
     spec = next((s for s in radios if s.id == id), None)
     if spec is None or spec.removed:
-        say(f"{PROG}: {key}: there is no radio {id}{' any more: it was removed' if spec is not None else ''} (try radios)")
+        say(
+            f"{PROG}: {key}: there is no radio {id}{' any more: it was removed' if spec is not None else ''} (try radios)"
+        )
         return 2
     try:
         text = Config.check_radio(spec, own, value)
@@ -271,7 +316,11 @@ def list_copies(data: Path) -> int:
     before = before_copy(data / FOLDER_NAME)
     for c in found:
         usable = "" if can_open(c, SCHEMA_VERSION) else "  (of a newer NeoAPRS: cannot be opened by this one)"
-        older = f"  (taken before the update to version {before.new}: the NeoAPRS you had before opens it)" if before is not None and c.path == before.path else ""
+        older = (
+            f"  (taken before the update to version {before.new}: the NeoAPRS you had before opens it)"
+            if before is not None and c.path == before.path
+            else ""
+        )
         print(f"{c.name:<{width}}  {copy_stamp(c.made)}  version {c.version:<3}  {c.size / 1e6:8.1f} MB{usable}{older}")
     return 0
 
@@ -283,7 +332,10 @@ def restore_copy(data: Path, name: str) -> int:
     except RestoreRefused as e:
         say(f"{PROG}: {e}")
         return 1
-    say(f"{PROG}: {copy.name} (version {copy.version}, of {copy_stamp(copy.made)}) is now the database" + (f"; the file that was there is kept as {aside.name}" if aside is not None else ""))
+    say(
+        f"{PROG}: {copy.name} (version {copy.version}, of {copy_stamp(copy.made)}) is now the database"
+        + (f"; the file that was there is kept as {aside.name}" if aside is not None else "")
+    )
     return 0
 
 
@@ -308,7 +360,10 @@ def before_opening(args: argparse.Namespace, path: Path) -> int | str:
             return 1
         return ""
     if args.command == "set" and daemon_state(args.key):
-        say(f"{PROG}: {args.key}: {kept_note(args.key)}" + ("; db set serial/last_port sets it" if args.key == LAST_PORT else ""))
+        say(
+            f"{PROG}: {args.key}: {kept_note(args.key)}"
+            + ("; db set serial/last_port sets it" if args.key == LAST_PORT else "")
+        )
         return 2
     if args.command == "set" and args.key.startswith("radio/") and radio_key_of(args.key) is None:
         say(f"{PROG}: {args.key}: a radio's setting is radio/<number>/<key> (try radios)")
@@ -326,7 +381,11 @@ def before_opening(args: argparse.Namespace, path: Path) -> int | str:
             return 1
         return text
     if not is_file(path):
-        say(f"{PROG}: there is no database at {path}" + (", so no radio" if args.command == "set" else "") + " (has the daemon run? --data DIR)")
+        say(
+            f"{PROG}: there is no database at {path}"
+            + (", so no radio" if args.command == "set" else "")
+            + " (has the daemon run? --data DIR)"
+        )
         return 1
     return ""
 
@@ -334,7 +393,11 @@ def before_opening(args: argparse.Namespace, path: Path) -> int | str:
 async def answer(args: argparse.Namespace, store: Store, log: PacketLog, text: str) -> int:
     """Run the command on the open database; return its exit code."""
     if args.command == "set":
-        return await (store_radio_setting(store, args.key, args.value) if radio_key_of(args.key) is not None else store_setting(store, args.key, args.value, text))
+        return await (
+            store_radio_setting(store, args.key, args.value)
+            if radio_key_of(args.key) is not None
+            else store_setting(store, args.key, args.value, text)
+        )
     if args.command in ("list", "get"):
         return await show_settings(store, args.key if args.command == "get" else None)
     if args.command == "radios":
@@ -369,7 +432,9 @@ async def run(args: argparse.Namespace) -> int:
         try:
             version = await db.read(schema_version)
             if version < SCHEMA_VERSION and not writing:
-                say(f"{PROG}: {path} is of version {version}, this NeoAPRS needs {SCHEMA_VERSION}: start the daemon once, it migrates the file")
+                say(
+                    f"{PROG}: {path} is of version {version}, this NeoAPRS needs {SCHEMA_VERSION}: start the daemon once, it migrates the file"
+                )
                 return 1
             return await answer(args, store, PacketLog(db), text)
         except (SqlError, DbClosed) as e:

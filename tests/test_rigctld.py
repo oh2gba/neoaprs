@@ -1,6 +1,7 @@
 """The rig reading (neoaprs/rigctld.py) on a server that answers badly: a hang-up, no mode, an
 unreachable network. Good answers and refusals are in tests/test_rigstatus.py.
 """
+
 import asyncio
 import errno
 
@@ -13,7 +14,7 @@ from tests.support.fakes import FakeLineServer
 
 async def server(responder: object = None) -> FakeLineServer:
     fake = FakeLineServer()
-    fake.responder = responder                                          # type: ignore[assignment]
+    fake.responder = responder  # type: ignore[assignment]
     await fake.start()
     remember_stop(fake.stop)
     return fake
@@ -22,6 +23,7 @@ async def server(responder: object = None) -> FakeLineServer:
 async def hanging_up() -> int:
     """A server that reads the whole request and closes the connection (an end of the stream, not a
     reset)."""
+
     async def serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         await reader.readexactly(len(b"f\nm\n"))
         writer.close()
@@ -48,7 +50,9 @@ async def test_a_rigctld_that_gives_an_empty_mode_is_a_rig_error() -> None:
         await read_rig("127.0.0.1", fake.port, 2.0)
 
 
-async def test_a_network_that_cannot_be_reached_is_said_in_the_words_of_the_system(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_network_that_cannot_be_reached_is_said_in_the_words_of_the_system(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     async def unreachable(host: str, port: int) -> None:
         raise OSError(errno.ENETUNREACH, "Network is unreachable")
 

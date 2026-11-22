@@ -2,6 +2,7 @@
 
 `Facts` is what the gatherers found (any part may be missing, as the computer may be in trouble);
 `summary_text` lays it out. No file is read here."""
+
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -22,7 +23,9 @@ MAX_GROUPS = 25
 MAX_MESSAGE = 240
 # Web server requests for optional files that may be absent (base map, icon, map fonts); they are
 # left out of the problem list, not of the log.
-OPTIONAL_FILE_REQUEST = re.compile(r"^(?:(?:403|404) (?:HEAD|GET) /basemap\S*\.pmtiles|404 (?:HEAD|GET) (?:/favicon\.ico|/fonts/\S*\.pbf))(?:\s|$)")
+OPTIONAL_FILE_REQUEST = re.compile(
+    r"^(?:(?:403|404) (?:HEAD|GET) /basemap\S*\.pmtiles|404 (?:HEAD|GET) (?:/favicon\.ico|/fonts/\S*\.pbf))(?:\s|$)"
+)
 ADDRESS = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b|\[[0-9a-fA-F:]{3,}\](?::\d+)?")
 NUMBER = re.compile(r"0x[0-9a-fA-F]+|\d+(?:\.\d+)*")
 MAX_CHECKS = 8
@@ -32,6 +35,7 @@ NO_DAEMON = "not known: the daemon was not asked (see the log below)"
 @dataclass(frozen=True)
 class Problems:
     """The grouped warning and error lines, the optional-file requests left out, the overflow."""
+
     lines: list[str]
     left_out: int
     more: int
@@ -40,6 +44,7 @@ class Problems:
 @dataclass(frozen=True)
 class DbFacts:
     """The database file as found. `version` is None if it could not be read; `problem` says why."""
+
     version: int | None
     expected: int
     size: int
@@ -62,11 +67,11 @@ class Facts:
     daemon_since: datetime | None = None
     config: Config | None = None
     settings_problem: str = ""
-    live: dict[str, Any] | None = None             # state.json, when the running daemon made the bundle
+    live: dict[str, Any] | None = None  # state.json, when the running daemon made the bundle
     page_url: str = ""
     database: DbFacts | None = None
     problems: Problems = field(default_factory=lambda: Problems([], 0, 0))
-    checks: str = ""                               # doctor.txt, when it could be made
+    checks: str = ""  # doctor.txt, when it could be made
     # Why the stored radios could not be read; the radios of `config` are then not the station's.
     radios_problem: str = ""
 
@@ -90,7 +95,11 @@ def megabytes(size: int) -> str:
 def _local_time(t: datetime) -> str:
     local = t.astimezone()
     offset = local.strftime("%z")
-    return f"{local:%Y-%m-%d %H:%M:%S} ({local.tzname() or '?'}, UTC{offset[:3]}:{offset[3:]})" if offset else f"{local:%Y-%m-%d %H:%M:%S}"
+    return (
+        f"{local:%Y-%m-%d %H:%M:%S} ({local.tzname() or '?'}, UTC{offset[:3]}:{offset[3:]})"
+        if offset
+        else f"{local:%Y-%m-%d %H:%M:%S}"
+    )
 
 
 def _daemon_line(f: Facts) -> str:
@@ -99,7 +108,11 @@ def _daemon_line(f: Facts) -> str:
     if f.live is not None:
         uptime = f.live.get("daemon", {}).get("uptime_sec")
         since = f.live.get("daemon", {}).get("started_at")
-        return f"running, up {duration(uptime)}" + (f" (since {since})" if since else "") if isinstance(uptime, (int, float)) else "running"
+        return (
+            f"running, up {duration(uptime)}" + (f" (since {since})" if since else "")
+            if isinstance(uptime, (int, float))
+            else "running"
+        )
     if f.daemon_since is not None:
         return f"running, up {duration((f.made_at - f.daemon_since).total_seconds())} (since {stamp(f.daemon_since)}, by its log)"
     return "running (a daemon holds the data folder)"
@@ -116,7 +129,11 @@ def _position(c: Config) -> str:
 def _beacon(f: Facts, c: Config) -> str:
     if not c.beacon_on:
         return "off (interval 0)" + ("" if c.station_transmit else "; receive only")
-    text = f"on, SmartBeaconing (travelling: {c.beacon_travel})" if c.mobile else f"on, every {interval_words(c.beacon_interval_min, c.radios)}"
+    text = (
+        f"on, SmartBeaconing (travelling: {c.beacon_travel})"
+        if c.mobile
+        else f"on, every {interval_words(c.beacon_interval_min, c.radios)}"
+    )
     if not c.station_transmit:
         text += "; receive only: nothing is sent"
     beacon = (f.live or {}).get("beacon")
@@ -150,7 +167,7 @@ def _send_on(f: Facts, c: Config) -> list[tuple[str, str]]:
         return [*rows, ("Objects, bulletins", NO_DAEMON)]
     for kind, label in (("objects", "Object"), ("bulletins", "Bulletin")):
         sets = live.get(kind)
-        for name, ids in (sets.items() if isinstance(sets, dict) else ()):
+        for name, ids in sets.items() if isinstance(sets, dict) else ():
             stored: list[RadioId] = [id for id in ids if isinstance(id, int)] if isinstance(ids, list) else []
             rows.append((f"{label} {name}", _names(in_force_set(stored, specs), specs)))
     return rows
@@ -178,16 +195,36 @@ def _radio(f: Facts, spec: RadioSpec) -> list[tuple[str, str]]:
     found = (entry or {}).get("tnc")
     tnc: dict[str, Any] = found if isinstance(found, dict) else {}
     now = {"Port": tnc.get("path"), "Speed": f"{tnc['baud']} baud" if tnc.get("baud") else None}
-    rows = [("Type", spec.type), ("On", "yes" if spec.enabled else "no"), *((label, now.get(label) or words) for label, words in reached(spec))]
+    rows = [
+        ("Type", spec.type),
+        ("On", "yes" if spec.enabled else "no"),
+        *((label, now.get(label) or words) for label, words in reached(spec)),
+    ]
     if not spec.enabled:
         return rows
     if entry is None:
-        return [*rows, ("State", NO_DAEMON if f.live is None else "not known: the daemon did not run this radio when the bundle was made")]
+        return [
+            *rows,
+            (
+                "State",
+                NO_DAEMON
+                if f.live is None
+                else "not known: the daemon did not run this radio when the bundle was made",
+            ),
+        ]
     rows += _state_rows(tnc)
     cards = entry.get("sound_cards")
     for card in cards or []:
-        ways = " and ".join(w for w, on in (("records", card.get("records")), ("plays", card.get("plays"))) if on) or "neither"
-        rows.append(("Sound card listed", f"{card.get('name')!r}: {ways}{', the system default' if card.get('default') else ''}; {card.get('id')}"))
+        ways = (
+            " and ".join(w for w, on in (("records", card.get("records")), ("plays", card.get("plays"))) if on)
+            or "neither"
+        )
+        rows.append(
+            (
+                "Sound card listed",
+                f"{card.get('name')!r}: {ways}{', the system default' if card.get('default') else ''}; {card.get('id')}",
+            )
+        )
     if is_mercury(spec) and not cards:
         rows.append(("Sound cards listed", "none"))
     return rows
@@ -217,21 +254,30 @@ def _database(db: DbFacts | None) -> str:
     if db.version is None:
         return f"could not be read: {db.problem}"
     note = "" if db.version == db.expected else f"; this NeoAPRS expects {db.expected}"
-    return f"schema version {db.version}{note}, {megabytes(db.size)}" + (f", log file {megabytes(db.wal_size)}" if db.wal_size else "")
+    return f"schema version {db.version}{note}, {megabytes(db.size)}" + (
+        f", log file {megabytes(db.wal_size)}" if db.wal_size else ""
+    )
 
 
 def _checks(doctor_text: str) -> list[tuple[str, str]]:
     """Return the doctor's failing checks and its verdict."""
     lines = [line for line in doctor_text.splitlines() if line.strip()]
     rows = [(line[:5].strip(), line[6:]) for line in lines if line.startswith(("FAIL", "warn"))]
-    return [*rows[:MAX_CHECKS], *([("", f"... and {len(rows) - MAX_CHECKS} more")] if len(rows) > MAX_CHECKS else []), ("Result", lines[-1] if lines else "")]
+    return [
+        *rows[:MAX_CHECKS],
+        *([("", f"... and {len(rows) - MAX_CHECKS} more")] if len(rows) > MAX_CHECKS else []),
+        ("Result", lines[-1] if lines else ""),
+    ]
 
 
 def sections(f: Facts) -> list[Section]:
     install = f.install.kind + (" (a service starts it)" if f.install.service else "")
     local = _local_time(f.made_at)
     what: list[tuple[str, str]] = [
-        ("NeoAPRS", f"{f.version}, installed as {install}" + (f" ({f.install.appimage})" if f.install.appimage else "")),
+        (
+            "NeoAPRS",
+            f"{f.version}, installed as {install}" + (f" ({f.install.appimage})" if f.install.appimage else ""),
+        ),
         ("System", f"{f.system}, {f.machine}"),
         ("Python", f"{f.python}, {'frozen program' if f.frozen else 'not frozen'}"),
         ("Data folder", str(f.data_dir)),
@@ -243,7 +289,16 @@ def sections(f: Facts) -> list[Section]:
         out.append(("Settings", [("Could not be read", f.settings_problem or "no settings were found")]))
     else:
         c = f.config
-        out.append(("Station", [("Call", c.station_call or "(none set: nothing is transmitted)"), ("Position", _position(c)), ("Beacon", _beacon(f, c))]))
+        out.append(
+            (
+                "Station",
+                [
+                    ("Call", c.station_call or "(none set: nothing is transmitted)"),
+                    ("Position", _position(c)),
+                    ("Beacon", _beacon(f, c)),
+                ],
+            )
+        )
         if f.radios_problem:
             out.append(("Radios", [("Could not be read", f"{f.radios_problem} (settings.json says it too)")]))
         else:
@@ -267,11 +322,15 @@ def summary_text(f: Facts) -> str:
         width = max(len(label) for label, _ in rows)
         lines.extend(f"  {label + ':':<{width + 1}} {value}" for label, value in rows)
         lines.append("")
-    lines.append("The warnings and errors of the log, each message once (COUNT× LAST-TIME LEVEL MESSAGE; errors first, then the newest; logs/neoaprs.log has every line):")
+    lines.append(
+        "The warnings and errors of the log, each message once (COUNT× LAST-TIME LEVEL MESSAGE; errors first, then the newest; logs/neoaprs.log has every line):"
+    )
     lines.extend(f"  {line}" for line in f.problems.lines or ["none"])
     if f.problems.more:
         lines.append(f"  ... and {f.problems.more} more messages, older ones")
-    lines.append(f"Left out of this list: {f.problems.left_out} web server request lines for optional files that are not there (the base map, favicon.ico, the map fonts).")
+    lines.append(
+        f"Left out of this list: {f.problems.left_out} web server request lines for optional files that are not there (the base map, favicon.ico, the map fonts)."
+    )
     return "\n".join(lines) + "\n"
 
 
@@ -299,9 +358,16 @@ def problem_groups(log_lines: list[str]) -> Problems:
                 left_out += 1
                 continue
             last = groups.setdefault(message_key(level, message), [0, 0, "", "", "", ""])
-            last[:] = [last[0] + 1, order, when, level, message if len(message) <= MAX_MESSAGE else message[:MAX_MESSAGE - 1] + "…", ""]
+            last[:] = [
+                last[0] + 1,
+                order,
+                when,
+                level,
+                message if len(message) <= MAX_MESSAGE else message[: MAX_MESSAGE - 1] + "…",
+                "",
+            ]
         elif last is not None and line.strip():
-            last[5] = f"    {line.strip()}"                   # keeps only the last following line
+            last[5] = f"    {line.strip()}"  # keeps only the last following line
     ranked = sorted(groups.values(), key=lambda g: (g[3] == "WARNING", -g[1]))
     lines: list[str] = []
     for count, _, when, level, message, exception in ranked[:MAX_GROUPS]:

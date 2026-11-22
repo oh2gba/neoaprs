@@ -7,6 +7,7 @@ The files are committed. A run first checks that icon.svg and favicon.svg match 
     .venv/bin/python scripts/make-icon.py              (needs Pillow)
     .venv/bin/python scripts/make-icon.py --out DIR    the same files under DIR
 """
+
 import argparse
 import math
 import re
@@ -18,22 +19,22 @@ ROOT = Path(__file__).resolve().parent.parent
 PETROL = (10, 42, 61, 255)
 # #a6d7d4: mint, the outer waves.
 MINT = (166, 215, 212, 255)
-WHITE = (255, 255, 255, 255)     # pin and inner waves
+WHITE = (255, 255, 255, 255)  # pin and inner waves
 
 # The drawing, in parts of the tile's side (the SVG's 64 grid).
 TILE_CORNER = 0.2
-PIN_X, PIN_Y, PIN_R = 0.5, 0.42, 0.17    # head centre and radius
+PIN_X, PIN_Y, PIN_R = 0.5, 0.42, 0.17  # head centre and radius
 # Where the head meets the point, in parts of PIN_R.
 PIN_SHOULDER = (0.92, 0.40)
-PIN_TIP = 0.80                   # from the top
-HOLE = 0.42                      # in parts of PIN_R
+PIN_TIP = 0.80  # from the top
+HOLE = 0.42  # in parts of PIN_R
 # Each wave's radius (middle of its stroke) and colour.
 WAVES = ((0.29, WHITE), (0.40, MINT))
 WAVE_WIDTH = 0.05
 WAVE_SPAN = 40
 # Full bleed: the mark at 86 % of the side, 1.4 % below the middle (the maskable safe circle).
 FULL_BLEED_MARK, FULL_BLEED_DROP = 0.86, 0.014
-SCALE = 4                        # drawn 4x then reduced, for smooth edges
+SCALE = 4  # drawn 4x then reduced, for smooth edges
 ICO_SIZES = (16, 24, 32, 48, 64, 128, 256)
 FAVICON_SIZES = (16, 32, 48)
 SVGS = ("ui/public/icons/icon.svg", "site/favicon.svg")
@@ -45,15 +46,22 @@ def hex_of(colour: tuple[int, int, int, int]) -> str:
 
 def svg() -> str:
     """Return the drawing as the SVG files write it, to two decimals."""
+
     def n(x: float) -> str:
         return f"{x * 64:.2f}".rstrip("0").rstrip(".")
+
     cx, cy, r = PIN_X, PIN_Y, PIN_R
     sx, sy = PIN_SHOULDER
     c, s = math.cos(math.radians(WAVE_SPAN)), math.sin(math.radians(WAVE_SPAN))
-    paths = "".join(f'<path d="M{n(cx + w * c)} {n(cy - w * s)}A{n(w)} {n(w)} 0 0 1 {n(cx + w * c)} {n(cy + w * s)}M{n(cx - w * c)} {n(cy + w * s)}A{n(w)} {n(w)} 0 0 1 {n(cx - w * c)} {n(cy - w * s)}" stroke="{hex_of(colour)}"/>' for w, colour in WAVES)
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><rect width="64" height="64" rx="{n(TILE_CORNER)}" fill="{hex_of(PETROL)}"/>'
-            f'<polygon points="{n(cx - r * sx)},{n(cy + r * sy)} {n(cx + r * sx)},{n(cy + r * sy)} {n(cx)},{n(PIN_TIP)}" fill="{hex_of(WHITE)}"/><circle cx="{n(cx)}" cy="{n(cy)}" r="{n(r)}" fill="{hex_of(WHITE)}"/>'
-            f'<circle cx="{n(cx)}" cy="{n(cy)}" r="{n(r * HOLE)}" fill="{hex_of(PETROL)}"/><g fill="none" stroke-width="{n(WAVE_WIDTH)}">{paths}</g></svg>')
+    paths = "".join(
+        f'<path d="M{n(cx + w * c)} {n(cy - w * s)}A{n(w)} {n(w)} 0 0 1 {n(cx + w * c)} {n(cy + w * s)}M{n(cx - w * c)} {n(cy + w * s)}A{n(w)} {n(w)} 0 0 1 {n(cx - w * c)} {n(cy - w * s)}" stroke="{hex_of(colour)}"/>'
+        for w, colour in WAVES
+    )
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><rect width="64" height="64" rx="{n(TILE_CORNER)}" fill="{hex_of(PETROL)}"/>'
+        f'<polygon points="{n(cx - r * sx)},{n(cy + r * sy)} {n(cx + r * sx)},{n(cy + r * sy)} {n(cx)},{n(PIN_TIP)}" fill="{hex_of(WHITE)}"/><circle cx="{n(cx)}" cy="{n(cy)}" r="{n(r)}" fill="{hex_of(WHITE)}"/>'
+        f'<circle cx="{n(cx)}" cy="{n(cy)}" r="{n(r * HOLE)}" fill="{hex_of(PETROL)}"/><g fill="none" stroke-width="{n(WAVE_WIDTH)}">{paths}</g></svg>'
+    )
 
 
 def parts(text: str) -> tuple[list[str], list[float], str]:
@@ -88,6 +96,7 @@ def svg_problems(root: Path = ROOT) -> list[str]:
 def draw(size: int, *, full_bleed: bool = False):
     """Draw the icon at `size` px: a rounded tile (RGBA) or full bleed (RGB)."""
     from PIL import Image, ImageDraw
+
     big = size * SCALE
     image = Image.new("RGBA", (big, big), PETROL if full_bleed else (0, 0, 0, 0))
     d = ImageDraw.Draw(image)
@@ -138,11 +147,18 @@ def write(root: Path) -> list[Path]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--out", default=str(ROOT), help="the folder the files are written under, at the repository's paths; default the repository, %(default)s")
+    parser.add_argument(
+        "--out",
+        default=str(ROOT),
+        help="the folder the files are written under, at the repository's paths; default the repository, %(default)s",
+    )
     args = parser.parse_args()
     problems = svg_problems()
     if problems:
-        print("make-icon: the SVG files are not the drawing of this script; nothing is written:\n  " + "\n  ".join(problems))
+        print(
+            "make-icon: the SVG files are not the drawing of this script; nothing is written:\n  "
+            + "\n  ".join(problems)
+        )
         return 1
     for path in write(Path(args.out)):
         print(f"wrote {path}")

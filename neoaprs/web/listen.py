@@ -1,4 +1,5 @@
 """Choose the port the web server listens on: the configured one, else the next free one."""
+
 import errno
 import logging
 
@@ -9,7 +10,12 @@ log = logging.getLogger("neoaprs.web")
 # Ports tried after the wanted one when it is taken.
 PORT_TRIES = 10
 # Port in use, or not ours to take (Windows reserves some ranges).
-PORT_TAKEN = {errno.EADDRINUSE, errno.EACCES, getattr(errno, "WSAEADDRINUSE", errno.EADDRINUSE), getattr(errno, "WSAEACCES", errno.EACCES)}
+PORT_TAKEN = {
+    errno.EADDRINUSE,
+    errno.EACCES,
+    getattr(errno, "WSAEADDRINUSE", errno.EADDRINUSE),
+    getattr(errno, "WSAEACCES", errno.EACCES),
+}
 
 
 def ports_near(wanted: int) -> list[int]:
@@ -45,7 +51,11 @@ def listen_near(server: LimitedHTTPServer, address: str, wanted: int, kept: int 
         if port is not None:
             log.info("the page stays on port %d, where it was before the restart", kept)
             return None
-        log.warning("port %d, where the page was before the restart, cannot be had (%s): a page that is open there in a browser does not find NeoAPRS again (the app's window follows)", kept, error)
+        log.warning(
+            "port %d, where the page was before the restart, cannot be had (%s): a page that is open there in a browser does not find NeoAPRS again (the app's window follows)",
+            kept,
+            error,
+        )
     port, first = listen_first(server, address, ports_near(wanted))
     if port is None:
         return first

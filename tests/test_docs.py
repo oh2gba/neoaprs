@@ -1,6 +1,7 @@
 """Tests for the documents: docs/development.md mentions what exists, the README is complete, the
 operator manual (docs/manual/) uses plain words, and the generated tables match the code.
 """
+
 import re
 import shutil
 import subprocess
@@ -47,7 +48,9 @@ def test_every_stage_of_scripts_check_is_in_the_table_of_the_development_guide()
     missing = [name for name in stages + extra if f"| `{name}` |" not in DEVELOPMENT]
     assert not missing, f"scripts/check has stages that docs/development.md does not describe: {missing}"
     rows = re.findall(r"^\| `([\w-]+)` \| [^|]*\|$", section(DEVELOPMENT, "### The stages of scripts/check"), re.M)
-    assert rows == stages + extra, "the table of stages is the stages of scripts/check, in order, the ones that run only by name last"
+    assert rows == stages + extra, (
+        "the table of stages is the stages of scripts/check, in order, the ones that run only by name last"
+    )
 
 
 def test_every_top_level_folder_and_file_is_in_the_map_of_the_repository() -> None:
@@ -56,15 +59,23 @@ def test_every_top_level_folder_and_file_is_in_the_map_of_the_repository() -> No
     missing = []
     for name in sorted(entries - {"README.md", ".gitignore"}):
         is_folder = any(p.startswith(name + "/") for p in tracked())
-        if f"`{name}/`" not in map_of_the_folder and f"`{name}`" not in map_of_the_folder and not (is_folder and f"`{name}/" in map_of_the_folder):
+        if (
+            f"`{name}/`" not in map_of_the_folder
+            and f"`{name}`" not in map_of_the_folder
+            and not (is_folder and f"`{name}/" in map_of_the_folder)
+        ):
             missing.append(name)
     assert not missing, f"not in docs/development.md ('What is in the folder'): {missing}"
 
 
 def test_every_folder_of_tests_and_docs_is_in_the_map_of_the_repository() -> None:
     map_of_the_folder = section(DEVELOPMENT, "## What is in the folder")
-    folders = sorted({"/".join(p.split("/")[:2]) for p in tracked() if p.split("/")[0] in ("tests", "docs") and p.count("/") >= 2})
-    missing = [f for f in folders if f"`{f.split('/')[1]}/`" not in map_of_the_folder and f"`{f}/`" not in map_of_the_folder]
+    folders = sorted(
+        {"/".join(p.split("/")[:2]) for p in tracked() if p.split("/")[0] in ("tests", "docs") and p.count("/") >= 2}
+    )
+    missing = [
+        f for f in folders if f"`{f.split('/')[1]}/`" not in map_of_the_folder and f"`{f}/`" not in map_of_the_folder
+    ]
     assert not missing, f"not in the map of docs/development.md: {missing}"
 
 
@@ -83,7 +94,10 @@ def used_variables() -> dict[str, str]:
     found: dict[str, str] = {}
     for rel in tracked():
         path = ROOT / rel
-        if (rel.split("/", 1)[0] in ("neoaprs", "scripts", "tests", "systemd", "packaging") or rel == "ui/vite.config.ts") and rel != "tests/test_docs.py":
+        if (
+            rel.split("/", 1)[0] in ("neoaprs", "scripts", "tests", "systemd", "packaging")
+            or rel == "ui/vite.config.ts"
+        ) and rel != "tests/test_docs.py":
             if path.suffix in ("", ".py", ".sh", ".in", ".service", ".timer", ".ts") and path.is_file():
                 for name in ENVIRONMENT.findall(path.read_text(errors="ignore")):
                     found.setdefault(name, rel)
@@ -91,8 +105,15 @@ def used_variables() -> dict[str, str]:
 
 
 def table_variables() -> set[str]:
-    section = (ROOT / "CONVENTIONS.md").read_text(encoding="utf-8").split("## Environment variables\n", 1)[1].split("\n## ", 1)[0]
-    return {name for row in section.splitlines() if row.startswith("| `") for name in ENVIRONMENT.findall(row.split("|")[1])}
+    section = (
+        (ROOT / "CONVENTIONS.md")
+        .read_text(encoding="utf-8")
+        .split("## Environment variables\n", 1)[1]
+        .split("\n## ", 1)[0]
+    )
+    return {
+        name for row in section.splitlines() if row.startswith("| `") for name in ENVIRONMENT.findall(row.split("|")[1])
+    }
 
 
 def test_every_environment_variable_in_use_is_in_the_one_table_of_the_conventions() -> None:
@@ -120,6 +141,7 @@ def test_the_commands_of_the_readme_and_the_manuals_run_scripts_that_exist() -> 
 
 # ---- the front page: its pictures and links are there, and it names the licence the project has --
 
+
 def test_the_pictures_and_links_of_the_readme_are_files_that_are_there() -> None:
     targets = re.findall(r"\]\(([^)\s]+)\)", README)
     local = [t.split("#", 1)[0] for t in targets if not t.startswith(("http://", "https://", "mailto:", "#"))]
@@ -132,14 +154,19 @@ def test_the_readme_names_the_licence_the_license_file_and_pyproject_have() -> N
     licence = re.search(r'^license = "([^"]+)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8"), re.M)
     assert licence and licence.group(1) in README, "README.md names the licence of pyproject.toml"
     text = (ROOT / "LICENSE").read_text(encoding="utf-8")
-    assert text.startswith("                    GNU GENERAL PUBLIC LICENSE\n                       Version 3, 29 June 2007") and "END OF TERMS AND CONDITIONS" in text
+    assert (
+        text.startswith(
+            "                    GNU GENERAL PUBLIC LICENSE\n                       Version 3, 29 June 2007"
+        )
+        and "END OF TERMS AND CONDITIONS" in text
+    )
     assert licence.group(1).startswith("GPL-3.0")
 
 
 # ---- the documents are kept true: what they name is there ----
 
 PATH_IN_BACKTICKS = re.compile(r"`((?:neoaprs|tests|scripts|docs|systemd)/[\w./-]*[\w])/?`")
-ROADMAPS = {"ROADMAP.md"}                       # a roadmap names what does not exist yet
+ROADMAPS = {"ROADMAP.md"}  # a roadmap names what does not exist yet
 
 
 def current_docs() -> list[str]:
@@ -162,15 +189,30 @@ def names_that_are_not_there(text: str, files: set[str]) -> list[str]:
 def test_every_path_a_current_document_puts_in_backticks_is_in_the_tree() -> None:
     files = set(tracked())
     docs = current_docs()
-    assert {"README.md", "docs/manual/README.md", "docs/development.md", "docs/daemon.md", "docs/ARCHITECTURE.md"} <= set(docs)
-    found = [f"{rel}: {line}" for rel in docs for line in names_that_are_not_there((ROOT / rel).read_text(encoding="utf-8"), files)]
-    assert not found, "documents name files that are not there (bring the text up to date, or move what is planned to ROADMAP.md):\n" + "\n".join(found)
+    assert {
+        "README.md",
+        "docs/manual/README.md",
+        "docs/development.md",
+        "docs/daemon.md",
+        "docs/ARCHITECTURE.md",
+    } <= set(docs)
+    found = [
+        f"{rel}: {line}"
+        for rel in docs
+        for line in names_that_are_not_there((ROOT / rel).read_text(encoding="utf-8"), files)
+    ]
+    assert not found, (
+        "documents name files that are not there (bring the text up to date, or move what is planned to ROADMAP.md):\n"
+        + "\n".join(found)
+    )
 
 
 def test_a_path_that_is_not_there_is_found_and_a_pattern_is_not() -> None:
     files = {"neoaprs/clock.py", "tests/test_x.py"}
     text = "`neoaprs/clock.py` and `tests/` are there; `neoaprs/gone.py` is not.\n`neoaprs/web/*` and `tests/support/*.py` are patterns.\n"
-    assert names_that_are_not_there(text, files) == ["neoaprs/gone.py: `neoaprs/clock.py` and `tests/` are there; `neoaprs/gone.py` is not."]
+    assert names_that_are_not_there(text, files) == [
+        "neoaprs/gone.py: `neoaprs/clock.py` and `tests/` are there; `neoaprs/gone.py` is not."
+    ]
 
 
 def operator_docs() -> dict[str, str]:
@@ -203,10 +245,17 @@ def test_the_tables_of_the_architecture_document_are_the_data_of_the_architectur
 
 
 def test_the_architecture_document_names_every_part_the_composition_root_makes() -> None:
-    attributes = re.findall(r"^        self\.(\w+)\b.*?=", (ROOT / "neoaprs" / "app.py").read_text(encoding="utf-8"), re.M)
+    attributes = re.findall(
+        r"^        self\.(\w+)\b.*?=", (ROOT / "neoaprs" / "app.py").read_text(encoding="utf-8"), re.M
+    )
     parts = [a for a in attributes if a not in ("running", "debug", "clock", "data_dir")]
     assert len(parts) >= 3
-    missing = [a for a in parts if f"`{a}`" not in ARCHITECTURE.read_text(encoding="utf-8") and f"(`{a}`)" not in ARCHITECTURE.read_text(encoding="utf-8")]
+    missing = [
+        a
+        for a in parts
+        if f"`{a}`" not in ARCHITECTURE.read_text(encoding="utf-8")
+        and f"(`{a}`)" not in ARCHITECTURE.read_text(encoding="utf-8")
+    ]
     assert not missing, f"docs/ARCHITECTURE.md ('The composition root') does not name {missing}"
 
 
@@ -248,8 +297,16 @@ def test_a_paragraph_is_found_and_a_table_and_a_code_block_are_not() -> None:
 
 
 def test_no_paragraph_of_the_manual_is_long() -> None:
-    long = [f"{name}: {len(p)} characters: {p[:70]}..." for name, text in operator_docs().items() for p in paragraphs(text) if len(p) > PARAGRAPH_MAX]
-    assert not long, f"split these into shorter paragraphs or a list (at most {PARAGRAPH_MAX} characters, tables and code blocks apart):\n" + "\n".join(long)
+    long = [
+        f"{name}: {len(p)} characters: {p[:70]}..."
+        for name, text in operator_docs().items()
+        for p in paragraphs(text)
+        if len(p) > PARAGRAPH_MAX
+    ]
+    assert not long, (
+        f"split these into shorter paragraphs or a list (at most {PARAGRAPH_MAX} characters, tables and code blocks apart):\n"
+        + "\n".join(long)
+    )
 
 
 VERSION_LITERAL = re.compile(r"(?<![\d.])\d+\.\d+\.\d+(?![\d.])")
@@ -266,17 +323,26 @@ def test_the_manual_names_no_version_number() -> None:
 KEYS_OF_BEFORE = sorted({key for key, setting in BY_KEY.items() if setting.attr in FLAT_HOMES} | {"tnc/enter_kiss"})
 
 
-def test_the_manual_names_a_radios_setting_by_its_own_key_and_a_key_of_before_only_where_it_says_it_is_none_any_more() -> None:
+def test_the_manual_names_a_radios_setting_by_its_own_key_and_a_key_of_before_only_where_it_says_it_is_none_any_more() -> (
+    None
+):
     """`neoaprs db set` refuses an old flat key of a radio's setting (`tnc/profile`, `serial/port`,
     `beacon/path`, `digi/enabled` ...): the manual names the radio's own key (`radio/<id>/path`) or
     its type, and an old key only in the paragraph that says they are no settings any more."""
-    found = [f"{name}: `{key}` in {p[:70]}..." for name, text in operator_docs().items() for p in paragraphs(text) + [line for line in text.splitlines() if line.startswith("|")]
-             for key in KEYS_OF_BEFORE if f"`{key}`" in p and "are no settings any more" not in p]
+    found = [
+        f"{name}: `{key}` in {p[:70]}..."
+        for name, text in operator_docs().items()
+        for p in paragraphs(text) + [line for line in text.splitlines() if line.startswith("|")]
+        for key in KEYS_OF_BEFORE
+        if f"`{key}`" in p and "are no settings any more" not in p
+    ]
     assert not found, "name the radio's own key, radio/<id>/<key>, or its type:\n" + "\n".join(found)
 
 
-ALLOWED_NAMES = {"neoaprs.service"}       # (the unit's file name is something an operator may see)
-CODE_NAMES = re.compile(r"\buse[A-Z]\w*|\b\w+\.(?:vue|ts|py|js)\b|`(?:neoaprs|ui|tests|scripts)/[^`]*`|\b[a-z]+[A-Z]\w*\(")
+ALLOWED_NAMES = {"neoaprs.service"}  # (the unit's file name is something an operator may see)
+CODE_NAMES = re.compile(
+    r"\buse[A-Z]\w*|\b\w+\.(?:vue|ts|py|js)\b|`(?:neoaprs|ui|tests|scripts)/[^`]*`|\b[a-z]+[A-Z]\w*\("
+)
 
 
 def test_the_manual_names_no_component_composable_function_or_source_file() -> None:
@@ -294,7 +360,12 @@ def test_the_manual_gives_the_taps_that_put_the_page_on_a_phones_home_screen_in_
     of the manual links there instead of telling them in other words."""
     on_a_phone = section(operator_docs()["network.md"], "### On a phone")
     assert re.search(r"add to home screen", on_a_phone, re.I)
-    elsewhere = [f"{name}: {line[:70]}" for name, text in operator_docs().items() for line in text.splitlines() if re.search(r"add to home screen", line, re.I) and line not in on_a_phone]
+    elsewhere = [
+        f"{name}: {line[:70]}"
+        for name, text in operator_docs().items()
+        for line in text.splitlines()
+        if re.search(r"add to home screen", line, re.I) and line not in on_a_phone
+    ]
     assert not elsewhere, f"link to network.md#on-a-phone instead: {elsewhere}"
 
 
@@ -310,25 +381,41 @@ def test_the_manual_and_the_readme_say_of_the_sound_card_type_what_the_program_o
 
     name = catalogue_text("radio", "radio.type.direwolf")
     sound = section(operator_docs()["radio.md"], "### Sound card")
-    assert f"*{name}*" in sound and f"from {TX_GAIN_MIN_DB} to {TX_GAIN_MAX_DB} dB" in sound, "the type by the page's name, and its transmit level's range"
+    assert f"*{name}*" in sound and f"from {TX_GAIN_MIN_DB} to {TX_GAIN_MAX_DB} dB" in sound, (
+        "the type by the page's name, and its transmit level's range"
+    )
     assert type_of("direwolf").systems == {"linux", "win32"} and unavailable_types("darwin") == ("direwolf",)
     assert "On Windows and Linux NeoAPRS carries Direwolf" in sound and f"On a Mac there is no *{name}* type" in sound
-    assert "on Windows and Linux Direwolf" in README and "Direwolf by John Langner, WB2OSZ (GPL-2.0-or-later)" in README, "the downloads that carry it, and its credit"
-    assert "and all but the Mac's also carry Direwolf for an FM radio on a sound card" in operator_docs()["install.md"], "the downloads that carry it, the Mac's alone without"
+    assert (
+        "on Windows and Linux Direwolf" in README and "Direwolf by John Langner, WB2OSZ (GPL-2.0-or-later)" in README
+    ), "the downloads that carry it, and its credit"
+    assert (
+        "and all but the Mac's also carry Direwolf for an FM radio on a sound card" in operator_docs()["install.md"]
+    ), "the downloads that carry it, the Mac's alone without"
 
 
-def test_the_manual_names_the_phone_code_by_the_pages_words_and_the_windows_window_by_the_shell_the_program_chooses() -> None:
+def test_the_manual_names_the_phone_code_by_the_pages_words_and_the_windows_window_by_the_shell_the_program_chooses() -> (
+    None
+):
     from neoaprs.desktop import shell
 
     network = operator_docs()["network.md"]
     label = catalogue_text("phone", "phone.code.label")
-    assert f"- **{label}**: a code" in network and "### On a phone" in network, "the row of Settings, Web page, as the page calls it"
+    assert f"- **{label}**: a code" in network and "### On a phone" in network, (
+        "the row of Settings, Web page, as the page calls it"
+    )
     everything = lambda name: object()  # noqa: E731  (every toolkit imports)
     assert shell.choose("win32", everything, runtime=lambda: True, environ={}).module == shell.WEB_SHELL
-    assert shell.choose("linux", everything, environ={}).module == shell.choose("darwin", everything, environ={}).module == "neoaprs.desktop.qtshell", "the web window elsewhere is a trial that is off"
+    assert (
+        shell.choose("linux", everything, environ={}).module
+        == shell.choose("darwin", everything, environ={}).module
+        == "neoaprs.desktop.qtshell"
+    ), "the web window elsewhere is a trial that is off"
     toolkit = section(operator_docs()["desktop.md"], "## Which toolkit")
     assert "**Windows:** pywebview, which uses the Edge engine" in toolkit and "**Linux and macOS:** Qt" in toolkit
-    assert not [name for name, text in operator_docs().items() if shell.WINDOW_SWITCH in text], "the trial's switch is not the operator's"
+    assert not [name for name, text in operator_docs().items() if shell.WINDOW_SWITCH in text], (
+        "the trial's switch is not the operator's"
+    )
 
 
 def test_the_contents_of_the_manual_list_every_file_of_it() -> None:
@@ -341,7 +428,10 @@ def heading_anchors(text: str) -> set[str]:
     """The anchors GitHub makes of the headings of a Markdown text (outside code blocks): lower
     case, punctuation gone, blanks to hyphens."""
     outside_code = re.sub(r"```.*?```", "", text, flags=re.S)
-    return {re.sub(r"[^\w -]", "", h.replace("`", "").lower()).replace(" ", "-") for h in re.findall(r"^#+ (.+)$", outside_code, re.M)}
+    return {
+        re.sub(r"[^\w -]", "", h.replace("`", "").lower()).replace(" ", "-")
+        for h in re.findall(r"^#+ (.+)$", outside_code, re.M)
+    }
 
 
 def test_a_link_to_a_heading_of_a_document_goes_to_a_heading_that_is_there() -> None:
@@ -361,20 +451,28 @@ SETTINGS_DOC = MANUAL_DIR / "settings.md"
 
 def test_the_table_of_settings_is_made_from_the_settings_of_the_program() -> None:
     stale = settingsdoc.stale_blocks(SETTINGS_DOC.read_text(encoding="utf-8"))
-    assert stale == [], f"docs/manual/settings.md: out of date: {stale}; run  .venv/bin/python scripts/doc-settings --write"
+    assert stale == [], (
+        f"docs/manual/settings.md: out of date: {stale}; run  .venv/bin/python scripts/doc-settings --write"
+    )
 
 
 def test_every_setting_has_its_words_and_no_words_are_left_for_a_setting_that_is_gone() -> None:
-    assert settingsdoc.undescribed() == [], "tests/support/settingsdoc.py: DESCRIPTIONS and the settings (neoaprs/cli/radiosettings.py SHOWN_KEYS) differ"
+    assert settingsdoc.undescribed() == [], (
+        "tests/support/settingsdoc.py: DESCRIPTIONS and the settings (neoaprs/cli/radiosettings.py SHOWN_KEYS) differ"
+    )
     rows = settingsdoc.blocks_of(SETTINGS_DOC.read_text(encoding="utf-8"))["settings"].count("\n| `")
-    assert rows == len(settingsdoc.SHOWN_KEYS), "a row for every setting the command line shows (a radio's own are the radios' table)"
+    assert rows == len(settingsdoc.SHOWN_KEYS), (
+        "a row for every setting the command line shows (a radio's own are the radios' table)"
+    )
 
 
 def test_the_settings_the_table_says_only_the_command_line_changes_are_the_ones_the_page_does_not_show() -> None:
     """ui/src/lib/settings.ts has the list (NOT_ON_THE_PAGE); the table says `neoaprs db set` only
     for the same keys."""
     source = (ROOT / "ui" / "src" / "lib" / "settings.ts").read_text(encoding="utf-8")
-    hidden = set(re.findall(r'"([a-z_]+/[a-z_]+)"', re.search(r"NOT_ON_THE_PAGE[^=]*=\s*\[(.*?)\]", source, re.S).group(1)))  # type: ignore[union-attr]
+    hidden = set(
+        re.findall(r'"([a-z_]+/[a-z_]+)"', re.search(r"NOT_ON_THE_PAGE[^=]*=\s*\[(.*?)\]", source, re.S).group(1))
+    )  # type: ignore[union-attr]
     said = {key for key, (where, _) in settingsdoc.DESCRIPTIONS.items() if where == settingsdoc.DB_ONLY}
     hidden_settings = hidden & set(settingsdoc.cfg.KEYS)
     assert said == hidden_settings, f"the page hides {sorted(hidden_settings)}, the table says {sorted(said)}"

@@ -2,6 +2,7 @@
 that goes away and returns, and where the radio is not searched for, an adapter that returns as
 another COM port.
 """
+
 import logging
 import threading
 from types import SimpleNamespace
@@ -38,24 +39,33 @@ def no_search(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def usb(device: str, serial: str = "", ids: tuple[int, int] = FTDI) -> PortInfo:
-    return PortInfo(device, "USB Serial Port", f"USB VID:PID={ids[0]:04X}:{ids[1]:04X}" + (f" SER={serial}" if serial else " LOCATION=1-2"), ids[0], ids[1])
+    return PortInfo(
+        device,
+        "USB Serial Port",
+        f"USB VID:PID={ids[0]:04X}:{ids[1]:04X}" + (f" SER={serial}" if serial else " LOCATION=1-2"),
+        ids[0],
+        ids[1],
+    )
 
 
 # ---- a silent radio
+
 
 @stops_rigs
 async def test_a_silent_radio_that_is_switched_on_is_connected_again_without_a_click(rig: Rigs) -> None:
     r, _ = await silent_rig(rig)
     assert r.tnc.state is Source.State.SILENT and r.tnc.usable is False
-    r.radio.feed(kiss_of(ui_frame()))                              # the radio is switched on and sends a packet
+    r.radio.feed(kiss_of(ui_frame()))  # the radio is switched on and sends a packet
     await until(lambda: r.tnc.state is Source.State.CONNECTED and r.tnc.usable, 3.0)
-    assert len(r.packets) == 1 and r.tnc.silent_since is None and r.tnc.stats.opens == 1, "the same open line: nothing was restarted"
+    assert len(r.packets) == 1 and r.tnc.silent_since is None and r.tnc.stats.opens == 1, (
+        "the same open line: nothing was restarted"
+    )
 
 
 @stops_rigs
 async def test_a_silent_radio_whose_adapter_was_plugged_in_again_is_connected_again_without_a_click(rig: Rigs) -> None:
     r, _ = await silent_rig(rig, probe_sec=0.05)
-    r.radio.drop()                                                 # the cable is pulled while the radio is silent
+    r.radio.drop()  # the cable is pulled while the radio is silent
     await until(lambda: r.tnc.state is Source.State.WAITING)
     # The radio listens still: the adapter is back
     await until(lambda: r.tnc.state in (Source.State.CONNECTED, Source.State.SILENT) and r.tnc.stats.opens == 2, 5.0)
@@ -64,6 +74,7 @@ async def test_a_silent_radio_whose_adapter_was_plugged_in_again_is_connected_ag
 
 
 # ---- a port that goes away and comes back
+
 
 @pytest.mark.usefixtures("no_search")
 async def test_a_com_port_that_goes_away_and_comes_back_is_opened_again_where_nothing_is_searched() -> None:
@@ -81,7 +92,7 @@ async def test_a_com_port_that_goes_away_and_comes_back_is_opened_again_where_no
         radio.drop()
         await until(lambda: tnc.state is Source.State.WAITING)
         assert "lost" in (tnc.last_error or "")
-        await radio.accept()                                       # and plugged in: the same name
+        await radio.accept()  # and plugged in: the same name
         await until(lambda: tnc.state is Source.State.CONNECTED and tnc.stats.opens == 2)
         radio.feed(kiss_of(ui_frame()))
         await until(lambda: len(packets) == 1)
@@ -91,6 +102,7 @@ async def test_a_com_port_that_goes_away_and_comes_back_is_opened_again_where_no
 
 
 # ---- an adapter that comes back as another port
+
 
 class TwoAdapters:
     """The system's list of ports, which a test changes: the radio is on the first fake radio's
@@ -111,7 +123,9 @@ class TwoAdapters:
 
 @pytest.mark.usefixtures("no_search")
 @pytest.mark.parametrize("serial", ["A50285BI", ""])
-async def test_an_adapter_that_comes_back_as_another_port_is_followed_to_it(monkeypatch: pytest.MonkeyPatch, serial: str) -> None:
+async def test_an_adapter_that_comes_back_as_another_port_is_followed_to_it(
+    monkeypatch: pytest.MonkeyPatch, serial: str
+) -> None:
     first, second = FakeRadio(), FakeRadio()
     await first.start()
     await second.start()
@@ -126,7 +140,7 @@ async def test_an_adapter_that_comes_back_as_another_port_is_followed_to_it(monk
         assert tnc.path == first.url
         # The adapter is learnt a moment after the port opens
         await until(lambda: tnc._follow.knows(first.url))
-        ports.move()                                                # COM5 is gone, the adapter is COM7 now
+        ports.move()  # COM5 is gone, the adapter is COM7 now
         await until(lambda: tnc.state is Source.State.CONNECTED and tnc.path == second.url)
         assert tnc.port == first.url, "the setting is not changed: the adapter is what is followed"
         assert any("is gone; the adapter is on" in line for line in tnc.lines)
@@ -140,7 +154,9 @@ async def test_an_adapter_that_comes_back_as_another_port_is_followed_to_it(monk
 
 
 @pytest.mark.usefixtures("no_search")
-async def test_an_adapter_without_a_serial_number_is_not_followed_when_two_ports_look_alike_and_the_operator_chooses(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_an_adapter_without_a_serial_number_is_not_followed_when_two_ports_look_alike_and_the_operator_chooses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     first, second, third = FakeRadio(), FakeRadio(), FakeRadio()
     for radio in (first, second, third):
         await radio.start()
@@ -155,7 +171,7 @@ async def test_an_adapter_without_a_serial_number_is_not_followed_when_two_ports
         # Another adapter of the same kind: which one is the radio?
         ports.listed.append(usb(third.url))
         await until(lambda: tnc.state is Source.State.WAITING and tnc.stats.opens == 1)
-        await idle_for(0.4)                                         # (several tries)
+        await idle_for(0.4)  # (several tries)
         assert tnc.stats.opens == 1 and second.connections == 0 and third.connections == 0
     finally:
         await tnc.stop()
@@ -163,8 +179,14 @@ async def test_an_adapter_without_a_serial_number_is_not_followed_when_two_ports
             await radio.aclose()
 
 
-def test_the_adapter_is_told_by_its_serial_number_and_a_port_that_is_still_listed_is_not_replaced(monkeypatch: pytest.MonkeyPatch) -> None:
-    ports = [usb("COM5", "AAA"), usb("COM6", "BBB"), PortInfo("COM1", "Communications Port", "ACPI\\PNP0501", None, None)]
+def test_the_adapter_is_told_by_its_serial_number_and_a_port_that_is_still_listed_is_not_replaced(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ports = [
+        usb("COM5", "AAA"),
+        usb("COM6", "BBB"),
+        PortInfo("COM1", "Communications Port", "ACPI\\PNP0501", None, None),
+    ]
     monkeypatch.setattr(serialprobe, "available_ports", lambda: list(ports))
     assert serialprobe.identity_of("COM6") == AdapterId(*FTDI, "BBB")
     assert serialprobe.identity_of("COM1") is None and serialprobe.identity_of("COM9") is None
@@ -176,7 +198,9 @@ def test_the_adapter_is_told_by_its_serial_number_and_a_port_that_is_still_liste
     assert serialprobe.moved_to(None, "COM6") is None
 
 
-def test_an_adapter_with_no_serial_number_is_followed_only_when_it_is_the_one_of_its_kind(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_an_adapter_with_no_serial_number_is_followed_only_when_it_is_the_one_of_its_kind(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     ports = [usb("COM7", ids=(0x1A86, 0x7523))]
     monkeypatch.setattr(serialprobe, "available_ports", lambda: list(ports))
     adapter = AdapterId(0x1A86, 0x7523, "")
@@ -187,7 +211,9 @@ def test_an_adapter_with_no_serial_number_is_followed_only_when_it_is_the_one_of
     assert serialprobe.moved_to(adapter, "COM5") is None, "an adapter that has a serial number is another one"
 
 
-async def test_where_the_radio_is_searched_for_the_adapter_is_not_followed_by_name(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_where_the_radio_is_searched_for_the_adapter_is_not_followed_by_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(serialprobe, "available_ports", lambda: [usb("/dev/ttyUSB0", "AAA")])
     monkeypatch.setattr(serialprobe, "sys", SimpleNamespace(platform="linux"))
     follow = AdapterFollow()
@@ -210,7 +236,10 @@ async def test_where_the_radio_is_searched_for_the_adapter_is_not_followed_by_na
 
 # ---- the adapter is the named port's, and is identified after the line is the Tnc's
 
-async def test_a_port_the_operator_names_instead_is_not_the_adapter_that_was_remembered(monkeypatch: pytest.MonkeyPatch) -> None:
+
+async def test_a_port_the_operator_names_instead_is_not_the_adapter_that_was_remembered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(serialprobe, "sys", SimpleNamespace(platform="win32"))
     monkeypatch.setattr(serialprobe, "available_ports", lambda: [usb("COM3", "AAA")])
     follow = AdapterFollow()
@@ -232,7 +261,9 @@ async def test_a_port_the_operator_names_instead_is_not_the_adapter_that_was_rem
     monkeypatch.setattr(serialprobe, "available_ports", lambda: [usb("COM4", "AAA")])
     present.clear()
     present.add("COM4")
-    assert await follow.open("COM3", True, opener, print) == ("COM4", "COM4"), "the port that was named when the adapter was learnt is still followed"
+    assert await follow.open("COM3", True, opener, print) == ("COM4", "COM4"), (
+        "the port that was named when the adapter was learnt is still followed"
+    )
 
 
 @pytest.mark.usefixtures("no_search")
@@ -245,9 +276,9 @@ async def test_a_changed_port_setting_never_opens_the_old_radios_port_again(monk
     try:
         await tnc.start()
         await first.connected()
-        await until(lambda: tnc._follow._adapter is not None)               # (learnt after the line was open)
+        await until(lambda: tnc._follow._adapter is not None)  # (learnt after the line was open)
         await tnc.stop()
-        second.refuse()                                                    # the other radio's cable is not plugged in
+        second.refuse()  # the other radio's cable is not plugged in
         tnc.port = second.url
         await tnc.start()
         await until(lambda: tnc.state is Source.State.WAITING)
@@ -287,19 +318,23 @@ class Identifying:
         return None
 
 
-async def test_a_stop_while_the_adapter_is_identified_leaves_no_port_open(ports: FakePorts, identifying: Identifying) -> None:
+async def test_a_stop_while_the_adapter_is_identified_leaves_no_port_open(
+    ports: FakePorts, identifying: Identifying
+) -> None:
     tnc = Tnc("COM3", backoff=tiny_backoff(), fallback_probe=False, check_sec=0.0)
     try:
         await tnc.start()
         assert tnc.state is Source.State.CONNECTED, "the line is the Tnc's before anyone looks for its adapter"
-        await until(identifying.started.is_set)                             # (the system's list is being read)
+        await until(identifying.started.is_set)  # (the system's list is being read)
         await tnc.stop()
         assert not ports.port.is_open and tnc.state is Source.State.STOPPED
     finally:
         identifying.go.set()
 
 
-async def test_a_line_that_is_open_is_heard_while_the_adapter_is_identified(ports: FakePorts, identifying: Identifying) -> None:
+async def test_a_line_that_is_open_is_heard_while_the_adapter_is_identified(
+    ports: FakePorts, identifying: Identifying
+) -> None:
     tnc = Tnc("COM3", backoff=tiny_backoff(), fallback_probe=False, check_sec=0.0)
     packets = []
     tnc.packet.connect(packets.append)
@@ -314,7 +349,12 @@ async def test_a_line_that_is_open_is_heard_while_the_adapter_is_identified(port
 
 
 async def test_a_port_that_cannot_be_an_adapter_is_not_asked_about(ports: FakePorts, identifying: Identifying) -> None:
-    for path in ("socket://127.0.0.1:8001", "tcp://127.0.0.1:8001", "bt://AA:BB:CC:DD:EE:FF", "ble://AA:BB:CC:DD:EE:FF"):
+    for path in (
+        "socket://127.0.0.1:8001",
+        "tcp://127.0.0.1:8001",
+        "bt://AA:BB:CC:DD:EE:FF",
+        "ble://AA:BB:CC:DD:EE:FF",
+    ):
         assert AdapterFollow().following(path, True) is False
     assert AdapterFollow().following("COM3", True) is True and AdapterFollow().following("COM3", False) is False
     tnc = Tnc("socket://127.0.0.1:8001", backoff=tiny_backoff(), fallback_probe=False, check_sec=0.0)
@@ -327,7 +367,9 @@ async def test_a_port_that_cannot_be_an_adapter_is_not_asked_about(ports: FakePo
         await tnc.stop()
 
 
-async def test_an_adapter_is_not_followed_to_a_port_another_radio_holds_or_is_set_to(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+async def test_an_adapter_is_not_followed_to_a_port_another_radio_holds_or_is_set_to(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     # Windows, macOS: the named port's adapter is followed
     monkeypatch.setattr(serialprobe, "can_search", lambda: False)
     monkeypatch.setattr(serialprobe, "identity_of", lambda path: AdapterId(0x0403, 0x6001, ""))
@@ -346,12 +388,20 @@ async def test_an_adapter_is_not_followed_to_a_port_another_radio_holds_or_is_se
     await follow.remember("COM5", "COM5")
     with pytest.raises(SerialError, match="COM5: not there"):
         await follow.open("COM5", True, opener, lambda text: None, lambda path: "held by FM" if path == "COM7" else "")
-    assert opened == ["COM5"] and "FM 2: COM5 is gone; an adapter like it is on COM7, which is left alone: held by FM" in caplog.text
-    assert await follow.open("COM5", True, opener, lambda text: None) == ("COM7", "COM7") and "FM 2: COM5 is gone; the adapter is on COM7" in caplog.text
+    assert (
+        opened == ["COM5"]
+        and "FM 2: COM5 is gone; an adapter like it is on COM7, which is left alone: held by FM" in caplog.text
+    )
+    assert (
+        await follow.open("COM5", True, opener, lambda text: None) == ("COM7", "COM7")
+        and "FM 2: COM5 is gone; the adapter is on COM7" in caplog.text
+    )
 
 
 @pytest.mark.usefixtures("no_search")
-async def test_the_radios_line_follows_its_adapter_to_no_port_another_radio_is_set_to(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+async def test_the_radios_line_follows_its_adapter_to_no_port_another_radio_is_set_to(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.INFO, "neoaprs")
     first, second = FakeRadio(), FakeRadio()
     await first.start()
@@ -361,7 +411,7 @@ async def test_the_radios_line_follows_its_adapter_to_no_port_another_radio_is_s
     # The fake radios' sockets stand for COM ports: each is a device of the station's table
     monkeypatch.setattr(serialprobe, "claim_value", lambda path: path)
     claims = Claims()
-    claims.named, claims.name_of = lambda: (Claim("serial", second.url, 1),), {1: "FM"}.get     # type: ignore[assignment]   # (radio 1 is set to the port the adapter comes back on)
+    claims.named, claims.name_of = lambda: (Claim("serial", second.url, 1),), {1: "FM"}.get  # type: ignore[assignment]   # (radio 1 is set to the port the adapter comes back on)
     tnc = Tnc(first.url, backoff=tiny_backoff(), fallback_probe=True, claims=claims)
     tnc.radio_id = 3
     try:
@@ -371,7 +421,9 @@ async def test_the_radios_line_follows_its_adapter_to_no_port_another_radio_is_s
         ports.move()
         await until(lambda: f"is on {second.url}, which is left alone: held by FM" in caplog.text)
         await idle_for(0.3)
-        assert tnc.state is not Source.State.CONNECTED and tnc.path != second.url and second.connections == 0, "the line stays with its own port"
+        assert tnc.state is not Source.State.CONNECTED and tnc.path != second.url and second.connections == 0, (
+            "the line stays with its own port"
+        )
     finally:
         await tnc.stop()
         await first.aclose()

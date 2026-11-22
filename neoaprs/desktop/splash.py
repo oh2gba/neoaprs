@@ -2,6 +2,7 @@
 
 It needs only user32 and gdi32 through ctypes, so it shows before anything heavy is imported.
 It goes when the real window shows (`done`) or after LIMIT_SEC; elsewhere nothing is shown."""
+
 import os
 import sys
 import threading
@@ -17,7 +18,17 @@ LIMIT_SEC = 15.0  # it never stays longer than this, whatever the app does
 
 # The app's options (a copy of cmd.parser's, kept equal by tests/test_desktop_splash.py): whether
 # each takes a value. NO_WINDOW lists those that mean no window now.
-OPTIONS = {"--data": True, "--tray": False, "--quit": False, "--timeout": True, "--debug": False, "--encryption": False, "--owns-daemon": False, "--help": False, "-h": False}
+OPTIONS = {
+    "--data": True,
+    "--tray": False,
+    "--quit": False,
+    "--timeout": True,
+    "--debug": False,
+    "--encryption": False,
+    "--owns-daemon": False,
+    "--help": False,
+    "-h": False,
+}
 NO_WINDOW = ("--tray", "--quit", "--help", "-h")
 # The files of the app that holds a data folder (single.py).
 PORT_NAME, PID_NAME = "neoaprs-app.port", "neoaprs-app.pid"
@@ -27,7 +38,11 @@ def option(arg: str) -> str | None:
     """Return the option an argument names as argparse reads it, else None."""
     if arg in OPTIONS:
         return arg
-    found = [name for name in OPTIONS if name.startswith("--") and arg.startswith("--") and len(arg) > 2 and name.startswith(arg)]
+    found = [
+        name
+        for name in OPTIONS
+        if name.startswith("--") and arg.startswith("--") and len(arg) > 2 and name.startswith(arg)
+    ]
     return found[0] if len(found) == 1 else None
 
 
@@ -181,6 +196,7 @@ def done() -> None:
 def _gave_up() -> None:
     """Log why there is no splash (logging is imported only now, to keep start-up light)."""
     import logging
+
     logging.getLogger("neoaprs.desktop").warning("splash: it could not be made", exc_info=True)
 
 
@@ -205,24 +221,76 @@ if sys.platform == "win32":
     P = ctypes.c_void_p
 
     class WNDCLASSW(ctypes.Structure):
-        _fields_ = [("style", wintypes.UINT), ("lpfnWndProc", WNDPROC), ("cbClsExtra", ctypes.c_int), ("cbWndExtra", ctypes.c_int), ("hInstance", P), ("hIcon", P), ("hCursor", P), ("hbrBackground", P),
-                    ("lpszMenuName", wintypes.LPCWSTR), ("lpszClassName", wintypes.LPCWSTR)]
+        _fields_ = [
+            ("style", wintypes.UINT),
+            ("lpfnWndProc", WNDPROC),
+            ("cbClsExtra", ctypes.c_int),
+            ("cbWndExtra", ctypes.c_int),
+            ("hInstance", P),
+            ("hIcon", P),
+            ("hCursor", P),
+            ("hbrBackground", P),
+            ("lpszMenuName", wintypes.LPCWSTR),
+            ("lpszClassName", wintypes.LPCWSTR),
+        ]
 
     class PAINTSTRUCT(ctypes.Structure):
-        _fields_ = [("hdc", P), ("fErase", wintypes.BOOL), ("rcPaint", wintypes.RECT), ("fRestore", wintypes.BOOL), ("fIncUpdate", wintypes.BOOL), ("rgbReserved", ctypes.c_byte * 32)]
+        _fields_ = [
+            ("hdc", P),
+            ("fErase", wintypes.BOOL),
+            ("rcPaint", wintypes.RECT),
+            ("fRestore", wintypes.BOOL),
+            ("fIncUpdate", wintypes.BOOL),
+            ("rgbReserved", ctypes.c_byte * 32),
+        ]
 
     # Each call's result and argument types, on this module's own library objects (ctypes.windll is
     # shared with pywebview and pystray, which set other argument types on some of them).
-    USER32: dict[str, tuple[object, ...]] = {"SetThreadDpiAwarenessContext": (P, P), "GetDpiForSystem": (wintypes.UINT,), "SystemParametersInfoW": (wintypes.BOOL, wintypes.UINT, wintypes.UINT, P, wintypes.UINT),
-              "LoadCursorW": (P, P, P), "RegisterClassW": (wintypes.ATOM, P), "UnregisterClassW": (wintypes.BOOL, wintypes.LPCWSTR, P),
-              "CreateWindowExW": (P, wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, P, P, P, P),
-              "ShowWindow": (wintypes.BOOL, P, ctypes.c_int), "UpdateWindow": (wintypes.BOOL, P), "DestroyWindow": (wintypes.BOOL, P), "SetTimer": (ctypes.c_size_t, P, ctypes.c_size_t, wintypes.UINT, P),
-              "GetMessageW": (wintypes.BOOL, P, P, wintypes.UINT, wintypes.UINT), "TranslateMessage": (wintypes.BOOL, P), "DispatchMessageW": (LRESULT, P),
-              "DefWindowProcW": (LRESULT, P, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM), "PostMessageW": (wintypes.BOOL, P, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM),
-              "PostQuitMessage": (None, ctypes.c_int), "BeginPaint": (P, P, P), "EndPaint": (wintypes.BOOL, P, P), "GetClientRect": (wintypes.BOOL, P, P),
-              "DrawTextW": (ctypes.c_int, P, wintypes.LPCWSTR, ctypes.c_int, P, wintypes.UINT)}
-    GDI32: dict[str, tuple[object, ...]] = {"CreateSolidBrush": (P, wintypes.DWORD), "CreateFontW": (P, *(ctypes.c_int,) * 5, *(wintypes.DWORD,) * 8, wintypes.LPCWSTR), "SelectObject": (P, P, P),
-             "SetBkMode": (ctypes.c_int, P, ctypes.c_int), "SetTextColor": (wintypes.DWORD, P, wintypes.DWORD), "DeleteObject": (wintypes.BOOL, P)}
+    USER32: dict[str, tuple[object, ...]] = {
+        "SetThreadDpiAwarenessContext": (P, P),
+        "GetDpiForSystem": (wintypes.UINT,),
+        "SystemParametersInfoW": (wintypes.BOOL, wintypes.UINT, wintypes.UINT, P, wintypes.UINT),
+        "LoadCursorW": (P, P, P),
+        "RegisterClassW": (wintypes.ATOM, P),
+        "UnregisterClassW": (wintypes.BOOL, wintypes.LPCWSTR, P),
+        "CreateWindowExW": (
+            P,
+            wintypes.DWORD,
+            wintypes.LPCWSTR,
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            P,
+            P,
+            P,
+            P,
+        ),
+        "ShowWindow": (wintypes.BOOL, P, ctypes.c_int),
+        "UpdateWindow": (wintypes.BOOL, P),
+        "DestroyWindow": (wintypes.BOOL, P),
+        "SetTimer": (ctypes.c_size_t, P, ctypes.c_size_t, wintypes.UINT, P),
+        "GetMessageW": (wintypes.BOOL, P, P, wintypes.UINT, wintypes.UINT),
+        "TranslateMessage": (wintypes.BOOL, P),
+        "DispatchMessageW": (LRESULT, P),
+        "DefWindowProcW": (LRESULT, P, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM),
+        "PostMessageW": (wintypes.BOOL, P, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM),
+        "PostQuitMessage": (None, ctypes.c_int),
+        "BeginPaint": (P, P, P),
+        "EndPaint": (wintypes.BOOL, P, P),
+        "GetClientRect": (wintypes.BOOL, P, P),
+        "DrawTextW": (ctypes.c_int, P, wintypes.LPCWSTR, ctypes.c_int, P, wintypes.UINT),
+    }
+    GDI32: dict[str, tuple[object, ...]] = {
+        "CreateSolidBrush": (P, wintypes.DWORD),
+        "CreateFontW": (P, *(ctypes.c_int,) * 5, *(wintypes.DWORD,) * 8, wintypes.LPCWSTR),
+        "SelectObject": (P, P, P),
+        "SetBkMode": (ctypes.c_int, P, ctypes.c_int),
+        "SetTextColor": (wintypes.DWORD, P, wintypes.DWORD),
+        "DeleteObject": (wintypes.BOOL, P),
+    }
     KERNEL32: dict[str, tuple[object, ...]] = {"GetModuleHandleW": (P, wintypes.LPCWSTR)}
 
     _libraries: dict[str, ctypes.WinDLL] = {}
@@ -250,11 +318,21 @@ if sys.platform == "win32":
                 user32.SetThreadDpiAwarenessContext(PER_MONITOR_AWARE_V2)
             dpi = (user32.GetDpiForSystem() if hasattr(user32, "GetDpiForSystem") else 0) or 96
             brush = gdi32.CreateSolidBrush(colorref(BACKGROUND[True]))
-            font = gdi32.CreateFontW(-scaled(NAME_PX, dpi), 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, 1, 0, 0, CLEARTYPE_QUALITY, 0, FONT)
+            font = gdi32.CreateFontW(
+                -scaled(NAME_PX, dpi), 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, 1, 0, 0, CLEARTYPE_QUALITY, 0, FONT
+            )
             try:
                 # The handle keeps the callback alive for the life of the process.
-                handle.procedure = WNDPROC(lambda hwnd, message, wparam, lparam: _message(handle, hwnd, message, wparam, lparam, font))
-                kind = WNDCLASSW(lpfnWndProc=handle.procedure, hInstance=instance, hCursor=user32.LoadCursorW(None, IDC_ARROW), hbrBackground=brush, lpszClassName=WINDOW_CLASS)
+                handle.procedure = WNDPROC(
+                    lambda hwnd, message, wparam, lparam: _message(handle, hwnd, message, wparam, lparam, font)
+                )
+                kind = WNDCLASSW(
+                    lpfnWndProc=handle.procedure,
+                    hInstance=instance,
+                    hCursor=user32.LoadCursorW(None, IDC_ARROW),
+                    hbrBackground=brush,
+                    lpszClassName=WINDOW_CLASS,
+                )
                 if user32.RegisterClassW(ctypes.byref(kind)):
                     try:
                         _window(handle, user32, instance, dpi)
@@ -274,7 +352,20 @@ if sys.platform == "win32":
         if not user32.SystemParametersInfoW(SPI_GETWORKAREA, 0, ctypes.byref(work), 0):
             return
         left, top, width, height = place((work.left, work.top, work.right, work.bottom), dpi)
-        hwnd = user32.CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST, WINDOW_CLASS, NAME, WS_POPUP, left, top, width, height, None, None, instance, None)
+        hwnd = user32.CreateWindowExW(
+            WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+            WINDOW_CLASS,
+            NAME,
+            WS_POPUP,
+            left,
+            top,
+            width,
+            height,
+            None,
+            None,
+            instance,
+            None,
+        )
         if not hwnd:
             return
         if not handle.made(hwnd):
@@ -328,5 +419,6 @@ if sys.platform == "win32":
             # Always end the paint: an unvalidated WM_PAINT is sent again at once, endlessly.
             user32.EndPaint(hwnd, ctypes.byref(paint))
 else:
+
     def run(handle: Splash) -> None:
         """Only Windows has a splash."""

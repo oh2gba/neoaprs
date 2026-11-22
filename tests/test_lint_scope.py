@@ -2,6 +2,7 @@
 without `.py` (such as `scripts/release`) must be in `extend-include` of `[tool.ruff]`; the list is
 held exact here.
 """
+
 import tomllib
 from pathlib import Path
 
@@ -13,7 +14,9 @@ FOLDERS = ("scripts", "packaging", "server", "systemd")
 # fetch scripts of server/ brought (server/logs, server/support)
 PASSED_BY = {"node_modules", "__pycache__", "logs", "support"}
 # Python with no `.py` and no `#!`, which only a name can find
-NO_FIRST_LINE = {"packaging/windows/neoaprs.spec": "PyInstaller's spec: Python that PyInstaller runs, with no line naming an interpreter"}
+NO_FIRST_LINE = {
+    "packaging/windows/neoaprs.spec": "PyInstaller's spec: Python that PyInstaller runs, with no line naming an interpreter"
+}
 
 
 def listed() -> list[str]:
@@ -37,7 +40,13 @@ def python_without_the_ending(root: Path) -> list[str]:
     for folder in FOLDERS:
         for path in sorted((root / folder).rglob("*")):
             inside = path.relative_to(root)
-            if path.is_file() and path.suffix != ".py" and not PASSED_BY & set(inside.parts[:-1]) and not any(part.startswith(".") for part in inside.parts) and begins_with_python(path):
+            if (
+                path.is_file()
+                and path.suffix != ".py"
+                and not PASSED_BY & set(inside.parts[:-1])
+                and not any(part.startswith(".") for part in inside.parts)
+                and begins_with_python(path)
+            ):
                 found.append(inside.as_posix())
     return found + [name for name in NO_FIRST_LINE if (root / name).is_file()]
 
@@ -46,29 +55,58 @@ def not_as_listed(root: Path, entries: list[str]) -> list[str]:
     """What is wrong between the list and the tree: [] when ruff reads every Python tool and the
     list names nothing else."""
     there = python_without_the_ending(root)
-    wrong = [f"{rel} is Python and ruff does not read it: add it to extend-include of [tool.ruff] in pyproject.toml" for rel in there if rel not in entries]
-    wrong += [f"{entry} is in extend-include and is not a file that begins with a python line and has no .py in its name: delete the entry" for entry in entries if entry not in there]
+    wrong = [
+        f"{rel} is Python and ruff does not read it: add it to extend-include of [tool.ruff] in pyproject.toml"
+        for rel in there
+        if rel not in entries
+    ]
+    wrong += [
+        f"{entry} is in extend-include and is not a file that begins with a python line and has no .py in its name: delete the entry"
+        for entry in entries
+        if entry not in there
+    ]
     wrong += [f"{entry} is in extend-include twice" for entry in sorted(set(entries)) if entries.count(entry) > 1]
     return wrong
 
 
 def test_ruff_reads_every_python_tool_that_has_no_py_in_its_name_and_the_list_names_nothing_else() -> None:
-    assert "scripts/release" in python_without_the_ending(ROOT), "the tools were not found as they are: the release script is one of them"
+    assert "scripts/release" in python_without_the_ending(ROOT), (
+        "the tools were not found as they are: the release script is one of them"
+    )
     assert not_as_listed(ROOT, listed()) == []
 
 
 # ---- the rule fails on a made-up folder ----------------------------------------------------------
 
+
 def test_a_python_tool_that_is_not_listed_and_an_entry_that_is_no_such_file_are_found(tmp_path: Path) -> None:
-    files = {"scripts/release": "#!/usr/bin/env python3\nprint(1)\n", "scripts/logs": "#!/usr/bin/env python3\n", "scripts/new-tool": "#!/usr/bin/python3 -I\nprint(2)\n", "scripts/check": "#!/usr/bin/env bash\npython -m ruff check .\n",
-             "scripts/smoke.py": "#!/usr/bin/env python3\n", "scripts/notes": "python is named here, but not as the interpreter\n", "scripts/dup-baseline.json": "{}\n",
-             "packaging/deb/build": "#!/usr/bin/env python3\n", "packaging/node_modules/tool": "#!/usr/bin/env python3\n", "server/.cache/tool": "#!/usr/bin/env python3\n", "systemd/README.md": "# units\n"}
+    files = {
+        "scripts/release": "#!/usr/bin/env python3\nprint(1)\n",
+        "scripts/logs": "#!/usr/bin/env python3\n",
+        "scripts/new-tool": "#!/usr/bin/python3 -I\nprint(2)\n",
+        "scripts/check": "#!/usr/bin/env bash\npython -m ruff check .\n",
+        "scripts/smoke.py": "#!/usr/bin/env python3\n",
+        "scripts/notes": "python is named here, but not as the interpreter\n",
+        "scripts/dup-baseline.json": "{}\n",
+        "packaging/deb/build": "#!/usr/bin/env python3\n",
+        "packaging/node_modules/tool": "#!/usr/bin/env python3\n",
+        "server/.cache/tool": "#!/usr/bin/env python3\n",
+        "systemd/README.md": "# units\n",
+    }
     for rel, text in files.items():
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / rel).write_text(text, encoding="utf-8")
-    assert python_without_the_ending(tmp_path) == ["scripts/logs", "scripts/new-tool", "scripts/release", "packaging/deb/build"]
+    assert python_without_the_ending(tmp_path) == [
+        "scripts/logs",
+        "scripts/new-tool",
+        "scripts/release",
+        "packaging/deb/build",
+    ]
     assert not_as_listed(tmp_path, ["scripts/release", "scripts/logs", "scripts/new-tool", "packaging/deb/build"]) == []
-    assert not_as_listed(tmp_path, ["scripts/release", "scripts/logs", "scripts/check", "scripts/smoke.py", "scripts/gone", "scripts/release"]) == [
+    assert not_as_listed(
+        tmp_path,
+        ["scripts/release", "scripts/logs", "scripts/check", "scripts/smoke.py", "scripts/gone", "scripts/release"],
+    ) == [
         "scripts/new-tool is Python and ruff does not read it: add it to extend-include of [tool.ruff] in pyproject.toml",
         "packaging/deb/build is Python and ruff does not read it: add it to extend-include of [tool.ruff] in pyproject.toml",
         "scripts/check is in extend-include and is not a file that begins with a python line and has no .py in its name: delete the entry",

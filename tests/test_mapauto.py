@@ -2,6 +2,7 @@
 made-up planet: a place or the guide's "map wanted" starts it unless the map covers the place;
 failures, cancel and stop.
 """
+
 import struct
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -26,12 +27,11 @@ from tests.support.wsclient import WsClient
 
 NOT_FOUND = "the map server answered 404 Not Found"
 HELSINKI, TURKU, ROME = (60.17, 24.94), (60.45, 22.27), (41.9, 12.5)
-NEAR_HELSINKI = (60.3, 25.1)                                                # a few km away
+NEAR_HELSINKI = (60.3, 25.1)  # a few km away
 
 
 def pmtiles_header(box: Box, maxzoom: int = 4) -> bytes:
-    """A PMTiles file as far as the map needs one: the header with the area it covers and the zooms.
-    """
+    """A PMTiles file as far as the map needs one: the header with the area it covers and the zooms."""
     west, south, east, north = (round(v * 1e7) for v in box)
     return b"PMTiles" + bytes([3]) + bytes(92) + struct.pack("<BB4i", 0, maxzoom, west, south, east, north) + bytes(9)
 
@@ -51,9 +51,21 @@ class Rows:
 
 
 class Rig:
-    def __init__(self, tmp_path: Path, server: RangeServer, rows: Rows, enabled: bool = True, place: tuple[float, float] | None = None) -> None:
+    def __init__(
+        self,
+        tmp_path: Path,
+        server: RangeServer,
+        rows: Rows,
+        enabled: bool = True,
+        place: tuple[float, float] | None = None,
+    ) -> None:
         self.data, self.server, self.rows = tmp_path / "data", server, rows
-        self.config = replace(DEFAULTS, map_source=server.url, station_lat=place[0] if place else None, station_lon=place[1] if place else None)
+        self.config = replace(
+            DEFAULTS,
+            map_source=server.url,
+            station_lat=place[0] if place else None,
+            station_lon=place[1] if place else None,
+        )
         self.world = tmp_path / "shipped" / WORLD
         self.world.parent.mkdir(exist_ok=True)
         # The world map the program ships: a header is all it needs here
@@ -93,8 +105,9 @@ async def make(tmp_path: Path):
     server = await range_server(planet())
 
     def build(rows: Rows | None = None, **options: object) -> Rig:
-        return Rig(tmp_path, server, rows if rows is not None else Rows(), **options)                    # type: ignore[arg-type]
-    build.server = server                                                  # type: ignore[attr-defined]
+        return Rig(tmp_path, server, rows if rows is not None else Rows(), **options)  # type: ignore[arg-type]
+
+    build.server = server  # type: ignore[attr-defined]
     return build
 
 
@@ -109,7 +122,9 @@ async def test_the_first_place_makes_the_detailed_map_and_the_world_that_ships_i
     assert not (rig.data / WORLD).exists() and rig.fetch.status().world is not None
 
 
-async def test_the_map_nobody_asked_for_is_the_settings_radius_round_the_station_150_km_unless_changed_and_the_setting_is_not_touched(make) -> None:
+async def test_the_map_nobody_asked_for_is_the_settings_radius_round_the_station_150_km_unless_changed_and_the_setting_is_not_touched(
+    make,
+) -> None:
     rig = make()
     await rig.auto.start()
     await rig.move(HELSINKI)
@@ -128,14 +143,16 @@ async def test_a_radius_the_operator_set_is_the_one_the_map_is_made_for(make) ->
     assert rig.config.map_radius_km == 40
 
 
-async def test_a_map_that_covers_the_place_is_not_made_again_a_move_of_a_few_km_included_and_another_town_or_a_lost_file_makes_it_again(make) -> None:
+async def test_a_map_that_covers_the_place_is_not_made_again_a_move_of_a_few_km_included_and_another_town_or_a_lost_file_makes_it_again(
+    make,
+) -> None:
     rig = make()
     await rig.auto.start()
     await rig.move(HELSINKI)
     await until(lambda: rig.fetch.status().state == "ready", 5)
     await rig.row("done")
     await rig.move(NEAR_HELSINKI)
-    rig.auto.wanted()                                                       # (the guide run again)
+    rig.auto.wanted()  # (the guide run again)
     await rig.idle()
     assert rig.server.cuts == 1
     await rig.move(ROME)
@@ -161,9 +178,9 @@ async def test_a_station_that_has_a_place_and_no_map_is_not_given_a_download_at_
 async def test_a_place_that_is_not_new_or_not_there_starts_nothing(make) -> None:
     rig = make(place=HELSINKI)
     await rig.auto.start()
-    rig.auto.settings_changed(rig.config)                                   # saved again, the same
+    rig.auto.settings_changed(rig.config)  # saved again, the same
     rig.config = replace(rig.config, station_lat=None, station_lon=None)
-    rig.auto.settings_changed(replace(rig.config, station_lat=60.0, station_lon=25.0))      # the place was taken away
+    rig.auto.settings_changed(replace(rig.config, station_lat=60.0, station_lon=25.0))  # the place was taken away
     await rig.idle()
     assert rig.server.cuts == 0
 
@@ -179,7 +196,9 @@ async def test_a_detailed_map_that_covers_the_place_means_nothing_is_made_and_no
     assert rig.server.cuts == 0 and MAP_AUTO not in rig.rows.rows
 
 
-async def test_the_guides_wish_makes_the_map_when_the_one_there_is_smaller_than_the_radius_asks_the_50_km_map_of_an_earlier_version(make) -> None:
+async def test_the_guides_wish_makes_the_map_when_the_one_there_is_smaller_than_the_radius_asks_the_50_km_map_of_an_earlier_version(
+    make,
+) -> None:
     rig = make(place=HELSINKI)
     rig.data.mkdir(parents=True, exist_ok=True)
     (rig.data / DETAIL).write_bytes(pmtiles_header(box_around(*HELSINKI, 50), 12))
@@ -196,7 +215,7 @@ async def test_the_guides_wish_makes_the_map_when_the_one_there_is_smaller_than_
 
 
 def test_a_map_covers_the_place_when_it_holds_nine_tenths_of_the_radius_round_it() -> None:
-    file = lambda box: MapFile(DETAIL, 1, datetime(2026, 10, 21, tzinfo=UTC), box, 0, 12, "")   # noqa: E731
+    file = lambda box: MapFile(DETAIL, 1, datetime(2026, 10, 21, tzinfo=UTC), box, 0, 12, "")  # noqa: E731
     helsinki = file(box_around(*HELSINKI, 150))
     assert covers(helsinki, *HELSINKI, 150) and covers(helsinki, *NEAR_HELSINKI, 150)
     assert not covers(helsinki, *TURKU, 150) and not covers(helsinki, *HELSINKI, 300)
@@ -206,20 +225,24 @@ def test_a_map_covers_the_place_when_it_holds_nine_tenths_of_the_radius_round_it
     assert not covers(None, *HELSINKI, 150)
 
 
-async def test_without_a_connection_the_world_stays_the_page_is_told_it_will_come_later_and_the_next_start_tries_again(make) -> None:
+async def test_without_a_connection_the_world_stays_the_page_is_told_it_will_come_later_and_the_next_start_tries_again(
+    make,
+) -> None:
     rig = make()
     rig.server.mode = "missing"
     await rig.auto.start()
     await rig.move(HELSINKI)
     await until(lambda: rig.fetch.status().later, 5)
     status = rig.fetch.status()
-    assert status.state == "error" and status.problem == NOT_FOUND and status.detail is None and status.world is not None
+    assert (
+        status.state == "error" and status.problem == NOT_FOUND and status.detail is None and status.world is not None
+    )
     await rig.row("wanted")
     # The place changed again: tried again at once, and failing again
     await rig.move(TURKU)
     await until(lambda: rig.fetch.status().later and rig.server.cuts == 2, 5)
     rig.server.mode = "ranges"
-    start = make(rig.rows, place=HELSINKI)                                  # the next start of the daemon
+    start = make(rig.rows, place=HELSINKI)  # the next start of the daemon
     await start.auto.start()
     await until(lambda: start.fetch.status().state == "ready", 5)
     await start.row("done")
@@ -244,19 +267,23 @@ async def test_a_failed_job_is_not_settled_by_an_old_map_of_another_place(make) 
     await rig.row("wanted")
 
 
-async def test_a_job_started_by_hand_that_makes_the_map_counts_as_done_and_a_new_job_takes_the_later_note_back(make) -> None:
+async def test_a_job_started_by_hand_that_makes_the_map_counts_as_done_and_a_new_job_takes_the_later_note_back(
+    make,
+) -> None:
     rig = make(place=HELSINKI)
     rig.rows.rows[MAP_AUTO] = "wanted"
     rig.server.mode = "missing"
     await rig.auto.start()
     await until(lambda: rig.fetch.status().later, 5)
     rig.server.mode = "ranges"
-    await rig.fetch.fetch()                                                 # Settings, Map, Download
+    await rig.fetch.fetch()  # Settings, Map, Download
     assert not rig.fetch.status().later
     await until(lambda: rig.rows.rows[MAP_AUTO] == "done", 5)
 
 
-async def test_the_operators_cancel_settles_it_the_next_start_does_not_try_again_the_guide_does_and_a_stop_of_the_daemon_is_no_cancel(make) -> None:
+async def test_the_operators_cancel_settles_it_the_next_start_does_not_try_again_the_guide_does_and_a_stop_of_the_daemon_is_no_cancel(
+    make,
+) -> None:
     rig = make()
     rig.hold()
     await rig.auto.start()
@@ -266,11 +293,11 @@ async def test_the_operators_cancel_settles_it_the_next_start_does_not_try_again
     await rig.idle()
     await rig.row("done")
     assert not rig.fetch.status().later
-    again = make(rig.rows, place=HELSINKI)                                  # the next start of the daemon
+    again = make(rig.rows, place=HELSINKI)  # the next start of the daemon
     await again.auto.start()
     await again.idle()
     assert again.server.cuts == 1
-    again.auto.wanted()                                                     # the guide run again
+    again.auto.wanted()  # the guide run again
     await until(lambda: again.server.cuts == 2, 5)
     await again.row("wanted")
     # (that daemon ends before the next one has the data folder: its cut is held by the server, and
@@ -289,15 +316,17 @@ async def test_the_operators_cancel_settles_it_the_next_start_does_not_try_again
     await stopped.row("wanted")
 
 
-async def test_a_place_outside_the_area_that_is_being_made_starts_it_again_for_that_place_and_one_inside_does_not(make) -> None:
+async def test_a_place_outside_the_area_that_is_being_made_starts_it_again_for_that_place_and_one_inside_does_not(
+    make,
+) -> None:
     rig = make()
     rig.hold()
     await rig.auto.start()
     await rig.move(HELSINKI)
     await until(lambda: rig.server.holding > 0, 5)
-    await rig.move((60.3, 25.1))                                            # a few km: inside
+    await rig.move((60.3, 25.1))  # a few km: inside
     assert rig.server.cuts == 1
-    rig.server.hold_from = None                                             # (the cut that begins now is not held)
+    rig.server.hold_from = None  # (the cut that begins now is not held)
     await rig.move(ROME)
     await until(lambda: rig.server.cuts == 2 and rig.fetch.status().state == "ready", 5)
     west, south, east, north = rig.made_for()
@@ -322,6 +351,7 @@ def test_a_place_is_inside_a_box_with_its_edges() -> None:
 
 # ---- in the whole daemon: the place the setup sends
 
+
 async def daemon(tmp_path: Path, mode: str) -> tuple[Env, WsClient, RangeServer]:
     server = await range_server(planet())
     server.mode = mode
@@ -335,13 +365,15 @@ async def daemon(tmp_path: Path, mode: str) -> tuple[Env, WsClient, RangeServer]
 
 async def test_the_place_the_setup_sends_makes_the_map_round_it_and_the_page_is_told(tmp_path: Path) -> None:
     e, page, server = await daemon(tmp_path, "ranges")
-    assert page.topics["map"]["state"] == "none" and page.topics["map"]["world"] is not None, "the world map is there from the first second"
+    assert page.topics["map"]["state"] == "none" and page.topics["map"]["world"] is not None, (
+        "the world map is there from the first second"
+    )
     await page.send({"cmd": "set_config", "values": {"station/lat": "60.17", "station/lon": "24.94"}})
     await page.until(lambda: page.topics["map"]["state"] == "ready", 10)
     value = page.topics["map"]
     assert value["detail"]["name"] == "basemap.pmtiles" and value["later"] is False
     assert server.cuts == 1
-    await page.send({"cmd": "map_wanted"})                                 # the guide run again with the same place
+    await page.send({"cmd": "map_wanted"})  # the guide run again with the same place
     await e.settled()
     assert server.cuts == 1, "the map covers the place"
     await page.send({"cmd": "set_config", "values": {"station/lat": "48.85", "station/lon": "2.35"}})
@@ -351,9 +383,12 @@ async def test_the_place_the_setup_sends_makes_the_map_round_it_and_the_page_is_
         # (the state is still "ready" from the first map until the page hears of the second job, and
         # the second cut is counted when it begins: the new file is what says it is over)
         header = read_header(tmp_path / "basemap.pmtiles")
-        return server.cuts == 2 and page.topics["map"]["state"] == "ready" and header is not None and header.bbox == paris
+        return (
+            server.cuts == 2 and page.topics["map"]["state"] == "ready" and header is not None and header.bbox == paris
+        )
+
     await page.until(made_again, 10)
-    assert read_header(tmp_path / "basemap.pmtiles").bbox == paris, "another town: made again"     # type: ignore[union-attr]
+    assert read_header(tmp_path / "basemap.pmtiles").bbox == paris, "another town: made again"  # type: ignore[union-attr]
 
 
 async def test_the_map_wanted_without_a_place_is_nothing_and_no_error(tmp_path: Path) -> None:

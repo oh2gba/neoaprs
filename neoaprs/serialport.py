@@ -3,6 +3,7 @@
 `SerialPort` reports what happens as signals and never reopens by itself; the open and the reading
 run in threads, so nothing waits on the event loop.
 """
+
 import asyncio
 import errno
 import logging
@@ -49,7 +50,7 @@ class NotChosenError(SerialError):
 def normalize(path: str) -> str:
     """Return the port as pyserial opens it (`tcp://` becomes `socket://`)."""
     path = path.strip()
-    return "socket://" + path[len("tcp://"):] if path.lower().startswith("tcp://") else path
+    return "socket://" + path[len("tcp://") :] if path.lower().startswith("tcp://") else path
 
 
 def is_url(path: str) -> bool:
@@ -93,7 +94,11 @@ def _in_use(e: BaseException) -> bool:
     """Return whether the open was refused because another program has the port."""
     if _on_windows():
         text = str(e)
-        return getattr(e, "winerror", None) == ERROR_ACCESS_DENIED or re.search(r", None, 5\)", text) is not None or "access is denied" in text.lower()
+        return (
+            getattr(e, "winerror", None) == ERROR_ACCESS_DENIED
+            or re.search(r", None, 5\)", text) is not None
+            or "access is denied" in text.lower()
+        )
     return getattr(e, "errno", None) in (errno.EAGAIN, errno.EBUSY)
 
 
@@ -101,7 +106,17 @@ def _build(path: str, baud: int) -> Any:
     """Return the pyserial object, not yet open: 8N1, DTR and RTS low, exclusive on POSIX."""
     # pyserial opens a file for `spy://`: the scheme check is repeated
     url = port_scheme(normalize(path))
-    settings: dict[str, Any] = dict(baudrate=baud, bytesize=8, parity="N", stopbits=1, xonxoff=False, rtscts=False, dsrdtr=False, timeout=READ_TIMEOUT_SEC, write_timeout=WRITE_TIMEOUT_SEC)
+    settings: dict[str, Any] = dict(
+        baudrate=baud,
+        bytesize=8,
+        parity="N",
+        stopbits=1,
+        xonxoff=False,
+        rtscts=False,
+        dsrdtr=False,
+        timeout=READ_TIMEOUT_SEC,
+        write_timeout=WRITE_TIMEOUT_SEC,
+    )
     if is_bluetooth(url) or is_ble(url):
         ser = (BluetoothSerial if is_bluetooth(url) else BleSerial)(None, **settings)
         ser.port = url
@@ -133,7 +148,11 @@ KEEP_IDLE_SEC, KEEP_INTERVAL_SEC, KEEP_COUNT = 60, 15, 4
 def _keep_alive_times(sock: socket.socket) -> None:
     """Ask the system to probe after KEEP_IDLE_SEC of quiet, KEEP_COUNT times."""
     idle = getattr(socket, "TCP_KEEPIDLE", None) or getattr(socket, "TCP_KEEPALIVE", None)
-    options = [(idle, KEEP_IDLE_SEC), (getattr(socket, "TCP_KEEPINTVL", None), KEEP_INTERVAL_SEC), (getattr(socket, "TCP_KEEPCNT", None), KEEP_COUNT)]
+    options = [
+        (idle, KEEP_IDLE_SEC),
+        (getattr(socket, "TCP_KEEPINTVL", None), KEEP_INTERVAL_SEC),
+        (getattr(socket, "TCP_KEEPCNT", None), KEEP_COUNT),
+    ]
     if sys.platform == "win32" and all(option is None for option, _ in options):
         try:
             sock.ioctl(socket.SIO_KEEPALIVE_VALS, (1, KEEP_IDLE_SEC * 1000, KEEP_INTERVAL_SEC * 1000))
@@ -182,7 +201,14 @@ def _close_quietly(ser: Any) -> None:
 class _Line:
     """One open of a port: the pyserial object and two threads; callbacks get the line."""
 
-    def __init__(self, ser: Any, loop: asyncio.AbstractEventLoop, name: str, on_data: Callable[["_Line", bytes], None], on_lost: Callable[["_Line", str], None]) -> None:
+    def __init__(
+        self,
+        ser: Any,
+        loop: asyncio.AbstractEventLoop,
+        name: str,
+        on_data: Callable[["_Line", bytes], None],
+        on_lost: Callable[["_Line", str], None],
+    ) -> None:
         self.ser, self._loop, self._on_data, self._on_lost = ser, loop, on_data, on_lost
         self._stop = threading.Event()
         self.outbox: queue.SimpleQueue[bytes | None] = queue.SimpleQueue()
@@ -296,7 +322,11 @@ class SerialPort:
             ser = _build(self.path, self.baud)
             ser.open()
         except (serial.SerialException, OSError, ValueError) as e:
-            what = f"{self.path}: in use by another program (close it: a terminal, Direwolf, a rig program)" if _in_use(e) else _words(self.path, e)
+            what = (
+                f"{self.path}: in use by another program (close it: a terminal, Direwolf, a rig program)"
+                if _in_use(e)
+                else _words(self.path, e)
+            )
             raise SerialError(what) from e
         _keep_alive(ser)
         if not hand.offer(ser):

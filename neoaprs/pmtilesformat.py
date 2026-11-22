@@ -3,6 +3,7 @@
 Every number read from an archive is checked here; `FormatError` says what is wrong.
 Pure code: the bytes come and go through the caller.
 """
+
 import array
 import math
 import struct
@@ -64,7 +65,28 @@ class Header:
 def unpack_header(data: bytes) -> Header:
     """Return the fields of the first HEADER_LENGTH bytes, unchecked."""
     v = _HEADER.unpack_from(data)
-    return Header(v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], bool(v[13]), v[14], v[15], v[16], v[17], v[18], (v[19], v[20], v[21], v[22]), v[23], (v[24], v[25]))
+    return Header(
+        v[2],
+        v[3],
+        v[4],
+        v[5],
+        v[6],
+        v[7],
+        v[8],
+        v[9],
+        v[10],
+        v[11],
+        v[12],
+        bool(v[13]),
+        v[14],
+        v[15],
+        v[16],
+        v[17],
+        v[18],
+        (v[19], v[20], v[21], v[22]),
+        v[23],
+        (v[24], v[25]),
+    )
 
 
 def parse_header(data: bytes) -> Header:
@@ -74,20 +96,49 @@ def parse_header(data: bytes) -> Header:
         raise FormatError(f"the archive is of PMTiles version {data[7]}, not {VERSION}")
     header = unpack_header(data)
     if header.internal_compression not in (NONE, GZIP):
-        raise FormatError(f"the directories of the archive are compressed with method {header.internal_compression}, which is not read")
+        raise FormatError(
+            f"the directories of the archive are compressed with method {header.internal_compression}, which is not read"
+        )
     if not header.min_zoom <= header.max_zoom <= MAX_ZOOM:
         raise FormatError(f"the archive's zooms {header.min_zoom} to {header.max_zoom} are not possible")
     return header
 
 
 def header_bytes(h: Header) -> bytes:
-    return _HEADER.pack(MAGIC, VERSION, h.root_offset, h.root_length, h.metadata_offset, h.metadata_length, h.leaf_offset, h.leaf_length, h.data_offset, h.data_length, h.addressed_tiles, h.tile_entries,
-                        h.tile_contents, int(h.clustered), h.internal_compression, h.tile_compression, h.tile_type, h.min_zoom, h.max_zoom, *h.bounds_e7, h.center_zoom, *h.center_e7)
+    return _HEADER.pack(
+        MAGIC,
+        VERSION,
+        h.root_offset,
+        h.root_length,
+        h.metadata_offset,
+        h.metadata_length,
+        h.leaf_offset,
+        h.leaf_length,
+        h.data_offset,
+        h.data_length,
+        h.addressed_tiles,
+        h.tile_entries,
+        h.tile_contents,
+        int(h.clustered),
+        h.internal_compression,
+        h.tile_compression,
+        h.tile_type,
+        h.min_zoom,
+        h.max_zoom,
+        *h.bounds_e7,
+        h.center_zoom,
+        *h.center_e7,
+    )
 
 
 def check_sections(h: Header, size: int) -> None:
     """Raise FormatError unless all parts are inside `size` bytes and the root in the first 16K."""
-    parts = {"root directory": (h.root_offset, h.root_length), "metadata": (h.metadata_offset, h.metadata_length), "leaf directories": (h.leaf_offset, h.leaf_length), "tile data": (h.data_offset, h.data_length)}
+    parts = {
+        "root directory": (h.root_offset, h.root_length),
+        "metadata": (h.metadata_offset, h.metadata_length),
+        "leaf directories": (h.leaf_offset, h.leaf_length),
+        "tile data": (h.data_offset, h.data_length),
+    }
     for name, (offset, length) in parts.items():
         if offset < HEADER_LENGTH and length or offset + length > size:
             raise FormatError(f"the {name} of the archive ({length} bytes at {offset}) is not inside its {size} bytes")
@@ -96,6 +147,7 @@ def check_sections(h: Header, size: int) -> None:
 
 
 # ---- tile ids
+
 
 def zxy_to_id(z: int, x: int, y: int) -> int:
     """Return the tile id: the tiles of the lower zooms plus the place on the Hilbert curve."""
@@ -189,6 +241,7 @@ def _quadrants(z: int, x0: int, y0: int, x1: int, y1: int) -> Ranges:
 
 # ---- directories
 
+
 class Entries:
     """Directory entries as four columns, 24 bytes an entry."""
 
@@ -258,7 +311,7 @@ def decode(data: bytes) -> Entries:
     count = numbers[0] if numbers else -1
     if len(numbers) != 1 + 4 * count:
         raise FormatError("a directory of the archive does not hold the entries it says")
-    ids, runs, lengths, raw = (numbers[1 + i * count:1 + (i + 1) * count] for i in range(4))
+    ids, runs, lengths, raw = (numbers[1 + i * count : 1 + (i + 1) * count] for i in range(4))
     entries, tile_id, offset = Entries(), 0, 0
     for i in range(count):
         if i and (not ids[i] or runs[i - 1] > ids[i]):
@@ -336,7 +389,9 @@ def touched(entries: Entries, ranges: Ranges, low: int, end: int, room: int) -> 
     for i, (tile_id, run, length, offset) in enumerate(entries):
         upper = tile_id + run if run else (entries.tile_ids[i + 1] if i + 1 < count else end)
         if tile_id < low or upper > end:
-            raise FormatError(f"a directory of the archive names tile {tile_id}, outside the ids {low} to {end} its parent gives it")
+            raise FormatError(
+                f"a directory of the archive names tile {tile_id}, outside the ids {low} to {end} its parent gives it"
+            )
         j = max(0, bisect_right(starts, tile_id) - 1)
         while j < len(ranges) and ranges[j][0] < upper:
             first, last = max(tile_id, ranges[j][0]), min(upper, ranges[j][1])

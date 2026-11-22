@@ -2,6 +2,7 @@
 
 Only the shipped Mercury is used, never one from the PATH.
 """
+
 import asyncio
 import errno
 import logging
@@ -15,11 +16,43 @@ from pathlib import Path
 
 from . import childprogram
 from .bundled import tools_dir
-from .childprogram import HIDDEN_WINDOW as HIDDEN_WINDOW, LAST_LINES as LAST_LINES, LOOPBACK_HEX as LOOPBACK_HEX, PROC_TCP as PROC_TCP, SAID_MAX as SAID_MAX, STARTUP_LINES as STARTUP_LINES
-from .childprogram import Command as Command, _listeners as _listeners, environment as environment, foreign_listeners as foreign_listeners
+from .childprogram import (
+    HIDDEN_WINDOW as HIDDEN_WINDOW,
+    LAST_LINES as LAST_LINES,
+    LOOPBACK_HEX as LOOPBACK_HEX,
+    PROC_TCP as PROC_TCP,
+    SAID_MAX as SAID_MAX,
+    STARTUP_LINES as STARTUP_LINES,
+)
+from .childprogram import (
+    Command as Command,
+    _listeners as _listeners,
+    environment as environment,
+    foreign_listeners as foreign_listeners,
+)
 from .claims import Claims
 from .radiotype import RadioId
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET, HOST, PAIR, PORT_TRIES, UI_OFFSET, WASAPI_CAPTURE, WASAPI_PLAYBACK, Keying, SerialPort, SoundCard, audio_open_error, card_reason, card_with, choose_keying, choose_sound_card, keying_of, parse_sound_cards, unstamped
+from .mercury import (
+    BROADCAST_PORT,
+    CONTROL_OFFSET,
+    HOST,
+    PAIR,
+    PORT_TRIES,
+    UI_OFFSET,
+    WASAPI_CAPTURE,
+    WASAPI_PLAYBACK,
+    Keying,
+    SerialPort,
+    SoundCard,
+    audio_open_error,
+    card_reason,
+    card_with,
+    choose_keying,
+    choose_sound_card,
+    keying_of,
+    parse_sound_cards,
+    unstamped,
+)
 
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")
@@ -85,7 +118,12 @@ def _free_v6(port: int) -> bool:
 
 def pair_ports(broadcast_port: int) -> tuple[int, int, int, int]:
     """Return the broadcast, control, ARQ data and UI ports of a Mercury."""
-    return broadcast_port, broadcast_port + CONTROL_OFFSET, broadcast_port + CONTROL_OFFSET + 1, broadcast_port + UI_OFFSET
+    return (
+        broadcast_port,
+        broadcast_port + CONTROL_OFFSET,
+        broadcast_port + CONTROL_OFFSET + 1,
+        broadcast_port + UI_OFFSET,
+    )
 
 
 def pair_free(broadcast_port: int) -> bool:
@@ -100,7 +138,13 @@ def free_ports(first: int = BROADCAST_PORT, tries: int = PORT_TRIES) -> tuple[in
     raise OSError(f"no free pair of ports from {first} to {first + tries}")
 
 
-def next_modem_ports(claims: Claims, holder: RadioId, free: Callable[[int], bool] = pair_free, first: int = BROADCAST_PORT, tries: int = PORT_TRIES) -> int:
+def next_modem_ports(
+    claims: Claims,
+    holder: RadioId,
+    free: Callable[[int], bool] = pair_free,
+    first: int = BROADCAST_PORT,
+    tries: int = PORT_TRIES,
+) -> int:
     """Return the first broadcast port whose four ports overlap no other radio's pair and are free.
 
     Raise OSError if none of `tries` fits.
@@ -112,7 +156,15 @@ def next_modem_ports(claims: Claims, holder: RadioId, free: Callable[[int], bool
     raise OSError(f"no free pair of ports from {first} to {first + tries} that no other radio's modem holds")
 
 
-def choose_setup(program: Command, sound_card: str, keying: str, ports: Callable[[], list[SerialPort]], leave: Sequence[str] = (), held_cards: Collection[str] = (), key: Callable[[str], str | None] = str) -> tuple[str, Keying]:
+def choose_setup(
+    program: Command,
+    sound_card: str,
+    keying: str,
+    ports: Callable[[], list[SerialPort]],
+    leave: Sequence[str] = (),
+    held_cards: Collection[str] = (),
+    key: Callable[[str], str | None] = str,
+) -> tuple[str, Keying]:
     """Return the sound card and keying the modem runs with; the settings win.
 
     Ports in `leave` are excluded (Mercury would toggle their RTS). Blocks: call from a thread.
@@ -122,17 +174,30 @@ def choose_setup(program: Command, sound_card: str, keying: str, ports: Callable
     paired = card_with(cards, sound_card) if lone else ""
     card = paired or sound_card or choose_sound_card([c for c in cards if c.id not in held_cards])
     if paired:
-        log.info("Mercury sound card: %r, both devices of the card whose one device the setting names (%s)", next((c.name for c in cards if c.id == paired), paired), sound_card)
+        log.info(
+            "Mercury sound card: %r, both devices of the card whose one device the setting names (%s)",
+            next((c.name for c in cards if c.id == paired), paired),
+            sound_card,
+        )
     else:
         log.info("Mercury sound card: %s", card_reason(card, sound_card, cards))
     if keying:
         log.info("Mercury keys the radio by %s, from the settings", keying)
         return card, keying_of(keying)
-    name = next((c.name for c in cards if c.id == card), "") if card else next((c.name for c in cards if c.default and c.capture), "")
+    name = (
+        next((c.name for c in cards if c.id == card), "")
+        if card
+        else next((c.name for c in cards if c.default and c.capture), "")
+    )
     # `key` normalises a port name for `leave`; passed in so this module needs no serial library.
     found = [p for p in ports() if key(p.device) not in leave]
     chosen = choose_keying(name, found)
-    log.info("Mercury keys the radio by %s (chosen from the sound card %r and the serial ports %s)", chosen.text, name or "the system's default", ", ".join(p.device for p in found) or "none")
+    log.info(
+        "Mercury keys the radio by %s (chosen from the sound card %r and the serial ports %s)",
+        chosen.text,
+        name or "the system's default",
+        ", ".join(p.device for p in found) or "none",
+    )
     return card, chosen
 
 
@@ -154,17 +219,31 @@ def alsa_card_names(root: Path | None = None) -> dict[int, str]:
 def list_sound_cards(command: Command, timeout_sec: float = LIST_TIMEOUT_SEC) -> list[SoundCard]:
     """Return the sound cards `mercury -z` lists; empty if it cannot be run. Blocks."""
     try:
-        done = subprocess.run([*command, "-z"], capture_output=True, text=True, errors="replace", timeout=timeout_sec, env=environment(command), creationflags=HIDDEN_WINDOW, check=False)
+        done = subprocess.run(
+            [*command, "-z"],
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=timeout_sec,
+            env=environment(command),
+            creationflags=HIDDEN_WINDOW,
+            check=False,
+        )
     except (OSError, subprocess.TimeoutExpired) as e:
         log.warning("mercury -z could not be run: %s", e)
         return []
     cards = parse_sound_cards(done.stdout, alsa_card_names())
     if not cards:
-        log.info("mercury -z listed no sound card (exit %d): %s", done.returncode, (done.stdout or done.stderr).strip()[-300:])
+        log.info(
+            "mercury -z listed no sound card (exit %d): %s",
+            done.returncode,
+            (done.stdout or done.stderr).strip()[-300:],
+        )
     return cards
 
 
 # ---- the process
+
 
 def _end_tree(process: subprocess.Popen[str]) -> None:
     childprogram.end_tree(process, STOP_WAIT_SEC)
@@ -172,9 +251,12 @@ def _end_tree(process: subprocess.Popen[str]) -> None:
 
 class Program(childprogram.Program):
     """One run of Mercury; `on_audio_error` gets the line saying the sound card did not open."""
+
     name = "Mercury"
 
-    def __init__(self, on_ended: Callable[[int | None, list[str]], None], on_audio_error: Callable[[str], None] | None = None) -> None:
+    def __init__(
+        self, on_ended: Callable[[int | None, list[str]], None], on_audio_error: Callable[[str], None] | None = None
+    ) -> None:
         super().__init__(on_ended, log, mercury_log)
         self._on_audio_error = on_audio_error
 
@@ -193,5 +275,7 @@ class Program(childprogram.Program):
         """
         if sys.platform == "win32":
             _end_tree(process)
-        elif not self.ask(process, signal.SIGTERM, STOP_WAIT_SEC) and not self.ask(process, signal.SIGTERM, STOP_WAIT_SEC):
+        elif not self.ask(process, signal.SIGTERM, STOP_WAIT_SEC) and not self.ask(
+            process, signal.SIGTERM, STOP_WAIT_SEC
+        ):
             self.kill(process)

@@ -2,6 +2,7 @@
 
 Checks the checksum and joins multi-part messages; other types and broken lines are skipped.
 """
+
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -13,6 +14,7 @@ _SOG_NA, _COG_NA = 1023, 3600  # "not available" values: speed 102.3 kn, course 
 @dataclass(frozen=True)
 class AisPosition:
     """Where a ship is; fields the ship reports as not available are None."""
+
     mmsi: int
     lat: float
     lon: float
@@ -25,6 +27,7 @@ class AisPosition:
 @dataclass(frozen=True)
 class AisStatic:
     """What a ship says of itself; class B sends name and type apart, so empty/None means absent."""
+
     mmsi: int
     name: str
     ship_type: int | None
@@ -37,9 +40,9 @@ def _checked(line: str) -> list[str] | None:
     star = line.rfind("*")
     if start < 0 or star < start + 6 or len(line) < star + 3:
         return None
-    body = line[start + 1:star]
+    body = line[start + 1 : star]
     try:
-        given = int(line[star + 1:star + 3], 16)
+        given = int(line[star + 1 : star + 3], 16)
     except ValueError:
         return None
     sum_ = 0
@@ -96,7 +99,10 @@ def _position(bits: _Bits, at: datetime, sog: int, lon: int, lat: int, cog: int,
         return None
     speed, course, head = bits.unsigned(sog, 10), bits.unsigned(cog, 12), bits.unsigned(heading, 9)
     return AisPosition(
-        mmsi=bits.unsigned(8, 30), lat=latitude, lon=longitude, at=at,
+        mmsi=bits.unsigned(8, 30),
+        lat=latitude,
+        lon=longitude,
+        at=at,
         sog_kn=None if speed >= _SOG_NA else speed / 10,
         cog_deg=None if course >= _COG_NA else course / 10,
         heading_deg=None if head >= 360 else head,
@@ -110,13 +116,20 @@ def _decode(bits: _Bits, at: datetime) -> AisPosition | AisStatic | None:
     if kind in (18, 19):
         return _position(bits, at, sog=46, lon=57, lat=85, cog=112, heading=124)
     if kind == 5:
-        return AisStatic(mmsi=bits.unsigned(8, 30), name=bits.text(112, 120), ship_type=_ship_type(bits.unsigned(232, 8)), destination=bits.text(302, 120))
+        return AisStatic(
+            mmsi=bits.unsigned(8, 30),
+            name=bits.text(112, 120),
+            ship_type=_ship_type(bits.unsigned(232, 8)),
+            destination=bits.text(302, 120),
+        )
     if kind == 24:
         part = bits.unsigned(38, 2)
         if part == 0:
             return AisStatic(mmsi=bits.unsigned(8, 30), name=bits.text(40, 120), ship_type=None, destination="")
         if part == 1:
-            return AisStatic(mmsi=bits.unsigned(8, 30), name="", ship_type=_ship_type(bits.unsigned(40, 8)), destination="")
+            return AisStatic(
+                mmsi=bits.unsigned(8, 30), name="", ship_type=_ship_type(bits.unsigned(40, 8)), destination=""
+            )
     return None
 
 
@@ -161,5 +174,7 @@ class AisDecoder:
             return None
 
     def _forget_old(self, now: datetime) -> None:
-        for key in [key for key, (since, _, _) in self._waiting.items() if (now - since).total_seconds() > PART_WAIT_SEC]:
+        for key in [
+            key for key, (since, _, _) in self._waiting.items() if (now - since).total_seconds() > PART_WAIT_SEC
+        ]:
             del self._waiting[key]

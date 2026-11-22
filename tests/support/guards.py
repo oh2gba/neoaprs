@@ -3,6 +3,7 @@
 No real machine (home folders point into an empty folder, no real socket, serial port, Bluetooth or
 program start) and no test left running something behind it.
 """
+
 import asyncio
 import errno
 import fnmatch
@@ -46,7 +47,17 @@ IGNORED_LOGGERS = ("asyncio", "tornado.access")
 
 # ---- no real machine: the environment
 
-FOLDER_VARIABLES = ("HOME", "USERPROFILE", "LOCALAPPDATA", "APPDATA", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME", "XDG_RUNTIME_DIR")
+FOLDER_VARIABLES = (
+    "HOME",
+    "USERPROFILE",
+    "LOCALAPPDATA",
+    "APPDATA",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "XDG_CACHE_HOME",
+    "XDG_STATE_HOME",
+    "XDG_RUNTIME_DIR",
+)
 
 
 def empty_home(root: Path, set_env: Callable[[str, str], None]) -> Path:
@@ -113,25 +124,43 @@ class NetworkGuard:
 
     def check(self, address: Any, family: int) -> None:
         if family not in (socket.AF_INET, socket.AF_INET6) or not isinstance(address, tuple) or not address:
-            return                                     # a unix socket is on this machine
+            return  # a unix socket is on this machine
         port = address[1] if len(address) > 1 else ""
         if not is_local_host(address[0]):
             self.refused.append(f"{address[0]}:{port}" + (" (APRS-IS)" if port in APRS_IS_PORTS else ""))
-            raise NonLoopbackConnection(errno.ECONNREFUSED, f"the tests may only talk to this machine, not to {address[0]}" + (" (the real APRS-IS)" if port in APRS_IS_PORTS else ""))
+            raise NonLoopbackConnection(
+                errno.ECONNREFUSED,
+                f"the tests may only talk to this machine, not to {address[0]}"
+                + (" (the real APRS-IS)" if port in APRS_IS_PORTS else ""),
+            )
         if port in APRS_IS_PORTS:
             self.refused.append(f"{address[0]}:{port} (APRS-IS)")
-            raise NonLoopbackConnection(errno.ECONNREFUSED, f"the tests may only talk to a fake APRS-IS on a free port, not to port {port} ({address[0]}:{port})")
+            raise NonLoopbackConnection(
+                errno.ECONNREFUSED,
+                f"the tests may only talk to a fake APRS-IS on a free port, not to port {port} ({address[0]}:{port})",
+            )
         if port in OPERATOR_SERVICE_PORTS:
             self.refused.append(f"{address[0]}:{port} (the operator's rigctld or rotctld)")
-            raise NonLoopbackConnection(errno.ECONNREFUSED, f"the tests may only talk to fakes, not to the rigctld or rotctld of this machine ({address[0]}:{port})")
+            raise NonLoopbackConnection(
+                errno.ECONNREFUSED,
+                f"the tests may only talk to fakes, not to the rigctld or rotctld of this machine ({address[0]}:{port})",
+            )
         if port in MODEM_PORTS:
             self.refused.append(f"{address[0]}:{port} (a port of a real modem)")
-            raise NonLoopbackConnection(errno.ECONNREFUSED, f"the tests may only talk to a made-up modem on a port of the test's own, not to port {port} of this machine, where a real Direwolf or Mercury may listen ({address[0]}:{port})")
+            raise NonLoopbackConnection(
+                errno.ECONNREFUSED,
+                f"the tests may only talk to a made-up modem on a port of the test's own, not to port {port} of this machine, where a real Direwolf or Mercury may listen ({address[0]}:{port})",
+            )
 
     def install(self, patch: Callable[[Any, str, Any], None], proactor: Any = None) -> None:
         """`proactor`: the class of the loop whose connect does not go through `socket.connect`
         (Windows: IocpProactor, by ConnectEx); a test of the guard gives a stand-in."""
-        original_connect, original_connect_ex, original_sendto, original_lookup = socket.socket.connect, socket.socket.connect_ex, socket.socket.sendto, socket.getaddrinfo
+        original_connect, original_connect_ex, original_sendto, original_lookup = (
+            socket.socket.connect,
+            socket.socket.connect_ex,
+            socket.socket.sendto,
+            socket.getaddrinfo,
+        )
         proactor = proactor if proactor is not None else _iocp_proactor()
 
         def connect(sock: socket.socket, address: Any) -> None:
@@ -143,13 +172,13 @@ class NetworkGuard:
             return original_connect_ex(sock, address)
 
         def sendto(sock: socket.socket, data: Any, *rest: Any) -> int:
-            self.check(rest[-1], sock.family)          # sendto(data, address) or sendto(data, flags, address)
+            self.check(rest[-1], sock.family)  # sendto(data, address) or sendto(data, flags, address)
             return original_sendto(sock, data, *rest)
 
         def getaddrinfo(host: Any, *args: Any, **kwargs: Any) -> Any:
             if not is_local_host(host):
                 try:
-                    ipaddress.ip_address(host)         # an address needs no lookup: the connect says no
+                    ipaddress.ip_address(host)  # an address needs no lookup: the connect says no
                 except ValueError:
                     aprs_is = str(host).lower().rstrip(".").endswith(APRS_IS_HOSTS)
                     self.refused.append(f"{host} (name lookup{' of an APRS-IS server' if aprs_is else ''})")
@@ -171,14 +200,16 @@ class NetworkGuard:
 
 
 if sys.platform == "win32":
+
     def _iocp_proactor() -> Any:
-        """The proactor of the Windows loop, whose connect (ConnectEx) never calls `socket.connect`.
-        """
+        """The proactor of the Windows loop, whose connect (ConnectEx) never calls `socket.connect`."""
         from asyncio import windows_events
+
         return windows_events.IocpProactor
 else:
+
     def _iocp_proactor() -> Any:
-        return None                                    # (the other loops connect through `socket.connect`)
+        return None  # (the other loops connect through `socket.connect`)
 
 
 # ---- no radio
@@ -193,8 +224,7 @@ DEVICES_VARIABLE = "NEOAPRS_NO_DEVICES"
 
 
 class RadioTouched(PermissionError):
-    """Raised, as a refused open, where a test's code would have opened the operator's serial port.
-    """
+    """Raised, as a refused open, where a test's code would have opened the operator's serial port."""
 
 
 def is_serial_device(name: str) -> bool:
@@ -205,9 +235,11 @@ def is_serial_device(name: str) -> bool:
 
 
 if sys.platform == "win32":
+
     def _serial_node(real: str) -> bool:
-        return False                                  # Windows has no device numbers (and no /dev)
+        return False  # Windows has no device numbers (and no /dev)
 else:
+
     def _serial_node(real: str) -> bool:
         """Is `real` a character device of a serial driver, whatever its name?"""
         try:
@@ -299,7 +331,9 @@ class BluetoothGuard:
         bluetooth = getattr(socket, "AF_BLUETOOTH", None)
         if bluetooth is not None and family == bluetooth:
             self.refused.append("a Bluetooth socket")
-            raise BluetoothTouched(errno.EACCES, "a test may not make a Bluetooth socket (use tests/support/fakebluetooth.py)")
+            raise BluetoothTouched(
+                errno.EACCES, "a test may not make a Bluetooth socket (use tests/support/fakebluetooth.py)"
+            )
 
     def install(self, patch: Callable[[Any, str, Any], None]) -> None:
         original_init = socket.socket.__init__
@@ -309,7 +343,6 @@ class BluetoothGuard:
             original_init(sock, family, *args, **kwargs)
 
         patch(socket.socket, "__init__", guarded_init)
-
 
     def install_ble(self, setitem: Callable[[Any, str, Any], None]) -> None:
         """Puts a stand-in for the bleak library in `sys.modules`: its scanner and its client
@@ -331,9 +364,9 @@ class BluetoothGuard:
             def __init__(self, *args: Any, **kwargs: Any) -> None:
                 guard.check_ble("a Bluetooth LE connection")
 
-        stand_in.BleakError = BleakError                # type: ignore[attr-defined]
-        stand_in.BleakScanner = Scanner                 # type: ignore[attr-defined]
-        stand_in.BleakClient = Client                   # type: ignore[attr-defined]
+        stand_in.BleakError = BleakError  # type: ignore[attr-defined]
+        stand_in.BleakScanner = Scanner  # type: ignore[attr-defined]
+        stand_in.BleakClient = Client  # type: ignore[attr-defined]
         setitem(sys.modules, "bleak", stand_in)
 
     def check_ble(self, what: str) -> None:
@@ -356,9 +389,15 @@ class ProcessGuard:
         # The modem programs of this installation the test started, and the real Direwolf on a
         # configuration that opens a door
         self.shipped: list[str] = []
-        folders = TOOLS_FOLDERS if tools is None else (tools,) if isinstance(tools, (str, os.PathLike)) else tuple(tools)
+        folders = (
+            TOOLS_FOLDERS if tools is None else (tools,) if isinstance(tools, (str, os.PathLike)) else tuple(tools)
+        )
         # As written and as it is on the disk
-        self._tools = tuple(dict.fromkeys(form for folder in folders for form in (_norm(os.path.abspath(folder)), _norm(os.path.realpath(folder)))))
+        self._tools = tuple(
+            dict.fromkeys(
+                form for folder in folders for form in (_norm(os.path.abspath(folder)), _norm(os.path.realpath(folder)))
+            )
+        )
         # The folders of the shipped programs this test may start (`real_direwolf`: "direwolf")
         self._allowed = tuple(_norm(name) for name in allowed)
         # Set while a Popen runs: the os call it makes (posix_spawn) is the same start, already
@@ -372,12 +411,12 @@ class ProcessGuard:
         for folder in self._tools:
             at = text.find(folder)
             while at >= 0:
-                after = text[at + len(folder):]
+                after = text[at + len(folder) :]
                 if not after or after[0] in _ENDS:
-                    return True                                # the folder itself (a cwd, an entry of PATH)
-                if after[0] in _SEPARATORS and re.match(_SEGMENT, after[1:]).group() not in self._allowed:     # type: ignore[union-attr]
+                    return True  # the folder itself (a cwd, an entry of PATH)
+                if after[0] in _SEPARATORS and re.match(_SEGMENT, after[1:]).group() not in self._allowed:  # type: ignore[union-attr]
                     return True
-                at = text.find(folder, at + 1)                 # (a folder whose name only begins like it: tools-other)
+                at = text.find(folder, at + 1)  # (a folder whose name only begins like it: tools-other)
         return False
 
     def starts_shipped(self, args: Any, executable: Any = None, cwd: Any = None, env: Any = None) -> bool:
@@ -397,34 +436,52 @@ class ProcessGuard:
         each `null`, `stdin` or `udp:PORT` and no line of DIREWOLF_DOORS."""
         words = _words(args)
         for i, word in enumerate(words):
-            if self._is_direwolf(word) or i == 0 and any(self._is_direwolf(program) for program in _programs(word, executable, cwd, env)):
+            if (
+                self._is_direwolf(word)
+                or i == 0
+                and any(self._is_direwolf(program) for program in _programs(word, executable, cwd, env))
+            ):
                 return "it is started through another program" if i else conf_refusal(_conf_of(words[1:], cwd))
         return ""
 
     def _is_direwolf(self, text: str) -> bool:
         text = _norm(text)
-        return _norm("direwolf") in self._allowed and any(re.search(re.escape(os.path.join(folder, "direwolf", "direwolf")) + r"(\.exe)?(?![\w.-])", text) for folder in self._tools)
+        return _norm("direwolf") in self._allowed and any(
+            re.search(re.escape(os.path.join(folder, "direwolf", "direwolf")) + r"(\.exe)?(?![\w.-])", text)
+            for folder in self._tools
+        )
 
     @staticmethod
     def starts_neoaprs(args: Any) -> bool:
         words = [os.fsdecode(a) for a in args] if isinstance(args, (list, tuple)) else os.fsdecode(args).split()
         program = os.path.basename(words[0].replace("\\", "/")).removesuffix(".exe") if words else ""
-        return program in ("neoaprs", "neoaprs-app", "neoaprsw") or any(a == "-m" and b.split(".")[0] == "neoaprs" for a, b in zip(words, words[1:]))
+        return program in ("neoaprs", "neoaprs-app", "neoaprsw") or any(
+            a == "-m" and b.split(".")[0] == "neoaprs" for a, b in zip(words, words[1:])
+        )
 
     def check(self, args: Any, env: Any, executable: Any = None, cwd: Any = None) -> None:
         if self.starts_shipped(args, executable, cwd, env):
             self.shipped.append(str(args))
-            raise RadioTouched(errno.EACCES, f"a test may not start a modem program of this installation, which opens the machine's sound cards: {args}")
+            raise RadioTouched(
+                errno.EACCES,
+                f"a test may not start a modem program of this installation, which opens the machine's sound cards: {args}",
+            )
         if why := self.direwolf_refusal(args, cwd, executable, env):
             self.shipped.append(f"{args} ({why})")
-            raise RadioTouched(errno.EACCES, f"a test may start the real Direwolf only on a configuration that opens no sound card and keys nothing: {why}: {args}")
+            raise RadioTouched(
+                errno.EACCES,
+                f"a test may start the real Direwolf only on a configuration that opens no sound card and keys nothing: {why}: {args}",
+            )
         if env is None or not self.starts_neoaprs(args):
             return
         # A test that took the variable out of its own environment: its process may go without
         doors_open = DEVICES_VARIABLE in os.environ and env.get(DEVICES_VARIABLE, "").strip() in ("", "0")
         if not env.get(SEARCH_VARIABLE) or env.get(UPDATE_VARIABLE) != "0" or doors_open:
             self.refused.append(str(args))
-            raise RadioTouched(errno.EACCES, f"a test may not start neoaprs without {SEARCH_VARIABLE}, {UPDATE_VARIABLE}=0 and {DEVICES_VARIABLE} in its environment: {args}")
+            raise RadioTouched(
+                errno.EACCES,
+                f"a test may not start neoaprs without {SEARCH_VARIABLE}, {UPDATE_VARIABLE}=0 and {DEVICES_VARIABLE} in its environment: {args}",
+            )
 
     def install(self, patch: Callable[[Any, str, Any], None]) -> None:
         original_init = subprocess.Popen.__init__
@@ -458,8 +515,14 @@ class ProcessGuard:
             patch(os, name, guarded)
 
 
-OS_STARTS = ("system", "startfile", "posix_spawn", "posix_spawnp",
-             *(f"exec{form}" for form in ("l", "le", "lp", "lpe", "v", "ve", "vp", "vpe")), *(f"spawn{form}" for form in ("l", "le", "lp", "lpe", "v", "ve", "vp", "vpe")))
+OS_STARTS = (
+    "system",
+    "startfile",
+    "posix_spawn",
+    "posix_spawnp",
+    *(f"exec{form}" for form in ("l", "le", "lp", "lpe", "v", "ve", "vp", "vpe")),
+    *(f"spawn{form}" for form in ("l", "le", "lp", "lpe", "v", "ve", "vp", "vpe")),
+)
 
 
 def os_start(name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[Any, Any, Any, Any] | None:
@@ -475,7 +538,16 @@ def os_start(name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[
         # The text handed to the program: a word of it may name a modem program too
         arguments = args[2] if len(args) > 2 else kwargs.get("arguments")
         cwd = kwargs.get("cwd", args[3] if len(args) > 3 else None)
-        return ([target, *([arguments] if isinstance(arguments, (str, bytes, os.PathLike)) and arguments else [])], None, None, cwd) if isinstance(target, (str, bytes, os.PathLike)) else None
+        return (
+            (
+                [target, *([arguments] if isinstance(arguments, (str, bytes, os.PathLike)) and arguments else [])],
+                None,
+                None,
+                cwd,
+            )
+            if isinstance(target, (str, bytes, os.PathLike))
+            else None
+        )
     rest = args[1:] if name.startswith("spawn") else args
     form = name.removeprefix("posix_spawn").removeprefix("exec").removeprefix("spawn") or "v"
     if name.startswith("posix_spawn"):
@@ -496,9 +568,20 @@ def os_start(name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[
 
 
 # Popen's parameters after `args`, in their order
-_POPEN_PARAMETERS = ("bufsize", "executable", "stdin", "stdout", "stderr", "preexec_fn", "close_fds", "shell", "cwd", "env")
+_POPEN_PARAMETERS = (
+    "bufsize",
+    "executable",
+    "stdin",
+    "stdout",
+    "stderr",
+    "preexec_fn",
+    "close_fds",
+    "shell",
+    "cwd",
+    "env",
+)
 _SEPARATORS = "/" + os.sep
-_ENDS = " \t\n\"';:&|)<>" + os.pathsep          # what may follow a path in a line of a shell or a PATH
+_ENDS = " \t\n\"';:&|)<>" + os.pathsep  # what may follow a path in a line of a shell or a PATH
 _SEGMENT = r"[^/\\\s\"';:&|)<>]*"
 
 
@@ -521,7 +604,9 @@ def _words(args: Any) -> list[str]:
 def _program(word: str, cwd: Any) -> str:
     """The file a program word is, as it is on the disk: a relative one is found from `cwd` (as
     Popen does on POSIX)."""
-    return os.path.realpath(os.path.join(os.fsdecode(cwd), word) if cwd is not None and not os.path.isabs(word) else word)
+    return os.path.realpath(
+        os.path.join(os.fsdecode(cwd), word) if cwd is not None and not os.path.isabs(word) else word
+    )
 
 
 def _programs(word: str, executable: Any, cwd: Any, env: Any) -> list[str]:
@@ -558,7 +643,14 @@ def _texts(args: Any, executable: Any, cwd: Any, env: Any) -> list[str]:
 def _conf_of(words: Sequence[str], cwd: Any) -> Path | None:
     """The configuration a Direwolf command line names (`-c FILE` or `-cFILE`; of several the last,
     which Direwolf reads), found from `cwd` when it is relative; None without one."""
-    named = [words[i + 1] if word == "-c" and i + 1 < len(words) else word[2:] if word.startswith("-c") and len(word) > 2 else "" for i, word in enumerate(words)]
+    named = [
+        words[i + 1]
+        if word == "-c" and i + 1 < len(words)
+        else word[2:]
+        if word.startswith("-c") and len(word) > 2
+        else ""
+        for i, word in enumerate(words)
+    ]
     name = next((n for n in reversed(named) if n), "")
     if not name:
         return None
@@ -566,7 +658,21 @@ def _conf_of(words: Sequence[str], cwd: Any) -> Path | None:
 
 
 # The lines of Direwolf's configuration that key a radio
-DIREWOLF_DOORS = frozenset({"PTT", "TXINH", "DCD", "CON", "GPSNMEA", "GPSD", "SERIALKISS", "SERIALKISSPOLL", "NULLMODEM", "WAYPOINT", "IGSERVER"})
+DIREWOLF_DOORS = frozenset(
+    {
+        "PTT",
+        "TXINH",
+        "DCD",
+        "CON",
+        "GPSNMEA",
+        "GPSD",
+        "SERIALKISS",
+        "SERIALKISSPOLL",
+        "NULLMODEM",
+        "WAYPOINT",
+        "IGSERVER",
+    }
+)
 # or open a device, a GPIO pin, a serial port (NULLMODEM is the old name of SERIALKISS; WAYPOINT may
 # write to one) or the real APRS-IS (IGSERVER: the Direwolf is a program of its own, which
 # NetworkGuard does not see)
@@ -597,7 +703,9 @@ def conf_refusal(conf: Path | None) -> str:
             audio += 1
             if not 1 <= len(words) - 1 <= 2 or not all(_SAFE_AUDIO.fullmatch(word) for word in words[1:]):
                 return f"its configuration has the audio device {line.strip()!r} (only null, stdin or udp:PORT)"
-    return "" if audio else "its configuration names no audio device (ADEVICE): Direwolf would open the default sound card"
+    return (
+        "" if audio else "its configuration names no audio device (ADEVICE): Direwolf would open the default sound card"
+    )
 
 
 # ---- no modem program of this installation
@@ -613,7 +721,11 @@ def tools_folders(checkout: Path, own: Path) -> tuple[Path, ...]:
     worktrees there (worked out from the path of the checkout, not asked of git)."""
     worktree = checkout.parent.name == "worktrees" and checkout.parent.parent.name == ".claude"
     main = checkout.parent.parent.parent if worktree else checkout
-    folders = [own, *([main / ".venv" / "tools"] if worktree else []), *sorted((main / ".claude" / "worktrees").glob("*/.venv/tools"))]
+    folders = [
+        own,
+        *([main / ".venv" / "tools"] if worktree else []),
+        *sorted((main / ".claude" / "worktrees").glob("*/.venv/tools")),
+    ]
     return tuple(dict.fromkeys(folders))
 
 
@@ -651,17 +763,27 @@ def no_journal(patch: Callable[[Any, str, Any], None], gather: Any = supportgath
     before (a default argument), because its own defaults are those stand-ins too. A test of the
     journal gives its own `run` and `which`."""
     original = gather.journal_text
-    positional = [p for p in inspect.signature(original).parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
-    names = [p.name for p in positional if p.default is not p.empty]           # (in the order of __defaults__)
-    assert {"run", "which"} <= set(names), "journal_text no longer takes `run` and `which`: tests/support/guards.py no_journal must shut its new way to journalctl"
+    positional = [
+        p
+        for p in inspect.signature(original).parameters.values()
+        if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+    ]
+    names = [p.name for p in positional if p.default is not p.empty]  # (in the order of __defaults__)
+    assert {"run", "which"} <= set(names), (
+        "journal_text no longer takes `run` and `which`: tests/support/guards.py no_journal must shut its new way to journalctl"
+    )
     stand_ins: dict[str, Any] = {"run": _no_journalctl, "which": lambda name: None}
 
     def journal_text(*args: Any, **kwargs: Any) -> Any:
-        given = {p.name for p in positional[:len(args)]} | set(kwargs)
+        given = {p.name for p in positional[: len(args)]} | set(kwargs)
         return original(*args, **{name: value for name, value in stand_ins.items() if name not in given}, **kwargs)
 
     patch(gather, "journal_text", journal_text)
-    patch(original, "__defaults__", tuple(stand_ins.get(name, value) for name, value in zip(names, original.__defaults__ or ())))
+    patch(
+        original,
+        "__defaults__",
+        tuple(stand_ins.get(name, value) for name, value in zip(names, original.__defaults__ or ())),
+    )
 
 
 def no_shipped_programs(patch: Callable[[Any, str, Any], None], nowhere: Path, direwolf: bool = False) -> None:
@@ -674,6 +796,7 @@ def no_shipped_programs(patch: Callable[[Any, str, Any], None], nowhere: Path, d
 
 
 # ---- no leak
+
 
 def of_the_loop(task: asyncio.Task[Any]) -> bool:
     """A task the Windows loop itself keeps for as long as a server listens (IocpProactor.accept):
@@ -716,6 +839,7 @@ def describe_task(task: asyncio.Task[Any]) -> str:
 
 # ---- no swallowed error
 
+
 class ErrorRecorder(logging.Handler):
     """Keeps the records of level ERROR and above that the code under test logged."""
 
@@ -753,13 +877,18 @@ LoggerState = tuple[int, tuple[logging.Handler, ...], bool, bool]
 
 
 def all_loggers() -> list[logging.Logger]:
-    return [logging.getLogger(), *(lg for lg in logging.root.manager.loggerDict.values() if isinstance(lg, logging.Logger))]
+    return [
+        logging.getLogger(),
+        *(lg for lg in logging.root.manager.loggerDict.values() if isinstance(lg, logging.Logger)),
+    ]
 
 
 def logging_state() -> tuple[int, dict[logging.Logger, LoggerState]]:
     """The global switch of logging.disable and, for every logger, its level, handlers, propagate
     and disabled."""
-    return logging.root.manager.disable, {lg: (lg.level, tuple(lg.handlers), lg.propagate, lg.disabled) for lg in all_loggers()}
+    return logging.root.manager.disable, {
+        lg: (lg.level, tuple(lg.handlers), lg.propagate, lg.disabled) for lg in all_loggers()
+    }
 
 
 def restore_logging(state: tuple[int, dict[logging.Logger, LoggerState]]) -> list[str]:
@@ -775,7 +904,9 @@ def restore_logging(state: tuple[int, dict[logging.Logger, LoggerState]]) -> lis
         level, handlers, propagate, disabled = loggers.get(lg, (logging.NOTSET, (), True, False))
         added = [h for h in lg.handlers if h not in handlers and not type(h).__module__.startswith("_pytest")]
         if (lg.level, lg.propagate, lg.disabled) != (level, propagate, disabled) or added:
-            changed.append(f"{lg.name or 'root'}: level {logging.getLevelName(lg.level)}, {len(added)} handler(s) added")
+            changed.append(
+                f"{lg.name or 'root'}: level {logging.getLevelName(lg.level)}, {len(added)} handler(s) added"
+            )
         lg.setLevel(level)
         lg.propagate, lg.disabled = propagate, disabled
         for handler in added:
@@ -792,14 +923,20 @@ class Doors:
 
     def __init__(self) -> None:
         self.paused = False
-        self.network, self.radio, self.bluetooth, self.processes = NetworkGuard(), SerialGuard(), BluetoothGuard(), ProcessGuard()
+        self.network, self.radio, self.bluetooth, self.processes = (
+            NetworkGuard(),
+            SerialGuard(),
+            BluetoothGuard(),
+            ProcessGuard(),
+        )
         for guard in (self.network, self.radio, self.bluetooth, self.processes):
-            guard.check = self._unless_paused(guard.check)                                   # type: ignore[method-assign]
-        self.bluetooth.check_ble = self._unless_paused(self.bluetooth.check_ble)             # type: ignore[method-assign]
+            guard.check = self._unless_paused(guard.check)  # type: ignore[method-assign]
+        self.bluetooth.check_ble = self._unless_paused(self.bluetooth.check_ble)  # type: ignore[method-assign]
 
     def _unless_paused(self, check: Callable[..., Any]) -> Callable[..., Any]:
         def checked(*args: Any, **kwargs: Any) -> Any:
             return None if self.paused else check(*args, **kwargs)
+
         return checked
 
     def install(self, patch: Callable[[Any, str, Any], None], setitem: Callable[[Any, str, Any], None]) -> None:
@@ -812,8 +949,20 @@ class Doors:
 
     def take(self) -> list[str]:
         """Everything the fixtures reached for since the last call, and forgets it."""
-        taken = [*self.network.refused, *self.radio.refused, *self.bluetooth.refused, *self.processes.refused, *self.processes.shipped]
-        for refused in (self.network.refused, self.radio.refused, self.bluetooth.refused, self.processes.refused, self.processes.shipped):
+        taken = [
+            *self.network.refused,
+            *self.radio.refused,
+            *self.bluetooth.refused,
+            *self.processes.refused,
+            *self.processes.shipped,
+        ]
+        for refused in (
+            self.network.refused,
+            self.radio.refused,
+            self.bluetooth.refused,
+            self.processes.refused,
+            self.processes.shipped,
+        ):
             refused.clear()
         return taken
 
@@ -822,7 +971,10 @@ ACTIVE_DOORS: Doors | None = None
 
 
 def fail_for(taken: list[str], where: str) -> None:
-    assert not taken, f"a fixture of {where} reached for something that is not this machine's to take (a real network, serial port, Bluetooth device or modem program): " + ", ".join(taken)
+    assert not taken, (
+        f"a fixture of {where} reached for something that is not this machine's to take (a real network, serial port, Bluetooth device or modem program): "
+        + ", ".join(taken)
+    )
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -848,6 +1000,7 @@ def doors_of_the_module(doors_of_the_session: Doors) -> Iterator[None]:
 
 # ---- the fixtures (wired in by tests/conftest.py)
 
+
 @pytest.fixture(autouse=True)
 def logging_restored() -> Iterator[None]:
     """Whatever a test does to the loggers is undone when it ends (and the next test starts from the
@@ -864,7 +1017,11 @@ def isolated_machine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyP
         network = NetworkGuard()
         network.install(monkeypatch.setattr)
         real_direwolf = request.node.get_closest_marker("real_direwolf") is not None
-        radio, processes, bluetooth = SerialGuard(), ProcessGuard(allowed=("direwolf",) if real_direwolf else ()), BluetoothGuard()
+        radio, processes, bluetooth = (
+            SerialGuard(),
+            ProcessGuard(allowed=("direwolf",) if real_direwolf else ()),
+            BluetoothGuard(),
+        )
         no_shipped_programs(monkeypatch.setattr, Path(root) / "no-tools", real_direwolf)
         radio.install(monkeypatch.setattr)
         radio.install_com(monkeypatch.setattr)
@@ -890,11 +1047,17 @@ def isolated_machine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyP
         yield
         if doors is not None:
             doors.paused = False
-        assert not network.refused, "the test tried to reach something that is not this machine: " + ", ".join(network.refused)
+        assert not network.refused, "the test tried to reach something that is not this machine: " + ", ".join(
+            network.refused
+        )
         assert not radio.refused, "the test tried to open the radio's serial port: " + ", ".join(radio.refused)
         assert not bluetooth.refused, "the test tried to make a Bluetooth socket: " + ", ".join(bluetooth.refused)
-        assert not processes.refused, f"the test started neoaprs without {SEARCH_VARIABLE} in its environment: " + ", ".join(processes.refused)
-        assert not processes.shipped, "the test started a modem program of this installation: " + ", ".join(processes.shipped)
+        assert not processes.refused, (
+            f"the test started neoaprs without {SEARCH_VARIABLE} in its environment: " + ", ".join(processes.refused)
+        )
+        assert not processes.shipped, "the test started a modem program of this installation: " + ", ".join(
+            processes.shipped
+        )
 
 
 @pytest.fixture(autouse=True)
@@ -908,7 +1071,11 @@ def no_unexpected_errors(request: pytest.FixtureRequest, logging_restored: None)
     finally:
         root.removeHandler(recorder)
     if recorder.records_seen and not expects_errors(request):
-        pytest.fail("the code logged an error the test did not expect (mark the test with @pytest.mark.expects_errors when it should):\n  " + "\n  ".join(recorder.lines()[:10]), pytrace=False)
+        pytest.fail(
+            "the code logged an error the test did not expect (mark the test with @pytest.mark.expects_errors when it should):\n  "
+            + "\n  ".join(recorder.lines()[:10]),
+            pytrace=False,
+        )
 
 
 @pytest.fixture(autouse=True)
@@ -920,7 +1087,9 @@ def no_leaked_db_threads() -> Iterator[None]:
     leaked = leaked_db_threads()
     for thread in leaked:
         thread.finish()
-    assert not leaked, "the test left database threads running (await db.close()):\n  " + "\n  ".join(t.name for t in leaked)
+    assert not leaked, "the test left database threads running (await db.close()):\n  " + "\n  ".join(
+        t.name for t in leaked
+    )
 
 
 # How long stopping what a test started may take when the test is over. A stop that hangs (on
@@ -941,11 +1110,15 @@ async def torn_down_within(limit_sec: float, test: str) -> list[asyncio.Task[Any
             return await leaked_tasks()
     except TimeoutError:
         if not deadline.expired():
-            raise                                      # (a TimeoutError of the code being stopped, not of the limit)
+            raise  # (a TimeoutError of the code being stopped, not of the limit)
         stuck = pending_tasks()
         for task in stuck:
             task.cancel()
-        pytest.fail(f"{test}: stopping what the test started did not end in {limit_sec:g} s" + "".join(f"\n  still running: {describe_task(t)}" for t in stuck), pytrace=False)
+        pytest.fail(
+            f"{test}: stopping what the test started did not end in {limit_sec:g} s"
+            + "".join(f"\n  still running: {describe_task(t)}" for t in stuck),
+            pytrace=False,
+        )
 
 
 @pytest_asyncio.fixture
@@ -956,4 +1129,6 @@ async def no_leaked_tasks(request: pytest.FixtureRequest) -> AsyncIterator[None]
     leaked = await torn_down_within(TEARDOWN_LIMIT_SEC, request.node.nodeid)
     for task in leaked:
         task.cancel()
-    assert not leaked, "the test left tasks running (stop what it started):\n  " + "\n  ".join(describe_task(t) for t in leaked)
+    assert not leaked, "the test left tasks running (stop what it started):\n  " + "\n  ".join(
+        describe_task(t) for t in leaked
+    )

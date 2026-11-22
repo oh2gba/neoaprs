@@ -3,6 +3,7 @@
 
   scripts/migration-size FOLDER [--mb 1000] [--keep]
 Builds a version-30 database in FOLDER (not a RAM disk) and migrates a copy; --keep keeps both."""
+
 import argparse
 import shutil
 import sqlite3
@@ -17,52 +18,120 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 MIB = 1024 * 1024
-BATCH = 100_000                             # the packets one statement inserts
+BATCH = 100_000  # the packets one statement inserts
 STATIONS, MESSAGES, PREFS = 20_000, 5_000, 300
 # when the first packet of the file was heard; one every two seconds after it
 FIRST = "2026-09-01 00:00:00"
-DECODED = ('{"type":"position","lat":60.1698,"lon":24.9384,"symbol_table":"/","symbol_code":">","comment":"NeoAPRS on the road, 145.500 MHz, battery 12.6 V","course_deg":271,"speed_kmh":43.5,'
-           '"altitude_m":44.0,"timestamp":null,"messaging":true,"compressed":false,"ambiguity":0,"telemetry":null,"locator":null,"extensions":null,"frequency":null,"storm":null,"sign":null}')
+DECODED = (
+    '{"type":"position","lat":60.1698,"lon":24.9384,"symbol_table":"/","symbol_code":">","comment":"NeoAPRS on the road, 145.500 MHz, battery 12.6 V","course_deg":271,"speed_kmh":43.5,'
+    '"altitude_m":44.0,"timestamp":null,"messaging":true,"compressed":false,"ambiguity":0,"telemetry":null,"locator":null,"extensions":null,"frequency":null,"storm":null,"sign":null}'
+)
 PACKETS = """WITH RECURSIVE n(i) AS (SELECT ?1 UNION ALL SELECT i + 1 FROM n WHERE i < ?2)
     INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded, via, radio, snr, rssi)
     SELECT strftime('%Y-%m-%dT%H:%M:%S', ?3, (i * 2) || ' seconds') || '.000000Z', CASE WHEN i % 50 = 0 THEN 'out' ELSE 'in' END, randomblob(96), 'OH' || (i % 9) || 'S' || (i % ?5), 'APRS',
            CASE WHEN i % 4 = 0 THEN 'OH2RCH-2*,WIDE2-1' ELSE 'TCPIP*,qAC,T2FINLAND' END, 'position', 'position 60.1698N 24.9384E, 43.5 km/h, course 271, NeoAPRS on the road', ?4,
            CASE WHEN i % 4 <> 0 THEN 'is' WHEN i % 40 = 0 THEN 'rf-gated' ELSE 'rf' END, CASE WHEN i % 4 <> 0 THEN '' WHEN i % 28 = 0 THEN 'hf' ELSE 'fm' END,
            CASE WHEN i % 28 = 0 THEN -3.5 END, CASE WHEN i % 28 = 0 THEN -104.0 END FROM n"""
-REST = [("""WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < ?1 - 1)
+REST = [
+    (
+        """WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < ?1 - 1)
     INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code, lat, lon, first_heard, last_heard, last_position_at, last_status, last_comment, packets, last_path, heard_rf, heard_is, last_rf_at,
                          last_is_at, position_via, heard_fm, heard_hf, last_fm_at, last_hf_at)
     SELECT 'OH' || (i % 9) || 'S' || i, 'station', '', '/', '>', 60.1, 24.9, '2026-09-01T00:00:00.000000Z', '2026-10-21T12:00:00.000000Z', '2026-10-21T12:00:00.000000Z', 'QRV', 'NeoAPRS on the road', 40 + i % 7,
            CASE WHEN i % 2 = 0 THEN 'OH2RCH-2*,WIDE2-1' ELSE '' END, CASE WHEN i % 2 = 0 THEN 10 + i % 7 ELSE 0 END, 30, CASE WHEN i % 2 = 0 THEN '2026-10-21T12:00:00.000000Z' END, '2026-10-21T11:00:00.000000Z', 'rf',
-           CASE WHEN i % 2 = 0 THEN 7 + i % 7 ELSE 0 END, CASE WHEN i % 14 = 0 THEN 3 ELSE 0 END, CASE WHEN i % 2 = 0 THEN '2026-10-21T12:00:00.000000Z' END, CASE WHEN i % 14 = 0 THEN '2026-10-21T10:00:00.000000Z' END FROM n""", (STATIONS,)),
-        ("""WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?1)
+           CASE WHEN i % 2 = 0 THEN 7 + i % 7 ELSE 0 END, CASE WHEN i % 14 = 0 THEN 3 ELSE 0 END, CASE WHEN i % 2 = 0 THEN '2026-10-21T12:00:00.000000Z' END, CASE WHEN i % 14 = 0 THEN '2026-10-21T10:00:00.000000Z' END FROM n""",
+        (STATIONS,),
+    ),
+    (
+        """WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?1)
     INSERT INTO message (at, direction, from_call, to_call, text, msg_id, state, attempts, route, radio)
     SELECT '2026-10-21T12:00:00.000000Z', CASE WHEN i % 2 = 0 THEN 'out' ELSE 'in' END, 'OH2A' || (i % 500), 'OH2B' || (i % 500), 'a message of some length, as they are', CAST(i % 99999 AS TEXT),
-           CASE WHEN i % 2 = 0 THEN 'acked' ELSE 'received' END, i % 2, '', CASE WHEN i % 2 = 0 THEN '' WHEN i % 9 = 0 THEN 'hf' ELSE 'fm' END FROM n""", (MESSAGES,)),
-        ("INSERT INTO message_attempt (message_id, attempt, sent_at, path, radio) SELECT id, 1, at, 'WIDE1-1,WIDE2-1', CASE WHEN id % 8 = 0 THEN 'hf' ELSE 'fm' END FROM message WHERE direction = 'out'", ()),
-        ("""WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < ?1 - 1)
-    INSERT INTO station_pref (call, path, rf_only, updated_at) SELECT 'OH2P' || i, CASE WHEN i % 3 < 2 THEN 'WIDE1-1,WIDE2-1' END, CASE WHEN i % 3 > 0 THEN 1 ELSE 0 END, '2026-10-21T12:00:00.000000Z' FROM n""", (PREFS,)),
-        ("""INSERT INTO own_object (name, kind, lat, lon, symbol_table, symbol_code, comment, alive, created_at, updated_at, radio)
+           CASE WHEN i % 2 = 0 THEN 'acked' ELSE 'received' END, i % 2, '', CASE WHEN i % 2 = 0 THEN '' WHEN i % 9 = 0 THEN 'hf' ELSE 'fm' END FROM n""",
+        (MESSAGES,),
+    ),
+    (
+        "INSERT INTO message_attempt (message_id, attempt, sent_at, path, radio) SELECT id, 1, at, 'WIDE1-1,WIDE2-1', CASE WHEN id % 8 = 0 THEN 'hf' ELSE 'fm' END FROM message WHERE direction = 'out'",
+        (),
+    ),
+    (
+        """WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < ?1 - 1)
+    INSERT INTO station_pref (call, path, rf_only, updated_at) SELECT 'OH2P' || i, CASE WHEN i % 3 < 2 THEN 'WIDE1-1,WIDE2-1' END, CASE WHEN i % 3 > 0 THEN 1 ELSE 0 END, '2026-10-21T12:00:00.000000Z' FROM n""",
+        (PREFS,),
+    ),
+    (
+        """INSERT INTO own_object (name, kind, lat, lon, symbol_table, symbol_code, comment, alive, created_at, updated_at, radio)
     VALUES ('ONFM', 'object', 60.2, 25.0, '/', '-', 'camp', 1, '2026-10-21T12:00:00.000000Z', '2026-10-21T12:00:00.000000Z', 'fm'),
            ('ONHF', 'object', 60.2, 25.0, '/', '-', 'camp', 1, '2026-10-21T12:00:00.000000Z', '2026-10-21T12:00:00.000000Z', 'hf'),
-           ('ONBOTH', 'object', 60.2, 25.0, '/', '-', 'camp', 1, '2026-10-21T12:00:00.000000Z', '2026-10-21T12:00:00.000000Z', 'both')""", ()),
-        ("INSERT INTO settings (key, value) VALUES ('station/call', 'OH2GBA'), ('hf/enabled', 'true'), ('mercury/sound_card', 'hw:1,0')", ())]
+           ('ONBOTH', 'object', 60.2, 25.0, '/', '-', 'camp', 1, '2026-10-21T12:00:00.000000Z', '2026-10-21T12:00:00.000000Z', 'both')""",
+        (),
+    ),
+    (
+        "INSERT INTO settings (key, value) VALUES ('station/call', 'OH2GBA'), ('hf/enabled', 'true'), ('mercury/sound_card', 'hw:1,0')",
+        (),
+    ),
+]
 # What must say the same before and after: (what it is, the statement on the file of version 30, the
 # statement on the migrated copy).
-SAME = [("the packets by radio", "SELECT CASE WHEN radio = 'hf' THEN 2 WHEN radio = 'fm' OR via <> 'is' THEN 1 END, COUNT(*), SUM(length(raw)), SUM(length(decoded)), MIN(heard_at), MAX(heard_at) FROM packet GROUP BY 1 ORDER BY 1",
-         "SELECT radio, COUNT(*), SUM(length(raw)), SUM(length(decoded)), MIN(heard_at), MAX(heard_at) FROM packet GROUP BY 1 ORDER BY 1"),
-        ("the messages by radio", "SELECT CASE radio WHEN 'fm' THEN 1 WHEN 'hf' THEN 2 END, COUNT(*), SUM(id) FROM message GROUP BY 1 ORDER BY 1", "SELECT radio, COUNT(*), SUM(id) FROM message GROUP BY 1 ORDER BY 1"),
-        ("the attempts by radio", "SELECT CASE radio WHEN 'fm' THEN 1 WHEN 'hf' THEN 2 END, COUNT(*), SUM(message_id) FROM message_attempt GROUP BY 1 ORDER BY 1",
-         "SELECT radio, COUNT(*), SUM(message_id) FROM message_attempt GROUP BY 1 ORDER BY 1"),
-        ("what the FM radio heard", "SELECT COUNT(*), SUM(heard_fm), COUNT(last_fm_at) FROM station WHERE heard_fm <> 0", "SELECT COUNT(*), SUM(heard), COUNT(last_at) FROM station_radio WHERE radio_id = 1"),
-        ("what the HF radio heard", "SELECT COUNT(*), SUM(heard_hf), COUNT(last_hf_at) FROM station WHERE heard_hf <> 0", "SELECT COUNT(*), SUM(heard), COUNT(last_at) FROM station_radio WHERE radio_id = 2"),
-        ("the stations' last paths", "SELECT COUNT(*) FROM station WHERE last_path <> '' AND heard_fm + heard_hf > 0", "SELECT COUNT(*) FROM station_radio WHERE last_path <> ''"),
-        ("the stations", "SELECT COUNT(*), SUM(packets), SUM(heard_rf), SUM(heard_is) FROM station", "SELECT COUNT(*), SUM(packets), SUM(heard_rf), SUM(heard_is) FROM station"),
-        ("the stations' own paths", "SELECT COUNT(*) FROM station_pref WHERE path IS NOT NULL", "SELECT COUNT(*) FROM station_path WHERE radio_id = 1"),
-        ("RF only", "SELECT COUNT(*) FROM station_pref WHERE rf_only = 1", "SELECT COUNT(*) FROM station_pref WHERE rf_only = 1"),
-        ("the objects", "SELECT name, CASE radio WHEN 'hf' THEN '2' WHEN 'both' THEN '1,2' ELSE '1' END FROM own_object ORDER BY name", "SELECT name, radios FROM own_object ORDER BY name")]
+SAME = [
+    (
+        "the packets by radio",
+        "SELECT CASE WHEN radio = 'hf' THEN 2 WHEN radio = 'fm' OR via <> 'is' THEN 1 END, COUNT(*), SUM(length(raw)), SUM(length(decoded)), MIN(heard_at), MAX(heard_at) FROM packet GROUP BY 1 ORDER BY 1",
+        "SELECT radio, COUNT(*), SUM(length(raw)), SUM(length(decoded)), MIN(heard_at), MAX(heard_at) FROM packet GROUP BY 1 ORDER BY 1",
+    ),
+    (
+        "the messages by radio",
+        "SELECT CASE radio WHEN 'fm' THEN 1 WHEN 'hf' THEN 2 END, COUNT(*), SUM(id) FROM message GROUP BY 1 ORDER BY 1",
+        "SELECT radio, COUNT(*), SUM(id) FROM message GROUP BY 1 ORDER BY 1",
+    ),
+    (
+        "the attempts by radio",
+        "SELECT CASE radio WHEN 'fm' THEN 1 WHEN 'hf' THEN 2 END, COUNT(*), SUM(message_id) FROM message_attempt GROUP BY 1 ORDER BY 1",
+        "SELECT radio, COUNT(*), SUM(message_id) FROM message_attempt GROUP BY 1 ORDER BY 1",
+    ),
+    (
+        "what the FM radio heard",
+        "SELECT COUNT(*), SUM(heard_fm), COUNT(last_fm_at) FROM station WHERE heard_fm <> 0",
+        "SELECT COUNT(*), SUM(heard), COUNT(last_at) FROM station_radio WHERE radio_id = 1",
+    ),
+    (
+        "what the HF radio heard",
+        "SELECT COUNT(*), SUM(heard_hf), COUNT(last_hf_at) FROM station WHERE heard_hf <> 0",
+        "SELECT COUNT(*), SUM(heard), COUNT(last_at) FROM station_radio WHERE radio_id = 2",
+    ),
+    (
+        "the stations' last paths",
+        "SELECT COUNT(*) FROM station WHERE last_path <> '' AND heard_fm + heard_hf > 0",
+        "SELECT COUNT(*) FROM station_radio WHERE last_path <> ''",
+    ),
+    (
+        "the stations",
+        "SELECT COUNT(*), SUM(packets), SUM(heard_rf), SUM(heard_is) FROM station",
+        "SELECT COUNT(*), SUM(packets), SUM(heard_rf), SUM(heard_is) FROM station",
+    ),
+    (
+        "the stations' own paths",
+        "SELECT COUNT(*) FROM station_pref WHERE path IS NOT NULL",
+        "SELECT COUNT(*) FROM station_path WHERE radio_id = 1",
+    ),
+    (
+        "RF only",
+        "SELECT COUNT(*) FROM station_pref WHERE rf_only = 1",
+        "SELECT COUNT(*) FROM station_pref WHERE rf_only = 1",
+    ),
+    (
+        "the objects",
+        "SELECT name, CASE radio WHEN 'hf' THEN '2' WHEN 'both' THEN '1,2' ELSE '1' END FROM own_object ORDER BY name",
+        "SELECT name, radios FROM own_object ORDER BY name",
+    ),
+]
 # every radio a row names is in the table `radio`
-NAMED = [("packet", "radio"), ("message", "radio"), ("message_attempt", "radio"), ("station_radio", "radio_id"), ("station_path", "radio_id")]
+NAMED = [
+    ("packet", "radio"),
+    ("message", "radio"),
+    ("message_attempt", "radio"),
+    ("station_radio", "radio_id"),
+    ("station_path", "radio_id"),
+]
 
 
 class Room(threading.Thread):
@@ -105,6 +174,7 @@ def build(path: Path, megabytes: int) -> int:
     from neoaprs import migrations
     from neoaprs.clock import utcnow
     from neoaprs.dbfile import DEFAULT_BUSY_MS, configure
+
     db = sqlite3.connect(str(path), isolation_level=None)
     configure(db, path, DEFAULT_BUSY_MS)
     for number in range(1, 31):
@@ -127,6 +197,7 @@ def build(path: Path, megabytes: int) -> int:
 def steps() -> list[tuple[int, Callable[[sqlite3.Connection], None]]]:
     """The three steps by number, as the runner lists them."""
     from neoaprs.migrations import MIGRATIONS
+
     return [(number, MIGRATIONS[number - 1]) for number in (31, 32, 33)]
 
 
@@ -135,6 +206,7 @@ def migrate(path: Path) -> tuple[list[tuple[int, float]], float, float, int, int
     first and of the checkpoint after, the size of the file before, and the most the three files
     held and the log held."""
     from neoaprs.dbfile import DEFAULT_BUSY_MS, configure, copy_database
+
     db = sqlite3.connect(str(path), isolation_level=None)
     configure(db, path, DEFAULT_BUSY_MS)
     before = size_of(db)
@@ -150,6 +222,7 @@ def migrate(path: Path) -> tuple[list[tuple[int, float]], float, float, int, int
         step(db)
         db.execute(f"PRAGMA user_version = {number}")
         db.execute("COMMIT")
+
     for number, step in steps():
         took.append((number, timed(partial(one, number, step))[0]))
     checkpoint, _ = timed(lambda: db.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchall())
@@ -161,9 +234,23 @@ def migrate(path: Path) -> tuple[list[tuple[int, float]], float, float, int, int
 def differences(old: Path, new: Path) -> list[str]:
     """What the migrated copy says that the file of version 30 does not."""
     a, b = sqlite3.connect(str(old)), sqlite3.connect(str(new))
-    found = [f"{what}: {before} became {after}" for what, before, after in ((what, a.execute(was).fetchall(), b.execute(now).fetchall()) for what, was, now in SAME) if before != after]
-    found += [f"{count} rows of {table} name a radio that the table radio does not have" for table, column in NAMED
-              for count in [b.execute(f"SELECT COUNT(*) FROM {table} WHERE {column} IS NOT NULL AND {column} NOT IN (SELECT id FROM radio)").fetchone()[0]] if count]      # noqa: S608  (names come from NAMED in this file)
+    found = [
+        f"{what}: {before} became {after}"
+        for what, before, after in (
+            (what, a.execute(was).fetchall(), b.execute(now).fetchall()) for what, was, now in SAME
+        )
+        if before != after
+    ]
+    found += [
+        f"{count} rows of {table} name a radio that the table radio does not have"
+        for table, column in NAMED
+        for count in [
+            b.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE {column} IS NOT NULL AND {column} NOT IN (SELECT id FROM radio)"  # noqa: S608
+            ).fetchone()[0]
+        ]
+        if count
+    ]
     if b.execute("PRAGMA quick_check").fetchone()[0] != "ok":
         found.append("the migrated file does not pass quick_check")
     a.close()
@@ -173,7 +260,11 @@ def differences(old: Path, new: Path) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="the time and the room of migrations 31 to 33 on a big database")
-    parser.add_argument("folder", type=Path, help="where the file and its copy are built (never a RAM disk: /tmp is one on some machines)")
+    parser.add_argument(
+        "folder",
+        type=Path,
+        help="where the file and its copy are built (never a RAM disk: /tmp is one on some machines)",
+    )
     parser.add_argument("--mb", type=int, default=1024, help="the size of the file to build, MB (1024)")
     parser.add_argument("--keep", action="store_true", help="leave the two files in the folder")
     args = parser.parse_args()
@@ -187,13 +278,21 @@ def main() -> int:
     took, copying, checkpoint, before, most, most_log = migrate(new)
     wrong = differences(old, new)
     after = new.stat().st_size
-    print(f"the file: {before / MIB:.0f} MB, {packets:,} packets, {STATIONS:,} stations, {MESSAGES:,} messages (built in {building:.1f} s)")
+    print(
+        f"the file: {before / MIB:.0f} MB, {packets:,} packets, {STATIONS:,} stations, {MESSAGES:,} messages (built in {building:.1f} s)"
+    )
     print(f"the copy the runner makes before the steps: {copying:.1f} s, {before / MIB:.0f} MB")
     for number, seconds in took:
         print(f"migration {number}: {seconds:.1f} s")
-    print(f"the checkpoint after: {checkpoint:.1f} s; all three steps and the checkpoint: {sum(s for _, s in took) + checkpoint:.1f} s")
-    print(f"the most the file, its log and its shared memory held: {most / MIB:.0f} MB, {(most - before) / MIB:.0f} MB more than the file before (the log alone: {most_log / MIB:.0f} MB, {most_log / before:.2f} of the file)")
-    print(f"the room a migration needs beside the database: the copy and that, {most / MIB:.0f} MB, {most / before:.2f} of the file; the file after: {after / MIB:.0f} MB")
+    print(
+        f"the checkpoint after: {checkpoint:.1f} s; all three steps and the checkpoint: {sum(s for _, s in took) + checkpoint:.1f} s"
+    )
+    print(
+        f"the most the file, its log and its shared memory held: {most / MIB:.0f} MB, {(most - before) / MIB:.0f} MB more than the file before (the log alone: {most_log / MIB:.0f} MB, {most_log / before:.2f} of the file)"
+    )
+    print(
+        f"the room a migration needs beside the database: the copy and that, {most / MIB:.0f} MB, {most / before:.2f} of the file; the file after: {after / MIB:.0f} MB"
+    )
     for line in wrong:
         print(f"WRONG: {line}")
     print("every row says what it said" if not wrong else f"{len(wrong)} differences")

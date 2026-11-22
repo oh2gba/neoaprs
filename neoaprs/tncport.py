@@ -2,6 +2,7 @@
 
 Also `Modem`, what the Tnc asks of the modem program behind its line, when there is one.
 """
+
 from typing import Protocol
 
 from .callbackport import CallbackPort
@@ -13,6 +14,7 @@ class Modem(Protocol):
 
     `starting`: a refused line is no fault yet; `hold`: why no frame may go now.
     """
+
     @property
     def problem(self) -> str: ...
     def take_reading(self) -> Reading: ...

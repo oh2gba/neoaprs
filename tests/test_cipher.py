@@ -1,13 +1,14 @@
 """Tests for encrypted messages (neoaprs/cipher.py): key announcement, shared key, sealed text that
 opens only with the pair's key, message room and fingerprint.
 """
+
 import pytest
 
 from neoaprs import cipher
 from neoaprs.aprsmessage import MAX_TEXT
 from neoaprs.message import check_text
 
-A = bytes(range(32))                                 # (any 32 bytes are an X25519 private key)
+A = bytes(range(32))  # (any 32 bytes are an X25519 private key)
 B = bytes(range(100, 132))
 
 
@@ -19,7 +20,11 @@ def test_a_key_pair_announces_its_public_key_in_one_message_and_the_text_reads_b
     check_text(text)
     assert cipher.key_of_message(text) == public
     assert cipher.key_of_message(text + " ") == public
-    assert cipher.key_of_message("!Knot a key") is None and cipher.key_of_message("Hello") is None and cipher.key_of_message("!K" + "A" * 43 + "A") is None
+    assert (
+        cipher.key_of_message("!Knot a key") is None
+        and cipher.key_of_message("Hello") is None
+        and cipher.key_of_message("!K" + "A" * 43 + "A") is None
+    )
 
 
 def test_the_two_stations_derive_the_same_key_and_another_pair_derives_another() -> None:
@@ -58,11 +63,16 @@ def test_nothing_but_the_pairs_key_in_the_right_direction_opens_a_message() -> N
     wire = cipher.seal(key, "OH2GBA", "OH2BEA-7", "Hello", nonce=b"\1\2\3\4\5\6")
     assert cipher.open_sealed(key, "OH2BEA-7", "OH2GBA", wire) is None, "the other direction"
     assert cipher.open_sealed(key, "OH2GBA", "OH2XYZ", wire) is None, "another addressee"
-    assert cipher.open_sealed(cipher.shared_key(A, cipher.public_of(bytes(32))), "OH2GBA", "OH2BEA-7", wire) is None, "another key"
+    assert cipher.open_sealed(cipher.shared_key(A, cipher.public_of(bytes(32))), "OH2GBA", "OH2BEA-7", wire) is None, (
+        "another key"
+    )
     changed = wire[:-1] + ("A" if wire[-1] != "A" else "B")
     assert cipher.open_sealed(key, "OH2GBA", "OH2BEA-7", changed) is None, "a changed character"
     assert cipher.open_sealed(key, "OH2GBA", "OH2BEA-7", wire[:20]) is None, "a cut packet"
-    assert cipher.open_sealed(key, "OH2GBA", "OH2BEA-7", "!E!!not base64") is None and cipher.open_sealed(key, "OH2GBA", "OH2BEA-7", "!Eabcd") is None
+    assert (
+        cipher.open_sealed(key, "OH2GBA", "OH2BEA-7", "!E!!not base64") is None
+        and cipher.open_sealed(key, "OH2GBA", "OH2BEA-7", "!Eabcd") is None
+    )
     assert cipher.open_sealed(key, "OH2GBA", "OH2BEA-7", "Hello") is None, "no marker"
     assert cipher.is_locked(wire) and not cipher.is_locked("Hello")
 
@@ -70,7 +80,9 @@ def test_nothing_but_the_pairs_key_in_the_right_direction_opens_a_message() -> N
 def test_two_seals_of_one_text_differ_by_their_nonce_and_both_open() -> None:
     key = cipher.shared_key(A, cipher.public_of(B))
     first, second = (cipher.seal(key, "OH2GBA", "OH2BEA-7", "Same words") for _ in range(2))
-    assert first != second and all(cipher.open_sealed(key, "OH2GBA", "OH2BEA-7", w) == "Same words" for w in (first, second))
+    assert first != second and all(
+        cipher.open_sealed(key, "OH2GBA", "OH2BEA-7", w) == "Same words" for w in (first, second)
+    )
 
 
 def test_the_fingerprint_is_sixteen_hex_characters_in_four_groups_and_differs_between_keys() -> None:

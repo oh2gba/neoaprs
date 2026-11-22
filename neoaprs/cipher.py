@@ -2,6 +2,7 @@
 
 X25519 key agreement, HKDF-SHA256, AES-256-GCM with the two calls as associated data.
 """
+
 import base64
 import binascii
 import hashlib
@@ -41,18 +42,20 @@ def _unb64(text: str) -> bytes | None:
 def new_private() -> bytes:
     """Return a new private key."""
     from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+
     return X25519PrivateKey.generate().private_bytes_raw()
 
 
 def public_of(private: bytes) -> bytes:
     from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+
     return X25519PrivateKey.from_private_bytes(private).public_key().public_bytes_raw()
 
 
 def fingerprint(public: bytes) -> str:
     """Return the SHA-256 of the key as 16 hex characters in groups of four."""
     digest = hashlib.sha256(public).hexdigest()[:16].upper()
-    return " ".join(digest[i:i + 4] for i in range(0, 16, 4))
+    return " ".join(digest[i : i + 4] for i in range(0, 16, 4))
 
 
 def shared_key(private: bytes, peer_public: bytes) -> bytes:
@@ -60,6 +63,7 @@ def shared_key(private: bytes, peer_public: bytes) -> bytes:
     from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
     secret = X25519PrivateKey.from_private_bytes(private).exchange(X25519PublicKey.from_public_bytes(peer_public))
     return HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=_INFO).derive(secret)
 
@@ -69,6 +73,7 @@ def is_usable_key(public: bytes) -> bool:
     if len(public) != KEY_LEN:
         return False
     from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
+
     try:
         X25519PrivateKey.generate().exchange(X25519PublicKey.from_public_bytes(public))
     except ValueError:
@@ -85,7 +90,7 @@ def key_of_message(text: str) -> bytes | None:
     """Return the public key a text announces, or None."""
     if not text.startswith(KEY_MARK):
         return None
-    key = _unb64(text[len(KEY_MARK):].rstrip())
+    key = _unb64(text[len(KEY_MARK) :].rstrip())
     return key if key is not None and len(key) == KEY_LEN else None
 
 
@@ -104,7 +109,12 @@ def check_locked_text(text: str) -> bytes:
         raise CipherError("the text is empty, or has a character a message cannot carry", "lock.unprintable")
     data = text.encode("utf-8")
     if len(data) > MAX_LOCKED:
-        raise CipherError(f"the text is {len(data)} bytes, at most {MAX_LOCKED} fit in an encrypted message", "lock.too_long", length=len(data), max=MAX_LOCKED)
+        raise CipherError(
+            f"the text is {len(data)} bytes, at most {MAX_LOCKED} fit in an encrypted message",
+            "lock.too_long",
+            length=len(data),
+            max=MAX_LOCKED,
+        )
     return data
 
 
@@ -114,9 +124,12 @@ def seal(key: bytes, sender: str, addressee: str, text: str, nonce: bytes | None
     Raise CipherError as `check_locked_text` does. `nonce` is for tests.
     """
     from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
     data = check_locked_text(text)
     salt = secrets.token_bytes(NONCE_LEN) if nonce is None else nonce
-    encryptor = Cipher(algorithms.AES(key), modes.GCM(salt + b"\0" * (_GCM_NONCE_LEN - NONCE_LEN), None, TAG_LEN)).encryptor()
+    encryptor = Cipher(
+        algorithms.AES(key), modes.GCM(salt + b"\0" * (_GCM_NONCE_LEN - NONCE_LEN), None, TAG_LEN)
+    ).encryptor()
     encryptor.authenticate_additional_data(_aad(sender, addressee))
     body = encryptor.update(data) + encryptor.finalize()
     return LOCK_MARK + _b64(salt + body + encryptor.tag[:TAG_LEN])
@@ -128,11 +141,14 @@ def open_sealed(key: bytes, sender: str, addressee: str, wire: str) -> str | Non
         return None
     from cryptography.exceptions import InvalidTag
     from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-    data = _unb64(wire[len(LOCK_MARK):].rstrip())
+
+    data = _unb64(wire[len(LOCK_MARK) :].rstrip())
     if data is None or len(data) < NONCE_LEN + TAG_LEN + 1:
         return None
     salt, body, tag = data[:NONCE_LEN], data[NONCE_LEN:-TAG_LEN], data[-TAG_LEN:]
-    decryptor = Cipher(algorithms.AES(key), modes.GCM(salt + b"\0" * (_GCM_NONCE_LEN - NONCE_LEN), tag, TAG_LEN)).decryptor()
+    decryptor = Cipher(
+        algorithms.AES(key), modes.GCM(salt + b"\0" * (_GCM_NONCE_LEN - NONCE_LEN), tag, TAG_LEN)
+    ).decryptor()
     decryptor.authenticate_additional_data(_aad(sender, addressee))
     try:
         text = (decryptor.update(body) + decryptor.finalize()).decode("utf-8")

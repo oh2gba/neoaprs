@@ -1,4 +1,5 @@
 """Wire models of the general query command and the topic `general`."""
+
 from typing import Literal
 
 from pydantic import Field
@@ -15,6 +16,7 @@ class GeneralQuery(_Command):
     stations heard after it. All or nothing: answered with an `error`, and nothing is sent on any radio, when RX only is ticked or no call is set (`transmit.off`, or the interlock's reason), there is no
     radio (`radio.none`) or none of them takes frames now, the path is no path (`path.*`, `call.*`) or is too long with RFONLY (`path.too_long_rf_only`), or the query of that kind went on one of those
     radios less than 60 seconds ago (`general.too_soon`, with the `seconds` that are left, the longest)."""
+
     cmd: Literal["general_query"]
     kind: Literal["aprs", "igate", "wx"]
     path: PathText | None
@@ -23,19 +25,29 @@ class GeneralQuery(_Command):
 
 class GeneralAsked(_Model):
     """A general query sent from here: one press, on one or more radios."""
-    kind: Literal["aprs", "igate", "wx"] = Field(description="which query: `aprs` (?APRS?), `igate` (?IGATE?) or `wx` (?WX?)")
+
+    kind: Literal["aprs", "igate", "wx"] = Field(
+        description="which query: `aprs` (?APRS?), `igate` (?IGATE?) or `wx` (?WX?)"
+    )
     query: str = Field(description="the information field it went with, `?APRS?`, `?IGATE?` or `?WX?`")
-    radios: list[int] = Field(description="the radios it went on, their ids, in the order of their boxes; what any of them heard is counted in `new`")
+    radios: list[int] = Field(
+        description="the radios it went on, their ids, in the order of their boxes; what any of them heard is counted in `new`"
+    )
     at: Iso = Field(description="when it was sent")
-    path: list[str] | None = Field(description="the path it went by on the radios that carry one, `RFONLY` last when it was RF only; empty for no digipeaters; null when none was given and those radios' own paths differ")
+    path: list[str] | None = Field(
+        description="the path it went by on the radios that carry one, `RFONLY` last when it was RF only; empty for no digipeaters; null when none was given and those radios' own paths differ"
+    )
     until: Iso = Field(description="when the counting of `new` ends, two minutes after it was sent")
-    new: list[str] = Field(description="the calls of the stations heard on one of its radios (not as a third-party packet, not from the internet) between the query and `until` that this radio had not heard "
-                                       "in the ten minutes before it, in the order they were heard, each once whatever number of radios heard it: most are answers, but a station cannot be told to answer, "
-                                       "so this is no more than who spoke after a quiet spell")
+    new: list[str] = Field(
+        description="the calls of the stations heard on one of its radios (not as a third-party packet, not from the internet) between the query and `until` that this radio had not heard "
+        "in the ten minutes before it, in the order they were heard, each once whatever number of radios heard it: most are answers, but a station cannot be told to answer, "
+        "so this is no more than who spoke after a quiet spell"
+    )
 
 
 class GeneralSent(_Model):
     """The last query of a kind on one radio."""
+
     kind: Literal["aprs", "igate", "wx"]
     radio: int = Field(description="the radio, its id")
     at: Iso = Field(description="when it went on that radio")
@@ -43,5 +55,8 @@ class GeneralSent(_Model):
 
 class GeneralState(_Model):
     """The general queries sent from here: the last one of each kind. Forgotten when the daemon stops. Told whole as it changes."""
+
     asked: list[GeneralAsked] = Field(description="the last query of each kind, the oldest first; empty before one")
-    by_radio: list[GeneralSent] = Field(description="when the last query of each kind went on each radio, the oldest first: the wait before the next of a kind is each radio's, and a query waits for every radio it would go on (`general.too_soon`)")
+    by_radio: list[GeneralSent] = Field(
+        description="when the last query of each kind went on each radio, the oldest first: the wait before the next of a kind is each radio's, and a query waits for every radio it would go on (`general.too_soon`)"
+    )

@@ -2,6 +2,7 @@
 
 Synchronous; a handler that must wait starts a task. A failing handler is logged, not fatal.
 """
+
 import logging
 from typing import Callable, Generic, ParamSpec
 

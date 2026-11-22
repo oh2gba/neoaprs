@@ -1,6 +1,7 @@
 """Tests for the digipeater rows (neoaprs/services/digipeater.py `DigiRow`, `digi_rows`): one row
 for each enabled radio that may repeat and has its digipeater on, none for HF or an off radio, and
 the rows between radios of a pair (neoaprs/services/passrows.py `rows_in_force`)."""
+
 from dataclasses import replace
 
 import pytest
@@ -21,8 +22,15 @@ from tests.support.stubtnc import StubTnc
 ON, OFF = {"digipeat": "true"}, {"digipeat": "false"}
 
 
-def radio(id: int, settings: dict[str, str], kind: str = "fm", type: str = "kiss", enabled: bool = True, position: int | None = None) -> RadioSpec:
-    return RadioSpec(id, kind, type, "", enabled, id if position is None else position, settings=settings)       # type: ignore[arg-type]
+def radio(
+    id: int,
+    settings: dict[str, str],
+    kind: str = "fm",
+    type: str = "kiss",
+    enabled: bool = True,
+    position: int | None = None,
+) -> RadioSpec:
+    return RadioSpec(id, kind, type, "", enabled, id if position is None else position, settings=settings)  # type: ignore[arg-type]
 
 
 def airs(*specs: RadioSpec) -> list[FrozenAir]:
@@ -39,9 +47,18 @@ def test_radio_1_with_digi_enabled_is_one_row_heard_on_it_sent_on_it() -> None:
 
 
 def test_each_radio_that_may_repeat_and_has_its_digipeater_on_is_a_row_of_its_own_in_the_order_given() -> None:
-    specs = (radio(3, ON), radio(1, ON), radio(2, {}, "hf", "mercury"), radio(4, OFF), radio(5, ON, type="kiss-tcp"), radio(6, ON, type="dummy"))
+    specs = (
+        radio(3, ON),
+        radio(1, ON),
+        radio(2, {}, "hf", "mercury"),
+        radio(4, OFF),
+        radio(5, ON, type="kiss-tcp"),
+        radio(6, ON, type="dummy"),
+    )
     assert digi_rows(airs(*specs)) == (DigiRow(3, 3), DigiRow(1, 1), DigiRow(5, 5), DigiRow(6, 6))
-    assert all(row.heard == row.sent for row in digi_rows(airs(*specs))), "only A to A: nothing heard on one radio goes out on another"
+    assert all(row.heard == row.sent for row in digi_rows(airs(*specs))), (
+        "only A to A: nothing heard on one radio goes out on another"
+    )
 
 
 def test_a_radio_that_is_not_allowed_or_cannot_say_repeats_nothing() -> None:
@@ -54,7 +71,7 @@ def test_a_radio_that_is_not_allowed_or_cannot_say_repeats_nothing() -> None:
 
 def test_the_digipeaters_rows_are_the_enabled_radios_and_follow_the_settings_in_force() -> None:
     lines = {1: StubTnc(), 3: StubTnc()}
-    shapes = [LiveShape(radio(1, ON), (), lines[1]), LiveShape(radio(3, OFF), (), lines[3])]      # type: ignore[arg-type]
+    shapes = [LiveShape(radio(1, ON), (), lines[1]), LiveShape(radio(3, OFF), (), lines[3])]  # type: ignore[arg-type]
     config: Config = replace(ON_AIR, digi_enabled=True)
     digi = Digipeater(RegistryShape(shapes), lambda: config)
     assert digi.rows() == (DigiRow(1, 1),)
@@ -62,7 +79,9 @@ def test_the_digipeaters_rows_are_the_enabled_radios_and_follow_the_settings_in_
     assert digi.rows() == (DigiRow(1, 1), DigiRow(3, 3)), "radio 3's digipeater turned on"
     shapes[0].spec = radio(1, ON, enabled=False)
     assert digi.rows() == (DigiRow(3, 3),), "a radio that is off repeats nothing"
-    heard = ax25.Frame(ax25.Address.parse("APRS"), ax25.Address.parse("OH2XYZ"), (ax25.Address.parse("WIDE1-1"),), info=b">hi")
+    heard = ax25.Frame(
+        ax25.Address.parse("APRS"), ax25.Address.parse("OH2XYZ"), (ax25.Address.parse("WIDE1-1"),), info=b">hi"
+    )
     digi.on_packet(packet_of("in", ax25.encode(heard), heard, digi.clock(), radio_id=3))
     digi.on_packet(packet_of("in", ax25.encode(heard), heard, digi.clock(), radio_id=1))
     assert (len(lines[3].sent), len(lines[1].sent)) == (1, 0), "a packet goes through the rows of the radio it came on"
@@ -70,18 +89,30 @@ def test_the_digipeaters_rows_are_the_enabled_radios_and_follow_the_settings_in_
 
 # ---- the rows between two radios of a pair
 
-FOUR = (radio(1, {}, type="kenwood-tnc2"), radio(2, {}, "hf", "mercury"), radio(3, {}, "lora", "lora-tcp"), radio(4, {}, type="kiss"))
+FOUR = (
+    radio(1, {}, type="kenwood-tnc2"),
+    radio(2, {}, "hf", "mercury"),
+    radio(3, {}, "lora", "lora-tcp"),
+    radio(4, {}, type="kiss"),
+)
 
 
 def rows(*pairs: PairSpec, specs: tuple[RadioSpec, ...] = FOUR, call: str = "OH2GBA") -> tuple[PairRow, ...]:
     config = replace(ON_AIR, radios=specs, pairs=pairs, station_call=call)
-    return rows_in_force(config, RegistryShape([LiveShape(spec, specs, StubTnc()) for spec in specs]).senders())     # type: ignore[arg-type]
+    return rows_in_force(config, RegistryShape([LiveShape(spec, specs, StubTnc()) for spec in specs]).senders())  # type: ignore[arg-type]
 
 
 def test_each_pair_that_passes_is_both_its_directions_in_the_order_of_the_pairs() -> None:
     found = rows(PairSpec(2, 3, True, 11), PairSpec(1, 2, True, 12), PairSpec(1, 4, False, 10))
-    assert found == (PairRow(1, 2, ("OH2GBA", 12)), PairRow(2, 1, ("OH2GBA", 12)), PairRow(2, 3, ("OH2GBA", 11)), PairRow(3, 2, ("OH2GBA", 11))), "a pair that is off has none"
-    assert rows(PairSpec(1, 4, True, 9)) == (PairRow(1, 4, ("OH2GBA", 9)), PairRow(4, 1, ("OH2GBA", 9))), "two FM radios are a pair like any other"
+    assert found == (
+        PairRow(1, 2, ("OH2GBA", 12)),
+        PairRow(2, 1, ("OH2GBA", 12)),
+        PairRow(2, 3, ("OH2GBA", 11)),
+        PairRow(3, 2, ("OH2GBA", 11)),
+    ), "a pair that is off has none"
+    assert rows(PairSpec(1, 4, True, 9)) == (PairRow(1, 4, ("OH2GBA", 9)), PairRow(4, 1, ("OH2GBA", 9))), (
+        "two FM radios are a pair like any other"
+    )
 
 
 def test_a_pair_with_a_radio_off_removed_or_receive_only_has_no_row() -> None:

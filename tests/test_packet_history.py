@@ -1,6 +1,7 @@
 """The packets by the hour (`packet_history`, neoaprs/web/historywire.py): a count for every hour
 asked for, the running one last, empty hours as 0, our own packets left out.
 """
+
 import json
 from datetime import timedelta
 from pathlib import Path
@@ -19,7 +20,13 @@ from tests.support.wireworld import T0, heard
 
 def position(at, source: str = "OH2RDG", direction: str = "in"):
     packet = heard("!6010.00N/02456.00E-test", source, ("WIDE1*",), at)
-    return packet if direction == "in" else packet.__class__(at, "out", packet.raw, packet.source, packet.destination, packet.path, packet.info, packet.decoded)
+    return (
+        packet
+        if direction == "in"
+        else packet.__class__(
+            at, "out", packet.raw, packet.source, packet.destination, packet.path, packet.info, packet.decoded
+        )
+    )
 
 
 async def test_the_log_counts_the_packets_heard_in_each_hour_of_the_clock(tmp_path: Path) -> None:
@@ -31,7 +38,7 @@ async def test_the_log_counts_the_packets_heard_in_each_hour_of_the_clock(tmp_pa
     for minutes in (-125, -61, -60, -59, -1, 0, 5, 59):
         assert log.append(position(top + timedelta(minutes=minutes)))
     assert log.append(position(top + timedelta(minutes=10), direction="out"))
-    assert log.append(position(top + timedelta(minutes=-200)))                # (before the hours asked for)
+    assert log.append(position(top + timedelta(minutes=-200)))  # (before the hours asked for)
     counted = await log.heard_by_hour(top - timedelta(hours=2))
     assert counted == {top - timedelta(hours=2): 1, top - timedelta(hours=1): 3, top: 3}
     assert await log.heard_by_hour(top + timedelta(hours=1)) == {}
@@ -57,21 +64,38 @@ async def test_the_page_is_answered_with_a_count_for_every_hour_asked_for_the_ru
     await e.stop()
 
 
-async def test_the_log_counts_the_packets_of_one_station_by_the_source_and_leaves_the_others_out(tmp_path: Path) -> None:
+async def test_the_log_counts_the_packets_of_one_station_by_the_source_and_leaves_the_others_out(
+    tmp_path: Path,
+) -> None:
     store = await store_at(tmp_path / DB_NAME)
     log = PacketLog(store.db, FixedClock())
     top = T0.replace(minute=0, second=0, microsecond=0)
-    for minutes, source in ((-61, "OH2RDG"), (-30, "OH2RDG"), (-30, "OH2RDG-7"), (-20, "OH2XYZ"), (5, "OH2RDG"), (6, "OH2XYZ")):
+    for minutes, source in (
+        (-61, "OH2RDG"),
+        (-30, "OH2RDG"),
+        (-30, "OH2RDG-7"),
+        (-20, "OH2XYZ"),
+        (5, "OH2RDG"),
+        (6, "OH2XYZ"),
+    ):
         assert log.append(position(top + timedelta(minutes=minutes), source))
     assert log.append(position(top + timedelta(minutes=7), "OH2RDG", direction="out"))
     since = top - timedelta(hours=2)
-    assert await log.heard_by_hour(since, "OH2RDG") == {top - timedelta(hours=2): 1, top - timedelta(hours=1): 1, top: 1}, "another ssid is another station, and what we sent is not heard"
+    assert await log.heard_by_hour(since, "OH2RDG") == {
+        top - timedelta(hours=2): 1,
+        top - timedelta(hours=1): 1,
+        top: 1,
+    }, "another ssid is another station, and what we sent is not heard"
     assert await log.heard_by_hour(since, "OH2XYZ") == {top - timedelta(hours=1): 1, top: 1}
     assert await log.heard_by_hour(since, "OH2NONE") == {}
-    assert sum((await log.heard_by_hour(since)).values()) == 6, "and without a call every packet heard is counted, as before"
+    assert sum((await log.heard_by_hour(since)).values()) == 6, (
+        "and without a call every packet heard is counted, as before"
+    )
 
 
-async def test_the_page_that_asks_for_a_station_is_answered_with_its_counts_and_the_call_and_the_whole_count_has_no_call(tmp_path: Path) -> None:
+async def test_the_page_that_asks_for_a_station_is_answered_with_its_counts_and_the_call_and_the_whole_count_has_no_call(
+    tmp_path: Path,
+) -> None:
     e = Env(tmp_path, web=True)
     await e.start()
     page = await e.ws()
@@ -82,7 +106,12 @@ async def test_the_page_that_asks_for_a_station_is_answered_with_its_counts_and_
     await e.settled()
     await page.send({"cmd": "packet_history", "hours": 3, "call": "OH2RDG"})
     answer = PacketHistoryMsg.model_validate_json(json.dumps(await page.expect("packet_history")))
-    assert (answer.call, answer.hours, answer.start, answer.counts) == ("OH2RDG", 3, iso(top - timedelta(hours=2)), [1, 2, 0])
+    assert (answer.call, answer.hours, answer.start, answer.counts) == (
+        "OH2RDG",
+        3,
+        iso(top - timedelta(hours=2)),
+        [1, 2, 0],
+    )
     await page.send({"cmd": "packet_history", "hours": 3, "call": "OH2NONE"})
     assert (await page.expect("packet_history"))["counts"] == [0, 0, 0], "a station with no packets has every hour 0"
     await page.send({"cmd": "packet_history", "hours": 3})
@@ -93,14 +122,22 @@ async def test_the_page_that_asks_for_a_station_is_answered_with_its_counts_and_
     await e.stop()
 
 
-async def test_without_the_internet_the_packets_from_aprs_is_are_not_counted_nor_their_speeds_read(tmp_path: Path) -> None:
+async def test_without_the_internet_the_packets_from_aprs_is_are_not_counted_nor_their_speeds_read(
+    tmp_path: Path,
+) -> None:
     store = await store_at(tmp_path / DB_NAME)
     log = PacketLog(store.db, FixedClock())
     top = T0.replace(minute=0, second=0, microsecond=0)
-    assert log.append(position(top - timedelta(minutes=30)))                                                                      # heard on the air
+    assert log.append(position(top - timedelta(minutes=30)))  # heard on the air
     # The same station over APRS-IS, with a speed
-    assert log.append(parse_is_line("OH2RDG>APRS,TCPIP*,qAC,T2:!6011.00N/02456.00E>090/050from the internet", top - timedelta(minutes=20)))
-    assert log.append(parse_is_line("OH7XYZ>APRS,TCPIP*,qAC,T2:!6016.00N/02456.00E-only the internet", top - timedelta(minutes=10)))
+    assert log.append(
+        parse_is_line(
+            "OH2RDG>APRS,TCPIP*,qAC,T2:!6011.00N/02456.00E>090/050from the internet", top - timedelta(minutes=20)
+        )
+    )
+    assert log.append(
+        parse_is_line("OH7XYZ>APRS,TCPIP*,qAC,T2:!6016.00N/02456.00E-only the internet", top - timedelta(minutes=10))
+    )
     since = top - timedelta(hours=1)
     assert await log.heard_by_hour(since) == {top - timedelta(hours=1): 3}
     assert await log.heard_by_hour(since, internet=False) == {top - timedelta(hours=1): 1}, "only what the radio heard"
@@ -110,7 +147,9 @@ async def test_without_the_internet_the_packets_from_aprs_is_are_not_counted_nor
     assert await log.speeds("OH2RDG", since, internet=False) == [], "the speed came over APRS-IS"
 
 
-async def test_the_count_of_all_stations_is_kept_for_a_minute_and_the_count_of_one_station_is_not(tmp_path: Path) -> None:
+async def test_the_count_of_all_stations_is_kept_for_a_minute_and_the_count_of_one_station_is_not(
+    tmp_path: Path,
+) -> None:
     store = await store_at(tmp_path / DB_NAME)
     clock = FixedClock()
     log = PacketLog(store.db, clock)
@@ -119,9 +158,13 @@ async def test_the_count_of_all_stations_is_kept_for_a_minute_and_the_count_of_o
     log.append(position(top + timedelta(minutes=1)))
     assert await log.heard_by_hour(since) == {top: 1}
     log.append(position(top + timedelta(minutes=2)))
-    assert await log.heard_by_hour(since) == {top: 1}, "a page that asks within the minute is given the count that was made"
+    assert await log.heard_by_hour(since) == {top: 1}, (
+        "a page that asks within the minute is given the count that was made"
+    )
     assert await log.heard_by_hour(since, internet=False) == {top: 2}, "another question is another scan"
-    assert await log.heard_by_hour(since, "OH2RDG") == {top: 2}, "and one station's count (by its index) is always made again"
+    assert await log.heard_by_hour(since, "OH2RDG") == {top: 2}, (
+        "and one station's count (by its index) is always made again"
+    )
     clock.advance(59)
     assert await log.heard_by_hour(since) == {top: 1}
     clock.advance(1)

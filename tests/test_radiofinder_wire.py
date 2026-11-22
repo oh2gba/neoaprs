@@ -2,6 +2,7 @@
 ends with `found`, `cancelled` or an `error` with a code; the radio's own line is let go meanwhile.
 The ports are fakes.
 """
+
 from pathlib import Path
 
 from neoaprs.services.radiofinder import RadioFinder
@@ -21,20 +22,49 @@ async def started(tmp_path: Path, ports: list[str], timing: Timing = QUICK) -> E
     async def listed() -> list[str]:
         return ports
 
-    e.ctl.radiofinder = RadioFinder(listed, e.ctl.hold_radio, e.ctl.release_radio, timing, claims=e.ctl.radios.claims, search_lock=e.ctl.radios.search_lock)
+    e.ctl.radiofinder = RadioFinder(
+        listed,
+        e.ctl.hold_radio,
+        e.ctl.release_radio,
+        timing,
+        claims=e.ctl.radios.claims,
+        search_lock=e.ctl.radios.search_lock,
+    )
     return e
 
 
-async def test_the_page_is_told_each_try_and_then_what_was_found_and_the_radios_line_is_taken_again(tmp_path: Path) -> None:
+async def test_the_page_is_told_each_try_and_then_what_was_found_and_the_radios_line_is_taken_again(
+    tmp_path: Path,
+) -> None:
     tnc = await FakeTncServer("tnc2").start()
     e = await started(tmp_path, [tnc.url])
     page = await e.ws()
     await page.send({"cmd": "find_radio"})
     trying = await page.expect("radio_search")
-    assert trying == {"type": "radio_search", "state": "trying", "port": tnc.url, "baud": None, "profile": "", "number": 1, "total": 1, "radio": None, "radio_type": ""}
+    assert trying == {
+        "type": "radio_search",
+        "state": "trying",
+        "port": tnc.url,
+        "baud": None,
+        "profile": "",
+        "number": 1,
+        "total": 1,
+        "radio": None,
+        "radio_type": "",
+    }
     found = await page.expect("radio_search")
-    assert found == {"type": "radio_search", "state": "found", "port": tnc.url, "baud": None, "profile": "kenwood-tnc2", "number": 0, "total": 0, "radio": None, "radio_type": "kenwood-tnc2"}, "the type found, beside the profile of before"
-    await until(lambda: e.tnc.state is Source.State.CONNECTED)           # (the line the daemon let go is open again)
+    assert found == {
+        "type": "radio_search",
+        "state": "found",
+        "port": tnc.url,
+        "baud": None,
+        "profile": "kenwood-tnc2",
+        "number": 0,
+        "total": 0,
+        "radio": None,
+        "radio_type": "kenwood-tnc2",
+    }, "the type found, beside the profile of before"
+    await until(lambda: e.tnc.state is Source.State.CONNECTED)  # (the line the daemon let go is open again)
     await e.stop()
     await tnc.aclose()
 
@@ -78,7 +108,9 @@ async def test_no_answer_and_no_port_are_errors_with_a_code(tmp_path: Path) -> N
     page = await e.ws()
     await page.send({"cmd": "find_radio"})
     error = await page.expect("error")
-    assert (error["code"], error["params"]["radio"]) == ("radio.not_found", 1), "a refusal about a radio names it, as every other"
+    assert (error["code"], error["params"]["radio"]) == ("radio.not_found", 1), (
+        "a refusal about a radio names it, as every other"
+    )
     await tnc.aclose()
     e.ctl.radiofinder.ports = _none
     await page.send({"cmd": "find_radio"})
@@ -102,7 +134,9 @@ async def test_a_daemon_with_a_pattern_that_matches_nothing_lists_no_port_to_try
     await e.stop()
 
 
-async def test_the_finder_of_the_radios_side_by_side_is_given_the_radio_and_the_page_that_names_none_searches_for_radio_1(tmp_path: Path) -> None:
+async def test_the_finder_of_the_radios_side_by_side_is_given_the_radio_and_the_page_that_names_none_searches_for_radio_1(
+    tmp_path: Path,
+) -> None:
     """The finder app.py makes (each radio's own hold, the station's table and its one
     search at a time) takes `find(trying, radio)` always: the page of before, which names no radio,
     finds radio 1."""
@@ -113,13 +147,24 @@ async def test_the_finder_of_the_radios_side_by_side_is_given_the_radio_and_the_
     async def listed() -> list[str]:
         return [servers[-1].url]
 
-    e.ctl.radiofinder = RadioFinder(listed, e.ctl.hold_radio, e.ctl.release_radio, QUICK, claims=e.ctl.radios.claims, search_lock=e.ctl.radios.search_lock)
+    e.ctl.radiofinder = RadioFinder(
+        listed,
+        e.ctl.hold_radio,
+        e.ctl.release_radio,
+        QUICK,
+        claims=e.ctl.radios.claims,
+        search_lock=e.ctl.radios.search_lock,
+    )
     page = await e.ws()
     for command in ({"cmd": "find_radio"}, {"cmd": "find_radio", "radio": 1}):
         servers.append(await FakeTncServer("tnc2").start())
         await page.send(command)
-        found = [m for m in [await page.expect("radio_search"), await page.expect("radio_search")] if m["state"] != "trying"]
-        assert [(m["state"], m["port"], m["radio"]) for m in found] == [("found", servers[-1].url, command.get("radio"))], command
+        found = [
+            m for m in [await page.expect("radio_search"), await page.expect("radio_search")] if m["state"] != "trying"
+        ]
+        assert [(m["state"], m["port"], m["radio"]) for m in found] == [
+            ("found", servers[-1].url, command.get("radio"))
+        ], command
         await until(lambda: e.tnc.state is Source.State.CONNECTED)
     await e.stop()
     for server in servers:

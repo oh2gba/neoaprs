@@ -3,6 +3,7 @@
 A call is a base (1 to 6 characters A-Z, 0-9) and an SSID 0 to 15. An internet station may
 have a name that is no AX.25 call (`OH2XYZ-L`, `WINLINK`): 1 to 9 letters, digits and hyphens.
 """
+
 import re
 
 from .coded import CodedError, Reason
@@ -30,10 +31,14 @@ class CallsignError(CodedError):
 def parse_call(text: str) -> tuple[str, int]:
     """Return ('OH2GBA', 7) for 'oh2gba-7', ('OH2GBA', 0) for 'OH2GBA'; else raise CallsignError."""
     if not text.isascii():
-        raise CallsignError(f"call {text!r} has characters other than A-Z, 0-9 and a '-SSID'", "call.characters", value=text)
+        raise CallsignError(
+            f"call {text!r} has characters other than A-Z, 0-9 and a '-SSID'", "call.characters", value=text
+        )
     match = AX25_CALL.fullmatch(text.upper())
     if match is None:
-        raise CallsignError(f"call {text!r} is not 1 to 6 characters of A-Z and 0-9 with an optional '-SSID'", "call.shape", value=text)
+        raise CallsignError(
+            f"call {text!r} is not 1 to 6 characters of A-Z and 0-9 with an optional '-SSID'", "call.shape", value=text
+        )
     base, ssid_text = match.groups()
     ssid = 0 if ssid_text is None else int(ssid_text)
     if ssid > MAX_SSID:

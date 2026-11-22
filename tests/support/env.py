@@ -4,6 +4,7 @@ loopback.
 Every integration test builds its world with `Env`; `stop_all` ends it. Radio 1 is the FM radio,
 radio 2 the HF radio; the Tnc is the real one with quick timers and the keep-alive off.
 """
+
 import asyncio
 import shutil
 import tempfile
@@ -51,13 +52,29 @@ _stops: list[Callable[[], Awaitable[None]]] = []
 CAPTURE = "kiss/thd7-2026-10-21.bin"
 # The station of the tests, with the TNC the tests are about: with no call set nothing is
 # transmitted (config.can_transmit)
-OPERATOR = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "kenwood-tnc2", "beacon/path": "WIDE1-1,WIDE2-1"}
+OPERATOR = {
+    "station/call": "OH2GBA",
+    "station/lat": "60.17",
+    "station/lon": "24.94",
+    "tnc/profile": "kenwood-tnc2",
+    "beacon/path": "WIDE1-1,WIDE2-1",
+}
 # The rows an Env's settings say its radios in, and where each goes: the radio's type or tickbox, or
 # its own setting (the HF radio's path as its own too, as migration 31 kept it)
 RADIO_ROWS: dict[str, tuple[RadioId, str]] = {
-    "tnc/profile": (FM_ID, "type"), "fm/enabled": (FM_ID, "enabled"), "serial/port": (FM_ID, "port"), "serial/baud": (FM_ID, "baud"), "tcp/host": (FM_ID, "tcp_host"), "tcp/port": (FM_ID, "tcp_port"),
-    "beacon/path": (FM_ID, "path"), "digi/enabled": (FM_ID, "digipeat"),
-    "hf/profile": (HF_ID, "type"), "hf/enabled": (HF_ID, "enabled"), "mercury/sound_card": (HF_ID, "sound_card"), "mercury/keying": (HF_ID, "keying"), "mercury/tx_gain_db": (HF_ID, "tx_gain_db"),
+    "tnc/profile": (FM_ID, "type"),
+    "fm/enabled": (FM_ID, "enabled"),
+    "serial/port": (FM_ID, "port"),
+    "serial/baud": (FM_ID, "baud"),
+    "tcp/host": (FM_ID, "tcp_host"),
+    "tcp/port": (FM_ID, "tcp_port"),
+    "beacon/path": (FM_ID, "path"),
+    "digi/enabled": (FM_ID, "digipeat"),
+    "hf/profile": (HF_ID, "type"),
+    "hf/enabled": (HF_ID, "enabled"),
+    "mercury/sound_card": (HF_ID, "sound_card"),
+    "mercury/keying": (HF_ID, "keying"),
+    "mercury/tx_gain_db": (HF_ID, "tx_gain_db"),
 }
 RADIO_KINDS: dict[RadioId, Kind] = {FM_ID: "fm", HF_ID: "hf"}
 # A radio whose tickbox the settings do not say: the FM radio on, the HF radio off
@@ -74,7 +91,14 @@ def first_radios(rows: dict[str, str], hf: bool) -> list[tuple[Kind, str, bool, 
     default, as the settings read them."""
     made: list[tuple[Kind, str, bool, dict[str, str]]] = []
     for id in (FM_ID, *((HF_ID,) if hf or any(key.startswith(("hf/", "mercury/")) for key in rows) else ())):
-        kind, homes = RADIO_KINDS[id], {key: home for key, (radio, home) in RADIO_ROWS.items() if radio == id or (key == "beacon/path" and id == HF_ID)}
+        kind, homes = (
+            RADIO_KINDS[id],
+            {
+                key: home
+                for key, (radio, home) in RADIO_ROWS.items()
+                if radio == id or (key == "beacon/path" and id == HF_ID)
+            },
+        )
         found = {home: rows[key] for key, home in homes.items() if key in rows}
         type = found.pop("type", "")
         rtype = TYPES.get(type.strip())
@@ -88,7 +112,12 @@ def first_radios(rows: dict[str, str], hf: bool) -> list[tuple[Kind, str, bool, 
 
 # The same as a Config, for the tests that hold one (with radio 2, the HF radio, off): the defaults
 # are a station with no call and no radio
-ON_AIR: Config = replace(with_radio(TWO_RADIOS, FM_ID, "kenwood-tnc2", path="WIDE1-1,WIDE2-1"), station_call="OH2GBA", station_lat=60.17, station_lon=24.94)
+ON_AIR: Config = replace(
+    with_radio(TWO_RADIOS, FM_ID, "kenwood-tnc2", path="WIDE1-1,WIDE2-1"),
+    station_call="OH2GBA",
+    station_lat=60.17,
+    station_lon=24.94,
+)
 
 
 def _quiet(radio: LiveRadio[Any]) -> None:
@@ -97,11 +126,12 @@ def _quiet(radio: LiveRadio[Any]) -> None:
 
 
 def _quieted(wire: Callable[[LiveRadio[Beacon]], None]) -> Callable[[LiveRadio[Beacon]], None]:
-    """The wiring of a radio, which first gives its modem no serial port of the computer to look at.
-    """
+    """The wiring of a radio, which first gives its modem no serial port of the computer to look at."""
+
     def quiet_then_wire(radio: LiveRadio[Beacon]) -> None:
         _quiet(radio)
         wire(radio)
+
     return quiet_then_wire
 
 
@@ -180,7 +210,16 @@ async def idle_for(seconds: float) -> None:
     await asyncio.sleep(seconds)
 
 
-async def quick_start(tmp_path: Path, *, beacon: bool = False, messaging: bool = False, rigstatus: bool = False, own: bool = False, unpaced: bool = False, **options: Any) -> "Env":
+async def quick_start(
+    tmp_path: Path,
+    *,
+    beacon: bool = False,
+    messaging: bool = False,
+    rigstatus: bool = False,
+    own: bool = False,
+    unpaced: bool = False,
+    **options: Any,
+) -> "Env":
     """A started Env whose Tnc is connected and settled and whose named services tick every 20 ms
     (the beacon, messaging, the status poll, the own objects and bulletins); `unpaced`: and send one
     frame after the other with no pause (the messaging pace, the own sender, and the QRU server's
@@ -205,8 +244,20 @@ async def quick_start(tmp_path: Path, *, beacon: bool = False, messaging: bool =
 
 
 class Env:
-    def __init__(self, tmp_path: Path, clock: Clock | None = None, radio: bool | str | FakeRadio = True, ports: Path | None = None, web: bool = False, operator: bool = True, settings: dict[str, str] | None = None, hf: FakeMercury | None = None, auto_map: bool = False,
-                 first_radio: bool = True, **tnc_options: Any) -> None:
+    def __init__(
+        self,
+        tmp_path: Path,
+        clock: Clock | None = None,
+        radio: bool | str | FakeRadio = True,
+        ports: Path | None = None,
+        web: bool = False,
+        operator: bool = True,
+        settings: dict[str, str] | None = None,
+        hf: FakeMercury | None = None,
+        auto_map: bool = False,
+        first_radio: bool = True,
+        **tnc_options: Any,
+    ) -> None:
         self.dir = tmp_path
         # The rows of the operator's data folder at the first start: a test about the keep-alive
         # turns it on with `check_sec`
@@ -223,16 +274,22 @@ class Env:
         # one of an Env before)
         self.ports = ports or Path(tempfile.mkdtemp(prefix="neoaprs-ports-"))
         self._masters: list[int] = []
-        self.master = -1                                      # the master descriptor of the radio's pty (radio="pty")
+        self.master = -1  # the master descriptor of the radio's pty (radio="pty")
         # The port the daemon opens: the radio's url, or the path of its pty
         self.link = ""
         self.radio: FakeRadio | None = None
         # The station of the fake Mercury's air that is this daemon's HF radio (`hf`, or `radio`
         # when that is one: a station with the HF radio alone)
         self.hf_radio: FakeMercury | None = None
-        self.hf_link = ""                                     # what --hf-port is given: the fake Mercury's KISS port
+        self.hf_link = ""  # what --hf-port is given: the fake Mercury's KISS port
         self._extra_radios: list[FakeRadio] = []
-        options: dict[str, Any] = {"pattern": str(self.ports / "probe_*"), "check_sec": 0.0, "settle_sec": 0.15, "probe_seconds": 0.3, "backoff": Backoff([0.05, 0.05])}
+        options: dict[str, Any] = {
+            "pattern": str(self.ports / "probe_*"),
+            "check_sec": 0.0,
+            "settle_sec": 0.15,
+            "probe_seconds": 0.3,
+            "backoff": Backoff([0.05, 0.05]),
+        }
         self.tnc = Tnc(clock=self.now, **{**options, **tnc_options})
         check_sec = float({**options, **tnc_options}["check_sec"])
         # A station of the fake Mercury's air alone: the HF radio, and no FM radio
@@ -241,7 +298,7 @@ class Env:
         if hf is not None:
             self.hf_radio, self.hf_link = hf, hf.url
             self.settings = {**self.settings, "hf/enabled": "true", **({} if radio else {"fm/enabled": "false"})}
-        if isinstance(radio, FakeRadio):                     # (a radio made elsewhere)
+        if isinstance(radio, FakeRadio):  # (a radio made elsewhere)
             self.radio = radio
             self.link = radio.url
         elif radio == "pty":
@@ -249,12 +306,21 @@ class Env:
         elif radio:
             self.radio = FakeRadio()
             self.link = self.radio.url
-        self.server: WebServer | None = None                 # the page's server, once the Controller made it
-        self.pages: list[WsClient] = []                       # the tabs `ws()` opened: closed when the test is over
+        self.server: WebServer | None = None  # the page's server, once the Controller made it
+        self.pages: list[WsClient] = []  # the tabs `ws()` opened: closed when the test is over
         # The HF radio's Tnc: radio 2's line (stopped unless the settings tick hf/enabled)
         self.hf = Tnc(clock=self.now, profile=MERCURY)
-        self.ctl = Controller(tmp_path, clock=self.now, port=self.link, pattern=self.tnc.pattern, web=self._page if web else None, check_sec=check_sec, auto_map=auto_map, hf_port=self.hf_link,
-                              lines={FM_ID: self.tnc, HF_ID: self.hf})
+        self.ctl = Controller(
+            tmp_path,
+            clock=self.now,
+            port=self.link,
+            pattern=self.tnc.pattern,
+            web=self._page if web else None,
+            check_sec=check_sec,
+            auto_map=auto_map,
+            hf_port=self.hf_link,
+            lines={FM_ID: self.tnc, HF_ID: self.hf},
+        )
         # A modem's choice of a keying line never reads the operator's serial ports in a test
         self.ctl.radios.wire = _quieted(self.ctl.radios.wire)
         # Radios 1 and 2 of the defaults are there before the start, the HF one off, with their
@@ -265,7 +331,7 @@ class Env:
             _quiet(made)
 
     def _page(self, ctl: Controller, config: Config) -> WebServer:
-        self.server = WebServer(ctl, replace(config, web_port=0))         # a free port: the tests run side by side
+        self.server = WebServer(ctl, replace(config, web_port=0))  # a free port: the tests run side by side
         return self.server
 
     # ---- the radio
@@ -366,7 +432,11 @@ class Env:
         await self.ctl.open_database()
         # A data folder that was set up before keeps its own call
         if self.operator and await self.ctl.store.setting("station/call") is None:
-            rows = {LAST_PORT if key == "serial/last_port" else key: value for key, value in self.settings.items() if key not in RADIO_ROWS and not key.startswith(GONE)}
+            rows = {
+                LAST_PORT if key == "serial/last_port" else key: value
+                for key, value in self.settings.items()
+                if key not in RADIO_ROWS and not key.startswith(GONE)
+            }
             await self.ctl.store.put_settings(rows)
         if self.first_radio and await self.ctl.store.read_radios() == ():
             await self.add_first_radios()
@@ -377,7 +447,7 @@ class Env:
                 # radio the settings no longer have.
                 await self.ctl.radios.restart(id)
         if self.ctl.config.enabled_radios:
-            await until(lambda: self.active.state is not Source.State.STOPPED)      # (the Tnc is started in a task)
+            await until(lambda: self.active.state is not Source.State.STOPPED)  # (the Tnc is started in a task)
         if connected and (self.link or self.hf_link):
             await self.until_connected()
 
@@ -388,7 +458,9 @@ class Env:
         """The radios of the Env's settings (`first_radios`; a fresh install's have no rows), added
         to a database that has none, before the daemon's first start: radio 1, and radio 2 where
         they name it."""
-        for position, (kind, type, on, own) in enumerate(first_radios(self.settings if self.operator else {}, bool(self.hf_link)), 1):
+        for position, (kind, type, on, own) in enumerate(
+            first_radios(self.settings if self.operator else {}, bool(self.hf_link)), 1
+        ):
             before = await self.ctl.store.radios()
             added = await self.ctl.store.add_radio(kind, type, "", on, position, settings=own)
             assert added == position, f"the database gave the {kind} radio the id {added}, not {position}"
@@ -410,13 +482,15 @@ class Env:
             await until(lambda: self.hf.state is Source.State.CONNECTED)
         for radio in (self.radio, self.hf_radio):
             if radio is not None:
-                await radio.connected()                       # (the radio has accepted the connection its Tnc made)
+                await radio.connected()  # (the radio has accepted the connection its Tnc made)
 
     # ---- the page's server
     @property
     def port(self) -> int:
         """The port the page's server listens on (Env(web=True), once started)."""
-        assert self.server is not None and self.ctl.web is not None, "the web server is not running: Env(tmp_path, web=True)"
+        assert self.server is not None and self.ctl.web is not None, (
+            "the web server is not running: Env(tmp_path, web=True)"
+        )
         return self.server.bound_port()
 
     async def ws(self, host: str | None = None, origin: str | None = None, cookie: str | None = None) -> WsClient:
@@ -426,10 +500,17 @@ class Env:
         self.pages.append(page)
         return page
 
-    async def fetch(self, path: str, headers: dict[str, str] | None = None, method: str = "GET", body: str | None = None) -> HTTPResponse:
-        """An HTTP request to the page's server; an answer of 400 or more is returned, not raised.
-        """
-        request = HTTPRequest(f"http://127.0.0.1:{self.port}{path}", method=method, headers=headers, body=body if body is not None else (b"" if method == "POST" else None), follow_redirects=False)
+    async def fetch(
+        self, path: str, headers: dict[str, str] | None = None, method: str = "GET", body: str | None = None
+    ) -> HTTPResponse:
+        """An HTTP request to the page's server; an answer of 400 or more is returned, not raised."""
+        request = HTTPRequest(
+            f"http://127.0.0.1:{self.port}{path}",
+            method=method,
+            headers=headers,
+            body=body if body is not None else (b"" if method == "POST" else None),
+            follow_redirects=False,
+        )
         try:
             return await AsyncHTTPClient().fetch(request)
         except HTTPClientError as e:
@@ -465,4 +546,3 @@ class Env:
         await until(lambda: self.tnc.stats.packets >= before + frames)
         await self.settled()
         return frames
-

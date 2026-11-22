@@ -2,6 +2,7 @@
 with pyserial stand-ins where a failure must be made: threaded reads and writes, line settings, the
 open, a dying line.
 """
+
 import asyncio
 import logging
 import os
@@ -65,6 +66,7 @@ async def opened(url: str, baud: int = 9600) -> SerialPort:
 
 
 # ---- reading and writing
+
 
 async def test_chunks_arrive_through_the_signal(radios: Radios) -> None:
     radio = await one(radios)
@@ -133,18 +135,30 @@ async def test_writing_to_a_port_that_is_not_open_is_an_error(radios: Radios) ->
 
 # ---- nothing of one system in it
 
+
 @pytest.mark.parametrize("module", ["serialport", "serialprobe", "serialholders", "tnc", "tncsearch"])
 def test_the_serial_layer_has_no_descriptor_for_the_loop_and_no_terminal_calls(module: str) -> None:
     """Windows has no fcntl, termios or select on a handle, and its loop cannot wait for a serial
     handle: the layer reads and writes in threads, whatever the system."""
     text = (ROOT / "neoaprs" / f"{module}.py").read_text(encoding="utf-8")
-    for name in ("import fcntl", "import termios", "import select", "add_reader", "remove_reader", "TIOCEXCL", "fileno"):
+    for name in (
+        "import fcntl",
+        "import termios",
+        "import select",
+        "add_reader",
+        "remove_reader",
+        "TIOCEXCL",
+        "fileno",
+    ):
         assert name not in text, f"{module}.py uses {name}"
 
 
 # ---- the settings of the line
 
-async def test_the_line_is_8n1_without_flow_control_with_the_control_lines_set_low_in_the_object_that_is_opened(radios: Radios, monkeypatch: pytest.MonkeyPatch) -> None:
+
+async def test_the_line_is_8n1_without_flow_control_with_the_control_lines_set_low_in_the_object_that_is_opened(
+    radios: Radios, monkeypatch: pytest.MonkeyPatch
+) -> None:
     radio = await one(radios)
     seen: list[dict[str, Any]] = []
     real = serial.serial_for_url
@@ -154,8 +168,18 @@ async def test_the_line_is_8n1_without_flow_control_with_the_control_lines_set_l
         real_open = ser.open
 
         def open_() -> None:
-            seen.append({"dtr": ser.dtr, "rts": ser.rts, "baud": ser.baudrate, "frame": (ser.bytesize, ser.parity, ser.stopbits), "flow": (ser.xonxoff, ser.rtscts, ser.dsrdtr),
-                         "timeouts": (ser.timeout, ser.write_timeout), "url": url, "do_not_open": kwargs.get("do_not_open")})
+            seen.append(
+                {
+                    "dtr": ser.dtr,
+                    "rts": ser.rts,
+                    "baud": ser.baudrate,
+                    "frame": (ser.bytesize, ser.parity, ser.stopbits),
+                    "flow": (ser.xonxoff, ser.rtscts, ser.dsrdtr),
+                    "timeouts": (ser.timeout, ser.write_timeout),
+                    "url": url,
+                    "do_not_open": kwargs.get("do_not_open"),
+                }
+            )
             real_open()
 
         ser.open = open_
@@ -165,23 +189,43 @@ async def test_the_line_is_8n1_without_flow_control_with_the_control_lines_set_l
     port = await opened(radio.url, 4800)
     port.close()
     [state] = seen
-    assert state == {"dtr": False, "rts": False, "baud": 4800, "frame": (8, "N", 1), "flow": (False, False, False), "timeouts": (0.1, 2.0), "url": radio.url, "do_not_open": True}
+    assert state == {
+        "dtr": False,
+        "rts": False,
+        "baud": 4800,
+        "frame": (8, "N", 1),
+        "flow": (False, False, False),
+        "timeouts": (0.1, 2.0),
+        "url": radio.url,
+        "do_not_open": True,
+    }
 
 
-def test_a_device_is_opened_exclusively_on_posix_and_a_url_and_windows_are_left_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_device_is_opened_exclusively_on_posix_and_a_url_and_windows_are_left_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     if os.name == "posix":
         assert serialport._build("/dev/ttyUSB9", 9600).exclusive is True
     assert serialport._build("socket://127.0.0.1:1", 9600).exclusive is None
     monkeypatch.setattr(serialport, "os", SimpleNamespace(name="nt"))
-    assert serialport._build("/dev/ttyUSB9", 9600).exclusive is None, "(Windows ports are always exclusive; pyserial refuses to be told otherwise)"
+    assert serialport._build("/dev/ttyUSB9", 9600).exclusive is None, (
+        "(Windows ports are always exclusive; pyserial refuses to be told otherwise)"
+    )
     ser = serialport._build("/dev/ttyUSB9", 9600)
     assert (ser.dtr, ser.rts, ser.is_open) == (False, False, False)
 
 
 def test_tcp_is_another_name_for_socket_and_only_a_socket_is_a_socket() -> None:
     assert normalize("tcp://127.0.0.1:8001") == "socket://127.0.0.1:8001" == normalize(" TCP://127.0.0.1:8001 ")
-    assert normalize("socket://localhost:8100") == "socket://localhost:8100" and normalize("COM3") == "COM3" and normalize("/dev/ttyUSB0") == "/dev/ttyUSB0"
-    assert [is_socket(p) for p in ("socket://h:1", "tcp://h:1", "TCP://h:1", "COM3", "/dev/ttyUSB0", "rfc2217://h:1", "loop://")] == [True, True, True, False, False, False, False]
+    assert (
+        normalize("socket://localhost:8100") == "socket://localhost:8100"
+        and normalize("COM3") == "COM3"
+        and normalize("/dev/ttyUSB0") == "/dev/ttyUSB0"
+    )
+    assert [
+        is_socket(p)
+        for p in ("socket://h:1", "tcp://h:1", "TCP://h:1", "COM3", "/dev/ttyUSB0", "rfc2217://h:1", "loop://")
+    ] == [True, True, True, False, False, False, False]
 
 
 async def test_a_tcp_url_opens_like_a_socket_url(radios: Radios) -> None:
@@ -198,6 +242,7 @@ async def test_a_tcp_url_opens_like_a_socket_url(radios: Radios) -> None:
 
 
 # ---- opening and closing
+
 
 async def test_a_connection_that_is_refused_raises_serial_error_with_the_systems_words(radios: Radios) -> None:
     radio = await one(radios)
@@ -243,7 +288,9 @@ async def test_closing_ends_the_threads_and_the_connection_and_the_port_can_be_c
     assert not port.is_open
     port.close()
     await until(lambda: radio.clients == 0)
-    assert not {t for t in threading.enumerate() if t.name.startswith("serial-read") and radio.url in t.name and t.is_alive()}
+    assert not {
+        t for t in threading.enumerate() if t.name.startswith("serial-read") and radio.url in t.name and t.is_alive()
+    }
     await idle_for(0.1)
     assert chunks == []
 
@@ -277,9 +324,11 @@ class SlowSer:
 
     def open(self) -> None:
         self.opening.set()
-        time.sleep(self.seconds)               # (the open that takes this long is the point)
+        time.sleep(self.seconds)  # (the open that takes this long is the point)
         if self.fail:
-            raise serial.SerialException("could not open port 'COM9': FileNotFoundError(2, 'The system cannot find the file specified.', None, 2)")
+            raise serial.SerialException(
+                "could not open port 'COM9': FileNotFoundError(2, 'The system cannot find the file specified.', None, 2)"
+            )
 
     def read(self, size: int = 1) -> bytes:
         time.sleep(0.01)
@@ -315,10 +364,14 @@ async def test_an_open_that_is_cancelled_leaves_no_port_open(monkeypatch: pytest
     with pytest.raises(asyncio.CancelledError):
         await task
     assert not port.is_open
-    assert await asyncio.to_thread(ser.closed.wait, 2.0), "the thread closed what it opened when it found nobody waiting"
+    assert await asyncio.to_thread(ser.closed.wait, 2.0), (
+        "the thread closed what it opened when it found nobody waiting"
+    )
 
 
-async def test_a_close_while_the_port_is_being_opened_leaves_it_closed_and_a_search_lets_go_of_a_port_it_is_opening(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_close_while_the_port_is_being_opened_leaves_it_closed_and_a_search_lets_go_of_a_port_it_is_opening(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A radio whose settings name a port a search is opening at that moment opens it next: the
     search's open must not end with the port held."""
     ser = SlowSer(0.3)
@@ -340,30 +393,66 @@ async def test_a_close_while_the_port_is_being_opened_leaves_it_closed_and_a_sea
     assert await task is False and not listener.is_open and ser.closed.is_set()
 
 
-def test_windows_words_for_a_port_that_is_not_there_and_one_that_another_program_has(monkeypatch: pytest.MonkeyPatch) -> None:
-    gone = serial.SerialException("could not open port 'COM9': FileNotFoundError(2, 'The system cannot find the file specified.', None, 2)")
+def test_windows_words_for_a_port_that_is_not_there_and_one_that_another_program_has(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gone = serial.SerialException(
+        "could not open port 'COM9': FileNotFoundError(2, 'The system cannot find the file specified.', None, 2)"
+    )
     assert serialport._words("COM9", gone) == "COM9: The system cannot find the file specified"
     taken = serial.SerialException("could not open port 'COM3': PermissionError(13, 'Access is denied.', None, 5)")
     assert serialport._words("COM3", taken) == "COM3: Access is denied"
-    assert serialport._words("socket://nohost:9000", serial.SerialException("Could not open port socket://nohost:9000: [Errno -2] Name or service not known")) == "socket://nohost:9000: Name or service not known"
+    assert (
+        serialport._words(
+            "socket://nohost:9000",
+            serial.SerialException("Could not open port socket://nohost:9000: [Errno -2] Name or service not known"),
+        )
+        == "socket://nohost:9000: Name or service not known"
+    )
     monkeypatch.setattr(serialport, "_on_windows", lambda: True)
-    assert serialport._in_use(taken) and serialport._in_use(serial.SerialException("could not open port 'COM3': PermissionError(13, 'Zugriff verweigert', None, 5)")) and not serialport._in_use(gone)
-    broken = serial.SerialException("could not open port 'COM5': PermissionError(13, 'A device attached to the system is not functioning.', None, 31)")
+    assert (
+        serialport._in_use(taken)
+        and serialport._in_use(
+            serial.SerialException("could not open port 'COM3': PermissionError(13, 'Zugriff verweigert', None, 5)")
+        )
+        and not serialport._in_use(gone)
+    )
+    broken = serial.SerialException(
+        "could not open port 'COM5': PermissionError(13, 'A device attached to the system is not functioning.', None, 31)"
+    )
     assert not serialport._in_use(broken), "a USB adapter in a bad state is not another program's"
     assert serialport._words("COM5", broken) == "COM5: A device attached to the system is not functioning"
     monkeypatch.setattr(serialport, "_on_windows", lambda: False)
-    assert not serialport._in_use(taken) and not serialport._in_use(PermissionError(13, "Permission denied")), "(on Linux a permission error is the user's group, not another program)"
+    assert not serialport._in_use(taken) and not serialport._in_use(PermissionError(13, "Permission denied")), (
+        "(on Linux a permission error is the user's group, not another program)"
+    )
     assert serialport._in_use(serial.SerialException(11, "Could not exclusively lock port /dev/ttyUSB0"))
 
 
 def test_a_line_that_is_lost_is_said_in_the_systems_words_or_as_the_device_gone_never_in_pyserials_prose() -> None:
     assert serialport._lost_words(OSError(5, "Input/output error")) == "Input/output error"
-    assert serialport._lost_words(serial.SerialException("device reports readiness to read but returned no data (device disconnected or multiple access on port?)")) == serialport.LOST
-    assert serialport._lost_words(serial.SerialException("ClearCommError failed (PermissionError(13, 'The device does not recognize the command.', None, 22))")) == serialport.LOST
+    assert (
+        serialport._lost_words(
+            serial.SerialException(
+                "device reports readiness to read but returned no data (device disconnected or multiple access on port?)"
+            )
+        )
+        == serialport.LOST
+    )
+    assert (
+        serialport._lost_words(
+            serial.SerialException(
+                "ClearCommError failed (PermissionError(13, 'The device does not recognize the command.', None, 22))"
+            )
+        )
+        == serialport.LOST
+    )
     assert serialport._lost_words(RuntimeError()) == serialport.LOST
 
 
-async def test_a_com_port_refused_with_access_denied_is_in_use_by_another_program(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_com_port_refused_with_access_denied_is_in_use_by_another_program(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     def refuse(path: str, baud: int) -> Any:
         raise serial.SerialException("could not open port 'COM3': PermissionError(13, 'Access is denied.', None, 5)")
 
@@ -371,10 +460,13 @@ async def test_a_com_port_refused_with_access_denied_is_in_use_by_another_progra
     monkeypatch.setattr(serialport, "_build", refuse)
     with pytest.raises(SerialError) as caught:
         await SerialPort("COM3").open()
-    assert str(caught.value).startswith("COM3: in use by another program") and not isinstance(caught.value.__cause__, type(None))
+    assert str(caught.value).startswith("COM3: in use by another program") and not isinstance(
+        caught.value.__cause__, type(None)
+    )
 
 
 # ---- a line that dies
+
 
 async def test_a_connection_that_closes_emits_dropped_once_and_closes_the_port(radios: Radios) -> None:
     radio = await one(radios)
@@ -386,7 +478,9 @@ async def test_a_connection_that_closes_emits_dropped_once_and_closes_the_port(r
     radio.drop()
     await until(lambda: reasons)
     await idle_for(0.1)
-    assert len(reasons) == 1 and reasons[0] == serialport.LOST, "the operator is told that the line is gone, not what pyserial said"
+    assert len(reasons) == 1 and reasons[0] == serialport.LOST, (
+        "the operator is told that the line is gone, not what pyserial said"
+    )
     assert not port.is_open
     with pytest.raises(SerialError):
         port.write(b"x")
@@ -408,7 +502,9 @@ class FailingSer(SlowSer):
 
 
 @pytest.mark.parametrize("which", ["read", "write"])
-async def test_a_read_or_a_write_that_fails_reports_the_line_lost_once(which: str, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_read_or_a_write_that_fails_reports_the_line_lost_once(
+    which: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     ser = FailingSer(fail_read=which == "read")
     monkeypatch.setattr(serialport, "_build", lambda path, baud: ser)
     reasons: list[str] = []
@@ -441,7 +537,9 @@ class StuckSer(SlowSer):
         self.release.set()
 
 
-async def test_a_line_that_takes_no_more_writes_refuses_them_and_a_stuck_write_is_cut_short_by_the_close(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_line_that_takes_no_more_writes_refuses_them_and_a_stuck_write_is_cut_short_by_the_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     ser = StuckSer()
     monkeypatch.setattr(serialport, "_build", lambda path, baud: ser)
     lost: list[str] = []
@@ -453,21 +551,30 @@ async def test_a_line_that_takes_no_more_writes_refuses_them_and_a_stuck_write_i
             port.write(b"x")
     began = time.monotonic()
     port.close()
-    assert time.monotonic() - began < 60.0 and ser.cancelled and ser.closed.is_set(), "(the stuck write waits two minutes for its release: the close cuts it short)"
+    assert time.monotonic() - began < 60.0 and ser.cancelled and ser.closed.is_set(), (
+        "(the stuck write waits two minutes for its release: the close cuts it short)"
+    )
     await idle_for(0.1)
     assert lost == [], "a write cut short by our own close is not a lost line"
 
 
 # ---- the list of ports
 
-def listed(device: str, description: str = "n/a", hwid: str = "n/a", vid: int | None = None, pid: int | None = None) -> ListPortInfo:
+
+def listed(
+    device: str, description: str = "n/a", hwid: str = "n/a", vid: int | None = None, pid: int | None = None
+) -> ListPortInfo:
     info = ListPortInfo(device)
     info.description, info.hwid, info.vid, info.pid = description, hwid, vid, pid
     return info
 
 
 def test_available_ports_lists_what_the_system_knows_in_natural_order(monkeypatch: pytest.MonkeyPatch) -> None:
-    ports = [listed("COM10", "USB Serial Port (COM10)", "USB VID:PID=0403:6001 SER=A1", 0x0403, 0x6001), listed("COM2", "Communications Port (COM2)"), listed("COM3", "Standard Serial over Bluetooth link (COM3)", "BTHENUM\\{00001101}")]
+    ports = [
+        listed("COM10", "USB Serial Port (COM10)", "USB VID:PID=0403:6001 SER=A1", 0x0403, 0x6001),
+        listed("COM2", "Communications Port (COM2)"),
+        listed("COM3", "Standard Serial over Bluetooth link (COM3)", "BTHENUM\\{00001101}"),
+    ]
     monkeypatch.setattr(serialprobe.serial.tools.list_ports, "comports", lambda: ports)
     assert available_ports() == [
         PortInfo("COM2", "Communications Port (COM2)", "n/a", None, None),
@@ -499,7 +606,11 @@ def test_the_search_is_made_on_linux_only(monkeypatch: pytest.MonkeyPatch) -> No
 
 def test_candidate_ports_defaults_to_the_usb_serial_names() -> None:
     import inspect
-    assert inspect.signature(candidate_ports).parameters["pattern"].default == "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*"
+
+    assert (
+        inspect.signature(candidate_ports).parameters["pattern"].default
+        == "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*"
+    )
 
 
 def test_candidate_ports_is_the_sorted_glob(tmp_path: Path) -> None:
@@ -516,13 +627,16 @@ def test_the_name_of_a_port_is_compared_by_what_it_is(monkeypatch: pytest.Monkey
     assert port_key("com3") == port_key("COM3") == port_key("\\\\.\\COM3") == "COM3"
 
 
-def test_a_socket_has_no_holders_and_without_linux_nobody_is_known_to_hold_a_port(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_socket_has_no_holders_and_without_linux_nobody_is_known_to_hold_a_port(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     assert holders("socket://127.0.0.1:8001") == [] and held_by("tcp://127.0.0.1:8001") == ""
     monkeypatch.setattr("neoaprs.serialholders._on_linux", lambda: False)
     assert holders(sys.executable) == [] and held_by("COM3") == ""
 
 
 # ---- probing
+
 
 def is_kiss(data: bytes) -> bool:
     return bool(KissDecoder().feed(data))
@@ -533,7 +647,7 @@ async def keep_feeding(radio: FakeRadio, data: bytes) -> None:
     while True:
         if radio.clients:
             radio.feed(data)
-        await asyncio.sleep(0.02)              # (the speed of the talker)
+        await asyncio.sleep(0.02)  # (the speed of the talker)
 
 
 async def stop_feeding(*feeders: "asyncio.Task[None]") -> None:
@@ -576,7 +690,9 @@ async def test_probe_closes_the_port_it_chose_too(radios: Radios) -> None:
     await until(lambda: radio.clients == 0)
 
 
-async def test_probe_skips_a_path_that_cannot_be_opened_and_says_so_at_info(radios: Radios, caplog: pytest.LogCaptureFixture) -> None:
+async def test_probe_skips_a_path_that_cannot_be_opened_and_says_so_at_info(
+    radios: Radios, caplog: pytest.LogCaptureFixture
+) -> None:
     gone, talking = await radios(2)
     gone.refuse()
     feeder = asyncio.get_running_loop().create_task(keep_feeding(talking, b"x"))
@@ -607,7 +723,7 @@ async def test_probe_listens_to_every_port_at_once_and_finds_the_one_that_talks_
     loop = asyncio.get_running_loop()
 
     async def late() -> None:
-        await asyncio.sleep(0.3)               # (a radio that starts to talk late is the point)
+        await asyncio.sleep(0.3)  # (a radio that starts to talk late is the point)
         await three[2].connected()
         three[2].feed(encode(b"a frame"))
 
@@ -617,7 +733,9 @@ async def test_probe_listens_to_every_port_at_once_and_finds_the_one_that_talks_
         assert await probe([r.url for r in three], 9600, 60.0, is_kiss) == three[2].url
     finally:
         await stop_feeding(talker)
-    assert 0.25 < loop.time() - began < 30.0, "the third port was heard as soon as it talked, not after a turn of a minute on each of the others"
+    assert 0.25 < loop.time() - began < 30.0, (
+        "the third port was heard as soon as it talked, not after a turn of a minute on each of the others"
+    )
 
 
 async def test_probe_without_a_limit_waits_for_a_port_to_talk(radios: Radios) -> None:
@@ -642,8 +760,10 @@ async def test_probe_tells_which_ports_it_opened(radios: Radios) -> None:
 
 async def test_probe_sends_the_nudge_to_every_port_once_after_the_wait(radios: Radios) -> None:
     three = await radios(3)
-    task = asyncio.get_running_loop().create_task(probe([r.url for r in three], 9600, 0.5, lambda data: False, nudge=b"\r", nudge_after_sec=0.2))
-    await asyncio.sleep(0.1)                   # (half way to the nudge: the time is the point)
+    task = asyncio.get_running_loop().create_task(
+        probe([r.url for r in three], 9600, 0.5, lambda data: False, nudge=b"\r", nudge_after_sec=0.2)
+    )
+    await asyncio.sleep(0.1)  # (half way to the nudge: the time is the point)
     for radio in three:
         assert await radio.said(1, 0.0) == b"", "nothing is sent before the wait is over"
     assert await task is None
@@ -659,13 +779,18 @@ async def test_a_nudge_is_not_needed_when_a_port_has_already_talked(radios: Radi
     talker = asyncio.get_running_loop().create_task(keep_feeding(radio, b"x"))
     try:
         # It ends at the first byte: the long times are for a runner that is slow to open the port
-        assert await probe([radio.url], 9600, 20.0, lambda data: bool(data), nudge=b"\r", nudge_after_sec=10.0) == radio.url
+        assert (
+            await probe([radio.url], 9600, 20.0, lambda data: bool(data), nudge=b"\r", nudge_after_sec=10.0)
+            == radio.url
+        )
     finally:
         await stop_feeding(talker)
     assert await radio.said(1, 0.3) == b""
 
 
-async def test_a_port_whose_nudge_fails_is_dropped_and_the_search_goes_on(radios: Radios, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_port_whose_nudge_fails_is_dropped_and_the_search_goes_on(
+    radios: Radios, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     bad, good = await radios(2)
     real_write = SerialPort.write
 
@@ -680,7 +805,10 @@ async def test_a_port_whose_nudge_fails_is_dropped_and_the_search_goes_on(radios
     loop.call_later(0.3, bad.feed, b"ok")
     loop.call_later(0.4, good.feed, b"ok")
     with caplog.at_level(logging.INFO, logger="neoaprs.serialport"):
-        assert await probe([bad.url, good.url], 9600, 2.0, lambda data: data == b"ok", nudge=b"\r", nudge_after_sec=0.1) == good.url
+        assert (
+            await probe([bad.url, good.url], 9600, 2.0, lambda data: data == b"ok", nudge=b"\r", nudge_after_sec=0.1)
+            == good.url
+        )
     assert any("dropping" in r.getMessage() and bad.url in r.getMessage() for r in caplog.records)
     assert await good.said(1, 1.0) == b"\r"
 
@@ -691,13 +819,17 @@ async def test_probe_returns_none_at_once_when_every_port_is_gone(radios: Radios
     for radio in pair:
         loop.call_later(0.1, radio.drop)
     began = loop.time()
-    assert await asyncio.wait_for(probe([r.url for r in pair], 9600, None, lambda data: True), 30.0) is None, "with no limit it would wait for ever: it ends because every port is gone"
+    assert await asyncio.wait_for(probe([r.url for r in pair], 9600, None, lambda data: True), 30.0) is None, (
+        "with no limit it would wait for ever: it ends because every port is gone"
+    )
     assert loop.time() - began < 10.0, "at once: not after a poll or a retry of some seconds"
 
 
 async def test_cancelling_the_probe_closes_every_port(radios: Radios) -> None:
     three = await radios(3)
-    task = asyncio.get_running_loop().create_task(probe([r.url for r in three], 9600, None, lambda data: False, nudge=b"\r"))
+    task = asyncio.get_running_loop().create_task(
+        probe([r.url for r in three], 9600, None, lambda data: False, nudge=b"\r")
+    )
     await until(lambda: all(r.clients == 1 for r in three))
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
@@ -705,7 +837,9 @@ async def test_cancelling_the_probe_closes_every_port(radios: Radios) -> None:
     await until(lambda: all(r.clients == 0 for r in three))
 
 
-async def test_cancelling_the_probe_during_the_opens_leaves_no_port_open(radios: Radios, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_cancelling_the_probe_during_the_opens_leaves_no_port_open(
+    radios: Radios, monkeypatch: pytest.MonkeyPatch
+) -> None:
     pair = await radios(2)
     real_build = serialport._build
     opening = threading.Semaphore(0)
@@ -720,7 +854,7 @@ async def test_cancelling_the_probe_during_the_opens_leaves_no_port_open(radios:
             counts["begun"] += 1
             opening.release()
             try:
-                time.sleep(0.3)                # (the open that takes this long is the point)
+                time.sleep(0.3)  # (the open that takes this long is the point)
                 real_open()
             finally:
                 counts["ended"] += 1
@@ -734,51 +868,90 @@ async def test_cancelling_the_probe_during_the_opens_leaves_no_port_open(radios:
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
-    await until(lambda: counts["ended"] == counts["begun"], 30.0)          # (the slow opens finish in their threads)
+    await until(lambda: counts["ended"] == counts["begun"], 30.0)  # (the slow opens finish in their threads)
     # And no port may be left open after them: each is closed, a socket's close takes its time
     await until(lambda: all(r.clients == 0 for r in pair), 30.0)
 
 
-@pytest.mark.parametrize("listed_as, skipped", [("socket://{}", "SOCKET://{}"), ("tcp://{}", "socket://{}"), ("socket://{}", "tcp://{}")])
-async def test_probe_never_touches_a_path_in_skip_however_it_is_written(listed_as: str, skipped: str, radios: Radios, caplog: pytest.LogCaptureFixture) -> None:
+@pytest.mark.parametrize(
+    "listed_as, skipped", [("socket://{}", "SOCKET://{}"), ("tcp://{}", "socket://{}"), ("socket://{}", "tcp://{}")]
+)
+async def test_probe_never_touches_a_path_in_skip_however_it_is_written(
+    listed_as: str, skipped: str, radios: Radios, caplog: pytest.LogCaptureFixture
+) -> None:
     excluded, radio = await radios(2)
     host = excluded.url.removeprefix("socket://")
     feeder = asyncio.get_running_loop().create_task(keep_feeding(radio, b"x"))
     told: list[list[str]] = []
     try:
         with caplog.at_level(logging.INFO, logger="neoaprs.serialport"):
-            found = await probe([listed_as.format(host), radio.url], 9600, 2.0, lambda data: bool(data), nudge=b"\r", nudge_after_sec=0.05, on_open=told.append, skip=[skipped.format(host)])
+            found = await probe(
+                [listed_as.format(host), radio.url],
+                9600,
+                2.0,
+                lambda data: bool(data),
+                nudge=b"\r",
+                nudge_after_sec=0.05,
+                on_open=told.append,
+                skip=[skipped.format(host)],
+            )
     finally:
         await stop_feeding(feeder)
-    assert found == radio.url and told == [[radio.url]] and excluded.connections == 0, "nothing was opened on a port on the skip list"
+    assert found == radio.url and told == [[radio.url]] and excluded.connections == 0, (
+        "nothing was opened on a port on the skip list"
+    )
     assert [r.levelno for r in caplog.records if "on the skip list" in r.getMessage()] == [logging.INFO]
 
 
 @pytest.mark.parametrize("listed_as", ["socket://{}", "tcp://{}", "SOCKET://{}"])
-async def test_probe_never_touches_a_port_another_radio_holds_however_it_is_written_and_says_who_holds_it(listed_as: str, radios: Radios, caplog: pytest.LogCaptureFixture) -> None:
+async def test_probe_never_touches_a_port_another_radio_holds_however_it_is_written_and_says_who_holds_it(
+    listed_as: str, radios: Radios, caplog: pytest.LogCaptureFixture
+) -> None:
     held, radio = await radios(2)
     feeder = asyncio.get_running_loop().create_task(keep_feeding(radio, b"x"))
     told: list[list[str]] = []
     try:
         with caplog.at_level(logging.INFO, logger="neoaprs.serialport"):
-            found = await probe([listed_as.format(held.url.removeprefix("socket://")), radio.url], 9600, 2.0, lambda data: bool(data), on_open=told.append, claimed={port_key(held.url): "held by radio 3"})
+            found = await probe(
+                [listed_as.format(held.url.removeprefix("socket://")), radio.url],
+                9600,
+                2.0,
+                lambda data: bool(data),
+                on_open=told.append,
+                claimed={port_key(held.url): "held by radio 3"},
+            )
     finally:
         await stop_feeding(feeder)
-    assert found == radio.url and told == [[radio.url]] and held.connections == 0, "nothing was opened on a port another radio holds"
-    assert [r.getMessage() for r in caplog.records if "held by radio 3" in r.getMessage()] == [f"probe: skipping {listed_as.format(held.url.removeprefix('socket://'))}: held by radio 3"]
+    assert found == radio.url and told == [[radio.url]] and held.connections == 0, (
+        "nothing was opened on a port another radio holds"
+    )
+    assert [r.getMessage() for r in caplog.records if "held by radio 3" in r.getMessage()] == [
+        f"probe: skipping {listed_as.format(held.url.removeprefix('socket://'))}: held by radio 3"
+    ]
 
 
 def test_a_claim_of_a_port_is_the_device_by_what_it_is_and_a_kiss_tcp_address_is_none(tmp_path: Path) -> None:
     # A port there is a name, not a file: no link to follow
     if sys.platform == "win32":
-        assert claim_value("com3") == claim_value("\\\\.\\COM3") == port_key("COM3") == "COM3", "two names of one device are one claim"
+        assert claim_value("com3") == claim_value("\\\\.\\COM3") == port_key("COM3") == "COM3", (
+            "two names of one device are one claim"
+        )
     else:
         device = tmp_path / "ttyUSB0"
         device.write_text("")
         (tmp_path / "by-id").symlink_to(device)
-        assert claim_value(str(tmp_path / "by-id")) == claim_value(str(device)) == port_key(str(device)), "two names of one device are one claim"
-    assert claim_value("bt://00:11:22:33:44:55") == claim_value("BT://00:11:22:33:44:55"), "a Bluetooth radio is a device too"
-    assert claim_value("socket://127.0.0.1:8001") is None and claim_value("tcp://127.0.0.1:8001") is None and claim_value("") is None and claim_value("  ") is None
+        assert claim_value(str(tmp_path / "by-id")) == claim_value(str(device)) == port_key(str(device)), (
+            "two names of one device are one claim"
+        )
+    assert claim_value("bt://00:11:22:33:44:55") == claim_value("BT://00:11:22:33:44:55"), (
+        "a Bluetooth radio is a device too"
+    )
+    assert (
+        claim_value("socket://127.0.0.1:8001") is None
+        and claim_value("tcp://127.0.0.1:8001") is None
+        and claim_value("") is None
+        and claim_value("  ") is None
+    )
     assert holder_words(3) == "radio 3" and holder_words(None) == "the GPS receiver"
 
 
@@ -790,7 +963,8 @@ async def test_probe_with_every_path_skipped_finds_nothing_at_once(radios: Radio
 
 # ---- the guard: a test never touches the operator's radio
 
-@posix_only      # (the radio's device files are /dev paths)
+
+@posix_only  # (the radio's device files are /dev paths)
 def test_the_guard_refuses_and_remembers_the_radios_device_files_even_when_the_error_is_swallowed() -> None:
     radio = guards.SerialGuard()
     with pytest.MonkeyPatch.context() as mp:
@@ -801,7 +975,15 @@ def test_the_guard_refuses_and_remembers_the_radios_device_files_even_when_the_e
         # Pyserial words the refusal as its own error; the guard has remembered it all the same
         with pytest.raises(serial.SerialException):
             serial.Serial("/dev/brainbox_2")
-    assert radio.refused == ["/dev/brainbox_1", "/dev/brainbox_4", "/dev/ttyS0", "/dev/ttyUSB3", "/dev/tty", "/dev/ttyACM0", "/dev/brainbox_2"]
+    assert radio.refused == [
+        "/dev/brainbox_1",
+        "/dev/brainbox_4",
+        "/dev/ttyS0",
+        "/dev/ttyUSB3",
+        "/dev/tty",
+        "/dev/ttyACM0",
+        "/dev/brainbox_2",
+    ]
 
 
 @posix_only
@@ -822,7 +1004,7 @@ def test_the_guard_lets_ordinary_files_and_a_socket_port_through(tmp_path: Path)
     assert radio.refused == []
 
 
-CHILD_TESTS = '''
+CHILD_TESTS = """
 import os
 import serial
 
@@ -841,7 +1023,7 @@ def test_opens_a_tty_through_pyserial_and_swallows_the_error():
         serial.Serial("/dev/ttyUSB0")
     except Exception:
         pass
-'''
+"""
 
 
 @posix_only
@@ -851,8 +1033,19 @@ def test_the_guard_is_wired_in_and_fails_a_test_that_touches_the_radio(tmp_path:
     (work / "conftest.py").write_text("from tests.support.guards import isolated_machine  # noqa: F401\n")
     (work / "test_inner.py").write_text(textwrap.dedent(CHILD_TESTS))
     env = {**os.environ, "PYTHONPATH": str(ROOT)}
-    proc = subprocess.run([sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-rA", "--color=no", "-q", str(work)], cwd=work, env=env, capture_output=True, text=True, timeout=120)
-    outcome = {line.split("::")[1].split(" ")[0]: line.split(" ")[0] for line in proc.stdout.splitlines() if line.startswith(("PASSED", "ERROR", "FAILED"))}
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-rA", "--color=no", "-q", str(work)],
+        cwd=work,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    outcome = {
+        line.split("::")[1].split(" ")[0]: line.split(" ")[0]
+        for line in proc.stdout.splitlines()
+        if line.startswith(("PASSED", "ERROR", "FAILED"))
+    }
     assert outcome == {
         "test_clean": "PASSED",
         "test_opens_the_radio_and_swallows_the_error": "ERROR",
@@ -860,7 +1053,9 @@ def test_the_guard_is_wired_in_and_fails_a_test_that_touches_the_radio(tmp_path:
     }, proc.stdout + proc.stderr
 
 
-async def test_the_scan_for_a_program_that_holds_a_port_is_not_made_on_the_loop_and_a_held_port_is_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_scan_for_a_program_that_holds_a_port_is_not_made_on_the_loop_and_a_held_port_is_skipped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     threads: list[int] = []
 
     def held(path: str) -> str:
@@ -872,16 +1067,21 @@ async def test_the_scan_for_a_program_that_holds_a_port_is_not_made_on_the_loop_
     assert threads and threading.get_ident() not in threads
 
 
-@pytest.mark.skipif(not hasattr(socket, "TCP_KEEPINTVL"), reason="the system has no keep-alive times to set on a socket")
+@pytest.mark.skipif(
+    not hasattr(socket, "TCP_KEEPINTVL"), reason="the system has no keep-alive times to set on a socket"
+)
 def test_a_tcp_line_asks_after_a_minute_of_quiet_whether_its_end_is_there_and_gives_up_within_two_minutes() -> None:
     server = socket.create_server(("127.0.0.1", 0))
     client = socket.create_connection(server.getsockname())
     try:
         serialport._keep_alive(SimpleNamespace(_socket=client))
-        idle = getattr(socket, "TCP_KEEPIDLE", None) or getattr(socket, "TCP_KEEPALIVE")      # noqa: B009 (macOS names it TCP_KEEPALIVE, which the stubs of the other systems lack)
+        idle = getattr(socket, "TCP_KEEPIDLE", None) or getattr(socket, "TCP_KEEPALIVE")  # noqa: B009 (macOS names it TCP_KEEPALIVE, which the stubs of the other systems lack)
         assert client.getsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE) != 0
-        assert (client.getsockopt(socket.IPPROTO_TCP, idle), client.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL), client.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT)) == (60, 15, 4), \
-            "a LoRa board that lost power is found gone in two minutes, not the system's two hours"
+        assert (
+            client.getsockopt(socket.IPPROTO_TCP, idle),
+            client.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL),
+            client.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT),
+        ) == (60, 15, 4), "a LoRa board that lost power is found gone in two minutes, not the system's two hours"
     finally:
         client.close()
         server.close()
@@ -889,4 +1089,8 @@ def test_a_tcp_line_asks_after_a_minute_of_quiet_whether_its_end_is_there_and_gi
 
 def test_on_macos_the_call_in_and_the_call_out_node_of_a_port_are_one_device(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(serialholders, "sys", SimpleNamespace(platform="darwin"))
-    assert port_key("/dev/tty.usbserial-A50285BI") == port_key("/dev/cu.usbserial-A50285BI") == os.path.realpath("/dev/cu.usbserial-A50285BI")
+    assert (
+        port_key("/dev/tty.usbserial-A50285BI")
+        == port_key("/dev/cu.usbserial-A50285BI")
+        == os.path.realpath("/dev/cu.usbserial-A50285BI")
+    )

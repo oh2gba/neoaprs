@@ -1,4 +1,5 @@
 """Host header parsing, the security headers of every response and the Origin check."""
+
 import re
 
 import tornado.httputil
@@ -30,8 +31,10 @@ def security_headers(host: str) -> dict[str, str]:
     """
     socket_hosts = f" ws://{host} wss://{host}" if _HOST_IN_CSP.match(host) else ""
     return {
-        "Content-Security-Policy": ("default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; "
-                                    f"connect-src 'self'{socket_hosts}; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"),
+        "Content-Security-Policy": (
+            "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; "
+            f"connect-src 'self'{socket_hosts}; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+        ),
         "X-Frame-Options": "DENY",  # for browsers that ignore frame-ancestors
         "Referrer-Policy": "no-referrer",
         "X-Content-Type-Options": "nosniff",

@@ -3,6 +3,7 @@
 A new viewer gets the table at once. A page more than the hub's `BEHIND` bytes behind is skipped;
 the next table brings it up to date.
 """
+
 from typing import Any, Protocol
 
 from neoaprs.airports import place
@@ -20,14 +21,38 @@ class Watched(Protocol):
 
 def thing_row(thing: Thing, layer: Layer) -> dict[str, Any]:
     """Return a thing as `LayerThing` has it; places are looked up for aircraft airports only."""
-    return {"id": thing.id, "lat": thing.lat, "lon": thing.lon, "at": iso(thing.at), "heading_deg": thing.heading_deg, "speed_kmh": thing.speed_kmh, "name": thing.name, "emergency": thing.emergency,
-            "altitude_m": thing.altitude_m, "vertical_ms": thing.vertical_ms, "registration": thing.registration, "type": thing.type, "category": thing.category, "designator": thing.designator,
-            "ship_type": thing.ship_type, "course_deg": thing.course_deg, "destination": thing.destination,
-            "origin": thing.origin, "origin_place": place(thing.origin), "destination_place": place(thing.destination) if layer == "aircraft" else ""}
+    return {
+        "id": thing.id,
+        "lat": thing.lat,
+        "lon": thing.lon,
+        "at": iso(thing.at),
+        "heading_deg": thing.heading_deg,
+        "speed_kmh": thing.speed_kmh,
+        "name": thing.name,
+        "emergency": thing.emergency,
+        "altitude_m": thing.altitude_m,
+        "vertical_ms": thing.vertical_ms,
+        "registration": thing.registration,
+        "type": thing.type,
+        "category": thing.category,
+        "designator": thing.designator,
+        "ship_type": thing.ship_type,
+        "course_deg": thing.course_deg,
+        "destination": thing.destination,
+        "origin": thing.origin,
+        "origin_place": place(thing.origin),
+        "destination_place": place(thing.destination) if layer == "aircraft" else "",
+    }
 
 
 def table_message(table: LayerTable) -> dict[str, Any]:
-    return {"type": "layer_things", "layer": table.layer, "source": table.source, "away": table.away, "things": [thing_row(thing, table.layer) for thing in table.things]}
+    return {
+        "type": "layer_things",
+        "layer": table.layer,
+        "source": table.source,
+        "away": table.away,
+        "things": [thing_row(thing, table.layer) for thing in table.things],
+    }
 
 
 class LayerLooks:

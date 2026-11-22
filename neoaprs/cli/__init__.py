@@ -2,6 +2,7 @@
 
 `neoaprsw` is the daemon without a console window; `neoaprs-app` is the desktop app.
 Subcommands are imported only when used, so `neoaprs --version` does not load the web server."""
+
 import argparse
 import os
 import sys
@@ -25,76 +26,106 @@ COMMANDS = {
 
 def _run(argv: list[str]) -> int:
     from neoaprs.daemon import main as run_daemon
+
     return run_daemon(argv)
 
 
 def _service(argv: list[str]) -> int:
     from .servicecmd import main as service
+
     return service(argv)
 
 
 def _map(argv: list[str]) -> int:
     from .mapcmd import main as map_command
+
     return map_command(argv)
 
 
 def _db(argv: list[str]) -> int:
     from .dbcmd import main as db_command
+
     return db_command(argv)
 
 
 def _replay(argv: list[str]) -> int:
     from .replaycmd import main as replay
+
     return replay(argv)
 
 
 def _gps_replay(argv: list[str]) -> int:
     from .gpsreplaycmd import main as gps_replay
+
     return gps_replay(argv)
 
 
 def _capture(argv: list[str]) -> int:
     from .capturecmd import main as capture
+
     return capture(argv)
 
 
 def _open(argv: list[str]) -> int:
     from .opencmd import main as open_page
+
     return open_page(argv)
 
 
 def _stop(argv: list[str]) -> int:
     from .stopcmd import main as stop
+
     return stop(argv)
 
 
 def _app(argv: list[str]) -> int:
     from neoaprs.desktop.cmd import main as app
+
     return app(argv)
 
 
 def _doctor(argv: list[str]) -> int:
     from .doctor import main as doctor
+
     return doctor(argv)
 
 
 def _support(argv: list[str]) -> int:
     from .supportcmd import main as support
+
     return support(argv)
 
 
-HANDLERS: dict[str, Callable[[list[str]], int]] = {"run": _run, "service": _service, "map": _map, "db": _db, "replay": _replay, "gps-replay": _gps_replay, "capture": _capture, "doctor": _doctor, "support": _support, "open": _open, "stop": _stop, "app": _app}
+HANDLERS: dict[str, Callable[[list[str]], int]] = {
+    "run": _run,
+    "service": _service,
+    "map": _map,
+    "db": _db,
+    "replay": _replay,
+    "gps-replay": _gps_replay,
+    "capture": _capture,
+    "doctor": _doctor,
+    "support": _support,
+    "open": _open,
+    "stop": _stop,
+    "app": _app,
+}
 
 
 def commands_text() -> str:
     width = max(len(name) for name in COMMANDS)
     lines = [f"  {name:<{width}}  {text}" for name, text in COMMANDS.items()]
-    return "commands (the options above are those of `run`, which is what no command means):\n" + "\n".join(lines) + "\n\n`neoaprs COMMAND --help` says what a command takes."
+    return (
+        "commands (the options above are those of `run`, which is what no command means):\n"
+        + "\n".join(lines)
+        + "\n\n`neoaprs COMMAND --help` says what a command takes."
+    )
 
 
 def help_text() -> str:
     """Return the daemon's option help (as `python -m neoaprs --help`) followed by the commands."""
     from neoaprs.daemon import build_parser
+
     parser = build_parser("neoaprs")
     parser.usage = "neoaprs [COMMAND] [-h] [--data DATA] [--port PATH] [--web-port N] [--debug] [--version]"
     parser.epilog = commands_text()

@@ -1,4 +1,5 @@
 """The sound cards of the Mercury HF modem, as `mercury -z` lists them."""
+
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -14,7 +15,9 @@ class SoundCard:
     numbered: str = ""
 
 
-_DEVICE = re.compile(r"^device(?: #\d+)?: (?:name: '(?P<name>.*?)'\s+id: '(?P<id>.*?)'|(?P<name2>.*?)\s+id=(?P<id2>\S+))(?P<default>\s+\(system (?:default|route)\))?\s*$")
+_DEVICE = re.compile(
+    r"^device(?: #\d+)?: (?:name: '(?P<name>.*?)'\s+id: '(?P<id>.*?)'|(?P<name2>.*?)\s+id=(?P<id2>\S+))(?P<default>\s+\(system (?:default|route)\))?\s*$"
+)
 
 
 # Windows lists each card twice, as a recording ({0.0.1.) and a playing ({0.0.0.) device; opening
@@ -97,7 +100,17 @@ def _pairs(group: Sequence[SoundCard], card: str) -> list[SoundCard]:
     """Return the pairs of one card's devices: one per recording and playing device."""
     captures, playbacks = [g for g in group if g.capture], [g for g in group if g.playback]
     alone = len(captures) == 1 and len(playbacks) == 1
-    return [SoundCard(f"{rec.id}{PAIR}{play.id}", card if alone else f"{card} ({_kind(rec)}, {_kind(play)})", True, True, rec.default and play.default) for rec in captures for play in playbacks]
+    return [
+        SoundCard(
+            f"{rec.id}{PAIR}{play.id}",
+            card if alone else f"{card} ({_kind(rec)}, {_kind(play)})",
+            True,
+            True,
+            rec.default and play.default,
+        )
+        for rec in captures
+        for play in playbacks
+    ]
 
 
 def _kind(card: SoundCard) -> str:
@@ -138,5 +151,12 @@ def parse_sound_cards(text: str, card_names: Mapping[int, str] | None = None) ->
         name = (m.group("name") or m.group("name2") or ident).strip()
         before = cards.get(ident, SoundCard(ident, name))
         default = m.group("default") is not None or "(system route)" in name or "(system default)" in name
-        cards[ident] = SoundCard(ident, before.name or name, before.playback or section == "playback", before.capture or section == "capture", before.default or default, listed if listed != ident else "")
+        cards[ident] = SoundCard(
+            ident,
+            before.name or name,
+            before.playback or section == "playback",
+            before.capture or section == "capture",
+            before.default or default,
+            listed if listed != ident else "",
+        )
     return pair_directions(list(cards.values()))

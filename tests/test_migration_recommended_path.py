@@ -1,6 +1,7 @@
 """Migration 15 (neoaprs/migrationsteps12to21.py): the recommended path follows the station's type.
 The old default `WIDE1-1,WIDE2-1` of `beacon/path` becomes empty; any other stored path is kept.
 """
+
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -37,7 +38,9 @@ def migrate(folder: Path, stored: dict[str, str]) -> Iterator[sqlite3.Connection
     version_fourteen(old, clock, stored)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 15
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][14:] == [(number, f"_v{number}", GOLDEN[number]) for number in range(15, SCHEMA_VERSION + 1)]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][14:] == [
+        (number, f"_v{number}", GOLDEN[number]) for number in range(15, SCHEMA_VERSION + 1)
+    ]
     try:
         yield migrated.db
     finally:
@@ -45,16 +48,30 @@ def migrate(folder: Path, stored: dict[str, str]) -> Iterator[sqlite3.Connection
 
 
 def test_the_old_default_path_becomes_the_recommended_one_and_nothing_else_is_touched(tmp_path: Path) -> None:
-    with migrate(tmp_path, {"beacon/path": "WIDE1-1,WIDE2-1", "station/call": "OH2GBA", "station/symbol_code": "-"}) as db:
-        assert flat_row(db, "beacon/path") == ("", 2), "the default that every save stored is the recommended path of the station's type; the revision moves on"
+    with migrate(
+        tmp_path, {"beacon/path": "WIDE1-1,WIDE2-1", "station/call": "OH2GBA", "station/symbol_code": "-"}
+    ) as db:
+        assert flat_row(db, "beacon/path") == ("", 2), (
+            "the default that every save stored is the recommended path of the station's type; the revision moves on"
+        )
         assert station_rows(db) == {"station/call": ("OH2GBA", 1), "station/symbol_code": ("-", 1)}
-        assert stored_config(db).beacon_path == "" and stored_config(db).beacon_path_calls == ("WIDE2-2",), "and the settings in force send the beacon on the path of a house"
+        assert stored_config(db).beacon_path == "" and stored_config(db).beacon_path_calls == ("WIDE2-2",), (
+            "and the settings in force send the beacon on the path of a house"
+        )
 
 
 def test_a_custom_path_and_direct_only_are_as_they_were(tmp_path: Path) -> None:
-    for folder, path, calls in (("a", "WIDE2-2", ("WIDE2-2",)), ("b", "DIRECT", ()), ("c", "WIDE2-1", ("WIDE2-1",)), ("d", "WIDE1-1,WIDE2-2", ("WIDE1-1", "WIDE2-2")), ("e", "", ("WIDE2-2",))):
+    for folder, path, calls in (
+        ("a", "WIDE2-2", ("WIDE2-2",)),
+        ("b", "DIRECT", ()),
+        ("c", "WIDE2-1", ("WIDE2-1",)),
+        ("d", "WIDE1-1,WIDE2-2", ("WIDE1-1", "WIDE2-2")),
+        ("e", "", ("WIDE2-2",)),
+    ):
         with migrate(tmp_path / folder, {"beacon/path": path}) as db:
-            assert flat_row(db, "beacon/path") == (path, 1), "the owner's own path, DIRECT and the empty one keep their value and their revision"
+            assert flat_row(db, "beacon/path") == (path, 1), (
+                "the owner's own path, DIRECT and the empty one keep their value and their revision"
+            )
             assert stored_config(db).beacon_path == path and stored_config(db).beacon_path_calls == calls
 
 
@@ -67,4 +84,8 @@ def test_after_the_migration_the_path_follows_the_symbol_and_the_custom_path_sta
     house = Config.from_data({"beacon/path": "", "station/symbol_table": "/", "station/symbol_code": "-"})
     car = Config.from_data({"beacon/path": "", "station/symbol_table": "/", "station/symbol_code": ">"})
     owner = Config.from_data({"beacon/path": "WIDE2-1", "station/symbol_table": "/", "station/symbol_code": ">"})
-    assert house.beacon_path_calls == ("WIDE2-2",) and car.beacon_path_calls == ("WIDE1-1", "WIDE2-1") and owner.beacon_path_calls == ("WIDE2-1",)
+    assert (
+        house.beacon_path_calls == ("WIDE2-2",)
+        and car.beacon_path_calls == ("WIDE1-1", "WIDE2-1")
+        and owner.beacon_path_calls == ("WIDE2-1",)
+    )

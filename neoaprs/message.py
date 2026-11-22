@@ -1,4 +1,5 @@
 """A message as a value, and the I/O-free rules: addressee, sendable text, attempt timing."""
+
 import random
 import re
 import string
@@ -42,18 +43,43 @@ MESSAGES_HELD_MAX = 10000
 
 
 _ALNUM = string.digits + string.ascii_uppercase
-MSG_IDS: tuple[str, ...] = (*(f"{n:02d}" for n in range(1, 100)), *(a + b for a in string.ascii_uppercase for b in _ALNUM), *(d + c for d in string.digits for c in string.ascii_uppercase), "00")
+MSG_IDS: tuple[str, ...] = (
+    *(f"{n:02d}" for n in range(1, 100)),
+    *(a + b for a in string.ascii_uppercase for b in _ALNUM),
+    *(d + c for d in string.digits for c in string.ascii_uppercase),
+    "00",
+)
 # the ids we give, in order: 01..99, A0..ZZ, 0A..9Z, 00
 _ID_INDEX = {ident: n for n, ident in enumerate(MSG_IDS)}
-QUERY_TEXT: dict[str, str] = {"position": "?APRSP", "status": "?APRSS", "directs": "?APRSD", "path": "?APRST", "objects": "?APRSO", "messages": "?APRSM", "heard": "?APRSH",
-                              "ping": "?PING?", "aprs": "?APRS?", "igate": "?IGATE?", "wx": "?WX?"}
+QUERY_TEXT: dict[str, str] = {
+    "position": "?APRSP",
+    "status": "?APRSS",
+    "directs": "?APRSD",
+    "path": "?APRST",
+    "objects": "?APRSO",
+    "messages": "?APRSM",
+    "heard": "?APRSH",
+    "ping": "?PING?",
+    "aprs": "?APRS?",
+    "igate": "?IGATE?",
+    "wx": "?WX?",
+}
 """The queries of the specification (APRS 1.0.1 ch. 15) that we know, by what each asks for: the one list the others take from (the page's queries below, the answers of services/queries.py, the asking of services/generalask.py, `is_query`)."""
-_QUERY = re.compile(r"\?(?:" + "|".join(sorted((t.strip("?") for t in QUERY_TEXT.values()), key=len, reverse=True)) + r")(\?.*|\s.*)?$", re.IGNORECASE)
+_QUERY = re.compile(
+    r"\?(?:" + "|".join(sorted((t.strip("?") for t in QUERY_TEXT.values()), key=len, reverse=True)) + r")(\?.*|\s.*)?$",
+    re.IGNORECASE,
+)
 TELEMETRY_DEFINITIONS = ("PARM.", "UNIT.", "EQNS.", "BITS.")
 
 
 # the directed queries the page can send, by kind (`?WX?` is general in the spec)
-QUERIES: dict[str, str] = {"position": QUERY_TEXT["position"], "status": QUERY_TEXT["status"], "heard": QUERY_TEXT["directs"], "trace": QUERY_TEXT["path"], "weather": QUERY_TEXT["wx"]}
+QUERIES: dict[str, str] = {
+    "position": QUERY_TEXT["position"],
+    "status": QUERY_TEXT["status"],
+    "heard": QUERY_TEXT["directs"],
+    "trace": QUERY_TEXT["path"],
+    "weather": QUERY_TEXT["wx"],
+}
 QUERY_EVERY_SEC = 60
 
 
@@ -92,7 +118,7 @@ class MessageRecord:
 
     @property
     def peer(self) -> str:
-            return self.from_call if self.direction == "in" else self.to_call
+        return self.from_call if self.direction == "in" else self.to_call
 
 
 def normal_call(text: str) -> str:
@@ -103,9 +129,18 @@ def normal_path(text: str) -> tuple[str, ...]:
     """Return a comma-separated path as calls. Raise CodedError for DIRECT or too many."""
     calls = tuple(normal_call(piece) for piece in text.split(",") if piece.strip())
     if DIRECT_ONLY in calls:
-        raise CodedError(f"{DIRECT_ONLY} is no digipeater: written alone it means no digipeaters at all", "path.direct_alone", word=DIRECT_ONLY)
+        raise CodedError(
+            f"{DIRECT_ONLY} is no digipeater: written alone it means no digipeaters at all",
+            "path.direct_alone",
+            word=DIRECT_ONLY,
+        )
     if len(calls) > MAX_PATH:
-        raise CodedError(f"{len(calls)} digipeaters is more than the {MAX_PATH} a path may have", "path.too_long", count=len(calls), max=MAX_PATH)
+        raise CodedError(
+            f"{len(calls)} digipeaters is more than the {MAX_PATH} a path may have",
+            "path.too_long",
+            count=len(calls),
+            max=MAX_PATH,
+        )
     return calls
 
 
@@ -124,7 +159,12 @@ def request_path(text: str | None, fallback: tuple[str, ...], rf_only: bool) -> 
         return path
     added = rf_only_path(path)
     if len(added) > MAX_PATH:
-        raise CodedError(f"path too long for RF only: {len(path)} digipeaters and RFONLY make more than the {MAX_PATH} a path may have", "path.too_long_rf_only", count=len(path), max=MAX_PATH)
+        raise CodedError(
+            f"path too long for RF only: {len(path)} digipeaters and RFONLY make more than the {MAX_PATH} a path may have",
+            "path.too_long_rf_only",
+            count=len(path),
+            max=MAX_PATH,
+        )
     return added
 
 
@@ -172,13 +212,26 @@ def check_text(text: str) -> None:
     if not text.strip():
         raise MessageError("the message is empty", "message.empty")
     if len(text) > MAX_TEXT:
-        raise MessageError(f"the text is {len(text)} characters, at most {MAX_TEXT} fit in a message", "message.too_long", length=len(text), max=MAX_TEXT)
+        raise MessageError(
+            f"the text is {len(text)} characters, at most {MAX_TEXT} fit in a message",
+            "message.too_long",
+            length=len(text),
+            max=MAX_TEXT,
+        )
     bad = [c for c in FORBIDDEN if c in text]
     if bad:
-        raise MessageError(f"the text has {' '.join(bad)}, which a message cannot carry ({' '.join(FORBIDDEN)} are not allowed)", "message.forbidden", chars=" ".join(bad))
+        raise MessageError(
+            f"the text has {' '.join(bad)}, which a message cannot carry ({' '.join(FORBIDDEN)} are not allowed)",
+            "message.forbidden",
+            chars=" ".join(bad),
+        )
     if not text.isascii():
         odd = "".join(dict.fromkeys(c for c in text if not c.isascii() and c.isprintable()))
-        raise MessageError(f"the text has {odd or 'a character'} that is not printable ASCII: a message carries printable ASCII only", "message.not_ascii", chars=odd)
+        raise MessageError(
+            f"the text has {odd or 'a character'} that is not printable ASCII: a message carries printable ASCII only",
+            "message.not_ascii",
+            chars=odd,
+        )
     if not text.isprintable():
         raise MessageError("the text has a control character", "message.control")
 
@@ -191,7 +244,9 @@ def wait_after(attempts: int, attempts_max: int = STATION_ATTEMPTS) -> timedelta
     """Return the wait after attempt `attempts`; after the last, the wait for an answer."""
     if attempts >= attempts_max:
         return timedelta(seconds=FINAL_WAIT_SEC)
-    return timedelta(seconds=FIRST_WAIT_SEC if attempts <= 1 else min(FIRST_WAIT_SEC * 2 ** (attempts - 2), MAX_WAIT_SEC))
+    return timedelta(
+        seconds=FIRST_WAIT_SEC if attempts <= 1 else min(FIRST_WAIT_SEC * 2 ** (attempts - 2), MAX_WAIT_SEC)
+    )
 
 
 def schedule_sec(attempts_max: int) -> tuple[int, ...]:

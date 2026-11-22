@@ -1,6 +1,7 @@
 """A Mercury HF modem stand-in: a broadcast port (KISS over TCP) and a control port on the loopback,
 on one shared "air" with the other stations of the test, behaving as Mercury does on the air.
 """
+
 import asyncio
 import configparser
 import os
@@ -43,6 +44,7 @@ class Transmission:
 @dataclass
 class Air:
     """One frequency that the stations share."""
+
     frame_sec: float = FRAME_SEC
     busy_detect: bool = True
     max_payload: int = MAX_PAYLOAD
@@ -80,10 +82,10 @@ class Air:
         hears it."""
         if len(payload) > self.max_payload:
             self.truncated.append((len(payload), self.max_payload))
-            payload = payload[:self.max_payload]
+            payload = payload[: self.max_payload]
         now = asyncio.get_running_loop().time()
         sending = Transmission(station, payload, now, now + self.frame_sec)
-        for other in self._on_air:                                        # (two on the air at once: both lost)
+        for other in self._on_air:  # (two on the air at once: both lost)
             other.lost = sending.lost = True
         self._on_air.append(sending)
         station.keyed = True
@@ -101,7 +103,11 @@ class Air:
         sending.station.keyed = False
         sending.station.say_control("PTT OFF")
         for other in self.stations:
-            if other is not sending.station and self.busy_detect and not any(t.station is not other for t in self._on_air):
+            if (
+                other is not sending.station
+                and self.busy_detect
+                and not any(t.station is not other for t in self._on_air)
+            ):
                 other.say_control("BUSY OFF")
         if sending.lost:
             self.collisions += 1
@@ -137,12 +143,12 @@ class FakeMercury(FakeRadio):
         self.keyed = False
         # Every payload a client handed in, as it came (before the cut)
         self.frames_in: list[bytes] = []
-        self.control_said: list[str] = []                                  # every line said on the control port
+        self.control_said: list[str] = []  # every line said on the control port
         self._decoder = kiss.KissDecoder()
         self._control_server: asyncio.Server | None = None
         self._control_clients: list[asyncio.StreamWriter] = []
         self.control_connections = 0
-        self.alive_sec: float | None = None                                # how often IAMALIVE is said; None: never
+        self.alive_sec: float | None = None  # how often IAMALIVE is said; None: never
         # The TUNE commands a client wrote, as they came
         self.tuned: list[str] = []
 
@@ -152,7 +158,7 @@ class FakeMercury(FakeRadio):
             if self._control_sock is None:
                 self._control_sock = self._listening(self.control_port)
             self._control_server = await asyncio.start_server(self._control, sock=self._control_sock)
-            self._control_sock = None                                      # (the server has it now)
+            self._control_sock = None  # (the server has it now)
 
     async def aclose(self) -> None:
         for writer in list(self._control_clients):
@@ -162,7 +168,7 @@ class FakeMercury(FakeRadio):
             self._control_server.close()
             await self._control_server.wait_closed()
             self._control_server = None
-        if self._control_sock is not None:                                 # made but never served
+        if self._control_sock is not None:  # made but never served
             self._control_sock.close()
             self._control_sock = None
         await super().aclose()
@@ -271,7 +277,11 @@ def of_radio(data_dir: Path, holder: RadioId = HF_ID, claims: Claims | None = No
     """The keywords of `Mercury` for the modem of radio `holder`, as its driver makes it: the
     station's table of resources (a table of its own unless one is given, which radios side by side
     share), the radio's id and its own folder in the data folder (mercuryclaims.radio_folder)."""
-    return {"claims": Claims() if claims is None else claims, "holder": holder, "folder": radio_folder(data_dir, holder)}
+    return {
+        "claims": Claims() if claims is None else claims,
+        "holder": holder,
+        "folder": radio_folder(data_dir, holder),
+    }
 
 
 def program(die_after_sec: float | None = None, audio_error: bool = False, no_ui: bool = False) -> list[str]:
@@ -279,7 +289,11 @@ def program(die_after_sec: float | None = None, audio_error: bool = False, no_ui
     daemon starts Mercury in the data folder): what the modem part's finder gives in a test. With
     `die_after_sec` it dies by itself; with `audio_error` it prints, once its ports listen, the line
     Mercury prints when its sound card cannot be opened, and runs on as Mercury does."""
-    command = [sys.executable, "-c", f"import sys, runpy; sys.path.insert(0, {str(ROOT)!r}); runpy.run_module('tests.support.fakemercury', run_name='__main__')"]
+    command = [
+        sys.executable,
+        "-c",
+        f"import sys, runpy; sys.path.insert(0, {str(ROOT)!r}); runpy.run_module('tests.support.fakemercury', run_name='__main__')",
+    ]
     if die_after_sec is not None:
         command += ["--die-after", str(die_after_sec)]
     return [*command, *(["--audio-error"] if audio_error else []), *(["--no-ui"] if no_ui else [])]
@@ -306,10 +320,19 @@ def _ui_of(ini: str, no_ui: bool = False) -> tuple[int, float]:
     parser = configparser.ConfigParser()
     parser.read(ini, encoding="utf-8")
     on = parser.getboolean("main", "ui_enabled", fallback=False)
-    return (parser.getint("main", "ui_port", fallback=10000) if on else 0), parser.getfloat("audio", "tx_gain_db", fallback=0.0)
+    return (parser.getint("main", "ui_port", fallback=10000) if on else 0), parser.getfloat(
+        "audio", "tx_gain_db", fallback=0.0
+    )
 
 
-async def _serve(broadcast_port: int, control_port: int, die_after: float | None, audio_error: bool = False, ini: str = "", no_ui: bool = False) -> int:
+async def _serve(
+    broadcast_port: int,
+    control_port: int,
+    die_after: float | None,
+    audio_error: bool = False,
+    ini: str = "",
+    no_ui: bool = False,
+) -> int:
     """Listens on both ports as Mercury would (nothing is echoed: there is no other station) until
     SIGTERM, or dies after `die_after` seconds."""
     loop = asyncio.get_running_loop()
@@ -340,7 +363,13 @@ async def _serve(broadcast_port: int, control_port: int, die_after: float | None
         writer.close()
 
     ui_port, gain = _ui_of(ini, no_ui)
-    ui = FakeUi(port=ui_port, gain_db=gain, log_path=UI_LOG_FILE, scene_path=UI_SCENE_FILE, noise_db=-60.0, tone_hz=1500.0) if ui_port else None
+    ui = (
+        FakeUi(
+            port=ui_port, gain_db=gain, log_path=UI_LOG_FILE, scene_path=UI_SCENE_FILE, noise_db=-60.0, tone_hz=1500.0
+        )
+        if ui_port
+        else None
+    )
     if ui is not None:
         await ui.start()
         say(f"[INF] [websocket] Initialized (url=ws://127.0.0.1:{ui_port})")
@@ -379,13 +408,28 @@ def main(argv: list[str] | None = None, out: Callable[[str], None] = print) -> i
     if "-z" in args:
         out(SOUND_CARDS.rstrip("\n"))
         return 0
-    die_after = float(args["--die-after"]) if args.get("--die-after") else float(os.environ["FAKE_MERCURY_DIE_AFTER"]) if os.environ.get("FAKE_MERCURY_DIE_AFTER") else None
+    die_after = (
+        float(args["--die-after"])
+        if args.get("--die-after")
+        else float(os.environ["FAKE_MERCURY_DIE_AFTER"])
+        if os.environ.get("FAKE_MERCURY_DIE_AFTER")
+        else None
+    )
     # (no signal handlers on the Windows selector loop: SIGTERM ends the process as terminate()
     # does)
     if sys.platform == "win32":
         die_after = die_after if die_after is not None else 3600.0
     started = time.monotonic()
-    code = asyncio.run(_serve(int(args.get("-b", "8100")), int(args.get("-p", "8300")), die_after, "--audio-error" in args, args.get(INI_FILE_FLAG, ""), "--no-ui" in args))
+    code = asyncio.run(
+        _serve(
+            int(args.get("-b", "8100")),
+            int(args.get("-p", "8300")),
+            die_after,
+            "--audio-error" in args,
+            args.get(INI_FILE_FLAG, ""),
+            "--no-ui" in args,
+        )
+    )
     out(f"ran {time.monotonic() - started:.1f} s")
     return code
 

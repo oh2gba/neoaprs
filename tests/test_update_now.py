@@ -2,6 +2,7 @@
 page on request through the daemon. It works whatever NEOAPRS_UPDATE_CHECK says and leaves the daily
 schedule alone.
 """
+
 import asyncio
 from dataclasses import replace
 from pathlib import Path
@@ -29,7 +30,12 @@ async def test_a_newer_version_is_answered_and_told_in_a_status_to_the_page_that
     other = await e.ws()
     await page.expect("status")
     await page.send({"cmd": "update_check"})
-    assert await page.expect("update_result") == {"type": "update_result", "outcome": "newer", "version": "9.9.9", "reason": ""}
+    assert await page.expect("update_result") == {
+        "type": "update_result",
+        "outcome": "newer",
+        "version": "9.9.9",
+        "reason": "",
+    }
     await page.until(lambda: page.of("status")[-1]["update"] is not None)
     assert page.of("status")[-1]["update"] == NEWER
     assert e.ctl.updatecheck.latest is not None and e.ctl.updatecheck.latest.version == "9.9.9"
@@ -48,13 +54,20 @@ async def test_the_same_version_is_up_to_date_and_clears_a_newer_one_that_was_kn
     fake.answer = {"version": VERSION, "url": "", "message": ""}
     await page.send({"cmd": "update_check"})
     await page.until(lambda: len(page.of("update_result")) == 2)
-    assert page.of("update_result")[1] == {"type": "update_result", "outcome": "current", "version": VERSION, "reason": ""}
+    assert page.of("update_result")[1] == {
+        "type": "update_result",
+        "outcome": "current",
+        "version": VERSION,
+        "reason": "",
+    }
     assert e.ctl.updatecheck.latest is None
     await page.until(lambda: page.of("status")[-1]["update"] is None)
     await e.stop()
 
 
-async def test_a_page_that_cannot_be_reached_or_understood_is_no_answer_with_the_reason_and_changes_nothing(tmp_path: Path) -> None:
+async def test_a_page_that_cannot_be_reached_or_understood_is_no_answer_with_the_reason_and_changes_nothing(
+    tmp_path: Path,
+) -> None:
     fake = await version_page(NEWER)
     e = await started(tmp_path, fake.url)
     page = await e.ws()
@@ -63,16 +76,28 @@ async def test_a_page_that_cannot_be_reached_or_understood_is_no_answer_with_the
     fake.status = 503
     await page.send({"cmd": "update_check"})
     await page.until(lambda: len(page.of("update_result")) == 2)
-    assert page.of("update_result")[1] == {"type": "update_result", "outcome": "no_answer", "version": "", "reason": "offline"}
+    assert page.of("update_result")[1] == {
+        "type": "update_result",
+        "outcome": "no_answer",
+        "version": "",
+        "reason": "offline",
+    }
     fake.status, fake.body = 200, b"<html>moved</html>"
     await page.send({"cmd": "update_check"})
     await page.until(lambda: len(page.of("update_result")) == 3)
-    assert page.of("update_result")[2] == {"type": "update_result", "outcome": "no_answer", "version": "", "reason": "bad_answer"}
+    assert page.of("update_result")[2] == {
+        "type": "update_result",
+        "outcome": "no_answer",
+        "version": "",
+        "reason": "bad_answer",
+    }
     assert e.ctl.updatecheck.latest is not None, "what was known stays"
     await e.stop()
 
 
-async def test_it_asks_even_when_the_environment_switches_the_daily_check_off_and_does_not_start_the_schedule(tmp_path: Path) -> None:
+async def test_it_asks_even_when_the_environment_switches_the_daily_check_off_and_does_not_start_the_schedule(
+    tmp_path: Path,
+) -> None:
     fake = await version_page(NEWER)
     e = await started(tmp_path, fake.url)
     service = e.ctl.updatecheck
@@ -95,7 +120,14 @@ async def test_two_questions_at_once_are_asked_one_after_the_other() -> None:
 
 async def test_check_now_does_not_wait_for_the_timer_and_does_not_move_it() -> None:
     fake = await version_page({"version": "0.1.0", "url": "", "message": ""})
-    service = UpdateCheck(lambda: replace(DEFAULTS, update_url=fake.url), "0.1.0", "linux", fetch, first_sec=3600.0, environ={"NEOAPRS_UPDATE_CHECK": "0"})
+    service = UpdateCheck(
+        lambda: replace(DEFAULTS, update_url=fake.url),
+        "0.1.0",
+        "linux",
+        fetch,
+        first_sec=3600.0,
+        environ={"NEOAPRS_UPDATE_CHECK": "0"},
+    )
     await service.start()
     result = await service.check_now()
     assert result == CheckResult("current", "0.1.0")

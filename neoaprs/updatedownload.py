@@ -3,6 +3,7 @@
 Redirects are checked too. Each download runs in its own thread (`in_thread`) so a hang holds up
 neither the loop nor the program's end.
 """
+
 import asyncio
 import hashlib
 import http.client
@@ -58,9 +59,19 @@ class _Guarded(urllib.request.HTTPRedirectHandler):
         super().__init__()
         self.allowed = allowed
 
-    def redirect_request(self, req: urllib.request.Request, fp: IO[bytes], code: int, msg: str, headers: http.client.HTTPMessage, newurl: str) -> urllib.request.Request | None:
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: IO[bytes],
+        code: int,
+        msg: str,
+        headers: http.client.HTTPMessage,
+        newurl: str,
+    ) -> urllib.request.Request | None:
         if not self.allowed(newurl):
-            raise DownloadError(f"the download was sent on to {newurl.split('?', 1)[0]}, which is not one of GitHub's addresses for release files")
+            raise DownloadError(
+                f"the download was sent on to {newurl.split('?', 1)[0]}, which is not one of GitHub's addresses for release files"
+            )
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
@@ -72,14 +83,18 @@ def open_url(url: str, allowed: Allowed) -> Response:
     try:
         # under the no-devices switch only this computer is reachable
         nodevices.check_url(url)
-        response: Response = urllib.request.build_opener(https_handler(), _Guarded(allowed), *nodevices.direct()).open(request, timeout=TIMEOUT_SEC)
+        response: Response = urllib.request.build_opener(https_handler(), _Guarded(allowed), *nodevices.direct()).open(
+            request, timeout=TIMEOUT_SEC
+        )
     except urllib.error.HTTPError as e:
         raise DownloadError(f"{url.rsplit('/', 1)[-1]}: the server answered {e.code} {e.reason}", e.code) from None
     except (OSError, ValueError, http.client.HTTPException) as e:
         raise DownloadError(f"{url.rsplit('/', 1)[-1]} could not be fetched: {e}") from None
     if not allowed(response.geturl()):
         response.close()
-        raise DownloadError(f"the download ended at {response.geturl()}, which is not one of GitHub's addresses for release files")
+        raise DownloadError(
+            f"the download ended at {response.geturl()}, which is not one of GitHub's addresses for release files"
+        )
     return response
 
 
@@ -105,7 +120,15 @@ def fetch_bytes(url: str, allowed: Allowed, limit: int = MAX_SUMS_BYTES, opener:
     return body
 
 
-def fetch_file(url: str, target: Path, allowed: Allowed, progress: Progress, cancelled: threading.Event, opener: Opener = open_url, limit: int = MAX_FILE_BYTES) -> str:
+def fetch_file(
+    url: str,
+    target: Path,
+    allowed: Allowed,
+    progress: Progress,
+    cancelled: threading.Event,
+    opener: Opener = open_url,
+    limit: int = MAX_FILE_BYTES,
+) -> str:
     """Write the file at `url` to `target` and return its SHA-256 as hex.
 
     Raise Cancelled or DownloadError; on failure `target` holds partial data for the caller to remove.
@@ -124,7 +147,9 @@ def fetch_file(url: str, target: Path, allowed: Allowed, progress: Progress, can
                     break
                 done += len(piece)
                 if done > limit:
-                    raise DownloadError(f"{url.rsplit('/', 1)[-1]} is more than {limit} bytes, more than an update can be")
+                    raise DownloadError(
+                        f"{url.rsplit('/', 1)[-1]} is more than {limit} bytes, more than an update can be"
+                    )
                 out.write(piece)
                 digest.update(piece)
                 progress(done, total)
@@ -150,7 +175,7 @@ async def in_thread[T](work: Callable[[], T], name: str = "update-download") -> 
         if error is not None:
             done.set_exception(error)
         else:
-            done.set_result(result)          # type: ignore[arg-type]
+            done.set_result(result)  # type: ignore[arg-type]
 
     def run() -> None:
         try:

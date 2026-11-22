@@ -2,6 +2,7 @@
 
 stationbook.py is the book of them.
 """
+
 from collections.abc import Iterable
 from dataclasses import KW_ONLY, dataclass, field, replace
 from datetime import datetime
@@ -31,7 +32,10 @@ def add_track_point(track: Track, when: datetime, lat: float, lon: float) -> Non
     """Add a position to the track if the station moved enough or enough time passed."""
     if track:
         last_time, last_lat, last_lon = track[-1]
-        if distance_km(last_lat, last_lon, lat, lon) * 1000.0 <= TRACK_MOVED_M and (when - last_time).total_seconds() < TRACK_EVERY_SEC:
+        if (
+            distance_km(last_lat, last_lon, lat, lon) * 1000.0 <= TRACK_MOVED_M
+            and (when - last_time).total_seconds() < TRACK_EVERY_SEC
+        ):
             return
     track.append((when, lat, lon))
     del track[:-TRACK_MAX]
@@ -43,6 +47,7 @@ class RadioPlace:
 
     Only a station also heard from the internet has one.
     """
+
     lat: float
     lon: float
     at: datetime
@@ -150,7 +155,16 @@ class Station:
     def note_on(self, radio: RadioId, at: datetime, path: tuple[str, ...]) -> None:
         self.heard_by[radio] = RadioHeard(self.heard_on(radio).count + 1, at, path)
 
-    def note_route(self, radio: RadioId, route: Route, count: int = 1, at: datetime | None = None, before: datetime | None = None, *, carries_path: bool = True) -> None:
+    def note_route(
+        self,
+        radio: RadioId,
+        route: Route,
+        count: int = 1,
+        at: datetime | None = None,
+        before: datetime | None = None,
+        *,
+        carries_path: bool = True,
+    ) -> None:
         """Note `count` packets on the radio by the route; also `deliveries` if `carries_path`."""
         self.routes.setdefault(radio, Deliveries()).note(route, count, at, before)
         if carries_path:
@@ -227,13 +241,50 @@ class Station:
         if self.heard_is == 0:
             return self
         heard = [at for at in (self.last_rf_at, self.last_rf_gated_at, self.last_dummy_at) if at is not None]
-        view = replace(self, packets=self.packets - self.heard_is, heard_is=0, last_is_at=None, last_heard=max(heard) if heard else self.last_heard, hour=self.hour.without(self.hour_is), hour_is=HourCount())
+        view = replace(
+            self,
+            packets=self.packets - self.heard_is,
+            heard_is=0,
+            last_is_at=None,
+            last_heard=max(heard) if heard else self.last_heard,
+            hour=self.hour.without(self.hour_is),
+            hour_is=HourCount(),
+        )
         place = self.radio
         if place is not None:
-            return replace(view, lat=place.lat, lon=place.lon, last_position_at=place.at, position_via=place.via, symbol_table=place.symbol_table, symbol_code=place.symbol_code,
-                           altitude_m=place.altitude_m, course_deg=place.course_deg, speed_kmh=place.speed_kmh, last_comment=place.comment, track=place.track, extensions=place.extensions, storm=place.storm, sign=place.sign)
+            return replace(
+                view,
+                lat=place.lat,
+                lon=place.lon,
+                last_position_at=place.at,
+                position_via=place.via,
+                symbol_table=place.symbol_table,
+                symbol_code=place.symbol_code,
+                altitude_m=place.altitude_m,
+                course_deg=place.course_deg,
+                speed_kmh=place.speed_kmh,
+                last_comment=place.comment,
+                track=place.track,
+                extensions=place.extensions,
+                storm=place.storm,
+                sign=place.sign,
+            )
         if self.position_via == IS or self.position_via is None:
-            return replace(view, lat=None, lon=None, last_position_at=None, position_via=None, altitude_m=None, course_deg=None, speed_kmh=None, track=[],
-                           symbol_table="", symbol_code="", last_comment="", extensions=None, storm=None, sign=None)
+            return replace(
+                view,
+                lat=None,
+                lon=None,
+                last_position_at=None,
+                position_via=None,
+                altitude_m=None,
+                course_deg=None,
+                speed_kmh=None,
+                track=[],
+                symbol_table="",
+                symbol_code="",
+                last_comment="",
+                extensions=None,
+                storm=None,
+                sign=None,
+            )
         return view
-

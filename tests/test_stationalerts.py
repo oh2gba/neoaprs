@@ -2,6 +2,7 @@
 each of the three (on the air, within N km, heard direct) fires once per crossing and not for what
 was true when set.
 """
+
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
@@ -29,7 +30,7 @@ HOME = (60.17, 24.94)
 # A degree of latitude, near enough: the tests place a station so many km north of us
 DEGREE_KM = 111.2
 VIA_DIGI = ("OH2RCH-2*", "WIDE2-1")
-DIRECT = ("WIDE1-1", "WIDE2-1")            # (nothing repeated: heard direct)
+DIRECT = ("WIDE1-1", "WIDE2-1")  # (nothing repeated: heard direct)
 QUIET_SEC = QUIET.total_seconds()
 
 
@@ -39,14 +40,14 @@ def north(km: float) -> Position:
 
 class Rig:
     def __init__(self, log: MessageLog, clock: FixedClock, **changes: object) -> None:
-        self.config = replace(ON_AIR, **changes)                     # type: ignore[arg-type]
+        self.config = replace(ON_AIR, **changes)  # type: ignore[arg-type]
         self.clock = clock
         self.book = StationBook(clock)
         self.book.set_me("OH2GBA", *HOME)
         self.prefs = PrefBook(log, lambda: self.config, clock=clock)
         self.alerts = StationAlerts(self.book, self.prefs, lambda: self.config, clock)
         self.fired: list[Fired] = []
-        self.book.changed.connect(self.alerts.station_changed)       # (what neoaprs/wiring.py connects)
+        self.book.changed.connect(self.alerts.station_changed)  # (what neoaprs/wiring.py connects)
         self.prefs.changed.connect(self.alerts.pref_changed)
         self.alerts.fired.connect(self.fired.append)
 
@@ -55,9 +56,28 @@ class Rig:
         self.alerts.load()
         return self
 
-    def hear(self, call: str = "OH2XYZ", after_sec: float = 60, decoded: object = None, path: tuple[str, ...] = VIA_DIGI, via: str = "rf") -> None:
+    def hear(
+        self,
+        call: str = "OH2XYZ",
+        after_sec: float = 60,
+        decoded: object = None,
+        path: tuple[str, ...] = VIA_DIGI,
+        via: str = "rf",
+    ) -> None:
         self.clock.advance(after_sec)
-        self.book.take(Packet(heard_at=self.clock(), direction="in", raw=b"", source=call, destination="APRS", path=path, info=b"", decoded=decoded or Status("on"), via=via))  # type: ignore[arg-type]
+        self.book.take(
+            Packet(
+                heard_at=self.clock(),
+                direction="in",
+                raw=b"",
+                source=call,
+                destination="APRS",
+                path=path,
+                info=b"",
+                decoded=decoded or Status("on"),
+                via=via,
+            )
+        )  # type: ignore[arg-type]
 
     def kinds(self) -> list[tuple[str, str]]:
         return [(f.call, f.kind) for f in self.fired]
@@ -75,13 +95,19 @@ async def rig(log: MessageLog) -> Rig:
     return await Rig(log, FixedClock()).start()
 
 
-async def test_on_the_air_fires_after_half_an_hour_of_silence_once_and_not_again_until_it_was_silent_again(rig: Rig) -> None:
+async def test_on_the_air_fires_after_half_an_hour_of_silence_once_and_not_again_until_it_was_silent_again(
+    rig: Rig,
+) -> None:
     rig.hear()
     await rig.alerts.set("oh2xyz", Alert(on_air=True))
     rig.hear(after_sec=60)
     assert rig.fired == [], "heard a minute ago: it was on the air already when the alert was set"
     rig.hear(after_sec=QUIET_SEC)
-    assert rig.kinds() == [("OH2XYZ", "on_air")] and rig.fired[0].text == "OH2XYZ is on the air" and rig.fired[0].at == rig.clock()
+    assert (
+        rig.kinds() == [("OH2XYZ", "on_air")]
+        and rig.fired[0].text == "OH2XYZ is on the air"
+        and rig.fired[0].at == rig.clock()
+    )
     rig.hear(after_sec=60)
     rig.hear(after_sec=QUIET_SEC - 1)
     assert len(rig.fired) == 1, "every packet within the half hour is the same time on the air"
@@ -97,13 +123,19 @@ async def test_a_station_never_heard_fires_at_its_first_packet_and_another_stati
     assert rig.kinds() == [("OH2NEW-9", "on_air")]
 
 
-async def test_within_fires_when_the_station_comes_in_from_outside_once_and_again_only_after_it_was_well_outside(rig: Rig) -> None:
+async def test_within_fires_when_the_station_comes_in_from_outside_once_and_again_only_after_it_was_well_outside(
+    rig: Rig,
+) -> None:
     rig.hear(decoded=north(22))
     await rig.alerts.set("OH2XYZ", Alert(within_km=10))
     rig.hear(decoded=north(15))
     assert rig.fired == []
     rig.hear(decoded=north(8.24))
-    assert rig.kinds() == [("OH2XYZ", "within")] and rig.fired[0].text == "OH2XYZ is 8.2 km from you" and rig.fired[0].km == 8.2
+    assert (
+        rig.kinds() == [("OH2XYZ", "within")]
+        and rig.fired[0].text == "OH2XYZ is 8.2 km from you"
+        and rig.fired[0].km == 8.2
+    )
     rig.hear(decoded=north(3))
     # Beyond 10 km, but not beyond the margin: a position that wanders on the edge
     rig.hear(decoded=north(10.5))
@@ -127,8 +159,10 @@ async def test_a_station_already_near_when_the_alert_is_set_fires_only_after_it_
     assert rig.kinds() == [("OH2XYZ", "within")]
 
 
-async def test_within_fires_for_the_first_position_known_when_it_is_near_as_on_the_air_does_for_a_first_packet(rig: Rig) -> None:
-    await rig.alerts.set("OH2NEW-9", Alert(within_km=10))                    # (never heard)
+async def test_within_fires_for_the_first_position_known_when_it_is_near_as_on_the_air_does_for_a_first_packet(
+    rig: Rig,
+) -> None:
+    await rig.alerts.set("OH2NEW-9", Alert(within_km=10))  # (never heard)
     rig.hear("OH2NEW-9", decoded=north(3))
     assert rig.kinds() == [("OH2NEW-9", "within")] and rig.fired[0].km == 3.0
     rig.hear("OH2NEW-9", decoded=north(2))
@@ -148,7 +182,9 @@ async def test_within_fires_when_we_come_near_a_station_that_stands_still(rig: R
     rig.clock.advance(600)
     # The GPS of a moving station: 5 km from it now
     rig.book.set_me("OH2GBA", HOME[0] + 25 / DEGREE_KM, HOME[1])
-    assert rig.kinds() == [("OH2XYZ", "within")] and rig.fired[0].km == 5.0 and rig.fired[0].at == rig.clock(), "when we came near, not when its position was"
+    assert rig.kinds() == [("OH2XYZ", "within")] and rig.fired[0].km == 5.0 and rig.fired[0].at == rig.clock(), (
+        "when we came near, not when its position was"
+    )
 
 
 async def test_heard_direct_fires_after_half_an_hour_without_and_not_for_a_packet_by_a_digipeater(rig: Rig) -> None:
@@ -182,7 +218,9 @@ async def test_our_own_station_and_our_own_objects_have_no_alert(rig: Rig) -> No
     assert rig.prefs.all() == {}
 
 
-async def test_an_alert_that_watches_nothing_takes_it_away_and_the_entry_goes_when_nothing_else_is_set(rig: Rig) -> None:
+async def test_an_alert_that_watches_nothing_takes_it_away_and_the_entry_goes_when_nothing_else_is_set(
+    rig: Rig,
+) -> None:
     await rig.prefs.set_rf_only("OH2XYZ", True)
     await rig.alerts.set("OH2XYZ", Alert(on_air=True, within_km=25))
     assert rig.prefs.all()["OH2XYZ"].alert == Alert(on_air=True, within_km=25)
@@ -221,7 +259,9 @@ def test_the_margin_beyond_the_distance_is_a_tenth_and_at_least_half_a_kilometre
     assert (check(1), check(5), check(10), check(100)) == (1.5, 5.5, 11.0, 110.0)
 
 
-async def test_the_daemon_tells_every_page_and_runs_the_alert_command_and_the_alert_outlives_a_restart(tmp_path: Path) -> None:
+async def test_the_daemon_tells_every_page_and_runs_the_alert_command_and_the_alert_outlives_a_restart(
+    tmp_path: Path,
+) -> None:
     out = tmp_path / "alert.txt"
     e = Env(tmp_path, web=True, settings={"messages/alert_command": writing_titled(out)})
     await e.start()
@@ -232,14 +272,26 @@ async def test_the_daemon_tells_every_page_and_runs_the_alert_command_and_the_al
     wanted = {"path": None, "rf_only": False, "alert": {"on_air": True, "within_km": 10, "direct": False}}
     await other.until(lambda: other.topics["station_prefs"].get("OH2XYZ") == wanted)
     await page.send({"cmd": "set_station_alert", "call": "OH2GBA", "on_air": True, "within_km": None, "direct": False})
-    assert (await page.expect("error"))["text"] == "set_station_alert: OH2GBA is our own: an alert is for another station"
+    assert (await page.expect("error"))[
+        "text"
+    ] == "set_station_alert: OH2GBA is our own: an alert is for another station"
     e.feed(on_air("OH2XYZ", b">on the air"))
     told = {"type": "station_alert", "call": "OH2XYZ", "kind": "on_air", "at": "2026-10-21T12:00:00Z", "km": None}
     assert await page.expect("station_alert") == told and await other.expect("station_alert") == told
-    assert (await until_written(out)).splitlines() == ["station", "APRS alert: OH2XYZ", "OH2XYZ", "OH2XYZ is on the air", "2026-10-21T12:00:00Z", "", "end"]
+    assert (await until_written(out)).splitlines() == [
+        "station",
+        "APRS alert: OH2XYZ",
+        "OH2XYZ",
+        "OH2XYZ is on the air",
+        "2026-10-21T12:00:00Z",
+        "",
+        "end",
+    ]
     await e.stop()
     second = Env(tmp_path, web=True)
     await second.start()
     again = await second.ws()
     await again.until(lambda: len(again.of("state")) == len(TOPIC_NAMES))
-    assert again.topics["station_prefs"] == {"OH2XYZ": wanted} and second.ctl.stationalerts.alerts() == {"OH2XYZ": Alert(on_air=True, within_km=10)}
+    assert again.topics["station_prefs"] == {"OH2XYZ": wanted} and second.ctl.stationalerts.alerts() == {
+        "OH2XYZ": Alert(on_air=True, within_km=10)
+    }

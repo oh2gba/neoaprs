@@ -2,6 +2,7 @@
 fake rigctld and a held clock: the first report after the first poll, nothing inside the interval,
 the same status each interval.
 """
+
 import logging
 import socket
 import sys
@@ -39,18 +40,30 @@ class Rig(ServiceRig):
         self.hf = StubTnc(max_frame=123)
         self.radios = RegistryShape([radio_of(self.config, FM_ID, self.tnc), radio_of(self.config, HF_ID, self.hf)])
         self.frames = BeaconFrames(lambda: self.config, None, self.clock)
-        self.status = RigStatus(self.radios, lambda: self.config, self.frames, self.clock, poll_sec=0.01, read=lambda host, port: read_rig(host, port, 0.3))
+        self.status = RigStatus(
+            self.radios,
+            lambda: self.config,
+            self.frames,
+            self.clock,
+            poll_sec=0.01,
+            read=lambda host, port: read_rig(host, port, 0.3),
+        )
         remember_stop(self.status.stop)
 
 
 # ---- the radio -----------------------------------------------------------------------------------
+
 
 async def test_the_first_status_goes_out_after_the_first_poll_with_the_frequency_and_the_mode() -> None:
     rig = Rig(await rigctld())
     assert rig.status.rig_state == "unused" and rig.status.last_text == "" and rig.status.last_sent_at is None
     await rig.status.poll()
     assert rig.tnc.lines() == [FIRST]
-    assert rig.status.rig_state == "on" and rig.status.last_text == "QRV 14.074 MHz USB" and rig.status.last_sent_at == rig.clock()
+    assert (
+        rig.status.rig_state == "on"
+        and rig.status.last_text == "QRV 14.074 MHz USB"
+        and rig.status.last_sent_at == rig.clock()
+    )
     assert ax25.decode(ax25.encode(rig.tnc.sent[0])) == rig.tnc.sent[0] and rig.tnc.sent[0].is_ui
 
 
@@ -72,13 +85,15 @@ async def test_after_the_interval_a_changed_frequency_or_mode_sends() -> None:
     rig.clock.advance(30 * 60)
     await rig.status.poll()
     assert rig.tnc.lines() == [FIRST, "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211230zQRV 7.074 MHz USB"]
-    rigd.mode = "CW"                                                    # (the mode alone is a change too)
+    rigd.mode = "CW"  # (the mode alone is a change too)
     rig.clock.advance(30 * 60)
     await rig.status.poll()
     assert rig.tnc.lines()[-1] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211300zQRV 7.074 MHz CW"
 
 
-async def test_after_the_interval_the_same_status_goes_out_again_and_a_dial_that_moved_inside_it_makes_no_difference() -> None:
+async def test_after_the_interval_the_same_status_goes_out_again_and_a_dial_that_moved_inside_it_makes_no_difference() -> (
+    None
+):
     rigd = await rigctld()
     rig = Rig(rigd)
     await rig.status.poll()
@@ -116,12 +131,17 @@ async def test_a_radio_that_is_off_sends_nothing_and_the_log_says_so_once(caplog
         rig.clock.advance(3600)
     assert rig.tnc.sent == [] and rig.status.rig_state == "off"
     told = [r for r in caplog.records if r.levelno == logging.WARNING]
-    assert len(told) == 1 and told[0].getMessage() == f"rigctld at {rigd.address}: rigctld answered RPRT -5: no status while it is away"
+    assert (
+        len(told) == 1
+        and told[0].getMessage() == f"rigctld at {rigd.address}: rigctld answered RPRT -5: no status while it is away"
+    )
     # The radio is switched on: a status at the next poll, one line for that
     rigd.radio_on = True
     await rig.status.poll()
     assert rig.status.rig_state == "on" and rig.tnc.lines() == [FIRST.replace("211200z", "211600z")]
-    assert [r.getMessage() for r in caplog.records if "answers" in r.getMessage()] == [f"rigctld at {rigd.address}: the radio answers (14.074 MHz USB)"]
+    assert [r.getMessage() for r in caplog.records if "answers" in r.getMessage()] == [
+        f"rigctld at {rigd.address}: the radio answers (14.074 MHz USB)"
+    ]
     rigd.radio_on = False
     await rig.status.poll()
     assert len([r for r in caplog.records if r.levelno == logging.WARNING]) == 2, "told again when it goes away again"
@@ -166,7 +186,11 @@ async def test_the_template_is_filled_in_and_cut_to_the_55_characters() -> None:
     rig = Rig(rigd, status_template="{mode} on {freq}, OK")
     await rig.status.poll()
     assert rig.tnc.sent[0].info == b">211200zFM on 145.500 MHz, OK"
-    assert freq_text(14074500) == "14.075 MHz" and freq_text(1296000000) == "1296.000 MHz" and freq_text(7000) == "0.007 MHz"
+    assert (
+        freq_text(14074500) == "14.075 MHz"
+        and freq_text(1296000000) == "1296.000 MHz"
+        and freq_text(7000) == "0.007 MHz"
+    )
     assert clipped("x" * 70) == "x" * 55 and clipped("abc", 2) == "ab"
 
 
@@ -178,13 +202,21 @@ async def test_what_a_radio_names_its_mode_with_is_made_printable_ascii_without_
     assert rig.tnc.sent[0].info == b">211200zQRV 145.500 MHz PKT?FM"
 
 
-async def test_a_static_status_that_is_too_long_or_not_ascii_makes_no_frame_and_is_told_once(caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_static_status_that_is_too_long_or_not_ascii_makes_no_frame_and_is_told_once(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     # A value that did not come through the settings check, a hand-made Config
     rig = Rig(None, station_status="x" * 56)
     with caplog.at_level(logging.WARNING, logger="neoaprs.status"):
         await rig.status.poll()
         await rig.status.poll()
-    assert rig.tnc.sent == [] and [r.getMessage() for r in caplog.records].count("no status sent: the settings make no status: the status is 56 characters, more than the 55 that fit after its time") == 1
+    assert (
+        rig.tnc.sent == []
+        and [r.getMessage() for r in caplog.records].count(
+            "no status sent: the settings make no status: the status is 56 characters, more than the 55 that fit after its time"
+        )
+        == 1
+    )
 
 
 async def test_an_empty_template_sends_nothing() -> None:
@@ -194,6 +226,7 @@ async def test_an_empty_template_sends_nothing() -> None:
 
 
 # ---- the static text -----------------------------------------------------------------------------
+
 
 async def test_the_static_text_goes_out_again_at_each_interval_and_never_inside_it() -> None:
     rig = Rig(None, station_status="QRV 145.500")
@@ -214,7 +247,11 @@ async def test_the_static_text_goes_out_again_at_each_interval_and_never_inside_
     assert len(rig.tnc.sent) == 5, "edited, but inside the interval"
     rig.clock.advance(30 * 60)
     await rig.status.poll()
-    assert rig.tnc.lines()[-1].endswith("At the cottage") and rig.status.last_text == "At the cottage" and len(rig.tnc.sent) == 6
+    assert (
+        rig.tnc.lines()[-1].endswith("At the cottage")
+        and rig.status.last_text == "At the cottage"
+        and len(rig.tnc.sent) == 6
+    )
 
 
 async def test_an_empty_static_text_sends_nothing() -> None:
@@ -234,17 +271,30 @@ async def test_the_radio_is_used_once_the_setting_is_set_and_unused_when_it_is_c
 
 # ---- the beacon being off ------------------------------------------------------------------------
 
-async def test_no_status_goes_out_while_the_beacon_is_off_and_the_held_back_one_goes_when_it_is_on(caplog: pytest.LogCaptureFixture) -> None:
+
+async def test_no_status_goes_out_while_the_beacon_is_off_and_the_held_back_one_goes_when_it_is_on(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.INFO)
     rig = Rig(await rigctld(), beacon_interval_min=0)
     for _ in range(3):
         await rig.status.poll()
         rig.clock.advance(3 * 3600)
-    assert rig.tnc.sent == [] and rig.status.last_text == "" and rig.status.last_sent_at is None and rig.status.rig_state == "on"
-    assert rig.tnc.sent == [] and not [r for r in caplog.records if "no status sent" in r.getMessage()], "it is not a fault, so the log does not say it"
+    assert (
+        rig.tnc.sent == []
+        and rig.status.last_text == ""
+        and rig.status.last_sent_at is None
+        and rig.status.rig_state == "on"
+    )
+    assert rig.tnc.sent == [] and not [r for r in caplog.records if "no status sent" in r.getMessage()], (
+        "it is not a fault, so the log does not say it"
+    )
     rig.set(beacon_interval_min=30)
     await rig.status.poll()
-    assert rig.tnc.lines() == [FIRST.replace("211200z", rig.clock().strftime("%d%H%M") + "z")] and rig.status.last_text == "QRV 14.074 MHz USB"
+    assert (
+        rig.tnc.lines() == [FIRST.replace("211200z", rig.clock().strftime("%d%H%M") + "z")]
+        and rig.status.last_text == "QRV 14.074 MHz USB"
+    )
 
 
 async def test_send_now_still_sends_while_the_beacon_is_off_for_a_text_and_the_poll_does_not() -> None:
@@ -257,8 +307,16 @@ async def test_send_now_still_sends_while_the_beacon_is_off_for_a_text_and_the_p
 
 
 async def test_a_status_that_is_off_or_transmitting_off_is_told_before_the_beacon_being_off() -> None:
-    assert await Rig(None, station_status="QRV", status_source="off", beacon_interval_min=0).status.send_now() == "the status is off"
-    assert await Rig(None, station_status="QRV", status_source="text", beacon_interval_min=0, station_transmit=False).status.send_now() == RECEIVE_ONLY
+    assert (
+        await Rig(None, station_status="QRV", status_source="off", beacon_interval_min=0).status.send_now()
+        == "the status is off"
+    )
+    assert (
+        await Rig(
+            None, station_status="QRV", status_source="text", beacon_interval_min=0, station_transmit=False
+        ).status.send_now()
+        == RECEIVE_ONLY
+    )
 
 
 async def test_aprss_still_answers_while_the_beacon_is_off() -> None:
@@ -271,7 +329,10 @@ async def test_aprss_still_answers_while_the_beacon_is_off() -> None:
 
 # ---- the Tnc -------------------------------------------------------------------------------------
 
-async def test_a_status_waits_while_the_radio_is_silent_and_is_sent_when_it_answers(caplog: pytest.LogCaptureFixture) -> None:
+
+async def test_a_status_waits_while_the_radio_is_silent_and_is_sent_when_it_answers(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.INFO, "neoaprs.status")
     rig = Rig(await rigctld())
     rig.tnc.state = Source.State.SILENT
@@ -284,7 +345,9 @@ async def test_a_status_waits_while_the_radio_is_silent_and_is_sent_when_it_answ
     assert rig.tnc.lines() == [FIRST]
 
 
-async def test_a_status_waits_for_the_tnc_and_is_sent_at_the_next_poll_that_finds_it_there(caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_status_waits_for_the_tnc_and_is_sent_at_the_next_poll_that_finds_it_there(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.INFO, "neoaprs.status")
     rigd = await rigctld()
     rig = Rig(rigd)
@@ -300,7 +363,9 @@ async def test_a_status_waits_for_the_tnc_and_is_sent_at_the_next_poll_that_find
     rig.clock.advance(3600)
     rigd.hz = 7074000
     await rig.status.poll()
-    assert len(rig.tnc.sent) == 1 and rig.status.last_sent_at != rig.clock(), "a frame the Tnc would not take is not counted as sent"
+    assert len(rig.tnc.sent) == 1 and rig.status.last_sent_at != rig.clock(), (
+        "a frame the Tnc would not take is not counted as sent"
+    )
     rig.tnc.takes = True
     await rig.status.poll()
     assert rig.tnc.sent[-1].info.endswith(b"QRV 7.074 MHz USB") and len(rig.tnc.sent) == 2
@@ -318,12 +383,15 @@ async def test_settings_that_make_no_frame_send_nothing_and_do_not_stop_the_time
 
 # ---- the radio it goes on ------------------------------------------------------------------------
 
+
 async def test_the_status_goes_on_the_one_radio_that_is_on_the_hf_one_while_the_fm_one_is_off_and_by_its_path() -> None:
     rig = Rig(None, station_status="QRV 145.500", fm_enabled=False, hf_enabled=True)
     await rig.status.poll()
     assert rig.tnc.sent == [] and rig.hf.lines() == ["OH2GBA>APZNEO:>211200zQRV 145.500"], "HF carries no path"
     on_fm = rig.status.status_frame(rig.radios.get(FM_ID))
-    assert on_fm is not None and on_fm.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zQRV 145.500", "?APRSS heard on the FM radio is answered for it"
+    assert on_fm is not None and on_fm.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zQRV 145.500", (
+        "?APRSS heard on the FM radio is answered for it"
+    )
 
 
 async def test_with_no_radio_no_status_goes_and_the_log_says_so_once(caplog: pytest.LogCaptureFixture) -> None:
@@ -331,7 +399,11 @@ async def test_with_no_radio_no_status_goes_and_the_log_says_so_once(caplog: pyt
     rig = Rig(None, station_status="QRV", fm_enabled=False)
     await rig.status.poll()
     await rig.status.poll()
-    assert await rig.status.send_now() == NO_RADIO and rig.tnc.sent == rig.hf.sent == [] and rig.status.last_sent_at is None
+    assert (
+        await rig.status.send_now() == NO_RADIO
+        and rig.tnc.sent == rig.hf.sent == []
+        and rig.status.last_sent_at is None
+    )
     assert [r.getMessage() for r in caplog.records] == [f"no status sent: {NO_RADIO}"]
 
 
@@ -348,6 +420,7 @@ async def test_the_old_call_with_a_line_and_a_beacon_sends_the_same_on_that_line
 
 # ---- ?APRSS and the timer ------------------------------------------------------------------------
 
+
 async def test_aprss_answers_with_the_text_last_sent_stamped_with_the_time_of_the_answer() -> None:
     rigd = await rigctld()
     rig = Rig(rigd)
@@ -356,13 +429,15 @@ async def test_aprss_answers_with_the_text_last_sent_stamped_with_the_time_of_th
     rigd.hz = 7074000
     rig.clock.advance(120)
     frame = rig.status.status_frame()
-    assert frame is not None and frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211202zQRV 14.074 MHz USB", "the text last sent, not the dial now"
+    assert frame is not None and frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211202zQRV 14.074 MHz USB", (
+        "the text last sent, not the dial now"
+    )
 
 
 async def test_the_timer_polls_by_itself_and_stops() -> None:
     rig = Rig(await rigctld())
     await rig.status.start()
-    await rig.status.start()                                            # (a second start does nothing)
+    await rig.status.start()  # (a second start does nothing)
     await until(lambda: rig.tnc.sent != [])
     assert rig.tnc.lines() == [FIRST]
     await rig.status.stop()

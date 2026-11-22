@@ -2,6 +2,7 @@
 topic `qru`): the request on the air, the refusals, the answers' lists and closing lines, and the
 whole through the daemon.
 """
+
 import logging
 from dataclasses import replace
 from datetime import timedelta
@@ -14,7 +15,18 @@ from neoaprs.aprsmessage import format_message
 from neoaprs.message import MessagingError
 from neoaprs.packet import GATEABLE, Message, Packet, ThirdParty, Via
 from neoaprs.aprsparse import parse
-from neoaprs.qrutext import ANSWER_WINDOW_SEC, ARRIVAL_GRACE_SEC, ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX, Closing, Listing, ask_text, closing_of, listing_of
+from neoaprs.qrutext import (
+    ANSWER_WINDOW_SEC,
+    ARRIVAL_GRACE_SEC,
+    ASK_EVERY_SEC,
+    ASK_GAP_SEC,
+    ASK_KM_MAX,
+    Closing,
+    Listing,
+    ask_text,
+    closing_of,
+    listing_of,
+)
 from neoaprs.services.qruask import CONTINUE_SEC, KEEP_FOR, AskedOn, QruAsk
 from neoaprs.source import Source
 from neoaprs.radiotype import FM_ID, HF_ID
@@ -28,24 +40,51 @@ from tests.test_messaging import pick_of, with_hf
 
 # ---- the words
 
-@pytest.mark.parametrize("text, expected", [("info", "INFO"), ("Next", "NEXT"), ("rp70", "RP70"), (" rp70   150 ", "RP70 150"), ("INFO 1", "INFO 1"), (f"POST {ASK_KM_MAX}", f"POST {ASK_KM_MAX}")])
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("info", "INFO"),
+        ("Next", "NEXT"),
+        ("rp70", "RP70"),
+        (" rp70   150 ", "RP70 150"),
+        ("INFO 1", "INFO 1"),
+        (f"POST {ASK_KM_MAX}", f"POST {ASK_KM_MAX}"),
+    ],
+)
 def test_a_request_is_info_next_or_a_group_with_a_distance(text: str, expected: str) -> None:
     assert ask_text(text) == expected
 
 
-@pytest.mark.parametrize("text", ["", "RP-70", "LIFEBOATS", "INFO 0", f"INFO {ASK_KM_MAX + 1}", "INFO 5 5", "INFO km", "?INFO", "A B 5"])
+@pytest.mark.parametrize(
+    "text", ["", "RP-70", "LIFEBOATS", "INFO 0", f"INFO {ASK_KM_MAX + 1}", "INFO 5 5", "INFO km", "?INFO", "A B 5"]
+)
 def test_a_text_that_is_no_request_is_refused(text: str) -> None:
     with pytest.raises(MessagingError):
         ask_text(text)
 
 
 def test_a_list_of_groups_is_read_with_its_limit_and_range_and_the_plus_of_a_list_that_goes_on() -> None:
-    assert listing_of("de DF8LS-10:RP70(10) RP2M(3) Max 5@50km") == Listing("DF8LS-10", (("RP70", 10), ("RP2M", 3)), False, 5, 50, "km")
-    assert listing_of("de DF8LS-10:RP70(10) RP2M(3)+") == Listing("DF8LS-10", (("RP70", 10), ("RP2M", 3)), True, None, None, "")
+    assert listing_of("de DF8LS-10:RP70(10) RP2M(3) Max 5@50km") == Listing(
+        "DF8LS-10", (("RP70", 10), ("RP2M", 3)), False, 5, 50, "km"
+    )
+    assert listing_of("de DF8LS-10:RP70(10) RP2M(3)+") == Listing(
+        "DF8LS-10", (("RP70", 10), ("RP2M", 3)), True, None, None, ""
+    )
     assert listing_of("de W1AW:FOOD(1) Max 5@30mi") == Listing("W1AW", (("FOOD", 1),), False, 5, 30, "mi")
 
 
-@pytest.mark.parametrize("text", ["", "hello", "de DF8LS-10:", "de DF8LS-10:RP70 Max 5@50km", "Sent 5 RP70 Objects Max 5@50km de DF8LS-10", "see de OH2ABC:FOOD(1)"])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "",
+        "hello",
+        "de DF8LS-10:",
+        "de DF8LS-10:RP70 Max 5@50km",
+        "Sent 5 RP70 Objects Max 5@50km de DF8LS-10",
+        "see de OH2ABC:FOOD(1)",
+    ],
+)
 def test_a_text_that_is_no_list_of_groups_is_none(text: str) -> None:
     assert listing_of(text) is None
 
@@ -57,6 +96,7 @@ def test_the_closing_lines_of_a_server_are_read() -> None:
 
 
 # ---- the service
+
 
 class Rig(ServiceRig):
     def __init__(self, **changes: object) -> None:
@@ -83,7 +123,18 @@ class Rig(ServiceRig):
     def hear(self, source: str, text: str, to: str = "OH2GBA", via: Via = "rf", msg_id: str | None = None) -> None:
         info = b":" + format_message(to, text, msg_id, None if msg_id is None else "")
         third = ThirdParty(source, "APRS") if via == "rf-gated" else None
-        packet = Packet(self.clock(), "in", b"", "OH2GATE" if third else source, "APRS", ("OH2RCH-2*",), info, Message(to, text, msg_id), third, via)
+        packet = Packet(
+            self.clock(),
+            "in",
+            b"",
+            "OH2GATE" if third else source,
+            "APRS",
+            ("OH2RCH-2*",),
+            info,
+            Message(to, text, msg_id),
+            third,
+            via,
+        )
         self.qru.on_packet(packet)
 
 
@@ -91,7 +142,9 @@ async def test_a_request_is_one_message_to_qru_without_an_id_by_the_path_of_mess
     rig = Rig()
     rig.qru.ask("info")
     assert rig.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::QRU      :INFO"], "a broadcast: no {id}, RF only"
-    assert rig.qru.asked is not None and (rig.qru.asked.text, rig.qru.asked.at) == ("INFO", rig.clock()) and rig.told == 1
+    assert (
+        rig.qru.asked is not None and (rig.qru.asked.text, rig.qru.asked.at) == ("INFO", rig.clock()) and rig.told == 1
+    )
     await idle_for(0.1)
     assert len(rig.tnc.sent) == 1, "once, and never again"
 
@@ -103,22 +156,34 @@ async def test_a_request_goes_by_the_path_set_for_qru_with_rfonly_after_it() -> 
     assert rig.lines() == ["OH2GBA>APZNEO,OH2RCH-2,RFONLY::QRU      :RP70 150"]
 
 
-@pytest.mark.parametrize("path, rf_only, line", [
-    ("OH2RDK-7,OH2RCH-2", True, "OH2GBA>APZNEO,OH2RDK-7,OH2RCH-2,RFONLY::QRU      :INFO"),
-    ("oh2rdk-7, oh2rch-2", False, "OH2GBA>APZNEO,OH2RDK-7,OH2RCH-2::QRU      :INFO"),
-    ("WIDE1-1,WIDE2-1", True, "OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::QRU      :INFO"),
-    ("DIRECT", False, "OH2GBA>APZNEO::QRU      :INFO"),
-    ("", True, "OH2GBA>APZNEO,OH2RCH-2,RFONLY::QRU      :INFO"),
-    (None, False, "OH2GBA>APZNEO,OH2RCH-2::QRU      :INFO"),
-])
-async def test_a_request_goes_by_the_path_given_else_the_path_of_messages_to_qru_and_rfonly_only_when_asked(path: str | None, rf_only: bool, line: str) -> None:
+@pytest.mark.parametrize(
+    "path, rf_only, line",
+    [
+        ("OH2RDK-7,OH2RCH-2", True, "OH2GBA>APZNEO,OH2RDK-7,OH2RCH-2,RFONLY::QRU      :INFO"),
+        ("oh2rdk-7, oh2rch-2", False, "OH2GBA>APZNEO,OH2RDK-7,OH2RCH-2::QRU      :INFO"),
+        ("WIDE1-1,WIDE2-1", True, "OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::QRU      :INFO"),
+        ("DIRECT", False, "OH2GBA>APZNEO::QRU      :INFO"),
+        ("", True, "OH2GBA>APZNEO,OH2RCH-2,RFONLY::QRU      :INFO"),
+        (None, False, "OH2GBA>APZNEO,OH2RCH-2::QRU      :INFO"),
+    ],
+)
+async def test_a_request_goes_by_the_path_given_else_the_path_of_messages_to_qru_and_rfonly_only_when_asked(
+    path: str | None, rf_only: bool, line: str
+) -> None:
     rig = Rig()
     rig.paths["QRU"] = ("OH2RCH-2",)
     rig.qru.ask("INFO", path, rf_only)
     assert rig.lines() == [line]
 
 
-@pytest.mark.parametrize("path, code", [("OH2RDK-7,WIDE1-1,DIRECT", "path.direct_alone"), ("A1,A2,A3,A4,A5,A6,A7,A8", "path.too_long_rf_only"), ("not a call", "call.shape")])
+@pytest.mark.parametrize(
+    "path, code",
+    [
+        ("OH2RDK-7,WIDE1-1,DIRECT", "path.direct_alone"),
+        ("A1,A2,A3,A4,A5,A6,A7,A8", "path.too_long_rf_only"),
+        ("not a call", "call.shape"),
+    ],
+)
 async def test_a_request_by_a_path_that_is_none_sends_nothing(path: str, code: str) -> None:
     rig = Rig()
     with pytest.raises(MessagingError) as refused:
@@ -157,7 +222,9 @@ async def test_nothing_is_asked_in_rx_only_without_a_call_or_with_the_radio_away
         rig.qru.ask("INFO")
 
 
-async def test_a_request_goes_on_the_one_radio_that_can_send_by_the_path_it_carries_and_with_both_on_on_the_ticked_one() -> None:
+async def test_a_request_goes_on_the_one_radio_that_can_send_by_the_path_it_carries_and_with_both_on_on_the_ticked_one() -> (
+    None
+):
     rig = Rig(hf_enabled=True, fm_enabled=False)
     hf = with_hf(rig, rig.radios)
     # The HF radio alone: the one radio that can send, which carries no path
@@ -176,15 +243,23 @@ async def test_a_request_goes_on_the_one_radio_that_can_send_by_the_path_it_carr
     assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::QRU      :INFO"] and len(hf.sent) == 1
 
 
-async def test_a_request_goes_on_the_radio_named_by_its_path_there_and_records_it(caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_request_goes_on_the_radio_named_by_its_path_there_and_records_it(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.INFO, "neoaprs.qru")
     rig = Rig(hf_enabled=True)
     hf = with_hf(rig, rig.radios)
     rig.qru.ask("INFO", radio=HF_ID)
-    assert hf.lines() == ["OH2GBA>APZNEO::QRU      :INFO"] and rig.tnc.sent == [], "on the radio named (Mercury: no path)"
+    assert hf.lines() == ["OH2GBA>APZNEO::QRU      :INFO"] and rig.tnc.sent == [], (
+        "on the radio named (Mercury: no path)"
+    )
     assert rig.paths_asked == [("QRU", None, HF_ID)], "the path of messages to QRU is asked for that radio"
-    assert isinstance(rig.qru.asked, AskedOn) and (rig.qru.asked.text, rig.qru.asked.radios) == ("INFO", (HF_ID,)), "the request records its radio"
-    assert [r.getMessage() for r in caplog.records] == ["asked QRU: INFO on Mercury"], "with two radios on the log says which"
+    assert isinstance(rig.qru.asked, AskedOn) and (rig.qru.asked.text, rig.qru.asked.radios) == ("INFO", (HF_ID,)), (
+        "the request records its radio"
+    )
+    assert [r.getMessage() for r in caplog.records] == ["asked QRU: INFO on Mercury"], (
+        "with two radios on the log says which"
+    )
     rig.radios.on.discard(HF_ID)
     with pytest.raises(MessagingError, match="there is no radio 2"):
         rig.qru.ask("RP70", radio=HF_ID)
@@ -193,7 +268,12 @@ async def test_a_request_goes_on_the_radio_named_by_its_path_there_and_records_i
 
 def fm_ticked(rig: Rig) -> None:
     """Local info's Send on ticked for the FM radio alone."""
-    rig.set(radios=tuple(replace(spec, settings={**spec.settings, "local_info": "true"}) if spec.id == FM_ID else spec for spec in rig.config.radios))
+    rig.set(
+        radios=tuple(
+            replace(spec, settings={**spec.settings, "local_info": "true"}) if spec.id == FM_ID else spec
+            for spec in rig.config.radios
+        )
+    )
 
 
 async def test_the_waits_between_requests_are_each_radios_own() -> None:
@@ -210,7 +290,9 @@ async def test_the_waits_between_requests_are_each_radios_own() -> None:
     rig.clock.advance(ASK_GAP_SEC)
     with pytest.raises(MessagingError) as refused:
         rig.qru.ask("INFO", radio=HF_ID)
-    assert refused.value.params == {"seconds": ASK_EVERY_SEC - ASK_GAP_SEC}, "the same text on Mercury within its minute"
+    assert refused.value.params == {"seconds": ASK_EVERY_SEC - ASK_GAP_SEC}, (
+        "the same text on Mercury within its minute"
+    )
     rig.qru.ask("RP70", radio=HF_ID)
     assert len(hf.sent) == 2 and len(rig.tnc.sent) == 1
 
@@ -234,11 +316,13 @@ async def test_a_text_that_is_no_request_is_not_sent() -> None:
     assert rig.tnc.asked == 0
 
 
-async def test_the_same_request_goes_once_a_minute_any_two_are_ten_seconds_apart_and_a_refused_one_changes_nothing() -> None:
+async def test_the_same_request_goes_once_a_minute_any_two_are_ten_seconds_apart_and_a_refused_one_changes_nothing() -> (
+    None
+):
     rig = Rig()
     rig.qru.ask("INFO")
     rig.clock.advance(ASK_GAP_SEC - 3)
-    for other in ("RP70", "NEXT", "INFO 100"):                                                   # anything within the gap
+    for other in ("RP70", "NEXT", "INFO 100"):  # anything within the gap
         with pytest.raises(MessagingError) as refused:
             rig.qru.ask(other)
         assert (refused.value.code, refused.value.params) == ("qru.too_soon", {"seconds": 3}), other
@@ -261,7 +345,15 @@ async def test_a_server_that_lists_its_groups_is_noted_with_its_limit_and_range(
     rig = Rig()
     rig.hear("DF8LS-10", "de DF8LS-10:RP70(10) RP2M(3) Max 5@50km")
     [server] = rig.qru.servers()
-    assert (server.call, server.groups, server.max_objects, server.range, server.unit, server.at, server.sent) == ("DF8LS-10", (("RP70", 10), ("RP2M", 3)), 5, 50, "km", rig.clock(), "")
+    assert (server.call, server.groups, server.max_objects, server.range, server.unit, server.at, server.sent) == (
+        "DF8LS-10",
+        (("RP70", 10), ("RP2M", 3)),
+        5,
+        50,
+        "km",
+        rig.clock(),
+        "",
+    )
     assert rig.told == 1
 
 
@@ -271,13 +363,18 @@ async def test_a_list_that_ends_in_plus_goes_on_in_the_next_message_of_the_same_
     rig.clock.advance(5)
     rig.hear("OH2ABC", "de OH2ABC:FOOD(2) Max 5@50km")
     rig.hear("DF8LS-10", "de DF8LS-10:FUEL(1) Max 5@50km")
-    assert [(s.call, s.groups, s.range) for s in rig.qru.servers()] == [("DF8LS-10", (("RP70", 10), ("RP2M", 3), ("FUEL", 1)), 50), ("OH2ABC", (("FOOD", 2),), 50)]
+    assert [(s.call, s.groups, s.range) for s in rig.qru.servers()] == [
+        ("DF8LS-10", (("RP70", 10), ("RP2M", 3), ("FUEL", 1)), 50),
+        ("OH2ABC", (("FOOD", 2),), 50),
+    ]
     rig.clock.advance(CONTINUE_SEC + 1)
     rig.hear("DF8LS-10", "de DF8LS-10:POLI(4) Max 5@50km")
     rig.hear("DF8LS-10", "de DF8LS-10:SHOP(1)+")
     rig.clock.advance(CONTINUE_SEC + 1)
     rig.hear("DF8LS-10", "de DF8LS-10:AERO(1) Max 5@50km")
-    assert next(s for s in rig.qru.servers() if s.call == "DF8LS-10").groups == (("AERO", 1),), "a list that came too late to belong to the one before replaces it"
+    assert next(s for s in rig.qru.servers() if s.call == "DF8LS-10").groups == (("AERO", 1),), (
+        "a list that came too late to belong to the one before replaces it"
+    )
 
 
 async def test_the_closing_line_is_kept_with_the_server_and_a_new_list_is_a_new_round() -> None:
@@ -286,13 +383,19 @@ async def test_the_closing_line_is_kept_with_the_server_and_a_new_list_is_a_new_
     rig.clock.advance(20)
     rig.hear("DF8LS-10", "Sent 5 RP70 Objects Max 5@50km de DF8LS-10")
     [server] = rig.qru.servers()
-    assert (server.groups, server.sent, server.sent_at) == ((("RP70", 10),), "Sent 5 RP70 Objects Max 5@50km de DF8LS-10", rig.clock())
+    assert (server.groups, server.sent, server.sent_at) == (
+        (("RP70", 10),),
+        "Sent 5 RP70 Objects Max 5@50km de DF8LS-10",
+        rig.clock(),
+    )
     rig.hear("DF8LS-10", "Sent 5 of 12 RP70 Objects, NEXT for more. de DF8LS-10")
     assert rig.qru.servers()[0].sent == "Sent 5 of 12 RP70 Objects, NEXT for more. de DF8LS-10"
     rig.hear("DF8LS-10", "de DF8LS-10:RP70(9) Max 5@50km")
     assert rig.qru.servers()[0].sent == ""
     rig.hear("W1AW", "Sent 2 FOOD Objects Max 5@30mi de W1AW")
-    assert [(s.call, s.groups) for s in rig.qru.servers()] == [("DF8LS-10", (("RP70", 9),)), ("W1AW", ())], "a server whose list was not heard has its closing line"
+    assert [(s.call, s.groups) for s in rig.qru.servers()] == [("DF8LS-10", (("RP70", 9),)), ("W1AW", ())], (
+        "a server whose list was not heard has its closing line"
+    )
 
 
 @pytest.mark.parametrize("via, taken", [("rf", True), ("dummy", True), ("rf-gated", True), ("is", False)])
@@ -340,8 +443,13 @@ async def test_the_timer_forgets_by_itself_and_tells_the_page(caplog: pytest.Log
 
 # ---- through the daemon and the socket
 
+
 def object_report(call: str, name: str, at: object, kind: str = ";") -> Packet:
-    info = f"{kind}{name:<9}*111111z6020.08N/02503.76E-x".encode() if kind == ";" else f"){name}!6020.08N/02503.76E-x".encode()
+    info = (
+        f"{kind}{name:<9}*111111z6020.08N/02503.76E-x".encode()
+        if kind == ";"
+        else f"){name}!6020.08N/02503.76E-x".encode()
+    )
     return Packet(at, "in", b"", call, "APRS", ("OH2RCH-2*",), info, parse(info, call, "APRS", at))  # type: ignore[arg-type]
 
 
@@ -349,7 +457,9 @@ def arrived(rig: "Rig", call: str) -> tuple[str, ...]:
     return next(s for s in rig.qru.servers() if s.call == call).received
 
 
-async def test_a_closing_line_says_how_many_went_and_the_objects_heard_from_the_server_since_the_request_are_counted_by_name() -> None:
+async def test_a_closing_line_says_how_many_went_and_the_objects_heard_from_the_server_since_the_request_are_counted_by_name() -> (
+    None
+):
     rig = Rig()
     rig.qru.ask("TEST 150")
     rig.clock.advance(6)
@@ -364,7 +474,9 @@ async def test_a_closing_line_says_how_many_went_and_the_objects_heard_from_the_
     assert server.settles_at == rig.clock() + timedelta(seconds=ARRIVAL_GRACE_SEC)
 
 
-async def test_an_object_that_was_lost_is_not_counted_and_one_that_comes_late_is_until_the_grace_time_has_gone() -> None:
+async def test_an_object_that_was_lost_is_not_counted_and_one_that_comes_late_is_until_the_grace_time_has_gone() -> (
+    None
+):
     rig = Rig()
     rig.qru.ask("INFO 150")
     rig.hear("OH2DPN", "de OH2DPN:TEST(1) Max 5@150km")
@@ -373,11 +485,18 @@ async def test_an_object_that_was_lost_is_not_counted_and_one_that_comes_late_is
     rig.clock.advance(5)
     rig.hear("OH2DPN", "Sent 1 TEST Objects Max 5@150km de OH2DPN")
     server = rig.qru.servers()[0]
-    assert (server.sent_objects, server.request, server.received, server.groups) == (1, "TEST 150", (), (("TEST", 1),)), "sent 1, none arrived: the page offers to ask again"
+    assert (server.sent_objects, server.request, server.received, server.groups) == (
+        1,
+        "TEST 150",
+        (),
+        (("TEST", 1),),
+    ), "sent 1, none arrived: the page offers to ask again"
     told = rig.told
     rig.clock.advance(ARRIVAL_GRACE_SEC - 1)
     rig.qru.on_packet(object_report("OH2DPN", "TESTOBJ", rig.clock()))
-    assert arrived(rig, "OH2DPN") == ("TESTOBJ",) and rig.told == told + 1, "a late one still counts, and the page is told"
+    assert arrived(rig, "OH2DPN") == ("TESTOBJ",) and rig.told == told + 1, (
+        "a late one still counts, and the page is told"
+    )
     rig.clock.advance(2)
     rig.qru.on_packet(object_report("OH2DPN", "AGAIN", rig.clock(), ")"))
     assert arrived(rig, "OH2DPN") == ("TESTOBJ",) and rig.told == told + 1, "after the grace time nothing is counted"
@@ -390,7 +509,13 @@ async def test_objects_heard_before_the_request_or_killed_ones_are_not_counted_a
     rig.qru.ask("FOOD")
     rig.clock.advance(5)
     killed = object_report("OH2DPN", "KILLED", rig.clock())
-    rig.qru.on_packet(replace(killed, info=b";KILLED   _111111z6020.08N/02503.76E-x", decoded=parse(b";KILLED   _111111z6020.08N/02503.76E-x", "OH2DPN", "APRS", rig.clock())))
+    rig.qru.on_packet(
+        replace(
+            killed,
+            info=b";KILLED   _111111z6020.08N/02503.76E-x",
+            decoded=parse(b";KILLED   _111111z6020.08N/02503.76E-x", "OH2DPN", "APRS", rig.clock()),
+        )
+    )
     rig.qru.on_packet(object_report("OH2DPN", "WELL", rig.clock(), ")"))
     rig.hear("OH2DPN", "Sent 1 FOOD Objects Max 5@50km de OH2DPN")
     assert arrived(rig, "OH2DPN") == ("WELL",)
@@ -406,7 +531,9 @@ async def test_a_next_closing_is_asked_again_as_the_group_with_the_distance_of_i
     rig.clock.advance(3)
     rig.hear("OH2DPN", "Sent 5 of 12 FOOD Objects, NEXT for more. de OH2DPN")
     server = rig.qru.servers()[0]
-    assert (server.request, server.since) == ("FOOD 200", rig.clock() - timedelta(seconds=3)), "the objects are counted from the NEXT, the request to ask again is the group's"
+    assert (server.request, server.since) == ("FOOD 200", rig.clock() - timedelta(seconds=3)), (
+        "the objects are counted from the NEXT, the request to ask again is the group's"
+    )
 
 
 async def test_a_closing_line_with_no_request_of_ours_known_has_no_request_and_counts_nothing() -> None:
@@ -416,14 +543,25 @@ async def test_a_closing_line_with_no_request_of_ours_known_has_no_request_and_c
     assert (rig.qru.servers()[0].request, rig.qru.servers()[0].received) == ("", ())
 
 
-async def test_an_answer_is_a_list_or_a_closing_line_from_the_server_it_names_within_five_minutes_of_a_request_and_with_no_id() -> None:
+async def test_an_answer_is_a_list_or_a_closing_line_from_the_server_it_names_within_five_minutes_of_a_request_and_with_no_id() -> (
+    None
+):
     rig = Rig()
-    packet = lambda call, text, msg_id=None: (Packet(rig.clock(), "in", b"", call, "APRS", (), b"", Message("OH2GBA", text, msg_id)), Message("OH2GBA", text, msg_id))  # noqa: E731
-    assert rig.qru.answers(*packet("OH2DPN", "de OH2DPN:TEST(1) Max 5@150km")) is False, "no request yet: a message like any other"
+    packet = lambda call, text, msg_id=None: (  # noqa: E731
+        Packet(rig.clock(), "in", b"", call, "APRS", (), b"", Message("OH2GBA", text, msg_id)),
+        Message("OH2GBA", text, msg_id),
+    )
+    assert rig.qru.answers(*packet("OH2DPN", "de OH2DPN:TEST(1) Max 5@150km")) is False, (
+        "no request yet: a message like any other"
+    )
     rig.qru.ask("INFO")
     rig.clock.advance(ANSWER_WINDOW_SEC)
-    assert rig.qru.answers(*packet("OH2DPN", "de OH2DPN:TEST(1)+")) and rig.qru.answers(*packet("OH2DPN", "Sent 1 TEST Objects Max 5@150km de OH2DPN"))
-    assert not rig.qru.answers(*packet("OH2DPN", "Sent 1 TEST Objects Max 5@150km de OH2DPN", "3")) and not rig.qru.answers(*packet("OH2ABC", "de OH2DPN:TEST(1)"))
+    assert rig.qru.answers(*packet("OH2DPN", "de OH2DPN:TEST(1)+")) and rig.qru.answers(
+        *packet("OH2DPN", "Sent 1 TEST Objects Max 5@150km de OH2DPN")
+    )
+    assert not rig.qru.answers(
+        *packet("OH2DPN", "Sent 1 TEST Objects Max 5@150km de OH2DPN", "3")
+    ) and not rig.qru.answers(*packet("OH2ABC", "de OH2DPN:TEST(1)"))
     assert not rig.qru.answers(*packet("OH2DPN", "hello"))
     rig.clock.advance(1)
     assert not rig.qru.answers(*packet("OH2DPN", "de OH2DPN:TEST(1) Max 5@150km")), "too long after the request"
@@ -448,8 +586,13 @@ async def test_qru_ask_over_the_socket_goes_by_the_path_given_and_without_rfonly
     e, page = await with_page(tmp_path)
     await page.send({"cmd": "qru_ask", "text": "INFO", "path": "OH2RDK-7,OH2RCH-2", "rf_only": False})
     await page.until(lambda: page.topics["qru"]["asked"] is not None)
-    await until(lambda: [p["tnc2"] for p in page.topics["packets"].values() if p["direction"] == "out"] == ["OH2GBA>APZNEO,OH2RDK-7,OH2RCH-2::QRU      :INFO"])
-    e.now.advance(ASK_EVERY_SEC)                                                            # type: ignore[attr-defined]
+    await until(
+        lambda: (
+            [p["tnc2"] for p in page.topics["packets"].values() if p["direction"] == "out"]
+            == ["OH2GBA>APZNEO,OH2RDK-7,OH2RCH-2::QRU      :INFO"]
+        )
+    )
+    e.now.advance(ASK_EVERY_SEC)  # type: ignore[attr-defined]
     await page.send({"cmd": "qru_ask", "text": "INFO", "path": "OH2RDK-7,???", "rf_only": True})
     error = await page.expect("error")
     assert (error["cmd"], error["code"]) == ("qru_ask", "call.shape")
@@ -464,10 +607,15 @@ async def test_qru_ask_is_refused_in_rx_only_and_with_a_text_that_is_none(tmp_pa
     await page.send({"cmd": "qru_ask", "text": "not a request"})
     await page.expect("error")
     await page.quiet(0.2)
-    assert page.topics["qru"] == {"asked": None, "servers": []} and [p for p in page.topics["packets"].values() if p["direction"] == "out"] == []
+    assert (
+        page.topics["qru"] == {"asked": None, "servers": []}
+        and [p for p in page.topics["packets"].values() if p["direction"] == "out"] == []
+    )
 
 
-async def test_the_answers_of_a_server_are_told_in_the_topic_and_are_no_messages_but_stay_in_the_packet_log(tmp_path: Path) -> None:
+async def test_the_answers_of_a_server_are_told_in_the_topic_and_are_no_messages_but_stay_in_the_packet_log(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     await page.send({"cmd": "qru_ask", "text": "INFO"})
     await page.until(lambda: page.topics["qru"]["asked"] is not None)
@@ -476,58 +624,90 @@ async def test_the_answers_of_a_server_are_told_in_the_topic_and_are_no_messages
     e.feed(on_air("DF8LS-10", message_info("OH2GBA", "Sent 5 RP70 Objects Max 5@50km de DF8LS-10"), path="OH2RCH-2*"))
     await page.until(lambda: page.topics["qru"]["servers"][0]["sent"] != "")
     [server] = page.topics["qru"]["servers"]
-    assert (server["call"], server["groups"], server["max_objects"], server["range"], server["unit"]) == ("DF8LS-10", [{"name": "RP70", "count": 10}, {"name": "RP2M", "count": 3}], 5, 50, "km")
+    assert (server["call"], server["groups"], server["max_objects"], server["range"], server["unit"]) == (
+        "DF8LS-10",
+        [{"name": "RP70", "count": 10}, {"name": "RP2M", "count": 3}],
+        5,
+        50,
+        "km",
+    )
     assert server["sent"] == "Sent 5 RP70 Objects Max 5@50km de DF8LS-10" and server["sent_at"] is not None
-    assert (server["sent_objects"], server["request"], server["received"]) == (5, "", []) and server["settles_at"] is not None
+    assert (server["sent_objects"], server["request"], server["received"]) == (5, "", []) and server[
+        "settles_at"
+    ] is not None
     e.feed(on_air("DF8LS-10", message_info("OH2GBA", "see you at the club"), path="OH2RCH-2*"))
     await until(lambda: len(page.topics["messages"]) == 1)
-    assert [m["text"] for m in page.topics["messages"].values()] == ["see you at the club"], "a normal message of the same station is a message; its answers are not"
+    assert [m["text"] for m in page.topics["messages"].values()] == ["see you at the club"], (
+        "a normal message of the same station is a message; its answers are not"
+    )
     texts = [p["decoded"].get("text") for p in page.topics["packets"].values() if p["direction"] == "in"]
-    assert "de DF8LS-10:RP70(10) RP2M(3) Max 5@50km" in texts and "Sent 5 RP70 Objects Max 5@50km de DF8LS-10" in texts, "the packet log has them"
+    assert (
+        "de DF8LS-10:RP70(10) RP2M(3) Max 5@50km" in texts and "Sent 5 RP70 Objects Max 5@50km de DF8LS-10" in texts
+    ), "the packet log has them"
 
 
-async def test_an_answer_with_no_request_of_ours_before_it_or_with_an_id_is_a_message_like_any_other(tmp_path: Path) -> None:
+async def test_an_answer_with_no_request_of_ours_before_it_or_with_an_id_is_a_message_like_any_other(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     e.feed(on_air("DF8LS-10", message_info("OH2GBA", "de DF8LS-10:RP70(10) Max 5@50km"), path="OH2RCH-2*"))
     await until(lambda: len(page.topics["messages"]) == 1)
     await page.send({"cmd": "qru_ask", "text": "INFO"})
     await page.until(lambda: page.topics["qru"]["asked"] is not None)
-    e.feed(on_air("DF8LS-10", message_info("OH2GBA", "Sent 5 RP70 Objects Max 5@50km de DF8LS-10", "7"), path="OH2RCH-2*"))
+    e.feed(
+        on_air("DF8LS-10", message_info("OH2GBA", "Sent 5 RP70 Objects Max 5@50km de DF8LS-10", "7"), path="OH2RCH-2*")
+    )
     await until(lambda: len(page.topics["messages"]) == 2)
-    assert sorted(m["text"] for m in page.topics["messages"].values()) == ["Sent 5 RP70 Objects Max 5@50km de DF8LS-10", "de DF8LS-10:RP70(10) Max 5@50km"]
+    assert sorted(m["text"] for m in page.topics["messages"].values()) == [
+        "Sent 5 RP70 Objects Max 5@50km de DF8LS-10",
+        "de DF8LS-10:RP70(10) Max 5@50km",
+    ]
 
 
-async def test_the_dummy_radio_has_a_qru_server_and_nothing_of_it_reaches_the_internet(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_dummy_radio_has_a_qru_server_and_nothing_of_it_reaches_the_internet(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(dummyline, "TICK_SEC", 0.01)
     server = await fake_aprsis()
-    settings = {"tnc/profile": "dummy", "station/lat": "60.2231", "station/lon": "24.7152", "igate/enabled": "true", "igate/server": server.address, "igate/password": "19628"}
+    settings = {
+        "tnc/profile": "dummy",
+        "station/lat": "60.2231",
+        "station/lon": "24.7152",
+        "igate/enabled": "true",
+        "igate/server": server.address,
+        "igate/password": "19628",
+    }
     e = await quick_start(tmp_path, messaging=True, unpaced=True, radio=False, settings=settings)
     await until(lambda: e.ctl.igate.state == "connected")
     e.ctl.qruask.ask("INFO")
     for _ in range(300):
-        e.now.advance(1)                                                                    # type: ignore[attr-defined]
+        e.now.advance(1)  # type: ignore[attr-defined]
         await idle_for(0.02)
         if e.ctl.qruask.servers():
             break
     [listed] = e.ctl.qruask.servers()
     assert (listed.call, listed.groups, listed.range, listed.unit) == ("Q1CLB", (("FOOD", 2), ("RP70", 1)), 50, "km")
-    e.now.advance(ASK_EVERY_SEC)                                                            # type: ignore[attr-defined]
+    e.now.advance(ASK_EVERY_SEC)  # type: ignore[attr-defined]
     e.ctl.qruask.ask("food")
     for _ in range(300):
-        e.now.advance(1)                                                                    # type: ignore[attr-defined]
+        e.now.advance(1)  # type: ignore[attr-defined]
         await idle_for(0.02)
         if e.ctl.qruask.servers()[0].sent:
             break
     assert e.ctl.qruask.servers()[0].sent == "Sent 2 FOOD Objects Max 5@50km de Q1CLB"
     assert {"CAFE", "KIOSK"} <= {s.call for s in e.ctl.stationbook.stations()}, "the objects arrive as objects"
     out = [p for p in await e.packets() if p.direction == "out" and isinstance(p.decoded, Message)]
-    assert [p.path for p in out] == [("WIDE1-1", "WIDE2-1", "RFONLY")] * 2 and all(p.via not in GATEABLE for p in await e.packets())
+    assert [p.path for p in out] == [("WIDE1-1", "WIDE2-1", "RFONLY")] * 2 and all(
+        p.via not in GATEABLE for p in await e.packets()
+    )
     await idle_for(0.2)
     assert server.packets == [], f"nothing of the Dummy radio reached APRS-IS: {server.packets}"
     await e.stop()
 
 
-async def test_an_object_that_arrives_after_the_request_is_counted_through_the_daemon_and_told_in_the_topic(tmp_path: Path) -> None:
+async def test_an_object_that_arrives_after_the_request_is_counted_through_the_daemon_and_told_in_the_topic(
+    tmp_path: Path,
+) -> None:
     e, page = await with_page(tmp_path)
     await page.send({"cmd": "qru_ask", "text": "TEST 150"})
     await page.until(lambda: page.topics["qru"]["asked"] is not None)

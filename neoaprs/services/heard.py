@@ -3,6 +3,7 @@
 The same message (sender, id and text) heard again within `window_sec` is a repeat. `ack_due`
 answers the copies of one burst once; `owe_reply` and `reply_for` track reply-acks.
 """
+
 from datetime import datetime, timedelta
 
 from neoaprs.message import MessageRecord
@@ -18,7 +19,7 @@ class Heard:
         self.window = timedelta(seconds=window_sec)
         self._at: dict[tuple[str, str, str], datetime] = {}
         self._acked: dict[tuple[str, str, str], datetime] = {}
-        self._reply: dict[str, tuple[str, datetime]] = {}   # per station: latest id and when heard
+        self._reply: dict[str, tuple[str, datetime]] = {}  # per station: latest id and when heard
 
     @staticmethod
     def key_of(record: MessageRecord) -> tuple[str, str, str] | None:
@@ -29,7 +30,11 @@ class Heard:
         if record.direction != "in":
             return None
         if record.state == "overheard" or record.msg_id is None:
-            return (f"{record.from_call}>{record.to_call}", record.msg_id or f"~{record.text}", record.text if record.msg_id is not None else "")
+            return (
+                f"{record.from_call}>{record.to_call}",
+                record.msg_id or f"~{record.text}",
+                record.text if record.msg_id is not None else "",
+            )
         return (record.from_call, record.msg_id, record.text)
 
     def note(self, record: MessageRecord, at: datetime) -> bool:

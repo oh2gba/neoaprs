@@ -2,6 +2,7 @@
 version 30 left it, the step run alone on it, and the way back for `step_back` of
 tests/support/migrated.py.
 """
+
 import json
 import sqlite3
 from pathlib import Path
@@ -14,10 +15,23 @@ from neoaprs.radiosql import radio_rows, radio_settings
 from neoaprs.storesql import read_settings
 
 # A state row of before, and its name once migration 31 ran
-STATE_31 = {"serial/last_port": LAST_PORT, "beacon/last_sent_at": "radio/1/beacon_last_sent_at", "hf/beacon_last_sent_at": "radio/2/beacon_last_sent_at"}
-OWN_31 = {"serial/port": (1, "port"), "serial/baud": (1, "baud"), "tcp/host": (1, "tcp_host"), "tcp/port": (1, "tcp_port"), "beacon/path": (1, "path"), "digi/enabled": (1, "digipeat"),
-          # A flat key of before, and the radio and its own key it is once migration 31 ran
-          "mercury/sound_card": (2, "sound_card"), "mercury/keying": (2, "keying"), "mercury/tx_gain_db": (2, "tx_gain_db")}
+STATE_31 = {
+    "serial/last_port": LAST_PORT,
+    "beacon/last_sent_at": "radio/1/beacon_last_sent_at",
+    "hf/beacon_last_sent_at": "radio/2/beacon_last_sent_at",
+}
+OWN_31 = {
+    "serial/port": (1, "port"),
+    "serial/baud": (1, "baud"),
+    "tcp/host": (1, "tcp_host"),
+    "tcp/port": (1, "tcp_port"),
+    "beacon/path": (1, "path"),
+    "digi/enabled": (1, "digipeat"),
+    # A flat key of before, and the radio and its own key it is once migration 31 ran
+    "mercury/sound_card": (2, "sound_card"),
+    "mercury/keying": (2, "keying"),
+    "mercury/tx_gain_db": (2, "tx_gain_db"),
+}
 # today's station_pref_path_form (migration 22)
 PATH_FORM = "path = '' OR (path NOT GLOB '*[^A-Z0-9,-]*' AND path NOT GLOB ',*' AND path NOT GLOB '*,' AND path NOT GLOB '*,,*')"
 
@@ -41,16 +55,25 @@ def _flat_again(db: sqlite3.Connection) -> None:
     whatever they were before 31. A radio of another id has no flat rows and is dropped with the
     tables."""
     for flat, (radio, own) in OWN_31.items():
-        db.execute("INSERT OR REPLACE INTO settings (key, value, rev) SELECT ?, value, rev FROM radio_setting WHERE radio_id = ? AND key = ?", (flat, radio, own))
+        db.execute(
+            "INSERT OR REPLACE INTO settings (key, value, rev) SELECT ?, value, rev FROM radio_setting WHERE radio_id = ? AND key = ?",
+            (flat, radio, own),
+        )
     for radio, profile, tickbox in ((1, "tnc/profile", "fm/enabled"), (2, "hf/profile", "hf/enabled")):
         for type_, enabled in db.execute("SELECT type, enabled FROM radio WHERE id = ?", (radio,)).fetchall():
-            db.executemany("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ((profile, str(type_)), (tickbox, "true" if enabled else "false")))
+            db.executemany(
+                "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                ((profile, str(type_)), (tickbox, "true" if enabled else "false")),
+            )
     for old, new in STATE_31.items():
         db.execute("UPDATE OR REPLACE settings SET key = ? WHERE key = ?", (old, new))
     row = db.execute("SELECT value FROM settings WHERE key = 'messages/radio_by_station'").fetchone()
     if row is not None:
         words = {call: {1: "fm", 2: "hf"}[radio] for call, radio in json.loads(str(row[0])).items() if radio in (1, 2)}
-        db.execute("UPDATE settings SET value = ?, rev = max(rev - 1, 1) WHERE key = 'messages/radio_by_station'", (json.dumps(words, sort_keys=True),))
+        db.execute(
+            "UPDATE settings SET value = ?, rev = max(rev - 1, 1) WHERE key = 'messages/radio_by_station'",
+            (json.dumps(words, sort_keys=True),),
+        )
 
 
 def has_table(db: sqlite3.Connection, name: str) -> bool:
@@ -62,6 +85,7 @@ def at_thirty(path: Path, clock: Clock = utcnow) -> sqlite3.Connection:
     the test inserts the rows of an old installation and runs migration 31 on them."""
     # here, not at the top: migrated.py's step_back calls undo_31 of this module
     from tests.support.migrated import opened, step_back
+
     opened(path, clock).close()
     db = sqlite3.connect(path, isolation_level=None)
     db.execute("DELETE FROM schema_history WHERE version >= 31")
@@ -88,12 +112,15 @@ def radio_tables(path: Path, clock: Clock = utcnow) -> None:
     is run here (the file keeps its version, so the program opens it), and where migration 33 is
     not, the objects' `radios` and the table `station_path` are made."""
     from tests.support.migrated import opened
+
     opened(path, clock).close()
     db = sqlite3.connect(path, isolation_level=None)
     if not has_table(db, "radio"):
         run_31(db)
     if not db.execute("SELECT 1 FROM pragma_table_info('own_object') WHERE name = 'radios'").fetchone():
-        db.execute("ALTER TABLE own_object ADD COLUMN radios TEXT NOT NULL DEFAULT '1' CHECK (radios GLOB '[1-9]*' AND radios NOT GLOB '*[^0-9,]*')")
+        db.execute(
+            "ALTER TABLE own_object ADD COLUMN radios TEXT NOT NULL DEFAULT '1' CHECK (radios GLOB '[1-9]*' AND radios NOT GLOB '*[^0-9,]*')"
+        )
     if not has_table(db, "station_path"):
         db.execute(f"""CREATE TABLE station_path (call TEXT NOT NULL CHECK (call <> ''), radio_id INTEGER NOT NULL REFERENCES radio (id), path TEXT NOT NULL CHECK ({PATH_FORM}),
             updated_at TEXT NOT NULL, PRIMARY KEY (call, radio_id)) STRICT""")
@@ -103,7 +130,11 @@ def radio_tables(path: Path, clock: Clock = utcnow) -> None:
 def station_rows(db: sqlite3.Connection) -> dict[str, tuple[str, int]]:
     """The rows of `settings` that are the station's own settings (config.STATION_KEYS), each with
     its value and its revision: the rows no migration of the radios moves."""
-    return {str(key): (str(value), int(rev)) for key, value, rev in db.execute("SELECT key, value, rev FROM settings") if key in STATION_KEYS}
+    return {
+        str(key): (str(value), int(rev))
+        for key, value, rev in db.execute("SELECT key, value, rev FROM settings")
+        if key in STATION_KEYS
+    }
 
 
 def stored_config(db: sqlite3.Connection) -> Config:
@@ -111,7 +142,11 @@ def stored_config(db: sqlite3.Connection) -> Config:
     once the radios are rows (migration 31 ran), from the stored radios; before that from the flat
     keys."""
     rows = read_settings(db)
-    return Config.from_data(rows, radios=radios_from_rows(radio_rows(db), radio_settings(db))) if has_table(db, "radio") else Config.from_data(rows)
+    return (
+        Config.from_data(rows, radios=radios_from_rows(radio_rows(db), radio_settings(db)))
+        if has_table(db, "radio")
+        else Config.from_data(rows)
+    )
 
 
 def state_row(db: sqlite3.Connection, key: str) -> tuple[str, int] | None:
@@ -127,5 +162,9 @@ def flat_row(db: sqlite3.Connection, key: str) -> tuple[str, int] | None:
     (OWN_31), with its revision: the row of `settings`, or the radio's own row once migration 31
     ran; None when there is none."""
     radio, own = OWN_31[key]
-    row = db.execute("SELECT value, rev FROM radio_setting WHERE radio_id = ? AND key = ?", (radio, own)).fetchone() if has_table(db, "radio_setting") else db.execute("SELECT value, rev FROM settings WHERE key = ?", (key,)).fetchone()
+    row = (
+        db.execute("SELECT value, rev FROM radio_setting WHERE radio_id = ? AND key = ?", (radio, own)).fetchone()
+        if has_table(db, "radio_setting")
+        else db.execute("SELECT value, rev FROM settings WHERE key = ?", (key,)).fetchone()
+    )
     return None if row is None else (str(row[0]), int(row[1]))

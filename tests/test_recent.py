@@ -1,5 +1,6 @@
 """The keys seen lately (neoaprs/recent.py): a window, and a table that stays bounded whether keys
 are asked after or only noted."""
+
 from datetime import UTC, datetime, timedelta
 
 from neoaprs.recent import Recent

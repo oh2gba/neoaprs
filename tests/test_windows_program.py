@@ -2,6 +2,7 @@
 folder, so it is the system's and not one of the same name in the program's or working folder. Needs
 no Windows.
 """
+
 import pytest
 
 from neoaprs.childenv import windows_program
@@ -12,20 +13,34 @@ def test_a_program_of_system32_is_under_the_system_root_of_the_environment() -> 
 
 
 def test_powershell_is_in_its_own_folder_below_system32() -> None:
-    assert windows_program("WindowsPowerShell", "v1.0", "powershell.exe", source={"SYSTEMROOT": "C:\\Windows"}) == "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+    assert (
+        windows_program("WindowsPowerShell", "v1.0", "powershell.exe", source={"SYSTEMROOT": "C:\\Windows"})
+        == "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+    )
 
 
 def test_explorer_is_in_the_system_folder_itself() -> None:
-    assert windows_program("explorer.exe", system32=False, source={"SYSTEMROOT": "C:\\Windows"}) == "C:\\Windows\\explorer.exe"
+    assert (
+        windows_program("explorer.exe", system32=False, source={"SYSTEMROOT": "C:\\Windows"})
+        == "C:\\Windows\\explorer.exe"
+    )
 
 
-@pytest.mark.parametrize("source, root", [({"WINDIR": "E:\\Win"}, "E:\\Win"), ({"SYSTEMROOT": "", "windir": "E:\\Win"}, "E:\\Win"), ({}, "C:\\Windows")])
-def test_the_names_of_the_environment_are_found_in_any_case_and_the_system_folder_is_the_last_resort(source: dict[str, str], root: str) -> None:
+@pytest.mark.parametrize(
+    "source, root",
+    [({"WINDIR": "E:\\Win"}, "E:\\Win"), ({"SYSTEMROOT": "", "windir": "E:\\Win"}, "E:\\Win"), ({}, "C:\\Windows")],
+)
+def test_the_names_of_the_environment_are_found_in_any_case_and_the_system_folder_is_the_last_resort(
+    source: dict[str, str], root: str
+) -> None:
     assert windows_program("taskkill.exe", source=source) == root + "\\System32\\taskkill.exe"
 
 
 def test_the_path_is_absolute_so_the_program_is_never_looked_for_in_the_working_folder() -> None:
-    for program in (windows_program("taskkill.exe", source={}), windows_program("explorer.exe", system32=False, source={})):
+    for program in (
+        windows_program("taskkill.exe", source={}),
+        windows_program("explorer.exe", system32=False, source={}),
+    ):
         assert program[1:3] == ":\\"
 
 

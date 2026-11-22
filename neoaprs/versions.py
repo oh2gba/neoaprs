@@ -2,6 +2,7 @@
 
 Version order, the version page's answer, the platform name and the install kind.
 """
+
 import json
 import re
 from dataclasses import dataclass
@@ -32,6 +33,7 @@ _MAC_ARCHITECTURES = {"arm64": "arm64", "aarch64": "arm64"}
 @dataclass(frozen=True)
 class Update:
     """The version page's answer: latest version, where to get it, a note, the HF dial."""
+
     version: str
     url: str  # https, or empty
     message: str
@@ -69,10 +71,15 @@ def parse_update(body: bytes | str) -> Update | None:
         return None
     if not isinstance(data, dict):
         return None
-    version, url, message, dial = (text.strip() if isinstance(text := data.get(key), str) else "" for key in ("version", "url", "message", "hf_dial"))
+    version, url, message, dial = (
+        text.strip() if isinstance(text := data.get(key), str) else ""
+        for key in ("version", "url", "message", "hf_dial")
+    )
     if not _VERSION.match(version):
         return None
-    return Update(version, url if url.startswith("https://") else "", message[:MAX_MESSAGE], dial if _DIAL.match(dial) else "")
+    return Update(
+        version, url if url.startswith("https://") else "", message[:MAX_MESSAGE], dial if _DIAL.match(dial) else ""
+    )
 
 
 def platform_name(system: str, machine: str, appimage: bool) -> str:
@@ -99,13 +106,16 @@ InstallKind = Literal["windows-installer", "appimage", "macos-app", "deb", "uv-t
 @dataclass(frozen=True)
 class InstallInfo:
     """How this copy was installed: `appimage` its file, `arch` the file's, `service` a starter."""
+
     kind: InstallKind
     appimage: str = ""
     service: bool = False
     arch: str = ""
 
 
-def install_kind(frozen: bool, appimage: str | None, deb: bool, checkout: bool, uv_tool: bool, app_bundle: bool = False) -> InstallKind:
+def install_kind(
+    frozen: bool, appimage: str | None, deb: bool, checkout: bool, uv_tool: bool, app_bundle: bool = False
+) -> InstallKind:
     if frozen:
         return "windows-installer"
     if appimage:
@@ -143,8 +153,16 @@ def parse_frequencies(body: bytes | str) -> list[Frequency] | None:
         return None
     found: list[Frequency] = []
     for entry in entries:
-        band, dial = (text.strip() if isinstance(entry, dict) and isinstance(text := entry.get(key), str) else "" for key in ("band", "dial"))
-        if _BAND.match(band) and _DIAL.match(dial) and all(f.band != band for f in found) and len(found) < MAX_FREQUENCIES:
+        band, dial = (
+            text.strip() if isinstance(entry, dict) and isinstance(text := entry.get(key), str) else ""
+            for key in ("band", "dial")
+        )
+        if (
+            _BAND.match(band)
+            and _DIAL.match(dial)
+            and all(f.band != band for f in found)
+            and len(found) < MAX_FREQUENCIES
+        ):
             found.append(Frequency(band, dial))
     return found or None
 
@@ -166,4 +184,9 @@ def on_this_computer(text: str) -> bool:
         _ = parts.port
     except ValueError:
         return False
-    return parts.scheme in ("http", "https") and parts.hostname in ("127.0.0.1", "localhost") and "@" not in parts.netloc and not any(c.isspace() for c in text)
+    return (
+        parts.scheme in ("http", "https")
+        and parts.hostname in ("127.0.0.1", "localhost")
+        and "@" not in parts.netloc
+        and not any(c.isspace() for c in text)
+    )

@@ -3,6 +3,7 @@ was asked (what was acknowledged is on the disk, the last batch of appends too) 
 for a tick; nothing is asked of a closed Db; its thread ends and none is left behind; a backup and a
 checkpoint are made by the same thread, between the other operations; the commits are synced to the
 disk; the queue wait, the run time and the stall of the loop are numbers."""
+
 import asyncio
 import os
 import re
@@ -21,7 +22,7 @@ from neoaprs.db import Db, DbClosed, StoreError
 from neoaprs.dbthread import Tuning
 from tests.support.env import until
 from tests.support.ptyline import posix_only
-from tests.support.dbactor import (THREAD_PREFIX, committed, db_threads, eager, started, wait_gone)
+from tests.support.dbactor import THREAD_PREFIX, committed, db_threads, eager, started, wait_gone
 from tests.conftest import ROOT
 from tests.support.safety import raw
 
@@ -30,16 +31,22 @@ from tests.support.safety import raw
 async def test_a_clean_shutdown_does_everything_that_was_asked_and_does_not_wait_for_the_tick(tmp_path: Path) -> None:
     path = tmp_path / "x.sqlite"
     db = await started(path, tuning=Tuning(tick=3600.0))
-    awaited = [eager(db.write(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'w')", (n,)))) for n in range(20)]
+    awaited = [
+        eager(db.write(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'w')", (n,)))) for n in range(20)
+    ]
     for n in range(100, 400):
         assert db.write_nowait(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'a')", (n,)))
     began = time.monotonic()
     await db.close()
-    assert time.monotonic() - began < 300, "the shutdown waited for the tick (an hour); a loaded machine takes a few seconds for the 300 appends and their syncs"
+    assert time.monotonic() - began < 300, (
+        "the shutdown waited for the tick (an hour); a loaded machine takes a few seconds for the 300 appends and their syncs"
+    )
     # The answers are put on the loop by the thread; the tasks that wait for them wake up a turn
     # after close() returns
     answers = await asyncio.wait_for(asyncio.gather(*awaited, return_exceptions=True), 30)
-    assert not [a for a in answers if isinstance(a, BaseException)], "an operation that was asked before the shutdown has its answer"
+    assert not [a for a in answers if isinstance(a, BaseException)], (
+        "an operation that was asked before the shutdown has its answer"
+    )
     assert committed(path) == list(range(20)) + list(range(100, 400)), "the last batch of appends is in"
     assert db_threads() == []
 
@@ -62,7 +69,7 @@ async def test_asking_a_closed_db_is_the_database_not_being_open(tmp_path: Path)
         assert isinstance(caught.value, StoreError), "what catches the StoreError of the Store catches this"
     assert db.write_nowait(lambda conn: None) is False
     assert db.stats()["dropped"] == 1
-    await db.close()                                                              # and closing again is harmless
+    await db.close()  # and closing again is harmless
 
 
 async def test_two_closes_at_once_both_return_when_the_thread_has_ended(tmp_path: Path) -> None:
@@ -85,7 +92,9 @@ async def test_asking_while_the_shutdown_is_under_way_is_refused_not_lost(tmp_pa
     assert committed(tmp_path / "x.sqlite") == []
 
 
-async def test_a_write_on_the_queue_when_the_db_closes_is_committed_though_its_asker_was_cancelled(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_write_on_the_queue_when_the_db_closes_is_committed_though_its_asker_was_cancelled(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     """The daemon's stop: the tasks are cancelled first (a message's write among them, queued behind
     a busy thread), the database closed last; the drain of close() writes it."""
     path = tmp_path / "x.sqlite"
@@ -106,7 +115,9 @@ async def test_a_write_on_the_queue_when_the_db_closes_is_committed_though_its_a
     assert any("asker was cancelled" in r.getMessage() and "is committed" in r.getMessage() for r in caplog.records)
 
 
-async def test_a_stop_while_another_process_holds_the_lock_tries_the_batch_once_and_ends_inside_the_units_timeout(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_stop_while_another_process_holds_the_lock_tries_the_batch_once_and_ends_inside_the_units_timeout(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     """A tool left in BEGIN IMMEDIATE during `systemctl restart`: three attempts with the busy time
     of 3 s would take 10.5 s, past TimeoutStopSec=10, and the unit would kill the stop. While the
     queue closes a batch is tried once (the STOP stands behind it; the lock is another process's),
@@ -132,7 +143,9 @@ async def test_a_stop_while_another_process_holds_the_lock_tries_the_batch_once_
             await awaited
         stats: Any = db.stats()
         assert stats["lost"] == 1 and stats["retried"] == 0 and stats["batches"] == 0
-        assert [r.getMessage() for r in caplog.records if "could not commit" in r.getMessage()] == ["the database could not commit 1 appends (database is locked): they are lost (the database is closing: no second attempt)"]
+        assert [r.getMessage() for r in caplog.records if "could not commit" in r.getMessage()] == [
+            "the database could not commit 1 appends (database is locked): they are lost (the database is closing: no second attempt)"
+        ]
     finally:
         held.execute("ROLLBACK")
         held.close()
@@ -170,7 +183,9 @@ async def test_the_connection_is_the_one_of_the_daemon(tmp_path: Path) -> None:
     def look(conn: sqlite3.Connection) -> list[Any]:
         return [conn.execute(f"PRAGMA {p}").fetchone()[0] for p in ("journal_mode", "synchronous", "busy_timeout")]
 
-    assert await db.read(look) == ["wal", 2, 1234], "WAL, synchronous=FULL (an acknowledged write is on the disk), the busy time"
+    assert await db.read(look) == ["wal", 2, 1234], (
+        "WAL, synchronous=FULL (an acknowledged write is on the disk), the busy time"
+    )
     await db.close()
 
 
@@ -184,8 +199,28 @@ def acknowledged_without_sync(tmp_path: Path, count: int, synchronous: str) -> l
     """The numbers of the writes that returned with no fsync/fdatasync of the WAL or the database
     since the one before (the probe: tests/support/db_sync_probe.py)."""
     trace = tmp_path / "trace.txt"
-    run = subprocess.run(["strace", "-f", "-y", "-e", "trace=fsync,fdatasync,write", "-e", "write=2", "-o", str(trace), sys.executable, "-c",
-                          "from tests.support.db_sync_probe import main; main()", str(tmp_path / "neoaprs.sqlite"), str(count), synchronous], cwd=ROOT, capture_output=True, timeout=120)
+    run = subprocess.run(
+        [
+            "strace",
+            "-f",
+            "-y",
+            "-e",
+            "trace=fsync,fdatasync,write",
+            "-e",
+            "write=2",
+            "-o",
+            str(trace),
+            sys.executable,
+            "-c",
+            "from tests.support.db_sync_probe import main; main()",
+            str(tmp_path / "neoaprs.sqlite"),
+            str(count),
+            synchronous,
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        timeout=120,
+    )
     assert run.returncode == 0, run.stderr
     unsynced: list[int] = []
     synced = False
@@ -201,7 +236,10 @@ def acknowledged_without_sync(tmp_path: Path, count: int, synchronous: str) -> l
     return unsynced
 
 
-@pytest.mark.skipif(not strace_works(), reason="strace is not available (or not allowed to trace): the pragma is held by test_the_connection_is_the_one_of_the_daemon")
+@pytest.mark.skipif(
+    not strace_works(),
+    reason="strace is not available (or not allowed to trace): the pragma is held by test_the_connection_is_the_one_of_the_daemon",
+)
 def test_a_write_is_synced_to_the_disk_before_it_returns(tmp_path: Path) -> None:
     assert acknowledged_without_sync(tmp_path, 20, "FULL") == []
 
@@ -231,8 +269,10 @@ async def test_a_backup_sees_every_write_asked_before_it_and_is_whole_and_privat
     await db.close()
 
 
-@posix_only      # (the descriptors are turned into paths through /proc)
-async def test_a_backup_is_synced_before_it_has_its_name_and_its_folder_after(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@posix_only  # (the descriptors are turned into paths through /proc)
+async def test_a_backup_is_synced_before_it_has_its_name_and_its_folder_after(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     db = await started(tmp_path / "x.sqlite")
     dest = tmp_path / "backup" / "copy.sqlite"
     synced: list[str] = []
@@ -254,7 +294,9 @@ async def test_a_backup_is_synced_before_it_has_its_name_and_its_folder_after(tm
     monkeypatch.setattr(Path, "replace", replace)
     await db.backup(dest)
     monkeypatch.undo()
-    assert any(p.endswith(".tmp") for p in before_rename[0]), f"the copy was renamed before it was synced ({before_rename})"
+    assert any(p.endswith(".tmp") for p in before_rename[0]), (
+        f"the copy was renamed before it was synced ({before_rename})"
+    )
     assert str(dest.parent) in synced, "the folder was not synced after the rename"
     await db.close()
 
@@ -270,7 +312,9 @@ async def test_a_backup_that_fails_raises_and_leaves_nothing_and_the_db_goes_on(
     await db.close()
 
 
-async def test_copies_taken_while_writes_go_on_are_whole_and_each_holds_what_was_acknowledged_before_it(tmp_path: Path) -> None:
+async def test_copies_taken_while_writes_go_on_are_whole_and_each_holds_what_was_acknowledged_before_it(
+    tmp_path: Path,
+) -> None:
     path = tmp_path / "x.sqlite"
     db = await started(path)
     acked: list[int] = []

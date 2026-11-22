@@ -1,6 +1,7 @@
 """Tests for the layer feed request (neoaprs/updatefetch.py `get_feed`, `fetch_feed`) against a fake
 local server: packed answers, headers, Retry-After, basic authentication, and failure cases.
 """
+
 import base64
 import gzip
 import threading
@@ -23,8 +24,15 @@ async def test_a_packed_answer_is_asked_for_and_unpacked_and_the_headers_are_the
     answer = await fetch_feed(server.url + "/feed", "0.21.0", "linux", {"Digitraffic-User": "NeoAPRS"}, 1000, 1000)
     assert answer == FeedAnswer(200, BODY, None)
     ((path, headers),) = server.requests
-    assert path == "/feed" and headers["accept-encoding"] == "gzip" and headers["user-agent"] == "NeoAPRS/0.21.0 (linux)" and headers["digitraffic-user"] == "NeoAPRS"
-    assert set(headers) == {"accept-encoding", "user-agent", "digitraffic-user", "host", "connection"}, "no cookie, no call, nothing else"
+    assert (
+        path == "/feed"
+        and headers["accept-encoding"] == "gzip"
+        and headers["user-agent"] == "NeoAPRS/0.21.0 (linux)"
+        and headers["digitraffic-user"] == "NeoAPRS"
+    )
+    assert set(headers) == {"accept-encoding", "user-agent", "digitraffic-user", "host", "connection"}, (
+        "no cookie, no call, nothing else"
+    )
 
 
 async def test_an_answer_that_is_not_packed_is_taken_as_it_is() -> None:
@@ -39,7 +47,9 @@ async def test_an_answer_larger_than_its_bound_as_it_travels_or_unpacked_is_none
     server.route("/bomb", body=b"\0" * 1_000_000, packed=True)
     assert await fetch_feed(server.url + "/big", "0.21.0", "linux", {}, 1000, 10_000) is None
     assert len(gzip.compress(b"\0" * 1_000_000)) < 2000
-    assert await fetch_feed(server.url + "/bomb", "0.21.0", "linux", {}, 2000, 100_000) is None, "a small answer that unpacks to too much"
+    assert await fetch_feed(server.url + "/bomb", "0.21.0", "linux", {}, 2000, 100_000) is None, (
+        "a small answer that unpacks to too much"
+    )
 
 
 async def test_a_refusal_says_its_status_and_the_wait_its_retry_after_asks_for() -> None:
@@ -55,7 +65,12 @@ def test_a_retry_after_is_seconds_or_a_date_and_one_that_cannot_be_read_is_none(
     assert retry_after("30", now) == 30.0
     assert retry_after("Wed, 18 Nov 2026 12:02:00 GMT", now) == 120.0
     assert retry_after("Wed, 18 Nov 2026 11:00:00 GMT", now) == 0.0, "a date gone by: at once"
-    assert retry_after("soon", now) is None and retry_after(None, now) is None and retry_after("", now) is None and retry_after("-5", now) is None
+    assert (
+        retry_after("soon", now) is None
+        and retry_after(None, now) is None
+        and retry_after("", now) is None
+        and retry_after("-5", now) is None
+    )
 
 
 def test_a_packed_answer_that_is_cut_short_or_is_not_gzip_is_none() -> None:
@@ -80,10 +95,19 @@ async def test_a_server_that_is_not_there_and_an_address_that_is_not_a_web_one_a
     assert await fetch_feed("file:///etc/passwd", "0.21.0", "linux", {}, 1000, 1000) is None
 
 
-async def test_under_the_switch_another_computer_is_not_asked_and_this_one_is(under_the_switch: None, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_under_the_switch_another_computer_is_not_asked_and_this_one_is(
+    under_the_switch: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
     tried: list[str] = []
-    monkeypatch.setattr(updatefetch.urllib.request.OpenerDirector, "open", lambda self, request, timeout=None: tried.append(request.full_url))
-    assert await fetch_feed("http://192.0.2.1/tar1090/data/aircraft.json", "0.21.0", "linux", {}, 1000, 1000) is None and tried == [], "refused before anything is opened"
+    monkeypatch.setattr(
+        updatefetch.urllib.request.OpenerDirector,
+        "open",
+        lambda self, request, timeout=None: tried.append(request.full_url),
+    )
+    assert (
+        await fetch_feed("http://192.0.2.1/tar1090/data/aircraft.json", "0.21.0", "linux", {}, 1000, 1000) is None
+        and tried == []
+    ), "refused before anything is opened"
     server = await layers_server()
     server.route("/feed", body=BODY)
     monkeypatch.undo()
@@ -91,15 +115,22 @@ async def test_under_the_switch_another_computer_is_not_asked_and_this_one_is(un
     assert await fetch_feed(server.url + "/feed", "0.21.0", "linux", {}, 1000, 1000) == FeedAnswer(200, BODY, None)
 
 
-async def test_a_password_in_the_address_is_sent_as_basic_authentication_and_never_as_a_part_of_the_hosts_name() -> None:
+async def test_a_password_in_the_address_is_sent_as_basic_authentication_and_never_as_a_part_of_the_hosts_name() -> (
+    None
+):
     server = await layers_server()
     server.password = ("user", "s3cret@pw")
     server.route("/tar1090/data/aircraft.json", body=BODY)
     url = f"http://user:s3cret%40pw@127.0.0.1:{server.port}/tar1090/data/aircraft.json"
     assert await fetch_feed(url, "0.21.0", "linux", {}, 1000, 1000) == FeedAnswer(200, BODY, None)
     ((_, headers),) = server.requests
-    assert headers["authorization"] == "Basic " + base64.b64encode(b"user:s3cret@pw").decode() and headers["host"] == f"127.0.0.1:{server.port}"
-    assert await fetch_feed(server.url + "/tar1090/data/aircraft.json", "0.21.0", "linux", {}, 1000, 1000) == FeedAnswer(401, b"", None), "without it the receiver refuses"
+    assert (
+        headers["authorization"] == "Basic " + base64.b64encode(b"user:s3cret@pw").decode()
+        and headers["host"] == f"127.0.0.1:{server.port}"
+    )
+    assert await fetch_feed(
+        server.url + "/tar1090/data/aircraft.json", "0.21.0", "linux", {}, 1000, 1000
+    ) == FeedAnswer(401, b"", None), "without it the receiver refuses"
     assert without_password("http://pi.local/a.json") == ("http://pi.local/a.json", None)
 
 
@@ -122,4 +153,9 @@ async def test_an_answer_that_drips_is_given_up_when_its_time_is_over_and_its_th
     start = time.monotonic()
     assert await fetch_feed(server.url + "/slow", "0.21.0", "linux", {}, 1000, 1000, timeout_sec=0.5) is None
     assert time.monotonic() - start < 1.5
-    await until(lambda: not [thread for thread in threading.enumerate() if thread.name == "layer-fetch" and thread not in before], 3.0)
+    await until(
+        lambda: (
+            not [thread for thread in threading.enumerate() if thread.name == "layer-fetch" and thread not in before]
+        ),
+        3.0,
+    )

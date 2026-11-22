@@ -2,6 +2,7 @@
 comes out equal, a station's series and latest, and the one-time making of the log from kept
 packets.
 """
+
 from datetime import timedelta
 from pathlib import Path
 
@@ -53,7 +54,9 @@ async def test_every_weather_packet_heard_is_kept_and_no_other(tmp_path: Path) -
     assert positionless.temp_c == pytest.approx(10.0) and positionless.raw == "t050"
 
 
-async def test_the_series_of_a_station_is_oldest_first_from_the_time_asked_and_the_latest_is_the_newest(tmp_path: Path) -> None:
+async def test_the_series_of_a_station_is_oldest_first_from_the_time_asked_and_the_latest_is_the_newest(
+    tmp_path: Path,
+) -> None:
     log, _ = await opened(tmp_path)
     for minutes, temp in ((30, "t050"), (0, "t040"), (10, "t045"), (20, "t048")):
         log.take(report(temp, "OH2MUI", T0 + timedelta(minutes=minutes)))
@@ -67,7 +70,11 @@ async def test_the_series_of_a_station_is_oldest_first_from_the_time_asked_and_t
     assert latest is not None and latest[0] == T0 + timedelta(minutes=30) and latest[1].temp_c == pytest.approx(10.0)
     assert await log.latest("OH2NONE") is None
     every = await log.latest_all()
-    assert set(every) == {"OH2MUI", "OH2NJR"} and every["OH2MUI"][0] == T0 + timedelta(minutes=30) and every["OH2NJR"][1].temp_c == pytest.approx(32.2, abs=0.05)
+    assert (
+        set(every) == {"OH2MUI", "OH2NJR"}
+        and every["OH2MUI"][0] == T0 + timedelta(minutes=30)
+        and every["OH2NJR"][1].temp_c == pytest.approx(32.2, abs=0.05)
+    )
 
 
 async def test_prune_removes_what_is_older_than_the_days_kept(tmp_path: Path) -> None:
@@ -86,14 +93,29 @@ async def test_the_hottest_and_the_coldest_a_report_can_say_are_kept(tmp_path: P
     log.take(report("t-99c360s999"))
     await settled(log)
     assert await log.count() == 2
-    assert [w.temp_c for _, w in await log.series("OH2MUI", T0 - timedelta(days=1))] == pytest.approx([537.2, -72.8], abs=0.05)
+    assert [w.temp_c for _, w in await log.series("OH2MUI", T0 - timedelta(days=1))] == pytest.approx(
+        [537.2, -72.8], abs=0.05
+    )
 
 
 async def test_the_log_made_from_the_packets_kept_reads_each_weather_packet_again(tmp_path: Path) -> None:
     log, packets = await opened(tmp_path)
-    wrapped = heard(b"}OH2HCY-3>APRX29,TCPIP,OH7JHF-1*:@210945z6024.43N/02352.73E_96/001g006t048h79b10285Inkoo", "OH7JHF-1", T0 + timedelta(minutes=2), old=True)
-    for p in (report(at=T0, old=True), heard(b"_10090556c220s004t077", "OH2NJR", T0 + timedelta(minutes=1), old=True), wrapped, report("t080", at=T0 - timedelta(days=40), old=True),
-              report("t090", direction="out", old=True), heard(b"!6024.43N/02352.73E>car", "OH2CAR", T0), heard(b"!!0000000001FF000427C70001", "OH2ULT", T0, old=True), heard(b"!6024.43N/02352.73E_Hello", "OH2HI", T0)):
+    wrapped = heard(
+        b"}OH2HCY-3>APRX29,TCPIP,OH7JHF-1*:@210945z6024.43N/02352.73E_96/001g006t048h79b10285Inkoo",
+        "OH7JHF-1",
+        T0 + timedelta(minutes=2),
+        old=True,
+    )
+    for p in (
+        report(at=T0, old=True),
+        heard(b"_10090556c220s004t077", "OH2NJR", T0 + timedelta(minutes=1), old=True),
+        wrapped,
+        report("t080", at=T0 - timedelta(days=40), old=True),
+        report("t090", direction="out", old=True),
+        heard(b"!6024.43N/02352.73E>car", "OH2CAR", T0),
+        heard(b"!!0000000001FF000427C70001", "OH2ULT", T0, old=True),
+        heard(b"!6024.43N/02352.73E_Hello", "OH2HI", T0),
+    ):
         packets.append(p)
     assert packets.db is not None
     await packets.db.barrier()
@@ -102,25 +124,40 @@ async def test_the_log_made_from_the_packets_kept_reads_each_weather_packet_agai
     assert await log.count() == 3
     assert [(at, w.temp_c) for at, w in await log.series("OH2MUI", T0 - timedelta(days=100))] == [(T0, 10.0)]
     assert [w.raw for _, w in await log.series("OH2NJR", T0 - timedelta(days=100))] == ["c220s004t077"]
-    assert [(at, w.pressure_hpa) for at, w in await log.series("OH2HCY-3", T0 - timedelta(days=100))] == [(T0 + timedelta(minutes=2), 1028.5)], "the sender inside a third-party packet, not the iGate"
+    assert [(at, w.pressure_hpa) for at, w in await log.series("OH2HCY-3", T0 - timedelta(days=100))] == [
+        (T0 + timedelta(minutes=2), 1028.5)
+    ], "the sender inside a third-party packet, not the iGate"
     assert await log.series("OH7JHF-1", T0 - timedelta(days=100)) == []
 
 
-async def test_the_packets_that_may_carry_weather_are_found_by_what_the_parser_decoded_and_not_by_the_words_of_the_summary(tmp_path: Path) -> None:
+async def test_the_packets_that_may_carry_weather_are_found_by_what_the_parser_decoded_and_not_by_the_words_of_the_summary(
+    tmp_path: Path,
+) -> None:
     clock = FixedClock()
     store = await store_at(tmp_path / DB_NAME, clock)
     assert store.db is not None
     log, packets = WeatherLog(store.db, clock), PacketLog(store.db, clock)
-    wx_object = heard(b";WXOBJ    *210945z6024.43N/02352.73E_107/001g001t050h85b10284", "OH2OBJ", T0 + timedelta(minutes=3))
+    wx_object = heard(
+        b";WXOBJ    *210945z6024.43N/02352.73E_107/001g001t050h85b10284", "OH2OBJ", T0 + timedelta(minutes=3)
+    )
     wx_item = heard(b")WXITEM!6024.43N/02352.73E_107/001g001t050", "OH2ITM", T0 + timedelta(minutes=4))
     assert wx_object.kind == "object" and wx_item.kind == "item"
-    for p in (report(at=T0), heard(b"_10090556c220s004t077", "OH2NJR", T0 + timedelta(minutes=1)), wx_object, wx_item, heard(b"!6024.43N/02352.73E>car", "OH2CAR", T0), heard(b">a status", "OH2ST", T0),
-              heard(b"!6024.43N/02352.73E_Hello", "OH2HI", T0)):
+    for p in (
+        report(at=T0),
+        heard(b"_10090556c220s004t077", "OH2NJR", T0 + timedelta(minutes=1)),
+        wx_object,
+        wx_item,
+        heard(b"!6024.43N/02352.73E>car", "OH2CAR", T0),
+        heard(b">a status", "OH2ST", T0),
+        heard(b"!6024.43N/02352.73E_Hello", "OH2HI", T0),
+    ):
         packets.append(p)
     await store.db.barrier()
     await sql(store, "UPDATE packet SET summary = 'Zusammenfassung'")
     found = await store.db.read(lambda conn: weather_packets(conn, "2026-01-01T00:00:00.000000Z"))
-    assert [row[0] for row in found] == ["OH2MUI", "OH2NJR", "OH2OBJ", "OH2ITM", "OH2HI"], "a position, an object and an item with the weather symbol, and a weather report with no position; the parser decides the rest"
+    assert [row[0] for row in found] == ["OH2MUI", "OH2NJR", "OH2OBJ", "OH2ITM", "OH2HI"], (
+        "a position, an object and an item with the weather symbol, and a weather report with no position; the parser decides the rest"
+    )
     assert await log.backfill(30) == 4 and await log.count() == 4
 
 
@@ -140,21 +177,44 @@ async def test_the_table_is_the_weather_table_of_the_schema(tmp_path: Path) -> N
     clock = FixedClock()
     store = await store_at(tmp_path / DB_NAME, clock)
     names = [r[1] for r in await sql(store, "PRAGMA table_info(weather)")]
-    assert names == ["station", "at", "wind_dir", "wind_kmh", "gust_kmh", "temp_c", "humidity", "pressure_hpa", "rain_1h_mm", "rain_24h_mm", "rain_today_mm", "luminosity", "raw"]
+    assert names == [
+        "station",
+        "at",
+        "wind_dir",
+        "wind_kmh",
+        "gust_kmh",
+        "temp_c",
+        "humidity",
+        "pressure_hpa",
+        "rain_1h_mm",
+        "rain_24h_mm",
+        "rain_today_mm",
+        "luminosity",
+        "raw",
+    ]
 
 
-async def test_an_observation_from_the_internet_is_taken_kept_and_made_again_from_the_packets_like_one_from_the_radio(tmp_path: Path) -> None:
+async def test_an_observation_from_the_internet_is_taken_kept_and_made_again_from_the_packets_like_one_from_the_radio(
+    tmp_path: Path,
+) -> None:
     clock = FixedClock()
     store = await store_at(tmp_path / DB_NAME, clock)
     assert store.db is not None
     log, packets = WeatherLog(store.db, clock), PacketLog(store.db, clock)
-    cwop = parse_is_line("CW1234>APRS,TCPXX*,qAX,CWOP-5:@092345z4903.50N/07201.75W_220/004g005t077r000p000P000h50b09720", T0)
+    cwop = parse_is_line(
+        "CW1234>APRS,TCPXX*,qAX,CWOP-5:@092345z4903.50N/07201.75W_220/004g005t077r000p000P000h50b09720", T0
+    )
     assert cwop.via == "is" and log.take(cwop), "the weather log takes the weather of the internet"
     assert not log.take(parse_is_line("OH2ABC>APRS,TCPIP*,qAC,T2FINLAND:>no weather in this", T0))
     packets.append(cwop)
     packets.append(report(at=T0 + timedelta(minutes=1)))
     await settled(log)
     await sql(store, "DELETE FROM weather")
-    assert await log.backfill(30) == 2, "the packets of the internet are read again too: they have no AX.25 frame, the line is their information field after the colon"
+    assert await log.backfill(30) == 2, (
+        "the packets of the internet are read again too: they have no AX.25 frame, the line is their information field after the colon"
+    )
     assert [w.temp_c for _, w in await log.series("CW1234", T0 - timedelta(days=100))] == [25.0]
-    assert report_of("CW1234", "APRS", cwop.raw, T0, "is") == ("CW1234", (await log.series("CW1234", T0 - timedelta(days=100)))[0][1])
+    assert report_of("CW1234", "APRS", cwop.raw, T0, "is") == (
+        "CW1234",
+        (await log.series("CW1234", T0 - timedelta(days=100)))[0][1],
+    )

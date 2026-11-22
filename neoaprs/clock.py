@@ -1,4 +1,5 @@
 """Time, always UTC and always aware. A clock is a function so that tests can set the time."""
+
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Callable
 

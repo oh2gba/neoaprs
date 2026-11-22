@@ -2,6 +2,7 @@
 through a made-up ALSA library (several card layouts), the percent of a control's range both ways;
 and the Windows side.
 """
+
 import ctypes
 import sys
 import threading
@@ -23,16 +24,17 @@ LOAD_ALSA = soundmixer.load_alsa
 @dataclass
 class Elem:
     name: str
-    playback: list[int] | None = None          # [low, high, raw]
+    playback: list[int] | None = None  # [low, high, raw]
     capture: list[int] | None = None
     index: int = 0
-    switch: bool = False                       # a switch alone (the Auto Gain Control): no volume either way
+    switch: bool = False  # a switch alone (the Auto Gain Control): no volume either way
 
 
 @dataclass
 class FakeAlsa:
     """The calls of the ALSA library the module makes, on made-up cards by control device
     (`hw:Device`): what is set is kept, and every call that is not a read is written down."""
+
     cards: dict[str, list[Elem]]
     calls: list[str] = field(default_factory=list)
     attached: str = ""
@@ -47,7 +49,7 @@ class FakeAlsa:
     def snd_mixer_attach(self, handle: Any, name: bytes) -> int:
         self.attached = name.decode()
         if self.attached not in self.cards:
-            return -19                         # (ENODEV: the card is not there)
+            return -19  # (ENODEV: the card is not there)
         self._elems = self.cards[self.attached]
         return 0
 
@@ -83,7 +85,9 @@ class FakeAlsa:
             if call == f"snd_mixer_selem_has_{way}_volume":
                 return lambda elem: int(getattr(self._e(elem), way) is not None)
             if call == f"snd_mixer_selem_get_{way}_volume_range":
-                return lambda elem, low, high: self._out(low, getattr(self._e(elem), way)[0]) or self._out(high, getattr(self._e(elem), way)[1])
+                return lambda elem, low, high: (
+                    self._out(low, getattr(self._e(elem), way)[0]) or self._out(high, getattr(self._e(elem), way)[1])
+                )
             if call == f"snd_mixer_selem_get_{way}_volume":
                 return lambda elem, channel, value: self._out(value, getattr(self._e(elem), way)[2])
             if call == f"snd_mixer_selem_set_{way}_volume_all":
@@ -104,7 +108,11 @@ class FakeAlsa:
 def ftx1_card() -> list[Elem]:
     """The FTX-1's C-Media chip as `amixer -c Device` shows it: Speaker at 14 of 0..37 (38 %), Mic
     with a monitor volume and a capture volume, the Auto Gain Control switch."""
-    return [Elem("Speaker", playback=[0, 37, 14]), Elem("Mic", playback=[0, 31, 0], capture=[0, 16, 8]), Elem("Auto Gain Control", switch=True)]
+    return [
+        Elem("Speaker", playback=[0, 37, 14]),
+        Elem("Mic", playback=[0, 31, 0], capture=[0, 16, 8]),
+        Elem("Auto Gain Control", switch=True),
+    ]
 
 
 def codec_card() -> list[Elem]:
@@ -118,20 +126,41 @@ def alsa(**cards: list[Elem]) -> tuple[Alsa, FakeAlsa]:
 
 
 def test_the_alsa_control_device_is_the_card_the_setting_names_and_none_for_a_device_that_names_no_card() -> None:
-    assert [alsa_control_name(card) for card in ("plughw:CARD=Device,DEV=0", "plughw:1,0", "hw:2,0", "sysdefault:CARD=CODEC", "front:CARD=Device,DEV=0")] == ["hw:Device", "hw:1", "hw:2", "hw:CODEC", "hw:Device"]
-    assert [alsa_control_name(card) for card in ("default", "pulse", "")] == ["", "", ""], "the system's own mixer is not the card's"
+    assert [
+        alsa_control_name(card)
+        for card in (
+            "plughw:CARD=Device,DEV=0",
+            "plughw:1,0",
+            "hw:2,0",
+            "sysdefault:CARD=CODEC",
+            "front:CARD=Device,DEV=0",
+        )
+    ] == ["hw:Device", "hw:1", "hw:2", "hw:CODEC", "hw:Device"]
+    assert [alsa_control_name(card) for card in ("default", "pulse", "")] == ["", "", ""], (
+        "the system's own mixer is not the card's"
+    )
 
 
 def test_a_percent_is_the_raw_value_within_the_range_both_ways() -> None:
     assert (percent(0, 37, 14), percent(0, 128, 128), percent(-10, 10, 0), percent(5, 5, 5)) == (38, 100, 50, 0)
-    assert (raw_of(0, 37, 38), raw_of(0, 128, 100), raw_of(-10, 10, 50), raw_of(0, 37, 150), raw_of(0, 37, -3)) == (14, 128, 0, 37, 0)
+    assert (raw_of(0, 37, 38), raw_of(0, 128, 100), raw_of(-10, 10, 50), raw_of(0, 37, 150), raw_of(0, 37, -3)) == (
+        14,
+        128,
+        0,
+        37,
+        0,
+    )
 
 
 def test_the_controls_are_the_first_of_their_names_the_card_has_and_mic_is_never_the_playback_one() -> None:
     controls = [Control("Mic", playback=(0, 31, 0), capture=(0, 16, 8)), Control("Speaker", playback=(0, 37, 14))]
     assert pick(controls, soundmixer.PLAYBACK_NAMES, "playback") == controls[1]
     assert pick(controls, soundmixer.CAPTURE_NAMES, "capture") == controls[0]
-    assert pick([Control("Master", playback=(0, 1, 1)), Control("PCM", playback=(0, 1, 1))], soundmixer.PLAYBACK_NAMES, "playback") == Control("Master", playback=(0, 1, 1))
+    assert pick(
+        [Control("Master", playback=(0, 1, 1)), Control("PCM", playback=(0, 1, 1))],
+        soundmixer.PLAYBACK_NAMES,
+        "playback",
+    ) == Control("Master", playback=(0, 1, 1))
     assert pick([Control("Line", capture=(0, 1, 1))], soundmixer.CAPTURE_NAMES, "capture") is None
 
 
@@ -139,8 +168,12 @@ def test_the_ftx1s_card_has_both_levels_and_a_set_moves_the_volumes_alone_never_
     mixer, lib = alsa(Device=ftx1_card())
     assert mixer.read("plughw:CARD=Device,DEV=0") == Levels(38, 50)
     assert mixer.write("plughw:CARD=Device,DEV=0", 70, 25) == Levels(70, 25)
-    assert [c for c in lib.calls if c.startswith("set")] == ["set Speaker playback 26", "set Mic capture 4"], "the Speaker and the Mic's capture, nothing else: not the Mic's monitor, not the switch"
-    assert lib.cards["hw:Device"][1].playback == [0, 31, 0] and all(c.endswith("hw:Device") for c in lib.calls if c.startswith("close")), "every mixer opened is closed"
+    assert [c for c in lib.calls if c.startswith("set")] == ["set Speaker playback 26", "set Mic capture 4"], (
+        "the Speaker and the Mic's capture, nothing else: not the Mic's monitor, not the switch"
+    )
+    assert lib.cards["hw:Device"][1].playback == [0, 31, 0] and all(
+        c.endswith("hw:Device") for c in lib.calls if c.startswith("close")
+    ), "every mixer opened is closed"
 
 
 def test_a_value_not_given_is_not_written() -> None:
@@ -157,8 +190,12 @@ def test_a_codec_with_pcm_alone_has_a_playback_level_and_no_capture_level_and_a_
 
 def test_a_card_that_is_not_there_a_card_with_none_of_the_controls_and_no_library_have_no_levels() -> None:
     mixer, lib = alsa(Device=[Elem("Auto Gain Control", switch=True), Elem("Speaker", playback=[0, 9, 9], index=1)])
-    assert mixer.read("plughw:CARD=Gone,DEV=0") == NONE and lib.calls == ["close hw:Gone"], "a card unplugged: the mixer is closed again and there are no levels"
-    assert mixer.read("plughw:CARD=Device,DEV=0") == NONE, "a switch alone, and a second control of a name, are none of ours"
+    assert mixer.read("plughw:CARD=Gone,DEV=0") == NONE and lib.calls == ["close hw:Gone"], (
+        "a card unplugged: the mixer is closed again and there are no levels"
+    )
+    assert mixer.read("plughw:CARD=Device,DEV=0") == NONE, (
+        "a switch alone, and a second control of a name, are none of ours"
+    )
     assert mixer.read("default") == NONE
     assert Alsa(lambda: None).read("plughw:CARD=Device,DEV=0") == NONE, "a system without the library"
 
@@ -167,6 +204,7 @@ def test_a_card_that_is_not_there_a_card_with_none_of_the_controls_and_no_librar
 def test_the_library_is_looked_for_by_its_name_and_none_is_no_library(monkeypatch: pytest.MonkeyPatch) -> None:
     def missing(name: str) -> Any:
         raise OSError(f"{name}: cannot open shared object file")
+
     monkeypatch.setattr(ctypes, "CDLL", missing)
     assert LOAD_ALSA() is None
 
@@ -174,6 +212,7 @@ def test_the_library_is_looked_for_by_its_name_and_none_is_no_library(monkeypatc
 @dataclass
 class FakeCoreAudio:
     """Core Audio's master volumes by device id, as a test has them; what is put is kept."""
+
     volumes: dict[str, float]
     put_calls: list[tuple[str, float]] = field(default_factory=list)
 
@@ -194,22 +233,32 @@ def test_on_windows_the_levels_are_the_master_volumes_of_the_cards_playing_and_r
     audio = FakeCoreAudio({RECORDING: 0.5, PLAYING: 0.384})
     mixer = Windows(audio)
     assert mixer.read(WINDOWS_CARD) == Levels(38, 50)
-    assert mixer.write(WINDOWS_CARD, 70, None) == Levels(70, 50) and audio.put_calls == [(PLAYING, 0.7)], "the playing device's alone; a value not given is not written"
-    assert Windows(FakeCoreAudio({PLAYING: 1.0})).read(WINDOWS_CARD) == Levels(100, None), "a recording device that is not there has no level"
+    assert mixer.write(WINDOWS_CARD, 70, None) == Levels(70, 50) and audio.put_calls == [(PLAYING, 0.7)], (
+        "the playing device's alone; a value not given is not written"
+    )
+    assert Windows(FakeCoreAudio({PLAYING: 1.0})).read(WINDOWS_CARD) == Levels(100, None), (
+        "a recording device that is not there has no level"
+    )
     assert Windows(FakeCoreAudio({PLAYING: 1.0})).read(PLAYING) == Levels(100, None), "a card of one playing device"
     assert Windows(audio).read("default") == NONE, "an id that is no device of Core Audio's is not asked"
 
 
-def test_under_the_no_devices_switch_nothing_is_read_or_set_and_no_library_is_loaded(under_the_switch: None, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: F811
+def test_under_the_no_devices_switch_nothing_is_read_or_set_and_no_library_is_loaded(
+    under_the_switch: None,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     def forbidden(*args: object) -> Any:
         raise AssertionError("a real mixer was asked under the switch")
+
     monkeypatch.setattr(soundmixer, "load_alsa", forbidden)
     monkeypatch.setattr(soundmixer, "Alsa", forbidden)
     mixer = SystemMixer()
     assert mixer.read("plughw:CARD=Device,DEV=0") == NONE and mixer.write("plughw:CARD=Device,DEV=0", 50, 50) == NONE
 
 
-def test_without_the_switch_the_system_mixer_is_alsa_on_linux_and_none_where_neither(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_without_the_switch_the_system_mixer_is_alsa_on_linux_and_none_where_neither(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("NEOAPRS_NO_DEVICES", raising=False)
     lib = FakeAlsa({"hw:Device": ftx1_card()})
     monkeypatch.setattr(soundmixer, "load_alsa", lambda: lib)
@@ -223,10 +272,12 @@ def test_without_the_switch_the_system_mixer_is_alsa_on_linux_and_none_where_nei
 def test_a_library_that_lacks_a_call_is_no_library_and_the_system_has_no_mixer(monkeypatch: pytest.MonkeyPatch) -> None:
     class Old:
         """An ALSA library as ctypes has it, without the call that sets a capture volume."""
+
         def __getattr__(self, name: str) -> Any:
             if name == "snd_mixer_selem_set_capture_volume_all":
                 raise AttributeError(f"undefined symbol: {name}")
             return type("Function", (), {})()
+
     monkeypatch.setattr(ctypes, "CDLL", lambda name: Old())
     assert LOAD_ALSA() is None
     monkeypatch.setattr(soundmixer, "load_alsa", LOAD_ALSA)

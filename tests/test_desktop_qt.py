@@ -1,6 +1,7 @@
 """Tests for the Qt shell with the real toolkit, headless (QT_QPA_PLATFORM=offscreen; skipped
 without PySide6-WebEngine): window title and size, hiding on close, page storage, external links,
 tray menu."""
+
 import contextlib
 import http.server
 import os
@@ -17,19 +18,19 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--no-sandbox --disable-gpu")
 pytest.importorskip("PySide6.QtWebEngineWidgets")
 
-from shiboken6 import delete  # noqa: E402
-from PySide6.QtCore import QEventLoop, QTimer, QUrl  # noqa: E402
-from PySide6.QtWebEngineCore import QWebEnginePage  # noqa: E402
-from PySide6.QtWidgets import QApplication, QSystemTrayIcon  # noqa: E402
+from shiboken6 import delete
+from PySide6.QtCore import QEventLoop, QTimer, QUrl
+from PySide6.QtWebEngineCore import QWebEnginePage
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
-from neoaprs.cli import opencmd  # noqa: E402
-from neoaprs.desktop import appstate, loading, qtshell  # noqa: E402
-from neoaprs.desktop.menu import AUTOSTART, QUIT, SUPPORT  # noqa: E402
-from neoaprs.desktop.qtwindow import AppWindow  # noqa: E402
-from neoaprs.desktop.session import NoPage, Opening, Session  # noqa: E402
-from neoaprs.desktop.shell import Launch, ShellContext  # noqa: E402
-from neoaprs.desktop.single import SingleApp  # noqa: E402
-from tests.test_desktop_logic import FakeAutoStart, FakeDaemon  # noqa: E402
+from neoaprs.cli import opencmd
+from neoaprs.desktop import appstate, loading, qtshell
+from neoaprs.desktop.menu import AUTOSTART, QUIT, SUPPORT
+from neoaprs.desktop.qtwindow import AppWindow
+from neoaprs.desktop.session import NoPage, Opening, Session
+from neoaprs.desktop.shell import Launch, ShellContext
+from neoaprs.desktop.single import SingleApp
+from tests.test_desktop_logic import FakeAutoStart, FakeDaemon
 from tests.support.httpthread import serve
 
 # (one worker: one process holds the Qt application, which a second one in the same run would
@@ -50,7 +51,7 @@ class Page(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(HTML)
 
-    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+    def log_message(self, format: str, *args: object) -> None:
         return None
 
 
@@ -101,7 +102,9 @@ class Rig:
     def __init__(self, data: Path, url: str, app: QApplication) -> None:
         self.data = data
         self.auto = FakeAutoStart()
-        self.ctx = ShellContext(Session(data, url, owned=False), False, True, self.auto, SingleApp(data), FakeDaemon(up=True))
+        self.ctx = ShellContext(
+            Session(data, url, owned=False), False, True, self.auto, SingleApp(data), FakeDaemon(up=True)
+        )
         self.built = qtshell.build(self.ctx, app)
         window = self.built.window
         assert window is not None
@@ -128,7 +131,10 @@ def test_the_window_has_its_title_the_default_size_and_shows_the_page(rig: Rig) 
     assert rig.window.windowTitle() == "NeoAPRS" and (rig.window.width(), rig.window.height()) == appstate.DEFAULT_SIZE
     assert evaluate(rig.window, "document.title") == "fake page"
     image = rig.window.view.grab().toImage()
-    assert image.width() > 0 and len({image.pixel(x, y) for x in range(0, image.width(), 40) for y in range(0, image.height(), 40)}) > 1, "something is drawn"
+    assert (
+        image.width() > 0
+        and len({image.pixel(x, y) for x in range(0, image.width(), 40) for y in range(0, image.height(), 40)}) > 1
+    ), "something is drawn"
 
 
 def test_the_page_keeps_what_it_stores_in_a_folder_of_the_data_folder(rig: Rig) -> None:
@@ -142,7 +148,9 @@ def test_the_page_in_the_window_can_tell_it_is_the_app(rig: Rig) -> None:
     assert evaluate(rig.window, "location.hash") == "#app"
 
 
-def test_a_navigation_to_the_page_stays_and_one_to_another_site_goes_to_the_browser(rig: Rig, page_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_navigation_to_the_page_stays_and_one_to_another_site_goes_to_the_browser(
+    rig: Rig, page_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     opened: list[str] = []
     monkeypatch.setattr("neoaprs.desktop.links.webbrowser.open", lambda url: opened.append(url) or True)
     page, link = rig.window.page, QWebEnginePage.NavigationType.NavigationTypeLinkClicked
@@ -157,13 +165,25 @@ def test_a_link_with_a_target_blank_opens_the_browser_and_no_window(rig: Rig, mo
     opened: list[str] = []
     monkeypatch.setattr("neoaprs.desktop.links.webbrowser.open", lambda url: opened.append(url) or True)
     new_page = rig.window.page.createWindow(QWebEnginePage.WebWindowType.WebBrowserTab)
-    assert new_page.acceptNavigationRequest(QUrl("https://www.qrz.com/db/OH2GBA"), QWebEnginePage.NavigationType.NavigationTypeTyped, True) is False
+    assert (
+        new_page.acceptNavigationRequest(
+            QUrl("https://www.qrz.com/db/OH2GBA"), QWebEnginePage.NavigationType.NavigationTypeTyped, True
+        )
+        is False
+    )
     assert opened == ["https://www.qrz.com/db/OH2GBA"]
-    assert new_page.acceptNavigationRequest(QUrl(rig.window.url + "x"), QWebEnginePage.NavigationType.NavigationTypeTyped, True) is False, "our own page in a new window is the window we have"
+    assert (
+        new_page.acceptNavigationRequest(
+            QUrl(rig.window.url + "x"), QWebEnginePage.NavigationType.NavigationTypeTyped, True
+        )
+        is False
+    ), "our own page in a new window is the window we have"
     assert rig.window.page.url().toString().startswith(rig.window.url)
 
 
-def test_a_click_on_the_links_of_the_page_reaches_the_browser_and_the_window_stays_where_it_is(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_click_on_the_links_of_the_page_reaches_the_browser_and_the_window_stays_where_it_is(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
     opened: list[str] = []
     monkeypatch.setattr("neoaprs.desktop.links.webbrowser.open", lambda url: opened.append(url) or True)
     reload(rig.window)
@@ -182,7 +202,9 @@ def test_closing_hides_the_window_and_remembers_its_size_and_place(rig: Rig) -> 
     assert appstate.load_window(rig.data) == appstate.WindowState(1000, 700, 30, 40, False)
 
 
-def test_a_window_left_maximized_is_remembered_so_with_the_size_and_place_it_goes_back_to_and_opens_maximized(rig: Rig, page_url: str, qapp: QApplication, tmp_path: Path) -> None:
+def test_a_window_left_maximized_is_remembered_so_with_the_size_and_place_it_goes_back_to_and_opens_maximized(
+    rig: Rig, page_url: str, qapp: QApplication, tmp_path: Path
+) -> None:
     rig.window.resize(1000, 700)
     rig.window.move(30, 40)
     rig.window.show()
@@ -194,9 +216,17 @@ def test_a_window_left_maximized_is_remembered_so_with_the_size_and_place_it_goe
     spin(lambda: not rig.window.isMaximized())
     # (a window of its own folder each: the engine lets one profile use a folder)
     for name, state, check in (
-        ("again", appstate.WindowState(1000, 700, 30, 40, True), lambda w: w.isMaximized() and (w.normalGeometry().width(), w.normalGeometry().height()) == (1000, 700)),
+        (
+            "again",
+            appstate.WindowState(1000, 700, 30, 40, True),
+            lambda w: w.isMaximized() and (w.normalGeometry().width(), w.normalGeometry().height()) == (1000, 700),
+        ),
         # a place on no screen is not used
-        ("elsewhere", appstate.WindowState(1000, 700, 29000, 29000), lambda w: not w.isMaximized() and (w.pos().x(), w.pos().y()) != (29000, 29000)),
+        (
+            "elsewhere",
+            appstate.WindowState(1000, 700, 29000, 29000),
+            lambda w: not w.isMaximized() and (w.pos().x(), w.pos().y()) != (29000, 29000),
+        ),
     ):
         folder = tmp_path / name
         folder.mkdir()
@@ -220,9 +250,9 @@ def test_closing_with_no_tray_to_bring_it_back_from_quits_the_app(rig: Rig) -> N
             return True
 
     quits: list[str] = []
-    rig.built.actions.run = quits.append                                   # type: ignore[method-assign]
-    assert qtshell.close_hides(Tray(), rig.built.actions) is True and quits == []      # type: ignore[arg-type]
-    assert qtshell.close_hides(NoTray(), rig.built.actions) is False and quits == [QUIT]       # type: ignore[arg-type]
+    rig.built.actions.run = quits.append  # type: ignore[method-assign]
+    assert qtshell.close_hides(Tray(), rig.built.actions) is True and quits == []  # type: ignore[arg-type]
+    assert qtshell.close_hides(NoTray(), rig.built.actions) is False and quits == [QUIT]  # type: ignore[arg-type]
 
 
 def test_the_window_is_raised_by_another_thread(rig: Rig) -> None:
@@ -246,7 +276,9 @@ def moved_to(rig: Rig, url: str) -> None:
     rig.window.view.loadFinished.disconnect(loaded.append)
 
 
-def test_a_page_that_the_daemon_serves_at_another_address_is_loaded_there_by_another_thread_and_is_the_windows_own_from_then_on(rig: Rig, page_url: str) -> None:
+def test_a_page_that_the_daemon_serves_at_another_address_is_loaded_there_by_another_thread_and_is_the_windows_own_from_then_on(
+    rig: Rig, page_url: str
+) -> None:
     """The daemon started again on another port: the watch's thread says so, and the window shows
     the page there, as its own (the address a navigation is judged against is the new one)."""
     elsewhere = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Page)
@@ -257,21 +289,29 @@ def test_a_page_that_the_daemon_serves_at_another_address_is_loaded_there_by_ano
         assert rig.window.url == moved and rig.window.page.page_url == moved and rig.built.actions.session.url == moved
         assert evaluate(rig.window, "document.title") == "fake page"
     finally:
-        moved_to(rig, page_url)                               # (and back, for the tests after this one)
+        moved_to(rig, page_url)  # (and back, for the tests after this one)
         elsewhere.shutdown()
     assert rig.window.url == page_url and rig.built.actions.session.url == page_url
 
 
 def test_the_tray_menu_is_made_from_the_actions_and_its_items_run_them(rig: Rig) -> None:
     ran: list[str] = []
-    rig.built.actions.run = ran.append                                     # type: ignore[method-assign]
+    rig.built.actions.run = ran.append  # type: ignore[method-assign]
     qtshell.fill_menu(rig.built)
-    assert [a.text() for a in rig.built.entries] == ["Open NeoAPRS", "Open in browser", "Start at sign-in", "Collect support logs", "Quit (NeoAPRS keeps running as a service)"]
+    assert [a.text() for a in rig.built.entries] == [
+        "Open NeoAPRS",
+        "Open in browser",
+        "Start at sign-in",
+        "Collect support logs",
+        "Quit (NeoAPRS keeps running as a service)",
+    ]
     box = rig.built.entries[2]
     assert box.isCheckable() and not box.isChecked() and not rig.built.entries[0].isCheckable()
     rig.auto.on = True
     qtshell.fill_menu(rig.built)
-    assert rig.built.entries[2].isChecked(), "the menu is made again when it is shown: the box is what the system says now"
+    assert rig.built.entries[2].isChecked(), (
+        "the menu is made again when it is shown: the box is what the system says now"
+    )
     rig.built.entries[2].trigger()
     rig.built.entries[3].trigger()
     rig.built.entries[4].trigger()
@@ -279,17 +319,37 @@ def test_the_tray_menu_is_made_from_the_actions_and_its_items_run_them(rig: Rig)
 
 
 def test_without_the_web_engine_window_there_is_a_tray_and_no_window(tmp_path: Path, qapp: QApplication) -> None:
-    ctx = ShellContext(Session(tmp_path, "http://127.0.0.1:7303/", owned=False), False, False, None, SingleApp(tmp_path), FakeDaemon(up=True))
+    ctx = ShellContext(
+        Session(tmp_path, "http://127.0.0.1:7303/", owned=False),
+        False,
+        False,
+        None,
+        SingleApp(tmp_path),
+        FakeDaemon(up=True),
+    )
     built = qtshell.build(ctx, qapp)
     assert built.window is None and not built.frame.has_window and built.tray is not None
     qtshell.fill_menu(built)
-    assert [a.text() for a in built.entries] == ["Open NeoAPRS", "Collect support logs", "Quit (NeoAPRS keeps running as a service)"]
+    assert [a.text() for a in built.entries] == [
+        "Open NeoAPRS",
+        "Collect support logs",
+        "Quit (NeoAPRS keeps running as a service)",
+    ]
 
 
-def test_a_message_for_the_user_goes_to_the_log_where_there_is_no_tray_to_show_it(tmp_path: Path, qapp: QApplication, caplog: pytest.LogCaptureFixture) -> None:
-    ctx = ShellContext(Session(tmp_path, "http://127.0.0.1:7303/", owned=False), False, False, None, SingleApp(tmp_path), FakeDaemon(up=True))
+def test_a_message_for_the_user_goes_to_the_log_where_there_is_no_tray_to_show_it(
+    tmp_path: Path, qapp: QApplication, caplog: pytest.LogCaptureFixture
+) -> None:
+    ctx = ShellContext(
+        Session(tmp_path, "http://127.0.0.1:7303/", owned=False),
+        False,
+        False,
+        None,
+        SingleApp(tmp_path),
+        FakeDaemon(up=True),
+    )
     built = qtshell.build(ctx, qapp)
-    assert not built.tray.isVisible()                                       # (the offscreen platform has no tray)
+    assert not built.tray.isVisible()  # (the offscreen platform has no tray)
     with caplog.at_level("WARNING", "neoaprs.desktop"):
         built.frame.tell("the daemon was started")
     assert [r.getMessage() for r in caplog.records] == ["the daemon was started"]
@@ -303,16 +363,28 @@ def test_quitting_remembers_the_size_of_the_window_and_ends_the_app(rig: Rig, mo
     rig.window.resize(1111, 666)
     rig.built.frame.quit()
     rig.window.hide()
-    assert ended == [True] and (appstate.load_window(rig.data).width, appstate.load_window(rig.data).height) == (1111, 666)
+    assert ended == [True] and (appstate.load_window(rig.data).width, appstate.load_window(rig.data).height) == (
+        1111,
+        666,
+    )
 
 
-def test_where_no_tray_comes_the_window_is_shown_when_the_wait_is_over(tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_where_no_tray_comes_the_window_is_shown_when_the_wait_is_over(
+    tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     monkeypatch.setattr(qtshell, "TRAY_WAIT_SEC", 0.06)
     monkeypatch.setattr(qtshell, "TRAY_POLL_MS", 20)
-    ctx = ShellContext(Session(tmp_path, "http://127.0.0.1:7303/", owned=False), False, False, None, SingleApp(tmp_path), FakeDaemon(up=True))
+    ctx = ShellContext(
+        Session(tmp_path, "http://127.0.0.1:7303/", owned=False),
+        False,
+        False,
+        None,
+        SingleApp(tmp_path),
+        FakeDaemon(up=True),
+    )
     built = qtshell.build(ctx, qapp)
     shown: list[bool] = []
-    built.actions.show = lambda: shown.append(True)                         # type: ignore[method-assign]
+    built.actions.show = lambda: shown.append(True)  # type: ignore[method-assign]
     with caplog.at_level("WARNING", "neoaprs.desktop"):
         qtshell.await_tray(built, built.tray)
         spin(lambda: shown)
@@ -325,6 +397,7 @@ def test_the_app_that_runs_is_the_one_the_shell_uses(qapp: QApplication) -> None
 
 # ---- the start: the window with the loading page before the daemon answers, its page after, and no
 # page
+
 
 def gone(windows: list[AppWindow], qapp: QApplication) -> None:
     """The windows a run made are deleted (Qt's quit of a later test would close them, and a window
@@ -356,7 +429,9 @@ def app_loop(monkeypatch: pytest.MonkeyPatch, seconds: float = 60.0) -> Iterator
         timer.stop()
 
 
-def test_the_window_shows_the_loading_page_before_the_daemon_answers_and_then_its_page(tmp_path: Path, qapp: QApplication, page_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_window_shows_the_loading_page_before_the_daemon_answers_and_then_its_page(
+    tmp_path: Path, qapp: QApplication, page_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     gate = threading.Event()
     opening = Opening(tmp_path, lambda: (gate.wait(30), Session(tmp_path, page_url, owned=False))[1]).start()
     launch = Launch(tmp_path, opening, False, True, FakeAutoStart(), SingleApp(tmp_path), FakeDaemon(up=True))
@@ -377,7 +452,8 @@ def test_the_window_shows_the_loading_page_before_the_daemon_answers_and_then_it
                 QTimer.singleShot(0, QApplication.quit)
             elif not gate.is_set():
                 seen.append(("loading", (window.view.grab().toImage().pixelColor(8, 8).name(), opening.done())))
-                gate.set()                                                   # the daemon answers only now
+                gate.set()  # the daemon answers only now
+
         window.view.loadFinished.connect(finished)
         return window
 
@@ -391,11 +467,15 @@ def test_the_window_shows_the_loading_page_before_the_daemon_answers_and_then_it
             gone(windows, qapp)
     assert [name for name, _ in seen] == ["window", "loading", "tray", "page"]
     assert seen[0][1] == (True, False), "the window is up while the daemon is not"
-    assert seen[1][1] in {(colour, False) for colour in loading.BACKGROUND.values()}, "the loading page, on the page's background, while the daemon is not up"
+    assert seen[1][1] in {(colour, False) for colour in loading.BACKGROUND.values()}, (
+        "the loading page, on the page's background, while the daemon is not up"
+    )
     assert seen[3][1] == page_url + "#app"
 
 
-def test_when_no_page_comes_the_window_closes_and_the_app_says_why(tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_when_no_page_comes_the_window_closes_and_the_app_says_why(
+    tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch
+) -> None:
     def no_page() -> Session:
         raise NoPage(f"no page came up on {tmp_path} within 60 s; see the log, neoaprs.log in that folder")
 
@@ -406,17 +486,25 @@ def test_when_no_page_comes_the_window_closes_and_the_app_says_why(tmp_path: Pat
     disposed: list[bool] = []
     windows: list[AppWindow] = []
     dispose = AppWindow.dispose
-    monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.dispose", lambda self: (disposed.append(not self.isVisible()), windows.append(self), dispose(self)))
-    launch = Launch(tmp_path, Opening(tmp_path, no_page).start(), False, True, FakeAutoStart(), single, FakeDaemon(up=True))
+    monkeypatch.setattr(
+        "neoaprs.desktop.qtwindow.AppWindow.dispose",
+        lambda self: (disposed.append(not self.isVisible()), windows.append(self), dispose(self)),
+    )
+    launch = Launch(
+        tmp_path, Opening(tmp_path, no_page).start(), False, True, FakeAutoStart(), single, FakeDaemon(up=True)
+    )
     with app_loop(monkeypatch):
         assert qtshell.run(launch) == 1
     gone(windows, qapp)
-    assert disposed == [True] and told == [f"app: NeoAPRS did not come up: no page came up on {tmp_path} within 60 s; see the log, neoaprs.log in that folder. The log is {tmp_path / 'neoaprs.log'}"]
+    assert disposed == [True] and told == [
+        f"app: NeoAPRS did not come up: no page came up on {tmp_path} within 60 s; see the log, neoaprs.log in that folder. The log is {tmp_path / 'neoaprs.log'}"
+    ]
     assert not SingleApp(tmp_path).running()
 
 
 # ---- the edges: the shell that runs, a tray that comes late, a message to a tray, and a frame with
 # no window
+
 
 class FakeTray:
     """What the shell asks of a tray icon: whether it shows, to show it, and a message."""
@@ -452,12 +540,16 @@ class Ran:
 
 
 def context(data: Path, url: str, window: bool, hidden: bool, ran: Ran) -> ShellContext:
-    ctx = ShellContext(Session(data, url, owned=False), hidden, window, FakeAutoStart(), SingleApp(data), FakeDaemon(up=True))
-    ctx.ready = ran.ready.append                                             # type: ignore[method-assign]
+    ctx = ShellContext(
+        Session(data, url, owned=False), hidden, window, FakeAutoStart(), SingleApp(data), FakeDaemon(up=True)
+    )
+    ctx.ready = ran.ready.append  # type: ignore[method-assign]
     return ctx
 
 
-def test_the_shell_with_a_window_and_a_tray_loads_the_page_raises_the_window_and_ends_with_the_code_of_the_app(tmp_path: Path, qapp: QApplication, page_url: str, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_the_shell_with_a_window_and_a_tray_loads_the_page_raises_the_window_and_ends_with_the_code_of_the_app(
+    tmp_path: Path, qapp: QApplication, page_url: str, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     ran = Ran(monkeypatch, tray_available=True)
     ctx = context(tmp_path, page_url, window=True, hidden=False, ran=ran)
     shown: list[bool] = []
@@ -465,35 +557,54 @@ def test_the_shell_with_a_window_and_a_tray_loads_the_page_raises_the_window_and
     monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.load", lambda self, url=None: shown.append(False))
     disposed: list[bool] = []
     dispose = AppWindow.dispose
-    monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.dispose", lambda self: (disposed.append(True), dispose(self)))
+    monkeypatch.setattr(
+        "neoaprs.desktop.qtwindow.AppWindow.dispose", lambda self: (disposed.append(True), dispose(self))
+    )
     with caplog.at_level("INFO", "neoaprs.desktop"):
         assert qtshell.run(Launch.of(ctx)) == 7
-    assert shown == [True, False] and disposed == [True] and len(ran.waited) == 1 and len(ran.ready) == 1 and ran.opened == []
+    assert (
+        shown == [True, False]
+        and disposed == [True]
+        and len(ran.waited) == 1
+        and len(ran.ready) == 1
+        and ran.opened == []
+    )
     assert "the Qt shell runs (window and tray)" in caplog.text
 
 
-def test_a_shell_started_hidden_does_not_raise_the_window(tmp_path: Path, qapp: QApplication, page_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_shell_started_hidden_does_not_raise_the_window(
+    tmp_path: Path, qapp: QApplication, page_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     ran = Ran(monkeypatch, tray_available=True)
     ctx = context(tmp_path, page_url, window=True, hidden=True, ran=ran)
     shown: list[str] = []
     monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.raise_up", lambda self: shown.append("raised"))
     monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.load", lambda self, url=None: shown.append("loaded"))
     dispose = AppWindow.dispose
-    monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.dispose", lambda self: (shown.append("disposed"), dispose(self)))
+    monkeypatch.setattr(
+        "neoaprs.desktop.qtwindow.AppWindow.dispose", lambda self: (shown.append("disposed"), dispose(self))
+    )
     assert qtshell.run(Launch.of(ctx)) == 7
     assert shown == ["loaded", "disposed"]
 
 
-def test_the_shell_with_a_tray_and_no_window_opens_the_page_in_the_browser_unless_it_starts_hidden(tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_the_shell_with_a_tray_and_no_window_opens_the_page_in_the_browser_unless_it_starts_hidden(
+    tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     ran = Ran(monkeypatch, tray_available=True)
     with caplog.at_level("INFO", "neoaprs.desktop"):
-        assert qtshell.run(Launch.of(context(tmp_path, "http://127.0.0.1:7303/", window=False, hidden=False, ran=ran))) == 7
+        assert (
+            qtshell.run(Launch.of(context(tmp_path, "http://127.0.0.1:7303/", window=False, hidden=False, ran=ran)))
+            == 7
+        )
     assert ran.opened == ["http://127.0.0.1:7303/"] and "tray only" in caplog.text
     assert qtshell.run(Launch.of(context(tmp_path, "http://127.0.0.1:7303/", window=False, hidden=True, ran=ran))) == 7
     assert ran.opened == ["http://127.0.0.1:7303/"], "(started hidden: nothing is opened)"
 
 
-def test_a_window_closed_while_it_loads_on_a_desktop_with_no_tray_ends_the_app_once_the_session_is_there(tmp_path: Path, qapp: QApplication, page_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_window_closed_while_it_loads_on_a_desktop_with_no_tray_ends_the_app_once_the_session_is_there(
+    tmp_path: Path, qapp: QApplication, page_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     ran = Ran(monkeypatch, tray_available=False)
     ctx = context(tmp_path, page_url, window=True, hidden=False, ran=ran)
     monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.raise_up", lambda self: None)
@@ -505,7 +616,9 @@ def test_a_window_closed_while_it_loads_on_a_desktop_with_no_tray_ends_the_app_o
     asked: list[str] = []
     monkeypatch.setattr("neoaprs.desktop.menu.AppActions.run", lambda self, key: asked.append(key))
     assert qtshell.run(Launch.of(ctx)) == 7
-    assert asked == [QUIT] and ran.waited == [] and ran.ready == [], "the app ends (its daemon too, if it started it), no tray is waited for and the window does not come back"
+    assert asked == [QUIT] and ran.waited == [] and ran.ready == [], (
+        "the app ends (its daemon too, if it started it), no tray is waited for and the window does not come back"
+    )
 
 
 def test_a_window_closed_while_it_loads_hides_where_the_desktop_has_a_tray(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -516,47 +629,85 @@ def test_a_window_closed_while_it_loads_hides_where_the_desktop_has_a_tray(monke
     assert qtshell.close_while_loading(closed) is False and closed == [True]
 
 
-def test_a_desktop_with_no_tray_and_no_web_engine_has_nothing_to_show_and_the_shell_says_so(tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_desktop_with_no_tray_and_no_web_engine_has_nothing_to_show_and_the_shell_says_so(
+    tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch
+) -> None:
     ran = Ran(monkeypatch, tray_available=False)
     with pytest.raises(RuntimeError, match="no system tray and the web engine is not installed"):
         qtshell.run(Launch.of(context(tmp_path, "http://127.0.0.1:7303/", window=False, hidden=False, ran=ran)))
     assert ran.ready == [] and ran.waited == []
 
 
-def test_a_tray_that_the_desktop_has_is_shown_at_once(tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_tray_that_the_desktop_has_is_shown_at_once(
+    tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(QSystemTrayIcon, "isSystemTrayAvailable", staticmethod(lambda: True))
-    ctx = ShellContext(Session(tmp_path, "http://127.0.0.1:7303/", owned=False), False, False, None, SingleApp(tmp_path), FakeDaemon(up=True))
+    ctx = ShellContext(
+        Session(tmp_path, "http://127.0.0.1:7303/", owned=False),
+        False,
+        False,
+        None,
+        SingleApp(tmp_path),
+        FakeDaemon(up=True),
+    )
     built = qtshell.build(ctx, qapp)
     tray = FakeTray(visible=False)
-    qtshell.await_tray(built, tray)                                          # type: ignore[arg-type]
+    qtshell.await_tray(built, tray)  # type: ignore[arg-type]
     assert tray.shown == 1 and built.tray_timer is None
 
 
-def test_a_tray_that_comes_up_while_it_is_waited_for_is_shown_and_the_wait_ends(tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_tray_that_comes_up_while_it_is_waited_for_is_shown_and_the_wait_ends(
+    tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(qtshell, "TRAY_POLL_MS", 20)
     asked: list[bool] = []
-    monkeypatch.setattr(QSystemTrayIcon, "isSystemTrayAvailable", staticmethod(lambda: asked.append(True) or len(asked) >= 4))
-    ctx = ShellContext(Session(tmp_path, "http://127.0.0.1:7303/", owned=False), False, False, None, SingleApp(tmp_path), FakeDaemon(up=True))
+    monkeypatch.setattr(
+        QSystemTrayIcon, "isSystemTrayAvailable", staticmethod(lambda: asked.append(True) or len(asked) >= 4)
+    )
+    ctx = ShellContext(
+        Session(tmp_path, "http://127.0.0.1:7303/", owned=False),
+        False,
+        False,
+        None,
+        SingleApp(tmp_path),
+        FakeDaemon(up=True),
+    )
     built = qtshell.build(ctx, qapp)
     tray = FakeTray(visible=False)
-    qtshell.await_tray(built, tray)                                          # type: ignore[arg-type]
+    qtshell.await_tray(built, tray)  # type: ignore[arg-type]
     spin(lambda: tray.shown)
     assert tray.shown == 1 and built.tray_timer is not None and not built.tray_timer.isActive()
 
 
 def test_a_message_goes_to_the_tray_where_there_is_one_to_show_it(tmp_path: Path, qapp: QApplication) -> None:
-    ctx = ShellContext(Session(tmp_path, "http://127.0.0.1:7303/", owned=False), False, False, None, SingleApp(tmp_path), FakeDaemon(up=True))
+    ctx = ShellContext(
+        Session(tmp_path, "http://127.0.0.1:7303/", owned=False),
+        False,
+        False,
+        None,
+        SingleApp(tmp_path),
+        FakeDaemon(up=True),
+    )
     built = qtshell.build(ctx, qapp)
     tray = FakeTray()
-    built.frame.tray = tray                                                  # type: ignore[assignment]
+    built.frame.tray = tray  # type: ignore[assignment]
     built.frame._tell("the daemon was started")
     assert tray.messages == [("NeoAPRS", "the daemon was started")]
 
 
-def test_a_frame_with_no_window_has_nothing_to_raise_and_nothing_to_remember_when_the_app_quits(tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_frame_with_no_window_has_nothing_to_raise_and_nothing_to_remember_when_the_app_quits(
+    tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch
+) -> None:
     ended: list[bool] = []
     monkeypatch.setattr(QApplication, "quit", staticmethod(lambda: ended.append(True)))
-    ctx = ShellContext(Session(tmp_path, "http://127.0.0.1:7303/", owned=False), False, False, None, SingleApp(tmp_path), FakeDaemon(up=True))
+    ctx = ShellContext(
+        Session(tmp_path, "http://127.0.0.1:7303/", owned=False),
+        False,
+        False,
+        None,
+        SingleApp(tmp_path),
+        FakeDaemon(up=True),
+    )
     frame = qtshell.build(ctx, qapp).frame
     frame._show()
     frame._quit()

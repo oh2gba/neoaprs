@@ -2,6 +2,7 @@
 device and talks to no real service, whatever its settings say. tests/conftest.py sets the variable
 for every process a test starts and lifts the switch in the test's own process.
 """
+
 import asyncio
 import errno
 import logging
@@ -21,7 +22,19 @@ from typing import Any
 import pytest
 import serial.tools.list_ports  # type: ignore[import-untyped]
 
-from neoaprs import btpaired, direwolf, dummyline, mercury, mercurymodem, nodevices, pmtilesarchive, pmtilescut, serialprobe, updatedownload, updatefetch
+from neoaprs import (
+    btpaired,
+    direwolf,
+    dummyline,
+    mercury,
+    mercurymodem,
+    nodevices,
+    pmtilesarchive,
+    pmtilescut,
+    serialprobe,
+    updatedownload,
+    updatefetch,
+)
 from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND
 from neoaprs.claims import Claims
 from neoaprs.config import Config
@@ -52,19 +65,27 @@ from tests.support.ptyline import Ptys, heard, held_by_a_program, posix_only
 from tests.support.rangeserver import range_server
 from tests.support.storedb import store_at
 
-NO_OVERRIDES = RunOverrides()                   # a run that was given nothing of its own
+NO_OVERRIDES = RunOverrides()  # a run that was given nothing of its own
 LOCAL = ("127.0.0.1", "::1", "localhost")
 # A documentation address: no computer has it (so a door that this file found open would still have
 # reached nobody)
 ELSEWHERE = "192.0.2.7"
-REFUSED = os.strerror(errno.ECONNREFUSED)        # "Connection refused", in the system's words
+REFUSED = os.strerror(errno.ECONNREFUSED)  # "Connection refused", in the system's words
 # The longest a test waits for a daemon it started as a process, on a machine busy with the whole
 # suite
 PATIENCE_SEC = 60.0
 # How the line at the start of the daemon ends
 SAYS_THE_VALUE = "(the variable is {!r}: every value but an empty one and 0 sets it)"
-STARTS_A_DAEMON = {"scripts/smoke.py", "scripts/screenshots.py", "scripts/demoscene.py", "scripts/smoke-appimage", "scripts/smoke-macos-app", "scripts/check", "scripts/check-in-container"}
-WITHOUT_THE_SWITCH: set[str] = set()                 # what starts daemons and does not set the switch for them
+STARTS_A_DAEMON = {
+    "scripts/smoke.py",
+    "scripts/screenshots.py",
+    "scripts/demoscene.py",
+    "scripts/smoke-appimage",
+    "scripts/smoke-macos-app",
+    "scripts/check",
+    "scripts/check-in-container",
+}
+WITHOUT_THE_SWITCH: set[str] = set()  # what starts daemons and does not set the switch for them
 
 
 @pytest.fixture
@@ -84,16 +105,24 @@ class Doors:
     def __init__(self, patch: Callable[[Any, str, Any], None]) -> None:
         # What os.open was given (pyserial opens a device with it), with every link followed
         self.opened: list[str] = []
-        self.started: list[str] = []                # the programs started
-        self.connected: list[str] = []              # the hosts sockets were connected to
-        self.ports: list[int] = []                  # ... and the port of each
-        self.looked_up: list[str] = []              # the names asked of the resolver
-        self.bluetooth = 0                          # Bluetooth sockets made
-        self.listed: list[str] = []                 # what the machine was asked to list
-        self._pairing = threading.local()           # (whether this thread is inside socket.socketpair)
+        self.started: list[str] = []  # the programs started
+        self.connected: list[str] = []  # the hosts sockets were connected to
+        self.ports: list[int] = []  # ... and the port of each
+        self.looked_up: list[str] = []  # the names asked of the resolver
+        self.bluetooth = 0  # Bluetooth sockets made
+        self.listed: list[str] = []  # what the machine was asked to list
+        self._pairing = threading.local()  # (whether this thread is inside socket.socketpair)
         real_pair = socket.socketpair
         real_open, real_popen, real_connect, real_connect_ex, real_lookup, real_socket, real_ports, real_paired = (
-            os.open, subprocess.Popen.__init__, socket.socket.connect, socket.socket.connect_ex, socket.getaddrinfo, socket.socket.__init__, serial.tools.list_ports.comports, btpaired._run)
+            os.open,
+            subprocess.Popen.__init__,
+            socket.socket.connect,
+            socket.socket.connect_ex,
+            socket.getaddrinfo,
+            socket.socket.__init__,
+            serial.tools.list_ports.comports,
+            btpaired._run,
+        )
 
         def opening(path: Any, *args: Any, **kwargs: Any) -> int:
             if isinstance(path, (str, bytes, os.PathLike)):
@@ -136,12 +165,26 @@ class Doors:
             self.listed.append("the paired Bluetooth devices")
             return str(real_paired(command))
 
-        for owner, name, watched in ((os, "open", opening), (subprocess.Popen, "__init__", starting), (socket.socket, "connect", connecting), (socket.socket, "connect_ex", connecting_ex),
-                                     (socket, "getaddrinfo", looking_up), (socket, "socketpair", pairing), (socket.socket, "__init__", making), (serial.tools.list_ports, "comports", ports), (btpaired, "_run", paired)):
+        for owner, name, watched in (
+            (os, "open", opening),
+            (subprocess.Popen, "__init__", starting),
+            (socket.socket, "connect", connecting),
+            (socket.socket, "connect_ex", connecting_ex),
+            (socket, "getaddrinfo", looking_up),
+            (socket, "socketpair", pairing),
+            (socket.socket, "__init__", making),
+            (serial.tools.list_ports, "comports", ports),
+            (btpaired, "_run", paired),
+        ):
             patch(owner, name, watched)
 
     def _note(self, address: Any) -> None:
-        if isinstance(address, tuple) and len(address) > 1 and isinstance(address[0], str) and not getattr(self._pairing, "inside", False):
+        if (
+            isinstance(address, tuple)
+            and len(address) > 1
+            and isinstance(address[0], str)
+            and not getattr(self._pairing, "inside", False)
+        ):
             self.connected.append(address[0])
             self.ports.append(int(address[1]))
 
@@ -149,7 +192,9 @@ class Doors:
     def left_this_computer(self) -> list[str]:
         """Every host connected to or looked up that is not this computer (the page also listens on
         127.0.1.1 on Debian)."""
-        return [host for host in self.connected + self.looked_up if host not in LOCAL and not nodevices.this_computer(host)]
+        return [
+            host for host in self.connected + self.looked_up if host not in LOCAL and not nodevices.this_computer(host)
+        ]
 
     def untouched(self) -> bool:
         """No program was started, nothing left this computer, no Bluetooth socket was made and the
@@ -169,18 +214,29 @@ def said(caplog: pytest.LogCaptureFixture) -> list[tuple[int, str]]:
 
 # ---- the switch
 
+
 def test_the_suite_has_the_switch_in_the_environment_and_lifts_it_in_the_tests_own_process() -> None:
-    assert os.environ[nodevices.ENV] == "1" and not nodevices.on(), "tests/conftest.py: set for the processes a test starts, lifted here"
+    assert os.environ[nodevices.ENV] == "1" and not nodevices.on(), (
+        "tests/conftest.py: set for the processes a test starts, lifted here"
+    )
     asks = [sys.executable, "-c", "from neoaprs import nodevices; print(nodevices.on())"]
     child = subprocess.run(asks, cwd=ROOT, capture_output=True, text=True, timeout=60)
     assert child.stdout.strip() == "True", child
-    mistyped = subprocess.run(asks, cwd=ROOT, env={**os.environ, nodevices.ENV: "ture"}, capture_output=True, text=True, timeout=60)
+    mistyped = subprocess.run(
+        asks, cwd=ROOT, env={**os.environ, nodevices.ENV: "ture"}, capture_output=True, text=True, timeout=60
+    )
     assert mistyped.stdout.strip() == "True", "a process whose switch was mistyped is under it all the same"
-    assert nodevices.sets(realmercury.daemon_env().get(nodevices.ENV)), "the environment the harness builds for the daemon of a bench keeps the switch of the suite"
+    assert nodevices.sets(realmercury.daemon_env().get(nodevices.ENV)), (
+        "the environment the harness builds for the daemon of a bench keeps the switch of the suite"
+    )
 
 
-@pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "on", " 1", "01", "2", "ture", "false", "no", "off", "0.0"])
-def test_the_switch_is_on_for_every_value_but_nothing_and_0_and_the_start_line_names_the_value(value: str, under_the_switch: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+@pytest.mark.parametrize(
+    "value", ["1", "true", "TRUE", "yes", "on", " 1", "01", "2", "ture", "false", "no", "off", "0.0"]
+)
+def test_the_switch_is_on_for_every_value_but_nothing_and_0_and_the_start_line_names_the_value(
+    value: str, under_the_switch: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     """It fails safe: `true`, a typo, and a word that was meant to switch it off all keep the doors
     shut, and the log shows which value did."""
     caplog.set_level(logging.DEBUG, logger="neoaprs")
@@ -192,11 +248,17 @@ def test_the_switch_is_on_for_every_value_but_nothing_and_0_and_the_start_line_n
     with pytest.raises(ConnectionRefusedError):
         nodevices.check_host("rotate.aprs2.net", "APRS-IS")
     [(level, line)] = said(caplog)[:1]
-    assert level == logging.INFO and line.startswith("NEOAPRS_NO_DEVICES is set: no serial port") and line.endswith(SAYS_THE_VALUE.format(value))
+    assert (
+        level == logging.INFO
+        and line.startswith("NEOAPRS_NO_DEVICES is set: no serial port")
+        and line.endswith(SAYS_THE_VALUE.format(value))
+    )
 
 
 @pytest.mark.parametrize("value", ["", "0", " 0 ", "  ", None])
-def test_the_switch_is_off_for_nothing_and_for_0(value: str | None, under_the_switch: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_the_switch_is_off_for_nothing_and_for_0(
+    value: str | None, under_the_switch: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     if value is None:
         monkeypatch.delenv(nodevices.ENV)
@@ -217,7 +279,11 @@ def gives(path: Path, variable: str, value: str) -> bool:
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     # A script without an ending is known by its first line
     python = path.suffix == ".py" or "python" in "".join(lines[:1])
-    form = rf'"{variable}"\]\s*=\s*"{value}"|"{variable}":\s*"{value}"|\b{variable}="{value}"' if python else rf"(?:^|\s){variable}={value}(?:\s|$)"
+    form = (
+        rf'"{variable}"\]\s*=\s*"{value}"|"{variable}":\s*"{value}"|\b{variable}="{value}"'
+        if python
+        else rf"(?:^|\s){variable}={value}(?:\s|$)"
+    )
     return any(re.search(form, line.split("#", 1)[0]) for line in lines)
 
 
@@ -227,13 +293,35 @@ def test_a_line_of_code_sets_a_variable_and_a_comment_a_docstring_or_another_val
         return tmp_path / name
 
     python, shell = "#!/usr/bin/env python3\n", "#!/usr/bin/env bash\n"
-    for text in ('env["NEOAPRS_NO_DEVICES"] = "1"      # (why)\n', 'os.environ["NEOAPRS_NO_DEVICES"] = "1"\n', 'ENVIRONMENT = {"UV_FROZEN": "1", "NEOAPRS_NO_DEVICES": "1"}\n', 'env.update(NEOAPRS_UPDATE_CHECK="0", NEOAPRS_NO_DEVICES="1")\n'):
-        assert gives(file(python + text), nodevices.ENV, "1") and gives(file(text, "script.py"), nodevices.ENV, "1"), text
-    for text in ("export NEOAPRS_NO_DEVICES=1    # why\n", '    env -u PYTHONPATH NEOAPRS_NO_DEVICES=1 NEOAPRS_UPDATE_CHECK=0 "$python" scripts/smoke.py\n'):
+    for text in (
+        'env["NEOAPRS_NO_DEVICES"] = "1"      # (why)\n',
+        'os.environ["NEOAPRS_NO_DEVICES"] = "1"\n',
+        'ENVIRONMENT = {"UV_FROZEN": "1", "NEOAPRS_NO_DEVICES": "1"}\n',
+        'env.update(NEOAPRS_UPDATE_CHECK="0", NEOAPRS_NO_DEVICES="1")\n',
+    ):
+        assert gives(file(python + text), nodevices.ENV, "1") and gives(file(text, "script.py"), nodevices.ENV, "1"), (
+            text
+        )
+    for text in (
+        "export NEOAPRS_NO_DEVICES=1    # why\n",
+        '    env -u PYTHONPATH NEOAPRS_NO_DEVICES=1 NEOAPRS_UPDATE_CHECK=0 "$python" scripts/smoke.py\n',
+    ):
         assert gives(file(shell + text), nodevices.ENV, "1"), text
-    for text in ('# env["NEOAPRS_NO_DEVICES"] = "1"\n', '"""Inside, NEOAPRS_NO_DEVICES=1 is set."""\n', 'env["NEOAPRS_NO_DEVICES"] = "0"\n', 'DEVICES_VARIABLE = "NEOAPRS_NO_DEVICES"\n', 'env.pop("NEOAPRS_NO_DEVICES", None)\n'):
+    for text in (
+        '# env["NEOAPRS_NO_DEVICES"] = "1"\n',
+        '"""Inside, NEOAPRS_NO_DEVICES=1 is set."""\n',
+        'env["NEOAPRS_NO_DEVICES"] = "0"\n',
+        'DEVICES_VARIABLE = "NEOAPRS_NO_DEVICES"\n',
+        'env.pop("NEOAPRS_NO_DEVICES", None)\n',
+    ):
         assert not gives(file(python + text), nodevices.ENV, "1"), text
-    for text in ("# export NEOAPRS_NO_DEVICES=1\n", "export NEOAPRS_NO_DEVICES=0\n", "export NEOAPRS_NO_DEVICES=10\n", 'echo "devices=${NEOAPRS_NO_DEVICES-unset}"\n', "unset NEOAPRS_NO_DEVICES\n"):
+    for text in (
+        "# export NEOAPRS_NO_DEVICES=1\n",
+        "export NEOAPRS_NO_DEVICES=0\n",
+        "export NEOAPRS_NO_DEVICES=10\n",
+        'echo "devices=${NEOAPRS_NO_DEVICES-unset}"\n',
+        "unset NEOAPRS_NO_DEVICES\n",
+    ):
         assert not gives(file(shell + text), nodevices.ENV, "1"), text
 
 
@@ -241,35 +329,97 @@ def test_every_script_and_part_of_the_harness_that_starts_a_daemon_sets_the_swit
     """Whatever starts a daemon tells it not to ask the version page (NEOAPRS_UPDATE_CHECK=0), which
     is how the starters are found; the files are read because the daemon inherits the switch anyway.
     """
-    files = [p for p in sorted((ROOT / "scripts").iterdir()) if p.is_file()] + sorted((ROOT / "tests" / "support").glob("*.py"))
+    files = [p for p in sorted((ROOT / "scripts").iterdir()) if p.is_file()] + sorted(
+        (ROOT / "tests" / "support").glob("*.py")
+    )
     starters = {p.relative_to(ROOT).as_posix() for p in files if gives(p, "NEOAPRS_UPDATE_CHECK", "0")}
     assert STARTS_A_DAEMON <= starters, "the rule finds the scripts that are known to start a daemon"
     without = {name for name in starters if not gives(ROOT / name, nodevices.ENV, "1")}
-    assert without == WITHOUT_THE_SWITCH, "a script that starts a daemon without NEOAPRS_NO_DEVICES=1 (or one of WITHOUT_THE_SWITCH that sets it now and is to leave the list)"
+    assert without == WITHOUT_THE_SWITCH, (
+        "a script that starts a daemon without NEOAPRS_NO_DEVICES=1 (or one of WITHOUT_THE_SWITCH that sets it now and is to leave the list)"
+    )
 
 
-@pytest.mark.parametrize("host", ["localhost", "LOCALHOST", "localhost.", "127.0.0.1", "127.9.8.7", "::1", "[::1]", "::ffff:127.0.0.1", "::1%lo", "", " 127.0.0.1 "])
+@pytest.mark.parametrize(
+    "host",
+    [
+        "localhost",
+        "LOCALHOST",
+        "localhost.",
+        "127.0.0.1",
+        "127.9.8.7",
+        "::1",
+        "[::1]",
+        "::ffff:127.0.0.1",
+        "::1%lo",
+        "",
+        " 127.0.0.1 ",
+    ],
+)
 def test_this_computer_is_localhost_and_the_loopback(host: str) -> None:
     assert nodevices.this_computer(host)
 
 
-@pytest.mark.parametrize("host", ["rotate.aprs2.net", "neo.oh2gba.eu", "192.168.1.20", "10.0.0.1", ELSEWHERE, "0.0.0.0", "::", "fe80::1%eth0", "127.0.0.1.example.org", "localhost.example.org", "2130706433", "127.1", "my-own-hostname"])
+@pytest.mark.parametrize(
+    "host",
+    [
+        "rotate.aprs2.net",
+        "neo.oh2gba.eu",
+        "192.168.1.20",
+        "10.0.0.1",
+        ELSEWHERE,
+        "0.0.0.0",
+        "::",
+        "fe80::1%eth0",
+        "127.0.0.1.example.org",
+        "localhost.example.org",
+        "2130706433",
+        "127.1",
+        "my-own-hostname",
+    ],
+)
 def test_any_other_name_or_address_is_somewhere_else_and_is_never_looked_up(host: str, doors: Doors) -> None:
     assert not nodevices.this_computer(host) and doors.looked_up == []
 
 
-@pytest.mark.parametrize("path, error", [("/dev/ttyUSB0", FileNotFoundError), ("/dev/serial/by-id/usb-FTDI_FT232R-if00-port0", FileNotFoundError), ("COM3", FileNotFoundError), ("/dev/rfcomm0", FileNotFoundError),
-                                         ("bt://AA:BB:CC:DD:EE:FF", ConnectionRefusedError), ("ble://AA:BB:CC:DD:EE:FF", ConnectionRefusedError), (f"socket://{ELSEWHERE}:8001", ConnectionRefusedError),
-                                         ("tcp://radio.example.org:8001", ConnectionRefusedError), (f"socket://127.0.0.1:8001@{ELSEWHERE}:8001", ConnectionRefusedError), ("rfc2217://127.0.0.1:4000", ConnectionRefusedError),
-                                         ("hwgrep://ttyUSB", ConnectionRefusedError)])
-def test_a_port_is_refused_with_the_error_of_one_that_is_not_there(path: str, error: type[OSError], under_the_switch: None) -> None:
+@pytest.mark.parametrize(
+    "path, error",
+    [
+        ("/dev/ttyUSB0", FileNotFoundError),
+        ("/dev/serial/by-id/usb-FTDI_FT232R-if00-port0", FileNotFoundError),
+        ("COM3", FileNotFoundError),
+        ("/dev/rfcomm0", FileNotFoundError),
+        ("bt://AA:BB:CC:DD:EE:FF", ConnectionRefusedError),
+        ("ble://AA:BB:CC:DD:EE:FF", ConnectionRefusedError),
+        (f"socket://{ELSEWHERE}:8001", ConnectionRefusedError),
+        ("tcp://radio.example.org:8001", ConnectionRefusedError),
+        (f"socket://127.0.0.1:8001@{ELSEWHERE}:8001", ConnectionRefusedError),
+        ("rfc2217://127.0.0.1:4000", ConnectionRefusedError),
+        ("hwgrep://ttyUSB", ConnectionRefusedError),
+    ],
+)
+def test_a_port_is_refused_with_the_error_of_one_that_is_not_there(
+    path: str, error: type[OSError], under_the_switch: None
+) -> None:
     with pytest.raises(error) as refusal:
         nodevices.check_port(path)
     assert type(refusal.value) is error and refusal.value.strerror == os.strerror(refusal.value.errno or 0)
 
 
-@pytest.mark.parametrize("path", ["socket://127.0.0.1:40001", "tcp://localhost:32768", "socket://[::1]:20000", " TCP://127.0.0.1:31999 ", "socket://127.0.0.1:18100?logging=debug", "socket://127.0.0.1:8052"])
-def test_a_tcp_port_on_this_computer_is_let_through(path: str, under_the_switch: None, caplog: pytest.LogCaptureFixture) -> None:
+@pytest.mark.parametrize(
+    "path",
+    [
+        "socket://127.0.0.1:40001",
+        "tcp://localhost:32768",
+        "socket://[::1]:20000",
+        " TCP://127.0.0.1:31999 ",
+        "socket://127.0.0.1:18100?logging=debug",
+        "socket://127.0.0.1:8052",
+    ],
+)
+def test_a_tcp_port_on_this_computer_is_let_through(
+    path: str, under_the_switch: None, caplog: pytest.LogCaptureFixture
+) -> None:
     """A fake's: one the system handed out, the tests' own from 20000 up, a bench's
     (scripts/mercury-sim from 18100)."""
     caplog.set_level(logging.DEBUG, logger="neoaprs")
@@ -277,13 +427,37 @@ def test_a_tcp_port_on_this_computer_is_let_through(path: str, under_the_switch:
     assert said(caplog) == []
 
 
-MODEM_PORTS = [direwolf.OWN_PORT, direwolf.OWN_AGW_PORT, mercury.OWN_UI_PORT, direwolf.FIRST_PORT, direwolf.FIRST_PORT + direwolf.PORT_TRIES - 1, mercury.BROADCAST_PORT, mercury.BROADCAST_PORT + mercury.PORT_TRIES - 1, mercury.CONTROL_PORT,
-               mercury.CONTROL_PORT + 1, mercury.BROADCAST_PORT + mercury.PORT_TRIES - 1 + mercury.CONTROL_OFFSET + 1, mercury.BROADCAST_PORT + mercury.UI_OFFSET, mercury.BROADCAST_PORT + mercury.PORT_TRIES - 1 + mercury.UI_OFFSET]
+MODEM_PORTS = [
+    direwolf.OWN_PORT,
+    direwolf.OWN_AGW_PORT,
+    mercury.OWN_UI_PORT,
+    direwolf.FIRST_PORT,
+    direwolf.FIRST_PORT + direwolf.PORT_TRIES - 1,
+    mercury.BROADCAST_PORT,
+    mercury.BROADCAST_PORT + mercury.PORT_TRIES - 1,
+    mercury.CONTROL_PORT,
+    mercury.CONTROL_PORT + 1,
+    mercury.BROADCAST_PORT + mercury.PORT_TRIES - 1 + mercury.CONTROL_OFFSET + 1,
+    mercury.BROADCAST_PORT + mercury.UI_OFFSET,
+    mercury.BROADCAST_PORT + mercury.PORT_TRIES - 1 + mercury.UI_OFFSET,
+]
 
 
-@pytest.mark.parametrize("path", [*(f"socket://127.0.0.1:{port}" for port in MODEM_PORTS), "tcp://localhost:8100", "socket://[::1]:8001", " TCP://127.0.0.1:8001 ", "socket://127.0.0.1:8001?logging=debug",
-                                  "socket://127.0.0.1:port", "socket://127.0.0.1"])
-def test_a_tcp_port_on_this_computer_where_a_real_modem_may_listen_is_refused(path: str, under_the_switch: None, caplog: pytest.LogCaptureFixture) -> None:
+@pytest.mark.parametrize(
+    "path",
+    [
+        *(f"socket://127.0.0.1:{port}" for port in MODEM_PORTS),
+        "tcp://localhost:8100",
+        "socket://[::1]:8001",
+        " TCP://127.0.0.1:8001 ",
+        "socket://127.0.0.1:8001?logging=debug",
+        "socket://127.0.0.1:port",
+        "socket://127.0.0.1",
+    ],
+)
+def test_a_tcp_port_on_this_computer_where_a_real_modem_may_listen_is_refused(
+    path: str, under_the_switch: None, caplog: pytest.LogCaptureFixture
+) -> None:
     """The operator's own Direwolf (8001 for KISS, 8000 for AGW) and Mercury (its UI on 10000) or a
     running NeoAPRS's Direwolf and Mercury, keyed to the radios on the desk; one whose number cannot
     be read is refused as well."""
@@ -291,15 +465,34 @@ def test_a_tcp_port_on_this_computer_where_a_real_modem_may_listen_is_refused(pa
     with pytest.raises(ConnectionRefusedError) as refusal:
         nodevices.check_port(path)
     assert refusal.value.strerror == os.strerror(errno.ECONNREFUSED) and len(said(caplog)) == 1
-    assert not nodevices.modem_port(direwolf.FIRST_PORT + direwolf.PORT_TRIES) and not nodevices.modem_port(mercury.BROADCAST_PORT + mercury.PORT_TRIES) and not any(map(nodevices.modem_port, (7999, 9999, 10001)))
+    assert (
+        not nodevices.modem_port(direwolf.FIRST_PORT + direwolf.PORT_TRIES)
+        and not nodevices.modem_port(mercury.BROADCAST_PORT + mercury.PORT_TRIES)
+        and not any(map(nodevices.modem_port, (7999, 9999, 10001)))
+    )
 
 
 def test_an_address_is_refused_unless_it_names_this_computer_or_a_file(under_the_switch: None) -> None:
-    for url in ("https://neo.oh2gba.eu/version.php", "http://build.protomaps.com/20261101.pmtiles", f"http://{ELSEWHERE}:8080/x", f"http://127.0.0.1:80@{ELSEWHERE}/x", "https://localhost.example.org/", "http://[::1"):
+    for url in (
+        "https://neo.oh2gba.eu/version.php",
+        "http://build.protomaps.com/20261101.pmtiles",
+        f"http://{ELSEWHERE}:8080/x",
+        f"http://127.0.0.1:80@{ELSEWHERE}/x",
+        "https://localhost.example.org/",
+        "http://[::1",
+    ):
         assert nodevices.url_refused(url), url
         with pytest.raises(ConnectionRefusedError):
             nodevices.check_url(url)
-    for url in ("http://127.0.0.1:8080/version.php", "https://localhost/x", "http://[::1]:9/", "/data/basemap.pmtiles", "basemap.pmtiles", "C:\\maps\\basemap.pmtiles", "file:///data/basemap.pmtiles"):
+    for url in (
+        "http://127.0.0.1:8080/version.php",
+        "https://localhost/x",
+        "http://[::1]:9/",
+        "/data/basemap.pmtiles",
+        "basemap.pmtiles",
+        "C:\\maps\\basemap.pmtiles",
+        "file:///data/basemap.pmtiles",
+    ):
         assert not nodevices.url_refused(url), url
         nodevices.check_url(url)
     for host in ("rotate.aprs2.net", ELSEWHERE):
@@ -310,7 +503,9 @@ def test_an_address_is_refused_unless_it_names_this_computer_or_a_file(under_the
     nodevices.check_host("localhost")
 
 
-def test_the_start_is_one_line_and_each_door_is_told_once_at_its_level(under_the_switch: None, caplog: pytest.LogCaptureFixture) -> None:
+def test_the_start_is_one_line_and_each_door_is_told_once_at_its_level(
+    under_the_switch: None, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     nodevices.announce()
     for _ in range(3):
@@ -323,13 +518,21 @@ def test_the_start_is_one_line_and_each_door_is_told_once_at_its_level(under_the
         with pytest.raises(ConnectionRefusedError):
             nodevices.check_url("https://neo.oh2gba.eu/version.php", level=logging.DEBUG)
     lines = said(caplog)
-    assert lines[0][0] == logging.INFO and lines[0][1].startswith("NEOAPRS_NO_DEVICES is set: no serial port, Bluetooth device or sound card is opened")
-    assert lines[1:] == [(logging.WARNING, "NEOAPRS_NO_DEVICES is set: the Mercury modem program is not started"), (logging.INFO, "NEOAPRS_NO_DEVICES is set: the ports are not listed"),
-                         (logging.WARNING, "NEOAPRS_NO_DEVICES is set: the serial port /dev/ttyUSB0 is not opened"), (logging.WARNING, "NEOAPRS_NO_DEVICES is set: no connection to rotate.aprs2.net (APRS-IS)"),
-                         (logging.DEBUG, "NEOAPRS_NO_DEVICES is set: no connection to neo.oh2gba.eu")]
+    assert lines[0][0] == logging.INFO and lines[0][1].startswith(
+        "NEOAPRS_NO_DEVICES is set: no serial port, Bluetooth device or sound card is opened"
+    )
+    assert lines[1:] == [
+        (logging.WARNING, "NEOAPRS_NO_DEVICES is set: the Mercury modem program is not started"),
+        (logging.INFO, "NEOAPRS_NO_DEVICES is set: the ports are not listed"),
+        (logging.WARNING, "NEOAPRS_NO_DEVICES is set: the serial port /dev/ttyUSB0 is not opened"),
+        (logging.WARNING, "NEOAPRS_NO_DEVICES is set: no connection to rotate.aprs2.net (APRS-IS)"),
+        (logging.DEBUG, "NEOAPRS_NO_DEVICES is set: no connection to neo.oh2gba.eu"),
+    ]
 
 
-def test_with_the_switch_off_nothing_is_refused_and_nothing_is_said(under_the_switch: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_with_the_switch_off_nothing_is_refused_and_nothing_is_said(
+    under_the_switch: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     monkeypatch.delenv(nodevices.ENV)
     nodevices.announce()
@@ -337,14 +540,21 @@ def test_with_the_switch_off_nothing_is_refused_and_nothing_is_said(under_the_sw
     nodevices.check_port("bt://AA:BB:CC:DD:EE:FF")
     nodevices.check_host("rotate.aprs2.net", "APRS-IS")
     nodevices.check_url("https://neo.oh2gba.eu/version.php")
-    assert not nodevices.refused("anything") and not nodevices.host_refused(ELSEWHERE) and not nodevices.url_refused("https://neo.oh2gba.eu/")
+    assert (
+        not nodevices.refused("anything")
+        and not nodevices.host_refused(ELSEWHERE)
+        and not nodevices.url_refused("https://neo.oh2gba.eu/")
+    )
     assert said(caplog) == []
 
 
-def test_the_record_of_connections_leaves_out_a_socket_pair_and_not_a_connection_made_the_same_way(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_record_of_connections_leaves_out_a_socket_pair_and_not_a_connection_made_the_same_way(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Windows has no socket pair of its own: the standard library connects two sockets over the
     loopback, as the fallback here does (the system of the test has the real one, which does not
     connect at all)."""
+
     def over_the_loopback() -> tuple[socket.socket, socket.socket]:
         listener = socket.socket()
         listener.bind(("127.0.0.1", 0))
@@ -366,7 +576,9 @@ def test_the_record_of_connections_leaves_out_a_socket_pair_and_not_a_connection
     client = socket.socket()
     try:
         client.connect(listener.getsockname())
-        assert doors.connected == ["127.0.0.1"] and doors.ports == [listener.getsockname()[1]], "a connection of the code under test is still written down"
+        assert doors.connected == ["127.0.0.1"] and doors.ports == [listener.getsockname()[1]], (
+            "a connection of the code under test is still written down"
+        )
     finally:
         client.close()
         listener.close()
@@ -374,13 +586,23 @@ def test_the_record_of_connections_leaves_out_a_socket_pair_and_not_a_connection
 
 # ---- the doors, each where it is
 
+
 @posix_only
-async def test_the_serial_line_opens_no_device_no_bluetooth_port_and_no_tcp_port_elsewhere(under_the_switch: None, doors: Doors, ptys: Ptys) -> None:
+async def test_the_serial_line_opens_no_device_no_bluetooth_port_and_no_tcp_port_elsewhere(
+    under_the_switch: None, doors: Doors, ptys: Ptys
+) -> None:
     _, device = ptys()
     with pytest.raises(SerialError) as missing:
         await SerialPort(device).open()
-    assert str(missing.value) == f"{device}: No such file or directory", "what the line says of a device that is not there"
-    for port in ("bt://AA:BB:CC:DD:EE:FF", "ble://AA:BB:CC:DD:EE:FF", f"socket://{ELSEWHERE}:8001", f"tcp://{ELSEWHERE}:8001"):
+    assert str(missing.value) == f"{device}: No such file or directory", (
+        "what the line says of a device that is not there"
+    )
+    for port in (
+        "bt://AA:BB:CC:DD:EE:FF",
+        "ble://AA:BB:CC:DD:EE:FF",
+        f"socket://{ELSEWHERE}:8001",
+        f"tcp://{ELSEWHERE}:8001",
+    ):
         with pytest.raises(SerialError) as refused:
             await SerialPort(port).open()
         assert str(refused.value) == f"{port}: {REFUSED}"
@@ -388,36 +610,53 @@ async def test_the_serial_line_opens_no_device_no_bluetooth_port_and_no_tcp_port
 
 
 @posix_only
-def test_the_lists_of_ports_are_empty_and_the_machine_is_not_asked(under_the_switch: None, doors: Doors, ptys: Ptys, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_lists_of_ports_are_empty_and_the_machine_is_not_asked(
+    under_the_switch: None, doors: Doors, ptys: Ptys, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     _, device = ptys()
     (tmp_path / "probe_1").symlink_to(device)
     pattern = str(tmp_path / "probe_*")
     assert serialprobe.candidate_ports(pattern) == [] and serialprobe.searchable_ports(pattern) == ([], {})
-    assert serialprobe.available_ports() == [] and serialprobe.paired_bluetooth_ports() == [] and serialprobe.system_ports() == []
+    assert (
+        serialprobe.available_ports() == []
+        and serialprobe.paired_bluetooth_ports() == []
+        and serialprobe.system_ports() == []
+    )
     assert serialprobe.identity_of("/dev/ttyUSB0") is None and serialprobe.bluetooth_com_keys() == set()
     assert doors.listed == [] and doors.started == []
     monkeypatch.delenv(nodevices.ENV)
     assert serialprobe.candidate_ports(pattern) == [str(tmp_path / "probe_1")], "the same folder with the switch off"
 
 
-async def test_nothing_is_fetched_from_or_sent_to_another_computer(under_the_switch: None, doors: Doors, tmp_path: Path) -> None:
+async def test_nothing_is_fetched_from_or_sent_to_another_computer(
+    under_the_switch: None, doors: Doors, tmp_path: Path
+) -> None:
     there = f"https://{ELSEWHERE}/version.php"
-    assert updatefetch.get_url(there, "0.1.0", "linux") is None and updatefetch.get(there, "0.1.0", "linux", "0" * 32) is None
+    assert (
+        updatefetch.get_url(there, "0.1.0", "linux") is None
+        and updatefetch.get(there, "0.1.0", "linux", "0" * 32) is None
+    )
     assert await updatefetch.fetch_url(there, "0.1.0", "linux", 100) is None
-    assert updatefetch.post_form(there, {"note": "x"}, {"bundle": ("b.zip", b"zip")}, "0.1.0", "linux") is None, "as a server that could not be reached"
+    assert updatefetch.post_form(there, {"note": "x"}, {"bundle": ("b.zip", b"zip")}, "0.1.0", "linux") is None, (
+        "as a server that could not be reached"
+    )
     with pytest.raises(updatedownload.DownloadError, match="could not be fetched"):
         updatedownload.open_url(f"https://{ELSEWHERE}/releases/download/v0.1.0/SHA256SUMS", lambda url: True)
     assert pmtilesarchive.url_exists(f"https://{ELSEWHERE}/20261101.pmtiles") is False
     for dry_run in (True, False):
         with pytest.raises(pmtilescut.CutError) as unreachable:
-            await pmtilescut.extract(f"https://{ELSEWHERE}/20261101.pmtiles", tmp_path / "map.pmtiles", None, 5, dry_run=dry_run)
+            await pmtilescut.extract(
+                f"https://{ELSEWHERE}/20261101.pmtiles", tmp_path / "map.pmtiles", None, 5, dry_run=dry_run
+            )
         assert str(unreachable.value) == pmtilesarchive.UNREACHABLE and not list(tmp_path.glob("map.pmtiles*"))
     with pytest.raises(RigError, match="connection refused"):
         await read_rig(ELSEWHERE, 4532)
     assert doors.untouched() and doors.connected == []
 
 
-async def test_a_gpsd_and_the_control_port_of_a_mercury_on_another_computer_are_not_connected_to(under_the_switch: None, doors: Doors, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_gpsd_and_the_control_port_of_a_mercury_on_another_computer_are_not_connected_to(
+    under_the_switch: None, doors: Doors, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     feed = GpsFeed(FixedClock(), Backoff([0.01]))
     remember_stop(feed.stop)
@@ -430,15 +669,29 @@ async def test_a_gpsd_and_the_control_port_of_a_mercury_on_another_computer_are_
     # A Mercury that something else runs there, given for this run: its control port is the one line
     # the modem part opens
     await modem.start(replace(ON_AIR, hf_enabled=True), f"socket://{ELSEWHERE}:8100")
-    await until(lambda: (logging.WARNING, f"NEOAPRS_NO_DEVICES is set: no connection to {ELSEWHERE} (the control port of a Mercury)") in said(caplog))
+    await until(
+        lambda: (
+            (
+                logging.WARNING,
+                f"NEOAPRS_NO_DEVICES is set: no connection to {ELSEWHERE} (the control port of a Mercury)",
+            )
+            in said(caplog)
+        )
+    )
     # Both try again after their back-off, several times in this
     await idle_for(0.1)
-    assert (logging.WARNING, f"NEOAPRS_NO_DEVICES is set: no connection to {ELSEWHERE} (gpsd)") in said(caplog) and len(said(caplog)) == 2
-    assert modem.state == "starting" and feed.state is Source.State.WAITING, "the modem part waits for the control port as for a Mercury that is not up yet"
+    assert (logging.WARNING, f"NEOAPRS_NO_DEVICES is set: no connection to {ELSEWHERE} (gpsd)") in said(caplog) and len(
+        said(caplog)
+    ) == 2
+    assert modem.state == "starting" and feed.state is Source.State.WAITING, (
+        "the modem part waits for the control port as for a Mercury that is not up yet"
+    )
     assert doors.untouched() and doors.connected == []
 
 
-async def test_a_server_on_this_computer_is_asked_itself_and_not_through_a_proxy_of_the_environment(under_the_switch: None, doors: Doors, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_server_on_this_computer_is_asked_itself_and_not_through_a_proxy_of_the_environment(
+    under_the_switch: None, doors: Doors, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """urllib sends a request for the loopback to the proxy that http_proxy names unless no_proxy
     lists the loopback: under the switch that proxy, on another computer, is not asked."""
     for name in ("no_proxy", "NO_PROXY"):
@@ -465,22 +718,35 @@ async def test_a_server_on_this_computer_is_still_asked(under_the_switch: None, 
 def test_a_redirect_to_another_computer_is_not_followed(under_the_switch: None) -> None:
     request = urllib.request.Request("http://127.0.0.1:1/version.php")
     with pytest.raises(ConnectionRefusedError):
-        updatefetch._NotDowngraded().redirect_request(request, None, 302, "Found", {}, f"http://{ELSEWHERE}/version.php")       # type: ignore[arg-type]
-    assert updatefetch._NotDowngraded().redirect_request(request, None, 302, "Found", {}, "http://127.0.0.1:2/version.php") is not None       # type: ignore[arg-type]
+        updatefetch._NotDowngraded().redirect_request(
+            request, None, 302, "Found", {}, f"http://{ELSEWHERE}/version.php"
+        )  # type: ignore[arg-type]
+    assert (
+        updatefetch._NotDowngraded().redirect_request(request, None, 302, "Found", {}, "http://127.0.0.1:2/version.php")
+        is not None
+    )  # type: ignore[arg-type]
 
 
-async def test_a_map_server_that_sends_the_cut_on_to_another_computer_is_not_followed(under_the_switch: None, doors: Doors, tmp_path: Path) -> None:
+async def test_a_map_server_that_sends_the_cut_on_to_another_computer_is_not_followed(
+    under_the_switch: None, doors: Doors, tmp_path: Path
+) -> None:
     server = await range_server(planet())
     server.mode, server.moved_to = "moved", f"http://{ELSEWHERE}/20261101.pmtiles"
     with pytest.raises(pmtilescut.CutError) as unreachable:
-        await asyncio.to_thread(pmtilescut.Cutting(server.url, tmp_path / "map.pmtiles", None, 5, pauses=(0.0, 0.0, 0.0)).run)
+        await asyncio.to_thread(
+            pmtilescut.Cutting(server.url, tmp_path / "map.pmtiles", None, 5, pauses=(0.0, 0.0, 0.0)).run
+        )
     assert str(unreachable.value) == pmtilesarchive.UNREACHABLE and server.cuts == 4 and doors.left_this_computer == []
     request = urllib.request.Request("https://127.0.0.1:1/20261101.pmtiles")
     with pytest.raises(urllib.error.HTTPError, match="https to http"):
-        pmtilesarchive.Redirected().redirect_request(request, None, 302, "Found", {}, "http://127.0.0.1:1/20261101.pmtiles")       # type: ignore[arg-type]
+        pmtilesarchive.Redirected().redirect_request(
+            request, None, 302, "Found", {}, "http://127.0.0.1:1/20261101.pmtiles"
+        )  # type: ignore[arg-type]
 
 
-async def test_the_default_alert_command_is_not_run_and_the_operators_own_is(under_the_switch: None, doors: Doors, tmp_path: Path) -> None:
+async def test_the_default_alert_command_is_not_run_and_the_operators_own_is(
+    under_the_switch: None, doors: Doors, tmp_path: Path
+) -> None:
     message = MessageRecord(0, FixedClock()(), "in", "OH2RDG-7", "OH2GBA", "Moi", "12", "received")
     config = replace(ON_AIR, messages_alert=True, messages_alert_command=f"  {DEFAULT_ALERT_COMMAND} ")
     alerts = Alerts(lambda: config, FixedClock(), TIMEOUT_SEC)
@@ -496,7 +762,9 @@ async def test_the_default_alert_command_is_not_run_and_the_operators_own_is(und
 
 
 @posix_only
-def test_no_player_of_the_dummy_hf_radios_audio_is_found(under_the_switch: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_no_player_of_the_dummy_hf_radios_audio_is_found(
+    under_the_switch: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     player = tmp_path / "aplay"
     player.write_text("#!/bin/sh\n", encoding="utf-8")
     player.chmod(0o755)
@@ -506,27 +774,49 @@ def test_no_player_of_the_dummy_hf_radios_audio_is_found(under_the_switch: None,
     assert (player_command() or [""])[0] == str(player), "the same folder with the switch off"
 
 
-async def test_the_mercury_program_is_not_started_and_lists_no_sound_card(under_the_switch: None, doors: Doors, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+async def test_the_mercury_program_is_not_started_and_lists_no_sound_card(
+    under_the_switch: None,
+    doors: Doors,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     asked: list[str] = []
-    monkeypatch.setattr(mercurymodem, "end_stale", lambda pid_file, ini, program: asked.append(f"end the Mercury of {pid_file}"))
+    monkeypatch.setattr(
+        mercurymodem, "end_stale", lambda pid_file, ini, program: asked.append(f"end the Mercury of {pid_file}")
+    )
     # A copy of a data folder whose own daemon runs its modem: the file names a Mercury that is
     # another daemon's
     (tmp_path / "mercury.pid").write_text("4242\n", encoding="utf-8")
-    modem = Mercury(tmp_path, finder=lambda: asked.append("where is Mercury") or fake_mercury())       # type: ignore[func-returns-value]
+    modem = Mercury(tmp_path, finder=lambda: asked.append("where is Mercury") or fake_mercury())  # type: ignore[func-returns-value]
     remember_stop(modem.stop)
     await modem.start(replace(ON_AIR, hf_enabled=True, mercury_sound_card="plughw:1,0", mercury_keying="vox"))
     assert (modem.state, modem.reason) == ("waiting", "not_installed") and modem.sound_cards() == []
     await modem.start(ON_AIR, speaker=True)
-    assert modem.state == "waiting" and not (tmp_path / "mercury.ini").exists() and (tmp_path / "mercury.pid").read_text(encoding="utf-8") == "4242\n"
-    assert asked == [] and doors.started == [], "the program was not looked for, the Mercury the data folder names was left alone and nothing was started, as the modem or as the Dummy Mercury radio's speaker"
+    assert (
+        modem.state == "waiting"
+        and not (tmp_path / "mercury.ini").exists()
+        and (tmp_path / "mercury.pid").read_text(encoding="utf-8") == "4242\n"
+    )
+    assert asked == [] and doors.started == [], (
+        "the program was not looked for, the Mercury the data folder names was left alone and nothing was started, as the modem or as the Dummy Mercury radio's speaker"
+    )
     logged = [r.getMessage() for r in caplog.records]
-    assert logged[0] == "NEOAPRS_NO_DEVICES is set: the Mercury modem program is not started and its sound cards are not listed" and logged.count(logged[0]) == 1
-    assert not [line for line in logged if line.startswith("no Mercury program at")], "the log names no place where the program is missing: nobody looked for it"
+    assert (
+        logged[0]
+        == "NEOAPRS_NO_DEVICES is set: the Mercury modem program is not started and its sound cards are not listed"
+        and logged.count(logged[0]) == 1
+    )
+    assert not [line for line in logged if line.startswith("no Mercury program at")], (
+        "the log names no place where the program is missing: nobody looked for it"
+    )
 
 
 @posix_only
-def test_a_mercury_a_copy_of_the_data_folder_names_is_left_alone_at_the_daemons_start(under_the_switch: None, tmp_path: Path) -> None:
+def test_a_mercury_a_copy_of_the_data_folder_names_is_left_alone_at_the_daemons_start(
+    under_the_switch: None, tmp_path: Path
+) -> None:
     """A bench daemon on a copy of the station's data folder: radio 5's file names the station's own
     live Mercury, run with that radio's configuration. mercuryclaims.end_left_behind ends nothing
     under the switch and leaves the file (on Windows, where the configuration is not read, the
@@ -538,13 +828,17 @@ def test_a_mercury_a_copy_of_the_data_folder_names_is_left_alone_at_the_daemons_
     try:
         (folder / "mercury.pid").write_text(str(station.pid), encoding="ascii")
         end_left_behind(tmp_path)
-        assert station.poll() is None and (folder / "mercury.pid").read_text(encoding="ascii") == str(station.pid), "the station's Mercury runs on, and its file stays"
+        assert station.poll() is None and (folder / "mercury.pid").read_text(encoding="ascii") == str(station.pid), (
+            "the station's Mercury runs on, and its file stays"
+        )
     finally:
         station.kill()
         station.wait()
 
 
-def test_the_hf_radio_has_no_port_unless_a_mercury_was_given_for_this_run(under_the_switch: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, tmp_path: Path) -> None:
+def test_the_hf_radio_has_no_port_unless_a_mercury_was_given_for_this_run(
+    under_the_switch: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, tmp_path: Path
+) -> None:
     """The daemon starts no Mercury under the switch, so whatever listens where one of ours would
     have been (the operator's own modem, on this computer's port 8100) is not ours: the Mercury
     radio's line is given no port at all, by its driver (neoaprs/mercurydriver.py), and nothing to
@@ -561,23 +855,46 @@ def test_the_hf_radio_has_no_port_unless_a_mercury_was_given_for_this_run(under_
         driver.configure(spec, config, run)
         return driver.line.port, driver.line.pattern, driver.line.fallback_probe
 
-    assert hf_line(off).port == "" and pointed(off) == ("", "", False) and said(caplog) == [], "no port, and nothing said while there is no Mercury radio"
+    assert hf_line(off).port == "" and pointed(off) == ("", "", False) and said(caplog) == [], (
+        "no port, and nothing said while there is no Mercury radio"
+    )
     assert (hf_line(on).port, hf_line(on, modem_port=18100).port) == ("", "") and pointed(on) == ("", "", False)
-    assert said(caplog) == [(logging.INFO, "NEOAPRS_NO_DEVICES is set: the Mercury radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)")]
-    assert hf_line(on, "socket://127.0.0.1:18100").port == "socket://127.0.0.1:18100", "a Mercury given for this run (the benches') is the Mercury radio's"
+    assert said(caplog) == [
+        (
+            logging.INFO,
+            "NEOAPRS_NO_DEVICES is set: the Mercury radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)",
+        )
+    ]
+    assert hf_line(on, "socket://127.0.0.1:18100").port == "socket://127.0.0.1:18100", (
+        "a Mercury given for this run (the benches') is the Mercury radio's"
+    )
     assert pointed(on, RunOverrides(hf_port="socket://127.0.0.1:18100")) == ("socket://127.0.0.1:18100", "", False)
     assert hf_line(replace(on, hf_profile="dummy-hf")).port == dummyline.DUMMY_PATH
-    assert hf_said(on, "") == "the Mercury modem, which is not started" and hf_said(replace(on, hf_profile="dummy-hf"), "") == "the Dummy Mercury radio, made-up stations", "the start line claims no modem and no speaker"
-    assert hf_said(on, "socket://127.0.0.1:18100") == "the Mercury modem, one something else runs at socket://127.0.0.1:18100"
+    assert (
+        hf_said(on, "") == "the Mercury modem, which is not started"
+        and hf_said(replace(on, hf_profile="dummy-hf"), "") == "the Dummy Mercury radio, made-up stations"
+    ), "the start line claims no modem and no speaker"
+    assert (
+        hf_said(on, "socket://127.0.0.1:18100")
+        == "the Mercury modem, one something else runs at socket://127.0.0.1:18100"
+    )
     monkeypatch.delenv(nodevices.ENV)
-    assert hf_line(on).port == "socket://127.0.0.1:8100" and hf_line(on, modem_port=18100).port == "socket://127.0.0.1:18100", "the same with the switch off"
+    assert (
+        hf_line(on).port == "socket://127.0.0.1:8100"
+        and hf_line(on, modem_port=18100).port == "socket://127.0.0.1:18100"
+    ), "the same with the switch off"
     assert pointed(on) == ("", "", False), "and no port before the modem chose its ports (neoaprs/mercurydriver.py)"
-    assert hf_said(on, "") == "the Mercury modem, started by NeoAPRS" and hf_said(replace(on, hf_profile="dummy-hf"), "").endswith("and the modem played through the speakers")
+    assert hf_said(on, "") == "the Mercury modem, started by NeoAPRS" and hf_said(
+        replace(on, hf_profile="dummy-hf"), ""
+    ).endswith("and the modem played through the speakers")
 
 
 # ---- what stays, and the whole daemon
 
-async def test_a_kiss_tcp_radio_on_this_computer_is_still_opened_and_heard(under_the_switch: None, doors: Doors, tmp_path: Path) -> None:
+
+async def test_a_kiss_tcp_radio_on_this_computer_is_still_opened_and_heard(
+    under_the_switch: None, doors: Doors, tmp_path: Path
+) -> None:
     # Its radio is a TCP port of the loopback, and so is --port
     e = Env(tmp_path)
     await e.start()
@@ -590,8 +907,13 @@ def lines_of(source: Source) -> str:
 
 
 @posix_only
-async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none_and_its_dummy_radio_and_page_work(under_the_switch: None, doors: Doors, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-                                                                                                                  caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none_and_its_dummy_radio_and_page_work(
+    under_the_switch: None,
+    doors: Doors,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     monkeypatch.setattr(dummyline, "TICK_SEC", 0.01)
     # Not the 1 of the benches: any value but an empty one and 0 is the switch
@@ -601,19 +923,42 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
     # radio's keying line: each a device that is there
     port = {name: e.new_pty(name)[1] for name in ("radio", "probe_1", "gps", "ptt")}
     devices = {os.path.realpath(path) for path in port.values()}
-    e.settings.update({"serial/port": port["radio"], "hf/enabled": "true", "hf/profile": "mercury", "mercury/sound_card": "plughw:1,0", "mercury/keying": f"rts:{port['ptt']}",
-                       "igate/enabled": "true", "igate/server": "rotate.aprs2.net:14580", "igate/password": "12345", "gps/source": "serial", "gps/device": port["gps"],
-                       "status/source": "rig", "status/rigctld": f"{ELSEWHERE}:4532", "messages/alert": "true"})
+    e.settings.update(
+        {
+            "serial/port": port["radio"],
+            "hf/enabled": "true",
+            "hf/profile": "mercury",
+            "mercury/sound_card": "plughw:1,0",
+            "mercury/keying": f"rts:{port['ptt']}",
+            "igate/enabled": "true",
+            "igate/server": "rotate.aprs2.net:14580",
+            "igate/password": "12345",
+            "gps/source": "serial",
+            "gps/device": port["gps"],
+            "status/source": "rig",
+            "status/rigctld": f"{ELSEWHERE}:4532",
+            "messages/alert": "true",
+        }
+    )
     looked_for: list[str] = []
-    e.mercury._finder = lambda: looked_for.append("Mercury") or fake_mercury()       # type: ignore[func-returns-value]   # a Mercury that is there and would start
+    e.mercury._finder = lambda: looked_for.append("Mercury") or fake_mercury()  # type: ignore[func-returns-value]   # a Mercury that is there and would start
     e.ctl.rigstatus.poll_sec = 0.02
     await e.start()
 
     # every part waits as it does for a device that is not there
-    await until(lambda: e.tnc.state is Source.State.WAITING and e.tnc.stats.opens == 0 and "trying again" in lines_of(e.tnc) and "no port" in lines_of(e.tnc))
+    await until(
+        lambda: (
+            e.tnc.state is Source.State.WAITING
+            and e.tnc.stats.opens == 0
+            and "trying again" in lines_of(e.tnc)
+            and "no port" in lines_of(e.tnc)
+        )
+    )
     assert f"{port['radio']}: No such file or directory" in lines_of(e.tnc)
     await until(lambda: e.mercury.state == "waiting" and e.hf.state is Source.State.WAITING)
-    assert e.mercury.reason == "not_installed" and looked_for == [] and e.hf.port == "" and e.hf.stats.opens == 0, "no Mercury was started, so the Mercury radio has no port to try"
+    assert e.mercury.reason == "not_installed" and looked_for == [] and e.hf.port == "" and e.hf.stats.opens == 0, (
+        "no Mercury was started, so the Mercury radio has no port to try"
+    )
     # Where a Mercury of ours would have been: on the operator's computer his own modem may listen
     # there
     mercury_ports = {e.mercury.broadcast_port, e.mercury.control_port}
@@ -629,7 +974,11 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     radios = page.topics["radios"]
-    assert radios["1"]["state"] == "waiting" and radios["2"]["state"] == "waiting" and radios["2"]["modem"]["reason"] == "not_installed"
+    assert (
+        radios["1"]["state"] == "waiting"
+        and radios["2"]["state"] == "waiting"
+        and radios["2"]["modem"]["reason"] == "not_installed"
+    )
     assert page.topics["igate"]["state"] == "connecting" and page.topics["igate"]["reason"] == "unreachable"
     await page.send({"cmd": "list_ports"})
     listed = await page.expect("ports")
@@ -638,43 +987,74 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
     # Check now, of a version page somewhere else and of one on this computer
     for address, outcome in ((f"https://{ELSEWHERE}/version.php", "no_answer"), (versions.url, "newer")):
         await page.send({"cmd": "set_config", "values": {"update/url": address}})
-        await page.until(lambda address=address: page.topics["config"]["values"]["update/url"] == address)       # type: ignore[misc]
+        await page.until(lambda address=address: page.topics["config"]["values"]["update/url"] == address)  # type: ignore[misc]
         await page.send({"cmd": "update_check"})
         assert (await page.expect("update_result"))["outcome"] == outcome
     assert len(versions.requests) == 1
 
     # the log: one line at the start, one for each door, however often it was tried
     lines = [line for _, line in said(caplog)]
-    assert lines[0].startswith("NEOAPRS_NO_DEVICES is set: no serial port, Bluetooth device or sound card is opened") and lines[0].endswith(SAYS_THE_VALUE.format("true")) and len(lines) == len(set(lines))
-    assert set(lines[1:]) == {f"NEOAPRS_NO_DEVICES is set: {door}" for door in (
-        f"the serial port {port['radio']} is not opened", f"the serial port {port['gps']} is not opened", "the serial ports and the paired Bluetooth devices are not listed or searched",
-        "the Mercury modem program is not started and its sound cards are not listed", "the Mercury radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)",
-        "no connection to rotate.aprs2.net (APRS-IS)", f"no connection to {ELSEWHERE} (rigctld)", f"no connection to {ELSEWHERE}")}
+    assert (
+        lines[0].startswith("NEOAPRS_NO_DEVICES is set: no serial port, Bluetooth device or sound card is opened")
+        and lines[0].endswith(SAYS_THE_VALUE.format("true"))
+        and len(lines) == len(set(lines))
+    )
+    assert set(lines[1:]) == {
+        f"NEOAPRS_NO_DEVICES is set: {door}"
+        for door in (
+            f"the serial port {port['radio']} is not opened",
+            f"the serial port {port['gps']} is not opened",
+            "the serial ports and the paired Bluetooth devices are not listed or searched",
+            "the Mercury modem program is not started and its sound cards are not listed",
+            "the Mercury radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)",
+            "no connection to rotate.aprs2.net (APRS-IS)",
+            f"no connection to {ELSEWHERE} (rigctld)",
+            f"no connection to {ELSEWHERE}",
+        )
+    }
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR], "nothing of this is an error"
 
     # the same daemon on the Dummy radios: made-up stations arrive and reach the page
     await page.send({"cmd": "radio_change", "radio": 1, "type": "dummy"})
     await page.send({"cmd": "radio_change", "radio": 2, "type": "dummy-hf"})
-    await until(lambda: e.tnc.is_dummy and e.tnc.state is Source.State.CONNECTED and e.hf.is_dummy and e.hf.state is Source.State.CONNECTED)
+    await until(
+        lambda: (
+            e.tnc.is_dummy
+            and e.tnc.state is Source.State.CONNECTED
+            and e.hf.is_dummy
+            and e.hf.state is Source.State.CONNECTED
+        )
+    )
     for _ in range(200):
-        e.now.advance(10)                                                               # type: ignore[attr-defined]
+        e.now.advance(10)  # type: ignore[attr-defined]
         # The Dummy radio's scene is asked what has come due at the new time
         await idle_for(0.02)
         if sum(call.startswith("Q") for call in page.topics["stations"]) > 8:
             break
     assert {"Q1ABC", "Q4CAR-9", "Q2DIG-2"} <= set(page.topics["stations"])
-    await page.until(lambda: all(page.topics["radios"][id]["dummy"] and page.topics["radios"][id]["state"] == "connected" for id in ("1", "2")))
+    await page.until(
+        lambda: all(
+            page.topics["radios"][id]["dummy"] and page.topics["radios"][id]["state"] == "connected"
+            for id in ("1", "2")
+        )
+    )
     assert page.of("error") == []
 
     # and through all of it no device was opened, no program started and nothing left this computer
     assert not devices & set(doors.opened), "a pseudo-terminal named in the settings was opened"
     assert doors.started == [] and looked_for == [] and doors.bluetooth == 0 and doors.listed == []
-    assert doors.left_this_computer == [] and set(doors.connected) <= set(LOCAL) and not mercury_ports & set(doors.ports)
-    assert set(doors.ports) == {e.port, versions.port}, "the only connections were this test's own: its tab of the page, and the daemon's question to the version page of the test"
+    assert (
+        doors.left_this_computer == [] and set(doors.connected) <= set(LOCAL) and not mercury_ports & set(doors.ports)
+    )
+    assert set(doors.ports) == {e.port, versions.port}, (
+        "the only connections were this test's own: its tab of the page, and the daemon's question to the version page of the test"
+    )
 
 
 @posix_only
-async def test_the_daemon_as_a_process_inherits_the_switch_says_so_in_its_log_and_opens_no_port_of_its_settings(tmp_path: Path, ptys: Ptys) -> None:
+async def test_the_daemon_as_a_process_inherits_the_switch_says_so_in_its_log_and_opens_no_port_of_its_settings(
+    tmp_path: Path, ptys: Ptys
+) -> None:
     """`python -m neoaprs` on a data folder whose settings name the radio's port and the GPS
     receiver's (pseudo-terminals that are there), an iGate and a rigctld on another address: started
     with nothing but the environment of the suite, it runs under the switch. (No Mercury here: a
@@ -683,23 +1063,62 @@ async def test_the_daemon_as_a_process_inherits_the_switch_says_so_in_its_log_an
     data = tmp_path / "data"
     data.mkdir()
     store = await store_at(data / "neoaprs.sqlite")
-    await store.put_settings({"station/call": "OH2ZZZ", "station/lat": "60.17", "station/lon": "24.94", "gps/source": "serial", "gps/device": gps_port,
-                              "igate/enabled": "true", "igate/server": f"{ELSEWHERE}:14580", "igate/password": "12345", "status/source": "rig", "status/rigctld": f"{ELSEWHERE}:4532"})
+    await store.put_settings(
+        {
+            "station/call": "OH2ZZZ",
+            "station/lat": "60.17",
+            "station/lon": "24.94",
+            "gps/source": "serial",
+            "gps/device": gps_port,
+            "igate/enabled": "true",
+            "igate/server": f"{ELSEWHERE}:14580",
+            "igate/password": "12345",
+            "status/source": "rig",
+            "status/rigctld": f"{ELSEWHERE}:4532",
+        }
+    )
     assert await store.add_radio("fm", "kenwood-tnc2", "", True, 1, settings={"port": radio_port}) == 1
     assert store.db is not None
     await store.db.close()
-    daemon = subprocess.Popen([sys.executable, "-m", "neoaprs", "--data", str(data), "--web-port", "0"], cwd=ROOT, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=NEW_GROUP)
+    daemon = subprocess.Popen(
+        [sys.executable, "-m", "neoaprs", "--data", str(data), "--web-port", "0"],
+        cwd=ROOT,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        creationflags=NEW_GROUP,
+    )
     log = data / "neoaprs.log"
 
     def logged() -> str:
         return log.read_text(encoding="utf-8") if log.exists() else ""
 
     try:
-        shut = (f"the serial port {radio_port} is not opened", f"the serial port {gps_port} is not opened", f"no connection to {ELSEWHERE} (APRS-IS)", f"no connection to {ELSEWHERE} (rigctld)")
-        await until(lambda: daemon.poll() is not None or ("NeoAPRS is running" in logged() and all(f"NEOAPRS_NO_DEVICES is set: {door}" in logged() for door in shut)), PATIENCE_SEC)
+        shut = (
+            f"the serial port {radio_port} is not opened",
+            f"the serial port {gps_port} is not opened",
+            f"no connection to {ELSEWHERE} (APRS-IS)",
+            f"no connection to {ELSEWHERE} (rigctld)",
+        )
+        await until(
+            lambda: (
+                daemon.poll() is not None
+                or (
+                    "NeoAPRS is running" in logged()
+                    and all(f"NEOAPRS_NO_DEVICES is set: {door}" in logged() for door in shut)
+                )
+            ),
+            PATIENCE_SEC,
+        )
         assert daemon.poll() is None, f"the daemon ended: {logged()}"
-        assert "NEOAPRS_NO_DEVICES is set: no serial port, Bluetooth device or sound card is opened" in logged() and f"tnc: {radio_port}: No such file or directory; trying again" in logged()
-        assert logged().index("NEOAPRS_NO_DEVICES is set: no serial port") < logged().index("is not opened"), "the line of the start comes before any door"
+        assert (
+            "NEOAPRS_NO_DEVICES is set: no serial port, Bluetooth device or sound card is opened" in logged()
+            and f"tnc: {radio_port}: No such file or directory; trying again" in logged()
+        )
+        assert logged().index("NEOAPRS_NO_DEVICES is set: no serial port") < logged().index("is not opened"), (
+            "the line of the start comes before any door"
+        )
         # A TNC line that is opened is asked at once whether the radio is there
         written = await asyncio.gather(asyncio.to_thread(heard, radio, 1, 1.5), asyncio.to_thread(heard, gps, 1, 1.5))
         assert written == [b"", b""], "nothing was written to a port: none was opened"
@@ -719,7 +1138,9 @@ async def test_the_daemon_as_a_process_inherits_the_switch_says_so_in_its_log_an
 
 
 @posix_only
-async def test_a_port_that_another_program_holds_is_not_there_either_and_nobody_is_asked_who_holds_it(under_the_switch: None, doors: Doors, tmp_path: Path) -> None:
+async def test_a_port_that_another_program_holds_is_not_there_either_and_nobody_is_asked_who_holds_it(
+    under_the_switch: None, doors: Doors, tmp_path: Path
+) -> None:
     """The bench daemon on a copy of the station's data folder while the station itself runs and
     holds the radio's port: the port is not there, as any other, and the log names no program and no
     pid."""

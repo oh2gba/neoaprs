@@ -2,6 +2,7 @@
 
 Tray presence, colour scheme, screens, close button and tray loop. Toolkits are imported inside
 each function; what cannot be asked gets the answer that keeps the window usable."""
+
 import importlib
 import logging
 import os
@@ -23,6 +24,7 @@ BUS_WAIT_MS = 1000
 
 class WebFrame(Protocol):
     """What this file needs of the web shell's frame (webshell.WebFrame)."""
+
     icon: Any
     sizes: SizeKeeper | None
     actions: AppActions | None
@@ -55,8 +57,17 @@ def tray_host(system: str) -> bool:
     try:
         gio, glib = gio_and_glib()
         bus = gio.bus_get_sync(gio.BusType.SESSION, None)
-        reply = bus.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner", glib.Variant("(s)", (TRAY_WATCHER,)), glib.VariantType.new("(b)"),
-                              gio.DBusCallFlags.NONE, BUS_WAIT_MS, None)
+        reply = bus.call_sync(
+            "org.freedesktop.DBus",
+            "/org/freedesktop/DBus",
+            "org.freedesktop.DBus",
+            "NameHasOwner",
+            glib.Variant("(s)", (TRAY_WATCHER,)),
+            glib.VariantType.new("(b)"),
+            gio.DBusCallFlags.NONE,
+            BUS_WAIT_MS,
+            None,
+        )
         return bool(reply.unpack()[0])
     except Exception:
         log.debug("the tray host could not be asked for", exc_info=True)
@@ -68,8 +79,17 @@ def portal_dark() -> bool:
     try:
         gio, glib = gio_and_glib()
         bus = gio.bus_get_sync(gio.BusType.SESSION, None)
-        reply = bus.call_sync("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop", "org.freedesktop.portal.Settings", "Read",
-                              glib.Variant("(ss)", ("org.freedesktop.appearance", "color-scheme")), None, gio.DBusCallFlags.NONE, BUS_WAIT_MS, None)
+        reply = bus.call_sync(
+            "org.freedesktop.portal.Desktop",
+            "/org/freedesktop/portal/desktop",
+            "org.freedesktop.portal.Settings",
+            "Read",
+            glib.Variant("(ss)", ("org.freedesktop.appearance", "color-scheme")),
+            None,
+            gio.DBusCallFlags.NONE,
+            BUS_WAIT_MS,
+            None,
+        )
         return bool(int(reply.unpack()[0]) == 1)
     except Exception:
         log.debug("the desktop's colour scheme could not be read", exc_info=True)
@@ -128,6 +148,7 @@ def frame_moved(window: Any, sizes: SizeKeeper) -> Callable[..., None]:
 
     def handler(*args: object) -> None:
         glib.idle_add(read)
+
     return handler
 
 
@@ -154,7 +175,9 @@ def keep_size(frame: WebFrame, window: Any, sizes: SizeKeeper, system: str) -> N
             actions = frame.actions
             frame.closed = actions is None
         if actions is None:
-            log.info("the window was closed before the page came and this desktop has no tray: the app ends when the page is there")
+            log.info(
+                "the window was closed before the page came and this desktop has no tray: the app ends when the page is there"
+            )
         else:
             log.info("the window was closed and this desktop has no tray: the app ends")
             actions.run(QUIT)
@@ -164,7 +187,11 @@ def keep_size(frame: WebFrame, window: Any, sizes: SizeKeeper, system: str) -> N
     window.events.shown += splash.done
     for name in ("maximized", "minimized", "restored", "resized", "moved"):
         hook = getattr(window.events, name)
-        hook += frame_moved(window, sizes) if name == "moved" and system == "linux" and sizes.keep_place else sizes.told(name)
+        hook += (
+            frame_moved(window, sizes)
+            if name == "moved" and system == "linux" and sizes.keep_place
+            else sizes.told(name)
+        )
 
 
 def await_tray(frame: WebFrame) -> None:

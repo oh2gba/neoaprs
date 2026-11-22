@@ -2,6 +2,7 @@
 
 Plain values and rules, no I/O. A thing is never a station and never reaches the station book.
 """
+
 import heapq
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -33,7 +34,13 @@ FINTRAFFIC_HEADERS = {"Digitraffic-User": "NeoAPRS"}
 AREA_MARGIN_KM = 8
 MAX_NM = 250  # the most either aircraft service answers for
 
-EVERY_SEC: dict[Feed, int] = {"adsbfi": 30, "adsblol": 60, "aircraft_receiver": 5, "fintraffic_locations": 60, "fintraffic_vessels": 900}
+EVERY_SEC: dict[Feed, int] = {
+    "adsbfi": 30,
+    "adsblol": 60,
+    "aircraft_receiver": 5,
+    "fintraffic_locations": 60,
+    "fintraffic_vessels": 900,
+}
 BACKOFF_MAX_SEC = 900  # the longest wait after failures in a row
 # a service answering one of these is not asked again until restart
 STOP_CODES = frozenset({400, 401, 403, 404})
@@ -44,7 +51,11 @@ AIS_RETRY_SEC = (5, 300)
 AIRCRAFT_RECEIVER_AGE_SEC = 60
 AIRCRAFT_SERVICE_AGE_SEC = 90
 SHIPS_AGE_SEC = 1800
-MAX_AGE_SEC = {"aircraft_receiver": AIRCRAFT_RECEIVER_AGE_SEC, "aircraft_service": AIRCRAFT_SERVICE_AGE_SEC, "ships": SHIPS_AGE_SEC}
+MAX_AGE_SEC = {
+    "aircraft_receiver": AIRCRAFT_RECEIVER_AGE_SEC,
+    "aircraft_service": AIRCRAFT_SERVICE_AGE_SEC,
+    "ships": SHIPS_AGE_SEC,
+}
 
 # a service's answer keeps the nearest LIMIT things plus emergencies
 LIMIT = 300
@@ -54,7 +65,12 @@ MAX_UNPACKED = 16 * 1024 * 1024
 AIS_LINE_MAX = 1024  # bytes
 AIS_LINES_PER_SEC = 200
 
-AIRCRAFT_PLACES = ("/tar1090/data/aircraft.json", "/data/aircraft.json", "/skyaware/data/aircraft.json", "/dump1090/data/aircraft.json")
+AIRCRAFT_PLACES = (
+    "/tar1090/data/aircraft.json",
+    "/data/aircraft.json",
+    "/skyaware/data/aircraft.json",
+    "/dump1090/data/aircraft.json",
+)
 AIRCRAFT_PORTS = (80, 8080)
 AIRCRAFT_HOST = "127.0.0.1"
 RADARCAPE_PLACE = "/aircraftlist.json?knownposonly=1"
@@ -65,6 +81,7 @@ AIS_HOST = "127.0.0.1"
 @dataclass(frozen=True)
 class Thing:
     """The one shape of an aircraft or a ship."""
+
     # aircraft: readsb's `hex`, lower case; ship: the MMSI as text
     id: str
     lat: float
@@ -110,7 +127,9 @@ class LayerTable:
     things: tuple[Thing, ...]
 
 
-def reaches_box(position: tuple[float, float] | None, radius_km: int, box: tuple[float, float, float, float] = FINTRAFFIC_BOX) -> bool:
+def reaches_box(
+    position: tuple[float, float] | None, radius_km: int, box: tuple[float, float, float, float] = FINTRAFFIC_BOX
+) -> bool:
     """Return whether the circle round the position reaches the box."""
     if position is None:
         return False

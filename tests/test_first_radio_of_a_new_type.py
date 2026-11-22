@@ -2,6 +2,7 @@
 (`tnc-text`) or a Sound card radio (`direwolf`), as the setup guide adds it over the page's socket:
 no spurious errors, rows and refusals as expected, and the Sound card radio's beacon.
 """
+
 import asyncio
 from pathlib import Path
 from types import SimpleNamespace
@@ -33,7 +34,12 @@ async def fresh(tmp_path: Path) -> tuple[Env, WsClient]:
     await e.start(connected=False)
     page = await e.ws()
     await page.until(lambda: "radios" in page.topics and "config" in page.topics)
-    await page.send({"cmd": "set_config", "values": {"station/call": ME, "station/lat": "60.17", "station/lon": "24.94", "messages/alert": "false"}})
+    await page.send(
+        {
+            "cmd": "set_config",
+            "values": {"station/call": ME, "station/lat": "60.17", "station/lon": "24.94", "messages/alert": "false"},
+        }
+    )
     await page.until(lambda: page.topics["config"]["values"]["station/call"] == ME)
     return e, page
 
@@ -42,14 +48,18 @@ def errors(page: WsClient) -> list[dict[str, Any]]:
     return page.of("error")
 
 
-async def test_a_lora_board_on_the_network_added_first_with_no_address_is_not_connected_with_no_error_and_connects_once_its_address_is_typed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_lora_board_on_the_network_added_first_with_no_address_is_not_connected_with_no_error_and_connects_once_its_address_is_typed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     board = Board("igate")
     end, server = BoardOnTcp(board), await ListServer(board).start()
     await end.start()
     monkeypatch.setattr(loralist, "PORT", server.port)
     e, page = await fresh(tmp_path)
     try:
-        assert page.topics["radios"] == {} and e.ctl.config.radios == (), "a new installation has no radio, and its first start writes none"
+        assert page.topics["radios"] == {} and e.ctl.config.radios == (), (
+            "a new installation has no radio, and its first start writes none"
+        )
         id = await added(page, "lora-tcp")
         assert id == 1, "the first radio added is radio 1"
         radio = e.ctl.radios.get(id)
@@ -58,13 +68,27 @@ async def test_a_lora_board_on_the_network_added_first_with_no_address_is_not_co
         row = page.topics["radios"][str(id)]
         # (between two tries, which open nothing)
         assert (row["kind"], row["type"], row["enabled"], row["state"]) == ("lora", "lora-tcp", True, "waiting"), row
-        assert row["problem"] is not None and row["problem"]["code"] == "radio.not_connected", "the row says not connected, in the page's words: nothing of an address or a port"
-        assert page.topics["config"]["radio_values"][f"radio/{id}/tcp_host"] == "" and end.clients == 0, "a board on the network has no address until it is typed: nothing is opened, not 127.0.0.1"
+        assert row["problem"] is not None and row["problem"]["code"] == "radio.not_connected", (
+            "the row says not connected, in the page's words: nothing of an address or a port"
+        )
+        assert page.topics["config"]["radio_values"][f"radio/{id}/tcp_host"] == "" and end.clients == 0, (
+            "a board on the network has no address until it is typed: nothing is opened, not 127.0.0.1"
+        )
         assert e.ctl.config.unheard_radio == id, "the board is the station's radio to send on"
         assert errors(page) == [], "no error the operator did not ask for"
-        await page.send({"cmd": "set_config", "values": {f"radio/{id}/tcp_host": "127.0.0.1", f"radio/{id}/tcp_port": str(end.port)}})
+        await page.send(
+            {
+                "cmd": "set_config",
+                "values": {f"radio/{id}/tcp_host": "127.0.0.1", f"radio/{id}/tcp_port": str(end.port)},
+            }
+        )
         await until_started(lambda: radio.state is Source.State.CONNECTED and end.clients == 1)
-        await page.until(lambda: page.topics["radios"][str(id)]["state"] == "connected" and page.topics["radios"][str(id)]["problem"] is None)
+        await page.until(
+            lambda: (
+                page.topics["radios"][str(id)]["state"] == "connected"
+                and page.topics["radios"][str(id)]["problem"] is None
+            )
+        )
         assert radio.beacon.send_now(), radio.beacon.problem
         await until(lambda: len(board.transmitted) == 1)
         assert board.transmitted[0].startswith(HEADER + f"{ME}>".encode()) and errors(page) == []
@@ -74,7 +98,9 @@ async def test_a_lora_board_on_the_network_added_first_with_no_address_is_not_co
         await server.stop()
 
 
-async def test_a_text_monitor_alone_makes_the_station_receive_only_refuses_every_sending_command_as_rx_only_and_writes_not_one_byte(tmp_path: Path) -> None:
+async def test_a_text_monitor_alone_makes_the_station_receive_only_refuses_every_sending_command_as_rx_only_and_writes_not_one_byte(
+    tmp_path: Path,
+) -> None:
     line = FakeRadio()
     await line.start()
     e, page = await fresh(tmp_path)
@@ -84,17 +110,36 @@ async def test_a_text_monitor_alone_makes_the_station_receive_only_refuses_every
         assert page.topics["radios"] == {}, "a new installation has no radio"
         id = await added(page, "tnc-text")
         await page.send({"cmd": "set_config", "values": {f"radio/{id}/port": line.url}})
-        assert id == 1 and [row["id"] for row in page.topics["radios"].values()] == [1], "the monitor is the station's one radio"
+        assert id == 1 and [row["id"] for row in page.topics["radios"].values()] == [1], (
+            "the monitor is the station's one radio"
+        )
         radio = e.ctl.radios.get(id)
         assert radio is not None
         await until_started(lambda: radio.state is Source.State.CONNECTED)
         await page.until(lambda: page.topics["radios"][str(id)]["state"] == "connected")
         row = page.topics["radios"][str(id)]
-        assert (row["kind"], row["type"], row["can"]["transmit"], row["can"]["find"], row["allowed"]["paths"], row["allowed"]["digipeat"]) == ("fm", "tnc-text", False, False, False, False)
-        assert e.ctl.config.listens_only and e.ctl.config.unheard_radio is None and errors(page) == [], "the station only receives, and nothing tells an error for it"
-        line.feed(b"OH2ABC-7>APRS,WIDE1-1:!6011.00N/02457.00E>heard on the monitor\r" + f"OH2ABC-7>APRS,WIDE1-1::{ME:<9}:Hello{{12\r".encode())
+        assert (
+            row["kind"],
+            row["type"],
+            row["can"]["transmit"],
+            row["can"]["find"],
+            row["allowed"]["paths"],
+            row["allowed"]["digipeat"],
+        ) == ("fm", "tnc-text", False, False, False, False)
+        assert e.ctl.config.listens_only and e.ctl.config.unheard_radio is None and errors(page) == [], (
+            "the station only receives, and nothing tells an error for it"
+        )
+        line.feed(
+            b"OH2ABC-7>APRS,WIDE1-1:!6011.00N/02457.00E>heard on the monitor\r"
+            + f"OH2ABC-7>APRS,WIDE1-1::{ME:<9}:Hello{{12\r".encode()
+        )
         await until(lambda: (s := e.ctl.stationbook.get("OH2ABC-7")) is not None and s.heard_on(id).count > 0)
-        for command in ({"cmd": "beacon_now"}, {"cmd": "status_now"}, {"cmd": "send_message", "to": "OH2ABC-7", "text": "Hello"}, {"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True}):
+        for command in (
+            {"cmd": "beacon_now"},
+            {"cmd": "status_now"},
+            {"cmd": "send_message", "to": "OH2ABC-7", "text": "Hello"},
+            {"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True},
+        ):
             await page.send(command)
             answer = await page.expect("error")
             assert (answer["cmd"], answer["code"]) == (command["cmd"], "transmit.off"), answer
@@ -102,17 +147,21 @@ async def test_a_text_monitor_alone_makes_the_station_receive_only_refuses_every
         assert (await page.expect("error"))["code"] == "radio.receive_only"
         # (an hour of the station's clock: a beacon, an ack, an answer would be due)
         for _ in range(20):
-            e.now.advance(180)                                                    # type: ignore[attr-defined]
+            e.now.advance(180)  # type: ignore[attr-defined]
             await asyncio.sleep(0.02)
         assert await line.said(1, 0.3) == b"" and radio.stats.bytes_out == 0, "not one byte on the monitor's line"
-        assert [error["code"] for error in errors(page)] == ["transmit.off"] * 4 + ["radio.receive_only"], "and no error but the refusals of what was asked"
+        assert [error["code"] for error in errors(page)] == ["transmit.off"] * 4 + ["radio.receive_only"], (
+            "and no error but the refusals of what was asked"
+        )
     finally:
         await e.stop()
         await line.aclose()
 
 
 @pytest.mark.parametrize("windows", [False, True], ids=["this-systems-way", "the-windows-way"])
-async def test_a_sound_card_radio_added_first_is_radio_1_the_stations_radio_to_send_on_and_its_beacon_goes_out_through_its_own_direwolf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windows: bool) -> None:
+async def test_a_sound_card_radio_added_first_is_radio_1_the_stations_radio_to_send_on_and_its_beacon_goes_out_through_its_own_direwolf(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windows: bool
+) -> None:
     """With `windows`, the Windows way on every system: the card's WinMM numbers in the
     configuration, and the made-up Direwolf's device lists read."""
     # (an installation that carries Direwolf: the made-up one, which gives back each frame it is
@@ -131,20 +180,41 @@ async def test_a_sound_card_radio_added_first_is_radio_1_the_stations_radio_to_s
     e, page = await fresh(tmp_path)
     try:
         await page.until(lambda: set(TOPIC_NAMES) <= set(page.topics) and bool(page.of("status")))
-        assert page.topics["radios"] == {} and e.ctl.config.radios == (), "a new installation has no radio, and the page is told so (the header waits for none)"
-        assert page.of("status")[-1]["unavailable_types"] == [], "the type is offered to a station that has no radio yet"
+        assert page.topics["radios"] == {} and e.ctl.config.radios == (), (
+            "a new installation has no radio, and the page is told so (the header waits for none)"
+        )
+        assert page.of("status")[-1]["unavailable_types"] == [], (
+            "the type is offered to a station that has no radio yet"
+        )
         id = await added(page, "direwolf")
         assert id == 1, "the first radio added is radio 1"
-        await page.send({"cmd": "set_config", "values": {f"radio/{id}/sound_card": "plughw:7,0", f"radio/{id}/keying": "vox"}})
+        await page.send(
+            {"cmd": "set_config", "values": {f"radio/{id}/sound_card": "plughw:7,0", f"radio/{id}/keying": "vox"}}
+        )
         radio = e.ctl.radios.get(id)
         assert radio is not None
         await until_started(lambda: radio.usable)
         assert isinstance(radio.driver, DirewolfDriver)
-        assert f"ADEVICE {'1 1' if windows else adevice('plughw:7,0', radio.driver.modem._numbers)}\n" in (radio_folder(tmp_path, id) / CONF_FILE).read_text(encoding="utf-8"), "the card as this system takes it"
-        await page.until(lambda: page.topics["radios"][str(id)]["state"] == "connected" and page.topics["radios"][str(id)]["problem"] is None)
+        assert f"ADEVICE {'1 1' if windows else adevice('plughw:7,0', radio.driver.modem._numbers)}\n" in (
+            radio_folder(tmp_path, id) / CONF_FILE
+        ).read_text(encoding="utf-8"), "the card as this system takes it"
+        await page.until(
+            lambda: (
+                page.topics["radios"][str(id)]["state"] == "connected"
+                and page.topics["radios"][str(id)]["problem"] is None
+            )
+        )
         row = page.topics["radios"][str(id)]
-        assert (row["kind"], row["type"], row["enabled"], row["can"]["transmit"], row["can"]["tune"]) == ("fm", "direwolf", True, True, True), row
-        assert e.ctl.config.unheard_radio == id and not e.ctl.config.listens_only, "the Sound card radio is the station's radio to send on"
+        assert (row["kind"], row["type"], row["enabled"], row["can"]["transmit"], row["can"]["tune"]) == (
+            "fm",
+            "direwolf",
+            True,
+            True,
+            True,
+        ), row
+        assert e.ctl.config.unheard_radio == id and not e.ctl.config.listens_only, (
+            "the Sound card radio is the station's radio to send on"
+        )
         assert radio.beacon.send_now(), radio.beacon.problem
         await until(lambda: radio.stats.bytes_out > 0)
         assert errors(page) == [], "no error the operator did not ask for"

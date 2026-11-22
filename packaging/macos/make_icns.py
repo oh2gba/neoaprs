@@ -5,12 +5,21 @@ four-letter type of its size (and the 32, 64 and 256 px frames once more as the 
 16, 32 and 128). macOS reads PNG frames since 10.7 and scales the 256 one up where it wants 512, so
 no tool of a Mac (iconutil, sips) is needed and the file can be made, and tested, anywhere. Standard
 library only."""
+
 import struct
 import sys
 from pathlib import Path
 
 # the pixel size of a frame to the types that hold it
-TYPES = {16: ("icp4",), 32: ("icp5", "ic11"), 64: ("icp6", "ic12"), 128: ("ic07",), 256: ("ic08", "ic13"), 512: ("ic09", "ic14"), 1024: ("ic10",)}
+TYPES = {
+    16: ("icp4",),
+    32: ("icp5", "ic11"),
+    64: ("icp6", "ic12"),
+    128: ("ic07",),
+    256: ("ic08", "ic13"),
+    512: ("ic09", "ic14"),
+    1024: ("ic10",),
+}
 
 
 def png_frames(ico: bytes) -> dict[int, bytes]:
@@ -19,8 +28,10 @@ def png_frames(ico: bytes) -> dict[int, bytes]:
     count = struct.unpack("<H", ico[4:6])[0]
     frames: dict[int, bytes] = {}
     for i in range(count):
-        width, _height, _colors, _reserved, _planes, _bpp, size, offset = struct.unpack("<BBBBHHII", ico[6 + 16 * i:22 + 16 * i])
-        data = ico[offset:offset + size]
+        width, _height, _colors, _reserved, _planes, _bpp, size, offset = struct.unpack(
+            "<BBBBHHII", ico[6 + 16 * i : 22 + 16 * i]
+        )
+        data = ico[offset : offset + size]
         if data.startswith(b"\x89PNG"):
             frames[width or 256] = data
     return frames
@@ -29,7 +40,11 @@ def png_frames(ico: bytes) -> dict[int, bytes]:
 def icns(frames: dict[int, bytes]) -> bytes:
     """The container: `icns`, its length, then each frame under each of its types (type, length of
     the entry, the PNG), the sizes in order."""
-    entries = b"".join(kind.encode("ascii") + struct.pack(">I", 8 + len(data)) + data for size, data in sorted(frames.items()) for kind in TYPES.get(size, ()))
+    entries = b"".join(
+        kind.encode("ascii") + struct.pack(">I", 8 + len(data)) + data
+        for size, data in sorted(frames.items())
+        for kind in TYPES.get(size, ())
+    )
     if not entries:
         raise ValueError("no frame of a size an .icns holds")
     return b"icns" + struct.pack(">I", 8 + len(entries)) + entries

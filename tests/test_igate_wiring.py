@@ -1,6 +1,7 @@
 """Tests for the iGate inside the whole daemon with a fake TNC and APRS-IS: a capture becomes server
 lines, settings switch it, the `igate` topic, internet stations, and read-only mode.
 """
+
 import re
 from dataclasses import replace
 from pathlib import Path
@@ -25,14 +26,16 @@ def igate_settings(server: FakeAprsIs) -> dict[str, str]:
 
 
 async def started(tmp_path: Path, server: FakeAprsIs, **options: object) -> Env:
-    e = Env(tmp_path, settings=igate_settings(server), **options)                # type: ignore[arg-type]
+    e = Env(tmp_path, settings=igate_settings(server), **options)  # type: ignore[arg-type]
     await e.start()
     await e.until_usable()
     await until(lambda: e.ctl.igate.state == "connected")
     return e
 
 
-async def test_the_map_radius_of_the_settings_is_the_radius_of_the_filter_and_a_change_of_it_from_the_page_sends_the_filter_again(tmp_path: Path) -> None:
+async def test_the_map_radius_of_the_settings_is_the_radius_of_the_filter_and_a_change_of_it_from_the_page_sends_the_filter_again(
+    tmp_path: Path,
+) -> None:
     server = await fake_aprsis()
     e = await started(tmp_path, server, web=True)
     page = await e.ws()
@@ -43,20 +46,25 @@ async def test_the_map_radius_of_the_settings_is_the_radius_of_the_filter_and_a_
     await e.stop()
 
 
-async def test_a_capture_played_into_the_daemon_is_on_the_server_and_every_packet_is_accounted_for(tmp_path: Path) -> None:
+async def test_a_capture_played_into_the_daemon_is_on_the_server_and_every_packet_is_accounted_for(
+    tmp_path: Path,
+) -> None:
     server = await fake_aprsis()
     e = await started(tmp_path, server)
     frames = await e.play(CAPTURE)
     igate = e.ctl.igate
     # (the four packets of the capture and our own position)
     await until(lambda: len(server.packets) == frames + 1)
-    assert frames == 4 and igate.gated == 4 and not igate.dropped, "(each packet heard is gated or counted by its reason)"
+    assert frames == 4 and igate.gated == 4 and not igate.dropped, (
+        "(each packet heard is gated or counted by its reason)"
+    )
     gated = [line for line in server.packets if not line.startswith(f"OH2GBA>{TOCALL},")]
     assert gated == [
         "OH2RDG>APN391,OH2RCH-2*,TRACE2-1,qAO,OH2GBA:!6007.47NN02429.82E#PHG8470/R,W,T,Wn,Tn Kirkkonummi oh1gsm@sral.fi",
         "OH2RDK-7>APRX29,OH2RCH-2*,TRACE2-1,qAO,OH2GBA:!6009.90NT02456.80E&432.500 MHz",
         "OH2RDS>APN391,OH2RCH-2*,qAO,OH2GBA:!6016.66NN02515.26E#PHG8470/R,W,T,Wn,Tn Sipoo oh1gsm@sral.fi",
-        "OH2PU-9>APOTC1,OH2RCH-2*,qAO,OH2GBA:!/0&m]TbwX>z!GQRV D-STAR 144.650MHz"]
+        "OH2PU-9>APOTC1,OH2RCH-2*,qAO,OH2GBA:!/0&m]TbwX>z!GQRV D-STAR 144.650MHz",
+    ]
     assert all(LINE.match(line) for line in gated)
     assert server.logins == [f"user OH2GBA pass {PASSWORD} vers {PROGRAM} {VERSION} filter {FILTER}"]
     # (the same four again, at once: the duplicates of a minute ago are not sent twice)
@@ -74,7 +82,9 @@ async def test_the_position_of_the_station_is_on_the_server_with_tcpip_as_its_on
     await e.stop()
 
 
-async def test_what_the_server_sends_is_stations_of_the_internet_and_nothing_of_it_reaches_the_radio_or_is_gated_back(tmp_path: Path) -> None:
+async def test_what_the_server_sends_is_stations_of_the_internet_and_nothing_of_it_reaches_the_radio_or_is_gated_back(
+    tmp_path: Path,
+) -> None:
     server = await fake_aprsis()
     e = await started(tmp_path, server)
     await e.play(CAPTURE)
@@ -95,12 +105,16 @@ async def test_what_the_server_sends_is_stations_of_the_internet_and_nothing_of_
     xyz = e.ctl.stationbook.get("OH2XYZ")
     assert xyz is not None and (xyz.heard_is, xyz.heard_rf, xyz.internet_only, xyz.can_message) == (3, 0, True, False)
     packets = await e.packets()
-    assert len(packets) == before_heard + 3 and sorted(p.via for p in packets) == ["is"] * 3 + ["rf"] * before_heard, "(the log kept them, as from the internet)"
+    assert len(packets) == before_heard + 3 and sorted(p.via for p in packets) == ["is"] * 3 + ["rf"] * before_heard, (
+        "(the log kept them, as from the internet)"
+    )
     assert server.packets == before_sent and e.ctl.igate.gated == 4, "(nothing of the internet was gated back to it)"
     await e.stop()
 
 
-async def test_without_a_passcode_the_daemon_logs_in_read_only_gates_nothing_sends_no_position_and_shows_the_stations_of_the_internet(tmp_path: Path) -> None:
+async def test_without_a_passcode_the_daemon_logs_in_read_only_gates_nothing_sends_no_position_and_shows_the_stations_of_the_internet(
+    tmp_path: Path,
+) -> None:
     server = await fake_aprsis(verified=False)
     e = Env(tmp_path, settings={**igate_settings(server), "igate/password": ""})
     await e.start()
@@ -115,12 +129,16 @@ async def test_without_a_passcode_the_daemon_logs_in_read_only_gates_nothing_sen
     abc, abd = e.ctl.stationbook.get("OH2ABC"), e.ctl.stationbook.get("OH2ABD-9")
     assert abc is not None and abd is not None and (abc.heard_is, abc.internet_only, abd.heard_is) == (1, True, 1)
     assert frames == 4 and e.ctl.stationbook.get("OH2RDG") is not None, "(the radio's stations are there too)"
-    assert server.packets == [] and e.ctl.igate.gated == 0 and not e.ctl.igate.dropped, "(read only: nothing gated, no position sent)"
+    assert server.packets == [] and e.ctl.igate.gated == 0 and not e.ctl.igate.dropped, (
+        "(read only: nothing gated, no position sent)"
+    )
     assert await e.heard(1, 0.3) == b"", "(and nothing written to the radio)"
     await e.stop()
 
 
-async def test_a_passcode_the_server_refuses_leaves_the_daemon_listening_and_the_stations_of_the_internet_come(tmp_path: Path) -> None:
+async def test_a_passcode_the_server_refuses_leaves_the_daemon_listening_and_the_stations_of_the_internet_come(
+    tmp_path: Path,
+) -> None:
     server = await fake_aprsis(verified=False)
     e = Env(tmp_path, settings=igate_settings(server))
     await e.start()
@@ -128,7 +146,11 @@ async def test_a_passcode_the_server_refuses_leaves_the_daemon_listening_and_the
     await until(lambda: e.ctl.igate.state == "unverified")
     server.send(b"OH2ABC>APRS,TCPIP*,qAC,TESTSRV:!6010.50N/02457.00E-internet station")
     await until(lambda: e.ctl.stationbook.get("OH2ABC") is not None)
-    assert server.connections == 1 and server.packets == [] and e.ctl.igate.problem == "the server did not accept the password"
+    assert (
+        server.connections == 1
+        and server.packets == []
+        and e.ctl.igate.problem == "the server did not accept the password"
+    )
     await e.stop()
 
 
@@ -145,7 +167,9 @@ async def test_a_packet_heard_on_the_radio_is_gated_and_nothing_of_it_is_answere
     await e.stop()
 
 
-async def test_the_igate_knows_the_dummy_radio_from_the_settings_as_the_line_does_when_the_operator_switches_to_it_and_back(tmp_path: Path) -> None:
+async def test_the_igate_knows_the_dummy_radio_from_the_settings_as_the_line_does_when_the_operator_switches_to_it_and_back(
+    tmp_path: Path,
+) -> None:
     server = await fake_aprsis()
     e = await started(tmp_path, server)
     real = e.ctl.config.tnc_profile
@@ -159,7 +183,9 @@ async def test_the_igate_knows_the_dummy_radio_from_the_settings_as_the_line_doe
     await e.stop()
 
 
-async def test_the_igate_is_off_until_the_operator_turns_it_on_and_the_settings_from_the_page_switch_it(tmp_path: Path) -> None:
+async def test_the_igate_is_off_until_the_operator_turns_it_on_and_the_settings_from_the_page_switch_it(
+    tmp_path: Path,
+) -> None:
     server = await fake_aprsis()
     e = Env(tmp_path, web=True)
     await e.start()
@@ -167,12 +193,28 @@ async def test_the_igate_is_off_until_the_operator_turns_it_on_and_the_settings_
     assert e.ctl.igate.state == "off" and server.connections == 0
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    assert page.topics["igate"] == {"enabled": False, "state": "off", "server": "", "reason": "", "gated": 0, "dropped": {}, "last_gated_at": None}
+    assert page.topics["igate"] == {
+        "enabled": False,
+        "state": "off",
+        "server": "",
+        "reason": "",
+        "gated": 0,
+        "dropped": {},
+        "last_gated_at": None,
+    }
     values = page.topics["config"]["values"]
-    assert values["igate/enabled"] == "false" and values["igate/server"] == "rotate.aprs2.net:14580" and values["igate/password"] == ""
+    assert (
+        values["igate/enabled"] == "false"
+        and values["igate/server"] == "rotate.aprs2.net:14580"
+        and values["igate/password"] == ""
+    )
     await page.send({"cmd": "set_config", "values": igate_settings(server)})
     await page.until(lambda: page.topics["igate"]["state"] == "connected")
-    assert page.topics["igate"]["server"] == server.name and page.topics["igate"]["reason"] == "" and page.topics["igate"]["enabled"] is True
+    assert (
+        page.topics["igate"]["server"] == server.name
+        and page.topics["igate"]["reason"] == ""
+        and page.topics["igate"]["enabled"] is True
+    )
     e.feed(on_air("OH2RDG-7", b"!6010.00N/02456.00E>x"))
     e.feed(on_air("OH2RDG-8", b"!6010.00N/02456.00E>y", path="TCPIP*"))
     await page.until(lambda: page.topics["igate"]["gated"] == 1 and page.topics["igate"]["dropped"] == {"tcpip": 1})
@@ -183,7 +225,9 @@ async def test_the_igate_is_off_until_the_operator_turns_it_on_and_the_settings_
     await e.stop()
 
 
-async def test_a_password_that_is_not_a_passcode_and_the_read_only_one_are_refused_by_the_page_command(tmp_path: Path) -> None:
+async def test_a_password_that_is_not_a_passcode_and_the_read_only_one_are_refused_by_the_page_command(
+    tmp_path: Path,
+) -> None:
     e = Env(tmp_path, web=True)
     await e.start()
     page = await e.ws()

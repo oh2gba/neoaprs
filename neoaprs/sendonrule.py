@@ -3,6 +3,7 @@
 `kept_in_force` runs on every change; if a thing (beacon, status, objects, e-mail ...) was in
 force on some radios and would be on none, it is ticked for those that can still send. No I/O.
 """
+
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 
@@ -15,6 +16,7 @@ from .radiotype import FM_ID
 @dataclass(frozen=True)
 class Kept:
     """What a change of the radios writes: ticks, new object and bulletin sets, the e-mail radio."""
+
     ticks: tuple[tuple[RadioId, str], ...] = ()
     objects: Mapping[str, tuple[RadioId, ...]] = field(default_factory=dict)
     bulletins: Mapping[str, tuple[RadioId, ...]] = field(default_factory=dict)
@@ -24,7 +26,9 @@ class Kept:
         return bool(self.ticks or self.objects or self.bulletins or self.email is not None)
 
 
-def _sets(things: Mapping[str, tuple[RadioId, ...]], before: list[RadioSpec], after: list[RadioSpec], still: set[RadioId]) -> dict[str, tuple[RadioId, ...]]:
+def _sets(
+    things: Mapping[str, tuple[RadioId, ...]], before: list[RadioSpec], after: list[RadioSpec], still: set[RadioId]
+) -> dict[str, tuple[RadioId, ...]]:
     """Return the things in force before and on none after, with the radios that can still send."""
     found = {}
     for name, ids in things.items():
@@ -34,8 +38,13 @@ def _sets(things: Mapping[str, tuple[RadioId, ...]], before: list[RadioSpec], af
     return found
 
 
-def kept_in_force(before: Iterable[RadioSpec], after: Iterable[RadioSpec], objects: Mapping[str, tuple[RadioId, ...]], bulletins: Mapping[str, tuple[RadioId, ...]],
-                  email_choice: RadioId | None) -> Kept:
+def kept_in_force(
+    before: Iterable[RadioSpec],
+    after: Iterable[RadioSpec],
+    objects: Mapping[str, tuple[RadioId, ...]],
+    bulletins: Mapping[str, tuple[RadioId, ...]],
+    email_choice: RadioId | None,
+) -> Kept:
     """Return what the change from `before` to `after` must write so nothing in force stops."""
     was, now = list(before), list(after)
     still = {spec.id for spec in senders(now)}
@@ -46,12 +55,21 @@ def kept_in_force(before: Iterable[RadioSpec], after: Iterable[RadioSpec], objec
     ticks = []
     for key in SEND_ON_KEYS:
         went = send_on_radios(key, was)
-        if went and not send_on_radios(key, [spec if spec.id in had else replace(spec, settings={**spec.settings, key: "false"}) for spec in now]):
+        if went and not send_on_radios(
+            key, [spec if spec.id in had else replace(spec, settings={**spec.settings, key: "false"}) for spec in now]
+        ):
             ticks += [(id, key) for id in went if id in still]
-    return Kept(tuple(ticks), _sets(objects, was, now, still), _sets(bulletins, was, now, still), _mail(was, now, still, email_choice))
+    return Kept(
+        tuple(ticks),
+        _sets(objects, was, now, still),
+        _sets(bulletins, was, now, still),
+        _mail(was, now, still, email_choice),
+    )
 
 
-def _mail(was: list[RadioSpec], now: list[RadioSpec], still: set[RadioId], email_choice: RadioId | None) -> RadioId | None:
+def _mail(
+    was: list[RadioSpec], now: list[RadioSpec], still: set[RadioId], email_choice: RadioId | None
+) -> RadioId | None:
     """Return the e-mail radio a change writes (None: nothing)."""
     if email_choice in still or (mail := email_radio(was, email_choice)) is None or mail not in still:
         return None

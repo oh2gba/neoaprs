@@ -3,6 +3,7 @@
 A name is one entry; a transmitting station wins it over an object or item of that name, and
 another station's report of an object named like ours takes it over (the spec's "Replacement").
 """
+
 from collections.abc import Callable, Collection, Iterable, Mapping
 from datetime import datetime
 
@@ -20,7 +21,23 @@ from .radiotype import RadioTypeError
 from .route import route_of
 from .signal import Signal
 from .station import Station, add_track_point
-from .stationnotes import came_back, every_radio_carries_path, expire_hours, note_gate, note_heard, note_igate, note_messaging, note_position, note_radio_place, note_telemetry, seed_hour, seed_radio, seed_reported, seed_routes
+from .stationnotes import (
+    came_back,
+    every_radio_carries_path,
+    expire_hours,
+    note_gate,
+    note_heard,
+    note_igate,
+    note_messaging,
+    note_position,
+    note_radio_place,
+    note_telemetry,
+    seed_hour,
+    seed_radio,
+    seed_reported,
+    seed_routes,
+)
+
 # Packets read at start: the latest, and as many of those not from the internet, for routes.
 ROUTES_SEEN = 1000
 # Packets read at start for telemetry, definitions, locators, data extensions and the device.
@@ -57,15 +74,29 @@ def route_groups(rows: Iterable[tuple[str, str, bytes, datetime, RadioId | None]
             opened = header_of(ax25.decode(raw).info)
         except ax25.Ax25Error:
             continue
-        key = (source if opened is None else opened[0].source, tuple(path_text.split(",")) if path_text else (), "" if opened is None else source, radio)
+        key = (
+            source if opened is None else opened[0].source,
+            tuple(path_text.split(",")) if path_text else (),
+            "" if opened is None else source,
+            radio,
+        )
         packets, earlier, _ = groups.pop(key, (0, at, None))
         # re-inserting moves a group to the end: the order is that of the latest packet
         groups[key] = (packets + 1, at, earlier if packets else None)
-    return [(sender, path, gate, packets, at, before, radio) for (sender, path, gate, radio), (packets, at, before) in groups.items()]
+    return [
+        (sender, path, gate, packets, at, before, radio)
+        for (sender, path, gate, radio), (packets, at, before) in groups.items()
+    ]
 
 
 class StationBook:
-    def __init__(self, clock: Clock = utcnow, *, carries_path: Callable[[RadioId], bool] = every_radio_carries_path, own_calls: Callable[[], Collection[str]] = tuple) -> None:
+    def __init__(
+        self,
+        clock: Clock = utcnow,
+        *,
+        carries_path: Callable[[RadioId], bool] = every_radio_carries_path,
+        own_calls: Callable[[], Collection[str]] = tuple,
+    ) -> None:
         self.clock = clock
         # a packet showing one of these calls is our own copy heard back
         self._own_calls = own_calls
@@ -109,7 +140,9 @@ class StationBook:
             note_gate(self._stations, gate, count)
             station = self._stations.get(sender)
             if station is not None and not came_back(path, self._own_calls()):
-                station.note_route(radio, route_of(path, gate), count, at, before, carries_path=self._carries_path(radio))
+                station.note_route(
+                    radio, route_of(path, gate), count, at, before, carries_path=self._carries_path(radio)
+                )
                 station.seed_path(radio, path)
                 station.last_via = gate
 
@@ -151,7 +184,10 @@ class StationBook:
             if isinstance(decoded, Position):
                 note_position(station, decoded)
             elif isinstance(decoded, Status):
-                station.locator, station.frequency = decoded.locator or station.locator, decoded.frequency or station.frequency
+                station.locator, station.frequency = (
+                    decoded.locator or station.locator,
+                    decoded.frequency or station.frequency,
+                )
 
     def seed_routes(self, packets: Iterable[Packet]) -> None:
         """Load each station's latest internet route and two latest different routes."""
@@ -204,8 +240,20 @@ class StationBook:
             self.removed.emit(call)
         return gone
 
-    def set_me(self, call: str, lat: float, lon: float, symbol_table: str = "", symbol_code: str = "", comment: str = "", *, course_deg: int | None = None, speed_kmh: float | None = None,
-               altitude_m: float | None = None, at: datetime | None = None) -> Station:
+    def set_me(
+        self,
+        call: str,
+        lat: float,
+        lon: float,
+        symbol_table: str = "",
+        symbol_code: str = "",
+        comment: str = "",
+        *,
+        course_deg: int | None = None,
+        speed_kmh: float | None = None,
+        altitude_m: float | None = None,
+        at: datetime | None = None,
+    ) -> Station:
         """Put our own station in the book as `is_me`; the settings are the truth about us."""
         if self._me != call:
             self.clear_me()
@@ -217,7 +265,17 @@ class StationBook:
         station = self._stations.get(call)
         if station is None:
             station = self._stations[call] = Station(call, first_heard=now, last_heard=now)
-        before = (station.is_me, station.lat, station.lon, station.symbol_table, station.symbol_code, station.last_comment, station.course_deg, station.speed_kmh, station.altitude_m)
+        before = (
+            station.is_me,
+            station.lat,
+            station.lon,
+            station.symbol_table,
+            station.symbol_code,
+            station.last_comment,
+            station.course_deg,
+            station.speed_kmh,
+            station.altitude_m,
+        )
         station.is_me, station.lat, station.lon = True, lat, lon
         station.track.clear()
         station.symbol_table, station.symbol_code, station.last_comment = symbol_table, symbol_code, comment
@@ -245,11 +303,23 @@ class StationBook:
             return None
         station = self._stations.get(obj.name)
         if station is None or not station.own:
-            station = self._stations[obj.name] = Station(obj.name, first_heard=obj.created_at, last_heard=obj.updated_at, kind=obj.kind, own=True)
+            station = self._stations[obj.name] = Station(
+                obj.name, first_heard=obj.created_at, last_heard=obj.updated_at, kind=obj.kind, own=True
+            )
         station.reported_by, station.packets = self._me, obj.sent
         station.last_heard, station.last_position_at = obj.last_sent_at or obj.updated_at, obj.updated_at
-        station.symbol_table, station.symbol_code, station.lat, station.lon = obj.symbol_table, obj.symbol_code, obj.lat, obj.lon
-        station.course_deg, station.speed_kmh, station.last_comment, station.own_path = obj.course_deg, obj.speed_kmh, obj.comment, obj.path_calls or ()
+        station.symbol_table, station.symbol_code, station.lat, station.lon = (
+            obj.symbol_table,
+            obj.symbol_code,
+            obj.lat,
+            obj.lon,
+        )
+        station.course_deg, station.speed_kmh, station.last_comment, station.own_path = (
+            obj.course_deg,
+            obj.speed_kmh,
+            obj.comment,
+            obj.path_calls or (),
+        )
         self.changed.emit(station)
         return station
 
@@ -336,7 +406,11 @@ class StationBook:
         station.position_via = packet.via
         station.symbol_table, station.symbol_code = position.symbol_table, position.symbol_code
         station.lat, station.lon = position.lat, position.lon
-        station.altitude_m, station.course_deg, station.speed_kmh = position.altitude_m, position.course_deg, position.speed_kmh
+        station.altitude_m, station.course_deg, station.speed_kmh = (
+            position.altitude_m,
+            position.course_deg,
+            position.speed_kmh,
+        )
         station.last_comment = position.comment
         note_position(station, position)
         station.last_position_at = when
@@ -358,7 +432,9 @@ class StationBook:
         kind = "object" if isinstance(report, ObjectReport) else "item"
         # An object of ours that another station reports is theirs now.
         if station is None or station.kind != kind or station.own:
-            station = self._stations[report.name] = Station(report.name, first_heard=packet.heard_at, last_heard=packet.heard_at, kind=kind)
+            station = self._stations[report.name] = Station(
+                report.name, first_heard=packet.heard_at, last_heard=packet.heard_at, kind=kind
+            )
         station.reported_by = packet.sender
         note_heard(station, packet, route=False)
         self._place(station, report.position, packet)

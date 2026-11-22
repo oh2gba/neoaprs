@@ -68,15 +68,31 @@ else:
 
 from tests.support.clock import FixedClock  # noqa: E402, F401
 from tests.support.files import FIXTURES, fixture_bytes, fixture_text  # noqa: E402, F401
-from tests.support.fixtures import clock, no_shipped_world, protocol_violations, search_pattern_from_settings, tmp_data, ui_port_near_the_pair  # noqa: E402, F401
+from tests.support.fixtures import (  # noqa: E402
+    clock,  # noqa: F401
+    no_shipped_world,  # noqa: F401
+    protocol_violations,  # noqa: F401
+    search_pattern_from_settings,  # noqa: F401
+    tmp_data,  # noqa: F401
+    ui_port_near_the_pair,  # noqa: F401
+)
 from tests.support import guards, markers  # noqa: E402
-from tests.support.guards import doors_of_the_module, doors_of_the_session, isolated_machine, logging_restored, no_leaked_db_threads, no_leaked_tasks, no_unexpected_errors  # noqa: E402, F401
+from tests.support.guards import (  # noqa: E402
+    doors_of_the_module,  # noqa: F401
+    doors_of_the_session,  # noqa: F401
+    isolated_machine,  # noqa: F401
+    logging_restored,  # noqa: F401
+    no_leaked_db_threads,  # noqa: F401
+    no_leaked_tasks,  # noqa: F401
+    no_unexpected_errors,  # noqa: F401
+)
 from tests.support.ptyline import ptys  # noqa: E402, F401
 from tests.support.timelimit import a_test_has_a_time_limit  # noqa: E402, F401
 from tests.support import winloop  # noqa: E402
 
 
 if sys.platform == "win32":
+
     def pytest_asyncio_loop_factories(config: pytest.Config, item: pytest.Item) -> dict[str, object]:
         """The event loop of every test on Windows: nudged from outside so that it cannot sleep
         forever while work waits (tests/support/winloop.py). Elsewhere the hook is absent."""
@@ -126,4 +142,6 @@ def pytest_configure(config: pytest.Config) -> None:
     if config.option.basetemp is None:
         scratch = Path(tempfile.gettempdir()).resolve()
         if scratch == ROOT or ROOT in scratch.parents:
-            raise pytest.UsageError(f"the temporary folder is {scratch}, inside the repository (the system's cannot be written): set TMPDIR to a folder outside it")
+            raise pytest.UsageError(
+                f"the temporary folder is {scratch}, inside the repository (the system's cannot be written): set TMPDIR to a folder outside it"
+            )

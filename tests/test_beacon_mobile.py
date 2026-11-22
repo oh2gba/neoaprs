@@ -2,6 +2,7 @@
 with a stand-in GPS and a test clock: compressed frame, start beacon, timing at three speeds, turns,
 no fix, requests, HF, `?APRSP` and the usual timer care.
 """
+
 import logging
 from datetime import timedelta
 
@@ -34,7 +35,15 @@ class Rig(ServiceRig):
         self.radio = radio_of(self.config, radio, self.tnc)
         self.frames = BeaconFrames(lambda: self.config, self.gps, self.clock)
         # (its GPS is the maker's)
-        self.beacon = Beacon(self.radio, lambda: self.config, self.clock, first_delay_sec=30.0, tick_sec=0.01, retry_sec=5.0, frames=self.frames)
+        self.beacon = Beacon(
+            self.radio,
+            lambda: self.config,
+            self.clock,
+            first_delay_sec=30.0,
+            tick_sec=0.01,
+            retry_sec=5.0,
+            frames=self.frames,
+        )
         if fix:
             self.move(speed=54.0, course=270)
 
@@ -44,13 +53,14 @@ class Rig(ServiceRig):
 
     def move(self, speed: float | None = 54.0, course: int | None = 270, **changes: object) -> None:
         """The GPS gives a fix now, with this speed and course."""
-        self.gps.fix = fix_at(self.clock(), speed_kmh=speed, course_deg=course, **changes)             # type: ignore[arg-type]
+        self.gps.fix = fix_at(self.clock(), speed_kmh=speed, course_deg=course, **changes)  # type: ignore[arg-type]
 
     def tick(self) -> None:
         self.beacon._tick()
 
 
 # ---- the frame
+
 
 def test_the_frame_of_a_known_fix_is_these_bytes() -> None:
     rig = Rig()
@@ -64,7 +74,12 @@ def test_the_frame_reads_back_as_a_compressed_position_with_the_course_speed_alt
     p = parse_position(Rig().frame().info[1:], utc(2026, 10, 21, 12), messaging=True)
     assert p.compressed and p.messaging and (p.symbol_table, p.symbol_code) == ("/", ">")
     assert (p.lat, p.lon) == (pytest.approx(60.43, abs=3e-6), pytest.approx(24.145, abs=3e-6))
-    assert p.course_deg in (268, 272) and p.speed_kmh == pytest.approx(54.0, rel=0.04) and p.altitude_m == pytest.approx(31.4, abs=0.31) and p.comment == "NeoAPRS"
+    assert (
+        p.course_deg in (268, 272)
+        and p.speed_kmh == pytest.approx(54.0, rel=0.04)
+        and p.altitude_m == pytest.approx(31.4, abs=0.31)
+        and p.comment == "NeoAPRS"
+    )
 
 
 def test_the_home_position_of_the_settings_is_not_in_the_frame_and_need_not_be_set() -> None:
@@ -76,7 +91,9 @@ def test_the_home_position_of_the_settings_is_not_in_the_frame_and_need_not_be_s
 def test_there_is_no_phg_in_a_mobile_beacon_and_a_long_comment_is_cut_not_refused() -> None:
     with_power = Rig(beacon_power_w=25, beacon_antenna_height_m=6, beacon_antenna_gain_db=3, station_comment="x" * 43)
     info = with_power.frame().info
-    assert b"PHG" not in info and info.endswith(b"/A=000103" + b"x" * 31) and len(info[14:]) == 40, "the 36 characters of a comment with PHG do not apply, and 40 is the most a compressed report may have"
+    assert b"PHG" not in info and info.endswith(b"/A=000103" + b"x" * 31) and len(info[14:]) == 40, (
+        "the 36 characters of a comment with PHG do not apply, and 40 is the most a compressed report may have"
+    )
     no_altitude = Rig(station_comment="y" * 43)
     no_altitude.move(altitude_m=None)
     assert no_altitude.frame().info[14:] == b"y" * 40
@@ -86,7 +103,9 @@ def test_a_fix_without_speed_or_course_is_the_blank_form() -> None:
     rig = Rig(fix=False)
     rig.move(speed=None, course=None)
     info = rig.frame().info
-    assert info[10:14] == b"> sT" and info[14:] == b"/A=000103NeoAPRS", "after the symbol code: a space and the fillers, then the altitude"
+    assert info[10:14] == b"> sT" and info[14:] == b"/A=000103NeoAPRS", (
+        "after the symbol code: a space and the fillers, then the altitude"
+    )
 
 
 def test_the_comment_that_is_not_ascii_or_has_a_switch_character_makes_no_beacon() -> None:
@@ -110,6 +129,7 @@ def test_the_gps_source_alone_makes_the_beacon_a_moving_stations(source: str) ->
 
 # ---- no fix, no beacon
 
+
 def test_with_no_fix_there_is_no_frame_and_the_home_position_is_not_put_in_its_place() -> None:
     rig = Rig(fix=False)
     with pytest.raises(NoFix, match="no position fix"):
@@ -117,7 +137,9 @@ def test_with_no_fix_there_is_no_frame_and_the_home_position_is_not_put_in_its_p
     assert issubclass(NoFix, BeaconError)
 
 
-def test_with_no_fix_nothing_is_sent_by_the_timer_or_on_request_and_the_beacon_says_why(caplog: pytest.LogCaptureFixture) -> None:
+def test_with_no_fix_nothing_is_sent_by_the_timer_or_on_request_and_the_beacon_says_why(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.INFO, "neoaprs.beacon")
     rig = Rig(fix=False)
     rig.gps.why = "the latest GPS fix is 130 s old"
@@ -126,7 +148,11 @@ def test_with_no_fix_nothing_is_sent_by_the_timer_or_on_request_and_the_beacon_s
     rig.tick()
     assert rig.tnc.asked == 0 and rig.beacon.next_due is None
     assert rig.beacon.problem == "no beacon: the latest GPS fix is 130 s old"
-    assert not rig.beacon.send_now() and rig.tnc.asked == 0 and rig.beacon.problem == "no beacon: the latest GPS fix is 130 s old"
+    assert (
+        not rig.beacon.send_now()
+        and rig.tnc.asked == 0
+        and rig.beacon.problem == "no beacon: the latest GPS fix is 130 s old"
+    )
     told = [r for r in caplog.records if "no beacon" in r.getMessage()]
     assert len(told) == 1, "told once, not at every tick"
 
@@ -134,8 +160,12 @@ def test_with_no_fix_nothing_is_sent_by_the_timer_or_on_request_and_the_beacon_s
 def test_a_beacon_given_the_maker_follows_the_makers_gps_and_takes_no_other() -> None:
     rig = Rig()
     rig.tick()
-    assert rig.beacon.last_reason == "start" and rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1:" + KNOWN_INFO.decode()], "SmartBeaconing at the first tick, on the maker's fix"
-    assert Beacon(rig.radio, lambda: rig.config, rig.clock, gps=rig.gps, frames=rig.frames).frames is rig.frames, "the maker's GPS given again is the same"
+    assert rig.beacon.last_reason == "start" and rig.tnc.lines() == [
+        "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:" + KNOWN_INFO.decode()
+    ], "SmartBeaconing at the first tick, on the maker's fix"
+    assert Beacon(rig.radio, lambda: rig.config, rig.clock, gps=rig.gps, frames=rig.frames).frames is rig.frames, (
+        "the maker's GPS given again is the same"
+    )
     with pytest.raises(ValueError, match="the maker's GPS"):
         Beacon(rig.radio, lambda: rig.config, rig.clock, gps=FakeFixes(), frames=rig.frames)
 
@@ -149,7 +179,9 @@ def test_a_mobile_beacon_without_any_gps_service_is_no_beacon() -> None:
     assert rig.tnc.asked == 0
 
 
-def test_when_the_fix_comes_back_the_beacon_follows_it_and_the_problem_is_gone(caplog: pytest.LogCaptureFixture) -> None:
+def test_when_the_fix_comes_back_the_beacon_follows_it_and_the_problem_is_gone(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.INFO, "neoaprs.beacon")
     rig = Rig(fix=False)
     rig.tick()
@@ -162,11 +194,16 @@ def test_when_the_fix_comes_back_the_beacon_follows_it_and_the_problem_is_gone(c
 
 # ---- when it is sent
 
+
 def test_the_first_fix_is_beaconed_at_once_as_the_start_and_the_next_by_time_is_due_at_the_rate_of_the_speed() -> None:
     rig = Rig()
     rig.tick()
     assert rig.tnc.infos() == [KNOWN_INFO]
-    assert rig.beacon.last_reason == "start" and rig.beacon.mobile.last_reason == "start" and rig.beacon.last_sent == rig.clock()
+    assert (
+        rig.beacon.last_reason == "start"
+        and rig.beacon.mobile.last_reason == "start"
+        and rig.beacon.last_sent == rig.clock()
+    )
     assert rig.beacon.next_due == rig.clock() + timedelta(seconds=60 * 100 / 54.0)
     rig.tick()
     assert len(rig.tnc.sent) == 1, "once"
@@ -174,12 +211,26 @@ def test_the_first_fix_is_beaconed_at_once_as_the_start_and_the_next_by_time_is_
 
 # (the preset, a speed, the seconds between two beacons by time at that speed: the slow time when
 # still, the fast time at and above the fast speed, fast_sec * fast_kmh / speed between)
-RATES = [("car", 0.0, 1800), ("car", 50.0, 120), ("car", 130.0, 60), ("bicycle", 2.0, 1800), ("bicycle", 15.0, 120), ("bicycle", 40.0, 60),
-         ("foot", 1.0, 1800), ("foot", 3.5, 240), ("foot", 10.0, 120), ("boat", 2.0, 1800), ("boat", 20.0, 120), ("boat", 50.0, 60)]
+RATES = [
+    ("car", 0.0, 1800),
+    ("car", 50.0, 120),
+    ("car", 130.0, 60),
+    ("bicycle", 2.0, 1800),
+    ("bicycle", 15.0, 120),
+    ("bicycle", 40.0, 60),
+    ("foot", 1.0, 1800),
+    ("foot", 3.5, 240),
+    ("foot", 10.0, 120),
+    ("boat", 2.0, 1800),
+    ("boat", 20.0, 120),
+    ("boat", 50.0, 60),
+]
 
 
 @pytest.mark.parametrize(("travel", "speed", "seconds"), RATES)
-def test_the_time_between_beacons_is_the_rate_of_the_speed_for_the_preset(travel: str, speed: float, seconds: int) -> None:
+def test_the_time_between_beacons_is_the_rate_of_the_speed_for_the_preset(
+    travel: str, speed: float, seconds: int
+) -> None:
     rig = Rig(fix=False, beacon_travel=travel)
     rig.move(speed=speed, course=90)
     rig.tick()
@@ -197,11 +248,18 @@ def test_the_time_between_beacons_is_the_rate_of_the_speed_for_the_preset(travel
 
 # (the preset, a speed in km/h that is 30, 15, 20 or 5 miles per hour, the least turn in degrees
 # there that is not beaconed, the least that is, the seconds a turn waits after the last beacon)
-TURNS = [("car", 48.28, 35, 42, 15), ("bicycle", 24.14, 50, 55, 20), ("foot", 8.05, 60, 70, 60), ("boat", 32.19, 30, 36, 30)]
+TURNS = [
+    ("car", 48.28, 35, 42, 15),
+    ("bicycle", 24.14, 50, 55, 20),
+    ("foot", 8.05, 60, 70, 60),
+    ("boat", 32.19, 30, 36, 30),
+]
 
 
 @pytest.mark.parametrize(("travel", "speed", "small", "big", "wait"), TURNS)
-def test_a_turn_is_beaconed_from_the_threshold_of_the_preset_and_not_sooner_than_its_turn_time(travel: str, speed: float, small: int, big: int, wait: int) -> None:
+def test_a_turn_is_beaconed_from_the_threshold_of_the_preset_and_not_sooner_than_its_turn_time(
+    travel: str, speed: float, small: int, big: int, wait: int
+) -> None:
     rig = Rig(fix=False, beacon_travel=travel)
     rig.move(speed=speed, course=0)
     rig.tick()
@@ -271,7 +329,9 @@ def test_the_interval_of_the_fixed_beacon_is_only_on_or_off_for_a_moving_station
         rig.clock.advance(112)
         rig.move(speed=54.0, course=270)
         rig.tick()
-        assert len(rig.tnc.sent) == 2 and rig.beacon.last_reason == "time", f"{minutes}: SmartBeaconing times it at 54 km/h, not the interval"
+        assert len(rig.tnc.sent) == 2 and rig.beacon.last_reason == "time", (
+            f"{minutes}: SmartBeaconing times it at 54 km/h, not the interval"
+        )
 
 
 def test_with_the_interval_at_zero_the_moving_station_sends_nothing_by_the_timer_and_beacon_now_still_sends() -> None:
@@ -281,7 +341,12 @@ def test_with_the_interval_at_zero_the_moving_station_sends_nothing_by_the_timer
         rig.clock.advance(600)
         # (a fast station that turns, with a fix: SmartBeaconing would say send)
         rig.move(speed=90.0, course=10)
-    assert rig.tnc.sent == [] and rig.beacon.last_sent is None and rig.beacon.next_due is None and rig.beacon.mobile.last is None
+    assert (
+        rig.tnc.sent == []
+        and rig.beacon.last_sent is None
+        and rig.beacon.next_due is None
+        and rig.beacon.mobile.last is None
+    )
     assert rig.beacon.send_now() and len(rig.tnc.sent) == 1, "Beacon now is asked for, so it sends, with a fix"
 
 
@@ -313,7 +378,11 @@ def test_a_request_sends_the_live_frame_and_the_times_count_from_it() -> None:
     rig.clock.advance(30)
     rig.move(speed=54.0, course=270, lat=60.44)
     assert rig.beacon.send_now()
-    assert rig.beacon.last_reason == "request" and rig.beacon.mobile.last_reason == "request" and rig.tnc.sent[-1].info != KNOWN_INFO
+    assert (
+        rig.beacon.last_reason == "request"
+        and rig.beacon.mobile.last_reason == "request"
+        and rig.tnc.sent[-1].info != KNOWN_INFO
+    )
     assert parse_position(rig.tnc.sent[-1].info[1:], rig.clock()).lat == pytest.approx(60.44, abs=1e-5)
     assert rig.beacon.next_due == rig.clock() + timedelta(seconds=60 * 100 / 54.0)
     rig.clock.advance(100)
@@ -328,9 +397,15 @@ async def test_a_moving_station_on_hf_sends_its_fix_by_the_timed_interval_and_no
     await rig.beacon.start()
     try:
         assert rig.beacon.send_now()
-        assert parse_position(rig.tnc.sent[-1].info[1:], rig.clock()).compressed, "the frame carries the fix, as a mobile position"
-        assert rig.beacon.next_due == rig.clock() + timedelta(minutes=30), "the next is the HF floor of the timed interval, not the time the speed of the fix says"
-        assert rig.beacon.mobile.last is None and rig.beacon.mobile.last_reason is None, "nothing is remembered for SmartBeaconing, which HF does not have"
+        assert parse_position(rig.tnc.sent[-1].info[1:], rig.clock()).compressed, (
+            "the frame carries the fix, as a mobile position"
+        )
+        assert rig.beacon.next_due == rig.clock() + timedelta(minutes=30), (
+            "the next is the HF floor of the timed interval, not the time the speed of the fix says"
+        )
+        assert rig.beacon.mobile.last is None and rig.beacon.mobile.last_reason is None, (
+            "nothing is remembered for SmartBeaconing, which HF does not have"
+        )
         rig.clock.advance(60)
         rig.move()
         rig.tick()
@@ -362,22 +437,32 @@ def test_a_fix_is_remembered_with_its_course_for_the_page() -> None:
 
 # ---- the radio
 
-def test_a_beacon_that_is_due_while_the_radio_is_away_waits_and_goes_out_with_the_fix_of_then(caplog: pytest.LogCaptureFixture) -> None:
+
+def test_a_beacon_that_is_due_while_the_radio_is_away_waits_and_goes_out_with_the_fix_of_then(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.INFO, "neoaprs.beacon")
     rig = Rig()
     rig.tnc.state = Source.State.WAITING
     rig.tick()
     rig.tick()
-    assert rig.tnc.asked == 0 and len([r for r in caplog.records if "it goes out when the radio is back" in r.getMessage()]) == 1
+    assert (
+        rig.tnc.asked == 0
+        and len([r for r in caplog.records if "it goes out when the radio is back" in r.getMessage()]) == 1
+    )
     rig.clock.advance(600)
     rig.move(speed=54.0, course=270, lat=60.5)
     rig.tnc.state = Source.State.CONNECTED
     rig.tick()
     assert len(rig.tnc.sent) == 1 and rig.beacon.last_reason == "start"
-    assert parse_position(rig.tnc.sent[0].info[1:], rig.clock()).lat == pytest.approx(60.5, abs=1e-5), "the position of now, not the one of when it fell due"
+    assert parse_position(rig.tnc.sent[0].info[1:], rig.clock()).lat == pytest.approx(60.5, abs=1e-5), (
+        "the position of now, not the one of when it fell due"
+    )
 
 
-def test_a_frame_the_tnc_refuses_is_tried_again_and_after_six_refusals_a_minute_later(caplog: pytest.LogCaptureFixture) -> None:
+def test_a_frame_the_tnc_refuses_is_tried_again_and_after_six_refusals_a_minute_later(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.INFO, "neoaprs.beacon")
     rig = Rig()
     rig.tnc.takes = False
@@ -404,6 +489,7 @@ def test_receive_only_sends_nothing_and_says_so() -> None:
 
 # ---- a change of the settings
 
+
 async def test_the_timer_of_a_fixed_beacon_is_planned_again_when_the_station_turns_mobile_and_back() -> None:
     rig = Rig(gps_source="off", beacon_interval_min=10)
     await rig.beacon.start()
@@ -416,7 +502,7 @@ async def test_the_timer_of_a_fixed_beacon_is_planned_again_when_the_station_tur
         assert rig.beacon.last_reason == "start" and rig.beacon.next_due is not None
         rig.set(gps_source="off")
         rig.beacon.settings_changed()
-        assert rig.beacon.next_due == rig.beacon.last_sent + timedelta(minutes=10)         # type: ignore[operator]
+        assert rig.beacon.next_due == rig.beacon.last_sent + timedelta(minutes=10)  # type: ignore[operator]
     finally:
         await rig.beacon.stop()
 
@@ -440,16 +526,29 @@ async def test_the_real_timer_beacons_on_the_fix_and_the_clock() -> None:
 
 # ---- ?APRSP
 
+
 class QueryRig(Rig):
     def __init__(self, **changes: object) -> None:
         super().__init__(**changes)
         self.book = StationBook(self.clock)
-        self.q = Queries(self.tnc, lambda: self.config, self.beacon, lambda radio=None: None, self.book, lambda call, attempt=None, radio=1: self.config.beacon_path_calls, self.clock, delay=lambda: 0.0)
+        self.q = Queries(
+            self.tnc,
+            lambda: self.config,
+            self.beacon,
+            lambda radio=None: None,
+            self.book,
+            lambda call, attempt=None, radio=1: self.config.beacon_path_calls,
+            self.clock,
+            delay=lambda: 0.0,
+        )
         remember_stop(self.q.stop)
 
     def ask(self, text: str) -> None:
         from neoaprs.packet import Message, Packet
-        self.q.on_packet(Packet(self.clock(), "in", b"", "OH2RDG", "APZNEO", ("OH2RCH-2*",), b"", Message("OH2GBA", text)))
+
+        self.q.on_packet(
+            Packet(self.clock(), "in", b"", "OH2RDG", "APZNEO", ("OH2RCH-2*",), b"", Message("OH2GBA", text))
+        )
 
 
 def test_aprsp_is_answered_with_the_position_as_it_is_now() -> None:

@@ -3,6 +3,7 @@
 Both shells draw `items()` with their toolkit and call `run(key)` when one is chosen, so the menu
 is the same everywhere and testable without a tray.
 """
+
 import logging
 import threading
 import webbrowser
@@ -35,6 +36,7 @@ class Frame(Protocol):
     """What the app's logic needs of a toolkit (qtshell.py, webshell.py; a fake in the tests).
 
     Every method may be called from any thread."""
+
     has_window: bool
 
     def show_window(self) -> None: ...
@@ -46,8 +48,15 @@ class Frame(Protocol):
 
 
 class AppActions:
-    def __init__(self, session: Session, frame: Frame, autostart: AutoStart | None, daemon: Daemon | None = None, open_browser: Callable[[str], object] | None = None,
-                 support: Callable[[Path], Made] = make_for_the_user) -> None:
+    def __init__(
+        self,
+        session: Session,
+        frame: Frame,
+        autostart: AutoStart | None,
+        daemon: Daemon | None = None,
+        open_browser: Callable[[str], object] | None = None,
+        support: Callable[[Path], Made] = make_for_the_user,
+    ) -> None:
         self.session = session
         self.frame = frame
         self.autostart = autostart

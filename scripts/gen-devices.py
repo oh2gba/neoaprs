@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Refresh neoaprs/devicedata.py from tocalls.yaml of aprsorg/aprs-deviceid (CC BY-SA 2.0).
 
-  scripts/gen-devices.py [--from FILE]    write the module from the list's address or FILE
-  scripts/gen-devices.py --check FILE     write nothing; exit 1 if the module differs from FILE's"""
+scripts/gen-devices.py [--from FILE]    write the module from the list's address or FILE
+scripts/gen-devices.py --check FILE     write nothing; exit 1 if the module differs from FILE's"""
+
 import argparse
 import hashlib
 import json
@@ -50,7 +51,7 @@ def parse(text: str) -> dict[str, list[dict[str, object]]]:
             if item is None or feature_key is None:
                 raise ValueError(f"line {number}: a list item with no list")
             assert isinstance(item[feature_key], list)
-            item[feature_key].append(body[2:].strip())          # type: ignore[union-attr]
+            item[feature_key].append(body[2:].strip())  # type: ignore[union-attr]
             continue
         if item is None:
             raise ValueError(f"line {number}: a value before an item")
@@ -68,7 +69,13 @@ def device_name(entry: dict[str, object]) -> str:
 
     The vendor is shown only for hand-helds and rigs. An empty entry still blocks a wider match."""
     vendor, model = str(entry.get("vendor", "")).strip(), str(entry.get("model", "")).strip()
-    if vendor and "," not in vendor and entry.get("class") in VENDOR_SHOWN and model and not model.lower().startswith(vendor.lower()):
+    if (
+        vendor
+        and "," not in vendor
+        and entry.get("class") in VENDOR_SHOWN
+        and model
+        and not model.lower().startswith(vendor.lower())
+    ):
         name = f"{vendor} {model}"
     else:
         name = model or vendor
@@ -96,7 +103,7 @@ def literal(row: tuple[str, ...]) -> str:
 
 
 def table_text(name: str, annotation: str, table: list[tuple[str, ...]]) -> str:
-    lines = [", ".join(literal(row) for row in table[i:i + PER_LINE]) + "," for i in range(0, len(table), PER_LINE)]
+    lines = [", ".join(literal(row) for row in table[i : i + PER_LINE]) + "," for i in range(0, len(table), PER_LINE)]
     return f"{name}: tuple[{annotation}, ...] = (\n" + "".join(f"    {line}\n" for line in lines) + ")\n"
 
 
@@ -106,9 +113,16 @@ def module_text(made: dict[str, list[tuple[str, ...]]], digest: str, date: str) 
         "Source: tocalls.yaml of https://github.com/aprsorg/aprs-deviceid, maintained by Hessu, OH7LZB (the list of aprs.fi), licensed CC BY-SA 2.0 (http://creativecommons.org/licenses/by-sa/2.0/). This module is\n"
         "that list reduced to the name a station card shows, and carries the same licence. The wildcards of a tocall: `?` is any one character, `n` a digit, `*` the rest of the call.\n"
         f"Snapshot of {date}, sha256 of the source file {digest}.\n"
-        '"""\n')
-    return (head + table_text("TOCALLS", "tuple[str, str]", made["tocalls"]) + "\n" + table_text("MICE", "tuple[str, str]", made["mice"]) + "\n"
-            + table_text("MICE_LEGACY", "tuple[str, str, str]", made["micelegacy"]))
+        '"""\n'
+    )
+    return (
+        head
+        + table_text("TOCALLS", "tuple[str, str]", made["tocalls"])
+        + "\n"
+        + table_text("MICE", "tuple[str, str]", made["mice"])
+        + "\n"
+        + table_text("MICE_LEGACY", "tuple[str, str, str]", made["micelegacy"])
+    )
 
 
 def source_of(args: argparse.Namespace) -> str:
@@ -119,9 +133,13 @@ def source_of(args: argparse.Namespace) -> str:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Refreshes neoaprs/devicedata.py from the APRS device identification list (tocalls.yaml of aprsorg/aprs-deviceid).")
+    ap = argparse.ArgumentParser(
+        description="Refreshes neoaprs/devicedata.py from the APRS device identification list (tocalls.yaml of aprsorg/aprs-deviceid)."
+    )
     ap.add_argument("--from", dest="source", metavar="FILE", help="read this tocalls.yaml instead of fetching the list")
-    ap.add_argument("--check", metavar="FILE", help="write nothing; exit 1 when the module is not what this tocalls.yaml makes")
+    ap.add_argument(
+        "--check", metavar="FILE", help="write nothing; exit 1 when the module is not what this tocalls.yaml makes"
+    )
     args = ap.parse_args()
     text = Path(args.check).read_text(encoding="utf-8") if args.check else source_of(args)
     made = rows(parse(text))
@@ -134,7 +152,9 @@ def main() -> int:
             return 1
         return 0
     TARGET.write_text(module_text(made, digest, datetime.now(UTC).strftime("%Y-%m-%d")), encoding="utf-8")
-    print(f"{TARGET.relative_to(ROOT)}: {len(made['tocalls'])} tocalls, {len(made['mice'])} Mic-E suffixes, {len(made['micelegacy'])} legacy Mic-E types")
+    print(
+        f"{TARGET.relative_to(ROOT)}: {len(made['tocalls'])} tocalls, {len(made['mice'])} Mic-E suffixes, {len(made['micelegacy'])} legacy Mic-E types"
+    )
     return 0
 
 

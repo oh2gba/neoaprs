@@ -184,6 +184,7 @@ implicit_reexport = true
 
 [tool.ruff]
 target-version = "py313"
+line-length = 120
 extend-exclude = ["ui", "neoaprs/page"]
 # The tools that are Python and have no .py in their name: ruff knows a Python file by its ending
 # and would pass these by, the release script among them. The list is exact:
@@ -215,15 +216,19 @@ extend-include = [
     "packaging/windows/neoaprs.spec",
 ]
 
+[tool.ruff.format]
+# Frozen migration steps are pinned by a checksum of their source text, and the data tables are
+# written by their generators: none of them is reformatted.
+exclude = ["neoaprs/migrationsteps*.py", "neoaprs/airportdata.py", "neoaprs/devicedata.py"]
+
 [tool.ruff.lint]
-# Lint only (no formatter: the code base keeps its own long-line style). pycodestyle errors and
-# warnings and pyflakes, plus flake8-bugbear for real bugs and the security rules (S, the rules of
+# pycodestyle errors and warnings and pyflakes, plus flake8-bugbear for real bugs and the security rules (S, the rules of
 # bandit). A security rule is switched off below only where it cannot tell what it looks for from
 # what this code does all the time; a single line that is right as it is says so itself (`# noqa:
 # S310  (why)`).
 select = ["E", "F", "W", "B", "S"]
 ignore = [
-    "E501",   # line length: the house style allows long lines
+    "E501",   # line length is the formatter's job (`ruff format`, 120 columns); it does not split strings or test names
     "E741",   # `l` for a line in a comprehension or a lambda is how the tests and the parsers read
     "B905",   # zip() without strict=: a zip pairs a column list with a row of the same table, and strict= would turn an old database with an extra column into a crash
     "S101",   # assert: in neoaprs/ an assert tells mypy that a value is there (`assert self._app is not None`); none of them checks what came from outside, which is what the rule is for

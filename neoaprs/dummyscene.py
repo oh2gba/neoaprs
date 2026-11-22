@@ -3,6 +3,7 @@
 A `Scene` is pure (no radio, no clock, no I/O): `due(now)` gives the frames come due, `react`
 queues the answers. Calls are on the Q prefix, which no country has; each radio's seed has a world.
 """
+
 import heapq
 import math
 import random
@@ -14,7 +15,24 @@ from neoaprs import ax25
 from neoaprs.aprsmessage import MessageError, parse_message
 
 from .dummyqru import answer as qru_answer
-from .dummyframes import PATH, ack, address, air, bulletin, compressed, cosine_day, fixed, is_position, mice, message, object_report, repeated, status, walking, weather
+from .dummyframes import (
+    PATH,
+    ack,
+    address,
+    air,
+    bulletin,
+    compressed,
+    cosine_day,
+    fixed,
+    is_position,
+    mice,
+    message,
+    object_report,
+    repeated,
+    status,
+    walking,
+    weather,
+)
 from .dummyqru import SERVER
 from .dummyroutes import DELIVERY_ROUND, PARK_PATH, RING_ROAD, TOWN_LOOP, Route, around
 from .reading import NO_READING, Reading
@@ -50,7 +68,7 @@ def name_of(name: str, seed: int) -> str:
     """Return the name an object of the made-up club has in the world of `seed`.
 
     Its own for seed 1, else with the seed at its end (FIELDDAY3), cut to NAME_MAX."""
-    return name if seed == 1 else f"{name[:NAME_MAX - len(str(seed))]}{seed}"
+    return name if seed == 1 else f"{name[: NAME_MAX - len(str(seed))]}{seed}"
 
 
 @dataclass
@@ -59,6 +77,7 @@ class Actor:
 
     `digi` is the digipeater that repeats the first of them.
     """
+
     call: str
     every_sec: float
     first_sec: float  # the first transmission comes this long after the start
@@ -75,7 +94,11 @@ class Scene:
         self.started = now
         self.seed = seed
         self._turn_deg = TURN_DEG * (seed - 1) % 360
-        self._turn = (math.cos(math.radians(self._turn_deg)), math.sin(math.radians(self._turn_deg))) if self._turn_deg else (1.0, 0.0)
+        self._turn = (
+            (math.cos(math.radians(self._turn_deg)), math.sin(math.radians(self._turn_deg)))
+            if self._turn_deg
+            else (1.0, 0.0)
+        )
         self.digipeaters = (self.call(DIGIPEATERS[0]), self.call(DIGIPEATERS[1]))
         self._rng = random.Random(seed)  # noqa: S311  (made-up stations, same per seed)
         self._queue: list[tuple[datetime, int, ax25.Frame]] = []
@@ -145,7 +168,9 @@ class Scene:
         except MessageError:
             return
         if read.addressee == "QRU":
-            for after, reply in qru_answer(read.text, str(frame.source), now, self.where, lambda name: name_of(name, self.seed)):
+            for after, reply in qru_answer(
+                read.text, str(frame.source), now, self.where, lambda name: name_of(name, self.seed)
+            ):
                 self._put(now + timedelta(seconds=after), self._from_club(reply))
             return
         talker = next((a for a in self.actors if a.answers and a.call == read.addressee), None)
@@ -158,12 +183,20 @@ class Scene:
         if key not in self._answered:
             self._answered.add(key)
             self._ids += 1
-            self._put(now + self._after(ANSWER_AFTER_SEC), air(talker.call, message(us, HELLO, str(self._ids)), talker.path))
+            self._put(
+                now + self._after(ANSWER_AFTER_SEC), air(talker.call, message(us, HELLO, str(self._ids)), talker.path)
+            )
 
     def _from_club(self, frame: ax25.Frame) -> ax25.Frame:
         """Return a QRU server frame (dummyqru.py) as this world's club sends it."""
         club = self.call(SERVER)
-        return frame if club == SERVER else replace(frame, source=address(club), info=frame.info.replace(SERVER.encode("ascii"), club.encode("ascii")))
+        return (
+            frame
+            if club == SERVER
+            else replace(
+                frame, source=address(club), info=frame.info.replace(SERVER.encode("ascii"), club.encode("ascii"))
+            )
+        )
 
     # ---- who is there
     def _build(self) -> list[Actor]:
@@ -173,7 +206,9 @@ class Scene:
         return actors
 
     def _houses(self) -> list[Actor]:
-        def at(east: float, north: float, call: str, symbol: str, comment: str) -> Callable[[datetime], list[ax25.Frame]]:
+        def at(
+            east: float, north: float, call: str, symbol: str, comment: str
+        ) -> Callable[[datetime], list[ax25.Frame]]:
             lat, lon = self.where(east, north)
             return lambda now: [air(call, fixed(lat, lon, symbol, comment, True))]
 
@@ -186,13 +221,35 @@ class Scene:
 
     def _movers(self) -> list[Actor]:
         return [
-            self._mover("Q4CAR-9", "/>", "]Commuting=", TOWN_LOOP, 46, 40, 3, self.digipeaters[0], mic_e=True, tocall="APK004"),
-            self._mover("Q5VAN-7", "/v", "Delivery round", DELIVERY_ROUND, 55, 50, 7, self.digipeaters[1], tocall="APOT21"),
-            self._mover("Q6CAR-1", "/>", "Ring road", RING_ROAD, 72, 45, 11, self.digipeaters[0], mic_e=True, answers=False),
-            self._mover("Q7WLK-7", "/[", "Dog walk", PARK_PATH, 4.5, 60, 16, self.digipeaters[1], tocall="APDR16", plain=True),
+            self._mover(
+                "Q4CAR-9", "/>", "]Commuting=", TOWN_LOOP, 46, 40, 3, self.digipeaters[0], mic_e=True, tocall="APK004"
+            ),
+            self._mover(
+                "Q5VAN-7", "/v", "Delivery round", DELIVERY_ROUND, 55, 50, 7, self.digipeaters[1], tocall="APOT21"
+            ),
+            self._mover(
+                "Q6CAR-1", "/>", "Ring road", RING_ROAD, 72, 45, 11, self.digipeaters[0], mic_e=True, answers=False
+            ),
+            self._mover(
+                "Q7WLK-7", "/[", "Dog walk", PARK_PATH, 4.5, 60, 16, self.digipeaters[1], tocall="APDR16", plain=True
+            ),
         ]
 
-    def _mover(self, call: str, symbol: str, comment: str, route: Route, kmh: float, every: float, first: float, digi: str, mic_e: bool = False, tocall: str = "APRS", plain: bool = False, answers: bool = True) -> Actor:
+    def _mover(
+        self,
+        call: str,
+        symbol: str,
+        comment: str,
+        route: Route,
+        kmh: float,
+        every: float,
+        first: float,
+        digi: str,
+        mic_e: bool = False,
+        tocall: str = "APRS",
+        plain: bool = False,
+        answers: bool = True,
+    ) -> Actor:
         call = self.call(call)
         phase = self._rng.uniform(0, route.length_km)
 
@@ -204,7 +261,11 @@ class Scene:
             if mic_e:
                 destination, info = mice(lat, lon, symbol, comment, course, speed)
                 return [air(call, info, PATH, destination)]
-            info = walking(lat, lon, symbol, comment, course, speed) if plain else compressed(lat, lon, symbol, comment, course, speed)
+            info = (
+                walking(lat, lon, symbol, comment, course, speed)
+                if plain
+                else compressed(lat, lon, symbol, comment, course, speed)
+            )
             return [air(call, info, PATH, tocall)]
 
         return Actor(call, every, first, make, digi, answers=answers)
@@ -215,7 +276,12 @@ class Scene:
             return lambda now: [air(call, fixed(lat, lon, "/#", f"PHG{phg} Fill-in digi"), "WIDE2-1")]
 
         first, second = self.digipeaters
-        return [Actor(first, 600, 6, beacon(first, "5230", -1.5, 1.0)), Actor(second, 600, 11, beacon(second, "5340", 3.0, -1.5)), self._weather(), *self._club()]
+        return [
+            Actor(first, 600, 6, beacon(first, "5230", -1.5, 1.0)),
+            Actor(second, 600, 11, beacon(second, "5340", 3.0, -1.5)),
+            self._weather(),
+            *self._club(),
+        ]
 
     def _weather(self) -> Actor:
         lat, lon = self.where(-4.1, -2.2)
@@ -224,7 +290,19 @@ class Scene:
         def make(now: datetime) -> list[ax25.Frame]:
             minute = now.timestamp() / 60
             wind = 5 + 3 * math.sin(minute / 17)
-            info = weather(lat, lon, "Backyard WX", int(200 + 40 * math.sin(minute / 90)), wind, wind * 1.6 + 1, 8 + 5 * cosine_day(now, 13), 0.0, 0.4, int(68 - 14 * cosine_day(now, 13)), 1012 + 3 * math.sin(minute / 700))
+            info = weather(
+                lat,
+                lon,
+                "Backyard WX",
+                int(200 + 40 * math.sin(minute / 90)),
+                wind,
+                wind * 1.6 + 1,
+                8 + 5 * cosine_day(now, 13),
+                0.0,
+                0.4,
+                int(68 - 14 * cosine_day(now, 13)),
+                1012 + 3 * math.sin(minute / 700),
+            )
             return [air(call, info, "WIDE1-1")]
 
         return Actor(call, 300, 12, make, self.digipeaters[1])
@@ -232,7 +310,9 @@ class Scene:
     def _club(self) -> list[Actor]:
         home, club = self.call("Q1ABC"), self.call("Q1CLB")
 
-        def objects(name: str, symbol: str, comment: str, east: float, north: float) -> Callable[[datetime], list[ax25.Frame]]:
+        def objects(
+            name: str, symbol: str, comment: str, east: float, north: float
+        ) -> Callable[[datetime], list[ax25.Frame]]:
             lat, lon = self.where(east, north)
             return lambda now: [air(club, object_report(name_of(name, self.seed), now, lat, lon, symbol, comment))]
 

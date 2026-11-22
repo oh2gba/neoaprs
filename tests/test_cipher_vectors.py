@@ -2,6 +2,7 @@
 sealed message with a fixed nonce, written as literals so a change in the construction is noticed.
 The X25519 keys are those of RFC 7748, section 6.1.
 """
+
 import base64
 
 from cryptography.hazmat.primitives import hashes
@@ -32,7 +33,10 @@ def test_the_public_keys_and_the_announcement_of_a_key_are_what_they_were() -> N
 
 def test_the_shared_key_is_the_hkdf_of_the_x25519_secret_from_either_side() -> None:
     assert cipher.shared_key(ALICE, BOB_PUBLIC) == SHARED_KEY == cipher.shared_key(BOB, ALICE_PUBLIC)
-    assert HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=b"NeoAPRS message key v1").derive(X25519_SECRET) == SHARED_KEY, "the derivation, written out again"
+    assert (
+        HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=b"NeoAPRS message key v1").derive(X25519_SECRET)
+        == SHARED_KEY
+    ), "the derivation, written out again"
 
 
 def test_a_message_sealed_with_a_fixed_nonce_is_the_text_it_was_and_opens_to_the_text() -> None:

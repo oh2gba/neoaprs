@@ -2,6 +2,7 @@
 server with the mail stubbed: a good bundle is stored and answered with a reference and one mail;
 bad input is refused.
 """
+
 import io
 import json
 import os
@@ -63,8 +64,26 @@ class Endpoint:
         environment = {"PATH": os.environ["PATH"], "SUPPORT_DIR": str(self.stored), "MAIL_OUT": str(self.mails), **env}
         assert PHP is not None
         for _ in range(3):
-            self.process = subprocess.Popen([PHP, "-S", f"127.0.0.1:{self.port}", "-t", str(self.site), "-d", f"auto_prepend_file={self.folder / 'stub.php'}", "-d", f"upload_tmp_dir={self.folder}", "-d", "upload_max_filesize=22M", "-d", "post_max_size=24M"],
-                                            env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.process = subprocess.Popen(
+                [
+                    PHP,
+                    "-S",
+                    f"127.0.0.1:{self.port}",
+                    "-t",
+                    str(self.site),
+                    "-d",
+                    f"auto_prepend_file={self.folder / 'stub.php'}",
+                    "-d",
+                    f"upload_tmp_dir={self.folder}",
+                    "-d",
+                    "upload_max_filesize=22M",
+                    "-d",
+                    "post_max_size=24M",
+                ],
+                env=environment,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
             deadline = time.monotonic() + 10
             while time.monotonic() < deadline and self.process.poll() is None:
                 try:
@@ -82,18 +101,36 @@ class Endpoint:
             self.process.terminate()
             self.process.wait(10)
 
-    def post(self, fields: dict[str, str] | None = None, files: dict[str, tuple[str, bytes]] | None = None, method: str = "POST", raw: bytes | None = None) -> tuple[int, dict[str, object]]:
+    def post(
+        self,
+        fields: dict[str, str] | None = None,
+        files: dict[str, tuple[str, bytes]] | None = None,
+        method: str = "POST",
+        raw: bytes | None = None,
+    ) -> tuple[int, dict[str, object]]:
         kind, body = multipart(fields or {}, files or {})
-        request = urllib.request.Request(f"http://127.0.0.1:{self.port}/support/send.php", data=body if raw is None else raw, method=method, headers={"Content-Type": kind})
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}/support/send.php",
+            data=body if raw is None else raw,
+            method=method,
+            headers={"Content-Type": kind},
+        )
         try:
             with urllib.request.urlopen(request, timeout=30) as response:
-                assert response.headers["Content-Type"] == "application/json; charset=utf-8" and response.headers["Cache-Control"] == "no-store"
+                assert (
+                    response.headers["Content-Type"] == "application/json; charset=utf-8"
+                    and response.headers["Cache-Control"] == "no-store"
+                )
                 return response.status, json.loads(response.read())
         except urllib.error.HTTPError as e:
             return e.code, json.loads(e.read())
 
     def mail_sent(self) -> list[dict[str, str]]:
-        return [json.loads(line) for line in self.mails.read_text(encoding="utf-8").splitlines()] if self.mails.exists() else []
+        return (
+            [json.loads(line) for line in self.mails.read_text(encoding="utf-8").splitlines()]
+            if self.mails.exists()
+            else []
+        )
 
 
 @pytest.fixture
@@ -126,19 +163,37 @@ def zipped(names: list[str]) -> bytes:
     return buffer.getvalue()
 
 
-def test_a_good_bundle_is_stored_with_its_json_answered_with_a_reference_and_mailed_once_without_the_file(endpoint: Endpoint, bundle: bytes) -> None:
+def test_a_good_bundle_is_stored_with_its_json_answered_with_a_reference_and_mailed_once_without_the_file(
+    endpoint: Endpoint, bundle: bytes
+) -> None:
     endpoint.start()
     code, answer = endpoint.post(good(bundle), {"bundle": ("neoaprs-support-OH2GBA.zip", bundle)})
     ref = str(answer["ref"])
     assert code == 200 and answer == {"ok": True, "ref": ref} and REF.match(ref)
     assert (endpoint.stored / f"{ref}.zip").read_bytes() == bundle
     meta = json.loads((endpoint.stored / f"{ref}.json").read_text(encoding="utf-8"))
-    assert meta["ref"] == ref and meta["call"] == "OH2GBA" and meta["version"] == "0.16.1" and meta["platform"] == "linux" and meta["note"] == "It stopped beaconing."
+    assert (
+        meta["ref"] == ref
+        and meta["call"] == "OH2GBA"
+        and meta["version"] == "0.16.1"
+        and meta["platform"] == "linux"
+        and meta["note"] == "It stopped beaconing."
+    )
     assert meta["size"] == len(bundle) and re.match(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$", meta["time"])
-    assert sorted(p.name for p in endpoint.stored.iterdir() if p.name.startswith("NEO-")) == [f"{ref}.json", f"{ref}.zip"], "no half-written file is left"
+    assert sorted(p.name for p in endpoint.stored.iterdir() if p.name.startswith("NEO-")) == [
+        f"{ref}.json",
+        f"{ref}.zip",
+    ], "no half-written file is left"
     (mail,) = endpoint.mail_sent()
     assert mail["subject"] == f"NeoAPRS logs {ref} from OH2GBA"
-    for line in (f"Reference: {ref}", "Call:      OH2GBA", "Version:   0.16.1", "Platform:  linux", f"Size:      {len(bundle) // 1024} KB", "It stopped beaconing."):
+    for line in (
+        f"Reference: {ref}",
+        "Call:      OH2GBA",
+        "Version:   0.16.1",
+        "Platform:  linux",
+        f"Size:      {len(bundle) // 1024} KB",
+        "It stopped beaconing.",
+    ):
         assert line in mail["body"]
     assert "PK" not in mail["body"], "the zip stays on the server"
     assert (endpoint.stored / ".htaccess").read_text(encoding="utf-8") == "Require all denied\n"
@@ -150,7 +205,15 @@ def test_two_files_have_two_references(endpoint: Endpoint, bundle: bytes) -> Non
     assert len(refs) == 3 and len(list(endpoint.stored.glob("NEO-*.zip"))) == 3 and len(endpoint.mail_sent()) == 3
 
 
-@pytest.mark.parametrize("content", [b"", b"just text, no zip", b"PK\x03\x04" + b"\x00" * 100, b"PK\x03\x04" + b"junk" * 5000 + b"PK\x05\x06" + b"\x00" * 18])
+@pytest.mark.parametrize(
+    "content",
+    [
+        b"",
+        b"just text, no zip",
+        b"PK\x03\x04" + b"\x00" * 100,
+        b"PK\x03\x04" + b"junk" * 5000 + b"PK\x05\x06" + b"\x00" * 18,
+    ],
+)
 def test_what_is_not_a_zip_is_refused_and_nothing_is_kept_or_mailed(endpoint: Endpoint, content: bytes) -> None:
     endpoint.start()
     code, answer = endpoint.post({"note": "x"}, {"bundle": ("a.zip", content)})
@@ -158,7 +221,18 @@ def test_what_is_not_a_zip_is_refused_and_nothing_is_kept_or_mailed(endpoint: En
     assert not list(endpoint.stored.glob("NEO-*")) and endpoint.mail_sent() == []
 
 
-@pytest.mark.parametrize("names", [["notes.txt"], ["summary.txt", "../evil.php"], ["summary.txt", "evil.php"], ["summary.txt", "logs/../x.txt"], ["summary.txt", "/etc/passwd"], ["README.txt", "settings.json"], ["summary.txt", "logs/a/b.txt"]])
+@pytest.mark.parametrize(
+    "names",
+    [
+        ["notes.txt"],
+        ["summary.txt", "../evil.php"],
+        ["summary.txt", "evil.php"],
+        ["summary.txt", "logs/../x.txt"],
+        ["summary.txt", "/etc/passwd"],
+        ["README.txt", "settings.json"],
+        ["summary.txt", "logs/a/b.txt"],
+    ],
+)
 def test_a_zip_whose_members_are_not_those_of_a_bundle_is_refused(endpoint: Endpoint, names: list[str]) -> None:
     endpoint.start()
     code, answer = endpoint.post(good(b""), {"bundle": ("a.zip", zipped(names))})
@@ -166,22 +240,45 @@ def test_a_zip_whose_members_are_not_those_of_a_bundle_is_refused(endpoint: Endp
     assert not list(endpoint.stored.glob("NEO-*"))
 
 
-def test_a_zip_that_unpacks_to_more_than_50_megabytes_or_has_more_members_than_a_bundle_can_is_refused(endpoint: Endpoint) -> None:
+def test_a_zip_that_unpacks_to_more_than_50_megabytes_or_has_more_members_than_a_bundle_can_is_refused(
+    endpoint: Endpoint,
+) -> None:
     endpoint.start()
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("summary.txt", "x")
         z.writestr("logs/neoaprs.log", b"\0" * (60 * 1024 * 1024))
     assert len(buffer.getvalue()) < 100 * 1024
-    assert endpoint.post(good(b""), {"bundle": ("a.zip", buffer.getvalue())}) == (400, {"ok": False, "reason": "not_a_bundle"})
+    assert endpoint.post(good(b""), {"bundle": ("a.zip", buffer.getvalue())}) == (
+        400,
+        {"ok": False, "reason": "not_a_bundle"},
+    )
     many = ["summary.txt"] + [f"logs/neoaprs.log.{i}" for i in range(45)]
-    assert endpoint.post(good(b""), {"bundle": ("a.zip", zipped(many))}) == (400, {"ok": False, "reason": "not_a_bundle"})
+    assert endpoint.post(good(b""), {"bundle": ("a.zip", zipped(many))}) == (
+        400,
+        {"ok": False, "reason": "not_a_bundle"},
+    )
     assert not list(endpoint.stored.glob("NEO-*"))
 
 
 def test_the_members_of_every_part_of_a_bundle_are_accepted(endpoint: Endpoint) -> None:
     endpoint.start()
-    names = ["README.txt", "summary.txt", "settings.json", "state.json", "doctor.txt", "database.txt", "packets.txt", "page.json", "page-errors.json", "logs/neoaprs.log", "logs/neoaprs.log.1", "logs/neoaprs-app.log", "logs/journal.txt", "packets.error.txt"]
+    names = [
+        "README.txt",
+        "summary.txt",
+        "settings.json",
+        "state.json",
+        "doctor.txt",
+        "database.txt",
+        "packets.txt",
+        "page.json",
+        "page-errors.json",
+        "logs/neoaprs.log",
+        "logs/neoaprs.log.1",
+        "logs/neoaprs-app.log",
+        "logs/journal.txt",
+        "packets.error.txt",
+    ]
     assert endpoint.post(good(b""), {"bundle": ("a.zip", zipped(names))})[0] == 200
 
 
@@ -190,29 +287,64 @@ def test_no_file_and_no_words_is_a_bad_request_and_so_is_a_bundle_that_is_no_fil
     for fields in ({}, {"call": "OH2GBA"}, {"note": ""}, {"note": " \n\t "}, {"note": "\x00\x07"}):
         assert endpoint.post(fields) == (400, {"ok": False, "reason": "bad_request"}), fields
     assert endpoint.post({"bundle": "a text, not a file"}) == (400, {"ok": False, "reason": "bad_request"})
-    assert endpoint.post({"note": "words", "bundle": "a text, not a file"}) == (400, {"ok": False, "reason": "bad_request"}), "a bundle that is no file is not a note alone"
-    assert endpoint.post({"note": "words"}, {"logs": ("a.zip", zipped(["summary.txt"]))}) == (400, {"ok": False, "reason": "bad_request"}), "a file under another name is not a note alone"
-    assert endpoint.post({"note": "words"}, {"bundle": ("", b"")})[0] == 400, "a bundle with no file name and nothing in it is not a note alone"
-    for kind, body in (("application/x-www-form-urlencoded", b"note=words&call=OH2GBA"), ("application/json", b'{"note": "words"}'), ("text/plain", b"note=words")):
-        request = urllib.request.Request(f"http://127.0.0.1:{endpoint.port}/support/send.php", data=body, method="POST", headers={"Content-Type": kind})
+    assert endpoint.post({"note": "words", "bundle": "a text, not a file"}) == (
+        400,
+        {"ok": False, "reason": "bad_request"},
+    ), "a bundle that is no file is not a note alone"
+    assert endpoint.post({"note": "words"}, {"logs": ("a.zip", zipped(["summary.txt"]))}) == (
+        400,
+        {"ok": False, "reason": "bad_request"},
+    ), "a file under another name is not a note alone"
+    assert endpoint.post({"note": "words"}, {"bundle": ("", b"")})[0] == 400, (
+        "a bundle with no file name and nothing in it is not a note alone"
+    )
+    for kind, body in (
+        ("application/x-www-form-urlencoded", b"note=words&call=OH2GBA"),
+        ("application/json", b'{"note": "words"}'),
+        ("text/plain", b"note=words"),
+    ):
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{endpoint.port}/support/send.php",
+            data=body,
+            method="POST",
+            headers={"Content-Type": kind},
+        )
         with pytest.raises(urllib.error.HTTPError) as refused:
             urllib.request.urlopen(request, timeout=30)
-        assert refused.value.code == 400 and json.loads(refused.value.read()) == {"ok": False, "reason": "bad_request"}, f"{kind}: a note alone is the program's form, multipart/form-data, and nothing else"
+        assert refused.value.code == 400 and json.loads(refused.value.read()) == {
+            "ok": False,
+            "reason": "bad_request",
+        }, f"{kind}: a note alone is the program's form, multipart/form-data, and nothing else"
     assert not list(endpoint.stored.glob("NEO-*")) and endpoint.mail_sent() == []
 
 
 def test_a_note_alone_is_kept_as_a_json_without_a_zip_and_the_mail_says_that_no_file_came(endpoint: Endpoint) -> None:
     endpoint.start()
-    code, answer = endpoint.post({"note": "Thanks for the HF mode.", "call": "OH2GBA", "version": "0.20.1", "platform": "win32"})
+    code, answer = endpoint.post(
+        {"note": "Thanks for the HF mode.", "call": "OH2GBA", "version": "0.20.1", "platform": "win32"}
+    )
     ref = str(answer["ref"])
     assert code == 200 and answer == {"ok": True, "ref": ref} and REF.match(ref)
-    assert sorted(p.name for p in endpoint.stored.iterdir() if p.name.startswith("NEO-")) == [f"{ref}.json"], "no zip, and no half-written file"
+    assert sorted(p.name for p in endpoint.stored.iterdir() if p.name.startswith("NEO-")) == [f"{ref}.json"], (
+        "no zip, and no half-written file"
+    )
     meta = json.loads((endpoint.stored / f"{ref}.json").read_text(encoding="utf-8"))
-    assert meta == {"ref": ref, "time": meta["time"], "call": "OH2GBA", "version": "0.20.1", "platform": "win32", "file": False, "size": 0, "note": "Thanks for the HF mode."}
+    assert meta == {
+        "ref": ref,
+        "time": meta["time"],
+        "call": "OH2GBA",
+        "version": "0.20.1",
+        "platform": "win32",
+        "file": False,
+        "size": 0,
+        "note": "Thanks for the HF mode.",
+    }
     (mail,) = endpoint.mail_sent()
     assert mail["subject"] == f"NeoAPRS message {ref} from OH2GBA"
     lines = mail["body"].splitlines()
-    assert lines[0] == "A NeoAPRS message was sent, without the support file." and lines[-1] == "Thanks for the HF mode."
+    assert (
+        lines[0] == "A NeoAPRS message was sent, without the support file." and lines[-1] == "Thanks for the HF mode."
+    )
     assert "Size:" not in mail["body"] and "support-fetch" not in mail["body"] and f"Reference: {ref}" in mail["body"]
 
 
@@ -225,32 +357,58 @@ def test_a_bundle_says_in_its_json_that_a_file_came(endpoint: Endpoint, bundle: 
 
 def test_a_note_alone_is_cleaned_and_cut_as_one_with_a_file_and_cannot_reach_the_subject(endpoint: Endpoint) -> None:
     endpoint.start()
-    code, answer = endpoint.post({"note": "Subject: hijack\r\nBcc: evil@example.org\x00\n" + "y" * 3000, "call": "OH2GBA\r\nBcc: x@y.z"})
+    code, answer = endpoint.post(
+        {"note": "Subject: hijack\r\nBcc: evil@example.org\x00\n" + "y" * 3000, "call": "OH2GBA\r\nBcc: x@y.z"}
+    )
     assert code == 200
     kept = json.loads((endpoint.stored / f"{answer['ref']}.json").read_text(encoding="utf-8"))
-    assert len(kept["note"]) == 2000 and kept["note"].startswith("Subject: hijack\nBcc: evil@example.org\n") and kept["call"] == "OH2GBABccxyz"
+    assert (
+        len(kept["note"]) == 2000
+        and kept["note"].startswith("Subject: hijack\nBcc: evil@example.org\n")
+        and kept["call"] == "OH2GBABccxyz"
+    )
     (mail,) = endpoint.mail_sent()
     assert mail["subject"] == f"NeoAPRS message {answer['ref']} from OH2GBABccxyz" and "hijack" not in mail["subject"]
 
 
-def test_notes_alone_use_the_senders_share_with_the_files_and_the_refused_ones_only_their_own(endpoint: Endpoint, bundle: bytes) -> None:
+def test_notes_alone_use_the_senders_share_with_the_files_and_the_refused_ones_only_their_own(
+    endpoint: Endpoint, bundle: bytes
+) -> None:
     endpoint.start()
-    codes = [endpoint.post({"note": "words"})[0] for _ in range(3)] + [endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[0] for _ in range(2)]
+    codes = [endpoint.post({"note": "words"})[0] for _ in range(3)] + [
+        endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[0] for _ in range(2)
+    ]
     assert codes == [200] * 5
-    assert endpoint.post({"note": "one more"}) == (429, {"ok": False, "reason": "rate"}) and endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[0] == 429
+    assert (
+        endpoint.post({"note": "one more"}) == (429, {"ok": False, "reason": "rate"})
+        and endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[0] == 429
+    )
     rates = json.loads((endpoint.stored / "rate.json").read_text(encoding="utf-8"))
     assert [len(times) for times in rates["stored"].values()] == [5] and not rates["bad"]
-    assert len(list(endpoint.stored.glob("NEO-*.json"))) == 5 and len(list(endpoint.stored.glob("NEO-*.zip"))) == 2 and len(endpoint.mail_sent()) == 5
+    assert (
+        len(list(endpoint.stored.glob("NEO-*.json"))) == 5
+        and len(list(endpoint.stored.glob("NEO-*.zip"))) == 2
+        and len(endpoint.mail_sent()) == 5
+    )
 
 
-def test_a_full_folder_refuses_a_note_alone_too_and_notes_fill_it_as_files_do(endpoint: Endpoint, bundle: bytes) -> None:
+def test_a_full_folder_refuses_a_note_alone_too_and_notes_fill_it_as_files_do(
+    endpoint: Endpoint, bundle: bytes
+) -> None:
     endpoint.start()
     fill(endpoint, 299)
     assert endpoint.post({"note": "the 300th"})[0] == 200
     assert endpoint.post({"note": "one too many"}) == (429, {"ok": False, "reason": "rate"})
-    assert endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)}) == (429, {"ok": False, "reason": "rate"}), "the notes count: 299 bundles and a note are a full folder"
+    assert endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)}) == (429, {"ok": False, "reason": "rate"}), (
+        "the notes count: 299 bundles and a note are a full folder"
+    )
     log = (endpoint.stored.parent / "logs" / "support.log").read_text(encoding="utf-8")
-    assert "the folder is full (300 kept" in log and "a note was refused" in log and "a file was refused" in log and "one too many" not in log
+    assert (
+        "the folder is full (300 kept" in log
+        and "a note was refused" in log
+        and "a file was refused" in log
+        and "one too many" not in log
+    )
     assert [m["subject"] for m in endpoint.mail_sent()][1:] == ["NeoAPRS logs: the folder is full"]
 
 
@@ -272,7 +430,9 @@ def test_only_a_post_is_answered(endpoint: Endpoint) -> None:
     assert e.value.code == 405 and e.value.headers["Allow"] == "POST"
 
 
-def test_a_body_over_10_megabytes_is_refused_before_it_is_read_and_one_under_it_is_taken(endpoint: Endpoint, bundle: bytes) -> None:
+def test_a_body_over_10_megabytes_is_refused_before_it_is_read_and_one_under_it_is_taken(
+    endpoint: Endpoint, bundle: bytes
+) -> None:
     endpoint.start()
     big = zipped(["summary.txt"]) + b"\x00" * (11 * 1024 * 1024)
     assert endpoint.post(good(bundle), {"bundle": ("a.zip", big)}) == (413, {"ok": False, "reason": "too_large"})
@@ -293,7 +453,9 @@ def test_a_file_over_10_megabytes_in_a_body_that_fits_is_too_large_too(endpoint:
     assert not list(endpoint.stored.glob("NEO-*"))
 
 
-def test_a_sender_is_held_to_five_files_an_hour_and_the_hash_of_the_address_is_all_that_is_kept(endpoint: Endpoint, bundle: bytes) -> None:
+def test_a_sender_is_held_to_five_files_an_hour_and_the_hash_of_the_address_is_all_that_is_kept(
+    endpoint: Endpoint, bundle: bytes
+) -> None:
     endpoint.start()
     answers = [endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)}) for _ in range(7)]
     assert [code for code, _ in answers] == [200] * 5 + [429] * 2 and answers[5][1] == {"ok": False, "reason": "rate"}
@@ -301,7 +463,11 @@ def test_a_sender_is_held_to_five_files_an_hour_and_the_hash_of_the_address_is_a
     kept = "".join(p.read_text(encoding="utf-8", errors="replace") for p in endpoint.stored.iterdir() if p.is_file())
     assert "127.0.0.1" not in kept, "the address is written nowhere"
     rates = json.loads((endpoint.stored / "rate.json").read_text(encoding="utf-8"))
-    assert len(rates["stored"]) == 1 and all(re.fullmatch(r"[0-9a-f]{16}", key) for key in rates["stored"]) and not rates["bad"]
+    assert (
+        len(rates["stored"]) == 1
+        and all(re.fullmatch(r"[0-9a-f]{16}", key) for key in rates["stored"])
+        and not rates["bad"]
+    )
 
 
 def test_the_hour_gives_the_share_back(endpoint: Endpoint, bundle: bytes) -> None:
@@ -311,14 +477,28 @@ def test_the_hour_gives_the_share_back(endpoint: Endpoint, bundle: bytes) -> Non
     assert endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[0] == 429
     path = endpoint.stored / "rate.json"
     old = int(time.time()) - 3700
-    path.write_text(json.dumps({"stored": {key: [old] * 5 for key in json.loads(path.read_text(encoding="utf-8"))["stored"]}, "bad": {}}), encoding="utf-8")
+    path.write_text(
+        json.dumps(
+            {"stored": {key: [old] * 5 for key in json.loads(path.read_text(encoding="utf-8"))["stored"]}, "bad": {}}
+        ),
+        encoding="utf-8",
+    )
     assert endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[0] == 200
 
 
-def test_the_call_the_version_and_the_platform_are_cleaned_and_cannot_make_a_header_or_a_name(endpoint: Endpoint, bundle: bytes) -> None:
+def test_the_call_the_version_and_the_platform_are_cleaned_and_cannot_make_a_header_or_a_name(
+    endpoint: Endpoint, bundle: bytes
+) -> None:
     endpoint.start()
-    code, answer = endpoint.post(good(bundle, call="OH2GBA\r\nBcc: evil@example.org\r\nSubject: x", version="1.0\r\nBcc: a@b.c" + "9" * 40, platform="linux/../../etc/passwd\nTo: x"),
-                                 {"bundle": ("../../evil.php", bundle)})
+    code, answer = endpoint.post(
+        good(
+            bundle,
+            call="OH2GBA\r\nBcc: evil@example.org\r\nSubject: x",
+            version="1.0\r\nBcc: a@b.c" + "9" * 40,
+            platform="linux/../../etc/passwd\nTo: x",
+        ),
+        {"bundle": ("../../evil.php", bundle)},
+    )
     ref = str(answer["ref"])
     assert code == 200
     meta = json.loads((endpoint.stored / f"{ref}.json").read_text(encoding="utf-8"))
@@ -326,31 +506,63 @@ def test_the_call_the_version_and_the_platform_are_cleaned_and_cannot_make_a_hea
     assert re.fullmatch(r"[0-9A-Za-z._+-]{0,20}", meta["version"]) and len(meta["version"]) == 20
     assert re.fullmatch(r"[0-9A-Za-z._-]{0,40}", meta["platform"])
     (mail,) = endpoint.mail_sent()
-    assert "\n" not in mail["subject"] and "\r" not in mail["subject"] and mail["subject"] == f"NeoAPRS logs {ref} from {meta['call']}"
-    assert sorted(p.name for p in endpoint.stored.rglob("*") if p.is_file() and p.name.startswith("NEO-")) == [f"{ref}.json", f"{ref}.zip"]
+    assert (
+        "\n" not in mail["subject"]
+        and "\r" not in mail["subject"]
+        and mail["subject"] == f"NeoAPRS logs {ref} from {meta['call']}"
+    )
+    assert sorted(p.name for p in endpoint.stored.rglob("*") if p.is_file() and p.name.startswith("NEO-")) == [
+        f"{ref}.json",
+        f"{ref}.zip",
+    ]
     assert not list(endpoint.folder.rglob("evil.php"))
     assert endpoint.post(good(bundle, call="\r\n!!"), {"bundle": ("a.zip", bundle)})[0] == 200
-    assert re.fullmatch(r"NeoAPRS logs NEO-\d{8}-\d{4}-[0-9A-F]{4}", endpoint.mail_sent()[-1]["subject"]), "no call is no 'from'"
+    assert re.fullmatch(r"NeoAPRS logs NEO-\d{8}-\d{4}-[0-9A-F]{4}", endpoint.mail_sent()[-1]["subject"]), (
+        "no call is no 'from'"
+    )
 
 
-def test_the_note_is_text_cut_to_2000_characters_and_stays_in_the_body_of_the_mail(endpoint: Endpoint, bundle: bytes) -> None:
+def test_the_note_is_text_cut_to_2000_characters_and_stays_in_the_body_of_the_mail(
+    endpoint: Endpoint, bundle: bytes
+) -> None:
     endpoint.start()
-    note = "Subject: hijack\r\nBcc: evil@example.org\r\n\r\nline two \u00e4\u3042\U0001f4fb\x00\x07\x1b[31m red\n" + "y" * 3000
+    note = (
+        "Subject: hijack\r\nBcc: evil@example.org\r\n\r\nline two \u00e4\u3042\U0001f4fb\x00\x07\x1b[31m red\n"
+        + "y" * 3000
+    )
     code, answer = endpoint.post(good(bundle, note=note), {"bundle": ("a.zip", bundle)})
     assert code == 200
     kept = json.loads((endpoint.stored / f"{answer['ref']}.json").read_text(encoding="utf-8"))["note"]
-    assert len(kept) == 2000 and kept.startswith("Subject: hijack\nBcc: evil@example.org\n\nline two \u00e4\u3042\U0001f4fb[31m red\n") and not re.search(r"[\x00-\x08\x0b-\x1f\x7f]", kept)
+    assert (
+        len(kept) == 2000
+        and kept.startswith("Subject: hijack\nBcc: evil@example.org\n\nline two \u00e4\u3042\U0001f4fb[31m red\n")
+        and not re.search(r"[\x00-\x08\x0b-\x1f\x7f]", kept)
+    )
     (mail,) = endpoint.mail_sent()
-    assert mail["subject"].startswith("NeoAPRS logs NEO-") and "hijack" not in mail["subject"] and "evil" not in mail["subject"]
+    assert (
+        mail["subject"].startswith("NeoAPRS logs NEO-")
+        and "hijack" not in mail["subject"]
+        and "evil" not in mail["subject"]
+    )
     assert kept in mail["body"]
 
 
 def test_a_note_that_is_not_utf8_keeps_its_ascii_and_a_missing_one_is_empty(endpoint: Endpoint, bundle: bytes) -> None:
     endpoint.start()
     boundary = "xxboundaryxx"
-    body = (f'--{boundary}\r\nContent-Disposition: form-data; name="note"\r\n\r\n'.encode() + b"plain \xff\xfe text\r\n"
-            + f'--{boundary}\r\nContent-Disposition: form-data; name="bundle"; filename="a.zip"\r\n\r\n'.encode() + bundle + f"\r\n--{boundary}--\r\n".encode())
-    request = urllib.request.Request(f"http://127.0.0.1:{endpoint.port}/support/send.php", data=body, method="POST", headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+    body = (
+        f'--{boundary}\r\nContent-Disposition: form-data; name="note"\r\n\r\n'.encode()
+        + b"plain \xff\xfe text\r\n"
+        + f'--{boundary}\r\nContent-Disposition: form-data; name="bundle"; filename="a.zip"\r\n\r\n'.encode()
+        + bundle
+        + f"\r\n--{boundary}--\r\n".encode()
+    )
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{endpoint.port}/support/send.php",
+        data=body,
+        method="POST",
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+    )
     with urllib.request.urlopen(request, timeout=30) as response:
         ref = json.loads(response.read())["ref"]
     assert json.loads((endpoint.stored / f"{ref}.json").read_text(encoding="utf-8"))["note"] == "plain  text"
@@ -403,12 +615,16 @@ def test_requests_that_store_nothing_do_not_use_up_the_share_of_everyone(endpoin
     answers = [endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)}) for _ in range(2)]
     assert answers[0] == (429, {"ok": False, "reason": "rate"}), "this address has used its refusals"
     rates = json.loads((endpoint.stored / "rate.json").read_text(encoding="utf-8"))
-    assert not rates["stored"] and len(rates["bad"]) == 1 and len(next(iter(rates["bad"].values()))) == 20, "the refusals are kept for the one address, at the limit"
+    assert not rates["stored"] and len(rates["bad"]) == 1 and len(next(iter(rates["bad"].values()))) == 20, (
+        "the refusals are kept for the one address, at the limit"
+    )
     # another address (the hashes are of the address: a second one is made by writing another key's
     # worth of stored files in the whole)
     path = endpoint.stored / "rate.json"
     path.write_text(json.dumps({"stored": {}, "bad": {}}), encoding="utf-8")
-    assert endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[0] == 200, "the whole share was never touched by the refusals"
+    assert endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[0] == 200, (
+        "the whole share was never touched by the refusals"
+    )
 
 
 def test_the_share_of_all_senders_is_counted_in_stored_files_only(endpoint: Endpoint, bundle: bytes) -> None:
@@ -419,26 +635,37 @@ def test_the_share_of_all_senders_is_counted_in_stored_files_only(endpoint: Endp
     held = json.loads(path.read_text(encoding="utf-8"))
     # 59 other senders have stored a file this hour, 60 in all with this one
     held["stored"].update({f"{i:016x}": [now] for i in range(59)})
-    held["bad"] = {f"{i:016x}": [now] * 20 for i in range(500)}            # and 500 others are refused over and over
+    held["bad"] = {f"{i:016x}": [now] * 20 for i in range(500)}  # and 500 others are refused over and over
     path.write_text(json.dumps(held), encoding="utf-8")
     assert endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)}) == (429, {"ok": False, "reason": "rate"})
     held["stored"].pop(f"{58:016x}")
     path.write_text(json.dumps(held), encoding="utf-8")
-    assert endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[0] == 200, "one place is free again, and the refusals of others did not take it"
+    assert endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[0] == 200, (
+        "one place is free again, and the refusals of others did not take it"
+    )
 
 
-def test_an_address_that_is_refused_twenty_times_an_hour_is_answered_rate_and_has_the_hour_to_wait(endpoint: Endpoint, bundle: bytes) -> None:
+def test_an_address_that_is_refused_twenty_times_an_hour_is_answered_rate_and_has_the_hour_to_wait(
+    endpoint: Endpoint, bundle: bytes
+) -> None:
     endpoint.start()
     codes = [endpoint.post({"note": "x"}, {"bundle": ("a.zip", b"no zip")})[0] for _ in range(22)]
     assert codes == [400] * 20 + [429] * 2
-    request = urllib.request.Request(f"http://127.0.0.1:{endpoint.port}/support/send.php", data=b"x", method="POST", headers={"Content-Type": "multipart/form-data; boundary=x"})
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{endpoint.port}/support/send.php",
+        data=b"x",
+        method="POST",
+        headers={"Content-Type": "multipart/form-data; boundary=x"},
+    )
     with pytest.raises(urllib.error.HTTPError) as e:
         urllib.request.urlopen(request, timeout=10)
     assert e.value.code == 429 and e.value.headers["Retry-After"] == "3600"
     assert not list(endpoint.stored.glob("NEO-*")) and endpoint.mail_sent() == []
 
 
-def test_files_older_than_30_days_are_removed_at_an_accepted_upload_and_newer_ones_stay(endpoint: Endpoint, bundle: bytes) -> None:
+def test_files_older_than_30_days_are_removed_at_an_accepted_upload_and_newer_ones_stay(
+    endpoint: Endpoint, bundle: bytes
+) -> None:
     endpoint.start()
     old = fill(endpoint, 3, age_days=31)
     young = "NEO-20200101-9999-AAAA"
@@ -450,7 +677,9 @@ def test_files_older_than_30_days_are_removed_at_an_accepted_upload_and_newer_on
     other.write_text("not ours", encoding="utf-8")
     os.utime(other, (time.time() - 90 * 86400,) * 2)
     refused = endpoint.post({"note": "x"}, {"bundle": ("a.zip", b"no zip")})[0]
-    assert refused == 400 and all((endpoint.stored / f"{r}.zip").exists() for r in old), "a refused request removes nothing"
+    assert refused == 400 and all((endpoint.stored / f"{r}.zip").exists() for r in old), (
+        "a refused request removes nothing"
+    )
     code, answer = endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})
     assert code == 200
     left = sorted(p.name for p in endpoint.stored.glob("NEO-*"))
@@ -458,12 +687,18 @@ def test_files_older_than_30_days_are_removed_at_an_accepted_upload_and_newer_on
     assert other.exists() and (endpoint.stored / "salt").exists() and (endpoint.stored / "rate.json").exists()
 
 
-def test_a_full_folder_refuses_with_a_reason_the_program_knows_and_says_why_in_its_log(endpoint: Endpoint, bundle: bytes) -> None:
+def test_a_full_folder_refuses_with_a_reason_the_program_knows_and_says_why_in_its_log(
+    endpoint: Endpoint, bundle: bytes
+) -> None:
     endpoint.start()
     fill(endpoint, 300)
     assert endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)}) == (429, {"ok": False, "reason": "rate"})
-    assert len(list(endpoint.stored.glob("NEO-*.zip"))) == 300 and [m["subject"] for m in endpoint.mail_sent()] == ["NeoAPRS logs: the folder is full"], "no file was mailed, only that the folder is full"
-    assert "the folder is full (300 kept" in (endpoint.stored.parent / "logs" / "support.log").read_text(encoding="utf-8")
+    assert len(list(endpoint.stored.glob("NEO-*.zip"))) == 300 and [m["subject"] for m in endpoint.mail_sent()] == [
+        "NeoAPRS logs: the folder is full"
+    ], "no file was mailed, only that the folder is full"
+    assert "the folder is full (300 kept" in (endpoint.stored.parent / "logs" / "support.log").read_text(
+        encoding="utf-8"
+    )
     rates = json.loads((endpoint.stored / "rate.json").read_text(encoding="utf-8") or "{}")
     assert not rates.get("stored"), "a refusal for a full folder does not use the sender's share"
     (endpoint.stored / "NEO-20200101-0000-0000.zip").unlink()
@@ -473,13 +708,13 @@ def test_a_full_folder_refuses_with_a_reason_the_program_knows_and_says_why_in_i
 
 def test_a_folder_that_would_pass_its_size_refuses_the_file_that_makes_it_so(endpoint: Endpoint, bundle: bytes) -> None:
     endpoint.start()
-    fill(endpoint, 19, size=int(5.2 * 1024 * 1024))           # 19 zips and 19 jsons of 5.2 MB: 197.6 MB
+    fill(endpoint, 19, size=int(5.2 * 1024 * 1024))  # 19 zips and 19 jsons of 5.2 MB: 197.6 MB
     assert len(bundle) < 1024 * 1024
     assert endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[0] == 200, "under the 200 MB with this file"
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as z:
         z.writestr("summary.txt", os.urandom(9 * 1024 * 1024))
-    big = buffer.getvalue()                                    # a whole bundle of 9 MB: over the 200 MB
+    big = buffer.getvalue()  # a whole bundle of 9 MB: over the 200 MB
     assert endpoint.post(good(bundle), {"bundle": ("a.zip", big)}) == (429, {"ok": False, "reason": "rate"}), "over it"
 
 
@@ -488,13 +723,18 @@ def test_the_reasons_of_every_refusal_are_those_the_program_has_words_for() -> N
     (neoaprs/web/supportsend.py): the endpoint names no other reason than the ones the page also
     shows, and no new one."""
     from neoaprs.web.supportsend import REASONS
+
     source = (ROOT / "server" / "neo" / "support" / "send.php").read_text(encoding="utf-8")
-    named = set(re.findall(r"support_refuse\(\d+, '([a-z_]+)'", source)) | set(re.findall(r"\[\d+, '([a-z_]+)'\]", source))
+    named = set(re.findall(r"support_refuse\(\d+, '([a-z_]+)'", source)) | set(
+        re.findall(r"\[\d+, '([a-z_]+)'\]", source)
+    )
     assert named == {"method", "rate", "too_large", "bad_request", "not_a_bundle", "storage"}
     assert set(REASONS) <= named
 
 
-def test_the_project_is_mailed_once_when_the_folder_first_has_no_room_and_again_after_a_file_was_stored(endpoint: Endpoint, bundle: bytes) -> None:
+def test_the_project_is_mailed_once_when_the_folder_first_has_no_room_and_again_after_a_file_was_stored(
+    endpoint: Endpoint, bundle: bytes
+) -> None:
     endpoint.start()
     refs = fill(endpoint, 300)
     for _ in range(3):
@@ -527,10 +767,14 @@ def test_uploads_at_the_same_moment_do_not_pass_the_cap_together(endpoint: Endpo
     assert len(list(endpoint.stored.glob("NEO-2*-*.zip"))) == 281
 
 
-def test_the_times_of_an_hour_ago_are_dropped_from_the_file_also_when_the_request_is_refused_for_a_full_folder(endpoint: Endpoint, bundle: bytes) -> None:
+def test_the_times_of_an_hour_ago_are_dropped_from_the_file_also_when_the_request_is_refused_for_a_full_folder(
+    endpoint: Endpoint, bundle: bytes
+) -> None:
     endpoint.start()
     fill(endpoint, 300)
     old = int(time.time()) - 2 * 3600
-    (endpoint.stored / "rate.json").write_text(json.dumps({"stored": {"aaaaaaaaaaaaaaaa": [old]}, "bad": {"bbbbbbbbbbbbbbbb": [old]}}), encoding="utf-8")
+    (endpoint.stored / "rate.json").write_text(
+        json.dumps({"stored": {"aaaaaaaaaaaaaaaa": [old]}, "bad": {"bbbbbbbbbbbbbbbb": [old]}}), encoding="utf-8"
+    )
     assert endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[0] == 429
     assert json.loads((endpoint.stored / "rate.json").read_text(encoding="utf-8")) == {"stored": [], "bad": []}

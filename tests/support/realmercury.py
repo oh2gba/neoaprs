@@ -2,6 +2,7 @@
 (scripts/mercury-bench, scripts/mercury-sim): Mercury on its `fifo` audio backend, a daemon attached
 to its ports, and a page socket that drives it with the page's commands.
 """
+
 import asyncio
 import json
 import os
@@ -16,13 +17,12 @@ from typing import Any
 
 from neoaprs.mercury import BUSY_THRESHOLD_DB
 
-RATE = 8000                      # samples a second of Mercury's fifo backend
-SAMPLE_BYTES = 4                 # s32le: the 16-bit sample in the top half of each word
+RATE = 8000  # samples a second of Mercury's fifo backend
+SAMPLE_BYTES = 4  # s32le: the 16-bit sample in the top half of each word
 
 
 class Failure(Exception):
-    """What a bench says when the thing it waited for did not happen; its text is the whole report.
-    """
+    """What a bench says when the thing it waited for did not happen; its text is the whole report."""
 
 
 def fifo(folder: Path, name: str) -> str:
@@ -35,7 +35,13 @@ def fifo(folder: Path, name: str) -> str:
     return str(path)
 
 
-def mercury_ini(busy_detect: bool = True, busy_threshold_db: int | None = None, leadin_ms: int = 0, ui_port: int = 0, tx_gain_db: int = 0) -> str:
+def mercury_ini(
+    busy_detect: bool = True,
+    busy_threshold_db: int | None = None,
+    leadin_ms: int = 0,
+    ui_port: int = 0,
+    tx_gain_db: int = 0,
+) -> str:
     """What NeoAPRS writes for a Mercury it starts itself, as far as a bench needs it: the busy
     detector (the one carrier sense of the plane, with the threshold the daemon writes,
     `BUSY_THRESHOLD_DB`, unless a bench tries another), no message store, and, when `leadin_ms` is
@@ -43,12 +49,28 @@ def mercury_ini(busy_detect: bool = True, busy_threshold_db: int | None = None, 
     `ui_port` the UI interface on it, the spectrum feed off, as the daemon writes it, and the
     transmit gain."""
     threshold = f"busy_threshold_db = {BUSY_THRESHOLD_DB if busy_threshold_db is None else busy_threshold_db}\n"
-    audio = f"[audio]\ntx_gain_db = {tx_gain_db}\n" + (f"tx_leadin_ms = {leadin_ms}\n" if leadin_ms else "") if (leadin_ms or tx_gain_db) else ""
+    audio = (
+        f"[audio]\ntx_gain_db = {tx_gain_db}\n" + (f"tx_leadin_ms = {leadin_ms}\n" if leadin_ms else "")
+        if (leadin_ms or tx_gain_db)
+        else ""
+    )
     ui = f"[main]\nui_enabled = true\nui_port = {ui_port}\nwaterfall_enabled = false\n" if ui_port else ""
     return f"{ui}{audio}[channel]\nbusy_detect = {'true' if busy_detect else 'false'}\n{threshold}[store]\nenabled = false\n"
 
 
-def start_mercury(binary: str, folder: Path, name: str, capture: str, playback: str, ports: tuple[int, int], busy_detect: bool = True, busy_threshold_db: int | None = None, leadin_ms: int = 0, ui_port: int = 0, tx_gain_db: int = 0) -> subprocess.Popen[bytes]:
+def start_mercury(
+    binary: str,
+    folder: Path,
+    name: str,
+    capture: str,
+    playback: str,
+    ports: tuple[int, int],
+    busy_detect: bool = True,
+    busy_threshold_db: int | None = None,
+    leadin_ms: int = 0,
+    ui_port: int = 0,
+    tx_gain_db: int = 0,
+) -> subprocess.Popen[bytes]:
     """One Mercury on the fifo backend: it hears `capture`, transmits into `playback`, serves KISS
     on ports[0] and its control port on ports[1] (200 above, as the daemon expects), keys nothing
     (`-P none`), logs to the folder. ALSA_CONFIG_PATH is the bundled configuration beside the
@@ -57,12 +79,33 @@ def start_mercury(binary: str, folder: Path, name: str, capture: str, playback: 
     out = (folder / f"mercury-{name}.log").open("wb")
     ini = folder / f"mercury-{name}.ini"
     ini.write_text(mercury_ini(busy_detect, busy_threshold_db, leadin_ms, ui_port, tx_gain_db), encoding="utf-8")
-    argv = [binary, "-C", str(ini), "-m", "1", "-x", "fifo", "-i", capture, "-o", playback, "-b", str(ports[0]), "-p", str(ports[1]), "-P", "none", "-v"]
+    argv = [
+        binary,
+        "-C",
+        str(ini),
+        "-m",
+        "1",
+        "-x",
+        "fifo",
+        "-i",
+        capture,
+        "-o",
+        playback,
+        "-b",
+        str(ports[0]),
+        "-p",
+        str(ports[1]),
+        "-P",
+        "none",
+        "-v",
+    ]
     env = dict(os.environ)
     conf = Path(binary).resolve().parent / "share" / "alsa" / "alsa.conf"
     if conf.is_file():
         env["ALSA_CONFIG_PATH"] = str(conf)
-    return subprocess.Popen(argv, cwd=str(folder), stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, env=env)
+    return subprocess.Popen(
+        argv, cwd=str(folder), stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, env=env
+    )
 
 
 def daemon_env() -> dict[str, str]:
@@ -83,24 +126,56 @@ def default_daemon() -> list[str]:
     return [sys.executable, "-m", "neoaprs"]
 
 
-def write_settings(data: Path, rows: dict[str, str], daemon: list[str] | None = None, radios: tuple[tuple[str, bool], ...] = ()) -> None:
+def write_settings(
+    data: Path, rows: dict[str, str], daemon: list[str] | None = None, radios: tuple[tuple[str, bool], ...] = ()
+) -> None:
     """The settings of a station before its daemon starts, written with the daemon's own command
     line: first its radios (type, whether it is on), added with `db radios add` in that order, so
     that the database numbers them 1, 2 ... (the HF radio that --hf-port attaches is the first
     Mercury radio: radio 2 after an FM radio), then the rows with `db set` (a radio's own as
     `radio/<id>/<key>`)."""
     for type, on in radios:
-        subprocess.run([*(daemon or default_daemon()), "db", "--data", str(data), "radios", "add", type, *([] if on else ["--off"])], check=True, capture_output=True, env=daemon_env())
+        subprocess.run(
+            [
+                *(daemon or default_daemon()),
+                "db",
+                "--data",
+                str(data),
+                "radios",
+                "add",
+                type,
+                *([] if on else ["--off"]),
+            ],
+            check=True,
+            capture_output=True,
+            env=daemon_env(),
+        )
     for key, value in rows.items():
-        subprocess.run([*(daemon or default_daemon()), "db", "--data", str(data), "set", key, value], check=True, capture_output=True, env=daemon_env())
+        subprocess.run(
+            [*(daemon or default_daemon()), "db", "--data", str(data), "set", key, value],
+            check=True,
+            capture_output=True,
+            env=daemon_env(),
+        )
 
 
-def start_daemon(data: Path, ports: tuple[int, int], daemon: list[str] | None = None, fm_port: int = 0) -> subprocess.Popen[bytes]:
+def start_daemon(
+    data: Path, ports: tuple[int, int], daemon: list[str] | None = None, fm_port: int = 0
+) -> subprocess.Popen[bytes]:
     """A daemon on its data folder, its HF radio attached to the Mercury on these ports (and its FM
     radio to the KISS hub on `fm_port`, when given), its page on a free port; its output beside the
     folder."""
     out = (data.parent / f"{data.name}.out").open("wb")
-    argv = [*(daemon or default_daemon()), "--data", str(data), "--hf-port", f"socket://127.0.0.1:{ports[0]}", "--web-port", "0", *(["--port", f"socket://127.0.0.1:{fm_port}"] if fm_port else [])]
+    argv = [
+        *(daemon or default_daemon()),
+        "--data",
+        str(data),
+        "--hf-port",
+        f"socket://127.0.0.1:{ports[0]}",
+        "--web-port",
+        "0",
+        *(["--port", f"socket://127.0.0.1:{fm_port}"] if fm_port else []),
+    ]
     return subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, env=daemon_env())
 
 
@@ -112,7 +187,10 @@ def wait_for_page(daemon: subprocess.Popen[bytes], data: Path, seconds: float, o
         if daemon.poll() is not None:
             raise Failure(f"the daemon on {data.name} ended with exit code {daemon.returncode} before its page was up")
         try:
-            found = re.search(r"web page at (http://127\.0\.0\.1:\d+/)", (data / "neoaprs.log").read_bytes()[offset:].decode("utf-8", errors="replace"))
+            found = re.search(
+                r"web page at (http://127\.0\.0\.1:\d+/)",
+                (data / "neoaprs.log").read_bytes()[offset:].decode("utf-8", errors="replace"),
+            )
         except OSError:
             found = None
         if found:
@@ -153,6 +231,7 @@ class Page:
 
     async def open(self, base: str) -> None:
         from tornado.websocket import websocket_connect
+
         self._connection = await websocket_connect("ws://" + base.removeprefix("http://") + "ws", connect_timeout=15)
         self._reader = asyncio.get_running_loop().create_task(self._read(), name=f"page {self.name}")
 
@@ -169,7 +248,9 @@ class Page:
     async def send(self, command: dict[str, Any]) -> None:
         await self._connection.write_message(json.dumps(command))
 
-    async def until(self, what: str, condition: Callable[[], bool], seconds: float, since: float | None = None) -> float:
+    async def until(
+        self, what: str, condition: Callable[[], bool], seconds: float, since: float | None = None
+    ) -> float:
         """Wait until the condition holds on the topics; return the seconds it took, from `since` (a
         loop time) or now.
 
@@ -188,8 +269,10 @@ class Page:
                 raise Failure(f"{self.name}: the daemon closed the socket")
             left = deadline - loop.time()
             if left <= 0:
-                raise Failure(f"{self.name}: {what} did not happen within {seconds:g} s (hf {json.dumps(self.radio('hf').get('state'))}, modem {json.dumps(self.modem())}, "
-                              f"the last error {json.dumps(self.errors[-1]) if self.errors else 'none'})")
+                raise Failure(
+                    f"{self.name}: {what} did not happen within {seconds:g} s (hf {json.dumps(self.radio('hf').get('state'))}, modem {json.dumps(self.modem())}, "
+                    f"the last error {json.dumps(self.errors[-1]) if self.errors else 'none'})"
+                )
             try:
                 await asyncio.wait_for(self._changed.wait(), left)
             except TimeoutError:
@@ -222,7 +305,10 @@ class Page:
         """The radio of a kind as the page holds it: the first enabled one of the topic `radios` by
         position; {} while there is none or the topic is not told."""
         rows = self.topics.get("radios") or {}
-        live = sorted((r for r in rows.values() if r.get("kind") == kind and r.get("enabled") and not r.get("removed")), key=lambda r: (r.get("position", 0), r.get("id", 0)))
+        live = sorted(
+            (r for r in rows.values() if r.get("kind") == kind and r.get("enabled") and not r.get("removed")),
+            key=lambda r: (r.get("position", 0), r.get("id", 0)),
+        )
         return live[0] if live else {}
 
     def modem(self) -> dict[str, Any]:
@@ -350,4 +436,3 @@ class FmHub:
     def close(self) -> None:
         if self._server is not None:
             self._server.close()
-

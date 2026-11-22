@@ -3,6 +3,7 @@
 Board addressees (`BLN0`..`BLNZ`, `BLN3HAMS`, `ALL`, `CQ`, `QST`, `NWS-xxxxx`, `SKY`/`CWA`) are
 never conversations or acked. The board holds one entry per sender and slot; nothing ages out.
 """
+
 import re
 from dataclasses import dataclass
 from datetime import datetime

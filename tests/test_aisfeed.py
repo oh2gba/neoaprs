@@ -1,6 +1,7 @@
 """Tests for the AIS receiver connection (neoaprs/aisfeed.py): line cutting within the limits (1024
 bytes a line, 200 lines a second), reading to the end, and the no-devices switch.
 """
+
 import asyncio
 
 import pytest
@@ -14,14 +15,20 @@ def test_bytes_are_cut_into_lines_and_a_line_is_kept_until_its_end_comes() -> No
     lines = aisfeed.Lines()
     assert lines.feed(b"!AIVDM,1\r\n!AIV", 0.0) == ["!AIVDM,1"]
     assert lines.feed(b"DM,2\n\n  \n", 0.0) == ["!AIVDM,2"]
-    assert lines.feed("!AIVDM,\xc3\xa5\n".encode("latin-1"), 0.0) == ["!AIVDM,��"], "what is not ASCII is not NMEA, and does not break the reading"
+    assert lines.feed("!AIVDM,\xc3\xa5\n".encode("latin-1"), 0.0) == ["!AIVDM,��"], (
+        "what is not ASCII is not NMEA, and does not break the reading"
+    )
 
 
 def test_a_line_longer_than_1024_bytes_is_passed_over_to_its_end_in_whatever_pieces_it_comes() -> None:
     lines = aisfeed.Lines()
     assert lines.feed(b"a" * (AIS_LINE_MAX + 1) + b"\nok1\n", 0.0) == ["ok1"], "complete in one piece"
     assert lines.feed(b"c" * AIS_LINE_MAX + b"\n", 0.0) == ["c" * AIS_LINE_MAX], "the longest that is read"
-    assert lines.feed(b"b" * 800, 0.0) == [] and lines.feed(b"b" * 800, 0.0) == [] and lines.feed(b"b" * 800 + b"\nok2\nok", 0.0) == ["ok2"], "in three"
+    assert (
+        lines.feed(b"b" * 800, 0.0) == []
+        and lines.feed(b"b" * 800, 0.0) == []
+        and lines.feed(b"b" * 800 + b"\nok2\nok", 0.0) == ["ok2"]
+    ), "in three"
     assert lines.feed(b"3\n", 0.0) == ["ok3"]
     assert lines.passed_over == 2
 
@@ -70,7 +77,9 @@ def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(nodevices.ENV, "1")
 
 
-async def test_under_the_no_devices_switch_a_receiver_that_is_not_this_computer_is_refused_as_a_server_that_is_not_there(monkeypatch: pytest.MonkeyPatch, under_the_switch: None) -> None:
+async def test_under_the_no_devices_switch_a_receiver_that_is_not_this_computer_is_refused_as_a_server_that_is_not_there(
+    monkeypatch: pytest.MonkeyPatch, under_the_switch: None
+) -> None:
     opened: list[object] = []
     monkeypatch.setattr(asyncio, "open_connection", lambda *a, **k: opened.append(a))
     with pytest.raises(ConnectionRefusedError):
@@ -78,7 +87,9 @@ async def test_under_the_no_devices_switch_a_receiver_that_is_not_this_computer_
     assert opened == []
 
 
-async def test_under_the_no_devices_switch_a_port_a_real_modem_may_listen_on_is_refused_even_on_this_computer(monkeypatch: pytest.MonkeyPatch, under_the_switch: None) -> None:
+async def test_under_the_no_devices_switch_a_port_a_real_modem_may_listen_on_is_refused_even_on_this_computer(
+    monkeypatch: pytest.MonkeyPatch, under_the_switch: None
+) -> None:
     opened: list[object] = []
     monkeypatch.setattr(asyncio, "open_connection", lambda *a, **k: opened.append(a))
     with pytest.raises(ConnectionRefusedError):

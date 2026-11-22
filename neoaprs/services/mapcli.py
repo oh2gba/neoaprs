@@ -6,6 +6,7 @@ It does what the page's Estimate and Download buttons do. It reads the settings 
 makes the world map if missing, then the detailed map. With --dry-run it only reports the size.
 The daemon may be running; settings are read, never changed.
 `neoaprs map --world --help` shows the developer command that makes the bundled world map."""
+
 import argparse
 import asyncio
 import logging
@@ -23,11 +24,26 @@ from neoaprs.store import DB_NAME, Store
 
 
 def parse(argv: list[str], prog: str = "mapfetch") -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog=prog, description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog=prog, description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--data", default=str(default_data_dir()), help="the data folder (default %(default)s)")
-    parser.add_argument("--radius", type=int, metavar="KM", help=f"the distance from the station to the edge of the map, {MAP_RADIUS_KM[0]} to {MAP_RADIUS_KM[1]} (default: map/radius_km)")
-    parser.add_argument("--maxzoom", type=int, metavar="Z", help=f"the deepest zoom, {MAP_MAXZOOM[0]} to {MAP_MAXZOOM[1]}: 10 towns, 12 streets, 14 houses (default: map/maxzoom)")
-    parser.add_argument("--source", help="a web address or a file to cut the map from (default: map/source, else the latest daily build of build.protomaps.com)")
+    parser.add_argument(
+        "--radius",
+        type=int,
+        metavar="KM",
+        help=f"the distance from the station to the edge of the map, {MAP_RADIUS_KM[0]} to {MAP_RADIUS_KM[1]} (default: map/radius_km)",
+    )
+    parser.add_argument(
+        "--maxzoom",
+        type=int,
+        metavar="Z",
+        help=f"the deepest zoom, {MAP_MAXZOOM[0]} to {MAP_MAXZOOM[1]}: 10 towns, 12 streets, 14 houses (default: map/maxzoom)",
+    )
+    parser.add_argument(
+        "--source",
+        help="a web address or a file to cut the map from (default: map/source, else the latest daily build of build.protomaps.com)",
+    )
     parser.add_argument("--lat", type=float, help="the latitude to put the map round (default: station/lat)")
     parser.add_argument("--lon", type=float, help="the longitude (default: station/lon)")
     parser.add_argument("--dry-run", action="store_true", help="say how big the map would be and change nothing")
@@ -58,8 +74,17 @@ async def stored_config(data: Path) -> Config:
 
 def with_flags(config: Config, args: argparse.Namespace) -> Config:
     """Return the settings with the flags applied, validated as the daemon validates them."""
-    values = {key: str(value) for key, value in (("map/radius_km", args.radius), ("map/maxzoom", args.maxzoom), ("map/source", args.source),
-                                                  ("station/lat", args.lat), ("station/lon", args.lon)) if value is not None}
+    values = {
+        key: str(value)
+        for key, value in (
+            ("map/radius_km", args.radius),
+            ("map/maxzoom", args.maxzoom),
+            ("map/source", args.source),
+            ("station/lat", args.lat),
+            ("station/lon", args.lon),
+        )
+        if value is not None
+    }
     return Config.checked(config, values) if values else config
 
 

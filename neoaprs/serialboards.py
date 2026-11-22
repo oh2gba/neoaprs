@@ -9,7 +9,7 @@ BOARDS: tuple[tuple[int, frozenset[int] | None, str], ...] = (
     (0x303A, None, "an ESP32 development board"),
     (0x2341, None, "an Arduino board"),
     (0x2A03, None, "an Arduino board"),
-    (0x2E8A, None, "a Raspberry Pi Pico board"),                     # RP2040 and RP2350, the Debug Probe too
+    (0x2E8A, None, "a Raspberry Pi Pico board"),  # RP2040 and RP2350, the Debug Probe too
     (0x239A, None, "an Adafruit board"),
     (0x16C0, frozenset({0x0483}), "a Teensy board"),  # 16c0 is shared by other makers: only the Teensy's serial
     (0x1366, None, "a SEGGER J-Link debug probe"),

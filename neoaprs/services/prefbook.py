@@ -2,6 +2,7 @@
 
 A station with no part set has no entry. `Pref.path` is radio 1's path; other radios' paths
 are kept through a `PathLog`. An empty path means DIRECT, which differs from none set."""
+
 import asyncio
 import logging
 from collections.abc import Callable
@@ -43,6 +44,7 @@ def _recommended(spec: RadioSpec) -> str:
 
 class PathLog(Protocol):
     """Storage for per-radio paths; a write returns whether it was kept."""
+
     # call -> radio id -> comma-separated path, empty for direct
     async def paths(self) -> dict[str, dict[RadioId, str]]: ...
     async def save_path(self, call: str, radio: RadioId, path: str) -> bool: ...
@@ -50,8 +52,16 @@ class PathLog(Protocol):
 
 
 class PrefBook:
-    def __init__(self, messagelog: MessageLog, config: Callable[[], Config], heard: Callable[[str], Deliveries | None] = lambda call: None, clock: Clock = utcnow, *, paths: PathLog | None = None,
-                 gateway: Callable[[str, RadioId], tuple[str, ...]] = lambda call, radio: ()) -> None:
+    def __init__(
+        self,
+        messagelog: MessageLog,
+        config: Callable[[], Config],
+        heard: Callable[[str], Deliveries | None] = lambda call: None,
+        clock: Clock = utcnow,
+        *,
+        paths: PathLog | None = None,
+        gateway: Callable[[str, RadioId], tuple[str, ...]] = lambda call, radio: (),
+    ) -> None:
         self._log = messagelog
         self._path_log = paths
         # paths of radios other than radio 1, by radio and call
@@ -67,7 +77,10 @@ class PrefBook:
         self.path_changed: Signal[[str, RadioId]] = Signal("prefs_path_changed")
 
     async def load(self) -> None:
-        self._own = {call: Pref(None if path is None else normal_path(path), rf_only, alert) for call, (path, rf_only, alert) in (await self._log.prefs()).items()}
+        self._own = {
+            call: Pref(None if path is None else normal_path(path), rf_only, alert)
+            for call, (path, rf_only, alert) in (await self._log.prefs()).items()
+        }
         self._on = {}
         for call, by_radio in (await self._path_log.paths() if self._path_log is not None else {}).items():
             for radio_id, path in by_radio.items():
@@ -113,7 +126,12 @@ class PrefBook:
             return path
         added = rf_only_path(path)
         if len(added) > MAX_PATH:
-            raise MessagingError(f"path too long for RF only: {len(path)} digipeaters and RFONLY make more than the {MAX_PATH} a path may have", "path.too_long_rf_only", count=len(path), max=MAX_PATH)
+            raise MessagingError(
+                f"path too long for RF only: {len(path)} digipeaters and RFONLY make more than the {MAX_PATH} a path may have",
+                "path.too_long_rf_only",
+                count=len(path),
+                max=MAX_PATH,
+            )
         return added
 
     def _radio_path(self, radio_id: RadioId) -> tuple[str, ...]:
@@ -123,7 +141,11 @@ class PrefBook:
         if spec is None:
             return config.path_calls(FM_ID)
         chosen = path_choice(str(spec.value("path")))
-        return tuple(c for c in (_recommended(spec) or config.recommended_path).split(",") if c) if chosen is None else chosen
+        return (
+            tuple(c for c in (_recommended(spec) or config.recommended_path).split(",") if c)
+            if chosen is None
+            else chosen
+        )
 
     # ---- the path
     async def set_path(self, call: str, path: str, radio_id: RadioId = FM_ID) -> tuple[str, ...]:
@@ -160,9 +182,19 @@ class PrefBook:
             if calls is None and key not in self._on.get(radio_id, {}):
                 return
             if self._path_log is None:
-                raise MessagingError(f"the path on radio {radio_id} could not be kept: there is nowhere to keep a path but radio 1's", "failed")
-            if not await (self._path_log.forget_path(key, radio_id) if calls is None else self._path_log.save_path(key, radio_id, ",".join(calls))):
-                raise MessagingError(f"the path could not be {'removed' if calls is None else 'kept'}: the database is not open", "failed")
+                raise MessagingError(
+                    f"the path on radio {radio_id} could not be kept: there is nowhere to keep a path but radio 1's",
+                    "failed",
+                )
+            if not await (
+                self._path_log.forget_path(key, radio_id)
+                if calls is None
+                else self._path_log.save_path(key, radio_id, ",".join(calls))
+            ):
+                raise MessagingError(
+                    f"the path could not be {'removed' if calls is None else 'kept'}: the database is not open",
+                    "failed",
+                )
             if calls is None:
                 del self._on[radio_id][key]
             else:
@@ -179,7 +211,11 @@ class PrefBook:
         except ValueError as e:
             raise MessagingError.of(e) from None
         if on and key == EMAIL_GATEWAY:
-            raise MessagingError(f"{EMAIL_GATEWAY} cannot be RF only: the email gateway is on the internet", "station.email_rf_only", call=EMAIL_GATEWAY)
+            raise MessagingError(
+                f"{EMAIL_GATEWAY} cannot be RF only: the email gateway is on the internet",
+                "station.email_rf_only",
+                call=EMAIL_GATEWAY,
+            )
         await self._change(key, lambda pref: replace(pref, rf_only=on), "RF only could not be kept", quiet=not on)
 
     # ---- the alert
@@ -192,8 +228,19 @@ class PrefBook:
         except ValueError as e:
             raise MessagingError.of(e) from None
         if alert.within_km is not None and not ALERT_KM_MIN <= alert.within_km <= ALERT_KM_MAX:
-            raise MessagingError(f"the distance of an alert is {ALERT_KM_MIN} to {ALERT_KM_MAX} km, not {alert.within_km}", "alert.km_range", km=alert.within_km, min=ALERT_KM_MIN, max=ALERT_KM_MAX)
-        await self._change(key, lambda pref: replace(pref, alert=alert if alert.any else None), "the alert could not be kept", quiet=not alert.any)
+            raise MessagingError(
+                f"the distance of an alert is {ALERT_KM_MIN} to {ALERT_KM_MAX} km, not {alert.within_km}",
+                "alert.km_range",
+                km=alert.within_km,
+                min=ALERT_KM_MIN,
+                max=ALERT_KM_MAX,
+            )
+        await self._change(
+            key,
+            lambda pref: replace(pref, alert=alert if alert.any else None),
+            "the alert could not be kept",
+            quiet=not alert.any,
+        )
 
     async def _change(self, key: str, make: Callable[[Pref], Pref], failure: str, quiet: bool) -> None:
         """Store, then hold, the entry `make` returns; an empty entry is removed.
@@ -205,7 +252,13 @@ class PrefBook:
             if quiet and after == (before or Pref()):
                 return
             empty = after == Pref()
-            saved = await (self._log.forget_pref(key) if empty else self._log.save_pref(key, None if after.path is None else ",".join(after.path), after.rf_only, after.alert))
+            saved = await (
+                self._log.forget_pref(key)
+                if empty
+                else self._log.save_pref(
+                    key, None if after.path is None else ",".join(after.path), after.rf_only, after.alert
+                )
+            )
             if not saved:
                 raise MessagingError(f"{failure}: the database is not open", "failed")
             if empty:
@@ -225,6 +278,10 @@ class PrefBook:
         kept = (await self._path_log.paths()).get(key, {})
         for radio_id, calls in held:
             if radio_id not in kept and not await self._path_log.save_path(key, radio_id, ",".join(calls)):
-                log.warning("the path of %s on radio %s was lost with its other preferences: it could not be kept again", key, radio_id)
+                log.warning(
+                    "the path of %s on radio %s was lost with its other preferences: it could not be kept again",
+                    key,
+                    radio_id,
+                )
                 del self._on[radio_id][key]
                 self.path_changed.emit(key, radio_id)

@@ -3,6 +3,7 @@
 The first step is written at once and the others as the pauses pass, in a task, so that nothing
 waits. The pause after the last step is the settle time, during which TNC output is discarded.
 """
+
 import asyncio
 from collections.abc import Callable, Coroutine
 from typing import Any
@@ -11,7 +12,13 @@ from .tncprofile import Profile
 
 
 class KissEntry:
-    def __init__(self, spawn: Callable[[Coroutine[Any, Any, None]], "asyncio.Task[None]"], write: Callable[[bytes], bool], settle_sec: float | None = None, pace: float = 1.0) -> None:
+    def __init__(
+        self,
+        spawn: Callable[[Coroutine[Any, Any, None]], "asyncio.Task[None]"],
+        write: Callable[[bytes], bool],
+        settle_sec: float | None = None,
+        pace: float = 1.0,
+    ) -> None:
         self._spawn = spawn
         # Writes to the Tnc's line; returns False on failure.
         self._write = write

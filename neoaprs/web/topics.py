@@ -3,6 +3,7 @@
 This is the one place in neoaprs/web/ that connects those signals (`Topics._followed` lists them).
 Row values are built in views.py and typed in `TopicValues` (protocol.py).
 """
+
 import logging
 import time
 from collections.abc import Callable
@@ -36,7 +37,23 @@ from .views import NO_PLAN
 from .skedview import skeds_state
 from .updatewire import UpdateState
 from .radioview import radio_row
-from .views import StationRadios, bulletin_row, config_values, general_state, gps_state, igate_state, key_row, message_row, on_their_way, own_bulletin_row, own_object_row, pref_row, qru_state, station_alert_message, station_row
+from .views import (
+    StationRadios,
+    bulletin_row,
+    config_values,
+    general_state,
+    gps_state,
+    igate_state,
+    key_row,
+    message_row,
+    on_their_way,
+    own_bulletin_row,
+    own_object_row,
+    pref_row,
+    qru_state,
+    station_alert_message,
+    station_row,
+)
 
 log = logging.getLogger("neoaprs.web")
 
@@ -55,12 +72,23 @@ def radios_in_force(config: Config) -> tuple[object, ...]:
 
     Names, radio settings and paths are left out; a path change is signalled by PrefBook.
     """
-    return tuple((s.id, s.kind, s.type, s.enabled, s.position, s.removed) for s in config.radios), config.email_choice, pairsetting.own_calls(config.station_call, config.pairs)
+    return (
+        tuple((s.id, s.kind, s.type, s.enabled, s.position, s.removed) for s in config.radios),
+        config.email_choice,
+        pairsetting.own_calls(config.station_call, config.pairs),
+    )
 
 
 class Topics:
-    def __init__(self, ctl: Controller, hub: StateHub, sent: Callable[[], None] | None = None, reach: Callable[[], list[str]] = list, secure: Callable[[], dict[str, Any]] | None = None,
-                 tell: Callable[[dict[str, Any]], None] | None = None) -> None:
+    def __init__(
+        self,
+        ctl: Controller,
+        hub: StateHub,
+        sent: Callable[[], None] | None = None,
+        reach: Callable[[], list[str]] = list,
+        secure: Callable[[], dict[str, Any]] | None = None,
+        tell: Callable[[dict[str, Any]], None] | None = None,
+    ) -> None:
         self.ctl = ctl
         self.hub = hub
         # called when a packet of ours went out or the settings changed, so the status is resent
@@ -81,13 +109,45 @@ class Topics:
         hub.add(Topic("packets", self.window.whole, self.window.item))
         hub.add(Topic("radios", self._radios, self._radio, interval=TNC_EVERY_SEC))
         hub.add(Topic("config", lambda: config_values(ctl.config, reach(), None if secure is None else secure())))
-        hub.add(Topic("station_prefs", lambda: {call: pref_row(pref) for call, pref in ctl.prefbook.all().items()}, self._station_pref))
-        hub.add(Topic("messages", lambda: {str(m.id): self._message_row(m) for m in ctl.messaging.records()}, self._message))
-        hub.add(Topic("station_keys", lambda: {call: key_row(*entry) for call, entry in ctl.keyring.peers().items()}, self._station_key))
+        hub.add(
+            Topic(
+                "station_prefs",
+                lambda: {call: pref_row(pref) for call, pref in ctl.prefbook.all().items()},
+                self._station_pref,
+            )
+        )
+        hub.add(
+            Topic("messages", lambda: {str(m.id): self._message_row(m) for m in ctl.messaging.records()}, self._message)
+        )
+        hub.add(
+            Topic(
+                "station_keys",
+                lambda: {call: key_row(*entry) for call, entry in ctl.keyring.peers().items()},
+                self._station_key,
+            )
+        )
         hub.add(Topic("bulletins", lambda: {b.key: bulletin_row(b) for b in ctl.bulletins.records()}, self._bulletin))
-        hub.add(Topic("own_objects", lambda: {o.name: self._own_object_row(o) for o in ctl.ownobjects.records()}, self._own_object))
-        hub.add(Topic("own_bulletins", lambda: {b.slot: self._own_bulletin_row(b) for b in ctl.ownbulletins.records()}, self._own_bulletin))
-        hub.add(Topic("map", lambda: map_state(ctl.mapfetch.status(), ctl.aloha.radii, ctl.layers.states()), interval=TNC_EVERY_SEC))
+        hub.add(
+            Topic(
+                "own_objects",
+                lambda: {o.name: self._own_object_row(o) for o in ctl.ownobjects.records()},
+                self._own_object,
+            )
+        )
+        hub.add(
+            Topic(
+                "own_bulletins",
+                lambda: {b.slot: self._own_bulletin_row(b) for b in ctl.ownbulletins.records()},
+                self._own_bulletin,
+            )
+        )
+        hub.add(
+            Topic(
+                "map",
+                lambda: map_state(ctl.mapfetch.status(), ctl.aloha.radii, ctl.layers.states()),
+                interval=TNC_EVERY_SEC,
+            )
+        )
         hub.add(Topic("update", lambda: UpdateState.row(ctl.selfupdate.status()), interval=TNC_EVERY_SEC))
         hub.add(Topic("gps", self._gps, interval=GPS_EVERY_SEC))
         hub.add(Topic("igate", lambda: igate_state(ctl.config, ctl.igate), interval=IGATE_EVERY_SEC))
@@ -98,7 +158,12 @@ class Topics:
 
     def _gps(self) -> dict[str, Any]:
         beacon = self.ctl.moving_beacon()
-        return gps_state(self.ctl.config, self.ctl.gps, NO_PLAN if beacon is None else beacon.mobile, None if beacon is None else beacon.next_due)
+        return gps_state(
+            self.ctl.config,
+            self.ctl.gps,
+            NO_PLAN if beacon is None else beacon.mobile,
+            None if beacon is None else beacon.next_due,
+        )
 
     def _stations(self) -> dict[str, Any]:
         rows = ((s.call, self._row(s)) for s in self.ctl.stationbook.stations())
@@ -123,7 +188,9 @@ class Topics:
         Return None when the daemon chooses.
         """
         chosen = self.ctl.radios.choice(call)
-        return chosen if chosen is not None and any(spec.id == chosen for spec in self.ctl.config.enabled_radios) else None
+        return (
+            chosen if chosen is not None and any(spec.id == chosen for spec in self.ctl.config.enabled_radios) else None
+        )
 
     def _radio_now(self, call: str) -> RadioId | None:
         """Return the radio a message to the station goes on now, or None."""
@@ -147,7 +214,11 @@ class Topics:
         One entry per live radio that carries no path (M1).
         """
         live = self.ctl.config.live_radios
-        return {spec.id: digipeaters(self.ctl.prefbook.path_for(call, None, spec.id)) for spec in live if not carries_path(live, spec.id)}
+        return {
+            spec.id: digipeaters(self.ctl.prefbook.path_for(call, None, spec.id))
+            for spec in live
+            if not carries_path(live, spec.id)
+        }
 
     def _radios(self) -> dict[str, Any]:
         rows = ((str(spec.id), self._radio_of(spec.id)) for spec in self.ctl.config.radios)
@@ -158,7 +229,13 @@ class Topics:
 
     def _radio_of(self, id: RadioId) -> dict[str, Any] | None:
         spec = self.ctl.config.radio(id)
-        return None if spec is None else radio_row(spec, self.ctl.config.radios, self.ctl.radios.get(id), self.ctl.radios.claims, self.ctl.rigstatus)
+        return (
+            None
+            if spec is None
+            else radio_row(
+                spec, self.ctl.config.radios, self.ctl.radios.get(id), self.ctl.radios.claims, self.ctl.rigstatus
+            )
+        )
 
     def _station_pref(self, call: str) -> dict[str, Any] | None:
         pref = self.ctl.prefbook.all().get(call)
@@ -193,7 +270,12 @@ class Topics:
     def _message_row(self, record: MessageRecord) -> dict[str, Any]:
         sending = record.direction == "out" and record.state == "sending"
         radio = self.ctl.messaging.radio_now(record) if sending else None
-        return message_row(record, self.ctl.messaging.delivery.attempts_of(record.id), self.ctl.messaging.queued(record), None if radio is None else radio.id)
+        return message_row(
+            record,
+            self.ctl.messaging.delivery.attempts_of(record.id),
+            self.ctl.messaging.queued(record),
+            None if radio is None else radio.id,
+        )
 
     async def start(self) -> None:
         """Load the packet window from the database and connect the signals."""
@@ -206,15 +288,38 @@ class Topics:
         """Return each followed signal with its handler (see the table in the module docstring)."""
         ctl = self.ctl
         return [
-            (ctl.stationbook.changed, self._station_changed), (ctl.stationbook.recounted, self._station_changed), (ctl.stationbook.removed, self._station_removed),
-            (ctl.stationbook.cleared, self._stations_cleared), (ctl.radio_changed, self._radio_changed), (ctl.radios.claims.changed, self._radios_changed), (ctl.prefbook.path_changed, self._path_changed),
-            (ctl.radio_packet, self._packet), (ctl.internet_packet, self._packet),
-            (ctl.config_changed, self._config_changed), (ctl.gps.changed, self._gps_changed), (ctl.gps.moved, self._gps_moved), (ctl.igate.changed, self._igate_changed),
-            (ctl.messaging.changed, self._message_changed), (ctl.messaging.removed, self._message_changed),
-            (ctl.bulletins.changed, self._bulletin_changed), (ctl.bulletins.removed, self._bulletin_changed),
-            (ctl.ownobjects.changed, self._own_object_changed), (ctl.ownobjects.removed, self._own_object_changed),
-            (ctl.ownbulletins.changed, self._own_bulletin_changed), (ctl.ownbulletins.removed, self._own_bulletin_changed),
-            (ctl.prefbook.changed, self._pref_changed), (ctl.keyring.changed, self._key_changed), (ctl.keyring.own_changed, self._own_key_changed), (ctl.qruask.changed, self._qru_changed), (ctl.generalask.changed, self._general_changed), (ctl.skeds.changed, self._skeds_changed), (ctl.mapfetch.changed, self._map_changed), (ctl.aloha.changed, self._map_changed), (ctl.layers.changed, self._map_changed), (ctl.layers.told, self.layers.told), (ctl.selfupdate.changed, self._update_changed),
+            (ctl.stationbook.changed, self._station_changed),
+            (ctl.stationbook.recounted, self._station_changed),
+            (ctl.stationbook.removed, self._station_removed),
+            (ctl.stationbook.cleared, self._stations_cleared),
+            (ctl.radio_changed, self._radio_changed),
+            (ctl.radios.claims.changed, self._radios_changed),
+            (ctl.prefbook.path_changed, self._path_changed),
+            (ctl.radio_packet, self._packet),
+            (ctl.internet_packet, self._packet),
+            (ctl.config_changed, self._config_changed),
+            (ctl.gps.changed, self._gps_changed),
+            (ctl.gps.moved, self._gps_moved),
+            (ctl.igate.changed, self._igate_changed),
+            (ctl.messaging.changed, self._message_changed),
+            (ctl.messaging.removed, self._message_changed),
+            (ctl.bulletins.changed, self._bulletin_changed),
+            (ctl.bulletins.removed, self._bulletin_changed),
+            (ctl.ownobjects.changed, self._own_object_changed),
+            (ctl.ownobjects.removed, self._own_object_changed),
+            (ctl.ownbulletins.changed, self._own_bulletin_changed),
+            (ctl.ownbulletins.removed, self._own_bulletin_changed),
+            (ctl.prefbook.changed, self._pref_changed),
+            (ctl.keyring.changed, self._key_changed),
+            (ctl.keyring.own_changed, self._own_key_changed),
+            (ctl.qruask.changed, self._qru_changed),
+            (ctl.generalask.changed, self._general_changed),
+            (ctl.skeds.changed, self._skeds_changed),
+            (ctl.mapfetch.changed, self._map_changed),
+            (ctl.aloha.changed, self._map_changed),
+            (ctl.layers.changed, self._map_changed),
+            (ctl.layers.told, self.layers.told),
+            (ctl.selfupdate.changed, self._update_changed),
             (ctl.stationalerts.fired, self._station_alert),
         ]
 
@@ -350,8 +455,16 @@ class Topics:
         self._config = config
         self.hub.changed("radios")  # settings, Enable, beacon interval
         # A removed radio releases its modem's rows; only Mercury has a scope.
-        self.scopes.keep({radio.id: modem for radio in self.ctl.radios.all() if isinstance(modem := radio.driver.modem, Mercury)})
-        self.levels.keep({radio.id: modem for radio in self.ctl.radios.all() if isinstance(modem := radio.driver.modem, DirewolfModem)})
+        self.scopes.keep(
+            {radio.id: modem for radio in self.ctl.radios.all() if isinstance(modem := radio.driver.modem, Mercury)}
+        )
+        self.levels.keep(
+            {
+                radio.id: modem
+                for radio in self.ctl.radios.all()
+                if isinstance(modem := radio.driver.modem, DirewolfModem)
+            }
+        )
         if radios:
             self.hub.changed("stations")  # the radio each message takes now, and the choices in force
             self.hub.changed("own_objects")  # a removed radio left the objects' radios

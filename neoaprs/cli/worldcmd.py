@@ -5,6 +5,7 @@ Protomaps daily build (`--build`, or the latest one; or `--source`, a web addres
 file) into DIR (default `neoaprs/maps/` of this package) as `basemap-world.pmtiles`, with
 `basemap-world.json` beside it naming the build. A file over 8 MB is refused before it is
 fetched, because every package carries it. Run it to refresh the map, and commit the two files."""
+
 import argparse
 import asyncio
 import json
@@ -22,11 +23,19 @@ MAX_BYTES = 8_000_000
 
 
 def parse(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="neoaprs map --world", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--out", default=str(Path(__file__).resolve().parent.parent / MAPS_DIR), help="the folder the map is put in (default %(default)s)")
+    parser = argparse.ArgumentParser(
+        prog="neoaprs map --world", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--out",
+        default=str(Path(__file__).resolve().parent.parent / MAPS_DIR),
+        help="the folder the map is put in (default %(default)s)",
+    )
     parser.add_argument("--zoom", type=int, default=SHIPPED_ZOOM, help="the deepest zoom (default %(default)s)")
     where = parser.add_mutually_exclusive_group()
-    where.add_argument("--build", metavar="YYYYMMDD", help="the daily build of build.protomaps.com to cut from (default: the latest)")
+    where.add_argument(
+        "--build", metavar="YYYYMMDD", help="the daily build of build.protomaps.com to cut from (default: the latest)"
+    )
     where.add_argument("--source", help="a web address or a PMTiles file to cut from")
     return parser.parse_args(argv)
 
@@ -43,7 +52,9 @@ async def make(args: argparse.Namespace) -> Path:
     final = out / WORLD_FILE
     size = (await extract(source, final, None, args.zoom, dry_run=True)).bytes
     if size > MAX_BYTES:
-        raise CutError(f"the world to zoom {args.zoom} is {size / 1e6:.1f} MB, over the {MAX_BYTES / 1e6:.0f} MB the program may carry: use a lower --zoom")
+        raise CutError(
+            f"the world to zoom {args.zoom} is {size / 1e6:.1f} MB, over the {MAX_BYTES / 1e6:.0f} MB the program may carry: use a lower --zoom"
+        )
     await extract(source, final, None, args.zoom, on_percent=lambda percent: print(f"fetching {percent}%", flush=True))
     final.with_suffix(".json").write_text(json.dumps({"build": build}) + "\n")
     return final

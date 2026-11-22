@@ -2,6 +2,7 @@
 
 Fintraffic's two answers with eight ships off Helsinki, and `serve`, a TCP AIS receiver on
 127.0.0.1:7392 sending `!AIVDM` lines for six ships. The ships sail circles; some lie at anchor."""
+
 import math
 import socketserver
 import sys
@@ -12,7 +13,7 @@ from typing import Any
 
 HOST = "127.0.0.1"
 AIS_PORT = 7392
-SEA = (60.12, 24.97)                              # the Gulf of Finland off Helsinki
+SEA = (60.12, 24.97)  # the Gulf of Finland off Helsinki
 KM_PER_DEG_LAT = 111.2
 # A ship's static data is sent this often, and at once on a connection.
 STATIC_EVERY_SEC = 10
@@ -23,6 +24,7 @@ class Craft:
     """One made-up ship sailing a circle of `radius_km` round a point offset from the sea's middle.
 
     `period_sec` is one lap (negative: the other way); radius 0 is at anchor."""
+
     mmsi: int
     name: str
     kind: int
@@ -67,17 +69,41 @@ def locations(t: float) -> dict[str, Any]:
     for ship in CRAFT:
         lat, lon = ship.at(t)
         knots, course = ship.motion(t)
-        features.append({"mmsi": ship.mmsi, "type": "Feature", "geometry": {"type": "Point", "coordinates": [round(lon, 6), round(lat, 6)]},
-                         "properties": {"mmsi": ship.mmsi, "sog": knots, "cog": course, "navStat": 1 if knots == 0 else 0, "heading": 511 if knots == 0 else round(course), "timestampExternal": int(t * 1000)}})
+        features.append(
+            {
+                "mmsi": ship.mmsi,
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [round(lon, 6), round(lat, 6)]},
+                "properties": {
+                    "mmsi": ship.mmsi,
+                    "sog": knots,
+                    "cog": course,
+                    "navStat": 1 if knots == 0 else 0,
+                    "heading": 511 if knots == 0 else round(course),
+                    "timestampExternal": int(t * 1000),
+                },
+            }
+        )
     return {"type": "FeatureCollection", "dataUpdatedTime": "2026-11-18T12:00:00Z", "features": features}
 
 
 def vessels(t: float) -> list[dict[str, Any]]:
     """Fintraffic's `/vessels`."""
-    return [{"mmsi": ship.mmsi, "name": ship.name, "shipType": ship.kind, "destination": ship.destination, "callSign": "OHX", "timestamp": int(t * 1000)} for ship in CRAFT]
+    return [
+        {
+            "mmsi": ship.mmsi,
+            "name": ship.name,
+            "shipType": ship.kind,
+            "destination": ship.destination,
+            "callSign": "OHX",
+            "timestamp": int(t * 1000),
+        }
+        for ship in CRAFT
+    ]
 
 
 # ---- AIS sentences (the encoder of what a receiver would send)
+
 
 def _bits(fields: list[tuple[int, int]]) -> str:
     return "".join(format(value & ((1 << width) - 1), f"0{width}b") for value, width in fields)
@@ -91,8 +117,10 @@ def _sentences(fields: list[tuple[int, int]], seq: int) -> list[str]:
     bits = _bits(fields)
     fill = (-len(bits)) % 6
     bits += "0" * fill
-    data = "".join(chr((code := int(bits[at:at + 6], 2)) + (48 if code < 40 else 56)) for at in range(0, len(bits), 6))
-    pieces = [data[at:at + 40] for at in range(0, len(data), 40)]
+    data = "".join(
+        chr((code := int(bits[at : at + 6], 2)) + (48 if code < 40 else 56)) for at in range(0, len(bits), 6)
+    )
+    pieces = [data[at : at + 40] for at in range(0, len(data), 40)]
     out = []
     for number, piece in enumerate(pieces, 1):
         body = f"AIVDM,{len(pieces)},{number},{seq if len(pieces) > 1 else ''},B,{piece},{fill if number == len(pieces) else 0}"
@@ -107,18 +135,61 @@ def position_lines(ship: Craft, t: float) -> list[str]:
     lat, lon = ship.at(t)
     knots, course = ship.motion(t)
     heading = 511 if knots == 0 else round(course) % 360
-    fields = [(round(knots * 10), 10), (0, 1), (round(lon * 600000), 28), (round(lat * 600000), 27), (round(course * 10), 12), (heading, 9), (60, 6)]
+    fields = [
+        (round(knots * 10), 10),
+        (0, 1),
+        (round(lon * 600000), 28),
+        (round(lat * 600000), 27),
+        (round(course * 10), 12),
+        (heading, 9),
+        (60, 6),
+    ]
     if ship.class_b:
         return _sentences([(18, 6), (0, 2), (ship.mmsi, 30), (0, 8), *fields, (0, 2), (0, 8)], 0)
-    return _sentences([(1, 6), (0, 2), (ship.mmsi, 30), (1 if knots == 0 else 0, 4), (0, 8), *fields, (0, 2), (0, 3), (0, 1), (0, 19)], 0)
+    return _sentences(
+        [
+            (1, 6),
+            (0, 2),
+            (ship.mmsi, 30),
+            (1 if knots == 0 else 0, 4),
+            (0, 8),
+            *fields,
+            (0, 2),
+            (0, 3),
+            (0, 1),
+            (0, 19),
+        ],
+        0,
+    )
 
 
 def static_lines(ship: Craft, seq: int) -> list[str]:
     if ship.class_b:
         head = [(24, 6), (0, 2), (ship.mmsi, 30)]
-        return [*_sentences([*head, (0, 2), *_text(ship.name, 20), (0, 8)], 0), *_sentences([*head, (1, 2), (ship.kind, 8), *_text("SAAB", 7), *_text("OH1X", 7), (0, 30), (0, 6)], 0)]
-    return _sentences([(5, 6), (0, 2), (ship.mmsi, 30), (0, 2), (9316983, 30), *_text("OHX", 7), *_text(ship.name, 20), (ship.kind, 8), (0, 30), (1, 4), (0, 20), (68, 8),
-                       *_text(ship.destination, 20), (0, 1), (0, 1)], seq)
+        return [
+            *_sentences([*head, (0, 2), *_text(ship.name, 20), (0, 8)], 0),
+            *_sentences([*head, (1, 2), (ship.kind, 8), *_text("SAAB", 7), *_text("OH1X", 7), (0, 30), (0, 6)], 0),
+        ]
+    return _sentences(
+        [
+            (5, 6),
+            (0, 2),
+            (ship.mmsi, 30),
+            (0, 2),
+            (9316983, 30),
+            *_text("OHX", 7),
+            *_text(ship.name, 20),
+            (ship.kind, 8),
+            (0, 30),
+            (1, 4),
+            (0, 20),
+            (68, 8),
+            *_text(ship.destination, 20),
+            (0, 1),
+            (0, 1),
+        ],
+        seq,
+    )
 
 
 class Receiver(socketserver.BaseRequestHandler):
@@ -149,7 +220,10 @@ def serve(port: int) -> Server | None:
     try:
         server = Server((HOST, port), Receiver)
     except OSError as e:
-        print(f"demotraffic: refused: the port {port} of this computer is in use ({e.strerror}); stop what listens there", file=sys.stderr)
+        print(
+            f"demotraffic: refused: the port {port} of this computer is in use ({e.strerror}); stop what listens there",
+            file=sys.stderr,
+        )
         return None
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server

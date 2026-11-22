@@ -1,4 +1,5 @@
 """PMTiles archive helpers: read a header, move a file into place, find the latest daily build."""
+
 import asyncio
 import os
 import time
@@ -16,9 +17,9 @@ from .pmtilesformat import HEADER_LENGTH, MAGIC, VERSION, unpack_header
 
 UNREACHABLE = "the map server could not be reached; is there a connection?"
 REPLACE_TRIES = 8
-DOWNLOAD_THREADS = 8                        # parallel requests of a cut
+DOWNLOAD_THREADS = 8  # parallel requests of a cut
 BUILDS = "https://build.protomaps.com"
-BUILD_DAYS = 8                              # today and the seven days before it
+BUILD_DAYS = 8  # today and the seven days before it
 
 
 class Redirected(NotDowngraded):
@@ -32,7 +33,7 @@ class Redirected(NotDowngraded):
 class Header:
     min_zoom: int
     max_zoom: int
-    bbox: tuple[float, float, float, float]          # west, south, east, north
+    bbox: tuple[float, float, float, float]  # west, south, east, north
 
 
 def read_header(path: Path) -> Header | None:
@@ -65,7 +66,10 @@ def url_exists(url: str) -> bool:
     """Return whether a HEAD request succeeds; any connection failure is False. Blocks."""
     try:
         nodevices.check_url(url)
-        with urllib.request.build_opener(https_handler(), Redirected, *nodevices.direct()).open(urllib.request.Request(url, method="HEAD", headers={"User-Agent": USER_AGENT}), timeout=20) as response:  # noqa: S310  (only BUILDS, https)
+        with urllib.request.build_opener(https_handler(), Redirected, *nodevices.direct()).open(
+            urllib.request.Request(url, method="HEAD", headers={"User-Agent": USER_AGENT}),  # noqa: S310
+            timeout=20,
+        ) as response:
             return bool(200 <= response.status < 300)
     except (OSError, ValueError):
         return False
@@ -78,4 +82,8 @@ async def latest_build(now: datetime, probe: Callable[[str], bool] = url_exists)
         url = f"{BUILDS}/{day}.pmtiles"
         if await asyncio.to_thread(probe, url):
             return url, day
-    raise MapError(f"no daily build was found at {BUILDS} in the last {BUILD_DAYS} days (is there a connection?)", problem="no_build", days=BUILD_DAYS)
+    raise MapError(
+        f"no daily build was found at {BUILDS} in the last {BUILD_DAYS} days (is there a connection?)",
+        problem="no_build",
+        days=BUILD_DAYS,
+    )

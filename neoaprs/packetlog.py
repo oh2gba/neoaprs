@@ -2,6 +2,7 @@
 
 Every packet and station is stored so that a start does not begin with an empty map.
 Writes are queued: a packet must never wait for the disk."""
+
 import logging
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
@@ -18,8 +19,31 @@ from .geo import Point, Thinning
 from .packet import ItemReport, ObjectReport, Packet, Position, via_of
 from .packetcodec import PacketRow, info_of, packet_of, packet_row, parse_stamp, stamp
 from .packetstats import FRESH_SEC, PacketCounts
-from .packetsql import (all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_by_radio, heard_times, insert_packet, located_from, located_since, message_packets, oldest_packet, packets_since,
-                        position_packets, prune_packets_slice, radio_position_packets, radio_routes, recent_packets, station_positions, station_readings, station_traffic, upsert_station, window_packets)
+from .packetsql import (
+    all_stations,
+    count_packets,
+    delete_heard,
+    delete_station,
+    heard_by_hour,
+    heard_by_radio,
+    heard_times,
+    insert_packet,
+    located_from,
+    located_since,
+    message_packets,
+    oldest_packet,
+    packets_since,
+    position_packets,
+    prune_packets_slice,
+    radio_position_packets,
+    radio_routes,
+    recent_packets,
+    station_positions,
+    station_readings,
+    station_traffic,
+    upsert_station,
+    window_packets,
+)
 from .radiospec import RadioHeard, RadioId
 from .route import route_of
 from .station import Station
@@ -37,21 +61,51 @@ HISTORY_READ = 1_000_000  # most position packets read for the map replay
 
 class History(NamedTuple):
     """Thinned tracks by station for the map replay, and the time they are complete from."""
+
     tracks: dict[str, list[Point]]
     begins: datetime | None
 
 
 def station_row(station: Station) -> Row:
-    return (station.call, station.kind, station.reported_by, station.symbol_table, station.symbol_code, station.lat, station.lon, station.altitude_m, station.course_deg,
-            station.speed_kmh, stamp(station.first_heard), stamp(station.last_heard), None if station.last_position_at is None else stamp(station.last_position_at),
-            station.last_status, station.last_comment, station.packets, station.heard_rf, station.heard_rf_gated, station.heard_is,
-            _stamped(station.last_rf_at), _stamped(station.last_rf_gated_at), _stamped(station.last_is_at), station.position_via, station.heard_dummy, _stamped(station.last_dummy_at),
-            station.snr, station.rssi, _stamped(station.signal_at))
+    return (
+        station.call,
+        station.kind,
+        station.reported_by,
+        station.symbol_table,
+        station.symbol_code,
+        station.lat,
+        station.lon,
+        station.altitude_m,
+        station.course_deg,
+        station.speed_kmh,
+        stamp(station.first_heard),
+        stamp(station.last_heard),
+        None if station.last_position_at is None else stamp(station.last_position_at),
+        station.last_status,
+        station.last_comment,
+        station.packets,
+        station.heard_rf,
+        station.heard_rf_gated,
+        station.heard_is,
+        _stamped(station.last_rf_at),
+        _stamped(station.last_rf_gated_at),
+        _stamped(station.last_is_at),
+        station.position_via,
+        station.heard_dummy,
+        _stamped(station.last_dummy_at),
+        station.snr,
+        station.rssi,
+        _stamped(station.signal_at),
+    )
 
 
 def heard_rows(station: Station) -> list[Row]:
     """Return (call, radio_id, heard, last_at, last_path) per radio that heard the station."""
-    return [(station.call, radio, heard.count, _stamped(heard.last_at), ",".join(heard.last_path)) for radio, heard in sorted(station.heard_by.items()) if heard.count > 0]
+    return [
+        (station.call, radio, heard.count, _stamped(heard.last_at), ",".join(heard.last_path))
+        for radio, heard in sorted(station.heard_by.items())
+        if heard.count > 0
+    ]
 
 
 def heard_of(row: Row) -> tuple[str, RadioId, RadioHeard]:
@@ -85,14 +139,67 @@ def _sender(source: str, raw: bytes | None, via: str) -> str:
 
 def station_of(row: Row, *, heard: Mapping[RadioId, RadioHeard] | None = None) -> Station:
     """Return the station of a row and what each radio heard. Raise ValueError or TypeError."""
-    (call, kind, reported_by, table, code, lat, lon, altitude, course, speed, first, last, position_at, status, comment, packets, heard_rf, heard_rf_gated, heard_is, rf_at, gated_at, is_at, position_via, heard_dummy, dummy_at, snr, rssi, signal_at) = row
-    return Station(str(call), first_heard=parse_stamp(str(first)), last_heard=parse_stamp(str(last)), kind=str(kind), reported_by=str(reported_by), symbol_table=str(table),
-                   symbol_code=str(code), lat=None if lat is None else float(lat), lon=None if lon is None else float(lon), altitude_m=None if altitude is None else float(altitude),
-                   course_deg=None if course is None else int(course), speed_kmh=None if speed is None else float(speed),
-                   last_position_at=None if position_at is None else parse_stamp(str(position_at)), last_status=str(status), last_comment=str(comment),
-                   packets=int(packets), heard_rf=int(heard_rf), heard_rf_gated=int(heard_rf_gated), heard_is=int(heard_is),
-                   last_rf_at=_parsed(rf_at), last_rf_gated_at=_parsed(gated_at), last_is_at=_parsed(is_at), position_via=None if position_via is None else via_of(str(position_via)), heard_dummy=int(heard_dummy), last_dummy_at=_parsed(dummy_at),
-                   heard_by=dict(heard or {}), snr=_number(snr), rssi=_number(rssi), signal_at=_parsed(signal_at))
+    (
+        call,
+        kind,
+        reported_by,
+        table,
+        code,
+        lat,
+        lon,
+        altitude,
+        course,
+        speed,
+        first,
+        last,
+        position_at,
+        status,
+        comment,
+        packets,
+        heard_rf,
+        heard_rf_gated,
+        heard_is,
+        rf_at,
+        gated_at,
+        is_at,
+        position_via,
+        heard_dummy,
+        dummy_at,
+        snr,
+        rssi,
+        signal_at,
+    ) = row
+    return Station(
+        str(call),
+        first_heard=parse_stamp(str(first)),
+        last_heard=parse_stamp(str(last)),
+        kind=str(kind),
+        reported_by=str(reported_by),
+        symbol_table=str(table),
+        symbol_code=str(code),
+        lat=None if lat is None else float(lat),
+        lon=None if lon is None else float(lon),
+        altitude_m=None if altitude is None else float(altitude),
+        course_deg=None if course is None else int(course),
+        speed_kmh=None if speed is None else float(speed),
+        last_position_at=None if position_at is None else parse_stamp(str(position_at)),
+        last_status=str(status),
+        last_comment=str(comment),
+        packets=int(packets),
+        heard_rf=int(heard_rf),
+        heard_rf_gated=int(heard_rf_gated),
+        heard_is=int(heard_is),
+        last_rf_at=_parsed(rf_at),
+        last_rf_gated_at=_parsed(gated_at),
+        last_is_at=_parsed(is_at),
+        position_via=None if position_via is None else via_of(str(position_via)),
+        heard_dummy=int(heard_dummy),
+        last_dummy_at=_parsed(dummy_at),
+        heard_by=dict(heard or {}),
+        snr=_number(snr),
+        rssi=_number(rssi),
+        signal_at=_parsed(signal_at),
+    )
 
 
 STATION_FLUSH_SEC = 30.0  # interval between writes of changed station rows
@@ -164,13 +271,19 @@ class PacketLog(DbLog):
         rows: list[str] = await self._read(lambda conn: heard_times(conn, call, text), [])
         return [parse_stamp(row) for row in rows]
 
-    async def heard_by_hour(self, since: datetime, source: str | None = None, internet: bool = True) -> dict[datetime, int]:
+    async def heard_by_hour(
+        self, since: datetime, source: str | None = None, internet: bool = True
+    ) -> dict[datetime, int]:
         """Return heard packets per UTC hour since `since`, keyed by hour start; empty hours absent.
 
         The all-stations count is cached for FRESH_SEC, as it scans a day of the log."""
         key = (since, internet)
         now = self.clock()
-        if source is None and key in self._history and timedelta(0) <= now - self._history[key][0] < timedelta(seconds=FRESH_SEC):
+        if (
+            source is None
+            and key in self._history
+            and timedelta(0) <= now - self._history[key][0] < timedelta(seconds=FRESH_SEC)
+        ):
             return dict(self._history[key][1])
         text = stamp(since)
         rows: list[tuple[str, int]] = await self._read(lambda conn: heard_by_hour(conn, text, source, internet), [])
@@ -185,9 +298,13 @@ class PacketLog(DbLog):
         """Return (log number, packet) of the station's latest `count` packets, newest first.
 
         Packets it sent (also inside third-party ones) and messages sent to it under `own_call`."""
-        rows: list[Row] = await self._read(lambda conn: station_traffic(conn, call, own_call, count, THIRD_PARTY_SEEN, internet), [])
+        rows: list[Row] = await self._read(
+            lambda conn: station_traffic(conn, call, own_call, count, THIRD_PARTY_SEEN, internet), []
+        )
         found = self._decoded(rows, lambda row: (int(row[0]), packet_of(PacketRow(*row[1:]))), "packet")
-        return [(number, packet) for number, packet in found if packet.source in (call, own_call) or packet.sender == call]
+        return [
+            (number, packet) for number, packet in found if packet.source in (call, own_call) or packet.sender == call
+        ]
 
     async def speeds(self, source: str, since: datetime, internet: bool = True) -> list[tuple[datetime, float]]:
         """Return (when, km/h) of each position from `source` since `since` with a speed."""
@@ -200,20 +317,29 @@ class PacketLog(DbLog):
                 found.append((packet.heard_at, d.speed_kmh))
         return found
 
-    async def readings(self, source: str, since: datetime, count: int = READINGS_SEEN) -> list[tuple[datetime, float | None, float | None]]:
+    async def readings(
+        self, source: str, since: datetime, count: int = READINGS_SEEN
+    ) -> list[tuple[datetime, float | None, float | None]]:
         """Return (when, SNR dB, RSSI dBm) of the latest `count` direct packets from `source`.
 
         Digipeated and third-party packets carry another station's signal and are left out."""
         text = stamp(since)
         rows: list[Row] = await self._read(lambda conn: station_readings(conn, source, text, count), [])
-        return [(parse_stamp(str(at)), _number(snr), _number(rssi)) for at, path, snr, rssi in rows if route_of(tuple(str(path).split(",")) if path else ()).direct]
+        return [
+            (parse_stamp(str(at)), _number(snr), _number(rssi))
+            for at, path, snr, rssi in rows
+            if route_of(tuple(str(path).split(",")) if path else ()).direct
+        ]
 
     async def deliveries(self, count: int = DELIVERIES_SEEN) -> list[RouteGroup]:
         """Return the route groups of the latest `count` radio-heard packets, oldest first.
 
         A third-party packet counts as its inner sender, with the iGate that put it on the air."""
         rows: list[Row] = await self._read(lambda conn: radio_routes(conn, count), [])
-        return route_groups((str(source), str(path), bytes(raw), parse_stamp(str(at)), None if radio is None else int(radio)) for source, path, raw, at, radio in rows)
+        return route_groups(
+            (str(source), str(path), bytes(raw), parse_stamp(str(at)), None if radio is None else int(radio))
+            for source, path, raw, at, radio in rows
+        )
 
     async def positions(self, keep_days: int, count: int = TRACKS_SEEN) -> list[tuple[str, datetime, float, float]]:
         """Return (station, when, lat, lon) of the latest `count` positions within `keep_days`.
@@ -230,7 +356,14 @@ class PacketLog(DbLog):
                 found.append((d.name, packet.heard_at, d.position.lat, d.position.lon))
         return found
 
-    async def position_history(self, since: datetime, own_call: str, thinning: Callable[[], Thinning], count: int = HISTORY_READ, internet: bool = True) -> History:
+    async def position_history(
+        self,
+        since: datetime,
+        own_call: str,
+        thinning: Callable[[], Thinning],
+        count: int = HISTORY_READ,
+        internet: bool = True,
+    ) -> History:
         """Return the station tracks since `since` for the map replay, thinned as they are read.
 
         `begins` is the time of the first packet read, or of the oldest if all were read."""
@@ -253,7 +386,10 @@ class PacketLog(DbLog):
                     track = tracks[station] = thinning()
                 track.add(point)
             begins = first if cut is not None else oldest_packet(conn)
-            return History({station: track.points() for station, track in tracks.items()}, None if begins is None else parse_stamp(begins))
+            return History(
+                {station: track.points() for station, track in tracks.items()},
+                None if begins is None else parse_stamp(begins),
+            )
 
         return await self._read(read, History({}, None))
 
@@ -289,7 +425,9 @@ class PacketLog(DbLog):
 
         Return the packet count, or -1 on failure."""
         self._dirty = {call: station for call, station in self._dirty.items() if call == keep_call}
-        gone = await self._write(lambda conn: delete_heard(conn, keep_call), -1, "the heard packets could not be forgotten")
+        gone = await self._write(
+            lambda conn: delete_heard(conn, keep_call), -1, "the heard packets could not be forgotten"
+        )
         self._history.clear()
         self.stats.clear()
         return gone
@@ -302,7 +440,9 @@ class PacketLog(DbLog):
         for keep, internet in ((keep_days, False), (internet_keep_days, True)):
             if keep is None:
                 continue
-            step = partial(prune_packets_slice, stamp=stamp(self.clock() - days(keep)), rows=PRUNE_SLICE, internet_only=internet)
+            step = partial(
+                prune_packets_slice, stamp=stamp(self.clock() - days(keep)), rows=PRUNE_SLICE, internet_only=internet
+            )
             while True:
                 gone = await self._write(step, -1, "the packet log could not be pruned")
                 if gone < 0:

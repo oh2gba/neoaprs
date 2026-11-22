@@ -1,6 +1,7 @@
 """The code beside the Mercury modem's problem (`Mercury.reason`): the English `problem` is the
 log's and the doctor's, the page puts the reason in its own words in the viewer's language; the code
 is empty unless the modem is waiting, and it is what the hf topic's `modem.reason` tells."""
+
 from pathlib import Path
 
 import pytest
@@ -26,7 +27,9 @@ def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_the_codes_of_the_modem_are_the_codes_of_the_wire() -> None:
-    assert set(REASONS) | set(DIREWOLF_REASONS) == set(ModemState.model_fields["reason"].annotation.__args__), "the codes of the two modems, Mercury's and Direwolf's"    # type: ignore[union-attr]
+    assert set(REASONS) | set(DIREWOLF_REASONS) == set(ModemState.model_fields["reason"].annotation.__args__), (
+        "the codes of the two modems, Mercury's and Direwolf's"
+    )  # type: ignore[union-attr]
     assert Mercury(Path("."), finder=lambda: None).reason == ""
 
 
@@ -39,7 +42,12 @@ async def test_a_program_that_is_not_installed_is_not_installed(tmp_path: Path) 
 
 
 async def test_a_program_that_dies_is_stopped_while_it_waits_and_nothing_once_it_runs_again(tmp_path: Path) -> None:
-    m = Mercury(tmp_path, finder=lambda: fakemercury.program(die_after_sec=1.5), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+    m = Mercury(
+        tmp_path,
+        finder=lambda: fakemercury.program(die_after_sec=1.5),
+        backoff=QUICK,
+        control_backoff=Backoff([0.05, 0.05]),
+    )
     seen: list[tuple[str, str]] = []
     m.changed.connect(lambda: seen.append((m.state, m.reason)))
     await m.start(HF)
@@ -53,7 +61,9 @@ async def test_a_program_that_dies_is_stopped_while_it_waits_and_nothing_once_it
         await stopped(m)
 
 
-async def test_a_program_that_listens_on_the_network_is_network(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_program_that_listens_on_the_network_is_network(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(mercurymodem, "foreign_listeners", lambda ports: ["00000000:8100"])
     m = modem(tmp_path)
     await m.start(HF)
@@ -76,8 +86,13 @@ async def test_no_free_port_is_no_port(tmp_path: Path, monkeypatch: pytest.Monke
 
 
 async def test_a_program_that_cannot_be_started_is_not_started(tmp_path: Path) -> None:
-    m = Mercury(tmp_path, finder=lambda: [str(tmp_path / "no-such-mercury")], backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
-    m.ports = lambda: []                                                  # (never the operator's serial ports)
+    m = Mercury(
+        tmp_path,
+        finder=lambda: [str(tmp_path / "no-such-mercury")],
+        backoff=QUICK,
+        control_backoff=Backoff([0.05, 0.05]),
+    )
+    m.ports = lambda: []  # (never the operator's serial ports)
     await m.start(HF)
     try:
         await until_started(lambda: m.state == "waiting")

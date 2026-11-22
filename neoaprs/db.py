@@ -1,6 +1,7 @@
 """The Db actor: one connection owned by one thread, fed by a FIFO queue.
 
 Use `read`, `write` (one transaction), `write_nowait` (a batched append) and `close`."""
+
 import asyncio
 import logging
 import sqlite3
@@ -22,14 +23,21 @@ Fn = Callable[[sqlite3.Connection], T]
 NEW, OPEN, CLOSED = "new", "open", "closed"
 # Poll interval of close(): the thread's notice may fail to wake the loop.
 END_LOOK_SEC = 0.1
-CHECKPOINTS = {"PASSIVE": "PRAGMA wal_checkpoint(PASSIVE)", "FULL": "PRAGMA wal_checkpoint(FULL)", "RESTART": "PRAGMA wal_checkpoint(RESTART)", "TRUNCATE": "PRAGMA wal_checkpoint(TRUNCATE)"}
+CHECKPOINTS = {
+    "PASSIVE": "PRAGMA wal_checkpoint(PASSIVE)",
+    "FULL": "PRAGMA wal_checkpoint(FULL)",
+    "RESTART": "PRAGMA wal_checkpoint(RESTART)",
+    "TRUNCATE": "PRAGMA wal_checkpoint(TRUNCATE)",
+}
 
 
 READ_WAIT_MS = 3000  # how long a read-only command waits for a write
 
 
 class Db:
-    def __init__(self, opener: Callable[[], sqlite3.Connection], *, name: str = "neoaprs-db", tuning: Tuning | None = None) -> None:
+    def __init__(
+        self, opener: Callable[[], sqlite3.Connection], *, name: str = "neoaprs-db", tuning: Tuning | None = None
+    ) -> None:
         self._opener = opener
         self._name = name
         self._tuning = tuning or Tuning()
@@ -39,7 +47,9 @@ class Db:
         self._exited: "asyncio.Future[None] | None" = None
 
     @classmethod
-    def at(cls, path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, *, name: str = "neoaprs-db", tuning: Tuning | None = None) -> "Db":
+    def at(
+        cls, path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, *, name: str = "neoaprs-db", tuning: Tuning | None = None
+    ) -> "Db":
         """Return a Db on the database file; no migrations."""
         return cls(lambda: connect(path, busy_ms), name=name, tuning=tuning)
 
@@ -51,7 +61,14 @@ class Db:
         ready: asyncio.Future[None] = loop.create_future()
         exited: asyncio.Future[None] = loop.create_future()
         self._exited = exited
-        self._thread = thread = DbThread(self._opener, self._tuning, self._stats, lambda e: _post(loop, ready, e), lambda: _post(loop, exited, None), self._name)
+        self._thread = thread = DbThread(
+            self._opener,
+            self._tuning,
+            self._stats,
+            lambda e: _post(loop, ready, e),
+            lambda: _post(loop, exited, None),
+            self._name,
+        )
         self._state = OPEN
         thread.start()
         try:
@@ -155,9 +172,11 @@ async def _ended(thread: DbThread, exited: "asyncio.Future[None]") -> None:
 
 def _post(loop: asyncio.AbstractEventLoop, future: "asyncio.Future[None]", error: BaseException | None) -> None:
     """Settle a loop future from the database thread."""
+
     def settle() -> None:
         if not future.done():
             future.set_result(None) if error is None else future.set_exception(error)
+
     try:
         loop.call_soon_threadsafe(settle)
     except RuntimeError:

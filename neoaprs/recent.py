@@ -3,6 +3,7 @@
 A key is anything hashable. `lately` asks, `note` notes, `seen` does both; old keys are dropped
 once the table passes `keep_max`. Pure code.
 """
+
 from collections.abc import Hashable
 from datetime import datetime, timedelta
 

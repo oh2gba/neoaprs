@@ -2,6 +2,7 @@
 
 `data/basemap.pmtiles` is cut from the Protomaps daily build for the box round the station.
 One job runs at a time; a file is made as `.part` and moved into place when whole."""
+
 import asyncio
 import contextlib
 import errno
@@ -36,10 +37,10 @@ FAILED = "the map could not be made; the log says why"
 
 @dataclass(frozen=True)
 class Patience:
-    stall_sec: float = 120.0                    # no change of percent or size for this long is a stall
-    tries: int = 3                              # downloads begun before the job gives up
-    pause_sec: float = 10.0                     # between a stalled download and the next
-    poll_sec: float = 2.0                       # how often the downloaded size is read
+    stall_sec: float = 120.0  # no change of percent or size for this long is a stall
+    tries: int = 3  # downloads begun before the job gives up
+    pause_sec: float = 10.0  # between a stalled download and the next
+    poll_sec: float = 2.0  # how often the downloaded size is read
 
 
 PATIENCE = Patience()
@@ -61,8 +62,15 @@ def describe_file(path: Path) -> MapFile | None:
         build = str(json.loads(path.with_suffix(".json").read_text()).get("build", ""))
     except (OSError, ValueError, AttributeError):
         pass
-    return MapFile(path.name, stat.st_size, datetime.fromtimestamp(stat.st_mtime, tz=UTC), header.bbox if header else None,
-                   header.min_zoom if header else None, header.max_zoom if header else None, build)
+    return MapFile(
+        path.name,
+        stat.st_size,
+        datetime.fromtimestamp(stat.st_mtime, tz=UTC),
+        header.bbox if header else None,
+        header.min_zoom if header else None,
+        header.max_zoom if header else None,
+        build,
+    )
 
 
 def _remove(part: Path) -> None:
@@ -76,8 +84,15 @@ def _remove(part: Path) -> None:
 
 
 class MapFetch:
-    def __init__(self, data_dir: Path, config: ConfigSource, clock: Clock = utcnow, probe: Callable[[str], bool] = url_exists, patience: Patience = PATIENCE,
-                 world: Callable[[Path], Path | None] = world_file) -> None:
+    def __init__(
+        self,
+        data_dir: Path,
+        config: ConfigSource,
+        clock: Clock = utcnow,
+        probe: Callable[[str], bool] = url_exists,
+        patience: Patience = PATIENCE,
+        world: Callable[[Path], Path | None] = world_file,
+    ) -> None:
         self.data_dir = data_dir
         self.config = config
         self.clock = clock
@@ -85,16 +100,16 @@ class MapFetch:
         self._probe = probe
         self.patience = patience
         self._world = world
-        self._radius = 0                            # radius given to `begin`; 0 means the setting's
+        self._radius = 0  # radius given to `begin`; 0 means the setting's
         self._tasks = TaskSet(self._task_failed)
-        self.later = False                          # set by MapAuto: its map could not be fetched yet
-        self.cancelled_by_user = False              # `cancel()` was called (a daemon stop does not)
+        self.later = False  # set by MapAuto: its map could not be fetched yet
+        self.cancelled_by_user = False  # `cancel()` was called (a daemon stop does not)
         self._busy: Job | None = None
         self._current: "asyncio.Task[object] | None" = None
         self._step: Step = ""
         self._percent: int | None = None
         self._downloaded: int | None = None
-        self._arrived: int | None = None            # bytes reported by the cut; read every `poll_sec`
+        self._arrived: int | None = None  # bytes reported by the cut; read every `poll_sec`
         self._note = ""
         self._retry: tuple[int, int] | None = None
         self._moved = 0.0
@@ -113,7 +128,10 @@ class MapFetch:
         config = self.config()
         place = config.station_position
         if place is None:
-            raise MapError("the station has no position yet: set Latitude and Longitude (the map is cut round them)", problem="no_position")
+            raise MapError(
+                "the station has no position yet: set Latitude and Longitude (the map is cut round them)",
+                problem="no_position",
+            )
         radius = self._radius or config.map_radius_km
         return box_around(*place, radius), radius, config.map_maxzoom
 
@@ -126,10 +144,37 @@ class MapFetch:
             blocked, code = ("", "") if self._busy is None else ("a map job is running", "busy")
         except MapError as e:
             box, blocked, code = None, str(e), "no_position"
-        state: State = "estimating" if self._busy == "estimate" else "downloading" if self._busy == "fetch" else "error" if self._problem else "ready" if detail else "none"
+        state: State = (
+            "estimating"
+            if self._busy == "estimate"
+            else "downloading"
+            if self._busy == "fetch"
+            else "error"
+            if self._problem
+            else "ready"
+            if detail
+            else "none"
+        )
         failure = self._problem if self._busy is None else None
-        return MapStatus(state, self._step, self._percent, self._downloaded, self._note, blocked, "" if failure is None else str(failure), self._estimate, config.map_radius_km, config.map_maxzoom, box,
-                         detail, self._describe_world(), self.later and detail is None, self._retry, code, failure)
+        return MapStatus(
+            state,
+            self._step,
+            self._percent,
+            self._downloaded,
+            self._note,
+            blocked,
+            "" if failure is None else str(failure),
+            self._estimate,
+            config.map_radius_km,
+            config.map_maxzoom,
+            box,
+            detail,
+            self._describe_world(),
+            self.later and detail is None,
+            self._retry,
+            code,
+            failure,
+        )
 
     def _describe_world(self) -> MapFile | None:
         found = self._world(self.data_dir)
@@ -214,7 +259,10 @@ class MapFetch:
                 raise
         except Exception as e:
             full = isinstance(e, OSError) and e.errno == errno.ENOSPC
-            self._problem = MapError(FAILED if not isinstance(e, OSError) else f"{FAILED}: {e.strerror or e}", problem="no_space" if full else "failed")
+            self._problem = MapError(
+                FAILED if not isinstance(e, OSError) else f"{FAILED}: {e.strerror or e}",
+                problem="no_space" if full else "failed",
+            )
             log.exception("the map %s failed", job)
             if raising:
                 raise
@@ -224,7 +272,15 @@ class MapFetch:
                 for part in parts:
                     _remove(part)
             finally:
-                self._busy, self._current, self._step, self._percent, self._downloaded, self._note, self._retry = None, None, "", None, None, "", None
+                self._busy, self._current, self._step, self._percent, self._downloaded, self._note, self._retry = (
+                    None,
+                    None,
+                    "",
+                    None,
+                    None,
+                    "",
+                    None,
+                )
                 self.changed.emit()
 
     async def _source(self) -> tuple[str, str]:
@@ -273,13 +329,24 @@ class MapFetch:
             part.unlink(missing_ok=True)
             self._arrived = None
             try:
-                return await self._watched(extract(source, final, box, zoom, on_percent=self._progress, on_size=self._sized))
+                return await self._watched(
+                    extract(source, final, box, zoom, on_percent=self._progress, on_size=self._sized)
+                )
             except _Stalled:
-                log.warning("the download of %s stood still for %g s (try %d of %d)", part.name, self.patience.stall_sec, attempt, self.patience.tries)
+                log.warning(
+                    "the download of %s stood still for %g s (try %d of %d)",
+                    part.name,
+                    self.patience.stall_sec,
+                    attempt,
+                    self.patience.tries,
+                )
             if attempt == self.patience.tries:
                 raise CutError(SLOW, problem="slow") from None
             self._percent, self._downloaded = None, None
-            self._note, self._retry = f"no progress: trying again ({attempt + 1} of {self.patience.tries})", (attempt + 1, self.patience.tries)
+            self._note, self._retry = (
+                f"no progress: trying again ({attempt + 1} of {self.patience.tries})",
+                (attempt + 1, self.patience.tries),
+            )
             self.changed.emit()
             await asyncio.sleep(self.patience.pause_sec)
 
@@ -313,5 +380,6 @@ class MapFetch:
 
 if __name__ == "__main__":
     import importlib
+
     # Imported here because mapcli imports this module.
     raise SystemExit(importlib.import_module("neoaprs.services.mapcli").main())

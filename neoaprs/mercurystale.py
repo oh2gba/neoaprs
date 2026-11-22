@@ -25,7 +25,9 @@ PS_TIMEOUT_SEC = 5.0
 def runs_with(argv: Sequence[str], ini: Path) -> bool:
     """Return whether the command line has `-C` followed by the configuration file `ini`."""
     want = os.path.abspath(ini)
-    return any(flag == "-C" and (value == str(ini) or os.path.abspath(value) == want) for flag, value in zip(argv, argv[1:]))
+    return any(
+        flag == "-C" and (value == str(ini) or os.path.abspath(value) == want) for flag, value in zip(argv, argv[1:])
+    )
 
 
 def _is_mercury(pid: int, ini: Path, program: Sequence[str], written: float) -> bool:
@@ -40,16 +42,28 @@ def _is_mercury(pid: int, ini: Path, program: Sequence[str], written: float) -> 
         except OSError:
             return False
     if sys.platform == "win32":
-        return _running_windows(pid) and same_program(_windows_image(pid), program) and made_before(windows_created(pid), written)
+        return (
+            _running_windows(pid)
+            and same_program(_windows_image(pid), program)
+            and made_before(windows_created(pid), written)
+        )
     else:  # macOS, and any other system without /proc
         command = _ps_command(pid)
-        return command is not None and any(f" -C {path} " in f" {command} " for path in {str(ini), os.path.abspath(ini)})
+        return command is not None and any(
+            f" -C {path} " in f" {command} " for path in {str(ini), os.path.abspath(ini)}
+        )
 
 
 def _ps_command(pid: int) -> str | None:
     """Return the process's `ps` command line, or None if unreadable."""
     try:
-        done = subprocess.run(["/bin/ps", "-ww", "-o", "command=", "-p", str(pid)], capture_output=True, text=True, timeout=PS_TIMEOUT_SEC, check=False)
+        done = subprocess.run(
+            ["/bin/ps", "-ww", "-o", "command=", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            timeout=PS_TIMEOUT_SEC,
+            check=False,
+        )
     except (OSError, subprocess.SubprocessError):
         return None
     return done.stdout.strip() or None if done.returncode == 0 else None

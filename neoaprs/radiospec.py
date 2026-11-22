@@ -1,4 +1,5 @@
 """A radio as stored (`RadioSpec`), what one radio heard of a station, and choice rules. No I/O."""
+
 import logging
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -24,15 +25,26 @@ class RadioError(CodedError):
 class RadioSpec:
     id: RadioId
     kind: Kind
-    type: str                                    # RadioType.key, of this kind
-    name: str                                    # what the operator typed, "" for none
+    type: str  # RadioType.key, of this kind
+    name: str  # what the operator typed, "" for none
     enabled: bool
-    position: int                                # the order of the boxes
+    position: int  # the order of the boxes
     removed_at: datetime | None = None
-    settings: Mapping[str, str] = field(default_factory=dict)     # its own keys as text
+    settings: Mapping[str, str] = field(default_factory=dict)  # its own keys as text
 
     def __hash__(self) -> int:
-        return hash((self.id, self.kind, self.type, self.name, self.enabled, self.position, self.removed_at, frozenset(self.settings.items())))
+        return hash(
+            (
+                self.id,
+                self.kind,
+                self.type,
+                self.name,
+                self.enabled,
+                self.position,
+                self.removed_at,
+                frozenset(self.settings.items()),
+            )
+        )
 
     @property
     def rtype(self) -> RadioType:
@@ -140,8 +152,18 @@ def check_name(text: str, specs: Iterable[RadioSpec], own: RadioId | None) -> st
     if not name:
         return ""
     if len(name) > MAX_NAME or not (name.isascii() and name.isprintable()):
-        raise RadioError(f"the name {name!r} cannot be a radio's: a name is at most {MAX_NAME} printable ASCII characters (letters, digits and the signs of the keyboard)", "radio.name_form", name=name, max=MAX_NAME)
+        raise RadioError(
+            f"the name {name!r} cannot be a radio's: a name is at most {MAX_NAME} printable ASCII characters (letters, digits and the signs of the keyboard)",
+            "radio.name_form",
+            name=name,
+            max=MAX_NAME,
+        )
     taken = next((s for s in live(specs) if s.id != own and s.name.casefold() == name.casefold()), None)
     if taken is not None:
-        raise RadioError(f"the name {name!r} is radio {taken.id}'s already: give this one another", "radio.name_taken", name=name, radio=taken.id)
+        raise RadioError(
+            f"the name {name!r} is radio {taken.id}'s already: give this one another",
+            "radio.name_taken",
+            name=name,
+            radio=taken.id,
+        )
     return name

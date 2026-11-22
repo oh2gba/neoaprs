@@ -1,6 +1,7 @@
 """Migration 35 (neoaprs/migrationsteps35.py): the map radius is at most 300 km. A larger stored
 radius becomes 300 and its revision goes up; other values and a missing row are left alone.
 """
+
 import sqlite3
 from pathlib import Path
 
@@ -37,8 +38,22 @@ def stored(path: Path) -> tuple[str, int] | None:
         db.close()
 
 
-@pytest.mark.parametrize(("was", "now"), [("1000", ("300", 2)), ("301", ("300", 2)), (" 450 ", ("300", 2)), ("300", ("300", 1)), ("150", ("150", 1)), ("10", ("10", 1)), ("far", ("far", 1)), ("1.5", ("1.5", 1))])
-def test_a_radius_above_300_km_is_brought_to_300_and_the_others_are_left(tmp_path: Path, was: str, now: tuple[str, int]) -> None:
+@pytest.mark.parametrize(
+    ("was", "now"),
+    [
+        ("1000", ("300", 2)),
+        ("301", ("300", 2)),
+        (" 450 ", ("300", 2)),
+        ("300", ("300", 1)),
+        ("150", ("150", 1)),
+        ("10", ("10", 1)),
+        ("far", ("far", 1)),
+        ("1.5", ("1.5", 1)),
+    ],
+)
+def test_a_radius_above_300_km_is_brought_to_300_and_the_others_are_left(
+    tmp_path: Path, was: str, now: tuple[str, int]
+) -> None:
     path = tmp_path / DB_NAME
     version_34(path, was)
     s = opened(path, FixedClock())
@@ -58,7 +73,9 @@ def test_a_file_with_no_radius_row_gets_none_and_a_second_start_changes_nothing(
     assert stored(path) == ("300", 2)
 
 
-def test_the_step_writes_one_line_in_the_log_for_a_radius_it_changes(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_the_step_writes_one_line_in_the_log_for_a_radius_it_changes(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     db = sqlite3.connect(":memory:")
     db.execute("CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, rev INTEGER NOT NULL)")
     db.execute("INSERT INTO settings VALUES (?, '600', 1)", (KEY,))

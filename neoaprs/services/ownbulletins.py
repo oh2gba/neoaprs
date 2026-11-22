@@ -2,6 +2,7 @@
 
 `post` puts a text in a slot (`BLN1`, `BLNA`, `BLN3HAMS`); a text for an occupied slot replaces it
 and restarts its schedule. `delete` removes the slot. Sends follow the schedule in decay.py."""
+
 from collections.abc import Iterable, Mapping
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -24,7 +25,15 @@ from neoaprs.signal import Signal
 class OwnBulletins(Repeater[str]):
     kind = "bulletin"
 
-    def __init__(self, sender: Sender, config: ConfigSource, ownlog: OwnLog, clock: Clock = utcnow, tick_sec: float = TICK_SEC, memory: Memory | None = None) -> None:
+    def __init__(
+        self,
+        sender: Sender,
+        config: ConfigSource,
+        ownlog: OwnLog,
+        clock: Clock = utcnow,
+        tick_sec: float = TICK_SEC,
+        memory: Memory | None = None,
+    ) -> None:
         super().__init__(sender, clock, tick_sec)
         self._config = config
         self._log = ownlog
@@ -90,7 +99,13 @@ class OwnBulletins(Repeater[str]):
         before = self._posted.get(name)
         if before is None and len(self._posted) >= MAX_POSTED:
             raise PostError(f"{MAX_POSTED} bulletins are posted: delete one first", "bulletin.full", max=MAX_POSTED)
-        bulletin = make_bulletin(self.clock(), slot, text, before, (before.radios if before is not None else self.new_radios()) if radios is None else tuple(radios))
+        bulletin = make_bulletin(
+            self.clock(),
+            slot,
+            text,
+            before,
+            (before.radios if before is not None else self.new_radios()) if radios is None else tuple(radios),
+        )
         if radios is not None and bulletin.radios != self.last_radios:
             self.last_radios = bulletin.radios
             self._remembered.put({NEW_BULLETINS: text_of(bulletin.radios)})
@@ -126,7 +141,9 @@ class OwnBulletins(Repeater[str]):
             return first_due(bulletin.created_at, bulletin.last_sent_at)
         assert bulletin.first_sent_at is not None and bulletin.last_sent_at is not None
         floor = max((repeat_floor_sec(radio.limits) for radio in self._sender.radios_for(bulletin.radios)), default=0)
-        wait = bulletin_wait_sec(bulletin.plan, bulletin.sent, (bulletin.last_sent_at - bulletin.first_sent_at).total_seconds(), floor)
+        wait = bulletin_wait_sec(
+            bulletin.plan, bulletin.sent, (bulletin.last_sent_at - bulletin.first_sent_at).total_seconds(), floor
+        )
         return None if wait is None else bulletin.last_sent_at + timedelta(seconds=wait)
 
     def _transmit(self, key: str, now: datetime) -> bool:
@@ -135,5 +152,7 @@ class OwnBulletins(Repeater[str]):
         done, _ = self._round(key, self._sender.radios_for(bulletin.radios), info_of(bulletin), None, now)
         if not done:
             return False
-        self._store(replace(bulletin, sent=bulletin.sent + 1, first_sent_at=bulletin.first_sent_at or now, last_sent_at=now))
+        self._store(
+            replace(bulletin, sent=bulletin.sent + 1, first_sent_at=bulletin.first_sent_at or now, last_sent_at=now)
+        )
         return True

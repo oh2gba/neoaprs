@@ -1,5 +1,6 @@
 """The command line and the desktop app on a data folder that cannot be read or written, a garbled
 answer from a port, and the small edges of the commands."""
+
 import os
 import socket
 import sys
@@ -18,7 +19,10 @@ from neoaprs.instancelock import InstanceLock, is_file, is_held
 from tests.test_desktop_logic import PAGE, FakeDaemon, actions_for
 from tests.test_service import Linux, fake_winreg
 
-not_root = pytest.mark.skipif(sys.platform == "win32" or (hasattr(os, "geteuid") and os.geteuid() == 0), reason="a folder's mode binds only a user who is not root")
+not_root = pytest.mark.skipif(
+    sys.platform == "win32" or (hasattr(os, "geteuid") and os.geteuid() == 0),
+    reason="a folder's mode binds only a user who is not root",
+)
 
 
 @pytest.fixture
@@ -75,14 +79,16 @@ def test_the_watch_goes_on_after_a_look_that_failed() -> None:
             raise found
         return False
 
-    daemon.running = running                                      # type: ignore[method-assign]
+    daemon.running = running  # type: ignore[method-assign]
     watch = DaemonWatch(Session(Path("somewhere"), PAGE, owned=True), gone.set, daemon, every=0.02)
     watch.start()
     assert gone.wait(5)
 
 
 @not_root
-def test_an_existing_folder_that_cannot_be_written_gets_a_message_and_exit_code_one(folder: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_an_existing_folder_that_cannot_be_written_gets_a_message_and_exit_code_one(
+    folder: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     said: list[str] = []
     monkeypatch.setattr(cmd.opencmd, "tell_the_user", said.append)
     folder.chmod(0o500)
@@ -93,7 +99,9 @@ def test_an_existing_folder_that_cannot_be_written_gets_a_message_and_exit_code_
     assert said and "cannot be made or used" in said[0]
 
 
-def test_a_port_file_that_cannot_be_written_lets_go_of_the_app_lock(folder: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_port_file_that_cannot_be_written_lets_go_of_the_app_lock(
+    folder: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     (folder / "neoaprs-app.port").mkdir()
     single = cmd.SingleApp(folder)
     with pytest.raises(OSError):
@@ -105,13 +113,13 @@ def test_a_port_file_that_cannot_be_written_lets_go_of_the_app_lock(folder: Path
 def test_the_exec_line_reads_back_as_it_was_written(char: str) -> None:
     argument = f"/tmp/a{char}b"
     line = autostart.desktop_exec(["prog", argument])
-    word = line[len("prog "):]
+    word = line[len("prog ") :]
     if word.startswith('"'):
         word = word[1:-1]
     # the file format's string escape, which the desktop file is read with first
     once = word.replace("\\\\", "\0").replace("\0", "\\")
     for special in ('"', "`", "$", "\\"):
-        once = once.replace("\\" + special, special)                      # then the quoting rule of the Exec key
+        once = once.replace("\\" + special, special)  # then the quoting rule of the Exec key
     assert once.replace("%%", "%") == argument
 
 
@@ -121,8 +129,8 @@ def test_a_registry_that_refuses_is_an_autostart_error_and_not_a_crash(monkeypat
     def refuse(*args: object) -> None:
         raise PermissionError("locked by policy")
 
-    module.CreateKeyEx = refuse                                   # type: ignore[attr-defined]
-    module.OpenKey = refuse                                       # type: ignore[attr-defined]
+    module.CreateKeyEx = refuse  # type: ignore[attr-defined]
+    module.OpenKey = refuse  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "winreg", module)
     run = RunKeyAutoStart(["neoaprs-app", "--tray"])
     assert run.enabled() is False
@@ -152,7 +160,9 @@ def test_an_answer_that_is_not_http_is_no_page() -> None:
         server.close()
 
 
-def test_a_service_install_beside_another_daemon_says_so(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_service_install_beside_another_daemon_says_so(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     linux = Linux(tmp_path, monkeypatch)
     monkeypatch.setattr(servicesystemd, "is_running", lambda data: True)
     monkeypatch.setattr(servicesystemd, "ask", lambda *command: "")
@@ -170,7 +180,9 @@ def test_the_trip_never_leaves_the_earth() -> None:
     assert position("89.8,10") == (89.8, 10.0)
 
 
-def test_pty_replay_on_windows_is_one_plain_line(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_pty_replay_on_windows_is_one_plain_line(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     monkeypatch.setattr(replaycmd.sys, "platform", "win32")
     assert replaycmd.main(["--pty"]) == 2
     assert (lambda c: c.out + c.err)(capsys.readouterr()).strip() == "replay: --pty is not available on Windows"

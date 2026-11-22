@@ -3,6 +3,7 @@
 While `web/network` and `web/https` are on, the page is also served over TLS on the first free
 port after the plain one; if that cannot start, `problem` and `reason` say why.
 """
+
 import asyncio
 import logging
 import socket
@@ -34,6 +35,7 @@ ServerFactory = Callable[[ssl.SSLContext], LimitedHTTPServer]
 @dataclass(frozen=True)
 class SecureState:
     """Whether the secure page is served, its port and the CA fingerprint, and why not if asked."""
+
     on: bool = False
     port: int = 0
     fingerprint: str = ""
@@ -102,7 +104,9 @@ class SecureSide:
         if self._store is None:
             self._store = CertificateStore(self._folder, self._clock)
         try:
-            self._certs = await asyncio.to_thread(self._store.ensure, socket.gethostname().lower(), lan_addresses(), self._names())
+            self._certs = await asyncio.to_thread(
+                self._store.ensure, socket.gethostname().lower(), lan_addresses(), self._names()
+            )
         except TlsError as e:
             self._fail(str(e), "clock" if e.clock else "certificates")
             return
@@ -151,7 +155,9 @@ class SecureSide:
         log.error("the secure connection is not working: %s; the page goes on over http", problem)
         # A certificate that cannot be renewed: the one in use stays.
         serving = self.server is not None and self._address is not None
-        self.state = SecureState(serving, self.state.port if serving else 0, self.state.fingerprint if serving else "", problem, reason)
+        self.state = SecureState(
+            serving, self.state.port if serving else 0, self.state.fingerprint if serving else "", problem, reason
+        )
         if not serving:
             self._stop()
 

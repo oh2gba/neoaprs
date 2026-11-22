@@ -2,6 +2,7 @@
 
 `Backoff` gives the delay before reconnecting after a connection dropped.
 """
+
 import asyncio
 import logging
 import os
@@ -148,7 +149,9 @@ class Source:
         """Record that a byte came; a silent radio has answered. `then` goes in the log."""
         before, self.last_byte_at = self.last_byte_at, self.now()
         if self.state is Source.State.SILENT:
-            text = f"the radio answers again after {minutes_between(before or self.last_byte_at, self.last_byte_at)}{then}"
+            text = (
+                f"the radio answers again after {minutes_between(before or self.last_byte_at, self.last_byte_at)}{then}"
+            )
             log.info("%s: %s", self.label, text)
             self._note(text)
             self._set_state(Source.State.CONNECTED)
@@ -186,12 +189,21 @@ class Source:
             self.state_changed.emit(state)
         self.changed.emit()
 
-    def _waiting(self, problem: str, delay: float, retry: Callable[[], Coroutine[Any, Any, None]] | None = None, *, expected: bool = False) -> None:
+    def _waiting(
+        self,
+        problem: str,
+        delay: float,
+        retry: Callable[[], Coroutine[Any, Any, None]] | None = None,
+        *,
+        expected: bool = False,
+    ) -> None:
         """Enter WAITING; `retry` runs after `delay` seconds unless the feed was stopped meanwhile.
 
         An `expected` wait (the program behind the line is starting) is logged at DEBUG, not shown.
         """
-        logging.getLogger(f"neoaprs.{self.name}").log(logging.DEBUG if expected else logging.WARNING, "%s: %s; trying again in %g s", self.label, problem, delay)
+        logging.getLogger(f"neoaprs.{self.name}").log(
+            logging.DEBUG if expected else logging.WARNING, "%s: %s; trying again in %g s", self.label, problem, delay
+        )
         self.problem = ""
         self._set_state(Source.State.WAITING, problem)
         if not expected:
@@ -232,4 +244,8 @@ def unusable_because(state: Source.State) -> Reason:
     """Return why a frame cannot be sent in this state (CONNECTED means settling into KISS)."""
     if state is Source.State.SILENT:
         return Reason("the radio is silent", "radio.silent")
-    return Reason("the TNC is restarting into KISS mode", "radio.settling") if state is Source.State.CONNECTED else Reason("the TNC is not connected", "radio.not_connected")
+    return (
+        Reason("the TNC is restarting into KISS mode", "radio.settling")
+        if state is Source.State.CONNECTED
+        else Reason("the TNC is not connected", "radio.not_connected")
+    )

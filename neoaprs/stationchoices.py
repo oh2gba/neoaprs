@@ -3,6 +3,7 @@
 Kept in a state row (config.MESSAGE_RADIOS) as radio ids (`{"OH2GAX-2": 2}`); a call the book
 does not hold keeps its choice by call until forgotten. No I/O.
 """
+
 import json
 from collections.abc import Awaitable, Callable
 
@@ -11,7 +12,14 @@ from .stationbook import StationBook
 
 
 class StationChoices:
-    def __init__(self, book: StationBook, remember: Callable[[str], None] = lambda text: None, flush: Callable[[], Awaitable[None]] | None = None, *, known: Callable[[RadioId], bool]) -> None:
+    def __init__(
+        self,
+        book: StationBook,
+        remember: Callable[[str], None] = lambda text: None,
+        flush: Callable[[], Awaitable[None]] | None = None,
+        *,
+        known: Callable[[RadioId], bool],
+    ) -> None:
         self._book = book
         # keep the choices (the state row); wait for it
         self._remember, self._wait_written = remember, flush
@@ -82,9 +90,15 @@ class StationChoices:
             kept = json.loads(text or "{}")
         except ValueError:
             return
-        for call, value in (kept.items() if isinstance(kept, dict) else ()):
+        for call, value in kept.items() if isinstance(kept, dict) else ():
             station = self._book.get(str(call))
-            id = radio_id_of(value) if isinstance(value, str) else value if isinstance(value, int) and not isinstance(value, bool) else None
+            id = (
+                radio_id_of(value)
+                if isinstance(value, str)
+                else value
+                if isinstance(value, int) and not isinstance(value, bool)
+                else None
+            )
             if station is not None and id is not None and self._known(id):
                 self._choices[station.call] = id
             elif station is None and id is not None and self._known(id):

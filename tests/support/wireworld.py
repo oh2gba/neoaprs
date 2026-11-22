@@ -1,6 +1,7 @@
 """A small world of one daemon object of every kind the page is told about, and every
 `neoaprs/web/views.py` view of it as JSON: what tests/fixtures/wire/rows.json holds.
 """
+
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -36,7 +37,16 @@ ME = "OH2GBA-7"
 
 
 def heard(info: str, source: str, path: tuple[str, ...] = (), at: datetime = T0, destination: str = "APRS") -> Packet:
-    return Packet(at, "in", b"", source, destination, path, info.encode("latin-1"), parse(info.encode("latin-1"), source, destination, at))
+    return Packet(
+        at,
+        "in",
+        b"",
+        source,
+        destination,
+        path,
+        info.encode("latin-1"),
+        parse(info.encode("latin-1"), source, destination, at),
+    )
 
 
 def internet(line: str, at: datetime = T0) -> Packet:
@@ -69,8 +79,28 @@ def packets() -> list[Packet]:
         heard("{junk", "N0BAD"),
         Packet(T0, "in", b"", "N0MIC", "S32UVT", ("WIDE1*",), b'(_fn"Oj/', parse(b'(_fn"Oj/', "N0MIC", "S32UVT", T0)),
         Packet(T0, "in", b"", "N0UND", "APRS", (), b"!4903", Undecoded("too short", "!4903", "position")),
-        Packet(T0, "in", b"", "OH7JHF-1", "APRS", ("OH2RCH-3*",), b"info", Message("OH2GBA", "", ack_id="10"), ThirdParty("OH2DPN", "APJYC1", ("TCPIP", "OH7JHF-1*")), "rf-gated"),
-        Packet(T0 + timedelta(seconds=7), "out", b"", ME, "APNEO0", ("WIDE1-1", "WIDE2-1"), b"!6010.00N/02450.00E-", parse(b"!6010.00N/02450.00E-", ME, "APNEO0", T0)),
+        Packet(
+            T0,
+            "in",
+            b"",
+            "OH7JHF-1",
+            "APRS",
+            ("OH2RCH-3*",),
+            b"info",
+            Message("OH2GBA", "", ack_id="10"),
+            ThirdParty("OH2DPN", "APJYC1", ("TCPIP", "OH7JHF-1*")),
+            "rf-gated",
+        ),
+        Packet(
+            T0 + timedelta(seconds=7),
+            "out",
+            b"",
+            ME,
+            "APNEO0",
+            ("WIDE1-1", "WIDE2-1"),
+            b"!6010.00N/02450.00E-",
+            parse(b"!6010.00N/02450.00E-", ME, "APNEO0", T0),
+        ),
         Packet(T0, "in", b"", "N0MSG", "APRS", (), b":OH2GBA   :hello{7", Message("OH2GBA", "hello", "7")),
         heard("!4903.50N/07201.75W-145.775MHz T118 -060 R40k Voice", "N0FRQ"),
         heard(";145.775-A*111111z4903.50N/07201.75WrT079 R25m NET Tu9PM", "N0RPT"),
@@ -95,9 +125,31 @@ def book() -> StationBook:
     book.take(heard("!4905.50N/07202.00W-moved again", "N0AAA", (), T0 + timedelta(minutes=20)))
     for text in ("PARM.Battery,Btemp", "UNIT.v/100,deg.F", "EQNS.0,5.2,0,0,.53,-32", "BITS.10110000,Big Balloon"):
         book.take(Packet(T0, "in", b"", "N0TEL", "APRS", (), b"", Message("N0TEL", text)))
-    book.take(internet("N0AAA>APRS,WIDE1-1,qAR,OH2RDK-1:!4905.60N/07202.10W-over the internet too", T0 + timedelta(minutes=25)))
+    book.take(
+        internet(
+            "N0AAA>APRS,WIDE1-1,qAR,OH2RDK-1:!4905.60N/07202.10W-over the internet too", T0 + timedelta(minutes=25)
+        )
+    )
     book.take(heard(">no position", "N0NONE"))
-    book.own_object(OwnObject("MYOBJ", "object", 60.3, 24.8, "/", "O", T0, T0 + timedelta(minutes=1), "Mine", 90, 20.5, "WIDE1-1", True, 3, T0 + timedelta(minutes=2)))
+    book.own_object(
+        OwnObject(
+            "MYOBJ",
+            "object",
+            60.3,
+            24.8,
+            "/",
+            "O",
+            T0,
+            T0 + timedelta(minutes=1),
+            "Mine",
+            90,
+            20.5,
+            "WIDE1-1",
+            True,
+            3,
+            T0 + timedelta(minutes=2),
+        )
+    )
     book.own_object(OwnObject("MYITEM", "item", 60.4, 24.7, "/", "-", T0, T0, sent=0))
     return book
 
@@ -107,23 +159,161 @@ def messages() -> list[tuple[MessageRecord, tuple[Attempt, ...]]]:
     failed (for want of an answer, and for a frame the radio does not carry), sending, received,
     overheard; one in and one out over HF, with the SNR of the packet that carried it and of the ack
     that came back."""
-    seen = (HopSeen(1, "OH2RCH-2", T0 + timedelta(seconds=3), False), HopSeen(2, "OH2RDG-1", T0 + timedelta(seconds=5), True), HopSeen(AT_GATE, "OH7JHF-1", T0 + timedelta(seconds=6), True))
+    seen = (
+        HopSeen(1, "OH2RCH-2", T0 + timedelta(seconds=3), False),
+        HopSeen(2, "OH2RDG-1", T0 + timedelta(seconds=5), True),
+        HopSeen(AT_GATE, "OH7JHF-1", T0 + timedelta(seconds=6), True),
+    )
     a1 = Attempt(1, T0, ("OH2RCH-2", "WIDE2-1"), seen)
     a2 = Attempt(2, T0 + timedelta(seconds=30), ("WIDE1-1",), ())
     a3 = Attempt(3, T0 + timedelta(seconds=90), (), ())
-    out = MessageRecord(1, T0, "out", ME, "OH2XYZ", "Hello", "12", "acked", 3, T0 + timedelta(seconds=90), T0 + timedelta(seconds=100), 4, "")
+    out = MessageRecord(
+        1,
+        T0,
+        "out",
+        ME,
+        "OH2XYZ",
+        "Hello",
+        "12",
+        "acked",
+        3,
+        T0 + timedelta(seconds=90),
+        T0 + timedelta(seconds=100),
+        4,
+        "",
+    )
     return [
         (out, (a1, a2, a3)),
-        (MessageRecord(2, T0, "out", ME, "OH2XYZ", "Never", "13", "failed", 4, T0 + timedelta(seconds=500), None, 4, ""), (a1,)),
+        (
+            MessageRecord(
+                2, T0, "out", ME, "OH2XYZ", "Never", "13", "failed", 4, T0 + timedelta(seconds=500), None, 4, ""
+            ),
+            (a1,),
+        ),
         (MessageRecord(3, T0, "out", ME, "EMAIL-2", "me@example.org hi", "14", "sending", 1, T0, None, 2, ""), (a3,)),
         (MessageRecord(4, T0, "in", "OH2XYZ", ME, "Hi back", "7", "received", 0, None, None, 4, "via OH2RCH-2"), ()),
-        (MessageRecord(5, T0, "in", "OH2AAA", "OH2BBB", "overheard text", None, "overheard", 0, None, None, 4, "direct"), ()),
-        (MessageRecord(6, T0, "out", ME, "OH2XYZ", "Moi, täällä ok", "15", "acked", 1, T0, T0 + timedelta(seconds=40), 4, "", "open", "!EAQIDBAUGq8z6pHk2Aun7/N4nDjtT1TgF8GQi4UWwXn4"), (a3,)),
-        (MessageRecord(7, T0, "in", "OH2XYZ", ME, "!EAQIDBAUGq8z6pHk2Aun7/N4nDjtT1TgF8GQi4UWwXn4", "8", "received", 0, None, None, 4, "direct", "shut"), ()),
-        (MessageRecord(8, T0, "in", "OH2XYZ", ME, "!KhSDS6YIjgKTWQfj0A8M8GuVgrzMI3ARSKyXNn1aQD2U", "9", "received", 0, None, None, 4, "direct", "key"), ()),
-        (MessageRecord(9, T0, "out", ME, "OH2XYZ", "Too long for HF", "16", "failed", 0, None, None, 4, "", failure="too_long_for_radio"), ()),
-        (MessageRecord(10, T0, "in", "Q3TKU", ME, "Over HF", "3", "received", 0, None, None, 4, "direct", radio_id=HF_ID, snr=-2.5), ()),
-        (MessageRecord(11, T0, "out", ME, "Q3TKU", "Back over HF", "17", "acked", 1, T0, T0 + timedelta(seconds=12), 4, "", snr=6.1), (Attempt(1, T0, (), (), radio_id=HF_ID),)),
+        (
+            MessageRecord(
+                5, T0, "in", "OH2AAA", "OH2BBB", "overheard text", None, "overheard", 0, None, None, 4, "direct"
+            ),
+            (),
+        ),
+        (
+            MessageRecord(
+                6,
+                T0,
+                "out",
+                ME,
+                "OH2XYZ",
+                "Moi, täällä ok",
+                "15",
+                "acked",
+                1,
+                T0,
+                T0 + timedelta(seconds=40),
+                4,
+                "",
+                "open",
+                "!EAQIDBAUGq8z6pHk2Aun7/N4nDjtT1TgF8GQi4UWwXn4",
+            ),
+            (a3,),
+        ),
+        (
+            MessageRecord(
+                7,
+                T0,
+                "in",
+                "OH2XYZ",
+                ME,
+                "!EAQIDBAUGq8z6pHk2Aun7/N4nDjtT1TgF8GQi4UWwXn4",
+                "8",
+                "received",
+                0,
+                None,
+                None,
+                4,
+                "direct",
+                "shut",
+            ),
+            (),
+        ),
+        (
+            MessageRecord(
+                8,
+                T0,
+                "in",
+                "OH2XYZ",
+                ME,
+                "!KhSDS6YIjgKTWQfj0A8M8GuVgrzMI3ARSKyXNn1aQD2U",
+                "9",
+                "received",
+                0,
+                None,
+                None,
+                4,
+                "direct",
+                "key",
+            ),
+            (),
+        ),
+        (
+            MessageRecord(
+                9,
+                T0,
+                "out",
+                ME,
+                "OH2XYZ",
+                "Too long for HF",
+                "16",
+                "failed",
+                0,
+                None,
+                None,
+                4,
+                "",
+                failure="too_long_for_radio",
+            ),
+            (),
+        ),
+        (
+            MessageRecord(
+                10,
+                T0,
+                "in",
+                "Q3TKU",
+                ME,
+                "Over HF",
+                "3",
+                "received",
+                0,
+                None,
+                None,
+                4,
+                "direct",
+                radio_id=HF_ID,
+                snr=-2.5,
+            ),
+            (),
+        ),
+        (
+            MessageRecord(
+                11,
+                T0,
+                "out",
+                ME,
+                "Q3TKU",
+                "Back over HF",
+                "17",
+                "acked",
+                1,
+                T0,
+                T0 + timedelta(seconds=12),
+                4,
+                "",
+                snr=6.1,
+            ),
+            (Attempt(1, T0, (), (), radio_id=HF_ID),),
+        ),
     ]
 
 
@@ -133,19 +323,50 @@ def keys() -> list[tuple[str, datetime]]:
 
 
 def bulletins() -> list[BulletinRecord]:
-    return [BulletinRecord("OH2XYZ", "BLN1", "", "bulletin", "Net tonight", T0, T0 + timedelta(minutes=5), 3), BulletinRecord("OH2XYZ", "BLN3HAMS", "HAMS", "group", "Åland ä ö", T0, T0)]
+    return [
+        BulletinRecord("OH2XYZ", "BLN1", "", "bulletin", "Net tonight", T0, T0 + timedelta(minutes=5), 3),
+        BulletinRecord("OH2XYZ", "BLN3HAMS", "HAMS", "group", "Åland ä ö", T0, T0),
+    ]
 
 
 def own_objects() -> list[tuple[OwnObject, datetime | None]]:
     return [
-        (OwnObject("LEADER", "object", 60.2, 24.9, "/", ">", T0, T0 + timedelta(minutes=1), "Moved", 90, 20.5, "WIDE1-1", True, 2, T0 + timedelta(minutes=2)), T0 + timedelta(minutes=4)),
+        (
+            OwnObject(
+                "LEADER",
+                "object",
+                60.2,
+                24.9,
+                "/",
+                ">",
+                T0,
+                T0 + timedelta(minutes=1),
+                "Moved",
+                90,
+                20.5,
+                "WIDE1-1",
+                True,
+                2,
+                T0 + timedelta(minutes=2),
+            ),
+            T0 + timedelta(minutes=4),
+        ),
         (OwnObject("AID", "item", 60.3, 24.8, "/", "+", T0, T0, qru_group="FOOD", on_request=True), None),
-        (OwnObject("GONE", "object", 60.1, 24.7, "\\", "k", T0, T0, "", None, None, None, False, 1, T0), T0 + timedelta(minutes=1)),
+        (
+            OwnObject("GONE", "object", 60.1, 24.7, "\\", "k", T0, T0, "", None, None, None, False, 1, T0),
+            T0 + timedelta(minutes=1),
+        ),
     ]
 
 
 def own_bulletins() -> list[tuple[OwnBulletin, datetime | None]]:
-    return [(OwnBulletin("BLN3HAMS", "HAMS", "group", "Net tonight", T0, 2, T0, T0 + timedelta(minutes=2)), T0 + timedelta(minutes=8)), (OwnBulletin("BLNA", "", "announcement", "Hello", T0), None)]
+    return [
+        (
+            OwnBulletin("BLN3HAMS", "HAMS", "group", "Net tonight", T0, 2, T0, T0 + timedelta(minutes=2)),
+            T0 + timedelta(minutes=8),
+        ),
+        (OwnBulletin("BLNA", "", "announcement", "Hello", T0), None),
+    ]
 
 
 def prefs() -> list[Pref]:
@@ -158,7 +379,13 @@ def tnc() -> Tnc:
     tnc._note("opened /dev/brainbox_1")
     clock.advance(3)
     tnc._saw("OH2XYZ>APRS:>hello  ->  status hello")
-    tnc.stats.opens, tnc.stats.bytes_in, tnc.stats.frames_in, tnc.stats.packets, tnc.stats.last_packet = 2, 1234, 7, 6, T0 + timedelta(seconds=3)
+    tnc.stats.opens, tnc.stats.bytes_in, tnc.stats.frames_in, tnc.stats.packets, tnc.stats.last_packet = (
+        2,
+        1234,
+        7,
+        6,
+        T0 + timedelta(seconds=3),
+    )
     tnc.stats.keepalive_checks, tnc.stats.watchdog_probes, tnc.stats.port_reopens, tnc.stats.digipeated = 1, 2, 3, 4
     tnc.stats.digipeated_at, tnc.stats.digipeat_held = T0 + timedelta(seconds=2), 1
     tnc.stats.passed = {3: PassCount(too_long=1), 2: PassCount(sent=2, sent_at=T0 + timedelta(seconds=2), held=1)}
@@ -177,6 +404,7 @@ def tnc_dummy_hf() -> Tnc:
 class FakeGps:
     """The GPS service as the `gps` topic reads it: a fix, a state, the reason as a code, and
     whether the fix is fresh."""
+
     fix: Fix | None = None
     state: str = "off"
     reason: str = ""
@@ -196,18 +424,30 @@ def gps_rows(views: Any) -> list[dict[str, Any]]:
     """The `gps` topic: off, a mobile station with a fresh fix that turned a corner, and a mobile
     station whose receiver is not up."""
     from neoaprs.config import DEFAULTS
+
     mobile = replace(DEFAULTS, gps_source="gpsd")
     fix = Fix(60.17, 24.94, T0, 54.6, 270, 31.0, 9)
     return [
         views.gps_state(DEFAULTS, FakeGps(), FakePlan(), None),
-        views.gps_state(mobile, FakeGps(fix, "fix", "", True), FakePlan(Sent(T0 - timedelta(seconds=20), 180), "turn"), T0 + timedelta(seconds=40)),
-        views.gps_state(replace(mobile, gps_source="serial", gps_device="/dev/ttyUSB1"), FakeGps(None, "connecting", "no_answer"), FakePlan(), None),
+        views.gps_state(
+            mobile,
+            FakeGps(fix, "fix", "", True),
+            FakePlan(Sent(T0 - timedelta(seconds=20), 180), "turn"),
+            T0 + timedelta(seconds=40),
+        ),
+        views.gps_state(
+            replace(mobile, gps_source="serial", gps_device="/dev/ttyUSB1"),
+            FakeGps(None, "connecting", "no_answer"),
+            FakePlan(),
+            None,
+        ),
     ]
 
 
 @dataclass
 class FakeIgate:
     """The iGate service as the `igate` topic reads it."""
+
     state: str = "off"
     reason: str = ""
     server_name: str = ""
@@ -220,10 +460,21 @@ def igate_rows(views: Any) -> list[dict[str, Any]]:
     """The `igate` topic: off, connected with packets gated and not gated, not connected, listening
     only, and a passcode the server did not accept."""
     from neoaprs.config import DEFAULTS
+
     on = replace(DEFAULTS, igate_enabled=True, station_call="OH2GBA")
     return [
         views.igate_state(DEFAULTS, FakeIgate()),
-        views.igate_state(on, FakeIgate("connected", "", "T2FINLAND", 1234, {"tcpip": 31, "duplicate": 6, "query": 3}, T0 - timedelta(seconds=12))),
+        views.igate_state(
+            on,
+            FakeIgate(
+                "connected",
+                "",
+                "T2FINLAND",
+                1234,
+                {"tcpip": 31, "duplicate": 6, "query": 3},
+                T0 - timedelta(seconds=12),
+            ),
+        ),
         views.igate_state(on, FakeIgate("connecting", "unreachable")),
         views.igate_state(on, FakeIgate("listening", "", "T2FINLAND")),
         views.igate_state(on, FakeIgate("unverified", "unverified", "T2FINLAND")),
@@ -233,6 +484,7 @@ def igate_rows(views: Any) -> list[dict[str, Any]]:
 @dataclass
 class FakeQru:
     """The QRU client as the `qru` topic reads it."""
+
     asked: Asked | None = None
     held: list[Server] = field(default_factory=list)
 
@@ -243,14 +495,40 @@ class FakeQru:
 def qru_rows(views: Any) -> list[dict[str, Any]]:
     """The `qru` topic: nothing yet, a request nobody answered, and two servers (one with its
     closing line, one in miles that has only sent the closing line of a group)."""
-    first = Server("DF8LS-10", (("RP70", 10), ("RP2M", 3)), 5, 50, "km", T0, False, "Sent 5 RP70 Objects Max 5@50km de DF8LS-10", T0 + timedelta(seconds=40), radio=2)
-    second = Server("W1AW", (), None, None, "", T0 + timedelta(minutes=2), False, "Sent 2 of 7 FOOD Objects, NEXT for more. de W1AW", T0 + timedelta(minutes=2))
-    return [views.qru_state(FakeQru()), views.qru_state(FakeQru(Asked("INFO", T0))), views.qru_state(FakeQru(AskedOn("RP70 150", T0 + timedelta(seconds=30), (1, 2)), [first, second]))]
+    first = Server(
+        "DF8LS-10",
+        (("RP70", 10), ("RP2M", 3)),
+        5,
+        50,
+        "km",
+        T0,
+        False,
+        "Sent 5 RP70 Objects Max 5@50km de DF8LS-10",
+        T0 + timedelta(seconds=40),
+        radio=2,
+    )
+    second = Server(
+        "W1AW",
+        (),
+        None,
+        None,
+        "",
+        T0 + timedelta(minutes=2),
+        False,
+        "Sent 2 of 7 FOOD Objects, NEXT for more. de W1AW",
+        T0 + timedelta(minutes=2),
+    )
+    return [
+        views.qru_state(FakeQru()),
+        views.qru_state(FakeQru(Asked("INFO", T0))),
+        views.qru_state(FakeQru(AskedOn("RP70 150", T0 + timedelta(seconds=30), (1, 2)), [first, second])),
+    ]
 
 
 @dataclass
 class FakeBeacon:
     """A radio's beacon as the topic `radios` reads it."""
+
     last_sent: datetime | None = None
     next_due: datetime | None = None
     interval_min: int = 0
@@ -260,21 +538,27 @@ class FakeBeacon:
 @dataclass
 class NoCard:
     """The driver of a radio with no sound card of its own, as the topic `radios` reads it."""
+
     card: None = None
 
 
 @dataclass
 class FakeRadio:
     """A radio at run time as the topic `radios` reads it: its line, its beacon and its driver."""
+
     line: Tnc
     beacon: FakeBeacon
     driver: NoCard = field(default_factory=NoCard)
 
 
-RADIOS = (RadioSpec(1, "fm", "kiss", "Mobile", True, 1, settings={"port": "/dev/ttyUSB0", "path": "WIDE1-1", "digipeat": "true"}),
-          RadioSpec(2, "hf", "dummy-hf", "", True, 2, settings={"beacon": "false"}),
-          RadioSpec(3, "fm", "kiss", "", True, 3, settings={"port": "/dev/ttyUSB0"}),
-          RadioSpec(4, "fm", "dummy", "Gone", False, 4, removed_at=T0))
+RADIOS = (
+    RadioSpec(
+        1, "fm", "kiss", "Mobile", True, 1, settings={"port": "/dev/ttyUSB0", "path": "WIDE1-1", "digipeat": "true"}
+    ),
+    RadioSpec(2, "hf", "dummy-hf", "", True, 2, settings={"beacon": "false"}),
+    RadioSpec(3, "fm", "kiss", "", True, 3, settings={"port": "/dev/ttyUSB0"}),
+    RadioSpec(4, "fm", "dummy", "Gone", False, 4, removed_at=T0),
+)
 
 
 def radio_rows(views: Any) -> list[dict[str, Any]]:
@@ -286,10 +570,14 @@ def radio_rows(views: Any) -> list[dict[str, Any]]:
     claims.hold(Claim("serial", claim_value("/dev/ttyUSB0") or "", 1))
     waiting = Tnc(clock=FixedClock(T0))
     waiting.state = Source.State.WAITING
-    at_work = {1: FakeRadio(tnc(), FakeBeacon(T0, T0 + timedelta(minutes=30), 30)), 2: FakeRadio(tnc_dummy_hf(), FakeBeacon(problem=RECEIVE_ONLY)),
-               3: FakeRadio(waiting, FakeBeacon(problem=coded.Reason("set your position first", "beacon.no_position")))}
+    at_work = {
+        1: FakeRadio(tnc(), FakeBeacon(T0, T0 + timedelta(minutes=30), 30)),
+        2: FakeRadio(tnc_dummy_hf(), FakeBeacon(problem=RECEIVE_ONLY)),
+        3: FakeRadio(waiting, FakeBeacon(problem=coded.Reason("set your position first", "beacon.no_position"))),
+    }
     at_work[1].line.state = Source.State.CONNECTED
-    from neoaprs.web.radioview import radio_row             # (the radios' row has its own module beside views.py)
+    from neoaprs.web.radioview import radio_row  # (the radios' row has its own module beside views.py)
+
     return [row for spec in RADIOS if (row := radio_row(spec, RADIOS, at_work.get(spec.id), claims)) is not None]
 
 
@@ -297,19 +585,27 @@ def station_radios(views: Any) -> Any:
     """What the station rows say of the radios: a choice for one station, the radio a message takes
     now, a path on radio 3 for one station, and a reply path through a gateway on radio 2 for one,
     none for another."""
-    return views.StationRadios(choice=lambda call: 3 if call == "N0AAA" else None, now=lambda call: 3 if call == "N0AAA" else 1, paths=lambda call: {3: ("OH2RCH-2",)} if call == "N0AAA" else {},
-                               replies=lambda call: {2: ("OH2GBA-12", "WIDE2-1")} if call == "N0AAA" else {2: ()})
+    return views.StationRadios(
+        choice=lambda call: 3 if call == "N0AAA" else None,
+        now=lambda call: 3 if call == "N0AAA" else 1,
+        paths=lambda call: {3: ("OH2RCH-2",)} if call == "N0AAA" else {},
+        replies=lambda call: {2: ("OH2GBA-12", "WIDE2-1")} if call == "N0AAA" else {2: ()},
+    )
 
 
 def rows(views: Any) -> dict[str, Any]:
     """Every row of the world as `views` (neoaprs/web/views.py, or an older copy of it) makes it."""
     from neoaprs.config import DEFAULTS
+
     world = book()
     return {
         "stations": {s.call: views.station_row(world, s, station_radios(views)) for s in world.stations()},
         "radios": radio_rows(views),
         "packets": {str(n): views.packet_row(n, p) for n, p in enumerate(packets(), 1)},
-        "messages": {str(r.id): views.message_row(r, attempts, radio_now=1 if r.state == "sending" else None) for r, attempts in messages()},
+        "messages": {
+            str(r.id): views.message_row(r, attempts, radio_now=1 if r.state == "sending" else None)
+            for r, attempts in messages()
+        },
         "bulletins": {b.key: views.bulletin_row(b) for b in bulletins()},
         "own_objects": {o.name: views.own_object_row(o, at) for o, at in own_objects()},
         "own_bulletins": {b.slot: views.own_bulletin_row(b, at) for b, at in own_bulletins()},
@@ -318,5 +614,10 @@ def rows(views: Any) -> dict[str, Any]:
         "gps": gps_rows(views),
         "igate": igate_rows(views),
         "qru": qru_rows(views),
-        "config": [views.config_values(DEFAULTS, []), views.config_values(DEFAULTS, ["http://192.168.1.2:8730"], {"on": True, "port": 8731, "fingerprint": "AB:CD", "problem": ""})],
+        "config": [
+            views.config_values(DEFAULTS, []),
+            views.config_values(
+                DEFAULTS, ["http://192.168.1.2:8730"], {"on": True, "port": 8731, "fingerprint": "AB:CD", "problem": ""}
+            ),
+        ],
     }

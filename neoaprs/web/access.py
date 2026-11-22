@@ -3,6 +3,7 @@
 This computer needs nothing; any other address needs, while `web/network` is on, the session cookie
 that the access key bought. Page files are free; data routes and `LOCAL_ONLY` settings are guarded.
 """
+
 import hashlib
 import hmac
 import json
@@ -59,7 +60,13 @@ def this_computer_target(request: tornado.httputil.HTTPServerRequest, network: b
 
     Only while the page is closed to the network, when the key screen would be a dead end.
     """
-    if network or port == 0 or not is_loopback(request.remote_ip or "") or any(name in request.headers for name in PROXY_HEADERS) or is_local(request):
+    if (
+        network
+        or port == 0
+        or not is_loopback(request.remote_ip or "")
+        or any(name in request.headers for name in PROXY_HEADERS)
+        or is_local(request)
+    ):
         return None
     return f"http://127.0.0.1:{port}"
 
@@ -109,7 +116,12 @@ class Access:
             return True
         config = self._config()
         cookie = request.cookies.get(COOKIE)
-        return config.web_network and config.web_key != "" and cookie is not None and self._session_valid(cookie.value, config.web_key, request.protocol == "https")
+        return (
+            config.web_network
+            and config.web_key != ""
+            and cookie is not None
+            and self._session_valid(cookie.value, config.web_key, request.protocol == "https")
+        )
 
     def try_key(self, ip: str, typed: str) -> Verdict:
         now = self._clock().timestamp()
@@ -126,7 +138,12 @@ class Access:
         if len(recent) >= MAX_WRONG:
             self._wrong.pop(ip)
             self._blocked[ip] = now + BLOCK_SEC
-            log.warning("%d wrong access keys from %s in a minute: it is shut out for %d minutes", MAX_WRONG, ip, int(BLOCK_SEC // 60))
+            log.warning(
+                "%d wrong access keys from %s in a minute: it is shut out for %d minutes",
+                MAX_WRONG,
+                ip,
+                int(BLOCK_SEC // 60),
+            )
         else:
             log.warning("a wrong access key from %s", ip)
         return Verdict.WRONG
@@ -139,7 +156,15 @@ class Access:
 
     def give_session(self, handler: tornado.web.RequestHandler) -> None:
         secure = handler.request.protocol == "https"
-        handler.set_cookie(COOKIE, self.session(secure), expires_days=SESSION_DAYS, path="/", httponly=True, samesite="Strict", secure=secure)
+        handler.set_cookie(
+            COOKIE,
+            self.session(secure),
+            expires_days=SESSION_DAYS,
+            path="/",
+            httponly=True,
+            samesite="Strict",
+            secure=secure,
+        )
 
 
 class _Answer(Secured):

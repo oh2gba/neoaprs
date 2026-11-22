@@ -3,6 +3,7 @@
 `parse` never raises: a field that should have decoded and did not becomes `Undecoded` with the
 reason.
 """
+
 import logging
 import re
 from dataclasses import replace
@@ -23,7 +24,16 @@ log = logging.getLogger("neoaprs.aprsparse")
 DAMAGED = "the packet is damaged or not in a form NeoAPRS understands"
 
 # data types that are only named (the decoded ones are in _HANDLERS)
-_OTHER_KINDS = {b"?": "query", b"}": "third-party", b"{": "user-defined", b"#": "weather", b"*": "weather", b",": "test", b"+": "shelter", b".": "space-weather"}
+_OTHER_KINDS = {
+    b"?": "query",
+    b"}": "third-party",
+    b"{": "user-defined",
+    b"#": "weather",
+    b"*": "weather",
+    b",": "test",
+    b"+": "shelter",
+    b".": "space-weather",
+}
 POSITION_IDS = (b"!", b"=", b"/", b"@")
 MICE_CURRENT_IDS = (b"'", b"`")
 _MICE = (*MICE_CURRENT_IDS, b"\x1c", b"\x1d")
@@ -45,6 +55,7 @@ def _named(name: str, position: Position) -> Position:
 # Every decoder takes the whole information field (type identifier first), source, destination and
 # `now`, needed or not: one shape, so that _HANDLERS can hold them all.
 
+
 def _object(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
     body = info[1:]
     if len(body) <= _OBJECT_HEAD:
@@ -59,12 +70,12 @@ def _object(info: bytes, source: str, destination: str, now: datetime) -> Decode
 
 def _item(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
     body = info[1:]
-    ends = [i for i in _ITEM_NAME if body[i:i + 1] in (b"!", b"_")]
+    ends = [i for i in _ITEM_NAME if body[i : i + 1] in (b"!", b"_")]
     if not ends:
         raise PositionError("item name has no ! or _ after three to nine characters")
     end = ends[0]
     name = decode_text(body[:end])
-    return ItemReport(name, body[end:end + 1] == b"!", _named(name, parse_position(body[end + 1:], now)))
+    return ItemReport(name, body[end : end + 1] == b"!", _named(name, parse_position(body[end + 1 :], now)))
 
 
 def _status(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
@@ -95,7 +106,9 @@ def _capabilities(info: bytes, source: str, destination: str, now: datetime) -> 
 def _agrelo(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
     text = decode_text(info)
     found = _AGRELO.match(text)
-    return Other("agrelo-df", text, items=None if found is None else {"bearing": found.group(1), "quality": found.group(2)})
+    return Other(
+        "agrelo-df", text, items=None if found is None else {"bearing": found.group(1), "quality": found.group(2)}
+    )
 
 
 def _weather_report(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
@@ -145,8 +158,19 @@ _Handler = Callable[[bytes, str, str, datetime], Decoded]
 # The decoder of each data type identifier that has one; the others are `Other` named by
 # `_OTHER_KINDS`.
 _HANDLERS: dict[bytes, _Handler] = {
-    **dict.fromkeys(POSITION_IDS, _position), **dict.fromkeys(_MICE, _mice), b":": _message, b";": _object, b")": _item, b">": _status, b"[": _locator_beacon, b"_": _weather_report,
-    b"$": _nmea, b"T": _telemetry, b"<": _capabilities, b"%": _agrelo}
+    **dict.fromkeys(POSITION_IDS, _position),
+    **dict.fromkeys(_MICE, _mice),
+    b":": _message,
+    b";": _object,
+    b")": _item,
+    b">": _status,
+    b"[": _locator_beacon,
+    b"_": _weather_report,
+    b"$": _nmea,
+    b"T": _telemetry,
+    b"<": _capabilities,
+    b"%": _agrelo,
+}
 
 
 def _dispatch(first: bytes, info: bytes, source: str, destination: str, now: datetime) -> Decoded:
@@ -165,7 +189,7 @@ def _bang_position(info: bytes, now: datetime) -> Position | None:
     if bang < 0:
         return None
     try:
-        position = parse_position(info[bang + 1:], now)
+        position = parse_position(info[bang + 1 :], now)
     except PositionError:
         return None
     prefix = decode_text(info[:bang]).strip()
@@ -186,7 +210,15 @@ def parse(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
             return _bang_position(info, now) or decoded
         return decoded
     except (PositionError, MicEError, MessageError, NmeaError) as e:
-        code = "mice" if isinstance(e, MicEError) else "message" if isinstance(e, MessageError) else "nmea" if isinstance(e, NmeaError) else "position"
+        code = (
+            "mice"
+            if isinstance(e, MicEError)
+            else "message"
+            if isinstance(e, MessageError)
+            else "nmea"
+            if isinstance(e, NmeaError)
+            else "position"
+        )
         return Undecoded(str(e), info.decode("latin-1"), code)
     except (ValueError, IndexError, OverflowError) as e:
         log.debug("undecoded %r: %s: %s", info, type(e).__name__, e)

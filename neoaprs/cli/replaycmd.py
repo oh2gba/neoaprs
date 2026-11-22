@@ -9,6 +9,7 @@ on a loopback TCP port, so the daemon can run without a radio:
 The frames are sent INTERVAL seconds apart to everyone connected; nothing is sent while nobody
 is. With --loop the file starts again when it ends. Ctrl-C ends it. Whatever the daemon writes is
 shown on stderr. --pty (Linux and macOS) plays on a pseudo-terminal instead and prints its path."""
+
 import argparse
 import asyncio
 import sys
@@ -24,12 +25,28 @@ SAMPLE = Path(__file__).resolve().parent.parent / "samples" / "thd7.kiss"
 
 
 def parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="neoaprs replay", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("file", nargs="?", default=None, metavar="FILE", help="a capture of KISS bytes (`neoaprs capture` makes one); the sample capture of the package when left out")
+    p = argparse.ArgumentParser(
+        prog="neoaprs replay", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p.add_argument(
+        "file",
+        nargs="?",
+        default=None,
+        metavar="FILE",
+        help="a capture of KISS bytes (`neoaprs capture` makes one); the sample capture of the package when left out",
+    )
     p.add_argument("--interval", type=float, default=2.0, help="seconds between two frames (default 2.0)")
     p.add_argument("--loop", action="store_true", help="start again when the file ends")
-    p.add_argument("--port", type=int, default=0, metavar="P", help="the TCP port to listen on, on 127.0.0.1 (default: a free one, which is printed)")
-    p.add_argument("--pty", action="store_true", help="play on a pseudo-terminal and print its path (Linux and macOS only)")
+    p.add_argument(
+        "--port",
+        type=int,
+        default=0,
+        metavar="P",
+        help="the TCP port to listen on, on 127.0.0.1 (default: a free one, which is printed)",
+    )
+    p.add_argument(
+        "--pty", action="store_true", help="play on a pseudo-terminal and print its path (Linux and macOS only)"
+    )
     return p
 
 
@@ -43,8 +60,15 @@ class Replay:
 
     `await replay.run()` serves until cancelled; `ready(port)` is called once it listens."""
 
-    def __init__(self, frames: list[bytes], interval: float, loop: bool = False, port: int = 0, settle_sec: float = SETTLE_SEC,
-                 ready: Callable[[int], None] | None = None) -> None:
+    def __init__(
+        self,
+        frames: list[bytes],
+        interval: float,
+        loop: bool = False,
+        port: int = 0,
+        settle_sec: float = SETTLE_SEC,
+        ready: Callable[[int], None] | None = None,
+    ) -> None:
         self.frames, self.interval, self.loop, self.port, self.settle_sec = frames, interval, loop, port, settle_sec
         self.ready = ready
         self.sent = 0
@@ -125,9 +149,12 @@ def main(argv: list[str]) -> int:
     if not frames:
         say(f"replay: {source} holds no KISS frame")
         return 1
-    say(f"replay: {len(frames)} frames from {source}, one every {args.interval:g} s{', in a loop' if args.loop else ''}; Ctrl-C ends it")
+    say(
+        f"replay: {len(frames)} frames from {source}, one every {args.interval:g} s{', in a loop' if args.loop else ''}; Ctrl-C ends it"
+    )
     if args.pty:
         from .replaypty import play_on_pty
+
         return play_on_pty(frames, args.interval, args.loop)
 
     def announce(port: int) -> None:

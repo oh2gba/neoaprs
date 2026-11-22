@@ -2,6 +2,7 @@
 
 After an attempt on a radio, `spacing_sec` pass before the next on that radio, so messages written
 together do not go out in a burst; other radios do not wait (plan rule 3.1)."""
+
 from datetime import datetime
 
 from neoaprs.clock import Clock

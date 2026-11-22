@@ -3,6 +3,7 @@
 On Linux the ALSA simple mixer is reached by ctypes (volumes only, never a switch); see winmixer.py
 for Windows. A control that cannot be read or set is absent (None in `Levels`).
 """
+
 import ctypes
 import logging
 import re
@@ -54,6 +55,7 @@ def raw_of(low: int, high: int, value: int) -> int:
 @dataclass(frozen=True)
 class Control:
     """An ALSA simple mixer control: name, and playback and capture volume as (low, high, raw)."""
+
     name: str
     playback: tuple[int, int, int] | None = None
     capture: tuple[int, int, int] | None = None
@@ -116,9 +118,13 @@ class Alsa:
                 into = pick([c for _, c in controls], CAPTURE_NAMES, "capture")
                 elem_of = {id(c): elem for elem, c in controls}
                 if out is not None and out.playback is not None and tx is not None:
-                    lib.snd_mixer_selem_set_playback_volume_all(elem_of[id(out)], ctypes.c_long(raw_of(out.playback[0], out.playback[1], tx)))
+                    lib.snd_mixer_selem_set_playback_volume_all(
+                        elem_of[id(out)], ctypes.c_long(raw_of(out.playback[0], out.playback[1], tx))
+                    )
                 if into is not None and into.capture is not None and rx is not None:
-                    lib.snd_mixer_selem_set_capture_volume_all(elem_of[id(into)], ctypes.c_long(raw_of(into.capture[0], into.capture[1], rx)))
+                    lib.snd_mixer_selem_set_capture_volume_all(
+                        elem_of[id(into)], ctypes.c_long(raw_of(into.capture[0], into.capture[1], rx))
+                    )
                 return Levels(_now(lib, elem_of, out, "playback"), _now(lib, elem_of, into, "capture"))
         except OSError as e:
             log.debug("the levels of the sound card %s could not be had from ALSA: %s", card, e)
@@ -132,7 +138,11 @@ def _mixer(lib: Any, name: str) -> Iterator[list[Any]]:
     if lib.snd_mixer_open(ctypes.byref(handle), 0) < 0:
         raise OSError("the mixer could not be opened")
     try:
-        for step, code in (("attach", lib.snd_mixer_attach(handle, name.encode())), ("register", lib.snd_mixer_selem_register(handle, None, None)), ("load", lib.snd_mixer_load(handle))):
+        for step, code in (
+            ("attach", lib.snd_mixer_attach(handle, name.encode())),
+            ("register", lib.snd_mixer_selem_register(handle, None, None)),
+            ("load", lib.snd_mixer_load(handle)),
+        ):
             if code < 0:
                 raise OSError(f"{step} of {name} failed ({code})")
         elements, elem = [], lib.snd_mixer_first_elem(handle)
@@ -149,7 +159,9 @@ def _control(lib: Any, elem: Any) -> Control:
     if lib.snd_mixer_selem_get_index(elem) != 0:
         # A second control of the same name is ignored.
         return Control("")
-    return Control((name or b"").decode("utf-8", "replace"), _volume(lib, elem, "playback"), _volume(lib, elem, "capture"))
+    return Control(
+        (name or b"").decode("utf-8", "replace"), _volume(lib, elem, "playback"), _volume(lib, elem, "capture")
+    )
 
 
 def _volume(lib: Any, elem: Any, way: str) -> tuple[int, int, int] | None:
@@ -182,26 +194,40 @@ def load_alsa() -> Any:
         return None
     handle, elem, long_p = ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(ctypes.c_long)
     signatures: dict[str, tuple[Any, list[Any]]] = {
-        "snd_mixer_open": (ctypes.c_int, [ctypes.POINTER(ctypes.c_void_p), ctypes.c_int]), "snd_mixer_attach": (ctypes.c_int, [handle, ctypes.c_char_p]),
-        "snd_mixer_selem_register": (ctypes.c_int, [handle, ctypes.c_void_p, ctypes.c_void_p]), "snd_mixer_load": (ctypes.c_int, [handle]), "snd_mixer_close": (ctypes.c_int, [handle]),
-        "snd_mixer_first_elem": (elem, [handle]), "snd_mixer_elem_next": (elem, [elem]), "snd_mixer_selem_get_name": (ctypes.c_char_p, [elem]), "snd_mixer_selem_get_index": (ctypes.c_uint, [elem]),
+        "snd_mixer_open": (ctypes.c_int, [ctypes.POINTER(ctypes.c_void_p), ctypes.c_int]),
+        "snd_mixer_attach": (ctypes.c_int, [handle, ctypes.c_char_p]),
+        "snd_mixer_selem_register": (ctypes.c_int, [handle, ctypes.c_void_p, ctypes.c_void_p]),
+        "snd_mixer_load": (ctypes.c_int, [handle]),
+        "snd_mixer_close": (ctypes.c_int, [handle]),
+        "snd_mixer_first_elem": (elem, [handle]),
+        "snd_mixer_elem_next": (elem, [elem]),
+        "snd_mixer_selem_get_name": (ctypes.c_char_p, [elem]),
+        "snd_mixer_selem_get_index": (ctypes.c_uint, [elem]),
     }
     for way in ("playback", "capture"):
-        signatures |= {f"snd_mixer_selem_has_{way}_volume": (ctypes.c_int, [elem]), f"snd_mixer_selem_get_{way}_volume_range": (ctypes.c_int, [elem, long_p, long_p]),
-                       f"snd_mixer_selem_get_{way}_volume": (ctypes.c_int, [elem, ctypes.c_int, long_p]), f"snd_mixer_selem_set_{way}_volume_all": (ctypes.c_int, [elem, ctypes.c_long])}
+        signatures |= {
+            f"snd_mixer_selem_has_{way}_volume": (ctypes.c_int, [elem]),
+            f"snd_mixer_selem_get_{way}_volume_range": (ctypes.c_int, [elem, long_p, long_p]),
+            f"snd_mixer_selem_get_{way}_volume": (ctypes.c_int, [elem, ctypes.c_int, long_p]),
+            f"snd_mixer_selem_set_{way}_volume_all": (ctypes.c_int, [elem, ctypes.c_long]),
+        }
     try:
         for call, (restype, argtypes) in signatures.items():
             function = getattr(lib, call)
             function.restype, function.argtypes = restype, argtypes
     except AttributeError as e:
-        log.info("the ALSA library lacks a call NeoAPRS makes (%s): the sound cards have no levels of their own here", e)
+        log.info(
+            "the ALSA library lacks a call NeoAPRS makes (%s): the sound cards have no levels of their own here", e
+        )
         return None
     _quiet(lib)
     return lib
 
 
 # Module level so that it lives as long as the process: the library keeps calling it.
-_QUIET = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p)(lambda *said: None)
+_QUIET = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p)(
+    lambda *said: None
+)
 
 
 def _quiet(lib: Any) -> None:

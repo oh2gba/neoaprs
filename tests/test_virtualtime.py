@@ -1,5 +1,6 @@
 """The loop's skipped clock (tests/support/virtualtime.py): a wait on a timer takes no time and is
 counted, the loop is as it was afterwards, and a thread that delivers is still waited for."""
+
 import asyncio
 import threading
 import time
@@ -12,7 +13,7 @@ async def test_a_long_wait_takes_no_time_and_the_loops_clock_has_moved_by_it() -
     began_at, real_began = loop.time(), time.monotonic()
     async with virtual_time() as clock:
         await asyncio.sleep(86400)
-        assert 86399 < clock.skipped <= 86400          # (the time that really passed is part of the wait)
+        assert 86399 < clock.skipped <= 86400  # (the time that really passed is part of the wait)
         assert loop.time() - began_at >= 86400
     assert time.monotonic() - real_began < 600, "a day of waiting took minutes at most: it was not waited for"
 
@@ -73,5 +74,7 @@ async def test_work_handed_to_a_thread_holds_the_clock_so_a_wait_cannot_jump_pas
         timer = asyncio.create_task(waiter())
         assert await asyncio.to_thread(slow) == "adapter"
         await timer
-        assert order == ["thread", "timer"], "the 5 s timer waited for the thread instead of being brought forward past it"
+        assert order == ["thread", "timer"], (
+            "the 5 s timer waited for the thread instead of being brought forward past it"
+        )
         assert clock.in_threads == 0 and 4 < clock.skipped <= 5

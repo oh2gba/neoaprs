@@ -1,15 +1,26 @@
 """Turn pydantic validation errors of a command into one short line for the page."""
+
 from collections.abc import Callable
 from typing import Any
 
 _PROBLEMS = {
     "missing": "is missing",
     "extra_forbidden": "is not a field of this command",
-    "int_type": "must be a whole number", "int_parsing": "must be a whole number", "int_from_float": "must be a whole number",
-    "int_parsing_size": "is too big", "float_type": "must be a number", "float_parsing": "must be a number",
-    "finite_number": "must be a finite number", "bool_type": "must be true or false", "bool_parsing": "must be true or false",
-    "string_type": "must be text", "dict_type": "must be an object", "list_type": "must be a list", "tuple_type": "must be a list",
-    "model_type": "must be an object", "model_attributes_type": "must be an object",
+    "int_type": "must be a whole number",
+    "int_parsing": "must be a whole number",
+    "int_from_float": "must be a whole number",
+    "int_parsing_size": "is too big",
+    "float_type": "must be a number",
+    "float_parsing": "must be a number",
+    "finite_number": "must be a finite number",
+    "bool_type": "must be true or false",
+    "bool_parsing": "must be true or false",
+    "string_type": "must be text",
+    "dict_type": "must be an object",
+    "list_type": "must be a list",
+    "tuple_type": "must be a list",
+    "model_type": "must be an object",
+    "model_attributes_type": "must be an object",
 }
 
 
@@ -49,4 +60,3 @@ def describe_errors(name: str, errors: list[Any]) -> str:
         parts.append(f"{'.'.join(loc)}: {text}" if loc else text)
     more = f" (and {len(errors) - 3} more)" if len(errors) > 3 else ""
     return f"{name}: " + "; ".join(parts) + more
-

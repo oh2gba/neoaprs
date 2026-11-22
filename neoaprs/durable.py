@@ -2,13 +2,16 @@
 
 After a power cut the name is then never present without the data. Windows cannot sync a folder
 and syncs only a file opened for writing."""
+
 import os
 import sys
 from pathlib import Path
 
 
 def fsync_file(path: Path) -> None:
-    fd = os.open(path, os.O_RDWR | getattr(os, "O_BINARY", 0)) if sys.platform == "win32" else os.open(path, os.O_RDONLY)
+    fd = (
+        os.open(path, os.O_RDWR | getattr(os, "O_BINARY", 0)) if sys.platform == "win32" else os.open(path, os.O_RDONLY)
+    )
     try:
         os.fsync(fd)
     finally:

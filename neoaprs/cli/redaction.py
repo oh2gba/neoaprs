@@ -2,6 +2,7 @@
 
 A secret is shown only as `(set, N characters)`. So are two free-text settings that may hold
 one (`messages/alert_command`, `update/url`), unless they have their default."""
+
 from neoaprs.config import DEFAULTS
 from neoaprs.configtypes import is_secret, redacted
 

@@ -2,6 +2,7 @@
 first is done first, whatever kind it is and however many tasks ask, and a read sees every write
 asked before it, with nothing to flush. Also: what a function run by the thread may and may not do.
 """
+
 import asyncio
 import random
 import sqlite3
@@ -84,10 +85,14 @@ async def test_ten_thousand_mixed_operations_agree_with_a_model(tmp_path: Path) 
         pick = rng.random()
         if pick < 0.25:
             model[n] = v
-            pending.append(eager(db.write(lambda conn, n=n, v=v: conn.execute("INSERT OR REPLACE INTO t VALUES (?, ?)", (n, v)))))
+            pending.append(
+                eager(db.write(lambda conn, n=n, v=v: conn.execute("INSERT OR REPLACE INTO t VALUES (?, ?)", (n, v))))
+            )
         elif pick < 0.45:
             model[n] = v
-            assert db.write_nowait(lambda conn, n=n, v=v: conn.execute("INSERT OR REPLACE INTO t VALUES (?, ?)", (n, v)))
+            assert db.write_nowait(
+                lambda conn, n=n, v=v: conn.execute("INSERT OR REPLACE INTO t VALUES (?, ?)", (n, v))
+            )
         elif pick < 0.55:
             model = {k: x for k, x in model.items() if k != n}
             pending.append(eager(db.write(lambda conn, n=n: conn.execute("DELETE FROM t WHERE n = ?", (n,)))))
@@ -96,7 +101,9 @@ async def test_ten_thousand_mixed_operations_agree_with_a_model(tmp_path: Path) 
             db.write_nowait(lambda conn, n=n, v=v: conn.execute("UPDATE t SET v = ? WHERE n = ?", (v, n)))
         elif pick < 0.85:
             want = model.get(n)
-            fut = eager(db.read(lambda conn, n=n: (r := conn.execute("SELECT v FROM t WHERE n = ?", (n,)).fetchone()) and r[0]))
+            fut = eager(
+                db.read(lambda conn, n=n: (r := conn.execute("SELECT v FROM t WHERE n = ?", (n,)).fetchone()) and r[0])
+            )
             expect(fut, want)
             pending.append(fut)
         else:
@@ -138,7 +145,9 @@ async def test_an_await_cancelled_before_the_thread_began_it_withdraws_a_read(tm
     await db.close()
 
 
-async def test_a_write_whose_await_is_cancelled_before_the_thread_began_it_is_still_committed(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_write_whose_await_is_cancelled_before_the_thread_began_it_is_still_committed(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     """A write is never withdrawn: the daemon's stop cancels the task that carries a message of the
     radio or of the page, and the message must not go with it. The asker is cancelled all the same,
     and the outcome it never saw is in the log."""
@@ -161,7 +170,11 @@ async def test_a_write_whose_await_is_cancelled_before_the_thread_began_it_is_st
     await db.barrier()
     assert committed(tmp_path / "x.sqlite") == [1]
     assert db.stats()["withdrawn"] == 0 and db.stats()["cut"] == 1
-    assert [r.levelname for r in caplog.records if "asker was cancelled" in r.getMessage() and "is committed" in r.getMessage()] == ["WARNING"]
+    assert [
+        r.levelname
+        for r in caplog.records
+        if "asker was cancelled" in r.getMessage() and "is committed" in r.getMessage()
+    ] == ["WARNING"]
     await db.close()
 
 
@@ -178,7 +191,11 @@ async def test_a_cut_off_write_that_fails_says_so_in_the_log(tmp_path: Path, cap
     with pytest.raises(asyncio.CancelledError):
         await cut
     await db.barrier()
-    assert [r.levelname for r in caplog.records if "asker was cancelled" in r.getMessage() and "no such table" in r.getMessage()] == ["ERROR"]
+    assert [
+        r.levelname
+        for r in caplog.records
+        if "asker was cancelled" in r.getMessage() and "no such table" in r.getMessage()
+    ] == ["ERROR"]
     assert db.stats()["cut"] == 1
     await db.close()
 
@@ -197,7 +214,9 @@ async def test_an_await_cancelled_after_the_thread_began_it_does_not_undo_it(tmp
     task.cancel()
     release.set()
     await db.barrier()
-    assert committed(tmp_path / "x.sqlite") == [1], "the thread had begun: the write is committed, the answer is dropped"
+    assert committed(tmp_path / "x.sqlite") == [1], (
+        "the thread had begun: the write is committed, the answer is dropped"
+    )
     await db.close()
 
 
@@ -245,7 +264,19 @@ async def test_a_function_may_not_ask_the_database_thread_for_anything(tmp_path:
     await db.close()
 
 
-@pytest.mark.parametrize("statement", ["BEGIN", "BEGIN IMMEDIATE", "COMMIT", "END", "END TRANSACTION", "ROLLBACK", "COMMIT TRANSACTION", "begin deferred"])
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "BEGIN",
+        "BEGIN IMMEDIATE",
+        "COMMIT",
+        "END",
+        "END TRANSACTION",
+        "ROLLBACK",
+        "COMMIT TRANSACTION",
+        "begin deferred",
+    ],
+)
 async def test_a_function_may_not_begin_commit_or_roll_back_a_transaction(tmp_path: Path, statement: str) -> None:
     db = await started(tmp_path / "x.sqlite")
 
@@ -256,7 +287,9 @@ async def test_a_function_may_not_begin_commit_or_roll_back_a_transaction(tmp_pa
 
     with pytest.raises(sqlite3.DatabaseError, match="not authorized"):
         await db.write(own_transaction)
-    assert committed(tmp_path / "x.sqlite") == [], "nothing of a function that tried to take the transaction into its own hands is kept"
+    assert committed(tmp_path / "x.sqlite") == [], (
+        "nothing of a function that tried to take the transaction into its own hands is kept"
+    )
     await db.write(lambda conn: conn.execute("INSERT INTO t VALUES (3, 'fine')"))
     assert await db.read(lambda conn: [r[0] for r in conn.execute("SELECT n FROM t")]) == [3]
     await db.close()

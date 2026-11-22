@@ -2,6 +2,7 @@
 them, shared by the plain and secure ports, on a stand-in server whose ports are taken as the test
 says.
 """
+
 import errno
 import logging
 
@@ -31,7 +32,9 @@ def test_the_ports_tried_are_the_wanted_one_and_the_ten_after_it_and_a_free_port
     assert ports_after(7303) == list(range(7304, 7304 + PORT_TRIES)) and ports_after(65535) == [0]
 
 
-def test_the_first_free_port_is_the_one_listened_on_and_the_first_error_is_told(caplog: pytest.LogCaptureFixture) -> None:
+def test_the_first_free_port_is_the_one_listened_on_and_the_first_error_is_told(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     server = Server({7303, 7304})
     port, first = listen_first(server, "127.0.0.1", ports_near(7303))  # type: ignore[arg-type]
     assert port == 7305 and server.tried == [7303, 7304, 7305] and first is not None and first.errno in PORT_TAKEN
@@ -49,17 +52,23 @@ def test_after_a_restart_the_port_the_page_was_on_is_tried_before_any_other(capl
     same = Server(set())
     assert listen_near(same, "127.0.0.1", 7303, kept=7303) is None and same.tried == [7303]  # type: ignore[arg-type]
     free = Server(set())
-    assert listen_near(free, "127.0.0.1", 0, kept=41234) is None and free.tried == [41234], "a free port of the first start is the port of the restart"  # type: ignore[arg-type]
+    assert listen_near(free, "127.0.0.1", 0, kept=41234) is None and free.tried == [41234], (
+        "a free port of the first start is the port of the restart"
+    )  # type: ignore[arg-type]
     none = Server({7303})
     assert listen_near(none, "127.0.0.1", 7303) is None and none.tried == [7303, 7304], "no restart: as at any start"  # type: ignore[arg-type]
 
 
-def test_a_port_of_before_the_restart_that_cannot_be_had_leaves_the_daemon_to_listen_as_at_any_start(caplog: pytest.LogCaptureFixture) -> None:
+def test_a_port_of_before_the_restart_that_cannot_be_had_leaves_the_daemon_to_listen_as_at_any_start(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.INFO, logger="neoaprs.web")
     server = Server({7304})
     assert listen_near(server, "127.0.0.1", 7303, kept=7304) is None  # type: ignore[arg-type]
     assert server.tried == [7304, 7303]
-    assert "port 7304, where the page was before the restart, cannot be had" in caplog.text and "stays" not in caplog.text
+    assert (
+        "port 7304, where the page was before the restart, cannot be had" in caplog.text and "stays" not in caplog.text
+    )
     both = Server({7310, 7303})
     assert listen_near(both, "127.0.0.1", 7303, kept=7310) is None and both.tried == [7310, 7303, 7304]  # type: ignore[arg-type]
     assert "web/port 7303 is in use" in caplog.text and "the page is on port 7304" in caplog.text

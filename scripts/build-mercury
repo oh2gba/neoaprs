@@ -3,6 +3,7 @@
 
   scripts/build-mercury [--windows] [--out DIR] [--tar] [--install] [--source FILE]
 Options: see --help. The pins are in neoaprs/mercury.py; see docs/development.md, "Scripts"."""
+
 import argparse
 import datetime
 import os
@@ -35,7 +36,12 @@ def pins() -> dict[str, str]:
 
 
 _PINS = pins()
-VERSION, SOURCE_COMMIT, SOURCE_URL, SOURCE_SHA256 = _PINS["VERSION"], _PINS["SOURCE_COMMIT"], _PINS["SOURCE_URL"], _PINS["SOURCE_SHA256"]
+VERSION, SOURCE_COMMIT, SOURCE_URL, SOURCE_SHA256 = (
+    _PINS["VERSION"],
+    _PINS["SOURCE_COMMIT"],
+    _PINS["SOURCE_URL"],
+    _PINS["SOURCE_SHA256"],
+)
 
 STUB = ROOT / "packaging" / "mercury" / "pulse_stub.c"
 LOOPBACK_PATCH = ROOT / "packaging" / "mercury" / "loopback.patch"
@@ -71,7 +77,15 @@ ALSA_SKIP = ("ucm", "ucm2", "topology")
 MAKE_FLAGS = ("HAVE_HAMLIB=0", "HAVE_HIDAPI=0", "WS_TLS=0")
 # The Makefile sets the flags of hamlib, hidapi and OpenSSL whatever HAVE_* says, so they are given
 # empty too; command-line variables beat the Makefile's own assignments.
-MAKE_EMPTY = ("HAMLIB_CFLAGS", "HAMLIB_LDFLAGS", "HIDAPI_CFLAGS", "HIDAPI_LDFLAGS", "HIDAPI_OBJS", "WS_TLS_CFLAGS", "WS_TLS_LDFLAGS")
+MAKE_EMPTY = (
+    "HAMLIB_CFLAGS",
+    "HAMLIB_LDFLAGS",
+    "HIDAPI_CFLAGS",
+    "HIDAPI_LDFLAGS",
+    "HIDAPI_OBJS",
+    "WS_TLS_CFLAGS",
+    "WS_TLS_LDFLAGS",
+)
 # FFAUDIO_LINKFLAGS is given whole to override the Makefile's `-lpulse`. The RUNPATH goes through
 # EXTRA_LDFLAGS: `$$` is make's `$`, the quotes keep the shell from expanding $ORIGIN.
 LINK_FLAGS = "-lasound -lpthread -lrt"
@@ -108,12 +122,14 @@ def machine_name(machine: str | None = None, system: str = sys.platform) -> str:
 
 
 def tarball_name(machine: str | None = None, system: str = sys.platform) -> str:
-    return f"mercury-{VERSION}-{ {'darwin': 'macos', 'win32': 'windows'}.get(system, 'linux')}-{machine_name(machine, system)}.tar.gz"
+    return f"mercury-{VERSION}-{ {'darwin': 'macos', 'win32': 'windows'}.get(system, 'linux') }-{machine_name(machine, system)}.tar.gz"
 
 
 def fetch_source() -> Path:
     """Return the pinned source archive from the cache, downloading it if needed."""
-    return buildtool.fetch_source(SOURCE_URL, SOURCE_SHA256, f"mercury-{VERSION}-{SOURCE_COMMIT[:8]}.tar.gz", "neoaprs-build-mercury")
+    return buildtool.fetch_source(
+        SOURCE_URL, SOURCE_SHA256, f"mercury-{VERSION}-{SOURCE_COMMIT[:8]}.tar.gz", "neoaprs-build-mercury"
+    )
 
 
 def unpack(archive: Path, into: Path) -> Path:
@@ -137,8 +153,12 @@ def apply_patches(tree: Path, windows: bool = False) -> None:
     apply_patch(tree, DSOUND_PATCH)
     apply_patch(tree, FLUSH_PATCH)
     apply_patch(tree, FFCPU_PATCH)
-    if "LoadLibraryW(L\"dsound.dll\")" not in (tree / DSOUND_FILE).read_text(encoding="utf-8") or "-ldsound" in (tree / "Makefile").read_text(encoding="utf-8"):
-        raise BuildError(f"{DSOUND_FILE} does not load DirectSound on first use, or the Makefile still links it, after {DSOUND_PATCH.name}")
+    if 'LoadLibraryW(L"dsound.dll")' not in (tree / DSOUND_FILE).read_text(encoding="utf-8") or "-ldsound" in (
+        tree / "Makefile"
+    ).read_text(encoding="utf-8"):
+        raise BuildError(
+            f"{DSOUND_FILE} does not load DirectSound on first use, or the Makefile still links it, after {DSOUND_PATCH.name}"
+        )
     if LEADIN_KEY not in (tree / LEADIN_FILE).read_text(encoding="utf-8"):
         raise BuildError(f"{LEADIN_FILE} has no {LEADIN_KEY} after {LEADIN_PATCH.name}")
     if LOG_FLUSH not in (tree / LOG_FILE).read_text(encoding="utf-8"):
@@ -160,7 +180,12 @@ def make_commands(windows: bool = False) -> list[list[str]]:
     """Return the make commands: one on Linux and macOS, two on Windows (link after objects)."""
     jobs = f"-j{os.cpu_count() or 1}"
     if windows:
-        flags = [*WINDOWS_MAKE_FLAGS, *(f"{name}=" for name in WINDOWS_MAKE_EMPTY), f"GIT_HASH={SOURCE_COMMIT[:8]}", WINDOWS_STRIP]
+        flags = [
+            *WINDOWS_MAKE_FLAGS,
+            *(f"{name}=" for name in WINDOWS_MAKE_EMPTY),
+            f"GIT_HASH={SOURCE_COMMIT[:8]}",
+            WINDOWS_STRIP,
+        ]
         return [["make", jobs, *flags, "internal_deps"], ["make", jobs, *flags, "mercury.exe"]]
     command = ["make", jobs, *MAKE_FLAGS, *(f"{name}=" for name in MAKE_EMPTY), f"GIT_HASH={SOURCE_COMMIT[:8]}"]
     if not MACOS:
@@ -176,9 +201,14 @@ def build(tree: Path, windows: bool = False) -> None:
         env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_MIN
     for command in make_commands(windows):
         print("+ " + " ".join(command), flush=True)
-        done = subprocess.run(command, cwd=tree, env=env, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        done = subprocess.run(
+            command, cwd=tree, env=env, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        )
         if done.returncode != 0:
-            raise BuildError(f"make failed with {done.returncode}; the end of its output:\n" + "\n".join(done.stdout.splitlines()[-40:]))
+            raise BuildError(
+                f"make failed with {done.returncode}; the end of its output:\n"
+                + "\n".join(done.stdout.splitlines()[-40:])
+            )
     for name in ("mercury.exe",) if windows else ("mercury", "utils/watterson_test"):
         if not (tree / name).is_file():
             raise BuildError(f"make left no {name}")
@@ -222,7 +252,11 @@ def stage(tree: Path, out: Path, started: float) -> Path:
     shutil.copyfile(tree / "mercury", folder / "mercury")
     (folder / "mercury").chmod(0o755)
     if MACOS:
-        sound = "The program loads the system's CoreAudio and CoreFoundation frameworks and nothing else; it is built for macOS " + MACOS_MIN + " and newer.\n"
+        sound = (
+            "The program loads the system's CoreAudio and CoreFoundation frameworks and nothing else; it is built for macOS "
+            + MACOS_MIN
+            + " and newer.\n"
+        )
     else:
         asound = libraries(tree / "mercury").get("libasound.so.2", "")
         if not asound:
@@ -235,15 +269,26 @@ def stage(tree: Path, out: Path, started: float) -> Path:
         shutil.copyfile(Path(asound).resolve(), folder / "lib" / "libasound.so.2")
         (folder / "lib" / "libasound.so.2").chmod(0o644)
         shutil.copytree(ALSA_DATA, folder / "share" / "alsa", ignore=shutil.ignore_patterns(*ALSA_SKIP))
-        sound = ("Changes to the source: audioio/ffaudio/ffaudio/pulse.c is replaced by packaging/mercury/pulse_stub.c of NeoAPRS (https://github.com/oh2gba/neoaprs), PulseAudio not being in this build.\n"
-                 "lib/libasound.so.2 is the ALSA library (LGPL-2.1-or-later) of the machine that built this, share/alsa/ its configuration; their source is the distribution's.\n")
+        sound = (
+            "Changes to the source: audioio/ffaudio/ffaudio/pulse.c is replaced by packaging/mercury/pulse_stub.c of NeoAPRS (https://github.com/oh2gba/neoaprs), PulseAudio not being in this build.\n"
+            "lib/libasound.so.2 is the ALSA library (LGPL-2.1-or-later) of the machine that built this, share/alsa/ its configuration; their source is the distribution's.\n"
+        )
     shutil.copyfile(tree / "LICENSE", folder / "LICENSE")
     if (tree / "LICENSE-freedv").is_file():
         shutil.copyfile(tree / "LICENSE-freedv", folder / "LICENSE-freedv")
     shutil.copyfile(tree / "utils" / "watterson_test", folder / "dev" / "watterson_test")
     (folder / "dev" / "watterson_test").chmod(0o755)
-    flags = " ".join((*MAKE_FLAGS, *(f"{name}=" for name in MAKE_EMPTY), *(() if MACOS else (f"FFAUDIO_LINKFLAGS={LINK_FLAGS}",))))
-    (folder / "SOURCE.txt").write_text(source_offer(flags, sound, "dev/watterson_test is Mercury's HF channel simulator, for the simulators of NeoAPRS; it is not part of what is shipped.\n"), encoding="utf-8")
+    flags = " ".join(
+        (*MAKE_FLAGS, *(f"{name}=" for name in MAKE_EMPTY), *(() if MACOS else (f"FFAUDIO_LINKFLAGS={LINK_FLAGS}",)))
+    )
+    (folder / "SOURCE.txt").write_text(
+        source_offer(
+            flags,
+            sound,
+            "dev/watterson_test is Mercury's HF channel simulator, for the simulators of NeoAPRS; it is not part of what is shipped.\n",
+        ),
+        encoding="utf-8",
+    )
     print(f"stage: {folder}, {time.monotonic() - started:.0f} s since the start")
     return folder
 
@@ -264,7 +309,8 @@ def source_offer(flags: str, notes: str, last: str) -> str:
         f"Changes to the source: {LOG_FILE} flushes stderr after each log line, so that the lines reach the program that reads them as they are written, also on Windows, whose C runtime buffers a pipe (packaging/mercury/flush.patch of NeoAPRS).\n"
         f"Changes to the source: {FFCPU_FILE} defines `_ffcpu_features`, a name the audio code's library declares and leaves to the program, so that the program links with a compiler whose default machine has SSE4.2 (packaging/mercury/ffcpu.patch of NeoAPRS).\n"
         f"{last}"
-        f"Date: {datetime.date.today().isoformat()}\n")
+        f"Date: {datetime.date.today().isoformat()}\n"
+    )
 
 
 def stage_windows(tree: Path, out: Path, started: float) -> Path:
@@ -278,11 +324,15 @@ def stage_windows(tree: Path, out: Path, started: float) -> Path:
         shutil.copyfile(tree / "LICENSE-freedv", folder / "LICENSE-freedv")
     for name, target in (("LICENSE.txt", "LICENSE-hidapi.txt"), ("LICENSE-bsd.txt", "LICENSE-hidapi-bsd.txt")):
         if not (tree / HIDAPI_DIR / name).is_file():
-            raise BuildError(f"{HIDAPI_DIR}/{name} is missing: hidapi is compiled into the program, and its licence has to travel with it")
+            raise BuildError(
+                f"{HIDAPI_DIR}/{name} is missing: hidapi is compiled into the program, and its licence has to travel with it"
+            )
         shutil.copyfile(tree / HIDAPI_DIR / name, folder / target)
     flags = " ".join((*WINDOWS_MAKE_FLAGS, *(f"{name}=" for name in WINDOWS_MAKE_EMPTY), WINDOWS_STRIP))
-    notes = (f"For Windows, cross-compiled on Linux with the MinGW-w64 compiler ({MINGW}gcc); the C runtime's thread library (winpthreads, MIT licence) and the compiler's runtime library (GPL-3.0-or-later with the runtime library exception) are linked in statically.\n"
-             f"hidapi ({HIDAPI_DIR}/ of the source, BSD-3-Clause or GPL-3.0 or the HIDAPI licence, see LICENSE-hidapi.txt and LICENSE-hidapi-bsd.txt) is compiled in, for keying a CM108 sound chip; hamlib and OpenSSL are not in this build.\n")
+    notes = (
+        f"For Windows, cross-compiled on Linux with the MinGW-w64 compiler ({MINGW}gcc); the C runtime's thread library (winpthreads, MIT licence) and the compiler's runtime library (GPL-3.0-or-later with the runtime library exception) are linked in statically.\n"
+        f"hidapi ({HIDAPI_DIR}/ of the source, BSD-3-Clause or GPL-3.0 or the HIDAPI licence, see LICENSE-hidapi.txt and LICENSE-hidapi-bsd.txt) is compiled in, for keying a CM108 sound chip; hamlib and OpenSSL are not in this build.\n"
+    )
     (folder / "SOURCE.txt").write_text(source_offer(flags, notes, ""), encoding="utf-8")
     print(f"stage: {folder}, {time.monotonic() - started:.0f} s since the start")
     return folder
@@ -310,7 +360,9 @@ def make_tarball(folder: Path, out: Path, system: str = sys.platform) -> Path:
 def install(folder: Path) -> Path:
     """Copy the folder to <sys.prefix>/tools/mercury, replacing what was there."""
     if sys.prefix == sys.base_prefix:
-        raise BuildError("--install needs the virtual environment's Python: .venv/bin/python scripts/build-mercury --install")
+        raise BuildError(
+            "--install needs the virtual environment's Python: .venv/bin/python scripts/build-mercury --install"
+        )
     target = Path(sys.prefix) / "tools" / "mercury"
     shutil.rmtree(target, ignore_errors=True)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -336,10 +388,15 @@ def check(folder: Path, windows: bool = False) -> None:
             raise BuildError(f"the ALSA configuration {alsa_conf} is not there or is empty")
         env["ALSA_CONFIG_PATH"] = str(alsa_conf)
         print(f"  {runpath(folder / 'mercury')}")
-        print(f"  newest glibc needed: mercury {glibc_needed(folder / 'mercury')}, libasound.so.2 {glibc_needed(folder / 'lib' / 'libasound.so.2')}")
+        print(
+            f"  newest glibc needed: mercury {glibc_needed(folder / 'mercury')}, libasound.so.2 {glibc_needed(folder / 'lib' / 'libasound.so.2')}"
+        )
         print("  " + check_links(folder / "mercury", folder).replace("\n", "\n  ").rstrip())
     shown = subprocess.run([program, "-V"], env=env, check=False, text=True, capture_output=True, timeout=60)
-    print(f"  $ mercury -V (exit {shown.returncode})\n    " + (shown.stdout + shown.stderr).strip().replace("\n", "\n    "))
+    print(
+        f"  $ mercury -V (exit {shown.returncode})\n    "
+        + (shown.stdout + shown.stderr).strip().replace("\n", "\n    ")
+    )
     if shown.returncode != 0 or VERSION not in shown.stdout + shown.stderr:
         raise BuildError(f"mercury -V does not say {VERSION}")
     if not MACOS:
@@ -356,15 +413,44 @@ def check_loopback(program: str, env: dict[str, str]) -> str:
     """Run the program on its fifo backend; its four ports must listen on 127.0.0.1 only.
 
     Raise BuildError when a port listens elsewhere or never listens."""
-    broadcast = next(port for port in range(18100, 18200) if all(_free(port + offset) for offset in (0, 200, 201, 2000)))
+    broadcast = next(
+        port for port in range(18100, 18200) if all(_free(port + offset) for offset in (0, 200, 201, 2000))
+    )
     ports = {broadcast, broadcast + 200, broadcast + 201, broadcast + 2000}
     with tempfile.TemporaryDirectory(prefix="mercury-loopback-") as folder:
-        capture, playback, ini = str(Path(folder) / "capture"), str(Path(folder) / "playback"), Path(folder) / "mercury.ini"
+        capture, playback, ini = (
+            str(Path(folder) / "capture"),
+            str(Path(folder) / "playback"),
+            Path(folder) / "mercury.ini",
+        )
         os.mkfifo(capture)
         os.mkfifo(playback)
-        ini.write_text(f"[main]\nui_enabled = true\nui_port = {broadcast + 2000}\nwaterfall_enabled = false\n[store]\nenabled = false\n", encoding="utf-8")
-        argv = [program, "-C", str(ini), "-m", "1", "-x", "fifo", "-i", capture, "-o", playback, "-b", str(broadcast), "-p", str(broadcast + 200), "-P", "none"]
-        child = subprocess.Popen(argv, cwd=folder, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        ini.write_text(
+            f"[main]\nui_enabled = true\nui_port = {broadcast + 2000}\nwaterfall_enabled = false\n[store]\nenabled = false\n",
+            encoding="utf-8",
+        )
+        argv = [
+            program,
+            "-C",
+            str(ini),
+            "-m",
+            "1",
+            "-x",
+            "fifo",
+            "-i",
+            capture,
+            "-o",
+            playback,
+            "-b",
+            str(broadcast),
+            "-p",
+            str(broadcast + 200),
+            "-P",
+            "none",
+        ]
+        child = subprocess.Popen(
+            argv, cwd=folder, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        )
         try:
             deadline = time.monotonic() + LISTEN_WAIT_SEC
             while True:
@@ -380,10 +466,14 @@ def check_loopback(program: str, env: dict[str, str]) -> str:
                 child.kill()
                 child.wait()
     if set(found) != ports:
-        raise BuildError(f"the program did not listen on its ports {sorted(ports)} within {LISTEN_WAIT_SEC:.0f} s (found {found})")
+        raise BuildError(
+            f"the program did not listen on its ports {sorted(ports)} within {LISTEN_WAIT_SEC:.0f} s (found {found})"
+        )
     elsewhere = {port: addresses for port, addresses in found.items() if addresses != {LOOPBACK}}
     if elsewhere:
-        raise BuildError(f"the program listens on an address that is not 127.0.0.1: {elsewhere} (packaging/mercury/loopback.patch was not applied?)")
+        raise BuildError(
+            f"the program listens on an address that is not 127.0.0.1: {elsewhere} (packaging/mercury/loopback.patch was not applied?)"
+        )
     return f"listens on 127.0.0.1 only (ports {sorted(ports)}: {LOOPBACK} each)"
 
 
@@ -397,11 +487,22 @@ def _free(port: int) -> bool:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="build-mercury", description="Builds the pinned Mercury for Linux, macOS or (cross-compiled on Linux) Windows and lays it out as the folder mercury/ that NeoAPRS ships.")
-    parser.add_argument("--windows", action="store_true", help=f"cross-compile mercury.exe for 64-bit Windows with MinGW-w64 ({MINGW}gcc), on Linux; default folder build/mercury/dist-windows, the tarball {tarball_name(system='win32')}")
+    parser = argparse.ArgumentParser(
+        prog="build-mercury",
+        description="Builds the pinned Mercury for Linux, macOS or (cross-compiled on Linux) Windows and lays it out as the folder mercury/ that NeoAPRS ships.",
+    )
+    parser.add_argument(
+        "--windows",
+        action="store_true",
+        help=f"cross-compile mercury.exe for 64-bit Windows with MinGW-w64 ({MINGW}gcc), on Linux; default folder build/mercury/dist-windows, the tarball {tarball_name(system='win32')}",
+    )
     parser.add_argument("--out", type=Path, help="the folder in which mercury/ is made (default build/mercury/dist)")
     parser.add_argument("--tar", action="store_true", help=f"also make {tarball_name()} in it")
-    parser.add_argument("--install", action="store_true", help="copy the folder to <sys.prefix>/tools/mercury of the virtual environment (the default when neither --out nor --tar is given)")
+    parser.add_argument(
+        "--install",
+        action="store_true",
+        help="copy the folder to <sys.prefix>/tools/mercury of the virtual environment (the default when neither --out nor --tar is given)",
+    )
     parser.add_argument("--source", type=Path, help="the pinned source archive at hand, instead of the download")
     args = parser.parse_args(argv)
     windows = args.windows
@@ -409,9 +510,18 @@ def main(argv: list[str] | None = None) -> int:
         print("build-mercury: this builds for Linux and macOS, and for Windows on Linux only", file=sys.stderr)
         return 1
     if windows and args.install:
-        print("build-mercury: --install is for the program of this system; a program for Windows is no use to a checkout here", file=sys.stderr)
+        print(
+            "build-mercury: --install is for the program of this system; a program for Windows is no use to a checkout here",
+            file=sys.stderr,
+        )
         return 1
-    for tool in WINDOWS_TOOLS if windows else ("cc", "make", "otool", "patch") if MACOS else ("gcc", "make", "patch", "ldd", "readelf", "strip"):
+    for tool in (
+        WINDOWS_TOOLS
+        if windows
+        else ("cc", "make", "otool", "patch")
+        if MACOS
+        else ("gcc", "make", "patch", "ldd", "readelf", "strip")
+    ):
         if shutil.which(tool) is None:
             print(f"build-mercury: {tool} is not installed", file=sys.stderr)
             return 1

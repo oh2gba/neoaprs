@@ -3,6 +3,7 @@
 It is pyserial's socket:// port over an RFCOMM socket; a paired device needs no `rfcomm bind` or
 root. Without a channel in the URL, the channels the device lists, then 1 to 3, are tried in turn.
 """
+
 import errno
 import logging
 import re
@@ -31,7 +32,9 @@ def parse_url(path: str) -> tuple[str, int | None]:
     """Return the device address and the channel (None if absent); raise ValueError if malformed."""
     match = _URL.match(path.strip())
     if match is None:
-        raise ValueError(f"{path!r} is not a Bluetooth port: write bt://AA:BB:CC:DD:EE:FF, or bt://AA:BB:CC:DD:EE:FF/2 with the RFCOMM channel")
+        raise ValueError(
+            f"{path!r} is not a Bluetooth port: write bt://AA:BB:CC:DD:EE:FF, or bt://AA:BB:CC:DD:EE:FF/2 with the RFCOMM channel"
+        )
     address = match.group(1).replace("-", ":").upper()
     channel = int(match.group(2)) if match.group(2) else None
     if channel is not None and not 1 <= channel <= 30:
@@ -90,7 +93,9 @@ class BluetoothSerial(protocol_socket.Serial):  # type: ignore[misc]
         try:
             address, channel = parse_url(self.portstr)
             if not available():
-                raise OSError("Bluetooth ports (bt://) are for Linux; on Windows use the COM port of the paired device, on macOS its /dev/cu.* port")
+                raise OSError(
+                    "Bluetooth ports (bt://) are for Linux; on Windows use the COM port of the paired device, on macOS its /dev/cu.* port"
+                )
             sock = connect(address, channel)
         except (OSError, ValueError) as e:
             self._socket = None
