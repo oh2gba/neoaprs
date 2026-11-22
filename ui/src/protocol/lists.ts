@@ -92,12 +92,12 @@ export const CONFIG_KEYS = [
   "igate/enabled",
   "igate/server",
   "igate/password",
+  "units/non_metric",
   "gps/source",
   "gps/host",
   "gps/device",
   "gps/baud",
   "beacon/travel",
-  "units/non_metric",
 ] as const;
 
 /** The station's settings of the radios (RADIO_STATION_KEYS of neoaprs/config.py), which `config.radio_values` carries beside the radios' own `radio/<id>/<key>`. */

@@ -266,12 +266,12 @@ async def test_a_radio_that_is_connected_but_never_takes_a_frame_holds_an_object
     rig.hf.held = "the board sends text lines: set it to KISS"
     rig.make("BOTH", radios=(FM_ID, HF_ID))
     sent = rig.timed(3600)
-    assert offsets(sent, "fm") == [0, 120, 300, 600, 1140, 2160] and offsets(sent, "hf") == [], (
-        "FM repeats it on its decay (the round ends a minute after FM took it), held to HF's floor of 30 minutes; it went out once in the hour before"
+    assert offsets(sent, "fm") == [0, 120, 240, 480, 960, 1920] and offsets(sent, "hf") == [], (
+        "FM repeats it on its decay (the round ends a minute after FM took it; a round that ends within its slot's pause keeps the slots), held to HF's floor of 30 minutes"
     )
     rig.objects.kill("BOTH")
     sent = rig.timed(600)
-    assert [t for t, word, _ in sent if word == "fm"] == [0, 120, 300] and offsets(sent, "hf") == [], (
+    assert [t for t, word, _ in sent if word == "fm"] == [0, 120, 240] and offsets(sent, "hf") == [], (
         "the kill goes three times on FM"
     )
     assert rig.objects.get("BOTH") is None, "and the object is forgotten (before: never)"
@@ -288,8 +288,8 @@ async def test_the_minute_a_connected_radio_holds_the_round_runs_from_the_first_
     assert rig.timed(89) == []
     rig.tnc.takes = True
     sent = rig.timed(300)
-    assert offsets(sent, "fm") == [0, 120, 300] and offsets(sent, "hf") == [], (
-        "HF holds the round a minute after FM took it (the round ends at 60, the next at 60 + 60); from the first try it would have ended at once: [0, 60, 240]"
+    assert offsets(sent, "fm") == [0, 120, 240] and offsets(sent, "hf") == [], (
+        "HF holds the round a minute after FM took it (the round ends at 60, the next at 60 + 60, then in its slot at 120 + 120); from the first try it would have ended at once: [0, 60, 180]"
     )
 
 

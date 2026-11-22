@@ -61,6 +61,7 @@
     "status/rigctld": "",
     "status/source": "",
     "status/template": "QRV {freq} {mode}",
+    "units/non_metric": "false",
     "update/url": "https://neo.oh2gba.eu/version.php",
     "web/allowed_hosts": "",
     "web/https": "false",
@@ -171,6 +172,7 @@
     "status/rigctld": "",
     "status/source": "",
     "status/template": "QRV {freq} {mode}",
+    "units/non_metric": "false",
     "update/url": "https://neo.oh2gba.eu/version.php",
     "web/allowed_hosts": "",
     "web/https": "false",
@@ -218,6 +220,7 @@
     "status/rigctld": "",
     "status/source": "",
     "status/template": "QRV {freq} {mode}",
+    "units/non_metric": "false",
     "update/url": "https://neo.oh2gba.eu/version.php",
     "web/allowed_hosts": "",
     "web/https": "false",
@@ -330,6 +333,7 @@
     "status/rigctld": "",
     "status/source": "",
     "status/template": "QRV {freq} {mode}",
+    "units/non_metric": "false",
     "update/url": "https://neo.oh2gba.eu/version.php",
     "web/allowed_hosts": "",
     "web/https": "false",
@@ -774,6 +778,7 @@
  "own_bulletins": {
   "BLN3HAMS": {
    "group": "HAMS",
+   "hours": 2,
    "kind": "group",
    "last_sent_at": "2026-10-21T12:02:00Z",
    "next_at": "2026-10-21T12:08:00Z",
@@ -787,6 +792,7 @@
   },
   "BLNA": {
    "group": "",
+   "hours": 168,
    "kind": "announcement",
    "last_sent_at": null,
    "next_at": null,

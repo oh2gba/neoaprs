@@ -49,6 +49,7 @@ import { useMapMenu, type MapCard } from "@/composables/useMapMenu";
 import ReplayBar from "@/components/ReplayBar.vue";
 import { useMapReplay } from "@/composables/useMapReplay";
 import { hasPosition } from "@/lib/stations";
+import { nonMetric } from "@/lib/units";
 import type { StationRow } from "@/protocol/protocol";
 
 // where the map opens while we have no position
@@ -313,6 +314,7 @@ watch(
   },
 );
 watch(() => page.now.value, syncMarkers);
+watch(nonMetric, syncMarkers);
 watch([minute, box.tracks], drawTracks);
 useMapFollow(() => map, card, {
   focus: () => props.focus,

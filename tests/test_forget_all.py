@@ -31,7 +31,7 @@ async def world(tmp_path: Path) -> Env:
     e.ctl.ownobjects.set(
         "LEADER", "object", lat=60.17, lon=24.94, symbol_table="/", symbol_code=">", comment="Rescue 1"
     )  # type: ignore[arg-type]
-    e.ctl.ownbulletins.post("BLN3HAMS", "Net tonight")
+    e.ctl.ownbulletins.post("group", "Net tonight", "HAMS")
     await e.ctl.prefbook.set_path("OH2RDG", "WIDE1-1")
     await e.settled()
     return e
@@ -61,7 +61,7 @@ async def test_forget_all_removes_every_station_and_packet_heard_and_keeps_what_
     assert await e.ctl.weatherlog.latest("OH2WX") is None
     assert (
         [m.text for m in e.ctl.messaging.records()] == ["Moi!"]
-        and [b.slot for b in e.ctl.ownbulletins.records()] == ["BLN3HAMS"]
+        and [b.slot for b in e.ctl.ownbulletins.records()] == ["BLN0HAMS"]
         and [o.name for o in e.ctl.ownobjects.records()] == ["LEADER"]
     )
     assert e.ctl.prefbook.all()["OH2RDG"].path == ("WIDE1-1",) and e.ctl.config.station_call == "OH2GBA"

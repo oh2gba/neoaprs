@@ -5,12 +5,13 @@ import { defineComponent, h, ref } from "vue";
 import StationMap from "@/components/StationMap.vue";
 import type { Aging } from "@/lib/aging";
 import { writeView } from "@/lib/mapview";
+import { takeUnits } from "@/lib/units";
 import { OPEN_ZOOM } from "@/lib/basemapstyle";
 import { FakeMap, FakeMarker, fakeState, resetFakes } from "@/test/fakemap";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { mountStationMap } from "@/test/stationmap";
 import { cssRule } from "@/test/css";
-import { NOW, ago, station, table } from "@/test/fixtures";
+import { NOW, ago, station, table, weatherStation } from "@/test/fixtures";
 
 const stations = () =>
   table(
@@ -447,5 +448,20 @@ describe("StationMap", () => {
     wrapper.unmount();
     expect(FakeMap.last().removed).toBe(true);
     expect(FakeMarker.live()).toHaveLength(0);
+  });
+});
+
+describe("StationMap in the non-metric units", () => {
+  it("says a weather station's temperature in °F in its marker's name once the units change, with no new row", async () => {
+    const weatherRows = table(
+      station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94, symbol_code: "-" }),
+      weatherStation("OH2MUI", { lat: 60.2, lon: 24.65, last_position_at: ago(100) }),
+    );
+    await mounted({ stations: weatherRows });
+    const label = () => markerOf("OH2MUI")?.element.getAttribute("aria-label");
+    expect(label()).toBe("OH2MUI: Weather station, 10.0 °C");
+    takeUnits({ "units/non_metric": "true" });
+    await flushPromises();
+    expect(label()).toBe("OH2MUI: Weather station, 50 °F");
   });
 });

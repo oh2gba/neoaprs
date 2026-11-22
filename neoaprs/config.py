@@ -212,6 +212,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("igate_server", "igate/server", aprsis_server),
     # -1 (read-only login) is refused.
     Setting("igate_password", "igate/password", passcode),
+    Setting("units_non_metric", "units/non_metric", boolean),
     Setting("gps_source", "gps/source", word_among(GPS_SOURCES)),
     Setting("gps_host", "gps/host", hostport),
     Setting("gps_device", "gps/device", port_address),
@@ -232,8 +233,10 @@ MAP_AUTO = "map/auto"
 # JSON: the radio chosen per station call.
 MESSAGE_RADIOS = "messages/radio_by_station"
 NEW_OBJECTS, NEW_BULLETINS = "objects/send_on", "bulletins/send_on"
+# JSON: the Sent for of the post of each kind posted last, in hours.
+NEW_BULLETIN_HOURS = "bulletins/sent_for_hours"
 # Station state rows; each radio's are RADIO_STATE.
-STATE_KEYS = (STATUS_SENT, STATUS_TEXT, MAP_AUTO, MESSAGE_RADIOS, NEW_OBJECTS, NEW_BULLETINS)
+STATE_KEYS = (STATUS_SENT, STATUS_TEXT, MAP_AUTO, MESSAGE_RADIOS, NEW_OBJECTS, NEW_BULLETINS, NEW_BULLETIN_HOURS)
 INSTALL_ID = "update/install_id"
 HF_DIAL = "update/hf_dial"
 
@@ -276,6 +279,7 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
     igate_enabled: bool = False
     igate_server: str = "rotate.aprs2.net:14580"
     igate_password: str = ""
+    units_non_metric: bool = False
     gps_source: str = "off"
     gps_host: str = "127.0.0.1:2947"
     gps_device: str = ""

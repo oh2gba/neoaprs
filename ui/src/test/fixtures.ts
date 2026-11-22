@@ -382,6 +382,7 @@ export function ownBulletin(slot: string, extra: Partial<OwnBulletinRow> = {}): 
     group: "",
     kind: "bulletin",
     text: `ours in ${slot}`,
+    hours: 4,
     posted_at: ago(600),
     radios: [1],
     sent: 2,
@@ -569,6 +570,7 @@ export function configValues(extra: Record<string, string> = {}, radios: Record<
     "gps/device": "",
     "gps/baud": "4800",
     "beacon/travel": "car",
+    "units/non_metric": "false",
     ...extra,
   };
   const radioValues = { ...radioValuesOf(), ...radios };
@@ -665,6 +667,7 @@ export function status(extra: Partial<StatusMessage> = {}): StatusMessage {
     unavailable_types: [],
     new_object_radios: [1],
     new_bulletin_radios: [1],
+    new_bulletin_hours: { bulletin: 4, announcement: 72, group: 4 },
     station_status: "",
     station_status_last_sent: null,
     rig_state: "unused",

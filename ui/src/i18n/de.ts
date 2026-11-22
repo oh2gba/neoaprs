@@ -109,6 +109,9 @@ export const de: Catalogue = {
   // errors
   "error.beacon.not_sent": "nichts gesendet: {reason}",
   "error.bulletin.group": "„{value}“: ein Gruppenbulletin ist BLN, eine Ziffer und die Gruppe",
+  "error.bulletin.hours": "ein Bulletin kann nicht für {hours} Stunden gesendet werden",
+  "error.bulletin.taken":
+    "jede Nummer oder jeder Buchstabe dieser Art trägt ein Bulletin von uns: lösche zuerst eines auf der Tafel",
   "error.bulletin.not_on_board": "auf der Tafel gibt es keinen Eintrag {sender}/{slot}",
   "error.bulletin.not_posted": "von uns gibt es kein Bulletin {slot}",
   "error.bulletin.slot":
@@ -558,40 +561,27 @@ export const de: Catalogue = {
 
   "bulletins.post_label": "Bulletin senden",
   "bulletins.kind": "Art",
-  "bulletins.kind.bulletin": {
-    one: "Bulletin (wird {n} Stunde lang gesendet)",
-    other: "Bulletin (wird {n} Stunden lang gesendet)",
-  },
-  "bulletins.kind.announcement": {
-    one: "Ankündigung (wird {n} Tag lang gesendet)",
-    other: "Ankündigung (wird {n} Tage lang gesendet)",
-  },
-  "bulletins.kind.group": {
-    one: "Gruppenbulletin (an eine Gruppe, wird {n} Stunde lang gesendet)",
-    other: "Gruppenbulletin (an eine Gruppe, wird {n} Stunden lang gesendet)",
-  },
-  "bulletins.letter": "Buchstabe",
-  "bulletins.number": "Nummer",
+  "bulletins.kind_name.bulletin": "Bulletin",
+  "bulletins.kind_name.announcement": "Ankündigung",
+  "bulletins.kind_name.group": "Gruppenbulletin",
+  "bulletins.sent_for": "Gesendet für",
   "bulletins.group": "Gruppe",
   "bulletins.group_placeholder": "Name",
   "bulletins.text": "Text",
   "bulletins.tip.hours": { one: "{n} Stunde", other: "{n} Stunden" },
   "bulletins.tip.days": { one: "{n} Tag", other: "{n} Tage" },
-  "bulletins.tip.kind1":
-    "Ein Bulletin und eine Ankündigung zeigt jede Station, die sie hört. Ein Bulletin ist für das, was jetzt zählt, und wird {hours} lang gesendet; eine Ankündigung ist für das, was gültig bleibt, und wird {days} lang gesendet.",
-  "bulletins.tip.kind2":
-    "Ein Gruppenbulletin wird {hours} lang gesendet; jede Station zeigt es, es sei denn, ihr Betreiber hat andere Gruppen zum Anzeigen gewählt.",
-  "bulletins.tip.id1":
-    "Die Nummer benennt den Beitrag, bei einer Ankündigung ein Buchstabe; ein neuer Beitrag darunter ersetzt ihn.",
-  "bulletins.tip.id2":
-    "Wer unter derselben Nummer oder demselben Buchstaben erneut sendet, sendet den neuen Text von Anfang an.",
+  "bulletins.tip.kinds1":
+    "Ein Bulletin und eine Ankündigung zeigt jede Station, die sie hört: ein Bulletin für das, was jetzt zählt, eine Ankündigung für das, was tagelang gilt.",
+  "bulletins.tip.kinds2":
+    "Ein Gruppenbulletin gilt einer Gruppe; jede Station zeigt es, es sei denn, ihr Betreiber hat andere Gruppen zum Anzeigen gewählt.",
+  "bulletins.tip.sent_for": "Wie lange das Bulletin wiederholt wird, gezählt ab seinem ersten Paket.",
   "bulletins.tip.group1":
     "Der Name ist Teil der Adresse, wie in BLN3HAMS, daher hört jede Station das Bulletin und zeigt es, es sei denn, ihr Betreiber hat andere Gruppen zum Anzeigen gewählt.",
   "bulletins.tip.group2": "NeoAPRS zeigt die Bulletins jeder Gruppe, die es hört, unter Gruppennachrichten.",
   "bulletins.tip.text1": "Bis zu {max} Zeichen, druckbar, keines von {forbidden}.",
-  "bulletins.tip.text2": "Es geht in einem Funkpaket hinaus, wiederholt für die Zeit der Art.",
+  "bulletins.tip.text_repeat":
+    "Es geht in einem Funkpaket hinaus, wiederholt für die Zeit, die unter Gesendet für gewählt ist.",
   "bulletins.post": "Senden",
-  "bulletins.replace": "Ersetzen",
 
   // skeds
   "skeds.about_label": "Über KW-Tests",
@@ -790,7 +780,7 @@ export const de: Catalogue = {
   "station.kind.object": "Objekt",
   "station.kind.item": "Item",
   "station.kind_reported": "{kind}, gemeldet von {by}",
-  "station.from_us_value": "{distance} km, {bearing}",
+  "station.from_us_value": "{distance}, {bearing}",
   "station.speed_course": "{speed}, Kurs {course}",
   "station.speed_chart": "Geschwindigkeit entlang der Spur",
   "station.signal_chart_snr": "Signal-Rausch-Abstand seiner Pakete",
@@ -826,9 +816,9 @@ export const de: Catalogue = {
   "station.ext.df_bearing": "Peilung",
   "station.ext.area": "Gebiet",
   "station.ext.omni": "omni",
-  "station.ext.phg_value": "{power} W, {height} m, {gain} dB, Reichweite {range} km",
-  "station.ext.dfs_value": "S{strength}, {height} m, {gain} dB",
-  "station.ext.df_bearing_value": "{bearing}°, Reichweite {range} km, Qualität {quality}, Treffer {hits}",
+  "station.ext.phg_value": "{power} W, {height}, {gain} dB, Reichweite {range}",
+  "station.ext.dfs_value": "S{strength}, {height}, {gain} dB",
+  "station.ext.df_bearing_value": "{bearing}°, Reichweite {range}, Qualität {quality}, Treffer {hits}",
   "station.ext.area_value": "{shape} ({colour}), {down}° nach unten, {right}° nach rechts",
 
   "station.ext.area_value_left": "{shape} ({colour}), {down}° nach unten, {left}° nach links",
@@ -872,7 +862,7 @@ export const de: Catalogue = {
   "station.freq.narrow": "Schmalband-FM",
   "station.freq.simplex": "Simplex",
   "station.freq.offset": "{khz} kHz",
-  "station.freq.range": "Reichweite {km} km",
+  "station.freq.range": "Reichweite {distance}",
   "station.freq.receive": "Empfang {mhz} MHz",
   "station.storm.kind": {
     select: "kind",
@@ -884,9 +874,9 @@ export const de: Catalogue = {
   "station.storm.wind": "Wind {speed}",
   "station.storm.gusts": "Böen {speed}",
   "station.storm.pressure": "Luftdruck {value}",
-  "station.storm.hurricane_radius": "Hurrikanwinde bis {km} km",
-  "station.storm.storm_radius": "Winde eines tropischen Sturms bis {km} km",
-  "station.storm.gale_radius": "Sturmwinde bis {km} km",
+  "station.storm.hurricane_radius": "Hurrikanwinde bis {distance}",
+  "station.storm.storm_radius": "Winde eines tropischen Sturms bis {distance}",
+  "station.storm.gale_radius": "Sturmwinde bis {distance}",
 
   "station.hover.heard": "Gehört",
   "station.hover.route": "Weg",
@@ -945,7 +935,7 @@ export const de: Catalogue = {
   "station.alert.part.within": "näher als {km} km",
   "station.alert.part.direct": "direkt gehört",
   "station.alert.fired.on_air": "{call} ist auf Sendung",
-  "station.alert.fired.within": "{call} ist {km} km von dir entfernt",
+  "station.alert.fired.within": "{call} ist {distance} von dir entfernt",
   "station.alert.fired.direct": "{call} wird direkt gehört",
   "station.alert.fired.line": "{time} {text}",
   "station.alert.popup_title": "APRS-Hinweis: {call}",
@@ -1656,6 +1646,11 @@ export const de: Catalogue = {
 
   "settings.radius.name": "Kartenradius",
   "settings.station_hours.name": "Zeit auf der Karte",
+  "settings.units.label": "Nicht-metrische Einheiten",
+  "settings.units.name": "Einheiten",
+  "settings.units.tip1":
+    "Meilen, Fuß, mph, °F, inHg und Zoll auf jeder Seite dieser Station. Flugzeuge in Fuß und Knoten, Schiffe in Knoten.",
+  "settings.units.tip2": "Was du eingibst, bleibt metrisch, und nichts, was über Funk gesendet wird, ändert sich.",
   "settings.radius.label": "Radius",
   "settings.radius.tip_label": "Über den Radius",
   "settings.radius.tip1":
@@ -2339,8 +2334,8 @@ export const de: Catalogue = {
   "nearby.repeated": { one: "{n} Paket wiederholt", other: "{n} Pakete wiederholt" },
   "nearby.symbol_only": "Digipeater-Symbol",
   "nearby.not_heard": "kein eigenes Paket gehört",
-  "nearby.range_phg": "PHG-Reichweite {km} km",
-  "nearby.range": "Reichweite {km} km",
+  "nearby.range_phg": "PHG-Reichweite {distance}",
+  "nearby.range": "Reichweite {distance}",
   "nearby.reported_by": "gemeldet von {call}",
   "nearby.gated": {
     one: "{n} Paket aus dem Internet weitergeleitet",
@@ -2438,8 +2433,7 @@ export const de: Catalogue = {
   "stats.frames": "Frames von den Funkgeräten",
   "stats.bytes": "Bytes ein · aus",
   "stats.counted": "{name} ({n})",
-  "stats.station_km": "{call}, {km} km",
-  "stats.km": "{km} km",
+  "stats.station_km": "{call}, {distance}",
   "stats.kind_count": "{n} {kind}",
   "stats.kind.position": "Positionen",
   "stats.kind.message": "Nachrichten",

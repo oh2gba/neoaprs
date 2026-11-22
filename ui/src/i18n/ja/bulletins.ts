@@ -23,27 +23,24 @@ export const bulletins: Record<keyof typeof source, Message> = {
 
   "bulletins.post_label": "掲示を出す",
   "bulletins.kind": "種類",
-  "bulletins.kind.bulletin": "掲示({n}時間送信)",
-  "bulletins.kind.announcement": "お知らせ({n}日間送信)",
-  "bulletins.kind.group": "グループ掲示(特定のグループ宛て、{n}時間送信)",
-  "bulletins.letter": "文字",
-  "bulletins.number": "番号",
+  "bulletins.kind_name.bulletin": "掲示",
+  "bulletins.kind_name.announcement": "お知らせ",
+  "bulletins.kind_name.group": "グループ掲示",
+  "bulletins.sent_for": "送信期間",
   "bulletins.group": "グループ",
   "bulletins.group_placeholder": "名前",
   "bulletins.text": "本文",
   "bulletins.tip.hours": { other: "{n}時間" },
   "bulletins.tip.days": { other: "{n}日間" },
-  "bulletins.tip.kind1":
-    "掲示とお知らせは、受信したすべての局が表示します。掲示は今大事なことに使い、{hours}送信します。お知らせは変わらないことに使い、{days}送信します。",
-  "bulletins.tip.kind2":
-    "グループ掲示は{hours}送信します。運用者が他のグループを選んでいない限り、すべての局が表示します。",
-  "bulletins.tip.id1": "番号は掲示を区別するもので、お知らせでは文字です。同じ番号で新しく出すと置き換わります。",
-  "bulletins.tip.id2": "同じ番号または文字でもう一度出すと、新しい本文が最初から送られます。",
+  "bulletins.tip.kinds1":
+    "掲示とお知らせは、受信したすべての局が表示します。掲示はいま大事なこと、お知らせは何日も変わらないことに使います。",
+  "bulletins.tip.kinds2":
+    "グループ掲示は1つのグループ向けで、運用者が他のグループを選んでいない限り、すべての局が表示します。",
+  "bulletins.tip.sent_for": "最初のパケットから数えて、掲示を繰り返し送る期間です。",
   "bulletins.tip.group1":
     "名前は宛先の一部で(BLN3HAMS のように)、すべての局が掲示を受信して表示します。運用者が他のグループを選んでいる場合は表示されません。",
   "bulletins.tip.group2": "NeoAPRS は受信したすべてのグループの掲示を、グループ宛てに表示します。",
   "bulletins.tip.text1": "最大{max}文字、印字できる文字で、{forbidden}は使えません。",
-  "bulletins.tip.text2": "無線の1パケットで送られ、その種類の時間だけ繰り返されます。",
+  "bulletins.tip.text_repeat": "無線の1パケットで送信され、「送信期間」で選んだ時間のあいだ繰り返されます。",
   "bulletins.post": "掲示",
-  "bulletins.replace": "置き換え",
 };

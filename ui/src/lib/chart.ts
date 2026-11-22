@@ -35,15 +35,15 @@ export function linearScale(
 }
 
 /** The lowest and highest value present; with `zero` the span includes 0 (wind, rain); a series
- * with one value or none still has a span. */
-export function extent(values: readonly number[], zero: boolean): [number, number] {
+ * with one value or none still has a span, `pad` either side. */
+export function extent(values: readonly number[], zero: boolean, pad = 1): [number, number] {
   let lo = values.length > 0 ? Math.min(...values) : 0;
   let hi = values.length > 0 ? Math.max(...values) : 1;
   if (zero) {
     lo = Math.min(lo, 0);
     hi = Math.max(hi, 0);
   }
-  return hi > lo ? [lo, hi] : [lo - 1, hi + 1];
+  return hi > lo ? [lo, hi] : [lo - pad, hi + pad];
 }
 
 /** Round tick values (1, 2 or 5 times a power of ten) around [min, max], about `target` of them;

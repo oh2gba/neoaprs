@@ -43,6 +43,8 @@ const props = withDefaults(
     parts?: readonly { key: string; tone: string; points: readonly Point[] }[];
     /** the value axis includes 0 (wind, rain) */
     zero?: boolean;
+    /** how far the axis reaches either side of a series with one value */
+    pad?: number;
     tone: "temp" | "pressure" | "wind" | "rain" | "packets" | "speed" | "signal";
     /** the decimals of the value in the heading (1 for a weather reading; 0 for a count) */
     valueDecimals?: number;
@@ -56,6 +58,7 @@ const props = withDefaults(
     asBars: false,
     parts: () => [],
     zero: false,
+    pad: 1,
     range: undefined,
     valueDecimals: 1,
     numberText: formatNumber,
@@ -73,7 +76,7 @@ const hover = ref<number | null>(null);
 
 const values = computed(() => [...props.main, ...props.band].flatMap((p) => (p.v === null ? [] : [p.v])));
 const axis = computed(() => {
-  const [lo, hi] = props.range ?? extent(values.value, props.zero);
+  const [lo, hi] = props.range ?? extent(values.value, props.zero, props.pad);
   return niceTicks(lo, hi, 4);
 });
 const x = computed(() => linearScale([props.from, props.to], [LEFT, RIGHT]));

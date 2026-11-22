@@ -9,6 +9,7 @@ from dataclasses import replace
 from neoaprs.configtypes import boolean
 from neoaprs.configvalues import digipeater_path
 from neoaprs.radiotype import (
+    FM_BEACON_JITTER_SEC,
     FM_BEACON_MIN_MIN,
     HF_BEACON_JITTER_SEC,
     HF_BEACON_MIN_MIN,
@@ -50,7 +51,7 @@ TERMINAL_ONLY = Can(
 # a radio that only receives: no rule picks it to send on, its line is never written to
 LISTENS = replace(TERMINAL_ONLY, transmit=False)
 
-FM_LIMITS = Limits(None, FM_BEACON_MIN_MIN, 0, 0)
+FM_LIMITS = Limits(None, FM_BEACON_MIN_MIN, FM_BEACON_JITTER_SEC, 0)
 HF_LIMITS = Limits(HF_MAX_FRAME, HF_BEACON_MIN_MIN, HF_BEACON_JITTER_SEC, HF_RETRY_JITTER_SEC)
 FM_ALLOWED = Allowed(paths=True, digipeat=True, smart_beacon=True, gateway_heard=True, shared_channel=True)
 HF_ALLOWED = NOTHING_ALLOWED  # HF is allowed none of them

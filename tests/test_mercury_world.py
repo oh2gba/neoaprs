@@ -197,13 +197,17 @@ async def test_the_beacon_of_the_hf_radio_goes_out_at_the_one_interval_with_the_
     assert a.beacon_2.interval_min == 30 and a.ctl.config.beacon_interval_min == 30 and a.beacon.interval_min == 30, (
         "one interval for both; the FM radio is off here"
     )
-    # The first beacon of a run comes 30 s after the start
+    # The first beacon of a run comes 30 s after the start and its pause
     w.pass_time(31)
+    await idle_for(0.3)
+    assert w.air.delivered == [], "the 30 s have passed but the pause has not"
+    w.pass_time(120)
     await w.until(lambda: len(w.air.delivered) == 1, 5.0)
     first = sent_by(w, "OH2A")[0]
     assert first.path == () and first.info.startswith(b"=6010.20N/02456.40E-"), "the home position, direct"
-    assert a.beacon_2.next_due == a.beacon_2.last_sent + timedelta(minutes=30) + timedelta(seconds=120)  # type: ignore[operator]
-    w.pass_time(30 * 60 + 100)
+    slot = a.beacon_2._started + timedelta(seconds=30)  # type: ignore[operator]
+    assert a.beacon_2.next_due == slot + timedelta(minutes=30, seconds=120), "the next slot counts from the first's"
+    w.pass_time(30 * 60 - 30)
     await idle_for(0.3)
     assert len(w.air.delivered) == 1, "the interval has passed but the pause has not"
     w.pass_time(30)

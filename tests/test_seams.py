@@ -371,6 +371,6 @@ def test_a_tnc_is_the_radio_of_its_kind_until_its_driver_says_and_the_modem_keep
     assert (other.claims, other.holder, other.folder) == (claims, 5, tmp_path / "radios" / "5")
     assert RunOverrides() == RunOverrides("", "", "", TNC_CHECK_SEC)
     assert (
-        Limits(None, 20, 0, 0) == type_of("kiss").limits
+        Limits(None, 20, 30, 0) == type_of("kiss").limits
         and Allowed(False, False, False, False, False) == type_of("dummy-hf").allowed
     )

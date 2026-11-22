@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { historyPoints, mapStats, type StatSection } from "@/lib/stats";
 import { pageRadios } from "@/lib/radios";
+import { takeUnits } from "@/lib/units";
 import type { RadioRow } from "@/protocol/protocol";
 import {
   NOW,
@@ -397,6 +398,17 @@ describe("the graph of the statistics", () => {
       { t: start + 1_800_000, v: 41 },
       { t: start + 5_400_000, v: 0 },
       { t: start + 9_000_000, v: 12 },
+    ]);
+  });
+});
+
+describe("the statistics in the non-metric units", () => {
+  it("say the ALOHA radius and the farthest stations in miles", () => {
+    takeUnits({ "units/non_metric": "true" });
+    expect(lines(mapStats(input()), "stats.section.reach").slice(0, 3)).toEqual([
+      "stats.aloha=23 mi",
+      "stats.farthest_direct=OH2RDG, 16 mi",
+      "stats.farthest_rf=OH5FAR, 68 mi",
     ]);
   });
 });

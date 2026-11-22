@@ -61,7 +61,7 @@ function expectTheBar(wrapper: VueWrapper, primary: string, secondary: string | 
   const foot = barOf(wrapper).find(".composebar-foot");
   const buttons = foot.findAll("button");
   const last = buttons.at(-1);
-  expect(shown(last)).toBe(primary); // (the word shown: Post has a second face, Replace, hidden in the same place)
+  expect(shown(last)).toBe(primary);
   expect(last?.classes()).toContain("primary");
   expect(last?.attributes("type")).toBe("submit");
   if (secondary !== null) expect(buttons.at(-2)?.text()).toBe(secondary);
@@ -193,7 +193,7 @@ describe("every form of fields is a group box, a chat line is not", () => {
 
   it("gives every field of the Bulletins and Email boxes the row of the Settings fields: a label, the control and its (i)", () => {
     const rows = [...barOf(bulletins()).findAll(".field")];
-    expect(rows.map((r) => r.find("label").text())).toEqual(["Kind", "Number", "Group", "Text"]);
+    expect(rows.map((r) => r.find("label").text())).toEqual(["Kind", "Sent for", "Group", "Text"]);
     for (const row of rows) {
       expect(row.find(".field-control > .input").exists()).toBe(true);
       expect(row.find(".field-control .infotip").exists()).toBe(true);

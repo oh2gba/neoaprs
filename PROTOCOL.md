@@ -555,16 +555,19 @@ once. Answered by the `del` of its row in `stations` (and in `own_objects` once 
 
 ### `bulletin_post`
 
-Posts a bulletin, an announcement or a group bulletin of ours: `slot` is `BLN0`..`BLN9`, `BLNA`..`BLNZ` or `BLN`, a number and a group of up to five characters (`BLN3HAMS`), `text` at most 67 characters of
-printable ASCII without `|`, `~` and `{`. It is sent at once and then on the schedule of the specification (a bulletin a few times early and every 20 minutes for 4 hours, an announcement every hour for 72 hours);
-a text for a slot that holds one replaces it; `radios` the radios it goes out on (their ids). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_bulletins`, or by an
-`error` that names the reason.
+Posts a bulletin, an announcement or a group bulletin of ours in the lowest free slot of its kind: `BLN0`..`BLN9` for a bulletin, `BLNA`..`BLNZ` for an announcement, `BLN0`..`BLN9` and the group for a
+group bulletin (`BLN0HAMS`); a slot is free while no post of ours is in it, an ended one included. Nothing of ours is replaced: with every slot of the kind (of the group) taken it is refused (`bulletin.taken`),
+and so it is with 36 posts of ours (`bulletin.full`). `text` is at most 67 characters of printable ASCII without `|`, `~` and `{`. It is sent at once and then on the schedule of the specification (a bulletin
+a few times early and every 20 minutes, an announcement every hour) for `hours`. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_bulletins`, or by an `error` that names the
+reason.
 
 | field | type | | description |
 |---|---|---|---|
-| `slot` | string |  | (max 9 chars, min 4 chars) |
+| `kind` | "bulletin" \| "announcement" \| "group" |  |  |
+| `group` | string | optional | the group of a group bulletin, 1 to 5 letters and digits (written in capitals); ignored for the other kinds (default `""`; max 5 chars) |
 | `text` | string |  | (max 512 chars, min 1 chars) |
-| `radios` | integer[] \| null | optional | the radios it goes out on, their ids; left out: a text for a slot that holds one on that one's, a new one on `status.new_bulletin_radios` (default `null`; max 64 items) |
+| `hours` | integer \| null | optional | how long it is sent after its first packet, in hours: 1, 2, 4, 8 or 12 for a bulletin and a group bulletin, 24, 72 or 168 for an announcement; left out: `status.new_bulletin_hours` of its kind (default `null`; >= 1, <= 168) |
+| `radios` | integer[] \| null | optional | the radios it goes out on, their ids; left out: `status.new_bulletin_radios` (default `null`; max 64 items) |
 
 ### `bulletin_unpost`
 
@@ -801,6 +804,7 @@ What the daemon is, for the status bar: sent after `hello`, every 10 s, when ask
 | `unavailable_types` | string[] |  | the types of radio (keys of `RADIO_TYPES`) whose program this kind of installation does not carry (a Mac carries no Direwolf): the page does not offer them, and `radio_add` refuses them (`radio.unknown_type`) |
 | `new_object_radios` | integer[] |  | the radios a new object is ticked for (their ids, ascending), when `object_set` names none: with one radio that can send, that one; else those of the object saved last with radios named while one of them is on, else the first radio that can send |
 | `new_bulletin_radios` | integer[] |  | the radios a new bulletin goes on (their ids, ascending), when `bulletin_post` names none: as `new_object_radios`, by the bulletin posted last with radios named |
+| `new_bulletin_hours` | PostHours |  | how long a new post of each kind is sent for, in hours, when `bulletin_post` names no `hours`: the one posted last of that kind |
 | `station_status` | string |  | the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone |
 | `station_status_last_sent` | time \| null |  | when the latest status report was sent (kept over a restart); null for none yet |
 | `rig_state` | "off" \| "on" \| "unused" |  | whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while the status does not come from a radio (`status/source` is `text` or `off`) |
@@ -1064,7 +1068,7 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `station_keys` | { [key: string]: StationKey } | the public key each station announced for encrypted messages, by call: the fingerprint and when it was heard. A key heard is a `set`, `forget_station_key` a `del` |
 | `bulletins` | { [key: string]: BulletinRow } | the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del` |
 | `own_objects` | { [key: string]: OwnObjectRow } | the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations` |
-| `own_bulletins` | { [key: string]: OwnBulletinRow } | the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`) |
+| `own_bulletins` | { [key: string]: OwnBulletinRow } | the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one in a free slot (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`) |
 | `map` | MapState | the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, the ALOHA circle, and the layers of traffic; told whole as it changes, at most four times a second |
 | `update` | UpdateState | Update now: whether this copy can update itself, and the steps of the update it is doing; told whole as it changes, at most four times a second |
 | `gps` | GpsState | the GPS receiver and the moving station's beacon: the latest fix, its state, and when the next beacon by time is due; told whole as it changes, at most once a second |
@@ -1840,7 +1844,7 @@ One version's section of the changelog.
 ### OwnBulletinRow
 
 One bulletin, announcement or group bulletin of ours: its text and where its schedule stands. The rows are the values of the topic `own_bulletins`, keyed by `slot` (`BLN1`): a bulletin that is posted, and
-each time it is sent, is a `set` of its row, one that is deleted (`bulletin_unpost`) a `del`. One whose schedule is over stays, with a null `next_at`, until it is deleted or posted again.
+each time it is sent, is a `set` of its row, one that is deleted (`bulletin_unpost`) a `del`. One whose schedule is over stays, with a null `next_at`, until it is deleted.
 
 | field | type | | description |
 |---|---|---|---|
@@ -1848,10 +1852,11 @@ each time it is sent, is a `set` of its row, one that is deleted (`bulletin_unpo
 | `group` | string |  | the group of a group bulletin (`HAMS`); empty for any other |
 | `kind` | "bulletin" \| "announcement" \| "group" |  |  |
 | `text` | string |  |  |
+| `hours` | integer |  | how long it is sent after its first packet, in hours: 1, 2, 4, 8 or 12 for a bulletin and a group bulletin, 24, 72 or 168 for an announcement (>= 1, <= 168) |
 | `posted_at` | time |  | when the text was posted |
 | `sent` | integer |  | how often it was sent (>= 0) |
 | `last_sent_at` | time \| null |  | when it was last sent; null while it has not been sent |
-| `next_at` | time \| null |  | when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes, 30 while a radio it goes out on is Mercury or LoRa, until 4 hours after the first; an announcement: the same early, then every hour until 72 hours after the first) |
+| `next_at` | time \| null |  | when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes, 30 while a radio it goes out on is Mercury or LoRa; an announcement: the same early, then every hour; either until `hours` after the first); a repeat after the radio's random pause, which is never longer than the wait nor past the end |
 | `radios` | integer[] |  | the radios it is set to go out on (Send on), their ids, ascending, one at least, kept also while off; the radios it goes on now are those of them that are on and can send (with one radio that can send, that one; with none of them on, none) |
 
 ### OwnObjectRow
@@ -1880,7 +1885,7 @@ map shows; a killed one leaves that topic at once and stays here, as `killing`, 
 | `updated_at` | time |  | when it was last changed or killed |
 | `sent` | integer |  | how often it was sent since it was last changed or killed (>= 0) |
 | `last_sent_at` | time \| null |  | when it was last sent; null while it has not been sent (the call is not set, or the radio is away) |
-| `next_at` | time \| null |  | when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart (30 minutes on Mercury and LoRa: the radio's floor); a time that has passed means it waits for the radio or for the call; null for one that is `on_request` |
+| `next_at` | time \| null |  | when it is sent next: 1, 2, 4 ... minutes after the slot of the last packet, never more than the net cycle time of its path apart (30 minutes on Mercury and LoRa: the radio's floor), plus the radio's random pause, which is never longer than the wait; a time that has passed means it waits for the radio or for the call; null for one that is `on_request` |
 
 ### PassStats
 
@@ -1919,6 +1924,16 @@ A serial port the system lists, or a Bluetooth device paired with it (Linux; on 
 | `pid` | integer \| null |  | the USB product id of an adapter; null for a port that is not USB |
 | `held_by` | integer \| null |  | the radio of the station that holds the port now (its id), 0 for the GPS receiver; null while none of ours does. A port another radio holds is not proposed, and the page greys it with the holder's name |
 | `usb_group` | string \| null | optional | which USB device the port sits on together with the others of one radio (an opaque token: equal for a sound card and the serial ports on one radio's own USB hub, or on one USB device; neoaprs/usbtie.py); null where it is not known (Windows, macOS, a port that is not USB, a Bluetooth device). The page orders the keying lines by it and never shows it (default `null`) |
+
+### PostHours
+
+The Sent for a new post of each kind starts with, in hours: the one posted last of that kind, else 4, 72 and 4.
+
+| field | type | | description |
+|---|---|---|---|
+| `bulletin` | integer |  |  |
+| `announcement` | integer |  |  |
+| `group` | integer |  |  |
 
 ### QruAsked
 
@@ -1987,7 +2002,7 @@ The radio's own beacon timer.
 | field | type | | description |
 |---|---|---|---|
 | `last_sent` | time \| null |  | when our position last went out on it; null before one |
-| `next_due` | time \| null |  | when the next timed beacon is due on it; null while none is planned (off, a moving station, the radio off) |
+| `next_due` | time \| null |  | when the next timed beacon is due on it: its slot and the radio's random pause; null while none is planned (off, a moving station, the radio off) |
 | `interval_min` | integer |  | the interval in force on it, in minutes: `beacon/interval_min` raised to the radio's own floor; 0 while the beacon does not go out on it (off, Send on not ticked, the radio off) (>= 0) |
 | `problem` | RadioProblem \| null |  | why the latest beacon due on it did not go out (`transmit.off`, `beacon.not_sent`); null after one that did |
 
@@ -2099,7 +2114,7 @@ The status report on the radio (services/rigstatus.py `on_radio`).
 | field | type | | description |
 |---|---|---|---|
 | `last_sent` | time \| null |  | when our status report last went out on it; null before one |
-| `next_due` | time \| null |  | when the next timed report is due on it: an interval after its last; null while none is (the status does not go on it, the beacon or the status is off, none sent on it yet) |
+| `next_due` | time \| null |  | when the next timed report is due on it: an interval after the slot of its last, and the radio's random pause; null while none is (the status does not go on it, the beacon or the status is off, none sent on it yet) |
 | `interval_min` | integer |  | the interval in force on it, in minutes: `status/interval_min` raised to the radio's own floor (`limits.beacon_min_min` on HF and LoRa); 0 while the status does not go out on it (>= 0) |
 
 ### ReachValues

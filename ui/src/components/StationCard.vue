@@ -35,16 +35,8 @@ import { heardTimes, internetOnly } from "@/lib/channels";
 import { extensionRows, frequencyText } from "@/lib/details";
 import { heardDirect, internetText, reachedText } from "@/lib/routes";
 import { canForget, canMessage, symbolLabel } from "@/lib/stations";
-import {
-  HOUR_MS,
-  agoWords,
-  altitudeText,
-  bearingText,
-  dateTimeText,
-  distanceText,
-  positionText,
-  speedText,
-} from "@/lib/format";
+import { HOUR_MS, agoWords, bearingText, dateTimeText, positionText } from "@/lib/format";
+import { distanceWithUnit, heightText, speedText } from "@/lib/units";
 import { isWeatherStation, type Ranges } from "@/lib/weather";
 import { SIGNAL_HOURS, readingText } from "@/lib/signal";
 import { isMoving, tripStart } from "@/lib/speed";
@@ -125,7 +117,7 @@ const fromUs = computed(() =>
   props.row.distance_km === null
     ? null
     : t("station.from_us_value", {
-        distance: distanceText(props.row.distance_km),
+        distance: distanceWithUnit(props.row.distance_km),
         bearing: bearingText(props.row.bearing_deg),
       }),
 );
@@ -250,7 +242,7 @@ const internet = computed(() => (!props.row.is_me && !props.row.own ? internetTe
         </template>
         <template v-if="row.altitude_m !== null">
           <dt>{{ t("station.field.altitude") }}</dt>
-          <dd>{{ altitudeText(row.altitude_m) }}</dd>
+          <dd>{{ heightText(row.altitude_m) }}</dd>
         </template>
         <template v-if="row.frequency !== null">
           <dt>{{ t("station.field.frequency") }}</dt>

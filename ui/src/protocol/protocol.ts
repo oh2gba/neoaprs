@@ -98,12 +98,16 @@ export interface BulletinDeleteCommand {
   slot: string;
 }
 
-/** Posts a bulletin, an announcement or a group bulletin of ours: `slot` is `BLN0`..`BLN9`, `BLNA`..`BLNZ` or `BLN`, a number and a group of up to five characters (`BLN3HAMS`), `text` at most 67 characters of printable ASCII without `|`, `~` and `{`. It is sent at once and then on the schedule of the specification (a bulletin a few times early and every 20 minutes for 4 hours, an announcement every hour for 72 hours); a text for a slot that holds one replaces it; `radios` the radios it goes out on (their ids). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_bulletins`, or by an `error` that names the reason. */
+/** Posts a bulletin, an announcement or a group bulletin of ours in the lowest free slot of its kind: `BLN0`..`BLN9` for a bulletin, `BLNA`..`BLNZ` for an announcement, `BLN0`..`BLN9` and the group for a group bulletin (`BLN0HAMS`); a slot is free while no post of ours is in it, an ended one included. Nothing of ours is replaced: with every slot of the kind (of the group) taken it is refused (`bulletin.taken`), and so it is with 36 posts of ours (`bulletin.full`). `text` is at most 67 characters of printable ASCII without `|`, `~` and `{`. It is sent at once and then on the schedule of the specification (a bulletin a few times early and every 20 minutes, an announcement every hour) for `hours`. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_bulletins`, or by an `error` that names the reason. */
 export interface BulletinPostCommand {
   cmd: "bulletin_post";
-  slot: string;
+  kind: "bulletin" | "announcement" | "group";
+  /** the group of a group bulletin, 1 to 5 letters and digits (written in capitals); ignored for the other kinds */
+  group?: string;
   text: string;
-  /** the radios it goes out on, their ids; left out: a text for a slot that holds one on that one's, a new one on `status.new_bulletin_radios` */
+  /** how long it is sent after its first packet, in hours: 1, 2, 4, 8 or 12 for a bulletin and a group bulletin, 24, 72 or 168 for an announcement; left out: `status.new_bulletin_hours` of its kind */
+  hours?: number | null;
+  /** the radios it goes out on, their ids; left out: `status.new_bulletin_radios` */
   radios?: number[] | null;
 }
 
@@ -936,7 +940,7 @@ export interface OverheardDeleteCommand {
   to_call: string;
 }
 
-/** One bulletin, announcement or group bulletin of ours: its text and where its schedule stands. The rows are the values of the topic `own_bulletins`, keyed by `slot` (`BLN1`): a bulletin that is posted, and each time it is sent, is a `set` of its row, one that is deleted (`bulletin_unpost`) a `del`. One whose schedule is over stays, with a null `next_at`, until it is deleted or posted again. */
+/** One bulletin, announcement or group bulletin of ours: its text and where its schedule stands. The rows are the values of the topic `own_bulletins`, keyed by `slot` (`BLN1`): a bulletin that is posted, and each time it is sent, is a `set` of its row, one that is deleted (`bulletin_unpost`) a `del`. One whose schedule is over stays, with a null `next_at`, until it is deleted. */
 export interface OwnBulletinRow {
   /** the addressee: `BLN1`, `BLNA`, `BLN3HAMS` */
   slot: string;
@@ -944,13 +948,15 @@ export interface OwnBulletinRow {
   group: string;
   kind: "bulletin" | "announcement" | "group";
   text: string;
+  /** how long it is sent after its first packet, in hours: 1, 2, 4, 8 or 12 for a bulletin and a group bulletin, 24, 72 or 168 for an announcement */
+  hours: number;
   /** when the text was posted */
   posted_at: string;
   /** how often it was sent */
   sent: number;
   /** when it was last sent; null while it has not been sent */
   last_sent_at: string | null;
-  /** when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes, 30 while a radio it goes out on is Mercury or LoRa, until 4 hours after the first; an announcement: the same early, then every hour until 72 hours after the first) */
+  /** when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes, 30 while a radio it goes out on is Mercury or LoRa; an announcement: the same early, then every hour; either until `hours` after the first); a repeat after the radio's random pause, which is never longer than the wait nor past the end */
   next_at: string | null;
   /** the radios it is set to go out on (Send on), their ids, ascending, one at least, kept also while off; the radios it goes on now are those of them that are on and can send (with one radio that can send, that one; with none of them on, none) */
   radios: number[];
@@ -990,7 +996,7 @@ export interface OwnObjectRow {
   sent: number;
   /** when it was last sent; null while it has not been sent (the call is not set, or the radio is away) */
   last_sent_at: string | null;
-  /** when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart (30 minutes on Mercury and LoRa: the radio's floor); a time that has passed means it waits for the radio or for the call; null for one that is `on_request` */
+  /** when it is sent next: 1, 2, 4 ... minutes after the slot of the last packet, never more than the net cycle time of its path apart (30 minutes on Mercury and LoRa: the radio's floor), plus the radio's random pause, which is never longer than the wait; a time that has passed means it waits for the radio or for the call; null for one that is `on_request` */
   next_at: string | null;
 }
 
@@ -1226,6 +1232,13 @@ export interface PositionHistoryMessage {
   stations: { [key: string]: [string, number, number][] };
 }
 
+/** The Sent for a new post of each kind starts with, in hours: the one posted last of that kind, else 4, 72 and 4. */
+export interface PostHours {
+  bulletin: number;
+  announcement: number;
+  group: number;
+}
+
 /** The request we sent last. */
 export interface QruAsked {
   /** what was asked (`INFO`, `RP70 150`) */
@@ -1323,7 +1336,7 @@ export interface RadioAllowed {
 export interface RadioBeaconState {
   /** when our position last went out on it; null before one */
   last_sent: string | null;
-  /** when the next timed beacon is due on it; null while none is planned (off, a moving station, the radio off) */
+  /** when the next timed beacon is due on it: its slot and the radio's random pause; null while none is planned (off, a moving station, the radio off) */
   next_due: string | null;
   /** the interval in force on it, in minutes: `beacon/interval_min` raised to the radio's own floor; 0 while the beacon does not go out on it (off, Send on not ticked, the radio off) */
   interval_min: number;
@@ -1531,7 +1544,7 @@ export interface RadioSent {
 export interface RadioStatusState {
   /** when our status report last went out on it; null before one */
   last_sent: string | null;
-  /** when the next timed report is due on it: an interval after its last; null while none is (the status does not go on it, the beacon or the status is off, none sent on it yet) */
+  /** when the next timed report is due on it: an interval after the slot of its last, and the radio's random pause; null while none is (the status does not go on it, the beacon or the status is off, none sent on it yet) */
   next_due: string | null;
   /** the interval in force on it, in minutes: `status/interval_min` raised to the radio's own floor (`limits.beacon_min_min` on HF and LoRa); 0 while the status does not go out on it */
   interval_min: number;
@@ -2014,6 +2027,8 @@ export interface StatusMessage {
   new_object_radios: number[];
   /** the radios a new bulletin goes on (their ids, ascending), when `bulletin_post` names none: as `new_object_radios`, by the bulletin posted last with radios named */
   new_bulletin_radios: number[];
+  /** how long a new post of each kind is sent for, in hours, when `bulletin_post` names no `hours`: the one posted last of that kind */
+  new_bulletin_hours: PostHours;
   /** the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone */
   station_status: string;
   /** when the latest status report was sent (kept over a restart); null for none yet */
@@ -2162,7 +2177,7 @@ export interface TopicValues {
   bulletins: { [key: string]: BulletinRow };
   /** the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations` */
   own_objects: { [key: string]: OwnObjectRow };
-  /** the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`) */
+  /** the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one in a free slot (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`) */
   own_bulletins: { [key: string]: OwnBulletinRow };
   /** the base map: the files, the area and detail the settings ask for, the size estimated, and the job that makes the maps, the ALOHA circle, and the layers of traffic; told whole as it changes, at most four times a second */
   map: MapState;

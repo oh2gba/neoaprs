@@ -55,6 +55,7 @@ def test_every_object_there_is_keeps_its_values_and_gets_no_group_and_the_schedu
         (33, "_v33", GOLDEN[33]),
         (34, "_v34", GOLDEN[34]),
         (35, "_v35", GOLDEN[35]),
+        (36, "_v36", GOLDEN[36]),
     ]
     assert shape(migrated.db) == shape(fresh.db), (
         "a migrated database has exactly the tables, indexes and checks of a new one"

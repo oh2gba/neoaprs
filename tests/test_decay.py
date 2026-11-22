@@ -4,9 +4,9 @@ the decay of an object, the kill and the plans of a bulletin and an announcement
 import pytest
 
 from neoaprs.decay import (
-    ANNOUNCEMENT,
-    BULLETIN,
     KILL_SENDS,
+    Plan,
+    bulletin_plan,
     bulletin_wait_sec,
     hops,
     kill_wait_sec,
@@ -90,6 +90,9 @@ def test_a_kill_is_sent_three_times_a_minute_and_two_apart() -> None:
     assert [kill_wait_sec(n) for n in (1, 2, 3, 4)] == [60, 120, None, None]
 
 
+BULLETIN, ANNOUNCEMENT = bulletin_plan(False, 4), bulletin_plan(True, 72)
+
+
 def test_a_bulletin_goes_out_early_twice_more_and_then_every_20_minutes_until_4_hours_after_the_first() -> None:
     times, sent = [0], 1
     while (wait := bulletin_wait_sec(BULLETIN, sent, times[-1])) is not None:
@@ -105,3 +108,33 @@ def test_an_announcement_goes_out_early_twice_more_and_then_every_hour_until_72_
         times.append(times[-1] + wait)
         sent += 1
     assert times[:5] == [0, 120, 360, 3960, 7560] and times[-1] <= 72 * 3600 < times[-1] + 3600 and sent == 3 + 71
+
+
+def sends(plan: Plan, floor_sec: int = 0) -> int:
+    times, sent = [0], 1
+    while (wait := bulletin_wait_sec(plan, sent, times[-1], floor_sec)) is not None:
+        times.append(times[-1] + wait)
+        sent += 1
+    assert times[-1] <= plan.lasts
+    return sent
+
+
+@pytest.mark.parametrize(
+    ("announcement", "hours", "fm", "slow"),
+    [
+        (False, 1, 5, 4),
+        (False, 2, 8, 6),
+        (False, 4, 14, 10),
+        (False, 8, 26, 18),
+        (False, 12, 38, 26),
+        (True, 24, 26, 26),
+        (True, 72, 74, 74),
+        (True, 168, 170, 170),
+    ],
+)
+def test_each_sent_for_choice_lasts_its_hours_with_its_packets_on_fm_and_on_a_radio_with_a_30_minute_floor(
+    announcement: bool, hours: int, fm: int, slow: int
+) -> None:
+    plan = bulletin_plan(announcement, hours)
+    assert plan.lasts == hours * 3600 and plan.every == (3600 if announcement else 1200)
+    assert (sends(plan), sends(plan, 1800)) == (fm, slow)

@@ -7,6 +7,7 @@ import { computed, onMounted, watch } from "vue";
 import TrendChart from "@/components/TrendChart.vue";
 import { t } from "@/i18n";
 import { speedPoints } from "@/lib/speed";
+import { chartUnit } from "@/lib/units";
 import type { SpeedSeriesMessage } from "@/protocol/protocol";
 
 const props = defineProps<{
@@ -33,7 +34,7 @@ watch(
   <div class="station-speed" data-speed>
     <TrendChart
       :title="t('station.speed_chart')"
-      unit="km/h"
+      :unit="chartUnit('speed')"
       :from="shown.from"
       :to="shown.to"
       :main="shown.points"

@@ -141,7 +141,7 @@ describe("BulletinsPane", () => {
     expect(wrapper.find(".bulletin-compose").exists()).toBe(true);
     await wrapper.find("#post-text").setValue("Hello board");
     await wrapper.find(".bulletin-compose").trigger("submit");
-    expect(sent("bulletin_post")).toEqual([{ cmd: "bulletin_post", slot: "BLN1", text: "Hello board" }]);
+    expect(sent("bulletin_post")).toEqual([{ cmd: "bulletin_post", kind: "bulletin", text: "Hello board", hours: 4 }]);
   });
 
   it("sends the radios ticked in the box with what is posted while several radios can send", async () => {
@@ -153,7 +153,7 @@ describe("BulletinsPane", () => {
     await wrapper.find("#post-text").setValue("Hello board");
     await wrapper.find(".bulletin-compose").trigger("submit");
     expect(sent("bulletin_post")).toEqual([
-      { cmd: "bulletin_post", slot: "BLN1", text: "Hello board", radios: [1, 2] },
+      { cmd: "bulletin_post", kind: "bulletin", text: "Hello board", hours: 4, radios: [1, 2] },
     ]);
   });
 

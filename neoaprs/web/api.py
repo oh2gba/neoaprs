@@ -99,6 +99,7 @@ class Api:
             "unavailable_types": list(unavailable_types()),
             "new_object_radios": list(self.ctl.ownobjects.new_radios()),
             "new_bulletin_radios": list(self.ctl.ownbulletins.new_radios()),
+            "new_bulletin_hours": self.ctl.ownbulletins.new_hours(),
             "station_status": rig.last_text,
             "station_status_last_sent": iso(rig.last_sent_at),
             "rig_state": rig.rig_state,

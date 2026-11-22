@@ -11,17 +11,8 @@ import TrendChart from "@/components/TrendChart.vue";
 import { useWxSpan } from "@/composables/useWxSpan";
 import { t } from "@/i18n";
 import { agoWords, bearingText, dateTimeText } from "@/lib/format";
-import {
-  arrowAngle,
-  columnOf,
-  hasValues,
-  humidityText,
-  pressureText,
-  rainText,
-  tempText,
-  windSpeedText,
-  type Ranges,
-} from "@/lib/weather";
+import { chartDecimals, chartPad, chartUnit, pressureText, rainText, snowText, speedText, tempText } from "@/lib/units";
+import { arrowAngle, columnOf, hasValues, humidityText, type Ranges } from "@/lib/weather";
 import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
 
 const props = defineProps<{ row: StationRow; series: WeatherSeriesMessage | null; now: number; ranges?: Ranges }>();
@@ -66,7 +57,7 @@ const windNote = computed(() => {
   if (w === null) return "";
   return [
     w.wind_dir === null ? "" : t("weather.wind_from", { bearing: bearingText(w.wind_dir) }),
-    w.gust_kmh === null ? "" : t("weather.gusts", { speed: windSpeedText(w.gust_kmh) }),
+    w.gust_kmh === null ? "" : t("weather.gusts", { speed: speedText(w.gust_kmh) }),
   ]
     .filter((part) => part !== "")
     .join(" ");
@@ -83,7 +74,7 @@ const windNote = computed(() => {
         </svg>
         <span v-else class="wx-arrow" aria-hidden="true" />
         <div>
-          <div class="wx-big">{{ windSpeedText(wx.wind_kmh) }}</div>
+          <div class="wx-big">{{ speedText(wx.wind_kmh) }}</div>
           <div class="muted">{{ windNote }}</div>
         </div>
       </div>
@@ -104,7 +95,7 @@ const windNote = computed(() => {
         </template>
         <template v-if="wx.snow_mm !== null">
           <dt>{{ t("weather.snow_24h") }}</dt>
-          <dd>{{ rainText(wx.snow_mm) }}</dd>
+          <dd>{{ snowText(wx.snow_mm) }}</dd>
         </template>
       </dl>
       <div class="wx-when muted" :title="dateTimeText(row.weather_at)">{{ heard }}</div>
@@ -129,7 +120,9 @@ const windNote = computed(() => {
       <TrendChart
         v-if="hasValues(charts.temp)"
         :title="t('weather.temperature')"
-        unit="°C"
+        :unit="chartUnit('temp')"
+        :value-decimals="chartDecimals('temp')"
+        :pad="chartPad('temp')"
         :from="from"
         :to="to"
         :main="charts.temp"
@@ -139,7 +132,9 @@ const windNote = computed(() => {
       <TrendChart
         v-if="hasValues(charts.pressure)"
         :title="t('weather.pressure')"
-        unit="hPa"
+        :unit="chartUnit('pressure')"
+        :value-decimals="chartDecimals('pressure')"
+        :pad="chartPad('pressure')"
         :from="from"
         :to="to"
         :main="charts.pressure"
@@ -149,7 +144,9 @@ const windNote = computed(() => {
       <TrendChart
         v-if="hasValues(charts.wind)"
         :title="t('weather.chart.wind')"
-        unit="km/h"
+        :unit="chartUnit('wind')"
+        :value-decimals="chartDecimals('wind')"
+        :pad="chartPad('wind')"
         :from="from"
         :to="to"
         :main="charts.wind"
@@ -161,7 +158,9 @@ const windNote = computed(() => {
       <TrendChart
         v-if="hasValues(charts.rain)"
         :title="t('weather.chart.rain')"
-        unit="mm"
+        :unit="chartUnit('rain')"
+        :value-decimals="chartDecimals('rain')"
+        :pad="chartPad('rain')"
         :from="from"
         :to="to"
         :main="charts.rain"

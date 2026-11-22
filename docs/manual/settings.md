@@ -62,6 +62,7 @@ The table below is made from the program, so it lists every setting there is, wi
 | `gps/device` | empty | My station tab, Station (Position) | the serial port of the GPS receiver for `serial`, such as `/dev/ttyUSB1` or `COM4`, or `socket://host:port` for a receiver behind a TCP serial server. Keep it apart from the radio's port (`radio/<id>/port`) |
 | `gps/baud` | `4800` | My station tab, Station (Position) | the receiver's speed on `gps/device` (300 to 921600); NMEA 0183 is 4800, and many USB receivers speak 9600 |
 | `beacon/travel` | `car` | My station tab, Beacon (Travelling) | how you travel while the beacon follows the GPS: `car`, `bicycle`, `foot` or `boat`. It decides when SmartBeaconing beacons: `car` every 60 seconds from 100 km/h, a turn of more than 30 degrees (at least 15 seconds after the last beacon); `bicycle` every 60 seconds from 30 km/h, a turn of more than 35 degrees (at least 20 seconds after the last beacon); `foot` every 120 seconds from 7 km/h, a turn of more than 45 degrees (at least 60 seconds after the last beacon); `boat` every 60 seconds from 40 km/h, a turn of more than 20 degrees (at least 30 seconds after the last beacon). Below the slow speed a station counts as standing still, so there is a beacon only every 30 minutes and no turn is beaconed. The car's numbers are Dire Wolf's; the others are NeoAPRS's own choice |
+| `units/non_metric` | `false` | Settings tab, at the top (Non-metric units) | whether every page of the station shows distances in miles (short ones in feet), heights in feet, speeds in mph, temperatures in °F, pressure in inHg and rain and snow in inches; aircraft in feet and knots, ships in knots. What you type stays metric, and nothing sent on the air changes |
 <!-- /doc-settings -->
 
 ## Aircraft and ships
@@ -152,7 +153,7 @@ These are not settings. They are fixed by design, and no field or `neoaprs db se
 - The first beacon goes out 30 seconds after the daemon starts.
 - Every frame you send has the tocall `APZNEO`. The beacon of a station that stays is the plain uncompressed position; a moving station's (`gps/source` is not `off`) is a compressed one, with the altitude in its comment.
 - A GPS fix older than 120 seconds is not used: a moving station sends no beacon on it, and never the home position instead.
-- At most 50 objects and items, and 36 bulletins, of your own at once. A bulletin is sent for 4 hours and an announcement for 72 hours.
+- At most 50 objects and items, and 36 bulletins, of your own at once. A bulletin is sent for 1, 2, 4, 8 or 12 hours and an announcement for 1, 3 or 7 days, as chosen under Sent for (4 hours and 3 days until you choose).
 - The update check asks the version page every 24 hours.
 - A beacon interval below a radio's floor is raised to it: 30 minutes on a Mercury radio, 30 on a LoRa radio, 20 on an FM radio. The beacon of a Mercury or a LoRa radio waits a random extra time after each interval (up to 300 seconds on a Mercury radio, 300 on LoRa), so that stations started together do not key up together.
 - A frame on a Mercury radio is at most 123 bytes, addresses included. A beacon's comment is cut to fit, and the longest message always fits.
@@ -172,6 +173,7 @@ These rows are written by the daemon so that a restart goes on where it stopped.
 - `messages/radio_by_station`: the radio the operator chose for messages to a station, by call and the radio's number, while several radios that can send are on.
 - `objects/send_on`: the radios of the object saved last with radios of its own (`1,3`), which a new object starts with.
 - `bulletins/send_on`: the radios of the bulletin posted last with radios of its own, which a new bulletin starts with.
+- `bulletins/sent_for_hours`: how long the post of each kind posted last is sent for, in hours, which a new post of that kind starts with.
 - `update/install_id`: the random number of this installation that the update check sends.
 - `update/not_counted`: `true` when the update check is to send the number 0 in place of this installation's own, so that the project does not count this run (a test machine; a run from the source tree does it by itself); set with `neoaprs db set update/not_counted true`, never shown on the page.
 - `update/sked_token`: the secret of this installation that goes with each HF test it posts, so that only it can delete them; never shown in the log or the support bundle.

@@ -3,13 +3,13 @@
 // decoded JSON stay behind "Raw". Everything here is a plain function of one packet row.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
-import { altitudeText, bearingText, dateTimeText, positionText, speedText } from "@/lib/format";
+import { bearingText, dateTimeText, positionText } from "@/lib/format";
 import { packetCameBy, packetTag } from "@/lib/channels";
 import { frequencyText, sentTimeText, stormText } from "@/lib/details";
 import { routeWords } from "@/lib/routes";
 import type { PageRadio } from "@/lib/radios";
 import { readingText } from "@/lib/signal";
-import { tempText } from "@/lib/weather";
+import { heightText, speedText, tempText } from "@/lib/units";
 import type {
   DecodedOther,
   DecodedStatus,
@@ -98,7 +98,7 @@ function positionFacts(p: PositionFields): Fact[] {
           : t("station.speed_course", { speed: speedText(p.speed_kmh), course: bearingText(p.course_deg) }),
     });
   }
-  if (p.altitude_m !== null) facts.push({ label: t("station.field.altitude"), text: altitudeText(p.altitude_m) });
+  if (p.altitude_m !== null) facts.push({ label: t("station.field.altitude"), text: heightText(p.altitude_m) });
   if (p.weather !== null && weatherText(p.weather) !== "")
     facts.push({ label: t("packets.fact.weather"), text: weatherText(p.weather) });
   if (p.frequency !== null) facts.push({ label: t("station.field.frequency"), text: frequencyText(p.frequency) });

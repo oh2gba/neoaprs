@@ -4,7 +4,8 @@
 // it works with no page open; a page is told what fired by the message `station_alert` and says
 // it in its own language.
 import { t } from "@/i18n";
-import { distanceText, hourMinuteText } from "@/lib/format";
+import { hourMinuteText } from "@/lib/format";
+import { distanceWithUnit } from "@/lib/units";
 import { LIMITS } from "@/protocol/lists";
 import type { AlertWhen, StationAlertMessage, StationRow } from "@/protocol/protocol";
 
@@ -40,7 +41,7 @@ export function alertSummary(alert: AlertWhen): string {
  */
 export function firedText(message: Pick<StationAlertMessage, "call" | "kind" | "km">): string {
   if (message.kind === "within")
-    return t("station.alert.fired.within", { call: message.call, km: distanceText(message.km) });
+    return t("station.alert.fired.within", { call: message.call, distance: distanceWithUnit(message.km) });
   return message.kind === "on_air"
     ? t("station.alert.fired.on_air", { call: message.call })
     : t("station.alert.fired.direct", { call: message.call });

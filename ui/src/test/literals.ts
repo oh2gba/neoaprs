@@ -10,7 +10,7 @@
 //    mostly an identifier: `state === 'acked'`); the id inside `t("...")` is not a literal.
 import { parse } from "vue/compiler-sfc";
 
-const ALLOWED = ["NeoAPRS", "Neo", "APRS", "QRZ", "km", "hPa", "mm", "MB", "kB", "GB", "MHz", "kHz", "Hz", "min"];
+const ALLOWED = ["NeoAPRS", "Neo", "APRS", "QRZ", "km", "MB", "kB", "GB", "MHz", "kHz", "Hz", "min"];
 const ATTRIBUTES = ["title", "placeholder", "aria-label", "label", "alt"];
 const WORD = /\p{L}{2,}/u;
 const STRING = /'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"|`((?:[^`\\$]|\\.|\$(?!\{))*)`/g;

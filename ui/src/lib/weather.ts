@@ -1,18 +1,29 @@
 // The weather as the page writes and draws it: readings as text, the wind arrow's angle, and the
 // `weather_series` message cut into the points of one graph.
-import { formatNumber } from "@/i18n";
-import { NONE, speedText } from "@/lib/format";
+import { NONE } from "@/lib/format";
 import { extent, type Point } from "@/lib/chart";
+import { chartPad, chartValue, tempText, type ChartQuantity } from "@/lib/units";
 import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
 
 /** The columns of a point after its time. */
 type Column = "temp" | "pressure" | "wind" | "gust" | "rain" | "humidity";
 const COLUMN_INDEX: Record<Column, number> = { temp: 1, pressure: 2, wind: 3, gust: 4, rain: 5, humidity: 6 };
+const QUANTITY_OF: Partial<Record<Column, ChartQuantity>> = {
+  temp: "temp",
+  pressure: "pressure",
+  wind: "wind",
+  gust: "wind",
+  rain: "rain",
+};
 
-/** One column of the series as points (time in ms, value or null). */
+/** One column of the series as points (time in ms, value in the units shown, or null). */
 export function columnOf(series: WeatherSeriesMessage | null, column: Column): Point[] {
   const index = COLUMN_INDEX[column];
-  return (series?.points ?? []).map((point) => ({ t: Date.parse(point[0]), v: point[index] as number | null }));
+  const quantity = QUANTITY_OF[column];
+  return (series?.points ?? []).map((point) => {
+    const v = point[index] as number | null;
+    return { t: Date.parse(point[0]), v: v === null || quantity === undefined ? v : chartValue(quantity, v) };
+  });
 }
 
 /** The quantities with a graph each, for the axes cards share. */
@@ -40,7 +51,7 @@ export function sharedRanges(all: readonly (WeatherSeriesMessage | null)[], hour
     const values = used.flatMap((series) =>
       columns.flatMap((column) => columnOf(series, column).flatMap((p) => (p.v === null ? [] : [p.v]))),
     );
-    if (values.length > 0) out[quantity] = extent(values, zero);
+    if (values.length > 0) out[quantity] = extent(values, zero, quantity === "humidity" ? 1 : chartPad(quantity));
   }
   return out;
 }
@@ -55,23 +66,8 @@ export function isWeatherStation(row: StationRow): boolean {
   return row.weather !== null || row.symbol_code === "_";
 }
 
-export function tempText(c: number | null | undefined): string {
-  return c === null || c === undefined ? NONE : `${formatNumber(c, 1)} °C`;
-}
-
-export function pressureText(hpa: number | null): string {
-  return hpa === null ? NONE : `${formatNumber(hpa, 1)} hPa`;
-}
-
 export function humidityText(percent: number | null): string {
   return percent === null ? NONE : `${percent} %`;
-}
-
-/** `speedText` under the name that WeatherPanel.vue imports. */
-export const windSpeedText = speedText;
-
-export function rainText(mm: number | null): string {
-  return mm === null ? NONE : `${formatNumber(mm, 1)} mm`;
 }
 
 /**

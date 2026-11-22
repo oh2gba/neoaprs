@@ -56,8 +56,9 @@ class Plan:
     lasts: int  # no transmission later than this after the first
 
 
-BULLETIN = Plan(early=(120, 240), every=20 * 60, lasts=4 * 3600)
-ANNOUNCEMENT = Plan(early=(120, 240), every=3600, lasts=72 * 3600)
+def bulletin_plan(announcement: bool, hours: int) -> Plan:
+    """Return the plan of a bulletin or an announcement sent for `hours` after its first packet."""
+    return Plan(early=(120, 240), every=3600 if announcement else 20 * 60, lasts=hours * 3600)
 
 
 def bulletin_wait_sec(plan: Plan, sent: int, since_first_sec: float, floor_sec: int = 0) -> int | None:

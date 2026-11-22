@@ -11,7 +11,7 @@ from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.migrationsteps35 import _v35
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
-from tests.support.migrated import opened
+from tests.support.migrated import opened, step_back
 from tests.test_migrations import GOLDEN, raw
 
 KEY = "map/radius_km"
@@ -22,6 +22,7 @@ def version_34(path: Path, radius: str | None) -> None:
     opened(path, FixedClock()).close()
     db = raw(path)
     db.execute("DELETE FROM schema_history WHERE version >= 35")
+    step_back(db, 34)
     db.execute("PRAGMA user_version = 34")
     db.execute("DELETE FROM settings WHERE key = ?", (KEY,))
     if radius is not None:
@@ -57,7 +58,7 @@ def test_a_radius_above_300_km_is_brought_to_300_and_the_others_are_left(
     path = tmp_path / DB_NAME
     version_34(path, was)
     s = opened(path, FixedClock())
-    assert s.version() == SCHEMA_VERSION and [(r[0], r[1], r[2]) for r in s.history()][-1] == (35, "_v35", GOLDEN[35])
+    assert s.version() == SCHEMA_VERSION and (35, "_v35", GOLDEN[35]) in [(r[0], r[1], r[2]) for r in s.history()]
     s.close()
     assert stored(path) == now
 

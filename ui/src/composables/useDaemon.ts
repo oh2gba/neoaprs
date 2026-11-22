@@ -31,6 +31,7 @@ import { usePageErrorReport } from "@/composables/usePageErrorReport";
 import { probe } from "@/lib/access";
 import { fillTable, Hub, type Connection, type Store } from "@/lib/hub";
 import { describeMismatch, reloadForDaemon, type Mismatch } from "@/lib/reload";
+import { takeUnits } from "@/lib/units";
 
 export function socketUrl(): string {
   const url = new URL("ws", document.baseURI);
@@ -84,7 +85,10 @@ function useWholeTopics() {
     | "radioLevel"
     | "layerThings"
   > = {
-    replaceConfig: (value) => (refs.config.value = value),
+    replaceConfig: (value) => {
+      refs.config.value = value;
+      takeUnits(value.values);
+    },
     replaceMap: (value) => (refs.map.value = value),
     replaceUpdate: (value) => (refs.selfUpdate.value = value),
     replaceGps: (value) => (refs.gps.value = value),

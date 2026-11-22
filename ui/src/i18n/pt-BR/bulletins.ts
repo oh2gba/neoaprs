@@ -23,31 +23,24 @@ export const bulletins: Record<keyof typeof source, Message> = {
 
   "bulletins.post_label": "Publicar um boletim",
   "bulletins.kind": "Tipo",
-  "bulletins.kind.bulletin": { one: "Boletim (enviado por {n} hora)", other: "Boletim (enviado por {n} horas)" },
-  "bulletins.kind.announcement": { one: "Aviso (enviado por {n} dia)", other: "Aviso (enviado por {n} dias)" },
-  "bulletins.kind.group": {
-    one: "Boletim de grupo (para um grupo, enviado por {n} hora)",
-    other: "Boletim de grupo (para um grupo, enviado por {n} horas)",
-  },
-  "bulletins.letter": "Letra",
-  "bulletins.number": "Número",
+  "bulletins.kind_name.bulletin": "Boletim",
+  "bulletins.kind_name.announcement": "Aviso",
+  "bulletins.kind_name.group": "Boletim de grupo",
+  "bulletins.sent_for": "Enviado por",
   "bulletins.group": "Grupo",
   "bulletins.group_placeholder": "Nome",
   "bulletins.text": "Texto",
   "bulletins.tip.hours": { one: "{n} hora", other: "{n} horas" },
   "bulletins.tip.days": { one: "{n} dia", other: "{n} dias" },
-  "bulletins.tip.kind1":
-    "Um boletim e um aviso são exibidos por toda estação que os recebe. O boletim é para o que importa agora e é enviado por {hours}; o aviso é para o que continua valendo e é enviado por {days}.",
-  "bulletins.tip.kind2":
-    "Um boletim de grupo é enviado por {hours}; toda estação o exibe, a menos que o seu operador tenha escolhido outros grupos para exibir.",
-  "bulletins.tip.id1":
-    "O número dá nome à publicação, e uma letra a dá a um aviso; uma nova publicação com ele a substitui.",
-  "bulletins.tip.id2": "Publicar de novo com o mesmo número ou letra envia o novo texto desde o início.",
+  "bulletins.tip.kinds1":
+    "Um boletim e um aviso são exibidos por toda estação que os recebe: o boletim para o que importa agora, o aviso para o que continua valendo por dias.",
+  "bulletins.tip.kinds2":
+    "Um boletim de grupo é para um só grupo; toda estação o exibe, a menos que o seu operador tenha escolhido outros grupos para exibir.",
+  "bulletins.tip.sent_for": "Por quanto tempo a publicação é repetida, contado a partir do primeiro pacote.",
   "bulletins.tip.group1":
     "O nome faz parte do endereço, como em BLN3HAMS, então toda estação recebe o boletim e o exibe, a menos que o seu operador tenha escolhido outros grupos para exibir.",
   "bulletins.tip.group2": "O NeoAPRS exibe os boletins de todos os grupos que recebe, em Mensagens de grupo.",
   "bulletins.tip.text1": "Até {max} caracteres, imprimíveis, nenhum de {forbidden}.",
-  "bulletins.tip.text2": "Sai em um pacote de rádio, repetido pelo tempo do tipo.",
+  "bulletins.tip.text_repeat": "Sai em um único pacote de rádio, repetido pelo tempo escolhido em Enviado por.",
   "bulletins.post": "Publicar",
-  "bulletins.replace": "Substituir",
 };

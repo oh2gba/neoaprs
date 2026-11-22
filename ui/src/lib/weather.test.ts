@@ -6,12 +6,9 @@ import {
   humidityText,
   isWeatherStation,
   markerWeather,
-  pressureText,
-  rainText,
   sharedRanges,
-  tempText,
-  windSpeedText,
 } from "@/lib/weather";
+import { pressureText, rainText, speedText as windSpeedText, takeUnits, tempText } from "@/lib/units";
 import { NOW, ago, series, station, weather, weatherStation } from "@/test/fixtures";
 
 describe("the readings as text", () => {
@@ -122,5 +119,35 @@ describe("sharedRanges: the value axes that several weather cards share", () => 
   it("leaves out a quantity that no series has", () => {
     const only = make("OH2ZWD", 24, [[3, null, null, null, null, null]]);
     expect(Object.keys(sharedRanges([only], 24))).toEqual(["temp"]);
+  });
+});
+
+describe("the weather in the non-metric units", () => {
+  const one = (temp: number, pressure: number) => ({
+    type: "weather_series" as const,
+    call: "OH2ZWE",
+    hours: 24,
+    points: [[ago(600), temp, pressure, 16.09344, 32.18688, 25.4, 50]] as ReturnType<typeof series>["points"],
+  });
+
+  it("cuts the series into points in °F, inHg, mph and inches, and leaves the humidity", () => {
+    takeUnits({ "units/non_metric": "true" });
+    const s = one(-40, 1013.2);
+    expect(columnOf(s, "temp")[0]?.v).toBeCloseTo(-40, 9);
+    expect(columnOf(s, "pressure")[0]?.v).toBeCloseTo(29.9198, 4);
+    expect(columnOf(s, "wind")[0]?.v).toBeCloseTo(10, 9);
+    expect(columnOf(s, "gust")[0]?.v).toBeCloseTo(20, 9);
+    expect(columnOf(s, "rain")[0]?.v).toBeCloseTo(1, 9);
+    expect(columnOf(s, "humidity")[0]?.v).toBe(50);
+    expect(markerWeather(weatherStation())).toBe("50 °F");
+  });
+
+  it("shares axes in the units shown, and a single reading has an axis close round it", () => {
+    takeUnits({ "units/non_metric": "true" });
+    const ranges = sharedRanges([one(-5, 1013.2), one(12, 1013.2)], 24);
+    expect(ranges.temp?.[0]).toBeCloseTo(23, 9);
+    expect(ranges.temp?.[1]).toBeCloseTo(53.6, 9);
+    const [lo = 0, hi = 0] = ranges.pressure ?? [];
+    expect([lo > 29.82, hi < 30.02, hi - lo]).toEqual([true, true, expect.closeTo(0.06, 9)]);
   });
 });

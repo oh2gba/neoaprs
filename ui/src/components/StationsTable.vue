@@ -45,7 +45,7 @@ import { t } from "@/i18n";
 import { timedOut } from "@/lib/aging";
 import { normalizeCall, validCall } from "@/lib/calls";
 import { heardTags, internetOnly } from "@/lib/channels";
-import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
+import { ageText, bearingTitle, dateTimeText } from "@/lib/format";
 import { isGateway } from "@/lib/messages";
 import { receivedFrom } from "@/lib/qru";
 import { STATIONS_TWO_RADIOS } from "@/lib/layout";
@@ -61,6 +61,7 @@ import {
   type Sort,
   type SortKey,
 } from "@/lib/stations";
+import { distanceText, distanceUnit } from "@/lib/units";
 import type { StationRow } from "@/protocol/protocol";
 
 const props = withDefaults(
@@ -97,7 +98,7 @@ const columns = computed<{ key: SortKey | null; title: string; numeric?: boolean
   { key: null, title: "" },
   { key: "call", title: t("station.table.call") },
   { key: null, title: t("station.hover.via") },
-  { key: "distance_km", title: "km", numeric: true },
+  { key: "distance_km", title: distanceUnit(), numeric: true },
   { key: null, title: t("station.table.bearing") },
   { key: "last_heard", title: t("station.field.last_heard"), numeric: true },
   { key: null, title: "" },

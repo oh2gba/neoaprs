@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cardLabels, cardRows, hoverRows, thingSub, thingTitle } from "@/lib/layers/card";
 import { shipKind } from "@/lib/layers/shipkinds";
+import { takeUnits } from "@/lib/units";
 import { NOW, ago } from "@/test/fixtures";
 import { aircraft, ship } from "@/test/layerfixtures";
 
@@ -225,5 +226,24 @@ describe("the kinds of ship", () => {
       [100, null],
     ];
     for (const [type, kind] of kinds) expect([type, shipKind(type)]).toEqual([type, kind]);
+  });
+});
+
+describe("a thing in the non-metric units", () => {
+  it("says an aircraft's altitude in feet, its speed in knots and its vertical speed in ft/min, a ship's speed in knots", () => {
+    takeUnits({ "units/non_metric": "true" });
+    expect(pairs(cardRows("aircraft", aircraft({ at: ago(12), vertical_ms: -3.3 }), "adsbfi", NOW))).toEqual(
+      expect.arrayContaining([
+        ["Altitude", "8000 ft"],
+        ["Vertical speed", "−650 ft/min"],
+        ["Speed", "227 kn"],
+      ]),
+    );
+    expect(pairs(hoverRows("aircraft", aircraft({ at: ago(4) }), NOW)).slice(0, 2)).toEqual([
+      ["Altitude", "8000 ft"],
+      ["Speed", "227 kn"],
+    ]);
+    expect(pairs(cardRows("ships", ship({ at: ago(120) }), "fintraffic", NOW))).toContainEqual(["Speed", "12 kn"]);
+    expect(pairs(hoverRows("ships", ship({ at: ago(4), speed_kmh: 0.556 }), NOW))[0]).toEqual(["Speed", "0.3 kn"]);
   });
 });

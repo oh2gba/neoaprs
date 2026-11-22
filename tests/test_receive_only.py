@@ -131,7 +131,7 @@ async def test_a_new_message_a_retry_an_object_and_a_bulletin_are_refused_with_t
         e.ctl.ownobjects.set("LEADER", "object", lat=60.17, lon=24.94, symbol_table="/", symbol_code=">")
     assert obj.value.code == "transmit.off"
     with pytest.raises(PostError) as bulletin:
-        e.ctl.ownbulletins.post("BLN1", "Net tonight")
+        e.ctl.ownbulletins.post("bulletin", "Net tonight")
     assert bulletin.value.code == "transmit.off"
     await e.stop()
 

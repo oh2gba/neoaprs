@@ -27,7 +27,17 @@ OBJECT_COLUMNS = (
     "on_request",
     "radios",
 )
-BULLETIN_COLUMNS = ("slot", "group_name", "text", "created_at", "sent", "first_sent_at", "last_sent_at", "radios")
+BULLETIN_COLUMNS = (
+    "slot",
+    "group_name",
+    "text",
+    "created_at",
+    "sent",
+    "first_sent_at",
+    "last_sent_at",
+    "radios",
+    "lasts_h",
+)
 
 
 def object_columns() -> tuple[str, ...]:
@@ -59,7 +69,7 @@ def all_objects(db: sqlite3.Connection) -> list[Row]:
 
 
 def save_bulletin(db: sqlite3.Connection, row: Sequence[object]) -> None:
-    """Store a bulletin, replacing one in the same slot."""
+    """Store a bulletin, writing over the row of its slot."""
     db.execute(_SAVE_BULLETIN, tuple(row))
 
 

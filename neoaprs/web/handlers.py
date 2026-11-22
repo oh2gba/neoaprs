@@ -505,7 +505,7 @@ async def bulletin_post(ctx: Ctx, cmd: BulletinPost) -> None:
     for id in cmd.radios or ():
         named_radio(ctx, cmd.cmd, id)
     with refused(cmd.cmd):
-        ctx.ctl.ownbulletins.post(cmd.slot, cmd.text, cmd.radios)
+        ctx.ctl.ownbulletins.post(cmd.kind, cmd.text, cmd.group, cmd.hours, cmd.radios)
 
 
 @command(BulletinUnpost)

@@ -72,6 +72,7 @@ def migrate(folder: Path):  # type: ignore[no-untyped-def]
         (33, "_v33", GOLDEN[33]),
         (34, "_v34", GOLDEN[34]),
         (35, "_v35", GOLDEN[35]),
+        (36, "_v36", GOLDEN[36]),
     ]
     return migrated
 

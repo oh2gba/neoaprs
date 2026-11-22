@@ -9,6 +9,7 @@ import {
   telemetryBitsText,
   telemetryText,
 } from "@/lib/details";
+import { takeUnits } from "@/lib/units";
 import { packet } from "@/test/fixtures";
 import type { ExtensionValues, FrequencyValues, PacketRow, StormValues, TelemetryValues } from "@/protocol/protocol";
 
@@ -175,5 +176,37 @@ describe("sentTimeText", () => {
       },
     } as PacketRow;
     expect(sentTimeText(object)).toBe("09 23:45 local");
+  });
+});
+
+describe("the details in the non-metric units", () => {
+  it("say heights in feet and ranges, radii and winds in miles and mph, and leave the telemetry as sent", () => {
+    takeUnits({ "units/non_metric": "true" });
+    expect(
+      extensionRows({
+        phg: { power_w: 25, height_m: 6.1, gain_db: 3, direction_deg: 90, range_km: 12.8 },
+        range_km: 80.5,
+        dfs: { strength: 2, height_m: 24.4, gain_db: 6, direction_deg: null },
+        df_bearing: { bearing_deg: 270, hits: 7, range_km: 6.4, quality: 9 },
+        area: null,
+      }).map((row) => row.text),
+    ).toEqual(["25 W, 20 ft, 3 dB, range 8 mi", "50 mi", "S2, 80 ft, 6 dB", "270°, range 4 mi, quality 9, hits 7"]);
+    expect(frequencyText(frequency({ tone_hz: 118, offset_khz: -600, range_km: 40.2 }))).toBe(
+      "145.775 MHz, tone 118 Hz, -600 kHz, range 25 mi",
+    );
+    expect(
+      stormText({
+        storm_type: "HC",
+        wind_kmh: 277.8,
+        gust_kmh: 370.4,
+        pressure_hpa: 980,
+        hurricane_radius_km: 166.7,
+        storm_radius_km: 55.6,
+        gale_radius_km: null,
+      }),
+    ).toBe(
+      "Hurricane, wind 173 mph, gusts 230 mph, pressure 28.94 inHg, hurricane winds out to 104 mi, tropical storm winds out to 35 mi",
+    );
+    expect(telemetryText(telemetry)).toBe("#5: Battery 1034.8 v/100, A2 0.46");
   });
 });

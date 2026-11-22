@@ -4,7 +4,8 @@
 // (which may be the sender's local time).
 import { formatNumber, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
-import { bearingTitle, dateTimeText, distanceText, pad2, positionText, speedText } from "@/lib/format";
+import { bearingTitle, dateTimeText, pad2, positionText } from "@/lib/format";
+import { distanceWithUnit, heightText, rangeText, speedText, stormPressureText } from "@/lib/units";
 import type {
   AreaValues,
   DecodedObject,
@@ -48,19 +49,19 @@ export function extensionRows(ext: ExtensionValues | null): DetailRow[] {
       label: "PHG",
       text: t("station.ext.phg_value", {
         power: p.power_w,
-        height: Math.round(p.height_m),
+        height: heightText(p.height_m),
         gain: p.gain_db,
-        range: Math.round(p.range_km),
+        range: rangeText(p.range_km),
       }),
       direction: directivity(p.direction_deg),
     });
   }
-  if (ext.range_km !== null) rows.push({ label: t("station.ext.range"), text: `${Math.round(ext.range_km)} km` });
+  if (ext.range_km !== null) rows.push({ label: t("station.ext.range"), text: rangeText(ext.range_km) });
   if (ext.dfs !== null) {
     const d = ext.dfs;
     rows.push({
       label: t("station.ext.df_signal"),
-      text: t("station.ext.dfs_value", { strength: d.strength, height: Math.round(d.height_m), gain: d.gain_db }),
+      text: t("station.ext.dfs_value", { strength: d.strength, height: heightText(d.height_m), gain: d.gain_db }),
       direction: directivity(d.direction_deg),
     });
   }
@@ -70,7 +71,7 @@ export function extensionRows(ext: ExtensionValues | null): DetailRow[] {
       label: t("station.ext.df_bearing"),
       text: t("station.ext.df_bearing_value", {
         bearing: b.bearing_deg,
-        range: Math.round(b.range_km),
+        range: rangeText(b.range_km),
         quality: b.quality,
         hits: b.hits,
       }),
@@ -177,7 +178,7 @@ export function frequencyText(f: FrequencyValues): string {
   if (f.tone_burst) parts.push(t("station.freq.burst"));
   if (f.narrow) parts.push(t("station.freq.narrow"));
   if (f.offset_khz !== null) parts.push(f.offset_khz === 0 ? t("station.freq.simplex") : offsetText(f.offset_khz));
-  if (f.range_km !== null) parts.push(t("station.freq.range", { km: distanceText(f.range_km) }));
+  if (f.range_km !== null) parts.push(t("station.freq.range", { distance: distanceWithUnit(f.range_km) }));
   if (f.rx_mhz !== null) parts.push(t("station.freq.receive", { mhz: formatNumber(f.rx_mhz, 3) }));
   return parts.join(", ");
 }
@@ -188,11 +189,13 @@ export function stormText(s: StormValues): string {
   const parts = [t("station.storm.kind", { kind: s.storm_type })];
   if (s.wind_kmh !== null) parts.push(t("station.storm.wind", { speed: speedText(s.wind_kmh) }));
   if (s.gust_kmh !== null) parts.push(t("station.storm.gusts", { speed: speedText(s.gust_kmh) }));
-  if (s.pressure_hpa !== null) parts.push(t("station.storm.pressure", { value: `${s.pressure_hpa} hPa` }));
+  if (s.pressure_hpa !== null) parts.push(t("station.storm.pressure", { value: stormPressureText(s.pressure_hpa) }));
   if (s.hurricane_radius_km !== null)
-    parts.push(t("station.storm.hurricane_radius", { km: distanceText(s.hurricane_radius_km) }));
-  if (s.storm_radius_km !== null) parts.push(t("station.storm.storm_radius", { km: distanceText(s.storm_radius_km) }));
-  if (s.gale_radius_km !== null) parts.push(t("station.storm.gale_radius", { km: distanceText(s.gale_radius_km) }));
+    parts.push(t("station.storm.hurricane_radius", { distance: distanceWithUnit(s.hurricane_radius_km) }));
+  if (s.storm_radius_km !== null)
+    parts.push(t("station.storm.storm_radius", { distance: distanceWithUnit(s.storm_radius_km) }));
+  if (s.gale_radius_km !== null)
+    parts.push(t("station.storm.gale_radius", { distance: distanceWithUnit(s.gale_radius_km) }));
   return parts.join(", ");
 }
 

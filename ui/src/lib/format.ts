@@ -1,6 +1,6 @@
-// How the page writes what the daemon tells: ages, distances, bearings, positions, times.
-// Times arrive as UTC ISO 8601 and are shown in the viewer's time. Words and the decimal point
-// follow the page language (src/i18n); units of measure and compass letters do not.
+// How the page writes what the daemon tells: ages, bearings, positions, times (measured values are
+// lib/units.ts). Times arrive as UTC ISO 8601 and are shown in the viewer's time. Words and the
+// decimal point follow the page language (src/i18n); compass letters do not.
 import { formatNumber, t } from "@/i18n";
 
 const SECOND = 1000;
@@ -95,13 +95,6 @@ export function agoWords(iso: string | null, nowMs: number): string {
   return iso === null ? NONE : t("time.ago", { span: ageText(iso, nowMs) });
 }
 
-/** Kilometres: one decimal under 10, whole above. Rounded first, so 9.96 is "10", not "10.0". */
-export function distanceText(km: number | null): string {
-  if (km === null) return NONE;
-  const tenths = Math.round(km * 10) / 10;
-  return tenths < 10 ? formatNumber(tenths, 1) : String(Math.round(km));
-}
-
 const POINTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
 
 /** The compass point of a bearing in degrees: 0 is N, 90 E. */
@@ -131,24 +124,6 @@ export function positionText(lat: number | null, lon: number | null, decimals = 
   if (lat === null || lon === null) return NONE;
   const negative = (x: number): boolean => x < 0 && Math.round(Math.abs(x) * 10 ** decimals) > 0;
   return `${formatNumber(Math.abs(lat), decimals)} ${negative(lat) ? "S" : "N"} ${formatNumber(Math.abs(lon), decimals)} ${negative(lon) ? "W" : "E"}`;
-}
-
-/** A speed in whole km/h; a dash for none. */
-export function speedText(kmh: number | null): string {
-  return kmh === null ? NONE : `${Math.round(kmh)} km/h`;
-}
-
-export function altitudeText(m: number | null): string {
-  return m === null ? NONE : `${Math.round(m)} m`;
-}
-
-/**
- * A vertical speed in m/s with one decimal and a sign (a real minus for descent); level is "0 m/s".
- */
-export function verticalText(ms: number | null): string {
-  if (ms === null) return NONE;
-  const tenths = Math.round(Math.abs(ms) * 10) / 10;
-  return tenths === 0 ? "0 m/s" : `${ms < 0 ? "\u2212" : "+"}${formatNumber(tenths, 1)} m/s`;
 }
 
 /** The digipeaters of a path, as the packet would carry them. */

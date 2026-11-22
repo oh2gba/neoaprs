@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { hoverRows } from "@/lib/hovercard";
 import { pageRadios } from "@/lib/radios";
+import { takeUnits } from "@/lib/units";
 import type { RadioRow, StationRow } from "@/protocol/protocol";
 import { ago, heardBy, NOW, radioRow, radiosTopic, station, weather } from "@/test/fixtures";
 
@@ -84,5 +85,17 @@ describe("hoverRows with several radios", () => {
     const two = radiosOf(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"));
     expect(heardOn(both, two)).toBe("FM 3 min ago · Mercury 1 min ago");
     expect(heardOn(station("OH2RF"), two)).toBe("FM 1 min ago");
+  });
+});
+
+describe("hoverRows in the non-metric units", () => {
+  it("says the distance in miles and the temperature in °F", () => {
+    takeUnits({ "units/non_metric": "true" });
+    const rows = hoverRows(
+      station("OH2MUI", { distance_km: 12.4, bearing_deg: 45, weather: weather({ temp_c: 10 }) }),
+      NOW,
+    );
+    expect(rows.find((r) => r.label === "From us")?.text).toBe("7.7 mi, 45° NE");
+    expect(rows.find((r) => r.label === "Temperature")?.text).toBe("50 °F");
   });
 });

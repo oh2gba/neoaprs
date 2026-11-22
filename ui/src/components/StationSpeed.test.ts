@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import { nextTick, shallowRef } from "vue";
 import StationCards from "@/components/StationCards.vue";
+import { takeUnits } from "@/lib/units";
 import type { SpeedSeriesMessage, StationRow } from "@/protocol/protocol";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { NOW, ago, station } from "@/test/fixtures";
@@ -94,5 +95,15 @@ describe("the speed of a moving station on its card", () => {
     expect(wrapper.findAll(".card")).toHaveLength(2);
     expect(wrapper.find("[data-speed]").exists()).toBe(false);
     expect(asked()).toEqual([]);
+  });
+});
+
+describe("the speed of a moving station in the non-metric units", () => {
+  it("is drawn in mph", async () => {
+    takeUnits({ "units/non_metric": "true" });
+    const { wrapper, speeds } = make([car]);
+    speeds.value = new Map([["OH2ZMA-9", answer("OH2ZMA-9")]]);
+    await nextTick();
+    expect(wrapper.find("[data-speed] .trend-read").text()).toMatch(/^37 mph\s+\d\d:\d\d:\d\d$/);
   });
 });

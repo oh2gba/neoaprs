@@ -10,9 +10,10 @@ import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { t } from "@/i18n";
 import { timedOut } from "@/lib/aging";
-import { bearingTitle, distanceText } from "@/lib/format";
+import { bearingTitle } from "@/lib/format";
 import type { NearbyItem } from "@/lib/nearby";
 import { rowSymbolName } from "@/lib/stations";
+import { distanceText, distanceUnit } from "@/lib/units";
 
 const props = defineProps<{
   items: readonly NearbyItem[];
@@ -39,7 +40,7 @@ const copy = useCopyMenu((row) =>
         <th></th>
         <th>{{ t("station.table.call") }}</th>
         <th>{{ t("nearby.details") }}</th>
-        <th class="num">km</th>
+        <th class="num">{{ distanceUnit() }}</th>
         <th>
           <span class="sr-only">{{ t("station.table.bearing") }}</span>
         </th>

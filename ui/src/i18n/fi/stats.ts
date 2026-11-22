@@ -58,8 +58,7 @@ export const stats: Record<keyof typeof source, Message> = {
   "stats.bytes": "Tavuja sisään · ulos",
 
   "stats.counted": "{name} ({n})",
-  "stats.station_km": "{call}, {km} km",
-  "stats.km": "{km} km",
+  "stats.station_km": "{call}, {distance}",
   "stats.kind_count": "{n} {kind}",
   "stats.kind.position": "sijaintia",
   "stats.kind.message": "viestiä",

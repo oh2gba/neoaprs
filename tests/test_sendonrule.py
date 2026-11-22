@@ -8,7 +8,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from neoaprs.beaconrule import send_on_radios
-from neoaprs.decay import ANNOUNCEMENT, BULLETIN, bulletin_wait_sec
+from neoaprs.decay import bulletin_plan, bulletin_wait_sec
 from neoaprs.radiospec import RadioSpec
 from neoaprs.sendonrule import Kept, ids_of, kept_in_force, start_set, text_of
 from tests.support.clock import FixedClock
@@ -193,6 +193,8 @@ def test_what_a_new_thing_starts_with() -> None:
 
 # ---- the air: the floor of a slow radio
 
+BULLETIN, ANNOUNCEMENT = bulletin_plan(False, 4), bulletin_plan(True, 72)
+
 
 def schedule(plan_floor: int, plan: object) -> list[int]:
     """The minutes of a bulletin's sends from the first, by its plan and the floor of its radios."""
@@ -268,11 +270,11 @@ async def test_an_object_on_a_radio_that_is_off_while_the_other_carries_it_gets_
     try:
         ctl = e.ctl
         ctl.ownobjects.set("ONHF", "object", 60.2, 24.9, "/", "r", "ours", radios=(2,))
-        ctl.ownbulletins.post("BLN1", "net", (2,))
+        ctl.ownbulletins.post("bulletin", "net", radios=(2,))
         assert await ctl.change_radio(2, enabled=False)
         assert [r.id for r in ctl.sender.radios_for((2,))] == [1], "one radio on: it carries the object"
         assert await ctl.add_radio("dummy-lora") == 3
-        assert (ctl.ownobjects.get("ONHF").radios, ctl.ownbulletins.get("BLN1").radios) == ((1, 2), (1, 2))  # type: ignore[union-attr]
+        assert (ctl.ownobjects.get("ONHF").radios, ctl.ownbulletins.get("BLN0").radios) == ((1, 2), (1, 2))  # type: ignore[union-attr]
         await e.settled()
         rows = await ctl.db.read(
             lambda db: (
@@ -282,7 +284,7 @@ async def test_an_object_on_a_radio_that_is_off_while_the_other_carries_it_gets_
         )  # type: ignore[union-attr]
         assert rows == ([("1,2",)], [("1,2",)]), "written in the transaction of the change, and again from memory"
         assert await ctl.remove_radio(2)
-        assert (ctl.ownobjects.get("ONHF").radios, ctl.ownbulletins.get("BLN1").radios) == ((1,), (1,)), (
+        assert (ctl.ownobjects.get("ONHF").radios, ctl.ownbulletins.get("BLN0").radios) == ((1,), (1,)), (
             "a removed radio leaves every set"
         )  # type: ignore[union-attr]
     finally:

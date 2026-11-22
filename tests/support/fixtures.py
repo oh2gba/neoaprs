@@ -28,6 +28,19 @@ def ui_port_near_the_pair(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("neoaprs.mercuryhelper.UI_OFFSET", 400)
 
 
+@pytest.fixture(autouse=True)
+def pauses_are_zero(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every send by the clock goes in its slot with no random pause (neoaprs/pause.py), so that no test is slow or
+    random by it. A test of the pause sets a service's `jitter`, or names `real_pauses` for the shipped draw."""
+    if "real_pauses" not in request.fixturenames:
+        monkeypatch.setattr("neoaprs.pause.draw", lambda most: 0.0)
+
+
+@pytest.fixture
+def real_pauses() -> None:
+    """The services draw their pauses as shipped (see `pauses_are_zero`)."""
+
+
 @pytest.fixture
 def clock() -> FixedClock:
     return FixedClock()

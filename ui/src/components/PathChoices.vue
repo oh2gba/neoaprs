@@ -4,8 +4,9 @@
 // heard and distance; a click adds it. The list has a fixed height and scrolls.
 import { computed } from "vue";
 import { t } from "@/i18n";
-import { ageText, distanceText, NONE } from "@/lib/format";
+import { ageText, NONE } from "@/lib/format";
 import type { HopChoice } from "@/lib/pathbuilder";
+import { distanceWithUnit } from "@/lib/units";
 
 const props = defineProps<{ choices: HopChoice[]; after: string | null; now: number }>();
 const emit = defineEmits<{ pick: [call: string] }>();
@@ -39,9 +40,7 @@ const atTitle = (choice: HopChoice): string | undefined =>
           <span class="pathbuild-num" :title="atTitle(choice)">{{
             choice.at === null ? NONE : ageText(choice.at, now)
           }}</span>
-          <span class="pathbuild-num">{{
-            choice.km === null ? NONE : t("stats.km", { km: distanceText(choice.km) })
-          }}</span>
+          <span class="pathbuild-num">{{ distanceWithUnit(choice.km) }}</span>
         </button>
       </li>
       <li v-if="choices.length === 0" class="pathbuild-none muted">{{ NONE }}</li>

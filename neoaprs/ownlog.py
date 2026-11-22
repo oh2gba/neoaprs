@@ -119,12 +119,13 @@ def bulletin_row(b: OwnBulletin) -> Row:
         _stamp(b.first_sent_at),
         _stamp(b.last_sent_at),
         ",".join(str(radio) for radio in b.radios),
+        b.hours,
     )
 
 
 def bulletin_of(row: Row) -> OwnBulletin:
     """Return the bulletin of a row. Raise ValueError or TypeError for a row of unknown shape."""
-    (slot, group, text, created, sent, first, last, radios) = row
+    (slot, group, text, created, sent, first, last, radios, hours) = row
     name, found_group, kind = slot_of(str(slot))
     if found_group != group:
         raise ValueError(f"the group {group!r} is not the one of {slot!r}")
@@ -133,6 +134,7 @@ def bulletin_of(row: Row) -> OwnBulletin:
         found_group,
         kind,
         str(text),
+        int(hours),
         parse_stamp(str(created)),
         int(sent),
         None if first is None else parse_stamp(str(first)),

@@ -57,6 +57,8 @@ def step_back(db: sqlite3.Connection, version: int) -> None:
     """Takes out of a fully migrated database what the migrations after `version` added to the
     schema, so that they can run again on it (the history and `user_version` are the test's to set).
     """
+    if version < 36:
+        db.execute("ALTER TABLE own_bulletin DROP COLUMN lasts_h")
     if version < 34:
         undo_34(db)
     if version < 33:

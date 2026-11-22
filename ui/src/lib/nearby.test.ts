@@ -14,6 +14,7 @@ import {
   voiceLines,
   voiceRows,
 } from "@/lib/nearby";
+import { takeUnits } from "@/lib/units";
 import { NOW, ago, station } from "@/test/fixtures";
 import type { ExtensionValues, FrequencyValues, PhgValues } from "@/protocol/protocol";
 
@@ -301,5 +302,17 @@ describe("a station known from the internet alone", () => {
     const repeated = [station("OH2AAA", { heard_via: [["OH2NETDIGI", 6]] }), ...rows];
     const found = digipeaters(repeated).find((d) => d.call === "OH2NETDIGI");
     expect(found?.repeated).toBe(6);
+  });
+});
+
+describe("the digipeaters in the non-metric units", () => {
+  it("say their range in whole miles", () => {
+    takeUnits({ "units/non_metric": "true" });
+    const range = (km: number, phg: boolean) =>
+      digipeaterLines({ call: "X", row: null, repeated: 4, range: { km, phg } })[0];
+    expect([range(40, false), range(21.4, true)]).toEqual([
+      "4 packets repeated, range 25 mi",
+      "4 packets repeated, PHG range 13 mi",
+    ]);
   });
 });

@@ -60,6 +60,7 @@ import {
 } from "@/lib/settings";
 import { layerKey } from "@/lib/layersettings";
 import { boxedKey, digiPlaces, inputId, radioFieldOf, shownByRadios, shownFor } from "@/lib/settingsradio";
+import { UNITS_KEY } from "@/lib/units";
 import { useRadios } from "@/composables/useRadios";
 import { holderOf } from "@/lib/portchoice";
 import { keyLink } from "@/lib/access";
@@ -240,6 +241,20 @@ function typed(key: string, text: string): void {
 <template>
   <form v-if="config" class="settings" novalidate @submit.prevent>
     <LanguageField v-if="scope === 'settings'" />
+    <SettingsField
+      v-if="scope === 'settings'"
+      :id="inputId(UNITS_KEY)"
+      :info="info(UNITS_KEY)"
+      :model-value="valueFor(UNITS_KEY, draft)"
+      :fallback="fallback(UNITS_KEY)"
+      :error="errors[UNITS_KEY] ?? ''"
+      :changed="form.changed(UNITS_KEY)"
+      :apply="true"
+      @update:model-value="typed(UNITS_KEY, $event)"
+      @choose="form.choose({ [UNITS_KEY]: $event })"
+      @commit="form.finish(UNITS_KEY, $event)"
+      @cancel="settings.cancel(UNITS_KEY)"
+    />
     <p v-if="scope === 'settings'" class="settings-setup">
       <button class="linkbutton setup-open" type="button" @click="emit('setup')">
         {{ t("settings.setup_again") }}

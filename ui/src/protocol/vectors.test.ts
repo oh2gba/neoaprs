@@ -4,13 +4,14 @@
 // page's own function. A rule changed on one side alone fails a test.
 import { describe, expect, it } from "vitest";
 import { bytesLeft } from "@/lib/messages";
-import { canPost, postCommand, textOk, type PostDraft } from "@/lib/bulletins";
+import { canPost, freeSlot, textOk, type PostDraft, type PostKind } from "@/lib/bulletins";
 import { isAlias, isMarker } from "@/lib/chain";
 import { parsePath, validCall, validName } from "@/lib/calls";
 import { compareVersions } from "@/lib/releasenotes";
 import { callOk, problemOf } from "@/lib/fieldcheck";
 import { draftProblems, emptyDraft, nameProblem, objectCommand, qruProblem } from "@/lib/ownobjects";
 import vectors from "@/protocol/vectors.json";
+import { ownBulletin } from "@/test/fixtures";
 
 describe("the vectors of the daemon", () => {
   it("say which calls a station may transmit under", () => {
@@ -38,11 +39,12 @@ describe("the vectors of the daemon", () => {
     for (const { input, ok } of vectors.bulletin_texts) expect(textOk(input), JSON.stringify(input)).toBe(ok);
   });
 
-  it("say which slot a bulletin of a kind, an identifier and a group is posted to", () => {
-    for (const { kind, id, group, slot } of vectors.bulletin_slots) {
-      const draft: PostDraft = { kind: kind as PostDraft["kind"], id, group, text: "Snow" };
-      expect(postCommand(draft)?.slot ?? null, JSON.stringify([kind, id, group])).toBe(slot);
-      expect(canPost(draft)).toBe(slot !== null);
+  it("say which slot a new post of a kind and a group takes beside the posts of ours", () => {
+    for (const { kind, group, taken, slot } of vectors.bulletin_free_slots) {
+      const own = new Map(taken.map((s) => [s, ownBulletin(s)]));
+      const draft: PostDraft = { kind: kind as PostKind, hours: null, group, text: "Snow" };
+      expect(freeSlot(draft.kind, group, own.keys()), JSON.stringify([kind, group, taken])).toBe(slot);
+      expect(canPost(draft, own), JSON.stringify([kind, group, taken])).toBe(slot !== null);
     }
   });
 

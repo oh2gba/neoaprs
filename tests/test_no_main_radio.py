@@ -169,9 +169,9 @@ def kind_of(frame: ax25.Frame) -> str:
     first = frame.info[:1]
     if first == b":":
         to = parse_message(frame.info[1:]).addressee
-        return {"BLN1": "bulletin", "BLNA": "announcement", "QRU": "info", MAIL: "mail", NEW: "new"}.get(
-            to, f"message to {to}"
-        )
+        if to.startswith("BLN") and len(to) == 4:
+            return "announcement" if to[3].isalpha() else "bulletin"
+        return {"QRU": "info", MAIL: "mail", NEW: "new"}.get(to, f"message to {to}")
     return {b">": "status", b";": "object", b"?": "query"}.get(
         first, "beacon" if first in (b"!", b"=", b"/", b"@") else "other"
     )
@@ -265,7 +265,7 @@ async def the_day(tmp_path: Path, day: Day) -> tuple[Counter[tuple[int, str]], l
     # Version 26 kept them by its words of a radio: made as the update starts, on radio 1.
     if day.v26:
         run.e.ctl.ownobjects.set(OBJECT, "object", 60.2, 24.9, "/", "r", "ours", radios=(1,))
-        run.e.ctl.ownbulletins.post("BLN1", "net tonight", (1,))
+        run.e.ctl.ownbulletins.post("bulletin", "net tonight", radios=(1,))
     if day.added:
         assert await run.e.ctl.add_radio(day.added) is not None
         await until_started(lambda: all(r.usable and r.beacon.running for r in run.e.ctl.radios.senders()))
@@ -281,7 +281,7 @@ async def the_day(tmp_path: Path, day: Day) -> tuple[Counter[tuple[int, str]], l
             refused.append(e.code)
 
     await run.until(START + timedelta(minutes=1))
-    ctl.ownbulletins.post("BLNA", "hamfest saturday")
+    ctl.ownbulletins.post("announcement", "hamfest saturday")
     await press(lambda: ctl.messaging.send(MAIL, "jane@example.org hello"))
     await press(lambda: ctl.messaging.send(NEW, "hello"))
     await run.until(START + timedelta(minutes=2))
@@ -371,8 +371,8 @@ async def test_a_bulletin_ticked_for_fm_and_hf_repeats_every_30_minutes_on_both_
     await run.start()
     try:
         ctl = run.e.ctl
-        ctl.ownbulletins.post("BLN1", "net on both", (1, 2))
-        ctl.ownbulletins.post("BLNA", "hamfest", (1, 2))
+        ctl.ownbulletins.post("bulletin", "net on both", radios=(1, 2))
+        ctl.ownbulletins.post("announcement", "hamfest", radios=(1, 2))
         assert ctl.ownbulletins.new_radios() == (1, 2), "a new bulletin starts with the radios of the one posted last"
         await run.until(START + timedelta(hours=HOURS, minutes=1))
         frames = run.frames()
@@ -382,8 +382,8 @@ async def test_a_bulletin_ticked_for_fm_and_hf_repeats_every_30_minutes_on_both_
             (1, "announcement"): 6,
             (2, "announcement"): 6,
         }
-        assert [p.radio_id for _, p in run.out if b":BLN1" in p.raw][:2] == [1, 2] or [
-            p.radio_id for _, p in run.out if b":BLN1" in p.raw
+        assert [p.radio_id for _, p in run.out if b":BLN0" in p.raw][:2] == [1, 2] or [
+            p.radio_id for _, p in run.out if b":BLN0" in p.raw
         ][:2] == [2, 1], "the round: one on each"
     finally:
         await run.e.stop()

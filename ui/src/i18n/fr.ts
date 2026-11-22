@@ -109,6 +109,9 @@ export const fr: Catalogue = {
   // errors
   "error.beacon.not_sent": "rien n'a été émis : {reason}",
   "error.bulletin.group": "« {value} » : un bulletin de groupe est BLN, un chiffre et le groupe",
+  "error.bulletin.hours": "un bulletin ne peut pas être émis pendant {hours} heures",
+  "error.bulletin.taken":
+    "chaque chiffre ou lettre de ce type porte déjà un bulletin de notre part  : supprimez-en un sur le tableau d'abord",
   "error.bulletin.not_on_board": "il n'y a pas d'entrée {sender}/{slot} sur le tableau",
   "error.bulletin.not_posted": "il n'y a pas de bulletin {slot} de notre part",
   "error.bulletin.slot":
@@ -556,40 +559,26 @@ export const fr: Catalogue = {
 
   "bulletins.post_label": "Publier un bulletin",
   "bulletins.kind": "Type",
-  "bulletins.kind.bulletin": {
-    one: "Bulletin (envoyé pendant {n} heure)",
-    other: "Bulletin (envoyé pendant {n} heures)",
-  },
-  "bulletins.kind.announcement": {
-    one: "Annonce (envoyée pendant {n} jour)",
-    other: "Annonce (envoyée pendant {n} jours)",
-  },
-  "bulletins.kind.group": {
-    one: "Bulletin de groupe (pour un groupe, envoyé pendant {n} heure)",
-    other: "Bulletin de groupe (pour un groupe, envoyé pendant {n} heures)",
-  },
-  "bulletins.letter": "Lettre",
-  "bulletins.number": "Numéro",
+  "bulletins.kind_name.bulletin": "Bulletin",
+  "bulletins.kind_name.announcement": "Annonce",
+  "bulletins.kind_name.group": "Bulletin de groupe",
+  "bulletins.sent_for": "Émis pendant",
   "bulletins.group": "Groupe",
   "bulletins.group_placeholder": "Nom",
   "bulletins.text": "Texte",
   "bulletins.tip.hours": { one: "{n} heure", other: "{n} heures" },
   "bulletins.tip.days": { one: "{n} jour", other: "{n} jours" },
-  "bulletins.tip.kind1":
-    "Un bulletin et une annonce sont affichés par chaque station qui les entend. Un bulletin sert à ce qui compte maintenant et est envoyé pendant {hours} ; une annonce sert à ce qui reste vrai et est envoyée pendant {days}.",
-  "bulletins.tip.kind2":
-    "Un bulletin de groupe est envoyé pendant {hours} ; chaque station l'affiche, sauf si son opérateur a choisi d'autres groupes à afficher.",
-  "bulletins.tip.id1":
-    "Le numéro désigne la publication, une lettre pour une annonce ; une nouvelle publication sous le même numéro la remplace.",
-  "bulletins.tip.id2":
-    "Publier de nouveau sous le même numéro ou la même lettre envoie le nouveau texte depuis le début.",
+  "bulletins.tip.kinds1":
+    "Un bulletin et une annonce sont affichés par chaque station qui les entend  : un bulletin pour ce qui compte maintenant, une annonce pour ce qui reste vrai pendant des jours.",
+  "bulletins.tip.kinds2":
+    "Un bulletin de groupe s'adresse à un groupe  ; chaque station l'affiche, sauf si son opérateur a choisi d'autres groupes à afficher.",
+  "bulletins.tip.sent_for": "Durée de répétition du bulletin, comptée depuis son premier paquet.",
   "bulletins.tip.group1":
     "Le nom fait partie de l'adresse, comme dans BLN3HAMS, donc chaque station entend le bulletin et l'affiche, sauf si son opérateur a choisi d'autres groupes à afficher.",
   "bulletins.tip.group2": "NeoAPRS affiche les bulletins de chaque groupe qu'il entend, sous Messages de groupe.",
   "bulletins.tip.text1": "Jusqu'à {max} caractères, imprimables, aucun de {forbidden}.",
-  "bulletins.tip.text2": "Il part dans un seul paquet radio, répété pendant la durée du type.",
+  "bulletins.tip.text_repeat": "Il part dans un seul paquet radio, répété pendant la durée choisie sous Émis pendant.",
   "bulletins.post": "Publier",
-  "bulletins.replace": "Remplacer",
 
   // skeds
   "skeds.about_label": "À propos des essais HF",
@@ -784,7 +773,7 @@ export const fr: Catalogue = {
   "station.kind.object": "objet",
   "station.kind.item": "item",
   "station.kind_reported": "{kind}, signalé par {by}",
-  "station.from_us_value": "{distance} km, {bearing}",
+  "station.from_us_value": "{distance}, {bearing}",
   "station.speed_course": "{speed}, cap {course}",
   "station.speed_chart": "Vitesse le long de sa trace",
   "station.signal_chart_snr": "Rapport signal/bruit de ses paquets",
@@ -820,9 +809,9 @@ export const fr: Catalogue = {
   "station.ext.df_bearing": "Relèvement DF",
   "station.ext.area": "Zone",
   "station.ext.omni": "omni",
-  "station.ext.phg_value": "{power} W, {height} m, {gain} dB, portée {range} km",
-  "station.ext.dfs_value": "S{strength}, {height} m, {gain} dB",
-  "station.ext.df_bearing_value": "{bearing}°, portée {range} km, qualité {quality}, contacts {hits}",
+  "station.ext.phg_value": "{power} W, {height}, {gain} dB, portée {range}",
+  "station.ext.dfs_value": "S{strength}, {height}, {gain} dB",
+  "station.ext.df_bearing_value": "{bearing}°, portée {range}, qualité {quality}, contacts {hits}",
   "station.ext.area_value": "{shape} ({colour}), {down}° vers le bas, {right}° vers la droite",
 
   "station.ext.area_value_left": "{shape} ({colour}), {down}° vers le bas, {left}° vers la gauche",
@@ -866,7 +855,7 @@ export const fr: Catalogue = {
   "station.freq.narrow": "FM étroite",
   "station.freq.simplex": "simplex",
   "station.freq.offset": "{khz} kHz",
-  "station.freq.range": "portée {km} km",
+  "station.freq.range": "portée {distance}",
   "station.freq.receive": "réception {mhz} MHz",
   "station.storm.kind": {
     select: "kind",
@@ -878,9 +867,9 @@ export const fr: Catalogue = {
   "station.storm.wind": "vent {speed}",
   "station.storm.gusts": "rafales {speed}",
   "station.storm.pressure": "pression {value}",
-  "station.storm.hurricane_radius": "vents d'ouragan jusqu'à {km} km",
-  "station.storm.storm_radius": "vents de tempête tropicale jusqu'à {km} km",
-  "station.storm.gale_radius": "vents de tempête jusqu'à {km} km",
+  "station.storm.hurricane_radius": "vents d'ouragan jusqu'à {distance}",
+  "station.storm.storm_radius": "vents de tempête tropicale jusqu'à {distance}",
+  "station.storm.gale_radius": "vents de tempête jusqu'à {distance}",
 
   "station.hover.heard": "Entendu",
   "station.hover.route": "Trajet",
@@ -940,7 +929,7 @@ export const fr: Catalogue = {
   "station.alert.part.within": "à moins de {km} km",
   "station.alert.part.direct": "entendu en direct",
   "station.alert.fired.on_air": "{call} est sur l'air",
-  "station.alert.fired.within": "{call} est à {km} km de vous",
+  "station.alert.fired.within": "{call} est à {distance} de vous",
   "station.alert.fired.direct": "{call} est entendu en direct",
   "station.alert.fired.line": "{time} {text}",
   "station.alert.popup_title": "Alerte APRS : {call}",
@@ -1605,6 +1594,11 @@ export const fr: Catalogue = {
 
   "settings.radius.name": "Rayon de la carte",
   "settings.station_hours.name": "Durée sur la carte",
+  "settings.units.label": "Unités non métriques",
+  "settings.units.name": "Unités",
+  "settings.units.tip1":
+    "Miles, ft, mph, °F, inHg et in sur toutes les pages de cette station. Avions en ft et kn, navires en kn.",
+  "settings.units.tip2": "Ce que vous saisissez reste métrique, et rien de ce qui est émis ne change.",
   "settings.radius.label": "Rayon",
   "settings.radius.tip_label": "À propos du rayon",
   "settings.radius.tip1":
@@ -2258,8 +2252,8 @@ export const fr: Catalogue = {
   "nearby.repeated": { one: "{n} paquet répété", other: "{n} paquets répétés" },
   "nearby.symbol_only": "symbole de digipeater",
   "nearby.not_heard": "aucun de ses paquets entendu",
-  "nearby.range_phg": "portée PHG {km} km",
-  "nearby.range": "portée {km} km",
+  "nearby.range_phg": "portée PHG {distance}",
+  "nearby.range": "portée {distance}",
   "nearby.reported_by": "signalé par {call}",
   "nearby.gated": { one: "{n} paquet passé depuis internet", other: "{n} paquets passés depuis internet" },
   "nearby.igate_says": "se dit iGate",
@@ -2353,8 +2347,7 @@ export const fr: Catalogue = {
   "stats.frames": "Trames des radios",
   "stats.bytes": "Octets entrés · sortis",
   "stats.counted": "{name} ({n})",
-  "stats.station_km": "{call}, {km} km",
-  "stats.km": "{km} km",
+  "stats.station_km": "{call}, {distance}",
   "stats.kind_count": "{n} {kind}",
   "stats.kind.position": "positions",
   "stats.kind.message": "messages",

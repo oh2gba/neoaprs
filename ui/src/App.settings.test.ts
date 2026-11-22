@@ -211,3 +211,35 @@ describe("App: the Settings tab", () => {
     expect(wrapper.find(".updatedialog").exists()).toBe(false);
   });
 });
+
+describe("App: the units", () => {
+  const unitsBox = (wrapper: VueWrapper) => wrapper.find<HTMLInputElement>("#pane-settings #set-units-non_metric");
+
+  it("has Non-metric units right under Language, above every group, and not on the My station tab", async () => {
+    const { wrapper } = await open();
+    await tabButton(wrapper, "Settings")?.trigger("click");
+    const rows = [...(wrapper.find("#pane-settings form.settings").element.children as HTMLCollectionOf<HTMLElement>)];
+    const language = rows.findIndex((row) => row.querySelector("#language") !== null);
+    expect(rows[language + 1]?.querySelector("#set-units-non_metric")).not.toBeNull();
+    expect(rows[language + 1]?.querySelector("label")?.textContent).toBe("Non-metric units");
+    expect(wrapper.find("#pane-settings fieldset #set-units-non_metric").exists()).toBe(false);
+    expect(wrapper.find("#pane-beacon #set-units-non_metric").exists()).toBe(false);
+    expect(unitsBox(wrapper).element.checked).toBe(false);
+  });
+
+  it("sends the tick to the daemon, and the page turns to miles when the daemon tells it, with no reload", async () => {
+    const { wrapper, socket } = await open();
+    await tabButton(wrapper, "Settings")?.trigger("click");
+    await unitsBox(wrapper).setValue(true);
+    expect(socket.sent).toContainEqual({ cmd: "set_config", values: { "units/non_metric": "true" } });
+    await tabButton(wrapper, "Stations")?.trigger("click");
+    const head = () => wrapper.findAll("#pane-stations th button").map((b) => b.text());
+    expect(head().some((text) => text.startsWith("km"))).toBe(true);
+    socket.say({ type: "state", topic: "config", rev: 1, value: configValues({ "units/non_metric": "true" }) });
+    await flushPromises();
+    expect(head().some((text) => text.startsWith("mi"))).toBe(true);
+    socket.say({ type: "state", topic: "config", rev: 2, value: configValues() });
+    await flushPromises();
+    expect(head().some((text) => text.startsWith("km"))).toBe(true);
+  });
+});

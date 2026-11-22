@@ -115,7 +115,7 @@ describe("App: the Bulletins tab", () => {
       await wrapper.find("#post-text").setValue("Road closed");
       await wrapper.find("#pane-bulletins .bulletin-compose").trigger("submit");
       expect(socket.sent.filter((c) => (c as { cmd?: string }).cmd === "bulletin_post")).toEqual([
-        { cmd: "bulletin_post", slot: "BLN1", text: "Road closed" },
+        { cmd: "bulletin_post", kind: "bulletin", text: "Road closed", hours: 4 },
       ]);
       expect(wrapper.find<HTMLInputElement>("#post-text").element.value).toBe("Road closed");
       socket.say(errorOf("bulletin_post: set your call first"));

@@ -125,6 +125,7 @@ describe("groupKeys", () => {
             "map/maxzoom",
             "map/source",
             "map/station_hours",
+            "units/non_metric",
           ].includes(key),
       ).sort(),
     );

@@ -57,8 +57,7 @@ export const stats: Readonly<Record<keyof typeof en, Message>> = {
   "stats.bytes": "Bytes entrada · saída",
 
   "stats.counted": "{name} ({n})",
-  "stats.station_km": "{call}, {km} km",
-  "stats.km": "{km} km",
+  "stats.station_km": "{call}, {distance}",
   "stats.kind_count": "{n} {kind}",
   "stats.kind.position": "posições",
   "stats.kind.message": "mensagens",

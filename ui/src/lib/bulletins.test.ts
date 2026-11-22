@@ -3,21 +3,25 @@ import {
   POST_KINDS,
   canPost,
   charsLeft,
+  freeSlot,
   groupOf,
   groupOk,
-  idsOf,
+  kindTitle,
   newCount,
   newestFirstHeard,
   ownEntries,
   ownMeta,
   postCommand,
+  rememberedHours,
   sections,
-  slotOf,
+  sentForChoices,
+  sentForText,
   targetOf,
   textOk,
   heardText,
   type PostDraft,
 } from "@/lib/bulletins";
+import { LIMITS } from "@/protocol/lists";
 import { NOW, ago, bulletin, ownBulletin } from "@/test/fixtures";
 
 describe("sections", () => {
@@ -147,25 +151,46 @@ describe("ownEntries and ownMeta", () => {
 describe("posting", () => {
   const draft = (extra: Partial<PostDraft> = {}): PostDraft => ({
     kind: "bulletin",
-    id: "1",
+    hours: null,
     group: "",
     text: "Road closed",
     ...extra,
   });
+  const ours = (...slots: string[]) => new Map(slots.map((slot) => [slot, ownBulletin(slot)]));
+  const digits = [..."0123456789"].map((c) => `BLN${c}`);
+  const letters = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"].map((c) => `BLN${c}`);
 
-  it("has the three kinds, a bulletin and a group bulletin numbered and an announcement lettered", () => {
-    expect(POST_KINDS.map((k) => k.kind)).toEqual(["bulletin", "announcement", "group"]);
-    expect(idsOf("bulletin")).toBe("0123456789");
-    expect(idsOf("group")).toBe("0123456789");
-    expect(idsOf("announcement")).toHaveLength(26);
-    expect(idsOf("announcement")[0]).toBe("A");
+  it("has the three kinds by name only, with no number in it", () => {
+    expect(POST_KINDS).toEqual(["bulletin", "announcement", "group"]);
+    expect(POST_KINDS.map(kindTitle)).toEqual(["Bulletin", "Announcement", "Group bulletin"]);
   });
 
-  it("makes the slot: BLN and the identifier, and the group after it for a group bulletin", () => {
-    expect(slotOf(draft())).toBe("BLN1");
-    expect(slotOf(draft({ kind: "announcement", id: "Q" }))).toBe("BLNQ");
-    expect(slotOf(draft({ kind: "group", id: "3", group: " hams " }))).toBe("BLN3HAMS");
-    expect(slotOf(draft({ id: "7", group: "ignored" }))).toBe("BLN7");
+  it("offers the daemon's Sent for choices, an announcement's in days", () => {
+    expect(sentForChoices("bulletin")).toEqual(LIMITS.bulletin.hours);
+    expect(sentForChoices("group")).toEqual(LIMITS.bulletin.hours);
+    expect(sentForChoices("announcement")).toEqual(LIMITS.bulletin.announcementHours);
+    expect(sentForText("bulletin", 1)).toBe("1 hour");
+    expect(sentForText("group", 12)).toBe("12 hours");
+    expect(sentForText("announcement", 24)).toBe("1 day");
+    expect(sentForText("announcement", 168)).toBe("7 days");
+  });
+
+  it("starts Sent for at the station's choice of the kind, else the daemon's default", () => {
+    const station = { bulletin: 8, announcement: 168, group: 2 };
+    expect(POST_KINDS.map((kind) => rememberedHours(kind, station))).toEqual([8, 168, 2]);
+    expect(POST_KINDS.map((kind) => rememberedHours(kind, undefined))).toEqual([4, 72, 4]);
+    expect(rememberedHours("bulletin", { bulletin: 5, announcement: 4, group: 4 })).toBe(4);
+    expect(rememberedHours("announcement", { bulletin: 5, announcement: 4, group: 4 })).toBe(72);
+  });
+
+  it("takes the lowest free number or letter of the kind, of the group for a group bulletin", () => {
+    expect(freeSlot("bulletin", "", [])).toBe("BLN0");
+    expect(freeSlot("bulletin", "", ["BLN0", "BLN2"])).toBe("BLN1");
+    expect(freeSlot("bulletin", "", digits)).toBeNull();
+    expect(freeSlot("announcement", "", digits)).toBe("BLNA");
+    expect(freeSlot("announcement", "", letters)).toBeNull();
+    expect(freeSlot("group", " hams ", ["BLN0HAMS", "BLN0WX", "BLN1"])).toBe("BLN1HAMS");
+    expect(freeSlot("group", "", [])).toBeNull();
   });
 
   it("takes a group of one to five letters and digits, in any case", () => {
@@ -193,20 +218,34 @@ describe("posting", () => {
     expect([charsLeft(""), charsLeft("x".repeat(60)), charsLeft("x".repeat(70))]).toEqual([67, 7, -3]);
   });
 
-  it("is ready with a text that fits and, for a group bulletin, a group", () => {
-    expect(canPost(draft())).toBe(true);
-    expect(canPost(draft({ text: "" }))).toBe(false);
-    expect(canPost(draft({ kind: "group", group: "" }))).toBe(false);
-    expect(canPost(draft({ kind: "group", group: "WX", id: "4" }))).toBe(true);
-    expect(canPost(draft({ kind: "announcement", id: "1" }))).toBe(false);
+  it("is ready with a text that fits, for a group bulletin a group, and a free slot among fewer than the most of ours", () => {
+    expect(canPost(draft(), ours())).toBe(true);
+    expect(canPost(draft({ text: "" }), ours())).toBe(false);
+    expect(canPost(draft({ kind: "group", group: "" }), ours())).toBe(false);
+    expect(canPost(draft({ kind: "group", group: "WX" }), ours(...digits))).toBe(true);
+    expect(canPost(draft(), ours(...digits)), "every number taken, an ended one too").toBe(false);
+    expect(canPost(draft({ kind: "announcement" }), ours(...digits))).toBe(true);
+    const full = ours(...digits.slice(0, 9), ...letters, "BLN0HAMS");
+    expect(full.size).toBe(LIMITS.bulletin.postedMax);
+    expect(canPost(draft(), full), "a number is free, but 36 are posted").toBe(false);
   });
 
-  it("makes the command, with the text stripped, and none while it cannot be posted", () => {
-    expect(postCommand(draft({ kind: "group", id: "3", group: "hams", text: " Net tonight " }))).toEqual({
+  it("makes the command with the kind, the group of a group bulletin alone, the text stripped and the hours", () => {
+    expect(postCommand(draft({ kind: "group", group: "hams", text: " Net tonight " }), 2, ours())).toEqual({
       cmd: "bulletin_post",
-      slot: "BLN3HAMS",
+      kind: "group",
+      group: "HAMS",
       text: "Net tonight",
+      hours: 2,
     });
-    expect(postCommand(draft({ text: "" }))).toBeNull();
+    expect(postCommand(draft({ group: "ignored" }), 4, ours(), [1, 3])).toEqual({
+      cmd: "bulletin_post",
+      kind: "bulletin",
+      text: "Road closed",
+      hours: 4,
+      radios: [1, 3],
+    });
+    expect(postCommand(draft({ text: "" }), 4, ours())).toBeNull();
+    expect(postCommand(draft(), 4, ours(...digits))).toBeNull();
   });
 });

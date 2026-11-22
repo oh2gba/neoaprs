@@ -1,15 +1,13 @@
 """The beacon of one radio: our position packet, sent on an interval and on request.
 
-A fixed station beacons by interval, a moving one asks SmartBeaconing at every tick; with no fresh
-fix nothing is sent. A refused frame is retried `ATTEMPTS` times, then the interval is skipped.
+A fixed station beacons by interval, after the radio's random pause within each slot; a moving one asks
+SmartBeaconing at every tick. A refused frame is retried `ATTEMPTS` times, then the interval is skipped.
 """
 
 import logging
-from collections.abc import Callable
-import random
 from datetime import datetime, timedelta
 
-from neoaprs import ax25, coded
+from neoaprs import ax25, coded, pause
 from neoaprs.aprsposition import uncompressed_position as uncompressed_position  # re-export
 from neoaprs.beaconrule import beacon_interval, beacon_radios, ticked
 from neoaprs.clock import Clock, utcnow
@@ -87,6 +85,9 @@ class Beacon:
         self.last_sent: datetime | None = None
         self.last_reason = ""
         self.next_due: datetime | None = None
+        # the unpaused time of next_due, and the slot of the latest timed send
+        self._slot: datetime | None = None
+        self._anchor: datetime | None = None
         self.problem = ""
         self._started: datetime | None = None
         self._earlier: datetime | None = None
@@ -95,7 +96,7 @@ class Beacon:
         self._planned_min = 0
         self._planned_mobile = False
         self.mobile = MobilePlan()
-        self.jitter: Callable[[float], float] = lambda most: random.uniform(0.0, most)  # noqa: S311
+        self.jitter: pause.Draw = pause.draw
         self.sent: Signal[[ax25.Frame]] = Signal("beacon.sent")
         self._no_fix_told = False
         self._skip_told = False
@@ -147,6 +148,7 @@ class Beacon:
         if not self._radio.send_frame(frame):
             return self._failed(NOT_TAKEN.but(radio=self._radio.id, name=self._radio.name), warn=True)
         self.last_sent, self.last_reason, self.problem, self._skip_told = self.clock(), reason, "", False
+        self._anchor = self._anchor_of(self.last_sent, reason)
         self._refused, self._retry_at = 0, None
         log.info("beacon sent (%s): %s", reason, frame.tnc2())
         self.sent.emit(frame)
@@ -209,10 +211,17 @@ class Beacon:
         """Whether the beacon follows the GPS; without SmartBeaconing (HF) the station is fixed."""
         return c.mobile and self._radio.allowed.smart_beacon
 
-    def _pause(self) -> timedelta:
-        """The random pause added after an interval on radios whose limits have one."""
+    def _anchor_of(self, sent: datetime, reason: str) -> datetime:
+        """Return what the next interval counts from: a timed beacon's slot, else when it went."""
+        if reason != "interval" or self._slot is None:
+            return sent
+        return pause.anchor((self._slot, self._radio.limits.beacon_jitter_sec), sent)
+
+    def _set_due(self, slot: datetime) -> None:
+        """Plan the next beacon in `slot`, after a pause drawn anew."""
         most = self._radio.limits.beacon_jitter_sec
-        return timedelta(seconds=self.jitter(most)) if most > 0 else timedelta()
+        self._slot = slot
+        self.next_due = slot + pause.capped(pause.share(self.jitter, most), most)
 
     def _plan(self, interval_min: int) -> None:
         """Plan `next_due`: an interval after the last send, else the earlier run's, else start."""
@@ -230,19 +239,19 @@ class Beacon:
         self._planned_min, self._planned_mobile = interval_min, mobile
         self._refused, self._retry_at = 0, None
         if self._started is None or interval_min == 0 or mobile:
-            self.next_due = None
+            self.next_due = self._slot = None
         elif self.last_sent is not None:
-            self.next_due = self.last_sent + timedelta(minutes=interval_min) + self._pause()
+            self._set_due((self._anchor or self.last_sent) + timedelta(minutes=interval_min))
         elif self._earlier is not None and self._earlier + timedelta(minutes=interval_min) > self._started:
-            self.next_due = self._earlier + timedelta(minutes=interval_min) + self._pause()
+            self._set_due(self._earlier + timedelta(minutes=interval_min))
         else:
-            self.next_due = self._started + timedelta(seconds=self.first_delay_sec)
+            self._set_due(self._started + timedelta(seconds=self.first_delay_sec))
 
     def _plan_after_send(self, fix: Fix | None) -> None:
         if fix is not None:
             self.next_due = self.mobile.check(self._config().smart, fix, self.clock()).next_due
         elif self._started is not None and self._planned_min:
-            self.next_due = self.clock() + timedelta(minutes=self._planned_min) + self._pause()
+            self._set_due((self._anchor or self.clock()) + timedelta(minutes=self._planned_min))
 
     async def _run(self) -> None:
         await every(self.tick_sec, self._tick, "the beacon ticker")
@@ -311,9 +320,9 @@ class Beacon:
             self._retry_at = now + timedelta(seconds=MOBILE_GIVE_UP_SEC)
         else:
             self._retry_at = None
-            self._skip(self.next_due or now)
+            self._skip(self._slot or now)
 
-    def _skip(self, due: datetime) -> None:
+    def _skip(self, slot: datetime) -> None:
         """Skip the missed interval: the next is the first interval boundary after now."""
         step = timedelta(minutes=self._planned_min)
-        self.next_due = due + step * ((self.clock() - due) // step + 1)
+        self._set_due(slot + step * ((self.clock() - slot) // step + 1))

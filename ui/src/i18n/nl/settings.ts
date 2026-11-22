@@ -239,6 +239,11 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.radius.name": "Kaartstraal",
   "settings.station_hours.name": "Tijd op de kaart",
+  "settings.units.label": "Niet-metrische eenheden",
+  "settings.units.name": "Eenheden",
+  "settings.units.tip1":
+    "Mijl, voet, mph, °F, inHg en inch op elke pagina van dit station. Vliegtuigen in voet en knopen, schepen in knopen.",
+  "settings.units.tip2": "Wat je typt blijft metrisch, en wat er via de ether wordt verzonden verandert niet.",
   "settings.radius.label": "Straal",
   "settings.radius.tip_label": "Over de straal",
   "settings.radius.tip1":

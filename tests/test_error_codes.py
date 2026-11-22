@@ -131,7 +131,8 @@ def test_every_refusal_of_the_domain_that_the_page_shows_has_a_code() -> None:
         (OwnError, "call.shape", lambda: make_object(NOW, "AAA", "object", 60.0, 24.0, "/", ">", path="A B")),
         (PostError, "bulletin.slot", lambda: slot_of("NWS-WARN")),
         (PostError, "bulletin.group", lambda: slot_of("BLNAHAMS")),
-        (PostError, "message.too_long", lambda: make_bulletin(NOW, "BLN1", "x" * 68)),
+        (PostError, "message.too_long", lambda: make_bulletin(NOW, "BLN1", "x" * 68, 4)),
+        (PostError, "bulletin.hours", lambda: make_bulletin(NOW, "BLNA", "x", 4)),
     ]
     for kind, code, make in cases:
         with pytest.raises(kind) as e:
@@ -188,7 +189,8 @@ async def test_a_page_is_told_the_command_the_key_and_the_code_of_every_refusal(
             "on_request": False,
             "radios": [1],
         },
-        {"cmd": "bulletin_post", "slot": "NWS-WARN", "text": "x"},
+        {"cmd": "bulletin_post", "kind": "group", "group": "", "text": "x"},
+        {"cmd": "bulletin_post", "kind": "bulletin", "text": "x", "hours": 3},
         {"cmd": "bulletin_unpost", "slot": "BLN3HAMS"},
         {"cmd": "forget_station", "call": "NOBODY"},
         {"cmd": "map_cancel"},
@@ -202,7 +204,8 @@ async def test_a_page_is_told_the_command_the_key_and_the_code_of_every_refusal(
         ("send_message", None, "message.too_long"),
         ("send_message", None, "message.own_call"),
         ("object_set", None, "object.name_chars"),
-        ("bulletin_post", None, "bulletin.slot"),
+        ("bulletin_post", None, "bulletin.group"),
+        ("bulletin_post", None, "bulletin.hours"),
         ("bulletin_unpost", None, "bulletin.not_posted"),
         ("forget_station", None, "station.unknown"),
         ("map_cancel", None, "map.no_job"),
@@ -220,6 +223,25 @@ async def test_a_page_is_told_the_command_the_key_and_the_code_of_every_refusal(
         "send_message: the text is 68 characters"
     )
     assert answers[4]["text"] == "send_message: OH2GBA is our own call", "a refusal that has no code yet keeps its text"
+
+
+async def test_a_post_with_every_number_of_its_kind_taken_is_refused_with_the_kind_and_the_group(
+    tmp_path: Path,
+) -> None:
+    e = Env(tmp_path, web=True)
+    await e.start()
+    page = await e.ws()
+    await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
+    for n in range(10):
+        e.ctl.ownbulletins.post("group", f"net {n}", "HAMS")
+    await page.send({"cmd": "bulletin_post", "kind": "group", "group": "hams", "text": "one more"})
+    error = await page.expect("error")
+    assert (error["cmd"], error["code"], error["params"]) == (
+        "bulletin_post",
+        "bulletin.taken",
+        {"kind": "group", "group": "HAMS"},
+    )
+    await e.stop()
 
 
 async def test_a_frame_that_is_no_command_is_answered_with_a_code_and_the_command_when_it_named_one(

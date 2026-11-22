@@ -17,6 +17,7 @@ import { GROUP_ORDER, rank } from "@/lib/settingsorder";
 import type { PageRadio } from "@/lib/radios";
 import { flatKeyOf, isRadioKey, radioFieldOf, typeChoices, typeText } from "@/lib/settingsradio";
 import { pairField } from "@/lib/settingspair";
+import { UNITS_KEY } from "@/lib/units";
 import { keyingChoices } from "@/lib/mercury";
 import {
   beaconChoices,
@@ -287,6 +288,12 @@ const SPECS: Record<string, FieldSpec> = {
     kind: "choice",
     choices: stationHoursChoices,
   },
+  [UNITS_KEY]: {
+    name: "settings.units.name",
+    label: "settings.units.label",
+    kind: "bool",
+    tip: ["settings.units.tip1", "settings.units.tip2"],
+  },
   ...LAYER_SPECS,
   "digi/enabled": {
     name: "settings.digipeater.name",
@@ -495,6 +502,8 @@ const NOT_ON_THE_PAGE: readonly string[] = [
  * in Stations.
  */
 const IN_ANOTHER_TAB: readonly string[] = [STATION_HOURS_KEY];
+/** Settings in a row of their own above the groups, beside the language. */
+const ABOVE_THE_GROUPS: readonly string[] = [UNITS_KEY];
 
 /**
  * The keys in the daemon's order (unlisted keys last; the TNC and Status groups in their own
@@ -506,7 +515,10 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
     return at < 0 ? CONFIG_KEYS.length : at;
   };
   const sorted = keys
-    .filter((k) => !NOT_ON_THE_PAGE.includes(k) && !IN_ANOTHER_TAB.includes(k) && !isRadioKey(k))
+    .filter(
+      (k) =>
+        !NOT_ON_THE_PAGE.includes(k) && !IN_ANOTHER_TAB.includes(k) && !ABOVE_THE_GROUPS.includes(k) && !isRadioKey(k),
+    )
     .sort((a, b) => order(a) - order(b));
   const groups: Group[] = GROUPS.map((g) => ({
     id: g.id,

@@ -71,6 +71,7 @@ def migrate(folder: Path) -> sqlite3.Connection:
         (33, "_v33", GOLDEN[33]),
         (34, "_v34", GOLDEN[34]),
         (35, "_v35", GOLDEN[35]),
+        (36, "_v36", GOLDEN[36]),
     ]
     fresh.close()
     return migrated.db

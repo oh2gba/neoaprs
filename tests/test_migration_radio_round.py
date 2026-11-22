@@ -77,12 +77,13 @@ def everything(path: Path) -> dict[str, list[tuple[Any, ...]]]:
 
 def run_the_runner(path: Path) -> None:
     found = opened(path, FixedClock())
-    assert found.version() == SCHEMA_VERSION == 35 and [(n, name) for n, name, *_ in found.history()][-5:] == [
+    assert found.version() == SCHEMA_VERSION == 36 and [(n, name) for n, name, *_ in found.history()][-6:] == [
         (31, "_v31"),
         (32, "_v32"),
         (33, "_v33"),
         (34, "_v34"),
         (35, "_v35"),
+        (36, "_v36"),
     ]
     found.close()
 

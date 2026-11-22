@@ -1,7 +1,7 @@
 """Our status report: when it is sent, and what it says.
 
-The text comes from the radio through Hamlib rigctld (`status/source` `rig`) or from
-`station/status` (`text`). A report goes out per radio when its interval has passed.
+The text comes from the radio through Hamlib rigctld (`status/source` `rig`) or from `station/status`
+(`text`). A report goes out per radio in its interval's slot, after the radio's random pause.
 """
 
 import logging
@@ -9,7 +9,7 @@ from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 from typing import Literal
 
-from neoaprs import ax25
+from neoaprs import ax25, pause
 from neoaprs.beaconrule import beacon_interval, send_on_radios
 from neoaprs.clock import Clock, utcnow
 from neoaprs.coded import Reason
@@ -29,6 +29,7 @@ from neoaprs.tasks import TaskSet, every
 log = logging.getLogger("neoaprs.status")
 
 POLL_SEC = 30.0
+TICK_SEC = 1.0
 NO_TEXT = Reason("there is no status text", "status.no_text")
 RigState = Literal["off", "on", "unused"]
 Reader = Callable[[str, int], Awaitable[Reading]]
@@ -60,6 +61,7 @@ class RigStatus:
         poll_sec: float = POLL_SEC,
         read: Reader = read_rig,
         memory: Memory | None = None,
+        tick_sec: float = TICK_SEC,
     ) -> None:
         self._radios = radios
         self._config = config
@@ -68,7 +70,19 @@ class RigStatus:
         self._old = isinstance(frames, Beacon) or not is_pick(radios)
         self.clock = clock
         self.poll_sec = poll_sec
+        self.tick_sec = tick_sec
         self._read = read
+        self.jitter: pause.Draw = pause.draw
+        self._started: datetime | None = None
+        # by radio: the drawn pause of the current wait as a share of the most, the wait's slot and
+        # how late in it the report may go, the slot of the latest timed report, no new try before a time
+        self._shares: dict[RadioId, float] = {}
+        self._slots: dict[RadioId, tuple[datetime, float]] = {}
+        self._anchors: dict[RadioId, datetime] = {}
+        self._retry_at: dict[RadioId, datetime] = {}
+        # the text of the latest poll, and when it was read
+        self._text: str | None = None
+        self._text_at: datetime | None = None
         # when the latest report went out, restored after a restart
         self.last_sent_at: datetime | None = None
         # what it said; empty until one has gone
@@ -100,7 +114,9 @@ class RigStatus:
                     and (at := await self._remembered.get_time(memory_key_of(spec.id), self.clock())) is not None
                 ):
                     self.sent_on[spec.id] = at
+        self._started = self.clock()
         self._tasks.spawn(self._run(), "rigstatus")
+        self._tasks.spawn(every(self.tick_sec, self._tick, "the status timer"), "rigstatus-tick")
 
     async def stop(self) -> None:
         await self._tasks.cancel_all()
@@ -138,12 +154,25 @@ class RigStatus:
         return found
 
     def _counts_from(self, id: RadioId) -> datetime | None:
-        """Return when the radio's interval counts from: its last send, else when it joined.
+        """Return when the radio's interval counts from: its last timed slot or send, else when it joined.
 
-        None means due now."""
-        if (own := self.sent_on.get(id)) is not None:
+        None means due from the start."""
+        if (own := self._anchors.get(id) or self.sent_on.get(id)) is not None:
             return own
         return self._joined.setdefault(id, self.last_sent_at)
+
+    def _due_at(self, id: RadioId, radio: AirRadio | None, minutes: int) -> datetime:
+        """Return when the radio's next timed report goes: in its slot, never before the start, after its pause."""
+        now = self.clock()
+        if self._started is None or now < self._started:  # a clock set back starts the wait anew
+            self._started = now
+        since = self._counts_from(id)
+        slot = self._started if since is None else max(since + timedelta(minutes=minutes), self._started)
+        most = 0 if radio is None else radio.limits.beacon_jitter_sec
+        if most > 0 and id not in self._shares:
+            self._shares[id] = pause.share(self.jitter, most)
+        self._slots[id] = (slot, min(most, minutes * 60))
+        return slot + pause.capped(self._shares.get(id, 0.0), most, minutes * 60)
 
     def on_radio(self, id: RadioId) -> tuple[datetime | None, datetime | None, int]:
         """Return the radio's last send, its next timed send, and its interval in minutes.
@@ -158,15 +187,31 @@ class RigStatus:
         )
         last = self.sent_on.get(id)
         timed = minutes > 0 and c.beacon_on and c.status_choice != "off" and last is not None
-        return last, last + timedelta(minutes=minutes) if timed and last is not None else None, minutes
+        radio = next((radio for target, radio, _ in self._targets(c) if target == id), None)
+        return last, self._due_at(id, radio, minutes) if timed else None, minutes
 
     # ---- one poll
     async def poll(self) -> None:
         """Read the radio or take the static text, and send a report when due."""
         c = self._config()
         text = await self._current(c)
+        self._text, self._text_at = text, self.clock()
         if text:
             self._offer(text, c)
+
+    def _tick(self) -> None:
+        """Send what is due with the text of the latest poll; the radio is not read."""
+        c = self._config()
+        if c.beacon_on and (text := self._cached(c)):
+            self._offer(text, c, ticked=True)
+
+    def _cached(self, c: Config) -> str | None:
+        """Return the status text without reading the radio; None for none or a reading too old."""
+        if c.status_rig_address is None:
+            return c.station_status if c.status_choice == "text" else None
+        if self._text_at is None or self.clock() - self._text_at > timedelta(seconds=2 * self.poll_sec):
+            return None
+        return self._text
 
     async def _current(self, c: Config) -> str | None:
         """Return the current status text, or None for no status (off, or the radio is away)."""
@@ -212,7 +257,8 @@ class RigStatus:
             if words:
                 (log.warning if state == "off" else log.info)("%s", words)
 
-    def _offer(self, text: str, c: Config) -> None:
+    def _offer(self, text: str, c: Config, ticked: bool = False) -> None:
+        """Send the report on the radios whose time has come; the timer skips a radio that refused it lately."""
         if not c.beacon_on:
             # beacon off means no automatic status; send_now still sends
             return
@@ -223,12 +269,12 @@ class RigStatus:
         due = [
             (id, radio)
             for id, radio, minutes in targets
-            if (since := self._counts_from(id)) is None or now - since >= timedelta(minutes=minutes)
+            if not (ticked and now < self._retry_at.get(id, now)) and now >= self._due_at(id, radio, minutes)
         ]
         if due:
-            self._try(text, due)
+            self._try(text, due, timed=True)
 
-    def _try(self, text: str, targets: list[tuple[RadioId, AirRadio | None]] | None = None) -> str:
+    def _try(self, text: str, targets: list[tuple[RadioId, AirRadio | None]] | None = None, timed: bool = False) -> str:
         """Send the status on each target (all targets if none given).
 
         Return "" if it went out on a radio, else the reason; each is logged once per radio."""
@@ -239,10 +285,10 @@ class RigStatus:
         if not targets:
             self._tell(0, NO_RADIO)
             return NO_RADIO
-        reasons = [self._send_on(id, radio, text) for id, radio in targets]
+        reasons = [self._send_on(id, radio, text, timed) for id, radio in targets]
         return "" if "" in reasons else reasons[0]
 
-    def _send_on(self, id: RadioId, radio: AirRadio | None, text: str) -> str:
+    def _send_on(self, id: RadioId, radio: AirRadio | None, text: str, timed: bool = False) -> str:
         """Send the status on one radio; return "" when sent, else the reason (logged once)."""
         if radio is None:
             self._tell(id, NO_RADIO)
@@ -253,18 +299,21 @@ class RigStatus:
         except BeaconError as e:
             reason = Reason.of(e, f"the settings make no status: {e}")
             self._tell(id, reason, warn=True)
-            return reason
+            return self._held(id, reason, timed)
         if frame is None:
-            return NO_TEXT
+            return self._held(id, NO_TEXT, timed)
         if not radio.usable:
             self._tell(id, f"{radio.why_unusable()}: the status waits")
             return radio.why_unusable()
         if not radio.send_frame(frame):
             reason = Reason("the TNC did not take the status frame", "radio.not_taken", radio=radio.id, name=radio.name)
             self._tell(id, reason, warn=True)
-            return reason
+            return self._held(id, reason, timed)
         now = self.clock()
         self.last_sent_at, self.last_text, self.sent_on[id] = now, text, now
+        self._anchors[id] = pause.anchor(self._slots.pop(id, None) if timed else None, now)
+        self._shares.pop(id, None)
+        self._retry_at.pop(id, None)
         self._told.pop(id, None)
         self._told.pop(0, None)
         self._remembered.put(
@@ -276,6 +325,12 @@ class RigStatus:
         )
         log.info("status sent: %s", frame.tnc2())
         return ""
+
+    def _held(self, id: RadioId, reason: str, timed: bool) -> str:
+        """Return the reason; the timer does not try a refused timed report again before the next poll."""
+        if timed:
+            self._retry_at[id] = self.clock() + timedelta(seconds=self.poll_sec)
+        return reason
 
     def _tell(self, id: RadioId, reason: str, warn: bool = False) -> None:
         if reason != self._told.get(id, ""):

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildMarkerDom, paintMarker } from "@/lib/markerdom";
+import { takeUnits } from "@/lib/units";
 import { cssRule } from "@/test/css";
 import { station, weatherStation } from "@/test/fixtures";
 
@@ -115,5 +116,14 @@ describe("the marker of a station", () => {
     expect(dom.icon.firstElementChild).toBe(first);
     paintMarker(dom, station("A", { symbol_code: "-" }), { fade: 0, selected: false, direct: false });
     expect(dom.icon.firstElementChild).not.toBe(first);
+  });
+});
+
+describe("the marker of a station in the non-metric units", () => {
+  it("puts a weather station's temperature in °F in its name", () => {
+    takeUnits({ "units/non_metric": "true" });
+    const dom = buildMarkerDom();
+    paintMarker(dom, weatherStation("OH2MUI"), { fade: 0, selected: false, direct: false });
+    expect(dom.root.getAttribute("aria-label")).toBe("OH2MUI: Weather station, 50 °F");
   });
 });

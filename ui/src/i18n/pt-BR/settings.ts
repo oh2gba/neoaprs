@@ -230,6 +230,11 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.radius.name": "Raio do mapa",
   "settings.station_hours.name": "Tempo no mapa",
+  "settings.units.label": "Unidades não métricas",
+  "settings.units.name": "Unidades",
+  "settings.units.tip1":
+    "Milhas, pés, mph, °F, inHg e polegadas em todas as páginas desta estação. Aeronaves em pés e nós, navios em nós.",
+  "settings.units.tip2": "O que você digita continua métrico, e nada enviado pelo ar muda.",
   "settings.radius.label": "Raio",
   "settings.radius.tip_label": "Sobre o raio",
   "settings.radius.tip1":

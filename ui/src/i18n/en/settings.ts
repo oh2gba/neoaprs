@@ -229,6 +229,11 @@ export const settings = {
 
   "settings.radius.name": "Map radius",
   "settings.station_hours.name": "Time on the map",
+  "settings.units.label": "Non-metric units",
+  "settings.units.name": "Units",
+  "settings.units.tip1":
+    "Miles, feet, mph, °F, inHg and inches on every page of this station. Aircraft in feet and knots, ships in knots.",
+  "settings.units.tip2": "What you type stays metric, and nothing sent on the air changes.",
   "settings.radius.label": "Radius",
   "settings.radius.tip_label": "About the radius",
   "settings.radius.tip1":

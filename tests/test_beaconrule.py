@@ -277,8 +277,10 @@ async def test_a_save_that_unticks_the_hf_radios_send_on_stops_its_beacon_and_on
         # (planned at once: the first beacon was due a minute ago)
         await until(lambda: hf.last_sent is not None)
         assert (
-            hf.last_reason == "interval" and hf.next_due is not None and hf.next_due >= e.now() + timedelta(minutes=30)
-        )
+            hf.last_reason == "interval"
+            and hf.next_due is not None
+            and hf.next_due >= started + timedelta(seconds=hf.first_delay_sec, minutes=30)  # type: ignore[operator]
+        ), "the next is an interval on from the slot the beacon went in"
     finally:
         await e.stop()
         await air.aclose()

@@ -90,8 +90,16 @@ from neoaprs.radiotype import HF_BEACON_MIN_MIN, KINDS, RadioType  # noqa: E402
 from neoaprs.radiotypes import DEFAULT_TYPE, type_of, types_of  # noqa: E402
 from neoaprs.versions import MAX_FREQUENCIES  # noqa: E402
 from neoaprs.services import generalask  # noqa: E402
-from neoaprs.decay import ANNOUNCEMENT, BULLETIN  # noqa: E402
-from neoaprs.ownbulletin import GROUP_MAX, PostError, make_bulletin, slot_of  # noqa: E402
+from neoaprs.ownbulletin import (  # noqa: E402
+    DEFAULT_HOURS,
+    GROUP_MAX,
+    Kind,
+    MAX_POSTED,
+    SENT_FOR,
+    PostError,
+    free_slot,
+    make_bulletin,
+)
 from neoaprs.ownobject import (  # noqa: E402
     COMMENT_MAX,
     COMMENT_MAX_MOTION,
@@ -375,16 +383,20 @@ def _path_text_max() -> int:
     return int(next(option["maxLength"] for option in path["anyOf"] if "maxLength" in option))
 
 
-def _whole(seconds: int, unit_sec: int, what: str) -> int:
-    """A time of the daemon in the unit the page words it in (the hours a bulletin is repeated for,
-    the days of an announcement). No whole number of them stops the generator: a changed plan
-    (neoaprs/decay.py) then needs the page's text in another unit, and cannot leave it untrue."""
-    count, rest = divmod(seconds, unit_sec)
-    if rest or count < 1:
+def _sent_for() -> dict[str, Any]:
+    """The Sent for choices of the Bulletins form. The page words an announcement's in days and has
+    one list for a bulletin and a group bulletin: a plan of the daemon that breaks either stops the
+    generator."""
+    if SENT_FOR["group"] != SENT_FOR["bulletin"] or any(h % 24 for h in SENT_FOR["announcement"]):
         raise ValueError(
-            f"{what} is {seconds} s, no whole number of {unit_sec} s: word the choice of the Bulletins form (ui/src/lib/bulletins.ts) in a unit that fits"
+            "the Sent for of neoaprs/ownbulletin.py no longer fits the Bulletins form (ui/src/lib/bulletins.ts)"
         )
-    return count
+    return {
+        "hours": list(SENT_FOR["bulletin"]),
+        "announcementHours": list(SENT_FOR["announcement"]),
+        "defaultHours": DEFAULT_HOURS["bulletin"],
+        "defaultAnnouncementHours": DEFAULT_HOURS["announcement"],
+    }
 
 
 def limits() -> dict[str, Any]:
@@ -434,8 +446,8 @@ def limits() -> dict[str, Any]:
         },
         "bulletin": {
             "groupMax": GROUP_MAX,
-            "repeatHours": _whole(BULLETIN.lasts, 3600, "how long a bulletin is repeated"),
-            "announcementRepeatDays": _whole(ANNOUNCEMENT.lasts, 86400, "how long an announcement is repeated"),
+            "postedMax": MAX_POSTED,
+            **_sent_for(),
         },
         "qru": {"kmMax": ASK_KM_MAX, "askEverySec": ASK_EVERY_SEC, "askGapSec": ASK_GAP_SEC},
         "general": {
@@ -931,11 +943,31 @@ BULLETIN_TEXTS = [
     "emoji \U0001f600",
     "a:b",
 ]
-BULLETIN_SLOTS = (
-    [("bulletin", i, "") for i in "0189AZ"]
-    + [("announcement", i, "") for i in "09AZ"]
-    + [("group", i, g) for i in "09A" for g in ("", "HAMS", "HAMS1", "HAMS12", "HA-MS", "ha ms", "ham", "H")]
-)
+_DIGITS = [f"BLN{c}" for c in "0123456789"]
+_LETTERS = [f"BLN{c}" for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
+BULLETIN_FREE_SLOTS = [
+    ("bulletin", "", []),
+    ("announcement", "", []),
+    ("group", "HAMS", []),
+    ("bulletin", "", ["BLN0", "BLN2"]),
+    ("bulletin", "", _DIGITS),
+    ("bulletin", "", ["BLN0HAMS", "BLNA"]),
+    ("announcement", "", _DIGITS),
+    ("announcement", "", ["BLNA", "BLNB", "BLND"]),
+    ("announcement", "", _LETTERS),
+    ("group", "HAMS", ["BLN0", "BLN0WX", "BLN1WX"]),
+    ("group", "HAMS", [f"{s}HAMS" for s in _DIGITS]),
+    ("group", "WX", [f"{s}HAMS" for s in _DIGITS]),
+    ("group", "hams", ["BLN0HAMS"]),
+    ("group", " WX ", []),
+    ("group", "HAMS1", []),
+    ("group", "A", []),
+    ("group", "", []),
+    ("group", "HAMS12", []),
+    ("group", "HA-MS", []),
+    ("group", "ha ms", []),
+    ("bulletin", "HAMS", ["BLN0"]),
+]
 OBJECT_NAMES = [
     ("object", n)
     for n in (
@@ -1269,20 +1301,15 @@ def _message_vector(text: str) -> dict[str, Any]:
 
 def _bulletin_text_vector(text: str) -> dict[str, Any]:
     try:
-        make_bulletin(datetime(2026, 10, 21, tzinfo=UTC), "BLN1", text)
+        make_bulletin(datetime(2026, 10, 21, tzinfo=UTC), "BLN1", text, DEFAULT_HOURS["bulletin"])
     except PostError:
         return {"input": text, "ok": False}
     return {"input": text, "ok": True}
 
 
-def _bulletin_slot_vector(kind: str, ident: str, group: str) -> dict[str, Any]:
-    """The slot a bulletin of this kind, identifier and group is posted to, null when the kind does
-    not take it."""
-    try:
-        slot, _, found = slot_of(f"BLN{ident}{group}")
-    except PostError:
-        return {"kind": kind, "id": ident, "group": group, "slot": None}
-    return {"kind": kind, "id": ident, "group": group, "slot": slot if found == kind else None}
+def _bulletin_free_slot_vector(kind: Kind, group: str, taken: list[str]) -> dict[str, Any]:
+    """The slot a new post of this kind and group takes beside the slots of ours; null when none is free or the group is not one."""
+    return {"kind": kind, "group": group, "taken": taken, "slot": free_slot(kind, group, taken)}
 
 
 def _object_vector(kind: str, name: str) -> dict[str, Any]:
@@ -1365,7 +1392,7 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "compare_versions": [{"a": a, "b": b, "order": compare_versions(a, b)} for a, b in VERSION_PAIRS],
         "message_texts": [_message_vector(t) for t in MESSAGE_TEXTS],
         "bulletin_texts": [_bulletin_text_vector(t) for t in BULLETIN_TEXTS],
-        "bulletin_slots": [_bulletin_slot_vector(*row) for row in BULLETIN_SLOTS],
+        "bulletin_free_slots": [_bulletin_free_slot_vector(*row) for row in BULLETIN_FREE_SLOTS],
         "object_names": [_object_vector(*row) for row in OBJECT_NAMES],
         "object_comments": [_comment_vector(*row) for row in OBJECT_COMMENTS],
         "qru_groups": [_qru_group_vector(group) for group in QRU_GROUPS],

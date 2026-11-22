@@ -72,17 +72,17 @@ OUT = {
     # radio 1; the message to its home station, and four attempts to the station nobody heard (the
     # first box).
     FM1: {"beacon": 72, "status": 25, "bulletin": 14, "query": 1, "message": 5, "ack": 1},
-    # Every 30 minutes and its pause, but for its two hours off; the message to the city (it heard
+    # Every 30 minutes, each in its slot after its pause, but for its two hours off; the message to the city (it heard
     # the city last of the three) and the first two attempts to the quiet city before it was
     # switched off.
-    HF1: {"beacon": 41, "message": 3, "ack": 1},
+    HF1: {"beacon": 44, "message": 3, "ack": 1},
     # Send on unticked: no beacon; the object set for it and LoRa (at 0, 1, 3, 7, 15 and 31 minutes,
     # then every 30, LoRa's floor, on both: 6 + 44); its home station's message.
     FM2: {"object": 50, "message": 1, "ack": 1},
-    HF2: {"beacon": 44},
+    HF2: {"beacon": 48},
     # The last two attempts to the quiet city, once HF1 was off.
-    HF3: {"beacon": 44, "message": 2},
-    LORA: {"beacon": 44, "object": 50, "query": 1, "message": 1, "ack": 1},
+    HF3: {"beacon": 48, "message": 2},
+    LORA: {"beacon": 48, "object": 50, "query": 1, "message": 1, "ack": 1},
 }
 # The paths our own frames went by on each radio, by kind (the digipeater's repeats aside): the
 # radio's own path (FM1 the station's, FM2 none of its own: the symbol's WIDE2-2, LoRa its WIDE1-1,
@@ -100,12 +100,12 @@ PATHS = {
         ("message", "WIDE1-1,WIDE2-1"): 4,
         ("ack", "WIDE1-1,WIDE2-1"): 1,
     },
-    HF1: {("beacon", ""): 41, ("message", ""): 3, ("ack", ""): 1},
+    HF1: {("beacon", ""): 44, ("message", ""): 3, ("ack", ""): 1},
     FM2: {("object", "WIDE2-2"): 50, ("message", ""): 1, ("ack", "WIDE2-2"): 1},
-    HF2: {("beacon", ""): 44},
-    HF3: {("beacon", ""): 44, ("message", ""): 2},
+    HF2: {("beacon", ""): 48},
+    HF3: {("beacon", ""): 48, ("message", ""): 2},
     LORA: {
-        ("beacon", "WIDE1-1"): 44,
+        ("beacon", "WIDE1-1"): 48,
         ("object", "WIDE1-1"): 50,
         ("query", "WIDE1-1,RFONLY"): 1,
         ("message", ""): 1,
@@ -116,12 +116,12 @@ NAMES = {FM1: "FM", HF1: "Mercury", FM2: "FM 2", HF2: "Mercury 2", HF3: "Mercury
 # Beside the six: a text monitor (tnc-text), a LoRa iGate on the network (lora-tcp) and a Sound card
 # radio (direwolf), each a real type on a fake line or program
 TEXT, BOARD, WOLF = 7, 8, 9
-# The board's beacons over the day: LoRa's 30 minutes and the pause, as the Dummy LoRa radio's
-BOARD_BEACONS = 44
+# The board's beacons over the day: LoRa's 30 minutes, each after its pause, as the Dummy LoRa radio's
+BOARD_BEACONS = 48
 # The Sound card radio's: the station's 20 minutes, as radio 1's
 WOLF_BEACONS = 72
 FLOOR_SEC = {FM1: 20 * 60, HF1: 30 * 60, HF2: 30 * 60, HF3: 30 * 60, LORA: 30 * 60}
-PAUSE_SEC = {FM1: 0, HF1: 300, HF2: 300, HF3: 300, LORA: 300}
+PAUSE_SEC = {FM1: 30, HF1: 300, HF2: 300, HF3: 300, LORA: 300}
 
 
 def kind_of(frame: ax25.Frame) -> str:
@@ -353,7 +353,7 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
         )
 
     await day.until(POST_AT)
-    e.ctl.ownbulletins.post("BLN1", "net tonight 20z")
+    e.ctl.ownbulletins.post("bulletin", "net tonight 20z")
     e.ctl.ownobjects.set("SIXOBJ", "object", 60.2, 24.9, "/", "r", "on two radios", radios=(FM2, LORA))
     await day.until(ASK_AT)
     assert e.ctl.generalask.ask("aprs").radios == (FM1,), (
@@ -418,8 +418,8 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
         beacons = [at for at, f in day.out(r) if kind_of(f) == "beacon"]
         gaps = [(b - a).total_seconds() for a, b in zip(beacons, beacons[1:])]
         longer = [g for g in gaps if g > floor + PAUSE_SEC[r] + STEP_SEC]
-        assert min(gaps) >= floor and len(longer) == (r == OFF), (
-            f"radio {r}: its beacons {floor // 60} minutes apart, with a pause of up to {PAUSE_SEC[r]} s (and OFF's two hours off): {gaps}"
+        assert min(gaps) >= floor - PAUSE_SEC[r] and len(longer) == (r == OFF), (
+            f"radio {r}: its beacons in slots {floor // 60} minutes apart, each after a pause of up to {PAUSE_SEC[r]} s (and OFF's two hours off): {gaps}"
         )
 
     heard = {r: {s.call for s in stations if s.heard_on(r).count} for r in IDS}
@@ -491,15 +491,15 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
             f"the Sound card radio sends its own beacons, every 20 minutes by the symbol's WIDE2-2 (no path of its own), and nothing else: {wolf}"
         )
         gaps = [(b - a).total_seconds() for (a, _), (b, _) in zip(day.out(WOLF), day.out(WOLF)[1:])]
-        assert min(gaps) >= 20 * 60 and max(gaps) <= 20 * 60 + STEP_SEC, (
-            f"at the station's 20 minutes, as the FM radio's: {gaps}"
+        assert min(gaps) >= 20 * 60 - 30 and max(gaps) <= 20 * 60 + 30 + STEP_SEC, (
+            f"in slots of the station's 20 minutes, each after FM's pause, as the FM radio's: {gaps}"
         )
         ours = Counter((kind_of(f), path_of(f)) for _, f in day.out(BOARD))
         assert ours == {("beacon", "WIDE1-1"): BOARD_BEACONS} and len(board.transmitted) == BOARD_BEACONS, (
             f"the board keys its own beacons, on LoRa's WIDE1-1, and nothing else: {ours}"
         )
         gaps = [(b - a).total_seconds() for (a, _), (b, _) in zip(day.out(BOARD), day.out(BOARD)[1:])]
-        assert min(gaps) >= 30 * 60 and max(gaps) <= 30 * 60 + 300 + STEP_SEC, (
+        assert min(gaps) >= 30 * 60 - 300 and max(gaps) <= 30 * 60 + 300 + STEP_SEC, (
             f"at LoRa's floor and its pause, as the Dummy LoRa radio: {gaps}"
         )
 

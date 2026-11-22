@@ -52,16 +52,18 @@ def test_the_rules_of_a_path_a_message_a_bulletin_and_an_object_are_pinned() -> 
     assert messages["x" * 67] and not messages["x" * 68]
     texts = {c["input"]: c["ok"] for c in v["bulletin_texts"]}
     assert texts["Snow expected"] and not texts["with | bar"] and not texts["with { brace"] and not texts["åäö"]
-    slots = {(c["kind"], c["id"], c["group"]): c["slot"] for c in v["bulletin_slots"]}
+    slots = {(c["kind"], c["group"], ",".join(c["taken"])): c["slot"] for c in v["bulletin_free_slots"]}
     assert (
-        slots[("bulletin", "1", "")] == "BLN1"
-        and slots[("announcement", "A", "")] == "BLNA"
-        and slots[("group", "0", "HAMS")] == "BLN0HAMS"
+        slots[("bulletin", "", "")] == "BLN0"
+        and slots[("announcement", "", "")] == "BLNA"
+        and slots[("group", "HAMS", "")] == "BLN0HAMS"
+        and slots[("bulletin", "", "BLN0,BLN2")] == "BLN1"
+        and slots[("group", "hams", "BLN0HAMS")] == "BLN1HAMS"
     )
     assert (
-        slots[("bulletin", "A", "")] is None
-        and slots[("group", "A", "HAMS")] is None
-        and slots[("group", "0", "HAMS12")] is None
+        slots[("bulletin", "", ",".join(f"BLN{c}" for c in "0123456789"))] is None
+        and slots[("group", "HAMS12", "")] is None
+        and slots[("group", "", "")] is None
     )
     names = {(c["kind"], c["name"]): c["ok"] for c in v["object_names"]}
     assert (
@@ -122,7 +124,7 @@ def test_every_category_has_cases_and_the_phg_and_the_positions_are_the_daemons_
         "paths",
         "message_texts",
         "bulletin_texts",
-        "bulletin_slots",
+        "bulletin_free_slots",
         "object_names",
         "object_comments",
         "qru_groups",

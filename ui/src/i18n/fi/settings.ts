@@ -229,6 +229,11 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.radius.name": "Kartan säde",
   "settings.station_hours.name": "Aika kartalla",
+  "settings.units.label": "Epämetriset yksiköt",
+  "settings.units.name": "Yksiköt",
+  "settings.units.tip1":
+    "Mailit, jalat, mph, °F, inHg ja tuumat tämän aseman jokaisella sivulla. Ilma-alukset jaloina ja solmuina, laivat solmuina.",
+  "settings.units.tip2": "Kirjoittamasi arvot pysyvät metrisinä, eikä ilmassa lähetettävä muutu.",
   "settings.radius.label": "Säde",
   "settings.radius.tip_label": "Tietoa: säde",
   "settings.radius.tip1":

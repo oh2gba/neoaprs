@@ -6,7 +6,8 @@
 // its name, else its MMSI; its kind (lib/layers/shipkinds.ts), speed, course, destination and
 // age. The card ends with the source's name. Nothing of a station: no path, packets or message.
 import { t } from "@/i18n";
-import { ageText, altitudeText, bearingText, speedText, verticalText } from "@/lib/format";
+import { ageText, bearingText } from "@/lib/format";
+import { aircraftAltitudeText, aircraftSpeedText, shipSpeedText, verticalText } from "@/lib/units";
 import {
   LAYER_NAMES,
   RADARCAPE_NAME,
@@ -45,9 +46,10 @@ const rowsOf = (parts: readonly Part[]): ThingRow[] =>
   parts.flatMap(([label, text]) => (text === null || text === "" ? [] : [{ label, text }]));
 const or = <T>(value: T | null, text: (v: T) => string): string | null => (value === null ? null : text(value));
 
-const altitude = (thing: LayerThing): Part => [t("station.field.altitude"), or(thing.altitude_m, altitudeText)];
+const altitude = (thing: LayerThing): Part => [t("station.field.altitude"), or(thing.altitude_m, aircraftAltitudeText)];
 const vertical = (thing: LayerThing): Part => [t("layers.card.vertical"), or(thing.vertical_ms, verticalText)];
-const speed = (thing: LayerThing): Part => [t("station.field.speed"), or(thing.speed_kmh, speedText)];
+const speed = (thing: LayerThing): Part => [t("station.field.speed"), or(thing.speed_kmh, aircraftSpeedText)];
+const shipSpeed = (thing: LayerThing): Part => [t("station.field.speed"), or(thing.speed_kmh, shipSpeedText)];
 const age = (thing: LayerThing, nowMs: number): Part => [t("layers.card.age"), ageText(thing.at, nowMs)];
 const course = (thing: LayerThing): Part => [t("objects.field.course"), or(thing.course_deg, bearingText)];
 const destination = (thing: LayerThing): Part => [t("layers.card.destination"), thing.destination];
@@ -82,7 +84,7 @@ function partsOf(layer: LayerName, thing: LayerThing, source: SourceName, nowMs:
         ]
       : [
           [t("station.field.kind"), kind === null ? null : t(kind)],
-          speed(thing),
+          shipSpeed(thing),
           course(thing),
           destination(thing),
           age(thing, nowMs),
@@ -106,6 +108,6 @@ export function hoverRows(layer: LayerName, thing: LayerThing, nowMs: number): T
   return rowsOf(
     layer === "aircraft"
       ? [altitude(thing), speed(thing), age(thing, nowMs)]
-      : [speed(thing), course(thing), destination(thing), age(thing, nowMs)],
+      : [shipSpeed(thing), course(thing), destination(thing), age(thing, nowMs)],
   );
 }

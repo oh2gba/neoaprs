@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it } from "vitest";
 import NearbyPane from "@/components/NearbyPane.vue";
+import { takeUnits } from "@/lib/units";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
 import { ago, station, table } from "@/test/fixtures";
 import type { ExtensionValues, FrequencyValues } from "@/protocol/protocol";
@@ -182,5 +183,16 @@ describe("NearbyPane", () => {
     expect(wrapper.findAll(".nearby-section:not(.nearby-ask) input[type='checkbox']")).toHaveLength(0);
     expect(wrapper.text()).not.toContain("Show range");
     expect(wrapper.find(".nearby-ranges").exists()).toBe(false);
+  });
+});
+
+describe("NearbyPane in the non-metric units", () => {
+  it("heads the distance mi, and gives the distance and the range in miles", () => {
+    takeUnits({ "units/non_metric": "true" });
+    const { wrapper } = make();
+    const digipeaters = section(wrapper, "Digipeaters");
+    expect(digipeaters?.find("th.num").text()).toBe("mi");
+    expect(digipeaters?.find("tbody tr .what").text()).toContain("30 packets repeated, PHG range 13 mi");
+    expect(digipeaters?.find("tbody tr .num").text()).toBe("7.5");
   });
 });

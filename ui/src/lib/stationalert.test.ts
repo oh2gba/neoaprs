@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { clockText } from "@/lib/format";
 import { alertSummary, canAlert, firedLine, firedText } from "@/lib/stationalert";
+import { takeUnits } from "@/lib/units";
 import { station } from "@/test/fixtures";
 
 const at = "2026-10-21T12:03:00Z";
@@ -27,5 +28,14 @@ describe("the alerts set on stations", () => {
     expect(firedLine({ type: "station_alert", call: "OH2XYZ", kind: "direct", at, km: null })).toBe(
       `${clockText(at).slice(0, 5)} OH2XYZ is heard direct`,
     );
+  });
+});
+
+describe("an alert in the non-metric units", () => {
+  it("says how far the station is in miles, and the distance typed for the alert as typed", () => {
+    takeUnits({ "units/non_metric": "true" });
+    expect(firedText({ call: "OH2XYZ", kind: "within", km: 8.24 })).toBe("OH2XYZ is 5.1 mi from you");
+    expect(firedText({ call: "OH2XYZ", kind: "within", km: 42 })).toBe("OH2XYZ is 26 mi from you");
+    expect(alertSummary({ on_air: false, within_km: 25, direct: false })).toBe("within 25 km");
   });
 });

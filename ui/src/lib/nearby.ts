@@ -15,6 +15,7 @@ import { onAir } from "@/lib/channels";
 import { frequencyText } from "@/lib/details";
 import { ageText } from "@/lib/format";
 import { hasPosition } from "@/lib/stations";
+import { rangeText } from "@/lib/units";
 import { IGATE_OVERLAYS } from "@/protocol/lists";
 import type { ExtensionValues, StationRow } from "@/protocol/protocol";
 
@@ -165,7 +166,7 @@ export function directRows(rows: Iterable<StationRow>): StationRow[] {
 export function digipeaterLines(d: Digipeater): string[] {
   const parts = [d.repeated > 0 ? t("nearby.repeated", { n: d.repeated }) : t("nearby.symbol_only")];
   if (d.range !== null)
-    parts.push(t(d.range.phg ? "nearby.range_phg" : "nearby.range", { km: Math.round(d.range.km) }));
+    parts.push(t(d.range.phg ? "nearby.range_phg" : "nearby.range", { distance: rangeText(d.range.km) }));
   return [parts.join(", "), ...(d.row === null ? [t("nearby.not_heard")] : [])];
 }
 

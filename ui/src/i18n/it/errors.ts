@@ -4,6 +4,9 @@ import type { Message } from "@/i18n/message";
 export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.beacon.not_sent": "non è stato inviato nulla: {reason}",
   "error.bulletin.group": "“{value}”: un bollettino di gruppo è BLN, una cifra e il gruppo",
+  "error.bulletin.hours": "una pubblicazione non può essere inviata per {hours} ore",
+  "error.bulletin.taken":
+    "ogni numero o lettera di questo tipo contiene una nostra pubblicazione: elimina prima una voce dalla bacheca",
   "error.bulletin.not_on_board": "sulla bacheca non c’è alcuna voce {sender}/{slot}",
   "error.bulletin.not_posted": "non c’è alcun nostro bollettino {slot}",
   "error.bulletin.slot":

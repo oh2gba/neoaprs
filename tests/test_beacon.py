@@ -592,8 +592,8 @@ async def test_a_frame_the_tnc_refuses_is_tried_again_after_retry_sec_and_goes_o
         await until(lambda: len(rig.tnc.sent) == 1)
         assert rig.tnc.asked == 2 and (rig.beacon.last_sent, rig.beacon.next_due) == (
             rig.clock(),
-            rig.clock() + timedelta(minutes=5),
-        )
+            rig.clock() - timedelta(seconds=5) + timedelta(minutes=5),
+        ), "the next counts from the slot the retried beacon belongs to, not from the retry"
         await quiet(rig)
         assert rig.tnc.asked == 2
     finally:

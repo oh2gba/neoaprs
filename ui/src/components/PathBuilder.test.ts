@@ -7,6 +7,7 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import PathBuilder from "@/components/PathBuilder.vue";
+import { takeUnits } from "@/lib/units";
 import type { StationRow } from "@/protocol/protocol";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { ago, radioRow, radiosTopic, station } from "@/test/fixtures";
@@ -446,5 +447,15 @@ describe("the path builder", () => {
     await flush();
     expect(all(".info-line")).toHaveLength(0);
     expect(dialog()).not.toBeNull();
+  });
+});
+
+describe("the path builder in the non-metric units", () => {
+  it("gives the distance of a choice in miles", async () => {
+    takeUnits({ "units/non_metric": "true" });
+    const wrapper = make({ value: "DIRECT" });
+    await open(wrapper);
+    expect(all(".pathbuild-choice .pathbuild-num").map(text)).toEqual(["12", "2 min", "2.0 mi"]);
+    wrapper.unmount();
   });
 });

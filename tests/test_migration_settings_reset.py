@@ -85,6 +85,7 @@ KEPT = {
     "map/aircraft_host": "pi.local:8080",
     "map/ships": "fintraffic",
     "map/ships_host": "ais.local:2000",
+    "units/non_metric": "true",
     "digi/enabled": "true",
     "igate/enabled": "true",
     "igate/server": "euro.aprs2.net:14580",

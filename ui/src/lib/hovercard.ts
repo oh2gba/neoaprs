@@ -5,11 +5,11 @@
 // shows it; a touch screen has no resting pointer and a tap opens the full card.
 import { t } from "@/i18n";
 import { heardWords } from "@/lib/channels";
-import { agoWords, bearingText, distanceText } from "@/lib/format";
+import { agoWords, bearingText } from "@/lib/format";
 import { routeWords } from "@/lib/routes";
 import { symbolLabel } from "@/lib/stations";
 import type { PageRadio } from "@/lib/radios";
-import { tempText } from "@/lib/weather";
+import { distanceWithUnit, tempText } from "@/lib/units";
 import type { StationRow } from "@/protocol/protocol";
 
 const DELAY_MS = 250;
@@ -42,7 +42,7 @@ export function hoverRows(row: StationRow, nowMs: number, radios: HoverRadios = 
     rows.push({
       label: t("station.field.from_us"),
       text: t("station.from_us_value", {
-        distance: distanceText(row.distance_km),
+        distance: distanceWithUnit(row.distance_km),
         bearing: bearingText(row.bearing_deg),
       }),
     });

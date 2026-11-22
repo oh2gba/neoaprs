@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
 import { gpsProblem, gpsStateText, gpsStatus, hasFix, isMoving, mobileBeaconText, reasonText } from "@/lib/gpsstatus";
+import { takeUnits } from "@/lib/units";
 import { NOW, ago, gpsOff, gpsState } from "@/test/fixtures";
 
 const later = (seconds: number): string => new Date(NOW + seconds * 1000).toISOString();
@@ -146,5 +147,14 @@ describe("hasFix", () => {
     expect(hasFix(gpsState({ state: "stale" }))).toBe(false);
     expect(hasFix(gpsState({ lat: null }))).toBe(false);
     expect(hasFix(null)).toBe(false);
+  });
+});
+
+describe("the fix in the non-metric units", () => {
+  it("says the speed in mph and the altitude in feet", () => {
+    takeUnits({ "units/non_metric": "true" });
+    expect(gpsStatus(gpsState(), values, NOW)).toBe(
+      "Fix: 60.4295 N 24.1452 E, 30 mph, course 215°, 338 ft, 9 satellites, 2 s ago",
+    );
   });
 });

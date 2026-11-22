@@ -225,6 +225,11 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.radius.name": "地図の半径",
   "settings.station_hours.name": "地図の表示時間",
+  "settings.units.label": "ヤード・ポンド法の単位",
+  "settings.units.name": "単位",
+  "settings.units.tip1":
+    "この局のすべてのページで、マイル、フィート、mph、°F、inHg、インチを使います。航空機はフィートとノット、船はノットです。",
+  "settings.units.tip2": "入力する値はメートル法のままで、電波で送信される内容は変わりません。",
   "settings.radius.label": "半径",
   "settings.radius.tip_label": "半径について",
   "settings.radius.tip1": "自局からどこまで、道路や地名のある詳細な地図を使うかです。世界地図は常にあります。",

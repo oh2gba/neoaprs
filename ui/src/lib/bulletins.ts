@@ -6,7 +6,7 @@ import { ageText, untilText } from "@/lib/format";
 import { sentText } from "@/lib/ownobjects";
 import { textRefusal } from "@/lib/recipients";
 import { LIMITS } from "@/protocol/lists";
-import type { BulletinRow, Command, OwnBulletinRow } from "@/protocol/protocol";
+import type { BulletinRow, Command, OwnBulletinRow, PostHours } from "@/protocol/protocol";
 
 type Kind = BulletinRow["kind"];
 
@@ -88,42 +88,51 @@ export function ownMeta(own: OwnBulletinRow, nowMs: number): string {
 }
 
 export type PostKind = "bulletin" | "announcement" | "group";
-type PostCommand = Extract<Command, { cmd: "bulletin_post" }>;
+export type PostCommand = Extract<Command, { cmd: "bulletin_post" }>;
 
-/** The post kinds with their identifiers: digits for bulletins, capitals for announcements. */
-export const POST_KINDS: { kind: PostKind; ids: string }[] = [
-  { kind: "bulletin", ids: "0123456789" },
-  { kind: "announcement", ids: "ABCDEFGHIJKLMNOPQRSTUVWXYZ" },
-  { kind: "group", ids: "0123456789" },
-];
+/** The post kinds, in the order of the Kind list. */
+export const POST_KINDS: readonly PostKind[] = ["bulletin", "announcement", "group"];
 
-/**
- * How long a post of each kind is sent (hours; days for an announcement), from the daemon's plan
- * (LIMITS.bulletin, neoaprs/decay.py). A group bulletin is sent like a bulletin.
- */
-const REPEATED: Record<PostKind, number> = {
-  bulletin: LIMITS.bulletin.repeatHours,
-  announcement: LIMITS.bulletin.announcementRepeatDays,
-  group: LIMITS.bulletin.repeatHours,
+/** The identifiers of a kind's slots: digits for bulletins, capitals for announcements. */
+const IDS: Record<PostKind, string> = {
+  bulletin: "0123456789",
+  announcement: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  group: "0123456789",
 };
 
-/** The compose box's name for a kind: "Bulletin (sent for 4 hours)". */
+/** The compose box's name for a kind: "Bulletin". */
 export function kindTitle(kind: PostKind): string {
-  return t(`bulletins.kind.${kind}`, { n: REPEATED[kind] });
+  return t(`bulletins.kind_name.${kind}`);
 }
+
+/** The Sent for choices of a kind in hours, from the daemon (LIMITS.bulletin, neoaprs/ownbulletin.py). */
+export function sentForChoices(kind: PostKind): readonly number[] {
+  return kind === "announcement" ? LIMITS.bulletin.announcementHours : LIMITS.bulletin.hours;
+}
+
+/** A Sent for choice in the page's words: "4 hours", an announcement's in days ("3 days"). */
+export function sentForText(kind: PostKind, hours: number): string {
+  return kind === "announcement" ? t("bulletins.tip.days", { n: hours / 24 }) : t("bulletins.tip.hours", { n: hours });
+}
+
+/**
+ * The Sent for a new post of the kind starts with: the station's (`status.new_bulletin_hours`) while
+ * it is one of the kind's choices, else the daemon's default.
+ */
+export function rememberedHours(kind: PostKind, remembered: PostHours | null | undefined): number {
+  const hours = remembered?.[kind];
+  if (hours !== undefined && sentForChoices(kind).includes(hours)) return hours;
+  return kind === "announcement" ? LIMITS.bulletin.defaultAnnouncementHours : LIMITS.bulletin.defaultHours;
+}
+
 export const GROUP_MAX = LIMITS.bulletin.groupMax;
 
-/** What the compose box holds. */
+/** What the compose box holds; `hours` is null until chosen, so it follows the station's. */
 export interface PostDraft {
   kind: PostKind;
-  id: string;
+  hours: number | null;
   group: string;
   text: string;
-}
-
-/** The identifiers a kind has. */
-export function idsOf(kind: PostKind): string {
-  return POST_KINDS.find((k) => k.kind === kind)?.ids ?? "";
 }
 
 /** The group as sent: capitals, no blanks. */
@@ -131,16 +140,24 @@ export function groupOf(text: string): string {
   return text.trim().toUpperCase();
 }
 
-/** The slot of a draft: `BLN1`, `BLNA`, `BLN3HAMS`. */
-export function slotOf(draft: PostDraft): string {
-  return `BLN${draft.id}${draft.kind === "group" ? groupOf(draft.group) : ""}`;
-}
-
 const GROUP = new RegExp(`^[A-Z0-9]{1,${GROUP_MAX}}$`);
 
 /** Whether the daemon accepts the group: 1 to `GROUP_MAX` letters and digits. */
 export function groupOk(text: string): boolean {
   return GROUP.test(groupOf(text));
+}
+
+/**
+ * The slot a new post of the kind (of the group) takes: the lowest that none of ours (`taken`, ended
+ * ones included) holds; null when all are taken or the group is no group. The daemon decides; this
+ * mirrors it (ui/src/protocol/vectors.json).
+ */
+export function freeSlot(kind: PostKind, group: string, taken: Iterable<string>): string | null {
+  const name = kind === "group" ? groupOf(group) : "";
+  if (kind === "group" && !groupOk(name)) return null;
+  const held = new Set(taken);
+  for (const id of IDS[kind]) if (!held.has(`BLN${id}${name}`)) return `BLN${id}${name}`;
+  return null;
 }
 
 /** Whether the text can be sent: printable ASCII without `| ~ {`, within the message length. */
@@ -154,12 +171,33 @@ export function charsLeft(text: string): number {
   return LIMITS.message.textMax - text.trim().length;
 }
 
-/** Whether Post is enabled: a fitting text and, for a group bulletin, a group. */
-export function canPost(draft: PostDraft): boolean {
-  return textOk(draft.text) && idsOf(draft.kind).includes(draft.id) && (draft.kind !== "group" || groupOk(draft.group));
+/**
+ * Whether Post is enabled: a fitting text, for a group bulletin a group, and a free slot of the kind
+ * among our posts (`own`), which are fewer than the daemon takes.
+ */
+export function canPost(draft: PostDraft, own: ReadonlyMap<string, OwnBulletinRow>): boolean {
+  return (
+    textOk(draft.text) &&
+    (draft.kind !== "group" || groupOk(draft.group)) &&
+    own.size < LIMITS.bulletin.postedMax &&
+    freeSlot(draft.kind, draft.group, own.keys()) !== null
+  );
 }
 
-/** The command that posts the draft; null if it cannot be posted. */
-export function postCommand(draft: PostDraft): PostCommand | null {
-  return canPost(draft) ? { cmd: "bulletin_post", slot: slotOf(draft), text: draft.text.trim() } : null;
+/** The command that posts the draft for `hours`, on `radios` when given; null if it cannot be posted. */
+export function postCommand(
+  draft: PostDraft,
+  hours: number,
+  own: ReadonlyMap<string, OwnBulletinRow>,
+  radios?: number[],
+): PostCommand | null {
+  if (!canPost(draft, own)) return null;
+  return {
+    cmd: "bulletin_post",
+    kind: draft.kind,
+    ...(draft.kind === "group" ? { group: groupOf(draft.group) } : {}),
+    text: draft.text.trim(),
+    hours,
+    ...(radios === undefined ? {} : { radios }),
+  };
 }

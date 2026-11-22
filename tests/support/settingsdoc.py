@@ -9,11 +9,10 @@ from neoaprs import TOCALL
 from neoaprs import config as cfg
 from neoaprs.cli.radiosettings import SHOWN_KEYS
 from neoaprs.configstatus import MAX_STATUS
-from neoaprs.decay import ANNOUNCEMENT, BULLETIN
 from neoaprs.direwolf import TX_GAIN_MAX_DB as DIREWOLF_GAIN_MAX, TX_GAIN_MIN_DB as DIREWOLF_GAIN_MIN
 from neoaprs.layerthing import AIRCRAFT_PORTS, AIS_PORT, FINTRAFFIC_BOX
 from neoaprs.message import EMAIL_ATTEMPTS, STATION_ATTEMPTS
-from neoaprs.ownbulletin import MAX_POSTED
+from neoaprs.ownbulletin import DEFAULT_HOURS, MAX_POSTED, SENT_FOR
 from neoaprs.pairsetting import PAIR_FIELDS, default_of, pair_key
 from neoaprs.policy import GPS_STALE_SEC, INTERNET_KEEP_DAYS, LOG_KEEP_DAYS, TNC_CHECK_SEC
 from neoaprs.radiotype import (
@@ -249,6 +248,10 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
         "My station tab, Beacon (Travelling)",
         "how you travel while the beacon follows the GPS: `car`, `bicycle`, `foot` or `boat`. It decides when SmartBeaconing beacons: {moving_presets}. Below the slow speed a station counts as standing still, so there is a beacon only every 30 minutes and no turn is beaconed. The car's numbers are Dire Wolf's; the others are NeoAPRS's own choice",
     ),
+    "units/non_metric": (
+        "Settings tab, at the top (Non-metric units)",
+        "whether every page of the station shows distances in miles (short ones in feet), heights in feet, speeds in mph, temperatures in °F, pressure in inHg and rain and snow in inches; aircraft in feet and knots, ships in knots. What you type stays metric, and nothing sent on the air changes",
+    ),
 }
 
 SHOWN = {"messages/alert_command": "a notification and a sound"}  # a default that is too long for a table
@@ -298,6 +301,11 @@ def settings() -> str:
     return _table(("key", "default", "where", "what it is"), rows)
 
 
+def _choices(hours: tuple[int, ...], unit: int = 1) -> str:
+    *most, last = (h // unit for h in hours)
+    return f"{', '.join(map(str, most))} or {last}"
+
+
 def fixed() -> str:
     """Numbers the program decides, with no setting."""
     updates = int(UPDATE_EVERY_SEC // 3600)
@@ -309,7 +317,7 @@ def fixed() -> str:
         f"The first beacon goes out {int(FIRST_DELAY_SEC)} seconds after the daemon starts.",
         f"Every frame you send has the tocall `{TOCALL}`. The beacon of a station that stays is the plain uncompressed position; a moving station's (`gps/source` is not `off`) is a compressed one, with the altitude in its comment.",
         f"A GPS fix older than {GPS_STALE_SEC} seconds is not used: a moving station sends no beacon on it, and never the home position instead.",
-        f"At most {MAX_OBJECTS} objects and items, and {MAX_POSTED} bulletins, of your own at once. A bulletin is sent for {BULLETIN.lasts // 3600} hours and an announcement for {ANNOUNCEMENT.lasts // 3600} hours.",
+        f"At most {MAX_OBJECTS} objects and items, and {MAX_POSTED} bulletins, of your own at once. A bulletin is sent for {_choices(SENT_FOR['bulletin'])} hours and an announcement for {_choices(SENT_FOR['announcement'], 24)} days, as chosen under Sent for ({DEFAULT_HOURS['bulletin']} hours and {DEFAULT_HOURS['announcement'] // 24} days until you choose).",
         f"The update check asks the version page every {updates} hours.",
         f"A beacon interval below a radio's floor is raised to it: {HF_BEACON_MIN_MIN} minutes on a Mercury radio, {LORA_BEACON_MIN_MIN} on a LoRa radio, {FM_BEACON_MIN_MIN} on an FM radio. The beacon of a Mercury or a LoRa radio waits a random extra time after each interval (up to {HF_BEACON_JITTER_SEC} seconds on a Mercury radio, {LORA_BEACON_JITTER_SEC} on LoRa), so that stations started together do not key up together.",
         f"A frame on a Mercury radio is at most {HF_MAX_FRAME} bytes, addresses included. A beacon's comment is cut to fit, and the longest message always fits.",
@@ -330,6 +338,7 @@ STATE_WORDS = {
     cfg.MESSAGE_RADIOS: "the radio the operator chose for messages to a station, by call and the radio's number, while several radios that can send are on",
     cfg.NEW_OBJECTS: "the radios of the object saved last with radios of its own (`1,3`), which a new object starts with",
     cfg.NEW_BULLETINS: "the radios of the bulletin posted last with radios of its own, which a new bulletin starts with",
+    cfg.NEW_BULLETIN_HOURS: "how long the post of each kind posted last is sent for, in hours, which a new post of that kind starts with",
     cfg.INSTALL_ID: "the random number of this installation that the update check sends",
     NOT_COUNTED: "`true` when the update check is to send the number 0 in place of this installation's own, so that the project does not count this run (a test machine; a run from the source tree does it by itself); set with `neoaprs db set update/not_counted true`, never shown on the page",
     SKED_TOKEN: "the secret of this installation that goes with each HF test it posts, so that only it can delete them; never shown in the log or the support bundle",

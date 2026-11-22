@@ -1,55 +1,60 @@
-// The words of the three Bulletins form kinds follow the daemon's plan (neoaprs/decay.py, sent as
-// LIMITS.bulletin): with another plan the choice shows other numbers in every language, and no
+// The Sent for choices of the Bulletins form follow the daemon's (neoaprs/ownbulletin.py, sent as
+// LIMITS.bulletin): with other choices the list shows other numbers in every language, and no
 // catalogue holds a number of its own.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { setLocale } from "@/i18n";
 import { LOCALES } from "@/i18n/locales";
-import { texts, type Message } from "@/i18n/message";
-import { kindTitle, POST_KINDS } from "@/lib/bulletins";
+import { kindTitle, POST_KINDS, rememberedHours, sentForChoices, sentForText } from "@/lib/bulletins";
 import type * as Lists from "@/protocol/lists";
 
 vi.mock("@/protocol/lists", async (importOriginal) => {
   const lists = await importOriginal<typeof Lists>();
   return {
     ...lists,
-    LIMITS: { ...lists.LIMITS, bulletin: { ...lists.LIMITS.bulletin, repeatHours: 6, announcementRepeatDays: 1 } },
+    LIMITS: {
+      ...lists.LIMITS,
+      bulletin: {
+        ...lists.LIMITS.bulletin,
+        hours: [3, 6],
+        announcementHours: [48, 96],
+        defaultHours: 6,
+        defaultAnnouncementHours: 48,
+      },
+    },
   };
 });
 
 afterEach(() => setLocale("en"));
 
-describe("the kinds of a post, with a plan of 6 hours and 1 day", () => {
-  it("say the plan's numbers, one day in the singular", () => {
-    expect(POST_KINDS.map((k) => kindTitle(k.kind))).toEqual([
-      "Bulletin (sent for 6 hours)",
-      "Announcement (sent for 1 day)",
-      "Group bulletin (to one group, sent for 6 hours)",
-    ]);
+describe("the Sent for of a post, with choices of 3 and 6 hours and 2 and 4 days", () => {
+  it("offers those choices, an announcement's in days, and starts at the defaults", () => {
+    expect(sentForChoices("bulletin").map((h) => sentForText("bulletin", h))).toEqual(["3 hours", "6 hours"]);
+    expect(sentForChoices("announcement").map((h) => sentForText("announcement", h))).toEqual(["2 days", "4 days"]);
+    expect(POST_KINDS.map((kind) => rememberedHours(kind, null))).toEqual([6, 48, 6]);
+    expect(rememberedHours("bulletin", { bulletin: 4, announcement: 72, group: 3 }), "4 is no choice now").toBe(6);
   });
 
-  it("say them in every language: the number of each kind is in its words, and nothing of the text is left to fill", () => {
+  it("says them in every language, each with its number and nothing left to fill", () => {
     for (const locale of LOCALES) {
       setLocale(locale.code);
-      const [bulletin, announcement, group] = POST_KINDS.map((k) => kindTitle(k.kind));
-      expect(bulletin, locale.code).toMatch(/6/);
-      expect(announcement, locale.code).toMatch(/1/);
-      expect(group, locale.code).toMatch(/6/);
-      expect(new Set([bulletin, announcement, group]).size, locale.code).toBe(3);
-      for (const text of [bulletin, announcement, group]) expect(text, locale.code).not.toMatch(/[{}]/);
+      const words = [
+        ...sentForChoices("group").map((h) => sentForText("group", h)),
+        ...sentForChoices("announcement").map((h) => sentForText("announcement", h)),
+      ];
+      expect(
+        words.map((w) => w.match(/\d+/)?.[0]),
+        locale.code,
+      ).toEqual(["3", "6", "2", "4"]);
+      for (const text of words) expect(text, locale.code).not.toMatch(/[{}]/);
     }
   });
 
-  it("have no number written into a catalogue: only {n}", () => {
+  it("names the kinds with no number in any language", () => {
     for (const locale of LOCALES) {
-      const messages = locale.messages as Record<string, Message>;
-      for (const { kind } of POST_KINDS) {
-        const forms = texts(messages[`bulletins.kind.${kind}`] ?? "");
-        expect(forms.length, `${locale.code} ${kind}`).toBeGreaterThan(0);
-        for (const form of forms) {
-          expect(form, `${locale.code} ${kind}`).toContain("{n}");
-          expect(form.replace("{n}", ""), `${locale.code} ${kind}`).not.toMatch(/\d/);
-        }
-      }
+      setLocale(locale.code);
+      const names = POST_KINDS.map(kindTitle);
+      expect(new Set(names).size, locale.code).toBe(3);
+      for (const name of names) expect(name, locale.code).not.toMatch(/\d|[{}]/);
     }
   });
 });

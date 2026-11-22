@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isMoving, speedPoints, tripHours, tripStart } from "@/lib/speed";
+import { takeUnits } from "@/lib/units";
 import { NOW, ago, station } from "@/test/fixtures";
 
 const HOUR = 3600;
@@ -109,5 +110,18 @@ describe("speed: the line of the graph", () => {
       { t: NOW - HOUR * 1000, v: 66.7 },
       { t: NOW - 60_000, v: 0 },
     ]);
+  });
+});
+
+describe("speed: the line of the graph in the non-metric units", () => {
+  it("has the points in mph", () => {
+    takeUnits({ "units/non_metric": "true" });
+    const series = {
+      type: "speed_series" as const,
+      call: "A",
+      hours: 1,
+      points: [[ago(60), 80.4672] as [string, number]],
+    };
+    expect(speedPoints(series, NOW - 3_600_000, NOW).points[0]?.v).toBeCloseTo(50, 9);
   });
 });

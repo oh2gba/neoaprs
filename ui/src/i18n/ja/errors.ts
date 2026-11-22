@@ -5,6 +5,8 @@ import type { Message } from "@/i18n/message";
 export const errors: Record<keyof typeof source, Message> = {
   "error.beacon.not_sent": "何も送信されませんでした: {reason}",
   "error.bulletin.group": "「{value}」: グループ掲示は BLN、数字1桁、グループ名の順です",
+  "error.bulletin.hours": "掲示を{hours}時間送信することはできません",
+  "error.bulletin.taken": "この種類の番号や文字はすべて自局の掲示で使われています。先に掲示板で1件削除してください",
   "error.bulletin.not_on_board": "掲示板に {sender}/{slot} はありません",
   "error.bulletin.not_posted": "こちらの掲示 {slot} はありません",
   "error.bulletin.slot":

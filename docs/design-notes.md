@@ -656,8 +656,10 @@ The numbers of the kinds (radiotypes/common.py makes the `Limits` and `Allowed` 
   a 123-byte frame. No digipeater, because a repeat only fills a channel every station already
   hears. No SmartBeaconing, because a report every few tens of seconds would take the channel from
   everyone. The station's one beacon interval has a floor of 30 minutes (a 3.8 s frame on a shared
-  channel). A random pause of up to 300 s follows each interval, because fixed stations with stable
-  clocks that started together would otherwise key up together every interval. The size was
+  channel). A random pause of up to 300 s comes in each slot of the interval, because fixed stations with stable
+  clocks that started together would otherwise key up together every interval; FM has one of up to 30 s, and the
+  status, our objects' and bulletins' repeats and the first beacon after a start have the radio's pause too
+  (docs/daemon.md, "The random pause"). The size was
   measured with `scripts/mercury-measure beacons` (docs/mercury.md): at a 30-minute interval,
   stations started within a minute lose 14 percent of beacons with two stations and 43 percent with
   five without the pause; with a 300 s pause the loss is 0.8 and 2.7 percent, near the floor of
@@ -876,7 +878,8 @@ position is never substituted. The beacon goes out only on the radios selected b
 sends; transmitting as a whole is the interlock's (`station/transmit`). A moving station on a radio
 without SmartBeaconing (HF) sends its fix but is planned by interval.
 
-The first beacon is `first_delay_sec` after start, unless the last one of an earlier run (kept in
+Each timed beacon goes after the radio's random pause in its slot, and the next slot counts from the slot. The
+first beacon is `first_delay_sec` and the pause after start, unless the last one of an earlier run (kept in
 the radio's memory row) is less than an interval old, so a restart does not send another. A beacon
 due while the radio is disconnected or silent stays due and goes out at the first tick the radio is
 usable, one beacon however many intervals passed. A refused frame is retried every few seconds,
@@ -1257,6 +1260,12 @@ taken it; a radio that is away does not hold it up, nor does a connected one tha
 ROUND_HOLD_SEC after the first took it. Radios that took the round are kept in memory by id; a restart sends on
 all again.
 
+A repeat waits a random pause in its slot (`_paused`): one share drawn per wait and kept until the round ends, so a
+tick or a look at `next_at` draws nothing; a share, not seconds, so that a radio that comes up later or changes type
+scales it, and nothing is kept while no radio is up. The next slot counts from the slot of the round that ended in
+its pause window (`pause.anchor`), so a schedule's count of packets is what its plan says. Keys loaded at the start
+(not in `_fresh`) wait from the start, as stations on one power strip start them together.
+
 ## neoaprs/services/retries.py
 
 While a message's radio is unusable, or transmitting is off, a due attempt waits and is not used up; when the radio
@@ -1272,8 +1281,9 @@ station status is set, else `off`. With `rig` every POLL_SEC a fresh short conne
 the frequency and mode and the template is filled in ({freq} as `14.074 MHz`, {mode} as rigctld names it). A radio
 that is off, a refused connection or no answer means nothing is sent, and the log says so once, not at every poll.
 
-A report goes out when the status interval has passed since the last one (or none was sent), whether or not the
-content changed. The time and text of the last report are stored and read at start, so a restart sends nothing
+A report goes out when the status interval has passed since the slot of the last one (or none was sent), after the
+radio's random pause, whether or not the content changed; a one-second timer checks the slots with the latest
+reading, so that a pause shorter than the poll counts. The time and text of the last report are stored and read at start, so a restart sends nothing
 inside the interval. The last text is what `?APRSS` answers with. `send_now` sends at once with the same
 interlock, length and radio checks, and the interval then counts from it on each radio.
 

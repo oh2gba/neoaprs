@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it } from "vitest";
 import WeatherPanel from "@/components/WeatherPanel.vue";
+import { takeUnits } from "@/lib/units";
 import { NOW, series, station, weather, weatherStation } from "@/test/fixtures";
 
 beforeEach(() => localStorage.clear());
@@ -96,5 +97,24 @@ describe("WeatherPanel", () => {
     const bare = { ...rows, points: rows.points.map((p) => [p[0], p[1], null, null, null, null, null] as typeof p) };
     expect(make(weatherStation(), bare).findAll("figure")).toHaveLength(1);
     expect(make(weatherStation(), { ...rows, points: [] }).text()).toContain("No observations in this period.");
+  });
+});
+
+describe("WeatherPanel in the non-metric units", () => {
+  it("says the readings in °F, mph, inHg and inches, the snow too", () => {
+    takeUnits({ "units/non_metric": "true" });
+    const wrapper = make(weatherStation("OH2MUI", { weather: weather({ snow_mm: 50.8 }) }));
+    expect(wrapper.find(".wx-temp").text()).toBe("50 °F");
+    const text = wrapper.find(".wx-now").text();
+    for (const wanted of ["1 mph", "gusts 1 mph", "85 %", "30.37 inHg", "0.01 in", "0.16 in", "0.13 in", "2.0 in"])
+      expect(text, wanted).toContain(wanted);
+  });
+
+  it("draws the graphs in the same units, with their decimals", () => {
+    takeUnits({ "units/non_metric": "true" });
+    const reads = make(weatherStation(), series("OH2MUI", 24, 30))
+      .findAll(".trend-read")
+      .map((r) => r.text().replace(/\s+\d\d:\d\d:\d\d$/, ""));
+    expect(reads).toEqual(["54 °F", "30.21 inHg", "2.5 mph", "0.00 in"]);
   });
 });

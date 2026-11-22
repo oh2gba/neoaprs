@@ -53,6 +53,7 @@ def post(slot: str = "BLN3HAMS", **more: object) -> OwnBulletin:
         "group": "HAMS" if slot == "BLN3HAMS" else "",
         "kind": "group" if slot == "BLN3HAMS" else "announcement" if slot[3].isalpha() else "bulletin",
         "text": "Net tonight",
+        "hours": 4,
         "created_at": T0,
         **more,
     }
@@ -134,11 +135,13 @@ def test_a_bulletin_gives_its_row_and_the_row_gives_the_bulletin_back() -> None:
         "2026-10-21T12:00:00.000000Z",
         "2026-10-21T12:02:00.000000Z",
         "1",
+        4,
     )
     assert (
         bulletin_of(bulletin_row(sent)) == sent
         and bulletin_of(bulletin_row(replace(sent, radios=(2, 5)))).radios == (2, 5)
-        and bulletin_row(replace(sent, radios=(5, 2)))[-1] == "2,5"
+        and bulletin_row(replace(sent, radios=(5, 2)))[-2] == "2,5"
+        and bulletin_of(bulletin_row(replace(sent, hours=12))).hours == 12
     )
     assert (
         bulletin_of(bulletin_row(post("BLNA"))) == post("BLNA")

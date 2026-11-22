@@ -232,7 +232,7 @@ async def quick_start(
         if unpaced:
             e.ctl.messaging.pace.spacing_sec = 0.0
     if rigstatus:
-        e.ctl.rigstatus.poll_sec = 0.02
+        e.ctl.rigstatus.poll_sec = e.ctl.rigstatus.tick_sec = 0.02
     if own:
         e.ctl.ownobjects.tick_sec = e.ctl.ownbulletins.tick_sec = 0.02
         if unpaced:

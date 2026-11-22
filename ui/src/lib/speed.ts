@@ -5,6 +5,7 @@
 import { eastOf } from "@/lib/dateline";
 import type { Point } from "@/lib/chart";
 import { HOUR_MS } from "@/lib/format";
+import { chartValue } from "@/lib/units";
 import { LIMITS } from "@/protocol/lists";
 import type { SpeedSeriesMessage, StationRow } from "@/protocol/protocol";
 
@@ -78,6 +79,8 @@ export function speedPoints(
   const points =
     series === null
       ? []
-      : series.points.map(([at, kmh]) => ({ t: Date.parse(at), v: kmh })).filter((point) => point.t >= from);
+      : series.points
+          .map(([at, kmh]) => ({ t: Date.parse(at), v: chartValue("speed", kmh) }))
+          .filter((point) => point.t >= from);
   return { from, to: now, points };
 }

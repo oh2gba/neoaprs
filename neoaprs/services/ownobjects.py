@@ -205,12 +205,16 @@ class OwnObjects(Repeater[str]):
         obj = self._objects.get(key)
         if obj is None or (obj.on_request and obj.alive):
             return None
+        radios = self._radios_of(obj)
         # New, changed or killed: due once its last packet is a minute old.
         if obj.sent == 0:
-            return first_due(obj.updated_at, obj.last_sent_at)
+            return self._paused(key, first_due(obj.updated_at, obj.last_sent_at), radios, 0, None, None)
         assert obj.last_sent_at is not None
         wait = self._live_wait(obj) if obj.alive else kill_wait_sec(obj.sent)
-        return None if wait is None else obj.last_sent_at + timedelta(seconds=wait)
+        if wait is None:
+            return None
+        planned = self._last(key, obj.last_sent_at) + timedelta(seconds=wait)
+        return self._paused(key, planned, radios, obj.sent, wait, None)
 
     def _live_wait(self, obj: OwnObject) -> int:
         """Return the wait after the latest packet: the longest over the radios of one round."""

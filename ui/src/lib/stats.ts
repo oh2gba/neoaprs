@@ -11,7 +11,8 @@ import { formatNumber, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { timedOut, type Aging } from "@/lib/aging";
 import { internetOnly, onAir, packetTag } from "@/lib/channels";
-import { HOUR_MS, ageText, bytesText, distanceText } from "@/lib/format";
+import { HOUR_MS, ageText, bytesText } from "@/lib/format";
+import { distanceWithUnit } from "@/lib/units";
 import { digipeaters, gateRows, repeatedCounts } from "@/lib/nearby";
 import { hasPosition } from "@/lib/stations";
 import { isWeatherStation } from "@/lib/weather";
@@ -101,7 +102,9 @@ function farthestText(rows: readonly StationRow[]): string | null {
   const far = rows
     .filter((row) => row.distance_km !== null)
     .sort((a, b) => (b.distance_km ?? 0) - (a.distance_km ?? 0) || a.call.localeCompare(b.call))[0];
-  return far === undefined ? null : t("stats.station_km", { call: far.call, km: distanceText(far.distance_km) });
+  return far === undefined
+    ? null
+    : t("stats.station_km", { call: far.call, distance: distanceWithUnit(far.distance_km) });
 }
 
 function line(label: MessageId, value: string | null, params?: Record<string, string | number>): StatLine[] {
@@ -141,7 +144,7 @@ function alohaText(map: MapState | null, radios: readonly PageRadio[]): string |
   const named = enabledRadios(radios).length > 1;
   return circles
     .map(({ radio, km }) => {
-      const words = t("stats.km", { km: distanceText(km) });
+      const words = distanceWithUnit(km);
       const name = radios.find((one) => one.id === radio)?.name;
       return named && name !== undefined ? t("radio.line", { name, line: words }) : words;
     })

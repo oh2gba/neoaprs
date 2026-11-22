@@ -5,6 +5,9 @@ import type { Message } from "@/i18n/message";
 export const errors: Record<keyof typeof source, Message> = {
   "error.beacon.not_sent": "er is niets verzonden: {reason}",
   "error.bulletin.group": "‘{value}’: een groepsbulletin is BLN, een cijfer en de groep",
+  "error.bulletin.hours": "een bericht kan niet {hours} uur worden verzonden",
+  "error.bulletin.taken":
+    "elk cijfer of elke letter van deze soort heeft al een bericht van ons: verwijder er eerst een op het bord",
   "error.bulletin.not_on_board": "er staat geen bulletin {sender}/{slot} op het bord",
   "error.bulletin.not_posted": "er is geen bulletin {slot} van ons",
   "error.bulletin.slot":

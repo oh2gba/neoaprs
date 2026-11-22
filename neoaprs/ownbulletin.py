@@ -1,24 +1,32 @@
 """A bulletin, announcement or group bulletin of our own as a value, with its rules.
 
 See spec chapter 14: a message without an id to `BLN` + identifier (`BLN0`..`BLN9` bulletin,
-`BLNA`..`BLNZ` announcement, `BLN3HAMS` group). One is kept per slot; a new text restarts it.
+`BLNA`..`BLNZ` announcement, `BLN3HAMS` group). A new post takes the lowest free slot of its kind.
 """
 
 from collections.abc import Iterable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
 from neoaprs.aprsmessage import MessageError, format_message
 from neoaprs.bulletin import GROUP_MAX, board_slot
 from neoaprs.coded import CodedError
-from neoaprs.decay import ANNOUNCEMENT, BULLETIN, Plan
+from neoaprs.decay import Plan, bulletin_plan
 from neoaprs.message import check_text
 from neoaprs.ownobject import radio_set
 from neoaprs.radiotype import FM_ID, RadioId
 
 Kind = Literal["bulletin", "announcement", "group"]
 MAX_POSTED = 36  # how many of ours may be on the board
+# How long a post of each kind may be sent after its first packet, in hours.
+SENT_FOR: dict[Kind, tuple[int, ...]] = {
+    "bulletin": (1, 2, 4, 8, 12),
+    "group": (1, 2, 4, 8, 12),
+    "announcement": (24, 72, 168),
+}
+DEFAULT_HOURS: dict[Kind, int] = {"bulletin": 4, "group": 4, "announcement": 72}
+_IDS: dict[Kind, str] = {"bulletin": "0123456789", "group": "0123456789", "announcement": "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
 
 
 class PostError(CodedError):
@@ -31,6 +39,7 @@ class OwnBulletin:
     group: str  # the group of a group bulletin; empty otherwise
     kind: Kind
     text: str
+    hours: int  # how long it is sent after its first packet
     created_at: datetime  # when the text was posted
     sent: int = 0  # how often the text was sent
     first_sent_at: datetime | None = None
@@ -43,7 +52,7 @@ class OwnBulletin:
 
     @property
     def plan(self) -> Plan:
-        return ANNOUNCEMENT if self.kind == "announcement" else BULLETIN
+        return bulletin_plan(self.kind == "announcement", self.hours)
 
 
 def slot_of(slot: str) -> tuple[str, str, Kind]:
@@ -71,22 +80,39 @@ def slot_of(slot: str) -> tuple[str, str, Kind]:
     )
 
 
-def make_bulletin(
-    now: datetime, slot: str, text: str, before: OwnBulletin | None = None, radios: Iterable[RadioId] = (FM_ID,)
-) -> OwnBulletin:
-    """Return the bulletin of this slot, text and radios, or raise PostError.
+def group_ok(group: str) -> bool:
+    return 0 < len(group) <= GROUP_MAX and group.isascii() and group.isalnum()
 
-    With `before` the time of its last packet is kept; the schedule starts again.
-    """
+
+def check_group(group: str) -> str:
+    """Return the group as sent (capitals); raise PostError if it is not 1 to GROUP_MAX letters and digits."""
+    name = group.strip().upper()
+    if not group_ok(name):
+        raise PostError(f"{group!r}: a group bulletin is BLN, a digit and the group", "bulletin.group", value=group)
+    return name
+
+
+def free_slot(kind: Kind, group: str, taken: Iterable[str]) -> str | None:
+    """Return the lowest slot of the kind (of the group) that `taken` does not hold; None if all are or the group is bad."""
+    name = group.strip().upper() if kind == "group" else ""
+    if kind == "group" and not group_ok(name):
+        return None
+    held = set(taken)
+    return next((slot for c in _IDS[kind] if (slot := f"BLN{c}{name}") not in held), None)
+
+
+def make_bulletin(now: datetime, slot: str, text: str, hours: int, radios: Iterable[RadioId] = (FM_ID,)) -> OwnBulletin:
+    """Return the bulletin of this slot, text, Sent for and radios, or raise PostError."""
     name, group, kind = slot_of(slot)
+    if hours not in SENT_FOR[kind]:
+        raise PostError(f"a post cannot be sent for {hours} hours", "bulletin.hours", hours=hours)
     text = text.strip()
     try:
         check_text(text)
         format_message(name, text)
     except MessageError as e:
         raise PostError(str(e), e.code, **e.params) from None
-    made = OwnBulletin(name, group, kind, text, now, radios=tuple(radios))
-    return made if before is None else replace(made, last_sent_at=before.last_sent_at)
+    return OwnBulletin(name, group, kind, text, hours, now, radios=tuple(radios))
 
 
 def info_of(bulletin: OwnBulletin) -> bytes:

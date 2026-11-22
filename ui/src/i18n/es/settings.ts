@@ -233,6 +233,11 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
 
   "settings.radius.name": "Radio del mapa",
   "settings.station_hours.name": "Tiempo en el mapa",
+  "settings.units.label": "Unidades no métricas",
+  "settings.units.name": "Unidades",
+  "settings.units.tip1":
+    "Millas, pies, mph, °F, inHg y pulgadas en todas las páginas de esta estación. Aeronaves en pies y nudos, barcos en nudos.",
+  "settings.units.tip2": "Lo que escribes sigue en métrico, y nada de lo que se envía por el aire cambia.",
   "settings.radius.label": "Radio",
   "settings.radius.tip_label": "Acerca del radio",
   "settings.radius.tip1":

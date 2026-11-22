@@ -269,7 +269,7 @@ class RadioBeaconState(_Model):
 
     last_sent: Iso | None = Field(description="when our position last went out on it; null before one")
     next_due: Iso | None = Field(
-        description="when the next timed beacon is due on it; null while none is planned (off, a moving station, the radio off)"
+        description="when the next timed beacon is due on it: its slot and the radio's random pause; null while none is planned (off, a moving station, the radio off)"
     )
     interval_min: int = Field(
         ge=0,
@@ -285,7 +285,7 @@ class RadioStatusState(_Model):
 
     last_sent: Iso | None = Field(description="when our status report last went out on it; null before one")
     next_due: Iso | None = Field(
-        description="when the next timed report is due on it: an interval after its last; null while none is (the status does not go on it, the beacon or the status is off, none sent on it yet)"
+        description="when the next timed report is due on it: an interval after the slot of its last, and the radio's random pause; null while none is (the status does not go on it, the beacon or the status is off, none sent on it yet)"
     )
     interval_min: int = Field(
         ge=0,

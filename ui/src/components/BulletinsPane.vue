@@ -147,15 +147,7 @@ const remove = (b: BoardEntry): void =>
         </ul>
       </fieldset>
     </div>
-    <BulletinCompose
-      :own-bulletins="ownBulletins"
-      @post="
-        (slot, text, radios) =>
-          send(
-            radios === undefined ? { cmd: 'bulletin_post', slot, text } : { cmd: 'bulletin_post', slot, text, radios },
-          )
-      "
-    />
+    <BulletinCompose :own-bulletins="ownBulletins" @post="send" />
     <CopyMenu v-if="copy.menu.value" :key="copy.key.value" v-bind="copy.menu.value" @close="copy.close()" />
   </div>
 </template>

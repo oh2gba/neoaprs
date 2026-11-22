@@ -40,6 +40,7 @@ from .migrationsteps31 import _v31
 from .migrationsteps32 import _v32, _v33
 from .migrationsteps34 import _v34
 from .migrationsteps35 import _v35
+from .migrationsteps36 import _v36
 from .stopfile import MIGRATE_LOCK_NAME, MigratingNote, clear_stale_migrating, migrating
 
 
@@ -88,6 +89,7 @@ MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [
     _v33,
     _v34,
     _v35,
+    _v36,
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 MIB = 1024 * 1024

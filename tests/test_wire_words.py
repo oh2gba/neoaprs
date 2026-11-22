@@ -62,7 +62,7 @@ NAME = {
     "AttemptRow.internet",
     "BulletinDelete.sender",
     "BulletinDelete.slot",
-    "BulletinPost.slot",
+    "BulletinPost.group",
     "BulletinRow.group",
     "BulletinRow.sender",
     "BulletinRow.slot",

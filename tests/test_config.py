@@ -95,6 +95,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "gps/device": "",
         "gps/baud": "4800",
         "beacon/travel": "car",
+        "units/non_metric": "false",
     }
     assert Config() == DEFAULTS
 

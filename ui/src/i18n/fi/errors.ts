@@ -5,6 +5,9 @@ import type { Message } from "@/i18n/message";
 export const errors: Record<keyof typeof source, Message> = {
   "error.beacon.not_sent": "mitään ei lähetetty: {reason}",
   "error.bulletin.group": "'{value}': ryhmätiedote on BLN, numero ja ryhmä",
+  "error.bulletin.hours": "julkaisua ei voi lähettää {hours} tunnin ajaksi",
+  "error.bulletin.taken":
+    "jokaisessa tämän lajin numerossa tai kirjaimessa on jo meidän julkaisumme: poista ensin yksi ilmoitustaululta",
   "error.bulletin.not_on_board": "ilmoitustaululla ei ole merkintää {sender}/{slot}",
   "error.bulletin.not_posted": "meillä ei ole tiedotetta {slot}",
   "error.bulletin.slot": "'{value}' ei ole BLN0–BLN9, BLNA–BLNZ eikä BLN, numero ja enintään {group_max} merkin ryhmä",

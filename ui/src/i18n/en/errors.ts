@@ -4,6 +4,8 @@
 export const errors = {
   "error.beacon.not_sent": "nothing was sent: {reason}",
   "error.bulletin.group": "'{value}': a group bulletin is BLN, a digit and the group",
+  "error.bulletin.hours": "a post cannot be sent for {hours} hours",
+  "error.bulletin.taken": "every number or letter of this kind holds a post of ours: delete one on the board first",
   "error.bulletin.not_on_board": "there is no entry {sender}/{slot} on the board",
   "error.bulletin.not_posted": "there is no bulletin {slot} of ours",
   "error.bulletin.slot":

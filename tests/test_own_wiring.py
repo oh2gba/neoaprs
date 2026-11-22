@@ -160,15 +160,15 @@ async def test_a_bulletin_goes_out_and_the_copy_that_is_heard_back_is_not_a_bull
     tmp_path: Path,
 ) -> None:
     e = await started(tmp_path)
-    e.ctl.ownbulletins.post("BLN1", "Road closed at Kaivopuisto")
+    e.ctl.ownbulletins.post("bulletin", "Road closed at Kaivopuisto")
     [frame] = await said(e)
-    assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::BLN1     :Road closed at Kaivopuisto"
+    assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::BLN0     :Road closed at Kaivopuisto"
     e.feed(on_air("OH2GBA", frame.info, "APZNEO", "OH2RCH-2*,WIDE2-1"))
     # Another station's bulletin is the board's as ever
     e.feed(on_air("OH2XYZ", b":BLN2     :Gale warning", "APRS", "WIDE1-1"))
     await until(lambda: [b.key for b in e.ctl.bulletins.records()] == ["OH2XYZ/BLN2"])
     await e.settled()
-    assert [b.slot for b in e.ctl.ownbulletins.records()] == ["BLN1"] and e.ctl.ownbulletins.records()[0].sent == 1
+    assert [b.slot for b in e.ctl.ownbulletins.records()] == ["BLN0"] and e.ctl.ownbulletins.records()[0].sent == 1
     assert [p.radio_id for p in await e.packets() if p.direction == "out"] == [FM_ID], "it went on the one radio"
     assert [b.key for b in await e.ctl.bulletinlog.all()] == ["OH2XYZ/BLN2"], "nothing of ours in the board's table"
     assert [m for m in e.ctl.messaging.records() if m.state == "overheard"] == [] and e.ctl.messaging.records() == []
@@ -181,7 +181,7 @@ async def test_nothing_is_sent_and_nothing_is_made_without_a_call(tmp_path: Path
     with pytest.raises(Exception, match="set your call first"):
         make(e)
     with pytest.raises(Exception, match="set your call first"):
-        e.ctl.ownbulletins.post("BLN1", "x")
+        e.ctl.ownbulletins.post("bulletin", "x")
     assert e.ctl.ownobjects.records() == [] and e.ctl.ownbulletins.records() == []
     await e.stop()
 
@@ -191,7 +191,7 @@ async def test_a_restart_finds_both_puts_the_objects_on_the_map_and_goes_on_with
     make(first)
     e_clock = first.now
     await said(first)
-    first.ctl.ownbulletins.post("BLN1", "kept bulletin")
+    first.ctl.ownbulletins.post("bulletin", "kept bulletin")
     await said(first)
     await first.settled()
     await first.stop()
@@ -205,14 +205,14 @@ async def test_a_restart_finds_both_puts_the_objects_on_the_map_and_goes_on_with
     assert station.own and station.symbol_code == ">" and station.last_comment == "Rescue 1" and station.packets == 1
     assert [(o.name, o.sent) for o in second.ctl.ownobjects.records()] == [("LEADER", 1)] and [
         (b.slot, b.sent) for b in second.ctl.ownbulletins.records()
-    ] == [("BLN1", 1)]
+    ] == [("BLN0", 1)]
     assert await said(second, 1, 0.2) == [], "nothing is sent for the restart"
     e_clock.advance(60)  # type: ignore[attr-defined]
     [frame] = await said(second)
     assert frame.info[:11] == b";LEADER   *"
     e_clock.advance(60)  # type: ignore[attr-defined]
     [bulletin] = await said(second)
-    assert bulletin.info == b":BLN1     :kept bulletin"
+    assert bulletin.info == b":BLN0     :kept bulletin"
     await second.stop()
 
 
@@ -275,15 +275,18 @@ async def test_the_page_makes_changes_and_kills_an_object_and_posts_and_deletes_
     await page.send({"cmd": "object_kill", "name": "NOBODY"})
     assert "no object or item" in (await page.expect("error"))["text"]
 
-    await page.send({"cmd": "bulletin_post", "slot": "BLN3HAMS", "text": "Net tonight 20:00"})
-    await page.until(lambda: "BLN3HAMS" in page.topics["own_bulletins"])
-    bulletin = OwnBulletinRow.model_validate(page.topics["own_bulletins"]["BLN3HAMS"])
-    assert (bulletin.kind, bulletin.group, bulletin.text) == ("group", "HAMS", "Net tonight 20:00")
-    await page.send({"cmd": "bulletin_post", "slot": "NWS-WARN", "text": "x"})
-    assert "is not BLN0" in (await page.expect("error"))["text"]
-    await page.send({"cmd": "bulletin_unpost", "slot": "BLN3HAMS"})
-    await page.until(lambda: "BLN3HAMS" not in page.topics["own_bulletins"])
-    await page.send({"cmd": "bulletin_unpost", "slot": "BLN3HAMS"})
+    await page.send({"cmd": "bulletin_post", "kind": "group", "group": "hams", "text": "Net tonight 20:00", "hours": 2})
+    await page.until(lambda: "BLN0HAMS" in page.topics["own_bulletins"])
+    bulletin = OwnBulletinRow.model_validate(page.topics["own_bulletins"]["BLN0HAMS"])
+    assert (bulletin.kind, bulletin.group, bulletin.text, bulletin.hours) == ("group", "HAMS", "Net tonight 20:00", 2)
+    await page.send({"cmd": "bulletin_post", "kind": "bulletin", "text": "x", "hours": 24})
+    assert (await page.expect("error"))["code"] == "bulletin.hours"
+    # The command of an older page, with the slot it chose: refused, nothing posted.
+    await page.send({"cmd": "bulletin_post", "slot": "BLN1", "text": "x"})
+    assert (await page.expect("error"))["code"] == "invalid" and list(page.topics["own_bulletins"]) == ["BLN0HAMS"]
+    await page.send({"cmd": "bulletin_unpost", "slot": "BLN0HAMS"})
+    await page.until(lambda: "BLN0HAMS" not in page.topics["own_bulletins"])
+    await page.send({"cmd": "bulletin_unpost", "slot": "BLN0HAMS"})
     assert "no bulletin" in (await page.expect("error"))["text"]
     await e.stop()
 

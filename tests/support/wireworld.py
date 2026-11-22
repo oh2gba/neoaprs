@@ -362,10 +362,10 @@ def own_objects() -> list[tuple[OwnObject, datetime | None]]:
 def own_bulletins() -> list[tuple[OwnBulletin, datetime | None]]:
     return [
         (
-            OwnBulletin("BLN3HAMS", "HAMS", "group", "Net tonight", T0, 2, T0, T0 + timedelta(minutes=2)),
+            OwnBulletin("BLN3HAMS", "HAMS", "group", "Net tonight", 2, T0, 2, T0, T0 + timedelta(minutes=2)),
             T0 + timedelta(minutes=8),
         ),
-        (OwnBulletin("BLNA", "", "announcement", "Hello", T0), None),
+        (OwnBulletin("BLNA", "", "announcement", "Hello", 168, T0), None),
     ]
 
 

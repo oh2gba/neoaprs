@@ -31,13 +31,13 @@ A badge on the tab counts the entries whose text was first heard since the tab w
 
 ## Posting
 
-The box has a row for each field, and each row has its (i) after it that says in two lines what the field is for; the Kind's and the Group's have a small picture. The **Kind** says in its own words what each of the three does:
+The box has a row for each field, and each row has its (i) after it that says what the field is for; the Kind's and the Group's have a small picture. The **Kind** is one of three:
 
-| Kind | who shows it | how long it is sent | what it is for |
-|---|---|---|---|
-| **Bulletin (sent for 4 hours)** | every station that hears it | at once, twice more in the first minutes, then every 20 minutes, for 4 hours | what matters now: a road closed, a net tonight |
-| **Announcement (sent for 3 days)** | every station that hears it | at once, twice more in the first minutes, then every hour, for 3 days | what stays true for days: a meeting next week, a digipeater off the air |
-| **Group bulletin (to one group, sent for 4 hours)** | every station that hears it, unless its operator has picked other groups to show and not this one; NeoAPRS shows every group's | as a bulletin | news for one group: a club, a weather net |
+| Kind | who shows it | how it is sent | Sent for | what it is for |
+|---|---|---|---|---|
+| **Bulletin** | every station that hears it | at once, twice more in the first minutes, then every 20 minutes | 1, 2, 4, 8 or 12 hours (4 until you choose) | what matters now: a road closed, a net tonight |
+| **Announcement** | every station that hears it | at once, twice more in the first minutes, then every hour | 1, 3 or 7 days (3 until you choose) | what stays true for days: a meeting next week, a digipeater off the air |
+| **Group bulletin** | every station that hears it, unless its operator has picked other groups to show and not this one; NeoAPRS shows every group's | as a bulletin | as a bulletin | news for one group: a club, a weather net |
 
 How a group bulletin works: the group's name is part of the address (`BLN3HAMS`), so every station that hears the packet receives it, and every station shows it unless its operator picked other groups to show and not `HAMS`. NeoAPRS shows the group bulletins of every group it hears, under Group messages.
 
@@ -45,11 +45,13 @@ Nobody acknowledges any of them, which is why they are sent more than once. To r
 
 Under the kind:
 
-- the **Number** of a bulletin or a group bulletin, 0 to 9, or the **Letter** of an announcement, A to Z. You can have one post on each: ten bulletins, twenty-six announcements, ten for each group;
+- **Sent for**, how long the post is sent, counted from its first packet. It starts at what you chose for the last post of that kind;
 - the **Group**, a name of one to five letters and digits, for a group bulletin. The row is greyed for the other kinds;
 - the **Text**, with the characters of the 67 it has left;
-- **Send on**, only while several radios that can send are on: the beacon's row of ticks, a tick for each of them by its name, the radios this post goes out on. A new post is ticked as the one you posted last; the last tick ticked is greyed. The ticks go with **Post**, so a post that replaces one of yours replaces its radios too. With one radio that can send the row is not there;
-- **Post**, which is on when the post can be sent. It says **Replace** while the number, the letter or the number and group you chose holds a post of yours: the new text takes its place and is sent from the start again.
+- **Send on**, only while several radios that can send are on: the beacon's row of ticks, a tick for each of them by its name, the radios this post goes out on. A new post is ticked as the one you posted last; the last tick ticked is greyed. The ticks go with **Post**. With one radio that can send the row is not there;
+- **Post**, which is on when the post can be sent.
+
+A new post takes the next free number or letter of its kind by itself: the lowest that holds no post of yours, an ended one included. A bulletin takes `BLN0` to `BLN9`, an announcement `BLNA` to `BLNZ`, a group bulletin `BLN0` to `BLN9` with its group, counted for each group apart. When all of them are taken, **Post** is off for that kind. A post is never replaced or changed: delete one on the board, and post anew.
 
 What goes on the air:
 
@@ -65,12 +67,12 @@ A bulletin is a message without an id (chapter 14 of the specification), sent on
 
 Nobody acknowledges a bulletin, so it is sent more than once:
 
-- **a bulletin** (and a group bulletin) at once, after 2 minutes, after 6, and then every 20 minutes until 4 hours after the first: 14 packets;
-- **an announcement** at once, after 2 minutes, after 6, and then every hour until 72 hours (3 days) after the first: 74 packets.
+- **a bulletin** (and a group bulletin) at once, after 2 minutes, after 6, and then every 20 minutes until its Sent for after the first: 5 packets for 1 hour, 8 for 2, 14 for 4, 26 for 8, 38 for 12;
+- **an announcement** at once, after 2 minutes, after 6, and then every hour until its Sent for after the first: 26 packets for 1 day, 74 for 3, 170 for 7.
 
 The times are the same on every radio and by every path: the digipeaters of the path do not change them.
 
-A text posted to a slot that holds one replaces it and starts the schedule again, never within a minute of the last packet of the slot. The same text posted again, once the schedule is over, goes out again. You can have at most 36 posted at once.
+Nothing is sent after its Sent for is over, also when it ended while NeoAPRS was not running. You can have at most 36 posted at once.
 
 A bulletin goes on the radios ticked when it was posted, and so do its repeats, once on each in every round ([radio.md](radio.md#what-goes-on-which-radio)); with one radio that can send, on that one. While a radio it goes on is Mercury or LoRa, its repeats come every 30 minutes on each of its radios, not every 20. **Post** is off while no radio ticked is connected, with that as its title ("The radio is not connected", or "FM: not connected" while several radios are on), and while no tick is ticked (the radios of the last post were switched off).
 
@@ -78,7 +80,7 @@ Nothing is posted while the call is not set. What is due waits for the radio, an
 
 ### Yours on the board
 
-Your posts are on the board in their section, under your call and marked "ours". Each shows how often it was sent and when it goes out next, and "ended" once its schedule is over; it stays until you delete it or post it again. While several radios that can send are on, each has the tags of the radios it goes out on after "ours", as My objects has them: two by name, then "+n", whose hover names the rest.
+Your posts are on the board in their section, under your call and marked "ours". Each shows how often it was sent and when it goes out next, and "ended" once its schedule is over; it stays until you delete it. While several radios that can send are on, each has the tags of the radios it goes out on after "ours", as My objects has them: two by name, then "+n", whose hover names the rest.
 
 The trash can on a post of yours asks twice, stops it, and takes it off the board and out of the database. Its hover title says "Delete (stop sending)". The one on an entry that was heard is the board's delete.
 

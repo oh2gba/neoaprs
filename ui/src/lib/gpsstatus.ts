@@ -5,7 +5,8 @@
 // being connected to is a setting.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
-import { NONE, ageText, altitudeText, positionText, speedText, untilText } from "@/lib/format";
+import { NONE, ageText, positionText, untilText } from "@/lib/format";
+import { heightText, speedText } from "@/lib/units";
 import type { GpsState } from "@/protocol/protocol";
 
 const STATES: Record<GpsState["state"], MessageId> = {
@@ -47,7 +48,7 @@ function facts(gps: GpsState): string[] {
   return [
     ...(gps.speed_kmh === null ? [] : [speedText(gps.speed_kmh)]),
     ...(gps.course_deg === null ? [] : [t("gps.course", { deg: Math.round(gps.course_deg) % 360 })]),
-    ...(gps.altitude_m === null ? [] : [altitudeText(gps.altitude_m)]),
+    ...(gps.altitude_m === null ? [] : [heightText(gps.altitude_m)]),
     ...(gps.satellites === null ? [] : [t("gps.satellites", { n: gps.satellites })]),
   ];
 }

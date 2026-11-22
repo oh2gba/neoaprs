@@ -126,7 +126,7 @@ async def test_alone_every_sending_service_refuses_with_rx_only_and_not_one_byte
             "radios": [1],
         }
     )
-    await page.send({"cmd": "bulletin_post", "slot": "BLN1", "text": "Field day on Saturday"})
+    await page.send({"cmd": "bulletin_post", "kind": "bulletin", "text": "Field day on Saturday"})
     e.feed(TO_US + ASKS_US + FILL_IN)
     await until(lambda: e.ctl.radios.get(1).stats.packets >= 4)  # type: ignore[union-attr]
     # An hour and a half of the station's clock: the beacons, the status, the object and the
@@ -215,9 +215,9 @@ async def test_beside_a_dummy_fm_radio_everything_goes_on_that_one_an_ack_too_an
     e.feed(ASKS_US)
     await until(lambda: e.ctl.radios.get(1).stats.packets >= 4)  # type: ignore[union-attr]
     await idle_for(0.5)
-    after = [p.info for p in await ours(e) if p not in out]
+    after = [p.info for p in await ours(e) if p not in out and not p.info.startswith(b">")]
     assert all(i.startswith(f":{HEARD:<9}:Hello{{".encode()) for i in after), (
-        "a query heard on the text radio alone is not answered (a retry of our message may go meanwhile)",
+        "a query heard on the text radio alone is not answered (a retry of our message, or the timed status, may go meanwhile)",
         after,
     )
     assert await e.heard(1, 0.3) == b"" and e.ctl.radios.get(1).stats.bytes_out == 0, (

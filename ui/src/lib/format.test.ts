@@ -10,17 +10,15 @@ import {
   clockText,
   compassPoint,
   dateTimeText,
-  distanceText,
   hourMinuteText,
   pad2,
   pathText,
   positionText,
   processText,
   silentText,
-  speedText,
-  verticalText,
   untilText,
 } from "@/lib/format";
+import { distanceText, speedText, verticalText } from "@/lib/units";
 import { NOW, ago } from "@/test/fixtures";
 
 describe("untilText", () => {

@@ -5,6 +5,8 @@ import type { Message } from "@/i18n/message";
 export const errors: Record<keyof typeof source, Message> = {
   "error.beacon.not_sent": "nada foi enviado: {reason}",
   "error.bulletin.group": "'{value}': um boletim de grupo é BLN, um dígito e o grupo",
+  "error.bulletin.hours": "uma publicação não pode ser enviada por {hours} horas",
+  "error.bulletin.taken": "todo número ou letra deste tipo já tem uma publicação nossa: exclua uma no mural primeiro",
   "error.bulletin.not_on_board": "não há entrada {sender}/{slot} no mural",
   "error.bulletin.not_posted": "não há boletim {slot} nosso",
   "error.bulletin.slot":

@@ -66,7 +66,7 @@ async def test_a_bulletin_ticked_for_every_radio_goes_on_those_that_send_and_are
     tmp_path: Path,
 ) -> None:
     rig = await six_at(tmp_path)
-    rig.posts.post("BLN1", "Net tonight", [1, 2, 3, 4, 5, 6])
+    rig.posts.post("bulletin", "Net tonight", radios=[1, 2, 3, 4, 5, 6])
     rig.run(5 * 3600, step=10)
     assert rig.counted() == {1: 10, 2: 10, 3: 10, 4: 10}, (
         "0, 2, 6, 36 ... 216 minutes on each; none on the radio that only receives, none on the one that is off"
@@ -77,11 +77,11 @@ async def test_a_bulletin_ticked_for_the_two_fm_radios_alone_repeats_every_20_mi
     tmp_path: Path,
 ) -> None:
     rig = await six_at(tmp_path)
-    rig.posts.post("BLN1", "Net tonight", [1, 3])
-    rig.posts.post("BLN2", "HF sked", [2])
+    rig.posts.post("bulletin", "Net tonight", radios=[1, 3])
+    rig.posts.post("bulletin", "HF sked", radios=[2])
     rig.run(5 * 3600, step=10)
     assert rig.counted() == {1: 14, 2: 10, 3: 14}
-    assert rig.slots(1) == Counter({"BLN1": 14}) and rig.slots(2) == Counter({"BLN2": 10}), (
+    assert rig.slots(1) == Counter({"BLN0": 14}) and rig.slots(2) == Counter({"BLN1": 10}), (
         "each bulletin on its own radios"
     )
 
@@ -90,9 +90,9 @@ async def test_a_bulletin_ticked_only_for_radios_that_cannot_carry_it_sends_noth
     tmp_path: Path,
 ) -> None:
     rig = await six_at(tmp_path)
-    rig.posts.post("BLN1", "Nowhere", [5, 6])
+    rig.posts.post("bulletin", "Nowhere", radios=[5, 6])
     rig.run(3600, step=10)
     assert rig.counted() == {}, "the radio that only receives and the one that is off: ticked nowhere is not sent"
-    rig.posts.post("BLN2", "Twice", [4, 4])
+    rig.posts.post("bulletin", "Twice", radios=[4, 4])
     rig.run(400, step=10)
     assert rig.counted() == {4: 3}, "0, 2 and 6 minutes, once each"

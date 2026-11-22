@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
 import { kindWords, packetFacts, summaryText } from "@/lib/packetview";
 import { pageRadios } from "@/lib/radios";
+import { takeUnits } from "@/lib/units";
 import { packet, radioRow, radiosTopic } from "@/test/fixtures";
 import type { PacketRow } from "@/protocol/protocol";
 
@@ -343,5 +344,17 @@ describe("packetFacts of the local information", () => {
     expect(
       Object.keys(facts(withDecoded({}, { type: "status", text: "", timestamp: null, locator: null, frequency }))),
     ).not.toContain("Status");
+  });
+});
+
+describe("packetFacts in the non-metric units", () => {
+  it("says a position's speed in mph, its altitude in feet and its weather in °F and mph", () => {
+    takeUnits({ "units/non_metric": "true" });
+    const weather = { ...position, weather: { temp_c: 7.8, wind_kmh: 6 } };
+    expect(facts(withDecoded({}, { type: "position", ...position }))).toMatchObject({
+      Speed: "53 mph, course 96° E",
+      Altitude: "102 ft",
+    });
+    expect(facts(withDecoded({}, { type: "position", ...weather }))["Weather"]).toBe("46 °F, wind 4 mph");
   });
 });

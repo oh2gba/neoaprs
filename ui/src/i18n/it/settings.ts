@@ -232,6 +232,11 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
 
   "settings.radius.name": "Raggio della mappa",
   "settings.station_hours.name": "Tempo sulla mappa",
+  "settings.units.label": "Unità non metriche",
+  "settings.units.name": "Unità",
+  "settings.units.tip1":
+    "Miglia, piedi, mph, °F, inHg e pollici in ogni pagina di questa stazione. Aerei in piedi e nodi, navi in nodi.",
+  "settings.units.tip2": "Ciò che digiti resta metrico e nulla di ciò che va in onda cambia.",
   "settings.radius.label": "Raggio",
   "settings.radius.tip_label": "Informazioni sul raggio",
   "settings.radius.tip1":

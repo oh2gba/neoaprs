@@ -71,7 +71,9 @@ from tests.support.files import FIXTURES, fixture_bytes, fixture_text  # noqa: E
 from tests.support.fixtures import (  # noqa: E402
     clock,  # noqa: F401
     no_shipped_world,  # noqa: F401
+    pauses_are_zero,  # noqa: F401
     protocol_violations,  # noqa: F401
+    real_pauses,  # noqa: F401
     search_pattern_from_settings,  # noqa: F401
     tmp_data,  # noqa: F401
     ui_port_near_the_pair,  # noqa: F401

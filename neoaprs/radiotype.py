@@ -16,6 +16,7 @@ LOCAL_KINDS: frozenset[Kind] = frozenset({"fm", "lora"})
 
 # the numbers of the kinds (see the developer notes)
 FM_BEACON_MIN_MIN = 20
+FM_BEACON_JITTER_SEC = 30
 HF_BEACON_MIN_MIN = 30
 HF_BEACON_JITTER_SEC = 300
 HF_MAX_FRAME = 123
@@ -43,7 +44,7 @@ class Limits:
 
     max_frame: int | None
     beacon_min_min: int
-    beacon_jitter_sec: int
+    beacon_jitter_sec: int  # the most of the random pause before every send by the clock
     retry_jitter_sec: int
     max_text: int | None = None
     max_kiss: int | None = None

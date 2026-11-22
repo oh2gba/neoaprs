@@ -66,6 +66,14 @@ class UpdateInfo(_Model):
     message: str = Field(description="a short note from the project, at most 200 characters; empty for none")
 
 
+class PostHours(_Model):
+    """The Sent for a new post of each kind starts with, in hours: the one posted last of that kind, else 4, 72 and 4."""
+
+    bulletin: int
+    announcement: int
+    group: int
+
+
 class Status(_Message):
     """What the daemon is, for the status bar: sent after `hello`, every 10 s, when asked (`status`), and when a packet of ours has gone out (the count of packets and the beacon's times have changed). It also says what the daemon costs the machine: the CPU share, the resident memory and the uptime."""
 
@@ -102,6 +110,9 @@ class Status(_Message):
     )
     new_bulletin_radios: list[int] = Field(
         description="the radios a new bulletin goes on (their ids, ascending), when `bulletin_post` names none: as `new_object_radios`, by the bulletin posted last with radios named"
+    )
+    new_bulletin_hours: PostHours = Field(
+        description="how long a new post of each kind is sent for, in hours, when `bulletin_post` names no `hours`: the one posted last of that kind"
     )
     station_status: str = Field(
         description="the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone"

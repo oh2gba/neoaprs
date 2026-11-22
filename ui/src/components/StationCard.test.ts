@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { shown } from "@/test/shown";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import StationCard from "@/components/StationCard.vue";
+import { takeUnits } from "@/lib/units";
 import type { Aging } from "@/lib/aging";
 import { cssRule } from "@/test/css";
 import { fakeDaemon, withDaemon } from "@/test/context";
@@ -523,5 +524,13 @@ describe("StationCard", () => {
       props: { row: station("STORM", { kind: "object", reported_by: "OH2XYZ" }), now: NOW },
     }).text();
     expect(text).toContain("object, reported by OH2XYZ");
+  });
+});
+
+describe("StationCard in the non-metric units", () => {
+  it("says the distance in miles, the speed in mph and the altitude in feet", () => {
+    takeUnits({ "units/non_metric": "true" });
+    const text = mount(StationCard, { props: { row, now: NOW }, global: withDaemon(fakeDaemon()) }).text();
+    for (const wanted of ["10 mi, 282° WNW", "26 mph, course 356° N", "102 ft"]) expect(text, wanted).toContain(wanted);
   });
 });

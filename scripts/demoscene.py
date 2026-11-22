@@ -17,6 +17,7 @@ from neoaprs.aprsmessage import format_ack, format_message
 from neoaprs.clock import utcnow
 from neoaprs.controller import Controller
 from neoaprs.message import MessageRecord
+from neoaprs.ownbulletin import Kind
 from neoaprs.radioregistry import LiveRadio
 from neoaprs.radiospec import FM_ID, RadioId
 from neoaprs.source import Source
@@ -311,9 +312,9 @@ class Scene:
         )
         await _until(lambda: (held := self.ctl.ownobjects.get(name)) is not None and held.sent >= 1)
 
-    async def own_bulletin(self, slot: str, text: str) -> None:
+    async def own_bulletin(self, kind: Kind, text: str) -> None:
         """Post a bulletin or announcement (the Bulletins tab's `bulletin_post`)."""
-        self.ctl.ownbulletins.post(slot, text)
+        slot = self.ctl.ownbulletins.post(kind, text).slot
         await _until(lambda: (held := self.ctl.ownbulletins.get(slot)) is not None and held.sent >= 1)
 
     async def keep_schedule(self) -> None:
@@ -615,7 +616,9 @@ def events(local_hour_now: float) -> list[Event]:
     day.append(Event(40, lambda s: _send_beacon(s)))
     # Objects, items and bulletins of our own: a net-control point, a meeting place for Saturday and
     # an item for the hamfest, and two on the board
-    day.append(Event(171, lambda s: s.own_bulletin("BLN2", "2 m net tonight 20:00 on 144.800 MHz, net control OH2GBA")))
+    day.append(
+        Event(171, lambda s: s.own_bulletin("bulletin", "2 m net tonight 20:00 on 144.800 MHz, net control OH2GBA"))
+    )
     day.append(
         Event(
             92,
@@ -633,7 +636,9 @@ def events(local_hour_now: float) -> list[Event]:
         )
     )
     day.append(
-        Event(53, lambda s: s.own_bulletin("BLNL", "Field day at the lake on Saturday 10:00, see item MEETSPOT"))
+        Event(
+            53, lambda s: s.own_bulletin("announcement", "Field day at the lake on Saturday 10:00, see item MEETSPOT")
+        )
     )
     day.append(
         Event(

@@ -14,7 +14,7 @@ import pytest
 from pydantic import ValidationError
 
 from neoaprs.aprsmessage import MAX_TEXT
-from neoaprs.decay import ANNOUNCEMENT, BULLETIN
+from neoaprs.ownbulletin import DEFAULT_HOURS, MAX_POSTED, SENT_FOR
 from neoaprs.web.views import CONFIG_KEYS
 from neoaprs.packetcodec import KINDS
 from neoaprs.web import dispatch, handlers  # noqa: F401  (importing the handlers registers them)
@@ -109,25 +109,25 @@ def test_the_lists_of_the_page_are_the_daemons_own() -> None:
     assert re.findall(r'"(\w+)"', topics) == list(TOPIC_NAMES)
 
 
-def test_how_long_a_bulletin_and_an_announcement_are_repeated_is_the_plan_of_the_daemon_in_whole_hours_and_days() -> (
-    None
-):
-    """The choice of the Bulletins form words these ("sent for 4 hours", "sent for 3 days"): the
-    page has the numbers from here, and a plan that is no whole number of them stops the generator.
-    """
+def test_the_sent_for_choices_of_the_bulletins_form_are_the_daemons_and_an_announcements_are_whole_days() -> None:
+    """The Sent for list words these ("4 hours", "3 days"): the page has the numbers from here, and
+    choices it could not word stop the generator."""
     gen = generator()
     limits = gen.limits()["bulletin"]
-    assert (
-        limits["repeatHours"] * 3600 == BULLETIN.lasts
-        and limits["announcementRepeatDays"] * 86400 == ANNOUNCEMENT.lasts
-    )
-    assert "repeatHours: %d, announcementRepeatDays: %d" % (
-        BULLETIN.lasts // 3600,
-        ANNOUNCEMENT.lasts // 86400,
-    ) in gen.LISTS.read_text(encoding="utf-8")
-    for seconds in (90 * 60, 0):
-        with pytest.raises(ValueError, match="no whole number"):
-            gen._whole(seconds, 3600, "how long a bulletin is repeated")
+    assert limits == {
+        "groupMax": 5,
+        "postedMax": MAX_POSTED,
+        "hours": list(SENT_FOR["bulletin"]),
+        "announcementHours": list(SENT_FOR["announcement"]),
+        "defaultHours": DEFAULT_HOURS["bulletin"],
+        "defaultAnnouncementHours": DEFAULT_HOURS["announcement"],
+    }
+    assert "hours: [1, 2, 4, 8, 12], announcementHours: [24, 72, 168]" in gen.LISTS.read_text(encoding="utf-8")
+    for changed in ({**SENT_FOR, "announcement": (36,)}, {**SENT_FOR, "group": (2,)}):
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(gen, "SENT_FOR", changed)
+            with pytest.raises(ValueError, match="no longer fits"):
+                gen._sent_for()
 
 
 def test_the_reference_documents_every_command_message_and_model() -> None:
@@ -332,6 +332,7 @@ OWN_BULLETIN_ROW: dict[str, Any] = {
     "group": "HAMS",
     "kind": "group",
     "text": "Net tonight at 20:00",
+    "hours": 4,
     "posted_at": NOW,
     "sent": 1,
     "last_sent_at": NOW,
@@ -609,6 +610,7 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
             "unavailable_types": [],
             "new_object_radios": [1],
             "new_bulletin_radios": [1],
+            "new_bulletin_hours": {"bulletin": 8, "announcement": 72, "group": 4},
             "station_status": "QRV 14.074 MHz USB",
             "station_status_last_sent": NOW,
             "rig_state": "on",
@@ -639,6 +641,7 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
             "unavailable_types": ["direwolf"],
             "new_object_radios": [],
             "new_bulletin_radios": [],
+            "new_bulletin_hours": {"bulletin": 4, "announcement": 72, "group": 4},
             "station_status": "",
             "station_status_last_sent": None,
             "rig_state": "unused",
@@ -1134,7 +1137,13 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
         "radios": [1, 3],
     },
     "object_kill": {"cmd": "object_kill", "name": "LEADER"},
-    "bulletin_post": {"cmd": "bulletin_post", "slot": "BLN3HAMS", "text": "Net tonight at 20:00"},
+    "bulletin_post": {
+        "cmd": "bulletin_post",
+        "kind": "group",
+        "group": "HAMS",
+        "text": "Net tonight at 20:00",
+        "hours": 4,
+    },
     "bulletin_unpost": {"cmd": "bulletin_unpost", "slot": "BLN3HAMS"},
     "layer_look": {"cmd": "layer_look", "layer": "ships", "on": True},
     "map_estimate": {"cmd": "map_estimate"},

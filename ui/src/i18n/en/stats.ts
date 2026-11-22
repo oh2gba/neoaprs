@@ -58,8 +58,7 @@ export const stats = {
   "stats.bytes": "Bytes in · out",
 
   "stats.counted": "{name} ({n})",
-  "stats.station_km": "{call}, {km} km",
-  "stats.km": "{km} km",
+  "stats.station_km": "{call}, {distance}",
   "stats.kind_count": "{n} {kind}",
   "stats.kind.position": "positions",
   "stats.kind.message": "messages",

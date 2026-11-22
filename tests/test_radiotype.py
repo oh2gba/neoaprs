@@ -66,7 +66,7 @@ def test_every_type_is_todays_profile_and_the_rules_of_its_kind_field_by_field()
             == {
                 "hf": Limits(123, 30, 300, 20),
                 "lora": Limits(250, 30, 300, 20, 252, max_kiss=256),
-                "fm": Limits(None, 20, 0, 0),
+                "fm": Limits(None, 20, 30, 0),
             }[kind]
         ), t.key
         sends = {"hf": (False, False, False), "lora": (True, False, True), "fm": (True, True, True)}[kind]

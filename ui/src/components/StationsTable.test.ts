@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it } from "vitest";
 import StationsTable from "@/components/StationsTable.vue";
 import type { Aging } from "@/lib/aging";
+import { takeUnits } from "@/lib/units";
 import { cssRule } from "@/test/css";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { ago, station, table } from "@/test/fixtures";
@@ -286,5 +287,24 @@ describe("StationsTable", () => {
     await row("OH2NOPOS").find(".actions button").trigger("keydown", { key: "ArrowUp" });
     expect(wrapper.emitted("select")).toHaveLength(5);
     wrapper.unmount();
+  });
+});
+
+describe("StationsTable in the non-metric units", () => {
+  it("heads the distance mi and gives miles, sorts on the distance itself, and goes back to km", async () => {
+    takeUnits({ "units/non_metric": "true" });
+    const wrapper = make();
+    const heads = () => wrapper.findAll("thead th").map((th) => th.text().replace(/[▲▼]/g, "").trim());
+    expect(heads()).toContain("mi");
+    const distance = wrapper.findAll("th button").find((b) => b.text().startsWith("mi"));
+    await distance?.trigger("click");
+    expect(calls(wrapper)).toEqual(["OH2GBA", "OH2PU-9", "OH2RDG", "OH2NOPOS"]);
+    expect(wrapper.findAll("tbody tr td.num").map((td) => td.text())).toEqual(expect.arrayContaining(["9.9", "16"]));
+    await distance?.trigger("click");
+    expect(calls(wrapper)).toEqual(["OH2GBA", "OH2RDG", "OH2PU-9", "OH2NOPOS"]);
+    takeUnits({ "units/non_metric": "false" });
+    await wrapper.vm.$nextTick();
+    expect(heads()).toContain("km");
+    expect(wrapper.findAll("tbody tr td.num").map((td) => td.text())).toEqual(expect.arrayContaining(["16", "25"]));
   });
 });

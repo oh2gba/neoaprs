@@ -86,6 +86,7 @@ def migrate(folder: Path, stored: dict[str, str]) -> tuple[dict[str, tuple[str, 
         (33, "_v33", GOLDEN[33]),
         (34, "_v34", GOLDEN[34]),
         (35, "_v35", GOLDEN[35]),
+        (36, "_v36", GOLDEN[36]),
     ]
     found = {str(k): (str(v), int(rev)) for k, v, rev in migrated.db.execute("SELECT key, value, rev FROM settings")}
     radios = [

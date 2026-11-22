@@ -6,12 +6,18 @@ from pydantic import Field
 
 from neoaprs.config import LATITUDE, LONGITUDE
 from neoaprs.bulletin import GROUP_MAX
+from neoaprs.ownbulletin import SENT_FOR, Kind
 from neoaprs.ownobject import COMMENT_MAX, COURSE_MAX, OBJECT_NAME, QRU_GROUP_MAX, SPEED_MAX_KMH
 
 from .wirebase import Iso, MessageText, PathText, _Command, _Model
 
 # "BLN" plus an identifier, up to a five-character group.
 SLOT_LENGTH = (4, 3 + 1 + GROUP_MAX)
+
+
+def _hours(kind: Kind) -> str:
+    *most, last = SENT_FOR[kind]
+    return f"{', '.join(map(str, most))} or {last}"
 
 
 class OwnObjectRow(_Model):
@@ -52,23 +58,28 @@ class OwnObjectRow(_Model):
         description="when it was last sent; null while it has not been sent (the call is not set, or the radio is away)"
     )
     next_at: Iso | None = Field(
-        description="when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart (30 minutes on Mercury and LoRa: the radio's floor); a time that has passed means it waits for the radio or for the call; null for one that is `on_request`"
+        description="when it is sent next: 1, 2, 4 ... minutes after the slot of the last packet, never more than the net cycle time of its path apart (30 minutes on Mercury and LoRa: the radio's floor), plus the radio's random pause, which is never longer than the wait; a time that has passed means it waits for the radio or for the call; null for one that is `on_request`"
     )
 
 
 class OwnBulletinRow(_Model):
     """One bulletin, announcement or group bulletin of ours: its text and where its schedule stands. The rows are the values of the topic `own_bulletins`, keyed by `slot` (`BLN1`): a bulletin that is posted, and
-    each time it is sent, is a `set` of its row, one that is deleted (`bulletin_unpost`) a `del`. One whose schedule is over stays, with a null `next_at`, until it is deleted or posted again."""
+    each time it is sent, is a `set` of its row, one that is deleted (`bulletin_unpost`) a `del`. One whose schedule is over stays, with a null `next_at`, until it is deleted."""
 
     slot: str = Field(description="the addressee: `BLN1`, `BLNA`, `BLN3HAMS`")
     group: str = Field(description="the group of a group bulletin (`HAMS`); empty for any other")
     kind: Literal["bulletin", "announcement", "group"]
     text: str
+    hours: int = Field(
+        ge=1,
+        le=168,
+        description=f"how long it is sent after its first packet, in hours: {_hours('bulletin')} for a bulletin and a group bulletin, {_hours('announcement')} for an announcement",
+    )
     posted_at: Iso = Field(description="when the text was posted")
     sent: int = Field(ge=0, description="how often it was sent")
     last_sent_at: Iso | None = Field(description="when it was last sent; null while it has not been sent")
     next_at: Iso | None = Field(
-        description="when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes, 30 while a radio it goes out on is Mercury or LoRa, until 4 hours after the first; an announcement: the same early, then every hour until 72 hours after the first)"
+        description="when it is sent next; null when its schedule is over (a bulletin: now, after 2 and 6 minutes, then every 20 minutes, 30 while a radio it goes out on is Mercury or LoRa; an announcement: the same early, then every hour; either until `hours` after the first); a repeat after the radio's random pause, which is never longer than the wait nor past the end"
     )
     radios: list[int] = Field(
         description="the radios it is set to go out on (Send on), their ids, ascending, one at least, kept also while off; the radios it goes on now are those of them that are on and can send (with one radio that can send, that one; with none of them on, none)"
@@ -107,19 +118,31 @@ class ObjectKill(_Command):
 
 
 class BulletinPost(_Command):
-    """Posts a bulletin, an announcement or a group bulletin of ours: `slot` is `BLN0`..`BLN9`, `BLNA`..`BLNZ` or `BLN`, a number and a group of up to five characters (`BLN3HAMS`), `text` at most 67 characters of
-    printable ASCII without `|`, `~` and `{`. It is sent at once and then on the schedule of the specification (a bulletin a few times early and every 20 minutes for 4 hours, an announcement every hour for 72 hours);
-    a text for a slot that holds one replaces it; `radios` the radios it goes out on (their ids). Nothing is sent while the call is not set. Answered by the `set` of its row in `own_bulletins`, or by an
-    `error` that names the reason."""
+    """Posts a bulletin, an announcement or a group bulletin of ours in the lowest free slot of its kind: `BLN0`..`BLN9` for a bulletin, `BLNA`..`BLNZ` for an announcement, `BLN0`..`BLN9` and the group for a
+    group bulletin (`BLN0HAMS`); a slot is free while no post of ours is in it, an ended one included. Nothing of ours is replaced: with every slot of the kind (of the group) taken it is refused (`bulletin.taken`),
+    and so it is with 36 posts of ours (`bulletin.full`). `text` is at most 67 characters of printable ASCII without `|`, `~` and `{`. It is sent at once and then on the schedule of the specification (a bulletin
+    a few times early and every 20 minutes, an announcement every hour) for `hours`. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_bulletins`, or by an `error` that names the
+    reason."""
 
     cmd: Literal["bulletin_post"]
-    slot: str = Field(min_length=SLOT_LENGTH[0], max_length=SLOT_LENGTH[1])
+    kind: Kind
+    group: str = Field(
+        default="",
+        max_length=GROUP_MAX,
+        description="the group of a group bulletin, 1 to 5 letters and digits (written in capitals); ignored for the other kinds",
+    )
     text: MessageText = Field(min_length=1)
+    hours: int | None = Field(
+        default=None,
+        ge=1,
+        le=168,
+        description=f"how long it is sent after its first packet, in hours: {_hours('bulletin')} for a bulletin and a group bulletin, {_hours('announcement')} for an announcement; left out: `status.new_bulletin_hours` of its kind",
+    )
     radios: list[int] | None = Field(
         default=None,
         min_length=1,
         max_length=64,
-        description="the radios it goes out on, their ids; left out: a text for a slot that holds one on that one's, a new one on `status.new_bulletin_radios`",
+        description="the radios it goes out on, their ids; left out: `status.new_bulletin_radios`",
     )
 
 
