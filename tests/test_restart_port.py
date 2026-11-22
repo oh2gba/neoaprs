@@ -1,7 +1,7 @@
-"""The page's port across a restart of the daemon (neoaprs/daemon.py `kept_port`, the note `neoaprs.restart-port` of neoaprs/stopfile.py, neoaprs/web/listen.py): a daemon that ends to be started again says where its page is, and
-the one that starts in its place serves it there, whatever the settings, `--web-port` and the ports that are free at that moment say; a start that is no restart listens as it always did. The daemon is its
-own `run()` in the test's process (tests/support/daemonrun.py does the same), ended as Update now of an AppImage ends it and started again with the arguments it had, which is all the exec of the new file does.
-The owner's station, 16 Nov 2026: the page was on 7304 (7303, of the settings, was taken in the morning), the daemon came back from Update now on 7303, free by then, and the window waited on 7304."""
+"""The page's port across a restart of the daemon (daemon.py `kept_port`, the `neoaprs.restart-port`
+note of stopfile.py, web/listen.py): a daemon that ends to be restarted says where its page is, and
+the one that starts in its place serves it there. A start that is no restart listens as usual.
+"""
 import argparse
 import asyncio
 import logging
@@ -33,9 +33,11 @@ def port_of(url: str | None) -> int:
 
 
 class Daemons:
-    """The daemons of one data folder, one after the other: `start(*flags)` runs one until its page is served and gives the port; `restart()` ends it as Update now of an AppImage does (the note, then
-    the stop) and gives the command line it handed back; `stop()` ends it as `neoaprs stop` does. A daemon that has ended leaves the log as its process would: the handlers it added are taken
-    away, so that the next one writes each line once."""
+    """The daemons of one data folder, one after the other: `start(*flags)` runs one until its page
+    is served and gives the port; `restart()` ends it as Update now of an AppImage does (the note,
+    then the stop) and gives the command line it handed back; `stop()` ends it as `neoaprs stop`
+    does. A daemon that has ended leaves the log as its process would: the handlers it added are
+    taken away, so that the next one writes each line once."""
 
     def __init__(self, data: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         self.data = data
@@ -103,7 +105,9 @@ async def test_a_daemon_on_a_fallback_port_starts_again_on_that_port_though_the_
 
 
 async def test_a_daemon_on_the_port_of_its_settings_or_of_its_flag_starts_again_there(daemons: Daemons) -> None:
-    with taken_ports(2) as free:                               # (two neighbouring ports that are free once the block ends: one for the settings, one for the flag)
+    # Two neighbouring ports that are free once the block ends: one for the settings, one for the
+    # flag
+    with taken_ports(2) as free:
         pass
     assert await asyncio.to_thread(dbcmd.main, ["--data", str(daemons.data), "set", "web/port", str(free)]) == 0
     assert await daemons.start() == free, "the settings' port"
@@ -129,7 +133,8 @@ async def test_a_port_of_before_the_restart_that_is_taken_by_then_does_not_keep_
     with taken_ports(1) as taken:
         port = await daemons.start("--web-port", str(taken))
         await daemons.restart(["/home/ham/NeoAPRS.AppImage", "run", "--data", str(daemons.data), "--web-port", str(taken)])
-    with socket.socket() as holder:                            # (another program has the port the page was on by the time the daemon starts again)
+    # Another program has the port the page was on by the time the daemon starts again
+    with socket.socket() as holder:
         try:
             holder.bind(("127.0.0.1", port))
             holder.listen()
@@ -141,11 +146,13 @@ async def test_a_port_of_before_the_restart_that_is_taken_by_then_does_not_keep_
 
 
 async def test_the_daemon_that_starts_in_the_place_of_one_of_0_20_1_finds_its_port_in_the_log(daemons: Daemons) -> None:
-    """A daemon of 0.20.1 or before leaves the note of its restart and none of its port, and takes the page's file away as it ends: what is left of its port is its line in the log."""
+    """An older daemon leaves the restart note and no port, and removes the page's file as it ends:
+    only the log has its port."""
     with taken_ports(1) as taken:
         port = await daemons.start("--web-port", str(taken))
         daemons.controllers[-1].reexec = ["/home/ham/NeoAPRS.AppImage", "run"]
-        stopfile.mark_restart(daemons.data)                    # (as 0.20.1 wrote it)
+        # As the older daemon wrote it.
+        stopfile.mark_restart(daemons.data)
         daemons.controllers[-1]._end_for_restart()
         await daemons.ended()
     assert stopfile.restarting(daemons.data) and not (daemons.data / stopfile.PORT_NAME).exists()
@@ -194,8 +201,9 @@ def test_the_port_that_is_kept_is_the_notes_or_for_an_older_note_the_logs_and_no
 
 
 def test_only_a_whole_line_the_daemon_said_itself_names_the_page_of_the_run_before(tmp_path: Path) -> None:
-    """The log also holds what others sent (a packet's text in a warning): the words of a page line or of a start line inside another line name no port and start no run, and neither does an address
-    that is not the page's own on this computer."""
+    """The log also holds what others sent (a packet's text in a warning): the words of a page line
+    or of a start line inside another line name no port and start no run, and neither does an
+    address that is not the page's own on this computer."""
     start, page, end = "NeoAPRS 0.20.1 starting, data in /d", "web page at http://127.0.0.1:7304/", "NeoAPRS ended"
 
     def lines(*more: str) -> None:
@@ -214,8 +222,10 @@ def test_only_a_whole_line_the_daemon_said_itself_names_the_page_of_the_run_befo
 
 
 async def test_a_note_of_a_restart_that_never_came_pins_no_port(daemons: Daemons) -> None:
-    """The note is believed for a quarter of an hour and read by one start: an old one (the installer never ended the daemon, the computer was switched off in the middle) is passed over and taken away
-    by the daemon that runs, and a fresh one is used by the first start and by no later one. A daemon that is stopped, by `neoaprs stop` or a service manager, leaves none."""
+    """The note is believed for a quarter of an hour and read by one start: an old one (the
+    installer never ended the daemon, the computer was switched off in the middle) is passed over
+    and taken away by the daemon that runs, and a fresh one is used by the first start and by no
+    later one. A daemon that is stopped, by `neoaprs stop` or a service manager, leaves none."""
     with taken_ports(2) as free:
         pass
     daemons.data.mkdir()
@@ -228,7 +238,8 @@ async def test_a_note_of_a_restart_that_never_came_pins_no_port(daemons: Daemons
     await daemons.stop()
     assert not note.exists() and not (daemons.data / stopfile.RESTART_NAME).exists(), "a stop is no restart: nothing is left for the next start"
     assert await daemons.start("--web-port", str(free)) == free
-    stopfile.note_port(daemons.data, free + 1)                 # (written while the daemon runs, as before an installer that then never ends it)
+    # Written while the daemon runs, as before an installer that then never ends it
+    stopfile.note_port(daemons.data, free + 1)
     await daemons.stop()
     assert await daemons.start("--web-port", str(free)) == free + 1, "the start within the quarter of an hour is on the port the pages wait on"
     await daemons.stop()
@@ -255,8 +266,10 @@ async def test_a_note_that_names_a_port_the_daemon_may_not_have_is_passed_over(d
 
 # ---- the end-to-end test's own reading of it
 async def test_the_update_test_finds_the_page_beside_the_port_it_holds_and_the_same_page_after_the_restart(daemons: Daemons) -> None:
-    """scripts/update-e2e.py holds the port of the settings while the old version starts, finds its page on a later port, lets go of the port and finds the new version's page: here with the daemon of
-    this tree in the place of both versions (the real files are the release workflow's to run)."""
+    """scripts/update-e2e.py holds the port of the settings while the old version starts, finds its
+    page on a later port, lets go of the port and finds the new version's page: here with the daemon
+    of this tree in the place of both versions (the real files are the release workflow's to run).
+    """
     e2e = load_script("update-e2e.py")
     holder, held = e2e.held_port()
     try:

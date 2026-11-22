@@ -1,4 +1,4 @@
-"""Update now on the wire: the topic `update` (what the update the daemon does itself is doing) and the commands that start and cancel it. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire models of the topic `update` and the commands that start and cancel a self-update."""
 from typing import Literal
 
 from pydantic import Field

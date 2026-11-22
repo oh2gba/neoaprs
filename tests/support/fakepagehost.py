@@ -1,10 +1,6 @@
-"""The WebServer as the page's socket (neoaprs/web/pagesocket.py) sees it, made of fakes: a host that lets every request in and an Api that writes down what it is told, behind a real Tornado server on a free port
-of the loopback, for the tests of the socket on its own (the daemon's Api and the whole WebServer are in tests/test_web.py).
-
-    host = await page_host()                       # started; stopped when the test is over
-    ws = await websocket_connect(host.url)         # a real WebSocket client
-    host.api.sockets                               # the Socket handlers that were attached, in order
-    host.api.commands                              # (the handler, the text) of every command
+"""The WebServer as the page's socket (neoaprs/web/pagesocket.py) sees it, made of fakes: a host
+that lets every request in and an Api that records what it is told, behind a real Tornado server on
+a free port.
 """
 import asyncio
 from typing import Any

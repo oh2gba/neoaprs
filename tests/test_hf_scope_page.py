@@ -1,6 +1,7 @@
-"""The scope and the transmit level of the HF radio (radio 2) as the page has them (neoaprs/web/scopefeed.py, radiowire.py): `radio_scope` makes a page one of those that are sent the rows of the radio's waterfall, the
-rows kept first, each frame naming the radio, a page that leaves or stops asking is forgotten, the rows go to the pages that asked and to no other, the radio's row says whether the scope is there, the gain and the
-peak, the setting of the gain (`radio/2/tx_gain_db`) reaches the modem, and it restarts the modem only where nothing could set it live."""
+"""Tests for the HF radio scope and transmit level on the page (neoaprs/web/scopefeed.py,
+radiowire.py): `radio_scope` subscriptions, waterfall rows, the radio's row, and the gain setting
+(`radio/2/tx_gain_db`) reaching the modem.
+"""
 import asyncio
 from dataclasses import replace
 from pathlib import Path
@@ -140,7 +141,8 @@ async def test_a_page_that_asks_for_the_scope_and_leaves_in_the_same_moment_is_n
         page = Page()
         api.attach(page)
         api.on_command(page, '{"cmd": "radio_scope", "radio": 2, "on": true}')
-        api.detach(page)                    # (the command and the close came in one read: the command runs after)
+        # (the command and the close came in one read: the command runs after)
+        api.detach(page)
         await asyncio.sleep(0.1)            # (the command's task has run)
         assert api.topics.scopes.pages(HF_ID) == 0, "a page that has left is sent nothing"
     finally:

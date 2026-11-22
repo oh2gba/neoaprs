@@ -1,20 +1,7 @@
-"""The keys of encrypted messages (neoaprs/cipher.py): our own key pair, and the public key each station announced.
+"""Keys for encrypted messages: our own key pair and the public key each station announced.
 
-Our private key is the file `message.key` of the data folder, 32 raw bytes readable by the owner only, made the first time it is needed (the daemon started with --encryption, a key sent, a message
-locked) and kept across runs; `renew` makes a new one in its place (the stations that have the old key must be sent the new one). The public key is announced to a station as a message by hand
-(messaging.send_key: nothing is announced by itself); `fingerprint` is what the operators compare.
-
-A station's key is taken on first hearing (`take`): the first key a station announces is kept, in the table `station_key` of the message log's database, and shown with its fingerprint; a later
-announcement of the same key is nothing new; one of a different key is not taken (the message is kept as `key_other`, so that the operator sees it) until the key that is kept is forgotten (`forget`:
-the operator's, when the station is known to have a new key). A key is kept whether or not encrypted messages are switched on: hearing a key costs nothing and the setting is about what we send.
-This is trust on first use, and the trust is in the call as the air carries it, which anyone can write into a frame: a station that announces a key under another's call before the owner does holds that call's
-key here until the operator forgets it, and the locked messages to that call open for it and not for the owner; the fingerprint beside each key is what the two operators compare on voice (or by any other way
-they trust) before they rely on a key, and the one defence there is (neoaprs/cipher.py says the rest of what the scheme does not do). A key that is different from the one kept is never taken by itself for the
-same reason: the first announcement may have been the owner's.
-`changed` tells (call) when a station's key is set or forgotten, `own_changed` when our own key is new.
-
-The flag --encryption of the daemon (`allowed`, `enabled`) governs sending: a locked message or a key goes out only when the daemon was started with it, and the page shows the feature only then. Amateur
-regulations forbid encoding that hides the meaning of a transmission, so it is not there unless the operator starts the daemon that way, for the circumstances that allow it. What comes in is opened whenever the keys for it are here (`shared_with`), so that a message is never shown as base64 when it can be read."""
+A station's first announced key is trusted; a different key is refused until it is forgotten.
+"""
 import logging
 import os
 from datetime import datetime
@@ -31,6 +18,8 @@ from neoaprs.signal import Signal
 log = logging.getLogger("neoaprs.keyring")
 
 FILE = "message.key"
+
+
 def _b64(key: bytes) -> str:
     return cipher.key_message(key)[len(cipher.KEY_MARK):]
 
@@ -45,16 +34,17 @@ def _station(call: str) -> str:
 class Keyring:
     def __init__(self, data_dir: Path, messagelog: MessageLog, clock: Clock = utcnow, allowed: bool = False) -> None:
         self._path = data_dir / FILE
-        self.allowed = allowed                                          # the daemon was started with --encryption
+        self.allowed = allowed
         self._log = messagelog
         self._clock = clock
         self._private: bytes | None = None
-        self._peers: dict[str, tuple[bytes, datetime]] = {}            # the key each station announced and when it was heard, by call
+        # by call: the key the station announced and when it was heard
+        self._peers: dict[str, tuple[bytes, datetime]] = {}
         self.changed: Signal[[str]] = Signal("keys_changed")
         self.own_changed: Signal[[]] = Signal("own_key_changed")
 
     async def load(self) -> None:
-        """Our key from its file, when there is one, and the stations' keys from the database."""
+        """Read our key from its file and the stations' keys from the database."""
         self._private = self._read_own()
         self._peers = {}
         for call, (text, heard_at) in (await self._log.keys()).items():
@@ -66,17 +56,15 @@ class Keyring:
         if self.enabled:
             self.ensure_own()
 
-    # ---- the flag
     @property
     def enabled(self) -> bool:
         return self.allowed
 
     def refuse_unless_on(self) -> None:
-        """Raises MessagingError (`lock.off`) while encrypted messages are not allowed."""
+        """Raise MessagingError (`lock.off`) while encrypted messages are not allowed."""
         if not self.enabled:
             raise MessagingError("encrypted messages are not allowed: NeoAPRS was started without --encryption", "lock.off")
 
-    # ---- our own key
     def _read_own(self) -> bytes | None:
         try:
             data = self._path.read_bytes()
@@ -91,7 +79,7 @@ class Keyring:
         return data
 
     def _write_own(self, private: bytes) -> None:
-        """The file whole or not at all, readable by the owner only (the mode is set before a byte is written)."""
+        """Write the key atomically, readable by the owner only (the mode is set before any write)."""
         tmp = self._path.with_name(self._path.name + ".new")
         tmp.unlink(missing_ok=True)
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -101,14 +89,14 @@ class Keyring:
         os.replace(tmp, self._path)
 
     def ensure_own(self) -> bytes:
-        """Our private key, made and kept when there is none yet. Raises MessagingError when the file cannot be written."""
+        """Return our private key, making it if none exists. Raise MessagingError if unwritable."""
         if self._private is None:
             self.renew()
         assert self._private is not None
         return self._private
 
     def renew(self) -> None:
-        """A new key pair in place of the old (the stations that have the old key must be sent the new one). Raises MessagingError when the file cannot be written; the old key stays then."""
+        """Replace our key pair. Raise MessagingError if the file cannot be written (old key stays)."""
         private = cipher.new_private()
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -120,46 +108,46 @@ class Keyring:
         self.own_changed.emit()
 
     def own_public(self) -> bytes | None:
-        """Our public key, None while no key has been made."""
+        """Return our public key, None while no key has been made."""
         return None if self._private is None else cipher.public_of(self._private)
 
     def fingerprint(self) -> str:
-        """The fingerprint of our key, empty while there is none."""
+        """Return the fingerprint of our key, empty while there is none."""
         public = self.own_public()
         return "" if public is None else cipher.fingerprint(public)
 
     def key_text(self) -> str:
-        """The text of the message that announces our key (made when there is none yet)."""
+        """Return the text of the message announcing our key (making the key if needed)."""
         return cipher.key_message(cipher.public_of(self.ensure_own()))
 
-    # ---- the stations' keys
     def peers(self) -> dict[str, tuple[str, datetime]]:
-        """Every station whose key is kept: call to (fingerprint, when it was heard)."""
+        """Return call to (fingerprint, when heard) for every station whose key is kept."""
         return {call: (cipher.fingerprint(key), at) for call, (key, at) in self._peers.items()}
 
     def peer_key(self, call: str) -> bytes | None:
         return self._peers.get(_station(call), (None, None))[0]
 
     def shared_with(self, call: str) -> bytes | None:
-        """The key we share with the station, None while either key is missing (ours is not made for this: a message that cannot be opened is shown shut)."""
+        """Return the key shared with the station, None while either key is missing."""
         peer = self.peer_key(call)
         return None if peer is None or self._private is None else cipher.shared_key(self._private, peer)
 
     def _shared(self, call: str) -> bytes | None:
-        """The key shared with a station, None when there is none to use: no key, a sender that is no call, or a key the exchange cannot use."""
+        """Return the shared key, None if a key is missing, the call invalid or the key unusable."""
         try:
             return self.shared_with(call)
         except (MessagingError, ValueError):
             return None
 
-    # ---- what messaging asks
     def kind(self, text: str) -> Seal:
-        """What a message's text is by its marker alone: a key announcement (`key`), a sealed text (`shut`), else plain."""
+        """Classify a text by its marker: `key` announcement, `shut` sealed text, else plain."""
         return "key" if cipher.key_of_message(text) is not None else "shut" if cipher.is_locked(text) else ""
 
     def opened(self, sender: str, ours: str, text: str) -> tuple[str, Seal, str | None]:
-        """The text of a message to us as it is kept, what it is, and what came on the air when that differs: a key announcement as it came (`key`), a sealed text opened with the key we share with the
-        sender (`open`) or as it came when it does not open (`shut`), anything else as it is."""
+        """Return (kept text, kind, text as received if different).
+
+        A sealed text is opened with the shared key (`open`), or kept as received (`shut`).
+        """
         seal = self.kind(text)
         if seal != "shut":
             return text, seal, None
@@ -175,7 +163,7 @@ class Keyring:
         return inside, "open", text
 
     def sealed(self, ours: str, to: str, text: str) -> str:
-        """The text that goes on the air for an encrypted message to the station. Raises MessagingError: encrypted messages off, no key from the station, a text too long or unprintable."""
+        """Return the text to send as an encrypted message; raise MessagingError if not possible."""
         self.refuse_unless_on()
         shared = self._shared(to)
         if shared is None:
@@ -186,13 +174,15 @@ class Keyring:
             raise MessagingError(str(e), e.code, **e.params) from None
 
     async def taken(self, call: str, text: str, at: datetime) -> Seal:
-        """What a key announcement from a station is once its key was offered to the ring (`take`)."""
+        """Offer the key of an announcement to the ring and return its kind."""
         key = cipher.key_of_message(text)
         return "key" if key is None else await self.take(call, key, at)
 
     async def take(self, call: str, key: bytes, at: datetime) -> Seal:
-        """A station announced a key: kept when it had none (`key`), nothing new when it is the one kept, not taken when another is kept (`key_other`; the operator forgets the old one first). A key no shared key can
-        be made with (all zeros, a low-order point) is never kept: the message stays a plain text (""), and the log says so. Raises MessagingError for a call that is none (the inbox asks only for a sender that is one)."""
+        """Keep an announced key if none is kept (`key`); `key_other` if another is kept.
+
+        An unusable key is never kept ("" returned). Raise MessagingError for an invalid call.
+        """
         station = _station(call)
         if not cipher.is_usable_key(key):
             log.warning("%s announced a key no shared key can be made with (%s): not taken", station, cipher.fingerprint(key))
@@ -211,7 +201,7 @@ class Keyring:
         return "key"
 
     async def forget(self, call: str) -> None:
-        """The operator takes a station's key away (the station has a new one, or was never meant to have one): its next announcement is taken. Raises MessagingError when there is none, or the database would not take the removal."""
+        """Remove a station's key so its next announcement is taken. Raise MessagingError if none."""
         station = _station(call)
         if station not in self._peers:
             raise MessagingError(f"there is no key from {station}", "lock.no_key", call=station)

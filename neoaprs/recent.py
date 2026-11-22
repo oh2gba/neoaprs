@@ -1,12 +1,13 @@
-"""The keys seen lately: what tells a duplicate within a window from a new one (the digipeater's and the iGate's duplicate checks, the answer given once to a station that asks the same again).
+"""The keys seen lately: tells a duplicate within a window from a new one.
 
-A key is anything hashable (the source, destination and information field of a packet; a station and what it asked). `lately` says whether the key was noted less than the window before `now`, `note` notes it, and
-`seen` does both: whether it was, and now it is. What is older than the window is dropped once the table has grown past `keep_max` entries, so that a busy channel costs a bounded amount of memory and a quiet
-one costs no pruning. Pure code, like the rest of the foundation."""
+A key is anything hashable. `lately` asks, `note` notes, `seen` does both; old keys are dropped
+once the table passes `keep_max`. Pure code.
+"""
 from collections.abc import Hashable
 from datetime import datetime, timedelta
 
-KEEP_MAX = 2000                       # the most keys kept before the old ones are dropped: a channel does not carry more than this in the windows of the program (30 seconds)
+# most keys kept before the old are dropped
+KEEP_MAX = 2000
 
 
 class Recent[K: Hashable]:
@@ -20,7 +21,7 @@ class Recent[K: Hashable]:
             self._at = {k: t for k, t in self._at.items() if abs(now - t) < self.window}
 
     def lately(self, key: K, now: datetime) -> bool:
-        """Whether the key was noted less than the window before `now`."""
+        """Return whether the key was noted less than the window before `now`."""
         self._prune(now)
         before = self._at.get(key)
         return before is not None and abs(now - before) < self.window
@@ -30,7 +31,7 @@ class Recent[K: Hashable]:
         self._at[key] = now
 
     def seen(self, key: K, now: datetime) -> bool:
-        """Whether the key was noted within the window; and it is noted now, so that a run of copies keeps the window open."""
+        """Return whether the key was noted within the window, and note it now."""
         found = self.lately(key, now)
         self.note(key, now)
         return found

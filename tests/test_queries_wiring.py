@@ -1,5 +1,7 @@
-"""The queries and the message board inside the whole daemon, the radio a pseudo-terminal: a query to us gives the right frame on the line, a message to a bulletin or a group is on the board and not
-acked, ?APRSS answers with the status last sent, and the controller starts and stops the parts."""
+"""The queries and the message board inside the whole daemon with a pseudo-terminal radio: a query
+gives the right frame, a bulletin or group message is on the board and not acked, ?APRSS answers
+with the last status.
+"""
 import logging
 from dataclasses import replace
 from datetime import timedelta
@@ -14,7 +16,9 @@ from tests.support.env import Env, idle_for, quick_start, until
 
 
 async def started(tmp_path: Path, beacon_on: bool = False, **changes: object) -> Env:
-    """A daemon with messaging and the status; `beacon_on`: the beacon is on (a status goes out only then; the defaults are a beacon that is off) and its timer stopped, as these tests are about the status and the queries."""
+    """A daemon with messaging and the status; `beacon_on`: the beacon is on (a status goes out only
+    then; the defaults are a beacon that is off) and its timer stopped, as these tests are about the
+    status and the queries."""
     e = await quick_start(tmp_path, messaging=True, rigstatus=True)
     if beacon_on:
         await e.beacon.stop()
@@ -25,11 +29,12 @@ async def started(tmp_path: Path, beacon_on: bool = False, **changes: object) ->
 
 
 async def heard(e: Env, packets: int) -> None:
-    """The radio has been read until this many packets (said() blocks the loop, so it comes after)."""
+    """The radio has been read until this many packets (said() blocks the loop, so it comes after).
+    """
     await until(lambda: e.tnc.stats.packets == packets)
 
 
-# ---- the queries ---------------------------------------------------------------------------------------------------------------------------------
+# ---- the queries ---------------------------------------------------------------------------------
 
 async def test_aprsp_gives_the_beacons_position_frame_on_the_line(tmp_path: Path) -> None:
     e = await started(tmp_path)
@@ -47,7 +52,8 @@ async def test_aprsp_goes_by_the_path_the_operator_set_for_the_asker(tmp_path: P
     await e.ctl.prefbook.set_path("OH2RDG", "OH2RCH-2")
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSP", "7"), path="OH2RCH-2*"))
     await heard(e, 1)
-    frames = await said(e, 2)                                               # (the query carries an id, so it is acked too, by the same path)
+    # The query carries an id, so it is acked too, by the same path
+    frames = await said(e, 2)
     assert sorted(f.tnc2() for f in frames) == ["OH2GBA>APZNEO,OH2RCH-2::OH2RDG   :ack7", "OH2GBA>APZNEO,OH2RCH-2:=6010.20N/02456.40E-NeoAPRS"]
     await e.stop()
 
@@ -57,7 +63,8 @@ async def test_the_answer_to_an_rf_only_asker_ends_with_rfonly_and_one_that_cann
     await e.ctl.prefbook.set_rf_only("OH2RDG", True)
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSP", "7"), path="OH2RCH-2*"))
     await heard(e, 1)
-    frames = await said(e, 2)                                               # (the ack of the numbered query goes the same way)
+    # The ack of the numbered query goes the same way
+    frames = await said(e, 2)
     assert sorted(f.tnc2() for f in frames) == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::OH2RDG   :ack7", "OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY:=6010.20N/02456.40E-NeoAPRS"]
     await e.ctl.prefbook.set_path("OH2RDG", ",".join(f"OH2RC{n}" for n in range(8)))
     e.now.advance(600)                                                      # type: ignore[attr-defined]
@@ -125,7 +132,8 @@ async def test_the_general_query_gives_our_position_after_the_wait_and_not_again
     e.ctl.queries._delay = lambda: 0.1                                     # (0 to 120 s in the field)
     e.feed(on_air("OH2RDG", b"?APRS?", path="OH2RCH-2*"))
     await heard(e, 1)
-    await idle_for(0.4)                                                # (said() blocks the loop: the wait runs out before it is read)
+    # (said() blocks the loop: the wait runs out before it is read)
+    await idle_for(0.4)
     [frame] = await said(e, 1, 2.0)
     assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS"
     e.feed(on_air("OH2ABC", b"?APRS?"))
@@ -152,13 +160,15 @@ async def test_a_query_to_somebody_else_is_not_answered(tmp_path: Path) -> None:
     await e.stop()
 
 
-# ---- the status is not tied to the beacon -------------------------------------------------------------------------------------------------------
+# ---- the status is not tied to the beacon --------------------------------------------------------
 
 async def test_the_beacon_is_not_followed_by_the_status_report(tmp_path: Path) -> None:
     e = await started(tmp_path, beacon_on=True, station_status="On the road")
-    e.feed(on_air("OH2ABC", b">hello"))                                     # (a KISS frame heard: the TNC is in KISS mode and takes frames, the status waited for that)
+    # A KISS frame heard: the TNC is in KISS mode and takes frames, the status waited for that
+    e.feed(on_air("OH2ABC", b">hello"))
     await heard(e, 1)
-    await until(lambda: e.ctl.rigstatus.last_text == "On the road")          # (said() blocks the loop: the status is on the line before it is read)
+    # (said() blocks the loop: the status is on the line before it is read)
+    await until(lambda: e.ctl.rigstatus.last_text == "On the road")
     [status] = await said(e)
     assert status.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zOn the road"
     assert e.beacon.send_now()
@@ -169,7 +179,7 @@ async def test_the_beacon_is_not_followed_by_the_status_report(tmp_path: Path) -
     await e.stop()
 
 
-# ---- the board -----------------------------------------------------------------------------------------------------------------------------------
+# ---- the board -----------------------------------------------------------------------------------
 
 async def test_a_bulletin_is_on_the_board_in_the_database_and_not_acked_or_overheard(tmp_path: Path) -> None:
     e = await started(tmp_path)
@@ -213,11 +223,12 @@ async def test_the_daily_prune_removes_no_bulletin_however_old(tmp_path: Path) -
     await e.stop()
 
 
-# ---- ?APRSH and QRU, through the whole daemon -----------------------------------------------------------------------------------------------------
+# ---- ?APRSH and QRU, through the whole daemon ----------------------------------------------------
 
 async def test_aprsh_tells_from_the_packet_log_when_the_station_was_heard(tmp_path: Path) -> None:
     e = await quick_start(tmp_path, messaging=True)
-    for count, wait in enumerate((70 * 60, 0, 0), start=1):                     # (one packet, seventy minutes pass, two more)
+    # One packet, seventy minutes pass, two more
+    for count, wait in enumerate((70 * 60, 0, 0), start=1):
         e.feed(on_air("OH2PU-9", b">hello", path="OH2RCH-2*"))
         await heard(e, count)
         e.now.advance(wait)                                                     # type: ignore[attr-defined]

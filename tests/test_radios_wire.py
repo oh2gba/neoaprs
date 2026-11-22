@@ -1,6 +1,7 @@
-"""The radios on the wire (breakdown 1.11, wave 4): the topic `radios` (every radio by id, removed ones too, at most four times a second), the commands that name a radio (`radio_add`, `radio_remove`, `radio_change`,
-`station_radio`, the paths of a station by radio, Ask and Local info on a named radio, an object's radios, `list_ports` and `find_radio` for a radio, the modem's commands), a radio's own settings through
-`set_config` (`radio/<id>/<key>`, `email/radio`), and every refusal with its code, the key it is about and the holder's name where a device is held. Over the page's socket of a real daemon."""
+"""The radios on the wire over a real daemon's page socket: the topic `radios`, the commands that
+name a radio, a radio's own settings through `set_config`, and every refusal with its code, key and
+holder.
+"""
 import asyncio
 import json
 from dataclasses import replace
@@ -53,9 +54,11 @@ async def added(page: WsClient, type: str, name: str = "") -> int:
 
 
 async def at_rest(modem: Mercury) -> None:
-    """The start of a Mercury radio, which the daemon makes in a task of its own after the radio is added, is over, and its modem has come to rest: the made-up program runs with its control line up, or
-    there is none to run. Until then the modem forgets the rows it kept and lets go of what the radio held (the stop a start begins with, the link to the program's UI, every try of the control line that
-    fails), so what a test puts there by hand waits for this."""
+    """The start of a Mercury radio, which the daemon makes in a task of its own after the radio is
+    added, is over, and its modem has come to rest: the made-up program runs with its control line
+    up, or there is none to run. Until then the modem forgets the rows it kept and lets go of what
+    the radio held (the stop a start begins with, the link to the program's UI, every try of the
+    control line that fails), so what a test puts there by hand waits for this."""
     await until(lambda: modem.state in ("running", "waiting"), START_SEC)
 
 
@@ -119,8 +122,9 @@ async def test_every_refusal_of_the_radio_commands_has_its_code(tmp_path: Path) 
 
 
 async def test_a_place_past_what_the_database_holds_is_refused_and_a_radio_is_added_after_the_last_place(tmp_path: Path) -> None:
-    """A radio's place is a whole number from 1 to 2**31 - 1: a larger one is refused as `invalid` and nothing is stored (not `failed` from the database), and after a radio is put at the last place a
-    radio added still goes after it."""
+    """A radio's place is a whole number from 1 to 2**31 - 1: a larger one is refused as `invalid`
+    and nothing is stored (not `failed` from the database), and after a radio is put at the last
+    place a radio added still goes after it."""
     e, page = await started(tmp_path)
     for position in (2**31, 2**63, 2**64):
         error = await refused(page, {"cmd": "radio_change", "radio": FM_ID, "position": position})
@@ -134,7 +138,8 @@ async def test_a_place_past_what_the_database_holds_is_refused_and_a_radio_is_ad
 
 
 async def test_a_command_that_names_no_radio_is_refused_for_radio_1_once_it_is_removed(tmp_path: Path) -> None:
-    """A station path and Find my radio left without a radio are radio 1's; once radio 1 is removed they are refused as `radio.unknown`, and no row is written for a radio that is gone."""
+    """A station path and Find my radio left without a radio are radio 1's; once radio 1 is removed
+    they are refused as `radio.unknown`, and no row is written for a radio that is gone."""
     e, page = await started(tmp_path)
     await added(page, "dummy", "Shack")
     assert await e.ctl.remove_radio(FM_ID)
@@ -147,7 +152,9 @@ async def test_a_command_that_names_no_radio_is_refused_for_radio_1_once_it_is_r
 
 async def test_a_radios_own_settings_ride_set_config_and_each_refusal_names_its_key(tmp_path: Path) -> None:
     e, page = await started(tmp_path)
-    id = await e.ctl.add_radio("kiss-tcp", enabled=False)              # (off while it has the defaults, 127.0.0.1:8001, and 8002 below: the ports of a real Direwolf of this machine)
+    # Off with the defaults (127.0.0.1:8001 and 8002 below): the ports of a real Direwolf on this
+    # machine.
+    id = await e.ctl.add_radio("kiss-tcp", enabled=False)
     assert id is not None
     await page.until(lambda: str(id) in page.topics["radios"] and f"radio/{id}/tcp_port" in page.topics["config"]["radio_values"])
     values = page.topics["config"]["radio_values"]
@@ -165,12 +172,14 @@ async def test_a_radios_own_settings_ride_set_config_and_each_refusal_names_its_
         error = await refused(page, {"cmd": "set_config", "values": {**values_, "station/comment": "not stored"}})
         assert (error["key"], error["code"]) == (key, code), values_
     assert e.ctl.config.station_comment == "both at once", "nothing of a refused save is stored"
-    fake = await e.new_radio()                                         # (switched on, for email to go out on it, at a made-up radio of the test)
+    # Switched on, for email to go out on it, at a made-up radio of the test
+    fake = await e.new_radio()
     await page.send({"cmd": "set_config", "values": {f"radio/{id}/tcp_port": str(fake.port)}})
     await page.until(lambda: page.topics["config"]["radio_values"][f"radio/{id}/tcp_port"] == str(fake.port))
     await page.send({"cmd": "radio_change", "radio": id, "enabled": True})
     await page.until(lambda: page.topics["radios"][str(id)]["enabled"])
-    await page.until(lambda: page.topics["config"]["radio_values"]["email/radio"] == str(FM_ID))     # (a second radio that sends: email stays on radio 1 until the operator chooses)
+    # A second radio that sends: email stays on radio 1 until the operator chooses
+    await page.until(lambda: page.topics["config"]["radio_values"]["email/radio"] == str(FM_ID))
     await page.send({"cmd": "set_config", "values": {"email/radio": str(id)}})
     await page.until(lambda: page.topics["config"]["radio_values"]["email/radio"] == str(id))
     await page.send({"cmd": "status"})
@@ -184,7 +193,8 @@ async def test_a_radios_own_settings_ride_set_config_and_each_refusal_names_its_
 async def test_a_device_another_radio_holds_is_refused_with_the_holders_name_and_shown_held(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     e, page = await started(tmp_path)
     id = await added(page, "kiss", "Mobile")
-    e.ctl.radios.claims.hold(Claim("serial", claim_value("COM7") or "", FM_ID))             # (held as the table holds a device: by the name its search resolved)
+    # Held as the table holds a device: by the name its search resolved
+    e.ctl.radios.claims.hold(Claim("serial", claim_value("COM7") or "", FM_ID))
     error = await refused(page, {"cmd": "set_config", "values": {f"radio/{id}/port": "COM7"}})
     assert (error["key"], error["code"], error["params"]) == (f"radio/{id}/port", "radio.resource_held", {"resource": "serial", "holder": "FM", "held_by": FM_ID})
     monkeypatch.setattr(web_handlers, "available_ports", lambda: [PortInfo("COM7", "USB Serial Port (COM7)", "USB VID:PID=0403:6001", 0x0403, 0x6001), PortInfo("COM8", "Bluetooth", "BTHENUM", None, None)])
@@ -195,7 +205,8 @@ async def test_a_device_another_radio_holds_is_refused_with_the_holders_name_and
     from neoaprs.mercurycards import SoundCard
     hf = await added(page, "mercury")
     modem = e.ctl.radios.get(hf).driver.modem                      # type: ignore[union-attr]
-    await at_rest(modem)                                           # (its start lets go of what the radio held, the claim made by hand below too)
+    # Its start lets go of what the radio held, the claim made by hand below too
+    await at_rest(modem)
     monkeypatch.setattr(modem, "sound_cards", lambda: [SoundCard("plughw:CARD=A", "A"), SoundCard("plughw:CARD=B", "B"), SoundCard("plughw:CARD=C", "C")])
     e.ctl.radios.claims.hold(Claim("sound_card", "plughw:CARD=A", id))
     e.ctl.radios.claims.hold(Claim("sound_card", "plughw:CARD=B", hf))
@@ -211,7 +222,8 @@ async def test_a_device_another_radio_holds_is_refused_with_the_holders_name_and
 
 
 def test_every_type_whose_row_carries_its_lines_says_it_has_a_terminal() -> None:
-    """Every driver keeps the lines of the row (`lines`), the Dummies' made-up traffic too: so every type says it has a Terminal, and a new type that has none must say so."""
+    """Every driver keeps the lines of the row (`lines`), the Dummies' made-up traffic too: so every
+    type says it has a Terminal, and a new type that has none must say so."""
     from neoaprs.radiotypes import TYPES
     assert [t.key for t in TYPES if not t.can.terminal] == [], "the page draws the Terminal of a type that says it has one"
 
@@ -222,7 +234,8 @@ async def test_every_page_is_told_the_new_radio_of_a_call_no_radio_heard_at_once
     other = await e.ws()
     await other.until(lambda: len(other.of("status")) > 0)
     await page.send({"cmd": "radio_change", "radio": FM_ID, "position": 9})
-    await other.until(lambda: other.of("status")[-1]["unheard_radio"] == id, timeout=3)          # (the timer tells the status every 10 s)
+    # The timer tells the status every 10 s
+    await other.until(lambda: other.of("status")[-1]["unheard_radio"] == id, timeout=3)
     await page.send({"cmd": "radio_change", "radio": id, "enabled": False})
     await other.until(lambda: other.of("status")[-1]["unheard_radio"] == FM_ID, timeout=3)
     await e.stop()
@@ -275,7 +288,8 @@ async def test_a_pair_switched_on_makes_its_call_ours_and_the_stations_row_loses
     await page.until(lambda: "OH2XYZ" in page.topics["stations"])
     assert page.topics["stations"]["OH2XYZ"]["replies"] == {str(id): "OH2GBA-12"}, "the pair is off: its call is a gateway's"
     await page.send({"cmd": "set_config", "values": {f"pair/{low}/{id}/enabled": "true"}})
-    await page.until(lambda: page.topics["stations"]["OH2XYZ"]["replies"] == {}, timeout=3)          # (nothing was heard: only the own calls changed)
+    # Nothing was heard: only the own calls changed
+    await page.until(lambda: page.topics["stations"]["OH2XYZ"]["replies"] == {}, timeout=3)
     await e.stop()
 
 
@@ -286,7 +300,8 @@ async def test_ask_around_goes_on_its_ticked_radios_and_local_info_on_the_radio_
     assert page.topics["general"]["by_radio"] == []
     error = await refused(page, {"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True})
     assert (error["code"], error["params"]["radio"]) == ("radio.not_connected", FM_ID), "the radio added took over none of the ticks: Ask around stays on the first box, which is not connected here"
-    await page.send({"cmd": "set_config", "values": {f"radio/{FM_ID}/ask": "false", f"radio/{id}/ask": "true"}})          # (two ticks: one taken away, one given)
+    # Two ticks: one taken away, one given
+    await page.send({"cmd": "set_config", "values": {f"radio/{FM_ID}/ask": "false", f"radio/{id}/ask": "true"}})
     await page.until(lambda: page.topics["radios"][str(id)]["choices"]["ask"])
     assert {spec.id: spec.settings.get("ask") for spec in await e.ctl.store.read_radios()} == {FM_ID: "false", id: "true"}, "each tick sent is stored, the one taken away too"
     await page.send({"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True})
@@ -323,7 +338,9 @@ async def test_an_object_goes_on_the_radios_named_and_its_row_says_them(tmp_path
 
 
 async def test_the_topic_tells_a_radio_at_most_four_times_a_second(tmp_path: Path) -> None:
-    """A second of changes, one every 25 ms of the hub's clock, which the test keeps (forty sleeps of the machine's are not a second: on Windows a sleep of 25 ms lasts two steps of its clock, 31 ms)."""
+    """A second of changes, one every 25 ms of the hub's clock, which the test keeps (forty sleeps
+    of the machine's are not a second: on Windows a sleep of 25 ms lasts two steps of its clock, 31
+    ms)."""
     e, page = await started(tmp_path)
     assert e.server is not None
     hub, now = e.server.api.hub, [0.0]
@@ -348,7 +365,8 @@ async def test_what_the_pairs_passed_rides_the_row_of_the_radio_it_went_out_on_a
     assert radio is not None and page.topics["radios"]["1"]["stats"]["passed"] == []
     radio.stats.passed[HF_ID] = PassCount(sent=1, sent_at=e.ctl.clock(), held=3)
     radio.stats.passed[3] = PassCount(too_long=1)
-    e.ctl.digipeater.counted.emit(FM_ID)                             # (a held frame changes no counter of the line: the digipeater tells it)
+    # A held frame changes no counter of the line: the digipeater tells it
+    e.ctl.digipeater.counted.emit(FM_ID)
     await page.until(lambda: len(page.topics["radios"]["1"]["stats"]["passed"]) == 2)
     row = page.topics["radios"]["1"]
     assert ROW.validate_python(row) and [(p["heard_on"], p["sent"], p["held"], p["too_long"]) for p in row["stats"]["passed"]] == [(HF_ID, 1, 3, 0), (3, 0, 0, 1)], "by the radio heard on, in the order of its id"
@@ -399,17 +417,20 @@ async def test_a_message_on_its_way_says_the_radio_it_takes_next_as_the_choice_a
     ]
     for command, now in steps:
         await page.send(command)
-        await page.until(lambda now=now: told() == (now, now), timeout=3)          # (the clock of the test stands: no attempt is made meanwhile, the row is told by the change itself)
+        # The clock of the test stands: no attempt is made meanwhile, the row is told by the change
+        # itself
+        await page.until(lambda now=now: told() == (now, now), timeout=3)
     assert page.topics["messages"][key]["state"] == "sending"
     await e.stop()
 
 
 async def test_a_call_the_book_does_not_hold_is_chosen_for_by_call_and_its_row_says_it_once_it_is_heard(tmp_path: Path) -> None:
-    """Plan rule 3.2: the choice is kept by call, with or without a station in the book."""
+    """The choice is kept by call, with or without a station in the book."""
     e, page = await started(tmp_path)
     id = await added(page, "dummy")
     await page.send({"cmd": "station_radio", "call": " oh2new ", "radio": id})
-    await until(lambda: e.ctl.radios.choice("OH2NEW") == id)                       # (the daemon's own state, looked at every step: no message to the page need follow the command)
+    # The daemon's own state, looked at every step: no message to the page need follow the command
+    await until(lambda: e.ctl.radios.choice("OH2NEW") == id)
     assert "OH2NEW" not in page.topics["stations"] and page.of("error") == [], "taken in the call's normal form, with no station to tell"
     error = await refused(page, {"cmd": "station_radio", "call": "not a call!", "radio": id})
     assert error["code"] == "call.shape" and json.loads(e.ctl.radios.choices_text()) == {"OH2NEW": id}, "a text that is no call is refused and nothing is kept for it"
@@ -490,7 +511,8 @@ def test_a_device_named_by_another_radio_that_is_on_is_refused_and_two_radios_ma
     with pytest.raises(SettingError) as gps:
         refuse_held(before, replace(before, radios=(kiss(1, "/dev/ttyACM0"), kiss(5, "/dev/ttyUSB3"), kiss(6, ""))), claims)
     assert (gps.value.key, gps.value.params) == ("radio/1/port", {"resource": "serial", "holder": "GPS", "held_by": 0}), "the radio's own key, and the receiver named"
-    refuse_held(before, replace(before, radios=(*before.radios[:2], replace(kiss(6, ""), name="Six"))), claims)      # (a device not named again is not looked at)
+    # A device not named again is not looked at
+    refuse_held(before, replace(before, radios=(*before.radios[:2], replace(kiss(6, ""), name="Six"))), claims)
 
 
 async def test_an_object_on_a_radio_that_is_removed_is_told_without_it(tmp_path: Path) -> None:
@@ -528,13 +550,15 @@ async def test_a_modems_commands_reach_the_modem_of_the_radio_named(tmp_path: Pa
     monkeypatch.setattr(e.ctl.radios, "get", lambda radio: SimpleNamespace(spec=shack.spec, rtype=type_of("mercury"), name=shack.name, driver=SimpleNamespace(modem=Modem())) if radio == id else real(radio))
     for command in ({"cmd": "radio_tune", "radio": id, "on": True}, {"cmd": "radio_tune", "radio": id, "on": False}, {"cmd": "radio_key_test", "radio": id}):
         await page.send(command)
-    await until(lambda: done == ["tune", "stop", "key"])                             # (looked at every step: the commands answer the page nothing)
+    # Looked at every step: the commands answer the page nothing
+    await until(lambda: done == ["tune", "stop", "key"])
     assert not page.of("error")
     await e.stop()
 
 
 async def test_tune_and_the_keying_test_on_a_type_that_has_neither_are_refused_though_its_driver_has_a_running_modem(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The type is the one word on what a radio may do: the Dummy HF radio's driver has a modem (its speaker), and its type says no Tune and no keying test; stopping a tone is never refused."""
+    """The type is the one word on what a radio may do: the Dummy HF radio's driver has a modem (its
+    speaker), and its type says no Tune and no keying test; stopping a tone is never refused."""
     e, page = await started(tmp_path, {"hf/enabled": "true", "hf/profile": "dummy-hf"})
     hf = e.ctl.radios.get(HF_ID)
     assert hf is not None and hf.rtype.key == "dummy-hf" and not hf.rtype.can.tune and not hf.rtype.can.key_test
@@ -544,7 +568,8 @@ async def test_tune_and_the_keying_test_on_a_type_that_has_neither_are_refused_t
     async def did(what: str) -> None:
         done.append(what)
     for name in ("tune", "tune_stop", "key_test"):
-        monkeypatch.setattr(modem, name, lambda name=name: did(name))                 # (a modem that would do what it is asked: the type's word alone refuses)
+        # A modem that would do what it is asked: the type's word alone refuses
+        monkeypatch.setattr(modem, name, lambda name=name: did(name))
     for command in ({"cmd": "radio_tune", "radio": HF_ID, "on": True}, {"cmd": "radio_key_test", "radio": HF_ID}):
         error = await refused(page, command)
         assert (error["cmd"], error["code"], error["params"]) == (command["cmd"], "radio.no_modem", {"name": hf.name, "radio": HF_ID})
@@ -554,7 +579,8 @@ async def test_tune_and_the_keying_test_on_a_type_that_has_neither_are_refused_t
 
 
 def test_a_running_modem_that_is_the_dummy_hf_radios_speaker_tunes_nothing_and_writes_nothing() -> None:
-    """The modem's own guard under the type's: a Mercury started as the speaker refuses Tune and the keying test as not running, and no TUNE line is written."""
+    """The modem's own guard under the type's: a Mercury started as the speaker refuses Tune and the
+    keying test as not running, and no TUNE line is written."""
     from neoaprs.coded import CodedError
     from neoaprs.mercury import keying_of
     from neoaprs.mercurytune import Tuning
@@ -565,7 +591,9 @@ def test_a_running_modem_that_is_the_dummy_hf_radios_speaker_tunes_nothing_and_w
     class Speaker(Tuning):
         speaker, test, tx_gain_db, keying = True, "", 0, keying_of("vox")
 
-        def __init__(self) -> None:      # (the whole of the modem's state the tone uses, so that without the guard the tone starts and its line is written)
+        # The whole of the modem's state the tone uses, so that without the guard the tone starts
+        # and its line is written
+        def __init__(self) -> None:
             self.changed, self._tasks, self._generation, self._test_task = Signal(), TaskSet(lambda task: None), 0, None
 
         @property
@@ -592,7 +620,8 @@ def test_a_running_modem_that_is_the_dummy_hf_radios_speaker_tunes_nothing_and_w
 
 
 async def test_a_modems_command_on_a_radio_whose_modem_is_not_running_is_refused_with_that_radios_name(tmp_path: Path) -> None:
-    """The Dummy HF radio has a modem part that never runs, as a Mercury radio whose modem is down: the refusal names the radio, not the HF radio of before."""
+    """The Dummy HF radio has a modem part that never runs, as a Mercury radio whose modem is down:
+    the refusal names the radio, not the HF radio of before."""
     e, page = await started(tmp_path, {"hf/enabled": "true", "hf/profile": "dummy-hf"})
     await page.until(lambda: page.topics["radios"]["2"]["state"] == "connected")
     await page.send({"cmd": "radio_change", "radio": HF_ID, "name": "Attic"})
@@ -622,7 +651,8 @@ def test_a_radio_that_is_not_connected_says_why_by_a_code(monkeypatch: pytest.Mo
     radio = RadioSpec(1, "fm", "kiss", "Mobile", True, 1, settings={"port": "/dev/ttyUSB0"})
 
     def line(state: Source.State, searching: bool = False) -> Any:
-        return SimpleNamespace(state=state, searching=searching, silent_since=None, modem=None, why_unusable=lambda: "")      # (a line that takes frames when it is connected)
+        # A line that takes frames when it is connected
+        return SimpleNamespace(state=state, searching=searching, silent_since=None, modem=None, why_unusable=lambda: "")
 
     claims = Claims()
     assert radio_problem(radio, (radio,), line(Source.State.CONNECTED), claims) is None
@@ -637,8 +667,10 @@ def test_a_radio_that_is_not_connected_says_why_by_a_code(monkeypatch: pytest.Mo
 
 
 async def test_radio_1_can_be_made_a_sound_card_radio_and_the_daemon_starts_with_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Radio 1 is a box like any other (the page offers it Sound card (Direwolf) in its Radio type): the change is taken, stored, and a daemon started on the folder runs radio 1 as that type."""
-    monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)             # (an installation that carries Direwolf; this checkout has none, so its modem waits)
+    """Radio 1 is a box like any other (the page offers it Sound card (Direwolf) in its Radio type):
+    the change is taken, stored, and a daemon started on the folder runs radio 1 as that type."""
+    # An installation that carries Direwolf; this checkout has none, so its modem waits
+    monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)
     e, page = await started(tmp_path)
     await page.send({"cmd": "radio_change", "radio": FM_ID, "type": "direwolf"})
     await page.until(lambda: page.topics["radios"]["1"]["type"] == "direwolf" or bool(page.of("error")))

@@ -1,5 +1,5 @@
-"""A position as a Mic-E packet (neoaprs/aprsmiceout.py) read back by the parser of the other direction (neoaprs/aprsmice.py): every band of longitude the specification has its own rule for (under 10 degrees, 10 to 99,
-100 to 109, 110 and over, west), the latitude's hemisphere, and the speed and course."""
+"""Tests for Mic-E output (neoaprs/aprsmiceout.py), read back with the parser in
+neoaprs/aprsmice.py: each longitude band, the latitude hemisphere, speed and course."""
 from datetime import UTC, datetime
 
 import pytest

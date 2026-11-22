@@ -1,4 +1,4 @@
-"""Where the web server listens: the port of the settings, or the next free one; after a restart of the daemon by itself, the port the page was on before it."""
+"""Choose the port the web server listens on: the configured one, else the next free one."""
 import errno
 import logging
 
@@ -6,18 +6,22 @@ from .connections import LimitedHTTPServer
 
 log = logging.getLogger("neoaprs.web")
 
-PORT_TRIES = 10                                           # ports after the wanted one that are tried when it is taken
-PORT_TAKEN = {errno.EADDRINUSE, errno.EACCES, getattr(errno, "WSAEADDRINUSE", errno.EADDRINUSE), getattr(errno, "WSAEACCES", errno.EACCES)}     # in use, or not for us to take
+# Ports tried after the wanted one when it is taken.
+PORT_TRIES = 10
+# Port in use, or not ours to take (Windows reserves some ranges).
+PORT_TAKEN = {errno.EADDRINUSE, errno.EACCES, getattr(errno, "WSAEADDRINUSE", errno.EADDRINUSE), getattr(errno, "WSAEACCES", errno.EACCES)}
 
 
 def ports_near(wanted: int) -> list[int]:
-    """`wanted` and the `PORT_TRIES` ports after it (up to 65535); port 0, a free one at once, is only itself."""
+    """Return `wanted` and the `PORT_TRIES` ports after it (up to 65535); port 0 stands alone."""
     return [wanted] if wanted == 0 else list(range(wanted, min(wanted + PORT_TRIES, 65535) + 1))
 
 
 def listen_first(server: LimitedHTTPServer, address: str, ports: list[int]) -> tuple[int | None, OSError | None]:
-    """Listens on the first of `ports` that is free (a port that is in use, or forbidden: Windows keeps ranges of ports for itself, is passed over; any other error ends the tries): (that port or None, the first
-    error there was, None when the first try listened)."""
+    """Listen on the first free port; return (port or None, first error or None).
+
+    A port in `PORT_TAKEN` is skipped; any other error ends the tries.
+    """
     first: OSError | None = None
     for port in ports:
         try:
@@ -32,8 +36,10 @@ def listen_first(server: LimitedHTTPServer, address: str, ports: list[int]) -> t
 
 
 def listen_near(server: LimitedHTTPServer, address: str, wanted: int, kept: int = 0) -> OSError | None:
-    """Listens on `wanted`, or, when it is taken, on the first of the next `PORT_TRIES` that is free. None when it listens, else the error of the first try. `kept` is the port the page was on before the
-    daemon started again (0: this is no restart): it is tried before any other, since the pages that are open wait there, and when it cannot be had the daemon listens as it does at any start."""
+    """Listen on `wanted`, else on the next free port; return None on success, else the first error.
+
+    `kept` is the port used before a restart (0 for none), tried first because open pages reconnect.
+    """
     if kept and kept != wanted:
         port, error = listen_first(server, address, [kept])
         if port is not None:

@@ -1,25 +1,41 @@
 <?php
-/* Send logs of NeoAPRS, served at neo.oh2gba.eu/support/send.php. The Help group of the program's Settings posts here, only when the person presses Send in its dialog:
+/* Send logs of NeoAPRS, served at neo.oh2gba.eu/support/send.php. The Help group of the program's Settings
+ * posts here only when the person presses Send in its dialog:
  *
- *   multipart/form-data: bundle (the support zip), note (what the person wrote), call, version, platform
+ *   multipart/form-data: bundle (the support zip), note (what the person wrote), call, version,
+ *   platform
  *
- * A form with no file at all and no `bundle` is the note alone (the person took the file off in the dialog): the note must have words then, REF.json is kept without a zip (`"file": false`, size 0), and the mail says in its
- * first line that no file came. It is counted and bounded as a file is. A form with a file under any other name, and a note in a body that is not multipart/form-data, are refused as before.
+ * A form with no file and no `bundle` is the note alone (the person took the file off): the note must have
+ * words then, REF.json is kept without a zip (`"file": false`, size 0), and the mail says in its first line
+ * that no file came. It is counted and bounded as a file is. A form with a file under any other name, and a
+ * note in a body that is not multipart/form-data, are refused.
  *
- * The answer is JSON, {"ok": true, "ref": "NEO-20261103-1015-7F3A"} or {"ok": false, "reason": CODE} with a status that says it too (405 method, 413 too_large, 429 rate, 400 bad_request or
- * not_a_bundle, 500 storage). The file is kept in private/support/ of this site (see PRIVATE below) as REF.zip with REF.json beside it (time, call, version, platform, size, note), and one plain e-mail
- * goes to the project with the reference, the call, the version, the platform, the size and the note; the zip itself is not mailed. server/support-fetch.sh brings new ones to the developer's computer.
+ * The answer is JSON, {"ok": true, "ref": "NEO-20261103-1015-7F3A"} or {"ok": false, "reason": CODE} with a
+ * matching status (405 method, 413 too_large, 429 rate, 400 bad_request or not_a_bundle, 500 storage). The
+ * file is kept in private/support/ (see PRIVATE) as REF.zip with REF.json beside it (time, call, version,
+ * platform, size, note), and one plain e-mail with the reference, call, version, platform, size and note goes
+ * to the project; the zip itself is not mailed. server/support-fetch.sh brings new ones to the developer.
  *
- * What is kept: the zip, and the call, version, platform and note as cleaned here (a call is letters, digits and dashes, 12 at most; the note is text, 2000 characters at most). The sender's address is
- * never written down: it is hashed under a salt that only this folder knows, for the rate limits, and the hash is forgotten after the hour. Only a request that stores a file is counted against the limit that is shared (5 files an hour
- * from one address, 60 an hour in all, a note alone counted as a file); a request that is refused as no bundle is counted against its own address alone (20 an hour), so that nobody can use up the share of the others with requests that store nothing.
+ * What is kept: the zip, and the call, version, platform and note as cleaned here (a call is letters,
+ * digits and dashes, 12 at most; the note is text, 2000 characters at most). The sender's address is never
+ * written down: it is hashed under a salt only this folder knows, for the rate limits, and the hash is
+ * forgotten after the hour. Only a request that stores a file counts against the shared limit (5 files an
+ * hour from one address, 60 an hour in all, a note alone counting as a file); a request refused as no
+ * bundle counts against its own address alone (20 an hour), so nobody can use up the others' share with
+ * requests that store nothing.
  *
- * What the folder holds is bounded: a file is 10 MB at the most (a bundle of a real station is a megabyte or two: the logs are cut to 12 MB of text before they are zipped, and 12 MB of the least compressible log lines
- * weigh 7 MB zipped), the folder 200 MB and 300 references (a bundle with its json, or the json of a note alone), and what is older than 30 days is removed at each upload that is accepted. When the folder is full the answer is `rate` (the program has a word for it: try again later),
- * the log says why, and one mail tells the project the first time it happens (until a file is stored again). The count and the storing of a file are one step under a lock, so that uploads at the same moment cannot pass the cap together.
+ * What the folder holds is bounded: a file is 10 MB at most (a real station's bundle is a megabyte or two:
+ * logs are cut to 12 MB of text before zipping, and 12 MB of the least compressible log lines weigh 7 MB
+ * zipped), the folder 200 MB and 300 references (a bundle with its json, or the json of a note alone), and
+ * what is older than 30 days is removed at each accepted upload. When the folder is full the answer is
+ * `rate` (the program says: try again later), the log says why, and one mail tells the project the first
+ * time (until a file is stored again). Counting and storing a file are one step under a lock, so
+ * simultaneous uploads cannot pass the cap together.
  *
- * The rules every application on the account keeps (oh2gba/SHARED-HOST.md): a body over 10 MB is refused before anything is read, the work is a few file operations, and a failure of the mail is
- * logged (private/logs/support.log) and never fails the upload. `SUPPORT_DIR` (environment) moves the folder, and a function `support_send_mail` defined before this file runs (the tests' stand-in for mail()) replaces the mail. */
+ * The rules every application on the account keeps (oh2gba/SHARED-HOST.md): a body over 10 MB is refused
+ * before anything is read, the work is a few file operations, and a mail failure is logged
+ * (private/logs/support.log) and never fails the upload. `SUPPORT_DIR` (environment) moves the folder, and
+ * a function `support_send_mail` defined before this file runs (the tests' stand-in for mail()) replaces the mail. */
 declare(strict_types=1);
 
 ini_set('display_errors', '0');
@@ -28,7 +44,7 @@ header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
 
 const SUPPORT_TO       = 'neo@oh2gba.eu';
-const SUPPORT_FROM     = 'NeoAPRS <noreply@oh2gba.eu>';          // the apex, which the domain's SPF record covers (as the status application's mails)
+const SUPPORT_FROM     = 'NeoAPRS <noreply@oh2gba.eu>';  // the apex, which the domain's SPF record covers
 const MAX_FILE         = 10 * 1024 * 1024;                        // of the bundle
 const MAX_BODY         = MAX_FILE + 64 * 1024;                    // of the request: the file and the few small fields beside it
 const FOLDER_MAX_BYTES = 200 * 1024 * 1024;                       // of the stored files together
@@ -43,8 +59,9 @@ const RATE_IN_ALL      = 60;
 const BAD_PER_ADDRESS  = 20;                                      // refused requests
 const BAD_KEYS_MAX     = 2000;                                    // addresses whose refusals are remembered at once
 const RATE_WINDOW_SEC  = 3600;
-const LOG_MAX_BYTES    = 256 * 1024;                              // of the log (oh2gba/SHARED-HOST.md: each application logs under its own private/logs/, each file capped at 256 KB)
-// The members of a bundle (neoaprs/cli/supportreadme.py FILE_HELP): the files it holds by name, the logs, and the `.error.txt` of a part that could not be made.
+const LOG_MAX_BYTES    = 256 * 1024;  // log cap: each application logs under its own private/logs/, each file at most 256 KB
+// The members of a bundle (neoaprs/cli/supportreadme.py FILE_HELP): the files it holds by name, the
+// logs, and the `.error.txt` of a part that could not be made.
 const MEMBER_NAME = '~^(README\.txt|summary\.txt|settings\.json|state\.json|doctor\.txt|database\.txt|packets\.txt|page\.json|page-errors\.json|[A-Za-z0-9_.-]+\.error\.txt|logs/|logs/[A-Za-z0-9_.-]+)$~';
 
 /** Answers the JSON and ends. */
@@ -61,7 +78,10 @@ function support_refuse(int $status, string $reason, array $headers = []): never
     support_answer($status, ['ok' => false, 'reason' => $reason], $headers);
 }
 
-/** Where the files are kept: private/support/ beside this folder, which Apache refuses to serve (private/.htaccess, and the rule of .htaccess); one more .htaccess is written in the folder itself. */
+/**
+ * Where the files are kept: private/support/ beside this folder, which Apache refuses to serve; one
+ * more .htaccess is written in it.
+ */
 function support_dir(): string
 {
     $dir = getenv('SUPPORT_DIR') ?: dirname(__DIR__) . '/private/support';
@@ -70,7 +90,10 @@ function support_dir(): string
     return $dir;
 }
 
-/** A line in the log, private/logs/support.log beside the folder of the files; the older half goes when it has grown past 256 KB. No address and no note are written to it. */
+/**
+ * A line in private/logs/support.log beside the folder of the files; the older half goes past 256
+ * KB. No address or note is written.
+ */
 function support_log(string $dir, string $line): void
 {
     $folder = dirname($dir) . '/logs';
@@ -80,7 +103,10 @@ function support_log(string $dir, string $line): void
     @file_put_contents($path, gmdate('Y-m-d\TH:i:s\Z') . "  $line\n", FILE_APPEND | LOCK_EX);
 }
 
-/** The address as it is hashed: an IPv6 address by its first 64 bits (the rest is the household's to choose). */
+/**
+ * The address as it is hashed: an IPv6 address by its first 64 bits (the rest is the household's to
+ * choose).
+ */
 function support_address(): string
 {
     $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
@@ -98,7 +124,8 @@ function support_key(string $dir, string $address): string
 }
 
 /**
- * The counts of the last hour in rate.json, {"stored": {HASH: [times]}, "bad": {HASH: [times]}}: `$use` gets them with the hour's old times already dropped and returns the counts to keep (null: unchanged, but the dropped times are written back), under one lock.
+ * The counts of the last hour in rate.json, {"stored": {HASH: [times]}, "bad": {HASH: [times]}}: `$use` gets them with
+ * the hour's old times dropped and returns the counts to keep (null: unchanged, but dropped times are written back), under one lock.
  * Only hashes are kept, and only for the hour.
  *
  * @param callable(array<string, array<string, list<int>>>): ?array<string, array<string, list<int>>> $use
@@ -124,7 +151,7 @@ function support_counts(string $dir, int $now, callable $use): void
         }
     }
     $changed = $use($counts);
-    if ($changed === null && $dropped) $changed = $counts;                // (a read-only use still forgets what has expired)
+    if ($changed === null && $dropped) $changed = $counts;  // a read-only use still forgets what has expired
     if ($changed !== null) {
         $changed['bad'] = array_slice($changed['bad'], -BAD_KEYS_MAX, null, true);
         ftruncate($h, 0);
@@ -135,7 +162,9 @@ function support_counts(string $dir, int $now, callable $use): void
     fclose($h);
 }
 
-/** Whether the address may still send requests that are refused (20 an hour): nothing is counted by asking. */
+/**
+ * Whether the address may still send requests that are refused (20 an hour); asking counts nothing.
+ */
 function support_bad_allowed(string $dir, string $key, int $now): bool
 {
     $ok = true;
@@ -155,7 +184,10 @@ function support_bad_count(string $dir, string $key, int $now): void
     });
 }
 
-/** Counts a file that is about to be stored against the address and the whole; false, and nothing counted, when either has used its share of the last hour. */
+/**
+ * Count a file about to be stored against the address and the whole; false, nothing counted, when
+ * either has used its hour's share.
+ */
 function support_allowed(string $dir, string $key, int $now): bool
 {
     $ok = false;
@@ -170,7 +202,10 @@ function support_allowed(string $dir, string $key, int $now): bool
     return $ok;
 }
 
-/** The lock that is held from counting the folder to the file being stored, so that uploads at the same moment do not all see the room that one of them takes; it is let go when the request ends. */
+/**
+ * The lock held from counting the folder to storing the file, so simultaneous uploads do not all
+ * see the room one takes; released when the request ends.
+ */
 function support_store_lock(string $dir): mixed
 {
     $h = @fopen("$dir/store.lock", 'c');
@@ -179,7 +214,10 @@ function support_store_lock(string $dir): mixed
     return $h;
 }
 
-/** Removes the stored files that are older than 30 days; what the folder holds afterwards is {bytes, kept} (kept: the references, one json each). Only files of the form of a reference are touched. */
+/**
+ * Remove stored files older than 30 days; return {bytes, kept} of what remains (kept: references,
+ * one json each). Only reference-shaped files are touched.
+ */
 function support_tidy(string $dir, int $now): array
 {
     $bytes = 0;
@@ -198,7 +236,10 @@ function support_tidy(string $dir, int $now): array
     return ['bytes' => $bytes, 'kept' => $kept];
 }
 
-/** One mail to the project when the folder first has no room for a file (full.flag says it has been told; it is taken away when a file is stored again): whoever fills the folder switches the logs off for the rest of the month, and the developer should know. */
+/**
+ * One mail to the project when the folder first has no room (full.flag records it; removed when a
+ * file is stored again): filling it switches the logs off for the month.
+ */
 function support_full_notice(string $dir, int $now): void
 {
     if (is_file("$dir/full.flag")) return;
@@ -211,7 +252,10 @@ function support_full_notice(string $dir, int $now): void
     if (!$mailed) support_log($dir, 'the mail that the folder is full was not sent');
 }
 
-/** The names of the members of the zip at `path`, read from its central directory (no zip extension is needed); null when it is no zip, when the list is not what a zip of ours has, or when the members unpack to more than MAX_UNPACKED. */
+/**
+ * The member names of the zip at `path` from its central directory (no zip extension needed); null
+ * when it is no zip of ours or unpacks to more than MAX_UNPACKED.
+ */
 function support_members(string $path): ?array
 {
     $size = filesize($path);
@@ -251,7 +295,9 @@ function support_members(string $path): ?array
     return $names;
 }
 
-/** True when the members look like a NeoAPRS bundle: summary.txt, and only the names a bundle has. */
+/**
+ * True when the members look like a NeoAPRS bundle: summary.txt and only the names a bundle has.
+ */
 function support_is_bundle(array $names): bool
 {
     if (!in_array('summary.txt', $names, true)) return false;
@@ -262,8 +308,8 @@ function support_is_bundle(array $names): bool
 }
 
 /**
- * A word of the form: only the characters in `$keep`, at most `$max` of them. Every set this script keeps (letters, digits, dot, dash, plus, underscore) has no line end and no control character, which is why
- * what comes out may stand in the mail's subject: Psalm is told so here, since it cannot follow a pattern.
+ * A word of the form: only the characters in `$keep`, at most `$max` of them. Every set this script keeps has no line end
+ * or control character, so the result may stand in the mail's subject: Psalm is told so here, since it cannot follow a pattern.
  *
  * @psalm-taint-escape header
  */
@@ -272,13 +318,16 @@ function support_clean(mixed $value, string $keep, int $max): string
     return is_string($value) ? substr((string) preg_replace('/[^' . $keep . ']/', '', $value), 0, $max) : '';
 }
 
-/** The note: text. Invalid UTF-8 and control characters other than the line break and the tab are dropped, the line breaks are \n, and it is cut to 2000 characters. */
+/**
+ * The note: invalid UTF-8 and control characters other than line break and tab are dropped, line
+ * breaks are \n, cut to 2000 characters.
+ */
 function support_note(mixed $value): string
 {
     if (!is_string($value)) return '';
     $text = str_replace(["\r\n", "\r"], "\n", $value);
     $clean = preg_replace('/[^\x{0009}\x{000A}\x{0020}-\x{007E}\x{00A0}-\x{10FFFF}]/u', '', $text);
-    if ($clean === null) $clean = (string) preg_replace('/[^\x09\x0A\x20-\x7E]/', '', $text);       // (not UTF-8 at all: its ASCII is kept)
+    if ($clean === null) $clean = (string) preg_replace('/[^\x09\x0A\x20-\x7E]/', '', $text);  // not UTF-8 at all: its ASCII is kept
     $chars = preg_split('//u', $clean, MAX_NOTE + 1, PREG_SPLIT_NO_EMPTY);
     return trim(implode('', array_slice($chars === false ? [] : $chars, 0, MAX_NOTE)));
 }
@@ -294,7 +343,10 @@ function support_reference(string $dir, int $now): string
 }
 
 if (!function_exists('support_send_mail')) {
-    /** The one plain mail to the project, the way the status application sends its alerts. Everything in the headers and the subject is ours; what a person wrote is in the body only. */
+    /**
+     * The one plain mail to the project, as the status application sends its alerts. Headers and
+     * subject are ours; what a person wrote is in the body only.
+     */
     function support_send_mail(string $subject, string $body): bool
     {
         if (preg_match('/[\r\n]/', $subject)) return false;
@@ -317,8 +369,8 @@ function support_receive(): never
 
     $file = $_FILES['bundle'] ?? null;
     $note = support_note($_POST['note'] ?? '');
-    $form = strtolower(trim(explode(';', (string) ($_SERVER['CONTENT_TYPE'] ?? ''))[0])) === 'multipart/form-data';       // (the form the program posts: a note in any other body is refused, as everything without a file was)
-    $alone = $form && $_FILES === [] && !array_key_exists('bundle', $_POST);       // no file at all in the form: the note alone, which has words
+    $form = strtolower(trim(explode(';', (string) ($_SERVER['CONTENT_TYPE'] ?? ''))[0])) === 'multipart/form-data';  // the program posts a form: a note in any other body is refused
+    $alone = $form && $_FILES === [] && !array_key_exists('bundle', $_POST);  // no file in the form: the note alone, which must have words
     $names = null;
     $size = 0;
     if ($alone) {

@@ -1,4 +1,6 @@
-"""The settings of the receive-only iGate (`igate/enabled`, `igate/server`, `igate/password`): their defaults, what each accepts and refuses with the code the page goes by, the address, and a password that is in no line of the log."""
+"""The settings of the receive-only iGate (`igate/enabled`, `igate/server`, `igate/password`): their
+defaults, what each accepts and refuses with the code the page goes by, the address, and a password
+that is in no line of the log."""
 import logging
 
 import pytest

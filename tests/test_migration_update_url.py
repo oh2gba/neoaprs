@@ -1,5 +1,7 @@
-"""Migration 26 (neoaprs/migrationsteps22on.py): the version page moved to the project's own name. A stored `update/url` that still holds the old default is deleted, so that the new default
-(`neoaprs.versions.UPDATE_URL`) is in force, with one line in the log; an address set by hand is kept; a database without the row is left alone."""
+"""Migration 26 (neoaprs/migrationsteps22on.py): a stored `update/url` holding the old default is
+deleted so the new default (`neoaprs.versions.UPDATE_URL`) is in force; an address set by hand is
+kept.
+"""
 import logging
 from pathlib import Path
 

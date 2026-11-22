@@ -1,4 +1,6 @@
-"""Properties of AX.25: decode(encode(frame)) is the frame for every valid frame; no bytes make decode fail with anything but Ax25Error; an address survives its text."""
+"""Properties of AX.25: decode(encode(frame)) is the frame; no bytes make decode fail with anything
+but Ax25Error; an address survives its text.
+"""
 from hypothesis import given, strategies as st
 
 from neoaprs.ax25 import Address, Ax25Error, Frame, decode, encode

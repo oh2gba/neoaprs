@@ -1,12 +1,8 @@
-"""The feed of GPS fixes: a gpsd to ask over TCP, or a GPS receiver's NMEA 0183 on a serial port. A `Source` like the TNC: it has a state and a problem, it is started and stopped, it reconnects with `Backoff`, and
-it never raises out of its tasks. `fixed` is emitted with each fix, `fix` is the latest one (kept when the receiver then says it has none: the service that uses it judges how old it is) and `fix_age_sec` how long ago it came.
+"""The GPS fix feed: a gpsd over TCP, or a receiver's NMEA 0183 on a serial port.
 
-gpsd (`kind` "gpsd", `target` host:port): one connection, over which `?WATCH={"enable":true,"json":true}` is sent; gpsd answers with a JSON object on each line (VERSION, DEVICES, WATCH, then TPV and SKY reports), which `GpsdFixes`
-reads. A connection that is refused, lost, hung up or silent for `GPSD_SILENT_SEC` (a gpsd with a receiver reports every second; a peer that vanished without closing says nothing, and TCP
-has nothing to find out with, as only one line is ever written) is opened again after the back-off.
-
-Serial (`kind` "serial", `target` the port, `baud`): a `SerialPort` (neoaprs/serialport.py: a device, or `socket://host:port` for a receiver behind a TCP serial server) whose bytes are cut into lines for `NmeaFixes`; a port
-that cannot be opened or is lost is opened again after the back-off. A receiver that reports no fix is a problem the page can show ("no satellite fix"), not a loss of the line."""
+A `Source` that reconnects with `Backoff` and never raises; `fixed` is emitted with each fix. gpsd
+is reopened when refused, lost or silent for `GPSD_SILENT_SEC`; a serial port feeds `NmeaFixes`.
+"""
 import asyncio
 import json
 import logging
@@ -23,13 +19,13 @@ from .source import Backoff, Source, os_error_text
 
 log = logging.getLogger("neoaprs.gps")
 
-CONNECT_SEC = 5.0                                              # how long the connection to gpsd may take
-GPSD_SILENT_SEC = 60.0                                         # a gpsd that sends no line at all for this long is taken for gone
+CONNECT_SEC = 5.0  # how long the connection to gpsd may take
+GPSD_SILENT_SEC = 60.0  # a gpsd sending no line for this long is taken for gone
 WATCH = b'?WATCH={"enable":true,"json":true}\n'
 NO_FIX = "the receiver has no position fix yet"
 NO_PORT = "no GPS port set: choose the receiver's port in the settings"
 NO_ADDRESS = "no gpsd address set: give its host:port in the settings"
-MAX_LINE_BYTES = 4096                                          # a piece of serial data this long without a line end is not NMEA: it is thrown away
+MAX_LINE_BYTES = 4096  # serial data this long without a line end is thrown away
 
 
 class _GpsPort(CallbackPort):
@@ -37,7 +33,7 @@ class _GpsPort(CallbackPort):
 
 
 def split_address(target: str) -> tuple[str, int]:
-    """host and port of `host:port` (an IPv6 address may be in brackets); ValueError when it is not."""
+    """Return host and port of `host:port` (IPv6 may be in brackets); ValueError if not."""
     host, _, port = target.strip().rpartition(":")
     if not host.strip("[]") or not port.isdigit() or not 1 <= int(port) <= 65535:
         raise ValueError(f"{target!r} is not host:port")
@@ -47,29 +43,29 @@ def split_address(target: str) -> tuple[str, int]:
 class GpsFeed(Source):
     def __init__(self, clock: Clock = utcnow, backoff: Backoff | None = None, connect_sec: float = CONNECT_SEC, silent_sec: float = GPSD_SILENT_SEC) -> None:
         super().__init__("gps", clock)
-        self.kind = "off"                                      # "off", "gpsd" or "serial"
-        self.target = ""                                       # host:port of the gpsd, or the serial port
+        self.kind = "off"  # "off", "gpsd" or "serial"
+        self.target = ""  # host:port of the gpsd, or the serial port
         self.baud = 4800
         self.backoff = backoff or Backoff()
         self.connect_sec, self.silent_sec = connect_sec, silent_sec
         self.fixed: Signal[[Fix]] = Signal("gps.fixed")
-        self.fix: Fix | None = None                            # the latest fix
+        self.fix: Fix | None = None  # the latest fix
         self._port: _GpsPort | None = None
         self._writer: asyncio.StreamWriter | None = None
         self._nmea = NmeaFixes()
         self._pending = bytearray()
 
     def configure(self, kind: str, target: str, baud: int) -> None:
-        """What to read, for a feed that is stopped."""
+        """Set what to read, while the feed is stopped."""
         self.kind, self.target, self.baud = kind, target, baud
 
     @property
     def fix_age_sec(self) -> float | None:
-        """Seconds since the latest fix came; None before the first."""
+        """Return seconds since the latest fix came; None before the first."""
         return None if self.fix is None else (self.now() - self.fix.at).total_seconds()
 
     def describe(self) -> str:
-        """What is read, for the log: "gpsd at 127.0.0.1:2947", "GPS on /dev/ttyUSB1 at 4800" (a TCP port has no speed)."""
+        """Return what is read: "gpsd at 127.0.0.1:2947" or "GPS on /dev/ttyUSB1 at 4800"."""
         if not self.target.strip():
             return ""
         if self.kind == "gpsd":
@@ -85,7 +81,8 @@ class GpsFeed(Source):
         if self.kind == "off":
             return
         self.backoff.reset()
-        if not self.target.strip():                            # (a source without what it reads is a valid setting that cannot work yet: nothing is opened, and the problem says what to give)
+        # a source without what it reads is a valid setting that cannot work yet: open nothing
+        if not self.target.strip():
             self._set_state(Source.State.CONNECTING)
             self._set_problem(NO_ADDRESS if self.kind == "gpsd" else NO_PORT)
             return
@@ -117,9 +114,11 @@ class GpsFeed(Source):
                 await self._open_serial(generation)
         except asyncio.CancelledError:
             raise
-        except Exception as e:                                 # (a feed never raises into the loop: it says why and tries again)
+        # a feed never raises into its loop: it says why and tries again
+        except Exception as e:
             if generation == self._generation:
-                self._wait((f"{self.describe()}: " if self.kind == "gpsd" else "") + self._words(e))          # (a serial error names its port already)
+                # a serial error names its port already
+                self._wait((f"{self.describe()}: " if self.kind == "gpsd" else "") + self._words(e))
 
     @staticmethod
     def _words(e: BaseException) -> str:
@@ -137,7 +136,8 @@ class GpsFeed(Source):
     # ---- gpsd
     async def _open_gpsd(self, generation: int) -> None:
         host, port = split_address(self.target)
-        nodevices.check_host(host, "gpsd")                     # (under the no-devices switch a gpsd on another computer is not there)
+        # with the no-devices switch a gpsd on another computer is refused
+        nodevices.check_host(host, "gpsd")
         try:
             async with asyncio.timeout(self.connect_sec):
                 reader, writer = await asyncio.open_connection(host, port)
@@ -154,7 +154,7 @@ class GpsFeed(Source):
 
     @staticmethod
     def _keep_alive(writer: asyncio.StreamWriter) -> None:
-        """Asks the system to find a dead peer in the end, besides the silence that `_read_gpsd` waits for."""
+        """Ask the system to find a dead peer eventually, besides `_read_gpsd`'s silence timeout."""
         sock = writer.get_extra_info("socket")
         if sock is not None:
             try:
@@ -177,7 +177,7 @@ class GpsFeed(Source):
                 self._gpsd_line(reports, line)
         except asyncio.CancelledError:
             raise
-        except (OSError, ValueError) as e:                     # (ValueError: a line longer than the reader takes)
+        except (OSError, ValueError) as e:  # ValueError: a line longer than the reader takes
             if generation == self._generation:
                 self._writer = None
                 writer.transport.abort()
@@ -250,7 +250,7 @@ class GpsFeed(Source):
             self._set_problem("")
         try:
             self.fixed.emit(fix)
-        except Exception:                                      # (Signal logs a handler that fails; this is for anything else)
+        except Exception:  # Signal logs a failing handler; this is for anything else
             log.exception("gps: the fix was not taken")
 
     def _no_fix(self) -> None:

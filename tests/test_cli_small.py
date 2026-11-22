@@ -1,5 +1,6 @@
-"""The small pieces of the command line (neoaprs/__main__.py, neoaprs/cli/output.py, neoaprs/cli/uncaught.py) where they branch: the module that is imported and the one that is run, Ctrl+Break on the systems that have
-it, the message for a person on stderr, and the hook for what nothing caught when the program does not chain to Python's own."""
+"""Tests for small command-line pieces (neoaprs/__main__.py, neoaprs/cli/output.py,
+neoaprs/cli/uncaught.py): module selection, Ctrl+Break, stderr messages, the uncaught-error hook.
+"""
 import asyncio
 import inspect
 import logging
@@ -86,14 +87,18 @@ def test_the_app_on_a_data_folder_that_cannot_be_made_says_one_sentence_and_ends
 
 
 def test_ctrl_break_while_a_command_runs_ends_it_at_its_next_wait_and_never_in_the_middle_of_a_line(monkeypatch: pytest.MonkeyPatch) -> None:
-    number = getattr(signal, "SIGBREAK", None) or signal.SIGUSR1  # type: ignore[attr-defined, unused-ignore]  # (where the system has no Ctrl+Break, a signal of its own stands for it)
+    # Where the system has no Ctrl+Break, a signal of its own stands for it
+    number = getattr(signal, "SIGBREAK", None) or signal.SIGUSR1  # type: ignore[attr-defined, unused-ignore]
     monkeypatch.setattr(signal, "SIGBREAK", number, raising=False)
     before = signal.getsignal(number)
-    interrupt_before = signal.signal(signal.SIGINT, signal.default_int_handler)  # (Ctrl+C as a console gives it, whoever started the tests, so that asyncio.run puts its own handler on it)
+    # (Ctrl+C as a console gives it, whoever started the tests, so that asyncio.run puts its own
+    # handler on it)
+    interrupt_before = signal.signal(signal.SIGINT, signal.default_int_handler)
     ran: list[str] = []
 
     async def job() -> None:
-        signal.raise_signal(number)                                              # Ctrl+Break comes while the command is on this line
+        # Ctrl+Break comes while the command is on this line
+        signal.raise_signal(number)
         ran.append("the line after the break ran")
         await asyncio.Event().wait()
 
@@ -110,5 +115,7 @@ def test_ctrl_break_while_a_command_runs_ends_it_at_its_next_wait_and_never_in_t
 
 @pytest.mark.parametrize("command", [replaycmd, capturecmd])
 def test_replay_and_capture_give_the_loop_their_work_with_ctrl_break_as_ctrl_c(command: Any) -> None:
-    """The commands that run until they are interrupted: each gives asyncio.run its work through `interruptible` (what Ctrl+Break then does is the test above; the tests of each command as a process send it one)."""
+    """The commands that run until they are interrupted: each gives asyncio.run its work through
+    `interruptible` (what Ctrl+Break then does is the test above; the tests of each command as a
+    process send it one)."""
     assert "asyncio.run(interruptible(" in inspect.getsource(command.main)

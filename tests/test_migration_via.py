@@ -1,9 +1,7 @@
-"""Migration 21 (neoaprs/migrationsteps12to21.py): the channel of a packet (`packet.via`: rf, rf-gated, is) and, in the station cache, the count and the latest time for each channel and the channel of the position.
-A stored frame that holds a third-party packet becomes `rf-gated` (told from the stored `raw` alone), every other packet `rf`; a cached station has been heard on the radio, except for the packets of
-it that are stored as rf-gated; a step that doubts changes nothing; the tables refuse a channel the program cannot produce.
-
-What is read back is read from the database as the radio round's steps leave it (tests/support/migrated32.newest): every packet of the air of version 20 is radio 1's (migrations 25 and 32), and what
-was heard of a station on the radio is what radio 1 heard of it (`station_radio`, migration 33)."""
+"""Migration 21 (neoaprs/migrationsteps12to21.py): the channel of a packet (`packet.via`: rf,
+rf-gated, is) and the station cache's per-channel count and latest time. A stored third-party frame
+becomes `rf-gated`, others `rf`.
+"""
 import sqlite3
 from pathlib import Path
 
@@ -36,7 +34,8 @@ BRACE_LATER = frame("OH2RDG", (), b">hello } there")
 
 
 def version_twenty(path: Path, clock: FixedClock) -> None:
-    """A database as version 20 left it, with packets of every kind there was and stations that were counted by the packets they sent."""
+    """A database as version 20 left it, with packets of every kind there was and stations that were
+    counted by the packets they sent."""
     opened(path, clock).close()
     db = raw(path)
     db.execute("DELETE FROM schema_history WHERE version >= 21")
@@ -46,7 +45,8 @@ def version_twenty(path: Path, clock: FixedClock) -> None:
                                         (BRACE_LATER, "OH2RDG", "in", LATER), (PLAIN, "OH2GBA", "out", LATER)):
         db.execute(INSERT_PACKET, (at, direction, blob, source, "APRS", ""))
     db.execute(INSERT_STATION, ("OH2RDG", 60.1, 24.9, STAMP, LATER, STAMP, 2))
-    db.execute(INSERT_STATION, ("OH2DPN", 60.2, 25.0, STAMP, LATER, LATER, 5))               # (it sent 5 packets, 2 of which an iGate put on the air)
+    # It sent 5 packets, 2 of which an iGate put on the air
+    db.execute(INSERT_STATION, ("OH2DPN", 60.2, 25.0, STAMP, LATER, LATER, 5))
     db.execute(INSERT_STATION, ("OH7JHF-1", None, None, STAMP, LATER, None, 3))
     db.close()
 

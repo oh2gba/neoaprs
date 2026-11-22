@@ -1,7 +1,6 @@
-"""The desktop app's start: the window is made at once with the loading page (neoaprs/desktop/loading.py), the daemon is started without waiting for it and the toolkit is looked for while it comes up,
-and the window goes to the daemon's page when it answers (polled every 0.05 s), or closes with the words the app has always said when no page comes. `neoaprs app` with the scripted shell of
-tests/support/fakeshell.py on a slow daemon in virtual time (the wait's clock and sleep are the test's), and the Windows shell against the stand-ins of tests/test_desktop_webshell.py; the Qt shell's
-part is in tests/test_desktop_qt.py."""
+"""Tests for the desktop app start: the window opens at once with the loading page, the daemon
+starts without blocking, and the window moves to the page when it answers or closes with a message.
+Run with a scripted shell on a slow daemon in virtual time."""
 import re
 import subprocess
 import threading
@@ -75,7 +74,8 @@ def test_a_daemon_that_cannot_be_started_is_a_no_page_that_says_so() -> None:
 # ---- virtual time: the clock and the sleep of the wait for the page
 
 class VirtualClock:
-    """The wait's time: `sleep` moves it on at once. `hold` (an Event) is waited for before the first sleep, which is the daemon being slow: nothing answers before the window is there."""
+    """The wait's time: `sleep` moves it on at once. `hold` (an Event) is waited for before the
+    first sleep, which is the daemon being slow: nothing answers before the window is there."""
 
     def __init__(self, hold: threading.Event | None = None) -> None:
         self.now = 0.0
@@ -96,7 +96,8 @@ class VirtualClock:
 
 
 def slow_page(monkeypatch: pytest.MonkeyPatch, clock: VirtualClock, answers_at: float | None, looks: list[str]) -> None:
-    """A daemon whose page answers at `answers_at` seconds of the clock (None: never), and has held its lock since it started; `looks` gets what the wait asked, in order."""
+    """A daemon whose page answers at `answers_at` seconds of the clock (None: never), and has held
+    its lock since it started; `looks` gets what the wait asked, in order."""
     def page_answers(url: str) -> bool:
         looks.append("page")
         return answers_at is not None and clock.now >= answers_at
@@ -120,7 +121,8 @@ def test_the_wait_looks_every_twentieth_of_a_second_and_at_the_lock_only_once_th
 
 
 class App:
-    """`neoaprs app` with the scripted shell, the toolkit's look written down, and its daemon a slow one on the virtual clock (the real open_session and wait_for_page)."""
+    """`neoaprs app` with the scripted shell, the toolkit's look written down, and its daemon a slow
+    one on the virtual clock (the real open_session and wait_for_page)."""
 
     def __init__(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, answers_at: float | None) -> None:
         self.data = tmp_path / "data"

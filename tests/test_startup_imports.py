@@ -1,6 +1,7 @@
-"""What the program imports before it does its work (`python -X importtime`, which lists every module as it is loaded): the command line's short commands `--version` and `--help` import neither the web server nor
-its libraries, and a plain start of the daemon, up to the line in the log that says it is running, does not import the certificates' library, the code of the secure connection or the modules that write the support bundle.
-A daemon started with --encryption makes its message key at once, so there the library is loaded: the test says so, so that the lazy import is known to be only for a daemon that has no use for it."""
+"""What the program imports before it does its work (`python -X importtime`): `--version` and
+`--help` import neither the web server nor its libraries, and a plain daemon start does not import
+the certificate library.
+"""
 import subprocess
 import sys
 from pathlib import Path
@@ -40,8 +41,9 @@ def test_the_short_commands_do_not_import_the_web_server_or_its_libraries(flag: 
 
 
 def run_until_listening(data: Path, *extra: str) -> set[str]:
-    """The modules a daemon has loaded when its log says it is running. The listing goes to a file, not to a pipe: it is tens of thousands of bytes written before the daemon does anything, a pipe nobody
-    reads holds 4 KB on Windows, and a daemon that waits to write its listing never starts (the Windows test machine, 14 November 2026)."""
+    """The modules a daemon has loaded when its log says it is running. The listing goes to a file,
+    not a pipe: an unread pipe holds 4 KB on Windows and a daemon waiting to write its listing never
+    starts."""
     data.parent.mkdir(parents=True, exist_ok=True)
     listing = data.parent / "importtime.txt"
     with listing.open("w", encoding="utf-8", errors="replace") as err:

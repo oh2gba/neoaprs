@@ -1,6 +1,5 @@
-"""`server/deploy.sh` uploads only what git tracks of the folders it sends: a made-up repository (the script copied into it, its files tracked, untracked, ignored and deleted), a stand-in for the secrets manager and one for curl
-first on the PATH, which writes down what it was asked and uploads nothing. The files of the folders that git does not track are never in an upload, and the script says which it skipped; a folder that is no checkout, and a file of the
-version page that is not tracked, stop it before anything is asked of the network. Never the real server: the stand-in for curl is the only program that would have spoken to it."""
+"""Tests for `server/deploy.sh`, which uploads only what git tracks: a made-up repository with
+stand-in secrets manager and curl first on the PATH. The real server is never contacted."""
 import os
 import shutil
 import subprocess
@@ -31,7 +30,8 @@ def git(repo: Path, *args: str) -> None:
 
 @pytest.fixture
 def repo(tmp_path: Path) -> Path:
-    """A repository of its own with the script in server/, the tracked files, a deleted tracked one, an untracked and an ignored one."""
+    """A repository of its own with the script in server/, the tracked files, a deleted tracked one,
+    an untracked and an ignored one."""
     made = tmp_path / "repo"
     made.mkdir()
     for name in TRACKED + LEFT_OUT:
@@ -60,7 +60,9 @@ def tools(tmp_path: Path) -> Path:
 def run(repo: Path, tools: Path, *args: str) -> tuple[subprocess.CompletedProcess[str], list[str]]:
     sent = repo.parent / "curl-args.txt"
     env = {"PATH": f"{tools}:{os.environ['PATH']}", "HOME": str(repo.parent), "SECRETS_FILE": str(repo.parent / "token.txt"), "CURL_ARGS": str(sent), "BWS": str(tools / "bws"),
-           "GIT_CEILING_DIRECTORIES": str(repo.parent)}                         # (a folder whose .git is gone is no checkout, even inside one: --basetemp under work/ puts it in this tree)
+           # (a folder whose .git is gone is no checkout, even inside one: --basetemp under work/
+           # puts it in this tree)
+           "GIT_CEILING_DIRECTORIES": str(repo.parent)}
     done = subprocess.run(["bash", str(repo / "server" / "deploy.sh"), *args], capture_output=True, text=True, env=env, timeout=60)
     return done, sent.read_text(encoding="utf-8").splitlines() if sent.exists() else []
 
@@ -115,7 +117,8 @@ def test_a_file_of_the_version_page_that_is_not_tracked_stops_the_upload(repo: P
 
 
 def test_the_script_of_the_repository_has_no_find_over_the_folders_it_sends() -> None:
-    """The way a file is listed is git's: a `find` over a folder would send what git does not know."""
+    """The way a file is listed is git's: a `find` over a folder would send what git does not know.
+    """
     text = SCRIPT.read_text(encoding="utf-8")
     assert "git -C" in text and "ls-files" in text and "find ." not in text
 
@@ -145,7 +148,9 @@ def test_a_tracked_name_with_a_line_end_or_a_tab_stops_the_upload(repo: Path, to
 
 @pytest.mark.parametrize(("script", "args"), [("deploy.sh", []), ("skeds.sh", ["rm", "0123456789ab"]), ("support-fetch.sh", []), ("usage-report.sh", [])])
 def test_a_token_file_that_was_named_and_is_missing_is_never_replaced_by_the_one_beside_the_checkout(repo: Path, tmp_path: Path, script: str, args: list[str]) -> None:
-    """The scripts fall back to ../../oh2gba/.secrets only when no file was named: with SECRETS_FILE naming a missing one (as a test does), the developer's real token stays unread and nothing is asked."""
+    """The scripts fall back to ../../oh2gba/.secrets only when no file was named: with SECRETS_FILE
+    naming a missing one (as a test does), the developer's real token stays unread and nothing is
+    asked."""
     shutil.copy(ROOT / "server" / script, repo / "server" / script)
     beside = tmp_path / "oh2gba"
     beside.mkdir()
@@ -162,7 +167,8 @@ def test_a_token_file_that_was_named_and_is_missing_is_never_replaced_by_the_one
 
 
 def test_an_upload_of_hundreds_of_files_ends_well_and_names_the_first_twelve(repo: Path, tools: Path) -> None:
-    """The list of what was sent is cut to twelve lines; cut by `head`, a long list ended the script with 141 after everything was uploaded (seen on 14 November 2026 with 315 files)."""
+    """The list of what was sent is cut to twelve lines; cut by `head`, a long list ended the script
+    with 141 after everything was uploaded."""
     many = [f"site/shots/picture-{i:03}.png" for i in range(600)]
     for name in many:
         (repo / name).write_text(f"{name}\n", encoding="utf-8")

@@ -1,5 +1,7 @@
-"""The downloads of Update now (neoaprs/updatedownload.py) against a fake server: the file is written with its SHA-256 and its progress, a cancel is seen between two pieces, a file that is cut short or too large
-fails, an address that is not allowed is not asked, and a redirect to one ends the download. No test reaches the network: the opener is a stand-in."""
+"""The downloads of Update now (neoaprs/updatedownload.py) against a fake server: the file is
+written with its SHA-256 and progress, a cancel is seen between pieces, a cut-short or too large
+file fails, and a disallowed address or redirect is refused. The opener is a stand-in.
+"""
 import asyncio
 import hashlib
 import io

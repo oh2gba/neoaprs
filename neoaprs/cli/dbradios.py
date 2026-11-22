@@ -1,5 +1,6 @@
-"""`neoaprs db radios` and `neoaprs db radios add` (neoaprs/cli/dbcmd.py is the command): the radios of the database as they are stored, each with its own settings, and a radio added as the page's Add adds
-one (radioedits.new_radio's checks); the database gives it its number."""
+"""`neoaprs db radios` and `neoaprs db radios add`: list the stored radios and add one.
+
+A radio is added with the checks of the page's Add (radioedits.new_radio)."""
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime
@@ -20,14 +21,15 @@ PROG = "neoaprs db"
 
 @dataclass(frozen=True)
 class Radios:
-    """The radios of the database: as the daemon reads them (a wrong value left out, told once) and their own settings as they are stored (a text that is no value too)."""
+    """The radios as the daemon reads them, and their settings as stored (invalid texts too)."""
     specs: tuple[RadioSpec, ...] = ()
     own: Mapping[tuple[int, str], str] = field(default_factory=dict)
 
 
 async def stored_radios(store: Store) -> Radios:
-    """The radios as they are stored. SqlError, with the way back, when the file's radios cannot be read: such a file is never read or written as one without radios, whose flat rows nothing
-    reads once its radios are rows (Store.radios() gives none for a failed read too; Store.read_radios() tells it apart)."""
+    """Return the stored radios; raise SqlError if they cannot be read.
+
+    A failed read must not look like no radios, which Store.radios() cannot tell apart."""
     assert store.db is not None
     try:
         rows, settings = await store.db.read(radio_tables)
@@ -47,7 +49,7 @@ def radio_state(spec: RadioSpec) -> str:
 
 
 async def show_radios(store: Any) -> int:
-    """`radios`: each radio, the removed ones last, with its own settings in the order its type lists them: the value in force, and whether it is stored or the default."""
+    """Print each radio, removed ones last, with its settings: value in force, stored or default."""
     stored = await stored_radios(store)
     radios = stored.specs
     if not radios:
@@ -64,15 +66,14 @@ async def show_radios(store: Any) -> int:
 
 
 async def add_radio(store: Store, type: str, name: str, on: bool) -> int:
-    """`radios add TYPE [NAME]`: a radio of the type after the others, checked as the daemon checks the page's Add (radioedits.new_radio: a type there is, a name no other radio has), on unless `--off`;
-    the database gives it its id. The exit code."""
+    """Add a radio after the others, checked as the page's Add is; return the exit code."""
     rows, radios = await store.settings(), (await stored_radios(store)).specs
     try:
         spec = new_radio(in_force(rows, radios), type, name, on)
     except ValueError as e:
         say(f"{PROG}: {e}")
         return 2
-    id = await store.add_radio(spec.kind, spec.type, spec.name, spec.enabled, spec.position, by_rows=True)       # (what its coming keeps in force, as the daemon's Add: neoaprs/sendonrule.py)
+    id = await store.add_radio(spec.kind, spec.type, spec.name, spec.enabled, spec.position, by_rows=True)
     if id is None:
         say(f"{PROG}: the radio could not be stored")
         return 1

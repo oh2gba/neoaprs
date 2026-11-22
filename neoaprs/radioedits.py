@@ -1,7 +1,8 @@
-"""The radios of the settings as the operator changes them (plan §2): what the controller's `add_radio`, `change_radio`, `remove_radio` and `save_radio_settings` check before anything is stored (each
-refusal a `RadioError` of neoaprs/radiospec.py naming the radio, uncoded until the wire names a radio; a type that is none a `RadioTypeError`), the radios of the settings with one of them changed, and what a
-save of the settings writes of the radios (`radio_writes`) and keeps in force (`kept_change`, neoaprs/sendonrule.py), and what the start's log says of them (`start_notes`). A new installation has no radio: the operator adds the first (the setup guide, the Radio group, `neoaprs db radios add`), and the database
-gives each radio its id. No I/O."""
+"""The radios of the settings as the operator changes them: checks and edits before storing.
+
+Each refusal is a `RadioError` naming the radio (an unknown type a `RadioTypeError`). No I/O.
+"""
+
 import logging
 from collections.abc import Iterable, Mapping
 from dataclasses import replace
@@ -21,9 +22,10 @@ from .store import RadioWrite
 
 # ---- what the start's log says of the radios
 def start_notes(config: Config, run: RunOverrides) -> list[tuple[int, str]]:
-    """What the log says at the start, each with its level: of a station that has no radio yet (or only removed ones), and of a port given for this run that no radio takes: --port is radio 1's, a TNC's
-    (tncdriver.line_settings), and --hf-port the station's first Mercury radio's (`RunOverrides.attach_to`, mercurydriver.modem_settings); a Dummy radio opens no port. A port that the radio
-    added next takes is no warning: a new installation is a clean run."""
+    """Return the start's log notes with levels: no radio, or a run port no radio takes.
+
+    --port belongs to radio 1 (a TNC), --hf-port to `RunOverrides.attach_to`; a Dummy opens none.
+    """
     none = "this station has no radio yet" if not config.radios else "every radio of this station is removed"
     notes = [] if config.live_radios else [(logging.INFO, f"{none}: none runs until one is added (the setup guide, Settings, Radio, or neoaprs db radios add TYPE)")]
     for flag, given, id, driver in (("--port", run.port, FM_ID, "tnc"), ("--hf-port", run.hf_port, run.attach_to, "mercury")):
@@ -42,8 +44,7 @@ def start_notes(config: Config, run: RunOverrides) -> list[tuple[int, str]]:
 
 # ---- what a save writes of the radios
 def radio_writes(before: Iterable[RadioSpec], after: Iterable[RadioSpec]) -> list[RadioWrite]:
-    """What differs of the radios between the settings in force and the ones a save brings: of each radio in force, the columns and the own settings that changed. A radio that is not in force is no
-    write of a save (`refusal`), nor is a removal (`Controller.remove_radio`)."""
+    """Return the changed columns and own settings of each radio in force; no adds or removals."""
     was = {spec.id: spec for spec in before}
     writes: list[RadioWrite] = []
     for spec in after:
@@ -58,8 +59,7 @@ def radio_writes(before: Iterable[RadioSpec], after: Iterable[RadioSpec]) -> lis
 
 
 def refusal(before: Iterable[RadioSpec], after: Iterable[RadioSpec]) -> str | None:
-    """Why a save is not stored, or None: one that brings a radio the settings in force do not have, which only its adding makes (`Controller.add_radio`, whose id the database gives), and one that leaves
-    out a radio in force, which only its removal takes away (`Controller.remove_radio`, whose transaction clears what names it)."""
+    """Return why a save is not stored, or None: it may neither add nor drop a radio."""
     was = {spec.id for spec in before}
     if new := [spec for spec in after if spec.id not in was]:
         return f"they bring radio {', '.join(str(spec.id) for spec in new)}, which only its adding makes"
@@ -69,12 +69,12 @@ def refusal(before: Iterable[RadioSpec], after: Iterable[RadioSpec]) -> str | No
 
 
 # ---- the checks of the operator's changes
-MAX_POSITION = 2**31 - 1        # the last place a radio may be given: the next radio added (one place after the last) still fits the database's integer
+# the last position a radio may have; the next one added must still fit the database integer
+MAX_POSITION = 2**31 - 1
 
 
 def kept_change(before: Config, after: Config, objects: Mapping[str, tuple[RadioId, ...]], bulletins: Mapping[str, tuple[RadioId, ...]]) -> tuple[Config, Kept]:
-    """What the change of the radios from `before` to `after` keeps in force (sendonrule.kept_in_force: a radio that comes on never stops anything), and `after` with its ticks and its e-mail radio put in;
-    a save that sets the e-mail radio itself keeps its own."""
+    """Return `after` with the ticks and e-mail radio kept in force over the radio change."""
     kept = kept_in_force(before.radios, after.radios, objects, bulletins, before.email_choice)
     if after.email_choice != before.email_choice:
         kept = replace(kept, email=None)
@@ -82,7 +82,7 @@ def kept_change(before: Config, after: Config, objects: Mapping[str, tuple[Radio
 
 
 def with_kept(config: Config, kept: Kept) -> Config:
-    """The settings with the ticks and the e-mail radio of `kept` put in (the same settings where it has neither)."""
+    """Return the settings with the ticks and e-mail radio of `kept` put in."""
     if not kept.ticks and kept.email is None:
         return config
     ticks: dict[RadioId, dict[str, str]] = {}
@@ -93,20 +93,19 @@ def with_kept(config: Config, kept: Kept) -> Config:
 
 
 def removed(config: Config, spec: RadioSpec, at: datetime) -> Config:
-    """The settings with this radio removed at `at`, the e-mail radio none where it was this one, and the radio's pairs gone, as the removal's transaction left them (radiosql.remove_radio). A radio that leaves never stops
-    anything else that is in force (sendonrule.kept_in_force keeps nothing for it)."""
+    """Return the settings with this radio removed at `at`: pairs dropped, e-mail choice cleared."""
     kept = replace(config, pairs=without_radio(config.pairs, spec.id))
     return put(replace(kept, email_choice=None) if kept.email_choice == spec.id else kept, replace(spec, removed_at=at))
 
 
 def put(config: Config, spec: RadioSpec) -> Config:
-    """The settings with this radio in the place of the one of its id, or added."""
+    """Return the settings with this radio replacing the one of its id, or added."""
     others = tuple(s for s in config.radios if s.id != spec.id)
     return replace(config, radios=tuple(sorted((*others, spec), key=lambda s: s.id)))
 
 
 def live_radio(config: Config, id: RadioId) -> RadioSpec:
-    """The radio of the id, which is not removed; RadioError when there is none."""
+    """Return the live (not removed) radio of the id; raise RadioError if there is none."""
     spec = config.radio(id)
     if spec is None or spec.removed:
         raise RadioError(f"radio {id}: there is no such radio" if spec is None else f"radio {id} ({log_name(spec, config.radios)}) is removed", "radio.unknown", radio=id)
@@ -114,14 +113,14 @@ def live_radio(config: Config, id: RadioId) -> RadioSpec:
 
 
 def _refuse_last(config: Config, spec: RadioSpec, what: str) -> None:
-    if spec.enabled and [s.id for s in enabled(config.radios) if s.type in BY_KEY] == [spec.id]:      # (a radio of a type this build does not have runs nothing: radioregistry.py)
+    # A radio of a type this build lacks runs nothing (radioregistry.py), so it does not count.
+    if spec.enabled and [s.id for s in enabled(config.radios) if s.type in BY_KEY] == [spec.id]:
         raise RadioError(f"radio {log_name(spec, config.radios)} is the last one that is enabled: a station has at least one, so it cannot be {what}; turn another radio on first",
                          "radio.last_enabled", name=log_name(spec, config.radios))
 
 
 def new_radio(config: Config, type: str, name: str = "", on: bool = True) -> RadioSpec:
-    """A radio of the type to add, after the others (its id 0 until it is stored: the database gives it one that no radio had before); RadioTypeError for a type that is none, RadioError for a name that
-    cannot be."""
+    """Return a new radio placed last, id 0 until stored; raise RadioTypeError or RadioError."""
     rtype = type_of(type)
     if rtype.key in unavailable_types():
         raise RadioTypeError(f"{rtype.key!r} is not a type of radio of this installation (its program is not carried here)", "radio.unknown_type", type=rtype.key)
@@ -130,10 +129,14 @@ def new_radio(config: Config, type: str, name: str = "", on: bool = True) -> Rad
 
 
 def changed_radio(config: Config, id: RadioId, columns: Mapping[str, object]) -> RadioSpec:
-    """The radio with its name, its type (of its own kind), its tickbox or its place changed; RadioError for what it cannot be (the last enabled radio is not switched off)."""
+    """Return the radio with name, type (of its own kind), enabled flag or position changed.
+
+    Raise RadioError for what is not allowed; the last enabled radio cannot be switched off.
+    """
     spec = live_radio(config, id)
     if unknown := sorted(set(columns) - set(CHANGEABLE)):
-        raise RadioError(f"radio {id}: its {', '.join(unknown)} cannot be changed (its {', '.join(CHANGEABLE)} can)", "failed")          # (the page's commands change no other)
+        # The page's commands change no other column.
+        raise RadioError(f"radio {id}: its {', '.join(unknown)} cannot be changed (its {', '.join(CHANGEABLE)} can)", "failed")
     new = spec
     if "name" in columns:
         new = replace(new, name=check_name(str(columns["name"]), config.live_radios, id))
@@ -160,13 +163,17 @@ def changed_radio(config: Config, id: RadioId, columns: Mapping[str, object]) ->
 
 
 def with_settings(config: Config, id: RadioId, values: Mapping[str, str]) -> RadioSpec:
-    """The radio with these own settings (key to text) put in, each checked by the field of its kind and kept as the program writes it; RadioError naming `radio/<id>/<key>` for the first that is wrong."""
+    """Return the radio with these settings (key to text) put in, each checked by its field.
+
+    Raise RadioError naming `radio/<id>/<key>` for the first wrong one.
+    """
     spec = live_radio(config, id)
     return replace(spec, settings={**spec.settings, **{key: Config.check_radio(spec, key, text) for key, text in values.items()}})
 
 
 def removable(config: Config, id: RadioId) -> RadioSpec:
-    """The radio that is to be removed; RadioError when there is none, or when it is the last one that is enabled."""
+    """Return the radio to remove; raise RadioError if there is none or it is the last enabled one.
+    """
     spec = live_radio(config, id)
     _refuse_last(config, spec, "removed")
     return spec

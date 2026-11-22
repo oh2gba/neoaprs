@@ -1,13 +1,16 @@
-"""What the app's window shows from the moment it is made until the daemon's page answers: the mark and the name on the page's own background, in the light scheme and in the dark one, with the colours of
-the page's tokens (ui/src/styles/tokens.css: --bg and --text). Nothing on it moves and there is nothing on it to read but the name; the page takes its place in the same window as soon as it answers, and when
-no page comes the window closes and the app says why, as it did before there was a window to wait in. A right-click on it shows nothing: the web engine's own menu (Back, Reload) has no place in the app's window,
-nor here (the page's rule is ui/src/lib/appmenu.ts). One page for both shells: qtwindow.py gives it to the web view, webshell.py to pywebview."""
+"""The page the app's window shows until the daemon's page answers.
 
-BACKGROUND = {False: "#eff0f2", True: "#0e1f2c"}         # --bg of the page, light and dark
-TEXT = {False: "#0a2a3d", True: "#ffffff"}               # --text
+The mark and the name on the page's background, in the colours of ui/src/styles/tokens.css, light
+and dark. Both shells use it; a right-click shows nothing."""
+
+# --bg of the page, light and dark.
+BACKGROUND = {False: "#eff0f2", True: "#0e1f2c"}
+# --text of the page.
+TEXT = {False: "#0a2a3d", True: "#ffffff"}
+# The page's icon, ui/public/icons/icon.svg (tests/test_desktop_startup.py holds them equal).
 MARK = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><rect width="64" height="64" rx="12.8" fill="#0a2a3d"/><polygon points="22,31.24 42,31.24 32,51.2" fill="#fff"/>'
         '<circle cx="32" cy="26.88" r="10.88" fill="#fff"/><circle cx="32" cy="26.88" r="4.57" fill="#0a2a3d"/><g fill="none" stroke-width="3.2"><path d="M46.22 14.95A18.56 18.56 0 0 1 46.22 38.81M17.78 38.81A18.56 18.56 0 0 1 17.78 14.95" stroke="#fff"/>'
-        '<path d="M51.61 10.42A25.6 25.6 0 0 1 51.61 43.34M12.39 43.34A25.6 25.6 0 0 1 12.39 10.42" stroke="#a6d7d4"/></g></svg>')       # the page's icon, ui/public/icons/icon.svg (tests/test_desktop_startup.py holds them equal)
+        '<path d="M51.61 10.42A25.6 25.6 0 0 1 51.61 43.34M12.39 43.34A25.6 25.6 0 0 1 12.39 10.42" stroke="#a6d7d4"/></g></svg>')
 
 HTML = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><title>NeoAPRS</title><style>
@@ -20,5 +23,5 @@ svg {{ width: 96px; height: 96px; }}
 
 
 def background(dark: bool) -> str:
-    """The colour the window's engine paints before the page has painted: the page's background in the scheme the system has."""
+    """Return the colour the web engine paints before the page has painted."""
     return BACKGROUND[dark]

@@ -1,5 +1,5 @@
-"""What a receive-only iGate gates (neoaprs/igaterules.py), as a table: every rule of the specification (https://www.aprs-is.net/IGateDetails.aspx, https://www.aprs-is.net/q.aspx) with the packet that breaks it and the line
-that comes out of one that does not: the path as heard with the star where a monitor writes it, `qAO` and our call, the information field as the bytes it is, a third-party packet opened and judged again."""
+"""Tests for the receive-only iGate rules (neoaprs/igaterules.py) as a table: each rule of the
+APRS-IS specification with a packet that breaks it and the output line for one that does not."""
 import pytest
 
 from neoaprs import ax25

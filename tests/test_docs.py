@@ -1,6 +1,6 @@
-"""The development guide (docs/development.md) says what exists: these tests fail when something is added that it does not mention, or it names something that is gone; the README is the front page and its pictures, links and licence are held
-here too. The manual for the operator (docs/manual/) is written in short paragraphs, in plain words, with no code names and no version number. The documents name only code that is there, the one table of environment variables holds
-every variable in use, and the tables of docs/ARCHITECTURE.md and of docs/manual/settings.md are made from the code."""
+"""Tests for the documents: docs/development.md mentions what exists, the README is complete, the
+operator manual (docs/manual/) uses plain words, and the generated tables match the code.
+"""
 import re
 import shutil
 import subprocess
@@ -13,7 +13,9 @@ from neoaprs.configradios import FLAT_HOMES
 from tests.support import archdoc, settingsdoc
 from tests.support.ptyline import posix_only
 
-pytestmark = posix_only      # (the repository's documents, checked with git and the shell scripts: a development check, not the product)
+# (the repository's documents, checked with git and the shell scripts: a development check, not the
+# product)
+pytestmark = posix_only
 
 ROOT = Path(__file__).resolve().parent.parent
 README = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -29,7 +31,8 @@ def tracked() -> list[str]:
 
 
 def section(text: str, heading: str) -> str:
-    """The text under a heading line (any level) up to the next heading of the same or a higher level."""
+    """The text under a heading line (any level) up to the next heading of the same or a higher
+    level."""
     level = len(re.match(r"#+", heading).group(0))  # type: ignore[union-attr]
     body = text.split(f"\n{heading}\n", 1)[1]
     return re.split(rf"^#{{1,{level}}} ", body, maxsplit=1, flags=re.M)[0]
@@ -38,7 +41,8 @@ def section(text: str, heading: str) -> str:
 def test_every_stage_of_scripts_check_is_in_the_table_of_the_development_guide() -> None:
     script = (ROOT / "scripts" / "check").read_text(encoding="utf-8")
     stages = re.search(r"^STAGES=\(([^)]*)\)", script, re.M).group(1).split()  # type: ignore[union-attr]
-    extra = re.search(r"^EXTRA_STAGES=\(([^)]*)\)", script, re.M).group(1).split()  # type: ignore[union-attr]  # the stages that run only by name: after the default ones in the table
+    # The stages that run only by name: after the default ones in the table
+    extra = re.search(r"^EXTRA_STAGES=\(([^)]*)\)", script, re.M).group(1).split()  # type: ignore[union-attr]
     assert len(stages) >= 5
     missing = [name for name in stages + extra if f"| `{name}` |" not in DEVELOPMENT]
     assert not missing, f"scripts/check has stages that docs/development.md does not describe: {missing}"
@@ -74,7 +78,8 @@ ENVIRONMENT = re.compile(r"(?<![A-Za-z_])NEOAPRS_[A-Z][A-Z_]*[A-Z]")
 
 
 def used_variables() -> dict[str, str]:
-    """Every NEOAPRS_* name in the code, the scripts, the units and the tests (text files only), with a file that uses it."""
+    """Every NEOAPRS_* name in the code, the scripts, the units and the tests (text files only),
+    with a file that uses it."""
     found: dict[str, str] = {}
     for rel in tracked():
         path = ROOT / rel
@@ -113,7 +118,7 @@ def test_the_commands_of_the_readme_and_the_manuals_run_scripts_that_exist() -> 
     assert not gone, f"README.md or a manual runs scripts that are not there: {gone}"
 
 
-# ---- the front page: its pictures and links are there, and it names the licence the project has ----
+# ---- the front page: its pictures and links are there, and it names the licence the project has --
 
 def test_the_pictures_and_links_of_the_readme_are_files_that_are_there() -> None:
     targets = re.findall(r"\]\(([^)\s]+)\)", README)
@@ -142,10 +147,12 @@ def current_docs() -> list[str]:
 
 
 def names_that_are_not_there(text: str, files: set[str]) -> list[str]:
-    """The lines that put in backticks a path under neoaprs/, tests/, scripts/, docs/ or systemd/ that the tree does not have. A path with a star is a pattern."""
+    """The lines that put in backticks a path under neoaprs/, tests/, scripts/, docs/ or systemd/
+    that the tree does not have. A path with a star is a pattern."""
     folders = {"/".join(p.split("/")[:n]) for p in files for n in range(1, p.count("/") + 1)}
     found = []
-    for line in settingsdoc.BLOCK.sub("", archdoc.BLOCK.sub("", text)).splitlines():    # (the generated blocks are held against the code, not against the tree)
+    # (the generated blocks are held against the code, not against the tree)
+    for line in settingsdoc.BLOCK.sub("", archdoc.BLOCK.sub("", text)).splitlines():
         for name in PATH_IN_BACKTICKS.findall(line):
             if "*" not in name and name not in files and name + ".py" not in files and name not in folders:
                 found.append(f"{name}: {line.strip()[:100]}")
@@ -203,13 +210,16 @@ def test_the_architecture_document_names_every_part_the_composition_root_makes()
     assert not missing, f"docs/ARCHITECTURE.md ('The composition root') does not name {missing}"
 
 
-# ---- the manual for the person who runs NeoAPRS: short paragraphs, plain words, no code names, no version numbers, a table of settings made from the code ----
+# the manual for the person who runs NeoAPRS: short paragraphs, plain words, no code names, no
+# Version numbers, a table of settings made from the code.
 
-PARAGRAPH_MAX = 600          # characters of one paragraph or one item of a list (a table and a code block are not text)
+# characters of one paragraph or one item of a list (a table and a code block are not text)
+PARAGRAPH_MAX = 600
 
 
 def paragraphs(text: str) -> list[str]:
-    """The paragraphs and the items of the lists of a Markdown text, each as one line; headings, tables, comments and code blocks are left out."""
+    """The paragraphs and the items of the lists of a Markdown text, each as one line; headings,
+    tables, comments and code blocks are left out."""
     found: list[list[str]] = []
     current: list[str] = []
     fenced = False
@@ -246,17 +256,20 @@ VERSION_LITERAL = re.compile(r"(?<![\d.])\d+\.\d+\.\d+(?![\d.])")
 
 
 def test_the_manual_names_no_version_number() -> None:
-    """A file name or a command that has a version in it says `<version>`; the manual then needs no change at a release. (An address of four numbers is no version.)"""
+    """A file name or a command that has a version in it says `<version>`; the manual then needs no
+    change at a release. (An address of four numbers is no version.)"""
     found = [f"{name}: {m.group(0)}" for name, text in operator_docs().items() for m in VERSION_LITERAL.finditer(text)]
     assert not found, f"write <version> instead of a number: {found}"
 
 
-KEYS_OF_BEFORE = sorted({key for key, setting in BY_KEY.items() if setting.attr in FLAT_HOMES} | {"tnc/enter_kiss"})   # a radio's keys of the versions before the radios were stored
+# a radio's keys of the versions before the radios were stored
+KEYS_OF_BEFORE = sorted({key for key, setting in BY_KEY.items() if setting.attr in FLAT_HOMES} | {"tnc/enter_kiss"})
 
 
 def test_the_manual_names_a_radios_setting_by_its_own_key_and_a_key_of_before_only_where_it_says_it_is_none_any_more() -> None:
-    """`neoaprs db set` refuses a key of before of a radio's setting (`tnc/profile`, `serial/port`, `beacon/path`, `digi/enabled` ...): the manual names the radio's own key (`radio/<id>/path`) or its
-    type, and a key of before only in the paragraph that says they are no settings any more."""
+    """`neoaprs db set` refuses an old flat key of a radio's setting (`tnc/profile`, `serial/port`,
+    `beacon/path`, `digi/enabled` ...): the manual names the radio's own key (`radio/<id>/path`) or
+    its type, and an old key only in the paragraph that says they are no settings any more."""
     found = [f"{name}: `{key}` in {p[:70]}..." for name, text in operator_docs().items() for p in paragraphs(text) + [line for line in text.splitlines() if line.startswith("|")]
              for key in KEYS_OF_BEFORE if f"`{key}`" in p and "are no settings any more" not in p]
     assert not found, "name the radio's own key, radio/<id>/<key>, or its type:\n" + "\n".join(found)
@@ -267,7 +280,8 @@ CODE_NAMES = re.compile(r"\buse[A-Z]\w*|\b\w+\.(?:vue|ts|py|js)\b|`(?:neoaprs|ui
 
 
 def test_the_manual_names_no_component_composable_function_or_source_file() -> None:
-    """The person who runs NeoAPRS reads about the page and the daemon, not about their source; that is docs/development.md and docs/daemon.md."""
+    """The person who runs NeoAPRS reads about the page and the daemon, not about their source; that
+    is docs/development.md and docs/daemon.md."""
     found = []
     for name, text in operator_docs().items():
         outside_code = re.sub(r"```.*?```", "", text, flags=re.S)
@@ -276,7 +290,8 @@ def test_the_manual_names_no_component_composable_function_or_source_file() -> N
 
 
 def test_the_manual_gives_the_taps_that_put_the_page_on_a_phones_home_screen_in_one_place() -> None:
-    """One act, one set of steps: the taps are in network.md under "On a phone", and another place of the manual links there instead of telling them in other words."""
+    """One act, one set of steps: the taps are in network.md under "On a phone", and another place
+    of the manual links there instead of telling them in other words."""
     on_a_phone = section(operator_docs()["network.md"], "### On a phone")
     assert re.search(r"add to home screen", on_a_phone, re.I)
     elsewhere = [f"{name}: {line[:70]}" for name, text in operator_docs().items() for line in text.splitlines() if re.search(r"add to home screen", line, re.I) and line not in on_a_phone]
@@ -323,7 +338,8 @@ def test_the_contents_of_the_manual_list_every_file_of_it() -> None:
 
 
 def heading_anchors(text: str) -> set[str]:
-    """The anchors GitHub makes of the headings of a Markdown text (outside code blocks): lower case, punctuation gone, blanks to hyphens."""
+    """The anchors GitHub makes of the headings of a Markdown text (outside code blocks): lower
+    case, punctuation gone, blanks to hyphens."""
     outside_code = re.sub(r"```.*?```", "", text, flags=re.S)
     return {re.sub(r"[^\w -]", "", h.replace("`", "").lower()).replace(" ", "-") for h in re.findall(r"^#+ (.+)$", outside_code, re.M)}
 
@@ -355,7 +371,8 @@ def test_every_setting_has_its_words_and_no_words_are_left_for_a_setting_that_is
 
 
 def test_the_settings_the_table_says_only_the_command_line_changes_are_the_ones_the_page_does_not_show() -> None:
-    """ui/src/lib/settings.ts has the list (NOT_ON_THE_PAGE); the table says `neoaprs db set` only for the same keys."""
+    """ui/src/lib/settings.ts has the list (NOT_ON_THE_PAGE); the table says `neoaprs db set` only
+    for the same keys."""
     source = (ROOT / "ui" / "src" / "lib" / "settings.ts").read_text(encoding="utf-8")
     hidden = set(re.findall(r'"([a-z_]+/[a-z_]+)"', re.search(r"NOT_ON_THE_PAGE[^=]*=\s*\[(.*?)\]", source, re.S).group(1)))  # type: ignore[union-attr]
     said = {key for key, (where, _) in settingsdoc.DESCRIPTIONS.items() if where == settingsdoc.DB_ONLY}

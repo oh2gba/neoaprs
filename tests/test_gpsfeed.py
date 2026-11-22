@@ -1,5 +1,6 @@
-"""The GPS feed (neoaprs/gpsfeed.py): a gpsd on the loopback that is asked to watch and tells TPV and SKY, and a serial receiver (here a TCP serial server, `socket://`) that sends NMEA; the state and the problem the
-way the TNC reports them, the reconnection after a loss, and a feed that never raises into the loop."""
+"""Tests for the GPS feed (neoaprs/gpsfeed.py): a gpsd on the loopback and a serial receiver over
+`socket://`, state reporting, reconnection, and errors never reaching the loop.
+"""
 import asyncio
 import logging
 import socket
@@ -133,8 +134,10 @@ async def test_a_gpsd_that_falls_silent_without_hanging_up_is_taken_for_gone_and
     await until(lambda: feed.state is Source.State.CONNECTED and gpsd.watching)
     gpsd.send(tpv(60.43, 24.145))
     await until(lambda: fixes)
-    await until(lambda: feed.state is Source.State.WAITING and "sent nothing for 0.2 s" in feed.problem)      # (the socket is open, nothing comes: a peer that vanished)
-    await until(lambda: sum(line.startswith("?WATCH=") for line in gpsd.received) >= 2, 3.0)           # (connected to again, and asked again to watch)
+    # (the socket is open, nothing comes: a peer that vanished)
+    await until(lambda: feed.state is Source.State.WAITING and "sent nothing for 0.2 s" in feed.problem)
+    # (connected to again, and asked again to watch)
+    await until(lambda: sum(line.startswith("?WATCH=") for line in gpsd.received) >= 2, 3.0)
 
 
 async def test_the_connection_to_gpsd_asks_the_system_to_find_a_dead_peer() -> None:
@@ -150,9 +153,11 @@ async def test_a_gpsd_that_is_not_there_is_a_problem_and_tried_again_until_it_is
     port = await free_port()
     feed, fixes, _ = feed_of("gpsd", f"127.0.0.1:{port}")
     await feed.start()
-    why = "no answer in time" if sys.platform == "win32" else "refused"          # (Windows takes about two seconds to refuse a connection: longer than the feed of a test waits)
+    # (Windows takes about two seconds to refuse a connection: longer than the feed of a test waits)
+    why = "no answer in time" if sys.platform == "win32" else "refused"
     await until(lambda: feed.state is Source.State.WAITING and why in feed.problem.lower())
-    gpsd = await FakeGpsd().start_on(port)                                 # the gpsd is started at last, on the port the feed has been trying
+    # the gpsd is started at last, on the port the feed has been trying
+    gpsd = await FakeGpsd().start_on(port)
     await until(lambda: feed.state is Source.State.CONNECTED, 3.0)
     assert feed.problem == ""
     await until(lambda: gpsd.watching)
@@ -272,10 +277,12 @@ async def test_a_serial_port_that_cannot_be_opened_is_a_problem_in_the_words_of_
     assert "refused" in feed.problem.lower() and feed.last_error == feed.problem
 
 
-# ---- the edges: an open that ends after the feed was stopped, one that never ends, a report that says nothing twice, and what a stale part may not do
+# ---- the edges: an open that ends after the feed was stopped, one that never ends, a report that
+# says nothing twice, and what a stale part may not do
 
 class Gate:
-    """An open that waits for the test: `entered` is set when it is under way, `let` ends the wait."""
+    """An open that waits for the test: `entered` is set when it is under way, `let` ends the wait.
+    """
 
     def __init__(self) -> None:
         self.entered = asyncio.Event()

@@ -1,12 +1,5 @@
-"""A fake server for Send logs, on a free port of the loopback (no test sends anything to the project's real server): it reads the multipart form the daemon posts and keeps what it held.
-
-    server = await support_server()                     # {"ok": true, "ref": "NEO-20261103-1015-7F3A"} to every post
-    monkeypatch.setenv("NEOAPRS_SUPPORT_URL", server.url)
-    server.requests[0].fields["note"]                  # the text fields
-    server.requests[0].files["bundle"]                 # (file name, bytes)
-    server.status, server.answer = 429, {"ok": False, "reason": "rate"}
-    server.body = b"<html>"                            # sent instead of the JSON
-    server.hang = True                                 # accepts, reads the request and says nothing
+"""A fake server for Send logs on a free loopback port: it reads the multipart form the daemon posts
+and keeps what it held.
 """
 import asyncio
 import json
@@ -28,7 +21,8 @@ class Received:
 
 
 def parse_form(content_type: str, body: bytes) -> tuple[dict[str, str], dict[str, tuple[str, bytes]]]:
-    """(the text fields, the files as name -> (file name, content)) of a multipart/form-data body."""
+    """(the text fields, the files as name -> (file name, content)) of a multipart/form-data body.
+    """
     message = BytesParser(policy=policy.default).parsebytes(f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode() + body)
     fields: dict[str, str] = {}
     files: dict[str, tuple[str, bytes]] = {}

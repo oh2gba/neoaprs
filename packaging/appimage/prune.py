@@ -1,33 +1,38 @@
 #!/usr/bin/env python3
-"""Takes out of the AppImage's usr/ folder what NeoAPRS does not run, so that the image is a third of the size: the parts of CPython that are tests, Tk and documentation, and almost all of Qt except the
-web engine and the few modules the desktop app imports (neoaprs/desktop/qtshell.py, qtwindow.py). Run by scripts/build-appimage with the Python of the image itself:  prune.py USR
-(scripts/build-deb has the same Python in /opt/neoaprs and no Qt:  prune.py --python-only PREFIX; scripts/build-macos-app has it as Contents/Resources of the app, with Qt as frameworks and .dylib
-plugins:  prune.py --macos RESOURCES)
+"""Remove from the AppImage's usr/ folder what NeoAPRS does not run.
 
-Of CPython also: the shared libpython on Linux (the interpreter there is linked statically and no module names the library; the macOS launcher embeds Python through it, so it stays there), the type stubs (.pyi)
-of the packages, which only an editor reads, and on Linux the dbm module (`_dbm`, which carries a copy of Berkeley DB and which nothing of NeoAPRS imports).
+Removed: CPython's tests, Tk, documentation, type stubs, and almost all of Qt except the web engine
+and the modules the desktop app imports. Qt libraries stay only if a kept file names them.
 
-The Qt libraries that stay are the ones that something kept names (the files are searched for the names of libraries, so that a library loaded by name stays too), and nothing else; scripts/smoke-appimage
-and scripts/smoke-macos-app start the app, which is the proof that nothing was taken that it needs."""
+  prune.py USR                    run by scripts/build-appimage with the image's own Python
+  prune.py --python-only PREFIX   scripts/build-deb: the same Python in /opt/neoaprs, no Qt
+  prune.py --macos RESOURCES      scripts/build-macos-app: Contents/Resources, Qt as frameworks and .dylib plugins
+
+On Linux the shared libpython and `_dbm` go too; the macOS launcher needs libpython."""
 import re
 import shutil
 import sys
 from pathlib import Path
 
-PYTHON_MODULES = {"QtCore", "QtGui", "QtWidgets", "QtNetwork", "QtWebEngineCore", "QtWebEngineWidgets", "QtWebChannel", "QtPrintSupport"}          # the ones the web engine's module imports in turn
+# Modules the web engine's module imports in turn.
+PYTHON_MODULES = {"QtCore", "QtGui", "QtWidgets", "QtNetwork", "QtWebEngineCore", "QtWebEngineWidgets", "QtWebChannel", "QtPrintSupport"}
 PLUGINS = {
     "platforms": {"libqxcb.so", "libqoffscreen.so", "libqwayland.so"},
     "platformthemes": None, "platforminputcontexts": {"libcomposeplatforminputcontextplugin.so", "libibusplatforminputcontextplugin.so"},
     "imageformats": {"libqgif.so", "libqico.so", "libqjpeg.so", "libqsvg.so", "libqwebp.so"}, "iconengines": None, "tls": None, "networkinformation": None,
     "xcbglintegrations": None, "wayland-decoration-client": None, "wayland-graphics-integration-client": None, "wayland-shell-integration": None,
-}                                                       # a folder of plugins: the files that stay (None: all of them). Not egldeviceintegrations: only the eglfs platform, which goes, loads them
+# Plugin folder -> files that stay (None: all). egldeviceintegrations: only eglfs loads it.
+}
 MAC_PLUGINS = {
     "platforms": {"libqcocoa.dylib", "libqoffscreen.dylib"}, "styles": None,
     "imageformats": {"libqgif.dylib", "libqicns.dylib", "libqico.dylib", "libqjpeg.dylib", "libqsvg.dylib", "libqwebp.dylib"}, "iconengines": None, "tls": None, "networkinformation": None,
-}                                                       # the same for the macOS layout, whose plugins are .dylib files and whose one window system is Cocoa
-LOCALE = "en-US.pak"                                    # the web engine falls back to this one when the language of the user has none
+# The same for macOS: .dylib plugins, Cocoa only.
+}
+# The web engine falls back to this locale.
+LOCALE = "en-US.pak"
 LIBRARY = re.compile(rb"lib[A-Za-z0-9_+-]+\.so(?:\.[0-9]+)*")
-MAC_LIBRARY = re.compile(rb"(?:Qt[A-Za-z0-9]+\.framework|lib[A-Za-z0-9_.+-]+\.dylib)")           # how a Mach-O names what it loads: `@rpath/QtCore.framework/Versions/A/QtCore`, `@rpath/libpyside6.abi3.6.12.dylib`
+# How a Mach-O names what it loads, e.g. `@rpath/QtCore.framework/Versions/A/QtCore`.
+MAC_LIBRARY = re.compile(rb"(?:Qt[A-Za-z0-9]+\.framework|lib[A-Za-z0-9_.+-]+\.dylib)")
 STDLIB_DROP = ("test", "idlelib", "tkinter", "turtledemo", "ensurepip", "pydoc_data", "site-packages/pip")
 
 
@@ -55,12 +60,13 @@ def prune_python(usr: Path, macos: bool = False) -> None:
         remove(path)
     for path in list(site.rglob("*.pyi")):
         remove(path)
-    for path in [site / "PyObjCTest", *site.rglob("*.dSYM")]:          # (PyObjC's own tests and the debug symbols of its modules, which bleak brings on macOS: 14 MB that nothing runs)
+    # PyObjC's tests and debug symbols (14 MB), brought by bleak on macOS.
+    for path in [site / "PyObjCTest", *site.rglob("*.dSYM")]:
         remove(path)
 
 
 def prune_modules(site: Path, plugins: dict[str, set[str] | None]) -> Path:
-    """The Python modules of PySide6 that are not the app's, shiboken's headers, and the plugins that are not of the kinds and names kept: what Linux and macOS share. Returns Qt's own folder."""
+    """Drop PySide6 modules and plugins not kept, and shiboken's headers. Return Qt's folder."""
     pyside = site / "PySide6"
     qt = pyside / "Qt"
     for path in pyside.iterdir():
@@ -91,7 +97,8 @@ def prune_qt(site: Path) -> None:
         if path.name != "QtWebEngineProcess":
             remove(path)
     remove(qt / "resources" / "qtwebengine_devtools_resources.pak")
-    for path in (qt / "translations").iterdir():                  # the translations of Qt's own texts (NeoAPRS's are the page's) and all of the web engine's locales but one
+    # Qt's own translations and all web engine locales but one.
+    for path in (qt / "translations").iterdir():
         if path.name != "qtwebengine_locales":
             remove(path)
     for path in (qt / "translations" / "qtwebengine_locales").iterdir():
@@ -101,8 +108,8 @@ def prune_qt(site: Path) -> None:
 
 
 def prune_qt_mac(site: Path) -> None:
-    """The macOS layout: Qt's libraries are frameworks in lib/ (a folder each, with the headers inside, which go), the web engine's helper and its locales live inside QtWebEngineCore.framework, libexec holds only
-    the tools of QML, and translations/ only Qt's own texts."""
+    """The macOS layout: Qt's libraries are frameworks in lib/; the web engine's helper and locales
+    live inside QtWebEngineCore.framework."""
     qt = prune_modules(site, MAC_PLUGINS)
     for name in ("libexec", "translations"):
         remove(qt / name)
@@ -119,8 +126,9 @@ def prune_qt_mac(site: Path) -> None:
 
 
 def fix_framework(framework: Path) -> None:
-    """A framework as the wheel ships it is flat: everything under Versions/A, with Resources and Helpers copied a second time at the top and no Versions/Current, no link to the library. codesign takes such a folder
-    for no bundle, and the system looks for the helper of the web engine through the standard links, so the copies go and the links are made: Versions/Current, the library, Resources and Helpers."""
+    """Replace the wheel's flat framework copies with the standard links (Versions/Current ...).
+
+    codesign does not accept the flat layout as a bundle."""
     current = framework / "Versions" / "A"
     if not current.is_dir():
         return
@@ -134,8 +142,7 @@ def fix_framework(framework: Path) -> None:
 
 
 def prune_frameworks(site: Path, qt: Path) -> None:
-    """Every framework in Qt's lib/ that no kept file names, found by looking from the files that stay (the kept Python modules, the plugins, shiboken, and the binaries of the frameworks they name in turn).
-    The web engine's helper program is a root of its own once its framework stays."""
+    """Remove every framework in Qt's lib/ that no kept file names, directly or through another."""
     frameworks = {path.name: path for path in (qt / "lib").glob("*.framework")}
     dylibs = {path.name: path for folder in (site / "PySide6", site / "shiboken6") for path in folder.glob("*.dylib")}
     roots = [p for pattern in ("PySide6/*.so", "PySide6/Qt/plugins/**/*.dylib", "shiboken6/*.so", "shiboken6/*.dylib", "PySide6/*.dylib") for p in site.glob(pattern)]
@@ -159,7 +166,7 @@ def prune_frameworks(site: Path, qt: Path) -> None:
 
 
 def prune_libraries(site: Path, qt: Path) -> None:
-    """Everything in Qt's lib/ that no kept file names, found by looking from the files that stay."""
+    """Remove everything in Qt's lib/ that no kept file names, directly or through another."""
     libs = {path.name: path for path in (qt / "lib").iterdir()}
     for other in (site / "PySide6" / "lib", site / "shiboken6"):
         libs.update({path.name: path for path in other.glob("lib*.so*")})

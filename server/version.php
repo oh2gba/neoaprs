@@ -1,6 +1,6 @@
 <?php
-// Version check for NeoAPRS, served at neo.oh2gba.eu/version.php (the copies from 0.16 on ask there) and at
-// oh2gba.eu/neoaprs/version.php (the copies before do; the same file in both places). The daemon calls this once a day with
+// Version check for NeoAPRS, served at neo.oh2gba.eu/version.php and at oh2gba.eu/neoaprs/version.php (the
+// same file in both places). The daemon calls this once a day with
 //   version.php?v=<its version>&os=<platform>
 // and gets back the latest released version, the address of the project page
 // and an optional short message, as JSON. The latest version is read from the
@@ -22,8 +22,8 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
 const PROJECT_URL  = 'https://neo.oh2gba.eu/';
-// The HF dial the group meets on, shown in the HF radio's box of every copy from 0.16.1 on (older copies show the one built in): a move of the
-// frequency is this line and server/deploy.sh, not a release. The form is "N.NNNN MHz USB"; anything else is ignored by the daemon.
+// The HF dial the group meets on, shown in the HF radio's box: a move of the frequency is this line and
+// server/deploy.sh, not a release. The form is "N.NNNN MHz USB"; anything else is ignored by the daemon.
 const HF_DIAL      = '7.0541 MHz USB';
 
 require __DIR__ . '/latest.php';

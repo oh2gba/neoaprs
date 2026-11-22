@@ -1,6 +1,7 @@
-"""Migrations 32 and 33, the radio round's steps after 31 (migrationsteps31.py, which makes the table `radio` and decides which radios a database has), frozen here beside migrations.py (which lists them in
-MIGRATIONS and runs them): the same rules as for the earlier ones (migrationsteps22on.py), a step is never edited once it has been released. Both read only the database: what 31 decided is in the table `radio`
-(today's FM radio is radio 1, today's HF radio is radio 2, where the database has them)."""
+"""Migrations 32 and 33: radios by id, after migration 31 made the table `radio`.
+
+A released step is never edited. Both read only the database; FM is radio 1 and HF radio 2,
+where the database has them."""
 import sqlite3
 
 from .dberror import StoreError

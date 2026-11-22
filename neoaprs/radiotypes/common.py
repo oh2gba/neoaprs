@@ -1,6 +1,8 @@
-"""What every type of radio shares: the fields of the operator's choices on a radio (whether the beacon, the status, Ask around and Local info's request go out on it, the path of our frames, the digipeater), each kept by a type only where it is allowed
-(`fields_of`), the values of the kinds (`FM_LIMITS`, `HF_LIMITS`, `LORA_LIMITS`, `FM_ALLOWED`, `HF_ALLOWED`, `LORA_ALLOWED`), whose numbers and reasons are neoaprs/radiotype.py's, and what the types
-share whatever their kind (`NOTHING_ALLOWED`, `TERMINAL_ONLY`, `LISTENS`)."""
+"""What every type of radio shares: the fields of the operator's choices (Send on, path ...).
+
+The limits and allowed controls of each kind and the shared sets (`NOTHING_ALLOWED`,
+`TERMINAL_ONLY`, `LISTENS`) are here; the numbers are explained in the developer notes.
+"""
 from dataclasses import replace
 
 from neoaprs.configtypes import boolean
@@ -9,28 +11,39 @@ from neoaprs.radiotype import (FM_BEACON_MIN_MIN, HF_BEACON_JITTER_SEC, HF_BEACO
                                LORA_MAX_KISS, LORA_RETRY_JITTER_SEC, Allowed, Can, Field, Limits)
 from neoaprs.tnc2line import MAX_TEXT
 
-BEACON = Field("beacon", "bool", boolean, "true", text="radio.field.beacon")               # the beacon goes out on this radio (Send on)
-STATUS = Field("status", "bool", boolean, "false", text="radio.field.status")              # the status report goes out on this radio (the status's Send on: beaconrule.send_on_radios)
-ASK = Field("ask", "bool", boolean, "false", text="radio.field.ask")                       # Ask around's query goes out on this radio (its Send on), read as the status's
-LOCAL_INFO = Field("local_info", "bool", boolean, "false", text="radio.field.local_info")  # Local info's request INFO goes out on this radio (its Send on), read as the status's
-SEND_ON = (BEACON, STATUS, ASK, LOCAL_INFO)                                                # the Send on of each thing that goes to no station in particular: a tick for each radio that can send
-PATH = Field("path", "path", digipeater_path, "", text="radio.field.path")                 # the digipeaters of our frames on it: empty the recommended path of the symbol, DIRECT none (today's beacon/path)
-DIGIPEAT = Field("digipeat", "bool", boolean, "false", text="radio.field.digipeat")        # the fill-in digipeater repeats what this radio hears (today's digi/enabled)
+# the beacon goes out on this radio (Send on)
+BEACON = Field("beacon", "bool", boolean, "true", text="radio.field.beacon")
+# the status report goes out on this radio (beaconrule.send_on_radios)
+STATUS = Field("status", "bool", boolean, "false", text="radio.field.status")
+ASK = Field("ask", "bool", boolean, "false", text="radio.field.ask")  # Ask around's query goes out on this radio
+# Local info's request goes out on this radio
+LOCAL_INFO = Field("local_info", "bool", boolean, "false", text="radio.field.local_info")
+# the Send on of each thing that goes to no station in particular
+SEND_ON = (BEACON, STATUS, ASK, LOCAL_INFO)
+# the digipeaters of our frames: empty is the symbol's recommended path, DIRECT none
+PATH = Field("path", "path", digipeater_path, "", text="radio.field.path")
+# the fill-in digipeater repeats what this radio hears
+DIGIPEAT = Field("digipeat", "bool", boolean, "false", text="radio.field.digipeat")
 COMMON_FIELDS: tuple[Field, ...] = (*SEND_ON, PATH, DIGIPEAT)
 
-NOTHING_ALLOWED = Allowed(paths=False, digipeat=False, smart_beacon=False, gateway_heard=False, shared_channel=False)     # no path, digipeater, SmartBeaconing, gateway or shared channel of ours
-TERMINAL_ONLY = Can(find=False, terminal=True, tune=False, key_test=False, scope=False, tx_gain=False, frequencies=False)    # a Terminal and nothing else to do on the radio
-LISTENS = replace(TERMINAL_ONLY, transmit=False)          # a radio that only receives (`Can.transmit` False): no rule picks it to send on, and its line is never written to
+# no path, digipeater, SmartBeaconing, gateway or shared channel of ours
+NOTHING_ALLOWED = Allowed(paths=False, digipeat=False, smart_beacon=False, gateway_heard=False, shared_channel=False)
+# a Terminal and nothing else to do on the radio
+TERMINAL_ONLY = Can(find=False, terminal=True, tune=False, key_test=False, scope=False, tx_gain=False, frequencies=False)
+# a radio that only receives: no rule picks it to send on, its line is never written to
+LISTENS = replace(TERMINAL_ONLY, transmit=False)
 
 FM_LIMITS = Limits(None, FM_BEACON_MIN_MIN, 0, 0)
 HF_LIMITS = Limits(HF_MAX_FRAME, HF_BEACON_MIN_MIN, HF_BEACON_JITTER_SEC, HF_RETRY_JITTER_SEC)
 FM_ALLOWED = Allowed(paths=True, digipeat=True, smart_beacon=True, gateway_heard=True, shared_channel=True)
-HF_ALLOWED = NOTHING_ALLOWED            # (HF is allowed none of them: its own name, as the other kinds', for the rules that read a kind's)
-LORA_LIMITS = Limits(LORA_MAX_FRAME, LORA_BEACON_MIN_MIN, LORA_BEACON_JITTER_SEC, LORA_RETRY_JITTER_SEC, MAX_TEXT, max_kiss=LORA_MAX_KISS)      # every type of the kind LoRa (radiotypes/dummylora.py says why)
+HF_ALLOWED = NOTHING_ALLOWED  # HF is allowed none of them
+# every LoRa type shares these (radiotypes/dummylora.py)
+LORA_LIMITS = Limits(LORA_MAX_FRAME, LORA_BEACON_MIN_MIN, LORA_BEACON_JITTER_SEC, LORA_RETRY_JITTER_SEC, MAX_TEXT, max_kiss=LORA_MAX_KISS)
 LORA_ALLOWED = Allowed(paths=True, digipeat=False, smart_beacon=True, gateway_heard=True, shared_channel=False)
-LORA_PATH = "WIDE1-1"                  # the path of the LoRa networks, which their iGates repeat (aprs-reference/lora-plan.md section 2.5)
+# the LoRa networks' path, which their iGates repeat (aprs-reference/lora-plan.md 2.5)
+LORA_PATH = "WIDE1-1"
 
 
 def fields_of(own: tuple[Field, ...], allowed: Allowed, *, transmit: bool = True) -> tuple[Field, ...]:
-    """A type's fields: its own, then the Send on of the beacon, the status, Ask around and Local info where it can send (`Can.transmit`), and the path and the digipeater where it is allowed them."""
+    """Return a type's fields: its own, Send on if it can send, path and digipeater if allowed."""
     return (*own, *(SEND_ON if transmit else ()), *((PATH,) if allowed.paths else ()), *((DIGIPEAT,) if allowed.digipeat else ()))

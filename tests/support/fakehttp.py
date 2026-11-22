@@ -1,18 +1,6 @@
-"""A small HTTP server on a free port of the loopback whose answers a test lays down path by path, for the code that makes real requests with urllib (the downloads of Update now): a body, a status, a redirect, a
-body cut short, a chunked body that stops in a chunk, an answer that is not HTTP, a server that says nothing.
-
-    server = await http_server()
-    server.route("/a", body=b"abc")                                  # 200 with Content-Length
-    server.route("/gone", status=404)
-    server.route("/go", status=302, headers={"Location": server.url("/a")})
-    server.route("/cut", body=b"x" * 10, announce=100)                # says 100 bytes, sends 10 and closes
-    server.route("/chunk", chunked_cut=b"x" * 10)                    # a chunked body that stops in the middle of a chunk
-    server.route("/junk", raw=b"not http at all\r\n")
-    server.route("/hang", hang=True)                                 # takes the request and never answers
-    await asyncio.to_thread(urllib.request.urlopen, server.url("/a")) # (the client blocks: run it in a thread)
-    server.requests                                                  # the path of every request, in order
-
-The test is responsible for allowing the address: the daemon's own check lets only GitHub through, and a test of the guard hands its own."""
+"""A small HTTP server on a free loopback port whose answers a test lays down path by path: a body,
+a status, a redirect, a cut-short or chunked body, an answer that is not HTTP, or silence.
+"""
 import asyncio
 from dataclasses import dataclass, field
 

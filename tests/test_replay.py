@@ -1,5 +1,7 @@
-"""`neoaprs replay` over TCP: a capture played as a KISS TNC on a port of the loopback, read by the real Tnc of the daemon (the kiss profile, `socket://`) in the test, and as a process by a plain socket. The pseudo-terminal
-mode and the whole daemon on a replay are in tests/test_scripts.py."""
+"""`neoaprs replay` over TCP: a capture played as a KISS TNC on a loopback port, read by the real
+Tnc in the test and as a process by a plain socket. The pseudo-terminal mode is in
+tests/test_scripts.py.
+"""
 import asyncio
 import socket
 import subprocess
@@ -45,7 +47,9 @@ def test_the_frames_are_the_frames_of_the_capture_encoded_again() -> None:
 
 
 async def test_a_tnc_that_connects_hears_the_capture_as_packets_one_frame_at_a_time() -> None:
-    replay = Replay(FRAMES, interval=0.05, settle_sec=1.0)       # longer than the Tnc's entry into KISS, in which what it hears is thrown away (each frame is sent once)
+    # Longer than the Tnc's entry into KISS, in which what it hears is thrown away (each frame is
+    # sent once)
+    replay = Replay(FRAMES, interval=0.05, settle_sec=1.0)
     task, port = await start(replay)
     tnc = Tnc(f"socket://127.0.0.1:{port}", check_sec=0.0, settle_sec=0.05, backoff=Backoff([0.05, 0.05]), fallback_probe=False)
     heard: list[Packet] = []

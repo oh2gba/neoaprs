@@ -1,5 +1,7 @@
-"""The migrations of the one database (neoaprs/migrations.py): a new file gets every table and the current version, an applied migration is frozen, the copy taken before a migration,
-the history of what was applied, a file that is refused is left as it was, and a migration that fails changes nothing."""
+"""The migrations of the one database (neoaprs/migrations.py): a new file gets every table, an
+applied migration is frozen, the copy before a migration, the history, a refused file is left as it
+was, a failed one changes nothing.
+"""
 import hashlib
 import inspect
 import logging
@@ -21,8 +23,9 @@ from tests.support.clock import FixedClock
 from tests.support.migrated import opened, try_open
 from tests.support.migrated32 import SAID
 
-# The checksum of the source of each migration. If this test fails somebody edited a migration that may have run on databases already: add a new migration instead.
-# Only a migration that has never run on a kept database may have its entry changed.
+# The checksum of the source of each migration. If this test fails somebody edited a migration that
+# may have run on databases already: add a new migration instead. Only a migration that has never
+# run on a kept database may have its entry changed.
 GOLDEN = {1: "9ab3c608724b21575f4555fcfcd5c2aaa60ad5b56ee5de68e583797f5667ae2b", 2: "73f6f40f87d65ea9fa81468c8bfc645c0aa4a46fb726b441f59850ae640aeb96",
           3: "7ba3029f6d89094fdf6b0d7258ccd9938971ffb261aea61dbf8c237b9c1d78ae", 4: "44b656e05ac34912905196b410e053d21512683d56abb061ecd44201507485dc",
           5: "8e709486fbd27abf47b6a6220d7f6a3e1fe74bad6062595b7e56b952229b3cf3", 6: "233db7ea1e0174e3319a56d1ad0fd2726607c2d4ee75f4fee26f5d0d3f11dd7c",
@@ -50,8 +53,10 @@ GOLDEN = {1: "9ab3c608724b21575f4555fcfcd5c2aaa60ad5b56ee5de68e583797f5667ae2b",
           35: "dc4f36a4f56d86dc8bf1299f416ea82bd07198a9a5adfeb505bd4e8ebc39e1a3"}
 
 
-# What a step calls or reads that is written outside it, in the module beside it: the helper functions and the constants (a text, a number, a tuple), by the step that uses them and the hash of what they are.
-# Editing one changes what a step does on a database it has not run on yet, so they are frozen as the steps are.
+# What a step calls or reads that is written outside it, in the module beside it: the helper
+# functions and the constants (a text, a number, a tuple), by the step that uses them and the hash
+# of what they are. Editing one changes what a step does on a database it has not run on yet, so
+# they are frozen as the steps are.
 GOLDEN_USED = {
     "_v21": {"_third_party_sender": "5a15e75b3fbb473e8ec940c464521dd68b7ec34c49d633a6441a4cdf1c5e54c2"},
     "_v22": {"_OLD_LINUX_ALERT": "5fb693746274abb1ee0e8149fdf0264c1cb906f6e8bbeed6189d4fe0bfa377f9", "_OLD_WINDOWS_ALERT": "0b4b01fbd7a1f34a5703db45884f161b882ff4af0b90514424be568c339123ea"},
@@ -63,7 +68,8 @@ GOLDEN_USED = {
 
 
 def used_by(step: Callable[..., object]) -> dict[str, str]:
-    """The hash of each module-level function (and of the functions those call) and constant that `step` names, by name."""
+    """The hash of each module-level function (and of the functions those call) and constant that
+    `step` names, by name."""
     module = sys.modules[step.__module__]
     found: dict[str, str] = {}
 
@@ -258,8 +264,10 @@ def test_a_copy_that_cannot_be_made_leaves_the_earlier_one_and_a_disk_without_ro
 
 
 def test_a_file_that_migration_32_has_yet_to_rewrite_needs_its_size_twice_beside_the_margin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Migration 32 writes the packet table again where it lies, and until it is committed the write-ahead log holds the table once more (0.92 of a gigabyte's file, scripts/migration-size): below version 32 the
-    disk needs the file's size for the copy and once more for that log; from 32 on the copy alone."""
+    """Migration 32 writes the packet table again where it lies, and until it is committed the
+    write-ahead log holds the table once more (0.92 of a gigabyte's file, scripts/migration-size):
+    below version 32 the disk needs the file's size for the copy and once more for that log; from 32
+    on the copy alone."""
     db = sqlite3.connect(tmp_path / DB_NAME)
     db.execute("CREATE TABLE packet (raw BLOB)")
     db.executemany("INSERT INTO packet (raw) VALUES (?)", [(bytes(4000),)] * 100)
@@ -303,7 +311,8 @@ def test_a_migration_that_fails_changes_nothing_and_the_file_is_refused_with_the
 
 @pytest.mark.expects_errors
 def test_the_copy_at_the_old_version_outlives_the_start_that_ends_a_migration_cut_short(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    """A migration cut short leaves the file at a middle version, which no release opens: the start that gets through stands on the copy taken at the old version, makes none of the middle version,
+    """A migration cut short leaves the file at a middle version, which no release opens: the start
+    that gets through stands on the copy taken at the old version, makes none of the middle version,
     says so, and keeps that one copy; the migration before's goes."""
     path = tmp_path / DB_NAME
     s = opened(path)
@@ -369,8 +378,11 @@ def test_a_copy_is_whole_by_its_header_and_a_half_written_or_changed_one_is_not(
 
 
 def test_a_start_that_finds_the_file_as_a_whole_copy_holds_it_makes_no_second_one_and_a_changed_file_gets_a_new_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    """The first step fails twice (nothing of the migration is in): the second start finds the file at the version it was copied at, unchanged, and makes no copy (a machine killed again and again does not fill
-    its disk with copies); the file is then changed at that version (the NeoAPRS before ran on it again), and the next start copies it anew and keeps only that copy once it gets through."""
+    """The first step fails twice (nothing of the migration is in): the second start finds the file
+    at the version it was copied at, unchanged, and makes no copy (a machine killed again and again
+    does not fill its disk with copies); the file is then changed at that version (the NeoAPRS
+    before ran on it again), and the next start copies it anew and keeps only that copy once it gets
+    through."""
     path = tmp_path / DB_NAME
     s = opened(path)
     s.db.execute("INSERT INTO settings (key, value) VALUES ('station/call', 'OH2GBA')")
@@ -404,9 +416,11 @@ def test_a_start_that_finds_the_file_as_a_whole_copy_holds_it_makes_no_second_on
 
 
 def test_a_copy_that_is_not_whole_a_temporary_one_and_one_made_by_hand_are_never_stood_on(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Beside a file of the version for this migration: a copy under its name cut short, the whole temporary file of a copy that was never renamed, a copy made by hand of the same file; the start makes a copy of
-    its own, and the end of the migration removes the copy that was not whole and leaves the hand's and the temporary one, which another migration that runs may be writing (the sweep takes it once
-    it is old)."""
+    """Beside a file of the version for this migration: a copy under its name cut short, the whole
+    temporary file of a copy that was never renamed, a copy made by hand of the same file; the start
+    makes a copy of its own, and the end of the migration removes the copy that was not whole and
+    leaves the hand's and the temporary one, which another migration that runs may be writing (the
+    sweep takes it once it is old)."""
     path = tmp_path / DB_NAME
     s = opened(path)
     s.db.execute("INSERT INTO settings (key, value) VALUES ('station/call', 'OH2GBA')")
@@ -419,7 +433,8 @@ def test_a_copy_that_is_not_whole_a_temporary_one_and_one_made_by_hand_are_never
     half.write_bytes(whole_one.read_bytes()[:4096])
     unnamed = folder / f"{stem}-20261020-130000.sqlite.tmp"
     unnamed.write_bytes(whole_one.read_bytes())
-    (tmp_path / MIGRATING_NAME).write_text("migrating\n", encoding="ascii")      # (another migration runs: the temporary file may be its copy being written)
+    # Another migration runs: the temporary file may be its copy being written
+    (tmp_path / MIGRATING_NAME).write_text("migrating\n", encoding="ascii")
     with_steps(monkeypatch, v_next)
     ok, why = try_open(path, FixedClock())
     assert ok, why
@@ -483,9 +498,12 @@ def a_station(path: Path, clock: FixedClock | None = None) -> None:
 
 @pytest.mark.parametrize("when", ["while the copy is written", "between the reading of the version and the copy"])
 def test_another_neoaprs_that_migrates_the_file_meanwhile_leaves_one_whole_copy_of_the_old_version(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, when: str) -> None:
-    """`neoaprs db set`, a second daemon or the app migrate the file themselves (the daemon may be running): one runs the whole migration while the other is copying the file (page by page, as on a slow
-    card: sqlite3's backup starts again when another connection writes the file) or has read its version and is about to copy it. The other's copy is the file at the version its name says, or it makes
-    none; at the end backup/ holds one copy, whole, of the old version with the settings as they were."""
+    """`neoaprs db set`, a second daemon or the app migrate the file themselves (the daemon may be
+    running): one runs the whole migration while the other is copying the file (page by page, as on
+    a slow card: sqlite3's backup starts again when another connection writes the file) or has read
+    its version and is about to copy it. The other's copy is the file at the version its name says,
+    or it makes none; at the end backup/ holds one copy, whole, of the old version with the settings
+    as they were."""
     from neoaprs import dbfile
     path = tmp_path / DB_NAME
     a_station(path)
@@ -530,8 +548,11 @@ def test_another_neoaprs_that_migrates_the_file_meanwhile_leaves_one_whole_copy_
 
 @pytest.mark.expects_errors
 def test_a_clock_that_went_back_after_the_copy_does_not_make_the_start_after_a_cut_copy_the_middle_version(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A Raspberry Pi without a clock of its own: the copy is named by the time before a power cut, the step after it is written an hour earlier (the clock restored at the boot), and the next step
-    fails. That the file came from the copy is read from both histories, not from the clock: the start that gets through makes no copy of the middle version and keeps the one of the old version."""
+    """A Raspberry Pi without a clock of its own: the copy is named by the time before a power cut,
+    the step after it is written an hour earlier (the clock restored at the boot), and the next step
+    fails. That the file came from the copy is read from both histories, not from the clock: the
+    start that gets through makes no copy of the middle version and keeps the one of the old
+    version."""
     path = tmp_path / DB_NAME
     a_station(path)
     folder = tmp_path / "backup"
@@ -559,8 +580,10 @@ def test_a_clock_that_went_back_after_the_copy_does_not_make_the_start_after_a_c
 
 @pytest.mark.expects_errors
 def test_a_copy_taken_after_the_clock_went_back_is_named_after_the_one_before_and_is_the_one_stood_on(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The first step fails (the file stays at its version, copied); the NeoAPRS before writes to it; the clock goes back an hour; the next start copies the changed file, gets one step further and is
-    cut short. A copy of the same migration is named after the ones there are, so the start that gets through stands on the copy taken last, which holds what the NeoAPRS before wrote."""
+    """The first step fails (the file stays at its version, copied); the NeoAPRS before writes to
+    it; the clock goes back an hour; the next start copies the changed file, gets one step further
+    and is cut short. A copy of the same migration is named after the ones there are, so the start
+    that gets through stands on the copy taken last, which holds what the NeoAPRS before wrote."""
     from neoaprs.backupfolder import taken_copies
     path = tmp_path / DB_NAME
     a_station(path)
@@ -592,8 +615,10 @@ def test_a_copy_taken_after_the_clock_went_back_is_named_after_the_one_before_an
 
 @pytest.mark.expects_errors
 def test_a_copy_the_file_did_not_come_from_is_not_stood_on_and_not_removed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The file is at a middle version and backup/ holds a whole copy of the old version for the same migration, but of another file (another station's database, one the operator moved in): its
-    history is not the file's. The start makes its own copy of the middle version, and the end of the migration leaves the other one, which the file may be thought to have come from."""
+    """The file is at a middle version and backup/ holds a whole copy of the old version for the
+    same migration, but of another file (another station's database, one the operator moved in): its
+    history is not the file's. The start makes its own copy of the middle version, and the end of
+    the migration leaves the other one, which the file may be thought to have come from."""
     path = tmp_path / DB_NAME
     a_station(path)
     other = tmp_path / "other" / DB_NAME
@@ -642,9 +667,12 @@ def test_the_end_of_a_migration_removes_no_copy_when_its_own_is_not_whole_and_ne
 
 @pytest.mark.expects_errors
 def test_a_disk_short_of_room_because_of_what_a_killed_copy_left_waits_until_that_is_dead_and_migrates(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A kill while the copy was written leaves its temporary file, up to the size of the database, and the restart comes seconds later (a reboot): the sweep keeps a file that young. On a disk with room
-    for the migration but not for that file too, the start would be refused, and the unit does not start a refused daemon again. It waits until the file has been still long enough to be dead, removes
-    it and migrates; a temporary file that changes meanwhile (another process writes its copy) stays and the refusal stands."""
+    """A kill while the copy was written leaves its temporary file, up to the size of the database,
+    and the restart comes seconds later (a reboot): the sweep keeps a file that young. On a disk
+    with room for the migration but not for that file too, the start would be refused, and the unit
+    does not start a refused daemon again. It waits until the file has been still long enough to be
+    dead, removes it and migrates; a temporary file that changes meanwhile (another process writes
+    its copy) stays and the refusal stands."""
     import os
     from neoaprs.backupfolder import LITTER_AGE_SEC
     path = tmp_path / DB_NAME
@@ -670,7 +698,8 @@ def test_a_disk_short_of_room_because_of_what_a_killed_copy_left_waits_until_tha
     monkeypatch.setattr(migrations_module, "_sleep", written_meanwhile)
     with_steps(monkeypatch, v_next)
     note = tmp_path / MIGRATING_NAME
-    note.write_text("migrating\n", encoding="ascii")          # (the note of the start a kill ended seconds ago is fresh: the temporary file may be somebody's)
+    # The note of the start a kill ended seconds ago is fresh: the temporary file may be somebody's
+    note.write_text("migrating\n", encoding="ascii")
     ok, why = try_open(path)
     assert not ok and "MB free" in why and litter.exists() and len(waits) == 1, why
     os.truncate(litter, 4 * MIB)
@@ -684,8 +713,10 @@ def test_a_disk_short_of_room_because_of_what_a_killed_copy_left_waits_until_tha
 
 
 def test_a_start_while_no_other_migration_runs_removes_what_a_killed_copy_left_at_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Every migration keeps its note fresh from before its copy to its end: with no fresh note, the temporary file of a copy in backup/ is of a start a kill ended, however young, and the start
-    that migrates removes it before it copies, without waiting (a station killed again and again in its copy does not gather them)."""
+    """Every migration keeps its note fresh from before its copy to its end: with no fresh note, the
+    temporary file of a copy in backup/ is of a start a kill ended, however young, and the start
+    that migrates removes it before it copies, without waiting (a station killed again and again in
+    its copy does not gather them)."""
     path = tmp_path / DB_NAME
     a_station(path)
     folder = tmp_path / "backup"
@@ -764,7 +795,8 @@ def test_the_litter_of_a_copy_that_a_kill_ended_is_swept_at_the_open(tmp_path: P
 # ---- migration 2: the packets and the stations
 
 def version_one(path: Path, clock: FixedClock) -> None:
-    """A database at schema version 1: the settings table with rows, the history with its one step, user_version 1."""
+    """A database at schema version 1: the settings table with rows, the history with its one step,
+    user_version 1."""
     db = raw(path)
     migrations_module._v1(db)
     db.execute("PRAGMA user_version = 1")
@@ -806,7 +838,8 @@ def test_a_database_of_version_one_gets_the_packet_and_station_tables_and_keeps_
 # ---- migration 3: the messages
 
 def version_two(path: Path, clock: FixedClock) -> None:
-    """A database at schema version 2: the settings, the packets and the stations with rows, user_version 2."""
+    """A database at schema version 2: the settings, the packets and the stations with rows,
+    user_version 2."""
     db = raw(path)
     for number, step in ((1, migrations_module._v1), (2, migrations_module._v2)):
         step(db)
@@ -875,15 +908,17 @@ def test_the_message_table_takes_what_the_program_produces_and_the_index_serves_
 
 
 def say(db: sqlite3.Connection, call: object, path: object, hide: object, stamp: object) -> None:
-    """What a row of PREF_INSERT said of a station, said to a database of now: the timeout is a row of `station_pref` (and so is a station of which nothing is said, for the table to refuse), the path
-    the station's path on radio 1 in `station_path` (migration 33)."""
+    """What a row of PREF_INSERT said of a station, said to a database of now: the timeout is a row
+    of `station_pref` (and so is a station of which nothing is said, for the table to refuse), the
+    path the station's path on radio 1 in `station_path` (migration 33)."""
     if hide is not None or path is None:
         db.execute("INSERT INTO station_pref (call, hide_after_min, updated_at) VALUES (?, ?, ?)", (call, hide, stamp))
     if path is not None:
         db.execute("INSERT INTO station_path (call, radio_id, path, updated_at) VALUES (?, 1, ?, ?)", (call, path, stamp))
 
 
-PREF_INSERT = "INSERT INTO station_pref (call, path, hide_after_min, updated_at) VALUES (?, ?, ?, ?)"         # (a row of the versions before 33, where the path was a column of the table)
+# A row of the versions before 33, where the path was a column of the table
+PREF_INSERT = "INSERT INTO station_pref (call, path, hide_after_min, updated_at) VALUES (?, ?, ?, ?)"
 STAMP = "2026-10-21T12:00:00.000000Z"
 
 
@@ -926,7 +961,8 @@ PATHS = [("OH2RDG", "WIDE1-1,WIDE2-1", "2026-10-21T11:00:00.000000Z"), ("OH2XYZ"
 
 
 def version_three(path: Path, clock: FixedClock) -> None:
-    """A database at schema version 3: settings, a packet, a station, messages of every kind and paths of stations, user_version 3."""
+    """A database at schema version 3: settings, a packet, a station, messages of every kind and
+    paths of stations, user_version 3."""
     version_two(path, clock)
     db = raw(path)
     migrations_module._v3(db)
@@ -956,7 +992,8 @@ def test_a_database_of_version_three_gets_station_pref_in_place_of_station_path_
     assert migrated.db.execute("SELECT key, value FROM settings").fetchall() == [("station/call", "OH2GBA")]
     assert migrated.db.execute("SELECT source FROM packet").fetchall() == [("OH2RDG",)] and migrated.db.execute("SELECT call FROM station").fetchall() == [("OH2RDG",)]
     assert [(r[0], r[1], r[2]) for r in migrated.history()][3:] == [(4, "_v4", GOLDEN[4]), (5, "_v5", GOLDEN[5]), (6, "_v6", GOLDEN[6]), (7, "_v7", GOLDEN[7]), (8, "_v8", GOLDEN[8]), (9, "_v9", GOLDEN[9]), (10, "_v10", GOLDEN[10]), (11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33]), (34, "_v34", GOLDEN[34]), (35, "_v35", GOLDEN[35])]
-    say(migrated.db, "OH2NEW", None, 0, STAMP)                                        # and the new table takes what the old one could not hold
+    # And the new table takes what the old one could not hold
+    say(migrated.db, "OH2NEW", None, 0, STAMP)
     for opened_ in (migrated, fresh):
         opened_.close()
     [copy_path] = sorted((old.parent / "backup").glob("premigrate-v3-to-v*.sqlite"))
@@ -998,7 +1035,8 @@ def test_a_migration_4_that_doubts_changes_nothing_and_leaves_the_paths_where_th
 # ---- migration 5: the number of attempts of a message
 
 def version_four(path: Path, clock: FixedClock) -> None:
-    """A database at schema version 4: messages of every kind (no attempts_max column) and a station preference, user_version 4."""
+    """A database at schema version 4: messages of every kind (no attempts_max column) and a station
+    preference, user_version 4."""
     version_three(path, clock)
     db = raw(path)
     migrations_module._v4(db)
@@ -1058,7 +1096,8 @@ def test_a_message_inserted_without_attempts_max_has_6(tmp_path: Path) -> None:
 # ---- migration 6: how a message reached us
 
 def version_five(path: Path, clock: FixedClock) -> None:
-    """A database at schema version 5: messages of every kind with their attempts_max, no route column, user_version 5."""
+    """A database at schema version 5: messages of every kind with their attempts_max, no route
+    column, user_version 5."""
     version_four(path, clock)
     db = raw(path)
     migrations_module._v5(db)
@@ -1104,7 +1143,8 @@ def test_a_message_inserted_without_a_route_has_none(tmp_path: Path) -> None:
 # ---- migration 7: the message board
 
 def version_six(path: Path, clock: FixedClock) -> None:
-    """A database at schema version 6: messages (with their routes), a station preference, no bulletin table, user_version 6."""
+    """A database at schema version 6: messages (with their routes), a station preference, no
+    bulletin table, user_version 6."""
     version_five(path, clock)
     db = raw(path)
     migrations_module._v6(db)
@@ -1134,7 +1174,8 @@ def test_a_database_of_version_six_gets_the_empty_bulletin_table_and_keeps_the_r
     assert migrated.db.execute("SELECT COUNT(*) FROM bulletin").fetchone() == (0,)
     assert migrated.db.execute("SELECT id, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route FROM message ORDER BY id").fetchall() == rows
     assert [(r[0], r[1], r[2]) for r in migrated.history()][6:] == [(7, "_v7", GOLDEN[7]), (8, "_v8", GOLDEN[8]), (9, "_v9", GOLDEN[9]), (10, "_v10", GOLDEN[10]), (11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33]), (34, "_v34", GOLDEN[34]), (35, "_v35", GOLDEN[35])]
-    migrated.db.execute(BULLETIN_INSERT, ("OH2XYZ", "BLN3HAMS", "HAMS", "Club net tonight", STAMP, LATER, 3))      # and the new table takes what the program produces
+    # And the new table takes what the program produces
+    migrated.db.execute(BULLETIN_INSERT, ("OH2XYZ", "BLN3HAMS", "HAMS", "Club net tonight", STAMP, LATER, 3))
     assert migrated.db.execute("SELECT sender, slot, group_name, text, times_heard FROM bulletin").fetchall() == [("OH2XYZ", "BLN3HAMS", "HAMS", "Club net tonight", 3)]
     for opened_ in (migrated, fresh):
         opened_.close()
@@ -1168,7 +1209,8 @@ def test_the_bulletin_table_keeps_one_row_for_a_sender_and_slot(tmp_path: Path) 
 # ---- migration 8: the weather
 
 def version_seven(path: Path, clock: FixedClock) -> None:
-    """A database at schema version 7: packets (a weather station's among them), a bulletin, no weather table, user_version 7."""
+    """A database at schema version 7: packets (a weather station's among them), a bulletin, no
+    weather table, user_version 7."""
     version_six(path, clock)
     db = raw(path)
     migrations_module._v7(db)
@@ -1203,7 +1245,8 @@ def test_a_database_of_version_seven_gets_the_empty_weather_table_and_keeps_the_
     assert migrated.db.execute("SELECT heard_at, direction, source, kind, summary FROM packet").fetchall() == packets
     assert migrated.db.execute("SELECT sender, slot, text FROM bulletin").fetchall() == bulletins
     assert [(r[0], r[1], r[2]) for r in migrated.history()][7:] == [(8, "_v8", GOLDEN[8]), (9, "_v9", GOLDEN[9]), (10, "_v10", GOLDEN[10]), (11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33]), (34, "_v34", GOLDEN[34]), (35, "_v35", GOLDEN[35])]
-    migrated.db.execute(WEATHER_INSERT, GOOD_WEATHER)                         # and the new table takes what the program produces
+    # And the new table takes what the program produces
+    migrated.db.execute(WEATHER_INSERT, GOOD_WEATHER)
     assert migrated.db.execute("SELECT station, temp_c, luminosity FROM weather").fetchall() == [("OH2MUI", 10.0, None)]
     assert "weather_station_at" in {n for _, n, _ in shape(migrated.db)}
     for opened_ in (migrated, fresh):
@@ -1234,7 +1277,8 @@ def test_the_weather_table_takes_every_field_missing_and_keeps_every_observation
     s = opened(tmp_path / DB_NAME)
     s.db.execute(WEATHER_INSERT, ("OH2MUI", STAMP) + (None,) * 10 + ("",))
     s.db.execute(WEATHER_INSERT, GOOD_WEATHER)
-    s.db.execute(WEATHER_INSERT, GOOD_WEATHER)                                  # a packet that came by two digipeaters is two rows
+    # A packet that came by two digipeaters is two rows
+    s.db.execute(WEATHER_INSERT, GOOD_WEATHER)
     assert s.db.execute("SELECT COUNT(*) FROM weather WHERE station = 'OH2MUI'").fetchone() == (3,)
     assert "weather_station_at" in [r[1] for r in s.db.execute("PRAGMA index_list(weather)")]
     s.close()
@@ -1243,7 +1287,8 @@ def test_the_weather_table_takes_every_field_missing_and_keeps_every_observation
 # ---- migration 9: the attempts of a station
 
 def version_eight(path: Path, clock: FixedClock) -> None:
-    """A database at schema version 8: stations with a path, a timeout or both (no attempts column), messages of every kind, user_version 8."""
+    """A database at schema version 8: stations with a path, a timeout or both (no attempts column),
+    messages of every kind, user_version 8."""
     version_seven(path, clock)
     db = raw(path)
     migrations_module._v8(db)
@@ -1263,7 +1308,8 @@ def test_a_database_of_version_eight_gets_the_attempts_column_empty_for_every_st
     prefs = before.execute("SELECT call, path, hide_after_min, updated_at FROM station_pref ORDER BY call").fetchall()
     before.close()
     assert len(prefs) == 6
-    prefs = [(call, path, None, stamp) for call, path, hide, stamp in prefs if path is not None]       # (migration 17 clears the timeouts and deletes a row that said only that)
+    # Migration 17 clears the timeouts and deletes a row that said only that
+    prefs = [(call, path, None, stamp) for call, path, hide, stamp in prefs if path is not None]
     migrated = opened(old, clock)
     fresh = opened(tmp_path / DB_NAME, clock)
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 9
@@ -1272,7 +1318,8 @@ def test_a_database_of_version_eight_gets_the_attempts_column_empty_for_every_st
     assert migrated.db.execute("SELECT COUNT(*) FROM station_pref WHERE attempts IS NOT NULL").fetchone() == (0,)
     assert migrated.db.execute("SELECT sender, slot FROM bulletin").fetchall() == [("OH2XYZ", "BLN1")]
     assert [(r[0], r[1], r[2]) for r in migrated.history()][8:9] == [(9, "_v9", GOLDEN[9])]
-    migrated.db.execute("INSERT INTO station_pref (call, attempts, updated_at) VALUES ('OH2BOTH', 2, ?)", (STAMP,))        # and the new column takes a count (OH2BOTH said only a path since migration 17: its row is new)
+    # And the new column takes a count (OH2BOTH said only a path since migration 17: its row is new)
+    migrated.db.execute("INSERT INTO station_pref (call, attempts, updated_at) VALUES ('OH2BOTH', 2, ?)", (STAMP,))
     migrated.db.execute("INSERT INTO station_pref (call, attempts, updated_at) VALUES ('EMAIL-2', 2, ?)", (STAMP,))
     assert migrated.db.execute("SELECT call, attempts FROM station_pref WHERE attempts IS NOT NULL ORDER BY call").fetchall() == [("EMAIL-2", 2), ("OH2BOTH", 2)]
     for opened_ in (migrated, fresh):
@@ -1289,7 +1336,8 @@ def test_a_database_of_version_eight_gets_the_attempts_column_empty_for_every_st
 def test_the_station_pref_table_refuses_attempts_the_program_cannot_produce(tmp_path: Path, row: tuple[object, ...], name: str) -> None:
     s = opened(tmp_path / DB_NAME)
     with pytest.raises(sqlite3.IntegrityError, match=name):
-        s.db.execute("INSERT INTO station_pref (call, hide_after_min, attempts, updated_at) VALUES (?1, ?3, ?4, ?5)", row)          # (the second of a row was the path, which is a table of its own since 33)
+        # The second of a row was the path, which is a table of its own since 33
+        s.db.execute("INSERT INTO station_pref (call, hide_after_min, attempts, updated_at) VALUES (?1, ?3, ?4, ?5)", row)
     s.close()
 
 
@@ -1304,7 +1352,8 @@ def test_a_station_may_have_only_attempts(tmp_path: Path, attempts: int) -> None
 # ---- migration 10: the unconfirmed state
 
 def version_nine(path: Path, clock: FixedClock) -> None:
-    """A database at schema version 9: a message of every state and a station with attempts, user_version 9."""
+    """A database at schema version 9: a message of every state and a station with attempts,
+    user_version 9."""
     version_eight(path, clock)
     db = raw(path)
     migrations_module._v9(db)
@@ -1335,7 +1384,8 @@ def test_a_database_of_version_nine_takes_unconfirmed_messages_and_keeps_every_m
     assert migrated.db.execute("SELECT id, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route FROM message ORDER BY id").fetchall() == rows
     assert migrated.db.execute("SELECT call, attempts FROM station_pref WHERE attempts IS NOT NULL").fetchall() == [("EMAIL-2", 2)]
     assert [(r[0], r[1], r[2]) for r in migrated.history()][9:] == [(10, "_v10", GOLDEN[10]), (11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33]), (34, "_v34", GOLDEN[34]), (35, "_v35", GOLDEN[35])]
-    migrated.db.execute(INSERT_MESSAGE, GOOD[:6] + ("unconfirmed",) + GOOD[7:])             # and the new table takes the state
+    # And the new table takes the state
+    migrated.db.execute(INSERT_MESSAGE, GOOD[:6] + ("unconfirmed",) + GOOD[7:])
     assert migrated.db.execute("SELECT state, attempts_max, route FROM message ORDER BY id DESC LIMIT 1").fetchone() == ("unconfirmed", 6, "")
     plan = " ".join(str(r) for r in migrated.db.execute("EXPLAIN QUERY PLAN SELECT id FROM message WHERE to_call = 'OH2RDG' AND from_call = 'OH2GBA' ORDER BY at"))
     assert "message_calls" in plan
@@ -1373,7 +1423,8 @@ def test_a_migration_10_that_doubts_changes_nothing_and_leaves_the_messages_wher
 # ---- migration 11: the delivery chain
 
 def version_ten(path: Path, clock: FixedClock) -> None:
-    """A database at schema version 10: messages of ours that were sent with attempts and one that came in, user_version 10."""
+    """A database at schema version 10: messages of ours that were sent with attempts and one that
+    came in, user_version 10."""
     version_nine(path, clock)
     db = raw(path)
     migrations_module._v10(db)

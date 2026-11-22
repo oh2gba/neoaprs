@@ -1,5 +1,7 @@
-"""The settings that are more than a number, a word or a text: the device globs of the search, the path of the beacon, the antenna's direction, the symbol, a host, the source of the map, the TNC profile. Each is a function from the text of a value to
-the value, raising CodedError with the reason (config.py has the table of the settings)."""
+"""Parsers of the settings that are more than a number, word or text.
+
+Each maps the text of a value to the value, raising CodedError. The table of settings is in
+config.py."""
 import ipaddress
 import re
 from urllib.parse import urlsplit
@@ -13,15 +15,16 @@ from .route import DIRECT_ONLY
 from .tncprofile import hf_profile_of, profile_of
 
 MAX_SERIAL_PATTERN = 500
-MAX_MAP_SOURCE = 500                 # the longest map/source
-MAX_PASSCODE = 32767                 # an APRS-IS passcode is 15 bits
+MAX_MAP_SOURCE = 500
+MAX_PASSCODE = 32767  # an APRS-IS passcode has 15 bits
 SYMBOL_TABLES = "/\\" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-PORT_SCHEMES = ("socket", "tcp", "bt", "ble")      # the address forms of a port that the program means (serialport.py); every other scheme pyserial knows is refused
-ANTENNA_DIRECTIONS = ("omni", "NE", "E", "SE", "S", "SW", "W", "NW", "N")      # in the order of the specification's directivity digit: 0 omni, 1 NE ... 7 NW, 8 N
+PORT_SCHEMES = ("socket", "tcp", "bt", "ble")
+# In the order of the spec's directivity digit: 0 omni, 1 NE ... 7 NW, 8 N.
+ANTENNA_DIRECTIONS = ("omni", "NE", "E", "SE", "S", "SW", "W", "NW", "N")
 
 
 def device_globs(text: str) -> str:
-    """One or more device globs, each an absolute path, separated by spaces (written with single spaces)."""
+    """Return absolute device globs separated by single spaces."""
     parts = text.split()
     if not parts or any(not part.startswith("/") for part in parts):
         raise CodedError(f"{text!r} is not one or more absolute patterns separated by spaces, such as /dev/ttyUSB*", "setting.not_globs", value=text)
@@ -29,27 +32,26 @@ def device_globs(text: str) -> str:
 
 
 def port_scheme(address: str) -> str:
-    """The address of a port as it was given, when it is a device path (no `://` in it) or one of the four forms the program means (`socket://`, `tcp://`, `bt://`, `ble://`, in any case, as pyserial reads the scheme);
-    else a CodedError. pyserial has more schemes (`spy://` writes a file of the sender's choice the moment the port is made), so a port is never handed to it unchecked."""
+    """Return the address if it is a device path or a socket, tcp, bt or ble URL, else raise.
+
+    Other pyserial schemes (`spy://` writes a file) must never be reached."""
     if "://" in address and address.lower().split("://", 1)[0] not in PORT_SCHEMES:
         raise CodedError(f"{address!r} is not an address or a name", "setting.not_host", value=address)
     return address
 
 
 def port_address(text: str) -> str:
-    """The value of serial/port, serial/last_port and gps/device: empty, a device path or an address of a port (port_scheme), at most 255 printable characters."""
     return port_scheme(text_of(255)(text))
 
 
 def digipeater_path(text: str) -> str:
-    """A list of digipeater calls separated by commas, each checked as a call; written the way the frame carries it (capitals, no blanks). Empty is the recommended path of the station's symbol, DIRECT alone
-    is no digipeaters at all."""
+    """Return comma-separated digipeater calls; empty is the recommended path, DIRECT none."""
     calls = path_choice(text)
     return "" if calls is None else DIRECT_ONLY if not calls else ",".join(calls)
 
 
 def antenna_direction(text: str) -> str:
-    """"omni" or a point of the compass (N NE E SE S SW W NW), written the way the setting keeps it."""
+    """Return "omni" or a compass point (N NE E SE S SW W NW) as kept."""
     word = text.strip()
     if word.lower() == "omni":
         return "omni"
@@ -77,13 +79,13 @@ def host_name(text: str) -> str:
     return value
 
 
-DNS_LABEL = re.compile(r"[A-Za-z0-9_](?:[A-Za-z0-9_-]{0,61}[A-Za-z0-9_])?")      # (an underscore too: a name of a local network may have one, and a browser sends it)
+# Underscores allowed: local names have them.
+DNS_LABEL = re.compile(r"[A-Za-z0-9_](?:[A-Za-z0-9_-]{0,61}[A-Za-z0-9_])?")
 MAX_DNS_NAME = 253
-MAX_HOSTS = 500                      # the longest web/allowed_hosts
+MAX_HOSTS = 500
 
 
 def is_host(text: str) -> bool:
-    """Whether `text` is a DNS name (labels of letters, digits, hyphens and underscores between dots, at most 253 characters), an IPv4 address or an IPv6 address, with or without the brackets a Host header puts round it."""
     name = text[1:-1] if text.startswith("[") and text.endswith("]") else text
     try:
         ipaddress.ip_address(name)
@@ -94,7 +96,6 @@ def is_host(text: str) -> bool:
 
 
 def host_list(text: str) -> str:
-    """The value of web/allowed_hosts: empty, or host names and IP addresses (is_host) separated by commas (blanks beside a comma stay as they were written), without blanks at the ends."""
     value = text.strip()
     if len(value) > MAX_HOSTS:
         raise CodedError(f"{text!r} is not a list of addresses or names", "setting.not_host", value=text)
@@ -106,8 +107,7 @@ def host_list(text: str) -> str:
 
 
 def map_source(text: str) -> str:
-    """Empty (the latest daily build of build.protomaps.com), a web address (http or https) or a path of a PMTiles file, which may have blanks in it; never a
-    control character, nor a value that starts with a dash."""
+    """Return map/source: empty, an http(s) address or a PMTiles file path."""
     value = text.strip()
     if value == "":
         return ""
@@ -119,22 +119,19 @@ def map_source(text: str) -> str:
 
 
 def tnc_profile(text: str) -> str:
-    """The key of a TNC profile (tncprofile.py), written the way the setting keeps it."""
     return profile_of(text).key
 
 
 def hf_profile(text: str) -> str:
-    """The key of a type of the HF radio (tncprofile.py: HF_PROFILES), written the way the setting keeps it."""
     return hf_profile_of(text).key
 
 
 def mercury_keying(text: str) -> str:
-    """How the Mercury modem keys the radio (mercury.py): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`, written the way the setting keeps it; empty for the daemon's own choice from what it finds."""
+    """Return how the modem keys the radio (`vox`, `cm108`, `rts:PORT`, `dtr:PORT`); empty: auto."""
     return keying_of(text).text if text.strip() else ""
 
 
 def aprsis_server(text: str) -> str:
-    """"host:port" of an APRS-IS server (14580 is the port of the filtered feed that iGates use), or empty for none."""
     try:
         return hostport(text)
     except CodedError:
@@ -142,7 +139,7 @@ def aprsis_server(text: str) -> str:
 
 
 def passcode(text: str) -> str:
-    """The APRS-IS passcode of the call, as digits (0 to 32767), or empty for none yet (NeoAPRS does not work it out: the operator requests it). -1 is the login that only reads and puts nothing on APRS-IS, so an iGate does not take it."""
+    """Return the APRS-IS passcode as digits, or "" for none; refuse -1 (read-only login)."""
     value = text.strip()
     if value == "-1":
         raise CodedError("-1 is the passcode for reading only; an iGate needs the passcode of its call", "setting.passcode_read_only", value=text)

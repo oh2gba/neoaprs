@@ -1,4 +1,5 @@
-"""How a connection to the database file is set up (neoaprs/dbfile.py), the transaction helper of the tools, the whole checked copy, and the limits of the write-ahead log (neoaprs/walcare.py)."""
+"""How a connection to the database file is set up (neoaprs/dbfile.py), the transaction helper of
+the tools, the whole checked copy, and the limits of the write-ahead log (neoaprs/walcare.py)."""
 import os
 import sqlite3
 import sys
@@ -19,7 +20,8 @@ def test_a_connection_is_wal_synchronous_full_with_the_busy_time_and_a_private_f
     assert values == ["wal", 2, 1234, walcare.WAL_LIMIT_BYTES, walcare.AUTOCHECKPOINT_PAGES]
     assert DEFAULT_BUSY_MS == 30000
     if sys.platform != "win32":
-        assert (path.stat().st_mode & 0o777) == 0o600       # (Windows has no mode bits: the folder of the user is the privacy)
+        # (Windows has no mode bits: the folder of the user is the privacy)
+        assert (path.stat().st_mode & 0o777) == 0o600
     db.close()
 
 

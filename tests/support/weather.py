@@ -1,7 +1,5 @@
-"""Weather packets for the tests: a packet as the TNC makes it, with the real report of OH2MUI as the default, and the same packet with the weather kept as plain comment text.
-
-    report("t050", "OH2NJR", at)        # a position with the weather symbol; `old=True` is the packet with the weather as plain comment text
-    heard(b"_10090556t050", "OH2NJR")   # any information field, third-party wrappers included
+"""Weather packets for the tests: a packet as the TNC makes it, and the same packet with the weather
+as plain comment text.
 """
 from datetime import datetime
 

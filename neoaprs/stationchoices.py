@@ -1,6 +1,8 @@
-"""The operator's radio by station (plan §2, "A choice that names a radio which is off or gone"): chosen on the page, told to the page with the station, kept in a state row (config.MESSAGE_RADIOS, which the
-composition root writes) and put back on the stations of the book at the start; a call the book does not hold keeps its choice by call (plan rule 3.2), until it is forgotten. A choice is a radio's id, and the
-row keeps the ids since migration 31 (`{"OH2GAX-2": 2}`). The radio registry (neoaprs/radioregistry.py) is one of these with the radios it has as the ones that can be chosen (`known`). No I/O."""
+"""The operator's radio per station (plan section 2).
+
+Kept in a state row (config.MESSAGE_RADIOS) as radio ids (`{"OH2GAX-2": 2}`); a call the book
+does not hold keeps its choice by call until forgotten. No I/O.
+"""
 import json
 from collections.abc import Awaitable, Callable
 
@@ -11,18 +13,23 @@ from .stationbook import StationBook
 class StationChoices:
     def __init__(self, book: StationBook, remember: Callable[[str], None] = lambda text: None, flush: Callable[[], Awaitable[None]] | None = None, *, known: Callable[[RadioId], bool]) -> None:
         self._book = book
-        self._remember, self._wait_written = remember, flush                     # keep the choices (the state row), and wait for it
-        self._known = known                                                       # whether a radio can be chosen: one the registry has
-        self._choices: dict[str, RadioId] = {}                                    # the choices in force, by call: what the row says (a station the book lets go takes its choice with it)
+        # keep the choices (the state row); wait for it
+        self._remember, self._wait_written = remember, flush
+        self._known = known  # whether a radio can be chosen: one the registry has
+        # the choices in force, by call: what the row says (a station the book lets go takes its
+        # choice with it)
+        self._choices: dict[str, RadioId] = {}
 
     def choice(self, call: str) -> RadioId | None:
-        """The radio the operator chose for messages to the station, as it is stored, for a call the book holds or not; None for the daemon's own choice."""
+        """Return the radio the operator chose for messages to the station, or None."""
         station = self._book.get(call)
         return self._choices.get(call if station is None else station.call)
 
     def choose(self, call: str, radio: RadioId | None) -> bool:
-        """The radio messages to the station go out on from now on (None gives the choice back to the daemon), told to the page with the station and kept across a restart; False for a radio that
-        cannot be chosen. A call the book does not hold keeps its choice by call (plan rule 3.2), and its station has it once it is heard."""
+        """Set the radio messages to the station go out on (None: the daemon chooses).
+
+        Return False for a radio that cannot be chosen.
+        """
         station = self._book.get(call)
         if radio is not None and not self._known(radio):
             return False
@@ -37,7 +44,7 @@ class StationChoices:
         return True
 
     def forget(self, call: str) -> None:
-        """The book let the station go (Forget, the daily prune): its choice goes too, from the row as well, so that a restart does not bring it back to a station heard again meanwhile."""
+        """The book let the station go (Forget, the daily prune): its choice goes too."""
         if self._choices.pop(call, None) is not None:
             self._remember(self.choices_text())
 
@@ -48,8 +55,10 @@ class StationChoices:
             self._remember(self.choices_text())
 
     def forget_radio(self, radio: RadioId) -> list[str]:
-        """The radio was removed: every station's choice of it is the daemon's own again, told to the page with the station; the calls. The row is not written: the removal took the radio out of it in its
-        own transaction (radiosql.remove_radio)."""
+        """The radio was removed: choices of it revert to the daemon's.
+
+        The row is not written: radiosql.remove_radio took the radio out of it.
+        """
         calls = [call for call, id in self._choices.items() if id == radio]
         for call in calls:
             del self._choices[call]
@@ -59,17 +68,16 @@ class StationChoices:
         return calls
 
     def choices_text(self) -> str:
-        """The choices by call, as the state row keeps them: by id (`{"OH2GAX-2": 2}`)."""
+        """Return the choices by call as the state row keeps them: by id (`{"OH2GAX-2": 2}`)."""
         return json.dumps(self._choices, sort_keys=True)
 
     async def flush(self) -> None:
-        """Waits until a choice being written is written (the stop)."""
+        """Wait until a choice being written is written (the stop)."""
         if self._wait_written is not None:
             await self._wait_written()
 
     def restore(self, text: str | None) -> None:
-        """The choices kept in the state row, on the stations of the book (at the start, once the book is seeded): an id, or today's word of radios 1 and 2 (a row of before); a row that is not one, and a
-        radio that cannot be chosen, is no choice."""
+        """Put the choices kept in the state row on the stations of the book (at the start)."""
         try:
             kept = json.loads(text or "{}")
         except ValueError:

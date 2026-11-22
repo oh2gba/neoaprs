@@ -1,7 +1,7 @@
-"""A radio of the Sound card type in the daemon (neoaprs/direwolfdriver.py, the registry's "direwolf" driver), against the made-up Direwolf of tests/support/fakedirewolf.py: the driver starts Direwolf and then the
-line to its KISS port, a frame of ours goes out keyed and the frame heard comes back as a packet, with its level in the radio's row; a change of the card or the keying restarts the radio and the transmit level does
-not; the radio's row says the Mercury modem holds its card, with the holder's name; on the wire the type is offered, added and refused where its program is not carried, and Tune on it is refused while it is not
-running; and under the no-devices switch no Direwolf is started and its line has no port."""
+"""Tests for the Sound card radio driver (neoaprs/direwolfdriver.py) against the fake Direwolf of
+tests/support/fakedirewolf.py: start, frames in and out, restarts on card or keying change, the
+radio's row, the wire, and the no-devices switch.
+"""
 import asyncio
 import logging
 from dataclasses import replace
@@ -42,7 +42,9 @@ ROW = TypeAdapter(RadioRow)
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(direwolfmodem, "FIRST_PORT", base_of_this_test())
-    monkeypatch.setattr(direwolfmodem, "_numbers_of", lambda name: (1, 1))    # (Windows: the made-up cards are the second input and output of the made-up Direwolf's WinMM lists, test_direwolf_modem.py)
+    # (Windows: the made-up cards are the second input and output of the made-up Direwolf's WinMM
+    # lists, test_direwolf_modem.py)
+    monkeypatch.setattr(direwolfmodem, "_numbers_of", lambda name: (1, 1))
 
 
 def spec(id: int = 3, **settings: str) -> RadioSpec:
@@ -53,7 +55,8 @@ def driver_of(tmp_path: Path, claims: Claims | None = None, radio: RadioSpec | N
     radio = radio if radio is not None else spec()
     driver = make_driver(radio, claims if claims is not None else Claims(), utcnow, tmp_path)
     assert isinstance(driver, DirewolfDriver)
-    driver.modem._finder, driver.modem._lister, driver.modem.backoff = fakedirewolf.program, fakemercury.program, Backoff([0.1, 0.1])     # (the made-up programs in the place of the shipped ones)
+    # (the made-up programs in the place of the shipped ones)
+    driver.modem._finder, driver.modem._lister, driver.modem.backoff = fakedirewolf.program, fakemercury.program, Backoff([0.1, 0.1])
     driver.modem.ports = lambda: []
     driver.line.backoff = Backoff([0.05, 0.05])
     driver.configure(radio, DEFAULTS, RunOverrides(check_sec=0.0))
@@ -80,14 +83,18 @@ async def test_the_driver_starts_direwolf_then_its_line_and_a_frame_of_ours_goes
 
 
 async def test_the_line_is_opened_once_though_direwolf_says_ready_again_at_every_client_that_attaches(tmp_path: Path) -> None:
-    """Direwolf says "Ready to accept KISS TCP client application N" not only when it starts: again after every client that attaches, and when one leaves (kissnet.c; the made-up one speaks the same). Taken as a
-    start, each of them pointed the line at the port again (wiring.py ties the modem's `ports_changed` to the registry's repoint), which made Direwolf say it again: the line was opened three times a second for ever
-    (0.20.0 and 0.20.1, on every station with a Sound card radio)."""
+    """Direwolf says "Ready to accept KISS TCP client application N" not only when it starts but
+    after every client that attaches or leaves (kissnet.c; the made-up one does the same). Taken as
+    a start, each of them pointed the line at the port again (wiring.py ties the modem's
+    `ports_changed` to the registry's repoint), which made Direwolf say it again, so the line was
+    opened endlessly."""
     driver = driver_of(tmp_path)
     told: list[int] = []
     tasks: set[asyncio.Task[None]] = set()
 
-    async def repoint() -> None:                                     # (radioregistry.repoint: the line alone is stopped, takes the modem's port again and is started)
+    # (radioregistry.repoint: the line alone is stopped, takes the modem's port again and is
+    # started)
+    async def repoint() -> None:
         await driver.line.stop()
         driver.configure(spec(), DEFAULTS, RunOverrides(check_sec=0.0))
         await driver.line.start()
@@ -123,7 +130,9 @@ async def test_two_sound_card_radios_side_by_side_each_run_their_own_direwolf_fr
         first = attic.modem.pid
         await shack.start()
         await until_started(lambda: shack.line.state is Source.State.CONNECTED)
-        await asyncio.sleep(0.5)                                     # (the time a Direwolf ended by the other's start would take to be started again after its back-off)
+        # (the time a Direwolf ended by the other's start would take to be started again after its
+        # back-off)
+        await asyncio.sleep(0.5)
         assert (attic.modem.state, attic.modem.pid, shack.modem.state) == ("running", first, "running"), "the second radio's start ended no Direwolf of the first"
         assert attic.modem.kiss_port != shack.modem.kiss_port
         for driver, card in ((attic, CARD), (shack, "plughw:2,0")):
@@ -171,7 +180,9 @@ async def test_under_the_no_devices_switch_no_daemon_starts_a_direwolf(tmp_path:
 
 
 async def test_a_sound_card_radio_whose_direwolf_is_not_in_this_installation_has_no_line_and_says_so_once(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """Whatever listens where a Direwolf of ours would be (here the test's own listener on the modem's port as it stands before any start) is not ours: it is never connected to, and a later start re-points."""
+    """Whatever listens where a Direwolf of ours would be (here the test's own listener on the
+    modem's port as it stands before any start) is not ours: it is never connected to, and a later
+    start re-points."""
     accepted: list[int] = []
     other = await asyncio.start_server(lambda r, w: accepted.append(1) or w.close(), "127.0.0.1", 0)
     driver = driver_of(tmp_path)
@@ -196,8 +207,10 @@ async def test_a_sound_card_radio_whose_direwolf_is_not_in_this_installation_has
 
 
 async def test_a_sound_card_radio_whose_start_is_refused_never_reaches_the_direwolf_of_another_radio_and_follows_its_own_once_it_runs(tmp_path: Path) -> None:
-    """Radio 3 is set to the card radio 2 runs on: its start is refused before it chose a port, and the port it stood on is where radio 2's Direwolf listens. Its line has no port, so nothing of radio 3
-    is keyed by radio 2's Direwolf; once the card is free, the start tried again points it at a Direwolf of its own (`ports_changed`, as wiring.py ties it to the registry's repoint)."""
+    """Radio 3 is set to the card radio 2 runs on: its start is refused before it chose a port, and
+    the port it stood on is where radio 2's Direwolf listens. Its line has no port, so nothing of
+    radio 3 is keyed by radio 2's Direwolf; once the card is free, the start tried again points it
+    at a Direwolf of its own (`ports_changed`, as wiring.py ties it to the registry's repoint)."""
     claims = Claims()
     first, second = driver_of(tmp_path / "a", claims, spec(2)), driver_of(tmp_path / "b", claims, spec(3))
     tasks: set[asyncio.Task[None]] = set()
@@ -211,7 +224,8 @@ async def test_a_sound_card_radio_whose_start_is_refused_never_reaches_the_direw
     try:
         await first.start()
         await until_started(lambda: first.line.state is Source.State.CONNECTED)
-        second.modem.kiss_port = first.modem.kiss_port                                 # (where it stood before any start: FIRST_PORT, the first radio's)
+        # (where it stood before any start: FIRST_PORT, the first radio's)
+        second.modem.kiss_port = first.modem.kiss_port
         await second.start()
         assert (second.modem.state, second.modem.reason) == ("waiting", "not_started") and second.line.port == "", "no port before the modem chose one"
         await idle_for(0.3)
@@ -227,7 +241,9 @@ async def test_a_sound_card_radio_whose_start_is_refused_never_reaches_the_direw
 
 
 async def test_the_type_is_offered_and_added_on_the_wire_and_tune_on_it_waits_for_its_modem(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)             # (an installation that carries Direwolf; the radio's modem finds none all the same, as this checkout has none)
+    # (an installation that carries Direwolf; the radio's modem finds none all the same, as this
+    # checkout has none)
+    monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)
     e, page = await started(tmp_path)
     id = await added(page, "direwolf", "Shack")
     await page.until(lambda: bool(page.of("status")), timeout=12)
@@ -243,7 +259,8 @@ async def test_the_type_is_offered_and_added_on_the_wire_and_tune_on_it_waits_fo
 
 
 async def test_where_direwolf_is_not_carried_the_type_is_not_offered_and_not_added(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(radiotypes, "sys", SimpleNamespace(platform="darwin"))     # (a Mac, to the types alone: the daemon itself runs as this system does)
+    # (a Mac, to the types alone: the daemon itself runs as this system does)
+    monkeypatch.setattr(radiotypes, "sys", SimpleNamespace(platform="darwin"))
     e, page = await started(tmp_path)
     try:
         await page.until(lambda: bool(page.of("status")) and page.of("status")[-1]["unavailable_types"] == ["direwolf"], timeout=12)
@@ -271,7 +288,8 @@ def test_a_type_whose_program_this_installation_does_not_carry_is_not_offered_bu
 
 def test_while_tune_or_the_keying_test_has_the_radio_its_row_shows_the_test_and_no_problem(tmp_path: Path) -> None:
     driver = driver_of(tmp_path)
-    driver.modem.state, driver.modem.test = "running", "tune"                 # (the radio's Direwolf is stopped for the calibration run: its line is down meanwhile)
+    # (the radio's Direwolf is stopped for the calibration run: its line is down meanwhile)
+    driver.modem.state, driver.modem.test = "running", "tune"
     row = radio_row(spec(), (spec(),), SimpleNamespace(line=driver.line, beacon=None, driver=driver), Claims())
     assert row is not None and row["problem"] is None and (row["modem"]["test"], row["modem"]["keyed"]) == ("tune", True)
     driver.modem.test = ""
@@ -280,7 +298,8 @@ def test_while_tune_or_the_keying_test_has_the_radio_its_row_shows_the_test_and_
 
 
 async def test_a_sound_card_radios_own_choice_of_keying_never_takes_a_port_another_radio_is_set_to_though_none_has_opened_it(tmp_path: Path) -> None:
-    """The card's interface has one CP2102 (a Digirig): it keys by its RTS, unless another radio is set to that port (radio 1's TNC, not started yet: not held, only named), when it keys by VOX."""
+    """The card's interface has one CP2102 (a Digirig): it keys by its RTS, unless another radio is
+    set to that port (radio 1's TNC, not started yet: not held, only named), when it keys by VOX."""
     digirig = SerialPort("/dev/ttyUSB0", 0x10C4, 0xEA60)
     for other_port, keyed in (("/dev/ttyUSB7", Keying("rts", "/dev/ttyUSB0")), ("/dev/ttyUSB0", Keying("vox"))):
         tnc = RadioSpec(1, "fm", "kiss", "", True, 1, settings={"port": other_port})

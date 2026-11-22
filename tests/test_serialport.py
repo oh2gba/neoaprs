@@ -1,6 +1,7 @@
-"""The serial port (neoaprs/serialport.py, serialprobe.py, serialholders.py) on a fake radio (a TCP server on the loopback, tests/support/fakeradio.py), which runs the same on every system, and with stand-ins for the
-pyserial object where a failure has to be made: reading and writing through the threads, the line settings, the open in a thread, a line that dies, the list of ports, the search (`probe`: with radios side by side it never touches a port another radio of the station holds, `claimed`, nor one on the skip list) and the guard that keeps a
-test away from the radio's device files. What is about a real device file (the lock, a vanished device, the holders in /proc, the globs) is in tests/test_serialport_pty.py."""
+"""The serial port (neoaprs/serialport.py, serialprobe.py, serialholders.py) on a fake TCP radio and
+with pyserial stand-ins where a failure must be made: threaded reads and writes, line settings, the
+open, a dying line.
+"""
 import asyncio
 import logging
 import os
@@ -134,7 +135,8 @@ async def test_writing_to_a_port_that_is_not_open_is_an_error(radios: Radios) ->
 
 @pytest.mark.parametrize("module", ["serialport", "serialprobe", "serialholders", "tnc", "tncsearch"])
 def test_the_serial_layer_has_no_descriptor_for_the_loop_and_no_terminal_calls(module: str) -> None:
-    """Windows has no fcntl, termios or select on a handle, and its loop cannot wait for a serial handle: the layer reads and writes in threads, whatever the system."""
+    """Windows has no fcntl, termios or select on a handle, and its loop cannot wait for a serial
+    handle: the layer reads and writes in threads, whatever the system."""
     text = (ROOT / "neoaprs" / f"{module}.py").read_text(encoding="utf-8")
     for name in ("import fcntl", "import termios", "import select", "add_reader", "remove_reader", "TIOCEXCL", "fileno"):
         assert name not in text, f"{module}.py uses {name}"
@@ -255,7 +257,9 @@ async def test_a_closed_port_can_be_opened_again(radios: Radios) -> None:
     port.close()
     await port.open()
     try:
-        await until(lambda: radio.connections == 2 and radio.clients == 1)         # (the second connection, and the first one gone: else the radio would speak to the one that is closing)
+        # The second connection, and the first one gone: else the radio would speak to the one that
+        # is closing
+        await until(lambda: radio.connections == 2 and radio.clients == 1)
         radio.feed(b"again")
         await until(lambda: b"".join(chunks) == b"again")
     finally:
@@ -315,7 +319,8 @@ async def test_an_open_that_is_cancelled_leaves_no_port_open(monkeypatch: pytest
 
 
 async def test_a_close_while_the_port_is_being_opened_leaves_it_closed_and_a_search_lets_go_of_a_port_it_is_opening(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A radio whose settings name a port a search is opening at that moment opens it next: the search's open must not end with the port held."""
+    """A radio whose settings name a port a search is opening at that moment opens it next: the
+    search's open must not end with the port held."""
     ser = SlowSer(0.3)
     monkeypatch.setattr(serialport, "_build", lambda path, baud: ser)
     port = SerialPort("COM9")
@@ -327,7 +332,8 @@ async def test_a_close_while_the_port_is_being_opened_leaves_it_closed_and_a_sea
     assert not port.is_open and ser.closed.is_set()
     ser = SlowSer(0.3)
     listener = serialprobe._Listener("COM8", 9600, lambda heard: False, asyncio.Event())
-    monkeypatch.setitem(serialprobe.LISTENING, port_key("COM8"), SerialPort("COM8"))          # (a search's earlier port of that name, closed)
+    # A search's earlier port of that name, closed
+    monkeypatch.setitem(serialprobe.LISTENING, port_key("COM8"), SerialPort("COM8"))
     task = asyncio.get_running_loop().create_task(serialprobe._open_one(listener, logging.DEBUG))
     await until(ser.opening.is_set)
     tncsearch.let_go("COM8")
@@ -648,9 +654,12 @@ async def test_probe_sends_the_nudge_to_every_port_once_after_the_wait(radios: R
 
 async def test_a_nudge_is_not_needed_when_a_port_has_already_talked(radios: Radios) -> None:
     radio = await one(radios)
-    talker = asyncio.get_running_loop().create_task(keep_feeding(radio, b"x"))          # (a line that talks: what is waiting at the moment a port is opened is thrown away, so one byte at the connect can be lost)
+    # A line that talks: what is waiting at the moment a port is opened is thrown away, so one byte
+    # at the connect can be lost
+    talker = asyncio.get_running_loop().create_task(keep_feeding(radio, b"x"))
     try:
-        assert await probe([radio.url], 9600, 20.0, lambda data: bool(data), nudge=b"\r", nudge_after_sec=10.0) == radio.url          # (it ends at the first byte: the long times are for a runner that is slow to open the port)
+        # It ends at the first byte: the long times are for a runner that is slow to open the port
+        assert await probe([radio.url], 9600, 20.0, lambda data: bool(data), nudge=b"\r", nudge_after_sec=10.0) == radio.url
     finally:
         await stop_feeding(talker)
     assert await radio.said(1, 0.3) == b""
@@ -667,7 +676,8 @@ async def test_a_port_whose_nudge_fails_is_dropped_and_the_search_goes_on(radios
 
     monkeypatch.setattr(SerialPort, "write", write)
     loop = asyncio.get_running_loop()
-    loop.call_later(0.3, bad.feed, b"ok")                                       # a dropped port is not listened to any more
+    # A dropped port is not listened to any more
+    loop.call_later(0.3, bad.feed, b"ok")
     loop.call_later(0.4, good.feed, b"ok")
     with caplog.at_level(logging.INFO, logger="neoaprs.serialport"):
         assert await probe([bad.url, good.url], 9600, 2.0, lambda data: data == b"ok", nudge=b"\r", nudge_after_sec=0.1) == good.url
@@ -699,7 +709,8 @@ async def test_cancelling_the_probe_during_the_opens_leaves_no_port_open(radios:
     pair = await radios(2)
     real_build = serialport._build
     opening = threading.Semaphore(0)
-    counts = {"begun": 0, "ended": 0}                                          # (the opens that began, and those that came back from the port)
+    # The opens that began, and those that came back from the port
+    counts = {"begun": 0, "ended": 0}
 
     def slow(path: str, baud: int) -> Any:
         ser = real_build(path, baud)
@@ -724,7 +735,8 @@ async def test_cancelling_the_probe_during_the_opens_leaves_no_port_open(radios:
     with pytest.raises(asyncio.CancelledError):
         await task
     await until(lambda: counts["ended"] == counts["begun"], 30.0)          # (the slow opens finish in their threads)
-    await until(lambda: all(r.clients == 0 for r in pair), 30.0)          # (and no port may be left open after them: each is closed, a socket's close takes its time)
+    # And no port may be left open after them: each is closed, a socket's close takes its time
+    await until(lambda: all(r.clients == 0 for r in pair), 30.0)
 
 
 @pytest.mark.parametrize("listed_as, skipped", [("socket://{}", "SOCKET://{}"), ("tcp://{}", "socket://{}"), ("socket://{}", "tcp://{}")])
@@ -757,7 +769,8 @@ async def test_probe_never_touches_a_port_another_radio_holds_however_it_is_writ
 
 
 def test_a_claim_of_a_port_is_the_device_by_what_it_is_and_a_kiss_tcp_address_is_none(tmp_path: Path) -> None:
-    if sys.platform == "win32":                                            # (a port there is a name, not a file: no link to follow)
+    # A port there is a name, not a file: no link to follow
+    if sys.platform == "win32":
         assert claim_value("com3") == claim_value("\\\\.\\COM3") == port_key("COM3") == "COM3", "two names of one device are one claim"
     else:
         device = tmp_path / "ttyUSB0"
@@ -785,7 +798,8 @@ def test_the_guard_refuses_and_remembers_the_radios_device_files_even_when_the_e
         for path in ("/dev/brainbox_1", "/dev/brainbox_4", "/dev/ttyS0", "/dev/ttyUSB3", "/dev/tty", b"/dev/ttyACM0"):
             with pytest.raises(guards.RadioTouched):
                 os.open(path, os.O_RDWR)
-        with pytest.raises(serial.SerialException):              # pyserial words the refusal as its own error; the guard has remembered it all the same
+        # Pyserial words the refusal as its own error; the guard has remembered it all the same
+        with pytest.raises(serial.SerialException):
             serial.Serial("/dev/brainbox_2")
     assert radio.refused == ["/dev/brainbox_1", "/dev/brainbox_4", "/dev/ttyS0", "/dev/ttyUSB3", "/dev/tty", "/dev/ttyACM0", "/dev/brainbox_2"]
 

@@ -1,6 +1,7 @@
-"""The one fit function (services/radioset.py `fit`, plan §2) on radios of the types as a test writes them (tests/support/seamshapes.py): the path is dropped on a radio that may carry none, the radio's own path is
-taken when none is given (the recommended path of the station's symbol when it is empty, none for DIRECT), the comment is cut to the 123 bytes of the Mercury radio and the report itself never, a radio with a frame cap
-and a path cuts the comment by what the path takes too, and what makes no frame is a SendError. The sender builds every frame of ours by it, for the radio it goes on."""
+"""Tests for `fit` (services/radioset.py) on radio types as tests write them
+(tests/support/seamshapes.py): path dropping, default path, comment cutting to the frame limit, and
+SendError for what makes no frame.
+"""
 import logging
 from dataclasses import replace
 

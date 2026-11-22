@@ -1,5 +1,7 @@
-"""The cap on the web server's connections (neoaprs/web/connections.py) with streams of made-up addresses: so many from one address, so many in all, the place that is made for whoever has the fewest, a
-connection that has proved a token that is never the one that goes, and the book of addresses that does not grow for ever. The loopback is every visitor at once: a proxy on this computer has no cap of its own."""
+"""The cap on the web server's connections (neoaprs/web/connections.py) with streams of made-up
+addresses: per address and in total, the place made for whoever has the fewest, and an address book
+that does not grow forever.
+"""
 import asyncio
 import socket
 from collections.abc import Iterator
@@ -19,7 +21,8 @@ def server() -> Iterator[LimitedHTTPServer]:
 
 
 class Peers:
-    """Streams of made-up addresses: each is one end of a socket pair that nobody writes to (the other end is kept so that the stream stays open)."""
+    """Streams of made-up addresses: each is one end of a socket pair that nobody writes to (the
+    other end is kept so that the stream stays open)."""
 
     def __init__(self, server: LimitedHTTPServer) -> None:
         self.server = server
@@ -90,7 +93,8 @@ async def test_a_connection_that_has_proved_a_token_is_never_closed_to_make_room
     newcomer = peers.come("10.0.0.3")
     assert newcomer.closed() and not any(s.closed() for s in greedy + [other]), "every connection of the biggest address is a page that was let in: nobody goes"
     greedy[0].close()
-    server.proved(other)                                              # (a proof also forgets the proved sockets that are closed)
+    # A proof also forgets the proved sockets that are closed
+    server.proved(other)
     assert server._proved == {greedy[1], greedy[2], other}
 
 

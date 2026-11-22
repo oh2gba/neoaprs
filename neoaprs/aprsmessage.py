@@ -1,32 +1,27 @@
-"""APRS messages: the addressee, the text, the message id, acks and rejects, and the reply-ack.
+"""APRS messages: addressee, text, message id, acks and rejects, and the reply-ack `{MM}AA`."""
 
-`parse_message` takes the bytes that follow the data type identifier ":" and `format_message` and `format_ack` make the same kind of bytes (the caller puts the ":" in front).
-
-A reply-ack (WB4APR's addendum of December 1999) is a message number of the form `{MM}AA`: `MM` is the number of the message and `AA` the number of a message the sender has received from the addressee and
-not yet acknowledged by a frame of its own, so that the acknowledgement rides on the next message; `{MM}` alone says the sender knows the form. `parse_message` gives the message its `MM` and the text before
-the brace; `reply_ack_of` reads the rest. The ack of such a message is the exact copy of its number, `ackMM}AA` or `ackMM}`, and the id of an ack it takes is the `MM` before the brace."""
 import re
 
 from neoaprs.coded import CodedError
 from neoaprs.packet import Message, decode_text
 
 _ADDRESSEE_LEN = 9
-MAX_ID = 5                                           # characters of a message number
+MAX_ID = 5
 _ID_CHARS = "[A-Za-z0-9]"
 _ID = re.compile(f"{_ID_CHARS}{{1,{MAX_ID}}}")
-_NUMBER = re.compile(rf"\{{({_ID_CHARS}{{1,{MAX_ID}}})(\}}{_ID_CHARS}{{0,{MAX_ID}}})?$")      # the message number at the end of a text: "{MM", "{MM}" or "{MM}AA"
+_NUMBER = re.compile(rf"\{{({_ID_CHARS}{{1,{MAX_ID}}})(\}}{_ID_CHARS}{{0,{MAX_ID}}})?$")
 _ACK = re.compile(rf"(ack|rej)({_ID_CHARS}{{1,{MAX_ID}}})(?:\}}{_ID_CHARS}{{0,{MAX_ID}}})?$")
-MAX_TEXT = 67                                        # characters of message text the specification allows
+MAX_TEXT = 67
 FORBIDDEN = "|~{"
-_TRAILING = " \r\n"                                   # what some senders put after the text or the number: not part of an id or an ack
+_TRAILING = " \r\n"  # some senders append these; not part of an id or ack
 
 
 class MessageError(CodedError):
-    """A body that is not a message, or a message that cannot be sent."""
+    """Not a message, or a message that cannot be sent."""
 
 
 def _split_id(text: str) -> tuple[str, str | None]:
-    """The text without its trailing "{id" (or "{id}reply-ack") and the id."""
+    """Return the text without its trailing "{id" or "{id}AA", and the id."""
     found = _NUMBER.search(text)
     if found is None:
         return text, None
@@ -34,8 +29,7 @@ def _split_id(text: str) -> tuple[str, str | None]:
 
 
 def reply_ack_of(text: str) -> str | None:
-    """The reply-ack part of the message number a text ends with (blanks after it do not count): None for a text with no number or an old-style `{MM`, "" for `{MM}` (the sender knows reply-acks,
-    nothing to acknowledge), the `AA` of `{MM}AA`."""
+    """Return the `AA` of a trailing `{MM}AA`; "" for `{MM}`, None for no reply-ack."""
     found = _NUMBER.search(text.rstrip(_TRAILING))
     if found is None or found.group(2) is None:
         return None
@@ -43,8 +37,10 @@ def reply_ack_of(text: str) -> str | None:
 
 
 def _split(body: bytes) -> tuple[str, str] | None:
-    """The addressee and the text of a message body; None when it has no addressee field. The field is nine characters and a colon; one that is a little short (`KH2Z:hi`, a sender that does not pad
-    it: an addressee of 1 to 9 characters ended by the first colon) is taken too."""
+    """Return the addressee and text of a message body; None if there is no addressee field.
+
+    An unpadded addressee (`KH2Z:hi`, ended by the first colon) is accepted.
+    """
     end = _ADDRESSEE_LEN if body[_ADDRESSEE_LEN:_ADDRESSEE_LEN + 1] == b":" else body.find(b":", 0, _ADDRESSEE_LEN)
     if end < 0:
         return None
@@ -52,13 +48,13 @@ def _split(body: bytes) -> tuple[str, str] | None:
 
 
 def line_of(info: bytes) -> str | None:
-    """The text of the message a packet's information field holds, with its message number (`Hello{12}AB`); None when the field is no message."""
+    """Return the text with its number (`Hello{12}AB`) of an information field, or None."""
     found = _split(info[1:]) if info[:1] == b":" else None
     return None if found is None or not found[0] else found[1]
 
 
 def parse_message(body: bytes) -> Message:
-    """A message body. Blanks, CR and LF at the end of the text do not count when an ack or a message number is looked for (`ack12  `, `Hello{12}  `); a text with no number is kept as it came."""
+    """Return the `Message` of a body; raise MessageError if it is none."""
     found = _split(body)
     if found is None:
         raise MessageError("no colon after the nine-character addressee")
@@ -81,13 +77,15 @@ def _check_addressee(addressee: str) -> str:
 
 def _check_id(msg_id: str) -> str:
     if not _ID.fullmatch(msg_id):
-        raise MessageError(f"bad message id {msg_id!r}", "failed")          # (made by the daemon: nothing the operator can mend)
+        raise MessageError(f"bad message id {msg_id!r}", "failed")
     return msg_id
 
 
 def format_message(addressee: str, text: str, msg_id: str | None = None, reply_ack: str | None = None) -> bytes:
-    """The body of a message packet: addressee padded to nine characters, ":", the text, "{id". With `reply_ack` (needs an id) the number is `{id}` ("" for nothing to acknowledge) or `{id}AA`. Text that would
-    read back as something else (an ack, a "{") or that is not printable ASCII is refused."""
+    """Return the body of a message packet; `reply_ack` (needs an id) adds `}` or `}AA`.
+
+    Raise MessageError for text that reads as an ack or is not printable ASCII.
+    """
     padded = _check_addressee(addressee)
     if any(c in text for c in FORBIDDEN) or not text.isprintable() or not text.isascii() or len(text) > MAX_TEXT:
         raise MessageError("the text has a character a message cannot carry, or is too long", "message.bad_text")
@@ -102,7 +100,6 @@ def format_message(addressee: str, text: str, msg_id: str | None = None, reply_a
 
 
 def format_ack(addressee: str, msg_id: str, reply_ack: str | None = None) -> bytes:
-    """The body of the ack of message `msg_id`: `ackMM` for a message numbered `{MM` (`reply_ack` None); for one with a reply-ack number it is `ack` and the number as it came, `ackMM}` for `{MM}`
-    (`reply_ack` "") and `ackMM}AA` for `{MM}AA`."""
+    """Return the body of the ack of message `msg_id`, with the reply-ack if given."""
     tail = "" if reply_ack is None else "}" + (_check_id(reply_ack) if reply_ack else "")
     return f"{_check_addressee(addressee)}:ack{_check_id(msg_id)}{tail}".encode("ascii")

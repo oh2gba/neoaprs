@@ -1,6 +1,6 @@
-"""Direwolf as NeoAPRS knows it, pure (neoaprs/direwolf.py, neoaprs/winmm.py): the pins, the configuration the daemon writes for each keying on Linux and on Windows, the command lines of the radio's run and of
-Tune and the keying test, the keying proposed for an FM interface, the transmit level, and every line the daemon reads of the program, copied from Direwolf 1.8.1's source (aprs-reference/direwolf-plan.md cites
-the files and lines); the WinMM devices of a card against the listing of an IC-7300 beside a computer's own sound (3 Nov 2026)."""
+"""Tests for the pure Direwolf code (neoaprs/direwolf.py, neoaprs/winmm.py): the pins, the written
+configuration per keying, command lines, transmit level, and the lines read from the program.
+"""
 import re
 
 import pytest
@@ -30,7 +30,8 @@ def test_the_configuration_names_the_card_the_keying_and_the_one_kiss_port_and_t
     windows = conf_text(adevice("{0.0.1.x}|{0.0.0.y}", (1, 3)), Keying("rts", "COM4"), 8003)
     assert windows.splitlines()[1:7] == ["ADEVICE 1 3", "ACHANNELS 1", "CHANNEL 0", "MODEM 1200", "TXTAIL 20", "PTT COM4 RTS"] and "KISSPORT 8003" in windows
     with pytest.raises(ValueError):
-        adevice("")                                                    # (never the system's default device, which may be the computer's speakers)
+        # (never the system's default device, which may be the computer's speakers)
+        adevice("")
     for text in (windows, conf_text(card, Keying("cm108"), 8002)):
         lines = text.splitlines()
         assert lines.index("KISSPORT 0") < lines.index(next(line for line in lines if line.startswith("KISSPORT ") and line != "KISSPORT 0")), "slot 0 cleared before the port is given"
@@ -87,17 +88,23 @@ def test_the_card_chosen_for_direwolf_is_the_radios_never_the_computers_own_soun
 
 
 def test_the_lines_the_daemon_reads_of_direwolf() -> None:
-    assert direwolf.ready_port("Ready to accept KISS TCP client application 0 on port 8002 ...") == 8002          # kissnet.c:606
+    # kissnet.c:606
+    assert direwolf.ready_port("Ready to accept KISS TCP client application 0 on port 8002 ...") == 8002
     assert direwolf.ready_port("Ready to accept KISS TCP client application 0 on port 8002 (radio channel 0) ...") == 8002
     assert direwolf.ready_port("Ready to accept AGW client application 0 on port 8000 ...") is None
-    assert direwolf.bind_failed("Bind failed with error: 98") and direwolf.bind_failed("Some other application is probably already using port 8002.")      # kissnet.c:569-571
+    # kissnet.c:569-571
+    assert direwolf.bind_failed("Bind failed with error: 98") and direwolf.bind_failed("Some other application is probably already using port 8002.")
     assert direwolf.audio_open_error("Could not open audio device plughw:CARD=CODEC,DEV=0 for input") and direwolf.audio_open_error("Pointless to continue without audio device.")
-    assert direwolf.keying_open_error("ERROR can't open device /dev/ttyUSB0 for channel 0 PTT control.")       # ptt.c:945
-    assert direwolf.keying_open_error("Config file line 6: Could not determine USB Audio GPIO PTT device for audio output plughw:CARD=Device,DEV=0.")      # config.c:2185: it would run on unkeyed
-    assert direwolf.keying_open_error("Could not open /dev/hidraw3 for write, errno=13") and direwolf.keying_open_error("Write to /dev/hidraw3 failed, n=-1, errno=32")    # cm108.c:1013, 1059
+    # ptt.c:945
+    assert direwolf.keying_open_error("ERROR can't open device /dev/ttyUSB0 for channel 0 PTT control.")
+    # config.c:2185: it would run on unkeyed
+    assert direwolf.keying_open_error("Config file line 6: Could not determine USB Audio GPIO PTT device for audio output plughw:CARD=Device,DEV=0.")
+    # cm108.c:1013, 1059
+    assert direwolf.keying_open_error("Could not open /dev/hidraw3 for write, errno=13") and direwolf.keying_open_error("Write to /dev/hidraw3 failed, n=-1, errno=32")
     assert not direwolf.keying_open_error("Could not open audio device plughw:1,0 for input")
     assert all(direwolf.is_error(line) for line in ("Could not open /dev/hidraw3 for write, errno=13", "Config file line 6: Could not determine USB Audio GPIO PTT device for audio output x."))
-    assert direwolf.kiss_from_client("<<< Data frame from KISS client application, channel 0, total length = 25")      # kiss_frame.c:964 (`-d n`)
+    # kiss_frame.c:964 (`-d n`)
+    assert direwolf.kiss_from_client("<<< Data frame from KISS client application, channel 0, total length = 25")
     assert not direwolf.kiss_from_client(">>> Data frame to KISS client application, channel 0, total length = 25")
     assert all(direwolf.kiss_dump(line) for line in ("<<< Data frame from KISS client application, channel 0, total length = 25", ">>> Data frame to KISS client application, channel 0, total length = 30",
                                                      "  000:  c0 00 82 a0 a4 a6 40 40 60 9e 90 64 8e 82 a8 61  ......@@`..d...a"))
@@ -107,9 +114,11 @@ def test_the_lines_the_daemon_reads_of_direwolf() -> None:
     assert direwolf.level_of("OH2XYZ audio level = 48(12/9)   [NONE]   ___|||___") == 48
     assert direwolf.level_of("ADEVICE0: Sample rate approx. 44.1 k, 0 errors, receive audio level CH0 43") == 43, "the level as it is now, which Direwolf says every STATS_SEC (audio_stats.c)"
     assert direwolf.level_of("ADEVICE0: Sample rate approx. 44.1 k, 0 errors") is None and direwolf.level_of("Audio input level is too high.  Reduce so most stations are around 50.") is None
-    assert direwolf.level_of("Digipeater WIDE2 (probably N3LEE-4) audio level = 28(10/6)   [NONE]   __|||||||") == 28        # ax25_pad.c:925, direwolf.c:1308
+    # ax25_pad.c:925, direwolf.c:1308
+    assert direwolf.level_of("Digipeater WIDE2 (probably N3LEE-4) audio level = 28(10/6)   [NONE]   __|||||||") == 28
     assert direwolf.level_of("[0.4] OH2XYZ>APDW18,WIDE1-1:!6010.00N/02450.00E-") is None
-    assert (direwolf.ptt_of("PTT 0 = 1"), direwolf.ptt_of("PTT 0 = 0"), direwolf.ptt_of("DCD 0 = 1")) == (True, False, None)       # ptt.c:1341
+    # ptt.c:1341
+    assert (direwolf.ptt_of("PTT 0 = 1"), direwolf.ptt_of("PTT 0 = 0"), direwolf.ptt_of("DCD 0 = 1")) == (True, False, None)
     assert (direwolf.dcd_of("DCD 0 = 1"), direwolf.dcd_of("DCD 0 = 0"), direwolf.dcd_of("PTT 0 = 1")) == (True, False, None)
     assert direwolf.is_error("Could not open audio device x for output") and not direwolf.is_error("Dire Wolf Release 1.8.1, November 2025")
 
@@ -137,7 +146,8 @@ def test_a_card_is_one_winmm_input_and_one_output_whose_names_are_its_devices_cu
 
 
 def test_the_card_mercury_joins_from_two_devices_numbered_apart_is_found_among_the_winmm_devices() -> None:
-    """Windows may number one device of a card and not the other ("Speakers (2- USB Audio CODEC)"): Mercury's list joins the two into one card, and Direwolf must find that card's devices too."""
+    """Windows may number one device of a card and not the other ("Speakers (2- USB Audio CODEC)"):
+    Mercury's list joins the two into one card, and Direwolf must find that card's devices too."""
     joined = pair_directions([SoundCard("{0.0.1.00000000}.{a}", "Microphone (USB Audio CODEC)", capture=True), SoundCard("{0.0.0.00000000}.{b}", "Speakers (2- USB Audio CODEC)", playback=True)])
     assert [c.name for c in joined] == ["USB Audio CODEC"]
     assert winmm.match(joined[0].name, ["Microphone (Realtek(R) Audio)", "Microphone (USB Audio CODEC)"], ["Speakers (Realtek(R) Audio)", "Speakers (2- USB Audio CODEC)"]) == (1, 1)

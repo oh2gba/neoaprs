@@ -1,4 +1,5 @@
-"""Versions (neoaprs/versions.py): which is newer, what the answer of the version page means, and what the platform is called."""
+"""Versions (neoaprs/versions.py): which is newer, what the answer of the version page means, and
+what the platform is called."""
 import json
 
 import pytest

@@ -1,5 +1,6 @@
-"""The classic Bluetooth serial port (neoaprs/btserial.py, btsdp.py, btpaired.py) on a fake device (tests/support/fakebluetooth.py): the address of a `bt://` port, the question to the device's service directory,
-reading and writing, a link that dies and the Tnc that opens it again, the list of paired devices from BlueZ's own words, and that the port list and the search leave Bluetooth alone. No Bluetooth socket is made."""
+"""Tests for the classic Bluetooth serial port (neoaprs/btserial.py, btsdp.py, btpaired.py) on a
+fake device (tests/support/fakebluetooth.py): addresses, service lookup, I/O, reconnection and
+pairing."""
 import errno
 import json
 import socket
@@ -24,7 +25,8 @@ from tests.support.fakebluetooth import ADDRESS, FakeBluetooth, answer, element,
 linux_only = pytest.mark.skipif(not sys.platform.startswith("linux"), reason="bt:// ports are opened on Linux only")
 
 URL = f"bt://{ADDRESS}"
-REAL_RUN = btpaired._run                    # (the guard of the tests puts a stand-in in its place for each test)
+# (the guard of the tests puts a stand-in in its place for each test)
+REAL_RUN = btpaired._run
 
 
 @pytest.fixture
@@ -248,13 +250,15 @@ async def test_the_tnc_opens_a_bluetooth_port_again_when_the_radio_comes_back(de
     await tnc.start()
     try:
         assert tnc.state is Source.State.CONNECTED and tnc.stats.opens == 1
-        assert "9600" not in tnc.describe() and tnc.describe().startswith(f"{URL}/2,")        # (a Bluetooth link has no speed)
+        # (a Bluetooth link has no speed)
+        assert "9600" not in tnc.describe() and tnc.describe().startswith(f"{URL}/2,")
         await device.connected()
         device.fail(OSError(errno.EHOSTDOWN, "Host is down"))            # switched off
         device.drop()
         await until(lambda: tnc.state is Source.State.WAITING)
         assert tnc.last_error and "lost" in tnc.last_error
-        await until(lambda: len(device.connects) >= 3 and "Host is down" in tnc.problem)       # tried again, and the radio said why not
+        # tried again, and the radio said why not
+        await until(lambda: len(device.connects) >= 3 and "Host is down" in tnc.problem)
         device.fail(None)                                               # switched on, in range
         await until(lambda: tnc.state is Source.State.CONNECTED and tnc.stats.opens == 2)
         await device.connected()
@@ -294,7 +298,8 @@ SPP, HEADSET, GATT = "00001101-0000-1000-8000-00805f9b34fb", "0000111e-0000-1000
 
 
 def busctl_output() -> str:
-    """What `busctl --system --json=short call org.bluez / org.freedesktop.DBus.ObjectManager GetManagedObjects` prints, for a machine with an adapter and five devices."""
+    """What `busctl --system --json=short call org.bluez / org.freedesktop.DBus.ObjectManager
+    GetManagedObjects` prints, for a machine with an adapter and five devices."""
     objects = {
         "/org/bluez": {"org.bluez.AgentManager1": {}},
         "/org/bluez/hci0": {"org.bluez.Adapter1": {"Address": prop("s", "80:00:00:00:00:01")}},
@@ -367,14 +372,16 @@ def test_the_port_list_names_them_bt_and_the_name_of_the_device(monkeypatch: pyt
 
 
 def test_listing_never_makes_a_socket(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The list is read from BlueZ's records: a device is not connected to, nor asked, to be listed."""
+    """The list is read from BlueZ's records: a device is not connected to, nor asked, to be listed.
+    """
     monkeypatch.setattr(btpaired.sys, "platform", "linux")
     monkeypatch.setattr(btpaired, "_run", lambda command: busctl_output())
     monkeypatch.setattr(socket, "socket", lambda *a, **k: pytest.fail("a socket was made to list the devices"))
     assert len(serialprobe.paired_bluetooth_ports()) == 4
 
 
-# ---- the edges: elements of every kind, a directory that never ends, the sockets, a port opened twice
+# ---- the edges: elements of every kind, a directory that never ends, the sockets, a port opened
+# twice
 
 def test_a_nil_and_a_text_are_elements_like_the_numbers() -> None:
     assert btsdp.parse_elements(b"\x00") == [None]

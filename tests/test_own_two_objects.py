@@ -1,4 +1,6 @@
-"""Two objects of ours at once, through the whole daemon and the page's socket: both are made, both stay on the map and in the table of our objects, both are sent, and both are found again after a restart and by a page that is loaded anew."""
+"""Two objects of ours at once through the whole daemon and the page socket: both are made, shown,
+sent and found again after a restart and by a freshly loaded page.
+"""
 from pathlib import Path
 
 from neoaprs.web.protocol import TOPIC_NAMES
@@ -69,7 +71,8 @@ async def test_changing_or_killing_one_of_two_leaves_the_other_and_an_object_and
     await page.until(lambda: page.topics["own_objects"]["ALPHA"]["comment"] == "changed")
     assert page.topics["own_objects"]["BRAVO"]["comment"] == "BRAVO here" and names(page, "own_objects") == {"ALPHA", "BRAVO"}
     await page.send({"cmd": "object_kill", "name": "ALPHA"})
-    await page.until(lambda: page.topics["own_objects"]["ALPHA"]["state"] == "killing" and "ALPHA" not in names(page, "stations"))      # (its kill goes out over three minutes)
+    # Its kill goes out over three minutes
+    await page.until(lambda: page.topics["own_objects"]["ALPHA"]["state"] == "killing" and "ALPHA" not in names(page, "stations"))
     assert page.topics["own_objects"]["BRAVO"]["state"] == "live" and "BRAVO" in names(page, "stations")
     assert [o.name for o in e.ctl.ownobjects.records() if o.alive] == ["BRAVO"]
     await e.stop()

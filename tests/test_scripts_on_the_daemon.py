@@ -1,8 +1,7 @@
-"""The scripts that talk to a daemon's page against a real daemon of this tree, over its page's socket: scripts/smoke.py's readers (which update-e2e, install-probe, mercury-sim and the screenshots take) and
-tests/support/realmercury.Page (the Mercury bench's and the simulation's page) find the wire of the radios that the hello names, read the radios, what a station's row says each kind heard and a radio's own
-settings in `radio_values`, and give the HF radio by the radio commands. On a new installation's daemon, which has no radio, the scripts that set a station up add every radio they need by the radio
-commands: smoke.py's first radio (radio 1, on the port of the run), install-probe's seed (the FM radio, radio 1, then the HF radio) and scripts/sim-radios' six (radios 1 to 6, in the order of
-their boxes). tests/test_scripts.py holds the same pieces on stand-ins of both wires; this file holds them to the daemon they are run against."""
+"""The scripts that talk to a daemon's page against a real daemon over its page socket:
+scripts/smoke.py's readers and tests/support/realmercury.Page find the radios wire the hello names
+and read the radios and rows.
+"""
 import asyncio
 import importlib.machinery
 import importlib.util
@@ -21,7 +20,8 @@ from tests.test_scripts import ROOT, load_script
 
 
 async def closed(connection: Any) -> None:
-    """A client socket closed and read to its end, so that its reading loop is over before the test ends."""
+    """A client socket closed and read to its end, so that its reading loop is over before the test
+    ends."""
     connection.close()
     while await asyncio.wait_for(connection.read_message(), 5) is not None:
         pass
@@ -30,7 +30,8 @@ async def closed(connection: Any) -> None:
 async def test_the_scripts_read_the_radios_of_the_daemon_and_give_it_the_hf_radio_by_the_radio_commands(tmp_path: Path) -> None:
     smoke = load_script("smoke.py")
     e = Env(tmp_path, web=True)
-    e.mercury._finder = lambda: None                                         # (no program: the Dummy HF radio works without its speaker)
+    # No program: the Dummy HF radio works without its speaker
+    e.mercury._finder = lambda: None
     await e.start()
     base = f"http://127.0.0.1:{e.port}/"
     page = await smoke.PageSocket.open(base)
@@ -79,7 +80,8 @@ async def test_on_a_new_installations_daemon_the_install_probe_and_sim_radios_ad
     for name, give, expected in (
             ("probe", lambda page: probe.give_radios(page, 20), [(1, "fm", probe.FM_TYPE, True), (2, "hf", probe.HF_TYPE, True)]),
             ("sim", lambda page: sim.make_six(page, 20), [(id, kind, type, True) for id, (kind, type) in enumerate(sim.SIX, 1)])):
-        e = Env(tmp_path / name, radio=False, web=True, operator=False, first_radio=False)        # (a new installation: no settings row and no radio)
+        # A new installation: no settings row and no radio
+        e = Env(tmp_path / name, radio=False, web=True, operator=False, first_radio=False)
         e.mercury._finder = lambda: None
         await e.start(connected=False)
         page = await sim.smoke.PageSocket.open(f"http://127.0.0.1:{e.port}/")
@@ -98,7 +100,8 @@ async def test_on_a_new_installations_daemon_the_install_probe_and_sim_radios_ad
 
 async def test_the_smoke_test_gives_a_new_installation_its_first_radio_which_takes_the_port_of_the_run_and_hears_the_fake_tnc(tmp_path: Path) -> None:
     smoke = load_script("smoke.py")
-    e = Env(tmp_path, web=True, operator=False, first_radio=False)              # (a new installation, started with --port: the fake TNC, which no radio takes yet)
+    # A new installation, started with --port: the fake TNC, which no radio takes yet
+    e = Env(tmp_path, web=True, operator=False, first_radio=False)
     await e.start(connected=False)
     try:
         assert e.ctl.config.radios == ()
@@ -109,7 +112,8 @@ async def test_the_smoke_test_gives_a_new_installation_its_first_radio_which_tak
             opened.append(await real_open(base))
             return opened[-1]
 
-        smoke.PageSocket.open = open_and_keep                                    # (the socket the smoke test opens, read to its end after it)
+        # The socket the smoke test opens, read to its end after it
+        smoke.PageSocket.open = open_and_keep
         watch = asyncio.create_task(smoke.watch_the_socket(f"http://127.0.0.1:{e.port}/", 20))
         await until(lambda: e.ctl.radios.get(FM_ID) is not None and e.tnc.state is Source.State.CONNECTED, 20)
         e.feed(on_air("OH2RDG", b"!6010.00N/02456.00E>heard by the smoke test"))

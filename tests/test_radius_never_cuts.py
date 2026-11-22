@@ -1,5 +1,6 @@
-"""The map's Radius (`map/radius_km`) sets the detailed map's download, the circle asked of APRS-IS and the objects' QRU box, and nothing else: a station heard on a radio is in the station book, in the database and
-told to the page wherever it is, on an FM radio and on an HF radio alike, thousands of km outside the circle."""
+"""The map Radius (`map/radius_km`) sets the detailed map download, the APRS-IS circle and the
+objects' QRU box and nothing else: a station heard on a radio is stored and shown wherever it is.
+"""
 from pathlib import Path
 
 from neoaprs.geo import distance_km

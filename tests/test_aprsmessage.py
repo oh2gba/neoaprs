@@ -1,4 +1,5 @@
-"""Messages: parsing the addressee, the text, the ids, acks and rejects; formatting and the round trip."""
+"""Tests for messages: parsing the addressee, text, ids, acks and rejects; formatting and round
+trip."""
 import pytest
 
 from neoaprs.aprsmessage import MessageError, format_ack, format_message, line_of, parse_message, reply_ack_of
@@ -11,10 +12,12 @@ from neoaprs.packet import Message
     (b"WU2Z     :Testing{003}", Message("WU2Z", "Testing", "003")),
     (b"WU2Z     :Hello{AB}CD", Message("WU2Z", "Hello", "AB")),
     (b"WU2Z     :Hello{05}", Message("WU2Z", "Hello", "05")),
-    (b"WU2Z     :ack05}CD", Message("WU2Z", "", ack_id="05")),               # the ack of a reply-ack message is a copy of its number
+    # the ack of a reply-ack message is a copy of its number
+    (b"WU2Z     :ack05}CD", Message("WU2Z", "", ack_id="05")),
     (b"WU2Z     :rej05}CD", Message("WU2Z", "", rej_id="05")),
     (b"WU2Z     :ack05}", Message("WU2Z", "", ack_id="05")),
-    (b"WU2Z     :Hello{05}ABCDEF", Message("WU2Z", "Hello{05}ABCDEF")),     # (more than five characters of it is no number)
+    # (more than five characters of it is no number)
+    (b"WU2Z     :Hello{05}ABCDEF", Message("WU2Z", "Hello{05}ABCDEF")),
     (b"WU2Z     :{1", Message("WU2Z", "", "1")),
     (b"OH2GBA-7 :ack12345", Message("OH2GBA-7", "", ack_id="12345")),
     (b"OH2GBA-7 :rej7", Message("OH2GBA-7", "", rej_id="7")),
@@ -33,12 +36,14 @@ from neoaprs.packet import Message
     (b"WU2Z     :acknowledged", Message("WU2Z", "acknowledged")),
     (b"WU2Z     :ack123456", Message("WU2Z", "ack123456")),
     (b"WU2Z     :ack12{5", Message("WU2Z", "ack12", "5")),         # an ack is "ack" and its id and nothing else
-    (b"WB4APR-14:ack12  ", Message("WB4APR-14", "", ack_id="12")),   # blanks, CR and LF after an ack or a number do not count
+    # blanks, CR and LF after an ack or a number do not count
+    (b"WB4APR-14:ack12  ", Message("WB4APR-14", "", ack_id="12")),
     (b"WB4APR-14:ack12\r", Message("WB4APR-14", "", ack_id="12")),
     (b"WB4APR-14:rej12 \r\n", Message("WB4APR-14", "", rej_id="12")),
     (b"OH2GBA   :Hello{12}  ", Message("OH2GBA", "Hello", "12")),
     (b"OH2GBA   :Hi{12\r\n", Message("OH2GBA", "Hi", "12")),
-    (b"KH2Z:hi", Message("KH2Z", "hi")),                              # an addressee field a little short: the first colon ends it
+    # an addressee field a little short: the first colon ends it
+    (b"KH2Z:hi", Message("KH2Z", "hi")),
     (b"WU2Z    :x{3", Message("WU2Z", "x", "3")),
     (b"OH2GBA-7:ack05", Message("OH2GBA-7", "", ack_id="05")),
 ])

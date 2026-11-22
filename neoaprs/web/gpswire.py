@@ -1,5 +1,4 @@
-"""The GPS and the moving station's beacon on the wire: the topic `gps`. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`. The settings that choose the source and how the station moves (`gps/*`,
-`beacon/travel`) are in the topic `config` like the others."""
+"""Wire model of the topic `gps`."""
 from typing import Literal
 
 from pydantic import Field

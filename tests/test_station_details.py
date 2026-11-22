@@ -1,4 +1,6 @@
-"""What the page is told of a station beyond where it is: its latest telemetry scaled by its own definitions, its locator and its data extensions; and that the daemon's own decoded packets fit the wire models."""
+"""What the page is told of a station beyond where it is: its latest telemetry scaled by its own
+definitions, its locator and its data extensions; and that the daemon's own decoded packets fit the
+wire models."""
 import json
 from datetime import UTC, datetime
 

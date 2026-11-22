@@ -1,7 +1,7 @@
-"""The LoRa APRS boards as types of the round's model (neoaprs/radiotypes/lora.py, neoaprs/tncprofile.py; aprs-reference/lora-plan.md step L2): their fields (where a board is reached, no frequency
-and no modem setting), their limits (250 bytes of AX.25 and 252 of text, the beacon's floor of 30 minutes, HF's pauses), what they are allowed (paths and SmartBeaconing, no digipeating), what their box can
-(a terminal, no Find), WIDE1-1 when the radio's own path is empty, a comment cut so that the text fits a LoRa packet, the profiles that say the same; and a daemon with a `lora-tcp` radio added from the page on
-the fake CA2RXU iGate: a packet heard comes in on it as kind LoRa with the signal of the iGate's list, and our beacon goes out on it, which the board keys as a LoRa packet of text on WIDE1-1."""
+"""Tests for the LoRa APRS board types (neoaprs/radiotypes/lora.py, neoaprs/tncprofile.py): fields,
+limits, allowed features, default path, comment cutting, profiles, and a daemon with a `lora-tcp`
+radio on the fake CA2RXU iGate.
+"""
 from pathlib import Path
 
 import pytest
@@ -80,7 +80,8 @@ def test_fit_cuts_the_comment_so_that_its_kiss_fits_the_boards_input() -> None:
     assert len(kiss.encode(ax25.encode(fitted))) <= 256 and len(ax25.encode(fitted)) <= 250 and fitted.info.startswith(b"!6010.00N/02456.00E-")
     assert fit_frame(fitted, 250, MAX_TEXT, 256) is fitted
     with pytest.raises(ValueError, match="in KISS"):
-        fit_frame(ax25.Frame(frame.destination, frame.source, info=b"<" + b"\xdb" * 200), None, None, 256)      # (a kind of report that is never cut)
+        # (a kind of report that is never cut)
+        fit_frame(ax25.Frame(frame.destination, frame.source, info=b"<" + b"\xdb" * 200), None, None, 256)
 
 
 async def test_a_lora_tcp_radio_on_the_igate_hears_as_kind_lora_with_the_lists_signal_and_its_beacon_goes_out_in_text_on_wide1_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

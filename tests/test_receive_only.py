@@ -1,6 +1,7 @@
-"""Receive only (`station/transmit` false): the interlock's first reason, and the whole daemon on a fake radio that is never written to while it is off, whatever is due or asked (a beacon, a status, an object, an ack, an answer
-to a query, a digipeatable packet, a message being sent). A new message and a retry are refused with the code `transmit.off`; a message being sent waits with its attempts and goes on when transmitting is switched on; the setting
-is kept in the database, so it holds after a restart."""
+"""Receive only (`station/transmit` false): the interlock's first reason, and the whole daemon on a
+fake radio never written to while off, whatever is due. A new message and a retry are refused with
+`transmit.off`.
+"""
 import asyncio
 from dataclasses import replace
 from pathlib import Path
@@ -28,7 +29,7 @@ async def quiet(e: Env, seconds: float = 0.4) -> None:
     assert await e.heard(1, seconds) == b"", "something was transmitted"
 
 
-# ---- the rule and the setting ---------------------------------------------------------------------------------------------------------------
+# ---- the rule and the setting --------------------------------------------------------------------
 
 def test_transmitting_is_on_by_default_and_off_is_the_first_reason() -> None:
     assert Config().station_transmit is True and Config.from_data({"station/call": "OH2GBA"}).station_transmit is True
@@ -47,7 +48,7 @@ def test_the_setting_takes_true_and_false_and_refuses_the_rest() -> None:
         Config.check("station/transmit", "perhaps")
 
 
-# ---- the whole daemon -----------------------------------------------------------------------------------------------------------------------
+# ---- the whole daemon ----------------------------------------------------------------------------
 
 async def test_nothing_reaches_the_radio_while_it_is_off_and_what_waited_goes_when_it_is_on(tmp_path: Path) -> None:
     e = await quick_start(tmp_path, beacon=True, messaging=True, rigstatus=True, own=True, unpaced=True, settings={"digi/enabled": "true", "beacon/interval_min": "30", "station/status": "QRV"})
@@ -60,7 +61,8 @@ async def test_nothing_reaches_the_radio_while_it_is_off_and_what_waited_goes_wh
     while await e.heard(1, 0.3):                                            # (what went out while it was on)
         pass
     out_before = len([p for p in await e.packets() if p.direction == "out"])
-    assert await e.ctl.save_config(replace(e.ctl.config, station_transmit=False, station_status="QRV again"))      # (the status has changed, so it is due)
+    # The status has changed, so it is due
+    assert await e.ctl.save_config(replace(e.ctl.config, station_transmit=False, station_status="QRV again"))
     e.now.advance(3 * 3600)                                                 # type: ignore[attr-defined]
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi!", "12"), path="OH2RCH-2*"))
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSP"), path="OH2RCH-2*"))
@@ -77,10 +79,12 @@ async def test_nothing_reaches_the_radio_while_it_is_off_and_what_waited_goes_wh
     await until(lambda: (r := e.ctl.messaging.get(sent.id)) is not None and r.attempts == 2)
     frames: list[str] = []
     wanted = (lambda f: f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:="), lambda f: ":Hello{" in f, lambda f: ":>" in f and "QRV again" in f)
-    deadline = asyncio.get_running_loop().time() + 10.0                     # (the object is due too: the frames come in no fixed order, and a busy machine is slow)
+    # The object is due too: the frames come in no fixed order, and a busy machine is slow
+    deadline = asyncio.get_running_loop().time() + 10.0
     while not all(any(w(f) for f in frames) for w in wanted) and asyncio.get_running_loop().time() < deadline:
         frames += [f.tnc2() for f in await said(e, 1, 0.5)]
-    frames += [f.tnc2() for f in await said(e, 99, 0.5)]                   # (and whatever follows at once: a second beacon would be here)
+    # And whatever follows at once: a second beacon would be here
+    frames += [f.tnc2() for f in await said(e, 99, 0.5)]
     assert any(f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=") for f in frames) and any(":Hello{" in f for f in frames) and any(":>" in f and "QRV again" in f for f in frames)
     assert len([f for f in frames if f.startswith("OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=")]) == 1, "one beacon, not one for each interval that passed"
     assert not any("ack12" in f for f in frames), "the ack that was not sent is not made up afterwards"
@@ -113,7 +117,8 @@ async def test_a_message_that_is_being_sent_waits_without_using_up_an_attempt_or
     assert sent.attempts == 1 and sent.attempts_max == 4
     await said(e)
     await switch(e, False)
-    for _ in range(6):                                                      # (far more than its four attempts and their waits)
+    # Far more than its four attempts and their waits
+    for _ in range(6):
         e.now.advance(1200)                                                 # type: ignore[attr-defined]
         await idle_for(0.1)
     record = e.ctl.messaging.get(sent.id)
@@ -203,7 +208,9 @@ async def test_the_tickbox_of_the_page_takes_effect_at_once_with_no_restart_and_
 
 
 async def test_a_database_left_in_rx_only_by_an_earlier_version_opens_rx_only_and_the_tickbox_of_the_page_sets_it_free_at_once(tmp_path: Path) -> None:
-    """0.9 took the switch off the page while `station/transmit` went on acting: a station that had been switched off stayed RX only with no way back. The page has the switch again, and nothing is changed behind it."""
+    """0.9 took the switch off the page while `station/transmit` went on acting: a station that had
+    been switched off stayed RX only with no way back. The page has the switch again, and nothing is
+    changed behind it."""
     e = await quick_start(tmp_path, beacon=True, messaging=True, unpaced=True, web=True, settings={"station/transmit": "false"})
     await e.until_connected()
     assert e.ctl.config.station_transmit is False

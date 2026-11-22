@@ -1,9 +1,7 @@
-"""The objects, items and bulletins of our own in the database, so that a restart goes on where the schedules stopped.
+"""Our own objects, items and bulletins in the database, so schedules resume after a restart.
 
-Like the message board's log (bulletinlog.py) this runs on the database thread (db.py) and says no instead of raising when the database is not open (dblog.py). An object is kept by its name and a bulletin by
-its slot; a write is an append that nobody waits for, in order with everything else the thread was asked. The statements are ownsql.py's.
-
-An object's row names its radios by their ids (`OwnObject.radios`: "1", "2", "1,2"; migration 33), and a bulletin's the same (`OwnBulletin.radios`; migration 34)."""
+Returns a failure value instead of raising when the database is not open. Objects are keyed by
+name, bulletins by slot; rows name their radios by comma-separated ids."""
 import logging
 from datetime import datetime
 
@@ -25,13 +23,12 @@ def _stamp(t: datetime | None) -> str | None:
 
 
 def object_row(o: OwnObject) -> Row:
-    """The columns of the own_object table, in order."""
     return (o.name, o.kind, o.lat, o.lon, o.symbol_table, o.symbol_code, o.comment, o.course_deg, o.speed_kmh, o.path, int(o.alive), stamp(o.created_at), stamp(o.updated_at), o.sent, _stamp(o.last_sent_at), o.qru_group, int(o.on_request),
             ",".join(str(radio) for radio in o.radios))
 
 
 def radios_of(stored: object) -> tuple[RadioId, ...]:
-    """The ids of an object's or a bulletin's radios from its row, as `object_row` writes them ("1", "2", "1,3"): each once and ascending. Raises ValueError for anything else."""
+    """Return the radio ids of a stored value such as "1,3". Raise ValueError for anything else."""
     text = str(stored)
     try:
         radios = tuple(int(part) for part in text.split(","))
@@ -43,7 +40,7 @@ def radios_of(stored: object) -> tuple[RadioId, ...]:
 
 
 def object_of(row: Row) -> OwnObject:
-    """The object from its row. Raises ValueError (or TypeError) for a row this program did not write."""
+    """Return the object of a row. Raise ValueError or TypeError for a row of unknown shape."""
     (name, kind, lat, lon, table, code, comment, course, speed, path, alive, created, updated, sent, last, qru_group, on_request, radios) = row
     if kind not in ("object", "item"):
         raise ValueError(f"{kind!r} is not a kind of object")
@@ -53,12 +50,11 @@ def object_of(row: Row) -> OwnObject:
 
 
 def bulletin_row(b: OwnBulletin) -> Row:
-    """The columns of the own_bulletin table, in order."""
     return (b.slot, b.group, b.text, stamp(b.created_at), b.sent, _stamp(b.first_sent_at), _stamp(b.last_sent_at), ",".join(str(radio) for radio in b.radios))
 
 
 def bulletin_of(row: Row) -> OwnBulletin:
-    """The bulletin from its row. Raises ValueError (or TypeError) for a row this program did not write."""
+    """Return the bulletin of a row. Raise ValueError or TypeError for a row of unknown shape."""
     (slot, group, text, created, sent, first, last, radios) = row
     name, found_group, kind = slot_of(str(slot))
     if found_group != group:
@@ -73,7 +69,7 @@ class OwnLog(DbLog):
 
     # ---- appends: nobody waits
     def save_object(self, o: OwnObject) -> bool:
-        """Keeps the object as it is now (the row is made at once: the value is frozen, but the schedule goes on changing it); False when it could not be queued."""
+        """Queue a save of the object; False if not queued. The row is built at once."""
         row = object_row(o)
         return self._append(lambda conn: save_object(conn, row))
 
@@ -89,11 +85,11 @@ class OwnLog(DbLog):
 
     # ---- reads
     async def objects(self) -> list[OwnObject]:
-        """Every object the database holds, the oldest first."""
+        """Return every object, oldest first."""
         rows: list[Row] = await self._read(all_objects, [])
         return self._decoded(rows, object_of, "own_object")
 
     async def bulletins(self) -> list[OwnBulletin]:
-        """Every bulletin the database holds, the oldest first."""
+        """Return every bulletin, oldest first."""
         rows: list[Row] = await self._read(all_bulletins, [])
         return self._decoded(rows, bulletin_of, "own_bulletin")

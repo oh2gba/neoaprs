@@ -1,6 +1,6 @@
-"""`neoaprs doctor`: the checklist on a temporary data folder: each check ok, warn or fail with its fix, the exit code, each radio by its name, and the pieces that tell about the computer (the group of
-the serial devices, brltty and ModemManager, Firefox as a Flatpak, the ports, a daemon that holds the data folder). The ports and the start at sign-in are stand-ins: the test reads nothing of the
-computer it runs on (its own service, set up or not, would decide a line); nothing is opened, written or sent."""
+"""Tests for `neoaprs doctor` on a temporary data folder: each check's status and fix, the exit
+code, radio names, and the computer-related checks. Ports and autostart are stand-ins; nothing is
+opened."""
 import http.server
 import os
 import sqlite3
@@ -26,7 +26,8 @@ from tests.support.migrated31 import at_thirty
 
 
 class Service:
-    """The start at sign-in as the doctor asks for it (servicecmd.backend_for(...).installed(plan)): what a test says it is, and the plans it was asked about."""
+    """The start at sign-in as the doctor asks for it (servicecmd.backend_for(...).installed(plan)):
+    what a test says it is, and the plans it was asked about."""
     def __init__(self, set_up: bool, what: str) -> None:
         self.answer: tuple[bool, str] = (set_up, what)
         self.asked: list[servicecmd.Plan] = []
@@ -38,7 +39,8 @@ class Service:
 
 @pytest.fixture(autouse=True)
 def this_computer(monkeypatch: pytest.MonkeyPatch) -> Service:
-    """A computer with one TNC cable, in the group of its serial devices, with neither brltty nor ModemManager, and no start at sign-in set up (whatever the computer of the test has)."""
+    """A computer with one TNC cable, in the group of its serial devices, with neither brltty nor
+    ModemManager, and no start at sign-in set up (whatever the computer of the test has)."""
     monkeypatch.setattr(doctor, "available_ports", lambda: [PortInfo("/dev/ttyUSB0", "FT232R USB UART", "USB VID:PID=0403:6001", 0x0403, 0x6001)])
     monkeypatch.setattr(doctor, "serial_group_check", lambda: hostcheck.GroupCheck("ok", "dialout", ""))
     monkeypatch.setattr(doctor, "brltty_installed", lambda: False)
@@ -59,7 +61,8 @@ def lines_of(text: str, status: str) -> list[str]:
 
 
 def set_up(data: Path, *radios: str, **settings: str) -> None:
-    """The data folder of a station set up on the command line: these radios added (`db radios add`), then these settings set."""
+    """The data folder of a station set up on the command line: these radios added (`db radios
+    add`), then these settings set."""
     for radio_type in radios:
         assert dbcmd.main(["--data", str(data), "radios", "add", radio_type]) == 0
     for key, value in settings.items():
@@ -101,7 +104,8 @@ def test_a_data_folder_with_a_database_a_call_and_a_map_is_all_ok(tmp_path: Path
 
 def test_a_call_that_cannot_transmit_is_a_warning_with_the_reason(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     data = tmp_path / "data"
-    set_up(data, station_call="N0CALL")                 # (a placeholder call is stored as it is and does not transmit)
+    # (a placeholder call is stored as it is and does not transmit)
+    set_up(data, station_call="N0CALL")
     code, out = run(data, capsys)
     assert code == 0 and "the call N0CALL cannot transmit" in out
 
@@ -151,7 +155,8 @@ def test_a_database_of_an_older_version_while_the_daemon_brings_it_up_to_date_is
     note.write_text("")
     finding = doctor.check_database(data)[0]
     assert (finding.status, finding.text) == ("ok", f"database version {SCHEMA_VERSION - 1}: the daemon is bringing it up to date to version {SCHEMA_VERSION}")
-    old = time.time() - 10 * MIGRATING_FRESH_SEC                 # the note of a migration a kill ended: the warning as without one
+    # The note of a migration that a kill ended: the warning as without one.
+    old = time.time() - 10 * MIGRATING_FRESH_SEC
     os.utime(note, (old, old))
     finding = doctor.check_database(data)[0]
     assert finding.status == "warn" and f"database version {SCHEMA_VERSION - 1}, this NeoAPRS uses {SCHEMA_VERSION}" in finding.text
@@ -391,7 +396,8 @@ def test_the_doctor_warns_with_the_commands_for_firefox_as_a_flatpak(tmp_path: P
 # ---- the radios, each by the name the log gives it
 
 def radios_of(data: Path, **flat: str) -> Path:
-    """A data folder whose database had these flat settings at version 30 and was migrated: its radios are rows (migration 31)."""
+    """A data folder whose database had these flat settings at version 30 and was migrated: its
+    radios are rows (migration 31)."""
     data.mkdir(parents=True, exist_ok=True)
     old = at_thirty(data / "neoaprs.sqlite")
     old.executemany("INSERT INTO settings (key, value) VALUES (?, ?)", [(key.replace("_", "/", 1), value) for key, value in flat.items()])

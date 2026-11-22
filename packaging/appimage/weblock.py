@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""The pinned requirements of the trial AppImage's web window (scripts/build-appimage --window web), from uv.lock: pywebview, pystray and Pillow with what they need on Linux, each at the locked version with
-the digests of the files that run in the image: a wheel for any system, or one for CPython 3.13 on x86_64 Linux (manylinux). The extra `app` asks for them on Windows only (Linux and macOS have Qt there until
-the switch), so `uv export --extra app` leaves them out on Linux, and the lock keeps of Pillow only its Windows and iOS wheels: its Linux wheel is pinned here by URL and digest (`PINNED`), as scripts/build-gi
-pins PyGObject. They are installed with --no-deps, so the list is the whole of what they need with pystray on its appindicator backend: python-xlib, which only its xorg backend imports, is not among them.
-Nothing is built from source but proxy-tools (pure Python, which PyPI has as an sdist only); the build passes --only-binary for every other one (`binary`). Run with the image's Python:
-weblock.py UV_LOCK > requirements-web.txt; weblock.py --binary prints the names that must come as wheels, one a line."""
+"""Pinned requirements of the AppImage's web window (build-appimage --window web), from uv.lock.
+
+Run with the image's Python: weblock.py UV_LOCK > requirements-web.txt; weblock.py --binary prints
+the names that must come as wheels, one a line."""
 import re
 import sys
 import tomllib
 
 PACKAGES = ("pywebview", "proxy-tools", "bottle", "typing-extensions", "pystray", "six", "pillow")
-SOURCE_ONLY = ("proxy-tools",)                   # no wheel on PyPI; pure Python, so its sdist makes the same files on any system
+# No wheel on PyPI; pure Python, so its sdist is as good.
+SOURCE_ONLY = ("proxy-tools",)
 PYTHON_TAG = "cp313"                             # the image's CPython (scripts/build-appimage's PYTHON_URL)
 PILLOW_URL = "https://files.pythonhosted.org/packages/ef/fe/f5cdaa2d1c4086e757430f368c271a58ee29cfe7378e7ae7b9d964015c25/pillow-13.0.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
-PILLOW_SHA256 = "5f56499c1a74d2b862beb0c33b8016f99d095858455df9d21583bbbc1c15b582"     # the sha256 PyPI gives for that wheel (pypi.org/pypi/pillow/13.0.0/json); the build refuses to run without it
-PINNED = {"pillow": (PILLOW_URL, PILLOW_SHA256)}  # a package whose wheel for the image uv.lock does not hold: its URL and digest
+PILLOW_SHA256 = "5f56499c1a74d2b862beb0c33b8016f99d095858455df9d21583bbbc1c15b582"
+# Packages whose wheel for the image uv.lock lacks: URL and digest.
+PINNED = {"pillow": (PILLOW_URL, PILLOW_SHA256)}
 
 
 def runs_here(filename: str) -> bool:
-    """Whether a wheel of this name runs in the image: pure Python, or built for its CPython on x86_64 glibc Linux."""
+    """Return whether a wheel of this name runs in the image."""
     if not filename.endswith(".whl"):
         return False
     tags = filename[:-4].split("-")[-3:]
@@ -31,7 +31,6 @@ def runs_here(filename: str) -> bool:
 
 
 def binary() -> list[str]:
-    """The packages that are installed from wheels only (--only-binary)."""
     return [name for name in PACKAGES if name not in SOURCE_ONLY]
 
 
@@ -45,8 +44,8 @@ def _pinned_line(name: str, version: str, url: str, digest: str) -> str:
 
 
 def requirements(lock: dict[str, object], pinned: dict[str, tuple[str, str]] | None = None) -> list[str]:
-    """One line for each of PACKAGES: `name==version --hash=sha256:...` with the digests of the lock's files that run in the image, or `name @ URL --hash=sha256:...` for a pinned one; SystemExit when the lock
-    lacks one, when a package other than SOURCE_ONLY has no wheel for the image, or when a pin is not filled in or is not the locked version."""
+    """Return one pip requirement line with digests per package; raise SystemExit if one is
+    missing."""
     pinned = PINNED if pinned is None else pinned
     found = {str(p["name"]): p for p in lock["package"] if isinstance(p, dict)}  # type: ignore[attr-defined]
     lines: list[str] = []

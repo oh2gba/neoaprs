@@ -1,11 +1,6 @@
-"""A TNC that answers like the kinds the search for the radio meets, for the tests of Find my radio (neoaprs/services/radiofinder.py). `TncBrain` is what the TNC does with the bytes written to it; it is put behind a TCP server on
-the loopback (`FakeTncServer`: the line is a `socket://127.0.0.1:PORT`, like the fake radio) or behind a port that takes a speed (`FakeEar`: nothing is opened, so the speed can matter and no device is touched).
-
-    kiss        a TNC in KISS mode that has just heard a packet: it sends one KISS frame as soon as it is connected, and ignores whatever is written
-    tnc2        a TNC-2 (Kenwood TH-D7) in command mode: a carriage return is answered with "cmd:", "KISS ON" and "RESTART" put it in KISS, where it is silent
-    kantronics  the same, but it takes only INTFACE KISS and RESET; any other command is answered with "?" and the prompt
-    d710        the same, but it takes only the D710's sequence, which ends with RESTART after TC 1, TN 2,0, HBAUD 1200 and KISS ON
-    silent      a TNC that says nothing (switched off, or in KISS mode and with nothing to hear)
+"""A TNC that answers like the kinds the radio search meets, for the Find my radio tests.
+`TncBrain` is what the TNC does with the bytes written to it; it sits behind a TCP server
+(`FakeTncServer`) or a port that takes a speed (`FakeEar`).
 """
 import asyncio
 
@@ -47,7 +42,8 @@ class TncBrain:
         return self.kind == "d710" and text.strip("\r") in ("TC 1", "TN 2,0", "HBAUD 1200", "KISS ON", "RESTART")
 
 
-GREETING_PAUSES = (0.05, 0.1)                       # when a TNC that has something to say says it after a connection, and says it once more
+# When a TNC that has something to say says it after a connection, and says it once more
+GREETING_PAUSES = (0.05, 0.1)
 
 class FakeTncServer:
     """A TNC behind a TCP port of the loopback."""
@@ -67,7 +63,9 @@ class FakeTncServer:
     async def _serve(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         self.connections += 1
         if greeting := self.brain.greeting():
-            for pause in GREETING_PAUSES:                   # (not at the instant of the connection: pyserial's open of a socket drops what came before it was done; a real TNC hears its packets at any time)
+            # Not at the instant of the connection: pyserial's open of a socket drops what came
+            # before it was done; a real TNC hears its packets at any time
+            for pause in GREETING_PAUSES:
                 await asyncio.sleep(pause)
                 writer.write(greeting)
         try:
@@ -87,7 +85,8 @@ class FakeTncServer:
 
 
 class FakeEar(Ear):
-    """A port that is not one: opening it opens nothing. Which TNC answers is chosen by the path and the speed it is opened at (`brains`); a path in `refused` cannot be opened."""
+    """A port that is not one: opening it opens nothing. Which TNC answers is chosen by the path and
+    the speed it is opened at (`brains`); a path in `refused` cannot be opened."""
 
     opened: list[tuple[str, int]] = []                # every open, in order (`ears` gives each class its own)
     closed: list[tuple[str, int]] = []
@@ -124,5 +123,6 @@ class FakeEar(Ear):
 
 
 def ears(brains: dict[tuple[str, int], TncBrain] | None = None, refused: set[str] | None = None) -> type[FakeEar]:
-    """A FakeEar class of its own, with its own record of the opens: what the finder is given as `line`."""
+    """A FakeEar class of its own, with its own record of the opens: what the finder is given as
+    `line`."""
     return type("Ear", (FakeEar,), {"opened": [], "closed": [], "brains": brains or {}, "refused": refused or set()})

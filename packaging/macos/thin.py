@@ -1,13 +1,11 @@
-"""Cuts every universal (fat) Mach-O file of the app down to its arm64 part. The app is for Apple silicon alone (its launcher and its Python are arm64 only), but the Qt wheels are universal2: each of
-their frameworks also carries an x86_64 half that no process of the app can ever load. Run by scripts/build-macos-app after prune.py and before the bytecode and the signing (thinning breaks the signatures the
-wheels came with, and the ad-hoc signing after it signs every file again):
+"""Cut every universal (fat) Mach-O file of the app down to its arm64 part.
+
+Run by scripts/build-macos-app after prune.py and before signing. Needs lipo.
 
     thin.py APP             every fat file under APP thinned to arm64; the bytes saved are said
     thin.py --check APP     exit 1 naming every file that still has a part that is not arm64
 
-A fat file begins with the universal header (cafebabe, or cafebabf for the 64-bit form); `lipo -archs` says what it holds, and a file that lipo does not take (a Java class file has the same first bytes) is
-left as it is. A fat file without arm64 fails the build: it is code the app could not run. Links are not followed: the file they name is thinned where it is. Needs lipo (the command line tools of a Mac);
-nothing but the Python standard library is used."""
+A fat file without arm64 fails the build. Links are not followed."""
 import os
 import subprocess
 import sys
@@ -21,7 +19,7 @@ Run = Callable[[list[str]], subprocess.CompletedProcess[str]]
 
 
 class NotThinnable(Exception):
-    """A fat file with no arm64 in it, or one lipo could not cut: the sentence of the build's failure."""
+    """A fat file with no arm64 in it, or one lipo could not cut."""
 
 
 def run_lipo(argv: list[str]) -> subprocess.CompletedProcess[str]:
@@ -29,7 +27,7 @@ def run_lipo(argv: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 def fat_files(root: Path) -> Iterator[Path]:
-    """Every regular file under `root` that begins with the universal header, in a stable order."""
+    """Yield the regular files under `root` that begin with the universal header, in order."""
     for folder, dirs, names in os.walk(root):
         dirs.sort()
         for name in sorted(names):
@@ -42,13 +40,13 @@ def fat_files(root: Path) -> Iterator[Path]:
 
 
 def archs(path: Path, run: Run = run_lipo) -> list[str] | None:
-    """What lipo says the file holds; None when lipo does not take it (it is no Mach-O)."""
+    """Return what lipo says the file holds; None if lipo rejects it (e.g. a Java class)."""
     done = run(["lipo", "-archs", str(path)])
     return done.stdout.split() if done.returncode == 0 else None
 
 
 def thin(path: Path, run: Run = run_lipo) -> int:
-    """The file cut down to arm64 in its place, with its mode; the bytes saved (0 for a file that is arm64 alone or no Mach-O)."""
+    """Cut the file to arm64 in place, keeping its mode; return the bytes saved."""
     found = archs(path, run)
     if found is None or found == [KEEP]:
         return 0
@@ -66,7 +64,7 @@ def thin(path: Path, run: Run = run_lipo) -> int:
 
 
 def thin_all(root: Path, run: Run = run_lipo) -> tuple[int, int]:
-    """Every fat file under `root` thinned: how many were cut, and the bytes saved."""
+    """Thin every fat file under `root`; return how many were cut and the bytes saved."""
     count = saved = 0
     for path in list(fat_files(root)):
         cut = thin(path, run)
@@ -77,7 +75,7 @@ def thin_all(root: Path, run: Run = run_lipo) -> tuple[int, int]:
 
 
 def still_fat(root: Path, run: Run = run_lipo) -> list[str]:
-    """The files under `root` that still hold more than arm64, each with what it holds."""
+    """Return the files under `root` that still hold more than arm64."""
     out = []
     for path in fat_files(root):
         found = archs(path, run)

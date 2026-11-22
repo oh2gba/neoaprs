@@ -1,7 +1,7 @@
-"""Made-up ships for the map's layers of the demo daemon (scripts/demotraffic.py, scripts/demo-daemon --traffic): Fintraffic's two answers (`/api/ais/v1/locations`, GeoJSON, and `/api/ais/v1/vessels`, a list) with
-eight ships off Helsinki, and an own AIS receiver, a TCP server on 127.0.0.1:7392 that sends `!AIVDM` lines of types 1, 5, 18 and 24 for six ships once a second.
+"""Made-up ships for the demo daemon's map layers (scripts/demotraffic.py).
 
-The ships sail circles round a point of their own and move between two answers; one of each set lies at anchor (the diamond: it says no heading). Pure code but for `serve`, which is the receiver."""
+Fintraffic's two answers with eight ships off Helsinki, and `serve`, a TCP AIS receiver on
+127.0.0.1:7392 sending `!AIVDM` lines for six ships. The ships sail circles; some lie at anchor."""
 import math
 import socketserver
 import sys
@@ -14,12 +14,15 @@ HOST = "127.0.0.1"
 AIS_PORT = 7392
 SEA = (60.12, 24.97)                              # the Gulf of Finland off Helsinki
 KM_PER_DEG_LAT = 111.2
-STATIC_EVERY_SEC = 10                             # what a ship says of itself is sent this often (and at once on a connection)
+# A ship's static data is sent this often, and at once on a connection.
+STATIC_EVERY_SEC = 10
 
 
 @dataclass(frozen=True)
 class Craft:
-    """One made-up ship: it sails a circle of `radius_km` round a point `north_km` and `east_km` from the sea's middle, once in `period_sec` (negative: the other way round); radius 0 is at anchor."""
+    """One made-up ship sailing a circle of `radius_km` round a point offset from the sea's middle.
+
+    `period_sec` is one lap (negative: the other way); radius 0 is at anchor."""
     mmsi: int
     name: str
     kind: int
@@ -54,7 +57,8 @@ CRAFT = (
     Craft(230777000, "HAMINA", 70, "KOTKA", -15, -20, 0, 1),
     Craft(230888000, "TOLLO", 52, "HELSINKI", 20, -25, 5, 7200),
 )
-AT_SEA = CRAFT[:6]                                # the six that the receiver sends (one at anchor: WAVE RIDER)
+# The six the receiver sends (one at anchor: WAVE RIDER).
+AT_SEA = CRAFT[:6]
 
 
 def locations(t: float) -> dict[str, Any]:
@@ -118,7 +122,7 @@ def static_lines(ship: Craft, seq: int) -> list[str]:
 
 
 class Receiver(socketserver.BaseRequestHandler):
-    """One connection of the made-up AIS receiver: what each ship says of itself at once and every ten seconds, and every ship's position every second, until the other end closes."""
+    """One receiver connection: static data every ten seconds, positions every second."""
 
     def handle(self) -> None:
         sent = 0
@@ -141,7 +145,7 @@ class Server(socketserver.ThreadingTCPServer):
 
 
 def serve(port: int) -> Server | None:
-    """The made-up receiver listening on the port of this computer, in a thread of its own; None when the port is in use (said on standard error)."""
+    """Return the made-up receiver, listening in a thread; None if the port is in use."""
     try:
         server = Server((HOST, port), Receiver)
     except OSError as e:

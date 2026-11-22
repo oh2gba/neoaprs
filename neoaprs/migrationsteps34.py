@@ -1,16 +1,20 @@
-"""Migration 34, frozen here beside migrations.py (which lists it in MIGRATIONS and runs it): no main radio. The same rules as for the earlier steps (migrationsteps31.py): a step is never edited once it
-has been released, and what it uses beside itself (the functions and the constants of this module) is frozen with it. It reads the database and nothing of the program: the types that send, the kinds
-an e-mail went on, the words of a tickbox and the keys are written here, as 0.20.0 and 0.20.1 had them."""
+"""Migration 34: no main radio.
+
+A released step is never edited, nor are the helper functions and constants it uses. It reads only
+the database; the sending radio types, the e-mail radio kinds, the tickbox words and the keys are
+written out here."""
 import sqlite3
 
 from .dberror import StoreError
 
-_SENDS34 = ("direwolf", "kiss", "kenwood-d710", "kenwood-tnc2", "kantronics", "kiss-tcp", "dummy", "dummy-hf", "mercury", "lora-tcp", "lora-serial", "dummy-lora")    # the types of 0.20.0 that send
-_MAIL_KINDS34 = ("fm", "lora")                                      # the kinds 0.20.0 sent an e-mail on (internet gateways hear them)
-_TRUE34, _FALSE34 = ("1", "true", "yes", "on"), ("0", "false", "no", "off")     # the words of a stored tickbox
-_CHOSEN_BY_ROW34 = ("status", "ask", "local_info")                  # the things of the status's pattern: unticked by default, the main radio's until a row was stored
+# radio types that send
+_SENDS34 = ("direwolf", "kiss", "kenwood-d710", "kenwood-tnc2", "kantronics", "kiss-tcp", "dummy", "dummy-hf", "mercury", "lora-tcp", "lora-serial", "dummy-lora")
+_MAIL_KINDS34 = ("fm", "lora")                                      # radio kinds e-mail was sent on
+_TRUE34, _FALSE34 = ("1", "true", "yes", "on"), ("0", "false", "no", "off")     # stored tickbox words
+# unticked by default; the main radio's until a row exists
+_CHOSEN_BY_ROW34 = ("status", "ask", "local_info")
 _MAIN34, _MAIL34 = "station/main_radio", "email/radio"
-_NEW_ONES34 = ("objects/send_on", "bulletins/send_on")              # what a new object and a new bulletin start with
+_NEW_ONES34 = ("objects/send_on", "bulletins/send_on")              # defaults of a new object and bulletin
 
 
 def _ticked34(value: object, default: bool) -> bool:

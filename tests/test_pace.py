@@ -1,4 +1,5 @@
-"""The pause between our own frames on a radio, and the burst of what a radio sends again, when the clock is set back."""
+"""The pause between our own frames on a radio, and the burst of what a radio sends again, when the
+clock is set back."""
 from datetime import timedelta
 from types import SimpleNamespace
 

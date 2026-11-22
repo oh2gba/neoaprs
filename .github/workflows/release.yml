@@ -1,10 +1,16 @@
-# What a release is made of, built by GitHub: the Windows installer (PyInstaller and Inno Setup), the Linux AppImage, the macOS app (a disk image, for Apple silicon), the Debian packages for amd64 and arm64 (the Raspberry Pi), the source tarball (the sdist,
-# for packagers; the wheel it is built with is build material and not a file of the release) and SHA256SUMS. The Windows installer, the AppImage, the macOS app and the packages carry the pinned Mercury HF modem (neoaprs/mercury.py), built from its source by NeoAPRS in each: the job `mercury-windows` for the installer, the job `mercury` in the Linux ones, the `macos` job's own build in the app. Pushing a tag `v*` builds all of it, checks it (the wheel, the installed Windows app, the AppImage, the macOS app and the packages installed with apt are each run against a fake TNC), updates the installed Windows app and the AppImage to a next version with Update now from a fake release (scripts/update-e2e.py), and creates the release. Run by hand (workflow_dispatch) on a branch it is
-# a dry run: the same builds and checks, the files kept as the artifacts of the run, and no release; run by hand on a tag (`gh workflow run release.yml --ref v<version>`) it publishes that tag's release again. A tag run that
-# failed is run again with "Re-run failed jobs" (every artifact may be written over, the release is made as a draft and an existing one is added to), never by moving the tag. How to make a release: docs/MAINTAINING.md,
-# "A release"; what the jobs do: docs/development.md.
+# What a release is made of, built by GitHub: the Windows installer (PyInstaller and Inno Setup),
+# the Linux AppImage, the macOS app (disk image, Apple silicon), the Debian packages for amd64 and
+# arm64, the source tarball for packagers and SHA256SUMS. The installer, AppImage, macOS app and
+# packages carry the pinned Mercury HF modem built from source in each. Pushing a tag `v*` builds
+# and checks all of it (each artifact is run against a fake TNC), runs Update now from a fake
+# release (scripts/update-e2e.py) and creates the release. Run by hand on a branch it is a dry run:
+# the same builds and checks, the files kept as artifacts, no release; run by hand on a tag it
+# publishes that tag's release again. A failed tag run is repeated with "Re-run failed jobs"
+# (artifacts may be overwritten, the release is a draft), never by moving the tag. How to make a
+# release: docs/MAINTAINING.md, "A release"; what the jobs do: docs/development.md.
 name: release
-# A run on a tag is a release; a run by hand on a branch is a build for testing (docs/MAINTAINING.md, "A build for testing"): the name says which.
+# A run on a tag is a release; a run by hand on a branch is a build for testing
+# (docs/MAINTAINING.md, "A build for testing").
 run-name: "${{ github.ref_type == 'tag' && format('release {0}', github.ref_name) || format('build for testing: {0} @ {1}', github.ref_name, github.sha) }}"
 
 on:
@@ -16,7 +22,7 @@ permissions:
   contents: read
 
 env:
-  NEOAPRS_UPDATE_CHECK: "0"          # no daemon of a smoke step asks the version page
+  NEOAPRS_UPDATE_CHECK: "0"  # no smoke-step daemon asks the version page
   UV_FROZEN: "1"
 
 concurrency:
@@ -24,20 +30,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # The tag names the version that is in the code, the changelog has the notes for it and nothing left under Unreleased, the committed page is what ui/ builds, the commit is on master and CI has passed
-  # for it: each a few seconds, before anything is built.
+  # The tag names the version in the code, the changelog has its notes and nothing under Unreleased,
+  # the committed page is what ui/ builds, the commit is on master and CI has passed: seconds,
+  # before any build.
   verify:
     if: github.ref_type == 'tag'
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     permissions:
       contents: read
-      actions: read          # gh run list: the runs of ci.yml
+      actions: read  # gh run list reads the runs of ci.yml
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
-          fetch-depth: 0     # (the whole history with master: the tag's commit must be on it)
+          persist-credentials: false  # no later step uses git with the job's token
+          fetch-depth: 0  # the whole history: the tag's commit must be on master
       - name: The tag, VERSION and CHANGELOG.md agree
         run: |
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
@@ -84,18 +91,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.11.26"
           python-version: "3.13"
-          enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
+          enable-cache: false  # a release is built from what the lock names, never from a cache
       - name: Build the wheel and the sdist (the wheel is built from the sdist)
         run: |
           uv build --out-dir dist
           ls -l dist
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
-          wheel_version="$(python3 -c 'import sys; from neoaprs.updateasset import wheel_version; print(wheel_version(sys.argv[1]))' "$version")"          # 0.10.0-rc1 is 0.10.0rc1 in the names the build makes (PEP 440)
+          wheel_version="$(python3 -c 'import sys; from neoaprs.updateasset import wheel_version; print(wheel_version(sys.argv[1]))' "$version")"  # PEP 440: 0.10.0-rc1 is 0.10.0rc1 in the names the build makes
           [ -f "dist/neoaprs-$wheel_version-py3-none-any.whl" ] && [ -f "dist/neoaprs-$wheel_version.tar.gz" ] && [ "$(ls dist | wc -l)" = 2 ] || { echo "::error::the wheel and the sdist are not the only files in dist"; exit 1; }
       - name: Smoke test of the wheel in a fresh environment
         run: |
@@ -109,7 +116,8 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # The app as a folder with three programs (the console one, the daemon, the desktop app), then the installer around it; both are smoke tested, the second one installed and uninstalled for real.
+  # The app as a folder with three programs (console, daemon, desktop app), then the installer
+  # around it; the second is installed and uninstalled for real.
   windows:
     needs: [verify, mercury-windows, direwolf-windows]
     if: ${{ !failure() && !cancelled() }}
@@ -121,18 +129,19 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.11.26"
           python-version: "3.13"
-          enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
+          enable-cache: false  # a release is built from what the lock names, never from a cache
       - name: The version
         id: version
         run: echo "version=$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)" >> "$GITHUB_OUTPUT"
       - name: Build environment, from the wheel and the locked dependencies with the extras app (pywebview, pystray, and the Pillow pystray requires, which the spec leaves out) and ble (bleak, for a radio on Bluetooth LE) and PyInstaller of the group `pyinstaller`, every file by the hash the lock holds
-        # PyInstaller from its source with the bootloader compiled here (the runner's MSVC), not the bootloader of the wheel, which every program packed with it shares, malware included: Windows
-        # Defender's guess took NeoAPRS for a trojan (4 Nov 2026)
+        # PyInstaller from its source with the bootloader compiled here, not the wheel's bootloader,
+        # which every program packed with it shares, malware included: Windows Defender flagged
+        # NeoAPRS as a trojan.
         env:
           PYINSTALLER_COMPILE_BOOTLOADER: "1"
         run: |
@@ -145,9 +154,10 @@ jobs:
       - name: PyInstaller, run where there is no neoaprs/ folder, so that the installed wheel is what is frozen
         working-directory: packaging/windows
         run: ../../build-venv/Scripts/pyinstaller.exe --noconfirm --distpath ../../dist --workpath ../../build neoaprs.spec
-      # What the folder carries, by folder and largest file, and each program's Python archive by package (scripts/shipped-size): every cut in size is a measured number. Nothing of Pillow is in either:
-      # the tray is given icon.ico as it is (neoaprs/desktop/webshell.py), and the spec excludes PIL. PyInstaller's record of who imports PIL names only pystray's backends of other systems: any other
-      # importer would fail in the frozen app
+      # What the folder carries by folder and largest file, and each program's Python archive by
+      # package (scripts/shipped-size). Nothing of Pillow is in either: the tray gets icon.ico as it
+      # is and the spec excludes PIL; PyInstaller's record of PIL importers names only pystray
+      # backends of other systems.
       - name: What the app folder carries and the programs' Python archives, and no Pillow in them
         run: |
           build-venv/Scripts/python.exe scripts/shipped-size --depth 2 --title "dist/NeoAPRS, as PyInstaller made it" --absent _internal/PIL dist/NeoAPRS
@@ -156,8 +166,10 @@ jobs:
           GITHUB_STEP_SUMMARY= build-venv/Scripts/python.exe scripts/shipped-size --pyi-archive --modules dist/NeoAPRS/neoaprs-app.exe
           echo "::endgroup::"
           build-venv/Scripts/python.exe packaging/windows/must_ship.py --excluded build/neoaprs/warn-neoaprs.txt PIL pystray._xorg pystray._gtk pystray._appindicator pystray._darwin
-      # The guard against a folder that is too lean: every file of packaging/windows/must-ship.txt (taken from a real build) must be there. The list this build would make is printed, in the log and on the
-      # run's page, for the commit that adds a new package's DLLs; a line leaves the list only in the commit that removes its file, with the clean install on the Windows 11 N machine as its proof
+      # Guard against a folder too lean: every file of packaging/windows/must-ship.txt must be
+      # there. The list this build would make is printed for the commit that adds a new package's
+      # DLLs; a line leaves the list only with the commit that removes its file, proven by a clean
+      # install on Windows 11 N.
       - name: Every file the app needs is in the folder (packaging/windows/must-ship.txt)
         run: |
           build-venv/Scripts/python.exe packaging/windows/must_ship.py --write "$RUNNER_TEMP/must-ship-of-this-build.txt" dist/NeoAPRS
@@ -199,7 +211,7 @@ jobs:
       - name: Inno Setup
         shell: pwsh
         run: |
-          # the runner image has Inno Setup; if it does not, chocolatey installs 6.7.1
+          # the runner image has Inno Setup; if not, chocolatey installs 6.7.1
           $find = { Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup*\ISCC.exe", "$env:ProgramFiles\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 }
           $iscc = & $find
           if (-not $iscc) { choco install innosetup --version=6.7.1 -y --no-progress; $iscc = & $find }
@@ -216,14 +228,14 @@ jobs:
         shell: pwsh
         run: |
           $setup = (Get-ChildItem dist-installer\NeoAPRS-Setup-*.exe).FullName
-          # (-Wait would wait for the daemon too, which the task started from the setup and which is meant to go on)
+          # -Wait would also wait for the daemon, which the task started and which must go on
           $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/CURRENTUSER', '/NORESTART', "/LOG=$PWD\install.log" -PassThru
           $p.WaitForExit()
           if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 40; throw "setup ended with $($p.ExitCode)" }
           $app = "$env:LOCALAPPDATA\Programs\NeoAPRS"
           foreach ($f in 'neoaprs.exe', 'neoaprsw.exe', 'neoaprs-app.exe', 'bin\mercury\mercury.exe', '_internal\neoaprs\maps\basemap-world.pmtiles', 'LICENSE.txt', 'unins000.exe') { if (-not (Test-Path "$app\$f")) { throw "$f is not in $app" } }
           foreach ($l in 'NeoAPRS', 'Stop NeoAPRS', 'NeoAPRS support logs') { if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\NeoAPRS\$l.lnk")) { throw "no Start menu entry $l" } }
-          # the task: start at sign-in is the app in the tray (the app starts the daemon), not the daemon
+          # the task starts the app in the tray (the app starts the daemon), not the daemon
           $run = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').NeoAPRS
           if (-not $run -or $run -notlike '*neoaprs-app.exe*--tray*') { throw "the Run key is not set to the app in the tray: $run" }
           "Run key: $run"
@@ -274,11 +286,12 @@ jobs:
           $app = "$env:LOCALAPPDATA\Programs\NeoAPRS"
           $data = "$env:RUNNER_TEMP\appdata"
           New-Item -ItemType Directory $data -Force | Out-Null
-          # (the app has no console: Start-Process returns at once)
+          # the app has no console: Start-Process returns at once
           $p = Start-Process "$app\neoaprs-app.exe" -ArgumentList '--tray', '--data', $data -PassThru
           $url = $null
           foreach ($i in 1..60) {
-            # (Select-String stops the step on a file that is not there yet, whatever -ErrorAction says)
+            # Select-String stops the step on a file that is not there yet, whatever -ErrorAction
+            # says
             $m = if (Test-Path "$data\neoaprs.log") { Select-String -Path "$data\neoaprs.log" -Pattern 'web page at (http://\S+/)' | Select-Object -Last 1 }
             if ($m) { $url = $m.Matches[0].Groups[1].Value; break }
             if ($p.HasExited) { break }
@@ -289,16 +302,17 @@ jobs:
           if ((Invoke-WebRequest $url -UseBasicParsing).StatusCode -ne 200) { throw "the page does not answer" }
           if ($p.HasExited) { Get-Content "$data\neoaprs-app.log" -Tail 30; throw "the app ended by itself with $($p.ExitCode)" }
           Get-Content "$data\neoaprs-app.log" -Tail 5
-          # a second app on the same folder ends at once (and would raise the first one's window; --tray does not)
+          # a second app on the same folder ends at once (--tray does not raise the first one's
+          # window)
           $q = Start-Process "$app\neoaprs-app.exe" -ArgumentList '--tray', '--data', $data -PassThru -Wait
           if ($q.ExitCode -ne 0) { throw "a second app ended with $($q.ExitCode)" }
           if ($p.HasExited) { throw "the second app ended the first" }
-          # the daemon is the app's own: neoaprs stop ends it, and the app ends with it
+          # the daemon belongs to the app: neoaprs stop ends it, and the app ends with it
           & "$app\neoaprs.exe" stop --data $data
           if ($LASTEXITCODE -ne 0) { throw "stop failed" }
           if (-not $p.WaitForExit(30000)) { Get-Content "$data\neoaprs-app.log" -Tail 30; throw "the app did not end after neoaprs stop" }
           if ((Get-Content "$data\neoaprs.log" -Tail 1) -notlike '*NeoAPRS ended') { Get-Content "$data\neoaprs.log" -Tail 10; throw "the daemon did not end cleanly" }
-          # a daemon that was running before the app is only attached to, and survives it
+          # a daemon running before the app is only attached to, and survives it
           $data2 = "$env:RUNNER_TEMP\appdata2"
           $null = & "$app\neoaprs.exe" open --no-browser --data $data2
           if ($LASTEXITCODE -ne 0) { throw "open failed" }
@@ -315,7 +329,7 @@ jobs:
         shell: pwsh
         run: |
           $app = "$env:LOCALAPPDATA\Programs\NeoAPRS"
-          # the app is running, with its daemon, when the uninstaller starts: it ends both
+          # the uninstaller ends the running app and its daemon
           $running = Start-Process "$app\neoaprs-app.exe" -ArgumentList '--tray' -PassThru
           foreach ($i in 1..60) { if ((Test-Path "$env:LOCALAPPDATA\NeoAPRS\neoaprs.log") -and (Select-String -Path "$env:LOCALAPPDATA\NeoAPRS\neoaprs.log" -Pattern 'NeoAPRS is running' -Quiet)) { break }; Start-Sleep 1 }
           if ($running.HasExited) { throw "the app did not stay up" }
@@ -329,8 +343,9 @@ jobs:
           if (-not (Test-Path "$env:LOCALAPPDATA\NeoAPRS\neoaprs.sqlite")) { throw "the data folder was touched" }
           if (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\NeoAPRS\NeoAPRS.lnk") { throw "the Start menu entry is still there" }
           "uninstalled; the data folder is still there"
-      # Update now, end to end (scripts/update-e2e.py): a second installer of the next version, made from the same build with nothing changed but its VERSION, is the release a fake server on the loopback
-      # serves; the installer above is installed again, and its daemon updates itself to the second one as a click of the page has it do, the installer of the update run silently by the daemon.
+      # Update now end to end (scripts/update-e2e.py): a second installer of the next version, built
+      # from the same build with only its VERSION changed, is served by a fake loopback server; the
+      # installed app's daemon updates itself to it.
       - name: "Update now: the installer of the next version (VERSION alone changed)"
         id: next
         shell: bash
@@ -378,10 +393,11 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # Mercury for the Windows installer: built from the pinned source (scripts/build-mercury --windows) on Linux with the MinGW-w64 cross compiler, in a Debian container with the packages Rhizomatica's own release workflow
-  # builds its Windows zip with (gcc-mingw-w64-x86-64, mingw-w64-x86-64-dev, mingw-w64-common), so that the program is the pinned version with NeoAPRS's two patches (every port bound to the loopback, the lead-in of a radio
-  # on VOX) and the Windows Firewall has nothing to do with it. The folder is one program that imports the DLLs of Windows alone; the tarball is what the job `windows` packs into the installer
-  # (packaging/windows/bundle_mercury.py), which then starts the program and reads the system's table of sockets (packaging/windows/smoke_mercury.py).
+  # Mercury for the Windows installer: built from the pinned source (scripts/build-mercury
+  # --windows) on Linux with the MinGW-w64 cross compiler in a Debian container, with NeoAPRS's two
+  # patches (every port bound to the loopback, the lead-in of a radio on VOX). The folder is one
+  # program importing only Windows DLLs; the job `windows` packs the tarball into the installer
+  # (packaging/windows/bundle_mercury.py) and smoke tests it.
   mercury-windows:
     needs: verify
     if: ${{ !failure() && !cancelled() }}
@@ -395,7 +411,7 @@ jobs:
           apt-get install -y --no-install-recommends build-essential python3 ca-certificates git patch file gcc-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - name: Build Mercury for Windows from the pinned source
         run: python3 scripts/build-mercury --windows --tar --out dist-mercury-windows
       - name: It is the pinned version and one folder of plain files (the build has read the program's import table, 64-bit and no DLL of MinGW)
@@ -415,9 +431,11 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # Direwolf for the Windows installer: built from the pinned source (scripts/build-direwolf --windows) on Linux with the MinGW-w64 cross compilers (C and C++: Direwolf's project enables both), in the Debian
-  # container of mercury-windows, with NeoAPRS's six patches (every port bound to the loopback, each line flushed, -Q, -G, -R and a configuration path of any length). The folder is one program that imports the DLLs of Windows alone, its two data files
-  # and the licences; the tarball is what the job `windows` packs into the installer (packaging/windows/bundle_tool.py direwolf), which then asks the program who it is (packaging/windows/smoke_direwolf.py).
+  # Direwolf for the Windows installer: built from the pinned source (scripts/build-direwolf
+  # --windows) on Linux with the MinGW-w64 cross compilers in the container of mercury-windows, with
+  # NeoAPRS's six patches. The folder is one program importing only Windows DLLs, its data files and
+  # the licences; the job `windows` packs the tarball into the installer
+  # (packaging/windows/bundle_tool.py direwolf) and asks the program who it is.
   direwolf-windows:
     needs: verify
     if: ${{ !failure() && !cancelled() }}
@@ -431,7 +449,7 @@ jobs:
           apt-get install -y --no-install-recommends build-essential cmake python3 ca-certificates git patch file gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - name: Build Direwolf for Windows from the pinned source
         run: python3 scripts/build-direwolf --windows --tar --out dist-direwolf-windows
       - name: It is the pinned version and one folder of plain files (the build has read the program's import table, 64-bit and no DLL of MinGW, and its banner's bytes)
@@ -449,9 +467,10 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # Direwolf, the FM modem of the Sound card type every Linux download carries: built from the pinned source (scripts/build-direwolf) for each architecture, in ubuntu:22.04 as Mercury is, so that the program asks
-  # for glibc 2.35 at most and its two other libraries (ALSA and udev, which CM108 keying needs) and the ALSA configuration travel in the folder. The build itself runs the program: its banner, and its quit run on
-  # the UDP audio input, listening on 127.0.0.1 alone and ending cleanly when its input closes.
+  # Direwolf, the FM modem of the Sound card type in every Linux download: built from the pinned
+  # source (scripts/build-direwolf) per architecture in ubuntu:22.04, so the program needs glibc
+  # 2.35 at most; its ALSA and udev libraries and the ALSA configuration travel in the folder. The
+  # build runs the program: banner and quit.
   direwolf:
     needs: verify
     if: ${{ !failure() && !cancelled() }}
@@ -473,7 +492,7 @@ jobs:
           apt-get install -y --no-install-recommends build-essential cmake pkg-config libasound2-dev libasound2-data libudev-dev python3 ca-certificates git patch
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - name: Build Direwolf from the pinned source (the build checks the program it makes)
         run: python3 scripts/build-direwolf --tar --out dist-direwolf
       - name: One tarball of the pinned version
@@ -489,9 +508,10 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # Mercury, the HF modem every Linux download carries: built from the pinned source (scripts/build-mercury) for each architecture, in ubuntu:22.04, so that the program asks
-  # for glibc 2.35 at most, the floor the AppImage and the .deb document, and its one other library (ALSA) and that library's configuration travel in the folder. The folder is the tarball the two jobs below unpack
-  # into their files. The container's Python is the 3.10 of Ubuntu 22.04: scripts/build-mercury runs on it.
+  # Mercury, the HF modem in every Linux download: built from the pinned source
+  # (scripts/build-mercury) per architecture in ubuntu:22.04, so the program needs glibc 2.35 at
+  # most, the floor of the AppImage and .deb. ALSA and its configuration travel in the folder, which
+  # is the tarball the two jobs below unpack.
   mercury:
     needs: verify
     if: ${{ !failure() && !cancelled() }}
@@ -513,7 +533,7 @@ jobs:
           apt-get install -y --no-install-recommends build-essential pkg-config libasound2-dev libasound2-data python3 ca-certificates git patch
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - name: Build Mercury from the pinned source
         run: python3 scripts/build-mercury --tar --out dist-mercury
       - name: It starts, and it is the pinned version (with the ALSA configuration it brought)
@@ -532,10 +552,11 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # The Linux app as one file: CPython, the wheel and the locked dependencies of its extra app (Qt with the web engine) in an AppImage (scripts/build-appimage, from the wheel of the job above), then run as a user
-  # would (scripts/smoke-appimage: the daemon, the page, the service unit, the window on the offscreen platform). ubuntu-22.04 and not 26.04: it has glibc 2.35, the oldest that the Qt wheels
-  # inside (glibc 2.34) run on, so that the file is shown to run on the oldest system it claims (what is inside does not depend on the runner that builds it). GitHub retires a runner image some two years
-  # after the next LTS: when ubuntu-22.04 goes, this job moves to ubuntu-24.04 and only loses that proof; the file itself stays the same.
+  # The Linux app as one file: CPython, the wheel and the locked dependencies of its extra app (Qt
+  # with the web engine) in an AppImage (scripts/build-appimage), then run as a user would
+  # (scripts/smoke-appimage). It runs on ubuntu-22.04, glibc 2.35, the oldest the Qt wheels (glibc
+  # 2.34) support, so the file is shown to run on the oldest system it claims. When GitHub retires
+  # that image the job moves to ubuntu-24.04 and loses only that proof.
   appimage:
     needs: [verify, wheel, mercury, direwolf]
     if: ${{ !failure() && !cancelled() }}
@@ -544,13 +565,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.11.26"
           python-version: "3.13"
-          enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
-      # the tools the build scripts fetch (the CPython of python-build-standalone, appimagetool and its runtime), kept between runs for as long as their pins in the scripts stay
+          enable-cache: false  # a release is built from what the lock names, never from a cache
+      # the tools the build scripts fetch (CPython, appimagetool and its runtime), kept for as long
+      # as their pins stay
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/neoaprs-build
@@ -589,9 +611,10 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # Update now of the AppImage, end to end (scripts/update-e2e.py), on the newest Ubuntu: the file of the job above in a folder of its own runs as the daemon, and a fake server on the loopback serves a second
-  # one, the same file with nothing changed but its VERSION (scripts/build-appimage --retag), as the next release. The daemon replaces its own file and goes on in the same process as the new version; once
-  # mounted with FUSE, once unpacked (--appimage-extract-and-run, a system without FUSE).
+  # Update now of the AppImage end to end (scripts/update-e2e.py) on the newest Ubuntu: the file of
+  # the job above runs as the daemon and a fake loopback server serves a second one with only its
+  # VERSION changed (scripts/build-appimage --retag). Run once mounted with FUSE and once unpacked
+  # (no FUSE).
   appimage-update:
     needs: [wheel, appimage]
     if: ${{ !failure() && !cancelled() }}
@@ -600,12 +623,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.11.26"
           python-version: "3.13"
-          enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
+          enable-cache: false  # a release is built from what the lock names, never from a cache
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/neoaprs-build
@@ -651,10 +674,11 @@ jobs:
           if-no-files-found: ignore
           overwrite: true
 
-  # The macOS app as a disk image: the CPython of python-build-standalone for Apple silicon, the wheel and the locked dependencies of its extra app (Qt with the web engine) laid out as NeoAPRS.app, with Mercury built from
-  # the pinned source on the same runner (scripts/build-mercury on a Mac: CoreAudio alone, for macOS 14 and newer; Rhizomatica's own universal build asks for macOS 26), everything signed ad hoc (there is no Apple
-  # developer account), then opened and run as a user would (scripts/smoke-macos-app: the signature, the daemon, the page, the launchd agent, the window on the offscreen platform). macos-26 is Apple silicon; what
-  # the app asks of a Mac (macOS 14, the floor of the Qt wheels) does not depend on the runner that builds it.
+  # The macOS app as a disk image: CPython for Apple silicon, the wheel and the locked dependencies
+  # of its extra app laid out as NeoAPRS.app, with Mercury built on the same runner (CoreAudio only,
+  # macOS 14 and newer), everything signed ad hoc, then run as a user would
+  # (scripts/smoke-macos-app). macos-26 is Apple silicon; the macOS the app asks for (14, the floor
+  # of the Qt wheels) does not depend on the builder.
   macos:
     needs: [verify, wheel]
     if: ${{ !failure() && !cancelled() }}
@@ -663,12 +687,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.11.26"
           python-version: "3.13"
-          enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
+          enable-cache: false  # a release is built from what the lock names, never from a cache
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/neoaprs-build
@@ -701,8 +725,10 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # The Debian package for the Raspberry Pi, Debian and Ubuntu (scripts/build-deb, from the wheel of the job above: CPython and the locked dependencies in /opt/neoaprs), one for each architecture, each built and
-  # tried on a runner of its own: installed with apt, the command, the daemon against a fake TNC with the Python of the package, the unit a service install writes, an upgrade over itself, and the removal.
+  # The Debian package for the Raspberry Pi, Debian and Ubuntu (scripts/build-deb: CPython and the
+  # locked dependencies in /opt/neoaprs), one per architecture, each built and tried on its own
+  # runner: apt install, the command, the daemon against a fake TNC, the service unit, an upgrade
+  # over itself and the removal.
   deb:
     needs: [verify, wheel, mercury, direwolf]
     if: ${{ !failure() && !cancelled() }}
@@ -719,12 +745,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.11.26"
           python-version: "3.13"
-          enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
+          enable-cache: false  # a release is built from what the lock names, never from a cache
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/neoaprs-build
@@ -779,7 +805,7 @@ jobs:
           set -eu
           apt-get update -qq
           apt-get install -y -qq /pkg/*.deb
-          # (a `!` does not stop a script under set -e: the checks are ifs)
+          # `!` does not stop a script under set -e: the checks are ifs
           if dpkg -s libasound2 > /dev/null 2>&1; then echo "libasound2 is installed here: the proof proves nothing"; exit 1; fi
           bundled=/opt/neoaprs/tools/mercury
           ldd "$bundled/mercury" | tee /tmp/ldd.txt
@@ -789,7 +815,7 @@ jobs:
           said="$("$bundled/mercury" -V 2>&1 || true)"
           echo "mercury -V: $said"
           echo "$said" | grep -qF "$MERCURY_VERSION"
-          # (-z opens the sound system: with no sound card it lists none, and it must neither fail to load nor crash)
+          # -z opens the sound system: with no sound card it lists none and must neither fail to load nor crash
           status=0
           "$bundled/mercury" -z > /tmp/z.txt 2>&1 || status=$?
           cat /tmp/z.txt
@@ -809,7 +835,7 @@ jobs:
           HOME="$RUNNER_TEMP/home" XDG_CONFIG_HOME="$RUNNER_TEMP/home/.config" PATH="$RUNNER_TEMP/fakebin:$PATH" neoaprs service install --data "$RUNNER_TEMP/servicedata"
           grep -n '^ExecStart=/opt/neoaprs/bin/python3 -m neoaprs ' "$RUNNER_TEMP/home/.config/systemd/user/neoaprs.service"
       - name: Install it over itself (an upgrade), then remove it; the data of a user stays
-        shell: bash          # (-eo pipefail: a failing apt is the step's failure and not tee's success)
+        shell: bash  # -eo pipefail: a failing apt fails the step, not tee's success
         run: |
           mkdir -p "$RUNNER_TEMP/keep"
           echo data > "$RUNNER_TEMP/keep/neoaprs.sqlite"
@@ -826,7 +852,8 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # Everything a release carries in one place, with the checksums and the notes: made on a dry run too, so that this half is tried before a tag.
+  # Everything a release carries in one place, with checksums and notes; made on a dry run too, so
+  # this half is tried before a tag.
   assemble:
     needs: [wheel, windows, appimage, appimage-update, macos, deb]
     if: ${{ !failure() && !cancelled() }}
@@ -835,8 +862,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
-      # the files of the release and nothing else: not the logs a failed update test left in an earlier attempt of this run
+          persist-credentials: false  # no later step uses git with the job's token
+      # the files of the release and nothing else, not logs a failed update test left in an earlier
+      # attempt
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: "{dist,windows-installer,appimage,macos-app,deb-amd64,deb-arm64}"
@@ -847,16 +875,18 @@ jobs:
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
           wheel_version="$(python3 -c 'import sys; from neoaprs.updateasset import wheel_version; print(wheel_version(sys.argv[1]))' "$version")"
           cd release-files
-          # the wheel and install.sh stay files of the release for the copies installed with the install line before 0.16: their update window runs
-          # `curl -LsSf .../releases/latest/download/install.sh | sh`, which installs the wheel (such a copy has no Mercury; the supported installs carry it)
+          # the wheel and install.sh stay in the release for copies installed before 0.16: their
+          # update window runs `curl -LsSf .../releases/latest/download/install.sh | sh`, which
+          # installs the wheel (without Mercury)
           url="https://github.com/oh2gba/neoaprs/releases/download/v$version/neoaprs-$wheel_version-py3-none-any.whl"
           sed -e "s|@VERSION@|$version|g" -e "s|@WHEEL_URL@|$url|g" ../packaging/install.sh.in > install.sh
           chmod +x install.sh
           if grep -n '@[A-Z_]*@' install.sh; then echo "::error::install.sh has an unreplaced placeholder"; exit 1; fi
           sh -n install.sh
           for f in "neoaprs-$wheel_version.tar.gz" "neoaprs-$wheel_version-py3-none-any.whl" install.sh "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "NeoAPRS-$version-arm64.dmg" "neoaprs_${version}_amd64.deb" "neoaprs_${version}_arm64.deb"; do [ -f "$f" ] || { echo "::error::$f is missing"; exit 1; }; done
-          # the installer, the AppImage, the macOS app and the two packages also under names without the version, so that the project page can link to
-          # releases/latest/download/NAME and the download starts at once (the self-update asks for the versioned names)
+          # the installer, AppImage, macOS app and packages also under names without the version, so
+          # the project page can link releases/latest/download/NAME (the self-update uses the
+          # versioned names)
           cp -- "NeoAPRS-Setup-$version.exe" NeoAPRS-Setup.exe
           cp -- "NeoAPRS-$version-x86_64.AppImage" NeoAPRS-x86_64.AppImage
           cp -- "NeoAPRS-$version-arm64.dmg" NeoAPRS-arm64.dmg
@@ -879,9 +909,11 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # Only a tag makes a release: one pushed, or one the workflow is run on by hand. The release is made as a draft and stays one: scripts/release signs its SHA256SUMS with the project's key, which is not on
-  # GitHub, uploads SHA256SUMS.sig and publishes it, so that no half of one and no unsigned one is ever seen. A run on a tag whose draft exists (a run before it got this far) writes the files and the notes over
-  # again and deletes a SHA256SUMS.sig that is no longer the signature of the new SHA256SUMS, so that a failed run is simply run again; a release that is published is never written over.
+  # Only a tag makes a release: one pushed, or one the workflow is run on by hand. The release is a
+  # draft and stays one: scripts/release signs SHA256SUMS with the project's key, which is not on
+  # GitHub, uploads the signature and publishes, so no half-made or unsigned release is seen. A run
+  # on a tag with an existing draft writes the files and notes again and deletes a stale
+  # SHA256SUMS.sig; a published release is never overwritten.
   release:
     needs: assemble
     if: ${{ startsWith(github.ref, 'refs/tags/v') && !failure() && !cancelled() }}
@@ -905,7 +937,7 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           prerelease=false
-          case "$version" in *-*) prerelease=true ;; esac          # 1.0.0-rc1 is a pre-release: never "latest", so the project page's links and the version page do not offer it to everyone
+          case "$version" in *-*) prerelease=true ;; esac  # 1.0.0-rc1 is a pre-release: never "latest"
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             if [ "$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" != true ]; then
               echo "::error::the release $GITHUB_REF_NAME is published: it is never written over"; exit 1

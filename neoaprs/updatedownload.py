@@ -1,6 +1,8 @@
-"""The downloads of Update now: a file of a release and its SHA256SUMS, fetched over https from addresses that `allowed` accepts (neoaprs/updateasset.py: GitHub's release page and its hosts of release files),
-redirects included: a redirect anywhere else, or from https to http, ends the download. A file is written while its SHA-256 is computed, a little at a time, so that the progress can be told and a cancel is
-seen between two pieces. Each runs in a thread of its own (`in_thread`), so that a download that hangs holds up neither the loop nor the program's end."""
+"""Download a release file and its SHA256SUMS over https from addresses `allowed` accepts.
+
+Redirects are checked too. Each download runs in its own thread (`in_thread`) so a hang holds up
+neither the loop nor the program's end.
+"""
 import asyncio
 import hashlib
 import http.client
@@ -18,15 +20,16 @@ log = logging.getLogger("neoaprs.update")
 
 TIMEOUT_SEC = 30.0
 CHUNK = 256 * 1024
-MAX_SUMS_BYTES = 64 * 1024                 # SHA256SUMS is a few lines
-MAX_FILE_BYTES = 600 * 1024 * 1024         # the AppImage is about 150 MB
+MAX_SUMS_BYTES = 64 * 1024
+MAX_FILE_BYTES = 600 * 1024 * 1024
 
 Allowed = Callable[[str], bool]
-Progress = Callable[[int, int | None], None]          # (bytes so far, the size the server said or None)
+# (bytes so far, the size the server announced or None)
+Progress = Callable[[int, int | None], None]
 
 
 class DownloadError(Exception):
-    """The file could not be fetched; the text says why. `status` is the HTTP status of a server that answered with one that is not 200 (404: the file is not there), and None for any other failure."""
+    """The file could not be fetched. `status` is a non-200 HTTP status, else None."""
 
     def __init__(self, text: str, status: int | None = None) -> None:
         super().__init__(text)
@@ -49,7 +52,7 @@ Opener = Callable[[str, Allowed], Response]
 
 
 class _Guarded(urllib.request.HTTPRedirectHandler):
-    """A redirect only to an address that is allowed."""
+    """Follow a redirect only to an allowed address."""
 
     def __init__(self, allowed: Allowed) -> None:
         super().__init__()
@@ -62,12 +65,13 @@ class _Guarded(urllib.request.HTTPRedirectHandler):
 
 
 def open_url(url: str, allowed: Allowed) -> Response:
-    """The response to a GET of `url`, every redirect checked; DownloadError for an address that is not allowed, a server that does not answer, or an answer that is not 200."""
+    """Return the response to a GET of `url`; raise DownloadError unless the answer is 200."""
     if not allowed(url):
         raise DownloadError(f"{url} is not one of GitHub's addresses for release files")
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})  # noqa: S310  (`allowed` has just said yes to the address, and says it again for every redirect: https on one of GitHub's hosts)
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})  # noqa: S310  (`allowed` checks the address and every redirect)
     try:
-        nodevices.check_url(url)                       # (under the no-devices switch a server that is not on this computer is not there)
+        # under the no-devices switch only this computer is reachable
+        nodevices.check_url(url)
         response: Response = urllib.request.build_opener(https_handler(), _Guarded(allowed), *nodevices.direct()).open(request, timeout=TIMEOUT_SEC)
     except urllib.error.HTTPError as e:
         raise DownloadError(f"{url.rsplit('/', 1)[-1]}: the server answered {e.code} {e.reason}", e.code) from None
@@ -88,7 +92,7 @@ def _size(response: Response) -> int | None:
 
 
 def fetch_bytes(url: str, allowed: Allowed, limit: int = MAX_SUMS_BYTES, opener: Opener = open_url) -> bytes:
-    """The whole body of a small file (SHA256SUMS); DownloadError when it cannot be had or is longer than `limit`."""
+    """Return the whole body of a small file; raise DownloadError if unreadable or over `limit`."""
     response = opener(url, allowed)
     try:
         body = response.read(limit + 1)
@@ -102,8 +106,10 @@ def fetch_bytes(url: str, allowed: Allowed, limit: int = MAX_SUMS_BYTES, opener:
 
 
 def fetch_file(url: str, target: Path, allowed: Allowed, progress: Progress, cancelled: threading.Event, opener: Opener = open_url, limit: int = MAX_FILE_BYTES) -> str:
-    """Writes the file at `url` to `target` and gives its SHA-256 (lower case hex); `progress` is told after each piece. Cancelled when `cancelled` is set, DownloadError when it cannot be had, is larger
-    than `limit` or is cut short. `target` is what was written so far when it fails: the caller removes it."""
+    """Write the file at `url` to `target` and return its SHA-256 as hex.
+
+    Raise Cancelled or DownloadError; on failure `target` holds partial data for the caller to remove.
+    """
     response = opener(url, allowed)
     total = _size(response)
     digest = hashlib.sha256()
@@ -134,7 +140,7 @@ def fetch_file(url: str, target: Path, allowed: Allowed, progress: Progress, can
 
 
 async def in_thread[T](work: Callable[[], T], name: str = "update-download") -> T:
-    """`work()` on a thread of its own, awaited; its exception is raised here. The thread is a daemon: one that hangs does not hold up the program's end."""
+    """Run `work()` on its own daemon thread and await it; its exception is raised here."""
     loop = asyncio.get_running_loop()
     done: asyncio.Future[T] = loop.create_future()
 
@@ -149,11 +155,11 @@ async def in_thread[T](work: Callable[[], T], name: str = "update-download") -> 
     def run() -> None:
         try:
             result, error = work(), None
-        except BaseException as e:           # (handed to the loop as it is)
+        except BaseException as e:  # handed to the loop as it is
             result, error = None, e
         try:
             loop.call_soon_threadsafe(finish, result, error)
-        except RuntimeError:                 # (the loop is closed: the program is ending)
+        except RuntimeError:  # the loop is closed: the program is ending
             pass
 
     threading.Thread(target=run, name=name, daemon=True).start()

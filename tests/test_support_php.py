@@ -1,8 +1,7 @@
-"""The Send logs endpoint of the project's server (server/neo/support/send.php) under PHP's own web server on the loopback, with the mail stubbed (a function `support_send_mail` defined before the page runs, which writes the mail to a file): a good bundle
-is stored with its json and answered with a reference and one mail goes; what is not a bundle, a body over the limit, a method other than POST and a sender over the rate limit are refused; the call, the version, the platform and the note are cleaned,
-and neither the call nor the note can reach a header of the mail or the name of a file; the address of the sender is written nowhere. The folder is bounded (its size, its number of bundles, files older than 30 days removed at an accepted upload), and only a request that stores a file counts
-against the limit all senders share (requests that store nothing have their own count per address). A form with no file is the note alone: it has words, is kept as a json without a zip, mailed with a line that says no file came, and counted
-and bounded as a file is. Skipped without `php`."""
+"""The Send logs endpoint of the project's server (server/neo/support/send.php) under PHP's web
+server with the mail stubbed: a good bundle is stored and answered with a reference and one mail;
+bad input is refused.
+"""
 import io
 import json
 import os
@@ -278,14 +277,16 @@ def test_a_body_over_10_megabytes_is_refused_before_it_is_read_and_one_under_it_
     big = zipped(["summary.txt"]) + b"\x00" * (11 * 1024 * 1024)
     assert endpoint.post(good(bundle), {"bundle": ("a.zip", big)}) == (413, {"ok": False, "reason": "too_large"})
     assert not list(endpoint.stored.glob("NEO-*")) and endpoint.mail_sent() == []
-    fits = zipped(["summary.txt"]) + b"\x00" * (9 * 1024 * 1024)       # (a zip with a long tail before its end record is the end record's business, not the size's)
+    # A zip with a long tail before its end record is the end record's business, not the size's
+    fits = zipped(["summary.txt"]) + b"\x00" * (9 * 1024 * 1024)
     code, answer = endpoint.post(good(bundle), {"bundle": ("a.zip", fits)})
     assert code in (200, 400), "not refused for its size"
     assert answer.get("reason") != "too_large"
 
 
 def test_a_file_over_10_megabytes_in_a_body_that_fits_is_too_large_too(endpoint: Endpoint, bundle: bytes) -> None:
-    """The file's own limit is the program's, not PHP's: a body of 10 MB and a bit that the settings would take."""
+    """The file's own limit is the program's, not PHP's: a body of 10 MB and a bit that the settings
+    would take."""
     endpoint.start()
     over = zipped(["summary.txt"]) + b"\x00" * (10 * 1024 * 1024 - 100)
     assert endpoint.post(good(bundle), {"bundle": ("a.zip", over)}) == (413, {"ok": False, "reason": "too_large"})
@@ -379,7 +380,8 @@ def test_the_files_are_kept_where_the_web_is_refused_them(endpoint: Endpoint) ->
 
 
 def fill(endpoint: Endpoint, count: int, size: int = 10, age_days: float = 0.0) -> list[str]:
-    """Stored files as the endpoint leaves them (a zip and its json of `size` bytes), `age_days` old; their references."""
+    """Stored files as the endpoint leaves them (a zip and its json of `size` bytes), `age_days`
+    old; their references."""
     endpoint.stored.mkdir(parents=True, exist_ok=True)
     refs = []
     for i in range(count):
@@ -396,12 +398,14 @@ def fill(endpoint: Endpoint, count: int, size: int = 10, age_days: float = 0.0) 
 def test_requests_that_store_nothing_do_not_use_up_the_share_of_everyone(endpoint: Endpoint, bundle: bytes) -> None:
     endpoint.start()
     for _ in range(80):
-        endpoint.post({"call": "OH2GBA"})                 # (no file and no words: refused, and counted against this address alone)
+        # No file and no words: refused, and counted against this address alone
+        endpoint.post({"call": "OH2GBA"})
     answers = [endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)}) for _ in range(2)]
     assert answers[0] == (429, {"ok": False, "reason": "rate"}), "this address has used its refusals"
     rates = json.loads((endpoint.stored / "rate.json").read_text(encoding="utf-8"))
     assert not rates["stored"] and len(rates["bad"]) == 1 and len(next(iter(rates["bad"].values()))) == 20, "the refusals are kept for the one address, at the limit"
-    # another address (the hashes are of the address: a second one is made by writing another key's worth of stored files in the whole)
+    # another address (the hashes are of the address: a second one is made by writing another key's
+    # worth of stored files in the whole)
     path = endpoint.stored / "rate.json"
     path.write_text(json.dumps({"stored": {}, "bad": {}}), encoding="utf-8")
     assert endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[0] == 200, "the whole share was never touched by the refusals"
@@ -413,7 +417,8 @@ def test_the_share_of_all_senders_is_counted_in_stored_files_only(endpoint: Endp
     path = endpoint.stored / "rate.json"
     now = int(time.time())
     held = json.loads(path.read_text(encoding="utf-8"))
-    held["stored"].update({f"{i:016x}": [now] for i in range(59)})        # 59 other senders have stored a file this hour, 60 in all with this one
+    # 59 other senders have stored a file this hour, 60 in all with this one
+    held["stored"].update({f"{i:016x}": [now] for i in range(59)})
     held["bad"] = {f"{i:016x}": [now] * 20 for i in range(500)}            # and 500 others are refused over and over
     path.write_text(json.dumps(held), encoding="utf-8")
     assert endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)}) == (429, {"ok": False, "reason": "rate"})
@@ -479,7 +484,9 @@ def test_a_folder_that_would_pass_its_size_refuses_the_file_that_makes_it_so(end
 
 
 def test_the_reasons_of_every_refusal_are_those_the_program_has_words_for() -> None:
-    """The daemon keeps `rate` and `too_large` and calls anything else `refused` (neoaprs/web/supportsend.py): the endpoint names no other reason than the ones the page also shows, and no new one."""
+    """The daemon keeps `rate` and `too_large` and calls anything else `refused`
+    (neoaprs/web/supportsend.py): the endpoint names no other reason than the ones the page also
+    shows, and no new one."""
     from neoaprs.web.supportsend import REASONS
     source = (ROOT / "server" / "neo" / "support" / "send.php").read_text(encoding="utf-8")
     named = set(re.findall(r"support_refuse\(\d+, '([a-z_]+)'", source)) | set(re.findall(r"\[\d+, '([a-z_]+)'\]", source))
@@ -507,8 +514,11 @@ def test_the_project_is_mailed_once_when_the_folder_first_has_no_room_and_again_
 
 def test_uploads_at_the_same_moment_do_not_pass_the_cap_together(endpoint: Endpoint, bundle: bytes) -> None:
     endpoint.start(PHP_CLI_SERVER_WORKERS="8")
-    fill(endpoint, 280)                                              # (a folder to read takes time: the uploads are all at their count while the first is not yet stored)
-    room = len(bundle) + 400                                         # room for one file (a zip and its json of some 300 bytes), not for two
+    # A folder to read takes time: the uploads are all at their count while the first is not yet
+    # stored
+    fill(endpoint, 280)
+    # Room for one file (a zip and its json of some 300 bytes), not for two
+    room = len(bundle) + 400
     filler = endpoint.stored / "NEO-20200101-9999-0000.json"
     filler.write_bytes(b"x" * (200 * 1024 * 1024 - room - 280 * 20))
     with ThreadPoolExecutor(5) as pool:

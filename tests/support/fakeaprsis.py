@@ -1,17 +1,5 @@
-"""A fake APRS-IS server for the tests: it greets with a comment line, answers the login line with `# logresp` (verified, unverified, or not at all), keeps every line it receives, and sends the client what the test `send`s.
-The tests never reach the real APRS-IS (tests/support/guards.py refuses it); a test that wants an iGate starts this on a free port of the loopback and gives the iGate its `address`.
-
-    server = await fake_aprsis()                     # greets with `# fake-aprsd 1.0` and verifies any login; stopped by stop_all() when the test is over
-    server = await fake_aprsis(verified=False)       # `# logresp CALL unverified, server TESTSRV`
-    server = await fake_aprsis(greeting=b"SSH-2.0-OpenSSH\\r\\n")      # a server that is not APRS-IS
-    server = await fake_aprsis(silent=True)          # accepts the connection and says nothing
-    server = await fake_aprsis(answer=False)         # greets, never answers the login
-    server.address                                    # the setting igate/server that reaches it
-    server.logins                                     # the login lines received ("user OH2GBA pass 12345 vers NeoAPRS 0.9.0")
-    server.packets                                    # the lines that are neither comments nor logins: what the iGate gated, without the line end
-    server.comments                                   # the comment lines received (the keep-alive)
-    server.send(b"OH2XYZ>APRS::OH2GBA   :hello{1}")   # a line to every client, as the server's feed: it must never reach the radio
-    server.hang_up()                                  # closes every connection
+"""A fake APRS-IS server: it greets, answers the login line with `# logresp`, keeps every line it
+receives and sends the client what the test `send`s. The iGate tests give the iGate its `address`.
 """
 import asyncio
 

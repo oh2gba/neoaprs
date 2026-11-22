@@ -1,5 +1,6 @@
-"""The app's decision to attach or own, against real daemons: with none running one is started detached (as `neoaprs open` does) and is the app's own, which Quit stops cleanly; one that is running already
-(the service of the machine, one started by `neoaprs open`) is attached to and left running. The daemons are given a TCP radio on the loopback and a free page port first (tests/test_open_stop.py has the fixtures)."""
+"""Tests for the app's attach-or-own decision against real daemons: with none running one is started
+and owned, and Quit stops it; a running one is attached to and left running.
+"""
 from pathlib import Path
 
 from neoaprs import PROGRAM

@@ -1,5 +1,5 @@
-"""Start at sign-in of the desktop app: on Windows the Run key (through the stand-in for winreg of tests/test_service.py, never the real registry) and on Linux an XDG autostart file in a configuration folder of
-the test's own; what is run is `neoaprs-app --tray`, and the entry is the one `neoaprs service install` and the installer write too."""
+"""Tests for start at sign-in of the desktop app: the Windows Run key (through the winreg stand-in
+of tests/test_service.py) and a Linux XDG autostart file in a test folder."""
 import sys
 from pathlib import Path
 
@@ -17,7 +17,8 @@ SCRIPTS = r"C:\Users\Jo Doe\AppData\Local\uv\tools\neoaprs\Scripts"
 def test_the_command_is_the_installed_script_with_tray_and_the_data_folder_only_when_it_is_not_the_default(tmp_path: Path) -> None:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    script = bin_dir / ("neoaprs-app.exe" if sys.platform == "win32" else "neoaprs-app")      # the paths are this system's, so the system is too
+    # the paths are this system's, so the system is too
+    script = bin_dir / ("neoaprs-app.exe" if sys.platform == "win32" else "neoaprs-app")
     script.write_text("#!/bin/sh\n", encoding="utf-8")
     python = str(bin_dir / "python")
     assert app_command(default_data_dir(), sys.platform, False, python) == [str(script), "--tray"]

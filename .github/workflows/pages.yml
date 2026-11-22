@@ -1,5 +1,6 @@
-# The old address of the project page, https://oh2gba.github.io/neoaprs/, sends its visitors to https://neo.oh2gba.eu (the page itself, uploaded by server/deploy.sh --site): it publishes
-# packaging/pages-redirect/, a page that moves the browser on at once (with a canonical link, which search engines take as a permanent move) and a 404 page that does the same for any other path. Run by hand.
+# Redirect from the old project page address (https://oh2gba.github.io/neoaprs/) to
+# https://neo.oh2gba.eu: publishes packaging/pages-redirect/, a page with a canonical link that
+# moves the browser on, and a 404 page that does the same. Run by hand.
 name: pages
 
 on:
@@ -24,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: packaging/pages-redirect

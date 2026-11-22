@@ -1,5 +1,7 @@
-"""The files the daemon serves over HTTP: the page's own (`Page`, from the snapshot of neoaprs/web/pagesnapshot.py) and the base map from the data folder (`Basemap`). All answer only for a Host name of ours and carry the security headers; the
-files handler of Tornado does the byte ranges. A path that does not exist is a 404 with a line of text."""
+"""Files served over HTTP: the page (`Page`, from the snapshot in pagesnapshot.py) and the base map.
+
+All answer only for a known Host name and carry the security headers.
+"""
 import datetime
 import logging
 import os
@@ -34,13 +36,13 @@ class HostGate(Protocol):
 
 
 def same_place(request: tornado.httputil.HTTPServerRequest) -> str:
-    """The path and the query of a request, for a redirect to the same place on another address: always begins with a slash, so that whatever the request line held (an absolute URI, a name) cannot move the host of the target."""
+    """Return the path and query for a redirect; it starts with a slash so the host cannot change."""
     path = request.path if request.path.startswith("/") else "/"
     return f"{path}?{request.query}" if request.query else path
 
 
 def refuse_foreign_host(handler: tornado.web.RequestHandler, server: HostGate) -> bool:
-    """Answers 403 and returns True when the request was made for a host name that is not ours (DNS rebinding: a page of another site whose name was moved to this address)."""
+    """Answer 403 and return True for a Host name that is not ours (DNS rebinding)."""
     header = handler.request.headers.get("Host", "")
     if server.host_allowed(header):
         return False
@@ -55,8 +57,10 @@ def refuse_foreign_host(handler: tornado.web.RequestHandler, server: HostGate) -
 
 
 def refuse_plain(handler: tornado.web.RequestHandler, server: HostGate) -> bool:
-    """Answers and returns True when the request came over plain http from another device while the secure page is served (neoaprs/web/securehandlers.py): a GET or HEAD of a page is sent on to the same address on the
-    secure port (307: the secure page can be switched off again), the rest (the socket, a login, the map) is refused with a line that says where the page is."""
+    """Answer and return True for plain http from another device while the secure page is served.
+
+    A page GET or HEAD is redirected with 307 (not permanent: the secure page can be switched off).
+    """
     request = handler.request
     target = server.secure_target(request)
     if target is None:
@@ -72,7 +76,10 @@ def refuse_plain(handler: tornado.web.RequestHandler, server: HostGate) -> bool:
 
 
 def send_to_this_computer(handler: tornado.web.RequestHandler, server: HostGate) -> bool:
-    """Sends a GET or HEAD of a page on to http://127.0.0.1 (307) and returns True when it was addressed by another name of this computer while the network is off (no key is let in then)."""
+    """Redirect a page GET or HEAD to http://127.0.0.1 (307) for another name of this computer.
+
+    This applies only while the network is off, since no key is accepted then.
+    """
     request = handler.request
     target = server.this_computer_target(request)
     if target is None or request.method not in ("GET", "HEAD") or request.headers.get("Upgrade", "").lower() == "websocket":
@@ -82,7 +89,7 @@ def send_to_this_computer(handler: tornado.web.RequestHandler, server: HostGate)
 
 
 def refuse_unless_logged_in(handler: tornado.web.RequestHandler, server: HostGate) -> bool:
-    """Answers 401 and returns True when the request comes from a device that has not logged in (neoaprs/web/access.py): what carries data is behind it."""
+    """Answer 401 and return True when the device has not logged in; data routes are behind this."""
     if server.access.allowed(handler.request):
         return False
     handler.set_status(401)
@@ -93,13 +100,12 @@ def refuse_unless_logged_in(handler: tornado.web.RequestHandler, server: HostGat
 
 
 def is_hashed_asset(relative: PurePath) -> bool:
-    """A file under assets/, whose name has the hash of its content."""
+    """Return True for a file under assets/, whose name carries a content hash."""
     return len(relative.parts) > 1 and relative.parts[0] == "assets"
 
 
 class TextErrors(tornado.web.RequestHandler):
-    """An error is a line of text, not Tornado's page; Tornado logs a request whose handler raised with the whole request, which for the socket is /ws and for nothing else a secret, but the
-    log gets the method, the path and the address, and the traceback."""
+    """Errors are a line of text, not Tornado's page; the log gets the details."""
 
     def write_error(self, status_code: int, **kwargs: Any) -> None:
         self.set_header("Content-Type", "text/plain; charset=utf-8")
@@ -107,13 +113,13 @@ class TextErrors(tornado.web.RequestHandler):
 
     def log_exception(self, typ: Any, value: Any, tb: Any) -> None:
         if isinstance(value, tornado.web.HTTPError):
-            super().log_exception(typ, value, tb)                    # an HTTPError is logged by Tornado with its own message and no request
+            super().log_exception(typ, value, tb)  # Tornado logs an HTTPError with its message and no request
             return
         log.error("Uncaught exception %s %s (%s)", self.request.method, one_line(self.request.path, MAX_LOGGED_PATH), self.request.remote_ip, exc_info=(typ, value, tb))
 
 
 class SecurityHeaders(TextErrors):
-    """The Server name and the security headers on every answer, of the files routes and of the socket."""
+    """Set the Server name and the security headers on every response."""
 
     def set_default_headers(self) -> None:
         self.set_header("Server", "NeoAPRS")
@@ -122,18 +128,20 @@ class SecurityHeaders(TextErrors):
 
 
 class Secured(SecurityHeaders):
-    """What every answer of the files routes has: no answer for a Host name that is not ours, and the security headers."""
+    """Base of the file routes: refuse foreign Hosts and set the security headers."""
 
     def prepare(self) -> None:
-        # the server is in the application's settings, not an argument of initialize(): the files handler keeps its signature
         server = self.application.settings["neoaprs_server"]
         if not refuse_foreign_host(self, server) and not refuse_plain(self, server):
             send_to_this_computer(self, server)
 
 
-MAX_LOGGED_PATH = 200                                         # (a request path is the sender's; the log gets a line of it)
-PAGE_TYPES = {                                                # the types of the page's own kinds of file, the same on every system: the registry of Windows
-    "js": "text/javascript; charset=UTF-8",                    # may say application/javascript, or text/plain, under which (with nosniff) a browser runs no script
+# A request path is the sender's, so the log gets a truncated line of it.
+MAX_LOGGED_PATH = 200
+# Content types of the page's own file kinds, identical on every system. The Windows registry may
+# say application/javascript or text/plain, under which (with nosniff) a browser runs no script.
+PAGE_TYPES = {
+    "js": "text/javascript; charset=UTF-8",
     "mjs": "text/javascript; charset=UTF-8",
     "css": "text/css; charset=UTF-8",
     "html": "text/html; charset=UTF-8",
@@ -148,8 +156,7 @@ PAGE_TYPES = {                                                # the types of the
 
 
 class Files(Secured, tornado.web.StaticFileHandler):
-    """What the page's two kinds of file routes have: the page's own kinds of file have the types of PAGE_TYPES on every system, whatever the system's table says (the registry of Windows may not know a suffix, or
-    name JavaScript text/plain); anything else is what the system's table says."""
+    """File routes: page file kinds get their PAGE_TYPES content type."""
 
     def get_content_type(self) -> str:
         name = self.absolute_path.replace("\\", "/").rsplit("/", 1)[-1] if self.absolute_path else ""
@@ -158,8 +165,7 @@ class Files(Secured, tornado.web.StaticFileHandler):
 
 
 class Page(Files):
-    """The page's files, answered from the snapshot the daemon took at its start (neoaprs/web/pagesnapshot.py), never from the folder: the shell and what is copied from ui/public are asked about at every load (the ETag
-    answers with a 304 while they are the same), the hashed files of assets/ are kept for good. Byte ranges, HEAD and the ETag are the file handler's own; what it reads from the disk (the size, the time, the content) is read from the snapshot."""
+    """The page's files, served from the start-up snapshot, never from the folder."""
 
     def initialize(self, path: str, snapshot: PageSnapshot, default_filename: str | None = None) -> None:  # type: ignore[override]
         super().initialize(path, default_filename)
@@ -167,7 +173,7 @@ class Page(Files):
         self._file: PageFile | None = None
 
     def validate_absolute_path(self, root: str, absolute_path: str) -> str | None:
-        """Nothing whose name (or a folder's above it) starts with a dot is served, and no source map (the snapshot does not hold them either); 404, as for a file that is not there. The folder itself is its default file."""
+        """Return the path to serve; hidden files and source maps give 404."""
         try:
             relative = Path(absolute_path).relative_to(root)
         except ValueError:
@@ -197,17 +203,18 @@ class Page(Files):
         yield self._file.data[start:end]
 
     def set_extra_headers(self, path: str) -> None:
-        self.set_header("Cache-Control", "public, max-age=31536000, immutable" if is_hashed_asset(PurePath(path)) else "no-cache")      # (the hash in a name of assets/ is that of its content)
+        # A name under assets/ carries a content hash, so it never changes.
+        self.set_header("Cache-Control", "public, max-age=31536000, immutable" if is_hashed_asset(PurePath(path)) else "no-cache")
         self.set_header("X-Content-Type-Options", "nosniff")
 
 
 class Basemap(Files):
-    """data/basemap.pmtiles (the detailed map) and the world map under it, OpenStreetMap extracts (neoaprs/services/mapfetch.py makes the first): the route names the two files, so nothing else of the data folder is reachable. The world
-    map is the data folder's own `basemap-world.pmtiles` when it has a good one, else the one that ships with the program (`world`, neoaprs/worldmap.py), so the page has a map before anything is downloaded. A file that is not there is a 404
-    with a line that says what to do. A PMTiles reader asks for pieces of the file, which is what the handler's byte ranges are for; it is an octet stream, which Tornado does not compress, so a range is a range of the file. It is behind the
-    login: the page's files are free, the map is data."""
+    """The detailed map `basemap.pmtiles` and the world map under it, behind the login.
 
-    def initialize(self, path: str, default_filename: str | None = None, world: Callable[[], Path | None] | None = None) -> None:     # type: ignore[override]
+    The world map is the data folder's file when valid, else the shipped one.
+    """
+
+    def initialize(self, path: str, default_filename: str | None = None, world: Callable[[], Path | None] | None = None) -> None:  # type: ignore[override]
         super().initialize(path, default_filename)
         self._world = world
 
@@ -221,8 +228,7 @@ class Basemap(Files):
         self.set_header("X-Content-Type-Options", "nosniff")
 
     def compute_etag(self) -> str | None:
-        """The tag of a map file is its size and the time it was written, not a hash of its content. Tornado's own tag reads the whole file on the loop and keeps the result for the life of the daemon (a map
-        fetched again kept the tag of the old one), and from 6.6 gives no tag to a file over 64 MB and writes an error about it at every start; the detailed map is over a hundred."""
+        """Return a tag from the file's size and mtime (Tornado's hash is cached and size-limited)."""
         if self.absolute_path is None:
             return None
         try:
@@ -236,7 +242,7 @@ class Basemap(Files):
             found = self._world()
             if found is None:
                 raise tornado.web.HTTPError(404, reason="Not Found: there is no world map (the one that ships with the program is missing and the data folder's is not a PMTiles file)")
-            self.root = os.path.abspath(found.parent)                        # (the shipped file has the same name, in another folder)
+            self.root = os.path.abspath(found.parent)  # the shipped file has the same name in another folder
         if not os.path.isfile(os.path.join(self.root, path)):
             raise tornado.web.HTTPError(404, reason="Not Found: the base map is not in the data folder, fetch it in the Settings tab, Map, Download")
         await super().get(path, include_body)

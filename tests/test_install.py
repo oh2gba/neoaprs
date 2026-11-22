@@ -1,6 +1,7 @@
-"""scripts/install.sh, the wrapper of a clone, in a copy of the tree: it calls `neoaprs service install` of the clone's venv with the clone's data folder and enables lingering, and
-`--remove` calls `service remove`. A HOME of the test's own and a systemctl and loginctl that only write down their arguments: the unit written is the reference unit of the clone, nothing here reaches
-the user's systemd. The command itself is held in tests/test_service.py."""
+"""Tests for scripts/install.sh, the wrapper of a clone, in a copy of the tree: it calls `neoaprs
+service install` with the clone's data folder and enables lingering, and `--remove` calls `service
+remove`. HOME, systemctl and loginctl are stand-ins, so the user's systemd is never reached.
+"""
 import os
 import shutil
 import subprocess
@@ -15,7 +16,8 @@ from tests.support.faketools import FakeTools
 from tests.test_service import reference_unit
 from tests.support.ptyline import posix_only
 
-pytestmark = posix_only      # (install.sh, a shell script of a clone: a development check, not the product)
+# (install.sh, a shell script of a clone: a development check, not the product)
+pytestmark = posix_only
 
 
 class Setup:
@@ -24,7 +26,8 @@ class Setup:
         self.home = tmp_path / "home"
         (self.clone / "scripts").mkdir(parents=True)
         (self.clone / ".venv" / "bin").mkdir(parents=True)
-        (self.clone / ".venv" / "bin" / "python").symlink_to(sys.executable)           # (the clone's venv python: the interpreter of the test, under the clone's path)
+        # (the clone's venv python: the interpreter of the test, under the clone's path)
+        (self.clone / ".venv" / "bin" / "python").symlink_to(sys.executable)
         shutil.copy(ROOT / "scripts" / "install.sh", self.clone / "scripts" / "install.sh")
         self.home.mkdir()
         self.tools = FakeTools(tmp_path / "bin", tmp_path / "calls", ("systemctl", "loginctl"))

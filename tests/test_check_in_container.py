@@ -1,8 +1,7 @@
-"""The container the size of GitHub's runner (scripts/check-in-container and packaging/ci/Dockerfile) as far as it can be held without docker: the threads a run takes, from made-up lists of siblings; the
-files that go in, from a made-up repository; the tar and what unpacks it, run here with bash, tar and git as they run inside; the command line for docker; the script from end to end against a stand-in
-for docker that writes down what it was asked, and a stand-in for the system's loader that says whether the processor has x86-64-v3; that the Dockerfile and the commands of the jobs `python` and `sim`
-are the CI's; and that the Dockerfile and every workflow follow packaging/ci/runner.json (the runners' labels, the facts of the runner's system, the one uv). The image itself and a run in it are
-tried by hand (docs/development.md)."""
+"""Tests for the CI-sized container (scripts/check-in-container, packaging/ci/Dockerfile) as far as
+possible without docker: thread count, file list, tar, the docker command line, the script against
+a stand-in docker, and that the Dockerfile and workflows follow packaging/ci/runner.json.
+"""
 import contextlib
 import importlib.machinery
 import importlib.util
@@ -25,7 +24,9 @@ from types import ModuleType
 import pytest
 from tests.support.ptyline import SIGKILL, is_root, posix_only
 
-pytestmark = posix_only      # (a script of the repository that locks a file and runs docker: a development check, not the product)
+# (a script of the repository that locks a file and runs docker: a development check, not the
+# product)
+pytestmark = posix_only
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "check-in-container"
@@ -43,12 +44,14 @@ RUNNER = json.loads((ROOT / "packaging" / "ci" / "runner.json").read_text(encodi
 FOLLOWS = "follows ubuntu-{os} (gcc {gcc}, {march}, glibc {glibc}, image {image})".format(**RUNNER["facts"], image=RUNNER["image_version"])
 PATIENCE_SEC = 60.0          # for a wait that includes the start of a program
 linux_only = pytest.mark.skipif(not sys.platform.startswith("linux"), reason="the script reads the cores from /sys, which is Linux's")
-MADE_UP = "made-up-for-this-test"      # what every file that must stay on the machine holds here: the packed tree is searched for it
+# what every file that must stay on the machine holds here: the packed tree is searched for it
+MADE_UP = "made-up-for-this-test"
 
 
 @pytest.fixture(scope="module", autouse=True)
 def scratch_outside_the_repository() -> None:
-    """Every scratch folder of this file is in the temporary folder, the system's or, where that one cannot be written, the one TMPDIR names. With neither, Python's last resort is the current
+    """Every scratch folder of this file is in the temporary folder, the system's or, where that one
+    cannot be written, the one TMPDIR names. With neither, Python's last resort is the current
     folder, which is the repository: then nothing here is run."""
     scratch = Path(tempfile.gettempdir()).resolve()
     if scratch == ROOT or ROOT in scratch.parents:
@@ -124,8 +127,10 @@ def test_the_cores_are_read_from_the_sibling_files_of_the_threads_that_are_on(sc
 # ---- the tree that goes in ----
 
 def asked(folder: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    """git in a repository of the test's own, named in the command. Nothing of the caller's environment can point it at another (a GIT_DIR of a hook the suite is run from, the user's configuration), and
-    it looks for no repository above that folder: a made-up repository that failed to be made is an error, never the repository the suite is run in."""
+    """git in a repository of the test's own, named in the command. Nothing of the caller's
+    environment can point it at another (a GIT_DIR of a hook the suite is run from, the user's
+    configuration), and it looks for no repository above that folder: a made-up repository that
+    failed to be made is an error, never the repository the suite is run in."""
     env = {name: value for name, value in os.environ.items() if not name.startswith("GIT_")}
     env |= {"GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull, "GIT_CEILING_DIRECTORIES": str(folder.parent)}
     return subprocess.run(["git", "-C", str(folder), *args], env=env, capture_output=True, text=True)
@@ -139,8 +144,9 @@ def git(folder: Path, *args: str) -> str:
 
 @pytest.fixture
 def repo(tmp_path: Path) -> Path:
-    """A made-up repository: tracked files (a program, a link, a name with a space, one changed since it was added, one deleted from the disk and one that an ignore rule names), an untracked file,
-    ignored ones, and a repository of its own inside it."""
+    """A made-up repository: tracked files (a program, a link, a name with a space, one changed
+    since it was added, one deleted from the disk and one that an ignore rule names), an untracked
+    file, ignored ones, and a repository of its own inside it."""
     if shutil.which("git") is None:
         pytest.skip("needs git")
     root = tmp_path / "repo"
@@ -263,7 +269,8 @@ def test_a_file_that_cannot_be_read_is_named_and_one_that_went_away_is_left_out(
 
 @contextlib.contextmanager
 def closed(folder: Path, mode: int = 0) -> Iterator[None]:
-    """`folder` with these rights for a while, and open again after: pytest takes the test's folders away itself."""
+    """`folder` with these rights for a while, and open again after: pytest takes the test's folders
+    away itself."""
     folder.chmod(mode)
     try:
         yield
@@ -276,14 +283,17 @@ def test_a_folder_that_cannot_be_entered_or_listed_is_said_and_never_passed_over
         pytest.skip("root enters every folder")
     with closed(repo / "src"):
         with pytest.raises(script.NotPacked, match=r"^src/a name\.txt could not be packed \(Permission denied\)$"):
-            script.tracked_files(repo)                   # (the tracked files are in git's index: git lists them without a look at the folder)
+            # (the tracked files are in git's index: git lists them without a look at the folder)
+            script.tracked_files(repo)
         with pytest.raises(script.NotPacked, match=rf"^git could not list the files of {re.escape(str(repo))} \(.*src/.*\)$"):
             script.pack(repo, io.BytesIO())
     (repo / "kept-out").mkdir()
     (repo / "kept-out" / "file.txt").write_text("in a folder nobody may open\n")
     assert "kept-out/file.txt" in script.packed_files(repo)
     with closed(repo / "kept-out"), pytest.raises(script.NotPacked, match=r"^git could not list the files of .* \(.*kept-out/.*\)$"):
-        script.pack(repo, io.BytesIO())                  # (git leaves the folder out with a warning and exit code 0: the tree would go in with files missing)
+        # (git leaves the folder out with a warning and exit code 0: the tree would go in with files
+        # missing)
+        script.pack(repo, io.BytesIO())
 
 
 def packed(script: ModuleType, repo: Path) -> bytes:
@@ -310,7 +320,8 @@ def test_the_tar_holds_the_tree_as_it_is_on_disk_and_the_list_of_its_tracked_fil
 
 
 def inside(script: ModuleType, repo: Path, work: Path, *commands: str, **environment: str) -> subprocess.CompletedProcess[bytes]:
-    """What the container runs, run here: the script's own shell text in an empty folder, the tar on its input and the commands as its arguments, with a home of its own (no configuration of the
+    """What the container runs, run here: the script's own shell text in an empty folder, the tar on
+    its input and the commands as its arguments, with a home of its own (no configuration of the
     user's git) and no variable of the suite's environment but the PATH."""
     for tool in ("bash", "tar"):
         if shutil.which(tool) is None:
@@ -453,7 +464,8 @@ def test_the_image_has_the_tools_the_sim_job_installs_word_for_word() -> None:
 def test_the_image_is_ubuntu_with_the_tools_a_runner_has_and_the_user_runner(script: ModuleType) -> None:
     base = re.findall(r"^FROM ubuntu:(\d\d\.\d\d)@sha256:[0-9a-f]{64}$", DOCKERFILE, re.M)
     assert base == [RUNNER["facts"]["os"]], "one FROM: Ubuntu of the series runner.json names, pinned by its digest"
-    installed = re.search(r"apt-get install -y --no-install-recommends --snapshot [^\n]*\\\n(.*?)\n && ", DOCKERFILE, re.S)         # (the install from the snapshot; the certificates before it are no tool of a runner)
+    # (the install from the snapshot; the certificates before it are no tool of a runner)
+    installed = re.search(r"apt-get install -y --no-install-recommends --snapshot [^\n]*\\\n(.*?)\n && ", DOCKERFILE, re.S)
     assert installed is not None
     for tool in ("ca-certificates", "curl", "git", "php-cli", "build-essential", "pkg-config"):
         assert tool in installed.group(1).split(), tool
@@ -479,7 +491,9 @@ def test_the_image_follows_runner_json() -> None:
     for name in ("GCC_MAJOR", "GCC_MARCH", "GLIBC"):
         assert f"${{{name}}}" in asserting[0], name
     assert 'gcc -Q --help=target | grep -Eq "^\\s+-march=\\s+${GCC_MARCH}$"' in asserting[0] and 'ldd --version | head -n1 | grep -Eq " ${GLIBC}$"' in asserting[0]
-    first_install = DOCKERFILE.index("apt-get install -y --no-install-recommends --snapshot")          # (the install of the tools; the certificates before it are data for every architecture, see the next test)
+    # (the install of the tools; the certificates before it are data for every architecture, see the
+    # next test)
+    first_install = DOCKERFILE.index("apt-get install -y --no-install-recommends --snapshot")
     for setting in ("""echo 'APT::Architecture-Variants "amd64v3";' > /etc/apt/apt.conf.d/""", """echo 'APT::Get::Always-Include-Phased-Updates "true";' > /etc/apt/apt.conf.d/"""):
         assert -1 < DOCKERFILE.find(setting) < first_install, f"before the first install: {setting}"
     assert DOCKERFILE.find("apt-get upgrade") < first_install, "the base image's packages swapped for their amd64v3 builds"
@@ -489,8 +503,9 @@ def test_the_image_follows_runner_json() -> None:
 def test_uv_and_node_are_pinned_by_version_and_digest_and_no_file_of_the_project_is_copied_in() -> None:
     assert re.search(r"^FROM [\w.:-]+@sha256:[0-9a-f]{64}$", DOCKERFILE, re.M), "the base image by its digest, not by a tag that moves"
     apt = [line for line in DOCKERFILE.splitlines() if not line.startswith("#") and re.search(r"\bapt-get (update|upgrade|install)\b", line)]
-    # The snapshots are served over https only and the base image has no certificates to check the server with: they alone come first, from the archive of the day (an update and one install of that
-    # one package); everything else is read at the snapshot's date.
+    # The snapshots are served over https only and the base image has no certificates to check the
+    # server with: they alone come first, from the archive of the day (an update and one install of
+    # that one package); everything else is read at the snapshot's date.
     before = [line.strip() for line in apt if "--snapshot" not in line]
     assert before == ["RUN apt-get update \\", "&& DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates \\"], "only the certificates come from the archive of the day"
     at_snapshot = [line for line in apt if "--snapshot" in line]
@@ -523,7 +538,8 @@ def jobs(workflow: str) -> dict[str, str]:
 
 
 def runners(job: str) -> list[str]:
-    """The labels a job runs on: its `runs-on`, or the values of the matrix that its `runs-on` names."""
+    """The labels a job runs on: its `runs-on`, or the values of the matrix that its `runs-on`
+    names."""
     found = re.search(r"^    runs-on: (.+)$", job, re.M)
     assert found is not None, job[:200]
     named = re.fullmatch(r"\$\{\{ matrix\.(\w+) \}\}", found.group(1).strip())
@@ -560,7 +576,9 @@ def test_every_workflow_of_either_ending_is_read(tmp_path: Path) -> None:
 
 
 def test_the_jobs_the_container_twins_run_on_the_series_it_copies() -> None:
-    """ci.yml's Linux runners are the series of runner.json's facts, the one the image is: another label of runner.json there would leave the container copying a system the job does not run on."""
+    """ci.yml's Linux runners are the series of runner.json's facts, the one the image is: another
+    label of runner.json there would leave the container copying a system the job does not run on.
+    """
     linux = [(job_name, label) for job_name, job in jobs(WORKFLOWS["ci.yml"]).items() for label in runners(job) if label.startswith("ubuntu-")]
     assert {"python", "smoke", "page", "sim"} <= {job_name for job_name, _ in linux}, linux
     assert {label for _, label in linux} == {f"ubuntu-{RUNNER['facts']['os']}"}, linux
@@ -603,7 +621,8 @@ case "$1" in
 esac
 """
 
-# Stands in for the system's loader: prints, for --help, what the file beside it holds (the help of a machine with x86-64-v3, or of one without).
+# Stands in for the system's loader: prints, for --help, what the file beside it holds (the help of
+# a machine with x86-64-v3, or of one without).
 FAKE_LOADER = """#!/bin/sh
 cat "$(dirname "$0")/loader-help"
 """
@@ -613,8 +632,10 @@ SYSTEM_LOADER = 'LOADER = Path("/lib64/ld-linux-x86-64.so.2")'
 
 
 class Rig:
-    """The script in a made-up folder of its own (it packs the repository it lies in), with the stand-in for docker first on the PATH and its loader a stand-in that says this machine has
-    x86-64-v3 (`lacks_v3` makes it say the opposite). Its home, its temporary folder and the folder it is started in are the rig's too, each empty: nothing of the user's configuration reaches it,
+    """The script in a made-up folder of its own (it packs the repository it lies in), with the
+    stand-in for docker first on the PATH and its loader a stand-in that says this machine has
+    x86-64-v3 (`lacks_v3` makes it say the opposite). Its home, its temporary folder and the folder
+    it is started in are the rig's too, each empty: nothing of the user's configuration reaches it,
     and whatever it left behind would lie there and not in the repository the suite is run in."""
 
     def __init__(self, folder: Path, tmp_path: Path) -> None:
@@ -664,7 +685,9 @@ def rig(repo: Path, tmp_path: Path) -> Iterator[Rig]:
     made = Rig(repo, tmp_path)
     git(repo, "add", "scripts", "packaging")
     yield made
-    with contextlib.suppress(OSError, ValueError):       # (a stand-in that was left hanging by a test that failed; the number of one that has ended may be another program's by now)
+    # (a stand-in that was left hanging by a test that failed; the number of one that has ended may
+    # be another program's by now)
+    with contextlib.suppress(OSError, ValueError):
         pid = int((made.state / "run.pid").read_text())
         if Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")[:2] == [b"sleep", b"600"]:
             os.kill(pid, SIGKILL)
@@ -794,7 +817,8 @@ def test_a_folder_that_cannot_be_opened_ends_in_one_sentence_before_docker_is_as
     (rig.repo / "kept-out").mkdir()
     with closed(rig.repo / "kept-out"):
         done = rig.run()
-    one_line_and_nothing_started(rig, done, rf"git could not list the files of {re.escape(str(rig.repo.resolve()))} \(.*kept-out/.*\)")      # (in the brackets, git's own words)
+    # (in the brackets, git's own words)
+    one_line_and_nothing_started(rig, done, rf"git could not list the files of {re.escape(str(rig.repo.resolve()))} \(.*kept-out/.*\)")
 
 
 def test_a_folder_that_is_no_repository_ends_in_one_sentence_before_docker_is_asked_for_anything(tmp_path: Path) -> None:

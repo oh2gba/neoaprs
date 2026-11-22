@@ -1,4 +1,4 @@
-"""What Find my radio (neoaprs/services/radiofinder.py) tells while it goes and when it is done, as plain values: the try that is under way, and the radio it found."""
+"""What Find my radio (services/radiofinder.py) reports while it goes and when it is done."""
 from typing import NamedTuple
 
 

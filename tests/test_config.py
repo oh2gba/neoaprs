@@ -1,5 +1,6 @@
-"""The settings (neoaprs/config.py): the defaults, the text of each key and back, and a wrong value that falls back to its default and is told with its key; and the radios of the settings
-(neoaprs/configradios.py): stored fields of `Config`, given as they are stored or read from today's flat keys, with the flat keys a view of radios 1 and 2 that reads and writes them."""
+"""Tests for the settings (neoaprs/config.py): defaults, text round trips, fallback of wrong values,
+and the radios of the settings (neoaprs/configradios.py) with the flat-key view of radios 1 and 2.
+"""
 import logging
 from dataclasses import fields, replace
 
@@ -32,9 +33,13 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
 
 
 def test_every_field_has_a_key_or_is_the_radios_and_every_key_a_field_or_a_view_of_a_radio() -> None:
-    """Before the radios were stored every key was a field. Now a key is a field (the station's settings, and radio 1's last port) or one of today's flat keys of the radios, which is a view of
-    radio 1 or 2; the radios are a field with no key, and the choice of one radio (the email radio, `email/radio`) is kept last of the fields. The layers' settings are the fields of a base of Config
-    (configlayers.LayerFields), and the pairs of radios the field of another (pairsetting.PairFields, rows of their own with no key of SETTINGS), and so come first, the pairs before the layers."""
+    """Before the radios were stored every key was a field. Now a key is a field (the station's
+    settings, and radio 1's last port) or one of today's flat keys of the radios, which is a view of
+    radio 1 or 2; the radios are a field with no key, and the choice of one radio (the email radio,
+    `email/radio`) is kept last of the fields. The layers' settings are the fields of a base of
+    Config (configlayers.LayerFields), and the pairs of radios the field of another
+    (pairsetting.PairFields, rows of their own with no key of SETTINGS), and so come first, the
+    pairs before the layers."""
     stored = [s.attr for s in SETTINGS if s.attr not in FLAT_HOMES]
     choices = ("email_choice",)
     layers = tuple(f.name for f in fields(LayerFields))
@@ -434,8 +439,9 @@ def test_the_mobile_settings_come_after_the_others_in_the_order_the_page_lists_t
 
 
 def test_the_beacon_interval_of_the_status_is_the_shortest_in_force_on_a_radio_and_hf_alone_is_raised_to_its_floor() -> None:
-    """One setting for the station, raised on each radio to its own floor (plan rule 3.1): the HF rules' 30 minutes on the HF radio, the FM radio's floor being the setting's own minimum, so FM keeps what was
-    set beside an HF radio; Off stays Off. `beacon_interval` is the shortest of them, how often our position goes out on some radio."""
+    """One setting for the station, raised on each radio to its own floor (rule 3.1): 30 minutes on
+    the HF radio, the setting's own minimum on FM; Off stays Off. `beacon_interval` is the shortest
+    of them."""
     from neoaprs.radiotypes.common import FM_LIMITS as FM, HF_LIMITS as HF
     both = replace(DEFAULTS, beacon_interval_min=20, hf_enabled=True)
     assert both.beacon_interval() == 20 and HF.beacon_min_min == 30 and FM.beacon_min_min == MIN_BEACON_INTERVAL_MIN, "FM at 20 is no longer slowed to 30 by the HF radio"
@@ -474,13 +480,15 @@ def test_a_flat_name_given_to_the_constructor_or_to_replace_is_put_into_its_radi
 
 
 def test_a_value_put_into_the_settings_unchecked_is_carried_as_the_flat_field_carried_it() -> None:
-    """A test makes settings that no save would take by `replace`; the field held whatever it was given, and so does the view (a value read from the database is checked when it is read)."""
+    """A test makes settings that no save would take by `replace`; the field held whatever it was
+    given, and so does the view (a value read from the database is checked when it is read)."""
     odd = replace(DEFAULTS, beacon_path="BAD CALL", tcp_port=0, mercury_tx_gain_db=99, tcp_host="two words", digi_enabled=True)
     assert (odd.beacon_path, odd.beacon_path_calls, odd.tcp_port, odd.mercury_tx_gain_db, odd.tcp_host, odd.digi_enabled) == ("BAD CALL", ("BAD CALL",), 0, 99, "two words", True)
     assert odd.radios == radios_from_flat(odd) and odd.to_data()["beacon/path"] == "BAD CALL" and replace(odd, beacon_path="WIDE2-2").beacon_path_calls == ("WIDE2-2",)
     assert DEFAULT_RADIOS[0].settings["port"] == "" and replace(DEFAULTS, serial_port="/dev/x").radios[0].settings is not DEFAULT_RADIOS[0].settings
     with pytest.raises(TypeError):
-        DEFAULT_RADIOS[0].settings["port"] = "/dev/x"            # type: ignore[index]  # (the radios of settings that say nothing are shared: read-only)
+        # The radios of settings that say nothing are shared: read-only
+        DEFAULT_RADIOS[0].settings["port"] = "/dev/x"  # type: ignore[index]
 
 
 def test_the_settings_are_given_their_radios_as_they_are_stored_and_do_not_read_the_flat_keys_then() -> None:

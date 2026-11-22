@@ -1,5 +1,7 @@
-"""The base map service (neoaprs/services/mapfetch.py) cutting the made-up planet of tests/support/madepmtiles.py from a range server on the loopback: the states and what the page is told, the box round the position,
-no position, the world map first, a file moved into place only when it is whole, the numbers of the dry run, a cancel, one job at a time, the latest daily build, an old pmtiles program left alone."""
+"""The base map service (neoaprs/services/mapfetch.py) cutting the made-up planet from a loopback
+range server: states, the box round the position, the world map first, atomic file moves, dry-run
+numbers and cancel.
+"""
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -46,7 +48,8 @@ def tiles_in(path: Path) -> dict[int, bytes]:
 
 
 def expected(box: tuple[float, float, float, float] | None, deepest: int) -> dict[int, bytes]:
-    """The tiles a cut of the planet must hold, by the tile numbers of the map, each with the bytes the planet stores for it."""
+    """The tiles a cut of the planet must hold, by the tile numbers of the map, each with the bytes
+    the planet stores for it."""
     stored = every_tile(planet())
     keys = tiles_of(box or (-180.0, -85.0511, 180.0, 85.0511), 0, deepest)
     return {tile_id(*key): stored[tile_id(*key)] for key in keys}
@@ -125,7 +128,8 @@ async def test_the_numbers_of_a_dry_run_are_those_of_the_map_the_download_makes(
 
 
 async def test_the_state_is_estimating_while_it_runs_and_the_steps_are_told(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
-    """With no source in the settings the latest daily build is looked for (the probe of the test knows the day before); the address it gives is the server of the test."""
+    """With no source in the settings the latest daily build is looked for (the probe of the test
+    knows the day before); the address it gives is the server of the test."""
     asked: list[str] = []
 
     async def latest(now: object, probe: object) -> tuple[str, str]:
@@ -270,7 +274,8 @@ async def test_a_cancel_ends_the_cut_removes_the_part_and_keeps_the_map(rig: Rig
     await rig.idle()
     status = rig.status()
     assert status.state == "ready" and status.problem == "" and status.step == "" and status.percent is None
-    await until_started(lambda: rig.server.holding == 0)                  # (the connection that waited for the server was shut)
+    # The connection that waited for the server was shut
+    await until_started(lambda: rig.server.holding == 0)
     assert (rig.data / DETAIL).read_bytes() == b"the old map" and not list(rig.data.glob("*.part"))
 
 
@@ -278,7 +283,8 @@ async def test_a_part_file_that_cannot_be_deleted_does_not_keep_the_job_busy(rig
     real, deleted = Path.unlink, []
 
     def held(path: Path, missing_ok: bool = False) -> None:
-        if path.name.endswith(".part") and deleted:                          # (the clean-up after the job, not the one before it)
+        # The clean-up after the job, not the one before it
+        if path.name.endswith(".part") and deleted:
             raise PermissionError("[WinError 32] in use by another process")
         if path.name.endswith(".part"):
             deleted.append(path)
@@ -351,7 +357,8 @@ async def test_an_old_pmtiles_program_in_the_data_folder_is_left_alone_and_nothi
 
 
 async def test_a_failure_of_the_daemons_own_is_told_in_words_and_the_detail_goes_to_the_log(rig: Rig, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    """The page never shows a Python exception name; a file that could not be written says what the system said."""
+    """The page never shows a Python exception name; a file that could not be written says what the
+    system said."""
     async def broken(*args: object, **kwargs: object) -> None:
         raise RuntimeError("an invariant of the cut")
 

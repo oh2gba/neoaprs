@@ -1,27 +1,6 @@
-"""A Mercury HF modem that is not one, for the tests: its broadcast port (KISS over TCP) and its control port behind two TCP servers of the loopback, on one shared "air" with the other stations of the test, behaving as
-Mercury does on the air (what the bench of two real Mercury 1.9.21 instances over named pipes showed, 2 November 2026; the broadcast path of 1.9.24 is the same code):
-
-- a KISS frame handed in is **cut to the mode's payload** (123 bytes for DATAC3) without a word to the client, and goes out as one modem frame;
-- a frame **takes the mode's time on the air** (`frame_sec`, 3.8 s for DATAC3; the tests scale it down), and the station says `PTT ON` and `PTT OFF` on its control port round it;
-- **there is no carrier sense**: a station keys whenever it is asked, and two frames whose times on the air overlap are both lost (a station that transmits hears nothing either);
-- every other station on the air hears a frame that went whole, with the sender's command byte, when its time on the air is over;
-- with `busy_detect` the other stations say `BUSY ON` while a frame is on the air and `BUSY OFF` after it (Mercury's detector, switched on in the configuration the daemon writes).
-
-    air = Air(frame_sec=0.2)
-    a, b = air.station(), air.station()        # each a FakeMercury: `url` is its KISS port (socket://127.0.0.1:P), `control_port` is P + 200, as the daemon expects
-    await air.start()                          # both listen
-    ... the daemons connect to a.url and b.url, and to the control ports ...
-    air.delivered                              # (sender, receiver, payload) of every frame that was heard
-    air.collisions, air.truncated              # what was lost, and what was cut
-    await air.aclose()
-
-A `FakeMercury` is a `FakeRadio` (tests/support/fakeradio.py) with the air behind it, so an `Env` takes it as its radio. Run as a program (`python -m tests.support.fakemercury -b PORT -p PORT ...`) it stands in for the
-`mercury` binary itself, for the tests of the daemon starting, watching and stopping the program: it takes Mercury's flags, listens on the two ports, echoes nothing, prints a Mercury-like line or two, lists made-up sound
-cards for `-z`, and ends on SIGTERM; `--die-after SECONDS` in its command (or `FAKE_MERCURY_DIE_AFTER` in its environment) makes it die by itself, as a crashed Mercury would. What a client writes to its KISS port
-is kept in `fake-mercury-broadcast.bin` in its working directory (the modem's folder, `Mercury.home`: the radio's own, or the data folder of a modem made without one), so that a test of the Dummy HF radio's speaker can see the frames handed to it.
-`of_radio` gives the keywords a radio's driver gives the modem it makes: the station's table of resources, the radio it is and its own folder.
-
-Both answer Mercury's `TUNE` command on the control port as Mercury does (1.9.21 to 1.9.24, the same code): `TUNE -15` is `OK` and `PTT ON`, `TUNE OFF` is `OK` and `PTT OFF` (`tuned` keeps the lines a station was given)."""
+"""A Mercury HF modem stand-in: a broadcast port (KISS over TCP) and a control port on the loopback,
+on one shared "air" with the other stations of the test, behaving as Mercury does on the air.
+"""
 import asyncio
 import configparser
 import os
@@ -69,8 +48,10 @@ class Air:
     max_payload: int = MAX_PAYLOAD
     stations: list["FakeMercury"] = field(default_factory=list)
     delivered: list[tuple["FakeMercury", "FakeMercury", bytes]] = field(default_factory=list)
-    collisions: int = 0                                                      # the frames lost to an overlap (two that overlap are two)
-    truncated: list[tuple[int, int]] = field(default_factory=list)          # (bytes given, bytes sent) of every frame that was cut
+    # The frames lost to an overlap (two that overlap are two)
+    collisions: int = 0
+    # (bytes given, bytes sent) of every frame that was cut
+    truncated: list[tuple[int, int]] = field(default_factory=list)
     _on_air: list[Transmission] = field(default_factory=list)
     _tasks: set[asyncio.Task[None]] = field(default_factory=set)
 
@@ -95,7 +76,8 @@ class Air:
         return [t.station for t in self._on_air]
 
     def transmit(self, station: "FakeMercury", payload: bytes) -> None:
-        """The station keys and sends this frame, cut to the payload; the air decides at the end who hears it."""
+        """The station keys and sends this frame, cut to the payload; the air decides at the end who
+        hears it."""
         if len(payload) > self.max_payload:
             self.truncated.append((len(payload), self.max_payload))
             payload = payload[:self.max_payload]
@@ -131,16 +113,21 @@ class Air:
 
 
 class FakeMercury(FakeRadio):
-    """One Mercury station: its KISS port is the fake radio's, its control port 200 above it (Mercury's default distance, which the daemon expects of a Mercury it did not start)."""
+    """One Mercury station: its KISS port is the fake radio's, its control port 200 above it
+    (Mercury's default distance, which the daemon expects of a Mercury it did not start)."""
 
     def __init__(self, air: Air) -> None:
         super().__init__()
-        self._control_sock: socket.socket | None = None                     # the control port, held from here to the server that serves it: no other radio of the tests can take it between
+        # The control port, held from here to the server that serves it: no other radio of the tests
+        # can take it between
+        self._control_sock: socket.socket | None = None
         while self._control_sock is None:
             assert self._sock is not None
             try:
                 self._control_sock = self._listening(self.port + CONTROL_OFFSET)
-            except (OSError, OverflowError):                              # (another radio of the tests has the KISS port's neighbour, or it is past the last port: a KISS port again)
+            # Another radio of the tests has the KISS port's neighbour, or it is past the last port:
+            # a KISS port again
+            except (OSError, OverflowError):
                 self._sock.close()
                 self._sock = self._listening(0)
                 self.port = self._sock.getsockname()[1]
@@ -148,14 +135,16 @@ class FakeMercury(FakeRadio):
         self.air = air
         self.control_port = self.port + CONTROL_OFFSET
         self.keyed = False
-        self.frames_in: list[bytes] = []                                  # every payload a client handed in, as it came (before the cut)
+        # Every payload a client handed in, as it came (before the cut)
+        self.frames_in: list[bytes] = []
         self.control_said: list[str] = []                                  # every line said on the control port
         self._decoder = kiss.KissDecoder()
         self._control_server: asyncio.Server | None = None
         self._control_clients: list[asyncio.StreamWriter] = []
         self.control_connections = 0
         self.alive_sec: float | None = None                                # how often IAMALIVE is said; None: never
-        self.tuned: list[str] = []                                         # the TUNE commands a client wrote, as they came
+        # The TUNE commands a client wrote, as they came
+        self.tuned: list[str] = []
 
     async def start(self) -> None:
         await super().start()
@@ -179,7 +168,8 @@ class FakeMercury(FakeRadio):
         await super().aclose()
 
     def heard_bytes(self, data: bytes) -> None:
-        """What a client wrote to the KISS port: kept as the fake radio keeps it, and every whole frame goes on the air."""
+        """What a client wrote to the KISS port: kept as the fake radio keeps it, and every whole
+        frame goes on the air."""
         super().heard_bytes(data)
         for frame in self._decoder.feed(data):
             if frame.command == 0:
@@ -229,7 +219,8 @@ class FakeMercury(FakeRadio):
 
 
 def tune_answer(line: str) -> bytes:
-    """What Mercury writes back for a TUNE line (1.9.21 to 1.9.24): OK and the PTT it switched, or WRONG for a line it does not take."""
+    """What Mercury writes back for a TUNE line: OK and the PTT it switched, or WRONG for a line it
+    does not take."""
     words = line.split()
     if len(words) != 2:
         return b"WRONG\r"
@@ -245,17 +236,24 @@ def tune_answer(line: str) -> bytes:
 # ---- the program that stands in for the binary
 
 ROOT = Path(__file__).resolve().parents[2]
-BROADCAST_FILE = "fake-mercury-broadcast.bin"          # what the program's KISS port was given, in its working directory
-UI_SCENE_FILE = "fake-mercury-ui-scene.json"           # what its UI interface hears, as tests/support/fakemercuryui.py reads it, in the working directory
-UI_LOG_FILE = "fake-mercury-ui.log"                    # the commands its UI interface was given, one a line (`set_tx_gain 3`), when its ini turns the interface on; `--no-ui` is a Mercury that has none
+# What the program's KISS port was given, in its working directory
+BROADCAST_FILE = "fake-mercury-broadcast.bin"
+# What its UI interface hears, as tests/support/fakemercuryui.py reads it, in the working directory
+UI_SCENE_FILE = "fake-mercury-ui-scene.json"
+# The commands its UI interface was given, one a line (`set_tx_gain 3`), when its ini turns the
+# interface on; `--no-ui` is a Mercury that has none
+UI_LOG_FILE = "fake-mercury-ui.log"
 INI_FILE_FLAG = "-C"
 
 
-AUDIO_ERROR_LINE = "[ERR] [audio-play] error in audio->open(): 1: snd_pcm_hw_params_set_access: (-22) Invalid argument"       # what Mercury 1.9.21 printed on a station whose sound card it could not open (it ran on all the same; 1.9.24 says the same words), after the stamp (`say`)
+# What Mercury prints, after the stamp, when it cannot open the sound card (it runs on all the
+# same).
+AUDIO_ERROR_LINE = "[ERR] [audio-play] error in audio->open(): 1: snd_pcm_hw_params_set_access: (-22) Invalid argument"
 
 
 def stamp(seconds: float, ran_sec: float, utc: bool = False) -> str:
-    """The time and the run time Mercury writes in front of a log line from 1.9.22 on (common/hermes_log.c, format_stamp): `2026-11-02 23:15:57.123 [+0.003s]`, with a `Z` after the time in UTC."""
+    """The time and run time Mercury writes before a log line: `2026-11-02 23:15:57.123 [+0.003s]`,
+    `Z` after the time in UTC."""
     moment = time.gmtime(seconds) if utc else time.localtime(seconds)
     run_ms = int(ran_sec * 1000)
     return f"{time.strftime('%Y-%m-%d %H:%M:%S', moment)}.{int(seconds * 1000) % 1000:03d}{'Z' if utc else ''} [+{run_ms // 1000}.{run_ms % 1000:03d}s]"
@@ -270,14 +268,17 @@ def say(line: str) -> None:
 
 
 def of_radio(data_dir: Path, holder: RadioId = HF_ID, claims: Claims | None = None) -> dict[str, Any]:
-    """The keywords of `Mercury` for the modem of radio `holder`, as its driver makes it: the station's table of resources (a table of its own unless one is given, which radios side by side share), the radio's id and its
-    own folder in the data folder (mercuryclaims.radio_folder)."""
+    """The keywords of `Mercury` for the modem of radio `holder`, as its driver makes it: the
+    station's table of resources (a table of its own unless one is given, which radios side by side
+    share), the radio's id and its own folder in the data folder (mercuryclaims.radio_folder)."""
     return {"claims": Claims() if claims is None else claims, "holder": holder, "folder": radio_folder(data_dir, holder)}
 
 
 def program(die_after_sec: float | None = None, audio_error: bool = False, no_ui: bool = False) -> list[str]:
-    """The command that runs this module as the Mercury program, whatever the working directory (the daemon starts Mercury in the data folder): what the modem part's finder gives in a test. With `die_after_sec` it dies by itself;
-    with `audio_error` it prints, once its ports listen, the line Mercury prints when its sound card cannot be opened, and runs on as Mercury does."""
+    """The command that runs this module as the Mercury program, whatever the working directory (the
+    daemon starts Mercury in the data folder): what the modem part's finder gives in a test. With
+    `die_after_sec` it dies by itself; with `audio_error` it prints, once its ports listen, the line
+    Mercury prints when its sound card cannot be opened, and runs on as Mercury does."""
     command = [sys.executable, "-c", f"import sys, runpy; sys.path.insert(0, {str(ROOT)!r}); runpy.run_module('tests.support.fakemercury', run_name='__main__')"]
     if die_after_sec is not None:
         command += ["--die-after", str(die_after_sec)]
@@ -297,7 +298,9 @@ def _arguments(argv: list[str]) -> dict[str, str]:
 
 
 def _ui_of(ini: str, no_ui: bool = False) -> tuple[int, float]:
-    """The UI port the ini turns on (0: none) and the transmit gain it holds, read as Mercury reads them (`[main] ui_enabled`, `ui_port`, `[audio] tx_gain_db`); none in a Mercury that has no interface."""
+    """The UI port the ini turns on (0: none) and the transmit gain it holds, read as Mercury reads
+    them (`[main] ui_enabled`, `ui_port`, `[audio] tx_gain_db`); none in a Mercury that has no
+    interface."""
     if not ini or no_ui:
         return 0, 0.0
     parser = configparser.ConfigParser()
@@ -307,7 +310,8 @@ def _ui_of(ini: str, no_ui: bool = False) -> tuple[int, float]:
 
 
 async def _serve(broadcast_port: int, control_port: int, die_after: float | None, audio_error: bool = False, ini: str = "", no_ui: bool = False) -> int:
-    """Listens on both ports as Mercury would (nothing is echoed: there is no other station) until SIGTERM, or dies after `die_after` seconds."""
+    """Listens on both ports as Mercury would (nothing is echoed: there is no other station) until
+    SIGTERM, or dies after `die_after` seconds."""
     loop = asyncio.get_running_loop()
     stop = asyncio.Event()
     for name in ("SIGTERM", "SIGINT"):
@@ -346,14 +350,18 @@ async def _serve(broadcast_port: int, control_port: int, die_after: float | None
     say(f"[INF] [engine] Initialising TCP interfaces (arq={control_port}, bc={broadcast_port})")
     say("[INF] [engine] Mercury engine initialised")
     if audio_error:
-        await asyncio.sleep(0.3)                                         # (the control port is up and the daemon has connected: the error comes while the modem says "running", as it did on the station)
+        # The control port is up and the daemon has connected: the error comes while the modem says
+        # "running", as it did on the station
+        await asyncio.sleep(0.3)
         say(AUDIO_ERROR_LINE)
     try:
         await asyncio.wait_for(stop.wait(), die_after)
     except TimeoutError:
         say("[ERR] [engine] the fake Mercury dies as told")
         sys.stdout.flush()
-        os._exit(3)             # (as a program that dies: at once, and with nothing after its last line. The loop's own end can print a traceback on Windows, which would then be its last lines)
+        # As a program that dies: at once, and with nothing after its last line. The loop's own end
+        # can print a traceback on Windows, which would then be its last lines
+        os._exit(3)
     finally:
         kiss_server.close()
         control_server.close()
@@ -372,7 +380,9 @@ def main(argv: list[str] | None = None, out: Callable[[str], None] = print) -> i
         out(SOUND_CARDS.rstrip("\n"))
         return 0
     die_after = float(args["--die-after"]) if args.get("--die-after") else float(os.environ["FAKE_MERCURY_DIE_AFTER"]) if os.environ.get("FAKE_MERCURY_DIE_AFTER") else None
-    if sys.platform == "win32":                                          # (no signal handlers on the Windows selector loop: SIGTERM ends the process as terminate() does)
+    # (no signal handlers on the Windows selector loop: SIGTERM ends the process as terminate()
+    # does)
+    if sys.platform == "win32":
         die_after = die_after if die_after is not None else 3600.0
     started = time.monotonic()
     code = asyncio.run(_serve(int(args.get("-b", "8100")), int(args.get("-p", "8300")), die_after, "--audio-error" in args, args.get(INI_FILE_FLAG, ""), "--no-ui" in args))

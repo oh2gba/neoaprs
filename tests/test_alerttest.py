@@ -1,5 +1,6 @@
-"""The test button of the message alert (`alert_test`, answered with `alert_result`): over the socket, against the daemon. The command is the saved one, run as for a real message with a made-up one,
-whatever `messages/alert` says; a fake command writes its environment to a file of the test."""
+"""The test button of the message alert (`alert_test`, answered with `alert_result`): over the
+socket, against the daemon. The command is the saved one, run as for a real message with a made-up
+one, whatever `messages/alert` says; a fake command writes its environment to a file of the test."""
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -12,7 +13,9 @@ from tests.support.env import Env
 from tests.support.wsclient import WsClient
 from neoaprs.web.protocol import TOPIC_NAMES
 
-RESULT_SEC = TIMEOUT_SEC + 5.0          # how long a test waits for the result of a Test: the time the command itself is given (PowerShell takes many seconds to start on a busy Windows), and a little
+# how long a test waits for the result of a Test: the time the command itself is given (PowerShell
+# takes many seconds to start on a busy Windows), and a little
+RESULT_SEC = TIMEOUT_SEC + 5.0
 
 
 async def started(tmp_path: Path, command: str, **changes: object) -> tuple[Env, WsClient]:

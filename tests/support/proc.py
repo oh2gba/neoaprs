@@ -1,12 +1,15 @@
-"""Ending a program the tests started, the way its system ends one: SIGTERM or SIGINT on POSIX; on Windows Ctrl+Break, which only reaches a child that was started in a process group of its own
-(`creationflags=NEW_GROUP`; `terminate()` there is a kill, and the exit code of a killed program is not 0)."""
+"""End a program the tests started the way its system ends one: SIGTERM or SIGINT on POSIX,
+Ctrl+Break on Windows (which only reaches a child started in its own process group).
+"""
 import signal
 import subprocess
 import sys
 
 WINDOWS = sys.platform == "win32"
 NEW_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-STOP_PATIENCE_SEC = 60.0    # the longest a test waits for a program it asked to end (a daemon closing its radios, a replay), on a machine busy with the whole suite: a limit, not how long it takes
+# The longest a test waits for a program it asked to end (a daemon closing its radios, a replay), on
+# a machine busy with the whole suite: a limit, not how long it takes
+STOP_PATIENCE_SEC = 60.0
 
 
 def send(proc: "subprocess.Popen[str]", sig: int) -> None:

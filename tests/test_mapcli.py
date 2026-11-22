@@ -1,5 +1,7 @@
-"""The command line of the base map (`python -m neoaprs.services.mapfetch`, `scripts/fetch-basemap`) as a process, cutting the made-up planet of tests/support/madepmtiles.py from a file: the same jobs as the page's
-buttons, the flags over the settings of the data folder, the settings read from its database, and the way it fails."""
+"""The base map command line (`python -m neoaprs.services.mapfetch`, `scripts/fetch-basemap`) as a
+process, cutting the made-up planet from a file: the page's jobs, flags over settings, and the
+failures.
+"""
 import asyncio
 import os
 import subprocess

@@ -1,6 +1,7 @@
-"""The station book by channel (neoaprs/stationbook.py, stationnotes.py, station.py): each station keeps, for the radio, the radio's third-party packets and the internet, how many packets and when the latest was heard, and the
-channel of its position (the latest packet wins); everything that means "on the air near us" counts the radio only: the routes, the direct time, the path to send by, the ALOHA circle, the card's last route and whether
-a message to it makes sense."""
+"""The station book by channel (neoaprs/stationbook.py, stationnotes.py, station.py): per station,
+the radio's, third-party and internet packet counts and latest times, and the position's channel;
+"near us" counts radio only.
+"""
 import json
 from datetime import datetime, timedelta
 

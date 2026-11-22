@@ -1,9 +1,8 @@
-"""A classic Bluetooth serial port (RFCOMM, the Serial Port Profile) as a pyserial port: `bt://AA:BB:CC:DD:EE:FF` or `bt://AA:BB:CC:DD:EE:FF/2` (the channel). It is the socket:// port of pyserial with an RFCOMM socket in
-place of the TCP one, so reading, writing, the write timeout and a line that dies work as they do for TCP, and `serialport.py` treats the two alike.
+"""A classic Bluetooth serial port (RFCOMM) as a pyserial port: `bt://AA:BB:CC:DD:EE:FF[/channel]`.
 
-A device that is paired with the system needs no `rfcomm bind` and no root: Linux lets a user program open an RFCOMM socket to it. Python's `socket` has Bluetooth on Linux (and on Windows, which this does not use: there the paired
-device's COM port is the way); where it has none, the open says so. Without a channel in the URL the device is asked (`btsdp.py`) for the channels of its serial ports; they are tried in turn, then channels 1 to 3 (a device that lists none, or lists one it does not serve), and the log says
-which one connected. Only a refusal moves on to the next channel."""
+It is pyserial's socket:// port over an RFCOMM socket; a paired device needs no `rfcomm bind` or
+root. Without a channel in the URL, the channels the device lists, then 1 to 3, are tried in turn.
+"""
 import errno
 import logging
 import re
@@ -18,8 +17,8 @@ from . import btsdp
 log = logging.getLogger("neoaprs.btserial")
 
 SCHEME = "bt://"
-FALLBACK_CHANNELS = (1, 2, 3)        # tried after the channels the device lists: 1 is what Mobilinkd, the VR-N76/UV-PRO and most serial modules use, 2 the Kenwood TH-D74/D75
-CONNECT_TIMEOUT_SEC = 12.0           # a radio that is switched off or out of range answers after the page timeout of the link, a few seconds
+FALLBACK_CHANNELS = (1, 2, 3)
+CONNECT_TIMEOUT_SEC = 12.0
 REFUSED = (errno.ECONNREFUSED, errno.ECONNRESET)
 _URL = re.compile(r"^bt://([0-9A-Fa-f]{2}(?:[:-][0-9A-Fa-f]{2}){5})(?:/(\d{1,2}))?/?$", re.IGNORECASE)
 
@@ -29,7 +28,7 @@ def is_bluetooth(path: str) -> bool:
 
 
 def parse_url(path: str) -> tuple[str, int | None]:
-    """The device address (upper case, with colons) and the channel (None: not given) of a `bt://` port; ValueError says what is wrong."""
+    """Return the device address and the channel (None if absent); raise ValueError if malformed."""
     match = _URL.match(path.strip())
     if match is None:
         raise ValueError(f"{path!r} is not a Bluetooth port: write bt://AA:BB:CC:DD:EE:FF, or bt://AA:BB:CC:DD:EE:FF/2 with the RFCOMM channel")
@@ -41,7 +40,7 @@ def parse_url(path: str) -> tuple[str, int | None]:
 
 
 def available() -> bool:
-    """Whether this Python can make Bluetooth sockets (Linux builds with BlueZ support)."""
+    """Return True if this Python can make RFCOMM sockets (Linux with BlueZ)."""
     return sys.platform.startswith("linux") and hasattr(socket, "AF_BLUETOOTH") and hasattr(socket, "BTPROTO_RFCOMM")
 
 
@@ -50,14 +49,13 @@ def new_rfcomm_socket() -> socket.socket:
 
 
 def channels_for(address: str) -> list[int]:
-    """The channels to try for a device without one in the URL: those its service directory lists for the serial port, then the usual ones."""
+    """Return the device's listed serial channels, then the fallback ones."""
     listed = btsdp.serial_channels(address)
     return listed + [c for c in FALLBACK_CHANNELS if c not in listed]
 
 
 def connect(address: str, channel: int | None) -> socket.socket:
-    """An RFCOMM socket connected to the device (the log says the channel). A channel that was named is the only one tried; otherwise each channel of `channels_for` in turn, the next one after a refusal
-    (the device serves nothing on that channel); any other failure (out of range, switched off) ends it, as does the last refusal."""
+    """Return an RFCOMM socket; a refusal tries the next channel, any other failure is raised."""
     channels = [channel] if channel else channels_for(address)
     for number in channels:
         sock = new_rfcomm_socket()
@@ -79,7 +77,7 @@ def connect(address: str, channel: int | None) -> socket.socket:
 
 
 class BluetoothSerial(protocol_socket.Serial):  # type: ignore[misc]
-    """pyserial's socket port with an RFCOMM socket: port parameters are ignored (a Bluetooth link has no speed to set, no control lines to hold)."""
+    """pyserial's socket port over RFCOMM; port parameters are ignored."""
 
     is_open: bool
 

@@ -1,4 +1,5 @@
-"""The schedules of what we send of our own accord (neoaprs/decay.py): the net cycle time of a path, the decay of an object, the kill and the plans of a bulletin and an announcement."""
+"""The schedules of what we send of our own accord (neoaprs/decay.py): the net cycle time of a path,
+the decay of an object, the kill and the plans of a bulletin and an announcement."""
 import pytest
 
 from neoaprs.decay import ANNOUNCEMENT, BULLETIN, KILL_SENDS, bulletin_wait_sec, hops, kill_wait_sec, net_cycle_sec, object_wait_sec

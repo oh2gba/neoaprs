@@ -1,6 +1,8 @@
-"""The transmit interlock as the parts use it: `Interlock.refused(kind)` is the reason nothing may be transmitted now (config.can_transmit, which is the only place that decides it), or None. A service asks it before it
-builds a frame, with the kind of frame ("beacon", "status", "message", "query answer"), and the Tnc asks it of every frame it is given to send (kind "frame"), whoever built it; the first refusal of each kind is told in
-the log, the following ones are not, and a refusal told once is told again after the interlock has been open in between."""
+"""The transmit interlock: `Interlock.refused(kind)` is the reason nothing may be sent now, or None.
+
+The reason comes from config.can_transmit. A service asks with its kind ("beacon", "message"), the
+Tnc about every frame (kind "frame"). The first refusal of a kind is logged, until the interlock opens.
+"""
 import logging
 from collections.abc import Callable
 

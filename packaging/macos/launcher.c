@@ -1,4 +1,6 @@
-/* The entry of the macOS app, NeoAPRS.app/Contents/MacOS/NeoAPRS: Python embedded through libpython, so that the process is NeoAPRS itself. The Dock, the menu bar and the microphone prompt name the
+/* The entry of the macOS app, NeoAPRS.app/Contents/MacOS/NeoAPRS: Python embedded through
+ * libpython, so that the process is NeoAPRS itself. The Dock, the menu bar and the microphone
+ * prompt name the
    process's own bundle and read its Info.plist, which they would not do for a python3.13 started by a script (the app would be "python3.13" with the generic icon). It runs `-m neoaprs` with the arguments
    it was given, and `app` with none, as the AppImage's AppRun does: NeoAPRS.app/Contents/MacOS/NeoAPRS is the desktop app from Finder and the `neoaprs` command from a terminal.
 

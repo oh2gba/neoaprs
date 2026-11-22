@@ -1,5 +1,8 @@
-"""The errors that pages report about themselves (`page_error`, neoaprs/web/supportwire.py): each is a warning in the log, the latest 100 are kept for the support bundle, and a page that reports in a flood is held to 20 log lines in a minute, the
-rest counted in one line."""
+"""Log and keep the errors pages report (`page_error`).
+
+Each is a warning in the log and the latest 100 are kept for the support bundle. A flooding page is
+limited to 20 log lines a minute; the rest are counted in one line.
+"""
 import asyncio
 import logging
 from collections import deque
@@ -21,14 +24,17 @@ MAX_STACK_LINE = 300
 
 
 def one_line(text: str, limit: int) -> str:
-    """The text on one line, with nothing in it that could pass for a line of the log (the page is not trusted with the log's format), cut to `limit` characters."""
+    """Return `text` on one line without control characters, cut to `limit`.
+
+    Pages must not forge log lines.
+    """
     shown = " ".join("".join(c if c.isprintable() else " " for c in text).split())
     return shown if len(shown) <= limit else shown[:limit - 1] + "…"
 
 
 @dataclass
 class _Window:
-    """What one connection has reported in the minute that began at `start`."""
+    """Reports of one connection in the window that began at `start`."""
     start: float
     logged: int = 0
     dropped: int = 0
@@ -38,7 +44,7 @@ class _Window:
 class PageErrors:
     def __init__(self, clock: Clock = utcnow, window_sec: float = WINDOW_SEC) -> None:
         self.clock = clock
-        self.window_sec = window_sec                        # the minute (a test makes it short)
+        self.window_sec = window_sec
         self.kept: deque[dict[str, Any]] = deque(maxlen=KEPT)
         self._windows: WeakKeyDictionary[Connection, _Window] = WeakKeyDictionary()
 
@@ -60,12 +66,13 @@ class PageErrors:
             self._remind(conn, window)
 
     def _remind(self, conn: Connection, window: _Window) -> None:
-        """The line about the reports that were not logged comes when the minute is over, though no other report follows."""
+        """Log the count of dropped reports when the window ends, even if no report follows."""
         try:
             left = max(0.0, window.start + self.window_sec - self.clock().timestamp())
             window.timer = asyncio.get_running_loop().call_later(left, self._close, window)
         except RuntimeError:
-            pass                                             # (no loop: the next report or the close of the connection says it)
+# No loop: the next report or the close of the connection logs the count.
+            pass
 
     def _close(self, window: _Window | None) -> None:
         if window is None:
@@ -78,7 +85,7 @@ class PageErrors:
             window.dropped = 0
 
     def forget(self, conn: Connection) -> None:
-        """The page left: what it was not allowed to log in its last minute is told now."""
+        """Close the page's window and log any dropped count."""
         self._close(self._windows.pop(conn, None))
 
     def stop(self) -> None:
@@ -86,5 +93,5 @@ class PageErrors:
             self.forget(conn)
 
     def snapshot(self) -> list[dict[str, Any]]:
-        """The kept reports, the newest last."""
+        """Return the kept reports, newest last."""
         return list(self.kept)

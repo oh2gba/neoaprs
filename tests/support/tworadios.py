@@ -1,18 +1,20 @@
-"""What the two radios of before (radio 1 the FM radio, radio 2 the HF radio, `neoaprs/radios.py` until W3) chose, written out: the expectation the registry's choices and today's rules are held to by
-tests/test_seams.py and tests/test_radioregistry.py, over the cases of both radios on or off, heard on each or not, and the operator's choice of either. Two of them are no longer what the registry
-gives, and the tests say each where they read it: a packet that came on a radio that is off now is answered on no radio (`packet_before` gave the other one), and the HF radio alone carries a mail
-(`email_before` refused it)."""
+"""The choices the registry makes for radio 1 (FM) and radio 2 (HF), written out as the expectation
+that tests/test_seams.py and tests/test_radioregistry.py hold it to, over the cases of both radios
+on or off, heard on each or not, and the operator's choice of either.
+"""
 from neoaprs.radiospec import FM_ID, HF_ID, RadioId
 
 
 def main_before(fm_on: bool, hf_on: bool) -> RadioId | None:
-    """The radio of what addresses no station: the FM radio while it is on, else the HF one; none while neither is (the stopped FM radio of before sent nothing)."""
+    """The radio of what addresses no station: the FM radio while it is on, else the HF one; none
+    while neither is (the stopped FM radio of before sent nothing)."""
     return FM_ID if fm_on else HF_ID if hf_on else None
 
 
 def station_before(fm_on: bool, hf_on: bool, fm: int, hf: int, choice: RadioId | None) -> RadioId | None:
-    """The radio a message to a station went out on: the one that is on unless both are; then the operator's choice, else the HF radio for a station heard on HF alone, else the FM one. `fm` and `hf` are
-    what each radio heard of the station (0 for a station the book does not hold)."""
+    """The radio a message to a station went out on: the one that is on unless both are; then the
+    operator's choice, else the HF radio for a station heard on HF alone, else the FM one. `fm` and
+    `hf` are what each radio heard of the station (0 for a station the book does not hold)."""
     if not (fm_on and hf_on):
         return main_before(fm_on, hf_on)
     if choice is not None:
@@ -21,13 +23,15 @@ def station_before(fm_on: bool, hf_on: bool, fm: int, hf: int, choice: RadioId |
 
 
 def packet_before(fm_on: bool, hf_on: bool, came_on: RadioId) -> RadioId | None:
-    """The radio an answer to a packet went out on: the one it came on while that one is on, else the other."""
+    """The radio an answer to a packet went out on: the one it came on while that one is on, else
+    the other."""
     on = {FM_ID: fm_on, HF_ID: hf_on}
     return came_on if on[came_on] else main_before(fm_on, hf_on)
 
 
 def email_before(fm_on: bool, hf_on: bool) -> RadioId | None:
-    """The radio an email went out on: the FM radio, which the internet's gateways hear; none (the mail refused) while it is off."""
+    """The radio an email went out on: the FM radio, which the internet's gateways hear; none (the
+    mail refused) while it is off."""
     return FM_ID if fm_on else None
 
 

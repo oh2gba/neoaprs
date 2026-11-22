@@ -1,5 +1,7 @@
-"""What messaging does with the messages of the specification's special cases (neoaprs/services/messaging.py, inbox.py, heard.py): a reused id with a new text, a text that only looks like an ack, messages to a
-bulletin or a group, queries, telemetry definitions, the exact addressee, and the weather service's bulletins."""
+"""What messaging does with the specification's special cases: a reused id with a new text, a text
+that only looks like an ack, bulletin and group messages, queries, telemetry definitions and the
+weather bulletins.
+"""
 from dataclasses import replace
 from pathlib import Path
 
@@ -38,7 +40,8 @@ async def test_a_new_text_with_an_id_that_was_used_is_a_new_message_that_is_kept
 async def test_the_same_text_with_the_same_id_is_a_repeat_whatever_reply_ack_it_carries(rig: Rig) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "same", "12", reply=""))
     rig.clock.advance(60)
-    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "same", "12", reply="07"))     # (the retry carries another AA; the text is without it)
+    # The retry carries another AA; the text is without it
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "same", "12", reply="07"))
     await rig.settled()
     assert received(rig) == [("same", "12")] and rig.tnc.lines()[0].endswith(":ack12}") and rig.tnc.lines()[1].endswith(":ack12}07")
 
@@ -57,7 +60,8 @@ async def test_a_word_that_begins_like_an_ack_or_a_rej_and_settles_nothing_is_an
 async def test_an_ack_that_names_a_message_of_ours_is_an_ack_in_whatever_state_the_message_is(rig: Rig) -> None:
     await rig.m.send("OH2RDG", "Hello")
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="01"))
-    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="01"))                     # (the plain ack as well as the reply-ack: the second settles nothing new)
+    # The plain ack as well as the reply-ack: the second settles nothing new
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="01"))
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", rej="01"))
     await rig.settled()
     assert [m.state for m in rig.m.records()] == ["acked"], "no message came of the later ones, and the state stays"
@@ -69,7 +73,8 @@ async def test_a_repeated_ack_settles_only_the_newest_message_with_the_id_not_an
     assert old is not None and new is not None
     rig.m.put(old)
     rig.m.put(new)
-    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="05"))                     # (the second copy of the ack of the newer message, by another digipeater)
+    # The second copy of the ack of the newer message, by another digipeater
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="05"))
     await rig.settled()
     assert (rig.m.get(old.id).state, rig.m.get(new.id).state) == ("failed", "acked")    # type: ignore[union-attr]
 
@@ -145,7 +150,8 @@ async def test_a_text_that_cannot_be_sent_is_refused_for_a_bulletin_as_for_any_m
 
 @pytest.mark.parametrize("text", ["?APRSP", "?APRSS", "?APRSD", "?APRST", "?PING?", "?APRS?", "?APRSM", "?WX", "?aprsp", "?APRSH OH2XYZ"])
 async def test_a_query_to_us_is_acked_when_it_carries_an_id_and_is_not_a_conversation_message(rig: Rig, text: str) -> None:
-    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", text, "7"))                # (numbered against the specification: the ack stops the radio's retries)
+    # Numbered against the specification: the ack stops the radio's retries
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", text, "7"))
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", text))
     await rig.settled()
     assert [f.info for f in rig.tnc.sent] == [b":OH2RDG   :ack7"] and rig.m.records() == [] and await rig.log.recent() == [] and await rig.log.recent(overheard=True) == []

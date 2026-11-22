@@ -1,5 +1,8 @@
-// Exit 0 when ui/node_modules is what ui/package-lock.json says (the same packages in the same versions; a package marked optional, which npm leaves out for another platform, may be missing),
-// else 1. npm writes the list of what it installed to node_modules/.package-lock.json. Used by scripts/build-page and scripts/worktree-setup, to run `npm ci` (which deletes node_modules first) only when it is needed.
+// Exit 0 when ui/node_modules is what ui/package-lock.json says (the same packages in the same
+// versions; a package marked optional, which npm leaves out for another platform, may be missing),
+// else 1. npm writes the list of what it installed to node_modules/.package-lock.json. Used by
+// scripts/build-page and scripts/worktree-setup, to run `npm ci` (which deletes node_modules first)
+// only when it is needed.
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

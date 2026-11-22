@@ -1,6 +1,7 @@
-"""Start at sign-in, the app's checkbox in the tray menu: it starts `neoaprs-app --tray` (the app in the tray, the window hidden) and not the daemon, which the app starts itself. On Windows it is the value
-`NeoAPRS` of the Run key of the user, the one entry that `neoaprs service install` and the installer's task write too (so there is one start at sign-in, whichever wrote it); on Linux an XDG autostart file,
-`~/.config/autostart/neoaprs.desktop`, which KDE, GNOME and the others read. Elsewhere there is none and the menu does not offer it. Both are told what to run by `app_command`."""
+"""Start at sign-in, behind the tray menu's checkbox.
+
+It starts `neoaprs-app --tray`: on Windows the `NeoAPRS` Run key value (shared with
+`neoaprs service install`), on Linux the XDG autostart file."""
 import os
 import shutil
 import subprocess
@@ -29,9 +30,9 @@ class AutoStart(Protocol):
 
 def app_command(data: Path, platform: str | None = None, frozen: bool | None = None, executable: str | None = None, which: Callable[[str], str | None] = shutil.which,
                 appimage: Callable[[], str | None] = servicecmd.appimage_file, encryption: bool = False) -> list[str]:
-    """The program and arguments that start the app in the tray: in an AppImage the AppImage file with `app` (the interpreter is in a folder that is gone when it ends), else the installed program `neoaprs-app`
-    (next to this Python; in a frozen app its own windowless program, beside whichever one of the folder is running), else this Python with `-m neoaprs app` (`pythonw` on Windows: no console window).
-    `--data` is given only when the folder is not the default one."""
+    """Return the command line that starts the app in the tray.
+
+    An AppImage starts the file itself (its mount vanishes). `--data` only if not the default."""
     platform = sys.platform if platform is None else platform
     frozen = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
     here = (PureWindowsPath if platform == "win32" else PurePosixPath)(sys.executable if executable is None else executable)
@@ -51,8 +52,9 @@ def app_command(data: Path, platform: str | None = None, frozen: bool | None = N
 
 
 def desktop_exec(argv: list[str]) -> str:
-    """The Exec line of a desktop entry: an argument with a space or a quote is in double quotes, and the characters the specification says (`"`, `` ` ``, `$`) have a backslash, `%` is doubled. The string
-    escape of the file format (`\\\\` is one) is applied first, so the quoting backslash is doubled in the file, and a literal backslash is four."""
+    """Return the Exec line of a desktop entry, quoted as the Desktop Entry specification says.
+
+    The file format's own escaping applies first, so each quoting backslash is doubled."""
     def one(arg: str) -> str:
         arg = arg.replace("\\", "\\" * 4).replace('"', '\\' * 2 + '"').replace("`", '\\' * 2 + "`").replace("$", '\\' * 2 + "$").replace("%", "%%")
         return f'"{arg}"' if any(c in arg for c in " \t\n\"'\\><~|&;*?#()`$") else arg
@@ -60,7 +62,7 @@ def desktop_exec(argv: list[str]) -> str:
 
 
 class RunKeyAutoStart:
-    """Windows: the Run key. `enabled` is true when the entry is NeoAPRS's and starts the app (`--tray`); an entry that starts the daemon (the service) is not the app's, and enabling replaces it."""
+    """Windows Run key; an entry that starts the daemon (the service) does not count as enabled."""
 
     def __init__(self, command: list[str]) -> None:
         self.command = subprocess.list2cmdline(command)
@@ -91,7 +93,7 @@ class RunKeyAutoStart:
 
 
 class DesktopFileAutoStart:
-    """Linux: `autostart/neoaprs.desktop` in the user's config folder (`$XDG_CONFIG_HOME`, else `~/.config`)."""
+    """Linux: `autostart/neoaprs.desktop` in the user's config folder."""
 
     def __init__(self, command: list[str]) -> None:
         self.command = command
@@ -118,7 +120,7 @@ class DesktopFileAutoStart:
 
 
 def autostart_for(data: Path, platform: str | None = None, encryption: bool = False) -> AutoStart | None:
-    """The start at sign-in of this system, or None where the app has none to offer (macOS)."""
+    """Return the sign-in start for this system, or None where there is none (macOS)."""
     platform = sys.platform if platform is None else platform
     if platform == "win32":
         return RunKeyAutoStart(app_command(data, platform, encryption=encryption))

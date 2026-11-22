@@ -1,11 +1,13 @@
-"""One daemon to a data folder: two of them would both write the database and both answer the same messages on the air. The lock is a file in the data folder that the program holds for as long
-as it runs (`fcntl.flock` on POSIX, `msvcrt.locking` on Windows); the system lets go of it when the process ends, however it ends, so a crash leaves nothing to clean up."""
+"""One daemon per data folder, enforced by a lock file held while the program runs.
+
+The lock is `fcntl.flock` on POSIX and `msvcrt.locking` on Windows; the system releases it when the
+process ends, so a crash leaves nothing to clean up."""
 import os
 import sys
 from pathlib import Path
 
 LOCK_NAME = "neoaprs.lock"
-APP_LOCK_NAME = "neoaprs-app.lock"           # the desktop app's own lock of the data folder (neoaprs/desktop/single.py)
+APP_LOCK_NAME = "neoaprs-app.lock"           # the desktop app's lock of the data folder
 
 
 class AlreadyRunning(Exception):
@@ -18,10 +20,10 @@ class InstanceLock:
         self._fd: int | None = None
 
     def acquire(self) -> None:
-        """Takes the lock or raises AlreadyRunning. Taken twice by one object it is taken once."""
+        """Take the lock or raise AlreadyRunning. A second call on the same object does nothing."""
         if self._fd is not None:
             return
-        fd = os.open(self.path, os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)      # (not inherited by a program the daemon starts: Python's descriptors are not)
+        fd = os.open(self.path, os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
         try:
             self._lock(fd)
         except OSError as e:
@@ -33,13 +35,14 @@ class InstanceLock:
     def _lock(fd: int) -> None:
         if sys.platform == "win32":
             import msvcrt
-            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)           # the first byte of the file, which may be beyond its end; fails at once when it is held
+            # the first byte, even past the end of the file; fails at once if held
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
         else:
             import fcntl
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
     def release(self) -> None:
-        """Lets go (the lock file stays: removing it would let a second program lock a file that a third one is about to)."""
+        """Release the lock. The file stays, or two programs could lock different files."""
         if self._fd is None:
             return
         fd, self._fd = self._fd, None
@@ -54,7 +57,7 @@ class InstanceLock:
 
 
 def is_file(path: Path) -> bool:
-    """Whether `path` is a file; False, and no exception, when a folder on the way cannot be looked into."""
+    """Return whether `path` is a file; False if a parent folder cannot be read."""
     try:
         return path.is_file()
     except OSError:
@@ -62,7 +65,7 @@ def is_file(path: Path) -> bool:
 
 
 def is_held(data_dir: Path, name: str = LOCK_NAME) -> bool:
-    """Whether a program holds the lock `name` of the data folder (the lock is taken for a moment, and let go, to find out; a folder with no lock file has no such program)."""
+    """Return whether a program holds lock `name`; found out by taking and releasing it."""
     if not is_file(data_dir / name):
         return False
     lock = InstanceLock(data_dir, name)

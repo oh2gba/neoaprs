@@ -1,7 +1,7 @@
-"""The `neoaprs` command: `neoaprs [run] [flags]` runs the daemon (the flags of `python -m neoaprs`), and the subcommands are the tools around it: `service` (set it up to start at login), `map` (make the
-base map), `db` (look at the database), `replay` (play a capture as a TNC), `gps-replay` (play a drive as a gpsd), `capture` (record the radio), `doctor` (what is wrong with this computer), `support` (the logs and facts to send to the developer in one file), `open` (the page in the browser, starting the
-daemon if needed), `stop` (end the daemon) and `app` (the desktop app: the page in a window and a tray icon; needs the extra `neoaprs[app]`). `neoaprsw` is the daemon without a console
-window, which is how Windows starts it; `neoaprs-app` is the desktop app without one. The subcommands are imported when they are used, so that `neoaprs --version` and `neoaprs doctor` do not load the web server."""
+"""The `neoaprs` command: runs the daemon, or one of the subcommands listed in COMMANDS.
+
+`neoaprsw` is the daemon without a console window; `neoaprs-app` is the desktop app.
+Subcommands are imported only when used, so `neoaprs --version` does not load the web server."""
 import argparse
 import os
 import sys
@@ -93,7 +93,7 @@ def commands_text() -> str:
 
 
 def help_text() -> str:
-    """The help of the daemon's options (what `python -m neoaprs --help` prints) and under it the commands."""
+    """Return the daemon's option help (as `python -m neoaprs --help`) followed by the commands."""
     from neoaprs.daemon import build_parser
     parser = build_parser("neoaprs")
     parser.usage = "neoaprs [COMMAND] [-h] [--data DATA] [--port PATH] [--web-port N] [--debug] [--version]"
@@ -116,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def gui_main() -> int:
-    """`neoaprsw`: the same, for a program that has no console (Windows starts it so at login): the streams that are not there are replaced, so that a print or a usage error cannot fail."""
+    """`neoaprsw`: as `main`, without a console. Missing streams are replaced."""
     for name in ("stdout", "stderr"):
         if getattr(sys, name) is None:
             setattr(sys, name, open(os.devnull, "w"))

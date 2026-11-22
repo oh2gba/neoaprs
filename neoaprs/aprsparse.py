@@ -1,6 +1,8 @@
-"""The dispatcher: an information field and the destination and source calls to what the packet says, by its data type identifier.
+"""The dispatcher: an information field plus the calls become what the packet says.
 
-`parse` never raises: a field that should have decoded and did not becomes `Undecoded` with the reason."""
+`parse` never raises: a field that should have decoded and did not becomes `Undecoded` with the
+reason.
+"""
 import logging
 import re
 from dataclasses import replace
@@ -20,24 +22,28 @@ from neoaprs.packet import Decoded, ItemReport, ObjectReport, Other, Position, S
 log = logging.getLogger("neoaprs.aprsparse")
 DAMAGED = "the packet is damaged or not in a form NeoAPRS understands"
 
-_OTHER_KINDS = {b"?": "query", b"}": "third-party", b"{": "user-defined", b"#": "weather", b"*": "weather", b",": "test", b"+": "shelter", b".": "space-weather"}      # the data types that are only named (the decoded ones are in _HANDLERS)
+# data types that are only named (the decoded ones are in _HANDLERS)
+_OTHER_KINDS = {b"?": "query", b"}": "third-party", b"{": "user-defined", b"#": "weather", b"*": "weather", b",": "test", b"+": "shelter", b".": "space-weather"}
 POSITION_IDS = (b"!", b"=", b"/", b"@")
 MICE_CURRENT_IDS = (b"'", b"`")
 _MICE = (*MICE_CURRENT_IDS, b"\x1c", b"\x1d")
-_OBJECT_HEAD = 9 + 1 + 7                              # name, "*" or "_", timestamp: the position follows
-_ITEM_NAME = range(3, 10)                             # where the "!" or "_" that ends an item's name can be
-_BANG_LIMIT = 40                                      # the "!" of a position may be anywhere up to the 40th character (a digipeater of the X1J kind puts its own text first; deprecated since 2012, still read)
+_OBJECT_HEAD = 9 + 1 + 7  # name, "*" or "_", timestamp: the position follows
+_ITEM_NAME = range(3, 10)  # where the "!" or "_" that ends an item's name can be
+# the "!" of a position may be anywhere up to the 40th character (X1J-style digipeaters put their
+# own text first; deprecated since 2012, still read)
+_BANG_LIMIT = 40
 _AGRELO = re.compile(r"%(\d{3})%(\d)")
 _ITEM_SPLIT = re.compile(r"[,\r\n]+")
 
 
 def _named(name: str, position: Position) -> Position:
-    """The position of an object or item whose name is a frequency (`145.775-A`, freqspec.txt) with that frequency, and the fields of the comment taken off it."""
+    """Return the position of an object or item named by a frequency (`145.775-A`)."""
     frequency, comment = named_frequency(name, position.frequency, position.comment)
     return position if frequency is position.frequency else replace(position, frequency=frequency, comment=comment)
 
 
-# Every decoder takes the whole information field (its data type identifier first), the source and destination calls and `now`, whether it needs them or not: one shape, so that _HANDLERS can hold them all.
+# Every decoder takes the whole information field (type identifier first), source, destination and
+# `now`, needed or not: one shape, so that _HANDLERS can hold them all.
 
 def _object(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
     body = info[1:]
@@ -70,13 +76,13 @@ def _status(info: bytes, source: str, destination: str, now: datetime) -> Decode
         except PositionError:
             pass
     text = decode_text(body)
-    locator, rest = split_locator(text)                  # (a report with a locator has no timestamp)
+    locator, rest = split_locator(text)  # a report with a locator has no timestamp
     text, frequency = split_frequency((rest if locator else text).strip())
     return Status(text, None, locator, frequency)
 
 
 def _capabilities(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
-    """The items of a station's capabilities, TOKEN or TOKEN=VALUE separated by commas."""
+    """Return the capability items of a station, TOKEN or TOKEN=VALUE separated by commas."""
     text = decode_text(info)
     items: dict[str, str] = {}
     for piece in _ITEM_SPLIT.split(text[1:]):
@@ -93,7 +99,7 @@ def _agrelo(info: bytes, source: str, destination: str, now: datetime) -> Decode
 
 
 def _weather_report(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
-    """A positionless weather report: the observation, and the time of its MMDDhhmm when that is a date."""
+    """Return a positionless weather report: the observation and its MMDDhhmm time if a date."""
     text = decode_text(info)
     try:
         at = resolve_mdhm(text[1:9], now)
@@ -111,13 +117,13 @@ def _locator_beacon(info: bytes, source: str, destination: str, now: datetime) -
 
 
 def _nmea(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
-    if info[:5] == b"$ULTW":                          # an Ultimeter 2000's raw data: the format is not in the specification
+    if info[:5] == b"$ULTW":  # Ultimeter 2000 raw data: not in the specification
         return Other("weather", decode_text(info))
     return parse_nmea(info, source, destination, now) or Other("nmea", decode_text(info))
 
 
 def _position(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
-    if info[:2] == b"!!":                              # an Ultimeter 2000's raw data
+    if info[:2] == b"!!":  # Ultimeter 2000 raw data
         return Other("weather", decode_text(info))
     return parse_position(info[1:], now, messaging=info[:1] in (b"=", b"@"))
 
@@ -136,7 +142,8 @@ def _message(info: bytes, source: str, destination: str, now: datetime) -> Decod
 
 
 _Handler = Callable[[bytes, str, str, datetime], Decoded]
-# The decoder of each data type identifier that has one; the others are `Other` with the word of `_OTHER_KINDS`.
+# The decoder of each data type identifier that has one; the others are `Other` named by
+# `_OTHER_KINDS`.
 _HANDLERS: dict[bytes, _Handler] = {
     **dict.fromkeys(POSITION_IDS, _position), **dict.fromkeys(_MICE, _mice), b":": _message, b";": _object, b")": _item, b">": _status, b"[": _locator_beacon, b"_": _weather_report,
     b"$": _nmea, b"T": _telemetry, b"<": _capabilities, b"%": _agrelo}
@@ -150,8 +157,10 @@ def _dispatch(first: bytes, info: bytes, source: str, destination: str, now: dat
 
 
 def _bang_position(info: bytes, now: datetime) -> Position | None:
-    """The position of a `!` report that has text in front of it (up to the 40th character), the text kept as the start of the comment; None when there is none. The APRS 1.2 corrections call this
-    X1J exception deprecated (2012: the `!` belongs at the start only); old digipeaters still send it, so it is read and never sent."""
+    """Return the position of a `!` report with text before it (within 40 characters), else None.
+
+    The text becomes the start of the comment. A deprecated X1J form that is read, never sent.
+    """
     bang = info.find(b"!", 1, _BANG_LIMIT)
     if bang < 0:
         return None
@@ -164,12 +173,16 @@ def _bang_position(info: bytes, now: datetime) -> Position | None:
 
 
 def parse(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
-    """What the information field `info` of a packet from `source` to `destination` says; `now` resolves timestamps. `source` gives a raw NMEA tracker its symbol when its destination does not."""
+    """Return what the information field says; `now` resolves timestamps.
+
+    `source` gives a raw NMEA tracker its symbol when its destination does not.
+    """
     if not info:
         return Undecoded("empty information field", "", "empty")
     try:
         decoded = _dispatch(info[:1], info, source, destination, now)
-        if isinstance(decoded, Other) and info[:1] not in (b"}", b"{", b","):          # (test data is never a position)
+        # test data is never a position
+        if isinstance(decoded, Other) and info[:1] not in (b"}", b"{", b","):
             return _bang_position(info, now) or decoded
         return decoded
     except (PositionError, MicEError, MessageError, NmeaError) as e:

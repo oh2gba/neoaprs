@@ -1,8 +1,4 @@
-"""Fakes for the tests: a line based TCP server on a free port of the loopback, and a rigctld made of it. No test ever contacts a real service (tests/support/guards.py keeps them off 4532 and 4533).
-
-    rig = await rigctld()                     # rig.port is a free port, rig.address the setting status/rigctld; stopped when the test is over
-    rig.hz, rig.mode = 7074000, "LSB"         # what `f` and `m` answer
-    rig.radio_on = False                      # `f` and `m` answer RPRT -5, as rigctld does for a radio that is off
+"""Fakes for the tests: a line based TCP server on a free loopback port, and a rigctld made of it.
 """
 import asyncio
 from collections.abc import Awaitable, Callable
@@ -11,7 +7,8 @@ from tests.support.env import remember_stop
 
 
 class FakeLineServer:
-    """Accepts connections, collects every line it receives and answers with what `responder` returns for a line."""
+    """Accepts connections, collects every line it receives and answers with what `responder`
+    returns for a line."""
 
     def __init__(self) -> None:
         self.received: list[str] = []
@@ -58,7 +55,8 @@ class FakeLineServer:
 
 
 class FakeRigctld(FakeLineServer):
-    """rigctld's text protocol as far as the status needs it: `f` is the frequency in Hz on a line, `m` the mode and the passband on two, and `RPRT -5` for either while the radio is off."""
+    """rigctld's text protocol as far as the status needs it: `f` is the frequency in Hz on a line,
+    `m` the mode and the passband on two, and `RPRT -5` for either while the radio is off."""
 
     def __init__(self, hz: int = 14074000, mode: str = "USB", passband: int = 2400) -> None:
         super().__init__()

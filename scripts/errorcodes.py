@@ -1,10 +1,7 @@
-"""The refusals of the daemon that carry a code, found in its source: for each code the values (`params`) it passes and the English sentence it writes, as a template of the page's message syntax (`{name}` is a value, `{{` a
-literal brace, `{*}` a part of the sentence that is not one of the values). scripts/gen-protocol.py writes this as ui/src/protocol/errors.json; the page's catalogue (ui/src/i18n/en.ts) is held to it by a test, so that a code
-the daemon gains has a sentence on the page, and the sentence is the daemon's.
+"""Find the daemon's coded refusals in its source: each code with `params` and sentence template.
 
-A refusal is a call that has a code in its second argument (`CodedError(text, "setting.range", value=...)`, `SettingError(key, code, {...}, text)`, `UserError(text, code, params={...})`, and a reason passed on as a
-value, `Reason(text, "radio.silent")`) or in `code=` (`conn.error(text, code=...)`).
-The sentence is its f-string with the `<command>: ` and `<setting>: ` in front taken off (the page puts the reason where it belongs); an expression that is one of the values becomes `{name}`, `{x!r}` becomes `'{name}'`."""
+scripts/gen-protocol.py writes the result as ui/src/protocol/errors.json, which the page's
+catalogue must cover. In a template `{name}` is a value, `{{` a brace, `{*}` other text."""
 import ast
 import re
 from pathlib import Path
@@ -15,7 +12,7 @@ PREFIX = re.compile(r"^(?:[a-z_/]+|\{\*\}): ")
 
 
 def _same(a: ast.expr) -> str:
-    """An expression for comparison: `round(x)` and `int(x)` are x (the value passed is the rounded one)."""
+    """Return an expression for comparison, with `round(x)` and `int(x)` reduced to x."""
     if isinstance(a, ast.Call) and isinstance(a.func, ast.Name) and a.func.id in ("round", "int") and len(a.args) == 1:
         return _same(a.args[0])
     return ast.unparse(a)
@@ -26,7 +23,7 @@ def _escape(text: str) -> str:
 
 
 def template(node: ast.expr, params: dict[str, str]) -> str | None:
-    """The sentence of an f-string or a string, or None for any other expression (a sum of strings, a call)."""
+    """Return the sentence of a string or f-string, or None for any other expression."""
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return _escape(node.value)
     if not isinstance(node, ast.JoinedStr):
@@ -43,7 +40,7 @@ def template(node: ast.expr, params: dict[str, str]) -> str | None:
 
 
 def _params(call: ast.Call) -> dict[str, str]:
-    """The values a refusal passes, by name, as the expressions that make them."""
+    """Return the values a refusal passes, by name, as their expressions."""
     found: dict[str, str] = {}
     dicts = [kw.value for kw in call.keywords if kw.arg == "params"] + [a for a in call.args if isinstance(a, ast.Dict)]
     for d in dicts:
@@ -62,7 +59,7 @@ def _codes(node: ast.expr | None) -> list[str]:
 
 
 def _refusal(call: ast.Call) -> tuple[list[str], ast.expr | None] | None:
-    """The codes and the sentence of a call that is a refusal with a code, else None."""
+    """Return the codes and sentence of a call that is a refusal with a code, else None."""
     name = call.func.id if isinstance(call.func, ast.Name) else call.func.attr if isinstance(call.func, ast.Attribute) else ""
     keyword = next((kw.value for kw in call.keywords if kw.arg == "code"), None)
     if keyword is not None:
@@ -75,7 +72,8 @@ def _refusal(call: ast.Call) -> tuple[list[str], ast.expr | None] | None:
 
 
 def _sentences(text: ast.expr | None, count: int, params: dict[str, str]) -> list[str | None]:
-    """One sentence for each code: a choice between two strings goes with a choice between two codes."""
+    """Return one sentence for each code; a choice of two strings goes with a choice of two
+    codes."""
     if isinstance(text, ast.IfExp) and count == 2:
         return [template(text.body, params), template(text.orelse, params)]
     return [template(text, params)] * count if text is not None else [None] * count
@@ -95,7 +93,7 @@ def found_in(source: str) -> dict[str, list[dict[str, Any]]]:
 
 
 def error_codes(package: Path) -> dict[str, dict[str, Any]]:
-    """Every code under `package`: the names of its values (all the calls that use the code, together) and the sentences it is written with."""
+    """Return every code under `package` with the value names and sentences of all its uses."""
     merged: dict[str, list[dict[str, Any]]] = {}
     for path in sorted(package.rglob("*.py")):
         for code, uses in found_in(path.read_text(encoding="utf-8")).items():

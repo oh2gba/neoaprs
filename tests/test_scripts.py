@@ -1,5 +1,7 @@
-"""`neoaprs replay` and `neoaprs db` as processes, and the scripts that wrap them: the replay of the live capture as a TNC on a TCP port fills the database of a daemon that has no radio, and the tool shows what is
-in it; the replay on a pseudo-terminal (`--pty`, POSIX only) is the same through a device file."""
+"""`neoaprs replay` and `neoaprs db` as processes and the scripts that wrap them: the live capture
+replayed as a TNC on a TCP port fills a radio-less daemon's database; the same on a pseudo-terminal
+(`--pty`, POSIX only).
+"""
 import os
 import re
 import select
@@ -39,8 +41,9 @@ def script(name: str, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 def test_the_screenshots_show_no_version_and_make_the_update_shots_next_number_from_the_tree() -> None:
-    """A release by itself makes no shot old: the version beside Check now is hidden in every page the script opens (before the first shot is taken), and the newer version its update shot announces is one past VERSION,
-    not a number kept by hand."""
+    """A release by itself makes no shot old: the version beside Check now is hidden in every page
+    the script opens (before the first shot is taken), and the newer version its update shot
+    announces is one past VERSION, not a number kept by hand."""
     import importlib.util
 
     from neoaprs import VERSION
@@ -58,7 +61,9 @@ def test_the_screenshots_show_no_version_and_make_the_update_shots_next_number_f
     assert not re.search(r'UPDATE_TO = "\d', source), "no version number kept by hand"
 
 
-def wait_until(condition: object, seconds: float = 90.0) -> None:                    # (real processes on a loaded runner: the Windows one took 14 min for the suite and needed more than 30 s here; it returns as soon as the condition holds)
+# Real processes on a loaded runner: the Windows one took 14 min for the suite and needed more than
+# 30 s here; it returns as soon as the condition holds
+def wait_until(condition: object, seconds: float = 90.0) -> None:
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
         if condition():  # type: ignore[operator]
@@ -69,9 +74,11 @@ def wait_until(condition: object, seconds: float = 90.0) -> None:               
 
 def test_a_replayed_capture_fills_the_database_of_a_daemon_without_a_radio_over_tcp(tmp_path: Path) -> None:
     data = tmp_path / "data"
-    for key, value in (("station/call", "OH2GBA"), ("station/lat", "60.17"), ("station/lon", "24.94")):         # (a station that is set up: with no call and position there is no station of ours in the book)
+    # A station that is set up: with no call and position there is no station of ours in the book
+    for key, value in (("station/call", "OH2GBA"), ("station/lat", "60.17"), ("station/lon", "24.94")):
         assert tool(data, "set", key, value).returncode == 0
-    assert tool(data, "radios", "add", "kiss").returncode == 0                       # (the station's radio, which --port names for this run)
+    # The station's radio, which --port names for this run
+    assert tool(data, "radios", "add", "kiss").returncode == 0
     replay = subprocess.Popen([sys.executable, "-m", "neoaprs", "replay", str(CAPTURE), "--interval", "0.2"], cwd=ROOT, env=env(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     daemon = None
     try:
@@ -81,7 +88,8 @@ def test_a_replayed_capture_fills_the_database_of_a_daemon_without_a_radio_over_
         daemon = subprocess.Popen([sys.executable, "-m", "neoaprs", "--data", str(data), "--port", path, "--web-port", "0"], cwd=ROOT, env=env(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=NEW_GROUP)
         log = data / "neoaprs.log"
         wait_until(lambda: (text_if_readable(log) or "").count(" -> position ") >= 4)
-        stations = tool(data, "stations")                                          # while the daemon runs (the appends are committed within a second)
+        # While the daemon runs (the appends are committed within a second)
+        stations = tool(data, "stations")
         wait_until(lambda: "OH2PU-9" in tool(data, "stations").stdout)
         stations = tool(data, "stations")
         assert stations.returncode == 0, stations.stderr
@@ -108,12 +116,15 @@ def test_the_replay_on_a_pseudo_terminal_ends_on_ctrl_c_and_says_what_it_does(tm
     assert replay.stdout is not None
     path = replay.stdout.readline().strip()
     assert path.startswith("/dev/pts/")
-    time.sleep(0.3)                                                            # (nothing may be sent before a port opens it: the time is the point)
+    # Nothing may be sent before a port opens it: the time is the point
+    time.sleep(0.3)
     port = os.open(path, os.O_RDWR | NOCTTY | NONBLOCK)              # a port opens it: until then nothing is sent
     heard = bytearray()
     try:
         deadline = time.monotonic() + 15
-        while len(KissDecoder().feed(bytes(heard))) < 12 and time.monotonic() < deadline:     # more than the 4 frames of the file: it loops (and three past the ninth, whose line is in the log by the time the tenth is written)
+        # More than the 4 frames of the file: it loops (and three past the ninth, whose line is in
+        # the log by the time the tenth is written)
+        while len(KissDecoder().feed(bytes(heard))) < 12 and time.monotonic() < deadline:
             if select.select([port], [], [], 0.1)[0]:
                 heard += os.read(port, 4096)
     finally:
@@ -152,7 +163,8 @@ def test_the_tool_sets_checks_and_reads_the_settings(tmp_path: Path) -> None:
 
 @posix_only      # (shell scripts)
 def test_the_wrappers_of_the_scripts_call_the_command_with_the_data_folder_of_their_clone(tmp_path: Path) -> None:
-    """The wrappers are run from a copy of scripts/ in a made-up clone, so that the data folder they name is the copy's and never the real clone's."""
+    """The wrappers are run from a copy of scripts/ in a made-up clone, so that the data folder they
+    name is the copy's and never the real clone's."""
     clone = tmp_path / "clone"
     (clone / "scripts").mkdir(parents=True)
     for name in ("neoaprs-db", "replay", "capture"):
@@ -176,10 +188,12 @@ def test_the_wrappers_of_the_scripts_call_the_command_with_the_data_folder_of_th
     assert (clone / "data" / "neoaprs.sqlite").is_file()
 
 
-# ---- the scripts that talk to a daemon's page, on the wire before the radios and on the wire of the radios (breakdown 1.11), and what the screenshots leave
+# ---- the scripts that talk to a daemon's page, on the wire before the radios and that of the
+# radios, and what the screenshots leave
 
 def load_script(name: str) -> ModuleType:
-    """A script of scripts/ as a module, with scripts/ on the path as when it is run (screenshots.py imports demoscene and smoke from there); one without `.py` (build-mercury) too."""
+    """A script of scripts/ as a module, with scripts/ on the path as when it is run (screenshots.py
+    imports demoscene and smoke from there); one without `.py` (build-mercury) too."""
     import importlib.machinery
     import importlib.util
     folder = str(ROOT / "scripts")
@@ -197,7 +211,8 @@ HELLO = {"type": "hello", "topics": ["stations", "packets", "radios", "config"]}
 
 
 def radio_row(id: int, kind: str, type: str, position: int, enabled: bool = True, removed: bool = False, state: str = "connected") -> dict[str, object]:
-    """A row of the topic `radios` as breakdown 1.11 names its fields (the ones the scripts read)."""
+    """A row of the topic `radios` with the fields the scripts read.
+    """
     return {"id": id, "kind": kind, "type": type, "name": "", "number": 1, "enabled": enabled, "position": position, "removed": removed, "dummy": type.startswith("dummy"), "state": state, "problem": None, "modem": None}
 
 
@@ -225,8 +240,12 @@ def test_the_scripts_read_the_radios_in_the_topic_radios_and_refuse_a_daemon_who
 
 
 class FakeDaemonPage:
-    """What `smoke.give_radio` and `PageSocket.set_config` see of a daemon, answering their commands at once as the daemon does: it adds a radio (`radio_added`), changes it in `radios` and tells
-    `radio/<id>/<key>` in `config`'s `radio_keys_in`: `radio_values` as the round's wire keeps them apart from the form's keys, or `values` as breakdown 1.11 words it. A Mercury radio's row gets `modem` (null: no modem came up). A command it is told to refuse is answered with an `error` naming it."""
+    """What `smoke.give_radio` and `PageSocket.set_config` see of a daemon, answering their commands
+    at once as the daemon does: it adds a radio (`radio_added`), changes it in `radios` and tells
+    `radio/<id>/<key>` in `config`'s `radio_keys_in`: `radio_values` as the radios wire keeps them
+    apart from the form's keys, or as `values`. A Mercury radio's row gets
+    `modem` (null: no modem came up). A command it is told to refuse is answered with an `error`
+    naming it."""
 
     def __new__(cls, smoke: ModuleType, hello: dict[str, object], topics: dict[str, object], refuse: str = "", radio_keys_in: str = "radio_values", modem: object = None) -> Any:
         class Page(smoke.PageSocket):  # type: ignore[name-defined, misc]
@@ -262,7 +281,9 @@ class FakeDaemonPage:
 def test_a_radio_is_given_by_the_radio_commands() -> None:
     import asyncio
     smoke = load_script("smoke.py")
-    for told_in in ("radio_values", "values"):                                          # (the round's wire tells a radio's keys apart from the form's, in radio_values; 1.11 words them as config's values)
+    # The radios wire tells a radio's keys apart from the form's in radio_values; `values` words
+    # them as config's values
+    for told_in in ("radio_values", "values"):
         new = FakeDaemonPage(smoke, HELLO, {"config": {"values": {}, "radio_values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1)}}, radio_keys_in=told_in)
         assert asyncio.run(smoke.give_radio(new, "hf", "mercury", {"keying": "vox", "sound_card": ""}, 1)) == 2
         assert new.sent == [{"cmd": "radio_add", "type": "mercury"}, {"cmd": "radio_change", "radio": 2, "enabled": True},
@@ -278,8 +299,10 @@ def test_a_radio_is_given_by_the_radio_commands() -> None:
 
 
 def test_the_install_probe_reads_and_gives_the_radios_of_a_release_before_the_round_in_its_own_words_and_of_any_other_by_the_topic_radios() -> None:
-    """W3-D14: the seed of the upgrade (scripts/check-installs) is run on the old release, which may be one before the round of the radios (its FM radio the topic `tnc`, its HF radio `hf/enabled` and
-    `hf/profile` of `config`); a daemon whose hello lists `radios` is read and given its radios by them alone."""
+    """The seed of the upgrade (scripts/check-installs) is run on the old release, which may
+    be one from before radios were rows (its FM radio the topic `tnc`, its HF radio `hf/enabled`
+    and `hf/profile` of `config`); a daemon whose hello lists `radios` is read and given its radios
+    by them alone."""
     import asyncio
     from types import SimpleNamespace
     probe = load_script("install-probe.py")
@@ -305,13 +328,16 @@ def test_the_install_probe_reads_and_gives_the_radios_of_a_release_before_the_ro
 
 
 def test_the_upgrade_seeds_a_release_from_before_the_radios_on_its_own_wire_and_this_tree_on_the_wire_of_the_radios() -> None:
-    """scripts/check-installs runs THIS tree's install-probe seed against the old release's daemon (0.18.2: its hello lists `tnc` and `hf`, no `radios`, and it knows no radio command): the probe gives that
-    daemon its HF radio by the flat settings, and reads its FM radio in the topic `tnc`; a daemon of the round gets its HF radio by the radio commands, as before."""
+    """scripts/check-installs runs this tree's install-probe seed against the old release's daemon:
+    the probe gives that daemon its HF radio by the flat settings and reads its FM radio in the
+    topic `tnc`; a current daemon gets its HF radio by the radio commands."""
     import asyncio
     probe = load_script("install-probe.py")
-    smoke = probe.smoke                                                                 # (the smoke the probe loaded: its Failure and PageSocket are the ones it uses)
+    # The smoke the probe loaded: its Failure and PageSocket are the ones it uses
+    smoke = probe.smoke
     old_hello = {"type": "hello", "version": "0.18.2", "topics": ["stations", "packets", "tnc", "hf", "messages", "config"]}
-    old = FakeDaemonPage(smoke, old_hello, {"config": {"values": {}}}, refuse="radio_add")      # (an old daemon answers a radio command it does not know with an error)
+    # An old daemon answers a radio command it does not know with an error
+    old = FakeDaemonPage(smoke, old_hello, {"config": {"values": {}}}, refuse="radio_add")
     asyncio.run(probe.seed_commands(old, 1))
     assert old.sent == [{"cmd": "set_config", "values": {"station/call": "OH2TST"}}, {"cmd": "set_config", "values": {"hf/enabled": "true", "hf/profile": "dummy-hf"}},
                         {"cmd": "send_message", "to": probe.MESSAGE_TO, "text": probe.MESSAGE_TEXT}], "the old release's HF radio by its flat settings, no radio command"
@@ -320,7 +346,8 @@ def test_the_upgrade_seeds_a_release_from_before_the_radios_on_its_own_wire_and_
     assert probe.has_settings(probe.Seen(old)) and not probe.seed_ready(probe.Seen(old)), "the FM radio not yet connected"
     old.topics[probe.OldRelease.TOPIC] = {"state": "connected"}
     assert probe.seed_ready(probe.Seen(old)), "the old release's FM radio read in its topic tnc"
-    new = FakeDaemonPage(smoke, HELLO, {"config": {"values": {}, "radio_values": {}}, "radios": {}})          # (a daemon of the round on a new installation: no radio)
+    # A daemon of the round on a new installation: no radio
+    new = FakeDaemonPage(smoke, HELLO, {"config": {"values": {}, "radio_values": {}}, "radios": {}})
     asyncio.run(probe.seed_commands(new, 1))
     assert [command["cmd"] for command in new.sent] == ["set_config", "radio_add", "radio_change", "radio_add", "radio_change", "send_message"] and new.sent[0]["values"] == probe.SETTINGS, \
         "this tree's daemon: the radio commands, the FM radio first (a new installation has none), then the HF radio"
@@ -342,9 +369,12 @@ class Running:
 
 @pytest.mark.parametrize("windows", [True, False])
 def test_ctrl_c_on_sim_radios_keep_only_says_stop_and_the_daemon_is_then_stopped_not_killed(windows: bool, monkeypatch: pytest.MonkeyPatch) -> None:
-    """scripts/sim-radios --keep waits for Ctrl+C and then stops its daemon as a service manager does. On Windows asyncio.run's own Ctrl+C cancels the run (the daemon killed, a traceback) unless the script
-    takes SIGINT itself; on POSIX the loop's handler. Either way the wait returns, a second Ctrl+C during the stop does not cut the stop short (Python's default or asyncio.run's handler would: a kill and a
-    traceback), and asyncio.run's SIGINT is given back once the stop and its checks are done."""
+    """scripts/sim-radios --keep waits for Ctrl+C and then stops its daemon as a service manager
+    does. On Windows asyncio.run's own Ctrl+C cancels the run (the daemon killed, a traceback)
+    unless the script takes SIGINT itself; on POSIX the loop's handler. Either way the wait returns,
+    a second Ctrl+C during the stop does not cut the stop short (Python's default or asyncio.run's
+    handler would: a kill and a traceback), and asyncio.run's SIGINT is given back once the stop and
+    its checks are done."""
     import asyncio
     import importlib.machinery
     import importlib.util
@@ -362,7 +392,8 @@ def test_ctrl_c_on_sim_radios_keep_only_says_stop_and_the_daemon_is_then_stopped
     def stop_daemon() -> None:
         """The stop and the checks of its end, during which the operator presses Ctrl+C again."""
         signal.raise_signal(signal.SIGINT)
-        time.sleep(0.05)                                                                # (a Python handler runs between two steps of this code: here, if at all)
+        # A Python handler runs between two steps of this code: here, if at all
+        time.sleep(0.05)
         stops.append("stopped")
 
     async def keep() -> object:
@@ -381,8 +412,9 @@ def test_ctrl_c_on_sim_radios_keep_only_says_stop_and_the_daemon_is_then_stopped
 
 
 def test_the_station_of_the_shots_is_an_fm_an_hf_and_a_lora_radio_of_dummy_types_and_never_a_type_that_starts_a_modem() -> None:
-    """The shots show what the station of 0.20.0 is: three radios, "2 m" (FM, the day's radio 1), "40 m" (HF) and a LoRa radio, each of a Dummy type, which opens no device. The Mercury and
-    the Direwolf types would start a modem on the machine's sound card: the script names them only to refuse them, and its one way to add a radio refuses them before anything is run."""
+    """The shots show three radios, "2 m" (FM), "40 m" (HF) and a LoRa radio, each of a Dummy type,
+    which opens no device. The script names Mercury and Direwolf types only to refuse them before
+    anything is run."""
     import ast
     shots = load_script("screenshots.py")
     assert [(kind, name) for kind, _, name in shots.RADIOS] == [("fm", "2 m"), ("hf", "40 m"), ("lora", "")]
@@ -400,8 +432,10 @@ def test_the_station_of_the_shots_is_an_fm_an_hf_and_a_lora_radio_of_dummy_types
 
 
 def test_the_day_is_played_on_radio_1_and_the_station_is_then_given_its_three_radios_and_radio_1_keeps_what_it_carried(tmp_path: Path) -> None:
-    """give_radios on a data folder with the day's radio 1 (a KISS TNC over TCP, named "2 m"), as prepare leaves it once the day is played: radio 1 becomes the Dummy FM radio and keeps its name, the Dummy HF
-    radio "40 m" is radio 2 and the Dummy LoRa radio with no name radio 3, all on, and radio 1 is ticked for the status, Ask around and Local info (what it carried alone)."""
+    """give_radios on a data folder with the day's radio 1 (a KISS TNC over TCP, named "2 m"), as
+    prepare leaves it once the day is played: radio 1 becomes the Dummy FM radio and keeps its name,
+    the Dummy HF radio "40 m" is radio 2 and the Dummy LoRa radio with no name radio 3, all on, and
+    radio 1 is ticked for the status, Ask around and Local info (what it carried alone)."""
     import asyncio
     shots = load_script("screenshots.py")
     data = tmp_path / "demo"
@@ -428,8 +462,10 @@ def test_the_day_is_played_on_radio_1_and_the_station_is_then_given_its_three_ra
 
 
 def test_the_hf_tests_shot_is_given_two_tests_to_come_on_40_m_by_two_of_the_days_cast() -> None:
-    """The board the hf-tests shot's daemon reads is one neoaprs/skeds.py takes whole: two tests, each by a call of the made-up day (scripts/demoscene.py), on the 40 m dial the page suggests, both to come
-    (tomorrow evening and the morning after, UTC) whatever the time of the run, and each a row of its own on the page (other times)."""
+    """The board the hf-tests shot's daemon reads is one neoaprs/skeds.py takes whole: two tests,
+    each by a call of the made-up day (scripts/demoscene.py), on the 40 m dial the page suggests,
+    both to come (tomorrow evening and the morning after, UTC) whatever the time of the run, and
+    each a row of its own on the page (other times)."""
     from datetime import UTC, datetime
     from neoaprs.mercury import SUGGESTED
     from neoaprs.skeds import parse_board
@@ -444,8 +480,10 @@ def test_the_hf_tests_shot_is_given_two_tests_to_come_on_40_m_by_two_of_the_days
 
 
 def test_the_made_up_waterfall_is_the_daemons_own_frames_of_a_channel_with_frames_on_it() -> None:
-    """The hf-tests shot's rows are frames as the daemon makes them: the rows kept of the last two minutes, ten a second, named by the HF radio, with the page's script writing its clock in after the kind
-    byte; then rows of their own; the bins of a frame on the air stand well over the noise between 1200 and 1800 Hz. The modem the page is told of is one the wire's model takes."""
+    """The hf-tests shot's rows are frames as the daemon makes them: the rows kept of the last two
+    minutes, ten a second, named by the HF radio, with the page's script writing its clock in after
+    the kind byte; then rows of their own; the bins of a frame on the air stand well over the noise
+    between 1200 and 1800 Hz. The modem the page is told of is one the wire's model takes."""
     import json
     from neoaprs.mercuryscope import HISTORY_HEADER, HISTORY_SEC, ROW_BINS, history_clock, parse_history, parse_row
     from neoaprs.web.scopefeed import parse_radio_frame
@@ -468,8 +506,9 @@ def test_the_made_up_waterfall_is_the_daemons_own_frames_of_a_channel_with_frame
 
 
 def test_every_picture_the_site_names_is_a_shot_of_the_script_and_the_shots_are_light_and_dark() -> None:
-    """Each shots/NAME (or thumbs/NAME, .png or .webp, NAME-dark the dark one) that a page of site/ names is taken by a shot of SHOTS (og.png is drawn from the map); every shot of DARK_TOO has its dark one, the
-    new hf-tests among them; each extra daemon is for shots there are."""
+    """Each shots/NAME (or thumbs/NAME, .png or .webp, NAME-dark the dark one) that a page of site/
+    names is taken by a shot of SHOTS (og.png is drawn from the map); every shot of DARK_TOO has its
+    dark one, the new hf-tests among them; each extra daemon is for shots there are."""
     shots = load_script("screenshots.py")
     named = {name for page in (ROOT / "site").glob("*.html") for name in re.findall(r"shots/(?:thumbs/)?([a-z0-9-]+)\.(?:png|webp)", page.read_text(encoding="utf-8"))}
     assert named and named - {"og"} <= set(shots.SHOTS), sorted(named - {"og"} - set(shots.SHOTS))
@@ -479,8 +518,10 @@ def test_every_picture_the_site_names_is_a_shot_of_the_script_and_the_shots_are_
 
 
 def test_the_settings_shots_draw_the_phone_code_of_the_made_up_address_and_key_as_the_page_draws_a_code() -> None:
-    """made_up_web puts the code of SHOWN_URL with SHOWN_KEY over the daemon's own: the golden symbol "shown" of the page's QR test (ui/src/lib/qr.fixture.json, held to uqr there), in its quiet zone of four
-    modules, a run of dark modules in a row one rectangle as qrPath writes it. Read back, the path is that symbol and nothing else."""
+    """made_up_web puts the code of SHOWN_URL with SHOWN_KEY over the daemon's own: the golden
+    symbol "shown" of the page's QR test (ui/src/lib/qr.fixture.json, held to uqr there), in its
+    quiet zone of four modules, a run of dark modules in a row one rectangle as qrPath writes it.
+    Read back, the path is that symbol and nothing else."""
     import json
     shots = load_script("screenshots.py")
     size, path = shots.shown_code()
@@ -498,8 +539,10 @@ def test_the_settings_shots_draw_the_phone_code_of_the_made_up_address_and_key_a
 
 
 def test_every_shot_that_opens_the_settings_tab_puts_the_made_up_key_and_code_over_the_daemons_own_at_once() -> None:
-    """The Settings tab shows the access key and the phone code, which hold the screenshot machine's own key and address: every shot that opens it calls made_up_web on its page in the very next
-    statement, before anything is clicked (the update shot's dialog leaves the Web page group in view above it)."""
+    """The Settings tab shows the access key and the phone code, which hold the screenshot machine's
+    own key and address: every shot that opens it calls made_up_web on its page in the very next
+    statement, before anything is clicked (the update shot's dialog leaves the Web page group in
+    view above it)."""
     import ast
     tree = ast.parse((ROOT / "scripts" / "screenshots.py").read_text(encoding="utf-8"))
 
@@ -539,8 +582,10 @@ def png(path: Path, width: int, height: int) -> Path:
 
 
 def test_the_site_declares_each_picture_at_the_size_of_its_file_and_every_shot_has_all_its_files() -> None:
-    """The check of `scripts/screenshots.py --check` on the tree: no <img> of site/ at another size than its file (thumbs/chain.png was 681 high in the page and 781 in the file), no dark copy of
-    another size in the same box, og.png as og:image:width and height say; and each of the shots its PNG, WebP and both thumbnails, og.png and the README's copies."""
+    """The check of `scripts/screenshots.py --check` on the tree: no <img> of site/ at another size
+    than its file (thumbs/chain.png was 681 high in the page and 781 in the file), no dark copy of
+    another size in the same box, og.png as og:image:width and height say; and each of the shots its
+    PNG, WebP and both thumbnails, og.png and the README's copies."""
     shots = load_script("screenshots.py")
     assert shots.wrong_sizes(ROOT / "site") == []
     assert shots.missing_files(ROOT / "site" / "shots", ROOT / "docs" / "screenshots") == []
@@ -554,7 +599,8 @@ def test_a_picture_declared_at_another_size_is_found_and_written_as_its_file(tmp
     png(tmp_path / "shots" / "og.png", 1200, 630)
     page = ('<meta property="og:image" content="https://neo.oh2gba.eu/shots/og.png">\n<meta property="og:image:width" content="1200">\n<meta property="og:image:height" content="600">\n'
             '<picture><source srcset="shots/thumbs/chain-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain.png" width="640" height="681" alt=""></picture>\n<img src="favicon.svg" width="28" height="28">\n')
-    (tmp_path / "index.html").write_bytes(page.encode())                 # (with LF, as every system checks the site out: .gitattributes)
+    # With LF, as every system checks the site out: .gitattributes
+    (tmp_path / "index.html").write_bytes(page.encode())
     assert shots.wrong_sizes(tmp_path) == ["index.html: shots/thumbs/chain.png is declared 640x681, the file is 640x781", "index.html: shots/thumbs/chain-dark.png is 640x790 in the box of shots/thumbs/chain.png, 640x781",
                                            "index.html: og:image:height says 600, shots/og.png is 630"]
     assert shots.fix_sizes(tmp_path) == ["index.html: shots/thumbs/chain.png 640x681 -> 640x781", "index.html: og:image:height -> 630"]
@@ -584,7 +630,8 @@ def test_a_run_says_each_file_it_did_not_write_and_why(tmp_path: Path, capsys: p
                     "drawn only by a run with everything, --only og or --only map": ["shots/og.png"], "no shot taken": ["shots/thumbs/map.png"], "not copied": ["screenshots/map.png"]}
     assert shots.say_what_was_left(run, out, docs) == 2 + 8, "the two shots not taken, and the eight files"
     said = capsys.readouterr().out
-    png(out / "thumbs" / "settings-hf.png", 1, 1)                                        # (a copy made by this run from the earlier settings-hf.png: no picture of this run)
+    # A copy made by this run from the earlier settings-hf.png: no picture of this run
+    png(out / "thumbs" / "settings-hf.png", 1, 1)
     assert shots.leftovers(run, out, docs)["its daemon did not come up: TimeoutError: "] == ["shots/settings-hf.png", "shots/thumbs/settings-hf.png"]
     assert [path.stem for path in shots.thumbs_of(out, None, skip={"settings-hf", "chain"})] == ["map-dark", "map", "old-scene"], "a whole run makes no copies of the shots it did not take"
     assert [path.stem for path in shots.thumbs_of(out, {"map", "chain"})] == ["chain", "map"]
@@ -596,7 +643,8 @@ def test_a_run_says_each_file_it_did_not_write_and_why(tmp_path: Path, capsys: p
 
 
 def test_the_link_preview_names_the_systems_the_site_names() -> None:
-    """og.png's pitch names Windows, macOS, Linux and the Raspberry Pi, as the line under the site's name does, and is cut at its words into lines that fit beside the map."""
+    """og.png's pitch names Windows, macOS, Linux and the Raspberry Pi, as the line under the site's
+    name does, and is cut at its words into lines that fit beside the map."""
     shots = load_script("screenshots.py")
     sub = re.search(r'<p class="sub">([^<]+)</p>', (ROOT / "site" / "index.html").read_text(encoding="utf-8"))
     assert sub and all(system in sub.group(1) and system in shots.PITCH for system in ("Windows", "macOS", "Linux", "Raspberry Pi"))
@@ -604,7 +652,10 @@ def test_the_link_preview_names_the_systems_the_site_names() -> None:
 
 
 def test_the_scripts_that_run_a_daemon_in_their_process_reach_its_radios_by_id_and_name_an_objects_radios() -> None:
-    """The day of the screenshots (demoscene) and its folder (screenshots) reach the daemon's radio through the registry, by id (the controller names no radio of its own); an object of the day is made on the radios `object_set` names (R3 V7). The shots' HF radio is added as a radio (`db radios add`), never by a `db set` of a flat HF key (refused)."""
+    """The day of the screenshots (demoscene) and its folder (screenshots) reach the daemon's radio
+    through the registry, by id (the controller names no radio of its own); an object of the day is
+    made on the radios `object_set` names . The shots' HF radio is added as a radio (`db
+    radios add`), never by a `db set` of a flat HF key (refused)."""
     for name in ("demoscene.py", "screenshots.py"):
         source = (ROOT / "scripts" / name).read_text(encoding="utf-8")
         assert not re.search(r"\bctl\.(tnc|hf|mercury|beacon|hf_" r"beacon)\b", source), name
@@ -613,8 +664,9 @@ def test_the_scripts_that_run_a_daemon_in_their_process_reach_its_radios_by_id_a
 
 
 def test_the_demo_daemon_runs_the_checkouts_daemon_under_the_switch_and_never_on_the_operators_data(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The daemon of the browser pane opens no device, starts no modem of the machine and asks nothing of the internet, whatever its settings say; and it is never started on the data of the operator's own
-    station, the system's data folder or a checkout's `data`."""
+    """The daemon of the browser pane opens no device, starts no modem of the machine and asks
+    nothing of the internet, whatever its settings say; and it is never started on the data of the
+    operator's own station, the system's data folder or a checkout's `data`."""
     demo = load_script("demo-daemon")
     started: list[tuple[list[str], Path, dict[str, str]]] = []
 
@@ -641,7 +693,9 @@ def test_the_demo_daemon_runs_the_checkouts_daemon_under_the_switch_and_never_on
 
 
 def test_the_check_of_the_built_mercury_lists_no_sound_card_and_holds_its_alsa_configuration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`mercury -z` would open the control device of every sound card of the machine, the radios' among them: the check runs `-V` alone, and holds the ALSA configuration the folder carries to being there."""
+    """`mercury -z` would open the control device of every sound card of the machine, the radios'
+    among them: the check runs `-V` alone, and holds the ALSA configuration the folder carries to
+    being there."""
     build = load_script("build-mercury")
     ran: list[list[str]] = []
 
@@ -650,7 +704,8 @@ def test_the_check_of_the_built_mercury_lists_no_sound_card_and_holds_its_alsa_c
         return subprocess.CompletedProcess(argv, 0, f"Mercury {build.VERSION}\n", "")
 
     monkeypatch.setattr(build, "MACOS", False)
-    monkeypatch.setattr(build, "subprocess", SimpleNamespace(run=run))           # (the script's name for the module: the program is never started)
+    # The script's name for the module: the program is never started
+    monkeypatch.setattr(build, "subprocess", SimpleNamespace(run=run))
     for name in ("runpath", "glibc_needed", "check_links"):
         monkeypatch.setattr(build, name, lambda *args: "")
     monkeypatch.setattr(build, "check_loopback", lambda program, env: "listens on 127.0.0.1 only")
@@ -667,7 +722,9 @@ def test_the_check_of_the_built_mercury_lists_no_sound_card_and_holds_its_alsa_c
 
 
 async def test_the_radio_of_the_day_on_the_air_listens_on_a_port_the_system_gives_not_where_a_real_modem_may(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The daemon of the screenshots runs under the no-devices switch, which connects to no port of this computer where a real modem may listen (Direwolf's 8001 among them): the made-up TNC is never there."""
+    """The daemon of the screenshots runs under the no-devices switch, which connects to no port of
+    this computer where a real modem may listen (Direwolf's 8001 among them): the made-up TNC is
+    never there."""
     import asyncio
 
     from tests.support.guards import MODEM_PORTS
@@ -677,7 +734,8 @@ async def test_the_radio_of_the_day_on_the_air_listens_on_a_port_the_system_give
 
     async def start_server(serve: Any, host: str, port: int) -> asyncio.Server:
         asked.append(port)
-        return await real_start_server(serve, host, 0)                    # (the port asked for is looked at, never taken)
+        # The port asked for is looked at, never taken
+        return await real_start_server(serve, host, 0)
 
     monkeypatch.setattr(demoscene.asyncio, "start_server", start_server)
     radio = demoscene.DemoRadio()

@@ -1,11 +1,7 @@
-"""The certificates of the secure connection (`web/https`): NeoAPRS's own small certificate authority and the certificate of this computer that it signs. Files in `tls/` of the data folder, readable only by the owner:
+"""The certificates of the secure connection (`web/https`): a local CA and a server certificate.
 
-    ca.key ca.crt         the authority, "NeoAPRS local CA (<host>)", ten years; made once and never again while its files are there, so that a device that has trusted it stays trusted
-    server.key server.crt the certificate the page is served with: the names and addresses of this computer, at most 800 days (Apple's limit is 825), signed by the authority
-
-The server certificate is made again when it has less than 30 days left, when the authority that signed it is not the one in the folder, or when this computer has a name or an address that the certificate does not
-name (`ensure` is asked at the start and whenever the settings change, and now and then). The keys are elliptic-curve (P-256: made in a moment on a Raspberry Pi, and every browser and phone takes them). A key is never
-served or logged; only `ca_der`, the authority's certificate, goes to the devices that ask for it.
+Files in `tls/` of the data folder, owner-only: the CA (ten years, kept while its files exist)
+and the server certificate (at most 800 days; Apple's limit is 825). Keys are never served.
 """
 import hashlib
 import logging
@@ -31,14 +27,20 @@ log = logging.getLogger("neoaprs.web")
 CA_DAYS = 3650
 SERVER_DAYS = 800
 RENEW_BEFORE_DAYS = 30
-BACKDATE = timedelta(days=1)                 # a device whose clock is a little behind still takes a certificate that was made a moment ago
-CLOCK_SANE_AFTER = utc(2025, 1, 1)           # a computer without a real-time clock starts with the date of its last shutdown or 1970: a certificate made then would be expired for every device, and the authority could not be made again
-NAME_MAX = 64                                # the longest common name
+# A device whose clock is a little behind still accepts a certificate made a moment ago.
+BACKDATE = timedelta(days=1)
+# A computer with no real-time clock starts at its last shutdown date or 1970; a certificate made
+# then would be expired for every device.
+CLOCK_SANE_AFTER = utc(2025, 1, 1)
+NAME_MAX = 64  # longest common name
 Names = tuple[str, ...]
 
 
 class TlsError(Exception):
-    """The certificates could not be made or read; the text says why, for the log. `clock`: it is the clock of this computer that is not set (the page says which of the two)."""
+    """The certificates could not be made or read.
+
+    `clock` is True when the computer's clock is not set.
+    """
 
     def __init__(self, text: str, clock: bool = False) -> None:
         super().__init__(text)
@@ -47,12 +49,11 @@ class TlsError(Exception):
 
 @dataclass(frozen=True)
 class Certificates:
-    """What the server needs: the files to serve with, and the authority's certificate for the devices that trust it."""
     ca_der: bytes
-    fingerprint: str                         # SHA-256 of ca_der, "AB:CD:..."
+    fingerprint: str  # SHA-256 of ca_der, "AB:CD:..."
     chain_file: Path
     key_file: Path
-    names: Names                             # the names and addresses the server certificate is for
+    names: Names  # names and addresses the server certificate covers
     expires: datetime
 
 
@@ -62,8 +63,10 @@ def fingerprint_of(der: bytes) -> str:
 
 
 def wanted_names(host: str, addresses: Iterable[str], more: Iterable[str] = ()) -> Names:
-    """What the server certificate must name: this computer's name and its .local name, localhost, the loopback addresses, the addresses on the network, and the names of `web/allowed_hosts`; each once, in this order. A name that
-    cannot be written in a certificate is left out."""
+    """Return the names the server certificate must cover, each once.
+
+    A name that cannot go in a certificate is left out.
+    """
     names: list[str] = []
     for item in (host, f"{host}.local" if host else "", "localhost", "127.0.0.1", "::1", *addresses, *more):
         item = item.strip().lower().rstrip(".")
@@ -94,7 +97,7 @@ def _names_of(cert: x509.Certificate) -> Names:
 
 
 def _write_private(path: Path, data: bytes) -> None:
-    """The file, whole or not at all, with a mode that only the owner can read (the mode is set before a byte is written)."""
+    """Write the file atomically, with the owner-only mode set before any byte is written."""
     tmp = path.with_name(path.name + ".new")
     tmp.unlink(missing_ok=True)
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -150,7 +153,7 @@ def _public_bytes(key: PublicKeyTypes) -> bytes:
 
 
 def renewal_reason(cert: x509.Certificate, key: ec.EllipticCurvePrivateKey, ca: x509.Certificate, names: Names, now: datetime) -> str:
-    """Why the server certificate is to be made again, or "" when it is good: not signed by this authority or not for this key, running out, or without a name or address this computer has."""
+    """Return why the server certificate must be remade, or "" when it is good."""
     try:
         cert.verify_directly_issued_by(ca)
     except (InvalidSignature, ValueError, TypeError):
@@ -167,7 +170,10 @@ def renewal_reason(cert: x509.Certificate, key: ec.EllipticCurvePrivateKey, ca: 
 
 
 class CertificateStore:
-    """`CertificateStore(folder, clock)`; `ensure(host, addresses, more)` makes what is missing or out of date and says what is there. Blocking (files, a key to make): call it from a thread."""
+    """Keep the certificates in `folder`.
+
+    `ensure` is blocking (files, key generation): call it from a thread.
+    """
 
     def __init__(self, folder: Path, clock: Callable[[], datetime]) -> None:
         self.folder = folder
@@ -185,7 +191,7 @@ class CertificateStore:
             try:
                 self.folder.chmod(0o700)
             except OSError:
-                pass                                                 # (a system that has no such modes)
+                pass  # a system without such modes
             ca_key, ca = self._ca(host, now)
             names = wanted_names(host, addresses, more)
             key, cert = self._server(ca_key, ca, host, names, now)
@@ -202,7 +208,9 @@ class CertificateStore:
             _write_private(key_file, _pem_key(key))
             _write_private(cert_file, _pem_cert(cert))
             return key, cert
-        try:                                                         # (a file that is there but cannot be read is not replaced: the devices that trust it would not trust the new one)
+        # A file that exists but cannot be read is not replaced: devices that trust it would not
+        # trust a new one.
+        try:
             loaded = serialization.load_pem_private_key(key_file.read_bytes(), None)
             cert = x509.load_pem_x509_certificate(cert_file.read_bytes())
         except ValueError as e:

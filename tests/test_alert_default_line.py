@@ -1,6 +1,5 @@
-"""The default alert line of Linux and macOS (neoaprs/alertcommand.py) run by a real shell with notifiers that are scripts of the test: the title and the text reach `notify-send` (and `kdialog` when there is no
-notify-send) with & < > as entities, so that a message from the air is shown as typed and cannot be markup of the notification; the variables themselves are not changed (a line of the operator's own gets them as
-they came)."""
+"""Tests for the default alert line of Linux and macOS (neoaprs/alertcommand.py), run by a real
+shell with stub notifiers: title and text reach `notify-send` or `kdialog` with & < > escaped."""
 import subprocess
 import sys
 from pathlib import Path
@@ -16,7 +15,8 @@ LINK_ESCAPED = '&lt;a href="http://example.org/x?a=1&amp;b=2"&gt;OH2RDG-7 asks: 
 
 
 def notifier(folder: Path, name: str, status: int = 0) -> Path:
-    """A program of that name that writes the arguments it got, one to a line, to `<name>.args` and ends with `status`."""
+    """A program of that name that writes the arguments it got, one to a line, to `<name>.args` and
+    ends with `status`."""
     program = folder / name
     program.write_text(f'#!/bin/sh\nfor a in "$@"; do printf \'%s\\n\' "$a"; done > "{folder}/{name}.args"\nexit {status}\n')
     program.chmod(0o755)

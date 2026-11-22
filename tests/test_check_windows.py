@@ -1,8 +1,7 @@
-"""The check on a real Windows (scripts/check-windows) as far as it can be held without the machine: what it reads from the environment and refuses, the command lines of ssh and scp, the PowerShell
-of each step with names that have quotes, spaces and dollar signs in them, the choice about power for a machine that is off, running or started by this run, the lock, the folders of old runs, the
-result lines and the exit code, and the script from end to end against stand-ins for `ssh`, `scp` and `VBoxManage` first on the PATH (they write down what they were asked and answer as a test lays
-down) over a made-up repository: the tree that goes over never holds what an ignore rule names or a file of access tokens, a failed step is printed under its line and stops none but sync, and the
-machine is shut down only by the run that started it. The machine itself, its SSH and Windows's tar and PowerShell are tried by hand (docs/development.md, "On a real Windows")."""
+"""Tests for the Windows check (scripts/check-windows) without the machine: environment, ssh and scp
+command lines, the PowerShell of each step, power handling, the lock, result lines and exit code,
+and the script end to end against stand-in `ssh`, `scp` and `VBoxManage`.
+"""
 import base64
 import importlib.machinery
 import importlib.util
@@ -24,7 +23,8 @@ import pytest
 from neoaprs import direwolf
 from tests.support.ptyline import posix_only
 
-pytestmark = posix_only      # (stand-ins with a shebang and a lock file for a development check, not the product)
+# (stand-ins with a shebang and a lock file for a development check, not the product)
+pytestmark = posix_only
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "scripts"
@@ -132,7 +132,8 @@ def test_the_scp_line_takes_the_port_as_a_capital_p_and_a_path_with_forward_slas
 
 
 def decode_quote(quoted: str) -> str:
-    """What PowerShell reads of a single-quoted string: the text between the quotes, each doubled quote as one."""
+    """What PowerShell reads of a single-quoted string: the text between the quotes, each doubled
+    quote as one."""
     assert quoted[0] == quoted[-1] == "'"
     body = quoted[1:-1]
     for quote in "'\u2018\u2019\u201a\u201b":
@@ -145,7 +146,9 @@ def test_a_name_in_a_powershell_string_is_one_string_whatever_it_holds(script: M
     quoted = script.ps_quote(name)
     assert decode_quote(quoted) == name
     inside = quoted[1:-1]
-    for quote in "'\u2018\u2019\u201a\u201b":       # (a quote of any kind inside the string is one of a pair: PowerShell takes the typographic ones for quotes)
+    # (a quote of any kind inside the string is one of a pair: PowerShell takes the typographic ones
+    # for quotes)
+    for quote in "'\u2018\u2019\u201a\u201b":
         assert inside.count(quote) % 2 == 0
 
 
@@ -225,7 +228,8 @@ def test_the_probe_runs_the_python_of_the_environment_and_sends_ctrl_break_to_a_
     text = script.probe_script(paths)
     assert f"{paths.tree}\\.venv\\Scripts\\python.exe" in text
     assert "CREATE_NEW_PROCESS_GROUP" in script.CONSOLE_PROBE and "CTRL_BREAK_EVENT" in script.CONSOLE_PROBE
-    compile(script.CONSOLE_PROBE.replace("CREATE_NEW_PROCESS_GROUP", "CREATE_NEW_CONSOLE").replace("CTRL_BREAK_EVENT", "SIGTERM"), "probe", "exec")      # (it is Python, which the stand-ins cannot run)
+    # (it is Python, which the stand-ins cannot run)
+    compile(script.CONSOLE_PROBE.replace("CREATE_NEW_PROCESS_GROUP", "CREATE_NEW_CONSOLE").replace("CTRL_BREAK_EVENT", "SIGTERM"), "probe", "exec")
 
 
 def test_a_step_that_is_given_up_on_is_cleaned_up_by_the_folder_its_programs_run_from(script: ModuleType) -> None:
@@ -583,7 +587,8 @@ def test_the_machine_is_started_without_a_window_and_shut_down_from_inside_and_w
 
 
 def test_a_machine_just_started_is_waited_for_until_it_has_been_up_two_minutes_through_a_moment_without_ssh(script: ModuleType, bench: Bench, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    """Windows restarts its SSH service once in its first minute: a step begun then ended with "closed by remote host" (14 Nov 2026)."""
+    """Windows restarts its SSH service once in its first minute; a step begun then ends with
+    "closed by remote host"."""
     bench.use(monkeypatch)
     settings = settings_of(script, bench)
     (bench.folder / "uptimes").write_text("25 away 70 119 121 500", encoding="utf-8")
@@ -594,7 +599,8 @@ def test_a_machine_just_started_is_waited_for_until_it_has_been_up_two_minutes_t
     script.wait_until_settled(settings, patience_sec=30.0, interval_sec=0.01)
     assert "has just started" not in capsys.readouterr().err, "a machine that has been up long enough is not waited for"
     (bench.folder / "uptimes").unlink()
-    script.wait_until_settled(settings, patience_sec=30.0, interval_sec=0.01)                 # (a machine that says no number: nothing to wait for is known)
+    # (a machine that says no number: nothing to wait for is known)
+    script.wait_until_settled(settings, patience_sec=30.0, interval_sec=0.01)
     assert "has just started" not in capsys.readouterr().err
 
 
@@ -710,7 +716,8 @@ KEPT_HERE = {"ignored.txt": "i", ".secrets": "token", "sub/.secrets-prod": "toke
 
 
 def make_tree(folder: Path) -> Path:
-    """A made-up repository with copies of the three scripts: tracked and untracked files, one an ignore rule names, and files of access tokens."""
+    """A made-up repository with copies of the three scripts: tracked and untracked files, one an
+    ignore rule names, and files of access tokens."""
     tree = folder / "tree"
     (tree / "scripts").mkdir(parents=True)
     for name in ("check-windows", "check-in-container", "security-tools"):
@@ -879,7 +886,8 @@ def test_a_tree_that_is_no_repository_is_said_before_the_machine_is_asked_for_an
 
 
 def test_the_python_of_the_steps_is_the_one_the_workflow_names(script: ModuleType) -> None:
-    """Left to uv, a clean machine takes the newest Python the project allows; the workflow names one, and the Windows check runs that one."""
+    """Left to uv, a clean machine takes the newest Python the project allows; the workflow names
+    one, and the Windows check runs that one."""
     named = set(re.findall(r'python-version: "([0-9.]+)"', WORKFLOW))
     assert named == {script.PYTHON}, "ci.yml names one Python, and scripts/check-windows runs its steps on it"
 
@@ -890,7 +898,8 @@ INSTALL_STEPS = ["install", "defender", "daemon", "commands", "app", "map", "dir
 
 
 def install_tree(folder: Path) -> Path:
-    """The made-up repository, with what the install proof takes from it: the two smoke scripts, the capture, the Tornado pin and the Direwolf NeoAPRS ships."""
+    """The made-up repository, with what the install proof takes from it: the two smoke scripts, the
+    capture, the Tornado pin and the Direwolf NeoAPRS ships."""
     tree = make_tree(folder)
     for name in ("scripts/smoke.py", "tests/fixtures/kiss/thd7-2026-10-21.bin", "packaging/windows/smoke_mercury.py", "neoaprs/direwolf.py"):
         (tree / name).parent.mkdir(parents=True, exist_ok=True)
@@ -930,7 +939,8 @@ def test_the_installer_is_named_by_its_version_and_smoke_runs_with_the_pinned_to
 
 def test_the_install_steps_are_the_proof_in_order_each_named_and_short_enough_for_cmd(script: ModuleType) -> None:
     paths = script.windows_paths("John", "RUN-20261115T101010")
-    steps = script.install_steps(paths, "NeoAPRS-Setup-0.20.0.exe", "0.20.0", "6.6.1", "Dire Wolf Release 1.8.1, November 2025")      # (the banner: test_the_direwolf_the_install_proof_asks_for...)
+    # (the banner: test_the_direwolf_the_install_proof_asks_for...)
+    steps = script.install_steps(paths, "NeoAPRS-Setup-0.20.0.exe", "0.20.0", "6.6.1", "Dire Wolf Release 1.8.1, November 2025")
     assert [name for name, _, _ in steps] == INSTALL_STEPS == list(script.INSTALL_STEP_NAMES)
     for name, text, timeout in steps:
         assert text.startswith(f"# step: {name}\n") and text.endswith("exit 0") and timeout >= 300
@@ -1030,7 +1040,7 @@ def test_an_installer_that_is_not_one_is_said_before_the_machine_is_touched(benc
 # ---- the upgrade proof (--upgrade) ----
 
 UPGRADE_STEPS = ["old", "station", "update", "migrate", "data", "daemon", "uninstall"]
-# What the machine says in the steps the proof reads, as 0.18.2 and this tree said it in a rehearsal of the same commands on Linux (15 November 2026), cut short.
+# What the machine says in the steps the proof reads, cut short.
 STATION_SAYS = """the page http://127.0.0.1:40789/ answered 200, 2 s after the start
 ### old db list
 tnc/profile               dummy               stored
@@ -1284,10 +1294,12 @@ def test_installers_that_are_not_two_in_order_are_said_before_the_machine_is_tou
     assert done.returncode == 2 and "NeoAPRS-Setup-VERSION.exe" in done.stderr and bench.vbox_calls() == []
 
 
-# ---- the upgrade proof from a release that has radios (0.20.0 on) ----
+# ---- the upgrade proof from a release that has radios ----
 
-# What the machine says in the steps the proof reads, as 0.20.0 (its source at the tag v0.20.0) and this tree said it in a rehearsal of the same commands on Linux (16 November 2026), cut short. The old release
-# calls the radio without a name HF and this one Mercury; this one lists a setting 0.20.0 does not have (radio/<number>/status); both keep the database at version 33, so nothing migrates and no copy is taken.
+# What the machine says in the steps the proof reads. The old release calls the radio without a name
+# HF and the new one Mercury, and the new one lists a setting the old does not have
+# (radio/<number>/status). Both keep the database at version 33, so nothing migrates and no copy is
+# taken.
 OLD_RADIOS_SAYS = """radio 1  Proof  fm  dummy  on  (position 1)
   radio/1/beacon    true                default
   radio/1/path      WIDE1-1             stored
@@ -1371,7 +1383,8 @@ OH2GBA-9   station  2026-11-16 10:35:12Z  60.1699 24.9384          0
 ### doctor
 """ + NEW_DOCTOR_SAYS)
 RADIO_MIGRATE_SAYS = "the page http://127.0.0.1:44451/ answered 200, 1 s after the start\nthe daemon ran 41 s and wrote 43 lines to its log\n### migrated\n"
-# The lines of a start that migrates, as neoaprs/migrations.py logs them, for a new release whose database is one version on, and the copy `db restore` then lists.
+# The lines of a start that migrates, as neoaprs/migrations.py logs them, and the copy `db restore`
+# then lists.
 MIGRATED_SAYS = """2026-11-16 10:35:21Z  INFO  the database C:\\x\\neoaprs.sqlite is of version 33, this NeoAPRS needs 34: it is brought up to date now (a large file takes minutes)
 2026-11-16 10:35:21Z  INFO  the database C:\\x\\neoaprs.sqlite: a copy of it is in C:\\x\\backup\\premigrate-v33-to-v34-20261116-103521.sqlite
 2026-11-16 10:35:21Z  INFO  the database C:\\x\\neoaprs.sqlite is now version 34 (was 33)
@@ -1388,7 +1401,9 @@ def radio_outputs(**changed: str) -> dict[str, str]:
 
 
 def one_version_on(**changed: str) -> dict[str, str]:
-    """What the machine says when the new release's database is one version on from the old one's: the migration in the log of the first start, its copy in `db restore`, the new doctor's version."""
+    """What the machine says when the new release's database is one version on from the old one's:
+    the migration in the log of the first start, its copy in `db restore`, and the new doctor's
+    version."""
     data = RADIO_DATA_SAYS.replace(NO_COPY_SAYS, COPY_33_SAYS).replace(NEW_DOCTOR_SAYS, NEW_DOCTOR_SAYS.replace("version 33", "version 34"))
     return {**radio_outputs(migrate=RADIO_MIGRATE_SAYS + MIGRATED_SAYS, data=data), **changed}
 
@@ -1410,7 +1425,8 @@ NEW_DEFAULT = "; if the new release changes this default on purpose, name it in 
 
 
 def radio_data_problems(script: ModuleType, old: str, new: str, **changed: str) -> list[str]:
-    """What the data check finds when `old` in what the new release says (or, by name, in a step's output) is `new`."""
+    """What the data check finds when `old` in what the new release says (or, by name, in a step's
+    output) is `new`."""
     found: list[str] = script.check_radio_data(radio_outputs(data=RADIO_DATA_SAYS.replace(old, new), **changed))[0]
     return found
 
@@ -1472,7 +1488,8 @@ def test_the_radios_of_the_station_are_types_names_and_settings_a_release_takes(
     from neoaprs.radiotypes import BY_KEY as TYPES
     assert [key for key, _ in script.STATION] == [*(key for key, _ in script.STATION_OWN), "beacon/path", "tnc/profile", "hf/profile", "hf/enabled"] and script.STATION[:len(script.STATION_OWN)] == script.STATION_OWN
     assert all(key in BY_KEY and key not in script.MOVED for key, _ in script.STATION_OWN), "the station's own keys are no radio's in either kind of release"
-    words = {word.casefold() for word in (*KIND_WORDS.values(), "HF")}          # (what this tree and 0.20.0 call a radio without a name: 0.20.1 takes a stored name that is such a word as none)
+    # What this tree calls a radio without a name; a stored name that is such a word counts as none.
+    words = {word.casefold() for word in (*KIND_WORDS.values(), "HF")}
     for added in script.RADIOS:
         rtype = TYPES[added.type]
         assert rtype.kind == added.kind and rtype.dummy, f"{added.type}: no device and no sound card is opened"
@@ -1581,7 +1598,8 @@ def test_the_radio_data_check_holds_the_keys_of_a_radio_and_the_name_that_was_ty
 
 
 def test_what_the_update_to_no_main_radio_does_on_purpose_is_no_fault_of_the_settings_and_nothing_else_passes_for_it(script: ModuleType) -> None:
-    """0.20.2 has no main radio: step 34 deletes the setting and ticks the status for the one radio the main radio was. The proof from 0.20.1 holds every other setting as before."""
+    """The new release has no main radio: migration 34 deletes the setting and ticks the status for
+    the one radio the main radio was. Every other setting is held as before."""
     was = {"station/main_radio": ("", "default"), "radio/1/status": ("false", "default"), "radio/2/status": ("false", "default"), "radio/1/path": ("WIDE1-1", "stored"), "station/call": ("OH2GBA-9", "stored")}
     now = {"radio/1/status": ("true", "stored"), "radio/2/status": ("false", "default"), "radio/1/path": ("WIDE1-1", "stored"), "station/call": ("OH2GBA-9", "stored"), "radio/1/ask": ("true", "stored")}
     assert script.same_settings(was, now) == []
@@ -1593,7 +1611,8 @@ def test_what_the_update_to_no_main_radio_does_on_purpose_is_no_fault_of_the_set
 
 
 def test_a_setting_that_differs_says_which_and_where_a_release_names_it_when_the_change_is_meant(script: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A release that changes a default on purpose says so in same_settings: the failure itself says where, so the rule needs no memory."""
+    """A release that changes a default on purpose says so in same_settings: the failure itself says
+    where, so the rule needs no memory."""
     was = {"web/port": ("7303", "default"), "radio/2/hold_s": ("3", "default"), "beacon/power_w": ("5", "stored"), "station/old": ("x", "default")}
     now = {"web/port": ("7304", "default"), "radio/2/hold_s": ("4", "default"), "beacon/power_w": ("6", "stored")}
     assert script.same_settings(was, now) == [
@@ -1698,16 +1717,17 @@ def test_a_migration_the_versions_do_not_explain_fails_the_migrate_step_of_a_rel
 
 
 def test_every_command_the_station_with_radios_is_sent_is_one_the_command_line_takes_as_it_is_meant(script: ModuleType) -> None:
-    """The commands as the three scripts write them, each cut into the arguments the program gets and given to the parsers of the command line: this tree's, which are 0.20.0's (since the tag v0.20.0,
-    neoaprs/cli/dbcmd.py parse, neoaprs/cli/stopcmd.py parser and the options of neoaprs/daemon.py build_parser have changed in a help text only; the same lines were given to the source at the tag on
-    16 November 2026). A parser that does not take a line ends the test, as it would end the step on the machine."""
+    """The commands as the three scripts write them, each cut into the arguments the program gets
+    and given to the command-line parsers of this tree. A parser that does not take a line ends the
+    test, as it would end the step on the machine."""
     from neoaprs.cli import HANDLERS, dbcmd, stopcmd
     from neoaprs.daemon import build_parser
     make, run, record = radio_scripts(script)["station"]
     folder = "C:\\Users\\John\\neoaprs-check\\RUN-20261116T101010\\data-upgrade"
 
     def words(text: str) -> list[str]:
-        """The arguments of a command as a script writes them: a string in single quotes, $data or a bare word (none of these has white space in it)."""
+        """The arguments of a command as a script writes them: a string in single quotes, $data or a
+        bare word (none of these has white space in it)."""
         return [folder if word == "$data" else word[1:-1] if word.startswith("'") else word for word in text.split()]
 
     def sent(text: str) -> list[list[str]]:
@@ -1733,14 +1753,18 @@ def test_every_command_the_station_with_radios_is_sent_is_one_the_command_line_t
     assert stop[0] == "stop" and stop[0] in HANDLERS and stopcmd.parser().parse_args(stop[1:]).data == folder
     started = re.search(r"'neoaprsw\.exe'\) -ArgumentList (.+) -PassThru", run)
     assert started is not None
-    command, *flags = words(started.group(1).replace(",", " "))        # (Start-Process joins its list with spaces and quotes nothing: the folder of a run has no space)
+    # (Start-Process joins its list with spaces and quotes nothing: the folder of a run has no
+    # space)
+    command, *flags = words(started.group(1).replace(",", " "))
     daemon = build_parser().parse_args(flags)
     assert command == "run" and command in HANDLERS and (daemon.data, daemon.web_port, daemon.port, daemon.hf_port) == (folder, 0, "", "") and " " not in folder
 
 
 def test_what_the_old_release_is_given_is_nothing_windows_powershell_hands_over_changed(script: ModuleType) -> None:
-    """Windows PowerShell 5.1 hands a program an argument with white space in double quotes and escapes nothing in it: an empty argument is dropped, a double quote is lost, and a backslash at the end of an
-    argument with white space takes the closing quote. A value of two words or with a comma goes through as it is written (0.20.0 on the machine answered `station/comment = NeoAPRS upgrade proof`)."""
+    """Windows PowerShell 5.1 hands a program an argument with white space in double quotes and
+    escapes nothing in it: an empty argument is dropped, a double quote is lost, and a backslash at
+    the end of an argument with white space takes the closing quote. A value of two words or with a
+    comma goes through as written."""
     given = [text for pair in script.STATION for text in pair]
     given += [text for added in script.RADIOS for text in (added.type, *([added.name] if added.name else []), *(part for pair in added.settings for part in pair))]
     for text in given:
@@ -1753,7 +1777,8 @@ def test_what_the_old_release_is_given_is_nothing_windows_powershell_hands_over_
 def test_the_doctors_line_of_a_radio_is_read_up_to_its_type_whatever_follows_it(script: ModuleType) -> None:
     for line, name, key in (("ok    radio Proof (dummy): traffic made up: nothing goes on the air", "Proof", "dummy"), ("ok    radio Mercury 2 (dummy-hf): off", "Mercury 2", "dummy-hf"),
                             ("ok    radio FM (kiss): port (found by searching), speed 9600 baud", "FM", "kiss"), ("ok    radio IC (705) (kiss-tcp): port 127.0.0.1:8001", "IC (705)", "kiss-tcp"),
-                            ("ok    radio HF (mercury): sound card Line (USB): Front, keying (the daemon's choice)", "HF", "mercury")):        # (a sound card is named by the system, brackets and colons too)
+                            # (a sound card is named by the system, brackets and colons too)
+                            ("ok    radio HF (mercury): sound card Line (USB): Front, keying (the daemon's choice)", "HF", "mercury")):
         matched = script.DOCTOR_RADIO.match(line)
         assert matched is not None and matched.groups() == (name, key), line
     assert script.DOCTOR_RADIO.match("warn  no radio is on: nothing is heard and nothing is sent") is None and script.DOCTOR_RADIO.match("ok    call OH2GBA-9") is None

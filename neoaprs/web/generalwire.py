@@ -1,5 +1,4 @@
-"""Asking around on the wire: the command that sends a general query (?APRS?, ?IGATE?, ?WX?) and the topic `general`, the last query of each kind and the stations heard after it. Models like the rest of the protocol,
-listed in `neoaprs/web/protocol.py`."""
+"""Wire models of the general query command and the topic `general`."""
 from typing import Literal
 
 from pydantic import Field

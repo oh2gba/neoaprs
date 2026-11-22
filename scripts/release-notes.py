@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-"""Prints the notes of a release: the text of CHANGELOG.md under the newest `## ` heading that has any (an empty `## Unreleased` above the newest release is skipped), or, with a VERSION, under the
-heading that names it (`## 0.1.0`); the heading line itself is left out.
+"""Print the notes of a release: CHANGELOG.md's newest non-empty `## ` section, or VERSION's.
 
   scripts/release-notes.py [VERSION] [--changelog FILE]
-
-The release workflow gives it to `gh release create --notes-file`. Exit code 1 when the changelog has no section for the VERSION, or the section is empty: a release is not made without notes.
-"""
+Exit code 1 when there is no section or it is empty: a release is not made without notes."""
 import argparse
 import re
 import sys
@@ -15,7 +12,8 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def section(text: str, version: str | None) -> str | None:
-    """The body of the section whose heading names `version` (the first section that has a body when there is no version: the empty Unreleased of a tree just released is passed over), or None."""
+    """Return the body of `version`'s section, or of the first non-empty one; None if there is
+    none."""
     parts = re.split(r"^## (.*)$", text, flags=re.M)             # [before, heading, body, heading, body, ...]
     for heading, body in zip(parts[1::2], parts[2::2]):
         if version is not None and re.search(rf"(?<![\w.]){re.escape(version)}(?![\w.])", heading):
@@ -30,7 +28,7 @@ def main() -> int:
     parser.add_argument("version", nargs="?", help="the version whose section to print (default: the newest section)")
     parser.add_argument("--changelog", default=str(ROOT / "CHANGELOG.md"), metavar="FILE", help="default %(default)s")
     args = parser.parse_args()
-    sys.stdout.reconfigure(encoding="utf-8")                   # type: ignore[union-attr]  (the changelog has arrows and dashes; a Windows console is not UTF-8)
+    sys.stdout.reconfigure(encoding="utf-8")                   # type: ignore[union-attr]  (the changelog has non-ASCII; a Windows console is not UTF-8)
     body = section(Path(args.changelog).read_text(encoding="utf-8"), args.version)
     if body is None:
         print(f"release-notes: {args.changelog} has no non-empty section" + (f" for {args.version}" if args.version else ""), file=sys.stderr)

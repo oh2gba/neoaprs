@@ -10,10 +10,12 @@ BODY = b"4903.50N/07201.75W-"
 
 
 def compress_position(lat: float, lon: float, symbol_table: str, symbol_code: str) -> bytes:
-    """A compressed position without course, speed or altitude, to feed the parser: symbol table, latitude, longitude, symbol code, "  " (no cs) and the type byte "#"."""
+    """A compressed position without course, speed or altitude, to feed the parser: symbol table,
+    latitude, longitude, symbol code, " " (no cs) and the type byte "#"."""
     y = min(max(round((90 - lat) * 380926), 0), 91 ** 4 - 1)
     x = min(max(round((180 + lon) * 190463), 0), 91 ** 4 - 1)
-    table_byte = chr(ord(symbol_table) - ord("0") + ord("a")) if symbol_table.isdigit() else symbol_table      # overlays 0-9 are written a-j
+    # overlays 0-9 are written a-j
+    table_byte = chr(ord(symbol_table) - ord("0") + ord("a")) if symbol_table.isdigit() else symbol_table
     return (table_byte + _base91_text(y) + _base91_text(x) + symbol_code + "  #").encode("ascii")
 
 
@@ -33,7 +35,8 @@ def at(*args: int) -> datetime:
     (b"092345z", NOW, at(2026, 10, 9, 23, 45)),
     (b"302345z", NOW, at(2026, 9, 30, 23, 45)),                       # a day that has not come this month
     (b"312345z", NOW, at(2026, 8, 31, 23, 45)),                       # September has no 31st
-    (b"290000z", at(2026, 3, 1), at(2026, 1, 29)),                     # 2026 has no 29 February: the 29th before it is January's
+    # 2026 has no 29 February: the 29th before it is January's
+    (b"290000z", at(2026, 3, 1), at(2026, 1, 29)),
     (b"010001z", at(2026, 10, 31, 23, 58), at(2026, 11, 1, 0, 1)),   # three minutes ahead across the month's end
     (b"280000z", at(2026, 1, 2), at(2025, 12, 28)),
     (b"092345/", NOW, at(2026, 10, 9, 23, 45)),
@@ -175,7 +178,8 @@ def test_compressed_range_and_weather_cs_are_not_motion() -> None:
 
 
 def test_the_cs_bytes_of_a_compressed_weather_position_are_the_wind() -> None:
-    """The spec's 7P: 88 degrees and 36.2 (miles per hour); the fields after the 13 bytes are the rest of the weather, and the wind of the fields does not replace the cs."""
+    """The spec's 7P: 88 degrees and 36.2 (miles per hour); the fields after the 13 bytes are the
+    rest of the weather, and the wind of the fields does not replace the cs."""
     p = parse_position(b"/5L!!<*e7_7P[g005t077r000", NOW)
     assert p.weather is not None
     assert (p.weather.wind_dir, p.weather.wind_kmh, p.weather.gust_kmh, p.weather.temp_c) == (88, pytest.approx(58.3, abs=0.05), pytest.approx(8.0, abs=0.05), 25.0)
@@ -194,7 +198,8 @@ def test_compressed_stationary_has_no_motion() -> None:
 
 def test_compressed_corners() -> None:
     assert (parse_position(b"/!!!!!!!!>  A", NOW).lat, parse_position(b"/!!!!!!!!>  A", NOW).lon) == (90.0, -180.0)
-    with pytest.raises(PositionError):                                  # the largest base-91 number is beyond the south pole
+    # the largest base-91 number is beyond the south pole
+    with pytest.raises(PositionError):
         parse_position(b"/{{{{{{{{>  A", NOW)
 
 
@@ -222,7 +227,8 @@ def test_the_time_111111z_of_a_permanent_object_is_no_time() -> None:
 def test_a_timestamp_that_is_none_leaves_the_position_without_a_time() -> None:
     p = parse_position(b"322345z4903.50N/07201.75W>x", NOW)             # the 32nd
     assert (p.timestamp, p.timestamp_local, p.lat, p.comment) == (None, False, pytest.approx(49.058333), "x")
-    p = parse_position(b"092460/4903.50N/07201.75W>x", NOW)             # the 60th minute, local: no time, and not local either
+    # the 60th minute, local: no time, and not local either
+    p = parse_position(b"092460/4903.50N/07201.75W>x", NOW)
     assert (p.timestamp, p.timestamp_local, p.comment) == (None, False, "x")
 
 
@@ -234,8 +240,10 @@ def test_a_local_timestamp_is_kept_as_sent_and_flagged() -> None:
 
 def test_the_mdhm_timestamp_of_a_weather_report() -> None:
     assert resolve_mdhm("10090556", NOW) == datetime(2026, 10, 9, 5, 56, tzinfo=UTC)
-    assert resolve_mdhm("12312359", NOW) == datetime(2025, 12, 31, 23, 59, tzinfo=UTC)                  # not in the future
-    assert resolve_mdhm("02291200", NOW) == datetime(2024, 2, 29, 12, 0, tzinfo=UTC)                    # the last leap day
+    # not in the future
+    assert resolve_mdhm("12312359", NOW) == datetime(2025, 12, 31, 23, 59, tzinfo=UTC)
+    # the last leap day
+    assert resolve_mdhm("02291200", NOW) == datetime(2024, 2, 29, 12, 0, tzinfo=UTC)
     for bad in ("1009055", "100905560", "13090556", "ab090556", "10320556", "10092456"):
         with pytest.raises(PositionError):
             resolve_mdhm(bad, NOW)

@@ -1,11 +1,7 @@
-"""The markers of the suite, given to every test by what it is, not by hand-written decorators on every test.
+"""The markers of the suite (unit, integration, safety), given to every test by what it is.
 
-    unit         pure code in one process: no loop, no daemon, no socket
-    integration  the daemon (Controller), the web server or a fake service on the loopback
-    safety       tests that guard the data: storage, migrations, the database actor (everything under tests/safety, and the modules named below)
-
-Every test is exactly one of unit / integration; safety is added to whichever it is. `-m unit` is the pure code (no daemon, no sockets),
-`-m safety` what to run before touching the data layer. A test that is wrongly a unit test only costs speed: the rule leans towards integration."""
+Every test is exactly one of unit, integration or safety.
+"""
 import inspect
 import subprocess
 from collections.abc import Iterable
@@ -14,11 +10,14 @@ from types import ModuleType
 import pytest
 
 KINDS = ("unit", "integration")
-EXTRA = ("safety",)                          # plus "expects_errors", which a test sets itself (tests/support/guards.py)
-# Where integration starts: what a test module imports from here, or names in a test function, is the daemon or a fake service.
+# Plus "expects_errors", which a test sets itself (tests/support/guards.py)
+EXTRA = ("safety",)
+# Where integration starts: what a test module imports from here, or names in a test function, is
+# the daemon or a fake service.
 INTEGRATION_ORIGINS = ("tests.support.env", "neoaprs.controller", "neoaprs.web.server")
 INTEGRATION_NAMES = frozenset({"Env", "Controller", "WebServer"})
-# The test files of the data layer (a file that goes away or is renamed fails tests/test_markers.py, so this list cannot rot).
+# The test files of the data layer (a file that goes away or is renamed fails tests/test_markers.py,
+# so this list cannot rot).
 SAFETY_MODULES = frozenset({"test_store", "test_migrations", "test_dbfile"})
 
 
@@ -27,7 +26,8 @@ def touches_the_daemon(module: ModuleType) -> bool:
 
 
 def names_in(function: object) -> frozenset[str]:
-    """The global and attribute names the test function uses (the function under a hypothesis @given, or any decorator, included)."""
+    """The global and attribute names the test function uses (the function under a hypothesis
+    @given, or any decorator, included)."""
     inner = getattr(getattr(function, "hypothesis", None), "inner_test", function)
     code = getattr(inspect.unwrap(inner) if callable(inner) else inner, "__code__", None)
     return frozenset(code.co_names) if code is not None else frozenset()

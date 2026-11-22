@@ -1,29 +1,8 @@
 #!/usr/bin/env python3
-"""Builds Rhizomatica's Mercury HF modem from the pinned source for Linux, macOS or Windows and lays it out as the folder `mercury/` that NeoAPRS ships: the program (on Linux with RUNPATH `$ORIGIN/lib`, stripped, the one library it
-needs beyond glibc and the ALSA configuration beside it; on macOS linked to the system's CoreAudio alone; for Windows `mercury.exe`, cross-compiled with MinGW-w64 on Linux, stripped and linked to the system's DLLs alone), Mercury's licence and the source offer, and,
-for the simulators only, the HF channel simulator.
+"""Build Rhizomatica's Mercury HF modem from the pinned source as the folder `mercury/`.
 
   scripts/build-mercury [--windows] [--out DIR] [--tar] [--install] [--source FILE]
-
-  --windows      cross-compile mercury.exe for 64-bit Windows with the MinGW-w64 compiler (x86_64-w64-mingw32-gcc and -ar on the PATH; Debian: gcc-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common), on Linux only. The folder
-                 mercury/ holds mercury.exe, the licences and SOURCE.txt, and nothing else: no DLL (the C runtime's threads are linked in, the sound is DirectSound and WASAPI of Windows), so that the installer packs it as it is
-  --out DIR      the folder DIR/mercury/ is made there (default build/mercury/dist/, build/mercury/dist-windows/ with --windows)
-  --tar          also DIR/mercury-<version>-linux-<x86_64|aarch64>.tar.gz (DIR/mercury-<version>-macos-arm64.tar.gz on a Mac, DIR/mercury-<version>-windows-x86_64.tar.gz with --windows), with mercury/ as its top folder: what the
-                 AppImage, the .deb, the macOS app, the Windows installer (packaging/windows/bundle_mercury.py) and the release workflow take
-  --install      the folder is copied to <sys.prefix>/tools/mercury of the virtual environment this script runs in, where the daemon run from a checkout looks for it (neoaprs/bundled.py); the default when neither --out
-                 nor --tar is given (not with --windows: a program for Windows is no use to a Linux checkout). Run it as `.venv/bin/python scripts/build-mercury`
-  --source FILE  the source archive at hand instead of the download; it has to be the pinned one all the same
-
-The version, the commit, the URL and the SHA-256 of the source are the pins at the top of neoaprs/mercury.py and nowhere else: the archive is fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build) and
-checked against the pin, and a different file is refused. The tree is built in build/mercury/work/ (build/mercury/work-windows/ with --windows) with `make HAVE_HAMLIB=0 HAVE_HIDAPI=0 WS_TLS=0` (NeoAPRS keys the radio itself: VOX, CM108 over /dev/hidraw, RTS or DTR of
-a serial port, so Mercury links no hamlib, no hidapi and no OpenSSL; for Windows `HAVE_HAMLIB=0 WS_TLS=0` and hidapi stays, since it is compiled into the program from Mercury's own copy of its source and is how a CM108 chip is keyed there), the PulseAudio backend replaced by packaging/mercury/pulse_stub.c (ALSA is the one sound system of the bundle; PulseAudio and PipeWire both offer an
-ALSA device), the TCP listeners and the UI websocket bound to the loopback by packaging/mercury/loopback.patch on every system (Mercury binds its control, data, KISS and UI ports on every interface with no password, which would let any host
-on the LAN key the radio; the patch says more), a lead-in tone for a radio on VOX added by packaging/mercury/leadin.patch (the ini key `tx_leadin_ms`, off unless the ini sets it), and the link then checked with ldd: only libasound, glibc and its helpers may be there. The last step of every run starts the program from the folder as the daemon does
-(`-V`, and on Linux once on its fifo backend to see that its four ports (the UI websocket included) listen on 127.0.0.1 and nowhere else) and prints what it says. A program for Windows cannot be run here: its import table is read instead, and it may name no DLL that
-does not come with Windows (the release workflow's Windows job starts it and reads the system's table of sockets).
-Needs gcc, make, patch and libasound2-dev (with libasound2-data for the ALSA configuration) on Linux; patchelf is not needed, the RUNPATH is set by the link. The CI job (release.yml) runs it in ubuntu:22.04, whose glibc is
-the floor of the AppImage and the .deb. On a Mac it needs the command line tools (cc, make, otool, patch) and builds for macOS 14 and newer (MACOS_MIN, the floor of the app, which scripts/build-macos-app says too), for the
-machine it runs on; Rhizomatica's own universal build is not taken because it asks for macOS 26. How it is used: docs/development.md, "Scripts"."""
+Options: see --help. The pins are in neoaprs/mercury.py; see docs/development.md, "Scripts"."""
 import argparse
 import datetime
 import os
@@ -38,17 +17,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import buildtool  # noqa: E402  (the parts of the builds that are not Mercury's: scripts/buildtool.py, by its path)
-from buildtool import BuildError, cache_dir, folder_size, megabytes, pe_imports, sha256  # noqa: E402,F401  (named here as before)
+import buildtool  # noqa: E402  (scripts/buildtool.py, shared build helpers)
+from buildtool import BuildError, cache_dir, folder_size, megabytes, pe_imports, sha256  # noqa: E402,F401  (re-exported)
 
 
 def pins() -> dict[str, str]:
-    """The four pins read out of neoaprs/mercury.py as text: the script runs on the Python of the release workflow's ubuntu:22.04 container (3.10), which cannot import the daemon's modules (they use the syntax of 3.12)."""
+    """Read the pins out of neoaprs/mercury.py as text; the build's Python 3.10 cannot import it."""
     found: dict[str, str] = {}
     for line in (ROOT / "neoaprs" / "mercury.py").read_text(encoding="utf-8").splitlines():
         m = re.match(r'^(VERSION|SOURCE_COMMIT|SOURCE_URL|SOURCE_SHA256) = (f?"[^"]*")', line)
         if m:
-            found[m.group(1)] = eval(m.group(2), {}, dict(found))  # noqa: S307  (a string literal of our own file, f-strings included)
+            found[m.group(1)] = eval(m.group(2), {}, dict(found))  # noqa: S307  (a string literal of this file)
     missing = {"VERSION", "SOURCE_COMMIT", "SOURCE_URL", "SOURCE_SHA256"} - found.keys()
     if missing:
         raise SystemExit(f"build-mercury: neoaprs/mercury.py has no pin {', '.join(sorted(missing))}")
@@ -64,55 +43,67 @@ LEADIN_PATCH = ROOT / "packaging" / "mercury" / "leadin.patch"
 DSOUND_PATCH = ROOT / "packaging" / "mercury" / "dsound.patch"
 FLUSH_PATCH = ROOT / "packaging" / "mercury" / "flush.patch"
 FFCPU_PATCH = ROOT / "packaging" / "mercury" / "ffcpu.patch"
-DSOUND_FILE = "audioio/ffaudio/ffaudio/dsound.c"            # the DirectSound backend the dsound patch makes load dsound.dll on first use, which must hold the loader after it
-LEADIN_FILE, LEADIN_KEY = "common/cfg_utils.h", "audio:tx_leadin_ms"           # the key the lead-in patch adds, which the source must hold after it
-LOG_FILE, LOG_FLUSH = "common/hermes_log.c", "fflush(stderr);"           # the flush the flush patch adds after each log line, which the source must hold after it
-FFCPU_FILE, FFCPU_NAME = "audioio/audioio.c", "int _ffcpu_features;"           # the definition the ffcpu patch adds, which the link needs on a compiler whose default machine has SSE4.2
-LISTENERS_FILE = "data_interfaces/tcp_interfaces.c"          # the file with the two TCP listeners the loopback patch changes; no INADDR_ANY may be left in it
-WEBSOCKET_FILE = "gui_interface/websocket/mercury_websocket.c"          # the third place Mercury binds a socket (its UI interface and web page, which NeoAPRS turns on in the ini for the scope and the channel-busy control); the patch gives it the loopback too
+# The dsound patch makes this backend load dsound.dll on first use.
+DSOUND_FILE = "audioio/ffaudio/ffaudio/dsound.c"
+# The key the lead-in patch adds.
+LEADIN_FILE, LEADIN_KEY = "common/cfg_utils.h", "audio:tx_leadin_ms"
+# The flush the flush patch adds after each log line.
+LOG_FILE, LOG_FLUSH = "common/hermes_log.c", "fflush(stderr);"
+# The definition the ffcpu patch adds; the link needs it when the default machine has SSE4.2.
+FFCPU_FILE, FFCPU_NAME = "audioio/audioio.c", "int _ffcpu_features;"
+# The two TCP listeners the loopback patch changes; no INADDR_ANY may remain.
+LISTENERS_FILE = "data_interfaces/tcp_interfaces.c"
+# The third bind: the UI interface, which the loopback patch also confines to 127.0.0.1.
+WEBSOCKET_FILE = "gui_interface/websocket/mercury_websocket.c"
 WEBSOCKET_BIND = 'opts.bind_addr = "127.0.0.1";'
-LOOPBACK = buildtool.LOOPBACK                                # 127.0.0.1 as /proc/net/tcp writes a local address (little-endian hex)
-LISTEN_WAIT_SEC = 30.0                                       # how long the started program is given to open its four ports
+# 127.0.0.1 as /proc/net/tcp writes a local address.
+LOOPBACK = buildtool.LOOPBACK
+# How long the started program has to open its four ports.
+LISTEN_WAIT_SEC = 30.0
 WORK = ROOT / "build" / "mercury" / "work"
 DEFAULT_OUT = ROOT / "build" / "mercury" / "dist"
 WORK_WINDOWS = ROOT / "build" / "mercury" / "work-windows"
 DEFAULT_OUT_WINDOWS = ROOT / "build" / "mercury" / "dist-windows"
 ALSA_DATA = Path("/usr/share/alsa")
-ALSA_SKIP = ("ucm", "ucm2", "topology")            # what only the sound servers and alsaucm read: 4 MB the program never opens
+# Read only by sound servers and alsaucm (4 MB).
+ALSA_SKIP = ("ucm", "ucm2", "topology")
 
 MAKE_FLAGS = ("HAVE_HAMLIB=0", "HAVE_HIDAPI=0", "WS_TLS=0")
-# The Makefile asks pkg-config for hamlib, hidapi and OpenSSL and sets their flags whatever HAVE_* says on the command line (HAVE_HAMLIB=0 only keeps the code out; the libraries would still be on the link line), so their
-# flags are given empty too; command-line variables beat the Makefile's own assignments, `+=` ones included.
+# The Makefile sets the flags of hamlib, hidapi and OpenSSL whatever HAVE_* says, so they are given
+# empty too; command-line variables beat the Makefile's own assignments.
 MAKE_EMPTY = ("HAMLIB_CFLAGS", "HAMLIB_LDFLAGS", "HIDAPI_CFLAGS", "HIDAPI_LDFLAGS", "HIDAPI_OBJS", "WS_TLS_CFLAGS", "WS_TLS_LDFLAGS")
-# Mercury's Makefile puts `-lpulse` into FFAUDIO_LINKFLAGS in a Linux-only branch; the variable is given whole on the command line, which beats it (the alternative, a sed on the two Makefile lines, would break at the first
-# change of those lines and say nothing). The RUNPATH goes through EXTRA_LDFLAGS, the Makefile's hook for the caller's linker flags that it puts in front of the objects of every link: `$$` is make's `$`, the quotes keep
-# the shell from expanding $ORIGIN.
+# FFAUDIO_LINKFLAGS is given whole to override the Makefile's `-lpulse`. The RUNPATH goes through
+# EXTRA_LDFLAGS: `$$` is make's `$`, the quotes keep the shell from expanding $ORIGIN.
 LINK_FLAGS = "-lasound -lpthread -lrt"
 RUNPATH_FLAGS = "-Wl,--enable-new-dtags -Wl,-rpath,'$$ORIGIN/lib' -Wl,--as-needed"
-ENV_DROPPED = ("CFLAGS", "CPPFLAGS", "LDFLAGS", "LD_LIBRARY_PATH")            # the caller's flags would be copied into every link by the Makefile
+# The Makefile would copy these into every link.
+ENV_DROPPED = ("CFLAGS", "CPPFLAGS", "LDFLAGS", "LD_LIBRARY_PATH")
 
-# The Windows program is made the way Mercury's own `windows` target makes it (OS=Windows_NT, the MinGW-w64 compiler as CC and AR; its Makefile then links DirectSound and WASAPI, Winsock, and the C runtime's thread
-# library and the compiler's runtime statically, so that no DLL of MinGW travels), without `make clean` (the tree is new) and without the utilities. Hamlib and the TLS of the web page stay out as on Linux; hidapi stays in:
-# Mercury compiles its own copy of it (radio_io/hidapi-w64) into the program, and it is how a CM108 chip is keyed on Windows, which the keying `cm108` of the HF radio's box offers. `-s` strips the program and `-static` makes sure that no DLL of MinGW is asked for whatever thread model the compiler has.
+# The Windows program is made as Mercury's own `windows` target makes it (OS=Windows_NT, MinGW as
+# CC and AR). hidapi stays in, since it keys a CM108 chip there; `-s -static` strips and links
+# without any MinGW DLL.
 MINGW = "x86_64-w64-mingw32-"
 WINDOWS_TOOLS = ("make", "patch", f"{MINGW}gcc", f"{MINGW}ar")
 WINDOWS_MAKE_FLAGS = ("OS=Windows_NT", f"CC={MINGW}gcc", f"AR={MINGW}ar", "HAVE_HAMLIB=0", "WS_TLS=0")
 WINDOWS_MAKE_EMPTY = ("HAMLIB_CFLAGS", "HAMLIB_LDFLAGS", "WS_TLS_CFLAGS", "WS_TLS_LDFLAGS")
 WINDOWS_STRIP = "EXTRA_LDFLAGS=-s -static"
-HIDAPI_DIR = "radio_io/hidapi-w64"                    # the vendored hidapi of the Windows build: its licences travel with the program
+# The vendored hidapi of the Windows build; its licences travel with the program.
+HIDAPI_DIR = "radio_io/hidapi-w64"
 PE_MACHINE_X64 = 0x8664
-# The DLLs a program for Windows may not name, and the one that is not on every Windows (dsound.dll: packaging/mercury/dsound.patch), are buildtool.py's: whatever else a program imports is Windows's own, and one that is
-# missing there is found by the release workflow, which starts the program.
+# The DLLs a Windows program may not import are buildtool.py's.
 
 NEEDED_OK = re.compile(r"^(linux-vdso|ld-linux|libc\.|libm\.|libpthread\.|librt\.|libdl\.|libasound\.so)")
 NEEDED_NEVER = ("libpulse", "libhamlib", "libhidapi", "libssl", "libcrypto")
 MACOS = sys.platform == "darwin"
-MACOS_MIN = "14.0"                                       # the oldest macOS the app runs on (the Qt wheels ask for 14): the deployment target of the build
-MACOS_NEEDED_OK = ("/System/Library/Frameworks/", "/usr/lib/libSystem.")           # what a self-contained program of a Mac may load: the system's frameworks and its C library
+# The oldest macOS the app runs on (the Qt wheels need 14); the build's deployment target.
+# Rhizomatica's own universal build needs macOS 26, so it is not used.
+MACOS_MIN = "14.0"
+# What a self-contained Mac program may load.
+MACOS_NEEDED_OK = ("/System/Library/Frameworks/", "/usr/lib/libSystem.")
 
 
 def machine_name(machine: str | None = None, system: str = sys.platform) -> str:
-    """The architecture as the tarball names it (buildtool.machine_name)."""
+    """Return the architecture as the tarball names it."""
     return buildtool.machine_name(machine, system)
 
 
@@ -121,17 +112,17 @@ def tarball_name(machine: str | None = None, system: str = sys.platform) -> str:
 
 
 def fetch_source() -> Path:
-    """The pinned source archive in the cache (buildtool.fetch_source: kept only with the pinned SHA-256)."""
+    """Return the pinned source archive from the cache, downloading it if needed."""
     return buildtool.fetch_source(SOURCE_URL, SOURCE_SHA256, f"mercury-{VERSION}-{SOURCE_COMMIT[:8]}.tar.gz", "neoaprs-build-mercury")
 
 
 def unpack(archive: Path, into: Path) -> Path:
-    """The tree of the archive (one folder, mercury-<commit>/) under INTO, which is made empty first."""
+    """Unpack the archive under INTO, which is emptied first, and return the tree."""
     return buildtool.unpack(archive, into, "Makefile", "Mercury")
 
 
 def run(command: list[str]) -> str:
-    """The output of a small tool (ldd, readelf, strip), its error output with it; BuildError when it fails."""
+    """Return the output of a small tool; raise BuildError when it fails."""
     return buildtool.run(command)
 
 
@@ -140,9 +131,7 @@ def apply_patch(tree: Path, patch: Path) -> None:
 
 
 def apply_patches(tree: Path, windows: bool = False) -> None:
-    """The loopback patch on the TCP listeners and the web page's socket, on every system (it must leave no INADDR_ANY in the file: a new pin that moved the lines is found here and not by an operator on a LAN), the
-    lead-in patch for a radio on VOX (the source must hold its ini key after it), the DirectSound patch (Windows loads no dsound.dll before the program runs), the flush patch (each log line
-    leaves at once, which on Windows it did not: the source must hold the flush after it), and on Linux the stub over the PulseAudio backend (Windows and macOS have their own sound systems in the source)."""
+    """Apply the patches, check each in the source; on Linux stub out the PulseAudio backend."""
     apply_patch(tree, LOOPBACK_PATCH)
     apply_patch(tree, LEADIN_PATCH)
     apply_patch(tree, DSOUND_PATCH)
@@ -168,8 +157,7 @@ def apply_patches(tree: Path, windows: bool = False) -> None:
 
 
 def make_commands(windows: bool = False) -> list[list[str]]:
-    """The commands that make the program, run in the tree one after the other. On Linux and macOS one `make` with the flags above (on a Mac the Makefile's own Darwin branch linking CoreAudio, for MACOS_MIN and newer);
-    for Windows two, the objects of the folders and then the program (`make internal_deps mercury.exe` would run the two side by side, and the link must wait for the objects)."""
+    """Return the make commands: one on Linux and macOS, two on Windows (link after objects)."""
     jobs = f"-j{os.cpu_count() or 1}"
     if windows:
         flags = [*WINDOWS_MAKE_FLAGS, *(f"{name}=" for name in WINDOWS_MAKE_EMPTY), f"GIT_HASH={SOURCE_COMMIT[:8]}", WINDOWS_STRIP]
@@ -181,7 +169,7 @@ def make_commands(windows: bool = False) -> list[list[str]]:
 
 
 def build(tree: Path, windows: bool = False) -> None:
-    """The patches, then make."""
+    """Apply the patches, then run make."""
     apply_patches(tree, windows)
     env = {key: value for key, value in os.environ.items() if key not in ENV_DROPPED}
     if MACOS:
@@ -197,12 +185,12 @@ def build(tree: Path, windows: bool = False) -> None:
 
 
 def libraries(program: Path) -> dict[str, str]:
-    """What ldd finds for PROGRAM: library name -> the path it resolves to ('' for one not found)."""
+    """Return what ldd finds for PROGRAM: library name -> resolved path ('' if not found)."""
     return buildtool.libraries(program, run)
 
 
 def check_links_mac(program: Path) -> str:
-    """The otool -L output of the staged program, after the checks: only the system's frameworks and its C library, so that the program needs nothing installed; nothing of hamlib, hidapi or OpenSSL."""
+    """Return the otool -L output; raise BuildError for anything but the system's own libraries."""
     text = run(["otool", "-L", str(program)])
     for line in text.splitlines()[1:]:
         name = line.strip().split(" (")[0]
@@ -212,7 +200,7 @@ def check_links_mac(program: Path) -> str:
 
 
 def check_links(program: Path, folder: Path) -> str:
-    """The ldd output of the staged program, after the checks: only libasound (from the folder's lib/), glibc and its helpers; nothing of PulseAudio, hamlib, hidapi or OpenSSL; nothing not found."""
+    """Return the ldd output; raise BuildError unless only libasound and glibc are linked."""
     return buildtool.check_links(program, folder, NEEDED_OK, NEEDED_NEVER, ("libasound.so.2",), run)
 
 
@@ -221,13 +209,13 @@ def runpath(program: Path) -> str:
 
 
 def glibc_needed(path: Path) -> str:
-    """The newest glibc symbol version PATH asks for (what decides the oldest system the folder runs on)."""
+    """Return the newest glibc symbol version PATH asks for."""
     return buildtool.glibc_needed(path, run)
 
 
 def stage(tree: Path, out: Path, started: float) -> Path:
-    """The folder OUT/mercury/ from the built TREE and, on Linux, the build machine's libasound and ALSA configuration (a Mac's program loads the system's CoreAudio and travels alone; it is not stripped, since
-    strip would break the signature the linker gave it)."""
+    """Lay out OUT/mercury/ from the built TREE and, on Linux, libasound and the ALSA
+    configuration."""
     folder = out / "mercury"
     shutil.rmtree(folder, ignore_errors=True)
     (folder / "dev").mkdir(parents=True)
@@ -243,7 +231,8 @@ def stage(tree: Path, out: Path, started: float) -> Path:
             raise BuildError(f"{ALSA_DATA}/alsa.conf is missing (libasound2-data)")
         (folder / "lib").mkdir()
         run(["strip", str(folder / "mercury")])
-        shutil.copyfile(Path(asound).resolve(), folder / "lib" / "libasound.so.2")           # the file the soname's symlink points at, under the soname
+        # The file the soname's symlink points at, under the soname.
+        shutil.copyfile(Path(asound).resolve(), folder / "lib" / "libasound.so.2")
         (folder / "lib" / "libasound.so.2").chmod(0o644)
         shutil.copytree(ALSA_DATA, folder / "share" / "alsa", ignore=shutil.ignore_patterns(*ALSA_SKIP))
         sound = ("Changes to the source: audioio/ffaudio/ffaudio/pulse.c is replaced by packaging/mercury/pulse_stub.c of NeoAPRS (https://github.com/oh2gba/neoaprs), PulseAudio not being in this build.\n"
@@ -260,7 +249,8 @@ def stage(tree: Path, out: Path, started: float) -> Path:
 
 
 def source_offer(flags: str, notes: str, last: str) -> str:
-    """SOURCE.txt, the written offer of the source that the GPL asks for: what was built, from which source, with which command, and every change NeoAPRS made to it. NOTES is what is particular to the system, LAST the closing remark."""
+    """Return SOURCE.txt, the GPL's offer of source; NOTES is system-specific, LAST the closing
+    line."""
     return (
         f"Mercury {VERSION}, Rhizomatica's HF modem (GPL-3.0-or-later, see LICENSE), built by NeoAPRS (scripts/build-mercury).\n"
         f"Source: {SOURCE_URL}\n"
@@ -278,8 +268,7 @@ def source_offer(flags: str, notes: str, last: str) -> str:
 
 
 def stage_windows(tree: Path, out: Path, started: float) -> Path:
-    """The folder OUT/mercury/ for Windows from the built TREE: mercury.exe, the licences of Mercury, of FreeDV and of the hidapi compiled into it, and the source offer. Nothing else: the program needs no DLL of ours, and
-    the simulator is not built."""
+    """Lay out OUT/mercury/ for Windows: mercury.exe, the licences and the source offer, no DLL."""
     folder = out / "mercury"
     shutil.rmtree(folder, ignore_errors=True)
     folder.mkdir(parents=True)
@@ -300,8 +289,8 @@ def stage_windows(tree: Path, out: Path, started: float) -> Path:
 
 
 def check_windows(folder: Path) -> str:
-    """The checks of a program that cannot be run here: it is a 64-bit program for Windows, it says the pinned version, and it imports no DLL that does not come with Windows (so that nothing but mercury.exe has to travel).
-    The listening on 127.0.0.1 is held against the running program by the Windows job of the release workflow; the patch is held against the source here (apply_patches). Returns the imports, for the log."""
+    """Check a program not runnable here: x86-64, pinned version, system DLLs only. Return
+    imports."""
     program = folder / "mercury.exe"
     machine, names = pe_imports(program)
     if machine != PE_MACHINE_X64:
@@ -313,12 +302,13 @@ def check_windows(folder: Path) -> str:
 
 
 def make_tarball(folder: Path, out: Path, system: str = sys.platform) -> Path:
-    """OUT/mercury-<version>-<linux|macos|windows>-<machine>.tar.gz with mercury/ as its top folder, the entries in name order and owned by no one."""
+    """Make OUT/mercury-<version>-<linux|macos|windows>-<machine>.tar.gz with mercury/ as top
+    folder."""
     return buildtool.make_tarball(folder, out / tarball_name(system=system), "mercury")
 
 
 def install(folder: Path) -> Path:
-    """The folder copied to <sys.prefix>/tools/mercury of the virtual environment this runs in (neoaprs/bundled.py looks there), whatever was there before replaced."""
+    """Copy the folder to <sys.prefix>/tools/mercury, replacing what was there."""
     if sys.prefix == sys.base_prefix:
         raise BuildError("--install needs the virtual environment's Python: .venv/bin/python scripts/build-mercury --install")
     target = Path(sys.prefix) / "tools" / "mercury"
@@ -329,8 +319,9 @@ def install(folder: Path) -> Path:
 
 
 def check(folder: Path, windows: bool = False) -> None:
-    """For Windows check_windows (the program cannot be run here). Else the program as the daemon starts it: from its folder, on Linux with the ALSA configuration of the folder and no LD_LIBRARY_PATH. `-V` has to say the pinned version,
-    and on Linux the folder's ALSA configuration has to be there and not empty. The sound cards are not listed (`-z`): that would open the control device of every card of the machine, the radios' among them."""
+    """Check the built folder: Windows by check_windows, else run the program as the daemon does.
+
+    The sound cards are not listed with `-z`: that would open every card's control device."""
     env = {key: value for key, value in os.environ.items() if key != "LD_LIBRARY_PATH"}
     program = str(folder / "mercury")
     print(f"check: {folder}")
@@ -352,17 +343,19 @@ def check(folder: Path, windows: bool = False) -> None:
     if shown.returncode != 0 or VERSION not in shown.stdout + shown.stderr:
         raise BuildError(f"mercury -V does not say {VERSION}")
     if not MACOS:
-        print("  " + check_loopback(program, env).replace("\n", "\n  "))         # (the kernel's table of sockets is Linux's; the patch is in the source of both builds)
+        # The socket table read here is Linux's.
+        print("  " + check_loopback(program, env).replace("\n", "\n  "))
 
 
 def listeners(ports: set[int]) -> dict[int, set[str]]:
-    """The local addresses (as /proc/net/tcp writes them, hex) of the sockets in LISTEN on these ports, over IPv4 and IPv6."""
+    """Return the local addresses (as /proc/net/tcp writes them) listening on these ports."""
     return buildtool.listeners(ports)
 
 
 def check_loopback(program: str, env: dict[str, str]) -> str:
-    """Starts the program once on its fifo backend (no sound card: two named pipes nobody reads) with the first free pair of ports and the UI websocket on a port of its own (the ini turns it on), waits for its four TCP
-    ports to listen, and checks in /proc/net/tcp that each is bound to 127.0.0.1 and nothing else: what packaging/mercury/loopback.patch is for, held against the program as built. BuildError when a port listens elsewhere or never listens."""
+    """Run the program on its fifo backend; its four ports must listen on 127.0.0.1 only.
+
+    Raise BuildError when a port listens elsewhere or never listens."""
     broadcast = next(port for port in range(18100, 18200) if all(_free(port + offset) for offset in (0, 200, 201, 2000)))
     ports = {broadcast, broadcast + 200, broadcast + 201, broadcast + 2000}
     with tempfile.TemporaryDirectory(prefix="mercury-loopback-") as folder:

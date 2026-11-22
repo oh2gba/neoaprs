@@ -1,14 +1,13 @@
-"""The gate of the page's server, held for every route at once. The routes are read from the running application, whatever `WebServer.start` registered (neoaprs/web/server.py), and each is asked the same
-questions with every method its handler answers, so a route that is added later is asked them too without a change here:
+"""The gate of the page's server, held for every route at once: routes are read from the running
+application and each is asked the same questions with every method its handler answers.
 
-    a request for a host name that is not ours is refused (403), from this computer too: the page of another site whose name was moved to this address (DNS rebinding) asks from here
-    a device that has not logged in is refused (401) and the same request with a session reaches the handler; what is free on purpose is the short table FREE, each entry with why
-    a request that changes something (POST, PUT, PATCH, DELETE) and the socket's handshake that carry the Origin of another site are refused (403), session or not
-    while the secure page is served, plain http sends another device there (307) or refuses it (403); what plain http still answers is the table PLAIN
-    every one of these answers carries the security headers
+a foreign host name is refused (403), also from this computer (DNS rebinding) a device that has not
+logged in is refused (401); what is free on purpose is the table FREE a changing request or socket
+handshake carrying another site's Origin is refused (403) while the secure page is served, plain
+http redirects (307) or refuses (403); see the table PLAIN every answer carries the security headers
 
-What a route does once the gate is passed is in its own tests (tests/test_web_access.py, test_web.py, test_web_https.py, test_support_web.py). As there, a request is made to look as if it came from another device
-by saying that no address is the loopback (`away`). No test here leans on what makes a request "this computer": a request that has to be let in carries a session.
+What a route does past the gate is in its own tests. A request is made to look as if it came from
+another device by saying that no address is the loopback (`away`).
 """
 import re
 from collections.abc import Iterator
@@ -31,23 +30,31 @@ NETWORK = {"web/network": "true", "web/key": "k7m2-x9pq-4hrt"}
 HTTPS = {**NETWORK, "web/https": "true"}
 LAN = "192.168.1.20"
 FOREIGN = "evil.example"
-POSTED = '{"key": "aaaa-aaaa-aaaa"}'            # what every request with a body carries: a key that is not the key, and nothing a bundle could be made from, so a handler that is reached does nothing
-READS = ("GET", "HEAD", "OPTIONS")              # the methods that only ask; every other one changes something, and a browser sends it with the Origin of the page that made it
+# What every request with a body carries: a key that is not the key, and nothing a bundle could be
+# made from, so a handler that is reached does nothing
+POSTED = '{"key": "aaaa-aaaa-aaaa"}'
+# The methods that only ask; every other one changes something, and a browser sends it with the
+# Origin of the page that made it
+READS = ("GET", "HEAD", "OPTIONS")
 BODIED = ("POST", "PUT", "PATCH")               # the methods an HTTP client sends with a body
 HANDSHAKE = {"Connection": "Upgrade", "Upgrade": "websocket", "Sec-WebSocket-Version": "13", "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ=="}
 BASEMAP = r"/(basemap\.pmtiles|basemap-world\.pmtiles)"
 
-# A request for each route whose pattern has a group, which the pattern alone does not say: the route as neoaprs/web/server.py writes it -> a path. A route without a group is asked for by its own text.
+# A request for each route whose pattern has a group, which the pattern alone does not say: the
+# route as neoaprs/web/server.py writes it -> a path. A route without a group is asked for by its
+# own text.
 PATHS = {BASEMAP: "/basemap.pmtiles", r"/()": "/", r"/(.*)": "/index.html"}
 
-# What a device that has not logged in is given all the same: the route -> (the methods, the answer, why it is free). Every other route and method answers it 401.
+# What a device that has not logged in is given all the same: the route -> (the methods, the answer,
+# why it is free). Every other route and method answers it 401.
 FREE: dict[str, tuple[str, int, str]] = {
     r"/()": ("GET HEAD", 200, "the page's shell: it holds the key screen, so it loads before a key can be typed"),
     r"/(.*)": ("GET HEAD", 200, "the page's own files (the script and the styles of the key screen, the icons, the manifest): the same for everybody, and they hold no data"),
     r"/access": ("POST", 403, "the login itself: a device without a session posts the access key here, and a wrong key is told so"),
     re.escape(CA_PATH): ("GET HEAD", 404, "the authority's public certificate, which a device takes before it can open the secure page without a warning; there is none while the secure page is off"),
 }
-# What plain http still answers a device on the network while the secure page is served: the route -> why.
+# What plain http still answers a device on the network while the secure page is served: the route
+# -> why.
 PLAIN = {re.escape(CA_PATH): "the certificate is the way to a secure page without a warning, so it is given on the port a device can open before it trusts anything"}
 
 HEADERS = {"X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Cross-Origin-Resource-Policy": "same-origin", "Server": "NeoAPRS"}
@@ -79,7 +86,8 @@ class Route:
 
 
 def _rules(router: tornado.routing.RuleRouter) -> Iterator[tornado.routing.Rule]:
-    """The rules of the application as Tornado holds them: a router of host names whose rules lead to the router of the paths."""
+    """The rules of the application as Tornado holds them: a router of host names whose rules lead
+    to the router of the paths."""
     for rule in router.rules:
         if isinstance(rule.target, tornado.routing.RuleRouter):
             yield from _rules(rule.target)
@@ -88,7 +96,8 @@ def _rules(router: tornado.routing.RuleRouter) -> Iterator[tornado.routing.Rule]
 
 
 def routes_of(e: Env) -> list[Route]:
-    """Every route the running server has, in its order, each with a path that reaches it and no route before it."""
+    """Every route the running server has, in its order, each with a path that reaches it and no
+    route before it."""
     assert e.server is not None and e.server._app is not None
     rules = list(_rules(e.server._app.default_router))
     found: list[Route] = []
@@ -119,15 +128,18 @@ def asked(routes: list[Route]) -> Iterator[tuple[Route, str]]:
 
 
 async def served(tmp_path: Path, settings: dict[str, str]) -> Env:
-    """The daemon with its page on the network, and a base map in its data folder so that the map's route has something to give."""
-    e = Env(tmp_path, web=True, settings=settings, clock=utcnow)         # (the real time: the secure side's certificates carry dates)
+    """The daemon with its page on the network, and a base map in its data folder so that the map's
+    route has something to give."""
+    # The real time: the secure side's certificates carry dates
+    e = Env(tmp_path, web=True, settings=settings, clock=utcnow)
     (tmp_path / "basemap.pmtiles").write_bytes(b"0123456789")
     await e.start()
     return e
 
 
 def session(e: Env) -> dict[str, str]:
-    """The cookie of a device that has logged in with the key in force (the login itself is tests/test_web_access.py's)."""
+    """The cookie of a device that has logged in with the key in force (the login itself is
+    tests/test_web_access.py's)."""
     assert e.server is not None
     return {"Cookie": f"{COOKIE}={e.server.access.session()}"}
 
@@ -138,7 +150,8 @@ def own_origin(e: Env) -> dict[str, str]:
 
 
 async def ask(e: Env, route: Route, method: str, headers: dict[str, str] | None = None) -> HTTPResponse:
-    """The answer to one request for the route. A handshake that is accepted opens a socket and leaves an HTTP client without an answer, which no request of this file may end in."""
+    """The answer to one request for the route. A handshake that is accepted opens a socket and
+    leaves an HTTP client without an answer, which no request of this file may end in."""
     try:
         return await e.fetch(route.path, headers=headers, method=method, body=POSTED if method in BODIED else None)
     except AssertionError:
@@ -151,7 +164,7 @@ def lacking(answer: HTTPResponse) -> list[str]:
     return [name for name, value in HEADERS.items() if answer.headers.get(name) != value] + [part for part in POLICY if part not in policy]
 
 
-# ---- the host name ---------------------------------------------------------------------------------------------------------------------------------
+# ---- the host name -------------------------------------------------------------------------------
 
 async def test_no_route_answers_a_request_for_a_host_name_that_is_not_ours(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     e = await served(tmp_path, NETWORK)
@@ -166,7 +179,7 @@ async def test_no_route_answers_a_request_for_a_host_name_that_is_not_ours(tmp_p
     assert wrong == [], "a route answers a request made for the name of another site: its handler's prepare() begins with refuse_foreign_host (neoaprs/web/pagefiles.py)"
 
 
-# ---- the login -------------------------------------------------------------------------------------------------------------------------------------
+# ---- the login -----------------------------------------------------------------------------------
 
 async def test_a_device_that_has_not_logged_in_is_refused_on_every_route_that_is_not_free_and_let_in_with_a_session(tmp_path: Path, away: None) -> None:
     e = await served(tmp_path, NETWORK)
@@ -188,10 +201,11 @@ async def test_a_device_that_has_not_logged_in_is_refused_on_every_route_that_is
     assert all(len(why) > 30 for _methods, _status, why in FREE.values()) and all(len(why) > 30 for why in PLAIN.values())
 
 
-# ---- the page of another site ----------------------------------------------------------------------------------------------------------------------
+# ---- the page of another site --------------------------------------------------------------------
 
 async def taken_from_another_site(e: Env, routes: list[Route], monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """What was not refused although it carried the Origin of another site: every method of the routes that changes something, and the handshake of a socket, asked with a session from this computer and then from another device."""
+    """What was not refused although it carried another site's Origin: every changing method and the
+    socket handshake, with a session from this computer and then from another device."""
     other_site = {"Origin": f"http://{FOREIGN}"}
     wrong: list[str] = []
     for who in ("this computer", "another device"):
@@ -214,7 +228,8 @@ async def test_a_request_that_changes_something_and_the_handshake_of_a_socket_fr
 
 
 class NoGate(tornado.web.RequestHandler):
-    """A made-up handler that forgot the gate and answers the three methods beside POST that change something."""
+    """A made-up handler that forgot the gate and answers the three methods beside POST that change
+    something."""
 
     def put(self) -> None:
         self.set_status(204)
@@ -231,7 +246,7 @@ async def test_a_route_that_answers_put_patch_or_delete_is_asked_from_the_page_o
     assert await taken_from_another_site(e, made_up, monkeypatch) == [f"{method} /made-up from {who}: 204" for who in ("this computer", "another device") for method in ("DELETE", "PATCH", "PUT")]
 
 
-# ---- plain http beside the secure page -------------------------------------------------------------------------------------------------------------
+# ---- plain http beside the secure page -----------------------------------------------------------
 
 async def test_while_the_secure_page_is_served_plain_http_sends_another_device_there_or_refuses_it_on_every_route(tmp_path: Path, away: None) -> None:
     e = await served(tmp_path, HTTPS)
@@ -256,7 +271,7 @@ async def test_while_the_secure_page_is_served_plain_http_sends_another_device_t
     assert wrong == [], "a route answers over plain http while the secure page is served: its handler's prepare() calls refuse_plain (neoaprs/web/pagefiles.py) after the host name, or PLAIN says why it stays"
 
 
-# ---- the headers -----------------------------------------------------------------------------------------------------------------------------------
+# ---- the headers ---------------------------------------------------------------------------------
 
 async def test_every_answer_of_every_route_carries_the_security_headers(tmp_path: Path, away: None) -> None:
     e = await served(tmp_path, NETWORK)

@@ -1,7 +1,6 @@
-"""The sked board in the daemon (neoaprs/skeds.py, neoaprs/services/skeds.py): the rules of a row and the hostile boards that are held to them (a made-up bad row is dropped alone, the rest of the board stands, whatever the server says), the service's rhythm
-(a minute after the start, every six hours, when a page shows the tab and never more often than every 15 minutes, never with the update check off), the last board kept and told at the start, what has ended dropped by the daemon's own clock, the installation's secret
-token (made when it is first needed, kept, sent only with a post, never when reading, never in the log, the bundle or `neoaprs db list`), our ids, and every refusal of the server: the ones the operator can do something about are errors with codes, the others are
-the log's. The service is tried with fakes of the two network calls and with the real ones against a small server on this computer (tests/support/fakeskeds.py)."""
+"""The sked board in the daemon (neoaprs/skeds.py, neoaprs/services/skeds.py): the rules of a row,
+hostile boards held to them, and the service's rhythm.
+"""
 import json
 import logging
 import re
@@ -44,7 +43,7 @@ def board(*rows: Any, **more: Any) -> bytes:
 GOOD = row()
 
 
-# ---- the rules of a row and the hostile boards ------------------------------------------------------------------------------------------------------
+# ---- the rules of a row and the hostile boards ---------------------------------------------------
 
 def test_a_good_board_is_read_in_the_order_of_the_start_and_the_id() -> None:
     found = parse_board(board(row("bbbbbbbbbbbb", start=9), row("aaaaaaaaaaaa", start=9), row("cccccccccccc", start=2)), NOW)
@@ -55,7 +54,8 @@ def test_a_good_board_is_read_in_the_order_of_the_start_and_the_id() -> None:
 
 
 def hostile_rows() -> dict[str, Any]:
-    """Made-up rows, each wrong in one way (the server checks the same and more, but nothing it says is believed)."""
+    """Made-up rows, each wrong in one way (the server checks the same and more, but nothing it says
+    is believed)."""
     bad: dict[str, Any] = {}
     for name, ident in {"short id": "7f3a9c21d4e", "long id": "7f3a9c21d4e00", "upper id": "7F3A9C21D4E0", "not hex": "7f3a9c21d4eg", "path id": "../../etc/pa", "empty id": "", "number id": 123456789012, "null id": None, "newline id": "7f3a9c21d4e\n"}.items():
         bad[name] = {**GOOD, "id": ident}
@@ -156,10 +156,11 @@ def test_the_request_is_json_of_the_servers_own_form_and_the_address_is_on_the_s
     assert endpoint_url(SKEDS_URL) == "https://neo.oh2gba.eu/api/v1/skeds.php" and endpoint_url("http://127.0.0.1:8123/skeds.json") == "http://127.0.0.1:8123/api/v1/skeds.php"
 
 
-# ---- the service with fakes of the two calls --------------------------------------------------------------------------------------------------------
+# ---- the service with fakes of the two calls -----------------------------------------------------
 
 class Net:
-    """The two network calls as fakes: the answers in turn (None is a server that is not there), and what was asked."""
+    """The two network calls as fakes: the answers in turn (None is a server that is not there), and
+    what was asked."""
 
     def __init__(self, *reads: tuple[int, bytes] | None, posts: list[tuple[int, Any] | None] | None = None) -> None:
         self.reads = list(reads)
@@ -562,7 +563,7 @@ async def test_our_ids_are_kept_and_the_ones_that_are_not_on_the_board_any_more_
     assert again.service.ours == frozenset() and json.loads(await store.setting(OURS_ROW) or "") == [], "the sked ended or was removed by the moderator: it is not ours to delete any more"
 
 
-# ---- the secrets stay out of the log and the bundle -------------------------------------------------------------------------------------------------
+# ---- the secrets stay out of the log and the bundle ----------------------------------------------
 
 def test_the_token_is_a_secret_by_its_name_for_the_log_the_bundle_and_the_listing() -> None:
     token = "ab" * 16                                # (made up: the form of a token, 32 hex characters)
@@ -587,7 +588,7 @@ def test_neoaprs_db_list_does_not_print_the_token(tmp_path: Path, capsys: pytest
     assert "0123456789abcdef0123456789abcdef" not in out and any(line.startswith(SKED_TOKEN) and "(set, 32 characters)" in line and line.endswith("not a setting") for line in out.splitlines())
 
 
-# ---- the real calls against a server on this computer -----------------------------------------------------------------------------------------------
+# ---- the real calls against a server on this computer --------------------------------------------
 
 async def test_the_real_calls_read_a_404_as_no_board_post_json_with_the_token_and_read_nothing_about_the_station(tmp_path: Path) -> None:
     server = await skeds_server()
@@ -658,7 +659,8 @@ def test_every_error_code_the_service_has_is_a_code_of_the_pattern() -> None:
 
 @pytest.fixture
 def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for every test that does not ask for a fixture of this name)."""
+    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for
+    every test that does not ask for a fixture of this name)."""
     monkeypatch.setenv(nodevices.ENV, "1")
     monkeypatch.setattr(nodevices, "_told", set())
 

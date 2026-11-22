@@ -1,5 +1,6 @@
-"""A Radarcape's list of aircraft read into the layer's things (neoaprs/radarcape.py), on made-up answers in the form of a Radarcape's `aircraftlist.json` (work/par/r6/radarcape, read for the form only), and
-the address it is asked at."""
+"""A Radarcape's aircraft list read into the layer's things (neoaprs/radarcape.py) on made-up
+answers in the form of `aircraftlist.json`, and the address it is asked at.
+"""
 import json
 import time
 from datetime import UTC, datetime, timedelta

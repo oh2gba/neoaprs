@@ -1,6 +1,7 @@
-"""Which serial ports and sound cards are one radio's (neoaprs/usbtie.py), on a made-up sysfs: two Digirigs (a sound chip and a CP2102 behind a hub of each one's own), a dongle and an FTDI cable plugged
-straight into the computer, an all-in-one chip that is one USB device with both, and the owner's station (two radios with USB, a desktop hub, a big hub, the mainboard's sound). The made-up sysfs is POSIX
-only (its folders are named with colons, its links are symbolic links); what Windows, which has no sysfs, does instead (nothing can be told, and the keying falls back to the computer's one interface port) is tested on both systems."""
+"""Which serial ports and sound cards are one radio's (neoaprs/usbtie.py) on a made-up sysfs:
+Digirigs behind hubs, a dongle and an FTDI cable on the computer, an all-in-one chip, and a
+multi-radio desk.
+"""
 import sys
 from pathlib import Path
 
@@ -25,7 +26,8 @@ def _card(root: Path, number: int, name: str, place: str) -> None:
 
 
 def _tty(root: Path, name: str, place: str, usb_serial: bool = True) -> None:
-    device = root / PCI / place / name if usb_serial else root / PCI / place            # (a USB serial chip's port is a device under its interface; an ACM port is the interface)
+    # A USB serial chip's port is a device under its interface; an ACM port is the interface
+    device = root / PCI / place / name if usb_serial else root / PCI / place
     device.mkdir(parents=True, exist_ok=True)
     tty = root / "class" / "tty" / name
     tty.mkdir(parents=True)
@@ -89,8 +91,10 @@ def test_where_there_is_no_sysfs_nothing_can_be_told_and_the_keying_is_the_compu
 
 @pytest.fixture
 def station(tmp_path: Path) -> Path:
-    """The owner's two radios on one computer: the FTX-1's hub with a C-Media card, a CP2105 (two ports) and one more serial chip; the other radio's hub with its card and a CP2105. Beside them a lone FTDI
-    cable and a lone dongle on a small desktop hub, a big hub with a keyboard, a dongle and a cable on it, and the mainboard's own sound."""
+    """Two radios on one computer: the FTX-1's hub with a C-Media card, a CP2105 (two
+    ports) and one more serial chip; the other radio's hub with its card and a CP2105. Beside them a
+    lone FTDI cable and a lone dongle on a small desktop hub, a big hub with a keyboard, a dongle
+    and a cable on it, and the mainboard's own sound."""
     root = tmp_path / "sys"
     _card(root, 1, "FTX1", "1-2/1-2.1/1-2.1:1.0")
     _tty(root, "ttyUSB0", "1-2/1-2.2/1-2.2:1.0")
@@ -103,7 +107,8 @@ def station(tmp_path: Path) -> Path:
     _tty(root, "ttyUSB5", "1-4/1-4.2/1-4.2:1.0")
     _card(root, 4, "Dongle_1", "1-5/1-5.1/1-5.1:1.0")
     _tty(root, "ttyUSB6", "1-5/1-5.2/1-5.2:1.0")
-    (root / PCI / "1-5" / "1-5.3" / "1-5.3:1.0").mkdir(parents=True)                       # (the keyboard: neither a sound card nor a serial port)
+    # The keyboard: neither a sound card nor a serial port
+    (root / PCI / "1-5" / "1-5.3" / "1-5.3:1.0").mkdir(parents=True)
     board = root / "devices/pci0000:00/0000:00:1f.3"
     board.mkdir(parents=True)
     (root / "class" / "sound" / "card0").mkdir(parents=True)
@@ -161,7 +166,8 @@ def test_a_tree_that_cannot_be_read_tells_nothing(tmp_path: Path) -> None:
 
 def test_under_the_no_devices_switch_or_off_linux_every_token_is_null(under_the_switch: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:  # noqa: F811
     read: list[Path] = []
-    monkeypatch.setattr(usbtie, "groups", lambda *a: read.append(a[2]))                    # (were the tree read, this would say so)
+    # Were the tree read, this would say so
+    monkeypatch.setattr(usbtie, "groups", lambda *a: read.append(a[2]))
     assert usbtie.together(["plughw:1,0"], ["/dev/ttyUSB0"]) == ({"plughw:1,0": None}, {"/dev/ttyUSB0": None})
     monkeypatch.setattr(nodevices, "on", lambda: False)
     monkeypatch.setenv("NEOAPRS_SYS_ROOT", str(tmp_path))
@@ -184,7 +190,9 @@ def test_a_by_id_link_to_a_port_is_in_the_group_of_the_port_it_names(station: Pa
 
 @posix_only
 def test_a_dongle_and_a_cable_on_a_hub_shared_with_a_keyboard_keep_the_cable_as_their_keying(station: Path) -> None:
-    """The busy hub's dongle and cable are no radio's group (the Keying list does not put them together), but the keying the daemon chooses is the cable, as where the card's group has none it always was."""
+    """The busy hub's dongle and cable are no radio's group (the Keying list does not put them
+    together), but the keying the daemon chooses is the cable, as where the card's group has none it
+    always was."""
     cards, ports = usbtie.groups(CARDS, STATION, station)
     assert _together(cards, ports, "plughw:4,0") == []
     assert usbtie.tied("plughw:4,0", STATION, station) == ["/dev/ttyUSB6"]
@@ -194,7 +202,9 @@ def test_a_dongle_and_a_cable_on_a_hub_shared_with_a_keyboard_keep_the_cable_as_
 
 @posix_only
 def test_a_card_with_a_port_of_its_own_on_a_busy_hub_is_keyed_as_it_always_was(station: Path) -> None:
-    """A chip that is both a sound card and a serial port, on the hub with the keyboard and the cable: its own port and the cable are both the card's, as they always were, so two ports are VOX."""
+    """A chip that is both a sound card and a serial port, on the hub with the keyboard and the
+    cable: its own port and the cable are both the card's, as they always were, so two ports are
+    VOX."""
     _card(station, 5, "Combo", "1-5/1-5.4/1-5.4:1.0")
     _tty(station, "ttyACM1", "1-5/1-5.4/1-5.4:1.2", usb_serial=False)
     assert usbtie.tied("plughw:CARD=Combo,DEV=0", ["/dev/ttyUSB6", "/dev/ttyACM1"], station) == ["/dev/ttyUSB6", "/dev/ttyACM1"]

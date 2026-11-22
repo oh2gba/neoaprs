@@ -1,6 +1,7 @@
-"""Migration 22 (neoaprs/migrationsteps22on.py): the alerts of a station (`alert_on_air`, `alert_within_km`, `alert_direct`) join the path and RF only in `station_pref`, a database of the version before keeps every
-preference with no alert, the table refuses what the program cannot produce and takes a row that holds only an alert; and the old default of the alert command, which every save stored, gives way to the new one
-while a command of the operator's own stays."""
+"""Migration 22 (neoaprs/migrationsteps22on.py): the station alert columns (`alert_on_air`,
+`alert_within_km`, `alert_direct`) join `station_pref`; existing preferences get no alert and the
+old alert default is replaced.
+"""
 import logging
 import sqlite3
 from pathlib import Path
@@ -23,7 +24,8 @@ PREFS = [("OH2RDG", "OH2RCH-2,WIDE2-1", None, 0, STAMP), ("OH2DIR", "", None, 1,
 
 
 def version_twentyone(path: Path, clock: FixedClock, command: str | None) -> None:
-    """A database as version 21 left it: preferences of every kind there was, and the alert command as `command` (None: no row)."""
+    """A database as version 21 left it: preferences of every kind there was, and the alert command
+    as `command` (None: no row)."""
     opened(path, clock).close()
     db = raw(path)
     db.execute("DELETE FROM schema_history WHERE version >= 22")

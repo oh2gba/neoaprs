@@ -1,8 +1,8 @@
-"""The one gate for packets from the internet (neoaprs/wiring.py, `Services.hear_internet`): a packet that came from APRS-IS (`Packet.via` is `is`) goes only to the packet log, the station book and the weather log and
-is told to the page; what answers, acknowledges, repeats, sends or gates never gets it. The test walks the two signals of a built app that carry a packet (`radio_packet`, which every radio's line is connected to and
-to nothing else, and `internet_packet`) and every part that takes a packet, so that a part added later and connected to the radios' signal, or to a radio's line past it, or given a packet by any other way, fails
-here until it is classified; then a whole daemon is handed such packets that would each make it transmit, and says nothing: by `hear_internet`, and
-again by the connection to APRS-IS that reads them from a server (neoaprs/aprsis.py), whose one outlet, the signal `heard`, is held to `hear_internet` alone."""
+"""Tests for the single gate for packets from the internet (neoaprs/wiring.py,
+`Services.hear_internet`): such a packet reaches only the packet log, station book, weather log and
+the page. The test walks every signal and part that takes a packet, so a newly added part must be
+classified, then feeds a whole daemon packets that would each make it transmit.
+"""
 import inspect
 import logging
 from dataclasses import replace
@@ -26,7 +26,8 @@ def parts_of(e: Env) -> dict[str, Any]:
 
 
 def owner(e: Env, handler: Any) -> str:
-    """The name in `Services` of the part a handler of a signal belongs to ('wiring' for a function of the wiring itself)."""
+    """The name in `Services` of the part a handler of a signal belongs to ('wiring' for a function
+    of the wiring itself)."""
     target = handler.handler if isinstance(handler, AirOnly) else handler
     part = getattr(target, "__self__", None)
     if part is None:
@@ -43,7 +44,8 @@ def connected(e: Env, which: str) -> list[tuple[str, bool]]:
 
 
 def test_every_radios_line_hands_its_packets_to_the_radios_signal_and_to_nothing_else(tmp_path: Path) -> None:
-    """No part is connected to a radio's own line: what a line hears can reach a part only through `radio_packet`, whose handlers the next test holds to the two lists."""
+    """No part is connected to a radio's own line: what a line hears can reach a part only through
+    `radio_packet`, whose handlers the next test holds to the two lists."""
     e = Env(tmp_path, radio=False)
     lines = [radio.line for radio in e.ctl.radios.all()]
     assert lines == [e.tnc, e.hf], "the radios of the registry are the two of the settings"
@@ -66,7 +68,8 @@ def test_the_signal_of_the_internet_has_the_log_the_book_and_the_weather_log_and
 
 
 def packet_takers(e: Env) -> dict[str, set[str]]:
-    """For each part of the program, and the parts it holds (two levels down), the public methods that have a parameter that is a Packet."""
+    """For each part of the program, and the parts it holds (two levels down), the public methods
+    that have a parameter that is a Packet."""
     found: dict[str, set[str]] = {}
     seen: set[int] = set()
 
@@ -89,14 +92,22 @@ def packet_takers(e: Env) -> dict[str, set[str]]:
     return found
 
 
-# what takes a packet, by where it is in Services; a part added later that takes one is not in this table and fails the test below until it is put in it, with a test of its own in tests/test_internet_services.py
+# what takes a packet, by where it is in Services; a part added later that takes one is not in this
+# table and fails the test below until it is put in it, with a test of its own in
+# tests/test_internet_services.py
 TAKERS = {
-    "packetlog": {"append"}, "stationbook": {"take"}, "weatherlog": {"take"},                                   # SEEN_BY_ALL
-    "messaging": {"on_packet", "echoed"}, "messaging.inbox": {"on_packet"}, "messaging.delivery": {"heard"},     # ON_AIR_ONLY: messaging and what it hands the packet to
+    # SEEN_BY_ALL
+    "packetlog": {"append"}, "stationbook": {"take"}, "weatherlog": {"take"},
+    # ON_AIR_ONLY: messaging and what it hands the packet to
+    "messaging": {"on_packet", "echoed"}, "messaging.inbox": {"on_packet"}, "messaging.delivery": {"heard"},
     "queries": {"on_packet"}, "qruask": {"on_packet", "answers"}, "generalask": {"on_packet"}, "ownobjects": {"on_packet"}, "igate": {"on_packet"}, "digipeater": {"on_packet"},
-    "digipeater.passer": {"on_packet", "sent_on"},                                                               # (the rows between two radios, handed the packet by the digipeater)
-    "qru": {"heard"}, "bulletins": {"heard"},                                                                    # (handed a message by the inbox)
-    "radios": {"for_packet"},                                                                                    # (the choice of the radio to answer a packet on, neoaprs/radioregistry.py: it sends nothing itself, and is asked only for a packet of the air)
+    # (the rows between two radios, handed the packet by the digipeater)
+    "digipeater.passer": {"on_packet", "sent_on"},
+    # (handed a message by the inbox)
+    "qru": {"heard"}, "bulletins": {"heard"},
+    # (the choice of the radio to answer a packet on, neoaprs/radioregistry.py: it sends nothing
+    # itself, and is asked only for a packet of the air)
+    "radios": {"for_packet"},
 }
 
 
@@ -162,7 +173,8 @@ def test_a_packet_from_the_internet_that_is_handed_to_the_radios_signal_is_refus
             handler.handler = lambda packet, name=name: reached.append(name)           # type: ignore[misc]
     packet = from_internet("OH2ABC", POSITION, e.now())
     with caplog.at_level(logging.WARNING, logger="neoaprs.wiring"):
-        e.tnc.packet.emit(packet)                                                  # (through the line of either radio: both go by the one signal and its locks)
+        # (through the line of either radio: both go by the one signal and its locks)
+        e.tnc.packet.emit(packet)
         e.hf.packet.emit(packet)
     assert reached == [], "no part that acts saw it"
     assert [h.refused for h in e.ctl.radio_packet._handlers if isinstance(h, AirOnly)] == [2] * len(ON_AIR_ONLY)
@@ -179,13 +191,17 @@ async def test_a_whole_daemon_handed_packets_from_the_internet_that_ask_for_ever
     now = e.now()
     ours = e.ctl.config.station_call
     asks = [
-        from_internet("OH2RDG-7", message_info(ours, "Moi!", "12"), now),                           # a message to us: kept and acked if it were heard
-        from_internet("OH2RDG-7", message_info(ours, "?APRSP"), now),                               # a query to us: answered if it were heard
+        # a message to us: kept and acked if it were heard
+        from_internet("OH2RDG-7", message_info(ours, "Moi!", "12"), now),
+        # a query to us: answered if it were heard
+        from_internet("OH2RDG-7", message_info(ours, "?APRSP"), now),
         from_internet("OH2RDG-7", message_info(ours, "?APRSD"), now),
         from_internet("OH2RDG-7", b"?APRS?", now),                                                  # the general query
-        from_internet("OH2RDG-7", message_info("BLN1", "Road closed"), now),                        # a bulletin: the message board is for the radio
+        # a bulletin: the message board is for the radio
+        from_internet("OH2RDG-7", message_info("BLN1", "Road closed"), now),
         from_internet("OH2RDG-7", message_info("QRU", "INFO"), now),
-        from_internet("OH2RDG-7", b"!6010.00N/02456.00E-repeat me", now, path="WIDE1-1,qAR,OH2RDK-1"),     # a packet to be repeated by the fill-in digipeater
+        # a packet to be repeated by the fill-in digipeater
+        from_internet("OH2RDG-7", b"!6010.00N/02456.00E-repeat me", now, path="WIDE1-1,qAR,OH2RDK-1"),
     ]
     for packet in asks:
         e.ctl.hear_internet(packet)
@@ -200,7 +216,8 @@ async def test_a_whole_daemon_handed_packets_from_the_internet_that_ask_for_ever
     assert len(await e.packets()) == len(asks) + 1 and {p.via for p in await e.packets()} == {IS}, "the packet log kept them all, as from the internet"
     assert await e.ctl.weatherlog.latest("N0WX") is not None, "the weather log took the observation"
     assert e.ctl.aloha.radius_km is None and e.ctl.stationbook.me is not None
-    # the same packets on the radio are what they would have been: the control that shows the test could see a transmission
+    # the same packets on the radio are what they would have been: the control that shows the test
+    # could see a transmission
     e.feed(on_air("OH2RDG-7", message_info(ours, "Moi!", "12"), path=""))
     [ack] = await said(e, 1)
     assert ack.info.startswith(b":OH2RDG-7 :ack12")
@@ -217,13 +234,17 @@ async def test_a_whole_daemon_whose_connection_reads_packets_that_ask_for_everyt
     ours = e.ctl.config.station_call
     path = "TCPIP*,qAC,T2TEST"
     asks = [
-        (message_info(ours, "Moi!", "12"), path),                                                    # a message to us: kept and acked if it were heard
-        (message_info(ours, "?APRSP"), path),                                                        # a query to us: answered if it were heard
+        # a message to us: kept and acked if it were heard
+        (message_info(ours, "Moi!", "12"), path),
+        # a query to us: answered if it were heard
+        (message_info(ours, "?APRSP"), path),
         (message_info(ours, "?APRSD"), path),
         (b"?APRS?", path),                                                                           # the general query
-        (message_info("BLN1", "Road closed"), path),                                                 # a bulletin: the message board is for the radio
+        # a bulletin: the message board is for the radio
+        (message_info("BLN1", "Road closed"), path),
         (message_info("QRU", "INFO"), path),
-        (b"!6010.00N/02456.00E-repeat me", "WIDE1-1,qAR,OH2RDK-1"),                                  # a packet to be repeated by the fill-in digipeater
+        # a packet to be repeated by the fill-in digipeater
+        (b"!6010.00N/02456.00E-repeat me", "WIDE1-1,qAR,OH2RDK-1"),
     ]
     for info, via in asks:
         server.send(f"OH2RDG-7>APRS,{via}:".encode() + info)
@@ -297,7 +318,7 @@ async def test_the_dummy_radio_with_the_igate_on_marks_everything_dummy_works_fo
     assert sent is not None and sent.acked_at is not None, "the dummy station acknowledged the message"
     assert [r.text for r in answered] == ["Hello from the dummy radio"], "and answered it"
     stations = [s for s in e.ctl.stationbook.stations() if s.call != ours]
-    sender = lambda s: s.reported_by if s.kind != "station" else s.call                     # noqa: E731  (an object or item has a name of its own; its sender is a made-up Q-call, and on a slow runner the club's objects arrive too)
+    sender = lambda s: s.reported_by if s.kind != "station" else s.call                     # noqa: E731  (an object has a name of its own; its sender is a made-up Q-call)
     assert len(stations) >= 8 and all(sender(s).startswith("Q") and s.heard_dummy > 0 and (s.heard_rf, s.heard_rf_gated, s.heard_is) == (0, 0, 0) and not s.internet_only for s in stations)
     assert all(s.position_via in (None, "dummy") for s in stations)
     packets = await e.packets()

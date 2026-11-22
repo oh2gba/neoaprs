@@ -1,6 +1,7 @@
-"""The handlers of the commands (neoaprs/web/dispatch.py): what each command of the page does to the daemon. Importing this module registers them, with those answered from the logs (neoaprs/web/historyhandlers.py).
+"""Command handlers: what each page command does to the daemon. Importing registers them.
 
-The settings and the alert's Test are in neoaprs/web/confighandlers.py. A handler asks the daemon to change and says so with an exception (`UserError`); what the pages are told of the change comes from the signals of the parts (neoaprs/web/topics.py), never from the handler.
+A handler asks the daemon to change and reports a refusal as `UserError`; pages learn of the
+change from the signals in topics.py, never from the handler.
 """
 import asyncio
 import logging
@@ -27,11 +28,11 @@ from neoaprs.usbtie import together
 
 from .beaconwire import BeaconNow, StatusNow
 from .bulletinwire import BulletinDelete
-from . import historyhandlers  # noqa: F401  (the commands answered from the logs: importing it registers them)
-from . import confighandlers  # noqa: F401  (set_config and the alert's Test: importing it registers them)
-from . import skedhandlers  # noqa: F401  (the sked board: importing it registers its commands)
+from . import historyhandlers  # noqa: F401  (importing registers the log-answered commands)
+from . import confighandlers  # noqa: F401  (importing registers set_config and alert_test)
+from . import skedhandlers  # noqa: F401  (importing registers the sked commands)
 from .dispatch import Ctx, UserError, command
-from .radiohandlers import named_radio, sending_radio  # (the commands that name a radio: importing it registers them)
+from .radiohandlers import named_radio, sending_radio  # importing also registers the radio commands
 from .hostwire import AskStatus, CheckUpdate, Ping, ReleaseNotes
 from .hubwire import Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch, MapWanted
@@ -51,8 +52,10 @@ log = logging.getLogger("neoaprs.web")
 
 @contextmanager
 def refused(name: str) -> Iterator[None]:
-    """A part that refuses with a MessagingError (messaging, the station preferences): the reason is the page's error, after the name of the command. A refusal that only passes on the text of another
-    (`MessagingError(str(e))`) has the code of that other."""
+    """Turn a MessagingError, OwnError or PostError into the page's error.
+
+    A refusal that only re-wraps another error's text takes that error's code.
+    """
     try:
         yield
     except (MessagingError, OwnError, PostError) as e:
@@ -101,22 +104,27 @@ async def forget_all_stations(ctx: Ctx, cmd: ForgetAllStations) -> None:
 
 
 def _holder(claims: Claims, kind: ResourceKind, value: str | None) -> int | None:
-    """Who of the station holds the device (a radio's id, 0 for the GPS receiver); None for nobody of ours."""
+    """Return the holder of the device (a radio id, 0 for the GPS receiver), or None."""
     held = next((c for c in claims.all() if value is not None and c.value == value and (c.kind == kind or {c.kind, kind} <= PORT_KINDS)), None)
     return None if held is None else held.holder or 0
 
 
 @command(ListPorts)
 async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
-    """The ports and, for a radio named that has a modem on a sound card, the sound cards, each with who of the station holds it; the proposals leave out what the others hold."""
+    # Lists the ports and, for a radio with a sound-card modem, its sound cards, each with its
+    # holder; the proposals leave out what the other radios hold.
     radio, claims = None if cmd.radio is None else named_radio(ctx, cmd.cmd, cmd.radio), ctx.ctl.radios.claims
     modem = None if radio is None else radio.driver.modem
-    ports = await asyncio.to_thread(lambda: with_links(available_ports()) + paired_bluetooth_ports())   # (the system's lists are read from files, the registry and BlueZ: not on the loop); the by-id names and the user's own links too, then the paired Bluetooth devices
-    cards = await asyncio.to_thread(modem.sound_cards) if modem is not None else []        # (the modem's program is run for its list: only while the radio has a modem on a sound card)
-    on_card, on_port = await asyncio.to_thread(together, [c.id for c in cards], [p.device for p in ports])     # (which of them sit on one radio's USB hub, read from sysfs: the page orders the keying by it)
+    # Read in a thread (files, registry, BlueZ): by-id names, user links, paired Bluetooth devices.
+    ports = await asyncio.to_thread(lambda: with_links(available_ports()) + paired_bluetooth_ports())
+    # Runs the modem program; only for a sound-card modem.
+    cards = await asyncio.to_thread(modem.sound_cards) if modem is not None else []
+    # sysfs: which sit on one radio's USB hub; the page orders the keying by it.
+    on_card, on_port = await asyncio.to_thread(together, [c.id for c in cards], [p.device for p in ports])
     if isinstance(modem, DirewolfModem) and radio is not None:
         holder = radio.id
-        pick, keying = await asyncio.to_thread(lambda: sound_card_proposal(cards, ports, left_out(ctx.ctl.config, holder), claims=claims, holder=holder))       # (which ports are the card's is read from sysfs)
+        # sysfs: which ports belong to the card.
+        pick, keying = await asyncio.to_thread(lambda: sound_card_proposal(cards, ports, left_out(ctx.ctl.config, holder), claims=claims, holder=holder))
     else:
         pick, keying = ("", "") if radio is None else proposal(cards, ports, ctx.ctl.config, claims=claims, holder=radio.id)
     ctx.conn.send({"type": "ports", "radio": cmd.radio, "search": can_search(), "find": can_find(), "keying": keying,
@@ -126,11 +134,12 @@ async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
 
 @command(FindRadio)
 async def find_radio(ctx: Ctx, cmd: FindRadio) -> None:
-    """Find my radio for the radio named (radio 1 when none is): only a radio whose type has a serial line is searched for (`radio.no_line`, with its name), and never one that only receives
-    (`radio.receive_only`, with its name): its line is written nothing, and Find my radio writes a carriage return and the KISS entries to the ports it tries. The finder lets go of the radio it is given alone."""
+    # Only a radio with a serial line is searched, and never a receive-only one, since Find my radio
+    # writes a carriage return and the KISS entries to the ports it tries. The finder releases only
+    # the radio it is given.
     finder = ctx.ctl.radiofinder
     radio = FM_ID if cmd.radio is None else cmd.radio
-    named = named_radio(ctx, cmd.cmd, radio)                         # (radio 1 when none is named, refused as `radio.unknown` once it is removed)
+    named = named_radio(ctx, cmd.cmd, radio)  # radio 1 when none is named; `radio.unknown` once removed
     if not named.rtype.can.transmit:
         raise UserError(f"{cmd.cmd}: radio {named.name} only receives: nothing is written to its line", "radio.receive_only", params={"name": named.name, "radio": named.id})
     if cmd.radio is not None and not named.rtype.can.find:
@@ -138,7 +147,7 @@ async def find_radio(ctx: Ctx, cmd: FindRadio) -> None:
     base = {"radio": cmd.radio, "radio_type": "", "profile": "", "number": 0, "total": 0}
 
     def trying(step: Trying) -> None:
-        if ctx.conn.closed:                                          # (the page that asked left: nobody will put the answer in the settings)
+        if ctx.conn.closed:  # the asking page left, so nobody will store the answer
             finder.cancel()
         ctx.conn.send({**base, "type": "radio_search", "state": "trying", "port": step.port, "baud": step.baud, "number": step.number, "total": step.total})
 
@@ -160,10 +169,11 @@ async def find_radio_cancel(ctx: Ctx, cmd: FindRadioCancel) -> None:
 
 @command(BeaconNow)
 async def beacon_now(ctx: Ctx, cmd: BeaconNow) -> None:
-    """A beacon on every radio the beacon goes out on (each by its own rules: the Mercury one direct, the FM one by the path; Send on: RadioRegistry.beaconing); refused with the reason when none went out."""
+    # Beacons on every radio in the beacon's Send on, each by its own rules; refused with the reason
+    # if none went out.
     beacons = [radio.beacon for radio in ctx.ctl.radios.beaconing()]
     if not beacons and ctx.ctl.config.listens_only:
-        raise UserError("beacon_now: RX only: nothing is sent", "transmit.off")          # (every radio that is on only receives)
+        raise UserError("beacon_now: RX only: nothing is sent", "transmit.off")  # every enabled radio only receives
     if not beacons:
         raise UserError("beacon_now: there is no radio: add one, or turn one on", "radio.none")
     sent = [b.send_now("request") for b in beacons]
@@ -172,7 +182,8 @@ async def beacon_now(ctx: Ctx, cmd: BeaconNow) -> None:
         why, params = code_of(beacon.problem)
         if why == "transmit.off":
             raise UserError("beacon_now: RX only: nothing is sent", "transmit.off")
-        raise UserError(f"beacon_now: nothing was sent: {beacon.problem}", "beacon.not_sent", params={"why": why, **params})      # (the page says the reason by `why`, error.<why>)
+        # The page words it from `why`.
+        raise UserError(f"beacon_now: nothing was sent: {beacon.problem}", "beacon.not_sent", params={"why": why, **params})
 
 
 @command(StatusNow)
@@ -204,7 +215,7 @@ async def forget_station_key(ctx: Ctx, cmd: ForgetStationKey) -> None:
 
 @command(NewMessageKey)
 async def message_key_new(ctx: Ctx, cmd: NewMessageKey) -> None:
-    """The new key's fingerprint goes to the page that asked with the status it is answered with."""
+    # The asker receives the new fingerprint in the status that answers.
     with refused(cmd.cmd):
         ctx.ctl.keyring.refuse_unless_on()
         ctx.ctl.keyring.renew()
@@ -213,7 +224,8 @@ async def message_key_new(ctx: Ctx, cmd: NewMessageKey) -> None:
 
 @command(QueryStation)
 async def query_station(ctx: Ctx, cmd: QueryStation) -> None:
-    """A query goes to a station that is in the book and takes messages (else there is nobody to ask: the station is no object, item or ourselves, and not one whose position says it takes none)."""
+    # The station must be in the book and take messages: not an object, an item, ourselves, or one
+    # whose position says it takes none.
     with refused(cmd.cmd):
         try:
             call = normal_name(cmd.call)
@@ -229,7 +241,6 @@ async def query_station(ctx: Ctx, cmd: QueryStation) -> None:
 
 @command(AskQru)
 async def qru_ask(ctx: Ctx, cmd: AskQru) -> None:
-    """Local info is asked of the stations near us: one request to QRU, once, by radio only."""
     radio = sending_radio(ctx, cmd.cmd, cmd.radio)
     with refused(cmd.cmd):
         ctx.ctl.qruask.ask(cmd.text, cmd.path, cmd.rf_only, radio=radio)
@@ -237,7 +248,6 @@ async def qru_ask(ctx: Ctx, cmd: AskQru) -> None:
 
 @command(GeneralQuery)
 async def general_query(ctx: Ctx, cmd: GeneralQuery) -> None:
-    """The stations in radio range are asked a general query (?APRS?, ?IGATE?, ?WX?): one frame on each radio of asking around's Send on, once, by the path given (else each radio's own), RF only unless told otherwise."""
     sending_radio(ctx, cmd.cmd, None)
     with refused(cmd.cmd):
         ctx.ctl.generalask.ask(cmd.kind, cmd.path, cmd.rf_only)
@@ -275,7 +285,8 @@ async def overheard_delete(ctx: Ctx, cmd: OverheardDelete) -> None:
 
 @command(SetStationPath)
 async def set_station_path(ctx: Ctx, cmd: SetStationPath) -> None:
-    radio = named_radio(ctx, cmd.cmd, FM_ID if cmd.radio is None else cmd.radio).id          # (radio 1 when none is named: `radio.unknown` once it is removed, and no row names a radio that is gone)
+    # Radio 1 when none is named; `radio.unknown` once it is removed, so no row names a gone radio.
+    radio = named_radio(ctx, cmd.cmd, FM_ID if cmd.radio is None else cmd.radio).id
     with refused(cmd.cmd):
         await ctx.ctl.prefbook.set_path(cmd.call, cmd.path, radio)
 
@@ -303,7 +314,7 @@ async def set_station_alert(ctx: Ctx, cmd: SetStationAlert) -> None:
 async def update_check(ctx: Ctx, cmd: CheckUpdate) -> None:
     result = await ctx.ctl.updatecheck.check_now()
     ctx.conn.send({"type": "update_result", "outcome": result.outcome, "version": result.version, "reason": result.why})
-    ctx.conn.send(await ctx.status())                                   # (the other pages have it at the next status, within 10 s)
+    ctx.conn.send(await ctx.status())  # other pages get it with the next status within 10 s
 
 
 @command(ReleaseNotes)
@@ -314,7 +325,8 @@ async def release_notes(ctx: Ctx, cmd: ReleaseNotes) -> None:
 
 @command(UpdateNow)
 async def update_now(ctx: Ctx, cmd: UpdateNow) -> None:
-    """Over the page's socket, which only a page of this computer or one that has logged in with the access key has (neoaprs/web/access.py), like every command that changes the daemon."""
+    # Only a page on this computer or one logged in with the access key has the socket, as for every
+    # command that changes the daemon.
     try:
         ctx.ctl.selfupdate.begin(cmd.version)
     except CodedError as e:
@@ -395,6 +407,6 @@ async def map_cancel(ctx: Ctx, cmd: MapCancel) -> None:
 
 @command(PageError)
 async def page_error(ctx: Ctx, cmd: PageError) -> None:
-    """The page tells of an error of its own: it is logged and kept for the support bundle (neoaprs/web/pageerrors.py). Not answered."""
+    # Logged and kept for the support bundle; not answered.
     if ctx.page_errors is not None:
         ctx.page_errors.note(ctx.conn, cmd)

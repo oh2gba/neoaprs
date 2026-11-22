@@ -1,6 +1,7 @@
-"""How Update now puts the checked file in place (neoaprs/services/selfinstall.py, neoaprs/selfreplace.py): the installer's command line on Windows (built, never run), the AppImage renamed over the old one on
-temporary files with the restart as a stand-in, the exec of the new file and the old one put back when it cannot start, the installer of each kind, the rehearsal of a simulated kind, and the desktop app that
-waits for a daemon that restarts as a new version. Nothing here runs an installer or replaces a file of the machine."""
+"""How Update now puts the checked file in place (neoaprs/services/selfinstall.py, selfreplace.py):
+the Windows installer command line (built, never run), the AppImage renamed over the old one, the
+exec of the new file with the old one put back if it cannot start, and the installer of each kind.
+"""
 import os
 import stat
 import sys
@@ -28,7 +29,8 @@ def test_the_windows_installer_is_moved_out_of_its_part_file_and_started_for_the
     setup.folder.mkdir()
     part = setup.folder / "NeoAPRS-Setup-0.7.0.exe.part"
     part.write_bytes(b"MZ")
-    (setup.folder / "NeoAPRS-Setup-0.6.9.exe").write_bytes(b"MZ earlier")          # (the installer of the update before)
+    # The installer of the update before
+    (setup.folder / "NeoAPRS-Setup-0.6.9.exe").write_bytes(b"MZ earlier")
     (setup.folder / "install.log").write_text("the log of the update before")
     setup.install(part, "NeoAPRS-Setup-0.7.0.exe", "0.7.0")
     installer = tmp_path / "update" / "NeoAPRS-Setup-0.7.0.exe"
@@ -156,7 +158,8 @@ def test_once_the_new_version_runs_the_old_appimage_goes(tmp_path: Path) -> None
 
 
 def test_a_daemon_with_encrypted_messages_asks_the_installer_to_keep_them(tmp_path: Path) -> None:
-    """OH2GAX's update to 0.18.0 came back without --encryption (4 Nov 2026): the installer is told, and starts it again with it (packaging/windows/neoaprs.iss)."""
+    """An update must not drop --encryption: the installer starts the app again with it
+    (packaging/windows/neoaprs.iss)."""
     installer, log_file = tmp_path / "update" / "NeoAPRS-Setup-0.9.0.exe", tmp_path / "update" / "install.log"
     assert installer_argv(installer, tmp_path, "app", log_file, encryption=True)[-1] == "/NEOAPRSENCRYPTION=1"
     assert "/NEOAPRSENCRYPTION=1" not in installer_argv(installer, tmp_path, "app", log_file)
@@ -200,7 +203,8 @@ def test_the_files_come_from_a_fake_server_on_the_loopback_for_a_simulated_kind_
 
 @pytest.mark.parametrize("environ", [
     {},
-    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases"},                                   # no switch: GitHub, whatever the address
+    # No switch: GitHub, whatever the address
+    {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases"},
     {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases", "NEOAPRS_UPDATE_TEST": "0"},
     {"NEOAPRS_UPDATE_FROM": "http://127.0.0.1:9/releases", "NEOAPRS_UPDATE_TEST": "yes"},
     {"NEOAPRS_UPDATE_TEST": "1"},                                                              # the switch alone: GitHub
@@ -300,8 +304,9 @@ def test_the_windows_way_has_the_daemon_note_its_page_before_the_installer_is_st
 
 
 def test_a_note_of_the_port_that_is_no_small_file_of_digits_is_no_note_and_ends_no_daemon(tmp_path: Path) -> None:
-    """Whatever lies in the data folder under the note's name: a number Python refuses to read (more than 4300 digits raised ValueError out of the daemon's start), a file of any length, a link, a pipe
-    (which would hold the start up for ever), a folder."""
+    """Whatever lies in the data folder under the note's name: a number Python refuses to read (more
+    than 4300 digits raised ValueError out of the daemon's start), a file of any length, a link, a
+    pipe (which would hold the start up for ever), a folder."""
     note = tmp_path / stopfile.PORT_NAME
     for content in (b"9" * 5000, b"7" * 3_000_000, b"7304" + b" " * 20, b"007304\n", b"7304\n7305\n", b"7304\0", b"+7304", b"0x1c88", b"7 304"):
         note.write_bytes(content)
@@ -327,7 +332,8 @@ def test_a_note_of_the_port_that_is_no_small_file_of_digits_is_no_note_and_ends_
 
 
 def test_an_installer_that_could_not_be_started_leaves_no_note_of_a_port(tmp_path: Path) -> None:
-    """No installer, no restart: the daemon runs on, and the note it wrote a moment before is not for whatever start comes next."""
+    """No installer, no restart: the daemon runs on, and the note it wrote a moment before is not
+    for whatever start comes next."""
     def refused(argv: list[str]) -> None:
         raise OSError(5, "Access is denied")
 

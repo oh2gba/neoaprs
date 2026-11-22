@@ -1,6 +1,7 @@
-"""The status report (neoaprs/services/rigstatus.py) on the station's radios as the registry gives them (`support/seamshapes.py` over stub lines), the station's one maker of frames (services/beaconframe.py),
-a fake rigctld on a free port and a clock the test holds: the first report after the first poll, nothing inside the interval, the same status again at every interval, nothing while the radio is off (and one
-line in the log for that), the static text under the same rule, what ?APRSS answers with; the report on the one radio that is on (the HF one while the FM one is off, none while there is no radio), and the old call."""
+"""The status report (neoaprs/services/rigstatus.py) on stub radios, the station's frame maker, a
+fake rigctld and a held clock: the first report after the first poll, nothing inside the interval,
+the same status each interval.
+"""
 import logging
 import socket
 import sys
@@ -31,16 +32,18 @@ FIRST = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zQRV 14.074 MHz USB"
 
 class Rig(ServiceRig):
     def __init__(self, rigd: FakeRigctld | None, **changes: object) -> None:
-        super().__init__(**{"beacon_interval_min": 30, **({"status_rigctld": rigd.address} if rigd else {}), **changes})          # (the beacon is on: no status goes out while it is off)
+        # The beacon is on: no status goes out while it is off
+        super().__init__(**{"beacon_interval_min": 30, **({"status_rigctld": rigd.address} if rigd else {}), **changes})
         self.rigd = rigd
-        self.hf = StubTnc(max_frame=123)                                    # (radio 2's line: the HF radio, off unless the changes switch it on)
+        # Radio 2's line: the HF radio, off unless the changes switch it on
+        self.hf = StubTnc(max_frame=123)
         self.radios = RegistryShape([radio_of(self.config, FM_ID, self.tnc), radio_of(self.config, HF_ID, self.hf)])
         self.frames = BeaconFrames(lambda: self.config, None, self.clock)
         self.status = RigStatus(self.radios, lambda: self.config, self.frames, self.clock, poll_sec=0.01, read=lambda host, port: read_rig(host, port, 0.3))
         remember_stop(self.status.stop)
 
 
-# ---- the radio ------------------------------------------------------------------------------------------------------------------------------------
+# ---- the radio -----------------------------------------------------------------------------------
 
 async def test_the_first_status_goes_out_after_the_first_poll_with_the_frequency_and_the_mode() -> None:
     rig = Rig(await rigctld())
@@ -114,7 +117,8 @@ async def test_a_radio_that_is_off_sends_nothing_and_the_log_says_so_once(caplog
     assert rig.tnc.sent == [] and rig.status.rig_state == "off"
     told = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert len(told) == 1 and told[0].getMessage() == f"rigctld at {rigd.address}: rigctld answered RPRT -5: no status while it is away"
-    rigd.radio_on = True                                                # the radio is switched on: a status at the next poll, one line for that
+    # The radio is switched on: a status at the next poll, one line for that
+    rigd.radio_on = True
     await rig.status.poll()
     assert rig.status.rig_state == "on" and rig.tnc.lines() == [FIRST.replace("211200z", "211600z")]
     assert [r.getMessage() for r in caplog.records if "answers" in r.getMessage()] == [f"rigctld at {rigd.address}: the radio answers (14.074 MHz USB)"]
@@ -125,8 +129,11 @@ async def test_a_radio_that_is_off_sends_nothing_and_the_log_says_so_once(caplog
 
 async def test_a_refused_connection_is_off_too_and_says_why(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, "neoaprs.status")
-    held = socket.socket()                                              # (bound and not listening: a connection is refused, and the port cannot go to another test meanwhile,
-    held.bind(("127.0.0.1", 0))                                         #  whose own radio or rigctld would then get this test's questions)
+    # (bound and not listening: a connection is refused, and the port cannot go to another test
+    # meanwhile,
+    held = socket.socket()
+    # Whose own radio or rigctld would then get this test's questions)
+    held.bind(("127.0.0.1", 0))
     address = f"127.0.0.1:{held.getsockname()[1]}"
     rig = Rig(None, status_rigctld=address)
     try:
@@ -135,7 +142,8 @@ async def test_a_refused_connection_is_off_too_and_says_why(caplog: pytest.LogCa
     finally:
         held.close()
     assert rig.tnc.sent == [] and rig.status.rig_state == "off"
-    why = "no answer in time" if sys.platform == "win32" else "connection refused"          # (Windows takes about two seconds to refuse a connection: longer than rigctld is given)
+    # Windows takes about two seconds to refuse a connection: longer than rigctld is given
+    why = "no answer in time" if sys.platform == "win32" else "connection refused"
     assert [r.getMessage() for r in caplog.records] == [f"rigctld at {address}: {why}: no status while it is away"]
 
 
@@ -171,7 +179,8 @@ async def test_what_a_radio_names_its_mode_with_is_made_printable_ascii_without_
 
 
 async def test_a_static_status_that_is_too_long_or_not_ascii_makes_no_frame_and_is_told_once(caplog: pytest.LogCaptureFixture) -> None:
-    rig = Rig(None, station_status="x" * 56)                # (a value that did not come through the settings check, a hand-made Config)
+    # A value that did not come through the settings check, a hand-made Config
+    rig = Rig(None, station_status="x" * 56)
     with caplog.at_level(logging.WARNING, logger="neoaprs.status"):
         await rig.status.poll()
         await rig.status.poll()
@@ -184,7 +193,7 @@ async def test_an_empty_template_sends_nothing() -> None:
     assert rig.tnc.sent == [] and rig.status.rig_state == "on"
 
 
-# ---- the static text ---------------------------------------------------------------------------------------------------------------------------
+# ---- the static text -----------------------------------------------------------------------------
 
 async def test_the_static_text_goes_out_again_at_each_interval_and_never_inside_it() -> None:
     rig = Rig(None, station_status="QRV 145.500")
@@ -223,7 +232,7 @@ async def test_the_radio_is_used_once_the_setting_is_set_and_unused_when_it_is_c
     assert rig.status.rig_state == "unused"
 
 
-# ---- the beacon being off ---------------------------------------------------------------------------------------------------------------------------
+# ---- the beacon being off ------------------------------------------------------------------------
 
 async def test_no_status_goes_out_while_the_beacon_is_off_and_the_held_back_one_goes_when_it_is_on(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO)
@@ -260,7 +269,7 @@ async def test_aprss_still_answers_while_the_beacon_is_off() -> None:
     assert frame is not None and frame.tnc2().endswith("QRV 145.500")
 
 
-# ---- the Tnc -------------------------------------------------------------------------------------------------------------------------------------
+# ---- the Tnc -------------------------------------------------------------------------------------
 
 async def test_a_status_waits_while_the_radio_is_silent_and_is_sent_when_it_answers(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, "neoaprs.status")
@@ -307,7 +316,7 @@ async def test_settings_that_make_no_frame_send_nothing_and_do_not_stop_the_time
     await rig.status.stop()
 
 
-# ---- the radio it goes on ------------------------------------------------------------------------------------------------------------------------
+# ---- the radio it goes on ------------------------------------------------------------------------
 
 async def test_the_status_goes_on_the_one_radio_that_is_on_the_hf_one_while_the_fm_one_is_off_and_by_its_path() -> None:
     rig = Rig(None, station_status="QRV 145.500", fm_enabled=False, hf_enabled=True)
@@ -329,14 +338,15 @@ async def test_with_no_radio_no_status_goes_and_the_log_says_so_once(caplog: pyt
 async def test_the_old_call_with_a_line_and_a_beacon_sends_the_same_on_that_line_and_takes_the_beacons_maker() -> None:
     rig = Rig(None, station_status="QRV 145.500")
     beacon = Beacon(rig.tnc, lambda: rig.config, rig.clock)
-    old = RigStatus(rig.tnc, lambda: rig.config, beacon, rig.clock)                 # (the call of before the round: a line and a beacon)
+    # The call of before the round: a line and a beacon
+    old = RigStatus(rig.tnc, lambda: rig.config, beacon, rig.clock)
     assert old.frames is beacon.frames
     await old.poll()
     await rig.status.poll()
     assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zQRV 145.500"] * 2
 
 
-# ---- ?APRSS and the timer ----------------------------------------------------------------------------------------------------------------------
+# ---- ?APRSS and the timer ------------------------------------------------------------------------
 
 async def test_aprss_answers_with_the_text_last_sent_stamped_with_the_time_of_the_answer() -> None:
     rigd = await rigctld()
@@ -363,7 +373,8 @@ async def test_the_daemon_tells_the_page_the_status_and_the_state_of_the_radio(t
     e = Env(tmp_path, web=True)
     e.ctl.rigstatus.poll_sec = 0.02
     await e.start()
-    e.feed(on_air("OH2ABC", b">hello"))                                     # (a frame heard: the TNC is in KISS mode and takes frames)
+    # A frame heard: the TNC is in KISS mode and takes frames
+    e.feed(on_air("OH2ABC", b">hello"))
     await until(lambda: e.tnc.stats.packets == 1)
     page = await e.ws()
     first = await page.expect("status")

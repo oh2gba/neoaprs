@@ -1,6 +1,6 @@
-"""The build of what the AppImage's web window carries (scripts/build-gi) as far as it can be held without a compiler, docker or the network: its pins, the libraries it carries being gtkenv's, the CPython being the
-AppImage's, the refusal of a download that is not the pinned file and of a build whose pin is missing, and the link check that refuses a library a desktop with WebKitGTK may not have. The build itself is run in
-ubuntu:22.04 (`scripts/build-gi --docker`) and proved in the containers of scripts/check-installs --only appimage-web."""
+"""Tests for the build of the AppImage web window libraries (scripts/build-gi) without a compiler,
+docker or the network: pins, the carried libraries, refusal of a wrong download, and the link check.
+"""
 import hashlib
 import importlib.machinery
 import importlib.util
@@ -92,7 +92,8 @@ def test_readelfs_needed_lines_are_read(build: ModuleType, monkeypatch: pytest.M
            " 0x000000000000000e (SONAME)             Library soname: [_gi.so]\n")
     calls: list[Any] = []
     monkeypatch.setattr(build, "run", lambda command, env=None: calls.append(command) or out)
-    assert build.needed(Path("/x/_gi.so")) == ["libgirepository-1.0.so.1", "libc.so.6"] and calls == [["readelf", "-d", str(Path("/x/_gi.so"))]]       # (the path as the system writes it)
+    # (the path as the system writes it)
+    assert build.needed(Path("/x/_gi.so")) == ["libgirepository-1.0.so.1", "libc.so.6"] and calls == [["readelf", "-d", str(Path("/x/_gi.so"))]]
 
 
 def test_the_usage_prints() -> None:

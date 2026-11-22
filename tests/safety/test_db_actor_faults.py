@@ -1,6 +1,8 @@
-"""The Db actor (neoaprs/db.py): faults. A write is all of it or none, with a statement failing at every place it can (the first BEGIN, each statement, the COMMIT); the error reaches
-the one who waits as it was raised; an append that cannot be made is undone alone, a batch that cannot be committed is rolled back whole and tried again; the queue of appends
-is bounded and says no instead of growing; the thread goes on after all of it."""
+"""The Db actor (neoaprs/db.py): faults. A write is all of it or none, with a statement failing at
+every place it can (the first BEGIN, each statement, the COMMIT); the error reaches the one who
+waits as it was raised; an append that cannot be made is undone alone, a batch that cannot be
+committed is rolled back whole and tried again; the queue of appends is bounded and says no instead
+of growing; the thread goes on after all of it."""
 import asyncio
 import sqlite3
 import threading
@@ -58,7 +60,8 @@ async def test_a_disk_that_stays_full_fails_every_write_and_none_leaves_anything
 
 
 async def test_the_error_of_a_statement_reaches_the_caller_as_it_was_raised(tmp_path: Path) -> None:
-    """IntegrityError stays an IntegrityError: the code that handles a constraint error from a direct execute handles it the same."""
+    """IntegrityError stays an IntegrityError: the code that handles a constraint error from a
+    direct execute handles it the same."""
     db = await started(tmp_path / "x.sqlite")
     await db.write(lambda conn: conn.execute("INSERT INTO t VALUES (1, 'a')"))
 
@@ -85,7 +88,8 @@ async def test_the_error_of_a_statement_reaches_the_caller_as_it_was_raised(tmp_
 
 
 # ---- appends
-# BEGIN, then SAVEPOINT / INSERT / RELEASE for each of the three appends, COMMIT: eleven statements; the twelfth does not exist
+# BEGIN, then SAVEPOINT / INSERT / RELEASE for each of three appends, COMMIT: eleven statements;
+# the twelfth does not exist.
 @pytest.mark.parametrize("fail_at", range(1, 13))
 async def test_a_batch_of_appends_with_a_statement_failing_at_every_place_is_in_exactly_once(tmp_path: Path, fail_at: int) -> None:
     path = tmp_path / "x.sqlite"
@@ -103,7 +107,8 @@ async def test_a_batch_of_appends_with_a_statement_failing_at_every_place_is_in_
 async def test_a_batch_that_cannot_be_committed_is_dropped_whole_after_its_attempts_and_the_thread_goes_on(tmp_path: Path) -> None:
     path = tmp_path / "x.sqlite"
     db = await started(path, lambda: faulty_connection(path), Tuning(tick=0.01, retry_sec=0.001, attempts=3))
-    await db.maintain(lambda conn: arm(conn, 3, sticky=True))                  # the disk is full from the second append on
+    # The disk is full from the second append on
+    await db.maintain(lambda conn: arm(conn, 3, sticky=True))
     for n in (1, 2, 3):
         db.write_nowait(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'x')", (n,)))
     await db.barrier()
@@ -127,7 +132,8 @@ async def test_an_append_that_fails_for_its_own_reasons_is_undone_alone(tmp_path
             conn.execute("INSERT INTO pair VALUES (?, 0)", (n,))
             conn.execute("INSERT INTO t VALUES (?, 'x')", (n,))
             if twice:
-                conn.execute("INSERT INTO t VALUES (?, 'again')", (n,))               # the constraint: this append cannot be made
+                # The constraint: this append cannot be made
+                conn.execute("INSERT INTO t VALUES (?, 'again')", (n,))
         return append
 
     db.write_nowait(two_statements(1, False))
@@ -145,7 +151,8 @@ async def test_an_append_with_a_wrong_statement_is_dropped_alone_and_the_batch_a
     db = await started(path, None, Tuning(tick=0.05, retry_sec=0.001, attempts=3))
     for n in (1, 2, 3):
         db.write_nowait(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'x')", (n,)))
-    db.write_nowait(lambda conn: conn.execute("INSERT INTO nosuch VALUES (1)"))                  # an OperationalError that will come again
+    # An OperationalError that will come again
+    db.write_nowait(lambda conn: conn.execute("INSERT INTO nosuch VALUES (1)"))
     for n in (4, 5):
         db.write_nowait(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'x')", (n,)))
     await db.barrier()
@@ -193,7 +200,8 @@ async def test_a_full_queue_of_appends_says_no_and_keeps_what_it_has(tmp_path: P
     await until(inside.is_set)
     answers = [db.write_nowait(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'x')", (n,))) for n in range(80)]
     assert answers == [True] * 50 + [False] * 30, "the first 50 are queued, the rest are refused at once (the producer is never made to wait)"
-    waiting = asyncio.ensure_future(db.write(lambda conn: conn.execute("INSERT INTO t VALUES (1000, 'awaited')")))            # an awaited operation is never refused
+    # An awaited operation is never refused
+    waiting = asyncio.ensure_future(db.write(lambda conn: conn.execute("INSERT INTO t VALUES (1000, 'awaited')")))
     assert db.stats()["dropped"] == 30
     release.set()
     await asyncio.gather(blocker, waiting)

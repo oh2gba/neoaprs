@@ -1,8 +1,7 @@
-"""Migration 33 (neoaprs/migrationsteps32.py): what each radio heard of a station is a row of `station_radio`, the path the operator gave a station is its path on a radio (`station_path`), and an object
-of ours names its radios by their ids (`own_object.radios`). The step is called as the runner calls it, on a database of version 30 that migrations 31 and 32 have run on
-(tests/support/migrated32.py: the radios are decided from the rows), one shape of old database for each test: a station heard on both radios with its path on the one that heard it last, on one, on
-none; a station of which only a path was said, one with a path and RF only, one with an alert; objects on `fm`, `hf` and `both` with both radios enabled, with one, with none, and without radio 2. Every
-other column of every row is what it was; a step that doubts or is cut short leaves the database as it was; and the stores read and write the database the step leaves."""
+"""Migration 33 (neoaprs/migrationsteps32.py): what each radio heard of a station is a
+`station_radio` row, a station's path is its path on a radio (`station_path`), and our objects name
+their radios by id.
+"""
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -30,7 +29,8 @@ STATION = ("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_c
            "last_is_at, heard_fm, heard_hf, last_fm_at, last_hf_at, snr, rssi, signal_at) VALUES (?, 'station', '', '/', '-', 60.1, 24.9, ?, ?, ?, 'QRV', 'comment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, -3.5, -101.0, ?)")
 PREF = "INSERT INTO station_pref (call, path, attempts, rf_only, alert_on_air, alert_within_km, alert_direct, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
 OBJECT = "INSERT INTO own_object (name, kind, lat, lon, symbol_table, symbol_code, comment, alive, created_at, updated_at, qru_group, radio) VALUES (?, 'object', 60.2, 25.0, '/', '-', 'camp', 1, ?, ?, 'RP70', ?)"
-# (call, the path of its last packet, heard on FM, heard on HF, when on FM, when on HF, heard from the internet)
+# (call, the path of its last packet, heard on FM, heard on HF, when on FM, when on HF, heard from
+# the internet)
 STATIONS = [("OH2FMLAST", "OH2RCH-2*,WIDE2-1", 3, 2, LATEST, LATER, 0), ("OH2HFLAST", "WIDE1-1", 3, 2, STAMP, LATER, 0), ("OH2TIE", "OH2RCH-2*", 1, 1, LATER, LATER, 0), ("OH2FM", "WIDE1-1*", 4, 0, LATER, None, 1),
             ("OH2HF", "", 0, 5, None, LATEST, 0), ("OH2NET", "", 0, 0, None, None, 7), ("OH2DIRECT", "", 2, 0, STAMP, None, 0)]
 HEARD = {"OH2FMLAST": {1: (3, LATEST, "OH2RCH-2*,WIDE2-1"), 2: (2, LATER, "")}, "OH2HFLAST": {1: (3, STAMP, ""), 2: (2, LATER, "WIDE1-1")}, "OH2TIE": {1: (1, LATER, "OH2RCH-2*"), 2: (1, LATER, "")},
@@ -64,7 +64,8 @@ def whole(db: sqlite3.Connection, table: str, without: tuple[str, ...]) -> list[
 
 
 def at_32(tmp_path: Path, *fill: Any, settings: dict[str, str] | None = None) -> sqlite3.Connection:
-    """A database of version 30 with the rows the functions of `fill` insert and the settings given, and migrations 31 and 32 run on it."""
+    """A database of version 30 with the rows the functions of `fill` insert and the settings given,
+    and migrations 31 and 32 run on it."""
     db = old_database(tmp_path / DB_NAME, FixedClock())
     for key, value in (settings or {}).items():
         db.execute("INSERT INTO settings (key, value) VALUES (?, ?)", (key, value))
@@ -115,7 +116,8 @@ def test_a_station_heard_on_the_fm_radio_alone_has_one_row_with_its_path_where_t
 
 
 def test_a_count_of_the_hf_radio_is_kept_as_radio_twos_even_where_migration_31_made_no_radio_two(tmp_path: Path) -> None:
-    """Nothing is dropped for want of a radio's row: the HF radio is radio 2 by the round's constants, and the row says so."""
+    """Nothing is dropped for want of a radio's row: the HF radio is radio 2 by the
+    constants, and the row says so."""
     db = at_32(tmp_path, stations, settings=BOTH_ON)
     db.execute("DELETE FROM radio WHERE id = 2")
     run(db, _v33)
@@ -141,7 +143,8 @@ def test_the_path_of_a_station_is_its_path_on_radio_one_and_a_row_that_said_only
                              ("INSERT INTO station_radio (call, radio_id, heard) VALUES ('OH2X', 1, -1)", "station_radio_heard_count")):
         with pytest.raises(sqlite3.IntegrityError, match=check):
             db.execute(statement)
-    db.execute("INSERT INTO station_path (call, radio_id, path, updated_at) VALUES ('OH2PATH', 2, 'OH2RCH-2', ?)", (STAMP,))          # (the same station, another radio: a path of its own)
+    # The same station, another radio: a path of its own
+    db.execute("INSERT INTO station_path (call, radio_id, path, updated_at) VALUES ('OH2PATH', 2, 'OH2RCH-2', ?)", (STAMP,))
     db.close()
 
 
@@ -155,8 +158,10 @@ def test_with_both_radios_enabled_an_object_is_on_the_radios_its_word_named(tmp_
 
 
 def test_with_one_radio_enabled_an_object_keeps_the_radios_its_word_named(tmp_path: Path) -> None:
-    """The operator's choice outlives a radio that is off at the update: an object on hf or on both keeps those radios, and goes out on the radio that is on meanwhile, as it did (the sender puts an
-    object none of whose radios is on onto the main radio); when the other radio is switched on again the object is where the operator put it."""
+    """The operator's choice outlives a radio that is off at the update: an object on hf or on both
+    keeps those radios, and goes out on the radio that is on meanwhile, as it did (the sender puts
+    an object none of whose radios is on onto the main radio); when the other radio is switched on
+    again the object is where the operator put it."""
     db = at_32(tmp_path, objects, settings={"station/call": "OH2GBA"})
     assert db.execute("SELECT id, enabled FROM radio ORDER BY id").fetchall() == [(1, 1), (2, 0)], "an object on hf made migration 31 make radio 2; it is not enabled"
     run(db, _v33)
@@ -208,8 +213,10 @@ def message_on_hf(db: sqlite3.Connection) -> None:
                                           ((stations, prefs, objects, message_on_hf), [(1, 1), (2, 0)])],
                          ids=["stations, one heard on hf alone", "preferences", "objects", "messages", "all of them"])
 def test_a_database_without_settings_and_packets_names_only_radios_the_table_has(tmp_path: Path, fill: tuple[Any, ...], radios: list[tuple[int, int]]) -> None:
-    """No settings row (none was ever changed) and no packet (the prune took them): the stations, preferences, objects and messages are an installation's, so migration 31 makes the radios their rows
-    name (radio 2 for a station that HF heard alone too), and every id 32 and 33 write is a radio the table has: none is left for a radio the operator adds later to inherit."""
+    """No settings row (none was ever changed) and no packet (the prune took them): the stations,
+    preferences, objects and messages are an installation's, so migration 31 makes the radios their
+    rows name (radio 2 for a station that HF heard alone too), and every id 32 and 33 write is a
+    radio the table has: none is left for a radio the operator adds later to inherit."""
     db = at_32(tmp_path, *fill)
     run(db, _v33)
     assert db.execute("SELECT id, enabled FROM radio ORDER BY id").fetchall() == radios
@@ -245,7 +252,8 @@ def test_a_step_that_doubts_what_it_moved_raises_and_the_rollback_leaves_everyth
 
 
 def test_a_step_that_is_cut_short_leaves_the_database_as_it_was_and_the_next_run_finishes_it(tmp_path: Path) -> None:
-    """The runner gives the step a transaction of its own: the stations are moved and their columns dropped when the table in the way stops it, and none of that stays."""
+    """The runner gives the step a transaction of its own: the stations are moved and their columns
+    dropped when the table in the way stops it, and none of that stays."""
     db = at_32(tmp_path, stations, prefs, objects, settings=BOTH_ON)
     shape = db.execute("SELECT name, sql FROM sqlite_master ORDER BY name").fetchall()
     rows = {table: db.execute(f"SELECT * FROM {table} ORDER BY 1").fetchall() for table in ("station", "station_pref", "own_object")}
@@ -255,7 +263,8 @@ def test_a_step_that_is_cut_short_leaves_the_database_as_it_was_and_the_next_run
     db.execute("DROP TABLE station_pref_old")
     assert db.execute("SELECT name, sql FROM sqlite_master ORDER BY name").fetchall() == shape and {table: db.execute(f"SELECT * FROM {table} ORDER BY 1").fetchall() for table in rows} == rows
     db.close()
-    again = sqlite3.connect(str(tmp_path / DB_NAME), isolation_level=None)             # (the next start: another connection finds the file of before)
+    # The next start: another connection finds the file of before
+    again = sqlite3.connect(str(tmp_path / DB_NAME), isolation_level=None)
     run(again, _v33)
     assert heard_by(again) == HEARD and "_m31" not in tables(again)
     again.close()
@@ -270,7 +279,8 @@ def test_the_step_does_not_need_the_note_of_31_and_reads_the_radios_from_their_t
 
 
 def test_the_way_back_gives_the_columns_again_and_the_step_then_makes_the_same_database(tmp_path: Path) -> None:
-    """`undo_33` is what tests/support/migrated.step_back uses below 33, so that the test of an older migration runs this step over its rows."""
+    """`undo_33` is what tests/support/migrated.step_back uses below 33, so that the test of an
+    older migration runs this step over its rows."""
     db = at_32(tmp_path, stations, prefs, objects, settings=BOTH_ON)
     keys = {"station": "call", "station_pref": "call", "own_object": "name", "_m31": "hf_exists"}
     before = {table: db.execute(f"SELECT {', '.join(sorted(columns(db, table)))} FROM {table} ORDER BY {key}").fetchall() for table, key in keys.items()}
@@ -285,13 +295,16 @@ def test_the_way_back_gives_the_columns_again_and_the_step_then_makes_the_same_d
 
 
 def test_the_way_back_through_32_and_33_gives_the_tables_of_version_30_word_for_word(tmp_path: Path) -> None:
-    """After 33 and 32 are taken back the tables are those of a file of version 30, column by column and in the text of their statements, so that a test of an older migration cannot insert a row that
-    no file of that version takes (a station without its last path); and the station's last path is that of the radio that heard it last, whichever radio's row has one."""
+    """After 33 and 32 are taken back the tables are those of a file of version 30, column by column
+    and in the text of their statements, so that a test of an older migration cannot insert a row
+    that no file of that version takes (a station without its last path); and the station's last
+    path is that of the radio that heard it last, whichever radio's row has one."""
     (tmp_path / "fresh").mkdir()
     fresh = old_database(tmp_path / "fresh" / DB_NAME)
     db = at_32(tmp_path, stations, settings=BOTH_ON)
     run(db, _v33)
-    db.execute("UPDATE station_radio SET last_path = 'OH2RCH-2*' WHERE call = 'OH2HFLAST' AND radio_id = 1")       # (a path on each radio, as the station book keeps them from wave 2 on)
+    # A path on each radio, as the station book keeps them.
+    db.execute("UPDATE station_radio SET last_path = 'OH2RCH-2*' WHERE call = 'OH2HFLAST' AND radio_id = 1")
     undo_33(db)
     undo_32(db)
     for table in ("radio_setting", "radio", "_m31"):

@@ -1,5 +1,7 @@
-"""The wire format (neoaprs/web/protocol.py and the neoaprs/web/*wire.py modules): the files generated from it are current, every message the daemon sends has an example that validates (and a field that is wrong or
-extra does not), every command round-trips, and the registry of handlers is the list of commands."""
+"""The wire format (neoaprs/web/protocol.py and the *wire.py modules): generated files are current,
+every sent message has a validating example, every command round-trips, and the handler registry is
+the command list.
+"""
 import importlib.util
 import json
 import re
@@ -35,10 +37,11 @@ def generator() -> ModuleType:
     return module
 
 
-# ---- the generated files -------------------------------------------------------------------------------------------------------------------------
+# ---- the generated files -------------------------------------------------------------------------
 
 def test_the_generated_files_are_current() -> None:
-    """The generator is run in memory and its files are compared with the ones in the tree: change a model, run the script, commit."""
+    """The generator is run in memory and its files are compared with the ones in the tree: change a
+    model, run the script, commit."""
     gen = generator()
     for path, text in gen.render().items():
         assert path.read_text(encoding="utf-8") == text, f"{path.relative_to(ROOT)} is out of date: {HINT}"
@@ -78,7 +81,9 @@ def test_the_lists_of_the_page_are_the_daemons_own() -> None:
 
 
 def test_how_long_a_bulletin_and_an_announcement_are_repeated_is_the_plan_of_the_daemon_in_whole_hours_and_days() -> None:
-    """The choice of the Bulletins form words these ("sent for 4 hours", "sent for 3 days"): the page has the numbers from here, and a plan that is no whole number of them stops the generator."""
+    """The choice of the Bulletins form words these ("sent for 4 hours", "sent for 3 days"): the
+    page has the numbers from here, and a plan that is no whole number of them stops the generator.
+    """
     gen = generator()
     limits = gen.limits()["bulletin"]
     assert limits["repeatHours"] * 3600 == BULLETIN.lasts and limits["announcementRepeatDays"] * 86400 == ANNOUNCEMENT.lasts
@@ -104,7 +109,7 @@ def test_the_reference_documents_every_command_message_and_model() -> None:
         assert f"| `{topic}` |" in doc
 
 
-# ---- the examples ---------------------------------------------------------------------------------------------------------------------------------
+# ---- the examples --------------------------------------------------------------------------------
 
 NOW = "2026-10-21T12:00:00Z"
 POSITION = {"lat": 60.165, "lon": 24.9467, "symbol_table": "T", "symbol_code": "&", "comment": "432.500 MHz", "course_deg": None, "speed_kmh": None, "altitude_m": None, "timestamp": None,
@@ -299,7 +304,8 @@ def test_the_values_of_the_examples_are_of_the_type_of_their_topic() -> None:
 
 
 def test_every_kind_of_decoded_packet_has_a_model_and_the_kinds_are_the_parsers() -> None:
-    assert sorted({d["type"] for d in DECODED} - {"telemetry"}, key=list(KINDS).index) == list(KINDS)             # (a telemetry report is a packet of kind "other" with a type of its own)
+    # A telemetry report is a packet of kind "other" with a type of its own
+    assert sorted({d["type"] for d in DECODED} - {"telemetry"}, key=list(KINDS).index) == list(KINDS)
     for decoded in DECODED:
         row = PacketRow.model_validate_json(json.dumps({**PACKET, "kind": "other" if decoded["type"] == "telemetry" else decoded["type"], "decoded": decoded}))
         assert row.decoded.type == decoded["type"]
@@ -313,7 +319,8 @@ def test_a_message_with_an_extra_field_or_a_missing_one_or_a_wrong_type_is_refus
     broken = [{**example, "surprise": 1}, {k: v for k, v in example.items() if k != "type"}, {**example, "type": "nonsense"}]
     for field in example:
         if field != "type":
-            broken += [{k: v for k, v in example.items() if k != field}] + ([] if field == "value" else [{**example, field: {"a": [object]}}])      # (the value of a state is any: the topic's type checks it)
+            # The value of a state is any: the topic's type checks it
+            broken += [{k: v for k, v in example.items() if k != field}] + ([] if field == "value" else [{**example, field: {"a": [object]}}])
     for message in broken:
         with pytest.raises((ValidationError, TypeError)):
             MESSAGES.validate_json(json.dumps(message, default=str))
@@ -355,19 +362,21 @@ def test_a_message_row_may_be_unconfirmed_and_a_station_pref_has_no_attempts_and
             StationPref.model_validate_json(json.dumps({**pref, "alert": {"on_air": False, "within_km": km, "direct": False}}))
 
 
-# ---- the commands ---------------------------------------------------------------------------------------------------------------------------------
+# ---- the commands --------------------------------------------------------------------------------
 
 def test_every_command_has_an_example_that_round_trips() -> None:
     assert set(COMMAND_EXAMPLES) == COMMAND_NAMES, "a new command needs an example here"
     for name, example in COMMAND_EXAMPLES.items():
         command = COMMANDS.validate_python(example)
-        assert command.cmd == name and command.model_dump(mode="json", exclude_unset=True) == example         # (a field that may be left out, packet_history's call, is not added)
+        # A field that may be left out, packet_history's call, is not added
+        assert command.cmd == name and command.model_dump(mode="json", exclude_unset=True) == example
         again = COMMANDS.validate_json(command.model_dump_json())
         assert again == command
 
 
 def test_the_firewall_of_windows_is_no_part_of_the_protocol_any_more() -> None:
-    """The Mercury NeoAPRS ships binds the loopback on every system: no command asks for a firewall rule, no reason says the firewall stops the modem, and the modem's state has no word of it."""
+    """The Mercury NeoAPRS ships binds the loopback on every system: no command asks for a firewall
+    rule, no reason says the firewall stops the modem, and the modem's state has no word of it."""
     with pytest.raises(ValidationError):
         COMMANDS.validate_python({"cmd": "hf_allow_firewall"})
     assert "hf_allow_firewall" not in COMMAND_NAMES
@@ -384,12 +393,16 @@ def test_a_command_with_an_extra_field_or_a_missing_one_or_a_wrong_type_is_refus
     for field in example:
         if field == "cmd":
             continue
-        broken += [{**example, field: "7" if isinstance(example[field], int) else 7}]       # (a wrong type: text for a number, a number for the rest)
+        # A wrong type: text for a number, a number for the rest
+        broken += [{**example, field: "7" if isinstance(example[field], int) else 7}]
         without = {k: v for k, v in example.items() if k != field}
-        info = next(f for name, f in model.model_fields.items() if (f.alias or name) == field)         # (a field is told by its alias when it has one: `from` of a sked)
+        # A field is told by its alias when it has one: `from` of a sked
+        info = next(f for name, f in model.model_fields.items() if (f.alias or name) == field)
         if info.is_required():
             broken += [without]
-        else:                           # (a field the command may leave out, added after the command was out: packet_history's call, qru_ask's path and rf_only, release_notes' since; a page of before means its default)
+        # A field the command may leave out, added after the command was out: packet_history's call,
+        # qru_ask's path and rf_only, release_notes' since; a page of before means its default
+        else:
             assert getattr(COMMANDS.validate_python(without), field) == info.get_default(call_default_factory=True)
     for command in broken:
         with pytest.raises(ValidationError):

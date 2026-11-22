@@ -1,5 +1,6 @@
-"""The transmit interlock (`config.can_transmit`, `services/interlock.py`, the Tnc's `permit`): a station with no call, or a call that is none (N0CALL, NOCALL, MYCALL, not an amateur call), transmits nothing at all, and the
-defaults are such a station. The rules on their own, then the whole daemon on a pseudo-terminal radio that is never written to; with a call set, everything goes out as before."""
+"""Tests for the transmit interlock (`config.can_transmit`, services/interlock.py, the Tnc's
+`permit`): a station with no call or a placeholder call transmits nothing, and the defaults are such
+a station."""
 import logging
 from dataclasses import replace
 from pathlib import Path
@@ -15,7 +16,7 @@ from tests.support.env import Env, idle_for, quick_start, until
 SET_FIRST = "set your call first"
 
 
-# ---- the rules ------------------------------------------------------------------------------------------------------------------------------
+# ---- the rules -----------------------------------------------------------------------------------
 
 def test_the_defaults_are_a_station_with_no_call_and_no_position() -> None:
     assert (DEFAULTS.station_call, DEFAULTS.station_lat, DEFAULTS.station_lon, DEFAULTS.station_position) == ("", None, None, None)
@@ -51,7 +52,7 @@ def test_the_settings_take_an_empty_call_and_an_empty_position_and_write_them_em
         Config.check("station/lat", "95")
 
 
-# ---- the whole daemon -----------------------------------------------------------------------------------------------------------------------
+# ---- the whole daemon ----------------------------------------------------------------------------
 
 async def started(tmp_path: Path, **changes: object) -> Env:
     e = await quick_start(tmp_path, beacon=True, messaging=True, rigstatus=True, operator=False)
@@ -61,7 +62,8 @@ async def started(tmp_path: Path, **changes: object) -> Env:
 
 
 async def quiet(e: Env, seconds: float = 0.4) -> None:
-    """Nothing came out of the daemon's radio port in this time (the read blocks the loop, so what the daemon would send has had its turn first)."""
+    """Nothing came out of the daemon's radio port in this time (the read blocks the loop, so what
+    the daemon would send has had its turn first)."""
     await idle_for(0.2)
     assert await e.heard(1, seconds) == b"", "something was transmitted"
 
@@ -124,7 +126,8 @@ async def test_with_a_call_set_the_same_things_go_out_and_a_waiting_beacon_goes_
 
 
 async def test_no_position_means_no_beacon_and_no_own_station_but_messages_go(tmp_path: Path) -> None:
-    e = await started(tmp_path, station_call="OH2GBA", beacon_interval_min=1440)           # (the beacon is on: the defaults are a beacon that is off)
+    # (the beacon is on: the defaults are a beacon that is off)
+    e = await started(tmp_path, station_call="OH2GBA", beacon_interval_min=1440)
     assert e.ctl.stationbook.me is None
     assert not e.beacon.send_now("request") and e.beacon.problem.endswith("set your position first")
     await quiet(e)
@@ -141,7 +144,8 @@ async def test_the_tnc_is_still_switched_to_kiss_with_no_call_set_that_is_no_tra
     e = await started(tmp_path, tnc_profile="kenwood-tnc2")
     await until(lambda: e.tnc.stats.opens >= 2)                             # (the TNC was restarted for its profile)
     await e.until_connected()
-    e.feed(b"OH2FZV-2>VP1R61,WIDE1,OH2RCH-2*:!6010.00N/02456.00E>test\r\n")                  # a TNC in command mode, monitoring
+    # a TNC in command mode, monitoring
+    e.feed(b"OH2FZV-2>VP1R61,WIDE1,OH2RCH-2*:!6010.00N/02456.00E>test\r\n")
     await until(lambda: e.tnc.stats.bytes_out >= 17)
     assert await e.heard(17, 2.0) == b"\rKISS ON\rRESTART\r"
     await e.stop()

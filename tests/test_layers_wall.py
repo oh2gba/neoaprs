@@ -1,5 +1,6 @@
-"""The wall round the map's layers of traffic, held on a whole daemon (the architecture test holds it on the imports): under the no-devices switch, with a fake aircraft receiver on the loopback and a page that
-looks at the layer, the aircraft reach the page, and none of them is in the station book, the page's packets, the topic `stations`, or any table of the database."""
+"""Tests for the wall round the traffic layers on a whole daemon: aircraft reach the page and appear
+nowhere in the station book, packets, `stations` topic or database.
+"""
 import sqlite3
 from pathlib import Path
 
@@ -17,7 +18,8 @@ IDS = ("4a0b1c", "4a0b1d", "~2f0c1a")
 
 @pytest.fixture
 def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for every test that does not ask for a fixture of this name)."""
+    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for
+    every test that does not ask for a fixture of this name)."""
     monkeypatch.setenv(nodevices.ENV, "1")
 
 
@@ -42,7 +44,8 @@ async def test_the_aircraft_of_a_receiver_reach_the_page_and_nothing_else(source
     await tab.until(lambda: any(m["type"] == "layer_things" and len(m["things"]) == 3 for m in tab.messages), 10.0)
     await tab.quiet(0.5)
     assert {t["id"] for m in tab.messages if m["type"] == "layer_things" for t in m["things"]} == set(IDS)
-    names = {name.lower() for name in ("FIN7AB", "OH-LZA", *IDS)}                 # (compared case-blind: a leak may well write a hex in capitals, as a call is written)
+    # (compared case-blind: a leak may well write a hex in capitals, as a call is written)
+    names = {name.lower() for name in ("FIN7AB", "OH-LZA", *IDS)}
 
     def leaks(text: str) -> bool:
         return any(name in text.lower() for name in names)

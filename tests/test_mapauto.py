@@ -1,6 +1,7 @@
-"""The detailed map without a click (neoaprs/services/mapauto.py) on the map service cutting the made-up planet from a range server on the loopback: a place starts it, and the guide's "map wanted" does, unless the map there covers the place; a failed job
-(no connection) waits for the next start and says so; the operator's cancel and a stop of the daemon are different things; a place far from the area being made starts it again; and where the process does not ask for it
-(the tests', the scripts') nothing starts."""
+"""The detailed map without a click (neoaprs/services/mapauto.py) on the map service cutting the
+made-up planet: a place or the guide's "map wanted" starts it unless the map covers the place;
+failures, cancel and stop.
+"""
 import struct
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -29,7 +30,8 @@ NEAR_HELSINKI = (60.3, 25.1)                                                # a 
 
 
 def pmtiles_header(box: Box, maxzoom: int = 4) -> bytes:
-    """A PMTiles file as far as the map needs one: the header with the area it covers and the zooms."""
+    """A PMTiles file as far as the map needs one: the header with the area it covers and the zooms.
+    """
     west, south, east, north = (round(v * 1e7) for v in box)
     return b"PMTiles" + bytes([3]) + bytes(92) + struct.pack("<BB4i", 0, maxzoom, west, south, east, north) + bytes(9)
 
@@ -54,7 +56,8 @@ class Rig:
         self.config = replace(DEFAULTS, map_source=server.url, station_lat=place[0] if place else None, station_lon=place[1] if place else None)
         self.world = tmp_path / "shipped" / WORLD
         self.world.parent.mkdir(exist_ok=True)
-        self.world.write_bytes(pmtiles_header((-180.0, -85.0, 180.0, 85.0)))      # the world map the program ships: a header is all it needs here
+        # The world map the program ships: a header is all it needs here
+        self.world.write_bytes(pmtiles_header((-180.0, -85.0, 180.0, 85.0)))
         self.fetch = MapFetch(self.data, lambda: self.config, FixedClock(), world=lambda data: self.world)
         self.auto = MapAuto(self.fetch, lambda: self.config, rows, enabled)
         self.fetch.changed.connect(self.auto.fetch_changed)
@@ -69,7 +72,8 @@ class Rig:
         await until(lambda: not self.fetch.busy, 5)
 
     async def row(self, value: str | None) -> None:
-        """Waits until the row `map/auto` is this (None: not there); the memory is written in a task."""
+        """Waits until the row `map/auto` is this (None: not there); the memory is written in a
+        task."""
         await until(lambda: self.rows.rows.get(MAP_AUTO) == value, 5)
 
     def made_for(self) -> tuple[float, ...]:
@@ -85,7 +89,8 @@ class Rig:
 
 @pytest_asyncio.fixture
 async def make(tmp_path: Path):
-    server = await range_server(planet())                                  # (one for the test: a start of the daemon on the same rows asks the same server)
+    # One for the test: a start of the daemon on the same rows asks the same server
+    server = await range_server(planet())
 
     def build(rows: Rows | None = None, **options: object) -> Rig:
         return Rig(tmp_path, server, rows if rows is not None else Rows(), **options)                    # type: ignore[arg-type]
@@ -137,7 +142,8 @@ async def test_a_map_that_covers_the_place_is_not_made_again_a_move_of_a_few_km_
     await until(lambda: rig.server.cuts == 2 and rig.fetch.status().state == "ready", 5)
     assert rig.made_for() == pytest.approx(box_around(*ROME, 150), abs=1e-5)
     (rig.data / DETAIL).unlink()
-    again = make(rig.rows, place=ROME)                                      # a start of the daemon on the same rows: nothing of its own accord
+    # A start of the daemon on the same rows: nothing of its own accord
+    again = make(rig.rows, place=ROME)
     await again.auto.start()
     await again.idle()
     assert again.server.cuts == 2, "(the same server)"
@@ -209,7 +215,8 @@ async def test_without_a_connection_the_world_stays_the_page_is_told_it_will_com
     status = rig.fetch.status()
     assert status.state == "error" and status.problem == NOT_FOUND and status.detail is None and status.world is not None
     await rig.row("wanted")
-    await rig.move(TURKU)                                                   # (the place changed again: tried again at once, and failing again)
+    # The place changed again: tried again at once, and failing again
+    await rig.move(TURKU)
     await until(lambda: rig.fetch.status().later and rig.server.cuts == 2, 5)
     rig.server.mode = "ranges"
     start = make(rig.rows, place=HELSINKI)                                  # the next start of the daemon
@@ -227,9 +234,11 @@ async def test_a_failed_job_is_not_settled_by_an_old_map_of_another_place(make) 
     await until(lambda: rig.fetch.status().state == "ready", 5)
     await rig.row("done")
     rig.server.mode = "missing"
-    await rig.move(ROME)                                                    # (the map of Helsinki is there, it does not cover Rome)
+    # The map of Helsinki is there, it does not cover Rome
+    await rig.move(ROME)
     await rig.idle()
-    await until(lambda: rig.fetch.later, 5)                                 # (the status shows `later` only while there is no detailed map at all)
+    # The status shows `later` only while there is no detailed map at all
+    await until(lambda: rig.fetch.later, 5)
     status = rig.fetch.status()
     assert status.state == "error" and status.detail is not None and not covers(status.detail, *ROME, 150)
     await rig.row("wanted")
@@ -264,8 +273,11 @@ async def test_the_operators_cancel_settles_it_the_next_start_does_not_try_again
     again.auto.wanted()                                                     # the guide run again
     await until(lambda: again.server.cuts == 2, 5)
     await again.row("wanted")
-    await again.auto.stop()                                                 # (that daemon ends before the next one has the data folder: its cut is held by the server, and on
-    await again.fetch.stop()                                                # Windows a second job cannot delete the part file that the first still has open)
+    # (that daemon ends before the next one has the data folder: its cut is held by the server, and
+    # on
+    await again.auto.stop()
+    # Windows a second job cannot delete the part file that the first still has open)
+    await again.fetch.stop()
     stopped = make()
     stopped.hold()
     await stopped.auto.start()
@@ -273,7 +285,8 @@ async def test_the_operators_cancel_settles_it_the_next_start_does_not_try_again
     await until(lambda: stopped.server.holding > 0, 5)
     await stopped.auto.stop()
     await stopped.fetch.stop()
-    await stopped.row("wanted")                                             # (the daemon endedthe job is still wanted at the next start)
+    # The daemon endedthe job is still wanted at the next start
+    await stopped.row("wanted")
 
 
 async def test_a_place_outside_the_area_that_is_being_made_starts_it_again_for_that_place_and_one_inside_does_not(make) -> None:
@@ -335,7 +348,8 @@ async def test_the_place_the_setup_sends_makes_the_map_round_it_and_the_page_is_
     paris = pytest.approx(box_around(48.85, 2.35, 150), abs=1e-5)
 
     def made_again() -> bool:
-        # (the state is still "ready" from the first map until the page hears of the second job, and the second cut is counted when it begins: the new file is what says it is over)
+        # (the state is still "ready" from the first map until the page hears of the second job, and
+        # the second cut is counted when it begins: the new file is what says it is over)
         header = read_header(tmp_path / "basemap.pmtiles")
         return server.cuts == 2 and page.topics["map"]["state"] == "ready" and header is not None and header.bbox == paris
     await page.until(made_again, 10)

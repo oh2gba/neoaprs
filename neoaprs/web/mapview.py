@@ -1,4 +1,4 @@
-"""The `map` topic's value, made from the map service's status and the layers' states (the models are in neoaprs/web/mapwire.py and neoaprs/web/layerwire.py)."""
+"""Value of the topic `map` (models in mapwire.py and layerwire.py)."""
 from collections.abc import Iterable, Mapping
 from typing import Any
 
@@ -24,13 +24,13 @@ def _problem(problem: MapError | None) -> dict[str, Any] | None:
 
 
 def layer_row(state: LayerState) -> dict[str, Any]:
-    """A layer of traffic as `MapLayer` says it; the receiver's state says nothing of its address."""
+    """Return a traffic layer as `MapLayer` has it; the receiver's address is left out."""
     receiver = None if state.receiver is None else {"state": state.receiver.state, "things": state.receiver.things, "heard_at": iso(state.receiver.heard_at)}
     return {"layer": state.layer, "source": state.source, "offered": list(state.offered), "receiver": receiver}
 
 
 def map_state(status: MapStatus, aloha: Mapping[int, float] | None = None, layers: Iterable[LayerState] = ()) -> dict[str, Any]:
-    """The topic's value; `aloha` the radius of each radio's ALOHA circle by its id (services/aloha.py `radii`), `layers` the layers of traffic (services/layers.py `states`)."""
+    """Return the topic value; `aloha` maps radio id to its ALOHA circle radius."""
     return {"state": status.state, "step": status.step, "percent": status.percent, "downloaded": status.downloaded, "retry": None if status.retry is None else {"attempt": status.retry[0], "tries": status.retry[1]},
             "blocked": status.blocked_code, "problem": _problem(status.failure), "estimate": _estimate(status.estimate),
             "radius_km": status.radius_km, "maxzoom": status.maxzoom, "box": list(status.box) if status.box else None, "detail": _file(status.detail), "world": _file(status.world), "later": status.later,

@@ -1,7 +1,7 @@
-"""Real Mercury instances and real NeoAPRS daemons on one computer, for the developer's benches (scripts/mercury-bench, scripts/mercury-sim): a Mercury started on Mercury's `fifo` audio backend (raw s32le PCM at
-8 kHz through two named pipes, what it hears in and what it transmits out, so that a channel of ours can be the air between several of them), a daemon on a data folder of its own attached to that Mercury's ports
-(`--port socket://127.0.0.1:BROADCAST`, as to any Mercury something else runs), and a page's socket on the daemon that holds the topics as the page would and drives it with the page's commands. The daemon may be
-the checkout's (`python -m neoaprs`) or an installed one (the .deb's `/usr/bin/neoaprs`, the AppImage), so that the same scenario runs against what ships."""
+"""Real Mercury instances and real NeoAPRS daemons on one computer, for the developer's benches
+(scripts/mercury-bench, scripts/mercury-sim): Mercury on its `fifo` audio backend, a daemon attached
+to its ports, and a page socket that drives it with the page's commands.
+"""
 import asyncio
 import json
 import os
@@ -21,11 +21,13 @@ SAMPLE_BYTES = 4                 # s32le: the 16-bit sample in the top half of e
 
 
 class Failure(Exception):
-    """What a bench says when the thing it waited for did not happen; its text is the whole report."""
+    """What a bench says when the thing it waited for did not happen; its text is the whole report.
+    """
 
 
 def fifo(folder: Path, name: str) -> str:
-    make = getattr(os, "mkfifo", None)              # (POSIX; the Windows type check knows no such name: the benches on named pipes run on Linux)
+    # POSIX; the Windows type check knows no such name: the benches on named pipes run on Linux
+    make = getattr(os, "mkfifo", None)
     if make is None:
         raise Failure("named pipes of this kind are Linux's")
     path = folder / name
@@ -34,9 +36,12 @@ def fifo(folder: Path, name: str) -> str:
 
 
 def mercury_ini(busy_detect: bool = True, busy_threshold_db: int | None = None, leadin_ms: int = 0, ui_port: int = 0, tx_gain_db: int = 0) -> str:
-    """What NeoAPRS writes for a Mercury it starts itself, as far as a bench needs it: the busy detector (the one carrier sense of the plane, with the threshold the daemon writes, `BUSY_THRESHOLD_DB`, unless a bench tries
-    another), no message store, and, when `leadin_ms` is above 0, the lead-in tone of a VOX keying (what the daemon writes is `LEADIN_MS`); with a `ui_port` the UI interface on it, the spectrum feed off, as the daemon writes it,
-    and the transmit gain."""
+    """What NeoAPRS writes for a Mercury it starts itself, as far as a bench needs it: the busy
+    detector (the one carrier sense of the plane, with the threshold the daemon writes,
+    `BUSY_THRESHOLD_DB`, unless a bench tries another), no message store, and, when `leadin_ms` is
+    above 0, the lead-in tone of a VOX keying (what the daemon writes is `LEADIN_MS`); with a
+    `ui_port` the UI interface on it, the spectrum feed off, as the daemon writes it, and the
+    transmit gain."""
     threshold = f"busy_threshold_db = {BUSY_THRESHOLD_DB if busy_threshold_db is None else busy_threshold_db}\n"
     audio = f"[audio]\ntx_gain_db = {tx_gain_db}\n" + (f"tx_leadin_ms = {leadin_ms}\n" if leadin_ms else "") if (leadin_ms or tx_gain_db) else ""
     ui = f"[main]\nui_enabled = true\nui_port = {ui_port}\nwaterfall_enabled = false\n" if ui_port else ""
@@ -44,8 +49,11 @@ def mercury_ini(busy_detect: bool = True, busy_threshold_db: int | None = None, 
 
 
 def start_mercury(binary: str, folder: Path, name: str, capture: str, playback: str, ports: tuple[int, int], busy_detect: bool = True, busy_threshold_db: int | None = None, leadin_ms: int = 0, ui_port: int = 0, tx_gain_db: int = 0) -> subprocess.Popen[bytes]:
-    """One Mercury on the fifo backend: it hears `capture`, transmits into `playback`, serves KISS on ports[0] and its control port on ports[1] (200 above, as the daemon expects), keys nothing (`-P none`), logs to the folder.
-    ALSA_CONFIG_PATH is the bundled configuration beside the program when there is one (the fifo backend opens no sound card, but the program still reads the configuration at start)."""
+    """One Mercury on the fifo backend: it hears `capture`, transmits into `playback`, serves KISS
+    on ports[0] and its control port on ports[1] (200 above, as the daemon expects), keys nothing
+    (`-P none`), logs to the folder. ALSA_CONFIG_PATH is the bundled configuration beside the
+    program when there is one (the fifo backend opens no sound card, but the program still reads the
+    configuration at start)."""
     out = (folder / f"mercury-{name}.log").open("wb")
     ini = folder / f"mercury-{name}.ini"
     ini.write_text(mercury_ini(busy_detect, busy_threshold_db, leadin_ms, ui_port, tx_gain_db), encoding="utf-8")
@@ -58,11 +66,15 @@ def start_mercury(binary: str, folder: Path, name: str, capture: str, playback: 
 
 
 def daemon_env() -> dict[str, str]:
-    """The environment of a daemon of the bench: its radio is the port it is given, so it opens no serial port of the machine, it asks no version page, and it is under the no-devices switch."""
+    """The environment of a daemon of the bench: its radio is the port it is given, so it opens no
+    serial port of the machine, it asks no version page, and it is under the no-devices switch."""
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG")}
     env["NEOAPRS_SERIAL_PATTERN"] = "/dev/neoaprs-bench-no-such-port*"
     env["NEOAPRS_UPDATE_CHECK"] = "0"
-    env["NEOAPRS_NO_DEVICES"] = "1"                 # (its HF radio is the Mercury it is given with --hf-port, on a port outside the ones a real modem may listen on, which the switch lets through; no device of the machine and nothing but this computer otherwise: neoaprs/nodevices.py)
+    # Its HF radio is the Mercury it is given with --hf-port, on a port outside the ones a real
+    # modem may listen on, which the switch lets through; no device of the machine and nothing but
+    # this computer otherwise: neoaprs/nodevices.py
+    env["NEOAPRS_NO_DEVICES"] = "1"
     return env
 
 
@@ -72,8 +84,11 @@ def default_daemon() -> list[str]:
 
 
 def write_settings(data: Path, rows: dict[str, str], daemon: list[str] | None = None, radios: tuple[tuple[str, bool], ...] = ()) -> None:
-    """The settings of a station before its daemon starts, written with the daemon's own command line: first its radios (type, whether it is on), added with `db radios add` in that order, so that
-    the database numbers them 1, 2 ... (the HF radio that --hf-port attaches is the first Mercury radio: radio 2 after an FM radio), then the rows with `db set` (a radio's own as `radio/<id>/<key>`)."""
+    """The settings of a station before its daemon starts, written with the daemon's own command
+    line: first its radios (type, whether it is on), added with `db radios add` in that order, so
+    that the database numbers them 1, 2 ... (the HF radio that --hf-port attaches is the first
+    Mercury radio: radio 2 after an FM radio), then the rows with `db set` (a radio's own as
+    `radio/<id>/<key>`)."""
     for type, on in radios:
         subprocess.run([*(daemon or default_daemon()), "db", "--data", str(data), "radios", "add", type, *([] if on else ["--off"])], check=True, capture_output=True, env=daemon_env())
     for key, value in rows.items():
@@ -81,14 +96,17 @@ def write_settings(data: Path, rows: dict[str, str], daemon: list[str] | None = 
 
 
 def start_daemon(data: Path, ports: tuple[int, int], daemon: list[str] | None = None, fm_port: int = 0) -> subprocess.Popen[bytes]:
-    """A daemon on its data folder, its HF radio attached to the Mercury on these ports (and its FM radio to the KISS hub on `fm_port`, when given), its page on a free port; its output beside the folder."""
+    """A daemon on its data folder, its HF radio attached to the Mercury on these ports (and its FM
+    radio to the KISS hub on `fm_port`, when given), its page on a free port; its output beside the
+    folder."""
     out = (data.parent / f"{data.name}.out").open("wb")
     argv = [*(daemon or default_daemon()), "--data", str(data), "--hf-port", f"socket://127.0.0.1:{ports[0]}", "--web-port", "0", *(["--port", f"socket://127.0.0.1:{fm_port}"] if fm_port else [])]
     return subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, env=daemon_env())
 
 
 def wait_for_page(daemon: subprocess.Popen[bytes], data: Path, seconds: float, offset: int = 0) -> str:
-    """The address of the daemon's page, read from its log when it is up (from `offset` bytes into the log: a daemon started again on the same folder writes after the old run's lines)."""
+    """The address of the daemon's page, read from its log when it is up (from `offset` bytes into
+    the log: a daemon started again on the same folder writes after the old run's lines)."""
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
         if daemon.poll() is not None:
@@ -104,7 +122,8 @@ def wait_for_page(daemon: subprocess.Popen[bytes], data: Path, seconds: float, o
 
 
 def stop(process: subprocess.Popen[bytes], seconds: float) -> int | None:
-    """Ends a process as the system would (SIGTERM), kills it when it does not end in time; its exit code."""
+    """Ends a process as the system would (SIGTERM), kills it when it does not end in time; its exit
+    code."""
     if process.poll() is None:
         process.send_signal(signal.SIGTERM)
         try:
@@ -116,14 +135,17 @@ def stop(process: subprocess.Popen[bytes], seconds: float) -> int | None:
 
 
 class Page:
-    """A page's socket on a daemon: the topics as the page holds them, the errors, and the commands. The socket is read all the time by a task of its own (a daemon drops a page that answers no ping for a while, and
-    a station nobody is waiting for must stay current), so a wait is for a condition on the topics as they are."""
+    """A page's socket on a daemon: the topics as the page holds them, the errors, and the commands.
+    The socket is read all the time by a task of its own (a daemon drops a page that answers no ping
+    for a while, and a station nobody is waiting for must stay current), so a wait is for a
+    condition on the topics as they are."""
 
     def __init__(self, name: str) -> None:
         self.name = name
         self.topics: dict[str, Any] = {}
         self.errors: list[dict[str, Any]] = []
-        self.on_error: Callable[[str, dict[str, Any]], None] | None = None          # told of every refusal the daemon sends the page, as it comes
+        # Told of every refusal the daemon sends the page, as it comes
+        self.on_error: Callable[[str, dict[str, Any]], None] | None = None
         self.closed = False
         self._connection: Any = None
         self._changed = asyncio.Event()
@@ -148,13 +170,18 @@ class Page:
         await self._connection.write_message(json.dumps(command))
 
     async def until(self, what: str, condition: Callable[[], bool], seconds: float, since: float | None = None) -> float:
-        """Waits until the condition holds on the topics; the seconds it took, from `since` (a loop time: the moment a command was sent) or from now. Failure, with the radio's and the modem's state and the last
-        refusal, when it does not within `seconds` or the daemon closed the socket."""
+        """Wait until the condition holds on the topics; return the seconds it took, from `since` (a
+        loop time) or now.
+
+        Fail, with the radio's and modem's state and the last refusal, after `seconds` or when the
+        daemon closes.
+        """
         loop = asyncio.get_running_loop()
         started = since if since is not None else loop.time()
         deadline = loop.time() + seconds
         while True:
-            self._changed.clear()                   # (cleared before the look, so that a message between the look and the wait is not missed)
+            # Cleared before the look, so that a message between the look and the wait is not missed
+            self._changed.clear()
             if condition():
                 return loop.time() - started
             if self.closed:
@@ -169,7 +196,8 @@ class Page:
                 pass
 
     async def drain(self, seconds: float) -> None:
-        """Lets `seconds` pass with the socket read as always (for a step that has nothing to wait for but time)."""
+        """Lets `seconds` pass with the socket read as always (for a step that has nothing to wait
+        for but time)."""
         await asyncio.sleep(seconds)
 
     def _apply(self, message: dict[str, Any]) -> None:
@@ -191,7 +219,8 @@ class Page:
                 self.on_error(self.name, message)
 
     def radio(self, kind: str) -> dict[str, Any]:
-        """The radio of a kind as the page holds it: the first enabled one of the topic `radios` by position; {} while there is none or the topic is not told."""
+        """The radio of a kind as the page holds it: the first enabled one of the topic `radios` by
+        position; {} while there is none or the topic is not told."""
         rows = self.topics.get("radios") or {}
         live = sorted((r for r in rows.values() if r.get("kind") == kind and r.get("enabled") and not r.get("removed")), key=lambda r: (r.get("position", 0), r.get("id", 0)))
         return live[0] if live else {}
@@ -200,7 +229,9 @@ class Page:
         return self.radio("hf").get("modem") or {}
 
     def free(self) -> bool:
-        """The radio connected and the modem neither keyed nor hearing a signal: a frame handed to it now goes at once (`beacon_now` and `send_message` are refused while the radio is held)."""
+        """The radio connected and the modem neither keyed nor hearing a signal: a frame handed to
+        it now goes at once (`beacon_now` and `send_message` are refused while the radio is held).
+        """
         return self.ready() and not self.modem().get("keyed") and not self.modem().get("busy")
 
     def ready(self) -> bool:
@@ -208,7 +239,8 @@ class Page:
         return self.radio("hf").get("state") == "connected" and self.modem().get("state") == "running"
 
     def fm_connected(self) -> bool:
-        """The FM radio (the first of the kind of the topic `radios`) connected to its line; any other state, waiting between two attempts or silent, is a radio that is not there."""
+        """The FM radio (the first of the kind of the topic `radios`) connected to its line; any
+        other state, waiting between two attempts or silent, is a radio that is not there."""
         return self.radio("fm").get("state") == "connected"
 
     def stations(self) -> dict[str, Any]:
@@ -232,7 +264,9 @@ class Page:
 
 
 class AprsIs:
-    """A stand-in APRS-IS on the loopback for the iGate of a bench: greets, verifies any login, keeps every line gated to it. (The suite's tests/support/fakeaprsis.py needs pytest; a bench runs on the daemon's Python alone.)"""
+    """A stand-in APRS-IS on the loopback for the iGate of a bench: greets, verifies any login,
+    keeps every line gated to it. (The suite's tests/support/fakeaprsis.py needs pytest; a bench
+    runs on the daemon's Python alone.)"""
 
     def __init__(self) -> None:
         self.packets: list[str] = []
@@ -265,8 +299,11 @@ class AprsIs:
 
 
 class FmHub:
-    """The FM air of a bench: a KISS-over-TCP server every FM radio of the simulation connects to as its TNC (the type kiss-tcp), where every frame one client writes is written to every other at once. No digipeaters,
-    no collisions: the VHF network is the suite's business; here it is the other radio beside HF. `frames` keeps every frame relayed, as (from the client's number, the KISS bytes)."""
+    """The FM air of a bench: a KISS-over-TCP server every FM radio of the simulation connects to as
+    its TNC (the type kiss-tcp), where every frame one client writes is written to every other at
+    once. No digipeaters, no collisions: the VHF network is the suite's business; here it is the
+    other radio beside HF. `frames` keeps every frame relayed, as (from the client's number, the
+    KISS bytes)."""
 
     def __init__(self) -> None:
         self.port = 0
@@ -276,12 +313,15 @@ class FmHub:
         self._count = 0
 
     async def start(self) -> None:
-        """Listens on the hub's port (a free one the first time; after `hang_up` the same one again, which is where the radios' daemons come back to)."""
+        """Listens on the hub's port (a free one the first time; after `hang_up` the same one again,
+        which is where the radios' daemons come back to)."""
         self._server = await asyncio.start_server(self._client, "127.0.0.1", self.port)
         self.port = self._server.sockets[0].getsockname()[1]
 
     def hang_up(self) -> None:
-        """The FM air goes away as a radio unplugged or out of power does: the hub stops listening and closes every connection, so that each FM radio of the simulation loses its line and goes on trying; `start` brings it back."""
+        """The FM air goes away as a radio unplugged or out of power does: the hub stops listening
+        and closes every connection, so that each FM radio of the simulation loses its line and goes
+        on trying; `start` brings it back."""
         self.close()
         self._server = None
         for writer in list(self._writers.values()):

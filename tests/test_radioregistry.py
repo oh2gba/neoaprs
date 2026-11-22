@@ -1,8 +1,7 @@
-"""The radio registry (neoaprs/radioregistry.py): the radios of the settings at run time, any number of them. With radios of a test (tests/support/fakedriver.py: drivers that open nothing and write down what
-they are asked): a radio is made for every one the settings have and dropped with it, a save restarts the radio whose driver's key or tickbox changed and no other, the one lifecycle (stop, take the settings,
-start while enabled) touches one radio alone, a third radio is started and stopped on its own, each beacon runs while its radio is on, and the choices (the radio of a station, of a packet, of
-an email, the operator's own by station) are the rule modules' (radiospec, messagerule, emailrule) and, for two radios, what the two radios of before chose (tests/support/tworadios.py). With the daemon: radios 1 and 2 are the registry's,
-under the names the page and the tests reach them by; Find my radio lets go of both and takes them again, as before, and the hold of one radio alone is ready for the day the page names it."""
+"""The radio registry (neoaprs/radioregistry.py): the radios of the settings at run time, any
+number. With test radios (tests/support/fakedriver.py): one per setting radio, a save restarts only
+the radio whose key changed.
+"""
 import asyncio
 import itertools
 import json
@@ -105,9 +104,11 @@ def test_a_sync_names_the_radio_whose_key_or_tickbox_changed_and_no_other_and_sa
 
 
 def test_a_sync_reads_what_differs_against_the_settings_in_force_at_that_moment() -> None:
-    """The port the search found is put in force without a save (neoaprs/wiring.py): the next save must not take it for a change of the radio."""
+    """The port the search found is put in force without a save (neoaprs/wiring.py): the next save
+    must not take it for a change of the radio."""
     rig = registry_of(with_radios(ON_AIR, THREE))
-    rig.config = with_radios(replace(ON_AIR, serial_skip="/dev/ttyS0"), THREE)                 # (put in force past the registry)
+    # Put in force past the registry
+    rig.config = with_radios(replace(ON_AIR, serial_skip="/dev/ttyS0"), THREE)
     assert rig.put(with_radios(replace(ON_AIR, serial_skip="/dev/ttyS0", station_comment="x"), THREE)) == []
     assert rig.put(with_radios(replace(ON_AIR, station_comment="x"), THREE)) == [1, 2, 3]
 
@@ -200,7 +201,8 @@ async def test_the_registry_configures_every_radio_and_repoints_the_line_of_one(
 
 
 async def test_a_radio_whose_type_has_another_driver_gets_it_at_its_restart_on_the_line_it_had(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(radioregistry, "driver_key", lambda made_for: "tcp" if made_for.type == "kiss-tcp" else "serial")       # (no two types of one kind have two drivers yet)
+    # No two types of one kind have two drivers yet
+    monkeypatch.setattr(radioregistry, "driver_key", lambda made_for: "tcp" if made_for.type == "kiss-tcp" else "serial")
     rig = registry_of(with_radios(ON_AIR, THREE))
     await rig.registry.restart(3)
     old, radio = rig.drivers[3], rig.registry.get(3)
@@ -230,7 +232,8 @@ def test_the_driver_of_a_type_is_its_own_and_the_modems_for_the_dummy_hf_radio(t
 
 # ---- the choice of a radio
 
-CASES = list(itertools.product((True, False), (True, False), (0, 4), (0, 2), (None, FM_ID, HF_ID), (True, False)))     # FM on, HF on, heard on FM, on HF, the choice, the station in the book
+# FM on, HF on, heard on FM, on HF, the choice, the station in the book
+CASES = list(itertools.product((True, False), (True, False), (0, 4), (0, 2), (None, FM_ID, HF_ID), (True, False)))
 
 
 @pytest.mark.parametrize(("fm_on", "hf_on", "fm", "hf", "choice", "known"), CASES)
@@ -353,7 +356,8 @@ async def test_the_choices_of_the_row_are_put_on_the_stations_of_the_book_and_a_
 async def test_the_daemons_two_radios_are_the_registrys_with_their_drivers_and_the_lines_the_test_hands_in(tmp_path: Path) -> None:
     e = Env(tmp_path, radio=False, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
     ctl = e.ctl
-    e.mercury._finder = lambda: None                                           # (no program: the speaker is a nice-to-have, and the dummy works without it)
+    # No program: the speaker is a nice-to-have, and the dummy works without it
+    e.mercury._finder = lambda: None
     assert isinstance(ctl.radios, RadioRegistry) and [r.id for r in ctl.radios.all()] == [FM_ID, HF_ID], "made with the process, from the defaults"
     fm, hf = ctl.radios.all()
     assert isinstance(fm, LiveRadio) and (e.tnc, e.beacon) == (fm.line, fm.beacon) and (e.hf, e.mercury, e.beacon_2) == (hf.line, hf.driver.modem, hf.beacon)
@@ -388,7 +392,8 @@ async def test_the_daemons_two_radios_are_the_registrys_with_their_drivers_and_t
 
 
 def searching(url: str, finder: RadioFinder, radio: RadioId | None = None) -> "asyncio.Task[Found | None]":
-    """A search of the finder over the one port of a fake TNC (tests/support/faketnc.py) that says nothing, under way: no device of the machine is listed or opened."""
+    """A search of the finder over the one port of a fake TNC (tests/support/faketnc.py) that says
+    nothing, under way: no device of the machine is listed or opened."""
     async def listed() -> list[str]:
         return [url]
 
@@ -397,11 +402,14 @@ def searching(url: str, finder: RadioFinder, radio: RadioId | None = None) -> "a
 
 
 async def test_find_my_radio_of_the_daemon_lets_go_of_the_fm_radio_alone_and_starts_it_again_while_hf_runs(tmp_path: Path) -> None:
-    """The daemon's own finder, asked as the page asks it with no radio named (the handler gives it radio 1: tests/test_radiofinder_wire.py): the FM radio lets go of its line for the search, the Mercury radio
-    and its modem keep running, and the FM radio takes its line again after it, with its beacon."""
+    """The daemon's own finder, asked as the page asks it with no radio named (the handler gives it
+    radio 1: tests/test_radiofinder_wire.py): the FM radio lets go of its line for the search, the
+    Mercury radio and its modem keep running, and the FM radio takes its line again after it, with
+    its beacon."""
     silent = await FakeTncServer("silent").start()
     e = Env(tmp_path / "data", settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
-    e.mercury._finder = lambda: None                                         # (no program: the Dummy HF radio works without its speaker)
+    # No program: the Dummy HF radio works without its speaker
+    e.mercury._finder = lambda: None
     await e.start()
     fm, hf = e.ctl.radios.all()
     await until(lambda: fm.state is hf.state is Source.State.CONNECTED)
@@ -417,7 +425,9 @@ async def test_find_my_radio_of_the_daemon_lets_go_of_the_fm_radio_alone_and_sta
 
 
 async def test_a_finder_given_the_hold_of_one_radio_lets_go_of_that_radio_alone_and_takes_the_stations_one_search_at_a_time(tmp_path: Path) -> None:
-    """The finder made as the composition root makes it (the controller's hold_radio and release_radio, the registry's table and lock), asked for radio 1: the station's one search at a time."""
+    """The finder made as the composition root makes it (the controller's hold_radio and
+    release_radio, the registry's table and lock), asked for radio 1: the station's one search at a
+    time."""
     silent = await FakeTncServer("silent").start()
     e = Env(tmp_path / "data", settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
     e.mercury._finder = lambda: None
@@ -438,12 +448,15 @@ async def test_a_finder_given_the_hold_of_one_radio_lets_go_of_that_radio_alone_
 
 
 async def test_a_third_radio_in_the_daemon_is_started_heard_by_the_parts_and_stopped_alone(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """A third radio added (the database gives it its id) and given its port: the daemon's own driver, line, beacon and wiring take it. The radios are a field of the settings: a save of another setting keeps
-    it, and its removal stops it alone."""
+    """A third radio added (the database gives it its id) and given its port: the daemon's own
+    driver, line, beacon and wiring take it. The radios are a field of the settings: a save of
+    another setting keeps it, and its removal stops it alone."""
     caplog.set_level(logging.INFO, "neoaprs.controller")
-    e = Env(tmp_path, settings={"hf/profile": "mercury"})                     # (radios 1 and 2, the HF one off: the radio added is the third)
+    # Radios 1 and 2, the HF one off: the radio added is the third
+    e = Env(tmp_path, settings={"hf/profile": "mercury"})
     await e.start()
-    other = await e.new_radio()                                                  # a KISS server on the loopback: the third radio's
+    # A KISS server on the loopback: the third radio's
+    other = await e.new_radio()
     fm_line = e.tnc._generation
     id = await e.ctl.add_radio("kiss-tcp", enabled=False)
     assert id == 3 and await e.ctl.save_radio_settings(id, {"port": other.url}) and await e.ctl.change_radio(id, enabled=True)
@@ -470,7 +483,8 @@ def test_the_stub_registry_of_the_services_tests_chooses_as_the_stub_radios_do_a
     before, pick = StubRadios(hf_stations=("OH2C",)), StubRegistry(hf_stations=("OH2C",))
     before.enabled = {kind for kind, on in (("fm", fm_on), ("hf", hf_on)) if on}
     pick.on = {id for id, on in ((FM_ID, fm_on), (HF_ID, hf_on)) if on}
-    same = {id(before.fm): pick.fm, id(before.hf): pick.hf}                                # the stub of the one set and its like in the other
+    # The stub of the one set and its like in the other
+    same = {id(before.fm): pick.fm, id(before.hf): pick.hf}
     on_fm, on_hf = replace(from_internet("OH2C", b">on FM", T0), via="rf", radio_id=FM_ID), replace(from_internet("OH2C", b">on HF", T0), via="rf", radio_id=HF_ID)
     assert stub_pick(pick).enabled() == [same[id(radio)] for radio in before.on] and pick.email() is (pick.fm if fm_on else pick.hf if hf_on else None)
     if not fm_on and not hf_on:

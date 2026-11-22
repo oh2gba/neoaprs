@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
-# The smoke test of the macOS app made by scripts/build-macos-app, as a user would meet it: the disk image opened and the app copied out of it, run on a home and data folders of its own, with no radio and no serial device,
-# and nothing leaves the loopback.
+# The smoke test of the macOS app made by scripts/build-macos-app, as a user would meet it: the disk
+# image opened and the app copied out of it, run on a home and data folders of its own, with no
+# radio and no serial device, and nothing leaves the loopback.
 #
 #   scripts/smoke-macos-app FILE [--python PYTHON] [--no-mercury]
 #
-# FILE is the .dmg (or an unpacked NeoAPRS.app). It checks, in order: the signature (`codesign --verify --deep --strict`); `--version` through the launcher; the Mercury inside (Contents/Resources/tools/mercury/mercury must
-# load the system's frameworks alone and say the version neoaprs/mercury.py pins; --no-mercury for an app built with scripts/build-macos-app --no-mercury); the install kind the Python inside detects (macos-app, arm64);
-# scripts/smoke.py against the launcher (a fake KISS TNC on a TCP port, the page and its WebSocket, the stop by SIGTERM); the daemon on its own (no `--port`: it has no radio, the page answers, it ends cleanly); `service
-# install` with a HOME and a launchctl of the test's own, whose agent must run the Python inside the bundle; and the desktop app started with no arguments on the offscreen platform, which must start its daemon and the window
-# with the web engine, stay up, and end at `app --quit` together with the daemon. PYTHON (default .venv/bin/python, else python3) runs smoke.py and needs Tornado. Exit code 0: all is well; 1: the first thing that was not.
+# FILE is the .dmg (or an unpacked NeoAPRS.app). It checks, in order: the signature (`codesign
+# --verify --deep --strict`); `--version` through the launcher; the Mercury inside
+# (Contents/Resources/tools/mercury/mercury must load the system's frameworks alone and say the
+# version neoaprs/mercury.py pins; --no-mercury for an app built with scripts/build-macos-app
+# --no-mercury); the install kind the Python inside detects (macos-app, arm64); scripts/smoke.py
+# against the launcher (a fake KISS TNC on a TCP port, the page and its WebSocket, the stop by
+# SIGTERM); the daemon on its own (no `--port`: it has no radio, the page answers, it ends cleanly);
+# `service install` with a HOME and a launchctl of the test's own, whose agent must run the Python
+# inside the bundle; and the desktop app started with no arguments on the offscreen platform, which
+# must start its daemon and the window with the web engine, stay up, and end at `app --quit`
+# together with the daemon. PYTHON (default .venv/bin/python, else python3) runs smoke.py and needs
+# Tornado. Exit code 0: all is well; 1: the first thing that was not.
 case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -43,12 +51,14 @@ cleanup() {
     rm -rf "$work"
 }
 trap cleanup EXIT
-# a variable of the shell this is run from could point the program at a data folder or a home of the user's; the data folder of a Mac is under the home, so the home is the test's own
+# a variable of the shell this is run from could point the program at a data folder or a home of the
+# user's; the data folder of a Mac is under the home, so the home is the test's own
 unset NEOAPRS_DATA_DIR NEOAPRS_DEBUG
 export HOME="$work/home"
 mkdir -p "$HOME"
 
-# the app out of the image (a user drags it to Applications: ditto is that copy), or the folder given
+# the app out of the image (a user drags it to Applications: ditto is that copy), or the folder
+# given
 if [ -d "$file" ]; then
     app="$work/NeoAPRS.app"
     ditto "$file" "$app"
@@ -98,7 +108,8 @@ PY
 say "scripts/smoke.py against the launcher"
 "$python" "$ROOT/scripts/smoke.py" --command "$run"
 
-# The daemons with no radio search no port: on a machine with serial devices they would listen to them all (other programs' ports, boards that reset when opened).
+# The daemons with no radio search no port: on a machine with serial devices they would listen to
+# them all (other programs' ports, boards that reset when opened).
 NO_PORTS=/dev/neoaprs-smoke-no-such-port
 
 # wait_for FILE PATTERN SECONDS: until the log has the line
@@ -132,7 +143,8 @@ PATH="$work/fake-bin:$PATH" "$run" service install --data "$work/service-data" >
 agent="$HOME/Library/LaunchAgents/eu.oh2gba.neoaprs.plist"
 [ -f "$agent" ] || fail "no agent was written at $agent"
 program="$(plutil -extract ProgramArguments.0 raw -o - "$agent")"
-# (the same file, not the same spelling: the daemon writes the real path, /private/var/..., of a temporary folder a Mac names /var/...)
+# (the same file, not the same spelling: the daemon writes the real path, /private/var/..., of a
+# temporary folder a Mac names /var/...)
 [ "$program" -ef "$inner" ] || { plutil -p "$agent" >&2; fail "the agent does not run $inner but $program"; }
 
 say "the desktop app (no arguments, offscreen) starts its daemon and the window, and ends at --quit"

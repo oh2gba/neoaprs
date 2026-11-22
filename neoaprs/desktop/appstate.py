@@ -1,6 +1,7 @@
-"""What the app keeps in the data folder, beside the database and not in it: the window's geometry (`neoaprs-app.json`: its size, its place and whether it is maximized, and on Windows the placement Windows itself keeps), the log of the app (`neoaprs-app.log`) and the folder
-where the web engine keeps what the page stores (`webview/`: localStorage, so the page's panel width, map view and read messages survive a restart; `webkit/` for the web window's WebKitGTK on Linux, whose store is
-its own). A file that cannot be read is the default, never an error: the window must open."""
+"""What the app keeps in the data folder, beside the database.
+
+The window geometry, the app log and the web engine's storage folders. A file that cannot be
+read gives the default, never an error: the window must open."""
 import json
 import logging
 import logging.handlers
@@ -16,17 +17,17 @@ WEBKIT_NAME = "webkit"
 DEFAULT_SIZE = (1280, 800)
 MIN_SIZE = (480, 320)
 MAX_SIZE = (16000, 16000)
-# A point of the title bar, from the top left corner of the frame: a window whose title bar shows
-# on a screen at this point can be taken hold of.
+# A window whose title bar shows on a screen at this point (from the frame's corner) can be grabbed.
 TITLE_POINT = (64, 16)
-MAX_PLACE = 30_000                              # a place further out than this is nonsense (Windows puts a minimised window at -32000; three 4K monitors side by side end short of this)
+# Windows puts a minimised window at -32000.
+MAX_PLACE = 30_000
 
 
 @dataclass(frozen=True)
 class WindowState:
-    """The window as it was left: the size and place it has when it is not maximized (the place is the top left corner of its frame, in the toolkit's logical pixels; None when it has never been told), and whether it
-    is maximized, in which case the size and place are the ones it goes back to. On Windows `normal` is the rectangle Windows keeps for the window when it is not maximized (left, top, right, bottom of the
-    WINDOWPLACEMENT's rcNormalPosition: in Windows' own pixels and workspace coordinates, which only SetWindowPlacement reads back), and then it is what counts; the Qt shell has None there."""
+    """The window as it was left: size and place when not maximized, in logical pixels.
+
+    On Windows `normal` is the rcNormalPosition rectangle and takes precedence; Qt has None."""
     width: int
     height: int
     x: int | None = None
@@ -39,21 +40,20 @@ DEFAULT_WINDOW = WindowState(*DEFAULT_SIZE)
 
 
 def profile_dir(data: Path) -> Path:
-    """The web engine's storage folder (made if it is not there)."""
+    """Return the web engine's storage folder, creating it."""
     folder = data / PROFILE_NAME
     folder.mkdir(parents=True, exist_ok=True)
     return folder
 
 
 def webkit_dir(data: Path) -> Path:
-    """WebKitGTK's storage folder, the web window's on Linux (made if it is not there): beside the Qt window's, which a version with Qt can still be started on."""
+    """Return WebKitGTK's storage folder, creating it."""
     folder = data / WEBKIT_NAME
     folder.mkdir(parents=True, exist_ok=True)
     return folder
 
 
 def clamp(width: object, height: object) -> tuple[int, int]:
-    """A remembered size that is a number within sane limits, else the default (a hand-edited or damaged file, a monitor that is gone)."""
     if isinstance(width, int) and isinstance(height, int) and not isinstance(width, bool) and not isinstance(height, bool):
         if MIN_SIZE[0] <= width <= MAX_SIZE[0] and MIN_SIZE[1] <= height <= MAX_SIZE[1]:
             return width, height
@@ -61,14 +61,13 @@ def clamp(width: object, height: object) -> tuple[int, int]:
 
 
 def place(x: object, y: object) -> tuple[int | None, int | None]:
-    """A remembered place that is two numbers within sane limits (a second monitor to the left is negative), else none."""
+    """Return the place if both are sane integers (negative is valid), else Nones."""
     if isinstance(x, int) and isinstance(y, int) and not isinstance(x, bool) and not isinstance(y, bool) and abs(x) <= MAX_PLACE and abs(y) <= MAX_PLACE:
         return x, y
     return None, None
 
 
 def rect(value: object) -> tuple[int, int, int, int] | None:
-    """A remembered Windows rectangle that is four numbers, its corners within sane limits and its size a sane one, else none (a file of an earlier version has none, and a hand-edited one may have anything)."""
     if not isinstance(value, list) or len(value) != 4 or not all(isinstance(v, int) and not isinstance(v, bool) and abs(v) <= MAX_PLACE for v in value):
         return None
     left, top, right, bottom = value
@@ -88,7 +87,7 @@ def load_window(data: Path) -> WindowState:
 
 
 def save_window(data: Path, state: WindowState) -> None:
-    """Remembers the window (when its size is a real one: a hidden or minimised window reports nonsense; a place that is nonsense is left out); a folder that cannot be written is not worth a crash."""
+    """Save the window state; a failed write is only logged. A nonsense size is not saved."""
     if clamp(state.width, state.height) != (state.width, state.height):
         return
     x, y = place(state.x, state.y)
@@ -105,7 +104,7 @@ def save_window(data: Path, state: WindowState) -> None:
 
 
 def setup_logging(data: Path, debug: bool = False) -> None:
-    """The app's log, a rotating file of its own (the daemon's log is another process's file; on Windows two programs cannot rotate one)."""
+    """Log to a rotating file of its own; Windows could not share the daemon's."""
     fmt = logging.Formatter("%(asctime)s  %(levelname)s  %(message)s", "%Y-%m-%d %H:%M:%S")
     root = logging.getLogger()
     root.setLevel(logging.DEBUG if debug else logging.INFO)

@@ -1,6 +1,7 @@
-"""The pages that look at a layer of traffic (neoaprs/web/layerfeed.py, `layer_look` and `layer_things`): a page that begins to look is sent the table at once, the service is told when the first page looks and the last
-one stops (three pages are one look), a page that is behind is skipped, a page that leaves is forgotten. On the wire: the topic `map` says each layer, `layer_look` is never refused, and a daemon with a fake receiver on
-the loopback sends its aircraft to the page that looks and to no other."""
+"""Tests for pages that look at a traffic layer (neoaprs/web/layerfeed.py, `layer_look`,
+`layer_things`): the table is sent at once, the service is told when looking starts and stops, and
+lagging pages are skipped.
+"""
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path

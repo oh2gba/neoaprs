@@ -1,9 +1,6 @@
-"""The statements of the packet log and the station cache, as functions of a connection that the database thread runs (packetlog.py is the part that asks for them).
+"""SQL for the packet log and the station cache.
 
-A row is a tuple in the order of the column lists below; the codecs are packetcodec.py's (packets) and packetlog.py's (stations). Nothing here begins or commits a transaction.
-
-A packet names its radio by the id of the table `radio` (`packet.radio`, null for the internet: migration 32), and what each radio heard of a station is in `station_radio` (migration 33; stationsql.py),
-written and deleted here with the station's row."""
+Functions of a connection on the database thread; none begins or commits a transaction."""
 import sqlite3
 from collections.abc import Sequence
 
@@ -18,15 +15,13 @@ _PACKET_PLACES = ", ".join("?" * len(PACKET_COLUMNS))
 
 
 def station_columns() -> tuple[str, ...]:
-    """The columns of the station table in the order of a station's row."""
     return STATION_COLUMNS
 
-HEARD = "direction = 'in'"                    # the packets that were heard, not those we sent
-NOT_INTERNET = "via != 'is'"                  # not from APRS-IS: a packet heard on the radio stays, an iGate's third-party one too
+HEARD = "direction = 'in'"  # heard, not sent by us
+NOT_INTERNET = "via != 'is'"  # not from APRS-IS; iGate third-party packets stay
 
 
 def heard(internet: bool = True) -> str:
-    """The condition for the packets that were heard (not sent by us); without those that came from APRS-IS when `internet` is false (Internet stations off), which leaves what was heard on the radio."""
     return HEARD if internet else f"{HEARD} AND {NOT_INTERNET}"
 
 
@@ -35,29 +30,29 @@ def insert_packet(db: sqlite3.Connection, row: Sequence[object]) -> None:
 
 
 def recent_packets(db: sqlite3.Connection, count: int) -> list[Row]:
-    """The latest `count` packets, the newest first."""
     return rows(db.execute(f"SELECT {PACKET_LIST} FROM packet ORDER BY id DESC LIMIT ?", (limit(count),)))
 
 
 def window_packets(db: sqlite3.Connection, count: int) -> list[Row]:
-    """The latest `count` packets and the latest `count` that were not from the internet, together, the newest first."""
+    """Return the latest `count` packets plus the latest `count` non-internet ones, newest first."""
     return rows(db.execute(f"SELECT {PACKET_LIST} FROM packet WHERE id IN (SELECT id FROM packet ORDER BY id DESC LIMIT ?) "
                            f"OR id IN (SELECT id FROM packet WHERE {NOT_INTERNET} ORDER BY id DESC LIMIT ?) ORDER BY id DESC", (limit(count), limit(count))))
 
 
 def packets_since(db: sqlite3.Connection, stamp: str) -> list[Row]:
-    """The packets heard at `stamp` or later, the oldest first (by the time, then the order they were kept in: the index of the times serves it, the table is not read through)."""
+    """Return packets heard at or after `stamp`, oldest first."""
     return rows(db.execute(f"SELECT {PACKET_LIST} FROM packet WHERE heard_at >= ? ORDER BY heard_at, id", (stamp,)))
 
 
 def heard_times(db: sqlite3.Connection, source: str, stamp: str) -> list[str]:
-    """When the packets of the source were heard on the radio (not sent by us, not from the internet) at `stamp` or later, the oldest first."""
+    """Return when `source`'s packets were heard on the radio at or after `stamp`."""
     return [str(r[0]) for r in db.execute(f"SELECT heard_at FROM packet WHERE source = ? AND {heard(False)} AND heard_at >= ? ORDER BY heard_at", (source, stamp))]
 
 
 def heard_by_hour(db: sqlite3.Connection, stamp: str, source: str | None = None, internet: bool = True) -> list[tuple[str, int]]:
-    """How many packets were heard (not sent by us; none from APRS-IS when `internet` is false) in each hour of the clock at `stamp` or later, all of them or those whose source is `source`: (the hour as
-    "YYYY-MM-DDTHH", the count), the oldest first, hours with none left out. One station's goes by the index of the source (packet_source), a few days of its packets at most: the table is pruned."""
+    """Return (hour as "YYYY-MM-DDTHH", count) of heard packets since `stamp`, oldest first.
+
+    Hours with none are left out."""
     if source is None:
         return [(str(r[0]), int(r[1])) for r in db.execute(f"SELECT substr(heard_at, 1, 13) AS hour, count(*) FROM packet WHERE {heard(internet)} AND heard_at >= ? GROUP BY hour ORDER BY hour", (stamp,))]
     return [(str(r[0]), int(r[1])) for r in db.execute(f"SELECT substr(heard_at, 1, 13) AS hour, count(*) FROM packet WHERE source = ? AND {heard(internet)} AND heard_at >= ? GROUP BY hour ORDER BY hour",
@@ -65,22 +60,22 @@ def heard_by_hour(db: sqlite3.Connection, stamp: str, source: str | None = None,
 
 
 def station_positions(db: sqlite3.Connection, source: str, stamp: str, internet: bool = True) -> list[Row]:
-    """The position packets heard from `source` at or after `stamp` (none from APRS-IS when `internet` is false), the oldest first: the speeds of a moving station are read from them (by the index of the
-    source: a few days of one station's packets at most)."""
+    """Return the position packets heard from `source` since `stamp`, oldest first."""
     return rows(db.execute(f"SELECT {PACKET_LIST} FROM packet WHERE source = ? AND {heard(internet)} AND kind = 'position' AND heard_at >= ? ORDER BY id", (source, stamp)))
 
 
 def station_readings(db: sqlite3.Connection, source: str, stamp: str, count: int) -> list[Row]:
-    """(heard_at, path, snr, rssi) of the latest `count` packets heard from `source` at or after `stamp` that carry a reading of their signal, the oldest first; not a third-party one, whose frame is an iGate's
-    signal (by the index of the source)."""
+    """Return (heard_at, path, snr, rssi) of the latest `count` packets from `source` with a signal.
+
+    Third-party packets are excluded: their frame's signal is the iGate's."""
     return rows(db.execute(f"SELECT heard_at, path, snr, rssi FROM (SELECT id, heard_at, path, snr, rssi FROM packet WHERE source = ? AND {HEARD} AND via != 'rf-gated' AND (snr IS NOT NULL OR rssi IS NOT NULL) "
                            "AND heard_at >= ? ORDER BY id DESC LIMIT ?) ORDER BY id", (source, stamp, limit(count))))
 
 
 def station_traffic(db: sqlite3.Connection, call: str, own: str, count: int, span: int, internet: bool = True) -> list[Row]:
-    """(id, then the columns of a packet) of the latest `count` packets of the station `call`, the newest first: those whose source it is (by the index of the source), the messages we sent to it (those whose source
-    is our call `own`, by the same index, addressed to it) and the third-party packets that may be from it among the latest `span` packets (by the ids: a frame whose information field has `}CALL>`; the caller
-    checks the sender). None from APRS-IS when `internet` is false."""
+    """Return (id, packet columns) of the latest `count` packets of station `call`, newest first.
+
+    Includes messages from `own` to it and third-party packets among the latest `span`."""
     net = "" if internet else f" AND {NOT_INTERNET}"
     needle = b"}" + call.encode() + b">"
     return rows(db.execute(
@@ -92,19 +87,16 @@ def station_traffic(db: sqlite3.Connection, call: str, own: str, count: int, spa
 
 
 def radio_routes(db: sqlite3.Connection, count: int) -> list[Row]:
-    """(source, path, raw, heard_at, radio) of the latest `count` packets that were heard on a radio, any radio (not those from the internet: they came by no route), the oldest first: how each radio's
-    packets of a station reached us (stationbook.route_groups)."""
+    """Return (source, path, raw, heard_at, radio) of the latest `count` radio-heard packets."""
     return rows(db.execute(f"SELECT source, path, raw, heard_at, radio FROM (SELECT id, source, path, raw, heard_at, radio FROM packet WHERE {heard(False)} ORDER BY id DESC LIMIT ?) ORDER BY id", (limit(count),)))
 
 
 def position_packets(db: sqlite3.Connection, stamp: str, count: int) -> list[Row]:
-    """The latest `count` packets heard at or after `stamp` that carry a position (a position, an object or an item), the oldest first."""
     return rows(db.execute(f"SELECT {PACKET_LIST} FROM (SELECT id, {PACKET_LIST} FROM packet WHERE {HEARD} AND kind IN ('position', 'object', 'item') AND heard_at >= ? "
                            "ORDER BY id DESC LIMIT ?) ORDER BY id", (stamp, limit(count))))
 
 
 def radio_position_packets(db: sqlite3.Connection, stamp: str, count: int) -> list[Row]:
-    """The latest `count` packets heard at or after `stamp` that carry a position (a position, an object or an item) and were not from the internet, the oldest first."""
     return rows(db.execute(f"SELECT {PACKET_LIST} FROM (SELECT id, {PACKET_LIST} FROM packet WHERE {heard(False)} AND kind IN ('position', 'object', 'item') AND heard_at >= ? "
                            "ORDER BY id DESC LIMIT ?) ORDER BY id", (stamp, limit(count))))
 
@@ -113,24 +105,22 @@ _LOCATED = f"({HEARD} OR source = ?) AND kind IN ('position', 'object', 'item') 
 
 
 def _located(internet: bool) -> str:
-    """The packets that carry a position, heard or sent under our call; without those that came from APRS-IS when `internet` is false (a packet heard on the radio stays, a third-party one an iGate put on
-    the air too: it was on the air near us)."""
+    """Return the condition for position packets heard or sent under our call."""
     return _LOCATED if internet else f"{_LOCATED} AND {NOT_INTERNET}"
 
 
 def located_from(db: sqlite3.Connection, stamp: str, own: str, count: int, internet: bool = True) -> str | None:
-    """Where the latest `count` packets at or after `stamp` that carry a position (heard, or sent under our call `own`; none from APRS-IS when `internet` is false) begin: the time of the packet just before
-    them, null when there are no more than `count`. By the index of the times, newest first, so that a short span does not read the week the log keeps."""
+    """Return the time of the position packet just before the latest `count` since `stamp`, or None.
+
+    Reads the time index newest first, so a short span does not scan the whole log."""
     row = db.execute(f"SELECT heard_at FROM packet WHERE {_located(internet)} ORDER BY heard_at DESC LIMIT 1 OFFSET ?", (own, stamp, limit(count))).fetchone()
     return None if row is None else str(row[0])
 
 
 def located_since(db: sqlite3.Connection, stamp: str, own: str, after: str | None = None, internet: bool = True) -> sqlite3.Cursor:
-    """(heard_at, source, name, lat, lon, raw, via) of the packets at or after `stamp` (and after `after`, when given) that carry a position, the oldest first, as a cursor to go through row by row: those heard
-    (none from APRS-IS when `internet` is false), and those sent under our call `own` (our beacons and our objects; not the copies of other stations' packets the digipeater sent). An object or item that was
-    killed is left out. `name` is the object's or item's (null for a position); the place is read from the JSON of the decoded packet here, so that a week of positions is not decoded in Python one by one.
-    `raw` is only given for a packet that may be a third-party one (its information field begins with `}`: the frame has it after the control and protocol bytes 03 F0, a line of APRS-IS after a colon), whose
-    sender is the station inside it; for any other it is null and the sender is the source."""
+    """Return a cursor of (heard_at, source, name, lat, lon, raw, via) of positions since `stamp`.
+
+    Killed objects are skipped; `raw` is set only for a possible third-party packet."""
     return db.execute(
         "SELECT heard_at, source, "
         "CASE kind WHEN 'position' THEN NULL ELSE json_extract(decoded, '$.name') END AS name, "
@@ -141,13 +131,11 @@ def located_since(db: sqlite3.Connection, stamp: str, own: str, after: str | Non
 
 
 def oldest_packet(db: sqlite3.Connection) -> str | None:
-    """The time of the oldest packet the log keeps, null when it keeps none."""
     row = db.execute("SELECT min(heard_at) FROM packet").fetchone()
     return None if row is None or row[0] is None else str(row[0])
 
 
 def message_packets(db: sqlite3.Connection, count: int) -> list[Row]:
-    """The latest `count` packets that were heard and are messages (or acks), the oldest first."""
     return rows(db.execute(f"SELECT {PACKET_LIST} FROM (SELECT id, {PACKET_LIST} FROM packet WHERE {HEARD} AND kind = 'message' ORDER BY id DESC LIMIT ?) ORDER BY id", (limit(count),)))
 
 
@@ -156,14 +144,14 @@ def count_packets(db: sqlite3.Connection) -> int:
 
 
 def prune_packets_slice(db: sqlite3.Connection, stamp: str, rows: int, internet_only: bool = False) -> int:
-    """Deletes the oldest `rows` packets heard before `stamp` (fewer when there are fewer), those from the internet (`via` is) alone with `internet_only`; how many. By the index of the times, so that a slice reads
-    only what it deletes."""
+    """Delete up to `rows` of the oldest packets before `stamp` (APRS-IS only if `internet_only`).
+
+    Return the count."""
     where = "heard_at < ? AND via = 'is'" if internet_only else "heard_at < ?"
     return db.execute(f"DELETE FROM packet WHERE id IN (SELECT id FROM packet WHERE {where} ORDER BY heard_at LIMIT ?)", (stamp, rows)).rowcount
 
 
 def delete_heard(db: sqlite3.Connection, keep_call: str) -> int:
-    """Deletes the packets that were heard and the cached stations but `keep_call`, with what each radio heard of them; how many packets."""
     gone = db.execute(f"DELETE FROM packet WHERE {HEARD}").rowcount
     db.execute("DELETE FROM station WHERE call != ?", (keep_call,))
     stationsql.delete_station_radios_but(db, keep_call)
@@ -171,8 +159,9 @@ def delete_heard(db: sqlite3.Connection, keep_call: str) -> int:
 
 
 def upsert_station(db: sqlite3.Connection, row: Sequence[object], *, heard: Sequence[Sequence[object]] | None = None) -> None:
-    """Keeps a station's row (in the order of `station_columns()`), replacing the one it had, and with it what each radio heard of it, `heard` (stationsql.put_station_radios: the row of a radio that is
-    not among them goes); None leaves what each radio heard as it was kept."""
+    """Store a station row (in `station_columns()` order), replacing any earlier one.
+
+    `heard` replaces the per-radio rows (an unlisted radio loses its row); None leaves them."""
     columns = station_columns()
     update = ", ".join(f"{c} = excluded.{c}" for c in columns if c != "call")
     db.execute(f"INSERT INTO station ({', '.join(columns)}) VALUES ({', '.join('?' * len(columns))}) ON CONFLICT(call) DO UPDATE SET {update}", tuple(row))
@@ -181,7 +170,7 @@ def upsert_station(db: sqlite3.Connection, row: Sequence[object], *, heard: Sequ
 
 
 def delete_station(db: sqlite3.Connection, call: str) -> None:
-    """Removes a cached station, with what each radio heard of it."""
+    """Delete a cached station and its per-radio rows."""
     db.execute("DELETE FROM station WHERE call = ?", (call,))
     stationsql.delete_station_radios(db, call)
 
@@ -191,6 +180,6 @@ def all_stations(db: sqlite3.Connection) -> list[Row]:
 
 
 def heard_by_radio(db: sqlite3.Connection) -> list[Row]:
-    """(call, radio_id, heard, last_at, last_path) of every station and radio that heard it (stationsql.station_radio_rows)."""
+    """Return (call, radio_id, heard, last_at, last_path) for each station and radio hearing it."""
     return stationsql.station_radio_rows(db)
 

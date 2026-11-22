@@ -1,8 +1,8 @@
-"""Migration 16 (neoaprs/migrationsteps12to21.py): the settings that are no longer on the page (`map/maxzoom`, `map/source`, `update/url`, `serial/pattern`, `serial/skip`) go back to their defaults once, the rows of the
-settings that no longer exist are deleted, and everything else (the page's settings, `web/port`, `web/allowed_hosts`, the state of the daemon) is as it was.
-
-The settings are stored as a version 15 kept them, the radios' among them under their flat keys. They are read back where the newest migration leaves them (tests/support/migrated31.py): the station's rows in
-the table of the settings, the radios' through the settings in force (the stored radios, once the radios are rows), and a row of the daemon's state under the name it has."""
+"""Migration 16 (neoaprs/migrationsteps12to21.py): the settings that are no longer on the page go
+back to their defaults once, rows of settings that no longer exist are deleted, and everything else
+is as it was. The settings are stored as version 15 kept them and read back where the newest
+migration leaves them.
+"""
 import logging
 import sqlite3
 from collections.abc import Iterator
@@ -48,7 +48,8 @@ def version_fifteen(path: Path, clock: FixedClock, stored: dict[str, str]) -> No
 
 @contextmanager
 def migrate(folder: Path, stored: dict[str, str]) -> Iterator[sqlite3.Connection]:
-    """The database of a version 15 with these settings, brought up to date: every step from 16 on ran, each the frozen one."""
+    """The database of a version 15 with these settings, brought up to date: every step from 16 on
+    ran, each the frozen one."""
     clock = FixedClock()
     folder.mkdir(parents=True, exist_ok=True)
     old = folder / DB_NAME
@@ -67,7 +68,9 @@ def rows_of(db: sqlite3.Connection) -> dict[str, tuple[str, int]]:
     return {str(k): (str(v), int(rev)) for k, v, rev in db.execute("SELECT key, value, rev FROM settings")}
 
 
-RADIOS = [key for key in KEYS if key not in STATION_KEYS]              # today's flat keys of the radios (and the last port the search found): read back through the settings in force
+# today's flat keys of the radios (and the last port the search found): read back through the
+# settings in force
+RADIOS = [key for key in KEYS if key not in STATION_KEYS]
 STATE = ["beacon/last_sent_at", "status/last_sent_at", "status/last_text"]
 
 
@@ -80,8 +83,12 @@ def test_the_settings_off_the_page_go_back_to_the_defaults_and_the_removed_rows_
         assert {key: state_row(db, key) for key in STATE} == {key: (KEPT[key], 1) for key in STATE} and found["web/bind"] == ("0.0.0.0", 1), "the daemon's own rows and the row of an older version too"
         assert {key: flat_row(db, key) for key in OWN_31} == {key: (KEPT[key], 1) for key in OWN_31}, "each radio's own setting with the revision it had, wherever it is kept"
         radios = has_table(db, "radio")
-        gone = ((set(RADIOS) | {"tnc/enter_kiss"}) - set(STATE_31) | {"station/main_radio"}) if radios else set()          # (once the radios are rows: their rows, moved or written as the radios' columns; and the main radio, which migration 34 deletes)
-        step_34 = {key for key in found if key in ("objects/send_on", "bulletins/send_on")} if radios else set()      # (what a new object and a new bulletin start with, which migration 34 writes where several radios send)
+        # Once the radios are rows: their rows, moved or written as the radios' columns; and the
+        # main radio, which migration 34 deletes
+        gone = ((set(RADIOS) | {"tnc/enter_kiss"}) - set(STATE_31) | {"station/main_radio"}) if radios else set()
+        # What a new object and a new bulletin start with, which migration 34 writes where several
+        # radios send
+        step_34 = {key for key in found if key in ("objects/send_on", "bulletins/send_on")} if radios else set()
         assert found.keys() - step_34 == {STATE_31.get(key, key) if radios else key for key in KEPT if key not in gone}, "nothing else is in the table, and nothing of it is lost"
         assert config.tnc_profile == "kenwood-tnc2", "the type that was chosen stands, whatever tnc/enter_kiss said"
     for attr in ("map_maxzoom", "map_source", "update_url", "serial_pattern", "serial_skip"):

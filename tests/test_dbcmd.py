@@ -1,6 +1,6 @@
-"""`neoaprs db` (neoaprs/cli/dbcmd.py) run in the test's own process on a data folder of the test: the table of `list` with the rows that are not settings, the ways the database can be unusable (not a database, of
-an older or a newer version, one the daemon is bringing up to date), a write that is refused, and Ctrl-C; and the radios as rows (migration 31): `radios`, `radios add`, a radio's own setting `radio/<id>/<key>`, and a key of
-before of a radio's setting (`serial/port`, `hf/enabled`), which is refused with its new key. The commands as processes, through the main command, are in tests/test_cli.py."""
+"""Tests for `neoaprs db` (neoaprs/cli/dbcmd.py) in the test's own process: the `list` table,
+unusable databases, refused writes, Ctrl-C, and radios as rows (`radios`, `radios add`,
+`radio/<id>/<key>`)."""
 import asyncio
 import sqlite3
 import threading
@@ -33,7 +33,8 @@ def db(*args: str, data: Path) -> int:
 @pytest.fixture
 def data(tmp_path: Path) -> Path:
     folder = tmp_path / "data"
-    assert db("set", "station/call", "oh2gba", data=folder) == 0           # (the file is made, at the version of this program)
+    # The file is made at the version of this program.
+    assert db("set", "station/call", "oh2gba", data=folder) == 0
     return folder
 
 
@@ -59,7 +60,8 @@ def test_list_tells_for_each_setting_whether_it_is_stored_and_names_the_rows_tha
 
 
 def test_list_says_where_the_value_of_a_row_of_a_key_of_before_goes_now_and_that_the_radio_is_added_first(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    connection = sqlite3.connect(data / DB_NAME)             # (a folder of a build of the round before its first start: the rows of before, and no radio)
+    # A folder of an older build before its first start: old rows and no radio.
+    connection = sqlite3.connect(data / DB_NAME)
     connection.executemany("INSERT INTO settings (key, value) VALUES (?, ?)", [("serial/port", "/dev/ttyUSB7"), ("hf/enabled", "true")])
     connection.commit()
     connection.close()
@@ -91,7 +93,8 @@ def test_a_database_of_an_older_version_is_not_read_the_daemon_has_to_migrate_it
 
 
 def test_while_the_daemon_brings_the_database_up_to_date_a_command_says_so_and_neither_reads_nor_migrates_it(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """A read would find the version before and send the operator to start the daemon that is running; a write would migrate the file beside it, with a copy of its own."""
+    """A read would find the old version and send the operator to start the daemon that is running;
+    a write would migrate the file beside it, with a copy of its own."""
     user_version(data, SCHEMA_VERSION - 1)
     (data / MIGRATING_NAME).write_text("migrating\n")              # (the daemon's note, fresh)
     capsys.readouterr()
@@ -117,9 +120,10 @@ def test_set_on_a_database_of_an_older_version_migrates_it_and_says_what_the_mig
 
 
 def test_set_beside_a_running_daemon_on_an_older_file_migrates_nothing_and_says_to_wait_or_to_stop_it(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """A daemon of the version before has the file open: the steps run here would break its statements (a packet's radio is a number since migration 32, migration 33 dropped the station's column of what radio 1 heard) until
-    it is restarted. The new daemon brings the file up to date at its start. A daemon of this version that has just started holds the folder before it writes its migration's note, and looks the
-    same from here: the sentence is true of both."""
+    """A daemon of the previous version has the file open: these steps would break its statements (a
+    packet's radio is a number since migration 32, migration 33 dropped a station column) until it
+    is restarted. A daemon of this version that has just started holds the folder before it writes
+    its migration note and looks the same from here."""
     at_thirty(tmp_path / DB_NAME).close()
     daemon = InstanceLock(tmp_path, LOCK_NAME)
     daemon.acquire()
@@ -136,9 +140,11 @@ def test_set_beside_a_running_daemon_on_an_older_file_migrates_nothing_and_says_
 
 
 def test_set_beside_a_running_daemon_of_this_version_goes_through_though_the_files_header_is_behind_its_log(data: Path) -> None:
-    """The version is SQLite's, through the write-ahead log: a migration that has not reached a checkpoint leaves the file's header at the version before."""
+    """The version is SQLite's, through the write-ahead log: a migration that has not reached a
+    checkpoint leaves the file's header at the old version."""
     user_version(data, SCHEMA_VERSION - 1)
-    held = sqlite3.connect(data / DB_NAME)                          # (the daemon's connection: the log is not checkpointed into the file while it is open)
+    # (the daemon's connection: the log is not checkpointed into the file while it is open)
+    held = sqlite3.connect(data / DB_NAME)
     held.execute("SELECT 1 FROM settings").fetchall()
     user_version(data, SCHEMA_VERSION)
     daemon = InstanceLock(data, LOCK_NAME)
@@ -153,7 +159,8 @@ def test_set_beside_a_running_daemon_of_this_version_goes_through_though_the_fil
 
 
 def test_set_while_another_neoaprs_writes_or_migrates_the_file_is_refused_and_writes_nothing(data: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    """The lock of the migration is held by a NeoAPRS that migrates the file, restores a copy, or writes it as `set` does (migrations.hold_for_writing), for longer than a set waits its turn."""
+    """The lock of the migration is held by a NeoAPRS that migrates the file, restores a copy, or
+    writes it as `set` does (migrations.hold_for_writing), for longer than a set waits its turn."""
     monkeypatch.setattr(dbcmd, "WRITE_WAIT_MS", 200)
     other = InstanceLock(data, MIGRATE_LOCK_NAME)
     other.acquire()
@@ -168,7 +175,8 @@ def test_set_while_another_neoaprs_writes_or_migrates_the_file_is_refused_and_wr
 
 
 def test_a_second_set_waits_its_turn_behind_a_set_that_writes_and_then_goes_through(data: Path) -> None:
-    """Two sets at once (two terminals, a script that runs them side by side): SQLite put them one after the other before the lock, and so does the lock, for as long as a set waits for SQLite's
+    """Two sets at once (two terminals, a script that runs them side by side): SQLite put them one
+    after the other before the lock, and so does the lock, for as long as a set waits for SQLite's
     write lock."""
     other = InstanceLock(data, MIGRATE_LOCK_NAME)
     other.acquire()
@@ -182,11 +190,13 @@ def test_a_second_set_waits_its_turn_behind_a_set_that_writes_and_then_goes_thro
 
 
 def test_a_set_that_waits_its_turn_stops_waiting_when_a_migration_is_seen_to_hold_the_lock(data: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    """A tool does not wait for a migration (it may take minutes): the note that appears while the set waits ends the wait at once, with the migration's sentence."""
+    """A tool does not wait for a migration (it may take minutes): the note that appears while the
+    set waits ends the wait at once, with the migration's sentence."""
     monkeypatch.setattr(dbcmd, "WRITE_WAIT_MS", 60_000)
     other = InstanceLock(data, MIGRATE_LOCK_NAME)
     other.acquire()
-    note = threading.Timer(0.2, (data / MIGRATING_NAME).write_text, ("migrating\n",))      # (the daemon's note, written just after its lock)
+    # (the daemon's note, written just after its lock)
+    note = threading.Timer(0.2, (data / MIGRATING_NAME).write_text, ("migrating\n",))
     note.start()
     began = time.monotonic()
     try:
@@ -201,7 +211,8 @@ def test_a_set_that_waits_its_turn_stops_waiting_when_a_migration_is_seen_to_hol
 
 
 def test_a_restore_while_set_writes_is_refused_so_that_the_setting_does_not_land_in_the_file_put_aside(data: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    """From before the open (which may migrate the file) to after the close: on POSIX a rename goes through under an open file, and the set would go on in the file put aside."""
+    """From before the open (which may migrate the file) to after the close: on POSIX a rename goes
+    through under an open file, and the set would go on in the file put aside."""
     (data / "backup").mkdir()
     source = sqlite3.connect(data / DB_NAME)
     source.execute("VACUUM INTO ?", (str(data / "backup" / "mine.sqlite"),))           # (a copy this NeoAPRS can open)
@@ -288,10 +299,12 @@ def test_the_data_folder_may_be_given_after_the_command_and_a_folder_that_cannot
     assert "cannot be made or used" in err and "Traceback" not in err
 
 
-# ---- the radios as rows of the database (migration 31): `radios`, `radios add`, `radio/<id>/<key>`, and the keys of before of a radio's setting, refused
+# ---- the radios as rows of the database: `radios`, `radios add`, `radio/<id>/<key>`, and the old
+# flat keys, which are refused
 
 def with_radios(folder: Path, **flat: str) -> Path:
-    """A data folder whose database had these flat settings at version 30 and was migrated: its radios are rows, made of them as an installation's update makes them."""
+    """A data folder whose database had these flat settings at version 30 and was migrated: its
+    radios are rows made from them."""
     folder.mkdir(parents=True, exist_ok=True)
     old = at_thirty(folder / DB_NAME)
     old.executemany("INSERT INTO settings (key, value) VALUES (?, ?)", [(key.replace("_", "/", 1), value) for key, value in flat.items()])
@@ -377,7 +390,9 @@ def test_radios_add_refuses_a_type_that_is_none_and_a_name_another_radio_has_and
 
 
 def test_a_key_of_before_of_a_radios_setting_is_refused_with_its_new_key_and_nothing_is_stored(stored: Path, data: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Finding 9 of W3: someone who types a key of before is told the radio's own key in the page's sentence (configradios.flat_moved), or the radio's Enable and type by its number where the page changes them, and gets exit 2."""
+    """A key that names a radio setting without the radio is answered with the radio's own key in
+    the page's sentence (configradios.flat_moved), or the radio's Enable and type by number, and
+    exits 2."""
     before = rows_of(stored, "SELECT key, value, rev FROM settings ORDER BY key"), rows_of(stored, "SELECT radio_id, key, value, rev FROM radio_setting ORDER BY radio_id, key"), rows_of(stored, "SELECT * FROM radio ORDER BY id")
     capsys.readouterr()
     for command, said in ((("set", "serial/port", "COM9"), "serial/port: no such setting: it is radio/1/port now"), (("set", "mercury/tx_gain_db", "-3"), "mercury/tx_gain_db: no such setting: it is radio/2/tx_gain_db now"),
@@ -466,7 +481,9 @@ def test_a_database_whose_radios_cannot_be_read_is_told_with_the_way_back_and_no
 
 
 def test_a_flat_key_of_a_removed_radio_names_the_radio_of_its_kind_the_station_has_now(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Radio 1 removed and an FM radio 3 on: `serial/port` is radio 3's `radio/3/port` now, which the refusal of `set` and of `get` says; never radio 1's, nor that the station has no FM radio."""
+    """Radio 1 removed and an FM radio 3 on: `serial/port` is radio 3's `radio/3/port` now, which
+    the refusal of `set` and of `get` says; never radio 1's, nor that the station has no FM
+    radio."""
     connection = sqlite3.connect(stored / DB_NAME, isolation_level=None)
     third = insert_radio(connection, "fm", "kiss", "Base", True, 3)
     remove_radio(connection, 1, "2026-11-14T10:00:00.000000Z")

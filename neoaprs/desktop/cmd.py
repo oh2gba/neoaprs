@@ -1,8 +1,9 @@
-"""`neoaprs app [--data DIR] [--tray]` and `neoaprs-app`: the desktop app. It shows the page of the daemon that holds the data folder in a window (attaching to it), or starts a daemon of its own the way
-`neoaprs open` does and stops it at Quit; the tray icon is where it lives when the window is closed. `--tray` starts with the window hidden (what start at sign-in runs), `--quit` ends the app that is running
-(the uninstaller does). A second app on the same data folder raises the first one's window and ends. An AppImage's app that started its daemon starts itself again as the new version after Update
-now (renew.py), the owner of the daemon it finds, so that its Quit stops it.
-Exit code 0: it ran and ended; 1: no page came up, or the toolkit could not start; 2: wrong arguments."""
+"""`neoaprs app [--data DIR] [--tray]` and `neoaprs-app`: the desktop app.
+
+It shows the page of the daemon that holds the data folder in a window, starting a daemon as
+`neoaprs open` does and stopping it at Quit. `--tray` starts hidden; `--quit` ends the running app.
+A second app on the same data folder raises the first one's window and ends.
+Exit code 0: it ran and ended; 1: no page came up or the toolkit failed; 2: wrong arguments."""
 import argparse
 import importlib
 import logging
@@ -25,7 +26,8 @@ from .shell import Choice, Launch
 from .single import SingleApp, process_alive
 
 log = logging.getLogger("neoaprs.desktop")
-QUIT_WAIT_SEC = 40.0                              # a little more than the daemon is given to end (session.STOP_TIMEOUT_SEC)
+# A little more than the daemon is given to end (session.STOP_TIMEOUT_SEC).
+QUIT_WAIT_SEC = 40.0
 
 
 def parser() -> argparse.ArgumentParser:
@@ -36,12 +38,16 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--timeout", type=float, default=60.0, metavar="SEC", help="how long to wait for the daemon's page; default %(default)s")
     p.add_argument("--debug", action="store_true", help="log more")
     p.add_argument("--encryption", action="store_true", help="a daemon the app starts allows encrypted messages (the daemon's --encryption), and so does start at sign-in once it is ticked in the tray menu")
-    p.add_argument(renew.OWNS_DAEMON, dest="owns_daemon", action="store_true", help=argparse.SUPPRESS)    # (the app started again after Update now: renew.py)
+    # Passed when the app restarts itself after Update now (renew.py).
+    p.add_argument(renew.OWNS_DAEMON, dest="owns_daemon", action="store_true", help=argparse.SUPPRESS)
     return p
 
 
 def browser_only(session: Session, choice: Choice, tray: bool) -> int:
-    """No shell can run (no toolkit installed, or the display is not there): the page goes to the browser and the daemon is left as it is, as `neoaprs open` leaves it. There is no app left to stop it, so it says how."""
+    """Open the page in the browser when no shell can run (no toolkit, or no display).
+
+    The daemon is left running, as `neoaprs open` leaves it; no app remains to stop it, so say how.
+    """
     log.warning("%s", choice.describe())
     if choice.why:
         say(f"app: no window ({choice.why[0]}); `pip install \"neoaprs[app]\"` adds what it needs")
@@ -54,7 +60,7 @@ def browser_only(session: Session, choice: Choice, tray: bool) -> int:
 
 
 def run_shell(choice: Choice, launch: Launch) -> int:
-    """Runs the shell the choice names; 1 when it fails to start, with the page in the browser so that the run is not wasted (once the page is there; when it never comes, that is said instead)."""
+    """Run the chosen shell; if it fails to start, open the page in the browser and return 1."""
     assert choice.module is not None
     try:
         return int(importlib.import_module(choice.module).run(launch))
@@ -71,7 +77,10 @@ def run_shell(choice: Choice, launch: Launch) -> int:
 
 
 def quit_the_app(data: Path, wait_sec: float) -> int:
-    """`--quit`: says `quit` to the app that holds the folder and waits until it has let go of it (it stops its own daemon first, which takes a moment) and its process is gone. 0 when none runs (any more)."""
+    """`--quit`: tell the app holding the folder to quit and wait until it and its process are gone.
+
+    The app stops its own daemon first, which takes a moment. Return 0 if none runs.
+    """
     single = SingleApp(data)
     if not single.running():
         say(f"app: NeoAPRS app is not running on {data}")
@@ -80,7 +89,8 @@ def quit_the_app(data: Path, wait_sec: float) -> int:
     single.tell_the_other("quit")
     deadline = time.monotonic() + wait_sec
     while time.monotonic() < deadline:
-        if not single.running() and (pid is None or not process_alive(pid)):   # (the lock goes before the process: the window's engine unloads after it, and a file of the app is in use until then)
+        # The lock goes before the process; the web engine unloads later and holds app files.
+        if not single.running() and (pid is None or not process_alive(pid)):
             say("app: NeoAPRS app has ended")
             return 0
         time.sleep(0.2)
@@ -89,7 +99,7 @@ def quit_the_app(data: Path, wait_sec: float) -> int:
 
 
 def run(args: argparse.Namespace) -> int:
-    """The daemon is attached to or started first, without waiting for it: the toolkit is looked for (imported) and the shell makes its window while the daemon comes up."""
+    """Attach to or start the daemon without waiting; the shell makes its window meanwhile."""
     data = Path(args.data).expanduser().resolve()
     single = SingleApp(data)
     try:
@@ -121,8 +131,7 @@ def run(args: argparse.Namespace) -> int:
 
 
 def start_again(launch: Launch, app_file: renew.AppFile, args: argparse.Namespace, start: Callable[[list[str]], None] | None = None) -> int:
-    """The app ended to start again as the new version and has let go of the data folder: the new file takes the place of this process. It returns only when that could not be done: then the daemon,
-    which no app owns now, is stopped as Quit would stop it, and the exit code is 1. What the window's engine started beside the app is ended first (renew.end_helpers)."""
+    """Replace this process with the new version; return only if that failed (the daemon stops)."""
     assert launch.ctx is not None
     session = launch.ctx.session
     renew.end_helpers()
@@ -133,7 +142,7 @@ def start_again(launch: Launch, app_file: renew.AppFile, args: argparse.Namespac
 
 
 def main(argv: list[str] | None = None) -> int:
-    """The app's run; the splash of Windows (splash.py) goes when it ends, however it ends, if the window has not taken it away before."""
+    """Run the app; the Windows splash (splash.py) is closed however the run ends."""
     try:
         return _main(argv)
     finally:
@@ -141,7 +150,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def data_unusable(data: Path, error: OSError) -> int:
-    splash.done()                               # (before the message box, which the splash would cover)
+    # Close the splash first: it would cover the message box.
+    splash.done()
     opencmd.tell_the_user(f"app: the data folder {data} cannot be made or used: {error.strerror or error}")
     return 1
 
@@ -161,7 +171,7 @@ def _main(argv: list[str] | None) -> int:
 
 
 def gui_main() -> int:
-    """`neoaprs-app`: the same for a program that has no console (Windows): the streams that are not there are replaced, so that a print or a usage error cannot fail."""
+    """`neoaprs-app`: as `main`, without a console (Windows). Missing streams are replaced."""
     for name in ("stdout", "stderr"):
         if getattr(sys, name) is None:
             setattr(sys, name, open(os.devnull, "w"))

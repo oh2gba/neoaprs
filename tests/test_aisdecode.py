@@ -1,4 +1,5 @@
-"""The AIS decoder (neoaprs/aisdecode.py): the positions and the words of ships from NMEA sentences, the joining of a message's parts, and what is passed over."""
+"""The AIS decoder (neoaprs/aisdecode.py): the positions and the words of ships from NMEA sentences,
+the joining of a message's parts, and what is passed over."""
 import time
 from datetime import timedelta
 

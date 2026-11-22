@@ -1,10 +1,14 @@
 #!/bin/sh
-# NeoAPRS for Linux and macOS: installs uv (when there is none), NeoAPRS @VERSION@ from the wheel of its release, and starts NeoAPRS as a service of your user (systemd on Linux, launchd on macOS).
+# NeoAPRS for Linux and macOS: installs uv (when there is none), NeoAPRS @VERSION@ from the wheel of
+# its release, and starts NeoAPRS as a service of your user (systemd on Linux, launchd on macOS).
 #
 #   curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh
 #
-# Nothing here needs root. Run it again to update NeoAPRS; your data (settings, messages, packets, the map) is not touched. This file is rendered from packaging/install.sh.in by the release workflow; its SHA-256
-# is in SHA256SUMS on the release page. NEOAPRS_WHEEL_URL (a wheel's address) replaces the wheel of the release, which is how the workflow tests this script before the release exists.
+# Nothing here needs root. Run it again to update NeoAPRS; your data (settings, messages, packets,
+# the map) is not touched. This file is rendered from packaging/install.sh.in by the release
+# workflow; its SHA-256 is in SHA256SUMS on the release page. NEOAPRS_WHEEL_URL (a wheel's address)
+# replaces the wheel of the release, which is how the workflow tests this script before the release
+# exists.
 set -eu
 
 VERSION="@VERSION@"
@@ -21,7 +25,8 @@ case "$(uname -s)" in
 esac
 command -v curl >/dev/null 2>&1 || fail "curl is needed (on Debian and Ubuntu: sudo apt install curl)"
 
-# uv: the one on the PATH, else one that an earlier run or Astral's installer put in the usual folders, else install it.
+# uv: the one on the PATH, else one that an earlier run or Astral's installer put in the usual
+# folders, else install it.
 UV=""
 find_uv() {
     if command -v uv >/dev/null 2>&1; then

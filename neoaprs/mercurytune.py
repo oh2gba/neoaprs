@@ -1,8 +1,8 @@
-"""Tune and the keying test of the Mercury HF modem, the half of the modem part (mercurymodem.py, whose `Mercury` inherits this) that drives Mercury's own TUNE command on the control port: the radio is keyed through
-the keying the modem runs with and the tone goes through its sound card, for TUNE_SEC or until the operator presses again, or for the second of the keying test; the hold is on meanwhile (`test` is what is on, and
-`hold` reads it), so no frame of ours goes under the tone, and Mercury unkeys by itself after a minute whatever happens to us (mercury.py says what the levels and the times are and why). A class of its own for its
-size alone: it reads and sets the modem's state (`test`, `speaker`, `keying`, `changed`, the tasks and the generation of the start) and asks it whether it runs, what holds it and to write a line, which the modem
-part provides."""
+"""Tune and the keying test of the Mercury HF modem.
+
+The half of `Mercury` (mercurymodem.py) that drives Mercury's TUNE command; no frame is sent
+while a test is on.
+"""
 import asyncio
 import logging
 
@@ -17,10 +17,12 @@ NOT_RUNNING = "the Mercury radio is not running"
 
 
 class Tuning:
-    test: str                              # one of mercurymodem.TESTS: the tune tone or the keying test is on (the hold is on with it)
-    speaker: bool                          # started as the speaker of the Dummy HF radio: nothing is keyed, Tune is refused
+    # one of mercurymodem.TESTS
+    test: str
+    # the Dummy HF radio's speaker: Tune is refused
+    speaker: bool
     keying: Keying
-    tx_gain_db: int                        # the transmit gain: the tune tone follows it (mercury.tune_level)
+    tx_gain_db: int  # the tune tone follows it
     changed: Signal[[]]
     _tasks: TaskSet
     _generation: int
@@ -37,7 +39,7 @@ class Tuning:
         raise NotImplementedError
 
     def _refusal(self) -> str:
-        """Why the tone cannot start now: the modem is not running, or a frame is on the air or the channel is busy; "" when it can."""
+        """Return why the tone cannot start now, else ""."""
         if not self.running or self.speaker:
             return NOT_RUNNING
         if self.test:
@@ -50,7 +52,8 @@ class Tuning:
             log.info("Mercury: %s was refused: %s", name, why)
             if why == NOT_RUNNING:
                 raise CodedError("the Mercury radio is not running", "hf.not_running")
-            raise CodedError(f"the radio is not free: {why}", "hf.held", held="busy" if code_of(why)[0] == "radio.channel_busy" else "transmitting")          # (the page says which by `held`)
+            # the page says which by `held`
+            raise CodedError(f"the radio is not free: {why}", "hf.held", held="busy" if code_of(why)[0] == "radio.channel_busy" else "transmitting")
         await self._cancel_test()
         if not self._write(tune_command(level_dbfs)):
             log.info("Mercury: %s was refused: the control port is not open", name)
@@ -61,13 +64,17 @@ class Tuning:
         self.changed.emit()
 
     async def tune(self) -> None:
-        """Keys the radio with the tune tone through the sound card and the keying in use, for TUNE_SEC or until `tune_stop`. CodedError when the modem is not running (`hf.not_running`) or the radio is not free (`hf.held`)."""
+        """Key the radio with the tune tone for TUNE_SEC or until `tune_stop`.
+
+        Raise CodedError if not running (`hf.not_running`) or not free (`hf.held`).
+        """
         await self._begin("tune", tune_level(self.tx_gain_db), TUNE_SEC)
 
     async def _retune(self) -> None:
-        """The transmit gain moved while the tune tone is on: Mercury keeps the tone out of its gain, so the tone is asked for again at the level that follows it. Mercury 1.9.21 refuses a TUNE while one is running (its source
-        says it retunes, but `modem_tune_start` refuses first, "transmit in progress", measured with the real Mercury; 1.9.24's `modem_tune_start` is the same), so the tone is ended and begun again, a second or so of silence in which the radio is unkeyed and keyed
-        again, the lines being taken in order. The hold stays on (`test` is still the tune), and our own timer starts over, since the operator is watching the meter."""
+        """Restart the tone at the new transmit gain.
+
+        Mercury refuses a TUNE while one runs, so the tone is ended and begun again.
+        """
         if self.test != "tune":
             return
         level = tune_level(self.tx_gain_db)
@@ -78,12 +85,14 @@ class Tuning:
         self._test_task = self._tasks.spawn(self._end_after(TUNE_SEC, self._generation), "mercury-test")
 
     async def key_test(self) -> None:
-        """Keys the radio for KEY_TEST_SEC, so that the operator sees it go to transmit and come back: with next to no audio where the keying is a line (RTS, DTR, CM108), with the tune tone where the radio keys on audio
-        (VOX: a silent test would leave it in receive). The same refusals as `tune`."""
+        """Key the radio for KEY_TEST_SEC; silent for a keying line, the tune tone for VOX.
+
+        Refusals are those of `tune`.
+        """
         await self._begin("key", key_test_level(self.keying.kind), KEY_TEST_SEC)
 
     async def tune_stop(self) -> None:
-        """Ends the tone or the test early; nothing when none is on."""
+        """End the tone or the test early; do nothing when none is on."""
         if not self.test:
             return
         await self._cancel_test()

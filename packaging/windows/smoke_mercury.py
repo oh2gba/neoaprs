@@ -1,7 +1,9 @@
-"""Starts the mercury.exe NeoAPRS ships and checks that it listens on this computer only: `smoke_mercury.py PATH\\mercury.exe` runs it with no sound card (its `null` audio backend) on a free set of ports, waits until its four
-TCP ports, the KISS port, the control port, the ARQ data port and the UI interface's (the websocket that the scope and the Transmit level of the HF box read), are in the system's table of sockets (`netstat -ano`), and fails when any of them is bound to an address that is not 127.0.0.1: Mercury has no password on
-those ports, and one that listened on every interface would let any host on the LAN key the radio. It is the Windows half of what scripts/build-mercury checks on Linux with /proc/net/tcp, and the release workflow's
-Windows job runs it on the program in the app folder and again on the one the installer put in place. Nothing but the Python standard library is used."""
+"""Start the mercury.exe NeoAPRS ships and check that it listens on this computer only.
+
+`smoke_mercury.py PATH\\mercury.exe` runs it with the `null` audio backend and waits until its four
+TCP ports (KISS, control, ARQ data, UI websocket) appear in `netstat -ano`. It fails when any
+is bound to an address other than 127.0.0.1: those ports have no password. The Windows half of the
+check in scripts/build-mercury."""
 import socket
 import subprocess
 import sys
@@ -15,12 +17,14 @@ WAIT_SEC = 40.0
 FIRST_PORT = 18100
 PORT_TRIES = 100
 CONTROL_OFFSET = 200
-UI_OFFSET = 2000                                      # (neoaprs/mercury.py: the UI interface is on the broadcast port plus this)
+# As in neoaprs/mercury.py: the UI port is the broadcast port plus this.
+UI_OFFSET = 2000
 
 
 def listening(netstat: str, pid: int) -> dict[int, set[str]]:
-    """The addresses that process `pid` listens on, by port, from the text of `netstat -ano`. A listening socket is a row of TCP with five fields, the local address, a foreign address that is all zeros and the process id last;
-    the state's word is the system's own language and is not read."""
+    """Return the addresses process `pid` listens on, by port, from `netstat -ano` text.
+
+    The state word is localised, so a listener is recognised by its all-zero foreign address."""
     found: dict[int, set[str]] = {}
     for line in netstat.splitlines():
         fields = line.split()
@@ -33,7 +37,7 @@ def listening(netstat: str, pid: int) -> dict[int, set[str]]:
 
 
 def verdict(found: dict[int, set[str]], ports: set[int]) -> str:
-    """"" when every port of `ports` is listened on and on 127.0.0.1 alone; else what is wrong, in a sentence."""
+    """Return "" if every port listens on 127.0.0.1 alone, else what is wrong."""
     missing = sorted(ports - found.keys())
     if missing:
         return f"not listening yet on {missing}"
@@ -53,7 +57,7 @@ def free(port: int) -> bool:
 
 
 def free_ports() -> tuple[int, int, int, int]:
-    """The first broadcast port from FIRST_PORT up whose control port and data port (CONTROL_OFFSET and one more above it) and UI port (UI_OFFSET above it) are free on the loopback, as the four."""
+    """Return the first free set of broadcast, control, data and UI ports on the loopback."""
     for broadcast in range(FIRST_PORT, FIRST_PORT + PORT_TRIES):
         four = (broadcast, broadcast + CONTROL_OFFSET, broadcast + CONTROL_OFFSET + 1, broadcast + UI_OFFSET)
         if all(free(port) for port in four):
@@ -66,7 +70,8 @@ def table() -> str:
 
 
 def watch(child: "subprocess.Popen[bytes]", ports: set[int], read_table: Callable[[], str] = table, wait_sec: float = WAIT_SEC, pause_sec: float = 0.5) -> tuple[str, dict[int, set[str]]]:
-    """Waits until every port of `ports` is in the table of sockets as a listener of the process, or the program ends, or `wait_sec` is over; the verdict (see `verdict`) and the listeners found."""
+    """Wait for every port to listen, the program to end or `wait_sec`; return verdict,
+    listeners."""
     deadline = time.monotonic() + wait_sec
     while True:
         found = listening(read_table(), child.pid)
@@ -92,7 +97,8 @@ def main() -> int:
         ini = Path(folder) / "mercury.ini"
         ini.write_text(f"[store]\nenabled = false\n[main]\nui_enabled = true\nui_port = {ui}\nwaterfall_enabled = false\n", encoding="utf-8")
         argv = [str(program), "-C", str(ini), "-m", "1", "-x", "null", "-b", str(broadcast), "-p", str(control), "-P", "none"]
-        out = open(Path(folder) / "mercury.out", "wb")                    # (a pipe nobody reads would fill and stop the program; the file is deleted with the folder, once closed)
+        # A pipe nobody reads would fill and stop the program, so the output goes to a file.
+        out = open(Path(folder) / "mercury.out", "wb")
         child = subprocess.Popen(argv, cwd=folder, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         try:
             problem, found = watch(child, {broadcast, control, data, ui})

@@ -1,24 +1,34 @@
 #!/usr/bin/env bash
-# Moderate the sked board of neo.oh2gba.eu over SFTP, since the host has no shell. server/neo/api/v1/skeds.php keeps each sked as ID.json in private/skeds/ and writes the board, skeds.json in the root of the site.
+# Moderate the sked board of neo.oh2gba.eu over SFTP, since the host has no shell.
+# server/neo/api/v1/skeds.php keeps each sked as ID.json in private/skeds/ and writes the board to
+# skeds.json in the site root.
 #
-#   server/skeds.sh --list             every stored sked: the id, when it was posted, the call, from, to, the dial, the first 8 digits of its token's hash (the skeds of one installation share them) and the note
+#   server/skeds.sh --list             every stored sked: the id, when it was posted, the call,
+#                                      from, to, the dial, the first 8 digits of its token's hash
+#                                      (the skeds of one installation share them) and the note
 #   server/skeds.sh rm ID...           remove these skeds, then make the board again
-#   server/skeds.sh rm --since TIME    remove every sked posted at TIME or later (UTC, 2026-11-13T17:00Z), then make the board again
-#   server/skeds.sh close              refuse every add (the file `closed`); the board says "closed": true and the program shows it without the form
+#   server/skeds.sh rm --since TIME    remove every sked posted at TIME or later (UTC,
+#                                      2026-11-13T17:00Z), then make the board again
+#   server/skeds.sh close              refuse every add (the file `closed`); the board says
+#                                      "closed": true and the program shows it without the form
 #   server/skeds.sh open               take adds again
 #   server/skeds.sh blocked            the blocked calls (blocked.txt)
-#   server/skeds.sh block CALL         refuse the adds of a call (every SSID of it, when CALL has none) and remove its skeds
+#   server/skeds.sh block CALL         refuse the adds of a call (every SSID of it, when CALL has
+#                                      none) and remove its skeds
 #   server/skeds.sh unblock CALL       take them again
-#   server/skeds.sh refresh            make the board again (a POST of {"action": "refresh"}, which the rate limit does not count, so a flood cannot hold it up)
+#   server/skeds.sh refresh            make the board again (a POST of {"action": "refresh"}, which
+#                                      the rate limit does not count, so a flood cannot hold it up)
 #
-# Every change ends with a refresh, so the board says it at once. A sked is never edited here: removed, or left to end by itself. What is refused before anything is asked: an id that is not 12 hex digits,
-# a call that is not letters and digits with an SSID, a time not of the form above.
-# Credentials come from Bitwarden Secrets Manager (ftp_server/ftp_login/ftp_pw); the token is the first line of a .secrets file: SECRETS_FILE, else the first one found searching upwards from here, else
-# ../../oh2gba/.secrets (the same as deploy.sh and support-fetch.sh).
+# Every change ends with a refresh, so the board says it at once. A sked is never edited here: it is
+# removed or left to end by itself. Refused before anything is asked: an id that is not 12 hex
+# digits, a call that is not letters and digits with an SSID, a time not of the form above.
+# Credentials come from Bitwarden Secrets Manager (ftp_server/ftp_login/ftp_pw); the token is the
+# first line of a .secrets file: SECRETS_FILE, else the first one found searching upwards, else
+# ../../oh2gba/.secrets.
 case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # server/
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"  # server/
 REMOTE="${PROJECT_PAGE_REMOTE:-/public_html/neo}/private/skeds"
 ENDPOINT="https://neo.oh2gba.eu/api/v1/skeds.php"
 ID_FORM='^[0-9a-f]{12}$'
@@ -48,7 +58,7 @@ case "$command" in
 esac
 
 ENVFILE="${SECRETS_FILE:-$(d="$ROOT"; until [ -f "$d/.secrets" ] || [ "$d" = / ]; do d="$(dirname "$d")"; done; echo "${d%/}/.secrets")}"
-[ -f "$ENVFILE" ] || [ -n "${SECRETS_FILE:-}" ] || ENVFILE="$ROOT/../../oh2gba/.secrets"   # a file that was named and is not there is never replaced by another one
+[ -f "$ENVFILE" ] || [ -n "${SECRETS_FILE:-}" ] || ENVFILE="$ROOT/../../oh2gba/.secrets"  # a named file that is missing is never replaced by another one
 [ -f "$ENVFILE" ] || { echo "no .secrets file (set SECRETS_FILE)" >&2; exit 1; }
 BWS="${BWS:-$(command -v bws || echo "$HOME/.local/bin/bws")}"
 export BWS_ACCESS_TOKEN="${BWS_ACCESS_TOKEN:-$(grep -v '^#' "$ENVFILE" | head -1 | tr -d '\r\n')}"
@@ -86,7 +96,8 @@ print("the board: %d skeds%s" % (len(board["skeds"]), ", closed" if board.get("c
 '
 }
 
-# Removes the named files of the folder in one session (a file that is gone already is no error), then makes the board again.
+# Removes the named files of the folder in one session (a file that is gone already is no error),
+# then makes the board again.
 remove() {
   local args=() f
   for f in "$@"; do args+=(-Q "*rm $REMOTE/$f"); done
@@ -95,7 +106,8 @@ remove() {
   refresh
 }
 
-# blocked.txt into $WORK/blocked.txt: empty when the server has none (curl's exit 78), a stop on any other failure.
+# blocked.txt into $WORK/blocked.txt: empty when the server has none (curl's exit 78), a stop on any
+# other failure.
 fetch_blocked() {
   local code=0
   fcurl -sS --max-time 60 -o "$WORK/blocked.txt" "sftp://$FH$REMOTE/blocked.txt" 2>/dev/null || code=$?

@@ -1,8 +1,7 @@
-"""The Dummy LoRa radio, the proof that a third kind of radio is a description, a driver and its texts (plan §2 and step 7; neoaprs/radiotypes/dummylora.py, neoaprs/dummylorascene.py, neoaprs/dummyworlds.py,
-neoaprs/tnc2line.py): TNC2 text read into AX.25 frames and written back, the LoRa packet's header and its 255 bytes, a board's lines cut and read with what is no packet told apart; the type of the kind `lora`
-with the limits and the choices of LoRa; a world of made-up stations round the station on the Q prefix, the iGate that repeats WIDE1-1, the home station that answers a message, each frame with an SNR and a
-strength in what a board measures, a world of its own for each radio; the line that hears that world in text and puts what we send on its made-up air in text; and a daemon with a Dummy LoRa radio added from
-the page beside the FM radio: it runs, its stations are heard on it with their readings, its beacon and a message go out on it in text, the message is acked, and the topic `radios` tells its row."""
+"""Tests for the Dummy LoRa radio, which shows that a new kind of radio is a description, a driver
+and texts (neoaprs/radiotypes/dummylora.py, neoaprs/dummylorascene.py, neoaprs/tnc2line.py): TNC2
+text and AX.25 conversion, the LoRa packet limits, a made-up world per radio, and a whole daemon
+with a Dummy LoRa radio beside an FM radio."""
 import asyncio
 import logging
 from datetime import timedelta
@@ -167,7 +166,8 @@ def test_the_home_station_acks_a_message_and_answers_once_and_a_frame_of_ours_th
     play(scene, 60)
     now = START + timedelta(seconds=60)
     scene.react(from_us(b":Q9KOT    :Hello there{7"), now)
-    scene.react(from_us(b":Q9KOT    :Hello there{7"), now)                    # (a retry: acked again, not answered again)
+    # (a retry: acked again, not answered again)
+    scene.react(from_us(b":Q9KOT    :Hello there{7"), now)
     scene.react(from_us(b":Q9TRK-7  :Anyone{8"), now)                       # (a tracker takes no messages)
     scene.react(from_us(b"!6010.00N/02456.00E-", "WIDE2-2"), now)            # (the iGate repeats WIDE1-1 only)
     later = [f for t in range(1, 30) for f in scene.due(now + timedelta(seconds=t))]
@@ -188,7 +188,9 @@ def test_each_radio_has_a_world_of_its_own_by_its_seed_and_the_same_one_at_every
 
 
 def test_a_tracker_of_a_turned_world_heads_where_it_goes() -> None:
-    """The course the car and the bike send is turned with their places: the way from one fix to the next, ten seconds later, is the way they say they head (unturned, the seed 3 heads 110 degrees off)."""
+    """The course the car and the bike send is turned with their places: the way from one fix to the
+    next, ten seconds later, is the way they say they head (unturned, the seed 3 heads 110 degrees
+    off)."""
     for seed in (1, 3):
         scene = LoraScene(HELSINKI, START, seed=seed)
         for mover in (call_of(CAR, seed), call_of(BIKE, seed)):
@@ -277,7 +279,8 @@ async def test_a_dummy_lora_radio_added_from_the_page_runs_hears_its_stations_be
     assert (row["kind"], row["type"], row["dummy"], row["number"], row["enabled"]) == ("lora", "dummy-lora", True, 1, True)
     assert row["limits"] == {"max_frame": 250, "beacon_min_min": 30} and row["can"] == {**dict.fromkeys(row["can"], False), "terminal": True, "transmit": True}
     assert row["allowed"] == {"paths": True, "digipeat": False, "smart_beacon": True, "gateway_heard": True, "shared_channel": False} and row["choices"] == {"beacon": True, "status": False, "ask": False, "local_info": False, "path": "", "digipeat": None}
-    world = {call_of(call, id) for call in ("Q9LRG-10", "Q9KOT", "Q9TRK-7")}             # (the bike's first beacon may come after the others are in)
+    # (the bike's first beacon may come after the others are in)
+    world = {call_of(call, id) for call in ("Q9LRG-10", "Q9KOT", "Q9TRK-7")}
     for _ in range(200):
         e.now.advance(5)                                                         # type: ignore[attr-defined]
         await asyncio.sleep(0.02)

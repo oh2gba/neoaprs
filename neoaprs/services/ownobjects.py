@@ -1,24 +1,7 @@
-"""The objects and items of our own: made, changed and killed by the operator, kept in the database, shown on the map as stations of their own, and sent on the air by a schedule of their own.
+"""The operator's own objects and items: stored, shown on the map, and repeated on air.
 
-`set` makes an object or an item (or changes the one of that name: a changed object starts its decay again), `kill` ends one. What is sent is `ownobject.info_of`: `;NAME     *DDHHMMz<position><motion><comment>`
-for an object, `)NAME!<position><comment>` for an item, from `station/call` to the tocall by the object's own path, else `beacon/path`. The schedule is the decay algorithm of the specification's Packet
-Timing (neoaprs/decay.py): the new or changed object goes out at once (never sooner than a minute after the last packet of that object), then 1, 2, 4 ... minutes later, never more than the net cycle time of its
-path apart (or, on a radio whose airtime is everyone's, HF and LoRa, its beacon floor of 30 minutes: beaconrule.repeat_floor_sec), until it is changed or killed. A kill is sent as the killed form three times (0, 1 and 3 minutes after it is asked for), and then the object is forgotten; an object that was never sent is simply
-removed. An object that is `on_request` (with or without a QRU group, services/qru.py) is kept and shown on the map but never sent on this schedule, so a kill of it is simply removal too: it goes out only as an answer
-to a station that asks, `?APRSO` or its group (services/queries.py, services/qru.py). The sender (services/sender.py) holds back everything while the call is not set, while the radio is not usable, and between two frames of ours; what is due then goes out when the radio is back, one
-packet however many were missed. The time of each packet and how often it was sent are kept in the database (ownlog.py), so a restart goes on where the schedule stopped. An object goes out on the radios
-its choice names (`OwnObject.radios`, by id) as the set is in force (services/sender.radios_for: with one radio that can send, that one; else those of them that are enabled; none when none of them is, ticked
-nowhere); on each of them when it is due, in one round (services/repeater.py: a radio that is held at that moment, the HF
-modem transmitting or hearing a busy channel, is given it at a later tick without another radio sending it again; a radio that is away does not hold the round up, the next one goes on every radio when it is
-back, and one that is connected but takes no frame holds it for ROUND_HOLD_SEC after the first radio took it at most: a LoRa board left sending text lines, a TNC that does not answer KISS ON may stay so for
-ever; then the round ends without it, and the next is tried on it again).
-The object's one path is used on each of its radios that may carry a path (none on HF), and its wait is the longest of those radios'. A new object for which no radio is named is ticked as the one saved
-last (the state row `objects/send_on`; with one radio that can send, that one: sendonrule.start_set; an object that is changed without one keeps its own); the kill goes where the object went: on its radios in force and on every radio that is on and took a live frame of it since it was made (`_went`, in
-memory: after a restart the kill goes on its radios in force alone). A radio that is removed leaves the radios of every object (`forget_radio`), as its rows leave the database.
-
-Another station that reports an object with the name of one of ours takes it over (the specification's "Replacement": the original station ceases to transmit it): ours is dropped, silently, and theirs is
-what the station book shows. A packet from our own call that comes back (a digipeater's copy, the TNC's echo) is nobody's report: the station book ignores it, so there is no second object.
-`changed` is told with every object that is new or different (and each time one is sent), `removed` with every one that is gone."""
+`set` makes or changes an object or item and restarts its decay; `kill` ends one. Sends follow
+the schedule in decay.py; another station reporting an object of our name takes it over."""
 import logging
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import replace
@@ -43,7 +26,8 @@ from neoaprs.signal import Signal
 
 log = logging.getLogger("neoaprs.ownobjects")
 
-MAX_OBJECTS = 50                                            # objects and items of ours at once: every one is on the air for as long as it lives
+# Every object is on the air for as long as it lives, so the count is limited.
+MAX_OBJECTS = 50
 
 
 class OwnObjects(Repeater[str]):
@@ -54,53 +38,52 @@ class OwnObjects(Repeater[str]):
         super().__init__(sender, clock, tick_sec)
         self._config = config
         self._log = ownlog
-        self._is_station = is_station                       # is the name that of a station of the book (not an object)? An object is never made over a station
+        # True for the name of a station in the book; an object is never made over a station.
+        self._is_station = is_station
         self.changed: Signal[[OwnObject]] = Signal("ownobjects_changed")
         self.removed: Signal[[OwnObject]] = Signal("ownobjects_removed")
         self._objects: dict[str, OwnObject] = {}
         self._remembered = Remembered(memory)
-        self.last_radios: tuple[RadioId, ...] = ()          # the radios of the object saved last with radios named (the state row `objects/send_on`): what a new one starts with
-        self._went: dict[str, set[RadioId]] = {}            # by object: the ids of the radios a live frame of it went on since it was made (in this run)
+        # Radios of the object last saved with radios named; a new object starts with them.
+        self.last_radios: tuple[RadioId, ...] = ()
+        # By object: radios a live frame of it went on in this run.
+        self._went: dict[str, set[RadioId]] = {}
 
-    # ---- what there is
     def records(self) -> list[OwnObject]:
-        """Our objects, the oldest first."""
+        """Return our objects, oldest first."""
         return sorted(self._objects.values(), key=lambda o: (o.created_at, o.name))
 
     def get(self, name: str) -> OwnObject | None:
         return self._objects.get(name)
 
     def next_at(self, name: str) -> datetime | None:
-        """When the object is sent next (a time in the past: it waits for the radio); None for one that is not."""
+        """Return when the object is next sent (past: waiting for the radio); None if never."""
         return self._due(name)
 
     def new_radios(self) -> tuple[RadioId, ...]:
-        """The radios a new object for which none is named is ticked for (sendonrule.start_set)."""
+        """Return the radios for a new object without named radios (sendonrule.start_set)."""
         return start_set(self.last_radios, self._config().radios)
 
     def radio_sets(self) -> dict[str, tuple[RadioId, ...]]:
-        """The radios of every object, by name (what a change of the radios keeps in force: neoaprs/sendonrule.py)."""
+        """Return the radios of every object by name."""
         return {name: obj.radios for name, obj in self._objects.items()}
 
     def keep_radios(self, sets: Mapping[str, tuple[RadioId, ...]]) -> None:
-        """The objects of `sets` go out on those radios from now on, as the change of the radios that made them wrote into their rows (radiosql.put_kept); each row written again, so that a send that was on
-        its way with the old set does not stay in it."""
+        """Send the objects of `sets` on those radios from now on and store each row again."""
         for name, radios in sets.items():
             if (obj := self._objects.get(name)) is not None:
                 self._objects[name] = replace(obj, radios=radios)
                 self._log.save_object(self._objects[name])
 
     def forget_radio(self, radio: RadioId) -> None:
-        """The radio was removed: its id leaves the radios of every object in memory, as the removal's transaction took it out of their rows (radiosql.remove_radio); an object on no other radio
-        keeps it, as its row does (ticked nowhere: the set is never empty), and what a new object starts with loses it too."""
+        """Remove the radio from every object in memory; the set is never left empty."""
         for name, obj in list(self._objects.items()):
             if radio in obj.radios and len(obj.radios) > 1:
                 self._objects[name] = replace(obj, radios=tuple(id for id in obj.radios if id != radio))
         self.last_radios = tuple(id for id in self.last_radios if id != radio)
 
-    # ---- life
     async def start(self) -> None:
-        """Takes our objects from the database, tells them, and starts the ticker."""
+        """Load the objects from the database, announce them and start the ticker."""
         for obj in await self._log.objects():
             self._objects[obj.name] = obj
             self.changed.emit(obj)
@@ -111,12 +94,11 @@ class OwnObjects(Repeater[str]):
         await self.stop_ticker()
         await self._remembered.flush()
 
-    # ---- the operator
     def set(self, name: str, kind: str, lat: float, lon: float, symbol_table: str, symbol_code: str, comment: str = "", course_deg: int | None = None, speed_kmh: float | None = None,
             path: str | None = None, qru_group: str = "", on_request: bool = False, *, radios: Iterable[RadioId] | None = None) -> OwnObject:
-        """Makes the object or item, or changes the one of the name: it is sent at once. It goes out on the radios `radios` (their ids), which a new object then starts with; without them a new object
-        on those of the one saved last (`new_radios`) and a changed one on its own. Raises OwnError, with the reason, when the call is not set, the values make no object
-        (neoaprs/ownobject.py), the name is our own call or a station's, or there are already MAX_OBJECTS."""
+        """Make or change the object or item and send it at once; raise OwnError if refused.
+
+        Without `radios` a new object uses `new_radios` and a changed one keeps its own."""
         if refusal := transmit_refusal(self._config(), OwnError):
             raise refusal
         ours = self._config().station_call
@@ -140,7 +122,9 @@ class OwnObjects(Repeater[str]):
         return obj
 
     def kill(self, name: str) -> OwnObject | None:
-        """Ends the object: the killed form is sent three times and then it is forgotten. One that was never sent is removed at once (None). Raises OwnError when there is no such object of ours."""
+        """Send the killed form three times, then forget the object.
+
+        Return None if it was never sent and is removed at once; raise OwnError if unknown."""
         obj = self._objects.get(name)
         if obj is None:
             raise OwnError(f"there is no object or item {name!r} of ours", "object.unknown", name=name)
@@ -155,7 +139,7 @@ class OwnObjects(Repeater[str]):
 
     def _store(self, obj: OwnObject) -> None:
         if obj.sent == 0:
-            self._new_round(obj.name)                         # (new, changed or just killed: a fresh round for every radio)
+            self._new_round(obj.name)                         # new, changed or killed: fresh round on every radio
         self._objects[obj.name] = obj
         self._log.save_object(obj)
         self.changed.emit(obj)
@@ -168,34 +152,34 @@ class OwnObjects(Repeater[str]):
         self._log.delete_object(obj.name)
         self.removed.emit(obj)
 
-    # ---- the schedule
     def _keys(self) -> list[str]:
         return list(self._objects)
 
     def path_of(self, obj: OwnObject) -> tuple[str, ...]:
-        """The digipeaters the object goes by: its own, else those of the beacon on radio 1 (its own path, `radio/1/path`)."""
+        """Return the object's own path, else the path of radio 1 (`radio/1/path`)."""
         return self._config().path_calls(FM_ID) if obj.path_calls is None else obj.path_calls
 
     def _due(self, key: str) -> datetime | None:
         obj = self._objects.get(key)
         if obj is None or (obj.on_request and obj.alive):
             return None
-        if obj.sent == 0:                                   # new, changed or just killed: as soon as the last packet of it is a minute old
+        # New, changed or killed: due once its last packet is a minute old.
+        if obj.sent == 0:
             return first_due(obj.updated_at, obj.last_sent_at)
         assert obj.last_sent_at is not None
         wait = self._live_wait(obj) if obj.alive else kill_wait_sec(obj.sent)
         return None if wait is None else obj.last_sent_at + timedelta(seconds=wait)
 
     def _live_wait(self, obj: OwnObject) -> int:
-        """The wait after the latest packet of a live object, by the net cycle time of the path its frames really carry on each of its radios (radioset.path_on: none on HF, where every frame is direct, the
-        object's path, else the radio's own, on FM), or that radio's own floor where it is longer (beaconrule.repeat_floor_sec: on HF and LoRa the object repeats no more often than the radio beacons; the
-        decay of the first sends stays); the longest of them when it goes on several (the round is one for all of its radios: an object on FM and HF repeats at HF's pace on both)."""
+        """Return the wait after the latest packet: the longest over the radios of one round."""
         config = self._config()
         radios = self._sender.radios_for(obj.radios)
         return max((object_wait_sec(obj.sent, path_on(radio, config, obj.path_calls), repeat_floor_sec(radio.limits)) for radio in radios), default=object_wait_sec(obj.sent, self.path_of(obj)))
 
     def _transmit(self, key: str, now: datetime) -> bool:
-        """The round of the object on its radios (Repeater._round); when it is done the object is counted as sent once more, and a killed one that was sent KILL_SENDS times is forgotten."""
+        """Run the round on its radios; when done, count one more send.
+
+        A killed object sent KILL_SENDS times is forgotten."""
         obj = self._objects[key]
         done, went = self._round(key, self._radios_of(obj), info_of(obj, now), obj.path_calls, now)
         if obj.alive and went:
@@ -211,15 +195,14 @@ class OwnObjects(Repeater[str]):
         return True
 
     def _radios_of(self, obj: OwnObject) -> list[AirRadio]:
-        """The radios a frame of the object goes on: its own (`Sender.radios_for`); for the killed form also every radio that is on and took a live frame of it, by position after those."""
+        """Return the radios for a frame; a kill adds radios that took a live frame."""
         radios = self._sender.radios_for(obj.radios)
         if obj.alive or not (went := self._went.get(obj.name, set()) - {radio.id for radio in radios}):
             return radios
         return radios + [radio for radio in self._sender.radios.senders() if radio.id in went]
 
-    # ---- incoming
     def on_packet(self, packet: Packet) -> None:
-        """Another station reports an object of ours as alive: it has taken it over, and we stop. The made-up stations of the Dummy radio take nothing over: an object of the operator's is not lost to a station that is not there."""
+        """Drop our object when another station reports it alive (it has taken it over)."""
         report = packet.decoded
         if packet.direction != "in" or not packet.on_air or packet.via == DUMMY or not isinstance(report, (ObjectReport, ItemReport)) or not report.alive:
             return

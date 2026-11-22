@@ -1,5 +1,4 @@
-"""The migrations 12 to 21, frozen here beside migrations.py (which lists them in MIGRATIONS and runs them): the same rules as for the first eleven (migrationsteps1to11.py), a step is
-never edited once it has been released. The next steps go to a module of their own (migrationsteps22on.py when there is one), so that this one does not grow."""
+"""Migrations 12 to 21. A released step is never edited (see migrationsteps1to11.py)."""
 import re
 import sqlite3
 

@@ -1,7 +1,7 @@
-"""A new installation's first radio of one of the new types, as the setup guide makes it over the page's socket: a new installation has no radio, and the first one added, radio 1, is a LoRa APRS board on the
-network with no address yet, a text monitor (`tnc-text`), or a Sound card radio (`direwolf`). None tells the page an error while the operator has not asked for anything; the board's row is "not connected" until
-its address is typed, and then it is a radio as any other; the monitor alone makes the station receive only, every sending command is refused as RX only, and not one byte goes to its line; the Sound card radio
-is offered on a station that has no radio yet, is radio 1 and the station's radio to send on, and its beacon goes out through its own Direwolf."""
+"""Tests for the first radio of a new installation when it is a LoRa board, a text monitor
+(`tnc-text`) or a Sound card radio (`direwolf`), as the setup guide adds it over the page's socket:
+no spurious errors, rows and refusals as expected, and the Sound card radio's beacon.
+"""
 import asyncio
 from pathlib import Path
 from types import SimpleNamespace
@@ -27,7 +27,8 @@ ME = "OH2GBA"
 
 
 async def fresh(tmp_path: Path) -> tuple[Env, WsClient]:
-    """A first start of a new installation (no settings row, no radio in the database, and none written by the start) with the guide's call and place set, and the page's socket open."""
+    """A first start of a new installation (no settings row, no radio in the database, and none
+    written by the start) with the guide's call and place set, and the page's socket open."""
     e = Env(tmp_path, radio=False, web=True, operator=False, first_radio=False)
     await e.start(connected=False)
     page = await e.ws()
@@ -55,7 +56,8 @@ async def test_a_lora_board_on_the_network_added_first_with_no_address_is_not_co
         assert radio is not None
         await page.until(lambda: page.topics["radios"][str(id)]["state"] != "connecting")
         row = page.topics["radios"][str(id)]
-        assert (row["kind"], row["type"], row["enabled"], row["state"]) == ("lora", "lora-tcp", True, "waiting"), row          # (between two tries, which open nothing)
+        # (between two tries, which open nothing)
+        assert (row["kind"], row["type"], row["enabled"], row["state"]) == ("lora", "lora-tcp", True, "waiting"), row
         assert row["problem"] is not None and row["problem"]["code"] == "radio.not_connected", "the row says not connected, in the page's words: nothing of an address or a port"
         assert page.topics["config"]["radio_values"][f"radio/{id}/tcp_host"] == "" and end.clients == 0, "a board on the network has no address until it is typed: nothing is opened, not 127.0.0.1"
         assert e.ctl.config.unheard_radio == id, "the board is the station's radio to send on"
@@ -98,7 +100,8 @@ async def test_a_text_monitor_alone_makes_the_station_receive_only_refuses_every
             assert (answer["cmd"], answer["code"]) == (command["cmd"], "transmit.off"), answer
         await page.send({"cmd": "find_radio", "radio": id})
         assert (await page.expect("error"))["code"] == "radio.receive_only"
-        for _ in range(20):                                                       # (an hour of the station's clock: a beacon, an ack, an answer would be due)
+        # (an hour of the station's clock: a beacon, an ack, an answer would be due)
+        for _ in range(20):
             e.now.advance(180)                                                    # type: ignore[attr-defined]
             await asyncio.sleep(0.02)
         assert await line.said(1, 0.3) == b"" and radio.stats.bytes_out == 0, "not one byte on the monitor's line"
@@ -110,12 +113,19 @@ async def test_a_text_monitor_alone_makes_the_station_receive_only_refuses_every
 
 @pytest.mark.parametrize("windows", [False, True], ids=["this-systems-way", "the-windows-way"])
 async def test_a_sound_card_radio_added_first_is_radio_1_the_stations_radio_to_send_on_and_its_beacon_goes_out_through_its_own_direwolf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windows: bool) -> None:
-    """With `windows`, the Windows way on every system: the card's WinMM numbers in the configuration, and the made-up Direwolf's device lists read."""
-    monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)             # (an installation that carries Direwolf: the made-up one, which gives back each frame it is sent as heard)
+    """With `windows`, the Windows way on every system: the card's WinMM numbers in the
+    configuration, and the made-up Direwolf's device lists read."""
+    # (an installation that carries Direwolf: the made-up one, which gives back each frame it is
+    # sent as heard)
+    monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)
     monkeypatch.setattr("neoaprs.direwolfprogram.find", lambda tools=None: fakedirewolf.program())
     monkeypatch.setattr(direwolfmodem, "FIRST_PORT", base_of_this_test())
-    monkeypatch.setattr(direwolfmodem, "_numbers_of", lambda name: (1, 1))           # (Windows: the made-up card is the second input and output of the made-up Direwolf's WinMM lists; the machine's own name none)
-    monkeypatch.setattr(direwolfmodem.DirewolfModem, "_cards", lambda self: [])      # (the machine's own sound cards are never listed by a test: the card is the one typed; with real cards the radio started on one of them first)
+    # (Windows: the made-up card is the second input and output of the made-up Direwolf's WinMM
+    # lists; the machine's own name none)
+    monkeypatch.setattr(direwolfmodem, "_numbers_of", lambda name: (1, 1))
+    # (the machine's own sound cards are never listed by a test: the card is the one typed; with
+    # real cards the radio started on one of them first)
+    monkeypatch.setattr(direwolfmodem.DirewolfModem, "_cards", lambda self: [])
     if windows:
         monkeypatch.setattr(direwolfmodem, "sys", SimpleNamespace(platform="win32"))
     e, page = await fresh(tmp_path)

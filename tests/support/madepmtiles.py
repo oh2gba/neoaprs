@@ -1,15 +1,6 @@
-"""Small PMTiles archives (version 3) made up for the tests of the cut (neoaprs/pmtilescut.py), and a reader of their tiles, written apart from the program's code so that the two check each other.
-
-    tiles = {(z, x, y): b"content", ...}
-    data = archive(tiles, leaf=8)                          # the root and leaves of 8 entries; leaf=None: the root alone; deep=True: leaves of leaves
-    data = archive(tiles, runs=False, shared=False)        # every tile an entry of its own and a content of its own
-    tile_at(data, z, x, y)                                 # the stored bytes of a tile, None for one the archive does not have
-    every_tile(data)                                       # {tile id: bytes} of all the tiles it addresses
-    archive_of(root, leaves, data, metadata, **fields)     # the parts as they are, behind a header with these fields: for archives that lie
-    planet(max_zoom)                                       # every tile of the world down to the zoom, 5461 of them to zoom 6: the source of the map tests, each tile a content of its own
-    tiles_of(box, min_zoom, max_zoom)                      # the keys of the tiles that touch the box (west, south, east, north), counted by the tile numbers of the map and not by the program's cover
-
-The tile ids here are the specification's: the tiles of the zooms below, then the Hilbert curve (the table of its four turns)."""
+"""Small PMTiles v3 archives for the tests of neoaprs/pmtilescut.py, and a reader of their tiles
+written apart from the program's code so that the two check each other.
+"""
 import functools
 import gzip
 import math
@@ -22,7 +13,8 @@ Entry = tuple[int, int, int, int]               # tile id, run length, length, o
 
 
 def tile_id(z: int, x: int, y: int) -> int:
-    """By quadrants from the top: each turn of the curve is a quarter and a rotation of the one above."""
+    """By quadrants from the top: each turn of the curve is a quarter and a rotation of the one
+    above."""
     index = 0
     for level in range(z - 1, -1, -1):
         half = 1 << level
@@ -47,7 +39,8 @@ def _number(value: int) -> bytes:
 
 
 def directory(entries: Iterable[Entry], packed: bool = True, follow: bool = True) -> bytes:
-    """A directory of the entries as they are, in order or not; `follow` writes 0 for an offset that follows the entry before it."""
+    """A directory of the entries as they are, in order or not; `follow` writes 0 for an offset that
+    follows the entry before it."""
     rows = list(entries)
     body = _number(len(rows))
     previous = 0
@@ -61,7 +54,8 @@ def directory(entries: Iterable[Entry], packed: bool = True, follow: bool = True
 
 
 def header(**fields: int) -> bytes:
-    """A header of version 3 with these fields (the numbers by their names in FIELDS, and clustered, internal, compression, kind, min_zoom, max_zoom, bounds, center_zoom, center)."""
+    """A header of version 3 with these fields (the numbers by their names in FIELDS, and clustered,
+    internal, compression, kind, min_zoom, max_zoom, bounds, center_zoom, center)."""
     numbers = [fields.get(name, 0) for name in FIELDS]
     west, south, east, north = fields.get("bounds", (-1800000000, -850511287, 1800000000, 850511287))  # type: ignore[misc]
     lon, lat = fields.get("center", (0, 0))  # type: ignore[misc]
@@ -70,7 +64,8 @@ def header(**fields: int) -> bytes:
 
 
 def archive_of(root: bytes, leaves: bytes, data: bytes, metadata: bytes = b"{}", **fields: int) -> bytes:
-    """The parts in the order go-pmtiles writes them behind a header that says where they are; a field given here wins over what the parts say."""
+    """The parts in the order go-pmtiles writes them behind a header that says where they are; a
+    field given here wins over what the parts say."""
     places = {"root_offset": 127, "root_length": len(root), "metadata_offset": 127 + len(root), "metadata_length": len(metadata), "leaf_offset": 127 + len(root) + len(metadata),
               "leaf_length": len(leaves), "data_offset": 127 + len(root) + len(metadata) + len(leaves), "data_length": len(data)}
     return header(**(places | fields)) + root + metadata + leaves + data
@@ -78,7 +73,9 @@ def archive_of(root: bytes, leaves: bytes, data: bytes, metadata: bytes = b"{}",
 
 def archive(tiles: dict[tuple[int, int, int], bytes], leaf: int | None = None, deep: bool = False, runs: bool = True, shared: bool = True, packed: bool = True,
             metadata: bytes = b'{"name":"made up"}', **fields: int) -> bytes:
-    """A clustered archive of the tiles: a content that several tiles have is stored once (`shared`), a row of tiles with one content is one entry (`runs`); the root alone, or leaves of `leaf` entries."""
+    """A clustered archive of the tiles: a content that several tiles have is stored once
+    (`shared`), a row of tiles with one content is one entry (`runs`); the root alone, or leaves of
+    `leaf` entries."""
     entries: list[Entry] = []
     data = b""
     stored: dict[bytes, int] = {}
@@ -169,12 +166,14 @@ def tile_at(data: bytes, z: int, x: int, y: int) -> bytes | None:
 
 @functools.cache
 def planet(max_zoom: int = 6) -> bytes:
-    """Every tile of the world from zoom 0 to `max_zoom`, each with a content of its own that says where it is, in leaves of 64 entries (the root and one level of leaves)."""
+    """Every tile of the world from zoom 0 to `max_zoom`, each with a content of its own that says
+    where it is, in leaves of 64 entries (the root and one level of leaves)."""
     return archive({(z, x, y): f"{z}/{x}/{y}".encode() * 2 for z in range(max_zoom + 1) for x in range(1 << z) for y in range(1 << z)}, leaf=64)
 
 
 def tiles_of(box: tuple[float, float, float, float], min_zoom: int, max_zoom: int) -> set[tuple[int, int, int]]:
-    """The tiles of the zooms that the box touches: the Web Mercator tile numbers of its north-west and south-east corners, and every tile between them."""
+    """The tiles of the zooms that the box touches: the Web Mercator tile numbers of its north-west
+    and south-east corners, and every tile between them."""
     west, south, east, north = box
 
     def number(lon: float, lat: float, z: int) -> tuple[int, int]:

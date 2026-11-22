@@ -1,7 +1,7 @@
-"""The clean installs in Docker (scripts/check-installs and scripts/install-probe.py) as far as they can be held without docker and without a release: the builds, the containers and what each is given, from a stand-in
-for docker (and for uv, git and the build scripts) that writes down what it was asked; the old release's pin and its checksum; the upgrade from a .deb file or from a commit built here (--update-from); that the
-.deb check holds what the release workflow's job `deb` holds; and the probe of the upgrade run for real against this tree's daemon (seed, then verify, then a version that is not the daemon's), with the check
-of the database the upgrade ends with. The images and the real builds are tried by hand (docs/development.md)."""
+"""Tests for the clean-install checks (scripts/check-installs, scripts/install-probe.py) without
+docker or a release: builds and containers against a stand-in docker, the old release pin, the
+upgrade from a .deb or a commit, and the upgrade probe against this tree's daemon.
+"""
 import hashlib
 import importlib.machinery
 import importlib.util
@@ -23,7 +23,8 @@ from neoaprs.migrations import SCHEMA_VERSION
 from tests.conftest import ROOT
 from tests.support.ptyline import posix_only
 
-pytestmark = posix_only      # (scripts of the repository that run docker and shell: a development check, not the product)
+# (scripts of the repository that run docker and shell: a development check, not the product)
+pytestmark = posix_only
 
 SCRIPT = ROOT / "scripts" / "check-installs"
 PATIENCE_SEC = 120.0
@@ -83,7 +84,9 @@ def test_the_probe_names_what_the_scripts_it_starts_have(installs: ModuleType) -
 
 
 def test_the_upgrade_proves_this_build_by_its_files_and_its_database_not_by_its_version_number(installs: ModuleType, tmp_path: Path) -> None:
-    """The build before the round and this one have the same version number: apt would leave the old files where they are, and a check of the version would pass on the old program."""
+    """Two builds with the same version number: apt would leave the old files where they are, and a
+    version check would pass on the old program.
+    """
     upgrade = installs.UPGRADE
     assert "grep -v '  usr/share/doc/' /tmp/upgrade/control/md5sums | md5sum --quiet -c -" in upgrade and installs.DATABASE_CHECK in upgrade and '"$before" "$NEW_SCHEMA"' in upgrade
     assert installs.tree_schema() == SCHEMA_VERSION, "NEW_SCHEMA, read from the text of this tree's migrations, is the version its daemon brings a file to"
@@ -157,7 +160,9 @@ esac
 
 
 class Rig:
-    """The script in a made-up repository (it reads its tree's files by their place), with stand-ins for docker and uv first on the PATH and for the build scripts and the scripts the containers run beside it."""
+    """The script in a made-up repository (it reads its tree's files by their place), with stand-ins
+    for docker and uv first on the PATH and for the build scripts and the scripts the containers run
+    beside it."""
 
     def __init__(self, tmp_path: Path) -> None:
         self.repo, self.state, self.work, self.cache = tmp_path / "repo", tmp_path / "state", tmp_path / "work", tmp_path / "cache"
@@ -458,7 +463,8 @@ def test_the_default_run_leaves_the_trial_out(rig: Rig) -> None:
 # ---- a Mercury that this system's glibc is too old for ----
 
 def mercury_part(installs: ModuleType, tmp_path: Path) -> tuple[Path, dict[str, str]]:
-    """The Mercury part of the .deb check, cut out of the script and pointed at a folder of the test, with an ldd, a dpkg and a mercury of the test's own first on the PATH."""
+    """The Mercury part of the .deb check, cut out of the script and pointed at a folder of the
+    test, with an ldd, a dpkg and a mercury of the test's own first on the PATH."""
     text = installs.DEB
     part = text[text.index('if [ -n "${MERCURY_VERSION:-}" ]'):text.index("mkdir -p /tmp/home")]
     part = part.replace("/tmp/", "/@work/").replace("/opt/neoaprs/tools/mercury", str(tmp_path / "mercury")).replace("/@work/", f"{tmp_path}/")

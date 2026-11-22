@@ -1,9 +1,7 @@
-"""What the beacon and the status report remember across a restart: when each last went out (and what the status said), as rows of the settings table (`STATE_KEYS` of config.py, and a radio's own as `radio/<id>/<name>`: config.radio_state_key, so `radio/1/beacon_last_sent_at`). They are state
-of the daemon, not settings the operator edits, so they are not in `Config` (the settings form does not list them and `Config.from_data` leaves them alone).
+"""Daemon state kept across restarts, such as when the beacon and status last went out.
 
-`Memory` is the part of the Store that is used (the Store itself fits). `Remembered` reads a row at the start and writes in a task after a send, so that the send path never waits for the
-database; `flush()` waits for the writes in flight (the stop of the part), and a Remembered without a Memory remembers nothing.
-"""
+The state lives in rows of the settings table, outside `Config`. Writes run in a task so the
+send path never waits for the database; without a `Memory` nothing is remembered."""
 import asyncio
 import logging
 from collections.abc import Mapping
@@ -17,18 +15,18 @@ log = logging.getLogger("neoaprs.memory")
 
 
 class Memory(Protocol):
-    """What is used of the Store: one row read, rows written together."""
+    """The part of the Store used here."""
     async def setting(self, key: str) -> str | None: ...
     async def put_settings(self, data: dict[str, str]) -> bool: ...
 
 
 def stamp(t: datetime) -> str:
-    """The time as it is kept: ISO 8601, UTC, to the second (`2026-10-21T12:00:00Z`)."""
+    """Return the time as ISO 8601 UTC to the second, e.g. `2026-10-21T12:00:00Z`."""
     return iso(t) or ""
 
 
 def unstamp(text: str | None) -> datetime | None:
-    """The time of a kept row; None when there is none or it is not a time (a row someone edited by hand is as good as none)."""
+    """Return the stored time, or None if absent or unparseable."""
     if not text:
         return None
     try:
@@ -47,12 +45,14 @@ class Remembered:
         return None if self._memory is None else await self._memory.setting(key)
 
     async def get_time(self, key: str, now: datetime) -> datetime | None:
-        """The time kept in the row; None when there is none or it is later than `now` (the clock was set back: such a time would hold things off for as long as the jump)."""
+        """Return the stored time; None if absent or after `now`.
+
+        A time in the future (clock set back) would otherwise hold things off for the whole jump."""
         t = unstamp(await self.get(key))
         return t if t is not None and t <= now else None
 
     def put(self, data: Mapping[str, str]) -> None:
-        """The rows, written in a task (all of them or none); the caller does not wait."""
+        """Write the rows together in a task; the caller does not wait."""
         if self._memory is not None:
             self._writes.spawn(self._put(self._memory, dict(data)), "remember")
 
@@ -61,7 +61,7 @@ class Remembered:
         await memory.put_settings(data)
 
     async def flush(self) -> None:
-        """Waits until the writes in flight are done."""
+        """Wait for pending writes."""
         await asyncio.gather(*self._writes, return_exceptions=True)
 
     @staticmethod

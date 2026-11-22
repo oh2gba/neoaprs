@@ -1,26 +1,8 @@
 #!/usr/bin/env python3
-"""Makes a release in one command, and can be run again after any failure: what is done is seen and skipped, what is not is done. Read docs/MAINTAINING.md, "A release", for what each step is and for the manual way.
+"""Make a release in one command; run it again after a failure and it goes on where it stopped.
 
-  scripts/release VERSION [--dry-run] [--rerun] [--deploy] [--interval SECONDS]
-  scripts/release VERSION --verify
-
-On master, with the repository's switches on GitHub on (secret scanning and push protection, Dependabot alerts, code scanning, immutable releases, actions pinned by commit: read back through `gh api`, and refused by name when one is off), a clean tree that is up to date with origin and has notes under `## Unreleased` in CHANGELOG.md, it: writes VERSION and the changelog section, builds the page to compare it with the committed one only when ui/
-changed since the last tag, runs scripts/check, commits, pushes, waits for the CI run of that commit, tags v<VERSION> on that commit and pushes the tag (when a fix came after the release commit and no tag is made yet, HEAD is the release: its CI run, the tag on it, if it
-has the same VERSION and changelog section; a tag is never moved), waits for the release run, which leaves the release a draft, signs its SHA256SUMS (the key is read from Bitwarden Secrets Manager by `bws` at that moment, into memory only),
-uploads SHA256SUMS.sig, checks it with the program's public key and publishes the release, checks that the release is published (not a draft, its 15 files, the signature holding, every download link answering), and with --deploy uploads the version page (server/deploy.sh, which needs the operator's Bitwarden session; without it the command is printed).
-
-  --dry-run   print the steps, what is done already and what would refuse, and change nothing (GitHub is asked only for the repository's switches, read only; origin is asked with `git ls-remote`)
-  --rerun     a run of CI or of the release that failed gets its failed jobs run again, once (a flaky test); the tag is never moved or made again
-  --deploy    upload the version page at the end
-  --interval  seconds between two looks at GitHub (default 15), and the first wait after an answer of GitHub's rate limit, which doubles at each of five tries
-  --verify    only check the published release: its files, the signature of its SHA256SUMS with the program's public key (neoaprs/updateasset.py, PUBLIC_KEY) and its download links
-
-The signing key is the secret whose id NEOAPRS_SIGNING_SECRET_ID names, read with `bws secret get` (bws takes its access token from BWS_ACCESS_TOKEN and its server from BWS_SERVER_URL); it is never printed,
-written to a file or put in a command line, and bws is the only program the script gives BWS_ACCESS_TOKEN and NEOAPRS_SIGNING_SECRET_ID: scripts/check, git and its hooks, gh and server/deploy.sh run without them.
-
-The script uses the operator's own `gh` (gh auth login): the anonymous API of a sandbox hits GitHub's rate limit at once. A failed CI or release run is shown with its failed jobs and the lines of its failed tests, and the script
-stops; fix it and run the same command again.
-"""
+  scripts/release VERSION [--dry-run] [--rerun] [--deploy] [--interval SECONDS] | --verify
+See docs/MAINTAINING.md, "A release"."""
 import argparse
 import base64
 import binascii
@@ -54,15 +36,19 @@ VERSION_LINE = re.compile(r'^VERSION = "([^"]+)"', re.M)
 RATE_LIMIT = re.compile(r"rate limit|HTTP 403|\b403\b", re.I)
 FAILED_LINE = re.compile(r"\bFAILED\b|\bFAIL\b|\bERROR\b|AssertionError|error TS\d+|✖|×|\bpanic\b|Error:", re.I)
 BACKOFF_TRIES = 5
-WAIT_FOR_RUN_TRIES = 40                                                # looks for a run that has not been started yet: 40 intervals
+# Looks for a run that has not started yet: 40 intervals.
+WAIT_FOR_RUN_TRIES = 40
 FAILED_LINES_SHOWN = 30
 COMMAND = "scripts/release"
-SIGNING_KEY_ID_VARIABLE = "NEOAPRS_SIGNING_SECRET_ID"                           # the id of the signing key's secret in Bitwarden Secrets Manager
+# The id of the signing key's secret in Bitwarden Secrets Manager.
+SIGNING_KEY_ID_VARIABLE = "NEOAPRS_SIGNING_SECRET_ID"
 BWS_SEC = 60
-SIGNING_VARIABLES = ("BWS_ACCESS_TOKEN", SIGNING_KEY_ID_VARIABLE)                # what reads the signing key: bws alone is given them, no other program the script starts
+# Only bws is given these; no other program the script starts.
+SIGNING_VARIABLES = ("BWS_ACCESS_TOKEN", SIGNING_KEY_ID_VARIABLE)
 
 
-# The repository's switches on GitHub, read back before anything is tagged or pushed (aprs-reference/security-plan.md): the name each is told by, the API path (gh fills {owner}/{repo} from the repository) and how to read it.
+# The repository's GitHub switches, read back before anything is tagged or pushed: name, API path
+# (gh fills {owner}/{repo}) and how to read it.
 SWITCHES = (
     ("secret scanning", "repos/{owner}/{repo}", ("security_and_analysis", "secret_scanning", "status"), "enabled"),
     ("push protection of secret scanning", "repos/{owner}/{repo}", ("security_and_analysis", "secret_scanning_push_protection", "status"), "enabled"),
@@ -70,7 +56,8 @@ SWITCHES = (
     ("immutable releases", "repos/{owner}/{repo}/immutable-releases", ("enabled",), True),
     ("actions pinned by commit (SHA pinning required)", "repos/{owner}/{repo}/actions/permissions", ("sha_pinning_required",), True),
 )
-ALERTS = ("Dependabot alerts", "repos/{owner}/{repo}/vulnerability-alerts")                                       # answers 204 when on, 404 when off
+# Answers 204 when on, 404 when off.
+ALERTS = ("Dependabot alerts", "repos/{owner}/{repo}/vulnerability-alerts")
 
 
 class Refusal(Exception):
@@ -78,17 +65,18 @@ class Refusal(Exception):
 
 
 def assets_of(version: str) -> list[str]:
-    """The 15 files of a release: the installer, the AppImage, the macOS app's disk image and the two packages, the five again under fixed names, the source tarball (unadvertised, for packagers), the wheel and
-    install.sh (for the copies installed with the install line before 0.16, whose update runs it), SHA256SUMS (.github/workflows/release.yml, "SHA256SUMS and the notes") and SHA256SUMS.sig (the step sign)."""
-    wheel = wheel_version(version)                  # the build names the sdist by the PEP 440 form: 1.0.0rc1 for 1.0.0-rc1
+    """Return the names of the 15 files of a release (see release.yml), SHA256SUMS.sig included."""
+    # The build names the sdist by the PEP 440 form: 1.0.0rc1 for 1.0.0-rc1.
+    wheel = wheel_version(version)
     return sorted([f"neoaprs-{wheel}.tar.gz", f"neoaprs-{wheel}-py3-none-any.whl", "install.sh", f"NeoAPRS-Setup-{version}.exe", f"NeoAPRS-{version}-x86_64.AppImage", f"NeoAPRS-{version}-arm64.dmg",
                    f"neoaprs_{version}_amd64.deb", f"neoaprs_{version}_arm64.deb", "NeoAPRS-Setup.exe", "NeoAPRS-x86_64.AppImage", "NeoAPRS-arm64.dmg",
                    "neoaprs_amd64.deb", "neoaprs_arm64.deb", CHECKSUMS, SIGNATURE])
 
 
 def signing_seed(environ: Mapping[str, str] = os.environ) -> bytes:
-    """The 32-byte seed of the signing key, read from Bitwarden Secrets Manager by `bws secret get` into memory: the secret whose id SIGNING_KEY_ID_VARIABLE names, on the server of BWS_SERVER_URL when it is set, with bws's
-    own access token (BWS_ACCESS_TOKEN). The value is never printed, written to a file or put in a command line; a refusal says what failed and never what bws answered on its output."""
+    """Return the signing key's 32-byte seed from `bws secret get`, into memory only.
+
+    The value is never printed or put in a command line, and a refusal never quotes bws's output."""
     secret_id = environ.get(SIGNING_KEY_ID_VARIABLE, "").strip()
     if not secret_id:
         raise Refusal(f"{SIGNING_KEY_ID_VARIABLE} names no secret: set it to the id of the signing key's secret in Bitwarden Secrets Manager, and BWS_ACCESS_TOKEN for bws")
@@ -113,8 +101,7 @@ def signing_seed(environ: Mapping[str, str] = os.environ) -> bytes:
 
 
 def child_environment(environ: Mapping[str, str] = os.environ) -> dict[str, str]:
-    """The environment of every program the script starts but bws: the script's own without SIGNING_VARIABLES, so that no install script of `npm ci`, test, tool, hook or deploy that scripts/check, git push or
-    server/deploy.sh runs can read the signing key with them."""
+    """Return the environment for every program but bws: the script's without SIGNING_VARIABLES."""
     return {key: value for key, value in environ.items() if key not in SIGNING_VARIABLES}
 
 
@@ -142,10 +129,13 @@ class Release:
     def __init__(self, version: str, dry_run: bool, rerun: bool, deploy: bool, interval: float) -> None:
         self.version, self.dry_run, self.rerun, self.deploy, self.interval = version, dry_run, rerun, deploy, interval
         self.tag = f"v{version}"
-        self.commit: str | None = None                                 # the commit the steps from ci on are about: the release commit, or HEAD after it (see pick_target)
-        self.first: str | None = None                                  # the commit that first set VERSION, once there is one
-        self.after = 0                                                 # how many commits self.commit is after self.first
-        self.last_tag = ""                                             # the newest release before this one
+        # The commit the steps from ci on are about: the release commit, or HEAD after it.
+        self.commit: str | None = None
+        # The commit that first set VERSION, once there is one.
+        self.first: str | None = None
+        # How many commits self.commit is after self.first.
+        self.after = 0
+        self.last_tag = ""                                             # newest release before this one
         self.refusals: list[str] = []                                  # what a dry run would stop for
 
     # ---- the tools: git, gh, the shell
@@ -200,12 +190,13 @@ class Release:
         say(f"  WOULD REFUSE: {reason}")
 
     def find_commit(self) -> str | None:
-        """The oldest commit that wrote `VERSION = "<version>"` (the release commit), whatever its message."""
+        """Return the oldest commit that wrote `VERSION = "<version>"`, the release commit."""
         found = self.git("log", "-S" + f'VERSION = "{self.version}"', "--format=%H", "--", "neoaprs/__init__.py", check=False).split()
         return found[-1] if found else None
 
     def started(self) -> bool:
-        """Has the release been started in this tree: VERSION is the new one in the file, or in a commit?"""
+        """Return whether the release was started: VERSION is the new one, in the file or a
+        commit."""
         return self.current() == self.version or self.commit is not None
 
     # ---- the steps
@@ -231,11 +222,11 @@ class Release:
                 raise Refusal("gh is not logged in: gh auth login (the script uses your own gh; the anonymous API hits GitHub's rate limit)")
 
     def switch_answer(self, path: str) -> subprocess.CompletedProcess[str]:
-        """One answer, asked once: a 403 here is a missing permission and no rate limit, so it is not waited out as `gh` does."""
+        """Ask once: a 403 is a missing permission and no rate limit, so it is not waited out."""
         return self.run("gh", "api", path, check=False)
 
     def switch_problems(self) -> list[str]:
-        """What is wrong with the repository's switches on GitHub, one text per switch that is off or that could not be read: an answer that cannot be read is no pass."""
+        """Return one text per GitHub switch that is off or unreadable (unreadable is no pass)."""
         problems, cache = [], {}
         for name, path, field, wanted in SWITCHES:
             if path not in cache:
@@ -261,7 +252,8 @@ class Release:
         return problems
 
     def step_switches(self) -> str:
-        """The repository's switches on GitHub are on, read only through `gh api`; it runs in a dry run too, since it changes nothing."""
+        """Check the repository's GitHub switches through `gh api`; read only, so it runs in a
+        dry run."""
         problems = self.switch_problems()
         if problems:
             self.refuse("a switch of the repository on GitHub is not on: " + "; ".join(problems) + ". Switch it on in the repository's settings (Security) and run the same command again")
@@ -269,12 +261,14 @@ class Release:
         return f"all {len(SWITCHES) + 1} switches are on"
 
     def check_tree(self) -> None:
-        mine = {"neoaprs/__init__.py", "CHANGELOG.md"} if self.current() == self.version else set()      # a run that stopped after the bump leaves exactly these
+        # A run that stopped after the bump leaves exactly these.
+        mine = {"neoaprs/__init__.py", "CHANGELOG.md"} if self.current() == self.version else set()
         dirty = []
         for line in self.run("git", "status", "--porcelain", "--untracked-files=all").stdout.splitlines():
             path = line[3:].split(" -> ")[-1]
             if line.startswith("??") and not path.startswith(("neoaprs/", "ui/")):
-                continue                                               # (a stray file of the operator's, such as .mcp.json, goes into no commit of this script)
+                # A stray file of the operator's, such as .mcp.json, goes into no commit.
+                continue
             if path not in mine:
                 dirty.append(path)
         if dirty:
@@ -299,13 +293,14 @@ class Release:
             self.refuse(f"master has {len(ahead)} commit(s) that origin/master has not, and they are not just the release commit: push or review them first")
 
     def tag_shas(self) -> set[str]:
-        """The commits the tag names, here and on origin (a tag that is not made yet names none)."""
+        """Return the commits the tag names, here and on origin."""
         local = self.git("rev-parse", "--verify", "--quiet", f"{self.tag}^{{commit}}", check=False)
         remote = self.run("git", "ls-remote", "origin", f"refs/tags/{self.tag}^{{}}", f"refs/tags/{self.tag}", check=False).stdout.split()[:1]
         return {sha for sha in (local, remote[0] if remote else "") if sha}
 
     def defect(self, sha: str) -> str:
-        """Why the commit is not the release of this version, or empty: the same VERSION, the same section of the changelog as the release commit's and nothing under Unreleased (the release run stops a tag with notes there)."""
+        """Return why the commit is not this version's release, or "": it needs the same VERSION and
+        changelog section and nothing under Unreleased."""
         found = VERSION_LINE.search(self.git("show", f"{sha}:neoaprs/__init__.py", check=False))
         if not found or found.group(1) != self.version:
             return f"VERSION is {found.group(1) if found else 'not there'} in {sha[:9]}, not {self.version}"
@@ -318,8 +313,9 @@ class Release:
         return ""
 
     def pick_target(self) -> None:
-        """The commit that CI is waited for and the tag is made on. The release commit; or, when a fix came after it (CI of the release commit failed, the fix is on master after it), HEAD, if it is pushed, has the same VERSION
-        and the same changelog section. A tag that is made already decides: it is never moved, so the commit it names is the one (the release commit, or a later one that is the same release)."""
+        """Choose the commit CI is waited for and the tag is made on: the release commit, or a
+        pushed HEAD after it with the same VERSION and changelog. An existing tag decides;
+        never moved."""
         if self.first is None:
             return
         head = self.git("rev-parse", "HEAD")
@@ -329,7 +325,8 @@ class Release:
             if named != self.first and self.run("git", "merge-base", "--is-ancestor", self.first, named, check=False).returncode == 0 and self.run("git", "merge-base", "--is-ancestor", named, head, check=False).returncode == 0 and not self.defect(named):
                 self.commit = named
             else:
-                return                                                 # (the tag is on the release commit, or check_tag refuses it)
+                # The tag is on the release commit, or check_tag refuses it.
+                return
         elif not tagged and head != self.first:
             if self.run("git", "merge-base", "--is-ancestor", head, "origin/master", check=False).returncode != 0:
                 self.refuse(f"HEAD {head[:9]} is after the release commit {self.first[:9]} but not on origin/master: push it, or take it off")
@@ -457,7 +454,8 @@ class Release:
         return sorted(self.ghjson(*args) or [], key=lambda r: r["databaseId"])
 
     def wait_for(self, workflow: str, what: str, **find: str) -> str:
-        """Watches the newest run of the workflow for the commit or tag until it ends; a failed one is shown, rerun once with --rerun, and stops the script."""
+        """Watch the newest run for the commit or tag; a failed one is shown, rerun once if
+        asked."""
         run: dict[str, Any] | None = None
         for _ in range(WAIT_FOR_RUN_TRIES):
             found = self.runs(workflow, **find)
@@ -483,7 +481,8 @@ class Release:
             self.pause()
 
     def settle(self, run_id: int) -> dict[str, Any]:
-        """Watches a run until it is completed (gh run watch may end early on a network fault: the state is asked again)."""
+        """Watch a run until completed; `gh run watch` may end early on a network fault, so ask
+        again."""
         while True:
             run = self.ghjson("run", "view", str(run_id), "--json", "databaseId,status,conclusion,url,attempt,headSha,jobs")
             if run["status"] == "completed":
@@ -536,7 +535,7 @@ class Release:
         return done.stdout
 
     def signature_problem(self) -> str:
-        """Why SHA256SUMS.sig of the release is not the signature of its SHA256SUMS with the program's public key, or SHA256SUMS does not name every file of the release once; empty when all holds."""
+        """Return why SHA256SUMS.sig is invalid or SHA256SUMS lacks a file; else ""."""
         sums = self.release_file(CHECKSUMS)
         try:
             check_signature(sums, self.release_file(SIGNATURE), self.version, public_key())
@@ -619,9 +618,9 @@ class Release:
 
 
 def link_problem(url: str) -> str:
-    """Why a download link does not answer, or empty when it does (a HEAD request that follows the redirect to the file)."""
+    """Return why a download link does not answer (a HEAD request following redirects), or ""."""
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, method="HEAD"), timeout=30) as answer:  # noqa: S310  (the download link of a file of our own release, an https address of GitHub as `gh release view` gave it; only asked whether it answers)
+        with urllib.request.urlopen(urllib.request.Request(url, method="HEAD"), timeout=30) as answer:  # noqa: S310  (https link of our own release file; only asked whether it answers)
             return "" if answer.status == 200 else f"status {answer.status}"
     except urllib.error.HTTPError as e:
         return f"status {e.code}"

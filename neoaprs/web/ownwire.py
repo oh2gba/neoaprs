@@ -1,5 +1,4 @@
-"""The objects, items and bulletins of our own on the wire: the topics `own_objects` and `own_bulletins` (tables of rows by name and by slot) and the commands that make, change and kill an object and post and
-delete a bulletin. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire models of our objects and bulletins: `own_objects`, `own_bulletins` and their commands."""
 from typing import Literal
 
 from pydantic import Field
@@ -10,7 +9,8 @@ from neoaprs.ownobject import COMMENT_MAX, COURSE_MAX, OBJECT_NAME, QRU_GROUP_MA
 
 from .wirebase import Iso, MessageText, PathText, _Command, _Model
 
-SLOT_LENGTH = (4, 3 + 1 + GROUP_MAX)                 # BLN and an identifier, up to a group of five characters
+# "BLN" plus an identifier, up to a five-character group.
+SLOT_LENGTH = (4, 3 + 1 + GROUP_MAX)
 
 
 class OwnObjectRow(_Model):

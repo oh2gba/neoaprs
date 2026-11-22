@@ -1,11 +1,13 @@
-"""Storm data (neoaprs/aprsstorm.py): APRS101 chapter 12, in the units of the rest of the program."""
+"""Storm data (neoaprs/aprsstorm.py): APRS101 chapter 12, in the units of the rest of the program.
+"""
 import pytest
 
 from neoaprs.aprsstorm import Storm, split_storm, storm_text
 
 
 def test_the_specs_hurricane_brenda() -> None:
-    rest, storm = split_storm("/HC/150^200/0980>090&030%040")                       # (after the course and speed 088/036, which are the position's)
+    # (after the course and speed 088/036, which are the position's)
+    rest, storm = split_storm("/HC/150^200/0980>090&030%040")
     assert rest == "" and storm == Storm("HC", 277.8, 370.4, 980, 166.7, 55.6, 74.1)
 
 

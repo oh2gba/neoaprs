@@ -1,7 +1,7 @@
-"""A look at Hamlib's rigctld: the frequency and the mode of the radio, from a fresh short connection each time.
+"""Read the frequency and mode of the radio from Hamlib's rigctld, on a fresh short connection.
 
-The text protocol: `f` is answered with the frequency in Hz on a line, `m` with the mode and then the passband on two lines; a command that fails is answered with `RPRT -n` (a radio that is
-off gives -5 or -6, say). Everything that can go wrong is a `RigError` whose text says what, ready for the log: "connection refused", "no answer in time", "rigctld answered RPRT -5".
+A failing command is answered with `RPRT -n`. Everything that goes wrong is a `RigError` whose
+text is ready for the log.
 """
 import asyncio
 from dataclasses import dataclass
@@ -41,15 +41,16 @@ def _hz(line: str) -> int:
 
 
 async def read_rig(host: str, port: int, timeout_sec: float = TIMEOUT_SEC) -> Reading:
-    """The frequency and the mode in one go: `f` and `m` on one connection that is closed again. Raises RigError."""
+    """Return the frequency and the mode (`f` and `m` on one connection); raise RigError."""
     try:
-        nodevices.check_host(host, "rigctld")                        # (under the no-devices switch a rigctld on another computer is not there)
+        nodevices.check_host(host, "rigctld")
         async with asyncio.timeout(timeout_sec):
             reader, writer = await asyncio.open_connection(host, port)
             try:
                 writer.write(b"f\nm\n")
                 hz = _hz(_line(await reader.readline()))
-                mode = _line(await reader.readline())                # (the passband that follows is not read: the connection is dropped)
+                # the passband that follows is not read
+                mode = _line(await reader.readline())
                 if not mode:
                     raise RigError("rigctld gave no mode")
                 return Reading(hz, mode)

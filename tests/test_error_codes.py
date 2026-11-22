@@ -1,5 +1,6 @@
-"""The `error` message says what it answers (`cmd`), which setting it is about (`key`) and what is wrong (`code` and `params`), besides the English sentence: a page goes by the first three and never reads the sentence.
-The settings' own refusals are SettingErrors with the same; a wrapper that only passes on the text of another refusal has its code."""
+"""Tests for the `error` message: it carries `cmd`, `key`, and `code` with `params` besides the
+English sentence, which the page never reads. Setting refusals are SettingErrors with the same
+fields."""
 from pathlib import Path
 from typing import Any
 
@@ -136,7 +137,9 @@ async def test_a_page_is_told_the_command_the_key_and_the_code_of_every_refusal(
         ("map_cancel", None, "map.no_job"),
         ("subscribe", None, "topic.unknown"),
     ]
-    for a in answers:                                                               # (the page takes the command and the setting off the front of the sentence to get the reason: ui/src/lib/settings.ts `reasonOf`)
+    # (the page takes the command and the setting off the front of the sentence to get the reason:
+    # ui/src/lib/settings.ts `reasonOf`)
+    for a in answers:
         assert a["text"].startswith(f"{a['cmd']}: " + (f"{a['key']}: " if a["key"] else ""))
     assert answers[0]["params"] == {"value": 95.0, "min": -90.0, "max": 90.0} and answers[0]["text"] == "set_config: station/lat: 95 is not between -90 and 90"
     assert answers[3]["params"] == {"length": 68, "max": 67} and answers[3]["text"].startswith("send_message: the text is 68 characters")

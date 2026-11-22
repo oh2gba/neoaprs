@@ -1,8 +1,8 @@
-"""Migration 32 (neoaprs/migrationsteps32.py): a packet, a message that came in and an attempt of ours name their radio by its id in the table `radio` (`packet.radio`, `message.radio`,
-`message_attempt.radio`: INTEGER, null for none), no longer by a word. The step is called as the runner calls it, on a database of version 30 that migration 31 has run on (tests/support/migrated32.py: the
-radios are decided from the rows), one shape of old database for each test: `fm` is radio 1 and `hf` is radio 2, a packet of the air with no word is radio 1's, a packet from the internet and a message of
-ours name none; every other column of every row is what it was, the indexes and the count of the message ids too; a step that is cut short leaves the database as it was and the next run finishes it; an
-SQLite that cannot drop a column is refused before anything is changed; and the stores read and write the database the step leaves."""
+"""Migration 32 (neoaprs/migrationsteps32.py): packets, messages and attempts name their radio by
+its id in the table `radio` instead of by a word. The step runs as the runner runs it on a version
+30 database that migration 31 has run on (tests/support/migrated32.py); an interrupted step is
+finished by the next run.
+"""
 import logging
 import sqlite3
 from pathlib import Path
@@ -61,7 +61,8 @@ def radios(db: sqlite3.Connection, table: str) -> list[int | None]:
 
 
 def at_31(tmp_path: Path, *fill: Any, settings: dict[str, str] | None = None) -> sqlite3.Connection:
-    """A database of version 30 with the rows the functions of `fill` insert and the settings given, and migration 31 run on it."""
+    """A database of version 30 with the rows the functions of `fill` insert and the settings given,
+    and migration 31 run on it."""
     db = old_database(tmp_path / DB_NAME, FixedClock())
     for key, value in (settings or {}).items():
         db.execute("INSERT INTO settings (key, value) VALUES (?, ?)", (key, value))
@@ -143,25 +144,29 @@ def test_the_tables_keep_their_indexes_their_checks_and_the_count_of_the_message
 
 
 def test_a_step_that_is_cut_short_leaves_the_database_as_it_was_and_the_next_run_finishes_it(tmp_path: Path) -> None:
-    """The runner gives the step a transaction of its own: what a kill, or a statement that fails in the middle, leaves is the database of before, and the step runs again from its start."""
+    """The runner gives the step a transaction of its own: what a kill, or a statement that fails in
+    the middle, leaves is the database of before, and the step runs again from its start."""
     db = at_31(tmp_path, packets, messages, settings={"hf/enabled": "true"})
     shape = db.execute("SELECT name, sql FROM sqlite_master ORDER BY name").fetchall()
     rows = {table: db.execute(f"SELECT * FROM {table} ORDER BY rowid").fetchall() for table in ("packet", "message", "message_attempt")}
-    db.execute("ALTER TABLE message_attempt ADD COLUMN radio_id TEXT")                  # something is in the way of the third table: the first two are done when it fails
+    # Something is in the way of the third table: the first two are done when it fails
+    db.execute("ALTER TABLE message_attempt ADD COLUMN radio_id TEXT")
     with pytest.raises(sqlite3.OperationalError, match="duplicate column name: radio_id"):
         run(db, _v32)
     db.execute("ALTER TABLE message_attempt DROP COLUMN radio_id")
     assert db.execute("SELECT name, sql FROM sqlite_master ORDER BY name").fetchall() == shape, "the two tables that were done are as they were"
     assert {table: db.execute(f"SELECT * FROM {table} ORDER BY rowid").fetchall() for table in rows} == rows
     db.close()
-    again = sqlite3.connect(str(tmp_path / DB_NAME), isolation_level=None)             # (the next start: another connection finds the file of before)
+    # The next start: another connection finds the file of before
+    again = sqlite3.connect(str(tmp_path / DB_NAME), isolation_level=None)
     run(again, _v32)
     assert radios(again, "packet") == RADIOS and radios(again, "message") == [None, 1, 2, 1, None, None] and radios(again, "message_attempt") == [1, 2, None]
     again.close()
 
 
 class OldSqlite:
-    """A connection whose SQLite says it is of an older version, and counts what else it is asked."""
+    """A connection whose SQLite says it is of an older version, and counts what else it is asked.
+    """
 
     def __init__(self, db: sqlite3.Connection, version: str) -> None:
         self.db, self.version, self.asked = db, version, 0
@@ -187,7 +192,8 @@ def test_an_sqlite_that_cannot_drop_a_column_is_refused_before_anything_is_chang
 
 
 def test_the_way_back_gives_the_words_again_and_the_step_then_makes_the_same_database(tmp_path: Path) -> None:
-    """`undo_32` is what tests/support/migrated.step_back uses below 32, so that the test of an older migration runs this step over its rows."""
+    """`undo_32` is what tests/support/migrated.step_back uses below 32, so that the test of an
+    older migration runs this step over its rows."""
     db = at_31(tmp_path, packets, messages, settings={"hf/enabled": "true"})
     before = {table: whole(db, table) for table in ("packet", "message", "message_attempt")}
     run(db, _v32)
@@ -230,7 +236,8 @@ async def test_the_logs_read_the_rows_the_step_left_and_write_the_ids_beside_the
 
 
 async def test_a_message_and_an_attempt_of_a_third_radio_are_read_as_they_are(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """A message and an attempt hold the id of their radio as it is: a row of a third radio is read with it, and nothing is told."""
+    """A message and an attempt hold the id of their radio as it is: a row of a third radio is read
+    with it, and nothing is told."""
     db = at_31(tmp_path, messages, settings={"hf/enabled": "true"})
     run(db, _v32)
     run(db, _v33)

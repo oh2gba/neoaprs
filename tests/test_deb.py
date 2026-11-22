@@ -1,5 +1,6 @@
-"""The Debian package (scripts/build-deb, packaging/deb/): the pieces of it are read as files, and the maintainer scripts and the command are run with a fake systemctl. The package itself is built, installed with apt and
-run against a fake TNC by the release workflow's job `deb`."""
+"""The Debian package (scripts/build-deb, packaging/deb/): the pieces of it are read as files, and
+the maintainer scripts and the command are run with a fake systemctl. The package itself is built,
+installed with apt and run against a fake TNC by the release workflow's job `deb`."""
 import os
 import re
 import subprocess

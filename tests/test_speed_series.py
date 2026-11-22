@@ -1,5 +1,7 @@
-"""The speeds of a moving station (`speed_series`, neoaprs/web/historywire.py): the packet log reads them from the station's position packets heard in the span, a course and speed after the position and a
-Mic-E's alike, leaving out the positions with no speed, the other stations and what we sent; the page that asked is answered with the points, the oldest first, and the call."""
+"""The speeds of a moving station (`speed_series`, neoaprs/web/historywire.py): read from the
+station's position packets in the span, oldest first, leaving out positions with no speed, other
+stations and what we sent.
+"""
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -22,7 +24,8 @@ MIC_E = ('`(_fn"Oj/', "S32UVT")                                         # 20 kno
 
 
 def heard(text: str, source: str, at: datetime, destination: str = "APRS", direction: str = "in") -> Packet:
-    """A packet as the radio gave it, its frame and what it decodes to: the log reads the packets back from their frames."""
+    """A packet as the radio gave it, its frame and what it decodes to: the log reads the packets
+    back from their frames."""
     info = text.encode("latin-1")
     frame = ax25.Frame(ax25.Address.parse(destination), ax25.Address.parse(source), (ax25.Address.parse("WIDE1*"),), info=info)
     return Packet(at, direction, ax25.encode(frame), source, destination, ("WIDE1*",), info, parse(info, source, destination, at))  # type: ignore[arg-type]

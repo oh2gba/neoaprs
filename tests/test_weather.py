@@ -1,5 +1,7 @@
-"""Weather through the whole daemon: a report on the air reaches the station book, the weather log and the page; the log is made from the packets already kept when the daemon starts with none; the page asks
-for the series of a station (`weather_series`); and the tracks the packet table holds are back on the map after a restart."""
+"""Weather through the whole daemon: a report on the air reaches the station book, the weather log
+and the page; the log is made from kept packets on a start with none; `weather_series`; and tracks
+return after a restart.
+"""
 import json
 import logging
 from datetime import timedelta

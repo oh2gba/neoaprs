@@ -1,14 +1,7 @@
 """The daemon: python -m neoaprs [--data DIR] [--port PATH] [--hf-port URL] [--web-port N] [--debug]
 
-One process, one asyncio loop. Everything NeoAPRS keeps is in one database, data/neoaprs.sqlite; the log is data/neoaprs.log, rotated and bounded; only what matters for `systemctl status`
-goes to stderr (warnings, errors and the lines of the migrations; not when stderr is a file, where a launcher keeps what is said before the log exists). SIGTERM, SIGINT and SIGHUP (on Windows SIGINT, SIGTERM and SIGBREAK) end the program the same way, and so does the file `neoaprs.stop` in the data folder (`neoaprs stop`, neoaprs/stopfile.py); a second signal while it closes ends the process at once. Exit code 2: the database cannot be used, or another NeoAPRS has the data folder; a
-restart would not cure either (the unit does not restart on it).
-The page is served by neoaprs/web/server.py on web/port of the settings (default http://127.0.0.1:7303/; web/network opens it to the network), or on the next free port of the ten after it; the log says where ("web page at ..."), and so does the file neoaprs-web.url of the data folder while the page is served (neoaprs/cli/logfile.py), and
-when none of them is free the daemon runs without the page.
-After Update now of an AppImage the process, once the daemon has ended, runs the new file with the same arguments (neoaprs/selfreplace.py). A daemon that starts in the place of another (that restart, and the
-start by the Windows installer after Update now there) serves the page on the port the other served it on, whatever the settings and `--web-port` say, when that port can be had: the pages that are open
-wait there (`kept_port`; the note `neoaprs.restart-port` of neoaprs/stopfile.py).
-"""
+One process, one asyncio loop. Signals or `neoaprs.stop` end it; a second signal ends it at once.
+Exit code 2: the database cannot be used or another NeoAPRS holds the data folder."""
 import argparse
 import asyncio
 import contextlib
@@ -40,7 +33,8 @@ if TYPE_CHECKING:
 
 DATABASE_UNUSABLE = 2
 FOLDER_UNUSABLE = 1
-SIGNAL_POLL_SEC = 0.5                                    # on Windows the loop waits in a call that a signal does not end: this is how long the program may take to notice Ctrl+C
+# On Windows the loop waits in a call that a signal does not end; this bounds the delay for Ctrl+C.
+SIGNAL_POLL_SEC = 0.5
 
 
 def _port(text: str) -> int:
@@ -55,8 +49,7 @@ class _UtcFormatter(logging.Formatter):
 
 
 class _LogFile(logging.handlers.RotatingFileHandler):
-    """The rotating log that a program holding the file open cannot stop: on Windows the rename of a rollover fails then, and the log goes on in the file it has, the rollover tried again a minute later
-    (the plain handler would try at every line, and lose every one)."""
+    """Rotating log that survives a failed rollover (Windows: another program holds the file)."""
     RETRY_SEC = 60.0
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -71,12 +64,13 @@ class _LogFile(logging.handlers.RotatingFileHandler):
             super().doRollover()
         except OSError:
             self._not_before = time.monotonic() + self.RETRY_SEC
-            if self.stream is None:                          # (the rollover closes the file first)
+            # The rollover closes the file first.
+            if self.stream is None:
                 self.stream = self._open()
 
 
 def _is_a_file(stream: Any) -> bool:
-    """Is the stream a file on a disk? A program that was started with its output in a file (`neoaprs open`, a launcher) keeps there what is said before the log exists, a traceback; the log has every line after."""
+    """Return True if the stream is a regular file."""
     try:
         return stat.S_ISREG(os.fstat(stream.fileno()).st_mode)
     except (OSError, ValueError, AttributeError):
@@ -84,22 +78,24 @@ def _is_a_file(stream: Any) -> bool:
 
 
 def _for_stderr(record: logging.LogRecord) -> bool:
-    """What goes to stderr, and so to the journal: warnings and errors, and the lines of the migrations (once per upgrade, and they say what was changed in what the operator stored)."""
+    """Pass warnings, errors and migration lines to stderr, and so to the journal."""
     return record.levelno >= logging.WARNING or record.name == MIGRATION_LOG
 
 
 def setup_logging(data_dir: Path, debug: bool) -> None:
-    # the level is in the line so that a health check tells an error from a line that only contains the word by what the log says it is
+    # The level is in the line so that a health check can tell an error from a mention of one.
     fmt = _UtcFormatter("%(asctime)sZ  %(levelname)s  %(message)s", "%Y-%m-%d %H:%M:%S")
     root = logging.getLogger()
     root.setLevel(logging.DEBUG if debug else logging.INFO)
-    # bounded: 20 MB a file, five files, whatever the debug flag says
+    # Bounded to five files of 20 MB, with or without debug.
     file_handler = _LogFile(data_dir / LOG_NAME, maxBytes=20_000_000, backupCount=4, encoding="utf-8")
     file_handler.setFormatter(fmt)
     root.addHandler(file_handler)
-    if sys.stderr is not None:                               # (a program without a console, pythonw or a windowed build, has none)
+    # A windowed build or pythonw has no stderr.
+    if sys.stderr is not None:
         if not sys.stderr.isatty() and isinstance(sys.stderr, io.TextIOWrapper):
-            sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")      # (a pipe, a file or the journal: UTF-8, so that a line with a character the system's code page has not, "14 → 12" on Windows, is not lost)
+            # UTF-8 for a pipe or file, so that characters the Windows code page lacks survive.
+            sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
         if not _is_a_file(sys.stderr):
             err = logging.StreamHandler(sys.stderr)
             err.addFilter(_for_stderr)
@@ -111,15 +107,16 @@ def setup_logging(data_dir: Path, debug: bool) -> None:
 
 def _private_data_dir(data_dir: Path, log: logging.Logger) -> None:
     try:
-        os.chmod(data_dir, 0o700)             # main() sets the umask for what is made from now on; a folder that is there already (by hand, a restore) is made private too
+        # The umask covers new files; a folder that already exists is made private here.
+        os.chmod(data_dir, 0o700)
     except OSError as e:
         log.warning("the data directory %s could not be made private (%s): other users of this computer may be able to read the database", data_dir, e)
 
 
 def _stop_on_signals(loop: asyncio.AbstractEventLoop) -> asyncio.Event:
-    """The event that SIGTERM, SIGINT and SIGHUP (SIGBREAK, Ctrl+Break, on Windows) set: the service manager's way to end the program. Must run in the main thread. `signal.signal` is
-    what both systems have (the loop's add_signal_handler is POSIX only); the handler is Python code run between two instructions of the main thread, so it hands the event to the loop. A second signal while the program is closing
-    ends the process at once, with the exit code 128 + the signal, for a closing that hangs."""
+    """Return an event that SIGTERM, SIGINT, SIGHUP and SIGBREAK set; call from the main thread.
+
+    A second signal exits at once. `signal.signal` is used as add_signal_handler is POSIX only."""
     stop = asyncio.Event()
     told: list[int] = []
 
@@ -128,30 +125,31 @@ def _stop_on_signals(loop: asyncio.AbstractEventLoop) -> asyncio.Event:
         logging.getLogger("neoaprs").info("%s is told to stop; a second signal ends the process at once", PROGRAM)
 
     def set_stop(number: int, frame: FrameType | None) -> None:
-        if told:                                         # (the closing hangs, on a database thread that does not end, say: this is the operator's way out)
+        if told:
             with contextlib.suppress(OSError):
-                os.write(2, f"{PROGRAM}: a second signal: the process ends at once\n".encode())      # (not the log: a handler must not ask for the lock of the log, which the code it interrupted may hold)
+                # Not the log: the interrupted code may hold the log's lock.
+                os.write(2, f"{PROGRAM}: a second signal: the process ends at once\n".encode())
             os._exit(128 + number)
         told.append(number)
         loop.call_soon_threadsafe(first)
 
     for name in ("SIGTERM", "SIGINT", "SIGHUP", "SIGBREAK"):
-        number = getattr(signal, name, None)             # (not every system has every one)
+        number = getattr(signal, name, None)
         if number is not None:
             signal.signal(number, set_stop)
     return stop
 
 
 async def _poll_for_signals(stop: asyncio.Event) -> None:
-    """Windows only: a signal handler of Python runs when the main thread is back in Python, and the selector loop waits in a call that Ctrl+C does not end; a short timer sees to it."""
+    """Wake the loop regularly on Windows, where its wait call is not interrupted by Ctrl+C."""
     while not stop.is_set():
         await asyncio.sleep(SIGNAL_POLL_SEC)
 
 
 def kept_port(data_dir: Path) -> int:
-    """The port the page is to be served on again, when this daemon starts in the place of one that ended to be started again (the note of its port is in the data folder: neoaprs/stopfile.py); 0 when
-    it does not, or that one had no page. A daemon of 0.20.1 or before left no such note, only the one of its restart (an AppImage's): the log's page line of that run names the port. Asked after the
-    start line of this run is in the log."""
+    """Return the port the previous daemon served the page on, or 0.
+
+    Without a note it comes from the previous run's log: call it after this run's start line."""
     port = stopfile.noted_port(data_dir)
     if port is None and stopfile.restarting(data_dir):
         try:
@@ -162,7 +160,7 @@ def kept_port(data_dir: Path) -> int:
 
 
 def _take_the_data_folder(data_dir: Path) -> InstanceLock | None:
-    """The lock of the data folder, or None, with the reason on stderr, when another NeoAPRS has it (its log is not ours to write to)."""
+    """Return the data folder's lock, or None (reason on stderr) if another NeoAPRS holds it."""
     lock = InstanceLock(data_dir)
     try:
         lock.acquire()
@@ -174,7 +172,7 @@ def _take_the_data_folder(data_dir: Path) -> InstanceLock | None:
 
 
 async def run(args: argparse.Namespace, after: list[list[str]] | None = None) -> int:
-    """Runs the daemon until it is told to stop; the command line that is to run in the place of the process once it has ended (Update now) is put in `after`."""
+    """Run the daemon until stopped; a command to run afterwards (Update now) goes in `after`."""
     data_dir = Path(args.data).expanduser().resolve()
     try:
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -195,7 +193,8 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
     log = logging.getLogger("neoaprs")
     _private_data_dir(data_dir, log)
     log.info(START_FORMAT, PROGRAM, VERSION, data_dir)
-    from .cli.installkind import detect_here, developers_run               # (the imports of what runs the daemon come after the first line of the log, and `neoaprs --version` and `--help` import none of them)
+    # Imported late so that `--version` and `--help` stay fast and the log has its first line.
+    from .cli.installkind import detect_here, developers_run
     from .cli.systemdescription import system_description
     from .config import Config
     from .controller import Controller
@@ -210,11 +209,13 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
     def page(ctl: Controller, config: Config) -> WebServer:
         return WebServer(ctl, config if args.web_port is None else replace(config, web_port=args.web_port), kept_port=stay_on)
 
-    controller = Controller(data_dir, busy_ms=3000, port=args.port, hf_port=getattr(args, "hf_port", ""), web=page, install=install, auto_map=True, encryption=args.encryption)         # the daemon must not stand still behind another writer: a few seconds
+    # busy_ms: wait at most a few seconds behind another database writer.
+    controller = Controller(data_dir, busy_ms=3000, port=args.port, hf_port=getattr(args, "hf_port", ""), web=page, install=install, auto_map=True, encryption=args.encryption)
     controller.debug = args.debug
-    controller.updatecheck.developer = developers_run(install)      # (a clone that simulates another kind is still a developer's run)
+    controller.updatecheck.developer = developers_run(install)
     stop = _stop_on_signals(asyncio.get_running_loop())
-    stopfile.clear(data_dir)                                 # (a request left by a stop that found nobody running is not for this run)
+    # A stop request left by a stop that found nobody running is not for this run.
+    stopfile.clear(data_dir)
     helpers = [asyncio.create_task(stopfile.watch(data_dir, stop))]
     if sys.platform == "win32":
         helpers.append(asyncio.create_task(_poll_for_signals(stop)))
@@ -242,10 +243,11 @@ async def _serve(controller: "Controller", stop: asyncio.Event, log: logging.Log
         await controller.stop()
         return DATABASE_UNUSABLE
     except BaseException:
-        await controller.stop()                                 # (whatever failed, the port, the page's listener and the database thread are not left behind)
+        # Release the port, the page's listener and the database thread whatever failed.
+        await controller.stop()
         raise
     log.info("%s is running", PROGRAM)
-    stopfile.clear_restart(controller.data_dir)              # (a restart as a new version is over)
+    stopfile.clear_restart(controller.data_dir)
     from .cli.servicecmd import appimage_file
     selfreplace.remove_old(appimage_file())
     await stop.wait()
@@ -268,8 +270,9 @@ def build_parser(prog: str = "neoaprs") -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None, prog: str = "neoaprs") -> int:
-    """Runs the daemon until it is told to stop; `argv` is the flags (the command line's when None)."""
-    os.umask(0o077)                                          # everything this program creates (the log, the copies, the folders) is for this user only
+    """Run the daemon until stopped; `argv` defaults to the command line."""
+    # Everything this program creates is for this user only.
+    os.umask(0o077)
     args = build_parser(prog).parse_args(argv)
     if os.environ.get("NEOAPRS_DEBUG") == "1":
         args.debug = True
@@ -279,7 +282,8 @@ def main(argv: list[str] | None = None, prog: str = "neoaprs") -> int:
     except KeyboardInterrupt:
         return 0
     if after:
-        selfreplace.reexec(after[0])                         # (returns only when neither the new file nor the old one could be started)
+        # Returns only if neither the new file nor the old one could be started.
+        selfreplace.reexec(after[0])
         return 1
     return code
 

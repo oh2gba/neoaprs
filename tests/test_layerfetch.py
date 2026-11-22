@@ -1,6 +1,6 @@
-"""The question of the map's layers (neoaprs/updatefetch.py `get_feed`, `fetch_feed`) against a fake server on the loopback: a packed answer asked for and unpacked within its bound, the program's User-Agent and
-the headers given and nothing else, the status and the wait of a Retry-After said, a password of the address sent as basic authentication to its host only, and an answer too large, one that does not come in
-its time, a server that is not there and an address that is not a web address are None."""
+"""Tests for the layer feed request (neoaprs/updatefetch.py `get_feed`, `fetch_feed`) against a fake
+local server: packed answers, headers, Retry-After, basic authentication, and failure cases.
+"""
 import base64
 import gzip
 import threading
@@ -68,7 +68,8 @@ def test_a_packed_answer_that_is_cut_short_or_is_not_gzip_is_none() -> None:
 
 @pytest.fixture
 def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for every test that does not ask for a fixture of this name)."""
+    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for
+    every test that does not ask for a fixture of this name)."""
     monkeypatch.setenv(nodevices.ENV, "1")
 
 

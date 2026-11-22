@@ -1,6 +1,6 @@
-"""The beacon of a radio (neoaprs/services/beacon.py) and the frames of the station's one maker (services/beaconframe.py) for it, on radio 1 as the registry gives it (`support/seamshapes.py` over a stub
-line) and a clock the test holds: the frame the settings make, byte for byte, and the timer (the first delay, the interval, the skip while the TNC is not connected, a changed interval). The same for any radio
-and the old shape of the radio are tests/test_beaconframe.py's."""
+"""Tests for the beacon of one radio (neoaprs/services/beacon.py) and its frames: the frame byte for
+byte and the timer (first delay, interval, skipping while disconnected, interval changes).
+"""
 import logging
 from datetime import timedelta
 
@@ -23,8 +23,10 @@ from tests.test_beaconframe import radio_of
 
 class Rig(ServiceRig):
     def __init__(self, **changes: object) -> None:
-        super().__init__(**{"beacon_interval_min": 30, **changes})          # (on: the defaults are a beacon that is off)
-        self.radio = radio_of(self.config, FM_ID, self.tnc)                 # (radio 1 of the settings, its frames on the stub)
+        # (on: the defaults are a beacon that is off)
+        super().__init__(**{"beacon_interval_min": 30, **changes})
+        # (radio 1 of the settings, its frames on the stub)
+        self.radio = radio_of(self.config, FM_ID, self.tnc)
         self.frames = BeaconFrames(lambda: self.config, None, self.clock)
         self.beacon = Beacon(self.radio, lambda: self.config, self.clock, first_delay_sec=30.0, tick_sec=0.01, retry_sec=5.0, frames=self.frames)
 
@@ -36,7 +38,7 @@ class Rig(ServiceRig):
         return self.frames.status(text, self.radio)
 
 
-# ---- the frame -----------------------------------------------------------------------------------------------------------------------------------
+# ---- the frame -----------------------------------------------------------------------------------
 
 def test_the_default_beacon_is_the_uncompressed_position_with_the_comment_to_the_experimental_tocall_by_way_of_wide() -> None:
     frame = Rig().frame()
@@ -122,12 +124,15 @@ def test_settings_that_make_no_frame_are_an_error_and_nothing_is_sent(changes: d
     assert not [r for r in caplog.records if r.name == "neoaprs.radiospec"], "a path the settings check refuses stops the frame (a hand-made Config holds one); it is not put by the default"
 
 
-# ---- the PHG extension ---------------------------------------------------------------------------------------------------------------------
+# ---- the PHG extension ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("power, height, gain, direction, text", [
-    (2, 3, 2, "omni", "PHG1020"),                      # a small station: 2 W (p 1.4 -> 1), 3 m = 9.8 ft (h 0), 2 dB, omni
-    (25, 12, 3, "N", "PHG5238"),                       # 25 W (5), 12 m = 39.4 ft (h 2), 3 dB, 360 degrees north (8)
-    (25, 6, 3, "E", "PHG5132"),                        # the specification's example: 25 W, 20 ft, 3 dB, 90 degrees east
+    # a small station: 2 W (p 1.4 -> 1), 3 m = 9.8 ft (h 0), 2 dB, omni
+    (2, 3, 2, "omni", "PHG1020"),
+    # 25 W (5), 12 m = 39.4 ft (h 2), 3 dB, 360 degrees north (8)
+    (25, 12, 3, "N", "PHG5238"),
+    # the specification's example: 25 W, 20 ft, 3 dB, 90 degrees east
+    (25, 6, 3, "E", "PHG5132"),
     (0, 0, 0, "omni", "PHG0000"), (9999, 9999, 9, "NW", "PHG9997"), (81, 100, 0, "NE", "PHG9501"), (80, 100, 0, "SW", "PHG9505")])
 def test_the_phg_extension_is_power_height_gain_and_directivity(power: int, height: int, gain: int, direction: str, text: str) -> None:
     assert phg_text(power, height, gain, direction) == text
@@ -185,7 +190,8 @@ def test_the_frame_is_refused_for_a_comment_that_is_not_printable_ascii_without_
 
 
 def test_a_beacon_that_cannot_be_built_is_not_sent_and_says_why(caplog: pytest.LogCaptureFixture) -> None:
-    rig = Rig(station_comment="x" * 40, beacon_power_w=5)               # (a hand-made Config: the settings check would have refused the pair)
+    # (a hand-made Config: the settings check would have refused the pair)
+    rig = Rig(station_comment="x" * 40, beacon_power_w=5)
     with caplog.at_level(logging.WARNING, logger="neoaprs.beacon"):
         assert not rig.beacon.send_now()
     assert rig.tnc.sent == [] and "40 characters is more than the 36 allowed with the PHG" in rig.beacon.problem and any("no beacon sent" in r.getMessage() for r in caplog.records)
@@ -198,7 +204,7 @@ def test_a_frame_with_an_information_field_over_256_bytes_is_refused() -> None:
     assert len(rig.frames.frame_for(rig.radio, b"=" + b"x" * 255).info) == 256
 
 
-# ---- on request ----------------------------------------------------------------------------------------------------------------------------------
+# ---- on request ----------------------------------------------------------------------------------
 
 def test_send_now_sends_the_frame_and_notes_when_and_why() -> None:
     rig = Rig()
@@ -224,7 +230,7 @@ def test_send_now_when_the_tnc_will_not_take_the_frame_is_false_and_notes_nothin
     assert rig.beacon.send_now() and rig.beacon.problem == ""
 
 
-# ---- the status frame (when it is sent is services/rigstatus.py) ---------------------------------------------------------------------------------
+# ---- the status frame (when it is sent is services/rigstatus.py) ---------------------------------
 
 def test_the_status_frame_is_the_text_with_the_day_hour_and_minute_in_utc_by_the_destination_and_path_of_the_beacon() -> None:
     rig = Rig()
@@ -232,7 +238,8 @@ def test_the_status_frame_is_the_text_with_the_day_hour_and_minute_in_utc_by_the
     assert frame is not None and frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zOn the road, QRV 145.500" and frame.is_ui
     assert ax25.decode(ax25.encode(frame)) == frame
     rig.clock.advance(86400 * 3 + 3600 * 12 + 60 * 7)
-    again = rig.beacon.status_frame("On the road, QRV 145.500")                    # (the old name of the maker's status, for the callers that ask the beacon)
+    # (the old name of the maker's status, for the callers that ask the beacon)
+    again = rig.beacon.status_frame("On the road, QRV 145.500")
     assert again is not None and again.info == b">250007zOn the road, QRV 145.500", "day 25, 00:07"
     assert isinstance(parse(again.info, "OH2GBA", "APZNEO", rig.clock()), Status)
 
@@ -261,7 +268,7 @@ def test_settings_that_make_no_frame_make_no_status_frame() -> None:
         Rig(station_call="TOOLONGCALL").status("QRV")
 
 
-# ---- the timer -----------------------------------------------------------------------------------------------------------------------------------
+# ---- the timer -----------------------------------------------------------------------------------
 
 async def quiet(rig: Rig, ticks: int = 8) -> None:
     await idle_for(rig.beacon.tick_sec * ticks)
@@ -313,7 +320,8 @@ async def test_a_beacon_due_while_the_radio_is_silent_waits_told_once_and_goes_o
         started = rig.clock()
         rig.clock.advance(30)
         await quiet(rig)
-        rig.clock.advance(3 * 300)                                                    # (several intervals of outage: still one beacon, not a queue)
+        # (several intervals of outage: still one beacon, not a queue)
+        rig.clock.advance(3 * 300)
         await quiet(rig)
         assert rig.tnc.sent == [] and rig.beacon.last_sent is None
         assert rig.beacon.next_due == started + timedelta(seconds=30), "left where it was, in the past"
@@ -373,7 +381,8 @@ async def test_an_outage_shorter_than_the_interval_sends_nothing_extra() -> None
 
 async def test_a_frame_the_tnc_refuses_is_tried_again_after_retry_sec_and_goes_out_when_it_is_taken() -> None:
     rig = Rig(beacon_interval_min=5)
-    rig.tnc.takes = False                                                             # (the Tnc is settling after entering KISS)
+    # (the Tnc is settling after entering KISS)
+    rig.tnc.takes = False
     await rig.beacon.start()
     try:
         rig.clock.advance(30)
@@ -473,7 +482,8 @@ async def test_a_new_interval_takes_effect_at_once_and_zero_stops_the_timer() ->
         rig.clock.advance(120)
         rig.set(beacon_interval_min=1)
         rig.beacon.settings_changed()
-        await until(lambda: len(rig.tnc.sent) == 2)                                   # (the minute since the last one has passed: due at once)
+        # (the minute since the last one has passed: due at once)
+        await until(lambda: len(rig.tnc.sent) == 2)
         rig.set(beacon_interval_min=0)
         rig.beacon.settings_changed()
         assert rig.beacon.next_due is None
@@ -505,7 +515,8 @@ async def test_a_setting_other_than_the_interval_leaves_the_time_of_the_next_bea
     await rig.beacon.start()
     try:
         rig.clock.advance(30)
-        await quiet(rig)                                                                                  # (the first one is due and waits for the TNC)
+        # (the first one is due and waits for the TNC)
+        await quiet(rig)
         due = rig.beacon.next_due
         rig.set(station_comment="mobile")
         rig.beacon.settings_changed()
@@ -522,7 +533,8 @@ async def test_a_setting_other_than_the_interval_leaves_the_time_of_the_next_bea
 async def test_stop_ends_the_timer_and_start_again_counts_from_the_new_start() -> None:
     rig = Rig(beacon_interval_min=1)
     await rig.beacon.start()
-    await rig.beacon.start()                                                                  # (once more changes nothing)
+    # (once more changes nothing)
+    await rig.beacon.start()
     await rig.beacon.stop()
     assert rig.beacon.next_due is None
     rig.clock.advance(3600)

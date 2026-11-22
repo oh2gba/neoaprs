@@ -1,12 +1,8 @@
-"""The driver of a radio whose modem is the Mercury program (neoaprs/radiodriver.py; plan §2, "Type"): the Mercury HF modem, and the Dummy HF radio, which the same program is the speaker of. The modem is
-started before the line, because it chooses the ports the line then connects to (a port given for this run is a Mercury something else runs; for the Dummy HF radio the program plays the frames and the line
-opens nothing); a modem that cannot be started is said in the log and the line is started all the same: it has a port only once the modem has chosen its ports for this start (`Holding.ports_chosen`), and
-until then none, and says the modem's problem: a start refused before the choice (no Mercury program, the sound card held) leaves the ports where another radio's modem or another program may be. The two are
-stopped together.
+"""The driver of a radio whose modem is the Mercury program (Mercury HF or the Dummy HF radio).
 
-How the radio's settings become its line's is `modem_settings`, its words for the log `modem_words`. A change of the sound card, the keying,
-the type or the modem's port restarts the radio, and a change of the transmit gain only while nothing can set it live (`Mercury.live_gain`); the sound card and the keying the running modem chose for itself are
-no change when the settings come to name exactly those (`MercuryDriver.made_explicit`). The port given for this run (`RunOverrides.hf_port`) is the station's first Mercury radio's (`RunOverrides.attach_to`)."""
+The modem starts before the line because it chooses the ports the line connects to.
+"""
+
 import logging
 from dataclasses import replace
 from pathlib import Path
@@ -26,38 +22,35 @@ from .soundmixer import Mixer
 from .tnc import Tnc
 from .tncprofile import HF_BY_KEY, LINE_SPEED, MERCURY, Profile, tcp_url
 
-log = logging.getLogger("neoaprs.controller")        # what the start of a radio says is the controller's, whoever does it
+log = logging.getLogger("neoaprs.controller")  # radio starts are logged by the controller
 
-NO_MERCURY = "the Mercury radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)"       # what the no-devices switch says of the HF radio's port (modem_settings)
+NO_MERCURY = "the Mercury radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)"
 
 
 class ModemSettings(NamedTuple):
-    port: str                               # the modem's KISS port as the line opens it; "" when there is none to open
+    port: str  # "" if none
     profile: Profile
-    modem: tuple[str, str] = ("", "")       # what the modem is given: the sound card and the keying; empty for the Dummy HF radio
+    # sound card and keying; empty for the Dummy radio
+    modem: tuple[str, str] = ("", "")
 
 
 def _attached(spec: RadioSpec, run: RunOverrides) -> str:
-    """The Mercury that something else runs, given for this run: the station's first Mercury radio's (`RunOverrides.attach_to`)."""
+    """Return the external Mercury given for this run, for the radio it belongs to."""
     return run.hf_port if spec.id == run.attach_to else ""
 
 
 def modem_settings(spec: RadioSpec, run: RunOverrides, modem_port: int = BROADCAST_PORT, unchosen: bool = False) -> ModemSettings:
-    """What the radio's line is started with: its type's profile, reached on `modem_port` (the broadcast port the modem chose for the program it starts), or at the `socket://` address given for this run (a
-    Mercury that something else runs, the benches'); its sound card and keying go with it, so that a change of them restarts the modem. It never searches. The Dummy HF radio opens nothing. Under the
-    no-devices switch, and while the modem has not chosen its ports for this start (`unchosen`), the radio has no port at all without an address given for this run: whatever listens where a Mercury of ours
-    would have been, the operator's own modem on this computer's port 8100 or another radio's modem for one, is not ours and is never connected to."""
+    """Return the line's settings; with no devices or `unchosen` ports there is no port unless given."""
     profile = HF_BY_KEY[spec.rtype.profile]
     if profile.transport == "dummy":
         return ModemSettings(DUMMY_PATH, profile)
     attached = _attached(spec, run)
-    no_line = not attached and ((nodevices.refused(NO_MERCURY, logging.INFO) if spec.enabled else nodevices.on()) or unchosen)       # (said in the log only while there is an HF radio to say it of)
+    no_line = not attached and ((nodevices.refused(NO_MERCURY, logging.INFO) if spec.enabled else nodevices.on()) or unchosen)
     return ModemSettings(attached or ("" if no_line else tcp_url(HOST, modem_port)), profile, (spec.value("sound_card"), spec.value("keying")))
 
 
 def modem_words(spec: RadioSpec, run: RunOverrides) -> str:
-    """The radio that is started, for the log: the Mercury modem (the daemon's own, which under the no-devices switch is not started, or one something else runs at the address given for this run) or the
-    Dummy HF radio."""
+    """Return the started radio's words for the log."""
     if HF_BY_KEY[spec.rtype.profile].transport == "dummy":
         return "the Dummy Mercury radio, made-up stations" + ("" if nodevices.on() else ", and the modem played through the speakers")
     if attached := _attached(spec, run):
@@ -66,8 +59,10 @@ def modem_words(spec: RadioSpec, run: RunOverrides) -> str:
 
 
 def chosen_as_set(before: RadioSpec, after: RadioSpec, state: str, sound_card: str, keying: str) -> RadioSpec:
-    """`before`, with the sound card and the keying that a running modem (its `state`) chose for itself (`sound_card`, `keying`; the settings were empty) taken as set where `after` sets exactly those: the page stores
-    the daemon's proposal as the setting, which changes nothing the modem does, so it is no reason to restart it. The Mercury modem's and Direwolf's (neoaprs/direwolfdriver.py)."""
+    """Return `before` with the sound card and keying a running modem chose taken as set.
+
+    The page stores the daemon's proposal as the setting; that must not restart the modem.
+    """
     if state not in ("starting", "running"):
         return before
     card, key = before.value("sound_card"), before.value("keying")
@@ -81,11 +76,11 @@ class MercuryDriver:
                  mixer: Mixer | None = None) -> None:
         self.id = spec.id
         self.claims = claims
-        self._line = line if line is not None else Tnc(clock=clock, profile=MERCURY)                                              # (a line and a modem made elsewhere: a test's)
-        self._modem = modem if modem is not None else Mercury(data_dir or folder, clock, claims=claims, holder=spec.id, folder=folder)       # (its files in the radio's own folder; what an older NeoAPRS left in the data folder is radio 2's)
+        self._line = line if line is not None else Tnc(clock=clock, profile=MERCURY)
+        self._modem = modem if modem is not None else Mercury(data_dir or folder, clock, claims=claims, holder=spec.id, folder=folder)
         self._line.radio_id = spec.id
-        self._line.modem = self._modem                 # (the line asks it why no frame is to go now; the Dummy HF radio's line plays its frames through it)
-        self._spec, self._station, self._run = spec, DEFAULTS, RunOverrides()       # what `configure` gave last: `start` starts the modem with it
+        self._line.modem = self._modem
+        self._spec, self._station, self._run = spec, DEFAULTS, RunOverrides()
         self._card = CardLevels(self._own_card, lambda: self._modem.starts, mixer, own=self._has_card)
 
     @property
@@ -101,11 +96,11 @@ class MercuryDriver:
         return self._card
 
     def _own_card(self) -> str:
-        """The card whose own levels are the radio's: the modem's while the radio holds it, but none for the Dummy radio (the computer's own sound) and a Mercury something else runs."""
+        """Return the card whose levels belong to the radio; none for the Dummy or an external Mercury."""
         return self._modem.held_card() if self._has_card() else ""
 
     def _has_card(self) -> bool:
-        """Whether the radio has a sound card of its own by its kind: not the Dummy radio, not a Mercury something else runs."""
+        """Return whether the radio has its own sound card."""
         return not (self._spec.rtype.dummy or _attached(self._spec, self._run))
 
     def configure(self, spec: RadioSpec, station: Config, run: RunOverrides) -> None:
@@ -114,24 +109,23 @@ class MercuryDriver:
         self._line.set_check(run.check_sec)
 
     def _point(self) -> None:
-        """The line, which is stopped, takes its settings: the modem's port as it is now, none before the modem has chosen its ports for this start."""
+        """Give the stopped line its settings."""
         settings = modem_settings(self._spec, self._run, self._modem.broadcast_port, not self._modem.ports_chosen)
         self._line.port, self._line.baud, self._line.profile, self._line.fallback_probe, self._line.skip, self._line.pattern = settings.port, LINE_SPEED, settings.profile, False, (), ""
 
     def restart_key(self, spec: RadioSpec, station: Config, run: RunOverrides) -> tuple[object, ...]:
-        """Its line's settings with the sound card and the keying, and the transmit gain while nothing can set it live (the modem then has it from its ini, at a start)."""
+        """Return the settings whose change restarts the radio."""
         return (modem_settings(spec, run, self._modem.broadcast_port), None if self._modem.live_gain else spec.value("tx_gain_db"))
 
     def made_explicit(self, before: RadioSpec, after: RadioSpec) -> RadioSpec:
-        """`before`, with the sound card and the keying that the running modem has chosen for itself (the settings were empty) taken as set where `after` sets exactly those: the page stores the daemon's proposal
-        as the setting, which changes nothing the modem does, so it is no reason to restart it."""
+        """Return `before` with the sound card and keying the running modem chose taken as set."""
         return chosen_as_set(before, after, self._modem.state, self._modem.sound_card, self._modem.keying.text)
 
     def words(self, spec: RadioSpec, station: Config, run: RunOverrides) -> str:
         return modem_words(spec, run)
 
     def _modem_config(self) -> Config:
-        """The station's settings with this radio as `configure` gave it, whose own the modem reads (its sound card, its keying, its gain: mercurymodem.own_choice)."""
+        """Return the station's settings with this radio as `configure` gave it."""
         station = self._station
         if station.radio(self._spec.id) == self._spec:
             return station
@@ -139,9 +133,9 @@ class MercuryDriver:
 
     async def start(self) -> None:
         try:
-            await self._modem.start(self._modem_config(), _attached(self._spec, self._run), speaker=self._spec.rtype.dummy)       # (the modem first: it chooses the ports the line then connects to)
+            await self._modem.start(self._modem_config(), _attached(self._spec, self._run), speaker=self._spec.rtype.dummy)
         except Exception:
-            log.exception("the Mercury modem could not be started")        # (the radio is started all the same: its line follows the modem's ports once they are chosen)
+            log.exception("the Mercury modem could not be started")
         self._point()
         await self._line.start()
         await self._card.start(*wanted(self._spec))
@@ -152,5 +146,5 @@ class MercuryDriver:
         await self._modem.stop()
 
     def held(self) -> list[Claim]:
-        """What the station's table says this radio holds (the modem claims its sound card, its keying line and its pair of ports)."""
+        """Return the claims the station's table lists for this radio."""
         return [claim for claim in self.claims.all() if claim.holder == self.id]

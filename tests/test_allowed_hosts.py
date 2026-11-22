@@ -1,4 +1,6 @@
-"""web/allowed_hosts: host names and IP addresses separated by commas, nothing else. The certificate and the Host gate take each as it stands, so what is not a name is refused when the setting is saved, and a stored value that is not one leaves the daemon starting with the default."""
+"""web/allowed_hosts: host names and IP addresses separated by commas, nothing else. The certificate
+and the Host gate take each as it stands, so what is not a name is refused when the setting is
+saved, and a stored value that is not one leaves the daemon starting with the default."""
 import pytest
 
 from neoaprs.config import DEFAULTS, Config, SettingError

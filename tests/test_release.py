@@ -1,5 +1,7 @@
-"""The release's own files, as far as a test can see them without GitHub or a Windows machine: the notes taken out of the changelog, the install script's template rendered and read by `sh -n`, the workflow's
-pins and permissions, the Windows installer script's promises (per user, the tasks, the uninstaller), that the Windows app carries no pmtiles program (and an update clears the one of an earlier version), the bundled Mercury (the job that builds it, the Windows script that unpacks it, what the Linux jobs prove of it), and the pieces of the end-to-end test of Update now (`scripts/update-e2e.py`) that read the daemon on either wire. The whole of it is run by `.github/workflows/release.yml`."""
+"""The release's own files as far as a test can see them without GitHub or Windows: the changelog
+notes, the install script template, the workflow pins and permissions, and the Windows installer
+script's promises.
+"""
 import re
 import socket
 import subprocess
@@ -69,9 +71,11 @@ def test_every_action_of_the_workflow_is_pinned_by_commit_and_only_the_release_j
 
 
 def test_a_failed_tag_run_is_run_again_and_never_retagged() -> None:
-    """Every artifact may be written over by a later attempt, assemble takes the release's files alone (not the logs of a failed update test), the release is a draft until scripts/release has signed it, a run on a
-    tag whose draft exists writes over its files and deletes its signature, a published release is never written over, and a version with a dash (1.0.0-rc1) is a pre-release, which is never `latest`."""
-    uploads = [re.split(r"\n      - |\n  \w[\w-]*:\n", block, maxsplit=1)[0] for block in re.split(r"uses: actions/upload-artifact@[0-9a-f]{40} # v[\d.]+\n", WORKFLOW)[1:]]       # each upload's `with:` up to the next step or job
+    """Artifacts may be overwritten by a later attempt, assemble takes only the release files, a
+    release is a draft until scripts/release has signed it, a published release is never
+    overwritten, and a version with a dash (1.0.0-rc1) is a pre-release, never `latest`."""
+    # Each upload's `with:` up to the next step or job
+    uploads = [re.split(r"\n      - |\n  \w[\w-]*:\n", block, maxsplit=1)[0] for block in re.split(r"uses: actions/upload-artifact@[0-9a-f]{40} # v[\d.]+\n", WORKFLOW)[1:]]
     assert len(uploads) == 12 and all("overwrite: true" in block for block in uploads), f"an attempt that is run again uploads the same names: {uploads}"
     assemble = WORKFLOW.split("\n  assemble:\n", 1)[1].split("\n  release:\n", 1)[0]
     pattern = re.search(r'pattern: "\{([^}]+)\}"', assemble)
@@ -121,7 +125,8 @@ def test_the_installer_script_is_per_user_and_does_what_the_manual_says() -> Non
 
 
 def test_the_installer_asks_restart_manager_about_no_program_so_a_silent_run_by_hand_ends_as_update_nows_does() -> None:
-    """Two of seven upgrade proofs from 0.20.2 gave up (17 Nov 2026): Setup's files-in-use check found Windows' own services holding our files and, its message boxes suppressed, aborted."""
+    """Setup's files-in-use check finds Windows' own services holding our files and, with message
+    boxes suppressed, must not abort."""
     setup = INSTALLER.split("[Setup]", 1)[1].split("[Tasks]", 1)[0]
     assert "\nCloseApplications=no\n" in setup, "the code section ends NeoAPRS itself; nobody else's program is Setup's to close"
 
@@ -137,7 +142,7 @@ def test_the_installer_starts_again_what_ran_after_the_silent_update_of_update_n
 
 
 def test_the_installer_keeps_encrypted_messages_through_an_update_in_the_restart_the_start_at_sign_in_and_open_neoaprs_now() -> None:
-    """Update now of 0.18.0 brought OH2GAX's NeoAPRS back without --encryption, and the installer wrote the start at sign-in without it (4 Nov 2026)."""
+    """An update must not drop --encryption: the installer writes the start at sign-in with it."""
     code = INSTALLER.split("[Code]", 1)[1]
     setup = code[code.index("function InitializeSetup(): Boolean;"):code.index("function EncryptionArg(")]
     assert "{param:NEOAPRSENCRYPTION|}" in setup, "Update now says so"
@@ -178,7 +183,8 @@ def test_the_entry_of_the_frozen_app_tells_its_three_programs_apart_by_name(prog
 
 
 def test_the_windows_app_carries_no_pmtiles_program_and_an_update_removes_the_one_of_an_earlier_version() -> None:
-    """The map is cut by the app itself: nothing bundles go-pmtiles, and the installer clears the 56 MB program and its licence out of bin\\ (the way it clears the Mercury of earlier versions)."""
+    """The map is cut by the app itself: nothing bundles go-pmtiles, and the installer clears the 56
+    MB program and its licence out of bin\\ (the way it clears the Mercury of earlier versions)."""
     cleared = INSTALLER.split("[InstallDelete]", 1)[1].split("[Files]", 1)[0]
     assert 'Name: "{app}\\bin\\pmtiles.exe"' in cleared and 'Name: "{app}\\bin\\pmtiles-LICENSE.txt"' in cleared and 'Name: "{app}\\bin\\mercury"' in cleared
     assert not (ROOT / "packaging" / "windows" / "bundle_pmtiles.py").exists()
@@ -187,7 +193,9 @@ def test_the_windows_app_carries_no_pmtiles_program_and_an_update_removes_the_on
 
 
 def test_the_release_has_the_installer_the_appimage_the_macos_app_and_the_packages_under_fixed_names_too() -> None:
-    """The project page links to releases/latest/download/NeoAPRS-Setup.exe, NeoAPRS-x86_64.AppImage, NeoAPRS-arm64.dmg, neoaprs_arm64.deb and neoaprs_amd64.deb: one click, the newest, nothing between."""
+    """The project page links to releases/latest/download/NeoAPRS-Setup.exe,
+    NeoAPRS-x86_64.AppImage, NeoAPRS-arm64.dmg, neoaprs_arm64.deb and neoaprs_amd64.deb: one click,
+    the newest, nothing between."""
     assemble = WORKFLOW.split("name: SHA256SUMS and the notes", 1)[1].split("uses: actions/upload-artifact", 1)[0]
     assert 'cp -- "NeoAPRS-Setup-$version.exe" NeoAPRS-Setup.exe' in assemble and 'cp -- "NeoAPRS-$version-x86_64.AppImage" NeoAPRS-x86_64.AppImage' in assemble and 'cp -- "NeoAPRS-$version-arm64.dmg" NeoAPRS-arm64.dmg' in assemble
     assert 'cp -- "neoaprs_${version}_amd64.deb" neoaprs_amd64.deb' in assemble and 'cp -- "neoaprs_${version}_arm64.deb" neoaprs_arm64.deb' in assemble
@@ -196,8 +204,11 @@ def test_the_release_has_the_installer_the_appimage_the_macos_app_and_the_packag
 
 
 def test_the_windows_job_measures_what_it_ships_and_guards_what_it_must_ship() -> None:
-    """The size printout and the must-ship guard (scripts/shipped-size, packaging/windows/must_ship.py, tests/test_shipped.py): right after PyInstaller, before Mercury and the installer, so that a folder that
-    lacks a needed file is never packed; the list this build would make, and every module of the Python archive, printed for the next build to be compared with."""
+    """The size printout and the must-ship guard (scripts/shipped-size,
+    packaging/windows/must_ship.py, tests/test_shipped.py): right after PyInstaller, before Mercury
+    and the installer, so that a folder that lacks a needed file is never packed; the list this
+    build would make, and every module of the Python archive, printed for the next build to be
+    compared with."""
     job = workflow_jobs()["release.yml:windows"]
     frozen = job.index("neoaprs.spec")
     printout = job.index("scripts/shipped-size --depth 2 --title \"dist/NeoAPRS, as PyInstaller made it\"")
@@ -213,7 +224,9 @@ def test_the_windows_job_measures_what_it_ships_and_guards_what_it_must_ship() -
 
 
 def test_the_windows_job_ships_no_pillow_and_nothing_it_needs_imports_it() -> None:
-    """Pillow is in neither the folder nor any program's Python archive, and PyInstaller's record names only pystray's backends of other systems as importers of PIL, before Mercury and the installer."""
+    """Pillow is in neither the folder nor any program's Python archive, and PyInstaller's record
+    names only pystray's backends of other systems as importers of PIL, before Mercury and the
+    installer."""
     job = workflow_jobs()["release.yml:windows"]
     frozen = job.index("neoaprs.spec")
     folder = job.index("scripts/shipped-size --depth 2 --title \"dist/NeoAPRS, as PyInstaller made it\" --absent _internal/PIL dist/NeoAPRS")
@@ -223,8 +236,9 @@ def test_the_windows_job_ships_no_pillow_and_nothing_it_needs_imports_it() -> No
 
 
 def test_no_workflow_step_name_breaks_the_yaml() -> None:
-    """An unquoted value with ": " in it is a mapping in YAML, and GitHub then reads the whole workflow as having no triggers (a tag would start nothing):
-    the names of jobs and steps that say something with a colon are quoted."""
+    """An unquoted value with ": " in it is a mapping in YAML, and GitHub then reads the whole
+    workflow as having no triggers (a tag would start nothing): the names of jobs and steps that say
+    something with a colon are quoted."""
     bad = []
     for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -235,7 +249,8 @@ def test_no_workflow_step_name_breaks_the_yaml() -> None:
 
 
 def workflow_jobs() -> dict[str, str]:
-    """Every job of every workflow, as `file:job` and its text (the workflows are read as text: no YAML parser is a dependency)."""
+    """Every job of every workflow, as `file:job` and its text (the workflows are read as text: no
+    YAML parser is a dependency)."""
     jobs = {}
     for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
         parts = re.split(r"^  ([\w-]+):$", path.read_text(encoding="utf-8").split("\njobs:\n", 1)[1], flags=re.M)
@@ -252,12 +267,14 @@ def test_every_job_of_every_workflow_ends_by_itself_in_far_less_than_the_six_hou
 
 
 def test_a_step_that_pipes_its_output_runs_in_bash_so_that_the_failure_of_the_first_command_is_the_steps() -> None:
-    """GitHub runs a step with no `shell:` as `bash -e`, without pipefail: `cmd | tee log` then has the status of tee. An explicit bash is `bash -eo pipefail`."""
+    """GitHub runs a step with no `shell:` as `bash -e`, without pipefail: `cmd | tee log` then has
+    the status of tee. An explicit bash is `bash -eo pipefail`."""
     piped = []
     for name, text in workflow_jobs().items():
         job_shell = re.search(r"^    defaults:\n      run:\n        shell: bash$", text, re.M) is not None
         for step in text.split("\n      - ")[1:]:
-            step_shell = re.sub(r"<<'(\w+)'\n.*?^\s*\1$", "", step, flags=re.S | re.M)          # (a script given to another program, a container's sh, has its own shell)
+            # A script given to another program, a container's sh, has its own shell
+            step_shell = re.sub(r"<<'(\w+)'\n.*?^\s*\1$", "", step, flags=re.S | re.M)
             if re.search(r"\| tee\b", step_shell) and not job_shell and not re.search(r"^\s+shell: bash\b", step, re.M):
                 piped.append(f"{name}: {step.splitlines()[0]}")
     assert not piped, "these steps pipe into tee without pipefail:\n" + "\n".join(piped)
@@ -298,7 +315,9 @@ def test_mercury_is_built_for_both_architectures_in_the_oldest_system_and_the_li
 
 
 def test_the_appimage_is_tried_on_the_oldest_ubuntu_the_manual_promises() -> None:
-    """While GitHub still has a runner of the oldest Ubuntu the manual names for the AppImage, the file is run there: leaving it gives up the proof of what the manual says, a decision of its own."""
+    """While GitHub still has a runner of the oldest Ubuntu the manual names for the AppImage, the
+    file is run there: leaving it gives up the proof of what the manual says, a decision of its own.
+    """
     promised = re.search(r"glibc (\d+\.\d+) or newer \(Ubuntu (\d\d\.\d\d),", (ROOT / "docs" / "manual" / "install.md").read_text(encoding="utf-8"))
     assert promised is not None, "the manual's sentence of what the AppImage runs on"
     assert f"runs-on: ubuntu-{promised.group(2)}\n" in job("appimage"), f"the AppImage job runs on Ubuntu {promised.group(2)}, glibc {promised.group(1)}, as the manual promises"
@@ -331,7 +350,9 @@ def test_the_package_is_proved_to_need_nothing_of_the_system_for_mercury() -> No
 
 
 def test_the_installed_direwolf_of_the_deb_and_of_the_appimage_loads_what_it_carries_and_is_the_pinned_release() -> None:
-    """Direwolf carries its ALSA and udev libraries: an installed package whose program does not load them, or is not the pinned build, must not ship green (only the Windows job ran the program before)."""
+    """Direwolf carries its ALSA and udev libraries: an installed package whose program does not
+    load them, or is not the pinned build, must not ship green (only the Windows job ran the program
+    before)."""
     deb = job("deb")
     assert "/opt/neoaprs/bin/python3 -I packaging/windows/smoke_direwolf.py /opt/neoaprs/tools/direwolf/direwolf" in deb and "[ ! -e /opt/neoaprs/tools/direwolf/dev ]" in deb
     docker = deb.split("docker run", 1)[1]
@@ -343,7 +364,9 @@ def test_the_installed_direwolf_of_the_deb_and_of_the_appimage_loads_what_it_car
 
 
 def test_the_frozen_windows_app_finds_its_own_direwolf_after_it_is_bundled() -> None:
-    """A frozen app whose Direwolf is not where direwolfprogram.find() looks offers no Sound card (Direwolf): `db radios add direwolf` refuses it with 2 (radioedits.new_radio), and the job fails."""
+    """A frozen app whose Direwolf is not where direwolfprogram.find() looks offers no Sound card
+    (Direwolf): `db radios add direwolf` refuses it with 2 (radioedits.new_radio), and the job
+    fails."""
     steps = job("windows").split("steps:", 1)[1]
     found = 'dist/NeoAPRS/neoaprs.exe db --data "$RUNNER_TEMP/direwolfdata" radios add direwolf'
     assert found in steps and "NEOAPRS_NO_DEVICES" not in steps, "under NEOAPRS_NO_DEVICES every type is offered: the check would prove nothing"
@@ -380,14 +403,17 @@ def test_the_windows_job_puts_mercury_in_and_checks_it_before_and_after_the_inst
 
 
 def test_the_installer_has_nothing_to_do_with_the_windows_firewall() -> None:
-    """The Mercury it carries binds the loopback, so no rule is added, none is asked for with a prompt of Windows, and none is removed by the uninstaller (a rule an earlier version added stays: a block rule is harmless)."""
+    """The Mercury it carries binds the loopback, so no rule is added, none is asked for with a
+    prompt of Windows, and none is removed by the uninstaller (a rule an earlier version added
+    stays: a block rule is harmless)."""
     assert not re.search(r"firewall|netsh|runas|ShellExec", INSTALLER.replace("nothing done to the Windows Firewall", ""), re.IGNORECASE), "no firewall, no netsh, no prompt for rights"
     assert "CurUninstallStepChanged" not in INSTALLER and "AddMercury" not in INSTALLER and "PrivilegesRequired=lowest" in INSTALLER
 
 
 def test_the_windows_programs_do_not_look_like_malware_to_a_virus_scanners_guess() -> None:
-    """Windows Defender's machine-learning guess took NeoAPRS for a trojan (Trojan:Win32/Bearfoos!ml, 3 and 4 Nov 2026): the programs are packed with a bootloader compiled for them, not the one of
-    PyInstaller's wheel that every packed program shares, and each says what it is in its file properties. (The alert's PowerShell is in tests/test_alerts_runner.py.)"""
+    """The programs are packed with a bootloader compiled for them, not the shared PyInstaller wheel
+    one, and each says what it is in its file properties (so antivirus heuristics do not take them
+    for a trojan)."""
     build = WORKFLOW.split("Build environment, from the wheel", 1)[1].split("- name:", 1)[0]
     assert 'PYINSTALLER_COMPILE_BOOTLOADER: "1"' in build and "--no-binary pyinstaller" in build and "pyinstaller==" not in build
     spec = (ROOT / "packaging" / "windows" / "neoaprs.spec").read_text(encoding="utf-8")
@@ -400,7 +426,9 @@ def test_the_windows_programs_do_not_look_like_malware_to_a_virus_scanners_guess
 
 
 def test_every_action_of_every_workflow_is_pinned_by_commit_with_its_tag_beside_it_and_dependabot_proposes_the_moves() -> None:
-    """A tag is a name its owner can move to other code, among them the action that runs in every build; a commit is not. The comment says which release the commit is, which is what Dependabot rewrites."""
+    """A tag is a name its owner can move to other code, among them the action that runs in every
+    build; a commit is not. The comment says which release the commit is, which is what Dependabot
+    rewrites."""
     for workflow in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
         text = workflow.read_text(encoding="utf-8")
         lines = [line.strip() for line in text.splitlines() if re.match(r"\s+(- )?uses:", line)]
@@ -411,7 +439,8 @@ def test_every_action_of_every_workflow_is_pinned_by_commit_with_its_tag_beside_
 
 
 def test_the_installers_are_built_from_the_lock_with_every_hash_required() -> None:
-    """The lock holds the hash of every file; an installer is built only from files that have it, so a package that PyPI serves changed cannot get into the program."""
+    """The lock holds the hash of every file; an installer is built only from files that have it, so
+    a package that PyPI serves changed cannot get into the program."""
     scripts = {name: (ROOT / "scripts" / name).read_text(encoding="utf-8") for name in ("build-appimage", "build-deb", "build-macos-app")}
     for name, text in scripts.items():
         exports = re.findall(r"uv export .*", text)
@@ -426,8 +455,10 @@ def test_the_installers_are_built_from_the_lock_with_every_hash_required() -> No
 
 
 def test_the_update_test_reads_the_fm_radio_and_its_port_on_the_old_wire_and_on_the_wire_of_the_radios() -> None:
-    """scripts/update-e2e.py runs an old version and then a new one, which from the round of the radios on tell the FM radio in the topic `radios` and keep its port as `radio/1/port`: the test reads either
-    (the topic the daemon tells, the key the program takes), and a port that neither key takes is a Failure that names both answers."""
+    """scripts/update-e2e.py runs an old version and then a new one, which from the round of the
+    radios on tell the FM radio in the topic `radios` and keep its port as `radio/1/port`: the test
+    reads either (the topic the daemon tells, the key the program takes), and a port that neither
+    key takes is a Failure that names both answers."""
     import importlib.util
     spec = importlib.util.spec_from_file_location("update_e2e", ROOT / "scripts" / "update-e2e.py")
     assert spec and spec.loader
@@ -442,8 +473,10 @@ def test_the_update_test_reads_the_fm_radio_and_its_port_on_the_old_wire_and_on_
     assert e2e.connected(Seen(old, 3)) and e2e.connected(Seen(new, 3)) and not e2e.connected(Seen(new, 0)) and not e2e.connected(Seen({"radios": {}}, 3))
 
     class Install:
-        """The command line of a version as `neoaprs db` answers (tests/test_scripts.py holds the real one): `set` of a station key makes the database of a fresh folder; a radio's own key needs radio 1,
-        which a fresh folder of a version of the round has not ("there is no database ... so no radio", exit 1), and `get` prints the value alone."""
+        """The command line of a version as `neoaprs db` answers (tests/test_scripts.py holds the
+        real one): `set` of a station key makes the database of a fresh folder; a radio's own key
+        needs radio 1, which a fresh folder of a version of the round has not ("there is no database
+        ... so no radio", exit 1), and `get` prints the value alone."""
         def __init__(self, takes: set[str], stored: dict[str, str], database: bool = False) -> None:
             self.takes, self.stored, self.asked, self.database = takes, stored, [], database
 
@@ -461,7 +494,9 @@ def test_the_update_test_reads_the_fm_radio_and_its_port_on_the_old_wire_and_on_
     before = Install({"serial/port"}, {})
     assert e2e.set_port(before, Path("d"), "socket://127.0.0.1:1") == "serial/port" and before.asked == [("set", "serial/port", "socket://127.0.0.1:1")]
     with pytest.raises(e2e.Failure, match="serial/port: .*no such setting; radio/1/port: .*no database .* so no radio"):
-        e2e.set_port(Install({"radio/1/port"}, {}), Path("d"), "socket://127.0.0.1:1")      # (a version with only the radio's own key, on the fresh folder the test gives it: loud, both answers named)
+        # A version with only the radio's own key, on the fresh folder the test gives it: loud, both
+        # answers named
+        e2e.set_port(Install({"radio/1/port"}, {}), Path("d"), "socket://127.0.0.1:1")
     after = Install({"radio/1/port"}, {}, database=True)
     assert e2e.set_port(after, Path("d"), "socket://127.0.0.1:1") == "radio/1/port", "a version with only the radio's own key, on a folder whose daemon has run"
     assert e2e.get_port(after, Path("d")) == "socket://127.0.0.1:1" and e2e.get_port(Install({"serial/port"}, {"serial/port": "x"}, database=True), Path("d")) == "x"
@@ -471,8 +506,10 @@ def test_the_update_test_reads_the_fm_radio_and_its_port_on_the_old_wire_and_on_
 
 
 def test_the_update_test_sets_the_fm_radios_port_on_the_fresh_folder_of_a_version_that_starts_with_no_radio() -> None:
-    """From the second cut of W3 on, a fresh folder has no radio and the command line refuses serial/port and radio/1/port there: update-e2e then adds radio 1 by `db radios add kiss` and sets its own
-    port, with the old version's command line; a version whose command line cannot add one is a Failure that names every answer."""
+    """A fresh folder has no radio and the command line refuses
+    serial/port and radio/1/port there: update-e2e then adds radio 1 by `db radios add kiss` and
+    sets its own port, with the old version's command line; a version whose command line cannot add
+    one is a Failure that names every answer."""
     import importlib.util
     spec = importlib.util.spec_from_file_location("update_e2e", ROOT / "scripts" / "update-e2e.py")
     assert spec and spec.loader
@@ -480,8 +517,10 @@ def test_the_update_test_sets_the_fm_radios_port_on_the_fresh_folder_of_a_versio
     spec.loader.exec_module(e2e)
 
     class NoRadioYet:
-        """The command line of such a version as `neoaprs db` answers (tests/test_new_installation.py and tests/test_dbcmd.py hold the real one): a key of before is refused with the radio's own key
-        named, a radio's own key while there is no such radio too, and `radios add TYPE` makes radio 1 on a fresh folder."""
+        """The command line of such a version as `neoaprs db` answers
+        (tests/test_new_installation.py and tests/test_dbcmd.py hold the real one): a key of before
+        is refused with the radio's own key named, a radio's own key while there is no such radio
+        too, and `radios add TYPE` makes radio 1 on a fresh folder."""
         def __init__(self, can_add: bool = True) -> None:
             self.can_add, self.radios, self.stored, self.asked = can_add, 0, {}, []
 
@@ -520,9 +559,9 @@ def update_e2e() -> types.ModuleType:
 
 
 def test_the_update_test_holds_the_port_of_the_page_and_reads_the_daemons_process(tmp_path: Path) -> None:
-    """scripts/update-e2e.py finds the port the new daemon's page is on, which must be the old one's, and reads from the daemon's own process where its program runs from: the readers on a made-up /proc,
-    the port that is held with a free one after it, and what `--known-old` lets pass for a release of 0.20.1 or before and for no other (the update of a mounted 0.20.0 came back unpacked and on another
-    port, 16 Nov 2026, and the test said ok)."""
+    """scripts/update-e2e.py finds the port the new daemon's page is on, which must be the old
+    one's, and reads from the daemon's process where its program runs from: readers on a made-up
+    /proc, a held port with a free one after it, and what `--known-old` lets pass."""
     from neoaprs import stopfile
     from neoaprs.web import listen
     e2e = update_e2e()
@@ -539,8 +578,10 @@ def test_the_update_test_holds_the_port_of_the_page_and_reads_the_daemons_proces
     proc = tmp_path / "proc"
     (proc / "self").mkdir(parents=True)
     process(proc, 1, 0, "systemd")
-    process(proc, 500, 1, "NeoAPRS-0.20.1-x", HOME="/home/ham")                                                        # the old version's runtime, unpacked: it waits for its child
-    process(proc, 501, 500, "NeoAPRS (new) x", APPIMAGE=image, APPDIR="/tmp/appimage_extracted_old", APPIMAGE_EXTRACT_AND_RUN="1")   # the new runtime, in the place of the old daemon
+    # The old version's runtime, unpacked: it waits for its child
+    process(proc, 500, 1, "NeoAPRS-0.20.1-x", HOME="/home/ham")
+    # The new runtime, in the place of the old daemon
+    process(proc, 501, 500, "NeoAPRS (new) x", APPIMAGE=image, APPDIR="/tmp/appimage_extracted_old", APPIMAGE_EXTRACT_AND_RUN="1")
     process(proc, 502, 501, "python3.13", APPIMAGE=image, APPDIR="/tmp/appimage_extracted_new", APPIMAGE_EXTRACT_AND_RUN="1")         # the new daemon
     process(proc, 600, 1, "python3.13", APPIMAGE="/elsewhere/Other.AppImage", APPDIR="/tmp/.mount_Otherxyz")
     assert e2e.descendants(500, proc) == [500, 501, 502] and e2e.descendants(600, proc) == [600]
@@ -559,7 +600,8 @@ def test_the_update_test_holds_the_port_of_the_page_and_reads_the_daemons_proces
         holder.close()
 
     def install(kind: str, old: str, known_old: bool) -> object:
-        """The install of the test without its machine (the Windows one reads the folders of Windows as it is made)."""
+        """The install of the test without its machine (the Windows one reads the folders of Windows
+        as it is made)."""
         made = (e2e.WindowsInstall if kind == "windows" else e2e.AppImageInstall).__new__(e2e.WindowsInstall if kind == "windows" else e2e.AppImageInstall)
         e2e.Install.__init__(made, tmp_path / "work", Path(f"NeoAPRS-Setup-{old}.exe" if kind == "windows" else f"NeoAPRS-{old}-x86_64.AppImage"), Path("new"), known_old)
         return made
@@ -578,7 +620,8 @@ def test_the_update_test_holds_the_port_of_the_page_and_reads_the_daemons_proces
 
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="the AppImage is Linux's, and so are the mount points that stand in for its mount")
 def test_the_update_test_holds_that_the_new_appimage_runs_mounted_or_unpacked_as_the_old_one_did(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    """A folder that is a mount point (the root of this system and /proc stand in for the image's mounts) and one that is not, as the daemon's process names them before and after the update."""
+    """A folder that is a mount point (the root of this system and /proc stand in for the image's
+    mounts) and one that is not, as the daemon's process names them before and after the update."""
     e2e = update_e2e()
     child = types.SimpleNamespace(pid=500)
     unpacked_old, unpacked_new = tmp_path / "appimage_extracted_old", tmp_path / "appimage_extracted_new"

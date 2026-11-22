@@ -1,6 +1,8 @@
-"""The migrations 1 to 11, frozen here beside migrations.py (which lists them in MIGRATIONS and runs them): the first schema, the message and station tables and the rebuilds of
-`station_pref` and `message` up to the delivery chain. A step is never edited once it has been released, and the checksum of the source of each is pinned by tests/test_migrations.py,
-which is why a step keeps its name, its annotations and its text when a file moves it: a step is not changed to look like newer code. The next steps go to a module of their own."""
+"""Migrations 1 to 11: the first schema, the message and station tables, and the rebuilds of
+`station_pref` and `message` up to the delivery chain.
+
+A released step is never edited; tests/test_migrations.py pins the checksum of each step's source
+(comments and docstrings included), so a step keeps its exact text."""
 import sqlite3
 
 from .dberror import StoreError

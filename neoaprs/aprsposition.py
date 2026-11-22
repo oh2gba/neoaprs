@@ -1,6 +1,7 @@
-"""APRS positions: the uncompressed and the compressed forms, with the symbol, the course, the speed, the altitude and the timestamp, read and written (the compressed form for a moving station).
+"""APRS positions, uncompressed and compressed, with symbol, course, speed, altitude and timestamp.
 
-`parse_position` takes the bytes that follow the data type identifier ("!", "=", "/" or "@"); a timestamp is recognised by its shape, so the same function reads all four."""
+`parse_position` takes the bytes after the data type identifier ("!", "=", "/" or "@").
+"""
 import math
 import re
 from dataclasses import replace
@@ -16,10 +17,12 @@ from neoaprs.packet import Position, decode_text
 from neoaprs.symbols import table_of
 from neoaprs.units import BASE91_LAST, BASE91_ZERO, FOOT_M, KNOT_KMH, MILE_KM, base91, base91_text
 
-FUTURE_TOLERANCE = timedelta(hours=1)                 # a clock that runs ahead of ours by up to an hour is still "now" (a station's clock is often minutes fast; a month back would be the other reading)
-_AMBIGUITY_UNIT = (10, 100, 1000, 6000)               # hundredths of a minute that one to four blanked digits leave unknown
-_COURSE_SPEED = re.compile(r"(\d{3}|\.{3}| {3})/(\d{3}|\.{3}| {3})")        # (`.../...` and three blanks each way say they are not known)
-NO_PARTICULAR_TIME = b"111111z"                       # the timestamp of a permanent object: it has no time
+# a station clock up to an hour ahead is still "now"
+FUTURE_TOLERANCE = timedelta(hours=1)
+# hundredths of a minute left unknown by 1 to 4 blanked digits
+_AMBIGUITY_UNIT = (10, 100, 1000, 6000)
+_COURSE_SPEED = re.compile(r"(\d{3}|\.{3}| {3})/(\d{3}|\.{3}| {3})")
+NO_PARTICULAR_TIME = b"111111z"  # timestamp of a permanent object: no time
 _ALTITUDE = re.compile(r"/A=(-\d{5}|\d{6})")
 _UNCOMPRESSED_LEN, _COMPRESSED_LEN = 19, 13
 HUNDREDTHS_PER_DEGREE = 6000
@@ -34,38 +37,40 @@ class _Fix(NamedTuple):
     lon: float
     table: str
     code: str
-    tail: bytes                                       # what follows the position: the comment
+    tail: bytes
     ambiguity: int = 0
     course: int | None = None
     speed: float | None = None
     altitude: float | None = None
-    wind: tuple[int, float] | None = None             # a weather station's cs bytes: the wind direction (degrees) and speed (km/h)
-    extensions: Extensions | None = None              # the radio range of cs bytes that begin with "{"
+    # a weather station's cs bytes: direction (degrees), speed (km/h)
+    wind: tuple[int, float] | None = None
+    extensions: Extensions | None = None  # the radio range of cs bytes that begin with "{"
 
 
 def degrees(whole: int, minutes_hundredths: int, ambiguity: int = 0) -> float:
-    """Degrees from whole degrees and hundredths of a minute; with `ambiguity` 1 to 4 the centre of the square that the blanked digits leave."""
+    """Return degrees; with `ambiguity` 1 to 4 the centre of the square the blanked digits leave."""
     if ambiguity:
         unit = _AMBIGUITY_UNIT[ambiguity - 1]
         return whole + (minutes_hundredths // unit * unit + unit / 2) / 6000
     return whole + minutes_hundredths / 6000
 
 
-NORTH_ON_AIR = 360                                    # north as a course is written 360 on the air: 0 there means no course
+# north is written 360 on the air: 0 there means no course
+NORTH_ON_AIR = 360
 
 
 def north_as_360(course_deg: int) -> int:
-    """A course in degrees as it is written on the air, 1 to 360: north is 360 and never 0, which would mean no course."""
+    """Return a course (1-360) as written on the air: north is 360, never 0 (no course)."""
     return course_deg % NORTH_ON_AIR or NORTH_ON_AIR
 
 
 def course_of(course_raw: int) -> int | None:
-    """The course in degrees (0 to 359, north 0) that a course written on the air says (the other way of `north_as_360`); None for 0, which is no course."""
+    """Return the course (0-359, north 0) of an on-air course (inverse of `north_as_360`)."""
     return course_raw % NORTH_ON_AIR if course_raw else None
 
 
 def motion(course_raw: int, speed_knots: float) -> tuple[int | None, float | None]:
-    """Course in degrees (0-359, None when unknown) and speed in km/h (None when there is nothing) from what the packet says; 360 is north, 0 with a speed of 0 is no data."""
+    """Return course (0-359, None if unknown) and speed in km/h; 0 with speed 0 is no data."""
     if course_raw == 0 and speed_knots == 0:
         return None, None
     return course_of(course_raw), speed_knots * KNOT_KMH
@@ -73,7 +78,8 @@ def motion(course_raw: int, speed_knots: float) -> tuple[int | None, float | Non
 
 def _nearest_dhm(day: int, hour: int, minute: int, now: datetime) -> datetime:
     limit = now + FUTURE_TOLERANCE
-    for step in range(1, -13, -1):                    # next month first (a clock ahead of ours), then back; a day that month lacks is skipped
+    # next month first, then back; a day the month lacks is skipped
+    for step in range(1, -13, -1):
         index = now.year * 12 + now.month - 1 + step
         try:
             candidate = datetime(index // 12, index % 12 + 1, day, hour, minute, tzinfo=UTC)
@@ -85,7 +91,7 @@ def _nearest_dhm(day: int, hour: int, minute: int, now: datetime) -> datetime:
 
 
 def resolve_mdhm(raw: str, now: datetime) -> datetime:
-    """The instant of the 8 digits MMDDhhmm (UTC) that start a positionless weather report: the latest one, going back as far as a leap day takes, that is not later than FUTURE_TOLERANCE (an hour) after `now`."""
+    """Return the latest instant of MMDDhhmm (UTC) not later than FUTURE_TOLERANCE after `now`."""
     if len(raw) != 8 or not raw.isdigit():
         raise PositionError("bad timestamp")
     now = now.astimezone(UTC)
@@ -101,7 +107,10 @@ def resolve_mdhm(raw: str, now: datetime) -> datetime:
 
 
 def resolve_timestamp(raw: bytes, now: datetime) -> datetime:
-    """The instant of a 7-byte timestamp ("DDHHMMz", "DDHHMM/" in the sender's local time, which is kept as it is sent, "HHMMSSh"): the latest one that is not later than FUTURE_TOLERANCE (an hour) after `now`."""
+    """Return the latest instant of a 7-byte timestamp ("DDHHMMz", "DDHHMM/", "HHMMSSh").
+
+    "/" is the sender's local time, kept as sent.
+    """
     if len(raw) != 7 or not raw[:6].isdigit() or raw[6:7] not in (b"z", b"/", b"h"):
         raise PositionError("bad timestamp")
     now = now.astimezone(UTC)
@@ -121,12 +130,12 @@ def _has_timestamp(body: bytes) -> bool:
 
 
 def _coordinate(text: str, whole_digits: int, negative: str, positive: str) -> tuple[float, int]:
-    """A coordinate "DDMM.mmN" or "DDDMM.mmW" with blanks for ambiguity: its value and the number of blanked digits."""
+    """Return a coordinate "DDMM.mmN" or "DDDMM.mmW" (blanks allowed) and the blanked digits."""
     sign, digits = text[-1].upper(), text[:-1]
     if sign not in (negative, positive) or len(digits) != whole_digits + 5 or digits[whole_digits + 2] != ".":
         raise PositionError(f"bad coordinate {text!r}")
     w = whole_digits
-    blank_order = (w + 4, w + 3, w + 1, w)            # the digits that a blank replaces, last digit first
+    blank_order = (w + 4, w + 3, w + 1, w)  # digits a blank replaces, last digit first
     blanks = digits.count(" ")
     if blanks > 4 or any(digits[i] != " " for i in blank_order[:blanks]):
         raise PositionError(f"bad ambiguity in {text!r}")
@@ -158,14 +167,14 @@ def _symbol(table: str, code: str) -> tuple[str, str]:
 
 
 def _cs_values(cs: bytes) -> tuple[int, int] | None:
-    """The c and s of the two cs bytes of a compressed position (0 to 90 each); None when there is no data (a space in c) or a byte is no base-91 digit, which is no course and speed either."""
+    """Return c and s of the two cs bytes (0-90 each); None if no data or not base-91."""
     if cs[0] == 0x20 or not all(BASE91_ZERO <= b <= BASE91_LAST for b in cs):
         return None
     return cs[0] - BASE91_ZERO, cs[1] - BASE91_ZERO
 
 
 def _compressed_wind(cs: bytes) -> tuple[int, float] | None:
-    """The wind direction and speed in the cs bytes of a weather station's compressed position (the same coding as course and speed; the speed is in miles per hour, like the other wind speeds of a weather report)."""
+    """Return wind direction and speed (coded in mph) from a weather station's cs bytes."""
     values = _cs_values(cs)
     if values is None or values[0] > 89:
         return None
@@ -173,17 +182,19 @@ def _compressed_wind(cs: bytes) -> tuple[int, float] | None:
 
 
 def _compressed_motion(cs: bytes, t: int) -> tuple[int | None, float | None, float | None, Extensions | None]:
-    """Course, speed, altitude and the radio range from the two cs bytes and the type byte of a compressed position."""
+    """Return course, speed, altitude and radio range from the cs and type bytes."""
     values = _cs_values(cs)
     if values is None:
         return None, None, None, None
     c, s = values
-    if ((t - BASE91_ZERO) >> 3) & 3 == 2:               # the fix came from a GGA sentence: cs is the altitude
+    if ((t - BASE91_ZERO) >> 3) & 3 == 2:  # the fix came from a GGA sentence: cs is the altitude
         return None, None, 1.002 ** base91(cs) * FOOT_M, None
     if c <= 89:
-        course, speed = motion(north_as_360(c * 4) if s else c * 4, 1.08 ** s - 1)         # (course 0 with a speed is north; with none it is no data)
+        # course 0 with a speed is north; with none it is no data
+        course, speed = motion(north_as_360(c * 4) if s else c * 4, 1.08 ** s - 1)
         return course, speed, None, None
-    return None, None, None, Extensions(range_km=round(2 * 1.08 ** s * MILE_KM, 1))      # c is 90, the `{` of the radio range: 2 * 1.08 ** s miles
+    # c is 90, the `{` of the radio range: 2 * 1.08 ** s miles
+    return None, None, None, Extensions(range_km=round(2 * 1.08 ** s * MILE_KM, 1))
 
 
 def _compressed(rest: bytes) -> _Fix:
@@ -194,7 +205,7 @@ def _compressed(rest: bytes) -> _Fix:
     lon = -180 + _base91(rest[5:9]) / 190463
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
         raise PositionError("compressed position out of range")
-    if code == "_":                                   # a weather station's cs is the wind
+    if code == "_":  # a weather station's cs is the wind
         return _Fix(lat, lon, table, code, rest[_COMPRESSED_LEN:], wind=_compressed_wind(rest[10:12]))
     course, speed, altitude, ranged = _compressed_motion(rest[10:12], rest[12])
     return _Fix(lat, lon, table, code, rest[_COMPRESSED_LEN:], 0, course, speed, altitude, extensions=ranged)
@@ -219,15 +230,14 @@ class _Tail(NamedTuple):
 
 
 def _course_speed_of(course_text: str, speed_text: str) -> tuple[int | None, float | None]:
-    """The course and speed of the two halves of `CSE/SPD`: three digits, or dots or blanks for one that is not known."""
+    """Return course and speed of the halves of `CSE/SPD` (three digits, or dots/blanks)."""
     if course_text.isdigit() and speed_text.isdigit():
         return motion(int(course_text), int(speed_text))
     return (course_of(int(course_text)) if course_text.isdigit() else None), (int(speed_text) * KNOT_KMH if speed_text.isdigit() else None)
 
 
 def _data_extension(text: str, table: str, code: str) -> tuple[str, int | None, float | None, Extensions | None]:
-    """The 7-byte data extension of an uncompressed position taken off the front of the comment: course and speed (a weather station's "220/004" is wind, the weather's), with the bearing of a DF report
-    that may follow, or PHG, RNG, DFS or the descriptor of an area object. Returns the rest of the comment, the course, the speed and the extensions."""
+    """Take the 7-byte data extension off the comment; return the rest, course, speed, extensions."""
     ext, rest = split_extension(text, table == "\\" and code == "l")
     if ext is not None:
         return rest, None, None, ext
@@ -240,7 +250,7 @@ def _data_extension(text: str, table: str, code: str) -> tuple[str, int | None, 
 
 
 def _comment_and_extensions(text: str, table: str, code: str, extensions: bool) -> _Tail:
-    """The comment of a position without its data extension (uncompressed positions only) and without its "/A=" altitude, and what they said."""
+    """Return the comment without its data extension and "/A=" altitude, and what they said."""
     course = speed = altitude = ext = None
     if extensions and code != "_":
         text, course, speed, ext = _data_extension(text, table, code)
@@ -259,7 +269,7 @@ class _Local(NamedTuple):
 
 
 def _local_information(text: str, table: str, code: str) -> _Local:
-    """The frequency at the start of the comment, then the storm data of the symbol `@` or the characters of a signpost (`\\m`), taken off the front of it."""
+    """Take the frequency, then storm data (symbol `@`) or signpost (`\\m`), off the comment."""
     text, frequency = split_frequency(text)
     if code == "@" and table in "/\\":
         text, storm = split_storm(text)
@@ -278,13 +288,14 @@ def _with_wind(weather: Weather | None, wind: tuple[int, float] | None) -> Weath
 
 
 def parse_position(body: bytes, now: datetime, *, messaging: bool = False) -> Position:
-    """The position in `body` (what follows the data type identifier); `now` resolves a timestamp; `messaging` is true for the identifiers "=" and "@"."""
+    """Return the position in `body`; `now` resolves a timestamp; `messaging` for "=" and "@"."""
     timestamp, local = None, False
     if _has_timestamp(body):
         try:
             timestamp = None if body[:7] == NO_PARTICULAR_TIME else resolve_timestamp(body[:7], now)
         except PositionError:
-            timestamp = None                                  # (a time that is none, "/0000z" or the 32nd: the position is still a position, with no time)
+            # a bad time: the position still counts, without a time
+            timestamp = None
         local, body = timestamp is not None and body[6:7] == b"/", body[7:]
     if not body:
         raise PositionError("no position")
@@ -296,32 +307,36 @@ def parse_position(body: bytes, now: datetime, *, messaging: bool = False) -> Po
     comment, frequency, storm, sign = _local_information(tail.comment, fix.table, fix.code)
     comment, telemetry = split_comment_telemetry(comment)
     comment, extra = split_dao(comment)
-    lat, lon = (fix.lat, fix.lon) if compressed or fix.ambiguity else with_dao(fix.lat, fix.lon, extra)       # (a compressed position is finer already; an ambiguous one claims no precision)
+    # a compressed position is finer already; an ambiguous one claims no precision
+    lat, lon = (fix.lat, fix.lon) if compressed or fix.ambiguity else with_dao(fix.lat, fix.lon, extra)
     return Position(lat, lon, fix.table, fix.code, comment, tail.course if tail.course is not None else fix.course, tail.speed if tail.speed is not None else fix.speed,
                     tail.altitude if tail.altitude is not None else fix.altitude, timestamp, messaging, compressed, fix.ambiguity, _with_wind(weather, fix.wind), tail.extensions or fix.extensions, local, telemetry=telemetry, frequency=frequency, storm=storm, sign=sign)
 
 
 def _coordinate_text(value: float, whole_digits: int, negative: str, positive: str) -> str:
-    """DDMM.mmN or DDDMM.mmE: the minutes rounded to hundredths (a rounding that reaches 60 minutes carries into the degrees)."""
+    """Return DDMM.mmN or DDDMM.mmE, minutes rounded to hundredths (60 carries into degrees)."""
     total = round(abs(value) * HUNDREDTHS_PER_DEGREE)
     degrees, rest = divmod(total, HUNDREDTHS_PER_DEGREE)
     return f"{degrees:0{whole_digits}d}{rest // 100:02d}.{rest % 100:02d}{negative if value < 0 and total else positive}"
 
 
 def uncompressed_position(lat: float, lon: float, symbol_table: str, symbol_code: str) -> bytes:
-    """The 19 bytes DDMM.mmN/DDDMM.mmE- of an uncompressed position: latitude, symbol table, longitude, symbol code."""
+    """Return the 19 bytes DDMM.mmN/DDDMM.mmE- : latitude, symbol table, longitude, symbol code."""
     return f"{_coordinate_text(lat, 2, 'S', 'N')}{symbol_table}{_coordinate_text(lon, 3, 'W', 'E')}{symbol_code}".encode("ascii")
 
 
-COMPRESSED_COMMENT_MAX = 40                           # the longest comment after a compressed position (APRS101, chapter 9); the altitude `/A=aaaaaa` is part of it
-_BLANK_CS_T = b" sT"                                  # no course, speed, range or altitude: a space in c and the fillers `sT` (the specification's example)
-_TYPE_RMC_CURRENT = 0b00111010                        # the T byte: a current GPS fix (bit 5), from an RMC sentence (bits 4 and 3 = 11), compressed by software (bits 2 to 0 = 010)
+# longest comment after a compressed position (APRS101 ch. 9), altitude included
+COMPRESSED_COMMENT_MAX = 40
+# no course, speed, range or altitude: a space in c and the fillers `sT`
+_BLANK_CS_T = b" sT"
+# T byte: current GPS fix (bit 5), RMC sentence (bits 4-3), software compression (bits 2-0)
+_TYPE_RMC_CURRENT = 0b00111010
 _BASE91_DIGITS = 4
-_MAX_SPEED_STEP = 90                                  # the largest s of 1.08**s - 1 knots that c and s can hold (c, s are 0 to 90, and the c byte above 89 means something else)
+_MAX_SPEED_STEP = 90
 
 
 def _compressed_table(table: str) -> str:
-    """The symbol table character of a compressed position: `/`, `\\`, a capital letter, or a-j for the digit overlays 0-9 (a digit would make the position an uncompressed one)."""
+    """Return the table character: `/`, `\\`, A-Z, or a-j for the overlays 0-9."""
     if len(table) == 1 and (table in "/\\" or "A" <= table <= "Z"):
         return table
     if len(table) == 1 and "0" <= table <= "9":
@@ -330,7 +345,10 @@ def _compressed_table(table: str) -> str:
 
 
 def _course_speed(course_deg: int | None, speed_kmh: float | None) -> bytes:
-    """The three bytes `csT` of a position with a GPS fix from an RMC sentence: the course in steps of 4 degrees and the speed as 1.08**s - 1 knots; the blank form when either is not known."""
+    """Return the three bytes `csT` of a position with a GPS fix from an RMC sentence.
+
+    Course in steps of 4 degrees, speed as 1.08**s - 1 knots; the blank form if either is unknown.
+    """
     if course_deg is None or speed_kmh is None or speed_kmh < 0:
         return _BLANK_CS_T
     c = round(course_deg / 4) % 90
@@ -339,9 +357,10 @@ def _course_speed(course_deg: int | None, speed_kmh: float | None) -> bytes:
 
 
 def compressed_position(lat: float, lon: float, symbol_table: str, symbol_code: str, course_deg: int | None = None, speed_kmh: float | None = None) -> bytes:
-    """The 13 bytes `/YYYYXXXX$csT` of a compressed position: the symbol table, 380926 * (90 - latitude) and 190463 * (180 + longitude) in four base-91 characters each (a position to a third of a metre),
-    the symbol code, and the course and speed (APRS101, chapter 9). With a course and a speed `cs` is the course over 4 and the speed as 1.08**s - 1 knots and `T` says a current GPS fix from an RMC
-    sentence, compressed by software; with either missing it is the blank form ` sT`, which readers ignore. Raises ValueError for a position that is not on the earth or a symbol that is not one."""
+    """Return the 13 bytes `/YYYYXXXX$csT` of a compressed position (APRS101 ch. 9).
+
+    Course and speed give `cs`, else the blank form. Raise ValueError for a position off the earth or an invalid symbol.
+    """
     if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
         raise ValueError(f"the position {lat}, {lon} is not on the earth")
     if len(symbol_code) != 1 or not "!" <= symbol_code <= "~":
@@ -352,13 +371,15 @@ def compressed_position(lat: float, lon: float, symbol_table: str, symbol_code: 
 
 
 def altitude_text(altitude_m: float) -> str:
-    """`/A=001234`: the altitude in feet, six digits (`/A=-00012` below sea level), held to what six digits and a sign hold."""
+    """Return `/A=001234`: altitude in feet, six digits (`/A=-00012` below sea level), clamped."""
     feet = max(-99999, min(999999, round(altitude_m / FOOT_M)))
     return f"/A={feet:06d}" if feet >= 0 else f"/A=-{-feet:05d}"
 
 
 def compressed_comment(altitude_m: float | None, comment: str) -> str:
-    """The comment that follows a compressed position: the altitude `/A=aaaaaa` when there is one, then the station's comment. All of it may be 40 characters (COMPRESSED_COMMENT_MAX), so the
-    station's comment is cut at the end to fit: a beacon with a long comment is sent with it shortened, not refused."""
+    """Return the comment after a compressed position: altitude `/A=aaaaaa`, then the comment.
+
+    All of it may be 40 characters (COMPRESSED_COMMENT_MAX); a long comment is cut to fit.
+    """
     altitude = "" if altitude_m is None else altitude_text(altitude_m)
     return altitude + comment[:COMPRESSED_COMMENT_MAX - len(altitude)]

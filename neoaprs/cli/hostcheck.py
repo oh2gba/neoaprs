@@ -1,6 +1,7 @@
-"""What on this computer keeps a serial port from working, as `neoaprs doctor` and `neoaprs service install` say it: the user is not in the group that owns the serial devices, and the programs
-(brltty, ModemManager) that take a USB serial adapter for a braille display or a modem as soon as it is plugged in, and Firefox as a Flatpak on KDE, whose web notifications (what the page's alert shows) go to a desktop
-portal that accepts them and shows nothing. Linux only; elsewhere there is nothing to say."""
+"""Find what on this computer keeps a serial port from working (Linux only).
+
+Used by `neoaprs doctor` and `neoaprs service install`: serial group membership, brltty and
+ModemManager (which grab USB serial adapters), and Firefox as a Flatpak on KDE."""
 import glob
 import os
 import shutil
@@ -10,7 +11,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-GROUPS = ("dialout", "uucp")               # who owns the serial devices: dialout on Debian, Ubuntu, Fedora and openSUSE, uucp on Arch
+# The group owning serial devices: dialout on most distributions, uucp on Arch.
+GROUPS = ("dialout", "uucp")
 DEVICE_GLOBS = ("/dev/ttyUSB*", "/dev/ttyACM*")
 BRLTTY_FILES = ("/usr/bin/brltty", "/usr/sbin/brltty", "/usr/lib/udev/rules.d/85-brltty.rules", "/lib/udev/rules.d/85-brltty.rules")
 MODEMMANAGER_FILES = ("/usr/sbin/ModemManager", "/usr/bin/ModemManager", "/usr/lib/systemd/system/ModemManager.service", "/lib/systemd/system/ModemManager.service")
@@ -18,13 +20,13 @@ MODEMMANAGER_FILES = ("/usr/sbin/ModemManager", "/usr/bin/ModemManager", "/usr/l
 
 @dataclass(frozen=True)
 class GroupCheck:
-    status: str                 # "ok", "missing" (not in the group), "relogin" (in it, but this session started before) or "unknown"
+    # "ok", "missing", "relogin" (in the group, but not this session) or "unknown".
+    status: str
     group: str
-    fix: str                    # the command or the step that cures it; empty when ok
+    fix: str  # empty when ok
 
 
 def decide(wanted: list[str], session: set[str], member: set[str], user: str) -> GroupCheck:
-    """Whether the user has one of the groups `wanted` in this session (`session`) or only in the group database (`member`)."""
     if not wanted:
         return GroupCheck("unknown", "", "")
     for group in wanted:
@@ -37,7 +39,7 @@ def decide(wanted: list[str], session: set[str], member: set[str], user: str) ->
 
 
 def serial_group_check(devices: list[str] | None = None, user: str | None = None) -> GroupCheck:
-    """The check for this user: the groups of the serial devices that are plugged in, else the one of the groups above that this system has."""
+    """Check this user against the groups of the serial devices present, else of GROUPS."""
     if not _linux():
         return GroupCheck("unknown", "", "")
     import grp
@@ -97,28 +99,30 @@ NOTIFICATIONS_BUS_NAME = "org.freedesktop.Notifications"
 IGNORE_PORTAL = "NOTIFY_IGNORE_PORTAL=1"
 FLATPAK_WAIT_SEC = 10
 
-# runs `flatpak ARGS` and gives (exit status, standard output); (1, "") when it cannot run
+# Runs `flatpak ARGS`; returns (exit status, stdout).
 FlatpakRun = Callable[[list[str]], tuple[int, str]]
 
 
 @dataclass(frozen=True)
 class FlatpakFirefox:
-    status: str                 # "ok" (notifications go to the desktop's notification service) or "missing" (they go to a portal that may show none)
-    fix: str                    # the commands that cure it, one after the other; empty when ok
+    # "ok" or "missing" (notifications go to a portal).
+    status: str
+    fix: str  # one command per line; empty when ok
 
 
 def run_flatpak(args: list[str]) -> tuple[int, str]:
     try:
-        done = subprocess.run(["flatpak", *args], capture_output=True, text=True, timeout=FLATPAK_WAIT_SEC, check=False)  # noqa: S607  (flatpak is where the distribution put it, which the PATH knows; the answer is only read)
+        done = subprocess.run(["flatpak", *args], capture_output=True, text=True, timeout=FLATPAK_WAIT_SEC, check=False)  # noqa: S607
     except (OSError, subprocess.SubprocessError):
         return 1, ""
     return done.returncode, done.stdout
 
 
 def firefox_flatpak(run: FlatpakRun = run_flatpak, desktop: str | None = None, flatpak_installed: bool | None = None) -> FlatpakFirefox | None:
-    """Whether Firefox is a Flatpak that, on KDE, may lose its web notifications: it hands them to the desktop portal, and the KDE portal accepts them and never shows them. The cure is to let Firefox talk to the
-    notification service itself and to tell it not to use the portal. None where this does not apply: not Linux, not KDE, no `flatpak`, or Firefox is not installed as a Flatpak. Read-only: only `flatpak info` and
-    `flatpak override --show` run."""
+    """Check whether Firefox as a Flatpak on KDE loses web notifications (the portal drops them).
+
+    Return None where this does not apply (not Linux, not KDE, no flatpak, Firefox not a Flatpak).
+    """
     if not _linux():
         return None
     where = os.environ.get("XDG_CURRENT_DESKTOP", "") if desktop is None else desktop

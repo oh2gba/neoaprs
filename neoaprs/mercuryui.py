@@ -1,8 +1,8 @@
-"""The UI interface of the Mercury program, as a client: a WebSocket on the loopback (mercuryscope.py says what it carries) that the daemon turns on in the ini it writes (`ui_enabled`, `ui_port`, the waterfall off) and reads for the
-spectrum scope and the transmit level. It is opened after the back-off when it drops, for as long as the owner (mercuryscoping.py) keeps it, and it is an extra: a Mercury without the interface (a refused connection, a server that does not
-upgrade) is told once in the log and tried again slowly, and nothing else of the modem depends on it.
+"""Client of the Mercury program's UI interface, a loopback WebSocket for scope and level.
 
-The spectrum is switched on when somebody wants it (`want_waterfall`; the modem part wants it whenever the link is open, for the channel-busy control): Mercury then makes twenty frames a second, and the daemon reads and parses them. What is wanted is sent again whenever the link opens."""
+Optional: it is reopened after a back-off, and nothing else of the modem depends on it.
+"""
+
 import asyncio
 import logging
 from collections.abc import Callable
@@ -14,20 +14,21 @@ from .websocketclient import WebSocketClient, WebSocketError
 
 log = logging.getLogger("neoaprs.mercury")
 
-PATH = "/websocket"                  # the endpoint of Mercury's UI server (mercury_websocket.c)
-OUTBOX_MAX = 32                      # commands waiting to be written; the oldest is dropped beyond this
+PATH = "/websocket"  # the endpoint of Mercury's UI server (mercury_websocket.c)
+# commands waiting to be written; the oldest is dropped beyond this
+OUTBOX_MAX = 32
 
 
 class MercuryUi:
     def __init__(self, host: str, port: int, on_text: Callable[[str], None], on_binary: Callable[[bytes], None], on_state: Callable[[bool], None], backoff: Backoff | None = None) -> None:
         self.host, self.port = host, port
-        self._on_text, self._on_binary, self._on_state = on_text, on_binary, on_state        # a text message and a binary frame of Mercury's; the link opened (True) or lost (False)
+        self._on_text, self._on_binary, self._on_state = on_text, on_binary, on_state
         self.backoff = backoff or Backoff([1.0, 2.0, 5.0, 10.0, 30.0])
         self._tasks = TaskSet(log, "mercury ui")
         self.connected = False
         self.want_waterfall = False
         self._outbox: asyncio.Queue[str] = asyncio.Queue(OUTBOX_MAX)
-        self._told = False                     # the first failure of a series is in the log, the others are not
+        self._told = False  # only the first failure of a series is logged at INFO
 
     def start(self) -> None:
         self.backoff.reset()
@@ -39,12 +40,14 @@ class MercuryUi:
         self.connected = False
 
     def waterfall(self, on: bool) -> None:
-        """The spectrum feed is wanted (or not any more): remembered, and sent when the link is open."""
+        """Remember whether the spectrum feed is wanted and send it if the link is open."""
         self.want_waterfall = on
         self._send(waterfall_command(on))
 
     def tx_gain(self, db: float) -> bool:
-        """The transmit gain, sent now; False, with nothing sent, while the link is not open (Mercury has it from the ini at its next start)."""
+        """Send the transmit gain now; return False, sending nothing, while the link is closed
+        (Mercury reads the ini at its next start).
+        """
         return self._send(tx_gain_command(db))
 
     def _send(self, text: str) -> bool:

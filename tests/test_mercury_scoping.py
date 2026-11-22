@@ -1,6 +1,6 @@
-"""The scope and the transmit level in the modem part (neoaprs/mercuryscoping.py, mercurymodem.py): the ini the daemon writes (the gain, the UI interface on a port of its own with the waterfall off), the link to the program's UI,
-the rows of the waterfall made and kept all the time and forgotten where they would lie, the gain sent live and the peak the status says, a Mercury without the interface (no scope, the gain waits for the next start), and the tune tone that follows the gain. The
-program is the fake Mercury of the suite (tests/support/fakemercury.py), whose UI is tests/support/fakemercuryui.py; the real Mercury is tests/test_mercury_scope_real.py."""
+"""The scope and transmit level in the modem part (neoaprs/mercuryscoping.py, mercurymodem.py): the
+ini, the link to the program's UI, the waterfall rows, the live gain and the peak in the status.
+"""
 import asyncio
 import json
 import socket
@@ -23,7 +23,9 @@ from tests.support.fakemercury import UI_LOG_FILE, UI_SCENE_FILE, Air
 from tests.test_scope_handover import asleep
 from tests.test_mercury_modem import HF, QUICK, _ports_of_this_test  # noqa: F401  (the fixture gives each test ports of its own)
 
-UI_NEAR = 400                                    # the UI port of a test is this far above its KISS port (tests/support/fixtures.py: inside the range of the worker)
+# The UI port of a test is this far above its KISS port (tests/support/fixtures.py: inside the range
+# of the worker)
+UI_NEAR = 400
 
 
 def modem(tmp_path: Path, no_ui: bool = False) -> Mercury:
@@ -117,7 +119,8 @@ async def test_the_rows_kept_are_forgotten_where_the_channel_is_cleared_and_when
     try:
         await until_started(lambda: len(m.scope_history) >= 3)
         last = m.scope_history.last
-        m._clear_channel()                                      # (the program ended or was refused, its control line went down: what it said is cleared)
+        # The program ended or was refused, its control line went down: what it said is cleared
+        m._clear_channel()
         assert len(m.scope_history) == 0 and cleared == [0]
         m._clear_channel()
         assert cleared == [0], "nothing kept, nothing to tell"
@@ -147,7 +150,8 @@ async def test_the_gain_is_sent_to_the_running_program_and_the_peak_it_says_is_t
         m.set_tx_gain(7)
         await until_started(lambda: "set_tx_gain 7" in sent(tmp_path))
         assert m.tx_gain_db == 7
-        await until_started(lambda: m.tx_peak_dbfs == 1)                          # (-6.4 dBFS at gain 0, +7 dB: 0.6, whole dB)
+        # -6.4 dBFS at gain 0, +7 dB: 0.6, whole dB
+        await until_started(lambda: m.tx_peak_dbfs == 1)
         m.set_tx_gain(99)
         await until_started(lambda: "set_tx_gain 20" in sent(tmp_path))
         assert m.tx_gain_db == 20, "Mercury's own limit"
@@ -187,9 +191,11 @@ async def test_the_link_is_made_again_for_a_program_started_again(tmp_path: Path
         import os
         import signal
         killed = scope_clock()
-        os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))          # (Windows has no SIGKILL: its SIGTERM is TerminateProcess, as sudden)
+        # Windows has no SIGKILL: its SIGTERM is TerminateProcess, as sudden
+        os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))
         await until_started(lambda: m.pid != pid and m.scope and m.state == "running")
-        await until_started(lambda: sent(tmp_path).count("set_waterfall on") >= 2)       # (the link to the new program is made a moment after it runs)
+        # The link to the new program is made a moment after it runs
+        await until_started(lambda: sent(tmp_path).count("set_waterfall on") >= 2)
         assert sent(tmp_path).count("set_waterfall on") >= 2, "the spectrum is asked for again of the new program"
         assert all(k.at > killed for k in m.scope_history.after(0, scope_clock())), "no row of the program that died is kept"
     finally:
@@ -208,7 +214,8 @@ async def test_the_tune_tone_follows_the_gain_and_is_begun_again_when_the_gain_m
     try:
         await until_started(lambda: m.state == "running")
         await m.tune()
-        await until_started(lambda: station.tuned == ["TUNE -10"])                      # (-15 dBFS and the gain of 5 dB)
+        # -15 dBFS and the gain of 5 dB
+        await until_started(lambda: station.tuned == ["TUNE -10"])
         m.set_tx_gain(8)
         await until_started(lambda: station.tuned == ["TUNE -10", "TUNE OFF", "TUNE -7"])
         assert m.test == "tune" and m.hold() == "the radio is transmitting", "the hold stays on while the tone is begun again"
@@ -255,7 +262,9 @@ async def test_the_channel_is_busy_by_the_spectrum_for_a_signal_as_wide_as_a_fra
 
 
 async def test_the_spectrum_is_not_judged_while_the_radio_transmits_and_for_a_moment_after(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(mercuryscoping, "AFTER_TX_SEC", 3600.0)          # (the moment lasts until the test says it is over: a machine that stalls for half a second cannot end it early)
+    # The moment lasts until the test says it is over: a machine that stalls for half a second
+    # cannot end it early
+    monkeypatch.setattr(mercuryscoping, "AFTER_TX_SEC", 3600.0)
     m = modem(tmp_path)
     await m.start(HF)
     try:
@@ -277,8 +286,11 @@ async def test_the_spectrum_is_not_judged_while_the_radio_transmits_and_for_a_mo
 
 
 async def test_a_radio_that_has_not_transmitted_is_judged_from_the_start_however_young_the_machines_clock_is(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The time of the last transmission began at the clock's zero, which on a computer just switched on is "a moment ago": GitHub's runners, minutes old, never judged the spectrum in the test above (13 Nov 2026)."""
-    monkeypatch.setattr(mercuryscoping, "AFTER_TX_SEC", 1e9)             # (longer than any machine has been up: only a radio that never transmitted is outside this moment)
+    """The last transmission began at the clock's zero, which on a just-started computer is "a
+    moment ago"."""
+    # Longer than any machine has been up: only a radio that never transmitted is outside this
+    # moment
+    monkeypatch.setattr(mercuryscoping, "AFTER_TX_SEC", 1e9)
     m = modem(tmp_path)
     await m.start(HF)
     try:
@@ -302,7 +314,8 @@ async def test_the_moment_after_our_own_frame_is_a_fraction_of_a_second_and_ends
         await asyncio.sleep(1.0)
         m.keyed = False
         m._keyed_at = time.monotonic()
-        await until_started(lambda: m.busy)          # (nothing sets the time back: the real window is over by itself)
+        # Nothing sets the time back: the real window is over by itself
+        await until_started(lambda: m.busy)
     finally:
         m.keyed = False
         await m.stop()
@@ -339,8 +352,11 @@ async def test_what_a_stopped_program_said_of_the_channel_holds_nothing_after_a_
     m = Mercury(tmp_path)
     now = time.monotonic()
     m.auto_busy(False, now)                 # the spectrum is read: clear
-    m._on_busy(True, now)                   # Mercury's own detector says BUSY ON (a step in the noise): kept, not believed
+    # Mercury's own detector says BUSY ON (a step in the noise): kept, not believed
+    m._on_busy(True, now)
     assert not m.busy
-    await m.stop()                          # the settings were saved: the modem stops, and is started again
-    m._auto_at -= 2.0                       # (were anything kept: the restart took over a second, the new link not yet up)
+    # The settings were saved: the modem stops, and is started again
+    await m.stop()
+    # Were anything kept: the restart took over a second, the new link not yet up
+    m._auto_at -= 2.0
     assert m.hold() == "" and not m.busy, "the old program's BUSY does not hold the frames of the new one"

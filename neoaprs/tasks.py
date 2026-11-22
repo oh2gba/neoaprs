@@ -1,4 +1,8 @@
-"""The tasks a part starts, shared by every part that runs on the loop: `cancel_all` ends tasks and waits for each, `TaskSet` is the tasks one owner starts, `every` is the loop of a timer."""
+"""The tasks a part starts, shared by every part that runs on the loop.
+
+`cancel_all` ends tasks and waits for each, `TaskSet` is the tasks one owner starts, `every` is the
+loop of a timer.
+"""
 import asyncio
 import inspect
 import logging
@@ -10,9 +14,10 @@ log = logging.getLogger("neoaprs.tasks")
 
 
 async def cancel_all(tasks: Iterable[asyncio.Task[Any]]) -> None:
-    """Cancels the tasks and waits until each has ended, whatever it ended with: the shutdown goes on. The task that asks is left alone (a task that stops its
-    owner would otherwise cancel itself), and one that fails while it is cancelled is told in the debug log, not lost. The caller's own cancellation is not swallowed: when the caller is
-    cancelled while it waits here, the tasks are still waited for and then the CancelledError goes on."""
+    """Cancel the tasks and wait for each; the calling task is left alone.
+
+    The caller's own cancellation is not swallowed: CancelledError goes on after the wait.
+    """
     me = asyncio.current_task()
     asked = 0 if me is None else me.cancelling()
     mine = [t for t in tasks if t is not me and not t.done()]
@@ -33,8 +38,10 @@ Round = Callable[[], Awaitable[object] | object]
 
 
 async def every(sec: float | Callable[[], float], fn: Round, what: str, first: float | None = None, at_start: bool = False) -> None:
-    """The loop of a timer: waits `sec` seconds (a number, or a function that says how long to wait this time), then runs `fn` (a function, or one whose result is awaited), for ever. An exception in `fn`
-    is logged ("<what> failed", with the traceback) and the timer goes on. `first` is the wait before the first round when that is another; `at_start` runs the first round at once."""
+    """Wait `sec` seconds (or the function's result), run `fn`, repeat; exceptions are logged.
+
+    `first` is the wait before the first round; `at_start` runs it at once.
+    """
     if at_start:
         await _round(fn, what)
     wait = first
@@ -58,9 +65,10 @@ def _log_failure(logger: logging.Logger, words: str, task: asyncio.Task[Any]) ->
 
 
 class TaskSet:
-    """The tasks one owner starts: each is kept (the loop holds its tasks only weakly, a task nobody holds can vanish half way), forgotten when it ends, and an exception in it is
-    handed to `failed` instead of lying in the task until the shutdown. `failed` is a function of the task, or a logger: then the exception is logged as an error, "<what> task <name> failed: <exception>"
-    with `what` ("beacon") in front of the word task, or "task <name> failed" without it. cancel_all() ends them in the order they were made."""
+    """The tasks one owner starts, kept (the loop holds tasks only weakly) until they end.
+
+    An exception in a task goes to `failed`: a function of the task, or a logger.
+    """
 
     def __init__(self, failed: Callable[[asyncio.Task[Any]], None] | logging.Logger, what: str = "") -> None:
         self._failed: Callable[[asyncio.Task[Any]], None] = failed if callable(failed) else partial(_log_failure, failed, f"{what} task" if what else "task")
@@ -78,7 +86,8 @@ class TaskSet:
             self._failed(task)
 
     async def cancel_all(self) -> None:
-        await cancel_all(list(self._tasks))               # the done callbacks edit the dict while these are awaited
+        # a copy: the done callbacks edit the dict while these are awaited
+        await cancel_all(list(self._tasks))
         for task in [t for t in self._tasks if t.done()]:
             del self._tasks[task]
 

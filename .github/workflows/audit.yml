@@ -1,12 +1,14 @@
-# The weekly audit: the packages of uv.lock and ui/package-lock.json asked of the advisory lists (osv-scanner, `scripts/check --stage audit`; osv-scanner.toml lists what is set aside, each with its reason and the day it
-# ends), and GitHub's runners against packaging/ci/runner.json (the job `latest`, and scripts/runner-facts in the same stage). A package gets an advisory and GitHub moves an image without a push,
-# so the check is run by the clock as well as by hand. It is a workflow of its own and not a job of ci.yml: the release asks for a green run of ci.yml by the commit (release.yml, `verify`), and a
-# scheduled run of ci.yml on the head of master would be one. No secrets, nothing is published.
+# The weekly audit: the packages of uv.lock and ui/package-lock.json against the advisory lists
+# (osv-scanner, `scripts/check --stage audit`; osv-scanner.toml lists what is set aside, each with a
+# reason and an end day), and GitHub's runners against packaging/ci/runner.json. Advisories and
+# image moves come without a push, so it runs by the clock. It is a workflow of its own because the
+# release requires a green ci.yml run by commit, which a scheduled run on master's head would be. No
+# secrets, nothing is published.
 name: audit
 
 on:
   schedule:
-    - cron: "17 5 * * 1"          # Mondays, 05:17 UTC (not on the hour, when the runners are busiest)
+    - cron: "17 5 * * 1"  # Mondays 05:17 UTC (off the hour, when runners are busiest)
   workflow_dispatch:
 
 permissions:
@@ -19,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.11.26"
@@ -28,14 +30,16 @@ jobs:
       - run: uv sync --frozen
       - name: The pinned osv-scanner (scripts/security-tools)
         run: python3 scripts/security-tools osv-scanner
-      # The stage also reads what GitHub publishes of its runners (scripts/runner-facts --published --announcements): the readme of the image runner.json follows, and the open announcements that name
-      # one of our runners and have not been read. The job's own token only lifts the API's limit for anonymous requests.
+      # The stage also reads what GitHub publishes of its runners (scripts/runner-facts --published
+      # --announcements): the image readme and open announcements naming a runner we use. The job's
+      # token only lifts the anonymous API limit.
       - run: scripts/check --stage audit
         env:
           GH_TOKEN: ${{ github.token }}
 
-  # Whether each -latest label is still the system the workflows name (packaging/ci/runner.json, "latest"). The workflows run on named runners, so this job is what says, within a week, that GitHub
-  # has moved a label and the names are due to move with it (docs/MAINTAINING.md, "When GitHub moves an image").
+  # Whether each -latest label is still the system the workflows name (packaging/ci/runner.json,
+  # "latest"): this says within a week that GitHub moved a label (docs/MAINTAINING.md, "When GitHub
+  # moves an image").
   latest:
     strategy:
       fail-fast: false
@@ -49,12 +53,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.11.26"
           python-version: "3.13"
-          enable-cache: false     # (nothing is installed: the script needs the standard library only)
+          enable-cache: false  # nothing is installed: the script needs the standard library only
       - run: uv run --no-project python scripts/runner-facts --latest "$LABEL" --github
         env:
           LABEL: ${{ matrix.os }}

@@ -1,4 +1,5 @@
-"""Made-up AIS sentences for the tests: a message's fields put into bits, the bits into the six-bit payload, and the payload into NMEA sentences with their checksum."""
+"""Made-up AIS sentences: message fields into bits, the six-bit payload, NMEA sentences with
+checksum."""
 
 
 def _bits(fields: list[tuple[int, int]]) -> str:
@@ -35,7 +36,8 @@ def sentence(data: str, fill: int = 0, count: int = 1, number: int = 1, seq: str
 
 
 def sentences(fields: list[tuple[int, int]], per: int = 40, seq: str = "3", channel: str = "B") -> list[str]:
-    """The message as one sentence, or as several when its payload is longer than `per` characters."""
+    """The message as one sentence, or as several when its payload is longer than `per` characters.
+    """
     data, fill = payload(fields)
     if len(data) <= per:
         return [sentence(data, fill, channel=channel)]

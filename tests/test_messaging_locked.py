@@ -1,6 +1,7 @@
-"""Encrypted messages through messaging (neoaprs/services/messaging.py, services/inbox.py, with the keys of services/keyring.py): a locked message goes on the air as ciphertext and is kept as what was written, every
-attempt sends the same bytes, the other station opens it; what is refused and why; our key announced by hand; a station's key taken when it comes in and a different one not; a sealed message to us opened,
-or kept shut when it cannot be; what is overheard of other stations' locked traffic; and all of it read back after a restart."""
+"""Encrypted messages through messaging and inbox with the keyring: a locked message goes out as
+ciphertext and is kept as written, the other station opens it, and refusals, key announcements and
+key changes.
+"""
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -15,7 +16,8 @@ from neoaprs.services.keyring import Keyring
 from tests.support.storedb import log_at
 from tests.test_messaging import Rig as MessagingRig
 
-PEER_PRIVATE = bytes(range(32))                      # the other station's key pair, which the test holds to play its side
+# The other station's key pair, which the test holds to play its side
+PEER_PRIVATE = bytes(range(32))
 PEER_PUBLIC = cipher.public_of(PEER_PRIVATE)
 OTHER_PUBLIC = cipher.public_of(bytes(range(1, 33)))
 
@@ -52,7 +54,8 @@ async def rig(tmp_path: Path) -> Rig:
 
 @pytest.fixture
 def another(rig: Rig) -> Callable[..., Rig]:
-    """A second messaging with its ring on the same folder and database, as after a restart of the daemon."""
+    """A second messaging with its ring on the same folder and database, as after a restart of the
+    daemon."""
     def make(encrypt: bool = True) -> Rig:
         return Rig(rig.folder, rig.log, rig.clock, encrypt)
     return make
@@ -214,7 +217,8 @@ async def test_the_messages_come_back_with_what_they_are_after_a_restart(rig: Ri
 
 # ---- a key or a sender that cannot be used
 async def test_a_key_that_cannot_make_a_shared_key_leaves_a_locked_message_from_that_station_shut_and_acked_and_a_locked_message_to_it_refused(rig: Rig) -> None:
-    assert await rig.ring.take("OH2RDG-7", bytes(32), rig.clock()) == "" and rig.ring.shared_with("OH2RDG-7") is None             # (a key of 32 zero bytes: X25519 with it is no exchange, and the keyring keeps no such key)
+    # A key of 32 zero bytes: X25519 with it is no exchange, and the keyring keeps no such key
+    assert await rig.ring.take("OH2RDG-7", bytes(32), rig.clock()) == "" and rig.ring.shared_with("OH2RDG-7") is None
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", rig.peer_seals("Hello"), "51"))
     assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG-7 :ack51"]
     await rig.settled()

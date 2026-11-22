@@ -1,6 +1,7 @@
-"""The iGate service (neoaprs/services/igate.py) on a fake APRS-IS: what the radio hears becomes lines on the server, each not gated is counted by its reason, a copy within 30 seconds is gated once, nothing is
-gated while it is not logged in, our own position goes to the server (never while a radio of a Dummy type is on: the settings say so), the filter of the connection follows our position, without a passcode (or with one the server refuses) it only listens, the log has the packets and the hour
-and never the password, and what the server says is read by the connection and goes nowhere through the service."""
+"""Tests for the iGate service (neoaprs/services/igate.py) on a fake APRS-IS: heard packets become
+server lines, ungated ones are counted by reason, duplicates within 30 seconds are gated once, and
+without a passcode it only listens.
+"""
 import logging
 from datetime import timedelta
 from dataclasses import replace
@@ -88,7 +89,8 @@ async def test_the_same_packet_heard_again_within_30_seconds_is_gated_once_and_a
 async def test_the_duplicate_window_is_a_number_that_can_be_set_to_nothing() -> None:
     server = await fake_aprsis()
     w = await iworld(server)
-    w.igate._seen.window = timedelta(0)                                    # (the window is a constant to set to nothing: nothing is a duplicate then)
+    # (the window is a constant to set to nothing: nothing is a duplicate then)
+    w.igate._seen.window = timedelta(0)
     w.hear()
     w.hear()
     assert w.igate.gated == 2 and DUPLICATE not in w.igate.dropped
@@ -197,7 +199,8 @@ async def test_the_filter_round_our_position_is_in_the_login_and_is_sent_again_w
     assert server.logins[0].endswith(f" filter {FILTER}")
     w.place = (60.20, 24.99)                                              # (about 4 km)
     w.igate.tick()
-    w.place = (60.17, 25.10)                                              # (about 9 km from where the filter was set, and the filter is still the first)
+    # (about 9 km from where the filter was set, and the filter is still the first)
+    w.place = (60.17, 25.10)
     w.igate.tick()
     await idle_for(0.1)
     assert [c for c in server.comments if c.startswith("#filter")] == []
@@ -318,7 +321,8 @@ async def test_a_beacon_is_not_sent_to_the_server_while_the_igate_is_not_logged_
 
 async def test_nothing_of_ours_is_sent_to_the_server_while_the_radio_is_a_dummy_and_the_position_goes_when_it_is_a_real_one() -> None:
     server = await fake_aprsis()
-    w = await iworld(server, wait=False, tnc_profile="dummy")                  # (the settings say the radio that is on is the Dummy one: the iGate reads it there)
+    # (the settings say the radio that is on is the Dummy one: the iGate reads it there)
+    w = await iworld(server, wait=False, tnc_profile="dummy")
     await until(lambda: w.igate.state == "connected")
     await idle_for(0.1)
     assert w.igate.made_up() and server.packets == [], "(the station that stays: its position waits)"
@@ -410,7 +414,8 @@ async def test_the_igate_and_its_connection_hold_nothing_that_can_send_a_frame()
             assert not hasattr(value, "send_frame"), f"{type(part).__name__}.{name} can send a frame"
 
 
-# ---- the edges: a packet that is no frame, a link that went down, a table that grows, a start twice
+# ---- the edges: a packet that is no frame, a link that went down, a table that grows, a start
+# twice
 
 async def test_a_packet_whose_bytes_are_no_frame_is_counted_as_such_and_gated_nowhere() -> None:
     server = await fake_aprsis()
@@ -434,7 +439,8 @@ async def test_the_table_of_what_was_gated_is_cleared_of_the_old_when_it_grows_t
     for n in range(5):
         w.hear(info=b">%d" % n)
     w.clock.advance(31)
-    w.hear(info=b">0")                                                     # (the table is over its size, so what is over 30 s old goes first; this one is gated again)
+    # (the table is over its size, so what is over 30 s old goes first; this one is gated again)
+    w.hear(info=b">0")
     assert w.igate.gated == 6 and len(w.igate._seen) == 1 and not w.igate.dropped
 
 

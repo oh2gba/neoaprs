@@ -1,5 +1,7 @@
-"""The way back from a database of a newer version: the refusal names the newest copy in backup/ that this NeoAPRS can open and the command that puts it back (neoaprs/backupfolder.py, migrations.py),
-and `neoaprs db restore` (neoaprs/cli/dbcmd.py) lists the copies and puts one in the place of the database, never while a NeoAPRS holds the data folder and never deleting the file that was there."""
+"""The way back from a newer database: the refusal names the newest usable copy in backup/ and the
+command that restores it, and `neoaprs db restore` lists the copies and puts one back, never while
+the data folder is held.
+"""
 import os
 import shlex
 import sqlite3
@@ -62,8 +64,9 @@ def test_a_newer_file_with_a_usable_copy_names_the_copy_with_its_date_and_the_co
     make_db(old, SCHEMA_VERSION - 1, "old")
     make_db(mine, SCHEMA_VERSION, "mine")
     make_db(unusable, SCHEMA_VERSION + 5, "later")
-    dated(old, 1_793_000_000)                                   # 2026-10-26
-    dated(mine, 1_793_800_000)                                  # 2026-11-04 (the one before the migration that made the newer file)
+    dated(old, 1_793_000_000)
+    # The one before the migration that made the newer file.
+    dated(mine, 1_793_800_000)
     dated(unusable, 1_794_500_000)
     ok, why = open_database(data / DB_NAME)
     assert not ok and "made by a newer NeoAPRS" in why and "not touched" in why
@@ -84,7 +87,8 @@ def test_the_date_is_that_of_the_name_when_the_file_times_are_lost_and_the_comma
     ok, why = open_database(folder / DB_NAME)
     assert b.name in why and "2026-11-05 09:00 UTC" in why
     command = why.split("run `")[1].split("`")[0]
-    quote = '"' if WINDOWS else "'"                             # (the command is written for the shell of the system: cmd and PowerShell take double quotes)
+    # The command is written for the shell of the system: cmd and PowerShell take double quotes
+    quote = '"' if WINDOWS else "'"
     assert command.startswith("neoaprs db restore --data ") and f"{quote}{folder}{quote}" in command
     words = [word.strip('"') for word in shlex.split(command, posix=False)] if WINDOWS else shlex.split(command)
     assert dbcmd.parse(words[2:]).name == b.name and dbcmd.parse(words[2:]).data == str(folder)
@@ -133,7 +137,8 @@ def test_the_list_marks_the_copy_the_neoaprs_before_opens_and_no_other(data: Pat
     assert marked == [next(x for x in lines if x.startswith(before.name))]
     assert f"taken before the update to version {SCHEMA_VERSION}: the NeoAPRS you had before opens it" in marked[0]
     later.unlink()
-    before.write_bytes(b"not a database at all")                # a copy that is not whole is no way back: nothing is marked
+    # A copy that is not whole is no way back: nothing is marked
+    before.write_bytes(b"not a database at all")
     capsys.readouterr()
     assert restore_cli(data) == 0
     assert "taken before the update" not in capsys.readouterr().out
@@ -151,7 +156,8 @@ def test_a_restore_puts_the_copy_in_place_and_keeps_the_present_file_under_a_nam
     assert len(kept) == 2 and kept[0].endswith(".sqlite") and kept[1].endswith(".sqlite-wal"), "the file and the log that belongs to it go together"
     assert marker_of(data / kept[0]) == "newer file"
     assert not (data / f"{DB_NAME}-wal").exists(), "a log of the old file is never applied to the copy"
-    assert WINDOWS or (data / DB_NAME).stat().st_mode & 0o077 == 0          # (Windows has no such bits: the folder's own access list holds there)
+    # Windows has no such bits: the folder's own access list holds there
+    assert WINDOWS or (data / DB_NAME).stat().st_mode & 0o077 == 0
     ok, why = open_database(data / DB_NAME)
     assert ok is not None and why == ""
 
@@ -188,7 +194,8 @@ def test_restore_is_refused_while_a_neoaprs_holds_the_data_folder_and_nothing_ch
 
 @pytest.mark.parametrize("migrating", [True, False], ids=["a migration", "a set"])
 def test_restore_is_refused_while_a_neoaprs_migrates_or_writes_the_file_and_the_file_is_not_touched(data: Path, migrating: bool, capsys: pytest.CaptureFixture[str]) -> None:
-    """The lock of the migration is held by `neoaprs db set` for its whole run, and by a migration from before its copy: on POSIX the rename would go through under their open file, and what they
+    """The lock of the migration is held by `neoaprs db set` for its whole run, and by a migration
+    from before its copy: on POSIX the rename would go through under their open file, and what they
     write would land in the file put aside."""
     make_db(data / "backup" / "mine.sqlite", SCHEMA_VERSION, "the copy")
     before = (data / DB_NAME).read_bytes()
@@ -247,7 +254,8 @@ def test_the_files_moved_aside_come_back_when_the_write_fails_and_when_a_move_fa
         backupfolder.restore(data, DB_NAME, "mine.sqlite", SCHEMA_VERSION)
     assert (data / f"{DB_NAME}-wal").read_bytes() == b"log" and (data / f"{DB_NAME}-shm").read_bytes() == b"shm" and not list(data.glob("neoaprs-set-aside-*"))
     monkeypatch.undo()
-    assert marker_of(data / DB_NAME) == "newer file"            # (opening the file lets SQLite drop a log it cannot use)
+    # Opening the file lets SQLite drop a log it cannot use
+    assert marker_of(data / DB_NAME) == "newer file"
     (data / f"{DB_NAME}-wal").write_bytes(b"log")
     real = Path.rename
 
@@ -265,7 +273,8 @@ def test_a_restore_cut_short_while_the_copy_is_written_leaves_the_database_in_it
     make_db(data / "backup" / "mine.sqlite", SCHEMA_VERSION, "the copy")
 
     def killed(source: object, target: object) -> None:
-        raise KeyboardInterrupt                                  # (as far as the files go, a kill or a power cut in the middle of the copy)
+        # As far as the files go, a kill or a power cut in the middle of the copy
+        raise KeyboardInterrupt
     monkeypatch.setattr(backupfolder.shutil, "copyfileobj", killed)
     with pytest.raises(KeyboardInterrupt):
         backupfolder.restore(data, DB_NAME, "mine.sqlite", SCHEMA_VERSION)

@@ -1,9 +1,6 @@
-"""A stand-in for the desktop app's shells (neoaprs/desktop/qtshell.py, webshell.py): `FakeFrame` is the toolkit as the app's logic sees it (it writes down what it is asked), and the module's `run` is a
-shell that `neoaprs.desktop.cmd.run` can be given by name (`Choice("tests.support.fakeshell", True)`): as a real one it makes its window at once (it writes "window" into `EVENTS`), waits for the session, and
-then makes the actions, gives the window the page ("page URL"), tells the app it is ready and waits until a quit reaches it, or until `STEPS` (a script of what to do first) is done; when no page comes it closes
-the window ("closed") and ends as the app does then.
-
-    frame = FakeFrame(); frame.shown, frame.told, frame.quits, frame.loaded    what the app asked of the window, the tray and the loop
+"""A stand-in for the desktop app's shells (neoaprs/desktop/qtshell.py, webshell.py): `FakeFrame` is
+the toolkit as the app logic sees it, and `run` is a shell that `neoaprs.desktop.cmd.run` can be
+given by name.
 """
 import threading
 from collections.abc import Callable
@@ -40,8 +37,10 @@ class FakeFrame:
 
 
 FRAMES: list[FakeFrame] = []                        # the frame of every run, newest last
-STEPS: list[Callable[[FakeFrame], None]] = []       # what a test wants done once the app is ready (runs in the shell's thread)
-EVENTS: list[str] = []                              # what the shell did, in order (a test that wants the time of each replaces `event`)
+# What a test wants done once the app is ready (runs in the shell's thread)
+STEPS: list[Callable[[FakeFrame], None]] = []
+# What the shell did, in order (a test that wants the time of each replaces `event`)
+EVENTS: list[str] = []
 
 
 def event(name: str) -> None:

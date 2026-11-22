@@ -1,4 +1,5 @@
-"""The packets of the last hour of a station (neoaprs/hourcount.py): counted for each minute, they leave the hour as it moves on."""
+"""The packets of the last hour of a station (neoaprs/hourcount.py): counted for each minute, they
+leave the hour as it moves on."""
 from datetime import timedelta
 
 from neoaprs.clock import utc
@@ -14,7 +15,8 @@ def test_packets_count_until_an_hour_has_passed() -> None:
     hour.note(T0 + timedelta(minutes=10))
     assert hour.count(T0 + timedelta(minutes=10)) == 3
     assert hour.count(T0 + timedelta(minutes=59)) == 3
-    assert hour.count(T0 + timedelta(minutes=60)) == 1             # (the minute of the first two is an hour old when its minute 60 begins)
+    # (the minute of the first two is an hour old when its minute 60 begins)
+    assert hour.count(T0 + timedelta(minutes=60)) == 1
     assert hour.count(T0 + timedelta(minutes=70)) == 0
     assert hour.total == 0
 

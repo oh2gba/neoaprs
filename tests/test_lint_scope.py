@@ -1,14 +1,19 @@
-"""What ruff reads. ruff knows a Python file by the ending of its name, so a tool that is Python and is called `scripts/release` is passed by, with every rule, unless pyproject.toml names it
-(`extend-include` of `[tool.ruff]`). That list is held exact here: a file of the folders below that begins with a python line and has no `.py` in its name is in it, and every entry is such a file.
-The second half shows the rule failing on a made-up folder."""
+"""Tests that ruff reads every Python file. ruff recognises files by extension, so Python scripts
+without `.py` (such as `scripts/release`) must be in `extend-include` of `[tool.ruff]`; the list is
+held exact here.
+"""
 import tomllib
 from pathlib import Path
 
 from tests.conftest import ROOT
 
-FOLDERS = ("scripts", "packaging", "server", "systemd")           # where the tools of the repository are; neoaprs/ and tests/ hold modules, which have their ending
-PASSED_BY = {"node_modules", "__pycache__", "logs", "support"}      # folders that are not the repository's own text: what a tool installed or cached, and what the fetch scripts of server/ brought (server/logs, server/support)
-NO_FIRST_LINE = {"packaging/windows/neoaprs.spec": "PyInstaller's spec: Python that PyInstaller runs, with no line naming an interpreter"}      # Python with no `.py` and no `#!`, which only a name can find
+# where the tools of the repository are; neoaprs/ and tests/ hold modules, which have their ending
+FOLDERS = ("scripts", "packaging", "server", "systemd")
+# folders that are not the repository's own text: what a tool installed or cached, and what the
+# fetch scripts of server/ brought (server/logs, server/support)
+PASSED_BY = {"node_modules", "__pycache__", "logs", "support"}
+# Python with no `.py` and no `#!`, which only a name can find
+NO_FIRST_LINE = {"packaging/windows/neoaprs.spec": "PyInstaller's spec: Python that PyInstaller runs, with no line naming an interpreter"}
 
 
 def listed() -> list[str]:
@@ -26,7 +31,8 @@ def begins_with_python(path: Path) -> bool:
 
 
 def python_without_the_ending(root: Path) -> list[str]:
-    """Every file under the folders of tools whose first line names python and whose name does not end in .py, as a path from the root."""
+    """Every file under the folders of tools whose first line names python and whose name does not
+    end in .py, as a path from the root."""
     found: list[str] = []
     for folder in FOLDERS:
         for path in sorted((root / folder).rglob("*")):
@@ -37,7 +43,8 @@ def python_without_the_ending(root: Path) -> list[str]:
 
 
 def not_as_listed(root: Path, entries: list[str]) -> list[str]:
-    """What is wrong between the list and the tree: [] when ruff reads every Python tool and the list names nothing else."""
+    """What is wrong between the list and the tree: [] when ruff reads every Python tool and the
+    list names nothing else."""
     there = python_without_the_ending(root)
     wrong = [f"{rel} is Python and ruff does not read it: add it to extend-include of [tool.ruff] in pyproject.toml" for rel in there if rel not in entries]
     wrong += [f"{entry} is in extend-include and is not a file that begins with a python line and has no .py in its name: delete the entry" for entry in entries if entry not in there]
@@ -50,7 +57,7 @@ def test_ruff_reads_every_python_tool_that_has_no_py_in_its_name_and_the_list_na
     assert not_as_listed(ROOT, listed()) == []
 
 
-# ---- the rule fails on a made-up folder ---------------------------------------------------------------------------------------------------------------------
+# ---- the rule fails on a made-up folder ----------------------------------------------------------
 
 def test_a_python_tool_that_is_not_listed_and_an_entry_that_is_no_such_file_are_found(tmp_path: Path) -> None:
     files = {"scripts/release": "#!/usr/bin/env python3\nprint(1)\n", "scripts/logs": "#!/usr/bin/env python3\n", "scripts/new-tool": "#!/usr/bin/python3 -I\nprint(2)\n", "scripts/check": "#!/usr/bin/env bash\npython -m ruff check .\n",

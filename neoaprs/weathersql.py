@@ -1,7 +1,7 @@
-"""The statements of the weather table (every observation of every weather station), as functions of a connection that the database thread runs (weatherlog.py is the part that asks for them).
+"""SQL for the weather table, as functions of a connection.
 
-A row is a tuple in the order of WEATHER_COLUMNS; the codec between a row and an observation is weatherlog.py's. The last statement reads the packet table, for seeding the weather from the
-packets already kept. Nothing here begins or commits a transaction."""
+A row is a tuple in the order of WEATHER_COLUMNS. Nothing here begins or commits a transaction.
+"""
 import sqlite3
 from collections.abc import Sequence
 
@@ -11,7 +11,8 @@ from .packetsql import HEARD
 WEATHER_COLUMNS = ("station", "at", "wind_dir", "wind_kmh", "gust_kmh", "temp_c", "humidity", "pressure_hpa", "rain_1h_mm", "rain_24h_mm", "rain_today_mm", "luminosity", "raw")
 _LIST = ", ".join(WEATHER_COLUMNS)
 _PLACES = ", ".join("?" * len(WEATHER_COLUMNS))
-_NEWEST = ", ".join("MAX(at)" if c == "at" else c for c in WEATHER_COLUMNS)          # (a bare column beside the one MAX is the value of the row that has it)
+# In SQLite a bare column beside a single MAX() takes the value of the row that has the maximum.
+_NEWEST = ", ".join("MAX(at)" if c == "at" else c for c in WEATHER_COLUMNS)
 
 
 def insert_weather(db: sqlite3.Connection, row: Sequence[object]) -> None:
@@ -19,24 +20,24 @@ def insert_weather(db: sqlite3.Connection, row: Sequence[object]) -> None:
 
 
 def insert_weather_many(db: sqlite3.Connection, observations: Sequence[Sequence[object]]) -> int:
-    """Keeps all the observations; how many."""
+    """Insert all the observations; return the count."""
     db.executemany(f"INSERT INTO weather ({_LIST}) VALUES ({_PLACES})", [tuple(r) for r in observations])
     return len(observations)
 
 
 def weather_since(db: sqlite3.Connection, station: str, stamp: str) -> list[Row]:
-    """The observations of the station at or after `stamp`, the oldest first."""
+    """Return the station's observations at or after `stamp`, oldest first."""
     return rows(db.execute(f"SELECT {_LIST} FROM weather WHERE station = ? AND at >= ? ORDER BY at, rowid", (station, stamp)))
 
 
 def latest_weather(db: sqlite3.Connection, station: str) -> Row | None:
-    """The newest observation of the station, None for a station with none."""
+    """Return the station's newest observation, or None."""
     row = db.execute(f"SELECT {_LIST} FROM weather WHERE station = ? ORDER BY at DESC, rowid DESC LIMIT 1", (station,)).fetchone()
     return None if row is None else tuple(row)
 
 
 def latest_weather_all(db: sqlite3.Connection) -> list[Row]:
-    """The newest observation of each station."""
+    """Return the newest observation of each station."""
     return rows(db.execute(f"SELECT {_NEWEST} FROM weather GROUP BY station"))
 
 
@@ -45,18 +46,20 @@ def count_weather(db: sqlite3.Connection) -> int:
 
 
 def prune_weather_before(db: sqlite3.Connection, stamp: str) -> int:
-    """Deletes the observations made before `stamp`; how many."""
+    """Delete observations before `stamp`; return the count."""
     return db.execute("DELETE FROM weather WHERE at < ?", (stamp,)).rowcount
 
 
 def delete_weather(db: sqlite3.Connection) -> int:
-    """Deletes every observation; how many."""
+    """Delete every observation; return the count."""
     return db.execute("DELETE FROM weather").rowcount
 
 
 def weather_packets(db: sqlite3.Connection, stamp: str) -> list[Row]:
-    """(source, destination, raw, heard_at, via) of the packets heard at or after `stamp` that may carry weather, the oldest first: a position whose symbol code is `_`, an object or item whose position's is, or
-    a packet of the kind other that the parser read as weather (or called weather). The decoded JSON says it, not the summary. A few more than there are weather reports: the parser decides."""
+    """Return (source, destination, raw, heard_at, via) of packets since `stamp` that may be wx.
+
+    The decoded JSON decides, not the summary; the parser makes the final decision.
+    """
     return rows(db.execute(
         f"SELECT source, destination, raw, heard_at, via FROM packet WHERE {HEARD} AND heard_at >= ? AND ("
         "(kind = 'position' AND json_extract(decoded, '$.symbol_code') = '_') OR "

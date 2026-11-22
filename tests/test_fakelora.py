@@ -1,7 +1,7 @@
-"""The fake LoRa board (tests/support/fakelora.py) against the firmwares' own bytes (aprs-reference/lora-plan.md step L1): the CA2RXU iGate's KISS of a packet worked out by hand from its C++
-(kiss_utils.cpp `encodeKISS`, `encodeAddressAX25`), read back by our AX.25 decoder and TNC2 reader to the same text, and what we encode read by the board's `decodeKISS` to the same text; the call cut
-to six characters without a word, the input cleared past 255 bytes, a frame from the board's own call dropped, nothing keyed with LoRa Tx off; DL9SAU's element over its whole range; esp32_loraprs's
-command 7 after its frame."""
+"""Tests for the fake LoRa board (tests/support/fakelora.py) against the firmwares' own bytes
+(aprs-reference/lora-plan.md): KISS encoding and decoding in both directions, callsign cutting,
+input limits, dropped own frames and keying with Tx off.
+"""
 import struct
 
 from neoaprs import ax25, kiss
@@ -9,8 +9,10 @@ from neoaprs.lorasignal import element_reading
 from neoaprs.tnc2line import frame_of, text_of
 from tests.support.fakelora import HEADER, Board, decode_kiss, encode_kiss, q_element, sanitize
 
-# OH2GBA-7>APLRT1,WIDE1-1:!6010.00N/02456.00E> as the iGate writes it to a KISS client, byte for byte (lora-plan.md step L1): the destination APLRT1 first (each letter shifted left, SSID byte 0x60),
-# the source OH2GBA-7 (0x6E), WIDE1-1 as the last address (0x62 | 1), control 0x03, PID 0xF0, the text.
+# OH2GBA-7>APLRT1,WIDE1-1:!6010.00N/02456.00E> as the iGate writes it to a KISS client, byte for
+# byte (lora-plan.md step L1): the destination APLRT1 first (each letter shifted left, SSID byte
+# 0x60), the source OH2GBA-7 (0x6E), WIDE1-1 as the last address (0x62 | 1), control 0x03, PID 0xF0,
+# the text.
 TEXT = b"OH2GBA-7>APLRT1,WIDE1-1:!6010.00N/02456.00E>"
 VECTOR = bytes.fromhex("c0 00 82 a0 98 a4 a8 62 60 9e 90 64 8e 84 82 6e ae 92 88 8a 62 40 63 03 f0") + b"!6010.00N/02456.00E>" + b"\xc0"
 
@@ -46,7 +48,8 @@ def test_the_igate_keys_what_a_client_writes_with_lora_tx_on_and_drops_its_own_c
 
 def test_the_igates_input_takes_255_bytes_before_the_closing_fend_escapes_counted() -> None:
     def frame(escapes: int) -> bytes:
-        raw = ax25.encode(frame_of(b"OH2GBA>APZNEO:>" + "\u06db".encode() * escapes))      # (each Arabic letter's lead byte is 0xDB, which KISS escapes)
+        # (each Arabic letter's lead byte is 0xDB, which KISS escapes)
+        raw = ax25.encode(frame_of(b"OH2GBA>APZNEO:>" + "\u06db".encode() * escapes))
         return ax25.encode(frame_of(b"OH2GBA>APZNEO:>" + "\u06db".encode() * escapes + b"x" * (250 - len(raw))))
     for escapes, keyed in ((3, True), (4, False)):
         board = Board("igate")

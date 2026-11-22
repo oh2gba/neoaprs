@@ -1,5 +1,7 @@
-"""The radios in the database (neoaprs/radiosql.py, and the Store's part of them, neoaprs/store.py): a radio is added with an id no radio had before, its columns and its own settings are changed,
-the stored radios are read as `RadioSpec`s (configradios.radios_from_rows), and Remove keeps the row and takes back what chooses the radio, all of it or none."""
+"""The radios in the database (neoaprs/radiosql.py and the Store's part): add with a never-used id,
+change columns and own settings, read as `RadioSpec`s, and Remove keeps the row and takes back what
+chooses it.
+"""
 import asyncio
 import json
 import logging
@@ -50,7 +52,8 @@ def test_a_new_database_has_no_radio_and_a_radio_added_gets_the_next_id_which_is
     assert radio_rows(db) == [] and radio_settings(db) == []
     assert insert_radio(db, "fm", "kiss", "", True, 1) == 1 and insert_radio(db, "hf", "mercury", "20 m", False, 2) == 2
     assert radio_rows(db) == [(1, "fm", "kiss", "", 1, 1, None), (2, "hf", "mercury", "20 m", 0, 2, None)]
-    db.execute("DELETE FROM radio WHERE id = 2")           # (the program never deletes a radio; a tool that did would still not get its id again)
+    # The program never deletes a radio; a tool that did would still not get its id again
+    db.execute("DELETE FROM radio WHERE id = 2")
     assert insert_radio(db, "fm", "kiss-tcp", "Shack", True, 2) == 3
 
 
@@ -121,8 +124,9 @@ def test_the_stored_radios_are_read_with_the_settings_of_their_kind_and_a_wrong_
 
 
 def test_a_stored_name_that_is_a_kinds_word_alone_is_read_as_no_name() -> None:
-    """A radio could be named "Mercury" while its kind's word was "HF": now that word is what a radio of the kind with no name is called (radiospec.KIND_WORDS), on the page and in the log. Such a stored name is read as
-    none, so that the radio is called by its kind and its number as any unnamed one, and never by the same word as another radio; a name with more in it, and the name of a band, stay."""
+    """A stored name equal to the kind's word ("HF") is read as none, so the radio is called by its
+    kind and number and never by the same word as another radio; a longer name and a band name stay.
+    """
     rows = [(1, "fm", "kiss", "Mercury", 1, 1, None), (2, "hf", "mercury", "mercury", 1, 2, None), (3, "hf", "mercury", "MERCURY", 1, 3, None), (4, "hf", "dummy-hf", "HF", 1, 4, None),
             (5, "lora", "lora-tcp", "Mercury1", 1, 5, None), (6, "fm", "kiss", "FM 2", 1, 6, None)]
     found = radios_from_rows(rows, [])
@@ -133,7 +137,8 @@ def test_a_stored_name_that_is_a_kinds_word_alone_is_read_as_no_name() -> None:
 # ---- Remove
 
 def removal(tmp_path: Path) -> sqlite3.Connection:
-    """Three radios and everything that can choose radio 2: objects, stations' paths, stations' choices and the radio's own state rows."""
+    """Three radios and everything that can choose radio 2: objects, stations' paths, stations'
+    choices and the radio's own state rows."""
     db = database(tmp_path)
     insert_radio(db, "fm", "kiss", "", True, 1)
     insert_radio(db, "hf", "mercury", "20 m", True, 2)
@@ -185,8 +190,9 @@ def test_a_row_of_choices_that_is_not_one_is_left_alone_by_remove(tmp_path: Path
 # ---- the Store
 
 async def test_a_row_of_a_removed_radios_own_state_written_after_the_removal_is_not_stored(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """A write that waited behind the removal (the beacon's last send, services/memory.py; the port the search found, wiring._store_last_port) writes nothing for the removed radio: the removal took
-    its rows away, and its id never comes back, so nothing would take them away again."""
+    """A write that waited behind the removal (the beacon's last send, services/memory.py; the port
+    the search found, wiring._store_last_port) writes nothing for the removed radio: the removal
+    took its rows away, and its id never comes back, so nothing would take them away again."""
     store = await store_of(tmp_path, FixedClock(T0))
     assert await store.add_radio("fm", "kiss", "", True, 1) == 1 and await store.add_radio("lora", "dummy-lora", "", True, 2) == 2
     assert await store.put_settings({"radio/2/beacon_last_sent_at": AT, "radio/1/last_port": "/dev/ttyUSB0"})

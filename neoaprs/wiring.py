@@ -1,11 +1,9 @@
-"""The signals of the program connected, in the one place that does it (`Signal.connect` is for the composition root only): what the radio hears goes to the packet log, the station book, the weather log, messaging (which hands bulletins to the board and messages to
-QRU to the QRU server), the queries and our objects (one that another station reports is theirs and is dropped), the receive-only iGate and, last, the digipeater. A packet received from APRS-IS (`Packet.via` is `is`; the connection `Services.aprsis` reads the lines and hands each packet to `Services.hear_internet`) is handed through a signal of its own, `Services.internet_packet`, and
-goes only to the packet log, the station book and the weather log (and, from `neoaprs/web/topics.py`, to the page): the one gate for packets from the internet is the pair of lists `SEEN_BY_ALL` and `ON_AIR_ONLY` below. Our objects go to the station book, what the book changes goes to the database, the port the search found is remembered, and the GPS fix moves our own row on the map and the ALOHA circle.
+"""Connect the program's signals in one place (`Signal.connect` is for the composition root only).
 
-Every radio's packets go to the one signal `Services.radio_packet`, and what changes of a radio (its state, its lines and counters, its modem) is told on `Services.radio_changed` with its id: `wire_radio`
-connects a radio's line, its modem and its beacon when the registry makes it (neoaprs/radioregistry.py, which connects nothing itself), so that the handlers are connected once whatever the number of radios.
+Radio and APRS-IS packets reach different parts; `SEEN_BY_ALL` and `ON_AIR_ONLY` are the one
+gate. `seed_station_book` fills the station book from the database at the start.
+"""
 
-Also how the station book is filled from the database at the start: `seed_station_book`. How the settings become a radio's line's is its driver's (neoaprs/tncdriver.py, neoaprs/mercurydriver.py)."""
 import logging
 from collections.abc import Callable
 from dataclasses import replace
@@ -27,15 +25,16 @@ from .versions import Frequency, suggested
 
 log = logging.getLogger("neoaprs.wiring")
 packets_log = logging.getLogger("neoaprs.packets")
-# Who sees a packet, by its channel (Packet.via), as names of the parts in `Services`; no other part is handed a packet (tests/test_internet_gate.py walks the signals and holds them to these two lists).
-SEEN_BY_ALL = ("packetlog", "stationbook", "weatherlog")                              # the log, the book of stations and the weather trends take a packet whatever the channel
-ON_AIR_ONLY = ("messaging", "queries", "qruask", "generalask", "ownobjects", "igate", "digipeater")                  # what answers, acknowledges, repeats or sends: only what was on the radio
-start_log = logging.getLogger("neoaprs.controller")          # what the start of the daemon says is the controller's, whoever does it
+# Who sees a packet, by channel (Packet.via), as names of parts in `Services`; a test holds the
+# signals to these two lists. The log, station book and weather trends take any channel.
+SEEN_BY_ALL = ("packetlog", "stationbook", "weatherlog")
+# What answers, acknowledges, repeats or sends: only what was on the radio.
+ON_AIR_ONLY = ("messaging", "queries", "qruask", "generalask", "ownobjects", "igate", "digipeater")
+start_log = logging.getLogger("neoaprs.controller")
 
 
 class AirOnly:
-    """A handler of the packets of the radio that does not take a packet from the internet, though it were handed one: it is dropped, counted and said once in the log. The signal of the radio carries none, so this is the second
-    lock on the door the first one keeps shut."""
+    """Wrap a handler of radio packets: an internet packet is dropped, counted and logged once."""
 
     def __init__(self, handler: Callable[[Packet], object]) -> None:
         self.handler = handler
@@ -53,45 +52,48 @@ class AirOnly:
 def wire(parts: Services) -> None:
     book, packetlog = parts.stationbook, parts.packetlog
     parts.internet_packet.connect(_log_packet)
-    parts.radio_packet.connect(_log_packet)                      # (every radio: what any hears goes the same way, each packet stamped with its radio)
-    for handler in (packetlog.append, book.take, parts.weatherlog.take):                       # SEEN_BY_ALL
+    parts.radio_packet.connect(_log_packet)
+    for handler in (packetlog.append, book.take, parts.weatherlog.take):  # SEEN_BY_ALL
         parts.radio_packet.connect(handler)
         parts.internet_packet.connect(handler)
-    for on_air in (parts.messaging.on_packet, parts.queries.on_packet, parts.qruask.on_packet, parts.generalask.on_packet, parts.ownobjects.on_packet, parts.igate.on_packet, parts.digipeater.on_packet):          # ON_AIR_ONLY
-        parts.radio_packet.connect(AirOnly(on_air))               # (the digipeater last: what was heard is logged and handled before the copy that is sent; the iGate puts what any radio hears on APRS-IS, nothing comes the other way)
-    parts.digipeater.counted.connect(parts.radio_changed.emit)                          # (a frame the pairs held changes a radio's counts and no counter of its line)
-    parts.aprsis.heard.connect(parts.hear_internet)               # what APRS-IS sends goes in by the one gate for packets from the internet
+    for on_air in (parts.messaging.on_packet, parts.queries.on_packet, parts.qruask.on_packet, parts.generalask.on_packet, parts.ownobjects.on_packet, parts.igate.on_packet, parts.digipeater.on_packet):
+        # The digipeater is last: what was heard is logged and handled before the copy is sent.
+        parts.radio_packet.connect(AirOnly(on_air))
+    parts.digipeater.counted.connect(parts.radio_changed.emit)
+    parts.aprsis.heard.connect(parts.hear_internet)
     parts.aprsis.changed.connect(parts.igate.link_changed)
     parts.ownobjects.changed.connect(book.own_object)
     parts.ownobjects.removed.connect(book.forget_own)
     book.changed.connect(packetlog.save_station)
     book.removed.connect(packetlog.delete_station)
-    book.changed.connect(parts.stationalerts.station_changed)                         # the alerts set on stations: what the book changes, what the operator sets, and the settings (whether the internet counts)
+    # Alerts follow the book, the operator's settings and the iGate setting.
+    book.changed.connect(parts.stationalerts.station_changed)
     parts.prefbook.changed.connect(parts.stationalerts.pref_changed)
     parts.config_changed.connect(parts.stationalerts.settings_changed)
-    parts.stationalerts.fired.connect(parts.alerts.station)                             # (one that fires runs the alert command, as a message to us does; the page is told by its topics)
-    wired: list[object] = []                                                             # the lines, modems and beacons connected so far (a radio given another driver may keep its line)
-    parts.radios.wire = lambda radio: wire_radio(parts, radio, wired)                   # (a radio made later, or given another driver, is connected the same way)
-    parts.config_changed.connect(lambda config: _tx_gains(parts))                       # (the transmit gain is set live in each radio's modem as it is now, and the tune tone follows it; so are the card's own levels)
+    parts.stationalerts.fired.connect(parts.alerts.station)
+    wired: list[object] = []
+    parts.radios.wire = lambda radio: wire_radio(parts, radio, wired)
+    # Each radio's modem and card take the transmit gain and levels live.
+    parts.config_changed.connect(lambda config: _tx_gains(parts))
     for radio in parts.radios.all():
         wire_radio(parts, radio, wired)
-    parts.stationbook.removed.connect(parts.radios.forget)                              # (a station let go takes the operator's radio for it along: neoaprs/radioregistry.py)
+    parts.stationbook.removed.connect(parts.radios.forget)
     parts.stationbook.cleared.connect(parts.radios.forget_all)
-    parts.updatecheck.dial_changed.connect(lambda dial: _show_frequencies(parts))        # (the frequencies the HF box suggests come from the project's file or the version page: a move needs no release)
+    # Suggested HF frequencies come from the project's file or the version page.
+    parts.updatecheck.dial_changed.connect(lambda dial: _show_frequencies(parts))
     parts.frequencies.changed.connect(lambda: _show_frequencies(parts))
-    parts.config_changed.connect(lambda config: parts.aloha.refresh())                  # (our position may have moved)
-    parts.gps_feed.fixed.connect(parts.gps.take)                                         # the GPS fix, and where it is: the service keeps it, the book and the ALOHA circle follow it
+    parts.config_changed.connect(lambda config: parts.aloha.refresh())
+    parts.gps_feed.fixed.connect(parts.gps.take)
     parts.gps_feed.changed.connect(parts.gps.feed_changed)
     parts.gps.moved.connect(lambda: place_me(parts))
     parts.gps.moved.connect(parts.aloha.refresh)
-    parts.mapfetch.changed.connect(parts.mapauto.fetch_changed)                         # (a job it began has ended: done, or to be tried again at the next start)
-    parts.config_changed.connect(parts.layers.config_changed)                           # the map's layers of traffic follow the settings (the source of each, a receiver's address, the radius)
-    parts.gps.moved.connect(parts.layers.moved)                                          # and our position (after place_me: the station book's)
+    parts.mapfetch.changed.connect(parts.mapauto.fetch_changed)
+    parts.config_changed.connect(parts.layers.config_changed)
+    parts.gps.moved.connect(parts.layers.moved)
 
 
 def wire_radio(parts: Services, radio: Radio, wired: list[object]) -> None:
-    """One radio's signals, each part of it connected once: what its line hears goes to `radio_packet`, and what changes of it to `radio_changed` with its id; the port its search found is remembered; its
-    beacon is also put on APRS-IS (a moving station's); its modem, when it has one, is followed to other ports and takes the transmit gain of the settings live."""
+    """Connect one radio's line, modem, card and beacon signals, each part once."""
     def first_time(part: object) -> bool:
         if any(part is known for known in wired):
             return False
@@ -105,18 +107,19 @@ def wire_radio(parts: Services, radio: Radio, wired: list[object]) -> None:
         line.state_changed.connect(lambda state: parts.radio_changed.emit(id))
         line.changed.connect(lambda: parts.radio_changed.emit(id))
     if modem is not None and first_time(modem):
-        if isinstance(modem, Mercury):                                                   # (the suggested dials are the HF modem's; Direwolf's box has none)
+        if isinstance(modem, Mercury):
             modem.frequencies = parts.suggested_frequencies
-        modem.ports_changed.connect(lambda: parts.repoint(id))                           # (a modem started again on other ports, the old pair taken meanwhile: the radio's line follows it)
+        # A modem restarted on other ports: the radio's line follows it.
+        modem.ports_changed.connect(lambda: parts.repoint(id))
         modem.changed.connect(lambda: parts.radio_changed.emit(id))
     if card is not None and first_time(card):
-        card.changed.connect(lambda: parts.radio_changed.emit(id))                       # (the sound card's own levels: the row draws the sliders at them)
+        card.changed.connect(lambda: parts.radio_changed.emit(id))
     if first_time(beacon):
-        beacon.sent.connect(parts.igate.beacon_sent)                                     # (a moving station's beacon is also put on APRS-IS)
+        beacon.sent.connect(parts.igate.beacon_sent)
 
 
 def _tx_gains(parts: Services) -> None:
-    """Every radio's modem takes the transmit gain of the settings live, and its sound card the radio's own levels; a modem replaced or of a radio removed is no radio's and takes nothing."""
+    """Give every radio's modem the transmit gain and its sound card the radio's levels."""
     for radio in parts.radios.all():
         if (modem := radio.driver.modem) is not None:
             modem.set_tx_gain(radio.spec.value("tx_gain_db"))
@@ -125,11 +128,10 @@ def _tx_gains(parts: Services) -> None:
 
 
 def _show_frequencies(parts: Services) -> None:
-    """The frequencies the HF boxes suggest, the station's and on every modem the page reads them from: the project's list, else the dial the version page names, else the built-in ones; the page's radio
-    topic is told again."""
+    """Set the suggested HF frequencies: the project's list, else the version page's, else built in."""
     built_in = [Frequency(band, dial) for band, dial in SUGGESTED]
     parts.suggested_frequencies = suggested(parts.frequencies.listed, parts.updatecheck.hf_dial, built_in, f"{DIAL_BAND} m")
-    parts.skeds.changed.emit()                              # (the Skeds tab offers the same dials)
+    parts.skeds.changed.emit()  # the Skeds tab offers the same dials
     for radio in parts.radios.all():
         if isinstance(modem := radio.driver.modem, Mercury):
             modem.frequencies = parts.suggested_frequencies
@@ -137,16 +139,17 @@ def _show_frequencies(parts: Services) -> None:
 
 
 def _log_packet(packet: Packet) -> None:
-    """One line for each packet of the radio at INFO; the packets of the internet, many more of them, at DEBUG (`--debug`), so that they do not fill the log."""
+    """Log one line per radio packet at INFO; internet packets at DEBUG."""
     level = logging.DEBUG if packet.via == IS else logging.INFO
-    if packets_log.isEnabledFor(level):                  # (the line of a packet of the internet is made only when the log asks for it: they are many)
+    if packets_log.isEnabledFor(level):
         packets_log.log(level, "%s%s -> %s", "sent " if packet.direction == "out" else "internet " if packet.via == IS else "", tnc2(packet), packet.summary)
 
 
 def _remember_port(parts: Services, radio: Radio, state: Source.State) -> None:
-    """A port the search found is stored in radio 1's own state row (`radio/1/last_port`, the settings' serial/last_port) and tried first next time. Not a port that was named (the settings or --port) and
-    opened. Only radio 1 remembers a port (its driver reads it: neoaprs/tncdriver.py), only a TNC's line is searched for, and a radio the registry has let go remembers nothing (a line handed in for
-    an id, a test's, may be the line of the radio that has the id now)."""
+    """Store a found port as radio 1's `last_port`, tried first next time; a named port is not stored.
+
+    A radio the registry has let go remembers nothing (its id may belong to another radio now).
+    """
     driver = radio.driver
     if state is not Source.State.CONNECTED or radio.id != FM_ID or not isinstance(driver, TncDriver) or parts.radios.get(radio.id) is not radio:
         return
@@ -156,8 +159,10 @@ def _remember_port(parts: Services, radio: Radio, state: Source.State) -> None:
 
 
 async def _store_last_port(parts: Services, path: str) -> None:
-    """The port the search found, in radio 1's own row (LAST_PORT): stored and put in force under the lock of the settings (not through save_config, which would restart the Tnc that was just found), and told
-    to the page."""
+    """Store the found port as `LAST_PORT` under the settings lock, without save_config.
+
+    save_config would restart the Tnc that was just found.
+    """
     async with parts.config_lock:
         if await parts.store.put_setting(LAST_PORT, path):
             parts.config = replace(parts.config, serial_last_port=path)
@@ -166,8 +171,7 @@ async def _store_last_port(parts: Services, path: str) -> None:
 
 
 def place_me(parts: Services) -> None:
-    """Our own station in the book: at the latest GPS fix, however old, while the beacon is a moving station's and the GPS has given one, else at the position of the settings (and none until there is a call and
-    a position)."""
+    """Put our own station in the book at the latest GPS fix, else the settings' position, else none."""
     c, fix = parts.config, parts.gps.mobile_fix()
     if c.station_call and fix is not None:
         parts.stationbook.set_me(c.station_call, fix.lat, fix.lon, c.station_symbol_table, c.station_symbol_code, c.station_comment,
@@ -175,27 +179,28 @@ def place_me(parts: Services) -> None:
     elif c.station_call and c.station_position is not None:
         parts.stationbook.set_me(c.station_call, *c.station_position, c.station_symbol_table, c.station_symbol_code, c.station_comment)
     else:
-        parts.stationbook.clear_me()                                 # (no own station until there is a call and a position)
+        parts.stationbook.clear_me()
 
 
 async def seed_station_book(parts: Services) -> None:
-    """The station book made from the packets, the messages and the weather log kept in the database, at the start."""
+    """Fill the station book at the start from the database's packets, messages and weather log."""
     book, packetlog = parts.stationbook, parts.packetlog
     book.seed(await packetlog.stations())
     book.seed_deliveries(await packetlog.deliveries())
     place_me(parts)
-    book.seed_tracks(await packetlog.positions(LOG_KEEP_DAYS))      # (after our own station is in the book: it gets no track)
-    book.seed_radio(await packetlog.radio_positions(LOG_KEEP_DAYS))     # (the radio's side of the stations that were heard from the internet too)
+    # After our own station is in the book: it gets no track.
+    book.seed_tracks(await packetlog.positions(LOG_KEEP_DAYS))
+    book.seed_radio(await packetlog.radio_positions(LOG_KEEP_DAYS))
     await _seed_weather(parts)
     book.seed_details(await packetlog.recent(DETAILS_SEEN))
-    book.seed_routes(reversed(await packetlog.window(ROUTES_SEEN)))      # (the newest first, as the window gives them: the routes are read oldest first)
+    book.seed_routes(reversed(await packetlog.window(ROUTES_SEEN)))
     book.seed_messaging(await packetlog.messaging_evidence(LOG_KEEP_DAYS))
     book.seed_recent(await packetlog.since(parts.clock() - timedelta(hours=1)))
-    parts.radios.restore(await parts.store.setting(MESSAGE_RADIOS))     # (the operator's radio by station, on the stations just seeded)
+    parts.radios.restore(await parts.store.setting(MESSAGE_RADIOS))
 
 
 async def _seed_weather(parts: Services) -> None:
-    """The weather log made from the packets kept when it is empty (once), then the newest observation of each station into the book."""
+    """Backfill an empty weather log from the kept packets, then seed the book's newest observations."""
     if await parts.weatherlog.count() == 0:
         made = await parts.weatherlog.backfill(LOG_KEEP_DAYS)
         if made:

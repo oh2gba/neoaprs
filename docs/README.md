@@ -28,6 +28,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/RADIOS.md` | which radios and TNCs work with NeoAPRS, and how to connect each (serial, USB, Bluetooth, Bluetooth LE, a sound card, your own Direwolf or soundmodem), the Mercury modem for a radio's sound card, a GPS receiver for a moving station, Linux and Windows |
 | `docs/development.md` | for developers: set up, the stages of `scripts/check`, CI, the wire and its generation, the page's source, the scripts, packaging and releases, the folder map |
 | `docs/daemon.md` | for developers: how the daemon behaves, with the names the code and the wire use |
+| `docs/design-notes.md` | for developers: why parts of the code are built the way they are (measured numbers, protocol choices, hardware and system quirks), by module |
 | `docs/direwolf.md` | for developers: every number NeoAPRS fixes for the Sound card type and its Direwolf, where each comes from, and how the program is built, started and checked |
 | `docs/mercury.md` | for developers: every number NeoAPRS fixes for the Mercury modem, where each comes from and what was measured |
 | `docs/palette.md` | the palette of the page: every colour token with its light and dark value and what it is for, held to `tokens.css` by a test |

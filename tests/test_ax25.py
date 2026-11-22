@@ -19,7 +19,7 @@ def raw_frame(*addresses: bytes, tail: bytes = b"\x03\xf0hi") -> bytes:
     return b"".join(marked) + tail
 
 
-# --- Address ---------------------------------------------------------------------------------------------------------------------------------
+# ---- Address -------------------------------------------------------------------------------------
 
 def test_address_text() -> None:
     assert str(Address("OH2GBA", 7)) == "OH2GBA-7"
@@ -55,7 +55,7 @@ def test_ax25_error_is_a_value_error() -> None:
     assert issubclass(Ax25Error, ValueError)
 
 
-# --- Frame -----------------------------------------------------------------------------------------------------------------------------------
+# ---- Frame ---------------------------------------------------------------------------------------
 
 def make_frame(*path: str, info: bytes = b"!x") -> Frame:
     return Frame(Address("APRS"), Address("OH2GBA", 7), tuple(Address.parse(p) for p in path), info=info)
@@ -96,7 +96,7 @@ def test_frame_refuses_nine_digipeaters_and_odd_fields() -> None:
         Frame(Address("APRS"), Address("OH2GBA"), pid=-1)
 
 
-# --- decode and encode -----------------------------------------------------------------------------------------------------------------------
+# ---- decode and encode ---------------------------------------------------------------------------
 
 def test_decode_by_hand() -> None:
     data = raw_address("APRS", flag=True) + raw_address("OH2GBA", ssid=7) + raw_address("WIDE1", flag=True, last=True, ssid=1) + b"\x03\xf0!6010.50N/02456.25E>"
@@ -156,7 +156,8 @@ def test_a_short_call_is_padded_with_spaces_and_comes_back_without() -> None:
 @pytest.mark.parametrize("data, reason", [
     (b"", "shorter"),
     (b"\x00" * 14, "shorter"),
-    (raw_address("APRS") + raw_address("OH2GBA") + b"\x03", "never ends"),                                          # 15 bytes, no end bit anywhere
+    # 15 bytes, no end bit anywhere
+    (raw_address("APRS") + raw_address("OH2GBA") + b"\x03", "never ends"),
     (raw_address("APRS") + raw_address("OH2GBA") + raw_address("WIDE1") + b"\x03\xf0x", "never ends"),
     (raw_address("APRS", last=True) + raw_address("OH2GBA") + b"\x03\xf0hi", "no source"),
     (raw_address("APRS") + raw_address("OH2GBA") + raw_address("WIDE1", last=True), "no control"),
@@ -169,7 +170,8 @@ def test_decode_refuses(data: bytes, reason: str) -> None:
         decode(data)
 
 
-@pytest.mark.parametrize("bad_byte", [0x00, 0x3E, 0xFE])                                                           # the characters 0x00, 0x1F and 0x7F
+# the characters 0x00, 0x1F and 0x7F
+@pytest.mark.parametrize("bad_byte", [0x00, 0x3E, 0xFE])
 def test_decode_refuses_a_character_outside_the_printable_range(bad_byte: int) -> None:
     data = bytearray(raw_frame(raw_address("APRS"), raw_address("OH2GBA")))
     data[2] = bad_byte
@@ -223,7 +225,7 @@ def test_encode_refuses_an_information_field_over_256_bytes() -> None:
         encode(Frame(Address("APRS"), Address("OH2GBA"), info=b"x" * 257))
 
 
-# --- the fixtures ----------------------------------------------------------------------------------------------------------------------------
+# ---- the fixtures --------------------------------------------------------------------------------
 
 def test_the_fixtures_are_there() -> None:
     assert {"position_unrepeated", "position_digipeated", "no_path", "eight_digipeaters", "mic_e", "non_ui"} <= set(NAMES)

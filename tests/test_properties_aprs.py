@@ -1,4 +1,6 @@
-"""Properties of the APRS decoders: format_message then parse_message gives the message back; compress_position then parse_position keeps the place within half a metre; the parser never raises."""
+"""Properties of the APRS decoders: format_message then parse_message round-trips; compress_position
+then parse_position keeps the place within half a metre; the parser never raises.
+"""
 import math
 import re
 from datetime import UTC, datetime
@@ -26,7 +28,8 @@ def metres_between(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 @given(_ADDRESSEE, _TEXT, _ID)
 def test_a_formatted_message_parses_back(addressee: str, text: str, msg_id: str | None) -> None:
-    """format_message then parse_message gives back the same Message, with or without the reply-ack part of its number."""
+    """format_message then parse_message gives back the same Message, with or without the reply-ack
+    part of its number."""
     assert parse_message(format_message(addressee, text, msg_id)) == Message(addressee, text, msg_id)
     if msg_id is not None:
         assert parse_message(format_message(addressee, text, msg_id, "")) == Message(addressee, text, msg_id)

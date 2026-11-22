@@ -1,13 +1,12 @@
-"""What the database thread measures about itself, so that a stall is a number and not a feeling: how long an operation waited in the queue, how long it ran, how long the
-event loop took to take its answer (the stall of the loop as the database sees it), and the counts of what went in, out, wrong and nowhere."""
+"""What the database thread measures: queue wait, run time, event-loop delivery delay and counts."""
 import threading
 from collections import deque
 
-WINDOW = 4096                       # the last this many operations of each kind of measure are kept for the percentiles
+WINDOW = 4096                       # measurements kept per series for the percentiles
 
 
 def percentile(sorted_values: list[float], p: float) -> float:
-    """Nearest rank of an ascending list; 0.0 for an empty one."""
+    """Return the nearest-rank percentile of an ascending list; 0.0 if empty."""
     if not sorted_values:
         return 0.0
     return sorted_values[max(0, min(len(sorted_values) - 1, int(p / 100.0 * len(sorted_values) + 0.5) - 1))]
@@ -33,13 +32,14 @@ class Series:
 
 
 class DbStats:
-    """Written by the database thread, by the thread that submits and by the event loop; read by anyone: one lock for all of it (a few hundred nanoseconds per operation)."""
+    """Statistics written by the database thread, the submitting thread and the event loop; one
+    lock covers all."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self.wait = Series()                  # queued -> started
         self.run = Series()                   # started -> finished, the commit included
-        self.delivery = Series()              # answer handed to the loop -> the loop took it: how long the loop was held
+        self.delivery = Series()              # answer posted -> loop took it
         self.counts: dict[str, int] = dict.fromkeys(("reads", "writes", "maintenance", "appends", "batches", "errors", "withdrawn", "cut", "poisoned", "retried", "dropped", "lost", "slow"), 0)
         self.max_depth = 0
 

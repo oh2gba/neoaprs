@@ -1,9 +1,7 @@
-"""The operator's settings as one immutable value: `Config`. The database keeps the station's as rows of text (`settings(key, value, rev)`, store.py) and the radios as rows of their own (`radio`,
-`radio_setting`, radiosql.py); this module is the table of the keys, what each one is, what it may be, and the two conversions: `Config.from_data(rows, radios=...)` and `Config.to_data()`.
-The radios of the settings and today's flat keys of radios 1 and 2, which are a view of them, are configradios.py's.
+"""The operator's settings as one immutable value, `Config`.
 
-A value that is wrong falls back to its default and is logged with its key (a row somebody edited by hand must not stop the daemon); `Config.check(key, text)` is the strict form for a tool that is
-about to write a value: it raises ValueError with the key in the text, or gives the text the way the program writes it."""
+The table of keys, types and limits, and `Config.from_data` / `Config.to_data`. A wrong stored value
+falls back to its default; `Config.check` is the strict form and raises SettingError."""
 import logging
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
@@ -15,9 +13,9 @@ from .coded import CodedError, Param, Reason
 from .configlegacy import with_legacy, with_network
 from .configlayers import LAYER_ROWS, LayerFields
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, host_port as _host_port, hostport, status_source, status_template, status_text
-from .configradios import DEFAULT_RADIOS, FLAT_HOMES, FlatFields, RadioViews, accepting_flat, path_text, radio_key_of as radio_key_of, radio_state_key as radio_state_key, radios_from_flat as radios_from_flat     # (the radios of the settings, and today's flat keys as a view of radios 1 and 2)
+from .configradios import DEFAULT_RADIOS, FLAT_HOMES, FlatFields, RadioViews, accepting_flat, path_text, radio_key_of as radio_key_of, radio_state_key as radio_state_key, radios_from_flat as radios_from_flat
 from .mercuryscope import TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
-from .pairsetting import PairFields, pairs_from_rows      # (the pairs of radios: rows of their own, pair/<low>/<high>/*, read into Config.pairs)
+from .pairsetting import PairFields, pairs_from_rows
 from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, hf_profile, host_list, host_name, map_source, mercury_keying, passcode, port_address, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
 from .beaconrule import SETTING_MIN_MIN, station_interval
@@ -32,25 +30,28 @@ log = logging.getLogger("neoaprs.config")
 
 
 class SettingError(CodedError):
-    """A setting that cannot be put in force: `key` is the one it is about (the first that is wrong, or the one a rule between settings holds up), `code` and `params` say what is wrong, `text` is the
-    English sentence with the key in front."""
+    """A setting that cannot be put in force; `key` is the setting at fault."""
 
     def __init__(self, key: str, code: str, params: Mapping[str, Param], text: str) -> None:
         super().__init__(text, code, **params)
         self.key = key
 
-RECEIVE_ONLY = Reason("receive only: transmitting is switched off", "transmit.off")      # why can_transmit refuses while station/transmit is false (a refusal to the page has the code "transmit.off" and says "RX only: nothing is sent")
-LISTENS_ONLY = Reason("receive only: no radio that is on can send", "transmit.off")       # why it refuses while every enabled radio is one that only listens (to the page the same "transmit.off")
-MAX_COMMENT = 43                     # what the comment of a position packet may be, with no data extension (spec 1517)
-MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 1546)
-MIN_BEACON_INTERVAL_MIN = SETTING_MIN_MIN      # the shortest time between two beacons (the net cycle of a 2-hop path is 20 minutes, routine operation 30): the page offers 30 and 60 minutes and 3 hours; a stored lower value is raised to this, with a line in the log
-MIN_STATUS_INTERVAL_MIN = 15         # the shortest time between two status reports: the page offers 30 minutes to 2 hours; a stored lower value is raised to this, with a line in the log
-MAX_ALERT_COMMAND = 1000             # the longest line of messages/alert_command
-MAP_RADIUS_KM, MAP_MAXZOOM = (10, 300), (6, 15)           # map/radius_km: the area of the detailed map round the station; map/maxzoom: its deepest zoom
-STATION_HOURS = (1, 3, 6, 12, 24)  # map/station_hours: the hours after its last position that a station stays on the map (the page hides it then; the table keeps it): the choices of the Stations tab
+RECEIVE_ONLY = Reason("receive only: transmitting is switched off", "transmit.off")
+LISTENS_ONLY = Reason("receive only: no radio that is on can send", "transmit.off")
+# Position comment length without a data extension (spec 1517).
+MAX_COMMENT = 43
+MAX_COMMENT_PHG = 36  # with the PHG extension (spec 1546)
+# A stored interval below its minimum is raised to it.
+MIN_BEACON_INTERVAL_MIN = SETTING_MIN_MIN
+MIN_STATUS_INTERVAL_MIN = 15
+MAX_ALERT_COMMAND = 1000
+MAP_RADIUS_KM, MAP_MAXZOOM = (10, 300), (6, 15)
+# Hours a station stays on the map after its last position.
+STATION_HOURS = (1, 3, 6, 12, 24)
 DEFAULT_STATION_HOURS = 3
 LATITUDE, LONGITUDE = (-90.0, 90.0), (-180.0, 180.0)
-RANGES: dict[str, tuple[int, int]] = {          # the whole numbers of the settings and what each may be, from the least to the most: also the page's (LIMITS of ui/src/protocol/lists.ts)
+# Integer settings and their limits; the page's LIMITS (ui/src/protocol/lists.ts) must agree.
+RANGES: dict[str, tuple[int, int]] = {
     "serial/baud": (300, 921600),
     "tcp/port": (1, 65535),
     "beacon/power_w": (0, 9999),
@@ -63,25 +64,25 @@ RANGES: dict[str, tuple[int, int]] = {          # the whole numbers of the setti
     "gps/baud": (300, 921600),
     "mercury/tx_gain_db": (TX_GAIN_MIN_DB, TX_GAIN_MAX_DB),
 }
-DEFAULT_SERIAL_PATTERN = "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*"     # the ports the search listens to: by-id first, so that the stable name of a device is the one kept
-STATUS_KEYS = frozenset({"status/source", "status/rigctld"})            # the settings that decide whether the radio can be the status's source
-COMMENT_KEYS = frozenset({"station/comment", "beacon/power_w"})   # the settings that decide how long the comment may be
-PORT_KEYS = frozenset({"tnc/profile", "serial/port"})                   # the settings that decide whether the profile and the port go together
-GPS_SOURCES = ("off", "gpsd", "serial")                                # where the position of a moving station comes from: nowhere, a gpsd on the network, or a GPS receiver on a serial port
+# by-id first, so the device's stable name is kept
+DEFAULT_SERIAL_PATTERN = "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*"
+STATUS_KEYS = frozenset({"status/source", "status/rigctld"})
+COMMENT_KEYS = frozenset({"station/comment", "beacon/power_w"})
+PORT_KEYS = frozenset({"tnc/profile", "serial/port"})
+GPS_SOURCES = ("off", "gpsd", "serial")
 
-
-# ---- the types a setting can have: text to value (raising ValueError with the reason), value to text (the ones that are more than a number or a word are in configvalues.py)
 
 @dataclass(frozen=True)
 class Setting:
-    attr: str                        # the field of Config
-    key: str                         # the row of the settings table
+    attr: str  # field of Config
+    key: str  # row of the settings table
     parse: Callable[[str], Any]
-    floor: int = 0                   # a stored whole number below this (and above 0 when 0 is not a value) is raised to it, with a line in the log; saving it is refused all the same
+    # A stored integer from 1 up to below this is raised to it.
+    floor: int = 0
 
 
 def _raised(setting: Setting, text: str) -> int | None:
-    """The floor of the setting when its stored text is a whole number between 1 and the floor; else None."""
+    """Return the floor if the text is an integer from 1 up to below the floor, else None."""
     try:
         value = int(text.strip())
     except ValueError:
@@ -89,79 +90,95 @@ def _raised(setting: Setting, text: str) -> int | None:
     return setting.floor if 0 < value < setting.floor else None
 
 
-EMAIL_RADIO = "email/radio"         # the station's setting of the radio an email goes out on (the select of the E-mail tab)
+EMAIL_RADIO = "email/radio"
 SETTINGS: tuple[Setting, ...] = (
-    Setting("tnc_profile", "tnc/profile", tnc_profile),                         # what kind of TNC the radio is: what is said to it to put it in KISS, whether it can be asked if it is there, and how it is reached
-    Setting("serial_port", "serial/port", port_address),                     # empty: find the radio by listening to the ports of serial/pattern (a TCP profile connects to tcp/host and tcp/port instead)
-    Setting("serial_baud", "serial/baud", optional_int(*RANGES["serial/baud"])),        # empty: the speed of the profile
-    Setting("tcp_host", "tcp/host", host_name),                                  # where the TCP KISS server (Direwolf, a sound-card modem) runs
-    Setting("tcp_port", "tcp/port", int_in(*RANGES["tcp/port"])),                       # and its KISS port: 8001 for Direwolf, 8100 for the sound-card modems
-    Setting("hf_enabled", "hf/enabled", boolean),                           # true: the HF radio (the Mercury modem the daemon starts, with mercury/*) is there beside the FM one, or alone
-    Setting("hf_profile", "hf/profile", hf_profile),                        # what the HF radio is: the Mercury modem (mercury), or the Dummy HF radio (dummy-hf) that makes up distant stations and keys nothing
-    Setting("mercury_sound_card", "mercury/sound_card", text_of(200)),           # the radio's sound card for the Mercury HF modem, as `mercury -z` names it (plughw:1,0); empty: the daemon's own choice (mercury.choose_sound_card), else the system's default device
-    Setting("mercury_keying", "mercury/keying", mercury_keying),                 # how the Mercury modem keys the radio: vox (the radio keys itself), cm108 (the sound chip's GPIO), rts:PORT or dtr:PORT (a line of a serial port); empty: the daemon's own choice (mercury.choose_keying)
-    Setting("mercury_tx_gain_db", "mercury/tx_gain_db", int_in(*RANGES["mercury/tx_gain_db"])),           # the Mercury modem's transmit gain in dB (0: its own level, a frame peaks at -6 dBFS): set live from the HF box beside Tune, written to its ini at every start
-    Setting("serial_last_port", "serial/last_port", port_address),           # what the search found last time, tried first the next time
-    Setting("serial_pattern", "serial/pattern", device_globs),                   # space-separated globs of the device files the search listens to when no port is named
-    Setting("serial_skip", "serial/skip", text_of(500)),                     # device paths, separated by commas, that the search for the radio never opens (a rotator's port, say)
-    Setting("station_call", "station/call", call_or_empty),                 # empty: nothing is transmitted until a call is set (can_transmit)
-    Setting("station_transmit", "station/transmit", boolean),               # false: receive only, nothing is transmitted whatever is asked or due (can_transmit); kept in the database, so it holds after a restart
-    Setting("email_choice", EMAIL_RADIO, optional_int(1, 2**31 - 1)),              # the radio the operator chose for email, by its id (the select of the E-mail tab); empty, or a radio that is off or gone: the radio emailrule.email_radio gives
-    Setting("fm_enabled", "fm/enabled", boolean),                           # true: the FM radio (the KISS TNC of tnc/profile) is there; false: no FM radio, no port searched, no FM beacon (a station with the HF radio alone)
-    Setting("station_lat", "station/lat", optional_float(*LATITUDE)),     # empty: no position (no beacon; the map opens on the world)
+    Setting("tnc_profile", "tnc/profile", tnc_profile),
+    # Empty: search the ports of serial/pattern.
+    Setting("serial_port", "serial/port", port_address),
+    # Empty: the profile's speed.
+    Setting("serial_baud", "serial/baud", optional_int(*RANGES["serial/baud"])),
+    Setting("tcp_host", "tcp/host", host_name),
+    Setting("tcp_port", "tcp/port", int_in(*RANGES["tcp/port"])),
+    Setting("hf_enabled", "hf/enabled", boolean),
+    Setting("hf_profile", "hf/profile", hf_profile),
+    # As `mercury -z` names it (plughw:1,0).
+    Setting("mercury_sound_card", "mercury/sound_card", text_of(200)),
+    # vox, cm108, rts:PORT or dtr:PORT.
+    Setting("mercury_keying", "mercury/keying", mercury_keying),
+    # dB; 0 is the modem's own level (frames peak at -6 dBFS).
+    Setting("mercury_tx_gain_db", "mercury/tx_gain_db", int_in(*RANGES["mercury/tx_gain_db"])),
+    Setting("serial_last_port", "serial/last_port", port_address),
+    Setting("serial_pattern", "serial/pattern", device_globs),
+    Setting("serial_skip", "serial/skip", text_of(500)),
+    Setting("station_call", "station/call", call_or_empty),
+    Setting("station_transmit", "station/transmit", boolean),
+    Setting("email_choice", EMAIL_RADIO, optional_int(1, 2**31 - 1)),
+    Setting("fm_enabled", "fm/enabled", boolean),
+    Setting("station_lat", "station/lat", optional_float(*LATITUDE)),
     Setting("station_lon", "station/lon", optional_float(*LONGITUDE)),
     Setting("station_symbol_table", "station/symbol_table", symbol_table),
     Setting("station_symbol_code", "station/symbol_code", symbol_code),
     Setting("station_comment", "station/comment", text_of(MAX_COMMENT, ascii_only=True)),
-    Setting("station_status", "station/status", status_text(MAX_STATUS)),   # free text sent as a status report (at most every status/interval_min, when it changed) and in answer to ?APRSS; empty: none
-    Setting("beacon_power_w", "beacon/power_w", optional_int(*RANGES["beacon/power_w"])),    # the transmitter's power for the PHG extension of the beacon; empty: no PHG is sent
-    Setting("beacon_antenna_height_m", "beacon/antenna_height_m", int_in(*RANGES["beacon/antenna_height_m"])),   # the antenna above average terrain, for the PHG extension
-    Setting("beacon_antenna_gain_db", "beacon/antenna_gain_db", int_in(*RANGES["beacon/antenna_gain_db"])),        # its gain in dBi, for the PHG extension
-    Setting("beacon_antenna_direction", "beacon/antenna_direction", antenna_direction),    # "omni" or the point of the compass it favours, for the PHG extension
-    Setting("web_network", "web/network", boolean),                           # true: the page listens on every interface and a device other than this one logs in with web/key
-    Setting("web_key", "web/key", access_key),                                # what a device on the network types to log in; made when web/network is first on, empty until then
-    Setting("web_https", "web/https", boolean),                               # true (with web/network): the page is also served over https, on the port after web/port, with NeoAPRS's own certificate authority (neoaprs/web/tls.py)
-    Setting("web_port", "web/port", int_in(0, 65535)),                        # 0: the system picks a free port (the log says which)
-    Setting("web_allowed_hosts", "web/allowed_hosts", host_list),         # names besides localhost, 127.0.0.1 and this machine's that a Host header may carry, separated by commas
-    Setting("beacon_interval_min", "beacon/interval_min", int_or_off(*RANGES["beacon/interval_min"]), MIN_BEACON_INTERVAL_MIN),   # 0: the beacon is off, for a moving station too (any other value is On there, and unused)
-    Setting("beacon_path", "beacon/path", digipeater_path),                           # the digipeaters of our beacon, empty: the recommended path of the station's symbol (route.recommended_path); DIRECT: none
-    Setting("messages_alert", "messages/alert", boolean),                                       # true: a message to us runs messages/alert_command
-    Setting("messages_alert_command", "messages/alert_command", text_of(MAX_ALERT_COMMAND)),    # a shell line, run with NEOAPRS_FROM, NEOAPRS_TEXT, NEOAPRS_AT and NEOAPRS_MSG_ID in its environment; empty: none
-    Setting("status_source", "status/source", status_source),                                # where the status comes from: off, text (station/status) or rig (status/rigctld, status/template); empty: rig when status/rigctld is set, else text when station/status is, else off
-    Setting("status_rigctld", "status/rigctld", hostport),                                   # host:port of a rigctld whose frequency and mode make the status; empty: the static station/status is the status
-    Setting("status_interval_min", "status/interval_min", int_in(*RANGES["status/interval_min"]), MIN_STATUS_INTERVAL_MIN),   # a status report goes out at most this often
-    Setting("status_template", "status/template", status_template),                         # the text of a status made from the radio: {freq} and {mode}
-    Setting("map_radius_km", "map/radius_km", int_in(*RANGES["map/radius_km"])),      # the detailed base map covers a square this far from our position in every direction
-    Setting("map_maxzoom", "map/maxzoom", int_in(*RANGES["map/maxzoom"])),            # and goes down to this zoom (10 towns, 12 streets, 14 houses)
-    Setting("map_station_hours", "map/station_hours", int_among(STATION_HOURS)),     # how long a station stays on the map after its last position (the Stations tab chooses; our own station and objects stay)
-    Setting("map_source", "map/source", map_source),                       # where the map is cut from; empty: the latest daily build of build.protomaps.com
-    *(Setting(*row) for row in LAYER_ROWS),                                # map/aircraft, map/aircraft_host, map/ships, map/ships_host: the map's layers of traffic (configlayers.py)
-    Setting("update_url", "update/url", web_address),                         # that page: it is sent this program's version and platform and nothing else
-    Setting("digi_enabled", "digi/enabled", boolean),                         # true: a packet that asks for WIDE1-1, or for our call, is sent again by our radio (services/digipeater.py)
-    Setting("igate_enabled", "igate/enabled", boolean),                       # true: what the radio hears is put on APRS-IS by a receive-only iGate (services/igate.py); nothing from the internet is ever sent on the air
-    Setting("igate_server", "igate/server", aprsis_server),                   # host:port of the APRS-IS server the iGate logs in to (the filtered port 14580 of the round-robin name)
-    Setting("igate_password", "igate/password", passcode),                    # the APRS-IS passcode of station/call (digits; a secret; -1, the read-only login, is refused). NeoAPRS does not work it out: the operator types it
-    Setting("gps_source", "gps/source", word_among(GPS_SOURCES)),             # where the position of a moving station comes from: off, gpsd (a gpsd daemon, gps/host) or serial (a GPS receiver's NMEA on gps/device)
-    Setting("gps_host", "gps/host", hostport),                                # host:port of the gpsd that gps/source gpsd reads; 2947 is gpsd's port
-    Setting("gps_device", "gps/device", port_address),                        # the serial port of the GPS receiver for gps/source serial, such as /dev/ttyUSB1; a socket://host:port address too
-    Setting("gps_baud", "gps/baud", int_in(*RANGES["gps/baud"])),             # its speed: 4800 is NMEA 0183's
-    Setting("beacon_travel", "beacon/travel", word_among(TRAVEL)),    # how a station that follows the GPS (gps/source is not off) travels: by car, bicycle, foot or boat, which decides how often SmartBeaconing beacons
+    Setting("station_status", "station/status", status_text(MAX_STATUS)),
+    # Empty: no PHG extension is sent.
+    Setting("beacon_power_w", "beacon/power_w", optional_int(*RANGES["beacon/power_w"])),
+    Setting("beacon_antenna_height_m", "beacon/antenna_height_m", int_in(*RANGES["beacon/antenna_height_m"])),
+    Setting("beacon_antenna_gain_db", "beacon/antenna_gain_db", int_in(*RANGES["beacon/antenna_gain_db"])),
+    Setting("beacon_antenna_direction", "beacon/antenna_direction", antenna_direction),
+    Setting("web_network", "web/network", boolean),
+    Setting("web_key", "web/key", access_key),
+    # With web/network: also serve https on the port after web/port.
+    Setting("web_https", "web/https", boolean),
+    # 0: the system picks a free port.
+    Setting("web_port", "web/port", int_in(0, 65535)),
+    Setting("web_allowed_hosts", "web/allowed_hosts", host_list),
+    # 0: the beacon is off, also for a moving station.
+    Setting("beacon_interval_min", "beacon/interval_min", int_or_off(*RANGES["beacon/interval_min"]), MIN_BEACON_INTERVAL_MIN),
+    # Empty: the path recommended for the symbol; DIRECT: none.
+    Setting("beacon_path", "beacon/path", digipeater_path),
+    Setting("messages_alert", "messages/alert", boolean),
+    Setting("messages_alert_command", "messages/alert_command", text_of(MAX_ALERT_COMMAND)),
+    # off, text or rig. Empty: see Config.status_choice.
+    Setting("status_source", "status/source", status_source),
+    Setting("status_rigctld", "status/rigctld", hostport),
+    Setting("status_interval_min", "status/interval_min", int_in(*RANGES["status/interval_min"]), MIN_STATUS_INTERVAL_MIN),
+    Setting("status_template", "status/template", status_template),
+    Setting("map_radius_km", "map/radius_km", int_in(*RANGES["map/radius_km"])),
+    Setting("map_maxzoom", "map/maxzoom", int_in(*RANGES["map/maxzoom"])),
+    Setting("map_station_hours", "map/station_hours", int_among(STATION_HOURS)),
+    Setting("map_source", "map/source", map_source),
+    *(Setting(*row) for row in LAYER_ROWS),
+    Setting("update_url", "update/url", web_address),
+    Setting("digi_enabled", "digi/enabled", boolean),
+    # A receive-only iGate: nothing from the internet goes on the air.
+    Setting("igate_enabled", "igate/enabled", boolean),
+    Setting("igate_server", "igate/server", aprsis_server),
+    # -1 (read-only login) is refused.
+    Setting("igate_password", "igate/password", passcode),
+    Setting("gps_source", "gps/source", word_among(GPS_SOURCES)),
+    Setting("gps_host", "gps/host", hostport),
+    Setting("gps_device", "gps/device", port_address),
+    Setting("gps_baud", "gps/baud", int_in(*RANGES["gps/baud"])),
+    Setting("beacon_travel", "beacon/travel", word_among(TRAVEL)),
 )
 BY_KEY = {s.key: s for s in SETTINGS}
-KEYS = tuple(s.key for s in SETTINGS)             # every key of the settings table and of the wire's `config`, in the form's order: the station's rows, and today's flat keys of radios 1 and 2 (configradios.FLAT_HOMES: a view until the wire names a radio)
-RADIO_STATION_KEYS = (EMAIL_RADIO,)      # the station's settings of the radios, which the wire's `config` tells beside the radios' own keys (`radio_values`), not among the settings the form of before shows
-LAST_PORT = radio_state_key(FM_ID, "last_port")   # the row `serial/last_port` is kept in once the radios are stored: radio 1's own state
-STATION_KEYS = tuple(s.key for s in SETTINGS if s.attr not in FLAT_HOMES and s.key != "serial/last_port")       # the settings that are the station's: the rows of the table `settings` under their own key
-BEACON_SENT, HF_BEACON_SENT = "beacon/last_sent_at", "hf/beacon_last_sent_at"          # the rows of before of the two beacons' last sends, which migration 31 renamed radio/1/ and radio/2/beacon_last_sent_at; a Beacon made without the station's maker of frames (tests, until the round's removals) still keeps the first
+KEYS = tuple(s.key for s in SETTINGS)
+RADIO_STATION_KEYS = (EMAIL_RADIO,)
+LAST_PORT = radio_state_key(FM_ID, "last_port")
+STATION_KEYS = tuple(s.key for s in SETTINGS if s.attr not in FLAT_HOMES and s.key != "serial/last_port")
+BEACON_SENT, HF_BEACON_SENT = "beacon/last_sent_at", "hf/beacon_last_sent_at"
 STATE_BEFORE_31 = (BEACON_SENT, HF_BEACON_SENT)
-RADIO_STATE = ("beacon_last_sent_at", "status_last_sent_at", "last_port")    # a radio's own state rows, radio_state_key(id, name): when its beacon and its status last went out (services/beacon.py, services/rigstatus.py), and radio 1's alone, the port its search found (LAST_PORT: only radio 1 remembers one, wiring._remember_port)
-STATUS_SENT, STATUS_TEXT = "status/last_sent_at", "status/last_text"     # the rows the status report keeps to survive a restart (services/memory.py): state of the daemon, not settings, so not in SETTINGS
-MAP_AUTO = "map/auto"                        # whether the detailed map begun without a click is still owed: wanted (begun, not finished: tried again at the next start), or done (services/mapauto.py)
-MESSAGE_RADIOS = "messages/radio_by_station"   # the radio the operator chose for messages to a station, by call, as JSON, by the radio's id since migration 31 ({"OH2GAX-2": 2}; neoaprs/radioregistry.py)
-NEW_OBJECTS, NEW_BULLETINS = "objects/send_on", "bulletins/send_on"      # the radios a new object and a new bulletin start with: those of the one saved last ("1,3"; sendonrule.start_set)
-STATE_KEYS = (STATUS_SENT, STATUS_TEXT, MAP_AUTO, MESSAGE_RADIOS, NEW_OBJECTS, NEW_BULLETINS)       # the station's state rows; each radio's are RADIO_STATE's
-INSTALL_ID = "update/install_id"             # the random number of this installation that the update check sends (services/updatecheck.py); state of the daemon too, but not one of STATE_KEYS, which are the schedule's rows
-HF_DIAL = "update/hf_dial"                   # the HF dial the version page named last ("7.0541 MHz USB"; services/updatecheck.py): the frequency the group meets on moves with the page, not with a release; empty: the built-in one (mercury.DIAL_TEXT)
+RADIO_STATE = ("beacon_last_sent_at", "status_last_sent_at", "last_port")
+# State rows that survive a restart; not settings.
+STATUS_SENT, STATUS_TEXT = "status/last_sent_at", "status/last_text"
+MAP_AUTO = "map/auto"
+# JSON: the radio chosen per station call.
+MESSAGE_RADIOS = "messages/radio_by_station"
+NEW_OBJECTS, NEW_BULLETINS = "objects/send_on", "bulletins/send_on"
+# Station state rows; each radio's are RADIO_STATE.
+STATE_KEYS = (STATUS_SENT, STATUS_TEXT, MAP_AUTO, MESSAGE_RADIOS, NEW_OBJECTS, NEW_BULLETINS)
+INSTALL_ID = "update/install_id"
+HF_DIAL = "update/hf_dial"
 
 
 @accepting_flat
@@ -207,55 +224,48 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
     gps_device: str = ""
     gps_baud: int = 4800
     beacon_travel: str = TRAVEL[0]
-    radios: tuple[RadioSpec, ...] = DEFAULT_RADIOS         # every radio, removed ones too, by id, as they are stored (Store.radios()); settings that say nothing have today's two, the FM radio on and the HF radio off
-    email_choice: RadioId | None = None                   # the radio the operator chose for email (email/radio); None: none chosen (emailrule.email_radio)
+    radios: tuple[RadioSpec, ...] = DEFAULT_RADIOS  # every stored radio, removed ones too, by id
+    email_choice: RadioId | None = None
 
     @property
     def mobile(self) -> bool:
-        """True when the beacon follows the GPS (gps/source is gpsd or serial); off is a fixed station at the home position."""
         return self.gps_source != "off"
 
     @property
     def beacon_on(self) -> bool:
-        """Whether the beacon is on: `beacon/interval_min` is not 0. Off sends no beacon (the timer, SmartBeaconing, Beacon now) and no status report; it is not receive only, messages, acks, answers, objects, bulletins and the digipeater go on."""
+        """Return whether the beacon is on; off also stops the status report."""
         return self.beacon_interval_min > 0
 
     @property
     def smart(self) -> SmartSettings:
-        """The SmartBeaconing numbers of the preset that beacon/travel names."""
         return PRESETS[self.beacon_travel]
 
     def beacon_interval(self) -> int:
-        """How often our position goes out on some radio, in minutes (0: off): the shortest interval in force on a radio the beacon goes out on (beaconrule.station_interval; each radio's own is
-        `beaconrule.beacon_interval`, the setting raised to that radio's floor). The one number of the page's status (`beacon_interval_min`, neoaprs/web/api.py) until the wire tells each radio's."""
+        """Return the shortest beacon interval in minutes in force on any radio (0: off)."""
         return station_interval(self.beacon_interval_min, self.radios)
 
     def radio_refusal(self, key: str = "hf/enabled") -> SettingError | None:
-        """Why the radios' tickboxes do not go together, or None when they do: at least one radio that is not removed stays on (the page greys the last one that is on, so this is for the shell). `key`
-        is the one that was set, which the refusal names."""
+        """Return a refusal if no radio would stay on, else None."""
         if not self.enabled_radios:
             return SettingError(key, "radio.last_enabled", {}, f"{key}: at least one radio stays on: turn another radio on first")
         return None
 
     @property
     def station_position(self) -> tuple[float, float] | None:
-        """Where we are as latitude and longitude, None while either is empty."""
         if self.station_lat is None or self.station_lon is None:
             return None
         return self.station_lat, self.station_lon
 
     @property
     def profile(self) -> Profile:
-        """The TNC profile that tnc/profile names."""
         return profile_of(self.tnc_profile)
 
     @property
     def tnc_baud(self) -> int:
-        """The speed to open a serial line at: serial/baud, else the profile's, else 9600."""
         return self.serial_baud or self.profile.baud or 9600
 
     def port_refusal(self, key: str = "tnc/profile") -> SettingError | None:
-        """Why the profile and serial/port do not go together, or None when they do: a TCP profile connects to tcp/host and tcp/port, not to a serial device (a `tcp://` address in serial/port is fine)."""
+        """Return a refusal if a TCP profile is combined with a serial port (`tcp://` is fine)."""
         if self.profile.transport == "tcp" and self.serial_port and not names_tcp(self.serial_port):
             return SettingError(key, "setting.profile_port", {"profile": self.profile.name, "port": self.serial_port},
                                 f"{key}: {self.profile.name} connects over TCP (tcp/host and tcp/port), not to the serial port {self.serial_port}: clear serial/port, or choose a serial TNC")
@@ -263,48 +273,44 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
 
     @property
     def serial_skip_paths(self) -> tuple[str, ...]:
-        """serial/skip as the list of paths it names."""
         return tuple(part for part in (piece.strip() for piece in self.serial_skip.split(",")) if part)
 
     @property
     def status_choice(self) -> str:
-        """Where the status comes from: `status/source`, and while that is empty what the other settings say (the radio when status/rigctld is set, else the text when there is one, else none)."""
+        """Return status/source, else rig if status/rigctld is set, else text if there is one."""
         if self.status_source:
             return self.status_source
         return "rig" if self.status_rigctld else "text" if self.station_status else "off"
 
     @property
     def status_rig_address(self) -> tuple[str, int] | None:
-        """status/rigctld as host and port, None while it is empty or the status does not come from the radio."""
+        """Return status/rigctld as (host, port), or None if empty or not the status source."""
         return _host_port(self.status_rigctld) if self.status_choice == "rig" else None
 
     @property
     def igate_address(self) -> tuple[str, int] | None:
-        """igate/server as host and port, None while it is empty."""
         return _host_port(self.igate_server)
 
     def path_calls(self, radio: RadioId) -> tuple[str, ...]:
-        """The calls of the radio's own path (configradios.path_text): empty the path its kind recommends (LoRa WIDE1-1), else the recommended path of the station's symbol; none at all for DIRECT."""
+        """Return the calls of the radio's path (the recommended one if empty; none for DIRECT)."""
         path = path_text(self.radios, radio)
         return () if path == DIRECT_ONLY else tuple(call for call in (path or self.recommended_path).split(",") if call)
 
     @property
     def beacon_path_calls(self) -> tuple[str, ...]:
-        """beacon/path as the list of calls it names (radio 1's own path: path_calls)."""
         return self.path_calls(FM_ID)
 
     @property
     def recommended_path(self) -> str:
-        """The path that is recommended for this station: WIDE1-1,WIDE2-1 when its symbol is a mobile one, WIDE2-2 for any other (route.recommended_path)."""
         return recommended_path(self.station_symbol_table, self.station_symbol_code)
 
     @property
     def comment_limit(self) -> int:
-        """How many characters the comment may have for what the beacon sends with these settings: 36 when the PHG extension is sent (beacon/power_w is set), else 43."""
+        """Return 36 when the PHG extension is sent (beacon/power_w set), else 43."""
         return MAX_COMMENT if self.beacon_power_w is None else MAX_COMMENT_PHG
 
     def comment_refusal(self) -> SettingError | None:
-        """Why station/comment cannot be sent with the other settings, or None when it can."""
+        """Return a refusal if station/comment cannot be sent with the other settings, else None."""
         if refusal := over_the_air_refusal(self.station_comment):
             return SettingError("station/comment", refusal.code, refusal.params, f"station/comment: {refusal}")
         limit = self.comment_limit
@@ -314,14 +320,13 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
                             f"station/comment: {len(self.station_comment)} characters is more than the {limit} allowed with the PHG extension (clear beacon/power_w to send none)")
 
     def comment_problem(self) -> str:
-        """The sentence of comment_refusal; empty when the comment can be sent."""
         return str(refusal) if (refusal := self.comment_refusal()) else ""
 
     @classmethod
     def checked(cls, base: "Config", values: Mapping[str, str]) -> "Config":
-        """The settings in force with these values (key to text) put in, for a save: every value is checked and the first wrong one raises ValueError with its key, and when one of the
-        settings that decide the length of the comment is among them, so is the comment against the new settings. The error is a SettingError: its key, code and params are what the page goes by.
-        The radios and the pairs of radios of `base` stay, with the flat keys among the values put into radios 1 and 2."""
+        """Return `base` with these values (key to text) put in, for a save.
+
+        The first wrong value or broken rule between settings raises SettingError."""
         parsed = {key: cls.check(key, text) for key, text in values.items()}
         rows = {key: text for key, text in {**base.to_data(), **parsed}.items() if BY_KEY[key].attr not in FLAT_HOMES}
         flat = {BY_KEY[key].attr: cls.parse(key, text) for key, text in parsed.items() if BY_KEY[key].attr in FLAT_HOMES}
@@ -338,14 +343,14 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
 
     @classmethod
     def from_data(cls, rows: Mapping[str, str], *, radios: Iterable[RadioSpec] | None = None) -> "Config":
-        """The settings as the database keeps them (key to the raw text of the value). A key that is missing, and one whose value is wrong (logged, with the key), has its default;
-        a key that is not a setting is left alone. `radios`: the radios as they are stored (Store.radios()); the flat keys of radios 1 and 2 are then not read from the rows, and radio 1's last port
-        is its own state row. None, the call from before the radios were rows, reads today's two radios from the flat keys among the rows, with the rules of an older version (configlegacy.py)."""
+        """Build the settings from database rows; a missing or wrong key gets its default.
+
+        With `radios` the flat keys of radios 1 and 2 are not read; without, legacy rules apply."""
         rows = with_legacy(rows) if radios is None else with_network(rows)
         if radios is not None and LAST_PORT in rows:
-            rows = {**rows, "serial/last_port": rows[LAST_PORT]}          # (radio 1's own row wins over one under the old name, which nothing writes once the radios are stored)
+            rows = {**rows, "serial/last_port": rows[LAST_PORT]}  # radio 1's row wins
         values: dict[str, Any] = {} if radios is None else {"radios": tuple(sorted(radios, key=lambda spec: spec.id))}
-        values.update({} if radios is None else {"pairs": pairs_from_rows(rows)})       # (the pairs' rows are read once the radios are stored)
+        values.update({} if radios is None else {"pairs": pairs_from_rows(rows)})
         for setting in SETTINGS:
             if setting.key in rows and (radios is None or setting.attr not in FLAT_HOMES):
                 try:
@@ -359,12 +364,11 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
         return cls(**values)
 
     def to_data(self) -> dict[str, str]:
-        """Every setting as key and text, in the order of SETTINGS."""
         return {s.key: _show(getattr(self, s.attr)) for s in SETTINGS}
 
     @staticmethod
     def parse(key: str, text: str) -> Any:
-        """The value of one setting from its text; SettingError (a ValueError, with the key in its text) when the key is not a setting or the text is not a value of it."""
+        """Return the value of one setting from its text; raise SettingError if invalid."""
         setting = BY_KEY.get(key)
         if setting is None:
             raise SettingError(key, "setting.unknown", {}, f"{key}: no such setting (the settings are {', '.join(KEYS)})")
@@ -377,11 +381,10 @@ class Config(FlatFields, RadioViews, LayerFields, PairFields):
 
     @classmethod
     def check(cls, key: str, text: str) -> str:
-        """The text of the setting as it is stored ("oh2gba" gives "OH2GBA"); ValueError naming the key when it is wrong."""
+        """Return the text as stored ("oh2gba" gives "OH2GBA"); raise SettingError if wrong."""
         return _show(cls.parse(key, text))
 
     def changed(self, other: "Config") -> list[str]:
-        """The keys whose value differs between this and the other, in the order of SETTINGS."""
         return [s.key for s in SETTINGS if getattr(self, s.attr) != getattr(other, s.attr)]
 
 
@@ -389,8 +392,7 @@ DEFAULTS = Config()
 
 
 def can_transmit(config: Config) -> str | None:
-    """The transmit interlock, the one place that decides it: None when this station may transmit, else the reason it may not. Nothing at all is transmitted while there is one: no beacon, status,
-    message, ack or answer to a query. Receive only is the first reason: `station/transmit` false, or every enabled radio one that cannot send (`listens_only`)."""
+    """The transmit interlock: return None if the station may transmit, else the reason not."""
     if not config.station_transmit or config.listens_only:
         return RECEIVE_ONLY if not config.station_transmit else LISTENS_ONLY
     return call_problem(config.station_call) or None

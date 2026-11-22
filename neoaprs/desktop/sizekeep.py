@@ -1,14 +1,15 @@
-"""The web window's size, place and whether it is maximized on Linux and macOS, kept from pywebview's events and saved in the app's file (appstate.py) once they have stopped for half a second, as the Qt window
-does (Windows keeps its own placement, which winplace.py reads and gives back). The size and place are the ones the window goes back to when it is not maximized: what a maximize does to them is not kept,
-and a minimise and the restore that ends it change nothing. The place is the frame's top left corner, on Linux asked of GTK's window at each move (webdesk.frame_moved). Wayland tells no app its place,
-so there the place is not kept (`keep_place`). Every event may come from any thread; this file imports no toolkit."""
+"""Keep the web window's size, place and maximized state on Linux and macOS.
+
+Tracked from pywebview's events and saved shortly after they stop. The saved size and place are
+those of the unmaximized window; Wayland gives no place (`keep_place`). Events arrive on any thread."""
 import threading
 from collections.abc import Callable
 from pathlib import Path
 
 from . import appstate
 
-SAVE_AFTER_SEC = 0.5                     # a resize or a move is saved when it has stopped for this long
+# Quiet time before a resize or move is saved.
+SAVE_AFTER_SEC = 0.5
 
 
 class SizeKeeper:
@@ -19,13 +20,14 @@ class SizeKeeper:
         self.place: tuple[int | None, int | None] = (state.x, state.y) if keep_place else (None, None)
         self.maximized = state.maximized
         self.minimized = False
-        self._settled = (self.size, self.place)            # what the window had before the latest burst of events: a maximize's own resize and move are undone to it
+        # Geometry before the latest burst of events; a maximize's own resize and move revert to it.
+        self._settled = (self.size, self.place)
         self._lock = threading.Lock()
         self._timer: threading.Timer | None = None
         self._stopped = False
 
     def told(self, name: str) -> Callable[..., None]:
-        """The handler of pywebview's event `name` (resized and moved carry two numbers; maximized, minimized and restored none)."""
+        """Return the handler for pywebview's event `name` (resized and moved carry two numbers)."""
         def handler(*args: object) -> None:
             self.event(name, *args)
         return handler
@@ -61,7 +63,7 @@ class SizeKeeper:
         self._timer.start()
 
     def settle(self) -> None:
-        """The events have stopped: what the window has now is what a later maximize goes back to, and it is saved."""
+        """Record the current geometry as the one a later maximize reverts to, and save it."""
         with self._lock:
             if not self.maximized and not self.minimized:
                 self._settled = (self.size, self.place)
@@ -80,7 +82,7 @@ class SizeKeeper:
 
 
 def _pair(args: tuple[object, ...]) -> tuple[int, int] | None:
-    """The two numbers an event carries, or None (an event of another kind, or a payload pywebview may change)."""
+    """Return the two numbers an event carries, or None for any other payload."""
     if len(args) < 2:
         return None
     first, second = args[0], args[1]

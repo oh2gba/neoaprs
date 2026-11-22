@@ -1,19 +1,35 @@
 #!/usr/bin/env python3
-"""Generates everything that describes the wire protocol from the models in neoaprs/web/protocol.py and the neoaprs/web/*wire.py modules:
+"""Generate everything that describes the wire protocol from neoaprs/web/protocol.py and the
+*wire.py modules.
 
-  ui/src/protocol/schema.json   JSON Schema of the Command and the Message union, and of the value of each topic
-  ui/src/protocol/protocol.ts   TypeScript types made from it (by this script: no node, no json-schema-to-typescript)
-  ui/src/protocol/lists.ts      the lists the daemon owns and the page shows (the settings' keys, the TNC profiles, the types of radio with their fields, the symbol names, ...) and `LIMITS`, every number the page checks a value against (the
-                                ranges of the settings, the length of a comment, a message, a status, the minimum interval ...), written from the daemon's own constants
-  ui/src/protocol/errors.json   the refusals of the daemon that carry a code: for each code the values it passes and the English sentence it writes (found in the source by scripts/errorcodes.py); the page's catalogue
+  ui/src/protocol/schema.json   JSON Schema of the Command and Message unions and of each topic's
+                                value
+  ui/src/protocol/protocol.ts   TypeScript types made from it (by this script, no node needed)
+  ui/src/protocol/lists.ts      the lists the daemon owns and the page shows (settings keys, TNC
+                                profiles,
+                                radio types with their fields, symbol names, ...) and `LIMITS`,
+                                every
+                                number the page checks a value against, written from the daemon's
+                                constants
+  ui/src/protocol/errors.json   the daemon's refusals that carry a code: the values each passes and
+                                its
+                                English sentence (found by scripts/errorcodes.py); the page's
+                                catalogue
                                 is held to it by ui/src/i18n/errors.test.ts
-  ui/src/protocol/vectors.json  the rules that are code and not numbers (is this a call? what is the PHG text of this antenna? what beacon does this make?): inputs with the results that Python gives; tests/test_vectors.py
-                                and ui/src/protocol/vectors.test.ts hold the daemon and the page to them
-  ui/src/i18n/en/symbols.ts     the names of the APRS symbols as messages of the page's English catalogue (`symbol.primary.21`, `symbol.alternate.7e`: the table and the code in hex), so that they can be translated
-  PROTOCOL.md                   the reference: the prose below, then the commands and the messages from the models' docstrings and field descriptions
+  ui/src/protocol/vectors.json  rules that are code, not numbers (is this a call? the PHG text of an
+                                antenna? what beacon does this make?): inputs with Python's results,
+                                held
+                                by tests/test_vectors.py and ui/src/protocol/vectors.test.ts
+  ui/src/i18n/en/symbols.ts     the APRS symbol names as messages of the English catalogue
+                                (`symbol.primary.21`, `symbol.alternate.7e`), so they can be
+                                translated
+  PROTOCOL.md                   the reference: the prose below, then the commands and messages from
+                                the
+                                models' docstrings and field descriptions
 
 Run it with the venv's python from the repository root:  .venv/bin/python scripts/gen-protocol.py
-`--check` writes nothing and exits 1 when a file is out of date (tests/test_protocol.py does the same inside pytest).
+`--check` writes nothing and exits 1 when a file is out of date (tests/test_protocol.py does the
+same).
 """
 import json
 import re
@@ -69,12 +85,14 @@ VECTORS = ROOT / "ui" / "src" / "protocol" / "vectors.json"
 ERRORS = ROOT / "ui" / "src" / "protocol" / "errors.json"
 SYMBOLS = ROOT / "ui" / "src" / "i18n" / "en" / "symbols.ts"
 DOC = ROOT / "PROTOCOL.md"
-# The order of the first objects of the Objects section of PROTOCOL.md; every other model of the schema follows them, sorted by name.
+# The order of the first objects of the Objects section of PROTOCOL.md; every other model of the
+# schema follows them, sorted by name.
 OBJECT_ORDER = "StationRow PacketRow MessageRow DecodedPosition DecodedMessage DecodedObject DecodedItem DecodedStatus DecodedTelemetry DecodedOther DecodedUndecoded DecodedWeather PositionFields TncStats ConfigValues SetOp DelOp ReplaceOp".split()
 
 
 class Protocol(BaseModel):
-    """Both unions and the value of each topic in one document, so that one schema carries every definition."""
+    """Both unions and the value of each topic in one document, so that one schema carries every
+    definition."""
     command: protocol.Command
     message: protocol.Message
     topics: protocol.TopicValues
@@ -83,7 +101,8 @@ class Protocol(BaseModel):
 def build_schema() -> dict[str, Any]:
     schema = Protocol.model_json_schema(ref_template="#/$defs/{model}")
     defs = schema["$defs"]
-    # a model keeps its title (the TypeScript name); a field loses its (pydantic made it up from the field's name)
+    # a model keeps its title (the TypeScript name); a field loses its (pydantic made it up from the
+    # field's name)
     for d in defs.values():
         for prop in d.get("properties", {}).values():
             _strip_titles(prop)
@@ -151,7 +170,8 @@ def _ts(node: dict[str, Any], names: dict[str, str]) -> str:
 def _interface(name: str, model: dict[str, Any], names: dict[str, str]) -> str:
     required = set(model.get("required", []))
     lines = [_comment(model.get("description", "")) + f"export interface {name} {{"]
-    tags = [p for p in ("cmd", "type", "op") if p in model.get("properties", {})]          # the tag of a union comes first
+    # the tag of a union comes first
+    tags = [p for p in ("cmd", "type", "op") if p in model.get("properties", {})]
     for prop, node in sorted(model.get("properties", {}).items(), key=lambda item: item[0] not in tags):
         lines.append(_comment(node.get("description", ""), "  ").rstrip("\n") if node.get("description") else "")
         key = prop if re.fullmatch(r"[A-Za-z_]\w*", prop) else json.dumps(prop)
@@ -178,16 +198,19 @@ LISTS_HEAD = """// The lists the daemon owns and the page shows, written from th
 """
 
 
-LISTS_WIDTH = 160                      # the printWidth of ui/.prettierrc.json: a list that fits stays on one line, a longer one has one item to a line
+# the printWidth of ui/.prettierrc.json: a list that fits stays on one line, a longer one has one
+# item to a line
+LISTS_WIDTH = 160
 
 
 def _literal(value: Any, indent: int = 0, used: int = 40) -> str:
-    """A value as TypeScript, laid out the way prettier does: a list of strings or numbers on one line when it fits, else one item to a line; a list of objects one object to a line; an object with a list in it
-    one key to a line. So that two edits of two items do not meet in one long line, and git merges them."""
+    """Return a value as TypeScript laid out as prettier does: short lists on one line, else one
+    item to a line, so that two edits do not meet in one line and git can merge them."""
     pad = "  " * (indent + 1)
     if isinstance(value, list):
         flat = json.dumps(value)
-        if not any(isinstance(x, (dict, list)) for x in value) and indent * 2 + len(flat) + used <= LISTS_WIDTH:        # (used: what else is on the line)
+        # used: what else is on the line
+        if not any(isinstance(x, (dict, list)) for x in value) and indent * 2 + len(flat) + used <= LISTS_WIDTH:
             return flat
         return "[\n" + "".join(f"{pad}{_literal(x, indent + 1)},\n" for x in value) + "  " * indent + "]"
     if isinstance(value, dict) and any(isinstance(x, list) for x in value.values()):
@@ -204,7 +227,8 @@ def _number(name: str, value: float, daemon: str) -> str:
 
 
 def _profiles() -> str:
-    """The TNC profiles the settings form offers, with what the form needs of each: how it is reached, its speed, and whether it can be asked if it is there."""
+    """The TNC profiles the settings form offers, with what the form needs of each: how it is
+    reached, its speed, and whether it can be asked if it is there."""
     rows = [{"key": p.key, "name": p.name, "transport": p.transport, "baud": p.baud, "probe": p.can_probe} for p in PROFILES]
     hf = [{"key": p.key, "name": p.name, "transport": p.transport} for p in HF_PROFILES]
     return ("/** The FM types of the flat list of before, in the order Find my radio tries those it can ask (PROFILES of neoaprs/tncprofile.py; the page lists the types in the order of RADIO_TYPES): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */\n"
@@ -219,7 +243,9 @@ def _radio_type(t: RadioType) -> dict[str, Any]:
 
 
 def _radio_types() -> str:
-    """The types of radio the page adds and changes a radio to, by kind and in the order it lists them (neoaprs/radiotypes), each with what it can do, what it may do, its limits and its own settings."""
+    """The types of radio the page adds and changes a radio to, by kind and in the order it lists
+    them (neoaprs/radiotypes), each with what it can do, what it may do, its limits and its own
+    settings."""
     rows = [_radio_type(t) for kind in KINDS for t in types_of(kind)]
     return ("/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, how it is reached (`transport`), whether it is a Dummy, which reaches no radio and makes its traffic up (`dummy`: Add radio lists these apart, for trying the program out), its catalogue id (`text`: the key's '-' as '_'), what its box offers (`can`), what we decided it may do (`allowed`), "
             "its limits, the path of our frames on a radio of it whose own path is empty (`recommended_path`: LoRa WIDE1-1; empty: the recommended path of the station's symbol), and its own settings (`fields`, each `radio/<id>/<key>` of `config.radio_values`: its kind, its range or choices, its default as text, the fields sent together, its catalogue id). */\n"
@@ -242,7 +268,9 @@ def _igate_overlays() -> str:
 
 
 def symbols_text() -> str:
-    """The names of the symbols as the English catalogue's messages: `symbol.<table>.<code in hex>` for each code "!" to "~" of the primary and of the alternate table, and `symbol.unknown` for none."""
+    """The names of the symbols as the English catalogue's messages: `symbol.<table>.<code in hex>`
+    for each code "!" to "~" of the primary and of the alternate table, and `symbol.unknown` for
+    none."""
     rows = [f'  "symbol.{table}.{ord("!") + index:02x}": {json.dumps(name)},\n' for table in ("primary", "alternate") for index, name in enumerate(SYMBOL_NAMES[table])]
     return ("// The names of the APRS symbols, written from the daemon's own list (SYMBOL_NAMES of neoaprs/symbols.py) by scripts/gen-protocol.py: never edited by hand. The id is the table and the code of the symbol in hex\n"
             "// (`symbol.primary.3e` is the car of `/>`); an overlay table is the alternate one. Another language translates them in its own catalogue; the page falls back to these.\n"
@@ -250,14 +278,16 @@ def symbols_text() -> str:
 
 
 def _path_text_max() -> int:
-    """The most characters a path typed for a request may have: the length the `qru_ask` command takes for its `path`."""
+    """The most characters a path typed for a request may have: the length the `qru_ask` command
+    takes for its `path`."""
     path = build_schema()["$defs"]["AskQru"]["properties"]["path"]
     return int(next(option["maxLength"] for option in path["anyOf"] if "maxLength" in option))
 
 
 def _whole(seconds: int, unit_sec: int, what: str) -> int:
-    """A time of the daemon in the unit the page words it in (the hours a bulletin is repeated for, the days of an announcement). No whole number of them stops the generator: a changed plan (neoaprs/decay.py)
-    then needs the page's text in another unit, and cannot leave it untrue."""
+    """A time of the daemon in the unit the page words it in (the hours a bulletin is repeated for,
+    the days of an announcement). No whole number of them stops the generator: a changed plan
+    (neoaprs/decay.py) then needs the page's text in another unit, and cannot leave it untrue."""
     count, rest = divmod(seconds, unit_sec)
     if rest or count < 1:
         raise ValueError(f"{what} is {seconds} s, no whole number of {unit_sec} s: word the choice of the Bulletins form (ui/src/lib/bulletins.ts) in a unit that fits")
@@ -265,7 +295,8 @@ def _whole(seconds: int, unit_sec: int, what: str) -> int:
 
 
 def limits() -> dict[str, Any]:
-    """Every number the page checks a value against, by area: the daemon's own constants, so that the page types none of them again."""
+    """Every number the page checks a value against, by area: the daemon's own constants, so that
+    the page types none of them again."""
     ranges = {**{key: {"min": low, "max": high} for key, (low, high) in RANGES.items()}, "station/lat": {"min": LATITUDE[0], "max": LATITUDE[1]}, "station/lon": {"min": LONGITUDE[0], "max": LONGITUDE[1]}}
     return {
         "range": ranges,
@@ -303,7 +334,8 @@ def _object(value: Any, indent: int = 0) -> str:
     """A nested object as TypeScript, one key to a line (a list of words on one line)."""
     if not isinstance(value, dict):
         return json.dumps(value)
-    if value and not any(isinstance(item, dict) for item in value.values()):          # a dict of plain values, such as a range, is one line
+    # a dict of plain values, such as a range, is one line
+    if value and not any(isinstance(item, dict) for item in value.values()):
         return "{ " + ", ".join(f"{key if _IDENTIFIER.fullmatch(key) else json.dumps(key)}: {json.dumps(item)}" for key, item in value.items()) + " }"
     pad = "  " * (indent + 1)
     rows = (f"{pad}{key if _IDENTIFIER.fullmatch(key) else json.dumps(key)}: {_object(item, indent + 1)},\n" for key, item in value.items())
@@ -317,7 +349,8 @@ def _limits_block() -> str:
 
 
 def lists_text() -> str:
-    """The daemon's lists as TypeScript constants: the page reads them instead of keeping a second copy."""
+    """The daemon's lists as TypeScript constants: the page reads them instead of keeping a second
+    copy."""
     blocks = [
         _number("PROTOCOL", PROTOCOL, "The version of the messages (PROTOCOL of neoaprs/web/hubwire.py): a `hello` of another number means the page is out of date."),
         _array("TOPIC_NAMES", protocol.TOPIC_NAMES, "The topics of the hub, in the order the daemon tells them (TopicValues of neoaprs/web/protocol.py)."),
@@ -565,7 +598,8 @@ def doc_text() -> str:
     names = {k: k for k in defs}
     cmd_defs = [t.__name__ for t in protocol.COMMAND_TYPES]
     msg_defs = [t.__name__ for t in protocol.MESSAGE_TYPES]
-    # every model the schema reaches that is not a command, a message or the topic values: the curated order first, a model it does not name after it, by name
+    # every model the schema reaches that is not a command, a message or the topic values: the
+    # curated order first, a model it does not name after it, by name
     reached = [name for name in defs if name not in cmd_defs and name not in msg_defs and name != "TopicValues"]
     objects = [name for name in OBJECT_ORDER if name in reached] + sorted(name for name in reached if name not in OBJECT_ORDER)
     out = [PROSE.replace("@@BINARY@@", binary_text()).rstrip("\n"), ""]
@@ -635,7 +669,8 @@ BEACONS = [{}, {"beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/
 
 
 def _call_vector(text: str) -> dict[str, Any]:
-    """Whether the text typed in station/call may be transmitted under (the settings' call, then the interlock's), and the call as it is kept."""
+    """Whether the text typed in station/call may be transmitted under (the settings' call, then the
+    interlock's), and the call as it is kept."""
     try:
         call = Config.check("station/call", text)
     except ValueError:
@@ -653,7 +688,8 @@ def _parse_vector(text: str) -> dict[str, Any]:
 
 
 def _name_vector(text: str) -> dict[str, Any]:
-    """Whether the text names a station a message may be addressed to (an AX.25 call or a name APRS-IS allows), and the name as it is kept."""
+    """Whether the text names a station a message may be addressed to (an AX.25 call or a name
+    APRS-IS allows), and the name as it is kept."""
     try:
         return {"input": text, "ok": True, "name": normal_name(text)}
     except CallsignError:
@@ -686,7 +722,8 @@ def _bulletin_text_vector(text: str) -> dict[str, Any]:
 
 
 def _bulletin_slot_vector(kind: str, ident: str, group: str) -> dict[str, Any]:
-    """The slot a bulletin of this kind, identifier and group is posted to, null when the kind does not take it."""
+    """The slot a bulletin of this kind, identifier and group is posted to, null when the kind does
+    not take it."""
     try:
         slot, _, found = slot_of(f"BLN{ident}{group}")
     except PostError:
@@ -727,18 +764,20 @@ def _setting_vector(key: str, text: str) -> dict[str, Any]:
 
 
 def _beacon_vector(changes: dict[str, str]) -> dict[str, Any]:
-    """The TNC2 text of the beacon these settings make, null when they make none (a setting refused, a call that may not transmit, a position missing)."""
+    """The TNC2 text of the beacon these settings make, null when they make none (a setting refused,
+    a call that may not transmit, a position missing)."""
     values = {**BEACON_BASE, **changes}
     try:
         config = Config.checked(DEFAULTS, values)
-        text: str | None = Beacon(SimpleNamespace(max_frame=None, rtype=type_of(DEFAULT_TYPE["fm"])), lambda: config).frame().tnc2()       # type: ignore[arg-type]  (the frame needs no radio, only its type, an FM radio's)
+        text: str | None = Beacon(SimpleNamespace(max_frame=None, rtype=type_of(DEFAULT_TYPE["fm"])), lambda: config).frame().tnc2()       # type: ignore[arg-type]  (the frame needs only the radio's type)
     except (ValueError, BeaconError):
         text = None
     return {"values": values, "text": text}
 
 
 def _template_vector(template: str) -> dict[str, Any]:
-    """How long a status template counts (each field it names filled with the widest value) and whether the daemon takes it."""
+    """How long a status template counts (each field it names filled with the widest value) and
+    whether the daemon takes it."""
     try:
         status_template(template)
         ok = True

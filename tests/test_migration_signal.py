@@ -1,6 +1,6 @@
-"""Migration 30 (neoaprs/migrationsteps22on.py): the signal of what is heard. A packet keeps the SNR and the RSSI its radio measured (`packet.snr`, `packet.rssi`), a message those of the packet that carried it
-(`message.snr`, `message.rssi`), a station its last reading and when it was heard (`station.snr`, `station.rssi`, `station.signal_at`). Every row of a database of the version before keeps what it had and has no
-reading: nothing kept before measured one."""
+"""Migration 30 (neoaprs/migrationsteps22on.py): the signal of what is heard: SNR and RSSI on
+packets, messages and stations (`station.signal_at`). Existing rows get none.
+"""
 import sqlite3
 from pathlib import Path
 
@@ -22,7 +22,8 @@ MESSAGES = [(1, STAMP, "out", "OH2GBA", "OH2RDG", "one", "1", "acked", 1, STAMP,
 
 
 def version_twenty_nine(path: Path, clock: FixedClock) -> None:
-    """A database as version 29 left it, with a packet heard on HF, a station and the messages of MESSAGES."""
+    """A database as version 29 left it, with a packet heard on HF, a station and the messages of
+    MESSAGES."""
     opened(path, clock).close()
     db = raw(path)
     db.execute("DELETE FROM schema_history WHERE version >= 30")
@@ -30,9 +31,11 @@ def version_twenty_nine(path: Path, clock: FixedClock) -> None:
     db.execute("PRAGMA user_version = 29")
     db.execute("INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded, error, via, radio) VALUES (?, 'in', ?, 'Q3TKU', 'APRS', '', 'status', 'status hi', "
                "'{\"type\":\"status\",\"text\":\"hi\",\"timestamp\":null,\"locator\":null,\"frequency\":null}', NULL, 'rf', 'hf')", (STAMP, FRAME))
-    db.execute("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code, first_heard, last_heard, last_status, last_comment, packets, last_path, heard_rf, heard_hf, last_hf_at) "          # (the columns of version 29)
+    # The columns of version 29
+    db.execute("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code, first_heard, last_heard, last_status, last_comment, packets, last_path, heard_rf, heard_hf, last_hf_at) "
                "VALUES ('Q3TKU', 'station', '', '', '', ?, ?, '', '', 1, '', 1, 1, ?)", (STAMP, STAMP, STAMP))
-    db.execute("INSERT INTO settings (key, value) VALUES ('hf/enabled', 'true')")           # (the HF radio was on: migration 31 gives the database radio 2)
+    # The HF radio was on: migration 31 gives the database radio 2
+    db.execute("INSERT INTO settings (key, value) VALUES ('hf/enabled', 'true')")
     for row in MESSAGES:
         db.execute(f"INSERT INTO message ({MESSAGE_COLUMNS}) VALUES ({', '.join('?' * len(row))})", row)
     db.close()

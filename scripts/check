@@ -1,48 +1,48 @@
 #!/usr/bin/env bash
-# The one entry point for "is this tree good": what is run before a push, and what scripts/release runs before it commits.
+# The one entry point for "is this tree good": run before a push and by scripts/release before it commits.
 #
-#   scripts/check                 every stage of the default list, most of them at once; every stage runs to its end, whatever the others say
-#   scripts/check --serial        the same stages one after the other in the order of the list, stopping at the first failure (NEOAPRS_TEST_WORKERS=0 implies it): for a machine with few
-#                                 cores, and to read the output of one failing test in order
-#   scripts/check --stage NAME    one stage only (see STAGES below); its output is shown (on stderr) as it is written, which the CI log relies on
-#   scripts/check --stage sim     the HF net simulation with real Mercury instances (scripts/mercury-sim), which is not in the default list: about six minutes, Linux only, and the Mercury built once with
-#                                 scripts/build-mercury --install (the stage builds it when the venv has none); the one the CI job `sim` runs on every push to master
-#   scripts/check --stage audit   the packages of both lock files asked of the advisory lists (scripts/security-check --audit) and GitHub's runners against packaging/ci/runner.json (scripts/runner-facts --published --announcements), which is not in the default list: it needs the network
-#   scripts/check --stage flaky   the hunt for tests that fail on some runs only (scripts/flaky): 20 runs of the CI's command for the tests in the container of scripts/check-in-container, half in file order and half shuffled,
-#                                 half the runner's size and half starved, four side by side; an hour or more, Linux and docker only, and not in the default list. It prints a table of every test that failed with its count
+#   scripts/check                 every stage of the default list, most at once; each runs to its end
+#   scripts/check --serial        the stages one after the other, stopping at the first failure
+#                                 NEOAPRS_TEST_WORKERS=0 implies it
+#   scripts/check --stage NAME    one stage only (see STAGES); its output shows as it is written
+#   scripts/check --stage sim     HF net simulation with real Mercury instances (scripts/mercury-sim):
+#                                 about six minutes, Linux only, needs scripts/build-mercury --install
+#   scripts/check --stage audit   lock-file packages against the advisory lists (scripts/security-check
+#                                 --audit) and runner images against packaging/ci/runner.json; needs the network
+#   scripts/check --stage flaky   hunt for flaky tests (scripts/flaky): 20 container runs, an hour or more,
+#                                 Linux and docker only
 #   scripts/check --list          the stage names
 #
-# One line per stage with its time, in the order of the list; the output of every failing stage is printed under its line; the last line is "all green in Ns", or the exit code is 1.
-# Runs from any directory. Python: NEOAPRS_PYTHON, else the uv venv (.venv). Needs `uv sync --frozen` once, and for the stage security `scripts/security-tools` once.
-# Run it outside a sandbox that keeps uv from its cache (~/.cache/uv): the stages lock and smoke and the package tests of the suite go through uv, and with an empty cache and no network
-# they fail or are skipped for a reason that is the sandbox's and not the tree's.
-#
-# The default run has three steps (--serial and --stage run one stage at a time, and need none of this care):
-#   1. alone, one after the other: lock, then `npm ci` when ui/node_modules is missing (the line npm-ci of the output; it is no stage). npm ci takes ui/node_modules away and writes it
-#      again, and every stage of the page runs from that folder, so it is done once, before they start, and not by each of them.
-#   2. at once: every stage that is not in step 1 or 3. On 32 threads about 28 are busy: 12 workers of pytest, 8 of vitest, the two mypy runs, and one or two for each of the others.
-#   3. alone: smoke. It starts a daemon and gives it real seconds to answer, which a machine busy with step 2 may not leave it.
+# sim, audit and flaky are not in the default list. One line per stage with its time; the output of a
+# failing stage is printed under its line; the last line is "all green in Ns", or the exit code is 1.
+# Runs from any directory. Python: NEOAPRS_PYTHON, else the uv venv (.venv); needs `uv sync --frozen` once
+# and, for the stage security, `scripts/security-tools` once. Do not run it in a sandbox that keeps uv
+# from ~/.cache/uv: the lock and smoke stages and the package tests need it.
+# The default run has three steps (--serial and --stage run one stage at a time and need none of this):
+#   1. alone: lock, then `npm ci` when ui/node_modules is missing (it takes the folder away and writes
+#      it again, and every page stage reads it, so it is done once before they start).
+#   2. at once: every stage not in step 1 or 3.
+#   3. alone: smoke, which starts a daemon and gives it real seconds to answer.
 # What the stages of step 2 would write into the same place, and how each is kept apart:
-#   - the output: every stage has a log of its own, in a temporary folder that is taken away at the end.
-#   - mypy keeps its cache by folder and Python version, not by platform, so two runs in one folder each throw away what the other wrote: the run for Windows has a folder of its own
-#     (.mypy_cache/win32).
-#   - .pytest_cache (what --lf remembers) belongs to the stage pytest: architecture and page, which are pytest runs too, run without the cache plugin. The temporary folders of the three
-#     runs are numbered apart by pytest itself.
-#   - vite builds twice: the stage ui-build into ui/dist, the page test into a folder of its own (NEOAPRS_OUT). The stage pytest leaves the page test to the stage page, so the suite
-#     builds nothing. Nothing else reads ui/dist: eslint, prettier and jscpd ignore it, vue-tsc and knip read ui/src only.
-#   - the rest only read the tree (ruff and vitest keep caches that no second stage uses).
-# sim, audit and flaky run only by name, so alone: sim keeps the pace of a sound card and fails on a machine that is busy with anything else, and flaky takes the cores of the machine for its containers.
+#   - output: each stage has a log of its own in a temporary folder, removed at the end.
+#   - mypy keeps its cache by folder and Python version, not by platform, so the run for Windows has a
+#     folder of its own (.mypy_cache/win32).
+#   - .pytest_cache belongs to the stage pytest; architecture and page run without the cache plugin.
+#   - vite builds twice: the stage ui-build into ui/dist, the page test into NEOAPRS_OUT.
+#   - the rest only read the tree.
+# sim, audit and flaky run only by name, so alone: sim keeps the pace of a sound card and flaky takes
+# the machine's cores for its containers.
 #
-# NEOAPRS_TEST_WORKERS and NEOAPRS_TEST_WORKERS_MAX set the workers of the stage pytest (below). NEOAPRS_CHECK_STAGES is for the tests of this script, which run a copy of it in a folder of their own: a file of
-# stand-ins for the stages (below). In a tree it is refused: the script stops.
-# The stage smoke starts its daemon with NEOAPRS_NO_DEVICES=1 and NEOAPRS_UPDATE_CHECK=0: it opens no device of this machine and asks nothing of the internet.
+# NEOAPRS_TEST_WORKERS and NEOAPRS_TEST_WORKERS_MAX set the workers of the stage pytest.
+# NEOAPRS_CHECK_STAGES is for the tests of this script: a file of stand-ins for the stages. In a tree it
+# is refused. The stage smoke runs its daemon with NEOAPRS_NO_DEVICES=1 and NEOAPRS_UPDATE_CHECK=0.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
-# NEOAPRS_CHECK_STAGES puts stand-ins in the place of every stage (the end of the stages, below), so a run with it says nothing about a tree: all green, and nothing checked. It is taken only by a copy of this
-# script in a folder that has nothing to check, which is what the tests make: neither pyproject.toml nor neoaprs/ beside scripts/. Anywhere else the script stops here, before it reads an argument, so that a
+# NEOAPRS_CHECK_STAGES puts stand-ins in place of every stage, so a run with it checks nothing. It
+# is taken only by a copy of this script in a folder with neither pyproject.toml nor neoaprs/, so a
 # variable left in a shell cannot make this run, or the release that asks it, pass.
 is_a_tree() { [ -e pyproject.toml ] || [ -L pyproject.toml ] || [ -e neoaprs ] || [ -L neoaprs ]; }
 if [ -n "${NEOAPRS_CHECK_STAGES:-}" ] && is_a_tree; then
@@ -50,18 +50,19 @@ if [ -n "${NEOAPRS_CHECK_STAGES:-}" ] && is_a_tree; then
     exit 2
 fi
 
-# The stages, in the order of their result lines: the Python ones, then the page's (ui-types ... dup, which need node 22.12 or newer: the one on the PATH, else the newest in ~/.nvm), then the duplication check of the
-# Python tree (jscpd, from ui/node_modules), the security checks that need no network, and the smoke test of the built wheel.
+# The stages in the order of their result lines: Python ones, the page's (ui-types ... dup, which
+# need node 22.12 or newer, from the PATH or ~/.nvm), the duplication check, the security checks,
+# smoke.
 STAGES=(lock ruff mypy architecture pytest ui-types ui-lint ui-tests ui-build page dup dup-py security smoke)
-EXTRA_STAGES=(sim audit flaky)         # run only by name (--stage sim): sim is minutes long and Linux only, audit needs the network, flaky is an hour of containers
+EXTRA_STAGES=(sim audit flaky)  # run only by name: sim is minutes long, audit needs the network, flaky is an hour
 ALL_STAGES=("${STAGES[@]}" "${EXTRA_STAGES[@]}")
-ALONE_FIRST=(lock)                     # step 1 of the default run
+ALONE_FIRST=(lock)  # step 1 of the default run
 ALONE_LAST=(smoke)                     # step 3
 
 only="" serial=0
 while [ $# -gt 0 ]; do
     case "$1" in
-        --fast) ;;                                                                                       # (it once left out the browser stages; there are none now: still accepted, it does nothing)
+        --fast) ;;  # accepted and ignored
         --serial) serial=1 ;;
         --stage) shift; only="${1:-}"; [ -n "$only" ] || { echo "check: --stage needs a name (${ALL_STAGES[*]})" >&2; exit 2; } ;;
         --list) printf '%s\n' "${ALL_STAGES[@]}"; exit 0 ;;
@@ -73,8 +74,8 @@ done
 if [ -n "$only" ]; then
     case " ${ALL_STAGES[*]} " in *" $only "*) ;; *) echo "check: no stage called $only (${ALL_STAGES[*]})" >&2; exit 2 ;; esac
 fi
-if [ "${NEOAPRS_TEST_WORKERS:-}" = 0 ]; then serial=1; fi          # (tests one after the other, to read them in order: then the stages too)
-at_once=0                                                          # 1 while the stages of the default list run side by side: a stage reads it to take less of the machine
+if [ "${NEOAPRS_TEST_WORKERS:-}" = 0 ]; then serial=1; fi  # serial mode: the stages run in order too
+at_once=0  # 1 while the default stages run side by side
 if [ "$serial" = 0 ] && [ -z "$only" ]; then at_once=1; fi
 
 python="${NEOAPRS_PYTHON:-}"
@@ -82,22 +83,24 @@ if [ -z "$python" ]; then
     python="$root/.venv/bin/python"
 fi
 [ -x "$python" ] || { echo "check: no Python environment: run 'uv sync --frozen' in $root" >&2; exit 2; }
-# The environment's own programs first on the PATH, as `uv run` has them: a script that a test starts by its first line (`#!/usr/bin/env python3`) runs on this Python, and a machine without a Python of its
-# own (the runner-sized container) still finds one.
+# The environment's programs first on the PATH, as `uv run` has them, so a script started by its
+# `#!/usr/bin/env python3` line finds this Python.
 PATH="$(dirname "$python"):$PATH"
 
-# Node 22.12 or newer, from the PATH, else the newest of ~/.nvm; put first on the PATH, so that every stage (the page test too) runs the same one.
+# Node 22.12 or newer from the PATH, else the newest of ~/.nvm, first on the PATH so every stage
+# runs the same one.
 node_ok() { command -v node >/dev/null && node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 12) ? 0 : 1)'; }
 if ! node_ok; then
     newest="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
     [ -n "$newest" ] && PATH="$newest:$PATH"
 fi
-export npm_config_update_notifier=false npm_config_fund=false npm_config_audit=false           # npm asks the registry about nothing but an install itself
+export npm_config_update_notifier=false npm_config_fund=false npm_config_audit=false  # npm asks the registry about nothing but an install
 
-# The threads this run may use (nproc knows the cpuset of a container).
+# Threads this run may use (nproc knows a container's cpuset).
 cores() { nproc 2>/dev/null || getconf _NPROCESSORS_ONLN; }
 
-# uv is what the stages lock and smoke and the package tests of the suite work with. A sandbox that cannot write ~/.cache/uv gets a cache of its own, so that a stage says something about the tree and not about the cache.
+# A sandbox that cannot write ~/.cache/uv gets a cache of its own, so a stage speaks of the tree,
+# not the cache.
 uv_cache() {
     command -v uv >/dev/null || return 0
     local cache="${UV_CACHE_DIR:-$HOME/.cache/uv}"
@@ -106,20 +109,19 @@ uv_cache() {
     fi
 }
 
-# The logs of the stages, and what a stage builds only to throw it away. The stages that run at once are each the leader of a process group of its own, so that a run that is
-# interrupted can end everything they started before the folder goes.
+# The logs of the stages and what a stage builds only to throw away. Stages that run at once lead a
+# process group each, so an interrupted run can end everything they started before the folder goes.
 work="$(mktemp -d)" stop=TERM
-# Careful, what finish needs (tests/test_check_script.py holds it):
-#   - it ignores INT, TERM and HUP first, and so does the trap of each before its `exit`: a second signal (a second Ctrl+C) would run its own trap's `exit` in the middle of finish, or between the first trap
-#     and finish, which then ends with that signal's code and leaves the stages running or the folder in place;
-#   - it is the script's alone: a stage that got a signal the moment it was forked, before it dropped the script's traps, runs them, and so finish, with the script's list of jobs (none of them its own);
-#   - the stages are bash's own list of jobs, which has a stage from its fork on; `running` has it a command later, and the signal can come between the two;
-#   - each is waited for by its pid: a bare `wait` never returns under bash 5.3 while that list holds a job that is no child of this shell, and after a signal it can hold one (the stage whose end the
-#     interrupted `wait PID` had just taken);
-#   - the signal goes again every tenth of a second while it waits, and KILL after a second: a stage forked the moment the first came can lose it (bash takes it with the script's trap, then drops that
-#     trap), and what a stage forked as it came did not get it (bash holds TERM back while it forks);
-#   - the folder goes once the stages' groups are empty, since what is left in one may still write into it;
-#   - the signal is `stop`: TERM, or KILL where the parent ignores or blocks TERM (below), which the stages have from it and which no TERM would end.
+# What finish needs (tests/test_check_script.py holds it):
+#   - it ignores INT, TERM and HUP first, as does the trap of each stage before its `exit`: a second
+#     signal must not run a trap's `exit` in the middle of finish;
+#   - it belongs to the script alone: a stage that got a signal right after its fork would otherwise run it;
+#   - each stage is waited for by its pid: a bare `wait` never returns under bash 5.3 while the job list
+#     holds a job that is no child of this shell;
+#   - the signal is sent again every tenth of a second, and KILL after a second, since a stage forked
+#     as the first signal came can miss it;
+#   - the folder goes once the stages' groups are empty, since what is left may still write into it;
+#   - the signal is `stop`: TERM, or KILL where the parent ignores or blocks TERM (below).
 signal_groups() { local how="$1" pid; shift; for pid in "$@"; do kill -"$how" -- "-$pid" 2>/dev/null || true; done; }
 groups_left() { local pid; for pid in "$@"; do if kill -0 -- "-$pid" 2>/dev/null; then return 0; fi; done; return 1; }
 again() { local _; for _ in 1 2 3 4 5 6 7 8 9 10; do sleep 0.1; signal_groups "$stop" "$@"; done; signal_groups KILL "$@"; }
@@ -148,8 +150,8 @@ trap finish EXIT
 trap 'trap "" INT TERM HUP; exit 130' INT
 trap 'trap "" INT TERM HUP; exit 143' TERM
 trap 'trap "" INT TERM HUP; exit 129' HUP
-# A signal that was ignored when the script started can be neither trapped nor reset (`trap -p` shows it ignored still); one that was blocked stays blocked (bit 14 of SigBlk, where there is /proc). A run
-# started so goes on through it, as its parent asked.
+# A signal ignored at start can be neither trapped nor reset, and a blocked one stays blocked (bit
+# 14 of SigBlk, with /proc). A run started so goes on through it, as its parent asked.
 case "$(trap -p TERM)" in *"exit 143"*) ;; *) stop=KILL ;; esac
 if [ -r "/proc/$$/status" ]; then
     while read -r field mask; do
@@ -157,17 +159,20 @@ if [ -r "/proc/$$/status" ]; then
     done <"/proc/$$/status"
 fi
 
-# --- the stages: each is a function that returns non-zero on failure ----------------------------------------------------------------------------------------------
+# --- the stages: each is a function that returns non-zero on failure ----------------------------------
 
-# Careful: a stage runs on the left of `||`, where bash ignores `set -e`, so every command of a stage that has several ends in `|| return 1`.
+# A stage runs on the left of `||`, where bash ignores `set -e`, so each command of a multi-command
+# stage ends in `|| return 1`.
 stage_lock() {
-    # uv.lock must be current with pyproject.toml. Under UV_FROZEN=1 (the CI's setting, and the one of scripts/check-in-container) uv only reads the lock file and does not compare it, so the variable is taken away here.
+    # uv.lock must be current with pyproject.toml. Under UV_FROZEN=1 uv only reads the lock file, so
+    # the variable is removed here.
     command -v uv >/dev/null || { echo "uv is not installed"; return 1; }
     env -u UV_FROZEN uv lock --check
 }
 stage_ruff()  { "$python" -m ruff check .; }
-# mypy for both systems, as CI does: one tree must type-check for Linux and for Windows. The run for Windows has a cache folder of its own (the top of this file); beside the other stages the two run
-# side by side, and the output of the second is printed after the first's.
+# mypy for both systems, as CI does: one tree must type-check for Linux and Windows. The Windows run
+# has a cache folder of its own; beside the other stages the output of the second is printed after
+# the first.
 mypy_win32() { echo "mypy --platform win32:"; "$python" -m mypy --platform win32 --cache-dir .mypy_cache/win32; }
 stage_mypy() {
     if [ "$at_once" = 0 ]; then "$python" -m mypy && mypy_win32; return; fi
@@ -178,13 +183,15 @@ stage_mypy() {
     cat "$work/mypy-win32.log"
     return "$status"
 }
-# The architecture stage is the layers, the wiring rule and the size limits (docs/ARCHITECTURE.md): quick, so it has a line of its own, and the long suite leaves these two files out. The page test is
-# the stage page in the same way. Both run without pytest's cache plugin: .pytest_cache is the suite's.
+# The architecture stage (layers, wiring rule, size limits) is quick, so it has a line of its own;
+# the long suite leaves these two files out. The page test is the stage page. Both run without the
+# cache plugin.
 ARCHITECTURE_TESTS=(tests/test_architecture.py tests/test_size_ratchet.py)
 PAGE_TESTS=(tests/test_page_build.py)
 stage_architecture() { "$python" -m pytest -q -p no:cacheprovider "${ARCHITECTURE_TESTS[@]}"; }
-# The tests run side by side (pytest-xdist): as many workers as the machine has cores, at most NEOAPRS_TEST_WORKERS_MAX (12: the ports of the Mercury tests are laid out for twelve workers);
-# NEOAPRS_TEST_WORKERS=N sets the number, 0 runs them one after the other (what to do to read the output of one failing test in order).
+# The tests run side by side (pytest-xdist): as many workers as cores, at most
+# NEOAPRS_TEST_WORKERS_MAX (12: the Mercury test ports are laid out for twelve workers);
+# NEOAPRS_TEST_WORKERS=0 runs them in order.
 stage_pytest() {
     local workers="${NEOAPRS_TEST_WORKERS:-auto}" cap=() common=("${ARCHITECTURE_TESTS[@]/#/--ignore=}" "${PAGE_TESTS[@]/#/--ignore=}")
     if [ "$workers" = 0 ]; then "$python" -m pytest -q "${common[@]}"; return; fi
@@ -192,9 +199,10 @@ stage_pytest() {
     "$python" -m pytest -q -n "$workers" --dist loadgroup ${cap[@]+"${cap[@]}"} "${common[@]}"
 }
 
-# The UI stages, and the stage page, are skipped (and say so) in a tree without ui/. node_modules is installed from the lock file when it is missing: by the stage that finds it missing, or, when the stages run
-# at once, once before they start (the runner below; a stage then only says that it failed). Node is the one on the PATH, else the newest of ~/.nvm (22.12 or newer: what vitest and knip need).
-ui_modules_missing() { [ ! -d ui/node_modules ] && [ ! -L ui/node_modules ]; }         # (never through a symlink: npm ci deletes what it points at)
+# The UI stages and the stage page are skipped in a tree without ui/. node_modules is installed from
+# the lock file when missing: by the stage that finds it so, or once before the stages start when
+# they run at once.
+ui_modules_missing() { [ ! -d ui/node_modules ] && [ ! -L ui/node_modules ]; }  # never through a symlink: npm ci deletes what it points at
 ui_install() { (cd ui && npm ci); }
 ui_install_failed=""
 ui_run() {
@@ -205,8 +213,9 @@ ui_run() {
     (cd ui && "$@")
 }
 stage_ui_types() { ui_run npx vue-tsc --noEmit; }
-stage_ui_lint() { ui_run npm run --silent lint && ui_run npm run --silent format:check && ui_run npm run --silent knip && ui_run "$python" ../scripts/css-unused.py; }       # (the last: no rule of a class that no source file writes)
-# Beside the other stages vitest has 8 workers at most (fewer on a machine with fewer threads), which with the 12 of pytest leaves the rest their share; alone it takes what it likes.
+stage_ui_lint() { ui_run npm run --silent lint && ui_run npm run --silent format:check && ui_run npm run --silent knip && ui_run "$python" ../scripts/css-unused.py; }  # no rule of a class that no source file writes
+# Beside the other stages vitest takes at most 8 workers, leaving pytest its 12; alone it takes what
+# it likes.
 stage_ui_tests() {
     if [ "$at_once" = 0 ]; then ui_run npx vitest run; return; fi
     local workers
@@ -215,20 +224,25 @@ stage_ui_tests() {
     ui_run npx vitest run --maxWorkers "$workers"
 }
 stage_ui_build() { ui_run npx vite build; }
-# page/ (what the daemon serves) is a fresh build of ui/. The test that builds is skipped where there is no node or no ui/node_modules, which would be an ok line with nothing compared: the stage asks ui_run
-# for both first, which installs what is missing and fails when it cannot.
+# page/ (what the daemon serves) must be a fresh build of ui/. The building test is skipped without
+# node or ui/node_modules, which would be an ok line with nothing compared, so the stage asks ui_run
+# first.
 stage_page() { ui_run true && "$python" -m pytest -q -p no:cacheprovider "${PAGE_TESTS[@]}"; }
-stage_dup() { ui_run npm run --silent dup; }                              # jscpd over ui/src: duplicated code over the threshold of ui/.jscpd.json fails
-stage_dup_py() { ui_run ../scripts/dup-check; }                           # jscpd over neoaprs/ (the page's server and the commands are in it; the built page is not) and tests/support/ against scripts/dup-baseline.json
-# The security checks of scripts/security-check: with no argument the ones that ask nobody (it prints seven lines: secret-files, tokens, gitleaks, php-lint, psalm, shellcheck, zizmor), each run by a pinned program that scripts/security-tools has fetched; --audit asks the advisory lists about the
-# packages of both lock files, so it runs only by name.
+stage_dup() { ui_run npm run --silent dup; }  # jscpd over ui/src against the threshold of ui/.jscpd.json
+stage_dup_py() { ui_run ../scripts/dup-check; }  # jscpd over neoaprs/ and tests/support/ against scripts/dup-baseline.json
+# The security checks of scripts/security-check: with no argument those that ask nobody
+# (secret-files, tokens, gitleaks, php-lint, psalm, shellcheck, zizmor); --audit asks the advisory
+# lists, so runs only by name.
 stage_security() { "$python" scripts/security-check; }
-# The weekly audit also reads what GitHub publishes of its runners against packaging/ci/runner.json (scripts/runner-facts: the image's readme, and the announcements not yet read). Both run, and either fails the stage.
+# The weekly audit also reads GitHub's runner publications against packaging/ci/runner.json; either
+# failing fails the stage.
 stage_audit() { local status=0; "$python" scripts/security-check --audit || status=1; "$python" scripts/runner-facts --published --announcements || status=1; return "$status"; }
-# The hunt for tests that fail on some runs only: scripts/flaky starts the containers of scripts/check-in-container (its own docs say how many and in which settings); the stage is its exit code and its table.
+# The hunt for flaky tests: scripts/flaky starts the containers of scripts/check-in-container; the
+# stage is its exit code and table.
 stage_flaky() { "$python" scripts/flaky; }
-# The wheel as a user gets it, as the CI job `smoke` does it: built, installed into a fresh environment (uv takes what its cache has, and asks the net only when that is not everything), and the installed command run
-# against a fake TNC by scripts/smoke.py. The daemon it starts opens no device of this machine (NEOAPRS_NO_DEVICES) and does not ask the version page (NEOAPRS_UPDATE_CHECK); nothing of the caller's Python reaches it.
+# The wheel as a user gets it, as the CI job `smoke` does: built, installed into a fresh environment
+# and run against a fake TNC by scripts/smoke.py, with NEOAPRS_NO_DEVICES and NEOAPRS_UPDATE_CHECK
+# set.
 uv_from_cache() { uv "$@" --offline 2>/dev/null || uv "$@"; }
 stage_smoke() {
     command -v uv >/dev/null || { echo "uv is not installed"; return 1; }
@@ -239,8 +253,10 @@ stage_smoke() {
     uv_from_cache pip install --python "$dir/venv/bin/python" "$dir"/dist/*.whl || return 1
     env -u PYTHONPATH -u VIRTUAL_ENV NEOAPRS_NO_DEVICES=1 NEOAPRS_UPDATE_CHECK=0 "$dir/venv/bin/python" scripts/smoke.py --command "$dir/venv/bin/neoaprs"
 }
-# The simulation of an HF net (docs/development.md, "The simulators"): five real Mercury instances on the suite's channel, a daemon on each, the scenario of scripts/mercury-sim; the report is left in build/mercury-sim.json.
-# Linux only (named pipes); the Mercury of the venv (scripts/build-mercury --install, which needs gcc, make and libasound2-dev) is built when it is not there. Budget: about five minutes.
+# The HF net simulation (docs/development.md, "The simulators"): five real Mercury instances, a
+# daemon on each, the scenario of scripts/mercury-sim; the report goes to build/mercury-sim.json.
+# Linux only (named pipes). The Mercury of the venv is built when missing (needs gcc, make,
+# libasound2-dev). About five minutes.
 stage_sim() {
     [ "$(uname -s)" = Linux ] || { echo "the simulation runs on Linux only (named pipes)"; return 1; }
     if ! "$python" -c 'import sys; from neoaprs.mercuryhelper import find; sys.exit(0 if find() else 1)'; then "$python" scripts/build-mercury --install || return 1; fi
@@ -248,9 +264,10 @@ stage_sim() {
     "$python" scripts/mercury-sim --report build/mercury-sim.json
 }
 
-# For the tests of the runner (tests/test_check_script.py): NEOAPRS_CHECK_STAGES names a file of shell functions that stand in for the stages, so that the runner below is tried without one real stage. Every stage
-# and the installing of ui/node_modules are taken away before the file is read: what it does not define fails as a command that is not found, and the real one cannot run by mistake. The file is read here, after
-# everything above, so it can replace any other function of this script too. Only a copy of the script outside a tree gets this far with the variable set (the top of this file).
+# For the tests of the runner: NEOAPRS_CHECK_STAGES names a file of shell functions standing in for
+# the stages. Every stage and the installing of ui/node_modules are removed before the file is read,
+# so what it does not define fails as a missing command. Only a copy outside a tree gets this far
+# (see the top).
 if [ -n "${NEOAPRS_CHECK_STAGES:-}" ]; then
     for name in "${ALL_STAGES[@]}"; do unset -f "stage_${name//-/_}"; done
     unset -f ui_install
@@ -258,19 +275,21 @@ if [ -n "${NEOAPRS_CHECK_STAGES:-}" ]; then
     source "$NEOAPRS_CHECK_STAGES"
 fi
 
-# --- the runner ----------------------------------------------------------------------------------------------------------------------------------------------
+# --- the runner ---------------------------------------------------------------------------------------
 
-# Careful: nothing from here on is a command substitution, `$(...)`. When a signal comes while bash (5.2) reads one, it cannot read the command of the signal's trap either: the run then ends with exit code 2 and
-# a syntax error instead of the code that names the signal. So a file is read with `read`, a line is made with `printf -v`, and the time is EPOCHSECONDS (tests/test_check_script.py holds it).
+# Careful: nothing from here on is a command substitution `$(...)`. A signal that comes while bash
+# 5.2 reads one makes the run end with code 2 and a syntax error. So files are read with `read`,
+# lines made with `printf -v`, and the time is EPOCHSECONDS (tests/test_check_script.py holds it).
 
-# Runs one stage (or, for a line that is no stage, the command after the name) in a shell of its own, so that nothing a stage sets reaches the next, with its output in its log, and leaves its result line beside the
-# log. The time is counted in microseconds: EPOCHREALTIME without its decimal mark, which is a comma in some languages.
+# Run one stage (or the command after the name for a line that is no stage) in a shell of its own,
+# with its output in its log, and leave its result line beside the log. Time is in microseconds
+# (EPOCHREALTIME without its decimal mark, which is a comma in some locales).
 run_stage() {
     local name="$1" word=ok start="${EPOCHREALTIME/[^0-9]/}" tenths
     shift
     [ $# -gt 0 ] || set -- "stage_${name//-/_}"
     if [ -n "$only" ]; then
-        ( "$@" ) 2>&1 | tee "$work/$name.log" >&2 || word=FAIL          # (a stage that was named is the only output: it is shown as it is written, to stderr, so that a step of the CI that hangs shows where)
+        ( "$@" ) 2>&1 | tee "$work/$name.log" >&2 || word=FAIL  # a named stage is the only output: shown as written, to stderr, so a hanging CI step shows where
     else
         ( "$@" ) >"$work/$name.log" 2>&1 || word=FAIL
     fi
@@ -278,8 +297,9 @@ run_stage() {
     printf '%-5s %-12s %4d.%ds\n' "$word" "$name" $(( tenths / 10 )) $(( tenths % 10 )) >"$work/$name.line"
 }
 
-# Prints the result line of a stage that has run and, under it, the output of one that failed; false for one that failed. A stage that left no line (its shell was killed) has failed. awk writes the output
-# because it ends the last line too when the stage did not (a program that was killed in the middle of one): the next result line then begins a line.
+# Print the result line of a finished stage and, under it, the output of a failed one; false for a
+# failed one. A stage that left no line was killed. awk ends the last line, which a killed program
+# may not have.
 report() {
     local name="$1" line
     { IFS= read -r line <"$work/$name.line"; } 2>/dev/null || printf -v line 'FAIL  %-12s' "$name"
@@ -291,17 +311,18 @@ report() {
 
 in_list() { local name="$1"; shift; case " $* " in *" $name "*) return 0 ;; esac; return 1; }
 
-# Waits for a stage that runs beside the others. Careful: not by `wait PID` alone. A signal that comes after bash last looked for one and before it blocks in that wait has its trap put off until the
-# stage ends (minutes; both bash 5.2 and 5.3 do it, about once in a thousand signals that come while the stages are being started), so the stage is waited for only once it has ended (bash has taken its
-# end, and `kill -0` no longer finds it), and until then the runner waits for a nap of a tenth of a second at a time: a signal ends that wait at once, and one that came just before it runs when the nap
-# has ended. The nap is a `sleep` in the background: one in the foreground puts the trap off until its end, and two signals within it are then taken in the order of their numbers, not of their coming;
-# with `read -t` the trap ran inside the read, and both bashes crashed (SIGSEGV) when a second signal came during finish.
+# Wait for a stage that runs beside the others, not by `wait PID` alone: a signal that arrives
+# between bash's last look and its blocking in `wait` has its trap put off until the stage ends. So
+# the stage is waited for only once it has ended (`kill -0` no longer finds it), napping a tenth of
+# a second at a time. The nap is a background `sleep`: in the foreground it puts the trap off, and
+# two signals are then taken in numeric order; with `read -t` the trap ran inside the read and both
+# bashes crashed on a second signal during finish.
 await() { while kill -0 "$1" 2>/dev/null; do sleep 0.1 & wait "$!" || true; done; wait "$1" || true; }
 
 total_start=$EPOCHSECONDS
 uv_cache
 if [ "$at_once" = 0 ]; then
-    # One stage at a time in the order of the list, stopping at the first failure: --serial, and a stage that was named (an extra stage runs only when named).
+    # One stage at a time in list order, stopping at the first failure: --serial, and a named stage.
     for name in "${ALL_STAGES[@]}"; do
         if [ -n "$only" ] && [ "$name" != "$only" ]; then continue; fi
         if [ -z "$only" ] && in_list "$name" "${EXTRA_STAGES[@]}"; then continue; fi
@@ -309,7 +330,8 @@ if [ "$at_once" = 0 ]; then
         report "$name" || exit 1
     done
 else
-    # The three steps of the top of this file. A failure is kept for the end: every stage runs, and the lines come in the order of the list, each as soon as its stage and the ones before it are done.
+    # The three steps described at the top. A failure is kept for the end; result lines come in list
+    # order.
     failed=()
     for name in "${ALONE_FIRST[@]}"; do
         run_stage "$name"
@@ -320,7 +342,7 @@ else
         report npm-ci || { failed+=(npm-ci); ui_install_failed=1; }
     fi
     group=() running=()
-    set -m                            # (job control: each stage started now is the leader of a process group of its own, see `finish`; the stage itself runs without it, so that what it starts stays in its group)
+    set -m  # job control: each stage becomes the leader of its process group (see `finish`)
     for name in "${STAGES[@]}"; do
         if in_list "$name" "${ALONE_FIRST[@]}" "${ALONE_LAST[@]}"; then continue; fi
         ( set +m; run_stage "$name" ) </dev/null &

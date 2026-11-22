@@ -1,5 +1,6 @@
-"""The Dummy radio (neoaprs/dummyscene.py, dummyline.py): made-up traffic around the station that the parser reads like a radio's, stations that answer a message, a digipeater that repeats a position of ours, calls that
-can be nobody's, and nothing ever written or sent anywhere. The scene is pure, so it is driven by hand with a clock; the Tnc and the Controller run it on a fast tick."""
+"""Tests for the Dummy radio (neoaprs/dummyscene.py, dummyline.py): made-up traffic the parser reads
+like a radio's, answering stations, a repeating digipeater, and nothing sent anywhere.
+"""
 import asyncio
 import logging
 import socket
@@ -245,7 +246,8 @@ def fast(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def refuse_the_world(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """Whatever opens a serial port, a pseudo-terminal or a socket is a failure of the test; the record is empty when nothing tried."""
+    """Whatever opens a serial port, a pseudo-terminal or a socket is a failure of the test; the
+    record is empty when nothing tried."""
     tried: list[str] = []
 
     def no(what: str):  # type: ignore[no-untyped-def]
@@ -276,7 +278,9 @@ async def test_the_tnc_with_the_dummy_profile_connects_hears_made_up_stations_an
         clock.advance(30)
         await asyncio.sleep(0.03)
     await tnc.stop()
-    assert len(heard) > 50 and all(call.startswith("Q") and dummy for call, dummy in heard)       # (every packet of it was marked `dummy` where the Tnc made it, while the Tnc said it is the dummy)
+    # (every packet of it was marked `dummy` where the Tnc made it, while the Tnc said it is the
+    # dummy)
+    assert len(heard) > 50 and all(call.startswith("Q") and dummy for call, dummy in heard)
     assert tnc.stats.rejected == 0 and tnc.stats.packets == len(heard)
     assert tried == []
     assert "dummy radio" in tnc.describe() and "nothing goes on the air" in tnc.describe()
@@ -305,7 +309,8 @@ async def test_what_the_tnc_sends_to_the_dummy_goes_nowhere_a_message_is_acked_a
     await tnc.stop()
     text = [h for h in heard if h[0] == "in" and h[1].startswith("Q1ABC>")]
     assert any(t[1] == f"Q1ABC>{HELLO}" for t in text)
-    assert any(d == "in" and s.startswith(f"{ME}>=6010") for d, s in heard)                     # the digipeater's repeat of our beacon
+    # the digipeater's repeat of our beacon
+    assert any(d == "in" and s.startswith(f"{ME}>=6010") for d, s in heard)
     assert [d for d, _ in heard if d == "out"] == ["out", "out"]
     assert vias == {"dummy"}, "what is heard and what is sent are both marked dummy"
     assert tried == []

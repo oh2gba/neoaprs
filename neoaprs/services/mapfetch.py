@@ -1,15 +1,7 @@
-"""The base map, made by the daemon: a detailed map of the area round our station and a small map of the world under it.
+"""The base map job: a detailed map round the station, over a small map of the world.
 
-`data/basemap.pmtiles` is cut out of the Protomaps daily build (or of `map/source`, a web address or a file; neoaprs/pmtilescut.py) for the box that `map/radius_km` makes round the station's position, down to
-`map/maxzoom`. The world under it and outside it is the one that ships with the program (neoaprs/worldmap.py, zoom 4); only when there is none (a clone that has not got the file) or the data folder's own is no good,
-`data/basemap-world.pmtiles` is made first, the world to zoom 5 (about 15 MB). A world map the data folder has of its own is the one that is served.
-
-A download that has stood still for `Patience.stall_sec` (neither the percent nor the size of what has come moved) is ended and tried again from the start, up to `Patience.tries` times in all, saying so in the
-status (`note`, and `retry` for the page); after the last try the job fails with a text that says the server is too slow, and the map that was there stays. The status also tells the size of what has come, so that a slow download is seen to move.
-
-One job at a time: `estimate()` is a dry run that says how big the detailed map will be, `fetch()` makes the files, `cancel()` ends the job running. A file is made beside the final one (`.part`) and moved into
-place only when it is whole, so a failed or cancelled job leaves the map that was there. `status()` is what the page is told; `changed` is emitted with every change of it. The command line is `python -m neoaprs.services.mapfetch`
-(neoaprs/services/mapcli.py)."""
+`data/basemap.pmtiles` is cut from the Protomaps daily build for the box round the station.
+One job runs at a time; a file is made as `.part` and moved into place when whole."""
 import asyncio
 import contextlib
 import errno
@@ -44,10 +36,10 @@ FAILED = "the map could not be made; the log says why"
 
 @dataclass(frozen=True)
 class Patience:
-    stall_sec: float = 120.0                    # how long neither the percent nor the size of what has come may move
-    tries: int = 3                              # downloads begun in all before the job gives up
-    pause_sec: float = 10.0                     # between the end of a stalled download and the next
-    poll_sec: float = 2.0                       # how often the size of what has come is looked at
+    stall_sec: float = 120.0                    # no change of percent or size for this long is a stall
+    tries: int = 3                              # downloads begun before the job gives up
+    pause_sec: float = 10.0                     # between a stalled download and the next
+    poll_sec: float = 2.0                       # how often the downloaded size is read
 
 
 PATIENCE = Patience()
@@ -58,7 +50,7 @@ class _Stalled(Exception):
 
 
 def describe_file(path: Path) -> MapFile | None:
-    """What is known of a map file: its size and date, the box and zooms of its header, and the build of its note. None if there is no such file."""
+    """Return size, date, header box and zooms and the build note of a map file; None if missing."""
     try:
         stat = path.stat()
     except OSError:
@@ -74,7 +66,9 @@ def describe_file(path: Path) -> MapFile | None:
 
 
 def _remove(part: Path) -> None:
-    """Deletes a `.part` file; one that cannot be deleted now (a cut that was just ended still holds it, on Windows) is told in the log and left, never an error that keeps the job busy."""
+    """Delete a `.part` file; on failure only log, so the job is never kept busy.
+
+    On Windows a cut that has just ended may still hold the file."""
     try:
         part.unlink(missing_ok=True)
     except OSError as e:
@@ -91,16 +85,16 @@ class MapFetch:
         self._probe = probe
         self.patience = patience
         self._world = world
-        self._radius = 0                            # the radius of the job that was begun with one of its own (neoaprs/services/mapauto.py); 0: the setting's
+        self._radius = 0                            # radius given to `begin`; 0 means the setting's
         self._tasks = TaskSet(self._task_failed)
-        self.later = False                          # set by neoaprs/services/mapauto.py: the map it began could not be fetched yet
-        self.cancelled_by_user = False              # `cancel()` was called for the latest job (a stop of the daemon does not)
+        self.later = False                          # set by MapAuto: its map could not be fetched yet
+        self.cancelled_by_user = False              # `cancel()` was called (a daemon stop does not)
         self._busy: Job | None = None
         self._current: "asyncio.Task[object] | None" = None
         self._step: Step = ""
         self._percent: int | None = None
         self._downloaded: int | None = None
-        self._arrived: int | None = None            # the size of what has come, as the cut tells it; looked at every `poll_sec`
+        self._arrived: int | None = None            # bytes reported by the cut; read every `poll_sec`
         self._note = ""
         self._retry: tuple[int, int] | None = None
         self._moved = 0.0
@@ -113,9 +107,9 @@ class MapFetch:
     async def stop(self) -> None:
         await self._tasks.cancel_all()
 
-    # ---- what the page is told
+    # ---- status
     def _plan(self) -> tuple[Box, int, int]:
-        """The box, radius and zoom the settings make (the radius of the job that is running when it was given one); MapError without a position."""
+        """Return the box, radius and zoom of the settings; raise MapError without a position."""
         config = self.config()
         place = config.station_position
         if place is None:
@@ -150,7 +144,7 @@ class MapFetch:
         self.changed.emit()
 
     def _moves(self) -> None:
-        """The download went on: the time of it is kept for the watch, and a note about a stall is no longer true."""
+        """Record progress for the stall watch and clear any stall note."""
         self._moved, self._note, self._retry = time.monotonic(), "", None
 
     def _progress(self, percent: int) -> None:
@@ -168,24 +162,26 @@ class MapFetch:
         self._step, self._percent, self._downloaded, self._note, self._retry = "", None, None, "", None
 
     def begin(self, job: Job, radius_km: int = 0) -> None:
-        """Starts the job in the background, for `radius_km` round the station when given (else `map/radius_km`, which it never changes); MapError (nothing started) if one is running or there is no position. Its end is told by `changed`."""
+        """Start the job in the background, for `radius_km` if given (else `map/radius_km`).
+
+        Raise MapError if a job runs or there is no position. The end is signalled by `changed`."""
         self._claim(job)
         self._radius = radius_km
         self._current = self._tasks.spawn(self._run(job), "map-" + job)
         self.changed.emit()
 
     async def estimate(self) -> None:
-        """A dry run: how big the detailed map will be (`status().estimate`). Raises MapError, CutError."""
+        """Estimate the detailed map's size into `status().estimate`; raise MapError, CutError."""
         self._claim("estimate")
         await self._run("estimate", raising=True)
 
     async def fetch(self) -> None:
-        """Makes the world map when it is not there, then the detailed map. Raises MapError, CutError."""
+        """Make the world map if missing, then the detailed map. Raise MapError, CutError."""
         self._claim("fetch")
         await self._run("fetch", raising=True)
 
     def cancel(self) -> bool:
-        """Ends the job that is running (its files are removed); False if none is."""
+        """End the running job and remove its files; return False if none runs."""
         task = self._current
         if self._busy is None or task is None or task.done():
             return False
@@ -194,7 +190,7 @@ class MapFetch:
         return True
 
     async def end(self) -> None:
-        """Ends the job that is running, if one is, and waits until it is over (not by the user: `cancelled_by_user` stays as it was)."""
+        """End the running job, if any, and wait for it; `cancelled_by_user` is left unchanged."""
         task = self._current
         if self._busy is not None and task is not None and not task.done():
             task.cancel()
@@ -218,7 +214,7 @@ class MapFetch:
                 raise
         except Exception as e:
             full = isinstance(e, OSError) and e.errno == errno.ENOSPC
-            self._problem = MapError(FAILED if not isinstance(e, OSError) else f"{FAILED}: {e.strerror or e}", problem="no_space" if full else "failed")       # (the page says it by its code; the detail is in the log)
+            self._problem = MapError(FAILED if not isinstance(e, OSError) else f"{FAILED}: {e.strerror or e}", problem="no_space" if full else "failed")
             log.exception("the map %s failed", job)
             if raising:
                 raise
@@ -232,7 +228,7 @@ class MapFetch:
                 self.changed.emit()
 
     async def _source(self) -> tuple[str, str]:
-        """Where to cut from and the day of the build ("" for a source that is not a daily build)."""
+        """Return the source to cut from and its build day ("" if not a daily build)."""
         chosen = self.config().map_source
         if chosen:
             named = re.search(r"(\d{8})\.pmtiles$", chosen)
@@ -271,7 +267,7 @@ class MapFetch:
             log.warning("the note on the build of %s could not be written: %s", name, e)
 
     async def _download(self, source: str, final: Path, box: Box | None, zoom: int) -> None:
-        """Cuts the map into `final` (moved into place when it is whole); a cut that stands still is ended and begun again from the start after a pause, `tries` times in all; then CutError."""
+        """Cut the map into `final`, restarting a stalled cut; raise CutError after `tries`."""
         part = part_of(final)
         for attempt in range(1, self.patience.tries + 1):
             part.unlink(missing_ok=True)
@@ -288,7 +284,7 @@ class MapFetch:
             await asyncio.sleep(self.patience.pause_sec)
 
     async def _watched(self, run: Awaitable[object]) -> None:
-        """Waits for the cut, looking at the size of what has come now and then; _Stalled (the cut is ended) when neither that nor the percent has moved for `stall_sec`."""
+        """Wait for the cut, polling its size; end it and raise _Stalled after `stall_sec` idle."""
         task = asyncio.ensure_future(run)
         self._moved = time.monotonic()
         try:
@@ -317,4 +313,5 @@ class MapFetch:
 
 if __name__ == "__main__":
     import importlib
-    raise SystemExit(importlib.import_module("neoaprs.services.mapcli").main())         # (not imported at the top: the command line imports this module)
+    # Imported here because mapcli imports this module.
+    raise SystemExit(importlib.import_module("neoaprs.services.mapcli").main())

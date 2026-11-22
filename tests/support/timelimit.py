@@ -1,7 +1,6 @@
-"""A time limit for every test. `faulthandler_timeout` (pyproject.toml) writes the stack of every thread of a test that is still running after two minutes and lets it go on; no plugin in the project ends one, so a test that hangs
-would cost the job its half hour and name nobody. Here a watchdog thread arms for each test: when the test has run over the limit it writes the test's name and the stack of every thread to stderr and ends the process
-(under pytest-xdist the worker is lost, and the run says which test it was running and goes on with a new one). The limit is NEOAPRS_TEST_LIMIT_SEC seconds (600 when unset; 0 is no limit): the slowest test of the suite
-takes minutes on a busy machine, a hung one takes all the time there is."""
+"""A time limit for every test: a watchdog thread arms for each test and, when the test runs over
+the limit, writes its name and every thread's stack to stderr and ends the process.
+"""
 import faulthandler
 import os
 import sys
@@ -24,7 +23,8 @@ def limit_sec() -> float:
 
 def _over(test: str, seconds: float, capture: Any) -> None:
     if capture is not None:
-        capture.suspend_global_capture(in_=False)           # (what a test writes to stderr is held by pytest until it ends: this goes to the real one)
+        # What a test writes to stderr is held by pytest until it ends: this goes to the real one
+        capture.suspend_global_capture(in_=False)
     err = sys.__stderr__ or sys.stderr
     err.write(f"\n{test} ran over its time limit of {seconds:g} s and is ended here (NEOAPRS_TEST_LIMIT_SEC); the stack of every thread:\n")
     err.flush()

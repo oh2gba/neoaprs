@@ -1,7 +1,6 @@
-"""The desktop app after Update now of an AppImage (neoaprs/desktop/renew.py): the app that started its daemon sees its own file become the new version and the daemon run it, ends as Quit would but leaves the
-daemon running, lets go of the data folder, and is started again from the new file in its own place, the owner of the daemon it finds (`--owns-daemon`), so that its Quit still stops it. An app that attached
-to a daemon (a service, one started by hand) is left as it is. What only a real desktop shows (the exec of a real AppImage, the window and the tray coming back) is not here: the exec, the toolkits and the
-daemons are stand-ins."""
+"""Tests for the desktop app after an AppImage update (neoaprs/desktop/renew.py): the app that owns
+its daemon restarts from the new file and keeps owning it; an attached app is left alone. The exec,
+the toolkits and the daemons are stand-ins."""
 import os
 import signal
 import subprocess
@@ -27,7 +26,8 @@ DATA = Path("somewhere")
 
 
 def new_file(path: Path, content: bytes) -> None:
-    """A new file in the place of `path`, as Update now puts it there: written beside it and renamed over it."""
+    """A new file in the place of `path`, as Update now puts it there: written beside it and renamed
+    over it."""
     part = path.with_name(path.name + ".part")
     part.write_bytes(content)
     os.replace(part, path)
@@ -58,7 +58,8 @@ def test_a_file_that_changes_between_looks_is_not_started(tmp_path: Path) -> Non
     image.write_bytes(b"0.20.2")
     app_file = renew.AppFile.of(str(image))
     assert app_file is not None
-    for size in range(1, 5):                                          # (a copy by hand over the file: it grows at every look)
+    # (a copy by hand over the file: it grows at every look)
+    for size in range(1, 5):
         with image.open("ab") as grows:
             grows.write(b"x" * size)
         os.utime(image, ns=(size, size))
@@ -67,7 +68,8 @@ def test_a_file_that_changes_between_looks_is_not_started(tmp_path: Path) -> Non
 
 
 def test_the_app_starts_again_from_the_same_file_on_the_same_folder_as_the_owner_of_its_daemon_with_its_flags() -> None:
-    data, folder = Path("/home/ham/.local/share/neoaprs"), str(Path("/d"))          # (as this system writes a path: the app is an AppImage's, the test runs everywhere)
+    # (as this system writes a path: the app is an AppImage's, the test runs everywhere)
+    data, folder = Path("/home/ham/.local/share/neoaprs"), str(Path("/d"))
     assert renew.argv("/home/ham/NeoAPRS.AppImage", data, False, False) == ["/home/ham/NeoAPRS.AppImage", "app", "--data", str(data), "--owns-daemon"]
     assert renew.argv("/a/N.AppImage", Path("/d"), True, True) == ["/a/N.AppImage", "app", "--data", folder, "--owns-daemon", "--encryption", "--debug"]
     args = cmd.parser().parse_args(renew.argv("/a/N.AppImage", Path("/d"), True, True)[2:])
@@ -134,7 +136,8 @@ class Replaced(renew.AppFile):
 
 
 def watch(owned: bool, daemon: FakeDaemon, app_file: Replaced | None) -> tuple[DaemonWatch, threading.Event, threading.Event]:
-    """The watch as the app makes it (it follows the page too: an attached app's watch runs for that)."""
+    """The watch as the app makes it (it follows the page too: an attached app's watch runs for
+    that)."""
     renewed, gone = threading.Event(), threading.Event()
     daemon.address = lambda data: None
     w = DaemonWatch(Session(DATA, PAGE, owned), gone.set, daemon, every=0.02, moved=lambda url: None, app_file=app_file, renewed=renewed.set)
@@ -162,7 +165,8 @@ def test_the_watch_waits_while_the_daemon_is_starting_again_or_has_a_restart_pen
 
 
 def test_the_watch_does_not_look_at_the_daemons_lock_while_the_daemon_starts_again() -> None:
-    """A look at the lock takes it for a moment: the new daemon that takes it in that moment finds it held and ends, and no daemon is left (work/par/r3/appe2e, risk 3)."""
+    """A look at the lock takes it for a moment: the new daemon that takes it in that moment finds
+    it held and ends, and no daemon is left (work/par/r3/appe2e, risk 3)."""
     daemon = FakeDaemon(up=False)
     pending = [True]
     looks: list[bool] = []
@@ -191,7 +195,9 @@ def test_an_app_attached_to_a_daemon_or_outside_an_appimage_is_never_started_aga
 
 
 def test_with_the_daemons_own_files_and_notes_the_app_waits_for_the_restart_and_an_old_file_put_back_is_no_new_version(tmp_path: Path) -> None:
-    """The steps of Update now as the daemon takes them (selfinstall.py and app.py: the old file kept as a hard link, the new one renamed over it, the note of the restart at once), on real files."""
+    """The steps of Update now as the daemon takes them (selfinstall.py and app.py: the old file
+    kept as a hard link, the new one renamed over it, the note of the restart at once), on real
+    files."""
     data, image = tmp_path / "data", tmp_path / "NeoAPRS-x86_64.AppImage"
     data.mkdir()
     image.write_bytes(b"0.20.2")
@@ -249,7 +255,8 @@ class Started(Exception):
 
 @pytest.fixture
 def renewing(world: World, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[World, Path, list[Launch], list[tuple[list[str], bool]]]:
-    """`neoaprs app` in an AppImage, with the scripted shell; what was started in its place and whether the app held the data folder then."""
+    """`neoaprs app` in an AppImage, with the scripted shell; what was started in its place and
+    whether the app held the data folder then."""
     image = tmp_path / "NeoAPRS-x86_64.AppImage"
     image.write_bytes(b"0.20.2")
     monkeypatch.setattr(cmd, "appimage_file", lambda: str(image))
@@ -320,21 +327,26 @@ def test_the_web_engines_processes_are_the_children_of_the_app_by_the_engines_pr
     proc_entry(proc, 501, "501 (QtWebEngineProc) S 500 500 500 0 -1")
     proc_entry(proc, 502, "502 (WebKitNetworkPr) Z 500 500 500 0 -1")
     proc_entry(proc, 503, "503 (python3) S 500 503 503 0 -1")                  # (the daemon the app started)
-    proc_entry(proc, 504, "504 (QtWebEngineProc) S 501 500 500 0 -1")          # (a renderer, the child of the engine's own process)
+    # (a renderer, the child of the engine's own process)
+    proc_entry(proc, 504, "504 (QtWebEngineProc) S 501 500 500 0 -1")
     proc_entry(proc, 505, "505 (QtWebEngineProc) S 900 900 900 0 -1")          # (another app's)
     proc_entry(proc, 506, "506 (a) (QtWebEngineProc) S 500 500 500 0 -1")      # (a name of brackets of its own)
-    proc_entry(proc, 508, "508 (bwrap) S 500 500 500 0 -1")                    # (WebKitGTK's web process in its sandbox)
-    proc_entry(proc, 509, "509 (WebKitWebProces) S 510 500 500 0 -1")          # (the web process itself, inside the sandbox)
+    # (WebKitGTK's web process in its sandbox)
+    proc_entry(proc, 508, "508 (bwrap) S 500 500 500 0 -1")
+    # (the web process itself, inside the sandbox)
+    proc_entry(proc, 509, "509 (WebKitWebProces) S 510 500 500 0 -1")
     proc_entry(proc, 511, "511 (xdg-dbus-proxy) Z 500 500 500 0 -1")
     (proc / "self").mkdir()
     (proc / "self" / "stat").write_text("500 (python3) S 1 500 500 0 -1", encoding="utf-8")
-    (proc / "507").mkdir()                                                    # (one that ended while the folder was listed)
+    # (one that ended while the folder was listed)
+    (proc / "507").mkdir()
     assert renew.helpers(str(proc), parent=500) == [501, 502, 508, 511]
     assert renew.helpers(str(tmp_path / "no proc"), parent=500) == []
 
 
 class Helpers:
-    """The kill and the wait of the web engine's processes, in virtual time: `stubborn` ones end only when killed."""
+    """The kill and the wait of the web engine's processes, in virtual time: `stubborn` ones end
+    only when killed."""
 
     def __init__(self, stubborn: set[int]) -> None:
         self.stubborn, self.now = stubborn, 0.0
@@ -368,8 +380,9 @@ def test_the_web_engines_processes_are_asked_to_end_and_those_that_do_not_are_ki
 
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="the AppImage is Linux's, and so is /proc")
 def test_a_real_child_named_as_the_web_engine_is_ended_and_waited_for_and_the_daemon_beside_it_is_left() -> None:
-    """For real: two children of this process, one named as Qt's web engine names its process, the other as a daemon is named. The engine's ends and is waited for (no process is left that nobody waits for);
-    the daemon runs on."""
+    """For real: two children of this process, one named as Qt's web engine names its process, the
+    other as a daemon is named. The engine's ends and is waited for (no process is left that nobody
+    waits for); the daemon runs on."""
     program = "import sys\nopen('/proc/self/comm', 'w').write(sys.argv[1])\nprint('ready', flush=True)\nsys.stdin.read()"
     started = [subprocess.Popen([sys.executable, "-c", program, name], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True) for name in ("QtWebEngineProcess", "neoaprs-daemon")]
     engine, daemon = started

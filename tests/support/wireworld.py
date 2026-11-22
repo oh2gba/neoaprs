@@ -1,4 +1,6 @@
-"""A small world of the daemon's objects, one of every kind the page is told about, and every `neoaprs/web/views.py` view of it as JSON: what the golden file tests/fixtures/wire/rows.json holds."""
+"""A small world of one daemon object of every kind the page is told about, and every
+`neoaprs/web/views.py` view of it as JSON: what tests/fixtures/wire/rows.json holds.
+"""
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -48,7 +50,8 @@ def made_up(info: str, source: str, at: datetime = T0) -> Packet:
 
 
 def packets() -> list[Packet]:
-    """A packet of every kind the page tells: positions (plain, with course and speed, with PHG, Mic-E), objects, items, status with a locator, telemetry, weather, a message, a third-party
+    """A packet of every kind the page tells: positions (plain, with course and speed, with PHG,
+    Mic-E), objects, items, status with a locator, telemetry, weather, a message, a third-party
     packet, one received from the internet, one of ours, one over HF with its SNR."""
     return [
         heard("!4903.50N/07201.75W-Test", "N0AAA", ("OH2RCH-2*", "WIDE2-1")),
@@ -80,8 +83,11 @@ def packets() -> list[Packet]:
 
 
 def book() -> StationBook:
-    """The station book of the packets: ours, stations of every kind, a track, the definitions of a telemetry station, an object of ours, a station with no position."""
-    book = StationBook(clock=FixedClock(T0), carries_path=lambda radio: carries_path(RADIOS, radio))        # (told the radios' types, as the composition root tells it the station's: the HF radio's frames carry no path)
+    """The station book of the packets: ours, stations of every kind, a track, the definitions of a
+    telemetry station, an object of ours, a station with no position."""
+    # Told the radios' types, as the composition root tells it the station's: the HF radio's frames
+    # carry no path
+    book = StationBook(clock=FixedClock(T0), carries_path=lambda radio: carries_path(RADIOS, radio))
     book.set_me(ME, 60.2, 24.9, "/", "-", "Home")
     for packet in packets():
         book.take(packet)
@@ -97,8 +103,10 @@ def book() -> StationBook:
 
 
 def messages() -> list[tuple[MessageRecord, tuple[Attempt, ...]]]:
-    """A message in each state and with attempts: acked (heard back by radio and by the internet), failed (for want of an answer, and for a frame the radio does not carry), sending, received, overheard; one in and
-    one out over HF, with the SNR of the packet that carried it and of the ack that came back."""
+    """A message in each state and with attempts: acked (heard back by radio and by the internet),
+    failed (for want of an answer, and for a frame the radio does not carry), sending, received,
+    overheard; one in and one out over HF, with the SNR of the packet that carried it and of the ack
+    that came back."""
     seen = (HopSeen(1, "OH2RCH-2", T0 + timedelta(seconds=3), False), HopSeen(2, "OH2RDG-1", T0 + timedelta(seconds=5), True), HopSeen(AT_GATE, "OH7JHF-1", T0 + timedelta(seconds=6), True))
     a1 = Attempt(1, T0, ("OH2RCH-2", "WIDE2-1"), seen)
     a2 = Attempt(2, T0 + timedelta(seconds=30), ("WIDE1-1",), ())
@@ -167,7 +175,8 @@ def tnc_dummy_hf() -> Tnc:
 
 @dataclass
 class FakeGps:
-    """The GPS service as the `gps` topic reads it: a fix, a state, the reason as a code, and whether the fix is fresh."""
+    """The GPS service as the `gps` topic reads it: a fix, a state, the reason as a code, and
+    whether the fix is fresh."""
     fix: Fix | None = None
     state: str = "off"
     reason: str = ""
@@ -184,7 +193,8 @@ class FakePlan:
 
 
 def gps_rows(views: Any) -> list[dict[str, Any]]:
-    """The `gps` topic: off, a mobile station with a fresh fix that turned a corner, and a mobile station whose receiver is not up."""
+    """The `gps` topic: off, a mobile station with a fresh fix that turned a corner, and a mobile
+    station whose receiver is not up."""
     from neoaprs.config import DEFAULTS
     mobile = replace(DEFAULTS, gps_source="gpsd")
     fix = Fix(60.17, 24.94, T0, 54.6, 270, 31.0, 9)
@@ -207,7 +217,8 @@ class FakeIgate:
 
 
 def igate_rows(views: Any) -> list[dict[str, Any]]:
-    """The `igate` topic: off, connected with packets gated and not gated, not connected, listening only, and a passcode the server did not accept."""
+    """The `igate` topic: off, connected with packets gated and not gated, not connected, listening
+    only, and a passcode the server did not accept."""
     from neoaprs.config import DEFAULTS
     on = replace(DEFAULTS, igate_enabled=True, station_call="OH2GBA")
     return [
@@ -230,7 +241,8 @@ class FakeQru:
 
 
 def qru_rows(views: Any) -> list[dict[str, Any]]:
-    """The `qru` topic: nothing yet, a request nobody answered, and two servers (one with its closing line, one in miles that has only sent the closing line of a group)."""
+    """The `qru` topic: nothing yet, a request nobody answered, and two servers (one with its
+    closing line, one in miles that has only sent the closing line of a group)."""
     first = Server("DF8LS-10", (("RP70", 10), ("RP2M", 3)), 5, 50, "km", T0, False, "Sent 5 RP70 Objects Max 5@50km de DF8LS-10", T0 + timedelta(seconds=40), radio=2)
     second = Server("W1AW", (), None, None, "", T0 + timedelta(minutes=2), False, "Sent 2 of 7 FOOD Objects, NEXT for more. de W1AW", T0 + timedelta(minutes=2))
     return [views.qru_state(FakeQru()), views.qru_state(FakeQru(Asked("INFO", T0))), views.qru_state(FakeQru(AskedOn("RP70 150", T0 + timedelta(seconds=30), (1, 2)), [first, second]))]
@@ -266,9 +278,12 @@ RADIOS = (RadioSpec(1, "fm", "kiss", "Mobile", True, 1, settings={"port": "/dev/
 
 
 def radio_rows(views: Any) -> list[dict[str, Any]]:
-    """The topic `radios`: an FM radio connected with its beacon, the Dummy HF radio with Send on unticked, a second FM radio whose port the first holds, and a removed one."""
+    """The topic `radios`: an FM radio connected with its beacon, the Dummy HF radio with Send on
+    unticked, a second FM radio whose port the first holds, and a removed one."""
     claims = Claims()
-    claims.hold(Claim("serial", claim_value("/dev/ttyUSB0") or "", 1))          # (as the radio's search and open hold it: the port as this system compares it, in upper case on Windows)
+    # As the radio's search and open hold it: the port as this system compares it, in upper case on
+    # Windows
+    claims.hold(Claim("serial", claim_value("/dev/ttyUSB0") or "", 1))
     waiting = Tnc(clock=FixedClock(T0))
     waiting.state = Source.State.WAITING
     at_work = {1: FakeRadio(tnc(), FakeBeacon(T0, T0 + timedelta(minutes=30), 30)), 2: FakeRadio(tnc_dummy_hf(), FakeBeacon(problem=RECEIVE_ONLY)),
@@ -279,7 +294,9 @@ def radio_rows(views: Any) -> list[dict[str, Any]]:
 
 
 def station_radios(views: Any) -> Any:
-    """What the station rows say of the radios: a choice for one station, the radio a message takes now, a path on radio 3 for one station, and a reply path through a gateway on radio 2 for one, none for another."""
+    """What the station rows say of the radios: a choice for one station, the radio a message takes
+    now, a path on radio 3 for one station, and a reply path through a gateway on radio 2 for one,
+    none for another."""
     return views.StationRadios(choice=lambda call: 3 if call == "N0AAA" else None, now=lambda call: 3 if call == "N0AAA" else 1, paths=lambda call: {3: ("OH2RCH-2",)} if call == "N0AAA" else {},
                                replies=lambda call: {2: ("OH2GBA-12", "WIDE2-1")} if call == "N0AAA" else {2: ()})
 

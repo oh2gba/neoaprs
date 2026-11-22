@@ -1,5 +1,6 @@
-"""Migration 29 (neoaprs/migrationsteps22on.py): `web/allowed_hosts` is checked now, where any text was taken before and the server split it on blanks and commas. A stored value is written again in the form the
-check takes, so that every name in it stays allowed: blanks separate as commas do, a port and a dot at the end are dropped, and only what is not a name or an address at all is left out, with a line in the log."""
+"""Migration 29 (neoaprs/migrationsteps22on.py): `web/allowed_hosts` is validated, so a stored value
+is rewritten in the form the check takes and every name in it stays allowed.
+"""
 import logging
 from pathlib import Path
 

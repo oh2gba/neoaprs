@@ -1,21 +1,33 @@
-"""`neoaprs db COMMAND`: looks at and changes what NeoAPRS keeps in its one database (the settings, the packets, the stations); the daemon may be running, the database thread of this tool waits a few
-seconds for it.
+"""`neoaprs db COMMAND`: read and change what NeoAPRS keeps in its database (settings, packets,
+stations). The daemon may be running; this tool waits a few seconds for the database.
 
-    neoaprs db list                      every setting with its value and whether it is stored or the default
-    neoaprs db get station/call          one setting, or one of the rows the daemon keeps that are not settings (`update/install_id`: the number of this installation)
-    neoaprs db set station/call OH2GBA-9 a setting, checked like the daemon checks it against the settings stored; the daemon reads settings at its start (or when the page saves them)
-    neoaprs db set update/not_counted true  the update check sends the number 0 in place of this installation's own, so that the project does not count this run; `false` takes it away (read at each check)
-    neoaprs db radios                    the radios: each with its number, name, kind, type, whether it is on, and its own settings (radio/<id>/<key>) with their values
-    neoaprs db radios add kiss [NAME]    a radio of the type (kiss, kenwood-tnc2, kiss-tcp, mercury ...), on unless --off, after the others; a fresh data folder is made, so that a station can be set up
-                                         before its first start. The database gives it its number; the daemon takes it at its next start
-    neoaprs db set radio/1/port /dev/ttyUSB0  one setting of one radio, checked as the daemon checks it; `get` reads one the same way. A key of before of a radio's setting (serial/port,
-                                         hf/enabled, mercury/* ...) is no setting: the answer names the radio's own key
-    neoaprs db stations                  the stations the daemon knows: call, kind, last heard, position, packets
-    neoaprs db packets -n 50             the latest packets, oldest first, as TNC2 line -> what the parser made of it
-    neoaprs db restore                   the copies in the backup folder: date, version of the schema, size, and whether this NeoAPRS can open it
-    neoaprs db restore NAME              puts the copy NAME in the place of the database, with NeoAPRS stopped; the file that was there is kept beside it under a name that says when
+    neoaprs db list                      every setting with its value, stored or default
+    neoaprs db get station/call          one setting, or a row the daemon keeps that is not a
+                                         setting (`update/install_id`: this installation's number)
+    neoaprs db set station/call OH2GBA-9 change a setting, checked as the daemon checks it; the
+                                         daemon reads settings at its start or a page save
+    neoaprs db set update/not_counted true  the update check sends the number 0 instead of this
+                                         installation's own; `false` undoes it
+    neoaprs db radios                    the radios: number, name, kind, type, whether on, and their
+                                         own settings (radio/<id>/<key>) with values
+    neoaprs db radios add kiss [NAME]    add a radio of the type (kiss, kenwood-tnc2, kiss-tcp,
+                                         mercury ...), on unless --off, after the others; the
+                                         daemon takes it at its next start
+    neoaprs db set radio/1/port /dev/ttyUSB0  one setting of one radio, checked as the daemon
+                                         checks it; `get` reads one the same way. An old flat key
+                                         (serial/port, hf/enabled, mercury/* ...) is no setting: the
+                                         answer names the radio's own key
+    neoaprs db stations                  the stations the daemon knows: call, kind, last heard,
+                                         position, packets
+    neoaprs db packets -n 50             the latest packets, oldest first, as TNC2 line -> what the
+                                         parser made of it
+    neoaprs db restore                   the copies in the backup folder: date, schema version, size,
+                                         and whether this NeoAPRS can open it
+    neoaprs db restore NAME              put the copy NAME in place of the database, with NeoAPRS
+                                         stopped; the old file is kept beside it, stamped
 
---data DIR is the data folder (default: the one the daemon uses). `set`, `radios add` and `restore` are the writes; everything else opens the database for reading and changes nothing."""
+--data DIR is the data folder (default: the one the daemon uses). `set`, `radios add` and `restore`
+write; everything else opens the database read-only."""
 import argparse
 import asyncio
 import logging
@@ -61,7 +73,8 @@ def parse(argv: list[str]) -> argparse.Namespace:
 
     def command(name: str, help: str) -> argparse.ArgumentParser:
         sub = commands.add_parser(name, help=help)
-        sub.add_argument("--data", default=argparse.SUPPRESS, help="the data folder, as given before the command (the subcommand takes it too)")          # (no default of its own: it would put the default over the one given before the command)
+        # No default here: it would override the value given before the command.
+        sub.add_argument("--data", default=argparse.SUPPRESS, help="the data folder, as given before the command (the subcommand takes it too)")
         return sub
 
     command("list", "every setting")
@@ -82,7 +95,7 @@ def parse(argv: list[str]) -> argparse.Namespace:
 
 
 def daemon_state(key: str) -> bool:
-    """A row only the daemon writes, which `set` refuses: the station's state, a radio's own (its beacon's last send; the port its search found is radio 1's alone), and the two rows of before migration 31."""
+    """Return True for a row only the daemon writes, which `set` refuses."""
     radio = radio_key_of(key)
     return key in STATE_KEYS or key in STATE_BEFORE_31 or key == LAST_PORT or (radio is not None and radio[1] in RADIO_STATE and radio[1] != "last_port")
 
@@ -116,8 +129,7 @@ async def show_settings(store: Any, only: str | None) -> int:
 
 
 def before_note(key: str, config: Config) -> str:
-    """For a row of a key of before of a radio's setting, which nothing reads (a folder set up by a build of the round before its first start, whose radio was never made), where its value goes now:
-    the sentence of `moved`, and while the station has no radio, that one is added first; "" for any other key."""
+    """Say where the value of an unread old flat radio key goes now; "" for any other key."""
     found = moved(key, config)
     if not found:
         return ""
@@ -126,7 +138,7 @@ def before_note(key: str, config: Config) -> str:
 
 
 def stored_note(key: str, text: str | None, check: Callable[[str], object]) -> str:
-    """What `get` says under a value when it is not the stored one: that the setting is not stored, or that it is stored as a text that is no value (`check` refuses it); "" when it is."""
+    """Return a note when `get` shows a value that is not the stored one, else ""."""
     if text is None:
         return f"{key} is not stored; this is the default"
     try:
@@ -137,8 +149,7 @@ def stored_note(key: str, text: str | None, check: Callable[[str], object]) -> s
 
 
 def moved(key: str, config: Config = DEFAULTS) -> str:
-    """For a key of before of a radio's setting (`serial/port`, `hf/enabled`), which is no setting of the command line, the sentence that names where it is now with the radios of `config`: the page's
-    (configradios.flat_moved) for a radio's own key, and for its type and Enable, which only the page changes, the radio's by its number (`flat_now`); "" for any other key."""
+    """Name where an old flat radio key (`serial/port`, `hf/enabled`) lives now; "" for other keys."""
     setting = BY_KEY.get(key)
     found = None if setting is None else flat_moved(setting.attr, config.radios)
     if setting is None or found is None:
@@ -152,13 +163,13 @@ def moved(key: str, config: Config = DEFAULTS) -> str:
 
 
 def no_setting_now(key: str, specs: tuple[RadioSpec, ...], rows: dict[str, str]) -> int:
-    """`get` or `set` of a key of before of a radio's setting: the sentence that names where it is now (`moved`), and the exit code 2."""
+    """Answer `get` or `set` of an old flat radio key: say where it is now, return 2."""
     say(f"{PROG}: {moved(key, in_force(rows, specs))}")
     return 2
 
 
 def show_one(rows: dict[str, str], radios: Radios, only: str) -> int:
-    """`get`: a setting, a radio's own setting (`radio/<id>/<key>`) or a row the daemon keeps; the exit code."""
+    """`get`: show a setting, radio setting (`radio/<id>/<key>`) or daemon row; return exit code."""
     specs = radios.specs
     if moved(only):
         return no_setting_now(only, specs, rows)
@@ -177,7 +188,8 @@ def show_one(rows: dict[str, str], radios: Radios, only: str) -> int:
         if note := stored_note(only, radios.own.get((spec.id, key)), lambda t: Config.check_radio(spec, key, t)):
             say(f"{PROG}: {note}")
         return 0
-    if only in rows:                                # (a row the daemon keeps that is not a setting; a secret one is shown as its length only)
+    # A row the daemon keeps that is not a setting; a secret one shows only its length.
+    if only in rows:
         print(shown_value(only, rows[only]))
         return 0
     say(f"{PROG}: {only}: no such setting (try list, or radios for the settings of a radio)")
@@ -201,7 +213,7 @@ async def show_packets(log: Any, count: int) -> int:
 
 
 def checked_row(key: str, value: str) -> str:
-    """The text of `update/not_counted` as it is kept, `true` or `false`; ValueError naming the key when `value` is neither."""
+    """Return `update/not_counted` as stored (`true` or `false`); raise ValueError if neither."""
     try:
         return "true" if boolean(value) else "false"
     except ValueError as e:
@@ -209,8 +221,7 @@ def checked_row(key: str, value: str) -> str:
 
 
 async def store_setting(store: Store, key: str, value: str, text: str) -> int:
-    """`set`: the value `text` (`value` as the setting keeps it) stored when it goes with the settings stored, by the rules between settings that a save of the page applies; the exit code. With the
-    radios stored, `serial/last_port` is radio 1's own state row (config.LAST_PORT), which is read in its place. A key of before of a radio's setting is refused with where it is now."""
+    """`set`: store `text` if it passes the cross-setting rules of a page save; return exit code."""
     rows, radios = await store.settings(), (await stored_radios(store)).specs
     if moved(key):
         return no_setting_now(key, radios, rows)
@@ -230,7 +241,7 @@ async def store_setting(store: Store, key: str, value: str, text: str) -> int:
 
 
 async def store_radio_setting(store: Store, key: str, value: str) -> int:
-    """`set radio/<id>/<key> VALUE`: one setting of one radio, checked by its field, and its port by the radio's type (a TCP type connects to its KISS server, not to a serial device); the exit code."""
+    """`set radio/<id>/<key> VALUE`: check by field, and a port by type; return the exit code."""
     radios = (await stored_radios(store)).specs
     id, own = radio_key_of(key) or (0, "")
     spec = next((s for s in radios if s.id == id), None)
@@ -266,7 +277,7 @@ def list_copies(data: Path) -> int:
 
 
 def restore_copy(data: Path, name: str) -> int:
-    """`restore NAME`: the exit code of putting the copy in the place of the database, or of the reason it was not done."""
+    """`restore NAME`: put the copy in place of the database; return the exit code."""
     try:
         copy, aside = restore(data, DB_NAME, name, SCHEMA_VERSION)
     except RestoreRefused as e:
@@ -277,9 +288,10 @@ def restore_copy(data: Path, name: str) -> int:
 
 
 def before_opening(args: argparse.Namespace, path: Path) -> int | str:
-    """What is checked before the database is opened: for `set`, the value of a setting of the station by its key (the text as it is kept), and that the data folder can be made; for any other
-    command, and for a radio's own setting (checked by its radio's field once the database is read), that the file is there; a key of before of a radio's setting is answered with where it is now,
-    by the database's radios where there is a database. The text, or the exit code of the refusal."""
+    """Check what can be checked before the database is opened.
+
+    Return the stored text of a `set`, or the exit code of a refusal.
+    """
     if args.command in ("set", "get") and moved(args.key):
         if is_file(path):
             return ""
@@ -320,7 +332,7 @@ def before_opening(args: argparse.Namespace, path: Path) -> int | str:
 
 
 async def answer(args: argparse.Namespace, store: Store, log: PacketLog, text: str) -> int:
-    """The command on the open database; its exit code."""
+    """Run the command on the open database; return its exit code."""
     if args.command == "set":
         return await (store_radio_setting(store, args.key, args.value) if radio_key_of(args.key) is not None else store_setting(store, args.key, args.value, text))
     if args.command in ("list", "get"):
@@ -341,7 +353,8 @@ async def run(args: argparse.Namespace) -> int:
     text = before_opening(args, path)
     if isinstance(text, int):
         return text
-    with held(path, writing, WRITE_WAIT_MS) as refused:                     # (the daemon migrates the file, another NeoAPRS writes it, or one of the version before has it open: dbwrite.py)
+    # `refused` is set while the daemon migrates the file or another process holds it (dbwrite.py).
+    with held(path, writing, WRITE_WAIT_MS) as refused:
         if refused:
             say(f"{PROG}: {path}: {refused}")
             return 1
@@ -369,7 +382,8 @@ async def run(args: argparse.Namespace) -> int:
 def main(argv: list[str]) -> int:
     args = parse(argv)
     logger = logging.getLogger(MIGRATION_LOG)
-    said = logging.StreamHandler()                           # `set` may be the first to open a file of an older version: what its migrations did is said here, where nothing else logs
+    # `set` may be the first to open an older file: show its migrations, as nothing else logs here.
+    said = logging.StreamHandler()
     said.setFormatter(logging.Formatter("%(message)s"))
     if args.command == "set" or (args.command == "radios" and args.add):
         logger.addHandler(said)

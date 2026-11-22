@@ -1,5 +1,7 @@
-"""Find my radio through the page's socket: `find_radio` is told to the page that asked with `radio_search` messages and ends with `found`, `cancelled` or an `error` with a code; the radio's own line is let go for the time and
-taken again after it. The ports are fakes (tests/support/faketnc.py): no device of the machine is listed or opened."""
+"""Find my radio through the page socket: `find_radio` is answered with `radio_search` messages and
+ends with `found`, `cancelled` or an `error` with a code; the radio's own line is let go meanwhile.
+The ports are fakes.
+"""
 from pathlib import Path
 
 from neoaprs.services.radiofinder import RadioFinder
@@ -90,7 +92,8 @@ async def _none() -> list[str]:
 
 
 async def test_a_daemon_with_a_pattern_that_matches_nothing_lists_no_port_to_try(tmp_path: Path) -> None:
-    """The daemon of the tests (and of a demonstration) has a search pattern that matches nothing: Find my radio has nothing to open, not even the Bluetooth devices that are paired."""
+    """The daemon of the tests (and of a demonstration) has a search pattern that matches nothing:
+    Find my radio has nothing to open, not even the Bluetooth devices that are paired."""
     e = Env(tmp_path / "data", web=True)
     await e.start()
     page = await e.ws()
@@ -100,7 +103,9 @@ async def test_a_daemon_with_a_pattern_that_matches_nothing_lists_no_port_to_try
 
 
 async def test_the_finder_of_the_radios_side_by_side_is_given_the_radio_and_the_page_that_names_none_searches_for_radio_1(tmp_path: Path) -> None:
-    """The finder app.py makes from I4 on (each radio's own hold, the station's table and its one search at a time) takes `find(trying, radio)` always: the page of before, which names no radio, finds radio 1."""
+    """The finder app.py makes (each radio's own hold, the station's table and its one
+    search at a time) takes `find(trying, radio)` always: the page of before, which names no radio,
+    finds radio 1."""
     e = Env(tmp_path / "data", web=True)
     await e.start()
     servers: list[FakeTncServer] = []

@@ -1,5 +1,7 @@
-"""Asking QRU for local info (neoaprs/services/qruask.py, the words in neoaprs/qrutext.py, the command `qru_ask` and the topic `qru`): the request on the air (to QRU, no id, RFONLY, once, not kept), the refusals, the
-servers that answer and what is made of their lists and closing lines, and the whole through the daemon and the socket, on the station's radios as the registry gives them (tests/test_messaging.py `pick_of`: a stub Tnc, a Mercury one beside it) or the fake radio of an `Env`."""
+"""Asking QRU for local info (neoaprs/services/qruask.py, neoaprs/qrutext.py, command `qru_ask`,
+topic `qru`): the request on the air, the refusals, the answers' lists and closing lines, and the
+whole through the daemon.
+"""
 import logging
 from dataclasses import replace
 from datetime import timedelta
@@ -60,8 +62,10 @@ class Rig(ServiceRig):
     def __init__(self, **changes: object) -> None:
         super().__init__(**changes)
         self.paths: dict[str, tuple[str, ...]] = {}
-        self.paths_asked: list[tuple[str, int | None, int]] = []               # (the call, the attempt and the radio the path of messages was asked for)
-        self.radios = pick_of(self)                                             # (the station's radios as the registry gives them: radio 1 on the stub line)
+        # The call, the attempt and the radio the path of messages was asked for
+        self.paths_asked: list[tuple[str, int | None, int]] = []
+        # The station's radios as the registry gives them: radio 1 on the stub line
+        self.radios = pick_of(self)
         self.qru = QruAsk(self.radios, lambda: self.config, self.path_for, self.clock)
         remember_stop(self.qru.stop)
         self.told = 0
@@ -71,7 +75,8 @@ class Rig(ServiceRig):
         self.told += 1
 
     def path_for(self, call: str, attempt: int | None, radio: int) -> tuple[str, ...]:
-        """The path of messages to the station on the radio (PrefBook.path_for): the one the test set, else beacon/path."""
+        """The path of messages to the station on the radio (PrefBook.path_for): the one the test
+        set, else beacon/path."""
         self.paths_asked.append((call, attempt, radio))
         return self.paths.get(call, self.config.beacon_path_calls)
 
@@ -146,7 +151,8 @@ async def test_nothing_is_asked_in_rx_only_without_a_call_or_with_the_radio_away
     with pytest.raises(MessagingError, match="did not take"):
         rig.qru.ask("INFO")
     assert rig.tnc.sent == [] and rig.qru.asked is None and rig.told == 0
-    rig.radios.on.clear()                                                   # (no radio at all: what the settings refuse, and a fresh installation of the round)
+    # No radio at all: what the settings refuse, and a fresh installation of the round
+    rig.radios.on.clear()
     with pytest.raises(MessagingError, match="there is no radio"):
         rig.qru.ask("INFO")
 
@@ -154,11 +160,13 @@ async def test_nothing_is_asked_in_rx_only_without_a_call_or_with_the_radio_away
 async def test_a_request_goes_on_the_one_radio_that_can_send_by_the_path_it_carries_and_with_both_on_on_the_ticked_one() -> None:
     rig = Rig(hf_enabled=True, fm_enabled=False)
     hf = with_hf(rig, rig.radios)
-    rig.radios.on = {HF_ID}                                                 # (the HF radio alone: the one radio that can send, which carries no path)
+    # The HF radio alone: the one radio that can send, which carries no path
+    rig.radios.on = {HF_ID}
     rig.qru.ask("INFO")
     assert hf.lines() == ["OH2GBA>APZNEO::QRU      :INFO"] and rig.tnc.sent == []
     rig.set(fm_enabled=True)
-    rig.radios.on.add(FM_ID)                                                # (both on, no tick stored: ticked nowhere, nothing goes)
+    # Both on, no tick stored: ticked nowhere, nothing goes
+    rig.radios.on.add(FM_ID)
     rig.clock.advance(61)
     with pytest.raises(MessagingError) as refused:
         rig.qru.ask("INFO")
@@ -193,7 +201,8 @@ async def test_the_waits_between_requests_are_each_radios_own() -> None:
     hf = with_hf(rig, rig.radios)
     fm_ticked(rig)
     rig.qru.ask("INFO", radio=HF_ID)
-    rig.qru.ask("INFO")                                                                          # Local info's Send on, the FM radio: neither the gap nor the minute of HF holds it
+    # Local info's Send on, the FM radio: neither the gap nor the minute of HF holds it
+    rig.qru.ask("INFO")
     assert len(hf.sent) == 1 and len(rig.tnc.sent) == 1
     with pytest.raises(MessagingError) as refused:
         rig.qru.ask("RP70")
@@ -212,7 +221,8 @@ async def test_the_objects_counted_for_an_answer_are_those_heard_on_the_radio_of
     rig.qru.ask("TEST 150", radio=HF_ID)
     rig.qru.on_packet(replace(object_report("OH2DPN", "ONHF", rig.clock()), radio_id=HF_ID))
     rig.qru.on_packet(replace(object_report("OH2DPN", "ONFM", rig.clock()), radio_id=FM_ID))
-    rig.qru.on_packet(object_report("OH2DPN", "NAMELESS", rig.clock()))                    # (a packet that names no radio counts for every request)
+    # A packet that names no radio counts for every request
+    rig.qru.on_packet(object_report("OH2DPN", "NAMELESS", rig.clock()))
     rig.hear("OH2DPN", "Sent 3 TEST Objects Max 5@150km de OH2DPN")
     assert arrived(rig, "OH2DPN") == ("NAMELESS", "ONHF")
 
@@ -233,11 +243,13 @@ async def test_the_same_request_goes_once_a_minute_any_two_are_ten_seconds_apart
             rig.qru.ask(other)
         assert (refused.value.code, refused.value.params) == ("qru.too_soon", {"seconds": 3}), other
     rig.clock.advance(3)
-    rig.qru.ask("RP70")                                                                          # a group right after the list came
+    # A group right after the list came
+    rig.qru.ask("RP70")
     assert len(rig.tnc.sent) == 2 and rig.qru.asked is not None and rig.qru.asked.text == "RP70"
     rig.clock.advance(ASK_GAP_SEC)
     with pytest.raises(MessagingError) as refused:
-        rig.qru.ask("info")                                                                      # the same text again within the minute
+        # The same text again within the minute
+        rig.qru.ask("info")
     assert refused.value.params == {"seconds": ASK_EVERY_SEC - 2 * ASK_GAP_SEC}
     assert len(rig.tnc.sent) == 2 and rig.qru.asked.text == "RP70" and rig.told == 2
     rig.clock.advance(ASK_EVERY_SEC - 2 * ASK_GAP_SEC)
@@ -342,8 +354,10 @@ async def test_a_closing_line_says_how_many_went_and_the_objects_heard_from_the_
     rig.qru.ask("TEST 150")
     rig.clock.advance(6)
     rig.qru.on_packet(object_report("OH2DPN", "TESTOBJ", rig.clock()))
-    rig.qru.on_packet(object_report("OH2DPN", "TESTOBJ", rig.clock()))                    # (a digipeater's copy, or the object again: once)
-    rig.qru.on_packet(object_report("OH2XYZ", "OTHER", rig.clock()))                      # (another station's object is no answer)
+    # A digipeater's copy, or the object again: once
+    rig.qru.on_packet(object_report("OH2DPN", "TESTOBJ", rig.clock()))
+    # Another station's object is no answer
+    rig.qru.on_packet(object_report("OH2XYZ", "OTHER", rig.clock()))
     rig.hear("OH2DPN", "Sent 1 TEST Objects Max 5@150km de OH2DPN")
     [server] = rig.qru.servers()
     assert (server.sent_objects, server.request, server.received) == (1, "TEST 150", ("TESTOBJ",))
@@ -424,7 +438,8 @@ async def test_qru_ask_over_the_socket_sends_one_request_by_radio_only_and_keeps
     assert packet["tnc2"] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::QRU      :RP70 150"
     await page.quiet(0.2)
     assert page.topics["messages"] == {} and page.of("error") == []
-    await page.send({"cmd": "qru_ask", "text": "info"})                                  # (another text: one request per minute, whatever it says)
+    # Another text: one request per minute, whatever it says
+    await page.send({"cmd": "qru_ask", "text": "info"})
     error = await page.expect("error")
     assert (error["cmd"], error["code"]) == ("qru_ask", "qru.too_soon") and error["params"]["seconds"] > 0
 

@@ -1,7 +1,9 @@
-"""What the Tnc makes of the bytes of one open line: the mode they show (a KISS stream, or the text of a TNC in command mode, tncmode.py), the entry into KISS when the TNC is in command mode, the settle time
-after it in which what the TNC says is thrown away, the repeats of the entry for a TNC that goes on typing (`EntryAgain`, tncwatchdog.py), and the KISS frames that are handed on. It holds the state of the reading
-that belongs to one open (`reset` starts it over); the `Tnc` (tnc.py) holds the line, the states and the words, and the keep-alive (tncwatchdog.py) asks for its `look_*` actions. A LoRa board's line (a
-profile whose `board` is true) is read by its own reader (`board`, loraboard.py), which knows no command mode."""
+"""What the Tnc makes of the bytes of one open line.
+
+Covers the mode they show, entering KISS from command mode (the settle time discards the TNC's
+output) and the KISS frames handed on. A LoRa board's line is read by its own reader (loraboard.py).
+"""
+
 import asyncio
 import logging
 from typing import Any, Coroutine, Protocol
@@ -50,40 +52,40 @@ class Reader:
         self.reset()
 
     def reset(self) -> None:
-        """What belongs to one open of the line."""
         if self.board is not None:
             self.board.close()
-        self.board = LoraBoard(self._tnc) if self._tnc.profile.board else None      # (a LoRa board's line: its own reader)
+        self.board = LoraBoard(self._tnc) if self._tnc.profile.board else None  # a LoRa board has its own reader
         self.detector = ModeDetector()
         self.decoder = kiss.KissDecoder()
         self.dropped_seen = 0
-        self.entered = self.kiss_seen = self.told_text = False           # KISS ON was sent on this open; a KISS frame came since; the text that came after the entry has been told
-        self.again = EntryAgain()                                        # when the entry is repeated for a TNC that still types text
-        self.typed = TextAfterKiss()                                     # text after KISS frames: the radio was restarted
+        # KISS ON was sent on this open; a KISS frame came since; the text after it was reported
+        self.entered = self.kiss_seen = self.told_text = False
+        self.again = EntryAgain()  # repeats the entry for a TNC that still types text
+        self.typed = TextAfterKiss()  # text after KISS frames: the radio was restarted
         self.settle_until = 0.0
-        self.looking = False                                             # a check or probe is under way: nothing is sent, and the keep-alive itself enters KISS
+        # a check or probe is under way: nothing is sent, and the keep-alive itself enters KISS
+        self.looking = False
 
     def asked_afresh(self) -> None:
-        """A check or probe starts: the TNC is asked afresh, and what was seen of its mode is forgotten."""
         self.looking = True
         self.entered = self.kiss_seen = self.told_text = False
         self.again.reset()
         self.detector.rearm()
 
     def board_quiet(self) -> str:
-        """Why a LoRa board's line takes no frame now (it only receives, it sends text lines); "" when it takes one, and for any other line."""
+        """Return why a LoRa board's line takes no frame now, or ""."""
         return self.board.quiet() if self.board is not None else ""
 
     def command_mode_unanswered(self) -> bool:
-        """Text from a TNC that the profile says may be in command mode, and no KISS frame since: nothing is sent to it."""
+        """Return whether the TNC sent command-mode text and no KISS frame followed."""
         return self._tnc.profile.detect_command_mode and self.told_text and not self.kiss_seen
 
     def read(self, port: TncPort, chunk: bytes) -> None:
-        """Bytes came from `port`, which is the Tnc's line."""
         tnc = self._tnc
         loop_now = asyncio.get_running_loop().time()
         tnc.stats.bytes_in += len(chunk)
-        typed = self.typed.feed(chunk)                                   # (text since the latest FEND: after KISS frames, the radio was restarted)
+        # text since the latest FEND: after KISS frames, the radio was restarted
+        typed = self.typed.feed(chunk)
         tnc.confirmed = True
         tnc.watchdog.heard()
         if self.board is not None:
@@ -95,10 +97,11 @@ class Reader:
         if loop_now < self.settle_until:
             return
         if typed and mode is Mode.KISS and self.kiss_seen and tnc.profile.detect_command_mode:
-            self.kiss_seen = self.told_text = False                      # switched to KISS again now, not at the next check: text keeps the line from going quiet
+            # switch to KISS now, not at the next check: text keeps the line quiet
+            self.kiss_seen = self.told_text = False
             return self.enter_kiss(port, "the TNC is in command mode again (the radio was restarted)")
         if mode is Mode.KISS:
-            if self.told_text and not self.kiss_seen:                    # (KISS at last after text: the problem it made is over)
+            if self.told_text and not self.kiss_seen:  # KISS at last after text: the problem is over
                 self.told_text = False
                 tnc._set_problem("")
             self.kiss_seen = True
@@ -118,9 +121,10 @@ class Reader:
             self.dropped_seen = self.decoder.dropped
 
     def _heard(self, port: TncPort, chunk: bytes, loop_now: float) -> Mode | None:
-        """Bytes came: what the detector makes of them, None while an entry settles (they are thrown away). From a silent radio, which may have been switched on (a TH-D7 starts with its TNC in command mode),
-        the allowance to enter KISS is given back and the detector starts over; KISS is entered when the bytes are the text of command mode (not when a FEND is among them), else what follows decides: a line
-        delivers a frame in several reads, so bytes that are a KISS frame already, or a piece of one (a FEND among them, or no text of command mode and no FEND: the middle of a frame), are no reason to type into the TNC. An entry of the keep-alive's own may be settling."""
+        """Return what the detector makes of the bytes, or None while an entry settles.
+
+        From a silent radio KISS is entered only on text without a FEND: a piece of a frame is not text.
+        """
         tnc = self._tnc
         if tnc.state is not Source.State.SILENT:
             tnc._hear()
@@ -132,8 +136,9 @@ class Reader:
         self.again.reset()
         self.detector.rearm()
         piece = kiss.FEND in chunk
-        mode = self.detector.feed(chunk[chunk.index(kiss.FEND):] if piece else chunk)      # (what is before the first FEND is the tail of a frame, never text)
-        enter = tnc.profile.detect_command_mode and mode is Mode.MONITOR and not piece     # (bytes that are no text of command mode and have no FEND may be the middle of a frame)
+        # what precedes the first FEND is the tail of a frame, never text
+        mode = self.detector.feed(chunk[chunk.index(kiss.FEND):] if piece else chunk)
+        enter = tnc.profile.detect_command_mode and mode is Mode.MONITOR and not piece
         tnc._hear("; entering KISS" if enter else "")
         if enter:
             self.enter_kiss(port, "the radio answers again", logging.DEBUG, note=False)
@@ -146,7 +151,8 @@ class Reader:
         if tnc.profile.detect_command_mode and not self.entered:
             self.enter_kiss(port, "the TNC was in command mode")
             return
-        if not self.told_text:                                           # (told first, whenever the text comes: a repeat of the entry that is due does not make the Tnc usable meanwhile)
+        # told first: a due repeat of the entry must not make the Tnc usable meanwhile
+        if not self.told_text:
             self.told_text = True
             tnc._set_problem("the TNC sends text, not KISS frames: it is in command mode" + (" and the entry did not change that" if self.entered else f" and the profile {tnc.profile.name!r} does not enter KISS"))
             tnc._note(tnc.problem)
@@ -155,8 +161,10 @@ class Reader:
             self.enter_kiss(port, why, level)
 
     def enter_kiss(self, port: TncPort, why: str = "the TNC was in command mode", level: int = logging.INFO, note: bool = True) -> None:
-        """The profile's steps (KISS ON and RESTART for a TNC-2), then the settle time of throwing away what the TNC says. `level` is the log's (DEBUG for a check or a return from SILENT, which have told their
-        own news, and for the later repeats of the entry); `note`: whether the terminal gets a line too (not for the check and the return from SILENT)."""
+        """Run the profile's entry steps, then the settle time that discards what the TNC says.
+
+        `level` is the log level; `note` says whether the terminal gets a line too.
+        """
         tnc = self._tnc
         self.entered = True
         log.log(level, "entering KISS mode on %s: %s", port.path, why)

@@ -1,8 +1,8 @@
-"""What a driver of a type of radio is to the radio registry (plan §2, "Type"): the line it gives the packets on, how it takes a radio's settings, what a change of them restarts, its words for the log, its start
-and stop, what it holds of the station's resources, and its modem where the type has one. A Protocol only: the drivers are neoaprs/tncdriver.py (the serial, TCP and dummy lines) and neoaprs/mercurydriver.py
-(the Mercury modem) and neoaprs/direwolfdriver.py (Direwolf on a sound card), found by `RadioType.driver`. A driver reads the radio's own settings from its spec and what stays the station's (serial/pattern, serial/skip, today's remembered port) from the station's
-settings, both given on every call, so that what it computes is a function of its arguments. `RunOverrides` is what the process gives for one run and never stores. The line and the modem are read-only
-members, so that a plain attribute, a property, or a subclass of Tnc or Mercury (a test's double) all satisfy the Protocol."""
+"""The interface a driver of a radio type offers the radio registry (only the Protocol).
+
+Settings are passed on every call, so a driver's results depend on its arguments only; `line` and
+`modem` are read-only so attributes, properties and test doubles all satisfy it.
+"""
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -19,39 +19,43 @@ from .tnc import Tnc
 @dataclass(frozen=True)
 class RunOverrides:
     """What the process gives for this run only, never stored."""
-    port: str = ""                   # --port: radio 1's (FM_ID)
-    pattern: str = ""                # the tests' search globs, instead of serial/pattern
-    hf_port: str = ""                # --hf-port: a Mercury that something else runs, given to the radio `attach_to`
+    # --port: radio 1's port.
+    port: str = ""
+    # Search globs for tests, instead of serial/pattern.
+    pattern: str = ""
+    # --hf-port: a Mercury run by something else, given to the radio `attach_to`.
+    hf_port: str = ""
     check_sec: float = TNC_CHECK_SEC
-    attach_to: RadioId | None = HF_ID  # the radio that takes hf_port: the station's first Mercury radio (radiospec.modem_radio, as App.run reads it), None while it has none
+    # The radio that takes hf_port: the first Mercury radio, or None if there is none.
+    attach_to: RadioId | None = HF_ID
 
 
 class RadioDriver(Protocol):
     @property
     def line(self) -> Tnc:
-        """The Source the packets come from and frames go to; its packets carry its `radio_id`, which the driver sets."""
+        """The Source that packets come from and frames go to; its packets carry its `radio_id`."""
         ...
 
     @property
     def modem(self) -> Mercury | DirewolfModem | None:
-        """The modem of a "mercury" or a "direwolf" driver (Tune, the keying test, the transmit level; Mercury's scope); None for any other."""
+        """The modem of a "mercury" or "direwolf" driver; None for any other."""
         ...
 
     @property
     def card(self) -> CardLevels | None:
-        """The sound card's own levels of a modem's radio (cardlevels.py); None for a radio with no sound card."""
+        """The sound card levels of a modem's radio (cardlevels.py); None without a sound card."""
         ...
 
     def configure(self, spec: RadioSpec, station: Config, run: RunOverrides) -> None:
-        """Takes the radio's settings and the station's; the radio is stopped."""
+        """Take the radio's and the station's settings; the radio is stopped."""
         ...
 
     def restart_key(self, spec: RadioSpec, station: Config, run: RunOverrides) -> tuple[object, ...]:
-        """What a change of restarts the radio (of the station's settings too: serial/skip and serial/pattern restart a serial radio)."""
+        """Return the values whose change restarts the radio, station settings included."""
         ...
 
     def words(self, spec: RadioSpec, station: Config, run: RunOverrides) -> str:
-        """The radio's settings in a few words, for the log."""
+        """Describe the radio's settings in a few words, for the log."""
         ...
 
     async def start(self) -> None: ...
@@ -59,5 +63,5 @@ class RadioDriver(Protocol):
     async def stop(self) -> None: ...
 
     def held(self) -> list[Claim]:
-        """What it holds now: the port it opened, the card and keying the modem chose, the pair of ports."""
+        """Return the resources held now: opened port, chosen card and keying, port pair."""
         ...

@@ -1,26 +1,7 @@
-"""The switch NEOAPRS_NO_DEVICES=1: a daemon that opens no real device and talks to no real service, whatever its settings say.
+"""The switch NEOAPRS_NO_DEVICES=1: a daemon that opens no real device and talks to no real service.
 
-A bench daemon (a test's, the smoke test's, the one of the screenshots, a proof on a copy of a real data folder) runs on a machine whose radios are on the desk, and the settings it is given may name the radio's
-serial port, the sound card and the keying line of the HF radio, and the APRS-IS login of the operator. Under the switch every door that leads out of the program is shut, each by one call into this module at
-the place that would open it:
-
-* no serial device is opened, listed or searched for (the radio's port, the GPS receiver's, a keying line), and no Bluetooth port: `check_port` in the one place a port is opened, `refused` where the ports are listed;
-* the Mercury modem program is not started and its sound cards are not listed (`refused`);
-* no connection leaves this computer: to APRS-IS, a KISS TCP server, a gpsd, a rigctld or a Mercury on another host (`check_host`), for the update check, the suggested frequencies, the sked board, Send logs, Update now and the
-  map (`check_url`, `url_refused`);
-* the default alert command, which shows a notification on the desktop and plays a sound, is not run, and the Dummy HF radio's audio is not played (`refused`).
-
-What stays: the Dummy radios, whatever is on the loopback (a KISS TCP radio, a gpsd, a version page: the fakes of the tests and the benches) and the page's own server, but for the ports a real modem
-of this computer listens on (`modem_port`): Direwolf's own default, 8001, and the ports NeoAPRS starts its own Direwolf and Mercury on. The operator's own Direwolf or a running NeoAPRS's modems are there,
-keyed to the radios on the desk; a fake listens on a port the system hands out, or one a bench chooses outside them.
-
-A door that is shut behaves as it does when its device is not there: the checks raise the system's own error for a file that is missing or a connection that is refused, so the part that asked waits and says what
-it says of a radio that is unplugged or a server that is down. The page is told nothing else. The log says it: one line when the daemon starts (`announce`), and one line for each door the first time it is
-refused, at the level its part tells a device that is away at.
-
-The variable is read here and nowhere else (`on`), each time it is asked, so that nothing has to be set up before the first door is tried. The switch is on for every value that is not empty and not `0`
-(`sets`): `1` is what the benches write, and `true`, `yes`, `on` or a slip of the keyboard keep the doors shut as well. A value that was mistyped must not be the reason a bench daemon keys the radio; the
-line at the start names the value it found."""
+Under the switch no real device is opened and no connection leaves this computer.
+"""
 import errno
 import ipaddress
 import logging
@@ -34,32 +15,31 @@ from .tncprofile import names_tcp
 log = logging.getLogger("neoaprs.nodevices")
 
 ENV = "NEOAPRS_NO_DEVICES"
-OFF_VALUES = frozenset({"", "0"})                # the values that leave the switch off (a variable that is not set counts as the empty one); every other value sets it
-LOCAL_NAMES = frozenset({"", "localhost"})        # the names that are this computer without a lookup (no host at all is this computer too); any other name is refused unasked
-TOLD_MAX = 500                                   # the doors remembered as told; the memory starts over beyond that
+# every other value, a typing slip included, sets the switch
+OFF_VALUES = frozenset({"", "0"})
+# names that are this computer without a lookup
+LOCAL_NAMES = frozenset({"", "localhost"})
+TOLD_MAX = 500  # doors remembered as told; the memory restarts beyond that
 
 _told: set[str] = set()
 
 
 def sets(value: str | None) -> bool:
-    """Whether this value of the variable sets the switch: every one but none, the empty one and `0`, the spaces around it aside."""
     return (value or "").strip() not in OFF_VALUES
 
 
 def on() -> bool:
-    """Whether the switch is on."""
     return sets(os.environ.get(ENV))
 
 
 def announce() -> None:
-    """The line at the start of the daemon that says the switch is on, and for which value: one that was meant to leave it off (`false`, `no`) is seen here."""
     if on():
         log.info("%s is set: no serial port, Bluetooth device or sound card is opened, the Mercury modem is not started, nothing but this computer is connected to, and the default alert command is not run "
                  "(the variable is %r: every value but an empty one and 0 sets it)", ENV, os.environ.get(ENV, ""))
 
 
 def refused(door: str, level: int = logging.WARNING) -> bool:
-    """Whether the switch shuts this door; `door` says what does not happen ("the serial port /dev/ttyUSB0 is not opened") and is told in the log the first time, at `level`."""
+    """Return whether the switch shuts this door; log it the first time."""
     if not on():
         return False
     if door not in _told:
@@ -71,7 +51,7 @@ def refused(door: str, level: int = logging.WARNING) -> bool:
 
 
 def this_computer(host: str) -> bool:
-    """Whether `host` is this computer itself: localhost, or an address of the loopback (127.0.0.0/8, ::1, the IPv4 ones in their IPv6 form). A name is not looked up: any other name is somewhere else."""
+    """Return whether `host` is localhost or a loopback address (no lookup)."""
     name = host.strip().strip("[]").lower().rstrip(".")
     if name in LOCAL_NAMES:
         return True
@@ -84,49 +64,42 @@ def this_computer(host: str) -> bool:
 
 
 def host_refused(host: str, what: str = "", level: int = logging.WARNING) -> bool:
-    """Whether a connection to `host` is refused: the switch is on and the host is not this computer. `what` says what is there ("APRS-IS"), for the log."""
     return on() and not this_computer(host) and refused(f"no connection to {host}" + (f" ({what})" if what else ""), level)
 
 
 def check_host(host: str, what: str = "", level: int = logging.WARNING) -> None:
-    """Raises the error of a server that is not there (ConnectionRefusedError) for a host that is refused."""
     if host_refused(host, what, level):
         raise ConnectionRefusedError(errno.ECONNREFUSED, os.strerror(errno.ECONNREFUSED))
 
 
 def url_refused(url: str, what: str = "", level: int = logging.INFO) -> bool:
-    """Whether the address is refused: it names a host that is not this computer. A path of a file, which names no host, never is."""
     if not on():
         return False
     try:
         host = urlsplit(url.strip()).hostname
     except ValueError:
-        return refused(f"no connection to {url!r}", level)             # (an address that cannot be read is not shown to be this computer)
+        # an unreadable address is not shown to be this computer
+        return refused(f"no connection to {url!r}", level)
     return host is not None and host_refused(host, what, level)
 
 
 def check_url(url: str, what: str = "", level: int = logging.INFO) -> None:
-    """Raises the error of a server that is not there (ConnectionRefusedError) for an address that is refused."""
     if url_refused(url, what, level):
         raise ConnectionRefusedError(errno.ECONNREFUSED, os.strerror(errno.ECONNREFUSED))
 
 
 def direct() -> list[urllib.request.BaseHandler]:
-    """What an opener of urllib is built with besides its own handlers: under the switch a handler that knows no proxy, nothing otherwise. An address of this computer, which the switch lets through, is then asked
-    of this computer itself. With urllib's own handler it would go to the proxy that `http_proxy` or the system's settings name, on another computer (on Linux only `no_proxy` keeps the loopback from it)."""
+    """Return extra opener handlers: under the switch one without a proxy."""
     return [urllib.request.ProxyHandler({})] if on() else []
 
 
 def modem_port(number: int) -> bool:
-    """Whether a real modem of this computer may listen on this TCP port: Direwolf's own defaults (KISS and AGW) and Mercury's own UI port, a KISS port NeoAPRS's Direwolf tries (from direwolf.FIRST_PORT up),
-    or one of the four ports of a pair NeoAPRS's Mercury tries (from mercury.BROADCAST_PORT up: broadcast, control, ARQ data, UI)."""
     if number in (direwolf.OWN_PORT, direwolf.OWN_AGW_PORT, mercury.OWN_UI_PORT) or direwolf.FIRST_PORT <= number < direwolf.FIRST_PORT + direwolf.PORT_TRIES:
         return True
     return any(mercury.BROADCAST_PORT <= number - offset < mercury.BROADCAST_PORT + mercury.PORT_TRIES for offset in (0, mercury.CONTROL_OFFSET, mercury.CONTROL_OFFSET + 1, mercury.UI_OFFSET))
 
 
 def _tcp_port_refused(port: str, level: int) -> bool:
-    """Whether a TCP port on this computer is refused: one a real modem may listen on (`modem_port`), or one whose number cannot be read."""
     try:
         number = urlsplit(port).port
     except ValueError:
@@ -135,9 +108,7 @@ def _tcp_port_refused(port: str, level: int) -> bool:
 
 
 def check_port(path: str, level: int = logging.WARNING) -> None:
-    """Raises, for a port that is refused, the error it gives when it is not there: FileNotFoundError for a device (`/dev/ttyUSB0`, `COM3`), ConnectionRefusedError for a Bluetooth port (`bt://`, `ble://`), a TCP port
-    on another host, a TCP port on this computer where a real modem may listen (`modem_port`: `socket://127.0.0.1:8001`) and any other address pyserial would open. The one port that is let through is another TCP
-    one on this computer (`socket://127.0.0.1:40001`, `tcp://localhost:40001`)."""
+    """Raise FileNotFoundError for a refused device, ConnectionRefusedError for other ports."""
     if not on():
         return
     port = path.strip()

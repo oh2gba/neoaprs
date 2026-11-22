@@ -1,8 +1,6 @@
-"""Direwolf as a part of the daemon (neoaprs/direwolfmodem.py, neoaprs/direwolftune.py, neoaprs/direwolfprogram.py), against the made-up Direwolf of tests/support/fakedirewolf.py: the configuration written in the
-radio's own folder and the command line, the card, the keying and the KISS port held in the station's table, running once Direwolf says it listens, the keying, the carrier and the level of the packets heard,
-the stop by its own clean way (its input closed, then SIGINT, then the kill), a sound card, a keying device or a port that cannot be had (the reason the page puts in its words, and the start again after the
-back-off), a program that dies, one that listens on the network, a run of ours left behind, Tune and the keying test as Direwolf's own calibration runs on the same port, the transmit level, the Windows checks of
-the WinMM devices and of several CM108 chips, and the sound card as one resource of the station: two radios on two cards side by side, a third and the HF modem refused on a card that is held, with the holder."""
+"""Tests for the Direwolf modem (neoaprs/direwolfmodem.py, direwolftune.py, direwolfprogram.py)
+against tests/support/fakedirewolf.py: configuration and command line, claims, start and stop,
+failures and back-off, Tune, the Windows checks, and the sound card as a shared resource."""
 import asyncio
 import logging
 import os
@@ -34,25 +32,31 @@ from tests.support.radioconfig import with_radio
 from tests.test_mercury_modem import HF
 
 QUICK = Backoff([0.1, 0.1])
-CARD = "plughw:1,0"                       # what the made-up Mercury lists for `-z` (tests/support/fakemercury.py SOUND_CARDS)
+# what the made-up Mercury lists for `-z` (tests/support/fakemercury.py SOUND_CARDS)
+CARD = "plughw:1,0"
 WINMM_NUMBERS_OF = direwolfmodem._numbers_of
 
 
 def port(device: str) -> str:
-    """The value the station's table holds for this port (a COM port's case aside on Windows: `/dev/ttyUSB7` is `/DEV/TTYUSB7` there)."""
+    """The value the station's table holds for this port (a COM port's case aside on Windows:
+    `/dev/ttyUSB7` is `/DEV/TTYUSB7` there)."""
     return claim_value(device) or device
 
 
 @pytest.fixture(autouse=True)
 def _winmm_numbers_of_the_made_up_cards(monkeypatch: pytest.MonkeyPatch) -> None:
-    """On Windows the modem runs the Windows way, as an operator's does: every made-up card is the second input and output of the made-up Direwolf's WinMM lists, which the machine's own devices never name.
-    The finding of the numbers itself is the test of `windows_modem`, on both systems."""
+    """On Windows the modem runs the Windows way, as an operator's does: every made-up card is the
+    second input and output of the made-up Direwolf's WinMM lists, which the machine's own devices
+    never name. The finding of the numbers itself is the test of `windows_modem`, on both systems.
+    """
     monkeypatch.setattr(direwolfmodem, "_numbers_of", lambda name: (1, 1))
 
 
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The KISS ports from this test's own base, so that tests side by side never take one port between the probe and the bind (tests/support/modemports.py); the Mercury modem's pairs above them."""
+    """The KISS ports from this test's own base, so that tests side by side never take one port
+    between the probe and the bind (tests/support/modemports.py); the Mercury modem's pairs above
+    them."""
     monkeypatch.setattr(direwolfmodem, "FIRST_PORT", base_of_this_test())
     own_ports(monkeypatch)
 
@@ -80,7 +84,8 @@ async def kiss_send(port: int, frame: bytes) -> bytes:
 
 
 def _alive(pid: int | None) -> bool:
-    """Whether the process of this id still runs (a child that ended and was waited for is gone; on Windows asked of its exit code: os.kill(pid, 0) there is a console's Ctrl+C, not a question)."""
+    """Whether the process of this id still runs (a child that ended and was waited for is gone; on
+    Windows asked of its exit code: os.kill(pid, 0) there is a console's Ctrl+C, not a question)."""
     return pid is not None and not childprogram.gone(pid)
 
 
@@ -116,8 +121,8 @@ async def test_a_frame_given_to_its_kiss_port_keys_the_radio_and_a_frame_heard_t
 
 
 async def test_the_receive_level_is_the_level_now_not_the_last_packets_and_none_while_direwolf_does_not_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The page's bar follows what Direwolf says every STATS_SEC (`-a`): with the radio switched off the level falls, though no packet comes to say so. Before, the level of the last packet heard stood on the
-    bar for ever (the owner, 16 November 2026: "whatever I do, the signal level shows signal, constantly, doesn't change, even when switching radio off")."""
+    """The page's bar follows what Direwolf says every STATS_SEC (`-a`): with the radio switched off
+    the level falls, though no packet comes to say so."""
     monkeypatch.setattr("neoaprs.direwolf.STATS_SEC", 0.2)
     m = modem(tmp_path, level=72, idle_level=7)
     told: list[int | None] = []
@@ -129,7 +134,8 @@ async def test_the_receive_level_is_the_level_now_not_the_last_packets_and_none_
         assert asked[asked.index("-a") + 1] == "0.2", "Direwolf is asked for its statistics line at that pace"
         await until(lambda: m.rx_level == 7)
         assert await kiss_send(m.kiss_port, b"\xc0\x00frame\xc0") == b"\xc0\x00frame\xc0"
-        await until(lambda: 72 in told and m.rx_level == 7)        # (the packet's level for a moment, then the level between the packets again)
+        # (the packet's level for a moment, then the level between the packets again)
+        await until(lambda: 72 in told and m.rx_level == 7)
         assert m.wire()["rx_level"] == 7
         before = len(told)
         await asyncio.sleep(0.7)
@@ -140,9 +146,12 @@ async def test_the_receive_level_is_the_level_now_not_the_last_packets_and_none_
 
 
 async def test_the_level_now_comes_ten_times_a_second_apart_from_the_row_and_never_reaches_the_log(tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Our Direwolf's `-R` line (rxlevel.patch): read into the modem's `level_now` for the pages that show it, a level that stays said once; not the row's `rx_level` (every page has that, every STATS_SEC),
-    not in the log, not among the first lines of a run the log keeps, not among its last; none once the program has ended."""
-    monkeypatch.setattr("neoaprs.direwolf.STATS_SEC", 60)                  # (the statistics line, which the row follows, not within the test)
+    """Our Direwolf's `-R` line (rxlevel.patch): read into the modem's `level_now` for the pages
+    that show it, a level that stays said once; not the row's `rx_level` (every page has that, every
+    STATS_SEC), not in the log, not among the first lines of a run the log keeps, not among its
+    last; none once the program has ended."""
+    # (the statistics line, which the row follows, not within the test)
+    monkeypatch.setattr("neoaprs.direwolf.STATS_SEC", 60)
     m = modem(tmp_path, idle_level=23)
     heard: list[int | None] = []
     m.level_now.changed.connect(heard.append)
@@ -156,7 +165,8 @@ async def test_the_level_now_comes_ten_times_a_second_apart_from_the_row_and_nev
             assert asked[asked.index("-R") + 1] == "100"
             await until(lambda: m.level_now.value == 23)
             lines = m._program.lines_read
-            await asyncio.sleep(0.5)                                     # (five lines more of the program, each the same level)
+            # (five lines more of the program, each the same level)
+            await asyncio.sleep(0.5)
             assert heard == [23] and 23 not in rows and m._program.lines_read == lines
             assert not any("RXLEVEL" in line for line in m._program.last_lines)
         finally:
@@ -166,8 +176,9 @@ async def test_the_level_now_comes_ten_times_a_second_apart_from_the_row_and_nev
 
 
 async def test_only_the_first_ready_line_of_a_start_tells_the_line_to_come(tmp_path: Path) -> None:
-    """Direwolf offers the next place ("Ready to accept KISS TCP client application 1 ...") as soon as a client has attached, and a place again when its client has left: the modem is running already, and nobody is
-    told that its ports changed."""
+    """Direwolf offers the next place ("Ready to accept KISS TCP client application 1 ...") as soon
+    as a client has attached, and a place again when its client has left: the modem is running
+    already, and nobody is told that its ports changed."""
     m = modem(tmp_path)
     told: list[str] = []
     m.ports_changed.connect(lambda: told.append(m.state))
@@ -196,7 +207,8 @@ async def test_a_kiss_port_taken_by_another_program_gives_another_port_and_the_l
     m = modem(tmp_path, "--port-taken")
     moved: list[int] = []
     m.ports_changed.connect(lambda: moved.append(m.kiss_port))
-    blocker = await asyncio.start_server(lambda r, w: None, "127.0.0.1", base_of_this_test())             # (the first port is someone else's)
+    # (the first port is someone else's)
+    blocker = await asyncio.start_server(lambda r, w: None, "127.0.0.1", base_of_this_test())
     try:
         await m.start(CARD, "vox", 0)
         first = m.kiss_port
@@ -242,19 +254,23 @@ async def test_a_direwolf_that_listens_on_the_network_is_ended_and_not_run_again
 
 
 def _left_running(conf: Path, cwd: Path) -> "subprocess.Popen[str]":
-    """A Direwolf (the made-up one, "direwolf" in its command line as the real one has) of the configuration `conf`, keyed by its calibration run, up and with its SIGINT handler."""
+    """A Direwolf (the made-up one, "direwolf" in its command line as the real one has) of the
+    configuration `conf`, keyed by its calibration run, up and with its SIGINT handler."""
     conf.parent.mkdir(parents=True, exist_ok=True)
     conf.write_text("ADEVICE x\nKISSPORT 0\n", encoding="utf-8")
     left = subprocess.Popen([*fakedirewolf.program("--ignore-stdin"), "-x", "p", "-c", str(conf)], cwd=cwd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
     assert left.stdout is not None
-    left.stdout.readline()                                            # (its banner: it is up, its SIGINT handler with it)
+    # (its banner: it is up, its SIGINT handler with it)
+    left.stdout.readline()
     return left
 
 
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="a process's command line is read from /proc")
 async def test_a_direwolf_of_ours_left_behind_by_an_earlier_daemon_is_ended_before_the_start_and_an_operators_own_is_left_alone(tmp_path: Path) -> None:
     home = radio_folder(tmp_path, 3)
-    own = await asyncio.to_thread(_left_running, tmp_path / "own" / CONF_FILE, tmp_path / "own")       # (the operator's own Direwolf, whose process id a pid file of ours left by a crash came to name)
+    # (the operator's own Direwolf, whose process id a pid file of ours left by a crash came to
+    # name)
+    own = await asyncio.to_thread(_left_running, tmp_path / "own" / CONF_FILE, tmp_path / "own")
     ours = await asyncio.to_thread(_left_running, home / CONF_FILE, home)
     try:
         (home / PID_FILE).write_text(str(own.pid), encoding="ascii")
@@ -284,12 +300,14 @@ def test_the_shipped_program_works_in_its_own_folder_and_only_a_run_of_ours_is_t
     assert not direwolfprogram.is_shipped_image(r"C:\Program Files\direwolf\direwolf.exe", tmp_path / "tools") and not direwolfprogram.is_shipped_image(None)
 
 
-NO_SUCH_PID = 2**22 + 777                 # (above Linux's largest process id: no /proc entry, so the Windows questions are the ones asked)
+# (above Linux's largest process id: no /proc entry, so the Windows questions are the ones asked)
+NO_SUCH_PID = 2**22 + 777
 
 
 @pytest.mark.parametrize(("running", "image", "made_ago_sec", "ended"), [
     (True, "shipped", 5.0, True),
-    (True, "shipped", -60.0, False),                                   # another radio's Direwolf that got the id after the file was written (a reboot)
+    # another radio's Direwolf that got the id after the file was written (a reboot)
+    (True, "shipped", -60.0, False),
     (True, "shipped", None, False),                                    # a time that cannot be read ends nothing
     (True, r"C:\Program Files\direwolf\direwolf.exe", 5.0, False),     # the operator's own Direwolf
     (False, "shipped", 5.0, False),
@@ -313,7 +331,8 @@ def test_on_windows_a_run_left_behind_is_ended_only_while_its_id_is_still_the_sh
 
 
 async def test_a_run_that_ends_by_itself_leaves_no_process_id_for_the_next_start_to_end(tmp_path: Path) -> None:
-    """The system may give the id to another program (another radio's Direwolf) before the run is started again after the back-off: the file goes with the run."""
+    """The system may give the id to another program (another radio's Direwolf) before the run is
+    started again after the back-off: the file goes with the run."""
     home = radio_folder(tmp_path, 3)
     home.mkdir(parents=True)
     (home / CONF_FILE).write_text("ADEVICE x\nKISSPORT 0\n", encoding="utf-8")
@@ -413,7 +432,8 @@ WINDOWS_CARD = "{0.0.1.00000000}.{2301}|{0.0.0.00000000}.{ca03}"
 
 
 def windows_modem(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *modes: str, devices: tuple[list[str], list[str]] = WINMM) -> DirewolfModem:
-    """A modem that does what it does on Windows: the WinMM numbers of the card, its name from the HF modem's list, and `cm108` held for the station."""
+    """A modem that does what it does on Windows: the WinMM numbers of the card, its name from the
+    HF modem's list, and `cm108` held for the station."""
     monkeypatch.setattr(winmm, "devices", lambda: devices)
     monkeypatch.setattr(direwolfmodem, "_numbers_of", WINMM_NUMBERS_OF)
     m = modem(tmp_path, *modes)
@@ -464,7 +484,8 @@ async def test_two_sound_card_radios_run_side_by_side_on_two_cards_and_a_third_o
 
 
 def test_one_card_named_by_its_number_and_by_its_name_is_one_claim_for_both_types_of_radio(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A setting may name card 1 `plughw:1,0` and another `plughw:CARD=CODEC,DEV=0`: the second radio is told who holds the card, not started on it to fail for ever."""
+    """A setting may name card 1 `plughw:1,0` and another `plughw:CARD=CODEC,DEV=0`: the second
+    radio is told who holds the card, not started on it to fail for ever."""
     monkeypatch.setattr(mercuryclaims, "alsa_card_names", lambda: {1: "CODEC"})
     claims = Claims()
     assert direwolfmodem.hold_setup(claims, 3, "plughw:1,0", Keying("vox"), False) is None
@@ -515,7 +536,8 @@ async def test_the_daemons_own_choice_leaves_out_a_card_another_holds_and_propos
 
 @pytest.mark.skipif(sys.platform == "win32", reason="SIGINT")
 async def test_the_program_is_ended_by_its_input_closing_not_by_a_signal(tmp_path: Path) -> None:
-    """The clean end is the end of the input (Direwolf's -Q): the fake says QRT and exits 0 at once, before any signal is sent."""
+    """The clean end is the end of the input (Direwolf's -Q): the fake says QRT and exits 0 at once,
+    before any signal is sent."""
     m = modem(tmp_path)
     await m.start(CARD, "vox", 0)
     await running(m)
@@ -526,11 +548,13 @@ async def test_the_program_is_ended_by_its_input_closing_not_by_a_signal(tmp_pat
     assert signal.SIGINT.value != -process.returncode
 
 
-# ---- what a review found
+# ---- further checks
 
 @pytest.mark.parametrize("mode", ["--cm108-unknown", "--hidraw-denied"])
 async def test_a_cm108_pin_that_cannot_be_keyed_is_the_reason_keying_not_a_radio_that_says_it_sends(tmp_path: Path, mode: str) -> None:
-    """`PTT CM108` with no chip on the card leaves Direwolf running unkeyed (config.c:2185), and a HID it cannot open says so at each key, after `PTT 0 = 1` (cm108.c:1013): either is the radio waiting."""
+    """`PTT CM108` with no chip on the card leaves Direwolf running unkeyed (config.c:2185), and a
+    HID it cannot open says so at each key, after `PTT 0 = 1` (cm108.c:1013): either is the radio
+    waiting."""
     m = modem(tmp_path, mode)
     await m.start(CARD, "cm108", 0)
     if mode == "--hidraw-denied":
@@ -547,7 +571,8 @@ async def test_a_radio_stopped_or_started_again_while_tune_stops_its_direwolf_ge
     await m.start(CARD, "vox", 0)
     await running(m)
     tune = asyncio.create_task(m.tune())
-    await asyncio.sleep(0)                                              # (Tune is stopping the radio's Direwolf, in its thread)
+    # (Tune is stopping the radio's Direwolf, in its thread)
+    await asyncio.sleep(0)
     if then == "stop":
         await m.stop()
     else:
@@ -579,13 +604,15 @@ async def test_a_second_run_started_while_one_is_on_ends_that_one_first(tmp_path
 
 
 def _alive_child(pid: int | None) -> bool:
-    """Whether the process of this id still runs (a child that ended and was waited for is gone, and one that ended and was not, a zombie, is gone too)."""
+    """Whether the process of this id still runs (a child that ended and was waited for is gone, and
+    one that ended and was not, a zombie, is gone too)."""
     return _alive(pid)
 
 
 async def test_a_frame_direwolf_still_holds_goes_out_before_tune_takes_the_radio(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(direwolftune, "TUNE_SEC", 0.3)
-    m = modem(tmp_path, busy_sec=0.6)                                   # (the channel is busy: the frame waits in Direwolf before it is keyed)
+    # (the channel is busy: the frame waits in Direwolf before it is keyed)
+    m = modem(tmp_path, busy_sec=0.6)
     await m.start(CARD, "vox", 0)
     await running(m)
     reader, writer = await asyncio.open_connection("127.0.0.1", m.kiss_port)
@@ -643,14 +670,16 @@ async def test_the_daemons_own_keying_is_the_port_of_the_cards_interface(tmp_pat
 
 
 def test_the_proposal_asks_the_cards_interface_of_usbtie_as_that_module_has_it_when_it_is_made(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A stand-in put in usbtie's place is the one asked, so that a test's own keeps the machine's sysfs out of it."""
+    """A stand-in put in usbtie's place is the one asked, so that a test's own keeps the machine's
+    sysfs out of it."""
     asked: list[str] = []
     monkeypatch.setattr(usbtie, "beside", lambda card, devices: asked.append(card) or [])
     assert proposal([SoundCard("plughw:CARD=AIOC,DEV=0", "All-In-One-Cable", True, True)], [], holder=3)[0] == "plughw:CARD=AIOC,DEV=0" and asked == ["plughw:CARD=AIOC,DEV=0"]
 
 
 async def test_a_port_left_out_in_another_spelling_of_it_as_on_windows_keys_no_sound_card_radio(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The ports left out are as the station's table compares them (mercurymodem.left_out: `COM3`), the ports the system lists too: on Windows `com3` and `\\\\.\\COM3` are that one port."""
+    """The ports left out are as the station's table compares them (mercurymodem.left_out: `COM3`),
+    the ports the system lists too: on Windows `com3` and `\\\\.\\COM3` are that one port."""
     monkeypatch.setattr(serialholders, "_on_windows", lambda: True)
     for listed in ("com3", "\\\\.\\COM3"):
         m = modem(tmp_path)

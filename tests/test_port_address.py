@@ -1,5 +1,7 @@
-"""The address of a port (serial/port, serial/last_port, gps/device): a device path, or one of the four forms the program means. pyserial knows more schemes, one of which (`spy://`) writes a file of the sender's
-choice the moment the port object is made, so the others are refused in the setting and again where the port is made."""
+"""The address of a port (serial/port, serial/last_port, gps/device): a device path or one of the
+four forms the program means. Other pyserial schemes (`spy://` writes a file) are refused in the
+setting and where the port is made.
+"""
 from dataclasses import replace
 from pathlib import Path
 
@@ -54,7 +56,8 @@ def test_the_port_is_not_made_for_a_scheme_the_program_does_not_mean(address: st
 
 @pytest.mark.parametrize("address", REFUSED)
 async def test_opening_such_a_port_fails_with_the_reason_and_makes_no_file(address: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(nodevices, "check_port", lambda path, level=0: None)         # (the guard of the tests would refuse first: the check under test is the adapter's own)
+    # The guard of the tests would refuse first: the check under test is the adapter's own
+    monkeypatch.setattr(nodevices, "check_port", lambda path, level=0: None)
     text = address.format(file=tmp_path / "victim")
     port = SerialPort(text)
     with pytest.raises(SerialError, match="is not an address or a name"):

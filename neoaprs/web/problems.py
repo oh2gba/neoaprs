@@ -1,4 +1,4 @@
-"""The words a page is told when a command does not fit neoaprs/web/protocol.py: pydantic's errors for the frame, as one short line naming the field and the problem."""
+"""Turn pydantic validation errors of a command into one short line for the page."""
 from collections.abc import Callable
 from typing import Any
 
@@ -13,7 +13,7 @@ _PROBLEMS = {
 }
 
 
-# the problems whose words carry a number or a name out of the error's context: kind -> words from (context, error)
+# Problems whose text needs a value from the error context: kind -> text from (context, error).
 _FROM_CONTEXT: dict[str, Callable[[dict[str, Any], dict[str, Any]], str]] = {
     "greater_than_equal": lambda ctx, err: f"must be at least {ctx.get('ge')}",
     "greater_than": lambda ctx, err: f"must be more than {ctx.get('gt')}",
@@ -37,10 +37,14 @@ def _problem(err: dict[str, Any]) -> str:
 
 
 def describe_errors(name: str, errors: list[Any]) -> str:
-    """One short line for the page: 'qso_delete: id: must be a whole number'. At most three problems; the first ones are the ones to fix."""
+    """Return one line like 'qso_delete: id: must be a whole number'.
+
+    At most three problems are listed.
+    """
     parts = []
     for err in errors[:3]:
-        loc = [str(x) for x in err["loc"][1:]] if err["loc"] and err["loc"][0] == name else [str(x) for x in err["loc"]]     # the tag of the union is not a field
+        # The first location item is the union tag, not a field.
+        loc = [str(x) for x in err["loc"][1:]] if err["loc"] and err["loc"][0] == name else [str(x) for x in err["loc"]]
         text = _problem(err)
         parts.append(f"{'.'.join(loc)}: {text}" if loc else text)
     more = f" (and {len(errors) - 3} more)" if len(errors) > 3 else ""

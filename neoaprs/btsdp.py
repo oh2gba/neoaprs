@@ -1,6 +1,8 @@
-"""Which RFCOMM channel a Bluetooth device serves its serial port on: one question to the device's service directory (SDP, an L2CAP connection to port 1), "which channel does your Serial Port Profile (0x1101) use?", in the
-few bytes that takes. The separate `sdptool` and `bluetoothctl` are not needed, nor a library. Pure parts (the request, the reading of the answer) and one small function that does the talking; the answer is a
-channel number, or None when the device lists none."""
+"""Find the RFCOMM channel of a Bluetooth device's serial port through SDP.
+
+One SDP query over L2CAP asks which channel the Serial Port Profile (0x1101) uses; the request
+and answer parsing are pure functions.
+"""
 import logging
 import socket
 import struct
@@ -9,14 +11,15 @@ from typing import NamedTuple
 
 log = logging.getLogger("neoaprs.btsdp")
 
-SDP_PSM = 1                          # the L2CAP port of the service directory
-SERIAL_PORT_UUID = 0x1101            # Serial Port Profile
+SDP_PSM = 1
+SERIAL_PORT_UUID = 0x1101
 RFCOMM_UUID = 0x0003
-PROTOCOL_LIST_ATTRIBUTE = 0x0004     # ProtocolDescriptorList: the L2CAP and RFCOMM layers of a service, with the channel
+PROTOCOL_LIST_ATTRIBUTE = 0x0004
 SEARCH_ATTRIBUTES, SEARCH_ATTRIBUTES_ANSWER = 0x06, 0x07
 SDP_TIMEOUT_SEC = 8.0
-MAX_PDUS = 8                         # a device whose answer needs more continuations than this is not asked further
-MAX_DEPTH = 8                        # how deep data elements may nest
+# Limits on a hostile or broken device: continuations followed and nesting depth accepted.
+MAX_PDUS = 8
+MAX_DEPTH = 8
 RECV_BYTES = 4096
 
 
@@ -25,17 +28,17 @@ class Uuid(NamedTuple):
 
 
 class SdpError(Exception):
-    """The device's answer could not be read."""
+    """Raised when the device's answer cannot be parsed."""
 
 
 def request(uuid: int, attribute: int, transaction: int, continuation: bytes = b"\x00") -> bytes:
-    """A ServiceSearchAttributeRequest for the services with `uuid`, asking for the one `attribute` of each."""
+    """Return a ServiceSearchAttributeRequest for services with `uuid`, asking for `attribute`."""
     params = bytes([0x35, 3, 0x19]) + struct.pack(">H", uuid) + struct.pack(">H", 1024) + bytes([0x35, 3, 0x09]) + struct.pack(">H", attribute) + continuation
     return struct.pack(">BHH", SEARCH_ATTRIBUTES, transaction, len(params)) + params
 
 
 def _take(data: bytes, at: int, depth: int) -> tuple[object, int]:
-    """The data element that starts at `at`: an int for numbers and booleans, a `Uuid`, bytes for text, a list for a sequence; and where the next one starts."""
+    """Parse the data element at `at`; return it (int, `Uuid`, bytes or list) and the next offset."""
     if at >= len(data):
         raise SdpError("an element is cut off")
     kind, size_index = data[at] >> 3, data[at] & 7
@@ -73,12 +76,12 @@ def _items(data: bytes, depth: int) -> list[object]:
 
 
 def parse_elements(data: bytes) -> list[object]:
-    """The data elements of `data`, one after the other."""
+    """Return the data elements of `data` in order."""
     return _items(data, 0)
 
 
 def rfcomm_channels(elements: list[object]) -> list[int]:
-    """The RFCOMM channels in a list of attribute lists, in the order the device gave them: a protocol list holds (L2CAP) and (RFCOMM, channel)."""
+    """Return the RFCOMM channels of the protocol lists in the device's order."""
     found: list[int] = []
 
     def walk(item: object) -> None:
@@ -94,7 +97,7 @@ def rfcomm_channels(elements: list[object]) -> list[int]:
 
 
 def read_answer(pdu: bytes, transaction: int) -> tuple[bytes, bytes]:
-    """The attribute lists a ServiceSearchAttributeResponse holds, and its continuation state (empty when the answer is whole)."""
+    """Return the attribute lists of a response and its continuation state (empty when complete)."""
     if len(pdu) < 7 or pdu[0] != SEARCH_ATTRIBUTES_ANSWER:
         raise SdpError("not an answer to the question")
     sent_transaction, _length, count = struct.unpack(">HHH", pdu[1:7])
@@ -107,7 +110,7 @@ def read_answer(pdu: bytes, transaction: int) -> tuple[bytes, bytes]:
 
 
 def ask(sock: socket.socket) -> bytes:
-    """Asks over an open service-directory connection, follows the continuations, and gives the attribute lists together."""
+    """Query an open SDP connection, follow continuations and return the joined attribute lists."""
     lists = b""
     continuation = b"\x00"
     for transaction in range(1, MAX_PDUS + 1):
@@ -121,14 +124,15 @@ def ask(sock: socket.socket) -> bytes:
 
 
 def new_l2cap_socket() -> socket.socket:
-    proto: int | None = getattr(socket, "BTPROTO_L2CAP", None)          # (Linux only: Windows has AF_BLUETOOTH but no L2CAP, and mypy checks for both)
+    # Windows has AF_BLUETOOTH but no L2CAP, hence getattr.
+    proto: int | None = getattr(socket, "BTPROTO_L2CAP", None)
     if proto is None:
         raise OSError("the service directory of a Bluetooth device is read on Linux only")
     return socket.socket(socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET, proto)
 
 
 def serial_channels(address: str, new_socket: Callable[[], socket.socket] | None = None) -> list[int]:
-    """The RFCOMM channels of the device's serial ports in the order it lists them; empty when its directory lists none or cannot be read. A device that cannot be reached raises OSError, like any connection that fails."""
+    """Return the RFCOMM channels of the device's serial ports; raise OSError if unreachable."""
     sock = (new_socket or new_l2cap_socket)()
     try:
         sock.settimeout(SDP_TIMEOUT_SEC)

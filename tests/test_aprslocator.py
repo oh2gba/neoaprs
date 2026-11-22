@@ -16,14 +16,17 @@ def test_a_locator_with_its_symbol_and_the_text_after_it() -> None:
     assert loc == Locator("IO91sx", 51.97917, -0.45833, "/", "-") and rest == "My house"
     loc, rest = split_locator("IO91/G")
     assert loc is not None and (loc.grid, loc.symbol_code, rest) == ("IO91", "G", "")
-    loc, _ = split_locator("IO91ab/-")                                    # (the six character form wins over a four character one with the overlay a)
+    # (the six character form wins over a four character one with the overlay a)
+    loc, _ = split_locator("IO91ab/-")
     assert loc is not None and loc.grid == "IO91ab"
     loc, _ = split_locator("IO91\\G")
     assert loc is not None and loc.symbol_table == "\\"
 
 
 @pytest.mark.parametrize("text", ["", "IO91", "IO91s", "IO91sx", "IO91sx/", "IO91sx/GHello", "io91sx/G", "SS91/G", "IO91sx#G", "IO9/G", "Hello", " IO91sx/G",
-                                  "IO91SX hello", "KP20LE QTH Helsinki"])             # (a bare six-character grid before text is text: its sub-square is not a symbol)
+                                  # (a bare six-character grid before text is text: its sub-square
+                                  # is not a symbol)
+                                  "IO91SX hello", "KP20LE QTH Helsinki"])
 def test_text_that_is_no_locator(text: str) -> None:
     assert split_locator(text) == (None, text)
 

@@ -1,39 +1,40 @@
-"""The data extensions that follow the symbol of an uncompressed position (APRS101, chapter 7): the station's power, height, gain and directivity (`PHGphgd`), a pre-calculated radio range (`RNGrrrr`), the
-strength of a signal heard by a direction finder (`DFSshgd`), the bearing and quality of a DF report (`/BRG/NRQ`, after the course and speed) and the shape of an area object (`Tyy/Cxx` after the symbol `\\l`).
-The signpost's characters `{55}` at the start of the comment of an object or item with the symbol `\\m` (`split_sign`). Besides, the precision and datum extension `!DAO!` anywhere in the comment of a position, an object, an item or a Mic-E packet (APRS 1.2): `split_dao` and `with_dao`.
+"""Data extensions after the symbol of an uncompressed position (APRS101 ch. 7) and `!DAO!`.
 
-Course and speed (`CSE/SPD`) are read by aprsposition.py, which calls `split_extension` for the rest. Pure code, like the rest of the foundation."""
+`PHG`, `RNG`, `DFS`, the DF `/BRG/NRQ` report, area object `Tyy/Cxx`, the signpost `{55}`, and
+`!DAO!` anywhere in a comment (APRS 1.2). Course and speed are read by aprsposition.py.
+"""
 import math
 import re
 from dataclasses import dataclass
 
 from neoaprs.units import FOOT_M, MILE_KM, base91
 
-_PHG = re.compile(r"PHG(\d)([0-~])(\d)(\d)(?:[0-9A-Z]/)?")              # APRS 1.2 adds an optional digit (A = 10) and a mandatory "/" for the beacons an hour of a "probe" (`PHG72604/`): read past, not kept
+# APRS 1.2: optional extra digit (A = 10) and "/" for hourly beacons; read, not kept
+_PHG = re.compile(r"PHG(\d)([0-~])(\d)(\d)(?:[0-9A-Z]/)?")
 _RNG = re.compile(r"RNG(\d{4})")
 _DFS = re.compile(r"DFS(\d)([0-~])(\d)(\d)")
 _BEARING = re.compile(r"/(\d{3})/(\d)(\d)(\d)")
 _AREA = re.compile(r"(\d)(\d\d)([/1])(\d)(\d\d)")
 _SIGN = re.compile(r"\{([^{}]{1,3})\}")
-_LINE_DOWN_LEFT = 6                                 # the area type whose line runs down and to the left, where the type 1 line runs down and to the right
-_AREA_SCALE = 1500                                 # an offset is sent as the square root of the degrees times this (APRS 1.1 areaobjects.txt; the 1.0.1 text said 100, which no program uses)
+_LINE_DOWN_LEFT = 6
+# an offset is sent as the square root of the degrees times this (areaobjects.txt)
+_AREA_SCALE = 1500
 _SHAPES = ("open circle", "line", "open ellipse", "open triangle", "open box", "filled circle", "line down-left", "filled ellipse", "filled triangle", "filled box")
 _COLOURS = ("black", "blue", "green", "cyan", "red", "violet", "yellow", "gray", "dim black", "dim blue", "dim green", "dim cyan", "dim red", "dim violet", "dim yellow", "dim gray")
 
 
 @dataclass(frozen=True, slots=True)
 class Phg:
-    """Power, height above average terrain, antenna gain and directivity, and the radio range the spec's formula gives them (km)."""
+    """Power, height, gain, directivity and the range the spec's formula gives."""
     power_w: int
     height_m: float
     gain_db: int
-    direction_deg: int | None                   # the direction of the best gain, None for an omni antenna
+    direction_deg: int | None
     range_km: float
 
 
 @dataclass(frozen=True, slots=True)
 class Dfs:
-    """The strength of the signal a DF unit heard (0 to 9; 0 is where the signal is not heard), with the height, gain and directivity of its antenna."""
     strength: int
     height_m: float
     gain_db: int
@@ -42,7 +43,7 @@ class Dfs:
 
 @dataclass(frozen=True, slots=True)
 class DfBearing:
-    """A DF report's bearing (degrees) and its number of hits (0 nothing, 1 to 8 the share of samples that hit, 9 a manual report), the range the line is drawn to (2^R miles, in km) and the quality (0 to 9)."""
+    """A DF report: bearing, hits (0 none, 1-8 share of samples, 9 manual), range (2^R mi), quality."""
     bearing_deg: int
     hits: int
     range_km: float
@@ -51,7 +52,7 @@ class DfBearing:
 
 @dataclass(frozen=True, slots=True)
 class Area:
-    """An area object (symbol `\\l`): the shape, the colour and the offsets down and to the right (degrees; the longitude offset of the line down-left is negative) from the object's position, which is its upper left corner (the upper right one of the line down-left); `710/310` is 4 minutes each way."""
+    """An area object; offsets (degrees) run down and right from the position."""
     shape: str
     colour: str
     lat_offset_deg: float
@@ -61,7 +62,7 @@ class Area:
 @dataclass(frozen=True, slots=True)
 class Extensions:
     phg: Phg | None = None
-    range_km: float | None = None               # a pre-calculated radio range (RNG)
+    range_km: float | None = None
     dfs: Dfs | None = None
     df_bearing: DfBearing | None = None
     area: Area | None = None
@@ -76,7 +77,7 @@ def _height_m(code: str) -> float:
 
 
 def phg_range_km(power_w: int, height_m: float, gain_db: int) -> float:
-    """The range of the spec's formula: SQR(2 * HAAT * SQR((POWER / 10) * (GAIN / 2))), HAAT in feet, in miles."""
+    """Return the range (km) of the spec's formula SQR(2 * HAAT * SQR((POWER / 10) * (GAIN / 2)))."""
     haat_ft = height_m / FOOT_M
     return math.sqrt(2 * haat_ft * math.sqrt(power_w / 10 * (10 ** (gain_db / 10) / 2))) * MILE_KM
 
@@ -94,8 +95,7 @@ def _area(found: re.Match[str]) -> Area:
 
 
 def split_extension(text: str, area: bool) -> tuple[Extensions | None, str]:
-    """The extension at the start of `text` (what follows the symbol of an uncompressed position, after any course and speed has been taken off) and the rest. `area` is true for the symbol `\\l`, whose
-    extension is an area descriptor. None when there is none."""
+    """Return the extension at the start of `text` and the rest; `area` is true for symbol `\\l`."""
     if area:
         found = _AREA.match(text)
         return (Extensions(area=_area(found)), text[found.end():]) if found else (None, text)
@@ -109,13 +109,13 @@ def split_extension(text: str, area: bool) -> tuple[Extensions | None, str]:
 
 
 def split_sign(text: str) -> tuple[str, str | None]:
-    """The 1 to 3 characters in braces at the start of the comment of a signpost (`{55}`, shown on the sign) and the rest of the comment; None, and the text as it is, when there are none."""
+    """Split a signpost (`{55}`) from the comment; None if absent."""
     found = _SIGN.match(text)
     return (text[found.end():].strip(), found.group(1)) if found else (text, None)
 
 
 def split_bearing(text: str) -> tuple[DfBearing | None, str]:
-    """The `/BRG/NRQ` of a DF report at the start of `text` (right after the course and speed) and the rest."""
+    """Split a DF report `/BRG/NRQ` from the rest."""
     found = _BEARING.match(text)
     if not found or int(found.group(1)) > 360:
         return None, text
@@ -128,7 +128,7 @@ def _direction_text(direction: int | None) -> str:
 
 
 def extension_lines(ext: Extensions) -> list[str]:
-    """What the extensions say, one short line for each: "PHG 25 W, 6.1 m, 3 dB, 90°, range 13 km"."""
+    """Return one short line per extension."""
     lines = []
     if ext.phg:
         p = ext.phg
@@ -151,15 +151,14 @@ _DAO = re.compile(r"!([A-Z])([\d ])([\d ])!|!([a-z])([!-{ ])([!-{ ])!")
 
 
 def _dao_minutes(char: str, is_base91: bool) -> float:
-    """The minutes one byte of `!DAO!` adds: a digit of thousandths of a minute, or a base-91 value of 0 to 90 for 0 to 0.0099 minutes (the two digits after the thousandths, divided by 1.1); a blank adds none."""
+    """Return the minutes one `!DAO!` byte adds (a digit: thousandths; base 91: 0-0.0099)."""
     if char == " ":
         return 0.0
     return base91(char.encode("ascii")) * 1.1 / 10000 if is_base91 else int(char) / 1000
 
 
 def split_dao(text: str) -> tuple[str, tuple[float, float] | None]:
-    """The comment without the precision and datum extension `!DAO!` (APRS 1.2, chapter 5) and the minutes it adds to the latitude and the longitude (away from the equator and the meridian): `!W12!` (the
-    datum letter in capitals: a digit each, the thousandths of a minute) or `!wAB!` (in lower case: base-91). None when the text has none; of several, the last counts and every one is taken out."""
+    """Return the comment without `!DAO!` and the minutes it adds; with several, the last counts."""
     found = list(_DAO.finditer(text))
     if not found:
         return text, None
@@ -170,7 +169,7 @@ def split_dao(text: str) -> tuple[str, tuple[float, float] | None]:
 
 
 def with_dao(lat: float, lon: float, extra: tuple[float, float] | None) -> tuple[float, float]:
-    """The latitude and the longitude made finer by the minutes of a `!DAO!` (split_dao), each away from zero."""
+    """Return latitude and longitude refined by the `!DAO!` minutes, each away from zero."""
     if extra is None:
         return lat, lon
     return max(-90.0, min(90.0, lat + math.copysign(extra[0] / 60, lat))), max(-180.0, min(180.0, lon + math.copysign(extra[1] / 60, lon)))

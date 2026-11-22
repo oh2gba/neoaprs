@@ -1,5 +1,6 @@
-"""The Controller (neoaprs/controller.py) as the composition root's object: the database opens at the start and closes at the stop, and what cannot be opened is refused with a reason; the radios of the
-registry (neoaprs/radioregistry.py) take the settings that were read before any part is started and are themselves started last, each in a task of its own that the stop ends."""
+"""Tests for the Controller (neoaprs/controller.py): the database opens and closes with the daemon,
+and the radios take the settings first and start last, each in its own task.
+"""
 import asyncio
 import contextlib
 import os
@@ -122,7 +123,8 @@ async def test_the_start_reads_the_settings_and_puts_us_in_the_station_book(tmp_
 @posix_only
 async def test_the_start_does_not_wait_for_the_search_and_the_stop_ends_it(tmp_path: Path) -> None:
     e = Env(tmp_path, radio=False, probe_seconds=30.0)
-    e.new_pty("probe_1")                                          # a radio that says nothing: the search listens for the whole 30 seconds
+    # a radio that says nothing: the search listens for the whole 30 seconds
+    e.new_pty("probe_1")
     began = asyncio.get_running_loop().time()
     await e.start(connected=False)
     assert asyncio.get_running_loop().time() - began < 2.0 and e.ctl.running
@@ -148,7 +150,8 @@ async def test_the_backup_folder_is_swept_again_after_the_start_so_that_the_file
     folder = tmp_path / "backup"
     folder.mkdir()
     dead = folder / "premigrate-v30-to-v33-20261114-120000.sqlite.tmp"
-    written = folder / "premigrate-v31-to-v33-20261114-120500.sqlite.tmp"             # a copy being written at this moment (by a tool): it stays
+    # a copy being written at this moment (by a tool): it stays
+    written = folder / "premigrate-v31-to-v33-20261114-120500.sqlite.tmp"
     kept = folder / "premigrate-v30-to-v33-20261114-120000.sqlite"
     for f in (dead, written, kept):
         f.write_bytes(b"x")
@@ -167,9 +170,11 @@ async def test_the_backup_folder_is_swept_again_after_the_start_so_that_the_file
 
 
 async def test_every_radio_has_the_settings_that_were_read_before_any_part_is_started_and_is_started_after_them(tmp_path: Path) -> None:
-    """What the parts ask of a radio, such as whether it is a Dummy radio (the iGate, at its start), is true before they start; the radios themselves are started last, each in its own task."""
+    """What the parts ask of a radio, such as whether it is a Dummy radio (the iGate, at its start),
+    is true before they start; the radios themselves are started last, each in its own task."""
     e = Env(tmp_path, radio=False, settings={"tnc/profile": "dummy", "serial/baud": "1200", "hf/enabled": "true", "hf/profile": "dummy-hf"})
-    e.mercury._finder = lambda: None                              # (no program: the Dummy HF radio works without its speaker)
+    # (no program: the Dummy HF radio works without its speaker)
+    e.mercury._finder = lambda: None
     seen: list[tuple[object, ...]] = []
     start = e.ctl.bulletins.start
 
@@ -177,12 +182,14 @@ async def test_every_radio_has_the_settings_that_were_read_before_any_part_is_st
         seen.append((e.tnc.is_dummy, e.tnc.baud, e.hf.is_dummy, e.tnc.state, e.hf.state, [radio.id for radio in e.ctl.radios.enabled()], sorted(t.get_name() for t in e.ctl.tasks)))
         await start()
 
-    e.ctl.bulletins.start = first_part                               # type: ignore[method-assign]   # (the first part the start brings up)
+    # The first part the start brings up
+    e.ctl.bulletins.start = first_part  # type: ignore[method-assign]
     assert not e.tnc.is_dummy and not e.hf.is_dummy and [radio.id for radio in e.ctl.radios.enabled()] == [1], "the defaults, until the settings are read"
     await e.start()
     assert seen == [(True, 1200, True, Source.State.STOPPED, Source.State.STOPPED, [1, 2], [])], "configured, and not started yet: no task of a radio is running"
     await until(lambda: e.tnc.state is Source.State.CONNECTED and e.hf.state is Source.State.CONNECTED)
-    await until(lambda: not {"tnc", "hf"} & {t.get_name() for t in e.ctl.tasks})          # (the task of each start ends with it)
+    # (the task of each start ends with it)
+    await until(lambda: not {"tnc", "hf"} & {t.get_name() for t in e.ctl.tasks})
     await e.stop()
 
 
@@ -200,7 +207,8 @@ async def test_the_settings_are_stored_and_read_back_by_the_next_run(tmp_path: P
 async def test_a_save_writes_only_the_settings_it_changes_so_that_one_set_from_the_command_line_meanwhile_stays(tmp_path: Path) -> None:
     e = Env(tmp_path, radio=False)
     await e.start(connected=False)
-    assert await e.ctl.store.put_setting("igate/password", "12345")           # (`neoaprs db set igate/password 12345` from another process)
+    # (`neoaprs db set igate/password 12345` from another process)
+    assert await e.ctl.store.put_setting("igate/password", "12345")
     assert await e.ctl.change_config(lambda c: replace(c, map_radius_km=200))
     stored = await e.ctl.store.settings()
     assert stored["igate/password"] == "12345" and stored["map/radius_km"] == "200"
@@ -210,7 +218,8 @@ async def test_a_save_writes_only_the_settings_it_changes_so_that_one_set_from_t
 
 
 class Eager(Tnc):
-    """A Tnc that hears a packet the moment it is started, as a TCP KISS radio with a frame waiting does."""
+    """A Tnc that hears a packet the moment it is started, as a TCP KISS radio with a frame waiting
+    does."""
 
     def __init__(self, clock: FixedClock, packet: Packet) -> None:
         super().__init__(clock=clock)

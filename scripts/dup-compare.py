@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-"""The decision of the duplication ratchet of the Python half (scripts/dup-check): compare a jscpd JSON report with the committed baseline.
+"""Compare a jscpd JSON report with the committed baseline (the ratchet of scripts/dup-check).
 
     scripts/dup-compare.py REPORT.json BASELINE.json            exit 1 and say what is new or larger
-    scripts/dup-compare.py REPORT.json BASELINE.json --update   write the baseline from the report (refuses to make an existing baseline larger unless --allow-growth)
+    scripts/dup-compare.py REPORT.json BASELINE.json --update   write the baseline from the report
+                                                                (not larger unless --allow-growth)
 
-A clone is identified by the pair of files it joins, not by line numbers (they move whenever someone edits above them). The baseline holds, per pair of files, how many clones and
-how many lines they cover, plus the total of duplicated lines. The check fails when a pair is new, when a pair has more clones or lines than the baseline, or when the total
-number of duplicated lines is larger. It compares the number of lines, not the percentage: a percentage rises when clean code is deleted and falls when clean code is added, so
-it can hide a new clone. The percentage is printed.
-"""
+A clone is the pair of files it joins; line counts are compared, not the percentage."""
 import json
 import os
 import sys
@@ -19,7 +16,7 @@ Summary = dict[str, Any]
 
 
 def relative(name: str) -> str:
-    """A path of the report as the baseline writes it: jscpd is asked for absolute paths (its relative ones start at a root of its own choosing), and the script runs in the repository root."""
+    """Return a report path as the baseline writes it: relative to the repository root."""
     return os.path.relpath(name).replace(os.sep, "/") if os.path.isabs(name) else name
 
 
@@ -61,7 +58,8 @@ def main(argv: list[str]) -> int:
         return 2
     now = summarize(json.loads(Path(args[0]).read_text(encoding="utf-8")))
     baseline_path = Path(args[1])
-    first = not baseline_path.exists()                                       # the very first baseline accepts what is there
+    # The very first baseline accepts what is there.
+    first = not baseline_path.exists()
     baseline: Summary = {"duplicatedLines": 0, "percentage": 0.0, "pairs": {}} if first else json.loads(baseline_path.read_text(encoding="utf-8"))
     found = problems(now, baseline)
     if "--update" in argv:

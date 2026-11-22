@@ -1,5 +1,7 @@
-"""Where NeoAPRS keeps its data when nobody says: one rule for the daemon and the command line tools, so that they look in the same place. The place of the system's own convention: %LOCALAPPDATA%
-on Windows (local, not the roaming profile: a database must not travel), Application Support on macOS, the XDG data folder on Linux and the others."""
+"""The default data folder, shared by the daemon and the command line tools.
+
+It follows each system's convention: %LOCALAPPDATA% on Windows (not the roaming profile, which
+would copy the database), Application Support on macOS, the XDG data folder elsewhere."""
 import os
 import sys
 from pathlib import Path

@@ -1,5 +1,5 @@
-"""A gateway with an FM radio and an HF radio and its pair switched on, between a station on FM alone and a NeoAPRS station on HF alone (tests/support/mercuryworld.py): a message from FM with the gateway's pair
-call as its path reaches HF in one HF frame; its ack comes back through the gateway on the reply path of the radio without paths, one HF frame and one FM frame; the reply message goes the other way the same way; and a
+"""Tests for a gateway with an FM and an HF radio and its pair switched on, between an FM-only and
+an HF-only station (tests/support/mercuryworld.py): messages and acks cross in each direction, and a
 WIDE path alone puts nothing on HF."""
 from pathlib import Path
 

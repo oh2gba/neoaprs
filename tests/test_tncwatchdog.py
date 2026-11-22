@@ -1,5 +1,7 @@
-"""The keep-alive's schedule (neoaprs/tncwatchdog.py) on a Tnc that is a record of what it was asked, and a loop whose time is skipped (tests/support/virtualtime.py): the quiet period before a check, the check's
-steps and what each of its exits leaves, the silent state's probes and the reopen of every fifth, and the ways the line can go away between two steps. The Tnc with its real line is in test_tnc.py and test_silent.py."""
+"""The keep-alive's schedule (neoaprs/tncwatchdog.py) on a recording Tnc and a loop whose time is
+skipped: the quiet period before a check, the check's steps and exits, the silent state's probes,
+and the line going away.
+"""
 import asyncio
 from datetime import datetime
 
@@ -42,7 +44,8 @@ class WatchedTnc:
     def look_send(self, data: bytes) -> bool:
         self.sent.append(data)
         accepted = len(self.sent) != self.refuses_write_number
-        self.alive = self.alive and accepted                        # (a write that fails loses the line, which is then not the one the watch was started for)
+        # A write that fails loses the line, which is then not the one the watch was started for
+        self.alive = self.alive and accepted
         return accepted
 
     def look_enter_kiss(self) -> None:
@@ -61,7 +64,8 @@ class WatchedTnc:
 
 @pytest.fixture(autouse=True)
 def no_jitter(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The quiet period is exactly `sec` (its random part is tested in test_tncwatchdog_jitter.py)."""
+    """The quiet period is exactly `sec` (its random part is tested in test_tncwatchdog_jitter.py).
+    """
     monkeypatch.setattr(tncwatchdog.random, "uniform", lambda a, b: 0.0)
 
 
@@ -221,7 +225,8 @@ async def test_a_silent_radio_is_probed_every_probe_time_and_every_fifth_probe_t
         await asyncio.sleep(2)
         assert tnc.stats.watchdog_probes == 1 and tnc.last_watchdog_action == "probe"
         for _ in range(4):
-            await asyncio.sleep(33.5)                                # (a probe takes 3.5 s of its own: the pause, the wait for a reply, the wait for any byte)
+            # A probe takes 3.5 s of its own: the pause, the wait for a reply, the wait for any byte
+            await asyncio.sleep(33.5)
         await asyncio.sleep(3)
         assert tnc.stats.watchdog_probes == 5 and tnc.last_watchdog_action == "reopen" and tnc.stats.port_reopens == 1 and tnc.reopened == 1
         await end(task)

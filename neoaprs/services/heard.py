@@ -1,27 +1,31 @@
-"""Which messages have been heard already: the same message (sender, id and text) heard again within `window_sec` is a repeat (the sender did not hear our ack, or a digipeater copied it), not a new
-message; when a message was last acked, so that the copies of one burst are answered once (`ack_due`); and which message of a station that knows reply-acks is still to be acknowledged on the next message
-we send it (`owe_reply`, `reply_for`)."""
+"""Which messages have been heard already, when each was last acked, and reply-acks still owed.
+
+The same message (sender, id and text) heard again within `window_sec` is a repeat. `ack_due`
+answers the copies of one burst once; `owe_reply` and `reply_for` track reply-acks.
+"""
 from datetime import datetime, timedelta
 
 from neoaprs.message import MessageRecord
 from neoaprs.policy import DIGI_DUPLICATE_SEC
 
 DUPLICATE_WINDOW_SEC = 30 * 60
-ACK_AGAIN_SEC = DIGI_DUPLICATE_SEC                          # a copy of a message is acked again only when it comes at least this long after our last ack of it (digipeaters drop a duplicate for 30 s)
+# A copy is acked again only this long after our last ack; digipeaters drop duplicates for 30 s.
+ACK_AGAIN_SEC = DIGI_DUPLICATE_SEC
 
 
 class Heard:
     def __init__(self, window_sec: float = DUPLICATE_WINDOW_SEC) -> None:
         self.window = timedelta(seconds=window_sec)
         self._at: dict[tuple[str, str, str], datetime] = {}
-        self._acked: dict[tuple[str, str, str], datetime] = {}   # when we last acked each message (the same key): kept in memory only, like the rest
-        self._reply: dict[str, tuple[str, datetime]] = {}   # for each station that sent a message with a reply-ack number: the id of the latest of them and when it was heard
+        self._acked: dict[tuple[str, str, str], datetime] = {}
+        self._reply: dict[str, tuple[str, datetime]] = {}   # per station: latest id and when heard
 
     @staticmethod
     def key_of(record: MessageRecord) -> tuple[str, str, str] | None:
-        """What tells a repeat of a message from a new one. A message that came to us with an id: the sender, the id and the text (the same again is a repeat, and is acked again; the same id with another
-        text is a new message, a sender that began its numbering again). One without an id, and one we only overheard: the sender, the addressee and the id, or (none) the text, so that two digipeaters' copies
-        of "Thanks, 73" are one message."""
+        """Return the key that tells a repeat from a new message, or None for one of ours.
+
+        An id with other text is a new message; without an id, or overheard, the key adds the addressee.
+        """
         if record.direction != "in":
             return None
         if record.state == "overheard" or record.msg_id is None:
@@ -29,20 +33,22 @@ class Heard:
         return (record.from_call, record.msg_id, record.text)
 
     def note(self, record: MessageRecord, at: datetime) -> bool:
-        """Notes that the message was heard; False when it was, less than the window before (for one without an id, DIGI_DUPLICATE_SEC), already. A message that was not heard (one of ours) has no key and is always new."""
+        """Note the message; return False if heard within the window (DIGI_DUPLICATE_SEC if no id)."""
         key = self.key_of(record)
         if key is None:
             return True
         before = self._at.get(key)
-        window = self.window if record.msg_id is not None else min(self.window, timedelta(seconds=DIGI_DUPLICATE_SEC))     # (one without an id is never sent again by its sender: only the copies of one transmission are repeats)
+        window = self.window if record.msg_id is not None else min(self.window, timedelta(seconds=DIGI_DUPLICATE_SEC))
         if before is not None and at - before < window:
             return False
         self._at[key] = at
         return True
 
     def ack_due(self, record: MessageRecord, at: datetime) -> bool:
-        """Whether to ack the message heard at `at`, and if so notes that we did. The first copy is acked at once; a further copy of the same message (the burst of a sender, two digipeaters and an iGate)
-        only when at least ACK_AGAIN_SEC have passed since our last ack of it, which is a sender that did not hear us and tries again."""
+        """Return whether to ack the message heard at `at`, noting the ack if so.
+
+        A further copy is acked only after ACK_AGAIN_SEC: the sender did not hear us and retried.
+        """
         key = self.key_of(record)
         if key is None:
             return False
@@ -53,18 +59,18 @@ class Heard:
         return True
 
     def owe_reply(self, station: str, msg_id: str, at: datetime) -> None:
-        """Notes that the station's message `msg_id`, which came with a reply-ack number, is the latest to be acknowledged on our next message to it."""
+        """Note that `msg_id`, which had a reply-ack number, is acked on our next message to it."""
         self._reply[station] = (msg_id, at)
 
     def reply_for(self, station: str, at: datetime) -> str | None:
-        """The id to carry as the reply-ack of a message to the station sent at `at`: that of its latest message, heard less than the window before; None when there is none."""
+        """The reply-ack id for a message sent at `at`: its latest within the window, else None."""
         found = self._reply.get(station)
         if found is None or at - found[1] >= self.window:
             return None
         return found[0]
 
     def settled(self, station: str) -> None:
-        """The station has answered a message of ours (it acked or rejected it): what it was owed has reached it."""
+        """The station acked or rejected a message of ours, so the owed reply-ack has reached it."""
         self._reply.pop(station, None)
 
     def forget_before(self, cutoff: datetime) -> None:

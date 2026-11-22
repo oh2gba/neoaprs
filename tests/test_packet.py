@@ -1,5 +1,6 @@
-"""The packet dataclasses: frozen, the kind and the summary of each decoded form, text decoding; and the radio of a packet, kept as the radio's id, with the old word as its view and the frame reader that
-stamps it (neoaprs/tncmode.py)."""
+"""The packet dataclasses: frozen, the kind and summary of each decoded form, text decoding, and the
+packet's radio kept as an id with the frame reader that stamps it (neoaprs/tncmode.py).
+"""
 from dataclasses import FrozenInstanceError, fields, replace
 from datetime import UTC, datetime
 

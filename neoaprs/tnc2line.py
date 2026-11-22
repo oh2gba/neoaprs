@@ -1,35 +1,28 @@
-"""TNC2 text, the form a LoRa APRS board puts a packet in (`SRC>DST,PATH:information`), as an `ax25.Frame` and back. A LoRa packet on the air is that text after a header of three bytes (`HEADER`): no
-AX.25, no checksum of its own (the LoRa modem's is on), at most 255 bytes in all. A board hands the computer either KISS (AX.25 frames it made from the text) or lines of the text itself, ended by a line feed
-with or without a carriage return before it.
+"""TNC2 text, the form a LoRa APRS board puts a packet in, as an `ax25.Frame` and back.
 
-`frame_of` reads a packet's text, `text_of` writes it, `air_of` and `from_air` add and take off the header; `LineReader` cuts what a board writes into lines and reads each: a line whose start is a TNC2
-header is a packet (or one that cannot be AX.25, with the reason: a call of more than six characters, an SSID above 15, more than eight digipeaters, more text than a packet carries), any other line is the
-board's own (its log). The information field is kept as the bytes it came as (a LoRa tracker sends UTF-8; a Mic-E field is no text at all). `Packet.raw` of a packet heard this way is the AX.25
-encoding of the frame, made by us, so that the log, the digipeater, the iGate and the codec read it as they read any frame of the air.
-
-The digipeaters' star: TNC2 text marks only the last digipeater the frame has been through (`Q2DIG*,WIDE2-1`), and AX.25 marks every one up to it; `frame_of` marks them all, `text_of` writes the one.
-
-Pure code."""
+A LoRa packet is `SRC>DST,PATH:information` after a three-byte header, at most 255 bytes.
+"""
 import re
 from dataclasses import dataclass
 
 from . import ax25
 
-HEADER = b"\x3c\xff\x01"                # what every LoRa APRS packet of text begins with on the air ("<", 0xFF, 0x01), as the firmwares in use send and require it
-MAX_PACKET = 255                        # the longest LoRa packet (the radio chips' buffer), the header included: the text of one is at most MAX_PACKET - len(HEADER) bytes
-MAX_TEXT = MAX_PACKET - len(HEADER)     # the longest text of a packet: 252 bytes
-MAX_LINE = 1024                         # a line of a board longer than this is no packet and no log line worth keeping: it is cut off there
-_PART = rb"[\x21-\x2b\x2d-\x39\x3b-\x3d\x3f-\x7e]{1,15}"     # a part of the header as loosely as a board writes it (any printable but the three signs between the parts), so that one that is no AX.25 address is told by its reason
-_HEAD = re.compile(rb"(%s)>(%s)((?:,%s)*):" % (_PART, _PART, _PART))     # SRC>DST,PATH:
+HEADER = b"\x3c\xff\x01"
+MAX_PACKET = 255
+MAX_TEXT = MAX_PACKET - len(HEADER)  # the longest text of a packet: 252 bytes
+# a board line longer than this is cut there
+MAX_LINE = 1024
+# a header part as loosely as a board writes it, so a bad address gets a reason
+_PART = rb"[\x21-\x2b\x2d-\x39\x3b-\x3d\x3f-\x7e]{1,15}"
+_HEAD = re.compile(rb"(%s)>(%s)((?:,%s)*):" % (_PART, _PART, _PART))  # SRC>DST,PATH:
 
 
 class Tnc2Error(ValueError):
-    """A packet's text that is no AX.25 frame, with the reason (an address that cannot be one, no header at all)."""
+    """A packet's text that is no AX.25 frame."""
 
 
 def addresses(parts: list[bytes]) -> list[ax25.Address]:
-    """The AX.25 addresses of the parts of a header (`OH2XYZ-9`, `WIDE2-1*`), by the rules of neoaprs/callsign.py; Tnc2Error naming the one that is none. The one grammar of the calls in TNC2 text, which the
-    monitor text of a TNC (tnc2text.py) reads too."""
+    """Return the AX.25 addresses of a header's parts; raise Tnc2Error naming the invalid one."""
     try:
         return [ax25.Address.parse(part.decode("ascii")) for part in parts]
     except (ax25.Ax25Error, UnicodeDecodeError) as error:
@@ -37,7 +30,7 @@ def addresses(parts: list[bytes]) -> list[ax25.Address]:
 
 
 def frame_of(text: bytes) -> ax25.Frame:
-    """The frame of a packet's text (no line end); Tnc2Error when it has no TNC2 header or an address of it cannot be AX.25."""
+    """Return the frame of a packet's text; raise Tnc2Error if it is not one."""
     head = _HEAD.match(text)
     if head is None:
         raise Tnc2Error("not a packet: no SRC>DST:information at its start")
@@ -53,22 +46,19 @@ def frame_of(text: bytes) -> ax25.Frame:
 
 
 def text_of(frame: ax25.Frame) -> bytes:
-    """The packet's text, as a board puts it on the air: the header in ASCII and the information field as its bytes (the frame's TNC2 line, whose Latin-1 gives each byte back as it was)."""
     return frame.tnc2().encode("latin-1")
 
 
 def air_of(frame: ax25.Frame) -> bytes:
-    """The LoRa packet of the frame: the header, then its text. It may be longer than MAX_PACKET; the one who sends it says whether it fits (`fits`)."""
     return HEADER + text_of(frame)
 
 
 def fits(packet: bytes) -> bool:
-    """Whether a LoRa packet is short enough to be sent."""
     return len(packet) <= MAX_PACKET
 
 
 def from_air(packet: bytes) -> ax25.Frame:
-    """The frame of a LoRa packet; Tnc2Error for one without the header (another kind of LoRa traffic) or whose text is no frame."""
+    """Return the frame of a LoRa packet; raise Tnc2Error."""
     if not packet.startswith(HEADER):
         raise Tnc2Error("not a LoRa APRS packet: it does not begin with the header of one")
     return frame_of(packet[len(HEADER):])
@@ -76,19 +66,19 @@ def from_air(packet: bytes) -> ax25.Frame:
 
 @dataclass(frozen=True)
 class TextLine:
-    """One line a board wrote, without its line end: the packet it is (`frame`), or why a line that begins as a packet is none (`why`); a line of the board's own has neither."""
+    """One line a board wrote: the packet (`frame`), or why it is none (`why`)."""
     text: bytes
     frame: ax25.Frame | None = None
     why: str = ""
 
 
 class LineReader:
-    """What a board writes, cut into lines at each line feed (a carriage return before it is dropped), each read as a packet or as the board's own line. A piece of a line waits for the rest; a line that
-    grows past MAX_LINE is read as far as that, and the rest of it, up to its line feed, is dropped (it is no line of its own)."""
+    """What a board writes, cut into lines; a line past MAX_LINE is cut and its rest dropped."""
 
     def __init__(self) -> None:
         self._held = b""
-        self._cut = False                       # the line being written was cut off at MAX_LINE: what comes up to its line feed is dropped
+        # the line was cut at MAX_LINE: what comes up to its line feed is dropped
+        self._cut = False
 
     def feed(self, data: bytes) -> list[TextLine]:
         *lines, self._held = (self._held + data).split(b"\n")
@@ -107,7 +97,6 @@ class LineReader:
 
 
 def read_line(text: bytes) -> TextLine:
-    """A line of a board: a packet, a packet that is no AX.25 frame or is longer than a LoRa packet carries (with the reason), or a line of its own. The text is kept up to MAX_LINE bytes."""
     if _HEAD.match(text) is None:
         return TextLine(text[:MAX_LINE])
     if len(text) > MAX_TEXT:

@@ -1,10 +1,8 @@
-"""The LoRa APRS boards (aprs-reference/lora-plan.md section 3.2): a board whose firmware takes the LoRa packet of text apart and hands the computer KISS or TNC2 text, reached on the network (`lora-tcp`,
-the kind's default: the CA2RXU iGate at home on WiFi, whose list of heard packets says each packet's signal), on USB or Bluetooth (`lora-serial`: a device, `bt://` or `ble://`), or a CA2RXU iGate's log on
-USB (`lora-console`), which says each packet with its signal and takes nothing, so that the radio only receives. The "tnc" driver; the line is read by loraboard.py.
+"""The LoRa APRS boards: firmware that hands the computer KISS or TNC2 text from LoRa packets.
 
-What the kind may do and cannot do is common.py's (`LORA_LIMITS`, `LORA_ALLOWED`, `LORA_PATH`). The frequency and the modem's settings are the board's own: no firmware lets a program set them safely (the
-iGate takes them only on its own page, whose write replaces every setting and restarts it; KISS has no command for them), so no field is offered for them. No Find: an open may restart a board, and a board
-in KISS says nothing until it hears a packet; no search either (tncprofile `search`)."""
+Types `lora-tcp`, `lora-serial` and `lora-console`, all on the "tnc" driver (loraboard.py reads the
+line); limits are in common.py. No frequency field and no Find: the board's own settings stay.
+"""
 from dataclasses import replace
 
 from neoaprs.configvalues import host_name
@@ -16,11 +14,12 @@ from neoaprs.tncprofile import LORA_CONSOLE, LORA_SERIAL, LORA_TCP, Profile
 
 
 def host_or_empty(text: str) -> str:
-    """The board's address, or "" while none is typed: the radio then waits for it and opens nothing."""
+    """Return the board's address, or "" while none is typed; the radio then opens nothing."""
     return host_name(text) if text.strip() else ""
 
 
-BOARD_HOST = replace(TCP_HOST, parse=host_or_empty, default="")      # a board on the network is never on this computer: no address until the operator types the board's
+# A board on the network is never on this computer, so there is no default address.
+BOARD_HOST = replace(TCP_HOST, parse=host_or_empty, default="")
 
 
 def _board(profile: Profile, fields: tuple[Field, ...], allowed: Allowed = LORA_ALLOWED, can: Can = TERMINAL_ONLY) -> RadioType:
@@ -30,5 +29,6 @@ def _board(profile: Profile, fields: tuple[Field, ...], allowed: Allowed = LORA_
 TYPES: tuple[RadioType, ...] = (
     _board(LORA_TCP, fields_of((BOARD_HOST, TCP_PORT), LORA_ALLOWED)),
     _board(LORA_SERIAL, fields_of((PORT, BAUD), LORA_ALLOWED)),
-    _board(LORA_CONSOLE, fields_of((PORT, BAUD), NOTHING_ALLOWED, transmit=False), NOTHING_ALLOWED, LISTENS),      # (where it is reached, and nothing of what goes out: nothing does)
+    # Only where it is reached; nothing goes out.
+    _board(LORA_CONSOLE, fields_of((PORT, BAUD), NOTHING_ALLOWED, transmit=False), NOTHING_ALLOWED, LISTENS),
 )

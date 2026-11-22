@@ -1,6 +1,7 @@
-"""The beacon of a moving station (neoaprs/services/beacon.py with services/mobilebeacon.py and neoaprs/smartbeacon.py, its frame the one maker's, services/beaconframe.py) on a radio of the settings as the
-registry gives it (`support/seamshapes.py` over a stub line), a GPS that is a stand-in and a clock the test holds: the compressed frame byte for byte, the start beacon, the beacons by time at three speeds, the
-turn, no beacon without a fix, a request, the HF radio sending the fix by time, `?APRSP`, and the timer's usual care (a radio that is away, a frame that is refused)."""
+"""Tests for the moving-station beacon (neoaprs/services/beacon.py, mobilebeacon.py, smartbeacon.py)
+with a stand-in GPS and a test clock: compressed frame, start beacon, timing at three speeds, turns,
+no fix, requests, HF, `?APRSP` and the usual timer care.
+"""
 import logging
 from datetime import timedelta
 
@@ -29,9 +30,11 @@ class Rig(ServiceRig):
     def __init__(self, fix: bool = True, radio: RadioId = FM_ID, **changes: object) -> None:
         super().__init__(**{"gps_source": "gpsd", "station_symbol_code": ">", "beacon_interval_min": 30, **changes})
         self.gps = FakeFixes()
-        self.radio = radio_of(self.config, radio, self.tnc)                 # (the radio of the settings, its frames on the stub)
+        # (the radio of the settings, its frames on the stub)
+        self.radio = radio_of(self.config, radio, self.tnc)
         self.frames = BeaconFrames(lambda: self.config, self.gps, self.clock)
-        self.beacon = Beacon(self.radio, lambda: self.config, self.clock, first_delay_sec=30.0, tick_sec=0.01, retry_sec=5.0, frames=self.frames)       # (its GPS is the maker's)
+        # (its GPS is the maker's)
+        self.beacon = Beacon(self.radio, lambda: self.config, self.clock, first_delay_sec=30.0, tick_sec=0.01, retry_sec=5.0, frames=self.frames)
         if fix:
             self.move(speed=54.0, course=270)
 
@@ -169,7 +172,8 @@ def test_the_first_fix_is_beaconed_at_once_as_the_start_and_the_next_by_time_is_
     assert len(rig.tnc.sent) == 1, "once"
 
 
-# (the preset, a speed, the seconds between two beacons by time at that speed: the slow time when still, the fast time at and above the fast speed, fast_sec * fast_kmh / speed between)
+# (the preset, a speed, the seconds between two beacons by time at that speed: the slow time when
+# still, the fast time at and above the fast speed, fast_sec * fast_kmh / speed between)
 RATES = [("car", 0.0, 1800), ("car", 50.0, 120), ("car", 130.0, 60), ("bicycle", 2.0, 1800), ("bicycle", 15.0, 120), ("bicycle", 40.0, 60),
          ("foot", 1.0, 1800), ("foot", 3.5, 240), ("foot", 10.0, 120), ("boat", 2.0, 1800), ("boat", 20.0, 120), ("boat", 50.0, 60)]
 
@@ -191,7 +195,8 @@ def test_the_time_between_beacons_is_the_rate_of_the_speed_for_the_preset(travel
     assert rig.beacon.next_due == rig.clock() + timedelta(seconds=seconds)
 
 
-# (the preset, a speed in km/h that is 30, 15, 20 or 5 miles per hour, the least turn in degrees there that is not beaconed, the least that is, the seconds a turn waits after the last beacon)
+# (the preset, a speed in km/h that is 30, 15, 20 or 5 miles per hour, the least turn in degrees
+# there that is not beaconed, the least that is, the seconds a turn waits after the last beacon)
 TURNS = [("car", 48.28, 35, 42, 15), ("bicycle", 24.14, 50, 55, 20), ("foot", 8.05, 60, 70, 60), ("boat", 32.19, 30, 36, 30)]
 
 
@@ -238,7 +243,8 @@ def test_a_station_that_stands_still_sends_no_turns_and_one_beacon_in_half_an_ho
     rig.tick()
     for step in range(1, 120):
         rig.clock.advance(10)
-        rig.move(speed=2.0, course=(step * 37) % 360)                         # (a GPS that stands still reports any course)
+        # (a GPS that stands still reports any course)
+        rig.move(speed=2.0, course=(step * 37) % 360)
         rig.tick()
     assert len(rig.tnc.sent) == 1
     rig.clock.advance(700)
@@ -273,7 +279,8 @@ def test_with_the_interval_at_zero_the_moving_station_sends_nothing_by_the_timer
     for _ in range(3):
         rig.tick()
         rig.clock.advance(600)
-        rig.move(speed=90.0, course=10)                                                 # (a fast station that turns, with a fix: SmartBeaconing would say send)
+        # (a fast station that turns, with a fix: SmartBeaconing would say send)
+        rig.move(speed=90.0, course=10)
     assert rig.tnc.sent == [] and rig.beacon.last_sent is None and rig.beacon.next_due is None and rig.beacon.mobile.last is None
     assert rig.beacon.send_now() and len(rig.tnc.sent) == 1, "Beacon now is asked for, so it sends, with a fix"
 
@@ -291,7 +298,8 @@ async def test_switching_a_moving_station_off_and_on_stops_and_resumes_smartbeac
         rig.move(speed=90.0, course=100)
         rig.tick()
         assert len(rig.tnc.sent) == 1
-        rig.set(beacon_interval_min=30)                                                 # (On from Off stores the first interval, which is not used)
+        # (On from Off stores the first interval, which is not used)
+        rig.set(beacon_interval_min=30)
         rig.beacon.settings_changed()
         rig.tick()
         assert len(rig.tnc.sent) == 2 and rig.beacon.last_reason in ("time", "turn")

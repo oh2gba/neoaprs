@@ -1,5 +1,6 @@
 #!/bin/sh
-# The files of the package go with it, and so does what Python made beside them. The data of the users (~/.local/share/neoaprs) and the service units in their homes are not ours to remove.
+# The files of the package go with it, and so does what Python made beside them. The data of the
+# users (~/.local/share/neoaprs) and the service units in their homes are not ours to remove.
 set -e
 
 case "$1" in

@@ -1,5 +1,6 @@
-"""The weather decoder (neoaprs/aprsweather.py): the conversions to metric, where the fields end and the comment begins, what is missing, the line a summary says, and the weather of a packet. The decoded cases of the
-dispatcher (real reports and the spec's examples) are in tests/fixtures/aprs/cases.json."""
+"""Tests for the weather decoder (neoaprs/aprsweather.py): metric conversion, where the fields end,
+missing values, the summary line. Whole-packet cases are in tests/fixtures/aprs/cases.json.
+"""
 from datetime import UTC, datetime
 
 import pytest
@@ -49,10 +50,14 @@ def test_the_wind_of_a_position_takes_two_or_three_digits_of_direction() -> None
 def test_the_fields_end_at_the_first_character_that_is_not_one_and_the_rest_is_the_comment() -> None:
     parsed, rest = parse_weather(REAL + " RX Igate & WX station")
     assert parsed is not None and parsed.raw == REAL and rest == " RX Igate & WX station"
-    assert parse_weather("t050b10285Inkoo")[1] == "Inkoo"                                          # a comment glued to the data
-    assert parse_weather("t050h79Lahti")[1] == "Lahti"                                             # a word that begins with a field letter but has no digits is a comment
-    assert parse_weather("t050t060")[1] == "t060"                                                  # a field twice: the second is not a field
-    assert parse_weather("t05")[1] == "t05" and parse_weather("t05")[0] is None                    # too short: no field at all
+    # a comment glued to the data
+    assert parse_weather("t050b10285Inkoo")[1] == "Inkoo"
+    # a word that begins with a field letter but has no digits is a comment
+    assert parse_weather("t050h79Lahti")[1] == "Lahti"
+    # a field twice: the second is not a field
+    assert parse_weather("t050t060")[1] == "t060"
+    # too short: no field at all
+    assert parse_weather("t05")[1] == "t05" and parse_weather("t05")[0] is None
     assert parse_weather("g005t077wRSW")[1] == "wRSW"
 
 

@@ -1,6 +1,7 @@
-"""Migrations 19 and 20 (neoaprs/migrationsteps12to21.py): the rows of `beacon/mobile` and of the seven `smart/*` numbers are deleted once, with a line in the log for each; every other setting is as it was,
-and `beacon/travel` has no row, so the car is in force. A row `beacon/moving_as`, which an earlier build stored for the setting that is now `beacon/travel`, is renamed once, with a line in the log.
-Migration 31 then makes the beacon's path radio 1's own setting and its last send radio 1's state row, each with its value and revision."""
+"""Migrations 19 and 20 (neoaprs/migrationsteps12to21.py): the `beacon/mobile` and `smart/*` rows
+are deleted once with a log line each, and a stored `beacon/moving_as` is renamed to
+`beacon/travel`.
+"""
 import logging
 from pathlib import Path
 
@@ -17,7 +18,8 @@ from tests.test_migrations import GOLDEN, raw
 
 GONE = {"beacon/mobile": "true", "smart/fast_kmh": "90", "smart/fast_sec": "45", "smart/slow_kmh": "5", "smart/slow_sec": "900", "smart/turn_min_deg": "25", "smart/turn_min_sec": "20", "smart/turn_slope": "200"}
 KEPT = {"station/call": "OH2GBA", "gps/source": "gpsd", "gps/host": "10.0.0.7:2947", "gps/baud": "9600", "beacon/interval_min": "45", "beacon/path": "WIDE2-2", "beacon/last_sent_at": "2026-10-23T10:00:00Z"}
-# KEPT as the newest version keeps it: the settings rows, with the last send under radio 1's name, and the path as radio 1's own setting (migration 31)
+# KEPT as the newest version keeps it: the settings rows, with the last send under radio 1's name,
+# and the path as radio 1's own setting (migration 31)
 KEPT_SETTINGS = {("radio/1/beacon_last_sent_at" if key == "beacon/last_sent_at" else key): (value, 1) for key, value in KEPT.items() if key != "beacon/path"}
 KEPT_RADIO = [(1, "path", KEPT["beacon/path"], 1)]
 
@@ -35,7 +37,9 @@ def version_eighteen(path: Path, clock: FixedClock, stored: dict[str, str]) -> N
 
 
 def migrate(folder: Path, stored: dict[str, str]) -> tuple[dict[str, tuple[str, int]], list[tuple[int, str, str, int]]]:
-    """The settings rows (key to value and revision) and the radios' own settings (radio, key, value, revision) of a database of version 18 with these settings, migrated to the newest version."""
+    """The settings rows (key to value and revision) and the radios' own settings (radio, key,
+    value, revision) of a database of version 18 with these settings, migrated to the newest
+    version."""
     clock = FixedClock()
     folder.mkdir(parents=True, exist_ok=True)
     old = folder / DB_NAME

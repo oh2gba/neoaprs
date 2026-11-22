@@ -1,5 +1,6 @@
-"""The Tnc's serial line, in memory (neoaprs/tncport.py): a port that opens nothing and moves no byte of a thread or a socket, so that a test can fail what a real line fails (the open, a write), feed the Tnc bytes at the
-moment it chooses, and run on a loop whose time is skipped (tests/support/virtualtime.py). `FakePorts.install` puts it where `Tnc` makes its port; the radio of the tests of the socket is tests/support/fakeradio.py."""
+"""The Tnc's serial line in memory (neoaprs/tncport.py): a port that opens nothing, so a test can
+fail the open or a write and feed the Tnc bytes when it chooses, on a loop whose time is skipped.
+"""
 from collections.abc import Awaitable, Callable
 
 import pytest
@@ -8,7 +9,8 @@ from neoaprs.serialport import SerialError
 
 
 class FakePort:
-    """What the Tnc holds as its port. `ports` is the registry that made it, which says how the open and the writes of every port go."""
+    """What the Tnc holds as its port. `ports` is the registry that made it, which says how the open
+    and the writes of every port go."""
 
     def __init__(self, ports: "FakePorts", path: str, baud: int, on_data: Callable[["FakePort", bytes], None], on_lost: Callable[["FakePort", str], None]) -> None:
         self.ports, self.path, self.baud = ports, path, baud
@@ -56,7 +58,8 @@ class FakePort:
 
 
 class FakePorts:
-    """The ports a Tnc made, and how they behave. `open_error` / `write_error` are raised by every open / write while set."""
+    """The ports a Tnc made, and how they behave. `open_error` / `write_error` are raised by every
+    open / write while set."""
 
     def __init__(self) -> None:
         self.opened: list[FakePort] = []
@@ -66,7 +69,8 @@ class FakePorts:
         async def open_now() -> None:
             return None
 
-        self.open_gate: Callable[[], Awaitable[None]] = open_now             # an awaitable the open waits for (a test that holds the open puts its own)
+        # An awaitable the open waits for (a test that holds the open puts its own)
+        self.open_gate: Callable[[], Awaitable[None]] = open_now
 
     def make(self, path: str, baud: int, on_data: Callable[[FakePort, bytes], None], on_lost: Callable[[FakePort, str], None]) -> FakePort:
         return FakePort(self, path, baud, on_data, on_lost)

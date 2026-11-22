@@ -1,8 +1,7 @@
-"""A receive-only radio (the type `tnc-text`, neoaprs/radiotypes/tnctext.py) on the real controller, its line a fake radio that types what a TNC prints: alone, every sending service refuses with `transmit.off`
-or leaves it out, and beside a Dummy FM radio everything goes on that one; in both, not one byte leaves on the receive-only radio's line. What it hears goes to the station book and the packets, and is
-gateable like anything heard on the air. A message heard on it alone is acked on the radio the message rule gives for the sender, so that the sender stops sending again; a query heard on it alone is not answered.
-
-The rules (neoaprs/radiospec.py, messagerule, emailrule, beaconrule): for any set of radios, every radio a rule picks can send."""
+"""A receive-only radio (type `tnc-text`, neoaprs/radiotypes/tnctext.py) on the real controller:
+alone, every sending service refuses with `transmit.off`; beside a Dummy FM radio everything goes
+there; nothing is written on it.
+"""
 import asyncio
 from dataclasses import replace
 from datetime import timedelta
@@ -37,7 +36,8 @@ HEARD = "OH2ABC-7"
 SETTINGS = {"station/call": ME, "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": TNC_TEXT.key, "digi/enabled": "true", "messages/alert": "false",
             "station/status": "QRV 145.500", "status/source": "text", "status/interval_min": "60", "beacon/interval_min": "20"}
 TO_US = f"{HEARD}>APRS,WIDE1-1::{ME:<9}:Hello{{12\r".encode()        # a message to us, with its id: an ack is due
-ASKS_US = f"{HEARD}>APRS,WIDE1-1::{ME:<9}:?APRSP\r".encode()          # a directed query: our position is due as its answer
+# A directed query: our position is due as its answer
+ASKS_US = f"{HEARD}>APRS,WIDE1-1::{ME:<9}:?APRSP\r".encode()
 FILL_IN = b"OH2DIG-9>APRS,WIDE1-1,WIDE2-1:!6010.00N/02456.00E>wants a fill-in\r"
 POSITION = f"{HEARD}>APRS,WIDE1-1:!6011.00N/02457.00E>heard on the text radio\r".encode()
 
@@ -84,7 +84,9 @@ async def test_alone_every_sending_service_refuses_with_rx_only_and_not_one_byte
     await page.send({"cmd": "bulletin_post", "slot": "BLN1", "text": "Field day on Saturday"})
     e.feed(TO_US + ASKS_US + FILL_IN)
     await until(lambda: e.ctl.radios.get(1).stats.packets >= 4)              # type: ignore[union-attr]
-    for _ in range(30):                                                        # (an hour and a half of the station's clock: the beacons, the status, the object and the bulletin are due)
+    # An hour and a half of the station's clock: the beacons, the status, the object and the
+    # bulletin are due
+    for _ in range(30):
         e.now.advance(180)                                                     # type: ignore[attr-defined]
         await idle_for(0.02)
     assert await e.heard(1, 0.3) == b"" and e.ctl.radios.get(1).stats.bytes_out == 0, "not one byte left on the receive-only line"     # type: ignore[union-attr]
@@ -98,7 +100,8 @@ async def test_alone_every_sending_service_refuses_with_rx_only_and_not_one_byte
 async def test_beside_a_dummy_fm_radio_everything_goes_on_that_one_an_ack_too_and_a_query_heard_on_the_text_radio_alone_is_not_answered(tmp_path: object) -> None:
     e, fm = await started(tmp_path, beside=True)
     assert fm is not None
-    e.ctl.sender.spacing_sec = 0.0                                             # (our frames one after the other: the pause between them is not what this is about)
+    # Our frames one after the other: the pause between them is not what this is about
+    e.ctl.sender.spacing_sec = 0.0
     page = await e.ws()
     assert not e.ctl.config.listens_only and e.ctl.config.unheard_radio == fm and [r.id for r in e.ctl.radios.senders()] == [fm] and [r.id for r in e.ctl.radios.beaconing()] == [fm]
     assert e.ctl.radios.for_station(HEARD).id == fm, "a station heard on the text radio alone gets its messages on the radio that sends"      # type: ignore[union-attr]
@@ -112,7 +115,8 @@ async def test_beside_a_dummy_fm_radio_everything_goes_on_that_one_an_ack_too_an
     e.feed(TO_US + FILL_IN)
     for _ in range(20):
         e.now.advance(2)                                                       # type: ignore[attr-defined]
-        e.ctl.ownobjects.tick()                                                # (its ticker looks once a second of real time)
+        # Its ticker looks once a second of real time
+        e.ctl.ownobjects.tick()
         await idle_for(0.03)
     out = await ours(e)
     assert out and all(p.radio_id == fm for p in out), "everything of ours went on the radio that sends"
@@ -132,7 +136,8 @@ async def test_beside_a_dummy_fm_radio_everything_goes_on_that_one_an_ack_too_an
 GENERAL = ax25.Frame(ax25.Address("APRS"), ax25.Address("OH2QRY"), (ax25.Address("WIDE1", 1),), info=b"?APRS?")
 ASKS_HEARD = ax25.Frame(ax25.Address("APRS"), ax25.Address("OH2ABC", 7), (ax25.Address("WIDE1", 1),), info=f":{ME:<9}:?APRSH OH2DIG-9".encode())
 ASKS_QRU = ax25.Frame(ax25.Address("APRS"), ax25.Address("OH2ABC", 7), (ax25.Address("WIDE1", 1),), info=f":{'QRU':<9}:INFO{{7".encode())
-ASKS_NUMBERED = ax25.Frame(ax25.Address("APRS"), ax25.Address("OH2ABC", 7), (ax25.Address("WIDE1", 1),), info=f":{ME:<9}:?APRSP{{21".encode())      # (a radio that numbers its query waits for our ack)
+# A radio that numbers its query waits for our ack
+ASKS_NUMBERED = ax25.Frame(ax25.Address("APRS"), ax25.Address("OH2ABC", 7), (ax25.Address("WIDE1", 1),), info=f":{ME:<9}:?APRSP{{21".encode())
 
 
 @pytest.mark.parametrize("query", [GENERAL, ASKS_HEARD, ASKS_QRU, ASKS_NUMBERED], ids=["general", "heard", "qru", "numbered"])
@@ -147,13 +152,16 @@ async def test_a_query_heard_on_the_text_radio_and_on_a_kiss_radio_beside_it_is_
     await page.send({"cmd": "set_config", "values": {f"radio/{kiss_id}/port": beside.url}})
     await until_started(lambda: (r := e.ctl.radios.get(kiss_id)) is not None and r.state is Source.State.CONNECTED and r.usable)
     await beside.connected()
-    e.feed(FILL_IN)                                                            # (OH2DIG-9 is in the packet log, for ?APRSH)
+    # OH2DIG-9 is in the packet log, for ?APRSH
+    e.feed(FILL_IN)
     await until(lambda: e.tnc.stats.packets >= 1)
-    e.ctl.queries._delay = lambda: 0.1                                         # (the general query's random wait, made short)
+    # The general query's random wait, made short
+    e.ctl.queries._delay = lambda: 0.1
     e.ctl.qru.first_wait_sec = 0.1
     e.ctl.ownobjects.set("PUB", "object", 60.17, 24.94, "/", "r", "Pub", qru_group="FOOD", on_request=True)
     as_text, as_kiss = query.tnc2().encode() + b"\r", kiss.encode(ax25.encode(query))
-    if text_first:                                                             # (two receivers on one channel hear every frame; which copy comes first is chance)
+    # Two receivers on one channel hear every frame; which copy comes first is chance
+    if text_first:
         e.feed(as_text)
         await until(lambda: e.tnc.stats.packets >= 2)
         beside.feed(as_kiss)
@@ -176,7 +184,8 @@ async def test_find_my_radio_tries_no_port_a_radio_that_only_listens_is_set_to(t
     text = await e.ctl.add_radio(TNC_TEXT.key)
     assert text is not None
     page = await e.ws()
-    port = str(e.ports / "probe_text")                                             # (a port the search pattern matches; nothing is behind it, so the radio never opens it)
+    # A port the search pattern matches; nothing is behind it, so the radio never opens it
+    port = str(e.ports / "probe_text")
     await page.send({"cmd": "set_config", "values": {f"radio/{text}/port": port}})
     await until(lambda: (spec := e.ctl.config.radio(text)) is not None and spec.value("port") == port)
     assert all(c.holder != text for c in e.ctl.radios.claims.all()), "the radio has not opened its port"
@@ -211,7 +220,8 @@ def test_every_radio_a_rule_picks_can_send(specs: tuple[RadioSpec, ...], choice:
 
 
 def test_a_type_whose_profile_reads_text_or_writes_nothing_cannot_send_and_every_other_can() -> None:
-    profiles = {**PROFILES, DIREWOLF.key: DIREWOLF}                             # (the Sound card type's line is told Direwolf's profile by its own driver)
+    # The Sound card type's line is told Direwolf's profile by its own driver
+    profiles = {**PROFILES, DIREWOLF.key: DIREWOLF}
     for t in BY_KEY.values():
         assert profiles[t.profile].writes_nothing == (profiles[t.profile].framing == "text" or profiles[t.profile].receive_only) == (not t.can.transmit), t.key
     assert [t.key for t in BY_KEY.values() if not t.can.transmit] == [TNC_TEXT.key, "lora-console"]
@@ -235,7 +245,8 @@ def test_a_search_leaves_out_the_ports_the_radios_that_only_listen_are_set_to() 
     first = config.radio(1)
     assert first is not None and first.type == "kenwood-tnc2" and first.value("port") == "", "radio 1 searches, and a TNC-2 is nudged with a carriage return"
     claims = Claims()
-    claims.named = lambda: named_ports(config)                                     # (as the radio registry has it: the settings in force)
+    # As the radio registry has it: the settings in force
+    claims.named = lambda: named_ports(config)
     assert claimed(claims, 1) == {port_key("/dev/ttyUSB7"): "held by radio 3", port_key("/dev/ttyUSB9"): "held by radio 5"}, "the receive-only radio's port is never searched, nor one a radio that sends is set to; a radio that is off is"
     assert line_settings(first, config, RunOverrides()).skip == ON_AIR.serial_skip_paths, "read from the table at every listing: no restart of radio 1 when another radio's port changes"
     assert line_settings(text, config, RunOverrides()).skip == ON_AIR.serial_skip_paths and line_settings(first, ON_AIR, RunOverrides()).skip == ON_AIR.serial_skip_paths
@@ -271,20 +282,27 @@ async def test_a_save_of_the_text_radio_restarts_no_radio_that_has_its_own_port(
 
 @posix_only
 async def test_the_search_of_a_radio_whose_own_port_is_gone_never_opens_the_port_a_text_radio_is_set_to(tmp_path: object) -> None:
-    """The D710's cable is pulled while the Yaesu is switched on: radio 1, with a port of its own that cannot be opened, searches the ports as its fallback; the text monitor's port, which appears after the
-    start and is not held yet, is left out of that search, so that not a carriage return reaches it, and the monitor opens its own port. The port is a pseudo-terminal behind a device path, as the search
-    lists a serial device (a KISS TCP address is no device, and no search lists one): POSIX only, and the search is made on Linux alone."""
+    """The D710's cable is pulled while the Yaesu is switched on: radio 1, with a port of its own
+    that cannot be opened, searches the ports as its fallback; the text monitor's port, which
+    appears after the start and is not held yet, is left out of that search, so that not a carriage
+    return reaches it, and the monitor opens its own port. The port is a pseudo-terminal behind a
+    device path, as the search lists a serial device (a KISS TCP address is no device, and no search
+    lists one): POSIX only, and the search is made on Linux alone."""
     e = Env(tmp_path, radio=False, settings={"station/call": ME, "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "kenwood-tnc2"}, probe_nudge_sec=0.1)       # type: ignore[arg-type]
-    e.settings["serial/port"] = str(e.ports / "fm_gone")                       # (radio 1's own port: not there, and not in the search's pattern probe_*)
+    # Radio 1's own port: not there, and not in the search's pattern probe_*
+    e.settings["serial/port"] = str(e.ports / "fm_gone")
     await e.start(connected=False)
     text = await e.ctl.add_radio(TNC_TEXT.key)
     assert text is not None
-    monitor = e.ports / "probe_monitor"                                         # (in the pattern: the search would listen to it)
+    # In the pattern: the search would listen to it
+    monitor = e.ports / "probe_monitor"
     await e.ctl.save_radio_settings(text, {"port": str(monitor)})
     await idle_for(0.5)
-    master, _ = e.new_pty("probe_monitor")                                    # (the Yaesu is switched on: its port appears, and it prints what it hears)
+    # The Yaesu is switched on: its port appears, and it prints what it hears
+    master, _ = e.new_pty("probe_monitor")
     written = b""
-    for _ in range(16):                                                         # (the monitor's next try comes after its own wait)
+    # The monitor's next try comes after its own wait
+    for _ in range(16):
         feed_pty(master, POSITION)
         written += await asyncio.to_thread(heard_pty, master, 1, 0.5)
         if e.ctl.radios.get(text).state is Source.State.CONNECTED:          # type: ignore[union-attr]

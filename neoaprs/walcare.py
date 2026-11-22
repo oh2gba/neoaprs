@@ -1,13 +1,14 @@
-"""The size of the write-ahead log of the database file.
+"""Bound the size of the database's write-ahead log.
 
-In WAL mode a commit goes to the -wal file and a checkpoint moves the pages into the database file. Two settings of the connection bound the log: SQLite's own automatic checkpoint, which every
-commit past `AUTOCHECKPOINT_PAGES` pages of log tries, and `journal_size_limit`, which cuts the file down to `WAL_LIMIT_BYTES` whenever the log is started again after a checkpoint. A checkpoint stops
-at the oldest snapshot a reader holds, so another process that keeps a read transaction open (a forgotten sqlite3 shell, `neoaprs-db`, a long query) keeps the log from being moved and it grows with
-every commit until that reader lets go."""
+The automatic checkpoint and `journal_size_limit` bound the log. A checkpoint stops at the oldest
+snapshot a reader holds, so a long read transaction lets the log grow.
+"""
 import sqlite3
 
-WAL_LIMIT_BYTES = 64 * 1024 * 1024         # the file is cut to this when the log restarts
-AUTOCHECKPOINT_PAGES = 1000                # SQLite's own default, written down: after this many pages a commit tries a checkpoint
+# the file is truncated to this when the log restarts
+WAL_LIMIT_BYTES = 64 * 1024 * 1024
+# SQLite's default, set explicitly: a commit past this many pages tries a checkpoint
+AUTOCHECKPOINT_PAGES = 1000
 
 
 def limit(db: sqlite3.Connection) -> None:

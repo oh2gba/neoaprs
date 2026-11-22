@@ -1,4 +1,5 @@
-"""The timers of the parts that had no guard of their own (neoaprs/tasks.py `every` is their loop): an exception in one round is logged and the timer goes on with the next."""
+"""The timers of the parts that had no guard of their own (neoaprs/tasks.py `every` is their loop):
+an exception in one round is logged and the timer goes on with the next."""
 import asyncio
 from pathlib import Path
 

@@ -1,19 +1,7 @@
-"""The radio a message of ours goes out on (plan rule 3.2), for services/messaging.py, with the two helpers of its frames.
+"""The radio an outgoing message goes on (plan rule 3.2), and two helpers for its frames.
 
-The radio of a message to a station is the station's (`station_radio`: the registry's `for_station`, neoaprs/messagerule.py), and for the email gateway the email radio (neoaprs/emailrule.py). It is asked at the message's first
-attempt, and the message keeps that radio until it ends (`MessageRadios`): a station heard on another radio meanwhile does not move a message that is on its way, so that its attempts and the acks to them
-stay on one channel. Two things move it: the operator chooses another radio for the station (Route; for a mail the select of the E-mail tab, `email/radio`: Route chooses nothing for the gateway), or the
-radio is no longer enabled (switched off, removed). Then the radio is asked again, the next
-attempt is fitted to it (a message whose frame that radio cannot carry fails with the reason, services/retries.py `end_too_long`), and the message keeps the new one. The choice compared is the one in
-force (a choice that names a radio that is off is none), so that a chosen radio switched on again takes the message. After a restart the radio of a message being sent is the one its last attempt went
-on, as the delivery chain kept it (services/delivery.py), while the choice in force is none or that radio; a choice of another radio has moved it, and it is given the station's radio of now.
-
-A radio that only stood in for the station's own is kept only until the station's own is on again: one that has never heard the station and that no Route names, given because the radio that heard the
-station was off (messagerule.stood_in; the first radio that can send, of a station no radio had heard, is the rule's choice, and kept). While a message is on such a radio and the station's radio of now is one that heard the
-station, the next attempt goes on that one and the message keeps it; after a restart the attempts and what each radio heard of the station tell whether the last attempt's radio stood in.
-
-The operator's choice is read from the station's radios where they have one (`Chooses`: the registry, neoaprs/stationchoices.py), and what each radio heard of the station likewise (`Knows`: the registry's
-station book); radios that have none (a test's) have no choice to change and no radio that stands in."""
+A message keeps its first radio until it ends, unless the operator chooses another one, the
+radio is disabled or a stand-in radio is replaced by one that heard the station."""
 import logging
 from collections.abc import Callable, Sequence
 from datetime import datetime
@@ -35,25 +23,23 @@ log = logging.getLogger("neoaprs.messaging")
 
 @runtime_checkable
 class Chooses(Protocol):
-    """Radios that know the operator's radio for a station (the registry: neoaprs/stationchoices.py `choice`)."""
     def choice(self, call: str) -> RadioId | None: ...
 
 
 @runtime_checkable
 class Knows(Protocol):
-    """Radios that know what each of them heard of a station (the registry: its station book)."""
     def station_of(self, call: str) -> Station | None: ...
 
 
 class Kept(NamedTuple):
-    """The radio a message keeps: its id, the operator's choice for the station in force when it was taken, and whether it only stood in for the station's own (messagerule.stood_in)."""
+    """The kept radio, the choice in force when it was taken, and whether it stood in."""
     radio: RadioId
     choice: RadioId | None
     stand_in: bool
 
 
 def last_run(attempts: Sequence[Attempt]) -> tuple[RadioId, datetime] | None:
-    """The radio the last of these attempts went on, and when the first of the attempts that went on it since the last on another was sent (when the message was given it); None for no attempt with a radio."""
+    """Return the last attempt's radio and when its run on it began; None if it has no radio."""
     if not attempts or (radio := attempts[-1].radio_id) is None:
         return None
     since = attempts[-1].sent_at
@@ -65,7 +51,7 @@ def last_run(attempts: Sequence[Attempt]) -> tuple[RadioId, datetime] | None:
 
 
 def info(to: str, text: str, ident: str | None, reply: str | None) -> bytes:
-    """The information field of a message: `:` and the body, with the reply-ack number `{ident}reply` ("" for none) when `reply` is given (the format's own refusals are told as MessagingError)."""
+    """Return the information field of a message; raise MessagingError for text it refuses."""
     try:
         return b":" + format_message(to, text, ident, reply)
     except MessageError as e:
@@ -73,7 +59,7 @@ def info(to: str, text: str, ident: str | None, reply: str | None) -> bytes:
 
 
 def named(name: str) -> str:
-    """A station as the overheard messages name it: a call in its normal form, else (an addressee that is no call) the text as it is."""
+    """Return the normal form of a callsign, or the stripped text if it is not a call."""
     try:
         return normal_name(name)
     except CallsignError:
@@ -81,8 +67,9 @@ def named(name: str) -> str:
 
 
 def station_radio(radios: RadioPick | Radio, config: ConfigSource, to: str) -> AirRadio:
-    """The radio a message of ours to the station goes out on now: the station's (`for_station`); the email radio for the email gateway (`email`: the one the operator chose in the E-mail tab, of any
-    kind). MessagingError (`radio.none`) while no radio that can send is on."""
+    """Return the radio for a message to the station now (the email radio for the gateway).
+
+    Raise MessagingError while no radio that can send is on."""
     pick = as_pick(radios, config)
     radio = pick.email() if to == EMAIL_GATEWAY else pick.for_station(to)
     if radio is None:
@@ -91,8 +78,7 @@ def station_radio(radios: RadioPick | Radio, config: ConfigSource, to: str) -> A
 
 
 def _choice(pick: RadioPick, config: ConfigSource, call: str) -> RadioId | None:
-    """The operator's radio for the station in force: the one chosen while it is enabled; None for no choice, or one that names a radio that is off or gone. For the email gateway the choice is the E-mail
-    tab's (`email/radio`), and Route's says nothing: a mail on its way follows that select as a message follows Route."""
+    """Return the operator's chosen radio if it is enabled, else None (email has its own choice)."""
     if call == EMAIL_GATEWAY:
         chosen = config().email_choice
     else:
@@ -101,13 +87,13 @@ def _choice(pick: RadioPick, config: ConfigSource, call: str) -> RadioId | None:
 
 
 def _keep(pick: RadioPick, to: str, radio: RadioId, choice: RadioId | None, at: datetime) -> Kept:
-    """The radio a message keeps from `at`, with the choice in force, and whether it only stands in for the station's own (never for the email gateway, whose radio is the email radio)."""
+    """Return the radio kept from `at`; a stand-in never applies to the email gateway."""
     station = pick.station_of(to) if isinstance(pick, Knows) and to != EMAIL_GATEWAY else None
     return Kept(radio, choice, station is not None and messagerule.stood_in(radio, choice, station.heard_by, station.first_heard, at))
 
 
 def _leaves(pick: RadioPick, to: str, kept: Kept, on: bool, choice: RadioId | None) -> str | None:
-    """Why a message leaves the radio it keeps (`on`: that radio is enabled), in the log's words; None while it keeps it."""
+    """Return the log reason the message leaves its kept radio; None if it stays."""
     if not on:
         return "the radio it went out on is off"
     if choice != kept.choice:
@@ -120,20 +106,18 @@ def _leaves(pick: RadioPick, to: str, kept: Kept, on: bool, choice: RadioId | No
 
 
 class MessageRadios:
-    """The radio each message of ours being sent keeps: the one its first attempt went on, with the operator's choice for the station in force at that time."""
-
     def __init__(self, radios: RadioPick | Radio, config: ConfigSource, last: Callable[[int], tuple[RadioId, datetime] | None]) -> None:
-        self._given, self._config = radios, config              # the station's radios (the registry), read at each call
-        self._last = last                                        # the radio the last attempt of a message went on and since when, as the delivery chain kept them (a restart: `last_run`); None for none
-        self._kept: dict[int, Kept | None] = {}                  # by message: the radio it keeps; None: it left it, and takes the next it goes on
+        self._given, self._config = radios, config
+        self._last = last
+        # By message id; None means it left its radio.
+        self._kept: dict[int, Kept | None] = {}
 
     def station(self, to: str) -> AirRadio:
-        """The station's radio now (a new message, a message sent again from its first attempt). MessagingError while there is none."""
+        """Return the station's radio now. Raise MessagingError while there is none."""
         return station_radio(self._given, self._config, to)
 
     def of(self, record: MessageRecord) -> AirRadio:
-        """The radio the message goes out on: the one it keeps while that is enabled and the operator's choice for the station is the one of then; else the station's radio now (told in the log once, when the
-        message leaves its radio). MessagingError while there is none."""
+        """Return the kept radio while valid, else the station's radio now; raise MessagingError."""
         pick = as_pick(self._given, self._config)
         choice = _choice(pick, self._config, record.to_call)
         kept = self._keeps(pick, record, choice)
@@ -148,7 +132,7 @@ class MessageRadios:
         return self.station(record.to_call)
 
     def peek(self, record: MessageRecord) -> AirRadio:
-        """The radio `of` gives now, with nothing kept and nothing logged (for the page's row). MessagingError while there is none."""
+        """Return what `of` would give, without keeping or logging; raise MessagingError."""
         pick = as_pick(self._given, self._config)
         choice = _choice(pick, self._config, record.to_call)
         kept = self._keeps(pick, record, choice)
@@ -158,17 +142,17 @@ class MessageRadios:
         return self.station(record.to_call)
 
     def _keeps(self, pick: RadioPick, record: MessageRecord, choice: RadioId | None) -> Kept | None:
-        """The radio the message keeps; after a restart the one its last attempt went on, unless a choice of another radio moved it (made here, stored by `of` alone)."""
+        """Return the kept radio, restoring the last attempt's radio after a restart."""
         if record.id not in self._kept and record.attempts > 0 and (last := self._last(record.id)) is not None and choice in (None, last[0]):
             return _keep(pick, record.to_call, last[0], choice, last[1])
         return self._kept.get(record.id)
 
     def sent(self, record: MessageRecord, radio: AirRadio, at: datetime) -> None:
-        """An attempt of the message went out on the radio at `at`: the radio it keeps, when it keeps none yet."""
+        """Record an attempt on `radio`; it becomes the kept radio if none is kept."""
         if self._kept.get(record.id) is None:
             pick = as_pick(self._given, self._config)
             self._kept[record.id] = _keep(pick, record.to_call, radio.id, _choice(pick, self._config, record.to_call), at)
 
     def forget(self, number: int) -> None:
-        """The message ended, or is sent again from its first attempt: it keeps no radio."""
+        """Drop the kept radio, as the message ended or restarts."""
         self._kept.pop(number, None)

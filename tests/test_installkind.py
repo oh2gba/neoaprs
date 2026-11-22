@@ -1,4 +1,6 @@
-"""How this copy was installed (neoaprs/versions.py `install_kind`, neoaprs/cli/installkind.py): the kind from what the process can see, with the facts faked in a folder of the test; and what the page is told of it in `hello`."""
+"""How this copy was installed (neoaprs/versions.py `install_kind`, neoaprs/cli/installkind.py): the
+kind from what the process can see, with the facts faked in a folder of the test; and what the page
+is told of it in `hello`."""
 import sys
 from typing import get_args
 from pathlib import Path
@@ -15,15 +17,18 @@ INSTALL_KINDS = get_args(InstallKind)
 
 @pytest.mark.parametrize("frozen, appimage, bundle, deb, checkout, uv_tool, kind", [
     (True, None, False, False, False, False, "windows-installer"),
-    (True, "/x/NeoAPRS.AppImage", True, True, True, True, "windows-installer"),     # (a frozen program is the installer's whatever else holds)
+    # (a frozen program is the installer's whatever else holds)
+    (True, "/x/NeoAPRS.AppImage", True, True, True, True, "windows-installer"),
     (False, "/home/u/NeoAPRS.AppImage", False, False, False, False, "appimage"),
     (False, "/home/u/NeoAPRS.AppImage", True, True, True, True, "appimage"),
     (False, None, True, False, False, False, "macos-app"),
-    (False, None, True, True, True, True, "macos-app"),                              # (the app's Python is in no clone and no tool folder, but the bundle decides)
+    # (the app's Python is in no clone and no tool folder, but the bundle decides)
+    (False, None, True, True, True, True, "macos-app"),
     (False, None, False, True, False, False, "deb"),
     (False, None, False, True, True, True, "deb"),
     (False, None, False, False, True, False, "source"),
-    (False, None, False, False, True, True, "source"),                               # (a clone made with `uv sync` has a uv environment too)
+    # (a clone made with `uv sync` has a uv environment too)
+    (False, None, False, False, True, True, "source"),
     (False, None, False, False, False, True, "uv-tool"),
     (False, None, False, False, False, False, "pip"),
 ])

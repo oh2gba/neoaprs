@@ -1,7 +1,6 @@
-"""What each service does with a packet that came from the internet (`Packet.via` is `is`): nothing. Each test hands the service the very packet it acts on when it is heard on the radio, with only the
-channel changed, after showing that the radio's packet makes it act (so that the test could see the action), and then the packet of the internet, and finds no frame sent, no message kept, no object
-dropped, no answer, nothing remembered. The services that do take it (the packet log, the station book, the weather log) are in tests/test_packetlog.py, tests/test_station_channels.py and
-tests/test_weatherlog.py; the walk over all of them is tests/test_internet_gate.py."""
+"""Tests that each service ignores a packet that came from the internet (`Packet.via` is `is`): the
+same packet heard on the radio makes the service act, the internet copy does nothing.
+"""
 from dataclasses import replace
 from pathlib import Path
 

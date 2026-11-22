@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
-"""Hunts the tests that fail on some runs and not on others: the CI's own command for the tests, run many times in the container the size of GitHub's runner (scripts/check-in-container), and a table of every test that failed
-with how often, in which setting and with its first failing line.
+"""Hunt the tests that fail on some runs only, by running the CI's test command many times.
 
-  scripts/flaky                       20 runs, each a container of its own, several side by side (the stage `flaky` of scripts/check: `scripts/check --stage flaky`; it is in no default list)
+  scripts/flaky                       20 runs, each a container of its own, several side by side
+                                      (the stage `flaky` of scripts/check: `scripts/check --stage
+                                      flaky`; it is in no default list)
   scripts/flaky --runs 8              fewer runs (a multiple of four keeps the four settings even)
-  scripts/flaky --parallel 2          at most two containers at once (default: as many as the machine has groups of four threads, at most four)
-  scripts/flaky --limit-minutes 30    a run that is not over by then is ended and listed as hung (default 45: the CI's job has 30, and the first run of a cold cache has the install to do)
-  scripts/flaky --out FOLDER          where the log of each run and the report are written (default build/flaky)
+  scripts/flaky --parallel 2          at most two containers at once (default: as many as the
+                                      machine has groups of four threads, at most four)
+  scripts/flaky --limit-minutes 30    a run that is not over by then is ended and listed as hung
+                                      (default 45: the CI's job has 30, and the first run of a cold
+                                      cache has the install to do)
+  scripts/flaky --out FOLDER          where the log of each run and the report are written (default
+                                      build/flaky)
 
-Every run is `uv sync --frozen --extra app --extra ble` and `scripts/check --stage pytest`, the first and the last line of the CI's job `python` that scripts/check-in-container holds, and nothing else of that job: the
-lock, ruff, mypy and the layers are not what is hunted. Four settings go round, each in a quarter of the runs: the runner's size or half of it (`--starved`: two threads, 7 GB, where a test that counts on time shows
-itself), and the tests in file order or in the order of a seed (tests/support/shuffle.py: the seed is the number of the run, given to pytest in PYTEST_ADDOPTS, which the stage passes on). Nothing else is asked of
-pytest but a width of its output that does not cut a failure's message.
-Each container has cores that no other holds and a loopback of its own, so the runs cannot meet on a port. The image is built once before any run starts.
-
-The report is printed and written to FOLDER/report.txt: one line per run, then the table. A run that was ended for its time is listed with the stack that `faulthandler_timeout` printed, and a run that did not
-get as far as the tests (docker, the install) with the last lines of its log. The exit code is 0 when every run passed, 1 when a test failed or a run hung or did not run, 2 when docker or git is missing.
+Each run uses one of four settings (runner or half size, file order or shuffled). The report goes to
+FOLDER/report.txt. Exit code: 0 all passed, 1 a test failed or a run hung, 2 docker or git missing.
 """
 import argparse
 import concurrent.futures
@@ -38,20 +37,26 @@ from types import FrameType, ModuleType
 ROOT = Path(__file__).resolve().parent.parent
 CONTAINER = ROOT / "scripts" / "check-in-container"
 DEFAULT_RUNS, DEFAULT_LIMIT_MINUTES, MOST_PARALLEL = 20, 45.0, 4
-SETTINGS = ("runner/file order", "runner/shuffled", "starved/file order", "starved/shuffled")      # the runs go round them: run n has settings[n % 4]
-WIDTH = "200"                                           # the width pytest writes its summary at: wide enough not to cut a failure's message
-HUNG_GRACE_SEC = 30.0                                   # how long a run that is ended is given to take its container away before it is killed
-STACK_LINES = 40                                        # of the stack that faulthandler_timeout printed, as many as the report shows
-LOG_TAIL_LINES = 12                                     # of the log of a run that did not get to the tests
+# Run n uses settings[n % 4].
+SETTINGS = ("runner/file order", "runner/shuffled", "starved/file order", "starved/shuffled")
+# Width of pytest's summary, wide enough not to cut a failure's message.
+WIDTH = "200"
+# Time an ended run has to remove its container.
+HUNG_GRACE_SEC = 30.0
+# Lines of the faulthandler_timeout stack shown in the report.
+STACK_LINES = 40
+LOG_TAIL_LINES = 12                                     # log lines of a run that missed the tests
 
-STAGE_PREFIX = "      | "                                  # what scripts/check puts before every line of the output of a stage that failed
-FAILED = re.compile(r"^(?:      \| )?(?:FAILED|ERROR) ([^\s\[]+(?:\[.*?\])?)(?: - (.*))?$", re.M)          # (a test id may have spaces in its brackets)
+# What scripts/check puts before each output line of a failed stage.
+STAGE_PREFIX = "      | "
+# A test id may have spaces in its brackets.
+FAILED = re.compile(r"^(?:      \| )?(?:FAILED|ERROR) ([^\s\[]+(?:\[.*?\])?)(?: - (.*))?$", re.M)
 OVER_LIMIT = re.compile(r"^(?:      \| )?(.+?) ran over its time limit of (\S+) s", re.M)
 SUMMARY = re.compile(r"^(?:      \| )?(?:=+ )?((?:\d+ (?:failed|passed|skipped|error|errors|xfailed|xpassed|warnings?|deselected|rerun)(?:, )?)+) in [\d.]+s", re.M)
 
 
 def load_container() -> ModuleType:
-    """scripts/check-in-container as a module: the CI's commands and the cores of this machine are read from it, so that there is one list of each."""
+    """Load scripts/check-in-container as a module."""
     loader = importlib.machinery.SourceFileLoader("check_in_container", str(CONTAINER))
     spec = importlib.util.spec_from_loader("check_in_container", loader)
     assert spec is not None
@@ -77,12 +82,12 @@ class Plan:
 
 
 def plan(number: int) -> Plan:
-    """Runs 0, 1, 2, 3 are the four settings in turn: even runs are in file order, and the third and fourth of every four are starved."""
+    """Return the settings of a run: even runs in file order, the last two of four starved."""
     return Plan(number, starved=number % 4 >= 2, seed=number if number % 2 else None)
 
 
 def command(run: Plan, ci_commands: Sequence[str]) -> list[str]:
-    """The command inside the container: the first and the last line of the CI's job (the install and the tests), the last with what is asked of it here: the seed of the order, as the options of pytest."""
+    """Return the container command: the CI's install and tests, with the shuffle seed."""
     install, tests = ci_commands[0], ci_commands[-1]
     options = f"PYTEST_ADDOPTS={shlex.quote(f'-p tests.support.shuffle --shuffle-seed {run.seed}')} " if run.seed is not None else ""
     return ["bash", "-c", f"{install} && COLUMNS={WIDTH} {options}{tests}"]
@@ -95,10 +100,12 @@ class Result:
     seconds: float = 0.0
     hung: bool = False
     failures: dict[str, str] = field(default_factory=dict)      # test -> its first failing line
-    summary: str = ""                                           # pytest's last line ("2 failed, 9000 passed"), when it got that far
+    # pytest's last line ("2 failed, 9000 passed"), when it got that far
+    summary: str = ""
     log: Path = Path()
     stack: list[str] = field(default_factory=list)              # what faulthandler_timeout printed, for a run that hung
-    tail: list[str] = field(default_factory=list)               # the end of the log, for a run that did not reach the tests
+    # the end of the log, for a run that did not reach the tests
+    tail: list[str] = field(default_factory=list)
 
     @property
     def word(self) -> str:
@@ -112,7 +119,7 @@ class Result:
 
 
 def read_log(text: str, result: Result) -> None:
-    """What a run's log says: the tests that failed with the first line of each, pytest's last line, and, for a run that hung, the stack of the last time `faulthandler_timeout` fired."""
+    """Read a run's log: failed tests, pytest's last line, and a hung run's stack."""
     limits = {name: f"ran over its time limit of {seconds} s" for name, seconds in OVER_LIMIT.findall(text)}
     for name, message in FAILED.findall(text):
         result.failures.setdefault(name, limits.get(name) or message.strip() or "no message")
@@ -122,13 +129,14 @@ def read_log(text: str, result: Result) -> None:
     fired = [index for index, line in enumerate(lines) if line.startswith("Timeout (")]
     if fired:
         rest = lines[fired[-1]:fired[-1] + STACK_LINES]
-        result.stack = rest[:next((index for index, line in enumerate(rest) if not line.strip()), len(rest))]          # (the dump ends at the first empty line)
+        # the dump ends at the first empty line
+        result.stack = rest[:next((index for index, line in enumerate(rest) if not line.strip()), len(rest))]
     if not result.summary and not result.failures and (result.code != 0 or result.hung):
         result.tail = [line for line in lines if line.strip()][-LOG_TAIL_LINES:]
 
 
 class Runs:
-    """The containers that are running, so that a signal to this script ends them: each is `scripts/check-in-container`, which takes its own container away when it is told to stop."""
+    """The running containers, so that a signal to this script ends them."""
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
@@ -152,7 +160,7 @@ class Runs:
 
 
 def execute(run: Plan, ci_commands: Sequence[str], out: Path, limit_sec: float, runs: Runs) -> Result:
-    """One run: the container script with the command, its output in the run's log, under the time limit."""
+    """Run the container script under the time limit, logging its output."""
     result = Result(run, log=out / f"run-{run.number:02d}.log")
     line = [sys.executable, str(CONTAINER), *(["--starved"] if run.starved else []), "--", *command(run, ci_commands)]
     started = time.monotonic()
@@ -165,7 +173,8 @@ def execute(run: Plan, ci_commands: Sequence[str], out: Path, limit_sec: float, 
             result.code = child.wait(timeout=limit_sec)
         except subprocess.TimeoutExpired:
             result.hung = True
-            child.terminate()                           # (the script ends its container: a stack of the hung tests is in the log already)
+            # the script ends its container: a stack of the hung tests is in the log already
+            child.terminate()
             try:
                 result.code = child.wait(timeout=HUNG_GRACE_SEC)
             except subprocess.TimeoutExpired:
@@ -194,8 +203,7 @@ def table(rows: list[list[str]]) -> list[str]:
 
 
 def report(results: list[Result]) -> list[str]:
-    """The report: a line for every run, then the table of the tests that failed (how often, in which settings, with the first failing line), then the stack of each run that hung and the end of the log of each
-    run that did not reach the tests."""
+    """Return the report: a line per run, a table of failed tests, hung stacks and log tails."""
     results = sorted(results, key=lambda each: each.run.number)
     lines = [run_line(result) for result in results]
     count: Counter[str] = Counter()
@@ -229,7 +237,7 @@ def report(results: list[Result]) -> list[str]:
 
 
 def default_parallel(container: ModuleType) -> int:
-    """As many runs side by side as the machine has groups of the threads of the runner's size (a run takes that many at most, so no thread is shared), at most four."""
+    """Return the number of runner-sized thread groups, at most four."""
     threads = sum(len(core) for core in container.read_cores())
     return max(1, min(MOST_PARALLEL, threads // container.RUNNER.threads))
 

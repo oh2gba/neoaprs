@@ -1,19 +1,23 @@
-"""The layers of NeoAPRS and who may import whom, checked on the imports of every file of neoaprs/, neoaprs/web/ included (docs/ARCHITECTURE.md).
+"""Tests for the layer rules: who may import whom, checked on every file of neoaprs/ (see
+docs/ARCHITECTURE.md), and the table of modules that start programs or open ports.
 
-    foundation   clock signal kiss ax25 packet ...          pure: no I/O library, imports foundation only
-    domain       config stationbook                         pure: no I/O library, imports foundation and domain
-    adapters     source tasks serialport tnc                the world outside: the serial line, the TNC; imports foundation and domain
-    persistence  store migrations db packetlog ...          the database file, on the database thread; imports foundation and domain
-    services     neoaprs/services/ (the beacon)              stateful parts that use the layers below; built by neoaprs/app.py only; never the controller, never web
-    app          controller app wiring                      the composition root (app builds, wiring connects, controller is the object of the parts)
-    delivery     neoaprs/web/*, neoaprs/cli/*, neoaprs/desktop/*, neoaprs/daemon, neoaprs/__main__    the page, the commands, the desktop app and the process; only this layer may import neoaprs.web
+    foundation   clock signal kiss ax25 packet ...    pure; imports foundation only
+    domain       config stationbook                   pure; imports foundation and domain
+    adapters     source tasks serialport tnc          the outside world; imports foundation, domain
+    persistence  store migrations db packetlog ...    the database file, on the database thread
+    services     neoaprs/services/                    stateful parts; built by neoaprs/app.py only
+    app          controller app wiring                the composition root
+    delivery     neoaprs/web/*, neoaprs/cli/*, neoaprs/desktop/*, neoaprs/daemon,
+                 neoaprs/__main__                     the page, commands, desktop app, process
 
-Every violation that exists today is in ALLOWED with the reason it is there. The list can only shrink: a violation that is not in it fails the test, and so does an entry that is no
-longer a violation (delete the line). A new module of neoaprs/ must be given its layer in LAYERS first. The checks are functions of a *tree* (path -> source), so the second half of
-this file shows each rule failing on a made-up tree: a rule that has never been seen failing is a guess.
+Every existing violation is listed in ALLOWED with its reason. The list can only shrink: a new
+violation fails, and so does an entry that is no longer a violation. A new module needs a layer in
+LAYERS first. The checks take a tree (path -> source), so the second half of the file shows each
+rule failing on a made-up tree.
 
-The last table is not about imports: REACHES_OUT is the list of the modules that start a program, run a shell line, put another program in the place of this one, open a URL or the system's browser, or hand a string to
-pyserial, each with why it may. It is exact, so that a new way out of the process is looked at by a person the day it is written.
+REACHES_OUT lists the modules that start a program, run a shell line, replace the process, open a
+URL or the browser, or hand a string to pyserial. It is exact, so that a person looks at each new
+way out of the process.
 """
 import ast
 import re
@@ -34,9 +38,12 @@ LAYERS: dict[str, list[str]] = {
     "app": ["controller", "app", "wiring", "radioregistry", "radioedits"],
     "delivery": ["__main__", "daemon"],
 }
-# The modules that are placed before they are written (the map's layers: work/par/r5/layers/contract.md, section 5: a later piece adds no layer line); a name leaves this set when its module exists.
+# The modules that are placed before they are written (the map's layers:
+# work/par/r5/layers/contract.md, section 5: a later piece adds no layer line); a name leaves this
+# set when its module exists.
 PLANNED: set[str] = set()
-# The packages that are one layer whole, by their folder: the services, and the descriptions of the types of radio (one module for each family, the registry in its __init__.py).
+# The packages that are one layer whole, by their folder: the services, and the descriptions of the
+# types of radio (one module for each family, the registry in its __init__.py).
 PACKAGE_LAYERS: dict[str, str] = {"neoaprs.services": "services", "neoaprs.radiotypes": "domain"}
 MAY_IMPORT: dict[str, set[str]] = {
     "foundation": {"foundation"},
@@ -47,34 +54,53 @@ MAY_IMPORT: dict[str, set[str]] = {
     "app": {"foundation", "domain", "adapters", "persistence", "services", "app"},
     "delivery": {"foundation", "domain", "adapters", "persistence", "services", "app", "delivery"},
 }
-# Inside the adapters layer a feed may use the base every feed shares, and the few siblings named here; any other adapter-to-adapter import is a violation.
-ADAPTER_BASES = {"neoaprs.source", "neoaprs.tasks", "neoaprs.nodevices"}      # (nodevices: the switch every adapter that opens a device or a connection asks first)
-ADAPTER_SIBLINGS: set[tuple[str, str]] = {("neoaprs.tnc", "neoaprs.serialport"), ("neoaprs.tnc", "neoaprs.serialprobe"), ("neoaprs.tnc", "neoaprs.serialholders"), ("neoaprs.tnc", "neoaprs.tncsearch"), ("neoaprs.tnc", "neoaprs.tncwatchdog"), ("neoaprs.tnc", "neoaprs.tncentry"), ("neoaprs.tnc", "neoaprs.tncreader"), ("neoaprs.tnc", "neoaprs.tnctextreader"), ("neoaprs.tnctextreader", "neoaprs.tncreader"), ("neoaprs.tnctextreader", "neoaprs.tncport"), ("neoaprs.tncreader", "neoaprs.tncentry"), ("neoaprs.tncreader", "neoaprs.tncport"), ("neoaprs.tncreader", "neoaprs.tncwatchdog"), ("neoaprs.tnc", "neoaprs.tncfollow"), ("neoaprs.tncfollow", "neoaprs.serialprobe"), ("neoaprs.tncfollow", "neoaprs.serialport"), ("neoaprs.tnc", "neoaprs.tnclines"), ("neoaprs.tnc", "neoaprs.tncport"), ("neoaprs.tnc", "neoaprs.dummyline"), ("neoaprs.tncport", "neoaprs.callbackport"), ("neoaprs.gpsfeed", "neoaprs.callbackport"), ("neoaprs.callbackport", "neoaprs.serialport"), ("neoaprs.dummyline", "neoaprs.tncport"), ("neoaprs.dummyline", "neoaprs.serialport"), ("neoaprs.tncsearch", "neoaprs.serialport"), ("neoaprs.tncsearch", "neoaprs.serialprobe"), ("neoaprs.serialprobe", "neoaprs.serialport"), ("neoaprs.serialprobe", "neoaprs.serialholders"), ("neoaprs.serialholders", "neoaprs.serialport"), ("neoaprs.gpsfeed", "neoaprs.serialport"), ("neoaprs.serialport", "neoaprs.btserial"), ("neoaprs.serialport", "neoaprs.btle"), ("neoaprs.btserial", "neoaprs.btsdp"), ("neoaprs.serialprobe", "neoaprs.btpaired"), ("neoaprs.worldmap", "neoaprs.pmtilesarchive"), ("neoaprs.updatefetch", "neoaprs.updatedownload"), ("neoaprs.mercurymodem", "neoaprs.mercuryhelper"), ("neoaprs.mercurymodem", "neoaprs.mercuryclaims"), ("neoaprs.mercuryclaims", "neoaprs.mercuryhelper"), ("neoaprs.mercuryclaims", "neoaprs.mercurystale"), ("neoaprs.mercurymodem", "neoaprs.mercurystale"), ("neoaprs.mercurystale", "neoaprs.mercuryhelper"), ("neoaprs.mercurystale", "neoaprs.childprogram"), ("neoaprs.mercuryclaims", "neoaprs.mercuryspeaker"), ("neoaprs.mercurydriver", "neoaprs.mercuryclaims"), ("neoaprs.mercurymodem", "neoaprs.mercurycontrol"), ("neoaprs.mercurymodem", "neoaprs.mercuryspeaker"), ("neoaprs.mercuryhelper", "neoaprs.childprogram"), ("neoaprs.childprogram", "neoaprs.childenv"), ("neoaprs.mercurymodem", "neoaprs.serialprobe"), ("neoaprs.mercurymodem", "neoaprs.mercuryfirewall"), ("neoaprs.mercurymodem", "neoaprs.mercurytune"), ("neoaprs.mercurymodem", "neoaprs.mercurychannel"), ("neoaprs.mercurymodem", "neoaprs.mercuryscoping"), ("neoaprs.mercuryscoping", "neoaprs.mercuryui"), ("neoaprs.mercuryui", "neoaprs.websocketclient"), ("neoaprs.mercurymodem", "neoaprs.mercuryallow"), ("neoaprs.mercuryfirewall", "neoaprs.winelevate"), ("neoaprs.updatefetch", "neoaprs.httpstrust"), ("neoaprs.updatedownload", "neoaprs.httpstrust"), ("neoaprs.pmtilesarchive", "neoaprs.httpstrust"), ("neoaprs.pmtilesrange", "neoaprs.pmtilesarchive"), ("neoaprs.pmtilesrange", "neoaprs.httpstrust"), ("neoaprs.pmtilesplan", "neoaprs.pmtilesrange"), ("neoaprs.pmtilescut", "neoaprs.pmtilesarchive"), ("neoaprs.pmtilescut", "neoaprs.pmtilesplan"), ("neoaprs.pmtilescut", "neoaprs.pmtilesrange"), ("neoaprs.radiodriver", "neoaprs.tnc"), ("neoaprs.radiodriver", "neoaprs.mercurymodem"), ("neoaprs.tncdriver", "neoaprs.tnc"), ("neoaprs.mercurydriver", "neoaprs.mercurymodem"), ("neoaprs.mercurydriver", "neoaprs.tnc"), ("neoaprs.tncdriver", "neoaprs.radiodriver"), ("neoaprs.mercurydriver", "neoaprs.radiodriver"), ("neoaprs.mercurydriver", "neoaprs.mercuryhelper"), ("neoaprs.tncdriver", "neoaprs.serialprobe"), ("neoaprs.tncdriver", "neoaprs.dummyline"), ("neoaprs.mercurydriver", "neoaprs.dummyline"), ("neoaprs.direwolfprogram", "neoaprs.childprogram"), ("neoaprs.direwolftune", "neoaprs.childprogram"), ("neoaprs.direwolftune", "neoaprs.direwolfprogram"), ("neoaprs.direwolfmodem", "neoaprs.direwolfprogram"), ("neoaprs.direwolfmodem", "neoaprs.direwolftune"), ("neoaprs.direwolfmodem", "neoaprs.modemstate"), ("neoaprs.mercurymodem", "neoaprs.modemstate"), ("neoaprs.direwolfmodem", "neoaprs.winmm"), ("neoaprs.direwolfmodem", "neoaprs.mercuryclaims"), ("neoaprs.direwolfmodem", "neoaprs.mercuryhelper"), ("neoaprs.direwolfmodem", "neoaprs.mercurymodem"), ("neoaprs.direwolfmodem", "neoaprs.serialprobe"), ("neoaprs.direwolfdriver", "neoaprs.direwolfmodem"), ("neoaprs.direwolfdriver", "neoaprs.mercurymodem"), ("neoaprs.direwolfdriver", "neoaprs.radiodriver"), ("neoaprs.direwolfdriver", "neoaprs.tnc"), ("neoaprs.direwolfdriver", "neoaprs.mercurydriver"), ("neoaprs.radiodriver", "neoaprs.direwolfmodem"), ("neoaprs.direwolfmodem", "neoaprs.usbtie"), ("neoaprs.winmixer", "neoaprs.soundmixer"), ("neoaprs.cardlevels", "neoaprs.soundmixer"), ("neoaprs.cardlevels", "neoaprs.winmixer"), ("neoaprs.direwolfdriver", "neoaprs.cardlevels"), ("neoaprs.direwolfdriver", "neoaprs.soundmixer"), ("neoaprs.mercurydriver", "neoaprs.cardlevels"), ("neoaprs.mercurydriver", "neoaprs.soundmixer"), ("neoaprs.radiodriver", "neoaprs.cardlevels"), ("neoaprs.tnc", "neoaprs.dummyworlds"), ("neoaprs.dummyworlds", "neoaprs.dummyline"), ("neoaprs.dummyworlds", "neoaprs.serialport"), ("neoaprs.dummyworlds", "neoaprs.tncport"), ("neoaprs.tncreader", "neoaprs.loraboard"), ("neoaprs.loraboard", "neoaprs.loralist"), ("neoaprs.loraboard", "neoaprs.tncport"), ("neoaprs.loraboard", "neoaprs.tncwatchdog"), ("neoaprs.loraboard", "neoaprs.btle")}      # (importer, imported): the TNC reads the serial line, and its search and watchdog are parts of it
+# Inside the adapters layer a feed may use the base every feed shares, and the few siblings named
+# here; any other adapter-to-adapter import is a violation. (nodevices: the switch every adapter
+# that opens a device or a connection asks first)
+ADAPTER_BASES = {"neoaprs.source", "neoaprs.tasks", "neoaprs.nodevices"}
+# (importer, imported): the TNC reads the serial line, and its search and watchdog are parts of it
+ADAPTER_SIBLINGS: set[tuple[str, str]] = {("neoaprs.tnc", "neoaprs.serialport"), ("neoaprs.tnc", "neoaprs.serialprobe"), ("neoaprs.tnc", "neoaprs.serialholders"), ("neoaprs.tnc", "neoaprs.tncsearch"), ("neoaprs.tnc", "neoaprs.tncwatchdog"), ("neoaprs.tnc", "neoaprs.tncentry"), ("neoaprs.tnc", "neoaprs.tncreader"), ("neoaprs.tnc", "neoaprs.tnctextreader"), ("neoaprs.tnctextreader", "neoaprs.tncreader"), ("neoaprs.tnctextreader", "neoaprs.tncport"), ("neoaprs.tncreader", "neoaprs.tncentry"), ("neoaprs.tncreader", "neoaprs.tncport"), ("neoaprs.tncreader", "neoaprs.tncwatchdog"), ("neoaprs.tnc", "neoaprs.tncfollow"), ("neoaprs.tncfollow", "neoaprs.serialprobe"), ("neoaprs.tncfollow", "neoaprs.serialport"), ("neoaprs.tnc", "neoaprs.tnclines"), ("neoaprs.tnc", "neoaprs.tncport"), ("neoaprs.tnc", "neoaprs.dummyline"), ("neoaprs.tncport", "neoaprs.callbackport"), ("neoaprs.gpsfeed", "neoaprs.callbackport"), ("neoaprs.callbackport", "neoaprs.serialport"), ("neoaprs.dummyline", "neoaprs.tncport"), ("neoaprs.dummyline", "neoaprs.serialport"), ("neoaprs.tncsearch", "neoaprs.serialport"), ("neoaprs.tncsearch", "neoaprs.serialprobe"), ("neoaprs.serialprobe", "neoaprs.serialport"), ("neoaprs.serialprobe", "neoaprs.serialholders"), ("neoaprs.serialholders", "neoaprs.serialport"), ("neoaprs.gpsfeed", "neoaprs.serialport"), ("neoaprs.serialport", "neoaprs.btserial"), ("neoaprs.serialport", "neoaprs.btle"), ("neoaprs.btserial", "neoaprs.btsdp"), ("neoaprs.serialprobe", "neoaprs.btpaired"), ("neoaprs.worldmap", "neoaprs.pmtilesarchive"), ("neoaprs.updatefetch", "neoaprs.updatedownload"), ("neoaprs.mercurymodem", "neoaprs.mercuryhelper"), ("neoaprs.mercurymodem", "neoaprs.mercuryclaims"), ("neoaprs.mercuryclaims", "neoaprs.mercuryhelper"), ("neoaprs.mercuryclaims", "neoaprs.mercurystale"), ("neoaprs.mercurymodem", "neoaprs.mercurystale"), ("neoaprs.mercurystale", "neoaprs.mercuryhelper"), ("neoaprs.mercurystale", "neoaprs.childprogram"), ("neoaprs.mercuryclaims", "neoaprs.mercuryspeaker"), ("neoaprs.mercurydriver", "neoaprs.mercuryclaims"), ("neoaprs.mercurymodem", "neoaprs.mercurycontrol"), ("neoaprs.mercurymodem", "neoaprs.mercuryspeaker"), ("neoaprs.mercuryhelper", "neoaprs.childprogram"), ("neoaprs.childprogram", "neoaprs.childenv"), ("neoaprs.mercurymodem", "neoaprs.serialprobe"), ("neoaprs.mercurymodem", "neoaprs.mercuryfirewall"), ("neoaprs.mercurymodem", "neoaprs.mercurytune"), ("neoaprs.mercurymodem", "neoaprs.mercurychannel"), ("neoaprs.mercurymodem", "neoaprs.mercuryscoping"), ("neoaprs.mercuryscoping", "neoaprs.mercuryui"), ("neoaprs.mercuryui", "neoaprs.websocketclient"), ("neoaprs.mercurymodem", "neoaprs.mercuryallow"), ("neoaprs.mercuryfirewall", "neoaprs.winelevate"), ("neoaprs.updatefetch", "neoaprs.httpstrust"), ("neoaprs.updatedownload", "neoaprs.httpstrust"), ("neoaprs.pmtilesarchive", "neoaprs.httpstrust"), ("neoaprs.pmtilesrange", "neoaprs.pmtilesarchive"), ("neoaprs.pmtilesrange", "neoaprs.httpstrust"), ("neoaprs.pmtilesplan", "neoaprs.pmtilesrange"), ("neoaprs.pmtilescut", "neoaprs.pmtilesarchive"), ("neoaprs.pmtilescut", "neoaprs.pmtilesplan"), ("neoaprs.pmtilescut", "neoaprs.pmtilesrange"), ("neoaprs.radiodriver", "neoaprs.tnc"), ("neoaprs.radiodriver", "neoaprs.mercurymodem"), ("neoaprs.tncdriver", "neoaprs.tnc"), ("neoaprs.mercurydriver", "neoaprs.mercurymodem"), ("neoaprs.mercurydriver", "neoaprs.tnc"), ("neoaprs.tncdriver", "neoaprs.radiodriver"), ("neoaprs.mercurydriver", "neoaprs.radiodriver"), ("neoaprs.mercurydriver", "neoaprs.mercuryhelper"), ("neoaprs.tncdriver", "neoaprs.serialprobe"), ("neoaprs.tncdriver", "neoaprs.dummyline"), ("neoaprs.mercurydriver", "neoaprs.dummyline"), ("neoaprs.direwolfprogram", "neoaprs.childprogram"), ("neoaprs.direwolftune", "neoaprs.childprogram"), ("neoaprs.direwolftune", "neoaprs.direwolfprogram"), ("neoaprs.direwolfmodem", "neoaprs.direwolfprogram"), ("neoaprs.direwolfmodem", "neoaprs.direwolftune"), ("neoaprs.direwolfmodem", "neoaprs.modemstate"), ("neoaprs.mercurymodem", "neoaprs.modemstate"), ("neoaprs.direwolfmodem", "neoaprs.winmm"), ("neoaprs.direwolfmodem", "neoaprs.mercuryclaims"), ("neoaprs.direwolfmodem", "neoaprs.mercuryhelper"), ("neoaprs.direwolfmodem", "neoaprs.mercurymodem"), ("neoaprs.direwolfmodem", "neoaprs.serialprobe"), ("neoaprs.direwolfdriver", "neoaprs.direwolfmodem"), ("neoaprs.direwolfdriver", "neoaprs.mercurymodem"), ("neoaprs.direwolfdriver", "neoaprs.radiodriver"), ("neoaprs.direwolfdriver", "neoaprs.tnc"), ("neoaprs.direwolfdriver", "neoaprs.mercurydriver"), ("neoaprs.radiodriver", "neoaprs.direwolfmodem"), ("neoaprs.direwolfmodem", "neoaprs.usbtie"), ("neoaprs.winmixer", "neoaprs.soundmixer"), ("neoaprs.cardlevels", "neoaprs.soundmixer"), ("neoaprs.cardlevels", "neoaprs.winmixer"), ("neoaprs.direwolfdriver", "neoaprs.cardlevels"), ("neoaprs.direwolfdriver", "neoaprs.soundmixer"), ("neoaprs.mercurydriver", "neoaprs.cardlevels"), ("neoaprs.mercurydriver", "neoaprs.soundmixer"), ("neoaprs.radiodriver", "neoaprs.cardlevels"), ("neoaprs.tnc", "neoaprs.dummyworlds"), ("neoaprs.dummyworlds", "neoaprs.dummyline"), ("neoaprs.dummyworlds", "neoaprs.serialport"), ("neoaprs.dummyworlds", "neoaprs.tncport"), ("neoaprs.tncreader", "neoaprs.loraboard"), ("neoaprs.loraboard", "neoaprs.loralist"), ("neoaprs.loraboard", "neoaprs.tncport"), ("neoaprs.loraboard", "neoaprs.tncwatchdog"), ("neoaprs.loraboard", "neoaprs.btle")}
 DELIVERY_PACKAGES = ("neoaprs.web", "neoaprs.cli", "neoaprs.desktop")
 WIRE_ASSEMBLERS = {"neoaprs.web.protocol"}
-WIRE_PAIRS = {("neoaprs.web.mapwire", "neoaprs.web.layerwire")}       # (importer, imported) wire modules beside the assemblers: the topic `map` carries the layers of traffic of layerwire
+# (importer, imported) wire modules beside the assemblers: the topic `map` carries the layers of
+# traffic of layerwire
+WIRE_PAIRS = {("neoaprs.web.mapwire", "neoaprs.web.layerwire")}
 PURE = {"foundation", "domain"}
-# pyserial ("serial") counts as an I/O library beside the terminal modules it stands on: the protocol modules never see a descriptor.
+# pyserial ("serial") counts as an I/O library beside the terminal modules it stands on: the
+# protocol modules never see a descriptor.
 IO_LIBRARIES = {"asyncio", "sqlite3", "socket", "subprocess", "tornado", "serial", "bleak", "termios", "pty", "fcntl", "os", "shutil", "tempfile", "ssl", "select", "selectors", "urllib.request", "http.client", "http.server"}
-# The desktop app's toolkits (the extra `app` of pyproject.toml) are imported by the shells and by nothing else: everything else of neoaprs/desktop/ runs without them (and is tested without them).
+# The desktop app's toolkits (the extra `app` of pyproject.toml) are imported by the shells and by
+# nothing else: everything else of neoaprs/desktop/ runs without them (and is tested without them).
 TOOLKITS = {"PySide6", "shiboken6", "webview", "pystray", "PIL", "gi", "PyObjCTools", "Foundation", "AppKit", "WebKit"}
 TOOLKIT_HOMES: set[str] = {"neoaprs.desktop.qtshell", "neoaprs.desktop.qtwindow", "neoaprs.desktop.webshell", "neoaprs.desktop.webdesk"}
-BLEAK_HOMES: set[str] = {"neoaprs.btle"}                        # bleak (the extra `ble` of pyproject.toml) only in the BLE port, which imports it when a ble:// port is opened
+# bleak (the extra `ble` of pyproject.toml) only in the BLE port, which imports it when a ble://
+# port is opened
+BLEAK_HOMES: set[str] = {"neoaprs.btle"}
 TORNADO_HOMES: set[str] = set()                                # Tornado only in neoaprs/web/ (CONVENTIONS.md)
-PYDANTIC_HOMES: set[str] = {"neoaprs.web.wirebase", "neoaprs.web.hostwire", "neoaprs.web.hubwire", "neoaprs.web.stationwire", "neoaprs.web.packetwire", "neoaprs.web.tncwire", "neoaprs.web.configwire", "neoaprs.web.beaconwire", "neoaprs.web.igatewire", "neoaprs.web.qruwire", "neoaprs.web.generalwire", "neoaprs.web.messagewire", "neoaprs.web.bulletinwire", "neoaprs.web.prefwire", "neoaprs.web.weatherwire", "neoaprs.web.historywire", "neoaprs.web.replaywire", "neoaprs.web.portwire", "neoaprs.web.mapwire", "neoaprs.web.ownwire", "neoaprs.web.updatewire", "neoaprs.web.skedwire", "neoaprs.web.gpswire", "neoaprs.web.supportwire", "neoaprs.web.radiowire", "neoaprs.web.layerwire", "neoaprs.web.protocol", "neoaprs.web.dispatch", "neoaprs.web.outbound"}      # the core knows nothing of the wire format; these check or describe what comes in and what goes out
+# the core knows nothing of the wire format; these check or describe what comes in and what goes out
+PYDANTIC_HOMES: set[str] = {"neoaprs.web.wirebase", "neoaprs.web.hostwire", "neoaprs.web.hubwire", "neoaprs.web.stationwire", "neoaprs.web.packetwire", "neoaprs.web.tncwire", "neoaprs.web.configwire", "neoaprs.web.beaconwire", "neoaprs.web.igatewire", "neoaprs.web.qruwire", "neoaprs.web.generalwire", "neoaprs.web.messagewire", "neoaprs.web.bulletinwire", "neoaprs.web.prefwire", "neoaprs.web.weatherwire", "neoaprs.web.historywire", "neoaprs.web.replaywire", "neoaprs.web.portwire", "neoaprs.web.mapwire", "neoaprs.web.ownwire", "neoaprs.web.updatewire", "neoaprs.web.skedwire", "neoaprs.web.gpswire", "neoaprs.web.supportwire", "neoaprs.web.radiowire", "neoaprs.web.layerwire", "neoaprs.web.protocol", "neoaprs.web.dispatch", "neoaprs.web.outbound"}
 
-# Today's violations: (importer, imported) -> why it is there and what removes it. Only ever shrinks.
+# Today's violations: (importer, imported) -> why it is there and what removes it. Only ever
+# shrinks.
 ALLOWED: dict[tuple[str, str], str] = {}
 
-# Signal.connect is wiring and wiring is in one place: the composition root and the page's API. A file that is neither is listed with how many connects it still has.
-COMPOSITION_ROOTS: set[str] = {"neoaprs/wiring.py", "neoaprs/web/topics.py", "neoaprs/cli/capturecmd.py", "neoaprs/desktop/qtshell.py", "neoaprs/desktop/qtwindow.py"}            # neoaprs/web/topics.py connects the daemon's signals to the page's hub; the capture command makes one serial port and wires it to a file; the Qt shell connects Qt's own signals (of its tray, its menu and its timers: not neoaprs.signal)
-SERVICE_BUILDERS = {"neoaprs.app", "neoaprs.cli.mapcmd"}            # the root builds the services; the map command is the command line of the base map's service (the page's Download button, as a command)
+# Signal.connect is wiring and wiring is in one place: the composition root and the page's API. A
+# file that is neither is listed with how many connects it still has. neoaprs/web/topics.py connects
+# the daemon's signals to the page's hub; the capture command makes one serial port and wires it to
+# a file; the Qt shell connects Qt's own signals (of its tray, its menu and its timers: not
+# neoaprs.signal)
+COMPOSITION_ROOTS: set[str] = {"neoaprs/wiring.py", "neoaprs/web/topics.py", "neoaprs/cli/capturecmd.py", "neoaprs/desktop/qtshell.py", "neoaprs/desktop/qtwindow.py"}
+# the root builds the services; the map command is the command line of the base map's service (the
+# page's Download button, as a command)
+SERVICE_BUILDERS = {"neoaprs.app", "neoaprs.cli.mapcmd"}
 CONNECTS: dict[str, tuple[int, str]] = {}
 
 
-# SQL is written in one place: every statement of the daemon is a function of a connection that the database thread (neoaprs/db.py) runs. A file of neoaprs/ or neoaprs/web/ that
-# imports sqlite3 or calls `.execute(` is listed here, and nothing else may.
-SQL_HOMES: dict[str, str] = {              # the permanent homes of SQL: no count, the code that is SQL is meant to be here
+# SQL is written in one place: every statement of the daemon is a function of a connection that the
+# database thread (neoaprs/db.py) runs. A file of neoaprs/ or neoaprs/web/ that imports sqlite3 or
+# calls `.execute(` is listed here, and nothing else may. the permanent homes of SQL: no count, the
+# code that is SQL is meant to be here
+SQL_HOMES: dict[str, str] = {
     "neoaprs/db.py": "the database actor: the one connection, the one thread",
     "neoaprs/dbthread.py": "the thread of the actor: BEGIN, COMMIT, SAVEPOINT and the settings of its connection",
     "neoaprs/dberror.py": "the names of SQLite's connection and errors, taken from here by every class that uses the thread, so that none of them imports sqlite3",
@@ -99,13 +125,19 @@ SQL_HOMES: dict[str, str] = {              # the permanent homes of SQL: no coun
     "neoaprs/migrationsteps1to11.py": "the migrations 1 to 11, frozen beside migrations.py: migration code",
     "neoaprs/migrations.py": "the opening of the file, before the thread opens it, and in the tools, and the runner of the migrations (their history, the copy taken before them)",
 }
-# Everything else that still imports sqlite3 or calls execute, with how many calls: (imports sqlite3, calls of execute, why). The numbers are exact: a file that does less than its entry says
-# fails until the entry is lowered or deleted, so the list only shrinks. A new entry is not the way to get a change through: the statement belongs in a function of storesql.py or a module beside it.
+# Everything else that still imports sqlite3 or calls execute, with how many calls: (imports
+# sqlite3, calls of execute, why). The numbers are exact: a file that does less than its entry says
+# fails until the entry is lowered or deleted, so the list only shrinks. A new entry is not the way
+# to get a change through: the statement belongs in a function of storesql.py or a module beside it.
 SQL_ELSEWHERE: dict[str, tuple[bool, int, str]] = {}
 
-# The ways out of the process, by kind: what a file names (through whatever name it imported it by) to start a program, to give a line to a shell, to put another program in the place of this one, to open a URL, to hand
-# an address to the system's browser, or to hand a string to pyserial, which opens whatever kind of port the string names. A name that is only a type (`process: subprocess.Popen[str]`) starts nothing and is not counted.
-# A plain connection to a host and a port (asyncio.open_connection: APRS-IS, gpsd, rigctld, the Mercury modem) is not a kind here: this list does not hold the modules that make one.
+# The ways out of the process, by kind: what a file names (through whatever name it imported it by)
+# to start a program, to give a line to a shell, to put another program in the place of this one, to
+# open a URL, to hand an address to the system's browser, or to hand a string to pyserial, which
+# opens whatever kind of port the string names. A name that is only a type (`process:
+# subprocess.Popen[str]`) starts nothing and is not counted. A plain connection to a host and a port
+# (asyncio.open_connection: APRS-IS, gpsd, rigctld, the Mercury modem) is not a kind here: this list
+# does not hold the modules that make one.
 REACH: dict[str, tuple[str, ...]] = {
     "program": ("subprocess.run", "subprocess.Popen", "subprocess.call", "subprocess.check_call", "subprocess.check_output", "asyncio.create_subprocess_exec", "asyncio.subprocess.create_subprocess_exec",
                 "os.spawn*", "os.posix_spawn*", "os.startfile", "pty.spawn", "tornado.process.*"),
@@ -115,9 +147,12 @@ REACH: dict[str, tuple[str, ...]] = {
     "browser": ("webbrowser.*",),
     "serial": ("serial.serial_for_url", "serial.Serial"),
 }
-REACH_METHODS = {"subprocess_exec": "program", "subprocess_shell": "shell"}          # the event loop's own two, which are methods of an object and have no module to be known by
-# Every file of neoaprs/ that names one of them: (the kinds, in the order of REACH; why it may). Exact both ways: a file that reaches out and is not here fails the test, and so does an entry that says more or other than its
-# file does. A new entry is the moment to ask what the place starts or opens, and whether a text from the air, from the page or from a setting can get into it.
+# the event loop's own two, which are methods of an object and have no module to be known by
+REACH_METHODS = {"subprocess_exec": "program", "subprocess_shell": "shell"}
+# Every file of neoaprs/ that names one of them: (the kinds, in the order of REACH; why it may).
+# Exact both ways: a file that reaches out and is not here fails the test, and so does an entry that
+# says more or other than its file does. A new entry is the moment to ask what the place starts or
+# opens, and whether a text from the air, from the page or from a setting can get into it.
 REACHES_OUT: dict[str, tuple[str, str]] = {
     "neoaprs/btpaired.py": ("program", "asks BlueZ which devices are paired, with busctl or bluetoothctl: two commands written in the module, whose answer is only read"),
     "neoaprs/cli/daemonstate.py": ("url", "a command asks whether the daemon's page answers, at the loopback address the daemon wrote into its data folder, past any proxy"),
@@ -147,10 +182,12 @@ REACHES_OUT: dict[str, tuple[str, str]] = {
     "neoaprs/updatedownload.py": ("url", "the downloads of Update now: https and GitHub's hosts only, every redirect checked against the same rule"),
     "neoaprs/updatefetch.py": ("url", "the update check, the changelog, the suggested frequencies, the sked board, Send logs and the map's layers of traffic (the aircraft and ships services, an own aircraft receiver): http or https only, to the project's server, to the address of update/url, to the services' addresses written in neoaprs/layerthing.py or to the receiver's address of map/aircraft_host"),
 }
-SHELL_LINES = {"neoaprs/services/alerts.py": 1}         # the places a shell is given a line to run, with how many: the alert command and nothing else, ever
+# the places a shell is given a line to run, with how many: the alert command and nothing else, ever
+SHELL_LINES = {"neoaprs/services/alerts.py": 1}
 
-# The wall round the map's layers of traffic (aircraft and ships): nothing of a layer reaches the station book, the database, the packets, the statistics, the replay, the iGate or a radio. The modules of the layers
-# import none of WALLED (a name that is one or begins with one), and outside them only LAYER_IMPORTERS import a module of the layers: the settings' rows, the composition root, and the page's topic, command and wire.
+# The wall round the map's layers of traffic (aircraft and ships): nothing of a layer reaches the
+# station book, database, packets, statistics, replay, iGate or a radio. The layer modules import
+# none of WALLED, and outside them only LAYER_IMPORTERS import a layer module.
 LAYER_MODULES = frozenset({"neoaprs.layerthing", "neoaprs.web.layerwire", "neoaprs.readsb", "neoaprs.radarcape", "neoaprs.services.layers", "neoaprs.services.layerasked", "neoaprs.web.layerfeed", "neoaprs.web.layerhandlers",
                            "neoaprs.aisdecode", "neoaprs.digitraffic", "neoaprs.shiptable", "neoaprs.aisfeed", "neoaprs.services.layerships"})
 WALLED = ("neoaprs.station", "neoaprs.packet", "neoaprs.store", "neoaprs.db", "neoaprs.aprsis", "neoaprs.tnc", "neoaprs.radioregistry", "neoaprs.radiodriver", "neoaprs.services.igate", "neoaprs.services.sender",
@@ -158,14 +195,17 @@ WALLED = ("neoaprs.station", "neoaprs.packet", "neoaprs.store", "neoaprs.db", "n
 LAYER_IMPORTERS = frozenset({"neoaprs.configlayers", "neoaprs.app", "neoaprs.wiring", "neoaprs.controller", "neoaprs.web.topics", "neoaprs.web.api", "neoaprs.web.dispatch", "neoaprs.web.mapwire", "neoaprs.web.mapview",
                              "neoaprs.web.protocol"})
 
-# A radio is named by its id and asks its type what it may do (plan §2): `fm` and `hf` are words of a kind, and they name one only in the descriptions of the types (TYPE_MODULES). Anywhere else the word
-# as a string ("hf"), the ids of the two radios of before (FM_ID, HF_ID) or a name with fm or hf as one of its parts (`hf_port`, `fm_enabled`, `HF_PROFILES`) is a radio or a kind named where the radio
-# should have been asked: a third kind would have to be written into that place. So is the word "lora" as a string, and radio 1 or 2 named by its number. RADIO_WORDS is every file where that is so
-# today, with how many (exact, so it only shrinks), who takes them out, and why: "W3" takes out what the steps of the round kept for the page and the code of before (the files of W3's entry: its aliases,
-# views, old fields, topics, the rules of a kind beside its type, the set of two radios and the stand-in); "open" is the same kind of thing in a file W3's entry does not name (radio 1 as the default where nothing names a radio, the run's
-# overrides of radios 1 and 2), whose owner the coordinator gives (W3, or the pass over the whole code); "kept" is what stays for good (the frozen migration steps read the words the database of before stored).
+# A radio is named by its id and asks its type what it may do: `fm` and `hf` are kinds, named only
+# in the type descriptions (TYPE_MODULES). Anywhere else, the word as a string ("hf", "lora"),
+# FM_ID, HF_ID, a name with fm or hf as a part (`hf_port`, `HF_PROFILES`), or radio 1 or 2 named by
+# number is a radio or kind named where the radio should have been asked. RADIO_WORDS lists every
+# file where that is so, with an exact count so that it only shrinks, an owner and a reason: "W3" is
+# code kept for the page and old code that the cleanup removes, "open" is the same kind of thing in
+# other files, and "kept" stays for good (the frozen migration steps read the words stored before).
 TYPE_MODULES = ("neoaprs/radiotype.py", "neoaprs/radiotypes/")
-NOT_A_RADIO = {"hf_dial", "HF_DIAL", "DUMMY_HF"}         # the dial of the HF tests the version page names (services/updatecheck.py), a band's; the Dummy HF type's profile, a type's own name
+# The HF dial named by the version page (services/updatecheck.py) and the Dummy HF profile name are
+# not radios.
+NOT_A_RADIO = {"hf_dial", "HF_DIAL", "DUMMY_HF"}
 RADIO_WORDS: dict[str, tuple[int, str, str]] = {
     "neoaprs/app.py": (4, "W3", "radio 1 and 2's lines and Mercury made by the process before the settings are read (`hf`, `hf_port`, FM_ID, HF_ID)"),
     "neoaprs/config.py": (7, "W3", "the flat key hf/profile, the state row hf/beacon_last_sent_at, radio 1's serial/last_port and beacon_path_calls (radio 1's own path, which the frozen tests read) by FM_ID"),
@@ -209,7 +249,9 @@ RADIO_WORDS: dict[str, tuple[int, str, str]] = {
 
 
 def _imported_names(module: ast.Module) -> dict[str, str]:
-    """What each name the file imported stands for: `import urllib.request` gives urllib, `import subprocess as sp` gives sp for subprocess, `from os import execv as go` gives go for os.execv. An import inside a function counts."""
+    """What each name the file imported stands for: `import urllib.request` gives urllib, `import
+    subprocess as sp` gives sp for subprocess, `from os import execv as go` gives go for os.execv.
+    An import inside a function counts."""
     names: dict[str, str] = {}
     for node in ast.walk(module):
         if isinstance(node, ast.Import):
@@ -222,7 +264,8 @@ def _imported_names(module: ast.Module) -> dict[str, str]:
 
 
 def _full_name(node: ast.AST, names: dict[str, str]) -> str:
-    """`sp.Popen` as subprocess.Popen: the dotted name with the import it begins with written out; "" for anything that does not begin with an imported name."""
+    """`sp.Popen` as subprocess.Popen: the dotted name with the import it begins with written out;
+    "" for anything that does not begin with an imported name."""
     if isinstance(node, ast.Name):
         return names.get(node.id, "")
     if isinstance(node, ast.Attribute):
@@ -239,7 +282,8 @@ def _type_notes(module: ast.Module) -> set[int]:
 
 
 def _reach_of(node: ast.AST, names: dict[str, str]) -> str | None:
-    """The kind of way out the node names, if any. A name counts wherever it stands, called or not: `start: Callable[..., object] = subprocess.Popen` starts a program two lines later."""
+    """The kind of way out the node names, if any. A name counts wherever it stands, called or not:
+    `start: Callable[..., object] = subprocess.Popen` starts a program two lines later."""
     if isinstance(node, ast.keyword):
         return "shell" if node.arg == "shell" and not (isinstance(node.value, ast.Constant) and node.value.value is False) else None
     if not isinstance(node, (ast.Name, ast.Attribute)):
@@ -250,7 +294,8 @@ def _reach_of(node: ast.AST, names: dict[str, str]) -> str | None:
 
 
 def reaches_out(tree: Tree) -> dict[str, dict[str, int]]:
-    """Per file that has any: how many times it names a way out of the process, by kind (REACH). `shell=True` (anything but `shell=False`) on any call is a shell line too."""
+    """Per file that has any: how many times it names a way out of the process, by kind (REACH).
+    `shell=True` (anything but `shell=False`) on any call is a shell line too."""
     found: dict[str, dict[str, int]] = {}
     for rel, source in tree.items():
         module = ast.parse(source)
@@ -266,7 +311,9 @@ def reaches_out(tree: Tree) -> dict[str, dict[str, int]]:
 
 
 def reach_not_as_listed(found: dict[str, dict[str, int]]) -> dict[str, str]:
-    """Every file whose ways out are not what REACHES_OUT says of it, with what it does and what the list says; a listed file that no longer reaches out is among them."""
+    """Every file whose ways out differ from what REACHES_OUT says, and a listed file that no longer
+    reaches out.
+    """
     does = {rel: " ".join(kind for kind in REACH if kind in counts) for rel, counts in found.items()}
     listed = {rel: kinds for rel, (kinds, _why) in REACHES_OUT.items()}
     return {rel: f"does: {does.get(rel) or 'nothing'}; REACHES_OUT says: {listed.get(rel) or 'nothing (it is not listed)'}" for rel in sorted({*does, *listed}) if does.get(rel) != listed.get(rel)}
@@ -277,8 +324,11 @@ def shell_lines(found: dict[str, dict[str, int]]) -> dict[str, int]:
 
 
 _KIND_PART = re.compile(r"(?:^|_)(fm|hf)(?:_|$)", re.IGNORECASE)
-_RADIO_ID = re.compile(r"^(?:id|radio|radio_id)$|_radio(?:_id)?$")      # a name that holds a radio or its id: `id`, `radio`, `radio_id`, `holder_radio_id` (a message's `msg_id` is no radio's)
-_OLD_IDS = (1, 2)                                                        # the ids of the two radios of before, written as numbers where FM_ID and HF_ID would be found
+# a name that holds a radio or its id: `id`, `radio`, `radio_id`, `holder_radio_id` (a message's
+# `msg_id` is no radio's)
+_RADIO_ID = re.compile(r"^(?:id|radio|radio_id)$|_radio(?:_id)?$")
+# the ids of the two radios of before, written as numbers where FM_ID and HF_ID would be found
+_OLD_IDS = (1, 2)
 
 
 def _radio_name(node: ast.AST) -> bool:
@@ -291,8 +341,9 @@ def _old_id(node: ast.AST | None) -> bool:
 
 
 def _a_radio_by_number(node: ast.AST) -> int:
-    """How often the node names radio 1 or 2 by its number: a radio's name compared (==, !=, is, in) with 1 or 2, a choice between one and 1 or 2, or a parameter or a keyword of a radio's name that is 1
-    or 2 when none is given (an order, `radio < 1`, is a check of an id, not a radio named)."""
+    """How often the node names radio 1 or 2 by its number: a radio's name compared (==, !=, is, in)
+    with 1 or 2, a choice between one and 1 or 2, or a parameter or a keyword of a radio's name that
+    is 1 or 2 when none is given (an order, `radio < 1`, is a check of an id, not a radio named)."""
     if isinstance(node, ast.Compare):
         sides = [node.left, *node.comparators]
         numbers = [e for side in sides for e in (side.elts if isinstance(side, (ast.Tuple, ast.List, ast.Set)) else [side])]
@@ -309,7 +360,8 @@ def _a_radio_by_number(node: ast.AST) -> int:
 
 
 def _named(node: ast.AST) -> str | None:
-    """The name a node gives or uses: a variable, an attribute, a function, a class, a parameter, a keyword of a call, an imported name as it is bound."""
+    """The name a node gives or uses: a variable, an attribute, a function, a class, a parameter, a
+    keyword of a call, an imported name as it is bound."""
     if isinstance(node, ast.Name):
         return node.id
     if isinstance(node, ast.Attribute):
@@ -326,8 +378,10 @@ def _named(node: ast.AST) -> str | None:
 
 
 def radio_words(tree: Tree) -> dict[str, int]:
-    """How often each file outside the type modules names a radio or a kind instead of asking it: a word of a kind as a string ("fm", "hf", "lora": KINDS, not in a docstring), a name with fm or hf as
-    one of its parts (NOT_A_RADIO aside), or radio 1 or 2 by its number (`_a_radio_by_number`)."""
+    """How often each file outside the type modules names a radio or a kind instead of asking it: a
+    word of a kind as a string ("fm", "hf", "lora": KINDS, not in a docstring), a name with fm or hf
+    as one of its parts (NOT_A_RADIO aside), or radio 1 or 2 by its number (`_a_radio_by_number`).
+    """
     out: dict[str, int] = {}
     for rel, source in tree.items():
         if rel.startswith(TYPE_MODULES):
@@ -351,7 +405,8 @@ def radio_words_not_as_listed(found: dict[str, int]) -> dict[str, str]:
 
 
 def sql_outside_the_homes(sites: dict[str, tuple[bool, int]]) -> dict[str, str]:
-    """Why each file that touches SQL outside SQL_HOMES is not allowed to, or is allowed to less than it does."""
+    """Why each file that touches SQL outside SQL_HOMES is not allowed to, or is allowed to less
+    than it does."""
     found: dict[str, str] = {}
     for rel, (imports, calls) in sorted(sites.items()):
         if rel in SQL_HOMES:
@@ -365,18 +420,20 @@ def sql_outside_the_homes(sites: dict[str, tuple[bool, int]]) -> dict[str, str]:
 
 
 def sql_text_outside_the_homes(strings: dict[str, list[int]]) -> dict[str, list[int]]:
-    """The files that hold a string that begins like a statement and are neither a home of SQL nor one of the listed files that touch it: a statement built in one place and run in another passes
+    """The files that hold a string that begins like a statement and are neither a home of SQL nor
+    one of the listed files that touch it: a statement built in one place and run in another passes
     the check on `execute(` and is found here."""
     return {rel: lines for rel, lines in sorted(strings.items()) if rel not in SQL_HOMES and rel not in SQL_ELSEWHERE}
 
 
 def stale_sql_entries(sites: dict[str, tuple[bool, int]]) -> list[str]:
-    """Entries of the two tables that name a file that no longer touches SQL (or does not exist)."""
+    """Entries of the two tables that name a file that does not touch SQL (or does not exist)."""
     return sorted(rel for rel in [*SQL_HOMES, *SQL_ELSEWHERE] if rel not in sites)
 
 
 def is_delivery_package(module: str) -> bool:
-    """The packages that are the delivery layer whole: the page's server and the commands (everything under them is delivery, whatever its name)."""
+    """The packages that are the delivery layer whole: the page's server and the commands
+    (everything under them is delivery, whatever its name)."""
     return any(module == package or module.startswith(package + ".") for package in DELIVERY_PACKAGES)
 
 
@@ -406,7 +463,8 @@ def violations(graph: dict[str, list[Import]]) -> dict[tuple[str, str], str]:
             if imp.internal and imp.target != importer:
                 theirs = layer_of(imp.target)
                 if mine is None or theirs is None:
-                    continue                                # an unclassified module is reported by test_every_module_has_a_layer
+                    # an unclassified module is reported by test_every_module_has_a_layer
+                    continue
                 if theirs not in MAY_IMPORT[mine]:
                     found[key] = f"{mine} imports {theirs}"
                 elif mine == theirs == "adapters" and imp.target not in ADAPTER_BASES and (importer, imp.target) not in ADAPTER_SIBLINGS:
@@ -441,26 +499,33 @@ def neoaprs_imports_of_web(graph: dict[str, list[Import]]) -> list[tuple[str, st
 
 
 def service_imports_above(graph: dict[str, list[Import]]) -> list[tuple[str, str]]:
-    """What neoaprs/services/ must never import: the controller, the admin tools, the process, the web layer."""
+    """What neoaprs/services/ must never import: the controller, the admin tools, the process, the
+    web layer."""
     return sorted((m, i.target) for m, imps in graph.items() if layer_of(m) == "services" for i in imps
                   if i.internal and (layer_of(i.target) in {"app", "delivery"}))
 
 
 def services_imported_outside_the_root(graph: dict[str, list[Import]]) -> list[tuple[str, str]]:
-    """Only the composition root builds the services of neoaprs/services/ (rule 7); another module that imports one is making its own."""
+    """Only the composition root builds the services of neoaprs/services/ (rule 7); another module
+    that imports one is making its own."""
     return sorted((m, i.target) for m, imps in graph.items() if m not in SERVICE_BUILDERS and not m.startswith("neoaprs.services") for i in imps
                   if i.internal and (i.target == "neoaprs.services" or i.target.startswith("neoaprs.services.")))
 
 
 def wire_imports_of_a_sibling(graph: dict[str, list[Import]]) -> list[tuple[str, str]]:
-    """A wire module (`neoaprs/web/*wire.py`) imports `neoaprs.web.wirebase` and no sibling: what two areas share is in the base. `neoaprs.web.configwire` puts the groups of the areas into the one settings model, and `neoaprs.web.protocol` lists
-    every model; both import the wire modules by their task. Beside them only the pairs of WIRE_PAIRS: `neoaprs.web.mapwire` imports `neoaprs.web.layerwire` and no other sibling."""
+    """A wire module (`neoaprs/web/*wire.py`) imports `neoaprs.web.wirebase` and no sibling: what
+    two areas share is in the base. `neoaprs.web.configwire` puts the groups of the areas into the
+    one settings model, and `neoaprs.web.protocol` lists every model; both import the wire modules
+    by their task. Beside them only the pairs of WIRE_PAIRS: `neoaprs.web.mapwire` imports
+    `neoaprs.web.layerwire` and no other sibling."""
     return sorted((m, i.target) for m, imps in graph.items() if is_web(m) and m.endswith("wire") and m not in WIRE_ASSEMBLERS for i in imps
                   if i.internal and is_web(i.target) and i.target != "neoaprs.web.wirebase" and (m, i.target) not in WIRE_PAIRS)
 
 
 def through_the_wall(graph: dict[str, list[Import]]) -> list[tuple[str, str]]:
-    """Every import that breaks the wall round the layers of traffic: a module of the layers that imports one of WALLED, and a module outside them and outside LAYER_IMPORTERS that imports one of them."""
+    """Every import that breaks the wall round the layers of traffic: a module of the layers that
+    imports one of WALLED, and a module outside them and outside LAYER_IMPORTERS that imports one of
+    them."""
     return sorted((m, i.target) for m, imps in graph.items() for i in imps if i.internal and i.target != m and (
         (m in LAYER_MODULES and i.target.startswith(WALLED)) or (m not in LAYER_MODULES and m not in LAYER_IMPORTERS and i.target in LAYER_MODULES)))
 
@@ -469,7 +534,7 @@ def wiring_outside_the_root(counts: dict[str, int]) -> dict[str, int]:
     return {rel: n for rel, n in counts.items() if rel not in COMPOSITION_ROOTS}
 
 
-# ---- the real tree ------------------------------------------------------------------------------------------------------------------------------------------
+# ---- the real tree -------------------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
 def real_tree() -> Tree:
@@ -531,7 +596,9 @@ def test_a_layer_module_that_imports_the_station_book_or_a_service_of_the_radios
                       "neoaprs/wiring.py": "from neoaprs.services.layers import Layers\nfrom neoaprs.stationbook import StationBook\n", "neoaprs/configlayers.py": "from .layerthing import SHIP_SOURCES\n", "neoaprs/stationbook.py": "from neoaprs import shiptable\n",
                       "neoaprs/geo.py": "", "neoaprs/services/common.py": "", "neoaprs/web/packetwindow.py": "", "neoaprs/web/layerwire.py": "", "neoaprs/shiptable.py": ""})
     assert through_the_wall(g) == [("neoaprs.layerthing", "neoaprs.stationbook"), ("neoaprs.services.layers", "neoaprs.services.common"), ("neoaprs.stationbook", "neoaprs.shiptable"),
-                                   ("neoaprs.web.layerfeed", "neoaprs.web.packetwindow"), ("neoaprs.web.views", "neoaprs.web.layerwire")]      # (the composition root, the settings' rows and one layer module of another are not)
+                                   # (the composition root, the settings' rows and one layer module
+                                   # of another are not)
+                                   ("neoaprs.web.layerfeed", "neoaprs.web.packetwindow"), ("neoaprs.web.views", "neoaprs.web.layerwire")]
 
 
 def test_only_the_composition_root_imports_the_services(graph: dict[str, list[Import]]) -> None:
@@ -563,7 +630,7 @@ def test_a_radio_is_named_by_fm_or_hf_only_in_the_descriptions_of_the_types_and_
     assert all(owner in ("W3", "open", "kept") and len(why) > 20 for _n, owner, why in RADIO_WORDS.values())
 
 
-# ---- every rule fails on a violation ------------------------------------------------------------------------------------------------------------------------
+# ---- every rule fails on a violation -------------------------------------------------------------
 
 def tree_of(**files: str) -> Tree:
     return {f"neoaprs/{name}.py": source for name, source in files.items()}
@@ -602,18 +669,22 @@ def test_a_lower_layer_that_imports_a_higher_one_is_found() -> None:
     found = violations(g)
     assert found[("neoaprs.clock", "neoaprs.controller")] == "foundation imports app"
     assert found[("neoaprs.clock", "neoaprs.source")] == "foundation imports adapters"
-    assert found[("neoaprs.signal", "neoaprs.store")] == "foundation imports persistence"       # a relative import is resolved
+    # a relative import is resolved
+    assert found[("neoaprs.signal", "neoaprs.store")] == "foundation imports persistence"
     assert ("neoaprs.signal", "neoaprs.clock") not in found
-    assert ("neoaprs.store", "neoaprs.db") not in found                                          # inside persistence anything goes
+    # inside persistence anything goes
+    assert ("neoaprs.store", "neoaprs.db") not in found
 
 
 def test_adapters_and_persistence_do_not_import_each_other_and_siblings_only_by_name(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setitem(LAYERS, "adapters", [*LAYERS["adapters"], "gps", "nmealine"])          # (two adapters made up here; tnc -> serialport is the real, allowed pair)
+    # (two adapters made up here; tnc -> serialport is the real, allowed pair)
+    monkeypatch.setitem(LAYERS, "adapters", [*LAYERS["adapters"], "gps", "nmealine"])
     g = graph_of(gps="from neoaprs.store import Store\nfrom neoaprs.nmealine import NmeaLine\nfrom neoaprs.source import Source\nfrom neoaprs.tasks import TaskSet\n", store="", nmealine="", source="", tasks="",
                  tnc="from neoaprs.serialport import SerialPort\n", serialport="")
     assert violations(g) == {
         ("neoaprs.gps", "neoaprs.store"): "adapters imports persistence",
-        ("neoaprs.gps", "neoaprs.nmealine"): "an adapter imports a sibling adapter",      # the bases every feed shares (source, tasks) and the named siblings may be imported
+        # the bases every feed shares (source, tasks) and the named siblings may be imported
+        ("neoaprs.gps", "neoaprs.nmealine"): "an adapter imports a sibling adapter",
     }
 
 
@@ -631,7 +702,8 @@ def test_tornado_and_pydantic_are_kept_to_their_homes() -> None:
     assert violations(g) == {
         ("neoaprs.source", "tornado"): "Tornado outside neoaprs/web/",
         ("neoaprs.store", "pydantic"): "pydantic outside the wire modules of neoaprs/web/",
-        ("neoaprs.web.hub", "pydantic"): "pydantic outside the wire modules of neoaprs/web/",       # (neoaprs.web.stationwire is one of the homes)
+        # (neoaprs.web.stationwire is one of the homes)
+        ("neoaprs.web.hub", "pydantic"): "pydantic outside the wire modules of neoaprs/web/",
     }
 
 
@@ -648,7 +720,8 @@ def test_the_desktop_toolkits_are_kept_to_the_shells() -> None:
 
 def test_a_module_nobody_placed_and_a_layer_entry_without_a_file_are_found() -> None:
     assert unplaced(tree_of(clock="", brand_new="")) == ["neoaprs.brand_new"]
-    assert unplaced({"neoaprs/web/anything.py": "", "neoaprs/services/x.py": ""}) == []                  # neoaprs/web/ is delivery, neoaprs/services/ is services
+    # neoaprs/web/ is delivery, neoaprs/services/ is services
+    assert unplaced({"neoaprs/web/anything.py": "", "neoaprs/services/x.py": ""}) == []
     assert "neoaprs.signal" in stale_layers(tree_of(clock=""))
 
 
@@ -656,7 +729,8 @@ def test_the_planned_modules_are_placed_and_not_stale_and_the_types_of_radio_are
     assert PLANNED <= {f"neoaprs.{n}" for names in LAYERS.values() for n in names}, "a planned module has its layer in LAYERS"
     assert not set(stale_layers(tree_of(clock=""))) & PLANNED, "a planned module that is not written yet is not a stale entry"
     assert layer_of("neoaprs.radiotypes") == layer_of("neoaprs.radiotypes.mercury") == "domain"
-    assert unplaced({"neoaprs/radiotypes/dummylora.py": ""}) == []                                     # a new family of types needs no layer line
+    # a new family of types needs no layer line
+    assert unplaced({"neoaprs/radiotypes/dummylora.py": ""}) == []
 
 
 def test_the_page_the_commands_and_the_process_are_the_delivery_layer_whole() -> None:
@@ -672,13 +746,15 @@ def test_the_page_the_commands_and_the_process_are_the_delivery_layer_whole() ->
 def test_a_cycle_is_found_and_a_chain_is_not() -> None:
     assert find_cycle(graph_of(a="import neoaprs.b\n", b="from neoaprs import c\n", c="from neoaprs.a import x\n")) == ["neoaprs.a", "neoaprs.b", "neoaprs.c", "neoaprs.a"]
     assert find_cycle(graph_of(a="import neoaprs.b\n", b="import neoaprs.c\n", c="")) == []
-    assert find_cycle(import_graph({"neoaprs/a.py": "def f():\n    import neoaprs.b\n", "neoaprs/b.py": "import neoaprs.a\n"})) == ["neoaprs.a", "neoaprs.b", "neoaprs.a"]   # a lazy import counts
+    # a lazy import counts
+    assert find_cycle(import_graph({"neoaprs/a.py": "def f():\n    import neoaprs.b\n", "neoaprs/b.py": "import neoaprs.a\n"})) == ["neoaprs.a", "neoaprs.b", "neoaprs.a"]
 
 
 def test_neoaprs_importing_web_and_a_service_importing_the_controller_are_found() -> None:
     g = import_graph({"neoaprs/clock.py": "import neoaprs.web.api\n", "neoaprs/daemon.py": "from neoaprs.web.server import WebServer\n", "neoaprs/cli/doctor.py": "import neoaprs.web.server\n", "neoaprs/web/api.py": "", "neoaprs/web/server.py": "",
                       "neoaprs/services/beacon.py": "from neoaprs.controller import Controller\nfrom neoaprs.clock import utcnow\n", "neoaprs/controller.py": ""})
-    assert neoaprs_imports_of_web(g) == [("neoaprs.clock", "neoaprs.web.api")]                  # the process (daemon.py) and the commands (cli/) are delivery: they may start the web server
+    # the process (daemon.py) and the commands (cli/) are delivery: they may start the web server
+    assert neoaprs_imports_of_web(g) == [("neoaprs.clock", "neoaprs.web.api")]
     assert service_imports_above(g) == [("neoaprs.services.beacon", "neoaprs.controller")]
     assert violations(g)[("neoaprs.services.beacon", "neoaprs.controller")] == "services imports app"
 
@@ -727,10 +803,12 @@ def test_sql_in_a_file_that_is_not_a_home_is_found_and_the_list_of_the_rest_only
     sites = sql_sites(tree)
     assert sites == {"neoaprs/clock.py": (True, 0), "neoaprs/tool.py": (True, 2), "neoaprs/stationsql.py": (True, 0), "neoaprs/new.py": (False, 1), "neoaprs/web/h.py": (True, 0)}
     found = sql_outside_the_homes(sites)
-    assert set(found) == {"neoaprs/clock.py", "neoaprs/tool.py", "neoaprs/new.py", "neoaprs/web/h.py"}          # stationsql.py is a home; the tool does 2 and its entry says 6
+    # stationsql.py is a home; the tool does 2 and its entry says 6
+    assert set(found) == {"neoaprs/clock.py", "neoaprs/tool.py", "neoaprs/new.py", "neoaprs/web/h.py"}
     assert "its entry says (True, 6)" in found["neoaprs/tool.py"]
     assert "neoaprs/stationsql.py" not in found
-    assert "neoaprs/migrations.py" in stale_sql_entries(sites)                                         # an entry for a file that does not touch SQL (here: any) is stale
+    # an entry for a file that does not touch SQL (here: any) is stale
+    assert "neoaprs/migrations.py" in stale_sql_entries(sites)
 
 
 def test_a_statement_written_outside_the_homes_is_found_and_prose_is_not(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -741,7 +819,8 @@ def test_a_statement_written_outside_the_homes_is_found_and_prose_is_not(monkeyp
             "neoaprs/prose.py": '"""SELECT the stations: a docstring."""\ndef h():\n    """UPDATE the book: a docstring"""\n    # INSERT INTO station is a comment\n    "DELETE FROM station: a bare string"\n    return "an update of the SELECT list, and select * from a lower case word"\n'}
     strings = sql_strings(tree)
     assert strings == {"neoaprs/stationbook.py": [2, 3], "neoaprs/stationsql.py": [2], "neoaprs/tool.py": [1]}
-    assert sql_text_outside_the_homes(strings) == {"neoaprs/stationbook.py": [2, 3]}                   # stationsql.py is a home, tool.py is a listed file that touches SQL
+    # stationsql.py is a home, tool.py is a listed file that touches SQL
+    assert sql_text_outside_the_homes(strings) == {"neoaprs/stationbook.py": [2, 3]}
 
 
 def test_a_way_out_of_the_process_is_found_under_any_name_and_a_type_or_a_file_that_left_the_list_is_told_apart(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -751,7 +830,8 @@ def test_a_way_out_of_the_process_is_found_under_any_name_and_a_type_or_a_file_t
             "neoaprs/d.py": "from subprocess import run\n\ndef f(line, loop):\n    run(line, shell=True)\n    run(['ls'], shell=False)\n    loop.subprocess_exec(None, 'ls')\n",
             "neoaprs/e.py": "def f(os, subprocess):\n    return os.path.join(subprocess.run, 'b')\n"}
     found = reaches_out(tree)
-    assert found == {"neoaprs/a.py": {"program": 1, "exec": 1, "shell": 1}, "neoaprs/c.py": {"browser": 1, "serial": 1, "url": 1}, "neoaprs/d.py": {"program": 3, "shell": 1}}      # b.py names a type, a constant and an error; e.py imported nothing
+    # b.py names a type, a constant and an error; e.py imported nothing
+    assert found == {"neoaprs/a.py": {"program": 1, "exec": 1, "shell": 1}, "neoaprs/c.py": {"browser": 1, "serial": 1, "url": 1}, "neoaprs/d.py": {"program": 3, "shell": 1}}
     assert shell_lines(found) == {"neoaprs/a.py": 1, "neoaprs/d.py": 1}
     monkeypatch.setattr(sys.modules[__name__], "REACHES_OUT", {"neoaprs/a.py": ("program shell exec", "a made-up file that is listed with all it does"), "neoaprs/c.py": ("url serial", "a made-up file that began to open the browser after it was listed"),
                                                                "neoaprs/gone.py": ("program", "a made-up file that starts nothing any more")})
@@ -769,7 +849,9 @@ def test_a_radio_named_by_fm_or_hf_is_found_in_a_string_an_id_and_a_name_and_not
     tree = {"neoaprs/a.py": '"""Sent on the hf radio: prose."""\nfrom .radiotype import FM_ID\nif radio.kind == "hf" and radio.id == FM_ID:\n    ctl.hf_port.close()\n',
             "neoaprs/b.py": "def start_hf(fm, *, fm_count=0):\n    return HfScene, offhand, half, f'{kind} hf', 'HF', HF\n",
             "neoaprs/c.py": "x = updatecheck.hf_dial or HF_DIAL\n", "neoaprs/radiotypes/dummy.py": "TYPE = ('hf', HF_LIMITS)\n", "neoaprs/radiotype.py": "Kind = Literal['fm', 'hf']\n"}
-    assert radio_words(tree) == {"neoaprs/a.py": 4, "neoaprs/b.py": 4}      # a: the alias and the use of FM_ID, "hf", hf_port; b: start_hf, fm, fm_count, HF (HfScene, half and the texts are no word of a kind)
+    # a: the alias and the use of FM_ID, "hf", hf_port; b: start_hf, fm, fm_count, HF (HfScene, half
+    # and the texts are no word of a kind)
+    assert radio_words(tree) == {"neoaprs/a.py": 4, "neoaprs/b.py": 4}
     monkeypatch.setattr(sys.modules[__name__], "RADIO_WORDS", {"neoaprs/a.py": (4, "W3", "a made-up file that is listed as it is"), "neoaprs/b.py": (5, "W3", "a made-up file that named one more before"),
                                                                "neoaprs/gone.py": (2, "W3", "a made-up file that names none any more")})
     assert radio_words_not_as_listed(radio_words(tree)) == {"neoaprs/b.py": "names a radio by fm or hf 4 times; RADIO_WORDS says 5", "neoaprs/gone.py": "names a radio by fm or hf 0 times; RADIO_WORDS says 2"}
@@ -782,4 +864,6 @@ def test_the_word_lora_and_radio_1_or_2_by_its_number_are_found_and_an_order_of_
             "neoaprs/b.py": "def f(db, radio, *, radio_id=1, holder_radio_id=2):\n    return 1 if radio is None else radio\n",
             "neoaprs/c.py": "g(radio_id=2)\nok = radio < 1 or record.msg_id == 1 or n == 2 or radio_id == 3\nx = None if record.msg_id is None else 1\n'''lora'''\n",
             "neoaprs/radiotypes/x.py": "KIND = 'lora'\nif radio.id == 1:\n    pass\n"}
-    assert radio_words(tree) == {"neoaprs/a.py": 4, "neoaprs/b.py": 3, "neoaprs/c.py": 1}      # a: 'lora' and three comparisons; b: two defaults and the choice; c: the keyword (an order, a message's id, a number of nothing, radio 3 and the prose are none)
+    # a: 'lora' and three comparisons; b: two defaults and the choice; c: the keyword (an order, a
+    # message's id, a number of nothing, radio 3 and the prose are none)
+    assert radio_words(tree) == {"neoaprs/a.py": 4, "neoaprs/b.py": 3, "neoaprs/c.py": 1}

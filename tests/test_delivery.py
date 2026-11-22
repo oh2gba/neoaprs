@@ -1,6 +1,6 @@
-"""The delivery chain of a message (neoaprs/services/delivery.py, chain.py) on messaging with a stub Tnc and a real database: a copy of our own message heard back is linked to the message and to the attempt it
-belongs to, shows which hops of the path were used, is kept across a restart and goes with the message; copies of anything else are not linked. Each attempt records the id of the radio it went on, whatever
-radio that is, and the message log keeps the id."""
+"""Tests for the delivery chain of a message (neoaprs/services/delivery.py, chain.py) with a stub
+Tnc and a real database: copies of our own message heard back are linked to it and to the
+attempt."""
 from dataclasses import replace
 from pathlib import Path
 
@@ -19,7 +19,8 @@ SEEN = tuple[int, str, bool]                    # (position, call, via_internet)
 
 
 class Chain:
-    """A messaging that sends by OH2RCH-2,OH2RDG (or the path given), the store under it, and the packets of our own message as the Tnc would hear them."""
+    """A messaging that sends by OH2RCH-2,OH2RDG (or the path given), the store under it, and the
+    packets of our own message as the Tnc would hear them."""
 
     def __init__(self, store: Store, clock: FixedClock, path: str = "OH2RCH-2,OH2RDG") -> None:
         assert store.db is not None
@@ -34,11 +35,13 @@ class Chain:
         return self.rig.clock
 
     def copy(self, path: str, text: str = "Hello Pekka", msg_id: str | None = "01", to: str = "OH2RDG", source: str = "OH2GBA", ack: str | None = None) -> Packet:
-        """A packet heard from `source` with this path (a star on each address that has been repeated, as the radio gave them), a message to `to`."""
+        """A packet heard from `source` with this path (a star on each address that has been
+        repeated, as the radio gave them), a message to `to`."""
         return Packet(self.clock(), "in", b"", source, "APZNEO", tuple(p for p in path.split(",") if p), b"", Message(to, "" if ack else text, None if ack else msg_id, ack))
 
     def gated(self, inner: str, gate: str = "OH7JHF-1", text: str = "Hello Pekka", msg_id: str | None = "01", to: str = "OH2RDG") -> Packet:
-        """The same message wrapped by an iGate: the frame heard is the gate's, the packet inside is ours with `inner` as its path."""
+        """The same message wrapped by an iGate: the frame heard is the gate's, the packet inside is
+        ours with `inner` as its path."""
         return Packet(self.clock(), "in", b"", gate, "APRS", ("OH2RCH-3*",), b"", Message(to, text, msg_id), ThirdParty("OH2GBA", "APZNEO", tuple(p for p in inner.split(",") if p)), "rf-gated")
 
     def hear(self, packet: Packet) -> None:
@@ -194,7 +197,8 @@ async def test_the_attempts_and_hops_are_kept_across_a_restart(chain: Chain) -> 
 
 async def test_a_message_that_is_deleted_takes_its_chain_with_it_and_another_messages_stays(chain: Chain) -> None:
     await chain.rig.m.send("OH2RDG", "Hello Pekka")
-    await chain.rig.m.send("OH2AAA", "Second")                                     # (to another station: a second one to OH2RDG would wait for the first)
+    # (to another station: a second one to OH2RDG would wait for the first)
+    await chain.rig.m.send("OH2AAA", "Second")
     chain.hear(chain.copy("OH2RCH-2*,OH2RDG"))
     chain.hear(chain.copy("OH2RCH-2*", to="OH2AAA", text="Second", msg_id="02"))
     assert len(await chain.rows("message_hop")) == 2

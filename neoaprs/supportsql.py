@@ -1,5 +1,7 @@
-"""The statements of the support bundle (neoaprs/cli/supportgather.py): functions of a connection that only read. The bundle opens the database file read-only, on the thread that makes it, beside the
-daemon's own connection (the write-ahead log lets a reader and the writer go on together), and changes nothing: no migration, no pragma that writes, no checkpoint."""
+"""Read-only SQL for the support bundle.
+
+The bundle opens the database read-only beside the daemon's connection and changes nothing.
+"""
 import sqlite3
 from contextlib import closing
 from pathlib import Path
@@ -7,20 +9,22 @@ from pathlib import Path
 from .dberror import Connection, Row, limit, rows
 
 OPEN_WAIT_SEC = 3.0
-SHOWN_LIST = "heard_at, direction, raw, source, destination, path, kind, summary, NULL, error, '', ''"   # a packet row (packetcodec.PacketRow) of only the columns packets.txt writes, which a file not migrated yet has too
+# a packet row (packetcodec.PacketRow) of the columns an unmigrated file has too
+SHOWN_LIST = "heard_at, direction, raw, source, destination, path, kind, summary, NULL, error, '', ''"
 
 
 def open_readonly(path: str | Path) -> Connection:
-    """A connection to the existing database file that cannot write. A file that no daemon has open has no write-ahead log beside it (SQLite removes it when the last connection closes): it is opened as immutable, which reads the file
-    as it is and creates nothing next to it (a plain read-only connection would make the -wal and -shm files). With a log beside it a daemon has the file open, and the reader goes through the log as any other. Raises sqlite3.Error
-    when the file is not there or not a database."""
+    """Open the existing database file read-only; raise sqlite3.Error if missing or invalid.
+
+    Without a -wal file no daemon has it open, so it is opened immutable and creates no -wal or -shm.
+    """
     base = Path(path).absolute()
     quiet = not base.with_name(base.name + "-wal").exists()
     return sqlite3.connect(f"{base.as_uri()}?mode=ro" + ("&immutable=1" if quiet else ""), uri=True, timeout=OPEN_WAIT_SEC)
 
 
 def live_version(path: str | Path) -> int | None:
-    """The schema version of the file as SQLite reads it, through the write-ahead log beside it (`neoaprs db set` beside a daemon: dbwrite.py); None when it cannot be read."""
+    """Return the schema version as SQLite reads it through the write-ahead log, or None."""
     try:
         with closing(open_readonly(path)) as db:
             return int(db.execute("PRAGMA user_version").fetchone()[0])
@@ -29,13 +33,13 @@ def live_version(path: str | Path) -> int | None:
 
 
 def table_counts(db: Connection) -> list[tuple[str, int]]:
-    """(table, rows) of every table of the file, by name."""
+    """Return (table, row count) for every table, by name."""
     names = [str(r[0]) for r in db.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")]
     return [(name, int(db.execute('SELECT COUNT(*) FROM "' + name.replace('"', '""') + '"').fetchone()[0])) for name in names]
 
 
 def file_facts(db: Connection) -> dict[str, str]:
-    """What SQLite says of the file itself: the schema version, the page size and count and the free pages."""
+    """Return the schema version, page size, page count and free pages."""
     return {
         "user_version": str(db.execute("PRAGMA user_version").fetchone()[0]),
         "page_size": str(db.execute("PRAGMA page_size").fetchone()[0]),
@@ -45,17 +49,17 @@ def file_facts(db: Connection) -> dict[str, str]:
 
 
 def quick_check(db: Connection) -> list[str]:
-    """The lines `PRAGMA quick_check` answers: `ok` alone when the file is sound."""
+    """Return the lines of `PRAGMA quick_check`: `ok` alone if the file is sound."""
     return [str(r[0]) for r in db.execute("PRAGMA quick_check")]
 
 
 
 
 def latest_undecoded(db: Connection, count: int) -> list[Row]:
-    """The latest `count` packets the parser could not read, the newest first."""
+    """Return the latest `count` undecodable packets, newest first."""
     return rows(db.execute(f"SELECT {SHOWN_LIST} FROM packet WHERE kind = 'undecoded' ORDER BY id DESC LIMIT ?", (limit(count),)))
 
 
 def latest_packets(db: Connection, count: int) -> list[Row]:
-    """The latest `count` packets heard and sent, the newest first."""
+    """Return the latest `count` packets heard and sent, newest first."""
     return rows(db.execute(f"SELECT {SHOWN_LIST} FROM packet ORDER BY id DESC LIMIT ?", (limit(count),)))

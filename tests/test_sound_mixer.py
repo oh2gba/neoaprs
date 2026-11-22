@@ -1,6 +1,7 @@
-"""A sound card's own levels (neoaprs/soundmixer.py, neoaprs/winmixer.py): on Linux the card's ALSA controls through a made-up ALSA library that the real calls are made to (the C-Media chip of an FTX-1 with
-Speaker, Mic and its Auto Gain Control switch, a TI codec with PCM alone, a card with nothing of ours, one that is not there), the percent of a control's range both ways; on Windows the master volumes of the
-card's two devices through a stand-in for Core Audio; and under the no-devices switch nothing is read or set and no library is loaded. No real card of this machine is touched: none may be."""
+"""A sound card's own levels (neoaprs/soundmixer.py, winmixer.py): on Linux the ALSA controls
+through a made-up ALSA library (several card layouts), the percent of a control's range both ways;
+and the Windows side.
+"""
 import ctypes
 import sys
 import threading
@@ -15,7 +16,8 @@ from neoaprs.soundmixer import NONE, Alsa, Control, Levels, alsa_control_name, p
 from neoaprs.winmixer import Windows
 from tests.test_no_devices import under_the_switch  # noqa: F401  (the fixture)
 
-LOAD_ALSA = soundmixer.load_alsa          # (the real one: tests/support/guards.py puts one that finds no library in its place in every test)
+# The real one: tests/support/guards.py puts one that finds no library in its place in every test
+LOAD_ALSA = soundmixer.load_alsa
 
 
 @dataclass
@@ -29,7 +31,8 @@ class Elem:
 
 @dataclass
 class FakeAlsa:
-    """The calls of the ALSA library the module makes, on made-up cards by control device (`hw:Device`): what is set is kept, and every call that is not a read is written down."""
+    """The calls of the ALSA library the module makes, on made-up cards by control device
+    (`hw:Device`): what is set is kept, and every call that is not a read is written down."""
     cards: dict[str, list[Elem]]
     calls: list[str] = field(default_factory=list)
     attached: str = ""
@@ -74,7 +77,8 @@ class FakeAlsa:
         return self._e(elem).index
 
     def __getattr__(self, call: str) -> Any:
-        """The calls of either way (`snd_mixer_selem_has_playback_volume`, `..._get_capture_volume_range`, ...), on the made-up control."""
+        """The calls of either way (`snd_mixer_selem_has_playback_volume`,
+        `..._get_capture_volume_range`, ...), on the made-up control."""
         for way in ("playback", "capture"):
             if call == f"snd_mixer_selem_has_{way}_volume":
                 return lambda elem: int(getattr(self._e(elem), way) is not None)
@@ -98,7 +102,8 @@ class FakeAlsa:
 
 
 def ftx1_card() -> list[Elem]:
-    """The FTX-1's C-Media chip as `amixer -c Device` shows it: Speaker at 14 of 0..37 (38 %), Mic with a monitor volume and a capture volume, the Auto Gain Control switch."""
+    """The FTX-1's C-Media chip as `amixer -c Device` shows it: Speaker at 14 of 0..37 (38 %), Mic
+    with a monitor volume and a capture volume, the Auto Gain Control switch."""
     return [Elem("Speaker", playback=[0, 37, 14]), Elem("Mic", playback=[0, 31, 0], capture=[0, 16, 8]), Elem("Auto Gain Control", switch=True)]
 
 
@@ -232,7 +237,8 @@ def test_a_library_that_lacks_a_call_is_no_library_and_the_system_has_no_mixer(m
 
 
 def test_a_look_for_the_library_while_the_mixers_thread_is_loading_it_waits_for_its_answer() -> None:
-    """The event loop asks `present` while the first read on the mixer's thread is still loading the library: it gets the library, not the empty answer of a look that is not finished."""
+    """The event loop asks `present` while the first read on the mixer's thread is still loading the
+    library: it gets the library, not the empty answer of a look that is not finished."""
     entered, go = threading.Event(), threading.Event()
 
     def load() -> object:

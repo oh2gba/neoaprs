@@ -1,10 +1,8 @@
-"""The message board as values: which addressees are the board's and not a station's (bulletins, announcements, group bulletins, the group messages to ALL, CQ and QST, and the weather service's), and
-a bulletin as the board keeps it.
+"""The message board as values: which addressees are the board's, and a stored bulletin.
 
-A message to `BLN0`..`BLN9` is a bulletin and to `BLNA`..`BLNZ` an announcement; `BLN3HAMS` (the number or letter, then the name of a group of up to five characters) is a group bulletin; `ALL`, `CQ`
-and `QST` are group messages; `NWS-xxxxx` is a bulletin of the National Weather Service and `SKY` and `CWA` (with up to three more characters) are the weather watchers' kind of it (kind "nws"). None of
-them is a conversation, none is acked, and the board holds one for each sender and addressee (the slot): the sender sending the same slot again replaces the
-text. Nothing ages out: an entry stays until the operator deletes it. Every datetime is timezone-aware UTC."""
+Board addressees (`BLN0`..`BLNZ`, `BLN3HAMS`, `ALL`, `CQ`, `QST`, `NWS-xxxxx`, `SKY`/`CWA`) are
+never conversations or acked. The board holds one entry per sender and slot; nothing ages out.
+"""
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -14,16 +12,17 @@ Kind = Literal["announcement", "bulletin", "group", "nws"]
 KINDS: tuple[str, ...] = get_args(Kind)
 
 GROUP_MESSAGES = ("ALL", "CQ", "QST")
-GROUP_MAX = 5                                        # characters of a bulletin's group name
+# characters of a bulletin's group name
+GROUP_MAX = 5
 _BULLETIN = re.compile(rf"BLN([0-9A-Z])([0-9A-Z-]{{0,{GROUP_MAX}}})$")
 _WEATHER = re.compile(r"(NWS-[0-9A-Z_]{1,5}|(SKY|CWA)[0-9A-Z]{0,3})$")
 
 
 @dataclass(frozen=True, slots=True)
 class Slot:
-    slot: str                                      # the addressee in capitals: "BLN1", "BLNA", "BLN3HAMS", "QST"
+    slot: str  # addressee in capitals: "BLN1", "BLNA", "BLN3HAMS", "QST"
     kind: Kind
-    group: str                                     # the group of a group bulletin ("HAMS"); empty for any other
+    group: str  # group of a group bulletin ("HAMS"); empty otherwise
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,13 +32,13 @@ class BulletinRecord:
     group: str
     kind: Kind
     text: str
-    first_heard: datetime                          # when this text was first heard: a sender that changes the text starts the count again
+    first_heard: datetime  # a changed text restarts the count
     last_heard: datetime
     times_heard: int = 1
 
     @property
     def key(self) -> str:
-        """What the board and the page call it: "OH2XYZ/BLN1"."""
+        """Return what the board and the page call it: "OH2XYZ/BLN1"."""
         return key_of(self.sender, self.slot)
 
 
@@ -48,7 +47,7 @@ def key_of(sender: str, slot: str) -> str:
 
 
 def board_slot(addressee: str) -> Slot | None:
-    """The slot a message to `addressee` is for, or None when the addressee is a station (or anything else) and the message is no board's."""
+    """Return the slot a message to `addressee` is for; None if it is for a station."""
     name = addressee.strip().upper()
     if name in GROUP_MESSAGES:
         return Slot(name, "group", "")

@@ -1,5 +1,6 @@
-"""The reading of a file that a program is still writing (tests/support/files.py): a file that is there is not a file that is written, and a file the system refuses to open (Windows, while the writer or the move that
-puts it in place holds it) is a file that is not ready."""
+"""The reading of a file a program is still writing (tests/support/files.py): an existing file is
+not a written file, and a file the system refuses to open (Windows) is a file that is not ready.
+"""
 import asyncio
 import threading
 import time

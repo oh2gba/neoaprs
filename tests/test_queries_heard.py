@@ -1,6 +1,7 @@
-"""?APRSH and the general query that is never answered (neoaprs/services/queries.py): the hours a station was heard in, told from the packet log; the station never heard; the forms of the query; and `?WX?`,
-which passes without an answer and without a word above DEBUG (`?IGATE?`, answered while the iGate gates, is tests/test_queries_igate.py's). Then ?APRSD with two radios: each radio's answer is what that
-radio heard direct in the last hour."""
+"""?APRSH and the general query that is never answered (neoaprs/services/queries.py): the hours a
+station was heard in, a never-heard station, the query forms, `?WX?` passing silently, and ?APRSD
+with two radios.
+"""
 import logging
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -37,7 +38,8 @@ class Log:
 
 
 def rig_with(heard: dict[str, tuple[int, ...]] | None = None, no_log: bool = False) -> tuple[Rig, Log]:
-    """A rig whose queries read the packet log `heard`: for each call the minutes ago its packets were heard (a station heard now is `(0,)`)."""
+    """A rig whose queries read the packet log `heard`: for each call the minutes ago its packets
+    were heard (a station heard now is `(0,)`)."""
     rig = Rig()
     log = Log({call: [rig.clock() - timedelta(minutes=m) for m in minutes] for call, minutes in (heard or {}).items()})
     rig.q = Queries(pick_of(rig), lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call, attempt=None, radio=1: rig.paths.get(call, rig.config.beacon_path_calls), rig.clock, heard=None if no_log else log)
@@ -150,7 +152,7 @@ async def test_the_packet_log_gives_the_times_a_station_was_heard_and_not_those_
     assert await log.heard_since("OH2NOBODY", now - timedelta(hours=8)) == []
 
 
-# ---- ?WX? ---------------------------------------------------------------------------------------------------------------------------------------------
+# ---- ?WX? ----------------------------------------------------------------------------------------
 
 @pytest.mark.parametrize("info", [b"?WX?", b"?IGATE?", b"?WX?V60.17,24.94,0100", b"?wx?"])
 def test_the_parser_reads_a_general_query_as_a_query_and_not_as_undecoded(info: bytes) -> None:
@@ -186,7 +188,7 @@ async def test_a_general_query_of_our_own_station_or_another_kind_of_packet_is_l
     assert rig.tnc.sent == []
 
 
-# ---- ?APRSD on the radio it came on (plan rule 3.6's "what that radio heard")
+# ---- ?APRSD on the radio it came on
 
 async def test_aprsd_is_answered_with_what_the_radio_it_came_on_heard_direct() -> None:
     rig = Rig()
@@ -205,7 +207,8 @@ async def test_aprsd_is_answered_with_what_the_radio_it_came_on_heard_direct() -
     heard("OH2DIG", FM_ID, 5, ("OH2RCH-2*",))                           # by a digipeater on FM
     heard("OH2HFX", HF_ID, 5)                                           # on HF, where every frame is direct
     heard("OH2OLD", HF_ID, 90)                                          # on HF, but not in the last hour
-    heard("OH2FAR", HF_ID, 3, ("OH3GWX-12*",))                          # on HF, passed there by another station's pair of radios: not direct
+    # On HF, passed there by another station's pair of radios: not direct
+    heard("OH2FAR", HF_ID, 3, ("OH3GWX-12*",))
     rig.q.on_packet(replace(rig.packet("OH2RDG", Message("OH2GBA", "?APRSD", None)), radio_id=FM_ID))
     rig.q.on_packet(replace(rig.packet("OH2PU", Message("OH2GBA", "?APRSD", None)), radio_id=HF_ID))
     await until(lambda: len(rig.tnc.sent) == 1 and len(hf.sent) == 1)
@@ -263,10 +266,11 @@ async def test_aprsd_on_a_radio_that_carries_paths_counts_only_what_that_radio_h
     assert rig.message_of(third.sent[0]) == ("OH2PU", "Directs= OH2BOTH", None)
 
 
-# ---- the path of an answer is the asker's on the radio the answer goes on (plan rule 3.3)
+# ---- the path of an answer is the asker's on the radio the answer goes on
 
 async def test_an_answer_goes_by_the_askers_path_on_the_radio_it_is_sent_on() -> None:
-    """With two radios that carry paths, an answer on radio 3 goes by the asker's path on radio 3 (PrefBook.path_for asked for that radio), not radio 1's."""
+    """With two radios that carry paths, an answer on radio 3 goes by the asker's path on radio 3
+    (PrefBook.path_for asked for that radio), not radio 1's."""
     rig = Rig()
     pick = pick_of(rig)
     third = StubTnc()
@@ -282,8 +286,9 @@ async def test_an_answer_goes_by_the_askers_path_on_the_radio_it_is_sent_on() ->
 
 
 async def test_an_rf_only_asker_whose_fm_path_is_too_long_for_rfonly_is_answered_over_hf_direct(tmp_path: Path) -> None:
-    """The operator's path belongs to the radio it was set on: a path of eight digipeaters set on FM for an RF-only station leaves no room for RFONLY there, so the answer on FM is not sent; over HF, whose
-    frames carry no path, the same question is answered, direct."""
+    """The operator's path belongs to the radio it was set on: a path of eight digipeaters set on FM
+    for an RF-only station leaves no room for RFONLY there, so the answer on FM is not sent; over
+    HF, whose frames carry no path, the same question is answered, direct."""
     rig = Rig()
     hf = StubTnc(max_frame=123)
     store = await store_at(tmp_path / DB_NAME, rig.clock)

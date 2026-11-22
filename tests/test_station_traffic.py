@@ -1,6 +1,7 @@
-"""One station's packets for its panel in the Stations tab (`station_traffic`, neoaprs/web/packetwire.py): the packet log reads those the station sent (its own, and those inside a third-party packet an iGate put on the
-air) and the messages we sent to it, the newest first and at most as many as asked for; while Internet stations is off none that came from APRS-IS; and the page that asked is answered with them as rows of the
-Packets tab."""
+"""One station's packets for its panel (`station_traffic`, neoaprs/web/packetwire.py): those the
+station sent and the messages we sent to it, newest first and at most as many as asked; none from
+APRS-IS when that is off.
+"""
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -19,7 +20,8 @@ from tests.support.wireworld import T0, internet
 
 
 def frame(text: str, source: str, at: datetime, direction: str = "in") -> Packet:
-    """A packet as the radio gave it (or as we sent it), its frame and what it decodes to; a text that begins with `}` is a third-party packet an iGate put on the air."""
+    """A packet as the radio gave it (or as we sent it), its frame and what it decodes to; a text
+    that begins with `}` is a third-party packet an iGate put on the air."""
     info = text.encode("latin-1")
     raw = ax25.encode(ax25.Frame(ax25.Address("APRS"), ax25.Address.parse(source), (ax25.Address.parse("WIDE1*"),), info=info))
     decoded, third = parse_packet(info, source, "APRS", at)
@@ -27,8 +29,9 @@ def frame(text: str, source: str, at: datetime, direction: str = "in") -> Packet
 
 
 def world(at: datetime) -> list[Packet]:
-    """OH2RDG's traffic and the rest, the oldest first: 0 its position, 1 another station, 2 our message to it, 3 our message to another, 4 its message to us, 5 its packet inside a third-party one, 6 another's
-    inside one, 7 our ack to it, 8 its position from APRS-IS."""
+    """OH2RDG's traffic and the rest, the oldest first: 0 its position, 1 another station, 2 our
+    message to it, 3 our message to another, 4 its message to us, 5 its packet inside a third-party
+    one, 6 another's inside one, 7 our ack to it, 8 its position from APRS-IS."""
     s = timedelta(seconds=1)
     return [frame("!6010.00N/02456.00E>x", "OH2RDG", at), frame("!6011.00N/02456.00E>x", "OH2XYZ", at + s), frame(":OH2RDG   :hello{01", "OH2GBA", at + 2 * s, "out"),
             frame(":OH2XYZ   :hi{02", "OH2GBA", at + 3 * s, "out"), frame(":OH2GBA   :hello back{7", "OH2RDG", at + 4 * s), frame("}OH2RDG>APRS,TCPIP,OH7JHF-1*:>gated", "OH7JHF-1", at + 5 * s),

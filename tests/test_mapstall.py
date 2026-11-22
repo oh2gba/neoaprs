@@ -1,5 +1,7 @@
-"""A map download that stands still (neoaprs/services/mapfetch.py, `Patience`) with the range server of tests/support/rangeserver.py holding its answers for tile data: the cut is ended and begun again, the status says
-so and what has been downloaded, after the last try the job fails with a plain text, a download that moves only in the size of what has come is not a stall, and the map that was there is never touched."""
+"""A map download that stands still (mapfetch.py `Patience`): the cut is ended and begun again, the
+status says so, the job fails with a plain text after the last try, and slow but moving is not a
+stall.
+"""
 import asyncio
 from collections.abc import Callable
 from dataclasses import replace
@@ -24,7 +26,8 @@ FAST = Patience(stall_sec=0.5, tries=3, pause_sec=0.05, poll_sec=0.05)
 class Rig(MapRig):
     def __init__(self, data: Path, server: RangeServer, patience: Patience = FAST) -> None:
         super().__init__(data, server, lambda: replace(ON_AIR, map_source=server.url), patience)
-        server.hold_from = data_offset(planet())               # (every answer for tile data is held, the directories come)
+        # Every answer for tile data is held, the directories come
+        server.hold_from = data_offset(planet())
 
     def old_map(self) -> None:
         self.data.mkdir(exist_ok=True)
@@ -100,7 +103,8 @@ async def test_the_size_of_what_has_come_is_told_while_the_download_moves(rig: R
 
 
 async def test_a_download_that_moves_only_in_the_size_of_what_has_come_is_not_a_stall(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A cut that tells no percent for longer than the patience, while the size of what has come grows, goes on: the size is a sign of life as well."""
+    """A cut that tells no percent for longer than the patience, while the size of what has come
+    grows, goes on: the size is a sign of life as well."""
     rig.old_map()
     (rig.data / DETAIL).unlink()
     rig.with_patience(Patience(0.5, 1, 0.05, 0.05))
@@ -110,7 +114,9 @@ async def test_a_download_that_moves_only_in_the_size_of_what_has_come_is_not_a_
                       on_size: Callable[[int], None] | None = None) -> None:
         runs.append(final)
         assert on_size is not None
-        for step in range(1, 13):                                   # (1.2 s of a size that grows and a bar that does not move, with a patience of 0.5 s and no second try)
+        # 1.2 s of a size that grows and a bar that does not move, with a patience of 0.5 s and no
+        # second try
+        for step in range(1, 13):
             part_of(final).write_bytes(b"tiles" * 100 * step)
             on_size(500 * step)
             await asyncio.sleep(0.1)

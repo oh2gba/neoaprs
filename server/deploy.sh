@@ -1,27 +1,36 @@
 #!/usr/bin/env bash
-# Upload the version page, and with --site the project page, to the shared hosting account, in one SFTP session each.
+# Upload the version page, and with --site the project page, to the shared hosting account, in one
+# SFTP session each.
 #
-#   server/deploy.sh          # the version page (version.php, latest.php, log/.htaccess) to both of its places:
-#                             #   neo.oh2gba.eu/version.php, which the copies from 0.16 on ask, and oh2gba.eu/neoaprs/version.php, which the copies before ask
-#   server/deploy.sh --site   # the same, and the project page (site/ as it is, and server/neo/ as it is: the .htaccess, the page-view endpoint, the Send logs endpoint support/send.php with its .user.ini, the sked board's endpoint api/v1/skeds.php, and private/.htaccess) to neo.oh2gba.eu
+#   server/deploy.sh          # the version page (version.php, latest.php, log/.htaccess) to both of
+#                             its places:
+#                             #   neo.oh2gba.eu/version.php and oh2gba.eu/neoaprs/version.php
+#   server/deploy.sh --site   # the same, and the project page (site/ as it is, and server/neo/ as
+#                             it is: the .htaccess, the page-view endpoint, the Send logs endpoint
+#                             support/send.php with its .user.ini, the sked board's endpoint
+#                             api/v1/skeds.php, and private/.htaccess) to neo.oh2gba.eu
 #   server/deploy.sh --list   # show what would be uploaded, don't touch the network
 #
-# Only these files, and of the folders only what git tracks (`git ls-files`): a file that is not tracked or is ignored is never uploaded, and the ones skipped are named. Nothing else of either folder is touched,
-# and message.txt, the logs, the stored support files and skeds, and the sked board skeds.json, which live on the server only, are never uploaded or removed (a skeds.json in site/ would be uploaded over the
-# live board, so the upload refuses to start while there is one).
-# Credentials come from Bitwarden Secrets Manager (ftp_server/ftp_login/ftp_pw). The machine-account token is the first line of a .secrets file: SECRETS_FILE, else the first one found searching upwards
-# from here, else ../../oh2gba/.secrets. Nothing secret is stored in this repository or printed.
+# Only these files, and of the folders only what git tracks (`git ls-files`): an untracked or
+# ignored file is never uploaded, and the skipped ones are named. message.txt, the logs, the stored
+# support files and skeds, and the sked board skeds.json live on the server only and are never
+# uploaded or removed (a skeds.json in site/ would overwrite the live board, so the upload refuses
+# to start while there is one). Credentials come from Bitwarden Secrets Manager
+# (ftp_server/ftp_login/ftp_pw). The machine-account token is the first line of a .secrets file:
+# SECRETS_FILE, else the first one found searching upwards, else ../../oh2gba/.secrets. Nothing
+# secret is stored in this repository or printed.
 case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # server/
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"  # server/
 SITE="$(cd "$ROOT/../site" && pwd)"
 OLD="${VERSION_PAGE_REMOTE:-/public_html/oh2gba.eu/neoaprs}"
 NEO="${PROJECT_PAGE_REMOTE:-/public_html/neo}"
 PAGE=(version.php latest.php log/.htaccess)
-GONE=(download.php)          # files of earlier versions of the version page, removed from the old folder at each upload (a missing one is no error)
+GONE=(download.php)  # files of earlier versions of the version page, removed from the old folder at each upload
 
-# local path and remote path, tab-separated: the version page twice, and with --site the project page.
+# local path and remote path, tab-separated: the version page twice, and with --site the project
+# page.
 manifest() {
   local f
   for f in "${PAGE[@]}"; do printf '%s\t%s/%s\n' "$ROOT/$f" "$OLD" "$f"; printf '%s\t%s/%s\n' "$ROOT/$f" "$NEO" "$f"; done
@@ -31,10 +40,14 @@ manifest() {
   fi
 }
 
-# The files of a folder that git tracks and that exist, relative to it, sorted. One that git does not track (new, or ignored) is not among them, and neither is a link or a submodule: only a regular file (mode 100644 or 100755).
+# The files of a folder that git tracks and that exist, relative to it, sorted. One that git does
+# not track (new, or ignored) is not among them, and neither is a link or a submodule: only a
+# regular file (mode 100644 or 100755).
 tracked() { git -C "$1" ls-files -s -z | while IFS= read -r -d '' e; do if [[ $e == 100644\ * || $e == 100755\ * ]] && [ -f "$1/${e#*$'\t'}" ]; then printf '%s\n' "${e#*$'\t'}"; fi; done; }
 
-# Stops (exit 2) when git tracks, under the two folders, a link or a submodule (curl would send what it points at) or a name with a control character (a line end or a tab would make it two paths in the manifest).
+# Stops (exit 2) when git tracks, under the two folders, a link or a submodule (curl would send what
+# it points at) or a name with a control character (a line end or a tab would make it two paths in
+# the manifest).
 refuse_odd() {
   local d e mode f
   for d in "$SITE" "$ROOT/neo"; do
@@ -69,7 +82,7 @@ esac
 [ ! -e "$SITE/skeds.json" ] || { echo "deploy.sh: site/skeds.json would be uploaded over the live sked board; remove it" >&2; exit 1; }
 
 ENVFILE="${SECRETS_FILE:-$(d="$ROOT"; until [ -f "$d/.secrets" ] || [ "$d" = / ]; do d="$(dirname "$d")"; done; echo "${d%/}/.secrets")}"
-[ -f "$ENVFILE" ] || [ -n "${SECRETS_FILE:-}" ] || ENVFILE="$ROOT/../../oh2gba/.secrets"   # a file that was named and is not there is never replaced by another one
+[ -f "$ENVFILE" ] || [ -n "${SECRETS_FILE:-}" ] || ENVFILE="$ROOT/../../oh2gba/.secrets"  # a named file that is missing is never replaced by another one
 [ -f "$ENVFILE" ] || { echo "no .secrets file (set SECRETS_FILE)" >&2; exit 1; }
 BWS="${BWS:-$(command -v bws || echo "$HOME/.local/bin/bws")}"
 export BWS_ACCESS_TOKEN="${BWS_ACCESS_TOKEN:-$(grep -v '^#' "$ENVFILE" | head -1 | tr -d '\r\n')}"
@@ -88,6 +101,6 @@ while IFS=$'\t' read -r local remote; do ARGS+=(-T "$local" "sftp://$FH$remote")
 
 echo "$n files in one session -> $OLD and $NEO"
 fcurl -sS --max-time 600 --ftp-create-dirs "${ARGS[@]}" >/dev/null
-manifest | awk -F'\t' 'NR <= 12 {printf "  -> %s\n", $2}'   # awk reads the whole list: with `| head -12` a long list ended awk by SIGPIPE and, under pipefail, the script with 141 after a complete upload
+manifest | awk -F'\t' 'NR <= 12 {printf "  -> %s\n", $2}'  # awk reads the whole list: `| head -12` would end awk by SIGPIPE and, under pipefail, the script with 141
 [ "$n" -le 12 ] || echo "  ... and $((n - 12)) more"
 echo "done. Try: curl 'https://neo.oh2gba.eu/version.php?v=0.1.0&os=linux' and curl 'https://oh2gba.eu/neoaprs/version.php?v=0.1.0&os=linux'"

@@ -1,6 +1,8 @@
-"""The FM radio on a KISS server over TCP (a Direwolf on `socket://127.0.0.1:8001`, the setting `serial/port`) and the HF radio ticked with the Mercury type: the address in `serial/port` is the FM radio's and is never
-taken for a Mercury that something else runs, so the daemon starts a Mercury of its own for the HF radio (the program that stands in for it, tests/support/fakemercury.py) and the HF Tnc connects to that one's broadcast
-port, not to the Direwolf; only a port given for the run (`--hf-port`) is a Mercury something else runs (tests/test_mercury_modem.py)."""
+"""The FM radio on a KISS server over TCP (a Direwolf on `socket://127.0.0.1:8001`) and the HF radio
+with the Mercury type: the `serial/port` address is the FM radio's and never taken for a Mercury run
+elsewhere, so the daemon starts its own Mercury for HF. Only a port given for the run (`--hf-port`)
+is one run elsewhere.
+"""
 from pathlib import Path
 
 import pytest
@@ -18,18 +20,22 @@ from tests.support.modemports import own_ports
 
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py): no other test running beside it is handed its ports."""
+    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py):
+    no other test running beside it is handed its ports."""
     own_ports(monkeypatch)
 
 
 async def test_the_fm_radios_kiss_over_tcp_address_is_not_taken_for_a_mercury_something_else_runs(tmp_path: Path) -> None:
-    direwolf = FakeRadio()                                                  # the FM radio: a KISS server, as a Direwolf is
+    # The FM radio: a KISS server, as a Direwolf is
+    direwolf = FakeRadio()
     await direwolf.start()
     e = Env(tmp_path, radio=False, settings={"tnc/profile": "kiss-tcp", "serial/port": direwolf.url, "hf/enabled": "true"})
     e.mercury._finder = fakemercury.program
     e.mercury.backoff = Backoff([0.1, 0.1])
     e.mercury._control_backoff = Backoff([0.05, 0.05])
-    e.hf.backoff = Backoff([0.05, 0.1])                                   # (the HF Tnc may knock before the program listens: its retry is to come within the test's budget, not after the daemon's 5 s)
+    # The HF Tnc may knock before the program listens: its retry is to come within the test's
+    # budget, not after the daemon's 5 s
+    e.hf.backoff = Backoff([0.05, 0.1])
     try:
         await e.start()
         await until(lambda: e.mercury.running and e.hf.usable and e.tnc.usable, 15.0)
@@ -44,7 +50,8 @@ async def test_the_fm_radios_kiss_over_tcp_address_is_not_taken_for_a_mercury_so
         assert e.ctl.run.hf_port == "" and e.ctl.run.port == "", "nothing was given for the run: the address is the setting of radio 1"
         direwolf.feed(kiss.encode(ax25.encode(ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2XYZ-7"), (), info=b"!6010.00N/02456.00E>hello"))))
         await until(lambda: e.ctl.stationbook.get("OH2XYZ-7") is not None)
-        await idle_for(0.3)                                                 # (the time a second copy, from the HF Tnc, would have had to arrive)
+        # The time a second copy, from the HF Tnc, would have had to arrive
+        await idle_for(0.3)
         station = e.ctl.stationbook.get("OH2XYZ-7")
         assert station is not None and (station.heard_on(FM_ID).count, station.heard_on(HF_ID).count) == (1, 0), "heard once, on FM"
         assert [(p.source, p.radio_id) for p in await e.packets()] == [("OH2XYZ-7", FM_ID)]

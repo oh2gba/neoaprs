@@ -1,9 +1,7 @@
-"""The shell of Linux and macOS: Qt for both the window and the tray icon, so there is one event loop and nothing to marry. QSystemTrayIcon is the tray (the StatusNotifier of KDE and of GNOME with its extension; the
-menu bar on macOS), QWebEngineView in qtwindow.py the window. Without the web engine (no PySide6-WebEngine installed) it is the tray alone and the page goes to the browser. Closing the window hides it;
-with no tray to bring it back from (a desktop that has none), closing it quits, as the menu's Quit would. Other threads (a second app's `show`, the end of the daemon, the quit that runs while the daemon
-stops, a new address of the daemon's page) reach the toolkit through the signals of `QtFrame`, which Qt queues to the main thread.
-The window is made first, with the loading page in it (loading.py), and the Qt loop runs while the daemon comes up; the tray, the menu and the page come with the session (`Opening`, whose end reaches
-the main thread as a signal). `build(ctx)` makes everything for a session and `run(launch)` runs it; the headless test and the screenshot use `build`."""
+"""The shell for Linux and macOS: Qt provides the window (qtwindow.py) and the tray icon.
+
+Without the web engine only the tray runs and the page opens in the browser. The window is made
+first, showing the loading page, while the daemon comes up; `build(ctx)` makes the rest."""
 import logging
 import webbrowser
 from importlib import resources
@@ -32,7 +30,7 @@ def icon_path() -> Path:
 
 
 class QtFrame(QObject):
-    """The `Frame` of the Qt shell. The signals are how another thread asks the main one: Qt delivers a signal to an object of the main thread there, in order."""
+    """The `Frame` of the Qt shell. Other threads use the signals to reach the main thread, in order."""
     show_requested = Signal()
     quit_requested = Signal()
     tell_requested = Signal(str)
@@ -49,7 +47,7 @@ class QtFrame(QObject):
         self.tell_requested.connect(self._tell)
         self.load_requested.connect(self._load)
         self.refresh_requested.connect(self._refresh)
-        self.rebuild: Callable[[], None] | None = None     # makes the tray menu again (set once the menu exists)
+        self.rebuild: Callable[[], None] | None = None     # rebuilds the tray menu (set once it exists)
 
     def show_window(self) -> None:
         self.show_requested.emit()
@@ -58,7 +56,7 @@ class QtFrame(QObject):
         self.quit_requested.emit()
 
     def refresh(self) -> None:
-        """The tray menu is made again on the main thread (a tray that does not tell when its menu opens would otherwise keep the old one)."""
+        """Rebuild the tray menu on the main thread, for trays that do not signal when the menu opens."""
         self.refresh_requested.emit()
 
     @Slot()
@@ -97,7 +95,7 @@ class QtFrame(QObject):
 
 
 class Built:
-    """Everything `build` makes, kept alive for as long as the app runs (Qt drops what Python does not hold)."""
+    """Everything `build` makes, held so Qt does not drop it while the app runs."""
 
     def __init__(self, app: QApplication, frame: QtFrame, actions: AppActions) -> None:
         self.app, self.frame, self.actions = app, frame, actions
@@ -112,7 +110,7 @@ class Built:
 
 
 def fill_menu(built: Built) -> None:
-    """The tray menu from the data of `actions.items()`; made again each time it is about to show, so that the checkbox is what the system says now."""
+    """Fill the tray menu from `actions.items()`; rebuilt before each show so checkboxes are current."""
     built.menu.clear()
     built.entries.clear()
     for item in built.actions.items():
@@ -142,7 +140,7 @@ def make_tray(built: Built, icon: QIcon) -> QSystemTrayIcon:
 
 
 def await_tray(built: Built, tray: QSystemTrayIcon) -> None:
-    """The tray is shown at once when the desktop has one. When it has none yet (the panel starts after the app at sign-in) it is looked for for a minute; if it never comes the window, which had nothing to be brought back from, is shown."""
+    """Show the tray, polling for TRAY_WAIT_SEC while the panel starts; if none comes, show the window."""
     if QSystemTrayIcon.isSystemTrayAvailable():
         tray.show()
         return
@@ -165,7 +163,7 @@ def await_tray(built: Built, tray: QSystemTrayIcon) -> None:
 
 
 def application() -> QApplication:
-    """The QApplication that runs, or a new one."""
+    """Return the running QApplication, or a new one."""
     existing = QApplication.instance()
     if existing is None:
         return QApplication([])
@@ -174,7 +172,7 @@ def application() -> QApplication:
 
 
 def prepared(app: QApplication | None = None) -> QApplication:
-    """The app (`app`, or the one that is running, or a new one) as the shell runs it: it goes on when its last window is closed (into the tray)."""
+    """Return the app (`app`, the running one, or a new one), set to keep running when its last window closes."""
     app = app or application()
     app.setApplicationName("NeoAPRS")
     app.setQuitOnLastWindowClosed(False)
@@ -182,7 +180,7 @@ def prepared(app: QApplication | None = None) -> QApplication:
 
 
 def build(ctx: ShellContext, app: QApplication | None = None, window: "AppWindow | None" = None) -> Built:
-    """The window (`window`, the one that shows the loading page, or a new one), the tray and their wiring for the session, nothing shown and nothing started: the app is `app` or the one that is running or a new one."""
+    """Make the window (`window`, the loading one, or a new one), the tray and their wiring, showing and starting nothing."""
     app = prepared(app)
     icon = QIcon(str(icon_path()))
     frame = QtFrame(ctx.window)
@@ -198,7 +196,7 @@ def build(ctx: ShellContext, app: QApplication | None = None, window: "AppWindow
 
 
 def close_hides(tray: QSystemTrayIcon, actions: AppActions) -> bool:
-    """The close button: hide the window while there is a tray icon to bring it back from; else it is the end of the app (the daemon too, if the app started it: nothing would be left to reach it)."""
+    """Handle the close button: hide the window while a tray icon can restore it, else quit."""
     if tray.isVisible():
         return True
     actions.run("quit")
@@ -206,12 +204,12 @@ def close_hides(tray: QSystemTrayIcon, actions: AppActions) -> bool:
 
 
 class Opened(QObject):
-    """The session's arrival, from the thread that brought it to the main one (queued: it is heard once the loop runs)."""
+    """Carries the session's arrival to the main thread; queued, so it is heard once the loop runs."""
     arrived = Signal()
 
 
 def start(built: Built, ctx: ShellContext) -> None:
-    """The session is there: the tray, the end of the wait for it, the page in the window (or in the browser, with no window)."""
+    """Start the tray, end the wait for the session, and load the page in the window (or the browser)."""
     window = built.window
     if built.tray is None or (window is None and not QSystemTrayIcon.isSystemTrayAvailable()):
         raise RuntimeError("this desktop has no system tray and the web engine is not installed: there is nothing to show")
@@ -225,7 +223,7 @@ def start(built: Built, ctx: ShellContext) -> None:
 
 
 def loading_window(launch: Launch) -> "AppWindow":
-    """The window as the app starts: at the size and place it was left, with the loading page, raised unless the app starts in the tray. Its close button is `close_while_loading`'s once `run` has it."""
+    """Return the startup window with the loading page, raised unless starting in the tray."""
     from .qtwindow import AppWindow
     window = AppWindow(launch.data, None, QIcon(str(icon_path())), lambda: True)
     window.show_loading()
@@ -235,8 +233,7 @@ def loading_window(launch: Launch) -> "AppWindow":
 
 
 def close_while_loading(closed: list[bool]) -> bool:
-    """The close button before the session is there: the window hides while the desktop has a tray (the tray comes with the session); with none, the window closes and the close is kept, and the app
-    ends as soon as the session is there (the daemon too, if the app started it), as the close button of a window with no tray does."""
+    """Handle the close button before the session exists: hide with a tray, else close and note it in `closed`."""
     if QSystemTrayIcon.isSystemTrayAvailable():
         return True
     closed.append(True)
@@ -265,7 +262,7 @@ def run(launch: Launch) -> int:
         except NoPage as e:
             failed.append(e)
             window.hide()
-            QApplication.exit(1)                                     # (the loop ends; no window is asked to close)
+            QApplication.exit(1)                                     # ends the loop without asking a window to close
             return
         kept.append(build(ctx, app, window))
         if closed:

@@ -1,15 +1,6 @@
-"""What a LoRa APRS board says of a packet besides the packet: the signal it measured, and whether the packet came from the internet and not from the air. Each firmware says the signal in its own way
-(aprs-reference/lora-plan.md sections 2.4 and 3.5); a CA2RXU Tracker and the CA2RXU iGate's KISS and TNC2 lines say none.
-
-- DL9SAU's tracker appends an element to the path of what it hands over in KISS: `Q`, the SNR in two characters and the RSSI in two (`QA7L2`: -7 dB, -112 dBm), from its `encode_snr_rssi_in_path`.
-  Left in, it would show as a digipeater, go to APRS-IS and be repeated; `path_reading` takes every such element off and reads the first, and `ninth_element` the one after eight digipeaters, which
-  no AX.25 frame can hold.
-- esp32_loraprs sends a KISS command 7 right after each data frame: two big-endian 16-bit integers, the RSSI in dBm and the SNR times 100 (`signal_report`).
-- The CA2RXU iGate, with its TNC off on USB, writes a line of its log for each packet: `<--- LoRa Packet Rx (RSSI:-73 | SNR:9.50 | FreqErr:120) : text` (`console_line`).
-- The CA2RXU iGate's APRS bridge hands its clients what it took from APRS-IS as well: a path with TCPIP, TCPXX or a q-construct is the internet's, not the air's (`from_internet`).
-- Its list of heard packets names a packet by its text, with every byte below 32 and 127 written as "." (`list_key`).
-
-Pure code."""
+"""What a LoRa APRS board says of a packet besides the packet: its signal and its origin.
+Pure code for DL9SAU path elements, esp32_loraprs command 7, CA2RXU console lines and list keys.
+"""
 import math
 import re
 import struct
@@ -18,15 +9,19 @@ from dataclasses import replace
 from . import ax25
 from .reading import Reading
 
-_ELEMENT = re.compile(r"Q([0-9A-J])([0-9])([0-9K-Z])([0-9])")       # DL9SAU's: SNR 0 to 99 by two digits, -1 to -99 by a letter from A (the tens) and a digit; RSSI -1 to -99 by two digits, from -100 a letter from K
+# DL9SAU's element: SNR 0..99 as two digits, -1..-99 as letter (tens, from A) and digit;
+# RSSI -1..-99 as two digits, from -100 a letter from K.
+_ELEMENT = re.compile(r"Q([0-9A-J])([0-9])([0-9K-Z])([0-9])")
 _CONSOLE = re.compile(rb"<--- LoRa Packet Rx (?:\(RSSI:(-?\d+) \| SNR:(-?\d+(?:\.\d+)?) \| FreqErr:-?\d+(?:\.\d+)?\) )?: (.*)", re.S)
-_INTERNET = re.compile(r"TCPIP|TCPXX|Q[A-Z]{2}")                    # the internet's words in a path: APRS-IS's own, and its q-constructs (qAC, qAR, ...), which ax25 reads in capitals
-_ADDRESS = 7                                                        # the bytes of an AX.25 address
-_ADDRESSES = 2 + ax25.MAX_PATH                                      # the most an AX.25 frame holds: the destination, the source and eight digipeaters
+# APRS-IS's own path words and q-constructs, which ax25 reads in capitals
+_INTERNET = re.compile(r"TCPIP|TCPXX|Q[A-Z]{2}")
+_ADDRESS = 7  # the bytes of an AX.25 address
+# destination, source and eight digipeaters
+_ADDRESSES = 2 + ax25.MAX_PATH
 
 
 def element_reading(call: str, ssid: int) -> Reading | None:
-    """The reading of one DL9SAU path element; None for an element that is no such one."""
+    """Return the reading of one DL9SAU path element, or None if it is not one."""
     found = _ELEMENT.fullmatch(call) if ssid == 0 else None
     if found is None:
         return None
@@ -37,7 +32,7 @@ def element_reading(call: str, ssid: int) -> Reading | None:
 
 
 def path_reading(frame: ax25.Frame) -> tuple[ax25.Frame, Reading | None]:
-    """The frame without DL9SAU's elements in its path, and the reading of the first of them; the frame as it is and None when its path has none."""
+    """Return the frame without DL9SAU's path elements and the reading of the first, or None."""
     readings = [(i, element_reading(a.call, a.ssid)) for i, a in enumerate(frame.path)]
     found = [reading for _, reading in readings if reading is not None]
     if not found:
@@ -46,8 +41,7 @@ def path_reading(frame: ax25.Frame) -> tuple[ax25.Frame, Reading | None]:
 
 
 def ninth_element(payload: bytes) -> tuple[bytes, Reading] | None:
-    """A frame DL9SAU's tracker appended its element to after eight digipeaters, which makes one address more than AX.25 holds: its bytes without that element (the address before it marked the last)
-    and the element's reading; None for any other bytes."""
+    """Return a frame's bytes without DL9SAU's ninth path element, and its reading; else None."""
     end = (_ADDRESSES + 1) * _ADDRESS
     if len(payload) < end or any(payload[i * _ADDRESS + _ADDRESS - 1] & 1 for i in range(_ADDRESSES)) or not payload[end - 1] & 1:
         return None
@@ -59,7 +53,7 @@ def ninth_element(payload: bytes) -> tuple[bytes, Reading] | None:
 
 
 def signal_report(payload: bytes) -> Reading | None:
-    """The reading of esp32_loraprs's KISS command 7 (the RSSI in dBm, then the SNR times 100, each a big-endian 16-bit integer); None for a payload that is not four bytes."""
+    """Return the reading of esp32_loraprs's KISS command 7 (RSSI, SNR x 100), else None."""
     if len(payload) != 4:
         return None
     rssi, snr = struct.unpack(">hh", payload)
@@ -67,20 +61,20 @@ def signal_report(payload: bytes) -> Reading | None:
 
 
 def console_line(line: bytes) -> tuple[bytes, Reading | None] | None:
-    """The packet's text of a CA2RXU iGate's log line of a packet it heard, with the reading when the line has one (a board in its eco mode writes none); None for any other line of its log."""
+    """Return the packet text of a CA2RXU iGate log line and its reading if any; else None."""
     found = _CONSOLE.fullmatch(line)
     if found is None:
         return None
     rssi, snr, text = found.groups()
     reading = None if rssi is None else Reading(snr=float(snr), rssi=float(rssi))
-    return text, reading if reading is not None and math.isfinite(reading.snr or 0.0) and math.isfinite(reading.rssi or 0.0) else None     # (digits past a float's range are no reading)
+    return text, reading if reading is not None and math.isfinite(reading.snr or 0.0) and math.isfinite(reading.rssi or 0.0) else None
 
 
 def from_internet(frame: ax25.Frame) -> bool:
-    """Whether the frame's path says it came from APRS-IS (a LoRa iGate's bridge hands it on): TCPIP, TCPXX or a q-construct in it."""
+    """Return whether the path says the frame came from APRS-IS (TCPIP, TCPXX or a q-construct)."""
     return any(_INTERNET.fullmatch(a.call) for a in frame.path)
 
 
 def list_key(text: bytes) -> str:
-    """A packet's text as the CA2RXU iGate's list of heard packets writes it: every byte below 32 and 127 a ".", read as UTF-8 (what is no UTF-8 as the same replacement on both sides)."""
+    """Return a packet's text as the iGate's list writes it: bytes below 32 and 127 become "."."""
     return bytes(0x2E if b < 32 or b == 127 else b for b in text).decode("utf-8", "replace")

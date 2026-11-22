@@ -1,6 +1,7 @@
-"""The bulletins, announcements and group bulletins of ours (neoaprs/services/ownbulletins.py) on the station's radios as the registry gives them (services/radioset.py's RadioPick, tests/support/seamshapes.py)
-over lines that are stubs, a real log in a temporary database and a clock the test holds: the schedule of each kind, a text that replaces the one in its slot, the delete, the interlock, the radio that is away, the
-radio a bulletin goes on, and a restart."""
+"""Our bulletins, announcements and group bulletins (neoaprs/services/ownbulletins.py) on stub radio
+lines, a real log and a held clock: the schedule of each kind, replacement in a slot, delete and the
+radios they go out on.
+"""
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -22,7 +23,8 @@ from tests.support.stubtnc import StubTnc
 
 
 class Rig(OwnRig):
-    """One run of the daemon's bulletins on the station's radios, radio 1's line `tnc` and radio 2's `hf`: made again on the same log and clock after a stop."""
+    """One run of the daemon's bulletins on the station's radios, radio 1's line `tnc` and radio 2's
+    `hf`: made again on the same log and clock after a stop."""
 
     def __init__(self, log: OwnLog, clock: FixedClock, **changes: object) -> None:
         super().__init__(log, clock, **changes)
@@ -38,7 +40,8 @@ class Rig(OwnRig):
         return self
 
     def run(self, seconds: int, step: int = 5) -> None:
-        """Looks at the clock every `step` seconds for this long, the first look now; the clock ends where the last look was."""
+        """Looks at the clock every `step` seconds for this long, the first look now; the clock ends
+        where the last look was."""
         self.look(self.posts.tick, seconds, step)
 
 
@@ -167,8 +170,10 @@ async def test_a_new_bulletin_goes_on_the_first_radio_that_can_send_the_fm_one_w
 
 
 async def test_the_post_boxs_ticks_go_with_the_text_a_text_for_a_slot_of_ours_replaces_its_radios_and_a_new_one_starts_as_the_last(tmp_path: Path) -> None:
-    """What the Post box sends (BulletinCompose.vue: the radios ticked with every Post while several can send), counted per radio: the first text on FM alone, the same slot posted again on the
-    Mercury radio alone goes there from its first frame, and a slot never posted starts as the one posted last."""
+    """What the Post box sends (BulletinCompose.vue: the radios ticked with every Post while several
+    can send), counted per radio: the first text on FM alone, the same slot posted again on the
+    Mercury radio alone goes there from its first frame, and a slot never posted starts as the one
+    posted last."""
     rig = await rig_at(tmp_path, fm_enabled=True, hf_enabled=True)
     rig.posts.post("BLN1", "Net tonight", [FM_ID])
     rig.run(10)

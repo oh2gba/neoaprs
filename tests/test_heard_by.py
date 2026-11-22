@@ -1,5 +1,6 @@
-"""What each radio heard of a station (`Station.heard_by`, rule 3.3): the stored field, counted by the id of the radio a packet came on, any number of radios, and read by the radio's id (`heard_on`);
-the one path of the latest packet (`last_path`), which is the path of the radio that heard last; and the station book that counts and seeds by radio (neoaprs/station.py, stationnotes.py, stationbook.py)."""
+"""Tests for what each radio heard of a station (`Station.heard_by`): counts by radio id,
+`heard_on`, `last_path`, and the station book (neoaprs/station.py, stationnotes.py,
+stationbook.py)."""
 import json
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -27,11 +28,13 @@ from tests.support.storedb import store_at
 T0 = utc(2026, 11, 14, 12, 0, 0)
 LORA_ID = 3                                   # a third radio: it has no old word and no old name
 DIGI = ("OH2RCH-2*",)
-TWO = (RadioSpec(FM_ID, "fm", "kiss", "", True, 1), RadioSpec(HF_ID, "hf", "mercury", "", True, 2))       # an FM radio and an HF radio, whose frames carry no path
+# an FM radio and an HF radio, whose frames carry no path
+TWO = (RadioSpec(FM_ID, "fm", "kiss", "", True, 1), RadioSpec(HF_ID, "hf", "mercury", "", True, 2))
 
 
 def typed_book() -> StationBook:
-    """A station book told the types of the two radios (TWO), as the composition root tells it the station's."""
+    """A station book told the types of the two radios (TWO), as the composition root tells it the
+    station's."""
     return StationBook(carries_path=lambda radio: carries_path(TWO, radio))
 
 
@@ -80,8 +83,9 @@ def test_the_report_of_an_object_is_counted_for_the_object_on_the_radio_it_came_
 
 
 def test_every_radio_counts_its_own_routes_and_the_station_as_a_whole_those_of_the_radios_that_may_carry_a_path() -> None:
-    """Rule 3.3: the route is kept per radio, HF's too. The station's routes as a whole (`deliveries`, what the page and the automatic path read) are those of the radios that may carry a path: by the radios'
-    types where the book is told them, else every radio's."""
+    """Rule 3.3: the route is kept per radio, HF's too. The station's routes as a whole
+    (`deliveries`, what the page and the automatic path read) are those of the radios that may carry
+    a path: by the radios' types where the book is told them, else every radio's."""
     book = StationBook()
     for radio_id in (FM_ID, HF_ID, LORA_ID):
         book.take(packet(radio_id, radio_id, ()))
@@ -195,7 +199,9 @@ def test_the_path_of_the_routes_the_database_kept_is_the_path_of_the_radio_that_
 
 
 def test_each_radio_takes_the_path_of_its_own_latest_route_and_the_station_shows_the_one_of_the_radio_that_heard_it_last() -> None:
-    """Every radio's routes are kept (HF's too): each radio's entry gets the path of its own latest packet, and `last_path` is the radio's that heard the station last, HF's when HF did (by no digipeater)."""
+    """Every radio's routes are kept (HF's too): each radio's entry gets the path of its own latest
+    packet, and `last_path` is the radio's that heard the station last, HF's when HF did (by no
+    digipeater)."""
     book = typed_book()
     book.seed([station(heard_by={FM_ID: RadioHeard(3, at(0)), HF_ID: RadioHeard(1, at(5), ("OLD*",))}), Station("OH2BBB", first_heard=T0, last_heard=T0, heard_by={HF_ID: RadioHeard(2, at(5))})])
     book.seed_deliveries([("OH2AAA", DIGI, "", 3, at(0), None, FM_ID), ("OH2BBB", ("OH2RDG*",), "", 1, at(1), None, FM_ID), ("OH2AAA", (), "", 1, at(5), None, HF_ID)])
@@ -208,7 +214,9 @@ def test_each_radio_takes_the_path_of_its_own_latest_route_and_the_station_shows
 
 
 def test_the_book_takes_the_routes_of_every_radio_from_the_packets_kept() -> None:
-    """stationbook.route_groups: the rows of packetsql.radio_routes grouped by sender, path, gate and radio, the group of the oldest latest packet first; a third-party packet is the station inside it."""
+    """stationbook.route_groups: the rows of packetsql.radio_routes grouped by sender, path, gate
+    and radio, the group of the oldest latest packet first; a third-party packet is the station
+    inside it."""
     def frame(source: str, info: bytes, path: tuple[str, ...] = ()) -> bytes:
         return ax25.encode(ax25.Frame(ax25.Address.parse("APRS"), ax25.Address.parse(source), tuple(ax25.Address.parse(a) for a in path), info=info))
     rows = [("OH2AAA", "OH2RCH-2*", frame("OH2AAA", b">a", ("OH2RCH-2*",)), at(0), FM_ID), ("OH2AAA", "", frame("OH2AAA", b">b"), at(1), HF_ID),
@@ -218,7 +226,8 @@ def test_the_book_takes_the_routes_of_every_radio_from_the_packets_kept() -> Non
 
 
 async def test_the_routes_of_every_radio_hfs_too_are_read_from_the_packets_the_database_kept(tmp_path: Path) -> None:
-    """packetsql.radio_routes: the packets heard on any radio, with the radio, the internet's left out."""
+    """packetsql.radio_routes: the packets heard on any radio, with the radio, the internet's left
+    out."""
     store = await store_at(shaped(tmp_path / DB_NAME))
     assert store.db is not None
     log = PacketLog(store.db, FixedClock())
@@ -234,8 +243,9 @@ async def test_the_routes_of_every_radio_hfs_too_are_read_from_the_packets_the_d
 
 
 def test_the_path_of_the_packet_noted_last_is_the_latest_on_one_radio_and_with_two_the_radio_heard_last_says_it() -> None:
-    """A clock that stepped back (an NTP correction, a computer without a clock of its own that starts behind the times it kept): on one radio the packet taken last says the path, whatever its time, as
-    before; with two radios the one that heard the station last by the time says it (the rule after a restart too, migration 33's)."""
+    """A clock that stepped back (an NTP correction, a computer that starts behind the times it
+    kept): on one radio the packet taken last says the path, whatever its time; with two radios the
+    one that heard the station last by time says it (also after a restart, as migration 33 does)."""
     one = StationBook()
     one.take(packet(FM_ID, 0, DIGI))
     one.take(packet(FM_ID, -0.5, ()))
@@ -287,8 +297,10 @@ def test_the_page_is_told_what_each_radio_heard_of_the_station_by_its_id() -> No
 
 
 async def test_the_daemon_counts_the_routes_of_an_hf_radio_that_is_not_radio_2_as_that_radios_alone(tmp_path: Path) -> None:
-    """The composition root gives the station book the radios' types (app.py `StationBook(..., carries_path=...)`): a station heard direct only on a second HF radio, radio 3, is not near for the
-    station's routes as a whole, so a message to it on the FM radio goes by the FM radio's path, not direct (rule 3.3)."""
+    """The composition root gives the station book the radios' types (app.py `StationBook(...,
+    carries_path=...)`): a station heard direct only on a second HF radio, radio 3, is not near for
+    the station's routes as a whole, so a message to it on the FM radio goes by the FM radio's path,
+    not direct (rule 3.3)."""
     e = Env(tmp_path, radio=False)
     await e.start(connected=False)
     assert await e.ctl.add_radio("mercury", enabled=False) == HF_ID and await e.ctl.add_radio("mercury", enabled=False) == LORA_ID, "two HF radios, the second one radio 3"

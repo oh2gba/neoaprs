@@ -1,6 +1,7 @@
-"""The general query `?IGATE?` (neoaprs/services/queries.py) on the rig of tests/test_queries.py and an iGate that is a stand-in (its state and its count of packets gated): answered with our station capabilities,
-`<IGATE,MSG_CNT=0,LOC_CNT=n,UPL_CNT=n`, after the general query's wait and by the asker's path, while the iGate is connected; not while it is off, connecting or only listening, not under RX only, not again within
-the ten minutes of the general query (its own, apart from ?APRS?'s), and LOC_CNT is the stations heard direct in the last hour only."""
+"""The general query `?IGATE?` (neoaprs/services/queries.py) on the rig of tests/test_queries.py and
+a stand-in iGate: answered with our capabilities after the general query's wait while the iGate is
+connected.
+"""
 import logging
 from dataclasses import replace
 
@@ -58,7 +59,8 @@ async def test_loc_cnt_counts_the_stations_heard_direct_in_the_last_hour_and_no_
     rig.hear_direct("OH2PU-9")
     rig.hear_direct("OH2ABC", seconds_ago=59 * 60)
     rig.hear_direct("OH2OLD", seconds_ago=61 * 60)                                      # heard direct, but too long ago
-    rig.book.take(rig.packet("OH2FAR", Status("hello"), path=("OH2RCH-2*", "WIDE2-1")))     # heard just now, by a digipeater
+    # Heard just now, by a digipeater
+    rig.book.take(rig.packet("OH2FAR", Status("hello"), path=("OH2RCH-2*", "WIDE2-1")))
     rig.book.take(rig.packet("OH2GBA", Status("me"), path=()))                          # ourselves
     igate_query(rig)
     await until(lambda: len(rig.tnc.sent) == 1)

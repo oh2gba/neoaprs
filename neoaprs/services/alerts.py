@@ -1,21 +1,7 @@
-"""The alert: a shell command the operator chose, run when a message to us arrives and when an alert the operator set on a station fires.
+"""The alert: a shell command run when a message to us arrives or a station alert fires.
 
-`alert(record)` is told by the inbox of every message to us the first time it is heard (a repeat or another digipeater's copy is not told again, and an ack, a reject, a bulletin, a group message and a
-message we only overheard never get here). A query (`?APRSP` and the others, queries.py) is answered, not announced. `station(fired)` is told by the watch of the stations (stationalerts.py) when a station
-the operator asked about comes on the air, comes near or is heard direct. With `messages/alert` on and `messages/alert_command` not empty the command runs through
-the shell (`asyncio.create_subprocess_shell`; on Windows PowerShell, started by a thread) with these in its environment, next to the few variables a program needs to find the desktop
-(neoaprs/childenv.py):
-
-    NEOAPRS_KIND     `message` for a message to us, `station` for the alert of a station
-    NEOAPRS_TITLE    the title of a notification: "APRS message from OH2XYZ", or "APRS alert: OH2XYZ" (the default command shows it, so that the alert of a station does not look like a message)
-    NEOAPRS_FROM     the sender's call, or the station's
-    NEOAPRS_TEXT     the text of the message, or what happened ("OH2XYZ is on the air")
-    NEOAPRS_AT       when it was heard, ISO 8601 in UTC (2026-10-21T12:00:00Z)
-    NEOAPRS_MSG_ID   the message id the sender gave it; empty when it had none, and for the alert of a station
-
-The text comes in the environment and not in the command line, so what a stranger wrote is never read as shell. The command gets TIMEOUT_SEC seconds, then it is killed with everything it started; its output is
-logged at DEBUG. `test()` runs the command as saved for a made-up message (the test button of the page), whatever `messages/alert` says, and answers (ok, text). A command that fails (it cannot start, exits with a status other than 0, runs out of time) is logged as a warning once an hour, then at DEBUG: an alert that cannot be made must not fill the log or
-touch the daemon, and nothing here raises.
+The text travels in the environment (`NEOAPRS_*`), never in the command line. The command is
+killed after TIMEOUT_SEC; a failure is logged once an hour; nothing here raises.
 """
 import asyncio
 import logging
@@ -41,25 +27,26 @@ from neoaprs.tasks import TaskSet
 
 log = logging.getLogger("neoaprs.alerts")
 
-TIMEOUT_SEC = 60.0 if sys.platform == "win32" else 20.0          # a cold PowerShell on a busy Windows machine can take longer than 20 s to show a toast
+TIMEOUT_SEC = 60.0 if sys.platform == "win32" else 20.0
 TOLD_EVERY = timedelta(hours=1)
-TEST_FROM = "NEOAPRS"                                            # the message the test button pretends to have heard
+TEST_FROM = "NEOAPRS"
 TEST_TEXT = "This is a test of the NeoAPRS alert"
-MAX_RUNNING = 5                                                 # alerts running at once; more are dropped (a flood of messages is no reason to start a flood of programs)
-MAX_LINE = 200                                                  # characters of the first line of stderr the test button shows
-MAX_OUTPUT = 400                                                # characters of a command's output kept in the log
-# The script goes in on standard input (`-Command -`), as it is: no encoded command and no execution policy bypass, which a windowless program starting PowerShell with does what malware does, and Windows
-# Defender's guess took NeoAPRS for a trojan (4 Nov 2026); a command given inline is not under the execution policy anyway. (Text: else what it writes to stderr is XML.)
+# more alerts than this are dropped
+MAX_RUNNING = 5
+MAX_LINE = 200
+MAX_OUTPUT = 400
+# the script goes in on standard input: an encoded command looks like malware to Defender
 POWERSHELL_ARGS = ("-NoProfile", "-NonInteractive", "-OutputFormat", "Text", "-Command", "-")
-POWERSHELL_PRELUDE = "$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';"           # the Windows counterpart of `set -e` for cmdlets; the status of a program that failed is passed on by the postlude
+# the Windows counterpart of `set -e`
+POWERSHELL_PRELUDE = "$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';"
 POWERSHELL_POSTLUDE = ";if($LASTEXITCODE){exit $LASTEXITCODE}"
 
 
 @dataclass(frozen=True)
 class Outcome:
-    """How a run of the command ended: `problem` when it could not start or ran out of time, else its exit status and what it wrote to stdout and stderr."""
+    """How a run ended: `problem` if it could not start or timed out, else its status and output."""
     problem: str = ""
-    why: Literal["", "timeout", "no_start"] = ""             # `problem` as a code: it ran out of time, or it could not start
+    why: Literal["", "timeout", "no_start"] = ""
     status: int = 0
     out: str = ""
     err: str = ""
@@ -74,17 +61,17 @@ class Outcome:
 
     @property
     def kind(self) -> Literal["ran", "exit", "timeout", "no_start"]:
-        """How it ended, as a code: it ran, it ended with an exit code that is not 0, it ran out of time, it could not start."""
+        """How it ended, as a code."""
         return self.why or ("ran" if self.status == 0 else "exit")
 
     @property
     def first_line(self) -> str:
-        """The first line the command wrote to stderr (its own words), "" for none."""
+        """The first non-empty line of stderr, or ""."""
         return next((ln.strip() for ln in self.err.splitlines() if ln.strip()), "")[:MAX_LINE]
 
     @property
     def short(self) -> str:
-        """What the page is told of a failure: the problem, or the exit code and the first line of stderr."""
+        """The failure as shown to the operator: the problem, or exit code and first stderr line."""
         if self.problem:
             return self.problem
         line = next((ln.strip() for ln in self.err.splitlines() if ln.strip()), "")
@@ -92,12 +79,12 @@ class Outcome:
 
 
 def alert_environment(record: MessageRecord, base: dict[str, str] | None = None) -> dict[str, str]:
-    """The environment of the command for a message to us: what childenv lets through and the six NEOAPRS_ variables (a NUL byte cannot be in an environment and is dropped)."""
+    """Return the command environment for a message; NUL bytes are dropped from the text."""
     return _environment("message", f"APRS message from {record.from_call}", record.from_call, record.text, record.at, record.msg_id or "", base)
 
 
 def station_environment(fired: Fired, base: dict[str, str] | None = None) -> dict[str, str]:
-    """The environment of the command for the alert of a station: the same six variables, with the kind `station`, a title of its own and no message id."""
+    """Return the command environment for a station alert: kind `station`, no message id."""
     return _environment("station", f"APRS alert: {fired.call}", fired.call, fired.text, fired.at, "", base)
 
 
@@ -112,16 +99,16 @@ class Alerts:
         self._config = config
         self.clock = clock
         self.timeout_sec = timeout_sec
-        self._told_at: datetime | None = None                   # when a failure was last logged above DEBUG
+        self._told_at: datetime | None = None
         self._tasks = TaskSet(log, "alert")
 
     def alert(self, record: MessageRecord) -> None:
-        """A message to us was heard for the first time: run the command, in a task."""
+        """Run the command for a message to us heard first time; queries are not announced."""
         if not is_query(record.text):
             self._start(lambda: alert_environment(record), f"the message from {record.from_call}")
 
     def station(self, fired: Fired) -> None:
-        """An alert the operator set on a station fired: run the command as for a message (the same switch, the same command, the same limits), with the station's own title and text."""
+        """Run the command for a station alert, under the same switch and limits as a message."""
         self._start(lambda: station_environment(fired), f"the alert of {fired.call}")
 
     def _start(self, environment: Callable[[], dict[str, str]], what: str) -> None:
@@ -133,12 +120,12 @@ class Alerts:
         self._tasks.spawn(self._run(command, environment(), what), "alert")
 
     def _command(self) -> str:
-        """The alert command of the settings; none under the no-devices switch while it is the default one, which shows a notification on the desktop and plays a sound."""
+        """The configured command; empty for the default one under the no-devices switch."""
         command = self._config().messages_alert_command.strip()
         return "" if command == DEFAULT_ALERT_COMMAND and nodevices.refused("the default alert command is not run (no notification on the desktop, no sound)", logging.INFO) else command
 
     async def stop(self) -> None:
-        """An alert that is running is ended with the daemon (the command and what it started are killed)."""
+        """Kill running commands and what they started."""
         await self._tasks.cancel_all()
 
     async def _run(self, command: str, env: dict[str, str], what: str) -> None:
@@ -148,8 +135,7 @@ class Alerts:
             self._fail(outcome.problem or f"the alert command ended with status {outcome.status}: {outcome.output}")
 
     async def test(self) -> "Outcome":
-        """The test button: the command as it is saved, run as for a real message (the same environment, the same 20 s) from a made-up one, whatever `messages/alert` says: how it ended (the page says it by
-        `Outcome.kind`). A command that is empty is a CodedError (`alert.no_command`); the log is not told, the operator is looking at the answer."""
+        """Run the saved command for a made-up message; CodedError `alert.no_command` if none."""
         command = self._command()
         if not command:
             raise CodedError("no alert command", "alert.no_command")
@@ -166,14 +152,14 @@ class Alerts:
             return await self._execute_in_shell(command, env)
 
     async def _execute_in_shell(self, command: str, env: dict[str, str]) -> "Outcome":
-        """The shell line runs under `set -e`: a step that fails ends the command with its status, so a missing notifier is not hidden by the sound that follows it."""
+        """Run under `set -e` so a failing step is not hidden by the steps after it."""
         proc: asyncio.subprocess.Process | None = None
         try:
             proc = await asyncio.create_subprocess_shell("set -e\n" + command, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
             out, err = await asyncio.wait_for(proc.communicate(), self.timeout_sec)
         except TimeoutError:
             return Outcome(problem=f"the alert command did not end within {self.timeout_sec:g} s: killed", why="timeout")
-        except Exception as e:                                   # (nothing a command does may stop the daemon)
+        except Exception as e:  # nothing a command does may stop the daemon
             return Outcome(problem=f"the alert command could not run: {e}", why="no_start")
         finally:
             if proc is not None and proc.returncode is None:
@@ -182,8 +168,7 @@ class Alerts:
         return Outcome(status=proc.returncode or 0, out=out.decode("utf-8", errors="replace"), err=err.decode("utf-8", errors="replace"))
 
     async def _execute_in_thread(self, command: str, env: dict[str, str]) -> "Outcome":
-        """Windows: a thread starts the process, whatever loop runs (and the Windows loops differ in what they can do), with PowerShell and the line on its standard input (no quoting of the line, and the
-        text never in it). A run that is cancelled (the daemon ends) kills the process and what it started."""
+        """Windows: start PowerShell from a thread; cancellation kills it and its children."""
         running = _Running()
         try:
             return await asyncio.to_thread(self._run_powershell, command, env, running)
@@ -191,11 +176,12 @@ class Alerts:
             running.kill()
 
     def _run_powershell(self, command: str, env: dict[str, str], running: "_Running") -> "Outcome":
-        script = (POWERSHELL_PRELUDE + command.replace("\r", " ").replace("\n", " ") + POWERSHELL_POSTLUDE + "\n").encode("utf-8")     # (one line: PowerShell runs what it reads line by line)
+        # one line, since PowerShell runs what it reads line by line
+        script = (POWERSHELL_PRELUDE + command.replace("\r", " ").replace("\n", " ") + POWERSHELL_POSTLUDE + "\n").encode("utf-8")
         try:
             creation = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
             proc = subprocess.Popen([windows_program("WindowsPowerShell", "v1.0", "powershell.exe"), *POWERSHELL_ARGS], env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=creation)
-        except Exception as e:                                   # (nothing a command does may stop the daemon)
+        except Exception as e:
             return Outcome(problem=f"the alert command could not run: {e}", why="no_start")
         running.set(proc)
         try:
@@ -215,7 +201,7 @@ class Alerts:
             proc.kill()
         else:
             try:
-                os.killpg(proc.pid, signal.SIGKILL)              # (it leads a session of its own: the shell and what it started)
+                os.killpg(proc.pid, signal.SIGKILL)  # the shell leads its own session
             except (ProcessLookupError, PermissionError):
                 proc.kill()
 
@@ -229,7 +215,7 @@ class Alerts:
 
 
 class _Running:
-    """The process a thread started, so that the loop can end it and everything it started."""
+    """The process a thread started, so the loop can kill it and its children."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -245,8 +231,9 @@ class _Running:
         if proc is None or proc.poll() is not None:
             return
         try:
-            subprocess.run([windows_program("taskkill.exe"), "/T", "/F", "/PID", str(proc.pid)], stdin=subprocess.DEVNULL, capture_output=True, timeout=10, check=False)      # (the whole tree: PowerShell and what it started; the system's own taskkill, by its full path)
-        except Exception:  # noqa: S110  (nothing a command does may stop the daemon; PowerShell itself is ended just below, with taskkill or without)
+            # /T kills the whole tree
+            subprocess.run([windows_program("taskkill.exe"), "/T", "/F", "/PID", str(proc.pid)], stdin=subprocess.DEVNULL, capture_output=True, timeout=10, check=False)
+        except Exception:  # noqa: S110  (nothing a command does may stop the daemon; proc.kill below still runs)
             pass
         try:
             proc.kill()

@@ -1,8 +1,6 @@
-"""The digipeater as a table (neoaprs/services/digipeater.py `DigiRow`, `digi_rows`, plan rule 3.4): one row "heard on A, sent on A" for each enabled radio whose type may repeat and whose own digipeater the
-operator turned on (radio 1's is `digi/enabled`), none on HF, none for a radio that is off, none from one radio to another; the rows follow the settings in force, and a packet goes through the rows of the
-radio it came on. The duplicate check, the burst and the counts per radio are tests/test_digipeater.py's. Then the rows between two radios of a pair (neoaprs/services/passrows.py `rows_in_force`): both directions
-of each pair that passes, none for a pair that is off, a radio that is off or only receives, a Dummy radio facing a real one, an SSID that is the station's or another pair's, or a station call that does not
-parse."""
+"""Tests for the digipeater rows (neoaprs/services/digipeater.py `DigiRow`, `digi_rows`): one row
+for each enabled radio that may repeat and has its digipeater on, none for HF or an off radio, and
+the rows between radios of a pair (neoaprs/services/passrows.py `rows_in_force`)."""
 from dataclasses import replace
 
 import pytest
@@ -49,7 +47,8 @@ def test_each_radio_that_may_repeat_and_has_its_digipeater_on_is_a_row_of_its_ow
 def test_a_radio_that_is_not_allowed_or_cannot_say_repeats_nothing() -> None:
     hf = frozen_air(radio(HF_ID, {}, "hf", "mercury"))
     assert not repeats(hf), "HF: every station hears every frame"
-    odd = replace(hf, allowed=FM_ALLOWED)                                                     # (allowed to, but its kind has no digipeat setting)
+    # (allowed to, but its kind has no digipeat setting)
+    odd = replace(hf, allowed=FM_ALLOWED)
     assert not repeats(odd)
 
 

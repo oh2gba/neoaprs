@@ -1,4 +1,6 @@
-"""What the daemon costs the machine (neoaprs/web/processmeter.py): the CPU share as a pure function of two samples, the meter that takes them, and the three fields of the status over the socket."""
+"""What the daemon costs the machine (neoaprs/web/processmeter.py): the CPU share from two samples,
+the meter that takes them, and the three status fields over the socket.
+"""
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,7 +13,7 @@ from neoaprs.web import processmeter, winmemory
 from neoaprs.web.processmeter import MIN_SPAN_SEC, ProcessMeter, Sample, cpu_percent, cpu_seconds, resident_mb
 
 
-# ---- the share of the CPU ------------------------------------------------------------------------------------------------------------------------
+# ---- the share of the CPU ------------------------------------------------------------------------
 
 @pytest.mark.parametrize("before, after, percent", [
     (Sample(0.0, 0.0), Sample(10.0, 0.03), 0.3), (Sample(5.0, 1.0), Sample(15.0, 6.0), 50.0), (Sample(0.0, 0.0), Sample(10.0, 10.0), 100.0), (Sample(0.0, 0.0), Sample(10.0, 25.0), 250.0),
@@ -26,7 +28,7 @@ def test_a_span_that_is_none_or_backwards_and_a_cpu_clock_that_went_back_are_zer
     assert cpu_percent(Sample(0.0, 2.0), Sample(10.0, 1.0)) == 0.0
 
 
-# ---- the meter -----------------------------------------------------------------------------------------------------------------------------------
+# ---- the meter -----------------------------------------------------------------------------------
 
 class Dials:
     """A clock and a CPU time the test turns."""
@@ -96,17 +98,20 @@ def test_windows_where_the_call_cannot_be_made_has_no_memory_and_no_error(monkey
         raise OSError("no such library")
 
     monkeypatch.setattr(winmemory, "sys", SimpleNamespace(platform="win32"))
-    monkeypatch.setattr(winmemory.ctypes, "WinDLL", refused, raising=False)        # (the failed call, whether this is Windows or not)
+    # The failed call, whether this is Windows or not
+    monkeypatch.setattr(winmemory.ctypes, "WinDLL", refused, raising=False)
     assert winmemory.working_set_mb() is None
 
 
 class FakePsapi:
-    """kernel32 and psapi as far as the call uses them: `GetProcessMemoryInfo` fills the counters it is given with a working set of 50 MB, or fails."""
+    """kernel32 and psapi as far as the call uses them: `GetProcessMemoryInfo` fills the counters it
+    is given with a working set of 50 MB, or fails."""
 
     def __init__(self, works: bool) -> None:
         self.works = works
         self.GetCurrentProcess = lambda: 1
-        self.GetProcessMemoryInfo = lambda handle, counters, size: self.fill(handle, counters, size)        # (plain functions: the call sets their argtypes and restype)
+        # Plain functions: the call sets their argtypes and restype
+        self.GetProcessMemoryInfo = lambda handle, counters, size: self.fill(handle, counters, size)
 
     def fill(self, handle: object, counters: Any, size: int) -> bool:
         counters._obj.WorkingSetSize = 50 * 1024 * 1024
@@ -137,7 +142,8 @@ def test_macos_reads_the_peak_in_bytes(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_a_system_that_says_darwin_without_resource_has_no_memory_and_the_meter_still_samples(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(processmeter, "sys", SimpleNamespace(platform="darwin"))
-    monkeypatch.setitem(sys.modules, "resource", None)               # (None in sys.modules: the import fails with ImportError, as on Windows)
+    # None in sys.modules: the import fails with ImportError, as on Windows
+    monkeypatch.setitem(sys.modules, "resource", None)
     assert resident_mb() is None
     assert ProcessMeter(now=lambda: 0.0, cpu=lambda: 0.0).sample() == (0.0, None), "the status still goes, without the one figure"
 
@@ -151,7 +157,7 @@ def test_a_system_without_proc_has_no_memory(monkeypatch: pytest.MonkeyPatch) ->
     assert resident_mb() is None
 
 
-# ---- over the socket -----------------------------------------------------------------------------------------------------------------------------
+# ---- over the socket -----------------------------------------------------------------------------
 
 async def test_the_status_over_the_socket_has_the_share_the_memory_and_the_uptime(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)

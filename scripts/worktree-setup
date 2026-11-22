@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Makes a fresh git worktree (or clone) ready for scripts/check: the Python environment and ui/node_modules, both real folders of this tree (no symlink to another checkout).
+# Makes a fresh git worktree (or clone) ready for scripts/check: the Python environment and
+# ui/node_modules, both real folders of this tree (no symlink to another checkout).
 #
 #   scripts/worktree-setup
 #
-# `uv sync --frozen --all-extras` (from uv's cache when it has everything, else from the net), and `npm ci` in ui/ (from npm's cache when it has everything, else from the net).
-# An existing ui/node_modules that matches ui/package-lock.json is left alone; a symlink in its place is removed (only the link) and replaced by a real install.
+# `uv sync --frozen --all-extras` (from uv's cache when it has everything, else from the net), and
+# `npm ci` in ui/ (from npm's cache when it has everything, else from the net). An existing
+# ui/node_modules that matches ui/package-lock.json is left alone; a symlink in its place is removed
+# (only the link) and replaced by a real install.
 case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

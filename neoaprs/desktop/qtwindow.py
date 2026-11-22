@@ -1,6 +1,7 @@
-"""The window of the Qt shell: a QWebEngineView on a profile that keeps what the page stores in the data folder (so the page's panel width, map view and read messages survive a restart), a page that sends every
-address that is not the daemon's page to the system's browser (the new window a `target="_blank"` asks for included), and a close button that hides the window instead of ending the app. This is the module that
-needs the web engine (PySide6-WebEngine); the tray (qtshell.py) needs only QtWidgets."""
+"""The window of the Qt shell: a QWebEngineView with its own page and profile.
+
+The profile keeps the page's storage in the data folder; other addresses go to the system
+browser. This is the module that needs the web engine; the tray (qtshell.py) needs only QtWidgets."""
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -17,11 +18,15 @@ from .links import open_external, route, window_url
 
 log = logging.getLogger("neoaprs.desktop")
 
-SAVE_SIZE_MS = 500                       # a resize or a move is remembered when it has stopped for this long
+# A resize or move is saved once it has stopped for this long.
+SAVE_SIZE_MS = 500
 
 
 def make_profile(data: Path, parent: QObject | None = None) -> QWebEngineProfile:
-    """The web engine's profile with its storage in the data folder, made with the builder, which touches no default folder of the system: the cookies and the local storage are kept in `webview/`, the cache beside them."""
+    """Return a profile storing cookies and local storage under `webview/` in the data folder.
+
+    The builder is used because it touches no default folder of the system.
+    """
     folder = appstate.profile_dir(data)
     builder = QWebEngineProfileBuilder()
     builder.setPersistentStoragePath(str(folder))
@@ -31,9 +36,9 @@ def make_profile(data: Path, parent: QObject | None = None) -> QWebEngineProfile
 
 
 class AppPage(QWebEnginePage):
-    """The page of the window: it follows the daemon's own address and hands every other one to the browser. The page the engine makes for a new window (a link with `target="_blank"`) is an `AppPage` too, which
-    never shows: the first thing it is asked to load is routed and the page is dropped. Until the daemon's page is there (`page_url` None) it shows the loading page, the one `data:` address it lets in,
-    once, when `loading` says that it is the one asked for."""
+    """The window's page: follows the daemon's address and hands every other one to the browser.
+
+    Until `page_url` is known it lets the loading page's `data:` address in, once."""
 
     def __init__(self, profile: QWebEngineProfile, page_url: str | None, parent: QObject | None = None, opener_of: "AppPage | None" = None) -> None:
         super().__init__(profile, parent)
@@ -49,7 +54,8 @@ class AppPage(QWebEnginePage):
         where = route(address, self.page_url or "")
         if where == "window":
             if self._main is not None:
-                self._main.setUrl(QUrl(address))                   # a new window for our own page: it is the window we have
+                # A new window for our own page: use the existing window.
+                self._main.setUrl(QUrl(address))
                 return False
             return True
         if where == "browser" and not open_external(address, self.page_url or ""):
@@ -63,14 +69,14 @@ class AppPage(QWebEnginePage):
 
 
 class AppWindow(QMainWindow):
-    """Title "NeoAPRS", the page, the size and place it had last time (the place only when a screen has it still), maximized if it was left so. `on_close` is asked when the close button is used: it says whether the window
-    should be hidden (True: NeoAPRS goes on in the tray) or the app ends. Made with no `url`, it shows the loading page (`show_loading`) until `load(url)` gives it the daemon's; the engine paints the page's
-    background of the system's scheme until either has painted."""
+    """The main window, restored to its saved size and place.
+
+    `on_close` returns True to hide the window on close, False to end the app."""
 
     def __init__(self, data: Path, url: str | None, icon: QIcon, on_close: Callable[[], bool]) -> None:
         super().__init__()
         self.data = data
-        self.url = url or ""                                  # ("": not there yet)
+        self.url = url or ""
         self.on_close = on_close
         self.setWindowTitle("NeoAPRS")
         self.setWindowIcon(icon)
@@ -96,30 +102,31 @@ class AppWindow(QMainWindow):
         self.page.setHtml(loading.HTML)
 
     def load(self, url: str | None = None) -> None:
-        """The daemon's page (`url`, or the one the window was made with) in place of what the window shows."""
+        """Show the daemon's page (`url`, else the one the window was made with)."""
         if url is not None:
             self.url = self.page.page_url = url
         self.view.setUrl(QUrl(window_url(self.url)))
 
     def dispose(self) -> None:
-        """Takes the page down before the profile it is made on, which the engine insists on (the other order is a crash at exit); the window is not used after this. (The stub wants a page for `setPage`; None lets go of it.)"""
+        """Delete the page before its profile (the other order crashes at exit); unusable after."""
         self.view.setPage(None)  # type: ignore[arg-type]
         delete(self.page)
         delete(self.profile)
 
     def raise_up(self) -> None:
-        """Shows the window and brings it to the front, out of the minimised state if it was there."""
+        """Show the window and bring it to the front, restoring it if minimised."""
         self.setWindowState(self.windowState() & ~self.windowState().WindowMinimized)
         self.show()
         self.raise_()
         self.activateWindow()
 
     def remember_geometry(self) -> None:
-        """The size and place the window has when it is not maximized (Qt keeps them while it is), and whether it is; a window that is not shown reports nonsense."""
+        """Save the normal size and place and the maximized state; a hidden window reports nonsense."""
         if self.isFullScreen() or not self.isVisible():
             return
         if self.isMaximized():
-            normal = self.normalGeometry()                                            # (the widget's: the frame's corner is the decorations higher and to the left, as it is now)
+            # normalGeometry is the widget's; the frame's corner is up and left by the decorations.
+            normal = self.normalGeometry()
             frame = self.geometry().topLeft() - self.frameGeometry().topLeft()
             state = appstate.WindowState(normal.width(), normal.height(), normal.x() - frame.x(), normal.y() - frame.y(), True)
         else:

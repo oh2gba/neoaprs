@@ -1,7 +1,7 @@
-"""The desktop app's part of the end-to-end test of Update now (`scripts/update-e2e.py appimage OLD NEW --app`): its copies of the program's names and log lines, its readers of /proc (the app and
-the daemon of a data folder by their command lines, the sockets, the locks, the mounts, what the test left running) on a made-up /proc and, where the kernel's own format is what counts, on this one,
-the question that tells an old app with no restart as the new version from one that has it, and what the test holds of the app after the update, on stand-ins of the processes. The run with real
-AppImages is the release workflow's or the maintainer's (docs/development.md, "Update now end to end")."""
+"""The desktop app's part of the end-to-end test of Update now (`scripts/update-e2e.py appimage OLD
+NEW --app`): its names and log lines, and its readers of /proc (app and daemon command lines,
+sockets, locks, mounts) on a made-up /proc and, where the kernel's format counts, on the real one.
+"""
 import importlib.util
 import logging
 import os
@@ -54,7 +54,8 @@ def test_the_test_names_the_apps_files_flags_and_log_lines_as_the_program_has_th
 
 
 def test_the_old_app_is_asked_whether_it_starts_again_as_the_new_version(tmp_path: Path) -> None:
-    """The question is the program's own answer to `app --owns-daemon --quit` on a folder with no app: this tree's takes the flag and ends at once without making the folder; an app of 0.20.2 refuses it."""
+    """The answer to `app --owns-daemon --quit` on a folder with no app: this tree takes the flag
+    and ends at once; an older app refuses it."""
     e2e = update_e2e()
     probe = tmp_path / "probe"
     env = {k: v for k, v in os.environ.items() if k != "NEOAPRS_DATA_DIR"} | {"HOME": str(tmp_path / "home"), "XDG_CONFIG_HOME": str(tmp_path / "config"), "XDG_DATA_HOME": str(tmp_path / "share")}
@@ -68,7 +69,8 @@ def test_the_old_app_is_asked_whether_it_starts_again_as_the_new_version(tmp_pat
 
 
 def test_put_old_decides_known_old_of_the_app_by_its_answer_and_its_version(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A build of 0.20.2's tree has the restart and the release 0.20.2 has not, under the same name: the answer decides, and the version only bounds --known-old."""
+    """An older build has the restart and the release does not, under the same name: the answer
+    decides, and the version only bounds --known-old."""
     e2e = update_e2e()
     monkeypatch.setattr(e2e.AppImageInstall, "put_old", lambda self: None)
 
@@ -108,8 +110,10 @@ def test_the_app_and_the_daemon_of_a_data_folder_are_found_by_their_command_line
     fake_process(proc, 1, 0, ["/sbin/init"])
     fake_process(proc, 500, 1, [*python, "app", "--data", str(data)], exe=f"{mount}/usr/bin/python3.13", APPIMAGE=image, APPDIR=mount)
     fake_process(proc, 501, 500, [*python, "run", "--data", str(data)], exe=f"{mount}/usr/bin/python3.13", APPIMAGE=image, APPDIR=mount)
-    fake_process(proc, 502, 1, [image, "run", "--data", str(data)], exe=image)                                   # the process that serves the daemon's mount: no Python of NeoAPRS
-    fake_process(proc, 503, 1, [*python, "app", "--quit", "--data", str(data)])                                  # the question to end, not an app
+    # The process that serves the daemon's mount: no Python of NeoAPRS
+    fake_process(proc, 502, 1, [image, "run", "--data", str(data)], exe=image)
+    # The question to end, not an app
+    fake_process(proc, 503, 1, [*python, "app", "--quit", "--data", str(data)])
     fake_process(proc, 504, 1, [*python, "db", "--data", str(data), "get", "web/port"])
     fake_process(proc, 505, 1, [*python, "run", "--data", str(other)])
     fake_process(proc, 506, 500, [*python, "run", "--data", str(data)], state="Z")
@@ -171,7 +175,8 @@ def test_the_sockets_locks_and_mounts_are_read_from_proc(tmp_path: Path) -> None
 
 @LINUX
 def test_the_readers_read_this_kernels_own_proc(tmp_path: Path) -> None:
-    """The format is the kernel's: a socket this test listens on, a lock it holds and a folder with no mount, read from the real /proc."""
+    """The format is the kernel's: a socket this test listens on, a lock it holds and a folder with
+    no mount, read from the real /proc."""
     from neoaprs.instancelock import InstanceLock
     e2e = update_e2e()
     with socket.socket() as server:
@@ -195,7 +200,8 @@ def test_what_the_test_left_running_is_every_process_from_its_folder_or_of_its_f
     proc, work = tmp_path / "proc", tmp_path / "work"
     image = work / "Applications" / "NeoAPRS-0.20.2-x86_64.AppImage"
     fake_process(proc, 1, 0, ["/sbin/init"], exe="/usr/lib/systemd/systemd")
-    fake_process(proc, 600, 1, [str(image), "run", "--data", "d"], exe=f"{image} (deleted)")                                        # a runtime, or the process that serves a mount
+    # A runtime, or the process that serves a mount
+    fake_process(proc, 600, 1, [str(image), "run", "--data", "d"], exe=f"{image} (deleted)")
     fake_process(proc, 601, 1, [f"{work}/tmp/.mount_x/usr/bin/python3", "-I", "-m", "neoaprs", "run"], exe=f"{work}/tmp/.mount_x/usr/bin/python3.13")
     fake_process(proc, 602, 1, ["/usr/lib/qt6/QtWebEngineProcess"], exe="/usr/lib/qt6/QtWebEngineProcess", APPIMAGE=str(image))
     fake_process(proc, 603, 1, ["bash"], exe="/usr/bin/bash", APPIMAGE="/home/ham/Other.AppImage")
@@ -213,8 +219,10 @@ def app_install(tmp_path: Path, e2e: types.ModuleType, extract_and_run: bool, ol
 
 @LINUX
 def test_the_app_started_again_is_held_to_the_new_version_in_the_old_ones_place(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    """Mounted the same process goes on as the new app, unpacked the new app is the child of the old app's process (its runtime); in its folder of the new version, with --owns-daemon, owning the daemon.
-    The root of this system and /proc stand in for the mounts, folders of the test's for the unpacked ones."""
+    """Mounted the same process goes on as the new app, unpacked the new app is the child of the old
+    app's process (its runtime); in its folder of the new version, with --owns-daemon, owning the
+    daemon. The root of this system and /proc stand in for the mounts, folders of the test's for the
+    unpacked ones."""
     e2e = update_e2e()
     monkeypatch.setattr(e2e, "RENEW_SEC", 0.6)
     monkeypatch.setattr(e2e, "PAGE_SEC", 0.6)
@@ -291,7 +299,8 @@ def test_the_exit_code_is_0_or_the_unpacked_runtimes_own_1_and_the_mounts_are_th
     mounted.check_mounts(app, own)
     assert "the mounts in the temporary folder are ['/m/new-app', '/m/new-daemon']" in capsys.readouterr().out
     monkeypatch.setattr(e2e, "mounts_under", lambda folder: ["/m/new-app", "/m/new-daemon", "/m/old-app"])
-    for install in (mounted, unpacked):                                        # an old mount that stays is said here and held gone at the end (leftovers)
+    # An old mount that stays is said here and held gone at the end (leftovers)
+    for install in (mounted, unpacked):
         capsys.readouterr()
         install.check_mounts(app, own)
         said = capsys.readouterr().out
@@ -319,7 +328,9 @@ def test_the_app_is_started_offscreen_and_unpacked_by_the_variable_that_reaches_
 
 
 def test_the_home_folder_is_held_for_neoaprs_own_files_alone_and_the_page_is_looked_for_where_a_known_old_one_may_serve_it(tmp_path: Path) -> None:
-    """Qt and the web engine write into the home folder as they run and end (caches, the certificate database): what an update must not touch is NeoAPRS's data, its start at sign-in and its menu entries."""
+    """Qt and the web engine write into the home folder as they run and end (caches, the certificate
+    database): what an update must not touch is NeoAPRS's data, its start at sign-in and its menu
+    entries."""
     e2e = update_e2e()
     install = app_install(tmp_path, e2e, False)
     install.folder.mkdir(parents=True)
@@ -331,7 +342,8 @@ def test_the_home_folder_is_held_for_neoaprs_own_files_alone_and_the_page_is_loo
     for name in (".config/autostart/neoaprs.desktop", ".local/share/applications/NeoAPRS.desktop", ".local/share/neoaprs/neoaprs.sqlite"):
         (install.home / name).parent.mkdir(parents=True, exist_ok=True)
         (install.home / name).write_text("x", encoding="utf-8")
-    assert install.outside()["the home folder"] != quiet["the home folder"] and len(install.outside()["the home folder"]) == 5          # (the three files and the two folders that are named so)
+    # The three files and the two folders that are named so
+    assert install.outside()["the home folder"] != quiet["the home folder"] and len(install.outside()["the home folder"]) == 5
     install.data.joinpath(e2e.PAGE_FILE).write_text("http://127.0.0.1:7304/\n", encoding="ascii")
     ports = range(7303, 7314)
     assert install.page_ports(install.data, ports, lambda: True) == range(7304, 7305)

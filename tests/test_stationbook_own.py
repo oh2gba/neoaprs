@@ -1,5 +1,7 @@
-"""Our own objects and items in the station book (neoaprs/stationbook.py): they are stations of their own marked `own`, reported by us, never pruned or forgotten or made a track of, replaced by what another
-station reports under the name, untouched by another station's kill, taken out when killed, and not kept in the station cache."""
+"""Our own objects and items in the station book (neoaprs/stationbook.py): stations marked `own`,
+never pruned or tracked, replaced by another station's report under the name, untouched by its kill,
+and not cached.
+"""
 from dataclasses import replace
 from datetime import timedelta
 

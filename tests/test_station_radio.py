@@ -1,5 +1,7 @@
-"""A station as it is without the internet (`Station.radio_view`): none for a station known only from APRS-IS, the station itself when it never came from there, and for one heard both ways a copy with the radio's side only (the counts,
-the times, the last hour, the place and the track the packets that were not from the internet gave), however the packets came and after a restart (`StationBook.seed_radio`)."""
+"""A station without the internet (`Station.radio_view`): none for an APRS-IS-only station, the
+station itself when it never came from there, and for one heard both ways a copy with the radio's
+side only.
+"""
 from datetime import datetime, timedelta
 
 from neoaprs.clock import utc

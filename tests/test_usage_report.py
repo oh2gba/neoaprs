@@ -1,6 +1,7 @@
-"""The usage report of the project's server (server/usage-report.sh) on made-up logs, with `--local` so that nothing is fetched: the requests with id 0 (a run from the source tree, a test machine) are left out of every count and said in a line
-of their own; the ignore list (a plain file of ids, comments after #, blank lines, from `--ignore FILE` or `usage-ignore` beside the secrets file) leaves out its numbers for every month and says how many requests and numbers; the old lines
-without an id (`-` or no fourth column) are still the requests without an id; what the present version.php writes for an id of 0 (`-`) is one of those, and what the one with the fix writes (`0`) is a developers' run."""
+"""The usage report of the project's server (server/usage-report.sh) on made-up logs with `--local`:
+requests with id 0 are left out of every count and said in a line of their own, and the ignore list
+is honoured.
+"""
 import os
 import shutil
 import subprocess

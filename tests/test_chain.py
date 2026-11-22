@@ -1,4 +1,6 @@
-"""The delivery chain's rules (neoaprs/chain.py): which hops of the path we sent by a heard path shows used, with aliases, implied hops and the internet's own pieces left out, and which attempt a copy belongs to."""
+"""The delivery chain's rules (neoaprs/chain.py): which hops of the path we sent by a heard path
+shows used, with aliases, implied hops and the internet's own pieces left out, and which attempt a
+copy belongs to."""
 from dataclasses import fields, replace
 
 import pytest
@@ -14,19 +16,26 @@ WIDE = ("WIDE1-1", "WIDE2-1")
 @pytest.mark.parametrize("sent, heard, used", [
     (SENT, ("OH2RCH-2*", "OH2RDG"), [(1, "OH2RCH-2")]),
     (SENT, ("OH2RCH-2*", "OH2RDG*"), [(1, "OH2RCH-2"), (2, "OH2RDG")]),
-    (SENT, ("OH2RCH-2", "OH2RDG*"), [(1, "OH2RCH-2"), (2, "OH2RDG")]),                      # (the TNC2 star: the last hop used, so the one before it was too)
+    # (the TNC2 star: the last hop used, so the one before it was too)
+    (SENT, ("OH2RCH-2", "OH2RDG*"), [(1, "OH2RCH-2"), (2, "OH2RDG")]),
     (SENT, ("OH2RCH-2", "OH2RDG"), []),
     (SENT, (), []),
-    (SENT, ("OH2XYZ*", "OH2RDG"), []),                                                       # (a digipeater that is none of ours)
-    (WIDE, ("OH2RCH-2*", "WIDE2-1"), [(1, "OH2RCH-2")]),                                     # (the alias replaced by the call that used it)
+    # (a digipeater that is none of ours)
+    (SENT, ("OH2XYZ*", "OH2RDG"), []),
+    # (the alias replaced by the call that used it)
+    (WIDE, ("OH2RCH-2*", "WIDE2-1"), [(1, "OH2RCH-2")]),
     (WIDE, ("OH2RCH-2*", "OH2RDG*"), [(1, "OH2RCH-2"), (2, "OH2RDG")]),
-    (WIDE, ("WIDE1*", "WIDE2-1"), [(1, "WIDE1")]),                                           # (an alias used and left as it is: the call is not known)
+    # (an alias used and left as it is: the call is not known)
+    (WIDE, ("WIDE1*", "WIDE2-1"), [(1, "WIDE1")]),
     (("WIDE2-2",), ("OH2RCH-2*", "OH2RDG*", "WIDE2*"), [(1, "OH2RCH-2")]),
-    (("WIDE1-1", "OH2RDG"), ("OH2RDG*",), [(1, "WIDE1-1"), (2, "OH2RDG")]),                  # (OH2RDG is the second hop's call, not the alias's: the first is implied)
+    # (OH2RDG is the second hop's call, not the alias's: the first is implied)
+    (("WIDE1-1", "OH2RDG"), ("OH2RDG*",), [(1, "WIDE1-1"), (2, "OH2RDG")]),
     ((), ("OH2RCH-2*",), []),
-    (("SS3-3",), ("OH2RCH-2*", "SS3-2"), [(1, "OH2RCH-2")]),                                 # (a regional New-N alias is an alias like WIDE: the call that used it takes its place)
+    # (a regional New-N alias is an alias like WIDE: the call that used it takes its place)
+    (("SS3-3",), ("OH2RCH-2*", "SS3-2"), [(1, "OH2RCH-2")]),
     (("HOP7-7",), ("FI2*",), [(1, "FI2")]),
-    (SENT + ("RFONLY",), ("OH2RCH-2*", "OH2RDG*"), [(1, "OH2RCH-2"), (2, "OH2RDG")]),           # (RFONLY, NOGATE, TCPIP and the q-constructs are no hops, in the path we sent or the one heard)
+    # (RFONLY, NOGATE, TCPIP and the q-constructs are no hops, in the path we sent or the one heard)
+    (SENT + ("RFONLY",), ("OH2RCH-2*", "OH2RDG*"), [(1, "OH2RCH-2"), (2, "OH2RDG")]),
     (SENT + ("RFONLY",), ("OH2RCH-2*", "OH2RDG", "RFONLY"), [(1, "OH2RCH-2")]),
     (("OH2RCH-2", "NOGATE", "OH2RDG"), ("OH2RCH-2*", "OH2RDG*"), [(1, "OH2RCH-2"), (2, "OH2RDG")]),
     (WIDE + ("RFONLY",), ("OH2RCH-2*", "WIDE2-1", "RFONLY"), [(1, "OH2RCH-2")]),

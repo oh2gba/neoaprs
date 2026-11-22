@@ -1,5 +1,6 @@
-"""A release for Update now's tests, with no network: the files a download finds (SHA256SUMS, its signature with a key of the test's own and the AppImage of 0.7.0) and what was asked for, and an installer that only
-writes down what it was given. `old_checksum_for` is how the programs from before the signature read SHA256SUMS, kept here unchanged so that a test holds the list readable by them."""
+"""A release for the Update now tests, with no network: SHA256SUMS, its signature with a key of the
+test's own, an AppImage, and an installer that only records what it was given.
+"""
 import hashlib
 import re
 import secrets
@@ -26,7 +27,8 @@ def public(seed: bytes = SEED) -> Ed25519PublicKey:
 
 
 def old_checksum_for(sums: bytes, name: str) -> str | None:
-    """`checksum_for` of neoaprs/updateasset.py in 0.18.2 and before, as those programs read SHA256SUMS: the SHA-256 the list gives the file `name`, or None when it names it not at all, or twice with two sums."""
+    """`checksum_for` as the older programs read SHA256SUMS: the SHA-256 the list gives `name`, or
+    None when it is missing or listed twice with two sums."""
     found: set[str] = set()
     for line in sums.decode("utf-8", errors="replace").splitlines():
         match = OLD_SUM_LINE.match(line.strip())
@@ -57,8 +59,10 @@ class FakeRelease:
 
     def __init__(self, sums: bytes = SUMS, body: bytes = BODY, gate: threading.Event | None = None, fail: str = "", signature: bytes | None = None, version: str = "0.7.0", signature_fails: str = "") -> None:
         self.sums = sums
-        self.signature_fails = signature_fails             # the fetch of the signature fails with this, as a connection that drops does
-        self.signature = sign(sums, version, SEED).encode() if signature is None else signature      # (b"" serves no signature: a 404)
+        # The fetch of the signature fails with this, as a connection that drops does
+        self.signature_fails = signature_fails
+        # b"" serves no signature: a 404
+        self.signature = sign(sums, version, SEED).encode() if signature is None else signature
         self.body = body
         self.gate = gate                    # the file waits for it after its first piece
         self.fail = fail

@@ -1,5 +1,7 @@
-"""The developers' own runs are not counted: the update check sends `id=0` in place of the installation's number from a run of the source tree and while the row `update/not_counted` is true, the number of the installation is made and kept all the
-same and is sent again when the row is taken away, an installed wheel, the AppImage, the .deb and the Windows program send their number, and no other request to the project's server carries an id. `neoaprs db` reads and sets the row."""
+"""The developers' own runs are not counted: the update check sends `id=0` from a source tree run or
+while `update/not_counted` is true, and the installation's number is kept and sent again when the
+row is removed.
+"""
 import re
 import sqlite3
 from pathlib import Path

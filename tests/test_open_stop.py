@@ -1,6 +1,7 @@
-"""`neoaprs open` and `neoaprs stop` and the stop file they stand on (neoaprs/stopfile.py): a daemon that is not running is started detached and its page answers, one that is running is left alone, the browser is
-asked for the page's address, a daemon that cannot start is reported, and `stop` ends the daemon through the file in its data folder, cleanly. The detached daemons are given a TCP radio on the loopback and a free
-page port in their database first (a daemon with neither would listen to the operator's serial ports and take port 7303)."""
+"""`neoaprs open` and `neoaprs stop` and the stop file (neoaprs/stopfile.py): a stopped daemon is
+started detached, a running one is left alone, the browser is asked for the page, and `stop` ends
+the daemon through the file.
+"""
 import asyncio
 import http.client
 import http.server
@@ -35,7 +36,8 @@ def command(*args: str, timeout: float = 90) -> subprocess.CompletedProcess[str]
 
 @pytest.fixture
 def radio() -> Iterator[str]:
-    """A TCP server on the loopback that accepts and says nothing: a radio for a daemon that nobody started in the test itself."""
+    """A TCP server on the loopback that accepts and says nothing: a radio for a daemon that nobody
+    started in the test itself."""
     server = socket.create_server(("127.0.0.1", 0))
     held: list[socket.socket] = []
 
@@ -55,7 +57,8 @@ def radio() -> Iterator[str]:
 
 @pytest.fixture
 def data(tmp_path: Path, radio: str) -> Iterator[Path]:
-    """A data folder whose settings give the daemon the fake radio and a free page port; the daemon, if the test left one running, is stopped."""
+    """A data folder whose settings give the daemon the fake radio and a free page port; the daemon,
+    if the test left one running, is stopped."""
     folder = tmp_path / "data"
     assert command("db", "--data", str(folder), "radios", "add", "kiss").returncode == 0
     assert command("db", "--data", str(folder), "set", "radio/1/port", radio).returncode == 0
@@ -219,7 +222,8 @@ def test_the_page_of_the_daemon_is_asked_for_directly_whatever_proxy_the_environ
     serve(server)
     try:
         for name in ("http_proxy", "HTTP_PROXY", "all_proxy", "ALL_PROXY"):
-            monkeypatch.setenv(name, "http://127.0.0.1:9")                  # (nothing listens there: a request that goes by the proxy fails)
+            # Nothing listens there: a request that goes by the proxy fails
+            monkeypatch.setenv(name, "http://127.0.0.1:9")
         for name in ("no_proxy", "NO_PROXY"):
             monkeypatch.delenv(name, raising=False)
         monkeypatch.setattr("urllib.request._opener", None)

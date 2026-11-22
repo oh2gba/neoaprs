@@ -1,5 +1,7 @@
-"""Network access to the page (neoaprs/web/access.py): the switch `web/network`, the access key, the session cookie and what a device that has not logged in is refused. The tests have no second address, so a request
-is made to look as if it came from elsewhere by saying that no address is the loopback (`away`); the loopback tests do without."""
+"""Network access to the page (neoaprs/web/access.py): the switch `web/network`, the access key, the
+session cookie and what a device that has not logged in is refused. A request is made to look as if
+it came from elsewhere by saying that no address is the loopback (`away`).
+"""
 import json
 import logging
 import re
@@ -31,7 +33,8 @@ KEY_FORM = re.compile(r"^[2-9a-hj-km-np-z]{4}(-[2-9a-hj-km-np-z]{4}){2}$")
 @pytest.fixture(autouse=True)
 def lan(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("neoaprs.web.server.lan_addresses", lambda: [LAN])
-    monkeypatch.setattr("neoaprs.web.server.name_loopbacks", lambda: [])          # (what this machine's hosts file says is not the test's)
+    # What this machine's hosts file says is not the test's
+    monkeypatch.setattr("neoaprs.web.server.name_loopbacks", lambda: [])
 
 
 @pytest.fixture
@@ -65,7 +68,7 @@ async def refused_at_the_socket(e: Env, cookie: str | None = None) -> int:
     return refused.value.code
 
 
-# ---- what a device that has not logged in gets ------------------------------------------------------------------------------------------------------
+# ---- what a device that has not logged in gets ---------------------------------------------------
 
 async def test_a_device_that_has_not_logged_in_gets_the_files_of_the_page_and_nothing_that_carries_data(tmp_path: Path, away: None) -> None:
     e = await served(tmp_path, NETWORK)
@@ -157,7 +160,8 @@ async def test_a_session_is_kept_across_a_restart_and_ends_after_a_year_or_with_
 
 
 async def test_a_session_bought_over_plain_http_does_not_open_the_secure_page_and_one_bought_over_https_does() -> None:
-    """A cookie bought over plain http (perhaps read off the network) does not open the secure port once https is on: the device logs in there again. Plain http takes both."""
+    """A cookie bought over plain http (perhaps read off the network) does not open the secure port
+    once https is on: the device logs in there again. Plain http takes both."""
     clock = FixedClock()
     config = replace(DEFAULTS, web_network=True, web_https=True, web_key=KEY)
     access = Access(lambda: config, clock)
@@ -192,7 +196,7 @@ def test_a_key_is_three_groups_of_four_without_look_alike_characters() -> None:
     assert not any(c in "".join(keys) for c in "01ilo")
 
 
-# ---- a new key -------------------------------------------------------------------------------------------------------------------------------------
+# ---- a new key -----------------------------------------------------------------------------------
 
 async def test_a_new_key_logs_every_device_out_and_leaves_the_one_that_asked_in(tmp_path: Path, away: None) -> None:
     e = await served(tmp_path, NETWORK)
@@ -227,7 +231,7 @@ async def test_a_cross_site_post_is_refused(tmp_path: Path, away: None) -> None:
     assert e.ctl.config.web_key == KEY
 
 
-# ---- the loopback ----------------------------------------------------------------------------------------------------------------------------------
+# ---- the loopback --------------------------------------------------------------------------------
 
 async def test_this_computer_is_never_asked_for_the_key(tmp_path: Path) -> None:
     e = await served(tmp_path, NETWORK)
@@ -288,7 +292,7 @@ async def test_with_the_network_off_a_device_that_is_not_this_computer_cannot_lo
     assert (await log_in(e)).code == 403 and (await e.fetch("/access")).code == 401 and await refused_at_the_socket(e) == 401
 
 
-# ---- the switch ------------------------------------------------------------------------------------------------------------------------------------
+# ---- the switch ----------------------------------------------------------------------------------
 
 def listening_on(e: Env) -> set[str]:
     assert e.server is not None and e.server._server is not None
@@ -365,7 +369,7 @@ async def test_the_address_the_page_listens_on_that_is_taken_leaves_the_old_one_
     assert e.server.address == "127.0.0.1" and (await e.fetch("/")).code == 200 and listening_on(e) == {"127.0.0.1"}
 
 
-# ---- names -----------------------------------------------------------------------------------------------------------------------------------------
+# ---- names ---------------------------------------------------------------------------------------
 
 async def test_with_the_network_on_the_page_opens_by_the_address_and_the_name_of_this_computer_and_not_by_a_foreign_name(tmp_path: Path) -> None:
     e = await served(tmp_path, NETWORK)
@@ -376,7 +380,7 @@ async def test_with_the_network_on_the_page_opens_by_the_address_and_the_name_of
         assert (await e.fetch("/", headers={"Host": host})).code == 403, host
 
 
-# ---- what the addresses are ------------------------------------------------------------------------------------------------------------------------
+# ---- what the addresses are ----------------------------------------------------------------------
 
 def test_the_address_of_this_computer_on_the_network_is_the_one_the_system_would_send_from(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake(answer: str, status: int = 0) -> Callable[..., object]:

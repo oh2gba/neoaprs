@@ -1,18 +1,27 @@
 #!/usr/bin/env bash
-# Builds neoaprs_<version>_<arch>.deb, the download for the Raspberry Pi and for Debian and Ubuntu: NeoAPRS with its own CPython 3.13 and the locked dependencies (without the desktop app's extra: a Pi is
-# headless) in /opt/neoaprs, and /usr/bin/neoaprs linked to it. The system's Python is not used, so Raspberry Pi OS and Debian 12, which have no 3.13, are served.
+# Build neoaprs_<version>_<arch>.deb, the download for the Raspberry Pi, Debian and Ubuntu: NeoAPRS
+# with its own CPython 3.13 and the locked dependencies (without the desktop app's extra: a Pi is
+# headless) in /opt/neoaprs, and /usr/bin/neoaprs linked to it. The system's Python is not used, so
+# Raspberry Pi OS and Debian 12, which have no 3.13, are served.
 #
-#   scripts/build-deb (--mercury TARBALL | --no-mercury) (--direwolf TARBALL | --no-direwolf) [--arch amd64|arm64] [--wheel FILE] [--out DIR]
+#   scripts/build-deb (--mercury TARBALL | --no-mercury) (--direwolf TARBALL | --no-direwolf)
+#                     [--arch amd64|arm64] [--wheel FILE] [--out DIR]
 #
-# Without --arch the package is for this machine's architecture; without --wheel the wheel is built from this tree (uv build). --mercury is the tarball that scripts/build-mercury --tar makes for the same
-# architecture (mercury-VERSION-linux-x86_64.tar.gz for amd64, -aarch64 for arm64): its folder mercury/ goes to /opt/neoaprs/tools/mercury (the simulators of its dev/ folder are left out), and the program counts
-# in the lowest glibc the package needs. A release always carries Mercury, so the build refuses to run with neither --mercury nor --no-mercury (the package of a developer who has no Mercury to hand).
-# --direwolf is the tarball that scripts/build-direwolf --tar makes for the same architecture: its folder direwolf/ goes to /opt/neoaprs/tools/direwolf (its dev/ folder is left out); the same rule holds, and it
-# needs --mercury (the Sound card type lists the sound cards with Mercury). The file is made in DIR (default dist-deb/). Nothing is compiled, so either
-# architecture can be made on either kind of machine: the relocatable CPython of python-build-standalone is unpacked (fetched once into $NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build, pinned by version
-# and SHA-256 below; the pin is the trust, not the server) and the wheels for the target are installed by uv into its site-packages. The work folder is build/deb-ARCH/. Needs uv (with a Python 3.13, which
-# compiles the bytecode), curl, tar, gzip, dpkg-deb and a Linux machine. The file is reproducible: the same inputs and the same SOURCE_DATE_EPOCH (default: the time of the last commit) give the same bytes.
-# How it behaves and what it holds: docs/manual/install.md, "Raspberry Pi, Debian, Ubuntu (.deb)", and docs/development.md, "The .deb".
+# Without --arch the package is for this machine's architecture; without --wheel the wheel is built
+# from this tree (uv build). --mercury is the tarball of scripts/build-mercury --tar for the same
+# architecture: its mercury/ folder goes to /opt/neoaprs/tools/mercury (without its dev/
+# simulators), and the program's glibc need counts in the package's lowest glibc. A release always
+# carries Mercury, so the build refuses to run with neither --mercury nor --no-mercury. --direwolf
+# is the tarball of scripts/build-direwolf --tar for the same architecture: its direwolf/ folder
+# goes to /opt/neoaprs/tools/direwolf; the same rule holds, and it needs --mercury. The file is made
+# in DIR (default dist-deb/). Nothing is compiled, so either architecture can be made on either kind
+# of machine: python-build-standalone's CPython is unpacked (fetched once into $NEOAPRS_BUILD_CACHE,
+# default ~/.cache/neoaprs-build, pinned by version and SHA-256 below; the pin is the trust, not the
+# server) and the wheels for the target are installed by uv into its site-packages. Work folder
+# build/deb-ARCH/. Needs uv (with Python 3.13), curl, tar, gzip, dpkg-deb and Linux. The file is
+# reproducible: the same inputs and SOURCE_DATE_EPOCH (default: the last commit's time) give the
+# same bytes. See docs/manual/install.md, "Raspberry Pi, Debian, Ubuntu (.deb)", and
+# docs/development.md, "The .deb".
 case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -49,7 +58,7 @@ case "$arch" in amd64) pin="$PYTHON_amd64" ;; arm64) pin="$PYTHON_arm64" ;; *) e
 read -r python_file python_sha256 platform <<<"$pin"
 [ -n "$mercury" ] || [ "$no_mercury" = 1 ] || { echo "build-deb: give --mercury TARBALL (a release carries Mercury) or --no-mercury" >&2; exit 2; }
 [ -z "$mercury" ] || [ "$no_mercury" = 0 ] || { echo "build-deb: --mercury and --no-mercury exclude each other" >&2; exit 2; }
-# (the program is for one architecture: the tarball's name says which, and it must be the package's)
+# the program is for one architecture: the tarball's name says which, and it must be the package's
 if [ -n "$mercury" ]; then
     case "$arch" in amd64) mercury_machine=x86_64 ;; arm64) mercury_machine=aarch64 ;; esac
     case "$(basename "$mercury")" in mercury-*-linux-"$mercury_machine".tar.gz) ;; *) echo "build-deb: $mercury is not a Mercury tarball for $arch (mercury-VERSION-linux-$mercury_machine.tar.gz)" >&2; exit 2 ;; esac
@@ -67,7 +76,8 @@ for tool in uv curl tar gzip dpkg-deb; do command -v "$tool" >/dev/null || { ech
 cache="${NEOAPRS_BUILD_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/neoaprs-build}"
 mkdir -p "$cache"
 
-# fetch URL SHA256: the file in the cache, downloaded when it is not there or not the pinned one; its path on stdout
+# fetch URL SHA256: the file in the cache, downloaded when it is not there or not the pinned one;
+# its path on stdout
 fetch() {
     local file
     file="$cache/$(basename "${1//%2B/+}")"
@@ -103,16 +113,19 @@ mkdir -p "$pkg" "$out"
 tar -xzf "$python_tar" -C "$work"
 mkdir -p "$(dirname "$app")"
 mv "$work/python" "$app"
-# (the dbm module of the archive, which prune.py takes out on Linux, said before it goes: python-build-standalone's documents do not say whether the aarch64 build has it)
+# (the dbm module of the archive, which prune.py takes out on Linux, said before it goes:
+# python-build-standalone's documents do not say whether the aarch64 build has it)
 dbm="$(find "$app/lib/python3.13/lib-dynload" -maxdepth 1 -name '_dbm*' -printf '%f, %s bytes; ')"
 echo "build-deb: the archive's dbm module: ${dbm:-none}"
 
-# The locked dependencies without the extra `app` and with `ble` (a radio on Bluetooth LE), then the wheel on top, as wheels for the target platform (the Python of the machine only runs uv)
+# The locked dependencies without the extra `app` and with `ble` (a radio on Bluetooth LE), then the
+# wheel on top, as wheels for the target platform (the Python of the machine only runs uv)
 (cd "$ROOT" && uv export -q --frozen --no-dev --no-emit-project --extra ble -o "$work/requirements.txt")
 install_args=(--no-config --python "$host_python" --break-system-packages --python-platform "$platform" --python-version 3.13 --target "$site" --no-deps --link-mode copy --no-cache)
 uv pip install "${install_args[@]}" --only-binary :all: --require-hashes -r "$work/requirements.txt"
 uv pip install "${install_args[@]}" "$wheel"
-# the files an install makes that depend on this machine: where the wheel was (direct_url.json, and its line of the RECORD), the programs with this machine's path in them
+# the files an install makes that depend on this machine: where the wheel was (direct_url.json, and
+# its line of the RECORD), the programs with this machine's path in them
 rm -f "$site"/neoaprs-*.dist-info/direct_url.json
 sed -i '/direct_url\.json,/d' "$site"/neoaprs-*.dist-info/RECORD
 find "$app/bin" -type f ! -name 'python3*' -delete
@@ -121,14 +134,17 @@ install -m 755 "$ROOT/packaging/deb/neoaprs" "$app/bin/neoaprs"
 mkdir -p "$pkg/usr/bin"
 ln -s "$PREFIX/bin/neoaprs" "$pkg/usr/bin/neoaprs"
 
-# Mercury, the HF modem: the program with its ALSA library and configuration, where neoaprs/bundled.py looks (<sys.prefix>/tools/mercury); its dev/ folder of simulators is not shipped
+# Mercury, the HF modem: the program with its ALSA library and configuration, where
+# neoaprs/bundled.py looks (<sys.prefix>/tools/mercury); its dev/ folder of simulators is not
+# shipped
 if [ -n "$mercury" ]; then
     mkdir -p "$app/tools"
     tar -xzf "$mercury" -C "$app/tools" --exclude='mercury/dev'
     for needed in mercury lib/libasound.so.2 share/alsa/alsa.conf LICENSE; do [ -e "$app/tools/mercury/$needed" ] || { echo "build-deb: $mercury has no mercury/$needed" >&2; exit 1; }; done
     [ -x "$app/tools/mercury/mercury" ] && [ ! -e "$app/tools/mercury/dev" ]
 fi
-# Direwolf, the FM modem of the Sound card type: the program with its ALSA and udev libraries, the ALSA configuration and its two data files; its dev/ folder of utilities is not shipped
+# Direwolf, the FM modem of the Sound card type: the program with its ALSA and udev libraries, the
+# ALSA configuration and its two data files; its dev/ folder of utilities is not shipped
 if [ -n "$direwolf" ]; then
     mkdir -p "$app/tools"
     tar -xzf "$direwolf" -C "$app/tools" --exclude='direwolf/dev'
@@ -136,12 +152,14 @@ if [ -n "$direwolf" ]; then
     [ -x "$app/tools/direwolf/direwolf" ] && [ ! -e "$app/tools/direwolf/dev" ]
 fi
 
-# Size: what NeoAPRS does not run is taken out (tests, Tk, documentation, pip, the shared libpython the interpreter does not use, the type stubs, dbm), then the bytecode of everything is made now, because /opt is
-# read-only for the users and a module without it is compiled at every start
+# Size: what NeoAPRS does not run is taken out (tests, Tk, documentation, pip, the shared libpython
+# the interpreter does not use, the type stubs, dbm), then the bytecode of everything is made now,
+# because /opt is read-only for the users and a module without it is compiled at every start
 "$host_python" -I "$ROOT/packaging/appimage/prune.py" --python-only "$app"
 "$host_python" -I -m compileall -q -j 1 --invalidation-mode checked-hash -s "$pkg" "$app/lib/python3.13" >/dev/null
 
-# The documents: the copyright file with the licence, the manual (docs/manual/ and the radio guide), the front page and the changelog
+# The documents: the copyright file with the licence, the manual (docs/manual/ and the radio guide),
+# the front page and the changelog
 doc="$pkg/usr/share/doc/neoaprs"
 mkdir -p "$doc"
 install -m 644 "$ROOT/packaging/deb/copyright" "$doc/copyright"
@@ -169,7 +187,8 @@ chmod 644 "$pkg/DEBIAN/control" "$pkg/DEBIAN/md5sums"
 target="$out/neoaprs_${version}_$arch.deb"
 rm -f "$target"
 "$host_python" -I "$ROOT/scripts/shipped-size" --depth 6 --title "the tree of neoaprs_${version}_$arch.deb" "$pkg"
-# xz at its highest level: the file is unpacked once, by dpkg, and xz -9 needs about 65 MiB for it, which a Pi Zero 2 W has
+# xz at its highest level: the file is unpacked once, by dpkg, and xz -9 needs about 65 MiB for it,
+# which a Pi Zero 2 W has
 dpkg-deb --root-owner-group -Zxz -z9 --build "$pkg" "$target" >/dev/null
 "$host_python" -I "$ROOT/scripts/shipped-size" "$target"
 echo "build-deb: $target ($(du -h "$target" | cut -f1); $(( size / 1024 )) MB installed; Mercury: $(if [ -n "$mercury" ]; then basename "$mercury"; else echo none; fi); Direwolf: $(if [ -n "$direwolf" ]; then basename "$direwolf"; else echo none; fi))"

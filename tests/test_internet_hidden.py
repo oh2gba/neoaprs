@@ -1,5 +1,7 @@
-"""Internet stations off hides the internet and keeps it (neoaprs/web/topics.py, `Station.radio_view`, neoaprs/web/packetwindow.py): while `igate/enabled` is off the pages are shown no station known only from APRS-IS and no packet from it, and a station heard both
-ways has its radio side only (no internet count or time, the position the radio gave); the database keeps everything, and turning the setting on shows it all again without a restart."""
+"""Tests for hiding the internet (neoaprs/web/topics.py, `Station.radio_view`,
+neoaprs/web/packetwindow.py): with `igate/enabled` off the pages show no internet-only station or
+packet, while the database keeps everything.
+"""
 import random
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -20,7 +22,9 @@ NET_AT = b"=6012.34N/02456.78E-by the net"
 
 
 async def start(tmp_path: Path, enabled: bool = True) -> tuple[Env, WsClient]:
-    """A daemon with the internet stations on (a fake APRS-IS server), in which OH2BT was heard on the radio and then from the internet, OH2NET only from the internet and OH2AIR only on the radio; and a page."""
+    """A daemon with the internet stations on (a fake APRS-IS server), in which OH2BT was heard on
+    the radio and then from the internet, OH2NET only from the internet and OH2AIR only on the
+    radio; and a page."""
     server = await fake_aprsis()
     e = Env(tmp_path, web=True, settings={"igate/enabled": str(enabled).lower(), "igate/server": server.address, "igate/password": "19628"})
     await e.start()
@@ -169,7 +173,8 @@ RADIO_FIELDS = ("symbol_table", "symbol_code", "extensions", "storm", "sign", "a
 
 
 def session(seed: int) -> tuple[StationBook, StationBook]:
-    """A book that heard a random run of packets of one station, from the radio and the internet, and one that heard only those of the radio."""
+    """A book that heard a random run of packets of one station, from the radio and the internet,
+    and one that heard only those of the radio."""
     rnd = random.Random(seed)
     everything, radio = StationBook(), StationBook()
     at = T0

@@ -1,8 +1,5 @@
-"""Migration 34 (neoaprs/migrationsteps34.py) for the tests: a database as 0.20.0 and 0.20.1 leave it (version 33: made by every step, then put back by tests/support/migrated.step_back), with the radios,
-the main radio, the ticks, the objects and the bulletins a test gives it, and the rows read back after the step.
-
-    path = version_33(tmp_path / DB_NAME, Old(radios=(fm(1), hf(2)), chosen=2))      # the file, closed: the runner opens it (`opened`), or a test runs the step on it (`connect`, `run`)
-    ticks(db, "status")                                                                # each radio's stored row of a key, by id
+"""Migration 34 (neoaprs/migrationsteps34.py) for the tests: a database at version 33 with the
+radios, ticks, objects and bulletins a test gives it, and the rows read back after the step.
 """
 import sqlite3
 from collections.abc import Mapping
@@ -12,13 +9,15 @@ from pathlib import Path
 from neoaprs.clock import Clock, utcnow
 from tests.support.migrated import opened, step_back
 
-STAMP = "2026-11-16T05:59:00.000000Z"                 # (a minute before the day of tests/test_no_main_radio.py: what was kept is due at its start)
+# A minute before the day of tests/test_no_main_radio.py: what was kept is due at its start
+STAMP = "2026-11-16T05:59:00.000000Z"
 GONE = "2026-11-15T12:00:00.000000Z"
 
 
 @dataclass(frozen=True)
 class Radio:
-    """A radio as 0.20.0 stored it: its row of `radio` and its own settings (`radio_setting`)."""
+    """A radio as the older version stored it: its `radio` row and its own settings
+    (`radio_setting`)."""
     id: int
     kind: str
     type: str
@@ -50,8 +49,9 @@ def monitor(id: int, enabled: bool = True, position: int | None = None) -> Radio
 
 @dataclass(frozen=True)
 class Old:
-    """A station as 0.20.0 or 0.20.1 left it: its radios, the main radio chosen (`station/main_radio`, None for no row), the station's rows (`settings`), our objects (name to their radios, "1,2") and
-    bulletins (slot to text)."""
+    """A station as the older version left it: radios, the main radio chosen (`station/main_radio`,
+    None for no row), the `settings` rows, our objects (name to radios, "1,2") and bulletins (slot
+    to text)."""
     radios: tuple[Radio, ...] = ()
     chosen: int | None = None
     settings: Mapping[str, str] = field(default_factory=dict)

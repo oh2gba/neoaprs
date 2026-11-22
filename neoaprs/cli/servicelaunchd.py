@@ -1,5 +1,7 @@
-"""The service on macOS: a launchd agent of the user, ~/Library/LaunchAgents/eu.oh2gba.neoaprs.plist, started at login and kept running (`launchctl bootstrap` and `bootout` in the user's gui domain).
-An agent that exits with a failure is started again after 30 seconds; a file at that place that is not this agent's is never touched."""
+"""The service on macOS: a per-user launchd agent, ~/Library/LaunchAgents/eu.oh2gba.neoaprs.plist.
+
+It starts at login and restarts after a failure. A plist at that path that is not this agent's
+is never touched."""
 import os
 import plistlib
 import subprocess
@@ -23,7 +25,9 @@ def domain() -> str:
 
 
 def render(plan: Plan) -> bytes:
-    """The agent: this interpreter running `-m neoaprs --data DIR`; its own output (a traceback before the daemon logs anything) goes to launchd.log in the data folder."""
+    """Return the plist running `-m neoaprs --data DIR` with this interpreter.
+
+    Output from before the daemon logs (a traceback) goes to launchd.log in the data folder."""
     return plistlib.dumps({
         "Label": LABEL,
         "ProgramArguments": [plan.python, "-m", "neoaprs", "--data", str(plan.data)],
@@ -54,7 +58,7 @@ def installed(plan: Plan) -> tuple[bool, str]:
 
 def launchctl(*args: str) -> int:
     try:
-        return subprocess.run(["launchctl", *args], check=False).returncode  # noqa: S607  (the system's launchctl, found by the PATH of the terminal the user typed `neoaprs service` in)
+        return subprocess.run(["launchctl", *args], check=False).returncode  # noqa: S607  (the system's launchctl, found on PATH)
     except FileNotFoundError:
         print("launchctl was not found: this is not macOS")
         return -1
@@ -80,7 +84,7 @@ def install(plan: Plan) -> int:
         scratch.write_bytes(content)
         scratch.replace(path)
         print(f"wrote {path} for {plan.python}")
-    launchctl("bootout", f"{domain()}/{LABEL}")               # (an agent that is loaded already is replaced; there is nothing to stop the first time)
+    launchctl("bootout", f"{domain()}/{LABEL}")               # replaces an agent that is already loaded
     if launchctl("bootstrap", domain(), str(path)) != 0:
         print("launchctl did not load the agent; try: launchctl bootstrap " + domain() + " " + path.as_posix())
         return 1

@@ -1,4 +1,6 @@
-"""The message log (neoaprs/messagelog.py, messagesql.py) on a real database thread: what goes in comes out equal, the order, the updates, the highest message id, the care, and the rows the table refuses."""
+"""The message log (neoaprs/messagelog.py, messagesql.py) on a real database thread: what goes in
+comes out equal, the order, updates, the highest id, and the rows the table refuses.
+"""
 import sqlite3
 from dataclasses import replace
 from datetime import timedelta
@@ -58,7 +60,8 @@ async def test_the_state_the_attempts_and_the_times_are_updated(tmp_path: Path) 
     assert log.update_state(changed)
     await settled(log)
     assert await log.recent() == [changed]
-    log.update_state(replace(changed, id=99))                                           # (a message that is not there: the update finds no row, and nothing is raised)
+    # A message that is not there: the update finds no row, and nothing is raised
+    log.update_state(replace(changed, id=99))
     await settled(log)
     assert await log.recent() == [changed]
 

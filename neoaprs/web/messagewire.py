@@ -1,6 +1,8 @@
-"""The messages on the wire: the topic `messages` (a table of rows by id) the commands to send one, send a directed query, send one again and stop sending one, and the test of the alert that tells of one; and
-encrypted messages (neoaprs/cipher.py): the topic `station_keys` (the key each station announced, by call), the commands that send our key to a station, forget a station's key and make a new key of ours. Models like
-the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire models of messages: the topic `messages`, its commands, the alert test and message keys.
+
+Encrypted messages (cipher.py) add the topic `station_keys` and the commands that send our key to a
+station, forget a station's key and make a new key of ours.
+"""
 from typing import Literal, Self
 
 from pydantic import Field, field_validator, model_validator

@@ -1,14 +1,8 @@
-"""A jetvision Radarcape's own list of its aircraft, `aircraftlist.json` (asked with `knownposonly=1`): a JSON array of objects, one for each aircraft, read into the layer's things as readsb.py reads
-readsb's file; `radarcape_url` says where it is asked. No I/O.
+"""A jetvision Radarcape's aircraft list, `aircraftlist.json` (asked with `knownposonly=1`).
 
-The fields, by jetvision's own description (wiki.jetvision.de, Radarcape:Software_Features): `hex` the ICAO address; `fli` the flight; `lat`, `lon`; `lla` the age of the last position in seconds (null when not
-known: then `uti`, seconds since 1970 of the last message, gives the time); `alt` barometric feet; `vrt` the vertical rate in feet a minute; `spd` knots; `trk` the true track; `gda` G (or g, TIS-B) on the ground, A (or a) in the air; `alr` 3 a
-permanent alert (7500, 7600, 7700) and `squ` the squawk; `reg` the registration; `typ` the ICAO type designator; `cat` the emitter category; `org` and `dst` the ICAO codes of the airports of departure and destination (a code is kept when it is four letters
-or digits, upper case; the list does not carry the airports' names). `dis` is km or nautical miles by the device's own setting and is
-not read.
-
-An aircraft on the ground, a vehicle or an obstacle (a `cat` that begins with C), one without a position and one whose position is a day old or older are left out. A field that is null, missing, a string where
-a number is meant or not finite is none; a row that cannot be read is passed over and never loses the others. The array is read one item at a time (readsb.loads)."""
+Read into the layer's things as readsb.py reads readsb's file; fields follow wiki.jetvision.de.
+Ground traffic and rows without a recent position are left out. No I/O.
+"""
 from datetime import datetime, timedelta
 from typing import Any
 from urllib.parse import urlsplit
@@ -19,11 +13,11 @@ from .readsb import ALTITUDE_M_RANGE, EMERGENCY_SQUAWKS, SEEN_MAX_SEC, SPEED_KMH
 from .units import FOOT_M, KNOT_KMH
 
 AIRPORT_CODE_LENGTH = 4
-PERMANENT_ALERT = 3                                          # `alr`: a squawk of 7500, 7600 or 7700
+PERMANENT_ALERT = 3  # `alr`: a squawk of 7500, 7600 or 7700
 
 
 def _airport(value: Any) -> str:
-    """An airport's ICAO code, upper case: four ASCII letters or digits once trimmed; anything else is none (looked at as it came: a letter that only upper-casing would make ASCII is no code)."""
+    """Return an airport's ICAO code in upper case (four ASCII letters or digits); else none."""
     code = value.strip() if isinstance(value, str) else ""
     return code.upper() if len(code) == AIRPORT_CODE_LENGTH and code.isascii() and code.isalnum() else ""
 
@@ -35,7 +29,7 @@ def _squawk(value: Any) -> str:
 
 
 def _at(row: dict[str, Any], received_at: datetime) -> datetime | None:
-    """The time of the position: `lla` seconds before the answer came; without it the time of the last message (`uti`), never after the answer; without either the answer's; None when a day old or older."""
+    """Return the time of the position (`lla` or `uti`, else the answer's); None when a day old."""
     age = number(row.get("lla"))
     if age is None and (sent := number(row.get("uti"))) is not None:
         age = (received_at - from_unix(sent)).total_seconds()
@@ -44,7 +38,7 @@ def _at(row: dict[str, Any], received_at: datetime) -> datetime | None:
 
 
 def _thing(row: Any, received_at: datetime) -> Thing | None:
-    """One aircraft of the list, or None for one that is not shown."""
+    """Return one aircraft of the list, or None for one that is not shown."""
     if not isinstance(row, dict) or not (id := text_of(row.get("hex")).lower()):
         return None
     lat, lon = number(row.get("lat")), number(row.get("lon"))
@@ -65,8 +59,7 @@ def _thing(row: Any, received_at: datetime) -> Thing | None:
 
 
 def read_aircraft(body: bytes, received_at: datetime) -> list[Thing] | None:
-    """The aircraft of a Radarcape's list that are shown, one for each `hex` (the newest position); None for anything that is not a JSON array of objects (an array with items and not one object among them is
-    not the Radarcape's list). The ages are counted from `received_at`, the daemon's own clock."""
+    """Return the shown aircraft, one per `hex` (newest); None if not a JSON array of objects."""
     try:
         listed = loads(body)
     except (ValueError, RecursionError, StopIteration):
@@ -77,7 +70,7 @@ def read_aircraft(body: bytes, received_at: datetime) -> list[Thing] | None:
     for row in listed:
         try:
             thing = _thing(row, received_at)
-        except (OverflowError, ValueError):                 # (a number or a time out of range: that one row is passed over)
+        except (OverflowError, ValueError):  # a number or time out of range: that row is skipped
             continue
         if thing is not None and (thing.id not in kept or kept[thing.id].at < thing.at):
             kept[thing.id] = thing
@@ -85,8 +78,8 @@ def read_aircraft(body: bytes, received_at: datetime) -> list[Thing] | None:
 
 
 def radarcape_url(address: str) -> str | None:
-    """Where a Radarcape's list is asked: a whole http or https address as typed (one that names no place, as `http://192.168.1.160/`, is given the Radarcape's own); a name or address, or `host:port`, with
-    the Radarcape's own place; None for an empty address (not looked for)."""
+    """Return where the list is asked: a whole address as typed, or host[:port] plus the place."""
+
     value = address.strip()
     if not value:
         return None

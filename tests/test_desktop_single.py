@@ -1,4 +1,6 @@
-"""One app to a data folder: the second one finds the lock taken, says `show` (or `quit`) to the first one on the loopback and ends; what is said before the first one has a window is kept until it has."""
+"""One app to a data folder: the second one finds the lock taken, says `show` (or `quit`) to the
+first one on the loopback and ends; what is said before the first one has a window is kept until it
+has."""
 import ctypes
 import os
 import socket
@@ -68,7 +70,8 @@ def test_only_show_and_quit_are_understood(tmp_path: Path) -> None:
 
 def test_a_stale_port_file_is_a_failure_to_say_so_and_not_a_hang(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(single, "FIND_SEC", 0.3)
-    (tmp_path / PORT_NAME).write_text("9\n", encoding="ascii")           # (nothing listens on the port 9 of the loopback)
+    # (nothing listens on the port 9 of the loopback)
+    (tmp_path / PORT_NAME).write_text("9\n", encoding="ascii")
     assert not SingleApp(tmp_path).tell_the_other("show")
     (tmp_path / PORT_NAME).write_text("not a port\n", encoding="ascii")
     assert not SingleApp(tmp_path).tell_the_other("show")
@@ -95,7 +98,8 @@ def _ended_pid() -> int:
     return child.pid
 
 
-# ---- the edges: a lock that cannot be looked at, a handler that fails, a client that says nothing, and the process check of each system
+# ---- the edges: a lock that cannot be looked at, a handler that fails, a client that says nothing,
+# and the process check of each system
 
 def test_a_lock_that_cannot_be_looked_at_is_no_app_running(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     (tmp_path / LOCK_NAME).write_text("")
@@ -146,7 +150,8 @@ def test_a_client_that_says_nothing_does_not_hold_up_the_next_one(tmp_path: Path
     got = threading.Event()
     first.handle(lambda command: (heard.append(command), got.set()))
     port = int((tmp_path / PORT_NAME).read_text(encoding="ascii"))
-    with socket.create_connection(("127.0.0.1", port), timeout=5):          # (connected, and silent until the app gives up on it)
+    # (connected, and silent until the app gives up on it)
+    with socket.create_connection(("127.0.0.1", port), timeout=5):
         assert SingleApp(tmp_path).tell_the_other("quit")
         assert wait(got) and heard == ["quit"]
     first.close()
@@ -154,7 +159,8 @@ def test_a_client_that_says_nothing_does_not_hold_up_the_next_one(tmp_path: Path
 
 def test_a_process_that_may_not_be_signalled_is_alive_all_the_same(monkeypatch: pytest.MonkeyPatch) -> None:
     class PosixOs:
-        """`os` as the module sees it on Linux or macOS, whatever this system is (on Windows the module asks for the process object and sends no signal), with a kill that is refused."""
+        """`os` as the module sees it on Linux or macOS, whatever this system is (on Windows the
+        module asks for the process object and sends no signal), with a kill that is refused."""
 
         name = "posix"
 
@@ -179,7 +185,8 @@ class FakeOs:
 
 
 class FakeKernel32:
-    """The three calls of the Windows API that the check makes, for the processes that are running."""
+    """The three calls of the Windows API that the check makes, for the processes that are running.
+    """
 
     def __init__(self, running: set[int]) -> None:
         self.running = running

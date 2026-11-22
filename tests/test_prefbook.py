@@ -1,5 +1,7 @@
-"""The preferences of the stations (neoaprs/services/prefbook.py) on a real message log and database thread: a path for each station, and RF only, either of them, written through, read again by the
-next start, the checks, and what is told; and the path by radio: what a station is given is the path set on the radio the frame goes out on, a call that names no radio means radio 1."""
+"""The station preferences (neoaprs/services/prefbook.py) on a real message log and database thread:
+a path and RF only per station, written through and read again at the next start, the checks, and
+the path by radio.
+"""
 import asyncio
 from collections.abc import Callable
 from dataclasses import replace
@@ -81,7 +83,9 @@ async def test_a_station_has_the_beacon_path_until_it_is_given_one_of_its_own(ri
 
 
 async def test_radio_1_of_any_kind_goes_by_the_path_its_kind_recommends_while_it_has_none_of_its_own(rig: Rig) -> None:
-    """A new installation's radio 1 may be of any kind: a LoRa board added first goes by LoRa's WIDE1-1 as a LoRa radio of any other id does, an FM radio 1 by the station's symbol's, as always."""
+    """A new installation's radio 1 may be of any kind: a LoRa board added first goes by LoRa's
+    WIDE1-1 as a LoRa radio of any other id does, an FM radio 1 by the station's symbol's, as
+    always."""
     rig.config = replace(rig.config, radios=(RadioSpec(FM_ID, "lora", "lora-tcp", "", True, 1), RadioSpec(3, "lora", "lora-tcp", "", True, 2)))
     assert rig.config.path_calls(FM_ID) == rig.config.path_calls(3) == ("WIDE1-1",) and rig.book.path_for("OH2RDG") == rig.book.path_for("OH2RDG", radio_id=3) == ("WIDE1-1",)
     rig.config = replace(rig.config, radios=(RadioSpec(FM_ID, "fm", "kiss", "", True, 1),))
@@ -143,7 +147,8 @@ async def test_clearing_one_part_keeps_the_other_and_clearing_the_last_removes_t
 
 async def test_what_is_told_is_each_set_and_each_clearing_that_changed_something(rig: Rig) -> None:
     await rig.book.set_path("OH2RDG", "WIDE2-1")
-    await rig.book.set_path("OH2RDG", "WIDE2-1")                      # (set again: told again, the page is waiting for the answer)
+    # Set again: told again, the page is waiting for the answer
+    await rig.book.set_path("OH2RDG", "WIDE2-1")
     await rig.book.set_rf_only("OH2RDG", True)
     await rig.book.set_rf_only("OH2RDG", False)
     await rig.book.set_rf_only("OH2RDG", False)                       # (nothing to clear: not told)
@@ -256,14 +261,15 @@ async def test_a_station_without_a_path_gets_the_recommended_path_of_the_symbol_
     assert rig.book.path_for("OH2RDG") == ("WIDE2-1",), "a path that was set stays"
 
 
-# ---- the path by radio ---------------------------------------------------------------------------------------------------------------------------------------
+# ---- the path by radio ---------------------------------------------------------------------------
 
 SECOND_FM = 3                                  # a second FM radio, which carries a path of its own
 UNKNOWN = 9                                    # a radio the settings do not have
 
 
 class Paths:
-    """A `PathLog` in memory, as the table station_path will be reached: what it keeps, and whether it says a write was kept."""
+    """A `PathLog` in memory, as the table station_path will be reached: what it keeps, and whether
+    it says a write was kept."""
 
     def __init__(self, rows: dict[tuple[str, int], str] | None = None, open: bool = True) -> None:
         self.rows = dict(rows or {})
@@ -287,7 +293,9 @@ class Paths:
 
 
 def three_radios(config: Config, path: str = "WIDE2-1") -> Config:
-    """The settings with radios 1 and 2 as they are and a second FM radio, radio 3, whose own path is `path` (the stored radios of any number: a radio 3 already there is replaced, never added twice)."""
+    """The settings with radios 1 and 2 as they are and a second FM radio, radio 3, whose own path
+    is `path` (the stored radios of any number: a radio 3 already there is replaced, never added
+    twice)."""
     return replace(config, radios=(*(spec for spec in config.radios if spec.id != SECOND_FM), RadioSpec(SECOND_FM, "fm", "kiss", "", True, 3, settings={"path": path})))
 
 
@@ -303,7 +311,8 @@ class RadioRig(Rig):
 
 
 def test_the_second_fm_radio_is_replaced_in_settings_that_already_have_it() -> None:
-    """D1a's settings carry their radios into a copy (`replace`): the helper must not add radio 3 twice, or `config.radio(3)` would be the first of two."""
+    """D1a's settings carry their radios into a copy (`replace`): the helper must not add radio 3
+    twice, or `config.radio(3)` would be the first of two."""
     made = three_radios(three_radios(replace(ON_AIR), path="WIDE1-1"), path="WIDE2-2")
     assert [spec.id for spec in made.radios].count(SECOND_FM) == 1 and made.radio(SECOND_FM) is not None and made.radio(SECOND_FM).value("path") == "WIDE2-2"  # type: ignore[union-attr]
 
@@ -372,8 +381,10 @@ async def test_the_paths_of_the_other_radios_are_kept_through_the_path_log_and_r
     assert r.book.paths(SECOND_FM) == {"OH2OLD": ("OH2RCH-2", "WIDE2-1"), "OH2DIR": ()} and r.book.paths() == {}, "radio 1's path is the entry's own, which the message log gives"
     await r.book.set_path("oh2rdg", "oh2rds , wide2-1", SECOND_FM)
     await r.book.clear_path("OH2OLD", SECOND_FM)
-    await r.book.set_path("OH2DIR", "", SECOND_FM)                            # (an empty path takes it away, as on radio 1)
-    await r.book.clear_path("OH2GONE", SECOND_FM)                             # (none to clear: no error, nothing written)
+    # An empty path takes it away, as on radio 1
+    await r.book.set_path("OH2DIR", "", SECOND_FM)
+    # None to clear: no error, nothing written
+    await r.book.clear_path("OH2GONE", SECOND_FM)
     assert paths.rows == {("OH2OLD", FM_ID): "IGNORED", ("OH2RDG", SECOND_FM): "OH2RDS,WIDE2-1"}
     assert r.paths_told == [("OH2RDG", SECOND_FM), ("OH2OLD", SECOND_FM), ("OH2DIR", SECOND_FM)], "each path that changed is told once, with its radio; clearing none tells nothing"
     again = RadioRig(rig.log, paths)
@@ -423,7 +434,8 @@ async def test_a_path_set_cleared_or_changed_on_radio_1_is_told_with_its_radio_t
 
 
 class ForgetsAll:
-    """D2's message log as it forgets a station (`delete_pref`): the row of station_pref and the station's path on every radio."""
+    """D2's message log as it forgets a station (`delete_pref`): the row of station_pref and the
+    station's path on every radio."""
 
     def __init__(self, log: MessageLog, paths: Paths) -> None:
         self.forget, self.paths = log.forget_pref, paths
@@ -435,7 +447,9 @@ class ForgetsAll:
 
 @pytest.mark.parametrize("forgets_all", [True, False])
 async def test_clearing_the_last_part_of_an_entry_keeps_the_paths_on_the_other_radios(rig: Rig, monkeypatch: pytest.MonkeyPatch, forgets_all: bool) -> None:
-    """Whether the message log forgets the station's other paths with its entry (D2's first meaning) or not, they stay, held and kept, and the next start has them; the ones that survived are not written again."""
+    """Whether the message log forgets the station's other paths with its entry (D2's first meaning)
+    or not, they stay, held and kept, and the next start has them; the ones that survived are not
+    written again."""
     paths = Paths()
     r = RadioRig(rig.log, paths)
     await r.book.set_path("OH2RDG", "OH2RDS", SECOND_FM)

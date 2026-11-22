@@ -1,8 +1,8 @@
-"""The repository keeps house: every script says what it is for, every document is in the index, the systemd folder, the scripts and the documents are listed where a reader looks for them,
-the changelog has its section for what is not released yet.
+"""Tests for repository housekeeping: every script says what it is for, every document is indexed,
+the systemd folder, scripts and documents are listed, and the changelog has its Unreleased section.
 
-These tests read files and run `--help` of the scripts; nothing here touches a database, a service or the network. What git lists is read where git is; where it is not, the tests that need it are
-skipped one by one and the module is still collected (it never skips itself at its import)."""
+The tests read files and run `--help` of the scripts; nothing touches a database, a service or the
+network. Tests that need git are skipped one by one where git is missing."""
 import os
 import re
 import shutil
@@ -14,7 +14,8 @@ from pathlib import Path
 import pytest
 from tests.support.ptyline import posix_only
 
-pytestmark = posix_only      # (the repository's scripts, units and documents: a development check, not the product)
+# (the repository's scripts, units and documents: a development check, not the product)
+pytestmark = posix_only
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -40,7 +41,9 @@ def tracked(prefix: str = "") -> list[str]:
 
 
 def test_without_git_the_module_is_collected_and_only_the_tests_that_need_git_are_skipped(tmp_path: Path) -> None:
-    """pytest run on this module where `git` is on no path (PATH is an empty folder): every test is collected and the module is not skipped at its import (plan §9 of the radio round)."""
+    """pytest run on this module where `git` is on no path (PATH is an empty folder): every test is
+    collected and the module is not skipped at its import.
+    """
     nowhere = tmp_path / "no-programs"
     nowhere.mkdir()
     env = {"PATH": str(nowhere), "HOME": os.environ.get("HOME", str(tmp_path)), "TMPDIR": tempfile.gettempdir(), "NEOAPRS_NO_DEVICES": "1", "NEOAPRS_UPDATE_CHECK": "0", "LC_ALL": "C.UTF-8"}
@@ -49,7 +52,8 @@ def test_without_git_the_module_is_collected_and_only_the_tests_that_need_git_ar
     assert done.returncode == 0, (done.stdout + done.stderr)[-1500:]
     collected = re.findall(r"(?:::|<Function )(test_\w+)", done.stdout)
     assert {"test_the_changelog_has_its_unreleased_section_first_and_no_commit_hashes", "test_nothing_that_is_tracked_is_also_ignored", "test_the_index_lists_every_document"} <= set(collected), done.stdout[-800:]
-    assert re.fullmatch(r"\d+ tests collected in [\d.]+s", done.stdout.strip().splitlines()[-1]), done.stdout[-800:]       # (and no line of a module skipped, or of an error)
+    # (and no line of a module skipped, or of an error)
+    assert re.fullmatch(r"\d+ tests collected in [\d.]+s", done.stdout.strip().splitlines()[-1]), done.stdout[-800:]
 
 
 # ---- the scripts: a header that says what a script is for, and --help ----
@@ -64,11 +68,14 @@ def runnable_scripts(files: list[str] | None = None) -> list[Path]:
     return [p for p in script_files(files) if p.read_text(encoding="utf-8").startswith("#!")]
 
 
-SCRIPTS = runnable_scripts(listed("scripts") or [])         # (what the parametrized tests are made of when the module is collected: none where there is no git, and those tests are then skipped)
+# (what the parametrized tests are made of when the module is collected: none where there is no git,
+# and those tests are then skipped)
+SCRIPTS = runnable_scripts(listed("scripts") or [])
 
 
 def header_of(path: Path) -> str:
-    """The comment (or docstring) that follows the shebang, as text; empty when the file goes on with code."""
+    """The comment (or docstring) that follows the shebang, as text; empty when the file goes on
+    with code."""
     lines = path.read_text(encoding="utf-8").splitlines()[1:]
     if lines and lines[0].startswith('"""'):
         return "\n".join(lines).split('"""')[1].strip()
@@ -96,7 +103,8 @@ def test_every_library_of_the_scripts_has_a_docstring() -> None:
 
 
 def run_help(path: Path, tmp_path: Path) -> subprocess.CompletedProcess[str]:
-    """`--help` in an empty folder with a HOME of its own: a script that does not know the flag must not be able to reach the user's files or services."""
+    """`--help` in an empty folder with a HOME of its own: a script that does not know the flag must
+    not be able to reach the user's files or services."""
     home = tmp_path / "home"
     home.mkdir(exist_ok=True)
     env = {"PATH": os.environ["PATH"], "HOME": str(home), "NEOAPRS_PYTHON": sys.executable, "NEOAPRS_DATA_DIR": str(tmp_path / "data"), "LC_ALL": "C.UTF-8", "PYTHONPATH": str(ROOT), "NEOAPRS_SERIAL_PATTERN": os.environ["NEOAPRS_SERIAL_PATTERN"], "NEOAPRS_UPDATE_CHECK": "0"}
@@ -156,10 +164,12 @@ def test_every_document_a_document_names_is_there() -> None:
     assert not gone, f"documents name files that are not there: {gone}"
 
 
-# ---- the scripts and the units: one line for each, in the development guide and the README of the systemd folder ----
+# the scripts and the units: one line for each, in the development guide and the README of the
+# systemd folder
 
 def table_rows(text: str, heading: str) -> list[str]:
-    """The table rows (`| ... |`) between a heading line that starts with `heading` and the next heading."""
+    """The table rows (`| ... |`) between a heading line that starts with `heading` and the next
+    heading."""
     section = re.split(r"^#+ ", text.split(f"\n{heading}", 1)[1], maxsplit=1, flags=re.M)[0] if f"\n{heading}" in text else ""
     return [line for line in section.splitlines() if line.startswith("| `")]
 
@@ -178,7 +188,8 @@ def test_every_script_has_a_line_in_the_table_of_scripts_in_the_development_guid
 def test_every_unit_has_a_line_in_the_readme_of_the_systemd_folder() -> None:
     units = {p for p in tracked() if p.endswith(".service")}
     assert units
-    rows = [line for line in (ROOT / "systemd" / "README.md").read_text(encoding="utf-8").splitlines() if line.startswith("| `")]       # the one table of that file
+    # the one table of that file
+    rows = [line for line in (ROOT / "systemd" / "README.md").read_text(encoding="utf-8").splitlines() if line.startswith("| `")]
     named = {re.match(r"\| `([^`]+)`", row).group(1): row for row in rows}  # type: ignore[union-attr]
     assert not units - set(named), f"systemd/README.md has no line for: {sorted(units - set(named))}"
     assert not set(named) - units, f"systemd/README.md names units that are gone: {sorted(set(named) - units)}"
@@ -211,9 +222,12 @@ def ignored(path: str) -> bool:
 
 @needs_git
 @pytest.mark.parametrize("path", [
-    "data/neoaprs.sqlite", "data/backup/premigrate-v1-to-v2.sqlite", "neoaprs.sqlite", "copy.sqlite-wal", "key.pem", "tls.key", ".env",                                # the data, and anything that holds a secret
-    "data/basemap.pmtiles", "basemap.pmtiles.part", "neoaprs/maps/other.pmtiles",                                                                                                        # the base map
-    ".venv/bin/python", ".venv-20261011T124153820Z-orig/bin/python", "ui/node_modules/vue/index.js", "ui/dist/index.html", "ui/dist.prev-1/index.html",     # environments and builds
+    # the data, and anything that holds a secret
+    "data/neoaprs.sqlite", "data/backup/premigrate-v1-to-v2.sqlite", "neoaprs.sqlite", "copy.sqlite-wal", "key.pem", "tls.key", ".env",
+    # the base map
+    "data/basemap.pmtiles", "basemap.pmtiles.part", "neoaprs/maps/other.pmtiles",
+    # environments and builds
+    ".venv/bin/python", ".venv-20261011T124153820Z-orig/bin/python", "ui/node_modules/vue/index.js", "ui/dist/index.html", "ui/dist.prev-1/index.html",
     "neoaprs/__pycache__/x.pyc", "scripts/__pycache__/x.pyc", ".pytest_cache/x", ".mypy_cache/x", ".ruff_cache/x", ".hypothesis/x", ".coverage", "test-results/x",
 ])
 def test_gitignore_keeps_out_the_data_the_environments_and_the_caches(path: str) -> None:
@@ -233,7 +247,9 @@ def test_nothing_that_is_tracked_is_also_ignored() -> None:
 
 
 def test_the_issue_forms_are_two_short_ones_and_a_contact_link_to_the_address_the_page_names() -> None:
-    """How people give feedback is said the same everywhere: the page's button first, then GitHub issues or the address (README, the project page, the manual); the forms ask a few things only."""
+    """How people give feedback is said the same everywhere: the page's button first, then GitHub
+    issues or the address (README, the project page, the manual); the forms ask a few things only.
+    """
     folder = ROOT / "docs" / ".." / ".github" / "ISSUE_TEMPLATE"
     assert sorted(p.name for p in folder.iterdir()) == ["bug.yml", "config.yml", "idea.yml"]
     for name in ("bug.yml", "idea.yml"):

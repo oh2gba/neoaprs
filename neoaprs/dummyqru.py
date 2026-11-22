@@ -1,7 +1,8 @@
-"""The Dummy radio's QRU server (dummyscene.py): the made-up club station Q1CLB answers a request to QRU, so that asking for local info can be tried without a radio. It serves two groups round the station, RP70
-(a repeater) and FOOD (a cafe), as a QRU server does (neoaprs/services/qru.py): `INFO` is answered with the list of the groups, a group with its objects one after the other and the line that says how many went. It has
-no ack for a request, which is a broadcast, and its messages carry no id. It says itself and its objects as the club of the seed 1 does: a world of another seed gives the names of its objects (`named`) and
-renames the club. Everything is made up and goes nowhere: the traffic of the Dummy radio is never gated."""
+"""The Dummy radio's QRU server (dummyscene.py): the made-up club Q1CLB answers QRU requests.
+
+It serves two groups round the station, RP70 (a repeater) and FOOD (a cafe), so asking for local
+info can be tried without a radio. A request is a broadcast and gets no ack.
+"""
 import re
 from collections.abc import Callable
 from datetime import datetime
@@ -12,17 +13,22 @@ from .dummyframes import air, message, object_report
 
 SERVER = "Q1CLB"
 RANGE_KM = 50
-GROUPS: dict[str, list[tuple[str, str, str, float, float]]] = {         # each group: its objects (name, symbol, comment, km east, km north of the centre)
+# each group: its objects (name, symbol, comment, km east, km north of the centre)
+GROUPS: dict[str, list[tuple[str, str, str, float, float]]] = {
     "RP70": [("Q1RPT", "/r", "438.925MHz T088 -760", 3.2, 6.1)],
     "FOOD": [("CAFE", "/h", "Cafe, open 8-16 on weekdays", -0.6, 0.9), ("KIOSK", "/h", "Kiosk by the lake", 4.9, -3.0)],
 }
-FIRST_SEC, STEP_SEC = 2.5, 1.2                 # the first frame of an answer comes this long after the request, the others each this long after the one before
+# the first frame of an answer comes this long after the request, the others this long after the
+# previous
+FIRST_SEC, STEP_SEC = 2.5, 1.2
 _REQUEST = re.compile(r"\??([A-Z0-9]{1,8})(?: \d{1,5})?")
 
 
 def answer(text: str, us: str, now: datetime, where: Callable[[float, float], tuple[float, float]], named: Callable[[str], str] = str) -> list[tuple[float, ax25.Frame]]:
-    """The frames the server answers the request `text` of the station `us` with, each with the seconds after the request it comes; none for a text that is no request or a group it does not serve. `where`
-    is the place that far east and north in the world, `named` the name an object has in it."""
+    """Return the frames answering the request `text` of the station `us`, each with its delay.
+
+    None for text that is no request or a group not served.
+    """
     found = _REQUEST.fullmatch(" ".join(text.upper().split()))
     if found is None:
         return []

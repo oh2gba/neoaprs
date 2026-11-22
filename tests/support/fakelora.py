@@ -1,23 +1,7 @@
-"""A LoRa APRS board as its firmware speaks to the computer, for the tests of the LoRa types (aprs-reference/lora-plan.md section 4, step L1): the bytes are the firmwares' own, ported from their C++
-(kept under work/par/studies/lora/src/), not made by our encoder, so that a test with our code on one end cannot hide a mismatch.
-
-    board = Board("igate")                 # the CA2RXU LoRa APRS iGate (commit 1591d9f7): KISS on its TNC server, or TNC2 lines (kiss=False), its list of heard packets
-    Board("tracker")                       # the CA2RXU LoRa APRS Tracker (commit 5bb2adce), classic Bluetooth: TNC2 lines until a client writes a KISS frame, then KISS
-    Board("tracker-ble")                   # the same over Bluetooth LE: KISS on the aprs.fi service in notifications of up to 512 bytes, its input a buffer of 1024 cut at FEND; or TNC2 on its Nordic UART
-                                           # (kiss=False), a byte per notification, and every write keyed as a packet
-    Board("dl9sau")                        # DL9SAU's T-Beam tracker (master 5defe5d): KISS, an element with the SNR and the RSSI appended to the path (encode_snr_rssi_in_path, its own); the KISS
-                                           # around it is CA2RXU's encodeKISS, a port from another firmware: DL9SAU's own KISS encoder is not among the kept sources
-    Board("esp32")                         # esp32_loraprs (commit 0207ddf8): KISS, the AX.25 air form, KISS command 7 after each frame; or text mode (kiss=False), bare TNC2 lines
-    Board("console")                       # the CA2RXU iGate on USB with its TNC off: the log line of each packet heard, with its signal; it reads nothing
-
-    board.air(b"OH2ABC-7>APLRT1,WIDE1-1:!6010.00N/02456.00E>", rssi=-97, snr=6.25)    # a station heard on LoRa: what the board writes to its client
-    board.internet(b"OH2XYZ>APRS,TCPIP*,qAC,T2FINLAND:>hi")                            # the iGate's APRS bridge hands on a line of APRS-IS
-    board.battery(4.1)                     # esp32_loraprs's KISS command 9
-    board.log("New TNC client connected")  # a line of the board's log
-    board.transmitted                      # what the board keyed: the LoRa packet with its header (or the AX.25 bytes of esp32_loraprs's air form)
-
-The ends: `BoardOnTcp(board)` is the board behind a TCP server on the loopback (the iGate's port 8001, or a serial line as `socket://`); `board_on_ble(monkeypatch, board)` behind `FakeBle`;
-`ListServer(board)` is its web server, which answers `GET /received-packets.json` as the iGate does (or refuses, 401, 404, no JSON, no answer)."""
+"""A LoRa APRS board as its firmware speaks to the computer, for the tests of the LoRa types.
+The bytes are the firmwares' own, not made by our encoder, so a test with our code on one end cannot
+hide a mismatch.
+"""
 import asyncio
 import json
 import struct
@@ -32,18 +16,21 @@ from tests.support.fakeradio import FakeRadio
 from tests.support.loopbackserver import LoopbackServer
 
 HEADER = b"\x3c\xff\x01"
-MAX_KISS_BUFFER = 1024                 # tracker-ble_utils.cpp: the Tracker's KISS input over Bluetooth LE
+# tracker-ble_utils.cpp: the Tracker's KISS input over Bluetooth LE
+MAX_KISS_BUFFER = 1024
 FEND, FESC, TFEND, TFESC = 0xC0, 0xDB, 0xDC, 0xDD
 HAS_BEEN_DIGIPITED, IS_LAST = 0b10000000, 0b1
 MOBILINKD = "00000001-ba2a-46c9-ae49-01b0961f68bb"
 TRACKER_KISS: Services = {MOBILINKD: [("00000002-ba2a-46c9-ae49-01b0961f68bb", ["write", "write-without-response"]), ("00000003-ba2a-46c9-ae49-01b0961f68bb", ["read", "notify"])]}
-TRACKER_UART: Services = {NUS: [(NUS_WRITE, ["read", "notify"]), (NUS_NOTIFY, ["write", "write-without-response"])]}      # (tracker-ble_utils.cpp 37-39: TX is 6E400002, RX 6E400003, the other way round of Nordic's)
+# tracker-ble_utils.cpp 37-39: TX is 6E400002, RX 6E400003, the other way round of Nordic's
+TRACKER_UART: Services = {NUS: [(NUS_WRITE, ["read", "notify"]), (NUS_NOTIFY, ["write", "write-without-response"])]}
 
 
 # ---- CA2RXU's kiss_utils.cpp (the iGate's and the Tracker's are the same functions)
 
 def encode_address(address: bytes) -> bytes:
-    """encodeAddressAX25: six characters shifted, the call cut to six without a word, the SSID after "-" by toInt (a trailing "*" read along), the star as the H bit."""
+    """encodeAddressAX25: six characters shifted, the call cut to six without a word, the SSID after
+    "-" by toInt (a trailing "*" read along), the star as the H bit."""
     digipeated = b"*" in address
     if b"-" not in address:
         if digipeated:
@@ -64,7 +51,8 @@ def encapsulate(ax25_frame: bytes, cmd: int = 0) -> bytes:
 
 
 def encode_kiss(text: bytes) -> bytes:
-    """encodeKISS: the TNC2 text as an AX.25 frame in a KISS data frame (the destination written first, the last address marked, control 0x03, PID 0xF0, the information as it is)."""
+    """encodeKISS: the TNC2 text as an AX.25 frame in a KISS data frame (the destination written
+    first, the last address marked, control 0x03, PID 0xF0, the information as it is)."""
     frame = b""
     if b":" in text and b">" in text:
         colon = text.index(b":")
@@ -102,7 +90,8 @@ def decapsulate(frame: bytes) -> bytes:
 
 
 def decode_kiss(frame: bytes) -> tuple[bool, bytes]:
-    """decodeKISS: whether it is a data frame, and the TNC2 text of it (the frame as it is for any other command)."""
+    """decodeKISS: whether it is a data frame, and the TNC2 text of it (the frame as it is for any
+    other command)."""
     if not (frame[:1] == bytes([FEND]) and frame[-1:] == bytes([FEND])):
         return False, b""
     if frame[1] != 0:
@@ -119,7 +108,8 @@ def decode_kiss(frame: bytes) -> tuple[bool, bytes]:
 
 
 def sanitize(text: bytes) -> str:
-    """lora_utils.cpp sanitizeForWeb: every byte below 32 and 127 a "." (the JSON library writes the rest as it is)."""
+    """lora_utils.cpp sanitizeForWeb: every byte below 32 and 127 a "." (the JSON library writes the
+    rest as it is)."""
     return bytes(0x2E if c < 32 or c == 127 else c for c in text).decode("utf-8", "replace")
 
 
@@ -136,16 +126,20 @@ def q_element(snr: int, rssi: int) -> bytes:
 class Board:
     def __init__(self, firmware: str, *, kiss: bool = True, call: bytes = b"OH2LRG-10", tx_active: bool = True, accept_own: bool = False) -> None:
         self.firmware, self.kiss, self.call, self.tx_active, self.accept_own = firmware, kiss and firmware != "tracker", call, tx_active, accept_own
-        self.out: Callable[[bytes], None] = lambda data: None        # what the board writes to its client (set by the end it sits behind)
+        # What the board writes to its client (set by the end it sits behind)
+        self.out: Callable[[bytes], None] = lambda data: None
         self.transmitted: list[bytes] = []                             # what it keyed on LoRa
         self.writes: list[bytes] = []                                  # every buffer a client wrote, as it came
-        self.received: list[dict[str, object]] = []                    # the iGate's list of heard packets, the last 10 (web_utils.cpp 160-176)
+        # The iGate's list of heard packets, the last 10 (web_utils.cpp 160-176)
+        self.received: list[dict[str, object]] = []
         self._input = b""
-        self._heard = 0                                                # the packets heard, for the time of each in the list
+        # The packets heard, for the time of each in the list
+        self._heard = 0
 
     # ---- the air and the internet
     def air(self, text: bytes, rssi: int = -97, snr: float = 6.25) -> None:
-        """A station heard on LoRa, its packet `HEADER + text`; what the board does with it toward its client."""
+        """A station heard on LoRa, its packet `HEADER + text`; what the board does with it toward
+        its client."""
         packet = HEADER + text
         if self.firmware in ("igate", "console"):
             self._heard += 1
@@ -158,18 +152,22 @@ class Board:
         if self.firmware == "esp32":
             if not self.kiss:
                 return self.out(text + b"\n")
-            frame = ax25.encode(frame_of(text))                                                # (its air form is AX.25: the sending station's bytes, made by our encoder as any station's)
+            # Its air form is AX.25: the sending station's bytes, made by our encoder as any
+            # station's
+            frame = ax25.encode(frame_of(text))
             return self.out(encapsulate(frame) + encapsulate(struct.pack(">hh", rssi, int(snr * 100)), 7))
         self._to_client(text)
 
     def internet(self, text: bytes) -> None:
-        """aprs_is_utils.cpp 349-351: with the APRS bridge on, a line of APRS-IS to the clients, as it came (no header to strip)."""
+        """aprs_is_utils.cpp 349-351: with the APRS bridge on, a line of APRS-IS to the clients, as
+        it came (no header to strip)."""
         self._to_client(text)
 
     def _to_client(self, text: bytes) -> None:
         if self.firmware == "tracker-ble" and not self.kiss:
             for c in text:
-                self.out(bytes([c]))                                                            # (a byte per notification, then the line end: ble_utils.cpp)
+                # A byte per notification, then the line end: ble_utils.cpp
+                self.out(bytes([c]))
             return self.out(b"\n")
         self.out(encode_kiss(text) if self.kiss else text + b"\r\n")
 
@@ -184,14 +182,16 @@ class Board:
         return json.dumps(self.received).encode()
 
     def restart(self, *, kiss: bool) -> None:
-        """The board restarts with its TNC set to KISS or to TNC2 (its configuration saved on its page): what its input held is gone."""
+        """The board restarts with its TNC set to KISS or to TNC2 (its configuration saved on its
+        page): what its input held is gone."""
         self.kiss, self._input = kiss, b""
 
     # ---- what a client writes
     def hear(self, data: bytes) -> None:
         self.writes.append(data)
         if self.firmware == "console":
-            return                                                                             # (the log is no TNC: enableSerial is off, the line is not read)
+            # The log is no TNC: enableSerial is off, the line is not read
+            return
         if self.firmware == "tracker":
             return self._tracker_buffer(data)
         if self.firmware == "esp32":
@@ -205,7 +205,8 @@ class Board:
             self._kiss_char(c) if self.kiss else self._tnc2_char(c)
 
     def _kiss_char(self, c: int) -> None:
-        """tnc_utils.cpp handleInputDataKISS: a buffer that begins with FEND, read at each FEND past three bytes, cleared past 255."""
+        """tnc_utils.cpp handleInputDataKISS: a buffer that begins with FEND, read at each FEND past
+        three bytes, cleared past 255."""
         if not self._input and c != FEND:
             return
         self._input += bytes([c])
@@ -230,7 +231,9 @@ class Board:
             self._input = b""
 
     def _tracker_buffer(self, data: bytes) -> None:
-        """bluetooth_utils.cpp 103-137: a buffer that begins and ends with FEND is KISS (and the answers turn to KISS), any other buffer turns them back to TNC2; it is sent when its text is TNC2."""
+        """bluetooth_utils.cpp 103-137: a buffer that begins and ends with FEND is KISS (and the
+        answers turn to KISS), any other buffer turns them back to TNC2; it is sent when its text is
+        TNC2."""
         text = data
         if data[:1] == bytes([FEND]) and data[-1:] == bytes([FEND]):
             _, text = decode_kiss(data)
@@ -241,12 +244,16 @@ class Board:
             self.transmitted.append(HEADER + text)
 
     def _ble_tnc2(self, data: bytes) -> None:
-        """tracker-ble_utils.cpp onWrite, TNC2: every write is the packet, whatever it holds, and sendNewPacket keys it with the header (RadioLib's transmit of a String ends it at a NUL)."""
+        """tracker-ble_utils.cpp onWrite, TNC2: every write is the packet, whatever it holds, and
+        sendNewPacket keys it with the header (RadioLib's transmit of a String ends it at a NUL)."""
         self.transmitted.append(HEADER + data.split(b"\x00", 1)[0])
 
     def _ble_kiss(self, data: bytes) -> None:
-        """tracker-ble_utils.cpp onWrite, KISS: the write is added to a buffer that is cleared past 1024 bytes; up to ten frames are cut from it at FEND (bytes before a FEND thrown away), each of four bytes
-        or more decoded into BLEToLoRaPacket (a command frame too, as itself), and once a data frame came, what BLEToLoRaPacket holds last is keyed (sendToLoRa sends one packet)."""
+        """tracker-ble_utils.cpp onWrite, KISS: the write is added to a buffer that is cleared past
+        1024 bytes; up to ten frames are cut from it at FEND (bytes before a FEND thrown away), each
+        of four bytes or more decoded into BLEToLoRaPacket (a command frame too, as itself), and
+        once a data frame came, what BLEToLoRaPacket holds last is keyed (sendToLoRa sends one
+        packet)."""
         self._input += data
         if len(self._input) > MAX_KISS_BUFFER:
             self._input = b""
@@ -272,13 +279,15 @@ class Board:
             self.transmitted.append(HEADER + packet.split(b"\x00", 1)[0])
 
     def _take(self, text: bytes) -> None:
-        """processInputFrame: a frame from the board's own call is dropped unless acceptOwn; it is keyed only with txActive."""
+        """processInputFrame: a frame from the board's own call is dropped unless acceptOwn; it is
+        keyed only with txActive."""
         if (self.accept_own or text.split(b">", 1)[0] != self.call) and self.tx_active:
             self.transmitted.append(HEADER + text)
 
 
 class BoardOnTcp(FakeRadio):
-    """The board behind a TCP server on the loopback: the iGate's TNC server, or a serial line written as `socket://`."""
+    """The board behind a TCP server on the loopback: the iGate's TNC server, or a serial line
+    written as `socket://`."""
 
     def __init__(self, board: Board) -> None:
         super().__init__()
@@ -291,7 +300,8 @@ class BoardOnTcp(FakeRadio):
 
 
 def board_on_ble(monkeypatch: pytest.MonkeyPatch, board: Board) -> FakeBle:
-    """The Tracker behind Bluetooth LE: its KISS service, or its Nordic UART with the roles swapped; what it notifies in pieces of at most 512 bytes; each write of the link is a buffer it reads."""
+    """The Tracker behind Bluetooth LE: its KISS service, or its Nordic UART with the roles swapped;
+    what it notifies in pieces of at most 512 bytes; each write of the link is a buffer it reads."""
     ble = FakeBle(monkeypatch, TRACKER_KISS if board.kiss else TRACKER_UART, chunk=512)
 
     def notify(data: bytes) -> None:
@@ -310,7 +320,8 @@ def board_on_ble(monkeypatch: pytest.MonkeyPatch, board: Board) -> FakeBle:
 
 
 class ListServer(LoopbackServer):
-    """The iGate's web server: `GET /received-packets.json` answers the board's list; `answer` "list", "401", "404", "junk" or "hang"; `requests` counts what was asked, by path."""
+    """The iGate's web server: `GET /received-packets.json` answers the board's list; `answer`
+    "list", "401", "404", "junk" or "hang"; `requests` counts what was asked, by path."""
 
     def __init__(self, board: Board) -> None:
         self.board, self.answer = board, "list"

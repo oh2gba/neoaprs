@@ -1,11 +1,7 @@
-"""The Mercury HF modem as a part of the daemon (neoaprs/mercurymodem.py, mercuryhelper.py, mercurycontrol.py) on the program that stands in for Mercury (tests/support/fakemercury.py, run as the binary) and on a station of the
-fake air: the program found, given free ports and the configuration, started, read, started again when it dies, stopped with nothing left behind; a program that is not installed, that cannot be started, whose ports are taken;
-the control port's `PTT ON/OFF`, `BUSY ON/OFF` and `SN` as the hold the Tnc asks about and the words of the status line; and the Tnc on a Mercury station: the frame cap as the last guard, the hold while a frame is on the
-air, the modem's problem as the radio's.
-
-Every modem here is a radio's, as its driver makes it (`fakemercury.of_radio`): with the station's table of resources, in the radio's own folder (`Mercury.home`), holding its sound card, its keying line and its pair of
-ports while it runs; the tests of the files are made for the modem of today's station too (`SHAPES`: no table and no folder, its files in the data folder). What a radio's folder takes over from the data folder is
-tests/test_mercury_folder.py; radios side by side, tests/test_claims_search.py."""
+"""The Mercury HF modem as part of the daemon (mercurymodem.py, mercuryhelper.py, mercurycontrol.py)
+on the fake Mercury program and air: found, given ports and configuration, started, read, restarted,
+stopped cleanly.
+"""
 import asyncio
 import logging
 import os
@@ -57,11 +53,13 @@ def rig() -> Rigs:
 
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py): no other test running beside it is handed its ports."""
+    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py):
+    no other test running beside it is handed its ports."""
     own_ports(monkeypatch)
 
 
-SHAPES = pytest.mark.parametrize("radio", [True, False], ids=["radio", "folderless"])      # a radio's modem, and the modem of today's station (no table, no folder: the data folder)
+# A radio's modem, and the modem of today's station (no table, no folder: the data folder)
+SHAPES = pytest.mark.parametrize("radio", [True, False], ids=["radio", "folderless"])
 
 
 def modem(tmp_path: Path, program: bool = True, radio: bool = True) -> Mercury:
@@ -76,7 +74,8 @@ async def stopped(m: Mercury) -> None:
 
 
 def _alive(pid: int | None) -> bool:
-    """Whether the process is still running. On Windows os.kill(pid, 0) is TerminateProcess, and a handle to a process that has ended still opens, so the exit code is asked instead."""
+    """Whether the process is still running. On Windows os.kill(pid, 0) is TerminateProcess, and a
+    handle to a process that has ended still opens, so the exit code is asked instead."""
     if pid is None:
         return False
     if sys.platform == "win32":
@@ -110,7 +109,8 @@ async def connects(port: int) -> bool:
 # ---- finding the program and its ports
 
 def test_the_program_is_the_shipped_one_in_the_tools_folder_and_nothing_else(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Not on the PATH, not in the data folder: the operator's system is left alone, and the Mercury that runs is the one the release carries (bundled.py says where each install kind puts it)."""
+    """Not on the PATH, not in the data folder: the operator's system is left alone, and the Mercury
+    that runs is the one the release carries (bundled.py says where each install kind puts it)."""
     name = "mercury.exe" if sys.platform == "win32" else "mercury"
     assert find(tmp_path / "nothing") is None
     on_path = tmp_path / "path" / name
@@ -122,18 +122,23 @@ def test_the_program_is_the_shipped_one_in_the_tools_folder_and_nothing_else(tmp
     shipped = tmp_path / "tools" / "mercury" / name
     shipped.parent.mkdir(parents=True)
     shipped.write_text("#!/bin/sh\n")
-    if sys.platform != "win32":                                        # (Windows has no executable bit: a .exe can always be run)
+    # Windows has no executable bit: a .exe can always be run
+    if sys.platform != "win32":
         assert find(tmp_path / "tools") is None, "a file that cannot be run is no program"
     shipped.chmod(0o755)
     assert find(tmp_path / "tools") == [str(shipped)]
     monkeypatch.setattr(sys, "frozen", False, raising=False)
     monkeypatch.setattr(sys, "prefix", str(tmp_path))
-    monkeypatch.setattr(mercuryhelper, "tools_dir", bundled.tools_dir)      # (the guard of the tests gave it a folder that is not there; the prefix is this test's own folder now)
+    # The guard of the tests gave it a folder that is not there; the prefix is this test's own
+    # folder now
+    monkeypatch.setattr(mercuryhelper, "tools_dir", bundled.tools_dir)
     assert find() == [str(shipped)], "a venv, the AppImage and the .deb: tools/ of the Python's prefix"
 
 
 def test_the_bundled_alsa_configuration_is_given_to_the_program_through_the_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The Linux bundle carries its own ALSA library and configuration (a machine without ALSA installed has no /usr/share/alsa/alsa.conf); ALSA_CONFIG_PATH is the one way to tell the library where it is."""
+    """The Linux bundle carries its own ALSA library and configuration (a machine without ALSA
+    installed has no /usr/share/alsa/alsa.conf); ALSA_CONFIG_PATH is the one way to tell the library
+    where it is."""
     monkeypatch.delenv("ALSA_CONFIG_PATH", raising=False)
     program = tmp_path / "mercury" / "mercury"
     program.parent.mkdir()
@@ -148,7 +153,9 @@ def test_the_bundled_alsa_configuration_is_given_to_the_program_through_the_envi
 
 
 def three_free_pairs() -> int:
-    """The first of three pairs that are free now: a Mercury of the machine's own (the developer's station, the simulation of another worktree's suite) may hold Mercury's defaults and any fixed range."""
+    """The first of three pairs that are free now: a Mercury of the machine's own (the developer's
+    station, the simulation of another worktree's suite) may hold Mercury's defaults and any fixed
+    range."""
     for first in range(18100, 19900, 10):
         if all(pair_free(port) for port in range(first, first + 3)):
             return first
@@ -159,7 +166,8 @@ def test_the_ports_are_mercurys_defaults_when_free_else_the_next_pair_with_the_c
     first = three_free_pairs()
     assert free_ports(first, 3) == (first, first + CONTROL_OFFSET)
     with socket.socket() as holder:
-        holder.bind(("127.0.0.1", first + CONTROL_OFFSET))                           # (a program holds the control port: the pair is skipped)
+        # A program holds the control port: the pair is skipped
+        holder.bind(("127.0.0.1", first + CONTROL_OFFSET))
         assert free_ports(first, 3) == (first + 1, first + 1 + CONTROL_OFFSET)
         with socket.socket() as second, socket.socket() as third:
             second.bind(("127.0.0.1", first + 1))
@@ -202,8 +210,9 @@ async def test_the_modem_chooses_the_sound_card_and_the_keying_when_the_settings
 
 
 async def test_an_hf_radio_after_radio_2_was_removed_runs_its_modem_on_its_own_sound_card_keying_and_gain(tmp_path: Path) -> None:
-    """The modem reads its own radio's settings, never radio 2's: a station that removed its radio 2 and later added a Mercury radio (id 5) runs that radio's modem on the card, the keying and the gain the
-    operator gave radio 5, not on the daemon's own choice and 0 dB."""
+    """The modem reads its own radio's settings, never radio 2's: a station that removed its radio 2
+    and later added a Mercury radio (id 5) runs that radio's modem on the card, the keying and the
+    gain the operator gave radio 5, not on the daemon's own choice and 0 dB."""
     fm = RadioSpec(1, "fm", "kiss", "", True, 1, None, {"port": "/dev/ttyUSB0"})
     gone = RadioSpec(2, "hf", "mercury", "", False, 2, datetime(2026, 11, 1, tzinfo=timezone.utc), {"sound_card": "plughw:1,0", "keying": "rts:/dev/ttyUSB1"})
     five = RadioSpec(5, "hf", "mercury", "", True, 3, None, {"sound_card": "plughw:2,0", "keying": "rts:/dev/ttyUSB2", "tx_gain_db": "-6"})
@@ -289,7 +298,8 @@ async def test_a_stale_program_of_ours_is_ended_at_the_next_start_and_a_pid_that
     await first.start(HF)
     await until_started(lambda: first.state == "running")
     orphan = first.pid
-    first._program._process = None                                        # (the daemon crashed: the program lives on, the pid file stays)
+    # The daemon crashed: the program lives on, the pid file stays
+    first._program._process = None
     await first.stop()
     assert _alive(orphan) and (first.home / PID_FILE).read_text() == str(orphan) and (first.home == tmp_path) is not radio
     try:
@@ -314,7 +324,8 @@ async def test_stop_ends_the_program_and_the_control_line_and_a_second_start_is_
     first_pid, first_port = m.pid, m.broadcast_port
     await m.stop()
     assert not _alive(first_pid)
-    for _ in range(20):                                                    # (the system may take a moment to let go of a dead process's sockets)
+    # The system may take a moment to let go of a dead process's sockets
+    for _ in range(20):
         if not await connects(first_port):
             break
         await asyncio.sleep(0.1)
@@ -328,8 +339,12 @@ async def test_stop_ends_the_program_and_the_control_line_and_a_second_start_is_
 # ---- the control port
 
 async def test_a_control_port_another_program_holds_is_open_only_once_mercury_writes_on_it(caplog: pytest.LogCaptureFixture) -> None:
-    """A Mercury from 1.9.24 on keeps its control port for the host that is connected and closes another one at once, before a word (its tcp_interfaces.c, refuse_client): the line of an attached Mercury whose port
-    another program keeps is not open and lost again at every try, and it opens once Mercury takes it and writes on it."""
+    """Mercury keeps its control port for the connected host and closes another one at once
+    (refuse_client).
+
+    The line of a Mercury whose port another program holds is not opened and lost at every try; it
+    opens once Mercury takes the port and writes on it.
+    """
     caplog.set_level(logging.INFO, "neoaprs.mercury")
     held, tries = [True], [0]
 
@@ -360,7 +375,8 @@ async def test_a_control_port_another_program_holds_is_open_only_once_mercury_wr
 
 
 async def test_a_mercury_that_ends_before_it_writes_a_line_is_not_said_to_be_held_by_another_program(caplog: pytest.LogCaptureFixture) -> None:
-    """One connection that Mercury closes before its first line is Mercury ending as often as a refusal: the log says what was seen, and nothing of another program when the next connection is Mercury's again."""
+    """One connection that Mercury closes before its first line is Mercury ending as often as a
+    refusal."""
     caplog.set_level(logging.INFO, "neoaprs.mercury")
     tries = [0]
 
@@ -491,7 +507,8 @@ async def test_a_frame_from_a_station_of_the_fake_air_reaches_the_tnc_with_the_s
     try:
         assert tnc.state is Source.State.CONNECTED
         await b.connected()
-        a.feed(b"")                                                           # (a is the other station: what its client hands in goes on the air)
+        # A is the other station: what its client hands in goes on the air
+        a.feed(b"")
         a.heard_bytes(kiss.encode(ax25.encode(ui_frame("OH2XYZ"))))
         await until_started(lambda: heard == ["OH2XYZ"])
         assert air.delivered[0][2] == ax25.encode(ui_frame("OH2XYZ")) and air.collisions == 0
@@ -505,7 +522,8 @@ async def test_a_frame_from_a_station_of_the_fake_air_reaches_the_tnc_with_the_s
 
 
 async def test_a_station_message_another_program_sent_on_the_frequency_is_passed_over_and_the_next_frame_is_heard() -> None:
-    """Mercury 1.9.23 on hands every station message it hears (packet type 0x07, the HERMES beacon) to its broadcast client whole, under the KISS command 0x03: no packet, not a frame the line spoiled, and the line goes on."""
+    """Mercury hands every station message it hears (packet type 0x07) to its broadcast client under
+    KISS command 0x03."""
     air = Air(frame_sec=0.05)
     b = air.station()
     await air.start()
@@ -525,7 +543,8 @@ async def test_a_station_message_another_program_sent_on_the_frequency_is_passed
         await air.aclose()
 
 
-# ---- the rest of the shipped program's path: no free pair of ports, a data folder that cannot be written, a program that ignores the request to end (and lists no sound card)
+# ---- the shipped program's path: no free pair of ports, an unwritable data folder, a program that
+# ignores the request to end (and lists no sound card)
 
 async def test_no_free_pair_of_ports_is_said_and_nothing_is_started(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def none() -> tuple[int, int]:
@@ -533,12 +552,14 @@ async def test_no_free_pair_of_ports_is_said_and_nothing_is_started(tmp_path: Pa
     monkeypatch.setattr(mercurymodem, "free_ports", none)
     m = modem(tmp_path)
     await m.start(HF)
-    assert m.state == "waiting" and m.problem == "no free port for Mercury; the log says which were tried" and m.starts == 0           # (the ports are chosen last, after the configuration is written: that file may be there)
+    # The ports are chosen last, after the configuration is written: that file may be there
+    assert m.state == "waiting" and m.problem == "no free port for Mercury; the log says which were tried" and m.starts == 0
     await stopped(m)
 
 
 async def test_a_data_folder_that_cannot_be_written_is_said_in_the_systems_words(tmp_path: Path) -> None:
-    m = modem(tmp_path / "gone", radio=False)       # (today's modem, and no such folder: the configuration cannot be written there)
+    # today's modem, and no such folder: the configuration cannot be written there
+    m = modem(tmp_path / "gone", radio=False)
     await m.start(HF)
     assert m.state == "waiting" and m.problem.startswith("Mercury's configuration could not be written in the data folder: ") and str(tmp_path) not in m.problem and m.starts == 0
     await stopped(m)
@@ -548,14 +569,16 @@ async def test_a_data_folder_that_cannot_be_written_is_said_in_the_systems_words
     assert m.state == "waiting" and m.problem.startswith("Mercury's folder could not be made in the data folder: ") and str(tmp_path) not in m.problem and m.starts == 0 and m.held() == []
     await stopped(m)
     m = modem(tmp_path)
-    (m.home / INI_FILE).mkdir(parents=True)          # (the folder is there, and the configuration cannot be written in it)
+    # The folder is there, and the configuration cannot be written in it
+    (m.home / INI_FILE).mkdir(parents=True)
     await m.start(HF)
     assert m.state == "waiting" and m.problem.startswith("Mercury's configuration could not be written in the data folder: ") and str(tmp_path) not in m.problem and m.starts == 0
     await stopped(m)
 
 
 async def test_a_program_that_ignores_the_request_to_end_is_killed_and_one_that_lists_no_sound_card_runs_on_the_default_device(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mercury is asked to end (SIGTERM) and killed after STOP_WAIT_SEC when it does not; a `-z` that lists nothing leaves the sound card the system's default and the keying VOX."""
+    """Mercury is asked to end (SIGTERM) and killed after STOP_WAIT_SEC when it does not; a `-z`
+    that lists nothing leaves the sound card the system's default and the keying VOX."""
     monkeypatch.setattr(mercuryhelper, "STOP_WAIT_SEC", 0.2)
     stubborn = [sys.executable, "-c", "import signal, sys, time\nif '-z' in sys.argv: sys.exit(0)\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\nprint('up', flush=True)\ntime.sleep(60)"]
     m = Mercury(tmp_path, finder=lambda: stubborn, backoff=QUICK, control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path))
@@ -569,7 +592,8 @@ async def test_a_program_that_ignores_the_request_to_end_is_killed_and_one_that_
 
 
 async def test_a_sound_card_the_program_cannot_open_ends_the_program_and_is_the_problem_of_the_modem_and_the_radio_until_a_start_succeeds(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """On a station with two USB sound cards Mercury ran on deaf and mute after `[ERR] [audio-play] error in audio->open()`, and the status said "running"."""
+    """On a station with two USB sound cards Mercury ran on deaf and mute after `[ERR] [audio-play]
+    error in audio->open()`, and the status said "running"."""
     m = Mercury(tmp_path, finder=lambda: fakemercury.program(audio_error=True), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path))
     m.ports = lambda: []
     seen: list[tuple[str, str]] = []
@@ -580,14 +604,22 @@ async def test_a_sound_card_the_program_cannot_open_ends_the_program_and_is_the_
     await tnc.start()
     try:
         first = m.pid
-        await until_started(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED)              # (the fake prints the error once its ports listen: whether the control line connected first is the machine's business)
+        # The fake prints the error once its ports listen: whether the control line connected first
+        # is the machine's business
+        await until_started(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED)
         await until_started(lambda: not _alive(first))
-        assert m.hold() == "" and "could not open its sound card" in caplog.text                      # (the problem itself is checked over every change below: the quick back-off may have the next start running by now)
-        if m.state == "waiting":                                                                                       # (the quick back-off may have begun the next start already: the words of the wait are checked while it lasts)
+        # The problem itself is checked over every change below: the quick back-off may have the
+        # next start running by now
+        assert m.hold() == "" and "could not open its sound card" in caplog.text
+        # The quick back-off may have begun the next start already: the words of the wait are
+        # checked while it lasts
+        if m.state == "waiting":
             assert m.describe() == f"Mercury DATAC3: {SOUND_CARD_FAILED}"
-        await until_started(lambda: tnc.state is Source.State.WAITING and tnc.problem == SOUND_CARD_FAILED)              # (the line went with the program: the radio is not connected, and says why)
+        # The line went with the program: the radio is not connected, and says why
+        await until_started(lambda: tnc.state is Source.State.WAITING and tnc.problem == SOUND_CARD_FAILED)
         assert not tnc.usable
-        await until_started(lambda: m.starts >= 2)                                                                        # (tried again after the back-off: a card chosen anew is taken then)
+        # Tried again after the back-off: a card chosen anew is taken then
+        await until_started(lambda: m.starts >= 2)
         await until_started(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED and m.starts >= 2)
         after = seen[seen.index(("waiting", SOUND_CARD_FAILED)):]
         assert all(change == ("waiting", SOUND_CARD_FAILED) or change[0] == "running" for change in after), f"the problem stands through the next start until it is running (never `starting` with no problem between two failures): {after}"
@@ -596,20 +628,26 @@ async def test_a_sound_card_the_program_cannot_open_ends_the_program_and_is_the_
         await stopped(m)
 
 
-# ---- the ports across a relaunch (the HF Tnc waits on the port it was given; a program started again must be where the dead one was), and where the program listens
+# ---- the ports across a relaunch (the HF Tnc waits on its given port, so a restarted program is
+# where the dead one was), and where the program listens
 
 def test_a_port_whose_last_connection_is_in_time_wait_counts_as_free_as_it_does_for_mercury() -> None:
-    """The HF Tnc's line to a Mercury that died leaves the port in TIME_WAIT; a probe that called that busy made the relaunch take the next pair, which the Tnc never learnt. Mercury binds with SO_REUSEADDR, so the pair is free for it."""
+    """The HF Tnc's line to a Mercury that died leaves the port in TIME_WAIT; a probe that called
+    that busy made the relaunch take the next pair, which the Tnc never learnt. Mercury binds with
+    SO_REUSEADDR, so the pair is free for it."""
     if sys.platform == "win32":
         pytest.skip("Windows lets a bind through a TIME_WAIT without the option, and the option there means something else")
     with socket.socket() as server:
-        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)       # (as Mercury's listener does, tcp_interfaces.c; the connections it accepts inherit it, and Linux lets a bind through their TIME_WAIT only then)
+        # As Mercury's listener does, tcp_interfaces.c; the connections it accepts inherit it, and
+        # Linux lets a bind through their TIME_WAIT only then
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind(("127.0.0.1", 0))
         server.listen()
         port = server.getsockname()[1]
         with socket.create_connection(("127.0.0.1", port)) as client:
             conn, _ = server.accept()
-            conn.close()                                                   # (the side that closes first is the one left in TIME_WAIT: the server's, on `port`)
+            # The side that closes first is the one left in TIME_WAIT: the server's, on `port`
+            conn.close()
             client.recv(1)
     assert mercuryhelper._free(port), "a port with nothing but a TIME_WAIT on it is free"
     with socket.socket() as holder:
@@ -620,7 +658,8 @@ def test_a_port_whose_last_connection_is_in_time_wait_counts_as_free_as_it_does_
 
 
 def test_a_port_another_program_listens_on_in_ipv6_alone_is_not_free_so_our_modem_is_never_taken_for_one_open_to_the_network(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The listeners of a started modem are read in both families: a pair chosen beside another program's IPv6 listener would make our own modem look as if it listened on the network."""
+    """The listeners of a started modem are read in both families: a pair chosen beside another
+    program's IPv6 listener would make our own modem look as if it listened on the network."""
     if not socket.has_ipv6:
         pytest.skip("no IPv6 here")
     with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as other:
@@ -629,7 +668,8 @@ def test_a_port_another_program_listens_on_in_ipv6_alone_is_not_free_so_our_mode
         other.listen()
         port = other.getsockname()[1]
         assert not mercuryhelper._free(port)
-        monkeypatch.setattr(childprogram, "PROC_TCP", ())                  # (a system without the kernel's table: the probe of :: says it)
+        # A system without the kernel's table: the probe of :: says it
+        monkeypatch.setattr(childprogram, "PROC_TCP", ())
         assert not mercuryhelper._free(port)
     assert mercuryhelper._free(port)
 
@@ -650,7 +690,8 @@ async def test_a_program_that_dies_is_started_again_on_the_same_ports_and_the_tn
     try:
         await until_started(lambda: tnc.usable)
         assert m._program._process is not None
-        m._program._process.kill()                                         # (a sound device unplugged: Mercury is gone without a word)
+        # A sound device unplugged: Mercury is gone without a word
+        m._program._process.kill()
         await until_started(lambda: m.state == "waiting" and not tnc.usable)
         assert tnc.state is not Source.State.CONNECTED and "Mercury stopped" in m.problem, "meanwhile the status is the truth: the modem is down and the radio is not connected"
         await until_started(lambda: m.starts == 2 and m.running)
@@ -663,7 +704,9 @@ async def test_a_program_that_dies_is_started_again_on_the_same_ports_and_the_tn
 
 
 async def test_a_pair_taken_while_the_program_was_down_gives_another_and_the_owner_is_told_to_point_the_tnc_at_it(tmp_path: Path) -> None:
-    m = Mercury(tmp_path, finder=fakemercury.program, backoff=Backoff([4.0, 4.0]), control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path))          # (the back-off is the time the test has to take the port: a machine that stalls for a second does not end it)
+    # The back-off is the time the test has to take the port: a machine that stalls for a second
+    # does not end it
+    m = Mercury(tmp_path, finder=fakemercury.program, backoff=Backoff([4.0, 4.0]), control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path))
     m.ports = lambda: []
     told: list[int] = []
     m.ports_changed.connect(lambda: told.append(m.broadcast_port))
@@ -673,7 +716,8 @@ async def test_a_pair_taken_while_the_program_was_down_gives_another_and_the_own
     assert m._program._process is not None
     m._program._process.kill()
     await until_started(lambda: m.state == "waiting")
-    with socket.socket() as holder:                                        # (another program takes the KISS port in the second the back-off waits)
+    # Another program takes the KISS port in the second the back-off waits
+    with socket.socket() as holder:
         holder.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         holder.bind(("127.0.0.1", old))
         holder.listen()
@@ -688,9 +732,10 @@ async def test_a_pair_taken_while_the_program_was_down_gives_another_and_the_own
 
 def test_the_listeners_of_the_kernels_table_are_read_by_port_and_the_loopback_ones_are_nobodys_concern() -> None:
     tcp = ("  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
-           "   0: 0100007F:1FA4 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1 0000000000000000 100 0 0 10 0\n"       # 127.0.0.1:8100 LISTEN
-           "   1: 00000000:206C 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1 0000000000000000 100 0 0 10 0\n"       # 0.0.0.0:8300 LISTEN
-           "   2: 0100007F:206D 0100007F:B2E4 01 00000000:00000000 00:00000000 00000000  1000        0 1 0000000000000000 100 0 0 10 0\n"       # 8301 ESTABLISHED: not a listener
+           "   0: 0100007F:1FA4 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1 0000000000000000 100 0 0 10 0\n"
+           "   1: 00000000:206C 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1 0000000000000000 100 0 0 10 0\n"
+           # 8301 ESTABLISHED: not a listener
+           "   2: 0100007F:206D 0100007F:B2E4 01 00000000:00000000 00:00000000 00000000  1000        0 1 0000000000000000 100 0 0 10 0\n"
            "   3: 0100007F:1F41 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1 0000000000000000 100 0 0 10 0\n")      # 8001: not asked about
     tcp6 = ("  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
             "   0: 00000000000000000000000000000000:206D 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1 0000000000000000 100 0 0 10 0\n"
@@ -710,7 +755,8 @@ async def test_the_fake_program_listens_on_the_loopback_and_one_that_listens_on_
         assert mercuryhelper.foreign_listeners((m.broadcast_port, m.control_port)) == [], "the fake binds 127.0.0.1, as the shipped program does"
     finally:
         await stopped(m)
-    monkeypatch.setattr(mercurymodem, "foreign_listeners", lambda ports: [f"00000000:{p}" for p in ports])        # (a Mercury that is not the shipped one: INADDR_ANY)
+    # A Mercury that is not the shipped one: INADDR_ANY
+    monkeypatch.setattr(mercurymodem, "foreign_listeners", lambda ports: [f"00000000:{p}" for p in ports])
     m = modem(tmp_path)
     await m.start(HF)
     try:
@@ -718,14 +764,15 @@ async def test_the_fake_program_listens_on_the_loopback_and_one_that_listens_on_
         pid = m.pid
         assert m.problem == mercurymodem.OPEN_TO_NETWORK and m.starts == 1
         await until_started(lambda: not _alive(pid))
-        await asyncio.sleep(0.5)                                           # (the back-off of a program that died is 0.1 s: a relaunch would have come)
+        # The back-off of a program that died is 0.1 s: a relaunch would have come
+        await asyncio.sleep(0.5)
         assert m.starts == 1 and m.state == "waiting", "ended, and not started again"
         assert m.describe() == f"Mercury DATAC3: {mercurymodem.OPEN_TO_NETWORK}"
     finally:
         await stopped(m)
 
 
-# ---- the rest of the review's list for the modem part: a launch that fails and is tried again, the ports left alone, the speaker without pipes, the order of a launch, the shipped program
+# ---- a failed launch that is retried, the ports left alone, the speaker without pipes, the order
 
 async def test_a_launch_that_fails_for_a_reason_that_may_pass_is_tried_again_after_the_back_off(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[int] = []
@@ -774,7 +821,8 @@ async def test_the_fm_radios_the_gpss_the_skipped_and_another_radios_ports_are_n
 
 
 def test_a_card_a_setting_names_by_its_number_is_held_by_its_name_so_that_another_radio_leaves_it_out(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A setting from before 0.17.3 names the card by its number (`plughw:1,0`), the list of cards by its name: one card, one claim, so that another radio's modem neither chooses it nor runs on it."""
+    """A setting that names the card by its number (`plughw:1,0`) or by its name is one claim on one
+    card."""
     card1 = tmp_path / "asound" / "card1"
     card1.mkdir(parents=True)
     (card1 / "id").write_text("CODEC\n")
@@ -818,7 +866,9 @@ async def test_the_stale_program_is_ended_before_the_sound_cards_are_listed_and_
 
 
 async def test_without_named_pipes_the_speaker_of_the_dummy_hf_radio_is_not_started(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    """A Mercury started on the system's default devices for real would play DATAC3 out of the speakers' output and open the microphone, which "nothing goes on the air" does not allow (a VOX radio on the default output would key)."""
+    """A Mercury started on the system's default devices for real would play DATAC3 out of the
+    speakers' output and open the microphone, which "nothing goes on the air" does not allow (a VOX
+    radio on the default output would key)."""
     caplog.set_level(logging.INFO, "neoaprs.mercury")
     monkeypatch.setattr(mercurymodem.SpeakerAudio, "prepare", lambda self: False)
     m = modem(tmp_path)
@@ -829,8 +879,10 @@ async def test_without_named_pipes_the_speaker_of_the_dummy_hf_radio_is_not_star
 
 @pytest.mark.skipif(sys.platform == "win32", reason="the shipped program here is a shell script that stands in for mercury.exe")
 async def test_the_shipped_program_is_started_with_no_question_asked_of_the_system_and_is_said_to_be_the_shipped_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    """The Mercury NeoAPRS ships binds the loopback on every system, so it is started at once: no PowerShell and no netsh are run for it, whatever the system (the Windows installer's firewall rule and the daemon's
-    check of the firewall are gone); the log says the program is the shipped one, and that a program named by its path elsewhere is not."""
+    """The Mercury NeoAPRS ships binds the loopback on every system, so it is started at once: no
+    PowerShell and no netsh are run for it, whatever the system (the Windows installer's firewall
+    rule and the daemon's check of the firewall are gone); the log says the program is the shipped
+    one, and that a program named by its path elsewhere is not."""
     asked: list[str] = []
     real_run = subprocess.run
 
@@ -855,7 +907,9 @@ async def test_the_shipped_program_is_started_with_no_question_asked_of_the_syst
         assert not [call for call in asked if "powershell" in call.lower() or "netsh" in call.lower()], asked
     finally:
         await stopped(m)
-    m = Mercury(tmp_path, finder=lambda: [str(tmp_path / "not-there")], backoff=QUICK, **of_radio(tmp_path))          # (a program named by its path elsewhere: said not to be the shipped one; what it is said to be is the system's words)
+    # A program named by its path elsewhere: said not to be the shipped one; what it is said to be
+    # is the system's words
+    m = Mercury(tmp_path, finder=lambda: [str(tmp_path / "not-there")], backoff=QUICK, **of_radio(tmp_path))
     await m.start(HF)
     assert m.reason == "not_started" and "(not the one NeoAPRS ships)" in caplog.text
     await stopped(m)
@@ -864,7 +918,8 @@ async def test_the_shipped_program_is_started_with_no_question_asked_of_the_syst
 def test_a_warning_the_program_repeats_is_in_the_log_the_first_tenth_and_every_hundredth_time(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.DEBUG, "neoaprs.mercury.program")
     program = mercuryhelper.Program(lambda code, lines: None)
-    for n in range(250):                                                   # (each with the time Mercury wrote in front of it, in the forms of 1.9.21, of 1.9.22 on and of an ini with log_utc, and none)
+    # Each with the time Mercury wrote in front of it, in each of its forms, and none.
+    for n in range(250):
         stamp = (f"22:16:{n % 60:02d}.{n:03d} [+{n}.003s] ", f"2026-11-13 22:16:{n % 60:02d}.{n:03d} [+{n}.003s] ", f"2026-11-13 20:16:{n % 60:02d}.{n:03d}Z [+{n}.003s] ", "")[n % 4]
         program._tell(stamp + "[WRN] [audio] snd_pcm_readi: Input/output error")
     program._tell("[INF] [engine] Mercury engine initialised")

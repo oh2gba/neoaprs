@@ -1,4 +1,6 @@
-"""How a packet reached us (neoaprs/route.py): the route read from the starred addresses of a path, its text, the path to send by that is made from it, and the count of the routes of a station."""
+"""How a packet reached us (neoaprs/route.py): the route from the starred addresses of a path, its
+text, the path to send by, and the count of a station's routes.
+"""
 from datetime import timedelta
 
 import pytest
@@ -9,13 +11,17 @@ from neoaprs.route import ROUTES_KEPT, WIDE_PATH, Alias, Deliveries, Route, auto
 
 @pytest.mark.parametrize("path, hops, heard_from, direct, anonymous, text", [
     ((), (), None, True, 0, "direct"),
-    (("WIDE1-1", "WIDE2-1"), (), None, True, 0, "direct"),                               # (nothing used: heard from the sender itself)
+    # Nothing used: heard from the sender itself
+    (("WIDE1-1", "WIDE2-1"), (), None, True, 0, "direct"),
     (("OH2RCH-2*",), ("OH2RCH-2",), "OH2RCH-2", False, 0, "via OH2RCH-2"),
-    (("OH2RCH-3*", "TRACE2-1"), ("OH2RCH-3",), "OH2RCH-3", False, 0, "via OH2RCH-3"),       # (an alias that was not used is not part of the route)
+    # An alias that was not used is not part of the route
+    (("OH2RCH-3*", "TRACE2-1"), ("OH2RCH-3",), "OH2RCH-3", False, 0, "via OH2RCH-3"),
     (("WIDE1*", "OH2RCH-2*", "WIDE2-2"), ("?", "OH2RCH-2"), "OH2RCH-2", False, 1, "via ? → OH2RCH-2"),
     (("OH2RCH-1*", "OH2RCH-3*"), ("OH2RCH-1", "OH2RCH-3"), "OH2RCH-3", False, 0, "via OH2RCH-1 → OH2RCH-3"),
-    (("WIDE1", "OH2RCH-2*"), ("OH2RCH-2",), "OH2RCH-2", False, 0, "via OH2RCH-2"),          # (the TH-D7's monitor text: only what is starred counts)
-    (("WIDE2-1*",), ("?",), None, False, 1, "via ?"),                                      # (the last hop has no call: nobody to name)
+    # The TH-D7's monitor text: only what is starred counts
+    (("WIDE1", "OH2RCH-2*"), ("OH2RCH-2",), "OH2RCH-2", False, 0, "via OH2RCH-2"),
+    # The last hop has no call: nobody to name
+    (("WIDE2-1*",), ("?",), None, False, 1, "via ?"),
     (("TRACE2-1*", "OH2RCH-3*"), ("?", "OH2RCH-3"), "OH2RCH-3", False, 1, "via ? → OH2RCH-3"),
     (("WIDE1*", "WIDE2-1*"), ("?", "?"), None, False, 2, "via ? → ?"),
     (("OH2RCH-2*", "WIDE2-1*"), ("OH2RCH-2", "?"), None, False, 1, "via OH2RCH-2 → ?"),
@@ -153,7 +159,7 @@ def test_rf_only_adds_rfonly_at_the_end_unless_the_path_says_it_already(path: tu
     assert rf_only_path(path) == made
 
 
-# ---- the path a message goes by when the operator has set none --------------------------------------------------------------------------------------
+# ---- the path a message goes by when the operator has set none -----------------------------------
 
 NOW = utc(2026, 10, 24, 12, 0)
 
@@ -277,9 +283,11 @@ def test_the_hops_an_alias_asks_for_are_the_number_left_else_the_class_else_one(
 
 
 @pytest.mark.parametrize("path, made", [
-    (("OH2RCH-2", "OH2RDG*", "WIDE2-1"), ("OH2RCH-2*", "OH2RDG*", "WIDE2-1")),                  # (one star, as a monitor writes it: everything before it was used)
+    # One star, as a monitor writes it: everything before it was used
+    (("OH2RCH-2", "OH2RDG*", "WIDE2-1"), ("OH2RCH-2*", "OH2RDG*", "WIDE2-1")),
     (("A", "B", "C*", "D"), ("A*", "B*", "C*", "D")),
-    (("A*", "B*"), ("A*", "B*")),                                                              # (every hop starred, as the AX.25 bits give it)
+    # Every hop starred, as the AX.25 bits give it
+    (("A*", "B*"), ("A*", "B*")),
     (("WIDE1", "OH2RCH-2*"), ("WIDE1*", "OH2RCH-2*")),
     (("WIDE1-1", "WIDE2-1"), ("WIDE1-1", "WIDE2-1")), ((), ())])
 def test_a_path_with_one_star_has_every_address_before_it_used(path: tuple[str, ...], made: tuple[str, ...]) -> None:

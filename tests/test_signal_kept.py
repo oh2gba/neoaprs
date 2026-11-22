@@ -1,6 +1,7 @@
-"""The signal of what is heard kept and told (neoaprs/reading.py): a packet's two readings go into the packet log and come back, the station cache keeps the station's last one, a message keeps the reading of the packet
-that carried it (ours the ack's that came back, and none again when it is sent anew), the signal series of a station reads the packets heard direct from it in the span; and the daemon on the Dummy HF radio tells it
-all on the wire: the packet's row, the station's, our message's when the made-up station acks it, its answer's, and the `signal_series` the page asks for."""
+"""The signal of what is heard kept and told (neoaprs/reading.py): a packet's readings go into the
+log and come back, the station cache keeps the last one, a message keeps its packet's, and the
+signal series reads direct packets.
+"""
 import asyncio
 import json
 from dataclasses import replace
@@ -27,7 +28,8 @@ from tests.test_messagelog import came, opened, out, settled
 
 
 def heard(source: str, at: datetime, snr: float | None, rssi: float | None = None, path: tuple[str, ...] = (), text: str = "!6027.11N/02216.00E-") -> Packet:
-    """A packet as the radio gave it, its frame and what it decodes to (the log reads the packets back from their frames), with the readings the radio measured."""
+    """A packet as the radio gave it, its frame and what it decodes to (the log reads the packets
+    back from their frames), with the readings the radio measured."""
     info = text.encode("latin-1")
     frame = ax25.Frame(ax25.Address("APRS"), ax25.Address.parse(source), tuple(ax25.Address.parse(p) for p in path), info=info)
     return Packet(at, "in", ax25.encode(frame), source, "APRS", tuple(str(a) for a in frame.path), info, parse(info, source, "APRS", at), radio_id=HF_ID, snr=snr, rssi=rssi)
@@ -81,7 +83,8 @@ async def test_a_message_keeps_the_reading_of_its_packet_and_ours_the_acks(tmp_p
 async def test_the_daemon_on_the_dummy_hf_radio_tells_the_snr_of_the_packets_the_stations_our_message_its_answer_and_the_series(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(dummyline, "TICK_SEC", 0.01)
     e = Env(tmp_path, radio=False, web=True, settings={"station/call": "OH2GBA", "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "messages/alert": "false"})
-    e.mercury._finder = lambda: None                                         # (no speaker: the Dummy HF radio works without it)
+    # No speaker: the Dummy HF radio works without it
+    e.mercury._finder = lambda: None
     await e.start()
     await until_started(lambda: e.hf.state is Source.State.CONNECTED)
     page = await e.ws()

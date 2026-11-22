@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
-"""The unused-class check of the page's style sheets (ui/src/styles/*.css, the stage ui-lint of scripts/check): every class a rule names must be written somewhere in the page's source.
+"""Check that every class in ui/src/styles/*.css appears in the page's source.
 
-    scripts/css-unused.py              exit 1 and list the classes of the style sheets that no .vue, .ts or .html file of ui/ mentions
-    scripts/css-unused.py ROOT         the same for another tree (the tests give it a small one)
+    scripts/css-unused.py              exit 1 and list classes no .vue, .ts or .html file mentions
+    scripts/css-unused.py ROOT         the same for another tree
 
-A class is mentioned when its name stands as a whole word anywhere in ui/src (the tests and the style sheets themselves left out) or in ui/index.html. Classes the page makes up at run time are not
-written whole in the source: PREFIXES says, for each, which code builds them (the check also fails when that code is gone, or when no rule has the prefix any more, so the list cannot go stale);
-LIBRARY_PREFIXES are the classes of the map library, which the page styles but does not write."""
+Classes built at run time are listed in PREFIXES with the file that builds them."""
 import re
 import sys
 from pathlib import Path
 
-# the start of a class name that code adds a value to (`hop-${chip.kind}`): the file that does it
+# Start of a class name that code completes (`hop-${chip.kind}`) -> the file that does it.
 PREFIXES = {
     "gps-": "lib/beaconstatus.ts",
     "hop-": "components/ChainChips.vue",
@@ -31,7 +29,7 @@ def strip_comments(css: str) -> str:
 
 
 def selector_text(css: str) -> str:
-    """The style sheet without the declarations (what is left is the selectors and the at-rules), and without attribute selectors."""
+    """Return the style sheet reduced to its selectors and at-rules."""
     css = strip_comments(css)
     while True:
         smaller = re.sub(r"\{[^{}]*\}", ";", css)
@@ -46,7 +44,7 @@ def defined_classes(css: str) -> set[str]:
 
 
 def page_sources(root: Path) -> dict[str, str]:
-    """The files that write class names: the .vue and .ts files of ui/src (not the tests, not the style sheets) and ui/index.html, by path under ui/src."""
+    """Return the files that write class names (not tests or style sheets), by path under ui/src."""
     src = root / "ui" / "src"
     files = [p for p in [*src.rglob("*.vue"), *src.rglob("*.ts")] if not p.name.endswith(".test.ts") and "test" not in p.relative_to(src).parts]
     found = {p.relative_to(src).as_posix(): p.read_text(encoding="utf-8") for p in files}

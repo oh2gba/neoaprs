@@ -1,32 +1,7 @@
-"""The topics of the hub (neoaprs/web/hub.py) and what changes them: the table of what the pages follow, and the one place of neoaprs/web/ that connects the daemon's signals.
+"""The topics of the hub (hub.py) and the daemon signals that change them.
 
-    stations   the station book by call            changed by StationBook.changed, .recounted and .removed; our own position in the settings moves every distance, so it is told whole. While `igate/enabled` is off the
-                                                   internet is hidden (nothing is deleted): a station known only from APRS-IS is not in it, one heard both ways has its radio side only (Station.radio_view), and a change of the setting tells it whole;
-                                                   so does a change of the radios in force (radios_in_force: what a row's radios are worked out from)
-    packets    the latest 200 packets by id         changed by every radio's packets (Services.radio_packet) and by the packets of APRS-IS (Services.internet_packet); the window is kept here (neoaprs/web/packetwindow.py; the daemon's database is the log, this is what a page opens
-                                                   with), and shows the latest 200 that were not from the internet while `igate/enabled` is off
-    radios     every radio by id, removed ones too    changed by Services.radio_changed (a radio's state, lines, counters or modem), by every packet of ours (its beacon went out), by Claims.changed (the devices held) and by every save of
-                                                   the settings (told whole); at most four times a second
-    config     the settings                          changed by Controller.config_changed, which every save emits
-    messages   every message by id                   changed by Messaging.changed (a new or changed message) and .removed (one that was deleted); those on their way by a change of the radios in force
-                                                   (radios_in_force) and of the station's choice (`station_radio`): their `radio_now`
-    bulletins  the message board by sender/slot    changed by Bulletins.changed (a new or heard again) and .removed (one that is deleted)
-    own_objects  the objects and items of ours by name     changed by OwnObjects.changed (made, changed, sent) and .removed (forgotten), and whole by a change of the radios in force (a removed one leaves them)
-    own_bulletins  the bulletins of ours by slot           changed by OwnBulletins.changed (posted, sent) and .removed (deleted)
-    station_prefs  the path, RF only and alert of each station by call       changed by PrefBook.changed (one of them set or cleared)
-    station_keys   the key each station announced, by call                   changed by Keyring.changed (a key heard, or forgotten)
-    map        the base map: files, estimate, the job, the radius of the ALOHA circle, and the layers of traffic (each layer's source, offer and receiver)   changed by MapFetch.changed, Aloha.changed and Layers.changed, and by every save of the settings (the area follows our position); at most four times a second
-    update     Update now: whether it can, its steps    changed by SelfUpdate.changed; at most four times a second
-    gps        the GPS fix, its state, and the moving station's beacon    changed by Gps.changed (a fix, a state or a problem) and by every packet of ours (the beacon went out) and every save of the settings; at most once a second
-    igate      the receive-only iGate: connected or not, the packets gated and not gated    changed by Igate.changed (a connection state, a packet gated or not) and every save of the settings; at most once a second
-    qru        the last request for local info and the QRU servers that answered    changed by QruAsk.changed (a request sent, a server heard, a note forgotten)
-    skeds      the sked board: its state, the suggested dials and the skeds to come    changed by Skeds.changed (a read, a post, a delete, a sked that ends, the suggested dials) and every save of the settings
-    general    the last general query of each kind sent from here, and who spoke after it    changed by GeneralAsk.changed (a query sent, a station that had been quiet heard after it)
-
-Each row's values are built in neoaprs/web/views.py and typed in `TopicValues` of neoaprs/web/protocol.py. Nothing is built for a topic nobody follows, and a patch holds the items that changed, as they are when it is made.
-
-One message is no topic: `station_alert`, told to every page that is open when StationAlerts.fired (an alert set on a station fired), and to nobody later.
-Nor is `layer_things`: a layer's whole table, told by Layers.told to the pages that look at that layer (neoaprs/web/layerfeed.py).
+This is the one place in neoaprs/web/ that connects those signals (`Topics._followed` lists them).
+Row values are built in views.py and typed in `TopicValues` (protocol.py).
 """
 import logging
 import time
@@ -65,17 +40,21 @@ from .views import StationRadios, bulletin_row, config_values, general_state, gp
 
 log = logging.getLogger("neoaprs.web")
 
-TNC_EVERY_SEC = 0.25                    # a radio's row changes with every line its TNC sees: told at most four times a second
-GPS_EVERY_SEC = 1.0                     # the GPS gives a fix a second: told at most once a second
-IGATE_EVERY_SEC = 1.0                   # the iGate counts every packet it hears: told at most once a second
-DISTANCES_EVERY_SEC = 30.0              # every station's distance and bearing follow our moving at most this often (our own row follows at every step of the GPS service)
-PLACE_KEYS = ("station/call", "station/lat", "station/lon", "gps/source")      # (a station that turns mobile or stays moves our row between home and the fix)
+TNC_EVERY_SEC = 0.25  # a radio's row changes with every line its TNC sees
+GPS_EVERY_SEC = 1.0  # the GPS gives a fix a second
+IGATE_EVERY_SEC = 1.0  # the iGate counts every packet it hears
+# Stations' distances and bearings follow our movement at most this often; our own row follows every
+# GPS step.
+DISTANCES_EVERY_SEC = 30.0
+# Settings that move our own row between home and the GPS fix.
+PLACE_KEYS = ("station/call", "station/lat", "station/lon", "gps/source")
 
 
 def radios_in_force(config: Config) -> tuple[object, ...]:
-    """What of the settings' radios the rows of the stations, the messages and the objects read (the radio a message takes now, a choice in force, an object's radios): each radio's id, kind, type, Enable,
-    place and whether it is removed, the radio chosen for email (the gateway's row and a mail on its way follow it), and our own calls (a reply path through a gateway is never one of them). A name, a radio's own settings and the paths are none of it (a
-    station's path on a radio is told by PrefBook.path_changed)."""
+    """Return the radio facts the station, message and object rows depend on.
+
+    Names, radio settings and paths are left out; a path change is signalled by PrefBook.
+    """
     return tuple((s.id, s.kind, s.type, s.enabled, s.position, s.removed) for s in config.radios), config.email_choice, pairsetting.own_calls(config.station_call, config.pairs)
 
 
@@ -84,14 +63,18 @@ class Topics:
                  tell: Callable[[dict[str, Any]], None] | None = None) -> None:
         self.ctl = ctl
         self.hub = hub
-        self._sent = sent                           # told when a packet of ours went out or the settings changed: the status (the count of packets, the time of the beacon, the radios) has changed
-        self._tell = tell                           # a message to every page that is open, which no topic keeps (an alert set on a station fired)
+        # called when a packet of ours went out or the settings changed, so the status is resent
+        self._sent = sent
+        # sends a message to every open page, for messages no topic keeps
+        self._tell = tell
         self.window = PacketWindow()
-        self.scopes = RadioScopes(self._wire_scope)              # the pages that have a radio's scope open (`radio_scope`): the rows are sent to them, not to every page
-        self.levels = RadioLevels(self._wire_level)                           # the pages that show a Sound card radio's receive level (`radio_level`): its level ten times a second goes to them alone
-        self.layers = LayerLooks(ctl.layers)                    # the pages that look at a layer of traffic on the map (`layer_look`): its table goes to them alone
-        self._distances_at = float("-inf")          # when every station was last told whole because we moved (the monotonic clock)
-        self._config = ctl.config                   # the settings the stations were last told with
+        # Scope rows, receive levels and layer tables go only to the pages that asked for them.
+        self.scopes = RadioScopes(self._wire_scope)
+        self.levels = RadioLevels(self._wire_level)
+        self.layers = LayerLooks(ctl.layers)
+        # monotonic time stations were last told whole because we moved
+        self._distances_at = float("-inf")
+        self._config = ctl.config  # the settings the stations were last told with
         self.window.internet = ctl.config.igate_enabled
         self.station_radios = StationRadios(self._radio_choice, self._radio_now, self._paths_of, self._replies_of)
         hub.add(Topic("stations", self._stations, lambda call: self._station(call)))
@@ -126,25 +109,31 @@ class Topics:
         return None if station is None else self._row(station)
 
     def _row(self, station: Station) -> dict[str, Any] | None:
-        """The station's row as the page is shown it: with the internet hidden (`igate/enabled` off) none for a station known only from there, and the radio's side of one heard both ways."""
+        """Return the station's row as the page is shown it.
+
+        With the iGate off, an internet-only station has none and others show their radio side.
+        """
         shown = station if self.ctl.config.igate_enabled else station.radio_view()
         return None if shown is None else station_row(self.ctl.stationbook, shown, self.station_radios)
 
-    # ---- what a station's row says of the radios (the daemon's rules: the page works none of it out)
+    # What a station's row says of the radios; the daemon decides, the page works none of it out.
     def _radio_choice(self, call: str) -> RadioId | None:
-        """The operator's radio for the station while it is enabled; None for the daemon's own choice."""
+        """Return the operator's radio for the station while it is enabled.
+
+        Return None when the daemon chooses.
+        """
         chosen = self.ctl.radios.choice(call)
         return chosen if chosen is not None and any(spec.id == chosen for spec in self.ctl.config.enabled_radios) else None
 
     def _radio_now(self, call: str) -> RadioId | None:
-        """The radio a message to the station goes on now (services/messageradio.py); None while there is none."""
+        """Return the radio a message to the station goes on now, or None."""
         try:
             return self.ctl.messaging.message_radios.station(call).id
         except MessagingError:
             return None
 
     def _paths_of(self, call: str) -> dict[RadioId, tuple[str, ...]]:
-        """The path set for the station on each radio that is not removed, by the radio's id."""
+        """Return the path set for the station on each live radio, by radio id."""
         try:
             key = normal_name(call)
         except ValueError:
@@ -153,7 +142,10 @@ class Topics:
         return {id: path for id, path in found if path is not None}
 
     def _replies_of(self, call: str) -> dict[RadioId, tuple[str, ...]]:
-        """The path of a message or an ack of ours to the station on each radio that is not removed and carries no path (M1: the reply through a gateway, PrefBook.path_for), without RFONLY, by the radio's id."""
+        """Return our message or ack path to the station, without RFONLY.
+
+        One entry per live radio that carries no path (M1).
+        """
         live = self.ctl.config.live_radios
         return {spec.id: digipeaters(self.ctl.prefbook.path_for(call, None, spec.id)) for spec in live if not carries_path(live, spec.id)}
 
@@ -204,14 +196,14 @@ class Topics:
         return message_row(record, self.ctl.messaging.delivery.attempts_of(record.id), self.ctl.messaging.queued(record), None if radio is None else radio.id)
 
     async def start(self) -> None:
-        """The window starts with the packets the database holds, and from then on the signals tell the hub."""
+        """Load the packet window from the database and connect the signals."""
         self.window.load(await self.ctl.packetlog.window(PACKETS_KEPT))
         self._config = self.ctl.config
         self.window.internet = self._config.igate_enabled
         self.connect()
 
     def _followed(self) -> list[tuple[Signal[...], Callable[..., None]]]:
-        """Each signal of the daemon a topic follows, with what tells the hub (the table in this module's docstring)."""
+        """Return each followed signal with its handler (see the table in the module docstring)."""
         ctl = self.ctl
         return [
             (ctl.stationbook.changed, self._station_changed), (ctl.stationbook.recounted, self._station_changed), (ctl.stationbook.removed, self._station_removed),
@@ -244,7 +236,7 @@ class Topics:
 
     @staticmethod
     def _wire_scope(feed: ScopeFeed, modem: Mercury, on: bool) -> None:
-        """A radio's scope feed follows its modem's rows, or no more (`RadioScopes` makes one when a page first asks for that radio)."""
+        """Connect or disconnect a scope feed to its modem's rows."""
         if on:
             modem.scope_row.connect(feed.row)
             modem.scope_cleared.connect(feed.cleared)
@@ -254,7 +246,7 @@ class Topics:
 
     @staticmethod
     def _wire_level(feed: LevelFeed, modem: Leveled, on: bool) -> None:
-        """A radio's level feed follows its modem's level now, or no more (`RadioLevels` makes one when a page first asks for that radio)."""
+        """Connect or disconnect a level feed to its modem's level."""
         if on:
             modem.level_now.changed.connect(feed.said)
         else:
@@ -267,7 +259,7 @@ class Topics:
         self.hub.changed("stations", call)
 
     def _stations_cleared(self) -> None:
-        """Every station but ours was forgotten, with the packets heard: the window forgets them too."""
+        """Drop heard packets from the window when every station but ours was forgotten."""
         self.window.drop_heard()
         self.hub.changed("stations")
         self.hub.changed("packets")
@@ -279,16 +271,16 @@ class Topics:
         self.hub.changed("radios")
 
     def _path_changed(self, call: str, radio: RadioId) -> None:
-        """A station's path on a radio other than radio 1 is another now (radio 1's is its entry of `station_prefs` too): its row's `paths`."""
+        """Update the station's row `paths`; radio 1's path is also in `station_prefs`."""
         self.hub.changed("stations", call)
 
     def _packet(self, packet: Packet) -> None:
         for number in self.window.add(packet):
             self.hub.changed("packets", str(number))
         if packet.direction == "out":
-            self.hub.changed("gps")                 # (the beacon that went out is the latest of its kind)
+            self.hub.changed("gps")  # the beacon sent is the latest of its kind
             if packet.radio_id is not None:
-                self.hub.changed("radios", str(packet.radio_id))        # (its beacon's last and next)
+                self.hub.changed("radios", str(packet.radio_id))  # its beacon's last and next times
             if self._sent is not None:
                 self._sent()
 
@@ -326,7 +318,10 @@ class Topics:
         self.hub.changed("skeds")
 
     def _gps_moved(self) -> None:
-        """Our row follows the GPS at once (the book tells it); the distance and bearing of every other station are told whole now and then."""
+        """Our row follows the GPS at once.
+
+        Other stations' distances and bearings are resent whole now and then.
+        """
         now = time.monotonic()
         if now - self._distances_at >= DISTANCES_EVERY_SEC:
             self._distances_at = now
@@ -339,12 +334,12 @@ class Topics:
         self.hub.changed("station_keys", call)
 
     def _own_key_changed(self) -> None:
-        """Our key is new: the status, which carries its fingerprint, is told now."""
+        """Resend the status, which carries our key's fingerprint."""
         if self._sent is not None:
             self._sent()
 
     def _station_alert(self, fired: Fired) -> None:
-        """An alert set on a station fired: every page is told once, as it happens (a page opened later is not told it again)."""
+        """Tell every open page once; a page opened later is not told."""
         if self._tell is not None:
             self._tell(station_alert_message(fired))
 
@@ -353,24 +348,28 @@ class Topics:
         moved = any(key in PLACE_KEYS for key in keys)
         radios = radios_in_force(config) != radios_in_force(self._config)
         self._config = config
-        self.hub.changed("radios")                  # (a radio's settings, its Enable, its beacon's interval)
-        self.scopes.keep({radio.id: modem for radio in self.ctl.radios.all() if isinstance(modem := radio.driver.modem, Mercury)})      # (a radio removed lets go of its modem's rows; the scope is Mercury's)
+        self.hub.changed("radios")  # settings, Enable, beacon interval
+        # A removed radio releases its modem's rows; only Mercury has a scope.
+        self.scopes.keep({radio.id: modem for radio in self.ctl.radios.all() if isinstance(modem := radio.driver.modem, Mercury)})
         self.levels.keep({radio.id: modem for radio in self.ctl.radios.all() if isinstance(modem := radio.driver.modem, DirewolfModem)})
         if radios:
-            self.hub.changed("stations")            # (the radio a message to each takes now, and the choices in force)
-            self.hub.changed("own_objects")         # (a radio removed has left the objects' radios: OwnObjects.forget_radio)
+            self.hub.changed("stations")  # the radio each message takes now, and the choices in force
+            self.hub.changed("own_objects")  # a removed radio left the objects' radios
             for key in on_their_way(self.ctl.messaging.records()):
-                self.hub.changed("messages", key)   # (the radio each goes on next)
+                self.hub.changed("messages", key)  # the radio each goes on next
         if "igate/enabled" in keys:
             self.window.internet = config.igate_enabled
             self.hub.changed("packets")
-            moved = True                            # (the stations are told whole: the internet ones appear or go)
+            moved = True  # tell the stations whole: the internet ones appear or go
         self.hub.changed("config")
         self.hub.changed("gps")
         self.hub.changed("igate")
-        self.hub.changed("skeds")                   # (a call that the server blocked is a closed board only for that call)
-        self.hub.changed("map")                     # (the area and the zoom it asks for, and whether there is a position)
+        # a call the server blocked is a closed board for that call only
+        self.hub.changed("skeds")
+        self.hub.changed("map")  # area, zoom and whether there is a position
         if moved:
-            self.hub.changed("stations")            # (every row has a new distance and bearing)
+            self.hub.changed("stations")  # every row has a new distance and bearing
         if self._sent is not None:
-            self._sent()                            # (the status says the radio of a call no radio heard, the email radio, the beacon's interval, the call and the place: every page is told them now, not at the next ten seconds)
+            # The status carries the unheard-call radio, email radio, beacon interval, call and
+            # place.
+            self._sent()

@@ -1,6 +1,6 @@
-"""The layers' service with a Radarcape as the source of the aircraft (neoaprs/services/layers.py `Radarcape`): asked at its one place, at the start and at a save for its state in Settings and otherwise only
-while a page looks, every 5 seconds; with no address asked nothing and no answer; backed off after failures as the own receiver is; cut by nothing but the guard of 2000; an own receiver in every rule (no
-service, not shut by the update check); and, with a fake Radarcape on the loopback, what is asked and that the no-devices switch lets this computer through and nothing else."""
+"""Tests for the layers service with a Radarcape as the aircraft source (neoaprs/services/layers.py
+`Radarcape`): timing, back-off, the cut by guard, and the rules of the own receiver.
+"""
 import asyncio
 import json
 import logging
@@ -30,7 +30,8 @@ def cape(*rows: dict[str, Any]) -> bytes:
 
 @pytest.fixture
 def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for every test that does not ask for a fixture of this name)."""
+    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for
+    every test that does not ask for a fixture of this name)."""
     monkeypatch.setenv(nodevices.ENV, "1")
 
 

@@ -1,8 +1,7 @@
-"""The daemon the app shows: the one that holds the data folder's lock (a service, a `neoaprs run` in a terminal, an earlier `neoaprs open`), or, when none does, one the app starts. The app attaches to the
-first kind and leaves it running at Quit; the second kind it owns: it starts it the way `neoaprs open` does (the same code: detached from the app, so that the daemon outlives a crash of the window; the app
-stops it at Quit and, while it runs, notices when something else stops it, `neoaprs stop` for one, and ends too). What the app can find out about a daemon is what the commands can (neoaprs/cli/daemonstate.py).
-The page's address is the one the daemon writes into the data folder (neoaprs/cli/logfile.py): the app reads it when it opens the session and goes on reading it, since a daemon that starts again
-(Update now, a service's restart) may serve the page on another port than before, and the window follows it there."""
+"""The daemon the app shows: the one holding the data folder's lock, or one the app starts.
+
+The app attaches to an existing daemon and leaves it running at Quit; otherwise it starts and
+owns one, stops it at Quit, and ends if something else stops it."""
 import logging
 import subprocess
 import threading
@@ -22,18 +21,19 @@ log = logging.getLogger("neoaprs.desktop")
 START_TIMEOUT_SEC = 60.0
 STOP_TIMEOUT_SEC = 30.0
 WATCH_SEC = 2.0
-GONE_AFTER = 2                                    # polls in a row that find no daemon: one is a daemon that is restarting, two is one that ended
+# Consecutive polls without a daemon before it counts as gone (one may be a restart).
+GONE_AFTER = 2
 
 
 class NoPage(Exception):
-    """No daemon came up on the data folder (or its page does not answer); the text says why."""
+    """No daemon came up on the data folder, or its page does not answer; the text says why."""
 
 
 @dataclass(frozen=True)
 class Session:
     data: Path
     url: str
-    owned: bool                                   # the app started the daemon: Quit stops it, and its end is the app's end
+    owned: bool  # the app started the daemon: Quit stops it
 
 
 def _start_detached(data: Path, encryption: bool = False) -> "subprocess.Popen[bytes]":
@@ -42,9 +42,7 @@ def _start_detached(data: Path, encryption: bool = False) -> "subprocess.Popen[b
 
 @dataclass
 class Daemon:
-    """What the app does to the daemons, as functions that a test replaces: `running(data)`, `start(data)` (a detached daemon; the process object), `wait(data, child, seconds)` (the page's address once the page answers, else None), `stop(data, seconds)`,
-    `restarting(data)` (it ended to start again), `address(data)` (where its page is served now: what it wrote into the data folder, None while it serves none) and `network(data)` (whether it serves the page to the network too:
-    the note it keeps in the data folder, which is read each time it is asked)."""
+    """The operations on daemons, as functions that a test can replace."""
     running: Callable[[Path], bool] = is_running
     start: Callable[[Path], "subprocess.Popen[bytes]"] = _start_detached
     wait: Callable[[Path, "subprocess.Popen[bytes] | None", float], str | None] = opencmd.wait_for_page
@@ -55,9 +53,10 @@ class Daemon:
 
 
 def open_session(data: Path, daemon: Daemon | None = None, timeout: float = START_TIMEOUT_SEC, encryption: bool = False, owns: bool = False) -> Session:
-    """Attach to the daemon of the data folder, or start one. Raises NoPage when no page comes up. A daemon that someone else started while ours was starting wins the lock: ours ends at once, and the app does not own the one it shows.
-    `owns`: the app is started again after Update now (renew.py) and owns the daemon it finds, as the app before it did; a daemon that is starting again as the new version is waited for, not started twice."""
-    daemon = daemon or Daemon(start=lambda folder: _start_detached(folder, encryption))       # (a daemon the app starts has encrypted messages when the app was started with --encryption)
+    """Attach to the data folder's daemon, or start one. Raise NoPage if no page comes up.
+
+    `owns`: the app was restarted by an update and owns the daemon it finds."""
+    daemon = daemon or Daemon(start=lambda folder: _start_detached(folder, encryption))
     child = None
     if daemon.running(data):
         log.info("a daemon runs on %s: attaching%s", data, " as its owner" if owns else "")
@@ -74,9 +73,7 @@ def open_session(data: Path, daemon: Daemon | None = None, timeout: float = STAR
 
 
 class Opening:
-    """The session on its way: `opener` (an `open_session` with its arguments) runs in a thread of its own from `start` on, so that the app makes its window while the daemon comes up. `result()` waits for
-    it and is the Session, or raises its NoPage; `when_done(callback)` calls back once it is there (at once when it is), in the thread that brought it. What else goes wrong on the way (the daemon's program
-    cannot be started) is a NoPage that says so, with the traceback in the log: the window waits for no longer than the opener does."""
+    """A session opened in a thread; `result()` waits for it, `when_done` calls back. Failures become NoPage."""
 
     def __init__(self, data: Path, opener: Callable[[], Session]) -> None:
         self.data = data
@@ -90,7 +87,7 @@ class Opening:
 
     @classmethod
     def opened(cls, session: Session) -> "Opening":
-        """One that is there already (a test's, a shell's that is given a session)."""
+        """Return an Opening that is already finished with `session`."""
         opening = cls(session.data, lambda: session)
         opening._finish(session, None)
         return opening
@@ -135,7 +132,7 @@ class Opening:
 
 
 def stop_owned(session: Session, daemon: Daemon | None = None) -> bool:
-    """Quit's half that is the daemon's: stops it when the app started it, and only then. True when the daemon is not running after it."""
+    """Stop the daemon at Quit, only if the app started it. Return True if it is not running afterwards."""
     daemon = daemon or Daemon()
     if not session.owned:
         return True
@@ -146,13 +143,9 @@ def stop_owned(session: Session, daemon: Daemon | None = None) -> bool:
 
 
 class DaemonWatch:
-    """Calls `gone` once when the daemon the app owns has ended without the app stopping it (`neoaprs stop`, the uninstaller, the Start menu's Stop). It looks every `every` seconds in a thread of its own; `cancel` stops it.
-    A daemon that ends to start again as a new version (Update now of an AppImage: the note of neoaprs/stopfile.py) has not ended, and while the note is fresh the daemon's lock is not looked at.
-    Calls `moved(address)` each time the daemon, the app's own or one it attached to, serves its page at another address than the app last knew (it started again and could not have the port it had): the
-    address is read from the file the daemon writes, which is not there while it serves no page, and nothing is asked of the daemon's lock for it. Only the port may be another: an address of
-    another host than the one the session was opened on is not the daemon's page, whatever the file says, and the window is never sent there.
-    Calls `network_moved()` each time the daemon's note says its page is served to the network, or not any more, from what it was at the last look (a tray that draws its menu only when asked is asked again).
-    Calls `renewed()` once when the app's own AppImage file (`app_file`) is a new version and the daemon the app owns runs again (renew.py): the app is to start again as the new version."""
+    """Poll the daemon in a thread and call back: `gone`, `moved(address)`, `network_moved()`, `renewed()`.
+
+    Only the port may change: an address on another host is never followed."""
 
     def __init__(self, session: Session, gone: Callable[[], None], daemon: Daemon | None = None, every: float = WATCH_SEC, moved: Callable[[str], None] | None = None,
                  app_file: AppFile | None = None, renewed: Callable[[], None] | None = None, network_moved: Callable[[], None] | None = None) -> None:
@@ -161,12 +154,12 @@ class DaemonWatch:
         self.moved = moved
         self.app_file = app_file if renewed is not None else None
         self.renewed = renewed
-        self.url = session.url                     # where the page is, as the app knows it
+        self.url = session.url
         self.network_moved = network_moved
-        self.network: bool | None = None           # whether the page was served to the network at the last look (None: not looked yet)
-        self.refused: str | None = None            # an address the file named that the app did not follow (said once)
+        self.network: bool | None = None  # served to the network at the last look
+        self.refused: str | None = None  # an address not followed (logged once)
         self.daemon = daemon or Daemon()
-        self.missing = 0                           # looks in a row that found the owned daemon gone
+        self.missing = 0  # consecutive looks that found the owned daemon gone
         self.every = every
         self._cancelled = threading.Event()
         self.thread = threading.Thread(target=self._run, name="neoaprs-app-watch", daemon=True)
@@ -174,7 +167,7 @@ class DaemonWatch:
     def start(self) -> None:
         if self.session.owned or self.moved is not None or self.network_moved is not None:
             if self.network_moved is not None:
-                self.network = self.daemon.network(self.session.data)          # (what the menu was built from: a flip before the first look is then seen)
+                self.network = self.daemon.network(self.session.data)
             self.thread.start()
 
     def cancel(self) -> None:
@@ -189,11 +182,13 @@ class DaemonWatch:
                 log.exception("a look at the daemon on %s failed", self.session.data)
 
     def _look(self) -> bool:
-        """One look at the daemon; True when the watch is over."""
+        """Look at the daemon once; return True when the watch is over."""
         if self.session.owned:
             again = self.daemon.restarting(self.session.data)
-            up = not again and self.daemon.running(self.session.data)          # (the lock is not looked at while the daemon starts again: the look takes it for a moment, and the new daemon that takes it then would find it held and end)
-            self.missing = 0 if up or again else self.missing + 1             # (a daemon that starts again as a new version is waited for)
+            # While the daemon restarts the lock is not checked: the check holds it briefly, and
+            # the new daemon would find it taken and exit.
+            up = not again and self.daemon.running(self.session.data)
+            self.missing = 0 if up or again else self.missing + 1
             if self.missing >= GONE_AFTER:
                 log.info("the daemon on %s has ended: the app ends too", self.session.data)
                 self.gone()
@@ -205,7 +200,7 @@ class DaemonWatch:
         return False
 
     def _follow_network(self) -> None:
-        """Calls `network_moved` when the daemon's note on the network has changed since the last look; the first look only remembers."""
+        """Call `network_moved` if the network note changed since the last look; the first look only records it."""
         if self.network_moved is None:
             return
         now = self.daemon.network(self.session.data)
@@ -215,7 +210,7 @@ class DaemonWatch:
             self.network_moved()
 
     def _renewed(self) -> bool:
-        """The app's file is a new version and its daemon, running, has no restart pending (it runs the new file): `renewed` is called, and the watch is over."""
+        """Call `renewed` and return True when the app's file is new and the running daemon has no restart pending."""
         if self.app_file is None or self.renewed is None or not self.app_file.replaced() or self.daemon.restarting(self.session.data):
             return False
         log.info("the app's file %s is a new version and the daemon on %s runs it: the app starts again", self.app_file.path, self.session.data)

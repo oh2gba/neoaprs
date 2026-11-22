@@ -1,5 +1,7 @@
-"""A radio as it is stored (neoaprs/radiospec.py): the live and the enabled radios by position, the number within a kind and the log's name of a radio, the radio of what no fact gives one, a station's choice and a set of radios
-read against the radios that are enabled (plan §2), the name the operator types, and a radio's own value with its field's default for one that is missing or wrong."""
+"""A radio as stored (neoaprs/radiospec.py): the live and enabled radios by position, the number
+within a kind, the log name, a station's choice read against the enabled radios, typed names, and
+field defaults.
+"""
 import logging
 
 import pytest
@@ -78,7 +80,9 @@ def test_a_radios_value_is_parsed_by_its_field_and_a_missing_or_wrong_one_is_the
         assert spec.value("tcp_port") == 8001
     assert "radio/1/tcp_port" in caplog.text and "the default 8001 is used" in caplog.text
     with pytest.raises(RadioError, match="radio/2/port"):
-        radio(2, "hf").value("port")                                    # (a key of another kind: the FM kind's port; every HF key is an FM one too, the Sound card type's)
+        # A key of another kind: the FM kind's port; every HF key is an FM one too, the Sound card
+        # type's
+        radio(2, "hf").value("port")
     assert radio(2, "hf").value("tx_gain_db") == 0
     assert (FM_ID, HF_ID) == (1, 2)
 

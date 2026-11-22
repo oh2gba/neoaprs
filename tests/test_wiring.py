@@ -1,9 +1,7 @@
-"""The wiring (neoaprs/wiring.py) with the whole daemon around it, the radio a fake one on the loopback: the capture of the TH-D7 fills the database and the station book, a restart finds the stations
-again, the cable pulled and put back, pruning and a change of the port in the settings. The port the search found being remembered is in tests/test_wiring_pty.py.
-
-Then how a radio's settings become its line's, which is its driver's (neoaprs/tncdriver.py, neoaprs/mercurydriver.py): radio 1's and radio 2's (`line_settings`,
-`modem_settings`, read from a radio's own spec), the words of a change for the log (neoaprs/radioregistry.py), and the wiring of the radios: every radio's packets through the one signal
-`radio_packet`, what changes of a radio on `radio_changed` with its id."""
+"""The wiring (neoaprs/wiring.py) with the whole daemon around it and a fake loopback radio: the
+capture fills the database and station book, a restart finds the stations, the cable pulled and put
+back, pruning, port changes.
+"""
 import asyncio
 import logging
 from dataclasses import replace
@@ -92,7 +90,8 @@ async def test_what_we_send_is_in_the_packet_log_and_not_in_the_book(tmp_path: P
     e = Env(tmp_path)
     await e.start()
     await e.until_connected()
-    await e.until_usable()                                       # (the settle time of entering KISS is not in play: nothing was said in command mode)
+    # The settle time of entering KISS is not in play: nothing was said in command mode
+    await e.until_usable()
     frame = ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA"), (), info=b"!6010.00N/02456.00E-NeoAPRS")
     assert e.tnc.send_frame(frame)
     [sent] = await e.packets()
@@ -203,7 +202,8 @@ async def test_a_change_of_the_serial_port_in_the_settings_restarts_the_tnc(tmp_
     first_radio, second_radio = await e.new_radio(), await e.new_radio()
     first, second = first_radio.url, second_radio.url
     await e.start()
-    await until(lambda: e.tnc.state is Source.State.WAITING)          # (no port: the search finds none and tries again every 50 ms, CONNECTING and WAITING in turn)
+    # No port: the search finds none and tries again every 50 ms, CONNECTING and WAITING in turn
+    await until(lambda: e.tnc.state is Source.State.WAITING)
     assert e.ctl.config.to_data() == DEFAULTS.to_data()
     assert await e.ctl.save_config(replace(e.ctl.config, serial_port=first))
     await until(lambda: e.tnc.state is Source.State.CONNECTED and e.tnc.path == first)
@@ -243,7 +243,8 @@ async def test_a_save_before_the_database_is_open_changes_nothing(tmp_path: Path
 
 
 async def test_a_port_given_for_this_run_is_used_alone_and_never_stored(tmp_path: Path) -> None:
-    e = Env(tmp_path, operator=False)                              # the Env's radio is given as the controller's port, like --port
+    # The Env's radio is given as the controller's port, like --port
+    e = Env(tmp_path, operator=False)
     await e.start()
     assert e.tnc.path == e.link and e.tnc.port == e.link and not e.tnc.fallback_probe
     await idle_for(0.1)
@@ -332,7 +333,9 @@ def test_a_modem_driver_points_its_line_at_the_modems_port_and_its_key_has_the_g
 
 
 async def test_a_mercury_radio_whose_program_is_not_in_this_installation_has_no_line_and_says_the_modems_problem(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """Whatever listens where a Mercury of ours would be (the test's own listener on the modem's port as it stands before any start) is not ours and is never connected to, before a start and after one."""
+    """Whatever listens where a Mercury of ours would be (the test's own listener on the modem's
+    port as it stands before any start) is not ours and is never connected to, before a start and
+    after one."""
     accepted: list[int] = []
     other = await asyncio.start_server(lambda r, w: accepted.append(1) or w.close(), "127.0.0.1", 0)
     config = replace(DEFAULTS, hf_enabled=True)
@@ -359,7 +362,8 @@ async def test_a_mercury_radio_whose_program_is_not_in_this_installation_has_no_
 
 
 def test_storing_what_the_running_modem_chose_for_itself_is_no_change_and_anything_else_is(tmp_path: Path) -> None:
-    """MercuryDriver.made_explicit, which the registry asks before it compares the keys (tests/test_radio_restart.py has it through a save)."""
+    """MercuryDriver.made_explicit, which the registry asks before it compares the keys
+    (tests/test_radio_restart.py has it through a save)."""
     config = replace(DEFAULTS, hf_enabled=True)
     hf = config.radio(HF_ID)
     assert hf is not None
@@ -407,7 +411,8 @@ async def test_every_radios_packets_go_through_the_one_signal_and_a_change_of_a_
     assert radio is not None
     e.ctl.radios.wire(radio)
     assert len(e.hf.packet._handlers) == 1 and len(e.mercury.changed._handlers) == 1 and len(e.beacon_2.sent._handlers) == 1, "a radio that is wired again (another driver on the same line) is connected once"
-    e.beacon.sent.emit(ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA"), (), info=b"!6010.00N/02456.00E-"))        # (the iGate takes every radio's beacon: nothing to assert but that it is connected)
+    # The iGate takes every radio's beacon: nothing to assert but that it is connected
+    e.beacon.sent.emit(ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA"), (), info=b"!6010.00N/02456.00E-"))
     assert e.beacon.sent._handlers == e.beacon_2.sent._handlers == [e.ctl.igate.beacon_sent]
 
 
@@ -433,7 +438,8 @@ async def test_a_modem_on_other_ports_repoints_its_radios_line_only_while_the_ra
     e.mercury.ports_changed.emit()
     await idle_for(0.1)
     assert repointed == [] and "hf-tnc" not in {t.get_name() for t in e.ctl.tasks}, "the line of a radio that is off is not started"
-    e.ctl.config = replace(e.ctl.config, hf_enabled=True)                           # (the radio on, without a save that would start it)
+    # The radio on, without a save that would start it
+    e.ctl.config = replace(e.ctl.config, hf_enabled=True)
     e.mercury.ports_changed.emit()
     await until(lambda: repointed == [HF_ID])
     await e.stop()

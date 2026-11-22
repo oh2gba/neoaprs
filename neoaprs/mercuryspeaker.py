@@ -1,16 +1,8 @@
-"""The speaker of the Dummy Mercury radio: the Mercury the daemon starts to play our frames aloud (mercurymodem.py, `start(..., speaker=True)`), heard from the computer's own sound output.
+"""Speaker of the Dummy Mercury radio: a Mercury that plays our frames on the sound output.
 
-Mercury runs on its `fifo` audio backend (raw s32le mono at 8000 samples a second over two named pipes, the backend the simulators use: tests/support/hfchannel.py), not on a sound card: a sound card is paced by its
-clock, but a silent capture device of ALSA (`null`) is not, and Mercury read it a thousand times faster than real time, filled its decoder and wrote a warning every millisecond (tried 2 November 2026). So the
-daemon is the sound card's clock: a thread (`SpeakerAudio`) writes a block of silence into Mercury's capture pipe every 20 ms, at the pace a sound card would, and reads what Mercury transmits from its playback
-pipe, which it hands to the system's own player, `pw-play` (PipeWire), `paplay` (PulseAudio) or `aplay` (ALSA), whichever is there: those know the desktop's sound output, which the bundled ALSA library alone
-does not. The frames to play come in on Mercury's broadcast port as KISS (`SpeakerLine`), as they would from the Tnc.
-
-Windows has no named pipes, and Mercury's fifo and null backends are one sound system for both directions with no Windows pipe in them (its audioio.c opens the path with open() and nothing else), so there the
-speaker is not started (mercurymodem.py says so in the log): Mercury on WASAPI's default devices would play the modem's audio out of the speakers and read the microphone for real, with a radio on the default
-output keying by VOX, which the Dummy's "nothing goes on the air" does not allow. The Dummy Mercury radio runs without the sound on Windows; whether it is to play there is a decision for later.
-
-Nothing of it is a must: no player, no pipes, a Mercury that is not there, are each a line in the log, and the Dummy Mercury radio makes its traffic all the same."""
+Mercury runs on its fifo audio backend; the daemon is the sound card's clock and feeds the
+playback pipe to a system player. POSIX only. Nothing here is required: failures are only logged.
+"""
 import asyncio
 import contextlib
 import logging
@@ -28,14 +20,16 @@ from .source import Backoff, os_error_text
 log = logging.getLogger("neoaprs.mercury")
 
 CONNECT_SEC = 3.0
-RATE = 8000                                   # samples a second of Mercury's fifo backend
-SAMPLE_BYTES = 4                              # s32le
-BLOCK_MS = 20                                 # a sound card's block
+# Mercury's fifo backend: s32le mono samples a second, in sound-card-sized blocks.
+RATE = 8000
+SAMPLE_BYTES = 4
+BLOCK_MS = 20
 BLOCK_BYTES = RATE * BLOCK_MS // 1000 * SAMPLE_BYTES
 SILENCE = bytes(BLOCK_BYTES)
-CAPTURE_FIFO = "mercury-capture.fifo"         # what Mercury hears (silence), in the modem's own folder (`Mercury.home`: radios/<id>/ of the data folder)
-PLAYBACK_FIFO = "mercury-playback.fifo"       # what Mercury transmits
-PLAYERS: tuple[tuple[str, tuple[str, ...]], ...] = (                      # the system's players of raw s32le mono at 8 kHz from standard input, the first found wins
+CAPTURE_FIFO = "mercury-capture.fifo"
+PLAYBACK_FIFO = "mercury-playback.fifo"
+# Players of raw s32le mono at 8 kHz from stdin; the first found wins.
+PLAYERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("pw-play", ("--raw", "--rate", str(RATE), "--channels", "1", "--format", "s32", "-")),
     ("paplay", ("--raw", f"--rate={RATE}", "--format=s32le", "--channels=1")),
     ("aplay", ("-q", "-t", "raw", "-f", "S32_LE", "-r", str(RATE), "-c", "1", "-")),
@@ -44,8 +38,10 @@ NONBLOCK: int = getattr(os, "O_NONBLOCK", 0)
 
 
 def player_command() -> list[str] | None:
-    """The system's player of raw audio from standard input, as a command; None when the machine has none of the three. NEOAPRS_PLAYER_PATH, when set, is where they are looked for instead of the PATH:
-    the tests and the demo daemons point it at a folder that is not there, so that no daemon of theirs on the Dummy Mercury radio plays Mercury out of the developer's speakers (John heard their beacons, 4 Nov 2026)."""
+    """Return the command of a system player of raw audio, or None.
+
+    NEOAPRS_PLAYER_PATH replaces the PATH for the search.
+    """
     if nodevices.refused("the Dummy Mercury radio's audio is not played", logging.INFO):
         return None
     path = os.environ.get("NEOAPRS_PLAYER_PATH")
@@ -56,7 +52,10 @@ def player_command() -> list[str] | None:
 
 
 class SpeakerAudio:
-    """The sound card's clock for the Mercury on the fifo backend: silence into its capture pipe every 20 ms, what it plays out of its playback pipe into the system's player. A thread, as the air of the simulators is."""
+    """The sound card's clock for Mercury's fifo backend, run in a thread.
+
+    Writes silence into the capture pipe every 20 ms and feeds the playback pipe to the player.
+    """
 
     def __init__(self, folder: Path, player: Callable[[], list[str] | None] = player_command) -> None:
         self.capture = folder / CAPTURE_FIFO
@@ -65,18 +64,19 @@ class SpeakerAudio:
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self._player: subprocess.Popen[bytes] | None = None
-        self.blocks_written = 0                                 # of silence, into Mercury's capture
-        self.bytes_played = 0                                   # of Mercury's audio, into the player
-        self.player_said = False                                # the log line about the player (or none) was written
+        self.blocks_written = 0
+        self.bytes_played = 0
+        self.player_said = False
 
     @property
     def possible(self) -> bool:
-        """Whether this system has named pipes (POSIX); without them (Windows) Mercury runs on its default recording and playback devices and nothing of this is started."""
+        """True if the system has named pipes (POSIX)."""
         return hasattr(os, "mkfifo")
 
     def prepare(self) -> bool:
-        """Makes the two pipes anew (a stale pair from an earlier run is removed); False, with a line in the log, when they cannot be made."""
-        make = getattr(os, "mkfifo", None)              # (POSIX; the Windows type check knows no such name)
+        """Create both pipes anew, removing stale ones; return False (and log) on failure."""
+        # POSIX only; the Windows type check knows no such name.
+        make = getattr(os, "mkfifo", None)
         if make is None:
             return False
         try:
@@ -89,7 +89,7 @@ class SpeakerAudio:
         return True
 
     def start(self) -> None:
-        """The thread of the clock; one that runs from before (Mercury ended and came back without a stop) is ended first, so that two never write into the same pipe."""
+        """Start the clock thread, ending a previous one first."""
         self._end_thread()
         self._stop.clear()
         self._thread = threading.Thread(target=self._run, name="mercury-speaker-audio", daemon=True)
@@ -104,7 +104,7 @@ class SpeakerAudio:
     def stop(self) -> None:
         self._end_thread()
         self._end_player()
-        self.player_said = False                                # (the next run starts its player again)
+        self.player_said = False
         for path in (self.capture, self.playback):
             with contextlib.suppress(OSError):
                 path.unlink()
@@ -127,7 +127,10 @@ class SpeakerAudio:
                         os.close(fd)
 
     def _write_silence(self, fd: int | None) -> int | None:
-        """One block of silence into Mercury's capture pipe; the pipe is opened once Mercury reads it (ENXIO until then) and closed again when Mercury goes."""
+        """Write one block of silence into the capture pipe.
+
+        The pipe opens once Mercury reads it (ENXIO until then) and closes when Mercury goes.
+        """
         if fd is None:
             try:
                 fd = os.open(self.capture, os.O_WRONLY | NONBLOCK)
@@ -137,7 +140,7 @@ class SpeakerAudio:
             os.write(fd, SILENCE)
             self.blocks_written += 1
         except BlockingIOError:
-            pass                                                # (Mercury is behind by a block: the next one is not owed)
+            pass
         except OSError:
             with contextlib.suppress(OSError):
                 os.close(fd)
@@ -145,7 +148,7 @@ class SpeakerAudio:
         return fd
 
     def _read_audio(self, fd: int | None) -> int | None:
-        """What Mercury wrote since the last block, into the player."""
+        """Pass what Mercury wrote since the last block to the player."""
         if fd is None:
             try:
                 fd = os.open(self.playback, os.O_RDONLY | NONBLOCK)
@@ -200,20 +203,22 @@ class SpeakerAudio:
 
 
 class SpeakerLine:
-    """The line to the broadcast port of that Mercury: a TCP connection kept open while the program runs, tried again after the back-off while it starts, and written the KISS bytes the dummy line is given (`play`),
-    which Mercury modulates. Nothing comes back on the broadcast port of a station alone; a line that is not open drops the frame with a line in the log at DEBUG."""
+    """TCP line to the speaker Mercury's broadcast port, kept open while the program runs.
+
+    `play` writes KISS bytes there; a frame is dropped while the line is not open.
+    """
 
     def __init__(self, host: str, port: Callable[[], int], running: Callable[[], bool]) -> None:
-        self._host, self._port, self._running = host, port, running       # where the program's broadcast port is, and whether the program still runs (the loop ends with it)
+        self._host, self._port, self._running = host, port, running
         self._writer: asyncio.StreamWriter | None = None
-        self.played = 0                                                   # how many frames were handed to the program
+        self.played = 0
 
     @property
     def open(self) -> bool:
         return self._writer is not None
 
     async def run(self, keep: Callable[[], bool]) -> None:
-        """Keeps the line open while `keep` says so and the program runs; a task of the owner, cancelled by it."""
+        """Keep the line open while `keep()` is true and the program runs."""
         backoff = Backoff([0.5, 1.0, 2.0, 5.0])
         while keep() and self._running():
             try:
@@ -224,7 +229,8 @@ class SpeakerLine:
             self._writer = writer
             log.info("Mercury plays the frames of the Dummy Mercury radio on the computer's sound output")
             try:
-                while await reader.read(4096):                          # (nothing comes back on a broadcast port with no other station; the read ends when Mercury goes)
+                # The read ends when Mercury goes.
+                while await reader.read(4096):
                     pass
             except OSError:
                 pass
@@ -240,7 +246,7 @@ class SpeakerLine:
             writer.close()
 
     def play(self, data: bytes) -> None:
-        """A frame as KISS bytes, handed to the program to be heard; dropped while the line is not open."""
+        """Hand a KISS frame to the program; drop it while the line is not open."""
         writer = self._writer
         if writer is None:
             log.debug("Mercury is not playing: nothing to hear for this frame")

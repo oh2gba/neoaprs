@@ -1,5 +1,4 @@
-"""The logger of the migrations: its lines go to stderr too, and so to the journal (daemon.py), because they change what the operator has stored. The steps (migrationsteps*.py) write to it,
-and the runner (migrations.py), the daemon and the tools read it."""
+"""The migrations logger. Its lines also go to stderr, because migrations change stored data."""
 import logging
 
 MIGRATION_LOG = "neoaprs.migrations"

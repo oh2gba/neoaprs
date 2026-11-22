@@ -1,19 +1,21 @@
-"""The noise of the busy-detector measurements (scripts/mercury-measure busy and autobusy): what one receiver hears besides the channel's white noise, in scenes. A `Scene` stands in for `random.Random` of the channel
-(tests/support/hfchannel.py calls `gauss(0, sigma)` for every sample of every block, so the scene sees every sample in order), and `BusyChannel` gives each receiver a scene of its own.
+"""The noise of the busy-detector measurements (scripts/mercury-measure busy, autobusy), in scenes.
+A `Scene` stands in for the channel's `random.Random` (tests/support/hfchannel.py calls
+`gauss(0, sigma)` for every sample in order); `BusyChannel` gives each receiver its own scene.
 
     white       the channel's white noise
-    ssb         white noise through a receiver's 300 to 2700 Hz filter, as the audio of an SSB radio is
-    carriers    the same with three steady carriers at 600, 1300 and 2100 Hz that stand `excess` dB over the noise of their 150 Hz band (heterodynes, the carriers of broadcasters)
-    step        white noise that rises by `excess` dB `EVENT_SEC` seconds after `arm()` and stays (the band opens, a new source of QRM)
-    ramp        white noise that rises by `excess` dB over `RAMP_SEC` seconds after `arm()` (the slow rise of a band's noise towards the evening)
-    bursts      white noise with bursts of static `excess` dB over it, 150 ms long, a few seconds apart, from `arm()` on (QRN)
-    fade        white noise whose level wanders by up to `excess` dB with a time of a few seconds, always (the band noise of an HF band)
-    narrow      white noise through a narrow receiver filter, 500 to 2300 Hz at four poles: the bands beside the passband are 20 dB and more under the ones in it (a 1.8 kHz filter, the least Mercury's own notes allow)
+    ssb         white noise through a receiver's 300 to 2700 Hz filter, as an SSB radio's audio is
+    carriers    the same with three steady carriers (600, 1300, 2100 Hz) `excess` dB over their band
+    step        white noise that rises by `excess` dB `EVENT_SEC` seconds after `arm()` and stays
+    ramp        white noise that rises by `excess` dB over `RAMP_SEC` seconds after `arm()`
+    bursts      white noise with 150 ms bursts of static `excess` dB over it, seconds apart (QRN)
+    fade        white noise whose level wanders by up to `excess` dB over a few seconds
+    narrow      white noise through a narrow filter, 500 to 2300 Hz at four poles
     narrowvoice the same with the voice-like signal of `voice`
-    voice       white noise with a voice-like signal `excess` dB over it from `arm()` on for `VOICE_SEC` seconds: noise through the receiver's filter and a low pass at 800 Hz (a spectrum that falls with the pitch, as speech's does),
-                switched on and off in syllables of a few tenths of a second with a pause now and then
+    voice       white noise with a voice-like signal `excess` dB over it from `arm()` for
+                `VOICE_SEC` seconds: filtered noise, low pass at 800 Hz, keyed in syllables
 
-The time of an event is counted from `arm()`, which the measurement calls when the quiet part begins (the sample count of the scene, 8000 a second)."""
+The time of an event is counted from `arm()`, which the measurement calls when the quiet part begins
+(the scene counts samples, 8000 a second)."""
 import math
 import random
 from collections.abc import Callable
@@ -21,7 +23,8 @@ from typing import Any
 
 from tests.support.hfchannel import RATE, Channel
 
-RECEIVER_BAND_HZ = 150.0                    # the bands of Mercury's detector (modem/channel_busy.h BUSY_BAND_HZ)
+# The bands of Mercury's detector (modem/channel_busy.h BUSY_BAND_HZ).
+RECEIVER_BAND_HZ = 150.0
 EVENT_SEC = 20.0                            # when an event of a scene begins, after `arm()`
 RAMP_SEC = 120.0
 VOICE_SEC = 60.0
@@ -32,7 +35,8 @@ KINDS = ("white", "ssb", "carriers", "step", "ramp", "bursts", "fade", "voice", 
 
 
 class Bandpass:
-    """Two biquads in a row, a high pass and a low pass of 12 dB an octave: the audio of an SSB receiver, as a radio's filter gives it (300 to 2700 Hz)."""
+    """Two biquads in a row, a high pass and a low pass of 12 dB an octave (an SSB receiver, 300 to
+    2700 Hz)."""
 
     def __init__(self, low_hz: float, high_hz: float) -> None:
         self.stages = [self._coefficients(low_hz, True), self._coefficients(high_hz, False)]
@@ -60,7 +64,7 @@ class Bandpass:
 
 
 class Scene:
-    """What one receiver hears besides the channel's noise level (`sigma` is the channel's, whatever the scene)."""
+    """What one receiver hears besides the channel noise level (`sigma` is the channel's)."""
 
     def __init__(self, kind: str, seed: int, excess_db: float = 0.0) -> None:
         if kind not in KINDS:
@@ -98,7 +102,7 @@ class Scene:
         return 1.0 / math.sqrt(sum(v * v for v in probe) / len(probe))
 
     def _voice_unit(self) -> float:
-        """The scale that makes the voice (white noise through the receiver's filter and the low pass) have the RMS of unit white noise."""
+        """The scale that gives the voice the RMS of unit white noise."""
         probe = [self._voice_sample() for _ in range(40000)][4000:]
         self.voice_filter.state = [[0.0, 0.0], [0.0, 0.0]]
         self.voice_low = 0.0
@@ -172,7 +176,7 @@ class Scene:
 
 
 class BusyChannel(Channel):
-    """The channel with a scene of its own for every receiver (`feeds`), whatever the SNR it is set to says about the level."""
+    """The channel with a scene of its own for every receiver (`feeds`)."""
 
     feeds: dict[str, Any]
 

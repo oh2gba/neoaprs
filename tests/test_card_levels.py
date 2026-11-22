@@ -1,7 +1,7 @@
-"""The sound card's own levels of a radio (neoaprs/cardlevels.py) and its drivers (neoaprs/direwolfdriver.py, neoaprs/mercurydriver.py), on a made-up mixer: the radio's values are put on the card at every
-start of its modem and never when the operator never set them, a change is set at once and restarts nothing (the starts of the made-up Direwolf are counted), the row says the card's levels and follows the
-card, a control with fewer steps than 100 says the percent asked, and the Dummy radio and a Mercury something else runs have no levels. Several presses of the Transmit level's - and + where it is still
-Direwolf's own scaling are one start of the program."""
+"""Tests for the sound card levels of a radio (neoaprs/cardlevels.py) and its drivers
+(neoaprs/direwolfdriver.py, neoaprs/mercurydriver.py) on a made-up mixer: when levels are applied,
+that a change restarts nothing, and the radios that have no levels.
+"""
 import asyncio
 import ctypes
 import logging
@@ -37,7 +37,9 @@ CARD = "plughw:1,0"
 
 @dataclass
 class FakeMixer:
-    """A made-up mixer: the cards' levels by card (a card absent has none), every write written down as (card, tx, rx); `steps` makes a control of fewer steps than 100 (a percent is rounded to them)."""
+    """A made-up mixer: the cards' levels by card (a card absent has none), every write written down
+    as (card, tx, rx); `steps` makes a control of fewer steps than 100 (a percent is rounded to
+    them)."""
     cards: dict[str, Levels]
     writes: list[tuple[str, int | None, int | None]] = field(default_factory=list)
     reads: int = 0
@@ -74,7 +76,8 @@ async def test_the_values_are_put_on_the_card_at_the_start_and_again_at_every_st
     levels = CardLevels(lambda: modem.sound_card, lambda: modem.starts, mixer)
     await levels.start(80, None)
     assert mixer.writes == [(CARD, 80, None)] and levels.levels == Levels(80, 50), "the playback value put on, the capture one never set is not written"
-    mixer.cards[CARD] = Levels(38, 50)                                   # (the card plugged in again: the system's own level)
+    # (the card plugged in again: the system's own level)
+    mixer.cards[CARD] = Levels(38, 50)
     modem.starts = 2
     await until(lambda: len(mixer.writes) == 2)
     assert mixer.writes[1] == (CARD, 80, None) and levels.levels == Levels(80, 50)
@@ -164,7 +167,8 @@ async def test_a_sound_card_radio_puts_its_levels_on_the_card_and_a_change_of_th
 
 
 async def test_a_sound_card_radio_set_to_the_card_another_radio_holds_never_reads_or_sets_its_levels(tmp_path: Path) -> None:
-    """Two radios set to one card: the second's start is refused, and its values are not written on the card the first transmits on, nor is that card read for its row."""
+    """Two radios set to one card: the second's start is refused, and its values are not written on
+    the card the first transmits on, nor is that card read for its row."""
     mixer = FakeMixer({CARD: Levels(38, 50)})
     radio = spec(tx_card="70", rx_card="20")
     driver = direwolf_driver(tmp_path, mixer, radio)
@@ -216,7 +220,8 @@ async def test_several_presses_of_the_transmit_level_are_one_start_of_direwolf_a
 
 
 class FailingMixer:
-    """A mixer whose every call fails with a fault that is no OSError (a wrong argument of a ctypes call)."""
+    """A mixer whose every call fails with a fault that is no OSError (a wrong argument of a ctypes
+    call)."""
     calls = 0
 
     def read(self, card: str) -> Levels:
@@ -234,7 +239,8 @@ async def test_a_mixer_that_fails_starts_the_radio_without_sliders_and_says_it_o
     await driver.start()
     try:
         await running(driver.modem)
-        await until(lambda: mixer.calls >= 4)                                # (the card is looked at again and again: every look fails)
+        # (the card is looked at again and again: every look fails)
+        await until(lambda: mixer.calls >= 4)
         said = [r for r in caplog.records if r.name == "neoaprs.soundmixer" and "could not be had" in r.getMessage()]
         assert len(said) == 1 and said[0].levelno == logging.INFO, "said once for the card, never as an error"
         row = radio_row(radio, (radio,), SimpleNamespace(line=driver.line, beacon=None, driver=driver), Claims())
@@ -245,7 +251,8 @@ async def test_a_mixer_that_fails_starts_the_radio_without_sliders_and_says_it_o
 
 
 async def test_a_card_whose_mixer_fails_after_a_start_keeps_the_radio_running() -> None:
-    """The fault comes from the system's mixer on Windows (a Core Audio call that raises something else than OSError): the same end, no levels."""
+    """The fault comes from the system's mixer on Windows (a Core Audio call that raises something
+    else than OSError): the same end, no levels."""
     class Raising:
         def get(self, device: str) -> float | None:
             raise ValueError("a COM call answered nonsense")
@@ -273,7 +280,8 @@ async def test_the_levels_are_known_once_the_radios_card_was_read_or_where_there
     await levels.stop()
     assert levels.known, "stopped: still the card's levels as read last"
     assert CardLevels(lambda: CARD, lambda: 1, FakeMixer({}), own=lambda: False).known, "no card of the radio's own by its kind"
-    monkeypatch.setattr(nodevices, "on", lambda: True)                   # (the switch is lifted in a test's own process: this is a daemon under it, on any system)
+    # (the switch is lifted in a test's own process: this is a daemon under it, on any system)
+    monkeypatch.setattr(nodevices, "on", lambda: True)
     assert CardLevels(lambda: CARD, lambda: 1).known, "the no-devices switch: no mixer at all"
     monkeypatch.setattr(nodevices, "on", lambda: False)
     monkeypatch.setattr(sys, "platform", "darwin")
@@ -293,7 +301,9 @@ async def test_the_levels_are_known_once_the_radios_card_was_read_or_where_there
 
 
 async def test_a_mercury_radio_on_the_systems_default_device_keeps_its_transmit_levels_buttons(tmp_path: Path) -> None:
-    """Mercury left to its own choice of card runs on the system's default device ("") where it finds none to choose: no card of its own name to read, so its row has the modem's - and + once it runs."""
+    """Mercury left to its own choice of card runs on the system's default device ("") where it
+    finds none to choose: no card of its own name to read, so its row has the modem's - and + once
+    it runs."""
     mixer = FakeMixer({CARD: Levels(38, 50)})
     hf = RadioSpec(2, "hf", "mercury", "", True, 2, settings={"sound_card": "", "keying": "vox", "tx_gain_db": "0", "beacon": "true"})
     driver = MercuryDriver(hf, Claims(), radio_folder(tmp_path, 2), utcnow, mixer=mixer)
@@ -311,9 +321,13 @@ async def test_a_mercury_radio_on_the_systems_default_device_keeps_its_transmit_
 
 
 @pytest.mark.parametrize(("gain", "card", "written", "levels"), [
-    ("0", Levels(38, 50), (70, 20), Levels(70, 20)),              # the card's slider is the transmit level: both values are put on the card
-    ("-12", Levels(38, 50), (None, 20), Levels(38, 20)),          # the modem's - and + are: the card's playback level stays as the system has it, the capture one is set
-    ("0", Levels(None, 50), (70, 20), Levels(None, 20)),          # no playback control: nothing of it to set, the - and + are the transmit level
+    # the card's slider is the transmit level: both values are put on the card
+    ("0", Levels(38, 50), (70, 20), Levels(70, 20)),
+    # the modem's - and + are: the card's playback level stays as the system has it, the capture one
+    # is set
+    ("-12", Levels(38, 50), (None, 20), Levels(38, 20)),
+    # no playback control: nothing of it to set, the - and + are the transmit level
+    ("0", Levels(None, 50), (70, 20), Levels(None, 20)),
 ])
 async def test_the_playback_value_is_put_on_the_card_only_while_the_modems_gain_is_zero(tmp_path: Path, gain: str, card: Levels, written: tuple[int | None, int | None], levels: Levels) -> None:
     mixer = FakeMixer({CARD: card})

@@ -1,5 +1,4 @@
-"""The packets by the hour on the wire: the command that asks how many were heard in each of the last hours and the message that answers it, for the graph of the statistics card (all the packets heard) and
-for the one of a station's card (the packets of that station); what the statistics card counts beyond that (the packets by radio, what we sent, the packets that came by several ways); the speeds a moving station reported, for the speed graph of its card; and the readings of a station's signal, for the signal graph of its card. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire models of the history graphs: packets by hour, statistics, speed and signal series."""
 from typing import Literal
 
 from pydantic import Field

@@ -1,10 +1,9 @@
-"""The Send on of Ask around and of Local info (neoaprs/beaconrule.py `send_on_radios`, neoaprs/services/generalask.py, neoaprs/services/qruask.py): each has a tick per radio that can send, in the beacon's
-pattern (`radio/<id>/ask`, `radio/<id>/local_info`). A press sends one frame on each ticked radio that takes frames now and nothing on a radio that is unticked, only receives or is off; it is all or
-nothing while a ticked radio is inside its wait; the record of a press holds its radios, and a station (an object) heard on two of them is counted once. With one radio that can send, on that one whatever is
-stored; with several and none ticked, on none. A group's request and Ask again go on the one radio named, the radio the server answered on.
+"""Tests for the Send on ticks of Ask around and Local info (neoaprs/beaconrule.py `send_on_radios`,
+neoaprs/services/generalask.py, neoaprs/services/qruask.py): one frame on each ticked radio that
+can send now, nothing on the others, and the all-or-nothing rule while a radio is waiting.
 
-What goes on the air is counted per radio, on stub lines under a clock the test holds and a registry that reads the settings as they are (tests/test_status_send_on.py `Registry`); the last tests run the
-whole daemon (migration 34 writes the ticks of a data folder of 0.20.1: tests/test_no_main_radio.py)."""
+Counts are per radio, on stub lines under a test clock; the last tests run the whole daemon.
+"""
 import logging
 from collections import Counter
 from dataclasses import replace
@@ -35,7 +34,8 @@ from tests.test_status_send_on import Registry
 FM = RadioSpec(1, "fm", "kenwood-tnc2", "", True, 1, settings={"path": "WIDE1-1,WIDE2-1"})
 HF = RadioSpec(2, "hf", "dummy-hf", "", True, 2)
 LORA = RadioSpec(3, "lora", "dummy-lora", "", True, 3)
-RX = RadioSpec(4, "fm", "tnc-text", "", True, 4, settings={"port": "/dev/ttyUSB7", "ask": "true", "local_info": "true"})       # (ticks stored from another type: a radio that only receives has no such field)
+# (ticks stored from another type: a radio that only receives has no such field)
+RX = RadioSpec(4, "fm", "tnc-text", "", True, 4, settings={"port": "/dev/ttyUSB7", "ask": "true", "local_info": "true"})
 OFF = RadioSpec(5, "fm", "kiss", "", False, 5, settings={"ask": "true", "local_info": "true"})
 KEYS = ("ask", "local_info")
 
@@ -53,7 +53,8 @@ class Asking:
         self.lines: dict[RadioId, StubTnc] = {spec.id: StubTnc(max_frame=123 if spec.kind == "hf" else None, id=spec.id) for spec in specs}
         self.short: tuple[RadioId, ...] = ()
         self.rows: list[Station] = []
-        self.radios = Registry(self)          # type: ignore[arg-type]  # (it reads the settings, the lines and `short`, which this has as the status's station does)
+        # It reads the settings, the lines and `short`, which this has as the status's station does
+        self.radios = Registry(self)  # type: ignore[arg-type]
         self.general = GeneralAsk(self.radios, lambda: self.config, self, self.clock)
         self.qru = QruAsk(self.radios, lambda: self.config, self.path_for, self.clock)
         remember_stop(self.qru.stop)
@@ -92,7 +93,7 @@ class Asking:
         self.qru.on_packet(replace(object_report(source, name, self.clock()), radio_id=radio))
 
 
-# ---- ticked nowhere ---------------------------------------------------------------------------------------------------------------------------------
+# ---- ticked nowhere ------------------------------------------------------------------------------
 
 async def test_with_several_radios_on_and_none_ticked_nothing_goes_and_the_press_is_refused_with_no_radio() -> None:
     station = Asking(FM, HF, LORA, RX, replace(OFF, settings={}))
@@ -117,7 +118,7 @@ async def test_with_one_radio_that_can_send_everything_goes_on_it_whatever_is_st
         assert station.tnc2(2) == ["OH2GBA>APZNEO:?APRS?", "OH2GBA>APZNEO::QRU      :INFO"], "Mercury carries no path"
 
 
-# ---- Ask around -------------------------------------------------------------------------------------------------------------------------------------
+# ---- Ask around ----------------------------------------------------------------------------------
 
 def test_a_query_goes_once_on_each_ticked_radio_and_on_no_unticked_receive_only_or_off_radio() -> None:
     station = Asking(ticked(FM), ticked(HF), ticked(LORA, False), RX, OFF)
@@ -144,7 +145,8 @@ def test_a_press_is_all_or_nothing_while_a_ticked_radio_is_inside_its_minute() -
     station.general.ask("aprs")
     assert station.frames() == {1: 0, 2: 1}
     station.clock.advance(20)
-    station.put(ticked(FM))                                         # (the FM radio ticked too, 20 s after the query on Mercury)
+    # (the FM radio ticked too, 20 s after the query on Mercury)
+    station.put(ticked(FM))
     station.clock.advance(10)
     with pytest.raises(MessagingError) as refused:
         station.general.ask("aprs")
@@ -154,7 +156,8 @@ def test_a_press_is_all_or_nothing_while_a_ticked_radio_is_inside_its_minute() -
     station.clock.advance(ASK_EVERY_SEC - 30)
     assert station.general.ask("aprs").radios == (1, 2)
     assert station.frames() == {1: 2, 2: 3}
-    station.put(ticked(HF, False))                                  # (Mercury unticked: its minute holds nothing any more)
+    # (Mercury unticked: its minute holds nothing any more)
+    station.put(ticked(HF, False))
     station.clock.advance(ASK_EVERY_SEC)
     station.general.ask("aprs")
     station.put(ticked(FM, False), ticked(HF))
@@ -198,7 +201,8 @@ def test_a_ticked_radio_that_takes_no_frames_now_is_left_out_and_none_that_does_
 
 def test_a_station_heard_on_two_radios_after_a_press_is_counted_once() -> None:
     station = Asking(ticked(FM), ticked(HF), ticked(LORA, False))
-    station.heard_before("OH2FMQ", 3, 1)                             # heard on FM three minutes before: no newcomer there, one on Mercury
+    # heard on FM three minutes before: no newcomer there, one on Mercury
+    station.heard_before("OH2FMQ", 3, 1)
     station.general.ask("aprs")
     station.hear("OH2NEW", 5, 1)
     station.hear("OH2NEW", 6, 2)                                     # (the same station on the second radio)
@@ -206,7 +210,8 @@ def test_a_station_heard_on_two_radios_after_a_press_is_counted_once() -> None:
     station.hear("OH2FMQ", 8, 2)
     station.hear("OH2FMQ", 9, 2)
     station.hear("OH2LOR", 10, 3)                                    # (on a radio the press did not go on)
-    station.hear("OH2ANY", 11, None)                                 # (a packet that names no radio: quiet on every radio of the press)
+    # (a packet that names no radio: quiet on every radio of the press)
+    station.hear("OH2ANY", 11, None)
     station.hear("OH2FMQ", 12, None)
     [asked] = station.general.asked()
     assert asked.new == ("OH2NEW", "OH2FMQ", "OH2ANY"), "each once, whatever number of radios heard it; what a radio the press did not go on heard is not counted"
@@ -222,7 +227,9 @@ def test_six_radios_that_send_an_hour_of_presses_one_query_a_minute_of_each_kind
                      replace(LORA, settings={"ask": "true"}), RX, OFF)
     assert send_on_radios("ask", station.config.radios) == (1, 3, 7), "the ticked ones by position; a radio without a row beside them is unticked"
     sent = refused = 0
-    for _ in range(120):                                           # a press of each kind every 30 seconds for an hour: every second one is inside the minute of all three radios
+    # a press of each kind every 30 seconds for an hour: every second one is inside the minute of
+    # all three radios
+    for _ in range(120):
         for kind in ("aprs", "igate", "wx"):
             try:
                 assert station.general.ask(kind).radios == (1, 3, 7)        # type: ignore[arg-type]
@@ -266,7 +273,7 @@ def test_the_log_says_each_radio_a_query_went_on_and_a_radio_that_did_not_take_i
         ("neoaprs.queries", "INFO", "asked around: ?APRS? by no digipeaters on Mercury")]
 
 
-# ---- Local info -------------------------------------------------------------------------------------------------------------------------------------
+# ---- Local info ----------------------------------------------------------------------------------
 
 async def test_the_request_info_goes_once_on_each_ticked_radio_and_on_no_unticked_receive_only_or_off_radio() -> None:
     station = Asking(ticked(FM), ticked(HF), ticked(LORA, False), RX, OFF)
@@ -327,13 +334,14 @@ async def test_an_object_heard_on_two_radios_of_a_request_is_counted_once_and_on
     station.object_from("OH2DPN", "BOTH", 2)
     station.object_from("OH2DPN", "ONHF", 2)
     station.object_from("OH2DPN", "ONLORA", 3)
-    station.object_from("OH2DPN", "NAMELESS", None)                # (a packet that names no radio counts for every request)
+    # (a packet that names no radio counts for every request)
+    station.object_from("OH2DPN", "NAMELESS", None)
     station.answer("OH2DPN", "Sent 3 TEST Objects Max 5@150km de OH2DPN", 1)
     [server] = station.qru.servers()
     assert server.received == ("BOTH", "NAMELESS", "ONHF") and server.radio == 1
 
 
-# ---- the rule and the row a tick writes ---------------------------------------------------------------------------------------------------------------
+# ---- the rule and the row a tick writes ----------------------------------------------------------
 
 def test_each_thing_has_its_own_ticks_read_by_the_one_rule() -> None:
     specs = (replace(FM, settings={"ask": "true"}), replace(HF, settings={"local_info": "true"}), LORA)
@@ -343,7 +351,8 @@ def test_each_thing_has_its_own_ticks_read_by_the_one_rule() -> None:
 
 
 def test_a_tick_stores_itself_alone_whatever_the_number_and_one_sent_back_as_it_is_stores_nothing() -> None:
-    base = replace(ON_AIR, radios=(FM, FM2, HF, replace(HF2, settings={"status": "true"}), HF3, LORA, RX, OFF))       # (0.20.1 stored a status tick only where it was ticked: radio 7's)
+    # A status tick is stored only where it was ticked: radio 7's.
+    base = replace(ON_AIR, radios=(FM, FM2, HF, replace(HF2, settings={"status": "true"}), HF3, LORA, RX, OFF))
     rows = lambda config, key: {s.id: s.settings.get(key) for s in config.radios}      # noqa: E731
     one = with_radio_values(base, {"radio/6/ask": "true"})
     assert rows(one, "ask") == {**rows(base, "ask"), 6: "true"}, "the tick pressed, of six radios that send: no other row is written"
@@ -354,12 +363,14 @@ def test_a_tick_stores_itself_alone_whatever_the_number_and_one_sent_back_as_it_
     assert rows(off, "status")[7] == "false" and send_on_radios("status", off.radios) == (), "the last tick taken away: ticked nowhere"
 
 
-# ---- the whole daemon -------------------------------------------------------------------------------------------------------------------------------
+# ---- the whole daemon ----------------------------------------------------------------------------
 
 async def test_a_daemon_with_fm_and_mercury_asks_on_the_fm_radio_ticked_when_mercury_came_and_then_on_the_ticked_radios(tmp_path: Path) -> None:
     clock = FixedClock()
-    e = Env(tmp_path, clock=clock, web=True, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})          # (radio 1 ticked for both when radio 2 came beside it, as the controller writes it)
-    e.mercury._finder = lambda: None                          # (no program: the Dummy Mercury radio works without its speaker)
+    # (radio 1 ticked for both when radio 2 came beside it, as the controller writes it)
+    e = Env(tmp_path, clock=clock, web=True, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
+    # (no program: the Dummy Mercury radio works without its speaker)
+    e.mercury._finder = lambda: None
     out: list[tuple[RadioId | None, bytes]] = []
     e.ctl.radio_packet.connect(lambda p: out.append((p.radio_id, ax25.decode(p.raw).info)) if p.direction == "out" else None)
     await e.start()
@@ -374,7 +385,8 @@ async def test_a_daemon_with_fm_and_mercury_asks_on_the_fm_radio_ticked_when_mer
     await until(lambda: sum(asks().values()) == 2)
     assert asks() == Counter({(1, b"?APRS?"): 1, (1, b":QRU      :INFO"): 1}), "on the FM radio alone"
 
-    await page.send({"cmd": "set_config", "values": {"radio/1/ask": "true", "radio/2/ask": "true"}})          # (the tick of radio 2; radio 1 sent back as it is)
+    # (the tick of radio 2; radio 1 sent back as it is)
+    await page.send({"cmd": "set_config", "values": {"radio/1/ask": "true", "radio/2/ask": "true"}})
     await page.until(lambda: page.topics["radios"]["2"]["choices"]["ask"])
     assert {spec.id: (spec.settings.get("ask"), spec.settings.get("local_info")) for spec in await e.ctl.store.read_radios()} == {1: ("true", "true"), 2: ("true", None)}
     clock.advance(ASK_EVERY_SEC)

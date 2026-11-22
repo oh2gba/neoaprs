@@ -1,5 +1,4 @@
-"""The serial ports of the machine on the wire: the command that asks for the list and the message that answers it. For the page that lets the operator pick the radio's port. Models like the rest of the
-protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire models for listing serial ports and finding the radio's port."""
 from typing import Literal
 
 from pydantic import Field

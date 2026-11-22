@@ -1,21 +1,31 @@
-"""Migration 31, frozen here beside migrations.py (which lists the steps in MIGRATIONS and runs them): the radios of a station become rows. The same rules as for the earlier steps (migrationsteps1to11.py): a step
-is never edited once it has been released, and what it uses beside itself (the functions and the constants of this module) is frozen with it. It reads the database and nothing of the program: the types of
-today's radios, the words of a tickbox and the defaults are written here."""
+"""Migration 31: the radios of a station become rows.
+
+A released step is never edited, nor are the helper functions and constants it uses. It reads only
+the database; the radio types, the tickbox words and the defaults are written out here."""
 import json
 import sqlite3
 
 from .dberror import StoreError
 from .migrationlog import log
 
-_TRUE, _FALSE = ("1", "true", "yes", "on"), ("0", "false", "no", "off")                             # the words of a stored tickbox
-_FM_TYPES = ("kenwood-tnc2", "kenwood-d710", "kantronics", "kiss", "kiss-tcp", "dummy")             # what `tnc/profile` may say, and `kiss` when it says nothing or anything else
-_HF_TYPES = ("mercury", "dummy-hf")                                                                 # what `hf/profile` may say, and `mercury` when it says nothing or anything else
-_FM_MOVES = (("serial/port", "port"), ("serial/baud", "baud"), ("tcp/host", "tcp_host"), ("tcp/port", "tcp_port"), ("beacon/path", "path"), ("digi/enabled", "digipeat"))        # a settings row, and the radio's own key it becomes on radio 1
-_HF_MOVES = (("mercury/sound_card", "sound_card"), ("mercury/keying", "keying"), ("mercury/tx_gain_db", "tx_gain_db"), ("beacon/path", "path"))                                   # and on radio 2 (the path is kept there for the day HF may carry one)
-_STATE = (("serial/last_port", "radio/1/last_port"), ("beacon/last_sent_at", "radio/1/beacon_last_sent_at"), ("hf/beacon_last_sent_at", "radio/2/beacon_last_sent_at"))            # a row of the daemon's own state, and the radio's row it becomes
-_HF_ROWS = (("message_attempt", "radio = 'hf'"), ("message", "radio = 'hf'"), ("own_object", "radio IN ('hf', 'both')"), ("station", "heard_hf > 0"), ("packet", "radio = 'hf'"))    # the rows that name the HF radio (the small tables first; the station cache outlives the packets it counted)
-_KEPT = ("own_object", "station_pref", "message", "message_attempt", "station", "packet")         # the tables of an installation's rows that the migrations 32 and 33 give a radio: one row in any is no new installation
-_GONE = "key GLOB 'tnc/*' OR key GLOB 'hf/*' OR key GLOB 'mercury/*' OR key GLOB 'tcp/*' OR key IN ('serial/port', 'serial/baud', 'beacon/path', 'digi/enabled', 'fm/enabled')"   # the settings rows that are a radio's from now on
+# stored tickbox words
+_TRUE, _FALSE = ("1", "true", "yes", "on"), ("0", "false", "no", "off")
+# `tnc/profile` values; anything else is `kiss`
+_FM_TYPES = ("kenwood-tnc2", "kenwood-d710", "kantronics", "kiss", "kiss-tcp", "dummy")
+# `hf/profile` values; anything else is `mercury`
+_HF_TYPES = ("mercury", "dummy-hf")
+# (settings key, radio key it becomes on radio 1)
+_FM_MOVES = (("serial/port", "port"), ("serial/baud", "baud"), ("tcp/host", "tcp_host"), ("tcp/port", "tcp_port"), ("beacon/path", "path"), ("digi/enabled", "digipeat"))
+# the same for radio 2 (the path is kept there in case HF gets one)
+_HF_MOVES = (("mercury/sound_card", "sound_card"), ("mercury/keying", "keying"), ("mercury/tx_gain_db", "tx_gain_db"), ("beacon/path", "path"))
+# (daemon state row, radio row it becomes)
+_STATE = (("serial/last_port", "radio/1/last_port"), ("beacon/last_sent_at", "radio/1/beacon_last_sent_at"), ("hf/beacon_last_sent_at", "radio/2/beacon_last_sent_at"))
+# rows naming the HF radio; small tables first, as the station cache outlives its packets
+_HF_ROWS = (("message_attempt", "radio = 'hf'"), ("message", "radio = 'hf'"), ("own_object", "radio IN ('hf', 'both')"), ("station", "heard_hf > 0"), ("packet", "radio = 'hf'"))
+# tables whose rows migrations 32 and 33 give a radio; a row in any means an existing installation
+_KEPT = ("own_object", "station_pref", "message", "message_attempt", "station", "packet")
+# settings rows that belong to a radio from now on
+_GONE = "key GLOB 'tnc/*' OR key GLOB 'hf/*' OR key GLOB 'mercury/*' OR key GLOB 'tcp/*' OR key IN ('serial/port', 'serial/baud', 'beacon/path', 'digi/enabled', 'fm/enabled')"
 _CHOICES = "messages/radio_by_station"
 
 

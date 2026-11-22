@@ -1,6 +1,7 @@
-"""Asking around (neoaprs/services/generalask.py, the command `general_query` and the topic `general`): the frame of each general query byte for byte, the path given or `beacon/path`, RFONLY, the refusals and the
-minute between two queries of a kind, the stations that were quiet before a query and spoke after it, and the whole through the daemon and the socket. Its Send on with several radios (one query on each
-ticked radio, all or nothing) is tests/test_ask_send_on.py's."""
+"""Tests for Asking around (neoaprs/services/generalask.py, `general_query`, topic `general`): the
+frame byte for byte, path, refusals, the one-per-minute limit and the stations that answer.
+Send on with several radios is in tests/test_ask_send_on.py.
+"""
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -36,7 +37,8 @@ class Rig(ServiceRig):
     def __init__(self, **changes: object) -> None:
         super().__init__(**changes)
         self.book = Book()
-        self.radios = pick_of(self)                                             # (the station's radios as the registry gives them: radio 1 on the stub line)
+        # (the station's radios as the registry gives them: radio 1 on the stub line)
+        self.radios = pick_of(self)
         self.general = GeneralAsk(self.radios, lambda: self.config, self.book, self.clock)
         self.told = 0
         self.general.changed.connect(self.tell)
@@ -45,7 +47,8 @@ class Rig(ServiceRig):
         self.told += 1
 
     def hear(self, source: str, seconds: float = 0.0, via: Via = "rf", direction: str = "in", radio: RadioId | None = None) -> None:
-        """A packet of `source`, `seconds` after the clock (on the radio `radio`; None: a packet that names none)."""
+        """A packet of `source`, `seconds` after the clock (on the radio `radio`; None: a packet
+        that names none)."""
         third = ThirdParty(source, "APRS") if via == "rf-gated" else None
         at = self.clock() + timedelta(seconds=seconds)
         packet = Packet(at, direction, b"", "OH2GATE" if third else source, "APRS", ("OH2RCH-2*",), b">here", Other("status", ">here"), third, via, radio_id=radio)    # type: ignore[arg-type]
@@ -55,7 +58,8 @@ class Rig(ServiceRig):
         return Station(call, first_heard=self.clock() - timedelta(hours=1), last_heard=self.clock(), **heard)       # type: ignore[arg-type]
 
     def heard_before(self, call: str, minutes: float, radio: RadioId = FM_ID) -> None:
-        """The station book heard the station on the radio (radio 1, the rig's, unless another is named) this long before now."""
+        """The station book heard the station on the radio (radio 1, the rig's, unless another is
+        named) this long before now."""
         at = self.clock() - timedelta(minutes=minutes)
         self.book.rows.append(self.station(call, last_rf_at=at, heard_by={radio: RadioHeard(1, at)}))
 
@@ -119,7 +123,8 @@ def test_nothing_is_asked_in_rx_only_without_a_call_or_with_the_radio_away() -> 
     with pytest.raises(MessagingError, match="did not take"):
         rig.general.ask("aprs")
     assert rig.tnc.sent == [] and rig.general.asked() == [] and rig.told == 0
-    rig.radios.on.clear()                                                   # (no radio at all: what the settings refuse, and a fresh installation of the round)
+    # No radio at all: what the settings refuse, and a fresh installation.
+    rig.radios.on.clear()
     with pytest.raises(MessagingError, match="there is no radio"):
         rig.general.ask("aprs")
 
@@ -127,11 +132,13 @@ def test_nothing_is_asked_in_rx_only_without_a_call_or_with_the_radio_away() -> 
 def test_a_query_goes_on_the_one_radio_that_can_send_by_the_path_it_carries_and_with_both_on_on_the_ticked_one() -> None:
     rig = Rig(hf_enabled=True, fm_enabled=False)
     hf = with_hf(rig, rig.radios)
-    rig.radios.on = {HF_ID}                                                 # (the HF radio alone: the one radio that can send, which carries no path)
+    # (the HF radio alone: the one radio that can send, which carries no path)
+    rig.radios.on = {HF_ID}
     asked = rig.general.ask("aprs")
     assert hf.lines() == ["OH2GBA>APZNEO:?APRS?"] and rig.tnc.sent == [] and (asked.path, asked.radios) == ((), (HF_ID,))
     rig.set(fm_enabled=True)
-    rig.radios.on.add(FM_ID)                                                # (both on, no tick stored: ticked nowhere, nothing goes)
+    # (both on, no tick stored: ticked nowhere, nothing goes)
+    rig.radios.on.add(FM_ID)
     with pytest.raises(MessagingError) as refused:
         rig.general.ask("igate")
     assert refused.value.code == "radio.none"

@@ -1,14 +1,18 @@
-"""A position as a Mic-E packet (the other direction of aprsmice.py): the destination address that carries the latitude, and the information field that carries the longitude, speed, course and symbol. Used by the
-Dummy radio (dummyscene.py) to make traffic that the parser reads like a car's tracker."""
+"""A position as a Mic-E packet (the inverse of aprsmice.py).
+
+The destination address carries the latitude; the information field the longitude, speed, course
+and symbol. Used by the Dummy radio (dummyscene.py) to make traffic like a car tracker's.
+"""
 from neoaprs.aprsposition import HUNDREDTHS_PER_DEGREE, north_as_360
 from neoaprs.units import KNOT_KMH
 
-MAX_LON_HUNDREDTHS = 180 * HUNDREDTHS_PER_DEGREE - 1       # Mic-E has no code for 180 degrees
-OFF_DUTY = (1, 1, 1)                 # the standard message bits of "Off Duty", which trackers send as a rule (index 7 of aprsmice's list); the three bits of the first three destination characters
+MAX_LON_HUNDREDTHS = 180 * HUNDREDTHS_PER_DEGREE - 1  # Mic-E has no code for 180 degrees
+# the message bits of "Off Duty" (index 7 of aprsmice's list), which trackers send as a rule
+OFF_DUTY = (1, 1, 1)
 
 
 def _lat_digits(lat: float) -> tuple[list[int], bool]:
-    """The six digits DDMMHH of the latitude (hundredths of a minute) and whether it is north."""
+    """Return the six latitude digits DDMMHH (hundredths of a minute) and whether it is north."""
     total = round(abs(lat) * HUNDREDTHS_PER_DEGREE)
     degrees, rest = divmod(total, HUNDREDTHS_PER_DEGREE)
     minutes, hundredths = divmod(rest, 100)
@@ -16,7 +20,10 @@ def _lat_digits(lat: float) -> tuple[list[int], bool]:
 
 
 def _destination(lat: float, lon_deg: int, west: bool, message: tuple[int, int, int]) -> str:
-    """Each digit is a letter P-Y instead (digit + 'P') when its bit is set: the message bits for the first three, then north, the longitude offset (100 degrees or more, or under 10) and west."""
+    """Return the destination: a digit becomes a letter P-Y when its bit is set.
+
+    The bits are message (3), north, longitude offset (100 degrees or more, or under 10), west.
+    """
     digits, north = _lat_digits(lat)
     offset = lon_deg < 10 or lon_deg >= 100
     bits = [*message, int(north), int(offset), int(west)]
@@ -24,7 +31,7 @@ def _destination(lat: float, lon_deg: int, west: bool, message: tuple[int, int, 
 
 
 def _longitude(lon: float) -> tuple[bytes, int]:
-    """The three bytes of the longitude (degrees, minutes, hundredths of a minute, each plus 28, with the offsets of the specification) and the whole degrees."""
+    """Return the three longitude bytes (degrees, minutes, hundredths, +28) and whole degrees."""
     total = min(round(abs(lon) * HUNDREDTHS_PER_DEGREE), MAX_LON_HUNDREDTHS)
     degrees, rest = divmod(total, HUNDREDTHS_PER_DEGREE)
     minutes, hundredths = rest // 100, rest % 100
@@ -46,7 +53,10 @@ def _motion(course_deg: int, speed_kmh: float) -> bytes:
 
 
 def mice_packet(lat: float, lon: float, symbol_table: str, symbol_code: str, course_deg: int, speed_kmh: float, comment: str = "", message: tuple[int, int, int] = OFF_DUTY) -> tuple[str, bytes]:
-    """The destination address and the information field of a Mic-E position: `` `lon speed course symbol table comment``. The comment may start with ']' and end with '=' to say a Kenwood mobile."""
+    """Return the destination and information field of a Mic-E position.
+
+    The comment may start with ']' and end with '=' to mark a Kenwood mobile.
+    """
     longitude, degrees = _longitude(lon)
     destination = _destination(lat, degrees, lon < 0, message)
     return destination, b"`" + longitude + _motion(course_deg, speed_kmh) + symbol_code.encode("ascii") + symbol_table.encode("ascii") + comment.encode("ascii")

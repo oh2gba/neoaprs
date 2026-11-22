@@ -1,7 +1,7 @@
-"""The rows between two radios of a pair (neoaprs/services/passrows.py) through the Digipeater, on stub lines and a clock the test holds: a packet heard on one radio of the pair whose first unused hop is the
-pair's call goes out once on the other, with that call marked used, and nothing else crosses (plan X3); a frame sent again (the fill-in's, or a pair's) crosses too when its next hop is a pair's call, so two
-calls in turn cross twice and the chain ends; two gateways that name each other end after one frame each; the ack of a message passed goes back once (X7); the counts are the target radio's, by the radio
-heard on. The limits and the wait of a slow radio are tests/test_pass_slow.py's; the rows of each setting tests/test_digi_rows.py's."""
+"""The rows between two radios of a pair (neoaprs/services/passrows.py) through the Digipeater on
+stub lines and a held clock: a packet whose first unused hop is the pair's call goes out once on the
+other radio, marked used.
+"""
 import logging
 from dataclasses import replace
 from datetime import timedelta
@@ -25,7 +25,8 @@ def msg(n: int = 12, to: str = "OH2GAX") -> bytes:
 
 
 def pair_rig(*pairs: PairSpec, fill_in: bool = False, **changes: object) -> Rig:
-    """Radio 1 (FM, Kenwood) and radio 2 (Mercury) with the pairs given (1 and 2 as OH2GBA-12 when none), the FM fill-in on or off."""
+    """Radio 1 (FM, Kenwood) and radio 2 (Mercury) with the pairs given (1 and 2 as OH2GBA-12 when
+    none), the FM fill-in on or off."""
     rig = Rig(**changes)
     rig.set(digi_enabled=fill_in, pairs=pairs or (PAIR,))
     return rig
@@ -265,13 +266,13 @@ async def test_the_digipeaters_timer_starts_and_stops_and_a_frame_that_waits_is_
     assert len(rig.hf.sent) == 1 and rig.hf.stats.passed[FM_ID].held == 0
 
 
-# ---- the ack of a message passed goes back once (M2, plan X7)
+# ---- the ack of a message passed goes back once
 
 ACK = b":OH3ABC-9 :ack12"
 
 
 def passed_from_hf(rig: Rig) -> None:
-    """OH3ABC-9 on HF messages OH2GAX on FM through the pair."""
+    """OH3ABC-9 on HF messages a station on FM through the pair."""
     rig.hear(frame("OH2GBA-12", source="OH3ABC-9", info=b":OH2GAX   :Hi{12"), radio_id=HF_ID)
     assert len(rig.tnc.sent) == 1
     rig.clock.advance(5)

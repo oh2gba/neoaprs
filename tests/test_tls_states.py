@@ -1,6 +1,7 @@
-"""The states a server certificate can be found in (neoaprs/web/tls.py), each with the reason the log gives for making it again, and the files that cannot be used: a key that is not its certificate's, a certificate
-that is not valid yet (the clock was set back), one that runs out in 30 days, one without names, a key of another kind, an authority whose key is of another kind, and a folder whose mode cannot be set. Real
-generated certificates and a clock the test holds."""
+"""The states a server certificate can be found in (neoaprs/web/tls.py), each with the log's reason
+for making it again, and the unusable files: a key that is not the certificate's, a certificate not
+yet valid, one that runs out in 30 days, one without names, and keys of another kind.
+"""
 import logging
 from collections.abc import Callable
 from datetime import timedelta

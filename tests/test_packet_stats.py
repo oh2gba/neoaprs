@@ -1,5 +1,7 @@
-"""What the statistics card counts from the packet log (`packet_stats`, neoaprs/packetstats.py): the packets heard by the hour by radio, what went out on each radio by what it was, the packets that came by
-several ways, the copies of the last hour; an hour that is over is counted once and kept, the running one counted again."""
+"""What the statistics card counts from the packet log (`packet_stats`, neoaprs/packetstats.py):
+packets by the hour and radio, what went out on each radio, multi-path packets, and an hour counted
+once when over.
+"""
 import asyncio
 import json
 from datetime import datetime, timedelta
@@ -60,7 +62,8 @@ async def test_what_went_out_is_counted_by_radio_and_by_what_it_was_over_the_las
             (";LEADER   *111111z6010.00N/02456.00E-", ME, 2), ("!6010.00N/02456.00E-theirs", "OH2RDG", 2)]
     for info, source, radio in sent:
         assert log.append(on_air(TOP + timedelta(minutes=2), info, source, radio, direction="out"))
-    assert log.append(on_air(TOP - timedelta(hours=25), "!6010.00N/02456.00E-old", ME, 1, direction="out"))      # (more than a day ago: not counted)
+    # More than a day ago: not counted
+    assert log.append(on_air(TOP - timedelta(hours=25), "!6010.00N/02456.00E-old", ME, 1, direction="out"))
     counted = await log.stats.counted(ME, internet=True)
     assert counted.sent[1] == {"repeated": 0, "beacon": 2, "object": 0, "ack": 1, "message": 1, "other": 0}
     assert counted.sent[2] == {"repeated": 1, "beacon": 0, "object": 1, "ack": 1, "message": 0, "other": 0}
@@ -73,11 +76,14 @@ async def test_a_packet_that_came_by_several_ways_is_one_packet_of_several_frame
     log = PacketLog(store.db, clock)
     at = TOP + timedelta(minutes=3, seconds=10)
     assert log.append(on_air(at))                                                              # direct
-    assert log.append(on_air(at + timedelta(seconds=2), path=("OH2RCH-2*", "WIDE2-1")))         # the same again through a digipeater
+    # The same again through a digipeater
+    assert log.append(on_air(at + timedelta(seconds=2), path=("OH2RCH-2*", "WIDE2-1")))
     assert log.append(on_air(at + timedelta(seconds=3), radio=2))                                # and on another radio
-    assert log.append(on_air(at + timedelta(minutes=10)))                                        # the same beacon ten minutes later: a packet of its own
+    # The same beacon ten minutes later: a packet of its own
+    assert log.append(on_air(at + timedelta(minutes=10)))
     assert log.append(on_air(at, "!6010.00N/02456.00E-other", "OH2XYZ"))
-    assert log.append(from_internet(at, "OH2RDG"))                                              # (the internet is no way of the radios)
+    # The internet is no way of the radios
+    assert log.append(from_internet(at, "OH2RDG"))
     counted = await log.stats.counted(ME, internet=True)
     assert (counted.packets, counted.frames) == (3, 5)
 
@@ -89,7 +95,8 @@ async def test_an_hour_that_is_over_is_counted_once_and_the_running_one_again(tm
     assert log.append(on_air(TOP - timedelta(minutes=30)))
     assert log.append(on_air(TOP + timedelta(minutes=10)))
     assert (await log.stats.counted(ME, internet=True)).heard[1] == [1, 1]
-    assert log.append(on_air(TOP - timedelta(minutes=20)))                                      # (written into an hour already counted: it stays as it was counted)
+    # Written into an hour already counted: it stays as it was counted
+    assert log.append(on_air(TOP - timedelta(minutes=20)))
     assert log.append(on_air(TOP + timedelta(minutes=20)))
     assert (await log.stats.counted(ME, internet=True)).heard[1] == [1, 1], "within the minute the answer is given again"
     clock.advance(61)

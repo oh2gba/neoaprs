@@ -1,6 +1,7 @@
-"""The guard of Update now's downloads (neoaprs/updatedownload.py) with real requests, to a fake server on the loopback: an answer that is not 200, a redirect to an address that is not allowed (and the one that
-is), a server that says nothing or is not HTTP, a body that stops in the middle, a disk that cannot take the file, and a work thread whose loop is gone. The address check is the test's own, which lets the
-loopback through; the daemon's (url_allowed) is tested with the stand-ins in test_updatedownload.py."""
+"""The guard of Update now's downloads (neoaprs/updatedownload.py) with real requests to a fake
+loopback server: a non-200 answer, redirects, silence or non-HTTP, a cut body, a full disk and a
+work thread whose loop is gone.
+"""
 import asyncio
 import threading
 from pathlib import Path
@@ -48,7 +49,8 @@ async def test_a_redirect_to_an_address_that_is_allowed_is_followed_and_one_to_a
 
 
 async def test_a_download_that_ends_somewhere_the_check_does_not_allow_is_closed_and_refused() -> None:
-    """Defence in depth: the address the response ends at is checked once more, with the check of each redirect before it."""
+    """Defence in depth: the address the response ends at is checked once more, with the check of
+    each redirect before it."""
     server = await http_server()
     server.route("/to-file", status=302, headers={"Location": server.url("/file")})
     server.route("/file", body=b"the file")
@@ -80,7 +82,8 @@ async def test_an_answer_that_is_not_http_and_a_port_nobody_listens_on_are_downl
     with pytest.raises(DownloadError, match="junk could not be fetched"):
         await fetch(server.url("/junk"), loopback_only(server))
     with pytest.raises(DownloadError, match="could not be fetched"):
-        await asyncio.to_thread(open_url, "http://127.0.0.1:1/\x00", lambda url: True)             # (a control character in the address)
+        # A control character in the address
+        await asyncio.to_thread(open_url, "http://127.0.0.1:1/\x00", lambda url: True)
 
 
 async def test_a_small_file_whose_body_stops_in_the_middle_is_a_download_error() -> None:
@@ -143,7 +146,8 @@ def test_a_work_thread_whose_loop_is_gone_ends_without_a_word() -> None:
     loop = asyncio.new_event_loop()
     inside, release = threading.Event(), threading.Event()
     task = loop.create_task(in_thread(lambda: (inside.set(), release.wait(10))[1], "update-download-orphan"))
-    loop.run_until_complete(asyncio.sleep(0))                                             # the task has started its thread
+    # The task has started its thread
+    loop.run_until_complete(asyncio.sleep(0))
     assert inside.wait(5)
     task.cancel()
     with pytest.raises(asyncio.CancelledError):

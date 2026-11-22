@@ -1,7 +1,7 @@
-"""A radio of a type that only receives (`lora-console`, the CA2RXU iGate's log on USB; radiotype `Can.transmit` false) sends NOTHING, whatever is asked of it: the beacon, Beacon now, a message to a
-station heard only on it, its ack, an object on it, the radio of a call no radio heard, the email radio, a station's own radio leave it out (radiospec.senders), a query heard on it alone is not answered, Local info and a general
-query named on it are refused with `radio.receive_only` and its id, its line refuses a frame with its reason and never reports one as sent, and not one byte leaves on its line; while it hears every packet the
-board logs, with its signal. With the FM radio off as well, the station sends nothing at all: RX only (`transmit.off`)."""
+"""Tests that a receive-only radio type (`lora-console`, `Can.transmit` false) sends nothing: not a
+beacon, message, ack or object, and every sending command is refused with `radio.receive_only`,
+while it still hears every packet. With the FM radio off too, the station is RX only.
+"""
 import socket
 from pathlib import Path
 

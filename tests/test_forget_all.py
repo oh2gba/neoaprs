@@ -1,5 +1,6 @@
-"""Forget all stations (`forget_all_stations`, Controller.forget_stations): every station heard goes with its packets and its weather, in the book, the pages and the database; our own station, our objects and bulletins,
-the messages, the preferences of the stations, the settings and what we sent stay. Internet-only and Dummy stations go too, and a station heard afterwards is a new one."""
+"""Tests for forgetting all stations (`forget_all_stations`, Controller.forget_stations): heard
+stations, packets and weather go; our station, objects, bulletins, messages and settings stay.
+"""
 from pathlib import Path
 
 from tests.support.air import from_internet, message_info, on_air
@@ -10,7 +11,8 @@ WEATHER = b"_10090556c220s004g005t077r000p000P000h50b09720"
 
 
 async def world(tmp_path: Path) -> Env:
-    """A daemon with a page, the internet on, a message and a weather station heard, an object and a bulletin of ours, and a path set for a station."""
+    """A daemon with a page, the internet on, a message and a weather station heard, an object and a
+    bulletin of ours, and a path set for a station."""
     server = await fake_aprsis()
     e = await quick_start(tmp_path, web=True, messaging=True, own=True, unpaced=True, settings={"igate/enabled": "true", "igate/server": server.address, "igate/password": "19628"})
     e.feed(on_air("OH2RDG", b"=6012.34N/02456.78E-radio"))

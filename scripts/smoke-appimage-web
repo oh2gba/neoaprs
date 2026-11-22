@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
-# The smoke test of the trial AppImage of the web window (scripts/build-appimage --window web), in a container that has what a desktop of the system has (scripts/check-installs --only appimage-web installs it):
-# the desktop app started with no arguments on an X server of its own (Xvfb: software GL, the worst case) and a session bus of its own (dbus-run-session: the tray's library wants one), on a data folder of
-# its own, with no radio and nothing leaving the loopback.
+# The smoke test of the trial AppImage of the web window (scripts/build-appimage --window web), in a
+# container that has what a desktop of the system has (scripts/check-installs --only appimage-web
+# installs it): the desktop app started with no arguments on an X server of its own (Xvfb: software
+# GL, the worst case) and a session bus of its own (dbus-run-session: the tray's library wants one),
+# on a data folder of its own, with no radio and nothing leaving the loopback.
 #
 #   scripts/smoke-appimage-web FILE --expect window|tray [--probe]
 #
 # --expect window: the app must start its daemon and the web window ("the web shell runs (window"), the page must answer, and the app must stay up and end at `app --quit` with its daemon. --expect tray:
-# the system has no WebKitGTK; the app must say so in its log, naming the package, and go on with the tray and the page in the browser, and end the same way. --probe also runs scripts/webkit-probe.py
-# with the image's own Python against the page and prints what it counted. Without FUSE (a container) the file is extracted once and its AppRun run with the variables the runtime would set.
-# Exit code 0: all is well; 1: the first thing that was not; 2: wrong arguments.
+# the system has no WebKitGTK; the app must say so in its log, naming the package, and go on with
+# the tray and the page in the browser, and end the same way. --probe also runs
+# scripts/webkit-probe.py with the image's own Python against the page and prints what it counted.
+# Without FUSE (a container) the file is extracted once and its AppRun run with the variables the
+# runtime would set. Exit code 0: all is well; 1: the first thing that was not; 2: wrong arguments.
 case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

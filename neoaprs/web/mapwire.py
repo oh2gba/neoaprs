@@ -1,4 +1,4 @@
-"""The base map on the wire: the topic `map` (what the map files are, what the job that makes them is doing, and the layers of traffic: layerwire.py) and the commands that start and end a job. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire models of the base map: the topic `map` and the commands that start and end a map job."""
 from typing import Literal
 
 from pydantic import Field

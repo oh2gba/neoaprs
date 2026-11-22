@@ -1,4 +1,4 @@
-"""The beacon and the status on the wire: the commands to send our position packet and our status report now. The interval and the times of the beacon are fields of `status` (neoaprs/web/hostwire.py). Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire models of the commands that send the position beacon and the status report now."""
 from typing import Literal
 
 from .wirebase import _Command

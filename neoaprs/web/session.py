@@ -1,7 +1,7 @@
-"""One open page: the socket it talks through, where it is (its address, and whether it is on this computer itself), and the ways to write to it.
+"""One open page: its socket, its address and whether it is local, and the ways to write to it.
 
-A connection sends through the publisher that made it (neoaprs/web/outbound.py), so a command handler says `conn.error("...")` or `conn.send(message)` and never meets the encoding, the size cap or the
-outgoing check. A connection is also what the state hub (neoaprs/web/hub.py) calls a `Link`: a way to write a text frame, and how much the socket holds that the page has not read.
+A connection sends through the publisher that made it (outbound.py), so handlers never deal with
+encoding, size caps or the outgoing check. It also serves as the `Link` of the state hub (hub.py).
 """
 import math
 from collections.abc import Mapping
@@ -12,21 +12,21 @@ from neoaprs.coded import Param
 
 
 def error_message(text: str, cmd: str = "", code: str = "other", key: str | None = None, params: Mapping[str, Param] | None = None) -> dict[str, Any]:
-    """The `error` message: `cmd` is the command it answers (empty for a frame that was no command), `key` the setting it is about, `code` and `params` what is wrong, `text` the English sentence. A number
-    that JSON has no word for (a NaN a person typed) goes as the text of it."""
+    """Return the `error` message; `cmd` is empty for a frame that was no command.
+
+    A non-finite float, which JSON cannot carry, is sent as its text.
+    """
     shown = {name: (f"{value:g}" if isinstance(value, float) and not math.isfinite(value) else value) for name, value in (params or {}).items()}
     return {"type": "error", "cmd": cmd, "key": key, "code": code, "params": shown, "text": text}
 
 
 class Client(Protocol):
-    """What the daemon needs of a page's socket: a way to write a text frame, and how much the socket holds that the page has not read."""
     def send_json(self, text: str) -> None: ...
     def send_binary(self, data: bytes) -> None: ...
     def buffered(self) -> int: ...
 
 
 class Outbound(Protocol):
-    """What a connection needs of the publisher that made it."""
     def send(self, conn: "Connection", message: dict[str, Any]) -> None: ...
     def send_frame(self, conn: "Connection", text: str) -> None: ...
     def send_binary(self, conn: "Connection", data: bytes) -> None: ...
@@ -37,25 +37,26 @@ class Connection:
     client: Client
     out: Outbound
     ip: str = ""
-    local: bool = False          # the page is on this computer itself (neoaprs/web/access.py, is_local of the socket's request): only such a page changes the settings of LOCAL_ONLY and runs the alert's Test
-    closed: bool = False         # the page left: nothing is written to it any more
+    # The page is on this computer; only such a page may change LOCAL_ONLY settings or run the alert
+    # test.
+    local: bool = False
+    closed: bool = False
 
     def send(self, message: dict[str, Any]) -> None:
-        """One message to this page."""
         if not self.closed:
             self.out.send(self, message)
 
     def send_binary(self, data: bytes) -> None:
-        """A binary frame to this page (the rows of the waterfall: PROTOCOL.md, Binary frames)."""
+        """Send a binary frame (waterfall rows)."""
         if not self.closed:
             self.out.send_binary(self, data)
 
     def error(self, text: str, cmd: str = "", code: str = "other", key: str | None = None, params: Mapping[str, Param] | None = None) -> None:
         self.send(error_message(text, cmd, code, key, params))
 
-    # ---- what the state hub asks of a link
+    # Link interface used by the state hub.
     def send_text(self, text: str) -> None:
-        """A frame that is made already."""
+        """Send an already encoded text frame."""
         if not self.closed:
             self.out.send_frame(self, text)
 

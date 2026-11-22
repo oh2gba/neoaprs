@@ -1,6 +1,7 @@
-"""Update now through the page's socket: the topic `update` says whether this copy can update itself and how the update goes, `update_now` starts it for the announced version only and `update_cancel` ends its
-download; a copy that cannot update itself refuses with a code. The release and the installer are fakes (tests/support/fakerelease.py): nothing reaches the network and nothing is installed. The restart of an
-AppImage is the daemon's stop with the command line to run after it."""
+"""Update now through the page socket: the topic `update` says whether this copy can update itself,
+`update_now` starts it for the announced version only, `update_cancel` ends the download, and a copy
+that cannot refuses.
+"""
 import threading
 from pathlib import Path
 
@@ -47,7 +48,8 @@ async def test_update_now_is_told_step_by_step_to_every_page_and_fetches_only_fr
     await page.send({"cmd": "update_now", "version": "0.7.0"})
     await other.until(lambda: other.topics["update"]["state"] == "restarting")
     assert other.topics["update"] == {"supported": True, "state": "restarting", "version": "0.7.0", "percent": 100, "downloaded": len(release.body), "total": len(release.body), "problem": ""}
-    assert release.asked == [f"{RELEASES}/v0.7.0/SHA256SUMS", f"{RELEASES}/v0.7.0/SHA256SUMS.sig", f"{RELEASES}/v0.7.0/{NAME}"]           # (not the address the version page gave)
+    # Not the address the version page gave
+    assert release.asked == [f"{RELEASES}/v0.7.0/SHA256SUMS", f"{RELEASES}/v0.7.0/SHA256SUMS.sig", f"{RELEASES}/v0.7.0/{NAME}"]
     assert [name for _, name, _ in installer.installed] == [NAME]
     await page.send({"cmd": "update_now", "version": "0.7.0"})
     assert (await page.expect("error"))["code"] == "update.busy"

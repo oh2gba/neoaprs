@@ -1,4 +1,5 @@
-"""The dispatcher: every case of tests/fixtures/aprs/cases.json (spec examples, radio captures and malformed fields), and what the dispatcher promises besides."""
+"""The dispatcher: every case of tests/fixtures/aprs/cases.json (spec examples, radio captures and
+malformed fields), and what the dispatcher promises besides."""
 import json
 from dataclasses import fields, is_dataclass
 from datetime import UTC, datetime
@@ -21,7 +22,8 @@ def _kind(decoded: Any) -> str:
 
 
 def _check(actual: Any, expected: dict[str, Any], where: str) -> None:
-    """Every key of `expected` holds for `actual` (a dataclass); floats within a millimetre-ish tolerance, datetimes as ISO text."""
+    """Every key of `expected` holds for `actual` (a dataclass); floats within a millimetre-ish
+    tolerance, datetimes as ISO text."""
     assert is_dataclass(actual), where
     names = {f.name for f in fields(actual)}
     for key, want in expected.items():

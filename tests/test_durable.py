@@ -1,5 +1,6 @@
-"""A folder that cannot be synced is no reason to lose a copy (neoaprs/durable.py): the sync of the folder that holds a name is a best effort, and the descriptor is closed whatever happened. What is synced on each
-system is in tests/test_portable.py."""
+"""A folder that cannot be synced is no reason to lose a copy (neoaprs/durable.py): the sync of the
+folder that holds a name is a best effort, and the descriptor is closed whatever happened. What is
+synced on each system is in tests/test_portable.py."""
 import os
 import sys
 from pathlib import Path

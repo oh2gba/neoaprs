@@ -1,6 +1,7 @@
-"""The cut of the base map out of a big archive (neoaprs/pmtilescut.py, pmtilesplan.py, pmtilesrange.py, pmtilesformat.py) on made-up archives (tests/support/madepmtiles.py, written apart from the program's code, so that the two
-check each other): the tiles a box holds and nothing else, a header the page can read, every shape of directory, the dry run that says the size and fetches no tile, the limits, archives and servers that lie (small inputs
-that claim to be big), a request that is made again, a stop that ends the threads."""
+"""The cut of the base map out of a big archive (neoaprs/pmtilescut.py and its plan, range and
+format modules) on made-up archives: the tiles a box holds and nothing else, a readable header,
+every directory shape, the dry run.
+"""
 import array
 import asyncio
 import gzip
@@ -134,7 +135,8 @@ def test_an_archive_that_cannot_be_cut_or_lies_about_itself_is_refused_in_words(
 def test_an_archive_whose_directory_names_a_tile_beyond_its_data_is_refused(tmp_path: Path) -> None:
     source = bytearray(archive({(0, 0, 0): b"world", (1, 0, 0): b"nw"}))
     lie = fields_of(bytes(source))
-    source[int(lie["data_offset"]) - 0:] = b"w"                                          # (the data is cut short, the header still says its length: the sections no longer fit)
+    # The data is cut short but the header still says its length: the sections no longer fit.
+    source[int(lie["data_offset"]) - 0:] = b"w"
     with pytest.raises(CutError, match="is not inside"):
         cut_file(tmp_path, bytes(source), None, 1)
 
@@ -147,7 +149,8 @@ def test_numbers_that_claim_to_be_big_are_refused_by_what_they_are_not_by_an_all
     with pytest.raises(FormatError, match="cut short"):
         unpack(gzip.compress(b"abcdef" * 1000)[:-30], GZIP, limit=10_000)
     with pytest.raises(FormatError, match="does not hold the entries it says"):
-        decode(_number(10**9))                                                          # (a billion entries, announced in a few bytes)
+        # A billion entries, announced in a few bytes
+        decode(_number(10**9))
     with pytest.raises(FormatError, match="more than 64 bits"):
         decode(b"\x80" * 12)
     with pytest.raises(FormatError, match="middle of a number"):
@@ -158,11 +161,14 @@ def test_numbers_that_claim_to_be_big_are_refused_by_what_they_are_not_by_an_all
 
 def test_a_number_of_64_bits_or_more_is_refused_in_words() -> None:
     with pytest.raises(FormatError, match="more than 64 bits"):
-        decode(_number(1) + _number(1 << 64) + _number(1) + _number(1) + _number(1))       # (ten bytes that hold 2**64: a varint of 70 bits)
+        # Ten bytes that hold 2**64: a varint of 70 bits
+        decode(_number(1) + _number(1 << 64) + _number(1) + _number(1) + _number(1))
     with pytest.raises(FormatError, match="a tile or an offset of more than 64 bits"):
-        decode(_number(2) + _number(1 << 63) * 2 + _number(1) * 4 + _number(1) + _number(0))   # (two ids that are each below 2**64 and sum to it)
+        # Two ids that are each below 2**64 and sum to it
+        decode(_number(2) + _number(1 << 63) * 2 + _number(1) * 4 + _number(1) + _number(0))
     with pytest.raises(FormatError, match="a tile or an offset of more than 64 bits"):
-        decode(_number(2) + _number(1) * 2 + _number(1) * 2 + _number(5) * 2 + _number((1 << 64) - 1) + _number(0))    # (an offset that follows one just below 2**64)
+        # An offset that follows one just below 2**64
+        decode(_number(2) + _number(1) * 2 + _number(1) * 2 + _number(5) * 2 + _number((1 << 64) - 1) + _number(0))
 
 
 def test_a_directory_of_more_leaves_than_a_cut_reads_is_refused_as_it_is_read() -> None:
@@ -280,7 +286,8 @@ async def test_a_stop_ends_a_cut_that_waits_for_a_server_and_removes_the_part(tm
 
 
 async def test_a_stop_while_the_server_has_not_begun_to_answer_ends_the_cut_at_once(tmp_path: Path) -> None:
-    """The header is read on a thread the stop does not wait for: the cut ends while the connection is still open, not when it times out."""
+    """The header is read on a thread the stop does not wait for: the cut ends while the connection
+    is still open, not when it times out."""
     server = await range_server(planet())
     server.mode = "mute"
     cutting = Cutting(server.url, tmp_path / "out.pmtiles", None, 6, pauses=NOW)

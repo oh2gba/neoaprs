@@ -1,9 +1,8 @@
-"""The line of the radio, on every system: a serial port (`/dev/ttyUSB0`, `COM3`), a TCP socket (`socket://host:port`, KISS over TCP: Direwolf on 8001, the sound-card modems; `tcp://host:port` is accepted for it) or, on Linux,
-a Bluetooth serial port that is paired with the system (`bt://AA:BB:CC:DD:EE:FF`, `btserial.py`), or on any system a Bluetooth LE KISS TNC (`ble://AA:BB:CC:DD:EE:FF`, `btle.py`).
+"""The radio's line on every system: a serial port, TCP socket, Bluetooth serial or BLE KISS TNC.
 
-`SerialPort` reports what happens as signals (`data`, `dropped`); it never reopens by itself: the TNC that owns it decides when to try again. The port is made with pyserial's `serial_for_url`, the control lines set low
-as soon as the open allows (a sound-card interface keys the transmitter on RTS; on a POSIX device the system raises them for the moment of the open itself), the open run in a thread (a Bluetooth COM port can take seconds to say no), and each open line has a thread that reads it and a thread that writes it,
-so nothing here waits on the event loop and no descriptor is given to the loop to wait for, which Windows could not do for a serial handle. The loop gets the bytes by `call_soon_threadsafe`, in the order they came."""
+`SerialPort` reports what happens as signals and never reopens by itself; the open and the reading
+run in threads, so nothing waits on the event loop.
+"""
 import asyncio
 import errno
 import logging
@@ -28,11 +27,11 @@ from .tncprofile import names_tcp
 
 log = logging.getLogger("neoaprs.serialport")
 
-READ_TIMEOUT_SEC = 0.1              # the reader looks at its stop flag this often
-WRITE_TIMEOUT_SEC = 2.0             # a write that the line does not take in this time fails the line (0 does not work on Windows)
-JOIN_SEC = 0.5                      # how long close() waits for a thread to end
-MAX_CHUNK_BYTES = 4096              # the most one delivery to the loop holds
-MAX_QUEUED_WRITES = 256             # writes waiting for a line that does not take them: more than this and write() refuses
+READ_TIMEOUT_SEC = 0.1
+WRITE_TIMEOUT_SEC = 2.0
+JOIN_SEC = 0.5
+MAX_CHUNK_BYTES = 4096
+MAX_QUEUED_WRITES = 256
 
 
 class SerialError(Exception):
@@ -40,15 +39,15 @@ class SerialError(Exception):
 
 
 class HeldError(SerialError):
-    """The port is held by another radio of the station, or by the GPS receiver (the station's table, claims.py): the radio waits for it, and does not look for another port meanwhile."""
+    """The port is held by another radio or the GPS receiver (claims.py); the radio waits for it."""
 
 
 class NotChosenError(SerialError):
-    """The radio has no port or address to open and is not looked for: only a change of its settings (which restarts it) can change that, so it is not tried again meanwhile."""
+    """The radio has no port or address to open; only new settings change that."""
 
 
 def normalize(path: str) -> str:
-    """The port as pyserial opens it: `tcp://host:port`, which is what people type for a KISS TCP port, is `socket://host:port`."""
+    """Return the port as pyserial opens it (`tcp://` becomes `socket://`)."""
     path = path.strip()
     return "socket://" + path[len("tcp://"):] if path.lower().startswith("tcp://") else path
 
@@ -58,7 +57,7 @@ def is_url(path: str) -> bool:
 
 
 def is_socket(path: str) -> bool:
-    """A TCP KISS port or a Bluetooth one (classic or LE): a stream with no speed, no device file to look for holders of, and no cable to pull."""
+    """Return whether the path is a TCP KISS port or a Bluetooth one (no speed, no cable)."""
     return names_tcp(path) or is_bluetooth(path) or is_ble(path)
 
 
@@ -67,11 +66,11 @@ def _on_windows() -> bool:
 
 
 def _words(path: str, e: BaseException) -> str:
-    """The reason an open or a read failed, in the system's words: pyserial's wording of a Windows error or a refused connection is taken apart."""
+    """Return why an open or a read failed, in the system's words."""
     text = os_error_text(e)
-    if match := re.search(r"\(\d+, '([^']+)'", text):                 # PermissionError(13, 'Access is denied.', None, 5)
+    if match := re.search(r"\(\d+, '([^']+)'", text):
         text = match.group(1).rstrip(".")
-    elif match := re.search(r"\[(?:Errno|WinError) -?\d+\] ([^\[\]]+)$", text):      # Could not open port socket://h:1: [Errno 111] Connection refused (on Windows: [WinError 10061] No connection could be made ...; [Errno -2] a name that cannot be looked up)
+    elif match := re.search(r"\[(?:Errno|WinError) -?\d+\] ([^\[\]]+)$", text):
         text = match.group(1)
     return f"{path}: {text}"
 
@@ -80,8 +79,7 @@ LOST = "the line is gone (unplugged, or the other end closed it)"
 
 
 def _lost_words(e: BaseException) -> str:
-    """Why a line that was open went away, for the operator: the system's words when it gave some (a cable pulled: "Input/output error"), else the one thing that is true of every such loss. pyserial's own
-    prose ("device reports readiness to read but returned no data", "ClearCommError failed (PermissionError(13, ...))") says nothing to the operator and goes to the log."""
+    """Return why a line that was open went away; pyserial's own prose goes to the log."""
     if isinstance(e, OSError) and (e.errno or e.strerror):
         return os_error_text(e)
     log.info("the line was lost: %s: %s", type(e).__name__, e)
@@ -92,8 +90,7 @@ ERROR_ACCESS_DENIED = 5
 
 
 def _in_use(e: BaseException) -> bool:
-    """The open was refused because another program has the port: on Windows ERROR_ACCESS_DENIED (the port is always exclusive there; Python makes other errors PermissionError too, such as a USB adapter
-    that is not functioning), as the error's own code or in pyserial's wording of it; elsewhere the lock pyserial takes."""
+    """Return whether the open was refused because another program has the port."""
     if _on_windows():
         text = str(e)
         return getattr(e, "winerror", None) == ERROR_ACCESS_DENIED or re.search(r", None, 5\)", text) is not None or "access is denied" in text.lower()
@@ -101,10 +98,11 @@ def _in_use(e: BaseException) -> bool:
 
 
 def _build(path: str, baud: int) -> Any:
-    """The pyserial object, not yet open: 8N1, no flow control, DTR and RTS set low as soon as the open allows (they are what a sound-card interface keys the transmitter with), and exclusive on a POSIX device."""
-    url = port_scheme(normalize(path))                    # (the one scheme check of the settings again: pyserial opens a file for `spy://`, so no address reaches it that the program does not mean)
+    """Return the pyserial object, not yet open: 8N1, DTR and RTS low, exclusive on POSIX."""
+    # pyserial opens a file for `spy://`: the scheme check is repeated
+    url = port_scheme(normalize(path))
     settings: dict[str, Any] = dict(baudrate=baud, bytesize=8, parity="N", stopbits=1, xonxoff=False, rtscts=False, dsrdtr=False, timeout=READ_TIMEOUT_SEC, write_timeout=WRITE_TIMEOUT_SEC)
-    if is_bluetooth(url) or is_ble(url):                  # (pyserial does not know bt:// or ble://: its port class is made here, as serial_for_url would)
+    if is_bluetooth(url) or is_ble(url):
         ser = (BluetoothSerial if is_bluetooth(url) else BleSerial)(None, **settings)
         ser.port = url
     else:
@@ -117,7 +115,7 @@ def _build(path: str, baud: int) -> Any:
 
 
 def _keep_alive(ser: Any) -> None:
-    """A TCP line that nobody answers is found dead by the operating system in the end, not never. (A Bluetooth link has its own supervision timeout, classic or LE.)"""
+    """Make the system find a TCP line that nobody answers dead in the end."""
     sock = getattr(ser, "_socket", None)
     if sock is not None and not isinstance(ser, BluetoothSerial):
         try:
@@ -128,15 +126,15 @@ def _keep_alive(ser: Any) -> None:
         _keep_alive_times(sock)
 
 
-KEEP_IDLE_SEC, KEEP_INTERVAL_SEC, KEEP_COUNT = 60, 15, 4     # a TCP line quiet for a minute is asked whether its end is there, every 15 s, four times: a LoRa board that lost power is found gone in two minutes, not two hours
+# a quiet TCP line is probed: a board that lost power is found gone in two minutes
+KEEP_IDLE_SEC, KEEP_INTERVAL_SEC, KEEP_COUNT = 60, 15, 4
 
 
 def _keep_alive_times(sock: socket.socket) -> None:
-    """The system's keep-alive is asked to start after KEEP_IDLE_SEC of quiet and to give up after KEEP_COUNT probes KEEP_INTERVAL_SEC apart (the system's own default is two hours): a radio that only listens writes
-    nothing, so a board that went away without a word is found only by these. Each option the system has is set (macOS names the first TCP_KEEPALIVE); one it refuses is said in the debug log."""
+    """Ask the system to probe after KEEP_IDLE_SEC of quiet, KEEP_COUNT times."""
     idle = getattr(socket, "TCP_KEEPIDLE", None) or getattr(socket, "TCP_KEEPALIVE", None)
     options = [(idle, KEEP_IDLE_SEC), (getattr(socket, "TCP_KEEPINTVL", None), KEEP_INTERVAL_SEC), (getattr(socket, "TCP_KEEPCNT", None), KEEP_COUNT)]
-    if sys.platform == "win32" and all(option is None for option, _ in options):     # (an older Windows has only the one call, which has no count)
+    if sys.platform == "win32" and all(option is None for option, _ in options):
         try:
             sock.ioctl(socket.SIO_KEEPALIVE_VALS, (1, KEEP_IDLE_SEC * 1000, KEEP_INTERVAL_SEC * 1000))
         except OSError as e:
@@ -151,7 +149,7 @@ def _keep_alive_times(sock: socket.socket) -> None:
 
 
 class _Handover:
-    """The pyserial object an open made in its thread, passed to the awaiting coroutine; when that was cancelled meanwhile the thread closes the object itself, so that no port is left open."""
+    """The pyserial object an open made in its thread; if cancelled the thread closes it."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -177,13 +175,12 @@ class _Handover:
 def _close_quietly(ser: Any) -> None:
     try:
         ser.close()
-    except Exception as e:                                # a close that fails leaves nothing to do but say so
+    except Exception as e:  # a failed close can only be logged
         log.info("closing: %s", os_error_text(e))
 
 
 class _Line:
-    """One open of a port: the pyserial object and its two threads. `on_data(line, chunk)` and `on_lost(line, reason)` are called on the event loop; the line says which open they are about, so that a
-    late call from a line that has been closed can be told from the current one."""
+    """One open of a port: the pyserial object and two threads; callbacks get the line."""
 
     def __init__(self, ser: Any, loop: asyncio.AbstractEventLoop, name: str, on_data: Callable[["_Line", bytes], None], on_lost: Callable[["_Line", str], None]) -> None:
         self.ser, self._loop, self._on_data, self._on_lost = ser, loop, on_data, on_lost
@@ -199,7 +196,7 @@ class _Line:
     def _post(self, call: Callable[..., None], *args: Any) -> None:
         try:
             self._loop.call_soon_threadsafe(call, self, *args)
-        except RuntimeError:                              # the loop is closed: nobody is left to tell
+        except RuntimeError:  # the loop is closed
             pass
 
     def _read(self) -> None:
@@ -207,9 +204,9 @@ class _Line:
         while not self._stop.is_set():
             try:
                 chunk = ser.read(ser.in_waiting or 1)
-                while chunk and len(chunk) < MAX_CHUNK_BYTES and (more := ser.in_waiting):          # (a socket says 1 at a time: what is there is delivered together)
+                while chunk and len(chunk) < MAX_CHUNK_BYTES and (more := ser.in_waiting):
                     chunk += ser.read(more)
-            except Exception as e:                        # the device went away, the socket was closed, the port was closed under us
+            except Exception as e:
                 if not self._stop.is_set():
                     self._post(self._on_lost, _lost_words(e))
                 return
@@ -226,8 +223,7 @@ class _Line:
                 return
 
     def end(self) -> None:
-        """Stops both threads and waits a moment for them. The reader is woken (pyserial's cancel_read, or a shutdown of the socket's receiving side) and told by the flag; the writer first writes what is queued, and
-        is cut short (cancel_write, a shutdown of the socket) only if that takes more than a moment."""
+        """Stop both threads: wake the reader, let the writer flush, cut it short if slow."""
         self._stop.set()
         self._wake(getattr(self.ser, "cancel_read", None), socket.SHUT_RD)
         self.outbox.put(None)
@@ -243,7 +239,7 @@ class _Line:
                 cancel()
             elif (sock := getattr(self.ser, "_socket", None)) is not None:
                 sock.shutdown(how)
-        except Exception as e:                            # (the port was already closed, or the peer is gone)
+        except Exception as e:  # the port was closed or the peer is gone
             log.debug("waking a thread of %s: %s", self.ser, os_error_text(e))
 
     @staticmethod
@@ -256,8 +252,9 @@ class SerialPort:
     def __init__(self, path: str, baud: int = 9600) -> None:
         self.path = path
         self.baud = baud
-        self.data: Signal[[bytes]] = Signal("serialport.data")           # each chunk as it was read
-        self.dropped: Signal[[str]] = Signal("serialport.dropped")       # why the line died; the port is closed by then
+        self.data: Signal[[bytes]] = Signal("serialport.data")
+        # why the line died; the port is closed by then
+        self.dropped: Signal[[str]] = Signal("serialport.dropped")
         self._line: _Line | None = None
         self._opening = False
         self._closed_while_opening = False
@@ -275,7 +272,7 @@ class SerialPort:
         return is_socket(self.path)
 
     async def open(self) -> None:
-        """Opens the line (in a thread: a port that does not answer must not stop the loop) and starts reading it. Raises SerialError with the reason. Cancelled, it leaves no port open."""
+        """Open the line in a thread and start reading; raise SerialError with the reason."""
         if self._line is not None or self._opening:
             raise SerialError(f"{self.path}: already open")
         self._opening, self._closed_while_opening = True, False
@@ -295,7 +292,7 @@ class SerialPort:
 
     def _open_blocking(self, hand: _Handover) -> Any:
         try:
-            nodevices.check_port(self.path)               # (under the no-devices switch only a TCP port on this computer is opened: any other is not there)
+            nodevices.check_port(self.path)
             ser = _build(self.path, self.baud)
             ser.open()
         except (serial.SerialException, OSError, ValueError) as e:
@@ -307,7 +304,7 @@ class SerialPort:
         return ser
 
     def close(self) -> None:
-        """Closes the line; one that is being opened is closed as soon as the open is done, and that open raises."""
+        """Close the line; one being opened is closed when the open ends."""
         line, self._line = self._line, None
         if line is None:
             self._closed_while_opening = self._opening
@@ -316,17 +313,18 @@ class SerialPort:
         self._close_line_of(line.ser)
 
     def _close_line_of(self, ser: Any) -> None:
-        if self.is_socket:                                # pyserial's socket close sleeps a third of a second, so it is done off the loop (a Bluetooth link closes slowly too, and a BLE one waits for its thread)
+        # a socket close sleeps, so do it off the loop
+        if self.is_socket:
             threading.Thread(target=_close_quietly, args=(ser,), name=f"serial-close {self.path}", daemon=True).start()
         else:
             _close_quietly(ser)
 
     def let_go(self) -> None:
-        """Closed for a radio whose settings name the port (tncsearch.let_go): a search of this process, or Find my radio, that has it open gives it up at once."""
+        """Close for a radio whose settings name the port (tncsearch.let_go)."""
         self.close()
 
     def write(self, data: bytes) -> int:
-        """Hands `data` to the writer thread, which writes it in order; returns at once. A line that does not take it (it fails, or the write times out) is lost a moment later, like a read that fails."""
+        """Hand `data` to the writer thread and return at once; a failing line is lost later."""
         line = self._line
         if line is None:
             raise SerialError(f"{self.path}: not open")

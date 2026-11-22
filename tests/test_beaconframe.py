@@ -1,7 +1,6 @@
-"""The one maker of the station's frames (neoaprs/services/beaconframe.py) for any radio, the radios as the registry gives them (`support/seamshapes.py` over stub lines): the position and the status the
-same on every radio but for what the radio decides (its own path where it may carry one, the cut to its frame, said once for each radio), the position field of the iGate that asks no interlock, a moving
-station's fix on every radio; a radio of the old shape read as one of the registry's and making the same frames; one maker shared by the beacons of the radios and the status report; the timer of a radio
-of any id with the interval of neoaprs/beaconrule.py and its last send in the radio's own row."""
+"""Tests for the frame maker (neoaprs/services/beaconframe.py) for any radio: position and status
+frames, the per-radio path and length limits, the iGate position field, and the shared timer.
+"""
 import logging
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -29,10 +28,12 @@ POSITION = b"=6010.20N/02456.40E-NeoAPRS"
 
 
 def radio_of(config: Config, id: RadioId, line: StubTnc | None = None) -> LiveShape:
-    """Radio `id` of the settings as the registry gives it: its kind, limits and choices from its spec, the rest from a stub line."""
+    """Radio `id` of the settings as the registry gives it: its kind, limits and choices from its
+    spec, the rest from a stub line."""
     spec = config.radio(id)
     assert spec is not None
-    return LiveShape(spec, config.radios, line if line is not None else StubTnc(max_frame=123 if spec.kind == "hf" else None))       # type: ignore[arg-type]  # (a stub, not a Tnc)
+    # A stub, not a Tnc
+    return LiveShape(spec, config.radios, line if line is not None else StubTnc(max_frame=123 if spec.kind == "hf" else None))  # type: ignore[arg-type]
 
 
 def with_radios(config: Config, *specs: RadioSpec) -> Config:
@@ -45,7 +46,8 @@ def third(path: str = "WIDE2-1", kind: str = "fm", type: str = "kiss", enabled: 
 
 
 def capped_with_paths(spec: RadioSpec) -> FrozenAir:
-    """A radio with a frame cap that carries paths (no type has both: over Mercury itself no path goes)."""
+    """A radio with a frame cap that carries paths (no type has both: over Mercury itself no path
+    goes)."""
     air = frozen_air(spec)
     return replace(air, limits=replace(air.limits, max_frame=123), allowed=replace(air.allowed, paths=True))
 
@@ -151,7 +153,8 @@ def test_a_radio_of_the_old_shape_is_read_as_the_registrys_radio_of_its_kind() -
 
 
 class BothShapes(StubTnc):
-    """A stub line that is also a radio of the registry's shape with choices of its own (as a test's stub may be): its path is the recommended one, not the station's beacon/path."""
+    """A stub line that is also a radio of the registry's shape with choices of its own (as a test's
+    stub may be): its path is the recommended one, not the station's beacon/path."""
     id, kind, name, limits, allowed = FM_ID, "fm", "FM", FM_LIMITS, FM_ALLOWED
     stats = TncStats()
 

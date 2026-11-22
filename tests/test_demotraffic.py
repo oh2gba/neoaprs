@@ -1,6 +1,7 @@
-"""The made-up traffic of the demo daemon (scripts/demotraffic.py, scripts/demo-daemon --traffic): sixteen aircraft round Espoo that move each second and that the daemon's readers take in all three forms (one on the
-ground left out, one in an emergency, one without a track, one with a registration only); the server answers the receiver's file, the Radarcape's list and the services' paths and nothing else; a port in use is a refusal that says so;
-and demo-daemon starts it, points the daemon's services at it and stops it with the daemon."""
+"""Tests for the made-up traffic of the demo daemon (scripts/demotraffic.py, scripts/demo-daemon
+--traffic): moving aircraft in all three reader formats, the server's answers, a busy port, and
+start and stop with the daemon.
+"""
 import json
 import socket
 import threading

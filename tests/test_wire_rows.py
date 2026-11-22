@@ -1,9 +1,7 @@
-"""The rows of the topics as the daemon makes them (neoaprs/web/views.py): a world with a row of every kind (stations of every kind including our own, objects, items, weather and
-telemetry stations; packets of every decoded kind; messages in every state with their attempts; bulletins; our objects and bulletins; station preferences; the settings) is held
-to a golden file, and every row is held to its model.
-
-The golden file tests/fixtures/wire/rows.json is the JSON the page is told (keys sorted: the order of the keys of a row is the model's). A change of the wire is made on purpose: change the
-model, then write the file again with `python -m tests.test_wire_rows`."""
+"""The rows of the topics as the daemon makes them (neoaprs/web/views.py): a world with a row of
+every kind is held to a golden file (tests/fixtures/wire/rows.json), and every row to its model.
+Change the wire on purpose, then rewrite the file with `python -m tests.test_wire_rows`.
+"""
 import json
 from typing import Any
 
@@ -32,7 +30,8 @@ MODELS = {
 }
 
 
-PLATFORM_DEFAULTS = ("messages/alert_command",)          # (the default command is the system's own: PowerShell on Windows, a shell line elsewhere)
+# The default command is the system's own: PowerShell on Windows, a shell line elsewhere
+PLATFORM_DEFAULTS = ("messages/alert_command",)
 
 
 def as_json() -> Any:
@@ -48,7 +47,9 @@ def without_platform(rows: Any) -> Any:
 
 
 def on_this_system(rows: Any) -> Any:
-    """The golden file as this system makes it: it is written on Linux, and a serial device a radio holds is held as the system compares port names (serialprobe.claim_value: on Windows in upper case)."""
+    """The golden file as this system makes it: it is written on Linux, and a serial device a radio
+    holds is held as the system compares port names (serialprobe.claim_value: on Windows in upper
+    case)."""
     for row in rows.get("radios", []):
         for held in row["holds"]:
             if held["resource"] in PORT_KINDS:

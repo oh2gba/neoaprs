@@ -1,7 +1,7 @@
-"""The package as a user gets it: `uv build` makes an sdist and, from it, a wheel; the wheel holds the code, the built page with its map glyphs and symbol sheets, the placeholder and the unit template and none
-of the repository's other files; installed into a fresh virtual environment it gives the `neoaprs` command, which reports the version and runs `doctor`, and its daemon serves the page that it carries.
-
-It needs `uv` and, the first time, the network for the build backend and the three dependencies (afterwards uv's cache is enough); without either the tests skip and say so."""
+"""The package as a user gets it: `uv build` makes an sdist and a wheel that holds the code, the
+built page and no other repository files; installed in a fresh virtual environment it gives the
+`neoaprs` command.
+"""
 import os
 import shutil
 import subprocess
@@ -21,17 +21,23 @@ from neoaprs.updateasset import wheel_version
 from tests.conftest import ROOT
 from tests.support.proc import NEW_GROUP, STOP_PATIENCE_SEC, stop
 
-WHEEL_VERSION = VERSION.replace("-rc", "rc")                  # (the wheel's file name and its dist-info folder have the version as PEP 440 writes it: 0.10.0-rc1 is 0.10.0rc1)
-pytestmark = [pytest.mark.skipif(shutil.which("uv") is None, reason="uv is not installed: the wheel is not built"), pytest.mark.xdist_group("package")]      # (one worker: the builds and installs of uv are one at a time, and a runner has the time for that)
-WHEEL_VERSION = wheel_version(VERSION)            # the build writes 0.10.0rc1 for 0.10.0-rc1
+# The wheel's file name and dist-info folder have the version as PEP 440 writes it: 0.10.0-rc1 is
+# 0.10.0rc1.
+WHEEL_VERSION = VERSION.replace("-rc", "rc")
+# One worker: the builds and installs of uv are one at a time, and a runner has the time for that
+pytestmark = [pytest.mark.skipif(shutil.which("uv") is None, reason="uv is not installed: the wheel is not built"), pytest.mark.xdist_group("package")]
+WHEEL_VERSION = wheel_version(VERSION)
 NEEDS_NETWORK = ("error sending request", "failed to fetch", "dns error", "connection refused", "network", "timed out", "tcp connect error", "unable to connect", "name resolution")
 
 
-REAL_ENV = dict(os.environ)             # as it was when the tests were collected: before the guards pointed HOME and the caches at an empty folder, so that uv finds the cache of the person who runs the tests
+# As it was when the tests were collected: before the guards pointed HOME and the caches at an empty
+# folder, so that uv finds the cache of the person who runs the tests
+REAL_ENV = dict(os.environ)
 
 
 def uv_env() -> dict[str, str]:
-    """The environment of a uv run: the person's own, with their uv cache, no other Python fetched, nothing of the venv the tests run in."""
+    """The environment of a uv run: the person's own, with their uv cache, no other Python fetched,
+    nothing of the venv the tests run in."""
     env = {k: v for k, v in REAL_ENV.items() if k not in ("PYTHONPATH", "VIRTUAL_ENV", "NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG")}
     env.update({"UV_PYTHON_DOWNLOADS": "never", "UV_NO_PROGRESS": "1"})
     return env
@@ -57,7 +63,8 @@ def built(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
 
 @pytest.fixture(scope="module")
 def installed(built: dict[str, Path], tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """A fresh virtual environment with the wheel installed (and its three dependencies): the folder of the environment."""
+    """A fresh virtual environment with the wheel installed (and its three dependencies): the folder
+    of the environment."""
     venv = tmp_path_factory.mktemp("venv") / "env"
     env = uv_env()
     uv("venv", str(venv), "--python", sys.executable, env=env)

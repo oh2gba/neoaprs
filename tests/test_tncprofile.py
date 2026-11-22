@@ -1,6 +1,7 @@
-"""The TNC profiles (neoaprs/tncprofile.py) and what the Tnc does with each: the table itself, the entry written step by step with its pauses, the Kenwood TNC-2 profile (a TNC with a command mode), the profiles that are
-never sent anything but KISS frames (a serial KISS TNC and KISS over TCP: no entry, no keep-alive, no carriage return, no silent state), and the keep-alive of a TNC whose entry has several steps. The fake radio is a TCP server
-on the loopback (tests/support/fakeradio.py); the search over device files is the one test on pseudo-terminals."""
+"""The TNC profiles (neoaprs/tncprofile.py) and what the Tnc does with each: the table, the entry
+written step by step with its pauses, the Kenwood TNC-2 profile, the KISS-only profiles (serial and
+TCP: no entry or keep-alive), and the keep-alive of a TNC with a command mode.
+"""
 import asyncio
 import select
 from dataclasses import replace
@@ -44,7 +45,9 @@ def test_every_profile_is_named_by_its_types_key_so_a_line_of_it_knows_its_kind_
     profiles = {**EVERY_BY_KEY, DIREWOLF.key: DIREWOLF}
     assert set(profiles) == set(TYPES_BY_KEY), "one type for each profile, by the same key (the Sound card type's is Direwolf's, neoaprs/direwolf.py)"
     for p in profiles.values():
-        t = type_of(p.key)                       # (Tnc.rtype: a profile whose key named no type would raise at the line's first read of its kind or its frame cap)
+        # Tnc.rtype: a profile whose key named no type would raise at the line's first read of its
+        # kind or its frame cap
+        t = type_of(p.key)
         tnc = Tnc("", profile=p)
         assert tnc.rtype is t and t.profile == p.key and tnc.max_frame == t.limits.max_frame and tnc.label == ("hf radio" if t.kind == "hf" else "tnc"), p.key
         assert tnc.rtype.limits.too_long(b"x" * 100, b"x" * 100) is None, f"{p.key}: a frame of 100 bytes fits every radio"
@@ -105,7 +108,8 @@ def test_a_tcp_address_is_told_from_a_device() -> None:
 # ---- the entry, step by step
 
 async def arrivals(radio: FakeRadio, count: int, timeout_sec: float = 3.0) -> list[tuple[bytes, float]]:
-    """The next `count` things the Tnc wrote to the radio, each with the seconds since the one before (they are far enough apart to arrive one at a time)."""
+    """The next `count` things the Tnc wrote to the radio, each with the seconds since the one
+    before (they are far enough apart to arrive one at a time)."""
     loop = asyncio.get_running_loop()
     out: list[tuple[bytes, float]] = []
     last = loop.time()
@@ -135,7 +139,8 @@ async def test_what_the_tnc_says_while_the_sequence_runs_is_thrown_away_and_it_i
     r = await rig(profile=KENWOOD_D710, pace=0.05, settle_sec=0.2)
     r.radio.feed(MONITOR_LINE)
     first = await arrivals(r.radio, 1)
-    r.radio.feed(b"cmd:TC 1\r\nOH2AAA>APRS:text\r\n")                       # an answer to the first step, in the middle of the sequence
+    # An answer to the first step, in the middle of the sequence
+    r.radio.feed(b"cmd:TC 1\r\nOH2AAA>APRS:text\r\n")
     rest = await arrivals(r.radio, 4)
     assert [data for data, _ in first + rest] == [data for data, _ in KENWOOD_D710.enter], "the answer does not start another entry"
     r.radio.feed(kiss_of(ui_frame("OH2XXX")))                             # inside the settle time
@@ -186,7 +191,8 @@ async def test_a_kiss_profile_sends_nothing_ever_not_for_text_not_for_silence_no
     r = await rig(profile=profile, **QUICK)
     assert await quiet_for(r.radio, 0.6) == b"", "no keep-alive check and no carriage return after silence"
     assert r.tnc.state is Source.State.CONNECTED and r.tnc.stats.keepalive_checks == 0 and r.tnc._watchdog_task is None
-    r.radio.feed(MONITOR_LINE + b"\r\ncmd:")                                  # the device is in command mode: that is said, not answered
+    # The device is in command mode: that is said, not answered
+    r.radio.feed(MONITOR_LINE + b"\r\ncmd:")
     await until(lambda: r.tnc.problem)
     assert "command mode" in r.tnc.problem and profile.name in r.tnc.problem
     assert await quiet_for(r.radio, 0.4) == b"", "no entry"
@@ -235,7 +241,8 @@ async def test_the_search_for_a_kiss_tnc_listens_and_writes_nothing_where_a_tnc2
 # ---- the settings
 
 async def seeded(tmp_path: Path, rows: dict[str, str], radio: FakeRadio) -> Env:
-    """The daemon on a data folder that has these settings (radio 1's in the words of the Env: tests/support/env.py RADIO_ROWS), with no port given for the run."""
+    """The daemon on a data folder that has these settings (radio 1's in the words of the Env:
+    tests/support/env.py RADIO_ROWS), with no port given for the run."""
     e = Env(tmp_path, radio=False, operator=False)
     await e.ctl.open_database()
     await e.ctl.store.put_settings({LAST_PORT if key == "serial/last_port" else key: value for key, value in rows.items() if key not in RADIO_ROWS})

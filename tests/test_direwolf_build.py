@@ -1,7 +1,7 @@
-"""The build of the bundled Direwolf (scripts/build-direwolf, packaging/direwolf/, scripts/buildtool.py) as far as it can be held without a compiler or the network: the script takes its pins from neoaprs/direwolf.py
-and has none of its own, the tarballs are named for the version and the machine, the configure line leaves out what NeoAPRS does not use, the four patches are there in their order, the link check refuses what the
-folder does not carry, the banner check wants the pinned release with cm108-ptt alone, the Windows check reads the import table and the banner's bytes, and the usage prints. With the pinned archive in the build
-cache the patches are applied to it and each is held in the source after it. The build itself is the release workflow's direwolf and direwolf-windows jobs', which run the checks on the program they make."""
+"""Tests for the Direwolf build (scripts/build-direwolf, packaging/direwolf/, scripts/buildtool.py)
+without a compiler or the network: pins, tarball names, the configure line, the patches and the
+link, banner and import-table checks.
+"""
 import importlib.machinery
 import importlib.util
 import io
@@ -43,11 +43,13 @@ def test_the_script_has_the_pins_of_the_program_and_none_of_its_own() -> None:
 def test_the_script_takes_the_values_it_builds_from_the_pins_and_builds_nothing_while_the_sha256_is_not_pinned(build: ModuleType, tmp_path: Path) -> None:
     assert (build.VERSION, build.SOURCE_COMMIT, build.SOURCE_URL, build.SOURCE_SHA256, build.BANNER) == (direwolf.VERSION, direwolf.SOURCE_COMMIT, direwolf.SOURCE_URL, direwolf.SOURCE_SHA256, direwolf.BANNER)
     with pytest.raises(build.BuildError, match="not pinned" if not direwolf.SOURCE_SHA256 else "could not be fetched|is not the file"):
-        build.buildtool.fetch_source((tmp_path / "none.tar.gz").as_uri(), direwolf.SOURCE_SHA256 or "", "none.tar.gz", "test")     # (a file that is not there: nothing outside this machine is asked)
+        # (a file that is not there: nothing outside this machine is asked)
+        build.buildtool.fetch_source((tmp_path / "none.tar.gz").as_uri(), direwolf.SOURCE_SHA256 or "", "none.tar.gz", "test")
 
 
 def source_archive(tmp_path: Path, link: str) -> Path:
-    """An archive shaped like Direwolf's: one folder with CMakeLists.txt, CHANGES.md and a symbolic link debian/changelog to LINK."""
+    """An archive shaped like Direwolf's: one folder with CMakeLists.txt, CHANGES.md and a symbolic
+    link debian/changelog to LINK."""
     archive = tmp_path / "source.tar.gz"
     with tarfile.open(archive, "w:gz") as tar:
         for name in ("top/CMakeLists.txt", "top/CHANGES.md"):
@@ -61,16 +63,20 @@ def source_archive(tmp_path: Path, link: str) -> Path:
 
 
 def test_a_relative_link_inside_the_source_is_unpacked_where_an_old_python_refuses_it_and_one_that_leaves_the_tree_is_refused(build: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    def old_python(member: tarfile.TarInfo, dest: str) -> tarfile.TarInfo:          # (Python 3.10, the build container's: a link is resolved from the destination, not from its own folder)
+    # (Python 3.10, the build container's: a link is resolved from the destination, not from its own
+    # folder)
+    def old_python(member: tarfile.TarInfo, dest: str) -> tarfile.TarInfo:
         if member.issym():
             raise tarfile.LinkOutsideDestinationError(member, dest)
         return real(member, dest)
 
     real = tarfile.data_filter
     monkeypatch.setattr(tarfile, "data_filter", old_python)
-    tree = build.buildtool.unpack(source_archive(tmp_path, "../CHANGES.md"), tmp_path / "work", "CMakeLists.txt", "Direwolf")       # (Direwolf's own debian/changelog: the build of 15 November 2026 stopped here)
+    # Direwolf's own debian/changelog.
+    tree = build.buildtool.unpack(source_archive(tmp_path, "../CHANGES.md"), tmp_path / "work", "CMakeLists.txt", "Direwolf")
     assert (tree / "CMakeLists.txt").read_bytes() == b"abc"
-    if sys.platform != "win32":                                                      # (a symbolic link needs a right on Windows that a test does not have)
+    # (a symbolic link needs a right on Windows that a test does not have)
+    if sys.platform != "win32":
         assert (tree / "debian" / "changelog").read_bytes() == b"abc"
     for leaving in ("../../../outside", "/etc/passwd", "../../../etc/passwd"):
         with pytest.raises(tarfile.LinkOutsideDestinationError):
@@ -118,7 +124,8 @@ def test_the_link_check_refuses_what_the_folder_does_not_carry(build: ModuleType
     good = ldd.format(asound=tmp_path / "lib" / "libasound.so.2", udev=tmp_path / "lib" / "libudev.so.1")
     check = build.buildtool.check_links
     assert "libudev.so.1" in check(tmp_path / "direwolf", tmp_path, build.NEEDED_OK, build.NEEDED_NEVER, build.OWN_LIBS, lambda command: good)
-    mvec = good + "\tlibmvec.so.1 => /lib/x86_64-linux-gnu/libmvec.so.1 (0x8)\n"            # (glibc's own, on x86-64: the first real build linked it)
+    # (glibc's own, on x86-64: the first real build linked it)
+    mvec = good + "\tlibmvec.so.1 => /lib/x86_64-linux-gnu/libmvec.so.1 (0x8)\n"
     assert "libmvec.so.1" in check(tmp_path / "direwolf", tmp_path, build.NEEDED_OK, build.NEEDED_NEVER, build.OWN_LIBS, lambda command: mvec)
     for extra in ("libgps.so.28 => /usr/lib/libgps.so.28 (0x7)", "libhamlib.so.4 => /usr/lib/libhamlib.so.4 (0x7)", "libgpiod.so.2 => /usr/lib/libgpiod.so.2 (0x7)", "libavahi-client.so.3 => /usr/lib/x (0x7)",
                   "libfoo.so.1 => not found"):
@@ -168,7 +175,9 @@ def test_the_patches_apply_to_the_pinned_source_and_each_is_held_in_it_after(bui
     assert "Copyright (c) 1998 Todd C. Miller" in build.notices(tree)
 
 
-@posix_only                       # (the scripts that build the Linux packages are run: GitHub's Windows runner has a bash, which is no place to run them)
+# (the scripts that build the Linux packages are run: GitHub's Windows runner has a bash, which is
+# no place to run them)
+@posix_only
 @pytest.mark.parametrize(("script", "tools", "arch"), [("build-deb", "$app/tools", ("--arch", "amd64")), ("build-appimage", "$app/usr/tools", ())])
 def test_the_linux_packages_carry_direwolf_without_its_utilities_and_a_build_must_say_whether_it_does(script: str, tools: str, arch: tuple[str, ...], tmp_path: Path) -> None:
     text = (ROOT / "scripts" / script).read_text(encoding="utf-8")
@@ -220,7 +229,8 @@ def test_the_windows_app_takes_direwolf_with_its_data_and_nothing_that_is_not_th
     files = {"direwolf/direwolf.exe": b"MZ program", "direwolf/SOURCE.txt": offer, "direwolf/LICENSE": b"GPL", "direwolf/LICENSE-hidapi.txt": b"BSD", "direwolf/data/tocalls.yaml": b"tocalls", "direwolf/data/symbols-new.txt": b"symbols"}
     archive = _tarball(tmp_path / bundle.tarball_name(tool), files)
     with pytest.raises(SystemExit, match="is bundled after Mercury"):
-        bundle.main(["direwolf", str(tmp_path / "NeoAPRS"), str(archive)])              # (an app folder without Mercury: the Sound card type would have no list of sound cards)
+        # (an app folder without Mercury: the Sound card type would have no list of sound cards)
+        bundle.main(["direwolf", str(tmp_path / "NeoAPRS"), str(archive)])
     (tmp_path / "NeoAPRS" / "bin" / "mercury").mkdir(parents=True)
     (tmp_path / "NeoAPRS" / "bin" / "mercury" / "mercury.exe").write_bytes(b"MZ")
     assert bundle.main(["direwolf", str(tmp_path / "NeoAPRS"), str(archive)]) == 0

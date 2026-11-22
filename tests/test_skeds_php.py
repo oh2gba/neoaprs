@@ -1,7 +1,7 @@
-"""The sked board of the project's server (server/neo/api/v1/skeds.php) under PHP's own web server on the loopback, in a folder laid out as the site is (the endpoint in api/v1/, the board skeds.json in the root,
-the stored skeds in private/skeds/): an add is kept in a file of its own and the board is written beside the site's files, without the token or its hash; a remove needs the token that posted; every refusal
-answers its reason with its status; the limits for a token, a call and the whole board, and the rate limit by the hash of the address; ended skeds and the skeds of a blocked call are removed at every write;
-the closed switch; two writers at once under the one lock; hostile input (control and invisible characters, an over-long body, a wrong content type, a path in an id). Skipped without `php`."""
+"""The sked board of the project's server (server/neo/api/v1/skeds.php) under PHP's web server on
+the loopback in a folder laid out as the site is: an add is kept in a file of its own and the board
+is written without the token.
+"""
 import datetime
 import hashlib
 import json
@@ -116,7 +116,8 @@ class Endpoint:
         return sorted(p.name for p in self.stored.glob("*.json") if p.name != "rate.json")
 
     def keep(self, sked: str, call: str = "OH2GBA", start: str | None = None, end: str | None = None, key: str | None = None) -> None:
-        """A stored sked written as the endpoint writes it, for a board that would take many requests to fill."""
+        """A stored sked written as the endpoint writes it, for a board that would take many
+        requests to fill."""
         self.stored.mkdir(parents=True, exist_ok=True)
         row = {"id": sked, "call": call, "from": start or at(HOUR), "to": end or at(2 * HOUR), "dial": DIAL, "note": "", "token": hashlib.sha256((key or token()).encode()).hexdigest(), "posted": at(-HOUR)}
         (self.stored / f"{sked}.json").write_text(json.dumps(row), encoding="utf-8")
@@ -165,7 +166,9 @@ def test_the_same_sked_posted_again_is_answered_with_its_id(endpoint: Endpoint) 
 
 
 def test_every_suggested_dial_is_taken_since_the_board_takes_any_dial_of_the_form(endpoint: Endpoint) -> None:
-    """The board keeps no list of bands: a dial of the form is taken, so the project's list (site/frequencies.json) needs nothing here, 80 m's dial with its one digit before the point among them."""
+    """The board keeps no list of bands: a dial of the form is taken, so the project's list
+    (site/frequencies.json) needs nothing here, 80 m's dial with its one digit before the point
+    among them."""
     endpoint.start()
     dials = [entry["dial"] for entry in json.loads((ROOT / "site" / "frequencies.json").read_text(encoding="utf-8"))["frequencies"]]
     assert "3.5850 MHz USB" in dials

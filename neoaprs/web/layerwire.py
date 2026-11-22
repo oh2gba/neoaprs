@@ -1,5 +1,4 @@
-"""The map's layers of traffic on the wire: what the topic `map` says of each layer (`MapLayer`), the command by which a page says it looks at one (`layer_look`), and the message with a layer's whole table
-(`layer_things`). Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`; the shapes are those of neoaprs/layerthing.py."""
+"""Wire models of the map traffic layers: `MapLayer`, `layer_look` and `layer_things`."""
 from typing import Literal
 
 from pydantic import Field

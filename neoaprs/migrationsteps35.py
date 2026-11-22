@@ -1,11 +1,12 @@
-"""Migration 35, frozen here beside migrations.py (which lists it in MIGRATIONS and runs it): the map's radius is at most 300 km. The same rules as for the earlier steps (migrationsteps31.py): a step is never
-edited once it has been released, and what it uses beside itself is frozen with it. It reads the database and nothing of the program."""
+"""Migration 35: the map's radius is at most 300 km.
+
+A released step is never edited, nor are the constants it uses. It reads only the database."""
 import logging
 import sqlite3
 
 log = logging.getLogger(__name__)
 
-_RADIUS35, _LIMIT35 = "map/radius_km", 300                          # the key, and the most the radius may be from this version on (it was 1000)
+_RADIUS35, _LIMIT35 = "map/radius_km", 300                          # the key, and the new maximum radius in km
 
 
 def _v35(db: sqlite3.Connection) -> None:

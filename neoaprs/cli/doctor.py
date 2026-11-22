@@ -1,7 +1,13 @@
-"""`neoaprs doctor [--data DIR]`: a checklist of what a NeoAPRS needs, one line each marked ok, warn or fail, with the fix under every line that is not ok: the Python, the data folder, the database and its
-version, the call, each radio by its name (its type and how it is reached, or that it is off), the serial ports the system lists (and on Linux the group that owns them, and brltty and ModemManager, which grab USB serial adapters, and Firefox as a Flatpak on KDE, whose web pop-ups can go missing), a daemon that runs on the data folder and
-where its page is, the base map and whether the service is set up. Nothing is changed, written or sent: the database is opened for reading, the ports are listed and not opened. The exit code is 1
-when something failed and 0 otherwise (a warning is not a failure)."""
+"""`neoaprs doctor [--data DIR]`: a checklist of what NeoAPRS needs.
+
+Each line is marked ok, warn or fail, with the fix under every line that is not ok. It covers:
+the Python, the data folder, the database and its version, the call, each radio (its type and how
+it is reached, or that it is off), the serial ports the system lists (on Linux also the group that
+owns them, brltty and ModemManager, which grab USB serial adapters, and Firefox as a Flatpak on
+KDE, whose web pop-ups can go missing), a running daemon and its page, the base map and whether
+the service is set up. Nothing is changed, written or sent: the database is opened read-only and
+the ports are listed, not opened. The exit code is 1 when something failed, otherwise 0 (a warning
+is not a failure)."""
 import argparse
 import asyncio
 import platform
@@ -37,7 +43,7 @@ MAP_FILES = ("basemap.pmtiles", "basemap-world.pmtiles")
 
 @dataclass(frozen=True)
 class Finding:
-    status: str                      # "ok", "warn" or "fail"
+    status: str  # "ok", "warn" or "fail"
     text: str
     fix: str = ""
 
@@ -71,11 +77,15 @@ class Database:
     version: int
     rows: dict[str, str]
     radios: tuple[RadioSpec, ...] = ()
-    radios_problem: str = ""         # why the radios could not be read, in a file whose radios are rows: they are then none of the settings in force (never the defaults of the flat keys)
+    # Why the radios could not be read; they are then none, never the defaults of the flat keys.
+    radios_problem: str = ""
 
 
 async def read_database(path: Path) -> Database:
-    """The version of the database file, the settings in it and its radios (none in a file older than the radios' rows, or of a newer NeoAPRS), read without changing it."""
+    """Read the schema version, the settings and the radios of the database without changing it.
+
+    The radios are empty in a file older than the radio rows or made by a newer NeoAPRS.
+    """
     db = Db.at(path, READ_WAIT_MS)
     await db.start()
     try:
@@ -94,8 +104,8 @@ async def read_database(path: Path) -> Database:
 
 
 def check_database(data: Path) -> tuple[Finding, Config | None, str, bool]:
-    """The database's line, the settings in force in it (None when there is no file or it cannot be read), why its radios could not be read ("" when they could), and whether the file is older than
-    the radios' rows (its radios are made by the migration at the daemon's next start)."""
+    """Return the database line, the settings in force (None if unreadable), why the radios could
+    not be read ("" if they could), and whether the file predates the radio rows."""
     path = data / DB_NAME
     if not is_file(path):
         return Finding("ok", "no database yet; the daemon makes it when it first starts"), None, "", False
@@ -125,9 +135,10 @@ def check_call(config: Config | None) -> Finding:
 
 
 def check_radios(config: Config | None, path: Path | None = None, unread: str = "", older: bool = False) -> list[Finding]:
-    """A line for each radio, by the name the log gives it: its type and how it is reached, or that it is off; a warning when no radio is on, or when the station has none yet or only removed ones. Nothing without a database
-    (a new installation), nor for a file older than the radios' rows (`older`: the migration makes them). For a database whose radios could not be read (`unread`, the file at `path`), that one failure in
-    place of radios it does not have."""
+    """Return a line for each radio: its type and how it is reached, or that it is off.
+
+    Return nothing without a database or if `older`; if `unread`, return that one failure.
+    """
     if unread:
         return [Finding("fail", f"the radios in {path} cannot be read: {unread}", "restore a copy from the backup folder next to it (neoaprs db restore)")]
     if config is None or older:
@@ -216,7 +227,7 @@ def diagnose(data: Path) -> list[Finding]:
 
 
 def format_findings(findings: list[Finding]) -> list[str]:
-    """The lines `show` prints: a line for each finding, and under one that is not ok the fix."""
+    """Return the lines to print: one per finding, with the fix under each that is not ok."""
     lines = []
     for f in findings:
         lines.append(f"{f.status.upper() if f.status == 'fail' else f.status:<5} {f.text}")

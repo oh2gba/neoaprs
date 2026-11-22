@@ -1,9 +1,10 @@
-"""Busy detectors held against each other on the same recorded spectra (scripts/mercury-measure autobusy): a `Recording` is what one receiver saw in one scene, the bands of every spectrum with the time it came, the frames
-that were on the air (when they began and ended, and at what signal-to-noise ratio), the BUSY lines the real Mercury said on its control port, and when the quiet part began and ended; `replay` runs a detector over the bands;
-`score` says what it did: which frames it saw, how soon, how long it held after them, and how many seconds it was busy when nothing was on the air. The numbers are those of docs/mercury.md.
+"""Busy detectors held against each other on the same recorded spectra (scripts/mercury-measure
+autobusy).
 
-Seeing a frame is a busy period that touches the time the frame was on the air (from its PTT ON to half a second after its PTT OFF). Holding is what the radio would do: a BUSY holds our frames for at most the cap
-(neoaprs/mercury.py BUSY_HOLD_MAX_SEC) from its beginning, so the held seconds of a period are the smaller of its length and the cap."""
+A frame is seen by a busy period that touches the time it was on the air (PTT ON to half a second
+after PTT OFF). A BUSY holds our frames for at most BUSY_HOLD_MAX_SEC (neoaprs/mercury.py), so the
+held seconds of a period are the smaller of its length and that cap.
+"""
 import json
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, field
@@ -12,9 +13,12 @@ from typing import Any, Protocol
 
 from neoaprs.mercury import BUSY_HOLD_MAX_SEC
 
-WARM_UP_SEC = 1.0                        # the first spectra of a Mercury are not read (see `replay`)
-SEEN_AFTER_SEC = 0.5                     # a busy period that begins up to this long after the frame's PTT OFF still counts as seeing it
-CLEAR_AFTER_SEC = 2.5                    # after a frame's PTT OFF this long a detector may still be busy (the hang and the tail) without it being false
+# The first spectra of a Mercury are not read (see `replay`).
+WARM_UP_SEC = 1.0
+# A busy period beginning up to this long after a frame's PTT OFF still counts as seeing it.
+SEEN_AFTER_SEC = 0.5
+# A detector may be busy this long after PTT OFF (hang and tail) without it being false.
+CLEAR_AFTER_SEC = 2.5
 
 
 class Detector(Protocol):
@@ -27,10 +31,14 @@ class Detector(Protocol):
 @dataclass
 class Recording:
     scene: str                                            # what the receiver heard, in words
-    spectra: list[tuple[float, list[float]]] = field(default_factory=list)       # (when, the bands in dB), the time on the clock of the measurement
-    frames: list[tuple[float, float, float]] = field(default_factory=list)       # (PTT ON, PTT OFF, SNR in 3 kHz) of the frames the transmitter sent
-    mercury: list[tuple[float, bool]] = field(default_factory=list)              # (when, on) of the BUSY lines of Mercury's own detector, at the threshold NeoAPRS writes
-    frames_span: tuple[float, float] = (0.0, 0.0)           # the part with frames, and the quiet part after it with none
+    # (when, the bands in dB), on the measurement's clock.
+    spectra: list[tuple[float, list[float]]] = field(default_factory=list)
+    # (PTT ON, PTT OFF, SNR in 3 kHz) of the transmitted frames.
+    frames: list[tuple[float, float, float]] = field(default_factory=list)
+    # (when, on) of Mercury's own BUSY lines at the threshold NeoAPRS writes.
+    mercury: list[tuple[float, bool]] = field(default_factory=list)
+    # The part with frames, and the quiet part after it with none
+    frames_span: tuple[float, float] = (0.0, 0.0)
     quiet_span: tuple[float, float] = (0.0, 0.0)
 
     def save(self, path: Path) -> None:
@@ -47,8 +55,12 @@ Period = tuple[float, float]
 
 
 def replay(make: Callable[[], Detector], recording: Recording) -> list[Period]:
-    """The busy periods (from, to) a fresh detector makes over the recording's spectra, without the first WARM_UP_SEC of them (the spectrum of a Mercury that has just begun to listen is a window that fills up from zeros: it
-    rises 25 dB in the first 0.2 s, and a floor that was taken from it is not one); a period still open at the end is closed at the last spectrum."""
+    """The busy periods (from, to) a fresh detector makes over the spectra, skipping the first
+    WARM_UP_SEC.
+
+    The spectrum of a Mercury that has just begun to listen fills up from zeros and rises 25 dB in
+    the first 0.2 s. A period still open at the end is closed at the last spectrum.
+    """
     detector = make()
     periods: list[Period] = []
     since: float | None = None
@@ -70,7 +82,8 @@ def replay(make: Callable[[], Detector], recording: Recording) -> list[Period]:
 
 
 def periods_of(events: Sequence[tuple[float, bool]], end: float) -> list[Period]:
-    """The busy periods of a series of BUSY ON / BUSY OFF lines (closed at `end` when the last one is ON)."""
+    """The busy periods of a series of BUSY ON / OFF lines, closed at `end` when the last one is ON.
+    """
     periods: list[Period] = []
     since: float | None = None
     for when, on in events:
@@ -90,13 +103,19 @@ def overlap(a: Period, b: Period) -> float:
 
 @dataclass
 class Score:
-    seen: dict[float, tuple[int, int]]                     # by SNR: (frames seen, frames sent)
-    lag_sec: float | None                                  # the mean time from a frame's PTT ON to the beginning of the busy period that saw it (0 when it was busy already)
-    hang_sec: float | None                                 # the mean time the detector stays busy after a frame's PTT OFF
-    false_frames_sec: float                                # busy seconds in the part with frames, away from the frames
+    # By SNR: (frames seen, frames sent).
+    seen: dict[float, tuple[int, int]]
+    # Mean time from a frame's PTT ON to the start of the busy period that saw it.
+    lag_sec: float | None
+    # Mean time the detector stays busy after a frame's PTT OFF.
+    hang_sec: float | None
+    # Busy seconds in the part with frames, away from the frames.
+    false_frames_sec: float
     false_quiet_sec: float                                 # busy seconds in the quiet part
-    held_quiet_sec: float                                  # the seconds of the quiet part the radio would be held (each period at most BUSY_HOLD_MAX_SEC)
-    longest_quiet_sec: float                               # the longest busy period of the quiet part
+    # Seconds of the quiet part the radio would be held (each period at most BUSY_HOLD_MAX_SEC).
+    held_quiet_sec: float
+    # The longest busy period of the quiet part.
+    longest_quiet_sec: float
 
 
 def score(periods: Sequence[Period], recording: Recording) -> Score:

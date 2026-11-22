@@ -1,10 +1,8 @@
-"""Windows: a sound card's own levels (soundmixer.py) as the master volume of its playing device and of its recording device, through Core Audio by ctypes (no package of its own: the COM interfaces are
-called by their tables of functions). A card of the radio's settings is the pair of the two devices' ids the HF modem's list gives it (mercurycards.PAIR, `{0.0.1.00000000}.{…}|{0.0.0.00000000}.{…}`),
-and those ids are Core Audio's own endpoint ids: `IMMDeviceEnumerator::GetDevice` takes them as they are. Every device has a master volume, so a card has both levels where it has both devices; a device
-that is not there (unplugged) has none.
+"""Windows sound card levels (see soundmixer.py) as master volumes through Core Audio and ctypes.
 
-`Windows` does the reading of the pair and the percent, `CoreAudio` the calls; a test gives `Windows` a stand-in for `CoreAudio`, as the tests of the WinMM lists stand in for WinMM: no Windows machine the
-project can reach has a real sound card, so the calls themselves are proven only on an operator's."""
+COM is called through function tables, so no package is needed. A card is the pair of Core Audio
+endpoint ids the HF modem lists (mercurycards.PAIR); an unplugged device has no level.
+"""
 import logging
 from typing import Any, Protocol
 
@@ -13,26 +11,29 @@ from .soundmixer import Levels
 
 log = logging.getLogger("neoaprs.soundmixer")
 
-CLSID_ENUMERATOR = "{BCDE0395-E52F-467C-8E3D-C4579291692E}"           # MMDeviceEnumerator
-IID_ENUMERATOR = "{A95664D2-9614-4F35-A746-DE8DB63617E6}"             # IMMDeviceEnumerator
-IID_ENDPOINT_VOLUME = "{5CDF2C82-841E-4546-9722-0CF74078229A}"        # IAudioEndpointVolume
+# MMDeviceEnumerator, IMMDeviceEnumerator and IAudioEndpointVolume.
+CLSID_ENUMERATOR = "{BCDE0395-E52F-467C-8E3D-C4579291692E}"
+IID_ENUMERATOR = "{A95664D2-9614-4F35-A746-DE8DB63617E6}"
+IID_ENDPOINT_VOLUME = "{5CDF2C82-841E-4546-9722-0CF74078229A}"
 CLSCTX_ALL = 23
-GET_DEVICE, ACTIVATE, RELEASE = 5, 3, 2                               # the places in the tables: IMMDeviceEnumerator::GetDevice, IMMDevice::Activate, IUnknown::Release
-SET_SCALAR, GET_SCALAR = 7, 9                                         # IAudioEndpointVolume::SetMasterVolumeLevelScalar, GetMasterVolumeLevelScalar
+# Function table indexes: IMMDeviceEnumerator::GetDevice, IMMDevice::Activate, IUnknown::Release.
+GET_DEVICE, ACTIVATE, RELEASE = 5, 3, 2
+# IAudioEndpointVolume::SetMasterVolumeLevelScalar and GetMasterVolumeLevelScalar.
+SET_SCALAR, GET_SCALAR = 7, 9
 
 
 class Volumes(Protocol):
     def get(self, device: str) -> float | None:
-        """The device's master volume, 0.0 to 1.0; None where it cannot be had."""
+        """Return the device's master volume, 0.0 to 1.0, or None if unavailable."""
         ...
 
     def put(self, device: str, scalar: float) -> None:
-        """Sets it (nothing where it cannot be)."""
+        """Set the volume; do nothing if the device is unavailable."""
         ...
 
 
 class Windows:
-    """The card's two devices' master volumes (`volumes`: Core Audio, or a test's stand-in)."""
+    """The master volumes of the card's two devices, through `volumes` (Core Audio by default)."""
 
     def __init__(self, volumes: Volumes | None = None) -> None:
         self._volumes = volumes or CoreAudio()
@@ -55,7 +56,7 @@ class Windows:
 
 
 class CoreAudio:
-    """The master volume of a device by its endpoint id, each call in a COM apartment of its own thread (the daemon calls from a worker thread)."""
+    """The master volume of a device by endpoint id; calls use the thread's COM apartment."""
 
     def get(self, device: str) -> float | None:
         import ctypes
@@ -67,14 +68,15 @@ class CoreAudio:
         self._with_volume(device, lambda volume, call: call(volume, SET_SCALAR, ctypes.c_float, ctypes.c_void_p)(volume, scalar, None) == 0)
 
     def _with_volume(self, device: str, use: Any) -> bool:
-        """`use(volume, call)` on the device's IAudioEndpointVolume; False where there is none (no such device, no COM) or `use` said it failed."""
+        """Run `use(volume, call)` on the device's IAudioEndpointVolume; False if none or failed."""
         import ctypes
         try:
-            ole = ctypes.WinDLL("ole32")                                                     # type: ignore[attr-defined, unused-ignore]
+            ole = ctypes.WinDLL("ole32")  # type: ignore[attr-defined, unused-ignore]
         except (OSError, AttributeError) as e:
             log.debug("no COM here: %s", e)
             return False
-        started = ole.CoInitializeEx(None, 0) in (0, 1)                                      # (S_OK, S_FALSE; a thread already in another apartment goes on in it)
+        # S_OK or S_FALSE; a thread already in another apartment goes on in it.
+        started = ole.CoInitializeEx(None, 0) in (0, 1)
         try:
             found = self._volume_of(ctypes, ole, device, use)
             if not found:

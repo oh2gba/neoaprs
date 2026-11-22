@@ -1,6 +1,6 @@
-"""What a page of another device may not do (neoaprs/web/confighandlers.py, `LOCAL_ONLY` of neoaprs/web/access.py): change a setting that names a program or an address the daemon runs or fetches from,
-and run the alert's Test. A session that left this computer works the radio, not the computer. As in tests/test_web_access.py, a request is made to look as if it came from another device by saying that
-no address is the loopback (`away`); such a device logs in with the key, as a phone does."""
+"""Tests for what a page on another device may not do (neoaprs/web/confighandlers.py, `LOCAL_ONLY`
+of neoaprs/web/access.py): change settings that name a program or address, and run the alert test. A
+request is made to look remote by saying no address is the loopback (`away`)."""
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -17,7 +17,8 @@ from tests.support.wsclient import WsClient
 
 KEY = "k7m2-x9pq-4hrt"
 NETWORK = {"web/network": "true", "web/key": KEY}
-NEW_VALUES = {                                             # a value for each, other than the one in force, that the setting itself takes
+# a value for each, other than the one in force, that the setting itself takes
+NEW_VALUES = {
     "messages/alert_command": "exit 0",
     "update/url": "https://updates.example.org/version.json",
     "map/source": "https://maps.example.org/planet.pmtiles",
@@ -83,7 +84,9 @@ async def test_a_page_of_another_device_cannot_change_a_setting_that_names_a_pro
 
 
 async def test_a_radios_own_setting_reaches_the_list_too(tmp_path: Path, away: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    """No radio's own setting names a program or an address today; one that would is put on the list as `radio/*/<key>` and is then refused to a page of another device for every radio."""
+    """No radio's own setting names a program or an address today; one that did would be listed as
+    `radio/*/<key>` and refused to a page of another device for every radio.
+    """
     monkeypatch.setattr(confighandlers, "LOCAL_ONLY", LOCAL_ONLY | {"radio/*/path"})
     e = await served(tmp_path)
     page = await from_afar(e)

@@ -1,18 +1,6 @@
-"""The thread that owns the connection, and the queue that feeds it (see db.py for what the program sees).
+"""The thread that owns the database connection and the FIFO queue that feeds it (see db.py).
 
-One connection, made in this thread, used in this thread only. Everything that touches the database is an *operation* on one FIFO queue, so the order in which the
-program asked is the order in which the database did it (no flush, no lock, no "write behind"):
-
-    READ      fn(conn) inside a read transaction on a connection that cannot write (`query_only`): one snapshot for all the statements of the function
-    WRITE     BEGIN IMMEDIATE, fn(conn), COMMIT: all of it or none; ROLLBACK when fn raises, and the error goes to whoever waits
-    APPEND    a hot write nobody waits for (a heard packet): the appends that follow each other are one transaction, each one in a savepoint of its own, so
-              that an append which cannot be made costs that append and not the others
-    MAINT     fn(conn) outside a transaction: a backup, a checkpoint
-    STOP      everything before it has been done: the connection is closed and the thread ends
-
-A function that is run may not begin, commit or roll back a transaction (the authorizer refuses it, and the statements of this file are spelled so that a function cannot reach
-their entries in the statement cache by chance): the transaction is the thread's. Whoever waits is answered on the event loop with `call_soon_threadsafe`.
-"""
+Operations are READ, WRITE, APPEND (batched, each in a savepoint), MAINT and STOP."""
 import asyncio
 import logging
 import queue
@@ -29,6 +17,7 @@ from .dbstats import DbStats
 
 log = logging.getLogger("neoaprs.db")
 
+# The marker comment keeps a user function from hitting these statements' cache entries.
 BEGIN_WRITE = "BEGIN IMMEDIATE /*neoaprs-db*/"
 BEGIN_READ = "BEGIN /*neoaprs-db*/"
 COMMIT = "COMMIT /*neoaprs-db*/"
@@ -45,12 +34,15 @@ class Kind(Enum):
 
 @dataclass(frozen=True)
 class Tuning:
-    tick: float = 1.0               # appends are collected this long (or until something else is asked, or batch_max) before they are committed: one sync to the disk for all of them
-    batch_max: int = 2000           # appends in one transaction, at most
-    max_appends: int = 200_000      # appends waiting at most; beyond it `write_nowait` says no
-    attempts: int = 3               # a batch that cannot be committed (the file is locked, the disk is full) is tried this many times, retry_sec * n apart, and then dropped; once only while the queue closes
+    # Appends are collected this long (or until another operation or batch_max), one sync for all.
+    tick: float = 1.0
+    batch_max: int = 2000           # most appends in one transaction
+    # Most appends waiting; beyond it `write_nowait` returns False.
+    max_appends: int = 200_000
+    # Attempts at a failing batch, retry_sec * n apart, then it is dropped.
+    attempts: int = 3
     retry_sec: float = 0.5
-    slow_sec: float = 0.5           # an operation that runs longer is counted and (the first, the tenth, every hundredth) told in the log
+    slow_sec: float = 0.5           # a longer operation is counted and sometimes logged
 
 
 @dataclass(eq=False)
@@ -62,16 +54,17 @@ class Op:
     loop: asyncio.AbstractEventLoop | None = None
 
 
-# The result codes (the low byte of `sqlite_errorcode`) of the place: another connection holds the file, no memory, the file is read-only, a disk fault, no space, the file cannot be opened, it is damaged or is not a database
-# (and the lock protocol of the write-ahead log, which a retry gets past). Every other code is the statement's.
+# Result codes (low byte of `sqlite_errorcode`) that come from the environment, not the statement:
+# locked, no memory, read-only, disk fault, full, cannot open, corrupt, not a database, WAL
+# protocol.
 PLACE_CODES = frozenset({sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED, sqlite3.SQLITE_NOMEM, sqlite3.SQLITE_READONLY, sqlite3.SQLITE_IOERR, sqlite3.SQLITE_FULL, sqlite3.SQLITE_CANTOPEN,
                          sqlite3.SQLITE_CORRUPT, sqlite3.SQLITE_NOTADB, sqlite3.SQLITE_PROTOCOL})
 
 
 def environmental(e: BaseException) -> bool:
-    """An error of the place (the file is locked, the disk is full, the file is damaged) and not of the statement: trying again later may work. IntegrityError, DataError and the like are the
-    statement's, and so is an OperationalError of any other kind (no such table or column, a syntax error, too many variables): they will happen again. An error that does not come from SQLite
-    (no result code) is taken for the place's."""
+    """Return whether the error is environmental (locked, full, damaged), so a retry may work.
+
+    Statement errors recur. An error without a SQLite result code counts as environmental."""
     if not (isinstance(e, (sqlite3.OperationalError, sqlite3.InternalError)) or type(e) is sqlite3.DatabaseError):
         return False
     code = getattr(e, "sqlite_errorcode", None)
@@ -79,24 +72,24 @@ def environmental(e: BaseException) -> bool:
 
 
 def often(n: int) -> bool:
-    """The first, the tenth and every hundredth time: said, but not every second for ever."""
+    """Return True for the first, the tenth and every hundredth call, to limit log volume."""
     return n in (1, 10) or n % 100 == 0
 
 
 class DbThread(threading.Thread):
     def __init__(self, opener: Callable[[], sqlite3.Connection], tuning: Tuning, stats: DbStats, ready: Callable[[BaseException | None], None], exited: Callable[[], None], name: str) -> None:
-        super().__init__(name=name, daemon=True)           # daemon: a program that forgot close() still ends; what was acknowledged is on the disk already
+        super().__init__(name=name, daemon=True)           # daemon: a program that never closes still ends
         self._opener, self.tuning, self.stats, self._ready, self._exited = opener, tuning, stats, ready, exited
         self._q: queue.SimpleQueue[Op] = queue.SimpleQueue()
-        self._lock = threading.Lock()                       # the queue is closed and the appends are counted under it
+        self._lock = threading.Lock()                       # guards the closed flag and the append count
         self._closing = False
         self._appends = 0
-        self._own = False                                   # the thread is running one of its own transaction statements (the authorizer lets those through)
+        self._own = False                                   # set while running the thread's own transaction statement
         self._query_only = False
 
-    # ---- any thread: putting work on the queue
+    # Any thread: put work on the queue.
     def submit(self, op: Op) -> bool:
-        """False only for an append that the full queue refuses. Raises DbClosed once the queue is closed, NestedUse when the database thread itself asks."""
+        """Queue `op`; return False only for an append refused by a full queue."""
         if self.ident is not None and threading.get_ident() == self.ident:
             raise NestedUse("the database thread was asked to do something from inside a function it is running: do it with the connection that function was given")
         with self._lock:
@@ -115,7 +108,7 @@ class DbThread(threading.Thread):
         return True
 
     def finish(self) -> None:
-        """Closes the queue behind everything that is in it: the thread does all of that, then ends."""
+        """Close the queue behind everything in it; the thread does all of that, then ends."""
         with self._lock:
             if not self._closing:
                 self._closing = True
@@ -124,13 +117,13 @@ class DbThread(threading.Thread):
     def pending(self) -> int:
         return self._q.qsize()
 
-    # ---- the thread
+    # The thread.
     def run(self) -> None:
         try:
             conn = self._open()
         except BaseException as e:
             self._ready(e)
-            self._abandon()                                 # what was asked while the file was being opened gets its answer too
+            self._abandon()                                 # answer what was asked during the open
             self._exited()
             return
         self._ready(None)
@@ -165,7 +158,7 @@ class DbThread(threading.Thread):
             log.error("the database could not be closed cleanly: %s", e)
 
     def _abandon(self) -> None:
-        """Whatever is still queued when the thread ends (it failed) is answered, not left to wait for ever."""
+        """Answer whatever is still queued when the thread ends."""
         with self._lock:
             self._closing = True
         while True:
@@ -187,10 +180,10 @@ class DbThread(threading.Thread):
                 self._run_one(conn, op)
                 op = None
 
-    # ---- one awaited operation
+    # One awaited operation.
     def _run_one(self, conn: sqlite3.Connection, op: Op) -> None:
         if op.future is not None and op.future.cancelled():
-            self.stats.count("withdrawn")                   # the caller gave up before it began: it did not happen
+            self.stats.count("withdrawn")                   # cancelled before it began: it did not happen
             return
         started = time.perf_counter()
         result: Any = None
@@ -214,7 +207,7 @@ class DbThread(threading.Thread):
         return self._transaction(conn, op.fn, BEGIN_READ if reading else BEGIN_WRITE)
 
     def _begin(self, conn: sqlite3.Connection, begin: str) -> None:
-        self._rollback(conn)                                # nothing is open between operations; if a failed ROLLBACK left something open, it is closed now and not carried into this one
+        self._rollback(conn)                                # a failed ROLLBACK must not leak into this operation
         self._sql(conn, begin)
 
     def _transaction(self, conn: sqlite3.Connection, fn: Callable[[sqlite3.Connection], Any], begin: str) -> Any:
@@ -258,10 +251,10 @@ class DbThread(threading.Thread):
         try:
             op.loop.call_soon_threadsafe(self._settle, op.future, result, error, time.perf_counter())
         except RuntimeError:
-            pass                                            # the loop is closed: nobody waits for the answer
+            pass                                            # the loop is closed
 
     def _settle(self, future: "asyncio.Future[Any]", result: Any, error: BaseException | None, posted: float) -> None:
-        """On the event loop: the answer reaches the one who waits. How long it took the loop to get here is the stall the loop had."""
+        """Deliver the answer on the event loop and record the loop delay."""
         self.stats.delivered(time.perf_counter() - posted)
         if future.done():
             return
@@ -270,10 +263,11 @@ class DbThread(threading.Thread):
         else:
             future.set_result(result)
 
-    # ---- appends: one transaction for all that are waiting
+    # Appends: one transaction for all that are waiting.
     def _batch(self, conn: sqlite3.Connection, first: Op) -> Op | None:
-        """Collects the appends that follow `first` for a tick (the queue is read in order: the first operation of another kind ends the batch at once, so that nothing that
-        was asked after an append can be done before it), commits them, and returns the operation that ended the batch."""
+        """Commit the appends following `first` for a tick; return the operation ending the batch.
+
+        An operation of another kind ends the batch at once."""
         batch = [first]
         stop_at = time.perf_counter() + self.tuning.tick
         ender: Op | None = None
@@ -290,7 +284,8 @@ class DbThread(threading.Thread):
             self._commit_batch(conn, batch)
         except BaseException:
             if ender is not None:
-                self._reply(ender, None, DbClosed("the database thread has stopped"))          # (taken off the queue already: the thread's end would not find it there)
+                # Already off the queue, so the thread's end would miss it.
+                self._reply(ender, None, DbClosed("the database thread has stopped"))
             raise
         with self._lock:
             self._appends -= len(batch)
@@ -311,8 +306,7 @@ class DbThread(threading.Thread):
         self.stats.count("lost", len(batch))
 
     def _try_again(self, e: sqlite3.Error, attempt: int, size: int) -> bool:
-        """After a failed attempt at a batch: whether there is another, after a wait that grows. Not while the queue is closing: the STOP stands behind the batch, the lock is another
-        process's that no wait of ours hurries, and the unit kills a stop that takes longer than TimeoutStopSec (10 s), where three attempts with the busy time of 3 s took 10.5 s."""
+        """Return whether to retry a failed batch; not while closing (the stop must end in time)."""
         with self._lock:
             closing = self._closing
         if attempt >= self.tuning.attempts or closing:
@@ -335,7 +329,7 @@ class DbThread(threading.Thread):
             raise
 
     def _append_one(self, conn: sqlite3.Connection, op: Op) -> None:
-        """In a savepoint: an append that fails for its own reasons is undone alone and counted; one that fails for the place's reasons ends the attempt."""
+        """Run an append in a savepoint; a statement error undoes it alone, others raise."""
         assert op.fn is not None
         conn.execute("SAVEPOINT append")
         try:

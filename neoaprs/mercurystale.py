@@ -1,8 +1,8 @@
-"""A Mercury of ours left behind by a daemon that did not stop cleanly (a crash, a kill, Task Manager, a power cut): it holds the sound card, the keying line and its ports, and nothing ends it when its daemon
-dies. Its process id is in `mercury.pid` beside the configuration it was started with (mercuryhelper.Program writes it, a clean stop removes it), and `end_stale` ends the process of that id only when it is
-still the radio's own Mercury: on Linux and macOS its command line runs Mercury with the radio's configuration (`-C <radios/<id>/mercury.ini>`), so that the operator's own Mercury, an editor on a file named so and another
-radio's Mercury are left alone; on Windows, which reuses ids after a reboot most of all, its program file is the one the radio runs and it was made no later than the file was written. Where that cannot be read,
-nothing is ended. mercuryclaims.end_left_behind asks it once at the daemon's start for every radio's file, and each start of a radio's modem asks it for its own."""
+"""End a Mercury left behind by a daemon that did not stop cleanly.
+
+The process id is read from `mercury.pid`; the process is ended only if it is still the radio's own.
+"""
+
 import logging
 import ntpath
 import os
@@ -23,18 +23,16 @@ PS_TIMEOUT_SEC = 5.0
 
 
 def runs_with(argv: Sequence[str], ini: Path) -> bool:
-    """Whether a command line runs Mercury with this configuration file: `-C` followed by the file (mercury.command writes it so), as it was written or as the same file resolved. The radio's own
-    configuration is what makes a process its Mercury, not the word "mercury": an editor on a file of that name, the operator's own Mercury and another radio's are not this radio's."""
+    """Return whether the command line has `-C` followed by the configuration file `ini`."""
     want = os.path.abspath(ini)
     return any(flag == "-C" and (value == str(ini) or os.path.abspath(value) == want) for flag, value in zip(argv, argv[1:]))
 
 
 def _is_mercury(pid: int, ini: Path, program: Sequence[str], written: float) -> bool:
-    """Whether the process of this id is this radio's Mercury. Linux: its command line runs a Mercury with the radio's configuration (`runs_with`: the program's or the module that stands in for it). Windows (which
-    reuses process ids, after a reboot most of all, and lets no one read another process's command line simply): it is running, its program file is the one this radio runs (`program`), and it was made no later than
-    the file that names it was written (`written`; the file is written just after the program is started), so that another radio's Mercury that got the id after a reboot is not it. os.kill(pid, 0) there is
-    TerminateProcess, which would end whatever process has the id before anything is known of it, so the questions are asked of the process's exit code, image path and times. macOS: its command line as `ps`
-    gives it holds `-C` and the radio's configuration. Where one cannot be read, the answer is no."""
+    """Return whether the process is this radio's Mercury; False if that cannot be read.
+
+    Windows reuses ids, so there the program file and creation time are checked instead.
+    """
     cmdline = Path(f"/proc/{pid}/cmdline")
     if cmdline.exists():
         try:
@@ -43,13 +41,13 @@ def _is_mercury(pid: int, ini: Path, program: Sequence[str], written: float) -> 
             return False
     if sys.platform == "win32":
         return _running_windows(pid) and same_program(_windows_image(pid), program) and made_before(windows_created(pid), written)
-    else:                                                          # macOS, and any other system without /proc
+    else:  # macOS, and any other system without /proc
         command = _ps_command(pid)
         return command is not None and any(f" -C {path} " in f" {command} " for path in {str(ini), os.path.abspath(ini)})
 
 
 def _ps_command(pid: int) -> str | None:
-    """The command line of the process of this id as `ps` writes it, its arguments joined by spaces (so a path with a space in it is compared whole, not split); None when it cannot be read."""
+    """Return the process's `ps` command line, or None if unreadable."""
     try:
         done = subprocess.run(["/bin/ps", "-ww", "-o", "command=", "-p", str(pid)], capture_output=True, text=True, timeout=PS_TIMEOUT_SEC, check=False)
     except (OSError, subprocess.SubprocessError):
@@ -58,8 +56,7 @@ def _ps_command(pid: int) -> str | None:
 
 
 def same_program(image: str | None, program: Sequence[str]) -> bool:
-    """Whether the program file at this Windows path (either kind of slash, the case aside) is the program this radio runs (`program`, its first word); no when the path is not known: where that cannot be read,
-    nothing is ended."""
+    """Return whether the Windows path is the radio's program; False if it is unknown."""
     return image is not None and bool(program) and _windows_path(image) == _windows_path(program[0])
 
 
@@ -68,16 +65,17 @@ def _windows_path(path: str) -> str:
 
 
 def end_stale(pid_file: Path, ini: Path, program: Sequence[str]) -> bool:
-    """Ends this radio's Mercury that an earlier daemon left running (its id is in the file beside the configuration `ini`, which the program was run with; `program` is what the radio runs), so that it does not
-    hold the sound card and the ports, and waits up to STOP_WAIT_SEC for it to go (the start that follows opens the same card); whether one was ended. The file is consumed (one that cannot be removed is a line in
-    the log, and the check goes on: the daemon's start never fails on it)."""
+    """End this radio's Mercury left running by an earlier daemon; return whether one was ended.
+
+    Waits up to STOP_WAIT_SEC for it to go. The pid file is always consumed."""
     try:
         text, written = pid_file.read_text(encoding="ascii"), pid_file.stat().st_mtime
     except OSError:
         return False
     try:
         pid_file.unlink(missing_ok=True)
-    except OSError as e:                                           # (held by a virus scanner, read-only, a folder that cannot be written: the check goes on, the next one asks the same)
+    # e.g. held by a virus scanner or read-only; the check goes on
+    except OSError as e:
         log.warning("the file of a Mercury left behind, %s, could not be removed: %s", pid_file, os_error_text(e))
     try:
         pid = int(text.strip())

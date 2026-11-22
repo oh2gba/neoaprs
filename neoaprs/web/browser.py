@@ -1,5 +1,7 @@
-"""What a page's browser is, in a few words for the log, from the `User-Agent` of its socket: `Firefox 140 on Linux`, `Edge 126 on Windows`, `Chrome 126 on Android 14`. The engine of the desktop app's window says so too (`NeoAPRS window`).
-The header is the browser's own claim and is not trusted with the log: a name that is not recognised is shown as plain, short text."""
+"""Short description of a page's browser for the log, from its User-Agent (`Firefox 140 on Linux`).
+
+The header is the client's own claim, so an unrecognised one is logged as plain, shortened text.
+"""
 import re
 
 from .pageerrors import one_line
@@ -32,7 +34,7 @@ def system_of(agent: str) -> str:
 
 
 def browser_of(agent: str) -> str:
-    """`Firefox 140 on Linux`; `unknown browser (...)` with the start of the header when it is none the program knows; `no User-Agent` for none."""
+    """Return `Firefox 140 on Linux`, `unknown browser (...)` or `no User-Agent`."""
     if not agent.strip():
         return "no User-Agent"
     system = system_of(agent)

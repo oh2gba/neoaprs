@@ -1,11 +1,8 @@
-"""`POST /support/bundle`: the support bundle (neoaprs/cli/supportmake.py) for the page's Support button. The body is `{"page": {...}}`, what the page tells of itself (its build, the browser, its recent errors), at most 256 KB; the answer is the zip,
-`application/zip`, as a download.
+"""`POST /support/bundle`: the support bundle as a zip download.
 
-It is protected as the page's socket is: only for a Host name of ours, never over plain http when the secure page is served, and from another device only with the session of the access key; a request of another site's script (an
-`Origin` that is not the `Host`) is refused. One bundle is made at a time (a second request is answered `429`), in a thread, so that the loop goes on with the radio while the logs are read.
-
-The latest bundle made here is kept for an hour (`Bundler.keep`): Send feedback / logs names it when the person downloaded it from the dialog, and the daemon then sends that very file, the one they looked into
-(neoaprs/web/supportsend.py)."""
+The body is `{"page": {...}}`, at most 256 KB; the route is protected like the page's socket.
+One bundle is made at a time (a second gets 429). The latest is kept for an hour for Send.
+"""
 import asyncio
 import json
 import logging
@@ -26,26 +23,23 @@ log = logging.getLogger("neoaprs.web")
 
 MAX_BODY = 256 * 1024
 RETRY_AFTER_SEC = 10
-KEEP_SEC = 3600                                              # how long the latest bundle of a download waits for a Send that names it
+KEEP_SEC = 3600
 
 
 class BundleHost(HostGate, Protocol):
-    """What the handler needs of the WebServer."""
     bundles: "Bundler"
 
 
 class Bundler:
-    """Makes the bundles of a running daemon, one at a time."""
-
     def __init__(self, server: LiveHost) -> None:
         self.server = server
-        self.busy = False                                    # a bundle is being made
-        self.sending = False                                 # a bundle is being made and sent (neoaprs/web/supportsend.py)
-        self.kept: tuple[str, bytes] | None = None           # (the name, the zip) of the latest download, for a Send that names it
+        self.busy = False  # a bundle is being made
+        self.sending = False  # a bundle is being made and sent
+        self.kept: tuple[str, bytes] | None = None  # (name, zip) of the latest download
         self.forgetting: asyncio.TimerHandle | None = None
 
     def keep(self, name: str, data: bytes) -> None:
-        """The bundle a download got is kept for an hour, in the place of the one before it."""
+        """Keep the downloaded bundle for an hour, replacing the previous one."""
         self.forget()
         self.kept = (name, data)
         self.forgetting = asyncio.get_running_loop().call_later(KEEP_SEC, self.forget)
@@ -56,16 +50,17 @@ class Bundler:
         self.kept, self.forgetting = None, None
 
     async def make(self, page: dict[str, Any]) -> tuple[str, bytes]:
-        """(the name of the file, the zip). The state is read here, on the loop; the files are read and the zip is written in a thread."""
+        """Return (file name, zip); state is read on the loop, files are zipped in a thread."""
         ctl: Controller = self.server.controller
         errors: PageErrors = self.server.api.page_errors
-        self.busy = True                                     # (before the first wait: a second request that comes meanwhile is refused)
+        # set before the first await so a concurrent request is refused
+        self.busy = True
         try:
             live = await live_state(self.server)
             recorded = errors.snapshot()
 
             def build() -> tuple[str, bytes]:
-                from neoaprs.cli.supportmake import make_bundle       # (the modules that write the bundle are loaded by the first one, not by every start of the daemon)
+                from neoaprs.cli.supportmake import make_bundle
                 with tempfile.TemporaryDirectory(prefix="neoaprs-support-") as folder:
                     made = make_bundle(ctl.data_dir, Path(folder), live=live, page=page, page_errors=recorded, install=ctl.install, running=True, by="the running daemon, asked by the page", now=ctl.clock, call=ctl.config.station_call)
                     return made.path.name, made.path.read_bytes()
@@ -76,7 +71,7 @@ class Bundler:
 
 @tornado.web.stream_request_body
 class SupportBundle(SecurityHeaders):
-    """The body is read in pieces so that its size can be held to 256 KB for this route alone (the rest of the server takes 64 KB)."""
+    """Read the body in pieces so this route alone can allow 256 KB (the default is 64 KB)."""
 
     def initialize(self, server: BundleHost) -> None:
         self.server = server
@@ -97,7 +92,7 @@ class SupportBundle(SecurityHeaders):
             self.size += len(chunk)
 
     def json_body(self) -> dict[str, Any]:
-        """The body: a JSON object with a `page` object."""
+        """Return the body, a JSON object with a `page` object; raise 400 otherwise."""
         try:
             body = json.loads(b"".join(self.chunks))
             page = body["page"]
@@ -113,7 +108,7 @@ class SupportBundle(SecurityHeaders):
         self.finish("429 Too Many Requests: a support bundle is being made; try again in a moment\n")
 
     async def made(self, page: dict[str, Any]) -> tuple[str, bytes]:
-        """(the name, the zip) of the bundle for the page; a 500 when it could not be made."""
+        """Return (name, zip) for the page; raise 500 if the bundle cannot be made."""
         try:
             return await self.server.bundles.make(page)
         except Exception:

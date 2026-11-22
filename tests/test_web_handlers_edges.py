@@ -1,6 +1,7 @@
-"""The handlers of the page's commands (neoaprs/web/handlers.py) where the tests of the features do not go: following topics and leaving them, a search for the radio whose page has left, RX only for the
-status, a query for a call that is none, the settings that are refused or cannot be stored, and an error the page reports when nothing keeps them. Through the page's socket as the page does it, except where
-the case cannot be made with a real page (a page that has left, a check that raises what it never does)."""
+"""The handlers of the page's commands (neoaprs/web/handlers.py) where the feature tests do not go:
+following topics, a search whose page left, a query for no call, refused settings, and an error the
+page reports.
+"""
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -59,7 +60,8 @@ async def test_a_query_for_something_that_is_not_a_call_is_refused_with_the_reas
 async def test_settings_that_the_database_would_not_take_are_refused_with_a_code_and_nothing_changes(tmp_path: Path) -> None:
     e, page = await with_page(tmp_path)
     assert e.ctl.db is not None
-    await e.ctl.db.close()                                                   # (the file is gone from under the daemon: the store says no)
+    # The file is gone from under the daemon: the store says no
+    await e.ctl.db.close()
     await page.send({"cmd": "set_config", "values": {"map/radius_km": "200"}})
     error = await page.expect("error")
     assert (error["cmd"], error["code"]) == ("set_config", "setting.not_stored") and "nothing changed" in error["text"]
@@ -84,7 +86,8 @@ async def test_an_error_the_page_reports_when_no_one_keeps_them_is_let_go() -> N
 
 
 class Finder:
-    """The search for the radio as the handler sees it: it tells one try, and a page that has left is what it is told about."""
+    """The search for the radio as the handler sees it: it tells one try, and a page that has left
+    is what it is told about."""
 
     def __init__(self) -> None:
         self.cancelled = 0
@@ -110,7 +113,8 @@ class Page:
 async def test_a_search_for_the_radio_is_cancelled_when_the_page_that_asked_has_left_and_not_before(closed: bool, cancelled: int) -> None:
     finder, page = Finder(), Page(closed)
     radio = SimpleNamespace(id=1, name="FM", rtype=type_of("kenwood-tnc2"))
-    ctx = SimpleNamespace(ctl=SimpleNamespace(radiofinder=finder, radios=SimpleNamespace(get=lambda id: radio if id == 1 else None)), conn=page)      # (radio 1, which a page that names no radio searches for)
+    # Radio 1, which a page that names no radio searches for
+    ctx = SimpleNamespace(ctl=SimpleNamespace(radiofinder=finder, radios=SimpleNamespace(get=lambda id: radio if id == 1 else None)), conn=page)
     await find_radio(ctx, FindRadio(cmd="find_radio"))  # type: ignore[arg-type]
     assert finder.cancelled == cancelled
     assert [m["state"] for m in page.sent] == ["trying", "cancelled"]

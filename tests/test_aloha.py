@@ -1,6 +1,6 @@
-"""The ALOHA circle (neoaprs/aloha.py, neoaprs/services/aloha.py): the method of WB4APR's text on made-up stations at known distances (due north of the position, 1 km = 1/111.195 degree), the kinds of station, what is left out,
-the edges (no position, too few stations, one at the position), the service that works it out again, and the value on the wire. The circle of a radio (rule 3.8) counts the stations that radio heard, and
-the service draws one for each radio that is on whose type shares a 1200 baud channel (FM), none for an HF radio or none at all."""
+"""Tests for the ALOHA circle (neoaprs/aloha.py, neoaprs/services/aloha.py) on made-up stations at
+known distances: station kinds, edge cases, the refreshing service and the per-radio circles.
+"""
 import asyncio
 from datetime import datetime, timedelta
 from types import SimpleNamespace
@@ -41,7 +41,8 @@ def others(count: int, first_km: float) -> list[Station]:
 
 
 def test_the_circle_ends_at_the_station_where_the_load_reaches_1800_packets() -> None:
-    stations = homes(900)                                       # home stations: 2 packets each, 1 km apart from 1 km to 900 km
+    # home stations: 2 packets each, 1 km apart from 1 km to 900 km
+    stations = homes(900)
     found = circle(HOME, stations, NOW)
     assert found is not None
     assert found.stations == 900 and found.radius_km == pytest.approx(900.0, abs=0.01)
@@ -56,26 +57,32 @@ def test_the_stations_are_taken_from_the_nearest_whatever_the_order_they_are_giv
 
 
 def test_the_weights_of_the_kinds_add_up() -> None:
-    moving = [at_km(f"OH2M{n:02d}", 1.0 + n, code=">", speed_kmh=60.0) for n in range(120)]       # a car in motion: 15 packets
+    # a car in motion: 15 packets
+    moving = [at_km(f"OH2M{n:02d}", 1.0 + n, code=">", speed_kmh=60.0) for n in range(120)]
     found = circle(HOME, moving, NOW)
-    assert found is not None and found.stations == 120 and found.radius_km == pytest.approx(120.0, abs=0.01)    # 120 x 15 = 1800
-    parked = [at_km(f"OH2P{n:02d}", 1.0 + n, code=">", speed_kmh=0.0) for n in range(258)]        # a car not moving: 7 packets
+    # 120 x 15 = 1800
+    assert found is not None and found.stations == 120 and found.radius_km == pytest.approx(120.0, abs=0.01)
+    # a car not moving: 7 packets
+    parked = [at_km(f"OH2P{n:02d}", 1.0 + n, code=">", speed_kmh=0.0) for n in range(258)]
     found = circle(HOME, parked, NOW)
     assert found is not None and found.stations == 258          # 257 x 7 = 1799
-    weather = [at_km(f"OH2W{n:03d}", 1.0 + n, code="_") for n in range(300)]                       # a weather station: 6 packets
+    # a weather station: 6 packets
+    weather = [at_km(f"OH2W{n:03d}", 1.0 + n, code="_") for n in range(300)]
     found = circle(HOME, weather, NOW)
     assert found is not None and found.stations == 300
 
 
 def test_every_digipeater_makes_the_stations_beyond_it_count_once_more() -> None:
-    near_digi = [at_km("OH2RCH-2", 1.0, code="#")]                                               # 3 packets, then C is 2
+    # 3 packets, then C is 2
+    near_digi = [at_km("OH2RCH-2", 1.0, code="#")]
     others = [at_km(f"OH2H{n:03d}", 2.0 + n) for n in range(450)]                              # 2 x 2 = 4 packets each
     found = circle(HOME, near_digi + others, NOW)
     assert found is not None and found.stations == 1 + 450      # 3 + 449 x 4 = 1799, the 450th home station makes 1803
     assert found.radius_km == pytest.approx(451.0, abs=0.01)
     assert circle(HOME, near_digi + others[:449], NOW) is None
     two = [at_km("OH2RCH-2", 1.0, code="#"), at_km("OH2RCH-3", 2.0, code="#", table="1")]
-    found = circle(HOME, two + [at_km(f"OH2H{n:03d}", 3.0 + n) for n in range(400)], NOW)           # 3, then 3 x 2, then 6 per home station
+    # 3, then 3 x 2, then 6 per home station
+    found = circle(HOME, two + [at_km(f"OH2H{n:03d}", 3.0 + n) for n in range(400)], NOW)
     assert found is not None and found.stations == 2 + 299      # 9 + 298 x 6 = 1797, the 299th home station makes 1803
 
 
@@ -101,18 +108,24 @@ def test_the_kinds_by_symbol_and_speed() -> None:
 def test_a_station_that_is_not_on_the_channel_is_left_out() -> None:
     stations = homes(900)
     assert circle(HOME, stations, NOW) is not None
-    old = utc(2026, 10, 21, 10, 59, 0)                                                          # an hour and a minute ago
+    # an hour and a minute ago
+    old = utc(2026, 10, 21, 10, 59, 0)
     assert circle(HOME, [replace_heard(s, old) for s in stations], NOW) is None
-    just = utc(2026, 10, 21, 11, 0, 0)                                                       # exactly the window ago: still counted
+    # exactly the window ago: still counted
+    just = utc(2026, 10, 21, 11, 0, 0)
     assert ALOHA_WINDOW_MIN == 60 and circle(HOME, [replace_heard(s, just) for s in stations], NOW) is not None
     assert circle(HOME, [replace_heard(s, NOW, kind="object") for s in stations], NOW) is None
     gated = [replace_heard(s, NOW, last_rf_at=None, heard_rf=0, heard_rf_gated=1, last_rf_gated_at=NOW) for s in stations]
-    assert circle(HOME, gated, NOW) is None                                                     # (an iGate put them on the air: they are not on the channel from where they are)
+    # (an iGate put them on the air: they are not on the channel from where they are)
+    assert circle(HOME, gated, NOW) is None
     internet = [replace_heard(s, NOW, last_rf_at=None, heard_rf=0, heard_is=1, last_is_at=NOW) for s in stations]
-    assert circle(HOME, internet, NOW) is None                                                  # (nor are those received from the internet)
-    assert circle(HOME, [replace_heard(s, NOW, last_is_at=NOW, heard_is=5) for s in stations], NOW) is not None       # (heard on the radio as well: they count)
+    # (nor are those received from the internet)
+    assert circle(HOME, internet, NOW) is None
+    # (heard on the radio as well: they count)
+    assert circle(HOME, [replace_heard(s, NOW, last_is_at=NOW, heard_is=5) for s in stations], NOW) is not None
     made_up = [replace_heard(s, NOW, last_rf_at=None, heard_rf=0, heard_dummy=1, last_dummy_at=NOW) for s in stations]
-    assert circle(HOME, made_up, NOW) is not None                                               # (the Dummy radio's stations are on its channel: the program can be tried)
+    # (the Dummy radio's stations are on its channel: the program can be tried)
+    assert circle(HOME, made_up, NOW) is not None
     me = [replace_heard(s, NOW, is_me=True) for s in stations]
     assert circle(HOME, me, NOW) is None
     nopos = [Station(s.call, first_heard=NOW, last_heard=NOW) for s in stations]
@@ -245,7 +258,8 @@ async def test_the_page_is_told_the_radius_in_the_topic_map_and_when_our_positio
     lat, lon = e.ctl.config.station_position or (0.0, 0.0)
     now = e.ctl.clock()
     stations = [Station(f"OH2H{n:03d}", first_heard=now, last_heard=now, last_rf_at=now, heard_rf=1, lat=lat + (1.0 + n) / KM_PER_DEGREE, lon=lon, symbol_code="-", symbol_table="/", last_position_at=now,
-                        heard_by={FM_ID: RadioHeard(1, now)}) for n in range(900)]                   # (heard by radio 1, the FM radio, as the book counts them)
+                        # (heard by radio 1, the FM radio, as the book counts them)
+                        heard_by={FM_ID: RadioHeard(1, now)}) for n in range(900)]
     e.ctl.stationbook.seed(stations)
     e.ctl.aloha.refresh()
     await page.until(lambda: page.topics["map"]["aloha"] != [])
@@ -253,7 +267,9 @@ async def test_the_page_is_told_the_radius_in_the_topic_map_and_when_our_positio
 
 
 async def test_the_stations_the_hf_radio_heard_make_no_circle_on_the_map(tmp_path: Path) -> None:
-    """The composition root gives the circles the radios that are on (app.py `Aloha(..., radios=...)`), and only a type that shares a channel has one: 900 stations heard over HF alone make no circle round an FM station (rule 3.8)."""
+    """The composition root gives the circles the radios that are on, and only a type that shares a
+    channel has one: 900 stations heard over HF alone make no circle round an FM station (rule
+    3.8)."""
     e = Env(tmp_path, web=True, radio=False)
     await e.start(connected=False)
     lat, lon = e.ctl.config.station_position or (0.0, 0.0)
@@ -265,7 +281,9 @@ async def test_the_stations_the_hf_radio_heard_make_no_circle_on_the_map(tmp_pat
 
 
 def test_a_station_only_an_igate_put_on_a_radios_channel_is_not_in_that_radios_circle() -> None:
-    """Heard direct on the HF radio and, on the FM radio, only in an iGate's third-party packet (stationnotes.note_heard, as the book notes them): not on the FM channel, though the FM radio heard it last."""
+    """Heard direct on the HF radio and, on the FM radio, only in an iGate's third-party packet
+    (stationnotes.note_heard, as the book notes them): not on the FM channel, though the FM radio
+    heard it last."""
     s = at_km("OH1ABC", 5.0)
     note_heard(s, Packet(NOW - timedelta(minutes=5), "in", b"", "OH1ABC", "APRS", (), b">hello", Other("status", ">hello"), radio_id=HF_ID))
     note_heard(s, Packet(NOW - timedelta(minutes=1), "in", b"", "OH2IGATE", "APRS", ("WIDE2-1",), b">hello", Other("status", ">hello"), ThirdParty("OH1ABC", "APRS"), "rf-gated", radio_id=FM_ID))

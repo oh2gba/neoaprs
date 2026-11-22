@@ -1,20 +1,7 @@
-"""The wire format between the daemon and the page, as pydantic models.
+"""The wire format between the daemon and the page: pydantic models in two discriminated unions.
 
-One WebSocket per tab, JSON text frames both ways. Two discriminated unions describe everything that crosses it:
-
-  * `Command`: what the page sends, tagged by `cmd`. The daemon validates every incoming frame against it before it does anything: a frame that does not fit is answered with
-    `{"type": "error", "text": ...}` and changes nothing.
-  * `Message`: what the daemon sends, tagged by `type`; with NEOAPRS_VALIDATE_OUT=1 every frame that leaves is checked against this union (the tests run so), so the models and the builders
-    cannot drift apart.
-
-The docstrings and field descriptions are the documentation: `scripts/gen-protocol.py` turns them into PROTOCOL.md, a JSON Schema and the TypeScript types of the page (ui/src/protocol).
-Nothing else in the repository describes the format.
-
-This module holds the two unions, the value of each topic (`TopicValues`) and the validators made from them. The models themselves are in the `neoaprs/web/*wire.py` modules, one for each area
-(the daemon, the hub, the stations, the packets, the TNC, the settings, the beacon, the messages, the message board, the objects and bulletins of ours, the station preferences, the weather, the replay of the map, the base map, the map's layers of traffic, the GPS, the iGate, local info (QRU), asking around (the general queries), Update now, what the page reports about itself), which import `neoaprs/web/wirebase.py` and nothing else of neoaprs/web/, never this module.
-
-Conventions: every time is UTC ISO 8601 ending in `Z` (`2026-10-21T12:00:00Z`); a station is referred to by its call and a packet by its id, never by a position in a list; the models are strict
-(no `"5"` for 5, no `1` for true) and reject fields they do not know. pydantic lives in `neoaprs/web/` only: the rest of `neoaprs/` stays free of it.
+`Command` (tagged by `cmd`) is what the page sends; `Message` (tagged by `type`) is what the
+daemon sends. `scripts/gen-protocol.py` builds PROTOCOL.md from the models.
 """
 from typing import Annotated, Any, Union, cast, get_args, get_type_hints
 
@@ -54,8 +41,8 @@ AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubs
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
 
-COMMAND_TYPES: tuple[type[_Command], ...] = get_args(AnyCommand)      # the union above, once
-COMMAND_NAMES: frozenset[str] = frozenset(t.model_fields["cmd"].annotation.__args__[0] for t in COMMAND_TYPES)      # type: ignore[union-attr]
+COMMAND_TYPES: tuple[type[_Command], ...] = get_args(AnyCommand)
+COMMAND_NAMES: frozenset[str] = frozenset(t.model_fields["cmd"].annotation.__args__[0] for t in COMMAND_TYPES)  # type: ignore[union-attr]
 COMMANDS = cast("TypeAdapter[AnyCommand]", TypeAdapter(Command))
 
 
@@ -95,6 +82,6 @@ AnyMessage = Union[Hello, Status, Pong, Error, PortsMsg, StateMsg, PatchMsg, Wea
 Message = Annotated[AnyMessage, Field(discriminator="type")]
 """Every message the daemon sends."""
 
-MESSAGE_TYPES: tuple[type[_Message], ...] = get_args(AnyMessage)      # the union above, once
-MESSAGE_NAMES: frozenset[str] = frozenset(t.model_fields["type"].annotation.__args__[0] for t in MESSAGE_TYPES)      # type: ignore[union-attr]
+MESSAGE_TYPES: tuple[type[_Message], ...] = get_args(AnyMessage)
+MESSAGE_NAMES: frozenset[str] = frozenset(t.model_fields["type"].annotation.__args__[0] for t in MESSAGE_TYPES)  # type: ignore[union-attr]
 MESSAGES = cast("TypeAdapter[AnyMessage]", TypeAdapter(Message))

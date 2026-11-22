@@ -1,6 +1,8 @@
-"""The packets on the wire: the topic `packets` (the latest 200, a table of rows by id), and the command that reads one station's packets from the log with the message that answers it. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`.
+"""Wire models of the topic `packets` and the command that reads a station's packets from the log.
 
-`decoded` is what the parser made of the information field, as one of the models `Decoded...` below, tagged by `type` (the same word as `kind` of the row, except for a telemetry report: its kind is `other` and its type `telemetry`). A time inside it is `YYYY-MM-DDTHH:MM:SS.ffffffZ`."""
+`decoded` is one of the `Decoded...` models, tagged by `type`: the row's `kind`, except that a
+telemetry report has kind `other` and type `telemetry`.
+"""
 from typing import Annotated, Literal, Union
 
 from pydantic import Field
@@ -149,7 +151,8 @@ class PacketRow(_Model):
     decoded: Decoded
 
 
-TRAFFIC_KEPT = 50                       # the packets of one station that `station_traffic` reads, the latest
+# Latest packets of one station read by `station_traffic`.
+TRAFFIC_KEPT = 50
 
 
 class StationTraffic(_Command):

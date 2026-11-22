@@ -1,10 +1,6 @@
-"""The table of settings and the list of fixed values in docs/manual/settings.md, made from `neoaprs.config.SETTINGS`, the types of radio (`neoaprs.radiotypes`: each type's own fields) and the
-constants of the program.
-
-The keys, the defaults and every number come from the code; the words are the `DESCRIPTIONS` below (and `RADIO_DESCRIPTIONS` for a radio's own settings, `radio/<id>/<key>`), with the numbers as `{name}`
-fields that are filled in from the code, so a limit cannot be changed in one place only. The tables are blocks between `<!-- doc-settings:NAME -->` and `<!-- /doc-settings -->` in the document;
-`scripts/doc-settings --write` makes them and `tests/test_docs.py` fails when one differs, when a setting or a field of a type has no description, or when a description names one that is gone. A
-block of `PENDING` is held to the code once the document has it, and is not yet asked of it.
+"""The settings table and the list of fixed values in docs/manual/settings.md, made from
+`neoaprs.config.SETTINGS`, the radio types' own fields and the program's constants.
+Keys, defaults and numbers come from the code; the words are the `DESCRIPTIONS` below.
 """
 import re
 
@@ -32,7 +28,9 @@ from neoaprs.tncprofile import PROFILES
 from neoaprs.versions import NOT_COUNTED
 
 BLOCK = re.compile(r"(<!-- doc-settings:(\w+)[^>\n]*-->\n)(.*?)(<!-- /doc-settings -->)", re.S)
-DB_ONLY = "`neoaprs db set` only"           # the settings the page does not show (ui/src/lib/settings.ts, NOT_ON_THE_PAGE: tests/test_docs.py holds the two lists together)
+# The settings the page does not show (ui/src/lib/settings.ts, NOT_ON_THE_PAGE: tests/test_docs.py
+# holds the two lists together)
+DB_ONLY = "`neoaprs db set` only"
 DAEMON_MEMORY = "the daemon's own memory"
 EMPTY = "empty"
 
@@ -120,12 +118,15 @@ def _table(head: tuple[str, ...], rows: list[tuple[object, ...]]) -> str:
 
 
 def own_keys() -> list[str]:
-    """Every key of a radio's own settings that some type has, in the order of the kinds and their fields."""
+    """Every key of a radio's own settings that some type has, in the order of the kinds and their
+    fields."""
     return list(dict.fromkeys(f.key for kind in KINDS for f in kind_fields(kind)))
 
 
 def undescribed() -> list[str]:
-    """The settings of the code that DESCRIPTIONS lacks, and the keys it describes that are gone; the same for the radios' own settings and RADIO_DESCRIPTIONS, and the pairs' and PAIR_DESCRIPTIONS."""
+    """The settings of the code that DESCRIPTIONS lacks, and the keys it describes that are gone;
+    the same for the radios' own settings and RADIO_DESCRIPTIONS, and the pairs' and
+    PAIR_DESCRIPTIONS."""
     return ([k for k in SHOWN_KEYS if k not in DESCRIPTIONS] + [f"{k} (gone)" for k in DESCRIPTIONS if k not in SHOWN_KEYS]
             + [f"radio/<id>/{k}" for k in own_keys() if k not in RADIO_DESCRIPTIONS] + [f"radio/<id>/{k} (gone)" for k in RADIO_DESCRIPTIONS if k not in own_keys()]
             + [f"pair/<a>/<b>/{k}" for k in PAIR_FIELDS if k not in PAIR_DESCRIPTIONS] + [f"pair/<a>/<b>/{k} (gone)" for k in PAIR_DESCRIPTIONS if k not in PAIR_FIELDS])
@@ -159,7 +160,8 @@ def fixed() -> str:
     return "\n".join(f"- {item}" for item in items) + "\n"
 
 
-RADIO_STATE_WORDS = {           # a radio's own state rows, `radio/<id>/<name>` (config.RADIO_STATE)
+# A radio's own state rows, `radio/<id>/<name>` (config.RADIO_STATE)
+RADIO_STATE_WORDS = {
     "beacon_last_sent_at": "when the radio's beacon last went out, so that a restart waits out the rest of the interval",
     "status_last_sent_at": "when the status report last went out on the radio, so that a restart waits out the rest of its interval there",
     "last_port": "the port radio 1's search found (only radio 1 remembers one), which `serial/last_port` reads",
@@ -178,12 +180,15 @@ STATE_WORDS = {
 
 
 def state() -> str:
-    """The rows the daemon keeps that are not settings: each radio's (`neoaprs.config.RADIO_STATE`), then the station's (`STATE_KEYS`, the update check's number and its switch, and the sked token)."""
+    """The rows the daemon keeps that are not settings: each radio's (`neoaprs.config.RADIO_STATE`),
+    then the station's (`STATE_KEYS`, the update check's number and its switch, and the sked token).
+    """
     radio = [f"- `radio/<id>/{name}`: {RADIO_STATE_WORDS[name]}." for name in cfg.RADIO_STATE]
     return "\n".join([*radio, *(f"- `{key}`: {STATE_WORDS[key]}." for key in (*cfg.STATE_KEYS, cfg.INSTALL_ID, NOT_COUNTED, SKED_TOKEN))]) + "\n"
 
 
-# a radio's own setting, `radio/<id>/<key>`: (where it is on the page, what it is). The order is the order of the table.
+# a radio's own setting, `radio/<id>/<key>`: (where it is on the page, what it is). The order is the
+# order of the table.
 RADIO_DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "port": ("Settings tab, Radio (Port)", "the radio's port: a serial port such as `/dev/ttyUSB0` or `COM3`, `socket://host:port` (KISS over TCP, with every type), `bt://AA:BB:CC:DD:EE:FF` (Linux, a paired Bluetooth device) or `ble://AA:BB:CC:DD:EE:FF` (a Bluetooth LE KISS TNC, with the extra `ble` installed). Empty: the port the search found last for radio 1 (`serial/last_port`), else on Linux the ports of `serial/pattern` are listened to for the radio ([radio.md](radio.md#the-port))"),
     "baud": ("Settings tab, Radio (Speed)", "the speed of its serial line, 8N1 ({serial_baud}); empty: the type's own, 9600 for every serial type. A TCP or Bluetooth port has none"),
@@ -203,7 +208,8 @@ RADIO_DESCRIPTIONS: dict[str, tuple[str, str]] = {
 }
 
 
-# a pair of radios' setting, `pair/<a>/<b>/<field>` (neoaprs/pairsetting.py): (where it is on the page, what it is). The order is the order of the table.
+# a pair of radios' setting, `pair/<a>/<b>/<field>` (neoaprs/pairsetting.py): (where it is on the
+# page, what it is). The order is the order of the table.
 PAIR_DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "enabled": ("Settings tab, Digipeater", "`true`: a packet heard on radio a or radio b whose path names the pair's call as its next unused hop is sent once on the other radio, with the call marked used. `false` by default. Set in the Settings tab only"),
     "ssid": ("Settings tab, Digipeater", "the SSID (1 to 15) of the pair's call on the station's base call, `OH2GBA-12`; empty until the pair is first switched on, which takes the highest SSID that is neither the station's nor another pair's"),
@@ -211,8 +217,9 @@ PAIR_DESCRIPTIONS: dict[str, tuple[str, str]] = {
 
 
 def radios() -> str:
-    """The types of radio with their own settings, then the own settings (`radio/<id>/<key>`) with their defaults and the types that have each, then the settings of a pair of radios (`pair/<a>/<b>/<field>`,
-    a below b by id)."""
+    """The types of radio with their own settings, then the own settings (`radio/<id>/<key>`) with
+    their defaults and the types that have each, then the settings of a pair of radios
+    (`pair/<a>/<b>/<field>`, a below b by id)."""
     fields = _numbers()
     types: list[tuple[object, ...]] = [(f"`{t.key}`", t.kind, t.name, ", ".join(f"`{f.key}`" for f in t.fields) or "none") for t in TYPES]
     own: list[tuple[object, ...]] = []
@@ -227,7 +234,8 @@ def radios() -> str:
 
 
 MAKERS = {"settings": settings, "fixed": fixed, "state": state, "radios": radios}
-PENDING: frozenset[str] = frozenset()     # blocks the document need not have yet (a new block that lands before the document has it)
+# Blocks the document need not have yet (a new block that lands before the document has it)
+PENDING: frozenset[str] = frozenset()
 
 
 def blocks_of(text: str) -> dict[str, str]:

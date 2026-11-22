@@ -1,5 +1,7 @@
-"""The request of the update check (neoaprs/updatefetch.py) against a fake version page on the loopback: the query carries the version, the platform and the number of the installation and nothing else, the User-Agent says the same, and a page that
-is not there, says no or sends too much is None."""
+"""The update check request (neoaprs/updatefetch.py) against a fake version page: the query carries
+the version, platform and installation number and nothing else, and a missing page, a refusal or too
+much data is None.
+"""
 import asyncio
 import http.server
 import socketserver

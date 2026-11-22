@@ -1,4 +1,5 @@
-"""The loop's skipped clock (tests/support/virtualtime.py): a wait on a timer takes no time and is counted, the loop is as it was afterwards, and a thread that delivers is still waited for."""
+"""The loop's skipped clock (tests/support/virtualtime.py): a wait on a timer takes no time and is
+counted, the loop is as it was afterwards, and a thread that delivers is still waited for."""
 import asyncio
 import threading
 import time
@@ -57,7 +58,9 @@ async def test_a_thread_that_delivers_is_waited_for_not_skipped() -> None:
 async def test_work_handed_to_a_thread_holds_the_clock_so_a_wait_cannot_jump_past_its_answer() -> None:
     order: list[str] = []
 
-    def slow() -> str:                                                                      # (a question the program asks the system on a thread, as about a serial adapter: slow on a slow machine)
+    # A question the program asks the system on a thread, as about a serial adapter: slow on a slow
+    # machine
+    def slow() -> str:
         time.sleep(0.3)
         order.append("thread")
         return "adapter"

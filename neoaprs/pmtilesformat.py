@@ -1,10 +1,8 @@
-"""The PMTiles format, version 3, as far as cutting a region out of an archive needs it: the header, the directories, the tile ids and the tiles a box touches.
+"""The PMTiles v3 format, as far as cutting a region needs it: header, directories, tile ids.
 
-An archive is a header of 127 bytes, a root directory in the first 16 KiB, a JSON metadata block, leaf directories and the tile data. A directory is a list of entries (a tile id, a run length, a length and an
-offset), written as columns of varints (the tile ids as deltas, an offset of 0 for one that follows the entry before it) and compressed as the header says; an entry with a run length of 0 points to a leaf
-directory that holds the tiles from its id up to the next entry's. A tile id counts the tiles of the zooms below, then follows the Hilbert curve over the zoom, so that the tiles of one quadrant of the
-quadtree are one range of ids. Every number that comes from an archive is checked here before it is used: a `FormatError` says what is wrong with it, in a sentence for the log.
-Pure code: the bytes come and go through the caller."""
+Every number read from an archive is checked here; `FormatError` says what is wrong.
+Pure code: the bytes come and go through the caller.
+"""
 import array
 import math
 import struct
@@ -14,16 +12,21 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 
 HEADER_LENGTH = 127
-ROOT_SPACE = 16384                          # the header and the root directory are in the first 16 KiB of an archive
+# The header and the root directory are in the first 16 KiB of an archive.
+ROOT_SPACE = 16384
 MAGIC = b"PMTiles"
 VERSION = 3
-NONE, GZIP = 1, 2                           # the compressions of the directories that are read and written (brotli and zstd are not in the standard library)
-MAX_ZOOM = 31                               # the deepest zoom a tile id of 64 bits holds
-MAX_ROOT = 1024 * 1024                      # the most the root directory may unpack to (16 KiB of a real archive's root unpack to a few hundred kB)
-MAX_LEAF = 4 * 1024 * 1024                  # the most a leaf directory may be, packed or unpacked (one of the planet's leaves is a few hundred kB)
-MAX_LEAVES = 200_000                        # the leaf directories a cut reads in all (a country of the planet's archive is a few hundred)
+# Directory compressions handled (brotli and zstd are not in the standard library).
+NONE, GZIP = 1, 2
+# The deepest zoom a 64-bit tile id holds.
+MAX_ZOOM = 31
+# Size limits for a root directory, a leaf directory and the leaves read in a cut.
+MAX_ROOT = 1024 * 1024
+MAX_LEAF = 4 * 1024 * 1024
+MAX_LEAVES = 200_000
 LEAF_ROOT_SPACE = ROOT_SPACE - HEADER_LENGTH
-FIRST_LEAF = 4096                           # the entries of a leaf the writer tries first, as go-pmtiles does
+# Entries of a leaf the writer tries first, as go-pmtiles does.
+FIRST_LEAF = 4096
 _TOP = 1 << 64
 _HEADER = struct.Struct("<7sB11QBBBBBB4iBii")
 
@@ -51,13 +54,15 @@ class Header:
     tile_type: int
     min_zoom: int
     max_zoom: int
-    bounds_e7: tuple[int, int, int, int]            # west, south, east, north in units of 1e-7 degrees
+    # West, south, east, north in units of 1e-7 degrees.
+    bounds_e7: tuple[int, int, int, int]
     center_zoom: int
-    center_e7: tuple[int, int]                      # longitude, latitude
+    # Longitude, latitude in units of 1e-7 degrees.
+    center_e7: tuple[int, int]
 
 
 def unpack_header(data: bytes) -> Header:
-    """The fields of the first HEADER_LENGTH bytes, with no check of any of them."""
+    """Return the fields of the first HEADER_LENGTH bytes, unchecked."""
     v = _HEADER.unpack_from(data)
     return Header(v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], bool(v[13]), v[14], v[15], v[16], v[17], v[18], (v[19], v[20], v[21], v[22]), v[23], (v[24], v[25]))
 
@@ -81,7 +86,7 @@ def header_bytes(h: Header) -> bytes:
 
 
 def check_sections(h: Header, size: int) -> None:
-    """FormatError unless every part the header names lies inside an archive of `size` bytes and the root directory in its first 16 KiB."""
+    """Raise FormatError unless all parts are inside `size` bytes and the root in the first 16K."""
     parts = {"root directory": (h.root_offset, h.root_length), "metadata": (h.metadata_offset, h.metadata_length), "leaf directories": (h.leaf_offset, h.leaf_length), "tile data": (h.data_offset, h.data_length)}
     for name, (offset, length) in parts.items():
         if offset < HEADER_LENGTH and length or offset + length > size:
@@ -93,7 +98,7 @@ def check_sections(h: Header, size: int) -> None:
 # ---- tile ids
 
 def zxy_to_id(z: int, x: int, y: int) -> int:
-    """The tile id of a tile: the tiles of the zooms below it, then its place on the Hilbert curve of its zoom."""
+    """Return the tile id: the tiles of the lower zooms plus the place on the Hilbert curve."""
     d, s = 0, 1 << z >> 1
     while s:
         rx, ry = int(x & s > 0), int(y & s > 0)
@@ -122,7 +127,10 @@ def id_to_zxy(tile_id: int) -> tuple[int, int, int]:
 
 
 def tile_xy(lon: float, lat: float, z: int) -> tuple[int, int]:
-    """The tile of zoom `z` a point is in, the way go-pmtiles' tile cover finds it (a point on an edge is in the tile east or south of it), held inside the world."""
+    """Return the tile of zoom `z` holding a point, as go-pmtiles does; clamped to the world.
+
+    A point on an edge is in the tile east or south of it.
+    """
     n = 1 << z
     x = (lon / 360.0 + 0.5) * n
     if lat < -85.0511:
@@ -135,12 +143,15 @@ def tile_xy(lon: float, lat: float, z: int) -> tuple[int, int]:
     return min(n - 1, max(0, math.floor(x))), min(n - 1, max(0, math.floor(y)))
 
 
-Ranges = list[tuple[int, int]]                  # tile ids from the first up to the second, sorted and apart
+# Tile id ranges (start, end exclusive), sorted and disjoint.
+Ranges = list[tuple[int, int]]
 
 
 def cover(box: tuple[float, float, float, float] | None, min_zoom: int, max_zoom: int) -> Ranges:
-    """The tile ids of zoom `min_zoom` to `max_zoom` that the box (west, south, east, north; the whole world for None) touches: the tiles of its corners at the deepest zoom and every tile between them, and their
-    parents. A quadrant that is inside the box whole is one range, so a box is as many ranges as the curve goes in and out of it, not as many as its tiles."""
+    """Return the tile ids of `min_zoom` to `max_zoom` the box (west, south, east, north) touches.
+
+    None means the world. A quadrant wholly inside the box is one range.
+    """
     if box is None:
         return [(zxy_to_id(z, 0, 0), zxy_to_id(z + 1, 0, 0)) for z in range(min_zoom, max_zoom + 1)]
     west, south, east, north = box
@@ -179,7 +190,7 @@ def _quadrants(z: int, x0: int, y0: int, x1: int, y1: int) -> Ranges:
 # ---- directories
 
 class Entries:
-    """Directory entries as four columns, 24 bytes an entry, so that hundreds of thousands of them are a few MB."""
+    """Directory entries as four columns, 24 bytes an entry."""
 
     def __init__(self) -> None:
         self.tile_ids = array.array("Q")
@@ -207,7 +218,7 @@ class Entries:
 
 
 def unpack(data: bytes, compression: int, limit: int) -> bytes:
-    """The bytes of a directory or the metadata, unpacked; FormatError for bytes that do not unpack, or that would unpack to more than `limit`."""
+    """Return the unpacked bytes; raise FormatError if they do not unpack or exceed `limit`."""
     if compression == NONE:
         if len(data) > limit:
             raise FormatError(f"a directory of the archive is bigger than {limit} bytes")
@@ -242,7 +253,7 @@ def _varints(data: bytes) -> "array.array[int]":
 
 
 def decode(data: bytes) -> Entries:
-    """The entries of an unpacked directory, checked: one count and four columns, the ids rising, a run of tiles not reaching the next entry, no empty tile, no offset before the start."""
+    """Return the entries of an unpacked directory; raise FormatError if it is malformed."""
     numbers = _varints(data)
     count = numbers[0] if numbers else -1
     if len(numbers) != 1 + 4 * count:
@@ -272,7 +283,7 @@ def _varint(value: int, out: bytearray) -> None:
 
 
 def encode(entries: Entries, start: int, end: int, compression: int) -> bytes:
-    """Entries `start` to `end` as a directory, compressed."""
+    """Encode entries `start` to `end` as a compressed directory."""
     out = bytearray()
     _varint(end - start, out)
     last = 0
@@ -289,8 +300,9 @@ def encode(entries: Entries, start: int, end: int, compression: int) -> bytes:
 
 
 def directories(entries: Entries, compression: int) -> tuple[bytes, bytes]:
-    """The root directory and the leaf directories that hold the entries: the root alone when it fits beside the header, else leaves of 4096 entries or more (a fifth more at each try, as go-pmtiles
-    does) until the root of their pointers fits."""
+    """Return the root directory and the leaf directories holding the entries.
+
+    Leaves grow by a fifth per try, as in go-pmtiles, until the root fits."""
     if len(entries) < ROOT_SPACE:
         root = encode(entries, 0, len(entries), compression)
         if len(root) <= LEAF_ROOT_SPACE:
@@ -308,12 +320,14 @@ def directories(entries: Entries, compression: int) -> tuple[bytes, bytes]:
         size *= 1.2
 
 
-Leaf = tuple[int, int, int, int]                 # a leaf directory: the first tile id it holds, the id it holds up to, its length and its offset in the leaf directories
+# A leaf directory: first tile id, id it holds up to, length, offset in the leaf directories.
+Leaf = tuple[int, int, int, int]
 
 
 def touched(entries: Entries, ranges: Ranges, low: int, end: int, room: int) -> tuple[list[Entries], list[Leaf]]:
-    """The tile entries of a directory that lie in the ranges (a run of tiles cut down to the part inside, the way go-pmtiles does), a list of them for each stretch between two leaves, and the leaves whose ids
-    reach into a range. The directory holds the ids from `low` up to `end` (a leaf, those its parent gives it); an entry outside them is a FormatError, and so is a leaf beyond the `room` left of MAX_LEAVES."""
+    """Return the tile entries inside the ranges and the leaves that reach into a range.
+
+    Raise FormatError for an entry outside `low` to `end` or more than `room` leaves."""
     parts = [Entries()]
     leaves: list[Leaf] = []
     after_leaf = False

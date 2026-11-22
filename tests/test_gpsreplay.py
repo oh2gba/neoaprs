@@ -1,5 +1,6 @@
-"""`neoaprs gps-replay` (neoaprs/cli/gpsreplaycmd.py, neoaprs/cli/gpstrip.py): the synthetic drive, the fake gpsd that reports it, the daemon's own feed reading it, a mobile beacon that follows it as a car's would, and the
-command as a process."""
+"""`neoaprs gps-replay` (neoaprs/cli/gpsreplaycmd.py, neoaprs/cli/gpstrip.py): the synthetic drive,
+the fake gpsd that reports it, the daemon's own feed reading it, a mobile beacon that follows it as
+a car's would, and the command as a process."""
 import asyncio
 import json
 import signal
@@ -65,7 +66,8 @@ def test_it_slows_for_each_corner_and_stops_in_the_middle_of_the_last_leg_for_ni
     assert samples[still[0] - 1].course_deg == 270, "on the last leg, going west"
     corners = [i for i in range(1, len(samples)) if samples[i].course_deg != samples[i - 1].course_deg and samples[i].speed_ms > 0]
     assert len(corners) >= 6
-    for i in corners:                                                          # the car is near the corner's speed when the heading starts to change
+    # the car is near the corner's speed when the heading starts to change
+    for i in corners:
         assert min(s.speed_ms for s in samples[max(0, i - 3):i + 1]) <= CORNER_MS + DECEL_MS2, i
 
 
@@ -254,15 +256,19 @@ def test_as_a_process_it_prints_the_address_and_reports_the_drive_to_a_plain_soc
 
 
 def test_ctrl_break_while_it_drives_ends_it_at_its_next_wait_and_never_in_the_middle_of_a_line(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    number = getattr(signal, "SIGBREAK", None) or signal.SIGUSR1  # type: ignore[attr-defined, unused-ignore]  # (where the system has no Ctrl+Break, a signal of its own stands for it)
+    # Where the system has no Ctrl+Break, a signal of its own stands for it
+    number = getattr(signal, "SIGBREAK", None) or signal.SIGUSR1  # type: ignore[attr-defined, unused-ignore]
     monkeypatch.setattr(signal, "SIGBREAK", number, raising=False)
     before = signal.getsignal(number)
-    interrupt_before = signal.signal(signal.SIGINT, signal.default_int_handler)  # (Ctrl+C as a console gives it, whoever started the tests, so that asyncio.run puts its own handler on it)
+    # (Ctrl+C as a console gives it, whoever started the tests, so that asyncio.run puts its own
+    # handler on it)
+    interrupt_before = signal.signal(signal.SIGINT, signal.default_int_handler)
     said: list[str] = []
 
     def saying(text: str) -> None:
         if text.startswith("gps-replay: a drive from"):
-            signal.raise_signal(number)                                          # Ctrl+Break comes while the program is on this line
+            # Ctrl+Break comes while the program is on this line
+            signal.raise_signal(number)
             said.append("the line after the break ran")
         said.append(text)
     monkeypatch.setattr(gpsreplaycmd, "say", saying)
@@ -281,7 +287,8 @@ def test_the_default_port_is_2948_and_the_host_the_loopback() -> None:
 
 
 class Leaver:
-    """A client whose own task takes it out of the list while the report waits for its buffer, and whose buffer then fails."""
+    """A client whose own task takes it out of the list while the report waits for its buffer, and
+    whose buffer then fails."""
 
     def __init__(self, watchers: list[object]) -> None:
         self.watchers = watchers

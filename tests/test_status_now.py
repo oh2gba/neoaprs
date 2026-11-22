@@ -1,6 +1,7 @@
-"""Where the status comes from (`status/source`) and "Send status now" (`RigStatus.send_now`, the command `status_now`): the choice follows the other settings while it is empty, off and text send nothing from the radio, and a
-status asked for goes out inside the interval and when nothing changed, by the same interlock, the same length and the same radios as the timer's (those it is ticked for, `tests/test_rigstatus.py`'s registry), and says
-why when it cannot; in the daemon the report is made by the beacons' maker of frames."""
+"""Where the status comes from (`status/source`) and "Send status now" (`RigStatus.send_now`,
+command `status_now`): off and text send nothing from the radio, and an asked status goes out inside
+the interval.
+"""
 import logging
 from dataclasses import replace
 from pathlib import Path
@@ -18,7 +19,7 @@ from tests.test_rigstatus import FIRST, Rig
 TEXT = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zQRV 145.500"
 
 
-# ---- the setting ---------------------------------------------------------------------------------------------------------------------------------
+# ---- the setting ---------------------------------------------------------------------------------
 
 def test_while_the_source_is_empty_it_follows_the_radio_then_the_text_then_nothing() -> None:
     assert DEFAULTS.status_source == "" and DEFAULTS.status_choice == "off"
@@ -48,7 +49,7 @@ def test_a_save_that_chooses_the_radio_without_an_address_is_refused_with_the_re
         Config.checked(replace(DEFAULTS, status_source="rig", status_rigctld="127.0.0.1:4532"), {"status/rigctld": ""})
 
 
-# ---- the timer follows the choice ----------------------------------------------------------------------------------------------------------------
+# ---- the timer follows the choice ----------------------------------------------------------------
 
 async def test_the_timer_sends_the_text_while_the_radio_is_set_but_not_chosen_and_nothing_while_off() -> None:
     rig = Rig(await rigctld(), station_status="QRV 145.500", status_source="text")
@@ -59,7 +60,7 @@ async def test_the_timer_sends_the_text_while_the_radio_is_set_but_not_chosen_an
     assert off.tnc.sent == [] and off.status.rig_state == "unused"
 
 
-# ---- send now --------------------------------------------------------------------------------------------------------------------------------------
+# ---- send now ------------------------------------------------------------------------------------
 
 async def test_send_now_sends_the_text_inside_the_interval_and_again_although_it_did_not_change() -> None:
     rig = Rig(None, station_status="QRV 145.500")
@@ -121,7 +122,7 @@ async def test_send_now_with_no_call_set_sends_nothing_and_the_log_says_so_once(
     assert rig.tnc.sent == [] and [r.getMessage() for r in caplog.records].count("no status sent: set your call first") == 1
 
 
-# ---- the command -----------------------------------------------------------------------------------------------------------------------------------
+# ---- the command ---------------------------------------------------------------------------------
 
 async def test_the_command_sends_the_status_and_the_page_is_told_the_text(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
@@ -163,9 +164,12 @@ async def test_the_command_is_an_error_when_nothing_could_be_sent(tmp_path: Path
 
 
 async def test_the_error_of_a_radio_that_is_not_connected_names_the_radio_which_the_pages_sentence_is_made_of(tmp_path: Path) -> None:
-    """Why nothing was sent goes to the page as the code of the reason and the values of its sentence, and the page's sentence of `radio.not_connected` says the radio ("radio FM is not connected", in its
-    language): its id, by which the page names it, and its name for a page that does not know it. A line's own reason has neither (source.unusable_because); the registry's radio adds them
-    (radioregistry.LiveRadio.why_unusable). Without them the page would show the sentence with its placeholder in it."""
+    """Why nothing was sent goes to the page as the code of the reason and the values of its
+    sentence, and the page's sentence of `radio.not_connected` says the radio ("radio FM is not
+    connected", in its language): its id, by which the page names it, and its name for a page that
+    does not know it. A line's own reason has neither (source.unusable_because); the registry's
+    radio adds them (radioregistry.LiveRadio.why_unusable). Without them the page would show the
+    sentence with its placeholder in it."""
     e = Env(tmp_path, web=True, radio=False)
     await e.start()
     assert await e.ctl.save_config(replace(e.ctl.config, station_status="QRV 145.500", status_source="text"))

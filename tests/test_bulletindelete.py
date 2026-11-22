@@ -1,4 +1,6 @@
-"""The command `bulletin_delete` over the socket: the entry leaves the board, the database and every page (a `del` of the topic `bulletins`), a bulletin sent again is new, and nothing else is touched."""
+"""The command `bulletin_delete` over the socket: the entry leaves the board, the database and every
+page (a `del` of the topic `bulletins`), a bulletin sent again is new, and nothing else is touched.
+"""
 import json
 from pathlib import Path
 

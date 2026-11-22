@@ -1,5 +1,4 @@
-"""What the operator says about a station, on the wire: the topic `station_prefs` (a table of entries by call), the commands that set and clear a station's path, the one that makes it RF only and the one that sets its alert, and
-the message `station_alert` that tells every page an alert fired. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire models of per-station settings: `station_prefs`, its commands and `station_alert`."""
 from typing import Literal
 
 from pydantic import Field

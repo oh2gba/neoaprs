@@ -1,14 +1,7 @@
-"""The alerts the operator set on stations (the station preferences, services/prefbook.py: `Pref.alert`), watched as the station book changes, so that they work with no page open. Three can be set for a station, any
-of them at once, and each fires once for each crossing, not for every packet:
+"""Station alerts the operator set (`Pref.alert`), watched as the station book changes.
 
-    on_air   a packet of the station is heard after it was silent for QUIET (half an hour) or more, or for the first time
-    within   its position comes from farther than N km from us to N km or nearer (or we come that near it), or is first known to be that near (a station never heard, or we without a position of ours, when the alert was set); it is outside again only beyond N km and a margin (OUTSIDE_MARGIN), so that a station that stands
-             on the edge and whose positions wander a little is not told again and again
-    direct   a packet of it is heard direct (no digipeater: the station book's `last_direct_at`) after none was for QUIET or more
-
-What counts is what the Stations table shows: a packet over the internet counts only while `igate/enabled` is on (else the station's radio side, Station.radio_view, is what is watched). When an alert is set, changed
-or read at the start, the station as it is then is the starting point: an alert never fires for what was already true (a station already near does not fire until it has been outside and comes in again; what was not known then is not "true" yet). Our own station
-and our own objects have none (`set` refuses them). A firing is `fired` (the page's topics tell every page with the message `station_alert`; the wiring runs the alert command for it, services/alerts.py) and a line in the log."""
+Kinds: `on_air`, `within` (N km) and `direct`. Each fires once per crossing; the station as it
+is when an alert is set is the starting point."""
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -26,25 +19,29 @@ from neoaprs.stationbook import StationBook
 
 log = logging.getLogger("neoaprs.stationalerts")
 
-QUIET = timedelta(minutes=30)               # how long a station must have been silent (or not heard direct) for its next packet to fire
-OUTSIDE_MARGIN = 0.1                        # a station that is near is outside again only beyond N km and this part of N more ...
-OUTSIDE_MARGIN_MIN_KM = 0.5                 # ... and at least this many km more
+# how long a station must be silent (or not heard direct) for its next packet to fire
+QUIET = timedelta(minutes=30)
+# a near station is outside again beyond N km plus this fraction of N, and at least
+OUTSIDE_MARGIN = 0.1
+# this many km more
+OUTSIDE_MARGIN_MIN_KM = 0.5
 
 @dataclass(slots=True)
 class _Seen:
-    """What the watch last knew of an alerted station: when it was last heard and last heard direct (on the channels that count), and whether it was near (None: not known, for want of its position or ours)."""
+    """What the watch last knew of an alerted station: last heard, last direct, whether near.
+
+    `inside` is None when unknown for want of its position or ours."""
     heard_at: datetime | None
     direct_at: datetime | None
     inside: bool | None
 
 
 def outside_km(within_km: int) -> float:
-    """How far a station that was near must go to be outside again."""
     return within_km + max(within_km * OUTSIDE_MARGIN, OUTSIDE_MARGIN_MIN_KM)
 
 
 def km_text(km: float) -> str:
-    """A distance as the alert says it: one decimal under 10 km, whole kilometres above."""
+    """Return a distance for the alert text: one decimal under 10 km, else whole kilometres."""
     return f"{km:.1f}" if km < 10 else f"{km:.0f}"
 
 
@@ -56,12 +53,12 @@ class StationAlerts:
         self.clock = clock
         self._alerts: dict[str, Alert] = {}
         self._seen: dict[str, _Seen] = {}
-        self._internet = False                  # `igate/enabled` when the starting points were taken: a change of it takes them again
+        # `igate/enabled` when the starting points were taken; a change retakes them
+        self._internet = False
         self.fired: Signal[[Fired]] = Signal("stationalerts.fired")
 
-    # ---- what is set
     def load(self) -> None:
-        """The alerts the preferences hold, at the start (after they are read and the station book is filled): the stations as the book has them are the starting points."""
+        """Load the alerts at start; stations as they are then become the starting points."""
         self._internet = self._config().igate_enabled
         for call, pref in self._prefs.all().items():
             self.pref_changed(call, pref)
@@ -70,7 +67,9 @@ class StationAlerts:
         return dict(self._alerts)
 
     async def set(self, call: str, alert: Alert) -> None:
-        """Sets the alert of a station (one that watches nothing takes it away). Raises MessagingError with the reason: our own station, or an object or item of ours, has none; the rest is the preferences' to refuse."""
+        """Set a station's alert; one watching nothing removes it.
+
+        Raise MessagingError for our own station or object."""
         try:
             key = normal_name(call)
         except ValueError as e:
@@ -81,14 +80,13 @@ class StationAlerts:
         await self._prefs.set_alert(key, alert)
 
     def _own_call(self) -> str:
-        """Our call as the book names a station; empty while there is none (or it is no call)."""
         try:
             return normal_name(self._config().station_call)
         except ValueError:
             return ""
 
     def pref_changed(self, call: str, pref: Pref | None) -> None:
-        """An entry of the preferences was set or changed (or is gone): an alert that is new or changed starts from the station as it is now."""
+        """React to a preference entry set, changed or gone; an alert starts from now."""
         self._follow_internet()
         alert = None if pref is None else pref.alert
         if alert is None:
@@ -99,9 +97,8 @@ class StationAlerts:
             self._alerts[call] = alert
             self._seen[call] = self._start(call, alert)
 
-    # ---- what is heard
     def station_changed(self, station: Station) -> None:
-        """The station book changed a station: our own one moving moves every distance; an alerted one is looked at."""
+        """React to a station change: our move alters all distances; alerted ones are checked."""
         self._follow_internet()
         if station.is_me:
             self._we_moved()
@@ -128,7 +125,7 @@ class StationAlerts:
             self._place(call, view, alert.within_km, seen, view.last_position_at or self.clock())
 
     def _we_moved(self) -> None:
-        """Our own position changed (the settings, or the GPS of a moving station): every station with a distance to watch is measured again, and one we came near fires."""
+        """Remeasure watched distances after our position changed; a station we came near fires."""
         for call, alert in self._alerts.items():
             station = self._book.get(call)
             view = None if station is None or station.own else self._view(station)
@@ -136,7 +133,7 @@ class StationAlerts:
                 self._place(call, view, alert.within_km, self._seen.setdefault(call, _Seen(None, None, None)), self.clock())
 
     def _place(self, call: str, view: Station, within_km: int, seen: _Seen, at: datetime) -> None:
-        """Whether the station is near now; coming near from outside fires, `at` being when (the time of its position, or now when we moved)."""
+        """Update whether the station is near; coming near from outside fires, stamped `at`."""
         km = self._book.distance_km(view)
         if km is None:
             return
@@ -147,9 +144,7 @@ class StationAlerts:
         elif km > outside_km(within_km):
             seen.inside = False
 
-    # ---- the starting points
     def _start(self, call: str, alert: Alert) -> _Seen:
-        """The station as it is now, which nothing fires for."""
         station = self._book.get(call)
         view = None if station is None else self._view(station)
         if view is None:
@@ -158,18 +153,17 @@ class StationAlerts:
         return _Seen(view.last_heard, view.last_direct_at, None if km is None or alert.within_km is None else km <= alert.within_km)
 
     def settings_changed(self, config: Config) -> None:
-        """The settings were saved: `igate/enabled` may have been switched."""
         self._follow_internet()
 
     def _follow_internet(self) -> None:
-        """`igate/enabled` was switched: what counts changed, and every alert starts again from the stations as they are now."""
+        """When `igate/enabled` changed, restart every alert from the stations as they are now."""
         internet = self._config().igate_enabled
         if internet != self._internet:
             self._internet = internet
             self._seen = {call: self._start(call, alert) for call, alert in self._alerts.items()}
 
     def _view(self, station: Station) -> Station | None:
-        """The station as the alerts see it: whole while the internet is shown, else its radio side (None for one known from the internet alone)."""
+        """Return the station as alerts see it: whole with the internet shown, else radio side."""
         return station if self._config().igate_enabled else station.radio_view()
 
     def _fire(self, fired: Fired) -> None:

@@ -1,10 +1,8 @@
-"""A GPS fix, and how one is made from what a receiver says: NMEA 0183 sentences (RMC and GGA) from a serial receiver, JSON reports (TPV and SKY) from gpsd.
+"""A GPS fix and how one is made from NMEA 0183 (RMC, GGA) or gpsd JSON (TPV, SKY).
 
-`Fix.at` is when the fix was received, by the clock of the program, not the receiver's: a receiver that has just started may not know the date, and the program judges how old a fix is by its own clock.
-The speed is in km/h, the course in whole degrees (0 to 359, north is 0), the altitude in metres above mean sea level (what APRS and a GGA sentence mean).
-
-`NmeaFixes` and `GpsdFixes` keep what the stream said so far and give a fix for each report that has a position; a report that says there is no fix (RMC status V, GGA quality 0, gpsd mode below 2) clears the fix.
-Pure code, like the rest of the foundation."""
+`Fix.at` is the program's clock at reception. Speed is km/h, course whole degrees, altitude metres
+above mean sea level. Pure code.
+"""
 import math
 import re
 from collections.abc import Mapping
@@ -16,9 +14,12 @@ from neoaprs.aprsnmea import NmeaError, parse_nmea
 from neoaprs.units import KNOT_KMH, MS_KMH
 
 _SENTENCE = re.compile(r"\$[A-Z]{2}(RMC|GGA),")
-_CHECKSUM = re.compile(r"\*[0-9A-Fa-f]{2}$")                    # a GPS receiver ends every sentence with it: one without, or cut short, was damaged on the way
-RMC_FRESH_SEC = 3.0                                            # a GGA gives a fix of its own only when no RMC came this recently (a receiver that sends both gives one fix a second, from the RMC)
-GGA_FRESH_SEC = 5.0                                            # the altitude and the satellites of a GGA go with an RMC that comes this soon after it
+# a receiver ends every sentence with it: one without, or cut short, was damaged on the way
+_CHECKSUM = re.compile(r"\*[0-9A-Fa-f]{2}$")
+# a GGA gives a fix of its own only when no RMC came this recently
+RMC_FRESH_SEC = 3.0
+# the altitude and satellites of a GGA go with an RMC this soon after it
+GGA_FRESH_SEC = 5.0
 
 
 @dataclass(frozen=True)
@@ -33,7 +34,7 @@ class Fix:
 
 
 def _number(value: object) -> float | None:
-    """A finite number from a field of a sentence or a JSON value (a bool is none); None for anything else."""
+    """Return a finite number from a sentence field or JSON value (a bool is none); else None."""
     if isinstance(value, bool):
         return None
     try:
@@ -48,16 +49,18 @@ def _course(value: float | None) -> int | None:
 
 
 class NmeaFixes:
-    """The fixes of a stream of NMEA sentences. `feed(line, now)` takes one sentence (text or bytes, with or without its line end) and gives the fix it completes, else None. Other sentences are
-    ignored; a damaged one (no checksum, a bad one, a field that is no number) is counted in `damaged` and changes nothing. `fix` is the latest fix, None after a sentence that says there is none; `said_none` is whether the sentence
-    fed last was such a one."""
+    """The fixes of a stream of NMEA sentences: `feed(line, now)` returns the fix one completes.
+
+    A damaged sentence is counted in `damaged` and changes nothing.
+    """
 
     def __init__(self) -> None:
         self.fix: Fix | None = None
         self.said_none = False
         self.damaged = 0
         self._rmc_at: datetime | None = None
-        self._altitude: tuple[datetime, float | None, int | None] | None = None        # (when, altitude, satellites) of the latest GGA
+        # (when, altitude, satellites) of the latest GGA
+        self._altitude: tuple[datetime, float | None, int | None] | None = None
 
     def feed(self, line: str | bytes, now: datetime) -> Fix | None:
         text = (line.decode("latin-1") if isinstance(line, bytes) else line).strip()
@@ -72,7 +75,7 @@ class NmeaFixes:
         except (NmeaError, ValueError, OverflowError):
             self.damaged += 1
             return None
-        if position is None:                                   # RMC with status V, GGA with quality 0: the receiver has no fix
+        if position is None:  # status V or quality 0: no fix
             self.fix, self._rmc_at, self._altitude, self.said_none = None, None, None, True
             return None
         fields = text.split("*")[0].split(",")[1:]
@@ -90,7 +93,9 @@ class NmeaFixes:
         satellites = _number(fields[6])
         self._altitude = (now, altitude, None if satellites is None else int(satellites))
         if self._rmc_at is not None and (now - self._rmc_at).total_seconds() <= RMC_FRESH_SEC and self.fix is not None:
-            return None                                        # (the RMC of this second gives the fix; its altitude is the one of the GGA before it, and the next RMC has this one)
+            # the RMC of this second gives the fix; its altitude is the GGA's before it, and the
+            # next RMC has this one
+            return None
         self.fix = Fix(lat, lon, now, None, None, altitude, self._altitude[2])
         return self.fix
 
@@ -101,7 +106,7 @@ class NmeaFixes:
 
 
 def satellites_of_sky(report: Mapping[str, Any]) -> int | None:
-    """The satellites used in a gpsd SKY report: `uSat` when it has it, else the satellites marked used; None when the report says neither."""
+    """Return the satellites used in a gpsd SKY report (`uSat`, else those marked used)."""
     used = report.get("uSat")
     if isinstance(used, int) and not isinstance(used, bool) and used >= 0:
         return used
@@ -112,7 +117,10 @@ def satellites_of_sky(report: Mapping[str, Any]) -> int | None:
 
 
 def _altitude(report: Mapping[str, Any]) -> float | None:
-    """The altitude above mean sea level: `altMSL`, else `alt` (what gpsd called it before), else `altHAE` (above the ellipsoid, a few tens of metres off)."""
+    """Return the altitude above mean sea level: `altMSL`, else `alt`, else `altHAE`.
+
+    `altHAE` is above the ellipsoid, tens of metres off.
+    """
     for key in ("altMSL", "alt", "altHAE"):
         if (value := _number(report.get(key))) is not None:
             return value
@@ -120,8 +128,7 @@ def _altitude(report: Mapping[str, Any]) -> float | None:
 
 
 def fix_from_gpsd(report: Mapping[str, Any], now: datetime, satellites: int | None = None) -> Fix | None:
-    """The fix of a gpsd TPV report: mode 2 (2D) or 3 (3D) with a latitude and a longitude. `speed` is metres per second, `track` degrees. None for any other report, a mode below 2, or a position
-    that is not on the earth. `satellites` is the count of the latest SKY report."""
+    """Return the fix of a gpsd TPV report with mode 2 or 3; None for any other or off the earth."""
     if report.get("class") != "TPV":
         return None
     mode = report.get("mode")
@@ -133,7 +140,7 @@ def fix_from_gpsd(report: Mapping[str, Any], now: datetime, satellites: int | No
 
 
 class GpsdFixes:
-    """The fixes of a stream of gpsd reports: `feed(report, now)` gives the fix of a TPV report with the satellites of the latest SKY, else None. A TPV without a fix clears `fix` and sets `said_none`."""
+    """The fixes of a stream of gpsd reports: `feed(report, now)` returns the fix of a TPV."""
 
     def __init__(self) -> None:
         self.fix: Fix | None = None

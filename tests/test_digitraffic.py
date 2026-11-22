@@ -1,4 +1,5 @@
-"""Fintraffic's ship feed read (neoaprs/digitraffic.py): the positions of /locations and the words of /vessels, in the form the service gives them; anything else is None."""
+"""Fintraffic's ship feed read (neoaprs/digitraffic.py): the positions of /locations and the words
+of /vessels, in the form the service gives them; anything else is None."""
 import json
 
 from neoaprs.clock import from_unix

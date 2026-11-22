@@ -1,24 +1,27 @@
-"""AX.25 UI frames: the addresses with their SSIDs and repeated bits, the path, control, PID and the information field; decoding from bytes and encoding to bytes.
+"""AX.25 UI frames: addresses, SSIDs, repeated bits, path, control, PID and information field.
 
-A frame as KISS delivers it has no flag bytes and no checksum: it starts with the address field. Each address is 7 bytes: six characters shifted left one bit and padded with spaces, then a byte
-with the SSID in bits 1-4, bits 5-6 set, bit 7 the command/response bit of the destination and the source and the has-been-repeated bit of a digipeater, and bit 0 set on the last address only.
-After the addresses come the control byte and, for a UI frame, the PID and the information field. Any other frame is kept as its control byte and the bytes after it."""
+A KISS frame has no flags and no checksum. An address is 7 bytes: six characters shifted left,
+then SSID, flag bit and last-address bit. A frame that is not UI keeps its control byte and rest.
+"""
 from dataclasses import dataclass
 
 from neoaprs.callsign import CallsignError, format_call, parse_call
 
 MAX_PATH = 8
-MIN_FRAME = 15                         # destination, source, control
+MIN_FRAME = 15  # destination, source, control
 UI_CONTROL = 0x03
-UI_MASK = 0xEF                         # the poll/final bit (0x10) does not make a frame another kind
+# the poll/final bit (0x10) does not make a frame another kind
+UI_MASK = 0xEF
 PID_NO_LAYER3 = 0xF0
-MAX_INFO = 256                         # the longest information field AX.25 allows (N1)
+MAX_INFO = 256  # the longest information field AX.25 allows (N1)
 ADDRESS_LEN = 7
 _RESERVED_BITS = 0x60
 _SSID_MASK = 0x1E
-_FLAG_BIT = 0x80                       # command/response on the destination and source, has-been-repeated on a digipeater
+# command/response on destination and source, has-been-repeated on a digipeater
+_FLAG_BIT = 0x80
 _LAST_BIT = 0x01
-_DELIMITERS = ",>:*-"                  # what the TNC2 text form uses; a call holding one could not be read back from it
+# TNC2 text delimiters: a call holding one could not be read back
+_DELIMITERS = ",>:*-"
 
 
 class Ax25Error(ValueError):
@@ -45,7 +48,7 @@ class Address:
 
     @classmethod
     def parse(cls, text: str) -> "Address":
-        """'OH2GBA-7' or 'WIDE1-1*' (the star marks a digipeater the frame has been through). The call follows the rules of neoaprs.callsign."""
+        """Return 'OH2GBA-7' or 'WIDE1-1*' (the star marks a digipeater the frame went through)."""
         repeated = text.endswith("*")
         try:
             call, ssid = parse_call(text[:-1] if repeated else text)
@@ -77,24 +80,25 @@ class Frame:
 
     @property
     def path_text(self) -> str:
-        """'WIDE1-1,WIDE2-1*': the way a TNC2 monitor shows it, with the star on the last digipeater the frame has been through and none before it."""
+        """Return 'WIDE1-1,WIDE2-1*' as a TNC2 monitor shows it (star on the last used one only)."""
         last = max((i for i, a in enumerate(self.path) if a.repeated), default=-1)
         return ",".join(format_call(a.call, a.ssid) + ("*" if i == last else "") for i, a in enumerate(self.path))
 
     def tnc2(self) -> str:
-        """'OH2GBA-7>APRS,WIDE1-1*:info', the information field as Latin-1 text."""
+        """Return 'OH2GBA-7>APRS,WIDE1-1*:info' with the information field as Latin-1 text."""
         path = self.path_text
         return f"{self.source}>{self.destination}{',' + path if path else ''}:{self.info.decode('latin-1')}"
 
 
 def _decode_address(chunk: bytes, index: int) -> tuple[Address, bool]:
-    """One 7-byte address and whether it is marked as the last. The flag bit is read as `repeated` for digipeaters (index 2 on) and ignored on the destination and the source."""
+    """Return a 7-byte address and whether it is marked last; the flag bit counts for digipeaters."""
     letters = []
     for byte in chunk[:6]:
         letter = byte >> 1
         if not 0x20 <= letter <= 0x7E:
             raise Ax25Error(f"address {index} has a character outside the printable range (byte 0x{byte:02X})")
-        letters.append(chr(letter).upper())                      # (an AX.25 address is written in capitals: a lower-case letter on the air is the same station)
+        # AX.25 addresses are capitals: a lower-case letter on the air is the same station
+        letters.append(chr(letter).upper())
     call = "".join(letters).rstrip(" ")
     if not call or " " in call:
         raise Ax25Error(f"address {index} has a call of spaces or with a space inside: {''.join(letters)!r}")
@@ -123,7 +127,7 @@ def _decode_addresses(data: bytes) -> tuple[list[Address], int]:
 
 
 def decode(data: bytes) -> Frame:
-    """A frame from its bytes (no flags, no checksum). Raises Ax25Error with the reason when the bytes are not one."""
+    """Return a frame from its bytes (no flags, no checksum); raise Ax25Error if invalid."""
     if len(data) < MIN_FRAME:
         raise Ax25Error(f"frame of {len(data)} bytes is shorter than the 15 an address pair and a control byte need")
     addresses, pos = _decode_addresses(data)
@@ -149,12 +153,15 @@ def _encode_address(address: Address, flag: bool, last: bool) -> bytes:
 
 
 def encode_path(path: tuple[Address, ...]) -> bytes:
-    """The digipeater addresses of a path as they follow the source: the has-been-repeated bit on each used one, the last-address bit on the last."""
+    """Return the digipeater addresses of a path (repeated bit on used ones, last bit last)."""
     return b"".join(_encode_address(a, a.repeated, i == len(path) - 1) for i, a in enumerate(path))
 
 
 def encode(frame: Frame) -> bytes:
-    """The bytes of a frame, as a command frame is sent: the destination's C bit set, the source's clear, the reserved bits set. Ax25Error when the information field is longer than MAX_INFO."""
+    """Return a frame's bytes as a command frame (destination C bit set, source clear).
+
+    Raise Ax25Error if the information field is longer than MAX_INFO.
+    """
     if len(frame.info) > MAX_INFO:
         raise Ax25Error(f"the information field is {len(frame.info)} bytes, more than the {MAX_INFO} AX.25 allows")
     out = bytearray()

@@ -1,5 +1,8 @@
-"""The sked board on the wire: the topic `skeds` (when people will be on the air, as the project's server keeps it) and the commands that ask for the board and post and delete a sked of ours. Models like the rest of the protocol, listed in
-`neoaprs/web/protocol.py`. A sked's times are `from` and `to` on the wire; the models name the fields `from_` and `to` and say `from` as their alias, since `from` is a word of Python."""
+"""Wire models of the sked board: the topic `skeds` and the commands to read, post and delete skeds.
+
+On the wire the times are `from` and `to`; the models call the first `from_` and alias it, since
+`from` is a keyword.
+"""
 from typing import Literal
 
 from pydantic import ConfigDict, Field, field_validator, model_validator

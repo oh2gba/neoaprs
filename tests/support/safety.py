@@ -1,4 +1,6 @@
-"""What the safety tests share: a database connection that fails on demand, and a second, independent connection that sees only what is committed."""
+"""Shared by the safety tests: a database connection that fails on demand, and a second connection
+that sees only what is committed.
+"""
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -16,8 +18,10 @@ class Injected(sqlite3.OperationalError):
 
 
 class FaultyConnection(sqlite3.Connection):
-    """A connection whose Nth statement fails with what a full disk or a locked file raises. `fail_at`: the number of the statement (1 is the next one) or None;
-    `sticky`: every statement from that one on fails (the disk stays full), but not the ROLLBACK, which needs no space; `statements`: how many were issued, `log`: their text."""
+    """A connection whose Nth statement fails with what a full disk or a locked file raises.
+    `fail_at`: the number of the statement (1 is the next one) or None; `sticky`: every statement
+    from that one on fails (the disk stays full), but not the ROLLBACK, which needs no space;
+    `statements`: how many were issued, `log`: their text."""
     fail_at: int | None = None
     sticky: bool = False
     message: str = "database or disk is full"

@@ -1,5 +1,7 @@
-"""Update now's decisions that need no I/O (neoaprs/updateasset.py): the file of the release for each kind of install and architecture, its address built from the version alone, the hosts a download may go
-to, and the line of SHA256SUMS that names the file as the programs from before the signature read it (tests/test_updatesign.py has the signed list)."""
+"""Update now's decisions that need no I/O (neoaprs/updateasset.py): the release file per install
+kind and architecture, its address from the version alone, the hosts a download may go to, and the
+SHA256SUMS line.
+"""
 import hashlib
 
 import pytest
@@ -20,7 +22,9 @@ from tests.support.fakerelease import old_checksum_for as checksum_for
     ("deb", "arm64", "neoaprs_0.7.0_arm64.deb"),
     ("deb", "", None),                                   # (a machine the release has no package for)
     ("deb", "armhf", None),
-    ("uv-tool", "", None),                               # (an install of the wheel, which a release no longer carries: the page sends it to the release page)
+    # An install of the wheel, which a release does not carry: the page sends it to the release
+    # page.
+    ("uv-tool", "", None),
     ("pip", "", None),
     ("source", "", None),
 ])
@@ -98,7 +102,8 @@ OTHER = hashlib.sha256(b"something else").hexdigest()
 def test_the_line_of_sha256sums_that_names_the_file_gives_its_sum() -> None:
     sums = f"{OTHER}  neoaprs-0.7.0-py3-none-any.whl\n{SUM}  NeoAPRS-Setup-0.7.0.exe\n{OTHER}  install.sh\n".encode()
     assert checksum_for(sums, "NeoAPRS-Setup-0.7.0.exe") == SUM
-    assert checksum_for(f"{SUM.upper()} *NeoAPRS-Setup-0.7.0.exe\r\n".encode(), "NeoAPRS-Setup-0.7.0.exe") == SUM        # (the binary mode of sha256sum, and a Windows line end)
+    # The binary mode of sha256sum, and a Windows line end
+    assert checksum_for(f"{SUM.upper()} *NeoAPRS-Setup-0.7.0.exe\r\n".encode(), "NeoAPRS-Setup-0.7.0.exe") == SUM
 
 
 def test_a_file_that_sha256sums_does_not_name_or_names_twice_with_two_sums_has_none() -> None:

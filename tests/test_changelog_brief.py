@@ -1,10 +1,9 @@
-"""The changelog is brief (CONVENTIONS.md, "Documents, scripts, units"): under `## Unreleased` stand one sentence that sums the release up and one line for each thing a user can see or do. Neither is longer than MAX_WORDS
-words, and neither names what only a developer knows: a path into the source tree, a file of code, a test, a module, a document for developers, or work that a user cannot see (a refactoring, the checkers).
+"""Tests for the changelog rules (CONVENTIONS.md, "Documents, scripts, units"): under `##
+Unreleased` one summary sentence and one short line per user-visible change, none longer than
+MAX_WORDS and none naming source files, tests or internal work.
 
-The summary is written when the section is tidied for a release (docs/MAINTAINING.md), so a section without one is no fault, and an empty section has none. Two kinds of section are read: `## Unreleased`, and the section of every
-release after AS_WRITTEN. scripts/release renames `## Unreleased` to the version before it runs the gate, so the notes of a release are read once more under their new heading, and a section that the rule refuses stops the
-release before its commit. The section of AS_WRITTEN and the older ones were the notes of their releases before there was a rule and stay as they were written. The second half of this file shows each rule failing on a made-up
-section."""
+The sections of every release after AS_WRITTEN are checked too; older ones stay as written. The
+second half of the file shows each rule failing on a made-up section."""
 import importlib.machinery
 import importlib.util
 import re
@@ -15,19 +14,31 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
-AS_WRITTEN = (0, 18, 2)      # the newest release made before the rule
+# The newest release made before the rule.
+AS_WRITTEN = (0, 18, 2)
 
-MAX_WORDS = 25      # the longest change that says one thing in the sections of 0.9.1, 0.10.0 and 0.10.1 (38 changes, every word after the dash counted; the one longer change there says two things, and the three summaries have 15, 24 and 28 words)
-SOURCE_FOLDERS = ("neoaprs", "tests", "scripts", "ui", "packaging", ".github")      # (`docs/` is not among them: a line may send the reader to the manual; nor `systemd/`: "systemd/launchd" is how a line names the service of two systems)
+# The longest change in the sections of 0.9.1, 0.10.0 and 0.10.1 that says one thing.
+MAX_WORDS = 25
+# (`docs/` is not among them: a line may send the reader to the manual; nor `systemd/`:
+# "systemd/launchd" is how a line names the service of two systems)
+SOURCE_FOLDERS = ("neoaprs", "tests", "scripts", "ui", "packaging", ".github")
 CODE_SUFFIXES = ("py", "ts", "vue", "js", "css", "html", "sh", "php", "toml", "yml", "yaml", "json", "c", "patch")
-USER_DOCUMENTS = ("RADIOS", "MANUAL")      # the documents in `docs/` that are written for the operator, beside the folder `docs/manual/`
-DATA_FILES = ("log", "lock", "exe", "sqlite")      # what follows `neoaprs.` in the name of a file the operator meets; anything else after it is a module
-SERVICES = ("ntfy.sh",)      # a name that ends like code and is none: the service the operator types into the alerts
-# What a line must not name, by the words the fault is told in. A file a user downloads or starts (`NeoAPRS-Setup.exe`), the log (`neoaprs.log`), a command and an option a user types are none of these. A name that ends like code
-# is one even where the manual shows it (`state.json` of the logs file): the line says it in words.
+# the documents in `docs/` that are written for the operator, beside the folder `docs/manual/`
+USER_DOCUMENTS = ("RADIOS", "MANUAL")
+# what follows `neoaprs.` in the name of a file the operator meets; anything else after it is a
+# module
+DATA_FILES = ("log", "lock", "exe", "sqlite")
+# a name that ends like code and is none: the service the operator types into the alerts
+SERVICES = ("ntfy.sh",)
+# What a line must not name, by the words the fault is told in. A file a user downloads or starts
+# (`NeoAPRS-Setup.exe`), the log (`neoaprs.log`), a command and an option a user types are none of
+# these. A name that ends like code is one even where the manual shows it (`state.json` of the logs
+# file): the line says it in words.
 INTERNALS: dict[str, re.Pattern[str]] = {
-    "a path into the source tree": re.compile(r"(?<![\w./-])(?:" + "|".join(map(re.escape, SOURCE_FOLDERS)) + r")/[\w.-]"),      # (not the `neoaprs/` in the middle of an address)
-    "a file of code": re.compile(r"(?<![\w-])(?!(?:" + "|".join(map(re.escape, SERVICES)) + r")\b)[\w-]+\.(?:" + "|".join(CODE_SUFFIXES) + r")\b"),      # (from the start of the name, so that a service is not found by its tail)
+    # (not the `neoaprs/` in the middle of an address)
+    "a path into the source tree": re.compile(r"(?<![\w./-])(?:" + "|".join(map(re.escape, SOURCE_FOLDERS)) + r")/[\w.-]"),
+    # (from the start of the name, so that a service is not found by its tail)
+    "a file of code": re.compile(r"(?<![\w-])(?!(?:" + "|".join(map(re.escape, SERVICES)) + r")\b)[\w-]+\.(?:" + "|".join(CODE_SUFFIXES) + r")\b"),
     "a test": re.compile(r"\btest_\w+"),
     "a module": re.compile(r"(?<![\w./-])neoaprs\.(?!(?:" + "|".join(DATA_FILES) + r")\b)[a-z_]\w*"),
     "a document for developers": re.compile(r"\b(?:CONVENTIONS|PROTOCOL|ARCHITECTURE|MAINTAINING)\.md\b|\bdocs/(?!(?:" + "|".join(USER_DOCUMENTS) + r")\.md)[\w-]+\.md\b"),
@@ -36,8 +47,9 @@ INTERNALS: dict[str, re.Pattern[str]] = {
 
 
 def held(text: str) -> dict[str, str]:
-    """The sections of a changelog that the rule is held for, by their heading (the words after `## `): `Unreleased`, and every release after AS_WRITTEN. A heading is a release's wherever its version stands in it, as
-    scripts/release-notes.py finds the notes of a version, so that no heading it reads is passed over here. tests/test_hygiene.py holds that there is an `Unreleased`."""
+    """The sections of a changelog that the rule is held for, by heading: `Unreleased` and every
+    release after AS_WRITTEN. A heading is a release's wherever its version stands in it, as
+    scripts/release-notes.py finds the notes of a version."""
     parts = re.split(r"^## (.*)$", text, flags=re.M)             # [before, heading, body, heading, body, ...]
     out: dict[str, str] = {}
     for heading, body in zip((part.strip() for part in parts[1::2]), parts[2::2]):
@@ -48,7 +60,8 @@ def held(text: str) -> dict[str, str]:
 
 
 def words(line: str) -> int:
-    """The words of a line, the label of a change (`**Fixed:**`) among them, the dash of the list not."""
+    """The words of a line, the label of a change (`**Fixed:**`) among them, the dash of the list
+    not."""
     return len(line.removeprefix("- ").split())
 
 
@@ -58,13 +71,16 @@ def named(line: str) -> list[str]:
 
 
 def one_sentence(line: str) -> bool:
-    """A line that ends with a full stop and has no end of a sentence before that; a sentence also ends where its full stop is inside quotes, a bracket, bold or backticks."""
+    """A line that ends with a full stop and has no end of a sentence before that; a sentence also
+    ends where its full stop is inside quotes, a bracket, bold or backticks."""
     return line.endswith(".") and re.search(r"[.!?][\"'”’)\]*_`]*\s+\S", line) is None
 
 
 def faults(section: str) -> list[str]:
-    """What is wrong with a section of the changelog, as `what: the start of the line`; [] when it is brief. The first line is the summary unless it is a change, a change that lost its dash or the space after it (a line that
-    opens with a label such as `**Fixed:**`, or with a dash), a heading or a list item; every other line has to be a change."""
+    """What is wrong with a section of the changelog, as `what: the start of the line`; [] when it
+    is brief. The first line is the summary unless it is a change, a change that lost its dash or
+    the space after it (a line that opens with a label such as `**Fixed:**`, or with a dash), a
+    heading or a list item; every other line has to be a change."""
     out: list[str] = []
     for at, line in enumerate(line.rstrip() for line in section.splitlines() if line.strip()):
         start = line if len(line) <= 70 else line[:70] + "…"
@@ -95,7 +111,8 @@ The page in Finnish, and a map download that is kept when it is done.
 - **Fixed:** a detailed map that had downloaded whole was thrown away.
 """
 CHANGE = "- **New:** the page speaks Suomi.\n"
-NEXT = f"{AS_WRITTEN[0]}.{AS_WRITTEN[1]}.{AS_WRITTEN[2] + 1}"      # the first version whose section is held
+# The first version whose section is held.
+NEXT = f"{AS_WRITTEN[0]}.{AS_WRITTEN[1]}.{AS_WRITTEN[2] + 1}"
 CHANGELOG = f"""# Changelog
 
 ## Unreleased
@@ -144,7 +161,8 @@ def test_a_line_of_more_words_than_the_limit_is_a_fault_and_so_is_such_a_summary
     "### Fixed\n\n- the tray icon's menu opens on Windows.\n",                          # a heading over it
     "- **Fixed:** the tray icon's menu opens on Windows.\n\nIt failed at every start.\n",       # a paragraph after it
     "* **Fixed:** the tray icon's menu opens on Windows.\n",                            # a star for the dash
-    "**Fixed:** the tray icon's menu opens on Windows.\n",                              # no dash: not the summary either
+    # no dash: not the summary either
+    "**Fixed:** the tray icon's menu opens on Windows.\n",
     "-**Fixed:** the tray icon's menu opens on Windows.\n",                             # no space after the dash
     "**Fixed**: the tray icon's menu opens on Windows.\n",                             # the colon after the bold
     "+ **Fixed:** the tray icon's menu opens on Windows.\n",                           # a plus for the dash
@@ -229,31 +247,39 @@ def test_what_is_not_released_and_the_releases_after_the_rule_are_read_and_the_o
 
 @pytest.mark.parametrize("heading", [NEXT, f"{NEXT} (2026-11-20)", f"[{NEXT}]", f"Release {NEXT}", f"{NEXT}-rc1", f"{'.'.join(map(str, AS_WRITTEN))}, {NEXT}"])
 def test_the_notes_that_the_release_workflow_reads_for_a_version_are_a_section_that_is_held(heading: str) -> None:
-    """The workflow makes the notes of the GitHub release with scripts/release-notes.py: the section that finds for a version after AS_WRITTEN, however the heading names the version, is one the rule reads."""
+    """The workflow makes the GitHub release notes with scripts/release-notes.py: the section it
+    finds for a version after AS_WRITTEN, however the heading names the version, is one the rule
+    reads."""
     spec = importlib.util.spec_from_file_location("release_notes_for_the_brief_changelog", ROOT / "scripts" / "release-notes.py")
     assert spec is not None and spec.loader is not None
     notes = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(notes)
-    text = CHANGELOG.replace(CHANGE, "").replace("## 0.9.0", f"## {heading}")        # nothing under Unreleased: the tree as the release tags it
+    # Nothing under Unreleased: the tree as the release tags it.
+    text = CHANGELOG.replace(CHANGE, "").replace("## 0.9.0", f"## {heading}")
     found = notes.section(text, NEXT)
     assert found is not None and found == notes.section(text, None), "the notes of the version, which are the newest notes too"
     assert held(text)[heading].strip() == found and len(faults(held(text)[heading])) == 2, "scripts/release-notes.py reads no section that the rule does not"
 
 
 def test_the_release_cannot_pass_notes_that_are_not_brief_by_renaming_their_section(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """scripts/release writes the version over `## Unreleased` and then runs the gate: its own step is run here on a made-up changelog, and what was a fault under `Unreleased` is the same fault under the version."""
+    """scripts/release writes the version over `## Unreleased` and then runs the gate: the same step
+    runs here on a made-up changelog, and a fault under `Unreleased` is the same fault under the
+    version."""
     changelog = tmp_path / "CHANGELOG.md"
     notes = "The page in Finnish. A map download is kept.\n\n" + change(MAX_WORDS + 1) + "- **Fixed:** the retries of `neoaprs/services/sender.py`.\n"
     changelog.write_text(f"# Changelog\n\n## Unreleased\n\n{notes}\n## {'.'.join(map(str, AS_WRITTEN))}\n\n{change(MAX_WORDS + 1)}", encoding="utf-8")
     before = held(changelog.read_text(encoding="utf-8"))
     assert list(before) == ["Unreleased"] and len(faults(before["Unreleased"])) == 3
-    loader = importlib.machinery.SourceFileLoader("release_for_the_brief_changelog", str(ROOT / "scripts" / "release"))        # (a script without .py gets no loader by itself)
+    # (a script without .py gets no loader by itself)
+    loader = importlib.machinery.SourceFileLoader("release_for_the_brief_changelog", str(ROOT / "scripts" / "release"))
     spec = importlib.util.spec_from_loader(loader.name, loader)
     assert spec is not None
     release = importlib.util.module_from_spec(spec)
-    monkeypatch.setattr(sys, "path", list(sys.path))            # (the script puts the tree first in the path: not for the tests after this one)
+    # (the script puts the tree first in the path: not for the tests after this one)
+    monkeypatch.setattr(sys, "path", list(sys.path))
     loader.exec_module(release)
-    monkeypatch.setattr(release, "CHANGELOG", changelog)        # the step writes the file this names, and runs no command
+    # the step writes the file this names, and runs no command
+    monkeypatch.setattr(release, "CHANGELOG", changelog)
     assert release.Release(NEXT, dry_run=False, rerun=False, deploy=False, interval=0.0).step_changelog().startswith("done")
     after = held(changelog.read_text(encoding="utf-8"))
     assert list(after) == ["Unreleased", NEXT] and faults(after["Unreleased"]) == []

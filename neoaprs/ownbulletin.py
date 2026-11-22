@@ -1,12 +1,8 @@
-"""A bulletin, an announcement or a group bulletin of our own as a value, the rules it must keep to be sent, and the information field it makes (chapter 14 of the specification).
+"""A bulletin, announcement or group bulletin of our own as a value, with its rules.
 
-The packet is a message without an id to `BLN` and an identifier, padded to nine characters: a digit `BLN0`..`BLN9` for a bulletin, a capital `BLNA`..`BLNZ` for an announcement, a digit and a group name of
-one to five characters (`BLN3HAMS`) for a group bulletin; the text is at most 67 characters of printable ASCII (neoaprs/aprsmessage.py). Nobody acknowledges it: `:BLN3     :Snow expected in Tampa RSN`.
-We keep one of each slot (the addressee), a new text for a slot replaces the one before and starts its schedule again (neoaprs/decay.py: a few times early, then at a long interval, for a few hours for a
-bulletin and a few days for an announcement); the group messages to `ALL`, `CQ` and `QST` are not posted from here.
-
-`OwnBulletin` holds the text, the radios it goes out on (`radios`, by id, as an object's: migration 34) and where the schedule stands: how often it was sent, when it was first and last sent. Every datetime is
-timezone-aware UTC."""
+See spec chapter 14: a message without an id to `BLN` + identifier (`BLN0`..`BLN9` bulletin,
+`BLNA`..`BLNZ` announcement, `BLN3HAMS` group). One is kept per slot; a new text restarts it.
+"""
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -21,24 +17,25 @@ from neoaprs.ownobject import radio_set
 from neoaprs.radiotype import FM_ID, RadioId
 
 Kind = Literal["bulletin", "announcement", "group"]
-MAX_POSTED = 36                                  # how many of ours may be on the board at once
+MAX_POSTED = 36  # how many of ours may be on the board
 
 
 class PostError(CodedError):
-    """What cannot be posted; the text says why."""
+    """A bulletin cannot be posted."""
 
 
 @dataclass(frozen=True, slots=True)
 class OwnBulletin:
-    slot: str                                    # the addressee: BLN1, BLNA, BLN3HAMS
-    group: str                                   # the group of a group bulletin; empty for any other
+    slot: str  # the addressee: BLN1, BLNA, BLN3HAMS
+    group: str  # the group of a group bulletin; empty otherwise
     kind: Kind
     text: str
-    created_at: datetime                         # when the text was posted
-    sent: int = 0                                # how often the text was sent
+    created_at: datetime  # when the text was posted
+    sent: int = 0  # how often the text was sent
     first_sent_at: datetime | None = None
     last_sent_at: datetime | None = None
-    radios: tuple[RadioId, ...] = (FM_ID,)       # the ids of the radios it goes out on, ascending, one at least; with one radio that can send it goes on that one, whatever is kept
+    # ids of the radios it goes out on, ascending, at least one
+    radios: tuple[RadioId, ...] = (FM_ID,)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "radios", radio_set(self.radios))
@@ -49,8 +46,7 @@ class OwnBulletin:
 
 
 def slot_of(slot: str) -> tuple[str, str, Kind]:
-    """The slot written the way it is sent (capitals), its group, and its kind: PostError when it is none of ours (a bulletin `BLN0`..`BLN9`, an announcement `BLNA`..`BLNZ`, a group bulletin
-    `BLN` a digit and a group of one to five letters and digits: the dash that a received group may hold is refused for one we post)."""
+    """Return the slot as sent, its group and kind; raise PostError if it is not one we may post."""
     name = slot.strip().upper()
     found = board_slot(name)
     if found is None or found.kind not in ("bulletin", "announcement", "group") or not name.startswith("BLN") or len(name) > 9:
@@ -61,8 +57,10 @@ def slot_of(slot: str) -> tuple[str, str, Kind]:
 
 
 def make_bulletin(now: datetime, slot: str, text: str, before: OwnBulletin | None = None, radios: Iterable[RadioId] = (FM_ID,)) -> OwnBulletin:
-    """The bulletin of this slot and text on these radios (their ids), or PostError that says what is wrong. With `before` (what the slot held) the time of its last packet is kept, so that the rules of the
-    schedule see it; the schedule starts again."""
+    """Return the bulletin of this slot, text and radios, or raise PostError.
+
+    With `before` the time of its last packet is kept; the schedule starts again.
+    """
     name, group, kind = slot_of(slot)
     text = text.strip()
     try:
@@ -75,5 +73,4 @@ def make_bulletin(now: datetime, slot: str, text: str, before: OwnBulletin | Non
 
 
 def info_of(bulletin: OwnBulletin) -> bytes:
-    """The information field of the bulletin: `:BLN1     :text`."""
     return b":" + format_message(bulletin.slot, bulletin.text)

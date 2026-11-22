@@ -1,8 +1,7 @@
-"""Migration 28 (neoaprs/migrationsteps22on.py): a failed message of ours says why it failed, `message.failure`. Every message of a database of the version before keeps what it had and gets no failure, so a failed one
-among them reads as one that had no answer, as it did; the column takes the one reason there is, and nothing else.
-
-What is read back is read from the database as the radio round's steps leave it (tests/support/migrated32.newest): a message that came in names its radio by its id (`fm` of version 27 is radio 1,
-migration 32), and one of ours names none, as it did."""
+"""Migration 28 (neoaprs/migrationsteps22on.py): a failed message says why it failed,
+`message.failure`. Existing messages keep what they had and get no failure; the column takes the one
+reason there is.
+"""
 import sqlite3
 from pathlib import Path
 
@@ -18,19 +17,22 @@ from tests.support.migrated32 import newest
 from tests.test_migrations import GOLDEN, STAMP, raw, shape
 
 COLUMNS = "id, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route, seal, wire, radio"
-RADIOS = {"": None, "fm": 1}                 # the radio of a message of version 27, and what migration 32 makes of it
+# The radio of a message of version 27, and what migration 32 makes of it
+RADIOS = {"": None, "fm": 1}
 MESSAGES = [(1, STAMP, "out", "OH2GBA", "OH2RDG", "one", "1", "acked", 1, STAMP, STAMP, 4, "", "", None, ""), (2, STAMP, "in", "OH2RDG", "OH2GBA", "two", "7", "received", 0, None, None, 4, "direct", "", None, "fm"),
             (3, STAMP, "out", "OH2GBA", "OH2XYZ", "three", "2", "failed", 4, STAMP, None, 4, "", "", None, ""), (4, STAMP, "out", "OH2GBA", "OH2XYZ", "four", "3", "failed", 0, None, None, 4, "", "", None, "")]
 
 
 def version_twenty_seven(path: Path, clock: FixedClock) -> None:
-    """A database as version 27 left it, with the messages of MESSAGES (two of them failed, one of those never sent)."""
+    """A database as version 27 left it, with the messages of MESSAGES (two of them failed, one of
+    those never sent)."""
     opened(path, clock).close()
     db = raw(path)
     db.execute("DELETE FROM schema_history WHERE version >= 28")
     step_back(db, 27)
     db.execute("PRAGMA user_version = 27")
-    db.execute("INSERT INTO settings (key, value) VALUES ('station/call', 'OH2GBA')")           # (a database with messages is a station's: migration 31 gives it radio 1)
+    # A database with messages is a station's: migration 31 gives it radio 1
+    db.execute("INSERT INTO settings (key, value) VALUES ('station/call', 'OH2GBA')")
     for row in MESSAGES:
         db.execute(f"INSERT INTO message ({COLUMNS}) VALUES ({', '.join('?' * len(row))})", row)
     db.close()

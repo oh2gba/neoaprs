@@ -1,10 +1,7 @@
-"""The part of the beacon that is a moving station's (`gps/source` is not `off`): what it sends and what it remembers of what it sent.
+"""The mobile beacon (`gps/source` is not `off`): its frame and its memory of the last send.
 
-The information field is a compressed position (`=` and the 13 bytes of `compressed_position`: position, symbol, course and speed from the GPS fix) followed by the comment: the altitude `/A=aaaaaa` when the fix has one, then the station's
-comment, which is cut to the 40 characters a compressed report may carry. There is no PHG extension: a compressed position cannot hold one, and it belongs to a station that stays where it is.
-
-`MobilePlan` is a beacon's memory of its last beacon (when, the course the station had, why), the input of SmartBeaconing (neoaprs/smartbeacon.py), and the answer to the page about it. `Positions` is what the
-station's maker of frames (services/beaconframe.py) and a beacon's timer need of the GPS service: the fix to send now, or why there is none."""
+The information field is a compressed position plus altitude and comment. `MobilePlan` remembers
+the last beacon (time, course, reason) as input to SmartBeaconing."""
 from datetime import datetime
 from typing import Protocol
 
@@ -23,20 +20,20 @@ class Positions(Protocol):
 
 
 def mobile_info(config: Config, fix: Fix) -> bytes:
-    """The information field of a mobile beacon for this fix: `=`, the compressed position with the station's symbol, then the comment. Raises ValueError for a position or a symbol that cannot be sent."""
+    """Return the information field for this fix; raise ValueError if it cannot be sent."""
     position = compressed_position(fix.lat, fix.lon, config.station_symbol_table, config.station_symbol_code, fix.course_deg, fix.speed_kmh)
     return b"=" + position + compressed_comment(fix.altitude_m, config.station_comment).encode("ascii")
 
 
 class MobilePlan:
     def __init__(self) -> None:
-        self.last: Sent | None = None                          # the last beacon of this run: when, and the course the station had
+        self.last: Sent | None = None                          # time and course of the last beacon
         self.last_reason: Reason | None = None
 
     def check(self, settings: SmartSettings, fix: Fix, now: datetime) -> Decision:
-        """What SmartBeaconing says about this fix now."""
+        """Return the SmartBeaconing decision for this fix."""
         return decide(settings, self.last, now, fix.speed_kmh, fix.course_deg)
 
     def sent(self, fix: Fix, now: datetime, reason: str) -> None:
-        """A beacon went out with this fix; `reason` is what SmartBeaconing said (start, time, turn), and anything else a request."""
+        """Record a send; a `reason` other than start, time or turn is stored as "request"."""
         self.last, self.last_reason = Sent(now, fix.course_deg), next((r for r in REASONS if r == reason), "request")

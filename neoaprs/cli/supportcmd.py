@@ -1,10 +1,18 @@
-"""`neoaprs support [--data DIR] [--out FOLDER] [--show] [--pause]`: makes the support bundle, one zip with the logs and the facts a developer needs to see what is wrong at your station, and says where it is.
+"""`neoaprs support [--data DIR] [--out FOLDER] [--show] [--pause]`: make the support bundle.
 
-The bundle is made from the data folder, without the daemon: it works when the daemon will not start, and it does not matter whether one runs (the summary says whether one holds the folder). The state that
-only a running daemon knows (the radio's latest lines, the GPS, the beacon) is in the bundle that the page's Support button makes. Nothing in the data folder is changed or sent: the file goes to your Desktop (the home folder when there is none) or the
-folder of `--out`, and the command prints its path and what to do with it.
+The bundle is one zip with the logs and the facts a developer needs to see what is wrong at your
+station; the command says where it is.
 
-`--show` opens the file manager at the file. `--pause` waits for Enter before it ends when it runs in a console (what the Windows Start menu entry "NeoAPRS support logs" does, so that its window stays to be read)."""
+It is made from the data folder without the daemon, so it works when the daemon will not start,
+whether or not one runs (the summary says whether one holds the folder). The state that only a
+running daemon knows (the radio's latest lines, the GPS, the beacon) is in the bundle that the
+page's Support button makes. Nothing in the data folder is changed or sent: the file goes to your
+Desktop (the home folder when there is none) or the folder of `--out`, and the command prints its
+path and what to do with it.
+
+`--show` opens the file manager at the file. `--pause` waits for Enter before it ends when it runs
+in a console (what the Windows Start menu entry "NeoAPRS support logs" does, so that its window
+stays to be read)."""
 import argparse
 import sys
 from pathlib import Path
@@ -31,7 +39,7 @@ def tell(made: Made) -> None:
 
 
 def pause() -> None:
-    """Waits for Enter, but only where a person is at a console to press it."""
+    """Wait for Enter, but only at an interactive console."""
     if sys.stdin is not None and sys.stdin.isatty():
         try:
             input("Press Enter to close ")

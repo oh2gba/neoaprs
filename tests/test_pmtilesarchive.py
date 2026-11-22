@@ -1,5 +1,7 @@
-"""The PMTiles archives of the base map outside the format (neoaprs/pmtilesarchive.py): the zooms and the box read from a header, a file moved into place (a target that Windows holds open is tried again), and the
-question whether a daily build is there, asked of a range server on the loopback."""
+"""The PMTiles archives of the base map outside the format (neoaprs/pmtilesarchive.py): the zooms
+and box from a header, a file moved into place, and whether a daily build exists, asked of a
+loopback range server.
+"""
 import asyncio
 import os
 from pathlib import Path

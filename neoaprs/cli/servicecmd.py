@@ -1,6 +1,7 @@
-"""`neoaprs service install|remove|status|logs [--data DIR]`: NeoAPRS as a service of the user, started at login or at boot, by the way each system has: a systemd user unit on Linux
-(servicesystemd.py), the Run key of the user's registry on Windows (servicewindows.py, no Windows service: a service has no desktop and no profile of the user) and a launchd agent on macOS
-(servicelaunchd.py). This module reads the command line, works out what is to be run (`Plan`) and hands it to the system's own module; `logs` is the same everywhere."""
+"""`neoaprs service install|remove|status|logs [--data DIR]`: run NeoAPRS as a service of the user.
+
+A systemd user unit on Linux, the Run key on Windows (a Windows service has no desktop) and a
+launchd agent on macOS. This module builds the `Plan` and hands it to the system's module."""
 import argparse
 import importlib
 import os
@@ -21,9 +22,9 @@ REPO = "https://github.com/oh2gba/neoaprs"
 
 @dataclass(frozen=True)
 class Plan:
-    """What the service is to run: this interpreter, on this data folder. `clone` is the folder of a git clone that the program runs from (the unit then runs in it); `gui_exe` and `pythonw` are
-    the two ways Windows has to run it without a console window (the script `neoaprsw.exe` an install makes, else `pythonw.exe` of the same Python). `appimage` is the AppImage file this runs from, which
-    is what is to be started instead of the interpreter (see `appimage_file`)."""
+    """What the service is to run: this interpreter, on this data folder.
+
+    `gui_exe` and `pythonw` run it on Windows without a console; `appimage` replaces `python`."""
     python: str
     data: Path
     clone: Path | None = None
@@ -34,14 +35,15 @@ class Plan:
 
 
 def source_tree() -> Path | None:
-    """The folder of the clone this package is imported from (an editable install, `python -m neoaprs` in a clone), or None for a wheel in site-packages."""
+    """Return the git clone the package is imported from, or None for an installed wheel."""
     parent = PACKAGE_DIR.parent
     return parent if (parent / "pyproject.toml").is_file() and (parent / "neoaprs" / "__init__.py").is_file() else None
 
 
 def appimage_file() -> str | None:
-    """The AppImage file this program runs from, None outside one. The runtime sets `$APPIMAGE` to the file and `$APPDIR` to where it is mounted for as long as it runs, so the interpreter is in a folder that is
-    gone after: whatever starts NeoAPRS later (a service, a start at sign-in) has to start the file. A leftover `$APPIMAGE` of a parent that is an AppImage does not count: this interpreter must be inside `$APPDIR`."""
+    """Return the AppImage file this program runs from, or None outside one.
+
+    A stale `$APPIMAGE` inherited from a parent does not count: Python must be in `$APPDIR`."""
     file, mount = os.environ.get("APPIMAGE"), os.environ.get("APPDIR")
     if not file or not mount or not os.path.isfile(file):
         return None
@@ -50,7 +52,7 @@ def appimage_file() -> str | None:
 
 
 def windowless_programs() -> tuple[str | None, str | None]:
-    """(the `neoaprsw` script next to this Python or on the PATH, `pythonw` next to this Python), each None when there is not one."""
+    """Return the `neoaprsw` script and `pythonw`; None if absent."""
     here = Path(sys.executable).parent
     gui = next((str(p) for p in (here / "neoaprsw.exe", here / "neoaprsw") if p.is_file()), None) or shutil.which("neoaprsw")
     pythonw = here / "pythonw.exe"
@@ -86,7 +88,9 @@ def logs(plan: Plan, lines: int, hint: str) -> int:
 
 
 def backend_for(system: str) -> ModuleType:
-    """The module that knows the service manager of `system` (sys.platform): install(plan), remove(plan), status(plan), installed(plan) and LOG_HINT."""
+    """Return the module for the service manager of `system` (a sys.platform value).
+
+    It provides install, remove, status and installed (each taking a Plan) and LOG_HINT."""
     name = {"win32": "servicewindows", "darwin": "servicelaunchd"}.get(system, "servicesystemd")
     return importlib.import_module(f"{__package__}.{name}")
 

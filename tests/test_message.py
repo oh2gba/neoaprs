@@ -1,4 +1,6 @@
-"""The rules of a message that need no I/O (neoaprs/message.py): who a message is addressed to, what text may be sent, and when the next attempt of a message is due."""
+"""The rules of a message that need no I/O (neoaprs/message.py): the addressee, the text allowed,
+and when the next attempt is due.
+"""
 from dataclasses import fields, replace
 from datetime import timedelta
 

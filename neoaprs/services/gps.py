@@ -1,17 +1,8 @@
-"""The GPS service: the latest fix of the feed (neoaprs/gpsfeed.py), how fresh it is, and what follows from our moving.
+"""The GPS service: the latest fix of the feed, how fresh it is, and what follows from moving.
 
-The feed runs while `gps/source` is `gpsd` or `serial`, which is also what makes the beacon follow the GPS (`Config.mobile`). A save of `gps/*` stops it and starts it again with the
-new numbers, in a task (a gpsd that does not answer takes its five seconds, and the save does not wait).
-
-`state` is `off`, `connecting` (the line to the receiver is not up and no fix has come), `no_fix` (it is up, none has come), `fix`, or `stale` (the latest fix is older than `stale_sec`, `GPS_STALE_SEC`). `current()` is the
-fix to beacon with: the latest while it is fresh, else None; a fix older than that is never used, and the home position of the settings is never put in its place. `mobile_fix()` is the latest fix, fresh or not, while
-`gps/source` is not `off`: the place our own row on the map is kept at, so that a lost GPS leaves us where we were last seen, not at home.
-
-`moved` is emitted when the fix has taken us far enough from where our row was put (GPS_PLACE_MOVED_M, and not more often than GPS_PLACE_EVERY_SEC) for the station book to follow and the ALOHA circle to be worked out again;
-the composition root connects it. `changed` is emitted when the fix, the state or the problem changes.
-
-A serial receiver's port is the station's in the table of resources (claims.py: Claim("gps", device, None)) for as long as `gps/source` is `serial` with that device, open or not: no radio's search, no Find my radio and no
-keying choice takes it, and a save that names it for a radio is refused. A port a radio holds already is not opened: the GPS waits, saying which radio holds it, and opens it once the radio has let go."""
+`current()` is the fix to beacon with (fresh, else None); `mobile_fix()` is the latest fix however
+old. A serial receiver's port is claimed so no radio takes it; if one holds it, the GPS waits.
+"""
 import asyncio
 import logging
 from datetime import datetime
@@ -46,8 +37,8 @@ class Gps:
     def __init__(self, feed: GpsFeed, config: ConfigSource, clock: Clock = utcnow, stale_sec: float = GPS_STALE_SEC, tick_sec: float = TICK_SEC,
                  place_every_sec: float = GPS_PLACE_EVERY_SEC, place_moved_m: float = GPS_PLACE_MOVED_M, *, claims: Claims | None = None) -> None:
         self._feed = feed
-        self._claims = claims                                           # the station's table of resources (the radio registry's), in which a serial receiver's port is held; none: nothing is held
-        self._held_by = ""                                              # why the receiver's port is not opened: the radio that holds it ("" while it is not held by another)
+        self._claims = claims
+        self._held_by = ""                                              # the radio holding the port
         self._config = config
         self.clock = clock
         self.stale_sec = stale_sec
@@ -57,14 +48,13 @@ class Gps:
         self.changed: Signal[[]] = Signal("gps.changed")
         self.moved: Signal[[]] = Signal("gps.moved")
         self._fix: Fix | None = None
-        self._placed: tuple[datetime, float, float] | None = None       # when and where our row was last put
+        self._placed: tuple[datetime, float, float] | None = None       # when and where the row was put
         self._applied: FeedSettings | None = None
-        self._reading = False                                           # a feed has been started and not ended by a switch to `off` (the log says that switch once)
+        self._reading = False
         self._apply_task: asyncio.Task[None] | None = None
         self._last_summary: tuple[str, str] = ("off", "")
         self._tasks = TaskSet(log, "gps")
 
-    # ---- the life
     async def start(self) -> None:
         if self._tasks:
             return
@@ -79,15 +69,15 @@ class Gps:
         self._let_go()
 
     def settings_changed(self) -> None:
-        """The settings were saved: a changed source, address, port or speed starts the feed afresh; turning the GPS on or off starts the count of how far we moved from where our row was put afresh."""
+        """Restart the feed if its settings changed, and restart the moved-distance count."""
         if self._applied is not None and self._wanted() != self._applied:
             self.apply()
         fix = self.mobile_fix()
-        self._placed = None if fix is None else (fix.at, fix.lat, fix.lon)          # (the composition root has put our row at this fix, or at home, as the settings now say)
+        self._placed = None if fix is None else (fix.at, fix.lat, fix.lon)
         self._announce()
 
     def apply(self) -> None:
-        """(Re)starts the feed with the settings as they are now, in a task; one that is still starting is ended first."""
+        """(Re)start the feed with the current settings in a task, cancelling one still starting."""
         self._applied = self._wanted()
         self._apply_task = self._tasks.spawn(self._apply(self._apply_task, self._applied), "gps-apply")
 
@@ -115,7 +105,7 @@ class Gps:
         self._announce()
 
     def _hold(self, device: str) -> str:
-        """The receiver's port held for the station; why it cannot be ("held by FM 2"), "" when it is held now (or there is no table, or the device is a TCP address, which is no device of the station)."""
+        """Hold the receiver's port; return why not ("held by FM 2"), or "" if held or moot."""
         value = claim_value(device)
         if self._claims is None or value is None:
             return ""
@@ -132,38 +122,37 @@ class Gps:
         self._announce()
 
     def _take_when_free(self) -> None:
-        """A receiver that waits for its port is started again once the radio that held it has let go (looked at every tick)."""
+        """Restart a receiver waiting for its port once the radio holding it lets go."""
         if not (self._held_by and self._tasks and self._applied is not None and self._claims is not None):
             return
         value = claim_value(self._applied.target)
         if value is not None and all(c.value != value or c.kind not in PORT_KINDS for c in self._claims.all()):
-            self._held_by = ""                                          # (once: the start below holds the port again)
+            self._held_by = ""
             self.apply()
 
     async def _run(self) -> None:
         await every(self.tick_sec, self._tick, "the GPS state announcement")
 
-    # ---- what the feed says (connected by the composition root)
     def take(self, fix: Fix) -> None:
-        """A fix came."""
+        """Accept a new fix from the feed."""
         self._fix = fix
         self._follow(fix)
         self._last_summary = (self.state, self.problem)
         self.changed.emit()
 
     def feed_changed(self) -> None:
-        """The feed's state or problem changed."""
+        """Called when the feed's state or problem changed."""
         self._announce()
 
     def _announce(self) -> None:
-        """Tells `changed` when the state or the problem is not what it was (the age of a fix moves a state on, with no report to say so)."""
+        """Emit `changed` when state or problem changed; a fix going stale has no report."""
         summary = (self.state, self.problem)
         if summary != self._last_summary:
             self._last_summary = summary
             self.changed.emit()
 
     def _follow(self, fix: Fix) -> None:
-        """Emits `moved` when our row should follow this fix: the first one, or one far enough and late enough after the last."""
+        """Emit `moved` for the first fix, or one far enough and late enough after the last."""
         if not self._config().mobile:
             return
         placed = self._placed
@@ -172,7 +161,6 @@ class Gps:
         self._placed = (fix.at, fix.lat, fix.lon)
         self.moved.emit()
 
-    # ---- the fix
     @property
     def fix(self) -> Fix | None:
         """The latest fix, however old."""
@@ -183,12 +171,12 @@ class Gps:
         return None if self._fix is None else (self.clock() - self._fix.at).total_seconds()
 
     def current(self) -> Fix | None:
-        """The fix to send a beacon with: the latest while it is not older than `stale_sec`, else None."""
+        """The latest fix if not older than `stale_sec`, else None."""
         age = self.fix_age_sec
         return self._fix if age is not None and age <= self.stale_sec else None
 
     def mobile_fix(self) -> Fix | None:
-        """The latest fix while the beacon is mobile, else None: where our row on the map is while the station moves."""
+        """The latest fix while the beacon is mobile, else None."""
         return self._fix if self._config().mobile else None
 
     @property
@@ -202,12 +190,12 @@ class Gps:
 
     @property
     def problem(self) -> str:
-        """Why there is no fix to use: the feed's problem line, or that the fix is old; empty while there is a fix and for a GPS that is off."""
+        """Why there is no fix to use; empty while there is one or the GPS is off."""
         return "" if self.state in ("off", "fix") else self.why_none()
 
     @property
     def reason(self) -> GpsReason:
-        """`problem` as a code the page says in its words, where the state does not say it already: no port or no address set, the receiver's port held by a radio, the feed not answering."""
+        """`problem` as a code: no port, no address, port held by a radio, or feed not answering."""
         state = self.state
         if state in ("off", "fix", "stale"):
             return ""
@@ -217,7 +205,7 @@ class Gps:
         return "no_port" if feed == NO_PORT else "no_address" if feed == NO_ADDRESS else "" if feed in ("", NO_FIX) else "no_answer"
 
     def why_none(self) -> str:
-        """Why `current()` is None, as a clause for the log and the page."""
+        """Why `current()` is None, as a clause for the log."""
         state = self.state
         if state == "off":
             return "the GPS is off (gps/source)"

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""How the map moves in a window of a web engine, counted (aprs-reference/window-plan.md, 9.1 and 9.3): one window on the daemon's page, then for SECONDS the map is zoomed with the wheel and dragged with the
-mouse (events dispatched on the map's canvas: nothing is added to the page for it), and the frames are counted with requestAnimationFrame. It prints one line of JSON: the frames and frames per second, whether
-WebGL2 can be had, the engine's user agent, the time from the start of this script to the window's first paint of the page, and the engine.
+"""Count how the map moves in a web engine window: zoom and drag it, counting frames.
+
+It prints one line of JSON: frames, frames per second, whether WebGL2 is available, the user agent,
+the time to first paint, and the engine.
 
   webkit-probe.py --url URL [--seconds 20] [--engine web|qt]
 
---engine web (default): pywebview on WebKitGTK as the trial's window has it (neoaprs/desktop/gtkenv.py first); run it with the trial AppImage's own Python (scripts/smoke-appimage-web does) or a Python that
-has pywebview and gi. --engine qt: the same in today's Qt window (QWebEngineView), with a Python that has PySide6-WebEngine (the checkout's .venv). Needs a display; nothing leaves the loopback but what the page
-itself asks for (its tiles come from the daemon)."""
+--engine web (default): pywebview on WebKitGTK, with a Python that has pywebview and gi.
+--engine qt: the Qt window (QWebEngineView), with PySide6-WebEngine. Needs a display."""
 import argparse
 import importlib
 import json

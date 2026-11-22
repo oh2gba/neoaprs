@@ -1,34 +1,8 @@
-"""What messaging does with the packets the Tnc hears: a message to us is kept (state "received") and, when it carries an id, answered at once with an ack; the same id and text from the same station
-within DUPLICATE_WINDOW_SEC is not kept again, and is answered again only when it comes at least ACK_AGAIN_SEC after our last ack of it (the copies of one burst get one ack); a message to another
-station is kept as "overheard"; an ack or a rej to us settles the message of ours that it quotes. A packet from our own call (a digipeater's copy of a message we sent, or an iGate's) is no message to keep: it is
-handed to the host, which links it to the message it is a copy of (services/delivery.py).
+"""What messaging does with the packets heard: keep messages to us, ack them, settle our messages.
 
-A text that reads as an ack or a rej (`ack12`, `rej3`) is one only when it quotes a message of ours to that station, in any state; otherwise it is an ordinary message without an id ("rejoin"), kept and
-not acked. A message whose text is a query (neoaprs/message.py `is_query`) is never kept (services/queries.py answers it); the specification gives a query no id, but a radio that numbers its query
-anyway is acked like any message, so that it does not retry five times. A definition of telemetry channels (`PARM.`, `UNIT.`, `EQNS.`, `BITS.`), to us or to another, is neither kept nor acked: those
-stay in the packet log.
-
-Reply-acks (neoaprs/aprsmessage.py): the `AA` of a message `{MM}AA` to us settles our message with that id to the sender as an ack does, and is acked as `ackMM}AA` (`{MM}` as `ackMM}`); a message with a number of that
-form, `{MM}` too, tells us the sender knows reply-acks, and its id is what the next message we send it carries as its `AA` (services/heard.py) until the station answers one of ours.
-
-A message to the addressee QRU is a request to a QRU server (services/qru.py), handed to `qru` when there is one: when it takes the message (we serve a group and the text is a request) it is answered there, never acked (a request is a
-broadcast: an ack from our call would match nothing at the asker, even for a request that carries an id), and not kept; otherwise it is overheard like any message to another station.
-
-A message to us that is the answer of a QRU server to a request of ours (its list of groups, its closing line; services/qruask.py says so) is neither kept nor acked: the page shows it with the servers (Local info) and the
-packet log has it. A message of the same station that is anything else is kept as usual.
-
-A message to a bulletin, an announcement, a group bulletin, ALL, CQ or QST, or a weather service bulletin (neoaprs/bulletin.py) is no conversation and is never acked: it goes to the board
-(services/bulletins.py, handed to the inbox as `board`), not to the overheard messages. With no board it is overheard like any other message to another station.
-
-A message is to us when its addressee is our call with its SSID, exactly (no SSID and -0 are the same). A third-party packet (an iGate's copy of what the internet said) counts as its inner sender's: an
-ack from the inner source settles our message, a message from it is received and acked to it, also when its name is no AX.25 call (`OH2XYZ-L`, `WINLINK`: callsign.normal_name). The inbox knows nothing of the schedule or of the radio: it asks its host (messaging) for the
-messages held, to keep a message and to send an ack.
-
-The first copy of a message to us is also handed to `alert` (services/alerts.py), when there is one: a repeat or another digipeater's copy, an ack, a rej, a bulletin and an overheard message are not.
-
-Encrypted messages (neoaprs/cipher.py; the keys in services/keyring.py, `keyring`): a message to us whose text announces the sender's key is kept as `key` (the key ring takes the key, or says `key_other` when it
-differs from the one kept); one whose text is sealed is opened with the key we share with the sender and kept with the text inside (`open`, the ciphertext as `wire`), or as it came when it does not open
-(`shut`: no key from the sender, no key of ours, or not for us). Either is acked like any message. An overheard sealed message is `shut` (it is not for us), an overheard key announcement `key`."""
+A message to us is kept as "received" and acked if it has an id; one to another station is kept
+as "overheard"; an ack or rej to us settles the message of ours it quotes.
+"""
 import asyncio
 import logging
 from collections.abc import Callable
@@ -53,7 +27,7 @@ log = logging.getLogger("neoaprs.messaging")
 
 
 def _station(call: str) -> str:
-    """The call as our messages name their addressee, else as it is."""
+    """The call as our messages name an addressee, else unchanged."""
     try:
         return normal_name(call)
     except CallsignError:
@@ -61,7 +35,7 @@ def _station(call: str) -> str:
 
 
 def _plain_text(packet: Packet, message: Message) -> str:
-    """The text of an ack or a reject that settled nothing, as it was written."""
+    """The text of an ack or reject that settled nothing, as written."""
     line = line_of(packet.inner_info)
     return line if line is not None else ("ack" + message.ack_id if message.ack_id is not None else "rej" + str(message.rej_id))
 
@@ -79,26 +53,26 @@ class Inbox:
                  alert: Callable[[MessageRecord], None] | None = None, qru: Callable[[Packet, Message], bool] | None = None,
                  qru_answer: Callable[[Packet, Message], bool] | None = None, keyring: Keys | None = None) -> None:
         self._host = host
-        self._keys: Keys = keyring or NoKeys()                  # the keys of encrypted messages (services/keys.py)
-        self._qru_answer = qru_answer                           # says whether a message to us is a QRU server's answer to our request (services/qruask.py)
-        self._qru = qru                                         # the QRU server: takes a message to QRU and says whether it did (services/qru.py)
-        self._alert = alert                                     # told of a message to us the first time it is heard (services/alerts.py)
-        self._board = board                                     # where a message to a bulletin or a group goes (services/bulletins.py)
+        self._keys: Keys = keyring or NoKeys()
+        self._qru_answer = qru_answer
+        self._qru = qru
+        self._alert = alert
+        self._board = board
         self._config = config
         self._log = messagelog
-        self.heard = Heard()                                    # the messages kept and when: the repeats of a retry are not kept again
-        self.tasks = tasks                                          # the keeping of the messages that came in
+        self.heard = Heard()
+        self.tasks = tasks
 
     def on_packet(self, packet: Packet) -> None:
-        """The Tnc heard (or sent) a packet: a message to us is kept and acked, an ack or a rej to us settles the message it quotes."""
+        """Keep and ack a message to us; an ack or rej to us settles the message it quotes."""
         message = packet.decoded
         if packet.direction != "in" or not packet.on_air or not isinstance(message, Message):
-            return                                                   # (nothing from the internet is kept as a message, acked or settled: this program sends by radio only)
+            return
         ours = self._config().station_call
         if is_telemetry_definition(message.text):
-            return                                                   # (the packet log has it)
+            return
         if same_call(packet.sender, ours):
-            self._host.echoed(packet, message)                       # (our own call: a copy of what we sent, heard back; it is not a message to keep)
+            self._host.echoed(packet, message)  # a copy of what we sent, heard back
             return
         if not addressed_to(message.addressee, ours):
             self._elsewhere(packet, message)
@@ -108,19 +82,20 @@ class Inbox:
                 return
             if message.rej_id is not None and self._settle(packet, message.rej_id, "rejected"):
                 return
-            message = Message(message.addressee, _plain_text(packet, message))        # (it settles nothing of ours: the words of a person)
+            message = Message(message.addressee, _plain_text(packet, message))  # ordinary text
         self._received(packet, message)
 
     def _received(self, packet: Packet, message: Message) -> None:
         if self._qru_answer is not None and message.msg_id is None and self._qru_answer(packet, message):
-            return                                                   # (a server's answer to our request: shown with the servers, no conversation; the packet log has it)
+            return
         line = line_of(packet.inner_info)
         reply = None if line is None else reply_ack_of(line)
         if is_query(message.text):
             asked = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "received")
-            if message.msg_id is not None and self.heard.ack_due(asked, packet.heard_at):     # (a radio that numbers its query waits for an ack and retries without one: the ack costs one frame, the retries five; a further copy of the same transmission, by two digipeaters or on a second radio, is acked as a message's is)
+            # A numbered query is acked: without an ack the sender retries five times.
+            if message.msg_id is not None and self.heard.ack_due(asked, packet.heard_at):
                 self._host.ack(packet.sender, message.msg_id, reply, packet)
-            return                                                   # (the queries answer it; it is not kept)
+            return
         if reply:
             self._settle(packet, reply, "acked")
         text, seal, wire = self._keys.opened(packet.sender, self._config().station_call, message.text)
@@ -140,7 +115,7 @@ class Inbox:
                 self._alert(record)
 
     def _elsewhere(self, packet: Packet, message: Message) -> None:
-        """A message to another station: a request to QRU that the QRU server takes (never acked), the board's when it is for a bulletin or a group (an ack or a reject of those is nothing), else overheard."""
+        """Route a message to another station: to the QRU server, the board, or overheard."""
         if self._to_qru(packet, message):
             return
         if self._board is None or board_slot(message.addressee) is None:
@@ -149,11 +124,11 @@ class Inbox:
             self._board(packet, message)
 
     def _to_qru(self, packet: Packet, message: Message) -> bool:
-        """Whether the message is a request to QRU that the QRU server took. A request is a broadcast and is never acked, whatever id it carries: an ack from our call would match nothing at the asker."""
+        """Whether the message is a QRU request the server took; never acked, whatever its id."""
         return self._qru is not None and message.addressee.strip().upper() == ADDRESSEE and message.ack_id is None and message.rej_id is None and self._qru(packet, message)
 
     def _overheard(self, packet: Packet, message: Message) -> None:
-        """A message to another station: kept apart from the conversations (once for a repeat or a digipeater's copy). An ack or a reject of other stations is not a message and is not kept."""
+        """Keep a message to another station once, apart from conversations; skip acks/rejects."""
         if message.ack_id is not None or message.rej_id is not None:
             return
         record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "overheard", route=received_text(packet.path, packet.gate), seal=self._keys.kind(message.text), radio_id=packet.radio_id,
@@ -171,8 +146,10 @@ class Inbox:
         self._host.put(kept)
 
     def _settle(self, packet: Packet, msg_id: str, state: Literal["acked", "rejected"]) -> bool:
-        """Settles the newest message of ours to the sender that has the id, when it is not settled yet (the ids go round, so an older message with the same id is not the one that is acked); whether the
-        sender has a message of ours with that id at all (settled or not)."""
+        """Settle our newest message to the sender with this id; return whether one exists.
+
+        Ids wrap around, so an older message with the same id is not the one acked.
+        """
         source = _station(packet.sender)
         ours = sorted((r for r in self._host.records() if r.direction == "out" and r.to_call == source and r.msg_id == msg_id), key=lambda r: r.id, reverse=True)
         if not ours:
@@ -181,7 +158,7 @@ class Inbox:
         self.heard.settled(source)
         record = ours[0]
         if record.state in ACK_SETTLES:
-            self._host.put(replace(record, state=state, acked_at=packet.heard_at if state == "acked" else None, failure=None, snr=packet.snr, rssi=packet.rssi))       # (the reading of the answer that came back)
+            self._host.put(replace(record, state=state, acked_at=packet.heard_at if state == "acked" else None, failure=None, snr=packet.snr, rssi=packet.rssi))
             log.info("message %d to %s is %s", record.id, record.to_call, state)
         return True
 
@@ -189,5 +166,5 @@ class Inbox:
         self.heard.forget_before(cutoff)
 
     async def stop(self) -> None:
-        """The messages that came in are kept before the database is closed."""
+        """Wait for pending message keeps to finish."""
         await asyncio.gather(*self.tasks, return_exceptions=True)

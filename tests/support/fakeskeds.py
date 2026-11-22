@@ -1,13 +1,4 @@
-"""A small stand-in for the sked server of the project (server/neo/api/v1/skeds.php and the file skeds.json), on a free port of the loopback: no test reaches the real one.
-
-    server = await skeds_server()                       # no board yet: GET /skeds.json is a 404, as before the first post
-    monkeypatch.setenv("NEOAPRS_SKEDS_URL", server.url)
-    server.rows = [...]                                 # the board's rows, as the server writes them (id, call, from, to, dial, note)
-    server.raw = b"<html>"                              # sent for the board instead of the JSON
-    server.refuse = ("rate", 429)                       # every post is refused with this reason and status
-    server.posts                                        # every request body posted, as the JSON the daemon sent
-    server.gets                                         # every request line of a GET, with its headers
-It keeps what it was told: an add is a row of the board with the token that posted it, a remove with another token is `not_yours`, the answer carries the board as the real server's does."""
+"""A stand-in for the sked server (server/neo/api/v1/skeds.php) on a free loopback port."""
 import asyncio
 import json
 from typing import Any
@@ -47,7 +38,8 @@ class FakeSkeds(LoopbackServer):
             self.rows = sorted(rows, key=lambda r: (r["from"], r["id"]))
             return 200, {"ok": True, "id": ident, "board": self.board()}
         if body.get("action") == "remove":
-            if any(r["id"] == body["id"] for r in rows) and self.owners.get(body["id"]) != body["token"]:           # (a row nobody here posted is nobody's: the moderator's)
+            # A row nobody here posted is nobody's: the moderator's
+            if any(r["id"] == body["id"] for r in rows) and self.owners.get(body["id"]) != body["token"]:
                 return 403, {"ok": False, "reason": "not_yours"}
             self.rows = [r for r in rows if r["id"] != body["id"]]
             return 200, {"ok": True, "board": self.board()}

@@ -1,4 +1,5 @@
-"""What every feed of packets looks like from outside (neoaprs/source.py): the state and the problem, the lines it keeps, its tasks, and the back-off between two tries."""
+"""What every feed of packets looks like from outside (neoaprs/source.py): the state and the
+problem, the lines it keeps, its tasks, and the back-off between two tries."""
 import asyncio
 import errno
 import socket
@@ -57,7 +58,8 @@ async def test_state_changes_are_told_once_each_and_the_problem_is_kept() -> Non
     s.changed.connect(lambda: changes.append(1))
     assert s.state is Source.State.STOPPED and s.describe() == "" and not await s.send(b"x")
     await s.start()
-    s._set_state(Source.State.CONNECTED)                   # the same state again: counted as a change of the lines, not of the state
+    # The same state again: counted as a change of the lines, not of the state
+    s._set_state(Source.State.CONNECTED)
     assert states == [Source.State.CONNECTING, Source.State.CONNECTED] and len(changes) == 3
     clock.advance(30)
     s._set_state(Source.State.WAITING, "No such file or directory")

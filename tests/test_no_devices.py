@@ -1,8 +1,7 @@
-"""The no-devices switch (neoaprs/nodevices.py): under NEOAPRS_NO_DEVICES=1 a daemon opens no real device and talks to no real service, whatever its settings say, and what is on this computer stays.
-
-tests/conftest.py sets the variable for every process a test starts and lifts the switch in the test's own process (its fixture devices_are_fakes says why). The tests here are about the switch itself, so they
-ask for `under_the_switch`, which keeps it on. Every way out of the process is watched while they run (`doors`): the record shows that a door was not even tried, where the guards of tests/support/guards.py
-would only have refused it."""
+"""The no-devices switch (neoaprs/nodevices.py): under NEOAPRS_NO_DEVICES=1 a daemon opens no real
+device and talks to no real service, whatever its settings say. tests/conftest.py sets the variable
+for every process a test starts and lifts the switch in the test's own process.
+"""
 import asyncio
 import errno
 import logging
@@ -55,28 +54,36 @@ from tests.support.storedb import store_at
 
 NO_OVERRIDES = RunOverrides()                   # a run that was given nothing of its own
 LOCAL = ("127.0.0.1", "::1", "localhost")
-ELSEWHERE = "192.0.2.7"                           # a documentation address: no computer has it (so a door that this file found open would still have reached nobody)
+# A documentation address: no computer has it (so a door that this file found open would still have
+# reached nobody)
+ELSEWHERE = "192.0.2.7"
 REFUSED = os.strerror(errno.ECONNREFUSED)        # "Connection refused", in the system's words
-PATIENCE_SEC = 60.0                              # the longest a test waits for a daemon it started as a process, on a machine busy with the whole suite
-SAYS_THE_VALUE = "(the variable is {!r}: every value but an empty one and 0 sets it)"       # how the line at the start of the daemon ends
+# The longest a test waits for a daemon it started as a process, on a machine busy with the whole
+# suite
+PATIENCE_SEC = 60.0
+# How the line at the start of the daemon ends
+SAYS_THE_VALUE = "(the variable is {!r}: every value but an empty one and 0 sets it)"
 STARTS_A_DAEMON = {"scripts/smoke.py", "scripts/screenshots.py", "scripts/demoscene.py", "scripts/smoke-appimage", "scripts/smoke-macos-app", "scripts/check", "scripts/check-in-container"}
 WITHOUT_THE_SWITCH: set[str] = set()                 # what starts daemons and does not set the switch for them
 
 
 @pytest.fixture
 def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The switch is on in this test's own process too (tests/conftest.py lifts it for every test that does not ask for this), and no door has been told in the log yet."""
+    """The switch is on in this test's own process too (tests/conftest.py lifts it for every test
+    that does not ask for this), and no door has been told in the log yet."""
     monkeypatch.setenv(nodevices.ENV, "1")
     monkeypatch.setattr(nodevices, "_told", set())
 
 
 class Doors:
-    """Every way out of the process, watched: each file opened by its path, each program started, each socket connected, each name looked up, each Bluetooth socket made and each time the machine is asked for its
-    ports or its paired devices is written down, and then goes on as it would have. A socket pair is not a way out: where the system has none (Windows) the standard library makes one as a TCP connection to a
-    listener of its own on 127.0.0.1, which every event loop does for its wake-up, so what is connected inside `socket.socketpair` is not written down."""
+    """Every way out of the process is recorded and then goes on: files opened by path, programs
+    started, sockets connected, names looked up, Bluetooth sockets made and device listings. A
+    socket pair is not a way out: on Windows the standard library makes one as a TCP connection to a
+    listener on 127.0.0.1."""
 
     def __init__(self, patch: Callable[[Any, str, Any], None]) -> None:
-        self.opened: list[str] = []                 # what os.open was given (pyserial opens a device with it), with every link followed
+        # What os.open was given (pyserial opens a device with it), with every link followed
+        self.opened: list[str] = []
         self.started: list[str] = []                # the programs started
         self.connected: list[str] = []              # the hosts sockets were connected to
         self.ports: list[int] = []                  # ... and the port of each
@@ -140,11 +147,13 @@ class Doors:
 
     @property
     def left_this_computer(self) -> list[str]:
-        """Every host that was connected to or looked up and is not this computer (the page listens on the loopback address of this computer's name too, 127.0.1.1 on Debian)."""
+        """Every host connected to or looked up that is not this computer (the page also listens on
+        127.0.1.1 on Debian)."""
         return [host for host in self.connected + self.looked_up if host not in LOCAL and not nodevices.this_computer(host)]
 
     def untouched(self) -> bool:
-        """No program was started, nothing left this computer, no Bluetooth socket was made and the machine was asked for no list."""
+        """No program was started, nothing left this computer, no Bluetooth socket was made and the
+        machine was asked for no list."""
         return not (self.started or self.left_this_computer or self.bluetooth or self.listed)
 
 
@@ -172,7 +181,8 @@ def test_the_suite_has_the_switch_in_the_environment_and_lifts_it_in_the_tests_o
 
 @pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "on", " 1", "01", "2", "ture", "false", "no", "off", "0.0"])
 def test_the_switch_is_on_for_every_value_but_nothing_and_0_and_the_start_line_names_the_value(value: str, under_the_switch: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    """It fails safe: `true`, a typo, and a word that was meant to switch it off all keep the doors shut, and the log shows which value did."""
+    """It fails safe: `true`, a typo, and a word that was meant to switch it off all keep the doors
+    shut, and the log shows which value did."""
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     monkeypatch.setenv(nodevices.ENV, value)
     assert nodevices.sets(value) and nodevices.on()
@@ -200,10 +210,13 @@ def test_the_switch_is_off_for_nothing_and_for_0(value: str | None, under_the_sw
 
 
 def gives(path: Path, variable: str, value: str) -> bool:
-    """Whether the file gives the variable this value in its code (what follows a `#` on a line is a comment). In Python that is `env["X"] = "1"`, `"X": "1"` in a dict or `X="1"` in a call; in a shell script
-    `export X=1` or `X=1 program`. The words of a docstring, which name the variable without quotes, are none of these."""
+    """Whether the file gives the variable this value in its code (what follows a `#` on a line is a
+    comment). In Python that is `env["X"] = "1"`, `"X": "1"` in a dict or `X="1"` in a call; in a
+    shell script `export X=1` or `X=1 program`. The words of a docstring, which name the variable
+    without quotes, are none of these."""
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-    python = path.suffix == ".py" or "python" in "".join(lines[:1])           # (a script without an ending is known by its first line)
+    # A script without an ending is known by its first line
+    python = path.suffix == ".py" or "python" in "".join(lines[:1])
     form = rf'"{variable}"\]\s*=\s*"{value}"|"{variable}":\s*"{value}"|\b{variable}="{value}"' if python else rf"(?:^|\s){variable}={value}(?:\s|$)"
     return any(re.search(form, line.split("#", 1)[0]) for line in lines)
 
@@ -225,8 +238,9 @@ def test_a_line_of_code_sets_a_variable_and_a_comment_a_docstring_or_another_val
 
 
 def test_every_script_and_part_of_the_harness_that_starts_a_daemon_sets_the_switch_for_it() -> None:
-    """Whatever starts a daemon tells it not to ask the version page (NEOAPRS_UPDATE_CHECK=0), so that is how the starters are found, a script written tomorrow among them. Under the suite the line of a script
-    cannot be seen in what its daemon does (the daemon inherits the switch from tests/conftest.py anyway), so the files are read."""
+    """Whatever starts a daemon tells it not to ask the version page (NEOAPRS_UPDATE_CHECK=0), which
+    is how the starters are found; the files are read because the daemon inherits the switch anyway.
+    """
     files = [p for p in sorted((ROOT / "scripts").iterdir()) if p.is_file()] + sorted((ROOT / "tests" / "support").glob("*.py"))
     starters = {p.relative_to(ROOT).as_posix() for p in files if gives(p, "NEOAPRS_UPDATE_CHECK", "0")}
     assert STARTS_A_DAEMON <= starters, "the rule finds the scripts that are known to start a daemon"
@@ -256,7 +270,8 @@ def test_a_port_is_refused_with_the_error_of_one_that_is_not_there(path: str, er
 
 @pytest.mark.parametrize("path", ["socket://127.0.0.1:40001", "tcp://localhost:32768", "socket://[::1]:20000", " TCP://127.0.0.1:31999 ", "socket://127.0.0.1:18100?logging=debug", "socket://127.0.0.1:8052"])
 def test_a_tcp_port_on_this_computer_is_let_through(path: str, under_the_switch: None, caplog: pytest.LogCaptureFixture) -> None:
-    """A fake's: one the system handed out, the tests' own from 20000 up, a bench's (scripts/mercury-sim from 18100)."""
+    """A fake's: one the system handed out, the tests' own from 20000 up, a bench's
+    (scripts/mercury-sim from 18100)."""
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     nodevices.check_port(path)
     assert said(caplog) == []
@@ -269,8 +284,9 @@ MODEM_PORTS = [direwolf.OWN_PORT, direwolf.OWN_AGW_PORT, mercury.OWN_UI_PORT, di
 @pytest.mark.parametrize("path", [*(f"socket://127.0.0.1:{port}" for port in MODEM_PORTS), "tcp://localhost:8100", "socket://[::1]:8001", " TCP://127.0.0.1:8001 ", "socket://127.0.0.1:8001?logging=debug",
                                   "socket://127.0.0.1:port", "socket://127.0.0.1"])
 def test_a_tcp_port_on_this_computer_where_a_real_modem_may_listen_is_refused(path: str, under_the_switch: None, caplog: pytest.LogCaptureFixture) -> None:
-    """The operator's own Direwolf (8001 for KISS, 8000 for AGW) and Mercury (its UI on 10000) or a running NeoAPRS's Direwolf and Mercury, keyed to the radios on the desk; one whose number cannot be read is
-    refused as well."""
+    """The operator's own Direwolf (8001 for KISS, 8000 for AGW) and Mercury (its UI on 10000) or a
+    running NeoAPRS's Direwolf and Mercury, keyed to the radios on the desk; one whose number cannot
+    be read is refused as well."""
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     with pytest.raises(ConnectionRefusedError) as refusal:
         nodevices.check_port(path)
@@ -326,7 +342,9 @@ def test_with_the_switch_off_nothing_is_refused_and_nothing_is_said(under_the_sw
 
 
 def test_the_record_of_connections_leaves_out_a_socket_pair_and_not_a_connection_made_the_same_way(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Windows has no socket pair of its own: the standard library connects two sockets over the loopback, as the fallback here does (the system of the test has the real one, which does not connect at all)."""
+    """Windows has no socket pair of its own: the standard library connects two sockets over the
+    loopback, as the fallback here does (the system of the test has the real one, which does not
+    connect at all)."""
     def over_the_loopback() -> tuple[socket.socket, socket.socket]:
         listener = socket.socket()
         listener.bind(("127.0.0.1", 0))
@@ -409,16 +427,20 @@ async def test_a_gpsd_and_the_control_port_of_a_mercury_on_another_computer_are_
     assert feed.problem == f"gpsd at {ELSEWHERE}:2947: {REFUSED}", "what the feed says of a gpsd that does not run"
     modem = Mercury(tmp_path, finder=lambda: None, control_backoff=Backoff([0.01]))
     remember_stop(modem.stop)
-    await modem.start(replace(ON_AIR, hf_enabled=True), f"socket://{ELSEWHERE}:8100")       # (a Mercury that something else runs there, given for this run: its control port is the one line the modem part opens)
+    # A Mercury that something else runs there, given for this run: its control port is the one line
+    # the modem part opens
+    await modem.start(replace(ON_AIR, hf_enabled=True), f"socket://{ELSEWHERE}:8100")
     await until(lambda: (logging.WARNING, f"NEOAPRS_NO_DEVICES is set: no connection to {ELSEWHERE} (the control port of a Mercury)") in said(caplog))
-    await idle_for(0.1)                                     # (both try again after their back-off, several times in this)
+    # Both try again after their back-off, several times in this
+    await idle_for(0.1)
     assert (logging.WARNING, f"NEOAPRS_NO_DEVICES is set: no connection to {ELSEWHERE} (gpsd)") in said(caplog) and len(said(caplog)) == 2
     assert modem.state == "starting" and feed.state is Source.State.WAITING, "the modem part waits for the control port as for a Mercury that is not up yet"
     assert doors.untouched() and doors.connected == []
 
 
 async def test_a_server_on_this_computer_is_asked_itself_and_not_through_a_proxy_of_the_environment(under_the_switch: None, doors: Doors, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """urllib sends a request for the loopback to the proxy that http_proxy names unless no_proxy lists the loopback: under the switch that proxy, on another computer, is not asked."""
+    """urllib sends a request for the loopback to the proxy that http_proxy names unless no_proxy
+    lists the loopback: under the switch that proxy, on another computer, is not asked."""
     for name in ("no_proxy", "NO_PROXY"):
         monkeypatch.delenv(name, raising=False)
     for name in ("http_proxy", "https_proxy", "all_proxy"):
@@ -488,7 +510,9 @@ async def test_the_mercury_program_is_not_started_and_lists_no_sound_card(under_
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     asked: list[str] = []
     monkeypatch.setattr(mercurymodem, "end_stale", lambda pid_file, ini, program: asked.append(f"end the Mercury of {pid_file}"))
-    (tmp_path / "mercury.pid").write_text("4242\n", encoding="utf-8")       # a copy of a data folder whose own daemon runs its modem: the file names a Mercury that is another daemon's
+    # A copy of a data folder whose own daemon runs its modem: the file names a Mercury that is
+    # another daemon's
+    (tmp_path / "mercury.pid").write_text("4242\n", encoding="utf-8")
     modem = Mercury(tmp_path, finder=lambda: asked.append("where is Mercury") or fake_mercury())       # type: ignore[func-returns-value]
     remember_stop(modem.stop)
     await modem.start(replace(ON_AIR, hf_enabled=True, mercury_sound_card="plughw:1,0", mercury_keying="vox"))
@@ -503,11 +527,14 @@ async def test_the_mercury_program_is_not_started_and_lists_no_sound_card(under_
 
 @posix_only
 def test_a_mercury_a_copy_of_the_data_folder_names_is_left_alone_at_the_daemons_start(under_the_switch: None, tmp_path: Path) -> None:
-    """A bench daemon on a copy of the station's data folder: radio 5's file names the station's own live Mercury, run with that radio's configuration. mercuryclaims.end_left_behind ends nothing under the
-    switch and leaves the file (on Windows, where the configuration is not read, the station's mercury.exe would pass every other check)."""
+    """A bench daemon on a copy of the station's data folder: radio 5's file names the station's own
+    live Mercury, run with that radio's configuration. mercuryclaims.end_left_behind ends nothing
+    under the switch and leaves the file (on Windows, where the configuration is not read, the
+    station's mercury.exe would pass every other check)."""
     folder = tmp_path / "radios" / "5"
     folder.mkdir(parents=True)
-    station = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "-C", str(folder / "mercury.ini")])       # (Popen returns once the program runs: its command line is read as written)
+    # Popen returns once the program runs: its command line is read as written
+    station = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "-C", str(folder / "mercury.ini")])
     try:
         (folder / "mercury.pid").write_text(str(station.pid), encoding="ascii")
         end_left_behind(tmp_path)
@@ -518,13 +545,16 @@ def test_a_mercury_a_copy_of_the_data_folder_names_is_left_alone_at_the_daemons_
 
 
 def test_the_hf_radio_has_no_port_unless_a_mercury_was_given_for_this_run(under_the_switch: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, tmp_path: Path) -> None:
-    """The daemon starts no Mercury under the switch, so whatever listens where one of ours would have been (the operator's own modem, on this computer's port 8100) is not ours: the Mercury radio's line is given no port
-    at all, by its driver (neoaprs/mercurydriver.py), and nothing to search."""
+    """The daemon starts no Mercury under the switch, so whatever listens where one of ours would
+    have been (the operator's own modem, on this computer's port 8100) is not ours: the Mercury
+    radio's line is given no port at all, by its driver (neoaprs/mercurydriver.py), and nothing to
+    search."""
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     off, on = replace(ON_AIR, hf_enabled=False), replace(ON_AIR, hf_enabled=True)
 
     def pointed(config: Config, run: RunOverrides = NO_OVERRIDES) -> tuple[str, str, bool]:
-        """The port, the search pattern and whether the search follows a port that fails, of the line of radio 2 as its driver points it for these settings."""
+        """The port, the search pattern and whether the search follows a port that fails, of the
+        line of radio 2 as its driver points it for these settings."""
         spec = config.radio(HF_ID)
         assert spec is not None
         driver = MercuryDriver(spec, Claims(), tmp_path, modem=Mercury(tmp_path))
@@ -548,7 +578,8 @@ def test_the_hf_radio_has_no_port_unless_a_mercury_was_given_for_this_run(under_
 # ---- what stays, and the whole daemon
 
 async def test_a_kiss_tcp_radio_on_this_computer_is_still_opened_and_heard(under_the_switch: None, doors: Doors, tmp_path: Path) -> None:
-    e = Env(tmp_path)                                       # (its radio is a TCP port of the loopback, and so is --port)
+    # Its radio is a TCP port of the loopback, and so is --port
+    e = Env(tmp_path)
     await e.start()
     assert await e.play() == 4 and len(await e.packets()) == 4
     assert e.tnc.state is Source.State.CONNECTED and doors.left_this_computer == [] and doors.started == []
@@ -563,9 +594,12 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
                                                                                                                   caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     monkeypatch.setattr(dummyline, "TICK_SEC", 0.01)
-    monkeypatch.setenv(nodevices.ENV, "true")                # (not the 1 of the benches: any value but an empty one and 0 is the switch)
+    # Not the 1 of the benches: any value but an empty one and 0 is the switch
+    monkeypatch.setenv(nodevices.ENV, "true")
     e = Env(tmp_path, radio=False, web=True)
-    port = {name: e.new_pty(name)[1] for name in ("radio", "probe_1", "gps", "ptt")}       # the FM radio's port, a port the search for the radio would find, the GPS receiver's and the HF radio's keying line: each a device that is there
+    # The FM radio's port, a port the search for the radio would find, the GPS receiver's and the HF
+    # radio's keying line: each a device that is there
+    port = {name: e.new_pty(name)[1] for name in ("radio", "probe_1", "gps", "ptt")}
     devices = {os.path.realpath(path) for path in port.values()}
     e.settings.update({"serial/port": port["radio"], "hf/enabled": "true", "hf/profile": "mercury", "mercury/sound_card": "plughw:1,0", "mercury/keying": f"rts:{port['ptt']}",
                        "igate/enabled": "true", "igate/server": "rotate.aprs2.net:14580", "igate/password": "12345", "gps/source": "serial", "gps/device": port["gps"],
@@ -580,7 +614,9 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
     assert f"{port['radio']}: No such file or directory" in lines_of(e.tnc)
     await until(lambda: e.mercury.state == "waiting" and e.hf.state is Source.State.WAITING)
     assert e.mercury.reason == "not_installed" and looked_for == [] and e.hf.port == "" and e.hf.stats.opens == 0, "no Mercury was started, so the Mercury radio has no port to try"
-    mercury_ports = {e.mercury.broadcast_port, e.mercury.control_port}                # where a Mercury of ours would have been: on the operator's computer his own modem may listen there
+    # Where a Mercury of ours would have been: on the operator's computer his own modem may listen
+    # there
+    mercury_ports = {e.mercury.broadcast_port, e.mercury.control_port}
     await until(lambda: e.ctl.aprsis.state is Source.State.WAITING)
     assert (e.ctl.igate.state, e.ctl.igate.problem) == ("connecting", f"rotate.aprs2.net:14580: {REFUSED}")
     await until(lambda: e.ctl.gps_feed.state is Source.State.WAITING)
@@ -588,7 +624,8 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
     await until(lambda: e.ctl.rigstatus.rig_state == "off")
     assert e.ctl.rigstatus._rig_problem == f"rigctld at {ELSEWHERE}:4532: connection refused"
 
-    # the page is served and says the same; what it asks for lists nothing and reaches a server of this computer only
+    # the page is served and says the same; what it asks for lists nothing and reaches a server of
+    # this computer only
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     radios = page.topics["radios"]
@@ -598,7 +635,8 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
     listed = await page.expect("ports")
     assert listed["ports"] == [] and listed["sound_cards"] == []
     versions = await version_page({"version": "99.0.0", "url": "https://example.org/", "message": ""})
-    for address, outcome in ((f"https://{ELSEWHERE}/version.php", "no_answer"), (versions.url, "newer")):       # Check now, of a version page somewhere else and of one on this computer
+    # Check now, of a version page somewhere else and of one on this computer
+    for address, outcome in ((f"https://{ELSEWHERE}/version.php", "no_answer"), (versions.url, "newer")):
         await page.send({"cmd": "set_config", "values": {"update/url": address}})
         await page.until(lambda address=address: page.topics["config"]["values"]["update/url"] == address)       # type: ignore[misc]
         await page.send({"cmd": "update_check"})
@@ -620,7 +658,8 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
     await until(lambda: e.tnc.is_dummy and e.tnc.state is Source.State.CONNECTED and e.hf.is_dummy and e.hf.state is Source.State.CONNECTED)
     for _ in range(200):
         e.now.advance(10)                                                               # type: ignore[attr-defined]
-        await idle_for(0.02)                                                            # (the Dummy radio's scene is asked what has come due at the new time)
+        # The Dummy radio's scene is asked what has come due at the new time
+        await idle_for(0.02)
         if sum(call.startswith("Q") for call in page.topics["stations"]) > 8:
             break
     assert {"Q1ABC", "Q4CAR-9", "Q2DIG-2"} <= set(page.topics["stations"])
@@ -636,8 +675,10 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
 
 @posix_only
 async def test_the_daemon_as_a_process_inherits_the_switch_says_so_in_its_log_and_opens_no_port_of_its_settings(tmp_path: Path, ptys: Ptys) -> None:
-    """`python -m neoaprs` on a data folder whose settings name the radio's port and the GPS receiver's (pseudo-terminals that are there), an iGate and a rigctld on another address: started with nothing but the
-    environment of the suite, it runs under the switch. (No Mercury here: a process cannot be given a made-up one, and a clone may hold the real one.)"""
+    """`python -m neoaprs` on a data folder whose settings name the radio's port and the GPS
+    receiver's (pseudo-terminals that are there), an iGate and a rigctld on another address: started
+    with nothing but the environment of the suite, it runs under the switch. (No Mercury here: a
+    process cannot be given a made-up one, and a clone may hold the real one.)"""
     (radio, radio_port), (gps, gps_port) = ptys(), ptys()
     data = tmp_path / "data"
     data.mkdir()
@@ -659,7 +700,8 @@ async def test_the_daemon_as_a_process_inherits_the_switch_says_so_in_its_log_an
         assert daemon.poll() is None, f"the daemon ended: {logged()}"
         assert "NEOAPRS_NO_DEVICES is set: no serial port, Bluetooth device or sound card is opened" in logged() and f"tnc: {radio_port}: No such file or directory; trying again" in logged()
         assert logged().index("NEOAPRS_NO_DEVICES is set: no serial port") < logged().index("is not opened"), "the line of the start comes before any door"
-        written = await asyncio.gather(asyncio.to_thread(heard, radio, 1, 1.5), asyncio.to_thread(heard, gps, 1, 1.5))      # (a TNC line that is opened is asked at once whether the radio is there)
+        # A TNC line that is opened is asked at once whether the radio is there
+        written = await asyncio.gather(asyncio.to_thread(heard, radio, 1, 1.5), asyncio.to_thread(heard, gps, 1, 1.5))
         assert written == [b"", b""], "nothing was written to a port: none was opened"
         if os.path.isdir(f"/proc/{daemon.pid}/fd"):
             held = {os.path.realpath(f"/proc/{daemon.pid}/fd/{name}") for name in os.listdir(f"/proc/{daemon.pid}/fd")}
@@ -678,7 +720,9 @@ async def test_the_daemon_as_a_process_inherits_the_switch_says_so_in_its_log_an
 
 @posix_only
 async def test_a_port_that_another_program_holds_is_not_there_either_and_nobody_is_asked_who_holds_it(under_the_switch: None, doors: Doors, tmp_path: Path) -> None:
-    """The bench daemon on a copy of the station's data folder while the station itself runs and holds the radio's port: the port is not there, as any other, and the log names no program and no pid."""
+    """The bench daemon on a copy of the station's data folder while the station itself runs and
+    holds the radio's port: the port is not there, as any other, and the log names no program and no
+    pid."""
     e = Env(tmp_path, radio=False)
     _, device = e.new_pty("radio")
     e.settings["serial/port"] = device

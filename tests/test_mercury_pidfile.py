@@ -1,8 +1,7 @@
-"""The file that holds the id of the Mercury the daemon started (`mercury.pid`) and the stopping of that Mercury (neoaprs/mercuryhelper.py, mercurystale.py): a clean stop leaves no file behind (nor the file a later run wrote), the next start ends a process of the
-file's id only when it is the radio's Mercury (its command line runs it with the radio's configuration; on Windows, which reuses ids and has no /proc, its program file is the radio's and it is no younger than the
-file) and waits for it to end, and a Mercury that does not end at the first request is asked a second time, as its own handling of a second
-SIGTERM drops the transmitter, before it is killed. The modem is a radio's (`fakemercury.of_radio`), whose file is in the radio's own folder, `radios/<id>/mercury.pid`, and the modem of today's station, whose
-file is in the data folder; the one an older NeoAPRS left in the data folder is tests/test_mercury_folder.py's."""
+"""The file with the id of the Mercury the daemon started (`mercury.pid`) and stopping that Mercury
+(neoaprs/mercuryhelper.py, mercurystale.py): a clean stop leaves no file; a start ends only the
+radio's own.
+"""
 import asyncio
 import os
 import subprocess
@@ -32,7 +31,8 @@ QUICK = Backoff([0.1, 0.1])
 
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py): no other test running beside it is handed its ports."""
+    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py):
+    no other test running beside it is handed its ports."""
     own_ports(monkeypatch)
 
 
@@ -46,7 +46,8 @@ def modem(tmp_path: Path, radio: bool = True) -> Mercury:
 
 @pytest.mark.parametrize("radio", [True, False], ids=["radio", "folderless"])
 async def test_a_clean_stop_removes_the_pid_file_that_the_start_wrote(tmp_path: Path, radio: bool) -> None:
-    """The file is for a daemon that crashed; a clean stop leaves none, so that no later start looks at an id that something else may have by then."""
+    """The file is for a daemon that crashed; a clean stop leaves none, so that no later start looks
+    at an id that something else may have by then."""
     m = modem(tmp_path, radio)
     await m.start(HF)
     pid_file = (tmp_path / "radios" / "2" if radio else tmp_path) / PID_FILE
@@ -81,7 +82,8 @@ def _no_such_process() -> int:
 
 
 def test_on_a_system_without_proc_the_radios_mercury_is_known_by_the_command_line_ps_gives(monkeypatch: pytest.MonkeyPatch) -> None:
-    """macOS has no /proc: a Mercury left behind there is found by its command line, or it would hold the sound card beside the new one."""
+    """macOS has no /proc: a leftover Mercury is found by its command line, or it would hold the
+    sound card."""
     if sys.platform == "win32":
         pytest.skip("Windows asks the process's program file instead")
     pid, ini = _no_such_process(), Path("/Users/op/Library/Application Support/NeoAPRS/radios/5/mercury.ini")
@@ -95,7 +97,9 @@ def test_on_a_system_without_proc_the_radios_mercury_is_known_by_the_command_lin
 
 
 def _windows_with(monkeypatch: pytest.MonkeyPatch, image: str | None, made: float | None = 0.0) -> list[tuple[int, int]]:
-    """A Windows on which the id from the file is a running process with this program file, made at `made` (seconds since 1970); the kills that were asked for are returned in the list (and none may be real)."""
+    """A Windows on which the id from the file is a running process with this program file, made at
+    `made` (seconds since 1970); the kills that were asked for are returned in the list (and none
+    may be real)."""
     kills: list[tuple[int, int]] = []
 
     def kill(pid: int, sig: int) -> None:
@@ -113,7 +117,9 @@ def _windows_with(monkeypatch: pytest.MonkeyPatch, image: str | None, made: floa
 @pytest.mark.skipif(sys.platform == "win32", reason="the test stands in for Windows on a machine that has /proc")
 def test_a_process_that_is_not_the_radios_mercury_is_left_alone_and_the_file_is_consumed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     pid = _no_such_process()
-    for image in (r"C:\Windows\explorer.exe", r"C:\Users\op\mercury\mercury.exe", None):     # (a program that is something else, a Mercury that is not the radio's, one whose file cannot be read)
+    # A program that is something else, a Mercury that is not the radio's, one whose file cannot be
+    # read
+    for image in (r"C:\Windows\explorer.exe", r"C:\Users\op\mercury\mercury.exe", None):
         pid_file = tmp_path / "mercury.pid"
         pid_file.write_text(str(pid), encoding="ascii")
         kills = _windows_with(monkeypatch, image)
@@ -123,7 +129,8 @@ def test_a_process_that_is_not_the_radios_mercury_is_left_alone_and_the_file_is_
 
 @pytest.mark.skipif(sys.platform == "win32", reason="the test stands in for Windows on a machine that has /proc")
 def test_a_mercury_made_after_its_file_was_written_is_another_radios_after_a_reboot_and_is_left_alone(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Both radios' files survive a power cut; the id in radio 5's may be given to radio 2's fresh Mercury, the same program file: it was made after radio 5's file was written."""
+    """Both radios' files survive a power cut; the id in radio 5's may be given to radio 2's fresh
+    Mercury, the same program file: it was made after radio 5's file was written."""
     pid = _no_such_process()
     pid_file = tmp_path / "mercury.pid"
     pid_file.write_text(str(pid), encoding="ascii")
@@ -146,7 +153,8 @@ def test_the_radios_own_mercury_made_before_its_file_was_written_is_ended(tmp_pa
 
 
 def _sleeper(tmp_path: Path, *args: str, term_sec: float = 0.0) -> "subprocess.Popen[bytes]":
-    """A process that runs for a minute with these arguments after its own code, and takes `term_sec` to end when it is asked to."""
+    """A process that runs for a minute with these arguments after its own code, and takes
+    `term_sec` to end when it is asked to."""
     ready = tmp_path / f"ready-{len(list(tmp_path.iterdir()))}"
     code = (f"import signal, sys, time\ndef term(*_):\n    time.sleep({term_sec})\n    sys.exit(0)\nsignal.signal(signal.SIGTERM, term)\nopen({str(ready)!r}, 'w').write('up')\ntime.sleep(60)\n")
     process = subprocess.Popen([sys.executable, "-c", code, *args])
@@ -175,7 +183,8 @@ def test_a_process_with_mercury_in_its_command_line_is_ended_only_when_it_runs_w
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Windows has no signal handlers: a terminate there is the hard end")
 def test_a_mercury_left_behind_has_ended_when_end_stale_returns(tmp_path: Path) -> None:
-    """The start that follows opens the same sound card: a Mercury that takes a moment to end (it drops the transmitter first) has let go of it by then."""
+    """The start that follows opens the same sound card: a Mercury that takes a moment to end (it
+    drops the transmitter first) has let go of it by then."""
     ini = tmp_path / "mercury.ini"
     slow = _sleeper(tmp_path, "-C", str(ini), term_sec=0.5)
     try:
@@ -190,7 +199,9 @@ def test_a_mercury_left_behind_has_ended_when_end_stale_returns(tmp_path: Path) 
 
 @pytest.mark.skipif(sys.platform == "win32" or os.geteuid() == 0, reason="the command line is read from /proc, and the rights of a folder on POSIX, which root ignores")
 def test_a_file_that_cannot_be_removed_does_not_stop_the_daemons_start_and_its_mercury_is_still_ended(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """end_left_behind runs in the daemon's start: a pid file that cannot be removed (a folder that cannot be written; on Windows one a virus scanner holds) is a line in the log, not a daemon that does not start."""
+    """end_left_behind runs in the daemon's start: a pid file that cannot be removed (a folder that
+    cannot be written; on Windows one a virus scanner holds) is a line in the log, not a daemon that
+    does not start."""
     folder = tmp_path / "radios" / "5"
     folder.mkdir(parents=True)
     ours = _sleeper(tmp_path, "-C", str(folder / "mercury.ini"))
@@ -210,7 +221,8 @@ def test_a_file_that_cannot_be_removed_does_not_stop_the_daemons_start_and_its_m
 
 @pytest.mark.skipif(sys.platform == "win32", reason="the test's program is asked to end by a signal")
 async def test_a_stop_that_ends_after_the_next_run_wrote_the_file_leaves_that_runs_file(tmp_path: Path) -> None:
-    """A stop in a thread (the sound card's error) can take longer than the back-off: the relaunch has written its own id in the file meanwhile, and the stop must not remove it."""
+    """A stop in a thread (the sound card's error) can take longer than the back-off: the relaunch
+    has written its own id in the file meanwhile, and the stop must not remove it."""
     pid_file = tmp_path / PID_FILE
     program = Program(lambda exit_code, lines: None)
     program.start([sys.executable, "-c", "import time; time.sleep(60)"], tmp_path, pid_file)
@@ -226,7 +238,8 @@ async def test_a_stop_that_ends_after_the_next_run_wrote_the_file_leaves_that_ru
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Windows has no signal handlers: a terminate there is the hard end")
 async def test_a_program_that_does_not_end_at_the_first_request_is_asked_a_second_time_before_it_is_killed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mercury drops the transmitter on a second SIGTERM; a kill would leave a GPIO pin or a serial line keyed."""
+    """Mercury drops the transmitter on a second SIGTERM; a kill would leave a GPIO pin or a serial
+    line keyed."""
     monkeypatch.setattr(mercuryhelper, "STOP_WAIT_SEC", 0.2)
     count = tmp_path / "terms"
     ready = tmp_path / "ready"
@@ -243,7 +256,8 @@ async def test_a_program_that_does_not_end_at_the_first_request_is_asked_a_secon
     program.start([sys.executable, "-c", code], tmp_path, tmp_path / PID_FILE)
     process = program._process
     assert process is not None
-    await until_started(ready.exists)                                             # (the handler is in place when the file is there)
+    # The handler is in place when the file is there
+    await until_started(ready.exists)
     await asyncio.to_thread(program.stop)
     assert process.returncode == 0, "ended by the second request, not killed"
     assert count.read_text() == "xx"
@@ -252,8 +266,10 @@ async def test_a_program_that_does_not_end_at_the_first_request_is_asked_a_secon
 
 @pytest.mark.skipif(sys.platform == "win32", reason="the command line of another process is read from /proc")
 def test_a_sound_card_radios_direwolf_and_an_hf_radios_mercury_left_behind_side_by_side_each_end_only_their_own(tmp_path: Path) -> None:
-    """Radio 3 a Sound card radio, radio 5 an HF one, both left running by a daemon that did not stop cleanly: the daemon's start ends radio 5's Mercury and leaves the Direwolf, which radio 3's start ends;
-    a file that names the other program's process (an id the system gave again) ends nothing."""
+    """Radio 3 a Sound card radio, radio 5 an HF one, both left running by a daemon that did not
+    stop cleanly: the daemon's start ends radio 5's Mercury and leaves the Direwolf, which radio 3's
+    start ends; a file that names the other program's process (an id the system gave again) ends
+    nothing."""
     wolf_home, mercury_home = tmp_path / "radios" / "3", tmp_path / "radios" / "5"
     wolf_home.mkdir(parents=True)
     mercury_home.mkdir(parents=True)

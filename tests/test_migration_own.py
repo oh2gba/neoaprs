@@ -1,8 +1,7 @@
-"""Migration 13 (neoaprs/migrationsteps12to21.py): the tables `own_object` and `own_bulletin`, where the objects, items and bulletins of our own are kept; a database of the version before keeps everything and gets
-the two tables empty, a step that doubts changes nothing, and the tables refuse what the program cannot produce.
-
-What is read back is read from the database as the radio round's steps leave it (tests/support/migrated32.newest): the path the operator gave a station is its path on radio 1 (`station_path`,
-migration 33), RF only stays in `station_pref`, and an object names its radios by their ids."""
+"""Migration 13 (neoaprs/migrationsteps12to21.py): the tables `own_object` and `own_bulletin` for
+our own objects, items and bulletins; existing data is kept, the tables start empty and refuse
+invalid rows.
+"""
 import sqlite3
 from pathlib import Path
 
@@ -24,7 +23,8 @@ INSERT_BULLETIN = "INSERT INTO own_bulletin (slot, group_name, text, created_at,
 
 
 def version_twelve(path: Path, clock: FixedClock) -> None:
-    """A database at schema version 12: preferences, messages and a bulletin heard, user_version 12."""
+    """A database at schema version 12: preferences, messages and a bulletin heard, user_version 12.
+    """
     version_eleven(path, clock)
     db = raw(path)
     migrations_module._v12(db)
@@ -41,7 +41,8 @@ def test_a_database_of_version_twelve_gets_the_two_empty_tables_and_keeps_everyt
     version_twelve(old, clock)
     before = raw(old)
     messages = before.execute("SELECT id, text, state FROM message ORDER BY id").fetchall()
-    prefs = before.execute("SELECT call, path, rf_only FROM station_pref WHERE path IS NOT NULL OR attempts IS NOT NULL OR rf_only = 1 ORDER BY call").fetchall()      # (a row that held only a timeout is deleted by migration 17)
+    # A row that held only a timeout is deleted by migration 17
+    prefs = before.execute("SELECT call, path, rf_only FROM station_pref WHERE path IS NOT NULL OR attempts IS NOT NULL OR rf_only = 1 ORDER BY call").fetchall()
     board = before.execute("SELECT sender, slot, text, times_heard FROM bulletin").fetchall()
     assert {"own_object", "own_bulletin"} & {r[0] for r in before.execute("SELECT name FROM sqlite_master")} == set() and messages and prefs and board
     before.close()
@@ -126,7 +127,8 @@ def test_a_migration_13_that_doubts_changes_nothing(tmp_path: Path) -> None:
     old = tmp_path / DB_NAME
     version_twelve(old, clock)
     db = raw(old)
-    db.execute("CREATE TABLE own_bulletin (x TEXT)")                           # something is in the way of the second table
+    # Something is in the way of the second table
+    db.execute("CREATE TABLE own_bulletin (x TEXT)")
     db.close()
     ok, why = try_open(old, clock)
     assert not ok and "own_bulletin" in why

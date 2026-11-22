@@ -1,8 +1,6 @@
-"""The database file as a file: how a connection to it is set up, and how a whole copy of it is made.
+"""The database file: how a connection is set up and how a whole copy is made.
 
-They live here so that the connection of the `Db` actor (db.py) is set up exactly as the Store's is (WAL, `synchronous=FULL`, the busy time, the bound of the
-write-ahead log, the file private to its owner), and a copy is made one way: written under a temporary name, checked, synced to the disk, renamed, the folder synced.
-"""
+Shared so the `Db` actor and the Store configure connections and make copies the same way."""
 import os
 import sqlite3
 from collections.abc import Callable
@@ -25,17 +23,19 @@ def private(path: Path) -> None:
 
 
 def configure(db: sqlite3.Connection, path: str | Path, busy_ms: int) -> None:
-    """The pragmas every connection of the program's database gets, in this order. The caller has made the connection with `isolation_level=None` (the transactions are its own)."""
+    """Apply the pragmas every connection gets. The connection must use `isolation_level=None`."""
     db.execute("PRAGMA journal_mode=WAL")
-    db.execute("PRAGMA synchronous=FULL")             # in WAL mode NORMAL does not sync a commit: a setting the page was told of could be lost to a power cut
+    # In WAL mode NORMAL does not sync each commit, so a power cut could lose it.
+    db.execute("PRAGMA synchronous=FULL")
     db.execute(f"PRAGMA busy_timeout={int(busy_ms)}")
-    limit_wal(db)                                # the log is cut to a limit when it restarts
+    limit_wal(db)
     if str(path) != ":memory:":
-        private(Path(path))                           # the operator's position and messages are in it: for this user only (the -wal and -shm follow the file)
+        # Holds position and messages: owner only (-wal and -shm follow).
+        private(Path(path))
 
 
 def connect(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS) -> sqlite3.Connection:
-    """A connection to the database file, set up. It belongs to the thread that calls this (sqlite3 refuses another one). No migration: that is the Store's."""
+    """Return a configured connection; it belongs to the calling thread. No migration."""
     db = sqlite3.connect(str(path), isolation_level=None, timeout=busy_ms / 1000.0)
     try:
         configure(db, path, busy_ms)
@@ -46,8 +46,7 @@ def connect(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS) -> sqlite3.Connect
 
 
 def transaction(db: sqlite3.Connection, fn: Callable[[sqlite3.Connection], T]) -> T:
-    """fn(db) in BEGIN IMMEDIATE ... COMMIT, ROLLBACK when it raises: for the tools that own a connection of their own (in autocommit, isolation_level=None). The daemon never calls this:
-    its statements are operations of the database thread (db.py), which makes the transactions."""
+    """Run fn(db) in BEGIN IMMEDIATE ... COMMIT, ROLLBACK on error (for tools, not the daemon)."""
     db.execute("BEGIN IMMEDIATE")
     try:
         result = fn(db)
@@ -60,34 +59,36 @@ def transaction(db: sqlite3.Connection, fn: Callable[[sqlite3.Connection], T]) -
 
 
 def copy_database(src: sqlite3.Connection, dest: Path) -> None:
-    """The open database as one file at `dest`, private from the first byte, written under a temporary name, checked, synced to the disk, renamed into place, and the
-    folder synced (a power cut then leaves the old copy or the new one, never a name without its data). Raises sqlite3.Error or OSError; whatever was started is removed then."""
+    """Copy the open database to `dest` as one private file, checked and synced.
+
+    A power cut leaves the old copy or the new one. Raise sqlite3.Error or OSError."""
     tmp = dest.with_name(dest.name + ".tmp")
-    journal = tmp.with_name(tmp.name + "-journal")                  # SQLite's, while the copy is written: it stays behind when the copy fails
+    journal = tmp.with_name(tmp.name + "-journal")
     try:
         new_folder = not dest.parent.exists()
         dest.parent.mkdir(parents=True, exist_ok=True)
         tmp.unlink(missing_ok=True)
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)          # private from the first byte
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)  # private from the first byte
         os.close(fd)
         out = sqlite3.connect(str(tmp))
         try:
             src.backup(out)
-            out.execute("PRAGMA journal_mode=DELETE")          # one self-contained file, no -wal or -shm beside it
+            out.execute("PRAGMA journal_mode=DELETE")  # one self-contained file
         finally:
             out.close()
-        private(tmp)                                           # a copy holds the position and messages too
-        check = sqlite3.connect(f"{tmp.absolute().as_uri()}?mode=ro", uri=True)       # read-only: a file that is not there is an error, not a new empty database that passes
+        private(tmp)
+        # Read-only: a missing file is an error, not a new empty database.
+        check = sqlite3.connect(f"{tmp.absolute().as_uri()}?mode=ro", uri=True)
         try:
             if check.execute("PRAGMA quick_check").fetchone()[0] != "ok":
-                raise sqlite3.DatabaseError("the copy is damaged")      # never published, never allowed to push out the good ones
+                raise sqlite3.DatabaseError("the copy is damaged")
         finally:
             check.close()
-        fsync_file(tmp)                                       # on the disk before it has its name: after a power cut the name is never there without the data
+        fsync_file(tmp)  # on disk before it gets its name
         tmp.replace(dest)
-        fsync_dir(dest.parent)                                # and the name itself is on the disk
+        fsync_dir(dest.parent)
         if new_folder:
-            fsync_dir(dest.parent.parent)                     # (a folder made for this copy: its own entry too)
+            fsync_dir(dest.parent.parent)
     except BaseException:
         for leftover in (tmp, journal):
             try:

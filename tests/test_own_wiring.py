@@ -1,6 +1,7 @@
-"""Our own objects and bulletins inside the whole daemon, the radio a fake TNC on the loopback: an object goes out as a KISS frame on radio 1, the one radio, and is on the map as ours, a copy of it that is heard back makes no second one,
-another station that reports it takes it over, a kill is sent three times, a bulletin goes out and is not heard as a bulletin of somebody else, nothing is sent without a call, a restart finds both, and the commands
-and topics of the page."""
+"""Our own objects and bulletins inside the whole daemon with a fake TNC on the loopback: an object
+goes out as a KISS frame and is on the map as ours, a copy heard back makes no second one, and a
+kill is sent three times.
+"""
 from pathlib import Path
 
 import pytest
@@ -126,7 +127,8 @@ async def test_a_bulletin_goes_out_and_the_copy_that_is_heard_back_is_not_a_bull
     [frame] = await said(e)
     assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::BLN1     :Road closed at Kaivopuisto"
     e.feed(on_air("OH2GBA", frame.info, "APZNEO", "OH2RCH-2*,WIDE2-1"))
-    e.feed(on_air("OH2XYZ", b":BLN2     :Gale warning", "APRS", "WIDE1-1"))                   # (another station's bulletin is the board's as ever)
+    # Another station's bulletin is the board's as ever
+    e.feed(on_air("OH2XYZ", b":BLN2     :Gale warning", "APRS", "WIDE1-1"))
     await until(lambda: [b.key for b in e.ctl.bulletins.records()] == ["OH2XYZ/BLN2"])
     await e.settled()
     assert [b.slot for b in e.ctl.ownbulletins.records()] == ["BLN1"] and e.ctl.ownbulletins.records()[0].sent == 1

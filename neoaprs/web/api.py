@@ -1,7 +1,7 @@
-"""What goes over the WebSocket: `hello`, `status`, the topics the page follows, and the commands of the page. See PROTOCOL.md. Every time is UTC ISO 8601.
+"""What goes over the WebSocket: `hello`, `status`, the topics and the commands (see PROTOCOL.md).
 
-The Api is the wiring of neoaprs/web/: it makes the hub and its topics (neoaprs/web/hub.py, neoaprs/web/topics.py) and the publisher (neoaprs/web/outbound.py), runs the status that is told every 10 s, opens and closes the pages
-and gives each command a page sends to the dispatcher (neoaprs/web/dispatch.py, the handlers in neoaprs/web/handlers.py).
+The Api wires neoaprs/web/ together: it makes the hub, the topics and the publisher, broadcasts the
+status every 10 s, opens and closes pages and passes each command to the dispatcher.
 """
 import json
 import logging
@@ -38,18 +38,18 @@ def _no_constant(name: str) -> Any:
 class Api:
     def __init__(self, controller: Controller, validate_out: bool | None = None, reach: Callable[[], list[str]] = list, secure: Callable[[], dict[str, Any]] | None = None, page: str = "") -> None:
         self.ctl = controller
-        self.page = page                                # the build of the page that is served (PageSnapshot.build of neoaprs/web/pagesnapshot.py), told in hello
+        self.page = page  # build of the served page, sent in hello
         self.out = Publisher(validate_out)
-        self.clients = self.out.connections             # the open pages, by their sockets
+        self.clients = self.out.connections  # open pages by socket
         self.hub = StateHub()
         self.topics = Topics(controller, self.hub, self._packet_sent, reach, secure, tell=self.out.broadcast)
-        self.page_errors = PageErrors(controller.clock)  # what the pages report about themselves (neoaprs/web/pageerrors.py)
+        self.page_errors = PageErrors(controller.clock)
         self.dispatcher = Dispatcher(controller, self.hub, self.status, page_errors=self.page_errors, scopes=self.topics.scopes, levels=self.topics.levels, layers=self.topics.layers)
         self.started_at = controller.clock()
         self.meter = ProcessMeter()
         self.tasks = TaskSet(log, "web")
 
-    # ---- lifecycle
+    # lifecycle
     async def start(self) -> None:
         await self.topics.start()
         self.tasks.spawn(every(STATUS_EVERY_SEC, self._status_round, "the status broadcast"), "web-status")
@@ -60,7 +60,7 @@ class Api:
         self.topics.disconnect()
         await self.tasks.cancel_all()
 
-    # ---- what the daemon is
+    # status
     async def status(self) -> dict[str, Any]:
         c, rig = self.ctl.config, self.ctl.rigstatus
         sent = [at for radio in self.ctl.radios.all() if (at := radio.beacon.last_sent) is not None]
@@ -72,12 +72,13 @@ class Api:
                 "unheard_radio": c.unheard_radio, "email_radio": None if (email := self.ctl.radios.email()) is None else email.id, "unavailable_types": list(unavailable_types()),
                 "new_object_radios": list(self.ctl.ownobjects.new_radios()), "new_bulletin_radios": list(self.ctl.ownbulletins.new_radios()),
                 "station_status": rig.last_text, "station_status_last_sent": iso(rig.last_sent_at), "rig_state": rig.rig_state,
-                "update": None if (latest := self.ctl.updatecheck.latest) is None else {"version": latest.version, "url": latest.url, "message": latest.message},          # (the dial goes to the HF box, not here)
-                "message_key": self.ctl.keyring.fingerprint() if self.ctl.keyring.enabled else "",        # (a key file left by an earlier run with --encryption is nothing while the flag is off)
+                "update": None if (latest := self.ctl.updatecheck.latest) is None else {"version": latest.version, "url": latest.url, "message": latest.message},
+                # A key file left from a run with encryption on counts for nothing while it is off.
+                "message_key": self.ctl.keyring.fingerprint() if self.ctl.keyring.enabled else "",
                 "cpu_percent": cpu_percent, "rss_mb": rss_mb, "uptime_sec": int((self.ctl.clock() - self.started_at).total_seconds())}
 
     def _packet_sent(self) -> None:
-        """A packet of ours went out (the beacon, from the timer or a page), or the settings changed (the radios): the pages are told the new status now, not at the next ten seconds."""
+        """Broadcast the status now, after a packet of ours went out or the radios changed."""
         if self.clients:
             self.tasks.spawn(self._tell_all(), "web-status")
 
@@ -88,9 +89,12 @@ class Api:
         if self.clients:
             self.out.broadcast(await self.status())
 
-    # ---- the pages
+    # pages
     def attach(self, client: Client, ip: str = "127.0.0.1", local: bool = False) -> None:
-        """A page opened: it is sent `hello`, every topic whole (it follows them from then on) and `status` (which waits for the database to count the packets). `local`: the page is on this computer itself."""
+        """Send a new page `hello`, every topic whole and `status`.
+
+        `local` is True for a page on this computer.
+        """
         conn = self.out.open(client, ip)
         conn.local = local
         conn.send({"type": "hello", "protocol": PROTOCOL, "version": VERSION, "page": self.page, "install": asdict(self.ctl.install), "local": local, "topics": list(self.hub.topics)})
@@ -110,10 +114,10 @@ class Api:
             self.topics.layers.forget(conn)
         self.out.close(client)
 
-    # ---- the commands
+    # commands
     def on_command(self, client: Client, text: str) -> None:
         conn = self.clients.get(client)
-        if conn is None:                                          # the page left meanwhile
+        if conn is None:  # the page left meanwhile
             return
         try:
             raw = json.loads(text, parse_constant=_no_constant)

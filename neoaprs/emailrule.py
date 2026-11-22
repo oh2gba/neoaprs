@@ -1,10 +1,7 @@
-"""The radio an email goes out on (plan rule 3.5), as one function of the radios there are and the operator's choice (`email/radio`, the select of the E-mail tab): the radio registry's `email()` and the
-status of the page read it, and the services send on it.
+"""The radio an email goes out on (plan rule 3.5), from the radios and the operator's choice.
 
-An email is one message to the gateway EMAIL-2, and it goes out once, on one radio. Only the radios that are enabled and can send count (`radiospec.senders`), of any kind. With one of them, that one,
-whatever is stored (the page then shows no choice). Else the radio chosen while it is one of them. Else (no choice stored, or one that names a radio that is off) the first radio that can send, in the order
-of the boxes (`radiospec.unheard_radio`). None only while no radio that can send is on. Migration 34 stored the radio a mail went on before there was a choice, and a radio that comes on beside it keeps
-it there (neoaprs/sendonrule.py). Whether internet gateways hear a radio's type (`gateway_heard`) decides only what a radio that comes on writes. No I/O."""
+The choice is `email/radio`. An email goes out once, on one enabled radio that can send; no I/O.
+"""
 from collections.abc import Iterable
 
 from .radiospec import RadioId, RadioSpec, senders, unheard_radio
@@ -12,7 +9,7 @@ from .radiotype import RadioTypeError
 
 
 def gateway_heard(spec: RadioSpec) -> bool:
-    """Whether internet gateways hear what goes out on the radio (its type's `allowed.gateway_heard`); False for a type that is not known."""
+    """Return whether internet gateways hear the radio (its `gateway_heard`); False if unknown."""
     try:
         return spec.rtype.allowed.gateway_heard
     except RadioTypeError:
@@ -20,7 +17,7 @@ def gateway_heard(spec: RadioSpec) -> bool:
 
 
 def email_radio(specs: Iterable[RadioSpec], chosen: RadioId | None) -> RadioId | None:
-    """The id of the radio an email goes out on: the one radio that can send; else the one chosen while it is on and can send; else the first radio that can send. None while no radio that can send is on."""
+    """Return the radio an email goes out on: the only sender, else the chosen, else the first."""
     pool = list(specs)
     on = [spec.id for spec in senders(pool)]
     if len(on) == 1:

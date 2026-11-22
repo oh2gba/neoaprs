@@ -1,5 +1,6 @@
-"""The connection to APRS-IS (neoaprs/aprsis.py) against a fake server on the loopback: the greeting, the login line with its filter and the read-only login, `# logresp` verified and unverified, a server that is not APRS-IS or says
-nothing, the keep-alive both ways, the lines of the server read as packets of the internet (and the ones that are none counted), the write queue, the reconnection with the back-off, and the password that is in the login line and nowhere else."""
+"""Tests for the APRS-IS connection (neoaprs/aprsis.py) against a fake server on the loopback:
+login, `# logresp`, keep-alive, packet reading, the write queue, back-off and the password
+handling."""
 import asyncio
 import logging
 
@@ -267,7 +268,8 @@ async def test_a_filter_set_between_the_login_line_and_the_answer_to_it_is_sent_
     await link.start()
     await until(lambda: server.logins)
     assert "filter" not in server.logins[0]
-    link.set_filter("r/60.17/24.94/150")                           # (the login line is written, the state is not connected yet: the filter is kept, not queued)
+    # (the login line is written, the state is not connected yet: the filter is kept, not queued)
+    link.set_filter("r/60.17/24.94/150")
     assert not link._queue
     server.send(f"# logresp {CALL} unverified, server {server.name}".encode())
     await until(lambda: "#filter r/60.17/24.94/150" in server.comments)
@@ -338,10 +340,12 @@ async def test_the_password_is_in_the_login_line_and_in_no_log_line_note_or_erro
     assert any("31415" in login for login in server.logins)
 
 
-# ---- the edges: an open that never ends, a socket that cannot be set, a login answer after other lines, a line too long, a run that is not the current one
+# ---- the edges: an open that never ends, a socket that cannot be set, a login answer after other
+# lines, a line too long, a run that is not the current one
 
 class OtherSocket:
-    """What a stream's writer says its socket is, when it is not the usual one: nothing, or one whose options cannot be set."""
+    """What a stream's writer says its socket is, when it is not the usual one: nothing, or one
+    whose options cannot be set."""
 
     def __init__(self, sock: object) -> None:
         self.sock = sock
@@ -429,12 +433,14 @@ async def test_a_greeting_longer_than_the_reader_takes_is_said_in_our_words_and_
 async def test_a_run_that_is_not_the_current_one_ends_without_touching_the_state() -> None:
     link = link_to(await fake_aprsis())
     link._generation = 5
-    await link._run(4)                                                   # (a task of a start that a stop has replaced since: it must not connect)
+    # (a task of a start that a stop has replaced since: it must not connect)
+    await link._run(4)
     assert link.state is Source.State.STOPPED and link.stats.opens == 0
 
     class Replaced(AprsIs):
         async def _attempt(self) -> tuple[str, LinkReason]:
-            self._generation += 1                                        # (stopped and started again while the attempt failed)
+            # (stopped and started again while the attempt failed)
+            self._generation += 1
             return "the connection ended", "lost"
 
     other = Replaced(FixedClock(), Backoff([0.05]))

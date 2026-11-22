@@ -1,5 +1,7 @@
-"""The database thread dies (neoaprs/dbthread.py): an error that is not SQLite's, in the middle of committing a batch of appends, ends the thread; everything that was asked and not done is answered with
-DbClosed (nobody waits for ever), the one who asks next is refused, and nothing of the batch is kept."""
+"""The database thread dies (neoaprs/dbthread.py): an error that is not SQLite's, in the middle of
+committing a batch of appends, ends the thread; everything that was asked and not done is answered
+with DbClosed (nobody waits for ever), the one who asks next is refused, and nothing of the batch is
+kept."""
 import asyncio
 import sqlite3
 import threading
@@ -15,7 +17,8 @@ from tests.support.riggedsql import plain
 
 
 class Broken(sqlite3.Connection):
-    """A connection whose library breaks (what is not an sqlite3.Error) at the next BEGIN IMMEDIATE once `broken` is set."""
+    """A connection whose library breaks (what is not an sqlite3.Error) at the next BEGIN IMMEDIATE
+    once `broken` is set."""
     broken = threading.Event()
 
     def execute(self, sql: str, *args: object) -> sqlite3.Cursor:
@@ -41,14 +44,17 @@ async def test_a_thread_that_dies_while_committing_a_batch_answers_what_ended_th
     await until(inside.is_set)
     broken.set()
     assert db.write_nowait(lambda conn: conn.execute("INSERT INTO t VALUES (1, 'a')"))
-    read = eager(db.read(lambda conn: 1))                                                      # it ends the batch: the thread has taken it off the queue when the commit breaks
-    write = eager(db.write(lambda conn: conn.execute("INSERT INTO t VALUES (2, 'b')")))        # and these are still on the queue
+    # It ends the batch: the thread has taken it off the queue when the commit breaks
+    read = eager(db.read(lambda conn: 1))
+    # And these are still on the queue
+    write = eager(db.write(lambda conn: conn.execute("INSERT INTO t VALUES (2, 'b')")))
     assert db.write_nowait(lambda conn: conn.execute("INSERT INTO t VALUES (3, 'c')"))
     release.set()
     await held
     for asked in (read, write):
         with pytest.raises(DbClosed, match="has stopped"):
-            await asyncio.wait_for(asked, 5)               # (an answer that never comes is a failure, not a test that never ends)
+            # An answer that never comes is a failure, not a test that never ends
+            await asyncio.wait_for(asked, 5)
     assert wait_gone(2.0) == []
     assert any("the database thread failed" in r.getMessage() for r in caplog.records)
     assert db.is_open, "the Db has not been told: the next ask finds the queue closed"

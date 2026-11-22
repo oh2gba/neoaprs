@@ -1,6 +1,7 @@
-"""Send logs (`POST /support/send`, neoaprs/web/supportsend.py): the daemon makes the support bundle exactly as Download logs does and posts it with the note to the project's server, here a fake one on the loopback
-(tests/support/fakesupportserver.py). The multipart body, the answers of the server (ok, refused, too many, no answer, no connection), what the log says, who may ask, one at a time, and the address that cannot be changed to another
-computer's; the note alone (`file` false: no bundle is made or sent, and the note has words), and the bundle the person downloaded sent as it is when the request names it."""
+"""Send logs (`POST /support/send`, neoaprs/web/supportsend.py): the daemon makes the bundle as
+Download logs does and posts it with the note to a fake server on the loopback: the multipart body,
+server answers, log and access.
+"""
 import asyncio
 import io
 import json

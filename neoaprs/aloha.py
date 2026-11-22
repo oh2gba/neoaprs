@@ -1,15 +1,8 @@
-"""The ALOHA circle of WB4APR: how far from our station the stations heard on RF would fill the channel, so that a packet sent for a station beyond it is a packet that cannot be received reliably.
+"""The ALOHA circle: how far out the stations heard on RF would fill a 1200 baud channel.
 
-The method is that of Bob Bruninga's text "The ALOHA Circle" (aprs.org, 7 November 2011), with the numbers in neoaprs/policy.py. Every station heard on RF lately gets the packets it is taken to send in 30 minutes by its kind
-(a mobile station in motion 15, any other mobile 7, a weather station 6, a digipeater 3, any other 2). The stations are walked from the nearest to the farthest, each adding its packets times C to a total, where C starts at 1
-and rises by one after each digipeater (everything farther away is repeated once more). The circle ends at the station where the total reaches 1800, the packets a 1200 baud channel carries in 30 minutes. If the stations heard
-never reach that, the channel is not full and there is no circle.
-
-The circle is a radio's (plan rule 3.8): it is worked out for a radio whose type says it shares a 1200 baud channel (an FM radio's), from the stations that radio heard on its channel; the stations another radio heard
-(an HF radio's, hundreds of kilometres away) are not on that channel, nor is a station that radio heard only in an iGate's third-party packet (`on_channel_at`). Without a radio named, every station heard on
-the air counts (as before the radios were by id).
-
-Pure code: the stations are those of the station book, and the kinds are told by their symbols."""
+Method of "The ALOHA Circle" (aprs.org), weights in policy.py: walking outward, each station adds
+its kind's packets in 30 minutes times C (plus one per digipeater); the circle ends at 1800.
+"""
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal
@@ -22,18 +15,19 @@ from .symbols import is_mobile
 
 Kind = Literal["moving", "mobile", "weather", "digi", "home"]
 WEIGHTS: dict[Kind, int] = {"moving": ALOHA_WEIGHT_MOVING, "mobile": ALOHA_WEIGHT_MOBILE, "weather": ALOHA_WEIGHT_WEATHER, "digi": ALOHA_WEIGHT_DIGI, "home": ALOHA_WEIGHT_HOME}
-DIGI_CODE = "#"                                 # the symbol of a digipeater, in the primary table and in the alternate one with any overlay
+# digipeater symbol, in the primary table and in the alternate one with any overlay
+DIGI_CODE = "#"
 WEATHER_CODE = "_"
 
 
 @dataclass(frozen=True)
 class Circle:
     radius_km: float
-    stations: int                               # how many stations are inside it (the one at its edge included)
+    stations: int  # stations inside the circle, including the one at its edge
 
 
 def kind_of(station: Station) -> Kind:
-    """What the station is taken to be, by its symbol (a weather report makes a weather station whatever the symbol) and its speed."""
+    """Return the station's kind from its symbol and speed (a weather report means weather)."""
     code = station.symbol_code
     if code == DIGI_CODE:
         return "digi"
@@ -45,8 +39,10 @@ def kind_of(station: Station) -> Kind:
 
 
 def counted(station: Station, since: datetime, radio: RadioId | None = None) -> bool:
-    """A station of the air, not an object or an item, with a position, heard on RF since `since` (on the radio `radio` when one is named). A packet that an iGate put on the air from the internet, or that came
-    from APRS-IS, does not show that the station is on the channel from where it is."""
+    """A station (not an object or item) with a position heard on RF since `since`.
+
+    An iGate's third-party or APRS-IS packet does not show the station is on the channel.
+    """
     if station.kind != "station" or station.is_me or not station.has_position or station.last_on_air_at is None or station.last_on_air_at < since:
         return False
     last = None if radio is None else on_channel_at(station, radio)
@@ -54,8 +50,10 @@ def counted(station: Station, since: datetime, radio: RadioId | None = None) -> 
 
 
 def on_channel_at(station: Station, radio: RadioId) -> datetime | None:
-    """When the radio last heard a packet the station itself put on its channel (direct or by digipeaters, the Dummy radio's too; not an iGate's third-party packet): the latest time of its routes on that
-    radio (`Station.routes_on`: a third-party packet is counted there with no time). A station whose routes on the radio are not known (one made by hand) is taken by what the radio heard of it at all."""
+    """Return when `radio` last heard a packet the station itself sent (not a third-party one).
+
+    A station with no known routes uses any time heard.
+    """
     routes = station.routes_on(radio)
     if routes is None:
         return station.heard_on(radio).last_at
@@ -63,8 +61,10 @@ def on_channel_at(station: Station, radio: RadioId) -> datetime | None:
 
 
 def circle(position: tuple[float, float] | None, stations: list[Station], now: datetime, radio: RadioId | None = None) -> Circle | None:
-    """The ALOHA circle round `position` on the channel of the radio `radio` (the stations it heard; every station of the air when none is named), or None while the position is not known or the stations heard
-    do not fill the channel."""
+    """Return the ALOHA circle around `position` for `radio` (every station of the air if None).
+
+    None while the position is unknown or the stations heard do not fill the channel.
+    """
     if position is None:
         return None
     since = now - timedelta(minutes=ALOHA_WINDOW_MIN)

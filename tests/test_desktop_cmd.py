@@ -1,5 +1,6 @@
-"""`neoaprs app` end to end with the shell and the daemon replaced (tests/support/fakeshell.py, a scripted `open_session`): the second app, the fallbacks when no window can be had, a page that does not come up, a shell that
-fails to start, and `--quit`. The real daemon is tests/test_desktop_session.py, the real toolkits are tests/test_desktop_qt.py and tests/test_desktop_webshell.py."""
+"""Tests for `neoaprs app` end to end with a fake shell and daemon (tests/support/fakeshell.py): a
+second app, window fallbacks, a page that does not come up, a failing shell, and `--quit`.
+"""
 import subprocess
 import sys
 import threading
@@ -19,7 +20,8 @@ FAKE = Choice("tests.support.fakeshell", True)
 
 
 class World:
-    """What the app was asked to do outside itself: the browser, the messages for the user, the daemons it opened a session on."""
+    """What the app was asked to do outside itself: the browser, the messages for the user, the
+    daemons it opened a session on."""
 
     def __init__(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         self.data = tmp_path / "data"
@@ -27,9 +29,11 @@ class World:
         self.browser: list[str] = []
         self.said: list[str] = []
         self.sessions: list[Path] = []
-        self.encryption: list[tuple[str, bool]] = []                     # (what was asked with --encryption: the session's daemon, the start at sign-in)
+        # (what was asked with --encryption: the session's daemon, the start at sign-in)
+        self.encryption: list[tuple[str, bool]] = []
         self.owned = True
-        self.owns: list[bool] = []                                        # (what each session was asked: the owner of the daemon it finds)
+        # (what each session was asked: the owner of the daemon it finds)
+        self.owns: list[bool] = []
         self.page_fails = False
         self.choice = FAKE
         fakeshell.FRAMES.clear()
@@ -60,7 +64,8 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> World:
 
 def test_the_app_started_with_encryption_starts_its_daemon_so_and_start_at_sign_in_too(world: World) -> None:
     world.choice = Choice(None, False)
-    assert world.run("--tray") == 0 and sorted(world.encryption) == [("autostart", False), ("daemon", False)]         # (the daemon is opened in a thread of its own, beside the rest)
+    # (the daemon is opened in a thread of its own, beside the rest)
+    assert world.run("--tray") == 0 and sorted(world.encryption) == [("autostart", False), ("daemon", False)]
     world.encryption.clear()
     assert world.run("--tray", "--encryption") == 0 and sorted(world.encryption) == [("autostart", True), ("daemon", True)], "OH2GAX, 4 Nov 2026: Windows had no way to start the daemon with it"
 
@@ -160,7 +165,8 @@ def test_quit_tells_the_app_and_waits_until_it_has_let_go_of_the_folder(tmp_path
     app = SingleApp(tmp_path)
     assert app.acquire()
     app.handle(lambda command: threading.Timer(0.3, app.close).start() if command == "quit" else None)
-    (tmp_path / PID_NAME).write_text(f"{_ended_pid()}\n", encoding="ascii")                 # (the app here is this process, which does not end: the id of one that has)
+    # (the app here is this process, which does not end: the id of one that has)
+    (tmp_path / PID_NAME).write_text(f"{_ended_pid()}\n", encoding="ascii")
     assert cmd.main(["--quit", "--data", str(tmp_path)]) == 0
     assert "has ended" in capsys.readouterr().err and not app.running()
 
@@ -183,7 +189,9 @@ def test_the_command_is_neoaprs_app_and_neoaprs_app_runs_the_same(capsys: pytest
 
 
 def test_quit_waits_for_the_process_of_the_app_not_only_for_its_lock(tmp_path: Path) -> None:
-    """The lock goes before the process (the window's engine unloads after it): `--quit` says the app has ended only when its process is gone, so that an uninstaller or an update finds no file in use."""
+    """The lock goes before the process (the window's engine unloads after it): `--quit` says the
+    app has ended only when its process is gone, so that an uninstaller or an update finds no file
+    in use."""
     app = SingleApp(tmp_path)
     assert app.acquire()
     app.handle(lambda command: app.close())
@@ -203,7 +211,8 @@ def _ended_pid() -> int:
     return child.pid
 
 
-# ---- the edges: no browser to open the page in, the whole command line, and the program with no console
+# ---- the edges: no browser to open the page in, the whole command line, and the program with no
+# console
 
 def test_with_no_shell_and_no_browser_the_address_is_printed_and_the_person_is_told_to_open_it(world: World, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     world.choice = Choice(None, False)

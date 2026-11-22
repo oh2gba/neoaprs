@@ -1,14 +1,7 @@
-"""A Bluetooth LE device and the bleak library in front of it, for the tests of the BLE port (neoaprs/btle.py): no scan is made and no radio is touched (the guard of tests/support/guards.py puts a stand-in that refuses in place of bleak).
-`FakeBle` is both the library (`BleakScanner`, `BleakClient`, `BleakError`, what `btle.import_bleak` returns) and the device behind it.
-
-    ble = FakeBle(monkeypatch)                        # a device with the Mobilinkd/aprs.fi KISS service; FakeBle(monkeypatch, NUS) has the Nordic UART Service
-    ...                                               # the code under test opens ble://00:11:22:33:44:55
-    ble.feed(b"...")                                  # the device notifies
-    ble.writes                                        # [(bytes, with_response), ...] what the code wrote, one entry per write of the link
-    ble.drop()                                        # the device goes away: bleak calls the disconnected callback
-    ble.connect_error = FakeBleakError("...")        # the next connections fail (None: they work again)
-    ble.disconnect_error = FakeBleakError("...")     # the next disconnects fail
-    ble.seen = False                                  # the scan does not find the device"""
+"""A Bluetooth LE device and the bleak library in front of it, for the tests of neoaprs/btle.py.
+`FakeBle` is both the library (`BleakScanner`, `BleakClient`, `BleakError`) and the device behind
+it; no scan is made and no radio is touched.
+"""
 import asyncio
 from collections.abc import Callable
 from typing import Any
@@ -56,7 +49,8 @@ class FakeBle:
         self.scans: list[str] = []
         self.connects, self.disconnects = 0, 0
         self.writes: list[tuple[bytes, bool]] = []
-        self.notifying: str | None = None                            # the UUID of the characteristic that is listened to
+        # The UUID of the characteristic that is listened to
+        self.notifying: str | None = None
         self.client: "FakeClient | None" = None
         self._notify: Callable[[Any, bytearray], None] | None = None
         self._loop: asyncio.AbstractEventLoop | None = None

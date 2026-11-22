@@ -1,39 +1,7 @@
-"""Messaging: APRS text messages to and from other stations, with acknowledgements and retries, kept in the database.
+"""Messaging: APRS text messages with acknowledgements and retries, kept in the database.
 
-Outgoing (`send`): the addressee (a call, or the name of a station on the internet: callsign.normal_name) and the text (printable ASCII) are checked, the message is given the next message id (two characters: 01..99, then A0..ZZ, 0A..9Z and 00, 1296 in all, going round and skipping those of messages still being
-sent) and kept with state "sending", and it is transmitted at once: a UI frame from `station/call` to the tocall by way of the station's path (below) whose information field is `:` and the message
-(aprsmessage.format_message). Every message carries its number as a reply-ack, `{MM}` or, when the station has sent us a message with a reply-ack number that its ack has not reached it with, `{MM}AA`, the
-id of the latest such message (services/heard.py); an attempt is made as it is, so a retry carries the latest. The attempts
-are made 4 times, 2 for the email gateway (message.attempts_for; the record keeps the number: `attempts_max`), 0, 32, 64, 128, 256, 512, 1024 ... seconds after the first with no wait
-longer than 960 (message.schedule_sec); the answer to the last is waited for FINAL_WAIT_SEC, then the message is "failed", or "unconfirmed" when it was given only 1 or 2 attempts (the station is not expected to ack; an ack that comes later still settles it). An ack from the addressee that quotes our id makes it "acked", a rej "rejected";
-A message to a bulletin or a group (BLN*, ALL, CQ, QST, NWS-*, SKY*, CWA*: neoaprs/bulletin.py) is sent once, without an id, and kept as "unconfirmed" with one attempt; so is a directed query (`ask`: ?APRSP, ?APRSS, ?APRSD, ?APRST to a
-station, once per station and kind in QUERY_EVERY_SEC: services/asking.py, through `send` with `once`), which the conversation shows as a note of what was asked. `cancel` stops a message that is being sent, `retry` sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, `delete` removes a message of any kind (a message being sent is cancelled first).
-An encrypted message (`send` with `locked`; neoaprs/cipher.py, the keys in services/keyring.py) is sealed once, when it is written, with the key we share with the station: the record keeps what was written
-as `text` and what goes on the air as `wire` (every attempt sends the same bytes, so that the addressee's duplicate check sees one message), and is `open`. It is refused while encrypted messages are switched off
-(`lock.off`), while the station has not announced its key (`lock.no_key`) and when the text is over 34 bytes of UTF-8 (`lock.too_long`). `send_key` announces our public key to a station as an ordinary message (`key`).
-One message to a station is on the air at a time (`queued`): a message to a station that another message of ours to it is still being sent to waits, with no attempt made, until that one is acked, rejected, failed or cancelled,
-and then goes; so the messages arrive in the order they were written, and an unanswering station is not sent several at once. The one on the air is the one that has had an attempt, else the oldest. A message that is
-not expected to be acked (given 1 or 2 attempts: the email gateway, a bulletin, a query) neither waits nor holds another up. The database keeps a waiting message as `sending`, with no attempt; the page is told it as `queued`.
-While the Tnc is not connected, or the radio is silent, or transmitting is switched off (receive only: `station/transmit`), an attempt that is due waits (it is not used up, nothing fails, the waits that were running are moved on by the time it
-was away) and the log says so once; a new message, and a retry, is refused at once while it is switched off (code `transmit.off`) and an ack for a message we receive is not sent (nothing is queued).
-
-The radio of a message is its station's (services/messageradio.py: the operator's choice, else the radio that heard the station lately, neoaprs/messagerule.py), asked at its first attempt and kept until the
-message ends, unless the operator chooses another radio for the station or that radio is switched off, or it only stood in for the station's own radio and that is on again: then the next attempt is fitted to the radio of now, and one it cannot carry fails with the reason.
-
-Incoming (`on_packet`, from the Tnc): the inbox (services/inbox.py) keeps a message to us (state "received"), answers it with an ack when it carries an id (`ackMM`, or the exact copy of a reply-ack number: `ackMM}` for `{MM}`, `ackMM}AA` for `{MM}AA`), and
-lets an ack, a rej or the reply-ack of a message to us settle the message of ours that it quotes.
-
-Every message is held here as well as in the database (the page's topic is made from them) and none leaves on its own: nothing is evicted and the daily care does not prune them (the operator deletes with
-`delete` and `delete_conversation`). A start takes the latest MESSAGES_HELD_MAX from the database and says so in the log, as a warning, when there were more. `changed` is told with every message that is new or
-different, `removed` with every one that is deleted.
-
-Every message is kept: those to us, those we send with every change of their state, and the acks and rejects on the message they settle. A message to another station that we only hear is kept too, as
-"overheard" (once for a repeat within DUPLICATE_WINDOW_SEC), apart from the conversations. A message to a bulletin or a group (BLN1, BLNA, BLN3HAMS, ALL, CQ, QST) goes to the
-board (services/bulletins.py) instead, and is never acked; a query or a definition of telemetry channels is not kept at all.
-
-A station may have a path of its own on the radio a frame goes out on (services/prefbook.py, which the composition root gives this as `paths`: the station's own path, empty for direct; else, for attempts 1 and 2 of a message to a station, the path lately heard to reach
-it (route.automatic_path, chosen when the attempt is sent), else `beacon/path`), and every message and every ack to the station goes by way of the own path, or by `beacon/path`, with RFONLY after it when the station is RF only (a path that would be more than 8 digipeaters with it is no path: a message to the station is refused, an attempt
-waits, an ack is not sent, and the log says "path too long for RF only")."""
+Sends with retries and a per-station queue, handles encrypted messages, incoming acks and
+overheard messages, and picks the radio and path each message goes on."""
 import asyncio
 import logging
 from collections.abc import Callable, Iterable
@@ -67,21 +35,22 @@ from neoaprs.tasks import TaskSet
 log = logging.getLogger("neoaprs.messaging")
 
 TICK_SEC = 1.0
-REPLY_ACK_ROOM = 5                              # the bytes a later attempt may add to a message's frame: a reply-ack number (`{MM}AA`) of the longest id another station may give (five characters), which a radio with a fixed frame must have room for
+# Bytes a later attempt may add to a frame: a reply-ack (`{MM}AA`) with a five-character id.
+REPLY_ACK_ROOM = 5
 
 
 def _in_line(record: MessageRecord) -> bool:
-    """A message of ours that is being sent and is expected to be acked: one of those that go to a station one at a time."""
+    """Return whether the message is being sent and expects an ack, so it goes one at a time."""
     return record.direction == "out" and record.state == "sending" and record.msg_id is not None and record.attempts_max > UNCONFIRMED_MAX
 
 
 def _to_let_go(records: Iterable[MessageRecord]) -> MessageRecord | None:
-    """The message to drop from memory when more than MESSAGES_HELD_MAX are held: the oldest settled one, else the oldest an ack may still settle; never one being sent."""
+    """Return the message to drop from memory: the oldest settled, else the oldest unacked."""
     return min((r for r in records if r.state != "sending"), key=lambda r: (r.state in ACK_SETTLES, r.id), default=None)
 
 
 def _pace_running(pace: Pace, radios: MessageRadios, record: MessageRecord) -> bool:
-    """Whether the pause after our latest attempt on the radio the message would go on now is not over (`peek`: nothing kept, nothing logged). With no radio, no pause: the attempt says why it waits."""
+    """Return whether the pause after the latest attempt on the message's radio is running."""
     try:
         radio = radios.peek(record)
     except MessagingError:
@@ -94,43 +63,45 @@ class Messaging:
                  board: Callable[[Packet, Message], None] | None = None, alert: Callable[[MessageRecord], None] | None = None,
                  spacing_sec: float = SPACING_SEC, qru: Callable[[Packet, Message], bool] | None = None,
                  qru_answer: Callable[[Packet, Message], bool] | None = None, keyring: Keys | None = None) -> None:
-        self._given = radios                                    # the station's radios (the registry; which app.py gives; an old shape of a test's: services/answers.py `as_pick`, read at each call)
-        self.keyring: Keys = keyring or NoKeys()                # the keys of encrypted messages (services/keys.py)
+        self._given = radios                                    # read through `as_pick` at each call
+        self.keyring: Keys = keyring or NoKeys()
         self._config = config
         interlock = Interlock(config)
         self._log = messagelog
-        self._paths = paths                                     # the digipeaters of what we send to a station, for attempt n of a message, on a radio (PrefBook.path_for)
+        # Digipeaters for attempt n of a message on a radio (PrefBook.path_for).
+        self._paths = paths
         self.clock, self.tick_sec = clock, tick_sec
-        self.pace = Pace(clock, spacing_sec)                    # several messages written together go out one after the other on each radio, never in a burst
+        self.pace = Pace(clock, spacing_sec)
         self.changed: Signal[[MessageRecord]] = Signal("messaging_changed")
         self.removed: Signal[[MessageRecord]] = Signal("messaging_removed")
-        self._records: dict[int, MessageRecord] = {}            # every message by id
-        self.acks = Acks(lambda: as_pick(radios, config), interlock, lambda info, to, radio: self._frame(info, to, radio=radio), clock)      # the ids we give and the acks we send (built for the radio they go back on), or hold for a radio that is held (services/acks.py)
-        self.retries = Retries(self, radios, config, interlock, clock, lambda: self.tick_sec, self.acks.flush)         # when each message being sent needs attention, and the ticker (services/retries.py), which sends the acks that waited first
-        self._refused: dict[int, str] = {}                      # the messages whose attempt cannot be made, with why: told once, not at every tick
-        self.delivery = Delivery(messagelog)                    # the attempts of every message and the hops heard back (services/delivery.py)
-        self.message_radios = MessageRadios(radios, config, lambda number: last_run(self.delivery.attempts_of(number)))     # the radio each message keeps from its first attempt, after a restart its last one's (services/messageradio.py)
-        self.asking = Asking(self, clock)                       # the directed queries we send (services/asking.py)
-        self.inbox = Inbox(self, config, messagelog, TaskSet(log, "messaging"), board, alert, qru, qru_answer, self.keyring)       # what the Tnc hears (services/inbox.py); `board` takes the messages to bulletins and groups, `alert` the first copy of each message to us, `qru` a request to QRU, `qru_answer` whether a message to us is a QRU server's answer (not kept)
+        self._records: dict[int, MessageRecord] = {}            # by id
+        self.acks = Acks(lambda: as_pick(radios, config), interlock, lambda info, to, radio: self._frame(info, to, radio=radio), clock)
+        self.retries = Retries(self, radios, config, interlock, clock, lambda: self.tick_sec, self.acks.flush)
+        # Messages whose attempt cannot be made, with the reason; logged once, not every tick.
+        self._refused: dict[int, str] = {}
+        self.delivery = Delivery(messagelog)
+        self.message_radios = MessageRadios(radios, config, lambda number: last_run(self.delivery.attempts_of(number)))
+        self.asking = Asking(self, clock)
+        # `board` takes bulletin and group messages, `alert` the first copy of each message to us.
+        self.inbox = Inbox(self, config, messagelog, TaskSet(log, "messaging"), board, alert, qru, qru_answer, self.keyring)
 
     def records(self) -> list[MessageRecord]:
-        """The messages held, the oldest first."""
+        """Return the held messages, oldest first."""
         return sorted(self._records.values(), key=lambda r: r.id)
 
     def get(self, number: int) -> MessageRecord | None:
         return self._records.get(number)
 
     def queued(self, record: MessageRecord) -> bool:
-        """Whether the message waits for another of ours to the same station (one that has had an attempt, or an older one that has not) to be acked, rejected, failed or cancelled: no attempt of it is made meanwhile."""
+        """Return whether the message waits for an earlier one to the same station to settle."""
         return _in_line(record) and record.attempts == 0 and any(other.id != record.id and other.to_call == record.to_call and _in_line(other) and (other.attempts > 0 or other.id < record.id) for other in self._records.values())
 
     def _line_of(self, record: MessageRecord) -> list[MessageRecord]:
-        """The other messages of ours being sent to the same station: whether each waits may have changed with this one."""
+        """Return the other queued messages to the station; this one may change their waiting."""
         return [other for other in self._records.values() if other.id != record.id and other.to_call == record.to_call and _in_line(other)]
 
-    # ---- life
     async def start(self) -> None:
-        """Takes the messages from the database, picks up the schedule of those still being sent, and starts the ticker."""
+        """Load the messages, resume the schedule of those still being sent and start the ticker."""
         if self.retries.running:
             return
         latest = await self._log.held(MESSAGES_HELD_MAX)
@@ -151,12 +122,10 @@ class Messaging:
         await self.retries.stop()
         await self.inbox.stop()
 
-    # ---- sending
     async def send(self, to_call: str, text: str, once: bool = False, locked: bool = False) -> MessageRecord:
-        """Keeps a new message to `to_call` and transmits it. Raises MessagingError, with the reason, when the addressee or the text is not right, the radio is silent, or the message cannot be kept. The message is given back
-        as it is after the first attempt; when the Tnc is not connected it has had none yet and the attempt waits. While the call is not set (the interlock) it is refused with "set your call first". With `once` (what a
-        directed query is, services/asking.py) it goes out as a message to a bulletin does: without an id, with one attempt. With `locked` the text (UTF-8, at most 34 bytes) is sealed with the key we share with the
-        station, and what goes on the air is the ciphertext (neoaprs/cipher.py); refused while encrypted messages are off, or the station has not announced its key."""
+        """Keep a new message, transmit it and return it as after the first attempt.
+
+        `once` sends it without an id; `locked` seals the text. Raise MessagingError if refused."""
         ours = our_call(self._config())
         board = board_slot(to_call)
         once = once or board is not None
@@ -168,7 +137,7 @@ class Messaging:
             raise MessagingError(f"{to} is our own call", "message.own_call", call=to)
         if locked:
             if board is not None or once:
-                raise MessagingError("a bulletin or a query cannot be encrypted", "failed")          # (the page offers no lock for either)
+                raise MessagingError("a bulletin or a query cannot be encrypted", "failed")
             return await self._send(ours, to, text, False, "open", self.keyring.sealed(ours, to, text))
         try:
             check_text(text)
@@ -177,7 +146,9 @@ class Messaging:
         return await self._send(ours, to, text, once, "", None)
 
     async def send_key(self, to_call: str) -> MessageRecord:
-        """Announces our public key to a station as an ordinary message (`key`), so that it can encrypt to us; made when there is none yet. Refused while encrypted messages are switched off (`lock.off`), as `send` refuses."""
+        """Announce our public key to a station as an ordinary message so it can encrypt to us.
+
+        Refused with `lock.off` while encrypted messages are off."""
         ours = our_call(self._config())
         self.keyring.refuse_unless_on()
         try:
@@ -189,11 +160,11 @@ class Messaging:
         return await self._send(ours, to, self.keyring.key_text(), False, "key", None)
 
     async def _send(self, ours: str, to: str, text: str, once: bool, seal: Seal, wire: str | None) -> MessageRecord:
-        """What every message of ours goes through once its addressee and text are right: the radio is asked, the frame is tried, the message is kept and the first attempt made."""
+        """Pick the radio, check the frame fits, keep the message and make the first attempt."""
         radio = self.message_radios.station(to)
         if radio.state is Source.State.SILENT:
             raise MessagingError.of(radio.why_unusable())
-        self._frame(info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else ""), to, room=0 if once else REPLY_ACK_ROOM, radio=radio)          # (the settings make a frame, and the text one that the radio carries)
+        self._frame(info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else ""), to, room=0 if once else REPLY_ACK_ROOM, radio=radio)
         ident = None if once else self.acks.allocate(self._records.values())
         record = await self._log.insert(MessageRecord(0, self.clock(), "out", ours, to, text, ident, "sending", attempts_max=1 if once else attempts_for(to), seal=seal, wire=wire))
         if record is None:
@@ -203,21 +174,21 @@ class Messaging:
         return self.attempt(record)
 
     def retry(self, number: int) -> MessageRecord:
-        """Sends a failed, unconfirmed, rejected or cancelled message again, from the first attempt of the schedule."""
+        """Send a failed, unconfirmed, rejected or cancelled message again from attempt one."""
         our_call(self._config())
         record = self._ours(number)
         if record.state not in RETRYABLE:
-            raise MessagingError(f"message {number} is {record.state}: only a failed, unconfirmed, rejected or cancelled message is sent again", "failed")      # (the page offers it for no other: it changed meanwhile)
-        self._frame(info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, None if record.msg_id is None else ""), record.to_call, None if record.msg_id is None else 1, room=0 if record.msg_id is None else REPLY_ACK_ROOM)          # (a message that does not fit the station's radio now is refused to the page, not sent to fail again)
+            raise MessagingError(f"message {number} is {record.state}: only a failed, unconfirmed, rejected or cancelled message is sent again", "failed")
+        self._frame(info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, None if record.msg_id is None else ""), record.to_call, None if record.msg_id is None else 1, room=0 if record.msg_id is None else REPLY_ACK_ROOM)
         log.info("message %d to %s is sent again from the first attempt (it was %s; the operator asked)", number, record.to_call, record.state)
         record = replace(record, state="sending", attempts=0, last_attempt_at=None, acked_at=None, failure=None, snr=None, rssi=None)
         self.delivery.restart(number)
-        self.message_radios.forget(number)                     # (it is given the station's radio of now at its first attempt)
+        self.message_radios.forget(number)
         self.put(record)
         return self.attempt(record)
 
     def cancel(self, number: int) -> MessageRecord:
-        """Stops sending a message; it is kept, as "cancelled"."""
+        """Stop sending a message and keep it as "cancelled"."""
         record = self._ours(number)
         if record.state != "sending":
             raise MessagingError(f"message {number} is {record.state}: only a message that is being sent can be cancelled", "failed")
@@ -227,8 +198,9 @@ class Messaging:
         return record
 
     async def delete(self, number: int) -> None:
-        """Removes a message of any kind from the database, from here and (by `removed`) from every page; one that is being sent is cancelled first, so that no attempt is made while it goes. Raises
-        MessagingError when there is no such message, or the database would not take the removal (the message is then kept, cancelled if it was being sent)."""
+        """Remove a message from the database and memory, cancelling it first if being sent.
+
+        Raise MessagingError if there is no such message or the database refuses."""
         record = self._records.get(number)
         if record is None:
             raise MessagingError(f"there is no message {number}", "failed")
@@ -239,14 +211,15 @@ class Messaging:
         self._drop(number)
 
     async def delete_conversation(self, call: str) -> int:
-        """Removes every message of the conversation with the station (those we sent to it and those it sent to us; the ones we only overheard it sending to others are not the conversation's) from the
-        database in one write, from here and (by `removed`, one for each) from every page; those being sent are cancelled first. The station's path and timeout stay. Returns how many messages the database had.
-        Raises MessagingError when the call is none, when there is no message with the station, or when the database would not take the removal (the messages are then kept, those that were being sent cancelled)."""
+        """Remove the messages sent to and received from the station; return the count.
+
+        Raise MessagingError if there is none or the database refuses."""
         try:
             peer = normal_name(call)
         except CallsignError as e:
             raise MessagingError.of(e) from None
-        await asyncio.gather(*self.inbox.tasks, return_exceptions=True)          # (a message that is being kept is part of the conversation)
+        # A message still being stored belongs to the conversation.
+        await asyncio.gather(*self.inbox.tasks, return_exceptions=True)
         held = [r for r in self._records.values() if r.state != "overheard" and r.peer == peer]
         for record in held:
             if record.state == "sending":
@@ -261,11 +234,12 @@ class Messaging:
         return count
 
     async def delete_overheard(self, from_call: str, to_call: str) -> int:
-        """Removes every message we only overheard `from_call` sending to `to_call` (the pair as the Messages list shows it) from the database in one write, from here and (by `removed`, one for each) from every
-        page. The conversations, the messages we sent and the ones sent to us are not touched. Returns how many the database had. Raises MessagingError when there is none of that pair, or when the database
-        would not take the removal (the messages are then kept)."""
+        """Remove the messages overheard from `from_call` to `to_call`; return the count.
+
+        Raise MessagingError if there is none of that pair or the database refuses."""
         sender, addressee = named(from_call), named(to_call)
-        await asyncio.gather(*self.inbox.tasks, return_exceptions=True)          # (a message that is being kept is part of the pair)
+        # A message still being stored belongs to the pair.
+        await asyncio.gather(*self.inbox.tasks, return_exceptions=True)
         held = [r for r in self._records.values() if r.state == "overheard" and r.from_call == sender and r.to_call == addressee]
         count = await self._log.delete_overheard(sender, addressee)
         if count is None:
@@ -277,7 +251,7 @@ class Messaging:
         return count
 
     def _drop(self, number: int) -> None:
-        """A message the database has removed, or one let go from memory: gone from here, from its schedule and chain, and told."""
+        """Forget a message removed from the database or dropped from memory, and announce it."""
         gone = self._records.pop(number, None)
         self.retries.forget(number)
         self._refused.pop(number, None)
@@ -293,30 +267,29 @@ class Messaging:
         return record
 
     def radio_of(self, record: MessageRecord) -> AirRadio | None:
-        """The radio the message goes out on (services/messageradio.py: the one of its first attempt while it may keep it; services/retries.py gates each attempt by it); None while it has none (the email
-        gateway with no email radio, no radio at all)."""
+        """Return the radio the message goes out on, or None (no email radio, no radio at all)."""
         try:
             return self.message_radios.of(record)
         except MessagingError:
             return None
 
     def radio_now(self, record: MessageRecord) -> AirRadio | None:
-        """The radio `radio_of` gives now, with nothing kept and nothing logged: the page's row (`radio_now`). None while there is none."""
+        """Return what `radio_of` would give, keeping and logging nothing; None if there is none."""
         try:
             return self.message_radios.peek(record)
         except MessagingError:
             return None
 
     def _frame(self, field: bytes, to: str, attempt: int | None = None, room: int = 0, radio: AirRadio | None = None) -> ax25.Frame:
-        """Our frame to the station for this information field: from `station/call` to the tocall by way of the station's path (for attempt number `attempt` of a message to it, when it is given), for `radio` (the
-        one an ack goes back on; the station's radio when none is named): its path rules and its frame cap. A frame longer than the radio carries, with `room` bytes more that a later attempt may add (a reply-ack number),
-        is refused with the code `message.too_long_for_radio`: a message is never cut."""
+        """Return our frame to the station on `radio` (default: the station's own).
+
+        Raise MessagingError if the frame plus `room` bytes for a reply-ack exceeds the cap."""
         c = self._config()
         radio = radio or self.message_radios.station(to)
         try:
             frame = our_frame(c, reply_path_on(radio, c, self._paths(to, attempt, radio.id)), field)
         except MessagingError:
-            raise                                                   # (the path of a station that is RF only is too long: the reason is the path's)
+            raise                                                   # e.g. an RF-only path that is too long
         except FRAME_ERRORS as e:
             raise MessagingError.of(e, f"the settings make no frame: {e}") from None
         limit = radio.max_frame
@@ -325,9 +298,11 @@ class Messaging:
         return frame
 
     def attempt(self, record: MessageRecord) -> MessageRecord:
-        """Transmits the message once, when the radio can, its pause after our latest attempt is over (services/pace.py: each radio's) and it does not wait for another to the same station (`queued`); the message as it is after."""
+        """Transmit the message once if the radio is up, its pause is over and it is not `queued`.
+
+        Return the message as it is afterwards."""
         if self.queued(record) or not self.retries.radio_up(record) or _pace_running(self.pace, self.message_radios, record):
-            return record                                            # (what waits is due at the next tick)
+            return record                                            # still due at the next tick
         reply = None if record.msg_id is None else self.inbox.heard.reply_for(record.to_call, self.clock()) or ""
         try:
             radio = self.message_radios.of(record)
@@ -342,24 +317,24 @@ class Messaging:
             return record
         self._refused.pop(record.id, None)
         if not sent:
-            return record                                            # (the TNC is restarting into KISS mode, or the write failed: it is tried again at the next tick)
+            # The TNC is restarting or the write failed; retried at the next tick.
+            return record
         at = self.pace.stamp(radio.id)
         self.message_radios.sent(record, radio, at)
         record = replace(record, attempts=record.attempts + 1, last_attempt_at=at)
         self.delivery.sent(record, tuple(str(a) for a in frame.path), at, radio.id)
         if record.msg_id is None:
-            record = replace(record, state="unconfirmed")                   # (a bulletin or a group message is sent once and nobody acks it)
+            record = replace(record, state="unconfirmed")                   # sent once; nobody acks it
         log.info("message %d to %s sent on the %s radio (attempt %d of %d): %s", record.id, record.to_call, radio_word(radio), record.attempts, record.attempts_max, record.text if record.wire is None else record.wire)
         self.put(record)
         return record
 
-    # ---- keeping
     def put(self, record: MessageRecord) -> None:
-        """A new or changed message: held, planned, kept in the database and told. When its state changed, the other messages being sent to the station are told again: one of them may wait, or not, now."""
+        """Hold, schedule, store and announce a new or changed message (and the queue it is in)."""
         before = self._records.get(record.id)
         self._records[record.id] = record
         if before is None and len(self._records) > MESSAGES_HELD_MAX and (oldest := _to_let_go(self._records.values())) is not None:
-            self._drop(oldest.id)                               # (it stays in the database, as after a start)
+            self._drop(oldest.id)                               # stays in the database
         if record.state != "sending":
             self.message_radios.forget(record.id)
         self.retries.plan(record)
@@ -371,21 +346,21 @@ class Messaging:
                 self.changed.emit(other)
 
     def forget_heard(self, keep_days: int) -> None:
-        """The daily care: the memory of when each message was heard, which tells a repeat from a new message, is dropped for what is older than `keep_days` days. The messages themselves stay."""
+        """Drop heard-times older than `keep_days` days, which tell a repeat from a new message."""
         self.inbox.forget_before(self.clock() - days(keep_days))
 
-    # ---- incoming
     def on_packet(self, packet: Packet) -> None:
-        """The Tnc heard (or sent) a packet; the inbox keeps, acks or settles."""
+        """Pass a heard or sent packet to the inbox."""
         self.inbox.on_packet(packet)
 
     def echoed(self, packet: Packet, message: Message) -> None:
-        """A packet from our own call was heard: a copy of a message we sent is linked to its attempt, and told when it showed a hop not known before."""
+        """Link a heard copy of our message to its attempt; announce it if it showed a new hop."""
         found = self.delivery.heard(self._records.values(), packet, message)
         if found is not None:
             self.changed.emit(found)
 
     def ack(self, to: str, msg_id: str, reply_ack: str | None = None, packet: Packet | None = None) -> None:
-        """Acknowledges message `msg_id` of the station `to`: `ackMM`, or the number as it came for a message with a reply-ack number, `ackMM}` for `{MM}` (`reply_ack` "") and `ackMM}AA` for `{MM}AA`; on the radio the
-        message (`packet`) came on."""
+        """Acknowledge message `msg_id` of station `to` on the radio the message (`packet`) came on.
+
+        The ack is `ackMM`, or `ackMM}` / `ackMM}AA` when the message carried a reply-ack."""
         self.acks.send(to, msg_id, reply_ack, None if packet is None else ack_radio(as_pick(self._given, self._config), packet, to))

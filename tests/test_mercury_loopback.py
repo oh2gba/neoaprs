@@ -1,7 +1,8 @@
-"""The Mercury NeoAPRS ships listens on this computer only: the program built by scripts/build-mercury (packaging/mercury/loopback.patch on the pinned source) is started once on its fifo backend, and its four TCP
-ports, the KISS broadcast port, the control port and the ARQ data port and the UI interface's, are each bound to 127.0.0.1 and nothing else in the kernel's table of sockets. Mercury has no password on those ports: one that listened on every
-interface would let any host on the LAN key the radio past every interlock of the daemon, which is why the daemon too refuses such a program (tests/test_mercury_modem.py). Runs where the built program is (a checkout after
-`scripts/build-mercury --install`, the `sim` stage, the release's checks) and is skipped elsewhere; also holds the patch file and the build script to what they say."""
+"""The Mercury NeoAPRS ships listens on this computer only: the built program is started once on its
+fifo backend and its four TCP ports are each bound to 127.0.0.1 and nothing else. Runs where the
+built program is (after `scripts/build-mercury --install`) and is skipped elsewhere; also holds the
+patch and build script.
+"""
 import os
 import subprocess
 import sys
@@ -33,7 +34,8 @@ def test_the_shipped_mercury_listens_on_the_loopback_only(tmp_path: Path) -> Non
     if program is None or sys.platform != "linux" or not Path("/proc/net/tcp").is_file():
         pytest.skip("the built Mercury (scripts/build-mercury --install) and the kernel's table of sockets are needed")
     broadcast, control = free_ports(18500, 40)
-    ui = next(port for port in range(17500, 17540) if _free(port))                  # (below the ports of the test workers, which begin at 20000: tests/test_mercury_modem.py)
+    # Below the ports of the test workers, which begin at 20000: tests/test_mercury_modem.py
+    ui = next(port for port in range(17500, 17540) if _free(port))
     ports = (broadcast, control, control + 1, ui)
     capture, playback, ini = tmp_path / "capture", tmp_path / "playback", tmp_path / "mercury.ini"
     os.mkfifo(capture)

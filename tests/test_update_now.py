@@ -1,5 +1,7 @@
-"""Check now (`update_check`, answered with `update_result`): the question of the daily update check put to the version page on request, through the daemon, against a fake version page on the loopback. It works whatever
-NEOAPRS_UPDATE_CHECK says (an explicit click), tells the page that asked what came of it and the newer version in a `status`, and leaves the daily schedule alone."""
+"""Check now (`update_check`, answered with `update_result`): the daily check put to a fake version
+page on request through the daemon. It works whatever NEOAPRS_UPDATE_CHECK says and leaves the daily
+schedule alone.
+"""
 import asyncio
 from dataclasses import replace
 from pathlib import Path

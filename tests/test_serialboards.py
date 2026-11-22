@@ -1,4 +1,6 @@
-"""The search leaves development boards alone (neoaprs/serialboards.py): their USB console resets the chip when the port is opened. The USB ids come from faked listings of the ports: no device is looked at."""
+"""The search leaves development boards alone (neoaprs/serialboards.py): their USB console resets
+the chip when the port is opened. The USB ids come from faked listings of the ports: no device is
+looked at."""
 import asyncio
 import logging
 from pathlib import Path
@@ -49,8 +51,9 @@ def test_the_vendors_that_make_bridges_and_tncs_are_not_skipped_whole() -> None:
 
 @pytest.fixture
 def machine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Ids:
-    """/dev of the test: ttyACM0 an ESP32, ttyACM1 a device with ids that are no board's, ttyUSB0 an FTDI, ttyUSB1 a port without ids, and the by-id links of the first and the third. The dict is the USB ids
-    the system lists for each node; a node taken out of it is not listed."""
+    """/dev of the test: ttyACM0 an ESP32, ttyACM1 a device with ids that are no board's, ttyUSB0 an
+    FTDI, ttyUSB1 a port without ids, and the by-id links of the first and the third. The dict is
+    the USB ids the system lists for each node; a node taken out of it is not listed."""
     ids: Ids = {"ttyACM0": ESP32, "ttyACM1": (0x2166, 0x0001), "ttyUSB0": (0x0403, 0x6001), "ttyUSB1": None}
     (tmp_path / "serial" / "by-id").mkdir(parents=True)
     for name in ids:
@@ -65,7 +68,8 @@ def pattern_of(root: Path) -> str:
     return f"{root}/serial/by-id/* {root}/ttyUSB* {root}/ttyACM*"
 
 
-@posix_only                       # the search runs on Linux, where a by-id name is a link to the device node
+# The search runs on Linux, where a by-id name is a link to the device node
+@posix_only
 def test_the_search_leaves_a_board_out_whatever_name_it_is_found_by(tmp_path: Path, machine: Ids) -> None:
     ports, boards = searchable_ports(pattern_of(tmp_path))
     assert ports == [str(tmp_path / "serial/by-id/usb-FTDI_FT232R-if00-port0"), str(tmp_path / "ttyACM1"), str(tmp_path / "ttyUSB1")]
@@ -73,7 +77,8 @@ def test_the_search_leaves_a_board_out_whatever_name_it_is_found_by(tmp_path: Pa
     assert searchable_ports(f"{tmp_path}/ttyACM0")[1] == {str(tmp_path / "ttyACM0"): "an ESP32 development board (USB 303a:1001)"}
 
 
-@posix_only                       # the search runs on Linux, where a by-id name is a link to the device node
+# The search runs on Linux, where a by-id name is a link to the device node
+@posix_only
 def test_a_port_the_system_does_not_list_is_searched(tmp_path: Path, machine: Ids) -> None:
     del machine["ttyACM0"]
     assert searchable_ports(f"{tmp_path}/ttyACM0") == ([str(tmp_path / "ttyACM0")], {})
@@ -92,7 +97,8 @@ async def find(search: PortSearch, pattern: str) -> str:
     return await search.find(pattern, 9600, 0.2, lambda heard: False, False, 1.0, (), lambda: True)
 
 
-@posix_only                       # the search runs on Linux, where a by-id name is a link to the device node
+# The search runs on Linux, where a by-id name is a link to the device node
+@posix_only
 async def test_the_search_says_once_which_board_it_skipped_and_why(tmp_path: Path, machine: Ids, caplog: pytest.LogCaptureFixture) -> None:
     (tmp_path / "ttyACM1").unlink()
     (tmp_path / "ttyUSB0").unlink()
@@ -106,7 +112,8 @@ async def test_the_search_says_once_which_board_it_skipped_and_why(tmp_path: Pat
     assert told == [f"tnc: skipping {tmp_path}/serial/by-id/usb-Espressif_USB_JTAG-if00: an ESP32 development board (USB 303a:1001)"]
 
 
-@posix_only                       # the search runs on Linux, where a by-id name is a link to the device node
+# The search runs on Linux, where a by-id name is a link to the device node
+@posix_only
 async def test_with_nothing_but_boards_the_error_names_them_and_the_way_out(tmp_path: Path, machine: Ids) -> None:
     with pytest.raises(SerialError) as caught:
         await find(port_search(), f"{tmp_path}/ttyACM0")

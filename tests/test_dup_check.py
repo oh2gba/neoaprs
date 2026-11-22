@@ -1,6 +1,6 @@
-"""The duplication ratchet of the Python half (scripts/dup-check and scripts/dup-compare.py): a new clone, a larger clone and more duplicated lines fail; a clone that is gone does not, and says the
-baseline can be tightened. The real jscpd is run by `scripts/check --stage dup-py` (it needs node and ui/node_modules); here a stand-in writes the report, so that what is tested is our logic:
-the pair of files as the identity of a clone, the comparison, --update, and what the script passes to jscpd."""
+"""Tests for the duplication ratchet (scripts/dup-check, scripts/dup-compare.py): new or larger
+clones fail, removed ones do not. A stand-in writes the jscpd report, so the comparison logic is
+tested."""
 import importlib.util
 import json
 import os
@@ -14,7 +14,8 @@ from types import ModuleType
 import pytest
 from tests.support.ptyline import posix_only
 
-pytestmark = posix_only      # (a bash stand-in for jscpd: a development check, not the product)
+# (a bash stand-in for jscpd: a development check, not the product)
+pytestmark = posix_only
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -95,13 +96,15 @@ def test_the_script_writes_the_first_baseline_passes_on_the_same_clones_and_fail
     env = stand_in(tree, report(clone("neoaprs/a.py", "neoaprs/b.py", 12), clone("neoaprs/c.py", "neoaprs/web/d.py", 30), lines=42, percentage=0.4))
     failed = dup_check(tree, env)
     assert failed.returncode == 1 and "new clone: neoaprs/c.py <-> neoaprs/web/d.py" in failed.stdout
-    refused = dup_check(tree, env, "--update")                                          # the baseline is not made larger by --update
+    # the baseline is not made larger by --update
+    refused = dup_check(tree, env, "--update")
     assert refused.returncode == 1 and json.loads((tree / "scripts" / "dup-baseline.json").read_text(encoding="utf-8")) == saved
 
 
 def test_the_script_asks_jscpd_for_the_agreed_limits_over_the_python_tree(tree: Path) -> None:
     env = stand_in(tree, report())
-    (tree / "ui" / "src").mkdir(parents=True)                                           # (the page has its own check, the stage dup)
+    # (the page has its own check, the stage dup)
+    (tree / "ui" / "src").mkdir(parents=True)
     assert dup_check(tree, env, "--update").returncode == 0
     args = (tree / "args").read_text(encoding="utf-8")
     assert args.startswith("neoaprs tests/support --min-lines 10 --min-tokens 100 ")

@@ -1,9 +1,8 @@
-"""What a cut (neoaprs/pmtilescut.py) fetches and writes, worked out from the directories of the source before a byte of tile data is fetched.
+"""Work out what a cut fetches and writes, from the directories of the source alone.
 
-The root directory and, a level at a time, the leaf directories that reach into the box are read (at most `MAX_LEAF_DEPTH` levels of leaves, the leaves of one level in requests of up to `LEAF_CHUNK`
-bytes, `threads` at once); the entries of the tiles in the box are kept, in the order of their ids. Each content gets its place in the new tile data the first time a tile names it, so that the new archive is
-clustered and a shared content is there once. The pieces of the source to fetch are then grouped into requests. What is held is four columns of the entries kept (24 bytes each), two of the contents
-(12 bytes each), the requests and the new directories; for a cut of 300 MB with 400 000 tiles about 20 MB."""
+The directories that reach into the box are read and the entries of its tiles kept in tile id
+order; each content gets its place when first named, so shared contents are stored once.
+"""
 import array
 from bisect import bisect_left
 from collections.abc import Iterator
@@ -14,33 +13,46 @@ from .mapstate import Box
 from .pmtilesformat import (HEADER_LENGTH, MAX_LEAF, MAX_LEAVES, MAX_ROOT, Entries, FormatError, Header, Leaf, Ranges, cover, decode, directories, header_bytes, touched, unpack)
 from .pmtilesrange import CutError, Halt, Source, in_parallel, read
 
-MAX_LEAF_DEPTH = 3                          # the levels of leaves under the root that a reader of the format looks into
-MAX_TILE_ENTRIES = 5_000_000                # 120 MB of columns
+# Levels of leaves under the root that a reader of the format looks into.
+MAX_LEAF_DEPTH = 3
+# 120 MB of columns.
+MAX_TILE_ENTRIES = 5_000_000
 MAX_METADATA = 16 * 1024 * 1024
 LEAF_CHUNK = 4 * 1024 * 1024
-LEAF_GAP = 64 * 1024                        # leaves this close to each other are fetched with one request
+# Leaves this close to each other are fetched with one request.
+LEAF_GAP = 64 * 1024
 END = 1 << 64
 
-Request = tuple[int, int, int, int, int]    # the start and end in the source, the first piece and the one after the last, the place of the first piece in the new tile data
+# One request: start and end in the source, first piece, the piece after the last, and the place
+# of the first piece in the new tile data.
+Request = tuple[int, int, int, int, int]
 
 
 @dataclass(frozen=True)
 class Cut:
-    tiles: int                              # the tile entries of the archive (what go-pmtiles says as "fetching N tiles")
-    bytes: int                              # the size of the archive
-    addressed: int                          # the tiles it holds, a run of tiles counted tile by tile
-    contents: int                           # the tile contents it holds, a shared one once
-    requests: int                           # the requests for its tile data
+    # Tile entries of the archive.
+    tiles: int
+    # Size of the archive.
+    bytes: int
+    # Tiles held, a run counted tile by tile.
+    addressed: int
+    # Tile contents held, a shared one once.
+    contents: int
+    # Requests for the tile data.
+    requests: int
 
 
 @dataclass(frozen=True)
 class Plan:
     cut: Cut
-    head: bytes                             # the new header, root directory, metadata and leaf directories: everything before the tile data
-    piece_sources: "array.array[int]"       # the offset in the source of each content, in the order of the new tile data
+    # Everything before the tile data: header, root directory, metadata, leaf directories.
+    head: bytes
+    # Source offset of each content, in the order of the new tile data.
+    piece_sources: "array.array[int]"
     piece_lengths: "array.array[int]"
     requests: list[Request]
-    fetched: int                            # the bytes the requests ask for, gaps included
+    # Bytes the requests ask for, gaps included.
+    fetched: int
 
     @property
     def data_offset(self) -> int:
@@ -52,7 +64,10 @@ class Plan:
 
 
 def make_plan(reader: Source, header: Header, box: Box | None, maxzoom: int, threads: int, halt: Halt, overfetch: float, max_request: int) -> Plan:
-    """The plan of the cut of `box` (the whole world for None) to `maxzoom` out of the archive whose header is `header`. FormatError for directories that are no good, CutError for a cut that cannot be."""
+    """Return the plan to cut `box` (None: the world) to `maxzoom`.
+
+    Raise FormatError for bad directories and CutError for a cut that cannot be made.
+    """
     if not header.clustered:
         raise CutError("the archive is not clustered (its tiles are not in the order of their ids), so it cannot be cut")
     deepest = min(maxzoom, header.max_zoom)
@@ -73,7 +88,7 @@ def make_plan(reader: Source, header: Header, box: Box | None, maxzoom: int, thr
 
 
 def _header(old: Header, box: Box | None, deepest: int, entries: Entries, contents: int, data_length: int, root: int, metadata: int, leaves: int) -> Header:
-    """The header of the new archive. The bounds and the centre are the box's, in units of 1e-7 degrees cut toward zero as go-pmtiles writes them; the whole world keeps the source's."""
+    """Return the header of the new archive; bounds are the box's in 1e-7 degrees, truncated."""
     bounds, center = old.bounds_e7, old.center_e7
     if box is not None:
         bounds = (int(box[0] * 1e7), int(box[1] * 1e7), int(box[2] * 1e7), int(box[3] * 1e7))
@@ -84,7 +99,7 @@ def _header(old: Header, box: Box | None, deepest: int, entries: Entries, conten
 
 
 def _entries(reader: Source, header: Header, ranges: Ranges, threads: int, halt: Halt) -> Entries:
-    """The tile entries in the ranges, from the root and the leaves that reach into them, in the order of their ids; FormatError for directories that are not in order, too deep or too many."""
+    """Return the tile entries in the ranges, in id order; raise FormatError for bad directories."""
     root = decode(unpack(read(reader, header.root_offset, header.root_length), header.internal_compression, MAX_ROOT))
     parts, level = touched(root, ranges, 0, END, MAX_LEAVES)
     held, read_leaves = sum(len(part) for part in parts), 0
@@ -107,7 +122,7 @@ def _entries(reader: Source, header: Header, ranges: Ranges, threads: int, halt:
 
 
 def _leaves(reader: Source, header: Header, level: list[Leaf], threads: int, halt: Halt) -> Iterator[tuple[Leaf, bytes]]:
-    """Each leaf with its bytes, fetched in requests of neighbouring leaves, `threads` requests at a time."""
+    """Yield each leaf with its bytes, fetched in requests of neighbouring leaves."""
     chunks: list[list[Leaf]] = []
     for leaf in sorted(level, key=lambda leaf: leaf[3]):
         if leaf[2] > MAX_LEAF or leaf[3] + leaf[2] > header.leaf_length:
@@ -126,7 +141,7 @@ def _leaves(reader: Source, header: Header, level: list[Leaf], threads: int, hal
 
 
 def _joined(parts: list[Entries]) -> Entries:
-    """The parts one after the other in the order of their first ids; FormatError where two of them overlap (a leaf that holds tiles of another's ids)."""
+    """Join the parts in order of their first ids; raise FormatError if two overlap."""
     joined = Entries()
     for part in sorted(parts, key=lambda part: part.tile_ids[0]):
         joined.extend(part)
@@ -138,8 +153,9 @@ def _joined(parts: list[Entries]) -> Entries:
 
 
 def _reencode(entries: Entries, data_offset: int, data_length: int) -> tuple["array.array[int]", "array.array[int]"]:
-    """Gives each content a place in the new tile data, in the order the tiles name them, and writes the places into the entries; the offsets in the source archive and the lengths of the contents, in that order.
-    A content is known by its offset: those that come in the order of the source are found by bisection in two columns, the few that come back from before in a dict."""
+    """Give each content a place in the new tile data and write the places into the entries.
+
+    Return the source offsets and lengths. Contents in source order are found by bisection."""
     sources, lengths, places = array.array("Q"), array.array("I"), array.array("Q")
     in_order, numbers = array.array("Q"), array.array("Q")
     others: dict[int, int] = {}
@@ -170,7 +186,7 @@ def _reencode(entries: Entries, data_offset: int, data_length: int) -> tuple["ar
 
 
 def _requests(sources: "array.array[int]", lengths: "array.array[int]", overfetch: float, max_request: int) -> list[Request]:
-    """The pieces grouped into requests: neighbours in the source, and pieces with a gap between them as long as all such gaps together are at most `overfetch` of the data, the smallest first."""
+    """Group the pieces into requests, bridging the smallest gaps up to `overfetch` of the data."""
     gaps = sorted(gap for gap in (sources[i] - sources[i - 1] - lengths[i - 1] for i in range(1, len(sources))) if gap > 0)
     budget, allowed = overfetch * sum(lengths), 0
     for gap in gaps:

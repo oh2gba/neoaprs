@@ -19,7 +19,8 @@ def at(d: date, t: time) -> datetime:
 
 
 def from_unix(seconds: float) -> datetime:
-    return _EPOCH + timedelta(seconds=seconds)             # (not fromtimestamp: on Windows that refuses a time before 1970 and one beyond year 3000)
+    # Not fromtimestamp: on Windows it rejects times before 1970 and beyond year 3000.
+    return _EPOCH + timedelta(seconds=seconds)
 
 
 def to_unix(t: datetime) -> int:
@@ -27,10 +28,11 @@ def to_unix(t: datetime) -> int:
 
 
 def iso(t: datetime | None) -> str | None:
-    """For the page: 2026-10-09T18:05:00Z, or None."""
+    """Return the time for the page as 2026-10-09T18:05:00Z, or None."""
     if t is None:
         return None
-    if t.tzinfo is UTC and t.year >= 1000:                  # already UTC (every time here is): no conversion, and isoformat is much quicker than strftime
+    # Fast path: isoformat is much quicker than strftime.
+    if t.tzinfo is UTC and t.year >= 1000:
         return t.isoformat(timespec="seconds")[:-6] + "Z"
     return t.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 

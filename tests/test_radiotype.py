@@ -1,5 +1,7 @@
-"""The types of radio (neoaprs/radiotype.py, the registry neoaprs/radiotypes/): each type is a TNC profile, of the kind of the list it is in, with the limits and the rules of its kind field by field, the
-fields are today's flat settings with their defaults, ranges and parsers, the page's order of each kind is today's, a radio of a kind may store the fields of all its types, and an unknown type is refused."""
+"""The radio types (neoaprs/radiotype.py, neoaprs/radiotypes/): each type is a TNC profile of its
+kind with the kind's limits and rules per field, the fields have defaults, ranges and parsers, and
+the page's order per kind.
+"""
 import re
 from dataclasses import replace
 
@@ -15,8 +17,11 @@ from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import DEFAULT, DUMMY_HF, EVERY_BY_KEY, HF_DEFAULT, HF_PROFILES, LORA_PROFILES, PROFILES
 
 OLD_KEY = {"port": "serial/port", "baud": "serial/baud", "tcp_host": "tcp/host", "tcp_port": "tcp/port", "sound_card": "mercury/sound_card", "keying": "mercury/keying", "tx_gain_db": "mercury/tx_gain_db",
-           "path": "beacon/path", "digipeat": "digi/enabled"}       # the flat setting of today that each field of a radio is (the beacon is new: on, as both beacons are today)
-DUMMY_CAN = Can(False, True, False, False, False, False, False)            # (a Dummy: nothing to find or tune, and the Terminal of its made-up traffic)
+           # The flat setting of today that each field of a radio is (the beacon is new: on, as both
+           # beacons are today)
+           "path": "beacon/path", "digipeat": "digi/enabled"}
+# A Dummy: nothing to find or tune, and the Terminal of its made-up traffic
+DUMMY_CAN = Can(False, True, False, False, False, False, False)
 
 
 def test_every_type_is_todays_profile_and_the_rules_of_its_kind_field_by_field() -> None:
@@ -34,7 +39,9 @@ def test_every_type_is_todays_profile_and_the_rules_of_its_kind_field_by_field()
         assert t.driver == ("direwolf" if p is DIREWOLF else "mercury" if p.transport == "modem" or p is DUMMY_HF else "tnc") and t.dummy == (p.transport == "dummy")
 
 
-NAMES = {       # each type's English name, as `neoaprs db radios` and the log say it and the page's catalogue has it (ui/src/i18n/en/radio.ts), by the kind's list
+# Each type's English name, as `neoaprs db radios` and the log say it and the page's catalogue has
+# it (ui/src/i18n/en/radio.ts), by the kind's list
+NAMES = {
     "fm": ["Sound card", "KISS TNC (Kenwood TH-D74/D75, Mobilinkd…)", "Kenwood TM-D710 / TH-D72", "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2", "Kantronics KPC-3+", "Your own Direwolf or soundmodem",
            "Yaesu FTM, TNC in monitor mode (RX only)", "Dummy FM radio"],
     "hf": ["Mercury modem (sound card)", "Dummy Mercury radio"],
@@ -43,9 +50,10 @@ NAMES = {       # each type's English name, as `neoaprs db radios` and the log s
 
 
 def test_a_types_name_says_what_the_operator_has_in_hand_and_names_a_program_only_where_he_acts_on_it() -> None:
-    """The names of 16 November 2026 (John: "instead of calling it 'direwolf soundcard' or something, let's just use 'sound card', so people don't get confused whether to still install direwolf"). A type is named by
-    what the operator holds: a model, a sound card, a LoRa board. A program is in a name only where he acts on it: Mercury, which the other station must run too, and the Direwolf or soundmodem he runs himself.
-    No name says a band, a mode the radio may not be on, or how the program reaches it; a type that only receives ends with "(RX only)", a Dummy starts with "Dummy" and says its kind by the kind's word."""
+    """A type is named by what the operator holds: a model, a sound card, a LoRa board. A program is
+    in a name only where the operator acts on it (Mercury, Direwolf, soundmodem). No name says a
+    band, a mode or how the program reaches it; an RX-only type ends with "(RX only)", a Dummy
+    starts with "Dummy"."""
     assert {kind: [t.name for t in types_of(kind)] for kind in KINDS} == NAMES
     names = {t.key: t.name for t in TYPES}
     assert [key for key, name in names.items() if "direwolf" in name.casefold() or "dire wolf" in name.casefold()] == ["kiss-tcp"], "the operator's own alone: the Sound card type's is carried and started by NeoAPRS"
@@ -111,7 +119,8 @@ def test_a_radio_of_a_kind_may_store_the_fields_of_every_type_of_it_each_the_sam
 
 
 def test_each_field_is_todays_setting_its_default_range_parser_and_claim() -> None:
-    fields = {f.key: f for kind in ("lora", "fm", "hf") for f in kind_fields(kind)}       # (today's flat settings are the FM radio's and the HF radio's: the transmit gain is Mercury's)
+    # today's flat settings are the FM radio's and the HF radio's: the transmit gain is Mercury's
+    fields = {f.key: f for kind in ("lora", "fm", "hf") for f in kind_fields(kind)}
     defaults = DEFAULTS.to_data()
     differ = {(kind, f.key) for kind in KINDS for f in kind_fields(kind) if replace(f, claims=None) != replace(fields[f.key], claims=None)}
     assert differ == {("lora", "tcp_host"), ("fm", "tx_gain_db")}, "a key is one field in every kind but the LoRa board's address, which is never this computer's, and the transmit gain, in each modem's own range"

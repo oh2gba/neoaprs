@@ -1,4 +1,6 @@
-"""`README.txt` of the support bundle: what the file is, what to do with it, what is in it and what was left out. It is written for the person who made the bundle first (they may look in before they send it) and for the developer second."""
+"""`README.txt` of the support bundle: what the file is, what to do with it, what it holds.
+
+It is written first for the person who made the bundle, who may read it before sending."""
 from datetime import datetime
 
 from .supportbundle import Member
@@ -33,7 +35,7 @@ LEFT_OUT: tuple[tuple[str, str], ...] = (
 
 
 def listing(members: list[Member]) -> list[tuple[str, str]]:
-    """Each file of the bundle with its line; the rotated logs are one with the log they belong to."""
+    """Return each file of the bundle with its description; rotated logs share their log's line."""
     rows = [("README.txt", FILE_HELP["README.txt"])]
     for member in members:
         name = member.name

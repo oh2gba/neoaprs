@@ -1,24 +1,8 @@
-"""Asking QRU: the client side of local info (the server's is services/qru.py; the words are neoaprs/qrutext.py).
+"""Client side of local info: ask the QRU servers for their groups and objects, track the answers.
 
-`ask` sends one message to the addressee `QRU`, as APRSISCE and YAAC do: a broadcast, so with no message id, once, not kept as a message of ours and never sent again, by the path of messages (`beacon/path`, or the one set
-for the station QRU) with RFONLY after it, so that the iGates keep it off APRS-IS and only the servers in radio range answer. The operator may give the request a path of its own (a station that reaches the network only
-through a fill-in digipeater that relays it when it is named, `OH2RDK-7,OH2RCH-2`) and leave RFONLY off; neither given is the path of messages with RFONLY, as before. It is refused under the transmit interlock (RX only, no call) and while the radio is away;
-the same request goes on the air once per ASK_EVERY_SEC (the servers answer one station once in that time anyway) and any two are ASK_GAP_SEC apart (the channel is shared); a request
-within either is refused with the seconds that are left. So a group can be asked for right after a server listed it.
-
-The servers answer with messages to us (the objects they send are objects like any other): the list of the groups they serve near us with the number of objects in each, and after the objects the line that says how
-many went. Those messages are kept in Messages as every message to us is; here the servers that answered are noted for the page's topic `qru`: for each its call, its groups, the limit and range it gave, when it answered
-and its last closing line. A list of groups that ends in `+` goes on in the next message of the same server (within CONTINUE_SEC). All of it, and the last request, is forgotten KEEP_FOR after it was heard.
-
-A closing line says how many objects went; whether they arrived is counted here: the objects heard on the radio from the server's call between the request it answers and ARRIVAL_GRACE_SEC after the closing line, each name once (the
-server sends them at once while the digipeaters still repeat our request, so one can be lost in the collision). The page shows "sent 1 · 0 arrived" with the request to ask again. A list or a closing line that comes
-within ANSWER_WINDOW_SEC of a request of ours, with no message id, is an answer and no conversation: `answers` tells the inbox, which does not keep it as a message (the packet log has it).
-
-Local info has a Send on of its own (each radio's "local_info" tick, read by beaconrule.send_on_radios: with one radio that can send, that one): a request that names no radio (the page's
-Ask, the request INFO) goes once on each ticked radio that takes frames now, by the path of messages to QRU on that radio; a request that names a radio (a group's button, Ask again: the radio the server
-answered on, a fact) goes on that one. The request records its radios (`AskedOn`). The waits (ASK_EVERY_SEC, ASK_GAP_SEC) are each radio's, and a request is all or nothing: while one of the radios it
-would go on is inside a wait, or a path makes no frame on one of them, nothing goes on any. A server keeps the radio its latest answer came on, of the radios we asked on (the copy a radio that only receives heard says nothing), and the objects counted as arrived for its answer are
-those heard on a radio its request went on (a packet that names no radio counts for every request), each name once. The log names the radio while more than one is on."""
+A request is a broadcast message to QRU with RFONLY added, refused inside a wait or under the
+transmit interlock. The servers that answered are kept for KEEP_FOR; arrival of objects is counted.
+"""
 import asyncio
 import logging
 from dataclasses import dataclass, replace
@@ -40,15 +24,18 @@ from neoaprs.tasks import TaskSet
 
 log = logging.getLogger("neoaprs.qru")
 
-CONTINUE_SEC = 120                      # a list that ends in `+` is continued by the next message of the server within this time
-KEEP_FOR = timedelta(hours=1)           # how long a server and the last request are remembered
-REQUESTS_MAX = 16                       # the requests kept to tell which one an answer is for
-HEARD_MAX = 2000                        # the objects (by sender and name) kept to be counted against an answer
+CONTINUE_SEC = 120
+# how long a server and the last request are remembered
+KEEP_FOR = timedelta(hours=1)
+# requests kept to tell which one an answer is for
+REQUESTS_MAX = 16
+# objects (by sender and name) kept to be counted against an answer
+HEARD_MAX = 2000
 
 
 @dataclass(frozen=True, slots=True)
 class AskedOn(Asked):
-    """A request we sent, with the radios it went on (none for one made without)."""
+    """A request sent, with the radios it went on."""
     radios: tuple[RadioId, ...] = ()
 
 
@@ -57,22 +44,25 @@ def _radios_of(asked: Asked) -> tuple[RadioId, ...]:
 
 
 def _on_radio(radios: tuple[RadioId, ...], came: RadioId | None) -> bool:
-    """Whether what came on the radio `came` counts for a request that went on `radios`: one of them, or either names none."""
+    """Return whether a packet from radio `came` counts for a request sent on `radios`."""
     return not radios or came is None or came in radios
 
 
 class QruAsk:
     def __init__(self, radios: RadioPick | Radio, config: ConfigSource, paths: Paths, clock: Clock = utcnow) -> None:
-        self._given = radios                                        # the station's radios (the registry; which app.py gives; an old shape of a test's): a request goes on the one named, else on those of its Send on
+        self._given = radios
         self._config = config
-        self._paths = paths                                         # the digipeaters of what we send to a station (PrefBook.path_for)
+        self._paths = paths
         self.clock = clock
         self.changed: Signal[[]] = Signal("qru_changed")
         self.asked: Asked | None = None
-        self._sent: dict[tuple[RadioId, str], datetime] = {}          # when each request of the last ASK_EVERY_SEC went, by its radio and its text
+        # when each request of the last ASK_EVERY_SEC went, by radio and text
+        self._sent: dict[tuple[RadioId, str], datetime] = {}
         self._servers: dict[str, Server] = {}
-        self._requests: list[Asked] = []                              # the latest requests, oldest first
-        self._heard: dict[tuple[str, str], list[tuple[datetime, RadioId | None]]] = {}       # when each object (its sender and name) was heard since the first request, and on which radio
+        # latest requests, oldest first
+        self._requests: list[Asked] = []
+        # when each object (sender, name) was heard since the first request, and on which radio
+        self._heard: dict[tuple[str, str], list[tuple[datetime, RadioId | None]]] = {}
         self.tasks = TaskSet(log, "qru")
         self._timer: asyncio.Task[None] | None = None
 
@@ -82,11 +72,9 @@ class QruAsk:
 
     # ---- asking
     def ask(self, text: str, path: str | None = None, rf_only: bool = True, *, radio: RadioId | None = None) -> None:
-        """Sends the request (INFO, NEXT or a group, and a distance: neoaprs/qrutext.py) once on each radio of Local info's Send on that takes frames now, or on the radio `radio` alone when one is named
-        (the radio a server answered on), by `path` (calls separated by commas, DIRECT for none; None or empty is the path of messages to QRU on each radio) with RFONLY after it when `rf_only`, all or
-        nothing. Raises MessagingError, and nothing is sent, when it is none, nothing may be transmitted (RX only, no call), there is no radio or none takes frames now, the radio named is off or
-        away, a request went on one of its radios less than ASK_EVERY_SEC ago with the same text or any less than ASK_GAP_SEC ago (`qru.too_soon`, with the seconds that are left: the longest), the path
-        is no path or too long with RFONLY, or no radio takes the frame."""
+        """Send the request on each radio of Local info's Send on, or on `radio` if named.
+
+        Raise MessagingError, sending nothing, if a target radio is in a wait or makes no frame."""
         config = self._config()
         our_call(config)
         request = ask_text(text)
@@ -96,7 +84,8 @@ class QruAsk:
         if (wait := max((self._wait(request, one.id, now) for one in held), default=0.0)) > 0:
             seconds = max(1, round(wait))
             raise MessagingError(f"too soon for another request for local info: wait {seconds} s", "qru.too_soon", seconds=seconds)
-        frames = [(one, self._frame(one, request, path, rf_only)) for one in on]          # (every frame is made before one is sent: a path that is none on one radio sends nothing on any)
+        # every frame is made before any is sent: a path that fails on one radio sends nothing
+        frames = [(one, self._frame(one, request, path, rf_only)) for one in on]
         went = [one for one, _ in sent_on(frames, "asking QRU")]
         self.asked = AskedOn(request, now, tuple(one.id for one in went))
         self._requests = [*self._requests, self.asked][-REQUESTS_MAX:]
@@ -106,7 +95,7 @@ class QruAsk:
         self._told()
 
     def _frame(self, radio: AirRadio, request: str, path: str | None, rf_only: bool) -> ax25.Frame:
-        """The request as our message to QRU for the radio, by the path it carries: the one given, else the path of messages to QRU on it, with RFONLY; none where it may carry none."""
+        """Return the request as a message to QRU for the radio, by the given or usual path."""
         config = self._config()
         try:
             calls = path_on(radio, config, request_path(path, () if path and path.strip() else self._paths(ADDRESSEE, None, radio.id), rf_only))
@@ -120,7 +109,7 @@ class QruAsk:
             raise MessagingError.of(e, f"the request to QRU makes no frame: {e}") from None
 
     def _wait(self, request: str, radio: RadioId, now: datetime) -> float:
-        """The seconds before this request may go on the radio: ASK_EVERY_SEC after the same text on it, ASK_GAP_SEC after any on it."""
+        """Return the seconds before the request may go on the radio."""
         same = self._sent.get((radio, request))
         waits = [ASK_EVERY_SEC - (now - same).total_seconds()] if same is not None else []
         latest = next((asked for asked in reversed(self._requests) if _on_radio(_radios_of(asked), radio)), None)
@@ -130,7 +119,7 @@ class QruAsk:
 
     # ---- the answers
     def on_packet(self, packet: Packet) -> None:
-        """A message to us that is a server's list of groups or its closing line is noted, and an object heard is kept to be counted when the server's closing line says how many went."""
+        """Note a server's group list or closing line; keep heard objects to count against it."""
         if packet.direction != "in" or not packet.on_air:
             return
         decoded = packet.decoded
@@ -150,12 +139,13 @@ class QruAsk:
         else:
             self._closed(packet.sender, found, decoded.text.strip(), packet.heard_at)
         if packet.radio_id is not None and any(_on_radio(_radios_of(asked), packet.radio_id) for asked in self._requests):
-            self._servers[packet.sender] = replace(self._servers[packet.sender], radio=packet.radio_id)       # (the radio it answered on, of those we asked on: what a request to it goes on; a copy another radio heard, one that only receives too, says nothing)
+            # the radio it answered on, among those asked; a copy another radio heard says nothing
+            self._servers[packet.sender] = replace(self._servers[packet.sender], radio=packet.radio_id)
         self._told()
 
     def answers(self, packet: Packet, message: Message) -> bool:
-        """Whether the message to us is a server's answer to a request of ours (a list of groups, `+` continuation included, or a closing line, from the server it names, with no id, within ANSWER_WINDOW_SEC of a request):
-        it is shown with the servers and is no conversation."""
+        """Return whether the message answers a request: a group list or closing line without an id
+        from the server it names, within ANSWER_WINDOW_SEC of a request."""
         found = listing_of(message.text) or closing_of(message.text)
         if not packet.on_air or found is None or message.msg_id is not None or not same_call(found.call, packet.sender):
             return False
@@ -190,8 +180,9 @@ class QruAsk:
         self._servers[call] = replace(before, at=at, sent=text, sent_at=at, sent_objects=found.sent, request="" if asked is None else asked.text, since=None if asked is None else asked.at)
 
     def _request_for(self, word: str, at: datetime) -> Asked | None:
-        """The request before `at` that an answer about `word` (INFO or a group) is for: the latest one that names it. A NEXT after the group's own request is read as the group asked again, with the distance of that request;
-        what is counted starts at the NEXT, and what Ask again sends is the group's request."""
+        """Return the latest request before `at` that names `word` (INFO or a group).
+
+        A later NEXT counts as the group asked again, with the group request's distance."""
         names = (word,) if word == "INFO" else (word, "NEXT")
         earlier = [asked for asked in self._requests if asked.at <= at and asked.text.split()[0] in names]
         if not earlier:
@@ -207,7 +198,7 @@ class QruAsk:
         return max(server.at, server.sent_at or server.at) + timedelta(seconds=ARRIVAL_GRACE_SEC)
 
     def _received(self, server: Server) -> tuple[str, ...]:
-        """The names of the objects heard from the server on a radio of the request it answers, between that request and the end of the counting, each once."""
+        """Return the names of objects heard from the server on its request's radios, each once."""
         if server.since is None:
             return ()
         until = self._settles(server)
@@ -217,7 +208,7 @@ class QruAsk:
 
     # ---- what the page is told
     def servers(self) -> list[Server]:
-        """The servers that answered in the last KEEP_FOR, by call."""
+        """Return the servers that answered in the last KEEP_FOR, by call."""
         self._prune()
         return sorted((replace(s, received=self._received(s), settles_at=None if s.sent_objects is None else self._settles(s)) for s in self._servers.values()), key=lambda s: s.call)
 
@@ -230,7 +221,7 @@ class QruAsk:
             self.asked = None
 
     def _told(self) -> None:
-        """The page is told, and the moment the oldest note is to be forgotten is waited for."""
+        """Notify the page and schedule the forgetting of the oldest note."""
         self.changed.emit()
         self._arm()
 
@@ -244,7 +235,8 @@ class QruAsk:
         try:
             self._timer = self.tasks.spawn(self._forget(max(0.0, (min(stamps) + KEEP_FOR - self.clock()).total_seconds()) + 1), "qru-forget")
         except RuntimeError:
-            self._timer = None                                      # (no loop: nobody to tell)
+            # no running loop: nobody to notify
+            self._timer = None
 
     async def _forget(self, wait_sec: float) -> None:
         await asyncio.sleep(wait_sec)
@@ -253,7 +245,7 @@ class QruAsk:
         self._told()
 
     def forget(self) -> None:
-        """Forgets what is older than KEEP_FOR now and tells the page when anything went."""
+        """Forget what is older than KEEP_FOR and notify the page if anything went."""
         before = (len(self._servers), self.asked)
         self._prune()
         if (len(self._servers), self.asked) != before:

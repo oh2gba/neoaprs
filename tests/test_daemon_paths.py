@@ -1,6 +1,7 @@
-"""The daemon's paths that the tests with a real process do not reach (neoaprs/daemon.py), in the test's own process: the command to run after an update handed back, the exit codes of `main`, a log that
-cannot be reopened, a data folder that cannot be made private or is held by another program, and a database that fails under the daemon (a migration that breaks midway, a file another writer holds):
-the daemon ends with 2 and says why, the file is as it was or at the step before, the copy is in backup/, and the next start finds it usable."""
+"""Tests for the daemon paths that process tests do not reach (neoaprs/daemon.py), in the test's own
+process: exit codes, a log that cannot be reopened, an unusable data folder, and a database that
+fails (the daemon ends with 2, keeps a backup, and the next start works).
+"""
 import io
 import logging
 import logging.handlers
@@ -180,7 +181,8 @@ async def test_a_file_that_another_writer_holds_ends_the_daemon_with_2_untouched
     holder = raw(data / DB_NAME)
     holder.execute("BEGIN IMMEDIATE")
     real = Controller
-    monkeypatch.setattr(controller_module, "Controller", lambda *args, **kwargs: real(*args, **{**kwargs, "busy_ms": 20}))     # (the daemon waits seconds for a writer; the test does not)
+    # (the daemon waits seconds for a writer; the test does not)
+    monkeypatch.setattr(controller_module, "Controller", lambda *args, **kwargs: real(*args, **{**kwargs, "busy_ms": 20}))
     try:
         first = InProcess(data)
         assert await first.ended() == DATABASE_UNUSABLE

@@ -1,5 +1,7 @@
-"""The Store (neoaprs/store.py) when the database fails under it: a read or a delete that fails says so in the log, a setting that cannot be deleted is left as it was and the store goes on, a checkpoint that fails is a warning and not an exception, and
-a store whose Db is closed says no to everything."""
+"""The Store (neoaprs/store.py) when the database fails under it: a read or a delete that fails says
+so in the log, a setting that cannot be deleted is left as it was and the store goes on, a
+checkpoint that fails is a warning and not an exception, and a store whose Db is closed says no to
+everything."""
 import logging
 import sqlite3
 from pathlib import Path

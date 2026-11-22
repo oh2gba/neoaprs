@@ -1,1 +1,1 @@
-"""The stateful parts above the layers below (docs/ARCHITECTURE.md): the beacon, messaging (with its inbox and the record of what was heard) and the preferences of the stations. Built by neoaprs/app.py only."""
+"""Stateful services above the lower layers: beacon, messaging, inbox, preferences."""

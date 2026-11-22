@@ -1,6 +1,6 @@
-"""The GPS receiver's serial port in the station's table of resources (neoaprs/services/gps.py, claims.py): held for the station while gps/source is serial with that device, open or not, and let go when the
-source or the device changes and at the stop; a port a radio holds is waited for, and taken once the radio lets go; a save that gives the receiver's port to a radio, or a radio's port to the receiver, is refused
-(neoaprs/web/confighandlers.refuse_held), and a swap of the two in one save is not; the daemon's Find my radio and the radios' searches leave the receiver's port out."""
+"""Tests for the GPS serial port in the resource table (neoaprs/services/gps.py, claims.py): held
+while the source is serial, released on change and stop, waits for a radio's port, and a save that
+gives one port to both is refused."""
 from dataclasses import replace
 from pathlib import Path
 
@@ -33,7 +33,8 @@ class GpsRig:
 
 
 async def test_the_receivers_port_is_the_stations_while_it_is_read_and_let_go_when_the_source_changes_and_at_the_stop(tmp_path: Path) -> None:
-    device = str(tmp_path / "gps")                                                   # (nothing there yet: the feed waits for it, and the port is the receiver's all the same)
+    # (nothing there yet: the feed waits for it, and the port is the receiver's all the same)
+    device = str(tmp_path / "gps")
     rig = GpsRig(gps_source="serial", gps_device=device)
     mine = Claim("gps", claim_value(device) or "", None)
     await rig.gps.start()
@@ -66,7 +67,8 @@ async def test_the_receiver_waits_only_for_a_serial_device_and_not_for_a_claim_o
     rig = GpsRig(gps_source="serial", gps_device=device)
     value = claim_value(device) or ""
     rig.claims.hold(Claim("serial", value, 1))
-    rig.claims.hold(Claim("sound_card", value, 2))                                   # (a card's id that reads like the path: no serial device of the station)
+    # (a card's id that reads like the path: no serial device of the station)
+    rig.claims.hold(Claim("sound_card", value, 2))
     await rig.gps.start()
     await idle_for(0.1)
     assert rig.gps.problem == "the receiver's port is held by radio 1"
@@ -92,11 +94,13 @@ def test_a_save_that_gives_the_receivers_port_to_a_radio_or_a_radios_port_to_the
         refuse_held(before, replace(before, gps_device="/dev/ttyUSB0"), claims)
     assert (held.value.key, held.value.code, held.value.params) == ("gps/device", "radio.resource_held", {"resource": "gps", "holder": "FM", "held_by": 1})
     found = Claims()
-    found.hold(Claim("serial", claim_value("/dev/ttyUSB5") or "", 3))                 # (the port radio 3's search found)
+    # (the port radio 3's search found)
+    found.hold(Claim("serial", claim_value("/dev/ttyUSB5") or "", 3))
     with pytest.raises(SettingError) as held:
         refuse_held(before, replace(before, gps_device="/dev/ttyUSB5"), found)
     assert (held.value.key, held.value.params["held_by"]) == ("gps/device", 3)
-    refuse_held(before, replace(before, gps_device="/dev/ttyACM8", radios=(kiss(1, "/dev/ttyUSB0"), kiss(3, "/dev/ttyACM9"))), claims)     # (the receiver moves and radio 3 takes its old port, in one save)
+    # (the receiver moves and radio 3 takes its old port, in one save)
+    refuse_held(before, replace(before, gps_device="/dev/ttyACM8", radios=(kiss(1, "/dev/ttyUSB0"), kiss(3, "/dev/ttyACM9"))), claims)
     refuse_held(before, replace(before, gps_source="off", radios=(kiss(1, "/dev/ttyUSB0"), kiss(3, "/dev/ttyACM9"))), claims)
 
 

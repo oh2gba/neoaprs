@@ -1,21 +1,8 @@
 #!/usr/bin/env python3
-"""Builds what the AppImage's web window carries of GTK's world (aprs-reference/window-plan.md, W1): PyGObject (`gi`) from its pinned source for the pinned CPython of scripts/build-appimage, and, taken from
-Ubuntu 22.04's packages, the tray's AppIndicator library with the ones it needs and its typelib, and the typelibs of WebKitGTK 4.1, with each package's version and copyright beside them. WebKitGTK and GTK
-themselves are never carried: they are the system's (neoaprs/desktop/gtkenv.py says how the carried pieces are found).
+"""Build PyGObject (`gi`) from pinned source plus the tray library and WebKitGTK typelibs.
 
-  scripts/build-gi [--docker] [--out DIR] [--source FILE]
-
-  --docker       run the build in a fresh ubuntu:22.04 container (docker on this machine), whose glibc is the floor of the AppImage, with the packages it needs installed there; the cache and the out folder are
-                 mounted, nothing else of this machine. Without it the script expects to be in such a container already (the release workflow's job; `APT_PACKAGES` is what it needs)
-  --out DIR      where gi-<version>-linux-x86_64.tar.gz is made (default dist-gi/)
-  --source FILE  the PyGObject source archive at hand instead of the download; it has to be the pinned one all the same
-
-The tarball's one folder, neoaprs-gtk/, holds site-packages/gi/ (the package, built with -Dpycairo=disabled: nothing of cairo is needed), lib/ (the libraries of gtkenv.LIBRARIES), girepository-tray/ (the
-AppIndicator typelib), girepository-webkit/ (WebKit2-4.1, JavaScriptCore-4.1 and Soup-3.0) and NOTICES/ (PyGObject's licence, each package's copyright file, and VERSIONS.txt). scripts/build-appimage --window web
-puts gi/ into the image's site-packages and the rest at usr/lib/neoaprs-gtk/. Every download is pinned by version and SHA-256 below (the pin is the trust, not the server) and fetched once into
-$NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build): PyGObject's source, Meson (Ubuntu 22.04's own is older than the 0.64 PyGObject asks for), and the CPython, whose pin is read out of scripts/build-appimage.
-The link of `_gi` and of each carried library is then checked with readelf: what they need must be glibc, GLib, girepository-1.0, libffi, GTK 3 and its stack, or each other, which a desktop with WebKitGTK has.
-Runs on the container's own Python (3.10). x86_64 only, as the AppImage is."""
+The result is gi-<version>-linux-x86_64.tar.gz for the AppImage's web window.
+  scripts/build-gi [--docker] [--out DIR] [--source FILE]       (options: see --help)"""
 from __future__ import annotations
 
 import argparse
@@ -38,18 +25,19 @@ GI_VERSION = "3.50.2"
 PYGOBJECT_URL = "https://files.pythonhosted.org/packages/a7/5d/f2946cc6c1baf56dee6e942af8cfa16472538a8ad9d780d9f484e7554288/pygobject-3.50.2.tar.gz"
 PYGOBJECT_SHA256 = "ece6b860aab77cb649fdfc6e88d8a83765e7a62f7ffd39a628d6e2a0d397a7ff"
 MESON_URL = "https://files.pythonhosted.org/packages/d2/f3/9d53c24a7113e08879b14117f83e7105251e6ecf7e03bb7c04926888db9c/meson-1.6.1-py3-none-any.whl"
-MESON_SHA256 = "3f41f6b03df56bb76836cc33c94e1a404c3584d48b3259540794a60a21fad1f9"     # the sha256 PyPI gives for meson-1.6.1-py3-none-any.whl (pypi.org/pypi/meson/1.6.1/json); the build refuses to run without it
+# The sha256 PyPI gives for the wheel; the build refuses to run without it.
+MESON_SHA256 = "3f41f6b03df56bb76836cc33c94e1a404c3584d48b3259540794a60a21fad1f9"
 IMAGE = "ubuntu:22.04"
 APT_PACKAGES = ("python3", "ca-certificates", "gcc", "pkg-config", "ninja-build", "binutils", "libgirepository1.0-dev", "libglib2.0-dev", "libffi-dev",
                 "libayatana-appindicator3-1", "gir1.2-ayatanaappindicator3-0.1", "gir1.2-webkit2-4.1")
-# the packages whose files are carried, for the versions and copyright files of NOTICES/
+# Packages whose files are carried, for the versions and copyright files in NOTICES/.
 CARRIED_PACKAGES = ("libayatana-appindicator3-1", "libayatana-indicator3-7", "libayatana-ido3-0.4-0", "libdbusmenu-gtk3-4", "libdbusmenu-glib4", "gir1.2-ayatanaappindicator3-0.1",
                     "gir1.2-webkit2-4.1", "gir1.2-javascriptcoregtk-4.1", "gir1.2-soup-3.0")
 SYSTEM_LIB = Path("/usr/lib/x86_64-linux-gnu")
 SYSTEM_TYPELIBS = SYSTEM_LIB / "girepository-1.0"
 TRAY_TYPELIBS = ("AyatanaAppIndicator3-0.1.typelib",)
 WEBKIT_TYPELIBS = ("WebKit2-4.1.typelib", "JavaScriptCore-4.1.typelib", "Soup-3.0.typelib")
-# What `_gi` and the carried libraries may need (readelf's NEEDED): glibc, GLib and its family, girepository-1.0, libffi, GTK 3 and the libraries GTK 3 itself needs; and each other (gtkenv.LIBRARIES)
+# What `_gi` and the carried libraries may need (readelf's NEEDED), besides each other.
 NEEDED_OK = re.compile(r"^(libc|libm|libdl|libpthread|librt|ld-linux[\w-]*)\.so|^lib(glib|gobject|gmodule|gio|gthread)-2\.0\.so|^libgirepository-1\.0\.so|^libffi\.so|^lib(gtk|gdk)-3\.so|"
                        r"^libgdk_pixbuf-2\.0\.so|^lib(pango|pangocairo|pangoft2)-1\.0\.so|^libcairo(-gobject)?\.so|^libatk-1\.0\.so|^libharfbuzz\.so")
 WORK = ROOT / "build" / "gi" / "work"
@@ -61,7 +49,7 @@ class BuildError(Exception):
 
 
 def carried_libraries() -> tuple[str, ...]:
-    """gtkenv.LIBRARIES, read out of the module as text (the container's Python 3.10 is not the daemon's)."""
+    """Read gtkenv.LIBRARIES out of the module as text; the container's Python cannot import it."""
     text = (ROOT / "neoaprs" / "desktop" / "gtkenv.py").read_text(encoding="utf-8")
     m = re.search(r"^LIBRARIES = (\([^)]*\))", text, re.M)
     if m is None:
@@ -70,7 +58,7 @@ def carried_libraries() -> tuple[str, ...]:
 
 
 def python_pin() -> tuple[str, str]:
-    """The CPython of the AppImage: PYTHON_URL and PYTHON_SHA256 of scripts/build-appimage."""
+    """Return PYTHON_URL and PYTHON_SHA256 of scripts/build-appimage."""
     text = (ROOT / "scripts" / "build-appimage").read_text(encoding="utf-8")
     found = dict(re.findall(r'^(PYTHON_URL|PYTHON_SHA256)="([^"]+)"', text, re.M))
     if set(found) != {"PYTHON_URL", "PYTHON_SHA256"}:
@@ -99,7 +87,8 @@ def pinned(digest: str) -> bool:
 
 
 def fetch(url: str, digest: str) -> Path:
-    """The file of `url` in the cache: used as it is when its digest is the pin's, downloaded when it is not there, and removed when what came is another file."""
+    """Return the cached file of `url`, downloading it if needed; a wrong digest removes the
+    file."""
     if not pinned(digest):
         raise BuildError(f"{url} has no pinned SHA-256 in scripts/build-gi")
     cache = cache_dir()
@@ -111,7 +100,7 @@ def fetch(url: str, digest: str) -> Path:
     last: Exception | None = None
     for attempt in range(3):
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "neoaprs-build-gi"}), timeout=60) as reply, part.open("wb") as out:  # noqa: S310  (one of the pinned https addresses above; what arrives is kept only with its pinned SHA-256)
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "neoaprs-build-gi"}), timeout=60) as reply, part.open("wb") as out:  # noqa: S310  (pinned https address; kept only with its pinned SHA-256)
                 shutil.copyfileobj(reply, out)
             last = None
             break
@@ -136,12 +125,13 @@ def run(command: list[str], env: dict[str, str] | None = None) -> str:
 
 
 def needed(path: Path) -> list[str]:
-    """The libraries a shared object names (readelf's NEEDED entries)."""
+    """Return the libraries a shared object names (readelf's NEEDED entries)."""
     return re.findall(r"\(NEEDED\)\s+Shared library: \[([^\]]+)\]", run(["readelf", "-d", str(path)]))
 
 
 def check_links(paths: list[Path], carried: tuple[str, ...]) -> list[str]:
-    """Each file's NEEDED entries, refused when one is not glibc, GLib, girepository-1.0, libffi, GTK 3's stack or a carried library: a desktop with WebKitGTK has those, and nothing else may be assumed."""
+    """Return each file's NEEDED entries; raise BuildError for one a desktop with WebKitGTK may
+    lack."""
     lines: list[str] = []
     for path in paths:
         names = needed(path)
@@ -153,7 +143,7 @@ def check_links(paths: list[Path], carried: tuple[str, ...]) -> list[str]:
 
 
 def unpack_tar(archive: Path, into: Path) -> Path:
-    """The archive's one top folder, unpacked into `into`."""
+    """Unpack the archive, which must have one top folder, into `into` and return that folder."""
     with tarfile.open(archive) as tar:
         tops = {m.name.split("/", 1)[0] for m in tar.getmembers()}
         if len(tops) != 1:
@@ -163,7 +153,7 @@ def unpack_tar(archive: Path, into: Path) -> Path:
 
 
 def build_gi(source: Path, meson: Path, python: Path, work: Path) -> Path:
-    """PyGObject configured with Meson for `python` (without pycairo and its tests), compiled with ninja and installed into `work/stage`; the folder of the package gi/."""
+    """Build and install PyGObject for `python` with Meson and ninja; return the folder of gi/."""
     tree = unpack_tar(source, work)
     meson_dir = work / "meson"
     with zipfile.ZipFile(meson) as wheel:
@@ -186,7 +176,7 @@ def dpkg_version(package: str) -> str:
 
 
 def stage(gi: Path, source_tree: Path, out: Path, carried: tuple[str, ...]) -> Path:
-    """The folder neoaprs-gtk/ as the tarball holds it."""
+    """Lay out neoaprs-gtk/ as the tarball holds it."""
     folder = out / "neoaprs-gtk"
     shutil.rmtree(folder, ignore_errors=True)
     shutil.copytree(gi, folder / "site-packages" / "gi", ignore=shutil.ignore_patterns("__pycache__"))
@@ -217,7 +207,8 @@ def stage(gi: Path, source_tree: Path, out: Path, carried: tuple[str, ...]) -> P
 
 
 def check(folder: Path, python: Path, carried: tuple[str, ...]) -> str:
-    """The links of `_gi` and the libraries, and the package imported by the CPython it was built for, with GLib's version."""
+    """Check the links of `_gi` and the libraries, and import gi with the CPython it was built
+    for."""
     lines = check_links([*sorted((folder / "site-packages" / "gi").glob("_gi*.so")), *(folder / "lib" / name for name in carried)], carried)
     said = run([str(python), "-I", "-c", "import sys; sys.path.insert(0, sys.argv[1]); import gi; from gi.repository import GLib; print('gi', gi.__version__, 'GLib', GLib.MAJOR_VERSION, GLib.MINOR_VERSION)",
                 str(folder / "site-packages")])
@@ -232,7 +223,7 @@ def make_tarball(folder: Path, out: Path) -> Path:
 
 
 def in_docker(out: Path, source: Path | None) -> int:
-    """This script again, in a fresh container of IMAGE with APT_PACKAGES, the tree and the cache mounted; what it makes is given to this machine's user."""
+    """Run this script again in a fresh IMAGE container; the output is chowned to this user."""
     if shutil.which("docker") is None:
         print("build-gi: docker is not installed", file=sys.stderr)
         return 2

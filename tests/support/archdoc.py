@@ -1,7 +1,7 @@
-"""The tables of docs/ARCHITECTURE.md that are data of tests/test_architecture.py, made from that data.
+"""The tables of docs/ARCHITECTURE.md that are data of tests/test_architecture.py.
 
-The layer table and the lists of what is still allowed (SQL outside its homes, wiring outside the root, imports against the layers) go stale in the document each time the test changes.
-They are blocks between `<!-- doc-arch:NAME -->` and `<!-- /doc-arch -->` in the document; `scripts/doc-arch --write` makes them, `tests/test_docs.py` fails when one differs.
+They are the blocks between `<!-- doc-arch:NAME -->` and `<!-- /doc-arch -->`; `scripts/doc-arch
+--write` makes them and `tests/test_docs.py` fails when one differs.
 """
 import re
 from collections.abc import Sequence
@@ -9,7 +9,8 @@ from collections.abc import Sequence
 from tests import test_architecture as arch
 
 BLOCK = re.compile(r"(<!-- doc-arch:(\w+)[^>\n]*-->\n)(.*?)(<!-- /doc-arch -->)", re.S)
-SPECIAL = {layer: ", and " + " and ".join(f"everything in `{package.replace('.', '/')}/`" for package, of in arch.PACKAGE_LAYERS.items() if of == layer) for layer in set(arch.PACKAGE_LAYERS.values())} | {"delivery": ""}     # the packages that are one layer whole
+# The packages that are one layer whole.
+SPECIAL = {layer: ", and " + " and ".join(f"everything in `{package.replace('.', '/')}/`" for package, of in arch.PACKAGE_LAYERS.items() if of == layer) for layer in set(arch.PACKAGE_LAYERS.values())} | {"delivery": ""}
 
 
 def _row(*cells: object) -> str:
@@ -85,7 +86,7 @@ def blocks_of(text: str) -> dict[str, str]:
 
 
 def stale_blocks(text: str) -> list[str]:
-    """The blocks of the generated kind that the text lacks or whose content is not what the test's data says now."""
+    """The generated blocks that the text lacks or whose content differs from the data."""
     found = blocks_of(text)
     return [name for name, make in MAKERS.items() if found.get(name) != make()]
 

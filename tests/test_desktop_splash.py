@@ -1,6 +1,6 @@
-"""The splash of Windows (neoaprs/desktop/splash.py) as far as it is not Win32: the quick look at the app's arguments and that it knows every option of the real parser, the look at a data folder that an app
-holds already, the place and the colours, the handle that takes it away from anywhere, where the app takes it away, and that the entry's way to it imports nothing heavy. The window itself is what only a
-Windows desktop can show."""
+"""Tests for the non-Win32 parts of the Windows splash (neoaprs/desktop/splash.py): argument check,
+data folder check, place and colours, the handle that removes it, and light imports.
+"""
 import argparse
 import os
 import subprocess
@@ -236,7 +236,8 @@ def test_the_windows_shell_takes_it_away_when_the_web_engine_cannot_start(tmp_pa
 # ---- the entry's way to it
 
 def test_the_entrys_way_to_the_splash_imports_nothing_heavy(tmp_path: Path) -> None:
-    """What packaging/windows/neoaprs_entry.py does for the app's role before it imports the app: the role, the splash's module, and its look at the arguments and at the data folder."""
+    """What packaging/windows/neoaprs_entry.py does for the app's role before it imports the app:
+    the role, the splash's module, and its look at the arguments and at the data folder."""
     code = ("import sys; sys.path.insert(0, sys.argv[1]); import neoaprs_entry; from neoaprs.desktop import splash; assert neoaprs_entry.role('C:/NeoAPRS/neoaprs-app.exe') == 'app'; "
             "data = splash.window_now([]); assert data and not splash.running(data); splash.show([]); splash.done()")
     env = {**os.environ, "NEOAPRS_DATA_DIR": str(tmp_path / "data"), "NEOAPRS_NO_DEVICES": "1", "NEOAPRS_UPDATE_CHECK": "0"}

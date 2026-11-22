@@ -1,5 +1,6 @@
-"""The guards of tests/support/guards.py must be able to fail. Each one is shown on a small test file run by a child pytest with the same fixtures
-(a guard that fails at teardown is an ERROR line of that child), and the pure parts are tried directly."""
+"""The guards of tests/support/guards.py must be able to fail. Each one is shown on a small test
+file run by a child pytest with the same fixtures (a guard that fails at teardown is an ERROR line
+of that child), and the pure parts are tried directly."""
 import asyncio
 import os
 import shutil
@@ -265,7 +266,8 @@ def child_outcomes(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
     (work / "test_inner.py").write_text(INNER_TESTS)
     (work / "test_inner_reaches_out.py").write_text(INNER_MODULE_REACHES_OUT)
     (work / "test_inner_loopback.py").write_text(INNER_MODULE_LOOPBACK)
-    (work / "test_zz_inner_session.py").write_text(INNER_SESSION_REACHES_OUT)       # (the last file: the end of the session is its teardown)
+    # (the last file: the end of the session is its teardown)
+    (work / "test_zz_inner_session.py").write_text(INNER_SESSION_REACHES_OUT)
     (work / "pytest.ini").write_text(textwrap.dedent("""
         [pytest]
         asyncio_mode = auto
@@ -316,12 +318,14 @@ async def test_a_leaked_task_is_found_and_a_finished_one_is_not() -> None:
 
 
 async def test_a_stop_that_hangs_when_the_test_is_over_fails_the_test_by_its_name_and_ends() -> None:
-    hung = asyncio.get_running_loop().create_future()                         # (a word that never comes: the Db's close on Windows 11 waited 25 minutes for one)
+    # (a word that never comes: the Db's close on Windows 11 waited 25 minutes for one)
+    hung = asyncio.get_running_loop().create_future()
 
     async def never_ends() -> None:
         await hung
 
-    guards.env_module.remember_stop(never_ends)                               # (taken off the list by the stop_all that runs it)
+    # (taken off the list by the stop_all that runs it)
+    guards.env_module.remember_stop(never_ends)
     with pytest.raises(pytest.fail.Exception, match=r"tests/test_x\.py::test_y: stopping what the test started did not end in 0\.2 s"):
         await asyncio.wait_for(guards.torn_down_within(0.2, "tests/test_x.py::test_y"), 10.0)
     assert hung.cancelled()
@@ -393,7 +397,9 @@ def _modem_ports() -> list[int]:
 
 @pytest.mark.parametrize("port", _modem_ports())
 def test_a_port_of_this_machine_a_real_modem_may_listen_on_is_not_reached(port: int) -> None:
-    """Direwolf's own default and the ports NeoAPRS's Direwolf and Mercury try: the operator's modems on the radios may be there. The tests' made-up modems run from 20000 up (tests/support/modemports.py)."""
+    """Direwolf's own default and the ports NeoAPRS's Direwolf and Mercury try: the operator's
+    modems on the radios may be there. The tests' made-up modems run from 20000 up
+    (tests/support/modemports.py)."""
     network = guards.NetworkGuard()
     for address, family in ((("127.0.0.1", port), socket.AF_INET), (("localhost", port), socket.AF_INET), (("::1", port, 0, 0), socket.AF_INET6)):
         with pytest.raises(guards.NonLoopbackConnection, match="real Direwolf or Mercury"):
@@ -424,7 +430,8 @@ def test_a_connect_a_probe_and_a_datagram_to_a_real_modems_port_are_refused_when
 
 
 def test_a_connect_of_the_windows_loop_which_goes_past_socket_connect_is_refused_too() -> None:
-    """IocpProactor.connect, the Windows loop's, calls ConnectEx and never `socket.connect`: the guard wraps it as well (here a stand-in of it)."""
+    """IocpProactor.connect, the Windows loop's, calls ConnectEx and never `socket.connect`: the
+    guard wraps it as well (here a stand-in of it)."""
     from neoaprs.mercury import BROADCAST_PORT
 
     class Proactor:
@@ -476,7 +483,8 @@ def test_restoring_the_logging_undoes_levels_handlers_switches_and_says_what_had
 
 
 async def test_a_database_thread_that_is_left_running_is_found_and_a_closed_one_is_not(tmp_path: Path) -> None:
-    """The thread of a Db (neoaprs/db.py) must end with its close(): the guard fails the test that forgets it (a Db that nobody closes keeps a thread and a file open for ever)."""
+    """The thread of a Db (neoaprs/db.py) must end with its close(): the guard fails the test that
+    forgets it (a Db that nobody closes keeps a thread and a file open for ever)."""
     from neoaprs.db import Db
     db = Db.at(tmp_path / "x.sqlite")
     await db.start()
@@ -487,7 +495,9 @@ async def test_a_database_thread_that_is_left_running_is_found_and_a_closed_one_
 
 
 def test_a_modem_program_of_the_installation_is_refused_whatever_it_is_called_and_only_the_real_direwolfs_tests_start_theirs(tmp_path: Path) -> None:
-    """The folder of the shipped programs as a checkout has it where the developer built them: a test's radio that started the Mercury or the Direwolf in it would open the machine's sound cards."""
+    """The folder of the shipped programs as a checkout has it where the developer built them: a
+    test's radio that started the Mercury or the Direwolf in it would open the machine's sound
+    cards."""
     tools = tmp_path / "venv" / "tools"
     for name in ("mercury", "direwolf"):
         (tools / name / "dev").mkdir(parents=True)
@@ -508,7 +518,8 @@ def test_a_modem_program_of_the_installation_is_refused_whatever_it_is_called_an
             subprocess.Popen([str(tools / "mercury" / "mercury"), "-l"])
         with pytest.raises(guards.RadioTouched):
             subprocess.run([str(tools / "direwolf" / "direwolf")], check=False)
-        subprocess.run([sys.executable, "-c", "pass"], check=True)                 # any other program is none of its business
+        # any other program is none of its business
+        subprocess.run([sys.executable, "-c", "pass"], check=True)
     assert len(processes.shipped) == 2 and processes.refused == []
     direwolfs = guards.ProcessGuard(tools, allowed=("direwolf",))
     assert not direwolfs.starts_shipped([str(tools / "direwolf" / "direwolf")]) and not direwolfs.starts_shipped([str(tools / "direwolf" / "dev" / "gen_packets")]) and direwolfs.starts_shipped([str(tools / "mercury" / "mercury")])
@@ -636,7 +647,8 @@ def test_the_real_direwolf_without_a_readable_configuration_or_through_another_p
     bad.write_text("ADEVICE plughw:1,0\n")
     (tools / "direwolf" / "direwolf").chmod(0o755)
     if sys.platform == "win32":
-        shutil.copy(tools / "direwolf" / "direwolf", tools / "direwolf" / "direwolf.exe")       # (Windows finds a bare name on the PATH by its extension)
+        # (Windows finds a bare name on the PATH by its extension)
+        shutil.copy(tools / "direwolf" / "direwolf", tools / "direwolf" / "direwolf.exe")
     assert "audio device" in direwolfs.direwolf_refusal(["direwolf", "-c", str(bad)], env={"PATH": str(tools / "direwolf")}), "found on the PATH it runs with"
     assert "audio device" in direwolfs.direwolf_refusal(["x", "-c", str(bad)], executable=program), "given as the executable"
     assert "audio device" in direwolfs.direwolf_refusal([program, "-c", str(good), "-c", str(bad)]) and direwolfs.direwolf_refusal([program, "-c", str(bad), "-c", str(good)]) == "", "Direwolf reads the last -c"
@@ -663,7 +675,9 @@ def test_the_main_checkouts_programs_are_refused_too_when_the_tests_run_in_a_wor
 
 
 def test_the_journal_is_not_read_by_the_module_nor_by_the_function_bound_before(tmp_path: Path) -> None:
-    """A default argument keeps the function it was given (`make_bundle(journal=gather.journal_text)`): the guard shuts the function too, not only the name in its module."""
+    """A default argument keeps the function it was given
+    (`make_bundle(journal=gather.journal_text)`): the guard shuts the function too, not only the
+    name in its module."""
     ran: list[str] = []
 
     def journal_text(run: Any = lambda *a, **k: ran.append("journalctl"), which: Any = lambda name: "/bin/" + name) -> str | None:
@@ -708,7 +722,8 @@ def test_the_default_alert_command_is_shut_and_a_command_of_the_tests_own_runs()
             assert Unswitched(lambda wrapped=wrapped: replace(DEFAULTS, messages_alert_command=wrapped))._command() == "", wrapped
 
 
-# ---- the doors the guards did not watch: a COM port, the starts that are not a Popen, and the fixtures of a module or the session
+# ---- the doors the guards did not watch: a COM port, the starts that are not a Popen, and the
+# fixtures of a module or the session
 
 @pytest.mark.parametrize("name, refused", [
     ("COM3", True), ("com12", True), ("\\\\.\\COM12", True), ("\\\\?\\COM4", True), ("\\\\.\\CNCA0", True),
@@ -744,7 +759,9 @@ def test_the_doors_of_the_session_put_the_com_guard_in_front_of_pyserials_window
 
 @pytest.mark.skipif(sys.platform != "win32", reason="a COM port is a Windows thing")
 def test_a_test_that_opens_a_com_port_with_pyserial_is_refused() -> None:
-    """The guard is the one every test has (`isolated_machine`): found behind pyserial's own CreateFile, and its refusal, which is this test's doing, is taken from it so that it is not held against the test."""
+    """The guard is the one every test has (`isolated_machine`): found behind pyserial's own
+    CreateFile, and its refusal, which is this test's doing, is taken from it so that it is not held
+    against the test."""
     import serial  # type: ignore[import-untyped,unused-ignore]
     create = guards._windows_serial().CreateFile
     guard = next(cell.cell_contents for cell in create.__closure__ or () if isinstance(cell.cell_contents, guards.SerialGuard))
@@ -755,7 +772,8 @@ def test_a_test_that_opens_a_com_port_with_pyserial_is_refused() -> None:
 
 
 def os_starts_made_up(mp: pytest.MonkeyPatch) -> list[tuple[str, tuple[Any, ...]]]:
-    """Every call of OS_STARTS this system has is a stand-in that records itself, so that the guard in front of it is shown without starting anything."""
+    """Every call of OS_STARTS this system has is a stand-in that records itself, so that the guard
+    in front of it is shown without starting anything."""
     started: list[tuple[str, tuple[Any, ...]]] = []
     for name in guards.OS_STARTS:
         if hasattr(os, name):
@@ -788,7 +806,9 @@ def test_a_start_by_exec_spawn_system_or_startfile_of_a_modem_program_of_the_ins
                 calls.append(lambda: os.startfile("cmd.exe", arguments="/c " + program))   # type: ignore[attr-defined,unused-ignore]
             elif name.startswith("posix_spawn"):
                 args = [program, [program], {}]
-            else:                                                        # the argument list given as a list (v) or as words (l), the environment last (e), the mode first for spawn
+            # the argument list given as a list (v) or as words (l), the environment last (e), the
+            # mode first for spawn
+            else:
                 args = [*([os.P_NOWAIT] if name.startswith("spawn") else []), program, *([[program]] if form.startswith("v") else [program]), *([{}] if form.endswith("e") else [])]
             calls.append(lambda name=name, args=args: getattr(os, name)(*args))
         for call in calls:
@@ -856,7 +876,8 @@ def test_the_doors_of_the_session_refuse_and_keep_what_a_fixture_reached_for_and
         with pytest.raises(guards.RadioTouched):
             os.open("/dev/ttyS0", os.O_RDONLY)
     assert doors.take() == ["192.0.2.1:80", "/dev/ttyS0"] and doors.take() == []
-    doors.paused = True                                                  # (a test runs: its own guards watch, and say it)
+    # (a test runs: its own guards watch, and say it)
+    doors.paused = True
     doors.network.check(("192.0.2.1", 80), socket.AF_INET)
     doors.radio.check("/dev/ttyS0")
     assert doors.take() == []

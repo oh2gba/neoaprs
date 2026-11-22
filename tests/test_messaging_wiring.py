@@ -1,5 +1,6 @@
-"""Messaging (neoaprs/services/messaging.py) inside the whole daemon, the radio a pseudo-terminal: a message goes out as a KISS frame and is in the packet log as a packet we sent, a message that is
-sent to us is kept and acked on the line, an ack through the line settles the message, a restart goes on where it left off, the pruning, and the controller starting and stopping the part."""
+"""Messaging inside the whole daemon with a pseudo-terminal radio: a message goes out as a KISS
+frame, an incoming one is kept and acked, an ack settles it, a restart resumes, and pruning.
+"""
 import asyncio
 import logging
 from datetime import timedelta
@@ -65,7 +66,8 @@ async def test_a_rej_through_the_line_settles_the_message_as_rejected(tmp_path: 
 async def test_a_message_sent_to_us_is_kept_and_the_ack_is_on_the_line_and_in_the_log(tmp_path: Path) -> None:
     e = await started(tmp_path)
     e.feed(on_air("OH2RDG-7", message_info("OH2GBA", "Moi!", "12")))
-    await until(lambda: e.tnc.stats.packets == 1)                          # (the line is read by the loop: said() blocks it, so it comes after)
+    # (the line is read by the loop: said() blocks it, so it comes after)
+    await until(lambda: e.tnc.stats.packets == 1)
     [ack] = await said(e)
     assert ack.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG-7 :ack12"
     await until(lambda: len(e.ctl.messaging.records()) == 1)
@@ -162,7 +164,8 @@ async def test_the_controller_starts_the_ticker_after_the_beacon_and_stops_it_be
 
 # ---- third-party packets: an iGate put on the air what it heard on the internet
 
-GATED_ACK = b"}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack01"                 # (the shape of a frame an iGate puts on the air, with the id of our first message)
+# The shape of a frame an iGate puts on the air, with the id of our first message
+GATED_ACK = b"}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack01"
 GATED_MESSAGE = b"}OH2BEA-9>APY300,TCPIP,OH7JHF-1*::OH2GBA   :Test ok{06"
 
 
@@ -186,7 +189,8 @@ async def test_a_message_the_internet_sent_is_received_once_and_acked_to_the_inn
     [ack] = await said(e)
     assert ack.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2BEA-9 :ack06", "the ack goes to the sender inside, not to the iGate"
     await until(lambda: len(e.ctl.messaging.records()) == 1)
-    e.feed(on_air("OH2BEA-9", message_info("OH2GBA", "Test ok", "06"), path=""))     # (the same message, heard direct as well)
+    # The same message, heard direct as well
+    e.feed(on_air("OH2BEA-9", message_info("OH2GBA", "Test ok", "06"), path=""))
     await until(lambda: e.tnc.stats.packets == 2)
     assert await said(e, 1, 0.3) == [], "the copy that came direct, within thirty seconds of our ack, is not acked again"
     [row] = await kept(e)
@@ -276,7 +280,8 @@ async def test_the_station_path_comes_before_rfonly_and_a_path_that_has_rfonly_o
         await e.ctl.prefbook.set_path("OH2RDG", path)
         record = await e.ctl.messaging.send("OH2RDG", text)
         frames += [f.tnc2() for f in await said(e)]
-        e.ctl.messaging.cancel(record.id)                                           # (one message to a station is on the air at a time: the next goes when this one is settled)
+        # One message to a station is on the air at a time: the next goes when this one is settled
+        e.ctl.messaging.cancel(record.id)
     assert frames == [
         "OH2GBA>APZNEO,OH2RCH-2,WIDE2-1,RFONLY::OH2RDG   :one{01}", "OH2GBA>APZNEO,RFONLY,OH2RCH-2::OH2RDG   :two{02}",
         "OH2GBA>APZNEO,OH2RCH-2,NOGATE::OH2RDG   :three{03}", "OH2GBA>APZNEO,RFONLY::OH2RDG   :four{04}"]
@@ -287,7 +292,8 @@ async def test_with_eight_digipeaters_already_a_message_to_an_rf_only_station_is
     e = await started(tmp_path)
     eight = ",".join(f"OH2RC{n}" for n in range(8))
     await e.ctl.prefbook.set_path("OH2RDG", eight)
-    await e.ctl.messaging.send("OH2RDG", "waits")                                  # (it goes: the station is not RF only yet)
+    # It goes: the station is not RF only yet
+    await e.ctl.messaging.send("OH2RDG", "waits")
     assert len(await said(e)) == 1
     await e.ctl.prefbook.set_rf_only("OH2RDG", True)
     with pytest.raises(MessagingError, match="path too long for RF only"):

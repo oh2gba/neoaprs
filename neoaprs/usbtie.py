@@ -1,15 +1,8 @@
-"""Which serial ports and sound cards are one radio's, from where the kernel places them on the USB (Linux: sysfs). A radio with USB (an FTX-1, an IC-7300), a Digirig or an IC-9700 carries its sound chip and its
-serial chips behind a small hub of its own; an all-in-one chip (an AIOC) is one USB device with both. A port elsewhere on the USB (a programming cable, another radio's interface) is not the card's, and keying it
-would key nothing, or another radio.
+"""Find which serial ports and sound cards belong to one radio, by USB place (Linux sysfs).
 
-The rule (`_Tree.group`): a USB device is grouped with the others on its hub when that hub is not the computer's own (a root hub) and carries nothing but devices with a sound card or a serial port, exactly one of them
-with a sound card; else it is a group alone. So the two radios of one computer, each a hub with its sound card and one or two serial chips, are two groups; a hub that also carries a keyboard, a memory stick,
-another hub or a second sound card is no radio's, and each device on it stands alone; two devices straight on the computer are never grouped. A lone serial cable and a lone sound dongle on a small desktop hub
-with nothing else on it look like a radio's hub, and are grouped: nothing in the tree tells them apart, and the cable is then the likely keying anyway.
-
-Read for `usb_group` of the ports and the sound cards on the wire (`together`): an opaque token, equal for the devices of one group, which the page orders the keying lines by. The token is never shown and
-never logged. The keying Direwolf is given when the settings leave it to the daemon (direwolf.choose_keying) is chosen among the ports on the card's own USB device or beside it on its hub, whatever else
-that hub carries (`tied`): a sound dongle and a serial cable on a hub they share with a keyboard keep the keying line they always had."""
+A USB radio carries its sound and serial chips behind a small hub of its own (`_Tree.group`);
+keying a port elsewhere would key another radio. `together` gives each an opaque group token.
+"""
 import hashlib
 import os
 import re
@@ -20,13 +13,14 @@ from pathlib import Path
 from . import nodevices
 
 SYS = Path("/sys")
-_DEVICE = re.compile(r"^\d+-\d+(?:\.\d+)*$")                 # a USB device's place as sysfs names it: bus 1, port 2, then port 3 of the hub there ("1-2.3"); an interface adds ":1.0", the root hub is "usb1"
+# a USB device's place as sysfs names it: bus 1, port 2, port 3 of the hub there ("1-2.3")
+_DEVICE = re.compile(r"^\d+-\d+(?:\.\d+)*$")
 _CARD_NUMBER = re.compile(r"^(?:plug)?hw:(\d+)")
 _CARD_NAME = re.compile(r"CARD=([^,]+)")
 
 
 def _usb_place(path: Path) -> tuple[str, str] | None:
-    """The USB device a sysfs path lies under and the hub it hangs on, as their paths ("" for the hub when it is the computer's own); None when the path is not on the USB."""
+    """Return the paths of the USB device a sysfs path lies under and of its hub ("" if root)."""
     parts = path.parts
     found = [i for i, part in enumerate(parts) if _DEVICE.match(part)]
     if not found:
@@ -37,7 +31,6 @@ def _usb_place(path: Path) -> tuple[str, str] | None:
 
 
 def _card_number(card_id: str, sys_root: Path) -> int | None:
-    """The number of the ALSA card of this id (`plughw:1,0`, `plughw:CARD=CODEC,DEV=0`), by the names sysfs gives the cards; None when it is none of them."""
     if (m := _CARD_NUMBER.match(card_id)) is not None:
         return int(m.group(1))
     if (m := _CARD_NAME.search(card_id)) is None:
@@ -52,7 +45,6 @@ def _card_number(card_id: str, sys_root: Path) -> int | None:
 
 
 def _places(sys_root: Path, kind: str, pattern: str) -> list[tuple[str, str]]:
-    """The USB places of every member of a class of sysfs (`sound` cards, `tty` ports) that is on the USB."""
     try:
         folders = sorted((sys_root / "class" / kind).glob(pattern))
     except OSError:
@@ -61,7 +53,7 @@ def _places(sys_root: Path, kind: str, pattern: str) -> list[tuple[str, str]]:
 
 
 class _Tree:
-    """The USB devices of this computer that carry a sound card or a serial port, read once from sysfs."""
+    """The USB devices carrying a sound card or a serial port."""
 
     def __init__(self, sys_root: Path) -> None:
         self.root = sys_root
@@ -70,7 +62,6 @@ class _Tree:
         self.members = self.sound | {device for device, _ in ttys}
 
     def _radio_hub(self, hub: str) -> bool:
-        """Whether the hub carries nothing but devices with a sound card or a serial port, exactly one with a sound card."""
         try:
             children = [str(Path(hub) / c.name) for c in Path(hub).iterdir() if _DEVICE.match(c.name)]
         except OSError:
@@ -78,7 +69,6 @@ class _Tree:
         return bool(children) and all(c in self.members for c in children) and sum(c in self.sound for c in children) == 1
 
     def group(self, place: tuple[str, str] | None) -> str | None:
-        """The group of a USB place (the path of its hub or of the device itself); None off the USB."""
         if place is None:
             return None
         device, hub = place
@@ -90,16 +80,18 @@ class _Tree:
 
     def port(self, device: str) -> str | None:
         try:
-            name = Path(device).resolve().name                         # (a by-id link is followed to its ttyUSB0)
+            # a by-id link is followed to its ttyUSB0
+            name = Path(device).resolve().name
         except OSError:
             return None
         return self.group(_usb_place((self.root / "class" / "tty" / name / "device").resolve())) if name else None
 
 
 def tied(card_id: str, devices: Sequence[str], sys_root: Path = SYS) -> list[str] | None:
-    """The serial devices of `devices` (`/dev/ttyUSB0`, a by-id link to one) that are part of the sound card's interface: on the card's own USB device, or beside it on a hub that is not the computer's own,
-    whatever else that hub carries. None when that cannot be told: the card is not found on the USB. The keying chosen from them is the one a station always had; the stricter group orders the Keying list
-    alone. Reads sysfs: for a thread."""
+    """Return the serial devices on the card's own USB device or beside it on its hub.
+
+    None if the card is not on the USB. Reads sysfs: call from a thread.
+    """
     number = _card_number(card_id, sys_root)
     card = None if number is None else _usb_place((sys_root / "class" / "sound" / f"card{number}" / "device").resolve())
     if card is None:
@@ -109,7 +101,7 @@ def tied(card_id: str, devices: Sequence[str], sys_root: Path = SYS) -> list[str
         if device.lower().startswith(("bt://", "ble://")):
             continue
         try:
-            name = Path(device).resolve().name                         # (a by-id link is followed to its ttyUSB0)
+            name = Path(device).resolve().name
         except OSError:
             continue
         place = _usb_place((sys_root / "class" / "tty" / name / "device").resolve()) if name else None
@@ -123,25 +115,22 @@ def _token(group: str | None) -> str | None:
 
 
 def groups(card_ids: Sequence[str], devices: Sequence[str], sys_root: Path = SYS) -> tuple[dict[str, str | None], dict[str, str | None]]:
-    """The token of the group (`_Tree.group`) of each sound card and of each serial device, equal for the devices of one group; None where it is not known (not on the USB, not found). Reads sysfs: for a thread."""
+    """Return the group token of each sound card and serial device; reads sysfs (use a thread)."""
     tree = _Tree(sys_root)
     return ({c: _token(tree.card(c)) for c in card_ids},
             {d: None if d.lower().startswith(("bt://", "ble://")) else _token(tree.port(d)) for d in devices})
 
 
 def _here() -> Path | None:
-    """The sysfs of this computer; None where nothing can be told (not Linux) and under the no-devices switch, which lists no device. NEOAPRS_SYS_ROOT names another folder than /sys (the tests point it
-    at none: no test reads the machine's devices)."""
+    """Return the sysfs of this computer, or None off Linux; NEOAPRS_SYS_ROOT is for tests."""
     return Path(os.environ.get("NEOAPRS_SYS_ROOT") or SYS) if sys.platform.startswith("linux") and not nodevices.on() else None
 
 
 def beside(card_id: str, devices: Sequence[str]) -> list[str] | None:
-    """`tied` on this computer; None where it cannot be told (not Linux, no card) and under the no-devices switch."""
     root = _here()
     return tied(card_id, devices, root) if root is not None and card_id else None
 
 
 def together(card_ids: Sequence[str], devices: Sequence[str]) -> tuple[dict[str, str | None], dict[str, str | None]]:
-    """`groups` on this computer; every token None where nothing can be told (not Linux) and under the no-devices switch."""
     root = _here()
     return groups(card_ids, devices, root) if root is not None else ({c: None for c in card_ids}, {d: None for d in devices})

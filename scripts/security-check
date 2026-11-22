@@ -1,33 +1,21 @@
 #!/usr/bin/env python3
-"""The security checks that need a program of their own, as one command: scripts/check runs it as the stage `security`, and with --audit as the stage `audit`.
+"""The security checks that need a program of their own, as one command.
 
-    scripts/security-check                 the checks that ask nobody: secret-files, tokens, gitleaks, php-lint, psalm, shellcheck, zizmor
-    scripts/security-check --all-history   the same, and `tokens` reads every commit there is (the remote's branches too), not only the ones the remote does not have yet
-    scripts/security-check --audit         the advisory check alone: osv-scanner asks osv.dev about every package of uv.lock and ui/package-lock.json
-    scripts/security-check --only NAME     one of the checks by its name (may be given several times)
-    scripts/security-check --update        write scripts/security-baseline.json from what shellcheck and zizmor find today; it is never made larger unless --allow-growth says that is meant
+scripts/check runs it as the stage `security`, and with --audit as the stage `audit`.
 
-One line per check, `ok` or `FAIL` with its time, and under a failing one what was found (under a passing one what it read, where that says something); exit 1 when any failed.
+    scripts/security-check                 the checks that ask nobody (secret-files, tokens,
+                                           gitleaks, php-lint, psalm, shellcheck, zizmor)
+    scripts/security-check --all-history   the same, and `tokens` reads every commit, the remote's
+                                           branches too
+    scripts/security-check --audit         the advisory check alone: osv-scanner over the lock files
+    scripts/security-check --only NAME     one check by name (repeatable)
+    scripts/security-check --update        write scripts/security-baseline.json from today's
+                                           shellcheck and zizmor findings; never larger unless
+                                           --allow-growth says so
 
-    secret-files no path with a part named .secrets, or .secrets with anything after it, is tracked by git (a file or a folder), and none lies in the tree where git does not ignore it:
-                 such a file holds access tokens. Names only: nothing is opened
-    tokens       nothing of the form of the secrets manager's access token is on its way to GitHub. This script looks itself, with no program and no list of exceptions: in every commit
-                 of a local branch or tag that the remote does not have (what it changes, a merge's resolution, its message), in the messages of the tags, in the index as it is staged
-                 and in every tracked file, read as bytes whatever the file is. It names the commit and the file, never what it found
-    gitleaks     no secret of any other kind in the commits of this branch, in their messages, or in the tracked files that are changed or staged (the report hides what it found);
-                 .gitleaks.toml lists the made-up values, each with its reason
-    php-lint     `php -l` over every tracked *.php of server/
-    psalm        Psalm follows what a request sends to where it is used in server/ (server/psalm.xml); only its Tainted* reports count. Where the system's php lacks the XML extensions
-                 Psalm needs, it runs in the pinned php image with docker, server/ read-only and no network
-    shellcheck   at the level `warning` over the tracked shell scripts of server/, scripts/ and packaging/, against the baseline; no settings file is read, and one that is tracked,
-                 or a `disable` comment without its reason, is a finding
-    zizmor       the workflows of .github/workflows, offline, from the severity `medium` up, against the baseline; no settings file is read, and one that is tracked is a finding
-    audit        osv-scanner over both lock files; osv-scanner.toml lists the advisories set aside, each with its reason and the day it ends
-
-The checks read what git tracks: no file of the developer's own folders in the checkout is opened (zizmor and Psalm are given their one folder, .github/workflows and server/, as it lies). The
-programs are the pinned ones scripts/security-tools fetches into the build cache; php is the system's. A program that is not there fails its check and the line says how to get it: a check that could not run is never a pass. The baseline holds what shellcheck and
-zizmor are known to find today, each entry with its count and its reason; a finding that is not in it, or one more of a kind that is, fails. How to read a failure and how an entry is added:
-docs/security-checks.md. The standard library only."""
+One line per check, `ok` or `FAIL` with its time, and under a failing one what was found; exit 1
+when any failed. The checks read what git tracks; the programs are the pinned ones that
+scripts/security-tools fetches. A check that cannot run is no pass (docs/security-checks.md)."""
 import argparse
 import base64
 import importlib.machinery
@@ -53,28 +41,39 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "scripts" / "security-baseline.json"
 GUIDE = "docs/security-checks.md"
-NEVER_TRACKED = ".secrets"                  # a file or folder whose name begins so holds access tokens (server/deploy.sh reads one); .gitignore names it and git never tracks it
-OUR_RULE = "bitwarden-secrets-manager-access-token"                             # the rule of .gitleaks.toml for the access token of the secrets manager
-REMOTE = "origin"                           # where scripts/release pushes: a commit that one of its branches has is on GitHub already
-GIT_PLAIN = ("-c", "core.quotePath=false", "-c", "diff.noprefix=false", "-c", "diff.mnemonicPrefix=false", "-c", "log.showSignature=false")       # git prints the same whatever the developer's own settings are
-GIT_SETTINGS = (("color.ui", "false"), ("color.diff", "false"), ("log.showRoot", "true"))                                                        # what every git is told through its environment, the one gitleaks starts too: with the developer's `color.ui = always` gitleaks finds nothing in the commits, with `log.showRoot = false` nothing in the first one
-CHUNK = 1 << 20                             # how much of git's output is read at a time
-CHANGED, STAGED, MESSAGES = "changed", "staged", "messages"                     # the folders gitleaks is shown what its reading of the commits does not see
+# A name starting so holds access tokens; .gitignore names it and git never tracks it.
+NEVER_TRACKED = ".secrets"
+# Rule of .gitleaks.toml for the secrets manager's access token.
+OUR_RULE = "bitwarden-secrets-manager-access-token"
+# scripts/release pushes here: a commit one of its branches has is on GitHub already.
+REMOTE = "origin"
+# git prints the same whatever the developer's settings.
+GIT_PLAIN = ("-c", "core.quotePath=false", "-c", "diff.noprefix=false", "-c", "diff.mnemonicPrefix=false", "-c", "log.showSignature=false")
+# Given to every git, including the one gitleaks starts, through its environment.
+GIT_SETTINGS = (("color.ui", "false"), ("color.diff", "false"), ("log.showRoot", "true"))
+CHUNK = 1 << 20                             # git output read at a time
+# Folders gitleaks is shown what its reading of the commits does not see.
+CHANGED, STAGED, MESSAGES = "changed", "staged", "messages"
 SHELL_FOLDERS = ("server", "scripts", "packaging")
 SHEBANG = re.compile(rb"#!\s*/(usr/)?bin/(env\s+)?(ba)?sh\b")
-SETTINGS_FILES = {"shellcheck": (".shellcheckrc", "shellcheckrc"), "zizmor": ("zizmor.yml", "zizmor.yaml", ".zizmor.yml", ".zizmor.yaml")}        # where each tool looks for settings that can switch findings off
-SETTINGS_OF_THE_SHELL = ("SHELLCHECK_OPTS", "ZIZMOR_CONFIG", "GITLEAKS_CONFIG", "GITLEAKS_CONFIG_TOML")                                          # the same from the environment: no program is handed them
-DISABLE = re.compile(rb"^[ \t]*#[ \t]*shellcheck[ \t][^#\n]*?\bdisable=(?P<rules>[^#\s]*)[^#\n]*(?:#(?P<reason>.*))?$", re.MULTILINE)                              # shellcheck's comment that switches rules off, and what follows it on the line
-ZIZMOR_SEVERITY = "medium"                  # the lowest severity that counts; what zizmor rates lower (a checkout that leaves its token in the job, a value of the workflow's own in a shell line) is not held here
-ZIZMOR_FOUND = range(10, 15)                # zizmor's exit codes for "findings", by the highest severity among them
+# Where each tool looks for settings that can switch findings off.
+SETTINGS_FILES = {"shellcheck": (".shellcheckrc", "shellcheckrc"), "zizmor": ("zizmor.yml", "zizmor.yaml", ".zizmor.yml", ".zizmor.yaml")}
+# The same from the environment; no program is given them.
+SETTINGS_OF_THE_SHELL = ("SHELLCHECK_OPTS", "ZIZMOR_CONFIG", "GITLEAKS_CONFIG", "GITLEAKS_CONFIG_TOML")
+# shellcheck's comment that disables rules, and what follows it.
+DISABLE = re.compile(rb"^[ \t]*#[ \t]*shellcheck[ \t][^#\n]*?\bdisable=(?P<rules>[^#\s]*)[^#\n]*(?:#(?P<reason>.*))?$", re.MULTILINE)
+ZIZMOR_SEVERITY = "medium"  # lowest severity that counts; lower ones are not held here
+ZIZMOR_FOUND = range(10, 15)  # zizmor's exit codes for findings, by highest severity
 LOCK_FILES = ("uv.lock", "ui/package-lock.json")
-PSALM_EXTENSIONS = ("dom", "simplexml")     # what Psalm needs of php beyond a bare php-cli
+PSALM_EXTENSIONS = ("dom", "simplexml")  # what Psalm needs of php beyond a bare php-cli
 PSALM_ARGS = ("--config=server/psalm.xml", "--taint-analysis", "--output-format=json", "--no-cache", "--no-progress", "--threads=1")
-PSALM_FOLDER = "/neoaprs"                   # where the container sees the tree: server/ under it, so that Psalm names the files as it does outside
-DOCKER_FAILED = 125                         # docker's exit code when it could not start the container at all (the image is not there, the daemon refused)
+# Where the container sees the tree, so Psalm names files as it does outside.
+PSALM_FOLDER = "/neoaprs"
+DOCKER_FAILED = 125  # docker could not start the container at all
 TIMEOUT_SEC = 600.0
 
-Entries = dict[str, dict[str, Any]]         # of one tool in the baseline: the key of a finding, its count and its reason
+# One tool in the baseline: key of a finding, its count and reason.
+Entries = dict[str, dict[str, Any]]
 
 
 class Failed(Exception):
@@ -83,14 +82,15 @@ class Failed(Exception):
 
 @dataclass(frozen=True)
 class Finding:
-    key: str                                # what the baseline counts: the file, the rule and what it is about, never a line number (lines move when someone edits above them)
+    # What the baseline counts: file, rule and subject, never a line number.
+    key: str
     place: str
     text: str
 
 
 def load_tools() -> ModuleType:
-    """scripts/security-tools as a module: the pins and the place of each program are written there and nowhere else."""
-    sys.dont_write_bytecode = True          # (no __pycache__ beside the scripts)
+    """Load scripts/security-tools as a module; the pins live only there."""
+    sys.dont_write_bytecode = True          # no __pycache__ beside the scripts
     loader = importlib.machinery.SourceFileLoader("security_tools", str(Path(__file__).resolve().parent / "security-tools"))
     spec = importlib.util.spec_from_loader(loader.name, loader)
     if spec is None:
@@ -105,7 +105,8 @@ TOOLS = load_tools()
 
 
 def tool(name: str) -> str:
-    """The pinned program of the tool in the cache; Failed, with the way to get it, when it is not there."""
+    """Return the tool's pinned program from the cache; raise Failed with how to get it if
+    missing."""
     path: Path = TOOLS.tool_path(name)
     if not path.is_file():
         raise Failed(f"{name} {TOOLS.TOOLS[name].version} is not in the cache ({path.parent.parent}): scripts/security-tools fetches it")
@@ -120,17 +121,18 @@ def php() -> str:
 
 
 def plain_environment() -> dict[str, str]:
-    """The environment every program is run in: without colours, without the variables that hand a tool its settings (a switched-off rule belongs in the baseline, where it has a reason), and with
-    git told to print plainly and to show every commit as it is stored, whatever the developer's own settings say: a push sends the commit itself, not what `git replace` shows in its place."""
+    """Return the environment every program runs in: no colours, no tool settings, plain git."""
     kept = {key: value for key, value in os.environ.items() if key not in SETTINGS_OF_THE_SHELL}
     count = kept.get("GIT_CONFIG_COUNT", "")
-    first = int(count) if count.isdigit() else 0                                # (settings the shell hands git this way stay, ours come after them and so decide)
+    # The shell's git settings stay; ours come after and decide.
+    first = int(count) if count.isdigit() else 0
     told = {f"GIT_CONFIG_{part}_{first + at}": word for at, setting in enumerate(GIT_SETTINGS) for part, word in zip(("KEY", "VALUE"), setting, strict=True)}
     return kept | told | {"GIT_CONFIG_COUNT": str(first + len(GIT_SETTINGS)), "GIT_NO_REPLACE_OBJECTS": "1", "NO_COLOR": "1"}
 
 
 def run(command: list[str], feed: str | None = None) -> subprocess.CompletedProcess[str]:
-    """The program run in the root of the tree (given `feed` to read, if any), its output kept; Failed when it cannot be started or does not end."""
+    """Run the program in the tree's root, feeding `feed`; raise Failed if it cannot start or
+    end."""
     try:
         return subprocess.run(command, cwd=ROOT, check=False, text=True, errors="replace", capture_output=True, timeout=TIMEOUT_SEC, env=plain_environment(), input=feed)
     except subprocess.TimeoutExpired:
@@ -145,7 +147,8 @@ def said(done: subprocess.CompletedProcess[str]) -> str:
 
 
 def json_of(text: str) -> Any:
-    """What the program wrote as JSON: all of its output, else its last line that opens a list or an object (a tool may print a remark before it); None when there is none."""
+    """Return the program's output as JSON: all of it, else its last list or object line; or
+    None."""
     lines = [line for line in text.splitlines() if line[:1] in ("[", "{")]
     for candidate in (text, *lines[-1:]):
         try:
@@ -163,7 +166,7 @@ def read_toml(name: str) -> dict[str, Any]:
 
 
 def listed(*args: str) -> list[str]:
-    """What `git ls-files` lists with these arguments, as paths from the root; with none, everything git tracks: the index, so also a file that was added and is not committed yet."""
+    """Return the paths `git ls-files` lists (the index, so uncommitted additions too)."""
     done = run(["git", "ls-files", "-z", *args])
     if done.returncode != 0:
         raise Failed(f"git could not list the files of the tree: {said(done)}")
@@ -176,13 +179,15 @@ def tracked(*folders: str) -> list[str]:
 
 
 def holds_tokens(name: str) -> bool:
-    """Whether the path is a file of access tokens or lies in a folder of them: any part of it begins with `.secrets`, as the two lines of .gitignore have it."""
+    """Return whether the path is, or lies in, a file of access tokens (a part begins
+    `.secrets`)."""
     return any(part.startswith(NEVER_TRACKED) for part in Path(name).parts)
 
 
 def changed() -> list[tuple[str, str]]:
-    """The tracked files that are not as the last commit has them, each with git's two letters for it (what is staged, and what the file is beside that): what the next commit could take. A file git does
-    not track is not listed, whatever it holds: it becomes this list's business when it is added."""
+    """Return the tracked files that differ from the last commit, with git's two status letters.
+
+    A file git does not track is not listed."""
     done = run(["git", "status", "--porcelain", "-z", "--untracked-files=no"])
     if done.returncode != 0:
         raise Failed(f"git could not say what has changed in the tree: {said(done)}")
@@ -190,8 +195,9 @@ def changed() -> list[tuple[str, str]]:
     fields = iter(done.stdout.split("\0"))
     for field in fields:
         if "R" in field[:2] or "C" in field[:2]:
-            next(fields, None)              # (a renamed or copied file is followed by the name it came from)
-        if field[3:] and not holds_tokens(field[3:]):                           # (a file of access tokens is not shown to a program: the check secret-files speaks of it)
+            next(fields, None)  # a renamed or copied file is followed by its old name
+        # a file of access tokens is not shown to a program: the check secret-files covers it
+        if field[3:] and not holds_tokens(field[3:]):
             states.append((field[:2], field[3:]))
     return states
 
@@ -201,7 +207,7 @@ def has_commits() -> bool:
 
 
 def git(*args: str, feed: bytes | None = None) -> bytes:
-    """What that git command prints, as bytes (a file's content and a commit's text need not be UTF-8); Failed when git does not end well."""
+    """Return what the git command prints, as bytes; raise Failed on error."""
     try:
         done = subprocess.run(["git", *GIT_PLAIN, *args], cwd=ROOT, check=False, capture_output=True, timeout=TIMEOUT_SEC, input=feed, env=plain_environment())
     except subprocess.TimeoutExpired:
@@ -230,7 +236,7 @@ def known(entries: Entries, key: str) -> int:
 
 
 def over_baseline(findings: list[Finding], entries: Entries) -> list[str]:
-    """What the baseline does not cover: a kind of finding it does not have, or more of one than it counts; each with the places it is found at."""
+    """Return what the baseline does not cover: a new kind of finding or more than counted."""
     lines: list[str] = []
     for key, count in sorted(Counter(finding.key for finding in findings).items()):
         if count > known(entries, key):
@@ -240,7 +246,7 @@ def over_baseline(findings: list[Finding], entries: Entries) -> list[str]:
 
 
 def against_baseline(name: str, findings: list[Finding]) -> str:
-    """Failed for a finding over the baseline and for an entry without its reason; else a note when the baseline holds more than is found."""
+    """Fail for a finding over the baseline or an entry without a reason; note a stale baseline."""
     entries = read_baseline().get(name, {})
     lines = over_baseline(findings, entries)
     if lines:
@@ -255,7 +261,7 @@ def against_baseline(name: str, findings: list[Finding]) -> str:
 
 
 def rebased(findings: list[Finding], entries: Entries) -> Entries:
-    """The entries of today's findings: the count as found, the reason as it was written (empty for a new one, which the check then asks for)."""
+    """Return today's entries: the count as found and the written reason (empty if new)."""
     counts = Counter(finding.key for finding in findings)
     return {key: {"count": count, "reason": str(entries.get(key, {}).get("reason", ""))} for key, count in sorted(counts.items())}
 
@@ -263,7 +269,7 @@ def rebased(findings: list[Finding], entries: Entries) -> Entries:
 # ---- the checks: each returns a note for its line (mostly none) and raises Failed
 
 def check_secret_files() -> str:
-    """Looks at names only, in the index and among the new files git does not ignore: no such file is opened."""
+    """Look at names only, in the index and among new unignored files; no such file is opened."""
     held = [f"{name} is tracked by git" for name in listed() if holds_tokens(name)]
     loose = [f"{name} is not ignored by git: the next `git add` of its folder takes it" for name in listed("--others", "--exclude-standard") if holds_tokens(name)]
     if held or loose:
@@ -276,15 +282,15 @@ def check_secret_files() -> str:
 # ---- tokens: the access token of the secrets manager, looked for by this script itself
 
 def spelled(*units: tuple[bytes, bytes]) -> bytes:
-    """A pattern of bytes for a text given as its units (what a character may be, and how many of them), with a NUL allowed after every character: the text is then found as UTF-8 and as the UTF-16 that
-    a Windows program writes."""
+    """Return a bytes pattern for the text, allowing a NUL after each character (UTF-8 and
+    UTF-16)."""
     return b"".join(rb"(?:" + unit + rb"\x00?)" + times for unit, times in units)
 
 
 HEX, DASH, DOT, WORD = rb"[0-9a-fA-F]", (rb"-", b""), (rb"\.", b""), rb"[0-9A-Za-z]"
-KEY = rb"(?:[0-9A-Za-z+/]|\\\x00?/)"        # a character of base64; its `/` also as JSON writes it (`\/`, which PHP's json_encode does unasked)
-# The access token of the secrets manager (Bitwarden Secrets Manager): 0.<the token's id, a UUID>.<twenty or more letters and digits>:<a key in base64>. Looser than the real one (thirty, and a key of
-# sixteen bytes) on purpose: nothing else in the tree has this form, and a made-up one in a test is put together from its parts.
+KEY = rb"(?:[0-9A-Za-z+/]|\\\x00?/)"  # base64 character; `/` also as JSON writes it
+# The secrets manager's access token: 0.<UUID>.<20+ letters and digits>:<base64 key>. Looser than
+# the real one on purpose: nothing else in the tree has this form.
 TOKEN = re.compile(spelled((rb"0", b""), DOT, (HEX, b"{8}"), DASH, (HEX, b"{4}"), DASH, (HEX, b"{4}"), DASH, (HEX, b"{4}"), DASH, (HEX, b"{12}"), DOT, (WORD, b"{20,}"), (rb":", b""),
                            (KEY, b"{16,}"), (rb"=", b"{0,2}")))
 
@@ -295,19 +301,20 @@ def line_of(text: bytes, at: int) -> int:
 
 
 def hidden(text: str) -> str:
-    """The text with anything of the token's form taken out: no line this script prints shows one, whichever check wrote the line."""
+    """Return the text with anything of the token's form removed, so no printed line shows one."""
     return TOKEN.sub(b"(a token, not shown)", text.encode("utf-8", "replace")).decode("utf-8", "replace")
 
 
 def path_of(header: bytes) -> str:
-    """The file a `diff --git a/NAME b/NAME` line is about: the two halves are the same name, since renames are not followed."""
+    """Return the file a `diff --git a/NAME b/NAME` line is about; renames are not followed."""
     rest = header.removeprefix(b"diff --git ")
     return rest[:(len(rest) - 1) // 2].decode("utf-8", "replace").strip('"').removeprefix("a/")
 
 
 def place_at(block: bytes, end: int, commit: str, file: str) -> tuple[str, str]:
-    """The commit and the file (none: the commit's own lines, its message among them) that the place `end` of the block stands in, given the two the block began in. A line `commit ...` or `diff --git ...`
-    at the left margin is always git's own: the message is indented, and every line of a file's content has its sign before it."""
+    """Return the commit and file (None for a commit's own lines) at the place `end` of the block.
+
+    A `commit` or `diff --git` line at the left margin is git's own; content lines have a sign."""
     start = block.rfind(b"\ncommit ", 0, end)
     if start >= 0:
         commit, file = block[start + 8:start + 18].decode("ascii", "replace"), ""
@@ -319,9 +326,8 @@ def place_at(block: bytes, end: int, commit: str, file: str) -> tuple[str, str]:
 
 
 def log_blocks(revisions: list[str]) -> Iterator[bytes]:
-    """Everything git prints for these commits, in blocks of whole lines, each beginning with the line break before its first line: the commit as it is stored (its author, its message), then what it
-    changes against each of its parents (a merge's resolution is a change like any other; said in full, since the short `-m` means what the developer's log.diffMerges says) and, for a commit
-    without a parent, everything it holds (--root, whatever log.showRoot says); every file as text (a .pdf, a file .gitattributes calls binary), without the lines around a change."""
+    """Yield what git prints for these commits as blocks of whole lines: the commit, its changes
+    against each parent (merges too) and, for a root commit, everything it holds."""
     command = ["git", *GIT_PLAIN, "log", "--format=raw", "-p", "--diff-merges=separate", "--root", "-U0", "--text", "--no-textconv", "--no-ext-diff", "--no-color", "--no-renames", "--src-prefix=a/",
                "--dst-prefix=b/", *revisions, "--"]
     deadline, rest = time.monotonic() + TIMEOUT_SEC, b"\n"
@@ -343,14 +349,15 @@ def log_blocks(revisions: list[str]) -> Iterator[bytes]:
 
 
 def on_a_removed_line(block: bytes, at: int) -> bool:
-    """Whether the place `at` is on a line of a diff that takes something out (a `-` line; the `--- a/NAME` line of a file's header is not one)."""
+    """Return whether the place `at` is on a removing line (not the `--- a/NAME` header)."""
     line = block[block.rfind(b"\n", 0, at) + 1:]
     return line.startswith(b"-") and not line.startswith((b"--- a/", b"--- /dev/null"))
 
 
 def tokens_in_commits(revisions: list[str], removed: bool) -> list[str]:
-    """The commits among these that carry a token, each with the file it is in or `its message`. A line that takes a token out is read only when `removed` (every commit there is is read then, the one that had
-    the token among them): a token on a removed line was in a parent, and a parent that has not been pushed is read itself."""
+    """Return the commits that carry a token, each with the file or `its message`.
+
+    A removing line is read only when `removed`: its token was in a parent, read if unpushed."""
     found: dict[str, None] = {}
     commit, file = "", ""
     for block in log_blocks(revisions):
@@ -371,7 +378,7 @@ def objects(names: list[bytes]) -> list[bytes]:
     for name in names:
         end = out.index(b"\n", at)
         header = out[at:end].split()
-        if len(header) != 3:                # (`NAME missing`)
+        if len(header) != 3:                # `NAME missing`
             raise Failed(f"git has no object {name.decode('ascii', 'replace')}")
         size = int(header[2])
         contents.append(out[end + 1:end + 1 + size])
@@ -387,7 +394,7 @@ def tokens_in_tags() -> list[str]:
 
 
 def in_the_tree(path: bytes) -> bytes:
-    """What the tracked path holds in the folder now: the file's bytes, a link's target (the link is not followed: where it leads is not the tree's), nothing when it is gone."""
+    """Return what the tracked path holds now: file bytes, a link's target, or nothing if gone."""
     file = ROOT / os.fsdecode(path)
     try:
         if file.is_symlink():
@@ -398,9 +405,11 @@ def in_the_tree(path: bytes) -> bytes:
 
 
 def tokens_staged_and_in_files() -> tuple[list[str], int]:
-    """The tracked files that carry a token, as the index has them (what the next commit takes, also when the file itself was changed back since) and as they lie in the folder; and how many files that are."""
+    """Return the tracked files carrying a token, in the index and in the folder, and their
+    count."""
     records = [record.partition(b"\t") for record in git("ls-files", "--stage", "-z").split(b"\0") if record]
-    entries = [(meta.split()[1], path) for meta, _, path in records if not meta.startswith(b"160000")]          # (a submodule's content is not in this repository)
+    # a submodule's content is not in this repository
+    entries = [(meta.split()[1], path) for meta, _, path in records if not meta.startswith(b"160000")]
     lines = [f"the index: {path.decode('utf-8', 'replace')} (as it is staged for the next commit)"
              for (_, path), content in zip(entries, objects([blob for blob, _ in entries]), strict=True) if TOKEN.search(content) or TOKEN.search(path)]
     files = list(dict.fromkeys(path for _, path in entries))
@@ -413,8 +422,7 @@ def tokens_staged_and_in_files() -> tuple[list[str], int]:
 
 
 def check_tokens(all_history: bool = False) -> str:
-    """Fails for anything of the token's form in what a push would send: the commits the remote does not have (all of them when asked), the tags' messages, the index and the tracked files. The
-    commits are those of this branch and of every other local branch and tag: `git push` takes whichever it is told, not only the one the gate was run on."""
+    """Fail for anything of the token's form in what a push would send (all branches and tags)."""
     here = ["HEAD"] if has_commits() else []
     revisions = [*here, "--all"] if all_history else [*here, "--branches", "--tags", "--not", f"--remotes={REMOTE}"]
     commits = int(git("rev-list", "--count", *revisions, "--"))
@@ -431,7 +439,7 @@ def check_tokens(all_history: bool = False) -> str:
 # ---- gitleaks: every other kind of secret
 
 def gitleaks(mode: str, *args: str, feed: str | None = None) -> list[dict[str, Any]]:
-    """gitleaks in that mode with .gitleaks.toml as its only rules and allowlist, nothing it finds shown: its report, empty when it found nothing; Failed when it broke."""
+    """Run gitleaks in that mode with .gitleaks.toml as its only rules; return its report."""
     done = run([tool("gitleaks"), mode, "--no-banner", "--no-color", "--redact", "--ignore-gitleaks-allow", "--log-level=warn", "--exit-code=1", "--config=.gitleaks.toml",
                 "--report-format=json", "--report-path=-", *args], feed)
     if done.returncode == 0:
@@ -443,20 +451,22 @@ def gitleaks(mode: str, *args: str, feed: str | None = None) -> list[dict[str, A
 
 
 def made_up_token() -> str:
-    """A value of the form of the secrets manager's access token (0.<id>.<thirty letters and digits>:<a key in base64>) that opens nothing; put together here, so that it stands whole in no file."""
+    """Return a made-up token, assembled here so that it stands whole in no file."""
     return f"0.{uuid.UUID(int=1)}.{'a1' * 15}:{base64.b64encode(bytes(16)).decode()}"
 
 
 def token_rule_finds() -> None:
-    """Failed unless gitleaks, with our rules and allowlist, finds a made-up token of the secrets manager: a rule that was lost or an allowlist entry that is too wide would let a real one through in silence.
-    (The check `tokens` does not lean on this rule; it is gitleaks' second look at the same thing.)"""
+    """Fail unless gitleaks, with our rules and allowlist, finds a made-up token.
+
+    A lost rule or too wide an allowlist entry would otherwise let a real one through silently."""
     if not any(leak.get("RuleID") == OUR_RULE for leak in gitleaks("stdin", feed=made_up_token() + "\n")):
         raise Failed(f"the rule {OUR_RULE} of .gitleaks.toml does not find a token of that form any more (a made-up one was shown to it): a real one would pass ({GUIDE})")
 
 
 def lay_messages(folder: Path) -> int:
-    """Writes the message of every commit of the branch into the folder, each as a file named by its commit, and says how many: gitleaks reads what a commit changes and not what it says, and a message
-    is pushed like the content."""
+    """Write each branch commit's message to a file named by commit; return how many.
+
+    gitleaks reads changes, not messages, but a message is pushed like content."""
     if not has_commits():
         return 0
     folder.mkdir()
@@ -470,8 +480,9 @@ def lay_messages(folder: Path) -> int:
 
 
 def lay_changed(scratch: Path) -> int:
-    """Lays what the next commit could take into the folder and says how many files that are: a link to each changed tracked file as it lies in the tree, and a copy of what is staged of it where that
-    is not what the file holds now (a change that was added and then taken out of the file again is still what `git commit` takes)."""
+    """Lay what the next commit could take into the folder; return how many files.
+
+    A link to each changed file, and a copy of what is staged where that differs."""
     laid = 0
     for state, name in changed():
         file = ROOT / name
@@ -480,7 +491,8 @@ def lay_changed(scratch: Path) -> int:
             link.parent.mkdir(parents=True, exist_ok=True)
             link.symlink_to(file)
             laid += 1
-        if state[0] in "AMRC" and state[1] not in " AU":                      # (staged, and the file is something else by now; not a file of a merge that is not resolved, which has nothing staged)
+        # Staged but the file is something else by now; not an unresolved merge.
+        if state[0] in "AMRC" and state[1] not in " AU":
             copy = scratch / STAGED / name
             copy.parent.mkdir(parents=True, exist_ok=True)
             copy.write_bytes(git("cat-file", "blob", f":0:{name}"))
@@ -489,7 +501,7 @@ def lay_changed(scratch: Path) -> int:
 
 
 def laid_place(leak: dict[str, Any], scratch: Path) -> str:
-    """A finding in the folder of `leaks_beside_the_diffs`, said as what it is in the tree (gitleaks names a link under SymlinkFile and the file it led to under File)."""
+    """Return a finding in the folder of `leaks_beside_the_diffs` as what it is in the tree."""
     laid = Path(str(leak.get("SymlinkFile") or leak.get("File")))
     try:
         kind, *parts = laid.relative_to(scratch).parts
@@ -502,8 +514,7 @@ def laid_place(leak: dict[str, Any], scratch: Path) -> str:
 
 
 def leaks_beside_the_diffs() -> list[str]:
-    """What gitleaks finds where its reading of the commits does not look: in their messages, and in what is not committed yet (the gate runs before the commit). All of it is shown to it in a folder of
-    its own, so that it reads this and nothing else of the tree."""
+    """Return what gitleaks finds in messages and uncommitted changes, read from a folder."""
     with tempfile.TemporaryDirectory(prefix="neoaprs-security-check-") as made:
         scratch = Path(made).resolve()
         if lay_messages(scratch / MESSAGES) + lay_changed(scratch) == 0:
@@ -519,7 +530,8 @@ def check_gitleaks() -> str:
     if any(not str(entry.get("description", "")).strip() for entry in entries):
         raise Failed("an allowlist entry of .gitleaks.toml has no description: the reason why the value is no secret")
     token_rule_finds()
-    committed = gitleaks("git", "--log-opts=--diff-merges=first-parent HEAD", ".")                # (a merge is read as what it changes on the branch it was made on: its resolution too)
+    # A merge is read as what it changes on its first parent.
+    committed = gitleaks("git", "--log-opts=--diff-merges=first-parent HEAD", ".")
     lines = sorted({f"{leak.get('File')}:{leak.get('StartLine')}: {leak.get('RuleID')}, in commit {str(leak.get('Commit'))[:10]} of {str(leak.get('Date'))[:10]}" for leak in committed})
     lines += leaks_beside_the_diffs()
     if lines:
@@ -550,8 +562,9 @@ def tainted_line(issue: dict[str, Any]) -> str:
 
 
 def psalm_in_a_container(command: str, phar: str, lacking: str) -> subprocess.CompletedProcess[str]:
-    """Psalm run by the official php image of this php's minor version, which has the extensions: the image pinned by its digest and never fetched here, server/ and the archive mounted read-only, no
-    network. Failed, with the plain sentence, when docker cannot be used or the image is not pinned or not on this machine."""
+    """Run Psalm in the pinned php image of this php's minor version, server/ read-only, no network.
+
+    Raise Failed if docker cannot be used or the image is not pinned or present."""
     docker = shutil.which("docker")
     asked = run([docker, "info", "--format", "{{.ServerVersion}}"]) if docker else None
     if asked is None or asked.returncode != 0:
@@ -578,7 +591,8 @@ def check_psalm() -> str:
     else:
         done = run([command, phar, *PSALM_ARGS])
     issues = json_of(done.stdout)
-    if done.returncode not in (0, 2) or not isinstance(issues, list):         # (2 is "issues found"; anything else is Psalm itself failing)
+    # 2 is "issues found"; anything else is Psalm failing.
+    if done.returncode not in (0, 2) or not isinstance(issues, list):
         raise Failed(said(done))
     tainted = [issue for issue in issues if isinstance(issue, dict) and (issue.get("is_security") or str(issue.get("type", "")).startswith("Tainted"))]
     if tainted:
@@ -593,13 +607,12 @@ def is_shell(path: Path) -> bool:
 
 
 def settings_files(name: str) -> list[Finding]:
-    """A tracked settings file of the tool is a finding of its own. The check does not read it (so it cannot switch a finding off here), but whoever runs the tool by hand gets its word, and what it
-    switches off has no count and no reason: that belongs in the baseline, which may also name the file itself, with the reason it is there."""
+    """Return a finding for a tracked settings file of the tool (it is not read)."""
     return [Finding(f"{file} settings of {name}", file, f"a settings file of {name}: what is switched off is said in the baseline, with its reason") for file in listed() if Path(file).name in SETTINGS_FILES[name]]
 
 
 def disabled_without_reason(file: str) -> list[Finding]:
-    """The `# shellcheck disable=...` comments of the script that do not say why: the reason follows on the same line, after a `#` of its own."""
+    """Return the `# shellcheck disable=...` comments without a reason."""
     text = (ROOT / file).read_bytes()
     bare = [found for found in DISABLE.finditer(text) if not re.search(rb"\w", found.group("reason") or b"")]
     return [Finding(f"{file} disable={found.group('rules').decode('ascii', 'replace')} without its reason", f"{file}:{line_of(text, found.start())}",
@@ -620,7 +633,7 @@ def find_shellcheck() -> list[Finding]:
 
 
 def zizmor_finding(record: dict[str, Any]) -> Finding:
-    """A finding of zizmor's JSON: the workflow, the rule and the text it points at (the action, the step) are the key; the line is only where to look."""
+    """Return the key of a zizmor finding: workflow, rule and subject; the line is only a hint."""
     places = [place for place in record.get("locations") or [] if isinstance(place, dict)] or [{}]
     main = next((place for place in places if place.get("symbolic", {}).get("kind") == "Primary"), places[0])
     symbolic, concrete = main.get("symbolic", {}), main.get("concrete", {})
@@ -674,7 +687,7 @@ AUDIT = "audit"
 # ---- the runner
 
 def run_check(name: str, check: Callable[[], str]) -> bool:
-    """Runs the check and prints its line, with what it found under a failing one (and a note under a passing one that has one); True when it passed."""
+    """Run the check and print its line with what it found; return whether it passed."""
     start = time.monotonic()
     try:
         note, passed = check(), True
@@ -687,7 +700,7 @@ def run_check(name: str, check: Callable[[], str]) -> bool:
 
 
 def update(allow_growth: bool) -> int:
-    """Writes the baseline from today's findings. Entries that are gone leave it and counts go down; a new entry or a higher count is refused unless growth is allowed, and then waits for its reason."""
+    """Write the baseline from today's findings; growth is refused unless allowed."""
     try:
         baseline = read_baseline()
         found = {name: find() for name, find in BASELINED.items()}

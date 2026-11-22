@@ -1,5 +1,7 @@
-"""The support bundle over HTTP (`POST /support/bundle`, neoaprs/web/supporthandler.py) and what the pages report about themselves (`page_error`, neoaprs/web/pageerrors.py), end to end on a daemon with its page's server; the line the
-log has for a page that connects (neoaprs/web/browser.py) and for a setting that was saved."""
+"""The support bundle over HTTP (`POST /support/bundle`, neoaprs/web/supporthandler.py) and what
+pages report about themselves (`page_error`), end to end on a daemon; the log lines for a page that
+connects and a saved setting.
+"""
 import asyncio
 import io
 import json
@@ -129,7 +131,8 @@ async def test_a_body_over_256_kilobytes_is_refused_and_one_a_little_under_it_is
     big = json.dumps({"page": {"errors": "x" * (supporthandler.MAX_BODY + 100)}})
     try:
         cut = (await bundle(e, big))[0] in (400, 413, 599)
-    except (ConnectionResetError, ConnectionAbortedError):                    # (Windows reports the cut connection as a reset)
+    # Windows reports the cut connection as a reset
+    except (ConnectionResetError, ConnectionAbortedError):
         cut = True
     assert cut, "the server cuts the connection"
     fits = json.dumps({"page": {"errors": "x" * (200 * 1024)}})

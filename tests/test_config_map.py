@@ -1,4 +1,6 @@
-"""The settings of the base map (`map/radius_km`, `map/maxzoom`, `map/source`) and `map/station_hours`: their ranges, the forms a source may have, and that a wrong value names its key."""
+"""The settings of the base map (`map/radius_km`, `map/maxzoom`, `map/source`) and
+`map/station_hours`: their ranges, the forms a source may have, and that a wrong value names its
+key."""
 from dataclasses import replace
 
 import pytest

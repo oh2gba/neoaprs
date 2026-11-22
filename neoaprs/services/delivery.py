@@ -1,10 +1,8 @@
-"""The delivery chain of the messages we sent (neoaprs/chain.py): each attempt with the path it went by, and which hops of that path we heard come back.
+"""The delivery chain of messages we sent: each attempt, its path and the hops heard back.
 
-A copy of one of our own messages that the Tnc hears again (the same addressee, id and text, from our call; by RF, or wrapped by an iGate as a third-party packet) is linked to the message and to the attempt
-it belongs to, the latest attempt sent before the copy was heard, and the hops its path shows used are kept for that attempt (the first time each was heard stays). An ack, a reject and a copy of a message
-we did not send are not linked. The attempts and hops are held here for every message messaging holds and kept in the database (messagelog.py) so that a restart keeps them; they go with the message.
-
-Each attempt records the id of the radio it went out on (`Attempt.radio_id`), whatever radio that is; how the database keeps it is the message log's (messagelog.py)."""
+A copy of our own message heard again is linked to the latest attempt before it. Chains are
+persisted and go with the message.
+"""
 from collections.abc import Iterable
 from datetime import datetime
 
@@ -22,7 +20,7 @@ class Delivery:
         self._chains: dict[int, list[Attempt]] = {}
 
     async def load(self, held: Iterable[int]) -> None:
-        """Takes the chains of the messages held from the database."""
+        """Load the chains of the held messages from the database."""
         every = await self._log.chains()
         self._chains = {number: every[number] for number in held if number in every}
 
@@ -30,22 +28,22 @@ class Delivery:
         return tuple(self._chains.get(number, ()))
 
     def sent(self, record: MessageRecord, path: tuple[str, ...], at: datetime, radio: RadioId | None = None) -> None:
-        """Message `record` was transmitted at `at` by `path` on the radio of the id `radio`; `record.attempts` is the number of this attempt. What is kept is the digipeaters: RFONLY, NOGATE and the like are not hops."""
+        """Record an attempt of `record` by `path` on `radio`; RFONLY, NOGATE etc. are not hops."""
         attempt = Attempt(record.attempts, at, digipeaters(path), radio_id=radio)
         self._chains.setdefault(record.id, []).append(attempt)
         self._log.add_attempt(record.id, attempt)
 
     def restart(self, number: int) -> None:
-        """The message is sent again from its first attempt: what was kept of the run before is dropped."""
+        """Drop the chain: the message restarts from its first attempt."""
         if self._chains.pop(number, None) is not None:
             self._log.clear_chain(number)
 
     def drop(self, number: int) -> None:
-        """The message is gone (the database removed its chain with it)."""
+        """Forget the chain of a message that is gone."""
         self._chains.pop(number, None)
 
     def heard(self, records: Iterable[MessageRecord], packet: Packet, message: Message) -> MessageRecord | None:
-        """A packet from our own call was heard: the message of ours it is a copy of, when it brings a hop that was not known; else None."""
+        """Return our message that a heard copy matches if it shows a new hop, else None."""
         if not packet.on_air or message.ack_id is not None or message.rej_id is not None:
             return None
         for record in records:
@@ -56,7 +54,7 @@ class Delivery:
         return None
 
     def _keep(self, record: MessageRecord, attempt: Attempt, packet: Packet) -> bool:
-        """Notes what the copy shows for the attempt; whether any of it was new."""
+        """Keep the hops the copy shows for the attempt; return whether any was new."""
         gate = packet.gate
         if gate:
             inner = () if packet.third_party is None else packet.third_party.path

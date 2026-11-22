@@ -1,12 +1,16 @@
-"""`neoaprs capture OUT [--port PORT] [--seconds N]`: records what the radio sends on its serial port into a file, byte for byte, and prints one line per KISS frame to stderr so that you can see it
-working. This is how the fixtures of the tests (tests/fixtures) are made from a real radio, and what to run first on a new setup to find which serial port the radio is on.
+"""`neoaprs capture OUT [--port PORT] [--seconds N]`: record what the radio sends on a serial port.
+
+The bytes are written to a file as they arrive, and one line per KISS frame is printed to stderr.
+This makes the test fixtures from a real radio and finds the radio's serial port.
 
     neoaprs capture OUT                                  probe the USB serial ports (Linux), record 60 seconds
     neoaprs capture --port COM3 --seconds 300 OUT        a port you name: /dev/ttyUSB0, COM3, socket://127.0.0.1:8001
 
-Without --port every port of the default serial/pattern (/dev/serial/by-id/*, /dev/ttyUSB*, /dev/ttyACM*) is listened to for up to 20 seconds and the first that delivers a KISS frame with an AX.25 packet in it is used (a quiet
-band may need --port; on Windows and macOS the port is always named). The daemon must not be running: the port is opened exclusively. OUT is not overwritten without --force. Stop early with Ctrl-C:
-what came is kept."""
+Without --port, every port of the default serial/pattern (/dev/serial/by-id/*, /dev/ttyUSB*,
+/dev/ttyACM*) is listened to for up to 20 seconds, and the first that delivers a KISS frame with an
+AX.25 packet in it is used. A quiet band may need --port; on Windows and macOS the port is always
+named. The daemon must not be running (the port is opened exclusively). OUT is not
+overwritten without --force. Ctrl-C stops early and keeps what has arrived."""
 import argparse
 import asyncio
 import os
@@ -55,7 +59,7 @@ async def record(path: str, baud: int, seconds: float, out_path: str) -> int:
     totals = {"bytes": 0, "frames": 0}
     exit_code = 0
 
-    sink: list[BinaryIO] = []                         # the file, once the port has opened
+    sink: list[BinaryIO] = []
 
     def on_data(chunk: bytes) -> None:
         sink[0].write(chunk)
@@ -80,7 +84,8 @@ async def record(path: str, baud: int, seconds: float, out_path: str) -> int:
         say(f"capture: {e}")
         return 1
     try:
-        with open(out_path, "wb") as handle:          # after the port opened, so that a failure of the port leaves no empty file behind
+        # Opened after the port: a port failure leaves no empty file.
+        with open(out_path, "wb") as handle:
             sink.append(handle)
             say(f"capture: reading {path} at {baud} baud for {seconds:g} s (Ctrl-C ends it early)")
             try:
@@ -97,7 +102,7 @@ async def record(path: str, baud: int, seconds: float, out_path: str) -> int:
 
 
 def cannot_write(out_path: str) -> str:
-    """Why OUT cannot be written, else an empty string: its folder is not there or not for writing."""
+    """Return why OUT cannot be written, else an empty string."""
     folder = Path(out_path).absolute().parent
     if not folder.is_dir():
         return f"{folder} is not a folder"

@@ -1,11 +1,7 @@
-"""The tray menu, as data, and what its items do. Both shells draw `items()` with their toolkit and call `run(key)` when one is chosen, so what the menu says and does is the same on every system and is
-tested with no tray: the toolkits are fakes of `Frame` there.
+"""The tray menu as data, and what its items do.
 
-    Open NeoAPRS          shows the window (with no web engine to show one: the page in the browser)
-    Open in browser      the page in the system's browser (left out when that is what Open does, and while "Allow access from the network" is off: the window is then the one way in)
-    Start at sign-in     a checkbox: the app, in the tray, starts when the user signs in (left out where the system has none)
-    Collect support logs makes the support bundle (neoaprs/cli/supportmake.py) on the Desktop and shows it in the file manager
-    Stop and quit        stops the daemon if the app started it, and ends the app; for a daemon that was already running (a service) it is "Quit (NeoAPRS keeps running as a service)" and only ends the app
+Both shells draw `items()` with their toolkit and call `run(key)` when one is chosen, so the menu
+is the same everywhere and testable without a tray.
 """
 import logging
 import threading
@@ -31,19 +27,22 @@ OPEN_LABEL = "Open NeoAPRS"
 class Item:
     key: str
     label: str
-    checked: bool | None = None                     # None: not a checkbox
+    checked: bool | None = None  # None: not a checkbox
     separator: bool = False
 
 
 class Frame(Protocol):
-    """What the app's logic needs of a toolkit (qtshell.py, webshell.py; a fake in the tests). every method may be called from any thread (a second app's `show` arrives in a thread of its own, Quit runs in one)."""
+    """What the app's logic needs of a toolkit (qtshell.py, webshell.py; a fake in the tests).
+
+    Every method may be called from any thread."""
     has_window: bool
 
     def show_window(self) -> None: ...
     def quit(self) -> None: ...
     def refresh(self) -> None: ...
     def tell(self, text: str) -> None: ...
-    def load(self, url: str) -> None: ...          # the daemon's page is at `url` now: the window shows it there (nothing with no window)
+    # The daemon's page is at `url` now; a toolkit with no window does nothing.
+    def load(self, url: str) -> None: ...
 
 
 class AppActions:
@@ -53,10 +52,11 @@ class AppActions:
         self.frame = frame
         self.autostart = autostart
         self.daemon = daemon or Daemon()
-        self.open_browser = open_browser or (lambda url: webbrowser.open(url))          # (looked up when it is used)
-        self.support = support                       # makes the bundle of a data folder and shows it
+        self.open_browser = open_browser or (lambda url: webbrowser.open(url))
+        self.support = support
         self.quitting = False
-        self.renewing = False                        # the app ends to start again as the new version (renew.py): the daemon is left running
+        # The app ends to restart as the new version (renew.py); the daemon is left running.
+        self.renewing = False
         self.thread: threading.Thread | None = None
         self.support_thread: threading.Thread | None = None
 
@@ -73,7 +73,7 @@ class AppActions:
         return items
 
     def run(self, key: str) -> None:
-        """What the item `key` does. Quit is done in a thread of its own: the daemon takes a moment to end, and the toolkit's loop must go on drawing meanwhile."""
+        """Run the item `key`. Quit runs in a thread so the toolkit loop keeps drawing."""
         if key == OPEN:
             self.show()
         elif key == BROWSER:
@@ -90,14 +90,14 @@ class AppActions:
             log.warning("no such menu item: %s", key)
 
     def show(self) -> None:
-        """Brings the window up, or, with no window to bring, the page in the browser."""
+        """Show the window, or the page in the browser when there is no window."""
         if self.frame.has_window:
             self.frame.show_window()
         else:
             self.open_browser(self.session.url)
 
     def collect_support(self) -> None:
-        """The support bundle of the session's data folder, to the Desktop and shown in the file manager. In a thread of its own (the logs are read): the toolkit goes on drawing. The person is told where the file is, or that it failed."""
+        """Make the support bundle, show it in the file manager and tell the user the result."""
         try:
             made = self.support(self.session.data)
         except Exception:
@@ -117,7 +117,7 @@ class AppActions:
         self.frame.refresh()
 
     def quit_now(self) -> None:
-        """Stops the daemon if it is the app's own, then ends the app. Said once, whoever asks first: the menu, the second app's `--quit`, the end of the daemon."""
+        """Stop the daemon if the app owns it, then end the app; runs once whoever asks first."""
         if self.quitting:
             return
         self.quitting = True
@@ -132,17 +132,17 @@ class AppActions:
             self.frame.quit()
 
     def network_moved(self) -> None:
-        """The daemon's page is served to the network now, or no longer is: the menu is drawn again (a toolkit that draws it only when asked)."""
+        """The page's network exposure changed: redraw the menu."""
         self.frame.refresh()
 
     def page_moved(self, url: str) -> None:
-        """The daemon serves its page at another address than before (it started again and could not have the port it had): the window shows it there, and Open in browser opens it there."""
+        """The daemon serves its page at another address: load it and use it for the browser."""
         self.session = replace(self.session, url=url)
         if not self.quitting:
             self.frame.load(url)
 
     def renew(self) -> None:
-        """The app's file is a new version and the daemon runs it (renew.py): the app ends as Quit would, but leaves the daemon running, and cmd.py starts it again from the new file. Nothing when the app is quitting already."""
+        """End the app as Quit would but leave the daemon running, for cmd.py to restart the app."""
         if self.quitting:
             return
         self.quitting = True
@@ -150,7 +150,7 @@ class AppActions:
         self.frame.quit()
 
     def daemon_gone(self) -> None:
-        """The daemon the app owns ended by itself: nothing is left to stop, the app ends."""
+        """The owned daemon ended by itself: end the app."""
         if not self.quitting:
             self.quitting = True
             self.frame.quit()

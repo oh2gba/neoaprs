@@ -1,8 +1,6 @@
-"""The CA2RXU LoRa APRS iGate's list of the packets it heard last, each with its RSSI and SNR: the one place where that firmware tells a client the signal of a packet (aprs-reference/lora-plan.md
-section 3.5). It is asked of the board itself, on the address its KISS server is reached at, at `GET /received-packets.json` on port 80: a JSON list of at most 10 entries, oldest first, each
-`{"rxDate", "rxTime", "packet", "RSSI", "SNR"}`, the packet's text with every byte below 32 and 127 written as "." (lorasignal.list_key).
-
-Nothing else of the board is ever asked for: its configuration (`/configuration.json`) holds the WiFi passwords and the APRS-IS passcode, and a write of it rebuilds every setting and restarts the board."""
+"""Read the CA2RXU LoRa APRS iGate's list of recently heard packets with their RSSI and SNR.
+Only `GET /received-packets.json` is requested; the board's configuration is never touched.
+"""
 import asyncio
 import json
 import math
@@ -14,9 +12,9 @@ from .tncmode import printable
 from .tncprofile import bracketed
 
 PATH = "/received-packets.json"
-PORT = 80                               # the board's web server (CA2RXU's web_utils.cpp): fixed, the same address as its KISS server
-ANSWER_SEC = 2.0                        # the whole request: a board on the local network answers in far less; one that does not is taken as having no list
-MAX_BODY = 64 * 1024                    # ten entries are under 3 kB
+PORT = 80  # the board's web server, on the host of its KISS server
+ANSWER_SEC = 2.0  # a slower board is treated as having no list
+MAX_BODY = 64 * 1024
 
 
 class ListError(OSError):
@@ -25,14 +23,14 @@ class ListError(OSError):
 
 @dataclass(frozen=True)
 class Heard:
-    """One entry of the list: what names it (the date, the time and the text, as the board wrote them) and its reading."""
+    """One list entry: the key, the board's date and time, and the signal reading."""
     key: str
     when: str
     reading: Reading
 
 
 async def fetch(host: str) -> list[Heard]:
-    """The board's list, oldest first, asked of the host on PORT within ANSWER_SEC. ListError when it cannot be read."""
+    """Return the board's list, oldest first; raise ListError if unreadable within ANSWER_SEC."""
     answer_sec = ANSWER_SEC
     try:
         return await asyncio.wait_for(_fetch(host, PORT), answer_sec)
@@ -63,11 +61,12 @@ async def _fetch(host: str, port: int) -> list[Heard]:
 
 
 def parse(answer: bytes) -> list[Heard]:
-    """The entries of an HTTP answer with the list in its body, an entry that is not one of the list passed over; ListError for an answer that is not 200 or whose body is not a list."""
+    """Return the entries of an HTTP answer, skipping malformed ones; ListError if not a list."""
     head, _, body = answer.partition(b"\r\n\r\n")
     status = head.split(b"\r\n", 1)[0].split()
     if len(status) < 2 or status[1] != b"200":
-        raise ListError(f"the answer is {printable(b' '.join(status[1:]).decode('latin-1')) or 'not HTTP'}")       # (the board's bytes go to the log: no control character with them)
+        # the board's bytes reach the log: control characters are removed
+        raise ListError(f"the answer is {printable(b' '.join(status[1:]).decode('latin-1')) or 'not HTTP'}")
     try:
         entries = json.loads(body.decode("utf-8", "replace"))
     except (ValueError, RecursionError) as e:
@@ -78,7 +77,7 @@ def parse(answer: bytes) -> list[Heard]:
 
 
 def _entry(e: Any) -> Heard | None:
-    """One entry of the list; None for one that is not an entry with a packet's text and two finite readings (a reading of NaN or infinity is no measurement, and JSON cannot carry it on)."""
+    """Return the entry, or None unless it has packet text and finite SNR and RSSI."""
     if not isinstance(e, dict) or not isinstance(e.get("packet"), str):
         return None
     try:

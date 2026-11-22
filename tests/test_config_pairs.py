@@ -1,6 +1,5 @@
-"""The settings of the pairs of radios (neoaprs/pairsetting.py, contract section 2): `pair/<low>/<high>/enabled` and `pair/<low>/<high>/ssid`, rows of the station's table read into `Config.pairs`,
-checked by a save as the settings are (an SSID of 1 to 15 that is neither the station's nor another enabled pair's, filled by the daemon when a pair is switched on), told by the topic `config` for
-every two radios that may pair, kept by a save of anything else, and gone with either radio."""
+"""Tests for the radio pair settings (neoaprs/pairsetting.py): `pair/<low>/<high>/enabled` and
+`ssid`, their validation on save, the `config` topic, and removal with either radio."""
 import logging
 import sqlite3
 from collections.abc import Callable, Mapping

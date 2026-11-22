@@ -1,6 +1,7 @@
-"""The scope and the transmit level against the real Mercury (the one scripts/build-mercury --install builds, on its fifo audio backend, the simulated channel of tests/support/hfchannel.py as its air): its UI interface listens on the
-loopback only, sends no spectrum until it is asked, sends it when asked, and the level worked back from it (neoaprs/mercuryscope.py) is the RMS of the channel's noise of known level; `set_tx_gain` changes the gain the status says, and
-the tune tone's level is the peak the status says (a TUNE while the tone is on is refused, so a new level takes TUNE OFF first). Skipped where the built Mercury or named pipes are not there."""
+"""The scope and transmit level against the real Mercury (built by scripts/build-mercury --install,
+on its fifo backend and the simulated channel): its UI listens on the loopback only and sends
+spectra only when asked.
+"""
 import asyncio
 import math
 import os
@@ -19,7 +20,8 @@ from tests.support.env import until
 from tests.support.hfchannel import Channel
 from tests.support.realmercury import fifo, start_mercury, stop
 
-FIRST_PORT = 19400                      # (this test's own ports: the KISS port, the control port 200 above, the UI port 300 above)
+# This test's own ports: the KISS port, the control port 200 above, the UI port 300 above
+FIRST_PORT = 19400
 
 
 def db_of_byte(byte: int) -> float:
@@ -32,7 +34,8 @@ async def test_the_ui_interface_of_the_real_mercury_gives_the_spectrum_the_level
     if program is None or not hasattr(os, "mkfifo") or "gui_interface/websocket" not in (Path(program[0]).parent / "SOURCE.txt").read_text(encoding="utf-8", errors="replace"):
         pytest.skip("the Mercury that scripts/build-mercury --install builds (with the UI interface on the loopback) and named pipes are needed")
     ports = (FIRST_PORT, FIRST_PORT + 200)
-    ui_port = FIRST_PORT + 300                           # (below the ports of the test workers, which begin at 20000: tests/test_mercury_modem.py)
+    # Below the ports of the test workers, which begin at 20000: tests/test_mercury_modem.py
+    ui_port = FIRST_PORT + 300
     channel = Channel(snr_db=10.0, seed=3)
     rx, tx = fifo(tmp_path, "rx"), fifo(tmp_path, "tx")
     channel.add("A", rx, tx)
@@ -95,8 +98,10 @@ async def test_the_ui_interface_of_the_real_mercury_gives_the_spectrum_the_level
 
 
 async def test_the_automatic_busy_control_sees_a_frame_of_another_real_mercury_and_nothing_else(tmp_path: Path) -> None:
-    """Two real Mercury instances on the simulated channel: the spectrum of the receiver, read through its UI interface, makes the control busy while the other one's frame is on the air, and clear after it; and it is
-    not busy on the noise before. The numbers of the channels it was measured on are in docs/mercury.md."""
+    """Two real Mercury instances on the simulated channel: the spectrum of the receiver, read
+    through its UI interface, makes the control busy while the other one's frame is on the air, and
+    clear after it; and it is not busy on the noise before. The numbers of the channels it was
+    measured on are in docs/mercury.md."""
     program = find()
     if program is None or not hasattr(os, "mkfifo") or "gui_interface/websocket" not in (Path(program[0]).parent / "SOURCE.txt").read_text(encoding="utf-8", errors="replace"):
         pytest.skip("the Mercury that scripts/build-mercury --install builds (with the UI interface on the loopback) and named pipes are needed")
@@ -115,7 +120,8 @@ async def test_the_automatic_busy_control_sees_a_frame_of_another_real_mercury_a
 
     def spectrum(data: bytes) -> None:
         seen = parse_spectrum(data)
-        if seen is not None and time.monotonic() - started > 1.0:                      # (the first second of a Mercury's spectra is a window that fills up from zeros)
+        # The first second of a Mercury's spectra is a window that fills up from zeros
+        if seen is not None and time.monotonic() - started > 1.0:
             now = time.monotonic()
             states.append((now, detector.update(now, bands_db(seen))))
 
@@ -132,7 +138,8 @@ async def test_the_automatic_busy_control_sees_a_frame_of_another_real_mercury_a
                 await asyncio.sleep(0.2)
         assert writer is not None, "Mercury did not open its port"
         await until(lambda: ui.connected and len(states) > 20, timeout_sec=30.0)
-        await asyncio.sleep(12.0)                                                  # (the floors of the control settle on the noise)
+        # The floors of the control settle on the noise
+        await asyncio.sleep(12.0)
         assert not any(busy for _, busy in states), "noise alone is not a signal"
         writer.write(kiss.encode(b"OH2A>APNEO1:=6010.20N/02456.40E-a frame for the control"))
         sent_at = time.monotonic()

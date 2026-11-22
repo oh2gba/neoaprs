@@ -1,5 +1,7 @@
-"""The QRU server (neoaprs/services/qru.py) on the station's radios as the registry gives them (tests/test_messaging.py `pick_of`: one radio on a Tnc that is a stub, an HF one beside it), a real station book and a clock the test holds: the list of groups, the objects of a group near the asker, the limit and `NEXT`, the range, the
-answers that are never given, and the pace and the path of the frames."""
+"""The QRU server (neoaprs/services/qru.py) on stub radios, a real station book and a held clock:
+the list of groups, the objects of a group near the asker, the limit and `NEXT`, the range, and the
+answers never given.
+"""
 import asyncio
 import logging
 from datetime import datetime
@@ -36,7 +38,8 @@ class Rig(ServiceRig):
         self.book = StationBook(self.clock)
         self.objects = Held()
         self.paths: dict[str, tuple[str, ...]] = {}
-        self.radios = pick_of(self)                                             # (the station's radios as the registry gives them: radio 1 on the stub line)
+        # The station's radios as the registry gives them: radio 1 on the stub line
+        self.radios = pick_of(self)
         self.qru = Qru(self.radios, lambda: self.config, self.objects, self.book, lambda call, attempt=None, radio=1: self.paths.get(call, self.config.beacon_path_calls), self.clock, spacing_sec=0.02, first_wait_sec=first_wait_sec)
         remember_stop(self.qru.stop)
 
@@ -60,7 +63,7 @@ class Rig(ServiceRig):
         return [f.info[1:10].decode().strip() for f in self.tnc.sent if f.info[:1] == b";"]
 
 
-# ---- reading a request ---------------------------------------------------------------------------------------------------------------------------
+# ---- reading a request ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("text, expected", [("INFO", Request("INFO", None)), ("info 250", Request("INFO", 250)), ("?", Request("INFO", None)), ("? 20", Request("INFO", 20)), (" rp70 ", Request("RP70", None)),
                                             ("RP70 150", Request("RP70", 150)), ("?INFO", Request("INFO", None)), ("?test", Request("TEST", None)), ("?POST 20000", Request("POST", 20000)), ("?RP70 150", Request("RP70", 150)),
@@ -85,7 +88,7 @@ def test_a_long_list_goes_over_two_messages_the_first_ending_in_plus_and_what_do
     assert 0 < sum(text.count("(") for text in texts) < 30
 
 
-# ---- INFO ----------------------------------------------------------------------------------------------------------------------------------------
+# ---- INFO ----------------------------------------------------------------------------------------
 
 def test_info_answers_with_the_groups_near_the_asker_and_how_many_objects_each_has() -> None:
     rig = Rig()
@@ -164,7 +167,7 @@ def test_a_request_with_a_message_id_is_answered_and_sends_no_ack() -> None:
     assert rig.texts() == ["de OH2GBA:FUEL(1) Max 5@50km"], "no ack: a message to QRU is a broadcast"
 
 
-# ---- a group -------------------------------------------------------------------------------------------------------------------------------------
+# ---- a group -------------------------------------------------------------------------------------
 
 async def test_a_group_is_answered_with_its_objects_the_nearest_first_one_at_a_time_and_a_message_that_says_how_many_went() -> None:
     rig = Rig()
@@ -242,7 +245,7 @@ async def test_a_distance_in_the_request_is_the_range_of_the_group() -> None:
     assert rig.names() == ["NEAR", "NEAR", "FAR"] and rig.texts()[1] == "Sent 2 FUEL Objects Max 5@300km de OH2GBA"
 
 
-# ---- what is not answered ------------------------------------------------------------------------------------------------------------------------
+# ---- what is not answered ------------------------------------------------------------------------
 
 async def test_nothing_is_answered_where_nothing_is_in_range_or_the_group_has_no_object(caplog: pytest.LogCaptureFixture) -> None:
     rig = Rig()
@@ -313,7 +316,7 @@ async def test_the_clock_of_the_server_stamps_the_objects() -> None:
     assert RANGE_KM == 50 and rig.tnc.sent[0].info.startswith(b";PUB      *020705z")
 
 
-# ---- the first frame waits for the digipeaters ---------------------------------------------------------------------------------------------------
+# ---- the first frame waits for the digipeaters ---------------------------------------------------
 
 async def test_the_first_frame_of_an_answer_waits_about_five_seconds_for_the_digipeaters_to_finish_repeating_the_request_then_the_frames_are_spaced() -> None:
     rig = Rig(first_wait_sec=FIRST_WAIT_SEC)

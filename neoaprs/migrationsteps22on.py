@@ -1,5 +1,4 @@
-"""The migrations from 22 on, frozen here beside migrations.py (which lists them in MIGRATIONS and runs them): the same rules as for the earlier ones (migrationsteps1to11.py, migrationsteps12to21.py), a step is
-never edited once it has been released."""
+"""Migrations 22 to 30. A released step is never edited (see migrationsteps1to11.py)."""
 import ipaddress
 import re
 import sqlite3
@@ -7,7 +6,8 @@ import sqlite3
 from .dberror import StoreError
 from .migrationlog import log
 
-# The default of `messages/alert_command` up to migration 22, as every save of the settings stored it (on Linux and macOS, and on Windows): it titled every notification "APRS message from", which a station alert is not.
+# The earlier default of `messages/alert_command` (Linux/macOS and Windows), which titled every
+# notification "APRS message from"; migration 22 replaces it.
 _OLD_LINUX_ALERT = ('(notify-send -- "APRS message from $NEOAPRS_FROM" "$NEOAPRS_TEXT" 2>/dev/null || kdialog --title "APRS message from $NEOAPRS_FROM" --passivepopup "$NEOAPRS_TEXT" 10); '
                     'paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga')
 _OLD_WINDOWS_ALERT = ("$null=[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime];$null=[Windows.Data.Xml.Dom.XmlDocument,Windows.Data.Xml.Dom.XmlDocument,ContentType=WindowsRuntime];"
@@ -132,7 +132,7 @@ def _v28(db: sqlite3.Connection) -> None:
     db.execute("ALTER TABLE message ADD COLUMN failure TEXT CONSTRAINT message_failure CHECK (failure IN ('too_long_for_radio'))")
 
 
-_HOST_LABEL = r"[A-Za-z0-9_](?:[A-Za-z0-9_-]{0,61}[A-Za-z0-9_])?"      # a label of a name in `web/allowed_hosts` as migration 29 takes it
+_HOST_LABEL = r"[A-Za-z0-9_](?:[A-Za-z0-9_-]{0,61}[A-Za-z0-9_])?"      # a host name label in `web/allowed_hosts`
 
 
 def _allowed_host(part: str) -> str | None:

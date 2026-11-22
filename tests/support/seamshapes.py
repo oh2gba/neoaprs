@@ -1,6 +1,6 @@
-"""The shapes the radio round writes against the seams' Protocols (work/par/round/breakdown.md 1.7 to 1.9), typed like the code so that mypy holds the Protocols to them: a radio of the registry whose
-members are views of the spec in force (`LiveShape`), a frozen value of a test (`FrozenAir`), a registry whose `enabled` is a list of its own radios (`RegistryShape`), a driver with no modem and one with a
-modem, each with a subclass of the line or the modem as a test's double is (`DriverShape`, `ModemDriverShape`). `as_air`, `as_pick` and `as_driver` are where mypy checks each against its Protocol."""
+"""Typed shapes written against the radio seams' Protocols, so that mypy holds the Protocols to
+them: a registry radio, a frozen value, a registry, and a driver with and without a modem.
+"""
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -27,7 +27,8 @@ class ModemOfTest(Mercury):
 
 
 class LiveShape:
-    """A radio of the registry as 1.7 has it: its id, kind, name, limits and allowed read from the spec in force (a rename or a change of type replaces the spec), the rest from its line."""
+    """A radio of the registry as 1.7 has it: its id, kind, name, limits and allowed read from the
+    spec in force (a rename or a change of type replaces the spec), the rest from its line."""
     def __init__(self, spec: RadioSpec, specs: tuple[RadioSpec, ...], line: Tnc) -> None:
         self.spec, self.specs, self.line = spec, specs, line
 

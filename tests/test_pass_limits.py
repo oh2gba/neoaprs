@@ -1,4 +1,6 @@
-"""The limits of what the station sends again: the burst of a fast radio, the budget, the shares and the floor of a slow one, and the kinds of packet they count."""
+"""The limits of what the station sends again: a fast radio's burst, a slow radio's budget, shares
+and floor, and the kinds of packet they count.
+"""
 from datetime import timedelta
 
 import pytest

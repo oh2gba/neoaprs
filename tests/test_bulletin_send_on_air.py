@@ -1,7 +1,6 @@
-"""The radios of a bulletin of ours as the Post box sends them (BulletinCompose.vue: `bulletin_post` with the radios ticked while several can send), counted per radio on a fake clock over a
-station of six radios: two FM radios, a Mercury radio, a LoRa radio, a LoRa radio that only receives and an FM radio that is off. Frames go on the radios ticked that can send and are on, never on the
-one that only receives or the one that is off; the repeats come every 30 minutes on each while one of them is Mercury or LoRa, every 20 on FM alone; a post ticked only for radios that cannot carry it
-sends nothing; an id named twice is one radio."""
+"""Tests for the radios a bulletin post goes out on (`bulletin_post`) over a station of six radios:
+frames only on ticked radios that can send and are on, the repeat interval, and duplicate ids.
+"""
 from collections import Counter
 from dataclasses import replace
 from pathlib import Path

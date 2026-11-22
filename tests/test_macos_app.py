@@ -1,6 +1,7 @@
-"""NeoAPRS as a macOS app, as far as a Linux machine can see it: the layout rule that finds the shipped programs in the bundle, the launcher of packaging/macos/launcher.c built and run against this machine's Python
-with a made-up Resources folder (the arguments, the home, sys.executable, the isolation), the icon made from the Windows one, the pruning of the macOS layout of Qt on a made-up tree, and what scripts/build-macos-app,
-scripts/smoke-macos-app, scripts/build-mercury and the bundle's files promise. The app itself is built and tried by the `macos` job of the release workflow."""
+"""NeoAPRS as a macOS app as far as a Linux machine can see it: the bundle layout rule, the launcher
+built and run against this machine's Python, the icon made from the Windows one and the Qt layout
+pruning.
+"""
 import importlib.machinery
 import importlib.util
 import site
@@ -31,7 +32,8 @@ LANGUAGES = re.findall(r'code: "([a-zA-Z-]+)"', (ROOT / "ui" / "src" / "i18n" / 
 
 
 def load(path: Path, name: str) -> types.ModuleType:
-    spec = importlib.util.spec_from_file_location(name, path, loader=importlib.machinery.SourceFileLoader(name, str(path)))        # (a script without .py gets no loader by itself)
+    # A script without .py gets no loader by itself
+    spec = importlib.util.spec_from_file_location(name, path, loader=importlib.machinery.SourceFileLoader(name, str(path)))
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -49,7 +51,8 @@ def test_the_shipped_programs_are_in_tools_of_the_apps_resources_by_the_one_rule
 # ---- the launcher
 
 def compiler() -> list[str] | None:
-    """How to build the launcher against this machine's Python, or None where it cannot be (no C compiler, no shared libpython, no headers)."""
+    """How to build the launcher against this machine's Python, or None where it cannot be (no C
+    compiler, no shared libpython, no headers)."""
     cc = shutil.which("cc") or shutil.which("gcc") or shutil.which("clang")
     include = sysconfig.get_paths()["include"]
     libdir = sysconfig.get_config_var("LIBDIR") or ""
@@ -57,11 +60,14 @@ def compiler() -> list[str] | None:
     if not cc or not Path(include, "Python.h").is_file() or not shared.endswith((".so", ".dylib")) or not Path(libdir, shared).is_file():
         return None
     name = re.sub(r"^lib|\.(so|dylib)$", "", shared)
-    return [cc, "-O2", "-Wall", f"-I{include}", str(PACKAGING / "launcher.c"), f"-L{libdir}", f"-l{name}", f"-Wl,-rpath,{libdir}"]          # (the source before the libraries: GNU ld reads them in order)
+    # The source before the libraries: GNU ld reads them in order
+    return [cc, "-O2", "-Wall", f"-I{include}", str(PACKAGING / "launcher.c"), f"-L{libdir}", f"-l{name}", f"-Wl,-rpath,{libdir}"]
 
 
 def fake_bundle(tmp_path: Path) -> Path:
-    """NeoAPRS.app with Contents/Resources laid out as this machine's Python (its standard library linked in, a made-up `neoaprs` package in site-packages that prints what it sees), and the launcher built in Contents/MacOS."""
+    """NeoAPRS.app with Contents/Resources laid out as this machine's Python (its standard library
+    linked in, a made-up `neoaprs` package in site-packages that prints what it sees), and the
+    launcher built in Contents/MacOS."""
     app = tmp_path / "NeoAPRS.app"
     resources = app / "Contents" / "Resources"
     lib = resources / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}"
@@ -71,7 +77,9 @@ def fake_bundle(tmp_path: Path) -> Path:
             (lib / entry.name).symlink_to(entry)
     package = lib / "site-packages" / "neoaprs"
     package.mkdir(parents=True)
-    for folder in site.getsitepackages([str(resources)]):           # (a distribution's Python may read dist-packages instead of site-packages: the same folder under every name this one looks in)
+    # A distribution's Python may read dist-packages instead of site-packages: the same folder under
+    # every name this one looks in
+    for folder in site.getsitepackages([str(resources)]):
         if Path(folder) != package.parent and not Path(folder).exists():
             Path(folder).parent.mkdir(parents=True, exist_ok=True)
             Path(folder).symlink_to(package.parent)
@@ -154,7 +162,9 @@ def mach_o(*names: str) -> bytes:
 
 
 def mac_tree(tmp_path: Path) -> Path:
-    """Contents/Resources as the build has it before the pruning: a Python with the folders the pruning drops, PySide6 with modules, frameworks, plugins and the web engine's helper and locales."""
+    """Contents/Resources as the build has it before the pruning: a Python with the folders the
+    pruning drops, PySide6 with modules, frameworks, plugins and the web engine's helper and
+    locales."""
     res = tmp_path / "Resources"
     lib = res / "lib" / "python3.13"
     site = lib / "site-packages"
@@ -179,7 +189,8 @@ def mac_tree(tmp_path: Path) -> Path:
         (folder / "Headers").mkdir(parents=True)
         (folder / "Headers" / f"{name}.h").write_text("", encoding="utf-8")
         (folder / name).write_bytes(mach_o(*needs))
-        for copy in (folder / "Resources", folder.parent.parent / "Resources"):               # (the wheel is flat: Resources twice, no Versions/Current, no link to the library)
+        # The wheel is flat: Resources twice, no Versions/Current, no link to the library
+        for copy in (folder / "Resources", folder.parent.parent / "Resources"):
             copy.mkdir()
             (copy / "Info.plist").write_text("<plist/>", encoding="utf-8")
     for top in (qt / "lib" / "QtWebEngineCore.framework", qt / "lib" / "QtWebEngineCore.framework" / "Versions" / "A"):
@@ -216,7 +227,8 @@ def mac_tree(tmp_path: Path) -> Path:
     (shiboken / "include").mkdir(parents=True)
     (shiboken / "Shiboken.abi3.so").write_bytes(mach_o("libshiboken6.abi3.6.12.dylib"))
     (shiboken / "libshiboken6.abi3.6.12.dylib").write_bytes(mach_o())
-    for folder in ("objc/_objc.cpython-313-darwin.so.dSYM/Contents/Resources/DWARF", "PyObjCTest", "CoreBluetooth"):          # (what bleak brings on macOS: PyObjC, with its own tests and debug symbols)
+    # What bleak brings on macOS: PyObjC, with its own tests and debug symbols
+    for folder in ("objc/_objc.cpython-313-darwin.so.dSYM/Contents/Resources/DWARF", "PyObjCTest", "CoreBluetooth"):
         (site / folder).mkdir(parents=True)
     (site / "objc" / "_objc.cpython-313-darwin.so").write_bytes(mach_o())
     (site / "objc" / "_objc.cpython-313-darwin.so.dSYM" / "Contents" / "Resources" / "DWARF" / "_objc.cpython-313-darwin.so").write_bytes(b"x")
@@ -397,13 +409,14 @@ def test_build_mercury_names_a_macs_tarball_by_apples_words_and_links_the_system
     assert 'env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_MIN' in source and "otool" in source and "macOS 26" in source, "why Rhizomatica's own universal build is not taken"
 
 
-# ---- the universal files cut to arm64 (packaging/macos/thin.py), the second interpreter, the disk image
+# ---- universal files cut to arm64 (packaging/macos/thin.py), second interpreter, disk image
 
 FAT = b"\xca\xfe\xba\xbe"
 
 
 class FakeLipo:
-    """lipo as thin.py asks it: `-archs FILE` says what the file holds (from the made-up table), `FILE -thin arm64 -output OUT` writes the arm64 part, a file it does not take is refused."""
+    """lipo as thin.py asks it: `-archs FILE` says what the file holds (from the made-up table),
+    `FILE -thin arm64 -output OUT` writes the arm64 part, a file it does not take is refused."""
 
     def __init__(self, table: dict[str, list[str]]) -> None:
         self.table = table

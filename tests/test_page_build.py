@@ -1,6 +1,7 @@
-"""The page is built: neoaprs/page/ (kept in git, served as it is, no node needed to run NeoAPRS) is what ui/ builds, and nothing but ui/: it has no version of NeoAPRS in it, so a release changes none of its files. The first
-tests look at page/ alone and always run; the last builds ui/ into a temporary folder and compares every file with page/, and is skipped, and says so, when there is no node or no `npm ci` in ui/. When it fails:
-scripts/build-page, commit page/."""
+"""The built page: neoaprs/page/ is what ui/ builds and nothing else, with no NeoAPRS version in it.
+The first tests look at page/ alone; the last builds ui/ into a temporary folder and compares, and
+is skipped without node.
+"""
 import hashlib
 import os
 import re
@@ -20,7 +21,8 @@ HINT = "run scripts/build-page and commit neoaprs/page/"
 SHIPPED = (
     "symbols/primary.png", "symbols/alternate.png", "symbols/overlay.png", "symbols/SOURCE.txt", "symbols/COPYRIGHT.txt",
     "fonts/NotoSans-Regular/0-255.pbf", "fonts/NotoSans-Medium/0-255.pbf", "fonts/OFL.txt",
-    "favicon.ico",             # the desktop app's window asks for it at every start: without it the log said 404 each time
+    # The desktop app's window asks for it at every start: without it the log said 404 each time
+    "favicon.ico",
     "manifest.webmanifest", "sw.js", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
 )
 
@@ -42,7 +44,8 @@ def node_version(node: str) -> tuple[int, ...]:
 
 
 def node_dir() -> str | None:
-    """The folder of a node new enough: the one on the PATH, else the newest of the operator's ~/.nvm (the tests run with an empty HOME, so the real one is looked up)."""
+    """The folder of a node new enough: the one on the PATH, else the newest of the operator's
+    ~/.nvm (the tests run with an empty HOME, so the real one is looked up)."""
     found = shutil.which("node")
     if found and node_version(found) >= NODE_NEEDED:
         return str(Path(found).parent)
@@ -67,7 +70,8 @@ def test_the_built_page_is_there_and_works_from_any_path() -> None:
 
 
 def test_the_page_lives_under_the_content_security_policy_of_the_daemon() -> None:
-    """neoaprs/web/headers.py allows the page's own scripts, styles and workers and nothing else: no inline script or handler, no blob or eval, and the map's worker is a file the page ships."""
+    """neoaprs/web/headers.py allows the page's own scripts, styles and workers and nothing else: no
+    inline script or handler, no blob or eval, and the map's worker is a file the page ships."""
     html = (PAGE / "index.html").read_text(encoding="utf-8")
     assert not re.search(r"<script(?![^>]*\bsrc=)", html), "an inline script is not allowed by script-src 'self'"
     assert not re.search(r"\son\w+=", html), "an inline event handler is not allowed"
@@ -86,7 +90,10 @@ def test_the_files_the_page_reads_at_run_time_are_shipped() -> None:
 
 
 def test_the_worker_is_named_by_the_files_of_the_page_it_belongs_to() -> None:
-    """vite.config.ts puts a hash of every file but sw.js into sw.js (the names of its caches), so a changed file is a changed worker and nothing else is: this makes the same hash from the committed files, which finds a page/ that was edited by hand or built from another ui/ without node."""
+    """vite.config.ts puts a hash of every file but sw.js into sw.js (the names of its caches), so a
+    changed file is a changed worker and nothing else is: this makes the same hash from the
+    committed files, which finds a page/ that was edited by hand or built from another ui/ without
+    node."""
     hash_ = hashlib.sha256()
     for path in sorted((p for p in PAGE.rglob("*") if p.is_file() and p.relative_to(PAGE).as_posix() != "sw.js"), key=lambda p: p.relative_to(PAGE).as_posix().encode()):
         hash_.update(path.relative_to(PAGE).as_posix().encode() + b"\0" + path.read_bytes() + b"\0")
@@ -95,7 +102,9 @@ def test_the_worker_is_named_by_the_files_of_the_page_it_belongs_to() -> None:
 
 
 def test_nothing_of_the_page_reads_the_version_of_neoaprs() -> None:
-    """The version is written in neoaprs/__init__.py and the daemon tells it to the page in hello; the page's build and its worker never read it, which is why a version bump does not rebuild the page."""
+    """The version is written in neoaprs/__init__.py and the daemon tells it to the page in hello;
+    the page's build and its worker never read it, which is why a version bump does not rebuild the
+    page."""
     build = [UI / "vite.config.ts", UI / "env.d.ts", *(p for p in (UI / "sw").rglob("*") if p.is_file())]
     for source in build:
         assert "__init__.py" not in source.read_text(encoding="utf-8"), f"{source.relative_to(ROOT)} reads the version of NeoAPRS: the page learns it from hello"

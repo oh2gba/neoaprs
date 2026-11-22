@@ -1,7 +1,7 @@
-"""What the web shell (webshell.py) asks of the desktop on Linux and macOS, where it runs as the trial of NEOAPRS_WINDOW=web: whether there is a tray to hide into (on Linux, a tray host that owns its name on the
-session bus; the menu bar of macOS is always there), the desktop's light or dark scheme (the settings portal of Linux, the user's defaults of macOS), whether a remembered place is on a screen still, the tray
-calls that AppKit wants on the main thread, the close button of a window with no tray, the minute's wait for the tray host of an app started in the tray, and the tray's own loop when there is no window. Each
-toolkit (gi's Gio, GLib and Gdk, pyobjc's Foundation and PyObjCTools) is imported by name inside the function that uses it; what cannot be asked is the answer that keeps the window usable, never an error."""
+"""What the web shell (webshell.py) asks of the desktop on Linux and macOS (NEOAPRS_WINDOW=web).
+
+Tray presence, colour scheme, screens, close button and tray loop. Toolkits are imported inside
+each function; what cannot be asked gets the answer that keeps the window usable."""
 import importlib
 import logging
 import os
@@ -16,7 +16,8 @@ from .sizekeep import SizeKeeper
 
 log = logging.getLogger("neoaprs.desktop")
 
-TRAY_WATCHER = "org.kde.StatusNotifierWatcher"   # the bus name a desktop's tray host owns (KDE, GNOME's AppIndicator extension, Xfce's and others' panels): the same question Qt asks
+# The bus name a tray host owns (KDE, GNOME's AppIndicator extension, Xfce, ...); Qt asks the same.
+TRAY_WATCHER = "org.kde.StatusNotifierWatcher"
 BUS_WAIT_MS = 1000
 
 
@@ -36,7 +37,7 @@ class WebFrame(Protocol):
 
 
 def on_main(system: str, call: Callable[[], object]) -> None:
-    """A call of the tray's toolkit from any thread: on macOS queued to the main thread, where AppKit's objects live; elsewhere made at once (pystray queues its own calls to GTK's loop, and Windows' backend is thread-safe)."""
+    """Call the tray toolkit from any thread: queued to the main thread on macOS, direct elsewhere."""
     if system == "darwin":
         importlib.import_module("PyObjCTools.AppHelper").callAfter(call)
     else:
@@ -48,7 +49,7 @@ def gio_and_glib() -> tuple[Any, Any]:
 
 
 def tray_host(system: str) -> bool:
-    """Whether the desktop shows tray icons: on Linux, whether a tray host owns its name on the session bus (False when it cannot be asked); macOS's menu bar and Windows' notification area are always there."""
+    """Return whether the desktop shows tray icons (Linux: a tray host on the session bus)."""
     if system != "linux":
         return True
     try:
@@ -63,7 +64,7 @@ def tray_host(system: str) -> bool:
 
 
 def portal_dark() -> bool:
-    """Whether the Linux desktop is in the dark scheme, as its settings portal tells it (`org.freedesktop.appearance` `color-scheme`, 1 = dark); light where it cannot be read."""
+    """Return whether the settings portal reports the dark scheme (1); False if unreadable."""
     try:
         gio, glib = gio_and_glib()
         bus = gio.bus_get_sync(gio.BusType.SESSION, None)
@@ -76,7 +77,7 @@ def portal_dark() -> bool:
 
 
 def mac_dark() -> bool:
-    """Whether macOS is in the dark appearance (`AppleInterfaceStyle` of the user's defaults); light where it cannot be read."""
+    """Return whether `AppleInterfaceStyle` is Dark; False if unreadable."""
     try:
         defaults = importlib.import_module("Foundation").NSUserDefaults.standardUserDefaults()
         return bool(defaults.stringForKey_("AppleInterfaceStyle") == "Dark")
@@ -86,7 +87,7 @@ def mac_dark() -> bool:
 
 
 def on_a_screen(system: str, x: int, y: int) -> bool:
-    """Whether the title bar of a window whose frame has its top left corner at (x, y) is on a screen now (a monitor may be gone since): on Linux as GDK sees the monitors; elsewhere it is taken that it is."""
+    """Return whether the title bar of a frame at (x, y) is on a screen (only Linux checks)."""
     if system != "linux":
         return True
     try:
@@ -100,7 +101,7 @@ def on_a_screen(system: str, x: int, y: int) -> bool:
 
 
 def screen_origin(system: str) -> tuple[int, int]:
-    """Where the first monitor's top left corner is: pywebview's GTK window adds it to the place it is given (on Linux; (0, 0) elsewhere, and when the screens cannot be asked)."""
+    """Return the first monitor's top left corner, which pywebview's GTK window adds to a place."""
     if system != "linux":
         return 0, 0
     try:
@@ -112,8 +113,7 @@ def screen_origin(system: str) -> tuple[int, int]:
 
 
 def frame_moved(window: Any, sizes: SizeKeeper) -> Callable[..., None]:
-    """The handler of a move on Linux: pywebview tells the place of the window's inside, and GTK puts a window by its frame (the title bar too), so the place kept is the frame's, asked of the GTK window itself
-    on GTK's own loop (`get_position`, which is what `move` sets)."""
+    """Return the Linux move handler: pywebview reports the inside's place, GTK places by the frame."""
     glib = importlib.import_module("gi.repository.GLib")
 
     def read() -> bool:
@@ -123,7 +123,8 @@ def frame_moved(window: Any, sizes: SizeKeeper) -> Callable[..., None]:
             log.debug("the window's place could not be asked for", exc_info=True)
             return False
         sizes.event("moved", x, y)
-        return False                                    # (once: GLib calls an idle function again while it returns True)
+        # GLib repeats an idle function while it returns True; this must run once.
+        return False
 
     def handler(*args: object) -> None:
         glib.idle_add(read)
@@ -131,13 +132,14 @@ def frame_moved(window: Any, sizes: SizeKeeper) -> Callable[..., None]:
 
 
 def wayland(environ: Any = os.environ) -> bool:
-    """Whether GTK draws on Wayland, where no app is told its place or given one (Qt's neither): only the size is kept there."""
+    """Return whether GTK draws on Wayland, where apps cannot learn or set their place."""
     return bool(environ.get("WAYLAND_DISPLAY")) and environ.get("GDK_BACKEND", "") != "x11"
 
 
 def keep_size(frame: WebFrame, window: Any, sizes: SizeKeeper, system: str) -> None:
-    """The size keeper hears the window's events. The close button hides the window while a tray icon is on show to bring it back from; with none it ends the app (the daemon too, if the app started it), as
-    Quit would: at once when the session is there, else as soon as it comes. The close itself is always cancelled, so that the window loop runs until Quit has stopped the daemon."""
+    """Connect the window's events to the size keeper.
+
+    Close hides the window while a tray can restore it, else quits; the close itself is always cancelled."""
     frame.sizes = sizes
 
     def closing() -> bool:
@@ -166,8 +168,7 @@ def keep_size(frame: WebFrame, window: Any, sizes: SizeKeeper, system: str) -> N
 
 
 def await_tray(frame: WebFrame) -> None:
-    """An app that started in the tray: the tray host is looked for for a minute (the panel may come up after the app at sign-in); if it never comes, or there is no tray icon at all, the window, which had
-    nothing to be brought back from, is shown. Runs in the thread pywebview started, which has nothing else to do."""
+    """Wait up to TRAY_WAIT_SEC for a tray host (the panel may start late), else show the window."""
     if frame.icon is not None:
         waited, wait_sec, poll_sec = 0.0, TRAY_WAIT_SEC, TRAY_POLL_SEC
         while not frame.tray_shows():
@@ -185,8 +186,7 @@ def await_tray(frame: WebFrame) -> None:
 
 
 def tray_loop(system: str, frame: WebFrame) -> None:
-    """With no window loop to ride on, the main thread runs the tray until Quit: on Windows pystray's thread draws it and the main thread only waits; on Linux it is a GLib loop and on macOS the
-    application's event loop, which Quit ends (`frame.stop_loop`)."""
+    """Run the tray on the main thread until Quit when there is no window loop (`frame.stop_loop` ends it)."""
     if system == "win32":
         frame.done.wait()
         return

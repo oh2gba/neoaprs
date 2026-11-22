@@ -1,14 +1,23 @@
-; Inno Setup script of the Windows installer: NeoAPRS-Setup-VERSION.exe. Per user (no administrator rights, no UAC prompt, nothing done to the Windows Firewall: the Mercury modem in bin\mercury\ is built to listen on this computer only): the app goes to %LOCALAPPDATA%\Programs\NeoAPRS, the Start menu gets "NeoAPRS" (the desktop
-; app, neoaprs-app.exe: a window and a tray icon; it starts the daemon itself), "Stop NeoAPRS" and "NeoAPRS support logs" (neoaprs.exe support: the logs in one file on the Desktop), a task makes a desktop shortcut, and a task, on by default, makes the app start in the tray when the user signs in
-; (the value NeoAPRS of the Run key of the user, `neoaprs-app.exe --tray`; the daemon is the app's to start). The data (%LOCALAPPDATA%\NeoAPRS: settings, messages, packets, the map)
-; is the program's own and is never touched by the installer or the uninstaller. Build, from the repository root, after packaging/windows/neoaprs.spec has made dist\NeoAPRS:
+; Inno Setup script of the Windows installer, NeoAPRS-Setup-VERSION.exe.
+; Per user: no administrator rights, no UAC prompt, nothing done to the Windows Firewall (the Mercury
+; modem in bin\mercury\ listens on this computer only). The app goes to %LOCALAPPDATA%\Programs\NeoAPRS.
+; The Start menu gets "NeoAPRS" (the desktop app neoaprs-app.exe: a window and a tray icon that starts the
+; daemon itself), "Stop NeoAPRS" and "NeoAPRS support logs" (neoaprs.exe support: the logs in one file on
+; the Desktop). A task makes a desktop shortcut and a task, on by default, starts the app in the tray at
+; sign-in (value NeoAPRS of the user's Run key, `neoaprs-app.exe --tray`). The data folder
+; (%LOCALAPPDATA%\NeoAPRS) is never touched by the installer or uninstaller.
+; Build from the repository root after packaging/windows/neoaprs.spec has made dist\NeoAPRS:
 ;     iscc /DAppVersion=0.1.0 /Qp packaging\windows\neoaprs.iss        (makes dist-installer\NeoAPRS-Setup-0.1.0.exe)
-; Silent: NeoAPRS-Setup-VERSION.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /NORESTART [/LOG=file] [/DIR=folder] [/TASKS=""]  (the last one: no start at sign-in, no desktop shortcut).
-; Installing over a NeoAPRS that is running: the code below ends the app and then the daemon cleanly (neoaprs-app.exe --quit, neoaprs.exe stop, each waiting until the process has gone) before Setup replaces any file, so
-; that the user is not asked to close them and the daemon ends as it does at a stop, not terminated. Setup's own files-in-use check (Restart Manager) is off: it also names Windows' own services that read our files
-; for a moment (Cryptographic Services, Application Identity), which a per-user Setup cannot close, and a silent run with its message boxes suppressed then gave up (the upgrade proof from 0.20.2, 17 Nov 2026).
-; Update now (neoaprs/services/selfinstall.py) runs it silently with /NOCLOSEAPPLICATIONS too (the same clean ending, and no check) and two values of its own:
-; /NEOAPRSDATA=folder (the data folder of the daemon that runs it) and /NEOAPRSRESTART=app or daemon (what was running, and is started again on that folder once the files are in place).
+; Silent: NeoAPRS-Setup-VERSION.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /NORESTART [/LOG=file]
+;     [/DIR=folder] [/TASKS=""]  (the last: no start at sign-in, no desktop shortcut).
+; Installing over a running NeoAPRS: before Setup replaces any file the code below ends the app and then
+; the daemon cleanly (neoaprs-app.exe --quit, neoaprs.exe stop), so the user is not asked to close them.
+; Setup's own files-in-use check (Restart Manager) is off: it also names Windows services that read our
+; files for a moment (Cryptographic Services, Application Identity), which a per-user Setup cannot close,
+; and a silent run then gave up.
+; Update now (neoaprs/services/selfinstall.py) runs it silently with /NOCLOSEAPPLICATIONS and two values
+; of its own: /NEOAPRSDATA=folder (the data folder of the daemon that runs it) and
+; /NEOAPRSRESTART=app or daemon (what was running, started again on that folder once the files are in place).
 #ifndef AppVersion
   #error Give the version: iscc /DAppVersion=0.1.0 packaging\windows\neoaprs.iss
 #endif
@@ -38,15 +47,16 @@ WizardStyle=modern
 UninstallDisplayIcon={app}\neoaprs-app.exe
 UninstallDisplayName=NeoAPRS
 OutputDir=..\..\dist-installer
-; no files-in-use check of Setup's own (see above): the code section ends NeoAPRS, and nothing else is ours to close
+; no files-in-use check of Setup's own (see above); the code section ends NeoAPRS
 CloseApplications=no
 
 [Tasks]
 Name: "autostart"; Description: "Start NeoAPRS when I sign in"; Flags: checkedonce
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; Flags: unchecked
 
-; The Mercury folder is made again by every install: the Mercury of 0.16.1 and before came with DLLs of its own (hamlib, libusb, the MinGW runtime) that the one built since
-; then needs none of, and that would otherwise stay there after an update. The pmtiles program (56 MB) and its licence, which the app folder of earlier versions had in bin\, are not used any more: the map is cut by the app itself.
+; The Mercury folder is made again by every install, so DLLs of an older Mercury (hamlib, libusb, the
+; MinGW runtime) do not stay after an update. The pmtiles program and its licence in bin\ are obsolete:
+; the app cuts the map itself.
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\bin\mercury"
 Type: filesandordirs; Name: "{app}\bin\direwolf"
@@ -60,22 +70,26 @@ Source: "..\..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignor
 [Icons]
 Name: "{group}\NeoAPRS"; Filename: "{app}\neoaprs-app.exe"; Comment: "NeoAPRS: the window and the tray icon (starts the daemon if it is not running)"
 Name: "{group}\Stop NeoAPRS"; Filename: "{app}\neoaprsw.exe"; Parameters: "stop"; Comment: "End NeoAPRS"
-; the console program, so that its window shows what it made and where; --pause keeps the window until Enter is pressed
+; the console program, so that its window shows what it made and where; --pause keeps the window
+; until Enter is pressed
 Name: "{group}\NeoAPRS support logs"; Filename: "{app}\neoaprs.exe"; Parameters: "support --show --pause"; Comment: "Collect the logs into one file on the Desktop, to send to the developer"
 Name: "{autodesktop}\NeoAPRS"; Filename: "{app}\neoaprs-app.exe"; Tasks: desktopicon
 
 [Registry]
-; the same value that `neoaprs service install` writes for the daemon: one start at sign-in, and the app's own checkbox in the tray menu reads and writes it too
+; the same value that `neoaprs service install` writes for the daemon: one start at sign-in, and the
+; app's own checkbox in the tray menu reads and writes it too
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "NeoAPRS"; ValueData: """{app}\neoaprs-app.exe"" --tray{code:EncryptionArg}"; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
 Filename: "{app}\neoaprs-app.exe"; Parameters: "{code:EncryptionArg}"; Description: "Open NeoAPRS now"; Flags: postinstall nowait skipifsilent
-; after a silent update that NeoAPRS started itself: what was running starts again, the app (which starts the daemon) or the daemon alone
+; after a silent update that NeoAPRS started itself: what was running starts again, the app (which
+; starts the daemon) or the daemon alone
 Filename: "{app}\neoaprs-app.exe"; Parameters: "{code:DataArgs}{code:EncryptionArg}"; Flags: nowait; Check: RestartWanted('app')
 Filename: "{app}\neoaprsw.exe"; Parameters: "run {code:DataArgs}{code:EncryptionArg}"; Flags: nowait runhidden; Check: RestartWanted('daemon')
 
 [UninstallRun]
-; the app first (it stops the daemon it started), then whatever daemon is left (one that was running before the app), then the start at sign-in of a daemon that `neoaprs service install` made
+; the app first (it stops the daemon it started), then whatever daemon is left (one that was running
+; before the app), then the start at sign-in of a daemon that `neoaprs service install` made
 Filename: "{app}\neoaprs-app.exe"; Parameters: "--quit"; Flags: runhidden waituntilterminated; RunOnceId: "QuitNeoAPRSApp"
 Filename: "{app}\neoaprs.exe"; Parameters: "stop"; Flags: runhidden waituntilterminated; RunOnceId: "StopNeoAPRS"
 Filename: "{app}\neoaprs.exe"; Parameters: "service remove"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveStartAtSignIn"
@@ -84,8 +98,9 @@ Filename: "{app}\neoaprs.exe"; Parameters: "service remove"; Flags: runhidden wa
 var
   Encryption: Boolean;
 
-// Whether NeoAPRS runs with encrypted messages (`--encryption`, for exceptional circumstances only), read before anything is written: Update now says so (/NEOAPRSENCRYPTION=1), and an update by hand
-// finds it in the start at sign-in that this installer or the app's tray wrote. Without it an update came back without encrypted messages, and the start at sign-in lost the flag (OH2GAX, 4 Nov 2026).
+// Whether NeoAPRS runs with encrypted messages (`--encryption`), read before anything is written: Update
+// now passes it (/NEOAPRSENCRYPTION=1), and an update by hand finds it in the start at sign-in this installer
+// or the app's tray wrote. Without it an update would drop the flag from the start at sign-in.
 function InitializeSetup(): Boolean;
 var
   SignIn: String;
@@ -118,7 +133,7 @@ begin
   Result := WizardSilent and (CompareText(ExpandConstant('{param:NEOAPRSRESTART|}'), What) = 0);
 end;
 
-// Ends the NeoAPRS that is installed and running: the app first (it stops the daemon it started), then whatever daemon is left; each is waited for. Nothing happens when none runs.
+// End the installed NeoAPRS: the app first (it stops the daemon it started), then any daemon left; each is waited for.
 procedure EndRunningNeoAPRS();
 var
   Code: Integer;
@@ -129,8 +144,9 @@ begin
     Exec(ExpandConstant('{app}\neoaprs.exe'), Trim('stop ' + DataArgs('')), '', SW_HIDE, ewWaitUntilTerminated, Code);
 end;
 
-// An update over a NeoAPRS that is running: Setup calls this before it replaces any file, so the app and the daemon are ended cleanly here and the user is not asked to close them. (The last page's
-// "Open NeoAPRS now" starts the app again; a silent update of Update now starts again what was running, by the [Run] entries above; any other silent update leaves it to the next sign-in.)
+// An update over a running NeoAPRS: Setup calls this before replacing any file, so the app and daemon end
+// cleanly and the user is not asked to close them. (A silent update of Update now restarts what was running
+// by the [Run] entries; any other silent update leaves it to the next sign-in.)
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   EndRunningNeoAPRS();

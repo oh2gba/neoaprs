@@ -1,8 +1,7 @@
-"""A clock for the event loop that a test holds: while every task waits for a timer and nothing else is ready, the loop's time jumps to the next timer instead of the loop sleeping until it. A test of code
-that waits (a pause between two steps, a quiet period, a back-off) runs at once, and what it asserts on is the time that passed, not a wait it had to sit through. Only a wait on timers is skipped: the loop still
-looks at its sockets and threads first, so a test with real I/O in it (a thread that delivers bytes) should not use this; one whose fakes are in memory should. Work handed to a thread of the loop
-(`run_in_executor`, `asyncio.to_thread`: the program asks the system about a serial adapter that way) holds the clock: while any is running the loop waits for real, as it would, so a slow machine
-(the Windows runner) cannot see the clock jump past a wait before the thread has answered."""
+"""A clock for the event loop that a test holds: while every task waits for a timer and nothing else
+is ready, the loop's time jumps to the next timer instead of sleeping. Only timer waits are skipped;
+sockets and threads are still polled.
+"""
 import asyncio
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
@@ -20,10 +19,13 @@ class VirtualTime:
         return self._real_time() + self.skipped
 
     def select(self, real_select: Callable[[float | None], Any], timeout: float | None) -> Any:
-        """What the loop's selector does instead: anything ready is returned as it is, else the next timer is brought forward."""
+        """What the loop's selector does instead: anything ready is returned as it is, else the next
+        timer is brought forward."""
         if events := real_select(0):
             return events
-        if timeout is None or self.in_threads > 0:          # (nothing to skip to, or a thread is still at work: wait for real, the thread's answer wakes the loop)
+        # Nothing to skip to, or a thread is still at work: wait for real, the thread's answer wakes
+        # the loop
+        if timeout is None or self.in_threads > 0:
             return real_select(timeout)
         self.skipped += max(timeout, 0.0)
         return []
@@ -31,7 +33,8 @@ class VirtualTime:
 
 @asynccontextmanager
 async def virtual_time() -> AsyncIterator[VirtualTime]:
-    """Inside the block the running loop's timers are skipped over (`.skipped` says how much); the loop is as it was afterwards."""
+    """Inside the block the running loop's timers are skipped over (`.skipped` says how much); the
+    loop is as it was afterwards."""
     loop = asyncio.get_running_loop()
     clock = VirtualTime(loop)
     selector = loop._selector  # type: ignore[attr-defined]

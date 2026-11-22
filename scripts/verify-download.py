@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
-"""Checks a file downloaded from a release by hand, as Update now checks it: SHA256SUMS must carry the project's signature (SHA256SUMS.sig, with the public key of neoaprs/updateasset.py) as the list of the
-release, and must give the file the SHA-256 it has.
+"""Check a downloaded release file as Update now does: signed SHA256SUMS gives its SHA-256.
 
-  scripts/verify-download.py FILE [--sums SHA256SUMS] [--signature SHA256SUMS.sig] [--version VERSION]
-
-SHA256SUMS and SHA256SUMS.sig are looked for beside FILE unless they are named. The version is the one FILE is named for (`NeoAPRS-Setup-<version>.exe`, `neoaprs_<version>_amd64.deb`), or --version; a file
-whose name carries none (`NeoAPRS-Setup.exe`) needs --version. The signature holds only for the version it was made for, so a list of another release, an older one too, does not pass for this one. Nothing is fetched. Exit code 0: the file is the release's; 1: it is not, or it cannot be told, and the line says why.
-"""
+  scripts/verify-download.py FILE [--sums SUMS] [--signature SIG] [--version VERSION]
+Both are looked for beside FILE; a file name without a version needs --version. Exit 0: verified."""
 import argparse
 import hashlib
 import re
@@ -18,7 +14,8 @@ sys.path.insert(0, str(ROOT))
 
 from neoaprs.updateasset import CHECKSUMS, SIGNATURE, Unverified, public_key, release_version, signed_checksum  # noqa: E402
 
-NAMED_FOR = re.compile(r"NeoAPRS-Setup-(.+)\.exe|NeoAPRS-(.+)-x86_64\.AppImage|NeoAPRS-(.+)-arm64\.dmg|neoaprs_(.+)_(?:amd64|arm64)\.deb")       # the files of a release whose name carries its version
+# The release files whose name carries the version.
+NAMED_FOR = re.compile(r"NeoAPRS-Setup-(.+)\.exe|NeoAPRS-(.+)-x86_64\.AppImage|NeoAPRS-(.+)-arm64\.dmg|neoaprs_(.+)_(?:amd64|arm64)\.deb")
 
 
 def sha256(file: Path) -> str:
@@ -30,7 +27,7 @@ def sha256(file: Path) -> str:
 
 
 def version_of(file: Path) -> str:
-    """The version the file's own name carries; Unverified for a name that carries none (the files under fixed names), since the list that came with the file cannot say which release it ought to be."""
+    """Return the version in the file's name; Unverified if there is none (fixed names)."""
     found = NAMED_FOR.fullmatch(file.name)
     version = next((part for part in found.groups() if part), "") if found else ""
     if not release_version(version):
@@ -39,7 +36,7 @@ def version_of(file: Path) -> str:
 
 
 def check(file: Path, sums_file: Path, signature_file: Path, version: str | None) -> str:
-    """The sentence that says the file is the release's; Unverified (or OSError) when it is not, or cannot be told."""
+    """Return the sentence saying the file is the release's; raise Unverified if it is not."""
     version = version or version_of(file)
     sums = sums_file.read_bytes()
     signature = signature_file.read_bytes()

@@ -1,5 +1,7 @@
-"""The conformance vectors (ui/src/protocol/vectors.json): the rules that are code and not numbers, as inputs with the results the daemon gives. The page asserts the same file (ui/src/protocol/vectors.test.ts),
-so a rule that one side changes alone fails a test on one side. Here: the file is what the daemon gives today, and it says what the rules are."""
+"""The conformance vectors (ui/src/protocol/vectors.json): the rules that are code, as inputs with
+the daemon's results. The page asserts the same file, so a rule changed on one side alone fails a
+test.
+"""
 import json
 from typing import Any
 

@@ -1,5 +1,6 @@
-"""The desktop app's logic, with no window and no tray: which addresses stay in the window, the tray menu as data and what its items do, the decision to attach to a daemon or start one, what the app remembers, which shell
-this computer can run and the fallbacks when none can show a window. The shells themselves are tests/test_desktop_qt.py and tests/test_desktop_webshell.py."""
+"""Tests for the desktop app logic without a window or tray: which addresses stay in the window, the
+tray menu, attach-or-start, remembered state, shell choice and fallbacks.
+"""
 import json
 import logging
 import subprocess
@@ -76,7 +77,8 @@ class FakeAutoStart:
 
 
 class FakeDaemon(Daemon):
-    """The daemons of the app as a script: `up` is whether one holds the folder, `stops` what was asked to stop, `page` what the wait finds."""
+    """The daemons of the app as a script: `up` is whether one holds the folder, `stops` what was
+    asked to stop, `page` what the wait finds."""
 
     def __init__(self, up: bool = False, page: str | None = PAGE, child_alive: bool = True, stops: bool = True, network: bool = True) -> None:
         self.up, self.page, self.child_alive, self.ends, self.served_to_network = up, page, child_alive, stops, network
@@ -291,13 +293,15 @@ def test_a_daemon_that_restarts_as_a_new_version_is_waited_for_while_its_note_is
     assert gone.wait(5), "a restart that did not come up is an end"
 
 
-MOVED = "http://127.0.0.1:7310/"            # where the daemon serves its page after a restart that could not have the port of PAGE
+# where the daemon serves its page after a restart that could not have the port of PAGE
+MOVED = "http://127.0.0.1:7310/"
 
 
 @pytest.mark.parametrize("owned", [True, False])
 def test_the_watch_follows_the_page_to_another_address_for_the_apps_own_daemon_and_for_one_it_attached_to(owned: bool) -> None:
-    """The daemon started again and serves its page on another port (the one it had was taken): the file it writes says where, and the app is told once for each new address. The lock of a daemon the app
-    does not own is never asked for it."""
+    """The daemon started again and serves its page on another port (the one it had was taken): the
+    file it writes says where, and the app is told once for each new address. The lock of a daemon
+    the app does not own is never asked for it."""
     moved: list[str] = []
     told = threading.Event()
     daemon = FakeDaemon(up=True)
@@ -338,7 +342,8 @@ def test_the_watch_follows_the_page_to_another_address_for_the_apps_own_daemon_a
 @pytest.mark.parametrize("elsewhere", ["http://example.org/", "http://example.org:7303/", "http://127.0.0.1:7310@example.org/", "https://127.0.0.1:7303/", "http://localhost:7310/", "http://127.0.0.1.example.org:7310/",
                                        "http://[::1]:7310/", "http://127.0.0.1:notaport/"])
 def test_the_watch_never_sends_the_window_to_another_host_whatever_the_daemons_file_says(elsewhere: str, caplog: pytest.LogCaptureFixture) -> None:
-    """The file in the data folder is read as an address (neoaprs/cli/logfile.py lets any host through); the window only ever follows the page to another port of the host it is on."""
+    """The file in the data folder is read as an address (neoaprs/cli/logfile.py lets any host
+    through); the window only ever follows the page to another port of the host it is on."""
     moved: list[str] = []
     told = threading.Event()
     looked = threading.Semaphore(0)
@@ -437,7 +442,8 @@ def test_the_size_of_a_window_that_is_hidden_or_minimised_is_not_saved_and_a_pla
     appstate.save_window(tmp_path, appstate.WindowState(0, 0, 10, 20))
     appstate.save_window(tmp_path, appstate.WindowState(160, 28, 10, 20))
     assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700, 10, 20)
-    appstate.save_window(tmp_path, appstate.WindowState(1000, 700, -32000, -32000))                 # (where Windows puts a minimised window)
+    # (where Windows puts a minimised window)
+    appstate.save_window(tmp_path, appstate.WindowState(1000, 700, -32000, -32000))
     assert appstate.load_window(tmp_path) == appstate.WindowState(1000, 700)
 
 
@@ -481,8 +487,10 @@ def test_a_toolkit_that_is_installed_and_broken_is_a_fallback_and_not_a_crash() 
 # ---- the web window on Linux and macOS, the trial: NEOAPRS_WINDOW=web chooses it in place of Qt's
 
 def gtk_importer(missing: set[str], typelibs: set[tuple[str, str]], named: list[str] | None = None) -> Any:
-    """`importer` with a `gi` whose require_version knows the namespaces and versions of `typelibs` (a ValueError for any other, as gi says it) and, as gi does, keeps the first version required of a
-    namespace and refuses another one after it; its repository lists the versions of `typelibs`; and a GLib that writes down the program's name."""
+    """`importer` with a `gi` whose require_version knows the namespaces and versions of `typelibs`
+    (a ValueError for any other, as gi says it) and, as gi does, keeps the first version required of
+    a namespace and refuses another one after it; its repository lists the versions of `typelibs`;
+    and a GLib that writes down the program's name."""
     plain = importer(missing)
     required: dict[str, str] = {}
 
@@ -512,7 +520,8 @@ WEB = {"NEOAPRS_WINDOW": "web"}
 
 @pytest.fixture
 def ground(monkeypatch: pytest.MonkeyPatch) -> list[int]:
-    """gtkenv's ground stood in for (it would set the variables of this process): how often it was laid."""
+    """gtkenv's ground stood in for (it would set the variables of this process): how often it was
+    laid."""
     laid: list[int] = []
     monkeypatch.setattr("neoaprs.desktop.gtkenv.prepare", lambda: laid.append(1) or ["the carried typelibs of girepository-tray"])
     return laid
@@ -550,7 +559,9 @@ def test_the_qt_windows_start_imports_nothing_of_the_web_windows_ground() -> Non
                "shell.choose('linux', lambda name: object(), environ={})\n"
                "print(sorted(n for n in ('neoaprs.desktop.gtkenv', 'ctypes', '_ctypes') if n in sys.modules))\n")
     done = subprocess.run([sys.executable, "-c", program], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=True)
-    windows_splash = ["_ctypes", "ctypes"] if sys.platform == "win32" else []         # (on Windows the splash, splash.py, imports ctypes for itself: the Qt window is never started there, gtkenv is never imported)
+    # (on Windows the splash, splash.py, imports ctypes for itself: the Qt window is never started
+    # there, gtkenv is never imported)
+    windows_splash = ["_ctypes", "ctypes"] if sys.platform == "win32" else []
     assert done.stdout.strip() == str(windows_splash), done.stdout
 
 
@@ -563,7 +574,8 @@ def test_without_webkitgtk_it_is_the_tray_and_the_browser_and_the_log_names_the_
 def test_a_tray_that_does_not_load_leaves_the_window_without_one(ground: list[int]) -> None:
     def broken_tray(name: str) -> object:
         if name == "pystray":
-            raise ValueError("Namespace AyatanaAppIndicator3 not available")        # (what pystray's import ends with when the typelib is missing)
+            # (what pystray's import ends with when the typelib is missing)
+            raise ValueError("Namespace AyatanaAppIndicator3 not available")
         return gtk_importer(set(), GTK)(name)
     choice = shell.choose("linux", broken_tray, environ=dict(WEB))
     assert (choice.module, choice.window, choice.tray) == ("neoaprs.desktop.webshell", True, False)
@@ -571,7 +583,8 @@ def test_a_tray_that_does_not_load_leaves_the_window_without_one(ground: list[in
 
 
 def test_with_neither_the_web_window_nor_its_tray_it_is_the_browser_only(ground: list[int]) -> None:
-    choice = shell.choose("linux", gtk_importer({"gi", "pystray"}, GTK), environ=dict(WEB))           # (pystray's backends need gi too)
+    # (pystray's backends need gi too)
+    choice = shell.choose("linux", gtk_importer({"gi", "pystray"}, GTK), environ=dict(WEB))
     assert choice.module is None and not choice.window and not choice.tray and "gi: ModuleNotFoundError" in choice.describe()
 
 
@@ -592,7 +605,9 @@ def test_windows_has_the_window_and_the_tray_when_webview2_is_there() -> None:
 
 
 @pytest.mark.parametrize("missing, runtime, module, window", [
-    (set(), False, "neoaprs.desktop.webshell", False),             # no WebView2 runtime: pywebview would fall back to the old Internet Explorer engine, which cannot show the page
+    # no WebView2 runtime: pywebview would fall back to the old Internet Explorer engine, which
+    # cannot show the page
+    (set(), False, "neoaprs.desktop.webshell", False),
     ({"webview"}, True, "neoaprs.desktop.webshell", False),        # pywebview is not installed
     ({"pystray"}, True, None, False),
 ])

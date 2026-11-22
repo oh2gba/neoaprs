@@ -1,19 +1,8 @@
-"""The connection to an APRS-IS server, for the iGate. A `Source` like the TNC and the GPS feed: it has a state and a problem, it is started and stopped, it reconnects with `Backoff`, and it never raises out of its tasks.
-It writes the lines it is given (`send_line`, only while the login is verified) and reads what the server sends: every line that is not a comment is a packet of the internet, parsed (neoaprs/aprsisline.py) and handed to the
-signal `heard`, which the composition root connects to the one gate for packets from the internet (`Services.hear_internet`); a line that cannot be parsed is counted (`unreadable`) and nothing else. Nothing of it can reach the radio.
+"""Connection to an APRS-IS server for the iGate: a `Source` that reconnects and never raises.
 
-What it does, with the sources (https://www.aprs-is.net/Connecting.aspx, https://www.aprs-is.net/javAPRSFilter.aspx, and the servers' own answer, which the specification pages leave out):
-
-* The server speaks first, a comment line (`# javAPRSSrvr 4.3.0b13`, `# aprsc 2.1.19`): a first line that is no comment is not an APRS-IS server and the connection is dropped. Lines that start with `#` are comments and are ignored.
-* The client then sends the login line `user CALL pass PASSCODE vers NeoAPRS VERSION filter r/LAT/LON/RADIUS`: the filter (the station's position and the radius of the map, `map/radius_km`) is what the server sends on port 14580, which sends nothing without one. It is
-  sent again as `#filter ...` on a connection that is up when it changes (`set_filter`). Without a passcode the login is `pass -1`, the read-only login: the server answers `unverified`, which is no fault, and the connection listens only.
-  TCP_NODELAY is set, as the specification asks of a bidirectional client. The call is unique to this program (APRS-IS wants a unique login).
-* The server answers with `# logresp CALL verified, server NAME` or `unverified` (a wrong passcode, or -1). Only a verified login may put data on APRS-IS: with `unverified` nothing is sent. A passcode that was given and refused
-  is told (`unverified`) and not tried again with another; the connection stays up and listens, as the read-only login does (a server sends the same to both).
-* Keep-alive: the server sends a comment line when its connection has been quiet, about every 20 seconds (aprsc; the specification gives no interval and asks nothing of a client). A connection that has said nothing for
-  LOST_SEC (3 minutes) is lost and opened again; a client that has written nothing for QUIET_SEC (2 minutes) sends a comment line, which the server ignores, so that a connection that has died on our side is found by the write.
-* Lines are TNC2 text that ends with CR LF, at most 512 bytes with it. The write queue holds at most QUEUE_MAX lines; when the server is slow the oldest are dropped (and counted), never the newest and never the loop.
-* The password is never logged, noted, shown or put in an error: it is in the login line and nowhere else."""
+Writes only after a verified login; every non-comment server line goes to the signal `heard`.
+Protocol: https://www.aprs-is.net/Connecting.aspx (`pass -1` listens only).
+"""
 import asyncio
 import logging
 import re
@@ -32,27 +21,28 @@ from .tasks import cancel_all
 
 log = logging.getLogger("neoaprs.aprsis")
 
-CONNECT_SEC = 10.0                                   # how long opening the connection may take
-GREETING_SEC = 15.0                                  # how long the server may take to greet
-LOGIN_SEC = 15.0                                     # ... and to answer the login
-QUIET_SEC = 120.0                                    # nothing written for this long: a comment line from us
-LOST_SEC = 180.0                                     # nothing from the server for this long: the connection is lost
-WRITE_SEC = 30.0                                     # a write the server does not take in this time: the connection is lost
-QUEUE_MAX = 500                                      # lines waiting to be written; the oldest are dropped beyond it
-READ_LIMIT = 8192                                    # the longest line read from the server
-FILTER_MOVE_KM = 10                                  # the station moves this far and the filter is sent again
-READ_ONLY = "-1"                                     # the passcode of a login that only listens
+CONNECT_SEC = 10.0
+GREETING_SEC = 15.0
+LOGIN_SEC = 15.0
+QUIET_SEC = 120.0  # nothing written for this long: send a comment
+LOST_SEC = 180.0  # nothing from the server for this long: lost
+WRITE_SEC = 30.0  # a write not taken in this time: lost
+QUEUE_MAX = 500  # the oldest lines are dropped beyond it
+READ_LIMIT = 8192
+FILTER_MOVE_KM = 10  # the station moves this far: resend the filter
+READ_ONLY = "-1"  # passcode of a listen-only login
 NO_SERVER = "no server set: give igate/server the address of an APRS-IS server (host:port)"
 UNVERIFIED = "the server did not accept the password"
 _LOGRESP = re.compile(r"#\s*logresp\s+(\S+)\s+(unverified|verified)\b(?:\s*,\s*server\s+(\S+))?", re.IGNORECASE)
 CRLF = b"\r\n"
 
 
-LinkReason = Literal["", "no_server", "no_call", "unreachable", "offline", "not_server", "lost"]     # why the link is not logged in, as a code (the page's words: IgateState.reason)
+# why the link is not logged in, as a code (the page's words: IgateState.reason)
+LinkReason = Literal["", "no_server", "no_call", "unreachable", "offline", "not_server", "lost"]
 
 
 def _reason_of(e: Exception) -> LinkReason:
-    """The code of what ended an attempt: the server's name not looked up (no connection), a server that cannot be reached, one that is no APRS-IS server, or a connection that was lost."""
+    """Return the code of what ended an attempt: no server, unreachable, not APRS-IS, or lost."""
     if isinstance(e, socket.gaierror):
         return "offline"
     if isinstance(e, AprsIsError):
@@ -61,22 +51,22 @@ def _reason_of(e: Exception) -> LinkReason:
 
 
 class AprsIsError(Exception):
-    """The server is not what a connection should be (the words are the reason, for the operator)."""
+    """The server is not what a connection should be."""
 
 
 def range_filter(lat: float, lon: float, km: int) -> str:
-    """The filter for the stations within `km` of a position (degrees, north and east positive; the position to a kilometre or so); `km` is the radius of the map (`map/radius_km`)."""
+    """Return the filter for stations within `km` (the map radius) of a position (degrees)."""
     return f"r/{lat:.2f}/{lon:.2f}/{km}"
 
 
 def login_line(call: str, password: str, filter_spec: str = "") -> bytes:
-    """The line that logs in; the only place the password is put into text. No password is the read-only login, `pass -1`."""
+    """Return the login line, the only place the password becomes text; none means `pass -1`."""
     text = f"user {call} pass {password or READ_ONLY} vers {PROGRAM} {VERSION}" + (f" filter {filter_spec}" if filter_spec else "")
     return text.encode("ascii") + CRLF
 
 
 def logresp_of(line: bytes) -> tuple[bool, str] | None:
-    """Whether the login was verified and the server's name, from a `# logresp` line; None for any other line."""
+    """Return whether the login was verified and the server name from `# logresp`; else None."""
     found = _LOGRESP.match(line.decode("latin-1").strip())
     return None if found is None else (found.group(2).lower() == "verified", found.group(3) or "")
 
@@ -93,21 +83,21 @@ class AprsIs(Source):
         self.backoff = backoff or Backoff()
         self.connect_sec, self.greeting_sec, self.login_sec = connect_sec, greeting_sec, login_sec
         self.quiet_sec, self.lost_sec, self.write_sec = quiet_sec, lost_sec, write_sec
-        self.verified = False                                  # logged in and verified: lines may be written
-        self.reason: LinkReason = ""                           # why it is not logged in, as a code: what is missing or what ended the latest attempt; empty while it is
-        self.unverified = False                                # the server refused the password that was given; the connection listens only, as the one without a password does
-        self.server_name = ""                                  # the server's name from `# logresp`
-        self.slow_dropped = 0                                  # lines dropped from the queue because the server took them too slowly
-        self.filter = ""                                       # the filter of the login (and of the `#filter` line sent when it changes); empty sends nothing
-        self.heard: Signal[[Packet]] = Signal("aprsis.heard")  # a packet of the internet, parsed from a line of the server (`Packet.via` is `is`)
-        self.read = 0                                          # lines of the server handed on as packets
-        self.unreadable = 0                                    # lines of the server that are no packet (counted, never raised)
+        self.verified = False  # lines may be written
+        self.reason: LinkReason = ""  # why it is not logged in
+        self.unverified = False  # the password was refused; listen only
+        self.server_name = ""
+        self.slow_dropped = 0  # queue overflows
+        self.filter = ""  # empty sends nothing
+        self.heard: Signal[[Packet]] = Signal("aprsis.heard")
+        self.read = 0
+        self.unreadable = 0
         self._queue: deque[bytes] = deque(maxlen=queue_max)
         self._wake = asyncio.Event()
         self._last_tx = 0.0
 
     def configure(self, host: str, port: int, call: str, password: str) -> None:
-        """What to connect to and log in as, for a feed that is stopped."""
+        """Set what to connect to and log in as, while the feed is stopped."""
         self.host, self.port, self.call, self._password = host, port, call, password
 
     def describe(self) -> str:
@@ -119,22 +109,22 @@ class AprsIs(Source):
 
     @property
     def read_only(self) -> bool:
-        """Whether this connection has no passcode and only listens."""
+        """Return whether there is no passcode, so the connection only listens."""
         return not self._password or self._password == READ_ONLY
 
     @property
     def listening(self) -> bool:
-        """Logged in but not verified: the connection reads and does not write (no passcode, or one the server refused)."""
+        """Return whether it is logged in but not verified (reads, does not write)."""
         return self.state is Source.State.CONNECTED and not self.verified
 
     def _missing(self) -> str:
-        """What is not set that logging in needs, or empty."""
+        """Return what the login needs that is not set, or empty."""
         if not self.host or not self.port:
             return NO_SERVER
         return call_problem(self.call)
 
     def set_filter(self, spec: str) -> None:
-        """What the server is to send: used by the next login, and sent now as `#filter SPEC` on a connection that is up."""
+        """Set what the server sends: used at the next login, sent now as `#filter SPEC` if up."""
         if spec == self.filter:
             return
         self.filter = spec
@@ -147,7 +137,7 @@ class AprsIs(Source):
             await self.stop()
         self.backoff.reset()
         self.unverified, self.last_error, self.read, self.unreadable = False, "", 0, 0
-        if missing := self._missing():                         # (a source without what it needs is a valid setting that cannot work yet: nothing is opened, and the problem says what to give)
+        if missing := self._missing():
             self._set_state(Source.State.CONNECTING)
             self.reason = "no_server" if missing == NO_SERVER else "no_call"
             self._set_problem(missing)
@@ -172,7 +162,7 @@ class AprsIs(Source):
 
     # ---- writing
     def send_line(self, line: bytes) -> bool:
-        """Queues one line (no line end) for the server. False when it cannot go: not logged in and verified, a CR or LF inside, or longer than a line of APRS-IS is."""
+        """Queue one line (no line end); False if not verified, has CR or LF, or is too long."""
         if not self.verified or len(line) + len(CRLF) > MAX_LINE or b"\r" in line or b"\n" in line:
             return False
         self._enqueue(line)
@@ -180,7 +170,7 @@ class AprsIs(Source):
 
     def _enqueue(self, line: bytes) -> None:
         if len(self._queue) == self._queue.maxlen:
-            self.slow_dropped += 1                             # (the queue is a deque with a limit: the oldest line goes)
+            self.slow_dropped += 1
         self._queue.append(line)
         self._wake.set()
 
@@ -195,7 +185,7 @@ class AprsIs(Source):
             await asyncio.sleep(delay)
 
     async def _attempt(self) -> tuple[str, LinkReason]:
-        """One connection, from opening to its end: why it ended, in words for the log and as a code (the serving of a connection ends only by raising)."""
+        """Run one connection to its end; return why it ended, as log text and as a code."""
         self._set_state(Source.State.CONNECTING)
         writer: asyncio.StreamWriter | None = None
         try:
@@ -204,7 +194,8 @@ class AprsIs(Source):
             await self._serve(reader, writer)
         except asyncio.CancelledError:
             raise
-        except Exception as e:                                 # (a feed never raises into the loop: it says why and tries again)
+        # a feed never raises into its loop: it says why and tries again
+        except Exception as e:
             return f"{self.target}: " + (os_error_text(e) if isinstance(e, OSError) else str(e) or type(e).__name__), _reason_of(e)
         finally:
             self._drop_session()
@@ -213,7 +204,7 @@ class AprsIs(Source):
         return "the connection ended", "lost"
 
     async def _open(self) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
-        nodevices.check_host(self.host, "APRS-IS")             # (under the no-devices switch a server that is not on this computer is not there: nothing logs in under the operator's call)
+        nodevices.check_host(self.host, "APRS-IS")
         try:
             async with asyncio.timeout(self.connect_sec):
                 reader, writer = await asyncio.open_connection(self.host, self.port, limit=READ_LIMIT)
@@ -225,17 +216,18 @@ class AprsIs(Source):
                 sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
             except OSError:
-                pass                                           # (a socket that cannot be set is still a connection)
+                pass  # a socket that cannot be set is still a connection
         log.info("aprsis: connected to %s", self.target)
         return reader, writer
 
     async def _line(self, reader: asyncio.StreamReader, hung_up: str) -> bytes:
         try:
             line = await reader.readline()
-        except ValueError:                                     # (a line longer than the reader takes, in the greeting or the answer to the login as well as among the packets)
+        # a line longer than the reader takes, at any stage of the session
+        except ValueError:
             raise ConnectionError("the server sent a line that is too long") from None
         self.stats.bytes_in += len(line)
-        if not line.endswith(b"\n"):                           # (end of stream, or a line that was cut by the end of it)
+        if not line.endswith(b"\n"):
             raise ConnectionError(hung_up)
         return line
 
@@ -262,7 +254,7 @@ class AprsIs(Source):
         self.reason = ""
         self._set_state(Source.State.CONNECTED)
         if self.filter and self.filter != sent_filter:
-            self._enqueue(f"#filter {self.filter}".encode("ascii"))       # (the station moved between the login and the answer to it)
+            self._enqueue(f"#filter {self.filter}".encode("ascii"))
         text = f"logged in as {self.call}, " + ("verified" if verified else "listening only" if self.read_only else f"not verified ({UNVERIFIED}), listening only") + (f", server {name}" if name else "")
         self._note(text)
         (log.warning if self.unverified else log.info)("aprsis: %s", text)
@@ -273,21 +265,21 @@ class AprsIs(Source):
             if answer is not None:
                 return answer
 
-    # ---- the connection while it is logged in
+    # ---- while logged in
     async def _serve(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         tasks = [asyncio.create_task(self._read(reader), name="aprsis-read"), asyncio.create_task(self._write(writer), name="aprsis-write")]
         try:
             done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
             for task in done:
-                task.result()                                  # (neither ends but by raising)
+                task.result()  # neither ends except by raising
         finally:
             await cancel_all(tasks)
             for task in tasks:
                 if task.done() and not task.cancelled():
-                    task.exception()                           # (one that ended with the other is looked at, so that it is not reported as lost)
+                    task.exception()  # retrieved so it is not reported as lost
 
     async def _read(self, reader: asyncio.StreamReader) -> None:
-        """Reads what the server sends, for as long as it keeps sending something: a comment is the keep-alive, any other line is a packet of the internet."""
+        """Read what the server sends; a comment is the keep-alive, any other line is a packet."""
         while True:
             try:
                 async with asyncio.timeout(self.lost_sec):
@@ -298,12 +290,12 @@ class AprsIs(Source):
             self._take(line.rstrip(b"\r\n"))
 
     def _take(self, line: bytes) -> None:
-        """A line of the server that is no comment is a packet of the internet, handed to `heard`; one that is none is counted and forgotten. It never raises: a line is no reason to lose the connection."""
+        """Hand a non-comment server line to `heard`, or count it as unreadable; never raise."""
         if not line or is_comment(line):
             return
         try:
             packet = parse_is_line(line, self.now())
-        except Exception:                                      # (IsLineError for a header that is none; any other fault of the parser is a line that is none too)
+        except Exception:  # any parser fault: the line is unreadable
             self.unreadable += 1
             log.debug("aprsis: not a packet: %s", _snippet(line))
             return
@@ -318,7 +310,9 @@ class AprsIs(Source):
                 try:
                     await asyncio.wait_for(self._wake.wait(), max(0.0, self.quiet_sec - (loop.time() - self._last_tx)))
                 except TimeoutError:
-                    self._queue.append(f"# {PROGRAM} {VERSION}".encode("ascii"))          # (the server ignores a comment; the write finds a connection that has died)
+                    # the server ignores a comment; the write finds a dead connection
+                    self._queue.append(f"# {PROGRAM} {VERSION}".encode("ascii"))
+
                 continue
             line = self._queue.popleft()
             writer.write(line + CRLF)

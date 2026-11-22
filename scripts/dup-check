@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# The duplication ratchet of the Python half: jscpd over neoaprs/ (the page's server and the commands are in it; the built page is not) and tests/support/ (clones of at least 10 lines and 100 tokens), compared with scripts/dup-baseline.json.
-# Fails on a clone that is not in the baseline, on a clone that grew, and on more duplicated lines in total. The page's own check is the stage dup (ui/.jscpd.json). Needs node.
-#
+# The duplication ratchet of the Python half: jscpd over neoaprs/ and tests/support/ (clones of at least
+# 10 lines and 100 tokens). Fails on a clone not in the baseline, on a clone that grew, and on more
+# duplicated lines in total. The page's own check is the stage dup (ui/.jscpd.json). Needs node.
 #   scripts/dup-check              check
-#   scripts/dup-check --update     write the baseline from today's clones (refuses to make it larger; only to tighten it after you removed a clone)
+#   scripts/dup-check --update     write the baseline from today's clones (never larger: only to tighten it)
 #
-# jscpd is the one pinned in ui/package.json (5.4.2): the baseline is what THIS version finds. NEOAPRS_JSCPD overrides the command (the tests use it). Node (22.12 or newer) is the one on the PATH, else
-# the newest in ~/.nvm, as scripts/check finds it. Python: NEOAPRS_PYTHON, else the uv venv (.venv), like scripts/check.
+# jscpd is the version pinned in ui/package.json; the baseline is what THIS version finds. NEOAPRS_JSCPD
+# overrides the command (the tests use it). Node 22.12 or newer from the PATH, else ~/.nvm, as scripts/check does.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -1,6 +1,7 @@
-"""The parts of the support bundle that read the computer and the database (neoaprs/cli/supportgather.py) where the whole-bundle tests (tests/test_support_bundle.py) do not go: the name of the system on each system (the
-platform module is faked), a log that cannot be read, a log whose start line has no time, the migrations of a database that this program does not know, a packet that is no frame, and the radios of a
-file before they were rows, of one with a wrong value and of one whose radios cannot be read."""
+"""The parts of the support bundle that read the computer and database
+(neoaprs/cli/supportgather.py) beyond the whole-bundle tests: the system name per system, an
+unreadable log, a start line with no time, unknown migrations.
+"""
 import json
 import sqlite3
 from datetime import UTC, datetime
@@ -128,7 +129,8 @@ def at_version_thirty(tmp_path: Path, rows: dict[str, str]) -> Path:
 
 
 def test_a_file_from_before_the_radios_were_rows_tells_its_rows_of_the_radios_as_they_are_stored(tmp_path: Path) -> None:
-    """The keys of before are no settings of this NeoAPRS: the rows are told as the file keeps them, for the migration to make the radios of (tests/support/bundledb.py)."""
+    """The keys of before are no settings of this NeoAPRS: the rows are told as the file keeps them,
+    for the migration to make the radios of (tests/support/bundledb.py)."""
     data = at_version_thirty(tmp_path, FLAT)
     stored = supportgather.read_stored(data)
     assert stored.rows == FLAT and stored.radios is None

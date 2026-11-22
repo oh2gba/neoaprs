@@ -1,4 +1,6 @@
-"""The trust of the https requests (neoaprs/httpstrust.py): certifi's roots are loaded beside the system's, every opener of the program that goes out to the internet is built with it, and the Windows app carries certifi's list."""
+"""The trust of the https requests (neoaprs/httpstrust.py): certifi's roots are loaded beside the
+system's, every opener of the program that goes out to the internet is built with it, and the
+Windows app carries certifi's list."""
 import ssl
 from pathlib import Path
 

@@ -1,5 +1,6 @@
-"""The code beside the Mercury modem's problem (`Mercury.reason`): the English `problem` is the log's and the doctor's, the page puts the reason in its own words in the viewer's language; the code is empty
-unless the modem is waiting, and it is what the hf topic's `modem.reason` tells."""
+"""The code beside the Mercury modem's problem (`Mercury.reason`): the English `problem` is the
+log's and the doctor's, the page puts the reason in its own words in the viewer's language; the code
+is empty unless the modem is waiting, and it is what the hf topic's `modem.reason` tells."""
 from pathlib import Path
 
 import pytest
@@ -19,7 +20,8 @@ from tests.test_mercury_modem import HF, QUICK, modem, stopped
 
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py): no other test running beside it is handed its ports."""
+    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py):
+    no other test running beside it is handed its ports."""
     own_ports(monkeypatch)
 
 

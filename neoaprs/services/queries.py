@@ -1,44 +1,8 @@
-"""Queries: what other stations ask of us in an APRS message, and the answers.
+"""Queries: answers to what other stations ask of us in an APRS message (APRS 1.0.1 chapter 15).
 
-A message to us (our call with its SSID exactly: our base call is not ours when ours has an SSID, message.addressed_to) whose text is
-
-    ?APRSP   is answered with our position packet (the beacon's frame, `Beacon.frame()`)
-    ?APRSS   with our status report as it was last sent (services/rigstatus.py; nothing while none has been sent)
-    ?APRSD   with a message to the asker, "Directs= OH2PU-9 OH2RCH-2", the calls heard direct in the last hour on the radio the query came on (the one heard last first; at most MAX_TEXT bytes, in two
-             messages at the most, "Directs= none" when there is none): on a radio that carries paths, a station that radio heard direct in the hour (its own routes); on one that carries
-             none (HF), where every frame comes direct, a station that radio heard in the hour
-    ?APRST   (and ?PING?) with a message to the asker, "OH2GBA>APZNEO,OH2RCH-2*:": the header of the query as we heard it, the digipeaters it went by with their stars
-    ?APRSH N0QBF   (the call after the query, a blank between them or not) with a message to the asker, "N0QBF HEARD: 1 3 2 . . 4 5 6": how many packets of that station we heard in each of the last 8 hours, the
-             hour just gone first, a dot for an hour with none (the packet log; "N0QBF NOT HEARD" for a station we have no trace of at all). APRS 1.0.1 (chapter 15) also has the answer carry the station's position
-             as an object; we leave that out, because an object named like a station is the one thing our own objects are never allowed to be (services/ownobjects.py) and a program that reads it would show
-             the station twice
-    ?APRSO   with our live objects and items (services/ownobjects.py), each once as it is now, at most ANSWER_FRAMES_MAX of them; one that is `on_request` (sent only to a station that asks) is among them
-    ?APRSM   with our messages to the asker that no ack has settled (being sent, failed or unconfirmed), each once as it was sent ({MM}), the latest ANSWER_FRAMES_MAX of them; their
-             records do not change (an ack that comes settles them as ever)
-
-The frames of ?APRSO and ?APRSM go out one at a time, SPACING_SEC apart (services/pace.py, the pause between our own frames); the others at once. How an answer is sent and when it is given only once is services/answers.py's,
-which the QRU server (services/qru.py) uses as well.
-
-The general query ?APRS? is a `?` packet (the information field starts with `?APRS?`), not the text of a message, and a message with that text is not answered. It may carry a target footprint,
-`?APRS?V34.02,-117.15,0200` (latitude and longitude in degrees, the radius in miles; the V stands for a space and may be left out): we answer only when our position (where we are now: the GPS fix of a moving station, else the place of the settings) is inside it, and a footprint that does not read is
-not answered. The answer is our position packet and then our status report (the status only when one has been sent or is kept), after a random delay of 0 to GENERAL_DELAY_MAX_SEC seconds, and
-not again within GENERAL_EVERY_SEC of the last time it was taken. Every
-answer goes by the path of the asker (the station preferences, else `beacon/path`) as frames of our own; none is a message of messaging, none is retried.
-
-The general query `?IGATE?` (the capabilities of an iGate) is taken as ?APRS? is, by the same rules with a GENERAL_EVERY_SEC of its own, footprint and all (the specification's general query has one form for
-every kind), but only while our iGate (services/igate.py) is `connected`: switched on, logged in and verified, so that it gates what the radio hears. Off, still connecting, or logged in read only (no passcode, or
-one the server did not accept: it only listens) it is no iGate and the query is not answered, a line in the log at DEBUG; that is asked again when the wait is over, before anything is sent. The answer is one
-station capabilities packet (data type `<`, APRS 1.0.1 chapter 15), `capabilities_info`:
-
-    <IGATE,MSG_CNT=0,LOC_CNT=3,UPL_CNT=812
-
-MSG_CNT, the messages gated from APRS-IS to the radio, is always 0: the iGate is receive only and nothing of the internet is ever sent on the air. LOC_CNT, the "local" stations, is the stations heard direct within
-DIRECT_WINDOW on the radios that may carry a path (the last hour: those ?APRSD asked on such a radio lists, which over HF are HF's alone; not us, not an object), counted when the answer goes. UPL_CNT, one of the counts Dire Wolf adds, is the packets the iGate has put on APRS-IS since the daemon
-started (`Igate.gated`); Dire Wolf's others (PKT_CNT, DIR_CNT, RF_CNT, DNL_CNT) are not sent, for nothing here counts them as Dire Wolf does. A message with the text ?IGATE? is not answered, as one with
-?APRS? is not.
-
-The general query `?WX?` (the weather report of a weather station) is recognised and never answered: NeoAPRS has no weather report of its own to send, and "a queried station that has no relevant information
-need not respond" (APRS 1.0.1, chapter 15). It is a line in the log at DEBUG, and the packet is an ordinary `?` packet of the packet log, not an undecoded one."""
+Directed queries (?APRSP, ?APRSS, ?APRSD, ?APRST, ?APRSH, ?APRSO, ?APRSM) and the general
+queries ?APRS? and ?IGATE? are answered here; ?WX? is recognised and never answered.
+"""
 import asyncio
 import logging
 import random
@@ -72,25 +36,26 @@ GENERAL_DELAY_MAX_SEC = 120.0
 GENERAL_EVERY_SEC = 600.0
 DIRECT_WINDOW = timedelta(hours=1)
 MAX_DIRECT_MESSAGES = 2
-_NUMBER = r"V?\s*([-+]?\d+(?:\.\d+)?)"                                     # (the V is the specification's mark of a positive value)
+# the V is the specification's mark of a positive value
+_NUMBER = r"V?\s*([-+]?\d+(?:\.\d+)?)"
 _FOOTPRINT = re.compile(rf"\?(?:APRS|IGATE)\?(?:\s*{_NUMBER}\s*[,\s]\s*{_NUMBER}\s*[,\s]\s*(\d{{1,4}}))?", re.IGNORECASE)
-_DIRECTED = {QUERY_TEXT[kind]: kind for kind in ("position", "status", "directs", "path", "objects", "messages")} | {QUERY_TEXT["ping"].removesuffix("?"): "path"}     # by the text without a trailing "?" (?PING? is written with one; a radio may add one to the others)
-_PACED = ("objects", "messages")                                          # the answers of several frames, sent SPACING_SEC apart
+# keyed without a trailing "?": ?PING? has one, and a radio may add one to the others
+_DIRECTED = {QUERY_TEXT[kind]: kind for kind in ("position", "status", "directs", "path", "objects", "messages")} | {QUERY_TEXT["ping"].removesuffix("?"): "path"}
+_PACED = ("objects", "messages")
 HEARD_HOURS = 8
 _HEARD = re.compile(re.escape(QUERY_TEXT["heard"]) + rf"\s*({INTERNET_NAME.pattern})?")
-_NOT_ANSWERED = (QUERY_TEXT["wx"],)                                                # the general query of the specification that we have nothing to answer
+_NOT_ANSWERED = (QUERY_TEXT["wx"],)
 
 
-AnswerRadio = AirRadio | None          # the radio an answer is built for: the one the question came on (the RadioPick's `for_packet`); None, the beacon's own or the first radio that can send
+# the radio an answer is built for; None: the beacon's own or the first radio that can send
+AnswerRadio = AirRadio | None
 
 
 class Frames(Protocol):
-    """What the queries need of the beacon: the frame of our position, built for the radio the answer goes on."""
     def frame(self, radio: AnswerRadio = None) -> ax25.Frame: ...
 
 
 class Stations(Protocol):
-    """What the queries need of the station book: the stations, and where we are (the book's row of ours, which follows the GPS fix of a moving station)."""
     def stations(self) -> list[Station]: ...
     def get(self, call: str) -> Station | None: ...
     @property
@@ -98,38 +63,34 @@ class Stations(Protocol):
 
 
 class HeardLog(Protocol):
-    """What the queries need of the packet log (neoaprs/packetlog.py)."""
     async def heard_since(self, call: str, when: datetime) -> list[datetime]: ...
 
 
 class IgateCounts(Protocol):
-    """What the queries need of the iGate (services/igate.py): its state (`connected` while it gates) and how many packets it has put on APRS-IS."""
     @property
     def state(self) -> str: ...
     gated: int
 
 
 class Objects(Protocol):
-    """What the queries need of our objects and items (services/ownobjects.py)."""
     def records(self) -> list[OwnObject]: ...
 
 
 class Messages(Protocol):
-    """What the queries need of messaging."""
     def records(self) -> list[MessageRecord]: ...
 
 
 class _Nothing:
-    def records(self) -> list:                                                  # type: ignore[type-arg]
+    def records(self) -> list:  # type: ignore[type-arg]
         return []
 
 
-_NOTHING = _Nothing()                                                           # (no objects, no messages: a Queries made without them)
+# stands in for objects and messages when a Queries is made without them
+_NOTHING = _Nothing()
 
 
 def directs_messages(calls: list[str]) -> list[str]:
-    """The texts of the messages that list the calls: "Directs= OH2PU-9 OH2RCH-2", each at most MAX_TEXT bytes, at most MAX_DIRECT_MESSAGES of them (the calls that do not fit are left out);
-    "Directs= none" for no call at all."""
+    """Return "Directs= OH2PU-9 ..." messages: up to MAX_TEXT bytes, MAX_DIRECT_MESSAGES of them."""
     if not calls:
         return ["Directs= none"]
     texts: list[str] = []
@@ -145,8 +106,7 @@ def directs_messages(calls: list[str]) -> list[str]:
 
 
 def path_text(packet: Packet) -> str:
-    """"OH2GBA>APZNEO,OH2RCH-2*:": the header of the packet as heard, its digipeaters with their stars, as the example of APRS 1.0.1 (chapter 15) writes it; the last of them go when the text
-    would be over MAX_TEXT bytes."""
+    """Return the header as heard, "OH2GBA>APZNEO,OH2RCH-2*:", dropping hops beyond MAX_TEXT."""
     head = f"{packet.source}>{packet.destination}"
     hops = list(packet.path)
     while hops and len(f"{head},{','.join(hops)}:".encode()) > MAX_TEXT:
@@ -156,24 +116,23 @@ def path_text(packet: Packet) -> str:
 
 @dataclass(frozen=True)
 class Footprint:
-    """The circle a general query asks the stations in to answer: its centre in degrees and its radius in miles."""
+    """The circle of stations a general query addresses: centre in degrees, radius in miles."""
     lat: float
     lon: float
     miles: int
 
     def contains(self, lat: float, lon: float) -> bool:
-        """Whether the point is inside the circle (the great-circle distance of neoaprs.geo)."""
         return distance_km(self.lat, self.lon, lat, lon) / MILE_KM <= self.miles
 
 
 def general_kind(text: str) -> str | None:
-    """The general query we answer that the text is (GENERAL or IGATE_QUERY), None for any other."""
+    """Return GENERAL or IGATE_QUERY if the text is that query, else None."""
     head = text.strip().upper()
     return next((kind for kind in (GENERAL, IGATE_QUERY) if head.startswith(kind)), None)
 
 
 def footprint_of(text: str) -> Footprint | None:
-    """The footprint a general query (`?APRS?` or `?IGATE?`) carries, None for the plain query; ValueError when what follows the query is not a footprint or the degrees are not on the earth."""
+    """Return the query's footprint, None if plain; raise ValueError if malformed or off Earth."""
     found = _FOOTPRINT.fullmatch(text.strip())
     if found is None:
         raise ValueError(f"{text.strip()!r} is not a general query with a footprint")
@@ -186,12 +145,12 @@ def footprint_of(text: str) -> Footprint | None:
 
 
 def capabilities_info(local: int, uploaded: int) -> bytes:
-    """The information field of our answer to ?IGATE?: `<IGATE,MSG_CNT=0,LOC_CNT=3,UPL_CNT=812` (MSG_CNT 0, for nothing of APRS-IS is gated to the radio)."""
+    """Return the information field answering ?IGATE?; MSG_CNT is 0, nothing is gated to RF."""
     return f"<IGATE,MSG_CNT=0,LOC_CNT={local},UPL_CNT={uploaded}".encode("ascii")
 
 
 def hourly_counts(times: Sequence[datetime], now: datetime) -> list[int]:
-    """How many of the times fall in each of the last HEARD_HOURS hours before `now`, the hour just gone first (the first is the last 60 minutes, the second the 60 before them, and so on)."""
+    """Return the times counted per hour over the last HEARD_HOURS hours, latest first."""
     counts = [0] * HEARD_HOURS
     for when in times:
         hours = int((now - when).total_seconds() // 3600)
@@ -201,8 +160,9 @@ def hourly_counts(times: Sequence[datetime], now: datetime) -> list[int]:
 
 
 def direct_on(station: Station, radio: AirRadio | None, now: datetime) -> datetime | None:
-    """When the station was last heard direct within DIRECT_WINDOW of `now`, None when it was not: by any radio that may carry a path (`radio` None: the station's routes); on a radio that carries
-    paths, by that radio's own routes (Station.routes_on); on one that carries none, the last time that radio heard it, unless its latest packet there shows a used hop (another station's pair of radios passed it on)."""
+    """Return when the station was last heard direct within DIRECT_WINDOW of `now`, else None.
+
+    A radio that carries no paths counts its last hearing, unless the packet shows a used hop."""
     if radio is None:
         at = station.last_direct_at
     elif not radio.allowed.paths:
@@ -214,7 +174,7 @@ def direct_on(station: Station, radio: AirRadio | None, now: datetime) -> dateti
 
 
 def heard_text(call: str, counts: Sequence[int] | None) -> str:
-    """The answer to ?APRSH as the example of APRS 1.0.1 has it: "N0QBF HEARD: 1 3 2 . . 4 5 6", a dot for an hour with none; "N0QBF NOT HEARD" for a station that was never heard (`counts` None)."""
+    """Return the ?APRSH answer, "N0QBF HEARD: 1 3 2 . . 4 5 6", or "N0QBF NOT HEARD" for None."""
     if counts is None:
         return f"{call} NOT HEARD"
     return f"{call} HEARD: " + " ".join(str(min(n, 9999)) if n else "." for n in counts)
@@ -222,29 +182,30 @@ def heard_text(call: str, counts: Sequence[int] | None) -> str:
 
 class Queries:
     def __init__(self, radios: RadioPick | Radio, config: ConfigSource, beacon: Frames, status: Callable[[AnswerRadio], ax25.Frame | None], book: Stations, paths: Paths,
-                 clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC), objects: Objects = _NOTHING, messages: Messages = _NOTHING,  # noqa: S311  (the pause before an answer on the air, no secret)
+                 clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC), objects: Objects = _NOTHING, messages: Messages = _NOTHING,  # noqa: S311  (pause before an answer, no secret)
                  spacing_sec: float = SPACING_SEC, heard: HeardLog | None = None, igate: IgateCounts | None = None, budget: AnswerBudget | None = None) -> None:
         self._config = config
-        self._given = radios                                    # the station's radios (the registry; which app.py gives; an old shape of a test's: services/answers.py `as_pick`, read at each question)
+        self._given = radios
         self._answers = Answers(radios, config, paths, spacing_sec, budget if budget is not None else AnswerBudget(clock))
         self._beacon = beacon
-        self._status = status                                   # the frame of the status as last sent, for the radio the answer goes on (RigStatus.status_frame); None while none has been sent
+        self._status = status
         self._book = book
         self.clock = clock
-        self._delay = delay                                     # how long the answer to the general query waits
+        self._delay = delay
         self._objects, self._messages, self._heard = objects, messages, heard
-        self._igate = igate                                     # ?IGATE? is answered only while it is connected (None: never)
-        self._general_until: dict[str, datetime] = {}           # no general query of the kind (GENERAL, IGATE_QUERY) is taken before this
+        self._igate = igate
+        # no general query of a kind is taken before this
+        self._general_until: dict[str, datetime] = {}
 
     async def stop(self) -> None:
-        """An answer that is waiting is not sent."""
         await self._answers.stop()
 
     # ---- what is asked
     def on_packet(self, packet: Packet) -> None:
-        """The Tnc heard a packet: a query to us, or the general query, is answered."""
+        """Answer a query addressed to us, or a general query."""
         if packet.direction != "in" or not packet.on_air or same_call(packet.sender, self._config().station_call):
-            return                                                   # (a query that came over the internet is not answered: the answer would go out by radio to a station that is not here)
+            # an internet query gets no answer: it would go by radio to a station not here
+            return
         decoded = packet.decoded
         if isinstance(decoded, Message):
             if decoded.ack_id is None and decoded.rej_id is None and addressed_to(decoded.addressee, self._config().station_call):
@@ -256,7 +217,7 @@ class Queries:
                 log.debug("the general query %s of %s has nothing to be answered with here", decoded.text.strip(), packet.sender)
 
     def _to_us(self, packet: Packet, text: str) -> None:
-        """The text of a message to us, upper case: a directed query is answered (with or without a `?` at its end), any other text is a message."""
+        """Answer the upper-case message text if it is a directed query, trailing `?` optional."""
         text = text.removesuffix("?")
         if text in _DIRECTED:
             self._directed(packet, _DIRECTED[text])
@@ -272,9 +233,10 @@ class Queries:
             return
         if query == "heard":
             if self._starts_heard(packet, key, argument):
-                self._answers.tasks.spawn(self._heard_answer(packet, key, argument, self._came_on(packet)), "query-heard")     # (the radio of now: one switched off while the log is read answers nothing, and no other radio does)
+                # a radio switched off while the log is read answers nothing, and no other does
+                self._answers.tasks.spawn(self._heard_answer(packet, key, argument, self._came_on(packet)), "query-heard")
             return
-        radio = self._came_on(packet)                              # (the radio the question came on: the answer goes on it and is built for it)
+        radio = self._came_on(packet)
         try:
             frames = [frame for frame in self._answer(packet, query, radio) if frame is not None]
             self._answers.deliver(asker, key, frames, packet.heard_at, query in _PACED, radio=radio)
@@ -282,11 +244,10 @@ class Queries:
             log.warning("the %s query of %s was not answered: %s", key, asker, e)
 
     def _came_on(self, packet: Packet) -> AirRadio | None:
-        """The radio a question came on, which its answer goes back on (RadioPick `for_packet`; a question whose radio is no longer on was not taken, `answerable`)."""
         return as_pick(self._given, self._config).for_packet(packet)
 
     def _answer(self, packet: Packet, query: str, radio: AirRadio | None) -> Sequence[ax25.Frame | None]:
-        """The frames that answer the query, built for the radio the answer goes on (a None for a status not yet sent); BeaconError when the settings make no frame."""
+        """Return the answer frames (None: no status yet); raise BeaconError if none can be made."""
         asker = packet.sender
         if query == "position":
             return [self._beacon.frame(radio)]
@@ -297,17 +258,18 @@ class Queries:
         if query == "objects":
             return [our_frame(self._config(), (), info_of(o, self.clock())) for o in self._objects.records() if o.alive][:ANSWER_FRAMES_MAX]
         if query == "messages":
-            return [self._answers.message(asker, r.wire if r.wire is not None else r.text, r.msg_id) for r in self._unsettled(asker)]      # (a sealed message goes again as it went on the air, never as written)
+            # a sealed message goes again as it went on the air, never as written
+            return [self._answers.message(asker, r.wire if r.wire is not None else r.text, r.msg_id) for r in self._unsettled(asker)]
         return [self._answers.message(asker, path_text(packet))]
 
     def _unsettled(self, asker: str) -> list[MessageRecord]:
-        """Our messages to the asker that no ack has settled, the latest ANSWER_FRAMES_MAX, oldest first."""
+        """Return the latest ANSWER_FRAMES_MAX unsettled messages to the asker, oldest first."""
         ours = [r for r in self._messages.records() if r.direction == "out" and r.msg_id is not None and r.state in UNSETTLED and same_call(r.to_call, asker)]
         return sorted(ours, key=lambda r: r.id)[-ANSWER_FRAMES_MAX:]
 
     # ---- ?APRSH
     def _starts_heard(self, packet: Packet, key: str, call: str | None) -> bool:
-        """Whether the answer to ?APRSH is to be worked out: there is a packet log, a call to look for that is not ours. The query counts as answered from now, so that the copies of it are not."""
+        """Return whether ?APRSH is answered (log exists, call not ours); copies count too."""
         if self._heard is None or call is None or same_call(call, self._config().station_call):
             log.debug("the heard query of %s is not answered: %s", packet.sender, "no call" if call is None else "nothing to look in" if self._heard is None else "it is about us")
             return False
@@ -315,12 +277,13 @@ class Queries:
         return True
 
     async def _heard_answer(self, packet: Packet, key: str, call: str | None, radio: AirRadio | None) -> None:
-        """The message that tells in which of the last HEARD_HOURS hours the station was heard, from the packet log."""
+        """Answer ?APRSH from the packet log."""
         assert self._heard is not None and call is not None
         times = await self._heard.heard_since(call, packet.heard_at - timedelta(hours=HEARD_HOURS))
         counts = hourly_counts(times, packet.heard_at)
         found = self._book.get(call)
-        known = any(counts) or (found is not None and not found.internet_only)           # (a station known from the internet alone was never heard on the air)
+        # a station known from the internet alone was never heard on the air
+        known = any(counts) or (found is not None and not found.internet_only)
         try:
             self._answers.deliver(packet.sender, key, [self._answers.message(packet.sender, heard_text(call, counts if known else None))], packet.heard_at, False, radio=radio)
         except (ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:
@@ -328,8 +291,7 @@ class Queries:
 
     # ---- ?APRS? and ?IGATE?
     def _general(self, packet: Packet, text: str, kind: str) -> None:
-        """?APRS? (our position and status) or ?IGATE? (our capabilities, only while the iGate gates) after a random wait when we are inside its footprint (if it has one), and no second one of the kind
-        before GENERAL_EVERY_SEC has passed."""
+        """Answer after a random wait if in the footprint; one per kind per GENERAL_EVERY_SEC."""
         if self._answers.refused() or not answerable(as_pick(self._given, self._config), packet):
             return
         if kind == IGATE_QUERY and (why := self._no_igate()):
@@ -354,7 +316,7 @@ class Queries:
         self._answers.tasks.spawn(self._later(delay, packet.sender, kind, self._came_on(packet)), "query-general")
 
     def _no_igate(self) -> str:
-        """Why we are no iGate to answer ?IGATE? now; empty while the iGate is connected (on, logged in and verified: it gates)."""
+        """Return why ?IGATE? cannot be answered now; empty while the iGate is connected."""
         if self._igate is None:
             return "there is no iGate"
         state = self._igate.state
@@ -380,8 +342,7 @@ class Queries:
         return our_frame(self._config(), (), capabilities_info(len(self._directs(self.clock())), self._igate.gated))
 
     def _send_frames(self, asker: str, makers: Sequence[Callable[[], ax25.Frame | None]], radio: AirRadio | None) -> None:
-        """Each frame is made on its own, so that one that cannot be made (a status text that no longer fits) does not take the others with it; the ones that were made go together, or none when the budget
-        has no room for all of them."""
+        """Make frames separately so one failure keeps the rest; send all or none (budget)."""
         frames: list[ax25.Frame] = []
         for make in makers:
             try:
@@ -395,6 +356,6 @@ class Queries:
 
     # ---- the answers
     def _directs(self, now: datetime, radio: AirRadio | None = None) -> list[str]:
-        """The calls heard direct within DIRECT_WINDOW, the one heard last first (not us, not an object): by every radio, or by `radio` alone (`direct_on`)."""
+        """Return the calls heard direct within DIRECT_WINDOW, latest first, on `radio` or any."""
         heard = [(at, s.call) for s in self._book.stations() if s.kind == "station" and not s.is_me and (at := direct_on(s, radio, now)) is not None]
         return [call for _, call in sorted(heard, reverse=True)]

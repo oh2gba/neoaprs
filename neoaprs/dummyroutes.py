@@ -1,16 +1,21 @@
-"""Where the moving stations of the Dummy radio (dummyscene.py) go: a route is a few corners in kilometres east and north of the station, walked at a steady speed round and round, or there and back. The corners are
-plausible streets for a town the size of Helsinki and keep every moving station within about six kilometres of the centre."""
+"""Where the Dummy radio's moving stations (dummyscene.py) go.
+
+A route is a few corners in km east and north of the station, walked at a steady speed round and
+round, or there and back, within about six kilometres of the centre.
+"""
 import math
 from dataclasses import dataclass
 
 MAX_LAT = 89.9
-KM_PER_DEGREE = 111.32                # a degree of latitude; a degree of longitude is this times the cosine of the latitude
+# a degree of latitude; longitude is this times the cosine of the latitude
+KM_PER_DEGREE = 111.32
 
 
 @dataclass(frozen=True)
 class Route:
-    corners: tuple[tuple[float, float], ...]       # (km east, km north) of the centre
-    loop: bool                                     # True: from the last corner back to the first and on; False: there and back
+    corners: tuple[tuple[float, float], ...]  # (km east, km north) of the centre
+    # True: from the last corner back to the first; False: there and back
+    loop: bool
 
     def _legs(self) -> list[tuple[tuple[float, float], tuple[float, float], float]]:
         ring = self.corners + ((self.corners[0],) if self.loop else ())
@@ -18,11 +23,11 @@ class Route:
 
     @property
     def length_km(self) -> float:
-        """One round, or one way."""
+        """Return the length of one round, or one way."""
         return sum(leg for _, _, leg in self._legs())
 
     def at(self, km: float) -> tuple[float, float, int]:
-        """(km east, km north, course in degrees) of the place `km` along the route; past the end it goes round again, or back."""
+        """Return (km east, km north, course in degrees) at `km` along the route."""
         length = self.length_km
         along = km % length if self.loop else km % (2 * length)
         back = not self.loop and along > length
@@ -37,14 +42,19 @@ class Route:
 
 
 def around(centre: tuple[float, float], east_km: float, north_km: float) -> tuple[float, float]:
-    """The latitude and longitude of the place `east_km` and `north_km` from `centre`."""
+    """Return the latitude and longitude of the place `east_km`, `north_km` from `centre`."""
     lat, lon = centre
     new_lat = max(-MAX_LAT, min(MAX_LAT, lat + north_km / KM_PER_DEGREE))
     new_lon = lon + east_km / (KM_PER_DEGREE * math.cos(math.radians(max(-MAX_LAT, min(MAX_LAT, lat)))))
     return new_lat, (new_lon + 180) % 360 - 180
 
 
-TOWN_LOOP = Route(((-3.0, -2.0), (-3.2, 1.5), (-1.0, 3.0), (2.5, 3.2), (4.0, 0.8), (3.2, -2.4), (0.0, -3.0)), loop=True)               # a ring of main streets, about 22 km
-DELIVERY_ROUND = Route(((-5.0, -1.0), (-1.5, -2.2), (2.0, -1.2), (5.5, 1.5), (3.0, 4.2), (-1.0, 3.6), (-4.2, 2.8)), loop=True)         # a wider round
-RING_ROAD = Route(((-5.5, -3.5), (-2.0, -4.0), (2.0, -3.6), (5.0, -1.0)), loop=False)                                               # out along the ring road and back
-PARK_PATH = Route(((1.2, 0.8), (1.6, 1.1), (1.9, 0.7), (1.6, 0.3)), loop=True)                                                      # round a park, about a kilometre
+# a ring of main streets, about 22 km
+TOWN_LOOP = Route(((-3.0, -2.0), (-3.2, 1.5), (-1.0, 3.0), (2.5, 3.2), (4.0, 0.8), (3.2, -2.4), (0.0, -3.0)), loop=True)
+# a wider round
+DELIVERY_ROUND = Route(((-5.0, -1.0), (-1.5, -2.2), (2.0, -1.2), (5.5, 1.5), (3.0, 4.2), (-1.0, 3.6), (-4.2, 2.8)), loop=True)
+# out along the ring road and back
+RING_ROAD = Route(((-5.5, -3.5), (-2.0, -4.0), (2.0, -3.6), (5.0, -1.0)), loop=False)
+# round a park, about a kilometre
+PARK_PATH = Route(((1.2, 0.8), (1.6, 1.1), (1.9, 0.7), (1.6, 0.3)), loop=True)
+

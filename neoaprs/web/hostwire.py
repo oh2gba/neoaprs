@@ -1,4 +1,4 @@
-"""The daemon itself on the wire: `hello`, `ping` and `pong`, `status` and its request, and `error`. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py` (the unions, `TopicValues`)."""
+"""Wire models of the daemon itself: hello, ping, status, update check, release notes and error."""
 from typing import Literal
 
 from pydantic import Field

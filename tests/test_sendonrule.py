@@ -1,6 +1,7 @@
-"""A radio that comes on never stops anything (neoaprs/sendonrule.py `kept_in_force`, design section 3), what a new object or bulletin starts with (`start_set`), and the counts of the air the floor of
-a slow radio gives (design section 5). The rule as a pure function over stations of every shape; then the controller, which runs it in the transaction of every change of the radios (a radio added, switched
-on, given a type that sends, or the command line's `neoaprs db radios add`), and a change of ticks alone, which it leaves as it is."""
+"""A radio that comes on never stops anything (neoaprs/sendonrule.py `kept_in_force`), what a new
+object or bulletin starts with (`start_set`), and the counts of the air under a slow radio's floor;
+then the controller.
+"""
 import itertools
 from dataclasses import replace
 from pathlib import Path
@@ -82,15 +83,17 @@ def test_a_receive_only_radio_given_a_type_that_sends_comes_on_as_a_new_one_and_
 
 
 def four(key: str, rows: tuple[str | None, ...], missing: str | None) -> tuple[RadioSpec, ...]:
-    """Four radios that send with these rows of `key` (None: no row, or `missing` written in its place), beside a monitor and a radio that is off, both ticked."""
+    """Four radios that send with these rows of `key` (None: no row, or `missing` written in its
+    place), beside a monitor and a radio that is off, both ticked."""
     own = lambda text: {} if text is None and missing is None else {key: text or missing}      # noqa: E731
     sending = (radio(id, kind, **own(text)) for id, kind, text in zip((1, 2, 3, 4), ("fm", "hf", "lora", "fm"), rows, strict=True))
     return (*sending, radio(5, type="tnc-text", **dict.fromkeys(("status", "ask", "local_info"), "true")), radio(6, enabled=False, **dict.fromkeys(("status", "ask", "local_info"), "true")))
 
 
 def test_a_radio_with_no_row_is_a_radio_whose_row_says_false_for_every_rule_that_reads_a_tick() -> None:
-    """The page sends the tick pressed alone, so a radio may have no row where another has one: no rule may tell the two apart (each of four radios that send with no row, false or true; and a fifth radio
-    added, or the one that was off switched on)."""
+    """The page sends the tick pressed alone, so a radio may have no row where another has one: no
+    rule may tell the two apart (each of four radios that send with no row, false or true; and a
+    fifth radio added, or the one that was off switched on)."""
     grows = (lambda specs: (*specs, radio(7, "lora")), lambda specs: (*specs[:5], replace(specs[5], enabled=True)))
     for key in ("status", "ask", "local_info"):
         for rows in itertools.product((None, "false", "true"), repeat=4):
@@ -110,7 +113,7 @@ def test_what_a_new_thing_starts_with() -> None:
     assert (ids_of("3,1"), ids_of(""), ids_of("x"), text_of((3, 1, 3))) == ((1, 3), (), (), "1,3")
 
 
-# ---- the air: the floor of a slow radio (design section 5)
+# ---- the air: the floor of a slow radio
 
 def schedule(plan_floor: int, plan: object) -> list[int]:
     """The minutes of a bulletin's sends from the first, by its plan and the floor of its radios."""

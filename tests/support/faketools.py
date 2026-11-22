@@ -1,11 +1,6 @@
-"""Stand-ins for the programs that set a service up (`systemctl`, `loginctl`, `launchctl`): small shell scripts first on the PATH that write down what they were asked and answer the few questions the
-commands put to them. Nothing reaches the user's service manager.
-
-    tools = FakeTools(tmp_path / "bin", tmp_path / "calls")
-    tools.use(monkeypatch)              # PATH, FAKE_CALLS ... for this test
-    tools.calls()                       # what was asked since the last time: ["systemctl --user daemon-reload", ...]
-    tools.fail("systemctl --user enable")   # a call whose line starts so exits 1
-    tools.linger = True                 # `loginctl show-user` says Linger=yes"""
+"""Stand-ins for `systemctl`, `loginctl` and `launchctl`: small scripts first on the PATH that
+record what they were asked and answer the few questions put to them.
+"""
 import os
 import stat
 from pathlib import Path
@@ -42,7 +37,8 @@ class FakeTools:
             script.chmod(script.stat().st_mode | stat.S_IEXEC)
 
     def use(self, monkeypatch: pytest.MonkeyPatch) -> "FakeTools":
-        """Puts the tools first on the PATH of this test. Call `fail` and `linger` before: the environment is set when it is called."""
+        """Puts the tools first on the PATH of this test. Call `fail` and `linger` before: the
+        environment is set when it is called."""
         monkeypatch.setenv("PATH", f"{self.folder}{os.pathsep}{os.environ['PATH']}")
         monkeypatch.setenv("FAKE_CALLS", str(self.calls_file))
         monkeypatch.setenv("FAKE_FAIL", self.failing)
@@ -50,7 +46,8 @@ class FakeTools:
         return self
 
     def calls(self, only: str = "") -> list[str]:
-        """What was asked since the last time this was called (only the calls that start with `only`, if given)."""
+        """What was asked since the last time this was called (only the calls that start with
+        `only`, if given)."""
         lines = self.calls_file.read_text(encoding="utf-8").splitlines()
         self.calls_file.write_text("")
         return [line for line in lines if line.startswith(only)]

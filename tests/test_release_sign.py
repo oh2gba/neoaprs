@@ -1,7 +1,7 @@
-"""The step sign of scripts/release and its --verify, on the made-up repository of tests/test_release_script.py (a fake `gh`, a fake `bws` that hands out a key the test made, whose public half the clone's
-neoaprs/updateasset.py carries): the release stays a draft until SHA256SUMS is signed; the key is read by bws into memory and is never printed, logged or written to a file; a key that is not the program's, a
-bws that cannot read it and a list that is not one sign nothing; a draft signed already is only published; a published release is never signed after the fact; --verify checks a published release and changes
-nothing."""
+"""The step sign of scripts/release and its --verify on the made-up repository of
+tests/test_release_script.py: the release stays a draft until SHA256SUMS is signed, and the key is
+read into memory and never printed.
+"""
 import base64
 import hashlib
 import http.server
@@ -64,7 +64,9 @@ def test_the_signature_is_made_with_the_key_bws_reads_and_the_secret_is_never_sh
 
 
 def test_bws_alone_is_given_the_access_token_and_the_secret_id(rig: Rig) -> None:
-    """git (and scripts/check, the hooks and deploy.sh the script starts the same way), gh and bws each write down whether they see the two; a git or gh that saw them could read the key with bws."""
+    """git (and scripts/check, the hooks and deploy.sh the script starts the same way), gh and bws
+    each write down whether they see the two; a git or gh that saw them could read the key with bws.
+    """
     seen = rig.tmp / "seen.log"
     for program in ("git", "gh", "bws"):
         real = rig.bin / f"real-{program}"

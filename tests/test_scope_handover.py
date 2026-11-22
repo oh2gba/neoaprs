@@ -1,7 +1,7 @@
-"""The hand-over of the scope to a page (neoaprs/web/scopefeed.py): the rows kept first, oldest first, then the rows made after them, none twice and none lost, though a row arrives while the history is being written; a second
-page has its own; a page that leaves in the middle is sent nothing more and the other goes on; a page that is behind is sent no history; and the pages that look are told when the rows kept are forgotten. The modem part is a stand-in
-that has what the feed reads of it (`scope_history`), and the pages are sockets that keep what they are sent. A page that looks again on the same socket is sent the rows from its newest on, a page that was behind when the rows
-were forgotten is told before its next row, every history says the daemon's clock, and a row of before the machine slept is as old as the sleep."""
+"""The hand-over of the scope to a page (neoaprs/web/scopefeed.py): kept rows first, then later
+rows, none twice and none lost; a second page has its own, a leaving page is sent nothing more, and
+a page that lags gets no history.
+"""
 import sys
 import time
 from collections.abc import Callable
@@ -20,7 +20,8 @@ class Modem:
 
 
 class Page:
-    """A page's socket: what it was sent, and something to do while a frame is written (a row that arrives meanwhile)."""
+    """A page's socket: what it was sent, and something to do while a frame is written (a row that
+    arrives meanwhile)."""
     def __init__(self) -> None:
         self.frames: list[bytes] = []
         self.while_writing: Callable[[bytes], None] | None = None
@@ -65,7 +66,8 @@ def make(modem: Modem, feed: ScopeFeed, n: int) -> None:
 
 
 def asleep(monkeypatch: pytest.MonkeyPatch, seconds: float) -> None:
-    """From now on the machine has slept `seconds`: Linux's boot clock counts them, its monotonic clock stood still (on another system nothing is changed)."""
+    """From now on the machine has slept `seconds`: Linux's boot clock counts them, its monotonic
+    clock stood still (on another system nothing is changed)."""
     if sys.platform != "linux":
         return
     real = time.clock_gettime
@@ -73,7 +75,9 @@ def asleep(monkeypatch: pytest.MonkeyPatch, seconds: float) -> None:
 
 
 def seen(client: Page) -> list[int]:
-    """The numbers of the rows the page has, in the order it has them, as the page takes them (lib/scopememory.ts): a history that has the newest held goes on from it, any other is all the page has; then each row."""
+    """The numbers of the rows the page has, in the order it has them, as the page takes them
+    (lib/scopememory.ts): a history that has the newest held goes on from it, any other is all the
+    page has; then each row."""
     out: list[int] = []
     for frame in client.frames:
         history = parse_history(frame)
@@ -109,7 +113,8 @@ def test_a_row_that_arrives_while_the_history_is_written_is_sent_once_after_it_a
     def another(frame: bytes) -> None:
         n = next(arriving, None)
         if n is not None:
-            make(modem, feed, n)                                    # (made while a frame to this page is being written: the history, then each row)
+            # Made while a frame to this page is being written: the history, then each row
+            make(modem, feed, n)
     client.while_writing = another
     feed.ask(conn, True)
     client.while_writing = None
@@ -129,7 +134,8 @@ def test_two_pages_each_have_their_history_and_one_that_leaves_in_the_middle_sto
     assert seen(first) == [1, 2] and seen(second) == [1, 2] and feed.pages == 2
 
     def leave(frame: bytes) -> None:
-        feed.forget(a)                                              # (the first page leaves while a row is written to it)
+        # The first page leaves while a row is written to it
+        feed.forget(a)
     first.while_writing = leave
     make(modem, feed, 3)
     make(modem, feed, 4)
@@ -232,7 +238,8 @@ def test_a_row_of_before_the_machine_slept_is_as_old_as_the_sleep(monkeypatch: p
     modem, feed = setup()
     for n in range(1, 4):
         make(modem, feed, n)
-    asleep(monkeypatch, 3600.0)                                     # (the lid closed for an hour, the program and its link up all along)
+    # The lid closed for an hour, the program and its link up all along
+    asleep(monkeypatch, 3600.0)
     client, conn = page()
     feed.ask(conn, True)
     assert parse_history(client.frames[0]) == [], "older than the time kept: none of them is sent as of the last minutes"

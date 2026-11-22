@@ -1,12 +1,7 @@
-"""Update now: on a click of the page (the command `update_now`), and never by itself, the daemon fetches the file of the release that updates this copy (neoaprs/updateasset.py) from the release of exactly the version
-the update check announced, and SHA256SUMS of the same release with its signature. SHA256SUMS is believed only when the signature holds with the project's key for exactly that version (neoaprs/updateasset.py,
-`signed_checksum`), and the file's SHA-256 must be the one it gives the file, or the file is deleted and nothing is installed. Then the installer of this kind of install
-(neoaprs/services/selfinstall.py) puts it in place, and NeoAPRS restarts as the new version. A kind that has no installer (and one whose folder cannot be written) is not `supported`: the page shows the steps.
+"""Update now: download, verify and install the release file for this copy.
 
-The steps are the `state`: `downloading` (SHA256SUMS and its signature first, then the file, with its percent), `verifying`, `installing`, `restarting` (the daemon is about to end; still running RESTART_GRACE_SEC later, the update
-failed and says so), or `error` with the `problem` and a sentence of `detail`. Every way the signature can fail is the one problem `unverified`: whatever the cause (no signature in the release, one
-that does not hold, a list that is not one or does not name the file once), what the operator can do is the same, and the log has the cause. A signature that could not be fetched (the connection failed, the server answered other than 404) is `download`, as SHA256SUMS is. `cancel()` ends a download and leaves nothing of it. `status()` is what the page is told (the topic `update`); `changed` is
-emitted with every change of it."""
+The SHA256SUMS file is trusted only if its signature holds; the file's SHA-256 must then match.
+Any signature failure is the problem `unverified`; one that cannot be fetched is `download`."""
 import asyncio
 import logging
 import threading
@@ -30,8 +25,10 @@ if TYPE_CHECKING:
 log = logging.getLogger("neoaprs.update")
 
 RESTART_GRACE_SEC = 300.0
-TELL_SEC = 0.5                  # between `restarting` and the daemon's end: the page is told before its socket closes
-NOT_THERE = 404                 # the answer for SHA256SUMS.sig that means the release has no signature (`unverified`); any other failure to fetch it is `download`
+# between `restarting` and the daemon's end: the page is told before its socket closes
+TELL_SEC = 0.5
+# SHA256SUMS.sig answer meaning no signature (`unverified`); other failures are `download`
+NOT_THERE = 404
 State = Literal["idle", "downloading", "verifying", "installing", "restarting", "error"]
 Problem = Literal["", "download", "unverified", "checksum", "install", "no_restart"]
 FetchSums = Callable[[str, Allowed], bytes]
@@ -40,14 +37,19 @@ FetchFile = Callable[[str, Path, Allowed, Progress, threading.Event], str]
 
 @dataclass(frozen=True)
 class UpdateStatus:
-    supported: bool                     # this copy can update itself: the page offers Update now
+    # this copy can update itself: the page offers Update now
+    supported: bool
     state: State
-    version: str                        # the version being installed; empty while idle
-    percent: int | None                 # of the download; None when the server did not say the size
-    downloaded: int                     # bytes of the file so far
-    total: int | None                   # the size of the file, when the server said it
-    problem: Problem                    # what went wrong (state `error`); empty otherwise
-    detail: str                         # the sentence that says it, for the log and the page's details; empty when all is well
+    # the version being installed; empty while idle
+    version: str
+    # of the download; None when the server did not say the size
+    percent: int | None
+    downloaded: int
+    total: int | None
+    # what went wrong (state `error`); empty otherwise
+    problem: Problem
+    # the sentence for the log and the page's details; empty when all is well
+    detail: str
 
 
 IDLE = UpdateStatus(False, "idle", "", None, 0, None, "", "")
@@ -65,18 +67,22 @@ class SelfUpdate:
                  fetch: FetchFile = fetch_file, restart_grace_sec: float = RESTART_GRACE_SEC, end: Callable[[], None] = lambda: None, key: "Ed25519PublicKey | Callable[[], Ed25519PublicKey] | None" = None) -> None:
         self.install = install
         self.installer = installer
-        self._latest = latest                   # the version the update check announced, None while there is none
+        # the version the update check announced, None while there is none
+        self._latest = latest
         self.base, self._allowed = source
         self._fetch_sums = fetch_sums
         self._fetch = fetch
         self.restart_grace_sec = restart_grace_sec
-        self._key = key                         # the project's key when None (a test's own with NEOAPRS_UPDATE_KEY: neoaprs/services/selfinstall.py, release_key); a function gives it when it is first needed, so that the library is not loaded by a daemon that never checks a download
-        self._end = end                         # ends the daemon when the installer asked for a restart into the new file (an AppImage); nothing otherwise
+        # the project's key when None; a function defers loading the crypto library until needed
+        self._key = key
+        # ends the daemon when the installer asked for a restart into the new file (an AppImage)
+        self._end = end
         self.changed: Signal[[]] = Signal("update_changed")
         self._tasks = TaskSet(log, "update")
         self._job = IDLE
         self._cancelled = threading.Event()
-        self._busy = False                      # a job is running (a cancelled download ends its piece first)
+        # a job is running (a cancelled download ends its piece first)
+        self._busy = False
 
     @property
     def supported(self) -> bool:
@@ -90,11 +96,12 @@ class SelfUpdate:
         self.changed.emit()
 
     def begin(self, version: str) -> None:
-        """Starts the update to `version`; UpdateNowError when this copy cannot update itself, the version is not the one announced, or an update is running."""
+        """Start the update to `version`; raise UpdateNowError if it cannot be started."""
         if self.installer is None:
             raise UpdateNowError("this copy of NeoAPRS cannot update itself; the page has the steps", "update.unsupported")
         if why := self.installer.blocked():
-            log.warning("Update now: %s", why)                          # (the page says it in its words, without the folder: the log has it)
+            # the page words it without the folder; the log has the detail
+            log.warning("Update now: %s", why)
             raise UpdateNowError(f"NeoAPRS cannot update itself here: {why}", "update.blocked")
         if version != self._latest():
             raise UpdateNowError(f"{version} is not the version the update check announced", "update.not_announced", version=version)
@@ -111,7 +118,7 @@ class SelfUpdate:
         self._tasks.spawn(self._run(version, name, self._cancelled), "update-now")
 
     def cancel(self) -> None:
-        """Ends the download; UpdateNowError when none is running (the install of a file cannot be stopped half way)."""
+        """End the download; raise UpdateNowError if none runs (an install cannot be stopped)."""
         if self._job.state not in ("downloading", "verifying"):
             raise UpdateNowError("no download of an update is running", "update.not_running")
         self._cancelled.set()
@@ -151,7 +158,8 @@ class SelfUpdate:
             signature = await in_thread(lambda: self._fetch_sums(asset_url(version, SIGNATURE, self.base), self._allowed))
         except DownloadError as e:
             if e.status != NOT_THERE:
-                raise                                      # (a connection that failed is the problem `download`: tried again, it may well work)
+                # a failed connection is `download`: a retry may work
+                raise
             self._fail("unverified", f"the update to {version} could not be checked: {e}; nothing is installed")
             return
         try:
@@ -193,5 +201,6 @@ class SelfUpdate:
     def _fail(self, problem: Problem, detail: str) -> None:
         log.warning("Update now failed: %s", detail)
         if self._cancelled.is_set():
-            return                                          # (the operator cancelled it: the state stays idle)
+            # the operator cancelled: the state stays idle
+            return
         self._set(state="error", problem=problem, detail=detail)

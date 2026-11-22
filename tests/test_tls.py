@@ -1,4 +1,5 @@
-"""The certificates of the secure connection (neoaprs/web/tls.py): the authority made once, the certificate of the computer and when it is made again. The clock is the test's."""
+"""The certificates of the secure connection (neoaprs/web/tls.py): the authority made once, the
+certificate of the computer and when it is made again. The clock is the test's."""
 import stat
 import sys
 from datetime import timedelta

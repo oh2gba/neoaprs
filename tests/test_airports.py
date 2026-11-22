@@ -1,4 +1,6 @@
-"""The table of airports (neoaprs/airportdata.py, made by scripts/gen-airports.py from OurAirports' airports.csv) and the place it gives for an ICAO code (neoaprs/airports.py), and the generator on a made-up list."""
+"""The table of airports (neoaprs/airportdata.py, made by scripts/gen-airports.py from OurAirports'
+airports.csv) and the place it gives for an ICAO code (neoaprs/airports.py), and the generator on a
+made-up list."""
 import subprocess
 import sys
 from pathlib import Path

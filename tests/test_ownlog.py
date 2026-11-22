@@ -1,8 +1,8 @@
-"""The log of our own objects and bulletins (neoaprs/ownlog.py, ownsql.py) on a real database thread: what goes in comes out equal, one row for a name and for a slot, the delete, a row this program did not write,
-and a log with no database.
-
-Every test runs on each shape of the database the stores know (tests/support/migrated32.py, SHAPES): that of version 30 while it is the program's, where an object's row holds the word of its radio
-(`radio`: fm, hf, both), and that of migration 33, where it holds the ids of its radios (`radios`: "1", "2", "1,2"). The tests at the end are of the second alone."""
+"""The log of our own objects and bulletins (neoaprs/ownlog.py, ownsql.py) on a real database
+thread: what goes in comes out equal, one row per name and slot, delete, a foreign row and a log
+with no database. Each test runs on every database shape the stores know
+(tests/support/migrated32.py, SHAPES).
+"""
 import logging
 import sqlite3
 from dataclasses import replace
@@ -22,12 +22,14 @@ from tests.support.migrated32 import SHAPE_IDS, SHAPES, shaped
 from tests.support.storedb import log_at, sql
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
-NEW = pytest.mark.parametrize("shape", [True], indirect=True, ids=SHAPE_IDS.get)       # a test of the shape of migration 33 alone
+# A test of the shape of migration 33 alone
+NEW = pytest.mark.parametrize("shape", [True], indirect=True, ids=SHAPE_IDS.get)
 
 
 @pytest.fixture(autouse=True, params=SHAPES, ids=SHAPE_IDS.get)
 def shape(request: pytest.FixtureRequest) -> bool:
-    """The shape of the database the stores write in this test: False that of version 30, True that of migration 33 (`shaped` makes the file to match)."""
+    """The shape of the database the stores write in this test: False that of version 30, True that
+    of migration 33 (`shaped` makes the file to match)."""
     return bool(request.param)
 
 
@@ -60,7 +62,8 @@ def test_an_object_gives_its_row_and_the_row_gives_the_object_back(shape: bool) 
         assert object_row(chosen)[-1] == (ids if shape else word) and object_of(object_row(chosen)) == chosen and object_of(object_row(chosen)).radios == tuple(int(i) for i in ids.split(","))
         assert object_of((*object_row(chosen)[:-1], ids)) == chosen, "the row of the ids gives the object"
         with pytest.raises(ValueError, match="radios"):
-            object_of((*object_row(chosen)[:-1], word))           # (the word of a database before migration 33 is no row of this program)
+            # The word of a database before migration 33 is no row of this program
+            object_of((*object_row(chosen)[:-1], word))
 
 
 def test_a_bulletin_gives_its_row_and_the_row_gives_the_bulletin_back() -> None:
@@ -100,7 +103,8 @@ async def test_a_row_this_program_did_not_write_is_left_out_and_told(tmp_path: P
     log.save_bulletin(post("BLN1"))
     assert log.db is not None
     await log.db.barrier()
-    await sql(store, "INSERT INTO own_bulletin (slot, group_name, text, created_at, sent) VALUES ('BLN3HAMS', 'WRONG', 'x', '2026-10-21T12:00:00.000000Z', 0)")      # (the group is not the one of the slot)
+    # The group is not the one of the slot
+    await sql(store, "INSERT INTO own_bulletin (slot, group_name, text, created_at, sent) VALUES ('BLN3HAMS', 'WRONG', 'x', '2026-10-21T12:00:00.000000Z', 0)")
     assert [o.name for o in await log.objects()] == ["LEADER"] and [b.slot for b in await log.bulletins()] == ["BLN1"]
     assert any("could not be read" in r.getMessage() and "own_bulletin" in r.getMessage() for r in caplog.records)
 

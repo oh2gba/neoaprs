@@ -1,13 +1,16 @@
 #!/bin/sh
-# A fresh install says what comes next; an upgrade restarts the NeoAPRS service of every user who has one running (their units live in their homes, and nothing here writes there), else says how.
+# A fresh install says what comes next; an upgrade restarts the NeoAPRS service of every user who
+# has one running (their units live in their homes, and nothing here writes there), else says how.
 set -e
 
-# Is this the root of a machine with systemd, run by root (not dpkg on another root, not a test as an ordinary user)?
+# Is this the root of a machine with systemd, run by root (not dpkg on another root, not a test as
+# an ordinary user)?
 can_ask_systemd() {
     [ "$(id -u)" = 0 ] && [ -z "${DPKG_ROOT:-}" ] && [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1
 }
 
-# Restarts the running service of each user with a systemd user manager; fails when there is none to ask, none was running or a restart did not work
+# Restarts the running service of each user with a systemd user manager; fails when there is none to
+# ask, none was running or a restart did not work
 restart_services() {
     can_ask_systemd || return 1
     failed=0

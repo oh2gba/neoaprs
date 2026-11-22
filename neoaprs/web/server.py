@@ -1,13 +1,7 @@
-"""The web server: the page's files and one WebSocket per browser tab. Tornado on the same asyncio loop as everything else. It listens on the loopback, where no key is asked for, and, while `web/network` is on, on every
-interface, where a device logs in with the access key first (neoaprs/web/access.py); the switch is followed without a restart.
+"""The web server: the page's files and one WebSocket per browser tab, on Tornado and asyncio.
 
-The socket of a tab is neoaprs/web/pagesocket.py, the choice of the port neoaprs/web/listen.py; this module is the coordinator: the routes, the Host names, the switch and the key.
-
-While `web/https` is on too, the page is also served over TLS on the port after the plain one (neoaprs/web/secureside.py), and the plain port sends a device other than this computer there (neoaprs/web/securehandlers.py).
-
-Routes: `/ws` (the socket), `/access` and `/access/new` (the key screen's login and a new key), `/support/bundle` (the support bundle for the page's Download logs button, behind the login as the socket is), `/support/send` (the same bundle posted to the project's server with a note, for Send logs), `/neoaprs-ca.crt` (the certificate authority's certificate, on both ports), `/basemap.pmtiles` and `/basemap-world.pmtiles` (the files of the data folder, with byte ranges), and everything else from the page's
-folder (`neoaprs/page/`, made by scripts/build-page, as it was when the daemon started: read into memory once; the folder `neoaprs/web/placeholder/` with a line that says so while there is none). Every answer carries the security headers (neoaprs/web/headers.py) and none is given for a
-Host name that is not ours (neoaprs/web/pagefiles.py); the socket and the map are refused to a device that has not logged in.
+It listens on loopback, and on every interface while `web/network` is on, where a device logs in
+with the access key (access.py). The switch is followed without a restart.
 """
 import asyncio
 import logging
@@ -47,18 +41,22 @@ from .supportsend import SupportSend
 
 log = logging.getLogger("neoaprs.web")
 
-PAGE_DIR = Path(__file__).resolve().parent.parent / "page"                # neoaprs/page/, what scripts/build-page makes: package data, so it is beside the code in a wheel too
+# neoaprs/page/, built by scripts/build-page.
+PAGE_DIR = Path(__file__).resolve().parent.parent / "page"
 PLACEHOLDER_DIR = Path(__file__).resolve().parent / "placeholder"
-MAX_COMMAND = 64 * 1024                   # what the page may send in one message (the biggest legitimate one is the settings form, a few hundred bytes); a bigger one closes the socket
-MAX_REQUEST_BODY = 64 * 1024              # the page takes no upload over HTTP at all
-HEADER_TIMEOUT_SEC = 60.0                 # a connection that has sent no request line, or is idle between two requests
+# Largest message the page may send; a bigger one closes the socket.
+MAX_COMMAND = 64 * 1024
+MAX_REQUEST_BODY = 64 * 1024  # no uploads over HTTP
+HEADER_TIMEOUT_SEC = 60.0  # no request line yet, or idle between two requests
 BODY_TIMEOUT_SEC = 30.0
 LOOPBACK = "127.0.0.1"
 HOSTS_FILE = Path("/etc/hosts")
 
 def name_loopbacks(hosts: Path = HOSTS_FILE) -> list[str]:
-    """The loopback addresses besides 127.0.0.1 that the hosts file gives this computer's own name (Debian and Raspberry Pi OS give it 127.0.1.1): a browser on it that opens the page by its name connects
-    there, so the page listens there too while it is not open to the network. The file is read, not the name looked up, so that nothing asks a name server. None when there is no such line or no file."""
+    """Return the extra loopback addresses the hosts file gives this computer's name.
+
+    Debian uses 127.0.1.1. The file is read, not the name resolved, so no name server is asked.
+    """
     own = socket.gethostname().lower()
     try:
         lines = hosts.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -76,33 +74,33 @@ def default_page_dir() -> Path:
 
 
 class WebServer:
-    """`WebServer(controller, config)`; `start()` listens on `web/port` of the config (port 0: a free one; `kept_port` first, the port of the page before a restart), on the loopback or, while `web/network` is on, on every interface, and says whether it could; `settings_changed()` follows a
-    new switch or key; `stop()`."""
+    """`start()` listens on `web/port` (0: any free port; `kept_port` first) and returns success."""
 
     def __init__(self, controller: Controller, config: Config, page_dir: Path | None = None, kept_port: int = 0) -> None:
         self.controller = controller
         self.config = config
-        self.kept_port = kept_port                        # the port the page was on before the daemon started again (0: no restart): tried before web/port (neoaprs/web/listen.py)
+        self.kept_port = kept_port
         self.page_dir = page_dir or default_page_dir()
-        self.page = PageSnapshot.take(self.page_dir)                      # the page as it is now: a rebuild on disk changes nothing until the daemon is started again
+        self.page = PageSnapshot.take(self.page_dir)
         log.info("page %s: %d files, %.1f MB, kept in memory", self.page.build or "(none)", len(self.page.files), self.page.size / 1048576)
         self.api = Api(controller, reach=self.reach, secure=lambda: self.secure.state.wire(), page=self.page.build)
         self.access = Access(lambda: controller.config, controller.clock)
-        self.address = LOOPBACK                           # what it listens on: "" is every interface
-        self._by_name: list[str] = []                     # the loopback addresses of this computer's own name, listened on beside LOOPBACK (name_loopbacks)
+        self.address = LOOPBACK  # what it listens on; "" is every interface
+        self._by_name: list[str] = []
         self.port = 0
         self._server: LimitedHTTPServer | None = None
-        self._switch = asyncio.Lock()                     # one change of what is listened on, or of the key, at a time
-        self._own_names: set[str] = set()                 # lower case, no port: what the Host header may say besides an IP address
-        self._foreign_seen: set[str] = set()              # the names refused so far, so that the log has each once
-        self.secure = SecureSide(controller.data_dir / FOLDER, controller.clock, self._allowed_names)          # the https side: the certificates and the second port
-        self.bundles = Bundler(self)                      # the support bundles (neoaprs/web/supporthandler.py), one at a time
+        self._switch = asyncio.Lock()  # one change of the listened address or the key at a time
+        self._own_names: set[str] = set()
+        self._foreign_seen: set[str] = set()  # refused names, so the log has each once
+        self.secure = SecureSide(controller.data_dir / FOLDER, controller.clock, self._allowed_names)
+        self.bundles = Bundler(self)
         self._app: tornado.web.Application | None = None
 
     def host_allowed(self, header: str) -> bool:
-        """Is this Host header one of ours? Browsers send the name they were given, and a name is the one thing an attacker's page controls: after it has moved its name to this address the page
-        is "same origin" with the daemon (DNS rebinding). An address cannot be moved, so any IP address is accepted (the phone at http://192.168.1.20:7303, a VPN address); a name has to be ours or
-        listed in web/allowed_hosts."""
+        """Return True if the Host header is ours (DNS rebinding defence).
+
+        Any IP address is accepted; a name must be ours or listed in web/allowed_hosts.
+        """
         name = host_name(header)
         if not name:
             return False
@@ -111,7 +109,7 @@ class WebServer:
         return as_address(name) is not None
 
     def page_proved(self, stream: IOStream) -> None:
-        """A socket that was let in as a page: the connection cap does not close it to make room for another."""
+        """Mark a socket as a logged-in page so the connection cap never closes it to make room."""
         for server in (self._server, self.secure.server):
             if server is not None:
                 server.proved(stream)
@@ -121,11 +119,11 @@ class WebServer:
         return self.secure.ca_der
 
     def secure_target(self, request: tornado.httputil.HTTPServerRequest) -> str | None:
-        """Where a request that came over plain http from another device goes instead (neoaprs/web/securehandlers.py); None when it stays."""
+        """Return the secure URL for a plain-http request from another device, else None."""
         return secure_target(request, self.secure.port)
 
     def this_computer_target(self, request: tornado.httputil.HTTPServerRequest) -> str | None:
-        """Where a page request on the loopback by another name of this computer goes while the page is not open to the network (neoaprs/web/access.py); None when it stays."""
+        """Return the 127.0.0.1 URL for a loopback request by another name, else None."""
         return this_computer_target(request, self.controller.config.web_network, self.bound_port())
 
     def _allowed_names(self) -> list[str]:
@@ -141,11 +139,14 @@ class WebServer:
         return {*OWN_NAMES, "ip6-localhost", "ip6-loopback", host, f"{host}.local", *(host_name(n) for n in allowed)} - {""}
 
     def url(self) -> str:
-        """Where the page is on this computer."""
+        """Return the page's URL on this computer."""
         return f"http://{LOOPBACK}:{self.bound_port()}/"
 
     def reach(self) -> list[str]:
-        """Where another device opens the page: this computer's address on the network and its name there; none while it listens on the loopback only."""
+        """Return the URLs where another device opens the page.
+
+        Empty while listening on loopback only.
+        """
         if self.address != "" or self._server is None:
             return []
         hosts = [*lan_addresses(), f"{socket.gethostname().lower()}.local"]
@@ -170,13 +171,13 @@ class WebServer:
             (r"/(.*)", Page, {"path": str(self.page_dir), "snapshot": self.page}),
         ], websocket_ping_interval=30, websocket_ping_timeout=20, websocket_max_message_size=MAX_COMMAND, compress_response=True, log_function=self._log_request, neoaprs_server=self)
         self._app = app
-        await self.api.start()                      # (before the first page can come: the packets the database holds are in the window, the signals are connected)
+        await self.api.start()
         server = self._limited(None)
-        remove_page(self.controller.data_dir)                       # (what an earlier run left is over, whether this one has a page or not)
+        remove_page(self.controller.data_dir)  # drop a stale address left by an earlier run
         failure = listen_near(server, self.address, c.web_port, self.kept_port)
         if failure is not None:
             log.error("the web server cannot listen on %s:%d: %s; NeoAPRS goes on without the page", self.address or "every interface", c.web_port, failure,
-                      exc_info=failure)                       # (with where it came from: an EINVAL that named the program file, seen once on Windows right after an update, 3 Nov 2026)
+                      exc_info=failure)
             self._server = None
             await self.api.stop()
             return False
@@ -191,7 +192,7 @@ class WebServer:
         return True
 
     def _tell_the_page(self) -> None:
-        """The page's address goes into the data folder, where a command finds it however long the log has grown since; the page goes on without it when the folder cannot be written."""
+        """Write the page's address into the data folder, where commands find it."""
         try:
             write_page(self.controller.data_dir, self.url())
         except OSError as e:
@@ -199,7 +200,7 @@ class WebServer:
         self._tell_the_network()
 
     def _tell_the_network(self) -> None:
-        """Whether the page is served to the network goes into the data folder too (the app's tray offers the browser only while it is); a folder that cannot be written is logged quietly."""
+        """Write whether the page is served to the network into the data folder."""
         try:
             write_network(self.controller.data_dir, self.address == "")
         except OSError as e:
@@ -213,9 +214,9 @@ class WebServer:
         if urls := self.reach():
             log.info("network access is on: other devices open the page at %s and log in with the access key of Settings, Web (on this computer: neoaprs db get web/key)", ", ".join(urls))
 
-    # ---- the switch and the key
+    # the switch and the key
     def settings_changed(self, config: Config) -> None:
-        """The settings were saved: the switch and the key are followed, in a task."""
+        """Follow a changed switch or key in a task."""
         if self._server is not None:
             self.api.tasks.spawn(self._follow_settings(), "web-network")
 
@@ -226,15 +227,15 @@ class WebServer:
             self._relisten("" if self.controller.config.web_network else LOOPBACK)
             self._tell_the_network()
             await self._follow_secure()
-            for client in list(self.api.clients):                  # a device that is not let in any more (the key is new, or the network is off) is cut off
+            for client in list(self.api.clients):
                 if isinstance(client, Socket) and not self.access.allowed(client.request):
                     client.close(1008, "logged out")
             if self.address != before:
-                self.api.hub.changed("config")                     # (where the page can be opened from)
+                self.api.hub.changed("config")  # the URLs the page can be opened from changed
                 self._say_reach()
 
     async def _follow_secure(self, quiet: bool = False) -> None:
-        """The secure side is made to match `web/https` (and the network, without which it is meaningless), its certificate looked at; the page is told when it changed, and a page on the secure port that is not served any more is cut off."""
+        """Make the secure side match `web/https` and the network; cut off pages on a closed port."""
         c = self.controller.config
         changed = await self.secure.follow(c.web_https and c.web_network and self.address == "", self.address, self.bound_port(), self._limited)
         if not self.secure.state.on:
@@ -247,23 +248,26 @@ class WebServer:
                 self._say_reach()
 
     async def _recheck_secure(self) -> None:
-        """Now and then: a new address of this computer, or a certificate close to its end, is followed by a new certificate."""
+        """Periodic check: a new address or an expiring certificate gets a new certificate."""
         async with self._switch:
             await self._follow_secure()
 
     async def _ensure_key(self) -> None:
-        """The network is on and there is no key (turned on, or on in a database made without one): a key is made."""
+        """Make an access key when the network is on and there is none."""
         c = self.controller.config
         if c.web_network and not c.web_key and not await self.controller.change_config(lambda base: replace(base, web_key=new_key()) if base.web_network and not base.web_key else base):
             log.error("the access key could not be stored; devices on the network cannot log in")
 
     async def renew_key(self) -> bool:
-        """A new access key: every session of the old one ends. False when the settings could not be stored."""
+        """Make a new access key, ending every session.
+
+        Return False if the settings could not be stored.
+        """
         async with self._switch:
             return await self.controller.change_config(lambda base: replace(base, web_key=new_key()))
 
     def _relisten(self, address: str) -> None:
-        """Listens on the address instead of the one before, on the port the page is on. If it cannot, the old one is listened on again."""
+        """Listen on the new address on the current port; fall back to the old one if that fails."""
         server, before = self._server, self.address
         if server is None or address == before:
             return
@@ -284,7 +288,7 @@ class WebServer:
         return None
 
     def _listen_by_name(self, server: LimitedHTTPServer) -> None:
-        """On the loopback, the page listens on the loopback addresses of this computer's own name too, on the same port; one that cannot be listened on is left to the log."""
+        """On loopback, also listen on the loopback addresses of this computer's name."""
         if self.address != LOOPBACK:
             return
         port = self.bound_port()
@@ -297,21 +301,22 @@ class WebServer:
     @staticmethod
     def _log_request(handler: tornado.web.RequestHandler) -> None:
         r = handler.request
-        if handler.get_status() >= 400 and not (handler.get_status() == 401 and r.path == "/access"):      # (a device asking whether it is let in is told no, which is not news)
+        # A 401 on /access is a device asking whether it is let in; not worth logging.
+        if handler.get_status() >= 400 and not (handler.get_status() == 401 and r.path == "/access"):
             log.warning("%d %s %s (%s) %.2fms", handler.get_status(), r.method, one_line(r.path, MAX_LOGGED_PATH), r.remote_ip, 1000.0 * r.request_time())
 
     def bound_port(self) -> int:
-        """The port actually bound (port 0 asks the system for one)."""
+        """Return the bound port (port 0 lets the system choose)."""
         if self._server is None:
             return 0
-        for sock in self._server._sockets.values():   # Tornado keeps them here; there is no public accessor
+        for sock in self._server._sockets.values():  # no public accessor in Tornado
             return int(sock.getsockname()[1])
         return 0
 
     async def stop(self) -> None:
         remove_page(self.controller.data_dir)
         await self.api.stop()
-        # the sockets of the open tabs are closed with a reason; otherwise close_all_connections waits out its timeout
+        # Close tabs first, or close_all_connections waits out its timeout.
         for client in list(self.api.clients):
             if isinstance(client, Socket):
                 client.close(1001, "NeoAPRS is stopping")
@@ -320,6 +325,6 @@ class WebServer:
             self._server.stop()
             try:
                 await asyncio.wait_for(self._server.close_all_connections(), 2.0)
-            except Exception as e:                                   # (a timeout too)
+            except Exception as e:  # includes the timeout
                 log.warning("the connections of the page did not end in time: %r", e)
             self._server = None

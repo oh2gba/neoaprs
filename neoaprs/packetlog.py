@@ -1,9 +1,7 @@
-"""The packet log and the station cache: every packet heard or sent is kept, and the stations of the station book are kept beside them so that a start does not begin with an empty map.
+"""The packet log and the station cache.
 
-Like the message log it runs on the database thread (db.py) and says no instead of raising when the database is not open (dblog.py). `append` and the station writes are appends that nobody waits
-for (the hot path: a packet must never wait for the disk); the reads are awaited. The statements are packetsql.py's, the rows of a packet packetcodec.py's.
-
-A station is kept as its row and, beside it, what each radio heard of it (`Station.heard_by`: one row of `station_radio` for each radio, stationsql.py)."""
+Every packet and station is stored so that a start does not begin with an empty map.
+Writes are queued: a packet must never wait for the disk."""
 import logging
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
@@ -29,22 +27,21 @@ from .stationbook import RouteGroup, route_groups
 
 log = logging.getLogger("neoaprs.packetlog")
 
-DELIVERIES_SEEN = 2000                   # the packets the station book counts the routes of at its start
-TRACKS_SEEN = 5000                       # the position packets the station book makes the tracks from at its start
-THIRD_PARTY_SEEN = 20_000              # the latest packets one station's third-party packets are looked for in (by the ids: the rest of the log is not read for them)
-PRUNE_SLICE = 5_000                      # the packets one transaction of the daily prune deletes: the write-ahead log of one is a few MB, and what waits behind it waits for that one
-READINGS_SEEN = 1000                     # the most readings of one station's signal its graph is given, the latest: a week of a LoRa station that beacons every ten minutes, three weeks of an HF one
-HISTORY_READ = 1_000_000                # the most position packets the replay of the map is made from, the latest of them: a week of a busy APRS-IS feed is about half of it (they are thinned as they are read)
+DELIVERIES_SEEN = 2000  # packets whose routes the station book counts at start
+TRACKS_SEEN = 5000  # position packets the station book builds tracks from
+THIRD_PARTY_SEEN = 20_000  # latest packets searched for third-party ones
+PRUNE_SLICE = 5_000  # packets per prune transaction; keeps the WAL small
+READINGS_SEEN = 1000  # most signal readings given to a station's graph
+HISTORY_READ = 1_000_000  # most position packets read for the map replay
 
 
 class History(NamedTuple):
-    """The tracks of the replay of the map, thinned, by station, and from when they are whole (PacketLog.position_history)."""
+    """Thinned tracks by station for the map replay, and the time they are complete from."""
     tracks: dict[str, list[Point]]
     begins: datetime | None
 
 
 def station_row(station: Station) -> Row:
-    """The columns of the station table, in order (the track and `is_me` are not kept; what each radio heard is `heard_rows`)."""
     return (station.call, station.kind, station.reported_by, station.symbol_table, station.symbol_code, station.lat, station.lon, station.altitude_m, station.course_deg,
             station.speed_kmh, stamp(station.first_heard), stamp(station.last_heard), None if station.last_position_at is None else stamp(station.last_position_at),
             station.last_status, station.last_comment, station.packets, station.heard_rf, station.heard_rf_gated, station.heard_is,
@@ -53,13 +50,12 @@ def station_row(station: Station) -> Row:
 
 
 def heard_rows(station: Station) -> list[Row]:
-    """The rows of `station_radio` of a station, (call, radio_id, heard, last_at, last_path) for each radio that heard it (`Station.heard_by`), by radio. A radio that heard
-    nothing of it has no row, whatever `heard_by` holds for it."""
+    """Return (call, radio_id, heard, last_at, last_path) per radio that heard the station."""
     return [(station.call, radio, heard.count, _stamped(heard.last_at), ",".join(heard.last_path)) for radio, heard in sorted(station.heard_by.items()) if heard.count > 0]
 
 
 def heard_of(row: Row) -> tuple[str, RadioId, RadioHeard]:
-    """(the station, the radio, what it heard of it) from a row of `station_radio`. Raises ValueError (or TypeError) for a row this program did not write."""
+    """Return (call, radio, what it heard) of a row. Raise ValueError or TypeError."""
     call, radio, count, last_at, path = row
     return str(call), int(radio), RadioHeard(int(count), _parsed(last_at), tuple(str(path).split(",")) if path else ())
 
@@ -77,7 +73,7 @@ def _number(value: object) -> float | None:
 
 
 def _sender(source: str, raw: bytes | None, via: str) -> str:
-    """Who sent a packet with a position: the station inside a third-party packet (`raw` is given only for a packet that may be one), else its source."""
+    """Return the station inside a third-party packet, else `source`; `raw` None if not one."""
     if raw is None:
         return source
     try:
@@ -88,7 +84,7 @@ def _sender(source: str, raw: bytes | None, via: str) -> str:
 
 
 def station_of(row: Row, *, heard: Mapping[RadioId, RadioHeard] | None = None) -> Station:
-    """The station from its row and what each radio heard of it (`heard_of`; nothing when not given), any radio by its id. Raises ValueError (or TypeError) for a row this program did not write."""
+    """Return the station of a row and what each radio heard. Raise ValueError or TypeError."""
     (call, kind, reported_by, table, code, lat, lon, altitude, course, speed, first, last, position_at, status, comment, packets, heard_rf, heard_rf_gated, heard_is, rf_at, gated_at, is_at, position_via, heard_dummy, dummy_at, snr, rssi, signal_at) = row
     return Station(str(call), first_heard=parse_stamp(str(first)), last_heard=parse_stamp(str(last)), kind=str(kind), reported_by=str(reported_by), symbol_table=str(table),
                    symbol_code=str(code), lat=None if lat is None else float(lat), lon=None if lon is None else float(lon), altitude_m=None if altitude is None else float(altitude),
@@ -99,15 +95,17 @@ def station_of(row: Row, *, heard: Mapping[RadioId, RadioHeard] | None = None) -
                    heard_by=dict(heard or {}), snr=_number(snr), rssi=_number(rssi), signal_at=_parsed(signal_at))
 
 
-STATION_FLUSH_SEC = 30.0                       # how often the station rows that changed are written (save_station): a half minute of a station's packets is one write of its row
+STATION_FLUSH_SEC = 30.0  # interval between writes of changed station rows
 
 
 class PacketLog(DbLog):
     def __init__(self, db: Db | None = None, clock: Clock = utcnow) -> None:
         super().__init__(db, clock, log, "the packet log could not be read")
-        self._dirty: dict[str, Station] = {}           # the stations that changed since the last flush, by call, each the live object (its row is made when it is written)
-        self._history: dict[tuple[datetime, bool], tuple[datetime, dict[datetime, int]]] = {}       # (since, internet) -> (when counted, the counts): the answer for all stations
-        self.stats = PacketCounts(db, clock)             # the statistics card's counts, on the same database
+        # stations changed since the last flush, by call
+        self._dirty: dict[str, Station] = {}
+        # (since, internet) -> (when counted, counts) for all stations
+        self._history: dict[tuple[datetime, bool], tuple[datetime, dict[datetime, int]]] = {}
+        self.stats = PacketCounts(db, clock)
 
     def use(self, db: Db) -> None:
         super().use(db)
@@ -115,14 +113,13 @@ class PacketLog(DbLog):
 
     # ---- appends: nobody waits
     def append(self, packet: Packet) -> bool:
-        """Keeps a packet, heard or sent; False when it could not be queued."""
         row = packet_row(packet)
         return self._append(lambda conn: insert_packet(conn, row))
 
     def save_station(self, station: Station) -> bool:
-        """Notes the station as changed: its row is written at the next `flush_stations` (the controller's every STATION_FLUSH_SEC, every read of the table, the stop), as the station is then, so that a station
-        heard ten times in that while costs one write of its row (1 to 3 KB with its track and its routes) and not ten, which on a Raspberry Pi's card at a few packets a second was most of what the card wrote.
-        An object of ours is not a station of the cache (ownlog.py keeps it); False for that, and for a log whose database is not open (counted in `dropped`, as an append that could not be queued is)."""
+        """Mark the station changed; its row is written at the next flush (saves SD card writes).
+
+        Return False for our own objects and when the database is not open."""
         if station.own:
             return False
         if not self.is_open():
@@ -132,7 +129,7 @@ class PacketLog(DbLog):
         return True
 
     def flush_stations(self) -> int:
-        """Writes the rows of the stations that changed since the last flush, each as it is now; how many were queued."""
+        """Queue writes for changed stations; return how many were queued."""
         dirty, self._dirty = self._dirty, {}
         queued = 0
         for station in dirty.values():
@@ -148,31 +145,29 @@ class PacketLog(DbLog):
         return self._decoded(rows, lambda row: packet_of(PacketRow(*row)), "packet")
 
     async def recent(self, count: int = 100) -> list[Packet]:
-        """The latest `count` packets, the newest first."""
         rows: list[Row] = await self._read(lambda conn: recent_packets(conn, count), [])
         return self._packets(rows)
 
     async def window(self, count: int) -> list[Packet]:
-        """The latest `count` packets and the latest `count` that were not from the internet, together, the newest first: what the window of the page's Packets tab is made of."""
+        """Return the latest `count` packets plus the latest `count` non-internet ones."""
         rows: list[Row] = await self._read(lambda conn: window_packets(conn, count), [])
         return self._packets(rows)
 
     async def since(self, when: datetime) -> list[Packet]:
-        """The packets heard at or after the time, the oldest first."""
         text = stamp(when)
         rows: list[Row] = await self._read(lambda conn: packets_since(conn, text), [])
         return self._packets(rows)
 
     async def heard_since(self, call: str, when: datetime) -> list[datetime]:
-        """When the packets from the call were heard at or after the time, the oldest first."""
+        """Return when packets from `call` were heard at or after `when`."""
         text = stamp(when)
         rows: list[str] = await self._read(lambda conn: heard_times(conn, call, text), [])
         return [parse_stamp(row) for row in rows]
 
     async def heard_by_hour(self, since: datetime, source: str | None = None, internet: bool = True) -> dict[datetime, int]:
-        """How many packets were heard (not sent by us) in each hour of the clock at or after `since`, all of them or those whose source is `source` (one station's), by the top of the hour (UTC); hours with
-        none are not in it. With `internet` false (Internet stations off) the packets that came from APRS-IS are not counted. The count of all stations scans a day of the log, so it is kept for
-        FRESH_SEC: pages that ask within the minute get the same answer, and the running hour is at most that much behind. Forgetting the heard packets drops it."""
+        """Return heard packets per UTC hour since `since`, keyed by hour start; empty hours absent.
+
+        The all-stations count is cached for FRESH_SEC, as it scans a day of the log."""
         key = (since, internet)
         now = self.clock()
         if source is None and key in self._history and timedelta(0) <= now - self._history[key][0] < timedelta(seconds=FRESH_SEC):
@@ -181,20 +176,21 @@ class PacketLog(DbLog):
         rows: list[tuple[str, int]] = await self._read(lambda conn: heard_by_hour(conn, text, source, internet), [])
         counted = {parse_stamp(hour + ":00:00.000000Z"): count for hour, count in rows}
         if source is None:
-            self._history = {k: v for k, v in self._history.items() if now - v[0] < timedelta(seconds=FRESH_SEC)}       # (what is older is not asked for any more: the hour moved on)
+            # drop stale entries
+            self._history = {k: v for k, v in self._history.items() if now - v[0] < timedelta(seconds=FRESH_SEC)}
             self._history[key] = (now, counted)
         return dict(counted)
 
     async def traffic(self, call: str, own_call: str, count: int, internet: bool = True) -> list[tuple[int, Packet]]:
-        """(the number in the log, the packet) of the latest `count` packets of the station, the newest first, for its panel in the Stations tab: those it sent (its source, or the sender inside a third-party
-        packet among the latest THIRD_PARTY_SEEN) and the messages we sent under `own_call` to it. With `internet` false (Internet stations off) the packets that came from APRS-IS are left out."""
+        """Return (log number, packet) of the station's latest `count` packets, newest first.
+
+        Packets it sent (also inside third-party ones) and messages sent to it under `own_call`."""
         rows: list[Row] = await self._read(lambda conn: station_traffic(conn, call, own_call, count, THIRD_PARTY_SEEN, internet), [])
         found = self._decoded(rows, lambda row: (int(row[0]), packet_of(PacketRow(*row[1:]))), "packet")
         return [(number, packet) for number, packet in found if packet.source in (call, own_call) or packet.sender == call]
 
     async def speeds(self, source: str, since: datetime, internet: bool = True) -> list[tuple[datetime, float]]:
-        """(when, km/h) of each position heard from `source` at or after `since` that carried a speed, the oldest first: the speed graph of a moving station's card. With `internet` false (Internet stations
-        off) the positions that came from APRS-IS are left out."""
+        """Return (when, km/h) of each position from `source` since `since` with a speed."""
         text = stamp(since)
         rows: list[Row] = await self._read(lambda conn: station_positions(conn, source, text, internet), [])
         found: list[tuple[datetime, float]] = []
@@ -205,21 +201,24 @@ class PacketLog(DbLog):
         return found
 
     async def readings(self, source: str, since: datetime, count: int = READINGS_SEEN) -> list[tuple[datetime, float | None, float | None]]:
-        """(when, SNR dB, RSSI dBm) of the latest `count` packets heard direct from `source` at or after `since` that carried a reading of their signal (neoaprs/reading.py), the oldest first: the signal graph of a
-        station's card. A digipeater's copy and a third-party packet are another station's signal and are left out."""
+        """Return (when, SNR dB, RSSI dBm) of the latest `count` direct packets from `source`.
+
+        Digipeated and third-party packets carry another station's signal and are left out."""
         text = stamp(since)
         rows: list[Row] = await self._read(lambda conn: station_readings(conn, source, text, count), [])
         return [(parse_stamp(str(at)), _number(snr), _number(rssi)) for at, path, snr, rssi in rows if route_of(tuple(str(path).split(",")) if path else ()).direct]
 
     async def deliveries(self, count: int = DELIVERIES_SEEN) -> list[RouteGroup]:
-        """(sender, path, iGate or "", how many, when the latest was heard, when the one before it was, the radio) over the latest `count` packets heard on any radio, the group whose latest packet is
-        the oldest first: how the stations' packets reached us on each radio, for the station book to start with (stationbook.route_groups). A third-party packet is the sender inside it, with the iGate that put it on the air."""
+        """Return the route groups of the latest `count` radio-heard packets, oldest first.
+
+        A third-party packet counts as its inner sender, with the iGate that put it on the air."""
         rows: list[Row] = await self._read(lambda conn: radio_routes(conn, count), [])
         return route_groups((str(source), str(path), bytes(raw), parse_stamp(str(at)), None if radio is None else int(radio)) for source, path, raw, at, radio in rows)
 
     async def positions(self, keep_days: int, count: int = TRACKS_SEEN) -> list[tuple[str, datetime, float, float]]:
-        """(station, when, lat, lon) of the latest `count` positions heard within `keep_days` days, the oldest first: the station is the sender (the one inside a third-party packet) or the name of a live
-        object or item. What the station book makes the tracks from at its start."""
+        """Return (station, when, lat, lon) of the latest `count` positions within `keep_days`.
+
+        The station is the sender or the name of a live object or item."""
         since = stamp(self.clock() - days(keep_days))
         rows: list[Row] = await self._read(lambda conn: position_packets(conn, since, count), [])
         found: list[tuple[str, datetime, float, float]] = []
@@ -232,11 +231,9 @@ class PacketLog(DbLog):
         return found
 
     async def position_history(self, since: datetime, own_call: str, thinning: Callable[[], Thinning], count: int = HISTORY_READ, internet: bool = True) -> History:
-        """Where the stations were from `since` on, for the replay of the map (`position_history`): the positions heard and those we sent under `own_call` (our beacons, our objects), by station (the sender,
-        the one inside a third-party packet, or the name of a live object or item, as for the tracks), each track thinned as it is read (`thinning` makes the Thinning of one, neoaprs/geo.py), so that a week of a
-        busy feed is never held whole. With `internet` false (Internet stations off) the packets that came from APRS-IS are not read, so that the count and the thinning are of what is shown: a station heard
-        both ways keeps the positions the radio heard. At most the latest `count` packets are read; `begins` says from when the tracks are whole: the time of the first packet read when there were more, or
-        else the oldest packet the log keeps (null for an empty log)."""
+        """Return the station tracks since `since` for the map replay, thinned as they are read.
+
+        `begins` is the time of the first packet read, or of the oldest if all were read."""
         text = stamp(since)
 
         def read(conn: Connection) -> History:
@@ -247,9 +244,10 @@ class PacketLog(DbLog):
                 first = first or str(heard_at)
                 try:
                     station = str(name) if name else _sender(str(source), raw, str(via))
-                    point = (datetime.fromisoformat(str(heard_at)), float(lat), float(lon))       # (fromisoformat: strptime is slow for a week of rows)
+                    # strptime is too slow for a week of rows
+                    point = (datetime.fromisoformat(str(heard_at)), float(lat), float(lon))
                 except (TypeError, ValueError):
-                    continue                # (a row this program did not write: no place, or a time of another form)
+                    continue  # a row of unknown shape
                 track = tracks.get(station)
                 if track is None:
                     track = tracks[station] = thinning()
@@ -260,13 +258,13 @@ class PacketLog(DbLog):
         return await self._read(read, History({}, None))
 
     async def radio_positions(self, keep_days: int, count: int = TRACKS_SEEN) -> list[Packet]:
-        """The latest `count` packets heard within `keep_days` days that carry a position and were not from the internet, the oldest first: the station book makes the radio's side of the stations that were heard from the internet from them."""
+        """Return the latest `count` radio-heard position packets in `keep_days`, oldest first."""
         since = stamp(self.clock() - days(keep_days))
         rows: list[Row] = await self._read(lambda conn: radio_position_packets(conn, since, count), [])
         return self._packets(rows)
 
     async def messaging_evidence(self, keep_days: int, count: int = TRACKS_SEEN) -> list[Packet]:
-        """The packets that say who does messages, for the station book to start with: the latest `count` messages heard, then the latest `count` positions heard within `keep_days` days (each part oldest first)."""
+        """Return the latest `count` messages, then the latest `count` positions in `keep_days`."""
         since = stamp(self.clock() - days(keep_days))
         messages: list[Row] = await self._read(lambda conn: message_packets(conn, count), [])
         positions: list[Row] = await self._read(lambda conn: position_packets(conn, since, count), [])
@@ -276,7 +274,7 @@ class PacketLog(DbLog):
         return await self._read(count_packets, 0)
 
     async def stations(self) -> list[Station]:
-        """The cached stations, the latest heard first: what the station book starts with. The rows that changed and were not yet written go first, so the read sees every station as it was last saved."""
+        """Return the cached stations, latest heard first, after flushing pending changes."""
         self.flush_stations()
         nothing: tuple[list[Row], list[Row]] = ([], [])
         rows, radios = await self._read(lambda conn: (all_stations(conn), heard_by_radio(conn)), nothing)
@@ -287,8 +285,9 @@ class PacketLog(DbLog):
 
     # ---- care
     async def forget_heard(self, keep_call: str) -> int:
-        """Deletes every packet that was heard (those we sent stay) and every cached station but `keep_call`, ours; how many packets. -1 when the database would not. A station that changed and was not yet written
-        is forgotten with the rest, so that no flush brings it back; the count of the packets by the hour is counted anew."""
+        """Delete every heard packet (sent ones stay) and every station but `keep_call`.
+
+        Return the packet count, or -1 on failure."""
         self._dirty = {call: station for call, station in self._dirty.items() if call == keep_call}
         gone = await self._write(lambda conn: delete_heard(conn, keep_call), -1, "the heard packets could not be forgotten")
         self._history.clear()
@@ -296,9 +295,9 @@ class PacketLog(DbLog):
         return gone
 
     async def prune(self, keep_days: int, internet_keep_days: int | None = None) -> int:
-        """Deletes the packets heard more than `keep_days` days ago, and those from the internet heard more than `internet_keep_days` ago when that is given (policy.INTERNET_KEEP_DAYS: they are the bulk of the
-        file, and the file has no other bound); how many. A slice of PRUNE_SLICE packets at a time, each its own transaction, so that what is asked of the database meanwhile (a message, a page's query, the
-        packets being appended) is served between the slices and the write-ahead log never holds a day's deletes at once. The stations are the station book's to prune (the cache follows through `delete_station`)."""
+        """Delete packets older than `keep_days`, internet ones older than `internet_keep_days`.
+
+        Return the count. Slices of PRUNE_SLICE keep the write-ahead log small."""
         removed = 0
         for keep, internet in ((keep_days, False), (internet_keep_days, True)):
             if keep is None:
@@ -307,7 +306,7 @@ class PacketLog(DbLog):
             while True:
                 gone = await self._write(step, -1, "the packet log could not be pruned")
                 if gone < 0:
-                    return removed                              # the database would not: what was deleted stays deleted, the next day goes on
+                    return removed  # database refused; deletions so far stand
                 removed += gone
                 if gone < PRUNE_SLICE:
                     break

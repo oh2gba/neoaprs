@@ -1,6 +1,7 @@
-"""Find my radio on Windows and macOS (neoaprs/serialprobe.py, neoaprs/services/radiofinder.py): the ports are the ones the system lists (COM ports, the paired Bluetooth serial ports among them, or /dev/cu.*), USB adapters
-first, tried one after the other like on Linux, and a port that another program has is passed over, as one that another radio of the station holds (a COM port by its name, in any case) is. The system's list and the
-serial open are fakes: no port of the machine is listed or opened, and the platform is said."""
+"""Find my radio on Windows and macOS (neoaprs/serialprobe.py, radiofinder.py): the ports are those
+the system lists (COM ports, /dev/cu.*), USB adapters first, and a port another program or radio
+holds is passed over.
+"""
 import logging
 import sys
 import threading
@@ -56,7 +57,8 @@ def test_find_my_radio_is_made_on_linux_windows_and_macos_and_the_search_that_ru
 
 def test_the_ports_of_windows_are_the_com_ports_with_the_usb_adapters_first_the_boards_left_out_and_the_bluetooth_ones_last(windows: None) -> None:
     ports = serialprobe.system_ports()
-    assert [p.device for p in ports] == ["COM3", "COM4", "COM5", "COM7", "COM10", "COM1", "COM9"]          # (natural order inside each group; COM8 is an ESP32 board)
+    # Natural order inside each group; COM8 is an ESP32 board
+    assert [p.device for p in ports] == ["COM3", "COM4", "COM5", "COM7", "COM10", "COM1", "COM9"]
     assert ports[0] == PortInfo("COM3", "Prolific USB-to-Serial Comm Port (COM3)", "USB VID:PID=067B:2303 SER=5", 0x067B, 0x2303)
     assert [serialprobe.is_bluetooth_com(p) for p in ports] == [False] * 6 + [True]
 
@@ -113,7 +115,8 @@ async def test_the_com_ports_are_tried_in_order_each_at_the_usual_speeds_and_the
         rig = Rig(serialprobe_devices(), line=ear)
         found = await rig.finder.find(rig.tried.append)
         assert found == Found("COM5", 57600, "kenwood-tnc2")
-        assert list(dict.fromkeys(port for port, _ in ear.opened)) == ["COM3", "COM4", "COM5"]            # one at a time: COM7 and the rest are not touched once COM5 answers
+        # One at a time: COM7 and the rest are not touched once COM5 answers
+        assert list(dict.fromkeys(port for port, _ in ear.opened)) == ["COM3", "COM4", "COM5"]
         assert ear.closed == ear.opened
 
 
@@ -122,7 +125,9 @@ def serialprobe_devices() -> list[str]:
 
 
 class FakeSerial:
-    """What `serial.serial_for_url` gives instead of a real port: `in_use` ports cannot be opened (Windows: Access is denied), the others say what `said` is once, after they are opened. Nothing of the machine is opened."""
+    """What `serial.serial_for_url` gives instead of a real port: `in_use` ports cannot be opened
+    (Windows: Access is denied), the others say what `said` is once, after they are opened. Nothing
+    of the machine is opened."""
 
     opens: list[str] = []
     in_use: set[str] = set()
@@ -181,7 +186,8 @@ async def test_a_com_port_another_radio_holds_is_passed_over_whatever_case_it_is
     monkeypatch.setattr(serialport.os, "name", "nt")
     caplog.set_level(logging.INFO, logger="neoaprs.tnc")
     claims = Claims()
-    claims.hold(Claim("serial", serialprobe.claim_value("com3") or "", 1))               # (the FM radio's port, as its Tnc holds it: COM3 whatever case it was written in)
+    # The FM radio's port, as its Tnc holds it: COM3 whatever case it was written in
+    claims.hold(Claim("serial", serialprobe.claim_value("com3") or "", 1))
     rig = Rig(["COM3", "COM4", "COM5"])
     released: list[int] = []
 

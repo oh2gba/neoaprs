@@ -1,5 +1,7 @@
-"""Update now's job (neoaprs/services/selfupdate.py) with fake downloads and a fake installer: the steps, the addresses (built from the announced version alone), the check of the SHA-256 (good, bad, missing from
-SHA256SUMS), a cancel, the refusals, and an install after which NeoAPRS does not restart. No test reaches the network."""
+"""Update now's job (neoaprs/services/selfupdate.py) with fake downloads and installer: the steps,
+the addresses built from the announced version alone, the SHA-256 check, a cancel, the refusals, and
+an install after which NeoAPRS does not restart.
+"""
 import asyncio
 import hashlib
 import threading
@@ -74,7 +76,8 @@ async def test_a_part_file_that_cannot_be_deleted_does_not_keep_the_update_busy(
     job, _ = service(tmp_path, FakeRelease(body=BODY + b"!"))
     job.begin("0.7.0")
     await until(lambda: job.status().state == "error")
-    await job.stop()                                                          # (the job is over, whatever the clean-up did)
+    # The job is over, whatever the clean-up did
+    await job.stop()
     assert job.status().problem == "checksum"
     monkeypatch.setattr(Path, "unlink", real)
     job.begin("0.7.0")                                                        # not refused as busy

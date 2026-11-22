@@ -1,5 +1,7 @@
-"""The page as an installable app: the manifest and the service worker are served with the headers a browser needs of them (and the checks of every other file of the page), and the built page carries them, with the icons the
-manifest names, the build of the page in the worker, and the links in the shell."""
+"""The page as an installable app: the manifest and service worker are served with the headers a
+browser needs, and the built page carries them with their icons, the worker's build and the shell
+links.
+"""
 import json
 import re
 import struct
@@ -52,7 +54,8 @@ async def test_the_manifest_and_the_worker_are_served_for_the_browser_to_check_a
 async def test_the_manifest_and_the_worker_answer_only_to_a_host_name_of_ours(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
     await e.start()
-    for path in ("/sw.js", "/manifest.webmanifest", "/icons/icon-512.png", "/favicon.ico"):          # (the desktop app's window asks for favicon.ico at every start)
+    # The desktop app's window asks for favicon.ico at every start
+    for path in ("/sw.js", "/manifest.webmanifest", "/icons/icon-512.png", "/favicon.ico"):
         assert (await e.fetch(path)).code == 200, path
         assert (await e.fetch(path, headers={"Host": "evil.example"})).code == 403, path
 

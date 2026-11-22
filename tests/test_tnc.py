@@ -1,5 +1,7 @@
-"""The TNC (neoaprs/tnc.py) on a fake radio (a TCP server on the loopback, tests/support/fakeradio.py): the real KISS stream of the TH-D7 decoded to packets, the switch from command mode to KISS, the silence,
-damaged frames, a line that dies and comes back, sending, the keep-alive and the mode detector by itself. The search over device files is in tests/test_tnc_pty.py."""
+"""The TNC (neoaprs/tnc.py) on a fake TCP radio (tests/support/fakeradio.py): the real KISS stream
+of a TH-D7 decoded to packets, command mode to KISS, silence, damaged frames, a dying line, sending,
+the keep-alive and the mode detector. The device-file search is in tests/test_tnc_pty.py.
+"""
 import asyncio
 import functools
 import logging
@@ -25,7 +27,8 @@ from tests.support.env import idle_for, until
 from tests.support.fakeradio import REFUSED, FakeRadio
 from tests.support.files import fixture_bytes
 
-NO_DETECT = replace(KENWOOD_TNC2, detect_command_mode=False)       # a TNC that is asked if it is there, but whose text does not make the Tnc enter KISS
+# A TNC that is asked if it is there, but whose text does not make the Tnc enter KISS
+NO_DETECT = replace(KENWOOD_TNC2, detect_command_mode=False)
 MONITOR_LINE = b"OH2FZV-2>VP1R61,WIDE1,OH2RCH-2*:!6010.00N/02456.00E>test\r\n"
 SETTLE = 0.15
 
@@ -52,7 +55,9 @@ class Rig:
 
 
 class Rigs:
-    """Makes a fake radio and a started Tnc on it (keyword arguments go to the Tnc; it may be asked if the radio is there, as a TNC with a command mode may, but `check_sec` is 0 unless given); `stops_rigs` stops every Tnc made and closes every radio when the test ends."""
+    """Makes a fake radio and a started Tnc on it (keyword arguments go to the Tnc; it may be asked
+    if the radio is there, as a TNC with a command mode may, but `check_sec` is 0 unless given);
+    `stops_rigs` stops every Tnc made and closes every radio when the test ends."""
 
     def __init__(self) -> None:
         self.started: list[Tnc] = []
@@ -62,10 +67,12 @@ class Rigs:
         radio = FakeRadio()
         await radio.start()
         self.radios.append(radio)
-        kwargs.setdefault("check_sec", 0.0)                       # (no checks unless a test asks: a line is usable as soon as it is open)
+        # No checks unless a test asks: a line is usable as soon as it is open
+        kwargs.setdefault("check_sec", 0.0)
         kwargs.setdefault("settle_sec", SETTLE)
         kwargs.setdefault("backoff", tiny_backoff())
-        kwargs.setdefault("fallback_probe", False)                # (a test must never listen to the operator's /dev/brainbox_* ports)
+        # A test must never listen to the operator's /dev/brainbox_* ports
+        kwargs.setdefault("fallback_probe", False)
         tnc = Tnc(radio.url, **kwargs)  # type: ignore[arg-type]
         self.started.append(tnc)
         await tnc.start()
@@ -80,7 +87,8 @@ def rig() -> Rigs:
 
 
 def stops_rigs(test: Callable[..., Awaitable[None]]) -> Callable[..., Awaitable[None]]:
-    """The tasks of a Tnc must be gone before the leak guard looks, which is before a fixture of the test is torn down: the test body is wrapped instead."""
+    """The tasks of a Tnc must be gone before the leak guard looks, which is before a fixture of the
+    test is torn down: the test body is wrapped instead."""
     @functools.wraps(test)
     async def wrapper(*args: object, **kwargs: Rigs) -> None:
         try:
@@ -154,9 +162,11 @@ async def test_a_tnc_in_command_mode_is_switched_to_kiss_once(rig: Rigs) -> None
     r.radio.feed(MONITOR_LINE)
     assert await r.radio.said(len(ENTER_KISS)) == b"\rKISS ON\rRESTART\r"
     r.radio.feed(b"KISS ON\r\nKISS     was OFF\r\ncmd:\x11\x11")           # what the TNC says while it restarts
-    r.radio.feed(kiss_of(ui_frame("OH2AAA")))                                # a frame that arrives inside the settling time is thrown away
+    # A frame that arrives inside the settling time is thrown away
+    r.radio.feed(kiss_of(ui_frame("OH2AAA")))
     await idle_for(SETTLE + 0.1)
-    r.radio.feed(MONITOR_LINE)                                                # text again after KISS ON: left alone, said in the problem
+    # Text again after KISS ON: left alone, said in the problem
+    r.radio.feed(MONITOR_LINE)
     r.radio.feed(kiss_of(ui_frame("OH2BBB")))
     await until(lambda: r.packets)
     assert [p.source for p in r.packets] == ["OH2BBB"]
@@ -167,8 +177,11 @@ async def test_a_tnc_in_command_mode_is_switched_to_kiss_once(rig: Rigs) -> None
 
 @stops_rigs
 async def test_the_row_of_a_tnc_being_put_into_kiss_says_it_is_connecting_until_the_line_is_usable(rig: Rigs) -> None:
-    """While the entry is sent and the line sends nothing yet, the radio's row says what any radio that is starting says (`connecting`, the page's Connecting…), with no problem: not Not connected. Once
-    settled the line is usable though no KISS frame has come (a TNC in KISS mode is silent until it hears a packet): the row says `connected`, so the page sends as the daemon does."""
+    """While the entry is sent and the line sends nothing yet, the radio's row says what any radio
+    that is starting says (`connecting`, the page's Connecting…), with no problem: not Not
+    connected. Once settled the line is usable though no KISS frame has come (a TNC in KISS mode is
+    silent until it hears a packet): the row says `connected`, so the page sends as the daemon does.
+    """
     r = await rig()
     spec = RadioSpec(FM_ID, "fm", "kenwood-tnc2", "", True, 1)
     at_work = SimpleNamespace(line=r.tnc, beacon=SimpleNamespace(last_sent=None, next_due=None, interval_min=0, problem=""), driver=SimpleNamespace(card=None))
@@ -193,10 +206,12 @@ async def test_a_radio_restarted_while_in_kiss_is_switched_to_kiss_again_at_once
     await idle_for(SETTLE + 0.1)
     r.radio.feed(kiss_of(ui_frame("OH2AAA")))                                # KISS frames flow
     await until(lambda: r.packets)
-    r.radio.feed(MONITOR_LINE)                                                # the radio was switched off and on: its TNC types text again
+    # The radio was switched off and on: its TNC types text again
+    r.radio.feed(MONITOR_LINE)
     assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS, "entered again, not left until the next check"
     await idle_for(SETTLE + 0.1)
-    r.radio.feed(MONITOR_LINE)                                                # text that goes on with no KISS frame in between: not entered a third time
+    # Text that goes on with no KISS frame in between: not entered a third time
+    r.radio.feed(MONITOR_LINE)
     assert await r.radio.said(1, 0.3) == b""
     r.radio.feed(kiss_of(ui_frame("OH2BBB")))
     await until(lambda: len(r.packets) == 2)
@@ -210,7 +225,8 @@ async def test_a_tnc_that_still_types_text_after_kiss_on_is_sent_nothing_and_kis
     r.radio.feed(MONITOR_LINE)
     assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS
     await idle_for(SETTLE + 0.1)
-    r.radio.feed(MONITOR_LINE)                                                # a radio that was just switched on missed it: it still types text
+    # A radio that was just switched on missed it: it still types text
+    r.radio.feed(MONITOR_LINE)
     await until(lambda: r.tnc.problem != "")
     assert not r.tnc.usable and "command mode" in r.tnc.why_unusable(), "no frame is typed into a TNC in command mode"
     assert await r.radio.said(1, 0.1) == b"", "not again at once"
@@ -259,7 +275,8 @@ async def test_a_tnc_in_kiss_mode_is_left_alone(rig: Rigs) -> None:
 @stops_rigs
 async def test_frames_that_are_not_packets_are_counted_and_the_next_one_still_decodes(rig: Rigs) -> None:
     r = await rig()
-    not_ui = ax25.encode(ax25.Frame(ax25.Address("APRS"), ax25.Address("OH2GBA"), control=0x3F))      # an unnumbered frame that is not UI
+    # An unnumbered frame that is not UI
+    not_ui = ax25.encode(ax25.Frame(ax25.Address("APRS"), ax25.Address("OH2GBA"), control=0x3F))
     r.radio.feed(kiss.encode(b"this is not an AX.25 frame at all") + kiss.encode(not_ui) + kiss.encode(b"x", command=1) + kiss_of(ui_frame("OH2CCC")))
     await until(lambda: r.packets)
     s = r.tnc.stats
@@ -339,7 +356,8 @@ async def test_a_tcp_port_is_a_socket_port_and_a_tnc_on_it_says_no_speed() -> No
 
 
 async def test_a_tnc_on_a_socket_is_never_asked_whether_the_radio_is_there() -> None:
-    """A TCP KISS TNC has no command mode: no keep-alive check, no carriage return after silence; a profile of a command-mode TNC says otherwise."""
+    """A TCP KISS TNC has no command mode: no keep-alive check, no carriage return after silence; a
+    profile of a command-mode TNC says otherwise."""
     radio = FakeRadio()
     await radio.start()
     tnc = Tnc(radio.url, profile=KISS_TCP, fallback_probe=False, check_sec=0.1, check_pause_sec=0.02, reply_sec=0.02, answer_sec=0.05)
@@ -363,7 +381,8 @@ async def test_a_radio_that_is_not_there_is_waiting_and_a_later_one_is_found() -
     tnc = Tnc(radio.url, fallback_probe=False, backoff=tiny_backoff())
     try:
         await tnc.start()
-        await until(lambda: tnc.state is Source.State.WAITING, 10.0)          # (Windows takes about two seconds to refuse a connection)
+        # Windows takes about two seconds to refuse a connection
+        await until(lambda: tnc.state is Source.State.WAITING, 10.0)
         assert tnc.stats.opens == 0 and tnc.problem == f"{radio.url}: {REFUSED}"
         await radio.accept()
         await until(lambda: tnc.state is Source.State.CONNECTED)
@@ -446,7 +465,8 @@ async def test_where_the_ports_are_not_searched_a_named_port_that_fails_is_tried
 @stops_rigs
 async def test_send_frame_writes_the_kiss_framed_bytes_and_emits_an_out_packet(rig: Rigs) -> None:
     r = await rig()
-    frame = ui_frame("OH2GBA-9", b"!6010.00N/02456.00E>\xc0\xdb mice")      # an information field that needs both escapes
+    # An information field that needs both escapes
+    frame = ui_frame("OH2GBA-9", b"!6010.00N/02456.00E>\xc0\xdb mice")
     assert r.tnc.send_frame(frame) is True
     wire = kiss_of(frame)
     assert await r.radio.said(len(wire)) == wire
@@ -559,8 +579,10 @@ def test_rearming_the_detector_forgets_kiss_and_what_was_half_read() -> None:
     assert d.feed(KISS_PACKET) is Mode.KISS
 
 
-UTF8_LINE = b"OH2ABC-9>APRS,WIDE1-1:>Gr\xc3\xbc\xc3\x9fe aus Finnland\r\n"            # a comment in UTF-8, as the TH-D7 types it
-MICE_LINE = b"G0ABC-9>T2PQ4R,WIDE1-1:`\x1e/l \x1c-/]\r\n"                              # a Mic-E packet near Greenwich: its longitude bytes are below 0x20
+# A comment in UTF-8, as the TH-D7 types it
+UTF8_LINE = b"OH2ABC-9>APRS,WIDE1-1:>Gr\xc3\xbc\xc3\x9fe aus Finnland\r\n"
+# A Mic-E packet near Greenwich: its longitude bytes are below 0x20
+MICE_LINE = b"G0ABC-9>T2PQ4R,WIDE1-1:`\x1e/l \x1c-/]\r\n"
 
 
 def test_a_line_with_a_byte_that_is_not_text_hides_neither_its_own_header_nor_the_lines_around_it() -> None:
@@ -611,7 +633,8 @@ def news(caplog: pytest.LogCaptureFixture, level: int = logging.INFO) -> list[st
 
 
 async def confirmed_rig(rig: Rigs, **kwargs: object) -> Rig:
-    """A Tnc whose line has shown that the radio is there (a packet came), with the keep-alive on from now: its quiet period is `check_sec`."""
+    """A Tnc whose line has shown that the radio is there (a packet came), with the keep-alive on
+    from now: its quiet period is `check_sec`."""
     r = await rig(**{**QUICK, "check_sec": 0.0, **kwargs})
     r.radio.feed(kiss_of(ui_frame()))
     await until(lambda: r.packets)
@@ -633,7 +656,9 @@ async def test_a_quiet_line_gets_the_check_after_check_sec_the_radio_sees_exit_r
 
 @stops_rigs
 async def test_a_cmd_prompt_in_answer_keeps_the_radio_connected_and_the_clock_restarts_from_it_and_nothing_is_told(rig: Rigs, caplog: pytest.LogCaptureFixture) -> None:
-    r = await rig(clock=FixedClock(), **{**QUICK, "reply_sec": 10.0, "answer_sec": 10.0})        # (long waits for the radio's reply and answer: the prompt below ends the one it comes in, however late a slow machine feeds it)
+    # Long waits for the radio's reply and answer: the prompt below ends the one it comes in,
+    # however late a slow machine feeds it
+    r = await rig(clock=FixedClock(), **{**QUICK, "reply_sec": 10.0, "answer_sec": 10.0})
     caplog.set_level(logging.INFO)
     caplog.clear()
     await hear_until(r.radio, KISS_EXIT + NUDGE_BYTE)
@@ -652,7 +677,8 @@ async def test_a_cmd_prompt_in_answer_keeps_the_radio_connected_and_the_clock_re
 async def test_a_kiss_frame_in_answer_to_the_check_means_the_tnc_is_in_kiss_and_no_entry_is_made(rig: Rigs) -> None:
     r = await confirmed_rig(rig)
     assert await hear_until(r.radio, KISS_EXIT + NUDGE_BYTE) == KISS_EXIT + NUDGE_BYTE
-    r.radio.feed(kiss_of(ui_frame("OH2CCC")))                          # the TNC did not leave KISS for the exit frame: a packet comes
+    # The TNC did not leave KISS for the exit frame: a packet comes
+    r.radio.feed(kiss_of(ui_frame("OH2CCC")))
     await until(lambda: len(r.packets) == 2)
     await until(lambda: r.tnc._looking is False, 2.0)
     assert await r.radio.said(1, 0.2) == b"", "no KISS ON into a TNC that is in KISS"
@@ -676,7 +702,8 @@ async def test_no_check_is_made_while_packets_flow(rig: Rigs) -> None:
     for _ in range(10):
         r.radio.feed(kiss_of(ui_frame()))                          # (twice as often as check_sec)
         await idle_for(0.15)
-    assert r.tnc.stats.keepalive_checks == 0 and len(r.packets) == 11 and r.tnc.usable          # (the one that confirmed the line, and ten)
+    # The one that confirmed the line, and ten
+    assert r.tnc.stats.keepalive_checks == 0 and len(r.packets) == 11 and r.tnc.usable
     assert await r.radio.said(1, 0.05) == b""
     assert await hear_until(r.radio, KISS_EXIT)                     # and when they stop, the check comes
 
@@ -756,7 +783,8 @@ async def test_text_that_comes_only_after_the_repeat_is_due_leaves_the_tnc_unusa
     r = await rig()
     r.radio.feed(MONITOR_LINE)
     assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS
-    await idle_for(SETTLE + 0.4)                                               # (the TNC says nothing until well after the repeat is due)
+    # The TNC says nothing until well after the repeat is due
+    await idle_for(SETTLE + 0.4)
     r.radio.feed(MONITOR_LINE)
     assert await r.radio.said(len(ENTER_KISS)) == ENTER_KISS, "KISS ON again at once: the repeat was due"
     await idle_for(SETTLE + 0.1)

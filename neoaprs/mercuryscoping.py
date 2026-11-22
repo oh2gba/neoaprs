@@ -1,14 +1,7 @@
-"""The scope, the transmit level and the automatic channel-busy control of the Mercury HF modem, the half of the modem part (mercurymodem.py, whose `Mercury` inherits this) that uses Mercury's UI interface (mercuryui.py, mercuryscope.py): the link is opened to
-the program the daemon started (not to one something else runs, whose UI port is not ours to know, and not to the speaker of the Dummy HF radio), `scope_row` tells a row of the waterfall at the modem's own resolution (every two spectra: about ten a second),
-`scope_history` keeps the rows of the last two minutes for a page that begins to look, and the transmit gain the settings hold is set live, with the tune tone following it.
+"""Scope, transmit gain and automatic channel-busy control of the Mercury modem (a mixin).
 
-The spectrum is asked for (`set_waterfall`) whenever the link is open, because the channel-busy control reads every spectrum (channelbusy.py: a signal as wide as a frame is busy, a step in the noise or a carrier is not; it stands still while the radio
-transmits; `Channel.auto_busy` makes it the channel's state, Mercury's own detector being the state while the spectrum is not read); the rows of the scope are made from every spectrum too, whether a page looks or not, so that the picture a page
-opens has the minutes before it. The rows kept are forgotten when they would lie about what comes next (`forget_scope`: the program stopped, ended or started anew, its control line down: the places the channel's state is cleared,
-and a new link to its UI), and `scope_cleared` tells it. The status Mercury sends twice a second says the peak of the latest
-transmission (`tx_peak_dbfs`), which the page shows beside the gain. When the link is not there (a Mercury without the interface, a connection that fails) there is no scope, the gain is applied at the next start of the program
-(the ini has it), and the controller starts the program again at a change of the gain, since nothing else would apply it (`live_gain` is false then). A modem part of its own, not the program's life: it reads and sets the modem's
-state (`state`, `keyed`, `attached`, `speaker`, the tasks) and asks it to tell the page (`changed`)."""
+All of it uses Mercury's UI interface, opened only to the program the daemon started.
+"""
 import logging
 import time
 
@@ -21,8 +14,10 @@ from .tasks import TaskSet
 
 log = logging.getLogger("neoaprs.mercury")
 
-PEAK_SILENT_DBFS = -100.0              # Mercury's peak is -120 before anything was transmitted
-AFTER_TX_SEC = 0.4                     # the spectrum of a Mercury that has just let go of the radio holds the end of its own frame (a window of 128 ms, and Mercury's own busy detector waits 300 ms: BUSY_TX_HOLDOFF_MS)
+# Mercury reports -120 before any transmission.
+PEAK_SILENT_DBFS = -100.0
+# The spectrum just after a transmission still holds the end of the frame (128 ms window).
+AFTER_TX_SEC = 0.4
 
 
 class Scoping:
@@ -46,24 +41,25 @@ class Scoping:
         raise NotImplementedError
 
     def _init_scoping(self) -> None:
-        self.scope_row: Signal[[KeptRow]] = Signal("mercury.scope_row")                  # a row of the waterfall at the modem's own resolution, every two spectra, kept in `scope_history` before it is told
-        self.scope_cleared: Signal[[]] = Signal("mercury.scope_cleared")                 # the rows kept were forgotten: a page that looks forgets them too
+        self.scope_row: Signal[[KeptRow]] = Signal("mercury.scope_row")
+        self.scope_cleared: Signal[[]] = Signal("mercury.scope_cleared")
         self.scope_history = ScopeHistory()
-        self.tx_gain_db = 0                          # the transmit gain the modem runs with (the setting, applied at the start and live)
-        self.tx_peak_dbfs: int | None = None         # the peak of the latest transmission in whole dBFS, as Mercury's status says; None before one
+        self.tx_gain_db = 0
+        # Peak of the latest transmission in whole dBFS; None before one.
+        self.tx_peak_dbfs: int | None = None
         self._ui: MercuryUi | None = None
         self._rows = RowMeter()
-        self._auto = OccupancyBusy()                 # the automatic channel-busy control: it reads every spectrum of the program, whether a page has the scope open or not
+        self._auto = OccupancyBusy()
 
     # ---- the link
     @property
     def ui_port(self) -> int:
-        """The port of Mercury's UI interface for this start (the broadcast port's, UI_OFFSET above), 0 when the program is not ours to configure."""
+        """Return Mercury's UI port (broadcast port + UI_OFFSET), or 0 for a foreign program."""
         return 0 if self.attached or self.speaker else self.broadcast_port + UI_OFFSET
 
     @property
     def scope(self) -> bool:
-        """The link to the UI interface is open: the scope can be shown and the gain is set live."""
+        """True while the UI link is open."""
         return self._ui is not None and self._ui.connected
 
     @property
@@ -76,7 +72,8 @@ class Scoping:
         self.forget_scope()
         self._auto = OccupancyBusy()
         self._ui = MercuryUi(HOST, self.ui_port, self._ui_text, self._ui_binary, self._ui_state)
-        self._ui.want_waterfall = True               # (the busy control needs the spectrum all the time; what a page wants is the rows)
+        # The channel-busy control reads every spectrum.
+        self._ui.want_waterfall = True
         self._ui.start()
 
     async def _stop_ui(self) -> None:
@@ -87,7 +84,8 @@ class Scoping:
 
     def _ui_state(self, up: bool) -> None:
         if up:
-            self._rows.reset()                        # (a row is of two spectra in a row, not of one from before the link dropped and one after)
+            # A row is two consecutive spectra, never spanning a dropped link.
+            self._rows.reset()
             self._ui_opened()
         else:
             self.auto_lost(time.monotonic())
@@ -95,7 +93,7 @@ class Scoping:
 
     def _ui_opened(self) -> None:
         if self._ui is not None and self.tx_gain_db != 0:
-            self._ui.tx_gain(self.tx_gain_db)                       # (the ini carries it; this is for a program that read a file we did not write)
+            self._ui.tx_gain(self.tx_gain_db)
 
     # ---- what it says
     def _ui_text(self, text: str) -> None:
@@ -113,24 +111,24 @@ class Scoping:
             return
         now = time.monotonic()
         if self.keyed or now - self._keyed_at < AFTER_TX_SEC:
-            self._auto.pause()                        # (what the radio hears now is its own signal)
+            self._auto.pause()
             self.auto_busy(False, now)
         else:
             self.auto_busy(self._auto.update(now, bands_db(spectrum)), now)
         row = self._rows.feed(spectrum, self.keyed)
         if row is not None:
-            self.scope_row.emit(self.scope_history.add(row, scope_clock()))          # (on the clock that counts a suspended machine's sleep: the rows of before it are as old as they are)
+            self.scope_row.emit(self.scope_history.add(row, scope_clock()))
 
     # ---- the scope
     def forget_scope(self) -> None:
-        """The rows kept, and the half of a row under way, are of a program, a sound card or a link that is gone: forgotten, and the pages that look are told."""
+        """Drop the kept rows and the row under way."""
         self._rows.reset()
         if self.scope_history.clear():
             self.scope_cleared.emit()
 
     # ---- the transmit gain
     def set_tx_gain(self, db: float) -> None:
-        """The transmit gain of the settings: sent to the program when the link is open (the tune tone, which Mercury keeps out of its gain, is retuned to follow it)."""
+        """Set the transmit gain, sending it live if the link is open; the tune tone follows."""
         gain = clamp_gain(db)
         if gain == self.tx_gain_db:
             return

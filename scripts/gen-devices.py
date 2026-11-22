@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-"""Refreshes neoaprs/devicedata.py, the snapshot of the APRS device identification list that the station card names a station's device from (neoaprs/device.py).
+"""Refresh neoaprs/devicedata.py from tocalls.yaml of aprsorg/aprs-deviceid (CC BY-SA 2.0).
 
-The list is tocalls.yaml of https://github.com/aprsorg/aprs-deviceid (CC BY-SA 2.0, maintained by Hessu, OH7LZB). This script is the only thing that fetches it: the daemon never does. It reads the file
-(from the list's own address, or `--from FILE`), keeps for each device the name the card shows ("Kenwood TH-D74" for a hand-held or a rig, the model alone for software and trackers) and writes the module,
-with the credit and the licence in its head. Run it with the venv's python from the repository root:  .venv/bin/python scripts/gen-devices.py
-`--check FILE` writes nothing and exits 1 when the module is not what FILE would make (the module's date aside).
-"""
+  scripts/gen-devices.py [--from FILE]    write the module from the list's address or FILE
+  scripts/gen-devices.py --check FILE     write nothing; exit 1 if the module differs from FILE's"""
 import argparse
 import hashlib
 import json
@@ -17,14 +14,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 TARGET = ROOT / "neoaprs" / "devicedata.py"
 URL = "https://raw.githubusercontent.com/aprsorg/aprs-deviceid/main/tocalls.yaml"
-VENDOR_SHOWN = {"ht", "rig"}            # the classes whose maker is part of the name; software, trackers and the like are known by their model
-NOT_A_NAME = {"unknown", "experimental"}            # what the list writes for a call that no one has a device for (`APRS`) or that anyone may use (`APZ*`)
+# Classes whose maker is part of the name; others are known by their model.
+VENDOR_SHOWN = {"ht", "rig"}
+# What the list writes for an unassigned call (`APRS`) or one anyone may use (`APZ*`).
+NOT_A_NAME = {"unknown", "experimental"}
 PER_LINE = 3
 SECTIONS = ("mice", "micelegacy", "tocalls")
 
 
 def parse(text: str) -> dict[str, list[dict[str, object]]]:
-    """The few shapes tocalls.yaml has: top-level lists of items, each a `- key: value` line and the `key: value` lines under it (`features:` has a list of words)."""
+    """Parse the few shapes tocalls.yaml has: lists of `- key: value` items (`features:` is a
+    list)."""
     sections: dict[str, list[dict[str, object]]] = {}
     items: list[dict[str, object]] | None = None
     item: dict[str, object] | None = None
@@ -64,8 +64,9 @@ def parse(text: str) -> dict[str, list[dict[str, object]]]:
 
 
 def device_name(entry: dict[str, object]) -> str:
-    """"Kenwood TH-D74" for a radio, "APRSdroid" for software: the vendor only where the class is a hand-held or a rig; the vendor alone when the list has no model. The list's "Unknown" and "Experimental" are no name: empty (the entry
-    stays, so that it keeps a wider one from naming the call)."""
+    """Return "Kenwood TH-D74" for a radio, "APRSdroid" for software; "" for "Unknown".
+
+    The vendor is shown only for hand-helds and rigs. An empty entry still blocks a wider match."""
     vendor, model = str(entry.get("vendor", "")).strip(), str(entry.get("model", "")).strip()
     if vendor and "," not in vendor and entry.get("class") in VENDOR_SHOWN and model and not model.lower().startswith(vendor.lower()):
         name = f"{vendor} {model}"
@@ -75,7 +76,7 @@ def device_name(entry: dict[str, object]) -> str:
 
 
 def rows(sections: dict[str, list[dict[str, object]]]) -> dict[str, list[tuple[str, ...]]]:
-    """The three tables of the module: (tocall, name), (suffix, name) and (prefix, suffix, name); the first entry of a key wins."""
+    """Return the module's three tables: (tocall, name), (suffix, name), (prefix, suffix, name)."""
     made: dict[str, list[tuple[str, ...]]] = {}
     for section, keys in (("tocalls", ("tocall",)), ("mice", ("suffix",)), ("micelegacy", ("prefix", "suffix"))):
         seen: set[tuple[str, ...]] = set()

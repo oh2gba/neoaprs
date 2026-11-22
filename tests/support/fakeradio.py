@@ -1,23 +1,15 @@
-"""A radio that is a TCP server on the loopback: the stand-in for the TNC in the tests, the same on every system (a pseudo-terminal exists only on POSIX). The code under test opens its `url`
-(`socket://127.0.0.1:PORT`) as it would open a Direwolf on 8001, and what it writes and what the test feeds it are plain bytes.
-
-    radio = FakeRadio()
-    await radio.start()                  # listening on 127.0.0.1, a free port: radio.url
-    ...                                  # the code under test opens radio.url
-    radio.feed(kiss_bytes)               # the radio talks (to everyone who is connected)
-    heard = await radio.said(5)          # what the code wrote: waits for 5 bytes (or the time), returns all that came
-    radio.drop()                         # the radio closes the connection: the line is lost
-    radio.refuse(); await radio.accept() # nobody listens (a connection is refused), then the radio is back on the same port
-    await radio.aclose()
-
-The port is bound when the radio is made (so `url` is known at once, before an event loop runs); `start()` serves it. There are no tasks in it, only the transports of the connections."""
+"""A radio that is a TCP server on the loopback: the stand-in for the TNC in the tests, the same on
+every system. The code under test opens its `url` (`socket://127.0.0.1:PORT`); what it writes and
+what the test feeds it are plain bytes.
+"""
 import asyncio
 import socket
 import sys
 from typing import cast
 
 
-REFUSED = "No connection could be made because the target machine actively refused it" if sys.platform == "win32" else "Connection refused"      # a refused connection in the system's words
+# A refused connection in the system's words.
+REFUSED = "No connection could be made because the target machine actively refused it" if sys.platform == "win32" else "Connection refused"
 
 
 class FakeRadio:
@@ -34,7 +26,9 @@ class FakeRadio:
 
     @staticmethod
     def _holding(port: int) -> socket.socket | None:
-        """A socket bound to the port and not listening, so that a connection is refused and the port is not given to another program; None when the system will not bind it again at once."""
+        """A socket bound to the port and not listening, so that a connection is refused and the
+        port is not given to another program; None when the system will not bind it again at once.
+        """
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if sys.platform != "win32":
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -49,7 +43,8 @@ class FakeRadio:
     def _listening(port: int) -> socket.socket:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if sys.platform != "win32":
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)      # (on Windows the option would let a second program take the port)
+            # On Windows the option would let a second program take the port
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(("127.0.0.1", port))
         sock.listen(8)
         return sock
@@ -60,8 +55,10 @@ class FakeRadio:
 
     # ---- the radio talks and the radio is heard
     def feed(self, data: bytes) -> None:
-        """The radio sends these bytes to every client. With no client yet they are kept for the next one: the daemon's open returns a moment before this side has accepted the connection, and a test that feeds
-        as soon as the daemon says it is connected would otherwise lose the race."""
+        """The radio sends these bytes to every client. With no client yet they are kept for the
+        next one: the daemon's open returns a moment before this side has accepted the connection,
+        and a test that feeds as soon as the daemon says it is connected would otherwise lose the
+        race."""
         if not self._clients:
             self._unsent.extend(data)
             return
@@ -69,7 +66,8 @@ class FakeRadio:
             client.write(data)
 
     async def said(self, count: int = 1, timeout_sec: float = 2.0) -> bytes:
-        """What the code under test has written since the last call: waits until at least `count` bytes came or the time is up, and returns all of it."""
+        """What the code under test has written since the last call: waits until at least `count`
+        bytes came or the time is up, and returns all of it."""
         loop = asyncio.get_running_loop()
         deadline = loop.time() + timeout_sec
         while len(self._heard) < count and loop.time() < deadline:
@@ -78,11 +76,13 @@ class FakeRadio:
         return out
 
     def heard_bytes(self, data: bytes) -> None:
-        """What a client wrote: kept for `said` (a radio that is more than a tap, the fake Mercury, does more with it)."""
+        """What a client wrote: kept for `said` (a radio that is more than a tap, the fake Mercury,
+        does more with it)."""
         self._heard.extend(data)
 
     def put_back(self, data: bytes) -> None:
-        """Bytes read with `said` that the test has not looked at yet: the next `said` returns them first."""
+        """Bytes read with `said` that the test has not looked at yet: the next `said` returns them
+        first."""
         self._heard[:0] = data
 
     async def connected(self, timeout_sec: float = 2.0) -> None:
@@ -99,19 +99,23 @@ class FakeRadio:
 
     # ---- the cable
     def drop(self) -> None:
-        """Closes the connections: the code under test finds its line lost. The radio still listens."""
+        """Closes the connections: the code under test finds its line lost. The radio still listens.
+        """
         clients, self._clients = self._clients, []
         for client in clients:
             client.close()
 
     def refuse(self) -> None:
-        """Stops listening: a connection attempt is refused, as when a Direwolf is not running. Connections that are open stay (`drop` closes them)."""
+        """Stops listening: a connection attempt is refused, as when a Direwolf is not running.
+        Connections that are open stay (`drop` closes them)."""
         server, sock, self._server, self._sock = self._server, self._sock, None, None
         if server is not None:
             server.close()
         elif sock is not None:
             sock.close()
-        self._held = self._holding(self.port)                # (the port stays ours, bound and not listening: refused, and never another test's radio meanwhile)
+        # The port stays ours, bound and not listening: refused, and never another test's radio
+        # meanwhile
+        self._held = self._holding(self.port)
 
     async def accept(self) -> None:
         """Listens again on the same port after `refuse`."""

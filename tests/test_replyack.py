@@ -1,13 +1,17 @@
-"""Reply-acks (neoaprs/aprsmessage.py, services/inbox.py, services/messaging.py) inside the whole daemon, the radio a pseudo-terminal: the exact frames on the line for a message we send, its ack and a
-reply-ack, and what a reply-ack of a station settles."""
+"""Reply-acks (neoaprs/aprsmessage.py, services/inbox.py, messaging.py) inside the whole daemon with
+a pseudo-terminal radio: the exact frames for a message, its ack and a reply-ack, and what a
+reply-ack settles.
+"""
 from pathlib import Path
 
 from neoaprs.message import MessageRecord
 from tests.support.air import ack_info, message_info, on_air, said
 from tests.support.env import Env, quick_start, until
 
-SENT = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :"                        # (the frame of every message and ack to OH2RDG, up to its text)
-DIRECT = "OH2GBA>APZNEO::OH2RDG   :"                                      # (the frame of an attempt 1 or 2 once OH2RDG has been heard direct twice: no digipeaters)
+# The frame of every message and ack to OH2RDG, up to its text
+SENT = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :"
+# The frame of an attempt 1 or 2 once OH2RDG has been heard direct twice: no digipeaters
+DIRECT = "OH2GBA>APZNEO::OH2RDG   :"
 
 
 async def started(tmp_path: Path) -> Env:
@@ -29,7 +33,8 @@ async def test_a_message_with_a_reply_ack_number_is_acked_with_a_copy_of_the_num
     e = await started(tmp_path)
     await e.ctl.messaging.send("OH2RDG", "Hello Pekka")                       # {01}
     await said(e)
-    e.feed(on_air("OH2RDG", message_info("OH2GBA", "Hei Pekka", "05", "01"), path="OH2RCH-2*"))      # their message 05, with the reply-ack 01: "I have your 01"
+    # Their message 05, with the reply-ack 01: "I have your 01"
+    e.feed(on_air("OH2RDG", message_info("OH2GBA", "Hei Pekka", "05", "01"), path="OH2RCH-2*"))
     await until(lambda: e.tnc.stats.packets == 1)
     [ack] = await said(e)
     assert ack.tnc2() == SENT + "ack05}01", "the ack is the number as it came"
@@ -79,7 +84,8 @@ async def test_every_attempt_carries_the_latest_message_that_is_owed_an_ack_and_
     await said(e)
     await e.ctl.messaging.send("OH2RDG", "Moikka")                            # attempt 1: {01}05
     e.now.advance(2)                                                        # type: ignore[attr-defined]
-    e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi taas", "06", "")))    # (they do not hear us: a newer message of theirs)
+    # They do not hear us: a newer message of theirs
+    e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi taas", "06", "")))
     await until(lambda: e.tnc.stats.packets == 2)
     e.now.advance(30)                                                       # type: ignore[attr-defined]
     await until(lambda: sent_one(e).attempts == 2)

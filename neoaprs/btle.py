@@ -1,13 +1,8 @@
-"""A Bluetooth Low Energy KISS TNC as a pyserial-like port: `ble://AA:BB:CC:DD:EE:FF`, or `ble://AA:BB:CC:DD:EE:FF/nus` with the profile named (a profile name, or the UUID of a GATT service; on macOS the address is the UUID that
-CoreBluetooth gives the device). It has the small part of pyserial's interface that `serialport.py` uses: `open`, `read` with the timeout, `in_waiting`, `write`, `cancel_read`, `cancel_write` and `close`, so that the line is read and written by
-its two threads as every other port is, and a lost link is an exception of the read or the write that the TNC answers by opening the port again.
+"""A Bluetooth Low Energy KISS TNC as a pyserial-like port: `ble://ADDRESS[/PROFILE]`.
 
-The BLE library, bleak, runs on a thread of its own with its own event loop (it is asyncio, and the daemon's loop is not to be shared with a Bluetooth stack). What the device notifies is queued and `read` hands it out; `write` is given to that loop and
-waits until it is written, in pieces of what one write takes. bleak is an optional extra (`pip install 'neoaprs[ble]'`) and is imported only when a `ble://` port is opened.
-
-A BLE KISS device offers a GATT service with one characteristic that is written (the host's bytes to the TNC) and one that notifies (the TNC's bytes to the host); the bytes are the KISS stream, in pieces as long as the link takes, so a frame may span
-several notifications and one notification may hold several frames (`kiss.KissDecoder` takes a stream). The profiles known are in `PROFILES`. Without one in the URL the services of the connected device are looked at in that order and the first
-that is there is used; the log says which."""
+PROFILE is a name from `PROFILES` or a GATT service UUID; on macOS ADDRESS is a CoreBluetooth UUID.
+bleak, an optional extra, runs on its own thread and loop. A lost link raises from `read`/`write`.
+"""
 import asyncio
 import concurrent.futures
 import logging
@@ -25,15 +20,15 @@ log = logging.getLogger("neoaprs.btle")
 
 SCHEME = "ble://"
 INSTALL_HINT = "Bluetooth LE ports (ble://) need the bleak library: install it with `pip install 'neoaprs[ble]'` (or `uv tool install 'neoaprs[ble]'`)"
-SCAN_SEC = 10.0                      # how long the device is looked for before it is said to be out of reach
-CONNECT_SEC = 15.0                   # the connection and the discovery of the device's services
+SCAN_SEC = 10.0
+CONNECT_SEC = 15.0  # connect and service discovery
 OPEN_LIMIT_SEC = SCAN_SEC + CONNECT_SEC + 5.0
-CLOSE_SEC = 5.0                      # a disconnect that takes longer is given up (the stack drops the link by itself)
+CLOSE_SEC = 5.0
 JOIN_SEC = 1.0
-WRITE_TIMEOUT_SEC = 5.0              # when the port has no write timeout of its own
-MIN_CHUNK_BYTES = 20                 # what any link takes in one write (the default ATT payload)
-MAX_CHUNK_BYTES = 512                # a write with a response is never longer than this
-ATT_HEADER_BYTES = 3                 # the part of the link's MTU that is not data
+WRITE_TIMEOUT_SEC = 5.0  # used when the port has no write timeout
+MIN_CHUNK_BYTES = 20  # the default ATT payload, which any link accepts
+MAX_CHUNK_BYTES = 512  # the limit of a write with a response
+ATT_HEADER_BYTES = 3  # the part of the MTU that is not data
 _MAC = r"[0-9A-F]{2}(?:[:-][0-9A-F]{2}){5}"
 _UUID = r"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}"
 _URL = re.compile(rf"^ble://({_MAC}|{_UUID})(?:/([^/\s]+))?/?$", re.IGNORECASE)
@@ -43,7 +38,7 @@ T = TypeVar("T")
 
 @dataclass(frozen=True)
 class Profile:
-    """A GATT service that carries a KISS stream. `write` and `notify` are the UUIDs of its two characteristics, or None to take the first that can be written and the first that notifies (a service named by its UUID)."""
+    """A GATT service that carries a KISS stream; None for `write` or `notify` takes the first fit."""
     name: str
     title: str
     service: str
@@ -62,7 +57,9 @@ def is_ble(path: str) -> bool:
 
 
 def profile_for(selector: str) -> Profile:
-    """The profile a name in the URL means: one of `PROFILES` by its name, or a GATT service by its UUID (16 or 128 bits), whose characteristics are found by what they can do."""
+    """Return the profile named in the URL: one of `PROFILES`, or a GATT service UUID (16 or 128
+    bit).
+    """
     for profile in PROFILES:
         if selector.lower() == profile.name:
             return profile
@@ -76,18 +73,21 @@ def profile_for(selector: str) -> Profile:
 
 
 def parse_url(path: str) -> tuple[str, Profile | None]:
-    """The device address (upper case; with colons for a Bluetooth address) and the profile (None: not given, the device's services are looked at) of a `ble://` port; ValueError says what is wrong."""
+    """Return the upper-case device address and the profile (None if not given) of a `ble://` port.
+
+    Raise ValueError if the URL is malformed.
+    """
     match = _URL.match(path.strip())
     if match is None:
         raise ValueError(f"{path!r} is not a Bluetooth LE port: write ble://AA:BB:CC:DD:EE:FF, or ble://AA:BB:CC:DD:EE:FF/nus with the profile ({', '.join(p.name for p in PROFILES)}) or a service UUID")
     address = match.group(1).upper()
-    if len(address) == 17:                                # a Bluetooth address may be written with dashes; a UUID has its own
+    if len(address) == 17:  # a Bluetooth address may use dashes; a UUID is longer
         address = address.replace("-", ":")
     return address, profile_for(match.group(2)) if match.group(2) else None
 
 
 def import_bleak() -> Any:
-    """The bleak library; an OSError that names the extra to install when it is not there."""
+    """Return the bleak module; raise OSError naming the extra to install if it is missing."""
     try:
         import bleak  # type: ignore[import-not-found, unused-ignore]
     except ImportError as e:
@@ -99,8 +99,10 @@ _WRITES, _NOTIFIES = {"write", "write-without-response"}, {"notify", "indicate"}
 
 
 def _find(services: Any, profile: Profile) -> tuple[Any, Any] | None:
-    """The characteristic to write and the one to listen to of the profile's service, or None when the device has no such service or it lacks them. The named ones are taken where they can do their part;
-    otherwise the first that can be written and the first that notifies (a CA2RXU LoRa Tracker has the Nordic UART's two the other way round: it notifies on 6E400002 and is written on 6E400003)."""
+    """Return the (write, notify) characteristics of the profile's service, or None if absent.
+
+    Some devices swap the two Nordic UART characteristics, so the named ones are checked first.
+    """
     service = next((s for s in services if s.uuid == profile.service), None)
     if service is None:
         return None
@@ -112,7 +114,10 @@ def _find(services: Any, profile: Profile) -> tuple[Any, Any] | None:
 
 
 def _pick(services: Any, wanted: Profile | None) -> tuple[Profile, Any, Any]:
-    """The profile to use, with its two characteristics: the one named, else the first of `PROFILES` that the device has. OSError when there is none."""
+    """Return the profile and its characteristics: the one named, else the first the device has.
+
+    Raise OSError if there is none.
+    """
     for profile in [wanted] if wanted else PROFILES:
         if (pair := _find(services, profile)) is not None:
             return profile, pair[0], pair[1]
@@ -122,7 +127,7 @@ def _pick(services: Any, wanted: Profile | None) -> tuple[Profile, Any, Any]:
 
 
 class _Loop:
-    """A thread with an event loop of its own, where bleak runs."""
+    """A thread running an event loop, where bleak runs."""
 
     def __init__(self, name: str) -> None:
         self.loop = asyncio.new_event_loop()
@@ -145,7 +150,7 @@ class _Loop:
         return asyncio.run_coroutine_threadsafe(coroutine, self.loop)
 
     def call(self, coroutine: Coroutine[Any, Any, T], timeout: float | None) -> T:
-        """Runs the coroutine on the loop and waits for it; one that takes longer than `timeout` is cancelled and raises TimeoutError."""
+        """Run the coroutine on the loop and wait; cancel it and raise TimeoutError after `timeout`."""
         future = self.submit(coroutine)
         try:
             return future.result(timeout)
@@ -156,17 +161,18 @@ class _Loop:
     def stop(self) -> None:
         try:
             self.loop.call_soon_threadsafe(self.loop.stop)
-        except RuntimeError:                              # the loop has ended already
+        except RuntimeError:  # the loop has ended already
             pass
         self._thread.join(JOIN_SEC)
 
 
 class _Link:
-    """The connected device, used on the BLE thread: its client and the characteristic that is written, with how."""
+    """The connected device, used on the BLE thread: its client and the characteristic to write."""
 
     def __init__(self, client: Any, write: Any) -> None:
         self.client, self.write = client, write
-        self.response = "write-without-response" not in write.properties           # write without a response is faster and is what the KISS devices ask for; a characteristic that has only the other is written with one
+        # writing without a response is faster; use one only if the device offers no other
+        self.response = "write-without-response" not in write.properties
 
     def chunk(self) -> int:
         size = self.client.mtu_size - ATT_HEADER_BYTES if self.response else self.write.max_write_without_response_size
@@ -182,7 +188,10 @@ class _Link:
 
 
 async def open_link(bleak: Any, address: str, wanted: Profile | None, on_data: Callable[[bytes], None], on_lost: Callable[[str], None]) -> _Link:
-    """Finds the device, connects, picks the service (the profile named, else the first of `PROFILES` that the device has) and starts listening to its notifications. Nothing is left connected when it fails."""
+    """Find the device, connect, pick the service and start notifications.
+
+    Nothing stays connected if it fails.
+    """
     device = await bleak.BleakScanner.find_device_by_address(address, timeout=SCAN_SEC)
     if device is None:
         raise TimeoutError(f"{address} was not seen in {SCAN_SEC:.0f} s")
@@ -201,12 +210,12 @@ async def open_link(bleak: Any, address: str, wanted: Profile | None, on_data: C
 async def _disconnect_quietly(client: Any) -> None:
     try:
         await client.disconnect()
-    except Exception as e:                                # a disconnect that fails leaves nothing to do but say so
+    except Exception as e:  # nothing to do about a failed disconnect but log it
         log.info("disconnecting: %s", e)
 
 
 class BleSerial(serial.SerialBase):  # type: ignore[misc]
-    """The port: pyserial's SerialBase, which keeps the parameters it is given (a BLE link has no speed to set and no control lines to hold) over a BLE connection."""
+    """pyserial's SerialBase over a BLE connection; speed and control lines have no effect."""
 
     is_open: bool
 
@@ -214,7 +223,8 @@ class BleSerial(serial.SerialBase):  # type: ignore[misc]
         super().__init__(*args, **kwargs)
         self._cond = threading.Condition()
         self._buffer = bytearray()
-        self._failure: str | None = None                  # why the link is gone, once it is; what was received before is still read
+        # Why the link is gone; data received before that is still read.
+        self._failure: str | None = None
         self._cancelled = False
         self._loop: _Loop | None = None
         self._link: _Link | None = None
@@ -266,7 +276,10 @@ class BleSerial(serial.SerialBase):  # type: ignore[misc]
             return len(self._buffer)
 
     def read(self, size: int = 1) -> bytes:
-        """Up to `size` bytes, waiting for them as long as the timeout allows (for ever without one); fewer (none) at the end of the time, or when `cancel_read` ends the wait. A link that is lost raises, once what had come before is read."""
+        """Return up to `size` bytes, waiting up to the timeout or until `cancel_read`.
+
+        A lost link raises once the data received before it has been read.
+        """
         if not self.is_open:
             raise serial.PortNotOpenError()
         deadline = None if self.timeout is None else time.monotonic() + self.timeout
@@ -296,7 +309,7 @@ class BleSerial(serial.SerialBase):  # type: ignore[misc]
             raise serial.SerialTimeoutException("Write timeout") from None
         except (concurrent.futures.CancelledError, asyncio.CancelledError):
             raise serial.SerialException("the write was cancelled") from None
-        except Exception as e:                            # BleakError, or the link gone under the write
+        except Exception as e:  # BleakError, or the link lost during the write
             self._lost(str(e) or type(e).__name__)
             raise serial.SerialException(f"BLE write failed: {e}") from e
         finally:
@@ -334,7 +347,7 @@ class BleSerial(serial.SerialBase):  # type: ignore[misc]
         try:
             if link is not None:
                 loop.call(link.disconnect(), CLOSE_SEC)
-        except Exception as e:                            # a link that does not let go is dropped with the loop
+        except Exception as e:  # a link that will not disconnect is dropped with the loop
             log.info("%s: closing: %s", self.portstr, e)
         loop.stop()
 

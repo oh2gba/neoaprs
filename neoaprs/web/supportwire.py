@@ -1,4 +1,4 @@
-"""What the page tells the daemon about itself, for the support bundle: the command that reports an error of the page's own. A model like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire model of the command with which the page reports one of its own errors."""
 from typing import Literal
 
 from pydantic import Field

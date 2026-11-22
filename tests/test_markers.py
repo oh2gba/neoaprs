@@ -1,4 +1,5 @@
-"""The markers (tests/support/markers.py) give every test its kind, so that `pytest -m unit` and `-m safety` mean something."""
+"""The markers (tests/support/markers.py) give every test its kind, so `pytest -m unit` and `-m
+safety` mean something."""
 import tomllib
 
 import pytest

@@ -1,13 +1,8 @@
-"""The commands that name a radio, on the wire: add one, remove one, change its name, type, Enable or place, work its modem (Tune, the keying test, the scope, the receive level), and choose the radio a station's messages go out on;
-and the messages that answer an add and carry a receive level. The radios themselves are the topic `radios` (neoaprs/web/tncwire.py `RadioRow`), and a radio's own settings ride `set_config` and the topic `config` under `radio/<id>/<key>`.
-Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`.
+"""Wire models of the radio commands: add, remove, change, tune, scope, level, station radio.
 
-A radio is named by its id (`radio`, an integer from 1: the `id` of its row). A refusal is an `error` with a code: `radio.unknown` (no radio of that id, or one that is removed), `radio.last_enabled` (the last radio that is on
-cannot be switched off or removed), `radio.name_taken`, `radio.name_label` (a name typed in the form a radio with no name of its own is called by, "FM", "Mercury 2"), `radio.name_form`, `radio.type_kind` (a type of another kind), `radio.unknown_type`, `radio.off` (the radio a control sends on is switched off, with its `name`),
-`radio.receive_only` (the radio a control sends on, or Find my radio's, is of a type that only receives, with its `name`), `radio.not_connected` (it is on and does not take frames now, with its `name`), `radio.no_modem` (a modem's command on a radio that has none running, with its `name`), `radio.no_line` (Find my radio for a radio
-with no serial line, with its `name`), `radio.no_scope` (the scope of a radio whose type has none, with its `name`), `radio.none` (there is no radio at all), `setting.not_stored` (the change was not stored: the reason is in the log).
-A refusal that names a radio by its `name` (the daemon's English: the name typed, else its kind's word and number, "FM", "Mercury 2") carries its id too (`radio`), and `radio.resource_held` the holder's id beside its `holder`
-(`held_by`: the radio's, 0 for the GPS receiver, as the ports' `held_by`), by which a page puts its own words for that radio. A removed radio is `radio.unknown` with its `name` and `removed` 1 too."""
+A radio is named by its id (`radio`, an integer from 1). Its settings travel in `set_config`
+under `radio/<id>/<key>`. A refusal is an `error` with a `radio.*` or `setting.not_stored` code.
+"""
 from typing import Annotated, Literal
 
 from pydantic import Field
@@ -16,8 +11,9 @@ from neoaprs.radioedits import MAX_POSITION
 
 from .wirebase import Call, _Command, _Message
 
-RADIO_NAME_ROOM = 64                     # a radio's name as typed: the daemon says what is wrong with one (at most 8 printable characters, coded), with room over it
-TYPE_ROOM = 32                           # a type's key as sent
+# Room for a typed name; the daemon reports what is wrong with one (at most 8 printable characters).
+RADIO_NAME_ROOM = 64
+TYPE_ROOM = 32
 
 RadioRef = Annotated[int, Field(ge=1, description="the radio's id, the `id` of its row in the topic `radios`")]
 

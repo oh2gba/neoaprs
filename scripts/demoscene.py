@@ -1,11 +1,7 @@
-"""A day on the air for the screenshots and the project page: a made-up neighbourhood in the Helsinki area, played through a real daemon, so that every number the page shows is what the daemon computed.
+"""A made-up day on the air near Helsinki, played through a real daemon for the screenshots.
 
-`DemoRadio` is a KISS TNC on a TCP port of the loopback (like `neoaprs replay`, which plays the bundled TH-D7 capture, and which this scene starts with); nothing here opens a serial port or sends anything but to that port.
-`history(...)` runs a daemon (the Controller) in this process on a clock that is moved back in time: stations moving along their roads, two weather stations reporting for 24 hours, messages that are acked, retried
-or fail, a bulletin board, email through the gateway, our own beacon, and our own objects, items and bulletins (made with the daemon's own services, on the air by their own schedule as the clock moves). The daemon is stopped afterwards and the data folder holds the day; `scripts/screenshots.py` then starts a daemon of its own on it.
-
-Every call except the sample capture's is made up (`OH2Zxx`, a range nobody holds); the places are real, the movements are not.
-"""
+`DemoRadio` is a KISS TNC on a loopback port; `history(...)` runs a daemon on a clock moved back in
+time. Calls are made up (`OH2Zxx`); the places are real, the movements are not."""
 import asyncio
 import math
 import os
@@ -29,16 +25,18 @@ ME = "OH2GBA"
 HOME = (60.2231, 24.7152)                              # Espoo
 SAMPLE = Path(__file__).resolve().parent.parent / "neoaprs" / "samples" / "thd7.kiss"
 PATH = "WIDE1-1,WIDE2-1"
-DEMO_RADIO: RadioId = FM_ID                            # the daemon's radio that the DemoRadio is: radio 1, given by --port
+# the daemon's radio that the DemoRadio is: radio 1, given by --port
+DEMO_RADIO: RadioId = FM_ID
 
 
 class DemoRadio:
-    """A TNC on a TCP port of the loopback: `feed` sends KISS bytes to whoever is connected (kept until someone is), what the daemon writes is decoded into `sent`."""
+    """A TNC on a loopback TCP port: `feed` sends KISS bytes, `sent` holds what the daemon wrote."""
 
     def __init__(self) -> None:
         self.port = 0
         self.sent: list[ax25.Frame] = []
-        self.on_frame: Callable[[ax25.Frame], None] | None = None       # called with each frame the daemon writes (the air's answer to it)
+        # called with each frame the daemon writes (the air's answer to it)
+        self.on_frame: Callable[[ax25.Frame], None] | None = None
         self._clients: list[asyncio.StreamWriter] = []
         self._pending = bytearray()
         self._server: asyncio.Server | None = None
@@ -48,8 +46,7 @@ class DemoRadio:
         return f"socket://{HOST}:{self.port}"
 
     async def start(self) -> None:
-        """Listens on a free port the system gives: never Direwolf's own 8001 or another port where a real modem of this computer may listen, which the daemon under the no-devices switch does not connect to
-        (the screenshots write 8001 into the field of a TCP port themselves)."""
+        """Listen on a free port, never 8001 or another port a real modem may use."""
         self._server = await asyncio.start_server(self._serve, HOST, 0)
         self.port = self._server.sockets[0].getsockname()[1]
 
@@ -97,7 +94,8 @@ class DemoRadio:
 
 
 def on_air(source: str, info: bytes, path: str = "WIDE1-1", destination: str = "APRS") -> bytes:
-    """A frame from `source` as the TNC hands it over; a star on a digipeater says the frame went through it, none says it came direct."""
+    """Return a frame from `source` as the TNC hands it over; a star on a digipeater marks it
+    used."""
     return kiss.encode(ax25.encode(ax25.Frame(ax25.Address.parse(destination), ax25.Address.parse(source), tuple(ax25.Address.parse(p) for p in path.split(",") if p), info=info)))
 
 
@@ -119,7 +117,8 @@ def position(lat: float, lon: float, symbol: str, comment: str = "", course: int
 
 def weather_report(lat: float, lon: float, comment: str, direction: int, wind_kmh: float, gust_kmh: float, temp_c: float, rain_mm_h: float, rain_24h_mm: float, rain_today_mm: float,
                    humidity: int, hpa: float) -> bytes:
-    """A position with the weather symbol and its fields (wind in mph, temperature in degrees F, rain in hundredths of an inch, pressure in tenths of a hPa)."""
+    """A position with the weather symbol and its fields (wind in mph, temperature in degrees F,
+    rain in hundredths of an inch, pressure in tenths of a hPa)."""
     def mph(kmh: float) -> int:
         return int(round(kmh / 1.609344))
 
@@ -133,7 +132,7 @@ def weather_report(lat: float, lon: float, comment: str, direction: int, wind_km
 
 
 def along(points: list[tuple[float, float]], count: int) -> list[tuple[float, float, int]]:
-    """`count` places spread evenly along a line through `points`, each with the course (degrees) of the stretch it is on."""
+    """Return `count` places spread evenly along the line through `points`, each with its course."""
     def leg(a: tuple[float, float], b: tuple[float, float]) -> float:
         return math.hypot(b[0] - a[0], (b[1] - a[1]) * math.cos(math.radians(a[0])))
 
@@ -172,7 +171,7 @@ class Event:
 
 
 def demo_radio(ctl: Controller) -> LiveRadio[Any]:
-    """The daemon's radio that the DemoRadio is: radio 1, the one `--port` (the Controller's `port`) gives this run, found in the registry by its id (not by the old names of the FM radio's line and beacon)."""
+    """Return the daemon's radio that the DemoRadio is: radio 1, found by its id."""
     radio = ctl.radios.get(DEMO_RADIO)
     assert radio is not None, "the daemon has no radio 1"
     return radio
@@ -183,12 +182,15 @@ class Scene:
 
     def __init__(self, ctl: Controller, radio: DemoRadio, clock: Clock) -> None:
         self.ctl, self.radio, self.clock = ctl, radio, clock
-        self.heard_back: dict[str, list[tuple[str, ...]]] = {}        # by the text of a message: for each attempt, the copies the air returns (a path with its stars, or ~IGATE for a copy gated back from the internet)
+        # by the text of a message: for each attempt, the copies the air returns (a path with its
+        # stars, or ~IGATE for a copy gated back from the internet)
+        self.heard_back: dict[str, list[tuple[str, ...]]] = {}
         self._attempts: dict[bytes, int] = {}
         radio.on_frame = self._air
 
     def _air(self, frame: ax25.Frame) -> None:
-        """What the air does with a message of ours: a digipeater repeats it, as heard with its has-been-repeated bits, and an iGate may put a copy on the air from the internet. Acks are not repeated."""
+        """Return what the air does with a message of ours: a digipeater repeats it, an iGate may
+        gate a copy back. Acks are not repeated."""
         body = frame.info
         if str(frame.source) != ME or not body.startswith(b":") or body[11:14] in (b"ack", b"rej"):
             return
@@ -218,11 +220,12 @@ class Scene:
 
     async def send(self, to: str, text: str, ack_after_sec: float | None = 6, ack_path: str = "OH2RCH-2*", tries: int = 1, wrap: str | None = None,
                    heard: list[tuple[str, ...]] | None = None) -> None:
-        """We send a message; the other station acks it after some seconds of the clock, at our `tries`th transmission, or never (None: the attempts run out and it fails)."""
+        """Send a message; the other station acks at our `tries`th transmission, or never (None)."""
         if heard is not None:
             self.heard_back[text] = heard
         record = await self.ctl.messaging.send(to, text)
-        await asyncio.sleep(0.15)                                  # (the first attempt is on the air, and its copy is heard, before the clock moves)
+        # the first attempt is on the air, and its copy is heard, before the clock moves
+        await asyncio.sleep(0.15)
         assert record.msg_id is not None
         number = record.id
 
@@ -257,17 +260,17 @@ class Scene:
         return any(when is not None and when <= now for when in due)
 
     async def own_object(self, name: str, kind: str, lat: float, lon: float, symbol: str, comment: str, path: str | None = None, qru_group: str = "") -> None:
-        """We make an object or an item (the Objects tab's `object_set`, with its category when it has one) on the DemoRadio's radio, named as `object_set {radios}` names it; it is on the air once this returns."""
+        """Make an object or item (the Objects tab's `object_set`) on the DemoRadio's radio."""
         self.ctl.ownobjects.set(name, kind, lat, lon, symbol[0], symbol[1], comment, path=path, qru_group=qru_group, radios=(DEMO_RADIO,))
         await _until(lambda: (held := self.ctl.ownobjects.get(name)) is not None and held.sent >= 1)
 
     async def own_bulletin(self, slot: str, text: str) -> None:
-        """We post a bulletin or an announcement (the Bulletins tab's `bulletin_post`); it is on the air once this returns."""
+        """Post a bulletin or announcement (the Bulletins tab's `bulletin_post`)."""
         self.ctl.ownbulletins.post(slot, text)
         await _until(lambda: (held := self.ctl.ownbulletins.get(slot)) is not None and held.sent >= 1)
 
     async def keep_schedule(self) -> None:
-        """Lets what is due of ours go out before the clock moves on, so that each has been sent as often as its schedule says (the decay of an object, the early copies of a bulletin)."""
+        """Let what is due go out before the clock moves on, as often as its schedule says."""
         await _until(lambda: not self.own_due(), 20)
 
 
@@ -282,14 +285,16 @@ async def _until(condition: Callable[[], object], timeout_sec: float = 8.0) -> N
 # ---- the day
 
 def _weather_station(call: str, lat: float, lon: float, comment: str, base_c: float, base_hpa: float, local_hour_now: float, path: str) -> list[Event]:
-    """24 hours of reports every 10 minutes: the temperature follows the sun, the pressure sinks and a front brings rain and wind some hours ago."""
+    """Return 24 hours of reports every 10 minutes; the temperature follows the sun, a front
+    brings rain."""
     events: list[Event] = []
     rain_total = 0.0
     for step in range(144, 0, -1):
         ago = step * 10 - 5
         hour = (local_hour_now - ago / 60) % 24
         temp = base_c + 3.2 * math.sin((hour - 9) / 24 * 2 * math.pi) - (0.8 if 5 < ago / 60 < 9 else 0) + 0.15 * math.sin(step * 1.7)
-        front = math.exp(-((ago / 60 - 7.0) / 2.2) ** 2)                                       # the front passed 7 hours ago
+        # the front passed 7 hours ago
+        front = math.exp(-((ago / 60 - 7.0) / 2.2) ** 2)
         rain = round(max(0.0, 2.4 * front - 0.25 + 0.15 * math.sin(step * 2.3)), 1)
         rain_total += rain / 6
         hpa = base_hpa + 6.5 * (1 - ago / 1440) - 3.0 * front + 0.2 * math.sin(step / 5)
@@ -325,7 +330,8 @@ def _out(ago: float, to: str, text: str, **options: object) -> Event:
 
 
 def _gateway(ago: float, text: str, msg_id: str, igate: str = "OH2ZIG-10") -> Event:
-    """A message from the email gateway EMAIL-2 to us, put on the air by an iGate as a third-party frame."""
+    """Return a message from the email gateway EMAIL-2 to us, gated by an iGate as a third-party
+    frame."""
     return Event(ago, lambda s: s.hear(igate, b"}EMAIL-2>APRS,TCPIP," + igate.encode() + b"*:" + b":" + format_message(ME, text, msg_id), ""))
 
 
@@ -334,13 +340,15 @@ def _board(source: str, ago: float, slot: str, text: str, path: str = "OH2RCH-2*
 
 
 async def _path_of_the_partner(s: Scene) -> None:
-    """Messages to the friend go by a path of their own: the digipeater next door, then the one on the hill that our radio does not hear."""
+    """Return the path of messages to the friend: the digipeater next door, then one we do not
+    hear."""
     await s.ctl.prefbook.set_path("OH2ZPK", "OH2RCH-2,OH2RDG")
 
 
 def events(local_hour_now: float) -> list[Event]:
     day: list[Event] = []
-    # The stations of the sample capture: three digipeaters/stations of Kirkkonummi, Helsinki and Sipoo, and a D-STAR node
+    # The stations of the sample capture: three digipeaters/stations of Kirkkonummi, Helsinki and
+    # Sipoo, and a D-STAR node
     day.append(Event(1380, lambda s: s.hear_frames(SAMPLE.read_bytes())))
     day.append(Event(1370, _path_of_the_partner))
     day += _fixed("OH2RDG", 25, "N#", 60.1245, 24.4970, "PHG8470/R,W,T,Wn,Tn Kirkkonummi", repeats=6, every=35)
@@ -348,7 +356,9 @@ def events(local_hour_now: float) -> list[Event]:
     day += _fixed("OH2RCH-2", 9, "/#", 60.2000, 24.9600, "PHG7470/W2 Helsinki Kumpula digi", path="", repeats=8, every=20)
     day += _fixed("OH2RDK-7", 63, "/&", 60.1650, 24.9467, "432.500MHz T088 -760 Helsinki 70 cm", repeats=4, every=50)
     day += _fixed("OH2ZIG-10", 18, "/&", 60.4030, 25.0970, "RX iGate Tuusula", path="OH2RCH-2*,OH2RDK-7*", repeats=5, every=25)
-    day += _fixed("OH2ZPK", 10, "/-", 60.2934, 25.0378, "PHG5362Jari, Vantaa, 2 m net Tue 20:00", path="OH2RCH-2*", repeats=14, every=22, destination="APK004")      # (a Kenwood TH-D74; 25 W, 80 ft, 6 dB, favouring the east: the card's Device row and antenna arrow)
+    # (a Kenwood TH-D74; 25 W, 80 ft, 6 dB, favouring the east: the card's Device row and antenna
+    # arrow)
+    day += _fixed("OH2ZPK", 10, "/-", 60.2934, 25.0378, "PHG5362Jari, Vantaa, 2 m net Tue 20:00", path="OH2RCH-2*", repeats=14, every=22, destination="APK004")
     day += _fixed("OH2ZVT-7", 330, "/>", 60.4160, 24.3220, "Vihti, parked", path="OH2RDG*", repeats=2, every=20)
     day += _fixed("OH2RDG-3", 41, "/r", 60.1330, 24.5240, "145.650MHz T088 -060 Kirkkonummi repeater", path="OH2RDG*", repeats=2, every=60)
     # Two weather stations, 24 hours of reports each
@@ -377,7 +387,8 @@ def events(local_hour_now: float) -> list[Event]:
     day.append(_text("OH3ZHK-7", 20, "Lookout reached, 144.800 loud and clear here", "18", "WIDE1-1"))
     day.append(_out(12, "OH2ZPK", "Did you get the new antenna up?", ack_after_sec=10, heard=[("OH2RCH-2*,OH2RDG*",)]))
     day.append(_text("OH2ZPK", 6, "Yes! 5 dB more on 2 m, will tell you tonight", "44", "OH2RCH-2*,OH2RDK-7*"))
-    # Email through the gateway: its acks and replies come as third-party frames from an iGate. One mail never gets its ack (it shows "Not confirmed"), and the gateway forwards a mail to us
+    # Email through the gateway: its acks and replies come as third-party frames from an iGate. One
+    # mail never gets its ack (it shows "Not confirmed"), and the gateway forwards a mail to us
     day.append(_out(250, "EMAIL-2", "jane@example.com New antenna is up: 5 dB more on 2 m!", ack_after_sec=None))
     day.append(_out(150, "EMAIL-2", "jane@example.com Back at the shack by 18, QRV on 2 m", ack_after_sec=14, wrap="OH2ZIG-10", ack_path=""))
     day.append(_out(100, "EMAIL-2", "get", ack_after_sec=9, wrap="OH2ZIG-10", ack_path=""))
@@ -391,7 +402,8 @@ def events(local_hour_now: float) -> list[Event]:
     day.append(_board("OH2ZMA-9", 33, "BLN3HAMS", "Hamfest in Espoo on Saturday 10:00, talk-in 145.500"))
     # Our own beacon and status
     day.append(Event(40, lambda s: _send_beacon(s)))
-    # Objects, items and bulletins of our own: a net-control point, a meeting place for Saturday and an item for the hamfest, and two on the board
+    # Objects, items and bulletins of our own: a net-control point, a meeting place for Saturday and
+    # an item for the hamfest, and two on the board
     day.append(Event(171, lambda s: s.own_bulletin("BLN2", "2 m net tonight 20:00 on 144.800 MHz, net control OH2GBA")))
     day.append(Event(92, lambda s: s.own_object("NETCTRL", "object", 60.2208, 24.8085, "/-", "2 m net Tue 20:00, 144.800 MHz", qru_group="CLUB")))
     day.append(Event(68, lambda s: s.own_object("HAMFEST", "item", 60.2052, 24.6720, "/K", "Hamfest Sat 10:00, talk-in 145.500", qru_group="CLUB")))
@@ -401,10 +413,12 @@ def events(local_hour_now: float) -> list[Event]:
 
 
 async def _send_beacon(s: Scene) -> None:
-    """Our beacon goes out, and the digipeater is heard repeating it a minute later (which is when our own station is last heard)."""
+    """Send our beacon; the digipeater is heard repeating it a minute later."""
     before = len(s.radio.sent)
     config = s.ctl.config
-    s.ctl.config = replace(config, beacon_interval_min=30)         # (the day is played with the beacon Off, its default, so that no timer fires as the clock moves; for this one send it is On, with no await in between for a tick to run)
+    # (the day is played with the beacon Off, its default, so that no timer fires as the clock
+    # moves; for this one send it is On, with no await in between for a tick to run)
+    s.ctl.config = replace(config, beacon_interval_min=30)
     try:
         beacon = demo_radio(s.ctl).beacon
         assert beacon.send_now("timer"), beacon.problem
@@ -419,21 +433,27 @@ async def _send_beacon(s: Scene) -> None:
 
 
 async def history(data_dir: Path, radio: DemoRadio) -> int:
-    """Plays the day through a daemon on `data_dir` (its settings are in the database already) and stops it; how many events were played."""
-    os.environ["NEOAPRS_UPDATE_CHECK"] = "0"                    # (a made-up day: the daemon does not ask the version page)
-    os.environ["NEOAPRS_NO_DEVICES"] = "1"                      # (... and opens no device and reaches nothing but this computer: neoaprs/nodevices.py; its radio is the DemoRadio on the loopback)
-    local = datetime.now(timezone(timedelta(hours=3)))          # (Finland in the summer time of October)
+    """Play the day through a daemon on `data_dir`, stop it, and return how many events were
+    played."""
+    # a made-up day: the daemon does not ask the version page
+    os.environ["NEOAPRS_UPDATE_CHECK"] = "0"
+    # (... and opens no device and reaches nothing but this computer: neoaprs/nodevices.py; its
+    # radio is the DemoRadio on the loopback)
+    os.environ["NEOAPRS_NO_DEVICES"] = "1"
+    local = datetime.now(timezone(timedelta(hours=3)))          # Finland in the summer time of October
     local_hour_now = local.hour + local.minute / 60
     clock = Clock()
     clock.ago(1450)
     ctl = Controller(data_dir, clock=clock, port=radio.url)
     ctl.messaging.tick_sec = 0.03
-    ctl.ownobjects.tick_sec = ctl.ownbulletins.tick_sec = 0.03   # (our own objects and bulletins go out as soon as the moved clock says so, a few frames of the day in a second)
+    # (our own objects and bulletins go out as soon as the moved clock says so, a few frames of the
+    # day in a second)
+    ctl.ownobjects.tick_sec = ctl.ownbulletins.tick_sec = 0.03
     ctl.sender.spacing_sec = 0.2
     await ctl.start()
     try:
         await _until(lambda: demo_radio(ctl).state is Source.State.CONNECTED and radio.connected, 30)
-        await asyncio.sleep(3.5)                                    # (the TNC settles after the open)
+        await asyncio.sleep(3.5)                                    # the TNC settles after the open
         scene = Scene(ctl, radio, clock)
         played = 0
         for event in events(local_hour_now):

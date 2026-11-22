@@ -1,5 +1,7 @@
-"""The daemon serves the page it was started with: the files of `neoaprs/page/` are read into memory once, so a page rebuilt on disk, a branch switched or a package upgraded while the daemon runs changes nothing until it is
-started again, and the page and the daemon that say their build in `hello` are always a pair."""
+"""The daemon serves the page it was started with: the files of `neoaprs/page/` are read into memory
+once, so a rebuilt page or switched branch changes nothing until restart and page and daemon are
+always a pair.
+"""
 import hashlib
 import logging
 from pathlib import Path
@@ -12,11 +14,13 @@ from tests.support.env import Env
 
 OLD = '<!doctype html><script type="module" crossorigin src="./assets/index-OLDOLD11.js"></script><link rel="stylesheet" href="./assets/index-OLDCSS11.css"><div id="app"></div>'
 NEW = OLD.replace("OLD", "NEW")
-MARK = "x"                                                                                    # (a shipped page is about 3.4 MB; the tests need only a few bytes)
+# A shipped page is about 3.4 MB; the tests need only a few bytes
+MARK = "x"
 
 
 def build_page(folder: Path, html: str, *, worker: str = "// worker") -> None:
-    """A page folder the way Vite leaves one: the shell, the files it names, the worker, a hidden file and a source map that must not be served."""
+    """A page folder the way Vite leaves one: the shell, the files it names, the worker, a hidden
+    file and a source map that must not be served."""
     name = "OLDOLD11" if "OLDOLD11" in html else "NEWNEW11"
     css = "OLDCSS11" if "OLDCSS11" in html else "NEWCSS11"
     (folder / "assets").mkdir(parents=True, exist_ok=True)
@@ -51,7 +55,8 @@ def test_a_folder_that_is_not_there_is_an_empty_snapshot_with_no_build(tmp_path:
 
 
 def test_a_folder_swapped_in_the_middle_of_a_read_is_read_again(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A build swaps the folder with two renames: index.html of the new build that names a file the read did not get is a page of two builds, and it is read again."""
+    """A build swaps the folder with two renames: index.html of the new build that names a file the
+    read did not get is a page of two builds, and it is read again."""
     (tmp_path / "index.html").write_text(OLD, encoding="utf-8")
     (tmp_path / "assets").mkdir()
     slept: list[float] = []
@@ -81,7 +86,9 @@ def test_a_folder_bigger_than_a_page_can_be_is_refused(tmp_path: Path, caplog: p
 
 
 def test_the_built_page_is_small_enough_to_keep_in_memory_and_is_all_there() -> None:
-    """The page is read into memory when the daemon starts, so its size is a decision: the shipped one is about 3.4 MB. When it grows past this, serve it from a folder named by the build instead (and say so in docs/daemon.md)."""
+    """The page is read into memory when the daemon starts, so its size is a decision: the shipped
+    one is about 3.4 MB. When it grows past this, serve it from a folder named by the build instead
+    (and say so in docs/daemon.md)."""
     folder = web_server.PAGE_DIR
     snapshot = PageSnapshot.take(folder)
     assert snapshot.size < 16 * 1024 * 1024 < MAX_BYTES, f"the page is {snapshot.size / 1048576:.1f} MB"
@@ -101,7 +108,8 @@ async def test_a_page_rebuilt_while_the_daemon_runs_changes_nothing_until_it_is_
     tab = await e.ws()
     assert (await tab.expect("hello"))["page"] == "index-OLDOLD11.js"
 
-    for path in page.rglob("*"):                                                                  # the page is rebuilt (a branch was switched): every file is another
+    # The page is rebuilt (a branch was switched): every file is another
+    for path in page.rglob("*"):
         if path.is_file():
             path.unlink()
     build_page(page, NEW, worker="// new worker")
@@ -114,7 +122,8 @@ async def test_a_page_rebuilt_while_the_daemon_runs_changes_nothing_until_it_is_
     assert (await (await e.ws()).expect("hello"))["page"] == "index-OLDOLD11.js"
     await e.stop()
 
-    again = Env(tmp_path / "data", web=True)                                                      # started again, it takes the page as it is
+    # Started again, it takes the page as it is
+    again = Env(tmp_path / "data", web=True)
     await again.start()
     assert (await again.fetch("/")).body == NEW.encode() and (await again.fetch("/assets/index-NEWNEW11.js")).code == 200
     assert (await again.fetch("/assets/index-OLDOLD11.js")).code == 404
@@ -150,7 +159,8 @@ async def test_the_page_has_the_same_types_whatever_the_system_table_says(tmp_pa
     page = tmp_path / "page"
     build_page(page, OLD)
     monkeypatch.setattr(web_server, "PAGE_DIR", page)
-    monkeypatch.setattr(mimetypes, "guess_type", lambda *a, **k: ("text/plain", None))      # a registry of Windows that names .js text/plain
+    # A registry of Windows that names .js text/plain
+    monkeypatch.setattr(mimetypes, "guess_type", lambda *a, **k: ("text/plain", None))
     e = Env(tmp_path / "data", web=True)
     await e.start()
     assert (await e.fetch("/assets/index-OLDOLD11.js")).headers["Content-Type"] == "text/javascript; charset=UTF-8"

@@ -1,5 +1,4 @@
-"""The bases of the models of the wire format (the `neoaprs/web/*wire.py` modules and `neoaprs/web/protocol.py`): strict, no field the model does not know, and the titles the TypeScript names are made of; and
-the scalar types and the models that several of those modules share (a time, the details of a position)."""
+"""Base classes of the wire models (strict, TypeScript titles) and the types they share."""
 from dataclasses import fields, is_dataclass
 from datetime import datetime
 from typing import Annotated, Any, Literal
@@ -10,12 +9,14 @@ from neoaprs.ax25 import MAX_PATH
 from neoaprs.clock import iso
 from neoaprs.policy import LOG_KEEP_DAYS
 
-HISTORY_MAX_HOURS = LOG_KEEP_DAYS * 24      # how far back a command that reads the logs may ask: all they keep
-# What the wire holds a typed text to is a size, with room over what the core allows: the core says what is wrong with a call, a path or a message text (neoaprs/callsign.py, neoaprs/message.py), coded, so that the
-# page shows it in its own language and with the numbers; a model that refused the text first would show a plain English line of the validation.
-CALL_ROOM = 64                              # a call as typed (the longest there is, base and SSID, is 9)
-TEXT_ROOM = 512                             # a message text as typed (a message carries 67 characters)
-PATH_TEXT_MAX = MAX_PATH * 32               # a path as typed: the calls of MAX_PATH digipeaters at 9 characters or less, and room for the commas and blanks between them
+# How far back a command that reads the logs may ask: all the logs keep.
+HISTORY_MAX_HOURS = LOG_KEEP_DAYS * 24
+# The wire limits typed text by size only, with room over what the core allows. The core reports
+# what is wrong with a call, path or message text as a code, so the page can show it translated with
+# its numbers.
+CALL_ROOM = 64  # a call as typed; the longest real one is 9
+TEXT_ROOM = 512  # a message text as typed; a message carries 67 characters
+PATH_TEXT_MAX = MAX_PATH * 32  # MAX_PATH calls of up to 9 characters, plus separators
 
 Iso = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", description="UTC, ISO 8601 with a Z")]
 Call = Annotated[str, Field(min_length=1, max_length=CALL_ROOM)]
@@ -24,7 +25,10 @@ MessageText = Annotated[str, Field(max_length=TEXT_ROOM)]
 
 
 def plain(value: Any) -> Any:
-    """What the page is told of a value of the daemon: a time as ISO text, a tuple or a list as a list, a named tuple or a dataclass as a dict, anything else as it is."""
+    """Return the wire form of a value.
+
+    A time becomes ISO text, a tuple a list, a named tuple or dataclass a dict.
+    """
     kind = type(value)
     if kind in _SCALARS:
         return value
@@ -39,7 +43,7 @@ def plain(value: Any) -> Any:
     return value
 
 
-_NAMES: dict[type, dict[str, None]] = {}                 # the field names of each model, in order
+_NAMES: dict[type, dict[str, None]] = {}  # field names of each model, in order
 _SCALARS = frozenset({type(None), str, int, float, bool})
 
 
@@ -48,9 +52,7 @@ class _Model(BaseModel):
 
     @classmethod
     def row(cls, source: Any, /, **given: Any) -> dict[str, Any]:
-        """The model's value of a domain object, as the plain dict that goes on the wire: each field is the attribute of the same name of `source` (made plain), except the ones in `given`, which are
-        the fields whose value is not an attribute of the object (a distance from us, the next time it is sent). The fields, their order and their names are the model's: a field the object
-        has is told by adding it to the model, and one that cannot be found fails loudly (the tests and NEOAPRS_VALIDATE_OUT hold the dict to the model)."""
+        """Return the wire dict: each field from `source`'s same-named attribute or from `given`."""
         names = _NAMES.get(cls)
         if names is None:
             names = _NAMES[cls] = dict.fromkeys(cls.model_fields)

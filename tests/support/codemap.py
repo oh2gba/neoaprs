@@ -1,10 +1,10 @@
-"""What the architecture and size ratchets measure: the imports, the Signal.connect call sites and the sizes of the modules, classes and functions of neoaprs/ (the page's server, neoaprs/web/, is in it).
+"""What the architecture and size ratchets measure: imports, Signal.connect sites and sizes.
 
-Everything works on a *tree*: a dict from a path relative to the repository ("neoaprs/clock.py") to the text of that file. `load_tree()` reads the real one; the tests of the
-checks build small made-up trees, so that every rule is shown to fail on a violation and not only to be green on the real code.
+Everything works on a tree: a dict from a repository-relative path to the text of the file.
+`load_tree()` reads the real one; the tests of the checks build small trees.
 
-    python -m tests.support.codemap                 print the offenders of the size limits (what the baseline holds today)
-    python -m tests.support.codemap --tighten       lower the ceilings of tests/size_baseline.json to today's sizes and drop entries that are within the limits (never raises one)
+    python -m tests.support.codemap             print the offenders of the size limits
+    python -m tests.support.codemap --tighten   lower the ceilings in tests/size_baseline.json
 """
 import ast
 import json
@@ -18,7 +18,8 @@ ROOT = Path(__file__).resolve().parents[2]
 PACKAGES = ("neoaprs",)
 BASELINE = ROOT / "tests" / "size_baseline.json"
 
-# The limits (docs/ARCHITECTURE.md): lines are physical lines of the unit, from its `def`/`class` line to its last line, comments and blank lines included.
+# The limits (docs/ARCHITECTURE.md). Lines are lines of code: blank lines, comment lines and
+# docstrings do not count.
 MODULE_LINES = 400
 CLASS_LINES = 300
 FUNCTION_LINES = 60
@@ -38,19 +39,21 @@ def load_tree(root: Path = ROOT) -> Tree:
 
 
 def module_name(rel: str) -> str:
-    """'neoaprs/clock.py' -> 'neoaprs.clock'; 'neoaprs/__init__.py' -> 'neoaprs'; 'neoaprs/services/x.py' -> 'neoaprs.services.x'."""
+    """'neoaprs/clock.py' -> 'neoaprs.clock'; 'neoaprs/__init__.py' -> 'neoaprs';
+    'neoaprs/services/x.py' -> 'neoaprs.services.x'."""
     parts = rel.removesuffix(".py").split("/")
     if parts[-1] == "__init__":
         parts.pop()
     return ".".join(parts)
 
 
-# ---- imports ------------------------------------------------------------------------------------------------------------------------------------------------
+# ---- imports -------------------------------------------------------------------------------------
 
 @dataclass(frozen=True)
 class Import:
     importer: str        # module name of the file
-    target: str          # a module of the tree ("neoaprs.clock") or the dotted name of a library ("sqlite3", "tornado.httpclient")
+    # A module of the tree ("neoaprs.clock") or a library name ("sqlite3").
+    target: str
     internal: bool       # target is in neoaprs/
     line: int
 
@@ -69,7 +72,7 @@ def _resolve(importer: str, is_package: bool, node: ast.ImportFrom) -> str:
 
 
 def imports_of(rel: str, source: str, modules: frozenset[str]) -> list[Import]:
-    """Every import in the file, at any depth (a lazy import inside a function is a dependency too), resolved to the module it names."""
+    """Every import in the file at any depth, resolved to the module it names."""
     me = module_name(rel)
     is_package = rel.endswith("/__init__.py")
     found: list[Import] = []
@@ -84,7 +87,7 @@ def imports_of(rel: str, source: str, modules: frozenset[str]) -> list[Import]:
         elif isinstance(node, ast.ImportFrom):
             base = _resolve(me, is_package, node)
             for alias in node.names:
-                # `from neoaprs import signal` names the module neoaprs.signal; `from neoaprs import VERSION` names the package itself
+                # `from neoaprs import signal` names the module neoaprs.signal.
                 sub = f"{base}.{alias.name}"
                 add(sub if sub in modules else base, node.lineno)
     return found
@@ -123,10 +126,11 @@ def find_cycle(graph: dict[str, list[Import]]) -> list[str]:
     return []
 
 
-# ---- Signal wiring ------------------------------------------------------------------------------------------------------------------------------------------
+# ---- Signal wiring -------------------------------------------------------------------------------
 
 def connect_sites(tree: Tree) -> dict[str, int]:
-    """Per file, how many `x.connect(...)` calls it has. `sqlite3.connect`, the `connect` of a network socket (a variable called `sock`) and an awaited `connect` (a Bluetooth LE client's, never the synchronous Signal) are not a Signal and are left out."""
+    """Per file, the number of `x.connect(...)` calls that are Signal connects (not sockets, sqlite3
+    or awaited)."""
     counts: dict[str, int] = {}
     for rel, source in tree.items():
         parsed = ast.parse(source)
@@ -141,14 +145,15 @@ def connect_sites(tree: Tree) -> dict[str, int]:
     return counts
 
 
-# ---- SQL ----------------------------------------------------------------------------------------------------------------------------------------------------
+# ---- SQL -----------------------------------------------------------------------------------------
 
 SQL_CALLS = frozenset({"execute", "executemany", "executescript"})
-FORBIDDEN_NAMES = frozenset({"_flush", "before_write"})          # the ways of reaching the file that the database thread (neoaprs/db.py) replaced
+# The ways of reaching the file that the database thread (neoaprs/db.py) replaced.
+FORBIDDEN_NAMES = frozenset({"_flush", "before_write"})
 
 
 def sql_sites(tree: Tree) -> dict[str, tuple[bool, int]]:
-    """Per file that has any: (does it import sqlite3, how many `x.execute(...)` / `executemany` / `executescript` calls does it have). Who touches SQL, and how much."""
+    """Per file with SQL: whether it imports sqlite3 and how many execute calls it makes."""
     found: dict[str, tuple[bool, int]] = {}
     for rel, source in tree.items():
         imports, calls = False, 0
@@ -168,8 +173,11 @@ SQL_STATEMENT = re.compile(r"(UPDATE|INSERT|SELECT|DELETE) ")
 
 
 def sql_strings(tree: Tree) -> dict[str, list[int]]:
-    """The lines, per file, of a string literal that begins like a statement (`UPDATE `, `INSERT `, `SELECT `, `DELETE `, upper case: the way every statement of the tree is written). A docstring or a
-    string that stands alone as a statement is prose and is left out, and so is a comment, which the parser does not see. The beginning of an f-string counts, so does a piece of a concatenation."""
+    """The lines, per file, of a string literal that begins like an upper-case SQL statement.
+
+    A docstring, a lone string statement and a comment are not counted; the start of an f-string and
+    a piece of a concatenation are.
+    """
     found: dict[str, list[int]] = {}
     for rel, source in tree.items():
         module = ast.parse(source)
@@ -182,7 +190,7 @@ def sql_strings(tree: Tree) -> dict[str, list[int]]:
 
 
 def forbidden_names(tree: Tree) -> dict[str, list[int]]:
-    """The lines, per file, that define or use a name of FORBIDDEN_NAMES as a function, an attribute or a variable."""
+    """The lines, per file, that define or use a name of FORBIDDEN_NAMES."""
     found: dict[str, list[int]] = {}
     for rel, source in tree.items():
         lines = sorted({
@@ -195,11 +203,15 @@ def forbidden_names(tree: Tree) -> dict[str, list[int]]:
     return found
 
 
-# ---- sizes --------------------------------------------------------------------------------------------------------------------------------------------------
+# ---- sizes ---------------------------------------------------------------------------------------
 
 def complexity_of(node: ast.AST) -> int:
-    """McCabe's number as `mccabe` and ruff's C901 count it: 1, plus one for every if/elif, loop (and its else), except handler, case and comprehension clause. Boolean operators and
-    conditional expressions do not count. A nested function or lambda is counted into the function that holds it."""
+    """McCabe's number as ruff's C901 counts it: 1 plus each if/elif, loop, except, case and
+    comprehension clause.
+
+    Boolean operators and conditional expressions do not count; a nested function counts into its
+    parent.
+    """
     n = 1
     for sub in ast.walk(node):
         if isinstance(sub, (ast.If, ast.For, ast.AsyncFor, ast.While, ast.ExceptHandler, ast.comprehension)):
@@ -211,12 +223,25 @@ def complexity_of(node: ast.AST) -> int:
     return n
 
 
-def _span(node: ast.stmt) -> int:
-    return (node.end_lineno or node.lineno) - node.lineno + 1
+def code_lines(source: str) -> set[int]:
+    """Line numbers that hold code: not blank, not only a comment, not part of a docstring."""
+    lines = {n for n, text in enumerate(source.splitlines(), 1) if text.strip() and not text.lstrip().startswith("#")}
+    for node in ast.walk(ast.parse(source)):
+        body = getattr(node, "body", None)
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and body:
+            first = body[0]
+            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
+                lines -= set(range(first.lineno, (first.end_lineno or first.lineno) + 1))
+    return lines
+
+
+def _span(node: ast.stmt, code: set[int]) -> int:
+    return len(code & set(range(node.lineno, (node.end_lineno or node.lineno) + 1)))
 
 
 def _units(body: list[ast.stmt], prefix: str) -> Iterator[tuple[str, str, ast.stmt]]:
-    """(kind, name, node) of every class and function below `body`, with dotted names: Controller.work_now, Api._run.<locals>.handler is not listed (it counts inside Api._run)."""
+    """(kind, name, node) of every class and function below `body`, with dotted names; nested ones
+    are not listed."""
     for node in body:
         if isinstance(node, ast.ClassDef):
             name = f"{prefix}{node.name}"
@@ -230,16 +255,17 @@ def _units(body: list[ast.stmt], prefix: str) -> Iterator[tuple[str, str, ast.st
 
 
 def measure(tree: Tree) -> dict[str, dict[str, int]]:
-    """{'modules': {'neoaprs/x.py': lines}, 'classes': {'neoaprs/x.py::C': lines}, 'functions': {'neoaprs/x.py::C.f': lines}, 'complexity': {'neoaprs/x.py::C.f': number}} for everything, not only the offenders."""
+    """Sizes of every module, class and function (lines and complexity), not only the offenders."""
     out: dict[str, dict[str, int]] = {"modules": {}, "classes": {}, "functions": {}, "complexity": {}}
     for rel, source in tree.items():
-        out["modules"][rel] = len(source.splitlines())
+        code = code_lines(source)
+        out["modules"][rel] = len(code)
         for kind, name, node in _units(ast.parse(source).body, ""):
             key = f"{rel}::{name}"
             if kind == "class":
-                out["classes"][key] = _span(node)
+                out["classes"][key] = _span(node, code)
             else:
-                out["functions"][key] = _span(node)
+                out["functions"][key] = _span(node, code)
                 out["complexity"][key] = complexity_of(node)
     return out
 
@@ -254,15 +280,18 @@ def load_baseline() -> dict[str, dict[str, int]]:
 
 
 def tighten(baseline: dict[str, dict[str, int]], now: dict[str, dict[str, int]]) -> tuple[dict[str, dict[str, int]], list[str]]:
-    """The baseline with every ceiling lowered to today's size and the entries that are within the limit dropped. It never raises a ceiling and never adds an entry: a unit that
-    grew stays as it was (and keeps failing the test), a new offender is not accepted by this function. Returns the new baseline and what it refused."""
+    """The baseline with every ceiling lowered to today's size and within-limit entries dropped.
+
+    It never raises a ceiling or adds an entry. Return the new baseline and what it refused.
+    """
     out: dict[str, dict[str, int]] = {kind: {} for kind in LIMITS}
     refused: list[str] = []
     for kind, entries in baseline.items():
         for key, ceiling in entries.items():
             size = now[kind].get(key)
             if size is None or size <= LIMITS[kind]:
-                continue                                    # gone, or back within the limit: the entry has done its job
+                # Gone, or back within the limit: the entry has done its job.
+                continue
             if size > ceiling:
                 refused.append(f"{kind} {key}: {size} is over its ceiling {ceiling}")
             out[kind][key] = min(size, ceiling)

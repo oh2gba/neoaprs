@@ -1,7 +1,10 @@
-"""`neoaprs open [--data DIR] [--no-browser] [--timeout SEC]`: opens NeoAPRS's page in the default browser, starting the daemon first when none holds the data folder (the instance lock). The new daemon is
-detached from this command and from its terminal: on Windows it is `neoaprsw.exe run` with no console window, elsewhere a child in a session of its own whose output goes to `launch.log`. The page's
-port is the one the daemon writes into the data folder (7303, or the next free one), so the command waits for that and for the page to answer before it opens anything. This is what the Start menu's "NeoAPRS" runs.
-Exit code 0: the page is up (and was opened); 1: it did not come up, with the reason. The address is printed on stdout."""
+"""`neoaprs open [--data DIR] [--no-browser] [--timeout SEC]`: open the page in the default browser.
+
+The daemon is started first, detached, if none holds the data folder. The command waits for the
+page to answer before it opens anything. This is what the Start menu's "NeoAPRS" runs.
+
+Exit code 0: the page is up (and was opened); 1: it did not come up, with the reason. The address
+is printed on stdout."""
 import argparse
 import os
 import subprocess
@@ -31,8 +34,9 @@ def parser() -> argparse.ArgumentParser:
 
 
 def daemon_argv(data: Path, encryption: bool = False) -> list[str]:
-    """The command that runs the daemon on `data` (with `--encryption` when `encryption`: the app started with it passes it on): the windowless program on Windows, the AppImage file in an AppImage (the daemon outlives this process, and the folder the AppImage is mounted at does not),
-    else this interpreter (or, in a frozen program, itself)."""
+    """Return the command that runs the daemon on `data`, with `--encryption` if asked.
+
+    In an AppImage it is the AppImage file: the daemon outlives the image's mount."""
     gui, pythonw = servicecmd.windowless_programs()
     plan = servicecmd.Plan(os.path.abspath(sys.executable), data, None, False, gui, pythonw, servicecmd.appimage_file())
     extra = ["--encryption"] if encryption else []
@@ -46,26 +50,26 @@ def daemon_argv(data: Path, encryption: bool = False) -> list[str]:
 
 
 def spawn(argv: list[str], data: Path) -> "subprocess.Popen[bytes]":
-    """Starts the daemon detached from this process; its stdout and stderr go to `launch.log` of the data folder, which holds a traceback from before the daemon has its log (nowhere on Windows, where the
-    daemon has no console and logs to the file itself). The file starts empty at every start: the daemon's lines are in `neoaprs.log` (it writes none to a stderr that is a file). The daemon of an AppImage
-    that runs unpacked runs unpacked too (selfreplace.keep_extract_and_run), and leaves the folder it shares with this one to this one's runtime (selfreplace.leave_the_folder)."""
+    """Start the daemon detached; off Windows its output goes to a fresh `launch.log` in `data`."""
     data.mkdir(parents=True, exist_ok=True)
     if sys.platform == "win32":
         return subprocess.Popen(argv, creationflags=servicewindows.DETACHED, close_fds=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         env = dict(os.environ)
-        selfreplace.keep_extract_and_run(env)        # (an AppImage started unpacked by the flag, which its runtime keeps to itself: the daemon is that file started again, and where there is no FUSE it cannot be mounted)
-        selfreplace.leave_the_folder(env, argv[0])     # (the same file unpacked shares this one's folder, which this one's runtime removes)
+        # An AppImage running unpacked must start the daemon unpacked: without FUSE it cannot mount.
+        selfreplace.keep_extract_and_run(env)
+        # The unpacked daemon shares this process's folder, which this runtime removes on exit.
+        selfreplace.leave_the_folder(env, argv[0])
         with (data / LAUNCH_NAME).open("wb") as log:
             return subprocess.Popen(argv, start_new_session=True, close_fds=True, stdin=subprocess.DEVNULL, stdout=log, stderr=log, env=env)
 
 
 def wait_for_page(data: Path, child: "subprocess.Popen[bytes] | None", seconds: float, clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep,
                   *, told: Callable[[], None] | None = None) -> str | None:
-    """The page's address once a daemon holds the folder and its page answers; None when `seconds` pass, or the daemon we started ended and none holds the folder. The page is asked before the lock is: a look
-    at the lock takes it for a moment, which must not be the moment the daemon that is starting takes it (it would find it held and end), and a daemon whose page answers has held it since before it listened.
-    While the folder's database is brought up to date (the note of stopfile.py is fresh) the wait does not run out: a large file takes minutes, and the `seconds` start again from its end, for the rest
-    of the start; `told` is called once when that is seen. `clock` and `sleep` are a test's virtual time."""
+    """Return the page's address once a daemon holds the folder and its page answers, else None.
+
+    The page is asked before the lock: checking the lock must not collide with the starting daemon.
+    """
     deadline = clock() + seconds
     while clock() < deadline:
         if stopfile.migrating(data):
@@ -83,7 +87,7 @@ def wait_for_page(data: Path, child: "subprocess.Popen[bytes] | None", seconds: 
 
 
 def tell_the_user(text: str) -> None:
-    """A program without a console (neoaprsw.exe from the Start menu) has nowhere to say why nothing happened: a message box does."""
+    """Say the text, and on Windows also in a message box when there is no console."""
     say(text)
     if sys.platform == "win32":
         import ctypes

@@ -1,6 +1,7 @@
-"""How the Controller brings the radios of the registry up (neoaprs/controller.py, neoaprs/radioregistry.py): each in a task of its own, so that an FM radio that is still looking for its port does not keep the HF
-radio stopped; one radio restarted alone (`start_radio`) and all of them together (`start_tnc`); a start that is still looking ended by the next start of the same radio; the radios started all the same when
-the Mercury modem cannot be started; and the daemon up all the same when the key file of encrypted messages cannot be made."""
+"""Tests for how the Controller starts the radios (neoaprs/controller.py, neoaprs/radioregistry.py):
+each in its own task, restarts of one or all, and starts that continue when Mercury or the key
+file fails.
+"""
 import asyncio
 import logging
 from pathlib import Path
@@ -127,9 +128,11 @@ async def test_a_save_while_find_my_radio_holds_the_radio_starts_it_once_after_t
 
     e.tnc.start = counted                                                           # type: ignore[method-assign]
     try:
-        await ctl.hold_radio(FM_ID)                                                 # (what Find my radio does before it tries the ports: services/radiofinder.py)
+        # (what Find my radio does before it tries the ports: services/radiofinder.py)
+        await ctl.hold_radio(FM_ID)
         assert e.tnc.state is Source.State.STOPPED
-        assert await ctl.save_radio_settings(FM_ID, {"baud": "4800"})               # (from the radio's box, or another page, while the search runs)
+        # (from the radio's box, or another page, while the search runs)
+        assert await ctl.save_radio_settings(FM_ID, {"baud": "4800"})
         await idle_for(0.3)
         assert starts == [] and e.tnc.state is Source.State.STOPPED, "the radio the search holds is not started by a save: the search and its line would want one port"
         ctl.release_radio(FM_ID)

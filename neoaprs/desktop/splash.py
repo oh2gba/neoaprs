@@ -1,9 +1,7 @@
-"""The small window of the app's name that Windows shows from the first moment of `neoaprs-app.exe` until the real window is there: the real one needs .NET, WinForms and WebView2 first (half a second, three
-the first time after an install), and this one needs nothing but user32 and gdi32, through ctypes. It is the name in the system's UI font on the page's dark background (loading.py; the page's own scheme
-is not known before anything is read, so it is always the dark one), with no border, no title bar and no taskbar entry, and nothing on it to translate, to animate or to ship.
-It is made on a thread of its own, whose message loop it is, and it goes when the real window is shown, when the app ends without one (`done`, from any thread, any number of times), after LIMIT_SEC by
-itself, and with the process. The packaging's entry (packaging/windows/neoaprs_entry.py) shows it before anything heavy is imported: this module imports os, sys, threading and, on Windows, ctypes.
-A splash that cannot be made is no splash: every failure gives up, with a line in the log and nothing on the screen. On every other system nothing is shown and the functions do nothing."""
+"""A small window with the app's name, shown on Windows from the first moment of `neoaprs-app.exe`.
+
+It needs only user32 and gdi32 through ctypes, so it shows before anything heavy is imported.
+It goes when the real window shows (`done`) or after LIMIT_SEC; elsewhere nothing is shown."""
 import os
 import sys
 import threading
@@ -11,20 +9,22 @@ import threading
 from .loading import BACKGROUND, TEXT
 
 NAME = "NeoAPRS"
-WINDOW_CLASS = "NeoAPRSSplash"            # what tells it from the real window, whose title is the name too
-SIZE = (360, 120)                         # at 96 dpi; scaled by the system's DPI
-NAME_PX = 30                              # the height of the name's letters at 96 dpi
-FONT = "Segoe UI"                         # the UI font of Windows
-LIMIT_SEC = 15.0                          # it never stays longer than this, whatever the app does
+WINDOW_CLASS = "NeoAPRSSplash"  # tells it from the real window, whose title is the name too
+SIZE = (360, 120)  # at 96 dpi; scaled by the system's DPI
+NAME_PX = 30  # height of the name's letters at 96 dpi
+FONT = "Segoe UI"  # the UI font of Windows
+LIMIT_SEC = 15.0  # it never stays longer than this, whatever the app does
 
-# The app's arguments as the quick look knows them (cmd.parser has them all; tests/test_desktop_splash.py holds the two equal): whether each takes a value, and which of them mean no window now.
+# The app's options (a copy of cmd.parser's, kept equal by tests/test_desktop_splash.py): whether
+# each takes a value. NO_WINDOW lists those that mean no window now.
 OPTIONS = {"--data": True, "--tray": False, "--quit": False, "--timeout": True, "--debug": False, "--encryption": False, "--owns-daemon": False, "--help": False, "-h": False}
 NO_WINDOW = ("--tray", "--quit", "--help", "-h")
-PORT_NAME, PID_NAME = "neoaprs-app.port", "neoaprs-app.pid"     # the files of the app that holds a data folder (single.py)
+# The files of the app that holds a data folder (single.py).
+PORT_NAME, PID_NAME = "neoaprs-app.port", "neoaprs-app.pid"
 
 
 def option(arg: str) -> str | None:
-    """The option an argument names as argparse reads it: the whole name, or a long one shortened to a part that is the start of no other; None for anything else."""
+    """Return the option an argument names as argparse reads it, else None."""
     if arg in OPTIONS:
         return arg
     found = [name for name in OPTIONS if name.startswith("--") and arg.startswith("--") and len(arg) > 2 and name.startswith(arg)]
@@ -32,7 +32,7 @@ def option(arg: str) -> str | None:
 
 
 def window_now(argv: list[str]) -> str | None:
-    """The data folder when the app's arguments make a window now, None when they do not: --tray, --quit, the help, or anything the app's parser refuses (it says so, and no window comes)."""
+    """Return the data folder if the arguments make a window now (not --tray, --quit, help or a bad option)."""
     data: str | None = None
     args = iter(argv)
     for arg in args:
@@ -55,7 +55,7 @@ def window_now(argv: list[str]) -> str | None:
 
 
 def default_data() -> str:
-    """neoaprs.paths.default_data_dir without pathlib, which this module does not import (the test holds them equal)."""
+    """Return neoaprs.paths.default_data_dir without pathlib (a test keeps them equal)."""
     env = os.environ.get("NEOAPRS_DATA_DIR")
     if env:
         return env
@@ -69,9 +69,7 @@ def default_data() -> str:
 
 
 def running(data: str) -> bool:
-    """Whether an app holds the data folder, by the files it keeps there: its port file, and its pid file naming a process that is still there. Nothing is locked to find out, so an app starting beside this
-    one is not disturbed. A port file that a crash left behind with a pid that is used again leaves the splash out of one start; an app that is only starting is not seen, and this start shows the splash
-    until it finds the lock taken (cmd.run)."""
+    """Return True if an app holds the data folder (port file and a live pid file); nothing is locked."""
     try:
         if not os.path.isfile(os.path.join(data, PORT_NAME)):
             return False
@@ -83,18 +81,20 @@ def running(data: str) -> bool:
 
 
 def alive(pid: int) -> bool:
-    """single.process_alive, without its imports."""
+    """Return single.process_alive's answer without its imports."""
     if sys.platform == "win32":
         kernel32 = ctypes.WinDLL("kernel32")
         kernel32.OpenProcess.restype = ctypes.c_void_p
         kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
         kernel32.WaitForSingleObject.argtypes = (ctypes.c_void_p, wintypes.DWORD)
         kernel32.CloseHandle.argtypes = (ctypes.c_void_p,)
-        handle = kernel32.OpenProcess(0x00100000 | 0x1000, False, pid)             # SYNCHRONIZE and PROCESS_QUERY_LIMITED_INFORMATION
+        # SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION
+        handle = kernel32.OpenProcess(0x00100000 | 0x1000, False, pid)
         if not handle:
             return False
         try:
-            return bool(kernel32.WaitForSingleObject(handle, 0) == 0x102)           # WAIT_TIMEOUT: the process has not ended
+            # 0x102 is WAIT_TIMEOUT: the process has not ended.
+            return bool(kernel32.WaitForSingleObject(handle, 0) == 0x102)
         finally:
             kernel32.CloseHandle(handle)
     else:
@@ -108,7 +108,7 @@ def alive(pid: int) -> bool:
 
 
 def place(work: tuple[int, int, int, int], dpi: int) -> tuple[int, int, int, int]:
-    """Left, top, width and height of the splash: SIZE at the DPI, in the middle of the work area (left, top, right, bottom)."""
+    """Return left, top, width and height: SIZE at the DPI, centred in the work area."""
     width, height = (scaled(n, dpi) for n in SIZE)
     left, top, right, bottom = work
     return left + (right - left - width) // 2, top + (bottom - top - height) // 2, width, height
@@ -119,22 +119,23 @@ def scaled(pixels: int, dpi: int) -> int:
 
 
 def colorref(colour: str) -> int:
-    """A colour of the page (#rrggbb) as Windows takes it (0x00bbggrr)."""
+    """Convert #rrggbb to the Windows COLORREF (0x00bbggrr)."""
     red, green, blue = int(colour[1:3], 16), int(colour[3:5], 16), int(colour[5:7], 16)
     return blue << 16 | green << 8 | red
 
 
 class Splash:
-    """The handle: `close` takes the window away from any thread, before it is made (the thread then destroys it at once), while it shows, and after its thread has ended, any number of times."""
+    """The splash handle; `close` is safe from any thread, at any time, any number of times."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._hwnd = 0
         self._closed = False
-        self.procedure: object = None         # the window's procedure (a ctypes callback): kept here, never freed while Windows may still call it
+        # The window procedure (a ctypes callback), kept so it is not freed while still in use.
+        self.procedure: object = None
 
     def made(self, hwnd: int) -> bool:
-        """The window's thread has made the window; False when it was closed before that."""
+        """Record the new window; return False if the splash was closed before it was made."""
         with self._lock:
             if self._closed:
                 return False
@@ -142,7 +143,7 @@ class Splash:
             return True
 
     def gone(self) -> None:
-        """The window is destroyed, or its thread has ended: there is nothing left to close."""
+        """Record that the window is destroyed or its thread has ended."""
         with self._lock:
             self._closed, self._hwnd = True, 0
 
@@ -158,7 +159,7 @@ _current: Splash | None = None
 
 
 def show(argv: list[str]) -> None:
-    """The splash, on Windows, when the app's arguments make a window now and no app holds the data folder already (this start would only raise that one's window); once in a process."""
+    """Show the splash on Windows, once per process, unless no window is coming or an app runs already."""
     global _current
     if sys.platform == "win32":
         try:
@@ -166,18 +167,19 @@ def show(argv: list[str]) -> None:
             if _current is None and data is not None and not running(data):
                 _current = Splash()
                 threading.Thread(target=run, args=(_current,), name="neoaprs-splash", daemon=True).start()
-        except Exception:                                             # (the app starts as it would without a splash)
+        except Exception:
+            # The app starts as it would without a splash.
             _gave_up()
 
 
 def done() -> None:
-    """Takes the splash away, if there is one: safe anywhere, on any system, any number of times."""
+    """Close the splash if there is one; safe anywhere, on any system, any number of times."""
     if _current is not None:
         _current.close()
 
 
 def _gave_up() -> None:
-    """A line that says why there is no splash, in the app's log once it is set up and on the standard error before that (logging is imported only then)."""
+    """Log why there is no splash (logging is imported only now, to keep start-up light)."""
     import logging
     logging.getLogger("neoaprs.desktop").warning("splash: it could not be made", exc_info=True)
 
@@ -196,7 +198,8 @@ if sys.platform == "win32":
     SW_SHOWNOACTIVATE, SPI_GETWORKAREA, IDC_ARROW, TRANSPARENT = 4, 0x0030, 32512, 1
     DT_CENTER, DT_VCENTER, DT_SINGLELINE = 0x01, 0x04, 0x20
     FW_SEMIBOLD, CLEARTYPE_QUALITY = 600, 5
-    PER_MONITOR_AWARE_V2 = -4                 # a DPI_AWARENESS_CONTEXT: for this thread only, so that the process's own (pywebview's) is not touched
+    # A DPI_AWARENESS_CONTEXT, set for this thread only so pywebview's process setting is untouched.
+    PER_MONITOR_AWARE_V2 = -4
     LRESULT = ctypes.c_ssize_t
     WNDPROC = ctypes.WINFUNCTYPE(LRESULT, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
     P = ctypes.c_void_p
@@ -208,7 +211,8 @@ if sys.platform == "win32":
     class PAINTSTRUCT(ctypes.Structure):
         _fields_ = [("hdc", P), ("fErase", wintypes.BOOL), ("rcPaint", wintypes.RECT), ("fRestore", wintypes.BOOL), ("fIncUpdate", wintypes.BOOL), ("rgbReserved", ctypes.c_byte * 32)]
 
-    # Every call with its result and its arguments, on libraries of this module's own (ctypes.windll's functions are shared with pywebview and pystray, which give some of them other argument types).
+    # Each call's result and argument types, on this module's own library objects (ctypes.windll is
+    # shared with pywebview and pystray, which set other argument types on some of them).
     USER32: dict[str, tuple[object, ...]] = {"SetThreadDpiAwarenessContext": (P, P), "GetDpiForSystem": (wintypes.UINT,), "SystemParametersInfoW": (wintypes.BOOL, wintypes.UINT, wintypes.UINT, P, wintypes.UINT),
               "LoadCursorW": (P, P, P), "RegisterClassW": (wintypes.ATOM, P), "UnregisterClassW": (wintypes.BOOL, wintypes.LPCWSTR, P),
               "CreateWindowExW": (P, wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, P, P, P, P),
@@ -227,7 +231,8 @@ if sys.platform == "win32":
         if name not in _libraries:
             dll = ctypes.WinDLL(name)
             for call, (result, *arguments) in calls.items():
-                function = getattr(dll, call, None)                   # (the two DPI calls are Windows 10 1607 and later)
+                # The two DPI calls exist only on Windows 10 1607 and later.
+                function = getattr(dll, call, None)
                 if function is not None:
                     function.restype, function.argtypes = result, arguments
             _libraries[name] = dll
@@ -237,7 +242,7 @@ if sys.platform == "win32":
         return _library("user32", USER32)
 
     def run(handle: Splash) -> None:
-        """The splash's thread: the window, its message loop until it is destroyed, and what it used given back."""
+        """Thread body: make the window, run its message loop until destroyed, release resources."""
         try:
             user32, gdi32 = _user32(), _library("gdi32", GDI32)
             instance = _library("kernel32", KERNEL32).GetModuleHandleW(None)
@@ -247,7 +252,8 @@ if sys.platform == "win32":
             brush = gdi32.CreateSolidBrush(colorref(BACKGROUND[True]))
             font = gdi32.CreateFontW(-scaled(NAME_PX, dpi), 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, 1, 0, 0, CLEARTYPE_QUALITY, 0, FONT)
             try:
-                handle.procedure = WNDPROC(lambda hwnd, message, wparam, lparam: _message(handle, hwnd, message, wparam, lparam, font))     # (kept by the handle, which lives as long as the process)
+                # The handle keeps the callback alive for the life of the process.
+                handle.procedure = WNDPROC(lambda hwnd, message, wparam, lparam: _message(handle, hwnd, message, wparam, lparam, font))
                 kind = WNDCLASSW(lpfnWndProc=handle.procedure, hInstance=instance, hCursor=user32.LoadCursorW(None, IDC_ARROW), hbrBackground=brush, lpszClassName=WINDOW_CLASS)
                 if user32.RegisterClassW(ctypes.byref(kind)):
                     try:
@@ -257,7 +263,8 @@ if sys.platform == "win32":
             finally:
                 gdi32.DeleteObject(font)
                 gdi32.DeleteObject(brush)
-        except Exception:                                             # (no splash, and the app goes on as it would without one)
+        except Exception:
+            # No splash; the app goes on without one.
             _gave_up()
         finally:
             handle.gone()
@@ -275,18 +282,22 @@ if sys.platform == "win32":
             return
         try:
             user32.SetTimer(hwnd, 1, int(LIMIT_SEC * 1000), None)
-            user32.ShowWindow(hwnd, SW_SHOWNOACTIVATE)                # (not activated: the real window takes the focus when it comes, and nothing is given back to another program when this one goes)
+            # Not activated: the real window takes focus later, and focus is not handed to another
+            # program when this one goes.
+            user32.ShowWindow(hwnd, SW_SHOWNOACTIVATE)
             user32.UpdateWindow(hwnd)
             message = wintypes.MSG()
-            while user32.GetMessageW(ctypes.byref(message), None, 0, 0) > 0:     # (-1 is a failure: the loop ends, and so does the window)
+            # GetMessageW returns -1 on failure: the loop ends, and so does the window.
+            while user32.GetMessageW(ctypes.byref(message), None, 0, 0) > 0:
                 user32.TranslateMessage(ctypes.byref(message))
                 user32.DispatchMessageW(ctypes.byref(message))
         finally:
             handle.gone()
-            user32.DestroyWindow(hwnd)                                # (nothing when it is destroyed already; a window the loop left behind is not left to the end of the thread)
+            # Harmless if already destroyed; otherwise do not leave the window behind.
+            user32.DestroyWindow(hwnd)
 
     def _message(handle: Splash, hwnd: int, message: int, wparam: int, lparam: int, font: int) -> int:
-        """The window's procedure: the background is the class's brush; WM_CLOSE (from `close`) destroys the window by default, and so does the limit's timer. Once it is destroyed nothing is posted to it."""
+        """The window procedure; WM_CLOSE (from `close`) and the limit timer destroy the window."""
         user32 = _user32()
         if message == WM_PAINT:
             _paint(user32, hwnd, font)
@@ -314,7 +325,8 @@ if sys.platform == "win32":
                 user32.DrawTextW(hdc, NAME, -1, ctypes.byref(area), DT_CENTER | DT_VCENTER | DT_SINGLELINE)
                 gdi32.SelectObject(hdc, before)
         finally:
-            user32.EndPaint(hwnd, ctypes.byref(paint))               # (always: a WM_PAINT left unvalidated comes again at once, without end)
+            # Always end the paint: an unvalidated WM_PAINT is sent again at once, endlessly.
+            user32.EndPaint(hwnd, ctypes.byref(paint))
 else:
     def run(handle: Splash) -> None:
         """Only Windows has a splash."""

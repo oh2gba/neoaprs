@@ -1,4 +1,5 @@
-"""The tasks a part starts (neoaprs/tasks.py): cancelled and waited for, kept while they run, and an exception in one handed to the owner."""
+"""The tasks a part starts (neoaprs/tasks.py): cancelled and waited for, kept while they run, and an
+exception in one handed to the part that started it."""
 import asyncio
 import logging
 from typing import Any
@@ -111,7 +112,8 @@ async def test_the_cancellation_of_the_task_that_waits_in_cancel_all_is_not_swal
 
     waiting = asyncio.ensure_future(stopper())
     await cleaning.wait()
-    waiting.cancel()                                       # (the owner of the stop is cancelled while it waits for the slow one)
+    # The owner of the stop is cancelled while it waits for the slow one
+    waiting.cancel()
     with pytest.raises(asyncio.CancelledError):
         await waiting
     assert victim.done() and waiting.cancelled()

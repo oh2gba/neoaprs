@@ -1,20 +1,7 @@
-"""A Direwolf that is not one, for the tests: run as a program (`program(...)` is its command) it stands in for the `direwolf` binary for the tests of the daemon starting, watching and stopping it, and behaves as the
-Direwolf NeoAPRS builds does by its source (aprs-reference/direwolf-plan.md, section 3):
-
-- it reads the configuration named by `-c` (ADEVICE, PTT, the last KISSPORT that is not 0) and prints its banner;
-- with an ADEVICE of two numbers (Windows) it prints its two lists of WinMM devices with `*` on the one chosen (`WINMM_INPUTS`, `WINMM_OUTPUTS`);
-- it listens on its KISS port on 127.0.0.1, says "Ready to accept KISS TCP client application 0 on port N ...", and gives back every frame it is sent as a frame heard: with `-d n` it says the frame came
-  ("<<< Data frame from KISS client application ..." and its bytes), then `PTT 0 = 1` and `PTT 0 = 0` round the send, then `DCD 0 = 1`, the heard line with its level, `DCD 0 = 0` and the frame on the KISS port;
-- with `-x` it is a calibration run: `PTT 0 = 1` at once and nothing on any port;
-- it ends cleanly at the end of its standard input (`-Q`): `PTT 0 = 0` if it was keyed, "QRT", exit 0; and on SIGINT the same.
-
-Every run writes its command line, one line each, to `fake-direwolf-runs.txt` in its working directory (the radio's folder), so that a test can see how it was started. Its modes, as flags after the command:
-`--fail-card` (the sound card cannot be opened: the lines and exit 1), `--wrong-star` (Windows: the list stars another input), `--fail-keying` (the keying device cannot be opened: exit 1),
-`--cm108-unknown` (`PTT CM108` finds no chip on the card: it says so and runs on unkeyed), `--hidraw-denied` (the chip's HID cannot be opened at each key: it says so after `PTT 0 = 1`), `--busy-sec SECONDS`
-(each frame waits that long for a clear channel before it is sent), `--several-cm108`,
-`--port-taken` (the KISS port is taken: it says so and runs on with no KISS), `--die-after SECONDS`, `--ignore-stdin` (the end of its input does nothing), `--ignore-sigint`, `--listen-any` (it binds every
-interface), `--level N` (the level of the frames it hears, 48 by default). With `-R MS` it says "RXLEVEL 0 = N" every MS milliseconds, N the `--idle-level` (0 without it), as our Direwolf does
-(packaging/direwolf/rxlevel.patch)."""
+"""A stand-in for the `direwolf` binary, for the tests of the daemon starting, watching and stopping
+it. `program(...)` is its command. It reads the `-c` configuration, prints its banner, listens on
+its KISS port and gives back every frame it is sent as a frame heard.
+"""
 import asyncio
 import os
 import signal
@@ -33,7 +20,8 @@ MODES = ("--fail-card", "--wrong-star", "--fail-keying", "--cm108-unknown", "--h
 
 
 def program(*modes: str, die_after_sec: float | None = None, level: int | None = None, busy_sec: float | None = None, idle_level: int | None = None) -> list[str]:
-    """The command that runs this module as the Direwolf program, whatever the working directory, with its modes (MODES) after it."""
+    """The command that runs this module as the Direwolf program, whatever the working directory,
+    with its modes (MODES) after it."""
     assert all(mode in MODES for mode in modes), modes
     command = [sys.executable, "-c", f"import sys, runpy; sys.path.insert(0, {str(ROOT)!r}); runpy.run_module('tests.support.fakedirewolf', run_name='__main__')", *modes]
     if die_after_sec is not None:
@@ -41,7 +29,8 @@ def program(*modes: str, die_after_sec: float | None = None, level: int | None =
     if busy_sec is not None:
         command += ["--busy-sec", str(busy_sec)]
     if idle_level is not None:
-        command += ["--idle-level", str(idle_level)]                # (its `-a` line, with this as the receive level between the packets; not said without it)
+        # Its `-a` line, with this as the receive level between the packets; not said without it
+        command += ["--idle-level", str(idle_level)]
     return command + (["--level", str(level)] if level is not None else [])
 
 
@@ -50,7 +39,8 @@ def say(line: str) -> None:
 
 
 def runs(folder: Path) -> list[list[str]]:
-    """The command lines of the runs in this folder, oldest first (each without the interpreter and the module that stand in for the program)."""
+    """The command lines of the runs in this folder, oldest first (each without the interpreter and
+    the module that stand in for the program)."""
     path = folder / RUNS_FILE
     return [line.split("\t") for line in path.read_text(encoding="utf-8").splitlines()] if path.is_file() else []
 
@@ -118,11 +108,13 @@ class Fake:
 
     async def kiss(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         port, slot = self.conf["KISSPORT"], min(set(range(MAX_CLIENTS + 1)) - self.clients)
-        if slot == MAX_CLIENTS:                                          # (kissnet.c MAX_NET_CLIENTS: a fourth client is not taken)
+        # kissnet.c MAX_NET_CLIENTS: a fourth client is not taken
+        if slot == MAX_CLIENTS:
             writer.close()
             return
         self.clients.add(slot)
-        say(f"Attached to KISS TCP client application {slot} on port {port} ...")            # kissnet.c: said at every client, and then the next free place is offered
+        # kissnet.c: said at every client, and then the next free place is offered
+        say(f"Attached to KISS TCP client application {slot} on port {port} ...")
         if len(self.clients) < MAX_CLIENTS:
             say(f"Ready to accept KISS TCP client application {min(set(range(MAX_CLIENTS)) - self.clients)} on port {port} ...")
         try:
@@ -130,17 +122,20 @@ class Fake:
         finally:
             self.clients.discard(slot)
             say(f"KISS client application {slot} on TCP port {port} has gone away.")
-            if len(self.clients) == MAX_CLIENTS - 1:                     # (every place was taken: the one that is free again is offered)
+            # Every place was taken: the one that is free again is offered
+            if len(self.clients) == MAX_CLIENTS - 1:
                 say(f"Ready to accept KISS TCP client application {slot} on port {port} ...")
 
     async def statistics(self, every: float, level: int) -> None:
-        """Direwolf's `-a`: the sample rate, the audio errors and the receive level as it is now, every so many seconds (audio_stats.c)."""
+        """Direwolf's `-a`: the sample rate, the audio errors and the receive level as it is now,
+        every so many seconds (audio_stats.c)."""
         while True:
             await asyncio.sleep(every)
             say(f"ADEVICE0: Sample rate approx. 44.1 k, 0 errors, receive audio level CH0 {level}")
 
     async def levels_now(self, every_ms: int, level: int) -> None:
-        """Our Direwolf's `-R`: the receive level of channel 0 every so many milliseconds (packaging/direwolf/rxlevel.patch)."""
+        """Our Direwolf's `-R`: the receive level of channel 0 every so many milliseconds
+        (packaging/direwolf/rxlevel.patch)."""
         while True:
             await asyncio.sleep(every_ms / 1000)
             say(f"RXLEVEL 0 = {level}")
@@ -204,7 +199,9 @@ class Fake:
         except TimeoutError:
             say("the fake Direwolf dies as told")
             sys.stdout.flush()
-            os._exit(3)         # (as a program that dies: at once, and with nothing after its last line. The loop's own end can print a traceback on Windows, which would then be its last lines)
+            # As a program that dies: at once, and with nothing after its last line. The loop's own
+            # end can print a traceback on Windows, which would then be its last lines
+            os._exit(3)
         finally:
             if server is not None:
                 server.close()

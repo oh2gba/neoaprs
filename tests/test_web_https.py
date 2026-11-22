@@ -1,6 +1,7 @@
-"""The secure connection of the page (`web/https`; neoaprs/web/secureside.py, securehandlers.py): TLS on the port after the plain one with a real TLS client that trusts the authority, the redirect from the plain
-port for a device other than this computer, the authority's certificate to download, and that nothing changes while the setting is off. As in tests/test_web_access.py a request is made to look as if it came from elsewhere
-by saying that no address is the loopback (`away`)."""
+"""The secure connection of the page (`web/https`; neoaprs/web/secureside.py, securehandlers.py):
+TLS with a real client that trusts the authority, the redirect for another device, the authority's
+download, and nothing changing while the setting is off.
+"""
 import asyncio
 import json
 import logging
@@ -53,7 +54,8 @@ def away(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 async def served(tmp_path: Path, settings: dict[str, str] | None = None) -> Env:
-    e = Env(tmp_path, web=True, settings=settings, clock=utcnow)         # (the real time: a real TLS client looks at the dates)
+    # The real time: a real TLS client looks at the dates
+    e = Env(tmp_path, web=True, settings=settings, clock=utcnow)
     await e.start()
     assert e.server is not None
     if (settings or {}).get("web/https") == "true" and (settings or {}).get("web/network") == "true":
@@ -71,7 +73,8 @@ def ca_file(e: Env) -> str:
 
 
 async def https_fetch(e: Env, path: str = "/", headers: dict[str, str] | None = None, method: str = "GET", body: str | None = None, host: str = "127.0.0.1") -> HTTPResponse:
-    """A request over TLS that trusts the authority and nothing else; an answer of 400 or more is returned."""
+    """A request over TLS that trusts the authority and nothing else; an answer of 400 or more is
+    returned."""
     request = HTTPRequest(f"https://{host}:{secure_port(e)}{path}", method=method, headers=headers, body=body, ca_certs=ca_file(e), follow_redirects=False, validate_cert=True)
     try:
         return await AsyncHTTPClient().fetch(request)
@@ -112,7 +115,7 @@ def names_of(cert: x509.Certificate) -> set[str]:
     return {*value.get_values_for_type(x509.DNSName), *(str(ip) for ip in value.get_values_for_type(x509.IPAddress))}
 
 
-# ---- the secure page --------------------------------------------------------------------------------------------------------------------------------
+# ---- the secure page -----------------------------------------------------------------------------
 
 async def test_the_page_is_served_over_tls_on_the_port_after_the_plain_one_to_a_client_that_trusts_the_authority(tmp_path: Path) -> None:
     e = await served(tmp_path, HTTPS)
@@ -174,7 +177,7 @@ async def test_the_session_made_on_the_plain_port_is_not_marked_secure(tmp_path:
     assert answer.code == 204 and "Secure" not in answer.headers["Set-Cookie"]
 
 
-# ---- the plain port ---------------------------------------------------------------------------------------------------------------------------------
+# ---- the plain port ------------------------------------------------------------------------------
 
 async def test_a_device_on_the_plain_port_is_sent_to_the_same_address_on_the_secure_one(tmp_path: Path, away: None) -> None:
     e = await served(tmp_path, HTTPS)
@@ -236,7 +239,7 @@ async def test_the_loopback_keeps_its_plain_port_with_no_redirect_and_a_socket(t
     assert (await e.fetch("/", headers={"X-Forwarded-For": "203.0.113.9"})).code == 307, "a request through a proxy on this computer is not this computer"
 
 
-# ---- the authority's certificate --------------------------------------------------------------------------------------------------------------------
+# ---- the authority's certificate -----------------------------------------------------------------
 
 async def test_the_authority_certificate_is_a_download_in_der_on_both_ports_for_anyone_and_never_a_key(tmp_path: Path, away: None) -> None:
     e = await served(tmp_path, HTTPS)
@@ -258,7 +261,7 @@ async def test_the_log_has_no_key(tmp_path: Path, caplog: pytest.LogCaptureFixtu
     assert "PRIVATE" not in caplog.text
 
 
-# ---- while it is off --------------------------------------------------------------------------------------------------------------------------------
+# ---- while it is off -----------------------------------------------------------------------------
 
 async def test_with_the_setting_off_nothing_changes(tmp_path: Path, away: None) -> None:
     e = await served(tmp_path, {"web/network": "true", "web/key": KEY})
@@ -277,7 +280,7 @@ async def test_the_setting_without_the_network_does_nothing_either(tmp_path: Pat
     assert (await e.fetch("/")).code == 200
 
 
-# ---- the switch -------------------------------------------------------------------------------------------------------------------------------------
+# ---- the switch ----------------------------------------------------------------------------------
 
 async def test_the_switch_starts_and_stops_the_secure_page_while_the_daemon_runs_and_the_page_is_told(tmp_path: Path) -> None:
     e = await served(tmp_path, {"web/network": "true", "web/key": KEY})
@@ -315,7 +318,7 @@ async def test_the_network_off_stops_the_secure_page_too(tmp_path: Path) -> None
     assert (await https_fetch(e)).code == 200
 
 
-# ---- the certificate follows the computer -----------------------------------------------------------------------------------------------------------
+# ---- the certificate follows the computer --------------------------------------------------------
 
 async def test_a_new_address_of_the_computer_is_in_the_certificate_after_the_next_change_of_the_settings_and_the_authority_stays(tmp_path: Path, lan: Lan) -> None:
     e = await served(tmp_path, HTTPS)
@@ -337,7 +340,7 @@ async def test_the_certificate_is_looked_at_now_and_then_without_a_change_of_the
     await until_served(e, "10.9.8.7")
 
 
-# ---- when it cannot start ---------------------------------------------------------------------------------------------------------------------------
+# ---- when it cannot start ------------------------------------------------------------------------
 
 @pytest.mark.expects_errors
 async def test_if_the_certificates_cannot_be_made_the_plain_page_goes_on_and_the_page_is_told_why(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
@@ -359,9 +362,11 @@ async def test_if_no_port_after_the_plain_one_is_free_the_plain_page_goes_on_and
     e = await served(tmp_path, {"web/network": "true", "web/key": KEY})
     held: list[socket.socket] = []
     try:
-        for port in range(e.port + 1, e.port + 1 + PORT_TRIES):          # (one that cannot be taken here is skipped: another test may free it meanwhile)
+        # One that cannot be taken here is skipped: another test may free it meanwhile
+        for port in range(e.port + 1, e.port + 1 + PORT_TRIES):
             blocker = socket.socket()
-            blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)          # (as Tornado binds: a port that only has connections on it is free)
+            # As Tornado binds: a port that only has connections on it is free
+            blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 blocker.bind(("", port))
                 blocker.listen()

@@ -1,7 +1,7 @@
-"""The layers' service (neoaprs/services/layers.py, neoaprs/services/layerasked.py) with a fake fetch and the loop's time skipped (tests/support/virtualtime.py): a source is asked only while a page looks and never
-more often than its feed allows however many look; a failure backs off, a refusal of the request stops the feed until the daemon starts again, a 429 is waited out; a service's answer is cut to the true circle and the
-nearest, the own receiver's by nothing; the ages; the own receiver asked at the start and at a save, found in its places and its state told; the doors of NEOAPRS_UPDATE_CHECK and NEOAPRS_LAYERS_URL; nothing made
-or stopped after the service's stop; and, with a fake server on the loopback, what a service's question carries and that a long answer does not hold the daemon's loop."""
+"""Tests for the layers service (neoaprs/services/layers.py, layerasked.py) with a fake fetch and
+skipped loop time (tests/support/virtualtime.py): rate limits, back-off, refusals, circle cutting,
+the own receiver, environment switches, and shutdown.
+"""
 import asyncio
 import gzip
 import json
@@ -37,7 +37,8 @@ def sky(*planes: dict[str, Any]) -> bytes:
 
 
 class Net:
-    """The internet and the receivers as a fetch function: `answer(url)` says what each address answers (None: not there); every question is kept."""
+    """The internet and the receivers as a fetch function: `answer(url)` says what each address
+    answers (None: not there); every question is kept."""
 
     def __init__(self, answer: Callable[[str], FeedAnswer | None] | None = None) -> None:
         self.answer = answer or (lambda url: FeedAnswer(200, sky(plane("461f2a"))))
@@ -177,8 +178,10 @@ async def test_a_429_is_waited_out_for_as_long_as_its_retry_after_says() -> None
 
 async def test_a_services_answer_is_cut_to_the_true_circle_and_the_300_nearest_with_an_emergency_kept_beyond_them() -> None:
     near = [plane(f"a{n:05x}", 60.2231 + n * 0.0002, 24.7152) for n in range(400)]           # (within 10 km)
-    far_in_circle = plane("e00001", 61.2, 24.7152, squawk="7700")                                # (109 km: in the circle, beyond the 300 nearest)
-    outside = [plane("b00001", 61.7, 24.7152), plane("e00002", 61.8, 24.7152, emergency="general")]          # (165 and 176 km: the request asked for the circle and 8 km more)
+    # (109 km: in the circle, beyond the 300 nearest)
+    far_in_circle = plane("e00001", 61.2, 24.7152, squawk="7700")
+    # (165 and 176 km: the request asked for the circle and 8 km more)
+    outside = [plane("b00001", 61.7, 24.7152), plane("e00002", 61.8, 24.7152, emergency="general")]
     async with virtual_time():
         net = Net(lambda url: FeedAnswer(200, sky(*near, far_in_circle, *outside)))
         service = await layers(net, Settings(map_aircraft="adsbfi", map_radius_km=150))
@@ -441,7 +444,8 @@ async def test_the_loop_is_not_held_while_a_receiver_answers_some_16_megabytes()
     many = [plane(f"{n:06x}", lat=60 + (n % 1000) / 1000, lon=24 + (n // 1000) / 100, flight="FIN123  ", r="OH-ABC", t="A320", squawk="1234", category="A3") for n in range(75000)]
     body = sky(*many)
     assert 12_000_000 < len(body) <= MAX_UNPACKED
-    receiver.route("/tar1090/data/aircraft.json", body=gzip.compress(body), headers={"Content-Encoding": "gzip"})       # (packed here, not by the fake server on the loop)
+    # (packed here, not by the fake server on the loop)
+    receiver.route("/tar1090/data/aircraft.json", body=gzip.compress(body), headers={"Content-Encoding": "gzip"})
 
     async def held() -> float:
         """The longest the loop was kept from a ping while one answer was fetched, read and cut."""
@@ -465,7 +469,9 @@ async def test_the_loop_is_not_held_while_a_receiver_answers_some_16_megabytes()
             await service.stop()
         return worst
 
-    # (An answer read on the loop holds it for most of a second on a fast machine and longer on a slow one; read on a thread, item by item, the loop waited 10 ms here, 60 ms in the Windows machine
-    # and 80 ms in the runner-sized container. A machine busy with the other tests can keep any loop waiting for a moment, so the best of three goes counts.)
+    # (An answer read on the loop holds it for most of a second on a fast machine and longer on a
+    # slow one; read on a thread, item by item, the loop waited 10 ms here, 60 ms in the Windows
+    # machine and 80 ms in the runner-sized container. A machine busy with the other tests can keep
+    # any loop waiting for a moment, so the best of three goes counts.)
     best = min([await held() for _ in range(3)])
     assert best < 0.25, f"the loop was held {best * 1000:.0f} ms"

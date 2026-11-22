@@ -1,6 +1,6 @@
-"""The directed queries the page can send (`Asking.ask`, the command `query`): the text of each kind on the air as a message without an id, sent once and never again, the rate limit of one query of a kind to a station in
-60 seconds, the refusals (a call that is none, ourselves, the interlock, a silent radio, a station that is unknown or takes no messages), the row kept in the conversation, and the command over the socket. Everything goes
-through a stub Tnc or the fake radio of an `Env`: nothing is transmitted on a real radio."""
+"""Tests for the directed queries (`Asking.ask`, the `query` command): the text sent on the air, the
+one-per-minute limit for each kind and station, the refusals, and the conversation row.
+"""
 from dataclasses import replace
 from pathlib import Path
 
@@ -217,7 +217,8 @@ async def test_query_to_a_station_that_is_not_in_the_book_is_refused(tmp_path: P
 
 async def test_a_station_whose_position_takes_no_messages_can_still_be_asked_and_is_marked(tmp_path: Path) -> None:
     e, page = await with_page(tmp_path)
-    await hear_station(e, page, "OH2PLN", b"!6010.00N/02456.00E>x")                       # (a position with no messaging)
+    # (a position with no messaging)
+    await hear_station(e, page, "OH2PLN", b"!6010.00N/02456.00E>x")
     row = page.topics["stations"]["OH2PLN"]
     assert row["can_message"] is True and row["may_not_message"] is True, "the operator may write; the page says it may not be read (John, 4 Nov 2026)"
     await page.send({"cmd": "query", "call": "OH2PLN", "kind": "status"})

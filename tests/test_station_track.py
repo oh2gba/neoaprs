@@ -1,4 +1,6 @@
-"""A station's track asked for by itself (`station_track`, R15 of the review of 2 November): the answer is what the station's row has in `track`, oldest first; a call the topic has no row of is refused with `station.unknown`. Over the page's socket of a real daemon."""
+"""A station's track asked for by itself (`station_track`): the answer is the station row's `track`,
+oldest first; a call with no row is refused with `station.unknown`. Over the page socket of a real
+daemon."""
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path

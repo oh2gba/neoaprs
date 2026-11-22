@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
-"""The smoke test of an installed NeoAPRS, on any system: a fake KISS TNC on a TCP port plays the capture of a radio, the daemon is started on a data folder of its own with that port, and what a user would see is checked.
+"""Smoke test of an installed NeoAPRS: a fake KISS TNC feeds a daemon, which is then checked.
 
-The page and one script of it are fetched, the world map that ships with the program is asked for a range, the WebSocket of the page tells that the FM radio (the fake TNC) is connected and that packets came, then the daemon is stopped the way its system stops a program (SIGTERM; Ctrl+Break on
-Windows) and must end with exit code 0, a log whose last line is `NeoAPRS ended`, and a database that passes `PRAGMA integrity_check`. Nothing is sent to a radio and nothing leaves the loopback.
-
-  scripts/smoke.py                                  the daemon of this interpreter: python -m neoaprs
-  scripts/smoke.py --command VENV/bin/neoaprs        the installed command (VENV\\Scripts\\neoaprs.exe on Windows), as CI runs it against the wheel
-Run it with the Python that has neoaprs installed (it uses Tornado's WebSocket client). The other scripts that talk to a daemon's page take its socket and its readers from here (`PageSocket`, `radio_of`,
-`heard_on`, `give_radio`): each reads the radios by the topic `radios` and works them by the radio commands. Exit code 0: all is well; 1: the first thing that was not, said on stderr with the end of the daemon's log.
-"""
+  scripts/smoke.py                          the daemon of this interpreter: python -m neoaprs
+  scripts/smoke.py --command VENV/bin/neoaprs    the installed command (as CI runs it)"""
 import argparse
 import asyncio
 import json
@@ -33,7 +27,8 @@ FIXTURE = ROOT / "tests" / "fixtures" / "kiss" / "thd7-2026-10-21.bin"
 LOG = "neoaprs.log"
 DATABASE = "neoaprs.sqlite"
 WINDOWS = sys.platform == "win32"
-RADIOS = "radios"                                                                       # the topic of every radio, keyed by its id
+# The topic of every radio, keyed by its id.
+RADIOS = "radios"
 
 
 class Failure(Exception):
@@ -41,7 +36,7 @@ class Failure(Exception):
 
 
 class FakeTnc:
-    """A KISS TNC on the loopback: every client that connects is sent the capture and what it writes is thrown away."""
+    """A KISS TNC on the loopback: each client is sent the capture; what it writes is discarded."""
     DELAY_SEC = 0.5
     REPEAT_SEC = 3.0
 
@@ -68,7 +63,9 @@ class FakeTnc:
             threading.Thread(target=self._serve, args=(client,), daemon=True).start()
 
     def _serve(self, client: socket.socket) -> None:
-        """The capture is played a moment after the connection and again every few seconds: a daemon throws away what is waiting at the moment it opens a line, and a slow runner may be past that or not."""
+        """Play the capture shortly after connection and again every few seconds.
+
+        A daemon discards what is waiting when it opens a line; a slow runner may be past that."""
         threading.Thread(target=self._play, args=(client,), daemon=True).start()
         try:
             while client.recv(4096):
@@ -108,11 +105,13 @@ def log_tail(data: Path, lines: int = 25) -> str:
 
 def start_daemon(program: list[str], data: Path, tnc: FakeTnc) -> subprocess.Popen[bytes]:
     out = (data.parent / "daemon.out").open("wb")
-    flags = subprocess.CREATE_NEW_PROCESS_GROUP if WINDOWS else 0          # type: ignore[attr-defined, unused-ignore]  (so that Ctrl+Break reaches this child only)
+    flags = subprocess.CREATE_NEW_PROCESS_GROUP if WINDOWS else 0          # type: ignore[attr-defined, unused-ignore]  (Ctrl+Break reaches this child only)
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG")}
-    env.setdefault("NEOAPRS_SERIAL_PATTERN", "/dev/neoaprs-smoke-no-such-port*")          # the daemon has a radio (--port) and searches no serial port of the machine
-    env["NEOAPRS_UPDATE_CHECK"] = "0"                                                      # and does not ask the version page
-    env["NEOAPRS_NO_DEVICES"] = "1"                                                        # and opens no device and reaches nothing but this computer, whatever a setting says (neoaprs/nodevices.py)
+    # The daemon has a radio (--port), searches no serial port and does not ask the version page.
+    env.setdefault("NEOAPRS_SERIAL_PATTERN", "/dev/neoaprs-smoke-no-such-port*")
+    env["NEOAPRS_UPDATE_CHECK"] = "0"
+    # No device is opened and nothing but this computer is reached (neoaprs/nodevices.py).
+    env["NEOAPRS_NO_DEVICES"] = "1"
     return subprocess.Popen([*program, "--data", str(data), "--port", tnc.url, "--web-port", "0"], stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, env=env, creationflags=flags)
 
 
@@ -133,7 +132,7 @@ def wait_for_page(daemon: subprocess.Popen[bytes], data: Path, seconds: float) -
 
 
 def fetch(url: str) -> tuple[int, Any, bytes]:
-    with urllib.request.urlopen(url, timeout=15) as answer:  # noqa: S310  (the page of the daemon this script started: the http://127.0.0.1 address `wait_for_page` read from its log)
+    with urllib.request.urlopen(url, timeout=15) as answer:  # noqa: S310  (the loopback page of the daemon this script started)
         return answer.status, answer.headers, answer.read()
 
 
@@ -154,8 +153,8 @@ def check_the_page(base: str) -> None:
 
 
 def check_the_world_map(base: str) -> None:
-    """The world map that ships with the program is served from a data folder that has none (a wheel, the Windows app's frozen folder, an AppImage, a .deb: each has it in its own place)."""
-    request = urllib.request.Request(base + "basemap-world.pmtiles", headers={"Range": "bytes=0-126"})  # noqa: S310  (the same page: `base` is that http://127.0.0.1 address)
+    """Check that the shipped world map is served from a data folder that has none."""
+    request = urllib.request.Request(base + "basemap-world.pmtiles", headers={"Range": "bytes=0-126"})  # noqa: S310  (the same loopback page)
     try:
         with urllib.request.urlopen(request, timeout=15) as answer:  # noqa: S310  (the request made on the line before)
             status, head = answer.status, answer.read()
@@ -166,15 +165,17 @@ def check_the_world_map(base: str) -> None:
     say(f"the world map is served (to zoom {head[101]})")
 
 
-FIRST_RADIO = "kiss"                     # the radio a new installation is given first, as the setup guide gives it: radio 1, the one --port names, the fake TNC
+# The radio a new installation is given first, as the setup guide does: radio 1, the fake TNC.
+FIRST_RADIO = "kiss"
 
 
 async def watch_the_socket(base: str, seconds: float) -> tuple[str, int]:
-    """Opens /ws as the page does, gives the new installation its first radio (FIRST_RADIO, by the radio commands, as the setup guide does: a new installation has none), and waits until it is `connected`
-    to the fake TNC of --port and a packet is there; returns the state and the number of packets. The radio is read in the topic `radios`, which the hello must name."""
+    """Open /ws, give the new installation its first radio, and wait until it is `connected` and a
+    packet is there; return the state and the packet count. The hello must name `radios`."""
     page = await PageSocket.open(base)
     try:
-        wire = page.wire                                                                # (a hello that names no topic `radios` is a Failure here, before the wait)
+        # A hello that names no topic `radios` is a Failure here, before the wait.
+        wire = page.wire
         await give_radio(page, "fm", FIRST_RADIO, {}, seconds)
         await page.until(f"the FM radio connected and a packet (the topic {wire})", lambda p: radio_state(p.topics, "fm") == "connected" and bool(p.topics.get("packets")), seconds)
         return "connected", len(page.topics["packets"])
@@ -183,7 +184,7 @@ async def watch_the_socket(base: str, seconds: float) -> tuple[str, int]:
 
 
 def wire_of(hello: dict[str, Any]) -> str:
-    """The topic of the radios, `radios`, which the daemon's `hello` must list (the commands that name a radio, the rows' `heard` by radio go with it). A daemon that does not list it is a Failure, never a guess."""
+    """Return the topic `radios`, which the daemon's `hello` must list; otherwise a Failure."""
     topics = hello.get("topics") or []
     if RADIOS in topics:
         return RADIOS
@@ -191,13 +192,13 @@ def wire_of(hello: dict[str, Any]) -> str:
 
 
 def live_radios(topics: dict[str, Any], kind: str) -> list[dict[str, Any]]:
-    """The radios of a kind that are not removed, by position, as the topic `radios` tells them; [] while it is not told."""
+    """Return the radios of a kind that are not removed, by position; [] until the topic is told."""
     rows = (topics.get(RADIOS) or {}).values()
     return sorted((row for row in rows if row.get("kind") == kind and not row.get("removed")), key=lambda row: (row.get("position", 0), row.get("id", 0)))
 
 
 def radio_of(topics: dict[str, Any], kind: str) -> dict[str, Any] | None:
-    """The radio of a kind as the page holds it: the first enabled one of the topic `radios`; None while there is none or the topic is not told."""
+    """Return the first enabled radio of a kind from the topic `radios`, or None."""
     return next((row for row in live_radios(topics, kind) if row.get("enabled")), None)
 
 
@@ -208,15 +209,15 @@ def radio_state(topics: dict[str, Any], kind: str) -> str | None:
 
 
 def modem_state(topics: dict[str, Any], kind: str, id: int | None = None) -> str | None:
-    """`starting`, `running`, ... of the Mercury modem of a radio: the radio `id` of the topic `radios`, or the radio of a kind (radio_of); None while it has no modem or is not told."""
+    """Return the state (`starting`, `running`, ...) of a radio's Mercury modem, or None."""
     radio = (topics.get(RADIOS) or {}).get(str(id)) if id is not None else radio_of(topics, kind)
     return ((radio or {}).get("modem") or {}).get("state")
 
 
 def heard_on(topics: dict[str, Any], row: dict[str, Any], kind: str) -> int:
-    """How many packets of a station's row came on the radios of a kind: its `heard` by radio id, counted for the radios of that kind of the topic `radios`. A row read before the topic `radios` has come counts 0
-    (the hello lists the stations first: a radio not yet told is one whose kind is not yet known), as does a radio the row names that `radios` does not yet tell. A row without `heard` is a Failure: the wire
-    changed under the script."""
+    """Return how many packets of a station's row came on radios of a kind (`heard` by radio id).
+
+    A radio not yet told counts 0; a row without `heard` is a Failure."""
     if "heard" not in row:
         raise Failure(f"the row of {row.get('call')} says nothing of what the {kind} radios heard: it has no heard (by radio)")
     kinds = {str(radio.get("id")): radio.get("kind") for radio in (topics.get(RADIOS) or {}).values()}
@@ -224,8 +225,8 @@ def heard_on(topics: dict[str, Any], row: dict[str, Any], kind: str) -> int:
 
 
 class PageSocket:
-    """The page's WebSocket, read as the page reads it: the hello, the topics as the page holds them, the latest status, and every other message (an answer, a refusal) in the order it came. The socket is read
-    while something is waited for (`until`); the client answers the daemon's pings by itself meanwhile."""
+    """The page's WebSocket, read as the page reads it: the hello, the topics, the status and other
+    messages in order. It is read only inside `until`; the client answers pings itself."""
 
     def __init__(self, connection: Any, hello: dict[str, Any]) -> None:
         self.connection, self.hello = connection, hello
@@ -250,16 +251,16 @@ class PageSocket:
         return wire_of(self.hello)
 
     async def send(self, command: dict[str, Any]) -> int:
-        """Sends a command; the number of messages read before it (what `refusal` looks at after it)."""
+        """Send a command; return the number of messages read before it (see `refusal`)."""
         await self.connection.write_message(json.dumps(command))
         return len(self.messages)
 
     def refusal(self, since: int, *commands: str) -> dict[str, Any] | None:
-        """The first `error` that answers one of `commands` among the messages read after `since`."""
+        """Return the first `error` answering one of `commands` after message `since`."""
         return next((m for m in self.messages[since:] if m.get("type") == "error" and m.get("cmd") in commands), None)
 
     async def until(self, what: str, condition: Callable[["PageSocket"], bool], seconds: float) -> None:
-        """Reads until `condition` holds; Failure when the time is up or the socket closes first, with the refusals the daemon sent."""
+        """Read until `condition` holds; Failure if time is up or the socket closes first."""
         loop = asyncio.get_running_loop()
         deadline = loop.time() + seconds
         while not condition(self):
@@ -282,13 +283,13 @@ class PageSocket:
                 self.messages.append(message)
 
     def config(self) -> dict[str, str]:
-        """The settings in force as the topic `config` tells them: its `values`, and a radio's own `radio/<id>/<key>` (and `email/radio`) wherever the daemon tells them, in `values` as breakdown 1.11
-        words it or in `radio_values` beside it, which the round's wire keeps apart so that the form of before shows none of them."""
+        """Return the settings in force from the topic `config`: `values`, plus a radio's own
+        `radio/<id>/<key>` from `values` or from `radio_values`."""
         told = self.topics.get("config") or {}
         return {**(told.get("values") or {}), **(told.get("radio_values") or {})}
 
     async def set_config(self, values: dict[str, str], seconds: float) -> None:
-        """Saves settings as the settings form does, and waits until the topic `config` has them; a refusal is a Failure with the daemon's words."""
+        """Save settings as the settings form does and wait until `config` has them."""
         since = await self.send({"cmd": "set_config", "values": values})
         await self.until(f"the settings {', '.join(values)} saved", lambda p: p.refusal(since, "set_config") is not None or all(p.config().get(k) == v for k, v in values.items()), seconds)
         if refused := self.refusal(since, "set_config"):
@@ -299,9 +300,11 @@ class PageSocket:
 
 
 async def give_radio(page: PageSocket, kind: str, radio_type: str, values: dict[str, str], seconds: float) -> int:
-    """Makes the first radio of a kind one of `radio_type`, enabled, with its own `values` (by the radio's keys: `keying`, `sound_card` ...), the way the page does it: the radio commands (`radio_add` when the
-    station has no radio of the kind, `radio_change`) and `radio/<id>/<key>` in `set_config`. Waits until the daemon tells it so; a refusal is a Failure. The radio's id."""
-    await page.until(f"the settings and the radios told (the topic {page.wire})", lambda p: "config" in p.topics and RADIOS in p.topics, seconds)      # (a hello without it is a Failure, before the wait)
+    """Make the first radio of a kind a `radio_type`, enabled, with `values`, as the page does.
+
+    Waits until the daemon says so; a refusal is a Failure. Return the radio's id."""
+    # A hello without it is a Failure, before the wait.
+    await page.until(f"the settings and the radios told (the topic {page.wire})", lambda p: "config" in p.topics and RADIOS in p.topics, seconds)
     radio = next(iter(live_radios(page.topics, kind)), None)
     if radio is None:
         since = await page.send({"cmd": "radio_add", "type": radio_type})

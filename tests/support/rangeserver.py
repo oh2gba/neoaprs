@@ -1,12 +1,6 @@
-"""A web server on the loopback that serves one file with range requests, the way a map server does (206 and Content-Range), and the ways one goes wrong, for the cut of the base map (neoaprs/pmtilescut.py).
-
-    server = await range_server(data)                   # stopped when the test is over; server.url is the address of the file
-    server.mode = "whole"                               # ranges (default); whole: 200 and a body that does not end; wrong: other bytes than those asked for; missing: 404;
-                                                        # moved: 302 to `server.moved_to`; mute: nothing at all, not even the status line, until the test sets `server.release` or the client closes
-    server.cut = 2                                      # the next two answers stop halfway and the connection is closed
-    server.busy = 1                                     # the next answer is 503
-    server.hold_from = offset                           # an answer for bytes from there sends a little and then nothing, until the test sets `server.release` or the client closes
-    server.asked                                        # (first, last) of every request, in order; server.cuts: the cuts begun (each reads the header first); server.sent: the bytes of the bodies sent; server.holding: the answers held now"""
+"""A loopback web server that serves one file with range requests (206 and Content-Range) and the
+ways one goes wrong, for the cut of the base map (neoaprs/pmtilescut.py).
+"""
 import asyncio
 import re
 

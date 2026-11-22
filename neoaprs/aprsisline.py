@@ -1,13 +1,8 @@
-"""A line of APRS-IS (the packet as an Internet server hands it on: TNC2 text, `SRC>DST,PATH,qAC,SERVER:information`) as a `Packet` that came `via="is"`.
+"""Parse a line of APRS-IS (`SRC>DST,PATH:information`) into a `Packet` with `via="is"`.
 
-This is the one way a packet from the internet becomes a Packet; the connection that reads the lines is not here (it calls `parse_is_line` and hands the packet to the program through the one gate for internet
-packets, `Services.hear_internet` of neoaprs/app.py). The packet has no AX.25 frame: its `raw` is the line itself, its `path` everything between the destination and the colon (digipeaters, the q-construct and
-the server or iGate that follows it), and its `info` the bytes after the first colon, read by the ordinary dispatcher (a third-party packet inside it is opened as on the air).
-
-The q-construct (APRS-IS, "q construct" specification) says how the packet entered the network: `qAC` from a verified client connection, `qAS` from an unverified one, `qAR` and `qAO` from an iGate that heard it on the
-radio (`qAR`: a verified connection; `qAO`: receive only), `qAU` over UDP, `qAX` from an unverified login, `qAI` a packet that has been traced. The element after it is the server or the iGate.
-
-Pure code, like the parsers it uses."""
+The packet has no AX.25 frame. The q-construct in the path says how it entered the network;
+the call after it is the server or iGate.
+"""
 import re
 from datetime import datetime
 from typing import NamedTuple
@@ -17,13 +12,15 @@ from .callsign import PATH_ELEMENT, CallsignError, normal_name
 from .packet import IS, Packet
 from .route import IGATE_QS, is_q_construct
 
-MAX_LINE = 512                                       # bytes of a line of APRS-IS with its CR LF
-PATH_MAX = 32                                      # elements between the destination and the colon (a server adds a few to the 8 an AX.25 path may have)
-_IPV6_ELEMENT = re.compile(r"[0-9A-Fa-f]{32}")      # what aprsc puts after the q-construct for a client it knows by an IPv6 address
+MAX_LINE = 512  # bytes of an APRS-IS line with its CR LF
+# elements between destination and colon (servers add a few to the 8 an AX.25 path may have)
+PATH_MAX = 32
+# what aprsc puts after the q-construct for an IPv6 client
+_IPV6_ELEMENT = re.compile(r"[0-9A-Fa-f]{32}")
 
 
 class IsLineError(ValueError):
-    """The line is no packet: a comment of the server (`# logresp ...`), or a header that is none. `comment` is true for a server's comment line, which is no fault."""
+    """The line is no packet: a server comment (`# logresp ...`, `comment` true) or a bad header."""
 
     def __init__(self, reason: str, comment: bool = False) -> None:
         super().__init__(reason)
@@ -31,12 +28,12 @@ class IsLineError(ValueError):
 
 
 class QConstruct(NamedTuple):
-    code: str                                      # `qAC`, `qAR`, `qAO`, ... as written
-    server: str                                    # the call after it, the server or the iGate; empty when the line ends there
+    code: str  # `qAC`, `qAR`, ... as written
+    server: str  # the call after it; empty when the line ends there
 
 
 def q_construct(path: tuple[str, ...]) -> QConstruct | None:
-    """The q-construct of a path and the call after it; None for a path with none."""
+    """Return the q-construct of a path and the call after it; None for a path with none."""
     for i, element in enumerate(path):
         if is_q_construct(element):
             return QConstruct(element, path[i + 1].rstrip("*") if i + 1 < len(path) else "")
@@ -44,13 +41,13 @@ def q_construct(path: tuple[str, ...]) -> QConstruct | None:
 
 
 def heard_by_radio(path: tuple[str, ...]) -> bool:
-    """Whether the q-construct says an iGate heard the packet on the radio (`qAR`, `qAO`) and not that a client sent it into the network itself."""
+    """Return whether the q-construct (`qAR`, `qAO`) says an iGate heard the packet on the radio."""
     found = q_construct(path)
     return found is not None and found.code in IGATE_QS
 
 
 def _path_is_sound(path: list[str]) -> bool:
-    """Every element of the path is a name of APRS-IS, with a star if it has been repeated; after the q-construct one may also be the 32 hex characters of an IPv6 address."""
+    """Return whether every path element is an APRS-IS name, or IPv6 hex after the q-construct."""
     after_q = False
     for element in path:
         if PATH_ELEMENT.fullmatch(element) is None and not (after_q and _IPV6_ELEMENT.fullmatch(element)):
@@ -60,14 +57,15 @@ def _path_is_sound(path: list[str]) -> bool:
 
 
 def is_comment(line: bytes | str) -> bool:
-    """Whether the line is one of the server's comments (`# aprsc 2.1.15`, `# logresp OH2GBA verified, server T2FINLAND`) and no packet."""
+    """Return whether the line is a server comment (`# aprsc 2.1.15`, `# logresp ...`)."""
     return line.lstrip()[:1] in (b"#", "#")
 
 
 def parse_is_line(line: bytes | str, now: datetime) -> Packet:
-    """The packet for a line of APRS-IS received at `now`, as `Packet(via="is")`. A line of text is taken as UTF-8; the bytes a server sends are kept as they are (the information field of a Mic-E packet is
-    not text). The line's end (CR, LF) is not part of it. Raises IsLineError for a comment of the server and for a header that is none (no `>` or `:`, a source or destination that is neither a call nor a
-    name APRS-IS allows, an element of the path that is none, an empty information field)."""
+    """Return the packet for a line of APRS-IS received at `now`; bytes are kept as they are.
+
+    Raise IsLineError for a server comment or a bad header.
+    """
     data = line.encode("utf-8") if isinstance(line, str) else bytes(line)
     data = data.rstrip(b"\r\n")
     if is_comment(data):

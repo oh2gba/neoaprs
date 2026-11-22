@@ -1,11 +1,7 @@
-"""What a Mercury modem holds of the station (plan §2, "Resources"; neoaprs/claims.py, the one table the radio registry keeps), the half of the modem part (mercurymodem.py, whose `Mercury` inherits this) that
-keeps it: the radio's own folder (`home`: the configuration, the process id, the speaker's pipes and what the program writes where it runs), the pair of ports of a start (`HeldPorts`: chosen once and kept for a program
-started again in the place of one that died; from the table when the modem has one, mercuryhelper.next_modem_ports), and the sound card and the keying line the program runs with.
+"""What a Mercury modem holds of the station: its folder, its ports, its sound card and keying line.
 
-A modem that is given the table holds its pair, its sound card and its keying line in it as the radio it is (`holder`), so that a second radio's modem is started on another pair and the daemon's own choice of its card and
-its keying leaves them out; what it holds is let go at its stop, and kept while a program that died is started again. A modem made without the table holds nothing and finds its ports by probing alone; one made without a
-folder of its own keeps its files in the data folder. What a NeoAPRS of one HF radio left in the data folder is radio 2's (`take_folder`); a Mercury a daemon left running is ended at the next start (`end_left_behind`). A class of its own for its size: it reads and sets the modem's ports and asks
-it for a free pair (`_free_pair`, which the modem part provides)."""
+The claims half of `Mercury`. Without the claims table a modem holds nothing and probes for ports.
+"""
 import logging
 import os
 import sys
@@ -27,35 +23,37 @@ log = logging.getLogger("neoaprs.mercury")
 
 INI_FILE = "mercury.ini"
 PID_FILE = "mercury.pid"
-RADIOS_FOLDER = "radios"                                                         # the radios' own folders in the data folder, one by id: radios/2
-MODEM_KINDS: frozenset[ResourceKind] = frozenset({"sound_card", "keying", "modem_ports"})     # what a modem holds (its radio's line holds its serial port, which the modem's line, a socket, has none of)
+RADIOS_FOLDER = "radios"  # per-radio folders in the data folder
+# What a modem holds; its radio's line holds the serial port.
+MODEM_KINDS: frozenset[ResourceKind] = frozenset({"sound_card", "keying", "modem_ports"})
 
 
 def keying_claim(keying: Keying, device: str | None, windows: bool = sys.platform == "win32") -> str | None:
-    """What a modem's keying holds in the station's table: the port of a serial line (its claim value, `device`), and on Windows `cm108` for the whole station, since a CM108 key there is any CM108-class chip (Direwolf
-    keys the last of several, cm108.c:785-817): one radio at a time keys by CM108 there, whatever its type. None for VOX, and for CM108 elsewhere (the card's own chip, which the card's claim covers)."""
+    """Return what a modem's keying holds: a serial port, or "cm108" for the station on Windows.
+
+    On Windows Direwolf keys the last of several CM108 chips, so one radio at a time may use it.
+    """
     if device:
         return device
     return "cm108" if keying.kind == "cm108" and windows else None
 
 
 def held_card(claims: Claims | None, holder: RadioId, card: str) -> str:
-    """The modem's sound card while the station's table has a sound card held by its radio, which is the card it chose last (held in the table's own way of naming it); "" while it holds none: another radio
-    holds that card, or the radio let it go when its start was refused. Without the table, the card as it is."""
+    """Return the modem's sound card while its radio holds one in the table, else ""."""
     if claims is None or not card:
         return card
     return card if any(c.kind == "sound_card" and c.holder == holder for c in claims.all()) else ""
 
 
 def radio_folder(data_dir: Path, radio: RadioId) -> Path:
-    """The radio's own folder in the data folder, where the files of its modem are (made at the modem's first start)."""
     return data_dir / RADIOS_FOLDER / str(radio)
 
 
 def take_folder(data_dir: Path, folder: Path, inherit: bool = True, program: Command | None = None) -> None:
-    """Makes the radio's own folder for the modem's files and, for the radio that was the HF radio (`inherit`: radio 2), takes over what a NeoAPRS of one HF radio left in the data folder: the configuration is
-    moved, a Mercury it may have left running (its process id, run with the data folder's configuration, `program` being what this radio runs) is ended there and its file consumed (honoured once), and the
-    speaker's old pipes are removed. A file that cannot be moved is a line in the log, and the start goes on. Nothing when the folder is the data folder. OSError when the folder cannot be made."""
+    """Make the radio's folder and, if `inherit`, take over the files an old layout left in the data dir.
+
+    A file that cannot be moved is logged. Raise OSError when the folder cannot be made.
+    """
     if folder == data_dir:
         return
     folder.mkdir(parents=True, exist_ok=True)
@@ -75,9 +73,10 @@ def take_folder(data_dir: Path, folder: Path, inherit: bool = True, program: Com
 
 
 def end_left_behind(data_dir: Path) -> None:
-    """Once at the daemon's start, before any radio starts: every Mercury of ours that a daemon which did not stop cleanly left running is ended (end_stale, by the file in each radio's folder and the one an older
-    NeoAPRS of one HF radio left in the data folder), the radios that are off or removed now among them, whose modem is never started to end it. It holds the sound card and the keying line otherwise. Nothing under
-    the no-devices switch: the daemon starts no Mercury there, and what a copy of a data folder names is another daemon's. Reads the folders and waits for a program to end: for a thread."""
+    """End every Mercury that an unclean stop left running; blocks, so run it in a thread.
+
+    Do nothing under the no-devices switch.
+    """
     if nodevices.on():
         return
     program = [str(expected_program())]
@@ -87,9 +86,7 @@ def end_left_behind(data_dir: Path) -> None:
 
 
 class HeldPorts:
-    """The pair of ports of one start of the program: chosen once (`choose`), and kept for a program started again in the place of one that died, so that the HF Tnc, which waits on its port with its back-off, finds
-    the modem where it left it (the pair is free for the new program: the old connections are in TIME_WAIT, which the probe and Mercury's own bind allow); another pair only when something else took the old one
-    meanwhile, which `choose` says by giving the pair that was taken, so that the owner can point the Tnc at the new one. `forget` is a fresh start."""
+    """The pair of ports of one start, kept for a restart unless something else took it."""
 
     def __init__(self) -> None:
         self.pair: tuple[int, int] = (BROADCAST_PORT, BROADCAST_PORT + CONTROL_OFFSET)
@@ -100,11 +97,13 @@ class HeldPorts:
 
     @property
     def chosen(self) -> bool:
-        """Whether the pair of this start is chosen: until then `pair` is only where a modem of ours may be, which can be another radio's modem or another program."""
         return self._held
 
     def choose(self, free: Callable[[], tuple[int, int]] = free_ports) -> tuple[int, int] | None:
-        """The pair to start the program on, kept in `pair`: the one held when it is still free, else a fresh one from `free` (OSError from it when none is); the pair that was taken, when one was, else None."""
+        """Keep the held pair if still free, else a fresh one from `free`.
+
+        Return the pair that was taken, else None. Raise OSError when none is free.
+        """
         if self._held and pair_free(self.pair[0]):
             return None
         taken, self.pair, self._held = self.pair if self._held else None, free(), True
@@ -133,44 +132,37 @@ class Holding:
 
     @property
     def ports_chosen(self) -> bool:
-        """Whether the pair of this start is chosen (`HeldPorts.chosen`): the line is pointed at it only then."""
         return self._held.chosen
 
     def held_card(self) -> str:
-        """The sound card whose own levels are the radio's: the one it runs on while it holds it (`held_card`)."""
         return held_card(self.claims, self.holder, self.sound_card)
 
     def held(self) -> list[Claim]:
-        """What the modem holds of the station's resources now: its sound card, its keying line, its pair of ports (nothing without the table), in the order they were held."""
         return [] if self.claims is None else [c for c in self.claims.all() if c.holder == self.holder and c.kind in MODEM_KINDS]
 
     def _choose_ports(self) -> None:
-        """The pair of ports of this start (HeldPorts: kept for a program started again in the place of one that died, so that the HF Tnc finds the modem where it left it), held for the radio; when something else took
-        the pair meanwhile the owner is told to point the Tnc at the new one, and so it is when the pair is the first of a start that failed before it chose one (the Tnc then has no port). OSError when no
-        pair is free."""
+        """Choose and hold the pair of ports; raise OSError when none is free."""
         first = not self._held.chosen
-        taken, (self.broadcast_port, self.control_port) = self._held.choose(self._free_pair), self._held.pair          # (chosen first, then read)
+        taken, (self.broadcast_port, self.control_port) = self._held.choose(self._free_pair), self._held.pair
         log.info("Mercury ports: %d for KISS, %d for control", self.broadcast_port, self.control_port)
         self._hold_pair()
         if taken is not None:
             log.warning("Mercury's ports %d and %d were taken while it was down: it is started on %d and %d, and the Mercury radio is pointed at them", *taken, *self._held.pair)
             self.ports_changed.emit()
         elif first and self.state == "waiting":
-            self.ports_changed.emit()                                  # (a start tried again after one that failed before its ports were chosen: the line, which has no port, is pointed at them)
+            self.ports_changed.emit()
 
     def _hold_pair(self) -> None:
-        """The pair in use (its broadcast port, as text) held for the radio in the place of the one it held before."""
         pair = Claim("modem_ports", str(self.broadcast_port), self.holder)
         if self.claims is None or pair in self.claims.all():
             return
         self.claims.release(self.holder, "modem_ports")
-        if self.claims.hold(pair) is not None:                                         # (only a Mercury something else runs on a pair another radio's modem holds: the table never hands that pair out twice)
+        # Only a Mercury run elsewhere can sit on a held pair.
+        if self.claims.hold(pair) is not None:
             log.warning("Mercury's ports %d and %d are held by another radio's modem", self.broadcast_port, self.control_port)
 
     def _hold_setup(self, sound_card: str, keying_port: str | None) -> Claim | None:
-        """The sound card and the keying line (its port, for a keying on a serial line) the program is to run with, held for the radio in the place of what it held; the claim of the other radio that holds one of them,
-        and then neither is held. None, and nothing held, without the table. A card a setting names by its number (`plughw:3,0`, from before 0.17.3) is held by its name, as the list of cards names it
-        (`plughw:CARD=CODEC,DEV=0`), so that one card is one claim whichever way it is named."""
+        """Hold the sound card and keying line; return another radio's claim on one, holding neither."""
         if self.claims is None:
             return None
         self.claims.release(self.holder, "sound_card")
@@ -182,12 +174,10 @@ class Holding:
         return None
 
     def _release_claims(self) -> None:
-        """What the modem holds is let go (the stop)."""
         if self.claims is not None:
             for kind in sorted(MODEM_KINDS):
                 self.claims.release(self.holder, kind)
 
 
 def card_claim(sound_card: str, holder: RadioId) -> Claim:
-    """The claim of a sound card, by the card's name where a setting names it by its number (`stable_alsa_id`): one card is one claim whichever way a setting names it and whichever type of radio holds it."""
     return Claim("sound_card", stable_alsa_id(sound_card, alsa_card_names()), holder)

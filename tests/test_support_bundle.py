@@ -1,5 +1,7 @@
-"""The support bundle (neoaprs/cli/supportbundle.py, supportgather.py, supportmake.py, supportsummary.py, supportreadme.py): what is in the zip, how the logs are cut to their budget, that no secret is in any member, that a part that fails
-becomes a file that says so, and that the data folder is not changed. Built on a fake data folder (tests/support/supportdata.py)."""
+"""The support bundle (neoaprs/cli/supportbundle.py, supportgather.py, supportmake.py,
+supportsummary.py, supportreadme.py): the zip's content, log budgets, no secret in any member, a
+failing part becomes a note.
+"""
 import asyncio
 import json
 import os
@@ -111,7 +113,8 @@ def test_the_summary_answers_what_version_what_system_what_is_wrong_on_one_scree
 
 
 def radio(id: int, tnc: dict[str, object], **more: object) -> dict[str, object]:
-    """A radio of state.json as neoaprs/web/supportstate.py writes it: its id, its line (`tnc`) and what else a test gives."""
+    """A radio of state.json as neoaprs/web/supportstate.py writes it: its id, its line (`tnc`) and
+    what else a test gives."""
     return {"id": id, "tnc": tnc, **more}
 
 
@@ -177,7 +180,8 @@ def test_a_radio_with_a_problem_now_shows_it_and_one_that_never_failed_has_no_la
 # ---- the radios as rows of the database
 
 def stored_radio(data: Path, kind: str, type: str, name: str, enabled: bool, position: int, **own: str) -> int:
-    """A radio added to the data folder's database as the Store adds one (radiosql.py), with its own settings; its id."""
+    """A radio added to the data folder's database as the Store adds one (radiosql.py), with its own
+    settings; its id."""
     db = sqlite3.connect(data / DB_NAME, isolation_level=None)
     try:
         made = insert_radio(db, kind, type, name, enabled, position)
@@ -213,7 +217,9 @@ def test_a_bundle_of_stored_radios_has_a_section_for_each_by_its_name_with_its_o
 
 
 def test_a_database_made_of_a_bundle_of_stored_radios_gets_the_same_radios_from_the_migrations(tmp_path: Path) -> None:
-    """tests/support/bundledb.py makes a database as version 30 kept it from a bundle's settings.json: the flat keys that settings.json says stored are what migration 31 makes radios 1 and 2 of again."""
+    """tests/support/bundledb.py makes a database as version 30 kept it from a bundle's
+    settings.json: the flat keys that settings.json says stored are what migration 31 makes radios 1
+    and 2 of again."""
     from tests.support.bundledb import bundle_database
     from tests.support.supportdata import SETTINGS
     data = fake_folder(tmp_path, settings={**SETTINGS, "serial/port": "/dev/ttyUSB0", "serial/baud": "4800", "beacon/path": "WIDE2-1", "digi/enabled": "true", "hf/enabled": "true",
@@ -250,7 +256,8 @@ async def test_the_daemon_tells_every_radio_it_runs_with_its_line_and_its_beacon
     assert (fm["kind"], fm["name"], fm["enabled"]) == ("fm", "FM", True) and fm["tnc"]["state"] == "connected" and fm["tnc"]["path"] == e.link, "radio 1's line"
     assert set(fm["beacon"]) == {"last_sent", "last_reason", "next_due", "problem"}
     assert fm["tnc"]["stats"]["passed"] == [{"heard_on": 2, "sent": 1, "sent_at": None, "held": 2, "too_long": 0}], "what the pairs passed onto it, as the wire's list"
-    members = (await asyncio.to_thread(made, tmp_path / "bundle", e.dir, running=True, live=state, by="the running daemon"))[1]      # (in a thread, as the daemon makes one)
+    # In a thread, as the daemon makes one
+    members = (await asyncio.to_thread(made, tmp_path / "bundle", e.dir, running=True, live=state, by="the running daemon"))[1]
     assert re.search(r"State:\s+connected", section(members["summary.txt"], "Radio 1: FM")) and "doctor.txt" in members
 
 

@@ -1,5 +1,7 @@
-"""The version page (server/version.php) under PHP's own web server on the loopback, with a fake GitHub (tests/support/fakeversionpage.py) for the releases and a stand-in status library: the answer names the latest release, the call is logged as time, version, platform
-and the installation's id (32 lowercase hex characters, or the one character 0 of a run that is not a user's, else -), the status application is handed the call (not one with the id 0), GitHub is asked once an hour and the last good answer is kept while it fails. Skipped without `php`."""
+"""The version page (server/version.php) under PHP's web server with a fake GitHub for the releases
+and a status library stand-in: the answer names the latest release and the call is logged with time,
+version, platform and installation id.
+"""
 import asyncio
 import http.server
 import json
@@ -49,7 +51,9 @@ class Page:
         (self.folder / "lib" / "starts.php").write_text(LIBRARY, encoding="utf-8")
         env = {"PATH": os.environ["PATH"], "STATUS_LIB": str(self.folder / "lib"), "RELEASES_URL": self.github.url}
         assert PHP is not None
-        for _ in range(3):                                      # (the port was free when it was probed; a test running beside this one may have taken it since: then php ends at once and another port is tried)
+        # The port was free when it was probed; a test running beside this one may have taken it
+        # since: then php ends at once and another port is tried
+        for _ in range(3):
             self.process = subprocess.Popen([PHP, "-S", f"127.0.0.1:{self.port}", "-t", str(self.folder / "site")], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             deadline = time.monotonic() + 10
             while time.monotonic() < deadline and self.process.poll() is None:
@@ -169,7 +173,8 @@ async def test_a_note_in_message_txt_is_the_message_its_first_line_cut_to_200_ch
 
 
 async def test_the_status_application_is_never_handed_the_address(page: Page) -> None:
-    """The per-installation key of the count is the installation's random number; the caller's address (127.0.0.1 here) goes nowhere."""
+    """The count's per-installation key is the installation's random number; the caller's address
+    goes nowhere."""
     await page.ask(f"v=0.9.2&os=windows&id={ID}")
     await page.ask("v=0.9.2&os=windows")
     calls = (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8")

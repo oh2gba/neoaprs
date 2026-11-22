@@ -1,10 +1,7 @@
-"""Every setting that the page does not show is on one list, here, with its reason, and a setting that can stop something the page offers is never on it.
-
-0.9 took the Transmit switch off the page while `station/transmit` went on acting, and a station that had been switched off was left in RX only with no way back on the page. The rule since: a setting that can block a feature stays
-reachable on the page, or a migration resets it when its control is removed (CONVENTIONS.md, "Removing a control from the page").
-
-A radio's own settings (`radio/<id>/<key>`) are read from the types' field lists (neoaprs/radiotypes): until the page names a radio by its id, a field is on the page through the flat key of radios 1
-and 2 that is its view (configradios.FLAT_HOMES), or it is listed in `NOT_YET_ON_THE_PAGE` with why that blocks nothing."""
+"""Every setting the page does not show is on one list here with its reason, and a setting that can
+stop something the page offers is never on it: it stays reachable on the page, or a migration resets
+it when its control is removed (CONVENTIONS.md, "Removing a control from the page").
+"""
 import re
 
 from neoaprs.config import SETTINGS
@@ -12,11 +9,14 @@ from neoaprs.configradios import FLAT_HOMES
 from neoaprs.radiotypes import TYPES
 from tests.conftest import ROOT
 
-KEY_OF_BEFORE = {FLAT_HOMES[s.attr]: s.key for s in SETTINGS if s.attr in FLAT_HOMES}      # (radio, its column or own key) -> the key of before that is its view in Config (configradios.FLAT_HOMES)
+# (radio, its column or own key) -> the key of before that is its view in Config
+# (configradios.FLAT_HOMES)
+KEY_OF_BEFORE = {FLAT_HOMES[s.attr]: s.key for s in SETTINGS if s.attr in FLAT_HOMES}
 
 SETTINGS_TS = ROOT / "ui" / "src" / "lib" / "settings.ts"
 
-# What the page leaves to `neoaprs db set`, each with why it blocks nothing. A new entry needs its reason here and its place in NOT_ON_THE_PAGE of ui/src/lib/settings.ts.
+# What the page leaves to `neoaprs db set`, each with why it blocks nothing. A new entry needs its
+# reason here and its place in NOT_ON_THE_PAGE of ui/src/lib/settings.ts.
 NOT_ON_THE_PAGE = {
     "update/url": "where the daily check asks; the check is always on and a wrong address only shows no newer version",
     "serial/pattern": "which ports the search for the radio looks at; a port that is named works whatever it says",
@@ -71,7 +71,8 @@ def test_a_setting_that_can_block_a_feature_is_not_left_off_the_page() -> None:
 
 # ---- a radio's own settings, from the types' field lists
 
-# The fields of a radio that no flat key shows, each with why its absence from the page blocks nothing.
+# The fields of a radio that no flat key shows, each with why its absence from the page blocks
+# nothing.
 NOT_YET_ON_THE_PAGE = {
     "beacon": "a radio's own Send on tick: every radio that is on sends the beacon in this version, whatever it says",
     "status": "a radio's own tick of the status's Send on (My station, with no flat key): unticked by default, the status goes on the radios ticked",
@@ -81,7 +82,8 @@ NOT_YET_ON_THE_PAGE = {
     "rx_card": "the sound card's own capture level, the Receive level row's slider where the card has that control (with no flat key): empty by default, the card stays as the system has it",
 }
 
-# The fields that stop something the page offers when they are changed: each is on the page (through its flat key until the page names a radio).
+# The fields that stop something the page offers when they are changed: each is on the page (through
+# its flat key until the page names a radio).
 RADIO_BLOCKERS = ("port", "tcp_host", "tcp_port", "digipeat", "sound_card", "keying")
 
 
@@ -90,7 +92,8 @@ def field_keys() -> set[str]:
 
 
 def on_the_page(key: str) -> bool:
-    """Whether a radio's field is on the page: the flat key that is its view, for some radio, is a setting the page shows."""
+    """Whether a radio's field is on the page: the flat key that is its view, for some radio, is a
+    setting the page shows."""
     return any(own == key and flat not in page_leaves_out() and flat not in NOT_ON_THE_PAGE for (_, own), flat in KEY_OF_BEFORE.items())
 
 

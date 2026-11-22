@@ -1,4 +1,5 @@
-"""KISS framing (neoaprs/kiss.py): every rule of the decoder and the encoder on explicit byte strings."""
+"""KISS framing (neoaprs/kiss.py): every rule of the decoder and the encoder on explicit byte
+strings."""
 import pytest
 
 from neoaprs.kiss import FEND, FESC, MAX_FRAME, TFEND, TFESC, KissDecoder, KissFrame, encode
@@ -24,7 +25,8 @@ def test_encode_escapes_fend_and_fesc_in_the_payload() -> None:
 
 
 def test_encode_escapes_a_command_byte_that_is_a_fend_or_a_fesc_too() -> None:
-    # port 12 command 0 is 0xC0, port 13 command 11 is 0xDB: legal values that must not end or break the frame
+    # port 12 command 0 is 0xC0, port 13 command 11 is 0xDB: legal values that must not end or break
+    # the frame
     assert encode(b"x", port=12) == b"\xc0\xdb\xdcx\xc0"
     assert encode(b"x", port=13, command=11) == b"\xc0\xdb\xddx\xc0"
 

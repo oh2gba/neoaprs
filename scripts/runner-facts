@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Says where GitHub's runner and packaging/ci/runner.json part, so that the container of scripts/check-in-container never drifts from the runner without a word: on the runner itself (a step of
-ci.yml), by the clock (the weekly audit) and before a push (scripts/check --stage audit).
+"""Report where GitHub's runner and packaging/ci/runner.json differ.
 
-  scripts/runner-facts --here [--github]           this machine's system against runner.json's `facts`: the Ubuntu series, gcc's version and default -march, glibc, PHP
-  scripts/runner-facts --latest LABEL [--github]   whether this machine, a runner of LABEL (ubuntu-latest, windows-latest, macos-latest), is the system runner.json's `latest` names for it
-  scripts/runner-facts --published [--github]      the readme GitHub publishes of the image of `facts.os` against the facts it lists (the series, gcc, glibc, PHP; never -march, which it does not list)
-  scripts/runner-facts --announcements [--github]  the open announcements of GitHub's runner images that name one of our runners and that runner.json does not list as read, or lists as read
-                                                   until a day that has passed (GH_TOKEN, when it is set, is sent with the one request)
+  scripts/runner-facts --here [--github]           this machine against runner.json's `facts`
+  scripts/runner-facts --latest LABEL [--github]   whether this machine, a runner of LABEL, is what
+                                                   runner.json's `latest` names
+  scripts/runner-facts --published [--github]      the readme GitHub publishes for the image of
+                                                   `facts.os` against the facts it lists
+  scripts/runner-facts --announcements [--github]  open announcements of runner images that name one
+                                                   of our runners and are not listed as read
 
---published and --announcements may be given together. Each fact is compared at the precision runner.json gives it, which is the one that holds for a whole Ubuntu series: gcc by its major,
-glibc and PHP by major and minor. One line for what was read, one for each fact that parts; with --github these are GitHub's annotations (`::error::`, and the image's version a `::notice::`).
-The exit code is 1 when a fact parts, a -latest label moved, an announcement is unread, or a page could not be fetched or read; 2 for a wrong argument or a runner.json that cannot be read.
-What to do then is docs/MAINTAINING.md, "When GitHub moves an image". The standard library only, Python 3.10 or newer (the system's Python of a runner runs it).
-"""
+Facts are compared at runner.json's precision (gcc by major, glibc and PHP by major and minor).
+With --github the output is annotations. Exit 1 when a fact differs, a label moved, an announcement
+is unread or a page could not be fetched; 2 for a wrong argument. See docs/MAINTAINING.md, "When
+GitHub moves an image". Standard library only, Python 3.10 or newer."""
 import argparse
 import datetime
 import json
@@ -30,7 +30,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 RUNNER_FILE = ROOT / "packaging" / "ci" / "runner.json"
 OS_RELEASE = Path("/etc/os-release")
-README = "https://raw.githubusercontent.com/actions/runner-images/main/images/ubuntu/Ubuntu{series}-Readme.md"          # the series without its dot: 2604
+# The series without its dot: 2604.
+README = "https://raw.githubusercontent.com/actions/runner-images/main/images/ubuntu/Ubuntu{series}-Readme.md"
 ANNOUNCEMENTS = "https://api.github.com/repos/actions/runner-images/issues?labels=Announcement&state=open&per_page=100"
 PATIENCE_SEC = 30
 FACTS = ("os", "gcc", "march", "glibc", "php")
@@ -42,7 +43,7 @@ class Unreadable(Exception):
 
 
 def escaped(text: str) -> str:
-    """The text of a workflow command with `%`, CR and LF escaped as the Actions toolkit does, so that it stays one line."""
+    """Return workflow-command text with `%`, CR and LF escaped as the Actions toolkit does."""
     return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
 
 
@@ -72,7 +73,7 @@ def load_runner(file: Path = RUNNER_FILE) -> dict[str, Any]:
 
 
 def agrees(found: str | None, fact: str) -> bool:
-    """Whether a version read here is the fact at the fact's own precision: 15.2.0 is gcc 15, 2.43 is glibc 2.43, 8.5.4 is PHP 8.5. A word (x86-64-v3) must be the same word."""
+    """Return whether a version agrees with the fact at its precision: 15.2.0 is gcc 15."""
     if found is None:
         return False
     if not re.fullmatch(r"\d+(\.\d+)*", fact):
@@ -136,14 +137,13 @@ def here(out: Out, runner: Mapping[str, Any], environment: Mapping[str, str], os
 # ---- --latest ----
 
 def macos_version(environment: Mapping[str, str] = os.environ) -> str | None:
-    """macOS's own version. A Python built against an older SDK may be shown Apple's compatibility number (as 10.16 was shown on macOS 11), so sw_vers, the system's own program, is asked first,
-    with the compatibility number turned off; platform.mac_ver() only when it is not there."""
+    """Return macOS's version from `sw_vers`; an older-SDK Python sees a compatibility number."""
     said = first_line(["sw_vers", "-productVersion"], {**environment, "SYSTEM_VERSION_COMPAT": "0"})
     return said.strip() if said and said.strip() else platform.mac_ver()[0] or None
 
 
 def latest(out: Out, runner: Mapping[str, Any], label: str, os_release: Path = OS_RELEASE, windows_version: str | None = None, mac_version: str | None = None) -> None:
-    """Whether this runner of `label` is the system runner.json's `latest` names: the Ubuntu series, the start of Windows's version (its build), the major of macOS."""
+    """Return whether this runner of `label` is the system runner.json's `latest` names."""
     named = runner["latest"][label]
     if label.startswith("ubuntu-"):
         found = os_series(os_release)
@@ -163,15 +163,15 @@ def latest(out: Out, runner: Mapping[str, Any], label: str, os_release: Path = O
 # ---- --published ----
 
 def fetch(url: str, token: str | None = None) -> str:
-    """A page of GitHub's, over https only; the token, when there is one, goes to the API's address alone."""
+    """Fetch a GitHub page over https; the token goes only to the API's address."""
     if not url.startswith("https://"):
         raise Unreadable(f"{url} is not fetched: https only")
     headers = {"User-Agent": "runner-facts"}
     if token and url.startswith("https://api.github.com/"):
         headers |= {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
-    request = urllib.request.Request(url, headers=headers)  # noqa: S310  (https only: the check above)
+    request = urllib.request.Request(url, headers=headers)  # noqa: S310  (https only, checked above)
     try:
-        with urllib.request.urlopen(request, timeout=PATIENCE_SEC) as answer:  # noqa: S310  (https only: the check above)
+        with urllib.request.urlopen(request, timeout=PATIENCE_SEC) as answer:  # noqa: S310  (https only, checked above)
             body: bytes = answer.read()
         return body.decode("utf-8")
     except (urllib.error.URLError, OSError, UnicodeDecodeError) as error:
@@ -179,13 +179,13 @@ def fetch(url: str, token: str | None = None) -> str:
 
 
 def apt_version(readme: str, package: str) -> str | None:
-    """A package's version in the readme's table of apt packages, without its epoch: `| gcc | 4:15.2.0-5ubuntu1 |` is 15.2.0-5ubuntu1."""
+    """Return a package's version from the readme's apt table, without its epoch."""
     found = re.search(rf"^\|\s*{re.escape(package)}\s*\|\s*([^|\s]+)\s*\|", readme, re.M)
     return re.sub(r"^\d+:", "", found.group(1)) if found else None
 
 
 def read_readme(readme: str) -> dict[str, str | None]:
-    """The facts the readme of a runner image lists. -march is not among them: no readme says it."""
+    """Return the facts a runner image's readme lists (never -march)."""
     series = re.search(r"^\s*-\s*OS Version:\s*(\d+\.\d+)", readme, re.M)
     php = re.search(r"^\s*-\s*PHP:?\s+(\d+\.\d+(?:\.\d+)?)", readme, re.M)
     gcc, locales = apt_version(readme, "gcc"), apt_version(readme, "locales")
@@ -209,17 +209,17 @@ def published(out: Out, runner: Mapping[str, Any], get: Callable[[str], str]) ->
 # ---- --announcements ----
 
 def names_of(runner: Mapping[str, Any]) -> list[str]:
-    """What an announcement that concerns us names: one of our labels, a -latest label we follow, or the series of the image."""
+    """Return what an announcement names of ours: a label, a -latest label or the image series."""
     return [*runner["labels"], *runner["latest"], runner["facts"]["os"]]
 
 
 def names(text: str, name: str) -> bool:
-    """Whether `text` names `name` as a word of its own: ubuntu-22.04 in "ubuntu-22.04 is retired", 26.04 in "Ubuntu 26.04.1", but not 26.04 in 2026.04."""
+    """Return whether `text` names `name` as a word: 26.04 in "Ubuntu 26.04.1", not in 2026.04."""
     return re.search(rf"(?<![\w.]){re.escape(name)}(?!\w)", text, re.I) is not None
 
 
 def unread(issues: Sequence[Mapping[str, Any]], runner: Mapping[str, Any], today: datetime.date) -> list[Mapping[str, Any]]:
-    """The open announcements that name one of ours and are not read: not in runner.json's `announcements`, or read until a day before `today`."""
+    """Return the open announcements naming ours that are not read, or read until before `today`."""
     read: Mapping[str, str | None] = runner.get("announcements") or {}
     found = []
     for issue in issues:

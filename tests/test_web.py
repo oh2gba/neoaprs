@@ -1,5 +1,7 @@
-"""The web server end to end: a WebSocket client against the daemon, as the page is (tests/support/wsclient.py). The hello and the six topics, the capture through the pseudo-terminal as patches,
-the commands, the files, the Host check and the security headers. Every message the daemon sends is checked against neoaprs/web/protocol.py while these run (tests/conftest.py)."""
+"""The web server end to end: a WebSocket client against the daemon as the page is
+(tests/support/wsclient.py). The hello and topics, the capture as patches, the commands, files, the
+Host check and security headers.
+"""
 import asyncio
 import json
 import struct
@@ -31,7 +33,7 @@ from neoaprs.web.stationwire import StationRow
 SECURITY = ("Content-Security-Policy", "X-Frame-Options", "Referrer-Policy", "X-Content-Type-Options", "Cross-Origin-Resource-Policy")
 
 
-# ---- the hello and the topics -------------------------------------------------------------------------------------------------------------------
+# ---- the hello and the topics --------------------------------------------------------------------
 
 async def test_a_fresh_install_is_told_to_the_page_as_no_call_and_no_position(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True, operator=False)
@@ -62,12 +64,14 @@ async def test_a_page_that_opens_is_sent_hello_the_status_and_every_topic_whole(
     assert list(stations) == ["OH2GBA"] and stations["OH2GBA"]["is_me"] is True and stations["OH2GBA"]["distance_km"] is None
     assert states["packets"]["value"] == {}
     assert states["radios"]["value"]["1"]["state"] == "connected" and list(states["radios"]["value"]) == ["1"]
-    config, wire = states["config"]["value"], lambda values: {key: text for key, text in values.items() if key in CONFIG_KEYS}      # (email/radio is told in radio_values, and every radio's own setting)
+    # email/radio is told in radio_values, and every radio's own setting
+    config, wire = states["config"]["value"], lambda values: {key: text for key, text in values.items() if key in CONFIG_KEYS}
     assert {key: config[key] for key in ("values", "defaults", "urls", "https")} == {"values": wire({**DEFAULTS.to_data(), **OPERATOR}), "defaults": wire(DEFAULTS.to_data()), "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "reason": ""}}
     assert config["radio_values"]["email/radio"] == "" and "station/main_radio" not in config["radio_values"] and config["radio_values"]["radio/1/path"] == OPERATOR["beacon/path"] and set(config["radio_values"]) == set(config["radio_defaults"])
     assert states["messages"]["value"] == {} and states["station_prefs"]["value"] == {}
     for name, message in states.items():
-        TOPIC_VALUES[name].validate_json(json.dumps(message["value"]))                       # the value is of the type TopicValues says
+        # The value is of the type TopicValues says
+        TOPIC_VALUES[name].validate_json(json.dumps(message["value"]))
     StationRow.model_validate_json(json.dumps(stations["OH2GBA"]))
 
 
@@ -130,7 +134,8 @@ async def test_a_setting_that_counts_at_once_needs_no_restart_and_is_what_the_ne
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     values = page.topics["config"]["values"]
-    assert e.tnc.watchdog.sec == 0.0 and not {"tnc/check_sec", "map/hide_after_min"} & values.keys()      # (the keep-alive is off in an Env, and neither is a setting any more)
+    # The keep-alive is off in an Env, and neither is a setting any more
+    assert e.tnc.watchdog.sec == 0.0 and not {"tnc/check_sec", "map/hide_after_min"} & values.keys()
     await page.send({"cmd": "set_config", "values": {"map/radius_km": "200"}})
     await page.until(lambda: page.topics["config"]["values"]["map/radius_km"] == "200")
     assert e.tnc.stats.opens == 1 and e.tnc.state is Source.State.CONNECTED, "the TNC was not restarted"
@@ -169,7 +174,7 @@ async def test_a_restarted_daemon_opens_with_the_packets_the_database_kept(tmp_p
     assert len(page.topics["stations"]) == 5
 
 
-# ---- the commands --------------------------------------------------------------------------------------------------------------------------------
+# ---- the commands --------------------------------------------------------------------------------
 
 async def test_ping_is_answered_and_status_on_request(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
@@ -232,8 +237,10 @@ async def test_list_ports_ends_with_the_paired_bluetooth_devices(tmp_path: Path,
 
 
 async def as_the_operator_left_it(e: Env) -> bool:
-    """The database holds the operator's settings as an Env writes them (OPERATOR) and nothing else, and they are in force: the station's rows in the settings, today's flat keys of the FM radio as radio 1's
-    own (the start wrote the radio of a database that had none), and the settings in force those of ON_AIR, key by key, with the radios as they are stored."""
+    """The database holds the operator's settings as an Env writes them (OPERATOR) and nothing else,
+    and they are in force: the station's rows in the settings, today's flat keys of the FM radio as
+    radio 1's own (the start wrote the radio of a database that had none), and the settings in force
+    those of ON_AIR, key by key, with the radios as they are stored."""
     radios = await e.ctl.store.radios()
     return (await e.ctl.store.settings() == {key: text for key, text in OPERATOR.items() if key in STATION_KEYS}
             and [(s.id, s.kind, s.type, s.enabled, dict(s.settings)) for s in radios] == [(1, "fm", "kenwood-tnc2", True, {"path": "WIDE1-1,WIDE2-1"})]
@@ -247,7 +254,9 @@ async def test_a_frame_that_is_not_a_command_is_an_error_and_changes_nothing(tmp
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     await e.play()
     await page.until(lambda: len(page.topics["packets"]) == 4)
-    await page.quiet(0.4)                                          # (the TNC topic is told at most four times a second: its patch for the four frames is in before the picture is taken)
+    # The TNC topic is told at most four times a second: its patch for the four frames is in before
+    # the picture is taken
+    await page.quiet(0.4)
     before = json.dumps(page.topics, sort_keys=True)
     bad = ['not json', '[1, 2]', '{"cmd": "nope"}', '{}', '{"cmd": 7}', '{"cmd": "ping", "extra": 1}', '{"cmd": "forget_station"}', '{"cmd": "forget_station", "call": 5}',
            '{"cmd": "set_config", "values": {"station/lat": 61}}', '{"cmd": "subscribe", "topics": "stations"}', '{"cmd": "set_config", "values": NaN}']
@@ -287,9 +296,11 @@ async def test_set_config_changes_the_settings_and_the_page_is_told_them_again(t
     assert page.topics["config"]["values"]["station/call"] == "OH2GBA-9", "the value is written the way the daemon writes it"
     assert page.topics["config"]["defaults"]["station/comment"] == "NeoAPRS"
     assert (await e.ctl.store.settings())["station/call"] == "OH2GBA-9" and e.ctl.config.station_comment == "mobile"
-    await page.until(lambda: set(page.topics["stations"]) == {"OH2GBA-9", "OH2GBA"})                 # our own station is the new call; the old one is a station like any other
+    # Our own station is the new call; the old one is a station like any other
+    await page.until(lambda: set(page.topics["stations"]) == {"OH2GBA-9", "OH2GBA"})
     assert page.topics["stations"]["OH2GBA-9"]["is_me"] is True and page.topics["stations"]["OH2GBA"]["is_me"] is False
-    await page.send({"cmd": "set_config", "values": {}})                                              # nothing differs: told again all the same, the form waits for it
+    # Nothing differs: told again all the same, the form waits for it
+    await page.send({"cmd": "set_config", "values": {}})
     await page.until(lambda: len(page.of("patch", "config")) == 2)
     # a second page is told when the first saves
     other = await e.ws()
@@ -360,7 +371,8 @@ async def test_beacon_now_sends_our_position_and_the_pages_are_told_the_packet_a
     other = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES) and len(page.of("status")) == 1)
     assert page.of("status")[0]["beacon_last_sent"] is None and page.of("status")[0]["beacon_next_due"] is None and page.of("status")[0]["beacon_interval_min"] == 0
-    await page.send({"cmd": "set_config", "values": {"beacon/interval_min": "1440"}})                  # (the beacon is off by default: Beacon now is refused until it is on)
+    # The beacon is off by default: Beacon now is refused until it is on
+    await page.send({"cmd": "set_config", "values": {"beacon/interval_min": "1440"}})
     await page.until(lambda: page.topics["config"]["values"]["beacon/interval_min"] == "1440")
     await page.send({"cmd": "beacon_now"})
     await page.until(lambda: len(page.topics["packets"]) == 1)
@@ -369,7 +381,8 @@ async def test_beacon_now_sends_our_position_and_the_pages_are_told_the_packet_a
     assert row["tnc2"] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS" and row["decoded"]["lat"] == 60.17 and row["decoded"]["symbol_code"] == "-"
     assert [op["op"] for op in page.ops("packets")] == ["set"]
     await other.until(lambda: len(other.topics["packets"]) == 1)
-    await page.until(lambda: page.of("status")[-1]["beacon_last_sent"] is not None)                     # (told at once, not at the next ten seconds)
+    # Told at once, not at the next ten seconds
+    await page.until(lambda: page.of("status")[-1]["beacon_last_sent"] is not None)
     await other.until(lambda: other.of("status")[-1]["beacon_last_sent"] is not None)
     assert page.of("status")[-1]["beacon_last_sent"] == iso(e.now()) and page.of("status")[-1]["packets"] == 1
     assert page.of("error") == [] and len(await e.packets()) == 1
@@ -391,7 +404,8 @@ async def test_beacon_now_with_settings_that_make_no_frame_is_an_error(tmp_path:
     e = Env(tmp_path, web=True, settings={"beacon/interval_min": "1440"})
     await e.start()
     await e.until_usable()
-    assert await e.ctl.save_config(replace(e.ctl.config, station_comment="x" * 44))                     # (a row somebody edited by hand: the page's save would have refused it)
+    # A row somebody edited by hand: the page's save would have refused it
+    assert await e.ctl.save_config(replace(e.ctl.config, station_comment="x" * 44))
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     await page.send({"cmd": "beacon_now"})
@@ -440,10 +454,11 @@ async def test_a_page_that_goes_away_is_forgotten(tmp_path: Path) -> None:
     assert e.server is not None and len(e.server.api.clients) == 1
     await page.aclose()
     await until(lambda: len(e.server.api.clients) == 0 if e.server else False)
-    await e.play()                                                                                      # nobody listens: nothing breaks
+    # Nobody listens: nothing breaks
+    await e.play()
 
 
-# ---- the files and the names -----------------------------------------------------------------------------------------------------------------------
+# ---- the files and the names ---------------------------------------------------------------------
 
 async def test_the_placeholder_is_served_while_the_page_is_not_built(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(web_server, "PAGE_DIR", tmp_path / "no-page")
@@ -492,7 +507,8 @@ async def test_the_base_map_is_a_404_without_the_file_and_serves_byte_ranges_wit
     for key in SECURITY:
         assert part.headers[key]
     assert (await e.fetch("/basemap-world.pmtiles")).body[:7] == b"PMTiles", "the world map is its own file: the one that ships with the program, from a data folder that has none"
-    own = b"PMTiles\x03" + bytes(92) + struct.pack("<BB4i", 0, 5, -1800000000, -850000000, 1800000000, 850000000) + bytes(9) + content[:500]       # (the data folder's own world map has a PMTiles header: a file without one is not served)
+    # The data folder's own world map has a PMTiles header: a file without one is not served
+    own = b"PMTiles\x03" + bytes(92) + struct.pack("<BB4i", 0, 5, -1800000000, -850000000, 1800000000, 850000000) + bytes(9) + content[:500]
     (tmp_path / "basemap-world.pmtiles").write_bytes(own)
     world = await e.fetch("/basemap-world.pmtiles", headers={"Range": "bytes=10-19"})
     assert world.code == 206 and world.body == own[10:20]
@@ -500,7 +516,8 @@ async def test_the_base_map_is_a_404_without_the_file_and_serves_byte_ranges_wit
 
 
 async def test_the_tag_of_a_map_file_is_its_size_and_time_and_the_file_is_never_read_to_make_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    """Tornado 6.6 gives no tag to a file over 64 MB and logs an error; the detailed map is over a hundred, and hashing it stopped the loop."""
+    """Tornado 6.6 gives no tag to a file over 64 MB and logs an error; the detailed map is over a
+    hundred, and hashing it stopped the loop."""
     def never(abspath: str) -> str:
         raise AssertionError(f"the map file {abspath} was read to make its tag")
     monkeypatch.setattr(pagefiles.Basemap, "get_content_version", classmethod(lambda cls, abspath: never(abspath)))
@@ -512,7 +529,8 @@ async def test_the_tag_of_a_map_file_is_its_size_and_time_and_the_file_is_never_
     tag = first.headers["Etag"]
     assert first.code == 206 and tag.startswith('"') and (await e.fetch("/basemap.pmtiles", headers={"Range": "bytes=10-19"})).headers["Etag"] == tag
     assert (await e.fetch("/basemap.pmtiles", headers={"If-None-Match": tag})).code == 304
-    file.write_bytes(bytes(1001))                                           # (the map fetched again: another file under the same name)
+    # The map fetched again: another file under the same name
+    file.write_bytes(bytes(1001))
     again = await e.fetch("/basemap.pmtiles", headers={"If-None-Match": tag})
     assert again.code == 200 and again.headers["Etag"] != tag and len(again.body) == 1001
     assert "static file" not in caplog.text
@@ -548,7 +566,9 @@ async def test_a_foreign_host_name_is_refused_with_403_and_a_name_in_the_setting
     assert refused.value.code == 403
     for host in ("localhost", f"localhost:{e.port}", "127.0.0.1", "[::1]", "LOCALHOST."):
         assert (await e.fetch("/", headers={"Host": host})).code == 200, host
-    assert (await e.fetch("/", headers={"Host": "192.168.1.20:7303", "X-Forwarded-For": "192.168.1.20"})).code == 200       # (a request on the loopback that says it came by a proxy is not this computer's: it is not sent on to 127.0.0.1)
+    # A request on the loopback that says it came by a proxy is not this computer's: it is not sent
+    # on to 127.0.0.1.
+    assert (await e.fetch("/", headers={"Host": "192.168.1.20:7303", "X-Forwarded-For": "192.168.1.20"})).code == 200
     page = await e.ws(host="localhost")
     await page.expect("hello")
 
@@ -562,7 +582,8 @@ async def test_names_in_web_allowed_hosts_and_the_name_of_the_machine_are_ours(t
     second = Env(tmp_path, web=True)
     await e.stop()
     await second.start()
-    proxied = {"X-Forwarded-For": "203.0.113.9"}        # (a request on the loopback that says it came by a proxy is not this computer's: it is not sent on to 127.0.0.1)
+    # A request on the loopback that says it came by a proxy is not this computer's.
+    proxied = {"X-Forwarded-For": "203.0.113.9"}
     for host in ("aprs.example", "pi:7303", "PI"):
         assert (await second.fetch("/", headers={"Host": host, **proxied})).code == 200, host
     assert (await second.fetch("/", headers={"Host": "other.example"})).code == 403
@@ -601,7 +622,8 @@ async def test_connections_are_capped_and_a_connection_over_the_cap_is_closed(tm
     try:
         writer.write(b"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
         answer = await asyncio.wait_for(reader.read(100), 5)
-    except ConnectionResetError:                                      # (Windows may tell a connection the server closed as a reset)
+    # Windows may tell a connection the server closed as a reset
+    except ConnectionResetError:
         answer = b""
     assert answer == b"", "closed without an answer"
     assert any("too many connections" in r.getMessage() for r in caplog.records)
@@ -610,7 +632,7 @@ async def test_connections_are_capped_and_a_connection_over_the_cap_is_closed(tm
         w.close()
 
 
-# ---- messages ------------------------------------------------------------------------------------------------------------------------------------
+# ---- messages ------------------------------------------------------------------------------------
 
 async def with_page(tmp_path: Path, **options: Any) -> tuple[Env, WsClient]:
     e = Env(tmp_path, web=True, **options)
@@ -890,7 +912,8 @@ async def test_set_station_rf_only_changes_the_entry_keeps_the_rest_and_the_next
     await page.send({"cmd": "set_station_path", "call": "OH2RDG", "path": "OH2RCH-2,OH2RDG"})
     await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,OH2RDG", True)})
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "Hello"})
-    await page.until(lambda: any("OH2RCH-2,OH2RDG,RFONLY" in r["tnc2"] for r in page.topics["packets"].values()) and page.topics["messages"]["1"]["attempts"] == 1)     # (the two rows come in one flush, in the hub's order of the topics: the packet's first)
+    # The two rows come in one flush, in the hub's order of the topics: the packet's first
+    await page.until(lambda: any("OH2RCH-2,OH2RDG,RFONLY" in r["tnc2"] for r in page.topics["packets"].values()) and page.topics["messages"]["1"]["attempts"] == 1)
     row = MessageRow.model_validate_json(json.dumps(page.topics["messages"]["1"]))
     assert [h.call for h in row.attempts_detail[0].hops] == ["OH2RCH-2", "OH2RDG"], "RFONLY is no hop of the chain"
     await page.send({"cmd": "set_station_rf_only", "call": "OH2RDG", "on": False})
@@ -944,7 +967,7 @@ async def test_an_overheard_message_is_a_row_of_the_topic_with_state_overheard_a
     assert [r["direction"] for r in page.topics["packets"].values()] == ["in"]
 
 
-# ---- how a packet reached us ----------------------------------------------------------------------------------------------------------------
+# ---- how a packet reached us ---------------------------------------------------------------------
 
 async def test_the_capture_rows_say_how_each_packet_and_each_station_was_reached(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
@@ -1016,7 +1039,7 @@ async def test_an_igate_row_counts_the_third_party_packets_it_put_on_the_air_and
     await e.stop()
 
 
-# ---- the message board -----------------------------------------------------------------------------------------------------------------------
+# ---- the message board ---------------------------------------------------------------------------
 
 async def test_a_bulletin_is_a_row_of_the_topic_keyed_by_sender_and_slot_and_never_ages_out(tmp_path: Path) -> None:
     e, page = await with_page(tmp_path)

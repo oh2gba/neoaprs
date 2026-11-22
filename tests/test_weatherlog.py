@@ -1,5 +1,7 @@
-"""The weather log (neoaprs/weatherlog.py, weathersql.py) on a real database thread: what goes in comes out equal, the series of a station and its latest, the care, and the one-time making of the log from the
-packets already kept, whose weather is plain comment text."""
+"""The weather log (neoaprs/weatherlog.py, weathersql.py) on a real database thread: what goes in
+comes out equal, a station's series and latest, and the one-time making of the log from kept
+packets.
+"""
 from datetime import timedelta
 from pathlib import Path
 
@@ -79,7 +81,8 @@ async def test_prune_removes_what_is_older_than_the_days_kept(tmp_path: Path) ->
 
 async def test_the_hottest_and_the_coldest_a_report_can_say_are_kept(tmp_path: Path) -> None:
     log, _ = await opened(tmp_path)
-    log.take(report("t999g999r999p999P999h99b99999L999"))           # 999 degrees F is 537 C: the most the fields can say
+    # 999 degrees F is 537 C: the most the fields can say
+    log.take(report("t999g999r999p999P999h99b99999L999"))
     log.take(report("t-99c360s999"))
     await settled(log)
     assert await log.count() == 2

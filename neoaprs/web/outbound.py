@@ -1,5 +1,7 @@
-"""The one way out of the daemon: every message to a page goes through the Publisher, to one page (`send`) or to all (`broadcast`). Here a message becomes a frame (compact JSON), here the size of
-a frame is held to a cap, and here the outgoing check against neoaprs/web/protocol.py sits (NEOAPRS_VALIDATE_OUT=1).
+"""The one way out to the pages: the Publisher sends to one page or broadcasts to all.
+
+It encodes messages as compact JSON frames, caps frame size and runs the outgoing check against
+protocol.py (NEOAPRS_VALIDATE_OUT=1).
 """
 import json
 import logging
@@ -16,23 +18,27 @@ from .session import Client, Connection, error_message
 log = logging.getLogger("neoaprs.web")
 
 MEGABYTE = 1024 * 1024
-MAX_WRITE_BUFFER = 32 * MEGABYTE   # what a socket holds for a page that does not read, and is then cut off (neoaprs/web/pagesocket.py); the whole station book is a few megabytes, so a page that reads is far below it.
-                                   # The state hub (neoaprs/web/hub.py) calls a page behind when its socket holds a share of it.
-MAX_MESSAGE = 16 * MEGABYTE        # the largest message sent to one page, whole: the `state` of the stations after years of listening. The write buffer of a socket is bigger, and holds what a page has not yet read.
+# What a socket may hold for a page that does not read before it is cut off. The station book is a
+# few megabytes, so a reading page is far below it. The hub calls a page behind at a share of this
+# size.
+MAX_WRITE_BUFFER = 32 * MEGABYTE
+# Largest single message to one page (the whole `state` of the stations); smaller than the write
+# buffer.
+MAX_MESSAGE = 16 * MEGABYTE
 
-# Every message that did not match neoaprs/web/protocol.py, when outgoing validation is on. The tests look at it after each test: a signal handler that raises is only logged by the Signal, the list is
-# what cannot be missed.
+# Messages that did not match protocol.py while outgoing validation is on. The tests read it after
+# each test, because a signal handler that raises is only logged.
 VIOLATIONS: list[str] = []
-NOT_FINITE_SEEN: set[str] = set()      # the kinds of message that had a number that is not finite, each told once
-SEEN: Counter[str] = Counter()          # per message type: how many were checked and found right (the contract tests read it)
+NOT_FINITE_SEEN: set[str] = set()  # message kinds with a non-finite number, each logged once
+SEEN: Counter[str] = Counter()  # per message type: how many were checked and found valid
 
 
 class ProtocolViolation(Exception):
-    """A message the daemon was about to send does not match neoaprs/web/protocol.py."""
+    """A message about to be sent does not match protocol.py."""
 
 
 def _finite(value: Any) -> Any:
-    """The value with every number that JSON has no word for (NaN, infinity) as null."""
+    """Return the value with every NaN and infinity replaced by None."""
     if isinstance(value, float):
         return value if math.isfinite(value) else None
     if isinstance(value, dict):
@@ -43,8 +49,7 @@ def _finite(value: Any) -> Any:
 
 
 def encode(message: dict[str, Any]) -> str:
-    """The frame: compact JSON, what JSON cannot hold written as text. A number that is not finite is `NaN` or `Infinity` in the default JSON, which a browser's JSON.parse refuses and drops the whole frame
-    for; it goes out as null, with one line in the log for each kind of message (a part that makes one has a fault)."""
+    """Return the compact JSON frame; a non-finite number (rejected by JSON.parse) is sent as null."""
     try:
         return json.dumps(message, separators=(",", ":"), default=str, allow_nan=False)
     except ValueError:
@@ -65,13 +70,13 @@ def _type_of(text: str) -> str:
 
 
 def _why(e: ValidationError, skip: int = 1) -> str:
-    """The fields and what is wrong with them; `skip` is the places of the location that are the tag of the union and not a field."""
+    """Return the fields and their problems; the first `skip` location items are the union tag."""
     errors = e.errors(include_url=False, include_input=False)
     return "; ".join(f"{'.'.join(str(x) for x in err['loc'][skip:])}: {err['msg']}" for err in errors[:4]) + (f" (and {len(errors) - 4} more)" if len(errors) > 4 else "")
 
 
 def _validate(adapter: "TypeAdapter[Any]", value: Any, what: str) -> None:
-    """The value against the type, as JSON (a tuple of the protocol is a list on the wire)."""
+    """Validate the value against the type as JSON (a protocol tuple is a list on the wire)."""
     try:
         adapter.validate_json(json.dumps(value))
     except ValidationError as e:
@@ -79,8 +84,7 @@ def _validate(adapter: "TypeAdapter[Any]", value: Any, what: str) -> None:
 
 
 def _check_topic_values(message: Any) -> None:
-    """A `state`, or the `replace` of a `patch`, holds a value of the type the topic has in TopicValues (a topic the protocol has no type for is a mistake of the daemon's). A `set` of a topic
-    that is a table holds an item of the type in TOPIC_ITEMS."""
+    """Check a `state` or `replace` value and a table `set` item against the protocol types."""
     if message.type not in ("state", "patch"):
         return
     topic = message.topic
@@ -97,10 +101,8 @@ def _check_topic_values(message: Any) -> None:
 
 
 class Publisher:
-    """The open pages and the ways to write to them."""
-
     def __init__(self, validate_out: bool | None = None) -> None:
-        # outgoing messages are checked against the protocol models when asked (NEOAPRS_VALIDATE_OUT=1): off in production, where it would only cost time
+        # Off in production, where checking would only cost time.
         self.validate_out = os.environ.get("NEOAPRS_VALIDATE_OUT") == "1" if validate_out is None else validate_out
         self.raise_on_invalid = os.environ.get("NEOAPRS_VALIDATE_RAISE") == "1"
         self._reported: set[str] = set()
@@ -119,8 +121,9 @@ class Publisher:
         self.send_frame(conn, encode(message))
 
     def send_frame(self, conn: Connection, text: str) -> None:
-        """A frame that is made already: the size is held to the cap, and the outgoing check looks at it."""
-        if len(text) > MAX_MESSAGE:                               # the page is told, instead of being cut off by a write that cannot be made
+        """Send an already encoded frame, applying the size cap and the outgoing check."""
+# Tell the page rather than cut it off with an unwritable frame.
+        if len(text) > MAX_MESSAGE:
             kind = _type_of(text)
             log.warning("a %s message of %.0f MB was not sent to %s: more than %d MB", kind, len(text) / MEGABYTE, conn.ip, MAX_MESSAGE // MEGABYTE)
             text = encode(error_message(f"The answer is {len(text) / MEGABYTE:.0f} MB, too big to send ({MAX_MESSAGE // MEGABYTE} MB at most)", code="too_big", params={"kind": kind, "megabytes": len(text) // MEGABYTE, "max": MAX_MESSAGE // MEGABYTE}))
@@ -128,7 +131,10 @@ class Publisher:
         conn.client.send_json(text)
 
     def send_binary(self, conn: Connection, data: bytes) -> None:
-        """A binary frame: not checked against the protocol (it is no JSON), and a failing socket is this page's, as with a broadcast."""
+        """Send a binary frame; it is not JSON so it is not validated.
+
+        A failing socket affects this page only.
+        """
         try:
             conn.client.send_binary(data)
         except Exception:
@@ -144,14 +150,14 @@ class Publisher:
 
     @staticmethod
     def _deliver(conn: Connection, frame: str) -> None:
-        """One page's frame; what goes wrong with this page's socket is this page's: the others are sent theirs."""
+        """Send a frame to one page; a failure on its socket does not stop the others."""
         try:
             conn.client.send_json(frame)
         except Exception:
             log.exception("a frame could not be sent to %s", conn.ip)
 
     def _check(self, text: str) -> None:
-        """Outgoing validation: the frame, as it goes over the wire, against the Message union."""
+        """Validate the outgoing frame against the Message union."""
         if not self.validate_out:
             return
         try:
@@ -164,6 +170,6 @@ class Publisher:
                 VIOLATIONS.append(f"{kind}: {why}")
             if self.raise_on_invalid:
                 raise ProtocolViolation(f"message {kind} does not match the protocol: {why}") from None
-            if kind not in self._reported:                       # once for each type: a flood in the log would hide the first one
+            if kind not in self._reported:  # once per type; a flood would hide the first
                 self._reported.add(kind)
                 log.error("message %s does not match the protocol (reported once): %s", kind, why)

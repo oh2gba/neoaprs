@@ -1,6 +1,7 @@
-"""A new installation has no radio until the operator adds the first (the setup guide, the Radio group, `neoaprs db radios add`): the daemon's start writes no radio, ever, and no row may name a radio
-that has no row. The database gives each radio added its id, the next one, which no radio had before; a start on a database with radios leaves them as they are, and one whose radios cannot be read
-runs none and changes none of them, nor the stations' choices of them. The start's log says a station has no radio yet, and a port given for the run that no radio takes."""
+"""A new installation has no radio until the operator adds the first: the daemon's start writes no
+radio and no row names a radio without a row. Each added radio gets a new id; a start on a database
+with radios keeps them.
+"""
 import json
 import logging
 import sqlite3
@@ -47,7 +48,8 @@ def foreign_key_check(path: Path) -> list[tuple[Any, ...]]:
 
 
 async def test_a_new_installation_starts_with_no_radio_and_the_first_one_added_is_radio_1_whose_packets_name_it(tmp_path: Path) -> None:
-    e = Env(tmp_path, operator=False, first_radio=False)                # (a new installation: no settings row, no radio)
+    # A new installation: no settings row, no radio
+    e = Env(tmp_path, operator=False, first_radio=False)
     await e.start(connected=False)
     assert e.ctl.config.radios == () and e.ctl.radios.all() == [], "the start writes no radio"
     assert await e.ctl.add_radio("kiss") == FM_ID and [(s.id, s.kind, s.type, s.enabled, s.position) for s in e.ctl.config.radios] == [(FM_ID, "fm", "kiss", True, 1)]
@@ -90,10 +92,12 @@ async def test_a_failed_read_of_the_radios_runs_none_and_the_stored_radios_and_t
     assert json.loads(chosen) == {"OH2AAA": HF_ID, "OH2BBB": FM_ID}
 
     async def unread(self: Store) -> None:
-        return None                                                     # (what Store.read_radios() gives for a read that failed)
+        # (what Store.read_radios() gives for a read that failed)
+        return None
 
     monkeypatch.setattr(Store, "read_radios", unread)
-    again = Env(tmp_path, first_radio=False)                            # (the database has its radios: the Env adds none)
+    # The database has its radios: the Env adds none
+    again = Env(tmp_path, first_radio=False)
     await again.start(connected=False)
     assert again.ctl.config.radios == () and again.ctl.radios.all() == [], "no radio runs"
     assert "the radios could not be read" in caplog.text
@@ -102,7 +106,8 @@ async def test_a_failed_read_of_the_radios_runs_none_and_the_stored_radios_and_t
     assert await again.ctl.add_radio("kiss") is None, "nor is a radio added: the next good start would have one more"
     assert "the radio is not added" in caplog.text
     assert await again.ctl.save_config(replace(again.ctl.config, station_comment="the station's own")), "the station's settings are stored all the same"
-    assert again.ctl.radios.choose("OH2CCC", None)                     # (a choice made in the run: the daemon's own, the only one there is with no radio)
+    # A choice made in the run: the daemon's own, the only one there is with no radio
+    assert again.ctl.radios.choose("OH2CCC", None)
     again.ctl.radios.forget("OH2BBB")
     await again.ctl.radios.flush()
     await again.stop()
@@ -126,7 +131,8 @@ def test_a_choice_of_a_radio_the_settings_do_not_have_is_no_choice() -> None:
 
 
 async def test_the_port_of_the_run_is_radio_1s_for_the_run_and_never_stored(tmp_path: Path) -> None:
-    e = Env(tmp_path, operator=False)                                   # (the Env gives the Controller --port: its fake radio's address)
+    # The Env gives the Controller --port: its fake radio's address
+    e = Env(tmp_path, operator=False)
     await e.start()
     spec = e.ctl.config.radio(FM_ID)
     assert spec is not None and e.tnc.path == e.link and spec.value("port") == ""
@@ -149,7 +155,8 @@ async def test_the_database_gives_each_radio_added_the_next_id_which_no_radio_ha
 
 async def test_the_log_says_a_station_has_no_radio_yet_and_a_port_of_the_run_that_no_radio_takes(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, logger="neoaprs.controller")
-    fresh = Env(tmp_path / "fresh", operator=False, first_radio=False)     # (the Env gives the Controller --port: its fake radio's address)
+    # The Env gives the Controller --port: its fake radio's address
+    fresh = Env(tmp_path / "fresh", operator=False, first_radio=False)
     await fresh.start(connected=False)
     assert "this station has no radio yet" in caplog.text
     assert f"--port {fresh.link} is radio 1's, and this station has no radio 1" in caplog.text, "the port of the run is said, not dropped without a word"
@@ -196,7 +203,9 @@ def test_the_start_says_a_port_of_the_run_whose_radio_is_removed_or_opens_no_suc
 
 
 def test_the_mercury_given_for_the_run_is_the_first_mercury_radios_whatever_its_id() -> None:
-    """--hf-port is the station's first Mercury radio's (the lowest id of one not removed): on a new installation the Mercury added first may be radio 1; a Dummy HF radio or a TNC never takes it."""
+    """--hf-port is the station's first Mercury radio's (the lowest id of one not removed): on a new
+    installation the Mercury added first may be radio 1; a Dummy HF radio or a TNC never takes it.
+    """
     radios = (RadioSpec(FM_ID, "hf", "mercury", "", True, 1), RadioSpec(HF_ID, "hf", "dummy-hf", "", True, 2), RadioSpec(3, "fm", "kiss", "", True, 3), RadioSpec(4, "hf", "mercury", "", False, 4))
     assert (modem_radio(radios), modem_radio(radios[1:]), modem_radio(radios[1:3])) == (FM_ID, 4, None)
     assert modem_radio((replace(radios[0], removed_at=T0), *radios[1:])) == 4, "a removed radio takes nothing"

@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
-"""Starts the daemon of this checkout on a data folder for trying the page (the browser pane, a look at a change), under the no-devices switch: whatever its settings say, it opens no serial port, Bluetooth device or
-sound card, starts no Mercury or Direwolf of the machine, plays and notifies nothing and connects to nothing but this computer (neoaprs/nodevices.py). The Dummy radios, the loopback and the page stay, which is all a
-page to look at needs. Its search for a radio looks at ports that match nothing, and it does not ask the version page.
+"""Start this checkout's daemon on a data folder for trying the page, with no devices.
+
+It opens no serial port, Bluetooth device or sound card and connects to nothing but this computer
+(neoaprs/nodevices.py); the Dummy radios, loopback and page stay.
 
   scripts/demo-daemon --data DIR [--web-port PORT] [--traffic]
-
-  --data DIR        the data folder (made when it is not there); never the operator's own (the system's data folder of NeoAPRS, or a folder `data` of a checkout)
-  --web-port PORT   the page's port (default 7390)
-  --traffic         made-up traffic for the map's layers: scripts/demotraffic.py in a process of its own (an aircraft receiver and the services' answers on 127.0.0.1:7391), which the daemon asks in the
-                    services' place (NEOAPRS_LAYERS_URL); for My own receiver type what its line says in Settings, Map
-
-It runs `python -m neoaprs --data DIR --web-port PORT` in the checkout it is in, with the checkout's .venv when there is one, and ends with the daemon (Ctrl+C stops both)."""
+--traffic runs scripts/demotraffic.py as the layers' services. Ctrl+C stops both."""
 import argparse
 import os
 import subprocess
@@ -25,13 +20,15 @@ sys.path.insert(0, str(ROOT))
 from neoaprs.paths import default_data_dir  # noqa: E402
 
 WEB_PORT = 7390
-NO_PORT = "/nonexistent/neoaprs-demo-no-such-port*"        # the search for the radio finds no serial device of the machine
+# Makes the radio search find no serial device.
+NO_PORT = "/nonexistent/neoaprs-demo-no-such-port*"
 TRAFFIC = ROOT / "scripts" / "demotraffic.py"
-TRAFFIC_URL = "http://127.0.0.1:7391"                      # where demotraffic.py listens: the services' place for the daemon
+# Where demotraffic.py listens.
+TRAFFIC_URL = "http://127.0.0.1:7391"
 
 
 def environment(base: Mapping[str, str]) -> dict[str, str]:
-    """The daemon's environment: this one without any NEOAPRS_ variable of the person who runs it (a data folder, a debug switch), and the switch, the search that finds nothing and no update check."""
+    """Return the caller's environment without NEOAPRS_ variables, plus the demo switches."""
     env = {key: value for key, value in base.items() if not key.startswith("NEOAPRS_")}
     env["NEOAPRS_NO_DEVICES"] = "1"
     env["NEOAPRS_UPDATE_CHECK"] = "0"
@@ -40,8 +37,7 @@ def environment(base: Mapping[str, str]) -> dict[str, str]:
 
 
 def operators_folder(data: Path, own: Path) -> str:
-    """Why `data` is the operator's own data folder ("" when it is not): the system's data folder of NeoAPRS (`own`, as neoaprs/paths.py finds it without NEOAPRS_DATA_DIR), or a folder `data` directly in a checkout,
-    which the clone's scripts use."""
+    """Return why `data` is the operator's own data folder, or ""."""
     folder = data.expanduser().resolve()
     if folder == own.expanduser().resolve():
         return f"{folder} is the data folder of NeoAPRS on this computer"
@@ -59,7 +55,7 @@ def python() -> str:
 
 
 def own_data_folder() -> Path:
-    """The system's data folder of NeoAPRS, whatever NEOAPRS_DATA_DIR says (that variable is the daemon's, not the folder of the operator's data)."""
+    """Return the system's data folder of NeoAPRS, ignoring NEOAPRS_DATA_DIR."""
     saved = os.environ.pop("NEOAPRS_DATA_DIR", None)
     try:
         return default_data_dir()
@@ -69,7 +65,7 @@ def own_data_folder() -> Path:
 
 
 def start_traffic(start: Callable[..., Any]) -> Any:
-    """demotraffic.py started and listening (it says so in one line); None when it ended instead (a port in use: it said why)."""
+    """Start demotraffic.py and wait for its first line; None if it ended."""
     process = start([python(), str(TRAFFIC)], cwd=ROOT, stdout=subprocess.PIPE, text=True)
     if process.stdout is None or not process.stdout.readline():
         process.wait()

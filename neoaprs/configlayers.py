@@ -1,7 +1,6 @@
-"""The settings of the map's layers of traffic (the group Settings, Map): where the aircraft and the ships come from, and the address of an own receiver of each. Their table rows (`LAYER_ROWS`) and fields
-(`LayerFields`, a base of `Config`) are here so that config.py names them in one line; the sources and their rules are layerthing.py's.
+"""Settings of the map's traffic layers: aircraft and ship sources and own receivers.
 
-A stored source the station is not offered now (Fintraffic after the station moved) stays stored and counts as none (layerthing.in_force)."""
+A stored source not offered at the station's position stays stored and counts as none."""
 import ipaddress
 import re
 from collections.abc import Callable
@@ -13,8 +12,9 @@ from .coded import CodedError
 from .configtypes import web_address, word_among
 from .layerthing import AIRCRAFT_SOURCES as AIRCRAFT_SOURCES, AIS_HOST, AIS_PORT, SHIP_SOURCES as SHIP_SOURCES
 
-MAX_ADDRESS = 500                    # the longest address of a receiver
-_NAME = re.compile(r"[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?")       # a host name or an IPv4 address
+MAX_ADDRESS = 500
+# Host name or IPv4 address.
+_NAME = re.compile(r"[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?")
 
 
 def _refused(text: str) -> CodedError:
@@ -22,7 +22,6 @@ def _refused(text: str) -> CodedError:
 
 
 def _host_ok(host: str) -> bool:
-    """A name (`pi.local`), an IPv4 address (`192.168.1.20`) or an IPv6 address in brackets (`[fe80::1]`)."""
     if host.startswith("[") and host.endswith("]"):
         try:
             return ipaddress.ip_address(host[1:-1].partition("%")[0]).version == 6
@@ -32,7 +31,6 @@ def _host_ok(host: str) -> bool:
 
 
 def _host_port_ok(value: str) -> bool:
-    """`host` or `host:port`, the port 1 to 65535."""
     host, colon, port = value.rpartition(":") if not value.endswith("]") else ("", "", value)
     if not colon:
         return _host_ok(value)
@@ -40,7 +38,7 @@ def _host_port_ok(value: str) -> bool:
 
 
 def _plain(text: str) -> str:
-    """The text without its blanks at the ends; refused when it is too long, not printable or has a blank inside."""
+    """Return the stripped text; refuse it if too long, not printable or containing a blank."""
     value = text.strip()
     if len(value) > MAX_ADDRESS or not value.isprintable() or any(c.isspace() for c in value):
         raise _refused(text)
@@ -48,7 +46,7 @@ def _plain(text: str) -> str:
 
 
 def receiver_address(text: str) -> str:
-    """The address of an own aircraft receiver (a Radarcape, or readsb's file): empty (this computer for readsb's file; a Radarcape is then not looked for), a name or address, the same with `:port`, or a whole http or https address (used as typed)."""
+    """Return an aircraft receiver address: empty, host[:port] or an http(s) URL."""
     value = _plain(text)
     if not value:
         return ""
@@ -56,7 +54,8 @@ def receiver_address(text: str) -> str:
         try:
             parts = urlsplit(value)
             _ = parts.port
-            if parts.hostname and parts.username is None and parts.password is None:          # (a name and a password in the address would be kept and shown as a setting: refused)
+            # Credentials would be stored and shown as a setting.
+            if parts.hostname and parts.username is None and parts.password is None:
                 return web_address(value)
         except (ValueError, CodedError):
             pass
@@ -67,7 +66,7 @@ def receiver_address(text: str) -> str:
 
 
 def ais_address(text: str) -> str:
-    """The address of an own AIS receiver: empty (this computer, port 10110), a name or address, or `host:port`."""
+    """Return an AIS receiver address: empty (this computer), host or host:port."""
     value = _plain(text)
     if value and ("://" in value or not _host_port_ok(value)):
         raise _refused(text)
@@ -75,7 +74,7 @@ def ais_address(text: str) -> str:
 
 
 def ais_host_port(value: str) -> tuple[str, int]:
-    """Where the daemon connects for a stored `map/ships_host`: the host (an IPv6 address without its brackets) and the port; this computer for an empty address, AIS_PORT when none is given."""
+    """Return (host, port) for a stored `map/ships_host`; empty gives the defaults."""
     if not value:
         return AIS_HOST, AIS_PORT
     host, colon, port = value.rpartition(":") if not value.endswith("]") else ("", "", value)
@@ -86,14 +85,15 @@ def ais_host_port(value: str) -> tuple[str, int]:
 
 @dataclass(frozen=True)
 class LayerFields:
-    """The fields of `Config` that the layers' settings are."""
-    map_aircraft: str = "none"           # map/aircraft: none, adsbfi, adsblol, radarcape or receiver
-    map_aircraft_host: str = ""          # map/aircraft_host: the own aircraft receiver's address (receiver_address)
-    map_ships: str = "none"              # map/ships: none, fintraffic or receiver
-    map_ships_host: str = ""             # map/ships_host: the own AIS receiver's address (ais_address)
+    """The `Config` fields of the layer settings."""
+    map_aircraft: str = "none"
+    map_aircraft_host: str = ""
+    map_ships: str = "none"
+    map_ships_host: str = ""
 
 
-LAYER_ROWS: tuple[tuple[str, str, Callable[[str], Any]], ...] = (        # (attr, key, parser), in the order of the settings form, straight after map/source
+# (attr, key, parser), in settings form order
+LAYER_ROWS: tuple[tuple[str, str, Callable[[str], Any]], ...] = (
     ("map_aircraft", "map/aircraft", word_among(AIRCRAFT_SOURCES)),
     ("map_aircraft_host", "map/aircraft_host", receiver_address),
     ("map_ships", "map/ships", word_among(SHIP_SOURCES)),

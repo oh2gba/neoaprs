@@ -1,26 +1,30 @@
-"""The units APRS writes on the air (knots, statute miles, feet, inches, degrees Fahrenheit) against the metric ones the program keeps (km/h, km, metres, millimetres, degrees Celsius): the factors, each written once.
-The base-91 numbers of the compressed forms (a position, a Mic-E altitude, the telemetry of a comment, a DAO) are read and written here as well.
+"""APRS on-air units (knots, miles, feet, inches, degrees F) against the metric ones kept.
 
-Pure code, like the rest of the foundation."""
+Metric: km/h, km, metres, millimetres, degrees C. The base-91 numbers of the compressed forms
+are read and written here too. Pure code.
+"""
 
-KNOT_KMH = 1.852                      # a knot in km/h: the speed of a position report, an object and a storm
-NAUTICAL_MILE_KM = 1.852              # a nautical mile in km: the radii of a storm
-MILE_KM = 1.609344                    # a statute mile in km: the range of PHG and RNG, the radius of a query's footprint, and a mile an hour in km/h (the wind of a weather report, SmartBeaconing's slope)
-FOOT_M = 0.3048                       # a foot in metres: the altitude `/A=`, the height of PHG
-INCH_MM = 25.4                        # an inch in millimetres: the snow of a weather report (the rain is in hundredths of an inch, 0.254 mm each)
-MS_KMH = 3.6                          # a metre a second in km/h: the speed gpsd reports
+KNOT_KMH = 1.852  # km/h per knot
+NAUTICAL_MILE_KM = 1.852
+MILE_KM = 1.609344  # a statute mile; also a mile an hour in km/h
+FOOT_M = 0.3048
+INCH_MM = 25.4
+MS_KMH = 3.6  # km/h per metre a second (gpsd)
 
 
 def fahrenheit_to_celsius(degrees_f: float) -> float:
     return (degrees_f - 32) * 5 / 9
 
 
-BASE91_ZERO = 33                      # the character `!`, the digit 0 of a base-91 number
-BASE91_LAST = 123                     # the character `{`, the digit 90
+BASE91_ZERO = 33  # the character `!`, the digit 0 of a base-91 number
+BASE91_LAST = 123  # the character `{`, the digit 90
 
 
 def base91(data: bytes) -> int:
-    """The number the base-91 digits `!` to `{` of `data` write, the first digit the most significant. Raises ValueError for a byte that is no digit."""
+    """Return the number the base-91 digits `!` to `{` of `data` write, most significant first.
+
+    Raise ValueError for a byte that is no digit.
+    """
     value = 0
     for byte in data:
         if not BASE91_ZERO <= byte <= BASE91_LAST:
@@ -30,7 +34,7 @@ def base91(data: bytes) -> int:
 
 
 def base91_text(value: int, digits: int) -> bytes:
-    """The `digits` base-91 characters (33 to 123) of a whole number, the most significant first; a number too large for them keeps the low digits."""
+    """Return `digits` base-91 characters (33 to 123) of a number; a large one keeps low digits."""
     text = bytearray()
     for _ in range(digits):
         value, digit = divmod(value, 91)

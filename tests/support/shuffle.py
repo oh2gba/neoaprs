@@ -1,6 +1,7 @@
-"""The tests in another order, for the hunt for a test that depends on the one before it (the stage `flaky` of scripts/check runs half of its runs this way). A pytest plugin, loaded by name and off unless it is asked:
-`pytest -p tests.support.shuffle --shuffle-seed 7`. The modules are put in a random order and the tests of each module in another, each module kept together so that what a module's fixtures hold is
-set up once; the same seed gives the same order whatever the order of collection was, which is what pytest-xdist needs, since every worker collects the list by itself and the workers must agree on it."""
+"""A pytest plugin that runs the tests in another order, to find a test that depends on the one
+before it: `pytest -p tests.support.shuffle --shuffle-seed 7`. Modules are shuffled, tests within a
+module are shuffled, each module is kept together; the same seed gives the same order.
+"""
 import random
 
 import pytest
@@ -11,7 +12,8 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 def shuffled(items: list[pytest.Item], seed: int) -> list[pytest.Item]:
-    """`items` with the modules in an order of the seed and each module's tests in another; the order they came in plays no part."""
+    """`items` with the modules in an order of the seed and each module's tests in another; the
+    order they came in plays no part."""
     chance = random.Random(seed)
     modules: dict[str, list[pytest.Item]] = {}
     for item in sorted(items, key=lambda each: each.nodeid):

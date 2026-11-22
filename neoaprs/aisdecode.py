@@ -1,16 +1,18 @@
-"""Ships' own radio messages (AIS), read from the NMEA lines a receiver gives (`!AIVDM`, and `!AIVDO` for our own boat): the checksum is checked, the parts of one message are joined, and what a map needs is
-decoded: where a ship is (message types 1, 2, 3 of a class A transponder, 18 and 19 of a class B) and what it is called, what kind it is and where it is bound (types 5 and 24). Every other type and every broken or
-half line is passed over. Pure code, no I/O: the connection that reads the lines is another module's."""
+"""Decode AIS ship messages (types 1-3, 5, 18, 19, 24) from NMEA `!AIVDM`/`!AIVDO` lines.
+
+Checks the checksum and joins multi-part messages; other types and broken lines are skipped.
+"""
 from dataclasses import dataclass
 from datetime import datetime
 
-PART_WAIT_SEC = 10                      # a part of a message that waits this long for the rest is dropped
-_SOG_NA, _COG_NA = 1023, 3600             # speed 102.3 knots and course 360 degrees: "not available"
+# a part still waiting for the rest after this long is dropped
+PART_WAIT_SEC = 10
+_SOG_NA, _COG_NA = 1023, 3600  # "not available" values: speed 102.3 kn, course 360 deg
 
 
 @dataclass(frozen=True)
 class AisPosition:
-    """Where a ship is, as one message tells; every other field is None when the ship says it is not available."""
+    """Where a ship is; fields the ship reports as not available are None."""
     mmsi: int
     lat: float
     lon: float
@@ -22,7 +24,7 @@ class AisPosition:
 
 @dataclass(frozen=True)
 class AisStatic:
-    """What a ship says of itself. A class B ship says it in two messages (24 A: the name, 24 B: the kind), so a name that is "" or a ship type that is None means "not in this message", not "none"."""
+    """What a ship says of itself; class B sends name and type apart, so empty/None means absent."""
     mmsi: int
     name: str
     ship_type: int | None
@@ -30,7 +32,7 @@ class AisStatic:
 
 
 def _checked(line: str) -> list[str] | None:
-    """The fields of a VDM or VDO sentence whose checksum is right, else None."""
+    """Return the fields of a VDM or VDO sentence with a correct checksum, else None."""
     start = line.find("!")
     star = line.rfind("*")
     if start < 0 or star < start + 6 or len(line) < star + 3:
@@ -50,7 +52,7 @@ def _checked(line: str) -> list[str] | None:
 
 
 class _Bits:
-    """The payload's six-bit characters as one number, to read fields by their bit positions (counted from 0 at the message's first bit)."""
+    """Return the six-bit payload characters as one integer (bit 0 is the first bit)."""
 
     def __init__(self, payload: str, fill: int) -> None:
         value = 0
@@ -90,7 +92,7 @@ def _ship_type(number: int) -> int | None:
 def _position(bits: _Bits, at: datetime, sog: int, lon: int, lat: int, cog: int, heading: int) -> AisPosition | None:
     longitude = bits.signed(lon, 28) / 600000
     latitude = bits.signed(lat, 27) / 600000
-    if abs(longitude) > 180 or abs(latitude) > 90:            # (181 and 91 are what AIS gives for "no position")
+    if abs(longitude) > 180 or abs(latitude) > 90:  # 181 and 91 mean "no position"
         return None
     speed, course, head = bits.unsigned(sog, 10), bits.unsigned(cog, 12), bits.unsigned(heading, 9)
     return AisPosition(
@@ -119,13 +121,14 @@ def _decode(bits: _Bits, at: datetime) -> AisPosition | AisStatic | None:
 
 
 class AisDecoder:
-    """Reads NMEA lines one at a time; a message of several sentences is joined by its sequential id and channel."""
+    """Read NMEA lines one at a time and join the sentences of a multi-part message."""
 
     def __init__(self) -> None:
-        self._waiting: dict[tuple[str, str], tuple[datetime, int, list[str]]] = {}     # (sequential id, channel) -> (when the first part came, how many parts, the payloads so far)
+        # (sequential id, channel) -> (time of first part, part count, payloads so far)
+        self._waiting: dict[tuple[str, str], tuple[datetime, int, list[str]]] = {}
 
     def feed(self, line: str, at: datetime) -> AisPosition | AisStatic | None:
-        """What the line completes: a position, a ship's own words, or None (not for us, broken, half, or still waiting for its other part)."""
+        """Return the position or static data the line completes, or None."""
         fields = _checked(line.strip())
         if fields is None:
             return None

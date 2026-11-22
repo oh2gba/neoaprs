@@ -1,9 +1,8 @@
-"""The packet log and the station cache (neoaprs/packetlog.py, packetcodec.py, packetsql.py, stationsql.py) on a real database thread: what goes in comes out equal, the order, the care, and the rows the
-tables refuse.
-
-Every test runs on each shape of the database the stores know (tests/support/migrated32.py, SHAPES): that of version 30 while it is the program's, where a packet names its radio by a word and the
-station's row holds the counts of the two radios, and that of migrations 32 and 33, where a packet names its radio by the id of the table `radio` and what each radio heard of a station is a row of
-`station_radio`. The tests at the end are of the second alone."""
+"""The packet log and station cache (neoaprs/packetlog.py, packetcodec.py, packetsql.py,
+stationsql.py) on a real database thread: what goes in comes out equal, the order, and the rows the
+tables refuse. Each test runs on every database shape the stores know (tests/support/migrated32.py,
+SHAPES).
+"""
 import asyncio
 import json
 import logging
@@ -38,12 +37,14 @@ from tests.support.migrated32 import SHAPE_IDS, SHAPES, shaped
 from tests.support.storedb import sql, store_at
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
-NEW = pytest.mark.parametrize("shape", [True], indirect=True, ids=SHAPE_IDS.get)       # a test of the shape of migrations 32 and 33 alone
+# A test of the shape of migrations 32 and 33 alone
+NEW = pytest.mark.parametrize("shape", [True], indirect=True, ids=SHAPE_IDS.get)
 
 
 @pytest.fixture(autouse=True, params=SHAPES, ids=SHAPE_IDS.get)
 def shape(request: pytest.FixtureRequest) -> bool:
-    """The shape of the database the stores write in this test: False that of version 30, True that of migrations 32 and 33 (`shaped` makes the file to match)."""
+    """The shape of the database the stores write in this test: False that of version 30, True that
+    of migrations 32 and 33 (`shaped` makes the file to match)."""
     return bool(request.param)
 
 
@@ -89,7 +90,8 @@ def test_the_capture_decodes_the_same_from_the_json() -> None:
 
 
 def test_a_row_kept_before_the_details_were_decoded_is_read_with_their_defaults() -> None:
-    """The JSON of a packet kept without the details has none of those fields: they take their defaults."""
+    """The JSON of a packet kept without the details has none of those fields: they take their
+    defaults."""
     old = decode_decoded('{"type":"position","lat":60.1,"lon":24.9,"symbol_table":"/","symbol_code":">","comment":"x","course_deg":null,"speed_kmh":null,"altitude_m":null,"timestamp":null,"messaging":false,"compressed":false,"ambiguity":0,"weather":null}')
     assert old == Position(60.1, 24.9, "/", ">", "x") and decode_decoded('{"type":"status","text":"a","timestamp":null}') == Status("a")
     assert decode_decoded('{"type":"other","kind":"weather","text":"_1","weather":null}') == Other("weather", "_1")
@@ -230,13 +232,15 @@ async def test_a_row_that_is_not_ours_is_left_out_and_told(tmp_path: Path, caplo
     assert any("packet table" in r.getMessage() for r in caplog.records) and any("station table" in r.getMessage() for r in caplog.records)
 
 
-# A row of the station table as a tool would write it, `)#` where the values end: the columns every version has (before 33 the row holds `last_path` too, which the tests add).
+# A row of the station table as a tool would write it, `)#` where the values end: the columns every
+# version has (before 33 the row holds `last_path` too, which the tests add).
 STATION = ("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code{columns}, first_heard, last_heard, last_status, last_comment, packets) "
            "VALUES ('{{call}}', '{{kind}}', '', '', ''{values}, '{{first}}', '{{last}}', '', '', {{packets}})#")
 
 
 def as_written(statement: str, shape: bool) -> str:
-    """A statement of the tests for the shape of the database: before 33 a station's row holds its last path too, which has no default."""
+    """A statement of the tests for the shape of the database: before 33 a station's row holds its
+    last path too, which has no default."""
     return statement.replace(")#", ")") if shape else statement.replace("packets)", "packets, last_path)").replace(")#", ", '')")
 
 
@@ -394,7 +398,8 @@ async def test_prune_ends_on_a_full_last_slice_and_on_a_log_that_is_not_open(tmp
     assert await PacketLog(None, FixedClock()).prune(30) == 0
 
 
-# ---- what a Raspberry Pi's card is written: the station rows once per station per flush, the internet's packets kept a shorter time
+# ---- what a Raspberry Pi's card is written: station rows once per station per flush, internet
+# packets kept a shorter time
 
 async def test_a_station_saved_many_times_between_two_flushes_is_written_once_as_it_is_then_and_a_read_sees_it(tmp_path: Path) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME))
@@ -437,7 +442,8 @@ async def test_the_internets_packets_are_pruned_by_their_own_shorter_keep(tmp_pa
 # ---- a station's row and what each radio heard of it
 
 def by_radio(station: Station) -> dict[int, RadioHeard]:
-    """What each radio heard of a station, as the log reads it back from the rows of `station_radio`."""
+    """What each radio heard of a station, as the log reads it back from the rows of
+    `station_radio`."""
     return {radio: what for _, radio, what in map(heard_of, heard_rows(station))}
 
 
@@ -478,7 +484,8 @@ def test_a_station_is_made_from_what_each_radio_heard_and_a_third_radio_is_taken
     assert by_radio(made) == third, "and its rows give it back"
 
 
-# ---- the shape of migrations 32 and 33: a packet's radio by its id, what each radio heard of a station in a table of its own
+# ---- the shape of migrations 32 and 33: a packet's radio by its id, and what each radio heard of a
+# station in a table of its own
 
 @NEW
 async def test_a_packet_names_its_radio_by_the_id_and_one_from_the_internet_names_none(tmp_path: Path) -> None:
@@ -493,7 +500,8 @@ async def test_a_packet_names_its_radio_by_the_id_and_one_from_the_internet_name
     assert await sql(store, "SELECT source, radio, typeof(radio) FROM packet ORDER BY id") == [("OH2FM", 1, "integer"), ("OH2HF", 2, "integer"), ("OH2NET", None, "null"), ("OH2NO", None, "null")]
     assert packet_row(packets[1]).radio == 2 and packet_row(packets[2]).radio is None and packet_of(packet_row(packets[1])) == packets[1]
     with pytest.raises(ValueError):
-        packet_of(packet_row(packets[1])._replace(radio="hf"))         # (the word of a database before migration 32 is no row of this program)
+        # The word of a database before migration 32 is no row of this program
+        packet_of(packet_row(packets[1])._replace(radio="hf"))
 
 
 @NEW
@@ -534,7 +542,8 @@ async def test_what_each_radio_heard_of_a_station_is_a_row_of_its_own_and_the_ro
 
 @NEW
 async def test_a_station_that_is_deleted_or_forgotten_takes_what_the_radios_heard_of_it_with_it(tmp_path: Path) -> None:
-    """No connection turns the foreign keys on, so nothing deletes the rows of `station_radio` by itself: the statements that delete a station do."""
+    """No connection turns the foreign keys on, so nothing deletes the rows of `station_radio` by
+    itself: the statements that delete a station do."""
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     assert await sql(store, "PRAGMA foreign_keys") == [(0,)]
@@ -566,8 +575,9 @@ async def test_a_row_of_what_a_radio_heard_that_is_not_ours_is_left_out_and_a_st
 
 @NEW
 async def test_the_deliveries_keep_every_radio_by_its_id_and_a_packet_of_no_radio(tmp_path: Path) -> None:
-    """The routes are every radio's, each with its id: two HF radios, a radio of another kind, a packet of the air that names no radio or one the table does not have; which of them are the station's
-    routes as a whole is the station book's to say (stationbook.carries_path)."""
+    """The routes are every radio's, each with its id: two HF radios, a radio of another kind, a
+    packet of the air that names no radio or one the table does not have; which of them are the
+    station's routes as a whole is the station book's to say (stationbook.carries_path)."""
     store = await store_at(shaped(tmp_path / DB_NAME, radios=((1, "fm", "kiss", 1, 1), (2, "hf", "mercury", 1, 2), (3, "hf", "dummy-hf", 0, 3), (4, "lora", "dummy-lora", 1, 4))))
     log = PacketLog(store.db, FixedClock())
     for n, source in enumerate(("OH2A", "OH2B", "OH2C", "OH2D", "OH2E", "OH2F")):

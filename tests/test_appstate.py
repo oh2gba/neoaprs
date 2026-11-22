@@ -1,5 +1,6 @@
-"""What the desktop app keeps in the data folder when the folder is not what it should be (neoaprs/desktop/appstate.py): a size that cannot be written is not worth a crash, and the app's own log is a file of its own
-with the level asked for. The size that is remembered and the default are in tests/test_desktop_logic.py."""
+"""Tests for the desktop app state in the data folder (neoaprs/desktop/appstate.py): an unwritable
+size is ignored and the app log is a separate file with the requested level.
+"""
 import logging
 from pathlib import Path
 
@@ -10,7 +11,8 @@ from neoaprs.desktop import appstate
 
 def test_a_folder_that_cannot_be_written_does_not_stop_the_app_from_closing(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.DEBUG, "neoaprs.desktop")
-    appstate.save_window(tmp_path / "gone" / "deeper", appstate.WindowState(1000, 700))       # (the folder is not there: the write is refused)
+    # (the folder is not there: the write is refused)
+    appstate.save_window(tmp_path / "gone" / "deeper", appstate.WindowState(1000, 700))
     assert not (tmp_path / "gone").exists()
     assert any("could not be saved" in r.getMessage() for r in caplog.records)
 

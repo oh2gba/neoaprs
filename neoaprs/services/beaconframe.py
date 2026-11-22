@@ -1,21 +1,8 @@
-"""The one maker of the station's own frames (plan §2, the beacon): our position, our status report and the position field, built from the settings for any radio. Each radio's beacon timer (services/beacon.py),
-the status report (services/rigstatus.py), the answers to the queries (services/queries.py) and the iGate's position on APRS-IS (services/igate.py) take theirs from one `BeaconFrames`, so that a frame differs
-from radio to radio only by what the radio itself decides: the digipeaters where it may carry any (its own "path" choice, which empty is the recommended path of the station's symbol and DIRECT none), and the
-comment cut to the frame it carries whole.
+"""The one maker of the station's own frames: position, status report and position field.
 
-The position (`position`): the tocall (`neoaprs.TOCALL`, not a setting), the radio's digipeaters and the symbol, the comment and the position (`=`, a station with messaging; always the plain uncompressed
-form, which every receiver reads, rounded to the hundredth of a minute and never ambiguous) come from the settings. Right after the position, before the comment, goes the PHG data extension (`PHGphgd`: power,
-height, gain and directivity of the antenna) when `beacon/power_w` is set; the comment may then be 36 characters, 43 otherwise (`Config.comment_limit`), and the frame is refused when it is longer. A moving
-station's (`gps/source` is not `off`) is the GPS fix of now on every radio, the ones with SmartBeaconing and the ones that send it by time (services/mobilebeacon.py: a compressed position without PHG); with no
-fix that is fresh (none yet, or none younger than GPS_STALE_SEC) there is no frame at all (`NoFix`), and the home position of the settings is never put in its place.
-The status report (`status`): `>` and the time as `DDHHMMz`, then the text, at most 55 printable ASCII characters without `|` and `~`, by the same tocall and the radio's path; a report longer than the radio
-carries whole is no frame for that radio (its text is never cut, as a message's is not). When it is sent is the status service's; the beacon sends none after itself.
-The position field (`position_info`): the information field of the position for a receive-only iGate, which puts it on APRS-IS: the same bytes a radio would carry, but nothing is transmitted, so the transmit
-interlock is not asked, only that the call is one.
-A frame too long for a radio with a fixed frame (the Mercury HF modem's 123 bytes) has its comment cut to fit, said once in the log for each radio and each cut; the report itself is never cut.
-
-Until every caller gives the registry's radios (neoaprs/radioregistry.py), a radio may still come in the old shape of services/common.Radio (a Tnc, the old set of two, a test's stub): `air_of` reads it as an
-`AirRadio` (`OldLine`: its kind by its type, fm radio 1 and hf radio 2; its limits and what it is allowed its type's; its choices those of the station's radio of that id)."""
+Frames differ between radios only by the radio's path and a comment cut to fit its frame; with no
+fresh fix a moving station has no frame (`NoFix`). `air_of` wraps an old-shape radio.
+"""
 import logging
 import math
 import re
@@ -44,19 +31,20 @@ from neoaprs.units import FOOT_M
 
 log = logging.getLogger("neoaprs.beacon")
 
-_LOOKS_LIKE_EXTENSION = re.compile(r"\d{3}/\d{3}|PHG|RNG|DFS")        # the starts of the data extensions (course and speed, power-height-gain, range, signal strength): every receiver reads them right after the symbol or the PHG
+# starts of the data extensions
+_LOOKS_LIKE_EXTENSION = re.compile(r"\d{3}/\d{3}|PHG|RNG|DFS")
 
 
 class BeaconError(CodedError):
-    """The settings do not make a frame: the English for the log, and the code and values a page says it by."""
+    """The settings do not make a frame."""
 
 
 class NoFix(BeaconError):
-    """A mobile station has no GPS fix to send (none yet, or none fresh): there is no beacon, and the home position is not sent instead."""
+    """A mobile station has no fresh GPS fix to send."""
 
 
 def _comment_text(comment: str) -> str:
-    """The comment as it follows the position: one blank before a comment that starts like a data extension (`144/430 MHz` would be read as a course of 144 degrees and a speed), which a receiver then takes as the comment."""
+    """Prefix a blank to a comment that looks like a data extension (`144/430` is course/speed)."""
     return " " + comment if _LOOKS_LIKE_EXTENSION.match(comment) else comment
 
 
@@ -65,8 +53,7 @@ def _round_half_up(x: float) -> int:
 
 
 def phg_text(power_w: int, height_m: float, gain_db: int, direction: str) -> str:
-    """The PHG data extension `PHGphgd`: p is the square root of the power in watts, h the base-2 logarithm of the height in tens of feet, g the gain in dB and d the directivity (0 omni, 1 NE,
-    2 E ... 7 NW, 8 N, the specification's order); p and h rounded and held to 0 to 9."""
+    """Return the PHG data extension `PHGphgd` (APRS 1.0.1 chapter 7), each digit held to 0 to 9."""
     p = min(9, _round_half_up(math.sqrt(power_w)))
     feet = height_m / FOOT_M
     h = 0 if feet <= 10 else min(9, _round_half_up(math.log2(feet / 10)))
@@ -74,13 +61,12 @@ def phg_text(power_w: int, height_m: float, gain_db: int, direction: str) -> str
 
 
 class OldLine:
-    """A radio of the old shape (services/common.Radio) read as an AirRadio: radio 1 when its type is of the FM kind, radio 2 when it is of the HF kind; its limits and what it is allowed are its type's,
-    read afresh on every call (a line's profile changes with the settings); its frame cap is the line's; its choices are those of the station's radio of that id, radio 1's where that kind has no such one."""
+    """An old-shape radio seen as an AirRadio: radio 1 if FM, radio 2 if HF."""
 
     def __init__(self, line: Radio, config: ConfigSource) -> None:
         self.line = line
         self._config = config
-        self._stats = TncStats()                                # (the counters of a line that keeps none: a test's stub)
+        self._stats = TncStats()
 
     @property
     def kind(self) -> Kind:
@@ -132,41 +118,38 @@ class OldLine:
     def choice(self, key: str) -> Any:
         if (spec := self._spec(key)) is not None:
             return spec.value(key)
-        found = kind_field(self.kind, key) or kind_field("fm", key)                # (settings with no radio of the id: the field's default)
+        found = kind_field(self.kind, key) or kind_field("fm", key)  # no such radio: the default
         return None if found is None else found.parse(found.default)
 
 
 def is_air(radio: AirRadio | Radio) -> TypeIs[AirRadio]:
-    """Whether the radio is in the shape of the registry's radios (it has its limits and what it is allowed), not the old one."""
+    """Whether the radio has the registry shape rather than the old one."""
     return hasattr(radio, "allowed") and hasattr(radio, "limits")
 
 
 def air_of(radio: AirRadio | Radio, config: ConfigSource, *, old: bool = False) -> AirRadio:
-    """The radio as an AirRadio: itself, or an old one read as one (`OldLine`). In a call of the old shape (`old`: a beacon made without the maker, a status report given a beacon or a line) every radio
-    that has a type of its own (`rtype`: a line, a test's stub) is read as the old one, as the beacon read it before, by the station's beacon/path: a test's stub is both shapes, and its own choices are not
-    the station's."""
+    """Return `radio` as an AirRadio, wrapping an old-shape one (`old` forces it)."""
     if is_air(radio) and not (old and hasattr(radio, "rtype")):
         return radio
     return OldLine(cast(Radio, radio), config)
 
 
 class BeaconFrames:
-    """Our frames for any radio, from the settings as they are when a frame is made (and the GPS fix of then, for a moving station)."""
+    """Our frames for any radio, from the settings (and GPS fix) at the time a frame is made."""
 
     def __init__(self, config: ConfigSource, gps: Positions | None = None, clock: Clock = utcnow) -> None:
         self._config = config
-        self.gps = gps                                          # the fix of a moving station (services/gps.py); None: no GPS is set up
+        self.gps = gps
         self.clock = clock
-        self._cut_told: dict[RadioId, bytes] = {}               # by radio, the information field as it last went out cut to the radio's frame, so that each cut is said once in the log
+        # per radio, the last cut information field, so each cut is logged once
+        self._cut_told: dict[RadioId, bytes] = {}
 
-    # ---- the position
     def position(self, radio: AirRadio) -> ax25.Frame:
-        """The frame of our position for `radio`. Raises BeaconError when the settings do not make one (a call that is not a call, a comment too long), and NoFix, a BeaconError, for a moving station
-        with no fresh fix."""
+        """Return our position frame for `radio`; BeaconError, or NoFix without a fresh fix."""
         return self.position_and_fix(radio)[0]
 
     def position_and_fix(self, radio: AirRadio) -> tuple[ax25.Frame, Fix | None]:
-        """The frame of our position for `radio` and the fix it was made from (None for a station that stays where it is): a beacon's timer plans SmartBeaconing from it."""
+        """Return the position frame and the fix it was made from (None for a fixed station)."""
         c = self._config()
         if reason := can_transmit(c):
             raise BeaconError.of(reason)
@@ -174,8 +157,7 @@ class BeaconFrames:
         return self.frame_for(radio, info), fix
 
     def position_info(self) -> bytes:
-        """The information field of our position for a receive-only iGate that puts it on APRS-IS (services/igate.py): the bytes a radio would carry, but nothing is transmitted, so the transmit interlock
-        is not asked, only that the call is one. Raises BeaconError (NoFix for a moving station with no fresh fix) as `position()` does."""
+        """Return the position information field for the receive-only iGate (no interlock check)."""
         c = self._config()
         if problem := call_problem(c.station_call):
             raise BeaconError.of(problem)
@@ -185,8 +167,7 @@ class BeaconFrames:
         return info
 
     def _position(self, c: Config) -> tuple[bytes, Fix | None]:
-        """The information field of the position and the fix it was made from (None for a station that stays where it is). A moving station's says where it is now on every radio (on one without
-        SmartBeaconing, HF, its timed beacon carries the fix), and is nothing without a fresh fix."""
+        """Return the position information field and its fix (None for a fixed station)."""
         if c.mobile:
             return self._mobile_info(c)
         if refusal := c.comment_refusal():
@@ -214,10 +195,8 @@ class BeaconFrames:
         except ValueError as e:
             raise BeaconError.of(e) from None
 
-    # ---- the status report
     def status(self, text: str, radio: AirRadio) -> ax25.Frame | None:
-        """The frame of a status report with this text for `radio`: `>`, the time as day, hour and minute in UTC with a `z` (`211200z`), then the text. None for an empty text. Raises BeaconError when the
-        settings or the text make no frame."""
+        """Return a status frame (`>`, `DDHHMMz`, text); None if empty; BeaconError if none."""
         if not text:
             return None
         if refusal := over_the_air_refusal(text):
@@ -226,13 +205,12 @@ class BeaconFrames:
             raise BeaconError(f"the status is {len(text)} characters, more than the {MAX_STATUS} that fit after its time", "status.too_long", length=len(text), max=MAX_STATUS)
         info = b">" + self.clock().strftime("%d%H%M").encode("ascii") + b"z" + text.encode("ascii")
         if over := self._over(radio, info):
-            fits_not = Reason(f"the status is too long for radio {radio.name}", "status.too_long_for_radio", radio=radio.id, name=radio.name)     # (what the page says; the log has the numbers)
+            fits_not = Reason(f"the status is too long for radio {radio.name}", "status.too_long_for_radio", radio=radio.id, name=radio.name)
             raise BeaconError.of(fits_not, f"the status is longer than the radio carries ({over}): it is not cut, and not sent there")
         return self.frame_for(radio, info)
 
     def _over(self, radio: AirRadio, info: bytes) -> str:
-        """Why our frame with this information field is longer than the radio carries whole (Limits.too_long, with the radio's own frame cap), as a clause; "" when it fits, and for settings that make no
-        frame (frame_for says what is wrong with them)."""
+        """Return why the frame is longer than the radio carries (Limits.too_long), or ""."""
         c = self._config()
         try:
             frame = our_frame(c, path_on(radio, c, None), info)
@@ -240,10 +218,8 @@ class BeaconFrames:
             return ""
         return replace(radio.limits, max_frame=radio.max_frame).too_long(ax25.encode(frame), text_of(frame)) or ""
 
-    # ---- the frame
     def frame_for(self, radio: AirRadio, info: bytes) -> ax25.Frame:
-        """Our frame with this information field for the radio it goes on: from `station/call` to the tocall by way of the radio's path where it may carry one; its comment cut to what a radio with a
-        fixed frame carries (said once in the log), the report itself never. Raises BeaconError when the settings make no frame."""
+        """Return our frame for `info` on `radio` by its path, cut to fit; BeaconError if none."""
         c = self._config()
         if reason := can_transmit(c):
             raise BeaconError.of(reason)
@@ -263,8 +239,7 @@ class BeaconFrames:
 
 
 def _path_problem(radio: AirRadio, c: Config) -> str:
-    """Why the stored path of the radio makes no frame, "" when it does: a path the settings check refuses (only a Config made by hand holds one) stops our frame, as it always did, and is not
-    replaced by the default path."""
+    """Return why the radio's stored path makes no frame, or ""."""
     if not radio.allowed.paths:
         return ""
     spec = old_spec(c, radio.id, "path")

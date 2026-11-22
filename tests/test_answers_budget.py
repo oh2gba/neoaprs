@@ -1,5 +1,6 @@
-"""The budget of the answers (neoaprs/services/answers.py): all the answers of the station together are at most ANSWERS_PER_WINDOW frames in ANSWER_WINDOW_SEC, whoever asks and under whatever call; an honest
-question is answered whole, an answer that does not fit is not given at all and is not counted as given, and a minute later there is room again."""
+"""Tests for the answer budget (neoaprs/services/answers.py): at most ANSWERS_PER_WINDOW frames in
+ANSWER_WINDOW_SEC for all askers together, and an answer is given whole or not at all.
+"""
 import asyncio
 import logging
 

@@ -1,12 +1,8 @@
-"""The frequency specification of APRS (Bob Bruninga's "AFRS", freqspec.txt of aprs.org): the voice frequency a station, a repeater or a net can be called on, in the "local information" text.
+"""The APRS frequency specification (freqspec.txt of aprs.org): the voice frequency to call on.
 
-Two forms are read. In the free-text comment of a position, an object or an item, or in a status text, the first ten bytes are the frequency, `FFF.FFFMHz` (or `FFF.FF MHz` with a blank, to 10 kHz; a microwave band
-is `A96.000MHz` for 1296 MHz or `1.296GHz`), and what follows may be fields of four bytes separated by spaces: the tone `Tnnn` (CTCSS to transmit), `Cnnn` (CTCSS both ways), `Dnnn` (a DCS code),
-`Toff` (no tone) or `1750` (tone burst), where a lower-case first letter means narrow modulation; the offset `+nnn` or `-nnn` in units of 10 kHz (`-000` is simplex); the range `Rnnm` or `Rnnk`; the
-receive frequency `FFF.FFFrx`. Only the frequency is required, and the fields may come in any order. In an object whose name is `FFF.FFxyz` or `FFF.FFF-z` the frequency is the name, and the fields
-begin at the start of the comment. The unit is read in any case, since radios differ; text that does not begin with one of these forms (`145.500 MHz`, `QRV 145.500MHz`) is not read for a frequency.
-
-Pure code, like the rest of the foundation."""
+The text starts with the frequency (`FFF.FFFMHz`), then optional four-byte fields: tone, DCS,
+offset, range, receive frequency. In an object named `FFF.FFxyz` the name is the frequency.
+"""
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -15,7 +11,7 @@ from typing import Any
 from .units import MILE_KM
 
 _MHZ = re.compile(r"(?:(\d{3}\.\d{3}|\d{3}\.\d{2} )|([A-O])(\d{2}\.\d{3}))MHz(?= |$)|(\d{1,2}\.\d{3})GHz(?= |$)", re.IGNORECASE)
-_NAME = re.compile(r"(\d{3}\.\d{2}\d?+)(?=.)")                  # the frequency of an object name: two or three decimals, then at least one character that makes the name unique
+_NAME = re.compile(r"(\d{3}\.\d{2}\d?+)(?=.)")
 _MICROWAVE_BASE = {"A": 1200, "B": 2300, "C": 2400, "D": 3400, "E": 5600, "F": 5700, "G": 5800, "H": 10100, "I": 10200, "J": 10300, "K": 10400, "L": 10500, "M": 24000, "N": 24100, "O": 24200}
 _TONE = re.compile(r"([TCDtcd])(\d{3})")
 _TONE_OFF = re.compile(r"([Tt])off", re.IGNORECASE)
@@ -28,17 +24,17 @@ _OFFSET_UNIT_KHZ = 10
 
 @dataclass(frozen=True, slots=True)
 class Frequency:
-    """A frequency to call on, with the fields the specification adds to it; None (or False) is a field that was not sent."""
-    mhz: float                                  # the transmit frequency, MHz
-    tone_hz: int | None = None                  # the CTCSS tone of `Tnnn` and `Cnnn`, whole hertz (the spec drops the tenths: 107 is 107.2)
-    tone_both: bool = False                     # `Cnnn`: the tone is needed to receive as well
-    tone_off: bool = False                      # `Toff`: no tone, no DCS
-    dcs: str | None = None                      # the DCS code of `Dnnn`, three digits as sent
-    tone_burst: bool = False                    # `1750`: a 1750 Hz tone burst opens the repeater
-    narrow: bool = False                        # the first letter of the tone field was lower case: narrow modulation
-    offset_khz: int | None = None               # `+nnn` / `-nnn`, kHz from the transmit frequency; 0 is simplex; None when the standard offset is meant
-    range_km: float | None = None               # `Rnnm` / `Rnnk`, the nominal range
-    rx_mhz: float | None = None                 # a separate receive frequency (`FFF.FFFrx`, or the frequency of the comment of an object that is named by its own)
+    """A frequency to call on; None or False means the field was not sent."""
+    mhz: float
+    tone_hz: int | None = None  # whole hertz as sent (107 means 107.2)
+    tone_both: bool = False  # `Cnnn`: the tone is needed to receive too
+    tone_off: bool = False
+    dcs: str | None = None
+    tone_burst: bool = False  # `1750`
+    narrow: bool = False
+    offset_khz: int | None = None  # 0 is simplex; None: standard offset
+    range_km: float | None = None
+    rx_mhz: float | None = None
 
 
 def _mhz(found: re.Match[str]) -> float:
@@ -63,7 +59,7 @@ def _range(found: re.Match[str]) -> dict[str, Any]:
     return {"range_km": float(distance) if found.group(2).lower() == "k" else round(distance * MILE_KM, 1)}
 
 
-# The fields after the frequency: the slot each one takes (a slot is filled once), its pattern and what it says.
+# Fields after the frequency: slot (filled once), pattern, meaning.
 _FIELDS: tuple[tuple[str, re.Pattern[str], Callable[[re.Match[str]], dict[str, Any]]], ...] = (
     ("tone", _TONE, _tone),
     ("tone", _TONE_OFF, lambda f: {"tone_off": True, "narrow": f.group(1).islower()}),
@@ -75,7 +71,7 @@ _FIELDS: tuple[tuple[str, re.Pattern[str], Callable[[re.Match[str]], dict[str, A
 
 
 def _fields(text: str, frequency: Frequency) -> tuple[Frequency, str]:
-    """`frequency` with the fields at the start of `text`, and the rest of the text: the fields end at the first word that is none, or that fills a slot twice."""
+    """Return `frequency` with the fields at the start of `text`, and the rest of the text."""
     taken: set[str] = set()
     rest = text
     while rest:
@@ -89,8 +85,10 @@ def _fields(text: str, frequency: Frequency) -> tuple[Frequency, str]:
 
 
 def split_frequency(text: str) -> tuple[str, Frequency | None]:
-    """The frequency at the start of `text` (the free text of a position or a status, after any data extension; one "/" or blank in front of it is a delimiter) and the text without it and its fields.
-    None, and the text as it is, when it does not begin with a frequency."""
+    """Return the frequency at the start of `text` and the text without it; None if absent.
+
+    One "/" or blank in front of the frequency is a delimiter.
+    """
     start = text.lstrip(" ")
     if start.startswith("/"):
         start = start[1:].lstrip(" ")
@@ -102,14 +100,16 @@ def split_frequency(text: str) -> tuple[str, Frequency | None]:
 
 
 def name_frequency(name: str) -> float | None:
-    """The frequency an object or item name is: `FFF.FFxyz`, `FFF.FFF-z`, `FFF.FFFyz` (MHz); None for any other name."""
+    """Return the frequency an object or item name is (`FFF.FFxyz`), else None."""
     found = _NAME.match(name.rstrip())
     return None if found is None else float(found.group(1))
 
 
 def named_frequency(name: str, frequency: Frequency | None, comment: str) -> tuple[Frequency | None, str]:
-    """The frequency of an object or item, and its comment: the name's when it is one (`frequency` is what split_frequency found at the start of the `comment`, if anything). A comment of such an object
-    begins with the fields themselves; when it also begins with a frequency, the name is the transmit frequency and the comment's the one to receive on."""
+    """Return the frequency of an object or item and its comment.
+
+    If the comment also starts with a frequency, the name's is transmit and the comment's receive.
+    """
     mhz = name_frequency(name)
     if mhz is None:
         return frequency, comment
@@ -120,7 +120,7 @@ def named_frequency(name: str, frequency: Frequency | None, comment: str) -> tup
 
 
 def frequency_text(frequency: Frequency) -> str:
-    """What a frequency says, on one line: "145.775 MHz, tone 118 Hz, -600 kHz, range 40 km"."""
+    """Return one line describing a frequency."""
     parts = [f"{frequency.mhz:.3f} MHz"]
     if frequency.tone_hz is not None:
         parts.append(f"tone {frequency.tone_hz} Hz{' both ways' if frequency.tone_both else ''}")

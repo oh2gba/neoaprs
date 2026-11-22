@@ -1,5 +1,7 @@
-"""Migration 27 (neoaprs/migrationsteps22on.py): the default alert command of Linux and macOS escapes & < > for the notifier. A stored `messages/alert_command` that is exactly the default of migration 22 is deleted, so
-that the new default (`neoaprs.alertcommand.LINUX_ALERT_COMMAND`) is in force, with one line in the log; a command of the operator's own, the default of Windows and a database without the row are left alone."""
+"""Migration 27 (neoaprs/migrationsteps22on.py): the default alert command of Linux and macOS
+escapes & < > for the notifier. A stored command equal to the earlier default is deleted; the
+operator's own is kept.
+"""
 import logging
 from pathlib import Path
 
@@ -15,7 +17,8 @@ from tests.support.migrated import opened, step_back
 from tests.test_migrations import GOLDEN, raw
 
 V22_LINUX_ALERT = ('(notify-send -- "$NEOAPRS_TITLE" "$NEOAPRS_TEXT" 2>/dev/null || kdialog --title "$NEOAPRS_TITLE" --passivepopup "$NEOAPRS_TEXT" 10); '
-                   'paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga')       # what every save of the settings stored from migration 22 on, on Linux and macOS
+                   # What every save of the settings stored from migration 22 on, on Linux and macOS
+                   'paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga')
 
 
 def version_twenty_six(path: Path, clock: FixedClock, stored: dict[str, str]) -> None:

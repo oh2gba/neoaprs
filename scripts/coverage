@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# What the tests cover: runs the Python suite under coverage.py (branches, and the daemons and commands the tests start as processes too; the rules are in [tool.coverage] of pyproject.toml) side by side on the cores
-# and prints the table of every module of neoaprs/ with its lines, branches and missing line numbers, and the total; or, with --ui, the page's vitest coverage. Slower than the tests alone, so not a stage of scripts/check.
+# What the tests cover: runs the Python suite under coverage.py (branches, and the daemons and commands
+# the tests start as processes; rules in [tool.coverage] of pyproject.toml) and prints every module of
+# neoaprs/ with lines, branches, missing line numbers and the total. Slower than the tests alone.
 #
 #   scripts/coverage                    the Python half, the whole suite
 #   scripts/coverage -- tests/test_db.py -k busy   the same for the tests pytest is given after the --
 #   scripts/coverage --ui               the page: vitest with v8 coverage over ui/src
-#
-# The data is kept in a temporary folder and taken away. NEOAPRS_PYTHON and NEOAPRS_TEST_WORKERS(_MAX) are read as scripts/check reads them. Node is the one on the PATH, else the newest in ~/.nvm.
+# The data goes to a temporary folder and is removed. NEOAPRS_PYTHON and NEOAPRS_TEST_WORKERS(_MAX) are read as scripts/check reads them.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

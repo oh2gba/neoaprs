@@ -1,6 +1,9 @@
-"""The migrations under failure (neoaprs/migrations.py, migrationsteps12to21.py): a step that doubts its own copy of a table, a step that raises what is not an SQLite error, a rollback that fails, a disk that is
-full at the commit, a file another writer holds, another process that migrated first, a history that cannot be read or a source that cannot be hashed. In each the file is as it was or at the step before,
-the copy taken before the first step is in backup/, and the next start with the cause gone migrates it."""
+"""The migrations under failure (neoaprs/migrations.py, migrationsteps12to21.py): a step that doubts
+its own copy of a table, a step that raises what is not an SQLite error, a rollback that fails, a
+disk that is full at the commit, a file another writer holds, another process that migrated first, a
+history that cannot be read or a source that cannot be hashed. In each the file is as it was or at
+the step before, the copy taken before the first step is in backup/, and the next start with the
+cause gone migrates it."""
 import logging
 import os
 import signal
@@ -26,7 +29,8 @@ from tests.test_migrations import NEXT, broken, raw, v_next, version_eight, vers
 Seed = Callable[[Path, FixedClock], None]
 DELETE_A_ROW = "DELETE FROM {table} WHERE rowid = (SELECT MIN(rowid) FROM {table})"
 
-# (the version a file is at, how to make it, the statement that makes the new table hold what the old one did, what makes it hold less, the old table and the new one)
+# (the version a file is at, how to make it, the statement that makes the new table hold what the
+# old one did, what makes it hold less, the old table and the new one)
 DOUBTS = [
     pytest.param(3, version_three, "INSERT INTO station_pref (call, path, updated_at)", DELETE_A_ROW.format(table="station_pref"), "station_path", id="4: station_pref"),
     pytest.param(8, version_eight, "INSERT INTO station_pref (call, path, hide_after_min, updated_at)", DELETE_A_ROW.format(table="station_pref"), "station_pref_old", id="9: station_pref"),
@@ -135,8 +139,9 @@ def test_a_file_that_another_writer_holds_is_refused_as_locked_and_not_touched_a
 
 
 def test_a_step_that_another_process_has_run_meanwhile_is_not_run_again(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    """The other gets there between this one's lock and its first step: one that takes no migration lock (a NeoAPRS before 0.20, or an open within an open, as here); the step's own check keeps it from
-    running twice."""
+    """The other process gets there between this one's lock and its first step: it takes no
+    migration lock (an older NeoAPRS, or a nested open as here), and the step's own check stops a
+    second run."""
     clock = FixedClock()
     path = tmp_path / DB_NAME
     opened(path, clock).close()
@@ -145,7 +150,9 @@ def test_a_step_that_another_process_has_run_meanwhile_is_not_run_again(tmp_path
 
     def other_process_first(conn: sqlite3.Connection, sql: str) -> None:
         if sql.startswith("BEGIN IMMEDIATE") and not nested:
-            nested.append(True)                              # (the first step of this open is about to begin: the other open, which is whole, gets there first)
+            # The first step of this open is about to begin: the other open, which is whole, gets
+            # there first
+            nested.append(True)
             other, why = open_database(path, clock=clock)
             assert other is not None, why
             other.close()
@@ -160,7 +167,8 @@ def test_a_step_that_another_process_has_run_meanwhile_is_not_run_again(tmp_path
     assert len([r for r in caplog.records if r.name == MIGRATION_LOG and "is now version" in r.getMessage()]) == 1, "told once, by the open that ran it"
 
 
-# ---- a migration killed (SIGKILL, the OOM killer, a power cut) at each place, once, twice and three times: a child process runs it with three made-up steps and kills itself where it is told
+# ---- a migration killed (SIGKILL, OOM, power cut) at each place, once to three times: a child
+# process runs it with three made-up steps and kills itself where told
 
 KILLED = r'''
 import os, signal, sqlite3, sys
@@ -213,8 +221,10 @@ db.close()
 
 
 def run_killed(path: Path, where: str) -> int:
-    """The migration of `path` in a child process that kills itself at `where` (`copy`: while the copy is written; `before`: between the copy and the first step; `stepN`: in the made-up step N;
-    `drop`: after the last step, before the older copies are removed; `none`: not at all). Its exit code."""
+    """The migration of `path` in a child process that kills itself at `where` (`copy`: while the
+    copy is written; `before`: between the copy and the first step; `stepN`: in the made-up step N;
+    `drop`: after the last step, before the older copies are removed; `none`: not at all). Its exit
+    code."""
     root = Path(__file__).resolve().parents[2]
     return subprocess.run([sys.executable, "-c", KILLED, str(path), where], cwd=root, capture_output=True, timeout=120).returncode
 
@@ -243,7 +253,8 @@ def at_the_old_version_as_it_was(copy: Path, held: dict[str, int]) -> bool:
     return version == SCHEMA_VERSION and tables == held and settings == [("OH2GBA",), ("/-",)]
 
 
-KILLED_BY = getattr(signal, "SIGKILL", 9)            # (the exit code of a child that the kill ended is its negative)
+# The exit code of a child that the kill ended is its negative
+KILLED_BY = getattr(signal, "SIGKILL", 9)
 KILLS_HERE = pytest.mark.skipif(sys.platform == "win32", reason="SIGKILL is POSIX's; Windows ends a process with TerminateProcess, which these children cannot ask for themselves")
 
 
@@ -254,8 +265,11 @@ KILLS_HERE = pytest.mark.skipif(sys.platform == "win32", reason="SIGKILL is POSI
     pytest.param([("copy", SCHEMA_VERSION), ("step2", NEXT), ("step3", NEXT + 1)], id="while the copy is written, in the second step, in the third"),
 ])
 def test_a_migration_killed_again_and_again_ends_with_one_copy_the_one_of_the_old_version(tmp_path: Path, kills: list[tuple[str, int]]) -> None:
-    """Whatever kills it where: the file is at the version of the last step that was in, every start after the first copy makes no other (a station that a power cut or the OOM killer stops again and again
-    does not fill its disk), and the start that gets through leaves backup/ with the copy of the file as the program before left it; the copy of the migration before goes, a copy made by hand stays."""
+    """Whatever kills it where: the file is at the version of the last step that was in, every start
+    after the first copy makes no other (a station that a power cut or the OOM killer stops again
+    and again does not fill its disk), and the start that gets through leaves backup/ with the copy
+    of the file as the program before left it; the copy of the migration before goes, a copy made by
+    hand stays."""
     path = tmp_path / DB_NAME
     held = a_kept_file(path)
     folder = tmp_path / "backup"
@@ -284,7 +298,8 @@ def test_a_migration_killed_again_and_again_ends_with_one_copy_the_one_of_the_ol
 
 @KILLS_HERE
 def test_a_copy_of_a_middle_version_an_earlier_program_left_goes_and_the_old_one_stays(tmp_path: Path) -> None:
-    """Killed in the second step, a copy of the middle version beside the one of the old version (as the join's rule of 14 November made them): the start that gets through stands on the old one and removes the other."""
+    """Killed in the second step, with a copy of the middle version beside the old one: the next
+    start stands on the old one and removes the other."""
     path = tmp_path / DB_NAME
     held = a_kept_file(path)
     folder = tmp_path / "backup"
@@ -303,7 +318,8 @@ def test_a_copy_of_a_middle_version_an_earlier_program_left_goes_and_the_old_one
 
 @KILLS_HERE
 def test_a_start_killed_after_the_last_step_leaves_the_copies_of_the_migration_before_to_the_next_one(tmp_path: Path) -> None:
-    """The one place where backup/ keeps more after a migration that ended whole: a kill between the last step and the removal of the older copies (the next start has nothing to migrate)."""
+    """The one place where backup/ keeps more after a migration that ended whole: a kill between the
+    last step and the removal of the older copies (the next start has nothing to migrate)."""
     path = tmp_path / DB_NAME
     held = a_kept_file(path)
     folder = tmp_path / "backup"
@@ -316,9 +332,12 @@ def test_a_start_killed_after_the_last_step_leaves_the_copies_of_the_migration_b
 
 
 def test_a_migration_killed_while_two_others_wait_for_it_is_taken_over_by_one_and_the_third_waits_for_that_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    """A tool migrates (in a step longer than any busy time), and two more NeoAPRS start meanwhile: this process (the daemon) and a child (another tool). Both wait. The tool is killed in its step (on
-    Windows TerminateProcess, the parent's kill: it runs everywhere). One of the two takes over: it stands on the tool's copy, makes none and runs the step the kill ended; the other waits for that one and
-    finds the file at the newest version. The file ends whole, each step in it once, and backup/ holds one copy, of the old version."""
+    """A tool migrates (in a step longer than any busy time), and two more NeoAPRS start meanwhile:
+    this process (the daemon) and a child (another tool). Both wait. The tool is killed in its step
+    (on Windows TerminateProcess, the parent's kill: it runs everywhere). One of the two takes over:
+    it stands on the tool's copy, makes none and runs the step the kill ended; the other waits for
+    that one and finds the file at the newest version. The file ends whole, each step in it once,
+    and backup/ holds one copy, of the old version."""
     from tests.test_migration_waits import NEWEST, WAITS, a_station_to_migrate, another_neoaprs, ended, in_the_second_step, open_in_a_thread, said, until, version_of, who
     caplog.set_level(logging.INFO, MIGRATION_LOG)
     path, held = a_station_to_migrate(tmp_path, monkeypatch)

@@ -1,4 +1,6 @@
-"""The keep-alive's quiet period (neoaprs/tncwatchdog.py): TNC_CHECK_SEC and a random part of it more, drawn again at every byte, so that the checks never keep step with a station that beacons at a fixed rate."""
+"""The keep-alive's quiet period (neoaprs/tncwatchdog.py): TNC_CHECK_SEC and a random part of it
+more, drawn again at every byte, so that the checks never keep step with a station that beacons at a
+fixed rate."""
 from typing import Any
 
 from neoaprs.policy import TNC_CHECK_JITTER, TNC_CHECK_SEC

@@ -1,6 +1,7 @@
-"""scripts/runner-facts and packaging/ci/runner.json, without the network and without the clock: the file's shape; each fact compared at its own precision; this machine read from stand-ins for
-gcc, ldd and php and a made-up os-release; a -latest label on a made-up system; GitHub's readme of an image and its list of announcements read from short excerpts written here, with a fixed day
-passed in; and a page that cannot be fetched or read, which fails. What GitHub really publishes is read by the weekly audit (scripts/check --stage audit)."""
+"""scripts/runner-facts and packaging/ci/runner.json without the network or the clock: the file's
+shape, each fact at its own precision, this machine read from stand-ins, and GitHub's image readme
+read from excerpts.
+"""
 import datetime
 import importlib.machinery
 import importlib.util
@@ -18,12 +19,14 @@ SCRIPT = ROOT / "scripts" / "runner-facts"
 RUNNER = json.loads((ROOT / "packaging" / "ci" / "runner.json").read_text(encoding="utf-8"))
 posix_only = pytest.mark.skipif(sys.platform == "win32", reason="the stand-ins for gcc, ldd and php are shell scripts")
 
-# A made-up runner.json of its own, so that a move of the real one changes no test here; ubuntu-22.04 is in it to have an announcement read until a day.
+# A made-up runner.json of its own, so that a move of the real one changes no test here;
+# ubuntu-22.04 is in it to have an announcement read until a day.
 MADE_UP = {"labels": ["ubuntu-26.04", "ubuntu-24.04-arm", "ubuntu-22.04", "windows-2025", "macos-26"], "latest": {"ubuntu-latest": "26.04", "windows-latest": "10.0.26100", "macos-latest": "26"},
            "image_version": "20261111.196.1", "facts": {"os": "26.04", "gcc": "15", "march": "x86-64-v3", "glibc": "2.43", "php": "8.5"},
            "announcements": {"14254": "2027-02-21", "14748": None}}
 
-# A few lines in the form of GitHub's readme of an image (images/ubuntu/Ubuntu2604-Readme.md), not a copy of it.
+# A few lines in the form of GitHub's readme of an image (images/ubuntu/Ubuntu2604-Readme.md), not a
+# copy of it.
 README = """# Ubuntu 26.04
 - OS Version: 26.04.1 LTS
 - Kernel Version: 7.0.0-1019-azure
@@ -39,7 +42,8 @@ README = """# Ubuntu 26.04
 | locales | 2.43-2ubuntu2.4    |
 """
 
-# The open issues of a made-up day in the form of GitHub's API: ours read for good, ours read until a day, ours not read, one that names nothing of ours, and a pull request.
+# The open issues of a made-up day in the form of GitHub's API: ours read for good, ours read until
+# a day, ours not read, one that names nothing of ours, and a pull request.
 ISSUES: list[dict[str, Any]] = [
     {"number": 14748, "title": "ubuntu-latest moves to Ubuntu 26.04", "body": "The rollout ends on 19 November."},
     {"number": 14254, "title": "The Ubuntu 22.04 image will be retired", "body": "Jobs on ubuntu-22.04 will fail from 17 April 2027."},
@@ -163,14 +167,16 @@ def test_latest_says_when_a_latest_label_is_no_longer_the_system_we_name(facts: 
     assert said[0] == f"runner-facts: {label} is {system.split('.')[0] if label == 'macos-latest' else system} here; runner.json names {MADE_UP['latest'][label]}"
 
 
-# Stands in for macOS's sw_vers: the true version only with the compatibility number turned off, else the number an old SDK's program is shown.
+# Stands in for macOS's sw_vers: the true version only with the compatibility number turned off,
+# else the number an old SDK's program is shown.
 SW_VERS = '#!/bin/sh\n[ "$1" = -productVersion ] || exit 1\nif [ "$SYSTEM_VERSION_COMPAT" = 0 ]; then echo 26.1; else echo 16.0; fi\n'
 
 
 @posix_only
 def test_macos_is_read_from_sw_vers_with_the_compatibility_number_off(facts: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     monkeypatch.setenv("PATH", str(stand_ins(tmp_path / "bin", **{"sw_vers": SW_VERS})))
-    monkeypatch.setattr(facts.platform, "mac_ver", lambda: ("16.0", ("", "", ""), "arm64"))           # what a Python of an older SDK says
+    # What a Python of an older SDK says
+    monkeypatch.setattr(facts.platform, "mac_ver", lambda: ("16.0", ("", "", ""), "arm64"))
     assert facts.macos_version() == "26.1"
     out = facts.Out(github=False)
     facts.latest(out, MADE_UP, "macos-latest")

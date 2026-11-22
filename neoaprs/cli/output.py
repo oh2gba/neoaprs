@@ -1,14 +1,16 @@
-"""What the commands print for a person to read: on stderr, so that what a command prints on stdout (a port to give the daemon, a table) can be taken by a script."""
+"""Messages for people go to stderr, so that stdout (a port, a table) stays usable by scripts."""
 import signal
 import sys
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
 
-SETTLE_SEC = 0.5                    # after a client has opened the line: a port that opens may clear its input buffer as it does
+SETTLE_SEC = 0.5                    # opening a serial port may clear its input buffer
 
 
 def ctrl_break_is_ctrl_c() -> None:
-    """Windows: Ctrl+Break is the signal a program in a process group of its own can be sent (a script that runs a command, a test), and by default it ends the program at once; here it is Ctrl+C."""
+    """Treat Ctrl+Break as Ctrl+C on Windows, where it would otherwise end the program at once.
+
+    A program in its own process group can only be sent Ctrl+Break."""
     number = getattr(signal, "SIGBREAK", None)
     if number is not None:
         signal.signal(number, signal.default_int_handler)
@@ -16,8 +18,9 @@ def ctrl_break_is_ctrl_c() -> None:
 
 @contextmanager
 def break_as_interrupt() -> Iterator[None]:
-    """Windows: Ctrl+Break, while the loop runs, is handled as asyncio.run handles Ctrl+C, by cancelling what the command does at its next wait; raised as KeyboardInterrupt at whatever line the loop is on, it can land inside
-    the loop's own wait for the system's completions, lose one of them, and the loop's close then waits for it for ever."""
+    """On Windows, handle Ctrl+Break like asyncio.run handles Ctrl+C (cancel at the next wait).
+
+    A KeyboardInterrupt on any line can lose an I/O completion and hang closing the loop."""
     number = getattr(signal, "SIGBREAK", None)
     on_interrupt = signal.getsignal(signal.SIGINT)
     if number is None or not callable(on_interrupt):
@@ -31,7 +34,7 @@ def break_as_interrupt() -> Iterator[None]:
 
 
 async def interruptible[T](work: Callable[[], Awaitable[T]]) -> T:
-    """`work()` awaited with Ctrl+Break handled as Ctrl+C is (`break_as_interrupt`): what a command that runs until it is interrupted gives asyncio.run."""
+    """Await `work()` with Ctrl+Break handled as Ctrl+C (`break_as_interrupt`)."""
     with break_as_interrupt():
         return await work()
 

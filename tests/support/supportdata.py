@@ -1,10 +1,5 @@
-"""A data folder for the tests of the support bundle: a migrated database with settings (an access key among them) and a few packets, and logs of the sizes a test asks for.
-
-    data = fake_folder(tmp_path)                    # tmp_path/data with neoaprs.sqlite, neoaprs.log and neoaprs-app.log: the settings stored at version 30 and migrated, the radios rows made of the keys of
-                                                    # before as an installation's update makes them (radio 1, and radio 2 where they name the HF radio)
-    fake_folder(tmp_path, app_log=False)            # no app log
-    fake_folder(tmp_path, radios=False)             # a new installation's file: the station's settings, and no radio yet
-    zip_members(path)                               # {name: text} of a bundle
+"""A data folder for the support bundle tests: a migrated database with settings and a few packets,
+and logs of the sizes a test asks for.
 """
 import zipfile
 from pathlib import Path

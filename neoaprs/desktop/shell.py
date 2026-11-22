@@ -1,15 +1,7 @@
-"""Which shell this computer can run. A shell is the code that owns the toolkit's loop, the window and the tray icon: `webshell` (pywebview and pystray: Windows, and Linux and macOS when NEOAPRS_WINDOW=web asks
-for it) or `qtshell` (Qt: Linux, macOS). The toolkits are the app's optional dependencies, so what is installed decides: a window needs a web engine, a tray icon needs a toolkit, and when there is neither the app
-can only open the page in the browser. `choose` looks (importing is the look; it runs no toolkit, and on Linux the web shell's GTK ground is laid first, gtkenv.py) and says what it found, for the log: the
-fallbacks are "no window: the tray and the browser" and "nothing: the browser only", never a failure; the web shell on Linux and macOS may also have a window and no tray ("window, no tray icon").
+"""Choose which shell this computer can run.
 
-Windows has one more condition: pywebview, asked for no particular engine, falls back to the old Internet Explorer engine when WebView2 is missing, which cannot show the page. WebView2's runtime is part of
-Windows 11 and of every current Windows 10; `webview2_runtime` looks for it in the registry, where its updater writes it, and without it the window is not offered.
-
-The web window on Linux and macOS is a trial (aprs-reference/window-plan.md): NEOAPRS_WINDOW=web chooses it in place of Qt's, which stays the window when the variable is not set. On Linux the window needs
-GTK 3 and WebKitGTK (the 4.1 API, else 4.0) with their typelibs and pywebview; the tray needs pystray on its appindicator backend, forced (`PYSTRAY_BACKEND`), whose library and typelib the AppImage carries:
-any failure of its import is no tray (pystray ends its whole import with the ValueError of a missing typelib). The program's name is given to GLib before GTK starts, so that the desktop finds the window's icon
-by the name of neoaprs.desktop."""
+A shell is `webshell` (pywebview and pystray) or `qtshell` (Qt); `choose` probes by importing.
+With no toolkit the app only opens the page in the browser."""
 import importlib
 import logging
 import os
@@ -31,21 +23,22 @@ from .single import SingleApp
 
 log = logging.getLogger("neoaprs.desktop")
 
-# How long the tray is looked for when the desktop has none yet (the panel may start after the app at sign-in).
+# How long to look for a tray when the desktop has none yet (the panel may start later).
 TRAY_WAIT_SEC = 60.0
 TRAY_POLL_SEC = 2.0
 WEBVIEW2_CLIENT = "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
 WEBVIEW2_KEYS = (("HKEY_LOCAL_MACHINE", r"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients"), ("HKEY_LOCAL_MACHINE", r"SOFTWARE\Microsoft\EdgeUpdate\Clients"), ("HKEY_CURRENT_USER", r"SOFTWARE\Microsoft\EdgeUpdate\Clients"))
 Importer = Callable[[str], Any]
-WINDOW_SWITCH = "NEOAPRS_WINDOW"                 # "web": the web shell on Linux and macOS in place of Qt's (the trial); anything else or nothing: Qt
+# "web" selects the web shell on Linux and macOS instead of Qt; anything else means Qt.
+WINDOW_SWITCH = "NEOAPRS_WINDOW"
 WEB_SHELL = "neoaprs.desktop.webshell"
-PROGRAM = "neoaprs"                              # the name GLib gives the program: the desktop matches it to neoaprs.desktop for the window's icon on Wayland
+# The GLib program name: Wayland matches it to neoaprs.desktop to find the window's icon.
+PROGRAM = "neoaprs"
 
 
 @dataclass(frozen=True)
 class Choice:
-    """`module`: the shell's module (None: no shell can run); `window`: whether it can show the page in a window (else it keeps the tray and opens the browser); `why`: what was missing, for the log;
-    `tray`: whether it can have a tray icon (only the web shell on Linux and macOS can have a window without one)."""
+    """The chosen shell: its `module` (None: none can run), whether it has a `window` or a `tray`, and `why` for the log."""
     module: str | None
     window: bool
     why: tuple[str, ...] = ()
@@ -64,7 +57,7 @@ class Choice:
 
 
 def _can_import(importer: Importer, *names: str) -> str | None:
-    """None when every module imports, else what failed (the toolkit that is not installed, or installed and broken: a library that cannot be loaded raises more than ImportError)."""
+    """Return None if every module imports, else what failed (any exception counts, not only ImportError)."""
     for name in names:
         try:
             importer(name)
@@ -74,7 +67,7 @@ def _can_import(importer: Importer, *names: str) -> str | None:
 
 
 def webview2_runtime(registry: Any = None) -> bool:
-    """Whether the WebView2 runtime is installed (a version in the keys its updater keeps, for all users or the current one)."""
+    """Return True if the WebView2 runtime is installed (a version in its registry keys)."""
     winreg = registry if registry is not None else importlib.import_module("winreg")
     for root, path in WEBVIEW2_KEYS:
         try:
@@ -82,17 +75,19 @@ def webview2_runtime(registry: Any = None) -> bool:
                 version, _kind = winreg.QueryValueEx(key, "pv")
         except OSError:
             continue
-        if str(version).strip() not in ("", "0.0.0.0"):  # noqa: S104  (a version number, which in this key says that the runtime is not installed; no address)
+        if str(version).strip() not in ("", "0.0.0.0"):  # noqa: S104  (a version number meaning "not installed", not an address)
             return True
     return False
 
 
-WEBKIT_APIS = (("4.1", "3.0"), ("4.0", "2.4"))     # WebKit2 with the Soup it is built on, in the order pywebview takes them
+# WebKit2 with the Soup it is built on, in the order pywebview prefers them.
+WEBKIT_APIS = (("4.1", "3.0"), ("4.0", "2.4"))
 
 
 def webkit_api(gi: Any) -> tuple[str, str]:
-    """The WebKit2 and Soup versions whose typelibs are both there, looked up before either is required: gi keeps the first version required of a namespace, so a WebKit2 4.1 required before its Soup 3.0
-    turned out missing would refuse the 4.0 after it. ValueError when neither pair is there."""
+    """Return the WebKit2 and Soup versions whose typelibs both exist; raise ValueError if none.
+
+    Both are checked before either is required: gi keeps the first version required of a namespace."""
     repository = gi.Repository.get_default()
     for webkit, soup in WEBKIT_APIS:
         if webkit in repository.enumerate_versions("WebKit2") and soup in repository.enumerate_versions("Soup"):
@@ -101,9 +96,9 @@ def webkit_api(gi: Any) -> tuple[str, str]:
 
 
 def gtk_window_problem(importer: Importer) -> str | None:
-    """None when the web window can be had on Linux, else what is missing: gi, GTK 3, WebKitGTK (the 4.1 API with Soup 3, else 4.0 with Soup 2.4, as pywebview asks for them) and pywebview. The program is named
-    before GTK is (it is GLib's)."""
-    from . import gtkenv                        # (imported only for the web window: the Qt window's start loads nothing of it)
+    """Return None if gi, GTK 3, WebKitGTK and pywebview load, else what is missing; sets GLib's program name."""
+    # Imported only for the web window, so the Qt window's start loads none of it.
+    from . import gtkenv
     try:
         gi = importer("gi")
     except Exception as e:
@@ -122,12 +117,13 @@ def gtk_window_problem(importer: Importer) -> str | None:
 
 
 def choose_web(platform: str, importer: Importer, environ: Any) -> Choice:
-    """The web shell on Linux or macOS: its window and its tray are each had or not, and a window without a tray is a choice of its own."""
+    """Choose the web shell on Linux or macOS; its window and its tray are each present or not."""
     if platform == "darwin":
         window_problem = _can_import(importer, "webview", "WebKit")
         tray_problem = _can_import(importer, "pystray", "PIL.Image", "PyObjCTools.AppHelper")
     else:
-        from . import gtkenv                    # (imported only for the web window: the Qt window's start loads nothing of it, ctypes included)
+        # Imported only for the web window, so Qt's start loads none of it (ctypes included).
+        from . import gtkenv
         ground = gtkenv.prepare()
         if ground:
             log.info("the web window's ground: %s", "; ".join(ground))
@@ -164,8 +160,7 @@ def choose(platform: str | None = None, importer: Importer = importlib.import_mo
 
 @dataclass
 class ShellContext:
-    """What a shell is given to run: the daemon's session, whether to start with the window hidden, the start at sign-in of this system, and the app's one-app lock. `ready(actions)` is the shell telling the app that its
-    window and tray exist: from then on a second app's `show` and `quit`, the end of the daemon, a new address of its page and a new version of the app's own file (`app_file`, renew.py) reach the actions."""
+    """What a shell is given to run; `ready(actions)` connects the app lock and the daemon watch to the actions."""
     session: Session
     hidden: bool
     window: bool
@@ -186,7 +181,7 @@ class ShellContext:
         self.watch.start()
 
     def renewing(self) -> bool:
-        """Whether the app ended to start again as the new version (renew.py)."""
+        """Return True if the app ended to restart as the new version (renew.py)."""
         return self.actions is not None and self.actions.renewing
 
     def close(self) -> None:
@@ -197,10 +192,9 @@ class ShellContext:
 
 @dataclass
 class Launch:
-    """What a shell starts with, before the daemon's page is there: the data folder, the session on its way, whether to start with the window hidden, whether a window can be had, the start at sign-in and the
-    one-app lock. The shell makes its window at once (with the page of loading.py in it) and asks `context(session)` for its ShellContext once `opening` has the session; when it never comes, `no_page` is
-    the end, in the words the app has always said it with. `describe` is what the shell can do, for the log line of the session; `tray`, whether its tray's toolkit loaded (Choice.tray); `app_file`, the
-    AppImage file the app runs from, as it was at the start (renew.py)."""
+    """What a shell starts with before the daemon's page is there.
+
+    The shell shows its window at once and asks `context(session)` once `opening` has the session."""
     data: Path
     opening: Opening
     hidden: bool
@@ -215,7 +209,7 @@ class Launch:
 
     @classmethod
     def of(cls, ctx: ShellContext) -> "Launch":
-        """The launch of a context whose session is there already."""
+        """Return the launch for a context whose session is already there."""
         return cls(ctx.session.data, Opening.opened(ctx.session), ctx.hidden, ctx.window, ctx.autostart, ctx.single, ctx.daemon, ctx=ctx)
 
     def context(self, session: Session) -> ShellContext:
@@ -225,7 +219,7 @@ class Launch:
         return self.ctx
 
     def no_page(self, error: NoPage) -> int:
-        """No page came: the app lets go of the folder and says so (a message box too, where there is no console, with the splash taken away first: it is on top of everything); exit code 1."""
+        """Release the data folder and report that no page came; return exit code 1."""
         self.single.close()
         splash.done()
         opencmd.tell_the_user(f"app: NeoAPRS did not come up: {error}. The log is {self.data / LOG_NAME}")

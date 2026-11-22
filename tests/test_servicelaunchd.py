@@ -1,5 +1,7 @@
-"""The macOS service (neoaprs/cli/servicelaunchd.py) where tests/test_service.py does not look: the agent's real place, a system with no launchctl, an agent that is there already, a launchd that will not load it, and a
-remove with nothing to remove. `launchctl` is a record of what it was asked."""
+"""The macOS service (neoaprs/cli/servicelaunchd.py) beyond tests/test_service.py: the agent's real
+place, no launchctl, an existing agent, a launchd that will not load it, and a remove with nothing
+to remove.
+"""
 import plistlib
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,7 +14,8 @@ PLAIST = "eu.oh2gba.neoaprs.plist"
 
 
 class Launchctl:
-    """`subprocess.run` as the module sees it: the program is there (or not), and answers with a code."""
+    """`subprocess.run` as the module sees it: the program is there (or not), and answers with a
+    code."""
 
     def __init__(self, monkeypatch: pytest.MonkeyPatch, home: Path) -> None:
         self.calls: list[list[str]] = []

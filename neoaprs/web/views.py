@@ -1,7 +1,8 @@
-"""What the daemon's objects look like on the wire: the plain dicts (JSON-able) that `state` and `patch` carry, made from the station book, the packets, the messages, the message board,
-the station preferences, the TNC and the settings. The models of the wire modules say what these are, and `Model.row(object, ...)` (neoaprs/web/wirebase.py) takes each field of the model
-from the attribute of the object that has its name: what is written here is only what the object does not have as it is, the values that are worked out (a distance, the next time a thing
-is sent, the route as text)."""
+"""Plain JSON-able dicts for the `state` and `patch` messages, built from the daemon's objects.
+
+`Model.row(object, ...)` (wirebase.py) takes each wire field from the same-named attribute;
+only the values that must be worked out are written here.
+"""
 import json
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -50,8 +51,9 @@ from .stationwire import StationRow, TelemetryValues, WeatherValues
 from .tncwire import ModemState
 from .wirebase import HISTORY_MAX_HOURS
 
-LINES_MAX = 100                     # lines of a radio's line told to a page
-CONFIG_KEYS = tuple(key for key in KEYS if (key in STATION_KEYS or key == "serial/last_port") and key not in RADIO_STATION_KEYS)      # the keys of `config.values`, in the form's order: the station's settings, and the port radio 1's search found last (the radios' own are `radio_values`)
+LINES_MAX = 100  # recent lines of a radio's line sent to a page
+# Keys of `config.values` in the form's order.
+CONFIG_KEYS = tuple(key for key in KEYS if (key in STATION_KEYS or key == "serial/last_port") and key not in RADIO_STATION_KEYS)
 
 
 def _routes(station: Station, now: datetime) -> dict[str, Any]:
@@ -69,26 +71,28 @@ def weather_values(weather: Weather | None) -> dict[str, Any] | None:
 
 
 def telemetry_values(book: StationBook, station: Station) -> dict[str, Any] | None:
-    """The latest telemetry report of the station, scaled and named by the definitions its messages gave."""
+    """Return the latest telemetry report scaled and named by the station's definition messages."""
     if station.telemetry is None:
         return None
     return TelemetryValues.row(describe(station.telemetry, book.telemetry_definition(station.call)))
 
 
 def weather_points(observations: list[Observation]) -> list[list[Any]]:
-    """[time, temp_c, pressure_hpa, wind_kmh, gust_kmh, rain_1h_mm, humidity] for each observation."""
+    """Return one row per observation.
+
+    Each row is [time, temp_c, pressure_hpa, wind_kmh, gust_kmh, rain_1h_mm, humidity].
+    """
     return [[iso(at), w.temp_c, w.pressure_hpa, w.wind_kmh, w.gust_kmh, w.rain_1h_mm, w.humidity] for at, w in observations]
 
 
-# How the points of a station are thinned for a replay (neoaprs/geo.py), by the span asked for: (up to so many hours, metres, seconds). A point nearer than the metres to the one kept before it, or sooner than the
-# seconds after it, is left out. Up to a day the replay keeps what shows at the scale of a street (a station heard by two digipeaters, or one that beacons fast, is one point); up to three days a point every
-# two minutes and a move of 200 m; a week a point every five minutes and a move of 300 m, so that a week of a busy APRS-IS feed is a few hundred KB and not several MB. Each step is well inside the gap the page still
-# drives a station across (GLIDE_MAX_MIN of neoaprs/web/replaywire.py; a test holds them to it), so that a thinned trip of a week glides as a day's does.
+# Replay thinning (geo.py) by span: (up to this many hours, metres, seconds). A nearer or sooner
+# point is dropped; a week of a busy feed stays a few hundred KB. Steps stay inside GLIDE_MAX_MIN
+# of replaywire.py (a test holds them to it).
 REPLAY_THINNING = ((24, 10, 30), (3 * 24, 200, 120), (HISTORY_MAX_HOURS, 300, 300))
 
 
 def replay_thinning(hours: int) -> tuple[int, int]:
-    """The metres and the seconds a replay of the last `hours` hours is thinned by (REPLAY_THINNING)."""
+    """Return the (metres, seconds) thinning for a replay of `hours` hours."""
     for upto, metres, seconds in REPLAY_THINNING:
         if hours <= upto:
             return metres, seconds
@@ -96,14 +100,13 @@ def replay_thinning(hours: int) -> tuple[int, int]:
 
 
 def replay_tracks(tracks: Mapping[str, Sequence[Point]]) -> dict[str, list[list[Any]]]:
-    """The positions of the replay by station, [time, lat, lon] the oldest first (already thinned: neoaprs/packetlog.py), to 5 decimals (about a metre)."""
+    """Return the replay positions by station as [time, lat, lon], oldest first, rounded to 1 m."""
     return {station: [[iso(at), round(lat, 5), round(lon, 5)] for at, lat, lon in points] for station, points in tracks.items()}
 
 
 @dataclass(frozen=True)
 class StationRadios:
-    """What a station's row says of the radios that is not the station's own: the operator's choice for it in force, the radio a message to it goes on now (plan rule 3.2, the daemon's: the page works none
-    of it out), the paths set for it on each radio (rule 3.3) and the reply paths on the radios without paths (M1). Each by the station's call; the defaults say nothing (a book with no radios, an older copy of the views)."""
+    """Per-call radio facts for a station's row: choice, radio now, paths and reply paths."""
     choice: Callable[[str], RadioId | None] = lambda call: None
     now: Callable[[str], RadioId | None] = lambda call: None
     paths: Callable[[str], Mapping[RadioId, tuple[str, ...]]] = lambda call: {}
@@ -136,12 +139,18 @@ def packet_row(number: int, packet: Packet) -> dict[str, Any]:
 
 
 def _wire_decoded(decoded: dict[str, Any]) -> dict[str, Any]:
-    """The decoded packet as the page is told it: an undecoded one without the parser's English (the log has it), by its code alone."""
+    """Return the decoded packet for the page.
+
+    An undecoded one loses the parser's English message, keeping the code.
+    """
     return {k: v for k, v in decoded.items() if k != "error"} if decoded.get("type") == "undecoded" else decoded
 
 
 def attempt_rows(record: MessageRecord, attempts: tuple[Attempt, ...]) -> list[dict[str, Any]]:
-    """The attempts of a message of ours as the page is told them; the one the ack answers is the latest sent before the ack was heard."""
+    """Return the attempt rows of a message of ours.
+
+    The acked one is the latest sent before the ack was heard.
+    """
     acked = next((a.number for a in reversed(attempts) if record.acked_at is not None and a.sent_at <= record.acked_at), None) if record.state == "acked" else None
     return [_attempt_row(a, a.number == acked) for a in attempts]
 
@@ -159,14 +168,19 @@ def _hop_row(attempt: Attempt, position: int, call: str) -> dict[str, Any]:
 
 
 def message_row(record: MessageRecord, attempts: tuple[Attempt, ...] = (), queued: bool = False, radio_now: RadioId | None = None) -> dict[str, Any]:
-    """The page's row of a message; `queued` (services/messaging.py, Messaging.queued) for one of ours that waits for another to the same station, which the database keeps as `sending`; `radio_now` the radio
-    one of ours on its way goes on next (Messaging.radio_now), told only while it is on its way."""
+    """Return the page's row of a message.
+
+    `queued` marks one waiting for another to the same station (stored as `sending`).
+    """
     on_its_way = record.direction == "out" and record.state == "sending"
     return MessageRow.row(record, attempts_detail=attempt_rows(record, attempts), state="queued" if queued else record.state, radio_now=radio_now if on_its_way else None)
 
 
 def on_their_way(records: Iterable[MessageRecord], call: str | None = None) -> list[str]:
-    """The keys of the messages of ours on their way (to the station `call`, or to any): the rows whose `radio_now` follows the radios, the email radio and the station's choice."""
+    """Return the keys of our messages on their way (to `call`, or any).
+
+    Their `radio_now` follows the radio settings.
+    """
     return [str(r.id) for r in records if r.direction == "out" and r.state == "sending" and (call is None or r.to_call == call)]
 
 
@@ -183,7 +197,7 @@ def own_bulletin_row(bulletin: OwnBulletin, next_at: datetime | None) -> dict[st
 
 
 def key_row(fingerprint: str, heard_at: datetime) -> dict[str, Any]:
-    """The page's entry of a station's key (services/keyring.py, Keyring.peers)."""
+    """Return the page's entry of a station's key."""
     return StationKey.row(None, fingerprint=fingerprint, heard_at=iso(heard_at))
 
 
@@ -196,7 +210,10 @@ def station_alert_message(fired: Fired) -> dict[str, Any]:
 
 
 def modem_state(tnc: Tnc) -> dict[str, Any] | None:
-    """The modem behind the Tnc's line (the Mercury HF modem, Direwolf), while the radio type is a modem's; None otherwise."""
+    """Return the state of the modem behind the line (Mercury or Direwolf).
+
+    None if the radio type has no modem.
+    """
     modem = tnc.modem
     if modem is None or tnc.profile.transport != "modem":
         return None
@@ -208,11 +225,11 @@ def modem_state(tnc: Tnc) -> dict[str, Any] | None:
 
 
 def config_values(config: Config, urls: list[str], https: dict[str, Any] | None = None) -> dict[str, Any]:
-    """The topic `config`: the station's settings in `values`, and the radios' own (`radio/<id>/<key>`, every field of its kind for each radio not removed) with the station's settings of the radios in
-    `radio_values`, apart, so that a form that shows every key of `values` shows none of them; there too both keys of every pair the live radios may form (`pair/<low>/<high>/enabled` and `ssid`)."""
+    """Return the topic `config`: station settings in `values`, radio-related ones in `radio_values`."""
     values, defaults = config.to_data(), DEFAULTS.to_data()
     values, defaults = {k: v for k, v in values.items() if k in CONFIG_KEYS or k in RADIO_STATION_KEYS}, {k: v for k, v in defaults.items() if k in CONFIG_KEYS or k in RADIO_STATION_KEYS}
-    values[EMAIL_RADIO] = values[EMAIL_RADIO] if config.radio(config.email_choice or 0) in config.live_radios else ""                  # (an email radio removed is none chosen)
+    # an email radio that was removed counts as none
+    values[EMAIL_RADIO] = values[EMAIL_RADIO] if config.radio(config.email_choice or 0) in config.live_radios else ""
     radio_values = {key: values[key] for key in RADIO_STATION_KEYS} | {f"radio/{spec.id}/{f.key}": spec.settings.get(f.key, f.default) for spec in config.live_radios for f in kind_fields(spec.kind)} | pair_values(config.radios, config.pairs)
     radio_defaults = {key: defaults[key] for key in RADIO_STATION_KEYS} | {f"radio/{spec.id}/{f.key}": f.default for spec in config.live_radios for f in kind_fields(spec.kind)} | pair_defaults(config.radios)
     return {"values": {k: v for k, v in values.items() if k not in RADIO_STATION_KEYS}, "defaults": {k: v for k, v in defaults.items() if k not in RADIO_STATION_KEYS}, "radio_values": radio_values,
@@ -220,7 +237,6 @@ def config_values(config: Config, urls: list[str], https: dict[str, Any] | None 
 
 
 class IgateSource(Protocol):
-    """What the `igate` topic needs of the iGate service."""
     @property
     def state(self) -> str: ...
     @property
@@ -236,13 +252,12 @@ class IgateSource(Protocol):
 
 
 def igate_state(config: Config, igate: IgateSource) -> dict[str, Any]:
-    """The `igate` topic: whether the iGate is connected and what it has gated and not gated."""
+    """Return the `igate` topic value."""
     return IgateState.row(None, enabled=config.igate_enabled, state=igate.state, server=igate.server_name, reason=igate.reason, gated=igate.gated, dropped=dict(igate.dropped),
                           last_gated_at=iso(igate.last_gated_at))
 
 
 class GpsSource(Protocol):
-    """What the `gps` topic needs of the GPS service."""
     @property
     def fix(self) -> Fix | None: ...
     @property
@@ -253,7 +268,6 @@ class GpsSource(Protocol):
 
 
 class MobilePlanSource(Protocol):
-    """What the `gps` topic needs of the beacon's memory of its mobile beacons."""
     @property
     def last(self) -> Sent | None: ...
     @property
@@ -261,7 +275,7 @@ class MobilePlanSource(Protocol):
 
 
 class _NoPlan:
-    """The moving station's plan while no radio the beacon goes out on has SmartBeaconing: no beacon of it yet."""
+    """Plan used while no beaconing radio has SmartBeaconing: no mobile beacon sent yet."""
     last: Sent | None = None
     last_reason: Reason | None = None
 
@@ -270,7 +284,10 @@ NO_PLAN: MobilePlanSource = _NoPlan()
 
 
 def gps_state(config: Config, gps: GpsSource, plan: MobilePlanSource, next_due: datetime | None) -> dict[str, Any]:
-    """The `gps` topic: the latest fix and its state, and the moving station's beacon. `next_due` is the beacon's time of the next beacon, told only for a mobile station with a fresh fix."""
+    """Return the `gps` topic value.
+
+    `next_due` is shown only for a mobile station with a fresh fix.
+    """
     fix, last = gps.fix, plan.last
     return GpsState.row(
         None, source=config.gps_source, state=gps.state, reason=gps.reason, lat=None if fix is None else fix.lat, lon=None if fix is None else fix.lon,
@@ -281,14 +298,12 @@ def gps_state(config: Config, gps: GpsSource, plan: MobilePlanSource, next_due: 
 
 
 class QruSource(Protocol):
-    """What the `qru` topic needs of the QRU client (neoaprs/services/qruask.py)."""
     @property
     def asked(self) -> Asked | None: ...
     def servers(self) -> list[Server]: ...
 
 
 class AskedAround(Protocol):
-    """What the `general` topic needs of a general query sent (GeneralAsked of neoaprs/services/generalask.py)."""
     @property
     def kind(self) -> str: ...
     @property
@@ -306,7 +321,6 @@ class AskedAround(Protocol):
 
 
 class AskedOnRadio(Protocol):
-    """What the `general` topic needs of the last query of a kind on one radio (SentOn of neoaprs/services/generalask.py)."""
     @property
     def kind(self) -> str: ...
     @property
@@ -316,12 +330,12 @@ class AskedOnRadio(Protocol):
 
 
 def general_state(asked: Sequence[AskedAround], by_radio: Sequence[AskedOnRadio] = ()) -> dict[str, Any]:
-    """The `general` topic: the last general query of each kind with the radios it went on and the stations heard after it; and when the last of each kind went on each radio (`by_radio`)."""
+    """Return the `general` topic value; `by_radio` has when each kind last went on each radio."""
     return GeneralState.row(None, asked=[GeneralAsked.row(a) for a in asked], by_radio=[GeneralSent.row(a) for a in by_radio])
 
 
 def qru_state(qru: QruSource) -> dict[str, Any]:
-    """The `qru` topic: the last request and the servers that answered it."""
+    """Return the `qru` topic value."""
     asked = qru.asked
     servers = [QruServer.row(s, groups=[QruGroup.row(None, name=name, count=count) for name, count in s.groups], sent_at=iso(s.sent_at), received=list(s.received), settles_at=iso(s.settles_at)) for s in qru.servers()]
     return QruState.row(None, asked=None if asked is None else QruAsked.row(asked, radios=list(getattr(asked, "radios", ()))), servers=servers)

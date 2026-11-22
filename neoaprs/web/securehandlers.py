@@ -1,9 +1,7 @@
-"""What the plain http port does while the secure page is served (neoaprs/web/secureside.py), and the authority's certificate for the devices that want to trust it.
+"""Plain-http handling while the secure page is served, and the CA certificate download.
 
-A request that is not from this computer, and came over plain http, is sent to the same address on the secure port (`refuse_plain` of neoaprs/web/pagefiles.py answers it with this target): a page request with a redirect
-(so that old bookmarks work), anything else (the socket, a login, the map) is refused with a line that says where the page is now. A request from this computer itself is left alone (on the loopback, http is a secure
-context already, and the desktop app's window is there).
-`GET /neoaprs-ca.crt` is on both ports and is never redirected: it is the way to a certificate that makes the warning go away. It is the public certificate only, in DER, for a download named NeoAPRS-CA.crt.
+Plain http from another device is redirected to the secure port or refused; loopback is left
+alone. `GET /neoaprs-ca.crt` serves the public CA certificate (DER) on both ports.
 """
 from typing import Protocol
 
@@ -24,7 +22,10 @@ class SecureServer(HostGate, Protocol):
 
 
 def secure_target(request: tornado.httputil.HTTPServerRequest, port: int) -> str | None:
-    """Where a request goes instead, `https://host:port` with the Host name the request had: for one that came over plain http from another device while the secure page is served on `port` (0: it is not); else None."""
+    """Return `https://host:port` for a plain-http request from another device, else None.
+
+    `port` is the secure port, 0 when it is not served.
+    """
     if port == 0 or request.protocol != "http" or is_local(request):
         return None
     name = host_name(request.headers.get("Host", ""))
@@ -32,7 +33,7 @@ def secure_target(request: tornado.httputil.HTTPServerRequest, port: int) -> str
 
 
 class CaCertificate(SecurityHeaders):
-    """The authority's certificate (public), on either port, for any device that asks; 404 while the secure connection is off."""
+    """The public CA certificate; 404 while the secure connection is off."""
 
     def initialize(self, server: SecureServer) -> None:
         self.server = server

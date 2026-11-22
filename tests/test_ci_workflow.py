@@ -1,6 +1,6 @@
-"""The workflows that check a push (.github/workflows/ci.yml) and the packages by the clock (audit.yml), read as text: the Linux job calls scripts/check by stage and Windows runs the commands themselves, the suite keeps
-the two files that need one process on one worker, the simulation job keeps its Mercury build between runs under a key made of what the build reads, and the weekly audit is a workflow of its own that publishes nothing.
-What the steps do on GitHub is seen only there."""
+"""Tests for the CI workflows (.github/workflows/ci.yml, audit.yml), read as text: the Linux job
+calls scripts/check by stage, Windows runs the commands itself, and the weekly audit publishes
+nothing."""
 import re
 from pathlib import Path
 

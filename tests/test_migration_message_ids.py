@@ -1,8 +1,6 @@
-"""Migration 23 (neoaprs/migrationsteps22on.py): `message.id` is AUTOINCREMENT, so a database of the version before, in which the newest messages were deleted, never gives their ids again; every message is kept with its id,
-the table is the one a new database has, and a step that doubts changes nothing.
-
-What is read back is read from the database as the radio round's steps leave it (tests/support/migrated32.newest): migration 32 changes the type of `message.radio` and `message_attempt.radio` where
-the tables lie, so the ids and the count of the ids given stay as migration 23 left them."""
+"""Migration 23 (neoaprs/migrationsteps22on.py): `message.id` is AUTOINCREMENT, so deleted newest
+ids are never given again; every message keeps its id and a step that doubts changes nothing.
+"""
 import sqlite3
 from pathlib import Path
 
@@ -23,14 +21,17 @@ MESSAGES = [(1, STAMP, "out", "OH2GBA", "OH2RDG", "one", "1", "acked", 1, STAMP,
 
 
 def version_twentytwo(path: Path, clock: FixedClock, deleted: tuple[int, ...] = (), chain_of: int = 0) -> None:
-    """A database as version 22 left it: `message` with a bare INTEGER PRIMARY KEY, the messages of MESSAGES, and those with the ids `deleted` deleted again; the delivery chain of the message
+    """A database as version 22 left it: `message` with a bare INTEGER PRIMARY KEY, the messages of
+    MESSAGES, and those with the ids `deleted` deleted again; the delivery chain of the message
     `chain_of` (a message that is gone) is still there when it is not 0."""
     opened(path, clock).close()
     db = raw(path)
     db.execute("DELETE FROM schema_history WHERE version >= 23")
     sql = str(db.execute("SELECT sql FROM sqlite_master WHERE name = 'message'").fetchone()[0])
     assert "AUTOINCREMENT" in sql
-    step_back(db, 22)                                    # (the message table as migration 10 made it, without AUTOINCREMENT, and nothing of the later migrations)
+    # The message table as migration 10 made it, without AUTOINCREMENT, and nothing of the later
+    # migrations
+    step_back(db, 22)
     db.execute("PRAGMA user_version = 22")
     for row in MESSAGES:
         db.execute(f"INSERT INTO message ({COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", row)

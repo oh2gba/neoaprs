@@ -1,18 +1,8 @@
-"""An object or an item of our own as a value, the rules it must keep to be sent, and the information field it makes.
+"""An object or item of our own as a value, its rules, and the information field it makes.
 
-An object (`;`, chapter 11 of the specification) is a name of 9 characters (padded with blanks), `*` for a live one or `_` for a killed one, a time stamp, a position and a comment; an item (`)`) has a
-name of 3 to 9 characters, `!` for a live one or `_` for a killed one, and no time stamp. Both carry the symbol with the position, and the comment may follow a data extension: our objects carry the course
-and speed (`CSE/SPD`, the course in degrees from north with 360 for north and 000 for none, the speed in knots, 7 bytes) when they have either. The comment is at most 43 characters, 36 behind
-the course and speed. The position is the uncompressed form, rounded to the hundredth of a minute. The time stamp of an object is the day of the month, the hour and the minute of the moment it is sent, in UTC
-(`092345z`: the specification recommends zulu time only), so a copy that goes out later carries its own time.
-
-A killed object is the same packet with `_` in place of `*` (an item: `_` in place of `!`), as it is sent by every APRS program on the air; the specification's table of data types lists a `-` for it, which no
-program of the air reads. The name is case-sensitive, `!`, `_`, `|` and `~` are not in it (the first two end an item's name, the others are a TNC's commands) and it has no blank at either end.
-
-`OwnObject` holds what is sent and where the schedule (neoaprs/decay.py) stands: how often it was sent since it was last changed or killed, and when it was last sent. Every datetime is timezone-aware UTC.
-
-An object may belong to a QRU group (services/qru.py): a station that asks the addressee `QRU` for the group is answered with it. An object that is `on_request` is not sent on the schedule at all, only to a station that asks
-(`?APRSO`, or its group), and so has no kill to send."""
+An object (`;`, spec chapter 11) has a name of up to 9 characters and a time stamp; an item
+(`)`) has a 3 to 9 character name and none. An `on_request` object is sent only on request.
+"""
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
@@ -34,21 +24,21 @@ KINDS: tuple[str, ...] = get_args(Kind)
 OBJECT_NAME = (1, 9)
 ITEM_NAME = (3, 9)
 NAME_FORBIDDEN = "!_|~"
-COMMENT_MAX = MAX_COMMENT                    # without a data extension
-COMMENT_MAX_MOTION = MAX_COMMENT_PHG         # behind the course and speed
-COURSE_MAX = 359                             # degrees from north; the course 360 is how north is written on the air
-SPEED_MAX_KMH = round(999 * KNOT_KMH, 3)     # three digits of knots, 1850.148 km/h
-QRU_GROUP_MAX = 8                            # the longest group name of the list of QRU servers (LIFEBOAT)
-QRU_RESERVED = ("INFO", "NEXT")              # what a station says to QRU that is not a group: the list of groups, the next objects of the last group
+COMMENT_MAX = MAX_COMMENT
+COMMENT_MAX_MOTION = MAX_COMMENT_PHG  # behind the course and speed
+COURSE_MAX = 359
+SPEED_MAX_KMH = round(999 * KNOT_KMH, 3)  # three digits of knots
+QRU_GROUP_MAX = 8  # the longest known group name (LIFEBOAT)
+QRU_RESERVED = ("INFO", "NEXT")  # words said to QRU that are not groups
 _QRU_GROUP = re.compile(rf"[A-Z0-9]{{1,{QRU_GROUP_MAX}}}")
 
 
 class OwnError(CodedError):
-    """What cannot be an object of ours or be sent as one; the text says why."""
+    """An object of ours cannot be made or sent."""
 
 
 def radio_set(radios: Iterable[RadioId]) -> tuple[RadioId, ...]:
-    """The radios of an object as they are kept: each id once, ascending; OwnError for none at all and for what is no id (a whole number from 1)."""
+    """Return the radio ids, each once, ascending. Raise OwnError for none or a non-id."""
     found = set(radios)
     if not found or any(type(radio) is not int or radio < 1 for radio in found):
         raise OwnError(f"{sorted(found, key=repr)!r} are not the radios of an object: one id or more, each a whole number from 1", "failed")
@@ -57,7 +47,7 @@ def radio_set(radios: Iterable[RadioId]) -> tuple[RadioId, ...]:
 
 @dataclass(frozen=True, slots=True)
 class OwnObject:
-    """An object or an item of ours. The radios it goes out on are named by their ids (`radios`)."""
+    """An object or item of ours; the radios it goes out on are named by id (`radios`)."""
     name: str
     kind: Kind
     lat: float
@@ -65,17 +55,19 @@ class OwnObject:
     symbol_table: str
     symbol_code: str
     created_at: datetime
-    updated_at: datetime                         # when it was last changed or killed
+    updated_at: datetime
     comment: str = ""
     course_deg: int | None = None
     speed_kmh: float | None = None
-    path: str | None = None                      # the digipeaters, "WIDE1-1,WIDE2-1", or DIRECT for none at all; None: the path of the beacon
-    alive: bool = True                           # False once killed: the kill is being sent
-    sent: int = 0                                # how often it was sent since it was last changed or killed
+    # "WIDE1-1,WIDE2-1", or DIRECT for none; None: the beacon's path
+    path: str | None = None
+    alive: bool = True  # False once killed: the kill is being sent
+    sent: int = 0  # since last changed or killed
     last_sent_at: datetime | None = None
-    qru_group: str = ""                          # the group of QRU (services/qru.py) it is offered in to a station that asks; empty: none
-    on_request: bool = False                     # True: never sent on the schedule, only to a station that asks for it
-    radios: tuple[RadioId, ...] = (FM_ID,)       # the ids of the radios it goes out on, ascending, one at least; with one radio on it goes on that one, whatever is kept
+    qru_group: str = ""
+    on_request: bool = False
+    # ids of the radios it goes out on, ascending, at least one
+    radios: tuple[RadioId, ...] = (FM_ID,)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "radios", radio_set(self.radios))
@@ -85,11 +77,11 @@ class OwnObject:
         return None if self.path is None else () if self.path == DIRECT_ONLY else tuple(self.path.split(","))
 
     def same_content(self, other: "OwnObject") -> bool:
-        """Do the two say the same on the air (everything but the times and the count of what was sent)?"""
+        """Return whether the two say the same on the air (ignoring times and sent count)."""
         return replace(self, created_at=other.created_at, updated_at=other.updated_at, sent=other.sent, last_sent_at=other.last_sent_at) == other
 
     def killed(self, now: datetime) -> "OwnObject":
-        """The object as it is once it is killed: the kill starts its own count."""
+        """Return the object as killed; the kill starts its own count."""
         return replace(self, alive=False, updated_at=now, sent=0)
 
 
@@ -117,7 +109,7 @@ def _motion(course: int | None, speed: float | None) -> None:
 
 
 def _qru_group(group: str) -> str:
-    """The group name in upper case ("" for none); OwnError for one that is not 1 to QRU_GROUP_MAX letters and digits or is a word QRU takes for something else."""
+    """Return the group name upper-cased. Raise OwnError if invalid or a reserved word."""
     found = group.strip().upper()
     if found and (_QRU_GROUP.fullmatch(found) is None or found in QRU_RESERVED):
         raise OwnError(f"the category {group!r} is 1 to {QRU_GROUP_MAX} letters and digits, and not INFO or NEXT", "object.qru_group", group=group, max=QRU_GROUP_MAX)
@@ -135,8 +127,10 @@ def _path(path: str | None) -> str | None:
 def make_object(now: datetime, name: str, kind: str, lat: float, lon: float, symbol_table: str, symbol_code: str, comment: str = "", course_deg: int | None = None,
                 speed_kmh: float | None = None, path: str | None = None, before: OwnObject | None = None, qru_group: str = "", on_request: bool = False, *,
                 radios: Iterable[RadioId] = (FM_ID,)) -> OwnObject:
-    """The object of these values, or OwnError that says what is wrong. With `before` (the object of that name we have) the times and the count of what was sent are kept, so that the rules of the
-    schedule see the change: a changed object starts its decay again. `radios` are the ids of the radios it goes out on."""
+    """Return the object of these values, or raise OwnError.
+
+    With `before` the creation time is kept and the decay restarts.
+    """
     if kind not in KINDS:
         raise OwnError(f"{kind!r} is not an object or an item", "object.kind", value=kind)
     _name(name, kind)
@@ -163,7 +157,7 @@ def _motion_text(obj: OwnObject) -> bytes:
 
 
 def info_of(obj: OwnObject, now: datetime) -> bytes:
-    """The information field of the object as it is sent at `now`: live or, once it is killed, killed. `;LEADER   *092345z4903.50N/07201.75W>088/036`, `)AID!4903.50N\\07201.75W+comment`."""
+    """Return the information field of the object as sent at `now`, live or killed."""
     position = uncompressed_position(obj.lat, obj.lon, obj.symbol_table, obj.symbol_code)
     tail = _motion_text(obj) + obj.comment.encode("ascii")
     if obj.kind == "object":

@@ -1,4 +1,5 @@
-"""The message board (neoaprs/services/bulletins.py) on a real bulletin log and a clock the test holds: what is kept for a sender and a slot, a text that is replaced, the hearings counted, that
+"""The message board (neoaprs/services/bulletins.py) on a real bulletin log and a clock the test
+holds: what is kept for a sender and a slot, a text that is replaced, the hearings counted, that
 nothing ages out or is trimmed, the delete, and a restart."""
 from pathlib import Path
 

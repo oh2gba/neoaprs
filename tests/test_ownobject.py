@@ -1,4 +1,6 @@
-"""An object or an item of ours (neoaprs/ownobject.py): the information field byte for byte as the specification's chapter 11 shows it, read back by our own parser, a killed one, and what is refused."""
+"""An object or item of ours (neoaprs/ownobject.py): the information field byte for byte as the
+specification's chapter 11 shows it, read back by our parser, a killed one, and what is refused.
+"""
 from dataclasses import fields, replace
 from datetime import UTC, datetime
 
@@ -12,7 +14,8 @@ from neoaprs.packet import ItemReport, ObjectReport
 from neoaprs.radiotype import FM_ID, HF_ID
 
 NOW = datetime(2026, 10, 9, 23, 45, 17, tzinfo=UTC)
-LAT, LON = 49 + 3.5 / 60, -(72 + 1.75 / 60)              # 4903.50N 07201.75W, the position of the specification's examples
+# 4903.50N 07201.75W, the position of the specification's examples
+LAT, LON = 49 + 3.5 / 60, -(72 + 1.75 / 60)
 
 
 def made(name: str = "LEADER", kind: str = "object", **values: object) -> OwnObject:
@@ -21,12 +24,14 @@ def made(name: str = "LEADER", kind: str = "object", **values: object) -> OwnObj
 
 
 def test_the_object_of_the_specification_is_sent_as_it_shows_it() -> None:
-    """`;LEADERVVV*092345z4903.50N/07201.75W>088/036`, the V standing for a blank, at 2345 hours zulu on the 9th, heading 88 degrees at 36 knots (an object's example, chapter 11)."""
+    """`;LEADERVVV*092345z4903.50N/07201.75W>088/036`, the V standing for a blank, at 2345 hours
+    zulu on the 9th, heading 88 degrees at 36 knots (an object's example, chapter 11)."""
     assert info_of(made(course_deg=88, speed_kmh=36 * 1.852), NOW) == b";LEADER   *092345z4903.50N/07201.75W>088/036"
 
 
 def test_the_item_of_the_specification_is_sent_as_it_shows_it() -> None:
-    """`)BRENDA!4903.50N\\07201.75W@088/036` (an item's example, chapter 11): no time stamp, the name as long as it is, `!` after it."""
+    """`)BRENDA!4903.50N\\07201.75W@088/036` (an item's example, chapter 11): no time stamp, the
+    name as long as it is, `!` after it."""
     assert info_of(made("BRENDA", "item", symbol_table="\\", symbol_code="@", course_deg=88, speed_kmh=36 * 1.852), NOW) == b")BRENDA!4903.50N\\07201.75W@088/036"
 
 
@@ -155,7 +160,8 @@ def test_the_radios_are_kept_each_once_and_ascending() -> None:
 
 def test_an_object_takes_its_radios_by_name_and_in_their_place() -> None:
     by_name = OwnObject("LEADER", "object", LAT, LON, "/", ">", NOW, NOW, radios=(HF_ID, FM_ID))
-    in_place = OwnObject("LEADER", "object", LAT, LON, "/", ">", NOW, NOW, "", None, None, None, True, 0, None, "", False, (FM_ID, HF_ID))      # (as neoaprs/ownlog.py reads a row)
+    # As neoaprs/ownlog.py reads a row
+    in_place = OwnObject("LEADER", "object", LAT, LON, "/", ">", NOW, NOW, "", None, None, None, True, 0, None, "", False, (FM_ID, HF_ID))
     assert by_name == in_place and by_name.radios == (FM_ID, HF_ID)
     assert replace(by_name, radios=(HF_ID,)).radios == (HF_ID,) and replace(by_name, radios=(3,)).radios == (3,) and replace(by_name, sent=4).radios == (FM_ID, HF_ID)
 

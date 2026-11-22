@@ -1,5 +1,7 @@
-"""The search for the radio among device files, and a port that another program holds (Linux: /proc), on pseudo-terminal pairs: the real thing behind the globs of `serial/pattern`. The search is made on
-Linux only (neoaprs/serialprobe.py); on Windows and macOS the radio is the port that was named or remembered, which the other test files cover with the fake radio. The whole file is POSIX-only."""
+"""The search for the radio among device files, and a port another program holds (Linux: /proc), on
+pseudo-terminal pairs: the real thing behind the globs of `serial/pattern`. The search is Linux only
+(neoaprs/serialprobe.py); other systems use the named or remembered port.
+"""
 import asyncio
 import select
 from dataclasses import replace
@@ -73,7 +75,8 @@ async def test_the_probe_skips_a_port_it_cannot_open_and_takes_a_tnc_in_command_
     try:
         await tnc.start()
         assert tnc.path == str(tmp_path / "port_2")
-        assert await hear(second, len(ENTER_KISS), 10.0) == ENTER_KISS       # (a long wait: the machine may be busy with other tests)
+        # A long wait: the machine may be busy with other tests
+        assert await hear(second, len(ENTER_KISS), 10.0) == ENTER_KISS
     finally:
         feeder.cancel()
         await tnc.stop()
@@ -101,7 +104,9 @@ async def test_a_search_with_no_port_left_is_waiting_at_once(ptys: Ptys, tmp_pat
         loop.call_later(0.1, close_pty, master)                        # both cables are pulled during the search
     try:
         await asyncio.wait_for(tnc.start(), 2.0)
-        # (a cable pulled before the search opened its port is one that could not be listened to, one pulled after it is one that delivered nothing: under load either comes first, and both end the search)
+        # (a cable pulled before the search opened its port is one that could not be listened to,
+        # one pulled after it is one that delivered nothing: under load either comes first, and both
+        # end the search)
         assert tnc.state is Source.State.WAITING and tnc.problem.startswith(("no port delivers KISS frames", "no port could be listened to"))
     finally:
         await tnc.stop()
@@ -112,7 +117,8 @@ async def test_the_search_listens_for_as_long_as_it_takes_and_says_where(ptys: P
     import serial  # type: ignore[import-untyped]
     held = serial.Serial(str(tmp_path / "port_2"), exclusive=True)           # another program has the second port
     loop = asyncio.get_running_loop()
-    loop.call_later(0.5, feed, third, kiss_of(ui_frame()))                    # the radio is quiet for half a second; the first port stays silent
+    # The radio is quiet for half a second; the first port stays silent
+    loop.call_later(0.5, feed, third, kiss_of(ui_frame()))
     tnc = Tnc(pattern=pattern, backoff=tiny_backoff())
     began = loop.time()
     starting = asyncio.create_task(tnc.start())
@@ -140,10 +146,13 @@ async def test_the_search_sends_a_carriage_return_and_takes_a_tnc_that_answers_w
     starting = asyncio.create_task(tnc.start())
     try:
         assert await hear(first, 1) == b"\r" and await hear(second, 1) == b"\r"      # every candidate was nudged
-        feed(second, b"cmd:")                                                          # only the second one is a TNC in command mode
+        # Only the second one is a TNC in command mode
+        feed(second, b"cmd:")
         await asyncio.wait_for(starting, 3.0)
-        assert tnc.path == str(tmp_path / "port_2"), f"the first search ended without the port: {tnc.problem}"       # (a start whose first search fails returns waiting, and a later one nudged the ports)
-        feed(second, b"cmd:")                                                          # the search has used up the first prompt; the opened port hears the next one
+        # A start whose first search fails returns waiting, and a later one nudged the ports
+        assert tnc.path == str(tmp_path / "port_2"), f"the first search ended without the port: {tnc.problem}"
+        # The search has used up the first prompt; the opened port hears the next one
+        feed(second, b"cmd:")
         assert await hear(second, len(ENTER_KISS)) == ENTER_KISS
     finally:
         await tnc.stop()
@@ -155,8 +164,10 @@ async def test_a_tnc_the_search_found_in_command_mode_is_put_into_kiss_at_the_op
     tnc = Tnc(pattern=pattern, probe_nudge_sec=0.1, backoff=tiny_backoff(), settle_sec=SETTLE)
     starting = asyncio.create_task(tnc.start())
     try:
-        assert await hear(master, 1) == b"\r"                                               # the search's carriage return
-        feed(master, b"\r\ncmd:")                                                            # a TH-D7 whose TNC is in command mode answers it
+        # The search's carriage return
+        assert await hear(master, 1) == b"\r"
+        # A TH-D7 whose TNC is in command mode answers it
+        feed(master, b"\r\ncmd:")
         await asyncio.wait_for(starting, 3.0)
         assert tnc.state is Source.State.CONNECTED and tnc.usable is False, "the entry is settling: nothing is typed into the TNC"
         assert tnc.send_frame(ui_frame()) is False
@@ -173,16 +184,19 @@ async def test_a_tnc_the_search_found_in_command_mode_is_put_into_kiss_at_the_op
 
 async def test_a_port_that_appears_while_the_search_listens_is_opened_and_one_that_vanishes_is_dropped(ptys: Ptys, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(serialprobe, "RELIST_SEC", 0.1)                                   # (10 s in the program)
-    _, pattern = await make_links(tmp_path, ptys, 1)                                       # one port, which says nothing
+    # One port, which says nothing
+    _, pattern = await make_links(tmp_path, ptys, 1)
     tnc = Tnc(pattern=pattern, backoff=tiny_backoff())
     starting = asyncio.create_task(tnc.start())
     feeder: asyncio.Task[None] | None = None
     try:
         await until(lambda: tnc.searching == [str(tmp_path / "port_1")])
-        second, path = ptys()                                                               # the radio is plugged in: a port that matches the pattern appears
+        # The radio is plugged in: a port that matches the pattern appears
+        second, path = ptys()
         (tmp_path / "port_2").symlink_to(path)
         await until(lambda: tnc.searching == [str(tmp_path / "port_1"), str(tmp_path / "port_2")], 2.0)
-        (tmp_path / "port_1").unlink()                                                      # and the other port goes away
+        # And the other port goes away
+        (tmp_path / "port_1").unlink()
         await until(lambda: tnc.searching == [str(tmp_path / "port_2")], 2.0)
         feeder = asyncio.create_task(keep_feeding(second, kiss_of(ui_frame())))
         await asyncio.wait_for(starting, 5.0)
@@ -196,14 +210,17 @@ async def test_a_port_that_appears_while_the_search_listens_is_opened_and_one_th
 
 async def test_the_named_port_that_comes_back_while_the_search_stands_in_for_it_is_listened_to_even_outside_the_pattern(ptys: Ptys, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(serialprobe, "RELIST_SEC", 0.1)
-    _, pattern = await make_links(tmp_path, ptys, 1)                                       # a port of the pattern, which says nothing
-    named = str(tmp_path / "radio")                                                        # the named port is unplugged, and the pattern does not cover it
+    # A port of the pattern, which says nothing
+    _, pattern = await make_links(tmp_path, ptys, 1)
+    # The named port is unplugged, and the pattern does not cover it
+    named = str(tmp_path / "radio")
     tnc = Tnc(named, pattern=pattern, backoff=tiny_backoff())
     feeder: asyncio.Task[None] | None = None
     try:
         await tnc.start()
         assert tnc.state is Source.State.WAITING
-        await until(lambda: tnc.searching == [str(tmp_path / "port_1")], 2.0)              # the search stands in for the named port
+        # The search stands in for the named port
+        await until(lambda: tnc.searching == [str(tmp_path / "port_1")], 2.0)
         master, path = ptys()
         Path(named).symlink_to(path)                                                        # plugged back in
         await until(lambda: named in tnc.searching, 2.0)
@@ -261,7 +278,8 @@ async def test_a_named_port_that_cannot_be_opened_is_followed_by_a_probe_and_the
         await until(lambda: tnc.state is Source.State.CONNECTED)
         assert tnc.path == str(tmp_path / "port_1"), "the next attempt listened to the ports of the pattern"
         (tmp_path / "port_1").unlink()
-        close_pty(second)                                        # the cable is pulled; the named port is back by the time the next attempt comes
+        # The cable is pulled; the named port is back by the time the next attempt comes
+        close_pty(second)
         master, path = ptys()
         named.symlink_to(path)
         await until(lambda: tnc.state is Source.State.CONNECTED and tnc.path == str(named))
@@ -280,7 +298,9 @@ async def test_a_named_port_that_another_program_holds_is_waiting_with_the_holde
             name = open(f"/proc/{child.pid}/comm").read().strip()
             assert tnc.state is Source.State.WAITING and tnc.stats.opens == 0
             assert tnc.problem == f"{path}: held by {name} (pid {child.pid})"
-            await idle_for(0.3)                                 # (several attempts later: between two the state is CONNECTING for a moment, so the state is not asked again)
+            # Several attempts later: between two the state is CONNECTING for a moment, so the state
+            # is not asked again
+            await idle_for(0.3)
             assert tnc.state is not Source.State.CONNECTED and tnc.stats.opens == 0 and not select.select([master], [], [], 0)[0], "the held port is not opened, nothing is written to it"
         await until(lambda: tnc.state is Source.State.CONNECTED)
         assert tnc.path == path and tnc.stats.opens == 1
@@ -317,7 +337,9 @@ async def test_a_search_with_every_port_skipped_or_held_says_so(ptys: Ptys, tmp_
 async def test_a_search_whose_every_port_another_radio_holds_says_which_radio_not_another_program(ptys: Ptys, tmp_path: Path) -> None:
     _, pattern = await make_links(tmp_path, ptys, 2)
     claims = Claims()
-    claims.hold(Claim("serial", serialprobe.claim_value(str(tmp_path / "port_1")) or "", 1))              # (radio 1 has the port its TNC is on: a second FM radio searches before its own TNC is plugged in)
+    # Radio 1 has the port its TNC is on: a second FM radio searches before its own TNC is plugged
+    # in
+    claims.hold(Claim("serial", serialprobe.claim_value(str(tmp_path / "port_1")) or "", 1))
     tnc = Tnc(pattern=pattern, probe_seconds=5.0, backoff=tiny_backoff(), skip=(str(tmp_path / "port_2"),), claims=claims)
     tnc.radio_id = 3
     try:
@@ -335,7 +357,8 @@ async def test_a_named_port_that_cannot_be_opened_stays_waiting_when_the_probe_i
     try:
         await tnc.start()
         await idle_for(0.4)
-        await until(lambda: tnc.state is Source.State.WAITING)              # (it tries the port again and again: between two tries it is waiting)
+        # It tries the port again and again: between two tries it is waiting
+        await until(lambda: tnc.state is Source.State.WAITING)
         assert tnc.stats.opens == 0 and "No such file or directory" in tnc.problem
     finally:
         feeder.cancel()
@@ -357,7 +380,8 @@ async def test_a_reopen_that_fails_falls_to_the_search_for_the_radio(ptys: Ptys,
     try:
         await until(lambda: tnc.state is Source.State.SILENT)
         link.unlink()                                                # the device is gone
-        talker = asyncio.create_task(keep_feeding(other, kiss_of(ui_frame())))     # (the radio is behind another port now)
+        # The radio is behind another port now
+        talker = asyncio.create_task(keep_feeding(other, kiss_of(ui_frame())))
         await until(lambda: tnc.state is Source.State.CONNECTED and tnc.path == str(tmp_path / "other_1"), 5.0)
         assert tnc.stats.port_reopens == 1 and tnc.watchdog.probes == 0
         assert any("No such file" in line for line in tnc.lines)
@@ -379,7 +403,8 @@ async def keep_feeding_frame(master: int) -> None:
 
 async def test_the_search_listens_to_the_pattern_of_the_settings_and_a_new_pattern_restarts_it(tmp_path: Path, search_pattern_from_settings: None) -> None:
     e = Env(tmp_path, radio=False)
-    e.ctl.pattern_override = ""                                    # (the Env gives its folder as the pattern of the run; here the settings decide)
+    # The Env gives its folder as the pattern of the run; here the settings decide
+    e.ctl.pattern_override = ""
     first_master, first = e.new_pty("first_1")
     second_master, second = e.new_pty("second_1")
     await e.ctl.open_database()
@@ -389,7 +414,9 @@ async def test_the_search_listens_to_the_pattern_of_the_settings_and_a_new_patte
         await e.start(connected=False)
         await until(lambda: e.tnc.state is Source.State.CONNECTED and e.tnc.path == first)
         assert e.tnc.pattern == f"{e.ports}/first_*"
-        await until(lambda: e.ctl.config.serial_last_port == first)    # (the controller stores the port the search found a moment after the connection: saved before it has, the late store would put it back in the settings the restart reads)
+        # The controller stores the port the search found a moment after the connection: saved
+        # before it has, the late store would put it back in the settings the restart reads
+        await until(lambda: e.ctl.config.serial_last_port == first)
         assert await e.ctl.save_config(replace(e.ctl.config, serial_port="", serial_last_port="", serial_pattern=f"{e.ports}/second_*"))
         await until(lambda: e.tnc.state is Source.State.CONNECTED and e.tnc.path == second)
         assert e.tnc.pattern == f"{e.ports}/second_*"

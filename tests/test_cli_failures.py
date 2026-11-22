@@ -1,4 +1,5 @@
-"""The command line and the desktop app on a data folder that cannot be read or written, a garbled answer from a port, and the small edges of the commands."""
+"""The command line and the desktop app on a data folder that cannot be read or written, a garbled
+answer from a port, and the small edges of the commands."""
 import os
 import socket
 import sys
@@ -107,7 +108,8 @@ def test_the_exec_line_reads_back_as_it_was_written(char: str) -> None:
     word = line[len("prog "):]
     if word.startswith('"'):
         word = word[1:-1]
-    once = word.replace("\\\\", "\0").replace("\0", "\\")                    # the file format's string escape, which the desktop file is read with first
+    # the file format's string escape, which the desktop file is read with first
+    once = word.replace("\\\\", "\0").replace("\0", "\\")
     for special in ('"', "`", "$", "\\"):
         once = once.replace("\\" + special, special)                      # then the quoting rule of the Exec key
     assert once.replace("%%", "%") == argument

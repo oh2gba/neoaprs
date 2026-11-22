@@ -1,5 +1,4 @@
-"""The working set of this process on Windows (the part of its memory that is in RAM, what Task Manager shows as Memory), from `GetProcessMemoryInfo` of psapi through ctypes: no dependency.
-Anywhere else, and wherever the call fails, there is no answer (None) and the status shows none."""
+"""Working set of this process on Windows, read through psapi with ctypes."""
 import ctypes
 import sys
 from ctypes import wintypes
@@ -8,14 +7,14 @@ _MB = 1024 * 1024
 
 
 class _Counters(ctypes.Structure):
-    """PROCESS_MEMORY_COUNTERS of psapi.h; `cb` is its size, the rest is filled by the call."""
+    """PROCESS_MEMORY_COUNTERS of psapi.h."""
     _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD), ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
                 ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t), ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
                 ("QuotaNonPagedPoolUsage", ctypes.c_size_t), ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t)]
 
 
 def working_set_mb() -> float | None:
-    """The working set of this process in megabytes, to a tenth; None when this is not Windows or the system does not say."""
+    """Return the working set in megabytes to a tenth; None off Windows or when the call fails."""
     if sys.platform == "win32":
         try:
             kernel = ctypes.WinDLL("kernel32", use_last_error=True)

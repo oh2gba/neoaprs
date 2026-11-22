@@ -1,6 +1,7 @@
-"""`neoaprs map --world` (neoaprs/cli/worldcmd.py, reached through neoaprs/cli/mapcmd.py): the world map that ships with the program, cut from the made-up planet of tests/support/madepmtiles.py (a range server on the
-loopback plays build.protomaps.com, a file plays a source of the operator's) into a folder of the test. What it writes, the size it refuses before a tile is fetched, and the words of a failure. Nothing is written to the
-package's own `maps/`."""
+"""`neoaprs map --world` (neoaprs/cli/worldcmd.py): the world map that ships with the program, cut
+from the made-up planet (a range server or a file as the source) into a test folder: what it writes
+and what it refuses.
+"""
 import asyncio
 import json
 from pathlib import Path

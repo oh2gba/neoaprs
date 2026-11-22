@@ -1,6 +1,7 @@
-"""The https side of the web server (neoaprs/web/secureside.py) on its own, with the real certificates of the test's folder and servers that do not serve a page: starting, keeping and stopping the listener, what the page is
-told when the certificates cannot be made or loaded, a certificate that cannot be renewed while the old one is in use, a port that is picked by the system, and a close that is not clean. The secure page through the whole
-daemon is in tests/test_web_https.py."""
+"""The https side of the web server (neoaprs/web/secureside.py) with real certificates in the test's
+folder: starting, keeping and stopping the listener, certificates that cannot be made, loaded or
+renewed, and port choice.
+"""
 import asyncio
 import ssl
 import sys
@@ -39,7 +40,8 @@ def made(tmp_path: Path) -> SecureSide:
 
 
 class FakeCertificates:
-    """What the certificate store gives, or raises: the side asks it for the certificates and nothing else."""
+    """What the certificate store gives, or raises: the side asks it for the certificates and
+    nothing else."""
 
     def __init__(self, result: Certificates | BaseException) -> None:
         self.result = result
@@ -74,7 +76,8 @@ async def test_a_library_that_fails_in_a_way_nobody_listed_is_a_problem_for_the_
 
 @pytest.mark.expects_errors
 async def test_a_cryptography_library_that_does_not_load_is_a_problem_for_the_page_and_the_plain_page_goes_on(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    monkeypatch.setitem(sys.modules, "neoaprs.web.tls", None)                   # (an install whose cryptography does not load: the import of neoaprs/web/tls.py fails)
+    # An install whose cryptography does not load: the import of neoaprs/web/tls.py fails
+    monkeypatch.setitem(sys.modules, "neoaprs.web.tls", None)
     side = made(tmp_path)
     assert await side.follow(True, "127.0.0.1", PLAIN_PORT, factory) is True
     assert side.state.on is False and side.state.problem == "the secure connection cannot be had in this installation" and side.server is None and side.retry_sec == RETRY_SEC

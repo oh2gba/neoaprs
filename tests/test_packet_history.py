@@ -1,5 +1,6 @@
-"""The packets by the hour (`packet_history`, neoaprs/web/historywire.py): the packet log counts what was heard in each hour of the clock, and the page is answered with a count for every hour asked for, the running one
-last, hours with nothing as 0, the packets we sent left out."""
+"""The packets by the hour (`packet_history`, neoaprs/web/historywire.py): a count for every hour
+asked for, the running one last, empty hours as 0, our own packets left out.
+"""
 import json
 from datetime import timedelta
 from pathlib import Path
@@ -25,7 +26,9 @@ async def test_the_log_counts_the_packets_heard_in_each_hour_of_the_clock(tmp_pa
     store = await store_at(tmp_path / DB_NAME)
     log = PacketLog(store.db, FixedClock())
     top = T0.replace(minute=0, second=0, microsecond=0)
-    for minutes in (-125, -61, -60, -59, -1, 0, 5, 59):                     # -125 is before the hours asked for; -61 is the first of them; -60, -59 and -1 the last whole hour; 0, 5 and 59 the running one
+    # -125 is before the hours asked for; -61 is the first of them; -60, -59 and -1 the last whole
+    # hour; 0, 5 and 59 the running one
+    for minutes in (-125, -61, -60, -59, -1, 0, 5, 59):
         assert log.append(position(top + timedelta(minutes=minutes)))
     assert log.append(position(top + timedelta(minutes=10), direction="out"))
     assert log.append(position(top + timedelta(minutes=-200)))                # (before the hours asked for)
@@ -95,7 +98,8 @@ async def test_without_the_internet_the_packets_from_aprs_is_are_not_counted_nor
     log = PacketLog(store.db, FixedClock())
     top = T0.replace(minute=0, second=0, microsecond=0)
     assert log.append(position(top - timedelta(minutes=30)))                                                                      # heard on the air
-    assert log.append(parse_is_line("OH2RDG>APRS,TCPIP*,qAC,T2:!6011.00N/02456.00E>090/050from the internet", top - timedelta(minutes=20)))   # the same station over APRS-IS, with a speed
+    # The same station over APRS-IS, with a speed
+    assert log.append(parse_is_line("OH2RDG>APRS,TCPIP*,qAC,T2:!6011.00N/02456.00E>090/050from the internet", top - timedelta(minutes=20)))
     assert log.append(parse_is_line("OH7XYZ>APRS,TCPIP*,qAC,T2:!6016.00N/02456.00E-only the internet", top - timedelta(minutes=10)))
     since = top - timedelta(hours=1)
     assert await log.heard_by_hour(since) == {top - timedelta(hours=1): 3}

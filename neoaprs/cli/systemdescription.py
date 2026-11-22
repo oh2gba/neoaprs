@@ -1,4 +1,6 @@
-"""The operating system as a person names it, for the daemon's second line of the log and for the support bundle: a module of its own, so that the daemon does not load the modules that write the bundle to say it."""
+"""The operating system as a person names it, for the log and the support bundle.
+
+A module of its own, so the daemon need not load the bundle modules to say it."""
 import platform
 
 

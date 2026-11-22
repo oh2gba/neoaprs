@@ -1,7 +1,7 @@
-"""What the log says of the Mercury radio and the Mercury modem, because a person who sends the support bundle is helped from it: the program found or not (and where it was looked for), the sound card with the reason it was
-chosen, the keying, the ports, the command line, Mercury's own first lines, every busy channel and every keyed radio with how long it lasted, a hold that gives up, why the program ended, and each frame over Mercury with its
-size and the modem's SNR; and, with radios side by side, a sound card or a keying line another radio holds, with the holder, and the files an older version left in the data folder that could not be moved into
-the radio's folder. The modems are radios' (`fakemercury.of_radio`). The lines are the evidence, so the tests read them."""
+"""Tests for what the log says about the Mercury radio and modem, which support bundles rely on: the
+program found or not, sound card choice, keying, ports, command line, busy channels, frames with
+SNR, held resources, and files that could not be moved. The modems are `fakemercury.of_radio`.
+"""
 import logging
 import time
 from dataclasses import replace
@@ -91,7 +91,8 @@ async def test_a_sound_card_or_a_keying_line_another_radio_holds_is_said_with_it
 async def test_an_old_file_that_cannot_be_moved_into_the_radios_folder_is_a_line_and_the_start_goes_on(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, "neoaprs.mercury")
     stuck = tmp_path / mercurymodem.CAPTURE_FIFO
-    stuck.mkdir()                                                                  # (something that is not the old pipe and cannot be removed as one)
+    # (something that is not the old pipe and cannot be removed as one)
+    stuck.mkdir()
     (stuck / "inside").write_text("x")
     m = modem(tmp_path)
     await m.start(HF)
@@ -210,7 +211,8 @@ async def test_each_frame_over_hf_is_a_line_with_its_size_and_the_snr_of_the_mod
         assert f"Mercury frame heard from OH2XYZ: {size} bytes, SNR -2 dB" in said
         assert f"Mercury frame sent from OH2GBA: {len(ax25.encode(ui_frame('OH2GBA')))} bytes" in said
         assert tnc.label == "hf radio" and any(line.startswith("hf radio: opened ") for line in said), "a line says which radio it is about"
-        await until_started(lambda: m.frames_keyed == 1 and not m.keyed)               # (the fake station keys for our frame, then lets go)
+        # (the fake station keys for our frame, then lets go)
+        await until_started(lambda: m.frames_keyed == 1 and not m.keyed)
         b.say_control("BUSY ON")
         await until_started(lambda: m.busy)
         assert not tnc.send_frame(ui_frame("OH2GBA"))

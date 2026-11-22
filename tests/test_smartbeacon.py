@@ -1,4 +1,6 @@
-"""SmartBeaconing (neoaprs/smartbeacon.py): the rate at each speed, the threshold of a turn, and the decision for every branch, with Dire Wolf's numbers (100 km/h, 60 s, 8 km/h, 1800 s, 30 degrees, 15 s, 255)."""
+"""SmartBeaconing (neoaprs/smartbeacon.py): the rate at each speed, the threshold of a turn, and the
+decision for every branch, with Dire Wolf's numbers (100 km/h, 60 s, 8 km/h, 1800 s, 30 degrees, 15
+s, 255)."""
 from datetime import timedelta
 
 import pytest
@@ -16,7 +18,8 @@ def after(seconds: float):                                                  # ty
 
 
 @pytest.mark.parametrize(("speed", "seconds"), [
-    (0.0, 1800.0), (4.0, 1800.0), (8.0, 1800.0),                              # at or below the slow speed: the slow rate
+    # At or below the slow speed: the slow rate
+    (0.0, 1800.0), (4.0, 1800.0), (8.0, 1800.0),
     (8.01, pytest.approx(60 * 100 / 8.01)), (9.0, pytest.approx(60 * 100 / 9.0)), (20.0, 300.0), (50.0, 120.0), (80.0, 75.0), (99.9, pytest.approx(60 * 100 / 99.9)),
     (100.0, 60.0), (130.0, 60.0), (300.0, 60.0)])                            # at or above the fast speed: the fast rate
 def test_the_rate_is_the_slow_one_up_to_the_slow_speed_the_fast_one_from_the_fast_speed_and_inverse_to_the_speed_between(speed: float, seconds: float) -> None:
@@ -59,7 +62,8 @@ def test_a_request_is_beaconed_at_once_with_or_without_an_earlier_beacon() -> No
 # ---- the time
 
 @pytest.mark.parametrize(("speed", "gap", "reason"), [
-    (0.0, 1799, None), (0.0, 1800, "time"), (0.0, 5000, "time"),                          # standing still: every 30 minutes
+    # Standing still: every 30 minutes
+    (0.0, 1799, None), (0.0, 1800, "time"), (0.0, 5000, "time"),
     (None, 1799, None), (None, 1800, "time"),                                              # no speed is standing still
     (8.0, 1799, None), (8.0, 1800, "time"),
     (50.0, 119, None), (50.0, 120, "time"),                                                # 50 km/h: every 2 minutes
@@ -126,7 +130,8 @@ def test_a_turn_is_not_beaconed_while_a_beacon_by_time_is_due_it_is_the_time_tha
 
 
 def test_a_turn_changes_the_baseline_of_the_next_one() -> None:
-    """The course of the last beacon is the baseline: the bend that follows the turn is measured from the turn, not from the start."""
+    """The course of the last beacon is the baseline: the bend that follows the turn is measured
+    from the turn, not from the start."""
     first = decide(S, Sent(T0, 90), after(20), 60.0, 180)
     assert first.reason == "turn"
     assert decide(S, Sent(after(20), 180), after(40), 60.0, 190).reason is None
@@ -134,7 +139,8 @@ def test_a_turn_changes_the_baseline_of_the_next_one() -> None:
 
 
 def test_a_drive_beacons_at_the_corner_and_on_the_straight_and_rarely_when_stopped() -> None:
-    """A made-up minute-by-minute drive: stopped, away at 50 km/h, a corner, 100 km/h on the straight, stopped."""
+    """A made-up minute-by-minute drive: stopped, away at 50 km/h, a corner, 100 km/h on the
+    straight, stopped."""
     last: Sent | None = None
     sent: list[tuple[int, str]] = []
     drive = [(0, 0.0, 0)] * 5 + [(t, 50.0, 0) for t in range(5, 130)] + [(t, 40.0, 90) for t in range(130, 140)] + [(t, 100.0, 90) for t in range(140, 260)] + [(t, 0.0, 90) for t in range(260, 600)]

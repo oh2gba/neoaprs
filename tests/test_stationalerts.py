@@ -1,6 +1,7 @@
-"""The alerts set on stations (neoaprs/services/stationalerts.py) on a real station book and real preferences on a database: each of the three (on the air, within N km, heard direct) fires once for each crossing
-and not again until it is reset, an alert never fires for what was already true when it was set, our own station and our own objects have none, the internet counts only while it is shown, and an alert is
-read back by the next start."""
+"""The station alerts (neoaprs/services/stationalerts.py) on a real station book and preferences:
+each of the three (on the air, within N km, heard direct) fires once per crossing and not for what
+was true when set.
+"""
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
@@ -25,7 +26,8 @@ from tests.support.files import until_written
 from tests.support.storedb import store_at
 
 HOME = (60.17, 24.94)
-DEGREE_KM = 111.2                          # (a degree of latitude, near enough: the tests place a station so many km north of us)
+# A degree of latitude, near enough: the tests place a station so many km north of us
+DEGREE_KM = 111.2
 VIA_DIGI = ("OH2RCH-2*", "WIDE2-1")
 DIRECT = ("WIDE1-1", "WIDE2-1")            # (nothing repeated: heard direct)
 QUIET_SEC = QUIET.total_seconds()
@@ -103,7 +105,8 @@ async def test_within_fires_when_the_station_comes_in_from_outside_once_and_agai
     rig.hear(decoded=north(8.24))
     assert rig.kinds() == [("OH2XYZ", "within")] and rig.fired[0].text == "OH2XYZ is 8.2 km from you" and rig.fired[0].km == 8.2
     rig.hear(decoded=north(3))
-    rig.hear(decoded=north(10.5))                                       # (beyond 10 km, but not beyond the margin: a position that wanders on the edge)
+    # Beyond 10 km, but not beyond the margin: a position that wanders on the edge
+    rig.hear(decoded=north(10.5))
     rig.hear(decoded=north(9.5))
     assert len(rig.fired) == 1 and outside_km(10) == 11
     rig.hear(decoded=north(25))
@@ -143,7 +146,8 @@ async def test_within_fires_when_we_come_near_a_station_that_stands_still(rig: R
     rig.hear(decoded=north(30))
     await rig.alerts.set("OH2XYZ", Alert(within_km=10))
     rig.clock.advance(600)
-    rig.book.set_me("OH2GBA", HOME[0] + 25 / DEGREE_KM, HOME[1])          # (the GPS of a moving station: 5 km from it now)
+    # The GPS of a moving station: 5 km from it now
+    rig.book.set_me("OH2GBA", HOME[0] + 25 / DEGREE_KM, HOME[1])
     assert rig.kinds() == [("OH2XYZ", "within")] and rig.fired[0].km == 5.0 and rig.fired[0].at == rig.clock(), "when we came near, not when its position was"
 
 

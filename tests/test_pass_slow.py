@@ -1,7 +1,8 @@
-"""What a pair passes onto a slow radio (HF, LoRa), through the Digipeater on stub lines and a clock the test holds (plan X4, neoaprs/services/passrows.py with services/passlimits.py): at most four frames in five
-minutes, two of them messages of one station and two packets that are no message; a packet that is no message once per station in the radio's floor; one frame waits while the radio is keyed, busy or was
-handed a frame a moment ago, and goes from the digipeater's tick within thirty seconds of when it was heard, unless its pair, the radio or the station no longer passes it. Onto FM the burst, shared with the
-fill-in. The rows themselves are tests/test_pass_rows.py's."""
+"""What a pair passes onto a slow radio (HF, LoRa) through the Digipeater on stub lines and a held
+clock (neoaprs/services/passrows.py, passlimits.py): at most four frames in five minutes, one frame
+waiting while the radio is keyed, busy or just handed a frame. The rows themselves are
+tests/test_pass_rows.py's.
+"""
 import logging
 from dataclasses import replace
 
@@ -90,7 +91,8 @@ def test_while_one_waits_a_second_is_held_and_a_copy_of_the_waiting_one_counts_n
     rig.hf.held = KEYED
     rig.hear(frame("OH2GBA-12", info=msg(1)))
     rig.hear(frame("OH2GBA-12", source="OH3ABC", info=msg(2)))
-    rig.hear(frame("OH2RCH*,OH2GBA-12", info=msg(1)))                      # (the waiting one through another digipeater)
+    # The waiting one through another digipeater
+    rig.hear(frame("OH2RCH*,OH2GBA-12", info=msg(1)))
     assert rig.hf.stats.passed[FM_ID].held == 1
     rig.hf.held = ""
     rig.digi.passer.tick()
@@ -105,7 +107,8 @@ def test_a_copy_of_a_frame_held_as_busy_is_dropped_within_the_duplicate_window_e
     rig.hf.held = ""
     rig.digi.passer.tick()
     rig.clock.advance(10)
-    rig.hear(frame("OH2RCH*,OH2GBA-12", source="OH3ABC", info=msg(2)))      # its copy through a digipeater: the sender's own retry is what comes again
+    # Its copy through a digipeater: the sender's own retry is what comes again
+    rig.hear(frame("OH2RCH*,OH2GBA-12", source="OH3ABC", info=msg(2)))
     assert [f.info for f in rig.hf.sent] == [msg(1)] and rig.hf.stats.passed[FM_ID].held == 1
 
 

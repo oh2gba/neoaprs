@@ -1,8 +1,8 @@
-"""The seams of the radio round (work/par/round/breakdown.md, section 1) as views of today's values, so that nothing behaves differently while they are new: the radios of the settings are today's FM radio
-(radio 1) and Mercury radio (radio 2) made of the flat keys (`radios_from_flat`, every shape of today's settings); today's rules written with ids (neoaprs/messagerule.py, neoaprs/emailrule.py) choose what
-the two radios of before chose for a station and for the email gateway (tests/support/tworadios.py), over a table of cases, and the beacon rule
-(neoaprs/beaconrule.py, plan rule 3.1, tests/test_beaconrule.py) keeps today's two beacons on today's radios with each radio's own floor; the one fit function makes the frame the sender makes today; the shapes wave 1 writes (tests/support/seamshapes.py, which mypy holds to the Protocols) work as the
-services take them; and the constructors that gained keywords keep their old call."""
+"""The seams of the radio registry as views of the current values: the radios made of the flat keys,
+the message and e-mail rules choosing what the two radios chose (tests/support/tworadios.py), the
+beacon rule, the shared fit function, the shapes of tests/support/seamshapes.py and the
+constructors' old calls.
+"""
 import itertools
 from dataclasses import replace
 from pathlib import Path
@@ -44,9 +44,11 @@ SHAPES: list[dict[str, str]] = [            # the settings of today's stations, 
     {"tnc/profile": "kiss-tcp", "tcp/host": "::1", "tcp/port": "8100", "beacon/path": "DIRECT"},
     {"tnc/profile": "kenwood-d710", "serial/port": "/dev/serial/by-id/usb-FTDI-if00", "serial/baud": "19200", "beacon/path": "WIDE1-1,WIDE2-1", "digi/enabled": "true"},
     {"tnc/profile": "dummy", "hf/enabled": "true", "mercury/sound_card": "plughw:1,0", "mercury/keying": "rts:/dev/ttyUSB1", "mercury/tx_gain_db": "-6"},
-    {"tnc/enter_kiss": "true"},                                 # the legacy rows (configlegacy.py): the Kenwood TNC-2 entry ...
+    # The legacy rows (configlegacy.py): the Kenwood TNC-2 entry ...
+    {"tnc/enter_kiss": "true"},
     {"tnc/profile": "mercury"},                                 # ... and the HF radio alone
-    {"serial/baud": "12", "tcp/port": "0", "mercury/tx_gain_db": "99"},     # wrong values: the defaults, as for the flat keys
+    # Wrong values: the defaults, as for the flat keys
+    {"serial/baud": "12", "tcp/port": "0", "mercury/tx_gain_db": "99"},
 ]
 FLAT = {"port": "serial_port", "baud": "serial_baud", "tcp_host": "tcp_host", "tcp_port": "tcp_port", "path": "beacon_path", "digipeat": "digi_enabled",
         "sound_card": "mercury_sound_card", "keying": "mercury_keying", "tx_gain_db": "mercury_tx_gain_db"}
@@ -66,7 +68,9 @@ def test_the_radios_of_the_settings_are_todays_fm_and_hf_radio_made_of_the_flat_
         for key, text in spec.settings.items():
             if key != "beacon" and (spec.id, key) in HOMES:
                 assert spec.value(key) == getattr(config, FLAT[key]), key
-            elif key != "beacon":                                          # (a field of the kind that no flat key of this radio holds is at its default: radio 1's sound card, keying and gain)
+            # A field of the kind that no flat key of this radio holds is at its default: radio 1's
+            # sound card, keying and gain
+            elif key != "beacon":
                 assert text == kind_field(spec.kind, key).default, key     # type: ignore[union-attr]
             assert Config.check_radio(spec, key, text) == text, "what is stored reads back as it is"
     assert set(fm.settings) == {"port", "baud", "tcp_host", "tcp_port", "sound_card", "keying", "tx_gain_db", "tx_card", "rx_card", "beacon", "status", "ask", "local_info", "path", "digipeat"} and set(hf.settings) == {"sound_card", "keying", "tx_gain_db", "tx_card", "rx_card", "beacon", "status", "ask", "local_info"}
@@ -102,7 +106,8 @@ def station(fm: int, hf: int) -> Station:
     return Station("OH2GAX", first_heard=T0, last_heard=T0, heard_by={id: RadioHeard(count, T0) for id, count in ((FM_ID, fm), (HF_ID, hf)) if count})
 
 
-CASES = list(itertools.product((True, False), (True, False), (0, 4), (0, 2), (None, FM_ID, HF_ID), (True, False)))     # FM on, HF on, heard on FM, on HF, the choice, the station in the book
+# FM on, HF on, heard on FM, on HF, the choice, the station in the book
+CASES = list(itertools.product((True, False), (True, False), (0, 4), (0, 2), (None, FM_ID, HF_ID), (True, False)))
 
 
 @pytest.mark.parametrize(("fm_on", "hf_on", "fm", "hf", "choice", "known"), CASES)

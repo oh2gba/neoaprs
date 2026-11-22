@@ -1,9 +1,7 @@
-"""Where the daemon's radios (neoaprs/radioedits.py, the controller, the page's config view) meet the command line and the support bundle (neoaprs/cli/dbcmd.py, doctor.py, support*.py). Each side
-has its own tests; here one data folder goes through both. A new installation has no radio until one is added, which `neoaprs db`, `neoaprs doctor` and the bundle say, and then show the one added;
-a radio added and set with the command line on a stopped daemon's file is what the next start runs with, and a save of the page is what `db get` reads; the Mercury radio added on the page is a second
-radio for the command line and the bundle, and a database made of that bundle (tests/support/bundledb.py) and migrated has the same radios and the stations' choices of them; a removed radio is no
-setting of the station's on the page, on the command line or in the bundle. A Sound card radio (`direwolf`) is a new installation's radio 1 by `radios add` where the installation carries Direwolf, and the first
-start runs it on its own Direwolf; where none is carried the command refuses it and stores no radio."""
+"""Where the daemon's radios meet the command line and the support bundle (neoaprs/cli/dbcmd.py,
+doctor.py, support*.py): one data folder goes through both. A new installation has no radio until
+one is added.
+"""
 import asyncio
 import json
 import sqlite3
@@ -37,13 +35,16 @@ from tests.support.supportdata import zip_members
 from tests.support.wsclient import WsClient
 
 NOW = utc(2026, 11, 14, 12, 0, 0)
-FLAT_KEYS = [key for key in KEYS if BY_KEY[key].attr in FLAT_HOMES]               # the keys of before of radios 1 and 2, which are no settings of the command line or the bundle
-DUMMY_HF = {"hf/enabled": "true", "hf/profile": "dummy-hf", "mercury/keying": "vox", "mercury/tx_gain_db": "-4"}      # (the Dummy HF radio: no Mercury program, no sound card)
+# The keys of before of radios 1 and 2, which are no settings of the command line or the bundle
+FLAT_KEYS = [key for key in KEYS if BY_KEY[key].attr in FLAT_HOMES]
+# The Dummy HF radio: no Mercury program, no sound card
+DUMMY_HF = {"hf/enabled": "true", "hf/profile": "dummy-hf", "mercury/keying": "vox", "mercury/tx_gain_db": "-4"}
 
 
 @pytest.fixture(autouse=True)
 def this_computer(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The doctor (alone and inside the bundle) reads nothing of the computer the test runs on: one TNC cable, the group of the serial devices, no brltty, ModemManager or start at sign-in."""
+    """The doctor (alone and inside the bundle) reads nothing of the computer the test runs on: one
+    TNC cable, the group of the serial devices, no brltty, ModemManager or start at sign-in."""
     monkeypatch.setattr(doctor, "available_ports", lambda: [PortInfo("/dev/ttyUSB0", "FT232R USB UART", "USB VID:PID=0403:6001", 0x0403, 0x6001)])
     monkeypatch.setattr(doctor, "serial_group_check", lambda: hostcheck.GroupCheck("ok", "dialout", ""))
     monkeypatch.setattr(doctor, "brltty_installed", lambda: False)
@@ -57,7 +58,8 @@ def this_computer(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 async def db(capsys: pytest.CaptureFixture[str], data: Path, *args: str) -> tuple[int, str, str]:
-    """`neoaprs db ARGS` on the data folder (in a thread: the command runs a loop of its own), with what it printed and what it said on stderr."""
+    """`neoaprs db ARGS` on the data folder (in a thread: the command runs a loop of its own), with
+    what it printed and what it said on stderr."""
     capsys.readouterr()
     code = await asyncio.to_thread(dbcmd.main, ["--data", str(data), *args])
     out = capsys.readouterr()
@@ -83,7 +85,8 @@ async def doctor_radios(capsys: pytest.CaptureFixture[str], data: Path) -> list[
 
 
 async def bundle(out: Path, data: Path) -> tuple[Path, dict[str, str]]:
-    """A support bundle of the data folder of a stopped daemon, as `neoaprs support` makes it: its path and its members."""
+    """A support bundle of the data folder of a stopped daemon, as `neoaprs support` makes it: its
+    path and its members."""
     made = await asyncio.to_thread(lambda: make_bundle(data, out, now=FixedClock(NOW), journal=lambda: None))
     return made.path, zip_members(made.path)
 
@@ -97,7 +100,8 @@ def summary_titles(members: dict[str, str]) -> list[str]:
 
 
 def tables(path: Path) -> tuple[list[tuple[Any, ...]], list[tuple[Any, ...]], dict[str, str]]:
-    """The radios (every column but the time of a removal), their own settings, and the rows of the settings table, of a stopped daemon's file."""
+    """The radios (every column but the time of a removal), their own settings, and the rows of the
+    settings table, of a stopped daemon's file."""
     connection = sqlite3.connect(path)
     try:
         return (connection.execute("SELECT id, kind, type, name, enabled, position, removed_at IS NOT NULL FROM radio ORDER BY id").fetchall(),
@@ -124,7 +128,8 @@ async def page_of(e: Env) -> WsClient:
 
 async def test_a_new_installation_has_no_radio_until_one_is_added_and_the_command_line_the_doctor_and_the_bundle_say_so(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     data = tmp_path / "data"
-    e = Env(data, operator=False, first_radio=False)                  # (no settings row and no radio: what an installation's first start finds)
+    # No settings row and no radio: what an installation's first start finds
+    e = Env(data, operator=False, first_radio=False)
     await e.start(connected=False)
     await e.stop()
     code, out, err = await db(capsys, data, "radios")
@@ -151,10 +156,13 @@ async def test_a_sound_card_radio_is_a_new_installations_radio_1_by_the_command_
     none = tmp_path / "none"
     code, _, err = await db(capsys, none, "radios", "add", "direwolf")
     assert code == 2 and "'direwolf' is not a type of radio of this installation" in err and (not (none / DB_NAME).exists() or tables(none / DB_NAME)[0] == []), "a wheel installed with pip, a checkout: no Direwolf, so no radio that would only wait for it"
-    monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)             # (an installation that carries Direwolf: the made-up one)
+    # An installation that carries Direwolf: the made-up one
+    monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)
     monkeypatch.setattr("neoaprs.direwolfprogram.find", lambda tools=None: fakedirewolf.program())
     monkeypatch.setattr(direwolfmodem, "FIRST_PORT", base_of_this_test())
-    monkeypatch.setattr(direwolfmodem, "_numbers_of", lambda name: (1, 1))           # (Windows: the made-up card is the second input and output of the made-up Direwolf's WinMM lists; the machine's own name none)
+    # Windows: the made-up card is the second input and output of the made-up Direwolf's WinMM
+    # lists; the machine's own name none
+    monkeypatch.setattr(direwolfmodem, "_numbers_of", lambda name: (1, 1))
     data = tmp_path / "data"
     code, out, _ = await db(capsys, data, "radios", "add", "direwolf")
     assert code == 0 and out.split() == ["radio", "1", "FM", "fm", "direwolf", "on", "(position", "1)"], "a new installation's first radio is radio 1"
@@ -201,7 +209,8 @@ async def test_the_hf_radio_ticked_on_the_page_is_a_second_radio_for_the_command
     page = await page_of(e)
     await page.send({"cmd": "radio_add", "type": "dummy-hf"})
     assert (await page.expect("radio_added"))["id"] == HF_ID, "a Mercury radio added is radio 2"
-    e.mercury._finder = lambda: None                              # (no program: the Dummy HF radio works without its speaker)
+    # No program: the Dummy HF radio works without its speaker
+    e.mercury._finder = lambda: None
     await page.send({"cmd": "set_config", "values": {"radio/2/keying": "vox", "radio/2/tx_gain_db": "-4"}})
     await page.until(lambda: page.topics["config"]["radio_values"].get("radio/2/tx_gain_db") == "-4")
     calls = ("OH2GAX-2", "OH2RDG")

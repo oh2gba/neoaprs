@@ -1,40 +1,42 @@
-"""APRS weather: the fields that follow the position of a weather station (symbol code `_`) or the timestamp of a positionless weather report (data type `_`), decoded and converted to metric.
+"""APRS weather fields after a weather station's position or a positionless report's time.
 
-The fields are a letter and a fixed number of digits (APRS101, chapter 12): `c` wind direction (degrees) and `s` its speed (mph), or the same as the leading `DIR/SPD` of a position; `g` gust (mph), `t` temperature (degrees F, three
-characters, `-05` below zero), `r` rain in the last hour, `p` in the last 24 hours and `P` since midnight (hundredths of an inch), `h` humidity (per cent, `00` is 100), `b` pressure (tenths of a hPa), `L` luminosity (W/m2, 0 to 999)
-and `l` (1000 and more, as `l` plus 1000), `s` snow in the last 24 hours (inches, a decimal point allowed: `s1.5`) once the wind speed is there already, `#` the raw rain counter. A field that is all dots or all spaces is missing. The fields end at the first
-character that is not a field of this list with the right digits; what follows (a software id such as `wRSW`, "RX Igate & WX station", a comment glued to the data) is the comment.
-
-Pure code, like the rest of the foundation."""
+Fields are converted to metric. A field of dots or spaces is missing; the fields end at the first
+character that is no field, and the rest is the comment.
+"""
 import re
 from dataclasses import dataclass
 
 from neoaprs.units import INCH_MM, MILE_KM, fahrenheit_to_celsius
 
-_WIND = re.compile(r"(\d{2,3}|\.{2,3}| {2,3})/(\d{3}|\.{3}| {3})")           # the wind of a position: direction (2 or 3 digits, some stations send two) and speed
+# wind direction (some stations send two digits) and speed
+_WIND = re.compile(r"(\d{2,3}|\.{2,3}| {2,3})/(\d{3}|\.{3}| {3})")
 _FIELDS = {letter: re.compile(rf"(\d{{{width}}}|\.{{{width}}}| {{{width}}})") for letter, width in
            (("c", 3), ("s", 3), ("g", 3), ("r", 3), ("p", 3), ("P", 3), ("h", 2), ("b", 5), ("L", 3), ("l", 3), ("#", 3))}
 _FIELDS["t"] = re.compile(r"(-\d{2}|\d{3}|\.{3}| {3})")
-_SNOW = re.compile(r"(\d{3}|\d\.\d|\d{2}\.|\.\d{2}|\.{3}| {3})")         # the snow of the last 24 hours, in inches: three characters, a decimal point allowed (`s1.5`)
+# snow of the last 24 hours, inches: three characters, a decimal point allowed (`s1.5`)
+_SNOW = re.compile(r"(\d{3}|\d\.\d|\d{2}\.|\.\d{2}|\.{3}| {3})")
 _MAX_DIRECTION = 360
 _VALUES = ("wind_dir", "wind_kmh", "gust_kmh", "temp_c", "humidity", "pressure_hpa", "rain_1h_mm", "rain_24h_mm", "rain_today_mm", "luminosity", "snow_mm", "rain_counter")
 
 
 @dataclass(frozen=True, slots=True)
 class Weather:
-    """One weather observation in metric units; every field is None when the report did not have it. `raw` is the text of the fields as they were sent."""
-    wind_dir: int | None = None                    # degrees the wind blows from
-    wind_kmh: float | None = None                  # sustained, km/h
+    """One weather observation in metric units; a field is None if the report lacked it.
+
+    `raw` is the text of the fields as sent.
+    """
+    wind_dir: int | None = None  # degrees the wind blows from
+    wind_kmh: float | None = None  # sustained, km/h
     gust_kmh: float | None = None
     temp_c: float | None = None
-    humidity: int | None = None                    # per cent, 1 to 100
+    humidity: int | None = None  # per cent, 1 to 100
     pressure_hpa: float | None = None
     rain_1h_mm: float | None = None
     rain_24h_mm: float | None = None
-    rain_today_mm: float | None = None             # since midnight
-    luminosity: int | None = None                  # W/m2
-    snow_mm: float | None = None                   # in the last 24 hours
-    rain_counter: int | None = None                # the raw rain counter, as the station counts it
+    rain_today_mm: float | None = None  # since midnight
+    luminosity: int | None = None  # W/m2
+    snow_mm: float | None = None  # in the last 24 hours
+    rain_counter: int | None = None  # the raw rain counter, as the station counts it
     raw: str = ""
 
 
@@ -47,7 +49,10 @@ def _decimal(text: str) -> float | None:
 
 
 def _scan(text: str) -> tuple[dict[str, int | None], float | None, int]:
-    """The fields at the start of `text`, by their letter, with the raw numbers (None for a missing one), the snow (an `s` that follows the wind speed, in inches), and how many characters they took."""
+    """Return the fields at the start of `text` by letter, raw numbers, snow and length taken.
+
+    Snow is an `s` after the wind speed, in inches; the length is in characters.
+    """
     fields: dict[str, int | None] = {}
     snow: float | None = None
     snowed = False
@@ -101,7 +106,10 @@ def _weather(fields: dict[str, int | None], snow: float | None, raw: str) -> Wea
 
 
 def parse_weather(text: str) -> tuple[Weather | None, str]:
-    """The weather fields at the start of `text` (the part of a position after the symbol, or of a positionless report after its time) and the rest, which is the comment. None when the text has no field, or when every field it has is missing."""
+    """Split the weather fields off the start of `text`; the rest is the comment.
+
+    The weather is None if there is no field or every field is missing.
+    """
     fields, snow, taken = _scan(text)
     if not taken:
         return None, text
@@ -109,7 +117,7 @@ def parse_weather(text: str) -> tuple[Weather | None, str]:
 
 
 def parse_report(info: bytes) -> Weather | None:
-    """The weather of a positionless report, the information field `_MMDDhhmm` and the fields (the time is not used: the packet's own is); None for anything else."""
+    """Return the weather of a positionless report `_MMDDhhmm` + fields (time unused); else None."""
     text = info.decode("latin-1")
     if text[:1] != "_" or not text[1:9].isdigit():
         return None
@@ -134,7 +142,7 @@ def _rain_text(w: Weather) -> str | None:
 
 
 def weather_text(w: Weather) -> str:
-    """The observation in a line, only the fields that are there: `wind 107° 2 km/h gusts 2, 10.0 °C, 85 %, 1028.4 hPa, rain 0.3 mm/h, 24 h 4.1 mm`."""
+    """Return the present fields in one line: `wind 107° 2 km/h, 10.0 °C, 85 %, 1028.4 hPa`."""
     parts = [
         _wind_text(w), None if w.temp_c is None else f"{w.temp_c:.1f} °C", None if w.humidity is None else f"{w.humidity} %", None if w.pressure_hpa is None else f"{w.pressure_hpa:.1f} hPa",
         _rain_text(w), None if w.luminosity is None else f"{w.luminosity} W/m²", None if w.snow_mm is None else f"snow {w.snow_mm:.0f} mm",

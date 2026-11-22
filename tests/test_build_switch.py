@@ -1,4 +1,5 @@
-"""Encrypted messages are a switch of the build (hatch_build.py, neoaprs/services/keys.py): the modules the switch leaves out are imported by nothing else, and a daemon without them treats every
+"""Encrypted messages are a switch of the build (hatch_build.py, neoaprs/services/keys.py): the
+modules the switch leaves out are imported by nothing else, and a daemon without them treats every
 message as plain, seals nothing and shows no key."""
 import ast
 import tomllib
@@ -15,11 +16,13 @@ from tests.support.env import Env
 from tests.support.storedb import log_at
 from tests.test_messaging import Rig
 
-HOOK = ROOT / "hatch_build.py"                       # read, not imported: it needs the build backend, which the tests' environment has not
+# read, not imported: it needs the build backend, which the tests' environment has not
+HOOK = ROOT / "hatch_build.py"
 ENCRYPTION: tuple[str, ...] = next(ast.literal_eval(node.value) for node in ast.parse(HOOK.read_text(encoding="utf-8")).body
                                    if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "ENCRYPTION")
 MODULES = {"neoaprs.cipher", "neoaprs.services.keyring"}
-SEAM = "neoaprs/services/keys.py"                    # the one module that may reach them, and only when the build has them
+# the one module that may reach them, and only when the build has them
+SEAM = "neoaprs/services/keys.py"
 
 
 def test_the_wheel_leaves_out_exactly_the_modules_the_hook_puts_back() -> None:

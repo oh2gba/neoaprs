@@ -1,5 +1,6 @@
-"""The handlers of the commands that are answered from the daemon's logs with a message of their own (neoaprs/web/dispatch.py): the weather of a station, the packets heard by the hour, what the statistics card counts beyond them, the speeds of a
-station, the readings of a station's signal, the latest packets of a station and the positions of the replay of the map; and a station's track as its row has it. Importing this module registers them; neoaprs/web/handlers.py imports it, so importing that one registers every handler.
+"""Handlers of the commands answered from the logs: weather, counts, speeds, signal, replay, track.
+
+Importing this module registers them; handlers.py imports it.
 """
 from datetime import timedelta
 
@@ -24,8 +25,8 @@ async def weather_series(ctx: Ctx, cmd: WeatherSeries) -> None:
 
 @command(PacketHistory)
 async def packet_history(ctx: Ctx, cmd: PacketHistory) -> None:
-    """The packets heard in each of the last hours, the running one last, all of them or one station's (`call`, which the answer repeats): the hours of the clock, so that the bars of the page stand at round times.
-    While `igate/enabled` is off none that came from APRS-IS is counted, as the stations topic shows none."""
+    # Counts per clock hour so the page's bars stand at round times; APRS-IS packets count only
+    # while the iGate is on.
     start = ctx.ctl.clock().replace(minute=0, second=0, microsecond=0) - timedelta(hours=cmd.hours - 1)
     counted = await ctx.ctl.packetlog.heard_by_hour(start, cmd.call, internet=ctx.ctl.config.igate_enabled)
     counts = [counted.get(start + timedelta(hours=i), 0) for i in range(cmd.hours)]
@@ -34,7 +35,6 @@ async def packet_history(ctx: Ctx, cmd: PacketHistory) -> None:
 
 @command(PacketStats)
 async def packet_stats(ctx: Ctx, cmd: PacketStats) -> None:
-    """What the statistics card counts from the packet log (neoaprs/packetstats.py), and what the iGate gated in the last hour while it is on."""
     config, igate = ctx.ctl.config, ctx.ctl.igate
     counted = await ctx.ctl.packetlog.stats.counted(config.station_call, config.igate_enabled)
     heard = sorted(counted.heard.items(), key=lambda item: (item[0] is None, item[0] or 0))
@@ -48,22 +48,18 @@ async def packet_stats(ctx: Ctx, cmd: PacketStats) -> None:
 
 @command(SpeedSeries)
 async def speed_series(ctx: Ctx, cmd: SpeedSeries) -> None:
-    """The speeds the station reported in the last hours, the oldest first, for the speed graph of a moving station's card; while `igate/enabled` is off, only those of the positions heard on the radio."""
     speeds = await ctx.ctl.packetlog.speeds(cmd.call, ctx.ctl.clock() - timedelta(hours=cmd.hours), internet=ctx.ctl.config.igate_enabled)
     ctx.conn.send({"type": "speed_series", "call": cmd.call, "hours": cmd.hours, "points": [[iso(at), round(kmh, 1)] for at, kmh in speeds]})
 
 
 @command(SignalSeries)
 async def signal_series(ctx: Ctx, cmd: SignalSeries) -> None:
-    """The readings of the station's signal in the last hours, the oldest first, for the signal graph of its card (none came from APRS-IS: a packet from the internet has no reading)."""
     readings = await ctx.ctl.packetlog.readings(cmd.call, ctx.ctl.clock() - timedelta(hours=cmd.hours))
     ctx.conn.send({"type": "signal_series", "call": cmd.call, "hours": cmd.hours, "points": [[iso(at), snr, rssi] for at, snr, rssi in readings]})
 
 
 @command(StationTraffic)
 async def station_traffic(ctx: Ctx, cmd: StationTraffic) -> None:
-    """The latest TRAFFIC_KEPT packets of a station from the packet log, for its panel in the Stations tab: those it sent and the messages we sent to it, each as a row of the Packets tab with its number in the log
-    as its id; while `igate/enabled` is off, none that came from APRS-IS."""
     config = ctx.ctl.config
     found = await ctx.ctl.packetlog.traffic(cmd.call, config.station_call, TRAFFIC_KEPT, internet=config.igate_enabled)
     ctx.conn.send({"type": "station_traffic", "call": cmd.call, "packets": [packet_row(number, packet) for number, packet in found]})
@@ -71,9 +67,9 @@ async def station_traffic(ctx: Ctx, cmd: StationTraffic) -> None:
 
 @command(PositionHistory)
 async def position_history(ctx: Ctx, cmd: PositionHistory) -> None:
-    """Where the stations were over the last hours, for the replay of the map: the positions of the packet log, thinned by the span (neoaprs/web/views.py), to the page that asked. The replay begins at the
-    oldest packet the log keeps when the span reaches back further, so that its slider does not run over days of nothing. While `igate/enabled` is off it shows what the stations topic does, no packet that
-    came from APRS-IS: the log keeps them for LOG_KEEP_DAYS after the switch went off, and they are left out in the reading."""
+    # The replay starts at the oldest logged packet when the span reaches further back, so the
+    # slider does not run over empty days. APRS-IS packets are left out while the iGate is off,
+    # though the log still holds them.
     end = ctx.ctl.clock()
     start = end - timedelta(hours=cmd.hours)
     metres, seconds = replay_thinning(cmd.hours)
@@ -85,7 +81,8 @@ async def position_history(ctx: Ctx, cmd: PositionHistory) -> None:
 
 @command(StationTrack)
 async def station_track(ctx: Ctx, cmd: StationTrack) -> None:
-    """The station's track as its row of the topic `stations` has it now: with the internet hidden (`igate/enabled` off), the radio's side of a station heard both ways, and none for one known only from there."""
+    # With the iGate off, a station heard both ways shows only its radio track; an internet-only one
+    # is unknown.
     station = ctx.ctl.stationbook.get(cmd.call)
     shown = None if station is None else station if ctx.ctl.config.igate_enabled else station.radio_view()
     if shown is None:

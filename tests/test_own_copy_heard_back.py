@@ -1,5 +1,7 @@
-"""Our own copy heard back: a packet that shows one of the own calls (the station call, an enabled pair's call) used was passed or repeated by us and heard again through another digipeater. It keeps its place in
-the packet log and the station's last heard, but adds nothing to what that radio heard of the station: its last path there, its routes, its counts (stationnotes.came_back, the station book's `own_calls`)."""
+"""Our own copy heard back: a packet showing one of our calls, passed or repeated by us and heard
+again through another digipeater, keeps its place in the packet log and last heard but adds nothing
+to what the radio heard.
+"""
 from datetime import datetime, timedelta
 from pathlib import Path
 

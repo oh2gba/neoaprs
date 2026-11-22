@@ -1,5 +1,7 @@
-"""The Db actor (neoaprs/db.py, dbthread.py) at its edges: a start that is cancelled while the file is opened, a Db that was never started, a thread that dies in the middle of its queue, a rollback that
-fails, a function that ends its own transaction, an answer for a loop that is gone, the size of a batch and an append that cannot be made again and again. The thread goes on, or ends with
+"""The Db actor (neoaprs/db.py, dbthread.py) at its edges: a start that is cancelled while the file
+is opened, a Db that was never started, a thread that dies in the middle of its queue, a rollback
+that fails, a function that ends its own transaction, an answer for a loop that is gone, the size of
+a batch and an append that cannot be made again and again. The thread goes on, or ends with
 everything that was asked answered."""
 import asyncio
 import logging
@@ -19,7 +21,8 @@ from tests.support.riggedsql import fails_at
 
 
 def rigged_opener(path: Path, *rules: object):  # type: ignore[no-untyped-def]
-    """An opener whose connection raises ahead of the statements the rules name (tests/support/riggedsql.py: `fails_at`)."""
+    """An opener whose connection raises ahead of the statements the rules name
+    (tests/support/riggedsql.py: `fails_at`)."""
     def opener() -> sqlite3.Connection:
         class Rigged(sqlite3.Connection):
             def execute(self, sql: str, *args: object) -> sqlite3.Cursor:
@@ -52,7 +55,8 @@ async def test_a_start_that_is_cancelled_while_the_file_is_opened_leaves_a_db_th
         await starting
     assert not db.is_open
     release.set()
-    await db.close()                                                               # waits for the thread, which opens the file, finds the queue closed and ends
+    # Waits for the thread, which opens the file, finds the queue closed and ends
+    await db.close()
     assert wait_gone(1.0) == []
     with pytest.raises(DbClosed):
         await db.read(lambda conn: 1)
@@ -69,9 +73,12 @@ async def test_a_db_that_was_never_started_closes_and_stays_closed() -> None:
 
 
 async def test_a_close_whose_word_from_the_ended_thread_never_reaches_the_loop_returns_all_the_same(tmp_path: Path) -> None:
-    """A teardown on Windows 11 sat 25 minutes in the proactor's `_poll` closing a Db whose thread had ended: the thread's word through the loop was lost. The close looks at the thread itself."""
+    """A teardown on Windows 11 sat 25 minutes in the proactor's `_poll` closing a Db whose thread
+    had ended: the thread's word through the loop was lost. The close looks at the thread itself."""
     db = await started(tmp_path / "x.sqlite")
-    db._exited = asyncio.get_running_loop().create_future()                      # (the future the thread settles at its end, swapped for one that nobody settles: the word that never came)
+    # The future the thread settles at its end, swapped for one that nobody settles: the word that
+    # never came
+    db._exited = asyncio.get_running_loop().create_future()
     await asyncio.wait_for(db.close(), 5.0)
     assert not db.is_open and wait_gone(1.0) == []
 
@@ -82,7 +89,8 @@ async def test_a_message_for_a_loop_that_is_gone_or_a_future_that_is_settled_is_
     loop.set_exception_handler(lambda loop, context: seen.append(context))
     settled: asyncio.Future[None] = loop.create_future()
     settled.set_result(None)
-    _post(loop, settled, RuntimeError("late"))                                     # an error for a future that has its answer
+    # An error for a future that has its answer
+    _post(loop, settled, RuntimeError("late"))
     await asyncio.sleep(0)
     gone = asyncio.new_event_loop()
     future = gone.create_future()
@@ -153,7 +161,8 @@ async def test_a_function_that_ends_its_own_transaction_is_told_so_and_what_it_d
     def ends_it(conn: sqlite3.Connection) -> None:
         conn.execute("INSERT INTO t VALUES (2, 'lost')")
         try:
-            conn.execute("INSERT OR ROLLBACK INTO t VALUES (1, 'again')")           # a conflict that rolls the whole transaction back, which the function swallows
+            # A conflict that rolls the whole transaction back, which the function swallows
+            conn.execute("INSERT OR ROLLBACK INTO t VALUES (1, 'again')")
         except sqlite3.IntegrityError:
             pass
 
@@ -168,7 +177,8 @@ async def test_a_function_that_ends_its_own_transaction_is_told_so_and_what_it_d
 # ---- appends
 async def test_appends_are_committed_in_batches_of_at_most_batch_max_and_none_is_lost(tmp_path: Path) -> None:
     path = tmp_path / "x.sqlite"
-    db = await started(path, tuning=Tuning(tick=30.0, batch_max=2))                  # a batch ends when it is full or when something else is asked, never by waiting out the tick
+    # A batch ends when it is full or when something else is asked, never by waiting out the tick
+    db = await started(path, tuning=Tuning(tick=30.0, batch_max=2))
     for n in range(5):
         assert db.write_nowait(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'x')", (n,)))
     await db.barrier()

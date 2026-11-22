@@ -1,5 +1,7 @@
-"""The queries (neoaprs/services/queries.py) on the station's radios as the registry gives them (tests/test_messaging.py `pick_of`: one radio on a Tnc that is a stub), the real beacon and station book and a clock the test holds: each query to us gives the frame it should, by the path of the asker; the
-general query waits and is taken once in ten minutes; and what is not a query, not to us or not heard is left alone."""
+"""The queries (neoaprs/services/queries.py) on stub radios, the real beacon and station book and a
+held clock: each query gives the frame it should by the asker's path, and the general query is taken
+once in ten minutes.
+"""
 import logging
 from datetime import timedelta
 
@@ -50,7 +52,7 @@ class Rig(ServiceRig):
         return m.addressee, m.text, m.msg_id
 
 
-# ---- the position and the status -----------------------------------------------------------------------------------------------------------------
+# ---- the position and the status -----------------------------------------------------------------
 
 @pytest.mark.parametrize("to", ["OH2GBA", "oh2gba"])
 def test_aprsp_is_answered_with_the_beacons_position_frame_by_the_beacon_path(to: str) -> None:
@@ -87,14 +89,15 @@ def test_a_query_is_read_without_regard_to_case_or_blanks_and_is_ours_only_with_
     assert len(rig.tnc.sent) == 1
 
 
-# ---- the directs ---------------------------------------------------------------------------------------------------------------------------------
+# ---- the directs ---------------------------------------------------------------------------------
 
 def test_aprsd_lists_the_calls_heard_direct_in_the_last_hour_the_one_heard_last_first() -> None:
     rig = Rig()
     rig.hear_direct("OH2PU-9", 600)
     rig.hear_direct("OH2RCH-2", 60)
     rig.hear_direct("OH2OLD", 3601)
-    rig.book.take(rig.packet("OH2VIA", Status("hello")))                                 # (heard by way of a digipeater)
+    # Heard by way of a digipeater
+    rig.book.take(rig.packet("OH2VIA", Status("hello")))
     rig.ask("OH2RDG", "?APRSD")
     [frame] = rig.tnc.sent
     assert rig.message_of(frame) == ("OH2RDG", "Directs= OH2RCH-2 OH2PU-9", None)
@@ -131,7 +134,7 @@ def test_directs_messages_fill_a_message_before_starting_the_next() -> None:
     assert len(directs_messages([f"OH2AB{n % 10}-1" for n in range(100)])) == 2
 
 
-# ---- the path ------------------------------------------------------------------------------------------------------------------------------------
+# ---- the path ------------------------------------------------------------------------------------
 
 @pytest.mark.parametrize("query", ["?APRST", "?PING?", "?ping?"])
 def test_aprst_and_ping_are_answered_with_the_header_of_the_query_as_we_heard_it(query: str) -> None:
@@ -150,11 +153,12 @@ def test_the_path_of_a_direct_query_is_just_the_header_and_a_long_one_loses_its_
     assert len(text.encode()) <= MAX_TEXT and text.startswith("OH2RDG-15>APZNEO,OH2RCH-12*,OH2RCH-13*") and text.endswith(":") and "WIDE3-3" not in text
 
 
-# ---- what a query carries ------------------------------------------------------------------------------------------------------------------------
+# ---- what a query carries ------------------------------------------------------------------------
 
 @pytest.mark.parametrize("query", ["?APRSD?", "?APRSP?"])
 def test_a_directed_query_with_a_question_mark_at_its_end_is_answered_like_the_plain_one(query: str) -> None:
-    """A radio may write every query with the `?` of ?PING? and ?APRS?; message.is_query takes it, so the message is not kept, and the answer must come all the same."""
+    """A radio may write every query with the `?` of ?PING? and ?APRS?; message.is_query takes it,
+    so the message is not kept, and the answer must come all the same."""
     rig = Rig()
     rig.ask("OH2RDG", query)
     assert len(rig.tnc.sent) == 1
@@ -169,7 +173,8 @@ def test_a_query_with_a_message_id_is_answered_all_the_same_and_the_answer_has_n
 def test_the_same_query_from_the_same_station_within_half_a_minute_is_answered_once() -> None:
     rig = Rig()
     for _ in range(3):
-        rig.ask("OH2RDG", "?APRSP", path=("OH2RCH-2*",))                                 # (the copies of one transmission)
+        # The copies of one transmission
+        rig.ask("OH2RDG", "?APRSP", path=("OH2RCH-2*",))
     assert len(rig.tnc.sent) == 1
     rig.ask("OH2RDG", "?APRSS")
     rig.ask("OH2ABC", "?APRSP")
@@ -228,7 +233,7 @@ def test_a_tnc_that_will_not_take_the_frame_is_told(caplog: pytest.LogCaptureFix
     assert any("would not take" in r.getMessage() for r in caplog.records)
 
 
-# ---- the general query ---------------------------------------------------------------------------------------------------------------------------
+# ---- the general query ---------------------------------------------------------------------------
 
 def general(rig: Rig, source: str = "OH2RDG", text: str = "?APRS?") -> None:
     rig.q.on_packet(rig.packet(source, Other("query", text)))
@@ -284,7 +289,8 @@ async def test_a_footprint_is_honoured_we_answer_only_from_inside_it(text: str, 
     general(rig, text=text)
     if inside:
         await until(lambda: len(rig.tnc.sent) == 1)
-    await idle_for(0.1)                                  # (and what is outside has had its time to be answered all the same)
+    # And what is outside has had its time to be answered all the same
+    await idle_for(0.1)
     assert len(rig.tnc.sent) == (1 if inside else 0)
 
 
@@ -353,7 +359,7 @@ async def test_a_general_query_heard_while_the_tnc_is_away_gives_no_answer_when_
     assert rig.tnc.sent == []
 
 
-# ---- ?APRSO and ?APRSM: several frames, one at a time ---------------------------------------------------------------------------------------------
+# ---- ?APRSO and ?APRSM: several frames, one at a time --------------------------------------------
 
 class Held:
     """A service that holds records (our objects, our messages), for the queries to read."""

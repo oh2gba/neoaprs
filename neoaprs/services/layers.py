@@ -1,15 +1,7 @@
-"""The map's layers of traffic (aircraft and ships; the ships' two sources are layerships.py's): the source in force of each layer (Settings, Map: map/aircraft, map/ships, while the station is offered it), asked only while a page looks at its layer and
-never more often than its feed allows, its things kept in memory by id and nothing written anywhere, the whole table handed to the pages that look (`told`) and what the topic `map` says of each layer (`states`,
-`changed`). The rules and the numbers are neoaprs/layerthing.py's; one source is a small object made from SOURCES, keyed by (layer, source).
+"""The map's traffic layers (aircraft and ships): the source in force of each layer, kept in memory.
 
-- A service on the internet (adsb.fi, adsb.lol) is asked for the map's circle round our position, rounded (layerthing.service_url), and its answer is cut to the true circle and to the LIMIT nearest.
-- An own aircraft receiver (readsb's file, as tar1090 and dump1090 serve it, or a Radarcape's list) is cut by nothing but the guard of RECEIVER_BOUND; it is asked once at the start and at a save that chooses
-  it or changes its address, for its state in Settings, and otherwise only while a page looks. readsb's file is tried in the known places (readsb.receiver_urls), the first that answers is kept and asked from
-  then on, and the search begins again after a failure; a Radarcape is asked in its one place (radarcape.radarcape_url), and one with no address is not looked for.
-- An answer is read and cut on a thread of its own (it may be some megabytes): the daemon's loop goes on meanwhile.
-- Silence: no failure reaches the page but the own receiver's state; a source that fails keeps its things, which age out, and its table says `away`.
-- The doors: `NEOAPRS_NO_DEVICES=1` refuses what is not on this computer (updatefetch, nodevices); `NEOAPRS_UPDATE_CHECK=0` asks no service; `NEOAPRS_LAYERS_URL`, a server on this computer, is asked in the
-  services' place (their paths kept), even while the update check is off."""
+A source is asked only while a page looks at its layer, as often as its feed allows.
+NEOAPRS_UPDATE_CHECK=0 asks no service; NEOAPRS_LAYERS_URL replaces the services even then."""
 import asyncio
 import logging
 import os
@@ -32,30 +24,30 @@ from .updatecheck import ENV_SWITCH
 
 log = logging.getLogger("neoaprs.layers")
 
-ENV_URL = "NEOAPRS_LAYERS_URL"                  # development and tests: a server on this computer in the place of every service
-RECEIVER_TIMEOUT_SEC = 4.0                      # of each place tried on an own receiver (a search tries eight)
-RECEIVER_BACKOFF_MAX_SEC = 60.0                 # the longest wait after failures of an own receiver (on the station's own network: it is seen again soon after it is back)
-SERVICE_NAMES = {"adsbfi": "adsb.fi", "adsblol": "adsb.lol", "fintraffic": "Fintraffic"}     # (for the log)
-NO_WAIT_SEC = 1.0                               # the pause of a round that found its feed taken by another question just now
+ENV_URL = "NEOAPRS_LAYERS_URL"
+RECEIVER_TIMEOUT_SEC = 4.0                      # per place tried
+RECEIVER_BACKOFF_MAX_SEC = 60.0                 # short, as a receiver on the local network returns soon
+SERVICE_NAMES = {"adsbfi": "adsb.fi", "adsblol": "adsb.lol", "fintraffic": "Fintraffic"}
+NO_WAIT_SEC = 1.0                               # pause when another asker took the feed first
 
 
 Reader = Callable[[bytes, datetime], list[Thing] | None]
 
 
 def _served(body: bytes, at: datetime, position: tuple[float, float], radius_km: float) -> list[Thing] | None:
-    """A service's answer read and cut to the true circle and the nearest; None when it is not readsb's JSON."""
+    """Return the aircraft within the circle, nearest first; None if the body is not readsb JSON."""
     things = readsb.read_aircraft(body, at)
     return None if things is None else nearest(within(things, position, radius_km), position)
 
 
 def _received(read: Reader, body: bytes, at: datetime) -> tuple[int, list[Thing]] | None:
-    """An own receiver's answer read: how many aircraft it gave with a position, and the ones kept (RECEIVER_BOUND, the newest); None when it is not in the receiver's form."""
+    """Return the count of positioned aircraft and the newest kept (RECEIVER_BOUND), or None."""
     things = read(body, at)
     return None if things is None else (len(things), newest(things))
 
 
 class AircraftService(AskedSource):
-    """adsb.fi or adsb.lol: the circle round our position, rounded, as the service's question; the answer cut to the true circle and the nearest."""
+    """adsb.fi or adsb.lol, asked for the rounded circle round our position."""
 
     def __init__(self, ctx: SourceContext) -> None:
         super().__init__(ctx)
@@ -88,25 +80,27 @@ def _radarcape_urls(address: str) -> list[str]:
 
 
 class AircraftReceiver(AskedSource):
-    """The operator's own aircraft receiver of readsb's file (map/aircraft_host): every aircraft it gives with a position, its state for Settings. A kind of receiver is its name for the log, the places its
-    address is tried in, and its reader."""
+    """The operator's own readsb receiver (map/aircraft_host); subclasses set name, places and read.
+
+    The first place that answers is kept; the search starts again after a failure."""
     name = "the aircraft receiver"
     places: Callable[[str], list[str]] = staticmethod(readsb.receiver_urls)
     read: Reader = staticmethod(readsb.read_aircraft)
 
     def __init__(self, ctx: SourceContext) -> None:
         super().__init__(ctx)
-        self.feed = AskedFeed(self.name, EVERY_SEC["aircraft_receiver"], ctx.monotonic, stops=False, backoff_max_sec=RECEIVER_BACKOFF_MAX_SEC)     # (a new one with each address)
+        self.feed = AskedFeed(self.name, EVERY_SEC["aircraft_receiver"], ctx.monotonic, stops=False, backoff_max_sec=RECEIVER_BACKOFF_MAX_SEC)
         self.urls = self.places(ctx.config().map_aircraft_host)
-        self.host = (urlsplit(self.urls[0]).hostname or "?") if self.urls else ""      # (for the log: never the address as typed)
-        self.found: str | None = None                                       # the place that answered last
+        # Only the host goes to the log, never the address as typed.
+        self.host = (urlsplit(self.urls[0]).hostname or "?") if self.urls else ""
+        self.found: str | None = None
         self.state: ReceiverState = ReceiverState("looking", 0, None)
 
     def receiver(self) -> ReceiverState:
         return self.state
 
     async def start(self) -> None:
-        """The first question, outside the looks, for the receiver's state in Settings."""
+        """Ask once even if no page looks, so Settings can show the state."""
         if await self.ask():
             self.ctx.tell()
 
@@ -133,7 +127,7 @@ class AircraftReceiver(AskedSource):
 
 
 class Radarcape(AircraftReceiver):
-    """The operator's own Radarcape (map/aircraft_host): its own list asked in its one place; with no address nothing is asked and its state is no answer."""
+    """The operator's own Radarcape (map/aircraft_host); with no address nothing is asked."""
     name = "the Radarcape"
     places = staticmethod(_radarcape_urls)
     read = staticmethod(radarcape.read_aircraft)
@@ -142,7 +136,8 @@ class Radarcape(AircraftReceiver):
 Maker = Callable[[SourceContext], LayerSource]
 SOURCES: dict[tuple[Layer, Source], Maker] = {("aircraft", "adsbfi"): AircraftService, ("aircraft", "adsblol"): AircraftService, ("aircraft", "radarcape"): Radarcape, ("aircraft", "receiver"): AircraftReceiver,
                                               ("ships", "fintraffic"): FintrafficShips, ("ships", "receiver"): ShipReceiver}
-Key = tuple[Source, str]                        # the source in force and, for a receiver, its address: a source is made again when either changes
+# The source in force and, for a receiver, its address; a source is made again when either changes.
+Key = tuple[Source, str]
 
 
 def chosen(config: Config, layer: Layer) -> str:
@@ -161,16 +156,19 @@ class Layers:
         given = environ.get(ENV_URL, "").strip()
         self.base = given if on_this_computer(given) else ""
         self.services_on = environ.get(ENV_SWITCH) != "0" or bool(self.base)
-        self.changed: Signal[[]] = Signal("layers.changed")                 # what the topic `map` says of a layer changed: its source, its offer, its receiver's state
-        self.told: Signal[[LayerTable]] = Signal("layers.told")             # a layer's table for the pages that look
+        # Emitted when a layer's source, offer or receiver state changes.
+        self.changed: Signal[[]] = Signal("layers.changed")
+        self.told: Signal[[LayerTable]] = Signal("layers.told")
         self._held: dict[Layer, tuple[Key, LayerSource | None]] = {}
         self._watched: set[Layer] = set()
         self._runners: dict[Layer, asyncio.Task[None]] = {}
         self._feeds: dict[str, AskedFeed] = {}
-        self._counts: dict[Layer, int] = {}                                 # the things last told of each layer (the ageing tells a table again when it drops some)
+        # Things last told per layer; ageing tells again when it drops some.
+        self._counts: dict[Layer, int] = {}
         self._states: tuple[LayerState, ...] = ()
         self._tasks = TaskSet(log, "layers")
-        self._retired: list[LayerSource] = []                               # sources replaced whose stop has not yet run to its end (the daemon's stop finishes them)
+        # Replaced sources whose stop has not finished; the daemon's stop finishes them.
+        self._retired: list[LayerSource] = []
         self.running = False
 
     # ---- what the page is told
@@ -186,7 +184,7 @@ class Layers:
         return found
 
     def table(self, layer: Layer) -> LayerTable:
-        """The layer's whole table as it is now: the things of its source not older than its age limit."""
+        """Return the layer's table: the things of its source within the age limit."""
         held = self._held.get(layer)
         if held is None:
             return LayerTable(layer, "none", False, ())
@@ -197,7 +195,7 @@ class Layers:
         return LayerTable(layer, source, made.away, tuple(thing for thing in made.things() if (now - thing.at).total_seconds() <= limit))
 
     def watch(self, layer: Layer, on: bool) -> None:
-        """Some page looks at the layer (`on`), or none does any more: its source is asked while one does."""
+        """Start or stop asking the layer's source as a page begins or ends looking at it."""
         if on:
             self._watched.add(layer)
             self._run(layer)
@@ -210,7 +208,7 @@ class Layers:
         self._refresh()
 
     def moved(self) -> None:
-        """Our position moved (the GPS): the offer of the ships, and a service that had no position to ask with."""
+        """Re-evaluate the ships offer and any service that had no position."""
         self._refresh()
 
     def _key(self, config: Config, layer: Layer) -> Key:
@@ -225,13 +223,14 @@ class Layers:
             if held is None or held[0] != key:
                 self._replace(layer, key, held)
             else:
-                self._run(layer)                    # (a service that had no position to ask with has one now)
+                self._run(layer)
         self._maybe_changed()
 
     def _replace(self, layer: Layer, key: Key, held: tuple[Key, LayerSource | None] | None) -> None:
-        """The layer's source in force is another: the old one stops, the new one starts, and the pages that look are told its empty table."""
+        """Stop the old source, start the new one and tell the pages its empty table."""
         self._stop_runner(layer)
-        if held is not None and held[1] is not None and self.running:          # (not running: it was never started, or the daemon's stop stops it)
+        # When not running the old source was never started, or the daemon's stop stops it.
+        if held is not None and held[1] is not None and self.running:
             self._retired.append(held[1])
             self._tasks.spawn(self._retire(held[1]), f"layers-stop-{layer}")
         maker = SOURCES.get((layer, key[0]))
@@ -253,7 +252,7 @@ class Layers:
                              lambda: self._tell_from(layer, source), self._maybe_changed)
 
     def _feed(self, name: str, every_sec: float, stops: bool) -> AskedFeed:
-        """The feed of that name, the same across the sources made again (a service that stopped stays stopped until the daemon starts again)."""
+        """Return the feed of that name; it outlives sources, so a stopped service stays stopped."""
         if name not in self._feeds:
             self._feeds[name] = AskedFeed(name, every_sec, self._monotonic, stops)
         return self._feeds[name]
@@ -271,7 +270,7 @@ class Layers:
             runner.cancel()
 
     async def _asking(self, layer: Layer, made: LayerSource) -> None:
-        """The source asked while a page looks, as often as its feed allows; it ends when the source is not asked (listened to, stopped, nothing to ask with)."""
+        """Ask the source as often as its feed allows, until it reports nothing to wait for."""
         while (wait := made.wait_sec()) is not None:
             if wait > 0:
                 await asyncio.sleep(wait)
@@ -314,15 +313,16 @@ class Layers:
         if self.running:
             return
         self.running = True
-        for layer, (_, made) in list(self._held.items()):          # (sources made before the start, by a save: started now)
+        # Start sources made before the daemon started.
+        for layer, (_, made) in list(self._held.items()):
             if made is not None:
                 self._tasks.spawn(self._start_source(layer, made), f"layers-start-{layer}")
-        self._refresh()                                             # (the settings read at the start: a source that is another is made and started)
+        self._refresh()
         self._tasks.spawn(self._ageing(), "layers-ageing")
 
     async def stop(self) -> None:
         self.running = False
-        held = [made for _, made in self._held.values() if made is not None] + self._retired     # (a source replaced while the tasks end is still stopped)
+        held = [made for _, made in self._held.values() if made is not None] + self._retired
         self._runners.clear()
         await self._tasks.cancel_all()
         for made in held:

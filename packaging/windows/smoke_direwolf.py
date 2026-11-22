@@ -1,6 +1,10 @@
-"""The Direwolf of the Windows app, as the release workflow's Windows job checks it: `smoke_direwolf.py PROGRAM` starts the program the way it says who it is (`-h`: its banner, the optional parts it holds, its options),
-and the program must be the pinned release, with `cm108-ptt` as its one optional part, and know NeoAPRS's options -Q, -G and -R. Only that: the runner has no sound device to count on, and Direwolf ends before it listens
-when it cannot open one, so the listening on this computer only, the WinMM devices, the stop at the end of its input and a CM108 key are the Windows VM's (docs/direwolf.md). Run with the Python that has NeoAPRS installed."""
+"""The Direwolf of the Windows app, as the release workflow's Windows job checks it:
+`smoke_direwolf.py PROGRAM` starts the program the way it says who it is (`-h`: its banner, the
+optional parts it holds, its options), and the program must be the pinned release, with `cm108-ptt`
+as its one optional part, and know NeoAPRS's options -Q, -G and -R. Only that: the runner has no
+sound device to count on, and Direwolf ends before it listens when it cannot open one, so the
+listening on this computer only, the WinMM devices, the stop at the end of its input and a CM108 key
+are the Windows VM's (docs/direwolf.md). Run with the Python that has NeoAPRS installed."""
 import subprocess
 import sys
 from pathlib import Path
@@ -11,7 +15,8 @@ TIMEOUT_SEC = 60
 
 
 def check(text: str) -> list[str]:
-    """What is wrong with what the program said; nothing when it is the pinned Direwolf that NeoAPRS builds."""
+    """What is wrong with what the program said; nothing when it is the pinned Direwolf that NeoAPRS
+    builds."""
     wrong = []
     if direwolf.BANNER.replace("%d.%d.%d", direwolf.VERSION) not in text:
         wrong.append(f"it is not Direwolf {direwolf.VERSION}")

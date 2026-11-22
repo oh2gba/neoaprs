@@ -1,7 +1,6 @@
-"""Makes a support bundle: runs the gatherers of neoaprs/cli/supportgather.py, writes what they found with neoaprs/cli/supportbundle.py, and finds where the file goes and how it is shown. The daemon (the page's button),
-the command `neoaprs support` and the app's tray item all come here; they differ in what they know (only the daemon has `live`, the state of the running parts) and in who is told.
+"""Make a support bundle: run the gatherers, write the zip, and show where the file went.
 
-A gatherer that fails does not fail the bundle: its file is replaced by `<file>.error.txt` with the traceback, and the summary says what it could not read."""
+A gatherer that fails does not fail the bundle: its file is replaced by `<file>.error.txt`."""
 import json
 import logging
 import os
@@ -42,7 +41,7 @@ class Made:
 
 @dataclass
 class Collector:
-    """The members of a bundle as they are made: a step that raises is a member `<name>.error.txt` and a note for the summary."""
+    """The members of a bundle; a failed step becomes `<name>.error.txt` and a summary note."""
     members: dict[str, Member] = field(default_factory=dict)
     failed: dict[str, str] = field(default_factory=dict)
 
@@ -50,7 +49,7 @@ class Collector:
         self.members[name] = Member(name, text)
 
     def step(self, name: str, fn: Callable[[], str | None]) -> bool:
-        """Runs a gatherer; its text becomes the member `name` (nothing when it says None), and a failure the member `name.error.txt`."""
+        """Run a gatherer: its text becomes member `name`, a failure `name.error.txt`."""
         try:
             text = fn()
         except Exception as e:
@@ -62,7 +61,7 @@ class Collector:
         return True
 
     def ordered(self) -> list[Member]:
-        """README.txt and summary.txt first, then the files in the order of ORDER, the files that say a part failed, the logs (the daemon's first), and what is left."""
+        """Return README.txt and summary.txt first, then ORDER, error files, logs, the rest."""
         def place(member: Member) -> tuple[int, str]:
             name = member.name
             if name in ORDER:
@@ -81,7 +80,10 @@ def dumped(value: object) -> str:
 
 def collect(data: Path, now: datetime, live: dict[str, Any] | None, page: dict[str, Any] | None, page_errors: list[dict[str, Any]] | None,
             install: InstallInfo | None, running: bool | None, by: str, journal: Callable[[], str | None], call: str) -> tuple[list[Member], list[str], str]:
-    """(the members, the values that must not be in the file, the call) of a bundle for the data folder; `call` is the one the caller knows, for the name of the file when the settings cannot be read."""
+    """Return the members, the secret values to keep out of the file, and the call.
+
+    `call` is the caller's own, used for the file name when the settings cannot be read.
+    """
     col = Collector()
     stored: gather.Stored | None = None
 
@@ -133,8 +135,7 @@ def _database(data: Path, facts: list[DbFacts]) -> str:
 def make_bundle(data: Path, out_dir: Path, *, live: dict[str, Any] | None = None, page: dict[str, Any] | None = None, page_errors: list[dict[str, Any]] | None = None,
                 install: InstallInfo | None = None, running: bool | None = None, by: str = "neoaprs support, without the daemon", now: Clock = utcnow,
                 journal: Callable[[], str | None] | None = None, call: str = "") -> Made:
-    """Writes the bundle of the data folder into `out_dir` (made if it is not there) and says where. Nothing in the data folder is changed. Blocking: the daemon runs it in a thread. The service's journal is
-    `journal`'s, else `gather.journal_text`'s as the module has it when the bundle is made."""
+    """Write the bundle of the data folder into `out_dir` (created if missing); blocking."""
     made_at = now()
     members, secrets, call = collect(data, made_at, live, page, page_errors, install, running, by, journal or gather.journal_text, call)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -145,7 +146,10 @@ def make_bundle(data: Path, out_dir: Path, *, live: dict[str, Any] | None = None
 # ---- where the file goes, and showing it
 
 def desktop_dir(home: Path | None = None, environ: Mapping[str, str] | None = None) -> Path:
-    """The user's Desktop folder when there is one (the name the system gave it: Linux's `user-dirs.dirs` knows it as Työpöytä in Finnish, a OneDrive on Windows has it inside), else the home folder."""
+    """Return the user's Desktop folder, else the home folder.
+
+    The folder name is localised on Linux (`user-dirs.dirs`), and OneDrive on Windows may hold it.
+    """
     home = Path.home() if home is None else home
     env = os.environ if environ is None else environ
     candidates: list[Path] = []
@@ -163,8 +167,9 @@ def desktop_dir(home: Path | None = None, environ: Mapping[str, str] | None = No
 
 
 def show_command(path: Path, system: str) -> list[str] | str:
-    """The command that shows the file in the system's file manager: Explorer with the file selected, Finder revealing it, or on Linux the folder (the file managers there do not agree on selecting a file). Explorer's is
-    a command line and not a list: it wants the quotes round the path itself, after the comma, which a list would put round the whole argument."""
+    """Return the command that shows the file in the file manager.
+
+    Linux opens the folder (no common way to select); Explorer's is a string."""
     if system == "win32":
         return f'"{windows_program("explorer.exe", system32=False)}" /select,"{path}"'
     if system == "darwin":
@@ -173,7 +178,7 @@ def show_command(path: Path, system: str) -> list[str] | str:
 
 
 def show_file(path: Path, system: str | None = None, start: Callable[..., object] = subprocess.Popen) -> bool:
-    """Opens the file manager at the file; best effort, False when it could not be started."""
+    """Open the file manager at the file; return False if it could not be started."""
     try:
         start(show_command(path, sys.platform if system is None else system), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except OSError:
@@ -186,7 +191,7 @@ def made_text(made: Made) -> str:
 
 
 def make_for_the_user(data: Path, show: bool = True) -> Made:
-    """The bundle of the data folder on the Desktop (the home folder when there is none), shown in the file manager: what the tray item and the Start menu entry do. Logged."""
+    """Make the bundle on the Desktop (else the home folder) and show it in the file manager."""
     made = make_bundle(data, desktop_dir())
     log.info("support bundle made: %s, %s", made.path, made_text(made))
     if show and not show_file(made.path):

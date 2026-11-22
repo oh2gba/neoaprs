@@ -1,9 +1,7 @@
-"""The radio round's three steps together (migrations 31, 32 and 33) as the runner runs them, and the stores on the database they leave: a database of version 30 with packets, messages, attempts,
-stations, the operator's paths and objects on both radios is opened by the runner, and the packet log, the message log and our own objects' log read every value back with the id of its radio; a value of
-a third radio written through the same stores is read back as radio 3. A database whose only trace of HF is a station heard on it comes through with radio 2. The way back of the tests
-(tests/support/migrated.step_back through undo_33, undo_32 and undo_31) gives the rows of version 30 again, and the runner run once more gives the same rows as the first time. The rows come back
-exactly for a database like this one's, whose radios' type and tickbox rows are at revision 1 in the program's words and whose packets of the air each name their radio: the way back writes those rows
-so, and a packet of the air that named none comes back on fm, the radio 32 put it on; for any database the runner run again gives the same rows."""
+"""Migrations 31, 32 and 33 together as the runner runs them, and the stores on the result: a
+version 30 database with packets, messages, attempts, stations, paths and objects on both radios
+reads back by radio id.
+"""
 import json
 import sqlite3
 from datetime import timedelta
@@ -34,11 +32,14 @@ from tests.test_migration_33 import HEARD, LATEST, STAMP, STATION, objects, pref
 
 SETTINGS = {"station/call": "OH2GBA", "tnc/profile": "kenwood-d710", "fm/enabled": "true", "hf/enabled": "true", "hf/profile": "mercury", "serial/port": "/dev/ttyUSB0", "beacon/path": "WIDE1-1,WIDE2-1",
             "mercury/sound_card": "plughw:1,0", "beacon/last_sent_at": STAMP, "hf/beacon_last_sent_at": LATEST, "messages/radio_by_station": json.dumps({"OH2RDG": "fm", "Q3TKU": "hf"}, sort_keys=True)}
-ON_AIR = [row for row in PACKETS if row[3] or row[2] == "is"]          # (a packet of the air with no word is radio 1's after 32 and comes back as `fm`: left out where the way back is compared)
+# A packet of the air with no word is radio 1's after 32 and comes back as `fm`: left out where the
+# way back is compared
+ON_AIR = [row for row in PACKETS if row[3] or row[2] == "is"]
 
 
 def version_30(path: Path, settings: dict[str, str], *fill: Any) -> None:
-    """A database file of version 30 with these settings rows (each at revision 1, the choices at 3) and the rows the functions of `fill` insert."""
+    """A database file of version 30 with these settings rows (each at revision 1, the choices at 3)
+    and the rows the functions of `fill` insert."""
     db = old_database(path, FixedClock())
     for key, value in settings.items():
         db.execute("INSERT INTO settings (key, value, rev) VALUES (?, ?, ?)", (key, value, 3 if key == "messages/radio_by_station" else 1))
@@ -104,7 +105,8 @@ async def test_the_runner_takes_a_database_of_version_30_to_33_and_the_stores_re
 
 @pytest.mark.parametrize("settings", [{}, {"station/call": "OH2GBA"}], ids=["no settings row", "settings"])
 async def test_a_database_whose_only_trace_of_hf_is_a_station_heard_on_it_comes_through_with_radio_two(tmp_path: Path, settings: dict[str, str]) -> None:
-    """The packets that counted it were pruned long ago; the station cache keeps the count, and that is enough for migration 31 to make radio 2 (off) and for 33 to give the count to it."""
+    """The packets that counted it were pruned long ago; the station cache keeps the count, and that
+    is enough for migration 31 to make radio 2 (off) and for 33 to give the count to it."""
     path = tmp_path / DB_NAME
     version_30(path, settings, lambda db: db.execute(STATION, ("OH2HF", STAMP, LATEST, STAMP, 5, "", 5, 0, LATEST, None, 0, 5, None, LATEST, LATEST)))
     run_the_runner(path)

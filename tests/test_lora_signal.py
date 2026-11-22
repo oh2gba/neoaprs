@@ -1,7 +1,6 @@
-"""The signal of what a LoRa APRS board hears, where its firmware says it (neoaprs/lorasignal.py, neoaprs/loralist.py, reading.Following; aprs-reference/lora-plan.md step L4), each board the fake of
-tests/support/fakelora.py: the CA2RXU iGate's list of heard packets asked after each frame, a frame matched to its entry by its text (a repeated text, a control byte), and the asking given up for the open at
-the first failure (refused, 404, 401, not the list, no answer in time) with one line of the log, the frames going on without their signal; DL9SAU's element taken off the path and read; esp32_loraprs's KISS
-command 7, from its second report on; the iGate's log on USB with each packet's signal; and the board's frames never handed on out of their order."""
+"""Tests for the signal of what a LoRa APRS board hears (neoaprs/lorasignal.py, loralist.py) with
+the fake board of tests/support/fakelora.py: the heard list, matching frames to entries, giving up
+after one failure, DL9SAU's path element, and KISS command 7."""
 import asyncio
 import logging
 import socket
@@ -29,7 +28,8 @@ def lines() -> Lines:
 
 @pytest.fixture(autouse=True)
 def refused_list(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """The list is asked of a port that refuses unless a test gives it a server: port 80 of the machine is never asked."""
+    """The list is asked of a port that refuses unless a test gives it a server: port 80 of the
+    machine is never asked."""
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
     monkeypatch.setattr(loralist, "PORT", sock.getsockname()[1])
@@ -78,7 +78,8 @@ def test_the_lists_entries_that_are_none_are_passed_over_and_an_answer_that_is_n
 
 
 async def _answering(host: str, body: bytes, asked: list[bytes]) -> "asyncio.Server":
-    """A web server on `host` that answers every request with 200 and `body`, the request's lines kept in `asked`."""
+    """A web server on `host` that answers every request with 200 and `body`, the request's lines
+    kept in `asked`."""
     async def answer(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         asked.extend((await reader.readuntil(b"\r\n\r\n")).split(b"\r\n"))
         writer.write(b"HTTP/1.0 200 OK\r\n\r\n" + body)
@@ -131,7 +132,8 @@ async def test_the_igates_list_says_each_packets_signal_even_for_a_repeated_text
         board.air(HEARD, rssi=-97, snr=6.25)
         await until(lambda: len(line.packets) == 1)
         assert (line.packets[0].snr, line.packets[0].rssi) == (6.25, -97.0)
-        board.air(HEARD, rssi=-120, snr=-11.5)                              # (a digipeater's copy of the same text, a moment later)
+        # (a digipeater's copy of the same text, a moment later)
+        board.air(HEARD, rssi=-120, snr=-11.5)
         board.air(HEARD, rssi=-80, snr=9.0)
         board.air(b"OH2ABC-7>APLRT1:>a control byte\x01 in it", rssi=-101, snr=2.0)
         await until(lambda: len(line.packets) == 4)
@@ -143,7 +145,9 @@ async def test_the_igates_list_says_each_packets_signal_even_for_a_repeated_text
 
 @stops
 async def test_a_frame_whose_lists_answer_already_holds_the_next_copy_of_its_text_takes_its_own_entry(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The list's answer slower than the next packet on the air: the board has heard the digipeater's copy and the next packet, and not yet handed them on, when the first copy's answer comes."""
+    """The list's answer slower than the next packet on the air: the board has heard the
+    digipeater's copy and the next packet, and not yet handed them on, when the first copy's answer
+    comes."""
     asked, answer = list[str](), asyncio.Event()
     fetch = loralist.fetch
 
@@ -163,7 +167,8 @@ async def test_a_frame_whose_lists_answer_already_holds_the_next_copy_of_its_tex
         board.air(HEARD, rssi=-120, snr=-11.5)
         await until(lambda: len(asked) == 2)
         send, later = board.out, list[bytes]()
-        board.out = later.append                                            # (in the list at once, on the KISS line only after the answer)
+        # (in the list at once, on the KISS line only after the answer)
+        board.out = later.append
         board.air(HEARD, rssi=-80, snr=9.0)
         board.air(b"OH2ABC-7>APLRT1:>after it", rssi=-101, snr=2.0)
         answer.set()
@@ -177,8 +182,10 @@ async def test_a_frame_whose_lists_answer_already_holds_the_next_copy_of_its_tex
 
 
 class Gate:
-    """The list's answers, held where a test says: before the board is asked (`before`, the answer is the list when the gate opens) or after it answered (the list as it was when asked). `asked`, `made`
-    and `taken` count the requests, the answers the board made and the answers the daemon took."""
+    """The list's answers, held where a test says: before the board is asked (`before`, the answer
+    is the list when the gate opens) or after it answered (the list as it was when asked). `asked`,
+    `made` and `taken` count the requests, the answers the board made and the answers the daemon
+    took."""
 
     def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
         self.open, self.before = asyncio.Event(), True
@@ -219,8 +226,10 @@ async def test_a_frame_whose_entry_never_comes_takes_no_entry_of_the_next_copy_o
         line, _ = await line_on(lines, board, LORA_TCP)
         board.air(HEARD, rssi=-97, snr=6.25)
         await until(lambda: len(line.packets) == 1)
-        board.out(encode_kiss(HEARD))                                       # (handed on, and not in the list: it fell out of it, or the list lost it)
-        await until(lambda: len(line.packets) == 2)                         # (at its answer, not at the end of its wait)
+        # (handed on, and not in the list: it fell out of it, or the list lost it)
+        board.out(encode_kiss(HEARD))
+        # (at its answer, not at the end of its wait)
+        await until(lambda: len(line.packets) == 2)
         board.air(HEARD, rssi=-120, snr=-11.5)
         await until(lambda: len(line.packets) == 3)
         assert [(p.snr, p.rssi) for p in line.packets] == [(6.25, -97.0), (None, None), (-11.5, -120.0)], "the frame without an entry goes on without figures, the next copy with its own"
@@ -242,7 +251,8 @@ async def test_two_copies_that_come_while_the_list_is_asked_and_the_first_has_no
         board.air(b"OH2ABC-7>APLRT1:>other", rssi=-80, snr=9.0)
         await until(lambda: gate.asked == asked + 1)
         board.out(encode_kiss(HEARD))                                       # (no entry)
-        board.air(HEARD, rssi=-120, snr=-11.5)                              # (its entry in the answer that is on its way)
+        # (its entry in the answer that is on its way)
+        board.air(HEARD, rssi=-120, snr=-11.5)
         await until(lambda: held(line) == 4)
         gate.open.set()
         await until(lambda: len(line.packets) == 4)
@@ -267,7 +277,8 @@ async def test_without_the_opens_answer_an_answer_asked_before_the_next_copy_cam
     try:
         line, _ = await line_on(lines, board, LORA_TCP)
         await until(lambda: made[0] == 1)
-        board.air(HEARD, rssi=-97, snr=6.25)                                # (while the open's answer is on its way: no start)
+        # (while the open's answer is on its way: no start)
+        board.air(HEARD, rssi=-97, snr=6.25)
         await until(lambda: held(line) == 1)
         steps.release()
         await until(lambda: made[0] == 2)                                   # (the first copy's answer, made)
@@ -283,7 +294,8 @@ async def test_without_the_opens_answer_an_answer_asked_before_the_next_copy_cam
 
 @stops
 async def test_frames_whose_entries_fell_out_of_the_list_take_none_of_the_later_copies_entries(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The list keeps the last 10 packets: eleven copies of one text heard before the KISS line hands the first on push out the entry given last and the first copy's own."""
+    """The list keeps the last 10 packets: eleven copies of one text heard before the KISS line
+    hands the first on push out the entry given last and the first copy's own."""
     board = Board("igate")
     server = await listed(monkeypatch, board)
     try:
@@ -309,22 +321,26 @@ async def test_frames_whose_entries_fell_out_of_the_list_take_none_of_the_later_
 
 @stops
 async def test_the_first_answer_of_an_open_that_already_holds_the_next_copy_gives_each_frame_its_own(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The board is asked at the open what it heard before: an older copy of the text in the list is no frame's, and the copy the board has not handed on yet is left for its frame."""
+    """The board is asked at the open what it heard before: an older copy of the text in the list is
+    no frame's, and the copy the board has not handed on yet is left for its frame."""
     monkeypatch.setattr(loraboard, "OPENING_SEC", 0.05)
     gate = Gate(monkeypatch)
     board = Board("igate")
-    board.air(HEARD, rssi=-90, snr=3.0)                                     # (heard before the daemon connected: in the list, handed to no one)
+    # (heard before the daemon connected: in the list, handed to no one)
+    board.air(HEARD, rssi=-90, snr=3.0)
     server = await listed(monkeypatch, board)
     try:
         line, _ = await line_on(lines, board, LORA_TCP)
         await until(lambda: gate.taken == 1)
-        await asyncio.sleep(2 * loraboard.OPENING_SEC)                      # (no frame right after the open's answer: it is what the board heard before)
+        # (no frame right after the open's answer: it is what the board heard before)
+        await asyncio.sleep(2 * loraboard.OPENING_SEC)
         gate.open.clear()
         board.air(HEARD, rssi=-97, snr=6.25)
         await until(lambda: gate.asked == 2)
         send, later = board.out, list[bytes]()
         board.out = later.append
-        board.air(HEARD, rssi=-120, snr=-11.5)                              # (in the list before the first copy's answer is made, on the KISS line only after it)
+        # (in the list before the first copy's answer is made, on the KISS line only after it)
+        board.air(HEARD, rssi=-120, snr=-11.5)
         gate.open.set()
         await until(lambda: len(line.packets) == 1)
         for data in later:
@@ -345,11 +361,13 @@ async def test_a_copy_that_comes_after_the_answer_was_made_waits_for_the_next_an
     try:
         line, _ = await line_on(lines, board, LORA_TCP)
         await until(lambda: gate.taken == 1)
-        await asyncio.sleep(2 * loraboard.OPENING_SEC)                      # (no frame right after the open's answer: it is what the board heard before)
+        # (no frame right after the open's answer: it is what the board heard before)
+        await asyncio.sleep(2 * loraboard.OPENING_SEC)
         gate.before = False
         gate.open.clear()
         board.air(HEARD, rssi=-97, snr=6.25)
-        await until(lambda: gate.made == 2)                                 # (the answer for the first copy is made, and on its way)
+        # (the answer for the first copy is made, and on its way)
+        await until(lambda: gate.made == 2)
         gate.before = True
         board.air(HEARD, rssi=-120, snr=-11.5)
         await until(lambda: held(line) == 2)
@@ -362,7 +380,8 @@ async def test_a_copy_that_comes_after_the_answer_was_made_waits_for_the_next_an
 
 @stops
 async def test_an_answer_asked_before_a_frame_came_gives_it_nothing(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The answer at the open, made before the first frame came, holds only an older copy of its text: the frame waits for the next answer."""
+    """The answer at the open, made before the first frame came, holds only an older copy of its
+    text: the frame waits for the next answer."""
     gate = Gate(monkeypatch)
     gate.before = False
     gate.open.clear()
@@ -383,7 +402,8 @@ async def test_an_answer_asked_before_a_frame_came_gives_it_nothing(lines: Lines
 
 @stops
 async def test_a_frame_that_comes_right_after_the_answer_at_the_open_takes_its_entry_from_that_answer(lines: Lines, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The board listed the packet just before it answered, and its bytes come after the answer: the answer at the open is not taken as what the board heard before."""
+    """The board listed the packet just before it answered, and its bytes come after the answer: the
+    answer at the open is not taken as what the board heard before."""
     gate = Gate(monkeypatch)
     gate.open.clear()
     board = Board("igate")
@@ -445,8 +465,10 @@ async def test_the_first_failure_of_the_list_ends_the_asking_for_the_open_with_o
 
 
 def refused_after(monkeypatch: pytest.MonkeyPatch, delay_sec: float) -> None:
-    """The board's list port refuses the connection `delay_sec` after it is asked, on every system: a refusal of a closed loopback port is at once on Linux and after about 2 s of the stack's retries on
-    Windows, so the real one cannot say which of the two ends a frame's wait. Every other connection is the real one."""
+    """The board's list port refuses the connection `delay_sec` after it is asked, on every system:
+    a refusal of a closed loopback port is at once on Linux and after about 2 s of the stack's
+    retries on Windows, so the real one cannot say which of the two ends a frame's wait. Every other
+    connection is the real one."""
     real = asyncio.open_connection
 
     async def connect(host: str | None = None, port: int | None = None, **kwargs: Any) -> Any:
@@ -460,9 +482,12 @@ def refused_after(monkeypatch: pytest.MonkeyPatch, delay_sec: float) -> None:
 @pytest.mark.parametrize(("refused_sec", "wait_sec"), [(0.2, 30.0), (30.0, 0.3)], ids=["the refusal first", "the wait first"])
 @stops
 async def test_a_board_whose_list_refuses_holds_its_first_frame_no_longer_than_the_refusal_or_the_wait(lines: Lines, monkeypatch: pytest.MonkeyPatch, refused_sec: float, wait_sec: float) -> None:
-    """A refusal releases the frame that waits at once, not at the end of its wait; and a refusal that is slow (Windows's retries, a board that is not there) holds no frame longer than the wait."""
+    """A refusal releases the frame that waits at once, not at the end of its wait; a slow refusal
+    (Windows retries, a board that is not there) holds no frame longer than the wait.
+    """
     monkeypatch.setattr(loraboard, "LIST_WAIT_SEC", wait_sec)
-    monkeypatch.setattr(loralist, "ANSWER_SEC", 60.0)                      # (neither the refusal nor the wait is cut short by the answer's limit)
+    # (neither the refusal nor the wait is cut short by the answer's limit)
+    monkeypatch.setattr(loralist, "ANSWER_SEC", 60.0)
     refused_after(monkeypatch, refused_sec)
     board = Board("igate")
     line, _ = await line_on(lines, board, LORA_TCP)

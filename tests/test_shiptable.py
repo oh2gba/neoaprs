@@ -1,4 +1,5 @@
-"""The table of ships (neoaprs/shiptable.py): by MMSI, a position and what the ship says of itself put together as the page's thing, and the old forgotten."""
+"""The table of ships (neoaprs/shiptable.py): by MMSI, a position and what the ship says of itself
+put together as the page's thing, and the old forgotten."""
 from datetime import timedelta
 
 from neoaprs.aisdecode import AisPosition, AisStatic

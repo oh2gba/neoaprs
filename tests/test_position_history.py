@@ -1,8 +1,7 @@
-"""The positions over the last hours for the replay of the map (`position_history`, neoaprs/web/replaywire.py): the packet log finds every position heard in the span (the sender inside a third-party packet,
-an object or item by its name, a killed one left out), and ours under our call, but not the copies of others' packets the digipeater sent; the points of a station are thinned; and the page that asked is
-answered, with an error for hours out of range. While Internet stations (`igate/enabled`) is off no packet that came from APRS-IS is read, whenever it came: a station heard both ways keeps what the
-radio heard, an iGate's third-party packet heard on the radio stays, and so does ours; the count of packets read is of what is shown. A longer span is thinned more (a week of a busy feed stays a few MB), begins at the oldest packet the log keeps when it reaches back further, and its
-thinning stays inside the gap the page drives a station across."""
+"""The positions over the last hours for the map replay (`position_history`,
+neoaprs/web/replaywire.py): every position heard in the span, ours under our call but not the
+digipeater's copies, and thinned station points.
+"""
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -40,11 +39,13 @@ async def test_the_log_finds_the_positions_of_the_span_by_station(tmp_path: Path
         position("OH2RDG", "6010.00", T0 - 90 * minute),                                          # before the span
         position("OH2RDG", "6010.00", T0),
         position("OH2RDG", "6011.00", T0 + minute),
-        position("OH2RDG", "6011.00", T0 + 2 * minute, direction="out"),                          # the digipeater's copy: not ours
+        # The digipeater's copy: not ours
+        position("OH2RDG", "6011.00", T0 + 2 * minute, direction="out"),
         position("OH2GBA", "6012.00", T0 + 3 * minute, direction="out"),                          # our beacon
         heard(b";LEADER   *092345z6013.00N/02456.00E>convoy", "OH2XYZ", T0 + 4 * minute),
         heard(b";GONE     _092345z6013.00N/02456.00E>killed", "OH2XYZ", T0 + 5 * minute),
-        heard(b")AID!6014.00N/02456.00EA aid", "OH2GBA", T0 + 6 * minute, direction="out"),       # an item of ours, by its name
+        # An item of ours, by its name
+        heard(b")AID!6014.00N/02456.00EA aid", "OH2GBA", T0 + 6 * minute, direction="out"),
         heard(b"}OH7ABC>APRS,TCPIP,OH2GTE*:!6015.00N/02456.00E-gated", "OH2GTE", T0 + 7 * minute),
         heard(b":OH2GBA   :hello{7", "OH2RDG", T0 + 8 * minute),                                  # no position
         parse_is_line("OH7XYZ>APRS,TCPIP*,qAC,T2:!6016.00N/02456.00E-from the internet", T0 + 9 * minute),
@@ -88,8 +89,11 @@ def test_the_tracks_of_the_answer_are_by_station_and_rounded() -> None:
 
 
 def week_of_a_feed(now, fixed: int, cars: int) -> list[PacketRow]:
-    """A week of an APRS-IS feed as rows of the packet log: `fixed` stations that beacon every 10 minutes from one place, and `cars` that each drive three hours a day at 90 km/h with a beacon a minute and
-    are parked the rest of the day with one every 30 minutes. A packet made once by the parser and copied with another time, source and place (the parser for each would take minutes)."""
+    """A week of an APRS-IS feed as rows of the packet log: `fixed` stations that beacon every 10
+    minutes from one place, and `cars` that each drive three hours a day at 90 km/h with a beacon a
+    minute and are parked the rest of the day with one every 30 minutes. A packet made once by the
+    parser and copied with another time, source and place (the parser for each would take minutes).
+    """
     template = packet_row(position("OH2RDG", "6010.00", now))
     decoded = json.loads(template.decoded)
     rows: list[PacketRow] = []
@@ -106,7 +110,8 @@ def week_of_a_feed(now, fixed: int, cars: int) -> list[PacketRow]:
             morning = start + timedelta(days=day, hours=7, seconds=n)
             for i in range(180):                                                        # driving, a beacon each minute
                 add(morning + timedelta(minutes=i), f"OH{n:03d}-9", 60.5 + n / 100 + i * 0.0135, 25.5)
-            for i in range(42):                                                         # then parked, a beacon each half hour
+            # Then parked, a beacon each half hour
+            for i in range(42):
                 add(morning + timedelta(hours=3, minutes=30 * i), f"OH{n:03d}-9", 60.5 + n / 100 + 179 * 0.0135, 25.5)
     return sorted(rows, key=lambda row: row.heard_at)
 
@@ -158,11 +163,13 @@ async def test_without_the_internet_the_log_reads_what_was_on_the_air_and_ours(t
     minute = timedelta(minutes=1)
     for packet in (
         position("OH2RDG", "6010.00", T0),                                                                          # heard on the radio ...
-        parse_is_line("OH2RDG>APRS,TCPIP*,qAC,T2:!6011.00N/02456.00E-and from the internet", T0 + minute),        # ... and the same station over APRS-IS
+        # ... and the same station over APRS-IS
+        parse_is_line("OH2RDG>APRS,TCPIP*,qAC,T2:!6011.00N/02456.00E-and from the internet", T0 + minute),
         position("OH2RDG", "6012.00", T0 + 2 * minute),
         position("OH2GBA", "6013.00", T0 + 3 * minute, direction="out"),                                           # our beacon
         heard(b")AID!6014.00N/02456.00EA aid", "OH2GBA", T0 + 4 * minute, direction="out"),                        # an item of ours
-        heard(b"}OH7ABC>APRS,TCPIP,OH2GTE*:!6015.00N/02456.00E-gated", "OH2GTE", T0 + 5 * minute),                 # an iGate put it on the air: heard on the radio
+        # An iGate put it on the air: heard on the radio
+        heard(b"}OH7ABC>APRS,TCPIP,OH2GTE*:!6015.00N/02456.00E-gated", "OH2GTE", T0 + 5 * minute),
         parse_is_line("OH7XYZ>APRS,TCPIP*,qAC,T2:!6016.00N/02456.00E-from the internet", T0 + 6 * minute),
         parse_is_line("OH2IGT>APRS,TCPIP*,qAR,OH2IGT:}OH7DEF>APRS,TCPIP,OH2IGT*:!6017.00N/02456.00E-inside", T0 + 7 * minute),
     ):

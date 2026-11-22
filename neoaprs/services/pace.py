@@ -1,5 +1,7 @@
-"""The pause between our attempts to send, on each radio: after one attempt goes out on a radio, `spacing_sec` pass before the next on that radio, so that several messages written together never go out
-in a burst, and one on another radio does not wait for that pause (plan rule 3.1: the pause between our scheduled frames is per radio)."""
+"""The pause between send attempts, per radio.
+
+After an attempt on a radio, `spacing_sec` pass before the next on that radio, so messages written
+together do not go out in a burst; other radios do not wait (plan rule 3.1)."""
 from datetime import datetime
 
 from neoaprs.clock import Clock
@@ -9,7 +11,9 @@ SPACING_SEC = 10.0
 
 
 def within(last: datetime, now: datetime, seconds: float) -> bool:
-    """Whether `now` is less than `seconds` after `last`. A `last` later than `now` (the clock was set back) is not: it must never hold a send until the clock is there again."""
+    """Return whether `now` is less than `seconds` after `last`.
+
+    A `last` after `now` (clock set back) counts as not within, so it never holds a send."""
     return 0.0 <= (now - last).total_seconds() < seconds
 
 
@@ -17,14 +21,14 @@ class Pace:
     def __init__(self, clock: Clock, spacing_sec: float = SPACING_SEC) -> None:
         self._clock = clock
         self.spacing_sec = spacing_sec
-        self._last: dict[RadioId, datetime] = {}                # by radio: when the latest attempt went out on it
+        self._last: dict[RadioId, datetime] = {}
 
     def too_soon(self, radio: RadioId) -> bool:
-        """Whether the pause after the latest attempt on the radio is not over."""
+        """Return whether the pause after the latest attempt on the radio is still running."""
         last = self._last.get(radio)
         return last is not None and within(last, self._clock(), self.spacing_sec)
 
     def stamp(self, radio: RadioId) -> datetime:
-        """An attempt has just gone out on the radio: the time it did, which starts the pause on it."""
+        """Record an attempt on the radio now, starting its pause, and return the time."""
         self._last[radio] = at = self._clock()
         return at

@@ -1,4 +1,5 @@
-"""A GPS fix from what a receiver says (neoaprs/gpsfix.py): NMEA sentences with their checksums, a stream of them, and gpsd's TPV and SKY reports."""
+"""A GPS fix from what a receiver says (neoaprs/gpsfix.py): NMEA sentences with their checksums, a
+stream of them, and gpsd's TPV and SKY reports."""
 from datetime import datetime
 
 import pytest
@@ -16,7 +17,7 @@ def fix_from_nmea(line: str | bytes, now: datetime) -> Fix | None:
     return NmeaFixes().feed(line, now)
 
 
-# ---- one NMEA sentence --------------------------------------------------------------------------------------------------------------------------------
+# ---- one NMEA sentence ---------------------------------------------------------------------------
 
 def test_the_rmc_sentence_of_the_nmea_documentation_gives_position_speed_and_course() -> None:
     fix = fix_from_nmea("$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A\r\n", NOW)
@@ -57,7 +58,7 @@ def test_the_talker_may_be_any() -> None:
         assert fix is not None and fix.course_deg == 90
 
 
-# ---- a stream ---------------------------------------------------------------------------------------------------------------------------------------------
+# ---- a stream ------------------------------------------------------------------------------------
 
 def test_a_stream_puts_the_latest_gga_into_the_fix_of_the_rmc() -> None:
     stream = NmeaFixes()
@@ -108,7 +109,8 @@ def test_a_damaged_sentence_is_counted_and_changes_nothing() -> None:
 @pytest.mark.parametrize("line", [
     "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W",            # the end of the line was lost
     "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*",
-    "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6",           # and one digit of the checksum with it
+    # and one digit of the checksum with it
+    "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6",
     "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,"])
 def test_a_sentence_with_no_checksum_or_a_cut_one_is_damaged_and_changes_nothing(line: str) -> None:
     stream = NmeaFixes()
@@ -133,7 +135,7 @@ def test_a_stationary_receiver_with_no_course_has_a_speed_and_no_course() -> Non
     assert fix is not None and (fix.speed_kmh, fix.course_deg) == (0.0, None)
 
 
-# ---- gpsd ---------------------------------------------------------------------------------------------------------------------------------------------
+# ---- gpsd ----------------------------------------------------------------------------------------
 
 def test_a_tpv_report_gives_the_fix_in_kilometres_per_hour_and_whole_degrees() -> None:
     fix = fix_from_gpsd(tpv(60.43, 24.145, speed=15.0, track=269.6, alt=31.4), NOW, satellites=9)

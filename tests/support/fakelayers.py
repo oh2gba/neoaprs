@@ -1,14 +1,6 @@
-"""A fake server of the map's layers on a free port of the loopback: an own aircraft receiver, or a service's address through NEOAPRS_LAYERS_URL (no test asks adsb.fi, adsb.lol or Fintraffic). Each request is
-kept with its headers; each path answers what the test laid down, packed or not.
-
-    server = await layers_server()
-    server.route("/tar1090/data/aircraft.json", body=b'{"now": 1, "aircraft": []}')
-    server.route("/api/v3/lat/60.2/lon/24.7/dist/86", status=429, headers={"Retry-After": "120"})
-    server.answer = lambda path: (200, body, {})                      # every path not routed (a service's path carries the position)
-    server.requests                                                   # [(path, headers lower-cased), ...]
-    server.password = ("user", "pw")                                  # every path asks for basic authentication with these (401 without them)
-    server.route("/slow", body=b"...", drip_sec=0.3)                  # the head at once, then the body one byte at a time
-    server.address                                                    # 127.0.0.1:PORT, what map/aircraft_host is set to
+"""A fake map layers server on a free loopback port: an aircraft receiver, or a service address
+through NEOAPRS_LAYERS_URL. Each request is kept with its headers; each path answers what the test
+laid down.
 """
 import asyncio
 import base64

@@ -1,4 +1,5 @@
-"""The checks of neoaprs/radioedits.py on their own, without a daemon: a radio's place is a whole number the database holds."""
+"""The checks of neoaprs/radioedits.py without a daemon: a radio's place is a whole number the
+database holds."""
 import pytest
 
 from neoaprs.config import DEFAULTS

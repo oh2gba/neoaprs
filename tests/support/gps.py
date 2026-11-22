@@ -1,11 +1,5 @@
-"""A GPS for the tests: NMEA sentences with their checksums, a fake gpsd on a free port of the loopback, and a stand-in for the GPS service that the beacon is given.
-
-    nmea("GPRMC,123519,A,...")                    # "$GPRMC,...*6A\\r\\n": the checksum is worked out
-    rmc(60.43, 24.145, knots=27.0, course=270.0)  # a valid RMC sentence for a place; valid=False gives status V
-    gga(60.43, 24.145, altitude=31.4, satellites=9)
-    gpsd = await fake_gpsd()                      # gpsd.address is the setting gps/host; stopped when the test is over
-    gpsd.send(tpv(60.43, 24.145, speed=15.0))     # a report to every client that is connected
-    FakeFixes(fix)                                # what the beacon needs of the GPS service: .fix, .why
+"""A GPS for the tests: NMEA sentences with checksums, a fake gpsd on a free loopback port, and a
+stand-in for the GPS service that the beacon is given.
 """
 import asyncio
 import json
@@ -64,7 +58,8 @@ def sky(used: int = 9, seen: int = 12) -> dict[str, Any]:
 
 
 class FakeGpsd(FakeLineServer):
-    """The part of gpsd the daemon talks to: a VERSION line on connect, a WATCH answer to `?WATCH=...`, then whatever the test `send`s."""
+    """The part of gpsd the daemon talks to: a VERSION line on connect, a WATCH answer to
+    `?WATCH=...`, then whatever the test `send`s."""
 
     def __init__(self, greet: bool = True) -> None:
         super().__init__()
@@ -95,7 +90,8 @@ class FakeGpsd(FakeLineServer):
                 client.write(json.dumps(report).encode() + b"\n")
 
     def send_raw(self, data: bytes) -> None:
-        """Bytes to every client as they are (NMEA sentences, for a receiver behind a TCP serial server)."""
+        """Bytes to every client as they are (NMEA sentences, for a receiver behind a TCP serial
+        server)."""
         for client in self.clients:
             if not client.is_closing():
                 client.write(data)
@@ -117,7 +113,8 @@ class FakeGpsd(FakeLineServer):
 
 
 async def fake_gpsd(greet: bool = True) -> FakeGpsd:
-    """A fake gpsd listening on a free port, stopped by stop_all() when the test is over. With `greet` False it says nothing on connect: a receiver behind a TCP serial server (`url`)."""
+    """A fake gpsd listening on a free port, stopped by stop_all() when the test is over. With
+    `greet` False it says nothing on connect: a receiver behind a TCP serial server (`url`)."""
     server = FakeGpsd(greet)
     await server.start()
     remember_stop(server.stop)
@@ -125,7 +122,8 @@ async def fake_gpsd(greet: bool = True) -> FakeGpsd:
 
 
 class FakeFixes:
-    """What the beacon needs of the GPS service (services/mobilebeacon.py `Positions`): the fix to send, and why there is none."""
+    """What the beacon needs of the GPS service (services/mobilebeacon.py `Positions`): the fix to
+    send, and why there is none."""
 
     def __init__(self, fix: Fix | None = None, why: str = "the receiver has no position fix yet") -> None:
         self.fix, self.why = fix, why

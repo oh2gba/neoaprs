@@ -1,8 +1,10 @@
-"""Puts a program that NeoAPRS built for Windows into the app folder: `bundle_tool.py NAME DIST/NeoAPRS TARBALL` makes DIST/NeoAPRS/bin/NAME/ with what the tarball holds in its folder `NAME/`: the program and the licences,
-the source offer and the data files beside it. NAME is `mercury` or `direwolf`; TARBALL is the file `scripts/build-mercury --windows --tar` or `scripts/build-direwolf --windows --tar` makes (the release workflow's jobs
-`mercury-windows` and `direwolf-windows` build them from the pinned sources of neoaprs/mercury.py and neoaprs/direwolf.py on Linux with MinGW-w64, and the Windows job downloads them); nothing is fetched here. The tarball is held
-to what it must be before anything is kept: its name is the pinned version's, its source offer names the pinned source and its SHA-256, it holds a program (a file that begins with the DOS header of a Windows program)
-and nothing but plain files of a few known names, none of them a path out of the folder. Run with the Python that has NeoAPRS installed."""
+"""Put a program that NeoAPRS built for Windows into the app folder.
+
+`bundle_tool.py NAME DIST/NeoAPRS TARBALL` makes DIST/NeoAPRS/bin/NAME/ from the tarball that
+`scripts/build-mercury --windows --tar` or `scripts/build-direwolf --windows --tar` makes. NAME is
+`mercury` or `direwolf`. The tarball must be the pinned version's, with a source offer naming the
+pinned source, a Windows program and only plain files of known names. Run with the Python that has
+NeoAPRS installed."""
 import shutil
 import sys
 import tarfile
@@ -12,15 +14,16 @@ from types import ModuleType
 
 from neoaprs import direwolf, mercury
 
-MAX_FILE = 64_000_000           # the biggest file taken out of a tarball (mercury.exe is 2.4 MB)
+# Largest file taken out of a tarball (mercury.exe is 2.4 MB).
+MAX_FILE = 64_000_000
 
 
 @dataclass(frozen=True)
 class Tool:
-    name: str                   # the folder, in the tarball and in bin/
-    title: str                  # what its source offer calls it first: "Mercury 1.9.24,"
-    pins: ModuleType            # the daemon's module with its VERSION, SOURCE_COMMIT and SOURCE_SHA256
-    data: tuple[str, ...] = ()  # the files it reads that are kept in a folder of their own (`data/tocalls.yaml`)
+    name: str  # folder in the tarball and in bin/
+    title: str  # how its source offer names it first: "Mercury 1.9.24,"
+    pins: ModuleType  # module with VERSION, SOURCE_COMMIT and SOURCE_SHA256
+    data: tuple[str, ...] = ()
 
     @property
     def program(self) -> str:
@@ -28,11 +31,12 @@ class Tool:
 
 
 TOOLS = {"mercury": Tool("mercury", "Mercury", mercury), "direwolf": Tool("direwolf", "Direwolf", direwolf, ("data/tocalls.yaml", "data/symbols-new.txt"))}
-BESIDE = {"direwolf": "mercury"}         # a program bundled only into an app folder that has the other already: the Sound card type lists the sound cards with Mercury (`mercury -z`)
+# A program bundled only after the other: the Sound card type lists cards with `mercury -z`.
+BESIDE = {"direwolf": "mercury"}
 
 
 def tarball_name(tool: Tool) -> str:
-    """The name the tarball of the pinned version has (the build script says the same, from the same pins)."""
+    """Return the file name of the pinned version's tarball."""
     return f"{tool.name}-{tool.pins.VERSION}-windows-x86_64.tar.gz"
 
 
@@ -41,12 +45,13 @@ def refuse(message: str, who: str = "bundle_tool") -> SystemExit:
 
 
 def kept(tool: Tool, name: str) -> bool:
-    """Whether a file of the tarball's folder (by its path in it) is one the app takes: the program, the source offer, the licences (LICENSE, LICENSE-freedv, LICENSE-hidapi.txt, ...) and the tool's data files."""
+    """Return whether the app takes this file: the program, source offer, licences and data
+    files."""
     return name in (tool.program, "SOURCE.txt", *tool.data) or ("/" not in name and name.startswith("LICENSE") and all(c.isalnum() or c in "._-" for c in name))
 
 
 def unpack(tool: Tool, archive: Path, folder: Path, who: str = "bundle_tool") -> list[Path]:
-    """The files of `NAME/` in the tarball written to `folder`; SystemExit, with nothing kept, for a tarball that is not the pinned program's for Windows."""
+    """Write the files of `NAME/` to `folder`; raise SystemExit, keeping nothing, if it is wrong."""
     if archive.name != tarball_name(tool):
         raise refuse(f"{archive.name} is not {tarball_name(tool)}, the file of the pinned {tool.title} {tool.pins.VERSION}", who)
     contents: dict[str, bytes] = {}

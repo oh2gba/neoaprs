@@ -1,26 +1,8 @@
 #!/usr/bin/env python3
-"""The measurements behind the numbers NeoAPRS fixes for the Mercury HF modem (docs/mercury.md has the table and the figures these gave): real Mercury instances on the simulated channel of the suite
-(tests/support/hfchannel.py), nothing keyed, nothing on the air. Each measurement prints a table and, with --report FILE, writes the same as JSON, so that a number in the docs can be made again.
+"""Measure the numbers NeoAPRS fixes for the Mercury HF modem on a simulated channel.
 
-  scripts/mercury-measure frame   [--frames N]                            one frame's levels and times: the peak and the RMS of what Mercury plays (the channel's reference level), how long the frame is on the air,
-                                                                          PTT ON to PTT OFF, hand-in to the far station's KISS port, the busy detector's lag and hang time, the SNR the far station reports
-  scripts/mercury-measure decode  --snr 0,3,6 [--fading poor] [--frames N]  frames delivered of N sent, at each signal-to-noise ratio, on a flat channel or a fading one (the Watterson presets of the channel:
-                                                                          good, moderate, poor, flutter)
-  scripts/mercury-measure vox     --attack-ms 0,40,100 --snr 10,3 [--leadin-ms MS] [--frames N]  frames delivered of N sent when the first ms of every transmission is muted (a VOX's attack: the radio starts
-                                                                          to transmit only when it has heard the audio that long), with Mercury's own beginning of the frame (--leadin-ms 0) or with the lead-in tone NeoAPRS's
-                                                                          Mercury plays ahead of the preamble (--leadin-ms 150)
-  scripts/mercury-measure acks    [--messages N] [--snr DB] [--fading P]  two daemons on the channel: N messages one after another, the time to each ack, its distribution against the retry schedule
-  scripts/mercury-measure busy    [--frames N] [--quiet-sec S]            the busy detector's threshold (`busy_threshold_db`) at 10 to 24 dB, seven real Mercury instances on one channel: which frames each sees, from -3 to 20 dB SNR,
-                                                                          and how long each reads BUSY on noise that is white, filtered, with carriers, and after a step of 10 and 20 dB (docs/mercury.md has the table); about 20 minutes
-  scripts/mercury-measure autobusy [--batch N] [--frames N] [--quiet-sec S] [--record FILE | --replay FILE,FILE]  the automatic channel-busy control against Mercury's fixed 14 dB: the same spectra from
-                                                                          real Mercury instances, judged by Mercury's own detector and by the detectors of neoaprs/channelbusy.py, in scenes of noise (steady, filtered, carriers, a step, a
-                                                                          slow rise, static, wandering, a voice) with frames at 20 to -3 dB SNR; two batches of six receivers, about 7 minutes each; --replay judges recordings again at once
-  scripts/mercury-measure beacons [--hours H] [--stations 2,5,10]         no Mercury: fixed stations on one beacon interval with the random pause, over H hours of simulated time, for each size of the pause:
-                                                                          how often two beacons overlap, and how many frames an hour are lost to it
-
-Common: --mercury PATH (default: the Mercury the checkout carries, scripts/build-mercury --install), --first-port N (18500: two pairs of ports from there, so that it runs beside scripts/mercury-sim), --seed S,
---timeout SEC, --report FILE, --keep. Linux only (named pipes). A `decode` point of 50 frames takes about four minutes (a frame is 3.9 s on the air and the next waits for the channel to clear); the points of one
-run go one after another, so several runs with different --first-port values are how a table is made quickly."""
+  scripts/mercury-measure frame|decode|vox|acks|busy|autobusy|beacons [options]   (see --help)
+Real Mercury instances, Linux only; nothing is keyed. --report FILE writes the table as JSON."""
 import argparse
 import asyncio
 import json
@@ -50,7 +32,8 @@ from tests.support.busyscenes import BusyChannel, Scene  # noqa: E402
 from tests.support.hfchannel import PRESETS, REFERENCE_RMS, Attack, Channel  # noqa: E402
 from tests.support.realmercury import Failure, Page, fifo, start_daemon, start_mercury, stop, wait_for_page, write_settings  # noqa: E402
 
-PAYLOAD = b"OH2A>APNEO1:=6010.20N/02456.40E-a packet of a hundred bytes, as a beacon with a comment is on the air....."         # (100 bytes: the frame is its full size whatever the payload)
+# 100 bytes: a full frame whatever the payload.
+PAYLOAD = b"OH2A>APNEO1:=6010.20N/02456.40E-a packet of a hundred bytes, as a beacon with a comment is on the air....."
 SHORT_PAYLOAD = b"OH2A>APNEO1:=6010.20N/02456.40E-"
 
 
@@ -82,18 +65,21 @@ class Recorder:
 
 
 class Modem:
-    """A Mercury of the measurement: its process, a KISS client on its broadcast port and a reader of its control port, with every line stamped."""
+    """A Mercury under measurement: its process, a KISS client and a control-port reader."""
 
     def __init__(self, name: str, binary: str, folder: Path, channel: Channel, ports: tuple[int, int], threshold: int | None = None, leadin_ms: int = 0, ui_port: int = 0) -> None:
         self.name, self.ports = name, ports
         self.rx, self.tx = fifo(folder, f"{name}-rx"), fifo(folder, f"{name}-tx")
         channel.add(name, self.rx, self.tx)
         self.process = start_mercury(binary, folder, name.lower(), self.rx, self.tx, ports, busy_threshold_db=threshold, leadin_ms=leadin_ms, ui_port=ui_port)
-        self.frames: list[tuple[float, bytes]] = []                 # (when, payload) of every frame heard on the broadcast port
-        self.events: list[tuple[float, str, bool]] = []             # (when, kind, on) of PTT and BUSY, and ("snr", value) as (when, "snr", value)
+        # (when, payload) of every frame heard on the broadcast port.
+        self.frames: list[tuple[float, bytes]] = []
+        # (when, kind, on) of PTT and BUSY, and (when, "snr", value).
+        self.events: list[tuple[float, str, bool]] = []
         self.snr: list[float] = []
         self._kiss: asyncio.StreamWriter | None = None
-        self._control: asyncio.StreamWriter | None = None             # (kept: a writer that is dropped closes the connection, and Mercury then says nothing)
+        # Kept: a dropped writer closes the connection and Mercury then says nothing.
+        self._control: asyncio.StreamWriter | None = None
         self._tasks: list[asyncio.Task[None]] = []
 
     async def connect(self, timeout: float) -> None:
@@ -134,7 +120,8 @@ class Modem:
         return time.monotonic()
 
     async def when(self, kind: str, on: bool, after: float, timeout: float) -> float:
-        """The time of the first `kind` ON/OFF event after `after`; Failure when none comes within `timeout`."""
+        """Return the time of the first `kind` ON/OFF event after `after`; Failure if none in
+        `timeout`."""
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             for when, k, state in self.events:
@@ -188,7 +175,8 @@ async def measure_frame(args: argparse.Namespace, folder: Path) -> dict[str, Any
     try:
         await a.connect(args.timeout)
         await b.connect(args.timeout)
-        await asyncio.sleep(2.0)                                      # (the busy detectors take their floor from the noise)
+        # The busy detectors take their floor from the noise.
+        await asyncio.sleep(2.0)
         runs: list[dict[str, float]] = []
         for n in range(args.frames):
             payload = PAYLOAD if n % 2 == 0 else SHORT_PAYLOAD
@@ -257,7 +245,8 @@ async def measure_decode(args: argparse.Namespace, folder: Path) -> dict[str, An
                 t0 = a.send(PAYLOAD)
                 t_on = await a.when("ptt", True, t0, args.timeout)
                 t_off = await a.when("ptt", False, t_on, args.timeout)
-                await asyncio.sleep(1.5)                            # (the far side decodes within a few hundred milliseconds of the end; the next frame waits a little more)
+                # The far side decodes within a few hundred ms of the end; the next waits more.
+                await asyncio.sleep(1.5)
                 del t_off
             delivered = len(b.frames) - heard_before
             reported = b.snr[snr_before:]
@@ -284,7 +273,8 @@ async def measure_vox(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
         channel.set_fading(args.fading, seed=args.seed)
     attack = Attack(lambda: channel.blocks)
     fading = channel.links[("A", "B")].shaper if args.fading else None
-    channel.set_link("A", "B", shaper=attack if fading is None else (lambda block: fading(attack(block))), symmetric=False)        # (A's transmissions lose their first milliseconds before the channel's fading, as a radio that starts late does)
+    # A's transmissions lose their first milliseconds before the channel's fading.
+    channel.set_link("A", "B", shaper=attack if fading is None else (lambda block: fading(attack(block))), symmetric=False)
     channel.start()
     results: list[dict[str, Any]] = []
     try:
@@ -322,9 +312,8 @@ async def measure_vox(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
 
 THRESHOLDS = (10, 12, 14, 16, 18, 20, 24)
 async def measure_busy(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
-    """The busy detector's threshold (`channel:busy_threshold_db`, 10 dB by default) tried at 10, 12 ... 24 dB: one transmitter and one receiver for each threshold on the same channel. First what a frame does to each (does
-    its BUSY ON come, and how soon) at signal-to-noise ratios from -3 to 20 dB on white noise; then what no frame does: how long each reads BUSY in 90 s of noise that is white, filtered as a radio's audio is, with
-    carriers 6, 9, 12 and 15 dB above the noise of their band, and after a step of 10 and of 20 dB in the noise."""
+    """Try the busy threshold (`channel:busy_threshold_db`) at 10 to 24 dB: first what frames do to
+    each receiver at -3 to 20 dB SNR, then how long each reads BUSY in noise scenes."""
     binary = binary_of(args)
     channel = BusyChannel(snr_db=20.0, seed=args.seed)
     channel.feeds = {}
@@ -339,7 +328,8 @@ async def measure_busy(args: argparse.Namespace, folder: Path) -> dict[str, Any]
         for r in receivers:
             await r.connect(args.timeout)
         await asyncio.sleep(3.0)
-        await asyncio.sleep(10.0)                                   # (the noise stays where it is, 20 dB under a frame at gain 0: a frame's level is the link's gain, and the floors do not have to follow a step)
+        # The noise stays 20 dB under a frame at gain 0; the floors need not follow a step.
+        await asyncio.sleep(10.0)
         for snr in snrs:
             for r in receivers:
                 channel.set_link("A", r.name, gain_db=snr - channel.snr_db, symmetric=False)
@@ -358,7 +348,7 @@ async def measure_busy(args: argparse.Namespace, folder: Path) -> dict[str, Any]
         for label, kind, excess, snr in scenes:
             channel.feeds = {r.name: Scene(kind, args.seed + i, excess) for i, r in enumerate(receivers)}
             channel.snr_db = snr
-            await asyncio.sleep(20.0)                                 # (the floors settle)
+            await asyncio.sleep(20.0)                                 # floors settle
             await run_quiet(label, receivers, quiet, args.quiet_sec)
         channel.feeds = {r.name: Scene("white", args.seed + i) for i, r in enumerate(receivers)}
         for step in (10.0, 20.0):
@@ -385,7 +375,7 @@ async def measure_busy(args: argparse.Namespace, folder: Path) -> dict[str, Any]
 
 
 async def run_quiet(label: str, receivers: list[Modem], quiet: dict[str, dict[str, tuple[int, float]]], seconds: float) -> None:
-    """How long each receiver reads BUSY in the `seconds` from now (the events since, with a BUSY that began before counted from now)."""
+    """Return how long each receiver reads BUSY in the next `seconds`."""
     start = time.monotonic()
     marks = {r.name: len(r.events) for r in receivers}
     held = {r.name: next((on for _, k, on in reversed(r.events) if k == "busy"), False) for r in receivers}
@@ -417,12 +407,13 @@ AUTO_SCENES: list[list[tuple[str, str, float]]] = [
 ]
 AUTO_SNRS = (20.0, 12.0, 6.0, 3.0, 0.0, -3.0)
 AUTO_SETTLE_SEC = 30.0
-AUTO_GAP_SEC = 6.0                           # between two frames: the hang and the tail of the one before are over
+# Between two frames: the hang and tail of the one before are over.
+AUTO_GAP_SEC = 6.0
 AUTO_QUIET_SEC = 150.0
 
 
 class Listener(Modem):
-    """A receiver of the autobusy measurement: a Mercury at the threshold NeoAPRS writes, whose spectrum feed is read (the bands of every spectrum are what the detectors of neoaprs/channelbusy.py see)."""
+    """An autobusy receiver: a Mercury at NeoAPRS's threshold whose spectrum feed is read."""
 
     def __init__(self, name: str, scene: str, binary: str, folder: Path, channel: Channel, ports: tuple[int, int]) -> None:
         super().__init__(name, binary, folder, channel, ports, ui_port=ports[0] + UI_OFFSET)
@@ -441,8 +432,7 @@ class Listener(Modem):
 
 
 async def autobusy_batch(args: argparse.Namespace, folder: Path, scenes: list[tuple[str, str, float]], number: int) -> list[Recording]:
-    """One transmitter and one receiver for each scene on one channel: first the frames, at AUTO_SNRS and `--frames` times each, with the noise of the scene as it is at the start, then the quiet part, where the scene's event
-    (a step, a rise, the bursts, the voice) takes place and no frame is sent."""
+    """Run one transmitter and a receiver per scene: first the frames, then the quiet part."""
     folder.mkdir(parents=True, exist_ok=True)
     binary = binary_of(args)
     channel = BusyChannel(snr_db=20.0, seed=args.seed + number)
@@ -525,9 +515,9 @@ def autobusy_report(recordings: list[Recording]) -> list[tuple[str, str]]:
 
 
 async def measure_autobusy(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
-    """The automatic channel-busy control against Mercury's fixed 14 dB: the same spectra, read from real Mercury instances on the simulated channel, judged by Mercury's detector as it runs (its BUSY lines) and by the
-    detectors of neoaprs/channelbusy.py replayed on the bands of every spectrum, in scenes of noise (steady, filtered, carriers, a step, a slow rise, static, wandering, a voice) with frames at 20 to -3 dB SNR sent
-    before them. `--record FILE` keeps what the receivers saw; `--replay FILE` judges a recording again with no Mercury at all (the detectors can be changed and tried in seconds)."""
+    """Compare Mercury's fixed 14 dB detector with neoaprs/channelbusy.py on the same spectra.
+
+    `--record FILE` keeps what the receivers saw; `--replay FILE` judges it again, no Mercury."""
     if args.replay:
         recordings = [Recording.load(Path(p)) for p in args.replay.split(",")]
     else:
@@ -562,7 +552,8 @@ async def measure_acks(args: argparse.Namespace, folder: Path) -> dict[str, Any]
     try:
         for name, call in (("A", "OH2A"), ("B", "OH2B")):
             data = folder / name.lower()
-            write_settings(data, {"station/call": call, "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "0", "messages/alert": "false"}, radios=(("kiss", False), ("mercury", True)))      # (radio 2 the HF radio that --hf-port attaches)
+            # Radio 2 is the HF radio of --hf-port.
+            write_settings(data, {"station/call": call, "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "0", "messages/alert": "false"}, radios=(("kiss", False), ("mercury", True)))
             daemons[name] = start_daemon(data, ports[name])
         bases = {name: wait_for_page(d, folder / name.lower(), args.timeout) for name, d in daemons.items()}
         for name, page in pages.items():
@@ -620,10 +611,10 @@ async def measure_acks(args: argparse.Namespace, folder: Path) -> dict[str, Any]
 # ---- beacons
 
 def measure_beacons(args: argparse.Namespace) -> dict[str, Any]:
-    """Fixed stations on one interval of `interval_min` minutes, each started at a random moment of the first interval (the start of a daemon is a random phase already) and adding a random pause of up to J seconds
-    after every interval (the pause of radiotype.HF_BEACON_JITTER_SEC): over `hours` of simulated time, how many beacons were lost to an overlap (two frames on the air within FRAME_SEC of each other are both lost,
-    as Mercury's broadcast plane has no carrier sense), for each J. Also the case the pause is for: every station started in the same minute (a net that switched on together, or clocks that agree)."""
-    rng = random.Random(args.seed)  # noqa: S311  (the chances of a simulation, the same again for the same seed: nothing is kept secret with it)
+    """Simulate fixed stations on one beacon interval with a random pause of up to J seconds.
+
+    Return, for each J, how many beacons overlapped (and were lost) over `hours` hours."""
+    rng = random.Random(args.seed)  # noqa: S311  (simulation, repeatable for a seed)
     sizes = [int(v) for v in args.stations.split(",")]
     pauses = [0, 30, 60, 120, 180, 300, 600]
     interval = args.interval_min * 60

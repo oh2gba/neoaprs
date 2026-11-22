@@ -1,6 +1,6 @@
-"""The beacon Off (`beacon/interval_min` 0, for a fixed and a moving station alike) on the whole daemon with a fake radio: no automatic beacon and no automatic status report go out whatever is due, and everything else does, because Off is not
-RX only (tests/test_receive_only.py): a message and its retries, the ack of a message heard, the answer to a query, our own objects and the fill-in digipeater. Off is the interval in force on every radio's
-beacon (neoaprs/beaconrule.py). The beacon and the status that were held back go out when it is on."""
+"""Tests for beacon Off (`beacon/interval_min` 0) on the whole daemon with a fake radio: no
+automatic beacon or status goes out, while messages, acks, answers, objects and the digipeater still
+do."""
 import asyncio
 from dataclasses import replace
 from pathlib import Path
@@ -33,7 +33,9 @@ async def test_with_the_beacon_off_no_beacon_and_no_status_go_but_a_message_an_a
     while not all(any(w(f) for f in frames) for w in wanted) and asyncio.get_running_loop().time() < deadline:
         frames += [f.tnc2() for f in await said(e, 1, 0.5)]
     frames += [f.tnc2() for f in await said(e, 99, 0.5)]
-    assert all(any(w(f) for f in frames) for w in wanted), frames          # (the message, its ack, the answer to ?APRSP with our position, the object, the digipeated copy)
+    # (the message, its ack, the answer to ?APRSP with our position, the object, the digipeated
+    # copy)
+    assert all(any(w(f) for f in frames) for w in wanted), frames
     assert e.beacon.last_sent is None and e.ctl.rigstatus.last_sent_at is None, "the timers did not send, however much time went by"
     assert all(radio.beacon.interval_min == 0 for radio in e.ctl.radios.all()) and e.beacon.next_due is None, "Off is the interval in force on every radio (neoaprs/beaconrule.py)"
     assert not any(":>" in f for f in frames), "no status report"

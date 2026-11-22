@@ -1,7 +1,7 @@
-"""The service on Windows: start at login for the current user, through the value `NeoAPRS` of the key HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run (winreg, in the standard
-library; the same list that Settings > Apps > Startup shows). It runs `neoaprsw.exe run --data DIR`, the script that has no console window, or `pythonw.exe -m neoaprs run --data DIR` when NeoAPRS is not
-installed as a script. It is not a Windows service: a service has no desktop and no profile of the user, and the COM port, the data folder and the page belong to the user who is logged in.
-The registry is reached through the `winreg` module as `sys.modules` has it, so that the tests can put a stand-in in its place."""
+"""The service on Windows: start at login for the current user through the Run registry key.
+
+The value `NeoAPRS` of the Run key holds the command. It is not a Windows service, because a
+service has no desktop and no user profile. `winreg` is imported late so tests can stub it."""
 import importlib
 import subprocess
 import sys
@@ -14,7 +14,8 @@ from .servicecmd import Plan
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 VALUE_NAME = "NeoAPRS"
 LOG_HINT = ""
-DETACHED = 0x00000008 | 0x00000200 | 0x08000000            # DETACHED_PROCESS, CREATE_NEW_PROCESS_GROUP, CREATE_NO_WINDOW
+# DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
+DETACHED = 0x00000008 | 0x00000200 | 0x08000000
 
 
 def launch_argv(plan: Plan) -> list[str]:
@@ -34,7 +35,7 @@ def _registry() -> Any:
 
 
 def current() -> str | None:
-    """The command that is set, or None."""
+    """Return the command in the Run entry, or None."""
     winreg = _registry()
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as key:
@@ -45,7 +46,7 @@ def current() -> str | None:
 
 
 def write(command: str) -> None:
-    """Sets the Run entry to `command` (it is the entry of NeoAPRS's start at login, whichever program it starts)."""
+    """Set the Run entry to `command`."""
     winreg = _registry()
     with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as key:
         winreg.SetValueEx(key, VALUE_NAME, 0, winreg.REG_SZ, command)
@@ -69,7 +70,7 @@ def installed(plan: Plan) -> tuple[bool, str]:
 
 
 def spawn(argv: list[str]) -> None:
-    """Starts the daemon now, detached from this console (the entry only starts it at the next login)."""
+    """Start the daemon now, detached from this console; the entry only acts at the next login."""
     flags = DETACHED if sys.platform == "win32" else 0
     subprocess.Popen(argv, creationflags=flags, close_fds=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 

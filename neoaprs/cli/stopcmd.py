@@ -1,6 +1,11 @@
-"""`neoaprs stop [--data DIR] [--timeout SEC]`: ends the daemon that holds the data folder, cleanly (the same end as SIGTERM: the database is closed, the log says `NeoAPRS ended`), on every system. It writes the
-file `neoaprs.stop` in the data folder (neoaprs/stopfile.py), which the daemon looks for, and waits until the daemon has let go of the instance lock. Exit code 0: it is not running now; 1: it did not end in time.
-This is how the Windows uninstaller and the Start menu's "Stop NeoAPRS" end it; a service manager that restarts it (systemd, launchd) starts it again: use `systemctl --user stop neoaprs` there."""
+"""`neoaprs stop [--data DIR] [--timeout SEC]`: end the daemon that holds the data folder, cleanly.
+
+The end is the same as with SIGTERM (the database is closed, the log says `NeoAPRS ended`), on
+every system. It writes the file `neoaprs.stop` in the data folder, which the daemon watches for,
+and waits until the daemon releases the instance lock. Exit code 0: it is not running now; 1: it
+did not end in time.
+The Windows uninstaller and the Start menu's "Stop NeoAPRS" use it. A service manager (systemd,
+launchd) restarts the daemon again: use `systemctl --user stop neoaprs` there."""
 import argparse
 import logging
 import time
@@ -25,7 +30,9 @@ def parser() -> argparse.ArgumentParser:
 
 
 def stop_daemon(data: Path, timeout: float) -> bool:
-    """Asks the daemon that holds the data folder to end and waits up to `timeout` seconds for it to let go of the lock; True when none runs (any more). The desktop app's Quit is this too."""
+    """Ask the daemon to end and wait up to `timeout` seconds for it to release the lock.
+
+    Return True when no daemon runs (any more). The desktop app's Quit uses this too."""
     if not is_running(data):
         stopfile.clear(data)
         return True

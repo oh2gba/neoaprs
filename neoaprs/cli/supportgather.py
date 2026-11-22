@@ -1,5 +1,7 @@
-"""The parts of the support bundle, each a function that reads something of the computer and returns its text (neoaprs/cli/supportmake.py runs them, and turns a failure of one into a file that says so). They read and do
-not change anything: the database is opened read-only, the logs are read, the commands that are run only report."""
+"""The parts of the support bundle: functions that each read something and return its text.
+
+supportmake.py runs them and turns a failure of one into a file that says so. They change
+nothing: the database is opened read-only, and the commands that are run only report."""
 import contextlib
 import json
 import logging
@@ -43,7 +45,7 @@ JOURNAL_WAIT_SEC = 5.0
 
 @contextlib.contextmanager
 def quiet(name: str = "neoaprs.config") -> Iterator[None]:
-    """A value of a setting that is wrong is told in the log when it is read (and falls back to its default); reading the settings for a bundle does not add that line to the log again."""
+    """Silence a logger so reading settings for a bundle does not log invalid values again."""
     logger = logging.getLogger(name)
     was, logger.disabled = logger.disabled, True
     try:
@@ -54,7 +56,9 @@ def quiet(name: str = "neoaprs.config") -> Iterator[None]:
 
 @dataclass(frozen=True)
 class StoredRadios:
-    """The radios of a database as they are stored: the rows of `radio` and of `radio_setting` (radiosql.py), wrong values too; `problem` when the tables are there and could not be read."""
+    """The radios as stored: rows of `radio` and `radio_setting`, invalid values included.
+
+    `problem` is set when the tables exist but could not be read."""
     rows: list[Row] = field(default_factory=list)
     settings: list[Row] = field(default_factory=list)
     problem: str = ""
@@ -65,19 +69,19 @@ class StoredRadios:
             return radios_from_rows(self.rows, self.settings)
 
     def own_rows(self) -> dict[tuple[int, str], str]:
-        """The radios' own settings as they are stored, by radio and key."""
+        """Return the radios' own settings as stored, by radio and key."""
         return stored_own(self.settings)
 
 
 @dataclass(frozen=True)
 class Stored:
-    """What a database keeps of the settings: the rows of the settings table, and the radios where they are rows of their own (None in a file older than that)."""
+    """The settings table rows, and the radios if they are in their own tables (else None)."""
     rows: dict[str, str]
     radios: StoredRadios | None = None
 
 
 def config_of(rows: dict[str, str], radios: StoredRadios | None = None) -> Config:
-    """The settings in force as the daemon reads them, with the stored radios."""
+    """Return the settings in force, as the daemon reads them, with the stored radios."""
     with quiet():
         return in_force(rows, radios.specs if radios is not None else ())
 
@@ -85,8 +89,9 @@ def config_of(rows: dict[str, str], radios: StoredRadios | None = None) -> Confi
 # ---- the settings
 
 def settings_json(rows: dict[str, str], radios: StoredRadios | None = None) -> str:
-    """Every setting with the value in force and which of them are stored, a secret (neoaprs/cli/redaction.py) only as `(set, N characters)`; the stored rows that are no setting of this NeoAPRS apart (the
-    beacon's memory of when it last sent, say); and where the radios are rows of their own, every radio with its own settings, in force and as stored, and every pair of radios with its call and whether the radios may pair now."""
+    """Return settings.json: the settings in force, which are stored, the radios and pairs.
+
+    A secret appears only as `(set, N characters)`."""
     specs = radios.specs if radios is not None else ()
     own = radios.own_rows() if radios is not None else {}
     with quiet():
@@ -108,7 +113,7 @@ def settings_json(rows: dict[str, str], radios: StoredRadios | None = None) -> s
 
 
 def radio_json(spec: RadioSpec, specs: Sequence[RadioSpec], own: dict[tuple[int, str], str]) -> dict[str, Any]:
-    """One radio of settings.json: its row, the name the log gives it, its own settings in force (its type's, then its kind's others) and as they are stored (a value that is wrong too)."""
+    """Return one radio for settings.json: its row, log name, settings in force and as stored."""
     def shown(key: str, text: str) -> str:
         return shown_value(f"radio/{spec.id}/{key}", text)
     return {"id": spec.id, "kind": spec.kind, "type": spec.type, "name": spec.name, "log_name": log_name(spec, specs), "enabled": spec.enabled, "position": spec.position,
@@ -117,26 +122,26 @@ def radio_json(spec: RadioSpec, specs: Sequence[RadioSpec], own: dict[tuple[int,
 
 
 def pair_json(pair: PairSpec, specs: Sequence[RadioSpec], station_call: str) -> dict[str, Any]:
-    """One pair of settings.json: its two radios (low, high), whether it is on, its SSID, the pair's call (empty while it has no SSID), and whether the two radios may pair now (both there, live, of a type that transmits, both Dummy or both real)."""
+    """Return one pair for settings.json: its radios, SSID, call, and whether they may pair now."""
     low, high = (next((spec for spec in specs if spec.id == id), None) for id in (pair.low, pair.high))
     return {"low": pair.low, "high": pair.high, "enabled": pair.enabled, "ssid": pair.ssid, "call": call_of(station_call, pair.ssid),
             "may_pair_now": low is not None and high is not None and may_pair(low, high)}
 
 
 def secrets_of(rows: dict[str, str]) -> list[str]:
-    """The values of the secret settings, so that the zip can be held free of them."""
+    """Return the secret setting values, so the zip can be checked for them."""
     return [value for key, value in rows.items() if value and hides(key, value)]
 
 
 # ---- the logs
 
 def log_files(data: Path) -> tuple[list[Path], list[Path]]:
-    """(the daemon's log and its rotated files, the desktop app's), each the newest first."""
+    """Return (the daemon's log files, the desktop app's log files), each newest first."""
     return rotated_logs(data, LOG_NAME), rotated_logs(data, APP_LOG_NAME)
 
 
 def log_lines(files: list[Path]) -> list[str]:
-    """The end of the daemon's logs as lines, the oldest first: all the files that are kept (the end of each, within PROBLEM_SCAN_BYTES), for the summary to group the warnings and errors of the whole log."""
+    """Return the tail (PROBLEM_SCAN_BYTES) of each log file as lines, oldest first."""
     lines: list[str] = []
     for path in files:
         try:
@@ -148,7 +153,7 @@ def log_lines(files: list[Path]) -> list[str]:
 
 
 def started_at(lines: list[str]) -> datetime | None:
-    """When the latest start of the daemon that the log tells was (its first line, `2026-10-26 08:00:00Z  INFO  NeoAPRS 0.9.0 starting, ...`)."""
+    """Return the time of the latest start line, e.g. `2026-10-26 08:00:00Z  INFO  NeoAPRS ...`."""
     for line in reversed(lines):
         if START_LINE in line:
             try:
@@ -159,7 +164,9 @@ def started_at(lines: list[str]) -> datetime | None:
 
 
 def journal_text(run: Callable[..., Any] = subprocess.run, which: Callable[[str], str | None] = shutil.which) -> str | None:
-    """What the user's journal has of the NeoAPRS service, the last lines (Linux with systemd); None where there is no journalctl. A command that fails is told in the text, not raised: it never fails the bundle."""
+    """Return the last journal lines of the NeoAPRS service (Linux, systemd), else None.
+
+    A failing command is reported in the text, never raised, so it cannot fail the bundle."""
     if platform.system() != "Linux" or which("journalctl") is None or which("systemctl") is None:
         return None
     command = ["journalctl", "--user", "-u", "neoaprs", "-n", str(JOURNAL_LINES), "--no-pager", "-o", "short-iso"]
@@ -174,7 +181,7 @@ def journal_text(run: Callable[..., Any] = subprocess.run, which: Callable[[str]
 # ---- the doctor
 
 def doctor_text(data: Path) -> str:
-    """What `neoaprs doctor` prints for this data folder, as text."""
+    """Return what `neoaprs doctor` prints for this data folder."""
     findings = doctor.diagnose(data)
     failed = sum(f.status == "fail" for f in findings)
     warned = sum(f.status == "warn" for f in findings)
@@ -192,7 +199,9 @@ def _size(path: Path) -> int:
 
 
 def migration_lines(rows: list[tuple[int, str, str, datetime, str]]) -> list[str]:
-    """Each migration that was applied, when, and whether the source of it is the one this NeoAPRS has (a changed one means the file was migrated by another build)."""
+    """Return one line per applied migration: when, and whether its source matches this build's.
+
+    A differing source means another build migrated the file."""
     lines = []
     for version, name, digest, applied, note in rows:
         if not 1 <= version <= len(MIGRATIONS):
@@ -206,14 +215,16 @@ def migration_lines(rows: list[tuple[int, str, str, datetime, str]]) -> list[str
 
 
 def journal_mode(path: Path) -> str:
-    """`wal` or `rollback journal`, by the version bytes of the file's header (a connection that does not look at the log cannot say)."""
+    """Return `wal` or `rollback journal`, from the version bytes of the file header."""
     with path.open("rb") as f:
         header = f.read(20)
     return "wal" if len(header) == 20 and header[18] == 2 and header[19] == 2 else "rollback journal"
 
 
 def database_report(data: Path) -> tuple[str, DbFacts]:
-    """database.txt and what the summary says of the file. A file that cannot be opened or read raises (the bundle then has database.txt.error.txt)."""
+    """Return the text of database.txt and the facts for the summary.
+
+    Raise if the file cannot be opened or read; the bundle then has database.txt.error.txt."""
     path = data / DB_NAME
     if not path.is_file():
         text = f"There is no database file at {path} (the daemon makes it when it first starts).\n"
@@ -239,7 +250,9 @@ def database_report(data: Path) -> tuple[str, DbFacts]:
 
 
 def read_stored(data: Path) -> Stored:
-    """The rows of the settings table and the radios. Raises when the file cannot be read; radios that cannot be read are told in their `problem`, so that the settings still are."""
+    """Return the settings rows and the radios. Raise if the file cannot be read.
+
+    Unreadable radios are reported in `problem`, so the settings are still returned."""
     conn = open_readonly(data / DB_NAME)
     try:
         rows = read_settings(conn)
@@ -256,7 +269,7 @@ def read_stored(data: Path) -> Stored:
 # ---- the packets
 
 def packet_text(row: tuple[Any, ...]) -> str:
-    """A packet row as a TNC2 line (what ax25 reads of the frame; else what the columns say)."""
+    """Return a packet row as a TNC2 line, from the frame or else from the columns."""
     raw = PacketRow(*row)
     try:
         line = ax25.decode(bytes(raw.raw)).tnc2()
@@ -273,7 +286,7 @@ def packet_line(row: tuple[Any, ...]) -> str:
 
 
 def packets_text(data: Path) -> str:
-    """The latest packets heard and sent, then the latest that did not decode, each oldest first."""
+    """Return the latest packets, then the latest undecoded ones, each oldest first."""
     conn = open_readonly(data / DB_NAME)
     try:
         latest, bad = latest_packets(conn, PACKETS_SHOWN), latest_undecoded(conn, UNDECODED_SHOWN)

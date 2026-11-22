@@ -1,6 +1,5 @@
-"""The table of the resources the radios and the station hold (neoaprs/claims.py): a resource has one holder, a second claim of it is refused with the holder's claim and changes nothing, what the others hold is
-what a search, a choice of the daemon's or a proposal leaves out, a serial device is one resource whether it is a radio's port, a keying line or the GPS receiver, and a holder lets go of one kind or of everything;
-each change is signalled once."""
+"""Tests for the resource table (neoaprs/claims.py): one holder per resource, refused second claims,
+a serial device as one resource, releasing by kind or entirely, and one signal per change."""
 from neoaprs.claims import Claim, Claims
 
 

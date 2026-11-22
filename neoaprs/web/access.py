@@ -1,10 +1,7 @@
-"""Who may use the page from another device. This computer itself (the loopback, with a request addressed to it) is asked for nothing. From any other address, and only while `web/network` is on, a request
-must carry the session cookie that the right access key (`web/key`) bought: the page's files are free (they hold the key screen), everything that carries data (the socket, the base map) is refused until the
-device has logged in. A page of another device does not change the settings that name a program or an address the daemon runs or fetches from, and does not run the alert's Test (`LOCAL_ONLY`).
+"""Who may use the page from another device.
 
-A session is `expires.nonce.mac`, the mac an HMAC of the parts before it under the access key, so that nothing is stored: it survives a restart, and a new key ends every session at once. The key itself is
-never in a cookie. A session bought over https is `expires.nonce.s.mac`, and the secure port takes only such a one: a cookie bought over plain http (and so perhaps read off the network) does not open the
-secure page once https is switched on; the device logs in there again. Wrong keys are counted for each address; too many in a minute shut that address out for a while. The key is compared in constant time.
+This computer needs nothing; any other address needs, while `web/network` is on, the session cookie
+that the access key bought. Page files are free; data routes and `LOCAL_ONLY` settings are guarded.
 """
 import hashlib
 import hmac
@@ -30,18 +27,18 @@ log = logging.getLogger("neoaprs.web")
 
 COOKIE = "neoaprs_session"
 SESSION_DAYS = 365
-SECURE_MARK = "s"                       # the part of a session token that says it was bought over https
-_EXPIRES_DIGITS = 12                    # the most digits the expiry of a session token has (a Unix time has 10 until the year 2286)
-MAX_WRONG = 5                              # wrong keys from one address in WRONG_WINDOW_SEC, then it is shut out for BLOCK_SEC
+SECURE_MARK = "s"  # token part that marks a session bought over https
+_EXPIRES_DIGITS = 12
+# Wrong keys from one address within WRONG_WINDOW_SEC, then it is shut out for BLOCK_SEC.
+MAX_WRONG = 5
 WRONG_WINDOW_SEC = 60.0
 BLOCK_SEC = 300.0
-MAX_TRACKED = 500                          # addresses kept in the counts
-PROXY_HEADERS = ("X-Forwarded-For", "Forwarded", "X-Real-Ip", "X-Forwarded-Host", "X-Forwarded-Proto", "Via")      # a request that carries one came through a proxy, whose own address is not the visitor's
-OWN_NAMES = ("localhost",)                 # the names of this computer itself that a request addressed to it has in its Host (besides a loopback address)
-# What a page of another device may not change: the settings that name a program or an address the daemon runs or fetches from. A session that left this computer (a phone, a cookie read off the network)
-# works the radio, not the computer; on a computer without a screen they are set with `neoaprs db set`.
-# (The address of the operator's own aircraft or ships receiver, `map/aircraft_host` and `map/ships_host`, is not among them, by the owner's word: receivers stand beside a Raspberry Pi without a screen.
-# The daemon asks such an address for one file and shows nothing of an answer that is not in that file's form, or only reads lines from it.)
+MAX_TRACKED = 500  # addresses kept in the counts
+# A request carrying one of these came through a proxy, whose address is not the visitor's.
+PROXY_HEADERS = ("X-Forwarded-For", "Forwarded", "X-Real-Ip", "X-Forwarded-Host", "X-Forwarded-Proto", "Via")
+# Names of this computer a request may carry in its Host, besides loopback addresses.
+OWN_NAMES = ("localhost",)
+# Settings a page on another device may not change; they name a program or address the daemon uses.
 LOCAL_ONLY = frozenset({"messages/alert_command", "update/url", "map/source", "web/allowed_hosts"})
 
 
@@ -50,8 +47,7 @@ def new_key() -> str:
 
 
 def is_local(request: tornado.httputil.HTTPServerRequest) -> bool:
-    """Does the request come from this computer itself, not through a proxy on it? The peer is the loopback, no header of a proxy is there, and the request is addressed to this computer (a loopback
-    address or `localhost` in its Host): a proxy that passes the visitor's own Host name on is not this computer."""
+    """Return True if the request comes from this computer itself, not through a proxy on it."""
     if not is_loopback(request.remote_ip or "") or any(name in request.headers for name in PROXY_HEADERS):
         return False
     name = host_name(request.headers.get("Host", ""))
@@ -59,9 +55,10 @@ def is_local(request: tornado.httputil.HTTPServerRequest) -> bool:
 
 
 def this_computer_target(request: tornado.httputil.HTTPServerRequest, network: bool, port: int) -> str | None:
-    """Where a request on the loopback goes instead, `http://127.0.0.1:port`, when it was addressed by another name of this computer (its own name, as a browser on a Raspberry Pi opens it) while the page is
-    not open to the network: no key is let in then, so the key screen would be a dead end. None when the request is this computer's already, the network is on (the key works), it is not on the loopback,
-    or it says it came through a proxy (whose visitor is on another computer)."""
+    """Return `http://127.0.0.1:port` for a loopback request by another computer name, else None.
+
+    Only while the page is closed to the network, when the key screen would be a dead end.
+    """
     if network or port == 0 or not is_loopback(request.remote_ip or "") or any(name in request.headers for name in PROXY_HEADERS) or is_local(request):
         return None
     return f"http://127.0.0.1:{port}"
@@ -82,31 +79,32 @@ class Verdict(Enum):
 
 
 class Access:
-    """`Access(config, clock)`: the settings in force and the clock are asked each time, so a new key or a switch takes effect at once."""
+    """Settings and clock are read on each call, so a new key or switch takes effect at once."""
 
     def __init__(self, config: Callable[[], Config], clock: Clock) -> None:
         self._config = config
         self._clock = clock
-        self._wrong: dict[str, list[float]] = {}          # per address, when the wrong keys came
-        self._blocked: dict[str, float] = {}              # per address, until when it is shut out
+        self._wrong: dict[str, list[float]] = {}  # per address, times of wrong keys
+        self._blocked: dict[str, float] = {}  # per address, when the block ends
 
     def session(self, secure: bool = False) -> str:
-        """A new session token; `secure`: bought over https, which the secure port asks for."""
+        """Return a new session token; `secure` marks one bought over https."""
         body = f"{int(self._clock().timestamp()) + SESSION_DAYS * 86400}.{secrets.token_hex(8)}{'.' + SECURE_MARK if secure else ''}"
         return f"{body}.{_mac(self._config().web_key, body)}"
 
     def _session_valid(self, token: str, key: str, secure: bool) -> bool:
-        """Whether the token is a session of the key that has not ended; with `secure`, one bought over https."""
+        """Return True if the token belongs to the key and has not expired (https only if `secure`)."""
         body, _, mac = token.rpartition(".")
         expires, *rest = body.split(".")
-        if not (expires.isascii() and expires.isdigit() and len(expires) <= _EXPIRES_DIGITS):          # (a crafted cookie with other digits, or thousands of them, is no session, not an error)
+        # A crafted expiry is no session rather than an error.
+        if not (expires.isascii() and expires.isdigit() and len(expires) <= _EXPIRES_DIGITS):
             return False
         if secure and rest[1:] != [SECURE_MARK]:
             return False
         return int(expires) > self._clock().timestamp() and hmac.compare_digest(mac.encode(), _mac(key, body).encode())
 
     def allowed(self, request: tornado.httputil.HTTPServerRequest) -> bool:
-        """May this request have what carries data? Anything from this computer; from elsewhere only with a session of the key in force, and only while the network is on."""
+        """Return True for a local request; others need a valid session while the network is on."""
         if is_local(request):
             return True
         config = self._config()
@@ -145,7 +143,7 @@ class Access:
 
 
 class _Answer(Secured):
-    """The routes of the key screen: no answer is kept, and a script of another site is not answered."""
+    """Routes of the key screen: responses are not cached and foreign-origin writes are refused."""
 
     def set_default_headers(self) -> None:
         super().set_default_headers()
@@ -164,7 +162,7 @@ class _Answer(Secured):
 
 
 class Login(_Answer):
-    """GET asks whether this device is let in (204, or 401: the page shows the key screen); POST with the key as `{"key": "..."}` logs it in: 204 and the session cookie, 403 for a wrong key, 429 while shut out."""
+    """GET: 204 if let in, else 401. POST `{"key": "..."}`: 204 and cookie, 403 wrong, 429 shut out."""
 
     def get(self) -> None:
         if not self.server.access.allowed(self.request):
@@ -196,7 +194,7 @@ class Login(_Answer):
 
 
 class NewKey(_Answer):
-    """POST makes a new access key, which ends every session; the device that asked gets a session of the new key."""
+    """POST makes a new access key, ending every session; the caller gets a session of the new one."""
 
     async def post(self) -> None:
         if not self.server.access.allowed(self.request):

@@ -1,6 +1,7 @@
-"""The Tnc (neoaprs/tnc.py) on a line in memory (tests/support/fakeport.py) and on a loop whose time is skipped (tests/support/virtualtime.py): what a real line does badly, which a socket does not do on cue.
-An open that fails or raises something nobody listed, a write that is refused, a line that is lost while the Tnc is asking, bytes and loss from a port that is no longer the Tnc's, a stop while the retry opens,
-and the repeats of the KISS entry that wait longer each time (their waits are the program's own 10 s to 60 s, passed in no time)."""
+"""The Tnc (neoaprs/tnc.py) on an in-memory line (tests/support/fakeport.py) and a loop whose time
+is skipped: what a real line does badly. An open that fails, a refused write, a line lost while
+asking, a stop during a retry, and the KISS entry repeats that wait longer each time.
+"""
 import asyncio
 import logging
 import threading
@@ -24,7 +25,8 @@ from tests.support.virtualtime import virtual_time
 
 MONITOR_LINE = b"OH2FZV-2>VP1R61,WIDE1,OH2RCH-2*:!6010.00N/02456.00E>test\r\n"
 SETTLE = 0.15
-QUICK = Backoff([0.2, 0.4])                                  # a real back-off, short: the retries wait for real and the tests wait for the state, not for a time
+# A real back-off, short: the retries wait for real and the tests wait for the state, not for a time
+QUICK = Backoff([0.2, 0.4])
 PATH = "socket://fake-tnc:1"
 
 
@@ -35,7 +37,8 @@ def ports(monkeypatch: pytest.MonkeyPatch) -> FakePorts:
 
 @asynccontextmanager
 async def started(**kwargs: object) -> AsyncIterator[Tnc]:
-    """A Tnc on the fake ports, started (when it can be) and stopped at the end; no checks unless asked, and a back-off of 5 s and 10 s."""
+    """A Tnc on the fake ports, started (when it can be) and stopped at the end; no checks unless
+    asked, and a back-off of 5 s and 10 s."""
     kwargs.setdefault("check_sec", 0.0)
     kwargs.setdefault("settle_sec", SETTLE)
     kwargs.setdefault("backoff", Backoff([5.0, 10.0]))
@@ -87,7 +90,8 @@ async def test_a_stop_while_the_retry_is_opening_leaves_no_port_and_no_task(port
     async with started(backoff=QUICK) as tnc:
         ports.open_error = None
         ports.open_gate = held
-        await until(opening.is_set)                                   # (the retry has started its open, which does not end)
+        # The retry has started its open, which does not end
+        await until(opening.is_set)
         assert tnc.state is Source.State.CONNECTING
         await tnc.stop()
         assert tnc.state is Source.State.STOPPED and not ports.port.is_open
@@ -120,7 +124,8 @@ async def test_a_lost_line_says_why_it_is_lost_not_what_was_wrong_with_the_line_
     async with virtual_time(), started(backoff=QUICK) as tnc:
         ports.port.feed(MONITOR_LINE)
         await asyncio.sleep(SETTLE + 0.1)
-        ports.port.feed(MONITOR_LINE)                                    # the TNC types text after the entry: command mode
+        # The TNC types text after the entry: command mode
+        ports.port.feed(MONITOR_LINE)
         assert "command mode" in tnc.problem
         ports.port.lose("the cable was pulled")
         assert tnc.state is Source.State.WAITING and "the cable was pulled" in tnc.problem and "command mode" not in tnc.problem
@@ -130,7 +135,8 @@ async def test_a_loss_that_comes_while_the_tasks_end_does_not_open_the_line_agai
     async with virtual_time(), started(check_sec=60.0, backoff=QUICK) as tnc:
         port = ports.port
         stopper = asyncio.create_task(tnc.stop())
-        await asyncio.sleep(0)                                           # (the stop has cancelled the keep-alive and waits for it to end)
+        # The stop has cancelled the keep-alive and waits for it to end
+        await asyncio.sleep(0)
         port.lose("the cable was pulled")
         await stopper
         await asyncio.sleep(30.0)
@@ -168,7 +174,8 @@ async def test_the_scan_for_a_program_that_holds_the_port_is_not_made_on_the_loo
         threads.append(threading.get_ident())
         return ""
 
-    monkeypatch.setattr("neoaprs.serialprobe.held_by", held_by)                     # (the radio's own open asks it through tncsearch.may_open)
+    # The radio's own open asks it through tncsearch.may_open
+    monkeypatch.setattr("neoaprs.serialprobe.held_by", held_by)
     async with started():
         pass
     assert threads and threading.get_ident() not in threads
@@ -222,7 +229,8 @@ async def test_the_repeats_of_the_entry_wait_longer_each_time_and_only_the_first
         port = ports.port
         port.feed(MONITOR_LINE)
         assert port.written == [ENTER_KISS]
-        for repeat, wait in enumerate((10, 20, 40, 60, 60)):                                         # the first repeat, then twice as long each time, up to the cap
+        # The first repeat, then twice as long each time, up to the cap
+        for repeat, wait in enumerate((10, 20, 40, 60, 60)):
             await asyncio.sleep(SETTLE + wait / 2)
             port.feed(MONITOR_LINE)
             assert len(port.written) == 1 + repeat, f"not before {wait} s have passed since the entry settled"
@@ -263,7 +271,8 @@ async def test_the_steps_of_an_entry_go_out_one_after_the_other_each_after_the_p
         rig = EntryRig(settle_sec=0.5, pace=0.1)
         took = rig.entry.begin(KENWOOD_D710, lambda: rig.alive)
         await asyncio.gather(*rig.tasks)
-    assert took == pytest.approx(0.1 + 0.3 + 0.1 + 0.1 + 0.5)                # (the pauses at a tenth of their time, the last one the settle time)
+    # The pauses at a tenth of their time, the last one the settle time
+    assert took == pytest.approx(0.1 + 0.3 + 0.1 + 0.1 + 0.5)
     assert [data for data, _ in rig.written] == [step for step, _ in KENWOOD_D710.enter]
     assert [at for _, at in rig.written] == [0.0, 0.1, 0.4, 0.5, 0.6]
 
@@ -272,7 +281,8 @@ async def test_an_entry_that_is_over_when_its_next_step_is_due_or_whose_step_is_
     async with virtual_time():
         rig = EntryRig()
         rig.entry.begin(KENWOOD_D710, lambda: rig.alive)
-        await asyncio.sleep(2.0)                                              # (TC 1 and TN 2,0 are out; the line is replaced)
+        # TC 1 and TN 2,0 are out; the line is replaced
+        await asyncio.sleep(2.0)
         rig.alive = False
         await asyncio.gather(*rig.tasks)
     assert len(rig.written) == 2

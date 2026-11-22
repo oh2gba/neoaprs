@@ -1,6 +1,7 @@
-"""What is shipped, as far as Linux can see it without a build: scripts/shipped-size, which prints what each download carries (over a made-up tree, and over a listing of the archive of a program of
-PyInstaller), and the must-ship guard of the Windows folder (packaging/windows/must_ship.py and its list), which fails a build that lacks a file the app needs, shown failing on a made-up folder from
-which one DLL is taken. The real folder is checked by the release workflow's Windows job, after PyInstaller."""
+"""What is shipped, as far as Linux can see without a build: scripts/shipped-size over a made-up
+tree and an archive listing, and the Windows must-ship guard (packaging/windows/must_ship.py)
+failing on a made-up folder.
+"""
 import importlib.machinery
 import importlib.util
 import json
@@ -82,8 +83,9 @@ def test_a_name_that_must_be_absent_fails_when_it_is_there_and_a_path_that_is_no
     assert gone.returncode == 2 and "is not there" in gone.stderr
 
 
-# The form of `pyi-archive_viewer -l -r` of PyInstaller 6 (utils/cliutils/archive_viewer.py): a heading for each archive, its column names, a line an entry. Made up after that form; the first dry run of
-# the release workflow prints the real one, which replaces this one if it differs.
+# The form of `pyi-archive_viewer -l -r` of PyInstaller 6 (utils/cliutils/archive_viewer.py): a
+# heading for each archive, its column names, a line an entry. Made up after that form; the first
+# dry run of the release workflow prints the real one, which replaces this one if it differs.
 LISTING = """Contents of 'neoaprs.exe' (PKG/CArchive):
  position, length, uncompressed_length, is_compressed, typecode, name
  0, 215, 286, 1, 'm', 'struct'
@@ -142,8 +144,8 @@ def test_the_viewer_is_asked_for_the_recursive_listing_and_its_failure_is_said(s
 
 # ---- the must-ship guard of the Windows folder ----
 
-# A made-up dist/NeoAPRS with the files a real one has (by the names the measure of 0.18.2 reports, and pywebview's and clr_loader's copies for other processors, which must not stand in for the 64-bit
-# ones); sizes do not matter here.
+# A made-up dist/NeoAPRS with the files a real one has, and pywebview's and clr_loader's copies for
+# other processors, which must not stand in for the 64-bit ones; sizes do not matter here.
 WINDOWS_TREE = [
     "neoaprs.exe", "neoaprsw.exe", "neoaprs-app.exe",
     "_internal/python313.dll", "_internal/VCRUNTIME140.dll", "_internal/VCRUNTIME140_1.dll", "_internal/libcrypto-3.dll", "_internal/libssl-3.dll", "_internal/sqlite3.dll", "_internal/libffi-8.dll",
@@ -159,7 +161,8 @@ WINDOWS_TREE = [
 
 
 def windows_tree(root: Path) -> Path:
-    """The made-up folder, with every file the committed list names besides (a line spelled otherwise than the made-up name is the same file: Windows ignores case)."""
+    """The made-up folder, with every file the committed list names besides (a line spelled
+    otherwise than the made-up name is the same file: Windows ignores case)."""
     names = {name.lower(): name for name in WINDOWS_TREE}
     for line in load(MUST_SHIP, "must_ship").read_list(LIST.read_text(encoding="utf-8")):
         if not any(char in line for char in "*?["):
@@ -172,13 +175,15 @@ def run_guard(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def named(stderr: str, path: str) -> bool:
-    """Whether the guard's failure names the file: by its path, or by the pattern of the list that it is the file of."""
+    """Whether the guard's failure names the file: by its path, or by the pattern of the list that
+    it is the file of."""
     import fnmatch
     listed = [line[2:].lower() for line in stderr.splitlines() if line.startswith("  ")]
     return any(fnmatch.fnmatchcase(path.lower(), line) for line in listed)
 
 
-# Each file the app cannot start or run without, as the made-up folder spells it: the guard fails without it, whatever the list says, though another copy of the same DLL is still there.
+# Each file the app cannot start or run without, as the made-up folder spells it: the guard fails
+# without it, whatever the list says, though another copy of the same DLL is still there.
 NEEDED = ("_internal/VCRUNTIME140.dll", "_internal/VCRUNTIME140_1.dll", "_internal/sqlite3.dll", "_internal/libffi-8.dll", "_internal/_ssl.pyd", "_internal/_hashlib.pyd", "_internal/_sqlite3.pyd",
           "_internal/_ctypes.pyd", "_internal/_overlapped.pyd", "_internal/_asyncio.pyd", "_internal/_socket.pyd", "_internal/select.pyd", "_internal/_cffi_backend.cp313-win_amd64.pyd",
           "_internal/pydantic_core/_pydantic_core.cp313-win_amd64.pyd", "_internal/clr_loader/ffi/dlls/amd64/ClrLoader.dll", "_internal/webview/lib/Microsoft.Web.WebView2.Core.dll",
@@ -186,8 +191,10 @@ NEEDED = ("_internal/VCRUNTIME140.dll", "_internal/VCRUNTIME140_1.dll", "_intern
 
 
 def test_the_list_holds_what_the_app_can_never_run_without(guard: ModuleType) -> None:
-    """The measure's never-drop names: the C runtime, python313.dll, the OpenSSL DLLs, cryptography's native module, pythonnet's runtime, clr_loader, pywebview's DLLs; the standard library's modules the
-    daemon and the app start with; and the data the app reads at once: Python's frozen standard library, the root certificates, the world map, the tray's icon."""
+    """The measure's never-drop names: the C runtime, python313.dll, the OpenSSL DLLs,
+    cryptography's native module, pythonnet's runtime, clr_loader, pywebview's DLLs; the standard
+    library's modules the daemon and the app start with; and the data the app reads at once:
+    Python's frozen standard library, the root certificates, the world map, the tray's icon."""
     lines = guard.read_list(LIST.read_text(encoding="utf-8"))
     for pattern in guard.NEVER_DROP:
         assert guard.covers(lines, pattern), f"{pattern} is not in {LIST.name}"
@@ -198,14 +205,17 @@ def test_the_list_holds_what_the_app_can_never_run_without(guard: ModuleType) ->
 
 
 def test_the_list_names_nothing_of_pillow(guard: ModuleType) -> None:
-    """Pillow is not shipped (the tray is given icon.ico as it is, and the spec excludes PIL), so the list names none of it: its lines went in the commit that left it out."""
+    """Pillow is not shipped (the tray is given icon.ico as it is, and the spec excludes PIL), so
+    the list names none of it: its lines went in the commit that left it out."""
     lines = guard.read_list(LIST.read_text(encoding="utf-8"))
     assert not [line for line in lines if "/pil/" in line.lower() or line.lower().startswith("_internal/pil")], "no line of Pillow"
 
 
 def test_the_list_is_the_one_a_real_build_made(guard: ModuleType) -> None:
-    """The committed list is what `must_ship.py --write` printed for a real build of the release workflow: every .dll and .pyd by its name, no pattern. A list written by hand, like the never-drop names
-    alone, lets most needed DLLs go without a failure, so this fails until the real one is in."""
+    """The committed list is what `must_ship.py --write` printed for a real build of the release
+    workflow: every .dll and .pyd by its name, no pattern. A list written by hand, like the
+    never-drop names alone, lets most needed DLLs go without a failure, so this fails until the real
+    one is in."""
     text = LIST.read_text(encoding="utf-8")
     lines = guard.read_list(text)
     assert "Until the list of a real build replaces this one" not in text, "packaging/windows/must-ship.txt is still the never-drop names alone: put in the list of the first release dry run"
@@ -280,7 +290,8 @@ def test_case_is_ignored_as_windows_ignores_it_and_a_pattern_must_match_one_file
 
 # ---- who imports what the spec leaves out ----
 
-# The form of PyInstaller's warn file (build/neoaprs/warn-neoaprs.txt): a line a module it did not take, with every module that imports it and how.
+# The form of PyInstaller's warn file (build/neoaprs/warn-neoaprs.txt): a line a module it did not
+# take, with every module that imports it and how.
 WARN = """
 This file lists modules PyInstaller was not able to find. This does not necessarily
 mean these modules are required for running your program.

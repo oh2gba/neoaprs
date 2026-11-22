@@ -1,9 +1,8 @@
-"""Migration 34 (neoaprs/migrationsteps34.py): no main radio. On a database as 0.20.0 and 0.20.1 leave it (tests/support/migrated34.py), the step adds `own_bulletin.radios` on every database first,
-then writes the ticks the main radio stood for and deletes `station/main_radio`: the main radio as 0.20.0 resolved it (the one chosen while it is on and sends, else the first that is on and sends), its box
-first where it was not; the status, Ask around and Local info ticked for it where several radios send (rows already there left, and the main radio ticked while several are on and none of them is); the
-beacon and an object on it where several are on and none of theirs is; every bulletin on it; where several radios send, `email/radio` the radio 0.20.0 sent a mail on and what a new object and a
-new bulletin start with; the station's last status stays the station's. One test for each station of the design's section 4 and for the shapes beside them; a step that doubts leaves the file as it was; the step run twice is refused; a file of
-0.18.2 comes through steps 27 to 34 in one start."""
+"""Migration 34 (neoaprs/migrationsteps34.py): no main radio. On a database as the older version
+leaves it (tests/support/migrated34.py) the step adds `own_bulletin.radios`, writes the ticks the
+main radio stood for and deletes `station/main_radio`. One test for each station shape; a doubting
+step leaves the file as it was.
+"""
 import sqlite3
 from pathlib import Path
 
@@ -129,7 +128,7 @@ def test_two_live_radios_in_one_place_are_numbered_again_in_their_order(tmp_path
     assert places(db) == {3: 1, 1: 2, 2: 3}
 
 
-# ---- the rows the builds of 0.20.1 and of stages A and B already wrote
+# ---- rows that earlier builds of the main radio rule already wrote
 
 def test_rows_already_stored_are_left_and_the_main_radio_ticked_where_none_of_those_on_is(tmp_path: Path) -> None:
     db = stepped(tmp_path, Old((fm(1), hf(2, status="true"), lora(3, ask="false")), settings={"email/radio": "2", "radio/2/status_last_sent_at": "2026-11-16T11:00:00Z", "status/last_sent_at": LAST}))
@@ -151,7 +150,8 @@ def test_a_stored_main_radio_that_is_no_number_is_as_none(tmp_path: Path) -> Non
 
 def test_a_step_that_doubts_raises_and_leaves_the_file_as_it_was(tmp_path: Path) -> None:
     db = connect(version_33(tmp_path / DB_NAME, Old((fm(1), hf(2)), chosen=2, bulletins={"BLN1": "net"}), FixedClock()))
-    db.execute("CREATE TRIGGER still BEFORE UPDATE ON own_bulletin BEGIN SELECT RAISE(IGNORE); END")       # (an update that changes no row: the count says so)
+    # An update that changes no row: the count says so
+    db.execute("CREATE TRIGGER still BEFORE UPDATE ON own_bulletin BEGIN SELECT RAISE(IGNORE); END")
     with pytest.raises(StoreError, match="not every one was given its radio; nothing was changed"):
         run(db, _v34)
     assert "radios" not in columns(db, "own_bulletin") and settings(db)["station/main_radio"] == "2" and places(db) == {1: 1, 2: 2} and each(db) == dict.fromkeys(KEYS, {})
@@ -176,7 +176,8 @@ def test_the_runner_takes_a_file_of_version_33_to_34_with_a_copy_first(tmp_path:
 
 
 def test_a_file_of_0_18_2_comes_through_steps_27_to_34_in_one_start_with_one_copy(tmp_path: Path) -> None:
-    """0.18.2 (version 26), FM and HF: steps 31 to 33 make radio 1 (the first box) and radio 2 and no `station/main_radio`; step 34 then ticks radio 1, the default radio of before."""
+    """FM and HF at version 26: steps 31 to 33 make radio 1 and radio 2 and no `station/main_radio`;
+    step 34 ticks radio 1."""
     clock = FixedClock()
     path = tmp_path / DB_NAME
     version_twenty_six(path, clock, {"station/call": "OH2GBA", "tnc/profile": "kiss", "hf/enabled": "true", "hf/profile": "dummy-hf", "status/last_sent_at": LAST})

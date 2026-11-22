@@ -1,5 +1,6 @@
-"""What every feed of packets looks like from the outside: it is started and stopped, it has a state and a problem, it counts what it did, and it keeps the latest lines of what it saw
-and did. The page shows the one feed there is (the TNC, tnc.py) from this. `Backoff` is when to try again after a connection dropped.
+"""Base class of every packet feed: start, stop, state, problem, counters and recent lines.
+
+`Backoff` gives the delay before reconnecting after a connection dropped.
 """
 import asyncio
 import logging
@@ -22,8 +23,7 @@ log = logging.getLogger("neoaprs.source")
 
 
 class Backoff:
-    """When to try again after a connection dropped: 5, 10, 20, 30 seconds, and the series starts over only once a connection stayed up for a minute. A line that drops every few seconds
-    must not be hammered."""
+    """Delays before a retry: 5, 10, 20, 30 seconds, restarting only after a minute of uptime."""
 
     def __init__(self, delays_sec: list[float] | None = None, stable_after_sec: float = 60.0) -> None:
         self.delays_sec = delays_sec or [5.0, 10.0, 20.0, 30.0]
@@ -49,7 +49,7 @@ class Backoff:
 
 
 def minutes_between(earlier: datetime, later: datetime) -> str:
-    """The whole minutes from one time to the other: "17 min"."""
+    """Return the whole minutes between two times, such as "17 min"."""
     return f"{int((later - earlier).total_seconds() // 60)} min"
 
 
@@ -57,13 +57,13 @@ NO_LOOKUP = "the server's name cannot be looked up; is there a connection?"
 
 
 def os_error_text(e: BaseException) -> str:
-    """The system's words for the error: "No such file or directory", not the Python wording. A name that cannot be looked up (no DNS: the computer is offline) is said as that, not as the resolver's code
-    ("Unknown error -3"), and an exception without words is said by what it is."""
+    """Return the system's wording of the error; a failed name lookup gives NO_LOOKUP."""
     if isinstance(e, socket.gaierror):
         return NO_LOOKUP
     if isinstance(e, OSError):
         words = os.strerror(e.errno) if e.errno else ""
-        if words and not words.startswith("Unknown error"):              # (a resolver's or a library's own number has no words in the system's table)
+        # a library's own error number has no text in the system's table
+        if words and not words.startswith("Unknown error"):
             return words
         if e.strerror:
             return str(e.strerror)
@@ -72,12 +72,12 @@ def os_error_text(e: BaseException) -> str:
 
 @dataclass
 class Stats:
-    opens: int = 0             # times the line was opened
+    opens: int = 0
     bytes_in: int = 0
     bytes_out: int = 0
-    frames_in: int = 0         # frames received
-    packets: int = 0           # packets handed on
-    rejected: int = 0          # frames that could not be read as a packet
+    frames_in: int = 0
+    packets: int = 0
+    rejected: int = 0
     last_packet: datetime | None = None
 
 
@@ -87,7 +87,8 @@ class Source:
         CONNECTING = "connecting"
         CONNECTED = "connected"
         WAITING = "waiting"
-        SILENT = "silent"              # the line is open but the radio does not answer (the TNC sets it; any byte ends it)
+        # the line is open but the radio does not answer; any byte ends it
+        SILENT = "silent"
 
     MAX_LINES = 1500
 
@@ -96,21 +97,21 @@ class Source:
         self.clock: Clock = clock
         self.state = Source.State.STOPPED
         self.last_error = ""
-        self.problem = ""                  # why it is not connected
+        self.problem = ""
         self.stats = Stats()
         self.lines: deque[str] = deque(maxlen=self.MAX_LINES)
-        self.last_byte_at: datetime | None = None          # when the latest byte came (the open, if none has since); kept across a reopen of the line
+        self.last_byte_at: datetime | None = None
         self.state_changed: Signal[[Source.State]] = Signal(f"{name}.state_changed")
-        self.changed: Signal[[]] = Signal(f"{name}.changed")          # lines or counters moved
-        self._generation = 0                                           # changes at stop(), so that an attempt that was under way knows it is over
+        self.changed: Signal[[]] = Signal(f"{name}.changed")
+        # changes at stop(), so that an attempt under way knows it is over
+        self._generation = 0
         self._tasks = TaskSet(self._task_failed)
 
     @property
     def label(self) -> str:
-        """What the log calls this feed in front of its lines (its name, unless a feed that exists twice says more)."""
+        """The prefix of this feed's log lines."""
         return self.name
 
-    # ---- what a feed implements
     async def start(self) -> None:
         raise NotImplementedError
 
@@ -120,30 +121,31 @@ class Source:
     async def send(self, data: bytes) -> bool:
         return False
 
-    def describe(self) -> str:                     # one line for the page
+    def describe(self) -> str:
+        """Return one line describing the feed for the page."""
         return ""
 
     @property
     def is_dummy(self) -> bool:
-        """Whether what this feed delivers is made up (the Dummy radio, dummyline.py): nothing of it is on the air. Whatever hands packets on to the internet (an iGate) must look at this and gate nothing of such a feed."""
+        """True if the feed's traffic is made up (Dummy radio); an iGate passes nothing from it."""
         return False
 
     @property
     def usable(self) -> bool:
-        """Whether a frame can be sent now: the line is open and the radio answers. CONNECTED, and a feed that settles after switching the radio to KISS says no meanwhile."""
+        """True if a frame can be sent now: CONNECTED and not still settling into KISS."""
         return self.state is Source.State.CONNECTED
 
     def why_unusable(self) -> str:
-        """Why a frame cannot be sent now, as a clause (`unusable_because`, and a feed that knows more says it)."""
+        """Return why a frame cannot be sent now."""
         return unusable_because(self.state)
 
     @property
     def silent_since(self) -> datetime | None:
-        """The time of the latest byte while the radio is silent; None otherwise."""
+        """Return the time of the latest byte while the radio is silent, else None."""
         return self.last_byte_at if self.state is Source.State.SILENT else None
 
     def _hear(self, then: str = "") -> None:
-        """A byte came: the time of it is kept, and a silent radio has answered (`then` is what the feed does about that, for the log: "; entering KISS")."""
+        """Record that a byte came; a silent radio has answered. `then` goes in the log."""
         before, self.last_byte_at = self.last_byte_at, self.now()
         if self.state is Source.State.SILENT:
             text = f"the radio answers again after {minutes_between(before or self.last_byte_at, self.last_byte_at)}{then}"
@@ -152,19 +154,18 @@ class Source:
             self._set_state(Source.State.CONNECTED)
 
     def went_silent(self, then: str = "") -> None:
-        """The line is open and the radio does not answer (the Tnc's keep-alive got no byte at all in return for its check); `then` is what the feed does about that, for the log."""
+        """Mark the radio silent: the line is open but the keep-alive check got no byte."""
         if self.state is Source.State.CONNECTED:
             self._set_state(Source.State.SILENT)
             text = f"the radio is silent: nothing heard since {self.last_byte_at or self.now():%H:%M} UTC, no answer to a check{then}"
             log.warning("%s: %s", self.label, text)
             self._note(text)
 
-    # ---- helpers for the feeds
     def now(self) -> datetime:
         return self.clock()
 
     def _spawn(self, coro: Coroutine[Any, Any, None]) -> "asyncio.Task[None]":
-        """A task of this source: cancelled by _cancel_tasks(), its exceptions logged, never lost."""
+        """Start a task of this source, cancelled by _cancel_tasks(); its exceptions are logged."""
         return self._tasks.spawn(coro)
 
     def _task_failed(self, task: "asyncio.Task[Any]") -> None:
@@ -186,7 +187,10 @@ class Source:
         self.changed.emit()
 
     def _waiting(self, problem: str, delay: float, retry: Callable[[], Coroutine[Any, Any, None]] | None = None, *, expected: bool = False) -> None:
-        """The line is down: the state is WAITING and the problem is why it is down now, not what was wrong with an earlier line; `retry`, when given, is run after `delay` seconds unless the feed was stopped meanwhile. An `expected` wait (the program behind the line is still starting) is no warning: the log has it at DEBUG and the Terminal not at all."""
+        """Enter WAITING; `retry` runs after `delay` seconds unless the feed was stopped meanwhile.
+
+        An `expected` wait (the program behind the line is starting) is logged at DEBUG, not shown.
+        """
         logging.getLogger(f"neoaprs.{self.name}").log(logging.DEBUG if expected else logging.WARNING, "%s: %s; trying again in %g s", self.label, problem, delay)
         self.problem = ""
         self._set_state(Source.State.WAITING, problem)
@@ -208,10 +212,12 @@ class Source:
         self.lines.append(self.clock().strftime("%H:%M:%S") + "  " + text)
         self.changed.emit()
 
-    def _note(self, text: str) -> None:            # what the source did: "NeoAPRS: ..." in the list
+    def _note(self, text: str) -> None:
+        """Add a line for what the source did, prefixed "NeoAPRS: "."""
         self._add_line("NeoAPRS: " + text)
 
-    def _saw(self, text: str) -> None:             # what the line said
+    def _saw(self, text: str) -> None:
+        """Add a line for what the line said and count the frame."""
         self.stats.frames_in += 1
         self._add_line(text[:300])
 
@@ -223,7 +229,7 @@ CHECKING = Reason("the TNC is checking that the radio is there", "radio.checking
 
 
 def unusable_because(state: Source.State) -> Reason:
-    """Why a frame cannot be sent in this state, as a clause: "the radio is silent", "the TNC is restarting into KISS mode" (connected, but not usable: the feed is settling), else "the TNC is not connected"."""
+    """Return why a frame cannot be sent in this state (CONNECTED means settling into KISS)."""
     if state is Source.State.SILENT:
         return Reason("the radio is silent", "radio.silent")
     return Reason("the TNC is restarting into KISS mode", "radio.settling") if state is Source.State.CONNECTED else Reason("the TNC is not connected", "radio.not_connected")

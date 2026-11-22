@@ -1,4 +1,5 @@
-"""What one failing round or one hostile request must not do to the web server: end a timer for good, fill or forge the log, answer 500 to a body that is not JSON."""
+"""What one failing round or one hostile request must not do to the web server: end a timer for
+good, fill or forge the log, answer 500 to a body that is not JSON."""
 import asyncio
 import logging
 import socket

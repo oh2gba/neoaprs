@@ -1,20 +1,34 @@
 #!/usr/bin/env bash
-# Builds NeoAPRS-<version>-arm64.dmg, the macOS download: a disk image with NeoAPRS.app, which holds CPython, the wheel with the locked dependencies of its extra `app` (Qt with its web engine), Mercury and the icon, and
-# a link to Applications to drag it to. The app is for Apple silicon (python-build-standalone has no universal CPython) and macOS 14 or newer (the floor of the Qt wheels; MIN_OS below, which scripts/build-mercury says too).
+# Build NeoAPRS-<version>-arm64.dmg, the macOS download: a disk image with NeoAPRS.app (CPython, the
+# wheel with the locked dependencies of its extra `app` (Qt with its web engine), Mercury and the
+# icon) and a link to Applications. The app is for Apple silicon (python-build-standalone has no
+# universal CPython) and macOS 14 or newer (the floor of the Qt wheels; MIN_OS below, which
+# scripts/build-mercury says too).
 #
 #   scripts/build-macos-app (--mercury TARBALL | --no-mercury) [--wheel FILE] [--out DIR]
 #
-# Without --wheel the wheel is built from this tree (uv build). --mercury is the tarball that scripts/build-mercury --tar makes on a Mac (mercury-VERSION-macos-arm64.tar.gz): its folder mercury/ goes to Contents/Resources/tools/mercury
-# (the simulators of its dev/ folder are left out). A release always carries Mercury, so the build refuses to run with neither --mercury nor --no-mercury (the file of a developer who has no Mercury to hand). The file is made in
-# DIR (default dist-macos/). The CPython is fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build), pinned by version and SHA-256 below (the digest GitHub shows for the file; the pin is the trust, not the server).
+# Without --wheel the wheel is built from this tree (uv build). --mercury is the tarball of
+# scripts/build-mercury --tar made on a Mac: its mercury/ folder goes to
+# Contents/Resources/tools/mercury (without its dev/ simulators). A release always carries Mercury,
+# so the build refuses to run with neither
+# --mercury nor --no-mercury. The file is made in DIR (default dist-macos/). The CPython is fetched once into
+# $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build), pinned by version and SHA-256 below (the
+# pin is the trust, not the server).
 #
-# The bundle: Contents/MacOS/NeoAPRS is the launcher of packaging/macos/launcher.c (Python embedded, `-m neoaprs` with the arguments, `app` with none, as the AppImage's AppRun); Contents/Resources is the Python's prefix
-# (bin/, lib/, and tools/ with Mercury, where neoaprs/bundled.py looks: `<sys.prefix>/tools`); Contents/Resources/NeoAPRS.icns is the icon, made from the Windows one (packaging/macos/make_icns.py); Info.plist from
-# packaging/macos/Info.plist.in with the lproj folders of the microphone sentence beside it. packaging/appimage/prune.py --macos takes out what the app does not run, packaging/macos/thin.py cuts the universal files of
-# the Qt wheels to arm64, every module's bytecode is compiled in advance (nothing is
-# written into the bundle later, whose signature seals it), and everything is signed ad hoc (`codesign --sign -`: every Mach-O file, the frameworks, the web engine's helper app, then the bundle), which is what Apple silicon
-# asks of code it runs; there is no Apple developer account, so the first open is a right-click and Open (docs/manual/install.md, "macOS"). Needs uv, curl, the command line tools (cc, codesign, hdiutil, plutil, ditto, lipo, otool) and
-# a Mac with Apple silicon; the work folder is build/macos/. How it behaves and what it holds: docs/manual/install.md, "macOS", and docs/development.md, "The macOS app". scripts/smoke-macos-app tries the file.
+# The bundle: Contents/MacOS/NeoAPRS is the launcher of packaging/macos/launcher.c (Python embedded,
+# `-m neoaprs` with the arguments, `app` with none, as the AppImage's AppRun); Contents/Resources is
+# the Python's prefix (bin/, lib/, and tools/ with Mercury, where neoaprs/bundled.py looks);
+# NeoAPRS.icns is made from the Windows icon (packaging/macos/make_icns.py); Info.plist comes from
+# packaging/macos/Info.plist.in with the lproj folders of the microphone sentence beside it.
+# packaging/appimage/prune.py --macos removes what the app does not run, packaging/macos/thin.py
+# cuts the universal files of the Qt wheels to arm64, every module's bytecode is compiled in advance
+# (nothing is written into the bundle later, since its signature seals it), and everything is signed
+# ad hoc (`codesign --sign -`: every Mach-O file, the frameworks, the web engine's helper app, then
+# the bundle), which Apple silicon requires. There is no Apple developer account, so the first open
+# is a right-click and Open (docs/manual/install.md, "macOS"). Needs uv, curl, the command line
+# tools (cc, codesign, hdiutil, plutil, ditto, lipo, otool) and an Apple silicon Mac; work folder
+# build/macos/. See docs/manual/install.md, "macOS", and docs/development.md, "The macOS app".
+# scripts/smoke-macos-app tries the file.
 case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -46,7 +60,8 @@ for tool in uv curl cc codesign hdiutil plutil ditto lipo otool; do command -v "
 cache="${NEOAPRS_BUILD_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/neoaprs-build}"
 mkdir -p "$cache"
 
-# fetch URL SHA256: the file in the cache, downloaded when it is not there or not the pinned one; its path on stdout
+# fetch URL SHA256: the file in the cache, downloaded when it is not there or not the pinned one;
+# its path on stdout
 fetch() {
     local file
     file="$cache/$(basename "${1//%2B/+}")"
@@ -73,7 +88,8 @@ res="$contents/Resources"
 rm -rf "$work"
 mkdir -p "$contents/MacOS" "$out"
 
-# CPython: the archive holds one folder, python/, laid out as a prefix (bin, lib, include); it is the bundle's Contents/Resources
+# CPython: the archive holds one folder, python/, laid out as a prefix (bin, lib, include); it is
+# the bundle's Contents/Resources
 tar -xzf "$python_tar" -C "$work"
 mv "$work/python" "$res"
 python="$res/bin/python3.13"
@@ -81,14 +97,17 @@ python="$res/bin/python3.13"
 wheel_version="$("$python" -I -c 'import sys; sys.path.insert(0, sys.argv[2]); from neoaprs.updateasset import wheel_version; print(wheel_version(sys.argv[1]))' "$version" "$ROOT")"      # 1.0.0-rc1 is 1.0.0rc1 in the wheel's name
 case "$(basename "$wheel")" in neoaprs-"$wheel_version"-*.whl) ;; *) echo "build-macos-app: $wheel is not the wheel of $version" >&2; exit 1 ;; esac
 
-# The locked dependencies of the extras `app` and `ble` (a radio on Bluetooth LE) for macOS, then the wheel on top; the programs the installs make have this machine's path in them and are of no use here (the launcher runs `python -m neoaprs`)
+# The locked dependencies of the extras `app` and `ble` (a radio on Bluetooth LE) for macOS, then
+# the wheel on top; the programs the installs make have this machine's path in them and are of no
+# use here (the launcher runs `python -m neoaprs`)
 (cd "$ROOT" && uv export --frozen --no-dev --no-emit-project --extra app --extra ble -o "$work/requirements.txt")
 uv pip install --python "$python" --break-system-packages --no-config --require-hashes -r "$work/requirements.txt"
 uv pip install --python "$python" --break-system-packages --no-config --no-deps "$wheel"
 find "$res/bin" -type f ! -name 'python3*' -delete
-find "$res/bin" -type l ! -exec test -e {} \; -delete                     # (the links to what went; BSD find refuses -delete under -L)
+find "$res/bin" -type l ! -exec test -e {} \; -delete                     # the links to what went; BSD find refuses -delete under -L
 
-# Mercury, the HF modem: the program and its licence, where neoaprs/bundled.py looks (<sys.prefix>/tools/mercury); its dev/ folder of simulators is not shipped
+# Mercury, the HF modem: the program and its licence, where neoaprs/bundled.py looks
+# (<sys.prefix>/tools/mercury); its dev/ folder of simulators is not shipped
 if [ -n "$mercury" ]; then
     mkdir -p "$res/tools"
     tar -xzf "$mercury" -C "$res/tools" --exclude='mercury/dev'
@@ -96,12 +115,15 @@ if [ -n "$mercury" ]; then
     [ -x "$res/tools/mercury/mercury" ] && [ ! -e "$res/tools/mercury/dev" ]
 fi
 
-# The launcher, linked to the Python's own libpython (found through @executable_path at run time), before the headers go with the pruning
+# The launcher, linked to the Python's own libpython (found through @executable_path at run time),
+# before the headers go with the pruning
 export MACOSX_DEPLOYMENT_TARGET="$MIN_OS"
 cc -O2 -Wall -mmacosx-version-min="$MIN_OS" -o "$contents/MacOS/NeoAPRS" "$ROOT/packaging/macos/launcher.c" -I"$res/include/python3.13" -L"$res/lib" -lpython3.13 -Wl,-rpath,@executable_path/../Resources/lib
 
-# bin/python3.13, which the app starts its daemon with: what it links, said. When it names no libpython it has all of Python inside, a second copy beside the library; it is then made the small program of
-# packaging/macos/python.c on that library, in the same place, so that Python finds the same prefix
+# bin/python3.13, which the app starts its daemon with: what it links, said. When it names no
+# libpython it has all of Python inside, a second copy beside the library; it is then made the small
+# program of packaging/macos/python.c on that library, in the same place, so that Python finds the
+# same prefix
 links="$(otool -L "$python")"
 echo "build-macos-app: what bin/python3.13 links (otool -L): $links"
 if ! grep -q 'libpython3\.13\.dylib' <<<"$links"; then
@@ -111,26 +133,32 @@ if ! grep -q 'libpython3\.13\.dylib' <<<"$links"; then
     "$python" -I -c 'import sys; assert sys.prefix.endswith("/Contents/Resources"), sys.prefix; print("build-macos-app: the new bin/python3.13 runs, prefix", sys.prefix)'
 fi
 
-# Size: what the app does not run is taken out, and Qt's frameworks, which the wheels ship flat (no Versions/Current, their Resources copied twice), are made the bundles codesign and the system expect
+# Size: what the app does not run is taken out, and Qt's frameworks, which the wheels ship flat (no
+# Versions/Current, their Resources copied twice), are made the bundles codesign and the system
+# expect
 "$python" -I "$ROOT/packaging/appimage/prune.py" --macos "$res"
-# The Qt wheels are universal2: every fat file is cut to its arm64 part (the x86_64 half can never run here), and the build fails if one is left
+# The Qt wheels are universal2: every fat file is cut to its arm64 part (the x86_64 half can never
+# run here), and the build fails if one is left
 core="$res/lib/python3.13/site-packages/PySide6/Qt/lib/QtWebEngineCore.framework/Versions/A/QtWebEngineCore"
 echo "build-macos-app: QtWebEngineCore holds $(lipo -archs "$core") ($(du -h "$core" | cut -f1))"
 "$python" -I "$ROOT/packaging/macos/thin.py" "$app"
 "$python" -I "$ROOT/packaging/macos/thin.py" --check "$app"
 echo "build-macos-app: QtWebEngineCore holds $(lipo -archs "$core") ($(du -h "$core" | cut -f1))"
 
-# Info.plist (the version as written, and without a suffix for CFBundleVersion), PkgInfo, the icon, the microphone sentence in the languages of the page
+# Info.plist (the version as written, and without a suffix for CFBundleVersion), PkgInfo, the icon,
+# the microphone sentence in the languages of the page
 sed -e "s/@VERSION@/$version/g" -e "s/@BUILD@/${version%%-*}/g" -e "s/@MIN_OS@/$MIN_OS/g" "$ROOT/packaging/macos/Info.plist.in" > "$contents/Info.plist"
 plutil -lint "$contents/Info.plist"
 printf 'APPL????' > "$contents/PkgInfo"
 "$python" -I "$ROOT/packaging/macos/make_icns.py" "$ROOT/neoaprs/desktop/icon.ico" "$res/NeoAPRS.icns"
 cp -R "$ROOT"/packaging/macos/lproj/*.lproj "$res/"
 
-# bytecode of the bundle's packages, made now because nothing may be written into the signed bundle later (unchecked: the bundle never changes)
+# bytecode of the bundle's packages, made now because nothing may be written into the signed bundle
+# later (unchecked: the bundle never changes)
 "$python" -I -m compileall -q --invalidation-mode unchecked-hash "$res/lib/python3.13" >/dev/null
 
-# Every piece of the bundle, before the signing starts, so that a run on a Mac says what is missing in its own words rather than codesign's
+# Every piece of the bundle, before the signing starts, so that a run on a Mac says what is missing
+# in its own words rather than codesign's
 need() { [ -e "$1" ] || { echo "build-macos-app: $2 is missing: $1" >&2; exit 1; }; }
 need "$contents/MacOS/NeoAPRS" "the launcher (cc left no program)"
 [ -x "$contents/MacOS/NeoAPRS" ] || { echo "build-macos-app: the launcher is not executable: $contents/MacOS/NeoAPRS" >&2; exit 1; }
@@ -151,11 +179,16 @@ for lproj in "$ROOT"/packaging/macos/lproj/*.lproj; do need "$res/$(basename "$l
 [ -z "$mercury" ] || need "$res/tools/mercury/mercury" "Mercury"
 [ ! -e "$res/include" ] && [ ! -e "$res/lib/python3.13/test" ] || { echo "build-macos-app: the pruning left the headers or the tests" >&2; exit 1; }
 
-# Ad-hoc signatures, from the inside out, each piece once and by name: the Mach-O files that are nobody's program (the Python, its modules, Qt's plugins, Mercury: packaging/macos/sign_list.py) one after the other, then
-# the web engine's helper app (with the entitlements Qt ships for it, which its JIT needs), then the frameworks, whose seal records their library and the helper inside, then the app itself; not --deep, which would sign
-# the nested code again without those entitlements. The verification is deep. A bundle's program (the launcher, the helper's, a framework's library) is signed with its bundle and never by itself: codesign given such a
-# path seals the whole bundle there and then, which on the first Mac it did while the parallel pass was replacing files under it ("No such file or directory") and on the third for a framework whose helper was not
-# signed yet ("code object is not signed at all").
+# Ad-hoc signatures, from the inside out, each piece once and by name: the Mach-O files that are
+# nobody's program (the Python, its modules, Qt's plugins, Mercury: packaging/macos/sign_list.py)
+# one after the other, then the web engine's helper app (with the entitlements Qt ships for it,
+# which its JIT needs), then the frameworks, whose seal records their library and the helper inside,
+# then the app itself; not --deep, which would sign the nested code again without those
+# entitlements. The verification is deep. A bundle's program (the launcher, the helper's, a
+# framework's library) is signed with its bundle and never by itself: codesign given such a path
+# seals the whole bundle there and then, which on the first Mac it did while the parallel pass was
+# replacing files under it ("No such file or directory") and on the third for a framework whose
+# helper was not signed yet ("code object is not signed at all").
 "$python" -I "$ROOT/packaging/macos/sign_list.py" "$app" | tr '\n' '\0' | xargs -0 -n 1 codesign --force --sign - --timestamp=none
 find "$res" -name '*.app' -type d -print0 | while IFS= read -r -d '' nested; do
     entitlements="$(find "$nested/Contents/Resources" -name '*.entitlements' -type f 2>/dev/null | head -n 1)"
@@ -166,8 +199,9 @@ codesign --force --sign - --timestamp=none "$app"
 codesign --verify --deep --strict --verbose=2 "$app"
 "$contents/MacOS/NeoAPRS" --version
 
-# The disk image: the app and a link to Applications, compressed with lzma (ULMO: macOS 10.15 and newer, and the app needs 14; such an image is mounted outside the kernel); hdiutil on a busy machine sometimes
-# fails with "Resource busy" and is simply tried again
+# The disk image: the app and a link to Applications, compressed with lzma (ULMO: macOS 10.15 and
+# newer, and the app needs 14; such an image is mounted outside the kernel); hdiutil on a busy
+# machine sometimes fails with "Resource busy" and is simply tried again
 "$python" -I -B "$ROOT/scripts/shipped-size" --depth 6 --title "the tree of NeoAPRS-$version-arm64.dmg" "$app"
 stage="$work/dmg"
 mkdir -p "$stage"

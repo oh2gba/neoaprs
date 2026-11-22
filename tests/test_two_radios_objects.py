@@ -1,7 +1,7 @@
-"""Our own objects and the email gateway with two radios (services/sender.py, services/ownobjects.py): the sender sees the daemon's radios by id (radio 1 the FM radio, radio 2 the HF radio);
-an object goes out on the radios its choice names by id (fm 1, hf 2, both) while they are on, and on the one radio that is on whatever it names; a message to the email
-gateway goes on the FM radio and is refused while the FM radio is off. Then the rules of plan rule 3.5 on stub lines: an object none of whose radios is on goes on the one radio that is on and has its own again once
-one is on, a new object is ticked as the one saved last, the pause between our frames is each radio's, a kill goes where the object went, and a removed radio leaves the objects."""
+"""Our own objects and the email gateway with two radios (services/sender.py, ownobjects.py): the
+sender sees the radios by id; an object goes out on the radios its choice names while they are on,
+else on the one that is on.
+"""
 from dataclasses import replace
 from pathlib import Path
 
@@ -74,10 +74,11 @@ async def test_the_email_gateway_is_the_fm_radios_and_the_mercury_radio_alone_ca
     assert c.radio is None, "the one radio that can send, of any kind: the mail that was refused before goes on it"
 
 
-# ---- the rules of our objects with two radios (plan rule 3.5), on the station's radios as the registry gives them over stub lines
+# ---- the rules of our objects with two radios, on the station's radios over stub lines
 
 class Two(OwnRig):
-    """Our objects on two radios, radio 1's line `tnc` and radio 2's `hf`; `switch` turns one on or off as the settings would, and the radios have it at once."""
+    """Our objects on two radios, radio 1's line `tnc` and radio 2's `hf`; `switch` turns one on or
+    off as the settings would, and the radios have it at once."""
 
     def __init__(self, log: OwnLog, clock: FixedClock, **changes: object) -> None:
         super().__init__(log, clock, **changes)
@@ -104,7 +105,8 @@ class Two(OwnRig):
         self.look(self.objects.tick, seconds, step)
 
     def timed(self, seconds: int) -> list[tuple[int, str, str]]:
-        """Ticks once a second for this long, the first now: what went out, as (seconds from now, the line `fm` or `hf`, the object's name)."""
+        """Ticks once a second for this long, the first now: what went out, as (seconds from now,
+        the line `fm` or `hf`, the object's name)."""
         out: list[tuple[int, str, str]] = []
         for t in range(seconds + 1):
             before = {"fm": len(self.tnc.sent), "hf": len(self.hf.sent)}
@@ -205,13 +207,15 @@ async def test_a_removed_radio_leaves_the_objects_in_memory_and_an_object_on_it_
 
 
 def offsets(sent: list[tuple[int, str, str]], line: str, name: str | None = None) -> list[int]:
-    """The seconds at which something (the object `name`, when it is given) went out on the line `fm` or `hf`."""
+    """The seconds at which something (the object `name`, when it is given) went out on the line
+    `fm` or `hf`."""
     return [t for t, word, what in sent if word == line and name in (None, what)]
 
 
 async def test_a_radio_that_is_connected_but_never_takes_a_frame_holds_an_objects_round_for_a_minute_at_most(tmp_path: Path) -> None:
     rig = await two_at(tmp_path, fm_enabled=True, hf_enabled=True)
-    rig.hf.held = "the board sends text lines: set it to KISS"            # connected, never usable (a LoRa board left in text, a TNC that does not answer KISS ON)
+    # connected, never usable (a LoRa board left in text, a TNC that does not answer KISS ON)
+    rig.hf.held = "the board sends text lines: set it to KISS"
     rig.make("BOTH", radios=(FM_ID, HF_ID))
     sent = rig.timed(3600)
     assert offsets(sent, "fm") == [0, 120, 300, 600, 1140, 2160] and offsets(sent, "hf") == [], "FM repeats it on its decay (the round ends a minute after FM took it), held to HF's floor of 30 minutes; it went out once in the hour before"
@@ -224,7 +228,8 @@ async def test_a_radio_that_is_connected_but_never_takes_a_frame_holds_an_object
 async def test_the_minute_a_connected_radio_holds_the_round_runs_from_the_first_radio_that_took_it_not_from_the_first_try(tmp_path: Path) -> None:
     rig = await two_at(tmp_path, fm_enabled=True, hf_enabled=True)
     rig.hf.held = "the board sends text lines: set it to KISS"
-    rig.tnc.takes = False                                                   # FM is ready but refuses the write (settling after KISS ON) for a minute and a half
+    # FM is ready but refuses the write (settling after KISS ON) for a minute and a half
+    rig.tnc.takes = False
     rig.make("BOTH", radios=(FM_ID, HF_ID))
     assert rig.timed(89) == []
     rig.tnc.takes = True
@@ -245,7 +250,8 @@ async def test_a_live_object_on_hf_repeats_no_more_often_than_hfs_beacon_floor_a
 
 async def test_an_objects_radios_are_in_force_as_the_beacons_are_by_position(tmp_path: Path) -> None:
     rig = await two_at(tmp_path, fm_enabled=True, hf_enabled=True)
-    rig.set(radios=tuple(replace(spec, position={FM_ID: 1, HF_ID: 0}.get(spec.id, spec.position)) for spec in rig.config.radios))      # the HF radio first by position
+    # The HF radio first by position
+    rig.set(radios=tuple(replace(spec, position={FM_ID: 1, HF_ID: 0}.get(spec.id, spec.position)) for spec in rig.config.radios))
     rig.switch()
     assert [r.id for r in rig.sender.radios_for((FM_ID, HF_ID))] == [HF_ID, FM_ID] == list(beacon_radios(rig.config.radios)), "radiospec.in_force_set, as the beacon's (before: by id)"
     rig.make("BOTH", radios=(FM_ID, HF_ID))
@@ -255,7 +261,8 @@ async def test_an_objects_radios_are_in_force_as_the_beacons_are_by_position(tmp
 
 async def test_with_no_radio_on_a_new_object_is_ticked_for_the_first_radio_there_is_not_for_a_removed_one(tmp_path: Path) -> None:
     rig = await two_at(tmp_path, fm_enabled=True, hf_enabled=True)
-    rig.set(radios=tuple(replace(spec, removed_at=rig.clock()) if spec.id == FM_ID else replace(spec, enabled=False) for spec in rig.config.radios))     # radio 1 removed, radio 2 off
+    # Radio 1 removed, radio 2 off
+    rig.set(radios=tuple(replace(spec, removed_at=rig.clock()) if spec.id == FM_ID else replace(spec, enabled=False) for spec in rig.config.radios))
     rig.switch()
     assert rig.sender.radios.senders() == []
     assert rig.make("NOMAIN").radios == (HF_ID,), "the radio that will be on again (before: radio 1, removed for good)"

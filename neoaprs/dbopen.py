@@ -1,5 +1,7 @@
-"""How a connection to the database is made for a `Db` (db.py): the opener runs in the database thread, which then owns the connection. The file is migrated by `open_database` (migrations.py);
-a file that has been migrated is found at its version and nothing is migrated again, and ":memory:" is a database of its own, made (and migrated) in the thread."""
+"""The opener of a `Db` (db.py): runs in the database thread, which then owns the connection.
+
+The file is migrated by `open_database` (migrations.py); ":memory:" is a separate database made
+there."""
 from pathlib import Path
 
 from .clock import Clock, utcnow
@@ -9,7 +11,7 @@ from .migrations import open_database
 
 
 def open_connection(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock = utcnow) -> Connection:
-    """A migrated connection to the database. Raises StoreError with the reason `open_database` gives."""
+    """Return a migrated connection. Raise StoreError with the reason from `open_database`."""
     db, why = open_database(path, busy_ms, clock)
     if db is None:
         raise StoreError(why)

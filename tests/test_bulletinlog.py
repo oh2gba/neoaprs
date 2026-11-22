@@ -1,4 +1,6 @@
-"""The bulletin log (neoaprs/bulletinlog.py, bulletinsql.py) on a real database thread: what goes in comes out equal, one row for a sender and slot, the delete, the care, and a row this program did not write."""
+"""The bulletin log (neoaprs/bulletinlog.py, bulletinsql.py) on a real database thread: what goes in
+comes out equal, one row for a sender and slot, the delete, the care, and a row this program did not
+write."""
 import logging
 from dataclasses import replace
 from datetime import timedelta

@@ -1,5 +1,6 @@
-"""The compressed position a moving station sends (neoaprs/aprsposition.py `compressed_position`, `altitude_text`, `compressed_comment`), against the specification's worked example, the decoder of the same module, and
-the layout of chapter 9: 13 bytes `/YYYYXXXX$csT`."""
+"""The compressed position a moving station sends (neoaprs/aprsposition.py `compressed_position`,
+`altitude_text`, `compressed_comment`), against the specification's worked example, the decoder of
+the same module, and the layout of chapter 9: 13 bytes `/YYYYXXXX$csT`."""
 import pytest
 
 from neoaprs.aprsposition import COMPRESSED_COMMENT_MAX, altitude_text, compressed_comment, compressed_position, parse_position
@@ -14,8 +15,9 @@ def decoded(info: bytes):                                                  # typ
 
 
 def test_the_specifications_example_comes_out_with_the_same_course_speed_and_type_bytes() -> None:
-    """49 30' N, 72 45' W, 36.2 knots, 88 degrees, an RMC fix compressed by software: `/5L!!<*e7>7P[`. The specification truncates the longitude's last character, `7`; this rounds to the nearest, which is `8`
-    (half a metre further east)."""
+    """49 30' N, 72 45' W, 36.2 knots, 88 degrees, an RMC fix compressed by software:
+    `/5L!!<*e7>7P[`. The specification truncates the longitude's last character, `7`; this rounds to
+    the nearest, which is `8` (half a metre further east)."""
     made = compressed_position(49.5, -72.75, "/", ">", 88, 36.2 * KNOT_KMH)
     assert made == b"/5L!!<*e8>7P["
     assert made[:5] == b"/5L!!" and made[9:] == b">7P[" and len(made) == 13
@@ -28,7 +30,8 @@ def test_a_known_fix_gives_exactly_these_bytes() -> None:
 
 
 def test_a_position_with_no_course_or_no_speed_is_the_blank_form_the_specification_shows() -> None:
-    """`=/5L!!<*e7> sTComment`: a space in c says there is no course, speed, radio range or altitude; `sT` are fillers."""
+    """`=/5L!!<*e7> sTComment`: a space in c says there is no course, speed, radio range or
+    altitude; `sT` are fillers."""
     assert compressed_position(49.5, -72.75, "/", ">")[9:] == b"> sT"
     assert compressed_position(49.5, -72.75, "/", ">", course_deg=88)[9:] == b"> sT"
     assert compressed_position(49.5, -72.75, "/", ">", speed_kmh=10.0)[9:] == b"> sT"
@@ -130,12 +133,14 @@ def test_cs_bytes_that_are_not_base_91_digits_are_no_course_and_speed(cs: bytes)
 
 @pytest.mark.parametrize("cs", [b"!\x01", b"\x10!", b"!\x7f", b"\x7f!"])
 def test_cs_bytes_that_are_not_base_91_digits_are_no_altitude_and_no_wind_either(cs: bytes) -> None:
-    assert decoded(b"/5L!!<*e7>" + cs + b"\x35").altitude_m is None            # (T = 0x35: a GGA fix, cs is an altitude)
+    # (T = 0x35: a GGA fix, cs is an altitude)
+    assert decoded(b"/5L!!<*e7>" + cs + b"\x35").altitude_m is None
     assert decoded(b"/5L!!<*e7_" + cs + b"[").weather is None
 
 
 def test_the_cs_digits_at_the_ends_of_their_range_are_read() -> None:
     p = decoded(b"/5L!!<*e7>z![")                       # c = 89 (the last course step): 356 degrees; s = 0
     assert (p.course_deg, p.speed_kmh) == (356, 0.0)
-    q = decoded(b"/5L!!<*e7>!{[")                       # c = 0, s = 90: north at the greatest speed that cs can hold
+    # c = 0, s = 90: north at the greatest speed that cs can hold
+    q = decoded(b"/5L!!<*e7>!{[")
     assert q.course_deg == 0 and q.speed_kmh == pytest.approx((1.08 ** 90 - 1) * KNOT_KMH)

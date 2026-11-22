@@ -1,6 +1,6 @@
-"""Messaging (neoaprs/services/messaging.py) on the station's radios as the registry gives them (services/radioset.py RadioPick: `StubPick`, one radio on a Tnc that is a stub), a real message log on a real
-database thread and a clock the test holds: the bytes of a message and of an ack, the checks, the ids, the schedule of the attempts, the acks and rejects, retry and cancel, the radio away, the messages that
-come in (kept once, acked once for each burst of copies), and the restart. `StubPick` and `pick_of` are the RadioPick of the other tests of messaging and of the answers too."""
+"""Messaging (neoaprs/services/messaging.py) on stub radios, a real message log and a held clock:
+message and ack bytes, checks, ids, the attempt schedule, acks and rejects, retry and cancel.
+"""
 import asyncio
 import logging
 from collections.abc import Callable
@@ -32,14 +32,20 @@ from tests.support.env import idle_for, remember_stop, until
 from tests.support.storedb import keep_old_attempts, log_at
 
 TICK = 0.01
-RUN_OUT = (32, 32, 64, 240)                        # the waits after each attempt, the last of them the wait for the answer to the fourth: after these the message has failed
+# The waits after each attempt, the last of them the wait for the answer to the fourth: after these
+# the message has failed
+RUN_OUT = (32, 32, 64, 240)
 WORKED = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Hello Pekka{01}"
 
 
 class LineAir:
-    """A radio as the services see one (services/radioset.py AirRadio) on a stub line (tests/support/stubtnc.py), read by the line's type as the radios of the round read theirs: its id 1 of the FM
-    kind, 2 of the HF kind, or the one given; its kind, limits (with the line's frame cap) and what it is allowed by its type; its name the settings' for its id (or the one given); the operator's choices the
-    settings' radio of its id (radio 1's where there is none); its state, frame cap and frames the line's; and the line's type, which an old shape gives (today's beacon reads it of the radio an answer goes on)."""
+    """A radio as the services see one (services/radioset.py AirRadio) on a stub line
+    (tests/support/stubtnc.py), read by the line's type as the radios of the round read theirs: its
+    id 1 of the FM kind, 2 of the HF kind, or the one given; its kind, limits (with the line's frame
+    cap) and what it is allowed by its type; its name the settings' for its id (or the one given);
+    the operator's choices the settings' radio of its id (radio 1's where there is none); its state,
+    frame cap and frames the line's; and the line's type, which an old shape gives (today's beacon
+    reads it of the radio an answer goes on)."""
 
     def __init__(self, line: StubTnc, config: Callable[[], Config], id: RadioId | None = None, name: str = "") -> None:
         self.line, self._config, self._name = line, config, name
@@ -79,10 +85,15 @@ class LineAir:
 
 
 class StubPick:
-    """The station's radios as the services take them (services/radioset.py RadioPick), each a LineAir, the registry's choices by rule: a radio is given while its id is in `on` (all of them by default);
-    the radio of a call no radio heard the first of those; a station in `chosen` goes on the radio chosen for it while that is on (the operator's choice), one named in `hf_stations` on radio 2 while it and another are on
-    (today's choice by station), any other on the first; a packet is answered on the radio it came on while that is on, else on none (one a test made without a radio: on the first); email goes on
-    the one radio that is on, else on the one the settings choose (`email/radio`) while it is on, else on radio 1 while it is on, else on the first. `lines[id]` is the stub line of each radio."""
+    """The station's radios as the services take them (services/radioset.py RadioPick), each a
+    LineAir, the registry's choices by rule: a radio is given while its id is in `on` (all of them
+    by default); the radio of a call no radio heard the first of those; a station in `chosen` goes
+    on the radio chosen for it while that is on (the operator's choice), one named in `hf_stations`
+    on radio 2 while it and another are on (today's choice by station), any other on the first; a
+    packet is answered on the radio it came on while that is on, else on none (one a test made
+    without a radio: on the first); email goes on the one radio that is on, else on the one the
+    settings choose (`email/radio`) while it is on, else on radio 1 while it is on, else on the
+    first. `lines[id]` is the stub line of each radio."""
 
     def __init__(self, radios: list[LineAir], hf_stations: tuple[str, ...] = (), chosen: dict[str, RadioId] | None = None) -> None:
         self.radios, self.hf_stations = radios, hf_stations
@@ -107,7 +118,8 @@ class StubPick:
         return next(iter(self.enabled()), None)
 
     def choice(self, call: str) -> RadioId | None:
-        """The operator's radio for the station, as stored (the registry's StationChoices.choice)."""
+        """The operator's radio for the station, as stored (the registry's StationChoices.choice).
+        """
         return self.chosen.get(call)
 
     def for_station(self, call: str) -> LineAir | None:
@@ -128,7 +140,8 @@ class StubPick:
 
 
 def with_hf(rig: ServiceRig, pick: StubPick) -> StubTnc:
-    """Radio 2 beside the rig's radio 1, on an HF line of its own (the Mercury modem's frame of 123 bytes), on: its line."""
+    """Radio 2 beside the rig's radio 1, on an HF line of its own (the Mercury modem's frame of 123
+    bytes), on: its line."""
     line = StubTnc(max_frame=123)
     pick.radios.append(LineAir(line, lambda: rig.config))
     pick.on.add(HF_ID)
@@ -136,7 +149,8 @@ def with_hf(rig: ServiceRig, pick: StubPick) -> StubTnc:
 
 
 def pick_of(rig: ServiceRig, hf: StubTnc | None = None) -> StubPick:
-    """The rig's radios as a RadioPick: the rig's stub line as its one radio (radio 1, or radio 2 for a line with the HF rules), and an HF line beside it when one is given."""
+    """The rig's radios as a RadioPick: the rig's stub line as its one radio (radio 1, or radio 2
+    for a line with the HF rules), and an HF line beside it when one is given."""
     return StubPick([LineAir(line, lambda: rig.config) for line in (rig.tnc, hf) if line is not None])
 
 
@@ -144,28 +158,33 @@ class Rig(ServiceRig):
     def __init__(self, log: MessageLog, clock: FixedClock, tnc: StubTnc | None = None, spacing_sec: float = 0.0, keyring: Keyring | None = None, **changes: object) -> None:
         super().__init__(clock, tnc, **changes)
         self.log = log
-        self.deliveries: dict[str, Deliveries] = {}                      # how the packets of each station reached us (the station book's, here by hand)
+        # How the packets of each station reached us (the station book's, here by hand)
+        self.deliveries: dict[str, Deliveries] = {}
         self.prefs = PrefBook(log, lambda: self.config, self.deliveries.get, clock)
         self.board: list[tuple[Packet, Message]] = []                   # what messaging handed to the message board
-        self.radios = pick_of(self)                                     # the station's radios as the registry gives them: the stub line's radio
+        # The station's radios as the registry gives them: the stub line's radio
+        self.radios = pick_of(self)
         self.m = Messaging(self.radios, lambda: self.config, log, self.prefs.path_for, clock, tick_sec=TICK, board=lambda packet, message: self.board.append((packet, message)),
                         spacing_sec=spacing_sec, keyring=keyring)
         remember_stop(self.m.stop)
         self.record(self.m)
 
     async def start(self) -> None:
-        """What the controller's start does for messaging: the paths of the stations, then the service."""
+        """What the controller's start does for messaging: the paths of the stations, then the
+        service."""
         await self.prefs.load()
         await self.m.start()
 
     async def settled(self) -> None:
-        """What messaging gave the database is on it (the keeping of a message that came in is a task, the updates are appends)."""
+        """What messaging gave the database is on it (the keeping of a message that came in is a
+        task, the updates are appends)."""
         await asyncio.gather(*self.m.inbox.tasks)
         assert self.log.db is not None
         await self.log.db.barrier()
 
     async def radio(self, state: Source.State) -> None:
-        """The Tnc changes state and the ticker, which looks at it every few milliseconds, has seen it."""
+        """The Tnc changes state and the ticker, which looks at it every few milliseconds, has seen
+        it."""
         self.tnc.state = state
         await idle_for(TICK * 6)
 
@@ -176,7 +195,9 @@ class Rig(ServiceRig):
 
     def heard(self, source: str, addressee: str, text: str = "", msg_id: str | None = None, ack: str | None = None, rej: str | None = None, direction: str = "in",
               reply: str | None = None) -> Packet:
-        """A packet of a message heard: `reply` is the reply-ack part of its number (`{msg_id}reply`; "" for `{msg_id}`), and the information field is what the air would have had."""
+        """A packet of a message heard: `reply` is the reply-ack part of its number
+        (`{msg_id}reply`; "" for `{msg_id}`), and the information field is what the air would have
+        had."""
         decoded = Message(addressee, text, msg_id, ack, rej)
         line = f"ack{ack}" if ack is not None else f"rej{rej}" if rej is not None else text + ("" if msg_id is None else f"{{{msg_id}" + ("" if reply is None else f"}}{reply}"))
         info = f":{addressee:<9}:{line}".encode()
@@ -189,7 +210,8 @@ class Rig(ServiceRig):
 
 
 async def started_rig(tmp_path: Path, **changes: object) -> Rig:
-    """A Rig on a new database in the test's folder, started (the fixtures `rig` of this module and of the tests that go with it: test_messaging_pacing, test_messaging_rules)."""
+    """A Rig on a new database in the test's folder, started (the fixtures `rig` of this module and
+    of the tests that go with it: test_messaging_pacing, test_messaging_rules)."""
     log, _, clock = await log_at(tmp_path, MessageLog)
     r = Rig(log, clock, **changes)
     await r.start()
@@ -203,7 +225,8 @@ async def rig(tmp_path: Path) -> Rig:
 
 @pytest.fixture
 def give(monkeypatch: pytest.MonkeyPatch) -> Callable[[int], None]:
-    """Gives the messages sent from now on `count` attempts: the count of a message an earlier version sent is any of 1 to 10, and the code decides only 4 and 2."""
+    """Gives the messages sent from now on `count` attempts: the count of a message an earlier
+    version sent is any of 1 to 10, and the code decides only 4 and 2."""
     def make(count: int) -> None:
         monkeypatch.setattr(messaging_module, "attempts_for", lambda to: count)
     return make
@@ -217,7 +240,7 @@ def another(rig: Rig) -> Callable[..., Rig]:
     return make
 
 
-# ---- sending -------------------------------------------------------------------------------------------------------------------------------------
+# ---- sending -------------------------------------------------------------------------------------
 
 async def test_a_message_goes_out_at_once_as_the_frame_the_settings_make_and_is_kept_as_sending(rig: Rig) -> None:
     record = await rig.m.send("oh2rdg", "Hello Pekka")
@@ -317,7 +340,7 @@ async def test_the_text_may_be_up_to_67_characters_of_printable_ascii_and_nothin
     assert len(rig.tnc.sent) == 1
 
 
-# ---- the schedule ---------------------------------------------------------------------------------------------------------------------------------
+# ---- the schedule --------------------------------------------------------------------------------
 
 async def test_the_attempts_are_made_0_32_64_and_128_seconds_after_the_first_and_then_the_message_has_failed(rig: Rig) -> None:
     record = await rig.m.send("OH2RDG", "Hello")
@@ -340,7 +363,8 @@ async def test_the_attempts_are_made_0_32_64_and_128_seconds_after_the_first_and
 
 
 async def attempts_at(rig: Rig, offsets: tuple[int, ...], wait: int = 240, end: str = "failed") -> None:
-    """The message in `rig` is sent at these seconds after the first and is `end` (failed, or unconfirmed) `wait` seconds after the last, not a second before."""
+    """The message in `rig` is sent at these seconds after the first and is `end` (failed, or
+    unconfirmed) `wait` seconds after the last, not a second before."""
     here = 0
     for n, offset in enumerate(offsets[1:], start=1):
         await rig.pass_time(offset - here - 1)
@@ -417,7 +441,8 @@ async def test_a_message_keeps_the_number_of_attempts_it_was_sent_with_after_a_r
     give(3)
     await rig.m.send("OH2RDG", "first")
     give(5)
-    second = await rig.m.send("OH2AAA", "second")                                  # (to another station, so that the two are on the air side by side)
+    # To another station, so that the two are on the air side by side
+    second = await rig.m.send("OH2AAA", "second")
     assert (rig.state(1).attempts_max, second.attempts_max) == (3, 5)
     await rig.settled()
     assert [m.attempts_max for m in await rig.log.recent()] == [5, 3], "the number is in the database"
@@ -514,7 +539,7 @@ async def test_the_ack_settles_the_newest_message_with_that_id_to_that_station(r
     await restarted.m.stop()
 
 
-# ---- retry and cancel -----------------------------------------------------------------------------------------------------------------------------
+# ---- retry and cancel ----------------------------------------------------------------------------
 
 async def test_cancel_stops_a_message_that_is_being_sent_and_nothing_else(rig: Rig) -> None:
     await rig.m.send("OH2RDG", "Hello")
@@ -584,7 +609,7 @@ async def test_only_a_message_that_did_not_get_through_can_be_sent_again_and_onl
             rig.m.cancel(number)
 
 
-# ---- delete ---------------------------------------------------------------------------------------------------------------------------------------
+# ---- delete --------------------------------------------------------------------------------------
 
 async def test_delete_removes_a_message_of_any_kind_from_the_database_the_records_and_the_pages(rig: Rig) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "hi", "5"))
@@ -616,9 +641,11 @@ async def test_delete_cancels_a_message_that_is_being_sent_first_and_no_attempt_
 
 
 async def test_a_message_deleted_while_it_waits_for_its_first_attempt_never_goes_out(rig: Rig) -> None:
-    rig = Rig(rig.log, rig.clock, rig.tnc, spacing_sec=10.0)                 # (the pause between attempts, as on the air)
+    # The pause between attempts, as on the air
+    rig = Rig(rig.log, rig.clock, rig.tnc, spacing_sec=10.0)
     await rig.m.send("OH2RDG", "first")
-    waiting = await rig.m.send("OH2AAA", "second")                          # (behind the pause after the first: no attempt yet)
+    # Behind the pause after the first: no attempt yet
+    waiting = await rig.m.send("OH2AAA", "second")
     assert waiting.attempts == 0 and [f.info for f in rig.tnc.sent if b"second" in f.info] == []
     await rig.m.delete(waiting.id)
     await rig.pass_time(3600)
@@ -707,7 +734,8 @@ async def test_delete_conversation_reaches_the_messages_older_than_the_window_th
         rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", f"old {n}", str(n)))
     await rig.settled()
     for record in rig.m.records()[:2]:
-        rig.m._records.pop(record.id)                                       # (the window moved on: these are in the database only)
+        # The window moved on: these are in the database only
+        rig.m._records.pop(record.id)
     assert await rig.m.delete_conversation("OH2RDG") == 3
     assert rig.m.records() == [] and await rig.log.recent() == []
 
@@ -747,7 +775,7 @@ async def test_delete_overheard_of_a_pair_there_is_none_of_is_refused_and_so_is_
     assert len(rig.m.records()) == 3, "what the database still has is what is held"
 
 
-# ---- the radio away -------------------------------------------------------------------------------------------------------------------------------
+# ---- the radio away ------------------------------------------------------------------------------
 
 async def test_with_the_tnc_away_the_message_is_kept_its_attempt_waits_and_the_log_says_so_once(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.WARNING, "neoaprs.messaging")
@@ -822,7 +850,7 @@ async def test_a_tnc_that_will_not_take_the_frame_is_not_an_attempt_and_is_tried
     await until(lambda: rig.state().attempts == 1)
 
 
-# ---- messages that come in ------------------------------------------------------------------------------------------------------------------------
+# ---- messages that come in -----------------------------------------------------------------------
 
 async def test_a_message_to_us_is_kept_and_answered_at_once_with_an_ack(rig: Rig) -> None:
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", "Moi!", "12"))
@@ -917,7 +945,8 @@ async def test_a_copy_thirty_seconds_or_more_after_our_last_ack_is_acked_again_a
     rig.clock.advance(1)                                                          # (30 s after the first ack)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     assert len(rig.tnc.sent) == 2
-    rig.clock.advance(15)                                                         # (the thirty seconds count from the last ack, not from the first)
+    # The thirty seconds count from the last ack, not from the first
+    rig.clock.advance(15)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     assert len(rig.tnc.sent) == 2
     rig.clock.advance(15)
@@ -1000,7 +1029,7 @@ async def test_a_conversation_goes_both_ways_in_one_table(rig: Rig) -> None:
     assert [(m.direction, m.state, m.peer) for m in await rig.log.recent()] == [("in", "received", "OH2RDG"), ("out", "acked", "OH2RDG")]
 
 
-# ---- keeping and telling --------------------------------------------------------------------------------------------------------------------------
+# ---- keeping and telling -------------------------------------------------------------------------
 
 async def test_every_new_or_changed_message_is_told_with_the_message_as_it_is(rig: Rig) -> None:
     await rig.m.send("OH2RDG", "Moi")
@@ -1113,7 +1142,7 @@ async def test_a_message_that_came_in_just_before_the_stop_is_kept(rig: Rig) -> 
     assert [m.text for m in await rig.log.recent()] == ["last words"]
 
 
-# ---- the path of each station ---------------------------------------------------------------------------------------------------------------------
+# ---- the path of each station --------------------------------------------------------------------
 
 async def test_a_message_goes_by_way_of_the_path_of_its_station_and_the_others_by_the_beacon_path(rig: Rig) -> None:
     await rig.prefs.set_path("OH2RDG", "OH2RCH-2,WIDE2-1")
@@ -1125,7 +1154,8 @@ async def test_a_message_goes_by_way_of_the_path_of_its_station_and_the_others_b
 
 
 def hear(rig: Rig, call: str, *path: str, minutes_ago: float = 1.0) -> None:
-    """A packet of the station was heard `minutes_ago` minutes before now, by the path (the star marks the hops that repeated it)."""
+    """A packet of the station was heard `minutes_ago` minutes before now, by the path (the star
+    marks the hops that repeated it)."""
     rig.deliveries.setdefault(call, Deliveries()).note(route_of(path), 1, rig.clock() - timedelta(minutes=minutes_ago))
 
 
@@ -1290,7 +1320,7 @@ async def test_an_ack_goes_out_for_every_distinct_message_to_us_that_has_an_id_a
     assert [f.info for f in rig.tnc.sent] == [b":OH2RDG   :ack1", b":OH2RDG   :ack2", b":OH2XYZ   :ack1"] and len(rig.m.records()) == 4
 
 
-# ---- messages we only overhear --------------------------------------------------------------------------------------------------------------------
+# ---- messages we only overhear -------------------------------------------------------------------
 
 async def test_a_message_to_another_station_is_kept_as_overheard_and_never_acked(rig: Rig) -> None:
     rig.m.on_packet(rig.heard("OH2RDG", "OH2XYZ", "not for us", "3"))
@@ -1400,7 +1430,7 @@ async def test_a_call_that_is_none_cannot_have_its_path_cleared(rig: Rig) -> Non
         await rig.prefs.clear_path("TOOLONGCALL")
 
 
-# ---- what the log says of a message --------------------------------------------------------------------------------------------------------------
+# ---- what the log says of a message --------------------------------------------------------------
 
 async def test_the_log_says_when_a_message_is_kept_on_which_radio_it_went_when_it_is_retried_cancelled_and_acked(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, "neoaprs.messaging")

@@ -1,10 +1,7 @@
-"""The support bundle as a file: what a zip of the bundle is made of and how it is written, with no knowledge of where the contents come from (neoaprs/cli/supportgather.py gathers them, neoaprs/cli/supportmake.py
-puts the two together).
+"""The support bundle as a file: how a zip of text members is written.
 
-A bundle is one zip, deflate-compressed, `neoaprs-support-<CALL or nocall>-<YYYYmmdd-HHMMSS>Z.zip`, of members that are text. It is written under a temporary name and renamed, so a half-written file is never taken for a bundle. The values of
-the secrets (the access key) are taken out of every member as the zip is written, whatever put them there: the settings are redacted by name, this is the net under them.
-
-The logs are cut to a budget: the newest lines are kept, from a line start, and the first line of a cut file says how much of it was left out."""
+The zip is renamed into place when complete. Secret values are removed from every member as it is
+written (a safety net behind the redaction by name). Logs are cut to a budget."""
 import re
 import zipfile
 from collections.abc import Iterable
@@ -13,25 +10,25 @@ from datetime import datetime
 from pathlib import Path
 
 LOG_BUDGET_BYTES = 12 * 1024 * 1024
-MIN_SECRET_CHARS = 6                         # a shorter value would be taken out of words that merely contain it
+# A shorter secret would match inside ordinary words.
+MIN_SECRET_CHARS = 6
 ROTATED = re.compile(r"\.(\d+)$")
 
 
 @dataclass(frozen=True)
 class Member:
-    """One file of the bundle: its path in the zip and its text."""
     name: str
     text: str
 
 
 def bundle_name(call: str, when: datetime) -> str:
-    """`neoaprs-support-OH2GBA-20261026-120000Z.zip`; `nocall` while no call is set. Only letters, digits and dashes of the call are used: the name goes into a path and a header."""
+    """Return `neoaprs-support-CALL-20261026-120000Z.zip` (`nocall` if unset)."""
     safe = "".join(c for c in call.upper() if c.isalnum() or c == "-").strip("-")
     return f"neoaprs-support-{safe or 'nocall'}-{when:%Y%m%d-%H%M%S}Z.zip"
 
 
 def secret_pattern(values: Iterable[str]) -> re.Pattern[str] | None:
-    """A pattern for every secret value and for it typed the way a person types an access key (capitals, the dashes and blanks left out); None when there is none worth looking for."""
+    """Return a pattern for each secret, also as typed by hand (no dashes, blanks); None if none."""
     parts: set[str] = set()
     for value in values:
         if len(value) >= MIN_SECRET_CHARS:
@@ -47,7 +44,7 @@ def scrubbed(text: str, secrets: re.Pattern[str] | None) -> str:
 
 
 def write_zip(path: Path, members: list[Member], when: datetime, secrets: Iterable[str] = ()) -> int:
-    """Writes the members, in the order given, to `path` (the folder must exist); the size of the file. README.txt and summary.txt should come first: they are what is opened first."""
+    """Write the members in order to `path` (its folder must exist); return the file size."""
     pattern = secret_pattern(secrets)
     part = path.with_name(path.name + ".part")
     stamp = (when.year, when.month, when.day, when.hour, when.minute, when.second)
@@ -68,7 +65,7 @@ def write_zip(path: Path, members: list[Member], when: datetime, secrets: Iterab
 # ---- the logs, within a budget
 
 def rotated_logs(folder: Path, name: str) -> list[Path]:
-    """The log `name` of the folder and its rotated files, the newest first (`neoaprs.log`, `neoaprs.log.1`, `neoaprs.log.2` ...); those that exist."""
+    """Return the log `name` and its rotated files, newest first."""
     found: list[tuple[int, Path]] = []
     for path in folder.glob(name + "*"):
         suffix = path.name[len(name):]
@@ -80,7 +77,7 @@ def rotated_logs(folder: Path, name: str) -> list[Path]:
 
 
 def tail_text(path: Path, budget: int) -> tuple[str, int]:
-    """(the end of the file as text: whole when it fits in `budget` bytes, else cut at a line start, and how many bytes were left out)."""
+    """Return the end of the file (cut at a line start over `budget`) and the bytes left out."""
     with path.open("rb") as f:
         f.seek(0, 2)
         size = f.tell()
@@ -90,13 +87,13 @@ def tail_text(path: Path, budget: int) -> tuple[str, int]:
         f.seek(size - budget)
         data = f.read()
     cut = data.find(b"\n")
-    data = b"" if cut < 0 else data[cut + 1:]                  # (the first line of a cut is the end of one)
+    # Drop the partial first line.
+    data = b"" if cut < 0 else data[cut + 1:]
     return data.decode("utf-8", errors="replace"), size - len(data)
 
 
 def log_members(files: list[Path], budget: int | None = None) -> list[Member]:
-    """The files as members `logs/<name>`, in the order given, the newest lines of them within `budget` bytes in all. A file that is cut starts with a line that says how much was left out; one that does not fit at all is a
-    member of that one line; one that cannot be read says why."""
+    """Return the files as members `logs/<name>`, keeping the newest lines within `budget` bytes."""
     members: list[Member] = []
     left = LOG_BUDGET_BYTES if budget is None else budget
     for path in files:

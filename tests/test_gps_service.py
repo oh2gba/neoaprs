@@ -1,5 +1,6 @@
-"""The GPS service (neoaprs/services/gps.py) on the real feed and a fake gpsd, with a clock the test holds: the state of the GPS from `off` to `stale`, the fix to beacon with and the one to put our row at, `moved`
-for the station book and the ALOHA circle, and the feed started again when the settings change."""
+"""Tests for the GPS service (neoaprs/services/gps.py) on the real feed and a fake gpsd with a test
+clock: the state from `off` to `stale`, the beacon fix, `moved`, and feed restarts on new settings.
+"""
 import logging
 from datetime import timedelta
 
@@ -62,7 +63,8 @@ async def test_a_gpsd_that_is_not_there_is_connecting_with_the_reason() -> None:
     rig = Rig(gps_source="gpsd", gps_host=gpsd.address)
     await rig.gps.start()
     await until(lambda: rig.feed.state is Source.State.WAITING)
-    why = "no answer in time" if sys.platform == "win32" else "refused"          # (Windows takes about two seconds to refuse a connection: longer than the feed of a test waits)
+    # (Windows takes about two seconds to refuse a connection: longer than the feed of a test waits)
+    why = "no answer in time" if sys.platform == "win32" else "refused"
     assert rig.gps.state == "connecting" and why in rig.gps.problem.lower() and rig.gps.problem == rig.feed.problem
 
 
@@ -141,7 +143,8 @@ def test_our_row_follows_the_first_fix_then_after_five_seconds_and_ten_metres() 
     rig.gps.take(fix_at(rig.clock(), lat=60.43002))                                  # 2 m
     assert rig.moved == 1, "far too near"
     rig.clock.advance(1)
-    rig.gps.take(fix_at(rig.clock(), lat=60.4301))                                   # 11 m, 11 seconds after the row was put
+    # 11 m, 11 seconds after the row was put
+    rig.gps.take(fix_at(rig.clock(), lat=60.4301))
     assert rig.moved == 2
     rig.clock.advance(2)
     rig.gps.take(fix_at(rig.clock(), lat=60.4310))                                   # 100 m but 2 seconds after
@@ -210,7 +213,8 @@ async def test_switching_the_source_to_off_while_a_feed_runs_logs_gps_off_once(c
     await until(lambda: rig.feed.state is Source.State.STOPPED and "gps: off" in texts())
     assert texts() == [f"gps: reading gpsd at {gpsd.address}", "gps: off"]
     assert all(r.levelno == logging.INFO for r in caplog.records if r.name == "neoaprs.gps")
-    rig.gps.settings_changed()                                                          # (nothing changed: nothing is said again)
+    # (nothing changed: nothing is said again)
+    rig.gps.settings_changed()
     rig.set(station_comment="x")
     rig.gps.settings_changed()
     await idle_for(0.05)
@@ -229,7 +233,8 @@ async def test_a_gps_that_was_never_on_logs_nothing_when_it_stays_off_or_the_pro
     rig = Rig(gps_source="gpsd", gps_host=gpsd.address)
     await rig.gps.start()
     await until(lambda: gpsd.watching)
-    await rig.gps.stop()                                                                # (the program ends: that is not a switch to off)
+    # (the program ends: that is not a switch to off)
+    await rig.gps.stop()
     assert "gps: off" not in [r.getMessage() for r in caplog.records if r.name == "neoaprs.gps"]
 
 

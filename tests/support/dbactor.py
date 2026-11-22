@@ -1,5 +1,4 @@
-"""What the tests of the Db actor (neoaprs/db.py) share: a Db on a table of numbers, connections that fail on demand, a leak guard for its thread, and a reader that sees only
-what is committed."""
+"""Shared by the Db actor tests: a Db on a table of numbers, failing connections, a leak guard."""
 import asyncio
 import sqlite3
 import threading
@@ -17,7 +16,8 @@ T = TypeVar("T")
 THREAD_PREFIX = "neoaprs-db"
 SCHEMA = ("CREATE TABLE IF NOT EXISTS t (n INTEGER PRIMARY KEY, v TEXT NOT NULL)",
           "CREATE TABLE IF NOT EXISTS pair (n INTEGER NOT NULL, side INTEGER NOT NULL, PRIMARY KEY (n, side))")
-QUICK = Tuning(tick=0.02, retry_sec=0.01)               # appends are committed after 20 ms; a failed batch is tried again after 10 ms
+# Appends commit after 20 ms; a failed batch is retried after 10 ms.
+QUICK = Tuning(tick=0.02, retry_sec=0.01)
 
 
 def db_threads() -> list[DbThread]:
@@ -32,14 +32,15 @@ def wait_gone(timeout: float = 2.0) -> list[DbThread]:
 
 
 def fast_connection(path: str | Path) -> sqlite3.Connection:
-    """The connection of the daemon without the sync to the disk, for the tests of order and of the model that do thousands of commits."""
+    """The daemon's connection without the disk sync, for tests that do thousands of commits."""
     conn = connect(path)
     conn.execute("PRAGMA synchronous=OFF")
     return conn
 
 
 class Faulty(FaultyConnection):
-    """FaultyConnection that lets every kind of ROLLBACK through (a failed disk can still roll back): armed from inside the database thread with `arm`."""
+    """FaultyConnection that lets every ROLLBACK through, armed from inside the database thread with
+    `arm`."""
 
     def _tick(self, sql: str) -> None:
         if sql.lstrip().upper().startswith("ROLLBACK"):
@@ -55,7 +56,8 @@ def faulty_connection(path: str | Path) -> sqlite3.Connection:
 
 
 def arm(conn: sqlite3.Connection, fail_at: int | None, sticky: bool = False) -> None:
-    """From the next statement on: the `fail_at`th (1 is the next) raises what a full disk raises; sticky: that one and all after it."""
+    """From the next statement on, the `fail_at`th (1 is the next) raises what a full disk raises.
+    """
     assert isinstance(conn, Faulty)
     conn.statements = 0
     conn.log = []
@@ -90,5 +92,6 @@ def committed(path: Path, sql: str = "SELECT n FROM t ORDER BY n") -> list[Any]:
 
 
 def eager(coro: Coroutine[Any, Any, T]) -> "asyncio.Task[T]":
-    """A task that runs to its first await at once, so that it has asked the database (put its operation on the queue) when this returns: the order of asking is the order of the calls."""
+    """A task that runs to its first await at once, so the order of asking is the order of the
+    calls."""
     return asyncio.Task(coro, loop=asyncio.get_running_loop(), eager_start=True)

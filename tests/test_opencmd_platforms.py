@@ -1,5 +1,6 @@
-"""`neoaprs open` (neoaprs/cli/opencmd.py) where it branches on the system or on what the daemon has done so far, with the platform said and Popen, the Windows API and the daemon's state faked: the command that
-starts the daemon on Windows and how it is detached, the message box of a program that has no console, and a wait for a page that is not up yet. Nothing is started and no window is made."""
+"""`neoaprs open` (neoaprs/cli/opencmd.py) where it branches on the system or the daemon's state,
+with the platform said and Popen, the Windows API and the daemon state faked. Nothing is started.
+"""
 import ctypes
 import os
 import subprocess
@@ -49,8 +50,9 @@ def test_elsewhere_the_daemon_is_a_session_of_its_own_whose_output_goes_to_a_fil
 
 
 def test_the_daemon_of_an_appimage_that_runs_unpacked_runs_unpacked_too(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """An AppImage started with --appimage-extract-and-run (a computer without FUSE): the runtime keeps the flag to itself, so the daemon the app starts, the same file again, tried to mount and never
-    came up. The variable says the same and is inherited."""
+    """An AppImage started with --appimage-extract-and-run (a computer without FUSE): the runtime
+    keeps the flag to itself, so the daemon the app starts, the same file again, tried to mount and
+    never came up. The variable says the same and is inherited."""
     monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.delenv("APPIMAGE_EXTRACT_AND_RUN", raising=False)
     monkeypatch.delenv("NO_CLEANUP", raising=False)
@@ -68,8 +70,11 @@ def test_the_daemon_of_an_appimage_that_runs_unpacked_runs_unpacked_too(tmp_path
 
 
 def test_the_daemon_of_an_appimage_that_runs_unpacked_leaves_the_folder_it_shares_with_the_app_to_the_apps_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The runtime unpacks one file into one folder for every run of it and removes the folder when its program ends: the daemon, which the app stops at Quit before it ends itself, removed the app's
-    files under it, and the app's runtime then failed with "Failed to clean up cache directory" (work/par/r3/appe2e, risk 2). The app's runtime removes the folder at the app's end."""
+    """The runtime unpacks one file into one folder for every run of it and removes the folder when
+    its program ends: the daemon, which the app stops at Quit before it ends itself, removed the
+    app's files under it, and the app's runtime then failed with "Failed to clean up cache
+    directory". The app's runtime removes the folder at the app's end.
+    """
     monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.delenv("NO_CLEANUP", raising=False)
     spawned = Spawned(monkeypatch)
@@ -88,7 +93,8 @@ def test_the_daemon_of_an_appimage_that_runs_unpacked_leaves_the_folder_it_share
 
 
 class Windows:
-    """The two calls of the Windows API of the message box: the console window the program has (0: none) and the box."""
+    """The two calls of the Windows API of the message box: the console window the program has (0:
+    none) and the box."""
 
     def __init__(self, monkeypatch: pytest.MonkeyPatch, console: int) -> None:
         self.boxes: list[tuple[object, str, str, int]] = []

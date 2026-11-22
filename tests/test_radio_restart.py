@@ -1,5 +1,6 @@
-"""A saved setting restarts the radio it belongs to and no other (Controller._save, by the registry's `sync`: each driver's restart key and the radio's tickbox, neoaprs/radioregistry.py): a station with both radios on keeps the FM radio's line through a change of the Mercury radio's modem, its sound card or its tickbox, and keeps the Mercury
-radio's through a change of the FM radio's speed. (The page opens the fold of a radio's box while the radio is not connected; an FM radio that went through "connecting" because a Mercury setting was saved opened the FM box's fold.)"""
+"""A saved setting restarts the radio it belongs to and no other (Controller._save, the registry's
+`sync`): changing one radio's modem, sound card or tickbox keeps the other radio's line.
+"""
 import asyncio
 import logging
 from dataclasses import replace
@@ -71,13 +72,15 @@ async def test_a_setting_of_neither_radio_restarts_neither(tmp_path: Path) -> No
 
 
 async def test_storing_the_sound_card_and_the_keying_the_modem_chose_itself_restarts_nothing(tmp_path: Path) -> None:
-    """The page stores the daemon's proposal as the setting: the modem already runs with it, so it is no reason to restart (a card it does not run with is)."""
+    """The page stores the daemon's proposal as the setting: the modem already runs with it, so it
+    is no reason to restart (a card it does not run with is)."""
     w = await both_radios(tmp_path)
     a = w["OH2A"]
     hf_seen = watch(a.hf)
     modem = a.mercury
     assert a.ctl.config.mercury_sound_card == "" and modem.state == "running"
-    modem.sound_card, modem.keying = "plughw:1,0", Keying("rts", "/dev/ttyUSB0")        # (what the program was started with, as its own choice)
+    # What the program was started with, as its own choice
+    modem.sound_card, modem.keying = "plughw:1,0", Keying("rts", "/dev/ttyUSB0")
     assert await a.ctl.save_config(replace(a.ctl.config, mercury_sound_card="plughw:1,0", mercury_keying="rts:/dev/ttyUSB0"))
     await asyncio.sleep(0.5)        # (a restart stops the HF radio at once)
     assert hf_seen == []
@@ -86,12 +89,14 @@ async def test_storing_the_sound_card_and_the_keying_the_modem_chose_itself_rest
 
 
 async def test_clearing_a_sound_card_that_was_set_restarts_the_modem_so_that_it_chooses_again(tmp_path: Path) -> None:
-    """Storing the modem's own choice is no change; taking a stored one away is: the setting says "choose", and only a start chooses."""
+    """Storing the modem's own choice is no change; taking a stored one away is: the setting says
+    "choose", and only a start chooses."""
     w = await both_radios(tmp_path)
     a = w["OH2A"]
     fm_seen, hf_seen = watch(a.tnc), watch(a.hf)
     modem = a.mercury
-    modem.sound_card = "plughw:1,0"                                                    # (what the program was started with, as its own choice)
+    # What the program was started with, as its own choice
+    modem.sound_card = "plughw:1,0"
     assert await a.ctl.save_config(replace(a.ctl.config, mercury_sound_card="plughw:1,0"))
     await asyncio.sleep(0.3)
     assert hf_seen == []
@@ -132,6 +137,8 @@ async def test_the_log_says_which_radio_is_restarted_and_what_changed_in_its_set
     [why] = [r.getMessage() for r in caplog.records if r.getMessage().startswith("the FM radio is restarted because its settings changed")]
     assert "baud 9600 -> 19200" in why
     assert await a.ctl.save_config(replace(a.ctl.config, hf_enabled=False))
-    await w.until(lambda: any(r.getMessage() == "the Mercury radio is off in the settings" for r in caplog.records))          # (the line comes after the modem is stopped too, which on Windows takes longer than the radio's STOPPED)
+    # The line comes after the modem is stopped too, which on Windows takes longer than the radio's
+    # STOPPED
+    await w.until(lambda: any(r.getMessage() == "the Mercury radio is off in the settings" for r in caplog.records))
     assert a.hf.state is Source.State.STOPPED
     assert any(r.getMessage().startswith("the Mercury radio is restarted because its settings changed: switched on or off: on -> off") for r in caplog.records)

@@ -1,6 +1,6 @@
-"""What each radio heard of a station and the path of a station on a radio (neoaprs/stationsql.py: the tables `station_radio` and `station_path` of migration 33), statement by statement on a
-connection, and what the message log makes of them (neoaprs/messagelog.py, messagesql.py): what is said of a station is its path on a radio beside RF only and the alert, each kept where it belongs,
-replaced, taken away alone, and forgotten with its path on radio 1 while its paths on other radios stay."""
+"""What each radio heard of a station and a station's path on a radio (neoaprs/stationsql.py:
+`station_radio` and `station_path`), statement by statement, and what the message log makes of them.
+"""
 import sqlite3
 from pathlib import Path
 
@@ -22,17 +22,20 @@ from tests.support.storedb import log_at
 
 STAMP = "2026-10-21T12:00:00.000000Z"
 LATER = "2026-10-21T12:30:00.000000Z"
-NEW = pytest.mark.parametrize("shape", [True], indirect=True, ids=SHAPE_IDS.get)       # a test of the shape of migration 33 alone
+# A test of the shape of migration 33 alone
+NEW = pytest.mark.parametrize("shape", [True], indirect=True, ids=SHAPE_IDS.get)
 
 
 @pytest.fixture(autouse=True, params=SHAPES, ids=SHAPE_IDS.get)
 def shape(request: pytest.FixtureRequest) -> bool:
-    """The shape of the database the stores write in this test: False that of version 30, True that of migration 33 (`shaped` makes the file to match)."""
+    """The shape of the database the stores write in this test: False that of version 30, True that
+    of migration 33 (`shaped` makes the file to match)."""
     return bool(request.param)
 
 
 def database(tmp_path: Path) -> sqlite3.Connection:
-    """A connection of the test's own to a new database of the shape of migration 33, with today's two radios."""
+    """A connection of the test's own to a new database of the shape of migration 33, with today's
+    two radios."""
     return connect(shaped(tmp_path / DB_NAME))
 
 
@@ -72,7 +75,8 @@ def test_the_rows_of_a_station_are_put_as_they_are_now_and_the_row_of_a_radio_no
 
 @NEW
 def test_a_station_row_kept_without_what_its_radios_heard_leaves_their_rows_as_they_were(tmp_path: Path) -> None:
-    """`upsert_station(db, row)`, the call of before the radios, keeps the station's counts as it did: only `heard=` puts the rows of `station_radio` (an empty one takes them away)."""
+    """`upsert_station(db, row)`, the call of before the radios, keeps the station's counts as it
+    did: only `heard=` puts the rows of `station_radio` (an empty one takes them away)."""
     db = database(tmp_path)
     at = parse_stamp(STAMP)
     row = station_row(Station("OH2RDG", first_heard=at, last_heard=at, heard_by={FM_ID: RadioHeard(3, at, ("WIDE1-1",))}))
@@ -114,7 +118,7 @@ def test_the_path_of_a_station_on_a_radio_is_kept_replaced_and_cleared_for_that_
     db.close()
 
 
-# ---- what the message log makes of them: both shapes hold what tests/test_messagelog.py holds of the one before
+# ---- what the message log makes of them: both shapes hold what tests/test_messagelog.py holds
 
 async def test_what_is_said_of_a_station_is_kept_replaced_and_forgotten_and_an_empty_path_is_not_none(tmp_path: Path, shape: bool) -> None:
     log, clock = await opened(tmp_path)

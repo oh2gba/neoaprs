@@ -1,8 +1,6 @@
 """A signal in the Qt sense: handlers connect, the owner emits, every handler is called in order.
 
-Synchronous on purpose: the program is one asyncio loop, and a handler that needs to wait starts a
-task of its own. An exception in one handler is logged and does not stop the others, so a bug in the
-page's view never silences the alarm.
+Synchronous; a handler that must wait starts a task. A failing handler is logged, not fatal.
 """
 import logging
 from typing import Callable, Generic, ParamSpec
@@ -20,7 +18,8 @@ class Signal(Generic[P]):
         self._handlers.append(handler)
 
     def disconnect(self, handler: Callable[P, object]) -> None:
-        self._handlers = [h for h in self._handlers if h != handler]          # by equality: a bound method is a new object each time it is read, and `is` would never find it
+        # Compare by equality: a bound method is a new object on every read, so `is` never matches.
+        self._handlers = [h for h in self._handlers if h != handler]
 
     def clear(self) -> None:
         self._handlers.clear()

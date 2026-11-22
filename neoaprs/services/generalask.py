@@ -1,21 +1,8 @@
-"""Asking around: the general queries of APRS 1.0.1 (chapter 15) sent from here at the operator's request (the ones we hear are answered, or not, by services/queries.py).
+"""Asking around: the general queries of APRS 1.0.1 (chapter 15) sent at the operator's request.
 
-`ask` sends one UI frame from our call to our tocall whose information field is the query and nothing else: `?APRS?` (all stations: who is around? each answers with its position, and its status if it has one), `?IGATE?`
-(the iGates answer with their capabilities) or `?WX?` (the weather stations answer with their weather). It goes once, by the path the operator gives (aliases such as WIDE1-1,WIDE2-1, explicit digipeaters such as
-OH2RDK-7,OH2RCH-2 for a station that reaches the network only through a fill-in digipeater that relays it when it is named, DIRECT for none; none given is the radio's own path) with RFONLY after it unless the operator
-says otherwise, so that the iGates keep it off APRS-IS and the stations in radio range answer by radio. It is refused under the transmit interlock (RX only, no call), while the radio is away, and within
-ASK_EVERY_SEC of the query of the same kind (`general.too_soon`, with the seconds that are left): a query makes every station that hears it transmit, and the channel is shared.
-
-The answers are ordinary packets (positions, capabilities, weather) and need nothing here. A station that answers does not say that it answers, so what is kept for the page is only what can be told: the last
-query of each kind, when it went and by what path, and the stations heard on the radio (not a third-party packet, not from the internet, not us) in the COUNT_FOR after it that the station book had not heard on
-the radio in the QUIET_BEFORE before it. Those are the stations that were quiet and spoke after the query: most will be answers, but a station whose own beacon fell in those two minutes counts too, and the answer of
-a station heard a minute before the query does not. It is all forgotten when the daemon stops.
-
-Asking around has a Send on of its own (each radio's "ask" tick, read by beaconrule.send_on_radios: with one radio that can send, that one): a press sends one query on each ticked radio
-that takes frames now, each by the path that radio carries (the one given where it may carry a path, else its own). The minute between two queries of a kind is each radio's, and a press is all or nothing:
-while a ticked radio is inside its minute for the kind, or a path makes no frame on one of them, nothing goes on any (`general.too_soon` with the longest wait). The record of a press holds its radios, and
-the stations counted after it are those one of its radios heard that this radio had not heard in the QUIET_BEFORE (a packet that names no radio counts where every radio of the press had been quiet), each
-once whatever number of radios heard it. The log names the radio while more than one is on."""
+`ask` sends a UI frame holding only the query on each ticked radio, all or nothing, with RFONLY
+appended by default. Kept for the page: the last query of each kind and the newcomers after it.
+"""
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
@@ -36,31 +23,33 @@ from neoaprs.station import Station
 log = logging.getLogger("neoaprs.queries")
 
 Kind = Literal["aprs", "igate", "wx"]
-QUERIES: dict[Kind, str] = {"aprs": QUERY_TEXT["aprs"], "igate": QUERY_TEXT["igate"], "wx": QUERY_TEXT["wx"]}       # the information field of each kind, exactly
-ASK_EVERY_SEC = 60                      # one query of a kind in this time
-COUNT_FOR = timedelta(minutes=2)        # how long after a query the stations that speak are counted
-QUIET_BEFORE = timedelta(minutes=10)    # a station heard on the radio this long before the query is no newcomer
-NEW_MAX = 200                           # the most calls kept for one query
+QUERIES: dict[Kind, str] = {"aprs": QUERY_TEXT["aprs"], "igate": QUERY_TEXT["igate"], "wx": QUERY_TEXT["wx"]}
+ASK_EVERY_SEC = 60
+COUNT_FOR = timedelta(minutes=2)        # stations heard this long after a query are counted
+QUIET_BEFORE = timedelta(minutes=10)    # a station heard this long before the query is no newcomer
+NEW_MAX = 200
 
 
 class Stations(Protocol):
-    """What asking around needs of the station book."""
     def stations(self) -> list[Station]: ...
 
 
 @dataclass(frozen=True, slots=True)
 class GeneralAsked:
-    """A press of Ask: the kind of query, when, the radios it went on, the path it went by (RFONLY included when it was RF only; None when its radios that carry a path went each by its own and those
-    differ) and the calls of the stations that were quiet before it and were heard after it, in the order heard, each once."""
+    """A press of Ask: kind, time, radios, path and the newcomers heard after it.
+
+    `path` is None when the radios went by different paths.
+    """
     kind: Kind
     at: datetime
     path: tuple[str, ...] | None
     new: tuple[str, ...] = ()
-    heard_before: Mapping[RadioId, frozenset[str]] = field(default_factory=dict, repr=False)      # for each of its radios, the stations heard on it in the QUIET_BEFORE before the press
+    # Per radio: stations heard in QUIET_BEFORE.
+    heard_before: Mapping[RadioId, frozenset[str]] = field(default_factory=dict, repr=False)
     radios: tuple[RadioId, ...] = ()
 
     def counts(self, packet: Packet) -> bool:
-        """Whether a packet heard in its time is a newcomer's: one of its radios heard it (a packet that names no radio is every radio's) and had not heard its sender before the press."""
+        """Whether the packet is a newcomer's: a radio of the press heard it, newly."""
         heard = self.radios if packet.radio_id is None else tuple(id for id in self.radios if id == packet.radio_id)
         quiet = [packet.sender not in self.heard_before.get(id, frozenset()) for id in heard]
         return bool(quiet) and (all(quiet) if packet.radio_id is None else quiet[0])
@@ -71,13 +60,13 @@ class GeneralAsked:
 
     @property
     def until(self) -> datetime:
-        """When the counting of `new` ends."""
+        """When counting of `new` ends."""
         return self.at + COUNT_FOR
 
 
 @dataclass(frozen=True, slots=True)
 class SentOn:
-    """The last query of a kind on one radio: the minute before the next of that kind is counted from it."""
+    """The last query of a kind on one radio."""
     kind: Kind
     radio: RadioId
     at: datetime
@@ -85,27 +74,27 @@ class SentOn:
 
 class GeneralAsk:
     def __init__(self, radios: RadioPick | Radio, config: ConfigSource, book: Stations, clock: Clock = utcnow) -> None:
-        self._given = radios                                    # the station's radios (the registry; which app.py gives; an old shape of a test's): a query goes on those of its Send on
+        self._given = radios
         self._config = config
         self._book = book
         self.clock = clock
         self.changed: Signal[[]] = Signal("general_changed")
-        self._asked: dict[Kind, GeneralAsked] = {}              # the last press of each kind
-        self._sent: dict[tuple[RadioId, Kind], datetime] = {}   # when the last query of each kind went on each radio
+        self._asked: dict[Kind, GeneralAsked] = {}
+        self._sent: dict[tuple[RadioId, Kind], datetime] = {}
 
     def asked(self) -> list[GeneralAsked]:
-        """The last press of each kind, the oldest first (what the page shows)."""
+        """The last press of each kind, oldest first."""
         return sorted(self._asked.values(), key=lambda a: a.at)
 
     def sent_on(self) -> list[SentOn]:
-        """The last query of each kind on each radio, the oldest first: what the wait before the next press is counted from."""
+        """The last query of each kind on each radio, oldest first."""
         return sorted((SentOn(kind, radio, at) for (radio, kind), at in self._sent.items()), key=lambda s: (s.at, s.radio))
 
     def ask(self, kind: Kind, path: str | None = None, rf_only: bool = True) -> GeneralAsked:
-        """Sends the query of the kind once on each radio of asking around's Send on that takes frames now, by `path` (None or empty is each radio's own path) with RFONLY after it when `rf_only`, all or
-        nothing. Raises MessagingError, and nothing is sent, when the kind is none, nothing may be transmitted (RX only, no call), there is no radio or none of them takes frames now, the query of this
-        kind went on one of the ticked radios less than ASK_EVERY_SEC ago (`general.too_soon`, with the seconds that are left: the longest), the path is no path or too long with RFONLY, or no radio
-        takes the frame."""
+        """Send the query on each ticked radio, all or nothing; empty `path` is each radio's own.
+
+        Raise MessagingError if a radio is unusable or inside ASK_EVERY_SEC, or input is invalid.
+        """
         our_call(self._config())
         if kind not in QUERIES:
             raise MessagingError(f"{kind!r} is not aprs, igate or wx", "failed")
@@ -115,7 +104,8 @@ class GeneralAsk:
         if (wait := max((self._wait(radio.id, kind, now) for radio in send_on(self._given, self._config, "ask")), default=0.0)) > 0:
             seconds = max(1, round(wait))
             raise MessagingError(f"too soon for another {query}: wait {seconds} s", "general.too_soon", query=query, seconds=seconds)
-        frames = [(radio, self._frame(radio, query, path, rf_only)) for radio in on]          # (every frame is made before one is sent: a path that is none on one radio sends nothing on any)
+        # All frames are built before any is sent, so a bad path sends nothing.
+        frames = [(radio, self._frame(radio, query, path, rf_only)) for radio in on]
         went = sent_on(frames, "asking around")
         asked = self._asked[kind] = GeneralAsked(kind, now, _shared_path(went), heard_before=self._heard_before([radio.id for radio, _ in went], now), radios=tuple(radio.id for radio, _ in went))
         for radio, frame in went:
@@ -125,20 +115,20 @@ class GeneralAsk:
         return asked
 
     def _heard_before(self, radios: list[RadioId], now: datetime) -> dict[RadioId, frozenset[str]]:
-        """For each radio, the stations it heard in the QUIET_BEFORE before `now`: no newcomers there."""
+        """For each radio, the stations it heard in the QUIET_BEFORE before `now`."""
         stations = [s for s in self._book.stations() if s.kind == "station"]
         return {radio: frozenset(s.call for s in stations if _heard_lately(s, radio, now)) for radio in radios}
 
     def _wait(self, radio: RadioId, kind: Kind, now: datetime) -> float:
-        """The seconds before a query of the kind may go on the radio again: ASK_EVERY_SEC after the last one there."""
+        """Seconds left before the kind may go on the radio again; zero or less if now."""
         before = self._sent.get((radio, kind))
         return 0.0 if before is None else ASK_EVERY_SEC - (now - before).total_seconds()
 
     def _frame(self, radio: AirRadio, query: str, path: str | None, rf_only: bool) -> ax25.Frame:
-        """The query as our frame for the radio, by the path it carries: the one given, else its own, with RFONLY; none where it may carry none."""
+        """Build the query frame: the given path, else the radio's own, with RFONLY if asked."""
         config = self._config()
         try:
-            calls = path_on(radio, config, request_path(path, path_on(radio, config, None), rf_only))      # (none given: the path of the radio it goes on, not radio 1's)
+            calls = path_on(radio, config, request_path(path, path_on(radio, config, None), rf_only))
         except CodedError as e:
             raise MessagingError(str(e), e.code, **e.params) from None
         try:
@@ -147,12 +137,12 @@ class GeneralAsk:
             raise MessagingError.of(e, f"the query {query} makes no frame: {e}") from None
 
     def on_packet(self, packet: Packet) -> None:
-        """A station heard on a radio of a press within COUNT_FOR of it, and not heard on that radio in the QUIET_BEFORE before it, is noted with the press, once."""
+        """Note a newcomer heard within COUNT_FOR of a press, once."""
         if packet.direction != "in" or not packet.on_air or packet.via == RF_GATED or not self._asked:
             return
         call = packet.sender
         if same_call(call, self._config().station_call):
-            return                                                  # (our own query, repeated by a digipeater)
+            return  # our own query, repeated by a digipeater
         told = False
         for kind, asked in self._asked.items():
             if asked.at <= packet.heard_at <= asked.until and call not in asked.new and len(asked.new) < NEW_MAX and asked.counts(packet):
@@ -163,12 +153,12 @@ class GeneralAsk:
 
 
 def _shared_path(went: list[tuple[AirRadio, ax25.Frame]]) -> tuple[str, ...] | None:
-    """The path a press went by: the one path of its radios that carry a path; () when none of them carries one; None when they went each by its own and those differ."""
+    """The path a press went by: the common one, () if none carries a path, None if they differ."""
     paths = {tuple(str(hop) for hop in frame.path) for radio, frame in went if radio.allowed.paths}
     return None if len(paths) > 1 else next(iter(paths), ())
 
 
 def _heard_lately(station: Station, radio: RadioId, now: datetime) -> bool:
-    """Whether the station was on the air in the QUIET_BEFORE before `now` (not as a third-party packet) and the radio heard it in that time (what a packet that named no radio brought is radio 1's)."""
+    """Whether `radio` heard the station on the air within QUIET_BEFORE."""
     on_air, there = station.last_on_air_at, station.heard_on(radio).last_at
     return on_air is not None and there is not None and timedelta(0) <= now - on_air <= QUIET_BEFORE and timedelta(0) <= now - there <= QUIET_BEFORE

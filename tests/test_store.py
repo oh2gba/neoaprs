@@ -1,4 +1,5 @@
-"""The Store (neoaprs/store.py): the settings on the database thread, a store whose database is not open says no, a copy of the file and the checkpoint."""
+"""The Store (neoaprs/store.py): the settings on the database thread, a store whose database is not
+open says no, a copy of the file and the checkpoint."""
 import sqlite3
 from pathlib import Path
 
@@ -62,7 +63,8 @@ async def test_a_store_that_is_not_open_says_no_and_does_not_crash(tmp_path: Pat
     assert opened.db is not None
     await opened.db.close()
     assert not opened.is_open()
-    assert await opened.settings() == {} and not await opened.put_setting("x", "1")             # a closed database is no error either
+    # A closed database is no error either
+    assert await opened.settings() == {} and not await opened.put_setting("x", "1")
 
 
 @pytest.mark.expects_errors
@@ -71,7 +73,8 @@ async def test_a_database_that_fails_is_told_and_does_not_raise(tmp_path: Path) 
     store = await store_at(path)
     await store.put_setting("a", "1")
     assert store.db is not None
-    await store.db.write(lambda conn: conn.execute("ALTER TABLE settings RENAME TO gone"))      # what a tool or another version could do to the file
+    # What a tool or another version could do to the file
+    await store.db.write(lambda conn: conn.execute("ALTER TABLE settings RENAME TO gone"))
     assert await store.settings() == {} and await store.setting("a") is None
     assert not await store.put_setting("a", "2")
 
@@ -137,7 +140,8 @@ async def test_the_store_runs_on_a_connection_that_fails_on_demand(tmp_path: Pat
         return conn
 
     store = await store_at(path, opener=opener)
-    made[0].statements, made[0].fail_at = 0, 2            # BEGIN, the statement, ...: the second statement of the next operation fails
+    # BEGIN, the statement, ...: the second statement of the next operation fails
+    made[0].statements, made[0].fail_at = 0, 2
     assert not await store.put_setting("a", "1")
     made[0].fail_at = None
     assert await store.settings() == {} and await store.put_setting("a", "1") and await store.setting("a") == "1"

@@ -1,5 +1,4 @@
-"""The radios on the wire: the topic `radios` (a table of rows by id, every radio of the station, removed ones too, each told at most four times a second) and the station's suggested frequencies. Models like
-the rest of the protocol, listed in `neoaprs/web/protocol.py`; the commands that name a radio are neoaprs/web/radiowire.py's."""
+"""Wire models of the topic `radios` and the suggested frequencies."""
 from typing import Any, Literal
 
 from pydantic import Field

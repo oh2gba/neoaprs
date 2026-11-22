@@ -1,5 +1,7 @@
-"""The reply path (M1): a message or an ack of ours to a station on a radio that carries no path goes by the gateway its latest packet on that radio came by (services/radioset.py `reply_path_on`,
-services/prefbook.py `path_for`, neoaprs/app.py `_gateway_path`); LoRa's paths, the beacons, the objects and the answers are as they were."""
+"""The reply path: a message or ack of ours on a radio that carries no path goes by the gateway its
+latest packet on that radio came by (services/radioset.py `reply_path_on`, prefbook.py `path_for`,
+app.py).
+"""
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -36,7 +38,8 @@ T0 = utc(2026, 11, 19, 12, 0, 0)
 
 
 class GatewayRig(Rig):
-    """The messaging rig with a station on HF, a station book that heard it there, and the app's own way of reading it (`Services._gateway_path`)."""
+    """The messaging rig with a station on HF, a station book that heard it there, and the app's own
+    way of reading it (`Services._gateway_path`)."""
 
     def __init__(self, log: MessageLog, clock: object, **changes: object) -> None:
         super().__init__(log, clock, hf_enabled=True, station_call="OH3XYZ", **changes)       # type: ignore[arg-type]
@@ -48,7 +51,8 @@ class GatewayRig(Rig):
         self.app = app
 
     def hear(self, path: str, radio: int = HF_ID, source: str = STATION) -> None:
-        """A packet of the station was heard on the radio by the path (the TNC2 form: a star on the last hop that repeated it)."""
+        """A packet of the station was heard on the radio by the path (the TNC2 form: a star on the
+        last hop that repeated it)."""
         self.clock.advance(1)
         info = b">status"
         hops = tuple(path.split(",")) if path else ()

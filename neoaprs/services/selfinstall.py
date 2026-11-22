@@ -1,17 +1,8 @@
-"""How Update now puts a file of the release in place once its SHA-256 has been checked (neoaprs/services/selfupdate.py does the download and the check), for the kinds where the daemon can do it itself:
+"""How Update now installs a checked release file (selfupdate.py downloads and verifies it).
 
-    windows-installer   the installer is run silently and detached from the daemon (`installer_argv`), from `update/` of the data folder, where the installer of an earlier update is deleted first. Like any update over a running NeoAPRS it ends the app and the daemon first; its `[Run]` entries for a silent update
-                        start again what was running (the app when one held the data folder, else the daemon alone) on the same data folder (packaging/windows/neoaprs.iss). The daemon notes the port of its page before
-                        the installer starts, and the daemon the installer starts serves it there again (neoaprs/stopfile.py)
-    appimage            the new file is made executable and renamed over the file this runs from, the old one kept beside it as `<file>.old` (a hard link, else a copy) until the new version has started; then the
-                        daemon ends and starts the file again with the arguments it had (neoaprs/selfreplace.py, after the daemon has let go of everything; the process stays the same, so a service manager sees no end),
-                        on the port its page was on (the same note)
-
-Anything else gets no installer and the page shows the steps instead. The macOS app (`macos-app`) is among them for now: its .dmg is named (neoaprs/updateasset.py) and offered as a download, but swapping the running
-app bundle under a daemon that imports its modules lazily from it, and restarting the app through launchd, has not been tried on a Mac, so the page says to quit, drag the new app over the old one and start it again. `NEOAPRS_INSTALL_KIND` (a simulated kind, for development: neoaprs/cli/installkind.py) gets a rehearsal: every step but the last, the file
-deleted instead of installed. `NEOAPRS_UPDATE_FROM` (the release folder of a fake server on the loopback) is used instead of GitHub only together with a simulated kind, or with `NEOAPRS_UPDATE_TEST=1`, the switch of the
-end-to-end test of the release workflow, which updates a real install from it (scripts/update-e2e.py); an address that is not http(s) on 127.0.0.1 or localhost is never used. With that fake server, and only then, `NEOAPRS_UPDATE_KEY` (the base64 of a
-public key the test made) stands in for the project's key, since a test cannot sign with it; from GitHub only the project's key is believed (`release_key`)."""
+The Windows installer runs silently and detached; an AppImage is renamed over the running file and
+restarted. Other kinds get no installer. Two environment variables let a test rehearse an update.
+"""
 import contextlib
 import logging
 import os
@@ -33,19 +24,21 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("neoaprs.update")
 
-UPDATE_FOLDER = "update"                        # in the data folder: the installer that was downloaded, and its log
-DETACHED = 0x00000008 | 0x00000200 | 0x08000000      # DETACHED_PROCESS, CREATE_NEW_PROCESS_GROUP, CREATE_NO_WINDOW
-BREAKAWAY = 0x01000000                          # CREATE_BREAKAWAY_FROM_JOB: the installer outlives a job the daemon may be part of
+UPDATE_FOLDER = "update"
+# DETACHED_PROCESS, CREATE_NEW_PROCESS_GROUP, CREATE_NO_WINDOW
+DETACHED = 0x00000008 | 0x00000200 | 0x08000000
+# CREATE_BREAKAWAY_FROM_JOB: the installer outlives a job the daemon may belong to
+BREAKAWAY = 0x01000000
 ENV_KIND = "NEOAPRS_INSTALL_KIND"
 ENV_FROM = "NEOAPRS_UPDATE_FROM"
-ENV_KEY = "NEOAPRS_UPDATE_KEY"                   # the public key of a test's own fake release, taken only together with NEOAPRS_UPDATE_FROM
-ENV_TEST = "NEOAPRS_UPDATE_TEST"                 # "1": a real install may be updated from NEOAPRS_UPDATE_FROM (the end-to-end test only)
+ENV_KEY = "NEOAPRS_UPDATE_KEY"
+ENV_TEST = "NEOAPRS_UPDATE_TEST"
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost"})
-Restart = Callable[[list[str]], None]           # the daemon ends and this command line is run in its place
+Restart = Callable[[list[str]], None]
 
 
 class InstallError(Exception):
-    """The file could not be put in place, or the update could not be started; the text says why."""
+    """The file could not be put in place or the update could not be started."""
 
 
 class Installer(Protocol):
@@ -55,37 +48,37 @@ class Installer(Protocol):
         ...
 
     def blocked(self) -> str:
-        """Why the update cannot be done here, in a sentence; empty when it can."""
+        """Return why the update cannot be done here; empty when it can."""
         ...
 
     def install(self, file: Path, name: str, version: str) -> None:
-        """Puts the checked file `file` (the release's `name`) in place and starts what restarts NeoAPRS; InstallError when it cannot. Runs on a thread of its own."""
+        """Put the checked file in place and restart (in a thread); raise InstallError on failure."""
         ...
 
 
 def installer_argv(installer: Path, data_dir: Path, restart: Literal["app", "daemon"], log_file: Path, encryption: bool = False) -> list[str]:
-    """The installer's command line for an update with nobody at the keyboard: no window, no question, no restart of Windows. The daemon and the app are ended by the installer's own code, before it replaces a
-    file (so Windows' Restart Manager is not asked to close them), and `NEOAPRSRESTART` and `NEOAPRSDATA` say what it starts again after (packaging/windows/neoaprs.iss); `NEOAPRSENCRYPTION=1`, for a daemon
-    started with `--encryption`, has the installer start it again with it and keep it in the start at sign-in (without it OH2GAX's update to 0.18.0 came back without encrypted messages, 4 Nov 2026)."""
+    """Return the installer's command line for an unattended update: silent, no Windows restart.
+
+    The installer ends the daemon and app itself; the NEOAPRS* switches say what to start after."""
     return [str(installer), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/NOCLOSEAPPLICATIONS", "/CURRENTUSER", "/SP-", f"/LOG={log_file}", f"/NEOAPRSRESTART={restart}", f"/NEOAPRSDATA={data_dir}",
             *(["/NEOAPRSENCRYPTION=1"] if encryption else [])]
 
 
 def launch_detached(argv: list[str]) -> None:
-    """Starts a program that outlives the daemon (Windows): no console, a process group of its own, out of the daemon's job where the job allows it."""
+    """Start a program that outlives the daemon (Windows): no console, own group, no job."""
     devnull = subprocess.DEVNULL
     try:
         subprocess.Popen(argv, creationflags=DETACHED | BREAKAWAY, close_fds=True, stdin=devnull, stdout=devnull, stderr=devnull)
     except OSError:
-        subprocess.Popen(argv, creationflags=DETACHED, close_fds=True, stdin=devnull, stdout=devnull, stderr=devnull)       # (a job that allows no breakaway)
+        subprocess.Popen(argv, creationflags=DETACHED, close_fds=True, stdin=devnull, stdout=devnull, stderr=devnull)
 
 
 class WindowsSetup:
     def __init__(self, data_dir: Path, launch: Callable[[list[str]], None] = launch_detached, app_running: Callable[[Path], bool] | None = None, encryption: bool = False,
                  leaving: Callable[[], None] | None = None) -> None:
         self.data_dir = data_dir
-        self.encryption = encryption                                 # the daemon runs with --encryption: so does the one the installer starts again
-        self._leaving = leaving or (lambda: None)                    # called before the installer is started: the daemon notes the port of its page, for the one the installer starts (neoaprs/stopfile.py)
+        self.encryption = encryption
+        self._leaving = leaving or (lambda: None)
         self._folder = data_dir / UPDATE_FOLDER
         self._launch = launch
         self._app_running = app_running or (lambda data: is_held(data, APP_LOCK_NAME))
@@ -98,7 +91,7 @@ class WindowsSetup:
         return ""
 
     def remove_earlier(self, name: str) -> None:
-        """The installers of earlier updates go (each is some 50 MB); the one of this update stays beside its log until the next."""
+        """Delete earlier installers (about 50 MB each); this update's stays."""
         for earlier in self._folder.glob("NeoAPRS-Setup-*.exe"):
             if earlier.name != name:
                 try:
@@ -122,7 +115,8 @@ class WindowsSetup:
                 self._launch(argv)
             except OSError:
                 with contextlib.suppress(OSError):
-                    stopfile.note_port(self.data_dir, 0)         # (no installer, so no restart: the daemon runs on, and the port's note is not for whatever start comes next)
+                    # no installer, so no restart: the port note must not leak to the next start
+                    stopfile.note_port(self.data_dir, 0)
                 raise
         except OSError as e:
             raise InstallError(f"the installer could not be started: {e}") from None
@@ -131,7 +125,7 @@ class WindowsSetup:
 class AppImageSwap:
     def __init__(self, appimage: Path, argv: list[str], restart: Restart) -> None:
         self.appimage = appimage
-        self.argv = argv                        # the arguments the AppImage was started with
+        self.argv = argv
         self._restart = restart
 
     @property
@@ -145,7 +139,7 @@ class AppImageSwap:
 
     def install(self, file: Path, name: str, version: str) -> None:
         try:
-            os.chmod(file, 0o755)  # noqa: S103  (an AppImage is a program: anyone may read and run it, only its owner may write it)
+            os.chmod(file, 0o755)  # noqa: S103  (a program: anyone may run it, only the owner may write)
             keep_old(self.appimage)
             os.replace(file, self.appimage)
         except OSError as e:
@@ -155,7 +149,7 @@ class AppImageSwap:
 
 
 class Rehearsal:
-    """For a simulated install kind: the file was downloaded and checked, and is deleted; nothing is installed and nothing restarts."""
+    """For a simulated kind: the checked file is deleted, nothing installed."""
 
     def __init__(self, data_dir: Path) -> None:
         self._folder = data_dir / UPDATE_FOLDER
@@ -174,8 +168,9 @@ class Rehearsal:
 
 def installer_for(install: InstallInfo, data_dir: Path, restart: Restart, environ: Mapping[str, str] = os.environ, argv: list[str] | None = None, platform: str = sys.platform,
                   encryption: bool = False, leaving: Callable[[], None] | None = None) -> Installer | None:
-    """The installer of this copy, None where the page shows the steps instead. `encryption`: the daemon runs with `--encryption`, which the Windows installer keeps (the AppImage starts again with its own
-    command line, which has it). `leaving`: what the Windows installer's way calls before the installer is started, which ends the daemon (`restart` is called by the AppImage's way)."""
+    """Return the installer of this copy, None where the page shows the steps instead.
+
+    `leaving` is called before the Windows installer starts."""
     if environ.get(ENV_KIND):
         return Rehearsal(data_dir) if install.kind in SELF_UPDATING else None
     if install.kind == "windows-installer" and platform == "win32":
@@ -186,11 +181,12 @@ def installer_for(install: InstallInfo, data_dir: Path, restart: Restart, enviro
 
 
 def loopback_folder(text: str) -> str:
-    """`text` without its trailing slash when it is the address of a folder of a server on this computer: http or https, the host 127.0.0.1 or localhost, no user, query or fragment; else empty."""
+    """Return `text` without a trailing slash if it is an http(s) folder on this host, else empty."""
     base = text.strip().rstrip("/")
     try:
         parts = urlsplit(base)
-        _ = parts.port                                  # (a port that is not a number raises)
+        # a non-numeric port raises here
+        _ = parts.port
     except ValueError:
         return ""
     if parts.scheme not in ("http", "https") or (parts.hostname or "") not in LOOPBACK_HOSTS or "@" in parts.netloc or parts.query or parts.fragment or any(c.isspace() for c in base):
@@ -199,8 +195,9 @@ def loopback_folder(text: str) -> str:
 
 
 def release_source(environ: Mapping[str, str] = os.environ) -> tuple[str, Callable[[str], bool]]:
-    """Where the release's files are (the folder that holds a folder `v<version>` for each release) and the addresses a download may go to: GitHub; or the folder of `NEOAPRS_UPDATE_FROM` alone, for a simulated kind
-    or with `NEOAPRS_UPDATE_TEST=1`, and only when it is on this computer."""
+    """Return the release folder (holding `v<version>` folders) and a check for allowed addresses.
+
+    The fake folder replaces GitHub only for a simulated kind or `NEOAPRS_UPDATE_TEST=1`."""
     base = _fake_release(environ)
     if base:
         log.warning("Update now downloads from %s, not from GitHub (%s)", base, ENV_TEST if environ.get(ENV_TEST) == "1" else ENV_KIND)
@@ -209,14 +206,15 @@ def release_source(environ: Mapping[str, str] = os.environ) -> tuple[str, Callab
 
 
 def _fake_release(environ: Mapping[str, str]) -> str:
-    """The folder of `NEOAPRS_UPDATE_FROM` when it is in effect (with a simulated kind or `NEOAPRS_UPDATE_TEST=1`, on this computer); else empty."""
+    """Return the `NEOAPRS_UPDATE_FROM` folder when in effect, else empty."""
     wanted = bool(environ.get(ENV_KIND)) or environ.get(ENV_TEST) == "1"
     return loopback_folder(environ.get(ENV_FROM, "")) if wanted else ""
 
 
 def release_key(environ: Mapping[str, str] = os.environ) -> "Ed25519PublicKey":
-    """The key the signature of SHA256SUMS must hold with: the project's (neoaprs/updateasset.py, PUBLIC_KEY); `NEOAPRS_UPDATE_KEY` only while Update now downloads from the fake server of `NEOAPRS_UPDATE_FROM`,
-    and never a key that is not one."""
+    """Return the key the SHA256SUMS signature must hold with: the project's.
+
+    `NEOAPRS_UPDATE_KEY` counts only with the fake server."""
     text = environ.get(ENV_KEY, "")
     if text and _fake_release(environ):
         try:

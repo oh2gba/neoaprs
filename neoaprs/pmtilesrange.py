@@ -1,9 +1,8 @@
-"""The bytes of a PMTiles archive that is cut (neoaprs/pmtilescut.py): from a file, or from a web server with range requests, so that a few MB are read out of an archive of the whole world.
+"""Read the bytes of a PMTiles archive for a cut, from a file or a web server by range requests.
 
-A server must answer a range request with 206 and the Content-Range of the bytes asked for, of an archive whose size does not change between two answers; one that answers 200 with the whole body, or with
-other bytes, is refused at once and its body is not read. A request that cannot be made, is cut short or is answered with a status that says to try later is made again after a pause, `len(pauses) + 1` times in
-all; then the cut fails with words for the operator, and the log has what happened. The bytes come a piece at a time (`CHUNK`), and a stop is seen between two pieces; `abort` also shuts the connections that
-are waiting, so that a server that has stopped sending holds nothing up. https goes through the project's opener (neoaprs/httpstrust.py) and the no-devices switch, and so does every redirect, which may not leave https for http."""
+A server must answer a range request with 206 and the matching Content-Range. A failed request
+is repeated after each pause in `pauses`; a stop is checked between pieces of `CHUNK` bytes.
+"""
 import contextlib
 import http.client
 import logging
@@ -25,16 +24,19 @@ log = logging.getLogger("neoaprs.mapfetch")
 
 TIMEOUT_SEC = 30.0
 CHUNK = 256 * 1024
-PAUSES_SEC = (2.0, 8.0, 30.0)               # between the tries of one request: four in all
+# Pauses between the tries of one request: four tries in all.
+PAUSES_SEC = (2.0, 8.0, 30.0)
 TRY_LATER = frozenset({408, 425, 429, 500, 502, 503, 504})
 STOPPED = "stopped"
 _RANGE = re.compile(r"bytes (\d{1,20})-(\d{1,20})/(\d{1,20})")
 
-Into = Callable[[int, bytes], None]         # told each piece with the offset in the archive of its first byte; a request tried again begins again at its first offset
+# Receives each piece with the archive offset of its first byte; a retried request starts again
+# at its first offset.
+Into = Callable[[int, bytes], None]
 
 
 class CutError(Exception):
-    """The cut cannot be done; the text says why, in a sentence for the log, and `problem` as a code for the page (neoaprs/mapstate.py `Problem`), with the values of its sentence."""
+    """The cut cannot be done. The text is for the log; `problem` and `params` are for the page."""
 
     def __init__(self, text: str, problem: Problem = "failed", **params: int) -> None:
         super().__init__(text)
@@ -55,7 +57,7 @@ class Source(Protocol):
 
 
 class Halt:
-    """The stop of a cut, for every thread of it: once set it stays, and what was handed to `on` is called (a wait that ends, the connections that are shut)."""
+    """The stop flag of a cut, shared by its threads. Once set it stays; `on` callbacks run."""
 
     def __init__(self) -> None:
         self._event = threading.Event()
@@ -84,8 +86,9 @@ class Halt:
 
 
 def in_parallel[T](work: list[Callable[[], T]], halt: Halt) -> list[T]:
-    """Each piece of work on a thread of its own, at once; their results in order. The first failure sets `halt`, which ends the others, and is raised; a halt from outside raises CutError(STOPPED) as soon as
-    it is set. The threads are daemons, and one that still waits for a server when this returns ends by itself: what it delivers late is not taken."""
+    """Run each piece of work on its own thread and return the results in order.
+
+    The first failure sets `halt` and is raised; threads are daemons, late results are ignored."""
     results: list[T | None] = [None] * len(work)
     failures: list[BaseException] = []
     over, lock, left = threading.Event(), threading.Lock(), [len(work)]
@@ -121,7 +124,7 @@ def in_parallel[T](work: list[Callable[[], T]], halt: Halt) -> list[T]:
 
 
 def read(source: Source, offset: int, length: int) -> bytes:
-    """A small part of the archive (the header, a directory), held whole."""
+    """Return a small part of the archive (header, directory) whole."""
     if length == 0:
         return b""
     held = bytearray()
@@ -166,7 +169,8 @@ class FileSource:
 class HttpSource:
     def __init__(self, url: str, halt: Halt, pauses: tuple[float, ...] = PAUSES_SEC, timeout_sec: float = TIMEOUT_SEC) -> None:
         self.url = url
-        self.size = -1                              # the size of the archive, from the first answer
+        # Size of the archive, from the first answer.
+        self.size = -1
         self._halt = halt
         self._pauses = pauses
         self._timeout = timeout_sec
@@ -207,11 +211,12 @@ class HttpSource:
             response.close()
 
     def _request(self, offset: int, length: int) -> http.client.HTTPResponse:
-        request = urllib.request.Request(self.url, headers={"User-Agent": USER_AGENT, "Range": f"bytes={offset}-{offset + length - 1}"})  # noqa: S310  (http or https only: `open_source`)
+        request = urllib.request.Request(self.url, headers={"User-Agent": USER_AGENT, "Range": f"bytes={offset}-{offset + length - 1}"})  # noqa: S310  (http or https only)
         if self._halt.is_set():
             raise CutError(STOPPED)
         try:
-            nodevices.check_url(self.url)                                       # (under the no-devices switch a server that is not on this computer is not there)
+            # Under the no-devices switch a server that is not on this computer is not reachable.
+            nodevices.check_url(self.url)
             response: http.client.HTTPResponse = urllib.request.build_opener(https_handler(), Redirected, *nodevices.direct()).open(request, timeout=self._timeout)
         except urllib.error.HTTPError as e:
             e.close()
@@ -234,7 +239,7 @@ class HttpSource:
         return response
 
     def _check(self, response: http.client.HTTPResponse, offset: int, length: int) -> None:
-        """CutError unless the answer is the range asked for, of an archive of the same size as before."""
+        """Raise CutError unless the answer is the range asked for, from an archive of same size."""
         if response.status != 206:
             raise CutError(f"the map server answered {response.status} to a range request and not 206: it cannot be cut from")
         said = (response.headers.get("Content-Range") or "").strip()
@@ -250,7 +255,7 @@ class HttpSource:
             raise CutError(f"the map server announced {announced} bytes where {length} were asked for")
 
     def abort(self) -> None:
-        """Shuts the connections that are open, so that a read that waits for a server that sends nothing ends now."""
+        """Shut the open connections so that a read waiting on a silent server ends."""
         with self._lock:
             for response in self._open:
                 with contextlib.suppress(OSError, ValueError, AttributeError):
@@ -263,7 +268,7 @@ class HttpSource:
 
 
 def open_source(source: str, halt: Halt, pauses: tuple[float, ...] = PAUSES_SEC) -> FileSource | HttpSource:
-    """The archive at a web address (http or https) or a path. CutError for another kind of address, a file that cannot be read, and under the no-devices switch a server that is not on this computer."""
+    """Open the archive at an http(s) address or a path. Raise CutError if it cannot be opened."""
     scheme = source.split("://", 1)[0].lower() if "://" in source else ""
     if scheme in ("http", "https"):
         if nodevices.url_refused(source, "the map"):

@@ -1,5 +1,6 @@
-"""The `neoaprs` command: which command a line is, that no command (or `run`) is the daemon with the flags of `python -m neoaprs`, the parser of each command, and the commands that run as processes (`map`,
-`db`, `doctor`, `--version`) the way a user starts them: `python -m neoaprs ...`, as the unit and the scripts do. The workings of `service`, `replay` and `doctor` are in their own files."""
+"""Tests for the `neoaprs` command: command selection, the daemon as the default, each command's
+parser, and the commands run as processes (`map`, `db`, `doctor`, `--version`).
+"""
 import os
 import subprocess
 import sys
@@ -113,7 +114,8 @@ def test_the_capture_parser_and_its_refusal_to_overwrite(tmp_path: Path) -> None
 
 
 def test_capture_records_a_tcp_tnc_into_a_file(tmp_path: Path) -> None:
-    """`neoaprs capture --port socket://...` on a TCP TNC that plays the capture of the live radio: the file is the bytes, and the frames are counted."""
+    """`neoaprs capture --port socket://...` on a TCP TNC that plays the capture of the live radio:
+    the file is the bytes, and the frames are counted."""
     from tests.test_replay import CAPTURE
     from neoaprs.cli.replaycmd import frames_of
     server = subprocess.Popen([sys.executable, "-m", "neoaprs", "replay", str(CAPTURE), "--interval", "0.05"], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -156,7 +158,8 @@ def test_doctor_through_the_main_command_prints_the_checklist(tmp_path: Path) ->
 
 
 def test_the_default_data_folder_is_the_same_for_every_command(tmp_path: Path) -> None:
-    """With NEOAPRS_DATA_DIR set, the daemon's default, `db`, `doctor` and `service` look in the same place."""
+    """With NEOAPRS_DATA_DIR set, the daemon's default, `db`, `doctor` and `service` look in the
+    same place."""
     place = tmp_path / "place"
     for parser_default in (dbcmd.parse(["list"]).data, servicecmd.parser().parse_args(["status"]).data):
         assert parser_default == str(servicecmd.default_data_dir())

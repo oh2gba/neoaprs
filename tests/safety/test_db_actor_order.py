@@ -1,5 +1,7 @@
-"""The Db actor (neoaprs/db.py): order. One connection, one thread, one FIFO queue: what was asked first is done first, whatever kind it is and however many tasks ask,
-and a read sees every write asked before it, with nothing to flush. Also: what a function run by the thread may and may not do."""
+"""The Db actor (neoaprs/db.py): order. One connection, one thread, one FIFO queue: what was asked
+first is done first, whatever kind it is and however many tasks ask, and a read sees every write
+asked before it, with nothing to flush. Also: what a function run by the thread may and may not do.
+"""
 import asyncio
 import random
 import sqlite3
@@ -46,21 +48,25 @@ async def test_operations_of_many_tasks_are_done_in_the_order_they_were_asked(tm
 
 
 async def test_appends_are_in_the_order_they_were_made_and_before_what_is_asked_after_them(tmp_path: Path) -> None:
-    db = await started(tmp_path / "x.sqlite", tuning=Tuning(tick=3600.0))        # a tick of an hour: nothing may wait for it
+    # A tick of an hour: nothing may wait for it
+    db = await started(tmp_path / "x.sqlite", tuning=Tuning(tick=3600.0))
     began = time.monotonic()
     for n in range(100):
         assert db.write_nowait(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'a')", (n,)))
-    assert await db.read(lambda conn: conn.execute("SELECT COUNT(*) FROM t").fetchone()[0]) == 100            # the read ends the collecting: it sees all of them
+    # The read ends the collecting: it sees all of them
+    assert await db.read(lambda conn: conn.execute("SELECT COUNT(*) FROM t").fetchone()[0]) == 100
     await db.write(lambda conn: conn.execute("INSERT INTO t VALUES (100, 'w')"))
     db.write_nowait(lambda conn: conn.execute("UPDATE t SET v = 'late' WHERE n = 100"))
-    assert await db.read(lambda conn: conn.execute("SELECT v FROM t WHERE n = 100").fetchone()[0]) == "late"      # an append after a write is after it
+    # An append after a write is after it
+    assert await db.read(lambda conn: conn.execute("SELECT v FROM t WHERE n = 100").fetchone()[0]) == "late"
     assert time.monotonic() - began < 300.0, "nothing waited for the tick"
     await db.close()
     assert committed(tmp_path / "x.sqlite") == list(range(101))
 
 
 async def test_ten_thousand_mixed_operations_agree_with_a_model(tmp_path: Path) -> None:
-    """Random inserts, replacements, updates, deletes (awaited and appended) and reads, asked in bursts of tasks, against a dictionary that is changed in the order of asking."""
+    """Random inserts, replacements, updates, deletes (awaited and appended) and reads, asked in
+    bursts of tasks, against a dictionary that is changed in the order of asking."""
     path = tmp_path / "x.sqlite"
     db = Db(lambda: fast_connection(path), tuning=QUICK, name=THREAD_PREFIX + "-model")
     await db.start()
@@ -133,8 +139,9 @@ async def test_an_await_cancelled_before_the_thread_began_it_withdraws_a_read(tm
 
 
 async def test_a_write_whose_await_is_cancelled_before_the_thread_began_it_is_still_committed(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """A write is never withdrawn: the daemon's stop cancels the task that carries a message of the radio or of the page, and the message must not go with it.
-    The asker is cancelled all the same, and the outcome it never saw is in the log."""
+    """A write is never withdrawn: the daemon's stop cancels the task that carries a message of the
+    radio or of the page, and the message must not go with it. The asker is cancelled all the same,
+    and the outcome it never saw is in the log."""
     db = await started(tmp_path / "x.sqlite")
     inside, release = threading.Event(), threading.Event()
 
@@ -275,7 +282,8 @@ async def test_a_read_cannot_write(tmp_path: Path) -> None:
     with pytest.raises(sqlite3.OperationalError, match="readonly"):
         await db.read(lambda conn: conn.execute("INSERT INTO t VALUES (1, 'sneaked')"))
     assert committed(tmp_path / "x.sqlite") == []
-    await db.write(lambda conn: conn.execute("INSERT INTO t VALUES (2, 'allowed')"))          # and a write after a read can
+    # And a write after a read can
+    await db.write(lambda conn: conn.execute("INSERT INTO t VALUES (2, 'allowed')"))
     assert committed(tmp_path / "x.sqlite") == [2]
     await db.close()
 
@@ -287,7 +295,8 @@ async def test_the_statements_of_one_read_see_one_snapshot(tmp_path: Path) -> No
 
     def two_looks(conn: sqlite3.Connection) -> tuple[int, int]:
         first = conn.execute("SELECT COUNT(*) FROM t").fetchone()[0]
-        other = sqlite3.connect(path, isolation_level=None, timeout=5)           # somebody else (another process) writes between the two statements
+        # Somebody else (another process) writes between the two statements
+        other = sqlite3.connect(path, isolation_level=None, timeout=5)
         other.execute("INSERT INTO t VALUES (2, 'b')")
         other.close()
         return first, conn.execute("SELECT COUNT(*) FROM t").fetchone()[0]
@@ -316,12 +325,14 @@ async def test_what_the_opener_raises_is_raised_by_start_and_the_db_stays_closed
     assert not db.is_open
     with pytest.raises(DbClosed, match="not open"):
         await db.write(lambda conn: None)
-    await db.close()                                                              # closing what never opened is harmless
+    # Closing what never opened is harmless
+    await db.close()
 
 
 async def test_what_was_asked_while_the_file_was_opened_is_answered_when_the_opening_fails(tmp_path: Path) -> None:
     def opener() -> sqlite3.Connection:
-        time.sleep(0.1)                                                           # a migration that takes a while, and then refuses the file
+        # A migration that takes a while, and then refuses the file
+        time.sleep(0.1)
         raise StoreError("not ours")
 
     db = Db(opener, name=THREAD_PREFIX + "-slow")

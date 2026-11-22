@@ -1,8 +1,11 @@
-"""The command line of the base map: `neoaprs map [--data DIR] [--radius KM] [--maxzoom Z] [--source SRC] [--lat DEG --lon DEG] [--dry-run]` (also `python -m neoaprs.services.mapfetch` and `scripts/fetch-basemap`).
+"""Command line of the base map:
+`neoaprs map [--data DIR] [--radius KM] [--maxzoom Z] [--source SRC] [--lat DEG --lon DEG] [--dry-run]`.
 
-It does what the page's Estimate and Download buttons do (neoaprs/services/mapfetch.py): the settings of the data folder (the station's position, `map/radius_km`, `map/maxzoom`, `map/source`) unless a flag says
-otherwise, then the world map if the program has none (it ships with one) and the detailed map, or with --dry-run only the size. The daemon may be running; the settings are read, not changed.
-`neoaprs map --world --help` is the command that makes the world map the program ships with (developers)."""
+It does what the page's Estimate and Download buttons do. It reads the settings of the data folder
+(station position, `map/radius_km`, `map/maxzoom`, `map/source`) unless a flag overrides them, and
+makes the world map if missing, then the detailed map. With --dry-run it only reports the size.
+The daemon may be running; settings are read, never changed.
+`neoaprs map --world --help` shows the developer command that makes the bundled world map."""
 import argparse
 import asyncio
 import logging
@@ -36,7 +39,7 @@ def say(text: str) -> None:
 
 
 async def stored_config(data: Path) -> Config:
-    """The settings of the data folder; the defaults when there is no database yet."""
+    """Return the stored settings, or the defaults if there is no database."""
     path = data / DB_NAME
     if not path.is_file():
         return Config()
@@ -54,7 +57,7 @@ async def stored_config(data: Path) -> Config:
 
 
 def with_flags(config: Config, args: argparse.Namespace) -> Config:
-    """The settings with the flags put over them, every value checked the way the daemon checks it."""
+    """Return the settings with the flags applied, validated as the daemon validates them."""
     values = {key: str(value) for key, value in (("map/radius_km", args.radius), ("map/maxzoom", args.maxzoom), ("map/source", args.source),
                                                   ("station/lat", args.lat), ("station/lon", args.lon)) if value is not None}
     return Config.checked(config, values) if values else config

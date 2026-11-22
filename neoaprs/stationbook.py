@@ -1,12 +1,8 @@
-"""The stations as the packets tell them: who was heard, where, when last, how often, and the track of the positions they sent. Pure code: the packet log (packetlog.py) keeps the book between runs
-and the composition root (wiring.py) connects the two.
+"""The stations as the packets tell them: who was heard, where, when, how often, and their tracks.
 
-A packet applies to the book in `take`. The sender of every packet heard counts as heard (a message or a telemetry packet gives no position, but the station is on the air), and the route the packet came by, direct or through which
-digipeaters (route.py), is counted for the sender. A position sets where the sender is; an object or an item is a station of its own, named by the object and marked with who reported it, and removed again when the report says it was killed. A packet from our own call, heard on the air (our beacon repeated or echoed), moves only the time we were last heard: where we are is the settings'.
-
-A name is one entry, and a station that transmits wins it: an object or item reported under the call of a station in the book (a club posting the object of the local digipeater, which beacons itself) is not taken, and its
-kill does not take the station out; a station that transmits under the name of an object heard before is the station from then on, and the object is forgotten. Our own station is never replaced by a report, and our own objects not by a station
-that beacons under their name (it is not recorded under that name) nor by another station's kill; another station's report of an object by the name of one of ours takes it over (the specification's "Replacement": services/ownobjects.py drops ours)."""
+A name is one entry; a transmitting station wins it over an object or item of that name, and
+another station's report of an object named like ours takes it over (the spec's "Replacement").
+"""
 from collections.abc import Callable, Collection, Iterable, Mapping
 from datetime import datetime
 
@@ -25,16 +21,22 @@ from .route import route_of
 from .signal import Signal
 from .station import Station, add_track_point
 from .stationnotes import came_back, every_radio_carries_path, expire_hours, note_gate, note_heard, note_igate, note_messaging, note_position, note_radio_place, note_telemetry, seed_hour, seed_radio, seed_reported, seed_routes
-ROUTES_SEEN = 1000                  # the latest packets, and as many of those not from the internet, that the routes of the stations are read from at the start
-DETAILS_SEEN = 2000                 # the packets that telemetry, its definitions, locators, data extensions and the device are read from at the start
+# Packets read at start: the latest, and as many of those not from the internet, for routes.
+ROUTES_SEEN = 1000
+# Packets read at start for telemetry, definitions, locators, data extensions and the device.
+DETAILS_SEEN = 2000
 
-RouteGroup = tuple[str, tuple[str, ...], str, int, datetime, datetime | None, RadioId | None]     # (sender, path, iGate or "", how many, when the latest was heard, when the one before it was, the radio)
-OldRouteGroup = tuple[str, tuple[str, ...], str, int, datetime, datetime | None]                  # the same without the radio: the packet log of before the routes were by radio (all of them radio 1's)
+# (sender, path, iGate or "", count, latest heard, the one before it heard, radio)
+RouteGroup = tuple[str, tuple[str, ...], str, int, datetime, datetime | None, RadioId | None]
+# The same without the radio, from a packet log that predates routes by radio (all radio 1's).
+OldRouteGroup = tuple[str, tuple[str, ...], str, int, datetime, datetime | None]
 
 
 def carries_path(specs: Iterable[RadioSpec], radio: RadioId) -> bool:
-    """Whether our frames on the radio may carry a path (its type's `allowed.paths`), so that how a station's packets reached us on it is a way to reach the station by digipeaters: the radios whose routes are
-    the station's as a whole (`Station.deliveries`). A radio the settings do not have (a packet of a radio removed long ago, a test's) counts as one that may; one whose type is not known as one that may not."""
+    """Return whether our frames on the radio may carry a path (its type's `allowed.paths`).
+
+    An unknown radio counts as one that may; an unknown type as one that may not.
+    """
     spec = next((s for s in specs if s.id == radio), None)
     if spec is None:
         return True
@@ -45,9 +47,10 @@ def carries_path(specs: Iterable[RadioSpec], radio: RadioId) -> bool:
 
 
 def route_groups(rows: Iterable[tuple[str, str, bytes, datetime, RadioId | None]]) -> list[RouteGroup]:
-    """The routes of the packets the database kept, from (source, path as the log keeps it, the frame, when it was heard, the radio) of each, the oldest first (packetsql.radio_routes): how many came by each
-    route on each radio, the group whose latest packet is the oldest first, as `seed_deliveries` takes them. A third-party packet is the sender inside it, with the iGate that put it on the air; a frame that
-    does not decode is left out."""
+    """Group stored (source, path, frame, heard time, radio) rows by sender, path, iGate and radio.
+
+    Groups are ordered by their latest packet. A third-party packet counts for the inner sender.
+    """
     groups: dict[tuple[str, tuple[str, ...], str, RadioId | None], tuple[int, datetime, datetime | None]] = {}
     for source, path_text, raw, at, radio in rows:
         try:
@@ -56,27 +59,30 @@ def route_groups(rows: Iterable[tuple[str, str, bytes, datetime, RadioId | None]
             continue
         key = (source if opened is None else opened[0].source, tuple(path_text.split(",")) if path_text else (), "" if opened is None else source, radio)
         packets, earlier, _ = groups.pop(key, (0, at, None))
-        groups[key] = (packets + 1, at, earlier if packets else None)       # (a group moves to the end each time: the order is that of the latest packet)
+        # re-inserting moves a group to the end: the order is that of the latest packet
+        groups[key] = (packets + 1, at, earlier if packets else None)
     return [(sender, path, gate, packets, at, before, radio) for (sender, path, gate, radio), (packets, at, before) in groups.items()]
 
 
 class StationBook:
     def __init__(self, clock: Clock = utcnow, *, carries_path: Callable[[RadioId], bool] = every_radio_carries_path, own_calls: Callable[[], Collection[str]] = tuple) -> None:
         self.clock = clock
-        self._own_calls = own_calls                                           # the station call and the enabled pairs' calls: a packet that shows one of them used is our own copy heard back (stationnotes.came_back)
-        self._carries_path = carries_path                                     # whether a radio may carry a path (its routes are the station's as a whole): the composition root asks the radios' types (`carries_path`)
-        self.changed: Signal[[Station]] = Signal("stationbook.changed")       # a station was added or changed (the live object: read it, do not keep it)
-        self.removed: Signal[[str]] = Signal("stationbook.removed")           # its call
-        self.recounted: Signal[[Station]] = Signal("stationbook.recounted")   # the packets of its last hour became fewer (minute by minute, as old ones leave the hour): not saved, told to the page
-        self.cleared: Signal[[]] = Signal("stationbook.cleared")              # every station but ours was forgotten at once (the database is cleared by the caller, not station by station)
+        # a packet showing one of these calls is our own copy heard back
+        self._own_calls = own_calls
+        self._carries_path = carries_path
+        # `changed` passes the live station: read it, do not keep it
+        self.changed: Signal[[Station]] = Signal("stationbook.changed")
+        self.removed: Signal[[str]] = Signal("stationbook.removed")
+        # a station's last hour became fewer; not saved, told to the page
+        self.recounted: Signal[[Station]] = Signal("stationbook.recounted")
+        # every station but ours was forgotten at once; the caller clears the database
+        self.cleared: Signal[[]] = Signal("stationbook.cleared")
         self._stations: dict[str, Station] = {}
         self._me = ""
         self._me_position: tuple[float, float] | None = None
         self._definitions: dict[str, TelemetryDefinition] = {}
 
-    # ---- what is in it
     def stations(self) -> list[Station]:
-        """The latest heard first."""
         return sorted(self._stations.values(), key=lambda s: (s.last_heard, s.call), reverse=True)
 
     def get(self, call: str) -> Station | None:
@@ -86,7 +92,6 @@ class StationBook:
         return len(self._stations)
 
     def seed(self, stations: list[Station]) -> None:
-        """The stations a run starts with (the rows the database kept, each with what every radio heard of it: `Station.heard_by`); nothing is signalled. Each one with a position has it as the one point of its track."""
         for station in stations:
             station.is_me = station.call == self._me
             if station.has_position and station.last_position_at is not None and not station.track:
@@ -95,9 +100,10 @@ class StationBook:
             self._stations[station.call] = station
 
     def seed_deliveries(self, counts: Iterable[RouteGroup | OldRouteGroup]) -> None:
-        """The routes of the packets the database kept, as `route_groups` gives them (sender, path, iGate or "", how many, when the latest of them was heard, when the one before it was, the radio), the group of
-        the oldest latest packet first; a sender that is not in the book is left out. Each is counted for its radio (one without a radio, and the old shape without one, as radio 1's), and for the station as a
-        whole where that radio may carry a path; the latest group of a station on a radio says how that radio's latest packet came: its path is that radio's (`Station.seed_path`). A group that shows one of our own calls used is our own copy heard back, and no route of the station. Nothing is signalled."""
+        """Load the groups of `route_groups`; none for a radio means radio 1; nothing is signalled.
+
+        A group showing one of our own calls is our own copy heard back and is no route.
+        """
         for sender, path, gate, count, at, before, *given in counts:
             radio = FM_ID if not given or given[0] is None else given[0]
             note_gate(self._stations, gate, count)
@@ -108,9 +114,10 @@ class StationBook:
                 station.last_via = gate
 
     def seed_tracks(self, positions: Iterable[tuple[str, datetime, float, float]]) -> None:
-        """The tracks of the positions the database kept, as (station, when, lat, lon) oldest first (an object's own name for an object or an item): each station named replaces the one point it was seeded
-        with by the track the positions make by the rule of a live one (a point joins when the station moved more than TRACK_MOVED_M or TRACK_EVERY_SEC passed), the latest TRACK_MAX of them. Our own station
-        and a station not in the book are left out. Nothing is signalled."""
+        """Load tracks from stored (station, when, lat, lon) positions, oldest first; no signal.
+
+        Points join by the live rule (add_track_point). Our own station is skipped.
+        """
         started: set[str] = set()
         for call, when, lat, lon in positions:
             station = self._stations.get(call)
@@ -122,15 +129,17 @@ class StationBook:
             add_track_point(station.track, when, lat, lon)
 
     def seed_weather(self, latest: Mapping[str, tuple[datetime, Weather]]) -> None:
-        """The newest observation of each station the weather log kept, as (when, what); a station that is not in the book is left out. Nothing is signalled."""
+        """Load the newest weather observation per station; unknown stations are skipped."""
         for call, (at, weather) in latest.items():
             station = self._stations.get(call)
             if station is not None:
                 station.weather, station.weather_at = weather, at
 
     def seed_details(self, packets: Iterable[Packet]) -> None:
-        """What the latest packets kept say that the station cache does not keep, newest first as the log gives them: the latest telemetry report, the locator, the data extensions, the frequency and the device of each station (the frequency, storm data and sign of an object or item too), and
-        the telemetry definitions (read oldest first, so that a later one wins). A station that is not in the book is left out. Nothing is signalled."""
+        """Load what the stored packets (newest first) say beyond the station cache.
+
+        Telemetry, locator, extensions, frequency and device; definitions read oldest first.
+        """
         for packet in reversed(list(packets)):
             station, decoded = self._stations.get(packet.sender), packet.decoded
             seed_reported(self._stations, packet)
@@ -145,35 +154,32 @@ class StationBook:
                 station.locator, station.frequency = decoded.locator or station.locator, decoded.frequency or station.frequency
 
     def seed_routes(self, packets: Iterable[Packet]) -> None:
-        """The packets the log kept, oldest first: the way of the latest internet packet of each station, and its two latest different routes for the map. A station that is not in the book is left out. Nothing is signalled."""
+        """Load each station's latest internet route and two latest different routes."""
         seed_routes(self._stations, packets)
 
     def seed_radio(self, packets: Iterable[Packet]) -> None:
-        """The latest position packets that did not come from the internet, oldest first: where the radio put each station that has been heard from the internet too (Station.radio). Nothing is signalled."""
+        """Load Station.radio from non-internet position packets, oldest first."""
         seed_radio(self._stations, packets)
 
     def seed_recent(self, packets: Iterable[Packet]) -> None:
-        """The packets of the last hour that the log kept, oldest first, counted for the stations that sent them. Nothing is signalled."""
         seed_hour(self._stations, packets)
 
     def recount(self) -> None:
-        """Lets the packets that are an hour old now leave the last hour of each station; the stations whose count became smaller are signalled as `recounted`."""
+        """Drop packets an hour old from each station's last hour; signal `recounted` on change."""
         expire_hours(self._stations.values(), self.clock(), self.recounted.emit)
 
     def seed_messaging(self, packets: Iterable[Packet]) -> None:
-        """What the packets kept say about who does messages, oldest first (a later position wins): a message or an ack from a station, the flag of a station's position. A station that is not in the book is
-        left out. Nothing is signalled."""
+        """Load who does messages from stored packets, oldest first (a later position wins)."""
         for packet in packets:
             station = self._stations.get(packet.sender)
             if station is not None and packet.direction == "in" and not station.is_me:
                 note_messaging(station, packet)
 
     def telemetry_definition(self, call: str) -> TelemetryDefinition | None:
-        """What the definition messages of the station said, None when it sent none."""
         return self._definitions.get(call)
 
     def forget(self, call: str) -> bool:
-        """Removes a station (not our own, and not an object of ours: it is killed); whether there was one."""
+        """Remove a station, never our own or our objects; return whether one was removed."""
         station = self._stations.get(call)
         if station is None or station.is_me or station.own:
             return False
@@ -182,7 +188,7 @@ class StationBook:
         return True
 
     def forget_all(self) -> int:
-        """Removes every station but ours (the settings' station and the objects we send), with what the book kept of their telemetry definitions; how many. Signals `cleared`, not `removed` for each."""
+        """Remove every station but ours and the telemetry definitions; signal `cleared` once."""
         gone = [call for call, s in self._stations.items() if not s.is_me and not s.own]
         for call in gone:
             del self._stations[call]
@@ -191,18 +197,16 @@ class StationBook:
         return len(gone)
 
     def prune(self, older_than: datetime) -> list[str]:
-        """Removes the stations not heard since `older_than` (ours stays, our objects too); their calls."""
+        """Remove stations not heard since `older_than`, except ours; return their calls."""
         gone = [s.call for s in self._stations.values() if s.last_heard < older_than and not s.is_me and not s.own]
         for call in gone:
             del self._stations[call]
             self.removed.emit(call)
         return gone
 
-    # ---- us
     def set_me(self, call: str, lat: float, lon: float, symbol_table: str = "", symbol_code: str = "", comment: str = "", *, course_deg: int | None = None, speed_kmh: float | None = None,
                altitude_m: float | None = None, at: datetime | None = None) -> Station:
-        """Where we are, what we are called and how we look: our own station is in the book from now on, marked `is_me`, with the position, the symbol and the comment of the settings (the
-        settings are the truth about us, whatever a packet says). A moving station gives the course, speed and altitude of its GPS fix as well, and when the fix was taken. The station of a call we had before is an ordinary one again."""
+        """Put our own station in the book as `is_me`; the settings are the truth about us."""
         if self._me != call:
             self.clear_me()
         self._me, self._me_position = call, (lat, lon)
@@ -215,7 +219,7 @@ class StationBook:
             station = self._stations[call] = Station(call, first_heard=now, last_heard=now)
         before = (station.is_me, station.lat, station.lon, station.symbol_table, station.symbol_code, station.last_comment, station.course_deg, station.speed_kmh, station.altitude_m)
         station.is_me, station.lat, station.lon = True, lat, lon
-        station.track.clear()                                      # (we have no track: the map shows where we are)
+        station.track.clear()
         station.symbol_table, station.symbol_code, station.last_comment = symbol_table, symbol_code, comment
         station.course_deg, station.speed_kmh, station.altitude_m = course_deg, speed_kmh, altitude_m
         station.last_position_at = at or station.last_position_at or now
@@ -224,7 +228,7 @@ class StationBook:
         return station
 
     def clear_me(self) -> None:
-        """We are nobody yet (no call or no position in the settings), or somebody else now: the station of the call we had is an ordinary one again, and there is no own station."""
+        """Forget who we are (no call or position, or a new call); the old station is ordinary."""
         if self._me and self._me in self._stations:
             previous = self._stations[self._me]
             previous.is_me = False
@@ -232,8 +236,10 @@ class StationBook:
         self._me, self._me_position = "", None
 
     def own_object(self, obj: OwnObject) -> Station | None:
-        """Our object or item as a station of its own, marked `own`, reported by us, at the place and with the symbol, comment, course and speed we send; what was heard under its name before is replaced. A
-        killed one is out of the book. Not signalled to the cache: it is not kept there."""
+        """Put our object or item in the book as an `own` station, replacing what was heard.
+
+        A killed one leaves the book.
+        """
         if not obj.alive:
             self._forget_own(obj.name)
             return None
@@ -248,7 +254,7 @@ class StationBook:
         return station
 
     def forget_own(self, obj: OwnObject) -> None:
-        """Our object is gone (killed and sent as that, or taken over): it leaves the book, unless another station has taken its name."""
+        """Remove our object (killed or taken over) unless another station has taken its name."""
         self._forget_own(obj.name)
 
     def _forget_own(self, name: str) -> None:
@@ -263,31 +269,28 @@ class StationBook:
 
     @property
     def me_position(self) -> tuple[float, float] | None:
-        """Our position from the settings (latitude, longitude); None while there is none."""
         return self._me_position
 
     def distance_km(self, station: Station) -> float | None:
-        """From our position to the station's; None while either is not known."""
         if self._me_position is None or station.lat is None or station.lon is None:
             return None
         return distance_km(*self._me_position, station.lat, station.lon)
 
     def bearing_deg(self, station: Station) -> float | None:
-        """The direction from our position to the station's, degrees from north; None while either is not known."""
         if self._me_position is None or station.lat is None or station.lon is None:
             return None
         return bearing_deg(*self._me_position, station.lat, station.lon)
 
-    # ---- packets
     def take(self, packet: Packet) -> Station | None:
-        """Applies a packet heard on the air (the ones we sent are not heard). Returns the station it is about: the sender's, or the object's or item's own; None for a packet that is not
-        taken and for an object that was killed."""
+        """Apply a received packet; return the sender or the object it names, or None."""
         if packet.direction != "in":
             return None
         if packet.sender == self._me:
-            return None if packet.via == IS else self._heard_ourselves(packet)         # (our own call over the internet is not proof that the radio was heard)
+            # Our own call over the internet does not prove the radio was heard.
+            return None if packet.via == IS else self._heard_ourselves(packet)
         if (held := self._stations.get(packet.sender)) is not None and held.own:
-            return None                                                                  # (a station that calls itself by the name of an object of ours does not take the entry)
+            # A station named like one of our objects does not take the entry.
+            return None
         sender = self._heard(packet.sender, packet)
         sender.device = packet_device(packet) or sender.device
         about: Station | None = sender
@@ -311,8 +314,7 @@ class StationBook:
         return about
 
     def _heard_ourselves(self, packet: Packet) -> Station | None:
-        """A packet with our call as its source, heard on the air (our beacon repeated by a digipeater, or echoed by the TNC): proof that we are heard, nothing more. Where we are, how we look
-        and what we say come from the settings, so only the time we were last heard changes."""
+        """Handle our own call heard on the air: only the last-heard time changes."""
         station = self._stations.get(self._me)
         if station is None:
             return None
@@ -322,7 +324,8 @@ class StationBook:
 
     def _heard(self, call: str, packet: Packet) -> Station:
         station = self._stations.get(call)
-        if station is None or station.kind != "station":                            # (an object heard under this call before gives way to the station that transmits under it)
+        # An object heard under this call before gives way to the station that transmits under it.
+        if station is None or station.kind != "station":
             station = self._stations[call] = Station(call, first_heard=packet.heard_at, last_heard=packet.heard_at)
         note_heard(station, packet, carries_path=self._carries_path, ours=self._own_calls())
         return station
@@ -342,17 +345,19 @@ class StationBook:
         add_track_point(station.track, when, position.lat, position.lon)
 
     def _named(self, packet: Packet, report: ObjectReport | ItemReport) -> Station | None:
-        """The station an object or item report is about; None for a kill, and for a report under the call of a station in the book (ours too), which it leaves alone."""
+        """Return the station an object or item report is about; None for a kill or a taken name."""
         station = self._stations.get(report.name)
         if station is not None and (station.is_me or station.kind == "station"):
             return None
         if not report.alive:
-            if station is not None and not station.own:         # (another station's kill does not end an object of ours)
+            # Another station's kill does not end an object of ours.
+            if station is not None and not station.own:
                 del self._stations[report.name]
                 self.removed.emit(report.name)
             return None
         kind = "object" if isinstance(report, ObjectReport) else "item"
-        if station is None or station.kind != kind or station.own:                   # (an object of ours that another station reports is theirs now)
+        # An object of ours that another station reports is theirs now.
+        if station is None or station.kind != kind or station.own:
             station = self._stations[report.name] = Station(report.name, first_heard=packet.heard_at, last_heard=packet.heard_at, kind=kind)
         station.reported_by = packet.sender
         note_heard(station, packet, route=False)

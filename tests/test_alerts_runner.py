@@ -1,5 +1,6 @@
-"""The runner of the message alert (neoaprs/services/alerts.py) where a real command does not reach: the Windows way (PowerShell, started by a thread) on a fake `subprocess`, the ways a run goes wrong (it cannot start,
-runs out of time, the wait for it fails), ending a process and what it started, and the answer of the test button when there is nothing to run. The runs of real commands through the shell are tests/test_alerts.py."""
+"""Tests for the alert runner (neoaprs/services/alerts.py) with a fake `subprocess`: the Windows
+PowerShell path, failures and time-outs, ending a process tree, and the test button.
+"""
 
 import logging
 import subprocess
@@ -25,7 +26,8 @@ from tests.support.env import ON_AIR
 
 
 class FakeProc:
-    """A process the fake Popen made: what `communicate` answers (an exception is raised, once, then the next answer comes) and whether it has ended."""
+    """A process the fake Popen made: what `communicate` answers (an exception is raised, once, then
+    the next answer comes) and whether it has ended."""
 
     def __init__(
         self, answers: list[Any], returncode: int = 0, ended: bool = False
@@ -54,7 +56,8 @@ class FakeProc:
 
 
 class FakeSubprocess:
-    """The part of `subprocess` the runner uses: Popen makes the processes of the test (or fails), run is the `taskkill`."""
+    """The part of `subprocess` the runner uses: Popen makes the processes of the test (or fails),
+    run is the `taskkill`."""
 
     DEVNULL, PIPE, TimeoutExpired = (
         subprocess.DEVNULL,
@@ -101,7 +104,9 @@ def windows(monkeypatch: pytest.MonkeyPatch, fake: FakeSubprocess) -> Alerts:
 async def test_the_windows_run_gives_powershell_the_line_on_standard_input_and_the_environment_with_no_encoded_command_and_no_bypass(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A windowless program that starts PowerShell with an encoded command and the execution policy bypassed is what malware does: Windows Defender's guess took NeoAPRS for a trojan (4 Nov 2026)."""
+    """A windowless program that starts PowerShell with an encoded command and a bypassed execution
+    policy looks like malware to Windows Defender, so the runner must not do that.
+    """
     proc = FakeProc([(b"hello\n", b"")])
     fake = FakeSubprocess([proc])
     alerts = windows(monkeypatch, fake)
@@ -218,7 +223,8 @@ def test_a_process_that_ends_while_it_is_killed_is_no_error(
     running.kill()
 
 
-@posix_only                                                  # (the POSIX shell runner; Windows runs PowerShell, tested above)
+# (the POSIX shell runner; Windows runs PowerShell, tested above)
+@posix_only
 def test_the_process_of_the_shell_is_killed_by_itself_where_its_session_is_gone(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -241,7 +247,8 @@ def test_on_windows_the_process_is_killed_by_itself(
     assert proc.killed == 1
 
 
-@posix_only                                                  # (the POSIX shell runner; Windows runs PowerShell, tested above)
+# (the POSIX shell runner; Windows runs PowerShell, tested above)
+@posix_only
 async def test_a_shell_that_cannot_be_started_is_a_failure_not_a_crash(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

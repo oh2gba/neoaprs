@@ -1,6 +1,7 @@
-"""The objects and items of ours (neoaprs/services/ownobjects.py) on the station's FM radio as the registry gives it (services/radioset.py's RadioPick, tests/support/seamshapes.py) over a line that is a stub, a real
-log in a temporary database and a clock the test holds: the decay schedule second by second, a change that starts it again, a kill that is sent three times and forgotten, the interlock, the radio that is away,
-the pause between two frames, a frame the radio cannot carry, a restart that goes on where the schedule stopped, and another station that takes an object over."""
+"""Our objects and items (neoaprs/services/ownobjects.py) on a stub FM line, a real log and a held
+clock: the decay schedule, a change that restarts it, a kill sent three times and forgotten, and the
+radios they use.
+"""
 from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -25,7 +26,8 @@ LAT, LON = 60.17, 24.94
 
 
 class Capped(LiveShape):
-    """The FM radio with a frame cap of 100 bytes and its paths (what a radio of some type may be): a frame of ours with a long path does not fit it."""
+    """The FM radio with a frame cap of 100 bytes and its paths (what a radio of some type may be):
+    a frame of ours with a long path does not fit it."""
 
     @property
     def max_frame(self) -> int | None:
@@ -33,7 +35,8 @@ class Capped(LiveShape):
 
 
 class Rig(OwnRig):
-    """One run of the daemon's objects, on radio 1 (the FM radio: `tnc` is its line): made again on the same log and clock after a stop."""
+    """One run of the daemon's objects, on radio 1 (the FM radio: `tnc` is its line): made again on
+    the same log and clock after a stop."""
 
     def __init__(self, log: OwnLog, clock: FixedClock, shape: type[LiveShape] = LiveShape, **changes: object) -> None:
         super().__init__(log, clock, **changes)
@@ -73,7 +76,7 @@ async def rig(tmp_path: Path) -> Rig:
     return await rig_at(tmp_path)
 
 
-# ---- the schedule ---------------------------------------------------------------------------------------------------------------------------------
+# ---- the schedule --------------------------------------------------------------------------------
 
 async def test_a_new_object_goes_out_at_once_then_after_1_2_4_minutes_and_on_to_the_net_cycle_time_of_its_path(rig: Rig) -> None:
     rig.make(comment="Rescue 1")
@@ -158,7 +161,7 @@ async def test_one_that_was_killed_and_made_again_is_alive_and_decays_from_the_s
     assert rig.offsets() == [0, 60, 120] and all(info.startswith(b";LEADER   *") for _, info in rig.sent)
 
 
-# ---- the kill -------------------------------------------------------------------------------------------------------------------------------------
+# ---- the kill ------------------------------------------------------------------------------------
 
 async def test_a_kill_is_sent_three_times_and_then_the_object_is_forgotten(rig: Rig) -> None:
     rig.make(comment="gone soon")
@@ -208,7 +211,7 @@ async def test_a_kill_waits_for_the_radio_and_is_still_sent_three_times_when_it_
     assert [info[:11] for _, info in rig.sent] == [b";LEADER   *"] + [b";LEADER   _"] * 3 and rig.objects.get("LEADER") is None
 
 
-# ---- the interlock, the radio and the pace ----------------------------------------------------------------------------------------------------------
+# ---- the interlock, the radio and the pace -------------------------------------------------------
 
 async def test_nothing_is_made_while_the_call_is_not_set(tmp_path: Path) -> None:
     rig = await rig_at(tmp_path, station_call="")
@@ -277,7 +280,7 @@ async def test_a_frame_that_cannot_be_made_is_told_once_and_does_not_hold_the_ot
     assert rig.objects.get("BAD").sent == 0 and rig.objects.next_at("BAD") is not None, "it waits"         # type: ignore[union-attr]
 
 
-# ---- the names and the number ---------------------------------------------------------------------------------------------------------------------
+# ---- the names and the number --------------------------------------------------------------------
 
 async def test_an_object_cannot_have_our_call_or_the_name_of_a_station(rig: Rig) -> None:
     for name, why in (("OH2GBA", "our own call"), ("oh2gba", "our own call"), ("OH2RDG", "a station")):
@@ -294,7 +297,7 @@ async def test_there_is_a_limit_to_the_objects_on_the_air(rig: Rig) -> None:
     assert rig.make("OBJ3", comment="a change of one that is there").comment == "a change of one that is there"
 
 
-# ---- a restart ------------------------------------------------------------------------------------------------------------------------------------
+# ---- a restart -----------------------------------------------------------------------------------
 
 async def test_a_restart_goes_on_where_the_schedule_stopped(tmp_path: Path) -> None:
     first = await rig_at(tmp_path)
@@ -342,7 +345,7 @@ async def test_the_objects_are_kept_with_their_values_and_what_is_sent(tmp_path:
     assert (kept["AID"].kind, kept["AID"].path, kept["AID"].sent) == ("item", "WIDE2-1", 1) and (kept["LEADER"].course_deg, kept["LEADER"].speed_kmh) == (0, 12.5)
 
 
-# ---- another station ------------------------------------------------------------------------------------------------------------------------------
+# ---- another station -----------------------------------------------------------------------------
 
 async def test_another_station_that_reports_an_object_of_ours_takes_it_over_and_we_stop_without_a_kill(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
     rig.make()

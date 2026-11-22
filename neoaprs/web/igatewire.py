@@ -1,4 +1,4 @@
-"""The iGate on the wire: the topic `igate`. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`. The settings (`igate/enabled`, `igate/server`, `igate/password`) are in the topic `config` like the others."""
+"""Wire model of the topic `igate`."""
 from typing import Literal
 
 from pydantic import Field

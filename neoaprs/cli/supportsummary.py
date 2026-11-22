@@ -1,5 +1,7 @@
-"""`summary.txt` of the support bundle: the one screen that answers "what version, what system, what is wrong" for the person who reads the bundle. `Facts` is what the gatherers found (any part of it may be
-missing: a bundle is made for a computer that is in trouble), `summary_text` lays it out. Pure: no file is read here."""
+"""`summary.txt` of the support bundle: one screen with the version, the system and what is wrong.
+
+`Facts` is what the gatherers found (any part may be missing, as the computer may be in trouble);
+`summary_text` lays it out. No file is read here."""
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -18,7 +20,8 @@ Section = tuple[str, list[tuple[str, str]]]
 LOG_LINE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z?)  (DEBUG|INFO|WARNING|ERROR|CRITICAL)  (.*)$")
 MAX_GROUPS = 25
 MAX_MESSAGE = 240
-# the web server's lines for the optional files that are not there (the base map before it is installed, the icon, the map fonts): left out of the list of problems, not of the log
+# Web server requests for optional files that may be absent (base map, icon, map fonts); they are
+# left out of the problem list, not of the log.
 OPTIONAL_FILE_REQUEST = re.compile(r"^(?:(?:403|404) (?:HEAD|GET) /basemap\S*\.pmtiles|404 (?:HEAD|GET) (?:/favicon\.ico|/fonts/\S*\.pbf))(?:\s|$)")
 ADDRESS = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b|\[[0-9a-fA-F:]{3,}\](?::\d+)?")
 NUMBER = re.compile(r"0x[0-9a-fA-F]+|\d+(?:\.\d+)*")
@@ -28,7 +31,7 @@ NO_DAEMON = "not known: the daemon was not asked (see the log below)"
 
 @dataclass(frozen=True)
 class Problems:
-    """The warnings and errors of a log as `summary_text` lists them: the lines of the groups, how many request lines for optional files were left out, and how many groups did not fit."""
+    """The grouped warning and error lines, the optional-file requests left out, the overflow."""
     lines: list[str]
     left_out: int
     more: int
@@ -36,7 +39,7 @@ class Problems:
 
 @dataclass(frozen=True)
 class DbFacts:
-    """The database file as the bundle found it. `version` is None when it could not be read, and `problem` says why."""
+    """The database file as found. `version` is None if it could not be read; `problem` says why."""
     version: int | None
     expected: int
     size: int
@@ -59,12 +62,13 @@ class Facts:
     daemon_since: datetime | None = None
     config: Config | None = None
     settings_problem: str = ""
-    live: dict[str, Any] | None = None             # state.json, when the running daemon made the bundle (its `radios`: neoaprs/web/supportstate.py)
+    live: dict[str, Any] | None = None             # state.json, when the running daemon made the bundle
     page_url: str = ""
     database: DbFacts | None = None
     problems: Problems = field(default_factory=lambda: Problems([], 0, 0))
     checks: str = ""                               # doctor.txt, when it could be made
-    radios_problem: str = ""                       # why the stored radios could not be read (settings.json's radios_problem): the radios of `config` are then not the station's
+    # Why the stored radios could not be read; the radios of `config` are then not the station's.
+    radios_problem: str = ""
 
 
 def stamp(t: datetime | None) -> str:
@@ -72,7 +76,7 @@ def stamp(t: datetime | None) -> str:
 
 
 def duration(seconds: float) -> str:
-    """`3 d 4 h 12 min`, `4 min 5 s`: the two largest units that are not zero."""
+    """Return the two largest non-zero units, e.g. `3 d 4 h` or `4 min 5 s`."""
     left = int(max(0, seconds))
     parts = [(left // 86400, "d"), (left % 86400 // 3600, "h"), (left % 3600 // 60, "min"), (left % 60, "s")]
     shown = [f"{n} {unit}" for n, unit in parts if n]
@@ -123,18 +127,20 @@ def _beacon(f: Facts, c: Config) -> str:
     return text
 
 
-SEND_ON_LABELS = (("beacon", "Beacon"), ("status", "Status"), ("ask", "Ask around"), ("local_info", "Local info"))     # the things with a Send on of each radio, as the page names them
+# The things with a per-radio Send on, as the page names them.
+SEND_ON_LABELS = (("beacon", "Beacon"), ("status", "Status"), ("ask", "Ask around"), ("local_info", "Local info"))
 
 
 def _names(ids: Any, specs: list[RadioSpec]) -> str:
-    """The radios of these ids by the names the log gives them, in the order of the boxes; "none" for none."""
+    """Return the log names of the radios with these ids, in radio order, or "none"."""
     wanted = set(ids)
     return ", ".join(log_name(spec, specs) for spec in specs if spec.id in wanted) or "none"
 
 
 def _send_on(f: Facts, c: Config) -> list[tuple[str, str]]:
-    """What goes out on which radio, one line for each thing: the beacon, the status, Ask around, Local info and e-mail from the settings, each object and bulletin of ours from the running daemon (state.json's
-    `send_on`), each as it is in force now (none: ticked nowhere, or no radio that can send is on)."""
+    """Return one row per sendable thing with the radios it goes out on, as in force now.
+
+    Objects and bulletins come from the running daemon's state; the rest from the settings."""
     specs = list(c.radios)
     rows = [(label, _names(send_on_radios(key, specs), specs)) for key, label in SEND_ON_LABELS]
     mail = email_radio(specs, c.email_choice)
@@ -151,7 +157,7 @@ def _send_on(f: Facts, c: Config) -> list[tuple[str, str]]:
 
 
 def _state_rows(tnc: dict[str, Any]) -> list[tuple[str, str]]:
-    """A radio's state, its problem now (none while there is none), and, when it has had one, its latest error on a line of its own that says it is the latest and not the present one."""
+    """Return a radio's state, its current problem, and its latest error if any."""
     rows = [("State", str(tnc.get("state", "?"))), ("Problem", str(tnc.get("problem") or "none"))]
     if tnc.get("last_error"):
         rows.append(("Latest error", f"{tnc['last_error']} (the latest one, not necessarily a problem now)"))
@@ -159,7 +165,7 @@ def _state_rows(tnc: dict[str, Any]) -> list[tuple[str, str]]:
 
 
 def _live_radio(f: Facts, spec: RadioSpec) -> dict[str, Any] | None:
-    """What the running daemon said of the radio (state.json's `radios`), None without it."""
+    """Return the running daemon's entry for the radio from state.json, or None."""
     for entry in (f.live or {}).get("radios") or []:
         if isinstance(entry, dict) and entry.get("id") == spec.id:
             return entry
@@ -167,8 +173,7 @@ def _live_radio(f: Facts, spec: RadioSpec) -> dict[str, Any] | None:
 
 
 def _radio(f: Facts, spec: RadioSpec) -> list[tuple[str, str]]:
-    """A radio: its type, whether it is on and how it is reached (the port and speed in use while the daemon has the line open), then while it is on its state, the problem it has now and its latest
-    error apart, and for the Mercury modem the sound cards it lists (the running daemon's: which device is the radio's, by name)."""
+    """Return the rows for one radio: type, on or off, how it is reached, and its state if on."""
     entry = _live_radio(f, spec)
     found = (entry or {}).get("tnc")
     tnc: dict[str, Any] = found if isinstance(found, dict) else {}
@@ -216,7 +221,7 @@ def _database(db: DbFacts | None) -> str:
 
 
 def _checks(doctor_text: str) -> list[tuple[str, str]]:
-    """The checks of the doctor that are not ok, and its verdict."""
+    """Return the doctor's failing checks and its verdict."""
     lines = [line for line in doctor_text.splitlines() if line.strip()]
     rows = [(line[:5].strip(), line[6:]) for line in lines if line.startswith(("FAIL", "warn"))]
     return [*rows[:MAX_CHECKS], *([("", f"... and {len(rows) - MAX_CHECKS} more")] if len(rows) > MAX_CHECKS else []), ("Result", lines[-1] if lines else "")]
@@ -271,14 +276,16 @@ def summary_text(f: Facts) -> str:
 
 
 def message_key(level: str, message: str) -> str:
-    """What makes two messages the same one: the level and the words, with the addresses, the numbers and the durations taken out."""
+    """Return the grouping key: the level and the message with addresses and numbers masked."""
     return f"{level} {NUMBER.sub('#', ADDRESS.sub('<address>', message))}"
 
 
 def problem_groups(log_lines: list[str]) -> Problems:
-    """The WARNING, ERROR and CRITICAL records of a log in groups of the same message (`message_key`), each as `COUNT× LAST-TIME LEVEL MESSAGE` with the message as last seen (for one that was followed by a traceback, the exception line too, on a line of its own):
-    ERROR and CRITICAL first, then WARNING, the newest first in each, at most MAX_GROUPS. The requests for optional files are counted in `left_out` and are in no group."""
-    groups: dict[str, list[Any]] = {}                      # key -> [count, order of the last, time, level, message, exception line]
+    """Group WARNING, ERROR and CRITICAL records by `message_key`, one line each.
+
+    ERROR and CRITICAL come first, then WARNING, newest first, at most MAX_GROUPS."""
+    # key -> [count, order of the last, time, level, message, exception line]
+    groups: dict[str, list[Any]] = {}
     left_out = 0
     last: list[Any] | None = None
     for order, line in enumerate(log_lines):
@@ -294,7 +301,7 @@ def problem_groups(log_lines: list[str]) -> Problems:
             last = groups.setdefault(message_key(level, message), [0, 0, "", "", "", ""])
             last[:] = [last[0] + 1, order, when, level, message if len(message) <= MAX_MESSAGE else message[:MAX_MESSAGE - 1] + "…", ""]
         elif last is not None and line.strip():
-            last[5] = f"    {line.strip()}"                   # (only the last line of the lines that follow)
+            last[5] = f"    {line.strip()}"                   # keeps only the last following line
     ranked = sorted(groups.values(), key=lambda g: (g[3] == "WARNING", -g[1]))
     lines: list[str] = []
     for count, _, when, level, message, exception in ranked[:MAX_GROUPS]:

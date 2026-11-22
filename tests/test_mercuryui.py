@@ -1,6 +1,7 @@
-"""The WebSocket client (neoaprs/websocketclient.py) and the link to Mercury's UI interface that is made of it (neoaprs/mercuryui.py), against a fake server that speaks as Mercury's does (tests/support/fakemercuryui.py):
-the handshake and its refusals, whole messages in both kinds, the commands and their answers, the spectrum feed asked for only while it is wanted, the link opened again after it dropped, and a server that is not there told
-once."""
+"""The WebSocket client (neoaprs/websocketclient.py) and the Mercury UI link made of it
+(mercuryui.py) against a fake server: handshake and refusals, messages, commands, and the spectrum
+feed asked for only when wanted.
+"""
 import asyncio
 import logging
 import struct
@@ -207,7 +208,8 @@ async def test_a_link_that_dropped_is_opened_again_and_what_is_wanted_is_asked_f
         await until(lambda: link.ui.connected)
         link.ui.waterfall(True)
         await until(lambda: fake.waterfall)
-        fake.waterfall = False                                          # (a Mercury that came up again knows nothing of it)
+        # A Mercury that came up again knows nothing of it
+        fake.waterfall = False
         fake.drop()
         await until(lambda: link.states == [True, False, True])
         await until(lambda: fake.waterfall and link.spectra > 0)
@@ -227,7 +229,8 @@ async def test_a_server_that_is_not_there_is_told_once_and_the_link_opens_when_i
     with caplog.at_level(logging.DEBUG, logger="neoaprs.mercury"):
         link.ui.start()
         retried = lambda: [r for r in caplog.records if r.levelno == logging.DEBUG and f"UI interface on port {fake.port}:" in r.getMessage()]  # noqa: E731
-        await until(lambda: len(retried()) >= 2, 15.0)                   # (attempts, not a time: a refused connection takes Windows about 2 s, Linux none)
+        # attempts, not a time: a refused connection takes Windows about 2 s, Linux none
+        await until(lambda: len(retried()) >= 2, 15.0)
         told = [r for r in caplog.records if r.levelno == logging.INFO and "cannot be reached" in r.getMessage()]
         assert len(told) == 1 and not link.ui.connected and link.states == [], "one line in the log for any number of attempts"
         await fake.start()
@@ -272,12 +275,15 @@ def test_the_opcodes_are_the_ones_of_the_rfc() -> None:
 
 
 async def test_the_fake_ui_ends_at_once_with_a_connection_that_has_asked_for_nothing_yet() -> None:
-    """The fake modem's UI server closes every connection when it ends: one that connected a moment before and has sent nothing kept a dying fake Mercury alive until the client gave up (Windows, under load)."""
+    """The fake modem's UI server closes every connection when it ends: one that connected a moment
+    before and has sent nothing kept a dying fake Mercury alive until the client gave up (Windows,
+    under load)."""
     ui = FakeUi(port=0)
     await ui.start()
     reader, writer = await asyncio.open_connection("127.0.0.1", ui.port)
     try:
-        await asyncio.sleep(0.05)                                           # the server has taken the connection and waits for its first line
+        # The server has taken the connection and waits for its first line
+        await asyncio.sleep(0.05)
         await asyncio.wait_for(ui.aclose(), 1.0)
         assert await asyncio.wait_for(reader.read(), 1.0) == b"", "the connection is closed from the server's side"
     finally:

@@ -1,10 +1,5 @@
-"""A database file as the migrations leave it, for the tests of the migrations: `Opened(path)` runs `open_database` (the copy before, the steps, the history) and holds the connection it
-gives, on this thread, as a test reads it back.
-
-    s = opened(path)                 # asserts that it opened; s.db is the connection, s.version() and s.history() what the file says
-    ok, error = try_open(path)       # the answer of a file that is refused, the connection closed
-    step_back(db, 17)                # a database made by every migration, put back to the schema of version 17, for a test that runs the later migrations on it
-    undo_34(db)                      # the schema of 34 put back to that of 33 (a bulletin of ours names no radios), for step_back
+"""A database file as the migrations leave it, for the migration tests: `Opened(path)` runs
+`open_database` and holds the connection it gives, on this thread.
 """
 import sqlite3
 from datetime import datetime
@@ -49,14 +44,18 @@ def try_open(path: str | Path, clock: Clock = utcnow) -> tuple[bool, str]:
 
 
 def undo_34(db: sqlite3.Connection) -> None:
-    """Takes back what migration 34 did to the schema: a bulletin of ours names no radios (`own_bulletin.radios` goes), and the rows no file of version 33 has (`email/radio`, what a new object and a
-    new bulletin start with). The ticks it wrote are rows 0.20.1 reads as they are, and stay; `station/main_radio` is the test's to put back: a database of 0.20.0 or 0.20.1 is the rows a test inserts."""
+    """Take back what migration 34 did: `own_bulletin.radios` and the rows no version 33 file has.
+
+    `station/main_radio` is the test's to put back.
+    """
     db.execute("ALTER TABLE own_bulletin DROP COLUMN radios")
     db.execute("DELETE FROM settings WHERE key IN ('email/radio', 'objects/send_on', 'bulletins/send_on')")
 
 
 def step_back(db: sqlite3.Connection, version: int) -> None:
-    """Takes out of a fully migrated database what the migrations after `version` added to the schema, so that they can run again on it (the history and `user_version` are the test's to set)."""
+    """Takes out of a fully migrated database what the migrations after `version` added to the
+    schema, so that they can run again on it (the history and `user_version` are the test's to set).
+    """
     if version < 34:
         undo_34(db)
     if version < 33:
@@ -64,7 +63,8 @@ def step_back(db: sqlite3.Connection, version: int) -> None:
     if version < 32:
         undo_32(db)
     if version < 31:
-        undo_31(db)                 # (after undo_33 and undo_32: the latest step is taken out first)
+        # After undo_33 and undo_32: the latest step is taken out first
+        undo_31(db)
     if version < 30:
         for table in ("packet", "message", "station"):
             db.execute(f"ALTER TABLE {table} DROP COLUMN snr")
@@ -80,7 +80,9 @@ def step_back(db: sqlite3.Connection, version: int) -> None:
         for column in ("heard_rf", "heard_rf_gated", "heard_is", "heard_dummy", "last_rf_at", "last_rf_gated_at", "last_is_at", "last_dummy_at", "position_via"):
             db.execute(f"ALTER TABLE station DROP COLUMN {column}")
     if version < 22:
-        _v12(db)                    # (`station_pref` made again as migration 12 made it, without the columns of the alerts: a column that a CHECK names cannot be dropped; the table of a test is empty here)
+        # `station_pref` made again as migration 12 made it, without the columns of the alerts: a
+        # column that a CHECK names cannot be dropped; the table of a test is empty here
+        _v12(db)
     if version < 25:
         db.execute("ALTER TABLE packet DROP COLUMN radio")
         db.execute("ALTER TABLE message DROP COLUMN radio")
@@ -93,4 +95,6 @@ def step_back(db: sqlite3.Connection, version: int) -> None:
         db.execute("ALTER TABLE message DROP COLUMN seal")
         db.execute("ALTER TABLE message DROP COLUMN wire")
     if version < 23:
-        _v10(db)                    # (`message` made again as migration 10 made it, without AUTOINCREMENT, so that migration 23 finds the table it expects; the rows are kept)
+        # `message` made again as migration 10 made it, without AUTOINCREMENT, so that migration 23
+        # finds the table it expects; the rows are kept
+        _v10(db)

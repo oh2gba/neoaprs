@@ -1,10 +1,8 @@
-"""The status's Send on (neoaprs/beaconrule.py `send_on_radios`, neoaprs/services/rigstatus.py): the radios the status report goes out on are the operator's, a tick per radio that can send, in the beacon's
-pattern; with one radio that can send that one whatever is stored, with several the ticks exactly (unticked by default; ticked nowhere is not sent). On each radio it goes at `status/interval_min`
-raised to that radio's own floor (the beacon's function: 30 minutes on HF and LoRa), one report per interval per radio; a report longer than a radio carries is not sent there; a radio that only receives is
-never one. What goes on the air is counted per radio over a simulated day: a poll a minute, the status interval at 15 minutes, a text of our own.
-
-The day runs on the status service over stub lines and a registry that reads the settings as they are (radios added, ticked and removed while it runs); the upgrade runs on the whole daemon of a data folder
-made by the test's daemon (migration 34 writes the ticks of a data folder of 0.20.0: tests/test_no_main_radio.py)."""
+"""The status's Send on (neoaprs/beaconrule.py `send_on_radios`, neoaprs/services/rigstatus.py): the
+status goes out on the radios the operator ticked, one report per interval per radio, at
+`status/interval_min` raised to the radio's floor. Counted per radio over a simulated day; the
+upgrade runs on a whole daemon.
+"""
 import logging
 from collections import Counter
 from collections.abc import Callable, Sequence
@@ -35,9 +33,11 @@ from tests.support.stubtnc import StubTnc
 FM = RadioSpec(1, "fm", "kenwood-tnc2", "", True, 1, settings={"path": "WIDE1-1,WIDE2-1"})
 HF = RadioSpec(2, "hf", "dummy-hf", "", True, 2)
 LORA = RadioSpec(3, "lora", "dummy-lora", "", True, 3)
-RX = RadioSpec(4, "fm", "tnc-text", "", True, 4, settings={"port": "/dev/ttyUSB7", "status": "true"})       # (a tick stored from another type: a radio that only receives has no such field)
+# A tick stored from another type: a radio that only receives has no such field
+RX = RadioSpec(4, "fm", "tnc-text", "", True, 4, settings={"port": "/dev/ttyUSB7", "status": "true"})
 DAY = 24 * 60
-EVERY = 15                                                                    # the status interval of the day: the FM radio at it, HF and LoRa at their floor of 30
+# The status interval of the day: the FM radio at it, HF and LoRa at their floor of 30
+EVERY = 15
 
 
 def ticked(spec: RadioSpec, on: bool = True) -> RadioSpec:
@@ -45,14 +45,16 @@ def ticked(spec: RadioSpec, on: bool = True) -> RadioSpec:
 
 
 class Short(LiveShape):
-    """A radio whose type carries less text than our status (no type does: the status is at most 55 characters, a LoRa packet 252 bytes of text)."""
+    """A radio whose type carries less text than our status (no type does: the status is at most 55
+    characters, a LoRa packet 252 bytes of text)."""
     @property
     def limits(self) -> Limits:
         return replace(super().limits, max_text=30)
 
 
 class Registry:
-    """The registry's choice of a radio over the settings as they are now: a radio that is on is there, with its own stub line."""
+    """The registry's choice of a radio over the settings as they are now: a radio that is on is
+    there, with its own stub line."""
     def __init__(self, station: "Station") -> None:
         self.station = station
 
@@ -84,7 +86,8 @@ class Registry:
 
 
 class Station:
-    """The status service of a station with these radios, a text of its own every EVERY minutes, the beacon on."""
+    """The status service of a station with these radios, a text of its own every EVERY minutes, the
+    beacon on."""
     def __init__(self, *specs: RadioSpec, short: Sequence[RadioId] = (), **changes: object) -> None:
         self.clock = FixedClock()
         self.config: Config = replace(ON_AIR, **{"beacon_interval_min": 30, "status_interval_min": EVERY, "station_status": "QRV 145.500", "status_source": "text", "radios": specs, **changes})  # type: ignore[arg-type]
@@ -104,7 +107,8 @@ class Station:
         self.config = replace(self.config, radios=tuple(spec if s.id == spec.id else s for s in self.config.radios))
 
     async def day(self, minutes: int = DAY, at: dict[int, Callable[[], None]] | None = None) -> None:
-        """A poll a minute for this long, from the clock as it is; `at` changes the settings before the poll of that minute."""
+        """A poll a minute for this long, from the clock as it is; `at` changes the settings before
+        the poll of that minute."""
         for minute in range(minutes):
             if at and minute in at:
                 at[minute]()
@@ -115,7 +119,7 @@ class Station:
         return {id: sum(1 for f in line.sent if f.info.startswith(b">")) for id, line in self.lines.items()}
 
 
-# ---- the rule ------------------------------------------------------------------------------------------------------------------------------------
+# ---- the rule ------------------------------------------------------------------------------------
 
 def status_radios(specs: Sequence[RadioSpec]) -> tuple[RadioId, ...]:
     return send_on_radios("status", specs)
@@ -139,7 +143,7 @@ def test_the_status_on_a_radio_is_its_interval_raised_to_the_radios_own_floor_th
     assert [beacon_interval(120, spec) for spec in (FM, HF, LORA)] == [120, 120, 120]
 
 
-# ---- what goes on the air over a day --------------------------------------------------------------------------------------------------------------
+# ---- what goes on the air over a day -------------------------------------------------------------
 
 async def test_one_fm_radio_sends_as_today() -> None:
     station = Station(FM)
@@ -252,7 +256,7 @@ async def test_a_radio_that_waited_left_and_is_ticked_again_later_joins_at_the_n
     assert [f.info[1:7] for f in station.lines[2].sent] == [b"211515", b"211545"], "half an hour after the latest report, not at the change"
 
 
-# ---- Send status now ------------------------------------------------------------------------------------------------------------------------------
+# ---- Send status now -----------------------------------------------------------------------------
 
 async def test_send_status_now_sends_once_on_each_ticked_radio_that_takes_it_now_and_the_interval_counts_from_it() -> None:
     station = Station(ticked(FM), ticked(HF), LORA)
@@ -270,8 +274,10 @@ async def test_send_status_now_sends_once_on_each_ticked_radio_that_takes_it_now
 
 
 async def test_why_send_status_now_sent_nothing_is_a_code_with_its_values_never_only_a_sentence() -> None:
-    """Every reason Send status now gives has a code and the values of its sentence, which the page says in its own language inside `status.not_sent` (the owner saw "er is niets verzonden: there is no
-    status text"): one with the code `other` would be shown as the plain words of a failure, and an English sentence must never reach the page."""
+    """Every reason Send status now gives has a code and the values of its sentence, which the page
+    says in its own language inside `status.not_sent` (for example a Dutch page showing
+    "there is no status text"): one with the code `other` would be shown as the plain words of a
+    failure, and an English sentence must never reach the page."""
     async def why(station: Station) -> tuple[str, dict[str, object]]:
         return code_of(await station.status.send_now())
     assert await why(Station(replace(ticked(FM), enabled=False))) == ("radio.none", {})
@@ -327,7 +333,8 @@ async def test_each_radios_own_row_says_its_last_report_after_a_start(tmp_path: 
     store = await store_at(tmp_path / "neoaprs.sqlite", FixedClock())
     station = Station(ticked(FM), HF)
     last = station.clock() - timedelta(minutes=10)
-    await store.put_settings({STATUS_SENT: iso(last) or "", memory_key_of(1): iso(last) or "", memory_key_of(2): iso(last) or ""})          # (as migration 34 leaves them: the station's latest is every radio's own)
+    # As migration 34 leaves them: the station's latest is every radio's own
+    await store.put_settings({STATUS_SENT: iso(last) or "", memory_key_of(1): iso(last) or "", memory_key_of(2): iso(last) or ""})
     station.status = RigStatus(Registry(station), lambda: station.config, BeaconFrames(lambda: station.config, None, station.clock), station.clock, poll_sec=3600, memory=store)
     remember_stop(station.status.stop)
     await station.status.start()
@@ -335,7 +342,7 @@ async def test_each_radios_own_row_says_its_last_report_after_a_start(tmp_path: 
     await station.status.stop()
 
 
-# ---- the wire ---------------------------------------------------------------------------------------------------------------------------------------
+# ---- the wire ------------------------------------------------------------------------------------
 
 async def test_each_radios_row_says_its_last_report_and_the_next() -> None:
     station = Station(ticked(FM), ticked(HF), LORA)
@@ -348,15 +355,17 @@ async def test_each_radios_row_says_its_last_report_and_the_next() -> None:
     assert station.status.on_radio(1) == (sent, None, 15), "the beacon off: no timed status"
 
 
-# ---- the upgrade ------------------------------------------------------------------------------------------------------------------------------------
+# ---- the upgrade ---------------------------------------------------------------------------------
 
 async def test_a_daemon_with_both_radios_sends_the_status_on_the_ticked_one_and_a_tick_on_the_other_moves_it(tmp_path: Path) -> None:
     clock = FixedClock()
     last = clock() - timedelta(minutes=10)
     settings = {"hf/enabled": "true", "hf/profile": "dummy-hf", "beacon/interval_min": "60", "status/source": "text", "station/status": "QRV 145.500", "status/interval_min": "30",
-                "status/last_sent_at": iso(last) or "", "status/last_text": "QRV 145.500"}          # (the rows 0.20.0 kept; its radios have no `status` of their own)
+                # The rows the older version kept; its radios have no `status` of their own.
+                "status/last_sent_at": iso(last) or "", "status/last_text": "QRV 145.500"}
     e = Env(tmp_path, clock=clock, settings=settings)
-    e.mercury._finder = lambda: None                          # (no program: the Dummy HF radio works without its speaker)
+    # No program: the Dummy HF radio works without its speaker
+    e.mercury._finder = lambda: None
     out: list[tuple[RadioId | None, bytes]] = []
     e.ctl.radio_packet.connect(lambda p: out.append((p.radio_id, ax25.decode(p.raw).info)) if p.direction == "out" else None)
     await e.start()

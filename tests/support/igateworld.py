@@ -1,9 +1,6 @@
-"""A receive-only iGate for the tests: the service on the real connection to a fake APRS-IS (tests/support/fakeaprsis.py), a clock in the test's hand, and packets as the radio would have heard them.
-
-    w = await iworld(server)                          # started, logged in and verified (`await iworld(server, wait=False)` leaves it connecting; with no passcode, or one the server refuses, it waits for the login that listens only)
-    w.hear(source="OH2XYZ-9", path="WIDE1-1*", info=b"!6010.00N/02456.00E>x")      # the radio hears a packet; direction="out" is one it sent
-    await w.until_sent(n)                             # n lines have reached the server
-    w.save(igate_password="1")                        # a change of the settings, told to the service
+"""A receive-only iGate for the tests: the service on a real connection to a fake APRS-IS
+(tests/support/fakeaprsis.py), a clock the test holds, and packets as the radio would have heard
+them.
 """
 from dataclasses import replace
 
@@ -33,7 +30,8 @@ class IWorld:
         self.config_now: Config = replace(ON_AIR, **{"station_call": "OH2GBA-10", "igate_enabled": True, "igate_server": server.address, "igate_password": "19628", **changes})       # type: ignore[arg-type]
         self.position_info: bytes | None = POSITION
         self.link = AprsIs(self.clock, Backoff([0.05]), connect_sec=1.0, greeting_sec=0.5, login_sec=0.5, lost_sec=5.0, quiet_sec=5.0)
-        self.place = place                                                  # where we are: the filter of the connection is round it
+        # Where we are: the filter of the connection is round it
+        self.place = place
         self.igate = Igate(self.link, self._settings, self._position, lambda: self.place, self.clock, tick_sec=3600.0)
         self.link.changed.connect(self.igate.link_changed)
         remember_stop(self.igate.stop)

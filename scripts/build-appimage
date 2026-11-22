@@ -1,22 +1,31 @@
 #!/usr/bin/env bash
-# Builds NeoAPRS-<version>-x86_64.AppImage, the Linux download: one file that holds CPython, the wheel with the locked dependencies of its extra `app` (Qt with its web engine) and the icon.
+# Build NeoAPRS-<version>-x86_64.AppImage, the Linux download: one file with CPython, the wheel with
+# the locked dependencies of its extra `app` (Qt with its web engine) and the icon.
 #
 #   scripts/build-appimage (--mercury TARBALL | --no-mercury) (--direwolf TARBALL | --no-direwolf) [--wheel FILE] [--out DIR] [--window web --gi TARBALL]
 #   scripts/build-appimage --retag FILE VERSION [--out DIR]
 #
-# --window web makes the trial of the web window (aprs-reference/window-plan.md, 9.1), never a release: no Qt, the window of pywebview on the system's WebKitGTK and pystray's tray in its place, `gi` and what
-# the image carries of GTK's world from TARBALL (what scripts/build-gi makes, gi-VERSION-linux-x86_64.tar.gz: its gi/ goes into site-packages, the rest to usr/lib/neoaprs-gtk), pywebview, pystray and Pillow
-# at the versions and digests of uv.lock and Pillow's Linux wheel by its pin there (packaging/appimage/weblock.py; wheels only, but proxy-tools), and AppRun-web, which sets NEOAPRS_WINDOW=web. The file is NeoAPRS-<version>-web-x86_64.AppImage in DIR (default
-# build/appimage-web/), the work folder build/appimage-web/work/.
+# --window web builds the trial of the web window, never a release: no Qt; pywebview on the system's
+# WebKitGTK and pystray's tray instead, `gi` and the GTK libraries from TARBALL (made by
+# scripts/build-gi), pywebview, pystray and Pillow at the versions and digests of uv.lock
+# (packaging/appimage/weblock.py; wheels only, except proxy-tools), and AppRun-web, which sets
+# NEOAPRS_WINDOW=web. The file is NeoAPRS-<version>-web-x86_64.AppImage in DIR (default
+# build/appimage-web/), work folder build/appimage-web/work/.
 #
-# Without --wheel the wheel is built from this tree (uv build). --mercury is the tarball that scripts/build-mercury --tar makes for x86_64 (mercury-VERSION-linux-x86_64.tar.gz): its folder mercury/ goes to usr/tools/mercury
-# (the simulators of its dev/ folder are left out). A release always carries Mercury, so the build refuses to run with neither --mercury nor --no-mercury (the file of a developer who has no Mercury to hand).
-# --direwolf is the tarball that scripts/build-direwolf --tar makes for x86_64 (direwolf-VERSION-linux-x86_64.tar.gz): its folder direwolf/ goes to usr/tools/direwolf (its dev/ folder is left out); the same rule holds, and it needs --mercury (the Sound card type lists the sound cards with Mercury).
-# The file is made in DIR (default dist-appimage/). --retag makes NeoAPRS-VERSION-x86_64.AppImage out of the AppImage FILE with nothing changed
-# but the VERSION it says: the newer file of the end-to-end test of Update now (scripts/update-e2e.py), never a release. The tools are fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build), each
-# pinned by version and SHA-256 below (the digest GitHub shows for each file of the release; the pin is the trust, not the server): the relocatable CPython of python-build-standalone, appimagetool and the
-# AppImage runtime it puts in front of the image. The runtime is static: the computer that runs the file needs FUSE (fusermount and /dev/fuse), not libfuse2. Needs uv, curl and a Linux x86_64 machine;
-# the work folder is build/appimage/. How it behaves and what it holds: docs/manual/install.md, "Linux AppImage", and docs/development.md, "The AppImage". scripts/smoke-appimage tries the file.
+# Without --wheel the wheel is built from this tree (uv build). --mercury is the tarball that
+# scripts/build-mercury --tar makes for x86_64: its mercury/ folder goes to usr/tools/mercury
+# (without its dev/ simulators). A release always carries Mercury, so the build refuses to run with
+# neither
+# --mercury nor --no-mercury. --direwolf is the tarball of scripts/build-direwolf --tar for x86_64: its
+# direwolf/ folder goes to usr/tools/direwolf; the same rule holds, and it needs --mercury. The file
+# is made in DIR (default dist-appimage/). --retag makes NeoAPRS-VERSION-x86_64.AppImage from the
+# AppImage FILE with only the VERSION changed: the newer file of the Update now end-to-end test
+# (scripts/update-e2e.py), never a release. Tools are fetched once into $NEOAPRS_BUILD_CACHE
+# (default ~/.cache/neoaprs-build), each pinned by version and SHA-256 below (the pin is the trust,
+# not the server): python-build-standalone's CPython, appimagetool and the static AppImage runtime
+# (the running computer needs FUSE, not libfuse2). Needs uv, curl and a Linux x86_64 machine; work
+# folder build/appimage/. See docs/manual/install.md, "Linux AppImage", and docs/development.md,
+# "The AppImage". scripts/smoke-appimage tries the file.
 case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -76,7 +85,8 @@ command -v curl >/dev/null || { echo "build-appimage: curl is not installed" >&2
 cache="${NEOAPRS_BUILD_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/neoaprs-build}"
 mkdir -p "$cache"
 
-# fetch URL SHA256: the file in the cache, downloaded when it is not there or not the pinned one; its path on stdout
+# fetch URL SHA256: the file in the cache, downloaded when it is not there or not the pinned one;
+# its path on stdout
 fetch() {
     local file
     file="$cache/$(basename "${1//%2B/+}")"
@@ -88,8 +98,11 @@ fetch() {
     echo "$file"
 }
 
-# pack APPDIR TARGET: the image of the folder with the pinned runtime in front of it. zstd at level 19 (mksquashfs's default is 15; its option comes after appimagetool's own, and the later one wins): the file
-# is smaller and unpacks as fast, only the build takes longer. The blocks stay appimagetool's 128 KiB: larger ones pack smaller and make every start slower, each read through FUSE unpacking a whole block.
+# pack APPDIR TARGET: the image of the folder with the pinned runtime in front of it. zstd at level
+# 19 (mksquashfs's default is 15; its option comes after appimagetool's own, and the later one
+# wins): the file is smaller and unpacks as fast, only the build takes longer. The blocks stay
+# appimagetool's 128 KiB: larger ones pack smaller and make every start slower, each read through
+# FUSE unpacking a whole block.
 pack() {
     local appimagetool runtime
     appimagetool="$(fetch "$TOOL_URL" "$TOOL_SHA256")"
@@ -110,7 +123,7 @@ if [ -n "$retag" ]; then
     init="$(ls "$work"/squashfs-root/usr/lib/python3.*/site-packages/neoaprs/__init__.py)"
     sed -i "s/^VERSION = \"[^\"]*\"/VERSION = \"$retag_version\"/" "$init"
     grep -q "^VERSION = \"$retag_version\"" "$init" || { echo "build-appimage: no VERSION in $init" >&2; exit 1; }
-    # (the bytecode is unchecked: the old one would win over the changed source)
+    # the bytecode is unchecked: the old one would win over the changed source
     "$work/squashfs-root/usr/bin/python3" -I -m compileall -q --invalidation-mode unchecked-hash "$init" > /dev/null
     target="$out/NeoAPRS-$retag_version-x86_64.AppImage"
     pack "$work/squashfs-root" "$target"
@@ -134,14 +147,19 @@ app="$work/AppDir"
 rm -rf "$work"
 mkdir -p "$app" "$out"
 
-# CPython: the archive holds one folder, python/, laid out as a prefix (bin, lib); it is the AppDir's usr/
+# CPython: the archive holds one folder, python/, laid out as a prefix (bin, lib); it is the
+# AppDir's usr/
 tar -xzf "$python_tar" -C "$work"
 mv "$work/python" "$app/usr"
 python="$app/usr/bin/python3"
 "$python" --version
 
-# The locked dependencies of the extras `app` and `ble` (a radio on Bluetooth LE) for Linux, then the wheel on top; the programs the installs make have this machine's path in them and are of no use here (AppRun runs `python -m neoaprs`).
-# The web window: the locked dependencies with `ble` and without `app` (it is Qt on Linux), then pywebview, pystray and Pillow at their locked versions and digests as wheels (Pillow's for Linux by weblock's pin; proxy-tools, pure Python, from its sdist), then gi and the rest the gi tarball carries
+# The locked dependencies of the extras `app` and `ble` (a radio on Bluetooth LE) for Linux, then
+# the wheel on top; the programs the installs make have this machine's path in them and are of no
+# use here (AppRun runs `python -m neoaprs`). The web window: the locked dependencies with `ble` and
+# without `app` (it is Qt on Linux), then pywebview, pystray and Pillow at their locked versions and
+# digests as wheels (Pillow's for Linux by weblock's pin; proxy-tools, pure Python, from its sdist),
+# then gi and the rest the gi tarball carries
 if [ "$window" = web ]; then
     (cd "$ROOT" && uv export --frozen --no-dev --no-emit-project --extra ble -o "$work/requirements.txt")
     "$python" -I "$ROOT/packaging/appimage/weblock.py" "$ROOT/uv.lock" > "$work/requirements-web.txt"
@@ -164,14 +182,18 @@ fi
 find "$app/usr/bin" -type f ! -name 'python3*' -delete
 find "$app/usr/bin" -xtype l -delete
 
-# Mercury, the HF modem: the program with its ALSA library and configuration, where neoaprs/bundled.py looks (<sys.prefix>/tools/mercury); its dev/ folder of simulators is not shipped
+# Mercury, the HF modem: the program with its ALSA library and configuration, where
+# neoaprs/bundled.py looks (<sys.prefix>/tools/mercury); its dev/ folder of simulators is not
+# shipped
 if [ -n "$mercury" ]; then
     mkdir -p "$app/usr/tools"
     tar -xzf "$mercury" -C "$app/usr/tools" --exclude='mercury/dev'
     for needed in mercury lib/libasound.so.2 share/alsa/alsa.conf LICENSE; do [ -e "$app/usr/tools/mercury/$needed" ] || { echo "build-appimage: $mercury has no mercury/$needed" >&2; exit 1; }; done
     [ -x "$app/usr/tools/mercury/mercury" ] && [ ! -e "$app/usr/tools/mercury/dev" ]
 fi
-# Direwolf, the FM modem of the Sound card type: the program with its ALSA and udev libraries, the ALSA configuration and its two data files, beside Mercury; its dev/ folder of utilities is not shipped
+# Direwolf, the FM modem of the Sound card type: the program with its ALSA and udev libraries, the
+# ALSA configuration and its two data files, beside Mercury; its dev/ folder of utilities is not
+# shipped
 if [ -n "$direwolf" ]; then
     mkdir -p "$app/usr/tools"
     tar -xzf "$direwolf" -C "$app/usr/tools" --exclude='direwolf/dev'
@@ -179,7 +201,8 @@ if [ -n "$direwolf" ]; then
     [ -x "$app/usr/tools/direwolf/direwolf" ] && [ ! -e "$app/usr/tools/direwolf/dev" ]
 fi
 
-# Size: what the image does not run is taken out (prune.py says what; the web window has no Qt to prune)
+# Size: what the image does not run is taken out (prune.py says what; the web window has no Qt to
+# prune)
 if [ "$window" = web ]; then
     "$python" -I "$ROOT/packaging/appimage/prune.py" --python-only "$app/usr"
     install -m 755 "$ROOT/packaging/appimage/AppRun-web" "$app/AppRun"
@@ -188,7 +211,8 @@ else
     install -m 755 "$ROOT/packaging/appimage/AppRun" "$app/AppRun"
 fi
 install -m 644 "$ROOT/packaging/appimage/neoaprs.desktop" "$app/neoaprs.desktop"
-# the icon at its largest size (the 256 px frame of the Windows icon is a PNG), for the launcher; .DirIcon is what file managers show for the file
+# the icon at its largest size (the 256 px frame of the Windows icon is a PNG), for the launcher;
+# .DirIcon is what file managers show for the file
 "$python" -I - "$ROOT/neoaprs/desktop/icon.ico" "$app/neoaprs.png" <<'PY'
 import struct
 import sys
@@ -202,7 +226,8 @@ open(sys.argv[2], "wb").write(png)
 PY
 ln -s neoaprs.png "$app/.DirIcon"
 
-# bytecode of the image's packages, made now because the mounted image is read-only (unchecked: the image never changes)
+# bytecode of the image's packages, made now because the mounted image is read-only (unchecked: the
+# image never changes)
 "$python" -I -m compileall -q --invalidation-mode unchecked-hash "$app/usr/lib/python3.13" >/dev/null
 
 target="$out/NeoAPRS-$version-x86_64.AppImage"

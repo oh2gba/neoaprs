@@ -1,9 +1,13 @@
-# What a push or a pull request must pass: the Python half (lock, ruff, mypy, the tests) on Linux and on Windows, the smoke test of the built wheel on both, and the page's half (type check, lint, tests,
-# and neoaprs/page/ is what ui/ builds, and the two duplication ratchets). On Linux every step is a stage of scripts/check (`scripts/check --stage NAME`), so that what runs here cannot differ from what is run
-# before a push, nor from the container of scripts/check-in-container, which runs the steps of the jobs `python` (on Linux) and `sim` in their order; Windows has no bash script and runs the commands
-# themselves. No secrets, nothing is published. The runners are named and not `-latest`, so that a commit's result does not depend on the day GitHub moves a label: packaging/ci/runner.json lists
-# them, the weekly audit says when a `-latest` label is no longer what we name, and every setup-uv installs the uv of packaging/ci/Dockerfile (tests/test_check_in_container.py holds all three).
-# The weekly audit of the packages is another workflow (audit.yml): the release asks for a green run of this one by the commit, and a scheduled run of this file would be one.
+# What a push or pull request must pass: the Python half (lock, ruff, mypy, tests) on Linux and
+# Windows, the smoke test of the built wheel on both, and the page's half (type check, lint, tests,
+# neoaprs/page/ is what ui/ builds, two duplication ratchets). On Linux every step is a stage of
+# scripts/check, so CI cannot differ from a local run or from the container of
+# scripts/check-in-container; Windows runs the commands itself. No secrets, nothing is published.
+# Runners are named, not `-latest`, so a result does not depend on the day GitHub moves a label:
+# packaging/ci/runner.json lists them, the weekly audit says when a label moves, and every setup-uv
+# installs the uv of packaging/ci/Dockerfile (tests/test_check_in_container.py checks all three).
+# The weekly package audit is another workflow (audit.yml): the release requires a green run of this
+# one.
 name: ci
 
 on:
@@ -11,18 +15,18 @@ on:
     branches: [master, "ci/**"]
   pull_request:
     branches: [master]
-  workflow_dispatch:          # (by hand, on any branch: the same jobs, the simulation included)
+  workflow_dispatch:  # by hand on any branch: the same jobs, the simulation included
 
 permissions:
   contents: read
 
 env:
-  NEOAPRS_UPDATE_CHECK: "0"          # no daemon of a smoke step asks the version page
-  UV_FROZEN: "1"          # uv never changes uv.lock here: a lock that is not current fails (uv lock --check below says so)
+  NEOAPRS_UPDATE_CHECK: "0"  # no smoke-step daemon asks the version page
+  UV_FROZEN: "1"  # uv never changes uv.lock here: a stale lock fails (uv lock --check below)
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}          # a branch keeps only its newest run; every push to master is checked to the end (the release workflow asks for that commit's run)
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}  # a branch keeps only its newest run; every push to master is checked to the end
 
 jobs:
   python:
@@ -35,9 +39,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
-      # This runner's system against packaging/ci/runner.json (scripts/runner-facts, the system's Python): a fact that parts fails the job, since the container of scripts/check-in-container then no
-      # longer matches the runner. The image's version is a notice.
+          persist-credentials: false  # no later step uses git with the job's token
+      # This runner's system against packaging/ci/runner.json (scripts/runner-facts): a differing
+      # fact fails the job, since the container of scripts/check-in-container would no longer match.
+      # The image version is a notice.
       - name: The runner is what runner.json says
         if: runner.os == 'Linux'
         run: python3 scripts/runner-facts --here --github
@@ -46,15 +51,19 @@ jobs:
           version: "0.11.26"
           python-version: "3.13"
           enable-cache: true
-      # The extra `app` is installed, so that the desktop app is type-checked and tested against the real toolkits: Qt with its web engine on Linux (the headless test needs the system libraries of Chromium), pywebview and pystray on Windows (their stand-ins run everywhere).
+      # The extra `app` is installed so the desktop app is tested against the real toolkits: Qt with
+      # its web engine on Linux (needs Chromium's system libraries), pywebview and pystray on
+      # Windows.
       - name: System libraries of the Qt web engine
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libegl1 libgl1 libnss3 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libxtst6 libasound2t64 libdbus-1-3 libfontconfig1 libxcb-cursor0 libxkbfile1
       - run: uv sync --frozen --extra app --extra ble
-      # Linux: the stages of scripts/check. mypy runs for both systems on Linux, the one runner that has every toolkit (Windows has no Qt): one tree must type-check for both, and its test files too. The suite is run by
-      # the stage pytest with tests/test_package.py and tests/test_desktop_qt.py each on one worker (xdist_group), and leaves the layers to the stage architecture and the page's build to the job `page`.
+      # Linux: the stages of scripts/check. mypy runs for both systems here, the one runner with
+      # every toolkit: one tree must type-check for both. The suite leaves the layers to the stage
+      # architecture and the page build to `page`; tests/test_package.py and
+      # tests/test_desktop_qt.py each run on one worker (xdist_group).
       - run: scripts/check --stage lock
         if: runner.os == 'Linux'
       - run: scripts/check --stage ruff
@@ -65,7 +74,7 @@ jobs:
         if: runner.os == 'Linux'
       - run: scripts/check --stage pytest
         if: runner.os == 'Linux'
-      # Windows: the same checks as commands (the suite there holds the layers and skips the page's build too).
+      # Windows: the same checks as commands.
       - run: env -u UV_FROZEN uv lock --check
         if: runner.os == 'Windows'
         shell: bash
@@ -74,7 +83,8 @@ jobs:
       - run: uv run pytest -n auto --dist loadgroup
         if: runner.os == 'Windows'
 
-  # The wheel as a user gets it: built, installed into a fresh environment, and the installed command run against a fake TNC (scripts/smoke.py), on both systems.
+  # The wheel as a user gets it: built, installed into a fresh environment, run against a fake TNC
+  # (scripts/smoke.py), on both systems.
   smoke:
     strategy:
       fail-fast: false
@@ -88,7 +98,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.11.26"
@@ -112,7 +122,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -127,7 +137,8 @@ jobs:
           npm run format:check
           npm run knip
           npm test
-      # The duplication ratchets: jscpd over ui/src, and over neoaprs/ and tests/support/ against scripts/dup-baseline.json (scripts/check runs them with the Python of the venv).
+      # Duplication ratchets: jscpd over ui/src, and over neoaprs/ and tests/support/ against
+      # scripts/dup-baseline.json.
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.11.26"
@@ -136,26 +147,28 @@ jobs:
       - run: uv sync --frozen
       - run: scripts/check --stage dup
       - run: scripts/check --stage dup-py
-      # The page's own test (tests/test_page_build.py: what the daemon serves is what ui/ builds, under its Content-Security-Policy), which the stage pytest of the Linux job leaves out.
+      # The page's own test (tests/test_page_build.py), which the stage pytest of the Linux job
+      # leaves out.
       - run: scripts/check --stage page
-      # build-page installs nothing here: ui/node_modules is what the lockfile says since the first step.
+      # build-page installs nothing: ui/node_modules is current since the first step.
       - name: The committed page is what ui/ builds
         run: |
           scripts/build-page
           git add --intent-to-add neoaprs/page
           git diff --exit-code -- neoaprs/page
 
-  # The simulation of an HF net with real Mercury instances (scripts/mercury-sim; docs/development.md, "The simulators"): the pinned Mercury built from source as the release's `mercury` job builds it, then five
-  # Mercury instances on the suite's simulated channel, a daemon on each, and the scenario checked to the end: every beacon heard, the longest message around the ring, a collision, a lost ack, a Mercury that dies, a
-  # daemon restarted mid-conversation, a weak link, a poor fading channel at 0 dB, both radios, the iGate. About six minutes (the scenario waits on the air, not on the CPU); the report is an artifact, and the
-  # daemons' and Mercury's logs too when it failed. The same as `scripts/check --stage sim`.
+  # The HF net simulation with real Mercury instances (scripts/mercury-sim; docs/development.md,
+  # "The simulators"): the pinned Mercury built as the release's `mercury` job builds it, five
+  # instances on the suite's simulated channel, a daemon on each, and a scenario checked to the end.
+  # About six minutes. The report is an artifact, with the logs on failure. The same as
+  # `scripts/check --stage sim`.
   sim:
     runs-on: ubuntu-26.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false     # (no later step uses git with the job's token)
+          persist-credentials: false  # no later step uses git with the job's token
       - name: The runner is what runner.json says
         run: python3 scripts/runner-facts --here --github
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
@@ -168,8 +181,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential pkg-config libasound2-dev libasound2-data
       - run: uv sync --frozen
-      # The Mercury built once is kept for as long as what the build reads stays: the script, the pins in neoaprs/mercury.py, the patches and the stub of packaging/mercury, and the runner's image (its compiler and
-      # libraries). The folder is what `--install` makes in the venv, which uv sync leaves alone.
+      # The built Mercury is kept while what the build reads stays the same: the script, the pins in
+      # neoaprs/mercury.py, the patches and stub of packaging/mercury, and the runner image. The
+      # folder is what `--install` makes in the venv.
       - name: The image of the runner, for the key of the cache
         id: image
         run: echo "name=${ImageOS:-unknown}-${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
@@ -183,7 +197,7 @@ jobs:
         if: steps.mercury.outputs.cache-hit != 'true'
         run: uv run scripts/build-mercury --install
       - name: The simulation
-        shell: bash          # (an explicit bash runs with -eo pipefail: the status of the step is the simulation's and not `tee`'s)
+        shell: bash  # explicit bash runs with -eo pipefail: the step's status is the simulation's, not tee's
         run: uv run scripts/mercury-sim --report mercury-sim.json --keep 2>&1 | tee mercury-sim.log
       - name: The report
         if: always()

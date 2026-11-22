@@ -1,12 +1,14 @@
-"""`neoaprs replay [FILE] [--interval S] [--loop] [--port P]`: plays a capture of the radio's serial port (one made by `neoaprs capture`; with no FILE the sample capture that is part of the package, three minutes
-of a TH-D7 in Finland) as a KISS TNC on a TCP port of the loopback, so that the daemon can be run without the radio, on every system:
+"""`neoaprs replay [FILE] [--interval S] [--loop] [--port P]`: play a serial capture as a KISS TNC.
 
-    neoaprs replay                                                    # prints socket://127.0.0.1:PORT as its first line
-    neoaprs run --port socket://127.0.0.1:PORT                        # in another terminal (the kiss-tcp profile also takes it)
+FILE is a capture made by `neoaprs capture`; without it, the bundled sample is used. It is served
+on a loopback TCP port, so the daemon can run without a radio:
 
-The file is read as a KISS stream; its frames are sent one at a time, INTERVAL seconds apart, re-encoded, to everyone who is connected. Nothing is sent while nobody is: the frames go on from where they
-were when the daemon connects again. With --loop the file starts again when it ends. Ctrl-C ends it. What the daemon writes (a KISS frame, a nudge) is read and shown on stderr.
---pty (Linux and macOS) plays on a pseudo-terminal instead and prints its path."""
+    neoaprs replay                              # prints socket://127.0.0.1:PORT as its first line
+    neoaprs run --port socket://127.0.0.1:PORT  # in another terminal
+
+The frames are sent INTERVAL seconds apart to everyone connected; nothing is sent while nobody
+is. With --loop the file starts again when it ends. Ctrl-C ends it. Whatever the daemon writes is
+shown on stderr. --pty (Linux and macOS) plays on a pseudo-terminal instead and prints its path."""
 import argparse
 import asyncio
 import sys
@@ -18,7 +20,7 @@ from neoaprs import kiss
 from .output import SETTLE_SEC, ctrl_break_is_ctrl_c, interruptible, say
 
 HOST = "127.0.0.1"
-SAMPLE = Path(__file__).resolve().parent.parent / "samples" / "thd7.kiss"          # package data: neoaprs/samples/thd7.kiss
+SAMPLE = Path(__file__).resolve().parent.parent / "samples" / "thd7.kiss"
 
 
 def parser() -> argparse.ArgumentParser:
@@ -32,12 +34,14 @@ def parser() -> argparse.ArgumentParser:
 
 
 def frames_of(data: bytes) -> list[bytes]:
-    """Every KISS frame of the bytes, encoded again as it is sent."""
+    """Return every KISS frame in the bytes, re-encoded for sending."""
     return [kiss.encode(f.payload, f.port, f.command) for f in kiss.KissDecoder().feed(data)]
 
 
 class Replay:
-    """A KISS TNC on a TCP port of the loopback that plays `frames`. `await replay.run()` serves until it is cancelled; `ready(port)` is called once it listens."""
+    """A KISS TNC on a loopback TCP port that plays `frames`.
+
+    `await replay.run()` serves until cancelled; `ready(port)` is called once it listens."""
 
     def __init__(self, frames: list[bytes], interval: float, loop: bool = False, port: int = 0, settle_sec: float = SETTLE_SEC,
                  ready: Callable[[int], None] | None = None) -> None:
@@ -61,7 +65,7 @@ class Replay:
             await server.wait_closed()
 
     async def _serve(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        """One connection: it is a client until it closes; what it writes is shown."""
+        """Serve one client until it closes, showing what it writes."""
         self.clients.append(writer)
         say("replay: a port connected")
         self._arrived.set()

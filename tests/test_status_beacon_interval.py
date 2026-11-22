@@ -1,4 +1,5 @@
-"""The beacon interval the status tells the page (neoaprs/web/api.py): the one in force, which is the setting raised to the HF floor while the HF radio is on, not the number stored."""
+"""The beacon interval the status tells the page (neoaprs/web/api.py): the one in force, which is
+the setting raised to the HF floor while the HF radio is on, not the number stored."""
 from dataclasses import replace
 from pathlib import Path
 

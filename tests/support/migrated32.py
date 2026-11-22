@@ -1,17 +1,6 @@
-"""Migrations 32 and 33 (neoaprs/migrationsteps32.py) for the tests: a database of the version before them, the steps run on it one by one, the shape they leave for the tests of the stores, and
-the way back for `tests/support/migrated.step_back`.
-
-    s = newest(path)                     # a database as the runner and then the radio round's steps leave it: what the tests of the older migrations read back
-    db = old_database(path)              # a file of version 30, the connection a test inserts old rows on
-    step_31(db)                          # what migration 31 leaves (the tables radio, radio_setting and _m31), decided from the rows
-    run(db, _v32); run(db, _v33)         # a step as the runner runs it: in a transaction of its own, rolled back when it raises
-    stepped(db)                          # the file says the version its shape is of, so that a Db opens it as it is
-    through_33(db)                       # whatever of 31, 32 and 33 the file has not been through
-    path = shaped(path)                  # a new file with the radios a test wants in it (today's two when not said), for a Db
-    undo_33(db); undo_32(db)             # a database of the shape of 33 put back to that of 31 (the rows of radios 1 and 2 with it), for step_back
-    f"SELECT call, path FROM {SAID}"     # what is said of each station as the one row it was before 33, for the read-backs of the older migrations' tests
-
-`SHAPES` is what is left of the time the stores knew two shapes of database (that of version 30 beside this one): the tests of the stores still take the shape as a parameter, of which there is one."""
+"""Migrations 32 and 33 (neoaprs/migrationsteps32.py) for the tests: a database of the version
+before them, the steps run one by one, and the way back for `tests/support/migrated.step_back`.
+"""
 import sqlite3
 from collections.abc import Callable
 from pathlib import Path
@@ -23,12 +12,15 @@ from neoaprs.migrationsteps31 import _v31
 from neoaprs.migrationsteps32 import _v32, _v33
 
 if TYPE_CHECKING:
-    from tests.support.migrated import Opened            # (only the name: migrated.py's step_back takes undo_32 and undo_33 from this module)
+    # Only the name: migrated.py's step_back takes undo_32 and undo_33 from this module
+    from tests.support.migrated import Opened
 
 FORM = "'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9][0-9][0-9][0-9]Z'"
-SHAPES: tuple[bool, ...] = (True,)                                                     # the shape the stores are tested in: that of migrations 32 and 33
+# The shape the stores are tested in: that of migrations 32 and 33
+SHAPES: tuple[bool, ...] = (True,)
 SHAPE_IDS = {True: "version 33"}
-FM, HF = (1, "fm", "kiss", 1, 1), (2, "hf", "mercury", 1, 2)                           # (id, kind, type, enabled, position) of today's two radios, both on
+# (id, kind, type, enabled, position) of today's two radios, both on
+FM, HF = (1, "fm", "kiss", 1, 1), (2, "hf", "mercury", 1, 2)
 
 
 def connect(path: str | Path) -> sqlite3.Connection:
@@ -45,8 +37,10 @@ def columns(db: sqlite3.Connection, table: str) -> dict[str, str]:
 
 
 def old_database(path: str | Path, clock: Clock = utcnow) -> sqlite3.Connection:
-    """A new database file put at version 30, the one before the radio round's steps, empty: the connection on which a test inserts rows of that version and then runs the steps."""
-    from tests.support.migrated import opened, step_back            # (here, not at the top: migrated.py's step_back takes undo_32 and undo_33 from this module)
+    """A new database file put at version 30, the one before migration 31, empty: the
+    connection on which a test inserts rows of that version and then runs the steps."""
+    # here, not at the top: migrated.py's step_back takes undo_32 and undo_33 from this module
+    from tests.support.migrated import opened, step_back
     opened(path, clock).close()
     db = connect(path)
     if schema_version(db) > 30:
@@ -62,7 +56,8 @@ def step_31(db: sqlite3.Connection) -> None:
 
 
 def run(db: sqlite3.Connection, step: Callable[[sqlite3.Connection], None]) -> None:
-    """A step as the runner of the migrations runs it (migrations._step): in a transaction of its own, all of it or none; what it raises comes out after the rollback."""
+    """A step as the runner of the migrations runs it (migrations._step): in a transaction of its
+    own, all of it or none; what it raises comes out after the rollback."""
     db.execute("BEGIN IMMEDIATE")
     try:
         step(db)
@@ -73,15 +68,18 @@ def run(db: sqlite3.Connection, step: Callable[[sqlite3.Connection], None]) -> N
 
 
 def stepped(db: sqlite3.Connection) -> None:
-    """A database a test has run the round's steps on, one by one, says the version its shape is of where the runner lists them (it would run them again on the file otherwise); where it does not
+    """A database a test has run migrations 31 to 33 on, one by one, says the version its shape is
+    of
+    where the runner lists them (it would run them again on the file otherwise); where it does not
     list them yet the file stays at version 30, which is the version this program opens."""
     if SCHEMA_VERSION >= 33 and "station_radio" in tables(db):
         db.execute("PRAGMA user_version = 33")
 
 
 def through_33(db: sqlite3.Connection) -> None:
-    """Whatever of migrations 31, 32 and 33 the database has not been through, each run as the runner runs it (the version and the history are left as they are): a database the runner brought to 33 is
-    not touched."""
+    """Whatever of migrations 31, 32 and 33 the database has not been through, each run as the
+    runner runs it (the version and the history are left as they are): a database the runner brought
+    to 33 is not touched."""
     if "radio" not in tables(db):
         run(db, step_31)
     if columns(db, "packet")["radio"] == "TEXT":
@@ -91,8 +89,10 @@ def through_33(db: sqlite3.Connection) -> None:
 
 
 def newest(path: str | Path, clock: Clock = utcnow) -> "Opened":
-    """A database file as this program's migrations and then the radio round's steps leave it: opened by the runner (a copy before, the steps it lists, the history), and brought through 33 where the
-    runner does not list the round's steps yet. What a test of an older migration reads its rows back from."""
+    """A database file as this program's migrations and then migrations 31 to 33 leave it:
+    opened by the runner (a copy before, the steps it lists, the history), and brought through 33
+    where the runner does not list those steps yet. What a test of an older migration reads
+    its rows back from."""
     from tests.support.migrated import opened
     found = opened(path, clock)
     through_33(found.db)
@@ -100,15 +100,18 @@ def newest(path: str | Path, clock: Clock = utcnow) -> "Opened":
 
 
 def heard_by(db: sqlite3.Connection) -> dict[str, dict[int, tuple[int, str | None, str]]]:
-    """What each radio heard of each station (`station_radio`): call to (radio to (how many, when the last, the path of the last))."""
+    """What each radio heard of each station (`station_radio`): call to (radio to (how many, when
+    the last, the path of the last))."""
     found: dict[str, dict[int, tuple[int, str | None, str]]] = {}
     for call, radio, heard, last_at, last_path in db.execute("SELECT call, radio_id, heard, last_at, last_path FROM station_radio ORDER BY call, radio_id"):
         found.setdefault(str(call), {})[int(radio)] = (int(heard), last_at, str(last_path))
     return found
 
 
-# What is said of each station as one row again, as `station_pref` held it before migration 33 moved the path to `station_path`: a subquery to read in the place of the table, for the tests of the older
-# migrations (`f"SELECT call, path, hide_after_min FROM {SAID} ORDER BY call"`). The path is the station's on radio 1; a station of which only a path is said has the time its path was set.
+# What is said of each station as one row again, as `station_pref` held it before migration 33 moved
+# the path to `station_path`: a subquery to read in the place of the table, for the tests of the
+# older migrations (`f"SELECT call, path, hide_after_min FROM {SAID} ORDER BY call"`). The path is
+# the station's on radio 1; a station of which only a path is said has the time its path was set.
 SAID = ("(SELECT c.call AS call, (SELECT path FROM station_path p WHERE p.call = c.call AND p.radio_id = 1) AS path, s.hide_after_min AS hide_after_min, s.attempts AS attempts, COALESCE(s.rf_only, 0) AS rf_only, "
         "COALESCE(s.alert_on_air, 0) AS alert_on_air, s.alert_within_km AS alert_within_km, COALESCE(s.alert_direct, 0) AS alert_direct, "
         "COALESCE(s.updated_at, (SELECT updated_at FROM station_path p WHERE p.call = c.call AND p.radio_id = 1)) AS updated_at "
@@ -116,12 +119,14 @@ SAID = ("(SELECT c.call AS call, (SELECT path FROM station_path p WHERE p.call =
 
 
 def said_of(db: sqlite3.Connection) -> list[tuple[str, str | None, int]]:
-    """(call, its path on radio 1, RF only) of every station the operator said something of, by call: the path from `station_path`, RF only from `station_pref`, as migration 33 keeps them."""
+    """(call, its path on radio 1, RF only) of every station the operator said something of, by
+    call: the path from `station_path`, RF only from `station_pref`, as migration 33 keeps them."""
     return [(str(call), path, int(rf_only)) for call, path, rf_only in db.execute(f"SELECT call, path, rf_only FROM {SAID} ORDER BY call")]
 
 
 def shaped(path: Path, clock: Clock = utcnow, radios: tuple[tuple[int, str, str, int, int], ...] = (FM, HF)) -> Path:
-    """A new database file for a Db to open, with `radios` in it (today's two, both on, when not given). The path, so that `store_at(shaped(path))` reads as one."""
+    """A new database file for a Db to open, with `radios` in it (today's two, both on, when not
+    given). The path, so that `store_at(shaped(path))` reads as one."""
     from tests.support.migrated import opened
     opened(path, clock).close()
     db = connect(path)
@@ -130,8 +135,10 @@ def shaped(path: Path, clock: Clock = utcnow, radios: tuple[tuple[int, str, str,
     return path
 
 
-# The station table of version 30 as migration 1 made it and the later steps added to it (the columns after `packets`), word for word: `undo_33` makes it again from this text, so that a test of an older
-# migration has the table a file of version 30 has (`last_path` NOT NULL with no default, every column in its place), which a column added back could not give.
+# The station table of version 30 as migration 1 made it and the later steps added to it (the
+# columns after `packets`), word for word: `undo_33` makes it again from this text, so that a test
+# of an older migration has the table a file of version 30 has (`last_path` NOT NULL with no
+# default, every column in its place), which a column added back could not give.
 STATION_30 = ("CREATE TABLE station (\n        call TEXT NOT NULL PRIMARY KEY CONSTRAINT station_call_present CHECK (call <> ''),\n        kind TEXT NOT NULL CONSTRAINT station_kind CHECK (kind IN ('station', 'object', 'item')),\n"
               "        reported_by TEXT NOT NULL,\n        symbol_table TEXT NOT NULL,\n        symbol_code TEXT NOT NULL,\n        lat REAL CONSTRAINT station_lat_range CHECK (lat BETWEEN -90 AND 90),\n"
               "        lon REAL CONSTRAINT station_lon_range CHECK (lon BETWEEN -180 AND 180),\n        altitude_m REAL,\n        course_deg INTEGER,\n        speed_kmh REAL,\n        first_heard TEXT NOT NULL,\n"
@@ -146,8 +153,11 @@ STATION_30 = ("CREATE TABLE station (\n        call TEXT NOT NULL PRIMARY KEY CO
 
 
 def undo_33(db: sqlite3.Connection) -> None:
-    """Takes back what migration 33 did to the schema, with the rows of radios 1 and 2: the station table is that of version 30 again (`STATION_30`) with the counts and times of radios 1 and 2 and the
-    path of the radio that heard the station last (radio 1 on a tie), `station_pref` has its path (the table as migration 22 made it), an object its word, and `_m31` says what the table `radio` says."""
+    """Takes back what migration 33 did to the schema, with the rows of radios 1 and 2: the station
+    table is that of version 30 again (`STATION_30`) with the counts and times of radios 1 and 2 and
+    the path of the radio that heard the station last (radio 1 on a tie), `station_pref` has its
+    path (the table as migration 22 made it), an object its word, and `_m31` says what the table
+    `radio` says."""
     db.execute("ALTER TABLE station RENAME TO station_33")
     db.execute(STATION_30)
     kept = ", ".join(name for name in columns(db, "station_33"))
@@ -183,15 +193,18 @@ def undo_33(db: sqlite3.Connection) -> None:
 
 
 def undo_32(db: sqlite3.Connection) -> None:
-    """Takes back what migration 32 did to the schema, with the rows of radios 1 and 2: `packet.radio`, `message.radio` and `message_attempt.radio` are the words again (`fm`, `hf`, '' for none), each
-    column as migration 25 made it and in its place among the columns of version 30."""
+    """Takes back what migration 32 did to the schema, with the rows of radios 1 and 2:
+    `packet.radio`, `message.radio` and `message_attempt.radio` are the words again (`fm`, `hf`, ''
+    for none), each column as migration 25 made it and in its place among the columns of version 30.
+    """
     for table, after in (("packet", (("snr", "REAL"), ("rssi", "REAL"))), ("message", (("failure", "TEXT CONSTRAINT message_failure CHECK (failure_back IN ('too_long_for_radio'))"), ("snr", "REAL"), ("rssi", "REAL"))),
                          ("message_attempt", ())):
         db.execute(f"ALTER TABLE {table} ADD COLUMN radio_word TEXT NOT NULL DEFAULT '' CONSTRAINT {table}_radio CHECK (radio_word IN ('', 'fm', 'hf'))")
         db.execute(f"UPDATE {table} SET radio_word = CASE radio WHEN 1 THEN 'fm' WHEN 2 THEN 'hf' ELSE '' END")
         db.execute(f"ALTER TABLE {table} DROP COLUMN radio")
         db.execute(f"ALTER TABLE {table} RENAME COLUMN radio_word TO radio")
-        for column, declared in after:                  # (the columns that version 30 has after the word go after it again, each with its values)
+        # The columns that version 30 has after the word go after it again, each with its values
+        for column, declared in after:
             db.execute(f"ALTER TABLE {table} ADD COLUMN {column}_back {declared}")
             db.execute(f"UPDATE {table} SET {column}_back = {column}")
             db.execute(f"ALTER TABLE {table} DROP COLUMN {column}")

@@ -1,4 +1,5 @@
-"""The data extensions after the symbol of a position: PHG (and the range its formula gives), RNG, DFS, the bearing of a DF report and an area object's descriptor."""
+"""The data extensions after the symbol of a position: PHG (and the range its formula gives), RNG,
+DFS, the bearing of a DF report and an area object's descriptor."""
 import pytest
 
 from neoaprs.aprsextension import Extensions, extension_lines, phg_range_km, split_bearing, split_dao, split_extension, split_sign, with_dao
@@ -14,7 +15,8 @@ def test_phg_is_the_specs_example() -> None:
 
 
 def test_the_probes_form_of_phg_is_read_and_its_rate_dropped() -> None:
-    ext, rest = split_extension("PHG72604/ Pepperell", False)             # APRS 1.2: 4 beacons an hour, then the mandatory "/"
+    # APRS 1.2: 4 beacons an hour, then the mandatory "/"
+    ext, rest = split_extension("PHG72604/ Pepperell", False)
     assert rest == " Pepperell" and ext is not None and ext.phg is not None and ext.phg.power_w == 49
     ext, rest = split_extension("PHG7260A/x", False)                      # A is 10 an hour
     assert rest == "x" and ext is not None and ext.phg is not None
@@ -53,7 +55,8 @@ def test_text_that_is_no_extension_is_left_alone(text: str) -> None:
 def test_the_bearing_of_a_df_report() -> None:
     bearing, rest = split_bearing("/270/729 DF")
     assert rest == " DF" and bearing is not None
-    assert (bearing.bearing_deg, bearing.hits, bearing.quality) == (270, 7, 9) and bearing.range_km == pytest.approx(4 * 1.609, abs=0.1)    # 2^2 miles
+    # 2^2 miles
+    assert (bearing.bearing_deg, bearing.hits, bearing.quality) == (270, 7, 9) and bearing.range_km == pytest.approx(4 * 1.609, abs=0.1)
     assert split_bearing("/360/000")[0] is not None and (split_bearing("/360/000")[0] or bearing).bearing_deg == 0
     for text in ("/361/729", "/27/729", "270/729", "/270/72"):
         assert split_bearing(text) == (None, text)
@@ -63,13 +66,17 @@ def test_an_area_descriptor() -> None:
     ext, rest = split_extension("710/310{100}", True)
     assert rest == "{100}" and ext is not None and ext.area is not None
     assert (ext.area.shape, ext.area.colour) == ("filled ellipse", "cyan")
-    assert (ext.area.lat_offset_deg, ext.area.lon_offset_deg) == (pytest.approx(4 / 60), pytest.approx(4 / 60))      # the spec's example: 4 minutes each way (10 * 10 / 1500 degrees)
-    ext, _ = split_extension("8101310", True)                              # the "/" before the colour digit is a 1: colours 10 to 15
+    # the spec's example: 4 minutes each way (10 * 10 / 1500 degrees)
+    assert (ext.area.lat_offset_deg, ext.area.lon_offset_deg) == (pytest.approx(4 / 60), pytest.approx(4 / 60))
+    # the "/" before the colour digit is a 1: colours 10 to 15
+    ext, _ = split_extension("8101310", True)
     assert ext is not None and ext.area is not None and (ext.area.shape, ext.area.colour) == ("filled triangle", "dim violet")
     assert split_extension("0/3/04", True) == (None, "0/3/04")
-    assert split_extension("PHG5132", True) == (None, "PHG5132")           # (an area symbol takes only an area descriptor)
+    # (an area symbol takes only an area descriptor)
+    assert split_extension("PHG5132", True) == (None, "PHG5132")
     assert split_extension("710/310", False) == (None, "710/310")
-    ext, _ = split_extension("205/506", True)                              # the offsets are square roots of the degrees times 1500: 5 is 25/1500, 6 is 36/1500
+    # the offsets are square roots of the degrees times 1500: 5 is 25/1500, 6 is 36/1500
+    ext, _ = split_extension("205/506", True)
     assert ext is not None and ext.area is not None and (ext.area.lat_offset_deg, ext.area.lon_offset_deg) == (pytest.approx(25 / 1500), pytest.approx(36 / 1500))
 
 

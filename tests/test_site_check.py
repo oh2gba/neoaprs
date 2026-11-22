@@ -1,6 +1,7 @@
-"""`scripts/site-check` against a web server of this computer that stands for the project's host: the page as committed in a made-up repository passes; a changed file, a missing one and a moved one are findings; so is
-every private place that does not answer 403 (the stored support files, PHP's settings, the version page's logs, a hidden file and a helper that git tracks under `server/neo/`), while a public endpoint is not asked; a file that
-is on the server and not committed is not asked for; only GET is sent; and an address that is not https (but this computer's), has a path, or does not answer ends with exit code 2 and no finding. Never the real site."""
+"""`scripts/site-check` against a local web server standing for the project's host: the committed
+page passes; a changed, missing or moved file is a finding, and so is every private place that does
+not answer 403.
+"""
 import http.server
 import importlib.machinery
 import importlib.util
@@ -35,7 +36,9 @@ def commit(repo: Path) -> None:
 
 
 class Host:
-    """What the live site answers: `files` by path (an absolute path with a leading slash), `status` to say another status for a path, `moved` for a redirect; everything else under the private places is 403, anything unknown 404."""
+    """What the live site answers: `files` by path (an absolute path with a leading slash), `status`
+    to say another status for a path, `moved` for a redirect; everything else under the private
+    places is 403, anything unknown 404."""
 
     def __init__(self) -> None:
         self.files: dict[str, bytes] = {}
@@ -251,7 +254,9 @@ def module() -> ModuleType:
 
 
 def test_every_endpoint_it_leaves_alone_is_a_php_file_the_repository_tracks() -> None:
-    """`PUBLIC_PHP` names the endpoints under `server/neo/`; every other PHP file the repository tracks there is checked for 403, so a renamed endpoint (and a new one, which has to be added) shows here or on the live page."""
+    """`PUBLIC_PHP` names the endpoints under `server/neo/`; every other PHP file the repository
+    tracks there is checked for 403, so a renamed endpoint (and a new one, which has to be added)
+    shows here or on the live page."""
     loaded = module()
     assert set(loaded.PUBLIC_PHP) <= {name for name in loaded.tracked(ROOT, "server/neo") if name.endswith(".php")}
     endpoints = {name for name in loaded.tracked(ROOT, "server/neo") if name.endswith(".php") and "$_SERVER['REQUEST_METHOD']" in (ROOT / "server" / "neo" / name).read_text(encoding="utf-8")}

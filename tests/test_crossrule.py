@@ -1,4 +1,5 @@
-"""The pure rules of passing a packet between two radios (neoaprs/crossrule.py): the request and its step, what is never passed, the slow radios and the reply paths."""
+"""The pure rules of passing a packet between two radios (neoaprs/crossrule.py): the request and its
+step, what is never passed, the slow radios and the reply paths."""
 from datetime import datetime, timezone
 
 import pytest

@@ -1,5 +1,6 @@
-"""The message alert (neoaprs/services/alerts.py): the command runs through the shell for the first copy of a message to us, with the sender, the text, the time and the id in its environment, and not for a
-bulletin, an ack, a reject, a query, a second copy or a message overheard; a command that fails is told once an hour and harms nothing. The command is a shell line that writes its environment to a file of the test."""
+"""Tests for the message alert (neoaprs/services/alerts.py): the command runs once for the first
+copy of a message to us, with sender, text, time and id in its environment, and not for other
+traffic."""
 import asyncio
 import logging
 from dataclasses import replace
@@ -30,7 +31,8 @@ class Rig:
         self.config: Config = replace(ON_AIR, **{"messages_alert_command": command if command is not None else writing(self.out), **changes})       # type: ignore[arg-type]
         self.clock = FixedClock()
         self.alerts = Alerts(lambda: self.config, self.clock, timeout_sec)
-        self.logged: list[str] = []                                  # what the alerts logged while they ran: the reason when the command left no file
+        # what the alerts logged while they ran: the reason when the command left no file
+        self.logged: list[str] = []
         remember_stop(self.alerts.stop)
 
     async def finished(self) -> None:
@@ -158,7 +160,8 @@ async def test_a_command_that_runs_out_of_time_is_killed_with_what_it_started(tm
     rig.alerts.alert(record())
     await rig.finished()
     assert any(f"did not end within {SHORT_TIMEOUT_SEC:g} s" in r.getMessage() for r in caplog.records)
-    await asyncio.sleep(SURVIVOR_AFTER_SEC + 1.0)                          # (the time the survivor would have taken to write its marker is the point)
+    # (the time the survivor would have taken to write its marker is the point)
+    await asyncio.sleep(SURVIVOR_AFTER_SEC + 1.0)
     assert not marker.exists(), "the sleep the shell started was killed with it"
 
 
@@ -179,7 +182,7 @@ def test_the_default_command_of_each_system_notifies_with_the_variables_and_is_d
 
 
 
-# ---- inside the daemon: which messages get here --------------------------------------------------------------------------------------------------
+# ---- inside the daemon: which messages get here --------------------------------------------------
 
 async def started(tmp_path: Path) -> tuple[Env, Path]:
     e = Env(tmp_path)
@@ -196,7 +199,8 @@ async def test_a_message_to_us_runs_the_alert_once_for_the_first_copy_only(tmp_p
     assert (await until_written(out)).splitlines() == ["OH2RDG-7", "Moi!", "2026-10-21T12:00:00Z", "12", "end"]
     assert (await said(e))[0].tnc2().endswith("::OH2RDG-7 :ack12"), "and it is acked as before"
     out.unlink()
-    e.now.advance(15)                                                       # type: ignore[attr-defined]  # the same message by another digipeater: acked again, kept and announced once
+    # The same message by another digipeater: acked again, kept and announced once
+    e.now.advance(15)  # type: ignore[attr-defined]
     e.feed(on_air("OH2RDG-7", message_info("OH2GBA", "Moi!", "12"), path="OH2RCH-3*"))
     await until(lambda: e.tnc.stats.packets == 2)
     await idle_for(0.4)
@@ -209,7 +213,8 @@ async def test_what_is_not_a_message_to_us_runs_nothing(tmp_path: Path) -> None:
     e.feed(on_air("OH2XYZ", message_info("BLN1", "Road closed", "5")))               # a bulletin
     e.feed(on_air("OH2XYZ", message_info("QST", "Club news")))                       # a group message
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSP")))                       # a query
-    e.feed(on_air("OH2RDG", message_info("OH2ABC", "Hello Pekka", "3")))             # a message to somebody else, overheard
+    # a message to somebody else, overheard
+    e.feed(on_air("OH2RDG", message_info("OH2ABC", "Hello Pekka", "3")))
     await until(lambda: e.tnc.stats.packets == 4)
     await idle_for(0.4)
     assert not out.exists()
@@ -225,7 +230,8 @@ async def test_a_broken_command_does_not_harm_the_daemon_and_the_message_is_kept
     await e.until_usable()
     assert await e.ctl.save_config(replace(e.ctl.config, messages_alert_command="exit 9"))
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi!", "12")))
-    await until(lambda: e.tnc.stats.packets == 1)                           # (said() blocks the loop: it comes after the packet was heard)
+    # (said() blocks the loop: it comes after the packet was heard)
+    await until(lambda: e.tnc.stats.packets == 1)
     [ack] = await said(e)
     assert ack.tnc2().endswith(":ack12")
     await until(lambda: [m.text for m in e.ctl.messaging.records()] == ["Moi!"])
@@ -241,7 +247,8 @@ async def test_the_clock_of_a_message_is_the_time_it_was_heard(tmp_path: Path) -
 
 
 async def test_a_step_that_fails_fails_the_command_even_when_a_later_step_succeeds(tmp_path: Path) -> None:
-    """The line runs under set -e: `notify-send ...; paplay ...` with no notify-send must not count as ran because the sound played."""
+    """The line runs under set -e: `notify-send ...; paplay ...` with no notify-send must not count
+    as ran because the sound played."""
     alerts = Alerts(lambda: replace(ON_AIR, messages_alert_command=then_succeeds(missing_notifier())), clock=FixedClock(), timeout_sec=TIMEOUT_SEC)
     outcome = await alerts.test()
     ok, text = outcome.ok, outcome.short

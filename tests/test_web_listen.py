@@ -1,5 +1,7 @@
-"""Where the web server listens (neoaprs/web/listen.py): the ports that are tried and the loop that tries them, which the plain port and the secure port share. A server that is a stand-in whose ports are
-taken as the test says."""
+"""Where the web server listens (neoaprs/web/listen.py): the ports tried and the loop that tries
+them, shared by the plain and secure ports, on a stand-in server whose ports are taken as the test
+says.
+"""
 import errno
 import logging
 
@@ -10,7 +12,8 @@ from neoaprs.web.secureside import ports_after
 
 
 class Server:
-    """Listens on a port unless the test has taken it, and says which with the error a real one raises."""
+    """Listens on a port unless the test has taken it, and says which with the error a real one
+    raises."""
 
     def __init__(self, taken: set[int], error: int = errno.EADDRINUSE) -> None:
         self.taken, self.error = taken, error

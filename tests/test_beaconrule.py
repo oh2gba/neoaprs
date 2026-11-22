@@ -1,8 +1,6 @@
-"""The beacon with many radios (plan rule 3.1, neoaprs/beaconrule.py): one interval for the station, raised on each radio to that radio's own floor, so that the FM radio at 20 minutes beside a Mercury radio at
-30 is not slowed to 30; each radio's own "beacon" tick (Send on), ticked nowhere sending on none, and with one radio on that one whatever its tick; a radio's
-beacon whose tick is off sends nothing by its timer and refuses Beacon now, and is planned again at once when ticked; SmartBeaconing on the radio that has it and the timed beacon with the latest fix on the one
-that has not; the raise said once in the log, for the radio it raises, a restart of the radio not saying it again; a stored Send on that is not true or false said once, not at every tick; and a save
-through the controller that unticks the Mercury radio's Send on and ticks it again."""
+"""Tests for the beacon rule with many radios (neoaprs/beaconrule.py): one station interval raised
+to each radio's own floor, the per-radio Send on tick, SmartBeaconing where available, and the log
+note that is written once."""
 import logging
 from dataclasses import replace
 from datetime import timedelta
@@ -36,7 +34,8 @@ def station(minutes: int, *radios: RadioSpec) -> Config:
     return with_radios(replace(ON_AIR, beacon_interval_min=minutes), radios)
 
 
-OWN = (spec(1), spec(2, "hf"))            # John's: an FM radio and an HF radio, both on
+# An FM radio and an HF radio, both on.
+OWN = (spec(1), spec(2, "hf"))
 
 
 # ---- the interval on each radio
@@ -149,7 +148,8 @@ async def test_the_raise_is_said_once_in_the_log_for_the_radio_it_raises(caplog:
 async def test_a_stored_send_on_that_is_not_true_or_false_is_said_once_and_not_at_every_tick(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, "neoaprs")
     clock = FixedClock()
-    config = station(20, spec(1), spec(2, "hf", beacon="maybe"))          # (a row `db set` refuses: a newer program's, or a database restored or edited by hand)
+    # (a row `db set` refuses: a newer program's, or a database restored or edited by hand)
+    config = station(20, spec(1), spec(2, "hf", beacon="maybe"))
     frames = BeaconFrames(lambda: config, None, clock)
     fm, hf = (Beacon(radio_of(config, id), lambda: config, clock, frames=frames) for id in (FM_ID, HF_ID))
     for b in (fm, hf):
@@ -191,7 +191,8 @@ async def test_a_save_that_unticks_the_hf_radios_send_on_stops_its_beacon_and_on
         assert hf.last_sent is None, "nothing on the Mercury radio"
         assert await e.ctl.save_config(send_on("true"))
         assert hf._started == started and hf.interval_min == 30, "ticked again by the save, the radio not restarted"
-        await until(lambda: hf.last_sent is not None)                           # (planned at once: the first beacon was due a minute ago)
+        # (planned at once: the first beacon was due a minute ago)
+        await until(lambda: hf.last_sent is not None)
         assert hf.last_reason == "interval" and hf.next_due is not None and hf.next_due >= e.now() + timedelta(minutes=30)
     finally:
         await e.stop()
@@ -199,8 +200,10 @@ async def test_a_save_that_unticks_the_hf_radios_send_on_stops_its_beacon_and_on
 
 
 async def test_beacon_now_of_the_page_goes_on_the_radios_the_registry_says_the_beacon_goes_out_on_and_on_no_other() -> None:
-    """The page's Beacon now (web/handlers.py `beacon_now`) asks the registry's `beaconing`, not the flat tickboxes: with radios 1 and 2 on and ticked by the old keys but the beacon going out on radios 1
-    and 3, it goes on 1 and 3; when none of them sends, the refusal is the first one's reason."""
+    """The page's Beacon now (web/handlers.py `beacon_now`) asks the registry's `beaconing`, not the
+    flat tickboxes: with radios 1 and 2 on and ticked by the old keys but the beacon going out on
+    radios 1 and 3, it goes on 1 and 3; when none of them sends, the refusal is the first one's
+    reason."""
     sent: list[str] = []
 
     class Stub:

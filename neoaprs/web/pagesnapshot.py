@@ -1,6 +1,8 @@
-"""The page as the daemon took it when it started. The files of `neoaprs/page/` are read into memory once (the built page is about 3.4 MB, most of it the map library), and every request is answered from there, so
-that a page rebuilt on disk, a branch switched or a package upgraded while the daemon runs changes nothing until the daemon is started again: the page and the daemon that tell each other their build in `hello`
-are always the pair that was started together."""
+"""The page files, read into memory once at start.
+
+Requests are answered from memory, so a rebuilt page on disk changes nothing until the daemon
+restarts; page and daemon always match.
+"""
 import hashlib
 import logging
 import re
@@ -12,8 +14,10 @@ from typing import Iterator, Mapping
 
 log = logging.getLogger("neoaprs.web")
 
-MAX_BYTES = 64 * 1024 * 1024                  # a folder bigger than this is not a page (a wrong folder was given); the real one is a twentieth of it
-ATTEMPTS = 3                                  # a build swaps the folder with two renames, which a read can fall into
+# A bigger folder is not a page (a wrong folder was given).
+MAX_BYTES = 64 * 1024 * 1024
+# A build swaps the folder with two renames; a read can land between them.
+ATTEMPTS = 3
 RETRY_SEC = 0.2
 BUILD = re.compile(r"assets/(index-[\w-]+\.js)")
 REFERENCE = re.compile(r'(?:src|href)="\./([^"?#]+)"')
@@ -22,23 +26,26 @@ REFERENCE = re.compile(r'(?:src|href)="\./([^"?#]+)"')
 @dataclass(frozen=True)
 class PageFile:
     data: bytes
-    etag: str                                 # the hash of the content, quoted as the header wants it
+    etag: str  # quoted content hash
     modified: datetime
 
 
 def is_hidden(relative: PurePath) -> bool:
-    """Is the name, or a folder's above it, one that starts with a dot, or a source map? Decided on the parts of the path, so that the separator of the system does not matter."""
+    """Return True if any path part starts with a dot or the file is a source map."""
     return any(part.startswith(".") for part in relative.parts) or relative.name.endswith(".map")
 
 
 def build_of(index_html: str) -> str:
-    """The build of a page: the name of the main script its index.html loads (Vite puts the hash of the content in it); empty when there is none (the placeholder)."""
+    """Return the main script name in index.html (it carries a content hash).
+
+    Empty for the placeholder.
+    """
     found = BUILD.search(index_html)
     return found.group(1) if found else ""
 
 
 class PageSnapshot:
-    """The files of a page folder at one moment, by their path relative to it with `/` (`index.html`, `assets/index-AbCd1234.js`). Nothing in a snapshot changes."""
+    """The files of a page folder at one moment, by `/` path relative to it. Immutable."""
 
     def __init__(self, files: Mapping[str, PageFile]) -> None:
         self.files = dict(files)
@@ -53,7 +60,7 @@ class PageSnapshot:
         return self.files.get(name)
 
     def missing(self) -> list[str]:
-        """The files that index.html names and the snapshot does not have: a folder that was read in the middle of a build."""
+        """Return files named by index.html that the snapshot lacks (a folder read mid-build)."""
         index = self.files.get("index.html")
         if index is None:
             return []
@@ -61,8 +68,10 @@ class PageSnapshot:
 
     @classmethod
     def take(cls, folder: Path) -> "PageSnapshot":
-        """Reads every file under `folder` (not the hidden ones and not the source maps, which are never served). A folder that is swapped meanwhile, or whose index.html names a file that is not read, is read again; an empty
-        snapshot, which answers 404 to everything, is what a folder that cannot be read gives."""
+        """Read every served file under `folder`, retrying if it is swapped or incomplete.
+
+        An unreadable folder gives an empty snapshot, which answers 404 to everything.
+        """
         for attempt in range(1, ATTEMPTS + 1):
             try:
                 snapshot = cls(dict(_read(folder)))
@@ -78,7 +87,10 @@ class PageSnapshot:
 
 
 def _read(folder: Path) -> Iterator[tuple[str, PageFile]]:
-    """Index.html first: the files it names are read after it, so that a folder swapped in between shows as a missing file and not as a page of two builds."""
+    """Yield the files, index.html first.
+
+    A swap in between then shows as a missing file, not as a mix of two builds.
+    """
     total = 0
     paths = sorted((p for p in folder.rglob("*") if p.is_file() and not is_hidden(p.relative_to(folder))), key=lambda p: (p.relative_to(folder).as_posix() != "index.html", p.as_posix()))
     for path in paths:

@@ -1,6 +1,6 @@
-"""The sked board through the page's socket: the topic `skeds` (the state, the suggested dials, the rows with `ours`) and the commands `skeds_wanted`, `sked_post` and `sked_delete`, against a small server on this computer (tests/support/fakeskeds.py): nothing reaches
-the project's. The update check is off in the tests, so the service is switched on in the one daemon that needs it and pointed at the fake server with NEOAPRS_SKEDS_URL's own mechanism; the refusals the operator can do something about come with their codes, a closed
-board is no error, a command that is not right is refused whole, and the topic is told when a sked ends, when the call changes and when the radio's dials change."""
+"""The sked board through the page socket: the topic `skeds` and the commands `skeds_wanted`,
+`sked_post` and `sked_delete`, against a small local server (tests/support/fakeskeds.py).
+"""
 from datetime import timedelta
 from pathlib import Path
 from typing import Any

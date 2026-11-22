@@ -1,7 +1,6 @@
-"""One app to a data folder: a second `neoaprs-app` brings the window of the first one up and ends. The first holds a lock file (`neoaprs-app.lock`, the same kind of lock as the daemon's) and listens on a loopback
-port that it writes into `neoaprs-app.port`; the second finds the lock taken, reads the port and says `show`. `neoaprs app --quit` says `quit` the same way (how the uninstaller ends the app). Nothing else is
-understood, and the two words only raise the window and end the app, which whoever can write in the data folder can do anyway (it is private to the user), so no key is needed. The lock goes with the process,
-however it ends, so a crash leaves no stale app behind (a stale port file is only a refused connection)."""
+"""One app per data folder: a second `neoaprs-app` raises the first one's window and exits.
+
+The first holds a lock and listens on a loopback port; the second sends `show` (or `quit`)."""
 import contextlib
 import os
 import logging
@@ -21,7 +20,8 @@ LOCK_NAME = APP_LOCK_NAME
 COMMANDS = ("show", "quit")
 HEAR_SEC = 2.0
 ACCEPT_SEC = 0.25
-FIND_SEC = 3.0                          # how long the second app waits for the first one's port file (the first has the lock a moment before it has the port)
+# How long the second app waits for the port file; the lock is taken before the port is written.
+FIND_SEC = 3.0
 
 
 class SingleApp:
@@ -30,11 +30,12 @@ class SingleApp:
         self._lock = InstanceLock(data, LOCK_NAME)
         self._server: socket.socket | None = None
         self._handler: Callable[[str], None] | None = None
-        self._early: list[str] = []                              # what was said before there was a window to say it to
+        # Commands received before a handler was set.
+        self._early: list[str] = []
         self._guard = threading.Lock()
 
     def acquire(self) -> bool:
-        """True: this is the app, and it listens for a second one. False: another app has the folder."""
+        """Return True if this is the app (now listening), False if another app has the folder."""
         try:
             self._lock.acquire()
         except AlreadyRunning:
@@ -47,7 +48,7 @@ class SingleApp:
         return True
 
     def running(self) -> bool:
-        """Whether an app holds the folder (the lock is taken for a moment and let go, as for the daemon's)."""
+        """Return whether an app holds the folder, by taking the lock briefly."""
         if not is_file(self.data / LOCK_NAME):
             return False
         probe = InstanceLock(self.data, LOCK_NAME)
@@ -61,7 +62,9 @@ class SingleApp:
         return False
 
     def handle(self, handler: Callable[[str], None]) -> None:
-        """From now on `handler("show")` or `handler("quit")` is called, from a thread of its own, for what a second app says (and for what it said since `acquire`)."""
+        """Call `handler("show")` or `handler("quit")` from a server thread.
+
+        Commands received since `acquire` are delivered too."""
         with self._guard:
             self._handler, early = handler, self._early
             self._early = []
@@ -81,7 +84,8 @@ class SingleApp:
 
     def _listen(self) -> None:
         server = socket.create_server(("127.0.0.1", 0))
-        server.settimeout(ACCEPT_SEC)                            # (closing a socket does not end an accept that waits in another thread on every system: it looks at the flag between waits)
+        # Closing a socket does not end a blocked accept everywhere, so poll the flag between waits.
+        server.settimeout(ACCEPT_SEC)
         self._server = server
         (self.data / PORT_NAME).write_text(f"{server.getsockname()[1]}\n", encoding="ascii")
         (self.data / PID_NAME).write_text(f"{os.getpid()}\n", encoding="ascii")
@@ -94,7 +98,7 @@ class SingleApp:
             except TimeoutError:
                 continue
             except OSError:
-                return                                           # closed
+                return
             with client:
                 client.settimeout(HEAR_SEC)
                 try:
@@ -106,7 +110,7 @@ class SingleApp:
                 self._deliver(command)
 
     def tell_the_other(self, command: str) -> bool:
-        """Says `show` or `quit` to the app that holds the folder; False when it cannot be reached (it is only started, and has no port yet, for FIND_SEC seconds; or it is gone)."""
+        """Send `show` or `quit` to the app holding the folder; False if unreachable in FIND_SEC."""
         deadline = time.monotonic() + FIND_SEC
         while True:
             try:
@@ -121,7 +125,7 @@ class SingleApp:
                 time.sleep(0.1)
 
     def pid(self) -> int | None:
-        """The process id of the app that holds the folder, as it wrote it; None when there is none to read."""
+        """Return the pid the holding app wrote, or None if unreadable."""
         try:
             return int((self.data / PID_NAME).read_text(encoding="ascii").strip())
         except (OSError, ValueError):
@@ -138,7 +142,9 @@ class SingleApp:
 
 
 def process_alive(pid: int) -> bool:
-    """Whether a process of this id is still there. Windows is asked for the process object itself (`os.kill` would end the process there); elsewhere a signal of 0 is sent, which only looks."""
+    """Return whether a process with this id exists.
+
+    On Windows `os.kill` would terminate the process, so the process object is queried instead."""
     if os.name == "nt":
         return _alive_on_windows(pid)
     try:
@@ -153,12 +159,14 @@ def process_alive(pid: int) -> bool:
 def _alive_on_windows(pid: int) -> bool:
     import ctypes
 
-    windll = ctypes.windll  # type: ignore[attr-defined, unused-ignore]        # (only Windows has it)
+    windll = ctypes.windll  # type: ignore[attr-defined, unused-ignore]  # only Windows has it
     kernel32 = windll.kernel32
-    handle = kernel32.OpenProcess(0x00100000 | 0x1000, False, pid)             # SYNCHRONIZE and PROCESS_QUERY_LIMITED_INFORMATION
+    # SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION
+    handle = kernel32.OpenProcess(0x00100000 | 0x1000, False, pid)
     if not handle:
         return False
     try:
-        return bool(kernel32.WaitForSingleObject(handle, 0) == 0x102)           # WAIT_TIMEOUT: the process has not ended
+        # 0x102 is WAIT_TIMEOUT: the process has not ended.
+        return bool(kernel32.WaitForSingleObject(handle, 0) == 0x102)
     finally:
         kernel32.CloseHandle(handle)

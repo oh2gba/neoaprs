@@ -1,7 +1,6 @@
-"""Tune and the keying test of the HF radio (neoaprs/mercurymodem.py, Mercury's own TUNE command on its control port, neoaprs/mercury.py): the tone keys the radio through the modem and stops by itself, a second press
-stops it early, the keying test is the quiet second, both hold our frames meanwhile, both are refused while the modem is not running or the radio is not free, and the page asks for them with `radio_tune` and
-`radio_key_test` and is refused while RX only is ticked (`transmit.off`). The modem is a radio's (`fakemercury.of_radio`), on a Mercury something else runs (`attach`): the radio holds that Mercury's pair while it is
-attached, and the tone goes through the keying the settings name."""
+"""Tests for Tune and the keying test of the HF radio (neoaprs/mercurymodem.py, neoaprs/mercury.py):
+tone start and stop, frame holding, refusals, and the page commands `radio_tune` and
+`radio_key_test`."""
 import asyncio
 from dataclasses import replace
 from pathlib import Path
@@ -51,7 +50,9 @@ async def test_tune_keys_the_radio_with_the_tone_holds_our_frames_and_stops_by_i
         assert m.test == "tune" and m.hold() == TRANSMITTING and m.describe() == "Mercury DATAC3, tuning"
         await until_started(lambda: station.tuned == ["TUNE -15"] and m.keyed)
         await until_started(lambda: m.test == "")
-        await until_started(lambda: station.tuned == ["TUNE -15", "TUNE OFF"] and not m.keyed)                  # (the TUNE OFF is written at the end; the fake station reads it a moment later, longer on a slow runner)
+        # (the TUNE OFF is written at the end; the fake station reads it a moment later, longer on a
+        # slow runner)
+        await until_started(lambda: station.tuned == ["TUNE -15", "TUNE OFF"] and not m.keyed)
         assert m.hold() == "" and m.describe() == "Mercury DATAC3, listening"
     finally:
         await m.stop()
@@ -82,7 +83,8 @@ async def test_a_second_press_stops_the_tone_early_and_the_keying_test_is_one_qu
 
 
 async def test_the_keying_test_of_a_radio_that_keys_on_audio_sends_the_tune_tone_and_of_a_line_stays_quiet(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """VOX keys on audio: a silent test would leave the radio in receive (John's, 3 Nov 2026). RTS, DTR and CM108 key the line whatever the tone is."""
+    """VOX keys on audio: a silent test would leave the radio in receive. RTS, DTR and CM108 key the
+    line whatever the tone is."""
     monkeypatch.setattr(mercurytune, "KEY_TEST_SEC", 0.2)
     assert [key_test_level(k) for k in ("vox", "rts", "dtr", "cm108")] == [TUNE_LEVEL_DBFS, KEY_TEST_LEVEL_DBFS, KEY_TEST_LEVEL_DBFS, KEY_TEST_LEVEL_DBFS]
     for keying, sent in (("vox", "TUNE -15"), ("cm108", "TUNE -60"), ("dtr:/dev/ttyUSB0", "TUNE -60")):
@@ -114,7 +116,8 @@ async def test_the_tone_is_refused_while_the_modem_is_not_running_or_the_radio_i
         station.say_control("BUSY OFF")
         await until_started(lambda: not m.busy)
         await m.key_test()
-        with pytest.raises(CodedError, match=NOT_RUNNING):                  # (a stop takes the tone with it; afterwards nothing runs)
+        # (a stop takes the tone with it; afterwards nothing runs)
+        with pytest.raises(CodedError, match=NOT_RUNNING):
             await m.stop()
             await m.tune()
         assert station.tuned == ["TUNE -60", "TUNE OFF"] and m.test == ""

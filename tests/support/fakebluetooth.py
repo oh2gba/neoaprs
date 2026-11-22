@@ -1,13 +1,7 @@
-"""A Bluetooth device for the tests, the stand-in for a paired radio: no Bluetooth socket is ever made (the guard of tests/support/guards.py refuses one). The RFCOMM socket the code under test opens is one end of a
-connected socket pair that accepts `connect((address, channel))`, and the L2CAP socket of the service-directory question is an object that answers it the way a device does.
-
-    bt = FakeBluetooth(monkeypatch, channel=2)       # the device lists the serial port on channel 2 (None: it lists none)
-    ...                                              # the code under test opens bt://00:11:22:33:44:55
-    bt.connects                                      # [("00:11:22:33:44:55", 2)]
-    bt.feed(b"...")                                  # the device talks
-    heard = await bt.said(5)                         # what the code wrote
-    bt.drop()                                        # the device goes away: the link is lost
-    bt.fail(OSError(errno.EHOSTDOWN, "Host is down"))   # the next connections fail (None: they work again)"""
+"""A paired Bluetooth device for the tests: the RFCOMM socket is one end of a connected socket pair
+and the L2CAP socket answers the service-directory question as a device does. No real socket is
+made.
+"""
 import asyncio
 import socket
 import struct
@@ -21,7 +15,8 @@ ADDRESS = "00:11:22:33:44:55"
 
 
 def element(kind: int, body: bytes) -> bytes:
-    """A data element with a one-byte size (or the size of a number): the way the questions and answers of the service directory are written."""
+    """A data element with a one-byte size (or the size of a number): the way the questions and
+    answers of the service directory are written."""
     if kind in (1, 3):
         return bytes([kind << 3 | {1: 0, 2: 1, 4: 2}[len(body)]]) + body
     return bytes([kind << 3 | 5, len(body)]) + body
@@ -36,7 +31,8 @@ def uuid16(value: int) -> bytes:
 
 
 def record(channel: int) -> bytes:
-    """What a device lists for a service: the attribute 4 (protocols) with L2CAP and RFCOMM on `channel`."""
+    """What a device lists for a service: the attribute 4 (protocols) with L2CAP and RFCOMM on
+    `channel`."""
     return sequence(element(1, struct.pack(">H", 4)), sequence(sequence(uuid16(0x0100)), sequence(uuid16(0x0003), element(1, bytes([channel])))))
 
 
@@ -58,7 +54,8 @@ class FakeRfcomm(socket.socket):
 
 
 class FakeL2cap:
-    """The service-directory socket: it keeps the questions and answers them from what the device lists."""
+    """The service-directory socket: it keeps the questions and answers them from what the device
+    lists."""
 
     def __init__(self, device: "FakeBluetooth") -> None:
         self.device = device
@@ -95,7 +92,8 @@ class FakeBluetooth:
         self.sdp_connects: list[tuple[str, int]] = []
         self.error: OSError | None = None                      # the next RFCOMM connections fail with it
         self.sdp_error: OSError | None = None
-        self.listed: list[int] | None = None                   # the channels the directory lists, when they are not just `channel`
+        # The channels the directory lists, when they are not just `channel`
+        self.listed: list[int] | None = None
         self.garbage = False                                   # the directory answers with nonsense
         self.parts = 1                                         # the answer comes in this many pieces (continuations)
         self.asked: list[FakeL2cap] = []
@@ -132,7 +130,8 @@ class FakeBluetooth:
         lists = sequence(*(record(c) for c in channels))
         size = -(-len(lists) // self.parts)
         pieces = [lists[i:i + size] for i in range(0, len(lists), size)]
-        index = question[-1]                                   # (the question ends with the continuation: none, or the number of the piece the device gave)
+        # The question ends with the continuation: none, or the number of the piece the device gave
+        index = question[-1]
         return [answer(transaction, pieces[index], bytes([index + 1]) if index + 1 < len(pieces) else b"")]
 
     # ---- the device
@@ -153,7 +152,8 @@ class FakeBluetooth:
             await asyncio.sleep(0.005)
 
     async def said(self, count: int = 1, timeout_sec: float = 2.0) -> bytes:
-        """What the code under test has written: waits for at least `count` bytes (or the time) and returns all that came."""
+        """What the code under test has written: waits for at least `count` bytes (or the time) and
+        returns all that came."""
         assert self.peer is not None, "nobody is connected to the device"
         loop = asyncio.get_running_loop()
         deadline = loop.time() + timeout_sec

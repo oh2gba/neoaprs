@@ -1,4 +1,5 @@
-"""What the station book says of what a station runs and of how many packets it sent in the last hour (neoaprs/station.py, stationnotes.py), and what the page is told of both."""
+"""What the station book says of what a station runs and of how many packets it sent in the last
+hour (neoaprs/station.py, stationnotes.py), and what the page is told of both."""
 import json
 from datetime import UTC, datetime, timedelta
 
@@ -96,7 +97,8 @@ def test_recount_tells_the_stations_whose_hour_became_shorter_and_only_those() -
 
 def test_the_book_starts_with_the_packets_of_the_last_hour_the_log_kept() -> None:
     clock = FixedClock(T0)
-    book = StationBook(clock=clock)                                                   # (a start: the stations come from the cache, the hour from the log)
+    # A start: the stations come from the cache, the hour from the log
+    book = StationBook(clock=clock)
     book.seed([Station("OH2AAA", first_heard=T0, last_heard=T0, packets=40), Station("OH2BBB", first_heard=T0, last_heard=T0, packets=7)])
     kept = [heard(b"!4903.50N/07201.75W-Test", "OH2AAA", at=T0 - timedelta(minutes=m)) for m in (50, 30, 5)]
     kept.append(heard(b"!4903.50N/07201.75W-Test", "OH2GONE", at=T0))

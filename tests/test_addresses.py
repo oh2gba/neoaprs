@@ -1,4 +1,6 @@
-"""The address another device can open the page at (neoaprs/web/addresses.py), on a socket that is a stand-in: no route, a refused probe, the loopback, and an address. The probe sends nothing (a UDP connect)."""
+"""The address another device can open the page at (neoaprs/web/addresses.py), on a socket that is a
+stand-in: no route, a refused probe, the loopback, and an address. The probe sends nothing (a UDP
+connect)."""
 import socket
 from types import SimpleNamespace
 

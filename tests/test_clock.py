@@ -1,4 +1,5 @@
-"""The clock (neoaprs/clock.py): every time is UTC and aware; a clock is a function so that a test can hold it."""
+"""The clock (neoaprs/clock.py): every time is UTC and aware; a clock is a function so that a test
+can hold it."""
 import random
 from datetime import UTC, date, datetime, time, timedelta, timezone
 
@@ -32,7 +33,8 @@ def test_iso_writes_what_the_conversion_and_strftime_write() -> None:
 def test_iso_at_the_edges() -> None:
     assert iso(utc(2026, 10, 21, 18, 5, 0)) == "2026-10-21T18:05:00Z"
     assert iso(from_unix(0)) == "1970-01-01T00:00:00Z"
-    assert iso(datetime(2026, 10, 9, 18, 5, 59, 999999, tzinfo=UTC)) == "2026-10-09T18:05:59Z"      # the fraction is cut, not rounded
+    # the fraction is cut, not rounded
+    assert iso(datetime(2026, 10, 9, 18, 5, 59, 999999, tzinfo=UTC)) == "2026-10-09T18:05:59Z"
     assert iso(datetime(2026, 10, 9, 23, 30, tzinfo=timezone(timedelta(hours=-3)))) == "2026-10-10T02:30:00Z"
     for t in (datetime(5, 1, 1, tzinfo=UTC), datetime(999, 12, 31, 23, 59, 59, tzinfo=UTC), datetime(1000, 1, 1, tzinfo=UTC), datetime(9999, 12, 31, 23, 59, 59, tzinfo=UTC)):
         assert iso(t) == reference(t)

@@ -1,4 +1,6 @@
-"""What is new between two versions, read from the changelog (neoaprs/releasenotes.py): the sections by version, Unreleased and the preamble left out, the ones newer than ours up to the latest, the newest first."""
+"""What is new between two versions, read from the changelog (neoaprs/releasenotes.py): sections by
+version, Unreleased and the preamble left out, those newer than ours up to the latest, newest first.
+"""
 from neoaprs.releasenotes import MAX_BYTES, Section, between, changelog_url, section_of, sections, sections_after
 
 CHANGELOG = """# Changelog

@@ -1,7 +1,4 @@
-"""A message of the messaging service as a value, and the rules that need no I/O: who a message is addressed to, what text may be sent, and when the next attempt of a message that is being sent is due.
-
-A message is a row of the message table (`MessageRecord`): one we sent (direction "out") or one that was sent to us (direction "in", state "received"). `id` is the number the database gave it; `msg_id` is
-the APRS message id, the 1 to 5 characters after the "{" that the acknowledgement quotes (the ones we give are two, `MSG_IDS`). Every datetime is timezone-aware UTC."""
+"""A message as a value, and the I/O-free rules: addressee, sendable text, attempt timing."""
 import random
 import re
 import string
@@ -20,25 +17,34 @@ from neoaprs.route import DIRECT_ONLY, rf_only_path
 State = Literal["sending", "acked", "rejected", "failed", "unconfirmed", "cancelled", "received", "overheard"]
 Seal = Literal["", "key", "key_other", "open", "shut"]
 SEALS: tuple[Seal, ...] = ("", "key", "key_other", "open", "shut")
-Failure = Literal["too_long_for_radio"]                                   # why a message of ours failed when it is not that no answer came: its frame does not fit the radio it goes out on
+Failure = Literal["too_long_for_radio"]
 FAILURES: tuple[Failure, ...] = get_args(Failure)
 STATES: tuple[str, ...] = get_args(State)
-UNSETTLED: tuple[State, ...] = ("sending", "failed", "unconfirmed")            # our messages that no ack has settled: being sent, or ended without one
-ACK_SETTLES: tuple[State, ...] = (*UNSETTLED, "cancelled")                   # an ack or a rej that comes settles a message of ours in one of these states
-RETRYABLE: tuple[State, ...] = ("failed", "unconfirmed", "rejected", "cancelled")   # the states from which the operator sends a message again
+# no ack has settled them
+UNSETTLED: tuple[State, ...] = ("sending", "failed", "unconfirmed")
+# states an ack or rej settles
+ACK_SETTLES: tuple[State, ...] = (*UNSETTLED, "cancelled")
+# states the operator may resend from
+RETRYABLE: tuple[State, ...] = ("failed", "unconfirmed", "rejected", "cancelled")
 
-STATION_ATTEMPTS = 4                            # how many times a message to a station is transmitted before it has failed; fixed, the operator does not choose it
-EMAIL_ATTEMPTS = 2                              # the email gateway's acks rarely reach us (they come back through an iGate), so a mail is sent twice and then left `unconfirmed`
-UNCONFIRMED_MAX = 2                             # a message given this many attempts or fewer is not failed when they are used up with no ack: it is `unconfirmed` (the station is not expected to ack)
-FIRST_WAIT_SEC = int(DIGI_DUPLICATE_SEC) + 2                           # the wait after the first attempt (not 30, the digipeaters' duplicate window, on whose edge a retry could be dropped); each wait after that is double the one before, up to MAX_WAIT_SEC
+# transmissions of a message to a station before it fails
+STATION_ATTEMPTS = 4
+# the email gateway's acks rarely reach us: a mail is sent twice, then `unconfirmed`
+EMAIL_ATTEMPTS = 2
+# at most this many attempts and no ack: `unconfirmed`, not failed
+UNCONFIRMED_MAX = 2
+# first wait: just past the digipeaters' duplicate window, so a retry is not dropped; then doubles
+FIRST_WAIT_SEC = int(DIGI_DUPLICATE_SEC) + 2
 MAX_WAIT_SEC = 960
-FINAL_WAIT_SEC = 240                            # how long the answer to the last attempt is waited for before the message has failed
-MESSAGES_HELD_MAX = 10000                       # the daemon holds every message; if the database has more, a start takes the latest of these (and every one still being sent) and says so in the log
+# how long the answer to the last attempt is awaited
+FINAL_WAIT_SEC = 240
+MESSAGES_HELD_MAX = 10000
 
 
 _ALNUM = string.digits + string.ascii_uppercase
 MSG_IDS: tuple[str, ...] = (*(f"{n:02d}" for n in range(1, 100)), *(a + b for a in string.ascii_uppercase for b in _ALNUM), *(d + c for d in string.digits for c in string.ascii_uppercase), "00")
-_ID_INDEX = {ident: n for n, ident in enumerate(MSG_IDS)}       # the ids we give: 01..99, A0..ZZ, 0A..9Z and 00, every two-character id once (1296), in the order they are used
+# the ids we give, in order: 01..99, A0..ZZ, 0A..9Z, 00
+_ID_INDEX = {ident: n for n, ident in enumerate(MSG_IDS)}
 QUERY_TEXT: dict[str, str] = {"position": "?APRSP", "status": "?APRSS", "directs": "?APRSD", "path": "?APRST", "objects": "?APRSO", "messages": "?APRSM", "heard": "?APRSH",
                               "ping": "?PING?", "aprs": "?APRS?", "igate": "?IGATE?", "wx": "?WX?"}
 """The queries of the specification (APRS 1.0.1 ch. 15) that we know, by what each asks for: the one list the others take from (the page's queries below, the answers of services/queries.py, the asking of services/generalask.py, `is_query`)."""
@@ -46,15 +52,16 @@ _QUERY = re.compile(r"\?(?:" + "|".join(sorted((t.strip("?") for t in QUERY_TEXT
 TELEMETRY_DEFINITIONS = ("PARM.", "UNIT.", "EQNS.", "BITS.")
 
 
-QUERIES: dict[str, str] = {"position": QUERY_TEXT["position"], "status": QUERY_TEXT["status"], "heard": QUERY_TEXT["directs"], "trace": QUERY_TEXT["path"], "weather": QUERY_TEXT["wx"]}     # the directed queries the page can send (APRS 1.0.1 ch. 15; `?WX?` is a general query there, asked of one station all the same), by kind: the text of the message
-QUERY_EVERY_SEC = 60                            # one query of a kind to a station in this time; the same question again sooner is refused
+# the directed queries the page can send, by kind (`?WX?` is general in the spec)
+QUERIES: dict[str, str] = {"position": QUERY_TEXT["position"], "status": QUERY_TEXT["status"], "heard": QUERY_TEXT["directs"], "trace": QUERY_TEXT["path"], "weather": QUERY_TEXT["wx"]}
+QUERY_EVERY_SEC = 60
 
 
-EMAIL_GATEWAY = "EMAIL-2"                  # the APRS email gateway: a station on the internet, which no message can reach by RF only
+EMAIL_GATEWAY = "EMAIL-2"
 
 
 class MessagingError(CodedError):
-    """The message cannot be sent, or the command cannot be done; the text says why."""
+    """The message cannot be sent or the command cannot be done; the text says why."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,29 +77,30 @@ class MessageRecord:
     attempts: int = 0
     last_attempt_at: datetime | None = None
     acked_at: datetime | None = None
-    attempts_max: int = STATION_ATTEMPTS                  # how many attempts the message was given when it was sent (`attempts_for`); an older message keeps the count it was given then
-    route: str = ""                                       # how the packet reached us, "direct" or "via OH2RCH-2" (neoaprs/route.py), for a message that was heard; empty for one of ours
-    seal: Seal = ""                                       # what the message is besides text: "" plain; "key" an announcement of the sender's public key (neoaprs/cipher.py); "key_other" one that differs from the key kept and was not taken; "open" encrypted and read; "shut" encrypted and not readable here
-    wire: str | None = None                               # the text as it goes on the air for an encrypted message of ours (the ciphertext; `text` is what was written); None for every other
-    radio_id: RadioId | None = None                       # the id of the radio a message that came in came on; None for one of ours, whose attempts say, and for one kept before there were two
-    failure: Failure | None = None                        # why a failed message of ours failed (`FAILURES`); None while it has not failed and for one that failed for want of an answer
-    snr: float | None = None                              # the signal of the packet that carried it (neoaprs/reading.py), SNR in dB and RSSI in dBm: a message that came in, its own packet's; one of ours, the ack's or
-    rssi: float | None = None                             # the reject's that settled it; None until then, and when that packet's radio gave none
+    attempts_max: int = STATION_ATTEMPTS
+    route: str = ""
+    # "key": public key announcement; "key_other": differs from the kept key, not taken;
+    # "open": encrypted and read; "shut": encrypted, unreadable here
+    seal: Seal = ""
+    # the ciphertext sent on the air for an encrypted message of ours
+    wire: str | None = None
+    radio_id: RadioId | None = None
+    failure: Failure | None = None
+    # dB and dBm: of the packet itself, or for ours of the ack or reject
+    snr: float | None = None
+    rssi: float | None = None
 
     @property
     def peer(self) -> str:
-        """The other station of the conversation this message belongs to (for one we only overheard, the sender)."""
-        return self.from_call if self.direction == "in" else self.to_call
+            return self.from_call if self.direction == "in" else self.to_call
 
 
 def normal_call(text: str) -> str:
-    """The call as it is written in a message: upper case, no SSID of 0. Raises CallsignError."""
     return format_call(*parse_call(text.strip()))
 
 
 def normal_path(text: str) -> tuple[str, ...]:
-    """A path as it is written, digipeater calls separated by commas, as the calls the frame carries (capitals, no blanks, no SSID of 0); empty for none written. Raises ValueError that says
-    what is wrong: a call that is none, more than 8 of them, DIRECT (it is no call: see `path_choice`). The rules of the setting beacon/path."""
+    """Return a comma-separated path as calls. Raise CodedError for DIRECT or too many."""
     calls = tuple(normal_call(piece) for piece in text.split(",") if piece.strip())
     if DIRECT_ONLY in calls:
         raise CodedError(f"{DIRECT_ONLY} is no digipeater: written alone it means no digipeaters at all", "path.direct_alone", word=DIRECT_ONLY)
@@ -102,17 +110,14 @@ def normal_path(text: str) -> tuple[str, ...]:
 
 
 def path_choice(text: str) -> tuple[str, ...] | None:
-    """What a path that is typed says: None for an empty one (the recommended or automatic path, never no digipeaters), the empty tuple for DIRECT (no digipeaters at all, explicitly), else the calls as
-    `normal_path` has them. Raises what it raises."""
+    """Return None for an empty path (automatic), () for DIRECT, else the calls."""
     if not text.strip():
         return None
     return () if text.strip().upper() == DIRECT_ONLY else normal_path(text)
 
 
 def request_path(text: str | None, fallback: tuple[str, ...], rf_only: bool) -> tuple[str, ...]:
-    """The path a request of ours goes by (a general query, a request to QRU): the one the operator typed, checked as `path_choice` checks a path (explicit digipeaters such as OH2RDK-7,OH2RCH-2, aliases such
-    as WIDE1-1,WIDE2-1, DIRECT for none at all), else `fallback` when nothing is typed, with RFONLY after it when `rf_only`, so that the iGates keep it off the internet. Raises CodedError: what is typed is
-    no path, or RFONLY makes it longer than the MAX_PATH addresses a frame carries."""
+    """Return the typed path or `fallback`, plus RFONLY if `rf_only`. Raise CodedError if bad."""
     calls = path_choice(text or "")
     path = fallback if calls is None else calls
     if not rf_only:
@@ -124,7 +129,6 @@ def request_path(text: str | None, fallback: tuple[str, ...], rf_only: bool) -> 
 
 
 def same_call(a: str, b: str) -> bool:
-    """Are the two the same call with the same SSID (no SSID and -0 are the same), or the same name of a station on the internet (callsign.normal_name)?"""
     try:
         return normal_name(a) == normal_name(b)
     except ValueError:
@@ -132,20 +136,16 @@ def same_call(a: str, b: str) -> bool:
 
 
 def addressed_to(addressee: str, ours: str) -> bool:
-    """Is a message for `addressee` for the station `ours`? The call with its SSID, exactly (no SSID and -0 are the same; our base call is not ours when ours has an SSID)."""
+
     return same_call(addressee, ours)
 
 
 def is_query(text: str) -> bool:
-    """Is the text of a message one of the queries of the specification (`?APRSP`, `?APRSS`, `?APRSD`, `?APRST`, `?APRSM`, `?APRSH`, `?APRSO`, `?PING?`, `?APRS?`, `?IGATE?`, `?WX?`, with what follows
-    them)? A query has no id and is not acknowledged."""
     return _QUERY.match(text.strip()) is not None
 
 
 def query_text(text: str) -> str:
-    """A query the operator wrote (the custom query of a station's field, the command `query` with `custom`) as it goes on the air: without the spaces at its ends and upper-cased (the specification's queries and the
-    calls in them are upper case). Raises MessageError when it is not one: it must begin with `?` and say something after it, be printable ASCII without `|`, `~` or `{` (a `{` would begin a message id, and a query has
-    none) and fit in MAX_TEXT characters, the text of a message, which a directed query is."""
+    """Return the query trimmed and upper-cased. Raise MessageError if invalid."""
     query = text.strip()
     if len(query) < 2 or not query.startswith("?"):
         raise MessageError("a query begins with ? and says what it asks after it", "query.form")
@@ -154,12 +154,11 @@ def query_text(text: str) -> str:
 
 
 def is_telemetry_definition(text: str) -> bool:
-    """Is the text a definition of the telemetry channels (`PARM.`, `UNIT.`, `EQNS.` or `BITS.` and the values)? Those are for the telemetry software, not a conversation."""
     return text.startswith(TELEMETRY_DEFINITIONS)
 
 
 def next_msg_id(last: str | None, busy: set[str]) -> str | None:
-    """The id after `last` (the first when `last` is none of ours) that is not in `busy`, going round after 00; None when all 1296 are busy."""
+    """Return the next id after `last` not in `busy`; None if all are busy."""
     start = _ID_INDEX[last] + 1 if last in _ID_INDEX else 0
     for step in range(len(MSG_IDS)):
         ident = MSG_IDS[(start + step) % len(MSG_IDS)]
@@ -169,8 +168,7 @@ def next_msg_id(last: str | None, busy: set[str]) -> str | None:
 
 
 def check_text(text: str) -> None:
-    """Raises MessageError that says what is wrong with the text of a message: empty, over `MAX_TEXT` characters, a character the format has no place for, a control character, a character that is not
-    printable ASCII (the specification's text is ASCII, and radios show anything else wrongly)."""
+    """Raise MessageError if the text is empty, too long or not printable ASCII."""
     if not text.strip():
         raise MessageError("the message is empty", "message.empty")
     if len(text) > MAX_TEXT:
@@ -186,20 +184,17 @@ def check_text(text: str) -> None:
 
 
 def attempts_for(to_call: str) -> int:
-    """How many times a message to the station is transmitted: EMAIL_ATTEMPTS for the email gateway, STATION_ATTEMPTS for any other."""
     return EMAIL_ATTEMPTS if to_call == EMAIL_GATEWAY else STATION_ATTEMPTS
 
 
 def wait_after(attempts: int, attempts_max: int = STATION_ATTEMPTS) -> timedelta:
-    """How long after attempt number `attempts` (1 to `attempts_max`) the next one is due; after the last one, how long the answer is waited for. The waits double from 32 seconds (32, 32, 64, 128, ...) and none is
-    longer than MAX_WAIT_SEC."""
+    """Return the wait after attempt `attempts`; after the last, the wait for an answer."""
     if attempts >= attempts_max:
         return timedelta(seconds=FINAL_WAIT_SEC)
     return timedelta(seconds=FIRST_WAIT_SEC if attempts <= 1 else min(FIRST_WAIT_SEC * 2 ** (attempts - 2), MAX_WAIT_SEC))
 
 
 def schedule_sec(attempts_max: int) -> tuple[int, ...]:
-    """When the attempts of a message with `attempts_max` of them are made, in seconds from the first: 0, 32, 64, 128, 256, 512, 1024, 1984, 2944, 3904."""
     at = [0]
     for n in range(1, attempts_max):
         at.append(at[-1] + int(wait_after(n, attempts_max).total_seconds()))
@@ -207,15 +202,14 @@ def schedule_sec(attempts_max: int) -> tuple[int, ...]:
 
 
 def retry_pause(record: MessageRecord, jitter_sec: int) -> timedelta:
-    """The pause added before the next attempt of the message, from 0 to `jitter_sec` seconds; none before the first attempt or after the last, and none on a radio without one (FM). It is the same for the
-    same message and attempt every time it is asked (the schedule asks again and again), and another for the other station of a collision, whose message has another addressee and number."""
+    """Return a deterministic pause of 0 to `jitter_sec`; zero before the first and last attempt."""
     if jitter_sec <= 0 or record.attempts == 0 or record.attempts >= record.attempts_max:
         return timedelta(0)
-    return timedelta(seconds=random.Random(f"{record.to_call}/{record.id}/{record.attempts}").uniform(0, jitter_sec))  # noqa: S311  (a pause on the air that has to come out the same each time it is asked; no secret)
+    return timedelta(seconds=random.Random(f"{record.to_call}/{record.id}/{record.attempts}").uniform(0, jitter_sec))  # noqa: S311
 
 
 def due_at(record: MessageRecord) -> datetime | None:
-    """When the message that is being sent needs attention again: its next attempt, or (after the last) its failing. A message with no attempt yet is due when it was made. None for any other state."""
+    """Return when a sending message next needs attention; None otherwise."""
     if record.state != "sending":
         return None
     if record.attempts == 0 or record.last_attempt_at is None:

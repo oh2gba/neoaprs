@@ -1,4 +1,6 @@
-"""The note the daemon keeps in its data folder while it serves the page to the network (neoaprs-web.network): the app's tray reads it to offer the browser only while "Allow access from the network" is on."""
+"""The note the daemon keeps in its data folder while it serves the page to the network
+(neoaprs-web.network): the app's tray reads it to offer the browser only while "Allow access from
+the network" is on."""
 from pathlib import Path
 
 import pytest

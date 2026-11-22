@@ -1,6 +1,7 @@
-"""What NeoAPRS knows of the Mercury modem without running it (neoaprs/mercury.py, the profile, the settings): the one mode and its frame, the frame cap on what the daemon sends (the beacon's comment cut, a message refused with
-a reason, the Tnc's last guard), the keying as the setting keeps it, the command line and the configuration the daemon writes, what `mercury -z` and the control port print, and the moving station's floor. The
-beacon's frames and pause are those of radio 2 of the settings as the registry gives it (`support/seamshapes.py`), made by the station's one maker (services/beaconframe.py)."""
+"""What NeoAPRS knows of the Mercury modem without running it (neoaprs/mercury.py): the mode and
+frame, the frame cap on what the daemon sends, keying, the command line and configuration, and
+`mercury -z` output.
+"""
 import logging
 import random
 import re
@@ -56,7 +57,9 @@ def test_the_hf_dials_are_in_the_region_1_digimode_segments_and_not_the_300_baud
 
 
 def test_the_manuals_table_of_frequencies_is_the_constant_and_the_dial_of_the_page_is_the_forty_metre_one() -> None:
-    """docs/RADIOS.md prints the dials of FREQUENCIES (80, 40, 30, 20 and 6 m) and the page says the one of DIAL_BAND, with its mode spelled out: a number changed in one place and not the other fails here."""
+    """docs/RADIOS.md prints the dials of FREQUENCIES (80, 40, 30, 20 and 6 m) and the page says the
+    one of DIAL_BAND, with its mode spelled out: a number changed in one place and not the other
+    fails here."""
     manual = (Path(__file__).resolve().parent.parent / "docs" / "RADIOS.md").read_text(encoding="utf-8")
     assert [(int(band), dial) for band, dial in re.findall(r"^\| (\d+) m \| ([\d.]+) MHz \|$", manual, re.MULTILINE)] == list(mercury.FREQUENCIES)
     assert mercury.DIAL_BAND == 40 and mercury.DIAL_TEXT == "7.0541 MHz USB"
@@ -94,14 +97,18 @@ def test_a_frame_that_fits_or_has_no_limit_is_left_as_it_is_and_a_long_comment_i
     cut = fit_frame(frame, 123)
     assert len(ax25.encode(cut)) == 123 and cut.info == b"=6010.00N/02456.00E-" + b"c" * 87 and cut.info != frame.info
     with pytest.raises(ValueError, match="shortening its comment is not enough"):
-        fit_frame(frame_of(b"T#005," + b"1," * 60, ("WIDE1-1", "WIDE2-1")), 123)                   # (telemetry has no comment to cut)
+        # Telemetry has no comment to cut
+        fit_frame(frame_of(b"T#005," + b"1," * 60, ("WIDE1-1", "WIDE2-1")), 123)
     with pytest.raises(ValueError):
-        fit_frame(frame_of(b":OH2RDG   :" + b"m" * 67 + b"{01", ("WIDE1-1", "WIDE2-1", "WIDE3-1", "WIDE4-1", "WIDE5-1", "WIDE6-1", "WIDE7-1", "WIDE8-1")), 80)       # (the addressee stays: 6 bytes of text are not room enough)
+        # The addressee stays: 6 bytes of text are not room enough
+        fit_frame(frame_of(b":OH2RDG   :" + b"m" * 67 + b"{01", ("WIDE1-1", "WIDE2-1", "WIDE3-1", "WIDE4-1", "WIDE5-1", "WIDE6-1", "WIDE7-1", "WIDE8-1")), 80)
 
 
 def test_the_beacon_cuts_its_comment_to_the_radios_frame_and_says_so_once(caplog: pytest.LogCaptureFixture) -> None:
     long = replace(HF_CONFIG, station_comment="A comment as long as the settings allow, 43", beacon_path="WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1,WIDE5-1,WIDE6-1,WIDE7-1")
-    radio = capped_with_paths(long.radios[0])                           # (a radio with a frame cap that carries paths: over HF itself no path goes, and a beacon with its 43-character comment is 86 bytes at most, under the cap)
+    # A radio with a frame cap that carries paths: over HF itself no path goes, and a beacon with
+    # its 43-character comment is 86 bytes at most, under the cap
+    radio = capped_with_paths(long.radios[0])
     frames = BeaconFrames(lambda: long, None, FixedClock())
     frame = frames.position(radio)
     assert len(ax25.encode(frame)) == 123 and frame.info == b"=6010.20N/02456.40E-A comment as long as the settings allo"
@@ -122,8 +129,12 @@ def test_the_sender_cuts_an_objects_comment_and_refuses_what_cannot_be_cut() -> 
 
 
 async def test_a_message_that_the_radio_would_cut_is_refused_with_the_reason_and_a_message_that_fits_goes(tmp_path: Path) -> None:
-    rig = await started_rig(tmp_path, tnc=StubTnc(max_frame=123, rtype=HF_WITH_PATHS), hf_enabled=True, fm_enabled=False, beacon_path="WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1")        # (a radio with a frame cap that carries paths: over HF itself no path goes, and the longest message, 67 characters to a 9-character addressee with a reply-ack, is 100 bytes)
-    rig.prefs._gateway = lambda call, radio: ("WIDE1-1", "WIDE2-1", "WIDE3-1", "WIDE4-1")        # (the path a radio without a path setting is given is the reply path: here four hops, to count them)
+    # A radio with a frame cap that carries paths: over HF itself no path goes, and the longest
+    # message, 67 characters to a 9-character addressee with a reply-ack, is 100 bytes
+    rig = await started_rig(tmp_path, tnc=StubTnc(max_frame=123, rtype=HF_WITH_PATHS), hf_enabled=True, fm_enabled=False, beacon_path="WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1")
+    # The path a radio without a path setting is given is the reply path: here four hops, to count
+    # them
+    rig.prefs._gateway = lambda call, radio: ("WIDE1-1", "WIDE2-1", "WIDE3-1", "WIDE4-1")
     sent = await rig.m.send("OH2RDG", "Hello Pekka")
     assert sent.state == "sending" and rig.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1::OH2RDG   :Hello Pekka{01}"]
     with pytest.raises(MessagingError) as refused:
@@ -157,7 +168,8 @@ async def test_a_message_kept_before_the_radio_changed_fails_with_the_reason_whe
 
 async def test_a_message_never_sent_that_does_not_fit_the_radio_it_goes_on_fails_without_an_attempt(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     rig = await started_rig(tmp_path, hf_enabled=True, fm_enabled=False, beacon_path="DIRECT")
-    rig.tnc.held = "the channel is busy"                                  # (the radio is away: the message is kept, its first attempt waits)
+    # The radio is away: the message is kept, its first attempt waits
+    rig.tnc.held = "the channel is busy"
     record = await rig.m.send("OH2RDG", "x" * 67)
     assert (record.state, record.attempts) == ("sending", 0)
     rig.tnc.max_frame = 90
@@ -309,7 +321,8 @@ def test_the_sound_cards_of_mercury_z_are_read_one_card_for_both_directions() ->
     assert mercury.parse_sound_cards("device: name: 'x'  id: 'y'\n") == [], "a device line before any list is nothing"
 
 
-# What Mercury 1.9.21 lists on Windows (WASAPI): each card twice, a playing and a recording device with ids of their own (OH2GAX's IC-7300 beside the computer's own sound, 3 Nov 2026).
+# What Mercury lists on Windows (WASAPI): each card twice, a playing and a recording device with ids
+# of their own.
 WINDOWS_Z = ("playback devices:\n"
              "device: name: 'Speakers (Realtek High Definition Audio)'  id: '{0.0.0.00000000}.{aaaa}'  (system default)\n"
              "device: name: 'Speakers (USB Audio CODEC)'  id: '{0.0.0.00000000}.{ca03}'\n"
@@ -390,7 +403,7 @@ def test_the_lines_of_the_control_port_are_read_as_mercury_writes_them() -> None
     assert mercury.split_control_lines(buffer) == ["SN 3.0"] and not buffer
 
 
-# ---- the rules of the HF radio: no path, no digipeater, no moving station, the beacon's own interval
+# ---- HF radio rules: no path, no digipeater, no moving station, the beacon's own interval
 
 def test_over_mercury_every_frame_goes_direct_whatever_the_path_settings_say_and_the_settings_are_kept() -> None:
     hf = replace(HF_CONFIG, beacon_path="WIDE1-1,WIDE2-1")
@@ -421,7 +434,9 @@ def test_over_mercury_a_moving_station_sends_its_timed_beacon_at_the_fix_and_the
     beacon = Beacon(radio_of(moving, HF_ID), lambda: moving, clock, frames=BeaconFrames(lambda: moving, None, clock))
     assert beacon.interval_min == 30, "the one interval of the station"
     with pytest.raises(BeaconError, match="no GPS|fix"):
-        beacon.frame()                                                           # (a moving station on HF: the timed beacon says where it is now, and nothing without a fresh fix)
+        # A moving station on HF: the timed beacon says where it is now, and nothing without a fresh
+        # fix
+        beacon.frame()
     fixed = replace(moving, gps_source="off")
     assert BeaconFrames(lambda: fixed, None, clock).position(radio_of(fixed, HF_ID)).info.startswith(b"=6010.20N/02456.40E-"), "a fixed station: its home"
     paused = Beacon(radio_of(moving, HF_ID), lambda: moving, clock)
@@ -456,7 +471,9 @@ def test_the_one_beacon_interval_is_raised_to_30_minutes_on_the_hf_radio_alone_a
 
 
 def test_the_random_pause_keeps_stations_with_the_same_interval_apart_on_the_simulated_hour() -> None:
-    """Five fixed stations on the same hour and the same clock: without the pause they key up together every time; with it, two overlap in about a round in four, which the next round and the retry of a message absorb."""
+    """Five fixed stations on the same hour and the same clock: without the pause they key up
+    together every time; with it, two overlap in about a round in four, which the next round and the
+    retry of a message absorb."""
     rng = random.Random(7)
     frame_sec = mercury.FRAME_SEC
     rounds = 2000
@@ -475,7 +492,8 @@ def test_the_random_pause_keeps_stations_with_the_same_interval_apart_on_the_sim
 # ---- the ack of a message heard while the radio is held
 
 class HeldTnc(StubTnc):
-    """A connected radio that takes no frame while `held` says why: the modem transmits, or the channel is busy."""
+    """A connected radio that takes no frame while `held` says why: the modem transmits, or the
+    channel is busy."""
 
     def __init__(self) -> None:
         super().__init__(max_frame=123)
@@ -496,7 +514,8 @@ async def test_the_ack_of_a_message_heard_while_the_radio_is_held_waits_and_goes
     caplog.set_level(logging.INFO, "neoaprs.messaging")
     tnc = HeldTnc()
     rig = await started_rig(tmp_path, tnc=tnc, hf_enabled=True, fm_enabled=False, beacon_path="DIRECT")
-    tnc.held = "the channel is busy"                                     # (the frame was decoded while the sender's tail was still on the air: the busy detector holds us)
+    # The frame was decoded while the sender's tail was still on the air: the busy detector holds us
+    tnc.held = "the channel is busy"
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     await rig.settled()
     assert rig.lines() == [] and len(rig.m.acks.waiting) == 1 and "waits: the channel is busy" in caplog.text
@@ -542,7 +561,8 @@ def test_the_time_in_front_of_a_line_of_mercury_is_taken_off_in_every_form_mercu
 
 
 def test_a_station_message_of_another_program_is_told_from_a_frame_by_its_command_and_its_packet_type() -> None:
-    beacon = bytes([0x07 << 5 | 1]) + b"OH2XYZ position"            # (Mercury 1.9.23 on: modem/framer.h PACKET_TYPE_STATION in the top three bits, a layout below)
+    # Station message: PACKET_TYPE_STATION (modem/framer.h) in the top three bits, a layout below.
+    beacon = bytes([0x07 << 5 | 1]) + b"OH2XYZ position"
     assert mercury.station_message(0x03, beacon) and mercury.station_message(0x03, bytes([0xFF]))
     assert not mercury.station_message(0x00, beacon), "a data frame is a packet whatever its first byte"
     assert not mercury.station_message(0x03, bytes([0x04 << 5]) + b"x") and not mercury.station_message(0x03, b""), "a modem frame of another type, and none at all"

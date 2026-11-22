@@ -1,6 +1,7 @@
-"""A small WebSocket client (RFC 6455) over asyncio streams, for the one server NeoAPRS reads that way: the UI interface of the Mercury it starts, on the loopback. It opens a connection with the handshake, reads whole messages (text or
-binary, the fragments joined, a ping answered with a pong, a close answered and reported as the end) and writes text messages. No extensions, no compression, no TLS: the server is on this computer and speaks plain `ws://`. The pages
-of the daemon are served by Tornado, which has a client of its own, but Tornado may be imported by neoaprs/web/ only."""
+"""A small WebSocket client (RFC 6455) over asyncio streams, for Mercury's UI interface on loopback.
+
+No extensions, compression or TLS. Tornado has a client but may be imported by neoaprs/web/ only.
+"""
 import asyncio
 import base64
 import hashlib
@@ -8,8 +9,9 @@ import os
 import struct
 
 GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-HEADER_MAX = 8192                # the longest reply to the handshake read
-MAX_MESSAGE = 1 << 20            # a message longer than this is read and thrown away (Mercury's longest, the list of radios, is 64 KB)
+HEADER_MAX = 8192  # the longest reply to the handshake read
+# A longer message is read and dropped (Mercury's longest is 64 KB).
+MAX_MESSAGE = 1 << 20
 CONNECT_SEC = 3.0
 
 CONTINUATION, TEXT, BINARY, CLOSE, PING, PONG = 0x0, 0x1, 0x2, 0x8, 0x9, 0xA
@@ -20,12 +22,13 @@ class WebSocketError(Exception):
 
 
 def accept_of(key: str) -> str:
-    """The `Sec-WebSocket-Accept` a server answers the key with."""
-    return base64.b64encode(hashlib.sha1((key + GUID).encode("ascii"), usedforsecurity=False).digest()).decode("ascii")      # (the SHA-1 is the protocol's, RFC 6455: it shows that the server read the key, and protects nothing)
+    """Return the `Sec-WebSocket-Accept` a server answers the key with."""
+    # The SHA-1 is the protocol's (RFC 6455): it shows the server read the key and protects nothing.
+    return base64.b64encode(hashlib.sha1((key + GUID).encode("ascii"), usedforsecurity=False).digest()).decode("ascii")
 
 
 def frame(opcode: int, payload: bytes, mask: bytes | None = None) -> bytes:
-    """One frame, final, with the payload masked by `mask` (four bytes) when given: a client's frames are always masked."""
+    """Return one final frame, masked by `mask` (four bytes) when given; a client's always is."""
     size = len(payload)
     head = bytes([0x80 | opcode])
     flag = 0x80 if mask is not None else 0
@@ -47,7 +50,10 @@ class WebSocketClient:
 
     @classmethod
     async def connect(cls, host: str, port: int, path: str = "/", timeout: float = CONNECT_SEC) -> "WebSocketClient":
-        """Opens the connection and does the handshake. OSError when the server is not there, WebSocketError (or TimeoutError) when it does not agree to the upgrade."""
+        """Open the connection and do the handshake.
+
+        Raise OSError if the server is not there, WebSocketError or TimeoutError if no upgrade.
+        """
         reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout)
         try:
             key = base64.b64encode(os.urandom(16)).decode("ascii")
@@ -72,7 +78,10 @@ class WebSocketClient:
         await self._writer.drain()
 
     async def recv(self) -> tuple[bool, bytes] | None:
-        """The next message as (is_text, bytes), or None when the server closed the connection. WebSocketError for a frame the protocol does not allow. A message over MAX_MESSAGE is skipped."""
+        """Return the next message as (is_text, bytes), or None once the server closed.
+
+        Raise WebSocketError for a disallowed frame. A message over MAX_MESSAGE is skipped.
+        """
         parts: list[bytes] = []
         size, kind, skipping = 0, TEXT, False
         while True:
@@ -122,7 +131,7 @@ class WebSocketClient:
         return first & 0x0F, bool(first & 0x80), payload
 
     def close(self) -> None:
-        """Closes the connection now (a close frame is tried first, without waiting for the answer)."""
+        """Close the connection now; a close frame is tried first, with no wait for the answer."""
         if not self.closed:
             self.closed = True
             try:

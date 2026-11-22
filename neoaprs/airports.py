@@ -1,13 +1,13 @@
-"""The place an airport is in, by its ICAO code (airportdata.py, credited there): "Stockholm" for ESSA. Pure code; the table is made into a dictionary the first time it is asked."""
+"""Place name of an airport by ICAO code ("Stockholm" for ESSA), from airportdata.py."""
 from functools import cache
 
 
 @cache
 def _table() -> dict[str, str]:
-    from .airportdata import AIRPORTS     # (here, so that a daemon that never looks at an aircraft does not read the table)
+    from .airportdata import AIRPORTS     # imported lazily: the table is large
     return dict(AIRPORTS)
 
 
 def place(code: str) -> str:
-    """The place of the airport with this ICAO code (four letters or digits, upper case); "" when the table does not know it."""
+    """Return the place of the airport with this upper-case ICAO code, or "" if unknown."""
     return _table().get(code, "")

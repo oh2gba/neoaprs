@@ -1,8 +1,7 @@
-"""The HF radio after its Mercury dies, through the daemon (neoaprs/controller.py, neoaprs/wiring.py, neoaprs/mercurymodem.py): the program is started again on the ports it had, so the HF Tnc, which was told its port when
-the radios started, finds the modem where it left it and the radio comes back by itself; and when something else took that pair while the modem was down, the modem takes another and the controller points the HF Tnc at
-it (`Mercury.ports_changed`, wired to `repoint_hf`). Before this the relaunch took the next free pair every time (the old one looked busy with its connections in TIME_WAIT) and the Tnc waited on the dead port for ever.
-The modem is given the station's table of resources, as a radio's driver gives it: the radio holds its pair across the relaunch, so that no other radio's modem is handed it while the program is down, and holds the new
-pair in the place of the old when it had to take another."""
+"""The HF radio after its Mercury dies, through the daemon: the program is started again on the
+ports it had and the radio comes back; if something else took the pair meanwhile, the modem gets
+another pair.
+"""
 import socket
 import sys
 from pathlib import Path
@@ -18,7 +17,8 @@ from tests.support.modemports import own_ports
 
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py): no other test running beside it is handed its ports."""
+    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py):
+    no other test running beside it is handed its ports."""
     own_ports(monkeypatch)
 
 
@@ -47,7 +47,9 @@ def kill(e: Env) -> None:
 
 
 async def test_after_mercury_dies_the_hf_radio_comes_back_on_the_same_ports_by_itself(tmp_path: Path) -> None:
-    # (on Windows a second, not a tenth: it keeps the port of a process that was killed for a moment, and a modem started into that moment ends on "address in use" and comes back on a later start than the one counted here)
+    # (on Windows a second, not a tenth: it keeps the port of a process that was killed for a
+    # moment, and a modem started into that moment ends on "address in use" and comes back on a
+    # later start than the one counted here)
     e = await hf_station(tmp_path, Backoff([1.0, 1.0] if sys.platform == "win32" else [0.1, 0.1]))
     try:
         port, pid = e.hf.port, e.mercury.pid
@@ -64,7 +66,9 @@ async def test_after_mercury_dies_the_hf_radio_comes_back_on_the_same_ports_by_i
 
 
 async def test_when_the_pair_was_taken_meanwhile_the_hf_radio_is_pointed_at_the_new_one(tmp_path: Path) -> None:
-    e = await hf_station(tmp_path, Backoff([4.0, 4.0]))                      # (the back-off is the time the test has to take the port: a machine that stalls for a second does not end it)
+    # The back-off is the time the test has to take the port: a machine that stalls for a second
+    # does not end it
+    e = await hf_station(tmp_path, Backoff([4.0, 4.0]))
     try:
         old = e.mercury.broadcast_port
         kill(e)
@@ -82,8 +86,10 @@ async def test_when_the_pair_was_taken_meanwhile_the_hf_radio_is_pointed_at_the_
 
 
 async def test_a_start_refused_before_its_ports_were_chosen_gives_the_hf_radio_no_port_and_the_start_tried_again_points_it_at_them(tmp_path: Path) -> None:
-    """The card the HF radio is set to is another radio's: its start is refused before it chose its ports, and the port it stood on (8100) may be another radio's modem or another program's, so its line has
-    none and says why. Once the card is let go, the start tried again chooses its pair and the line is pointed at it (`ports_changed`)."""
+    """The card the HF radio is set to is another radio's: its start is refused before it chose its
+    ports, and the port it stood on (8100) may be another radio's modem or another program's, so its
+    line has none and says why. Once the card is let go, the start tried again chooses its pair and
+    the line is pointed at it (`ports_changed`)."""
     card = "plughw:CARD=CODEC,DEV=0"
     e = Env(tmp_path, settings={"hf/enabled": "true", "mercury/sound_card": card, "mercury/keying": "vox"})
     e.mercury._finder = fakemercury.program

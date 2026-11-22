@@ -1,9 +1,7 @@
-"""Migrations 24 and 25 (neoaprs/migrationsteps22on.py) on databases with rows in them. 24 (encrypted messages): the table of the stations' keys is there and empty, a message is plain (`seal` empty, `wire` none) as it was.
-25 (two radios): everything the air gave so far came on the FM radio, so a packet that was heard or sent has the radio `fm` and a packet from the internet none, a station's FM count is the sum of its radio counts (the
-Dummy radio's included) and its FM time the latest of their times, a message that came in and every attempt of ours name the FM radio, and an object of ours goes out on FM.
-
-What is read back is read from the database as the radio round's steps leave it (tests/support/migrated32.newest), where the FM radio is radio 1: a packet, a message and an attempt name it by its id
-(migration 32), a station's FM count and time are the row of radio 1 in `station_radio`, and the object's radios are "1" (migration 33)."""
+"""Migrations 24 and 25 (neoaprs/migrationsteps22on.py) on databases with rows: 24 adds the station
+key table and plain messages; 25 gives every packet heard or sent so far the radio `fm` and internet
+packets none.
+"""
 from pathlib import Path
 
 from neoaprs.migrations import SCHEMA_VERSION
@@ -54,8 +52,10 @@ def test_migration_25_marks_what_the_air_gave_as_the_fm_radios_and_counts_the_st
         db.execute(INSERT_PACKET.format(via=", via", value=", ?"), (at, direction, source, via))
     station = ("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code, lat, lon, first_heard, last_heard, last_position_at, last_status, last_comment, packets, last_path, "
                "heard_rf, heard_rf_gated, heard_is, heard_dummy, last_rf_at, last_rf_gated_at, last_is_at, last_dummy_at) VALUES (?, 'station', '', '/', '-', 60.1, 24.9, ?, ?, ?, '', '', ?, '', ?, ?, ?, ?, ?, ?, ?, ?)")
-    db.execute(station, ("OH2MIX", STAMP, LATEST, STAMP, 9, 3, 2, 1, 3, STAMP, LATER, LATER, LATEST))        # (heard four ways: FM is rf + gated + dummy)
-    db.execute(station, ("OH2NET", STAMP, LATER, STAMP, 4, 0, 0, 4, 0, None, None, LATER, None))            # (the internet alone: no FM at all)
+    # Heard four ways: FM is rf + gated + dummy
+    db.execute(station, ("OH2MIX", STAMP, LATEST, STAMP, 9, 3, 2, 1, 3, STAMP, LATER, LATER, LATEST))
+    # The internet alone: no FM at all
+    db.execute(station, ("OH2NET", STAMP, LATER, STAMP, 4, 0, 0, 4, 0, None, None, LATER, None))
     db.execute(station, ("OH2RDG", STAMP, STAMP, STAMP, 2, 2, 0, 0, 0, STAMP, None, None, None))
     messages(db)
     db.execute("INSERT INTO message_attempt (message_id, attempt, sent_at, path) VALUES (1, 1, ?, 'WIDE1-1'), (1, 2, ?, '')", (STAMP, LATER))

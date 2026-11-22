@@ -1,8 +1,8 @@
 """Put the Mercury that NeoAPRS built for Windows into the app folder.
 
 `bundle_mercury.py DIST/NeoAPRS TARBALL` makes DIST/NeoAPRS/bin/mercury/ from the tarball that
-`scripts/build-mercury --windows --tar` makes. It is `bundle_tool.py mercury` under its own name; the
-checks on the tarball are in bundle_tool.py. Run with the Python that has NeoAPRS installed."""
+`scripts/build-mercury --windows --tar` makes. It is `bundle_tool.py mercury` under its own name;
+the checks on the tarball are in bundle_tool.py. Run with the Python that has NeoAPRS installed."""
 import sys
 from pathlib import Path
 

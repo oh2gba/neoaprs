@@ -1,6 +1,7 @@
-"""The signal of what is heard (neoaprs/reading.py): a reading is tied to its frame where the frame is made. Mercury's SN line comes before its frame on another connection, and the next frame takes it once and
-only within PAIR_SEC, so two frames close together each get their own and a frame whose SN never came gets none; a radio type gives only the readings it says (Mercury the SNR, a KISS TNC none, the Dummy HF
-radio a made-up SNR in Mercury's range); a station's last reading is that of the latest packet heard direct from it."""
+"""The signal of what is heard (neoaprs/reading.py): a reading is tied to its frame where the frame
+is made. Mercury's SN line comes before its frame; the next frame takes it once and within PAIR_SEC
+only.
+"""
 import asyncio
 from dataclasses import replace
 from pathlib import Path
@@ -78,10 +79,12 @@ async def test_two_frames_close_together_each_get_the_snr_mercury_said_for_it_an
     r.tnc.modem = m
     heard: list[Packet] = []
     r.tnc.packet.connect(heard.append)
-    m._event(ControlEvent("snr", value=-2.5))                                    # (Mercury: SN first on the control port, then the frame on the broadcast port, 0 to 100 ms later)
+    # Mercury: SN first on the control port, then the frame on the broadcast port, 0 to 100 ms later
+    m._event(ControlEvent("snr", value=-2.5))
     r.radio.feed(kiss_of(ui_frame("OH2AAA")))
     await until_started(lambda: len(heard) == 1)
-    m._event(ControlEvent("snr", value=6.1))                                     # (the next frame right after it, a few milliseconds later)
+    # The next frame right after it, a few milliseconds later
+    m._event(ControlEvent("snr", value=6.1))
     r.radio.feed(kiss_of(ui_frame("OH2BBB")))
     await until_started(lambda: len(heard) == 2)
     r.radio.feed(kiss_of(ui_frame("OH2CCC")))                                    # (a frame whose SN did not come)
@@ -98,7 +101,9 @@ async def test_a_reading_that_waited_longer_than_the_pair_time_is_not_the_frames
     heard: list[Packet] = []
     r.tnc.packet.connect(heard.append)
     m._event(ControlEvent("snr", value=-2.5))
-    m._reading._at -= PAIR_SEC + 0.5                                             # (said a while ago: a frame Mercury decoded and did not hand over, an ARQ frame or one of another size)
+    # Said a while ago: a frame Mercury decoded and did not hand over, an ARQ frame or one of
+    # another size
+    m._reading._at -= PAIR_SEC + 0.5
     r.radio.feed(kiss_of(ui_frame("OH2AAA")))
     await until_started(lambda: len(heard) == 1)
     assert heard[0].snr is None

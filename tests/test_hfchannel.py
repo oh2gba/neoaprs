@@ -1,7 +1,6 @@
-"""The HF channel for real Mercury instances (tests/support/hfchannel.py) on real named pipes: the tests play the stations' Mercury by writing s32le to each station's TX pipe and reading its RX pipe, and step the channel a block
-at a time (`process_block`) so that nothing waits for the clock. A noiseless channel (`snr_db=inf`) gives exact samples; a noisy one is measured: a tone sent by one station is heard by the others as the same tone scaled by the
-link's gain with noise at the asked SNR, a keyed station hears only noise, two keyed in one block are a collision that the receiver hears mixed, a delay, a fade shaper, clipping, a station whose pipes are not there yet does not
-stall the others, a part of a block waits for its rest, a reader that is slow or gone costs blocks (counted), the same seed and bytes give the same bytes, and the pace holds in a thread and costs a small part of a block."""
+"""Tests for the HF channel simulator (tests/support/hfchannel.py) on real named pipes, stepped a
+block at a time: exact samples without noise, SNR, collisions, delay, fading, clipping, slow
+readers, and determinism."""
 import math
 import os
 import random
@@ -31,7 +30,8 @@ def rms(samples: array[int] | list[float]) -> float:
 
 
 def amplitude(samples: array[int], freq: float = 1000.0) -> float:
-    """The amplitude of the sine of this frequency in the samples (by projection: the samples hold whole periods)."""
+    """The amplitude of the sine of this frequency in the samples (by projection: the samples hold
+    whole periods)."""
     return 2 / len(samples) * sum(s * math.sin(2 * math.pi * freq * i / RATE) for i, s in enumerate(samples))
 
 
@@ -40,7 +40,9 @@ def minus(samples: array[int], other: array[int], factor: float = 1.0) -> list[f
 
 
 class Rig:
-    """The stations' ends of the pipes. The test's reader end of each RX pipe is open before the station is added (the channel opens its end without waiting, as it does for Mercury), the writer end of each TX pipe after."""
+    """The stations' ends of the pipes. The test's reader end of each RX pipe is open before the
+    station is added (the channel opens its end without waiting, as it does for Mercury), the writer
+    end of each TX pipe after."""
 
     def __init__(self, tmp_path: Path, names: str, **channel: object) -> None:
         self.folder = tmp_path
@@ -71,7 +73,8 @@ class Rig:
             self.heard[name].extend(data)
 
     def run(self, blocks: int, plan: dict[int, list[tuple[str, array[int]]]] | None = None) -> None:
-        """`blocks` blocks of the channel; `plan` says what each station's Mercury writes just before block k."""
+        """`blocks` blocks of the channel; `plan` says what each station's Mercury writes just
+        before block k."""
         for k in range(blocks):
             for name, samples in (plan or {}).get(k, []):
                 self.send(name, samples)
@@ -107,7 +110,8 @@ def make(tmp_path: Path):
 
 
 def plan_of(*sends: tuple[int, str, array[int]]) -> dict[int, list[tuple[str, array[int]]]]:
-    """Each send (block, station, samples) written whole at its block: the samples of a block at a time."""
+    """Each send (block, station, samples) written whole at its block: the samples of a block at a
+    time."""
     plan: dict[int, list[tuple[str, array[int]]]] = {}
     for start, name, samples in sends:
         for i in range(len(samples) // BLOCK):
@@ -125,7 +129,8 @@ def test_s32le_round_trips_int16_with_the_sample_in_the_top_half() -> None:
     assert data[:8] == bytes([0, 0, 0, 0, 0, 0, 1, 0])      # (0, then 1 << 16 little-endian)
     assert data[8:12] == bytes([0, 0, 0xFF, 0xFF])          # -1 << 16
     assert s32le_to_pcm(data + b"\x01\x02") == samples        # (a part of a word is dropped)
-    assert s32le_to_pcm(bytes([0xFF, 0xFF, 0x34, 0x12])) == array("h", [0x1234])        # (what is in the low half does not matter)
+    # (what is in the low half does not matter)
+    assert s32le_to_pcm(bytes([0xFF, 0xFF, 0x34, 0x12])) == array("h", [0x1234])
 
 
 # ---- what is heard ----
@@ -142,7 +147,8 @@ def test_a_tone_is_heard_as_the_same_tone_scaled_by_the_gain_with_noise_at_the_a
         assert amplitude(heard) == pytest.approx(factor * TONE_RMS * math.sqrt(2), rel=0.02)
         noise = minus(heard, sent, factor)
         assert rms(noise) == pytest.approx(sigma, rel=0.06)
-        # the SNR of the reference level in 3 kHz (the noise is white up to 4 kHz, so 3/4 of it is in the band) is what was asked, for the link of gain 0 dB
+        # the SNR of the reference level in 3 kHz (the noise is white up to 4 kHz, so 3/4 of it is
+        # in the band) is what was asked, for the link of gain 0 dB
         if factor == 1.0:
             snr = 20 * math.log10(TONE_RMS / (rms(noise) * math.sqrt(3 / 4)))
             assert snr == pytest.approx(20.0, abs=0.6)
@@ -196,7 +202,8 @@ def test_a_keyed_station_hears_only_noise_and_the_others_again_when_it_stops(mak
         heard = rig.samples("A", first, last)
         assert amplitude(heard, 500.0) == pytest.approx(TONE_RMS * math.sqrt(2), rel=0.03)
         assert rms(minus(heard, b[first * BLOCK:last * BLOCK])) == pytest.approx(sigma, rel=0.1)
-    assert rig.samples("B", 5, 10) != array("h", bytes(2 * 5 * BLOCK))            # (and B, keyed all the time, never heard A)
+    # (and B, keyed all the time, never heard A)
+    assert rig.samples("B", 5, 10) != array("h", bytes(2 * 5 * BLOCK))
     assert amplitude(rig.samples("B", 5, 10)) < 0.1 * TONE_RMS
 
 
@@ -235,9 +242,12 @@ def test_an_attack_mutes_the_first_milliseconds_of_every_transmission_from_its_f
     rig = make("AB", snr_db=INF)
     attack = Attack(lambda: rig.channel.blocks, ms=30.0)
     rig.channel.set_link("A", "B", shaper=attack, symmetric=False)
-    lead = 40                                                           # (silence ahead of the audio inside the first block: Mercury's 100 ms of it is no audio to a VOX)
+    # (silence ahead of the audio inside the first block: Mercury's 100 ms of it is no audio to a
+    # VOX)
+    lead = 40
     sent = array("h", bytes(2 * lead)) + array("h", [1000] * (3 * BLOCK - lead))
-    rig.run(12, plan_of((1, "A", sent), (7, "A", sent)))                # (two transmissions with silent blocks between: the attack starts over)
+    # (two transmissions with silent blocks between: the attack starts over)
+    rig.run(12, plan_of((1, "A", sent), (7, "A", sent)))
     muted = 30 * RATE // 1000
     expected = array("h", sent)
     expected[lead:lead + muted] = array("h", bytes(2 * muted))
@@ -249,12 +259,15 @@ def test_an_attack_mutes_the_first_milliseconds_of_every_transmission_from_its_f
 
 
 def test_the_hilbert_transformer_turns_a_tone_into_its_quadrature_and_a_steady_path_is_the_tone_itself_a_little_late() -> None:
-    """A one-path channel with no Doppler spread is the identity but for the transformer's delay, and the transformer's quadrature of a cosine at 1 kHz is the sine, within a percent, which is what the fading multiplies."""
+    """A one-path channel with no Doppler spread is the identity but for the transformer's delay,
+    and the transformer's quadrature of a cosine at 1 kHz is the sine, within a percent, which is
+    what the fading multiplies."""
     half = HILBERT_TAPS // 2
     taps = dict(hilbert_taps())
     assert all(m % 2 for m in taps) and len(taps) == half + 1 and taps[1] == pytest.approx(2 / math.pi, rel=0.01) and taps[-1] == -taps[1]
     for freq in (500.0, 1000.0, 1500.0, 3000.0):
-        quadrature = sum(h * math.sin(2 * math.pi * freq * m / RATE) for m, h in taps.items())          # (the transformer's response at this frequency is -j times this: 1 for the ideal one)
+        # (the transformer's response at this frequency is -j times this: 1 for the ideal one)
+        quadrature = sum(h * math.sin(2 * math.pi * freq * m / RATE) for m, h in taps.items())
         assert quadrature == pytest.approx(1.0, abs=0.012), (freq, quadrature)
     steady = Fading(delay_ms=0.0, doppler_hz=0.0, paths=1)
     sent = tone(4)
@@ -277,7 +290,9 @@ def test_two_steady_paths_are_an_echo_at_the_delay_with_the_powers_summing_to_on
 
 
 def test_the_gain_process_has_unit_power_and_the_gaussian_spectrum_of_the_doppler_spread() -> None:
-    """The tap process at its low rate: E|g|^2 = 1, and its autocorrelation is the Gaussian spectrum's, exp(-2 pi^2 sigma^2 tau^2) with sigma half the spread (ITU-R F.1487), checked at one and three low-rate steps."""
+    """The tap process at its low rate: E|g|^2 = 1, and its autocorrelation is the Gaussian
+    spectrum's, exp(-2 pi^2 sigma^2 tau^2) with sigma half the spread (ITU-R F.1487), checked at one
+    and three low-rate steps."""
     for spread in (1.0, 0.5):
         tap = _Tap(spread, RATE, random.Random(5))
         low_rate = RATE / tap.ratio
@@ -293,7 +308,9 @@ def test_the_gain_process_has_unit_power_and_the_gaussian_spectrum_of_the_dopple
 
 
 def test_a_poor_channel_fades_a_tone_deeply_and_keeps_its_average_power(make) -> None:
-    """Twenty seconds of a tone through the poor channel: the average power is the tone's within a decibel or so, and there are blocks faded by more than 10 dB (a fade of 10 dB about once in two seconds on this channel)."""
+    """Twenty seconds of a tone through the poor channel: the average power is the tone's within a
+    decibel or so, and there are blocks faded by more than 10 dB (a fade of 10 dB about once in two
+    seconds on this channel)."""
     poor = Fading("poor", seed=3)
     assert poor.describe() == "poor: 2 path(s), 2 ms, 1 Hz, seed 3" and PRESETS["poor"] == (2.0, 1.0)
     blocks = 1000
@@ -332,7 +349,9 @@ def test_a_block_through_four_faded_links_costs_a_part_of_the_twenty_millisecond
     totals = rig.channel.report()["totals"]
     with capsys.disabled():
         print(f"\n5 stations, 1 keyed, every link faded: {totals['block_ms_mean']:.2f} ms a block on average, {totals['block_ms_max']:.2f} ms at most, of {1000 * rig.channel.block_sec:.0f}")
-    assert totals["block_ms_mean"] < 1000 * rig.channel.block_sec          # (a block costs less than the block lasts, so the pace can be held: how small a part, a busy machine decides: the simulation stage measures it)
+    # (a block costs less than the block lasts, so the pace can be held: how small a part, a busy
+    # machine decides: the simulation stage measures it)
+    assert totals["block_ms_mean"] < 1000 * rig.channel.block_sec
 
 
 def test_links_to_stations_that_are_not_there_or_with_a_negative_delay_are_refused(make) -> None:
@@ -351,19 +370,23 @@ def test_a_station_whose_pipes_are_not_there_yet_does_not_stall_the_others_and_i
     rig = make("AB", snr_db=INF)
     late = rig.channel.add("N", tmp_path / "N.rx", tmp_path / "N.tx")       # (neither pipe exists)
     sent = tone(4)
-    rig.run(4, plan_of((0, "A", sent)))                                      # (a station whose pipes are not there stalls the run for ever when it stalls it at all: the open does not block)
+    # (a station whose pipes are not there stalls the run for ever when it stalls it at all: the
+    # open does not block)
+    rig.run(4, plan_of((0, "A", sent)))
     assert rig.samples("B") == sent
     assert late.dropped == 4
     mkfifo(tmp_path / "N.rx")
     mkfifo(tmp_path / "N.tx")
     reader = os.open(tmp_path / "N.rx", os.O_RDONLY | NONBLOCK)
-    rig.channel.process_block()                                              # (the channel opens the TX pipe it finds: only then can Mercury open its end for writing)
+    # (the channel opens the TX pipe it finds: only then can Mercury open its end for writing)
+    rig.channel.process_block()
     writer = os.open(tmp_path / "N.tx", os.O_WRONLY | NONBLOCK)
     try:
         os.write(writer, pcm_to_s32le(sent[:BLOCK]))
         rig.run(1)
         assert late.blocks_sent == 1 and late.dropped == 4
-        assert s32le_to_pcm(os.read(reader, 1 << 16))[-BLOCK:] == array("h", bytes(2 * BLOCK))      # (it hears nothing of its own transmission)
+        # (it hears nothing of its own transmission)
+        assert s32le_to_pcm(os.read(reader, 1 << 16))[-BLOCK:] == array("h", bytes(2 * BLOCK))
         assert rig.samples("B", 5, 6) == sent[:BLOCK]
     finally:
         os.close(reader)
@@ -393,10 +416,12 @@ def test_a_part_of_a_block_waits_for_the_rest_and_is_padded_when_no_more_comes(m
     rig.run(1)
     assert not any(rig.samples("B"))
     assert rig.channel.stations["A"].starved == 1 and rig.channel.stations["A"].blocks_sent == 0
-    rig.send("A", sent[100:BLOCK])                                       # (the rest arrives: one whole block, no padding)
+    # (the rest arrives: one whole block, no padding)
+    rig.send("A", sent[100:BLOCK])
     rig.run(1)
     assert rig.samples("B", 1, 2) == sent[:BLOCK]
-    rig.send("A", sent[BLOCK:BLOCK + 70])                                # (the end of a frame: 70 samples, then nothing)
+    # (the end of a frame: 70 samples, then nothing)
+    rig.send("A", sent[BLOCK:BLOCK + 70])
     rig.run(1)
     rig.run(2)
     tail = rig.samples("B", 4, 5)
@@ -422,7 +447,8 @@ def test_a_reader_that_does_not_read_costs_blocks_and_one_that_is_gone_and_comes
     os.close(rig.readers["A"])
     rig.channel.process_block()
     rig.channel.process_block()
-    assert rig.channel.stations["A"].dropped == dropped + 1 + 1          # (the write that found no reader, then the open that found none)
+    # (the write that found no reader, then the open that found none)
+    assert rig.channel.stations["A"].dropped == dropped + 1 + 1
     rig.readers["A"] = os.open(rig.folder / "A.rx", os.O_RDONLY | NONBLOCK)
     rig.channel.process_block()
     assert rig.channel.stations["A"].dropped == dropped + 2
@@ -464,13 +490,20 @@ def test_the_thread_keeps_the_pace_of_the_clock_and_delivers(make) -> None:
     finally:
         rig.channel.stop()
     for name in "AB":
-        rig.drain(name)                         # (a block the thread wrote between the read above and the stop is counted in `blocks`: it is read too, or the count and the samples differ by one)
+        # (a block the thread wrote between the read above and the stop is counted in `blocks`: it
+        # is read too, or the count and the samples differ by one)
+        rig.drain(name)
     elapsed = time.monotonic() - started
     blocks = rig.channel.blocks
-    assert elapsed / 0.02 / 2 <= blocks <= elapsed / 0.02 + 1, (blocks, elapsed)        # (never faster than the clock, and not far behind it: how far a busy machine falls behind is measured over minutes by the simulation stage)
+    # (never faster than the clock, and not far behind it: how far a busy machine falls behind is
+    # measured over minutes by the simulation stage)
+    assert elapsed / 0.02 / 2 <= blocks <= elapsed / 0.02 + 1, (blocks, elapsed)
     heard = rig.samples("B")
     assert len(heard) == blocks * BLOCK - 0 and amplitude(heard[:10 * BLOCK]) == pytest.approx(TONE_RMS * math.sqrt(2), rel=0.05)
-    assert rig.channel.failure is None          # (the pace is the count of blocks above; how many started late in half a second says only how busy the machine was: a CI runner under -n auto started 13 of 26 late and kept the pace. The share of late blocks is measured over minutes by the simulation stage)
+    # (the pace is the count of blocks above; how many started late in half a second says only how
+    # busy the machine was: a CI runner under -n auto started 13 of 26 late and kept the pace. The
+    # share of late blocks is measured over minutes by the simulation stage)
+    assert rig.channel.failure is None
 
 
 def test_a_block_of_eight_stations_costs_a_small_part_of_the_twenty_milliseconds(make, capsys) -> None:
@@ -484,4 +517,6 @@ def test_a_block_of_eight_stations_costs_a_small_part_of_the_twenty_milliseconds
     totals = rig.channel.report()["totals"]
     with capsys.disabled():
         print(f"\n8 stations, 3 keyed: {totals['block_ms_mean']:.2f} ms a block on average, {totals['block_ms_max']:.2f} ms at most, of {1000 * rig.channel.block_sec:.0f}")
-    assert totals["block_ms_mean"] < 1000 * rig.channel.block_sec and totals["collisions"] == 60          # (a block costs less than the block lasts, so the pace can be held: how small a part, a busy machine decides: the simulation stage measures it)
+    # (a block costs less than the block lasts, so the pace can be held: how small a part, a busy
+    # machine decides: the simulation stage measures it)
+    assert totals["block_ms_mean"] < 1000 * rig.channel.block_sec and totals["collisions"] == 60

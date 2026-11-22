@@ -1,14 +1,4 @@
-"""The words of QRU as a client says and hears them (the server's side is neoaprs/services/qru.py): what we ask a QRU server, and the messages a server answers with.
-
-We ask with `INFO` (which groups are served near me?), `NEXT` (the next objects of the group last asked for) or a group (`RP70`, 1 to 8 upper-case letters and digits), with a distance in kilometres after it,
-1 to ASK_KM_MAX (`INFO 250`, `RP70 150`). A server answers with messages from its own call to us:
-
-    de DF8LS-10:RP70(10) RP2M(3) Max 5@50km         the groups it serves near us with the number of objects in each, the objects it sends at most, and the range; a long list is two messages,
-                                                    the first ending in `+`
-    Sent 5 RP70 Objects Max 5@50km de DF8LS-10      the objects of a group went
-    Sent 5 of 12 RP70 Objects, NEXT for more. de DF8LS-10      the objects of a group went, and more are left
-
-and the objects between them as ordinary objects (nothing here). The range is in kilometres or miles, as the server counts."""
+"""The words of QRU as a client says and hears them (the server's side: services/qru.py)."""
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -17,11 +7,15 @@ from neoaprs.callsign import AX25_CALL
 from neoaprs.message import MessagingError
 from neoaprs.ownobject import QRU_GROUP_MAX
 
-ASK_KM_MAX = 20000                                  # the farthest a request names (APRSISCE's own example is `POST 20000`)
-ASK_EVERY_SEC = 60                                  # the same request to QRU goes on the air once in this time (the servers answer one station once in it anyway)
-ASK_GAP_SEC = 10                                    # and any two requests are this far apart, so that a group can be asked for right after the list of groups came
-ARRIVAL_GRACE_SEC = 30                              # the objects of a group are counted until this long after the server's closing line (a late one may still be on its way, or repeated)
-ANSWER_WINDOW_SEC = 300                             # a list or a closing line that comes within this time of a request of ours is its answer (the server waits, then spaces its frames)
+ASK_KM_MAX = 20000
+# the same request goes on the air once in this time
+ASK_EVERY_SEC = 60
+# any two requests are this far apart
+ASK_GAP_SEC = 10
+# objects are counted until this long after the closing line
+ARRIVAL_GRACE_SEC = 30
+# a list or closing line within this time of our request answers it
+ANSWER_WINDOW_SEC = 300
 _ASK = re.compile(rf"(?P<word>INFO|NEXT|[A-Z0-9]{{1,{QRU_GROUP_MAX}}})(?: (?P<km>\d{{1,5}}))?")
 _CALL = AX25_CALL.pattern
 _GROUP = rf"[A-Z0-9]{{1,{QRU_GROUP_MAX}}}"
@@ -32,7 +26,7 @@ _SENT_OF = re.compile(rf"Sent (?P<sent>\d{{1,4}}) of \d{{1,5}} (?P<group>{_GROUP
 
 
 def ask_text(text: str) -> str:
-    """The text of a request to QRU as it is sent, upper case, `INFO`, `NEXT` or a group with an optional distance; raises MessagingError for any other."""
+    """Return the request as sent (`INFO`, `NEXT` or a group and distance); else MessagingError."""
     found = _ASK.fullmatch(" ".join(text.upper().split()))
     if found is None or (found["km"] is not None and not 1 <= int(found["km"]) <= ASK_KM_MAX):
         raise MessagingError(f"{text!r} is no request to QRU: INFO, NEXT or a group of up to {QRU_GROUP_MAX} letters and digits, and a distance of 1 to {ASK_KM_MAX}", "qru.form", request=text,
@@ -42,7 +36,7 @@ def ask_text(text: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class Listing:
-    """A message that lists the groups a server serves: `more` when it ends in `+` (the list goes on in the next message). The limit and the range are None in a message that is not the last."""
+    """A message listing the groups a server serves; `more` when it ends in `+`."""
     call: str
     groups: tuple[tuple[str, int], ...]
     more: bool
@@ -60,7 +54,7 @@ class Closing:
 
 
 def listing_of(text: str) -> Listing | None:
-    """The list of groups the text is, or None."""
+    """Return the list of groups the text is, or None."""
     found = _LIST.fullmatch(text.strip())
     if found is None or not (found["groups"] or found["max"]):
         return None
@@ -69,7 +63,7 @@ def listing_of(text: str) -> Listing | None:
 
 
 def closing_of(text: str) -> Closing | None:
-    """The closing line the text is, or None."""
+    """Return the closing line the text is, or None."""
     found = _SENT.fullmatch(text.strip()) or _SENT_OF.fullmatch(text.strip())
     return None if found is None else Closing(found["call"], found["group"], int(found["sent"]))
 
@@ -83,10 +77,7 @@ class Asked:
 
 @dataclass(frozen=True, slots=True)
 class Server:
-    """A QRU server that answered: `groups` with the number of objects each has near us, the `max_objects` it sends at most and its `range` in `unit` (km or mi; empty until the end of the list came), `at` when it answered last,
-    `sent` its last closing line (empty before one) and `sent_at` when. `more` is set while the list ends in `+`. `sent_objects` is the number the closing line says went, `request` the request it answers (what Ask again sends)
-    and `since` when that went; `received` (the names of the objects heard from the server between `since` and `settles_at`) and `settles_at` (when the counting ends: ARRIVAL_GRACE_SEC after the closing line) are made when the
-    page is told. `radio` is the radio its latest answer came on."""
+    """A QRU server that answered: its groups, limit, range and latest closing line."""
     call: str
     groups: tuple[tuple[str, int], ...]
     max_objects: int | None
@@ -101,4 +92,5 @@ class Server:
     since: datetime | None = None
     received: tuple[str, ...] = ()
     settles_at: datetime | None = None
-    radio: int | None = None                # the radio its latest answer came on, by its id (None: the packet named none): what a request to this server goes on
+    # the radio its latest answer came on (a request to it goes there)
+    radio: int | None = None

@@ -1,4 +1,4 @@
-"""`python -m neoaprs`: the command `neoaprs` (neoaprs/cli/): with flags and no command it runs the daemon (neoaprs/daemon.py)."""
+"""Entry point for `python -m neoaprs`; runs the command line in neoaprs/cli/."""
 import sys
 
 from neoaprs.cli import main

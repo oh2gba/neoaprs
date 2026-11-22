@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
-"""The bench of APRS over the Mercury HF modem with no radio: two real Mercury instances cross-wired through named pipes (its `fifo` audio backend: what one plays the other hears), two NeoAPRS daemons on data folders of their
-own, each with the Mercury radio type and attached to its own Mercury, and the exchange between them driven through the pages' sockets: a beacon of A heard by B (direct, whatever A's path setting says), a message from A
-acked by B with the time it took, and the longest message there is acked too (over HF every message fits the frame). Nothing is keyed, nothing leaves the loopback. For a developer, by hand, against the Mercury the checkout carries (scripts/build-mercury --install; or `--mercury PATH`).
+"""Bench APRS over two real Mercury modems cross-wired through named pipes, with no radio (Linux).
 
-  scripts/mercury-bench                 run it: a table of what happened and the times, exit 0 when every step passed
-  scripts/mercury-bench --keep          keep the folders (the daemons' logs, Mercury's output) and say where they are
-
-Linux only (named pipes). Mercury's fifo backend delivers a frame's samples as fast as the pipe takes them while the sender holds its PTT for the frame's time, so a straight pipe lets the far side decode and answer while the near
-side still transmits (half duplex: the answer is lost). The bench pipes the audio through a pacer of its own: 8000 samples of 32 bits a second, silence between the frames, as a sound card would, so that a frame is decoded when it ends
-and the answer comes when the sender listens again."""
+  scripts/mercury-bench                 run it: a table of the steps and times, exit 0 if all passed
+  scripts/mercury-bench --keep          keep the folders (daemon logs, Mercury output), say where"""
 import argparse
 import asyncio
 import os
@@ -24,10 +18,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from neoaprs.mercuryhelper import find  # noqa: E402  (the daemon package, from the checkout the bench is in)
+from neoaprs.mercuryhelper import find  # noqa: E402  (the daemon package of this checkout)
 from tests.support.realmercury import RATE, SAMPLE_BYTES, Failure, Page, fifo, start_daemon, start_mercury, stop, wait_for_page, write_settings  # noqa: E402
 
-A_PORTS, B_PORTS = (18100, 18300), (18110, 18310)       # (broadcast, control) of each Mercury: the control port 200 above the KISS port, as the daemon expects of a Mercury it did not start
+# (broadcast, control) of each Mercury: the control port is 200 above the KISS port.
+A_PORTS, B_PORTS = (18100, 18300), (18110, 18310)
 LONG_TEXT = "x" * 67
 
 
@@ -39,16 +34,19 @@ TICK_SEC = 0.01
 TICK_BYTES = int(RATE * TICK_SEC) * SAMPLE_BYTES
 
 
-NOISE = 1 << 20                  # the amplitude of the noise under the signal, about -66 dBFS: a receiver is never silent, and Mercury's busy detector takes its noise floor from what it hears (on digital silence the floor is nothing and every frame reads BUSY for a minute)
+# Noise amplitude under the signal, about -66 dBFS: on digital silence Mercury's busy detector
+# has a zero noise floor and reads BUSY for a minute.
+NOISE = 1 << 20
 
 
 def noise(count: int) -> bytes:
     """`count` samples of noise, s32le."""
-    return struct.pack(f"<{count}i", *(random.randint(-NOISE, NOISE) for _ in range(count)))  # noqa: S311  (noise under a test signal: nothing is kept secret with it)
+    return struct.pack(f"<{count}i", *(random.randint(-NOISE, NOISE) for _ in range(count)))  # noqa: S311  (test noise, not a secret)
 
 
 class Pacer(threading.Thread):
-    """The air between the two: what one Mercury plays into its pipe is read as it comes and written into the other's capture pipe at the sound card's pace, 8000 samples a second, with a receiver's noise when nothing is played."""
+    """The air between the two: one Mercury's playback is passed to the other's capture at 8000
+    samples a second, with noise when nothing is played."""
 
     def __init__(self, played: str, captured: str) -> None:
         super().__init__(name=f"pacer {Path(played).name}", daemon=True)
@@ -57,8 +55,10 @@ class Pacer(threading.Thread):
         self.bytes_carried = 0
 
     def run(self) -> None:
-        source = os.open(self.played, os.O_RDONLY | os.O_NONBLOCK)                 # (opened without waiting for the player, which opens its side when it starts)
-        sink = os.open(self.captured, os.O_WRONLY)                                  # (waits for the capturing Mercury to open its side)
+        # Opened without waiting for the player, which opens its side when it starts.
+        source = os.open(self.played, os.O_RDONLY | os.O_NONBLOCK)
+        # Waits for the capturing Mercury to open its side.
+        sink = os.open(self.captured, os.O_WRONLY)
         pending = b""
         next_tick = time.monotonic()
         try:
@@ -91,7 +91,8 @@ async def exchange(a: Page, b: Page, seconds: float) -> list[tuple[str, str]]:
     await a.send({"cmd": "send_message", "to": "OH2B", "text": "Moi Pekka, kuuluuko?"})
     took = await a.until("the ack of A's message", lambda: a.acked() >= 1, seconds)
     rows.append(("A's message acked by B (a frame each way)", f"{took:.1f} s"))
-    await b.until("B's modem counting its frame", lambda: int(b.modem().get("frames_keyed") or 0) >= 1, 5.0)        # (B's topics are read only while something of B is waited for)
+    # B's topics are read only while something of B is awaited.
+    await b.until("B's modem counting its frame", lambda: int(b.modem().get("frames_keyed") or 0) >= 1, 5.0)
     await a.send({"cmd": "send_message", "to": "OH2B", "text": LONG_TEXT})
     took = await a.until("the ack of the longest message", lambda: a.acked() == 2, seconds)
     rows.append(("the longest message (67 characters) acked: direct, it fits the frame", f"{took:.1f} s"))
@@ -117,8 +118,10 @@ def run(args: argparse.Namespace) -> int:
             pacer.start()
         say(f"two Mercury instances started from {binary}, their audio paced through named pipes at {RATE} samples a second")
         data_a, data_b = folder / "a", folder / "b"
-        hf_alone = (("kiss", False), ("mercury", True))         # (radio 1 an FM radio that is off, radio 2 the HF radio that --hf-port attaches)
-        write_settings(data_a, {"station/call": "OH2A", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "0", "radio/1/path": "WIDE1-1,WIDE2-1", "messages/alert": "false"}, radios=hf_alone)       # (a path setting, to see it ignored over HF; no timed beacon: the bench sends its own)
+        # Radio 1 is an FM radio that is off, radio 2 the HF radio of --hf-port.
+        hf_alone = (("kiss", False), ("mercury", True))
+        # A path setting, to see it ignored over HF; no timed beacon.
+        write_settings(data_a, {"station/call": "OH2A", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "0", "radio/1/path": "WIDE1-1,WIDE2-1", "messages/alert": "false"}, radios=hf_alone)
         write_settings(data_b, {"station/call": "OH2B", "station/lat": "61.50", "station/lon": "23.80", "beacon/interval_min": "0", "messages/alert": "false"}, radios=hf_alone)
         daemons = [start_daemon(data_a, A_PORTS), start_daemon(data_b, B_PORTS)]
         processes += [("daemon A", daemons[0]), ("daemon B", daemons[1])]

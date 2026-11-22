@@ -1,8 +1,8 @@
-"""The frequencies the project suggests for the HF radio: a small file on the project's server (`FREQUENCIES_URL`, site/frequencies.json: bands and dials, edited by hand and uploaded with the site, no release) that the daemon asks for a minute after
-its start and whenever a page shows the HF radio's box (`wanted`), and never more often than every FREQUENCIES_EVERY_SEC however many pages ask. Every entry is checked (the band `40 m`, the dial `7.0541 MHz USB`, at most four), the last good list is
-kept in the settings table (the row FREQUENCIES_ROW) and told at the start before the server is asked, and a file that is not a list, or cannot be fetched, leaves it as it was. The box shows this list, else the dial the version page names (the daily check:
-services/updatecheck.py), else the built-in four (`neoaprs/mercury.py` SUGGESTED). It is part of the update check's kind of traffic and goes off with it: `NEOAPRS_UPDATE_CHECK=0` in the environment (the tests, the demo) asks nothing, and a test or a bench that
-needs a server names one on this computer with `NEOAPRS_FREQUENCIES_URL`."""
+"""The frequencies the project suggests for the HF radio, fetched from the project's server.
+
+Fetched at most once per FREQUENCIES_EVERY_SEC; the last valid list is kept in the settings table.
+It is switched off with the update check.
+"""
 import asyncio
 import logging
 import os
@@ -18,9 +18,9 @@ from neoaprs.versions import FREQUENCIES_ROW, FREQUENCIES_URL, Frequency, freque
 
 log = logging.getLogger("neoaprs.update")
 
-FREQUENCIES_EVERY_SEC = 15 * 60.0              # the least time between two questions to the server, whoever asks
-MAX_BYTES = 8192                                # the file is a few hundred bytes
-ENV_URL = "NEOAPRS_FREQUENCIES_URL"             # development and tests: a server on this computer, instead of FREQUENCIES_URL
+FREQUENCIES_EVERY_SEC = 15 * 60.0
+MAX_BYTES = 8192
+ENV_URL = "NEOAPRS_FREQUENCIES_URL"             # a local server instead of FREQUENCIES_URL, for tests
 FetchUrl = Callable[[str, str, str, int], Awaitable[bytes | None]]
 
 
@@ -37,10 +37,10 @@ class Frequencies:
         self._environ = environ
         self._memory = memory
         self._clock = clock
-        self.listed: list[Frequency] = []                        # the project's list as last understood (the kept one until the server has answered)
+        self.listed: list[Frequency] = []
         self.changed: Signal[[]] = Signal("frequencies.changed")
-        self.asked = 0                                           # how many times the server was asked
-        self._last: float | None = None                          # when it was last asked, by `clock`
+        self.asked = 0
+        self._last: float | None = None
         self._tasks = TaskSet(log, "frequencies")
 
     @property
@@ -49,7 +49,7 @@ class Frequencies:
 
     @property
     def url(self) -> str:
-        """The server's file: the project's, or, for development and tests, the one of `NEOAPRS_FREQUENCIES_URL` when it is a server on this computer."""
+        """The project's URL, or `NEOAPRS_FREQUENCIES_URL` when that is a local server."""
         given = self._environ.get(ENV_URL, "").strip()
         return given if on_this_computer(given) else FREQUENCIES_URL
 
@@ -63,21 +63,21 @@ class Frequencies:
     async def _run(self) -> None:
         await self._kept()
         await asyncio.sleep(self.first_sec)
-        await self.ask()                                         # (after that, when a page shows the HF box: `wanted`)
+        await self.ask()
 
     async def _kept(self) -> None:
-        """The list kept by an earlier run, told before the server is asked (inside the task: the start of the daemon does not wait for the database)."""
+        """Load the list kept by an earlier run."""
         if self._memory is not None and not self.listed and (kept := await self._memory.setting(FREQUENCIES_ROW)) and (found := parse_frequencies(kept)):
             self.listed = found
             self.changed.emit()
 
     def wanted(self) -> None:
-        """A page shows the HF radio's box: the server is asked now, unless it was asked less than every_sec ago or the check is off."""
+        """Ask the server now, unless asked less than `every_sec` ago or the check is off."""
         if self._begin():
             self._tasks.spawn(self._take(), "frequencies-ask")
 
     def _begin(self) -> bool:
-        """Whether the server is to be asked now (the check is on and it was not asked less than every_sec ago); if so, now is the time it was asked, so that two pages at once ask once."""
+        """Return whether to ask now, recording the time so concurrent callers ask once."""
         if not self.enabled or (self._last is not None and self._clock() - self._last < self.every_sec):
             return False
         self._last = self._clock()
@@ -85,7 +85,7 @@ class Frequencies:
         return True
 
     async def ask(self) -> None:
-        """Asks the server, with the same rule as `wanted`; the list in the file, when it is one, is the project's list from now on."""
+        """Ask the server under the same rule as `wanted`."""
         if self._begin():
             await self._take()
 

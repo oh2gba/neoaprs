@@ -1,8 +1,7 @@
 """The commands of the page: a registry of handlers and the dispatcher that runs them.
 
-A handler is a function `async def name(ctx: Ctx, cmd: TheModel) -> None` in neoaprs/web/handlers.py, registered by `@command(TheModel)`. What it needs is in `ctx` (the controller, the page that asked, the
-hub). The page's answer to a failure is an exception: `raise UserError("text")` is turned into `{"type": "error"}` for the asker; any other exception is logged and answered as "name: text". Every
-command of the protocol has exactly one handler (tests/test_protocol.py compares the registry with the protocol's COMMAND_NAMES).
+A handler is `async def name(ctx: Ctx, cmd: TheModel) -> None`, registered by `@command(TheModel)`.
+`UserError` is answered to the asker as an `error` message; any other exception is logged first.
 """
 import logging
 from collections.abc import Awaitable, Callable, Mapping
@@ -24,11 +23,14 @@ from .scopefeed import RadioScopes
 from .session import Connection
 
 log = logging.getLogger("neoaprs.web")
-FAILED = "that did not work; the log says why"                               # (the page says it by the code `failed`)
+FAILED = "that did not work; the log says why"  # the page shows it by the code `failed`
 
 
 class UserError(Exception):
-    """The command cannot be done and the page is told why: the text is the page's `error`, with the `code` and the `params` that say it in words of the page's own, and the `key` of the setting it is about."""
+    """The command cannot be done.
+
+    The page gets an `error` with `text`, `code`, `params` and `key`.
+    """
 
     def __init__(self, text: str, code: str = "other", key: str | None = None, params: Mapping[str, Param] | None = None) -> None:
         super().__init__(text)
@@ -39,15 +41,14 @@ class UserError(Exception):
 
 @dataclass(frozen=True)
 class Ctx:
-    """What a handler may use: the daemon, the page that asked, and the hub that tells the pages what changed."""
     ctl: Controller
     conn: Connection
     hub: StateHub
-    status: Callable[[], Awaitable[dict[str, Any]]]          # the `status` message as it is now
-    page_errors: PageErrors | None = None                    # where the errors the pages report about themselves are noted
-    scopes: RadioScopes | None = None                        # the scopes asked for by radio
-    levels: RadioLevels | None = None                        # the receive levels asked for by radio
-    layers: LayerLooks | None = None                         # the pages that look at a layer of traffic on the map
+    status: Callable[[], Awaitable[dict[str, Any]]]  # the current `status` message
+    page_errors: PageErrors | None = None
+    scopes: RadioScopes | None = None
+    levels: RadioLevels | None = None
+    layers: LayerLooks | None = None
 
 
 type Fn[M: BaseModel] = Callable[[Ctx, M], Awaitable[None]]
@@ -68,7 +69,7 @@ def command_name(model: type[BaseModel]) -> str:
 
 
 def command[M: BaseModel](model: type[M], into: dict[str, Handler] | None = None) -> Callable[[Fn[M]], Fn[M]]:
-    """Registers the function as the handler of the command that `model` describes."""
+    """Register the function as the handler of the command that `model` describes."""
     name = command_name(model)
     registry = REGISTRY if into is None else into
 
@@ -81,8 +82,6 @@ def command[M: BaseModel](model: type[M], into: dict[str, Handler] | None = None
 
 
 class Dispatcher:
-    """Looks the command up, validates it, runs it, and answers a failure."""
-
     def __init__(self, ctl: Controller, hub: StateHub, status: Callable[[], Awaitable[dict[str, Any]]], registry: dict[str, Handler] | None = None, page_errors: PageErrors | None = None,
                  scopes: RadioScopes | None = None, levels: RadioLevels | None = None, layers: LayerLooks | None = None) -> None:
         self.ctl = ctl
@@ -102,18 +101,22 @@ class Dispatcher:
             cmd = COMMANDS.validate_python(raw)
         except ValidationError as e:
             text = describe_errors(name, e.errors(include_url=False, include_input=False))
-            log.warning("a command that does not fit its model: %s", text)             # (only a page that is not this daemon's sends one: the page says the plain words of `failed` for it)
+            # Only a page that is not this daemon's own sends such a command.
+            log.warning("a command that does not fit its model: %s", text)
             conn.error(text, name, "invalid")
             return
         try:
             await self._call(conn, name, cmd)
         except UserError as e:
             if e.code == "failed":
-                log.warning("%s", e)                                               # (a refusal the operator can do nothing about: the page says the plain words, the log the sentence)
+                # A refusal the operator cannot act on: the page shows plain words, the log the
+                # sentence.
+                log.warning("%s", e)
             conn.error(str(e), name, e.code, e.key, e.params)
         except Exception:
             log.exception("command %s failed", name)
-            conn.error(f"{name}: {FAILED}", name, code="failed")                     # (the page says it in its language by the code; the exception is for the log, not the operator)
+            # The page words it from the code; the exception goes to the log only.
+            conn.error(f"{name}: {FAILED}", name, code="failed")
 
     async def _call(self, conn: Connection, name: str, cmd: AnyCommand) -> None:
         await self.registry[name].fn(Ctx(self.ctl, conn, self.hub, self.status, self.page_errors, self.scopes, self.levels, self.layers), cmd)

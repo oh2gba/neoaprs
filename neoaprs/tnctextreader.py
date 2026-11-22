@@ -1,9 +1,8 @@
-"""What the Tnc makes of the bytes of a line whose profile reads text (`Profile.framing == "text"`: a Yaesu FTM, a TNC in its own monitor mode): `TextLineReader` has the surface of tncreader's `Reader`
-that the Tnc uses, feeds the bytes to the text reader (tnc2text.py) and hands each frame to the Tnc as a packet of the radio, as a KISS frame is handed on. It enters no KISS and writes nothing: such a line
-is only listened to. A device that was left in KISS is still heard: once a KISS UI frame comes on an open, the line is read as KISS from then on (and still never written to).
+"""Reader for a line whose profile reads text (`Profile.framing == "text"`, such as a Yaesu FTM).
 
-`reader_for` gives the Tnc the reader its profile needs, `accepts` is what the search for such a radio takes as its port (a line of text that reads as a heard packet, or a KISS UI frame: a quiet FTM is found
-once it hears a packet)."""
+It enters no KISS and writes nothing. If a KISS UI frame arrives on an open, the line is read
+as KISS from then on, still never written.
+"""
 import asyncio
 import logging
 from datetime import datetime
@@ -21,11 +20,11 @@ from .coded import Reason
 
 log = logging.getLogger("neoaprs.tnc")
 
-RX_ONLY = Reason("RX only: nothing is sent", "transmit.off")          # why a line that reads text takes no frame (the page's words for receive only: error.transmit.off)
+# Why a line that reads text takes no frame.
+RX_ONLY = Reason("RX only: nothing is sent", "transmit.off")
 
 
 class TextLine(Line, Protocol):
-    """What the text reader needs of the Tnc besides what tncreader's Reader does."""
     radio_id: RadioId
 
     @property
@@ -44,7 +43,8 @@ class TextLineReader(Reader):
     def reset(self) -> None:
         super().reset()
         self.text = TextReader()
-        self.told_bits = False                                           # the log has said that this open's line is 7 bits
+        # the log has said that this line is 7 bits
+        self.told_bits = False
 
     def command_mode_unanswered(self) -> bool:
         return False
@@ -54,12 +54,11 @@ class TextLineReader(Reader):
         log.debug("%s: no KISS is entered on a line that reads text (%s)", self._text_line.label, why)
 
     def read(self, port: TncPort, chunk: bytes) -> None:
-        """Bytes came from `port`, which is the Tnc's line."""
         tnc = self._text_line
         tnc.stats.bytes_in += len(chunk)
         tnc.confirmed = True
         tnc._hear()
-        frames = self.decoder.feed(chunk)                                # (until a KISS frame comes, what the decoder makes of text is passed over)
+        frames = self.decoder.feed(chunk)
         if not self.kiss_seen and any(is_ui(frame) for frame in frames):
             self.kiss_seen, self.dropped_seen = True, self.decoder.dropped
             tnc._note("the radio sends KISS frames: they are read as KISS (nothing is sent to it)")
@@ -92,13 +91,12 @@ class TextLineReader(Reader):
 
 
 def reader_for(tnc: TextLine, current: Reader | None = None) -> Reader:
-    """The reader of the Tnc's profile: the text reader for a profile that reads text, else the KISS one; `current` while it is of the kind needed."""
     wanted = TextLineReader if tnc.profile.framing == "text" else Reader
     return current if type(current) is wanted else wanted(tnc)
 
 
 def accepts(profile: Profile, heard: bytes) -> bool:
-    """Whether what a port said makes it the radio's in the search: a KISS UI frame (or, for a TNC that is put into KISS, its command-mode text), or for a profile that reads text a line that reads as a heard packet."""
+    """Return True if what a port said makes it the radio: KISS, or text for a text profile."""
     if profile.framing == "text":
         return looks_like_text(heard) or looks_valid(heard, False)
     return looks_valid(heard, profile.detect_command_mode)

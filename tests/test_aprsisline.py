@@ -1,4 +1,6 @@
-"""A line of APRS-IS as a Packet (neoaprs/aprsisline.py): the header, the path with its q-construct, the information field read by the ordinary dispatcher, the channel `is`, and the lines that are no packet."""
+"""A line of APRS-IS as a Packet (neoaprs/aprsisline.py): the header, the path with its q-construct,
+the information field read by the ordinary dispatcher, the channel `is`, and the lines that are no
+packet."""
 from datetime import timedelta
 
 import pytest
@@ -29,7 +31,8 @@ def test_a_position_from_a_client_is_a_packet_that_came_by_the_internet() -> Non
     ("OH2UDP>APRS,qAU,T2FINLAND:>udp", "qAU", "T2FINLAND", False),
     ("CW1234>APRS,TCPXX*,qAX,CWOP-5:>unverified", "qAX", "CWOP-5", False),
     ("OH2TRC>APRS,TCPIP*,qAI,T2FINLAND,OH2ABC:>traced", "qAI", "T2FINLAND", False),
-    ("OH2LOW>APRS,qAo,OH2RDK-1:>lower case", "qAo", "OH2RDK-1", True),                 # (qAr and qAo: an iGate heard it on the radio, and said so indirectly)
+    # (qAr and qAo: an iGate heard it on the radio, and said so indirectly)
+    ("OH2LOW>APRS,qAo,OH2RDK-1:>lower case", "qAo", "OH2RDK-1", True),
 ])
 def test_the_q_construct_and_the_call_after_it_are_read_from_the_path(line: str, q: str, server: str, radio: bool) -> None:
     packet = parse_is_line(line, NOW)

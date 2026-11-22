@@ -1,5 +1,6 @@
-"""Migration 35 (neoaprs/migrationsteps35.py): the map's radius is at most 300 km. A stored radius above that is 300 and its revision goes up; a radius from 10 to 300, a value that is no whole number and a file with no
-row are left as they are; the step run on a file that is brought up from 34 and from an older one, and a second start, change nothing more."""
+"""Migration 35 (neoaprs/migrationsteps35.py): the map radius is at most 300 km. A larger stored
+radius becomes 300 and its revision goes up; other values and a missing row are left alone.
+"""
 import sqlite3
 from pathlib import Path
 
@@ -16,7 +17,7 @@ KEY = "map/radius_km"
 
 
 def version_34(path: Path, radius: str | None) -> None:
-    """A database as 0.20.4 leaves it (version 34), with this radius stored or none."""
+    """A database at version 34 with this radius stored or none."""
     opened(path, FixedClock()).close()
     db = raw(path)
     db.execute("DELETE FROM schema_history WHERE version >= 35")

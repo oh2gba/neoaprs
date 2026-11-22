@@ -1,4 +1,5 @@
-"""Everything under tests/safety is the safety suite: `pytest -m safety` runs it, `pytest -m "not safety"` leaves it out."""
+"""Everything under tests/safety is the safety suite: `pytest -m safety` runs it, `pytest -m "not
+safety"` leaves it out."""
 from pathlib import Path
 
 import pytest

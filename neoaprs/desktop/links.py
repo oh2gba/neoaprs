@@ -1,6 +1,7 @@
-"""Which addresses stay in the app's window. The page is the daemon's own (one address, loopback); everything it links to is somebody else's site (the QRZ page of a call, the credits of the map), and
-that is shown by the system's browser, never inside the window, which has no address bar and would be a browser with no way back. Clicks on links and new windows are routed (`route`: LINK_SCRIPT, which hands a click on another site's link to
-LinkApi, and the new-window hook); a navigation by script or by a form is not."""
+"""Decide which addresses stay in the app's window.
+
+Everything but the daemon's own page opens in the system browser, because the window has no
+address bar. Link clicks and new windows are routed with `route`; script navigation is not."""
 import webbrowser
 from typing import Literal
 from urllib.parse import urldefrag, urlsplit
@@ -11,11 +12,13 @@ EXTERNAL_SCHEMES = ("http", "https", "mailto")
 DEFAULT_PORTS = {"http": 80, "https": 443}
 
 
-APP_MARK = "app"          # the fragment of the address the app's window loads: the page reads it (ui/src/lib/shell.ts) to know that page and daemon are one, and shows no Daemon mark
+# Address fragment telling the page (ui/src/lib/shell.ts) it runs inside the app,
+# so it shows no Daemon mark.
+APP_MARK = "app"
 
 
 def window_url(page: str) -> str:
-    """The address the app's window loads: the daemon's page with the mark that says it is shown in the app (a fragment: the daemon never sees it, a reload keeps it, and the address that Open in browser uses stays plain)."""
+    """Return the page address with the app mark as a fragment (the daemon never sees it)."""
     return f"{urldefrag(page).url}#{APP_MARK}"
 
 
@@ -31,17 +34,18 @@ def _origin(url: str) -> tuple[str, str, int | None] | None:
 
 
 def same_host(url: str, page: str) -> bool:
-    """Is `url` an address of the host of `page`, by the same scheme: the daemon's page on another port, which is all a daemon that started again changes of its address?"""
+    """Return whether `url` has the same scheme and host as `page`, whatever the port.
+
+    A restarted daemon may change only its port."""
     here, there = _origin(page), _origin(url)
     return here is not None and there is not None and here[:2] == there[:2]
 
 
 def route(url: str, page: str) -> Route:
-    """`window`: the page itself (same scheme, host and port as `page`), the blank page and a `blob:` address its own scripts made; `browser`: another site (http, https) or a mail address;
-    `block`: anything else (`file:`, `javascript:`, `data:`, `ftp:`, an address that cannot be read), which nothing the page does needs."""
+    """Return where `url` opens: `window` (the page itself), `browser` (http, https, mailto) or `block`."""
     if url in INSIDE:
         return "window"
-    if url.startswith("blob:"):                               # (a blob: address names the origin that made it)
+    if url.startswith("blob:"):                               # a blob: address names the origin that made it
         return "window" if route(url[len("blob:"):], page) == "window" else "block"
     here, there = _origin(page), _origin(url)
     if here is not None and there == here:
@@ -54,14 +58,15 @@ def route(url: str, page: str) -> Route:
 
 
 def open_external(url: str, page: str) -> bool:
-    """Hands an address that `route` sends to the browser to the system's browser (or mail program); False for any other, and when nothing could be started."""
+    """Open an address that `route` sends to the browser; return False for any other or on failure."""
     if route(url, page) != "browser":
         return False
     return bool(webbrowser.open(url))
 
 
-# Runs in the page after it has loaded: a click on a link to another site is not followed inside the window but handed to Python, which routes it (links.py). (pywebview already sends the new windows that
-# `target="_blank"` asks for to the browser; this is for a link that has no target.)
+# Runs in the page after load: a click on a link to another site is handed to Python, which routes
+# it. pywebview already sends `target="_blank"` windows to the browser; this covers links
+# without a target.
 LINK_SCRIPT = """(function () {
   if (window.__neoaprsLinks) { return; }
   window.__neoaprsLinks = true;
@@ -76,7 +81,7 @@ LINK_SCRIPT = """(function () {
 
 
 class LinkApi:
-    """What the page's script may call: only this, and it only opens what links.route sends to the browser (`page_url` is the daemon's page once it is there)."""
+    """The only API the page's script may call; it opens only what `route` sends to the browser."""
 
     def __init__(self, page_url: str = "") -> None:
         self.page_url = page_url

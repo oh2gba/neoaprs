@@ -1,12 +1,5 @@
-"""A fake AIS receiver on a free port of the loopback: a TCP server that gives each connection what the test sends, as an own receiver's NMEA output does.
-
-    receiver = await ais_receiver()
-    receiver.address                     # 127.0.0.1:PORT, what map/ships_host is set to
-    await receiver.until_connected()
-    receiver.send("!AIVDM,...")          # to every connection, one line each
-    receiver.drop()                      # closes every connection (the receiver is lost; it listens on still)
-    receiver.connections                 # how many connections were made in all
-"""
+"""A fake AIS receiver on a free loopback port: a TCP server that sends the test's NMEA lines to
+each connection."""
 import asyncio
 
 from tests.support.env import remember_stop, until

@@ -1,7 +1,6 @@
-"""The radio an email goes out on (neoaprs/emailrule.py, plan rule 3.5): one radio, of any kind. The one radio that can send; else the operator's choice (`email/radio`, the select of the E-mail tab)
-while it is on and can send; else the first radio that can send, in the order of the boxes. As a table: each case of 0.20.1 (which had no choice: the main radio while internet gateways hear its type,
-else the first enabled radio by position that they hear) with what it gave then, and what is now with the choice migration 34 writes from it (none where 0.20.1 refused a mail). Then the registry and the services: a mail goes on that radio, once,
-and is refused only while no radio that can send is on."""
+"""Tests for the radio an email goes out on (neoaprs/emailrule.py): the only radio that can send,
+else the operator's choice (`email/radio`) while it can send, else the first radio that can send.
+Also the registry and services: a mail goes out once and is refused only when no radio can send."""
 import itertools
 from collections import Counter
 from collections.abc import Awaitable, Callable
@@ -34,7 +33,7 @@ def radio(id: int, kind: Kind = "fm", position: int | None = None, enabled: bool
 
 
 def heard_0_20_1(spec: RadioSpec) -> bool:
-    """0.20.1's `emailrule.gateway_heard`, copied."""
+    """The previous rule's `emailrule.gateway_heard`, copied."""
     try:
         return spec.rtype.allowed.gateway_heard
     except RadioTypeError:
@@ -42,8 +41,9 @@ def heard_0_20_1(spec: RadioSpec) -> bool:
 
 
 def as_0_20_1(specs: tuple[RadioSpec, ...], main_choice: int | None) -> int | None:
-    """0.20.1's rule, copied: the main radio (the one chosen while it is on and can send, else the first such by position) while internet gateways hear it, else the first enabled radio by position that
-    they hear, else none (a mail was refused)."""
+    """The previous rule, copied: the main radio (the chosen one while it is on and can send, else
+    the first such by position) while internet gateways hear it, else the first enabled radio by
+    position that they hear, else none (a mail was refused)."""
     heard = [spec.id for spec in senders(specs) if heard_0_20_1(spec)]
     on = [spec.id for spec in senders(specs)]
     main = main_choice if main_choice in on else on[0] if on else None
@@ -60,7 +60,8 @@ def test_with_the_two_radios_of_today_it_is_the_fm_radio_while_it_is_on_and_the_
 
 
 OLD = [
-    # (the radios, the stored main radio, what 0.20.1 gave, what it is now, why): every case of 0.20.1's table, no choice of the email radio stored
+    # (the radios, the stored main radio, the old result, the new result, why): every case of the
+    # old table, with no choice of the email radio stored
     ((radio(1), radio(2, "hf")), None, 1, 1, "the first box, the FM one, which gateways hear"),
     ((radio(1, position=2), radio(2, "hf", position=1)), None, 1, 1, "the first box is HF: the first radio that gateways hear"),
     ((radio(1), radio(2, "hf")), HF_ID, 1, 1, "HF stored as the main radio: the first radio that gateways hear"),
@@ -131,7 +132,9 @@ def test_what_gateways_hear_is_the_types_own() -> None:
 # ---- the services: a mail goes on the email radio, none is a refusal with its reason
 
 class Rig(ServiceRig):
-    """The station's radios as the registry gives them over stub lines: `specs`, each on a line of its own (`lines`), the registry's email radio by the rule with the choice `chosen` (`email/radio`)."""
+    """The station's radios as the registry gives them over stub lines: `specs`, each on a line of
+    its own (`lines`), the registry's email radio by the rule with the choice `chosen`
+    (`email/radio`)."""
 
     def __init__(self, specs: tuple[RadioSpec, ...], chosen: int | None = None) -> None:
         super().__init__()
@@ -175,11 +178,15 @@ def test_the_ack_of_a_mail_heard_on_a_radio_that_is_off_goes_on_the_email_radio_
 # ---- the whole daemon: frames counted per radio
 
 async def test_a_daemon_with_fm_and_mercury_sends_a_mail_and_a_message_to_a_new_call_on_the_first_box_and_the_email_tabs_choice_moves_the_mail_alone(tmp_path: Path) -> None:
-    e = Env(tmp_path, clock=FixedClock(), web=True, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})          # (no `email/radio`: a station that chose nothing)
-    e.mercury._finder = lambda: None                          # (no program: the Dummy Mercury radio works without its speaker)
+    # (no `email/radio`: a station that chose nothing)
+    e = Env(tmp_path, clock=FixedClock(), web=True, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
+    # (no program: the Dummy Mercury radio works without its speaker)
+    e.mercury._finder = lambda: None
     out: list[tuple[int | None, bytes]] = []
     e.ctl.radio_packet.connect(lambda p: out.append((p.radio_id, ax25.decode(p.raw).info[:10])) if p.direction == "out" else None)
-    e.ctl.messaging.tick_sec, e.ctl.messaging.pace.spacing_sec = 0.02, 0.0     # (one frame after the other with no pause; the clock stands still, so no message is sent a second time)
+    # (one frame after the other with no pause; the clock stands still, so no message is sent a
+    # second time)
+    e.ctl.messaging.tick_sec, e.ctl.messaging.pace.spacing_sec = 0.02, 0.0
     await e.start()
     await until(lambda: e.tnc.usable and e.hf.usable)
     page = await e.ws()
@@ -194,7 +201,8 @@ async def test_a_daemon_with_fm_and_mercury_sends_a_mail_and_a_message_to_a_new_
         return page.of("status")[-1]["unheard_radio"], page.of("status")[-1]["email_radio"]
 
     async def send_both(total: int) -> None:
-        """A mail, and a message to a call no radio heard (a new call each time: a message waits behind one to the same station that is still on its way; a mail waits for none)."""
+        """A mail, and a message to a call no radio heard (a new call each time: a message waits
+        behind one to the same station that is still on its way; a mail waits for none)."""
         await page.send({"cmd": "send_message", "to": "EMAIL-2", "text": "jane@example.org hello"})
         await page.send({"cmd": "send_message", "to": f"OH2NEW-{total}", "text": "hello"})
         await until(lambda: sum(sent().values()) == total)
@@ -203,7 +211,8 @@ async def test_a_daemon_with_fm_and_mercury_sends_a_mail_and_a_message_to_a_new_
     await send_both(2)
     assert sent() == Counter({(1, mail): 1, (1, new): 1}), "both on FM, the first box: one frame each"
 
-    await page.send({"cmd": "set_config", "values": {"email/radio": "2"}})          # (the select of the E-mail tab: the Mercury radio)
+    # (the select of the E-mail tab: the Mercury radio)
+    await page.send({"cmd": "set_config", "values": {"email/radio": "2"}})
     await page.until(lambda: page.topics["config"]["radio_values"]["email/radio"] == "2")
     assert await status() == (1, 2) and e.ctl.config.email_choice == 2 and (await e.ctl.store.settings())["email/radio"] == "2"
     await send_both(4)
@@ -215,10 +224,12 @@ async def test_a_daemon_with_fm_and_mercury_sends_a_mail_and_a_message_to_a_new_
         assert (page.of("error")[-1]["key"], page.of("error")[-1]["code"]) == ("email/radio", code)
     assert e.ctl.config.email_choice == 2, "a refused choice changes nothing"
 
-    await page.send({"cmd": "set_config", "values": {"email/radio": ""}})           # (no choice stored again: the first box that can send)
+    # (no choice stored again: the first box that can send)
+    await page.send({"cmd": "set_config", "values": {"email/radio": ""}})
     await page.until(lambda: page.topics["config"]["radio_values"]["email/radio"] == "")
     assert await status() == (1, 1)
-    await page.send({"cmd": "radio_change", "radio": 1, "position": 9})            # (radio 1's box moved last: the Mercury radio's is the first)
+    # (radio 1's box moved last: the Mercury radio's is the first)
+    await page.send({"cmd": "radio_change", "radio": 1, "position": 9})
     await page.until(lambda: page.topics["radios"]["1"]["position"] == 9)
     assert await status() == (2, 2), "the order of the boxes moves the call no radio heard and a mail of no choice"
     await send_both(6)
@@ -229,16 +240,19 @@ async def test_a_daemon_with_fm_and_mercury_sends_a_mail_and_a_message_to_a_new_
     await e.stop()
 
 
-# ---- six radios that send, a monitor and one that is off, on a clock that is held: frames counted per radio
+# ---- six radios that send, a monitor and one that is off, on a clock that is held: frames counted
+# per radio
 
 class Station:
-    """A daemon on made-up radios (radio 1 a Dummy FM radio, radio 2 a Dummy Mercury radio, then `more` by type), a page on its socket, and every frame of ours with the radio it went on. The clock
-    stands still until a test moves it, so a message goes out once."""
+    """A daemon on made-up radios (radio 1 a Dummy FM radio, radio 2 a Dummy Mercury radio, then
+    `more` by type), a page on its socket, and every frame of ours with the radio it went on. The
+    clock stands still until a test moves it, so a message goes out once."""
 
     def __init__(self, tmp_path: Path) -> None:
         self.clock = FixedClock()
         self.e = Env(tmp_path, clock=self.clock, radio=False, web=True, settings={"tnc/profile": "dummy", "hf/enabled": "true", "hf/profile": "dummy-hf", "messages/alert": "false"})
-        self.e.mercury._finder = lambda: None                 # (no program: a Dummy Mercury radio works without its speaker)
+        # (no program: a Dummy Mercury radio works without its speaker)
+        self.e.mercury._finder = lambda: None
         self.out: list[tuple[int | None, str]] = []
         self.e.ctl.radio_packet.connect(lambda p: self.out.append((p.radio_id, ax25.decode(p.raw).info.decode("latin-1").split("{")[0])) if p.direction == "out" else None)
         self.e.ctl.messaging.tick_sec, self.e.ctl.messaging.pace.spacing_sec = 0.01, 0.0
@@ -274,9 +288,12 @@ MAIL, NEW, CQ = ":EMAIL-2  :", ":OH2NEW", ":CQ       :"
 
 
 async def test_with_six_radios_a_monitor_and_one_off_every_radio_that_sends_carries_the_mail_when_it_is_chosen_and_nothing_else_moves(tmp_path: Path) -> None:
-    """The registry itself with radios of every kind: a mail, a message to a call no radio heard and a text to CQ at each step, each one frame on one radio. The mail follows the choice and nothing else
-    does; a monitor or a radio that is off may be stored and is no choice; the order of the boxes moves the call no radio heard; a message heard on the monitor or on a radio off since is acked on that
-    radio, a query heard there is not answered; not one frame on the monitor or on the radio that is off."""
+    """The registry itself with radios of every kind: a mail, a message to a call no radio heard and
+    a text to CQ at each step, each one frame on one radio. The mail follows the choice and nothing
+    else does; a monitor or a radio that is off may be stored and is no choice; the order of the
+    boxes moves the call no radio heard; a message heard on the monitor or on a radio off since is
+    acked on that radio, a query heard there is not answered; not one frame on the monitor or on the
+    radio that is off."""
     senders_, monitor, off = (1, 2, 3, 4, 5, 6), 7, 8
     s = Station(tmp_path)
     await s.start("dummy", "dummy-hf", "dummy-lora", "dummy-hf", "tnc-text", "dummy", senders=senders_)
@@ -306,7 +323,8 @@ async def test_with_six_radios_a_monitor_and_one_off_every_radio_that_sends_carr
         await three()
         mails[chosen] += 1
         assert sent(MAIL) == mails and set(sent(NEW)) == {1} and set(sent(CQ)) == {1}, f"the mail on radio {chosen} alone, whatever its modem; the call no radio heard and CQ where they went"
-    for stored in (monitor, off):                                       # (the page offers neither; `neoaprs db set` may store one)
+    # (the page offers neither; `neoaprs db set` may store one)
+    for stored in (monitor, off):
         await s.choose(str(stored))
         assert await s.status() == (1, 1), "a monitor, a radio that is off: no choice"
         await three()
@@ -330,7 +348,8 @@ async def test_with_six_radios_a_monitor_and_one_off_every_radio_that_sends_carr
     assert e.ctl.config.email_choice == 5, "a refused choice changes nothing"
 
     await s.choose("")
-    assert await e.ctl.change_radio(1, position=20)                    # (radio 1's box moved last: a Mercury radio's box is the first)
+    # (radio 1's box moved last: a Mercury radio's box is the first)
+    assert await e.ctl.change_radio(1, position=20)
     assert await s.status() == (2, 2), "a call no radio heard and the mail, none chosen, on the first box that can send"
     news, cqs = sent(NEW), sent(CQ)
     await three()
@@ -358,14 +377,16 @@ async def test_with_six_radios_a_monitor_and_one_off_every_radio_that_sends_carr
 
 
 async def test_on_a_fake_clock_a_mail_has_its_two_attempts_on_one_radio_and_a_new_choice_or_its_radio_switched_off_moves_the_next_attempt(tmp_path: Path) -> None:
-    """Half an hour of the daemon's clock for each mail, a minute at a time: FM (1), Mercury (2), LoRa (3), a second Mercury radio (4) and a monitor (5)."""
+    """Half an hour of the daemon's clock for each mail, a minute at a time: FM (1), Mercury (2),
+    LoRa (3), a second Mercury radio (4) and a monitor (5)."""
     s = Station(tmp_path)
     await s.start("dummy-lora", "dummy-hf", "tnc-text", senders=(1, 2, 3, 4))
     e = s.e
 
     async def half_an_hour(sent: dict[str, int], then: Callable[[], Awaitable[object]] | None = None) -> None:
-        """`then` is done once the first frame of each text is out (it goes while the clock stands), then the half hour passes, and the wait ends when every text has gone out as often as `sent` says:
-        a busy runner is waited for and never raced."""
+        """`then` is done once the first frame of each text is out (it goes while the clock stands),
+        then the half hour passes, and the wait ends when every text has gone out as often as `sent`
+        says: a busy runner is waited for and never raced."""
         if then is not None:
             await until(lambda: all(s.on(text) for text in sent))
             await then()

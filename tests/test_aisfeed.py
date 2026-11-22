@@ -1,5 +1,6 @@
-"""The connection to an own AIS receiver (neoaprs/aisfeed.py): the bytes cut into lines within the bounds (a line at most 1024 bytes, at most 200 lines a second, the long and the surplus passed over), the
-connection read to its end, and a receiver that is not on this computer refused under the no-devices switch."""
+"""Tests for the AIS receiver connection (neoaprs/aisfeed.py): line cutting within the limits (1024
+bytes a line, 200 lines a second), reading to the end, and the no-devices switch.
+"""
 import asyncio
 
 import pytest
@@ -64,7 +65,8 @@ async def test_a_refused_connection_is_an_os_error() -> None:
 
 @pytest.fixture
 def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for every test that does not ask for a fixture of this name)."""
+    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for
+    every test that does not ask for a fixture of this name)."""
     monkeypatch.setenv(nodevices.ENV, "1")
 
 

@@ -1,16 +1,7 @@
-"""The line of a LoRa APRS board as the Tnc reads it (a profile whose `board` is true, tncprofile.py; aprs-reference/lora-plan.md section 3.4): a board is no TNC with a command mode, so its text is never
-taken for one and no KISS ON is ever sent to it.
-
-What comes on the line is cut into KISS frames and the text between them (`KissText`), and each is read for what it is:
-
-- a KISS data frame is a packet, as any TNC's; on a board that says the signal (`board_readings`) DL9SAU's element of the path is taken off and read first, and a frame waits (`reading.Following`) for a
-  reading said after it: esp32_loraprs's KISS command 7, once the board has sent one, or the CA2RXU iGate's list of heard packets (loralist.py) on a board on the network, while the list answers;
-- any other KISS command is a line of the terminal, never a fault (esp32_loraprs sends its battery every minute);
-- a line of text that is a TNC2 packet is that packet: the board was left in TNC2 text, so it is written the nudge once (the KISS frame that turns a CA2RXU Tracker on classic Bluetooth to KISS; never on
-  Bluetooth LE, where the Tracker keys whatever is written to its TNC2 service as a packet) and, until a
-  KISS frame comes, the radio receives and sends nothing (`TEXT_LINES`); a line that begins as a packet and cannot be AX.25 is refused with its reason; any other line is the board's log, for the terminal;
-- on the CA2RXU iGate's log (`console`) a line of a packet heard is that packet with its signal, and every other line is for the terminal; nothing is ever written to that line (`RECEIVE_ONLY`);
-- a frame whose path says APRS-IS is the iGate's bridge handing on the internet, not the air (`drop_internet`): it is passed over and counted."""
+"""Reader of the line of a LoRa APRS board (a profile with `board` true, see tncprofile.py).
+A board has no TNC command mode: no KISS ON is sent. The line is split into KISS frames and text
+lines; frames wait for a signal reading where the board reports one.
+"""
 import asyncio
 import itertools
 import logging
@@ -33,12 +24,13 @@ log = logging.getLogger("neoaprs.tnc")
 
 TEXT_LINES = Reason("the board sends text lines: set it to KISS", "radio.text_lines")
 RECEIVE_ONLY = ONLY_RECEIVES
-KEPT_USED = 64                         # how many entries of the board's list are remembered as given to a frame (it holds 10)
-OPENING_SEC = 2.0                      # how long after the list's answer at the open no frame may come for that answer to be what the board heard before: it hands a packet on right after it lists it
+# entries of the board's list (which holds 10) remembered as given to a frame
+KEPT_USED = 64
+# a frame this soon after the list's answer at the open is already in that answer
+OPENING_SEC = 2.0
 
 
 class Owner(Protocol):
-    """What the board's reader needs of the Tnc (tnc.py)."""
     profile: Profile
     stats: TncStats
     path: str
@@ -61,13 +53,15 @@ def _words(text: bytes) -> str:
 
 
 class KissText:
-    """The bytes of a board's line cut into KISS frames and the text outside them. A FEND opens a frame; after the FEND that closes one, a FEND or a command byte (a frame that shares its FEND) goes on in
-    frames, and anything else is text again, up to the next FEND. A frame that opens with text was a FEND on its own before a line: its bytes are text."""
+    """Split a board's byte stream into KISS frames and the text outside them.
+    After a frame closes, a FEND or command byte continues in frames; anything else is text.
+    """
 
     def __init__(self) -> None:
-        self._state = "out"              # "out" text, "in" a frame, "after" the FEND that closed one
+        # "out" text, "in" a frame, "after" the FEND that closed a frame
+        self._state = "out"
         self._frame = bytearray()
-        self.dropped = 0                  # frames the KISS decoder threw away (a bad escape, too long)
+        self.dropped = 0
 
     def feed(self, data: bytes) -> list[kiss.KissFrame | bytes]:
         out: list[kiss.KissFrame | bytes] = []
@@ -87,7 +81,7 @@ class KissText:
     def _in(self, byte: int, out: list[kiss.KissFrame | bytes], text: bytearray) -> None:
         if byte != kiss.FEND:
             self._frame.append(byte)
-            if byte == 0x0A and self._frame[0] >= 0x10:          # (text after a FEND on its own: a line, not a frame)
+            if byte == 0x0A and self._frame[0] >= 0x10:
                 text.extend(self._frame)
                 self._state, self._frame = "out", bytearray()
             elif len(self._frame) > 2 * kiss.MAX_FRAME:
@@ -95,7 +89,7 @@ class KissText:
                 self._state, self._frame = "out", bytearray()
             return
         if not self._frame:
-            return                                                  # (FEND FEND: still between frames)
+            return
         if self._frame[0] >= 0x10:
             text.extend(self._frame)
         else:
@@ -114,40 +108,47 @@ class KissText:
 
 
 class LoraBoard:
-    """The reading of one open of a board's line (made afresh by tncreader.Reader at each open)."""
+    """The reading of one open of a board's line; a new one is made at each open."""
 
     def __init__(self, tnc: Owner) -> None:
         self._tnc = tnc
-        self._port = tnc._port                                         # the open it belongs to: what comes after that line is gone is no one's
+        # anything after this open's line is gone is ignored
+        self._port = tnc._port
         self._split = KissText()
         self._lines = LineReader()
-        self._reading = NO_READING                                     # the reading of the frame being handed to the Tnc (`take_reading`)
-        self.kiss_seen = False                                         # a KISS frame came on this open
-        self.text_since_kiss = False                                   # a packet came as text, and no KISS frame since: nothing is sent
+        self._reading = NO_READING
+        self.kiss_seen = False
+        self.text_since_kiss = False
         self._nudged = False
-        self._reports = False                                          # esp32_loraprs's command 7 came on this open: its frames wait for theirs
-        self._list = tnc.profile.board_readings and tnc.profile.transport == "tcp" and bool(tcp_host(tnc.path))     # the iGate's list, on the board on the network: asked for until it fails once
+        # esp32_loraprs's command 7 came on this open: frames wait for their readings
+        self._reports = False
+        # the iGate's list of heard packets, used until it fails once
+        self._list = tnc.profile.board_readings and tnc.profile.transport == "tcp" and bool(tcp_host(tnc.path))
         self._asking = self._again = False
         self._used: deque[tuple[str, str, Reading]] = deque(maxlen=KEPT_USED)
-        self._start = False                                            # where this open's entries begin in the list is known: what it held at the open is in `_used`
-        self._opening: tuple[list[loralist.Heard], float] | None = None  # the list's answer at the open, and when it came, until the first frame
-        self._held: dict[str, tuple[bytes, str]] = {}                  # each frame that waits: its AX.25 bytes and its text as the list writes it
-        self._since: deque[tuple[str, str]] = deque(maxlen=KEPT_USED)   # each frame no answer asked after it has named yet, waiting or gone on: its key and its text as the list writes it
+        self._start = False  # the position of this open's entries in the list is known
+        # the list's answer at the open and its time, until the first frame arrives
+        self._opening: tuple[list[loralist.Heard], float] | None = None
+        # each waiting frame: AX.25 bytes and text as the list writes it
+        self._held: dict[str, tuple[bytes, str]] = {}
+        # frames not yet named by an answer asked after them
+        self._since: deque[tuple[str, str]] = deque(maxlen=KEPT_USED)
         self._serial = 0
         self._following: Following[str] = Following(LIST_WAIT_SEC if self._list else REPORT_WAIT_SEC)
-        self._timers: dict[str, asyncio.TimerHandle] = {}              # the end of the wait of each frame that waits
+        self._timers: dict[str, asyncio.TimerHandle] = {}
         if self._list and self._port is not None:
-            self._ask()                                                # (what the list holds before the first frame is no frame's of this open)
+            # what the list held before the first frame belongs to no frame
+            self._ask()
 
     def take_reading(self) -> Reading:
         return self._reading
 
     def quiet(self) -> str:
-        """Why nothing is sent on the line now, as a clause; "" when frames may go."""
+        """Return why nothing is sent on the line now, or "" when frames may go."""
         return RECEIVE_ONLY if self._tnc.profile.receive_only else TEXT_LINES if self.text_since_kiss else ""
 
     def close(self) -> None:
-        """The open is over: what still waits for its reading goes no further."""
+        """End the open; frames still waiting for a reading are dropped."""
         for timer in self._timers.values():
             timer.cancel()
         self._timers.clear()
@@ -179,11 +180,12 @@ class LoraBoard:
     def _data(self, payload: bytes) -> None:
         reading = None
         if self._tnc.profile.board_readings and (ninth := ninth_element(payload)) is not None:
-            payload, reading = ninth                                   # (DL9SAU's element after eight digipeaters: one address more than AX.25 holds)
+            # DL9SAU's ninth path element, beyond what AX.25 allows
+            payload, reading = ninth
         try:
             frame = ax25.decode(payload)
         except ax25.Ax25Error:
-            return self._hand(payload, NO_READING)                     # (the Tnc says why it is no packet)
+            return self._hand(payload, NO_READING)
         if self._tnc.profile.drop_internet and from_internet(frame):
             return self._tnc._saw(printable(f"from the internet, not heard on the air: passed over: {frame.tnc2()}"))
         if self._tnc.profile.board_readings:
@@ -199,7 +201,7 @@ class LoraBoard:
             self._ask()
 
     def _report(self, reading: Reading) -> None:
-        """esp32_loraprs's KISS command 7, said right after its frame: the first of an open went with a frame that did not wait for it."""
+        """Handle esp32_loraprs's KISS command 7, sent right after its frame."""
         if not self._reports:
             self._reports = True
             log.debug("%s: the board says the signal after each frame (%s); its frames wait for it from now on", self._tnc.label, reading)
@@ -252,7 +254,7 @@ class LoraBoard:
         self._tnc._spawn(self._fetch(tcp_host(self._tnc.path), self._serial))
 
     async def _fetch(self, host: str, sent: int) -> None:
-        """The list asked once `sent` frames had come on this open: the board put each of them in its list before it handed it on, so the answer holds the entry of each, if the list still has it."""
+        """Ask the list once `sent` frames have come on this open."""
         try:
             entries = await loralist.fetch(host)
         except loralist.ListError as e:
@@ -271,18 +273,15 @@ class LoraBoard:
             self._ask()
 
     def _match(self, entries: list[loralist.Heard], sent: int) -> None:
-        """Each frame that waits gets its own entry, or none. The board puts a packet in its list before it hands it on, and in the same order, so an answer asked after a frame came holds its entry
-        unless the list has lost it (it keeps the last 10); the frames held after the list was asked wait for the answer asked after them, which follows. What the list holds at the open (asked before the
-        first frame, which came OPENING_SEC or more after the answer) is no frame's of this open. From there the frames held since the last entry given take the entries after it one by one, each the first
-        of its text: a frame that went on without its reading still takes its own, and an entry of a frame not read yet (the list's answer slower than the next packet on the air) is left for that frame.
-        A frame whose entry is not in the answer goes on without, and so does each frame of its text named in this answer, one of which may hold the entry of the next; when every entry given has fallen out
-        of the list, what fell out with them cannot be told: no frame asked for is named, and the list starts afresh. Without that start (a frame came while the open's answer was on its way, or right after
-        it), each frame that waits takes the newest entry of its text, the latest frame first: a station that beacons the same text every few minutes leaves older entries that are none of these frames'."""
+        """Give each waiting frame its own list entry, or none.
+        An answer asked after a frame holds its entry unless it fell out of the list.
+        """
         now = self._now()
         if self._start:
             out = self._line_up(entries, sent, now)
         elif self._serial != sent:
-            out = []                                                       # (a frame came after the list was asked: the answer asked after it, which follows, is for it)
+            # a frame came after the list was asked: the next answer is for it
+            out = []
         elif not sent:
             self._opening = (entries, now)
             return
@@ -291,7 +290,6 @@ class LoraBoard:
         self._release(out + self._following.due(now))
 
     def _newest(self, entries: list[loralist.Heard], now: float) -> list[tuple[str, Reading]]:
-        """Without a start: each frame that waits takes the newest entry of its text, the latest frame first; one whose text is not in the answer goes on without."""
         out: list[tuple[str, Reading]] = []
         for key in reversed(self._following.keys()):
             entry = next((e for e in reversed(entries) if e.key == self._held[key][1] and (e.when, e.key, e.reading) not in self._used), None)
@@ -303,14 +301,14 @@ class LoraBoard:
         return out
 
     def _line_up(self, entries: list[loralist.Heard], sent: int, now: float) -> list[tuple[str, Reading]]:
-        """From the start: the frames asked for take the entries after the last one given, in their order, each the first of its text; the readings of the frames that wait, said."""
         used = set(self._used)
         at = max((i for i, e in enumerate(entries) if (e.when, e.key, e.reading) in used), default=-1) + 1
-        asked = list(itertools.takewhile(lambda item: int(item[0]) < sent, self._since))     # (one held after the list was asked: the answer asked after it, which follows, is for it)
+        asked = list(itertools.takewhile(lambda item: int(item[0]) < sent, self._since))
         given: list[tuple[str, str, Reading]] = []
         lost: list[tuple[str, str]] = []
         if self._used and not at:
-            lost = asked                                                            # (every entry given has fallen out of the list, and what fell out with them cannot be told: the list starts afresh)
+            # every entry given has fallen out: start afresh
+            lost = asked
             self._used.clear()
             self._used.extend((e.when, e.key, e.reading) for e in entries)
         else:
@@ -324,8 +322,7 @@ class LoraBoard:
         return out
 
     def _named(self, asked: list[tuple[str, str]], entries: list[loralist.Heard], at: int) -> tuple[list[tuple[str, str, Reading]], list[tuple[str, str]]]:
-        """The frames asked for, each with the first entry of its text after the one before it, from `at`; and those whose text is not there (the board listed each before it handed it on: its entry
-        is gone from the list)."""
+        """Return the frames matched to entries from `at` on, and those without one."""
         given: list[tuple[str, str, Reading]] = []
         lost: list[tuple[str, str]] = []
         for key, text in asked:
@@ -355,7 +352,7 @@ class LoraBoard:
                 tnc._add_line(_words(line.text))
 
     def _packet_line(self, line: TextLine, reading: Reading) -> None:
-        """A line that is a packet (with the reading its line says), a packet that cannot be one, or none."""
+        """Handle a text line: a packet, a malformed packet, or terminal text."""
         tnc = self._tnc
         if line.frame is None and line.why:
             tnc._saw(f"not taken: {line.why}: {_words(line.text)}")
@@ -368,9 +365,10 @@ class LoraBoard:
             self._hand(ax25.encode(line.frame), reading)
 
     def _as_text(self) -> None:
-        """A packet came as text: the nudge once on this open, and nothing is sent until KISS comes."""
+        """Handle a packet that came as text: nudge once per open; send nothing until KISS comes."""
         tnc = self._tnc
-        if tnc.profile.nudge and not self._nudged and tnc._port is not None and not tnc.profile.receive_only and not is_ble(tnc.path):     # (the Tracker over BLE keys every write on its TNC2 service: its service is chosen on the board)
+        # over BLE the Tracker transmits every write to its TNC2 service: never nudge there
+        if tnc.profile.nudge and not self._nudged and tnc._port is not None and not tnc.profile.receive_only and not is_ble(tnc.path):
             self._nudged = True
             tnc._write(tnc._port, tnc.profile.nudge)
         if not self.text_since_kiss:

@@ -1,5 +1,7 @@
-"""The pseudo-terminal of `neoaprs replay --pty` (neoaprs/cli/replaypty.py) in the test's own process: what the other end writes is shown while the replay waits, a frame is dropped where nobody reads, and the replay
-ends with Ctrl-C. A whole replay on a pseudo-terminal, read by a port, is in tests/test_replay.py and tests/test_scripts.py."""
+"""The pseudo-terminal of `neoaprs replay --pty` (neoaprs/cli/replaypty.py) in the test's process:
+what the other end writes is shown while the replay waits, a frame is dropped where nobody reads,
+and Ctrl-C ends it.
+"""
 import os
 import sys
 from collections.abc import Iterator
@@ -56,7 +58,8 @@ def test_a_frame_that_cannot_be_written_is_told_not_raised(ptys: Ptys, monkeypat
 
 @pytest.fixture
 def close_the_masters(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """play_on_pty never closes its pseudo-terminal (the process ends with Ctrl-C): the test does."""
+    """play_on_pty never closes its pseudo-terminal (the process ends with Ctrl-C): the test does.
+    """
     masters: list[int] = []
     real = os.openpty
 
@@ -71,7 +74,8 @@ def close_the_masters(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 
 class FakeLine:
-    """The line of a replay that nobody reads: it writes down the frames and ends the replay (Ctrl-C) after so many pauses."""
+    """The line of a replay that nobody reads: it writes down the frames and ends the replay
+    (Ctrl-C) after so many pauses."""
 
     made: "FakeLine"
 

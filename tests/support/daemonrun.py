@@ -1,11 +1,9 @@
-"""The daemon's own `run()` (neoaprs/daemon.py) in the test's process, on a data folder of the test: the signal handlers, the logging, the lock of the folder, the Controller and the stop file, as `python -m neoaprs`
-has them, without a child process, so that a test can break what the daemon stands on (the migrations, the database file) and read what it did.
+"""The daemon's own `run()` (neoaprs/daemon.py) in the test's process, on a data folder of the test.
 
-    daemon = InProcess(tmp_path / "data")             # starts it
-    await daemon.running()                            # the log says "is running" (or the daemon ended: its code is daemon.task.result())
-    code = await daemon.stop()                        # the stop file, as `neoaprs stop` writes it; the exit code
-
-`signals_restored` is a fixture for the test module to import: the daemon takes SIGTERM, SIGINT, SIGHUP over, and the test gives them back."""
+It has the signal handlers, logging, folder lock, Controller and stop file, without a child process,
+so a test can break what the daemon stands on. `signals_restored` gives SIGTERM, SIGINT and SIGHUP
+back.
+"""
 import argparse
 import asyncio
 import signal
@@ -17,7 +15,8 @@ import pytest
 from neoaprs import daemon, stopfile
 from tests.support.env import until
 
-PATIENCE_SEC = 60.0                 # a daemon that starts or stops while the machine runs a whole test suite takes its time: the longest a test waits for it, not how long it takes
+# The longest a test waits for a start or stop while the machine runs a whole suite.
+PATIENCE_SEC = 60.0
 
 
 @pytest.fixture

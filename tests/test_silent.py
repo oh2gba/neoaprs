@@ -1,6 +1,7 @@
-"""The silent radio: the line is open and nothing at all comes back, as when the TH-D7 is switched off and the USB adapter is still there. The keep-alive's check decides, the probes look for the radio
-coming back, the first byte ends the silence cleanly (KISS is entered afresh and nothing is sent until it has settled), and every sender treats the state as not usable. The Tnc runs on a fake radio (a TCP server
-on the loopback) with short periods; the senders' own cases are in their test files. The log says the silence and the return of a radio by its name (`Tnc.radio_name`, which its driver gives), and by its kind until it has one."""
+"""The silent radio: the line is open and nothing comes back, as when a TH-D7 is off but the USB
+adapter is there. The keep-alive check decides, probes look for the radio, the first byte ends the
+silence cleanly, and every sender treats the state as not usable.
+"""
 import asyncio
 import logging
 from dataclasses import replace
@@ -19,7 +20,8 @@ from tests.test_tnc import NO_DETECT, NUDGE_BYTE, SETTLE, Rig, Rigs, hear_until,
 
 ANSWER = b"KISS ON\r\nKISS      was OFF\r\ncmd:"
 QUICK = {"check_sec": 0.1, "check_pause_sec": 0.02, "reply_sec": 0.05, "answer_sec": 0.1}
-FAST = {"check_sec": 0.05, "check_pause_sec": 0.0, "reply_sec": 0.0, "answer_sec": 0.0, "probe_sec": 0.005}       # a probe takes a few milliseconds
+# A probe takes a few milliseconds
+FAST = {"check_sec": 0.05, "check_pause_sec": 0.0, "reply_sec": 0.0, "answer_sec": 0.0, "probe_sec": 0.005}
 
 
 @pytest.fixture
@@ -28,17 +30,20 @@ def rig() -> Rigs:
 
 
 async def silent_rig(rig: Rigs, probe_answer_sec: float = 0.1, probe_reply_sec: float = 0.05, **kwargs: object) -> tuple[Rig, FixedClock]:
-    """A Tnc whose check goes unanswered at once, and which has become SILENT; its probes wait `probe_reply_sec` for a reply to the return and `probe_answer_sec` for an answer to KISS ON."""
+    """A Tnc whose check goes unanswered at once, and which has become SILENT; its probes wait
+    `probe_reply_sec` for a reply to the return and `probe_answer_sec` for an answer to KISS ON."""
     clock = FixedClock()
     r = await rig(clock=clock, **{"probe_sec": 30.0, **QUICK, **kwargs})
     await until(lambda: r.tnc.state is Source.State.SILENT)
-    r.tnc.watchdog.answer_sec, r.tnc.watchdog.reply_sec, r.tnc.watchdog.sec = probe_answer_sec, probe_reply_sec, 30.0       # (no second check while the test looks at the return)
+    # No second check while the test looks at the return
+    r.tnc.watchdog.answer_sec, r.tnc.watchdog.reply_sec, r.tnc.watchdog.sec = probe_answer_sec, probe_reply_sec, 30.0
     await r.radio.said(4096, 0.05)                                 # (what the check wrote)
     return r, clock
 
 
 async def drain(radio: FakeRadio) -> None:
-    """Reads what the port writes, as long as it runs, so that what the Tnc writes does not pile up."""
+    """Reads what the port writes, as long as it runs, so that what the Tnc writes does not pile up.
+    """
     while True:
         await radio.said(4096, 0.01)
         await asyncio.sleep(0.005)
@@ -58,7 +63,8 @@ async def test_a_check_that_nothing_answers_makes_the_radio_silent_and_describe_
     assert r.tnc.send_frame(ui_frame()) is False and any("not sent: the radio is silent" in line for line in r.tnc.lines)
 
 
-NAMES = [("", "tnc"), ("FM 2", "FM 2")]          # (the radio's name, and what the log calls it: its kind's word until its driver names it)
+# The radio's name, and what the log calls it: its kind's word until its driver names it
+NAMES = [("", "tnc"), ("FM 2", "FM 2")]
 
 
 @pytest.mark.parametrize(("name", "label"), NAMES)
@@ -69,7 +75,8 @@ async def test_command_mode_text_while_silent_enters_kiss_and_connects_but_nothi
     clock.advance(17 * 60)
     caplog.set_level(logging.INFO)
     caplog.clear()
-    r.radio.feed(b"\r\ncmd:")                                      # the radio was switched on: its TNC is in command mode
+    # The radio was switched on: its TNC is in command mode
+    r.radio.feed(b"\r\ncmd:")
     assert await hear_until(r.radio, ENTER_KISS, 1.0)
     assert r.tnc.state is Source.State.CONNECTED and r.tnc.silent_since is None
     assert r.tnc.usable is False and r.tnc.send_frame(ui_frame()) is False, "the TNC is restarting"
@@ -110,7 +117,9 @@ async def test_a_frame_that_comes_in_two_reads_as_the_first_bytes_of_a_silent_ra
     r, _ = await silent_rig(rig)
     await idle_for(SETTLE + 0.05)                                   # (the check's own entry has settled)
     wire = kiss_of(ui_frame())
-    r.radio.feed(wire[:12])                                        # a line delivers a frame in several reads: the first holds the FEND and the start of the addresses
+    # A line delivers a frame in several reads: the first holds the FEND and the start of the
+    # addresses
+    r.radio.feed(wire[:12])
     await until(lambda: r.tnc.state is Source.State.CONNECTED)
     assert await r.radio.said(1, 0.1) == b"", "a piece of a frame is no reason to type KISS ON into a TNC that is in KISS"
     r.radio.feed(wire[12:])
@@ -123,7 +132,9 @@ async def test_the_tail_of_a_frame_as_the_first_bytes_of_a_silent_radio_is_not_c
     r, _ = await silent_rig(rig)
     await idle_for(SETTLE + 0.05)
     wire = kiss_of(ui_frame("OH7JHF-1", info=b"}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack10"))
-    r.radio.feed(wire[wire.index(b"}") + 1:])                       # the read began inside the frame: text that looks like a monitored packet, then the closing FEND
+    # The read began inside the frame: text that looks like a monitored packet, then the closing
+    # FEND
+    r.radio.feed(wire[wire.index(b"}") + 1:])
     await until(lambda: r.tnc.state is Source.State.CONNECTED)
     assert await r.radio.said(1, 0.1) == b""
     r.radio.feed(kiss_of(ui_frame()))
@@ -135,7 +146,8 @@ async def test_the_middle_of_a_frame_as_the_first_bytes_of_a_silent_radio_waits_
     r, _ = await silent_rig(rig)
     await idle_for(SETTLE + 0.05)                                   # (the check's own entry has settled)
     wire = kiss_of(ui_frame())
-    middle = wire[8:-1]                                             # a port that was opened again while a frame was on its way: no FEND, no text
+    # A port that was opened again while a frame was on its way: no FEND, no text
+    middle = wire[8:-1]
     assert b"\xc0" not in middle
     r.radio.feed(middle)
     await until(lambda: r.tnc.state is Source.State.CONNECTED)
@@ -156,7 +168,9 @@ async def test_a_silent_radio_whose_tnc_may_not_enter_kiss_connects_without_it(r
 
 @stops_rigs
 async def test_probes_repeat_the_check_and_a_prompt_after_the_return_enters_kiss_and_connects_without_a_second_entry(rig: Rigs, caplog: pytest.LogCaptureFixture) -> None:
-    r, _ = await silent_rig(rig, probe_sec=0.2, probe_answer_sec=5.0, probe_reply_sec=5.0)       # (the waits for the radio's reply are long: the prompt below ends the one it comes in, and a slow machine cannot make a second probe of it)
+    # The waits for the radio's reply are long: the prompt below ends the one it comes in, and a
+    # slow machine cannot make a second probe of it
+    r, _ = await silent_rig(rig, probe_sec=0.2, probe_answer_sec=5.0, probe_reply_sec=5.0)
     caplog.set_level(logging.INFO)
     caplog.clear()
     assert await hear_until(r.radio, KISS_EXIT + NUDGE_BYTE, 2.0) == KISS_EXIT + NUDGE_BYTE
@@ -173,7 +187,9 @@ async def test_probes_repeat_the_check_and_a_prompt_after_the_return_enters_kiss
 async def test_a_probe_whose_return_is_not_answered_enters_kiss_and_an_answer_to_that_connects(rig: Rigs) -> None:
     r, _ = await silent_rig(rig, probe_sec=0.2, probe_answer_sec=5.0)
     await until(lambda: r.tnc.stats.watchdog_probes == 1)
-    r.tnc.watchdog.probe_sec = 30.0                                 # (the probe that has begun is the only one: the period of the next is read after the wait for this one's answer)
+    # The probe that has begun is the only one: the period of the next is read after the wait for
+    # this one's answer
+    r.tnc.watchdog.probe_sec = 30.0
     assert await hear_until(r.radio, KISS_EXIT + NUDGE_BYTE + ENTER_KISS, 3.0)
     assert r.tnc.state is Source.State.SILENT
     r.radio.feed(ANSWER)
@@ -191,7 +207,8 @@ async def test_a_hundred_unanswered_probes_make_one_warning_and_no_info_and_ever
     try:
         stats = r.tnc.stats
         await until(lambda: stats.watchdog_probes >= 100, 10.0)
-        await until(lambda: r.tnc.state is Source.State.SILENT and stats.port_reopens == stats.watchdog_probes // 5 and stats.opens == 1 + stats.port_reopens, 5.0)          # (a reopen takes a moment, longer on Windows)
+        # A reopen takes a moment, longer on Windows
+        await until(lambda: r.tnc.state is Source.State.SILENT and stats.port_reopens == stats.watchdog_probes // 5 and stats.opens == 1 + stats.port_reopens, 5.0)
         told = [rec for rec in caplog.records if rec.name.startswith("neoaprs") and not rec.getMessage().startswith("tnc: opened")]
         assert [rec.levelno for rec in told] == [logging.WARNING]
         assert "the radio is silent" in told[0].getMessage()
@@ -288,7 +305,8 @@ async def test_beacon_now_and_send_message_are_refused_over_the_socket_while_the
 
 
 async def test_a_beacon_due_during_the_outage_is_written_only_after_the_settle_as_a_kiss_frame_when_the_radio_comes_back(tmp_path: Path) -> None:
-    e = Env(tmp_path, check_pause_sec=0.02, reply_sec=0.6, answer_sec=0.6, probe_sec=0.3)       # (the radio answers the probe within its reply time, before the probe's own KISS ON)
+    # The radio answers the probe within its reply time, before the probe's own KISS ON
+    e = Env(tmp_path, check_pause_sec=0.02, reply_sec=0.6, answer_sec=0.6, probe_sec=0.3)
     e.beacon.tick_sec, e.beacon.retry_sec = 0.02, 0.05
     await e.start()
     e.tnc.set_check(0.1)                                             # (the settings of an Env have the checks off)
@@ -298,7 +316,8 @@ async def test_a_beacon_due_during_the_outage_is_written_only_after_the_settle_a
     await idle_for(0.2)
     assert e.beacon.last_sent is None and e.beacon.next_due is not None and e.beacon.next_due < e.now()
     assert await hear_until(e.radio, KISS_EXIT + NUDGE_BYTE, 3.0)   # a probe
-    e.tnc.set_check(0)                                               # (a 0.1 s check would reset the quiet radio again at once)
+    # A 0.1 s check would reset the quiet radio again at once
+    e.tnc.set_check(0)
     await e.radio.said(0, 0)                                         # (what earlier probes said is not looked at)
     e.radio.feed(b"\r\ncmd:")                                      # the radio is switched on and answers the probe
     assert await hear_until(e.radio, ENTER_KISS, 1.0)
@@ -315,7 +334,8 @@ async def test_a_beacon_due_during_the_outage_is_written_only_after_the_settle_a
 # ---- a fresh open is not usable until the radio has shown that it is there
 
 CHECK = KISS_EXIT + NUDGE_BYTE
-ASKED = {"check_sec": 60.0, "check_pause_sec": 0.02, "reply_sec": 0.3, "answer_sec": 1.0}         # (the checks on; the radio has time to answer)
+# The checks on; the radio has time to answer
+ASKED = {"check_sec": 60.0, "check_pause_sec": 0.02, "reply_sec": 0.3, "answer_sec": 1.0}
 SHORT = {"check_sec": 60.0, "check_pause_sec": 0.02, "reply_sec": 0.05, "answer_sec": 0.1}
 
 
@@ -346,7 +366,8 @@ async def test_a_fresh_tnc2_line_is_checked_at_once_and_nothing_else_is_written_
 async def test_a_fresh_line_whose_radio_does_not_answer_is_silent_within_the_answer_time_with_one_warning(rig: Rigs, caplog: pytest.LogCaptureFixture, name: str, label: str) -> None:
     caplog.set_level(logging.INFO)
     r = await rig(clock=FixedClock(), **SHORT)
-    r.tnc.radio_name = name                                                   # (before the loop runs again: the check's answer time is not over)
+    # Before the loop runs again: the check's answer time is not over
+    r.tnc.radio_name = name
     caplog.clear()
     begun = asyncio.get_running_loop().time()
     await until(lambda: r.tnc.state is Source.State.SILENT, 2.0)
@@ -367,7 +388,8 @@ async def test_a_packet_that_arrives_before_the_check_runs_confirms_the_line_and
         assert tnc.state is Source.State.CONNECTED and tnc.usable is False, "opened, and not heard from"
         port = tnc._port
         assert port is not None
-        tnc._on_data(port, kiss_of(ui_frame()))                                    # (the line is read before the task of the check has run)
+        # The line is read before the task of the check has run
+        tnc._on_data(port, kiss_of(ui_frame()))
         assert tnc.usable is True and tnc.stats.packets == 1
         await radio.connected()
         assert await radio.said(1, 0.4) == b"" and tnc.stats.keepalive_checks == 0
@@ -416,7 +438,8 @@ async def test_switching_the_checks_off_while_a_fresh_line_waits_makes_it_usable
 # ---- the beacon that falls due at the open waits for the radio
 
 def tnc2_daemon(tmp_path: Path, **timings: float) -> Env:
-    """A daemon on a fake radio with the Kenwood TNC-2 profile, the keep-alive on and a beacon that is due at the start."""
+    """A daemon on a fake radio with the Kenwood TNC-2 profile, the keep-alive on and a beacon that
+    is due at the start."""
     e = Env(tmp_path, settings={"beacon/interval_min": "1"}, check_sec=60.0, check_pause_sec=0.02, probe_sec=30.0, **timings)
     e.beacon.tick_sec, e.beacon.retry_sec, e.beacon.first_delay_sec = 0.02, 0.05, 0.0
     return e

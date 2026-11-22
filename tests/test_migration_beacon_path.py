@@ -1,7 +1,7 @@
-"""Migration 14 (neoaprs/migrationsteps12to21.py): an empty `beacon/path` meant no digipeaters, and now means the recommended path; the stored empty one becomes DIRECT so that nobody starts to digipeat on an upgrade.
-
-The path is stored under the flat key, as a version 13 kept it; it is read back where the newest migration leaves it (tests/support/migrated31.py: the row of the settings, and radio 1's own `path` once the
-radios are rows) and through the settings in force."""
+"""Migration 14 (neoaprs/migrationsteps12to21.py): an empty `beacon/path` meant no digipeaters and
+now means the recommended path, so the stored empty one becomes DIRECT and nobody starts to digipeat
+on an upgrade.
+"""
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -29,7 +29,8 @@ def version_thirteen(path: Path, clock: FixedClock, stored: dict[str, str]) -> N
 
 @contextmanager
 def migrate(folder: Path, stored: dict[str, str]) -> Iterator[sqlite3.Connection]:
-    """The database of a version 13 with these settings, brought up to date: every step from 14 on ran, each the frozen one."""
+    """The database of a version 13 with these settings, brought up to date: every step from 14 on
+    ran, each the frozen one."""
     clock = FixedClock()
     folder.mkdir(parents=True, exist_ok=True)
     old = folder / DB_NAME

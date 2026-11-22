@@ -1,5 +1,6 @@
-"""Migration 18 (neoaprs/migrationsteps12to21.py): the QRU group and the on-request flag of an object of ours; the objects already there keep everything and get no group and the schedule, and the table refuses a group
-the program cannot produce."""
+"""Migration 18 (neoaprs/migrationsteps12to21.py): the QRU group and on-request flag of our objects;
+existing objects get no group and the schedule, and the table refuses an impossible group.
+"""
 import sqlite3
 from pathlib import Path
 

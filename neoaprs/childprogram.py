@@ -1,10 +1,8 @@
-"""A program the daemon starts and holds for a radio (the Mercury HF modem, Direwolf): its run, read line by line by a thread into the log, told to the loop when it ends, and stopped by the program's own way; the
-environment it runs with; a run of ours that an earlier daemon left behind, ended; and the kernel's table of sockets, which holds a started program to listening on this computer only. The parts that differ from
-one program to the other (its name, which of its lines are warnings, what is done with a line, how it is asked to end) are its subclass's: mercuryhelper.Program, direwolfprogram.Program.
+"""A child program the daemon runs for a radio (the Mercury modem, Direwolf).
 
-A program is started with `subprocess.Popen` and read by a thread, as the serial line is: the daemon's loop may be the one Tornado forces on Windows, which cannot start subprocesses of its own, and what the program
-prints goes to the daemon's log, never to the page. A thread waits for it to end and tells the loop with `call_soon_threadsafe`, with the exit code and its last lines, so that the owner can start it again. Its
-process id is written beside its configuration and removed again when it ends, so that the next start can end a run of ours left behind by a crash of the daemon (it holds the sound card and the ports)."""
+Starts it, logs its output, stops it, and ends a run left behind by a crashed daemon.
+Subclasses supply the name, the warnings, the handling of a line and how it is asked to end.
+"""
 import asyncio
 import logging
 import os
@@ -23,33 +21,30 @@ from .source import os_error_text
 
 log = logging.getLogger("neoaprs.childprogram")
 
-STOP_WAIT_SEC = 5.0                  # how long a program asked to end is given before it is asked again or killed
-LAST_LINES = 8                       # how many of the program's last lines are kept for the log's line when it ends
-STARTUP_LINES = 30                   # the first lines of each run are in the log whatever they are (its version, its sound card, its keying); after them only its warnings and errors are
-SAID_MAX = 1000                      # distinct warnings of the program counted at once; the count starts over beyond that
+STOP_WAIT_SEC = 5.0
+LAST_LINES = 8  # kept for the log line written at the end
+STARTUP_LINES = 30  # the first lines of a run are always logged
+SAID_MAX = 1000  # distinct warnings counted at once
 
-Command = list[str]                  # how a program is run: its path, or an interpreter and a module that stands in for it (the tests' fakes)
-HIDDEN_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)         # Windows: the program gets no console window of its own; 0 elsewhere
+Command = list[str]
+HIDDEN_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: no console window; 0 elsewhere
 
 
 def program_file(name: str, system: str | None = None) -> str:
-    """The file name of the program `name` on a system (`sys.platform` by default)."""
     return f"{name}.exe" if (system or sys.platform).startswith("win") else name
 
 
 def found(program: Path) -> Command | None:
-    """The command that runs the shipped program at this path; None when it is not an executable file."""
     return [str(program)] if program.is_file() and os.access(program, os.X_OK) else None
 
 
 def runs_shipped(command: Command, program: Path) -> bool:
-    """Whether the command is the one file `program`, not an interpreter and a module that stands in for it."""
+    """Return whether the command is the file `program` itself, not a stand-in interpreter."""
     return len(command) == 1 and Path(command[0]).resolve() == program.resolve()
 
 
 def environment(command: Command) -> dict[str, str]:
-    """The environment a program runs with: the daemon's reduced one (childenv.py), and ALSA_CONFIG_PATH pointing at the ALSA configuration shipped beside the program when there is one (Linux: the bundled ALSA library
-    would otherwise look for the system's /usr/share/alsa/alsa.conf, which a machine without ALSA installed does not have, and open no sound card)."""
+    """Return the reduced environment, plus ALSA_CONFIG_PATH if an alsa.conf is shipped."""
     env = child_environment()
     conf = Path(command[0]).resolve().parent / "share" / "alsa" / "alsa.conf"
     if len(command) == 1 and conf.is_file():
@@ -59,18 +54,19 @@ def environment(command: Command) -> dict[str, str]:
 
 # ---- where a program listens
 
-LOOPBACK_HEX = ("0100007F", "00000000000000000000000001000000")        # 127.0.0.1 and ::1 as /proc/net/tcp and tcp6 write a local address (the kernel's byte order, hex)
+# 127.0.0.1 and ::1 as /proc/net/tcp and tcp6 write them (hex, kernel byte order).
+LOOPBACK_HEX = ("0100007F", "00000000000000000000000001000000")
 PROC_TCP = ("/proc/net/tcp", "/proc/net/tcp6")
 
 
 def _listeners(tables: Sequence[str], ports: Iterable[int]) -> dict[int, set[str]]:
-    """The local addresses, as the kernel writes them, of the sockets in LISTEN on these ports in the texts of /proc/net/tcp and tcp6."""
+    """Return the LISTEN addresses (kernel hex) on `ports`, per port."""
     wanted = set(ports)
     found: dict[int, set[str]] = {}
     for text in tables:
         for line in text.splitlines()[1:]:
             fields = line.split()
-            if len(fields) < 4 or fields[3] != "0A":                                # (0A is LISTEN)
+            if len(fields) < 4 or fields[3] != "0A":  # 0A is LISTEN
                 continue
             address, _, port = fields[1].rpartition(":")
             if int(port, 16) in wanted:
@@ -79,14 +75,12 @@ def _listeners(tables: Sequence[str], ports: Iterable[int]) -> dict[int, set[str
 
 
 def foreign_listeners(ports: Iterable[int]) -> list[str]:
-    """The listeners on these ports that are not on the loopback, as `address:port` in the kernel's hex, from the kernel's table of sockets (Linux: /proc/net/tcp and tcp6); empty where that table is not there
-    (Windows, macOS: nothing can be said here; the shipped programs bind the loopback in their source), and empty when every listener is 127.0.0.1 or ::1. Reads two small files: for a thread or a quick call."""
+    """Return the listeners on `ports` outside the loopback, as `address:port` in kernel hex."""
     return [f"{address}:{port}" for port, addresses in sorted(_listeners(_tables(), ports).items()) for address in sorted(addresses) if address not in LOOPBACK_HEX]
 
 
 def listened(ports: Iterable[int]) -> set[int]:
-    """The ports among these that a socket listens on, on any address of either family, from the same table as `foreign_listeners`: a port in it is not free for a program of ours, so that every listener
-    `foreign_listeners` finds once ours runs is ours. Empty where the table is not there."""
+    """Return the ports among `ports` with a listener on any address; empty without the table."""
     return set(_listeners(_tables(), ports))
 
 
@@ -103,14 +97,15 @@ def _tables() -> list[str]:
 # ---- a run left behind
 
 FILETIME_1970 = 116444736000000000  # 1970 in Windows' FILETIME, 100 ns since 1601
-MADE_SLACK_SEC = 10.0              # a process made this long after its pid file was written is still the one it names (Windows: the clocks of the file and the process)
-GONE_POLL_SEC = 0.05               # how often a run left behind is looked at while it ends
+# A process made this long after the pid file was written still counts (clocks differ).
+MADE_SLACK_SEC = 10.0
+GONE_POLL_SEC = 0.05
 
 
 def _asked_of_windows_process[T](pid: int, ask: Callable[[Any, Any, Any], T], unknown: T) -> T:
-    """`ask(ctypes, kernel32, handle)` of the Windows process of this id, opened for the limited questions (PROCESS_QUERY_LIMITED_INFORMATION); `unknown` when it cannot be opened."""
+    """Return `ask(ctypes, kernel32, handle)`, or `unknown` if the process cannot be opened."""
     import ctypes
-    kernel32 = ctypes.windll.kernel32                              # type: ignore[attr-defined, unused-ignore]
+    kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined, unused-ignore]
     handle = kernel32.OpenProcess(0x1000, False, pid)
     if not handle:
         return unknown
@@ -121,7 +116,6 @@ def _asked_of_windows_process[T](pid: int, ask: Callable[[Any, Any, Any], T], un
 
 
 def _running_windows(pid: int) -> bool:
-    """Whether the Windows process of this id is still running (STILL_ACTIVE as its exit code); a process that ended but whose handle someone still holds is not."""
     def still_active(ctypes: Any, kernel32: Any, handle: Any) -> bool:
         code = ctypes.c_ulong()
         return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259
@@ -129,7 +123,6 @@ def _running_windows(pid: int) -> bool:
 
 
 def _windows_image(pid: int) -> str | None:
-    """The full path of the program file of the Windows process of this id; None when the process cannot be opened or the path cannot be read."""
     def image(ctypes: Any, kernel32: Any, handle: Any) -> str | None:
         size = ctypes.c_ulong(32768)
         buffer = ctypes.create_unicode_buffer(size.value)
@@ -138,7 +131,6 @@ def _windows_image(pid: int) -> str | None:
 
 
 def windows_created(pid: int) -> float | None:
-    """When the Windows process of this id was made, in seconds since 1970 (GetProcessTimes); None when the process cannot be opened or its times cannot be read."""
     def created(ctypes: Any, kernel32: Any, handle: Any) -> float | None:
         made, ended, kernel, user = (ctypes.c_ulonglong() for _ in range(4))
         if not kernel32.GetProcessTimes(handle, ctypes.byref(made), ctypes.byref(ended), ctypes.byref(kernel), ctypes.byref(user)):
@@ -148,13 +140,15 @@ def windows_created(pid: int) -> float | None:
 
 
 def made_before(created: float | None, written: float) -> bool:
-    """Whether a process made at `created` can be the one a file written at `written` names (it is written just after the start): made no later than that, MADE_SLACK_SEC for the two clocks; no when the time is not
-    known. Windows reuses process ids, after a reboot most of all: a process that got the id later is not the one the file names."""
+    """Return whether a process created at `created` can be the one a file written at `written` names.
+
+    Windows reuses process ids.
+    """
     return created is not None and created <= written + MADE_SLACK_SEC
 
 
 def gone(pid: int) -> bool:
-    """Whether the process of this id has ended: on Windows no longer running; on POSIX not there, or a zombie (it holds nothing any more)."""
+    """Return whether the process has ended (a POSIX zombie counts)."""
     if sys.platform == "win32":
         return not _running_windows(pid)
     else:
@@ -166,33 +160,34 @@ def _ended_posix(pid: int) -> bool:
     if stat.exists():
         try:
             return stat.read_text(encoding="ascii", errors="replace").rpartition(")")[2].split()[0] in ("Z", "X")
-        except (OSError, IndexError):            # (it went between the two looks)
+        except (OSError, IndexError):  # it vanished between the two checks
             return True
     try:
-        os.kill(pid, 0)                          # (a POSIX system without /proc: signal 0 asks only whether the process is there)
+        os.kill(pid, 0)  # without /proc: signal 0 only tests that the process exists
         return False
     except ProcessLookupError:
         return True
-    except OSError:                              # (there, and another user's)
+    except OSError:  # exists, but belongs to another user
         return False
 
 
 def image_is(image: str | None, file: str) -> bool:
-    """Whether the program file at this Windows path (either kind of slash) is `file` (`mercury.exe`), the name case aside; no when the path is not known: where that cannot be read, nothing is ended."""
+    """Return whether the Windows path names the program `file`, ignoring case; False if unknown."""
     return image is not None and image.replace("\\", "/").rsplit("/", 1)[-1].lower() == file.lower()
 
 
 def end_stale(pid_file: Path, ours: Callable[[int, float], bool], what: str, ask: signal.Signals = signal.SIGTERM, wait_sec: float = 0.0) -> bool:
-    """Ends a run of ours that an earlier daemon left running (its id is in the file beside the configuration), so that it does not hold the sound card and the ports: asked with `ask` (the signal the program cleans
-    up on) when `ours` says the process of that id, given when the file was written, is still the program; then waited for up to `wait_sec` to be gone (the start that follows opens the same sound card); whether
-    one was ended. The file is consumed in any case (one that cannot be removed is a line in the log, and the check goes on: the daemon's start never fails on it)."""
+    """End a run left by an earlier daemon, whose id is in `pid_file`; return whether one was ended.
+
+    The process is sent `ask` if `ours(pid, written)` holds. The file is always consumed.
+    """
     try:
         text, written = pid_file.read_text(encoding="ascii"), pid_file.stat().st_mtime
     except OSError:
         return False
     try:
         pid_file.unlink(missing_ok=True)
-    except OSError as e:                                           # (held by a virus scanner, read-only, a folder that cannot be written: the check goes on, the next one asks the same)
+    except OSError as e:
         logging.getLogger(f"neoaprs.{what.lower()}").warning("the file of a %s left behind, %s, could not be removed: %s", what, pid_file, os_error_text(e))
     try:
         pid = int(text.strip())
@@ -214,8 +209,7 @@ def end_stale(pid_file: Path, ours: Callable[[int, float], bool], what: str, ask
 # ---- the run
 
 def end_tree(process: subprocess.Popen[str], wait_sec: float) -> None:
-    """Windows: the process and every child of it ended (`taskkill /T /F`, the system's own tool: there is no tree in the Win32 API), then the process waited for; the process alone when taskkill is not there. A program
-    started through a launcher (a venv's python.exe, which the tests' fakes run under, starts the interpreter as its child) would otherwise leave the child, and its sockets, alive."""
+    """Windows: end the process and its children with `taskkill /T /F` (a launcher leaves a child)."""
     try:
         subprocess.run([windows_program("taskkill.exe"), "/PID", str(process.pid), "/T", "/F"], capture_output=True, timeout=wait_sec, check=False, creationflags=HIDDEN_WINDOW)
     except (OSError, subprocess.TimeoutExpired) as e:
@@ -228,7 +222,6 @@ def end_tree(process: subprocess.Popen[str], wait_sec: float) -> None:
 
 
 def waited(process: subprocess.Popen[str], seconds: float) -> bool:
-    """Whether the process ended within `seconds`."""
     try:
         process.wait(seconds)
     except subprocess.TimeoutExpired:
@@ -237,7 +230,7 @@ def waited(process: subprocess.Popen[str], seconds: float) -> bool:
 
 
 def _unlink_own(pid_file: Path, pid: int) -> None:
-    """The pid file removed while it still names this process: a stop that took long (in a thread, while the relaunch after the back-off went on) leaves the file the next run has written in its place."""
+    """Remove the pid file only while it still names this process (a relaunch may have rewritten it)."""
     try:
         if pid_file.read_text(encoding="ascii").strip() == str(pid):
             pid_file.unlink(missing_ok=True)
@@ -246,20 +239,20 @@ def _unlink_own(pid_file: Path, pid: int) -> None:
 
 
 class Program:
-    """One run of a program: started, read, and told when it ends. A subclass says what the program is called (`name`), which of its lines are its warnings (`_warning`), what is done with each line on the reader
-    thread (`_heard`) and how it is ended (`_end`)."""
+    """One run of a program; a subclass sets `name` and implements `_heard` and `_end`."""
     name = "program"
 
     def __init__(self, on_ended: Callable[[int | None, list[str]], None], owner_log: logging.Logger, program_log: logging.Logger, *, stdin_pipe: bool = False) -> None:
         self._on_ended = on_ended
         self._log, self._program_log = owner_log, program_log
-        self._stdin_pipe = stdin_pipe                       # the program ends cleanly when its standard input closes (Direwolf's -Q): it is given a pipe, which the stop closes
+        self._stdin_pipe = stdin_pipe  # the program ends when its stdin closes (Direwolf -Q)
         self._process: subprocess.Popen[str] | None = None
-        self._stopping: subprocess.Popen[str] | None = None        # the run a stop is ending now (in another thread): a second stop waits for it to be gone
+        self._stopping: subprocess.Popen[str] | None = None
         self._pid_file: Path | None = None
         self.last_lines: deque[str] = deque(maxlen=LAST_LINES)
-        self._said: dict[str, int] = {}                     # how many times each distinct warning of the program has come (a stuck sound device says the same line a thousand times a second)
-        self.lines_read = 0                                 # how many lines this run has printed (the reader thread's alone)
+        # Count per distinct warning (a stuck sound device repeats one line endlessly).
+        self._said: dict[str, int] = {}
+        self.lines_read = 0  # written by the reader thread only
 
     @property
     def running(self) -> bool:
@@ -270,8 +263,10 @@ class Program:
         return self._process.pid if self._process is not None else None
 
     def start(self, argv: Command, cwd: Path, pid_file: Path | None = None) -> None:
-        """Starts the program and the thread that reads it; OSError when it cannot be started (not there, not executable, the wrong architecture). A run of it still on is ended first (its owner stops a run
-        before it starts another; one left running beside the new would hold the sound card and key the radio with no one to stop it)."""
+        """Start the program and its reader thread; raise OSError if it cannot be started.
+
+        A run still going is ended first.
+        """
         loop = asyncio.get_running_loop()
         if self.running:
             self._log.error("%s was started while a run of it was still on (process %s): that run is ended first", self.name, self.pid)
@@ -289,8 +284,6 @@ class Program:
         threading.Thread(target=self._read, args=(self._process, loop, pid_file), name=f"{self.name.lower()}-output", daemon=True).start()
 
     def _read(self, process: subprocess.Popen[str], loop: asyncio.AbstractEventLoop, pid_file: Path | None = None) -> None:
-        """Reads the program's lines into the log until it ends, then removes its pid file (while the file still names it: a run that ended by itself leaves no id for the next start to take for its own, which
-        the system may have given another program meanwhile) and tells the loop."""
         assert process.stdout is not None
         for raw in process.stdout:
             line = raw.rstrip()
@@ -307,20 +300,18 @@ class Program:
             loop.call_soon_threadsafe(self._on_ended, code, list(self.last_lines))
 
     def _heard(self, line: str, loop: asyncio.AbstractEventLoop) -> None:
-        """A line of this run, on the reader thread: what the subclass does with it (tells the loop with `call_soon_threadsafe`); nothing here."""
+        """Handle a line on the reader thread; reach the loop with `call_soon_threadsafe`."""
 
     def _unlogged(self, line: str) -> bool:
-        """Whether the line is one the daemon reads and the log never has (neither counted among the first lines of a run nor among its last); none here."""
+        """Return whether the line is kept out of the log and the last lines."""
         return False
 
     def _warning(self, line: str) -> str | None:
-        """The words a warning or an error of the program is counted by (the same warning again is the same words); None for any other line."""
+        """Return the key a warning line is counted by, or None."""
         return None
 
     def _tell(self, line: str) -> None:
-        """One line of the program into the log: its warnings and errors at INFO the first, the tenth and every hundredth time the same line comes (a stuck sound device repeats one warning every millisecond, which
-        would rotate the log in minutes and bury the day's lines; the count is said with the line); the first STARTUP_LINES lines of a run at INFO whatever they say (how it found its sound card and its keying is
-        what a person helping from the log needs), everything else at DEBUG."""
+        """Log a line: INFO for the first STARTUP_LINES, then DEBUG; a repeated warning is thinned."""
         self.lines_read += 1
         said = self._warning(line)
         if said is None:
@@ -333,12 +324,11 @@ class Program:
             self._program_log.info("%s%s", line, f" (the {count}th time)" if count > 1 else "")
 
     def _end(self, process: subprocess.Popen[str]) -> None:
-        """Ends the running process by the program's own way, waited for in the calling thread."""
+        """End the process in the program's own way, blocking."""
         raise NotImplementedError
 
     def stop(self) -> None:
-        """Ends the program (`_end`), and removes the pid file once it has ended, while it still names the stopped run: a clean stop leaves nothing for the next start to look at. Waited for in the calling thread; a stop while another is ending the
-        run waits for that run to be gone, so that what it holds (the sound card, the keying) is free when this one returns."""
+        """End the program with `_end`, remove its pid file and block until it is gone."""
         process, self._process = self._process, None
         pid_file, self._pid_file = self._pid_file, None
         if process is None:
@@ -357,7 +347,7 @@ class Program:
                 _unlink_own(pid_file, process.pid)
 
     def ask(self, process: subprocess.Popen[str], sig: signal.Signals, wait_sec: float) -> bool:
-        """POSIX: the process sent `sig`; whether it ended within `wait_sec`."""
+        """POSIX: send `sig` and return whether the process ended within `wait_sec`."""
         try:
             process.send_signal(sig)
         except OSError:
@@ -369,7 +359,7 @@ class Program:
         process.wait()
 
     def close_input(self, process: subprocess.Popen[str]) -> None:
-        """The program's standard input closed: one that ends at its end (Direwolf's -Q) cleans up and exits."""
+        """Close the program's standard input (Direwolf with -Q exits on it)."""
         if process.stdin is not None:
             try:
                 process.stdin.close()

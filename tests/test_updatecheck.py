@@ -1,5 +1,7 @@
-"""The daily update check (neoaprs/services/updatecheck.py): it asks the page a minute after the start and then once a day, takes a newer version into `latest` and nothing else, is off when the environment says so, and a page that
-fails changes nothing. The page is a stub here; against a fake version page on the loopback, and through the daemon to the page, below."""
+"""The daily update check (neoaprs/services/updatecheck.py): it asks a minute after the start and
+then daily, takes a newer version into `latest` and nothing else, is off when the environment says
+so, and a failing page changes nothing.
+"""
 import json
 import re
 from dataclasses import replace
@@ -120,7 +122,8 @@ async def test_the_daemon_asks_its_page_and_tells_a_page_of_the_browser_the_newe
 
 
 class Changelog:
-    """The changelog of the latest release, as the fetch of its address answers: the text, or None."""
+    """The changelog of the latest release, as the fetch of its address answers: the text, or None.
+    """
 
     def __init__(self, text: str | None) -> None:
         self.text = text
@@ -222,7 +225,7 @@ async def test_a_daemon_of_the_tests_asks_nothing(tmp_path: Path) -> None:
     await e.stop()
 
 
-# ---- the number of the installation ----------------------------------------------------------------------------------------------------------------
+# ---- the number of the installation --------------------------------------------------------------
 
 async def test_the_number_is_made_once_as_32_hex_characters_kept_in_the_database_and_sent_as_id(tmp_path: Path) -> None:
     store = await store_at(tmp_path / "neoaprs.sqlite")

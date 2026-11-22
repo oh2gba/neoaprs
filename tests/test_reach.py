@@ -1,4 +1,7 @@
-"""How a packet got to us in plain words (neoaprs/reach.py): the way an internet packet got into the network, read from the q-construct of its APRS-IS path, and the two latest routes of a station for the map."""
+"""How a packet got to us in plain words (neoaprs/reach.py): the way an internet packet entered the
+network, read from the q-construct of its APRS-IS path, and a station's two latest routes for the
+map.
+"""
 from datetime import timedelta
 
 import pytest
@@ -24,18 +27,23 @@ def path(text: str) -> tuple[str, ...]:
     ("qAR,OH2GW-10", Reach("igate", "OH2GW-10")),                                        # an iGate heard it direct
     ("WIDE1*,OH2RCH-2*,WIDE2-1,qAR,OH2GW-10", Reach("igate", "OH2GW-10", ("?", "OH2RCH-2"))),
     ("OH2RCH-2*,qAO,OH2RX-1", Reach("igate", "OH2RX-1", ("OH2RCH-2",))),                  # (a receive-only iGate)
-    ("OH2RCH-2*,qAO,OH2RX-1*", Reach("igate", "OH2RX-1", ("OH2RCH-2",))),                 # (a star after the iGate's call is not part of it)
+    # A star after the iGate's call is not part of it
+    ("OH2RCH-2*,qAO,OH2RX-1*", Reach("igate", "OH2RX-1", ("OH2RCH-2",))),
     ("OH2RCH-1*,OH2RCH-3*,qAR,OH2GW-10", Reach("igate", "OH2GW-10", ("OH2RCH-1", "OH2RCH-3"))),
-    ("WIDE1-1,WIDE2-1,qAR,OH2GW-10", Reach("igate", "OH2GW-10")),                         # (nobody repeated it: the iGate heard the sender itself)
-    ("OH2RCH-2,qAR,OH2GW-10", Reach("igate", "OH2GW-10")),                                # (a digipeater without a star has not repeated it)
+    # Nobody repeated it: the iGate heard the sender itself
+    ("WIDE1-1,WIDE2-1,qAR,OH2GW-10", Reach("igate", "OH2GW-10")),
+    # A digipeater without a star has not repeated it
+    ("OH2RCH-2,qAR,OH2GW-10", Reach("igate", "OH2GW-10")),
     ("OH2RCH-2*,qAr,OH2GW-10", Reach("igate", "OH2GW-10", ("OH2RCH-2",))),               # (gated, received indirectly)
     ("OH2RCH-2*,qAo,OH2GW-10", Reach("igate", "OH2GW-10", ("OH2RCH-2",))),
     ("TCPIP*,qAC,T2FINLAND", Reach("app")),
     ("TCPXX*,qAX,CWOP-5", Reach("app")),
     ("TCPIP*,qAS,PE1RXF", Reach("app")),
     ("qAU,T2FINLAND", Reach("app")),
-    ("TCPIP*", Reach("app")),                                                             # (no q-construct, but it says TCPIP)
-    ("WIDE1*,qAC,T2FINLAND", Reach("app")),                                               # (a client that wrote a digipeater of its own into the path is still a client)
+    # No q-construct, but it says TCPIP
+    ("TCPIP*", Reach("app")),
+    # A client that wrote a digipeater of its own into the path is still a client
+    ("WIDE1*,qAC,T2FINLAND", Reach("app")),
 ])
 def test_the_way_an_internet_packet_got_there_is_read_from_the_q_construct(text: str, expected: Reach) -> None:
     assert reach_of_path(path(text)) == expected
@@ -47,10 +55,12 @@ def test_a_path_that_does_not_say_is_not_read(text: str) -> None:
 
 
 @pytest.mark.parametrize("text, expected", [
-    ("OH2RCH-2,OH2RDG*,WIDE2-1,qAR,OH2GW-10", Reach("igate", "OH2GW-10", ("OH2RCH-2", "OH2RDG"))),                  # (the monitor form: one star after the last digipeater used)
+    # The monitor form: one star after the last digipeater used
+    ("OH2RCH-2,OH2RDG*,WIDE2-1,qAR,OH2GW-10", Reach("igate", "OH2GW-10", ("OH2RCH-2", "OH2RDG"))),
     ("OH2RCH-1,OH2RCH-2,OH2RDG*,qAO,OH2GW-10", Reach("igate", "OH2GW-10", ("OH2RCH-1", "OH2RCH-2", "OH2RDG"))),
     ("WIDE1,OH2RCH-2*,WIDE2-1,qAR,OH2GW-10", Reach("igate", "OH2GW-10", ("?", "OH2RCH-2"))),
-    ("OH2RCH-2*,OH2RDG*,WIDE2-1,qAR,OH2GW-10", Reach("igate", "OH2GW-10", ("OH2RCH-2", "OH2RDG"))),               # (every hop starred, the form of the AX.25 bits: the same)
+    # Every hop starred, the form of the AX.25 bits: the same
+    ("OH2RCH-2*,OH2RDG*,WIDE2-1,qAR,OH2GW-10", Reach("igate", "OH2GW-10", ("OH2RCH-2", "OH2RDG"))),
 ])
 def test_an_internet_path_with_one_star_has_every_hop_before_it_used(text: str, expected: Reach) -> None:
     assert reach_of_path(path(text)) == expected

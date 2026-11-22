@@ -1,13 +1,4 @@
-"""How a packet reached us: the route read out of its AX.25 path, and the count of the routes a station's packets came by.
-
-A path lists up to 8 digipeater addresses, and each has a has-been-repeated bit (the star of the TNC2 text, `OH2RCH-2*`). A digipeater that repeats a packet usually puts its own call in place of the alias it
-used (WIDE1-1 becomes OH2RCH-2*), so the starred addresses, in order, are the route; the last of them is the station whose transmission we heard. A starred alias (WIDE1*, TRACE2-1*) is a hop whose call we
-do not know, an anonymous one. No starred address at all means the packet came straight from its sender. Addresses without a star have not been used yet and are not part of the route.
-
-A third-party packet (an iGate put on the air what it heard on the internet, aprsthirdparty.py) is heard from the iGate, not from its sender: its route starts at the gate, "via OH7JHF-1 (internet)", and
-goes on through the digipeaters that repeated the gate's frame. The gate is no digipeater of the path, so such a delivery is counted apart and never makes a route to suggest.
-
-Pure code: a path is the strings of `Packet.path`, each with its own star as `Address.__str__` writes it."""
+"""How a packet reached us: the route read from its AX.25 path, and a station's route counts."""
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -16,50 +7,54 @@ from typing import NamedTuple
 from neoaprs.policy import HEARD_PATH_ATTEMPTS, HEARD_PATH_MAX_DIGIPEATERS, HEARD_PATH_MIN_PACKETS, HEARD_PATH_WINDOW_MIN
 from neoaprs.symbols import is_mobile
 
-UNKNOWN = "?"                                       # a hop whose call is not known, in `Route.hops`
-WIDE_PATH = "WIDE1-1,WIDE2-1"                       # the recommended path of a mobile station (the fill-in hop, then a wide-area digipeater), and what is suggested for a station that was heard through a hop with no call
-FIXED_PATH = "WIDE2-2"                              # the recommended path of a fixed station, which reaches a wide-area digipeater directly and needs no fill-in hop: two wide-area hops
-DIRECT_ONLY = "DIRECT"                              # what a path setting says to mean no digipeaters at all, explicitly (an empty one means the recommended path of the station's type); it stands alone and is no call
-TIMES_KEPT = 2                                      # the times of the latest packets that are kept for each route (and for direct): enough to tell whether HEARD_PATH_MIN_PACKETS of them are recent
-ROUTES_KEPT = 8                                     # the routes counted for one station
-RF_ONLY = "RFONLY"                                  # the path element that an iGate does not gate to the internet a packet with (NOGATE says the same)
+UNKNOWN = "?"
+WIDE_PATH = "WIDE1-1,WIDE2-1"
+FIXED_PATH = "WIDE2-2"
+# a path setting meaning no digipeaters at all
+DIRECT_ONLY = "DIRECT"
+TIMES_KEPT = 2
+ROUTES_KEPT = 8
+RF_ONLY = "RFONLY"
 NO_GATE = "NOGATE"
-INTERNET_MARKERS = frozenset({"TCPIP", "TCPXX"})    # a packet with one in its path has been on the internet (or is a client's own)
-NO_GATE_MARKERS = frozenset({NO_GATE, RF_ONLY})     # a packet that asks to stay off the internet
-IGATE_QS = frozenset({"qAR", "qAr", "qAO", "qAo"})  # the q-constructs that say an iGate heard the packet on the radio (qAO: one that only listens; the lower-case ones: indirectly)
-CLIENT_QS = frozenset({"qAC", "qAS", "qAX", "qAU"})  # the q-constructs that say a client sent the packet into the network
+INTERNET_MARKERS = frozenset({"TCPIP", "TCPXX"})
+NO_GATE_MARKERS = frozenset({NO_GATE, RF_ONLY})
+# q-constructs: an iGate heard it / a client sent it in
+IGATE_QS = frozenset({"qAR", "qAr", "qAO", "qAo"})
+CLIENT_QS = frozenset({"qAC", "qAS", "qAX", "qAU"})
 _MARKERS = (*sorted(INTERNET_MARKERS), *sorted(NO_GATE_MARKERS), "NOTCP", "qA")
 _WORD_ALIAS = "WIDE|TRACE|RELAY|ECHO|GATE|TEMP|TRACK|SAR|ARISS|APRSAT"
-_ALIAS = re.compile(rf"(?:({_WORD_ALIAS})|([A-Z]{{2,3}}(?=\d)))(\d?)(?:-(\d{{1,2}}))?")      # WIDE2-1, TRACE3-3, RELAY, ARISS, and the regional New-N aliases of a prefix of two or three letters and a digit (SS3-3, FI2-2, HOP7-7)
-_Q_CONSTRUCT = re.compile(r"q[A-Z]{2}", re.IGNORECASE)      # how an APRS-IS server marks the way a packet entered the network (`qAR`, `qAO`, `qAC` ...; aprsisline.py reads which)
+# WIDE2-1, TRACE3-3, RELAY, ARISS, and regional New-N aliases (SS3-3)
+_ALIAS = re.compile(rf"(?:({_WORD_ALIAS})|([A-Z]{{2,3}}(?=\d)))(\d?)(?:-(\d{{1,2}}))?")
+_Q_CONSTRUCT = re.compile(r"q[A-Z]{2}", re.IGNORECASE)
 
 
 @dataclass(frozen=True, slots=True)
 class Route:
-    hops: tuple[str, ...]                           # the starred addresses in order; a hop that is an alias is "?"
-    heard_from: str | None                          # the call of the last hop, the station we heard; None for a direct packet and when the last hop is an alias
-    direct: bool                                    # no address is starred and no gate: heard from the sender itself
-    anonymous: int = 0                              # how many hops are aliases
-    gate: str = ""                                  # the iGate that put a third-party packet on the air; hops are the digipeaters of the gate's frame
-    written: tuple[str, ...] = field(default=(), compare=False)   # the hops as the path wrote them ("WIDE1", "OH2RCH-2"), without the star; empty for a route rebuilt from a count
+    # the starred addresses in order; an alias is "?"
+    hops: tuple[str, ...]
+    # the last hop, the station we heard; None if direct or an alias
+    heard_from: str | None
+    direct: bool
+    anonymous: int = 0
+    gate: str = ""
+    written: tuple[str, ...] = field(default=(), compare=False)
 
 
 class Alias(NamedTuple):
-    """A path element that stands for whichever digipeater answers it: `WIDE2-2` is the prefix `WIDE`, n 2 (the class of digipeater that answers) and 2 hops left; `RELAY` has neither number."""
+    """A path element standing for whichever digipeater answers it."""
     prefix: str
     n: int | None
     left: int | None
 
     @property
     def hops(self) -> int:
-        """How many hops the element asks for: the number left, else n, else one."""
         if self.n is None:
             return 1
         return self.n if self.left is None else self.left
 
 
 def parse_alias(address: str) -> Alias | None:
-    """The alias a path element is (`XXXn-N`: WIDE2-1, TRACE3-3, SS3-3, FI2-2, HOP7-7, and the plain ones: RELAY, WIDE, ARISS; a star after it is ignored), None for a call or anything else."""
+    """Return the alias a path element is (WIDE2-1, RELAY; a star is ignored), else None."""
     found = _ALIAS.fullmatch(address.removesuffix("*"))
     if found is None:
         return None
@@ -72,35 +67,33 @@ def is_alias(address: str) -> bool:
 
 
 def is_q_construct(element: str) -> bool:
-    """Whether a path element is a q-construct of APRS-IS (`qAR`, `qAO`, `qAC` ...), which never belongs on the air."""
+    """Return whether a path element is an APRS-IS q-construct (`qAR` ...)."""
     return _Q_CONSTRUCT.fullmatch(element) is not None
 
 
 def is_marker(address: str) -> bool:
-    """Whether a path element is a marker for the iGates and the internet (TCPIP, TCPXX, NOGATE, RFONLY, NOTCP, a q-construct such as qAR) and no digipeater: nothing repeats it, so no hop of a chain is made of it."""
+    """Return whether a path element is an iGate or internet marker (TCPIP, qAR ...)."""
     return address.rstrip("*").startswith(_MARKERS)
 
 
 def digipeaters(path: tuple[str, ...]) -> tuple[str, ...]:
-    """The path without its markers: the hops."""
+    """Return the path without its markers."""
     return tuple(address for address in path if not is_marker(address))
 
 
 def used_path(path: tuple[str, ...]) -> tuple[str, ...]:
-    """The path with every element up to the last starred one starred. An AX.25 frame marks each digipeater it has been through; an APRS-IS line (the TNC2 monitor form) writes one star after the last one, and
-    every address before it is implied used (`OH2RCH-2,OH2RDG*` went through both). A path with no star is as it is."""
+    """Return the path with every element up to the last starred one starred (APRS-IS style)."""
     last = max((i for i, address in enumerate(path) if address.endswith("*")), default=-1)
     return tuple(address if address.endswith("*") or i > last else address + "*" for i, address in enumerate(path))
 
 
 def rf_only_path(path: tuple[str, ...]) -> tuple[str, ...]:
-    """The path with RFONLY as its last element, which asks the iGates not to put the packet on the internet; a path that holds RFONLY or NOGATE already is as it is."""
+    """Return the path with RFONLY last, unless it has RFONLY or NOGATE."""
     return path if any(address.rstrip("*") in NO_GATE_MARKERS for address in path) else (*path, RF_ONLY)
 
 
 def route_of(path: tuple[str, ...], gate: str = "") -> Route:
-    """The route of a received packet from its path, the star of each address that has been repeated kept on it ("WIDE1*", "OH2RCH-2*"); `gate` is the iGate of a third-party packet. For a third-party
-    packet `heard_from` is the last digipeater, or the gate when its frame was heard direct."""
+    """Return the route of a received packet; `gate` is a third-party packet's iGate."""
     written = tuple(address[:-1] for address in path if address.endswith("*"))
     hops = tuple(UNKNOWN if is_alias(address) else address for address in written)
     last = hops[-1] if hops else (gate or None)
@@ -108,25 +101,24 @@ def route_of(path: tuple[str, ...], gate: str = "") -> Route:
 
 
 def route_text(route: Route) -> str:
-    """"direct", "via OH2RCH-2", "via OH2RCH-1 → OH2RCH-3", "via ? → OH2RCH-2"; a third-party packet starts at its gate: "via OH7JHF-1 (internet)", "via OH7JHF-1 (internet) → OH2RCH-3"."""
+    """Return the route as text: "direct", "via A → B", "via GATE (internet) → B"."""
     if route.direct:
         return "direct"
     return "via " + " → ".join(([f"{route.gate} (internet)"] if route.gate else []) + list(route.hops))
 
 
 def received_text(path: tuple[str, ...], gate: str = "") -> str:
-    """The text of the route of a packet that was heard, from its path (and the gate of a third-party packet)."""
+    """Return the route text of a heard packet."""
     return route_text(route_of(path, gate))
 
 
 def recommended_path(table: str, code: str) -> str:
-    """The path that is recommended for a station with this symbol, which is what an empty path setting means: WIDE1-1,WIDE2-1 for a mobile one (neoaprs.symbols.MOBILE_NAMES), WIDE2-2 for any other."""
+    """Return the recommended path: WIDE1-1,WIDE2-1 if mobile, else WIDE2-2."""
     return WIDE_PATH if is_mobile(table, code) else FIXED_PATH
 
 
 def suggested_path(route: Route) -> str:
-    """The digipeaters to send by to reach the station that was heard by way of `route`: the route turned round (heard via A → B, send by B,A), empty for direct, and WIDE1-1,WIDE2-1 when a hop is
-    an anonymous one, as there is no call to name. (A route with a gate is not one to send by: Deliveries never offers it.)"""
+    """Return the digipeaters to send by: the route turned round (WIDE1-1,WIDE2-1 if anonymous)."""
     if route.direct:
         return ""
     if route.anonymous:
@@ -136,18 +128,16 @@ def suggested_path(route: Route) -> str:
 
 @dataclass
 class Deliveries:
-    """How the packets of one station reached us: how many came direct (and when the latest did), how many by each route (the hops, in order) and how many were third-party packets (counted, never a route to send by). At most ROUTES_KEPT routes are counted; when a new one comes and there is no room
-    the route with the fewest packets goes, the one longest unheard first."""
+    """How a station's packets reached us: direct, by each route, or third-party (ROUTES_KEPT)."""
 
     direct: int = 0
-    last_direct_at: datetime | None = None          # when the latest packet that came direct was heard
+    last_direct_at: datetime | None = None
     gated: int = 0
-    by_route: dict[tuple[str, ...], int] = field(default_factory=dict)      # in the order of their latest packet, the oldest first
-    times: dict[tuple[str, ...], list[datetime]] = field(default_factory=dict)      # the times of the latest TIMES_KEPT packets of each route, the oldest first; direct is under the empty route
+    by_route: dict[tuple[str, ...], int] = field(default_factory=dict)
+    times: dict[tuple[str, ...], list[datetime]] = field(default_factory=dict)
 
     def note(self, route: Route, count: int = 1, at: datetime | None = None, before: datetime | None = None) -> None:
-        """Counts `count` packets that came by the route, the latest of them heard at `at` and the one before it at `before` (the time of a direct packet is kept for `last_direct_at`, the times of the latest
-        of any route for `heard_path`)."""
+        """Count `count` packets by the route, the latest at `at`, the one before at `before`."""
         if route.direct:
             self.direct += count
             if at is not None and (self.last_direct_at is None or at > self.last_direct_at):
@@ -174,12 +164,12 @@ class Deliveries:
             del self.times[hops]
 
     def recent(self, hops: tuple[str, ...], now: datetime) -> tuple[int, datetime | None]:
-        """(how many of the latest packets by the route were heard within HEARD_PATH_WINDOW_MIN of `now` (at most TIMES_KEPT), when the latest was heard); the empty route is direct."""
+        """Return (packets of the route in the window, time of the latest); () is direct."""
         kept = self.times.get(hops, [])
         return sum(1 for when in kept if now - when <= timedelta(minutes=HEARD_PATH_WINDOW_MIN)), (kept[-1] if kept else None)
 
     def best(self) -> Route | None:
-        """The route most packets came by, direct included; of equal counts the one with fewer hops, then the one heard last. None before any packet."""
+        """Return the route most packets came by, direct included; ties: fewer hops."""
         best: Route | None = None
         most = (0, 0)
         for hops, count in reversed(self.by_route.items()):
@@ -190,7 +180,7 @@ class Deliveries:
         return best
 
     def heard_via(self) -> list[tuple[str, int]]:
-        """(the station we heard, packets) for each station that repeated them, the most first; "?" is a hop with no call."""
+        """Return (the station we heard, packets) per repeater, the most first."""
         counts: dict[str, int] = {}
         for hops, count in self.by_route.items():
             counts[hops[-1]] = counts.get(hops[-1], 0) + count
@@ -202,9 +192,7 @@ def _route_of_hops(hops: tuple[str, ...]) -> Route:
 
 
 def heard_path(deliveries: Deliveries, now: datetime) -> tuple[str, ...] | None:
-    """The path that has lately been shown to reach the station, or None when there is none: the empty path (direct) if at least HEARD_PATH_MIN_PACKETS of its packets came direct within
-    HEARD_PATH_WINDOW_MIN of `now`; else its most recent named route (no anonymous hop, no gate, no marker, at most HEARD_PATH_MAX_DIGIPEATERS digipeaters) with that many packets within the window, turned
-    round (heard via A -> B, send by B,A)."""
+    """Return the path lately shown to reach the station (direct, or a named route turned round)."""
     if deliveries.recent((), now)[0] >= HEARD_PATH_MIN_PACKETS:
         return ()
     best: tuple[datetime, tuple[str, ...]] | None = None
@@ -218,8 +206,7 @@ def heard_path(deliveries: Deliveries, now: datetime) -> tuple[str, ...] | None:
 
 
 def automatic_path(deliveries: Deliveries | None, now: datetime, attempt: int) -> tuple[str, ...] | None:
-    """The path attempt number `attempt` (1 for the first) of a message to a station goes by when the operator has set none: the heard path for the attempts up to HEARD_PATH_ATTEMPTS, None (the path of the
-    setting `beacon/path`) for the later ones and when no path has lately been heard."""
+    """Return the heard path up to attempt HEARD_PATH_ATTEMPTS; else None."""
     if deliveries is None or attempt > HEARD_PATH_ATTEMPTS:
         return None
     return heard_path(deliveries, now)

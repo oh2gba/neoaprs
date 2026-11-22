@@ -1,6 +1,7 @@
-"""What a heard or sent packet is to the rest of the program: the frame as printable strings and bytes, and what the parser made of it.
+"""What a heard or sent packet is to the program: the frame and what the parser made of it.
 
-Every datetime is timezone-aware UTC. Positions are decimal degrees, south and west negative, speeds km/h, altitudes metres."""
+Datetimes are UTC-aware; positions decimal degrees, speeds km/h, altitudes metres.
+"""
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
@@ -18,13 +19,12 @@ DuplicateKey = tuple[str, str, bytes]
 
 
 def duplicate_key(source: str, destination: str, information: bytes) -> DuplicateKey:
-    """What makes two copies of a packet the same one, for a digipeater and an iGate: the source, the destination without its SSID and the information field; the path is not part of it (the server's own test, and
-    WB2OSZ's digipeater algorithm). A copy is a duplicate within policy.DIGI_DUPLICATE_SEC."""
+    """Return what makes two copies of a packet the same: source, destination without SSID, info."""
     return source, destination.partition("-")[0], information
 
 
 def decode_text(data: bytes) -> str:
-    """The text of a comment, a status or a message: UTF-8 when it is, else latin-1 (which cannot fail)."""
+    """Return the text as UTF-8 if valid, else latin-1."""
     try:
         return data.decode("utf-8")
     except UnicodeDecodeError:
@@ -45,19 +45,25 @@ class Position:
     messaging: bool = False
     compressed: bool = False
     ambiguity: int = 0
-    weather: Weather | None = None                # the observation of a weather station (symbol code `_`), when the comment held one
-    extensions: Extensions | None = None          # PHG, RNG, DFS, the bearing of a DF report or an area object, after the symbol of an uncompressed position (removed from the comment)
-    timestamp_local: bool = False                 # the timestamp was in the sender's local time (`/`): the time is as it was sent, not UTC
-    locator: Locator | None = None                # the Maidenhead locator in the status text of a Mic-E packet (the position is the Mic-E's own)
-    telemetry: Telemetry | None = None            # the base-91 telemetry `|ss11|` the comment carried (APRS 1.2; removed from the comment)
-    frequency: Frequency | None = None            # the local information: the frequency (with its tone, offset and range) that the comment began with, or the name of a frequency object (`145.775-A`); removed from the comment, the name's fields too
-    storm: Storm | None = None                    # the storm data (APRS101, chapter 12) at the start of the comment of a position or object with the symbol `@` (removed from the comment)
-    sign: str | None = None                       # the 1 to 3 characters of a signpost (symbol `\m`), `55` for a comment that began `{55}` (removed from the comment)
+    weather: Weather | None = None
+    # PHG, RNG, DFS, DF bearing or area object (removed from the comment)
+    extensions: Extensions | None = None
+    # the timestamp was in the sender's local time (`/`)
+    timestamp_local: bool = False
+    locator: Locator | None = None
+    # base-91 telemetry `|ss11|` (APRS 1.2; removed from the comment)
+    telemetry: Telemetry | None = None
+    # the frequency the comment began with, or a frequency object's name (removed)
+    frequency: Frequency | None = None
+    # storm data (APRS101 ch. 12) at the start of the comment (removed)
+    storm: Storm | None = None
+    # signpost text (symbol `\m`): `55` for a comment beginning `{55}` (removed)
+    sign: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class Message:
-    """A text message; an ack is a Message with `ack_id` set and no text, a reject one with `rej_id`."""
+    """A text message; an ack has `ack_id` set and no text, a reject `rej_id`."""
     addressee: str
     text: str
     msg_id: str | None = None
@@ -84,15 +90,14 @@ class ItemReport:
 class Status:
     text: str
     timestamp: datetime | None = None
-    locator: Locator | None = None                # a Maidenhead locator with a symbol at the start of the report (without a timestamp); `text` is what follows it
-    frequency: Frequency | None = None            # the frequency a status text began with (`>145.775MHz T100 -060`): the voice frequency of a tracker that cannot put it in its position; `text` is what follows it
+    locator: Locator | None = None
+    # the frequency a status text began with (`>145.775MHz T100 -060`)
+    frequency: Frequency | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class Other:
-    """A data type that is recognised but not (fully) decoded; `kind` is a short word ("weather", "nmea", "query", "capabilities", "test", ...) and `text` the whole information field. A positionless weather
-    report (`_`) is decoded: `weather` holds its observation and `timestamp` its time. `items` holds what a small data type says in words: the capabilities of a station by token, the bearing and
-    quality of an Agrelo DF report."""
+    """A data type recognised but not fully decoded: `kind` is a word, `text` the info field."""
     kind: str
     text: str
     weather: Weather | None = None
@@ -102,21 +107,19 @@ class Other:
 
 @dataclass(frozen=True, slots=True)
 class Undecoded:
-    """A field that should have decoded and did not: `error` says why (for the log), `text` is the information field as latin-1, and `code` what could not be read (UNDECODED_CODES; a packet kept before
-    there was one is `damaged`)."""
+    """A field that should have decoded and did not: `error` for the log, `code` what failed."""
     error: str
     text: str
     code: str = "damaged"
 
 
-UNDECODED_CODES = ("empty", "position", "mice", "message", "nmea", "damaged")      # an empty information field, a position (an object's, an item's too), a Mic-E position, a message or a GPS sentence that cannot be read, anything else
+UNDECODED_CODES = ("empty", "position", "mice", "message", "nmea", "damaged")
 Decoded = Position | Message | ObjectReport | ItemReport | Status | Other | Telemetry | Undecoded
 
 _KINDS: dict[type, str] = {Position: "position", Message: "message", ObjectReport: "object", ItemReport: "item", Status: "status", Other: "other", Telemetry: "other", Undecoded: "undecoded"}
 
 
 def _line(text: str) -> str:
-    """Text on one log line: control characters shown as a question mark."""
     return "".join(c if c.isprintable() else "?" for c in text)
 
 
@@ -161,8 +164,7 @@ def _summary_of(d: Decoded) -> str:
 
 @dataclass(frozen=True, slots=True)
 class ThirdParty:
-    """The header of a packet that was wrapped in a third-party frame (`}SRC>DST,PATH:info`), as an iGate sends one it took from the internet: who really sent it, to whom, and the path it went by (text,
-    "TCPIP,OH7JHF-1*"). The packet's own `source` and `path` are those of the frame that was heard, the iGate's."""
+    """The header of a packet wrapped in a third-party frame (`}SRC>DST,PATH:info`)."""
     source: str
     destination: str
     path: tuple[str, ...] = ()
@@ -170,10 +172,13 @@ class ThirdParty:
 
 Via = Literal["rf", "rf-gated", "is", "dummy"]
 VIAS: tuple[Via, ...] = ("rf", "rf-gated", "is", "dummy")
-RF: Via = "rf"                         # heard on the radio, direct or by digipeaters (and every packet of ours that went out)
-RF_GATED: Via = "rf-gated"             # heard on the radio as a third-party packet: an iGate took it from the internet and put it on the air
-IS: Via = "is"                         # received from APRS-IS directly over the internet; it was never on the air
-DUMMY: Via = "dummy"                   # made up by the Dummy radio, which lets a person try the program with no radio: it goes everywhere a packet of the radio goes, and nowhere beyond this computer
+# heard on the radio, or sent by us
+RF: Via = "rf"
+# heard on the radio as a third-party packet from the internet
+RF_GATED: Via = "rf-gated"
+IS: Via = "is"  # received from APRS-IS; never on the air
+# made up by the Dummy radio: never beyond this computer
+DUMMY: Via = "dummy"
 
 GATEABLE: frozenset[str] = frozenset({RF, RF_GATED})
 """The channels whose packets a consumer that sends to the internet may take. An iGate (or anything else that puts a packet on APRS-IS) MUST check `packet.via in GATEABLE` before it sends: a packet from the internet (`is`)
@@ -181,7 +186,6 @@ would go round in a circle, and the made-up traffic of the Dummy radio (`dummy`)
 
 
 def via_of(text: str) -> Via:
-    """The channel a text names (as the database and the wire write it); raises ValueError for any other."""
     for one in VIAS:
         if one == text:
             return one
@@ -189,15 +193,12 @@ def via_of(text: str) -> Via:
 
 
 def channel_of(third_party: "ThirdParty | None", internet: bool = False, dummy: bool = False) -> Via:
-    """The channel of a packet: `is` for one from APRS-IS, `dummy` for one the Dummy radio made up, else `rf-gated` when it came on the radio as a third-party packet, else `rf`."""
     return IS if internet else DUMMY if dummy else (RF if third_party is None else RF_GATED)
 
 
 @dataclass(frozen=True, slots=True)
 class Packet:
-    """A packet that reached us, and how: `via` is the channel and is set once, where the packet is made (the Tnc's frame reader makes `rf`, `rf-gated` and, for the Dummy radio, `dummy`; `aprsisline.parse_is_line` makes `is`) and never
-    changes. An `is` packet has no AX.25 frame: its `raw` is the line of APRS-IS as it came (TNC2 text), `path` holds everything between the destination and the colon (the q-construct and the server too).
-    The radio is named by its id (`radio_id`)."""
+    """A packet that reached us; `via` is its channel. An `is` packet has no AX.25 frame."""
     heard_at: datetime
     direction: Literal["in", "out"]
     raw: bytes
@@ -205,12 +206,15 @@ class Packet:
     destination: str
     path: tuple[str, ...]
     info: bytes
-    decoded: Decoded                  # what the information field says; for a third-party packet, what the wrapped packet says
+    # what the information field says; for a third-party packet, what the wrapped packet says
+    decoded: Decoded
     third_party: ThirdParty | None = None
     via: Via = RF
-    radio_id: RadioId | None = None   # the radio it came on or went out on, by its id (neoaprs/radiospec.py), set where the Tnc makes the packet; None for a packet from the internet, and for one made without a radio (a test's), which counts as radio 1's
-    snr: float | None = None          # the signal-to-noise ratio the radio measured of the frame, dB, and the received strength, dBm (neoaprs/reading.py): set where the Tnc makes the packet, of the radio types that give
-    rssi: float | None = None         # them; None for a packet of ours, one from the internet, and one of a radio that gives none
+    # the radio it came on or went out on; None for an internet packet
+    radio_id: RadioId | None = None
+    # SNR (dB) and RSSI (dBm) the radio measured; None if it gave none
+    snr: float | None = None
+    rssi: float | None = None
 
     def __post_init__(self) -> None:
         if self.heard_at.tzinfo is None:
@@ -226,32 +230,29 @@ class Packet:
 
     @property
     def kind(self) -> str:
-        """"position", "message", "object", "item", "status", "other" or "undecoded"."""
         return _KINDS[type(self.decoded)]
 
     @property
     def sender(self) -> str:
-        """The station the packet is from: its source, or for a third-party packet the source of the packet inside."""
         return self.source if self.third_party is None else self.third_party.source
 
     @property
     def inner_info(self) -> bytes:
-        """The information field `decoded` was read from: the packet's own, or for a third-party packet the one inside its header (`}SRC>DST,PATH:`, which ends at the first colon)."""
+        """Return the information field `decoded` was read from (inside a third-party header)."""
         return self.info if self.third_party is None else self.info.partition(b":")[2]
 
     @property
     def gate(self) -> str:
-        """The iGate that put a third-party packet on the air (the call of the frame we heard); empty for any other packet, an `is` packet too: it was never on the air."""
         return self.source if self.via == RF_GATED else ""
 
     @property
     def on_air(self) -> bool:
-        """Whether the packet was on the radio channel (heard, or sent by us; the Dummy radio's too). The services that answer, acknowledge, repeat or send take only these."""
+        """Return whether the packet was on the radio channel, Dummy included."""
         return self.via != IS
 
     @property
     def weather_report(self) -> tuple[str, Weather] | None:
-        """The weather this packet reports and whose it is: the sender's for a position or a positionless report, the object's or item's own name for a live object or item; None for any other packet."""
+        """Return (station or object name, weather) this packet reports; None otherwise."""
         d = self.decoded
         if isinstance(d, (Position, Other)):
             return None if d.weather is None else (self.sender, d.weather)
@@ -261,7 +262,6 @@ class Packet:
 
     @property
     def summary(self) -> str:
-        """One line for a log; a third-party packet ends with who put it on the air, one from the internet with where it came from."""
         text = _summary_of(self.decoded)
         if self.via == IS:
             return f"{text} (APRS-IS)"

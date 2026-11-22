@@ -1,4 +1,6 @@
-"""The refusal of a device another holds names the holder as the page does (the two forms of a radio's name: after the noun, "radio FM 2"), and the GPS receiver by its own words: it is no radio."""
+"""The refusal of a device another holds names the holder as the page does (the two forms of a
+radio's name: after the noun, "radio FM 2"), and the GPS receiver by its own words: it is no
+radio."""
 from pathlib import Path
 
 import pytest
@@ -39,7 +41,9 @@ def mercury(id: int, card: str) -> RadioSpec:
 
 
 def test_a_sound_card_named_by_its_number_is_the_card_another_radio_names_or_holds_by_its_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """One card, two ways of naming it (`plughw:1,0` while ALSA knows card 1 as CODEC): the save is refused, whether the other radio names the card in its settings or holds it in the station's table."""
+    """One card, two ways of naming it (`plughw:1,0` while ALSA knows card 1 as CODEC): the save is
+    refused, whether the other radio names the card in its settings or holds it in the station's
+    table."""
     card1 = tmp_path / "asound" / "card1"
     card1.mkdir(parents=True)
     (card1 / "id").write_text("CODEC\n")
@@ -52,4 +56,5 @@ def test_a_sound_card_named_by_its_number_is_the_card_another_radio_names_or_hol
     before = Config(radios=(mercury(2, ""), mercury(5, "")))
     text, params = held_text(claims, before, Config(radios=(mercury(2, ""), mercury(5, "plughw:1,0"))))
     assert params["held_by"] == 2, text
-    refuse_held(before, Config(radios=(mercury(2, ""), mercury(5, "plughw:2,0"))), claims)      # (another card: let through)
+    # (another card: let through)
+    refuse_held(before, Config(radios=(mercury(2, ""), mercury(5, "plughw:2,0"))), claims)

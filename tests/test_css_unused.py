@@ -1,5 +1,6 @@
-"""The unused-class check of the page's style sheets (scripts/css-unused.py, the stage ui-lint of scripts/check): a class a rule names that no source file writes is reported; a class the page builds at run
-time (a prefix of PREFIXES, with the code that builds it) and a class of the map library are not; a prefix whose code or rules are gone is reported too; and the style sheets of this tree are clean."""
+"""Tests for the unused-class check of the style sheets (scripts/css-unused.py, stage ui-lint of
+scripts/check): unused classes are reported, run-time prefixes and map-library classes are not.
+"""
 import importlib.util
 import subprocess
 import sys
@@ -28,12 +29,14 @@ css_unused = load()
 
 @pytest.fixture(autouse=True)
 def no_prefixes(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A small page has none of the prefixes of the real one (the last test runs the script as a process, with its own)."""
+    """A small page has none of the prefixes of the real one (the last test runs the script as a
+    process, with its own)."""
     monkeypatch.setattr(css_unused, "PREFIXES", {})
 
 
 def tree(tmp_path: Path, css: str, vue: str = "", **files: str) -> Path:
-    """A small page: one style sheet, one component, and more files by path under ui/src (`__` for a folder separator)."""
+    """A small page: one style sheet, one component, and more files by path under ui/src (`__` for a
+    folder separator)."""
     (tmp_path / "ui" / "src" / "styles").mkdir(parents=True)
     (tmp_path / "ui" / "src" / "styles" / "a.css").write_text(css, encoding="utf-8")
     (tmp_path / "ui" / "src" / "A.vue").write_text(vue, encoding="utf-8")

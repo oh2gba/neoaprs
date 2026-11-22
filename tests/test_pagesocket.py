@@ -1,5 +1,7 @@
-"""The page's WebSocket handler (neoaprs/web/pagesocket.py) on its own, behind a fake host (tests/support/fakepagehost.py): a frame that is no text, a command that raises, a push to a socket that has been
-closed, a page that does not read and is cut off, and the count of what it holds. The socket in the whole daemon is in tests/test_web.py."""
+"""The page's WebSocket handler (neoaprs/web/pagesocket.py) behind a fake host
+(tests/support/fakepagehost.py): a non-text frame, a raising command, a push to a closed socket, a
+page cut off, and the count of what it holds.
+"""
 import asyncio
 import logging
 
@@ -21,7 +23,8 @@ async def test_a_text_frame_is_a_command_and_a_binary_frame_that_is_no_text_is_i
     host = await page_host()
     ws, socket = await connected(host)
     await ws.write_message(b"\xff\xfe\xfd", binary=True)
-    await ws.write_message(b'{"cmd": "ping"}', binary=True)                   # (a binary frame that is text is taken as text)
+    # A binary frame that is text is taken as text
+    await ws.write_message(b'{"cmd": "ping"}', binary=True)
     await ws.write_message('{"cmd": "pong"}')
     await until(lambda: len(host.api.commands) == 2)
     assert host.api.commands == [(socket, '{"cmd": "ping"}'), (socket, '{"cmd": "pong"}')], "the one that was not text did not reach the Api, and the socket is open"
@@ -43,12 +46,15 @@ async def test_a_binary_frame_is_written_as_a_binary_frame_and_to_a_closing_sock
 async def test_a_push_to_a_socket_that_is_closing_is_dropped_and_the_page_is_forgotten_at_once(caplog: pytest.LogCaptureFixture) -> None:
     host = await page_host()
     ws, socket = await connected(host)
-    socket.close()                                                              # the daemon's side begins to close; Tornado has not yet told the Api
+    # The daemon's side begins to close; Tornado has not yet told the Api
+    socket.close()
     with caplog.at_level(logging.DEBUG, "neoaprs.web"):
         socket.send_json('{"type": "pong"}')
     assert host.api.detached[:1] == [socket], "forgotten now, so that the pushes that follow do not look for it"
     assert any("a push to the closed page" in r.getMessage() for r in caplog.records)
-    assert await ws.read_message() is None                                      # the page sees the close, answers it, and Tornado then tells the Api again: that must do no harm
+    # The page sees the close, answers it, and Tornado then tells the Api again: that must do no
+    # harm
+    assert await ws.read_message() is None
     ws.close()
     await until(lambda: len(host.api.detached) >= 2)
 
@@ -99,5 +105,6 @@ def test_the_look_at_a_write_that_was_cancelled_does_not_raise() -> None:
     _looked_at(future)
     failed: asyncio.Future[None] = loop.create_future()
     failed.set_exception(ConnectionError("the page left"))
-    _looked_at(failed)                                                          # (the exception is read: asyncio does not log it as never retrieved)
+    # The exception is read: asyncio does not log it as never retrieved
+    _looked_at(failed)
     loop.close()

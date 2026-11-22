@@ -1,5 +1,4 @@
-"""The replay of the map on the wire: the command that asks where the stations were over the last hours and the message that answers it, for the map's Replay (its right-click menu), which plays back how the
-stations moved. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire models of the map replay: the position history command and its answer."""
 from typing import Literal
 
 from pydantic import Field
@@ -9,8 +8,11 @@ from neoaprs.policy import LOG_KEEP_DAYS
 
 from .wirebase import HISTORY_MAX_HOURS, Iso, _Command, _Message
 
-SPAN_DAYS = (2, 3, LOG_KEEP_DAYS)           # the spans of more than a day the replay offers, in days, after the hours of the Stations tab's On map for; the longest is all the packet log keeps
-GLIDE_MAX_MIN = 15                          # the page drives a station between two of its points at most this far apart in time; across a longer gap it waits, then jumps (ui/src/lib/replay.ts)
+# Replay spans longer than a day, in days; the longest is all the packet log keeps.
+SPAN_DAYS = (2, 3, LOG_KEEP_DAYS)
+# The page moves a station between two points at most this many minutes apart; across a longer gap
+# it jumps.
+GLIDE_MAX_MIN = 15
 Point = tuple[Iso, float, float]
 
 

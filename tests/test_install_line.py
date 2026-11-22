@@ -1,5 +1,6 @@
-"""The install line of the copies before 0.16 (`curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh`, which their update window runs) keeps working: packaging/install.sh.in is the
-template the release renders, with the version and the address of the release's wheel, and nothing of it is left unrendered."""
+"""Tests that the install line of old copies (`curl ... install.sh | sh`) keeps working:
+packaging/install.sh.in is the template the release renders, and nothing is left unrendered.
+"""
 import re
 import subprocess
 from pathlib import Path

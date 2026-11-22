@@ -1,7 +1,6 @@
-"""The UI interface of a Mercury that is not one (tests/support/fakemercury.py, and the tests of the websocket client): a WebSocket server on the loopback that speaks as Mercury 1.9.24's does (the same as 1.9.21's) (`gui_interface/websocket`,
-`ui_communication.c`): it upgrades a GET of /websocket, tells a `status` message twice a second (the transmit gain, the peak of the latest transmission, the audio's health), answers a text command with
-`{"status":"ok"}` (an unknown one with `{"status":"error","code":-1}`), takes `set_waterfall` and `set_tx_gain`, and while the waterfall is on sends a binary spectrum frame (the magic, the number of bins, the sample rate and
-the floats) every `spectrum_sec`. `commands` keeps every command it was given, as (command, value). The spectrum is white noise of a level the test sets (`noise_db`) with a tone of `tone_hz` at `tone_db` over it."""
+"""The UI interface of a Mercury stand-in: a WebSocket server on the loopback that upgrades GET
+/websocket, sends a `status` message twice a second and answers text commands as Mercury does.
+"""
 import asyncio
 import contextlib
 import json
@@ -31,12 +30,20 @@ class FakeUi:
     commands: list[tuple[str, str]] = field(default_factory=list)
     connections: int = 0
     waterfall: bool = False
-    log_path: str = ""                         # a file each command is appended to (the program of the fake Mercury keeps it in its working directory)
-    scene_path: str = ""                       # a JSON file read for every spectrum, so that a test can change the air of a program it started: {"blocks": [[1200, 1800, 12]]} lifts those frequencies by that many dB, {"noise_db": -50} moves the noise
-    upgrade: bool = True                       # false: the server answers a GET with a plain 200, as a server that is no websocket does
+    # A file each command is appended to (the program of the fake Mercury keeps it in its working
+    # directory)
+    log_path: str = ""
+    # A JSON file read for every spectrum, so that a test can change the air of a program it
+    # started: {"blocks": [[1200, 1800, 12]]} lifts those frequencies by that many dB, {"noise_db":
+    # -50} moves the noise
+    scene_path: str = ""
+    # false: the server answers a GET with a plain 200, as a server that is no websocket does
+    upgrade: bool = True
     _server: asyncio.Server | None = None
     _clients: list[asyncio.StreamWriter] = field(default_factory=list)
-    _open: set[asyncio.StreamWriter] = field(default_factory=set)      # every connection, from its first byte: one that has not yet asked for the websocket is closed with the rest
+    # Every connection, from its first byte: one that has not yet asked for the websocket is closed
+    # with the rest
+    _open: set[asyncio.StreamWriter] = field(default_factory=set)
     _tasks: list[asyncio.Task[None]] = field(default_factory=list)
 
     async def start(self, host: str = "127.0.0.1") -> None:
@@ -50,8 +57,9 @@ class FakeUi:
         await asyncio.gather(*self._tasks, return_exceptions=True)
         if self._server is not None:
             self._server.close()
-        for writer in list(self._open):                                    # (also one that connected a moment ago and has sent nothing: wait_closed waits for every connection, and that one
-            writer.transport.abort()                                       # would keep a dying program alive until its client gave up, seen on Windows under load on 14 November 2026)
+        # Also one that connected and sent nothing: wait_closed waits for every connection.
+        for writer in list(self._open):
+            writer.transport.abort()
         self._open.clear()
         self._clients.clear()
         if self._server is not None:
@@ -157,7 +165,8 @@ class FakeUi:
         elif name == "set_tx_gain":
             number = float(value) if value else 0.0
             self.gain_db = max(-20.0, min(20.0, number if math.isfinite(number) else 0.0))
-            self.peak_dbfs = -6.4 + self.gain_db                       # (as if a frame had been sent at the new gain: Mercury's frames peak at -6.4 dBFS)
+            # As if a frame had been sent at the new gain: Mercury's frames peak at -6.4 dBFS
+            self.peak_dbfs = -6.4 + self.gain_db
         else:
             return '{"status":"error","code":-1}'
         return '{"status":"ok"}'

@@ -1,15 +1,8 @@
-"""A sound card's own levels: its playback level (what the radio is given to transmit) and its capture level (what it takes from the radio), each 0 to 100 percent, read and set for the card as a radio's
-settings name it (`sound_card`: `plughw:CARD=CODEC,DEV=0` on Linux, the pair of a Windows card's two devices, mercurycards.PAIR). A card has such a control or it has not: `Levels` says None where it has none,
-and nothing is set there.
+"""Read and set a sound card's playback and capture levels, each 0 to 100 percent.
 
-On Linux the controls are the card's ALSA simple mixer controls, through the ALSA library by ctypes (`Alsa`): the playback one is the first of PLAYBACK_NAMES the card has, the capture one the first of
-CAPTURE_NAMES; their names differ by card (a C-Media chip has Speaker and Mic, a TI codec PCM alone), and a card with none of them has no control. Only volumes are read and set: no switch is ever touched,
-a mute or the card's Auto Gain Control stays as the system has it. The percent is the control's raw value within its range, as `amixer` prints it. A system without the library has no control: no program
-is run to find one. On Windows they are the master volume of the card's playing device and of its recording device (Core Audio, winmixer.py). Other systems have none.
-
-`Mixer` is the one small interface: the radio's part (cardlevels.py) is given the system's (`cardlevels.SystemMixer`, which under the no-devices switch reads and sets nothing and loads no library), a
-test its own. A control that cannot be read or set is said in the log at DEBUG and is no control: the operator can do nothing about it, and the radio works as it does without one. A library that lacks one
-of the calls is no library."""
+On Linux the ALSA simple mixer is reached by ctypes (volumes only, never a switch); see winmixer.py
+for Windows. A control that cannot be read or set is absent (None in `Levels`).
+"""
 import ctypes
 import logging
 import re
@@ -21,15 +14,18 @@ from typing import Any, Protocol
 
 log = logging.getLogger("neoaprs.soundmixer")
 
-PLAYBACK_NAMES = ("Master", "Speaker", "PCM", "Headphone")     # the ALSA controls that are a card's playback level, the first the card has (not Mic: a C-Media chip's Mic has a playback volume too, its monitor)
-CAPTURE_NAMES = ("Capture", "Mic")                            # the ones that are its capture level
+# ALSA controls that are a card's playback level, the first the card has. Not Mic: its playback
+# volume is the monitor on some chips.
+PLAYBACK_NAMES = ("Master", "Speaker", "PCM", "Headphone")
+CAPTURE_NAMES = ("Capture", "Mic")
 ALSA_LIBRARY = "libasound.so.2"
 
 
 @dataclass(frozen=True)
 class Levels:
-    tx: int | None = None                  # the card's playback level, 0 to 100; None: it has no such control (or it could not be read)
-    rx: int | None = None                  # its capture level
+    # Playback and capture levels, 0 to 100; None if the control is absent or unreadable.
+    tx: int | None = None
+    rx: int | None = None
 
 
 NONE = Levels()
@@ -37,34 +33,34 @@ NONE = Levels()
 
 class Mixer(Protocol):
     def read(self, card: str) -> Levels:
-        """The card's levels now. Blocks: for a thread."""
+        """Return the card's levels now. Blocks: call from a thread."""
         ...
 
     def write(self, card: str, tx: int | None, rx: int | None) -> Levels:
-        """Sets the levels that are not None where the card has the control, and says the levels after it. Blocks: for a thread."""
+        """Set the levels that are not None; return the new levels. Blocks: call from a thread."""
         ...
 
 
 def percent(low: int, high: int, raw: int) -> int:
-    """A control's raw value within its range as a percent of it."""
+    """Return a control's raw value as a percent of its range."""
     return 0 if high <= low else max(0, min(100, round(100 * (raw - low) / (high - low))))
 
 
 def raw_of(low: int, high: int, value: int) -> int:
-    """The raw value of a percent within a control's range."""
+    """Return the raw value of a percent within a control's range."""
     return low + round(max(0, min(100, value)) * (high - low) / 100)
 
 
 @dataclass(frozen=True)
 class Control:
-    """An ALSA simple mixer control as `Alsa` reads it: its name, and its playback and capture volume where it has one, each (low, high, raw value)."""
+    """An ALSA simple mixer control: name, and playback and capture volume as (low, high, raw)."""
     name: str
     playback: tuple[int, int, int] | None = None
     capture: tuple[int, int, int] | None = None
 
 
 def pick(controls: Sequence[Control], names: Sequence[str], way: str) -> Control | None:
-    """The control of a way ("playback", "capture"): the first of `names` the card has with a volume that way; None for a card with none of them."""
+    """Return the first of `names` the card has with a volume for `way`, or None."""
     for name in names:
         if (found := next((c for c in controls if c.name == name and getattr(c, way) is not None), None)) is not None:
             return found
@@ -76,19 +72,20 @@ _NUMBERED = re.compile(r"^(?:plughw|hw):(?P<card>[^,]+)")
 
 
 def alsa_control_name(card: str) -> str:
-    """The ALSA control device of a sound card setting: `hw:CODEC` of `plughw:CARD=CODEC,DEV=0` (or any device with CARD=), `hw:1` of `plughw:1,0`; "" for one that names no card (`default`, `pulse`)."""
+    """Return the ALSA control device of a card setting (`plughw:CARD=X,DEV=0` gives `hw:X`)."""
     found = _CARD.search(card) or _NUMBERED.match(card.strip())
     return f"hw:{found.group('card')}" if found else ""
 
 
 class Alsa:
-    """The card's ALSA simple mixer controls through the library (`load`: the ALSA library as ctypes has it, None where the system has none; a test gives its own)."""
+    """The card's ALSA simple mixer controls; `load` returns the ctypes library or None."""
 
     def __init__(self, load: Callable[[], Any] | None = None) -> None:
         self._load = load or load_alsa
         self._lib: Any = None
-        self._loaded = False                                      # (the library is looked for once: a system without it is asked no more)
-        self._loading = threading.Lock()                          # (the event loop asks `present` while the mixer's thread may be looking for it)
+        # looked for once; the lock covers `present` on the loop against the mixer's thread
+        self._loaded = False
+        self._loading = threading.Lock()
 
     def read(self, card: str) -> Levels:
         return self._session(card, None, None)
@@ -97,7 +94,7 @@ class Alsa:
         return self._session(card, tx, rx)
 
     def present(self) -> bool:
-        """Whether the system has the library (looked for once)."""
+        """Return True if the system has the library."""
         return self._library() is not None
 
     def _library(self) -> Any:
@@ -130,7 +127,7 @@ class Alsa:
 
 @contextmanager
 def _mixer(lib: Any, name: str) -> Iterator[list[Any]]:
-    """The simple mixer of the card's control device `name`, open, as the list of its elements; closed after. OSError when it cannot be opened (a card that is not there)."""
+    """Open the simple mixer of control device `name` and yield its elements; raise OSError."""
     handle = ctypes.c_void_p()
     if lib.snd_mixer_open(ctypes.byref(handle), 0) < 0:
         raise OSError("the mixer could not be opened")
@@ -150,24 +147,26 @@ def _mixer(lib: Any, name: str) -> Iterator[list[Any]]:
 def _control(lib: Any, elem: Any) -> Control:
     name = lib.snd_mixer_selem_get_name(elem)
     if lib.snd_mixer_selem_get_index(elem) != 0:
-        return Control("")                                       # (a second control of a name: none of ours)
+        # A second control of the same name is ignored.
+        return Control("")
     return Control((name or b"").decode("utf-8", "replace"), _volume(lib, elem, "playback"), _volume(lib, elem, "capture"))
 
 
 def _volume(lib: Any, elem: Any, way: str) -> tuple[int, int, int] | None:
-    """The control's volume that way, (low, high, raw value of its first channel); None where it has none."""
+    """Return (low, high, raw value of the first channel) of the volume for `way`, or None."""
     if not getattr(lib, f"snd_mixer_selem_has_{way}_volume")(elem):
         return None
     low, high, value = ctypes.c_long(), ctypes.c_long(), ctypes.c_long()
     if getattr(lib, f"snd_mixer_selem_get_{way}_volume_range")(elem, ctypes.byref(low), ctypes.byref(high)) < 0:
         return None
-    if getattr(lib, f"snd_mixer_selem_get_{way}_volume")(elem, 0, ctypes.byref(value)) < 0:      # (channel 0: the front left, or the one channel of a mono control)
+    # Channel 0: front left, or the only channel of a mono control.
+    if getattr(lib, f"snd_mixer_selem_get_{way}_volume")(elem, 0, ctypes.byref(value)) < 0:
         return None
     return low.value, high.value, value.value
 
 
 def _now(lib: Any, elem_of: dict[int, Any], control: Control | None, way: str) -> int | None:
-    """The control's percent as it is now (read again after a set), None for no control."""
+    """Return the control's current percent, read again after a set, or None without a control."""
     if control is None:
         return None
     volume = _volume(lib, elem_of[id(control)], way)
@@ -175,7 +174,7 @@ def _now(lib: Any, elem_of: dict[int, Any], control: Control | None, way: str) -
 
 
 def load_alsa() -> Any:
-    """The system's ALSA library with the signatures of the calls `Alsa` makes; None where there is none."""
+    """Return the ALSA library with the signatures `Alsa` needs, or None if it is missing."""
     try:
         lib = ctypes.CDLL(ALSA_LIBRARY)
     except OSError as e:
@@ -201,12 +200,12 @@ def load_alsa() -> Any:
     return lib
 
 
-_QUIET = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p)(lambda *said: None)     # (kept for the process's life: the library calls it)
+# Module level so that it lives as long as the process: the library keeps calling it.
+_QUIET = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p)(lambda *said: None)
 
 
 def _quiet(lib: Any) -> None:
-    """ALSA's library writes its own errors to the process's standard error ("Cannot get card index for Device" at every look at a card that is unplugged, every two seconds): they are taken by a
-    handler that says nothing. A card that cannot be read is no level, which the row shows; the reason is nothing an operator can act on from that line."""
+    """Install an error handler that discards ALSA's messages (it prints for unplugged cards)."""
     setter = getattr(lib, "snd_lib_error_set_handler", None)
     if setter is not None:
         setter.restype, setter.argtypes = ctypes.c_int, [ctypes.c_void_p]

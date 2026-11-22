@@ -1,6 +1,6 @@
-"""The GPS inside the whole daemon, the radio a fake TNC on the loopback and a fake gpsd: a mobile station beacons from the fix and sends the compressed frame on the line, its own row on the map and the distances follow
-it, the ALOHA circle is worked out again, `?APRSP` is answered with the live position, no fix means no frame (never the home position), a stale fix is not used, the page is told by the topic `gps`, and the settings
-start and stop the feed."""
+"""Tests for the GPS inside the whole daemon with a fake TNC and gpsd: mobile beacons from the fix,
+the map row, ALOHA, `?APRSP`, no frame without a fix, stale fixes, and the `gps` topic.
+"""
 import logging
 from dataclasses import replace
 from pathlib import Path
@@ -21,7 +21,8 @@ from tests.support.gps import FakeGpsd, fake_gpsd, tpv
 async def started(tmp_path: Path, gpsd: FakeGpsd, **changes: object) -> Env:
     """A daemon with its radio connected and a GPS read from the fake gpsd, the beacon mobile."""
     e = await quick_start(tmp_path, beacon=True, web=True)
-    values = {"gps_source": "gpsd", "gps_host": gpsd.address, "station_symbol_code": ">", "beacon_interval_min": 30, **changes}      # (on: a beacon at interval 0 is off, for a moving station too)
+    # (on: a beacon at interval 0 is off, for a moving station too)
+    values = {"gps_source": "gpsd", "gps_host": gpsd.address, "station_symbol_code": ">", "beacon_interval_min": 30, **changes}
     assert await e.ctl.save_config(replace(e.ctl.config, **values))                 # type: ignore[arg-type]
     await until(lambda: gpsd.watching and e.ctl.gps_feed.state is Source.State.CONNECTED)
     return e
@@ -52,7 +53,8 @@ async def test_a_mobile_station_beacons_its_first_fix_as_a_compressed_position_a
 async def test_the_row_and_the_distances_follow_the_gps_every_few_seconds_and_ten_metres(tmp_path: Path) -> None:
     gpsd = await fake_gpsd()
     e = await started(tmp_path, gpsd)
-    e.feed(on_air("OH2RDG", b"!6043.00N/02408.70E-far"))                            # a station at 60.7167 N 24.145 E: 60 km from home, 31.8 km from the fix
+    # a station at 60.7167 N 24.145 E: 60 km from home, 31.8 km from the fix
+    e.feed(on_air("OH2RDG", b"!6043.00N/02408.70E-far"))
     await until(lambda: e.ctl.stationbook.get("OH2RDG") is not None)
     book = e.ctl.stationbook
     station = book.get("OH2RDG")
@@ -115,7 +117,8 @@ async def test_a_fix_that_grows_stale_is_not_beaconed_and_the_home_position_is_n
     assert len([p for p in await e.packets() if p.direction == "out"]) == 1
     assert (me(e).lat, me(e).lon) == (60.43, 24.145), "the row stays where we were last seen, not at home"
     gpsd.send(tpv(60.5, 24.2, speed=15.0, track=270.0))
-    await until(lambda: e.beacon.last_reason == "time")           # (the fix is back: the beacon that was long due goes, the position of now)
+    # (the fix is back: the beacon that was long due goes, the position of now)
+    await until(lambda: e.beacon.last_reason == "time")
     out = [p.decoded for p in await e.packets() if p.direction == "out"]
     assert sorted(round(d.lat, 3) for d in out if isinstance(d, Position)) == [60.43, 60.5]
     await e.stop()

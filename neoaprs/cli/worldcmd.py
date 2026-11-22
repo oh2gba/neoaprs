@@ -1,8 +1,10 @@
-"""`neoaprs map --world [--build YYYYMMDD | --source SRC] [--zoom Z] [--out DIR]` (and `scripts/fetch-worldmap`): makes the world map that ships with the program (neoaprs/worldmap.py).
+"""`neoaprs map --world [--build YYYYMMDD | --source SRC] [--zoom Z] [--out DIR]`: make the bundled world map.
 
-It cuts the whole world down to zoom 4 (`--zoom`) out of a Protomaps daily build (`--build`, or the latest one; or `--source`, a web address or a PMTiles file; neoaprs/pmtilescut.py) into DIR (default `neoaprs/maps/`
-of this package) as `basemap-world.pmtiles` with `basemap-world.json` beside it, the build it was cut from. A file over 8 MB is refused before it is fetched: the program carries it in every package. Run it when the
-map should be refreshed, and commit the two files."""
+Also run by `scripts/fetch-worldmap`. It cuts the whole world down to zoom 4 (`--zoom`) from a
+Protomaps daily build (`--build`, or the latest one; or `--source`, a web address or a PMTiles
+file) into DIR (default `neoaprs/maps/` of this package) as `basemap-world.pmtiles`, with
+`basemap-world.json` beside it naming the build. A file over 8 MB is refused before it is
+fetched, because every package carries it. Run it to refresh the map, and commit the two files."""
 import argparse
 import asyncio
 import json

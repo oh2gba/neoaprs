@@ -1,4 +1,4 @@
-"""The stations on the wire: the topic `stations` (a table of rows by call), the command to forget one and the one that asks for a station's track. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire models of the topic `stations` and the commands that forget a station or ask its track."""
 from typing import Literal
 
 from pydantic import Field

@@ -1,28 +1,39 @@
-"""The guard against a Windows folder that is too lean: every file of packaging/windows/must-ship.txt must be in the frozen app's folder, or the build fails, before anything is packed. A DLL left out is not
-seen by any test on GitHub's runner, which has Visual C++ and much else installed; it is seen on a clean Windows, at an operator's. So the list is taken from a real build, and a line leaves it only in the
-commit that removes the file on purpose, with the clean install on the Windows 11 N machine as its proof.
+"""The guard against a Windows folder that is too lean: every file of
+packaging/windows/must-ship.txt must be in the frozen app's folder, or the build fails, before
+anything is packed. A DLL left out is not seen by any test on GitHub's runner, which has Visual C++
+and much else installed; it is seen on a clean Windows, at an operator's. So the list is taken from
+a real build, and a line leaves it only in the commit that removes the file on purpose, with the
+clean install on the Windows 11 N machine as its proof.
 
-    must_ship.py LIST TREE              the check: exit 1 naming each listed file that TREE (dist/NeoAPRS) lacks
-    must_ship.py --write LIST TREE      LIST made from TREE: every .dll and .pyd in it, and the data files named below; refused when TREE lacks one of the never-drop files (the list
-                                        the folder would give is printed all the same, so that the names a real build has can be read)
+    must_ship.py LIST TREE              the check: exit 1 naming each listed file that TREE
+                                        (dist/NeoAPRS) lacks
+    must_ship.py --write LIST TREE      LIST made from TREE: every .dll and .pyd in it, and the data
+                                        files named below; refused when TREE lacks one of the
+                                        never-drop files (the list
+                                        the folder would give is printed all the same, so that the
+                                        names a real build has can be read)
     must_ship.py --excluded WARN MODULE [IMPORTER...]
-                                        a module the spec excludes (PIL) is imported only by the modules named, by PyInstaller's own record of who imports it (WARN, build/neoaprs/warn-neoaprs.txt):
-                                        exit 1 naming any other importer, whose import would fail in the frozen app; exit 2 when WARN is no such record
+                                        a module the spec excludes (PIL) is imported only by the
+                                        modules named, by PyInstaller's own record of who imports it
+                                        (WARN, build/neoaprs/warn-neoaprs.txt):
+                                        exit 1 naming any other importer, whose import would fail in
+                                        the frozen app; exit 2 when WARN is no such record
 
-A line of the list is a path inside the folder, with forward slashes. A line with * ? or [ is a pattern that must match one file at least (* matches across folders). Case is ignored, as Windows ignores
-it. Lines that begin with # are comments. The never-drop files (NEVER_DROP) are checked whatever the list says. A .dll or .pyd that is in the folder and not in the list is named, without failing:
-a new package's DLLs go into the list in the commit that brings them. Nothing but the Python standard library is used."""
+A line of the list is a path inside the folder, with forward slashes. A line with * ? or [ is a
+pattern that must match one file at least (* matches across folders). Case is ignored, as Windows
+ignores it. Lines that begin with # are comments. The never-drop files (NEVER_DROP) are checked
+whatever the list says. A .dll or .pyd that is in the folder and not in the list is named, without
+failing: a new package's DLLs go into the list in the commit that brings them. Nothing but the
+Python standard library is used."""
 import fnmatch
 import re
 import sys
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 
-# What the app cannot start or run without, each file by its exact name, so that another copy (the x86 or arm64 one of the same DLL) cannot stand in for it. From the measure of 0.18.2 on the Windows 11 N
-# machine (work/par/measure/report.md): the C runtime, Python, OpenSSL, cryptography's native module (the signature of Update now, the encrypted messages, the HTTPS certificates) with cffi, which it uses,
-# pythonnet's runtime with clr_loader's 64-bit loader, and pywebview's WebView2 DLLs with the 64-bit WebView2Loader (the window). The standard library's modules that the daemon and the app import at
-# once: sockets, select and the Windows event loop of asyncio, TLS and hashes, sqlite with its DLL, ctypes with libffi (the tray, the window's placement); pydantic_core, on which every setting is read.
-# Python's frozen standard library, the root certificates, the world map, and the tray's icon, which the app reads as it is. A * stands only for a version in a name.
+# What the app cannot start without, by exact name so that another architecture's copy of a DLL
+# cannot stand in: runtime, Python, OpenSSL, cryptography, pythonnet, WebView2, start-up imports.
+# A * stands only for a version in a name.
 NEVER_DROP = (
     "_internal/vcruntime140.dll",
     "_internal/vcruntime140_1.dll",
@@ -73,7 +84,8 @@ def files_of(tree: Path) -> list[str]:
 
 
 def missing(lines: Iterable[str], files: Sequence[str]) -> list[str]:
-    """The lines that the folder does not satisfy: a path that is not there, a pattern that matches nothing."""
+    """The lines that the folder does not satisfy: a path that is not there, a pattern that matches
+    nothing."""
     there = set(files)
     out = []
     for line in lines:
@@ -84,18 +96,21 @@ def missing(lines: Iterable[str], files: Sequence[str]) -> list[str]:
 
 
 def unlisted(lines: Iterable[str], files: Sequence[str]) -> list[str]:
-    """The .dll and .pyd files of the folder that no line names (patterns do not count: a pattern holds one file at least, not every one)."""
+    """The .dll and .pyd files of the folder that no line names (patterns do not count: a pattern
+    holds one file at least, not every one)."""
     named = {line.lower() for line in lines if not is_pattern(line)}
     return [name for name in files if name.endswith(NATIVE) and name not in named]
 
 
 def covers(lines: Iterable[str], pattern: str) -> bool:
-    """Whether some line of the list holds a file that `pattern` names: the pattern itself, or a path it matches."""
+    """Whether some line of the list holds a file that `pattern` names: the pattern itself, or a
+    path it matches."""
     return any(line.lower() == pattern or (not is_pattern(line) and fnmatch.fnmatchcase(line.lower(), pattern)) for line in lines)
 
 
 def made_list(tree: Path) -> str:
-    """The list of a folder: its .dll and .pyd files and the data files, as they are spelled there."""
+    """The list of a folder: its .dll and .pyd files and the data files, as they are spelled
+    there."""
     names = sorted(path.relative_to(tree).as_posix() for path in tree.rglob("*") if path.is_file() and (path.suffix.lower() in NATIVE or path.relative_to(tree).as_posix().lower() in DATA))
     return HEADER + "".join(f"{name}\n" for name in sorted(names, key=str.lower))
 
@@ -108,7 +123,9 @@ def check(list_text: str, tree: Path) -> tuple[list[str], list[str]]:
     return gone, unlisted(lines, files)
 
 
-# A line of PyInstaller's warn file: `excluded module named PIL - imported by pystray._xorg (top-level), pystray._gtk (top-level)`; each importer is a module's name and, in brackets, how it imports.
+# A line of PyInstaller's warn file: `excluded module named PIL - imported by pystray._xorg
+# (top-level), pystray._gtk (top-level)`; each importer is a module's name and, in brackets, how it
+# imports.
 RECORD = re.compile(r"^(?P<kind>missing|excluded) module named (?P<name>\S+) - imported by (?P<by>.*)$", re.M)
 IMPORTER = re.compile(r"([\w.]+) \([^)]*\)")
 
@@ -118,8 +135,9 @@ class NoRecord(Exception):
 
 
 def importers_of(warn: str, module: str) -> list[str]:
-    """The modules that import `module` (or one of its submodules) though the spec excludes it, as PyInstaller recorded them; NoRecord when the text has no line of that record at all, so that a file
-    of another form is never read as "nobody imports it"."""
+    """The modules that import `module` (or one of its submodules) though the spec excludes it, as
+    PyInstaller recorded them; NoRecord when the text has no line of that record at all, so that a
+    file of another form is never read as "nobody imports it"."""
     records = list(RECORD.finditer(warn))
     if not records:
         raise NoRecord("it holds no line 'missing module named' or 'excluded module named' of PyInstaller")

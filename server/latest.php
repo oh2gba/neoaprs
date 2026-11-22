@@ -1,10 +1,10 @@
 <?php
-// The version of the latest NeoAPRS release, for version.php and download.php: neoaprs_latest_version()
-// asks the GitHub releases of the project and keeps the answer in log/latest.json for ten minutes, so a
-// new release needs nothing done here; while GitHub does not answer, the last good answer is returned,
-// and '' when there never was one.
+// The version of the latest NeoAPRS release, for version.php and download.php:
+// neoaprs_latest_version() asks the GitHub releases of the project and keeps the answer in
+// log/latest.json for ten minutes, so a new release needs nothing done here; while GitHub does not
+// answer, the last good answer is returned, and '' when there never was one.
 
-const MAX_AGE_SEC  = 600;     // how long the latest version is believed: a release is noticed within ten minutes (GitHub is asked at most six times an hour)
+const MAX_AGE_SEC  = 600;     // a release is noticed within ten minutes (GitHub is asked at most six times an hour)
 const RETRY_SEC    = 300;     // how soon GitHub is asked again after it did not answer
 const VERSION_RE   = '/^\d+(\.\d+){0,3}([-+][0-9A-Za-z.]+)?$/';
 

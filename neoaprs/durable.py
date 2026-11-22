@@ -1,7 +1,7 @@
-"""What is on the disk before it has its name: a file is synced, then renamed, then the folder that holds the name is synced, so that after a power cut the name is never there
-without the data (docs/ARCHITECTURE.md, "The database actor"). The copies of the database are written that way.
+"""Durable file replacement: sync the file, rename it, then sync the folder holding the name.
 
-Windows cannot open a folder to sync it (NTFS journals its own metadata, so the rename is as durable as the system makes it), and it syncs only a file opened for writing."""
+After a power cut the name is then never present without the data. Windows cannot sync a folder
+and syncs only a file opened for writing."""
 import os
 import sys
 from pathlib import Path

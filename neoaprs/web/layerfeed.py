@@ -1,7 +1,8 @@
-"""The pages that look at a layer of traffic on the map (`layer_look`, neoaprs/web/layerwire.py), and the layer's whole table sent to them as `layer_things`, in the pattern of the levels' feed
-(neoaprs/web/levelfeed.py): a page that begins to look is sent the table as it is now at once; a page whose socket holds more than the hub's `BEHIND` of what it has not read is sent no table (the next one tells it
-all); a page that leaves is forgotten. The layers' service (neoaprs/services/layers.py) is told when the first page begins to look at a layer and when the last one stops: it asks the layer's source only while one
-looks."""
+"""Track which pages look at a map layer and send them the layer's table as `layer_things`.
+
+A new viewer gets the table at once. A page more than the hub's `BEHIND` bytes behind is skipped;
+the next table brings it up to date.
+"""
 from typing import Any, Protocol
 
 from neoaprs.airports import place
@@ -13,13 +14,12 @@ from .session import Connection
 
 
 class Watched(Protocol):
-    """What the pages' looks need of the layers' service."""
     def watch(self, layer: Layer, on: bool) -> None: ...
     def table(self, layer: Layer) -> LayerTable: ...
 
 
 def thing_row(thing: Thing, layer: Layer) -> dict[str, Any]:
-    """A thing of the layer as `LayerThing` says it: every field, the time in ISO, and the places of an aircraft's two airports (a ship's destination is no airport)."""
+    """Return a thing as `LayerThing` has it; places are looked up for aircraft airports only."""
     return {"id": thing.id, "lat": thing.lat, "lon": thing.lon, "at": iso(thing.at), "heading_deg": thing.heading_deg, "speed_kmh": thing.speed_kmh, "name": thing.name, "emergency": thing.emergency,
             "altitude_m": thing.altitude_m, "vertical_ms": thing.vertical_ms, "registration": thing.registration, "type": thing.type, "category": thing.category, "designator": thing.designator,
             "ship_type": thing.ship_type, "course_deg": thing.course_deg, "destination": thing.destination,
@@ -27,19 +27,16 @@ def thing_row(thing: Thing, layer: Layer) -> dict[str, Any]:
 
 
 def table_message(table: LayerTable) -> dict[str, Any]:
-    """The `layer_things` message of a layer's table."""
     return {"type": "layer_things", "layer": table.layer, "source": table.source, "away": table.away, "things": [thing_row(thing, table.layer) for thing in table.things]}
 
 
 class LayerLooks:
-    """Which pages look at which layer."""
-
     def __init__(self, service: Watched) -> None:
         self._service = service
         self._pages: dict[Layer, set[Connection]] = {layer: set() for layer in LAYERS}
 
     def look(self, conn: Connection, layer: Layer, on: bool) -> None:
-        """The page looks at the layer, or no more. A page that has left meanwhile is not taken (the command ran after it closed)."""
+        """Start or stop a page's look; a page that already closed is ignored."""
         if not on:
             self._leave(conn, layer)
             return
@@ -60,7 +57,7 @@ class LayerLooks:
                 self._service.watch(layer, False)
 
     def forget(self, conn: Connection) -> None:
-        """The page left: it looks at nothing."""
+        """Remove the page from every layer."""
         for layer in LAYERS:
             self._leave(conn, layer)
 
@@ -68,7 +65,7 @@ class LayerLooks:
         return len(self._pages[layer])
 
     def told(self, table: LayerTable) -> None:
-        """The service has a table for the pages that look at its layer."""
+        """Send a new table to every page looking at its layer."""
         pages = self._pages[table.layer]
         if pages:
             message = table_message(table)

@@ -1,23 +1,5 @@
-"""A Tnc that is a stub, for the tests of the parts that send frames by a schedule (services/sender.py and what uses it): a state the test sets, whether it takes a frame, and every frame it was given.
-
-    tnc = StubTnc()
-    tnc.state = Source.State.SILENT         # the radio is switched off: `usable` is False
-    tnc.held = "the channel is busy"        # connected, but the modem holds its frames (the HF radio while a frame is on the air or the channel is busy): `usable` is False and `why_unusable` says so
-    tnc.takes = False                       # it is settling after KISS ON: the write is refused
-    tnc.infos()                             # the information fields of the frames it took
-    tnc.lines()                             # the same frames as TNC-2 lines ("OH2GBA>APNEO1:text")
-    tnc.asked                               # how many times it was asked to send, taken or not
-    tnc.raw                                 # the bytes it took with a frame (send_frame's `raw`: the digipeater's), as they were given
-
-    radios = StubRadios(hf_stations=("OH2C",))      # two stubs as one set (the old set of two, as the services still take one): `fm` and `hf`, the FM one the default while it is in `enabled`; a message to a
-                                                    # station named in `hf_stations` goes on HF, to any other on FM; a packet is answered on the radio it came on (`Packet.radio_id`)
-
-A StubTnc is a radio of a type (`rtype`: the Mercury modem's when it has a frame cap, else the KISS TNC's, or the one given) and also a radio as the services see one from the radio round on
-(neoaprs/services/radioset.AirRadio): its id (1 of the FM kind, 2 of the HF kind, or the one given), its kind, name, limits (its type's, with its own frame cap) and what it is allowed (its type's), its counters,
-and the operator's choices on it (`choices`). `HF_WITH_PATHS` is a type of the HF kind that may carry a path, for the tests of a radio with a frame cap and digipeaters. `StubRegistry` is two of them as the choice of a radio the services take then (`RadioPick`), the same
-choices as StubRadios:
-
-    pick = StubRegistry(hf_stations=("OH2C",))      # pick.fm (radio 1) and pick.hf (radio 2), both on while their ids are in `on`; `main` the FM one while it is on, else the HF one, else None
+"""A stub Tnc for the tests of the parts that send frames on a schedule (services/sender.py): a
+state the test sets, whether it takes a frame, and every frame it was given.
 """
 from dataclasses import replace
 from typing import Any
@@ -39,15 +21,24 @@ class StubTnc:
     def __init__(self, state: Source.State = Source.State.CONNECTED, max_frame: int | None = None, rtype: RadioType | None = None, *, id: RadioId | None = None) -> None:
         self.state = state
         self.sent: list[ax25.Frame] = []
-        self.raw: list[bytes] = []                  # the bytes given with a frame (the digipeater's), as they were given
+        # The bytes given with a frame (the digipeater's), as they were given
+        self.raw: list[bytes] = []
         self.takes = True
-        self.held = ""                              # why the radio, though connected, takes no frame now ("" when it does): the HF modem transmitting or hearing a busy channel
+        # Why the radio, though connected, takes no frame now ("" when it does): the HF modem
+        # transmitting or hearing a busy channel
+        self.held = ""
         self.asked = 0
-        self.max_frame = max_frame                  # the longest frame the radio carries (the Mercury HF modem's 123), None for the AX.25 limit alone
-        self.rtype = rtype if rtype is not None else type_of("mercury") if max_frame is not None else type_of("kiss")      # its type: the HF radio's when it has a frame cap, else the FM radio's; a test may give another (a frame cap with paths)
-        self.id: RadioId = id if id is not None else HF_ID if self.rtype.kind == "hf" else FM_ID      # the radio it stands for: 1 of the FM kind, 2 of the HF kind, unless one is given
+        # The longest frame the radio carries (the Mercury HF modem's 123), None for the AX.25 limit
+        # alone
+        self.max_frame = max_frame
+        # Its type: the HF radio's when it has a frame cap, else the FM radio's; a test may give
+        # another (a frame cap with paths)
+        self.rtype = rtype if rtype is not None else type_of("mercury") if max_frame is not None else type_of("kiss")
+        # The radio it stands for: 1 of the FM kind, 2 of the HF kind, unless one is given
+        self.id: RadioId = id if id is not None else HF_ID if self.rtype.kind == "hf" else FM_ID
         self.stats = TncStats()
-        self.choices: dict[str, Any] = {"beacon": True, "path": "", "digipeat": False}              # the operator's choices on the radio (`choice`)
+        # The operator's choices on the radio (`choice`)
+        self.choices: dict[str, Any] = {"beacon": True, "path": "", "digipeat": False}
 
     @property
     def kind(self) -> Kind:
@@ -92,8 +83,9 @@ class StubTnc:
 
 
 class StubRadios:
-    """Two stubs as the one `RadioSet` of the services: the FM radio and the HF radio (its frame cap `hf_max_frame`), the default the FM one while it is enabled, the choice by station (`hf_stations` go on HF) and by
-    packet (the radio it came on)."""
+    """Two stubs as the one `RadioSet` of the services: the FM radio and the HF radio (its frame cap
+    `hf_max_frame`), the default the FM one while it is enabled, the choice by station
+    (`hf_stations` go on HF) and by packet (the radio it came on)."""
 
     def __init__(self, hf_stations: tuple[str, ...] = (), hf_max_frame: int = 123) -> None:
         self.fm, self.hf = StubTnc(), StubTnc(max_frame=hf_max_frame)
@@ -132,9 +124,12 @@ class StubRadios:
 
 
 class StubRegistry:
-    """Two stubs as the one `RadioPick` of the services (neoaprs/services/radioset.py): radio 1, the FM radio, and radio 2, the HF radio (its frame cap `hf_max_frame`), each on while its id is in `on`; the radio of a
-    call no radio heard the FM one while it is on, else the HF one, else none; the choice by station (`hf_stations` go on HF while both are on) and by packet (the radio it came on while it is on, else none, a packet made without a radio too); an email goes on the FM radio
-    while it is on, else on the one radio that is."""
+    """Two stubs as the one `RadioPick` of the services (neoaprs/services/radioset.py): radio 1, the
+    FM radio, and radio 2, the HF radio (its frame cap `hf_max_frame`), each on while its id is in
+    `on`; the radio of a call no radio heard the FM one while it is on, else the HF one, else none;
+    the choice by station (`hf_stations` go on HF while both are on) and by packet (the radio it
+    came on while it is on, else none, a packet made without a radio too); an email goes on the FM
+    radio while it is on, else on the one radio that is."""
 
     def __init__(self, hf_stations: tuple[str, ...] = (), hf_max_frame: int = 123) -> None:
         self.fm, self.hf = StubTnc(), StubTnc(max_frame=hf_max_frame)

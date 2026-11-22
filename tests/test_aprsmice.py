@@ -1,4 +1,5 @@
-"""Mic-E: the destination digits and bits, the longitude rules, speed and course, symbol, altitude, the comment and the radios' type codes."""
+"""Mic-E: the destination digits and bits, the longitude rules, speed and course, symbol, altitude,
+the comment and the radios' type codes."""
 from datetime import UTC, datetime
 
 import pytest
@@ -65,7 +66,8 @@ def test_speed_and_course_rules() -> None:
         p = parse_mice("S32UVT", WORKED[:3] + bytes([sp + 28, dc + 28, se + 28]) + WORKED[6:], NOW)
         return p.course_deg, p.speed_kmh
     assert sc(2, 2, 51) == (251, pytest.approx(20 * 1.852))
-    assert sc(82, 6, 51) == (251, pytest.approx(20 * 1.852))                  # 800 and over: minus 800, 400 and over: minus 400
+    # 800 and over: minus 800, 400 and over: minus 400
+    assert sc(82, 6, 51) == (251, pytest.approx(20 * 1.852))
     assert sc(0, 0, 0) == (None, None)
     assert sc(0, 5, 0) == (100, pytest.approx(0.0))                           # 500 - 400
     assert sc(5, 0, 0) == (None, pytest.approx(50 * 1.852))
@@ -84,7 +86,8 @@ def test_latitude_ambiguity_from_trailing_blanks() -> None:
     assert (p.lat, p.lon) == (pytest.approx(33 + 25.65 / 60), pytest.approx(-(112 + 7.75 / 60)))
     p = parse_mice("S3LZZZ", WORKED, NOW)                                    # four blanks: the degree's centre, north
     assert (p.lat, p.lon) == (pytest.approx(33.5), pytest.approx(-(112 + 30 / 60)))
-    assert p.ambiguity == 4 and parse_mice("S32UVZ", WORKED, NOW).ambiguity == 1 and parse_mice("S32UVT", WORKED, NOW).ambiguity == 0        # (the page shows the circle of ambiguity, so the count is told)
+    # (the page shows the circle of ambiguity, so the count is told)
+    assert p.ambiguity == 4 and parse_mice("S32UVZ", WORKED, NOW).ambiguity == 1 and parse_mice("S32UVT", WORKED, NOW).ambiguity == 0
 
 
 @pytest.mark.parametrize("dest", ["S3LUVT", "L32UVT", "S32U!T", "S32UV", "", "s32uvt", "S32KVT", "S32UVK", "S32UV?"])
@@ -125,7 +128,8 @@ def test_kenwood_and_yaesu_type_codes_are_dropped() -> None:
     (b">Hello&", "Hello"),                                  # TH-D75
     (b"]Hello^", "Hello^"),                                 # (^ is a handheld's: a mobile's text keeps it)
     (b"`Hello_%", "Hello"), (b"`Hello_0", "Hello"), (b"`Hello_)", "Hello"),           # FTM-400DR, FT3D, FTM-100D
-    (b"`Hello(8", "Hello"), (b"'Hello|3", "Hello"), (b"'Hello|4", "Hello"),           # Anytone D878UV, TinyTrak3 and 4 (non-messaging trackers)
+    # Anytone D878UV, TinyTrak3 and 4 (non-messaging trackers)
+    (b"`Hello(8", "Hello"), (b"'Hello|3", "Hello"), (b"'Hello|4", "Hello"),
     (b"`Hello[1", "Hello"), (b"`Hello^v", "Hello"), (b"'Hello X", "Hello"), (b"`Hello:2", "Hello"), (b"`Hello*9", "Hello"),
     (b"`Hello!w5L![1", "Hello"),                            # the DAO comes before the type code
     (b"`Hello_9", "Hello_9"), (b"`Hi ab", "Hi ab"),         # a suffix that is not in aprs-deviceid's table is text
@@ -140,9 +144,12 @@ def test_old_hex_telemetry_is_dropped() -> None:
     assert comment(b"`0A1BHi") == "Hi"                      # the backtick flag: two values, two hex digits each
     assert comment(b"'0A1B2C3D4EHi") == "Hi"                # the apostrophe flag: five values
     assert comment(b"\x1d\x01\x02\x03\x04\x05Hi") == "Hi"      # 0x1d: five binary values
-    assert comment(b"'0A1BHi") == "0A1BHi"                  # four hex digits after an apostrophe are not telemetry: only the type code goes
+    # four hex digits after an apostrophe are not telemetry: only the type code goes
+    assert comment(b"'0A1BHi") == "0A1BHi"
     assert comment(b"`0A1") == "0A1"                        # too short to be telemetry: only the type code goes
-    assert comment(b"`1296 MHz on request_3") == "1296 MHz on request"      # a Yaesu whose text starts with four hex-looking characters: the type code wins over the obsolete telemetry
+    # a Yaesu whose text starts with four hex-looking characters: the type code wins over the
+    # obsolete telemetry
+    assert comment(b"`1296 MHz on request_3") == "1296 MHz on request"
     assert comment(b"`CAFE_3") == "CAFE"
     assert comment(b"'2024 trip|3") == "2024 trip"
     assert comment(b"`0A1BHi") == "Hi"                      # (no known suffix: the telemetry reading stands)
@@ -156,7 +163,8 @@ def test_altitude() -> None:
     assert alt(b'"4{}') == (100.0, "")
     assert alt(b"]!!!}=") == (-10000.0, "")
     assert alt(b">Hi}") == (None, "Hi}")                     # (two characters are not an altitude)
-    assert alt(b'>Hello "4{} bye') == (None, 'Hello "4{} bye')  # only at the start: three characters and a brace inside the text are text
+    # only at the start: three characters and a brace inside the text are text
+    assert alt(b'>Hello "4{} bye') == (None, 'Hello "4{} bye')
     assert alt(b">see you QRT}") == (None, "see you QRT}")
     assert alt(b'>Hello"4{}') == (None, 'Hello"4{}')         # not glued to a word
     assert alt(b'>Hello "4{}x') == (None, 'Hello "4{}x')     # nor followed by one

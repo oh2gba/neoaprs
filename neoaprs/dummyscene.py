@@ -1,14 +1,8 @@
-"""The world of the Dummy radio: made-up APRS traffic around the station, for trying NeoAPRS out without a radio. A `Scene` is pure (no radio, no clock of its own, no I/O): asked for what is on the air by `due(now)`,
-it gives the frames that have come due, and told what we sent (`react`) it queues what the world answers. dummyline.py plays it on the Tnc's line.
+"""The world of the Dummy radio: made-up APRS traffic around the station, with no radio.
 
-Every call here is made up on the ITU's Q prefix: the series QAA to QZZ is never allocated to any country, so none of these calls is, or can ever be, a real station's. A packet with such a source is never anyone's.
-The scene has fixed stations (a house, a club shack, a cottage), three cars and a walker on routes round the station, a weather station that reports every five minutes, two digipeaters with PHG that repeat the
-others (a path with `*`), two objects, a bulletin now and then, and a status. The stations that take messages (`=` positions) answer one: an ack after a moment and the text "Hello from the dummy radio" a few seconds
-later. The club station is a QRU server (dummyqru.py): a request to QRU is answered with its groups and objects. What we send is not carried anywhere; a position of ours is played back as a digipeater repeating it, now and then. The first transmissions come within half a minute of the start, and then a few packets a minute.
-
-Each Dummy radio has a world of its own, by its seed, which is the radio's id (dummyline.py): the seed 1 gives the world above, and every other seed the same world with other calls (`call_of`: Q1ABC is Q3ABC for
-the seed 3), other names for the club's objects (`name_of`), every place turned round the station by TURN_DEG for each seed after the first, and its own draws of the times. So two Dummy radios show different
-stations in different places, and one radio shows the same ones at every start."""
+A `Scene` is pure (no radio, no clock, no I/O): `due(now)` gives the frames come due, `react`
+queues the answers. Calls are on the Q prefix, which no country has; each radio's seed has a world.
+"""
 import heapq
 import math
 import random
@@ -25,20 +19,26 @@ from .dummyqru import SERVER
 from .dummyroutes import DELIVERY_ROUND, PARK_PATH, RING_ROAD, TOWN_LOOP, Route, around
 from .reading import NO_READING, Reading
 
-HELSINKI = (60.1699, 24.9384)                  # the centre when the station has no position yet
+HELSINKI = (60.1699, 24.9384)  # the centre when the station has no position yet
 HELLO = "Hello from the dummy radio"
-DIGIPEATERS = ("Q2DIG-2", "Q7DIG-1")           # the first repeats the cars and the house, the second the van, the walker, the cottage and the weather
+# the first repeats the cars and the house, the second the van, the walker, the cottage and the
+# weather
+DIGIPEATERS = ("Q2DIG-2", "Q7DIG-1")
 ACK_AFTER_SEC = 1.5
-ANSWER_AFTER_SEC = (3.5, 6.0)                  # the text of an answer comes this long after the message
-REPEAT_AFTER_SEC = (0.8, 1.8)                  # a digipeater sends a frame again this long after it heard it
-ECHO_CHANCE = 0.6                              # of our positions after the first, which is always repeated
-TURN_DEG = 55                                  # the world of a seed after the first is turned clockwise round the station by this much for each seed, so that the stations of two Dummy radios are not at the same places
-NAME_MAX = 9                                   # the longest name of an object
+ANSWER_AFTER_SEC = (3.5, 6.0)  # seconds after the message
+REPEAT_AFTER_SEC = (0.8, 1.8)  # a digipeater repeats a frame this long after hearing it
+# chance that our positions after the first are repeated (the first always is)
+ECHO_CHANCE = 0.6
+# each seed after the first turns the world clockwise round the station by this much, so two Dummy
+# radios' stations are not at the same places
+TURN_DEG = 55
+NAME_MAX = 9  # the longest name of an object
 
 
 def call_of(call: str, seed: int) -> str:
-    """The call a made-up station has in the world of `seed`: its own for the seed 1; for another the digit after the Q is moved on by one for each seed after the first (Q1ABC is Q3ABC for the seed 3, Q4CAR-9
-    is Q6CAR-9) and, each time the digits have gone round, the last letter by one too, so that the worlds of the seeds share no call (for 260 seeds: the 261st is the world of the first again). It stays on the Q prefix, which is nobody's."""
+    """Return the call a made-up station has in the world of `seed`.
+
+    Seed 1 keeps its own; else the digit after the Q moves on per seed (Q1ABC is Q3ABC for 3)."""
     turns = seed - 1
     if turns == 0:
         return call
@@ -47,20 +47,25 @@ def call_of(call: str, seed: int) -> str:
 
 
 def name_of(name: str, seed: int) -> str:
-    """The name an object of the made-up club has in the world of `seed`: its own for the seed 1, for another with the seed at its end (FIELDDAY3), cut to the length a name may have."""
+    """Return the name an object of the made-up club has in the world of `seed`.
+
+    Its own for seed 1, else with the seed at its end (FIELDDAY3), cut to NAME_MAX."""
     return name if seed == 1 else f"{name[:NAME_MAX - len(str(seed))]}{seed}"
 
 
 @dataclass
 class Actor:
-    """A station that sends by itself: every `every_sec` (give or take a seventh), `make` gives its frames of the moment; `digi` is the digipeater that repeats the first of them."""
+    """A station that sends by itself every `every_sec` (give or take a seventh).
+
+    `digi` is the digipeater that repeats the first of them.
+    """
     call: str
     every_sec: float
-    first_sec: float                           # the first transmission comes this long after the start
+    first_sec: float  # the first transmission comes this long after the start
     make: Callable[[datetime], list[ax25.Frame]]
     digi: str | None = None
-    answers: bool = False                      # it takes a message and answers it
-    path: str = PATH                           # what it asks for when it sends a message
+    answers: bool = False  # it takes a message and answers it
+    path: str = PATH  # what it asks for when it sends a message
     next_at: datetime | None = None
 
 
@@ -72,7 +77,7 @@ class Scene:
         self._turn_deg = TURN_DEG * (seed - 1) % 360
         self._turn = (math.cos(math.radians(self._turn_deg)), math.sin(math.radians(self._turn_deg))) if self._turn_deg else (1.0, 0.0)
         self.digipeaters = (self.call(DIGIPEATERS[0]), self.call(DIGIPEATERS[1]))
-        self._rng = random.Random(seed)  # noqa: S311  (the made-up stations of the Dummy radio, the same for the same seed: nothing secret is drawn)
+        self._rng = random.Random(seed)  # noqa: S311  (made-up stations, same per seed)
         self._queue: list[tuple[datetime, int, ax25.Frame]] = []
         self._count = 0
         self._ids = 0
@@ -81,26 +86,26 @@ class Scene:
         self.actors: list[Actor] = self._build()
 
     def where(self, east_km: float, north_km: float) -> tuple[float, float]:
-        """The place that far east and north of the centre, in this world: turned clockwise round the centre by the world's angle (none for the seed 1)."""
+        """Return the place that far east and north of the centre, turned by the world's angle."""
         cos, sin = self._turn
         return around(self.centre, east_km * cos + north_km * sin, north_km * cos - east_km * sin)
 
     def call(self, call: str) -> str:
-        """The call of the station in this world (`call_of`)."""
+        """Return the call of the station in this world (`call_of`)."""
         return call_of(call, self.seed)
 
     @property
     def description(self) -> str:
-        """For the log: where the traffic is made."""
+        """Return where the traffic is made, for the log."""
         return f"traffic round {self.centre[0]:.4f}, {self.centre[1]:.4f}"
 
     def reading_of(self, frame: ax25.Frame) -> Reading:
-        """None: the Dummy radio stands for a KISS TNC, which measures nothing."""
+        """Return None: the Dummy radio stands for a KISS TNC, which measures nothing."""
         return NO_READING
 
     # ---- what is on the air
     def due(self, now: datetime) -> list[ax25.Frame]:
-        """The frames that have come due by `now`, in the order of the air."""
+        """Return the frames that have come due by `now`, in on-air order."""
         for actor in self.actors:
             if actor.next_at is not None and actor.next_at <= now:
                 self._send(actor, now)
@@ -126,7 +131,7 @@ class Scene:
 
     # ---- what the world does with what we send
     def react(self, frame: ax25.Frame, now: datetime) -> None:
-        """We sent `frame`. A message to a station that takes messages is acked and answered; a position of ours is repeated by a digipeater now and then; anything else goes nowhere."""
+        """React to `frame` we sent: a message is acked and answered, a position may be repeated."""
         if frame.info[:1] == b":":
             self._answer(frame, now)
         elif is_position(frame.info) and not str(frame.source).startswith("Q"):
@@ -156,7 +161,7 @@ class Scene:
             self._put(now + self._after(ANSWER_AFTER_SEC), air(talker.call, message(us, HELLO, str(self._ids)), talker.path))
 
     def _from_club(self, frame: ax25.Frame) -> ax25.Frame:
-        """A frame of the QRU server (dummyqru.py, which says it as the club of the seed 1) as this world's club sends it: under its call here, in the text too."""
+        """Return a QRU server frame (dummyqru.py) as this world's club sends it."""
         club = self.call(SERVER)
         return frame if club == SERVER else replace(frame, source=address(club), info=frame.info.replace(SERVER.encode("ascii"), club.encode("ascii")))
 

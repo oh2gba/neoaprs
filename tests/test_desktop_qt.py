@@ -1,6 +1,6 @@
-"""The Qt shell with the real toolkit, headless (QT_QPA_PLATFORM=offscreen; PySide6-WebEngine from the extra `app`, the whole module skipped without it): the window is made with its title and size and shows a page
-served on the loopback, remembers its size, hides when it is closed, keeps what the page stores in the data folder, sends the links to other sites (and the new windows `target="_blank"` asks for) to the browser
-and never shows them, and the tray menu is made from the data of the actions. There is no tray in the offscreen platform, so the tray itself is what only a real desktop can say."""
+"""Tests for the Qt shell with the real toolkit, headless (QT_QPA_PLATFORM=offscreen; skipped
+without PySide6-WebEngine): window title and size, hiding on close, page storage, external links,
+tray menu."""
 import contextlib
 import http.server
 import os
@@ -12,7 +12,9 @@ from typing import Any
 import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--no-sandbox --disable-gpu")         # (the sandbox of Chromium needs what a container or a test runner may not give; this is a test of ours)
+# (the sandbox of Chromium needs what a container or a test runner may not give; this is a test of
+# ours)
+os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--no-sandbox --disable-gpu")
 pytest.importorskip("PySide6.QtWebEngineWidgets")
 
 from shiboken6 import delete  # noqa: E402
@@ -30,7 +32,9 @@ from neoaprs.desktop.single import SingleApp  # noqa: E402
 from tests.test_desktop_logic import FakeAutoStart, FakeDaemon  # noqa: E402
 from tests.support.httpthread import serve
 
-pytestmark = pytest.mark.xdist_group("desktop-qt")      # (one worker: one process holds the Qt application, which a second one in the same run would disturb)
+# (one worker: one process holds the Qt application, which a second one in the same run would
+# disturb)
+pytestmark = pytest.mark.xdist_group("desktop-qt")
 HTML = b"""<!doctype html><html><head><title>fake page</title></head><body>
 <a id="ext" href="https://www.qrz.com/db/OH2GBA" target="_blank">QRZ</a>
 <a id="plain" href="https://www.openstreetmap.org/copyright">OSM</a>
@@ -80,7 +84,8 @@ def spin(condition: Any, seconds: float = 20.0) -> None:
 def reload(window: Any) -> None:
     loaded: list[bool] = []
     window.view.loadFinished.connect(loaded.append)
-    window.view.reload()                                  # (the address is the same, with its fragment: a load() would be no navigation)
+    # (the address is the same, with its fragment: a load() would be no navigation)
+    window.view.reload()
     spin(lambda: loaded)
     window.view.loadFinished.disconnect(loaded.append)
 
@@ -187,9 +192,11 @@ def test_a_window_left_maximized_is_remembered_so_with_the_size_and_place_it_goe
     assert appstate.load_window(rig.data) == appstate.WindowState(1000, 700, 30, 40, True)
     rig.window.showNormal()
     spin(lambda: not rig.window.isMaximized())
-    for name, state, check in (                                              # (a window of its own folder each: the engine lets one profile use a folder)
+    # (a window of its own folder each: the engine lets one profile use a folder)
+    for name, state, check in (
         ("again", appstate.WindowState(1000, 700, 30, 40, True), lambda w: w.isMaximized() and (w.normalGeometry().width(), w.normalGeometry().height()) == (1000, 700)),
-        ("elsewhere", appstate.WindowState(1000, 700, 29000, 29000), lambda w: not w.isMaximized() and (w.pos().x(), w.pos().y()) != (29000, 29000)),      # a place on no screen is not used
+        # a place on no screen is not used
+        ("elsewhere", appstate.WindowState(1000, 700, 29000, 29000), lambda w: not w.isMaximized() and (w.pos().x(), w.pos().y()) != (29000, 29000)),
     ):
         folder = tmp_path / name
         folder.mkdir()
@@ -228,7 +235,8 @@ def test_the_window_is_raised_by_another_thread(rig: Rig) -> None:
 
 
 def moved_to(rig: Rig, url: str) -> None:
-    """The watch's thread says that the daemon's page is at `url`; returns when the window shows it there."""
+    """The watch's thread says that the daemon's page is at `url`; returns when the window shows it
+    there."""
     loaded: list[bool] = []
     rig.window.view.loadFinished.connect(loaded.append)
     thread = threading.Thread(target=rig.built.actions.page_moved, args=(url,))
@@ -239,7 +247,8 @@ def moved_to(rig: Rig, url: str) -> None:
 
 
 def test_a_page_that_the_daemon_serves_at_another_address_is_loaded_there_by_another_thread_and_is_the_windows_own_from_then_on(rig: Rig, page_url: str) -> None:
-    """The daemon started again on another port: the watch's thread says so, and the window shows the page there, as its own (the address a navigation is judged against is the new one)."""
+    """The daemon started again on another port: the watch's thread says so, and the window shows
+    the page there, as its own (the address a navigation is judged against is the new one)."""
     elsewhere = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Page)
     serve(elsewhere)
     moved = f"http://127.0.0.1:{elsewhere.server_address[1]}/"
@@ -289,7 +298,8 @@ def test_a_message_for_the_user_goes_to_the_log_where_there_is_no_tray_to_show_i
 def test_quitting_remembers_the_size_of_the_window_and_ends_the_app(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
     ended: list[bool] = []
     monkeypatch.setattr(QApplication, "quit", staticmethod(lambda: ended.append(True)))
-    rig.window.show()                                                       # (a window that is not shown reports nonsense: its size is not remembered)
+    # (a window that is not shown reports nonsense: its size is not remembered)
+    rig.window.show()
     rig.window.resize(1111, 666)
     rig.built.frame.quit()
     rig.window.hide()
@@ -313,20 +323,25 @@ def test_the_app_that_runs_is_the_one_the_shell_uses(qapp: QApplication) -> None
     assert qtshell.application() is qapp
 
 
-# ---- the start: the window with the loading page before the daemon answers, its page after, and no page
+# ---- the start: the window with the loading page before the daemon answers, its page after, and no
+# page
 
 def gone(windows: list[AppWindow], qapp: QApplication) -> None:
-    """The windows a run made are deleted (Qt's quit of a later test would close them, and a window whose page is gone is not one to close)."""
+    """The windows a run made are deleted (Qt's quit of a later test would close them, and a window
+    whose page is gone is not one to close)."""
     for window in windows:
         window.on_close = lambda: True
-        delete(window)                                                       # (a deleteLater waits for a loop that this test does not run)
+        # (a deleteLater waits for a loop that this test does not run)
+        delete(window)
     qapp.processEvents()
 
 
 @contextlib.contextmanager
 def app_loop(monkeypatch: pytest.MonkeyPatch, seconds: float = 60.0) -> Iterator[None]:
-    """The app's loop as a loop of the test's: exec runs it, quit and exit end it. A real quit of the application is once in a process (the web engine is taken down at it), and a later test would crash;
-    the loop is ended after `seconds` if the test has not ended it (a failure ends the loop, not the run)."""
+    """The app's loop as a loop of the test's: exec runs it, quit and exit end it. A real quit of
+    the application is once in a process (the web engine is taken down at it), and a later test
+    would crash; the loop is ended after `seconds` if the test has not ended it (a failure ends the
+    loop, not the run)."""
     loop = QEventLoop()
     monkeypatch.setattr(QApplication, "exec", lambda self: loop.exec())
     monkeypatch.setattr(QApplication, "quit", staticmethod(lambda: loop.exit(0)))
@@ -400,7 +415,8 @@ def test_when_no_page_comes_the_window_closes_and_the_app_says_why(tmp_path: Pat
     assert not SingleApp(tmp_path).running()
 
 
-# ---- the edges: the shell that runs, a tray that comes late, a message to a tray, and a frame with no window
+# ---- the edges: the shell that runs, a tray that comes late, a message to a tray, and a frame with
+# no window
 
 class FakeTray:
     """What the shell asks of a tray icon: whether it shows, to show it, and a message."""
@@ -422,7 +438,8 @@ class FakeTray:
 
 
 class Ran:
-    """What `run` did, written down: the app's exec delivers what is waiting (the session's arrival) and ends with a code, and the tray's wait is a record."""
+    """What `run` did, written down: the app's exec delivers what is waiting (the session's arrival)
+    and ends with a code, and the tray's wait is a record."""
 
     def __init__(self, monkeypatch: pytest.MonkeyPatch, tray_available: bool) -> None:
         self.waited: list[object] = []
@@ -483,7 +500,8 @@ def test_a_window_closed_while_it_loads_on_a_desktop_with_no_tray_ends_the_app_o
     windows: list[AppWindow] = []
     made = qtshell.loading_window
     monkeypatch.setattr(qtshell, "loading_window", lambda launch: (windows.append(made(launch)), windows[-1])[1])
-    monkeypatch.setattr(QApplication, "exec", lambda self: (windows[0].close(), QApplication.processEvents(), 7)[2])     # the close button, before the session's arrival is heard
+    # the close button, before the session's arrival is heard
+    monkeypatch.setattr(QApplication, "exec", lambda self: (windows[0].close(), QApplication.processEvents(), 7)[2])
     asked: list[str] = []
     monkeypatch.setattr("neoaprs.desktop.menu.AppActions.run", lambda self, key: asked.append(key))
     assert qtshell.run(Launch.of(ctx)) == 7

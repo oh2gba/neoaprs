@@ -1,7 +1,7 @@
-"""Writes through the Db actor and says "ACK n" on file descriptor 2 after each write that has returned: run under strace by tests/safety/test_db_actor_lifecycle.py, which reads from the
-trace whether the commit had been synced to the disk by the time the write returned.
+"""Write through the Db actor and print "ACK n" on file descriptor 2 after each returned write.
 
-    python -c "from tests.support.db_sync_probe import main; main()" DB COUNT [SYNCHRONOUS]"""
+Run under strace by tests/safety/test_db_actor_lifecycle.py to see whether the commit was synced.
+"""
 import asyncio
 import os
 import sqlite3
@@ -19,13 +19,15 @@ def insert(n: int) -> Callable[[sqlite3.Connection], object]:
 async def run(path: str, count: int, synchronous: str) -> None:
     def opener() -> sqlite3.Connection:
         conn = connect(path)
-        conn.execute(f"PRAGMA synchronous={synchronous}")                  # FULL is what it is already; NORMAL is what the probe must see as unsynced
+        # FULL is the default; NORMAL is what the probe must see as unsynced.
+        conn.execute(f"PRAGMA synchronous={synchronous}")
         return conn
 
     db = Db(opener)
     await db.start()
     await db.write(lambda conn: conn.execute("CREATE TABLE t (n INTEGER PRIMARY KEY, v TEXT)"))
-    os.write(2, b"READY\n")                                                 # the first WAL and the schema are behind
+    # The first WAL and the schema are behind.
+    os.write(2, b"READY\n")
     for n in range(count):
         await db.write(insert(n))
         os.write(2, f"ACK {n}\n".encode())

@@ -15,24 +15,32 @@ def test_the_specs_report() -> None:
 
 
 @pytest.mark.parametrize(("text", "want"), [
-    ("T#MIC199,000,255,073,123,01101001", Telemetry(None, [199, 0, 255, 73, 123], "01101001")),                  # APRS 1.2: MIC without a comma
-    ("T#151,45.7,2.3,190.0,91.0,-7.3,00001100", Telemetry(151, [45.7, 2.3, 190.0, 91.0, -7.3], "00001100")),      # any width, signed, a decimal point
+    # APRS 1.2: MIC without a comma
+    ("T#MIC199,000,255,073,123,01101001", Telemetry(None, [199, 0, 255, 73, 123], "01101001")),
+    # any width, signed, a decimal point
+    ("T#151,45.7,2.3,190.0,91.0,-7.3,00001100", Telemetry(151, [45.7, 2.3, 190.0, 91.0, -7.3], "00001100")),
     ("T#005,1000,000,255,073,123,01101001", Telemetry(5, [1000, 0, 255, 73, 123], "01101001")),
-    ("T#005,199", Telemetry(5, [199], "")),                                                                       # fewer than five values, no bits
+    # fewer than five values, no bits
+    ("T#005,199", Telemetry(5, [199], "")),
     ("T#005,199,000,255,073,123", Telemetry(5, [199, 0, 255, 73, 123], "")),
-    ("T#005,199,000,255,073,123,0110", Telemetry(5, [199, 0, 255, 73, 123], "0110")),                               # fewer than eight bits
+    # fewer than eight bits
+    ("T#005,199,000,255,073,123,0110", Telemetry(5, [199, 0, 255, 73, 123], "0110")),
     ("T#005,199,000,255,073,123,0110100x", Telemetry(5, [199, 0, 255, 73, 123], "0110100", "x")),
-    ("T#7,1,.5,-2 note", Telemetry(7, [1, 0.5], "", "-2 note")),                                                    # a field that is no number ends the values
-    ("T#005,199,000,255,073,123,01101001,Balloon 3", Telemetry(5, [199, 0, 255, 73, 123], "01101001", "Balloon 3")),  # a comma between the bits and the comment, as most senders write it
+    # a field that is no number ends the values
+    ("T#7,1,.5,-2 note", Telemetry(7, [1, 0.5], "", "-2 note")),
+    # a comma between the bits and the comment, as most senders write it
+    ("T#005,199,000,255,073,123,01101001,Balloon 3", Telemetry(5, [199, 0, 255, 73, 123], "01101001", "Balloon 3")),
 ])
 def test_the_forms_of_aprs_1_2(text: str, want: Telemetry) -> None:
     assert parse_telemetry(text) == want
 
 
 @pytest.mark.parametrize(("comment", "rest", "want"), [
-    ("Hi |ss11|", "Hi", Telemetry(7544, [1472], "")),                                                            # the specification's examples
+    # the specification's examples
+    ("Hi |ss11|", "Hi", Telemetry(7544, [1472], "")),
     ("|ss112233|", "", Telemetry(7544, [1472, 1564, 1656], "")),
-    ("Balloon|ss1122334455!\"|!W12!", "Balloon!W12!", Telemetry(7544, [1472, 1564, 1656, 1748, 1840], "10000000")),   # the bits after the fifth: B1 is the lowest
+    # the bits after the fifth: B1 is the lowest
+    ("Balloon|ss1122334455!\"|!W12!", "Balloon!W12!", Telemetry(7544, [1472, 1564, 1656, 1748, 1840], "10000000")),
     ("|!!!!|", "", Telemetry(0, [0], "")),
 ])
 def test_base91_telemetry_in_a_comment(comment: str, rest: str, want: Telemetry) -> None:
@@ -77,13 +85,15 @@ def test_the_spec_report_scaled_by_the_spec_definitions() -> None:
     assert (battery.name, battery.unit, battery.raw, battery.value) == ("Battery", "v/100", 199, 1034.8)
     assert view.channels[1].value == pytest.approx(0.53 * 0 - 32, abs=1e-6)
     assert view.sequence == 5 and view.project == "N0QBF's Big Balloon"
-    assert [b.on for b in view.bits[:3]] == [False, False, True]          # the bits 0 1 1 against the sense 1 0 1: only the third has the sense
+    # the bits 0 1 1 against the sense 1 0 1: only the third has the sense
+    assert [b.on for b in view.bits[:3]] == [False, False, True]
     assert view.bits[0].name == "Camra"
 
 
 def test_bit_sense() -> None:
     view = describe(REPORT, definition_of("BITS.10110000,x"))
-    assert [b.on for b in view.bits] == [False, False, True, False, False, True, True, False]      # bits 01101001 against the sense 10110000
+    # bits 01101001 against the sense 10110000
+    assert [b.on for b in view.bits] == [False, False, True, False, False, True, True, False]
 
 
 def test_a_report_with_no_definition_is_named_a1_to_b8_and_unscaled() -> None:
@@ -96,7 +106,8 @@ def test_a_report_with_no_definition_is_named_a1_to_b8_and_unscaled() -> None:
 def test_a_list_may_stop_at_any_field() -> None:
     view = describe(REPORT, definition_of("PARM.Volts,,Temp", "EQNS.0,2,0,1,0,0"))
     assert [c.name for c in view.channels] == ["Volts", "A2", "Temp", "A4", "A5"]
-    assert view.channels[0].value == 398 and view.channels[1].value == 0 and view.channels[2].value == 255      # (a coefficient group that is cut short ends the list)
+    # (a coefficient group that is cut short ends the list)
+    assert view.channels[0].value == 398 and view.channels[1].value == 0 and view.channels[2].value == 255
 
 
 def test_later_messages_replace_earlier_ones_of_their_kind_only() -> None:

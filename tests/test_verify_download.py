@@ -1,5 +1,7 @@
-"""scripts/verify-download.py checks a file of a release by hand as Update now does: the signature of SHA256SUMS for the release's version, then the file's SHA-256. The script is loaded with the test's own public key in
-place of the project's; run as a program it believes the project's key alone, so a list the test signed does not pass."""
+"""scripts/verify-download.py checks a release file by hand as Update now does: the SHA256SUMS
+signature for the release's version, then the file's SHA-256. Loaded with the test's public key; run
+as a program it trusts only the project's key.
+"""
 import hashlib
 import importlib.machinery
 import importlib.util
@@ -20,7 +22,8 @@ INSTALLER = "NeoAPRS-Setup-0.7.0.exe"
 
 @pytest.fixture
 def script(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
-    loader = importlib.machinery.SourceFileLoader("verify_download", str(SCRIPT))         # (a name with a dash is no module name to import)
+    # A name with a dash is no module name to import
+    loader = importlib.machinery.SourceFileLoader("verify_download", str(SCRIPT))
     spec = importlib.util.spec_from_loader("verify_download", loader)
     assert spec is not None
     module = importlib.util.module_from_spec(spec)
@@ -30,7 +33,8 @@ def script(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
 
 
 def release(folder: Path, body: bytes = b"the installer", version: str = "0.7.0", signed_for: str | None = None, extra: str = "", name: str | None = None) -> Path:
-    """A downloaded installer with SHA256SUMS and SHA256SUMS.sig beside it, the list signed with the test's key; `name` is the file's name in place of the installer's own."""
+    """A downloaded installer with SHA256SUMS and SHA256SUMS.sig beside it, the list signed with the
+    test's key; `name` is the file's name in place of the installer's own."""
     folder.mkdir(parents=True, exist_ok=True)
     file = folder / (name or f"NeoAPRS-Setup-{version}.exe")
     file.write_bytes(body)
@@ -55,7 +59,8 @@ def test_a_changed_file_is_not_the_releases(script: ModuleType, tmp_path: Path, 
 
 
 @pytest.mark.parametrize(("make", "why"), [
-    (lambda folder: release(folder, signed_for="0.6.9"), "is not the project's signature"),                      # the signature of another release's list
+    # The signature of another release's list
+    (lambda folder: release(folder, signed_for="0.6.9"), "is not the project's signature"),
 ])
 def test_a_list_that_is_not_this_releases_is_not_verified(script: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str], make: object, why: str) -> None:
     file = make(tmp_path)              # type: ignore[operator]
@@ -63,7 +68,9 @@ def test_a_list_that_is_not_this_releases_is_not_verified(script: ModuleType, tm
 
 
 def test_a_file_whose_name_carries_no_version_needs_the_version_given(script: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """NeoAPRS-Setup.exe with the signed list of the older 0.6.9 beside it, as a release written over with an older one's files would serve them: the list cannot say which release the file ought to be."""
+    """NeoAPRS-Setup.exe with the signed list of an older release beside it, as a release
+    overwritten with older files would serve them: the list cannot say which release the file ought
+    to be."""
     file = release(tmp_path, version="0.6.9", name="NeoAPRS-Setup.exe", extra=f"{hashlib.sha256(b'x').hexdigest()}  NeoAPRS-Setup-0.6.9.exe\n")
     assert script.main([str(file)]) == 1 and "the name NeoAPRS-Setup.exe carries no version: give the version" in capsys.readouterr().err
     assert script.main([str(file), "--version", "0.7.0"]) == 1 and "is not the project's signature" in capsys.readouterr().err

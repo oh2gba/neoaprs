@@ -1,7 +1,7 @@
-"""Two and three NeoAPRS stations on one HF frequency with the Mercury HF modem (tests/support/mercuryworld.py on the fake Mercury of tests/support/fakemercury.py): the whole exchange with its timing, a frame at a time
-on a channel nobody listens to before keying. A beacon of one station is heard by the others after the frame's time on the air; a message is acked within one frame each way and the first wait of the retry
-schedule is long enough for that; two stations that key at the same moment lose both frames and the message goes through on its retry; our frames wait while a frame is on the air or the channel is busy, and one of
-ours never follows another before the first has left; a station that gates to APRS-IS puts what it hears on the internet and the Mercury traffic is `rf`; a packet too long for the frame is refused and told, never cut."""
+"""Two and three NeoAPRS stations on one HF frequency with the fake Mercury
+(tests/support/mercuryworld.py): the whole exchange with its timing, a frame at a time on a channel
+nobody listens to before keying.
+"""
 import asyncio
 from dataclasses import replace
 from datetime import timedelta
@@ -55,14 +55,16 @@ async def test_a_message_is_acked_within_one_frame_each_way_and_the_first_wait_o
     message, ack = (ax25.decode(p) for _, _, p in w.air.delivered)
     assert message.info == b":OH2B     :Moi Pekka, kuuluuko?{01}" and ack.info == b":OH2A     :ack01}"
     assert 2 * w.air.frame_sec <= took and a.ctl.messaging.get(record.id).attempts == 1, "two frames on the air at least, and never a retry: on the air the ack of a first attempt comes in about 10 s, a third of the first wait of 32 s (docs/mercury.md)"       # type: ignore[union-attr]
-    await w.until(lambda: any(m.direction == "in" for m in b.ctl.messaging.records()))     # (B acks at once and keeps the message as it is told: on a slow runner the ack can come first)
+    # B acks at once and keeps the message as it is told: on a slow runner the ack can come first
+    await w.until(lambda: any(m.direction == "in" for m in b.ctl.messaging.records()))
     received = [m for m in b.ctl.messaging.records() if m.direction == "in"]
     assert len(received) == 1 and received[0].text == "Moi Pekka, kuuluuko?"
     assert w.air.collisions == 0 and a.mercury.frames_keyed == 1 and b.mercury.frames_keyed == 1
 
 
 async def test_two_stations_that_key_at_the_same_moment_lose_both_frames_and_the_retry_goes_through(tmp_path: Path) -> None:
-    w = World(tmp_path, frame_sec=0.3, busy_detect=False)                       # (without the busy detector the second station does not wait: the collision Mercury allows)
+    # Without the busy detector the second station does not wait: the collision Mercury allows
+    w = World(tmp_path, frame_sec=0.3, busy_detect=False)
     a, b = await w.add("OH2A"), await w.add("OH2B", lat=61.5, lon=23.8)
     await w.start()
     record = await a.ctl.messaging.send("OH2B", "first try")
@@ -81,7 +83,8 @@ async def test_our_frames_wait_while_a_frame_is_on_the_air_and_while_the_channel
     w = World(tmp_path, frame_sec=0.3)
     a, b = await w.add("OH2A"), await w.add("OH2B", lat=61.5, lon=23.8)
     await w.start()
-    assert b.beacon_2.send_now()                                                # B is on the air: A's modem hears BUSY ON
+    # B is on the air: A's modem hears BUSY ON
+    assert b.beacon_2.send_now()
     await w.until(lambda: a.mercury.busy)
     assert not a.hf.usable and a.hf.why_unusable() == "the channel is busy" and not a.beacon_2.send_now()
     assert a.beacon_2.problem == "the channel is busy"
@@ -89,7 +92,8 @@ async def test_our_frames_wait_while_a_frame_is_on_the_air_and_while_the_channel
     assert record.attempts == 0 and record.state == "sending", "the attempt waits, none is used up"
     await w.until(lambda: a.ctl.messaging.get(record.id).attempts == 1, 3.0)            # type: ignore[union-attr]
     assert not a.mercury.busy, "it went when the channel was clear"
-    await w.until(lambda: a.mercury.keyed)                                            # (the modem says PTT ON on its control port a moment after the frame was handed to it)
+    # The modem says PTT ON on its control port a moment after the frame was handed to it
+    await w.until(lambda: a.mercury.keyed)
     assert not a.hf.usable and a.hf.why_unusable() == "the radio is transmitting"
     assert not a.beacon_2.send_now() and a.beacon_2.problem == "the radio is transmitting"
     await w.until(lambda: a.ctl.messaging.get(record.id).state == "acked", 5.0)         # type: ignore[union-attr]
@@ -128,7 +132,8 @@ async def test_over_the_air_every_frame_is_direct_and_whole_whatever_the_path_se
     beacon = sent_by(w, "OH2A")[-1]
     assert beacon.path == () and beacon.info.endswith(b"A comment as long as the settings allow, 43") and len(ax25.encode(beacon)) == 79, "direct, whole, the path setting ignored and kept"
     assert w.air.truncated == [] and a.ctl.config.beacon_path_calls[0] == "WIDE1-1"
-    await w.until(lambda: (heard := b.ctl.stationbook.get("OH2A")) is not None and heard.last_comment.startswith("A comment as long as"))       # (B decodes the beacon a moment after the air delivered it)
+    # B decodes the beacon a moment after the air delivered it
+    await w.until(lambda: (heard := b.ctl.stationbook.get("OH2A")) is not None and heard.last_comment.startswith("A comment as long as"))
     heard = b.ctl.stationbook.get("OH2A")
     assert heard is not None and heard.lat is not None
 
@@ -140,7 +145,8 @@ async def test_the_beacon_of_the_hf_radio_goes_out_at_the_one_interval_with_the_
     a.beacon_2.jitter = lambda most: 120.0
     await w.start()
     assert a.beacon_2.interval_min == 30 and a.ctl.config.beacon_interval_min == 30 and a.beacon.interval_min == 30, "one interval for both; the FM radio is off here"
-    w.pass_time(31)                                                                 # (the first beacon of a run comes 30 s after the start)
+    # The first beacon of a run comes 30 s after the start
+    w.pass_time(31)
     await w.until(lambda: len(w.air.delivered) == 1, 5.0)
     first = sent_by(w, "OH2A")[0]
     assert first.path == () and first.info.startswith(b"=6010.20N/02456.40E-"), "the home position, direct"
@@ -164,16 +170,22 @@ async def test_a_changed_beacon_interval_is_planned_by_the_hf_radios_beacon_at_o
 
 
 async def test_an_ack_lost_on_its_way_back_is_sent_again_for_the_retry_and_the_message_is_kept_once(tmp_path: Path) -> None:
-    """The far station hears the message and acks it, but the sender does not hear the ack (its radio is keyed at that moment: a keyed station hears nothing); the sender tries again after the first wait, 32 s, the
-    far station acks the copy again (a copy that comes 30 s or more after the last ack is acked again) and keeps the message once."""
+    """The far station hears the message and acks it, but the sender does not hear the ack (its
+    radio is keyed at that moment: a keyed station hears nothing); the sender tries again after the
+    first wait, 32 s, the far station acks the copy again (a copy that comes 30 s or more after the
+    last ack is acked again) and keeps the message once."""
     w = World(tmp_path, frame_sec=0.1)
     a, b = await w.add("OH2A"), await w.add("OH2B", lat=61.5, lon=23.8)
     await w.start()
     record = await a.ctl.messaging.send("OH2B", "lost ack")
-    await w.until(lambda: len(w.air.delivered) == 1)                                             # (the message reached B; B keeps it a moment later, after its ack is made: on a slow runner the ack could be on the air before)
+    # The message reached B; B keeps it a moment later, after its ack is made: on a slow runner the
+    # ack could be on the air before
+    await w.until(lambda: len(w.air.delivered) == 1)
     assert a.hf_radio is not None
-    a.hf_radio.keyed = True                                                                        # (A's radio keyed by hand: it hears nothing of B's ack)
-    await w.until(lambda: b.mercury.frames_keyed == 1 and not w.air.transmitting, 3.0)        # (B's ack went into the void)
+    # A's radio keyed by hand: it hears nothing of B's ack
+    a.hf_radio.keyed = True
+    # B's ack went into the void
+    await w.until(lambda: b.mercury.frames_keyed == 1 and not w.air.transmitting, 3.0)
     a.hf_radio.keyed = False
     await idle_for(0.2)
     assert a.ctl.messaging.get(record.id).state == "sending" and a.ctl.messaging.get(record.id).attempts == 1 and len(w.air.delivered) == 1       # type: ignore[union-attr]
@@ -190,10 +202,13 @@ async def test_a_station_that_never_acks_gets_the_four_attempts_of_the_schedule_
     a = await w.add("OH2A")
     await w.add("OH2B", lat=61.5, lon=23.8)
     await w.start()
-    record = await a.ctl.messaging.send("OH2Z", "anybody there?")                                  # (nobody of that name on the air)
-    for n, wait in enumerate((32, 32, 64), 2):                                                     # (the attempts at 0, 32, 64 and 128 s: schedule_sec, each retry after HF's pause of its own)
+    # Nobody of that name on the air
+    record = await a.ctl.messaging.send("OH2Z", "anybody there?")
+    # The attempts at 0, 32, 64 and 128 s: schedule_sec, each retry after HF's pause of its own
+    for n, wait in enumerate((32, 32, 64), 2):
         await w.until(lambda n=n: len(w.air.delivered) == n - 1, 15.0)                             # type: ignore[misc]  # the attempt is on the air
-        await w.settled("OH2A")                                                                    # (and the radio is free again, which the clock must not move before: `settled` says why)
+        # And the radio is free again, which the clock must not move before: `settled` says why
+        await w.settled("OH2A")
         pause = retry_pause(a.ctl.messaging.get(record.id), HF.retry_jitter_sec).total_seconds()  # type: ignore[arg-type]
         assert 0 <= pause <= HF.retry_jitter_sec
         w.pass_time(wait + pause - 2)
@@ -212,8 +227,10 @@ async def test_a_station_that_never_acks_gets_the_four_attempts_of_the_schedule_
 
 
 async def test_a_daemon_started_again_with_a_message_on_its_way_goes_on_from_its_database_and_the_message_is_acked(tmp_path: Path) -> None:
-    """The sender's daemon stops right after its first attempt (the ack that comes meanwhile is lost: nobody is listening) and starts again on the same data folder and the same radio: the message is still `sending`
-    with one attempt made, the retry falls due on the schedule, and the far station acks the copy."""
+    """The sender's daemon stops right after its first attempt (the ack that comes meanwhile is
+    lost: nobody is listening) and starts again on the same data folder and the same radio: the
+    message is still `sending` with one attempt made, the retry falls due on the schedule, and the
+    far station acks the copy."""
     w = World(tmp_path, frame_sec=0.1)
     a, b = await w.add("OH2A"), await w.add("OH2B", lat=61.5, lon=23.8)
     await w.start()
@@ -221,8 +238,10 @@ async def test_a_daemon_started_again_with_a_message_on_its_way_goes_on_from_its
     await w.until(lambda: len(w.air.delivered) == 1)
     first_sent = a.ctl.messaging.get(record.id).last_attempt_at                                   # type: ignore[union-attr]
     assert a.hf_radio is not None
-    a.hf_radio.keyed = True                                                                        # (nothing reaches A from here: it is going down)
-    await a.stop()                                                                                 # (B's ack goes out while A is down)
+    # Nothing reaches A from here: it is going down
+    a.hf_radio.keyed = True
+    # B's ack goes out while A is down
+    await a.stop()
     await w.until(lambda: b.mercury.frames_keyed == 1 and not w.air.transmitting, 3.0)
     a.hf_radio.keyed = False
     again = Env(a.dir, radio=False, hf=a.hf_radio, settings=a.settings, clock=a.now)

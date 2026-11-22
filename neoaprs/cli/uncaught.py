@@ -1,8 +1,7 @@
-"""What escapes: an exception that nothing caught goes to the log with its traceback, wherever it came from. Python prints these to stderr, which a service has in its journal but a program without a console (Windows's
-`neoaprsw` and `neoaprs-app`) has nowhere; the log is where the person who reads a support bundle looks.
+"""Log uncaught exceptions, with their traceback, wherever they come from.
 
-`install` takes over `sys.excepthook` (the main thread, and so an exception that ends the program) and `threading.excepthook` (any thread of ours) and gives back the function that restores them; `loop_handler` is the event
-loop's exception handler (a task nobody awaited that failed, a callback that raised, a transport that broke), which asyncio would otherwise write to the logger `asyncio` in its own words."""
+A program without a console (Windows `neoaprsw`, `neoaprs-app`) has no stderr, so the log is
+where they must go. `install` takes over the excepthooks, `loop_handler` handles loop errors."""
 import asyncio
 import logging
 import sys
@@ -16,7 +15,9 @@ MAX_CONTEXT_CHARS = 300
 
 
 def install(log: logging.Logger, chain: bool = False) -> Callable[[], None]:
-    """Logs the exceptions that end the program or a thread (not Ctrl+C or a plain exit). `chain`: and still lets Python print them to stderr, for a program that is run in a console and has no handler there."""
+    """Log the exceptions that end the program or a thread (not Ctrl+C or a plain exit).
+
+    With `chain`, Python's previous hook also runs, so a console still shows them."""
     before_sys, before_thread = sys.excepthook, threading.excepthook
 
     def on_main(kind: type[BaseException], error: BaseException, trace: TracebackType | None) -> None:
@@ -43,7 +44,7 @@ def install(log: logging.Logger, chain: bool = False) -> Callable[[], None]:
 
 
 def loop_handler(log: logging.Logger) -> Callable[[asyncio.AbstractEventLoop, dict[str, Any]], None]:
-    """The exception handler of an event loop: asyncio's message, what it names (the task, the callback), and the traceback."""
+    """Return an event loop exception handler that logs the message, context and traceback."""
     def handle(loop: asyncio.AbstractEventLoop, context: dict[str, Any]) -> None:
         error = context.get("exception")
         message = str(context.get("message", "unhandled exception in the event loop"))

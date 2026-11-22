@@ -1,6 +1,6 @@
-"""The base map over the socket: the topic `map`, the commands `map_estimate`, `map_fetch` and `map_cancel` (each refusal an `error` that says why), and the two files served with byte ranges once they exist, in the whole
-daemon cutting the made-up planet of tests/support/madepmtiles.py from a range server on the loopback (tests/support/rangeserver.py): the dry run's numbers on the wire, the files the download makes, a cancel, the end of the
-daemon while a cut runs."""
+"""The base map over the socket: the topic `map`, the commands `map_estimate`, `map_fetch` and
+`map_cancel` with each refusal, and the two files served with byte ranges, in the whole daemon.
+"""
 from dataclasses import replace
 from pathlib import Path
 
@@ -17,7 +17,8 @@ pytestmark = pytest.mark.usefixtures("no_shipped_world")
 
 
 async def daemon(tmp_path: Path, operator: bool = True, hold: bool = False) -> tuple[Env, WsClient, RangeServer]:
-    """The daemon with a source of the test in its settings (no daily build is looked for; the server holds its answers for tile data when asked to), and a page that has the topic."""
+    """The daemon with a source of the test in its settings (no daily build is looked for; the
+    server holds its answers for tile data when asked to), and a page that has the topic."""
     server = await range_server(planet())
     if hold:
         server.hold_from = data_offset(planet())
@@ -91,7 +92,8 @@ async def test_a_daemon_that_ends_while_a_cut_runs_stops_it(tmp_path: Path) -> N
     await page.send({"cmd": "map_fetch"})
     await until_started(lambda: server.holding > 0)
     await e.stop()
-    await until_started(lambda: server.holding == 0)             # (the connections that waited for the server were shut)
+    # The connections that waited for the server were shut
+    await until_started(lambda: server.holding == 0)
     assert not list(tmp_path.glob("*.part"))
 
 

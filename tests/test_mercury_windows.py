@@ -1,8 +1,8 @@
-"""The Mercury for Windows that NeoAPRS builds itself, as far as it can be held on any system without MinGW or a Windows machine: scripts/build-mercury's Windows options (the make commands, the folder it stages, the check
-of the program's import table, which reads a PE file by itself), packaging/windows/bundle_mercury.py (the tarball of the release workflow's job `mercury-windows` into the app folder, and nothing that is not the pinned
-Mercury's), and packaging/windows/smoke_mercury.py (the reading of `netstat -ano` and the verdict on the program's sockets, the Windows half of the check that it listens on 127.0.0.1 only). The workflow's wiring is in
-tests/test_release.py; the cross compile itself is done by the release workflow's job, and the Windows job starts the program it makes. The ports the smoke test frees are the four a modem of the daemon listens on, the
-ones by which the station's table keeps two radios' modems apart (mercuryhelper.pair_ports)."""
+"""The Mercury for Windows that NeoAPRS builds, as far as it can be held on any system:
+scripts/build-mercury's Windows options, packaging/windows/bundle_mercury.py and
+packaging/windows/smoke_mercury.py (the reading of `netstat -ano` and the verdict on the program's
+sockets). The workflow wiring is in tests/test_release.py.
+"""
 import importlib.machinery
 import importlib.util
 import io
@@ -49,7 +49,9 @@ def smoke() -> types.ModuleType:
 
 
 def make_pe(imports: list[str], machine: int = 0x8664, version: bool = True, delay: list[str] | None = None) -> bytes:
-    """A PE32+ file with one section that holds an import table naming `imports` (and a delay-load table naming `delay`) and, when asked, the pinned version's text: what the check reads, and no more."""
+    """A PE32+ file with one section that holds an import table naming `imports` (and a delay-load
+    table naming `delay`) and, when asked, the pinned version's text: what the check reads, and no
+    more."""
     section_rva, section_raw = 0x1000, 0x400
     body = bytearray()
 
@@ -130,7 +132,8 @@ def test_the_loopback_patch_covers_the_listeners_and_the_web_pages_socket_and_th
 
 
 def test_the_ffcpu_patch_defines_the_name_the_link_needs_and_the_build_checks_for_it(build: types.ModuleType) -> None:
-    """GitHub's ubuntu-26.04 runner could not link Mercury (13 Nov 2026): its gcc takes a machine with SSE4.2, which compiles in a string search that needs a name the source declares and never defines."""
+    """A gcc for a machine with SSE4.2 compiles in a string search that needs a name the source
+    never defines."""
     text = (ROOT / "packaging" / "mercury" / "ffcpu.patch").read_text(encoding="utf-8")
     added = [line for line in text.splitlines() if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
     assert "--- a/audioio/audioio.c" in text and "+int _ffcpu_features;" in added and not [line for line in added if line.startswith("-")], "one definition, nothing taken away"
@@ -140,7 +143,8 @@ def test_the_ffcpu_patch_defines_the_name_the_link_needs_and_the_build_checks_fo
 
 
 def test_the_flush_patch_flushes_each_log_line_and_the_build_checks_for_it(build: types.ModuleType) -> None:
-    """On Windows Mercury's log lines on stderr came only when the program ended (its C runtime buffers a pipe): the sound card error reached the daemon 20 minutes late on a test station (3 Nov 2026)."""
+    """On Windows Mercury's stderr lines come only when the program ends (the C runtime buffers a
+    pipe)."""
     text = (ROOT / "packaging" / "mercury" / "flush.patch").read_text(encoding="utf-8")
     assert "--- a/common/hermes_log.c" in text and "+        fflush(stderr);" in text and [line for line in text.splitlines() if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))] == ["+        fflush(stderr);"], "one line added, nothing else"
     script = SCRIPT.read_text(encoding="utf-8")
@@ -178,7 +182,9 @@ def test_the_import_table_of_a_program_is_read_and_a_dll_that_does_not_come_with
     program.write_bytes(make_pe(ok, delay=["libwinpthread-1.dll"]))
     with pytest.raises(build.BuildError, match="libwinpthread"):
         build.check_windows(tmp_path)
-    program.write_bytes(make_pe([*ok, "DSOUND.dll"]))                    # (Windows's own, but on an N edition it needs the missing ResampleDmo.dll and the program never starts)
+    # Windows's own, but on an N edition it needs the missing ResampleDmo.dll and the program never
+    # starts
+    program.write_bytes(make_pe([*ok, "DSOUND.dll"]))
     with pytest.raises(build.BuildError, match="Media Feature Pack"):
         build.check_windows(tmp_path)
 
@@ -224,7 +230,8 @@ def test_the_windows_folder_holds_the_program_the_licences_and_the_source_offer_
 # ---- packaging/windows/bundle_mercury.py
 
 def make_tarball(path: Path, **override: bytes | None) -> Path:
-    """The tarball the build makes (or a bad one: a member with the bytes given, or None to leave it out), at `path`."""
+    """The tarball the build makes (or a bad one: a member with the bytes given, or None to leave it
+    out), at `path`."""
     offer = f"Mercury {mercury.VERSION}, Rhizomatica's HF modem\nCommit: {mercury.SOURCE_COMMIT}\nSHA-256 of the source archive: {mercury.SOURCE_SHA256}\n".encode()
     members: dict[str, bytes | None] = {"mercury.exe": b"MZ program", "SOURCE.txt": offer, "LICENSE": b"GPL text", "LICENSE-freedv": b"LGPL", "LICENSE-hidapi.txt": b"hidapi"}
     members.update(override)

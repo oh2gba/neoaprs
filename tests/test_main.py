@@ -1,5 +1,7 @@
-"""The entry point as a process (`python -m neoaprs`): it starts, makes the database and the log, and stops cleanly on SIGTERM, SIGINT and SIGHUP; a database of a newer version is refused with exit 2
-and the unit does not restart on that code; the program creates nothing for others."""
+"""The entry point as a process (`python -m neoaprs`): it starts, makes the database and log, stops
+cleanly on SIGTERM, SIGINT and SIGHUP, refuses a newer database with exit 2, and creates nothing for
+others.
+"""
 import asyncio
 import io
 import logging
@@ -38,7 +40,8 @@ from tests.support.ptyline import posix_only
 from tests.test_migration_settings_reset import version_fifteen
 
 _radios: list[socket.socket] = []
-# A program that is stopped by a signal is stopped the way its system does: on Windows only Ctrl+Break reaches a child, and only one in a process group of its own (SIGTERM there is a kill).
+# A program that is stopped by a signal is stopped the way its system does: on Windows only
+# Ctrl+Break reaches a child, and only one in a process group of its own (SIGTERM there is a kill).
 if sys.platform == "win32":
     SIGNALS = [signal.SIGBREAK]
 else:
@@ -48,7 +51,8 @@ LOCAL_SIGNALS = [getattr(signal, n) for n in ("SIGTERM", "SIGINT", "SIGHUP", "SI
 
 @pytest.fixture(autouse=True)
 def radios() -> Iterator[None]:
-    """The daemons of these tests are given a TCP port on the loopback for a radio (--port): without one a daemon would listen to the operator's /dev/brainbox_* ports."""
+    """The daemons of these tests are given a TCP port on the loopback for a radio (--port): without
+    one a daemon would listen to the operator's /dev/brainbox_* ports."""
     yield
     for server in _radios:
         server.close()
@@ -56,7 +60,8 @@ def radios() -> Iterator[None]:
 
 
 def radio() -> tuple[socket.socket, str]:
-    """A listening socket and the `socket://` port that reaches it; the daemon's connection waits in its backlog until a test accepts it."""
+    """A listening socket and the `socket://` port that reaches it; the daemon's connection waits in
+    its backlog until a test accepts it."""
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(("127.0.0.1", 0))
     server.listen(1)
@@ -77,8 +82,10 @@ def start(data: Path, *extra: str) -> "subprocess.Popen[str]":
 
 
 class _Drain(threading.Thread):
-    """Reads what the daemon writes to one of its pipes while it runs. A pipe nobody reads fills (4 KB on Windows, which the lines of a migration from an old version reach), and the daemon then stops in
-    the middle of the line it is writing: in the middle of its migration. (The lines must come by a pipe: the daemon repeats them on stderr only where stderr is not a file.)"""
+    """Reads what the daemon writes to one of its pipes while it runs. A pipe nobody reads fills (4
+    KB on Windows, which the lines of a migration from an old version reach), and the daemon then
+    stops in the middle of the line it is writing: in the middle of its migration. (The lines must
+    come by a pipe: the daemon repeats them on stderr only where stderr is not a file.)"""
 
     def __init__(self, stream: IO[str]) -> None:
         super().__init__(daemon=True)
@@ -94,7 +101,9 @@ _said: dict[int, tuple[_Drain, _Drain]] = {}
 
 
 def said(proc: "subprocess.Popen[str]") -> tuple[str, str]:
-    """What the daemon wrote to stdout and to stderr: all of it once it has ended, what has come so far while it runs (of one that another test started with pipes of its own: what it wrote, once it has ended)."""
+    """What the daemon wrote to stdout and to stderr: all of it once it has ended, what has come so
+    far while it runs (of one that another test started with pipes of its own: what it wrote, once
+    it has ended)."""
     if proc.pid not in _said:
         out, err = proc.communicate()
         return out or "", err or ""
@@ -105,9 +114,13 @@ def said(proc: "subprocess.Popen[str]") -> tuple[str, str]:
     return "".join(drains[0].parts), "".join(drains[1].parts)
 
 
-PATIENCE_SEC = 120          # a daemon started or stopped on a machine that is busy with a whole test run takes its time: this is the longest a test waits for it, not how long it takes
-# The daemon's first prune (the daily one, which runs at the start) can still be asking the database for its write when the signal comes: the stop cancels the task that asked, the write commits all the same (neoaprs/db.py) and the
-# stop says so as a WARNING, on stderr too. That is what the stop is for, not a fault of the run.
+# A daemon started or stopped on a machine that is busy with a whole test run takes its time: this
+# is the longest a test waits for it, not how long it takes
+PATIENCE_SEC = 120
+# The daemon's first prune (the daily one, which runs at the start) can still be asking the database
+# for its write when the signal comes: the stop cancels the task that asked, the write commits all
+# the same (neoaprs/db.py) and the stop says so as a WARNING, on stderr too. That is what the stop
+# is for, not a fault of the run.
 CUT_OFF = "a write of the database whose asker was cancelled before the answer came is committed"
 
 
@@ -128,7 +141,8 @@ def wait_for(path: Path, text: str, proc: "subprocess.Popen[str]", seconds: floa
 
 
 def ended(proc: "subprocess.Popen[str]", data: Path, seconds: float = PATIENCE_SEC) -> tuple[str, str]:
-    """Waits for the daemon to end and gives what it wrote to stdout and stderr; one that is still there when the time is up is killed and the test fails with its log."""
+    """Waits for the daemon to end and gives what it wrote to stdout and stderr; one that is still
+    there when the time is up is killed and the test fails with its log."""
     try:
         proc.wait(timeout=seconds)
         return said(proc)
@@ -182,7 +196,8 @@ def test_the_program_creates_nothing_for_others(tmp_path: Path) -> None:
     stop(proc)
     ended(proc, data)
     assert stat.S_IMODE(data.stat().st_mode) == 0o700, "the folder is made private even when the program made it"
-    assert stat.S_IMODE((data / "neoaprs.log").stat().st_mode) == 0o600      # the umask of the program: private from the start
+    # The umask of the program: private from the start
+    assert stat.S_IMODE((data / "neoaprs.log").stat().st_mode) == 0o600
     assert stat.S_IMODE((data / DB_NAME).stat().st_mode) == 0o600
 
 
@@ -226,7 +241,8 @@ def test_a_database_of_a_newer_version_is_refused_without_a_restart_loop(tmp_pat
     before = (data / DB_NAME).read_bytes()
     proc = start(data)
     out, err = ended(proc, data)
-    assert proc.returncode == 2, (out, err)                                           # 2: the unit does not restart on it
+    # 2: the unit does not restart on it
+    assert proc.returncode == 2, (out, err)
     assert "newer NeoAPRS" in (data / "neoaprs.log").read_text(encoding="utf-8") and "newer NeoAPRS" in err
     assert "there is no copy in the backup folder that this NeoAPRS can open" in (data / "neoaprs.log").read_text(encoding="utf-8")
     assert (data / DB_NAME).read_bytes() == before, "the file is not touched"
@@ -269,7 +285,9 @@ def test_the_daemon_on_a_tcp_port_logs_and_keeps_the_capture_and_stops_on_sigter
     stop(proc)
     out, err = ended(proc, data)
     connection.close()
-    assert proc.returncode == 0 and time.monotonic() - began < 60, (out, err)          # (the stop with a radio still connected takes a second or two: a minute is the order of a stop that waited for something)
+    # The stop with a radio still connected takes a second or two: a minute is the order of a stop
+    # that waited for something
+    assert proc.returncode == 0 and time.monotonic() - began < 60, (out, err)
     log = (data / "neoaprs.log").read_text(encoding="utf-8")
     assert "OH2RDK-7>APRX29,OH2RCH-2*,TRACE2-1:!6009.90NT02456.80E&432.500 MHz -> position 60.1650 24.9467 T& 432.500 MHz" in log and log.count(" -> position ") == 4
     assert " ERROR " not in log and without_the_cut_off(err) == "", log
@@ -377,7 +395,8 @@ def test_a_second_daemon_on_the_same_data_folder_refuses_to_start_and_the_first_
     assert first.returncode == 0, (out, err)
     third = start(data)                                              # the lock went with the first daemon
     deadline = time.monotonic() + 30
-    while (data / "neoaprs.log").read_text(encoding="utf-8").count(f"{PROGRAM} is running") < 2 and time.monotonic() < deadline:        # (the first one's line is in the log already)
+    # The first one's line is in the log already
+    while (data / "neoaprs.log").read_text(encoding="utf-8").count(f"{PROGRAM} is running") < 2 and time.monotonic() < deadline:
         assert third.poll() is None
         time.sleep(0.02)
     stop(third)

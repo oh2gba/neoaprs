@@ -1,5 +1,5 @@
-"""The HF dial the group meets on comes with the version page (`hf_dial` of its answer, neoaprs/versions.py): the update check keeps the last one it was told in the row HF_DIAL, tells it at the start and when it
-changes, and the HF box suggests it for 40 m when the project has no list of its own (tests/test_frequencies.py); a page that names none, or one not of the form, changes nothing."""
+"""Tests for the HF dial from the version page (`hf_dial`, neoaprs/versions.py): the update check
+keeps and reports it, and the HF box suggests it for 40 m when there is no project list."""
 import json
 from pathlib import Path
 
@@ -62,7 +62,8 @@ async def test_check_now_takes_the_dial_too(tmp_path: Path) -> None:
 
 
 def test_the_dial_of_the_page_is_the_forty_metre_one_of_the_box_until_the_project_has_a_list() -> None:
-    """The earlier copies were told one dial, the 40 m one; the HF box of this one shows it as the suggestion for that band when the project's file (tests/test_frequencies.py) has no list."""
+    """The earlier copies were told one dial, the 40 m one; the HF box of this one shows it as the
+    suggestion for that band when the project's file (tests/test_frequencies.py) has no list."""
     assert suggested([], "7.0443 MHz USB", [], f"{DIAL_BAND} m") == [Frequency("40 m", "7.0443 MHz USB")]
 
 

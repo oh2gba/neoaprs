@@ -1,4 +1,5 @@
-"""Which addressees are the message board's (neoaprs/bulletin.py): bulletins, announcements, group bulletins, the group messages and the weather service's, and that none of them ages out."""
+"""Which addressees are the message board's (neoaprs/bulletin.py): bulletins, announcements, group
+bulletins, the group messages and the weather service's, and that none of them ages out."""
 from datetime import timedelta
 
 import pytest

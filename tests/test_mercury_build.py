@@ -1,6 +1,7 @@
-"""The build of the bundled Mercury for Linux (scripts/build-mercury and packaging/mercury/pulse_stub.c) as far as it can be held without a compiler or the network: the script takes its pins from neoaprs/mercury.py and has
-none of its own, the stub is a whole `ffpulse` with designated initialisers, the tarball is named for the version and the machine, and the usage prints. The build itself is tried by hand and by the mercury job of the
-release workflow, which checks the program it makes."""
+"""The build of the bundled Mercury for Linux (scripts/build-mercury,
+packaging/mercury/pulse_stub.c) as far as it can be held without a compiler or the network: the
+pins, the stub, the tarball name and the usage.
+"""
 import importlib.machinery
 import importlib.util
 import re
@@ -16,7 +17,8 @@ from tests.conftest import ROOT
 
 SCRIPT = ROOT / "scripts" / "build-mercury"
 STUB = ROOT / "packaging" / "mercury" / "pulse_stub.c"
-MEMBERS = ("init", "uninit", "dev_alloc", "dev_free", "dev_error", "dev_next", "dev_info", "alloc", "free", "error", "open", "start", "stop", "clear", "write", "drain", "read", "signal")       # ffaudio_interface, audio.h
+# ffaudio_interface, audio.h
+MEMBERS = ("init", "uninit", "dev_alloc", "dev_free", "dev_error", "dev_next", "dev_info", "alloc", "free", "error", "open", "start", "stop", "clear", "write", "drain", "read", "signal")
 
 
 @pytest.fixture(scope="module")
@@ -35,7 +37,8 @@ def test_the_script_has_the_pins_of_the_program_and_none_of_its_own() -> None:
     assert "SOURCE_URL" in text and "SOURCE_SHA256" in text and "SOURCE_COMMIT" in text and "VERSION" in text
     assert "https://" not in text.replace("https://github.com/oh2gba/neoaprs", "")
     assert not re.search(r"\b[0-9a-f]{40}\b|\b[0-9a-f]{64}\b", text)
-    assert not re.search(r"\b\d+\.\d+\.\d+\b", text.replace("127.0.0.1", "").replace("0.0.0", ""))           # no version of Mercury either (the loopback address the ports are checked on is not one)
+    # No version of Mercury either (the loopback address the ports are checked on is not one)
+    assert not re.search(r"\b\d+\.\d+\.\d+\b", text.replace("127.0.0.1", "").replace("0.0.0", ""))
 
 
 def test_the_script_takes_the_values_it_builds_from_the_pins(build: ModuleType) -> None:
@@ -85,6 +88,7 @@ def test_the_link_check_refuses_what_the_bundle_does_not_carry(build: ModuleType
         monkeypatch.setattr(build, "run", lambda command, extra=extra: ldd.format(lib=lib) + f"\t{extra}\n")
         with pytest.raises(build.BuildError):
             build.check_links(folder / "mercury", folder)
-    monkeypatch.setattr(build, "run", lambda command: ldd.format(lib="/usr/lib/libasound.so.2"))            # the system's copy, not the folder's
+    # The system's copy, not the folder's
+    monkeypatch.setattr(build, "run", lambda command: ldd.format(lib="/usr/lib/libasound.so.2"))
     with pytest.raises(build.BuildError):
         build.check_links(folder / "mercury", folder)

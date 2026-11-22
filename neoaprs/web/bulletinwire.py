@@ -1,4 +1,4 @@
-"""The message board on the wire: the topic `bulletins` (a table of rows by sender and slot) and the command to delete an entry. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire models of the topic `bulletins` and the command that deletes an entry."""
 from typing import Literal
 
 from pydantic import Field

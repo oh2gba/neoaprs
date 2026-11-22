@@ -1,4 +1,5 @@
-"""The part that the fake servers on the loopback share (the fake version page, the fake HTTP server of the download tests): a listening asyncio server on a free port that is started and stopped."""
+"""What the fake loopback servers share: a listening asyncio server on a free port, started and
+stopped."""
 import asyncio
 from typing import Self
 

@@ -1,5 +1,6 @@
-"""Encrypted messages (neoaprs/cipher.py): the key announcement and its reading, the shared key from either side, a sealed text that opens with the pair's key and with nothing else (another key, the
-other direction, another station, a changed character, a cut packet), the room a message has, and the fingerprint."""
+"""Tests for encrypted messages (neoaprs/cipher.py): key announcement, shared key, sealed text that
+opens only with the pair's key, message room and fingerprint.
+"""
 import pytest
 
 from neoaprs import cipher
@@ -14,7 +15,8 @@ def test_a_key_pair_announces_its_public_key_in_one_message_and_the_text_reads_b
     public = cipher.public_of(A)
     text = cipher.key_message(public)
     assert text.startswith("!K") and len(text) == 45 and len(public) == 32
-    check_text(text)                                 # (a message can carry it: printable ASCII, under the limit, no | ~ {)
+    # (a message can carry it: printable ASCII, under the limit, no | ~ {)
+    check_text(text)
     assert cipher.key_of_message(text) == public
     assert cipher.key_of_message(text + " ") == public
     assert cipher.key_of_message("!Knot a key") is None and cipher.key_of_message("Hello") is None and cipher.key_of_message("!K" + "A" * 43 + "A") is None
@@ -40,7 +42,8 @@ def test_the_longest_text_is_34_bytes_of_utf8_and_fills_a_message_to_the_brim() 
     key = cipher.shared_key(A, cipher.public_of(B))
     longest = "x" * cipher.MAX_LOCKED
     wire = cipher.seal(key, "OH2GBA", "OH2BEA-7", longest)
-    assert len(wire) == MAX_TEXT - 1 and cipher.open_sealed(key, "OH2GBA", "OH2BEA-7", wire) == longest        # (48 bytes are 64 characters of base64; 49 would be 66, one over)
+    # (48 bytes are 64 characters of base64; 49 would be 66, one over)
+    assert len(wire) == MAX_TEXT - 1 and cipher.open_sealed(key, "OH2GBA", "OH2BEA-7", wire) == longest
     with pytest.raises(cipher.CipherError) as over:
         cipher.seal(key, "OH2GBA", "OH2BEA-7", "ä" * 18)
     assert over.value.code == "lock.too_long" and over.value.params == {"length": 36, "max": 34}

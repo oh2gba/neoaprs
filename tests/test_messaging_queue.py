@@ -1,6 +1,7 @@
-"""One message to a station on the air at a time (neoaprs/services/messaging.py, `Messaging.queued`) on the stub Tnc and clock of tests/test_messaging.py: a second message to a station waits, with no attempt
-made, while the first is being sent, and goes as soon as the first is acked, rejected, failed or cancelled; three go in the order written; messages to different stations do not wait for each other; the
-email gateway, a bulletin and a query never wait nor hold one up; the order holds over a restart; a waiting message can be cancelled; a retry waits its turn; and the page is told `queued`, then `sending`."""
+"""One message to a station on the air at a time (`Messaging.queued`): a second waits, with no
+attempt made, until the first is acked, rejected, failed or cancelled; different stations do not
+wait for each other.
+"""
 import json
 from collections.abc import Callable
 from pathlib import Path

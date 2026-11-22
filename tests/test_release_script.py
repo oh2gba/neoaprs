@@ -1,7 +1,7 @@
-"""scripts/release makes a release in one command and can be run again after any failure. It is run here for real, on a clone of a made-up repository whose origin is a bare repository in a temporary folder, with a fake `gh`
-(a program that keeps the state of the runs and of the release in a file and logs every call), a fake `bws` that hands out a signing key the test made (the copy of neoaprs/updateasset.py in the clone carries its
-public half), fake `scripts/check`, `scripts/build-page` and `server/deploy.sh`, and a loopback server for the download links: the order of the steps, the dry run, the resume after a failure at each step, and the
-cases it refuses. Nothing here touches GitHub or Bitwarden; tests/test_release_sign.py has the signing step's own cases."""
+"""scripts/release makes a release in one command and can be run again after any failure. It is run
+for real on a clone of a made-up repository with a bare origin, a fake `gh` and a fake `bws` handing
+out a test key.
+"""
 import base64
 import hashlib
 import http.server
@@ -26,15 +26,19 @@ from neoaprs.updateasset import PUBLIC_KEY
 from tests.support.ptyline import posix_only
 from tests.support.httpthread import serve
 
-pytestmark = posix_only      # (bash scripts and a script with a shebang: a development tool, not the product)
+# Bash scripts and a script with a shebang: a development tool, not the product
+pytestmark = posix_only
 
 ROOT = Path(__file__).resolve().parent.parent
 VERSION = "0.9.1"
 TAG = f"v{VERSION}"
 ASSETS = sorted([f"neoaprs-{VERSION}.tar.gz", f"neoaprs-{VERSION}-py3-none-any.whl", "install.sh", f"NeoAPRS-Setup-{VERSION}.exe", f"NeoAPRS-{VERSION}-x86_64.AppImage", f"NeoAPRS-{VERSION}-arm64.dmg", f"neoaprs_{VERSION}_amd64.deb", f"neoaprs_{VERSION}_arm64.deb",
-                 "NeoAPRS-Setup.exe", "NeoAPRS-x86_64.AppImage", "NeoAPRS-arm64.dmg", "neoaprs_amd64.deb", "neoaprs_arm64.deb", "SHA256SUMS"])      # what the release run uploads to the draft
-CONTENTS = {name: name for name in ASSETS if name != "SHA256SUMS"}                                                                      # the made-up files: each holds its own name, which SUMS hashes
-SIGNED = sorted([*ASSETS, "SHA256SUMS.sig"])                                                                                          # and the release once it is signed
+                 # What the release run uploads to the draft
+                 "NeoAPRS-Setup.exe", "NeoAPRS-x86_64.AppImage", "NeoAPRS-arm64.dmg", "neoaprs_amd64.deb", "neoaprs_arm64.deb", "SHA256SUMS"])
+# The made-up files: each holds its own name, which SUMS hashes
+CONTENTS = {name: name for name in ASSETS if name != "SHA256SUMS"}
+# And the release once it is signed
+SIGNED = sorted([*ASSETS, "SHA256SUMS.sig"])
 SUMS = "".join(f"{hashlib.sha256(name.encode()).hexdigest()}  {name}\n" for name in ASSETS if name != "SHA256SUMS")
 SECRET_ID = "00000000-0000-4000-8000-000000000001"          # (made up: the form of an id, nothing of a real one)
 
@@ -130,7 +134,8 @@ print(json.dumps({{"id": "{secret_id}", "key": "neoaprs_update_signing_key", "va
 '''
 
 def switches_on() -> dict[str, Any]:
-    """What GitHub answers for the repository's switches when all are on (gh fills {owner}/{repo} in itself; the script writes them as placeholders and the fake takes them literally)."""
+    """What GitHub answers for the repository's switches when all are on (gh fills {owner}/{repo} in
+    itself; the script writes them as placeholders and the fake takes them literally)."""
     repo = "repos/{owner}/{repo}"
     return {repo: {"security_and_analysis": {"secret_scanning": {"status": "enabled"}, "secret_scanning_push_protection": {"status": "enabled"}}},
             f"{repo}/vulnerability-alerts": "204", f"{repo}/code-scanning/default-setup": {"state": "configured", "languages": ["python"]},
@@ -159,7 +164,8 @@ class Downloads(http.server.BaseHTTPRequestHandler):
 
 
 class Rig:
-    """A made-up repository at 0.9.0 with notes under `## Unreleased`, its bare origin, the fakes, and `release(...)` which runs the copy of scripts/release in the clone."""
+    """A made-up repository with notes under `## Unreleased`, its bare origin, the fakes, and
+    `release(...)` which runs the copy of scripts/release in the clone."""
 
     def __init__(self, tmp: Path, base: str) -> None:
         self.tmp = tmp
@@ -170,13 +176,16 @@ class Rig:
         self.bin = tmp / "bin"
         self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
         self.seed = secrets.token_bytes(32)
-        self.seed_file = tmp / "bws-seed"                             # (where the fake bws keeps the secret, outside the clone)
+        # Where the fake bws keeps the secret, outside the clone
+        self.seed_file = tmp / "bws-seed"
         self.seed_file.write_text(base64.b64encode(self.seed).decode(), encoding="ascii")
         self.env = {k: v for k, v in self.env.items() if not k.startswith("BWS_") and k != "NEOAPRS_SIGNING_SECRET_ID"}
         self.env.update(NEOAPRS_SIGNING_SECRET_ID=SECRET_ID, BWS_SERVER_URL="https://vault.bitwarden.invalid")
         self.env.update(PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}", HOME=str(tmp / "home"), GIT_AUTHOR_NAME="John", GIT_AUTHOR_EMAIL="john@example.invalid", GIT_COMMITTER_NAME="John", GIT_COMMITTER_EMAIL="john@example.invalid",
                         GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull, LC_ALL="C.UTF-8",
-                        PYTHONDONTWRITEBYTECODE="1")        # the clone has no .gitignore: a __pycache__ the script's import of neoaprs/ would leave is no stray file of the tree
+                        # The clone has no .gitignore: a __pycache__ the script's import of neoaprs/
+                        # would leave is no stray file of the tree
+                        PYTHONDONTWRITEBYTECODE="1")
         (tmp / "home").mkdir()
         self.state: dict[str, Any] = {"auth": True, "appear_after": 1, "looks": {}, "runs": [], "rate_limited": 0, "api": switches_on(), "base": base, "log": "python (ubuntu-latest)\tpytest\t2026-10-26T08:00:00Z FAILED tests/test_flaky.py::test_it - assert 1 == 2\n"
                                       "python (ubuntu-latest)\tpytest\t2026-10-26T08:00:01Z 1 failed, 3000 passed\npython (ubuntu-latest)\tpytest\t2026-10-26T08:00:02Z uploading cache",
@@ -192,12 +201,14 @@ class Rig:
         self.git("symbolic-ref", "HEAD", "refs/heads/master")
         (self.work / "scripts").mkdir(exist_ok=True)
         shutil.copy(ROOT / "scripts" / "release", self.work / "scripts" / "release")
-        for module in ("updateasset.py", "versions.py"):               # (the script names the wheel as the package does)
+        # The script names the wheel as the package does
+        for module in ("updateasset.py", "versions.py"):
             (self.work / "neoaprs").mkdir(exist_ok=True)
             shutil.copy(ROOT / "neoaprs" / module, self.work / "neoaprs" / module)
         mine = base64.b64encode(Ed25519PrivateKey.from_private_bytes(self.seed).public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)).decode()
         asset = self.work / "neoaprs" / "updateasset.py"
-        asset.write_text(asset.read_text(encoding="utf-8").replace(PUBLIC_KEY, mine), encoding="utf-8")      # (the clone's program carries the test's public key)
+        # The clone's program carries the test's public key
+        asset.write_text(asset.read_text(encoding="utf-8").replace(PUBLIC_KEY, mine), encoding="utf-8")
         make_executable(self.work / "scripts" / "check", SCRIPT.format(name="check", log=self.log, body=f'[ -e "{tmp}/check-fails" ] && {{ echo "check: pytest failed"; exit 1; }}\nexit 0'))
         make_executable(self.work / "scripts" / "build-page", SCRIPT.format(name="build-page", log=self.log, body=f'[ -e "{tmp}/page-differs" ] && echo "built differently" > neoaprs/page/index.html\nexit 0'))
         make_executable(self.work / "server" / "deploy.sh", SCRIPT.format(name="deploy", log=self.log, body=f'[ -e "{tmp}/deploy-fails" ] && exit 1\nexit 0'))
@@ -232,7 +243,8 @@ class Rig:
         return self.git("rev-parse", "HEAD")
 
     def publish(self, message: str) -> None:
-        """A commit that is on origin before the release starts (the log of calls starts empty again)."""
+        """A commit that is on origin before the release starts (the log of calls starts empty
+        again)."""
         self.commit(message)
         self.git("push", "-q", "origin", "master")
         self.log.write_text("", encoding="utf-8")
@@ -263,7 +275,8 @@ class Rig:
         return [line for line in self.log.read_text(encoding="utf-8").splitlines() if line]
 
     def kinds(self) -> list[str]:
-        """The calls of the run by what they were, in the order they came: check, push of a ref, gh run list/watch/rerun of a workflow, release view, deploy."""
+        """The calls of the run by what they were, in the order they came: check, push of a ref, gh
+        run list/watch/rerun of a workflow, release view, deploy."""
         out = []
         for line in self.calls():
             if line.startswith("gh run list"):
@@ -286,7 +299,8 @@ class Rig:
         return out
 
     def changed(self) -> dict[str, str]:
-        """The repository's state, and the calls but the reading of the switches (`gh api`, which changes nothing and which a dry run makes too)."""
+        """The repository's state, and the calls but the reading of the switches (`gh api`, which
+        changes nothing and which a dry run makes too)."""
         return {"head": self.git("rev-parse", "HEAD"), "origin": self.git("rev-parse", "master", cwd=self.remote), "tags": self.git("tag", "--list"), "status": self.git("status", "--porcelain"),
                 "calls": "\n".join(call for call in self.calls() if not call.startswith("gh api "))}
 
@@ -315,7 +329,8 @@ FULL_RUN = ["check", "push master", "list ci.yml", "list ci.yml", "watch ci.yml"
 
 
 def assert_released(rig: Rig) -> None:
-    """The made-up repository after a release: one commit that sets the version and the changelog section, on origin; the tag on that commit, on origin; a fresh empty Unreleased."""
+    """The made-up repository after a release: one commit that sets the version and the changelog
+    section, on origin; the tag on that commit, on origin; a fresh empty Unreleased."""
     commit = rig.commit_of_release()
     assert rig.git("log", "-1", "--format=%s", commit) == f"{VERSION}: the changelog section and the version"
     assert rig.git("diff", "--name-only", f"{commit}~1", commit).splitlines() == ["CHANGELOG.md", "neoaprs/__init__.py"]
@@ -449,7 +464,8 @@ def test_it_refuses_a_changelog_without_notes_under_unreleased(rig: Rig) -> None
 def test_it_refuses_a_version_that_is_not_new_and_greater(rig: Rig, version: str, why: str) -> None:
     if version == "0.9.0":
         rig.git("tag", "-d", "v0.9.0")
-        rig.git("tag", "v0.9.0", "HEAD")                              # (the tag of a version names another commit than the one that wrote it: a tag is never moved)
+        # The tag of a version names another commit than the one that wrote it: a tag is never moved
+        rig.git("tag", "v0.9.0", "HEAD")
         rig.git("push", "-q", "-f", "origin", "v0.9.0")
     done = rig.release(version=version)
     assert done.returncode == 1 and "stopped:" in done.stdout and (why in done.stdout or version == "0.9.0" and "tag v0.9.0 exists" in done.stdout), done.stdout
@@ -647,7 +663,8 @@ def commit_args(rig: Rig) -> list[str]:
 
 
 def ci_fails_then_a_fix_is_pushed(rig: Rig, fix_file: str = "fix.txt", fix_text: str = "the fix") -> str:
-    """0.9.1 as it happened: the release commit is pushed, its CI run fails, nothing is tagged; then the fix is committed on master and pushed, and CI would pass for it. Returns the release commit."""
+    """The release commit is pushed and its CI run fails, nothing is tagged; then the fix is
+    committed and pushed and CI would pass for it. Return the release commit."""
     rig.state["ci.yml"]["plan"] = ["failure"]
     rig.save_state()
     first = rig.release()
@@ -761,7 +778,8 @@ def test_a_tag_on_the_release_commit_is_never_moved_to_head(rig: Rig) -> None:
 
 def test_a_tag_on_another_commit_than_the_release_is_still_refused_when_head_is_ahead(rig: Rig) -> None:
     ci_fails_then_a_fix_is_pushed(rig)
-    rig.git("tag", TAG, rig.git("rev-parse", "HEAD~2"))              # (the commit before the release commit: not the release commit, not HEAD)
+    # The commit before the release commit: not the release commit, not HEAD
+    rig.git("tag", TAG, rig.git("rev-parse", "HEAD~2"))
     rig.git("push", "-q", "origin", TAG)
     refusal_text = rig.release()
     assert refusal_text.returncode == 1 and f"the tag {TAG} exists here at" in refusal_text.stdout

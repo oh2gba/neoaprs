@@ -1,5 +1,6 @@
-"""The settings of the map's layers of traffic (neoaprs/configlayers.py): `map/aircraft`, `map/aircraft_host`, `map/ships` and `map/ships_host`, their values, what each refuses, their defaults and their place
-in the form; and a page of another device that has the access key sets them as this computer's page does."""
+"""Tests for the map layer settings (neoaprs/configlayers.py): `map/aircraft`, `map/aircraft_host`,
+`map/ships` and `map/ships_host`, their validation, defaults, and form place.
+"""
 import json
 from pathlib import Path
 
@@ -87,7 +88,8 @@ def test_a_stored_value_is_read_back_and_a_wrong_one_falls_back_to_its_default()
 
 
 def test_fintraffic_is_stored_wherever_the_station_is() -> None:
-    """Whether it is offered is the station's position and radius (layerthing.offered): a save of it is not refused, and while it is not offered it counts as none."""
+    """Whether it is offered is the station's position and radius (layerthing.offered): a save of it
+    is not refused, and while it is not offered it counts as none."""
     far = Config.checked(Config.from_data({"station/lat": "50.11", "station/lon": "8.68"}), {"map/ships": "fintraffic"})
     assert far.map_ships == "fintraffic"
 
@@ -98,15 +100,17 @@ def test_no_setting_of_the_layers_is_kept_to_this_computer() -> None:
 
 @pytest.fixture
 def from_another_device(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The address of this computer on the network is a made-up one, and every request comes from an address that is not this computer's."""
+    """The address of this computer on the network is a made-up one, and every request comes from an
+    address that is not this computer's."""
     monkeypatch.setattr("neoaprs.web.server.lan_addresses", lambda: ["192.168.1.20"])
     monkeypatch.setattr(web_access, "is_loopback", lambda ip: False)
 
 
 @pytest.fixture
 def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for every test that does not ask for a fixture of this name): the receivers saved here are asked at the save
-    (services/layers.py), and the addresses are made up."""
+    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for
+    every test that does not ask for a fixture of this name): the receivers saved here are asked at
+    the save (services/layers.py), and the addresses are made up."""
     monkeypatch.setenv(nodevices.ENV, "1")
 
 

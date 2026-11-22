@@ -1,6 +1,7 @@
-"""What Mercury's UI interface says and the scope made of it (neoaprs/mercuryscope.py): the spectrum frame, the status message, the two commands, the level worked back from the spectrum's own scale (white noise of a known
-RMS), and the rows of the waterfall: the passband at the modem's own bins, two spectra to a row, a byte of dB
-on the modem's scale, and the binary frame the page is sent; the rows kept of the last two minutes (bounded, in order, a gap kept as a gap, emptied and numbered on) and the frame they are sent in; and what making the rows costs."""
+"""What Mercury's UI interface says and the scope made of it (neoaprs/mercuryscope.py): the spectrum
+frame, status message, commands, the level worked back from the spectrum scale, and the waterfall
+rows.
+"""
 import json
 import math
 import random
@@ -17,7 +18,8 @@ BINS = 512
 
 
 def noise_spectrum(rms: float, jitter: float = 0.0, rate: int = 8000) -> Spectrum:
-    """The spectrum Mercury makes of white noise of this RMS (in units of the 16-bit sample): 10 log (384 s^2) minus the modem's full scale in every bin."""
+    """The spectrum Mercury makes of white noise of this RMS (in units of the 16-bit sample): 10 log
+    (384 s^2) minus the modem's full scale in every bin."""
     level = 10 * math.log10(ms.WINDOW_POWER * rms * rms) - ms.FULL_SCALE_DB
     return Spectrum(rate, tuple(level + random.uniform(-jitter, jitter) for _ in range(BINS)))
 
@@ -82,7 +84,8 @@ def test_the_tune_tone_follows_the_gain_as_far_as_tune_goes() -> None:
 
 @pytest.mark.parametrize("rms", [10.0, 100.0, 1000.0, 8000.0])
 def test_the_level_of_white_noise_is_worked_back_to_its_rms_in_the_band(rms: float) -> None:
-    """White noise of RMS s fills every one of the 512 bins alike; the passband holds the share of them it covers, and the level is that share of the variance, in dB under a full-scale sample."""
+    """White noise of RMS s fills every one of the 512 bins alike; the passband holds the share of
+    them it covers, and the level is that share of the variance, in dB under a full-scale sample."""
     spectrum = noise_spectrum(rms)
     bins = int(ms.SCOPE_HI_HZ / 7.8125) - int(ms.SCOPE_LO_HZ / 7.8125) + 1
     expected = 20 * math.log10(rms / 32768) + 10 * math.log10(bins / BINS)
@@ -240,5 +243,6 @@ def test_making_the_rows_all_the_time_costs_next_to_nothing() -> None:
             kept.add(row, fed * 0.05)
             rows += 1
     spent = time.perf_counter() - began
-    print(f"\n1000 rows of the waterfall made and kept: {spent * 1000:.0f} ms, {spent:.3f} ms a row")    # (the number for the record; no bound on the time: the machine's speed is not the test's)
+    # The number for the record; no bound on the time: the machine's speed is not the test's
+    print(f"\n1000 rows of the waterfall made and kept: {spent * 1000:.0f} ms, {spent:.3f} ms a row")
     assert fed == 2000 and len(kept) == 1000

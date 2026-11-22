@@ -1,9 +1,7 @@
-"""Nothing is left of the wire that named radios 1 and 2 by the words of before (`fm`, `hf`): no topic `tnc` or `hf`, no `hf_*` command and no `message_radio`, no row field that says a radio by its word
-(`radio`, the counts of radios 1 and 2 ...), no HF beacon's times in the status, no flat key of a radio among the settings of `config` nor taken by `set_config`, no name of the controller for radio 1 or 2,
-on the page neither of its two views of before nor a read of the topics, the commands or the row fields of before, and in the documents (docs/, the generated PROTOCOL.md) no topic, command or state of before.
-Inside the daemon no value says a radio by its word any more (a packet's, a message's, an attempt's, an object's `radio`; a station's counts of radios 1 and 2), and no rules of a kind of radio stand beside
-its type (the value of before, and the set of two radios of before): the frozen migration steps, their tests and scripts/migration-size name the columns of before on purpose and are left out of that search.
-The names are written here in parts, so that this file is no find of its own search. The page's built bundle (neoaprs/page) is the build's, made again from the sources."""
+"""Nothing is left of the wire that named radios 1 and 2 by the words `fm` and `hf`: no topic `tnc`
+or `hf`, no `hf_*` command or `message_radio`, no row field saying a radio by its word, no flat
+radio key in `config`.
+"""
 import importlib.util
 import re
 from pathlib import Path
@@ -32,24 +30,33 @@ from neoaprs.web.views import CONFIG_KEYS, config_values
 
 ROOT = Path(__file__).resolve().parent.parent
 HF_BEACON, SIDES, RADIOS_ON = "hf_" "beacon", "radio" "sides", "useRadios" "On"
-HEARD_OLD = r"\bheard_" r"(fm|hf)\b|\blast_" r"(fm|hf)_at\b"              # a station's counts and times of radios 1 and 2 by the words of before
-RULES_OLD = r"\bRadio" r"Rules\b|\bradio" r"rules\b|\bneoaprs\.radios\b|\bfrom neoaprs import radios\b|\bhf_is_" r"(mercury|dummy)\b"   # the rules of a kind beside its type, the set of two of before
-WORDS_OLD = r"\bid_of" r"_word\b|\bold_" r"keywords\b|\bOBJECT_" r"RADIOS\b|\bradios_of" r"_word\b"   # the values' old words and the constructors that took them
+# A station's counts and times of radios 1 and 2 by the words of before
+HEARD_OLD = r"\bheard_" r"(fm|hf)\b|\blast_" r"(fm|hf)_at\b"
+# The rules of a kind beside its type, the set of two of before
+RULES_OLD = r"\bRadio" r"Rules\b|\bradio" r"rules\b|\bneoaprs\.radios\b|\bfrom neoaprs import radios\b|\bhf_is_" r"(mercury|dummy)\b"
+# The values' old words and the constructors that took them
+WORDS_OLD = r"\bid_of" r"_word\b|\bold_" r"keywords\b|\bOBJECT_" r"RADIOS\b|\bradios_of" r"_word\b"
 SEED_OLD = (r"\b_stand" r"_in\b|\bseed_" r"radios\b|\bseed_" r"rows\b|\bSeed" r"Row\b|\bkeep_" r"unknown\b|\bold_carries" r"_path\b|\bFLAT_KEY" r"_OF\b|\bflat_" r"home\b|\bflat_" r"view\b"
-            r"|\btnc_" r"settings\b|\bhf_" r"settings\b|\bhf_" r"words\b|radioedits\.(seed|stand_in|held|new_id)\b")      # the stand-in and the seed of before, and the command line's and the drivers' flat view
+            # The stand-in and the seed of before, and the command line's and the drivers' flat view
+            r"|\btnc_" r"settings\b|\bhf_" r"settings\b|\bhf_" r"words\b|radioedits\.(seed|stand_in|held|new_id)\b")
 OLD = re.compile(rf"\bctl\.(tnc|hf|mercury|beacon|{HF_BEACON})\b|{HF_BEACON}|{SIDES}|{RADIOS_ON}|{HEARD_OLD}|{RULES_OLD}|{WORDS_OLD}|{SEED_OLD}")
 SEARCHED = ("neoaprs", "ui/src", "tests", "scripts")
-FROZEN = ("neoaprs/migrationsteps*.py", "tests/test_migration*.py", "tests/support/migrated*.py", "scripts/migration-size")      # (the frozen migration steps, their tests and the count of the columns of before)
+# The frozen migration steps, their tests and the count of the columns of before
+FROZEN = ("neoaprs/migrationsteps*.py", "tests/test_migration*.py", "tests/support/migrated*.py", "scripts/migration-size")
 # the page's reading of the topics of before and of the row fields of before
 PAGE_OLD = re.compile(r"""topic: ["'](tnc|hf)["']|\.(tnc|hf)\.value\b|\bheard_(fm|hf)\b|\blast_(fm|hf)_at\b""")
-# the scripts' readers of the wire of before (the topics `tnc` and `hf`, the flat keys, a station's count by the word of its kind); update-e2e's `serial/port` is the old release's key and stays
+# the scripts' readers of the wire of before (the topics `tnc` and `hf`, the flat keys, a station's
+# count by the word of its kind); update-e2e's `serial/port` is the old release's key and stays
 SCRIPTS_OLD = re.compile(r"""OLD_(TOPICS|KEYS)\b|topics\.get\(["'](tnc|hf)["']|["']tnc["'] if kind|f["']heard_\{""")
-# the one reader of the wire of before that stays: update-e2e runs an old release (version A, from before the round of the radios, which tells the FM radio in the topic `tnc` alone) before the new one
+# the one reader of the wire of before that stays: update-e2e runs an old release (version A, from
+# before the round of the radios, which tells the FM radio in the topic `tnc` alone) before the new
+# one
 OLD_RELEASE_READER = ROOT / "scripts" / "update-e2e.py"
 # what the documents may not name: the topics, the state, the commands and the beacon of before
 DOC_OLD = re.compile(r"topic `(tnc|hf)`|\bTnc" r"State\b|\bRadio" r"Rules" r"(State)?\b|\bradio" r"rules\b|\bradio" r"s\.py\b|\bhf_(tune|key_test|scope|frequencies)\b|\bmessage_" rf"radio\b|\b{HF_BEACON}\b")
 DOCS = (ROOT / "PROTOCOL.md", *sorted((ROOT / "docs").rglob("*.md")))
-BUILT = ROOT / "neoaprs" / "page"                     # (the page's bundle, which scripts/build-page writes from ui/src)
+# The page's bundle, which scripts/build-page writes from ui/src
+BUILT = ROOT / "neoaprs" / "page"
 FLAT = {key for key, setting in BY_KEY.items() if setting.attr in FLAT_HOMES}
 
 

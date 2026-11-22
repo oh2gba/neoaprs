@@ -1,6 +1,6 @@
-"""The hunt for tests that fail on some runs only (scripts/flaky) as far as it can be held without docker: which setting each run has, the command inside the container, what the log of a run says (the tests that failed with
-their first line, the end of a run that did not reach the tests, the stack of a run that hung), the report, and the script from end to end on a stand-in for docker that answers each run as a list of rules says; and the
-plugin that puts the tests in another order (tests/support/shuffle.py) on pytest run over test files of its own. A real run in the image is the coordinator's (docs/development.md)."""
+"""Tests for the flaky-test hunt (scripts/flaky) without docker: run settings, the container
+command, log parsing, the report, the script against a stand-in docker, and the shuffle plugin
+(tests/support/shuffle.py)."""
 import importlib.machinery
 import importlib.util
 import json
@@ -20,7 +20,8 @@ from tests.conftest import ROOT
 from tests.support.ptyline import posix_only
 from tests.support.shuffle import shuffled
 
-pytestmark = posix_only      # (a script of the repository that starts containers: a development check, not the product)
+# (a script of the repository that starts containers: a development check, not the product)
+pytestmark = posix_only
 
 SCRIPT = ROOT / "scripts" / "flaky"
 CONTAINER = ROOT / "scripts" / "check-in-container"
@@ -34,7 +35,8 @@ def flaky() -> ModuleType:
     spec = importlib.util.spec_from_loader("flaky", loader)
     assert spec is not None
     module = importlib.util.module_from_spec(spec)
-    sys.modules["flaky"] = module                       # (the dataclasses of the script look their module up by name)
+    # (the dataclasses of the script look their module up by name)
+    sys.modules["flaky"] = module
     loader.exec_module(module)
     return module
 
@@ -104,7 +106,8 @@ def test_a_run_that_did_not_get_to_the_tests_has_the_end_of_its_log_and_no_failu
 
 
 def test_a_green_run_has_no_tail_though_the_log_of_a_green_stage_has_no_summary_line(flaky: ModuleType) -> None:
-    """scripts/check prints the output of a stage only when it failed: the log of a green run is the uv lines and the result lines."""
+    """scripts/check prints the output of a stage only when it failed: the log of a green run is the
+    uv lines and the result lines."""
     result = read(flaky, "Resolved 90 packages in 2ms\nok    pytest       612.3s\nall green in 612s\n")
     assert result.tail == [] and result.word == "ok"
     assert "did not get to the tests" not in "\n".join(flaky.report([result]))
@@ -219,7 +222,8 @@ if args[0] == "run":
 
 
 class Rig:
-    """The two scripts in a made-up repository of their own (the container script packs the repository it lies in), a stand-in for docker first on the PATH, and the rules it answers by."""
+    """The two scripts in a made-up repository of their own (the container script packs the
+    repository it lies in), a stand-in for docker first on the PATH, and the rules it answers by."""
 
     def __init__(self, tmp_path: Path) -> None:
         self.repo, self.state, self.out = tmp_path / "repo", tmp_path / "docker", tmp_path / "out"
@@ -363,7 +367,9 @@ MODULES = {"test_a.py": "def test_1():\n    pass\n\n\ndef test_2():\n    pass\n\
 
 
 def collected(folder: Path, *options: str) -> list[str]:
-    (folder / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")         # (the child's own configuration: a folder inside a checkout, as --basetemp under work/ is, would otherwise give it the checkout's -q)
+    # (the child's own configuration: a folder inside a checkout, as --basetemp under work/ is,
+    # would otherwise give it the checkout's -q)
+    (folder / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")
     env = {**os.environ, "PYTHONPATH": str(ROOT)}
     done = subprocess.run([sys.executable, "-m", "pytest", "-p", "tests.support.shuffle", "-p", "no:cacheprovider", "--rootdir", str(folder), "--collect-only", "-q", str(folder), *options], cwd=folder, env=env,
                           capture_output=True, text=True, timeout=PATIENCE_SEC, check=False)

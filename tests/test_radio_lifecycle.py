@@ -1,7 +1,7 @@
-"""The radios the operator adds, renames, gives another type of their kind, enables, moves and removes (Controller.add_radio, change_radio, save_radio_settings, remove_radio: neoaprs/controller.py,
-the checks in neoaprs/radioedits.py): each stored before it is put in force, the radio it is of restarted and no other, every refusal a RadioError of neoaprs/radiospec.py naming the radio (uncoded until
-the wire names a radio: W1 gives each its code) and a type that is none a RadioTypeError. Remove takes the radio's id out of the objects' sets, the stations' paths and choices and its own state rows in
-one transaction, stops it for good and keeps its row; the last enabled radio is neither switched off nor removed."""
+"""The radios the operator adds, renames, retypes, enables, moves and removes (Controller methods,
+checks in neoaprs/radioedits.py): each stored before it is put in force, only that radio restarted,
+and every refusal a RadioError naming the radio.
+"""
 import asyncio
 import json
 import logging
@@ -25,7 +25,8 @@ from tests.support.env import Env, idle_for, until, until_async
 async def test_a_radio_is_added_off_given_its_port_switched_on_and_then_heard_and_the_others_are_not_touched(tmp_path: Path) -> None:
     e = Env(tmp_path)
     await e.start()
-    other = await e.new_radio()                                          # a KISS server on the loopback: the new radio's
+    # A KISS server on the loopback: the new radio's
+    other = await e.new_radio()
     line = e.tnc._generation
     id = await e.ctl.add_radio("kiss-tcp", "Shack", enabled=False)
     assert id == 2 and e.ctl.radios.get(id) is not None and e.ctl.radios.get(id).state is Source.State.STOPPED       # type: ignore[union-attr]
@@ -90,7 +91,8 @@ async def test_the_last_enabled_radio_is_neither_switched_off_nor_removed(tmp_pa
 
 @pytest.mark.expects_errors
 async def test_a_save_that_leaves_out_a_radio_in_force_is_refused_and_the_radio_runs_on(tmp_path: Path) -> None:
-    """Only Remove takes a radio away (its transaction clears what names it): settings saved without a radio in force, or with it marked removed, are not stored, and the radio stays as it was, in
+    """Only Remove takes a radio away (its transaction clears what names it): settings saved without
+    a radio in force, or with it marked removed, are not stored, and the radio stays as it was, in
     force and in the database."""
     e = Env(tmp_path, radio=False)
     await e.start(connected=False)
@@ -132,7 +134,8 @@ async def test_a_radios_own_settings_are_checked_stored_and_restart_that_radio_a
 
 async def test_remove_takes_the_radio_out_of_the_sets_the_choices_the_paths_and_its_rows_and_stops_it_for_good(tmp_path: Path) -> None:
     e = Env(tmp_path, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
-    e.mercury._finder = lambda: None                                 # (no program: the Dummy HF radio works without its speaker)
+    # No program: the Dummy HF radio works without its speaker
+    e.mercury._finder = lambda: None
     await e.start()
     await until(lambda: e.hf.usable)
     e.feed(on_air("OH2GAX-2", b"!6010.00N/02456.00E>a station"))
@@ -181,7 +184,8 @@ async def test_remove_takes_the_radio_out_of_the_sets_the_choices_the_paths_and_
 
 async def test_a_daemon_stopped_while_a_removed_radio_is_still_being_stopped_stops_it_and_its_beacon_for_good(tmp_path: Path) -> None:
     e = Env(tmp_path, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
-    e.mercury._finder = lambda: None                                 # (no program: the Dummy HF radio works without its speaker)
+    # No program: the Dummy HF radio works without its speaker
+    e.mercury._finder = lambda: None
     await e.start()
     hf = e.ctl.radios.get(HF_ID)
     assert hf is not None
@@ -192,7 +196,9 @@ async def test_a_daemon_stopped_while_a_removed_radio_is_still_being_stopped_sto
         stops.append(len(stops))
         if len(stops) == 1:
             stopping.set()
-            await asyncio.Event().wait()                                 # (the removal's stop of the radio is still on its way when the daemon stops: it is cancelled there)
+            # The removal's stop of the radio is still on its way when the daemon stops: it is
+            # cancelled there
+            await asyncio.Event().wait()
         await stop()
     hf.driver.stop = slow_stop                                           # type: ignore[method-assign]
     assert await e.ctl.remove_radio(HF_ID)
@@ -202,9 +208,11 @@ async def test_a_daemon_stopped_while_a_removed_radio_is_still_being_stopped_sto
 
 
 async def test_a_radio_wanted_again_while_its_line_is_being_stopped_keeps_its_beacon_and_its_claims(tmp_path: Path) -> None:
-    """Nothing of the program takes a removed radio back today; the registry's `sync` does take back one it dropped, and the stop that was under way then leaves the radio as `sync` has it."""
+    """Nothing of the program takes a removed radio back today; the registry's `sync` does take back
+    one it dropped, and the stop that was under way then leaves the radio as `sync` has it."""
     e = Env(tmp_path, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
-    e.mercury._finder = lambda: None                                 # (no program: the Dummy HF radio works without its speaker)
+    # No program: the Dummy HF radio works without its speaker
+    e.mercury._finder = lambda: None
     await e.start()
     hf, before = e.ctl.radios.get(HF_ID), e.ctl.config
     assert hf is not None
@@ -220,7 +228,8 @@ async def test_a_radio_wanted_again_while_its_line_is_being_stopped_keeps_its_be
     assert e.ctl.radios.claims.hold(Claim("gps", "/dev/ttyACM9", HF_ID)) is None
     assert await e.ctl.remove_radio(HF_ID)
     await asyncio.wait_for(stopping.wait(), 5)
-    e.ctl.radios.sync(before)                                            # (radio 2 wanted again while its line is still being stopped)
+    # Radio 2 wanted again while its line is still being stopped
+    e.ctl.radios.sync(before)
     go.set()
     await asyncio.wait_for(stopped.wait(), 5)
     await idle_for(0.1)
@@ -231,11 +240,13 @@ async def test_a_radio_wanted_again_while_its_line_is_being_stopped_keeps_its_be
 
 
 async def test_a_radio_the_settings_name_by_todays_flat_keys_is_changed_in_its_own_rows(tmp_path: Path) -> None:
-    """A save of today's flat keys (the page's form until wave 4) changes the radio they are a view of, in its rows: radio 1's port and type, radio 2's tickbox and keying; nothing of it goes to a row of
-    the settings."""
+    """A save of the flat keys changes the radio they are a view of, in its rows (radio 1's port and
+    type, radio 2's tickbox and keying); nothing goes to a settings row."""
     e = Env(tmp_path, radio=False, settings={"hf/enabled": "false"})
     await e.start(connected=False)
-    port = str(tmp_path / "ttyUSB7")                    # (a port that is not there: radio 1 starts again on it at the save, and a real device's name would be opened)
+    # A port that is not there: radio 1 starts again on it at the save, and a real device's name
+    # would be opened
+    port = str(tmp_path / "ttyUSB7")
     assert await e.ctl.save_config(replace(e.ctl.config, serial_port=port, tnc_profile="kiss", mercury_keying="vox", hf_profile="dummy-hf"))
     settings = await e.ctl.store.settings()
     assert not {"serial/port", "tnc/profile", "mercury/keying", "hf/profile", "hf/enabled"} & settings.keys()
@@ -252,8 +263,10 @@ def _radio_rows(path: Path, id: int) -> tuple[object, ...]:
 
 @pytest.mark.parametrize("on", [False, True])
 async def test_a_stored_radio_of_a_type_this_build_does_not_know_is_left_off_and_its_row_kept(tmp_path: Path, caplog: pytest.LogCaptureFixture, on: bool) -> None:
-    """A row a newer build wrote (its type, `carrier-pigeon`, is none here) neither stops the start nor runs: the radio is not made, nothing is sent on it, the page's topic leaves it out, a save of another
-    radio puts the settings in force with it there, and its row and its own settings stay as they were for the build that knows the type."""
+    """A row a newer build wrote (its type, `carrier-pigeon`, is none here) neither stops the start
+    nor runs: the radio is not made, nothing is sent on it, the page's topic leaves it out, a save
+    of another radio puts the settings in force with it there, and its row and its own settings stay
+    as they were for the build that knows the type."""
     from neoaprs.controller import Controller
     from neoaprs.web.radioview import radio_row
     first = Controller(tmp_path, check_sec=0)
@@ -272,7 +285,8 @@ async def test_a_stored_radio_of_a_type_this_build_does_not_know_is_left_off_and
         assert await ctl.change_radio(FM_ID, name="Base"), "a save with the radio of the unknown type among the settings"
         assert ctl.radios.get(2) is None and caplog.text.count("which this NeoAPRS does not have") == 1, "told once"
         with pytest.raises(RadioError, match="the last one that is enabled"):
-            await ctl.change_radio(FM_ID, enabled=False)                  # (the radio of the unknown type, on or off, runs nothing)
+            # The radio of the unknown type, on or off, runs nothing
+            await ctl.change_radio(FM_ID, enabled=False)
         rows = {spec.id: radio_row(spec, ctl.config.radios, ctl.radios.get(spec.id), ctl.radios.claims) for spec in ctl.config.radios}
         assert rows[2] is None and rows[FM_ID] is not None, "the page's topic `radios` leaves it out"
         assert [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR] == [], "nothing fails on the way (the transmit gain of a modem that is no radio's among it)"
@@ -282,8 +296,9 @@ async def test_a_stored_radio_of_a_type_this_build_does_not_know_is_left_off_and
 
 
 async def test_a_stored_radio_2_of_another_kind_than_the_start_up_hf_radio_is_made_of_its_own_type_before_the_start(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """A stored radio 2 of another kind than the HF radio radio 2 was before the round (an FM Dummy: nothing makes radio 2 an HF radio any more) runs with the driver of its own type before any part asks
-    it anything, so the start does not fail on the HF radio's settings."""
+    """A stored radio 2 of another kind than the HF radio radio 2 was before the round (an FM Dummy:
+    nothing makes radio 2 an HF radio any more) runs with the driver of its own type before any part
+    asks it anything, so the start does not fail on the HF radio's settings."""
     from neoaprs.controller import Controller
     first = Controller(tmp_path, check_sec=0)
     await first.open_database()

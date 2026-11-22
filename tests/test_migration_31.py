@@ -1,7 +1,7 @@
-"""Migration 31 (neoaprs/migrationsteps31.py): the radios of a station become rows. The step is run alone on a database as version 30 left it, with the rows of one shape of installation in it, and
-what it made is read back: the radios (`radio`), their own settings (`radio_setting`, with the revision each row had), the rows of `settings` that stay, the rows of the daemon's state under their
-radio's name, the stations' choices by id, and the one row of `_m31` that the migrations 32 and 33 read. For every shape the settings in force afterwards (through the stored radios) are what the
-flat keys said before. One test for each shape of the work breakdown (work/par/round/breakdown.md, sections 2.3 and 3)."""
+"""Migration 31 (neoaprs/migrationsteps31.py): the radios of a station become rows. The step runs
+alone on a version 30 database and what it made is read back: `radio`, `radio_setting`, the settings
+and state rows.
+"""
 import ast
 import inspect
 import json
@@ -32,16 +32,20 @@ from tests.test_migrations import GOLDEN, GOLDEN_USED, used_by
 
 STAMP = "2026-10-21T12:00:00.000000Z"
 LATER = "2026-10-21T12:30:00.000000Z"
-# The checksum of the step and of what it uses beside itself, as tests/test_migrations.py pins them once the step is among MIGRATIONS (GOLDEN[31], GOLDEN_USED["_v31"]): frozen from the day it was written.
+# The checksum of the step and of what it uses beside itself, as tests/test_migrations.py pins them
+# once the step is among MIGRATIONS (GOLDEN[31], GOLDEN_USED["_v31"]): frozen from the day it was
+# written.
 V31 = "3f4253eb76b65cc049509915a7db44623c5a8da1b7401c6af1cbcd0e95d1d1b1"
 V31_USED = {"_CHOICES": "8dff05af4898688bb573d41c40e6ea66cb01fec877ebf9d1103e4e60ad8afbd6", "_FALSE": "26d5af627562f4f506311ff6b1f373ce1d4406cfbd264b33a38ed9fc8f613802", "_FM_MOVES": "51c809510ed2916bd937bbbd481e61c2ced3975132253b646c4544fa0d1cce96", "_FM_TYPES": "7541c474b50bbecda547e23a7ca29d8783194a22d030e54ba2cce545bfe803b9", "_GONE": "899f89869d238a2e74ed59d38c738a293da367551f893b12830f5e082b1f1e88", "_HF_MOVES": "4e04d8edf6de4538b82213828691ce0b0e0ae70998b818ed2eb4b57d2d43c49c", "_HF_ROWS": "193801f61fca27cd9ded94bac5f1f7cded93f930f3684f22435e7d4d606fde11", "_HF_TYPES": "40d1c888a8e29895c78e13046d4715f7e5be0b622c14709ebc8cf84203988679", "_KEPT": "81d155c5e50be9f6ef91ea3241da710fabe991e4377a1412919ed7ec71371fa5", "_STATE": "d15998254a92fef6d3ac0265df36572c51567de7b573570f61cfda7028f39757", "_TRUE": "2903545dd56c033b3f0962fa48660f7136a4656b920d5ff309b7f5cb810ebbb4", "_choices31": "38cc46833e0239c9051396bffba6e612f3c01025a619295951ae68c2bd33ae36", "_hf_named31": "7afe8ecbd8e34526876dbb7fe17155d89f89153aef209920bc7f6cd043b0654d", "_move31": "b827728202d34d1f4e2a9d3b7d00babdf9281af5d41205a51992a6dc28e4bff5", "_on31": "e0f91aa73006f8063e626492ea643502ae23ed4c90839a929649cec7006c0d67", "_tables31": "412412734227c3e63e9563ceb7156e04fc4edb8a621b83fca07ffc540dffd835", "_type31": "2d14e908b6235225e003fda1b4b077b0f021e53c4ca9f541d13315aa5b563fea"}
 STATION = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30", "status/interval_min": "60", "status/source": "text", "station/status": "QRV",
            "serial/pattern": "/dev/ttyS*", "serial/skip": "/dev/ttyUSB3", "update/hf_dial": "7.0541 MHz USB", "update/install_id": "4711", "status/last_sent_at": "2026-10-23T10:00:00Z",
-           "web/port": "7777", "igate/enabled": "true"}             # rows that are the station's, the computer's and the daemon's own: no radio's
+           # Rows that are the station's, the computer's and the daemon's own: no radio's
+           "web/port": "7777", "igate/enabled": "true"}
 
 
 def old(tmp_path: Path, settings: dict[str, str] | None = None, *statements: tuple[str, tuple[object, ...]]) -> sqlite3.Connection:
-    """A database as version 30 left it with these settings rows (each at revision 1) and what these statements insert."""
+    """A database as version 30 left it with these settings rows (each at revision 1) and what these
+    statements insert."""
     db = at_thirty(tmp_path / DB_NAME, FixedClock())
     for key, value in (settings or {}).items():
         db.execute("INSERT INTO settings (key, value) VALUES (?, ?)", (key, value))
@@ -68,7 +72,8 @@ def own_object(radio: str) -> tuple[str, tuple[object, ...]]:
 
 
 def station(heard_fm: int, heard_hf: int, call: str = "OH2HF") -> tuple[str, tuple[object, ...]]:
-    """A station of the cache, heard so many times on each radio (the cache outlives the daily prune of the packets that counted it)."""
+    """A station of the cache, heard so many times on each radio (the cache outlives the daily prune
+    of the packets that counted it)."""
     return ("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code, first_heard, last_heard, last_status, last_comment, packets, last_path, heard_fm, heard_hf, last_fm_at, last_hf_at) "
             "VALUES (?, 'station', '', '/', '-', ?, ?, '', '', ?, '', ?, ?, ?, ?)", (call, STAMP, STAMP, heard_fm + heard_hf, heard_fm, heard_hf, STAMP if heard_fm else None, STAMP if heard_hf else None))
 
@@ -97,7 +102,8 @@ def decided(db: sqlite3.Connection) -> list[tuple[object, ...]]:
 
 
 def migrated(tmp_path: Path, rows: dict[str, str] | None = None, *statements: tuple[str, tuple[object, ...]]) -> sqlite3.Connection:
-    """The old database of these rows after migration 31, with the settings in force held to what the flat keys said before it."""
+    """The old database of these rows after migration 31, with the settings in force held to what
+    the flat keys said before it."""
     db = old(tmp_path, rows, *statements)
     before = Config.from_data(rows or {})
     run_31(db)
@@ -246,7 +252,8 @@ def test_a_tcp_type_with_a_tcp_address_in_the_port_keeps_both(tmp_path: Path) ->
 def test_every_settings_row_of_the_radios_becomes_the_radios_own_with_its_revision_and_is_deleted(tmp_path: Path) -> None:
     flat = {"tnc/profile": "kenwood-d710", "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "serial/port": "/dev/ttyUSB7", "serial/baud": "19200", "tcp/host": "10.0.0.5", "tcp/port": "8100",
             "mercury/sound_card": "plughw:2,0", "mercury/keying": "rts:/dev/ttyUSB3", "mercury/tx_gain_db": "-3", "beacon/path": "WIDE2-2", "digi/enabled": "true"}
-    gone = {"tnc/enter_kiss": "true", "tnc/check_sec": "90", "hf/anything": "x", "mercury/old": "y", "tcp/timeout": "5"}            # rows of the radios' families that are no setting any more
+    # Rows of the radios' families that are no setting any more
+    gone = {"tnc/enter_kiss": "true", "tnc/check_sec": "90", "hf/anything": "x", "mercury/old": "y", "tcp/timeout": "5"}
     db = old(tmp_path, {**STATION, **flat, **gone})
     db.execute("UPDATE settings SET rev = 4 WHERE key IN ('serial/port', 'beacon/path', 'mercury/keying', 'station/call')")       # (saved a few times)
     before = Config.from_data({**STATION, **flat, **gone})
@@ -284,7 +291,8 @@ SHAPES: list[dict[str, str]] = [
     {"tnc/profile": " kenwood-d710 ", "serial/port": "/dev/serial/by-id/usb-FTDI-if00", "serial/baud": "19200", "beacon/path": "WIDE1-1,WIDE2-1", "digi/enabled": "true", "serial/last_port": "/dev/ttyUSB1"},
     {"tnc/profile": "dummy", "hf/enabled": "true", "mercury/sound_card": "plughw:1,0", "mercury/keying": "rts:/dev/ttyUSB1", "mercury/tx_gain_db": "-6"},
     {"digi/enabled": "On", "beacon/path": " wide1-1 , wide2-1 ", "web/bind": "0.0.0.0", "station/call": "oh2gba-7"},
-    {key: DEFAULTS.to_data()[key] for key in KEYS},                                     # what a save of every setting of the form stored
+    # What a save of every setting of the form stored
+    {key: DEFAULTS.to_data()[key] for key in KEYS},
 ]
 
 
@@ -295,7 +303,7 @@ def test_the_settings_in_force_after_the_migration_are_what_the_flat_keys_said_b
     assert station_rows(db) == {key: (value, 1) for key, value in rows.items() if key in STATION_KEYS}
 
 
-# ---- a database made from a support bundle (tests/support/bundledb.py), for the proof on a real installation's settings
+# ---- a database made from a support bundle (tests/support/bundledb.py)
 
 def test_a_database_made_from_a_support_bundle_has_the_rows_the_bundle_tells_and_comes_through_the_migration(tmp_path: Path) -> None:
     rows = {"station/call": "OH2GAX-2", "station/lat": "60.5", "station/lon": "25.1", "tnc/profile": "kenwood-tnc2", "serial/port": " /dev/ttyUSB0 ", "serial/baud": "12", "hf/enabled": "true", "mercury/keying": "rts:COM7",
@@ -324,11 +332,14 @@ def test_a_database_made_from_a_support_bundle_has_the_rows_the_bundle_tells_and
     assert settings(db) == {"station/call": ("OH2GBA", 1)} and db.execute("SELECT count(*) FROM packet").fetchone() == (0,)
 
 
-# ---- a daemon started on a database of today: what 31 rewrites is read again (I2's guard: the readers of the rows it renames follow it before it is among the steps)
+# ---- a daemon started on a current database: what 31 rewrites is read again (the readers of the
+# renamed rows follow it before it is among the steps)
 
 async def test_a_daemon_started_on_an_old_database_keeps_the_choices_the_last_sends_and_the_radios_settings(tmp_path: Path) -> None:
-    """Whatever the newest step: on version 30 the old readers read the old rows; with 31 among the steps the readers must read the radios, the ids and the radios' own state rows, or this fails
-    (the choices would be read as none and overwritten at the next choice, the beacons would go out at the start, the radios' settings would be the defaults and saved so)."""
+    """Whatever the newest step: on version 30 the old readers read the old rows; with 31 among the
+    steps the readers must read the radios, the ids and the radios' own state rows, or this fails
+    (the choices would be read as none and overwritten at the next choice, the beacons would go out
+    at the start, the radios' settings would be the defaults and saved so)."""
     clock = FixedClock()
     fm_sent, hf_sent = clock() - timedelta(minutes=10), clock() - timedelta(minutes=5)
     rows = {**OPERATOR, "beacon/interval_min": "30", "beacon/path": "WIDE2-1", "digi/enabled": "true", "beacon/last_sent_at": stamp(fm_sent), "hf/beacon_last_sent_at": stamp(hf_sent),
@@ -381,7 +392,8 @@ def test_the_radio_table_refuses_what_the_program_cannot_produce_and_never_gives
 def test_a_step_that_fails_changes_nothing(tmp_path: Path) -> None:
     rows = {"tnc/profile": "kenwood-tnc2", "hf/enabled": "true", "serial/port": "/dev/ttyUSB0", "beacon/last_sent_at": "2026-10-23T10:00:00Z", "messages/radio_by_station": '{"OH2RDG": "hf"}'}
     db = old(tmp_path, rows)
-    db.execute("CREATE TABLE radio_setting (x)")           # (the step's second table is in its way: it raises with the first made)
+    # The step's second table is in its way: it raises with the first made
+    db.execute("CREATE TABLE radio_setting (x)")
     with pytest.raises(sqlite3.OperationalError):
         run_31(db)
     assert settings(db) == {key: (value, 1) for key, value in rows.items()} and not has_table(db, "radio") and not has_table(db, "_m31"), "rolled back whole"
@@ -399,7 +411,8 @@ def test_undo_31_takes_the_tables_out_so_that_the_step_runs_again(tmp_path: Path
     assert settings(db) == {"hf/enabled": ("true", 1), "beacon/path": ("WIDE2-1", 1), "mercury/keying": ("rts:/dev/ttyUSB1", 1), "beacon/last_sent_at": ("2026-10-21T12:00:00.000000Z", 1),
                             "messages/radio_by_station": ('{"OH2GAX-2": "hf"}', 1), "tnc/profile": ("kiss", 1), "fm/enabled": ("true", 1), "hf/profile": ("mercury", 1)}, \
         "the radios are the flat rows again, each with its revision, their types and tickboxes written out"
-    undo_31(db)                                            # (and where migration 33 dropped _m31, or nothing is there, it does nothing)
+    # And where migration 33 dropped _m31, or nothing is there, it does nothing
+    undo_31(db)
     run_31(db)
     assert (radios(db), db.execute("SELECT * FROM radio_setting ORDER BY radio_id, key").fetchall(), settings(db)) == made, "the step run again makes the same radios with the same settings"
 

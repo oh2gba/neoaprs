@@ -1,5 +1,7 @@
-"""No test opens a serial device of the machine: NEOAPRS_SERIAL_PATTERN (neoaprs/serialprobe.py), which tests/conftest.py sets for every test and every process a test starts, makes the search of any daemon look at a
-pattern that matches nothing; and the guards of tests/support/guards.py fail the test that opens a device file anyway or starts neoaprs with an environment that lacks the variable."""
+"""No test opens a serial device of the machine: NEOAPRS_SERIAL_PATTERN (neoaprs/serialprobe.py)
+makes a daemon's search look at a pattern that matches nothing, and the guards of
+tests/support/guards.py fail a test that opens a device file anyway.
+"""
 import os
 import stat
 import subprocess
@@ -55,7 +57,8 @@ def test_a_named_port_is_not_touched_by_the_variable() -> None:
 
 
 def test_a_process_a_test_starts_inherits_the_variable_and_searches_no_port(tmp_path: Path) -> None:
-    """`neoaprs capture` with no port lists the ports its search would listen to: here there are none, so it says so and ends at once, without a look at /dev."""
+    """`neoaprs capture` with no port lists the ports its search would listen to: here there are
+    none, so it says so and ends at once, without a look at /dev."""
     out = tmp_path / "out.kiss"
     done = subprocess.run([sys.executable, "-m", "neoaprs", "capture", str(out)], cwd=ROOT, env={**os.environ, "PYTHONPATH": str(ROOT)}, capture_output=True, text=True, timeout=60)
     assert done.returncode == 1 and "no USB serial port to look at here" in done.stderr + done.stdout, done
@@ -114,7 +117,8 @@ def test_the_process_guard_refuses_neoaprs_with_an_environment_that_lacks_a_vari
 
 def test_the_process_guard_lets_through_what_cannot_search() -> None:
     processes = guards.ProcessGuard()
-    processes.check([sys.executable, "-m", "neoaprs", "--data", "d"], None)                        # (the environment of this process, which has the variable)
+    # The environment of this process, which has the variable
+    processes.check([sys.executable, "-m", "neoaprs", "--data", "d"], None)
     processes.check([sys.executable, "-m", "neoaprs", "--data", "d"], {guards.SEARCH_VARIABLE: "/dev/none*", guards.UPDATE_VARIABLE: "0", guards.DEVICES_VARIABLE: "1"})
     processes.check([sys.executable, "-m", "neoaprs", "--data", "d"], {guards.SEARCH_VARIABLE: "/dev/none*", guards.UPDATE_VARIABLE: "0", guards.DEVICES_VARIABLE: "true"})
     processes.check(["git", "status"], {})

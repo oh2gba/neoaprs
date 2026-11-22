@@ -1,7 +1,6 @@
-"""The radio a message of ours to a station goes out on (neoaprs/messagerule.py, plan rule 3.2), as a table: the operator's choice while its radio is on, and one that is off or removed; the radio heard most
-recently within six hours (policy.MESSAGE_RADIO_RECENT_HOURS), a local kind (FM, LoRa) before HF in that time; the radio heard last at all after that; a call never heard on the first radio that can send,
-in the order of the boxes; one enabled radio whatever else is said; no radio, none. And a radio a message
-was given that only stood in for the station's own (`stood_in`): one that never heard the station, that no Route names, while another had heard it by then; not the radio of a station no radio had heard."""
+"""The radio a message of ours goes out on (neoaprs/messagerule.py), as a table: the operator's
+choice while its radio is on, the radio heard most recently within six hours, and the fallbacks.
+"""
 from datetime import datetime, timedelta
 
 import pytest
@@ -23,13 +22,16 @@ MONITOR = 5
 
 
 def radios(*off: RadioId, removed: tuple[RadioId, ...] = (), order: tuple[RadioId, ...] = (FM_ID, HF_ID, FM2, LORA)) -> tuple[RadioSpec, ...]:
-    """FM (1), HF (2), a second FM radio (3), a LoRa radio (4) and a monitor that only receives (5, where `order` names it), by position in `order`; those in `off` not enabled, those in `removed` removed."""
+    """FM (1), HF (2), a second FM radio (3), a LoRa radio (4) and a monitor that only receives (5,
+    where `order` names it), by position in `order`; those in `off` not enabled, those in `removed`
+    removed."""
     kinds = {FM_ID: ("fm", "kiss"), HF_ID: ("hf", "mercury"), FM2: ("fm", "kiss"), LORA: ("lora", "dummy-lora"), MONITOR: ("fm", "tnc-text")}
     return tuple(RadioSpec(id, kinds[id][0], kinds[id][1], "", id not in off, order.index(id) + 1, ago(100) if id in removed else None) for id in order)
 
 
 def heard(**by: float | None) -> dict[RadioId, RadioHeard]:
-    """What each radio heard, by name (fm, hf, fm2, lora): hours ago, or None for heard with no time."""
+    """What each radio heard, by name (fm, hf, fm2, lora): hours ago, or None for heard with no
+    time."""
     ids = {"fm": FM_ID, "hf": HF_ID, "fm2": FM2, "lora": LORA}
     return {ids[name]: RadioHeard(3, None if hours is None else ago(hours)) for name, hours in by.items()}
 
@@ -77,7 +79,8 @@ def test_the_radio_of_a_message(case: str, choice: RadioId | None, seen: dict[Ra
 
 
 def test_the_radio_of_a_call_no_radio_heard_is_the_first_that_can_send_in_the_order_of_the_boxes() -> None:
-    """`radiospec.unheard_radio`, which the daemon tells the page as `status.unheard_radio` (Route's "Automatic: NAME" before Send)."""
+    """`radiospec.unheard_radio`, which the daemon tells the page as `status.unheard_radio` (Route's
+    "Automatic: NAME" before Send)."""
     boxes = radios(FM2, order=(MONITOR, LORA, FM_ID, HF_ID, FM2))
     assert unheard_radio(boxes) == LORA
     assert unheard_radio(radios(FM_ID, HF_ID, FM2, LORA)) is None and unheard_radio(()) is None, "no radio that can send: none"
@@ -96,7 +99,8 @@ def test_the_six_hours_are_counted_from_now_to_the_minute() -> None:
 
 
 def test_today_two_radios_choose_as_before_while_the_station_was_heard_lately() -> None:
-    """The station of FM and HF, heard within the time: what the two radios of before chose (FM unless heard on HF alone; the operator's choice; a station never heard on FM, the first box)."""
+    """The station of FM and HF, heard within the time: what the two radios of before chose (FM
+    unless heard on HF alone; the operator's choice; a station never heard on FM, the first box)."""
     for fm in (None, 0.5):
         for hf in (None, 0.2):
             seen = heard(**{name: hours for name, hours in (("fm", fm), ("hf", hf)) if hours is not None})
@@ -106,7 +110,8 @@ def test_today_two_radios_choose_as_before_while_the_station_was_heard_lately() 
 
 
 STOOD_IN = [
-    # (what the case is, the radio the message was given, the choice, what was heard, when the station was first in the book, the radio stood in)
+    # (what the case is, the radio the message was given, the choice, what was heard, when the
+    # station was first in the book, the radio stood in)
     ("HF given while FM, which heard the station, was off: a stand-in", HF_ID, None, heard(fm=1), ago(2), True),
     ("HF heard the station too: the rule's choice", HF_ID, None, heard(fm=1, hf=3), ago(4), False),
     ("Route names HF: the operator's choice", HF_ID, HF_ID, heard(fm=1), ago(2), False),
@@ -122,5 +127,6 @@ STOOD_IN = [
 
 @pytest.mark.parametrize(("case", "radio", "choice", "seen", "known", "expected"), STOOD_IN, ids=[case[0] for case in STOOD_IN])
 def test_a_radio_that_only_stood_in_for_the_stations_own(case: str, radio: RadioId, choice: RadioId | None, seen: dict[RadioId, RadioHeard], known: datetime | None, expected: bool) -> None:
-    """The radio a message was given an hour ago (messagerule.stood_in), from what each radio heard of the station and when the station was first in the book."""
+    """The radio a message was given an hour ago (messagerule.stood_in), from what each radio heard
+    of the station and when the station was first in the book."""
     assert stood_in(radio, choice, seen, known, ago(1)) is expected, case

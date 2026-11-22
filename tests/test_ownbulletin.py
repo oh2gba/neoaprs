@@ -1,4 +1,7 @@
-"""A bulletin, an announcement or a group bulletin of ours (neoaprs/ownbulletin.py): the information field byte for byte as the specification's chapter 14 shows it, read back by our own parser, and what is refused."""
+"""A bulletin, announcement or group bulletin of ours (neoaprs/ownbulletin.py): the information
+field byte for byte as the specification's chapter 14 shows it, read back by our parser, and what is
+refused.
+"""
 from datetime import UTC, datetime
 
 import pytest
@@ -13,9 +16,11 @@ NOW = datetime(2026, 10, 21, 12, 0, 0, tzinfo=UTC)
 
 
 @pytest.mark.parametrize("slot, text, info", [
-    ("BLN3", "Snow expected in Tampa RSN", b":BLN3     :Snow expected in Tampa RSN"),                                  # the specification's general bulletin
+    # The specification's general bulletin
+    ("BLN3", "Snow expected in Tampa RSN", b":BLN3     :Snow expected in Tampa RSN"),
     ("BLNQ", "Mt St Helen digi will be QRT this weekend", b":BLNQ     :Mt St Helen digi will be QRT this weekend"),    # its announcement
-    ("BLN4WX", "Stand by your snowplows", b":BLN4WX   :Stand by your snowplows"),                                       # its group bulletin, the group padded with blanks
+    # Its group bulletin, the group padded with blanks
+    ("BLN4WX", "Stand by your snowplows", b":BLN4WX   :Stand by your snowplows"),
     ("BLN0", "x", b":BLN0     :x"), ("BLN9", "y" * 67, b":BLN9     :" + b"y" * 67), ("BLNZ", "z", b":BLNZ     :z"), ("BLN7HAMS1", "full group", b":BLN7HAMS1:full group")])
 def test_a_bulletin_is_a_message_to_the_slot_padded_to_nine_characters_without_an_id(slot: str, text: str, info: bytes) -> None:
     assert info_of(make_bulletin(NOW, slot, text)) == info

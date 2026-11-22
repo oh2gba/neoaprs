@@ -1,14 +1,17 @@
-"""Properties of KISS framing: encoded bytes come back as the same frame whatever the chunking of the stream, and garbage before a frame never costs the frame."""
+"""Properties of KISS framing: encoded bytes come back as the same frame whatever the chunking of
+the stream, and garbage before a frame never costs the frame."""
 from hypothesis import given
 from hypothesis import strategies as st
 
 from neoaprs.kiss import FEND, KissDecoder, KissFrame, encode
 
-payloads = st.binary(max_size=1000)             # a frame is at most 1024 bytes with its command byte, before escaping
+# A frame is at most 1024 bytes with its command byte, before escaping
+payloads = st.binary(max_size=1000)
 
 
 def cut(data: bytes, points: list[int]) -> list[bytes]:
-    """`data` split at the given positions (any order, repeats and positions beyond the end allowed)."""
+    """`data` split at the given positions (any order, repeats and positions beyond the end
+    allowed)."""
     marks = sorted({min(p, len(data)) for p in points} | {0, len(data)})
     return [data[a:b] for a, b in zip(marks, marks[1:])]
 

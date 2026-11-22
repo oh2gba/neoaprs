@@ -1,7 +1,7 @@
-"""A LoRa APRS board's line, read by the Tnc with the board's own reader (neoaprs/loraboard.py; aprs-reference/lora-plan.md step L3), each board the fake of tests/support/fakelora.py speaking its firmware's
-bytes: KISS both ways with the CA2RXU iGate on the network and on a serial line; the iGate left in TNC2 text, which is received and sends nothing until it is set to KISS; the CA2RXU Tracker on classic
-Bluetooth, turned to KISS by the nudge; the Tracker over Bluetooth LE on its KISS service and on its Nordic UART with the roles swapped; the iGate's APRS bridge passed over and counted; a board's log in the
-terminal only; esp32_loraprs's battery a line of the terminal, never a fault; no word of command mode, and no KISS ON, ever; a board on USB that has no port waits for one and is never searched for."""
+"""Tests for a LoRa APRS board's line read by the Tnc (neoaprs/loraboard.py) with the fake board of
+tests/support/fakelora.py: KISS and TNC2 variants, Bluetooth and BLE roles, and the rules that no
+KISS ON is ever sent and a board on USB without a port only waits.
+"""
 import functools
 import socket
 from collections.abc import Awaitable, Callable
@@ -28,7 +28,8 @@ BLE = "ble://00:11:22:33:44:55"
 
 @pytest.fixture(autouse=True)
 def no_list(monkeypatch: pytest.MonkeyPatch) -> object:
-    """The iGate's list is asked of a port that refuses (a socket bound and not listening): these boards have no list, as a Tracker has none, and port 80 of the machine is never asked."""
+    """The iGate's list is asked of a port that refuses (a socket bound and not listening): these
+    boards have no list, as a Tracker has none, and port 80 of the machine is never asked."""
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
     monkeypatch.setattr(loralist, "PORT", sock.getsockname()[1])
@@ -61,7 +62,8 @@ def lines() -> Lines:
 
 
 def stops(test: Callable[..., Awaitable[None]]) -> Callable[..., Awaitable[None]]:
-    """The tasks of a Tnc must be gone before the leak guard looks, which is before a fixture is torn down: the test body is wrapped."""
+    """The tasks of a Tnc must be gone before the leak guard looks, which is before a fixture is
+    torn down: the test body is wrapped."""
     @functools.wraps(test)
     async def wrapper(*args: object, **kwargs: Lines) -> None:
         try:
@@ -111,7 +113,8 @@ async def test_the_igate_on_the_network_speaks_kiss_both_ways_and_says_no_signal
 
 
 def escaped(escapes: int) -> ax25.Frame:
-    """A frame of 250 bytes, the most a LoRa radio carries, whose text has this many bytes that KISS escapes (0xDB, the lead byte of an Arabic letter)."""
+    """A frame of 250 bytes, the most a LoRa radio carries, whose text has this many bytes that KISS
+    escapes (0xDB, the lead byte of an Arabic letter)."""
     info = b">" + "\u06db".encode() * escapes
     return frame_of(b"OH2GBA>APZNEO:" + info + b"x" * (250 - len(ax25.encode(frame_of(b"OH2GBA>APZNEO:" + info)))))
 
@@ -159,7 +162,9 @@ async def test_the_igate_left_in_tnc2_text_is_received_and_sends_nothing_until_i
     board.air(HEARD.replace(b"tracker", b"again"))
     await until(lambda: len(line.heard) == 2)
     assert board.writes == [LORA_NUDGE], "once an open"
-    board.restart(kiss=True)                                               # (the operator sets it to KISS on the board's page, and the board restarts: its clients are dropped)
+    # (the operator sets it to KISS on the board's page, and the board restarts: its clients are
+    # dropped)
+    board.restart(kiss=True)
     end.drop()
     await until(lambda: line.tnc.stats.opens == 2 and line.tnc.state is Source.State.CONNECTED and end.clients == 1)
     assert line.tnc.usable and line.tnc.problem == "", "a fresh open: the text of the last one holds nothing back"

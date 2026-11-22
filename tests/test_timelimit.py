@@ -1,4 +1,6 @@
-"""The time limit of a test (tests/support/timelimit.py), on pytest run as a process over a test file of its own: a test that hangs ends the run, with its name and the stacks, and a test inside its limit is as it was."""
+"""The time limit of a test (tests/support/timelimit.py), on pytest run as a process over a test
+file of its own: a test that hangs ends the run, with its name and the stacks, and a test inside its
+limit is as it was."""
 import os
 import subprocess
 import sys

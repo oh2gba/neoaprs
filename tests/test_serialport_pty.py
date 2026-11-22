@@ -1,5 +1,7 @@
-"""The serial port on a real device file: a pseudo-terminal pair stands in for /dev/ttyUSB0, so pyserial's POSIX code runs (the lock, the abort pipe, a device that goes away), and so does what only Linux can say:
-which program has a device open (/proc), and the globs of the search. POSIX only; the same behaviour on the fake radio, on every system, is in tests/test_serialport.py."""
+"""The serial port on a real device file: a pseudo-terminal pair stands in for /dev/ttyUSB0 so
+pyserial's POSIX code runs (lock, abort pipe, device gone) and so does what only Linux can say:
+which program holds a device.
+"""
 import asyncio
 import errno
 import logging
@@ -97,7 +99,8 @@ async def test_a_device_is_opened_by_one_owner_at_a_time_and_the_second_is_told_
     first = await opened(path)
     try:
         with pytest.raises(SerialError, match="in use by another program"):
-            await SerialPort(path).open()               # exclusive: the daemon and a capture script cannot read the same line
+            # exclusive: the daemon and a capture script cannot read the same line
+            await SerialPort(path).open()
         with pytest.raises(SerialError, match="already open"):
             await first.open()
     finally:
@@ -120,7 +123,8 @@ async def test_another_program_that_locks_the_device_is_refused_while_we_hold_it
 # ---- the globs
 
 def make_dev(tmp_path: Path) -> Path:
-    """A fake /dev: ttyUSB0 and ttyUSB1 (one of them behind a by-id link), ttyACM0, a brainbox link to ttyUSB1, a by-id link that leads nowhere, and a file that no pattern names."""
+    """A fake /dev: ttyUSB0 and ttyUSB1 (one of them behind a by-id link), ttyACM0, a brainbox link
+    to ttyUSB1, a by-id link that leads nowhere, and a file that no pattern names."""
     dev = tmp_path / "dev"
     (dev / "serial" / "by-id").mkdir(parents=True)
     for name in ("ttyUSB0", "ttyUSB1", "ttyACM0", "ttyS0"):
@@ -181,7 +185,8 @@ async def test_probe_returns_none_when_nothing_is_valid_and_closes_every_port_it
     paths = [ptys()[1] for _ in range(2)]
     assert await probe(paths, 9600, 0.05, lambda data: False) is None
     for path in paths:                                        # a port left open would still hold the exclusive lock
-        await open_within(path, 2.0)                          # (each port is closed as the probe ends: its thread may take a moment)
+        # Each port is closed as the probe ends: its thread may take a moment
+        await open_within(path, 2.0)
 
 
 async def open_within(path: str, seconds: float) -> None:
@@ -207,7 +212,9 @@ async def test_cancelling_the_probe_closes_every_port(ptys: Ptys) -> None:
     with pytest.raises(asyncio.CancelledError):
         await task
     for path in paths:                                        # a port left open would still hold the exclusive lock
-        await open_within(path, 2.0)                          # an open that was under way when the probe was cancelled is closed by its own thread, a moment later
+        # An open that was under way when the probe was cancelled is closed by its own thread, a
+        # moment later
+        await open_within(path, 2.0)
 
 
 async def test_probe_gives_up_on_a_port_that_dies_while_listening_and_goes_on(ptys: Ptys) -> None:
@@ -241,7 +248,8 @@ def test_holders_looks_through_a_link_to_the_device(ptys: Ptys, tmp_path: Path) 
     _, path = ptys()
     link = tmp_path / "brainbox_2"
     link.symlink_to(path)
-    with held_by_a_program(str(link)) as child:                      # opened through the link, found through the device and through the link
+    # Opened through the link, found through the device and through the link
+    with held_by_a_program(str(link)) as child:
         assert holders(path) == [child.pid] == holders(str(link))
 
 
@@ -251,8 +259,8 @@ _SAME_NUMBER = ("import os, sys, time\nkept = [os.openpty()]\n"
 
 
 def test_a_pseudo_terminal_of_another_devpts_by_the_same_name_is_no_holder(ptys: Ptys) -> None:
-    """A program in a /dev of its own (a sandbox, a container, a Flatpak: bubblewrap's --dev makes one) that holds its /dev/pts/N holds another terminal than ours of that name: the search must not skip ours
-    for it (the gate of 15 November 2026 found both its ports "held" while other test runs in sandboxes held terminals of the same numbers)."""
+    """A program in a /dev of its own (a sandbox, container or Flatpak) holds a /dev/pts/N that is
+    another terminal than ours of that name: the search must not skip ours for it."""
     _, path = ptys()
     try:
         other = subprocess.Popen(["bwrap", "--dev-bind", "/", "/", "--dev", "/dev", sys.executable, "-c", _SAME_NUMBER, path], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
@@ -271,18 +279,23 @@ def test_a_pseudo_terminal_of_another_devpts_by_the_same_name_is_no_holder(ptys:
 
 
 def node_of(device: os.stat_result, dev: int, ino: int) -> os.stat_result:
-    """What stat says of another node with the device's numbers: on the filesystem `dev`, as its inode `ino`."""
+    """What stat says of another node with the device's numbers: on the filesystem `dev`, as its
+    inode `ino`."""
     return os.stat_result((device.st_mode, ino, dev, device.st_nlink, device.st_uid, device.st_gid, device.st_size, 0, 0, 0), {"st_rdev": device.st_rdev})  # type: ignore[attr-defined, unused-ignore]
 
 
 def stat_saying(link: str, opened: os.stat_result, real: Callable[..., os.stat_result]) -> Callable[..., os.stat_result]:
-    """os.stat, but for the descriptor `link` of the stand-in /proc what the kernel would say of the file it has open."""
+    """os.stat, but for the descriptor `link` of the stand-in /proc what the kernel would say of the
+    file it has open."""
     return lambda path, *args, **kwargs: opened if str(path) == link else real(path, *args, **kwargs)
 
 
 def test_a_descriptor_by_the_name_of_the_device_holds_it_only_when_it_is_the_device(ptys: Ptys, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """What /proc says of a descriptor, stood in for (a /proc of the test's, and the kernel's stat of the descriptor): a name is the device only in the process's own /dev. The very node holds it; another node with
-    the numbers of a character device holds it too (a container's /dev, made with the device's numbers); a pseudo-terminal by the same name and numbers on another devpts does not."""
+    """What /proc says of a descriptor, stood in for (a /proc of the test's, and the kernel's stat
+    of the descriptor): a name is the device only in the process's own /dev. The very node holds it;
+    another node with the numbers of a character device holds it too (a container's /dev, made with
+    the device's numbers); a pseudo-terminal by the same name and numbers on another devpts does
+    not."""
     _, terminal = ptys()
     for target in (terminal, "/dev/null"):
         fd = tmp_path / target.replace("/", "_") / "9999999" / "fd"          # (a pid above any Linux gives: never ours)

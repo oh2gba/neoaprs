@@ -1,5 +1,6 @@
-"""Each Dummy radio has a world of its own (neoaprs/dummyscene.py, dummyline.py, tnc.py): the seed of its scene is the radio's id, the seed 1 gives the world there always was, byte for byte, and any other
-seed the same town with other calls at other places. So two Dummy radios show different stations, and every packet says which radio it came on."""
+"""Tests for the per-radio Dummy worlds (neoaprs/dummyscene.py, dummyline.py, tnc.py): the scene
+seed is the radio id, seed 1 gives the original world byte for byte, and other seeds give other
+worlds."""
 import asyncio
 import hashlib
 from datetime import timedelta
@@ -23,8 +24,10 @@ from tests.support.clock import FixedClock
 START = utc(2026, 10, 26, 12, 0, 0)
 ME = "OH2GBA"
 HOME = (60.2231, 24.7152)
-FIRST_WORLD = {"Q1ABC", "Q1CLB", "Q8QTH", "Q4CAR-9", "Q5VAN-7", "Q6CAR-1", "Q7WLK-7", "Q2DIG-2", "Q7DIG-1", "Q3WX"}       # the stations of the Dummy radio as they always were
-FIRST_HOUR = (652, "75a1947d3dbd659a31d9276c9b040e4daabfe5c6c7b45f8b45630c539c26d3b0")                             # an hour of them, counted and hashed with the scene as it was before it took other seeds
+# the stations of the Dummy radio as they always were
+FIRST_WORLD = {"Q1ABC", "Q1CLB", "Q8QTH", "Q4CAR-9", "Q5VAN-7", "Q6CAR-1", "Q7WLK-7", "Q2DIG-2", "Q7DIG-1", "Q3WX"}
+# an hour of them, counted and hashed with the scene as it was before it took other seeds
+FIRST_HOUR = (652, "75a1947d3dbd659a31d9276c9b040e4daabfe5c6c7b45f8b45630c539c26d3b0")
 
 
 @pytest.fixture
@@ -51,7 +54,8 @@ def packet_of(frame: ax25.Frame) -> Packet:
 
 
 def places(seed: int) -> dict[str, tuple[float, float]]:
-    """Where each fixed station and object of the world is, by the call (or name) it has in the first world."""
+    """Where each fixed station and object of the world is, by the call (or name) it has in the
+    first world."""
     found: dict[str, tuple[float, float]] = {}
     for frame in play(Scene(HOME, START, seed), 1300):
         decoded = packet_of(frame).decoded
@@ -122,15 +126,17 @@ def test_another_world_is_the_same_town_turned_round_the_station() -> None:
     for call, place in first.items():
         other = third[name_of(call, 3) if call in ("FIELDDAY", "PARKING") else call_of(call, 3)]
         if call in ("Q4CAR-9", "Q5VAN-7", "Q6CAR-1", "Q7WLK-7"):
-            continue                                                             # (the movers start at another point of their rounds: another draw)
+            # (the movers start at another point of their rounds: another draw)
+            continue
         assert distance_km(*HOME, *other) == pytest.approx(distance_km(*HOME, *place), abs=0.03), f"{call}: as far from us"
         assert (bearing_deg(*HOME, *other) - bearing_deg(*HOME, *place)) % 360 == pytest.approx(2 * TURN_DEG, abs=1.0), f"{call}: turned by {TURN_DEG} degrees for each seed after the first"
         assert distance_km(*place, *other) > 0.5, f"{call}: not at the place of its twin"
 
 
 def test_a_mover_of_a_turned_world_heads_where_it_goes() -> None:
-    """The course a car, a van or a walker sends is turned with its places: the way from one of its positions to the next is, mostly, the way it says it heads (the corners of its round aside; unturned, a
-    mover of the seed 3 would head 110 degrees off)."""
+    """The course a car, a van or a walker sends is turned with its places: the way from one of its
+    positions to the next is, mostly, the way it says it heads (the corners of its round aside;
+    unturned, a mover of the seed 3 would head 110 degrees off)."""
     movers = ("Q4CAR-9", "Q5VAN-7", "Q6CAR-1", "Q7WLK-7")
     for seed in (1, 3):
         track: dict[str, list[Position]] = {}
@@ -154,7 +160,8 @@ def test_a_station_of_another_world_answers_under_its_own_call_and_its_digipeate
     play(scene, 60)
     at = START + timedelta(seconds=61)
     scene.react(air_from_us(b":Q3ABC    :Hello{5"), at)
-    scene.react(air_from_us(b":Q1ABC    :Hello{6"), at)                        # (the first world's home station: nobody here)
+    # (the first world's home station: nobody here)
+    scene.react(air_from_us(b":Q1ABC    :Hello{6"), at)
     scene.react(air_from_us(b"=6013.39N/02442.91E-me"), at)
     scene.react(air_from_us(b":QRU      :RP70{7"), at)
     heard = [f for f in scene.due(at + timedelta(seconds=30))]
@@ -176,7 +183,8 @@ async def test_two_dummy_radios_show_different_stations_each_stamped_with_its_ra
     tncs = []
     for radio_id in (1, 3):
         tnc = Tnc(profile=DUMMY, port=DUMMY_PATH, clock=clock)
-        tnc.radio_id = radio_id                                                 # (as its driver sets it: neoaprs/tncdriver.py)
+        # (as its driver sets it: neoaprs/tncdriver.py)
+        tnc.radio_id = radio_id
         tnc.where = lambda: HOME
         tnc.packet.connect(lambda p, radio_id=radio_id: heard[radio_id].append(p))
         tnc.packet.connect(lambda p: book.take(p) and None)

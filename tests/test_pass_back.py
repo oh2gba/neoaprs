@@ -1,4 +1,5 @@
-"""The messages a pair passed lately: the ack of one answers it once, on the radio it was sent on, within ten minutes."""
+"""The messages a pair passed lately: the ack of one answers it once, on the radio it was sent on,
+within ten minutes."""
 from datetime import datetime, timedelta
 
 from neoaprs.services.passback import PASS_BACK_SEC, PASSED_KEEP_MAX, Passed, PassedMessages

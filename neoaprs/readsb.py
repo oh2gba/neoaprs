@@ -1,9 +1,8 @@
-"""readsb's JSON, the one form of every aircraft source: the `aircraft.json` of an own receiver (readsb, dump1090, tar1090: `now` in seconds and the list `aircraft`) and the answer of adsb.fi and adsb.lol
-(`now` in milliseconds and the list `ac`). `read_aircraft` turns it into the layer's things; `receiver_urls` says where an own receiver keeps the file. No I/O.
+"""readsb's JSON, the one form of every aircraft source (own receiver and adsb.fi / adsb.lol).
 
-An aircraft on the ground (`alt_baro` "ground") and a vehicle or an obstacle (a `category` that begins with C) are left out, and so is one without a position or with one a day old or older.
-
-The lists of the answer are read one item at a time (`loads`), so that a long answer read on a thread of its own lets the daemon's loop run between the items."""
+Ground traffic and rows without a recent position are left out. Lists are read one item at a
+time (`loads`), so a long answer read on a thread lets the loop run.
+"""
 import json
 import math
 import re
@@ -15,17 +14,19 @@ from .clock import from_unix
 from .layerthing import AIRCRAFT_HOST, AIRCRAFT_PLACES, AIRCRAFT_PORTS, Thing
 from .units import FOOT_M, KNOT_KMH
 
-FPM_MS = 0.00508                                             # one foot a minute in metres a second
-EMERGENCY_SQUAWKS = frozenset({"7500", "7600", "7700"})      # unlawful interference, radio failure, emergency
-MILLISECONDS_FROM = 1e11                                     # a `now` above this is in milliseconds (the services), below it in seconds (a receiver's file)
-TEXT_MAX = 64                                                # the longest flight, registration or type kept
-SEEN_MAX_SEC = 86400.0                                       # a position older than this is taken as none
-SPEED_KMH_RANGE = (0.0, 4000.0)                              # a speed outside it is taken as none (no aircraft of the map flies faster)
-ALTITUDE_M_RANGE = (-1000.0, 40000.0)                        # a height outside it is taken as none
-VERTICAL_MS_RANGE = (-150.0, 150.0)                          # a vertical speed outside it, in metres a second, is taken as none
+FPM_MS = 0.00508  # one foot a minute in m/s
+EMERGENCY_SQUAWKS = frozenset({"7500", "7600", "7700"})
+# a `now` above this is in milliseconds, below it in seconds
+MILLISECONDS_FROM = 1e11
+TEXT_MAX = 64
+SEEN_MAX_SEC = 86400.0
+# a value outside its range is taken as none
+SPEED_KMH_RANGE = (0.0, 4000.0)
+ALTITUDE_M_RANGE = (-1000.0, 40000.0)
+VERTICAL_MS_RANGE = (-150.0, 150.0)
 _SPACE = re.compile(r"[ \t\n\r]*")
-# json's own scanner of one value: (text, where it begins) -> (the value, where it ends)
-_SCAN: Callable[[str, int], tuple[Any, int]] = json.JSONDecoder().scan_once     # type: ignore[attr-defined]
+# json's own scanner of one value
+_SCAN: Callable[[str, int], tuple[Any, int]] = json.JSONDecoder().scan_once  # type: ignore[attr-defined]
 
 
 def _after_space(text: str, at: int) -> int:
@@ -34,7 +35,7 @@ def _after_space(text: str, at: int) -> int:
 
 
 def _list(text: str, at: int) -> tuple[list[Any], int]:
-    """The JSON list that begins at `at`, read item by item, and where it ends."""
+    """Return the JSON list that begins at `at`, read item by item, and where it ends."""
     items: list[Any] = []
     at = _after_space(text, at + 1)
     if text.startswith("]", at):
@@ -52,7 +53,7 @@ def _list(text: str, at: int) -> tuple[list[Any], int]:
 
 
 def loads(body: bytes) -> Any:
-    """What `json.loads` gives for `body`, a top-level list and the lists of a top-level object read item by item (each item by json's own scanner); ValueError for what is not JSON."""
+    """Return what `json.loads` gives, reading top-level lists item by item (ValueError if not)."""
     text = body.decode(json.detect_encoding(body), "surrogatepass")
     at = _after_space(text, 0)
     if text.startswith("[", at):
@@ -90,7 +91,7 @@ def loads(body: bytes) -> Any:
 
 
 def number(value: Any) -> float | None:
-    """A JSON number that is finite; None for anything else (null, a string, true or false, an integer too large for a float)."""
+    """Return a JSON number that is finite; None for anything else (null, string, boolean)."""
     if not isinstance(value, (int, float)) or isinstance(value, bool):
         return None
     try:
@@ -101,7 +102,7 @@ def number(value: Any) -> float | None:
 
 
 def converted(value: Any, factor: float, within: tuple[float, float]) -> float | None:
-    """A JSON number times `factor` (feet to metres, knots to km/h); None when it is none or the result is not finite or lies outside `within`."""
+    """Return a JSON number times `factor`; None if none, not finite or outside `within`."""
     found = number(value)
     if found is None:
         return None
@@ -110,12 +111,12 @@ def converted(value: Any, factor: float, within: tuple[float, float]) -> float |
 
 
 def text_of(value: Any) -> str:
-    """A JSON string trimmed, its unprintable characters left out, at most TEXT_MAX long; "" for anything else."""
+    """Return a JSON string trimmed, unprintable characters removed, at most TEXT_MAX; else ""."""
     return "".join(c for c in value.strip() if c.isprintable())[:TEXT_MAX] if isinstance(value, str) else ""
 
 
 def _heading(aircraft: dict[str, Any]) -> int | None:
-    """Where the mark points: the track over the ground, else the true heading, else the magnetic one."""
+    """Return where the mark points: ground track, else true heading, else magnetic heading."""
     for key in ("track", "true_heading", "mag_heading"):
         if (degrees := number(aircraft.get(key))) is not None:
             return int(round(degrees)) % 360
@@ -130,9 +131,10 @@ def _altitude_m(aircraft: dict[str, Any]) -> int | None:
 
 
 def vertical_ms(rate: Any) -> float | None:
-    """A climb rate in feet a minute as metres a second, one decimal, above zero while it climbs; None when it is none or out of range."""
+    """Return a climb rate in feet a minute as m/s, one decimal; None if none or out of range."""
     metres = converted(rate, FPM_MS, VERTICAL_MS_RANGE)
-    return None if metres is None else round(metres, 1) + 0.0     # (+ 0.0: a small descent is level, not -0.0)
+    # + 0.0: a small descent is level, not -0.0
+    return None if metres is None else round(metres, 1) + 0.0
 
 
 def _vertical(aircraft: dict[str, Any]) -> float | None:
@@ -146,7 +148,7 @@ def _emergency(aircraft: dict[str, Any]) -> bool:
 
 
 def _thing(aircraft: Any, base: datetime) -> Thing | None:
-    """One aircraft of the list, or None for one that is not shown (no position, on the ground, a vehicle or an obstacle, not an object with a `hex`)."""
+    """Return one aircraft of the list, or None for one that is not shown."""
     if not isinstance(aircraft, dict) or not (id := text_of(aircraft.get("hex")).lower()):
         return None
     lat, lon = number(aircraft.get("lat")), number(aircraft.get("lon"))
@@ -165,9 +167,10 @@ def _thing(aircraft: Any, base: datetime) -> Thing | None:
 
 
 def read_aircraft(body: bytes, received_at: datetime | None = None) -> list[Thing] | None:
-    """The aircraft of readsb's JSON that are shown, one for each `hex` (the newest position); None for anything that is not that JSON (an object with a number `now` and a list `aircraft` or `ac`).
+    """Return the shown aircraft, one per `hex` (the newest); None if not readsb's JSON.
 
-    The time of a position is `seen_pos` seconds before `received_at` when it is given (the daemon's own clock: a receiver whose clock is wrong does not age its aircraft away), else before the answer's `now`."""
+    Positions are aged from `received_at` (the daemon's clock, not a receiver's), else from `now`.
+    """
     try:
         data = loads(body)
     except (ValueError, RecursionError, StopIteration):
@@ -189,7 +192,7 @@ def read_aircraft(body: bytes, received_at: datetime | None = None) -> list[Thin
     for aircraft in listed:
         try:
             thing = _thing(aircraft, base)
-        except (OverflowError, ValueError):                 # (a time out of the calendar's range: that one row is passed over)
+        except (OverflowError, ValueError):  # that row is skipped
             continue
         if thing is not None and (thing.id not in kept or kept[thing.id].at < thing.at):
             kept[thing.id] = thing
@@ -197,7 +200,7 @@ def read_aircraft(body: bytes, received_at: datetime | None = None) -> list[Thin
 
 
 def host_port(address: str) -> tuple[str, int | None]:
-    """`host` or `host:port` (an IPv6 address in brackets) as the host, as an address writes it, and the port (None when none is given)."""
+    """Return the host of `host` or `host:port` (IPv6 in brackets) as written, and the port."""
     host, colon, port = address.rpartition(":") if not address.endswith("]") else ("", "", address)
     if not colon or not (port.isascii() and port.isdigit()):
         host, number = address, None
@@ -207,13 +210,12 @@ def host_port(address: str) -> tuple[str, int | None]:
 
 
 def is_whole_address(value: str) -> bool:
-    """Whether an address is typed whole, with its http or https (in any case)."""
+    """Return whether an address is typed whole, with its http or https (in any case)."""
     return value.lower().startswith(("http://", "https://"))
 
 
 def receiver_urls(address: str) -> list[str]:
-    """Where an own aircraft receiver's file is tried, in order: a whole http or https address as typed; on a `host:port` each of the known places on that port; on a bare host each of them on port 80 and
-    then on 8080; empty, the same on this computer."""
+    """Return where a receiver's file is tried, in order: the address as typed, or each place."""
     value = address.strip()
     if is_whole_address(value):
         return [value]

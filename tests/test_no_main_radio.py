@@ -1,11 +1,8 @@
-"""The update that takes the main radio away (migration 34, neoaprs/migrationsteps34.py, and the daemon without one) proved on the air: for each station of the design's section 4 and the shapes beside
-it, a data folder as 0.20.0 and 0.20.1 left it (version 33, tests/support/migrated34.py; station g as 0.18.2 left it, version 26), started by the daemon on a fake clock for four hours with a status every
-15 minutes, a bulletin and an object kept from before, an announcement, a mail, a message to a call no radio heard and one press of each Ask. The frames of ours are counted per radio and per kind, and held
-to an ORACLE: 0.20.0's rules of the main radio, copied here (`main_radio`, `in_force_set`, the e-mail rule), never imported from today's code. Two things differ, each by its own number: a radio whose
-airtime is everyone's (Mercury, LoRa) now has its floor of 30 minutes for the status and a bulletin's repeats (8 reports where there were 16, a bulletin 10 frames where it was 14), and a station with no
-FM or LoRa radio on sends its mail (on the first radio that can send) where 0.20.0 refused it.
-
-The day runs as tests/test_six_radios.py's (Dummy radios of every kind, a minute at a time, each timer looking at the clock in each step), radio by radio from the database the step wrote."""
+"""The update that takes the main radio away (migration 34 and the daemon without one), proved on
+the air: for each station shape a data folder as the older version left it is started on a fake
+clock for four hours and its frames are counted per radio and kind against an oracle of the old main
+radio rules.
+"""
 import asyncio
 from collections import Counter
 from collections.abc import Callable
@@ -27,7 +24,8 @@ from tests.support.migrated34 import Old, Radio, fm, hf, lora, monitor, version_
 from tests.test_migration_alert_markup import version_twenty_six
 from tests.test_six_radios import STEP_WAIT_SEC, TICK_SEC, TICKED, quick
 
-__all__ = ["quick"]                                         # (the fixture of the six radios' day: every timer looks at the clock several times in each step)
+# The fixture of the six radios' day: every timer looks at the clock several times in each step
+__all__ = ["quick"]
 
 START = utc(2026, 11, 16, 6, 0, 0)
 HOURS = 4
@@ -37,10 +35,12 @@ STATION_ROWS = {"station/call": ME, "station/lat": "60.17", "station/lon": "24.9
 MAIL, NEW = "EMAIL-2", "OH2NEW"                             # (a call no radio of any made-up world has)
 KINDS = ("beacon", "status", "bulletin", "announcement", "object", "query", "info", "mail", "new")
 
-# ---- the ORACLE: 0.20.0's rules, copied (neoaprs/radiospec.py `main_radio` and `in_force_set`, neoaprs/emailrule.py `email_radio` of 48bea6ff), over the radios as the test wrote them
+# ---- the ORACLE: the old main radio rules, copied (radiospec `main_radio`, `in_force_set`,
+# emailrule `email_radio`)
 
 SENDS_0_20_0 = ("direwolf", "kiss", "kenwood-d710", "kenwood-tnc2", "kantronics", "kiss-tcp", "dummy", "dummy-hf", "mercury", "lora-tcp", "lora-serial", "dummy-lora")
-HEARD_0_20_0 = ("fm", "lora")                               # the kinds whose types internet gateways hear (`Allowed.gateway_heard`)
+# The kinds whose types internet gateways hear (`Allowed.gateway_heard`)
+HEARD_0_20_0 = ("fm", "lora")
 
 
 def senders_0_20_0(radios: tuple[Radio, ...]) -> list[Radio]:
@@ -48,7 +48,8 @@ def senders_0_20_0(radios: tuple[Radio, ...]) -> list[Radio]:
 
 
 def main_radio_0_20_0(radios: tuple[Radio, ...], chosen: int | None) -> int | None:
-    """The main radio (plan §2): the one chosen while it is enabled and can send, else the first such by position, else None."""
+    """The main radio: the one chosen while it is enabled and can send, else the first
+    such by position, else None."""
     on = senders_0_20_0(radios)
     if chosen is not None and any(r.id == chosen for r in on):
         return chosen
@@ -56,7 +57,8 @@ def main_radio_0_20_0(radios: tuple[Radio, ...], chosen: int | None) -> int | No
 
 
 def in_force_set_0_20_0(ids: tuple[int, ...], radios: tuple[Radio, ...], main: int | None) -> tuple[int, ...]:
-    """A stored set of radios as it is in force: with one radio that can send that one; else its ticks of such radios, by position; else the main radio; else none."""
+    """A stored set of radios as it is in force: with one radio that can send that one; else its
+    ticks of such radios, by position; else the main radio; else none."""
     on = senders_0_20_0(radios)
     if len(on) == 1:
         return (on[0].id,)
@@ -70,7 +72,8 @@ def email_radio_0_20_0(radios: tuple[Radio, ...], main: int | None) -> int | Non
 
 
 def oracle(radios: tuple[Radio, ...], chosen: int | None, object_radios: tuple[int, ...]) -> dict[str, tuple[int, ...]]:
-    """The radios each thing of the day went on in 0.20.0: the beacon by its ticks (none ticked: the main radio), an object by its own, everything else on the main radio, a mail on the e-mail radio."""
+    """The radios each thing of the day went on under the old rules: beacon by its ticks, object by
+    its own, the rest on the main radio."""
     main = main_radio_0_20_0(radios, chosen)
     beacon = tuple(r.id for r in radios if r.own.get("beacon", "true") != "false")
     one = () if main is None else (main,)
@@ -79,22 +82,29 @@ def oracle(radios: tuple[Radio, ...], chosen: int | None, object_radios: tuple[i
             "query": one, "info": one, "mail": () if mail is None else (mail,), "new": one}
 
 
-# ---- what a radio sends of each in four hours, by its kind's rules (the ones the update does not change, and the two it does)
+# ---- what a radio sends of each in four hours, by its kind's rules (those the update does not
+# change, and the two it does)
 
-SLOW = ("hf", "lora")                                       # the kinds whose own floor is 30 minutes (beaconrule.own_floor_min)
-OLD_STATUS, NEW_STATUS_SLOW = 16, 8                         # 4 hours at 15 minutes; on HF and LoRa raised to the floor of 30 (the first exception)
-OLD_BULLETIN, NEW_BULLETIN_SLOW = 14, 10                    # 0, 2, 6, then every 20 minutes to 226; every 30 while a radio it goes on is HF or LoRa: to 216 (the first exception)
+# The kinds whose own floor is 30 minutes (beaconrule.own_floor_min)
+SLOW = ("hf", "lora")
+# 4 hours at 15 minutes; on HF and LoRa raised to the floor of 30 (the first exception)
+OLD_STATUS, NEW_STATUS_SLOW = 16, 8
+# 0, 2, 6, then every 20 minutes to 226; every 30 while a radio it goes on is HF or LoRa: to 216
+# (the first exception)
+OLD_BULLETIN, NEW_BULLETIN_SLOW = 14, 10
 ANNOUNCEMENT = 6                                            # 0, 2, 6, 66, 126, 186 minutes
 PRESS = 1                                                   # one press of Ask around (?APRS?) and of Local info (INFO)
 
 
 @dataclass(frozen=True)
 class Day:
-    """What a station's day is: its data folder of before, and what the day adds (a radio the day after the update, `added`)."""
+    """What a station's day is: its data folder of before, and what the day adds (a radio the day
+    after the update, `added`)."""
     name: str
     old: Old
     added: str = ""                                          # a type added once the daemon runs (station h)
-    v26: bool = False                                        # the data folder of 0.18.2 (station g): made of `old.settings`
+    # The data folder of a version 26 station, made of `old.settings`.
+    v26: bool = False
 
 
 OBJECT = "CAMP"
@@ -124,7 +134,8 @@ def kind_of(frame: ax25.Frame) -> str:
 
 
 class Running:
-    """The daemon on the station's data folder, its clock, and every frame of ours with the time it went."""
+    """The daemon on the station's data folder, its clock, and every frame of ours with the time it
+    went."""
 
     def __init__(self, tmp_path: Path, day: Day) -> None:
         self.clock = FixedClock(START)
@@ -168,9 +179,11 @@ class Running:
 
 
 async def the_day(tmp_path: Path, day: Day) -> tuple[Counter[tuple[int, str]], list[str], Running]:
-    """The station's data folder of before, the update, and its four hours: the frames by radio and kind, and the codes of the presses that were refused."""
+    """The station's data folder of before, the update, and its four hours: the frames by radio and
+    kind, and the codes of the presses that were refused."""
     path = tmp_path / DB_NAME
-    object_radios = ",".join(str(r.id) for r in senders_0_20_0(day.old.radios)[:1]) or "1"            # (the object of before, on the first radio that sent: radio 1 where there was none)
+    # The object of before, on the first radio that sent: radio 1 where there was none
+    object_radios = ",".join(str(r.id) for r in senders_0_20_0(day.old.radios)[:1]) or "1"
     kept = Old(day.old.radios, day.old.chosen, {**STATION_ROWS, **day.old.settings}, {OBJECT: object_radios}, {"BLN1": "net tonight"})
     if day.v26:
         version_twenty_six(path, FixedClock(START), {**STATION_ROWS, "tnc/profile": "dummy", "hf/enabled": "true", "hf/profile": "dummy-hf"})
@@ -178,7 +191,8 @@ async def the_day(tmp_path: Path, day: Day) -> tuple[Counter[tuple[int, str]], l
         version_33(path, kept, FixedClock(START))
     run = Running(tmp_path, day)
     await run.start()
-    if day.v26:                                                                                          # (0.18.2 kept them by its words of a radio: here made as the update starts, on radio 1)
+    # Version 26 kept them by its words of a radio: made as the update starts, on radio 1.
+    if day.v26:
         run.e.ctl.ownobjects.set(OBJECT, "object", 60.2, 24.9, "/", "r", "ours", radios=(1,))
         run.e.ctl.ownbulletins.post("BLN1", "net tonight", (1,))
     if day.added:
@@ -206,11 +220,15 @@ async def the_day(tmp_path: Path, day: Day) -> tuple[Counter[tuple[int, str]], l
 
 
 def counted(thing: str, radio: Radio, on: tuple[Radio, ...]) -> int:
-    """How many frames of the thing a radio sends in the four hours, by today's rules: those the update does not change (the beacon at 30 minutes on every kind, an object's decay and its round at the
-    slowest floor of its radios, a press, a mail's two attempts and a message's four), and the floor of the status and of a bulletin's repeats."""
+    """How many frames of the thing a radio sends in the four hours, by today's rules: those the
+    update does not change (the beacon at 30 minutes on every kind, an object's decay and its round
+    at the slowest floor of its radios, a press, a mail's two attempts and a message's four), and
+    the floor of the status and of a bulletin's repeats."""
     slow = radio.kind in SLOW
     if thing == "object":
-        return 12 if any(r.kind in SLOW for r in on) else 16                         # (0, 1, 3, 7, 15, 31, then every 20 minutes by its path, or every 30 on a slow radio: on all of its radios alike)
+        # 0, 1, 3, 7, 15, 31, then every 20 minutes by its path, or every 30 on a slow radio: on all
+        # of its radios alike
+        return 12 if any(r.kind in SLOW for r in on) else 16
     return {"beacon": 8, "status": NEW_STATUS_SLOW if slow else OLD_STATUS, "bulletin": NEW_BULLETIN_SLOW if slow else OLD_BULLETIN, "announcement": ANNOUNCEMENT, "query": PRESS, "info": PRESS,
             "mail": 2, "new": 4}[thing]
 
@@ -219,20 +237,26 @@ def counted(thing: str, radio: Radio, on: tuple[Radio, ...]) -> int:
 async def test_the_update_sends_what_0_20_0_sent_on_every_radio_but_the_floor_and_the_mail_of_a_station_without_fm_or_lora(tmp_path: Path, quick: None, day: Day) -> None:
     frames, refused, run = await the_day(tmp_path, day)
     try:
-        radios = (*day.old.radios, *((lora(len(day.old.radios) + 1),) if day.added else ()))         # (the radio added the day after, as 0.20.0 would have taken it: last, its beacon ticked)
+        # The radio added the day after, as the old rules would have taken it: last, its beacon
+        # ticked.
+        radios = (*day.old.radios, *((lora(len(day.old.radios) + 1),) if day.added else ()))
         first = senders_0_20_0(day.old.radios)[:1]
         sets = oracle(radios, day.old.chosen, (first[0].id,) if first else (1,))
         if day.v26:
-            sets["object"] = sets["bulletin"]                                                             # (0.18.2's object was set on radio 1 by its word fm, which the update read: as the bulletin)
+            # The object was set on radio 1 by its word fm, which the update read: as the bulletin.
+            sets["object"] = sets["bulletin"]
         by_id = {r.id: r for r in radios}
         expected = Counter({(id, thing): counted(thing, by_id[id], tuple(by_id[i] for i in ids)) for thing, ids in sets.items() for id in ids})
         main = main_radio_0_20_0(radios, day.old.chosen)
-        if not sets["mail"] and main is not None:                                                         # (the second exception: 0.20.0 refused the mail of a station with no FM or LoRa radio on)
+        # Second exception: the old rules refused the mail of a station with no FM or LoRa radio on.
+        if not sets["mail"] and main is not None:
             assert by_id[main].kind == "hf" and all(r.kind == "hf" for r in senders_0_20_0(radios))
             expected[(main, "mail")] = 2
         assert frames == expected, day.name
         for (id, thing), count in frames.items():
-            if thing in ("status", "bulletin") and by_id[id].kind in SLOW:                               # (the first exception, by its own numbers: 0.20.0 sent 16 status reports and 14 bulletins there)
+            # First exception, by its own numbers: the old rules sent 16 status reports and 14
+            # bulletins there.
+            if thing in ("status", "bulletin") and by_id[id].kind in SLOW:
                 assert (count, OLD_STATUS if thing == "status" else OLD_BULLETIN) == ((NEW_STATUS_SLOW, 16) if thing == "status" else (NEW_BULLETIN_SLOW, 14)), (day.name, id, thing)
         assert refused == ([] if main is not None else ["radio.none"] * 4), "with no radio that can send on, the mail, the message and both Asks are refused, as in 0.20.0"
         assert not any(by_id[id].type == "tnc-text" or by_id[id].removed or not by_id[id].enabled for id, _ in frames), "never a frame on a radio that only receives, is off or removed"
@@ -241,8 +265,10 @@ async def test_the_update_sends_what_0_20_0_sent_on_every_radio_but_the_floor_an
 
 
 async def test_a_bulletin_ticked_for_fm_and_hf_repeats_every_30_minutes_on_both_and_one_on_fm_alone_every_20(tmp_path: Path, quick: None) -> None:
-    """A bulletin's own radios (the Post box's ticks, `bulletin_post` with `radios`), its round on all of them as an object's, and the floor of the slowest: 10 frames on each of FM and Mercury in four
-    hours, 14 on FM alone; an announcement 6 on each in four hours (74 in its 72: tests/test_sendonrule.py)."""
+    """A bulletin's own radios (the Post box's ticks, `bulletin_post` with `radios`), its round on
+    all of them as an object's, and the floor of the slowest: 10 frames on each of FM and Mercury in
+    four hours, 14 on FM alone; an announcement 6 on each in four hours (74 in its 72:
+    tests/test_sendonrule.py)."""
     day = Day("b", Old((fm(1), hf(2))))
     version_33(tmp_path / DB_NAME, Old(day.old.radios, None, STATION_ROWS), FixedClock(START))
     run = Running(tmp_path, day)
@@ -261,8 +287,9 @@ async def test_a_bulletin_ticked_for_fm_and_hf_repeats_every_30_minutes_on_both_
 
 
 async def test_a_radio_switched_off_and_on_again_after_the_update_takes_the_mail_back_and_no_status_goes_out_early(tmp_path: Path, quick: None) -> None:
-    """Station b the day after: FM switched off for an hour carries nothing, HF carries it all, and once FM is on again the mail goes on FM, as 0.20.0 sent it (the step stored the e-mail radio; without
-    it the radio left on would be written when FM comes back). HF's first status while it stands in comes at its next interval, from the station's latest report, not at once."""
+    """Station b the day after: FM off for an hour carries nothing, HF carries it all, and once FM
+    is on the mail goes on FM (the step stored the e-mail radio). HF's first status comes at its
+    next interval."""
     day = Day("b", Old((fm(1), hf(2))))
     version_33(tmp_path / DB_NAME, Old(day.old.radios, None, STATION_ROWS, {OBJECT: "1"}, {"BLN1": "net tonight"}), FixedClock(START))
     run = Running(tmp_path, day)
@@ -287,8 +314,9 @@ async def test_a_radio_switched_off_and_on_again_after_the_update_takes_the_mail
 @pytest.mark.parametrize("day", [Day("HF alone with FM off", Old((fm(1, enabled=False), hf(2)))), Day("every radio off with HF chosen", Old((fm(1, enabled=False), hf(2, enabled=False)), chosen=2))],
                          ids=lambda day: day.name)
 async def test_once_fm_is_on_after_the_update_the_mail_goes_on_fm_and_a_call_no_radio_heard_on_the_radio_0_20_0_sent_it(tmp_path: Path, quick: None, day: Day) -> None:
-    """The radios that were off at the update switched on the day after: the mail goes on FM, which internet gateways hear (the step stored it, though FM was off), as 0.20.0 sent it once FM was on; a
-    message to a call no radio heard goes on the radio 0.20.0 resolved the main radio to (the one chosen, whose box the step put first; none chosen, the first box)."""
+    """The radios that were off at the update switch on the day after: the mail goes on FM, which
+    gateways hear, and a message to a call no radio heard goes on the radio the old rules resolved
+    the main radio to."""
     version_33(tmp_path / DB_NAME, Old(day.old.radios, day.old.chosen, STATION_ROWS), FixedClock(START))
     run = Running(tmp_path, day)
     await run.start()

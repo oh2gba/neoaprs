@@ -1,5 +1,5 @@
-"""`neoaprs capture` (neoaprs/cli/capturecmd.py) in the test's own process, on a fake radio: choosing the port to listen to, a port that goes away while it is recorded, a port that cannot be opened (and no file
-left behind), and Ctrl-C. A whole run as a process, with the frames counted, is test_capture_records_a_tcp_tnc_into_a_file in tests/test_cli.py."""
+"""Tests for `neoaprs capture` (neoaprs/cli/capturecmd.py) in the test's own process on a fake
+radio: port choice, a port that goes away, a port that cannot be opened, and Ctrl-C."""
 import asyncio
 from typing import Any
 from pathlib import Path
@@ -66,9 +66,11 @@ async def test_when_no_port_delivers_a_frame_the_command_says_so_and_suggests_po
 async def test_a_port_that_goes_away_ends_the_recording_with_exit_1_and_keeps_what_came(radio: FakeRadio, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     out = tmp_path / "out.bin"
     recording = asyncio.ensure_future(capturecmd.record(radio.url, 9600, 30.0, str(out)))
-    await until(out.exists)                     # (the port is open: pyserial's open of a socket drops what came before it was done)
+    # (the port is open: pyserial's open of a socket drops what came before it was done)
+    await until(out.exists)
     radio.feed(frame_bytes())
-    await until(lambda: out.exists() and out.stat().st_size >= len(frame_bytes()), 10)   # (a busy Windows runner can be slow)
+    # (a busy Windows runner can be slow)
+    await until(lambda: out.exists() and out.stat().st_size >= len(frame_bytes()), 10)
     radio.drop()
     assert await asyncio.wait_for(recording, 10) == 1
     assert out.read_bytes() == frame_bytes()
@@ -113,6 +115,7 @@ async def test_a_folder_that_is_not_there_is_told_before_any_port_is_opened(radi
 
 async def test_a_file_that_cannot_be_written_after_the_port_opened_closes_the_port_and_says_so(radio: FakeRadio, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert await capturecmd.record(radio.url, 9600, 30.0, str(tmp_path)) == 1             # (OUT is a folder)
-    await until(lambda: radio.clients == 0)                                              # (the socket is closed in a thread of its own)
+    # (the socket is closed in a thread of its own)
+    await until(lambda: radio.clients == 0)
     err = capsys.readouterr().err
     assert str(tmp_path) in err and "Traceback" not in err

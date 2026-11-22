@@ -1,8 +1,6 @@
-"""Migration 15 (neoaprs/migrationsteps12to21.py): the recommended path follows the station's type. A save stores every setting, so the old default `WIDE1-1,WIDE2-1` of `beacon/path` is in the database of nearly every install
-whether its operator chose it or not; it becomes empty (the recommended path). Any other stored path is as it was.
-
-The path is stored under the flat key, as a version 14 kept it; it is read back where the newest migration leaves it (tests/support/migrated31.py: the row of the settings, and radio 1's own `path` once the
-radios are rows) and through the settings in force."""
+"""Migration 15 (neoaprs/migrationsteps12to21.py): the recommended path follows the station's type.
+The old default `WIDE1-1,WIDE2-1` of `beacon/path` becomes empty; any other stored path is kept.
+"""
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -31,7 +29,8 @@ def version_fourteen(path: Path, clock: FixedClock, stored: dict[str, str]) -> N
 
 @contextmanager
 def migrate(folder: Path, stored: dict[str, str]) -> Iterator[sqlite3.Connection]:
-    """The database of a version 14 with these settings, brought up to date: every step from 15 on ran, each the frozen one."""
+    """The database of a version 14 with these settings, brought up to date: every step from 15 on
+    ran, each the frozen one."""
     clock = FixedClock()
     folder.mkdir(parents=True, exist_ok=True)
     old = folder / DB_NAME

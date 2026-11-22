@@ -1,5 +1,7 @@
-"""Migration 17 (neoaprs/migrationsteps12to21.py): the own timeouts of the stations (`station_pref.hide_after_min`) are cleared once, with a line in the log for each; a row that said nothing else is deleted, and the path and RF only
-of a station are as they were."""
+"""Migration 17 (neoaprs/migrationsteps12to21.py): the stations' own timeouts
+(`station_pref.hide_after_min`) are cleared once with a log line each; a row with nothing else is
+deleted.
+"""
 import logging
 from pathlib import Path
 

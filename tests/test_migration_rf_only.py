@@ -1,4 +1,6 @@
-"""Migration 12 (neoaprs/migrationsteps12to21.py): `rf_only` joins the path, the timeout and the attempts in `station_pref`; a database of the version before keeps every preference, and the table refuses what the program cannot produce."""
+"""Migration 12 (neoaprs/migrationsteps12to21.py): `rf_only` joins the path, timeout and attempts in
+`station_pref`; existing preferences are kept and the table refuses invalid rows.
+"""
 import sqlite3
 from pathlib import Path
 
@@ -16,7 +18,8 @@ COLUMNS = "call, path, hide_after_min, attempts, updated_at"
 
 
 def version_eleven(path: Path, clock: FixedClock) -> None:
-    """A database at schema version 11: preferences of every kind (a path, an empty path, a timeout, attempts, all of them), user_version 11."""
+    """A database at schema version 11: preferences of every kind (a path, an empty path, a timeout,
+    attempts, all of them), user_version 11."""
     version_ten(path, clock)
     from neoaprs import migrations as migrations_module
     db = raw(path)
@@ -38,7 +41,8 @@ def test_a_database_of_version_eleven_gets_rf_only_off_for_every_preference_and_
     messages = before.execute("SELECT id, text, state FROM message ORDER BY id").fetchall()
     assert "rf_only" not in {r[1] for r in before.execute("PRAGMA table_info(station_pref)")} and len(prefs) >= 5 and {r[0] for r in prefs} >= {'EMAIL-2', 'OH2RDG', 'OH2ATT'}
     before.close()
-    prefs = [(call, path, None, attempts, stamp) for call, path, hide, attempts, stamp in prefs if not (path is None and attempts is None)]       # (migration 17 clears the timeouts and deletes a row that said only that)
+    # Migration 17 clears the timeouts and deletes a row that said only that
+    prefs = [(call, path, None, attempts, stamp) for call, path, hide, attempts, stamp in prefs if not (path is None and attempts is None)]
     migrated = opened(old, clock)
     fresh = opened(tmp_path / DB_NAME, clock)
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 12
@@ -47,7 +51,8 @@ def test_a_database_of_version_eleven_gets_rf_only_off_for_every_preference_and_
     assert migrated.db.execute(f"SELECT COUNT(*) FROM {SAID} WHERE rf_only = 0").fetchone() == (len(prefs),)
     assert migrated.db.execute("SELECT id, text, state FROM message ORDER BY id").fetchall() == messages
     assert [(r[0], r[1], r[2]) for r in migrated.history()][11:] == [(12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33]), (34, "_v34", GOLDEN[34]), (35, "_v35", GOLDEN[35])]
-    migrated.db.execute("INSERT INTO station_pref (call, rf_only, updated_at) VALUES ('OH2RDG', 1, ?) ON CONFLICT(call) DO UPDATE SET rf_only = 1", (STAMP,))          # and the new column takes it
+    # And the new column takes it
+    migrated.db.execute("INSERT INTO station_pref (call, rf_only, updated_at) VALUES ('OH2RDG', 1, ?) ON CONFLICT(call) DO UPDATE SET rf_only = 1", (STAMP,))
     migrated.db.execute("INSERT INTO station_pref (call, rf_only, updated_at) VALUES ('OH2NEWX', 1, ?)", (STAMP,))
     assert migrated.db.execute("SELECT call FROM station_pref WHERE rf_only = 1 ORDER BY call").fetchall() == [("OH2NEWX",), ("OH2RDG",)]
     for opened_ in (migrated, fresh):
@@ -64,8 +69,10 @@ def test_a_database_of_version_eleven_gets_rf_only_off_for_every_preference_and_
 def test_the_station_pref_table_refuses_an_rf_only_the_program_cannot_produce(tmp_path: Path, row: tuple[object, ...], name: str) -> None:
     s = opened(tmp_path / DB_NAME)
     with pytest.raises(sqlite3.IntegrityError, match=name):
-        s.db.execute("INSERT INTO station_pref (call, hide_after_min, attempts, rf_only, updated_at) VALUES (?1, ?3, ?4, ?5, ?6)", row)          # (the second of a row was the path, which is a table of its own since 33)
-    s.db.execute("INSERT INTO station_pref (call, rf_only, updated_at) VALUES ('OH2RDG', 1, ?)", (STAMP,))               # (RF only alone says something)
+        # The second of a row was the path, which is a table of its own since 33
+        s.db.execute("INSERT INTO station_pref (call, hide_after_min, attempts, rf_only, updated_at) VALUES (?1, ?3, ?4, ?5, ?6)", row)
+    # RF only alone says something
+    s.db.execute("INSERT INTO station_pref (call, rf_only, updated_at) VALUES ('OH2RDG', 1, ?)", (STAMP,))
     assert s.db.execute("SELECT rf_only FROM station_pref").fetchall() == [(1,)]
     s.close()
 

@@ -1,4 +1,5 @@
-"""Signal (neoaprs/signal.py): synchronous, in the order of connecting, and a handler that fails does not stop the others."""
+"""Signal (neoaprs/signal.py): synchronous, in the order of connecting, and a handler that fails
+does not stop the others."""
 import logging
 
 import pytest
@@ -61,7 +62,8 @@ def test_a_handler_may_disconnect_itself_while_the_signal_is_emitting() -> None:
 
 
 def test_disconnect_removes_a_bound_method() -> None:
-    """A bound method is a new object each time it is read, so `is` never finds it: disconnect compares by equality, which bound methods of one object and one function have."""
+    """A bound method is a new object each time it is read, so `is` never finds it: disconnect
+    compares by equality, which bound methods of one object and one function have."""
     class Listener:
         def __init__(self) -> None:
             self.calls = 0

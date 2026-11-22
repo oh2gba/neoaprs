@@ -1,14 +1,6 @@
-"""The messages of the state hub (neoaprs/web/hub.py), as pydantic models: how a page follows the daemon's state.
+"""Wire models of the state hub messages: `state`, `patch`, `subscribe` and `unsubscribe`.
 
-  hello        the first message of a connection (neoaprs/web/hostwire.py); the page follows every topic from the start
-  state        a topic as it is: its revision and its whole value (when the page opens, when it asks with `subscribe`, and when it was too slow to be sent patches)
-  patch        what changed in a topic: ops `set key value`, `del key` and `replace value`, and the revision they lead to
-  subscribe    (re)start following topics: each is answered with its `state`
-  unsubscribe  stop following topics
-
-They are in the unions of neoaprs/web/protocol.py (`Command`, `Message`), so PROTOCOL.md and the page's types come from them.
-
-Revisions count up in each topic and start again at 0 when the daemon starts; a patch has the revision after it, and a page that sees a gap asks again with `subscribe`.
+Revisions count up per topic and restart at 0 with the daemon; a page that sees a gap subscribes again.
 """
 from typing import Annotated, Any, Literal, Union
 
@@ -16,8 +8,10 @@ from pydantic import Field
 
 from .wirebase import _Command, _Message, _Model
 
-PROTOCOL = 1                          # the version of the messages: a page that does not know it reloads
-MAX_TOPICS = 16                       # in one command
+# Version of the messages; a page that does not know it reloads.
+PROTOCOL = 1
+# Topics in one command.
+MAX_TOPICS = 16
 Revision = Annotated[int, Field(ge=0, le=2**53, description="how many changes the topic has had since the daemon started")]
 TopicName = Annotated[str, Field(min_length=1, max_length=64)]
 Key = Annotated[str, Field(max_length=256, description="the key of an item of a keyed topic: a station's call, a packet's id as text")]

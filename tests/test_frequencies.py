@@ -1,6 +1,6 @@
-"""The frequencies the project suggests for the HF radio (neoaprs/services/frequencies.py, neoaprs/versions.py): the file `site/frequencies.json` and how it is understood (every entry checked, at most four), the service that asks for it a minute after
-the start and when a page shows the HF box and not more often than every fifteen minutes (and never with the update check off), the last good list kept across a restart, a file that is bad or a server that is not there leaving it as it was, the fall-back
-to the version page's dial and then to the built-in four, and the page's `frequencies` and the list in the topics `radios` (each Mercury radio's modem) and `skeds`."""
+"""Tests for the suggested HF frequencies (neoaprs/services/frequencies.py, neoaprs/versions.py):
+the `site/frequencies.json` file and its checks, when the service fetches it, the kept last good
+list, fallbacks, and the `frequencies` and `radios` topics."""
 import json
 import logging
 from pathlib import Path
@@ -18,12 +18,14 @@ from tests.support.storedb import store_at
 
 ROOT = Path(__file__).resolve().parent.parent
 FILE = b'{"frequencies": [{"band": "80 m", "dial": "3.5850 MHz USB"}, {"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}, {"band": "6 m", "dial": "50.6200 MHz USB"}]}'
-TWO = [Frequency("80 m", "3.5850 MHz USB"), Frequency("40 m", "7.0541 MHz USB"), Frequency("20 m", "14.1070 MHz USB"), Frequency("6 m", "50.6200 MHz USB")]      # (the name is older than 6 m and 80 m: the project's list as shipped)
+# (the name is older than 6 m and 80 m: the project's list as shipped)
+TWO = [Frequency("80 m", "3.5850 MHz USB"), Frequency("40 m", "7.0541 MHz USB"), Frequency("20 m", "14.1070 MHz USB"), Frequency("6 m", "50.6200 MHz USB")]
 BUILT_IN = [Frequency(band, dial) for band, dial in mercury.SUGGESTED]
 
 
 class Server:
-    """The project's file as a fetch function: the answers in turn (None is a server that is not there), and what it was asked."""
+    """The project's file as a fetch function: the answers in turn (None is a server that is not
+    there), and what it was asked."""
 
     def __init__(self, *answers: bytes | None) -> None:
         self.answers = list(answers)
@@ -229,9 +231,11 @@ async def test_the_modem_of_the_hf_radio_has_the_list_and_a_page_that_shows_the_
 
 
 async def test_four_frequencies_go_through_the_topics_radios_and_skeds_as_the_wire_says_one_to_four(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """versions.MAX_FREQUENCIES is four (the box keeps room for four lines): the wire's lists take four, and every message that leaves is checked against the models (NEOAPRS_VALIDATE_OUT=1)."""
+    """versions.MAX_FREQUENCIES is four (the box keeps room for four lines): the wire's lists take
+    four, and every message that leaves is checked against the models (NEOAPRS_VALIDATE_OUT=1)."""
     monkeypatch.setenv("NEOAPRS_VALIDATE_OUT", "1")
-    four = [{"band": "80 m", "dial": "3.5850 MHz USB"}, {"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "30 m", "dial": "10.1462 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}]      # (not the built-in four: the change is seen)
+    # (not the built-in four: the change is seen)
+    four = [{"band": "80 m", "dial": "3.5850 MHz USB"}, {"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "30 m", "dial": "10.1462 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}]
     assert MAX_FREQUENCIES == 4 and parse_frequencies(json.dumps({"frequencies": four}).encode()) == [Frequency(f["band"], f["dial"]) for f in four]
     air = Air(frame_sec=0.2)
     station = air.station()

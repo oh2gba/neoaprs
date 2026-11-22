@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-"""Refreshes neoaprs/airportdata.py, the snapshot of the airports that a card names the place of an aircraft's departure and destination from (neoaprs/airports.py).
+"""Refresh neoaprs/airportdata.py from OurAirports' airports.csv (public domain).
 
-The list is airports.csv of OurAirports (https://ourairports.com/data/, public domain). This script is the only thing that fetches it: the daemon never does. It reads the file (from the list's own address, or
-`--from FILE`), keeps each large or medium airport that has a four-character ICAO code (`icao_code`, else `gps_code`, else `ident`) with its place (the `municipality` without what it adds in brackets, or the airport's `name` where there is none)
-and writes the module, with the source and the licence in its head. Run it with the venv's python from the repository root:  .venv/bin/python scripts/gen-airports.py
-`--check FILE` writes nothing and exits 1 when the module is not what FILE would make (the module's date aside).
-"""
+  scripts/gen-airports.py [--from FILE]    write the module from the list's address or FILE
+  scripts/gen-airports.py --check FILE     write nothing; exit 1 if the module differs"""
 import argparse
 import csv
 import hashlib
@@ -21,26 +18,26 @@ ROOT = Path(__file__).resolve().parent.parent
 TARGET = ROOT / "neoaprs" / "airportdata.py"
 URL = "https://davidmegginson.github.io/ourairports-data/airports.csv"
 KINDS = {"large_airport", "medium_airport"}
-BRACKETED = re.compile(r"\([^()]*\)")            # what the list adds to a place in brackets
+BRACKETED = re.compile(r"\([^()]*\)")            # bracketed additions to a place
 PER_LINE = 3
 CODE_LENGTH = 4
 
 
 def code_of(row: dict[str, str]) -> str:
-    """The airport's ICAO code, upper case: `icao_code`, else `gps_code`, else `ident`; "" when that is not four letters or digits."""
+    """Return the upper-case ICAO code (`icao_code`, `gps_code` or `ident`), or ""."""
     code = next((value.strip() for value in (row.get("icao_code", ""), row.get("gps_code", ""), row.get("ident", "")) if value.strip()), "")
     return code.upper() if len(code) == CODE_LENGTH and code.isascii() and code.isalnum() else ""
 
 
 def place_of(row: dict[str, str]) -> str:
-    """The place a card shows: the `municipality`, or the airport's `name` where there is none, without what the list adds in brackets ("Helsinki (Vantaa)" is Helsinki: the card puts the code in brackets
-    itself) and with single spaces; the text as it is where nothing would be left."""
+    """Return the place a card shows: the municipality or the name, without bracketed additions."""
     whole = " ".join((row.get("municipality", "").strip() or row.get("name", "")).split())
     return " ".join(BRACKETED.sub(" ", whole).split()) or whole
 
 
 def rows(text: str) -> list[tuple[str, str]]:
-    """(code, place) of every large or medium airport with a code, in the order of the codes; the first row of a code wins."""
+    """Return (code, place) of every large or medium airport with a code, sorted; the first row
+    wins."""
     seen: dict[str, str] = {}
     for row in csv.DictReader(io.StringIO(text)):
         code = code_of(row)

@@ -1,13 +1,7 @@
-"""The state hub: named topics and the pages that follow them. The table of neoaprs/web/topics.py says what each topic holds and tells the hub when it changed.
+"""The state hub: named topics and the pages that follow them (topics.py lists the topics).
 
-A page follows every topic from the start and is sent each as it is (`state`); after that it is sent what changed (`patch`). A change is told on the hub's tick: what changed in a topic between
-two ticks is one patch, with at most one op for a key, so a burst of 200 packets is one message. A topic is *keyed* (the stations by call, the packets by id: a change names the key and the item is
-looked up when the patch is made, so an item that changed ten times is sent once, and one that is gone meanwhile is a `del`) or *whole* (the TNC, the settings: a change is a `replace` of the whole
-value). A topic can ask for a gap between two patches (`interval`): a radio's row changes with every line its TNC sees and is told at most four times a second.
-
-Back-pressure: the hub keeps nothing for a page. A page whose socket already holds more than `BEHIND` bytes (an eighth of what the socket is cut off at, `MAX_WRITE_BUFFER`) is not sent the patch;
-the topic is marked stale for it and it is sent the whole `state` of the topic when its socket has been read down. A slow phone costs the daemon nothing, and a page that never reads is cut off by
-the socket (neoaprs/web/pagesocket.py). Everything leaves as text through the page's `Connection`, which writes through the publisher (the cap on the size, the outgoing check).
+A page is first sent each topic whole (`state`), then changes (`patch`) flushed on a tick. A page
+whose socket holds more than `BEHIND` unread bytes is skipped and resent the whole state later.
 """
 import asyncio
 import logging
@@ -20,16 +14,15 @@ from .outbound import MAX_WRITE_BUFFER, encode
 
 log = logging.getLogger("neoaprs.web")
 
-TICK = 0.1                            # seconds between two flushes: what changed in between is one patch for a topic
-BEHIND = MAX_WRITE_BUFFER // 8        # a socket that holds this much of what the page has not read is behind
+TICK = 0.1  # seconds between flushes
+BEHIND = MAX_WRITE_BUFFER // 8  # a socket holding this many unread bytes is behind
 
-
-TOLD_LIMIT = 200                      # how many failures the hub remembers having told: a bug that breaks every item is not to grow the set for ever
+# Failures already logged, bounded.
+TOLD_LIMIT = 200
 
 
 def _report(told: set[str], what: str, exc: Exception) -> None:
-    """Logs a failure in what the pages are sent, from inside the `except` that caught it: the first time with the traceback, after that in a line, because the same odd packet can break the same
-    builder again at every change and the log is not to fill with the same traceback. (The change that failed is dropped, so the hub does not retry it by itself; this is only about the log.)"""
+    """Log a failure from inside its `except`: the first time with the traceback, then one line."""
     if what in told:
         log.warning("%s (again): %r", what, exc)
         return
@@ -40,7 +33,6 @@ def _report(told: set[str], what: str, exc: Exception) -> None:
 
 
 class Link(Protocol):
-    """What the hub needs of a page: a way to write a text frame, and how much the socket holds that the page has not read. It is the key of the page in the hub, so it is hashable."""
     def send_text(self, text: str) -> None: ...
     def buffered(self) -> int: ...
 
@@ -48,26 +40,26 @@ class Link(Protocol):
 @dataclass(eq=False)
 class Peer:
     link: Link
-    topics: set[str] = field(default_factory=set)         # the topics it follows
-    stale: set[str] = field(default_factory=set)          # the topics it was not sent a patch of because it was behind: it is sent the whole when it has read down its socket
+    topics: set[str] = field(default_factory=set)
+    stale: set[str] = field(default_factory=set)  # skipped while behind; resent whole later
 
 
 class Topic:
-    """A piece of the daemon's state the pages follow. `build` makes the whole value; `item` makes the item of a key, or None when it is gone (a topic without `item` is a whole value)."""
+    """A piece of state the pages follow; `build` makes the whole value, `item` one keyed item."""
 
     def __init__(self, name: str, build: Callable[[], Any], item: Callable[[str], Any | None] | None = None, interval: float = 0.0) -> None:
         self.name = name
         self.build = build
         self.item = item
-        self.interval = interval          # the least time between two patches
+        self.interval = interval  # least time between two patches
         self.rev = 0
-        self.last = float("-inf")         # when the latest patch was made
+        self.last = float("-inf")  # when the latest patch was made
         self._whole = False
         self._keys: dict[str, None] = {}  # in the order they changed
-        self._told: set[str] = set()      # the keys whose item could not be built, as far as the log has been told
+        self._told: set[str] = set()  # keys whose build failure was already logged
 
     def touch(self, key: str | None = None) -> None:
-        """The topic changed: all of it (a `replace`), or the item of the key."""
+        """Mark the whole topic (a `replace`) or one key as changed."""
         if key is None or self.item is None:
             self._whole = True
             self._keys.clear()
@@ -79,8 +71,7 @@ class Topic:
         return self._whole or bool(self._keys)
 
     def take(self) -> list[dict[str, Any]]:
-        """The ops for what changed since the last patch, and the revision moves on. An item that cannot be built (a view that fails on one odd packet) is left out of the patch and is not asked for again
-        until it changes again: one bad item must not hold back the others, nor be tried at every tick for ever. A whole value that cannot be built raises (the hub drops the change)."""
+        """Return the ops since the last patch; an item that cannot be built is left out."""
         ops: list[dict[str, Any]]
         if self._whole or self.item is None:
             ops = [{"op": "replace", "value": self.build()}]
@@ -99,7 +90,7 @@ class Topic:
         return ops
 
     def discard(self) -> None:
-        """What changed is dropped without being built: nobody follows the topic (a page that attaches later is sent the whole, as it is then)."""
+        """Drop pending changes unbuilt; a page that attaches later gets the whole value."""
         self._whole = False
         self._keys.clear()
 
@@ -114,7 +105,7 @@ class StateHub:
         self.topics: dict[str, Topic] = {}
         self._peers: dict[Link, Peer] = {}
         self._timer: asyncio.TimerHandle | None = None
-        self._told: set[str] = set()                              # the topics that could not be told, as far as the log has been told
+        self._told: set[str] = set()  # topics whose failure was already logged
 
     def add(self, topic: Topic) -> Topic:
         if topic.name in self.topics:
@@ -122,9 +113,9 @@ class StateHub:
         self.topics[topic.name] = topic
         return topic
 
-    # ---- the pages
+    # pages
     def attach(self, link: Link) -> None:
-        """A page opened: it follows every topic from now on and is sent each whole."""
+        """Make the page follow every topic and send each whole."""
         peer = self._peers[link] = Peer(link, set(self.topics))
         for topic in self.topics.values():
             self.deliver(peer, topic.state())
@@ -133,11 +124,11 @@ class StateHub:
         self._peers.pop(link, None)
 
     def subscribe(self, link: Link, names: list[str]) -> list[str]:
-        """The page follows these topics (again): each is sent whole. The names that are no topic are returned."""
+        """Make the page follow these topics, sending each whole; return the unknown names."""
         peer = self._peers.get(link)
         if peer is None:
             return []
-        names = list(dict.fromkeys(names))                        # (each once, in the order given: a name repeated is not sent again)
+        names = list(dict.fromkeys(names))  # each once, in the order given
         unknown = [n for n in names if n not in self.topics]
         for name in names:
             if name in self.topics:
@@ -153,12 +144,12 @@ class StateHub:
             peer.stale.difference_update(names)
 
     def following(self, name: str) -> int:
-        """How many pages follow the topic."""
+        """Return how many pages follow the topic."""
         return sum(1 for p in self._peers.values() if name in p.topics)
 
-    # ---- changes
+    # changes
     def changed(self, name: str, key: str | None = None) -> None:
-        """The topic changed (the item of the key, or all of it): the pages are told on the next tick."""
+        """Record a change of the topic (one key or all); pages are told on the next tick."""
         self.topics[name].touch(key)
         self._schedule(TICK)
 
@@ -167,7 +158,8 @@ class StateHub:
             try:
                 self._timer = asyncio.get_running_loop().call_later(delay, self._tick)
             except RuntimeError:
-                pass                                  # no loop: nothing is listening, and the state is built when a page asks
+                # No loop: nothing is listening, and state is built when a page asks.
+                pass
 
     def _tick(self) -> None:
         self._timer = None
@@ -180,15 +172,13 @@ class StateHub:
             self._schedule(wait)
 
     def stop(self) -> None:
-        """The daemon stops: no more ticks."""
+        """Stop ticking."""
         if self._timer is not None:
             self._timer.cancel()
             self._timer = None
 
     def flush(self) -> float | None:
-        """Tells the pages what changed since the last flush: for each topic that is due one patch (one text for all the pages) to every page that follows it. A page that is behind is not sent
-        it. Returns when to flush again, None when nothing is waiting. A topic that fails is dropped from this flush (its change is forgotten, the pages are sent the whole of it when they ask) and the
-        topics after it are told all the same: one view that breaks on one odd packet must not silence the pages for good."""
+        """Send each due topic's patch; return the delay until the next flush, None if none waits."""
         now = self.clock()
         wait: float | None = None
         behind: dict[Peer, bool] = {}
@@ -206,11 +196,11 @@ class StateHub:
         return wait
 
     def _flush_topic(self, topic: Topic, now: float, behind: dict[Peer, bool]) -> float | None:
-        """Tells the pages what changed in one topic when it is due; returns how long it has to wait for that, None when it was told or had nothing to tell."""
+        """Send the topic's patch when due; return the wait if not yet due."""
         if not topic.pending:
             return None
         if not self.following(topic.name):
-            topic.discard()                                              # (a daemon with no page open builds nothing)
+            topic.discard()  # with no page open nothing is built
             return None
         due = topic.last + topic.interval - now
         if due > 0:
@@ -230,7 +220,7 @@ class StateHub:
                 self._deliver(peer, text)
 
     def _catch_up(self, behind: dict[Peer, bool]) -> bool:
-        """Sends the whole topic to the pages that were behind and have read down their sockets; whether some are still behind."""
+        """Send the whole topic to pages that caught up; return True if some are still behind."""
         waiting = False
         for peer in list(self._peers.values()):
             if not peer.stale:
@@ -238,7 +228,8 @@ class StateHub:
             if self._is_behind(peer, behind):
                 waiting = True
                 continue
-            for name in [name for name in self.topics if name in peer.stale]:      # (in the order of the hello: the radios before the settings, so that the form comes with its radios)
+            # Topic order matters: the radios arrive before the settings form that uses them.
+            for name in [name for name in self.topics if name in peer.stale]:
                 self.deliver(peer, self.topics[name].state())
             peer.stale.clear()
         return waiting
@@ -248,7 +239,7 @@ class StateHub:
             try:
                 known[peer] = peer.link.buffered() > self.behind
             except Exception:
-                known[peer] = True                      # a socket that cannot say how much it holds is not one to write more to
+                known[peer] = True  # a socket that cannot report its backlog is not written to
         return known[peer]
 
     def deliver(self, peer: Peer, message: dict[str, Any]) -> None:
@@ -256,7 +247,7 @@ class StateHub:
 
     @staticmethod
     def _deliver(peer: Peer, text: str) -> None:
-        """What goes wrong with this page's socket is this page's: the others are sent theirs."""
+        """Send to one page; a failure on its socket does not stop the others."""
         try:
             peer.link.send_text(text)
         except Exception:

@@ -1,5 +1,6 @@
-"""The state hub (neoaprs/web/hub.py) with pages that are lists: what a patch holds, when it is made, a page that is behind, and the window of packets and the publisher that go with it (neoaprs/web/topics.py,
-neoaprs/web/outbound.py). The topics of the real daemon over a socket are tests/test_web.py."""
+"""Tests for the state hub (neoaprs/web/hub.py) with list pages: patches, lagging pages, and the
+packet window and publisher (neoaprs/web/topics.py, outbound.py). Real topics are in
+tests/test_web.py."""
 import json
 from typing import Any
 
@@ -47,7 +48,7 @@ def hub_of() -> tuple[StateHub, dict[str, dict[str, Any]], Seconds]:
     return hub, rows, clock
 
 
-# ---- what a patch holds --------------------------------------------------------------------------------------------------------------------------
+# ---- what a patch holds --------------------------------------------------------------------------
 
 def test_nothing_is_built_for_a_topic_nobody_follows() -> None:
     built: list[str] = []
@@ -101,7 +102,8 @@ def test_an_item_that_is_gone_when_the_patch_is_made_is_a_del_and_a_whole_change
     rows["c"] = {"n": 3}
     hub.changed("rows", "c")
     hub.changed("rows")                                                                       # all of it
-    hub.changed("rows", "d")                                                                  # (after a whole change the keys are not needed)
+    # (after a whole change the keys are not needed)
+    hub.changed("rows", "d")
     hub.flush()
     assert page.frames[1]["ops"] == [{"op": "replace", "value": {"c": {"n": 3}}}] and page.frames[1]["rev"] == 2
 
@@ -176,7 +178,7 @@ async def test_the_tick_tells_the_pages_by_itself_and_stops_with_the_hub() -> No
     assert len(page.frames) == 1, "a stopped hub tells nobody"
 
 
-# ---- the pages -----------------------------------------------------------------------------------------------------------------------------------
+# ---- the pages -----------------------------------------------------------------------------------
 
 def test_subscribe_sends_the_topic_again_and_names_the_topics_that_are_not_there_and_unsubscribe_stops_the_patches() -> None:
     hub, rows, _ = hub_of()
@@ -222,7 +224,8 @@ def test_a_page_that_is_behind_is_sent_no_patch_and_the_whole_topic_when_it_has_
 
 
 def test_a_page_that_was_behind_is_sent_the_topics_it_missed_in_the_order_of_the_hello() -> None:
-    """The whole of each topic it missed, in the order the hub has them (as a page that opens is sent them: the radios before the settings), not by name."""
+    """The whole of each topic it missed, in the order the hub has them (as a page that opens is
+    sent them: the radios before the settings), not by name."""
     hub, rows = StateHub(clock=Seconds()), {"a": {"n": 1}}
     for name in ("zebra", "rows", "alpha"):
         hub.add(Topic(name, lambda: dict(rows), rows.get))
@@ -279,7 +282,7 @@ def test_a_topic_is_added_once() -> None:
         hub.add(Topic("rows", dict))
 
 
-# ---- the window of packets -----------------------------------------------------------------------------------------------------------------------
+# ---- the window of packets -----------------------------------------------------------------------
 
 def packet(n: int) -> Packet:
     return Packet(heard_at=utc(2026, 10, 21, 12, 0, n % 60), direction="in", raw=b"", source=f"OH2T{n}", destination="APRS", path=(), info=b"", decoded=Position(60.0, 24.0, "/", ">"))
@@ -293,7 +296,8 @@ def test_the_window_counts_the_packets_up_and_forgets_the_oldest() -> None:
 
 def test_the_window_starts_with_the_packets_the_database_kept_oldest_first() -> None:
     window = PacketWindow(size=3)
-    window.load([packet(n) for n in (9, 8, 7, 6, 5)])                       # (the newest first, as the log gives them; two fall out)
+    # (the newest first, as the log gives them; two fall out)
+    window.load([packet(n) for n in (9, 8, 7, 6, 5)])
     assert [r["source"] for r in window.whole().values()] == ["OH2T7", "OH2T8", "OH2T9"] and list(window.whole()) == ["3", "4", "5"]
     assert window.add(packet(10)) == [6, 3]
 
@@ -328,7 +332,7 @@ def test_the_window_forgets_the_packets_heard_and_keeps_the_ones_we_sent() -> No
     assert list(window.whole()) == ["2"]
 
 
-# ---- the publisher -------------------------------------------------------------------------------------------------------------------------------
+# ---- the publisher -------------------------------------------------------------------------------
 
 class Socket:
     def __init__(self) -> None:
@@ -346,7 +350,8 @@ class Socket:
 @pytest.mark.expects_errors
 def test_a_message_that_does_not_fit_the_protocol_is_found_when_the_check_is_on() -> None:
     out = Publisher(validate_out=True)
-    out.raise_on_invalid = False                                                            # (the tests run with the switch on)
+    # (the tests run with the switch on)
+    out.raise_on_invalid = False
     socket = Socket()
     conn = out.open(socket, "127.0.0.1")
     conn.send({"type": "pong", "now": "2026-10-21T12:00:00Z"})
@@ -433,7 +438,8 @@ def test_a_number_that_is_not_finite_goes_out_as_null_with_one_line_for_each_kin
     for value in (float("nan"), float("inf"), -float("inf")):
         conn.send({"type": "state", "topic": "gps", "rev": 1, "value": {"speed": value, "track": [1.5, value], "ok": 2.5}})
     conn.send({"type": "pong", "now": "2026-10-21T12:00:00Z"})
-    strict = json.JSONDecoder(parse_constant=lambda word: (_ for _ in ()).throw(ValueError(word)))          # (what a browser's JSON.parse does with NaN)
+    # (what a browser's JSON.parse does with NaN)
+    strict = json.JSONDecoder(parse_constant=lambda word: (_ for _ in ()).throw(ValueError(word)))
     frames = [strict.decode(text) for text in socket.frames]
     assert all(f["value"] == {"speed": None, "track": [1.5, None], "ok": 2.5} for f in frames[:3]) and frames[3]["type"] == "pong"
     assert len([r for r in caplog.records if "not finite" in r.getMessage()]) == 1 and "state gps" in caplog.text

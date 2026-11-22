@@ -1,4 +1,5 @@
-"""The station book (neoaprs/stationbook.py): what a packet does to it, the track, objects and items, us, pruning, and the signals; with the packets of the live capture and made-up ones."""
+"""The station book (neoaprs/stationbook.py): what a packet does to it, the track, objects and
+items, us, pruning, and the signals; with the packets of the live capture and made-up ones."""
 from dataclasses import replace
 from datetime import datetime, timedelta
 
@@ -106,9 +107,11 @@ def test_the_track_takes_a_position_that_moved_or_one_after_five_minutes() -> No
     assert s is not None and len(s.track) == 1
     book.take(packet(position(60.0002, 24.0), at=T0 + timedelta(seconds=60)))               # 22 m: moved
     assert len(s.track) == 2
-    book.take(packet(position(60.0002, 24.0), at=T0 + timedelta(seconds=60 + 299)))         # the same place, not yet five minutes
+    # The same place, not yet five minutes
+    book.take(packet(position(60.0002, 24.0), at=T0 + timedelta(seconds=60 + 299)))
     assert len(s.track) == 2
-    book.take(packet(position(60.0002, 24.0), at=T0 + timedelta(seconds=60 + 300)))         # the same place, five minutes
+    # The same place, five minutes
+    book.take(packet(position(60.0002, 24.0), at=T0 + timedelta(seconds=60 + 300)))
     assert len(s.track) == 3
     assert s.track[-1] == (T0 + timedelta(seconds=360), 60.0002, 24.0)
 
@@ -157,7 +160,8 @@ def test_set_me_puts_our_station_in_the_book_and_gives_distance_and_bearing() ->
     assert me.is_me and me is book.me and (me.lat, me.lon) == (60.17, 24.94) and book.get("OH2GBA") is me and heard.changed == [("OH2GBA", 0)]
     book.set_me("OH2GBA", 60.17, 24.94)
     assert len(heard.changed) == 1, "nothing changed, nothing told"
-    book.take(packet(position(60.17, 25.94), source="OH2EAS"))                          # one degree of longitude east, 55.4 km at this latitude
+    # One degree of longitude east, 55.4 km at this latitude
+    book.take(packet(position(60.17, 25.94), source="OH2EAS"))
     east = book.get("OH2EAS")
     assert east is not None
     distance, bearing = book.distance_km(east), book.bearing_deg(east)
@@ -179,7 +183,8 @@ def test_a_new_call_makes_the_old_one_an_ordinary_station_and_a_packet_from_us_k
     old = book.set_me("OH2OLD", 60.0, 24.0)
     book.set_me("OH2GBA", 60.1, 24.1)
     assert not old.is_me and book.me is not old and book.me is not None and book.me.call == "OH2GBA"
-    book.take(packet(position(60.1, 24.1), source="OH2GBA", path=("WIDE1-1*",)))        # our beacon, digipeated and heard
+    # Our beacon, digipeated and heard
+    book.take(packet(position(60.1, 24.1), source="OH2GBA", path=("WIDE1-1*",)))
     assert book.me is not None and book.me.is_me and book.me.packets == 0, "heard, but not counted as a packet of a station we hear"
 
 
@@ -215,7 +220,8 @@ def test_a_packet_from_our_own_call_heard_on_the_air_moves_only_the_time_we_were
     me = book.set_me("OH2GBA", 60.17, 24.94, "/", "-", "NeoAPRS")
     del heard.changed[:]
     later = T0 + timedelta(minutes=5)
-    taken = book.take(packet(position(61.0, 25.0), source="OH2GBA", path=("OH2RCH-2*",), at=later))       # (an echo of the TNC or a digipeater's copy, with another position)
+    # An echo of the TNC or a digipeater's copy, with another position
+    taken = book.take(packet(position(61.0, 25.0), source="OH2GBA", path=("OH2RCH-2*",), at=later))
     assert taken is me and me.last_heard == later
     assert (me.lat, me.lon, me.symbol_table, me.symbol_code, me.last_comment, me.packets, me.last_path, me.track) == (60.17, 24.94, "/", "-", "NeoAPRS", 0, (), [])
     assert heard.changed == [("OH2GBA", 0)]
@@ -274,8 +280,9 @@ def test_seed_fills_the_book_without_a_word_and_gives_each_position_a_track() ->
 # ---- how the packets reached us (neoaprs/route.py)
 
 def test_a_packet_heard_over_hf_is_hfs_route_and_no_route_for_a_message_by_fm() -> None:
-    """Rule 3.3: the HF radio keeps how the station's packets reached it (every frame there direct), and the station's routes as a whole, which an FM message's path and the page read, are those of the radios
-    that may carry a path: the HF radio's type allows none."""
+    """Rule 3.3: the HF radio keeps how the station's packets reached it (every frame there direct),
+    and the station's routes as a whole, which an FM message's path and the page read, are those of
+    the radios that may carry a path: the HF radio's type allows none."""
     specs = (RadioSpec(FM_ID, "fm", "kiss", "", True, 1), RadioSpec(HF_ID, "hf", "mercury", "", True, 2))
     book = StationBook(carries_path=lambda radio: carries_path(specs, radio))
     book.take(packet(Status("x"), path=("OH2RCH-2*",)))
@@ -389,7 +396,7 @@ def test_our_own_packet_gated_back_to_us_moves_only_our_last_heard() -> None:
     assert (me.lat, me.lon, me.packets, me.last_heard) == (60.0, 24.0, 0, T0 + timedelta(hours=1)) and me.last_heard != before and book.get("OH7JHF-1") is None
 
 
-# ---- iGates: the third-party packets a station put on the air, and a capabilities packet that says it is one
+# ---- iGates: third-party packets a station put on the air, and a capabilities packet
 
 def test_an_igate_in_the_book_counts_the_third_party_packets_it_put_on_the_air_and_is_signalled() -> None:
     book = StationBook()
@@ -585,11 +592,13 @@ def test_status_and_position_details_follow_the_latest_packet_that_has_them() ->
     book.take(packet(Status("my house", locator=locator)))
     book.take(packet(Status("moved"), at=T0 + timedelta(minutes=1)))
     station = book.get("OH2AAA")
-    assert station is not None and station.locator == locator and station.last_status == "moved"           # (a status without a locator keeps the last one)
+    # A status without a locator keeps the last one
+    assert station is not None and station.locator == locator and station.last_status == "moved"
     book.take(packet(position(extensions=ext), at=T0 + timedelta(minutes=2)))
     assert station.extensions == ext
     book.take(packet(position(), at=T0 + timedelta(minutes=3)))
-    assert station.extensions == ext                                                                      # (a position without them keeps the last: a PHG in one beacon text of several)
+    # A position without them keeps the last: a PHG in one beacon text of several
+    assert station.extensions == ext
     book.take(packet(position(extensions=Extensions(range_km=12.0)), at=T0 + timedelta(minutes=4)))
     assert station.extensions == Extensions(range_km=12.0)                                                # (new ones replace them)
     book.take(packet(position(locator=Locator("KP20", 60.5, 25.0, "/", "G")), at=T0 + timedelta(minutes=4)))
@@ -621,15 +630,18 @@ def test_a_station_keeps_the_frequency_it_gave_last_and_an_object_has_what_its_l
     station = book.get("OH2AAA")
     assert station is not None and station.frequency == voice
     book.take(packet(position(), at=T0 + timedelta(minutes=1)))
-    assert station.frequency == voice                                                  # (a beacon with none leaves the frequency)
+    # A beacon with none leaves the frequency
+    assert station.frequency == voice
     book.take(packet(Status("net", frequency=Frequency(145.5)), at=T0 + timedelta(minutes=2)))
-    assert station.frequency == Frequency(145.5)                                       # (a status text with one is the latest)
+    # A status text with one is the latest
+    assert station.frequency == Frequency(145.5)
     book.take(packet(Status("no frequency"), at=T0 + timedelta(minutes=3)))
     assert station.frequency == Frequency(145.5)
     book.take(packet(ObjectReport("145.775-A", True, position(frequency=voice))))
     book.take(packet(ObjectReport("145.775-A", True, position()), at=T0 + timedelta(minutes=5)))
     repeater = book.get("145.775-A")
-    assert repeater is not None and repeater.frequency is None                         # (an object that says none has none)
+    # An object that says none has none
+    assert repeater is not None and repeater.frequency is None
 
 
 def test_a_storm_and_a_signpost_are_the_station_of_the_object() -> None:
@@ -657,7 +669,7 @@ def test_the_frequency_of_a_station_and_the_local_data_of_an_object_are_read_aga
     assert brenda is not None and brenda.storm == storm and brenda.sign == "1"
 
 
-# ---- a name is one entry: the station that transmits wins it ------------------------------------------------------------------------------------
+# ---- a name is one entry: the station that transmits wins it -------------------------------------
 
 def test_an_object_under_the_call_of_a_station_in_the_book_leaves_the_station_alone_and_its_kill_does_not_take_it_out() -> None:
     book = StationBook(lambda: T0)

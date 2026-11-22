@@ -1,8 +1,8 @@
-"""What a station runs, from its packets: the device or software that the APRS device identification list (devicedata.py, credited there) names for the destination call of a packet, or for the type code
-of a Mic-E packet. Pure code; an unknown device is the empty string.
+"""Identify the device or software a station runs from its packets, by the APRS device list.
 
-A destination call is a `tocall` (`APDR15` is APRSdroid): the list's own entry, an exact one before a wildcarded one, and of those the one with the most characters written out (`APAGW?` before `APAG??`).
-A Mic-E packet carries its latitude in the destination, so its device is in the comment: the first byte after the 9 of the position, a type code, and the last one or two bytes, a suffix."""
+An exact tocall wins over a wildcard, then the wildcard with most literal characters. A Mic-E
+packet carries its latitude in the destination, so its device comes from the comment. Unknown is "".
+"""
 import re
 from collections.abc import Iterable
 from functools import cache
@@ -11,15 +11,19 @@ from .aprsmice import mice_type
 from .devicedata import MICE, MICE_LEGACY, TOCALLS
 from .packet import Packet, Position
 
-MICE_IDENTIFIERS = (b"'", b"`", b"\x1c", b"\x1d")   # the data type identifiers of a Mic-E packet
-MICE_DUMB = b"'"                                    # the type-code prefix of a Mic-E radio that does not do messages, the first byte of its comment (aprs-deviceid: ` does, ' does not)
-MICE_BODY = 9                                       # the bytes of a Mic-E information field before the comment: the identifier, the longitude, the speed and course, the symbol
-_WILDCARDS = {"?": ".", "n": "[0-9]", "*": ".*"}    # `?` any one character, `n` a digit, `*` the rest of the call
-_TWO_BYTE_SUFFIX = ("`", "'")                      # the type codes of a Mic-E device with a two-byte suffix
+MICE_IDENTIFIERS = (b"'", b"`", b"\x1c", b"\x1d")  # Mic-E data type identifiers
+# type-code prefix of a Mic-E radio that does not do messages (` does)
+MICE_DUMB = b"'"
+# bytes before the comment: identifier, longitude, speed and course, symbol
+MICE_BODY = 9
+_WILDCARDS = {"?": ".", "n": "[0-9]", "*": ".*"}  # any character, a digit, the rest of the call
+_TWO_BYTE_SUFFIX = ("`", "'")  # type codes of Mic-E devices with a two-byte suffix
 
 
 class DeviceTable:
-    """The list, ready to look up: the tocalls without a wildcard in a dictionary, the others as patterns, the longest first."""
+    """The device list ready for lookup: exact tocalls in a dict, wildcards as patterns, longest
+    first.
+    """
 
     def __init__(self, tocalls: Iterable[tuple[str, str]], mice: Iterable[tuple[str, str]], legacy: Iterable[tuple[str, str, str]]) -> None:
         self._exact: dict[str, str] = {}
@@ -35,14 +39,17 @@ class DeviceTable:
         self._legacy = {(prefix, suffix): name for prefix, suffix, name in legacy}
 
     def by_tocall(self, destination: str) -> str:
-        """The device of a destination call (an SSID is ignored); empty when the list does not know it."""
+        """Return the device of a destination call (SSID ignored), or "" if unknown."""
         tocall = destination.partition("-")[0].upper()
         if tocall in self._exact:
             return self._exact[tocall]
         return next((name for pattern, name in self._patterns if pattern.fullmatch(tocall)), "")
 
     def by_mice(self, comment: str) -> str:
-        """The device of a Mic-E comment (what follows the 9 bytes of the position), by the type code and suffix `aprsmice.mice_type` reads from it: `` ` `` or `'` and two suffix characters, or a Kenwood's type code (`>`, `]`) with the one suffix character that tells its models apart."""
+        """Return the device of a Mic-E comment by the type code and suffix `mice_type` reads.
+
+        `` ` `` and `'` take a two-character suffix; Kenwood's `>` and `]` a one-character one.
+        """
         found = mice_type(comment.encode("latin-1", "replace"))
         lead, suffix = found.lead.decode("latin-1"), found.suffix.decode("latin-1")
         if lead in _TWO_BYTE_SUFFIX:
@@ -52,12 +59,12 @@ class DeviceTable:
 
 @cache
 def table() -> DeviceTable:
-    """The snapshot of the list the program carries."""
+    """Return the device list shipped with the program."""
     return DeviceTable(TOCALLS, MICE, MICE_LEGACY)
 
 
 def packet_device(packet: Packet, devices: DeviceTable | None = None) -> str:
-    """What the sender of a packet runs; empty when its destination is no tocall of the list and it is no Mic-E packet of a device the list knows. For a third-party packet that is the packet inside."""
+    """Return what the sender runs, or "" if unknown; for a third-party packet, the inner packet."""
     devices = devices or table()
     info = packet.inner_info
     if info[:1] in MICE_IDENTIFIERS and isinstance(packet.decoded, Position):

@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
-"""Fetches the programs that scripts/security-check runs and that this machine does not have: gitleaks, shellcheck, zizmor, osv-scanner and Psalm, each at the one version pinned below.
+"""Fetch the programs scripts/security-check runs and this machine lacks, at their pinned versions.
 
     scripts/security-tools             fetch every tool that is not in the cache yet
     scripts/security-tools NAME ...    only the tools named
-    scripts/security-tools --list      each tool, its version and whether it is in the cache; fetches nothing
+    scripts/security-tools --list      each tool, its version, whether it is cached; fetches nothing
 
-Each is a file of the tool's own GitHub release, downloaded from GitHub's hosts only and kept only when its SHA-256 is the one written here (the digest GitHub shows for the file of the release; the pin is
-the trust, not the server). The programs go to the folder security-tools/ of the build cache ($NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build), one folder per tool and version, so a new pin is a new
-folder. Nothing is installed on the system and nothing is put on the PATH: scripts/security-check asks this file where each program is. The pins are for Linux x86_64; on another system no tool is available.
-Psalm's file is a PHP archive: the system's php runs it, and needs its XML extensions for that (Debian and Ubuntu: the package php-xml), which this script does not fetch. Where the system's php
-lacks them, scripts/security-check runs the archive in the official php image with docker: PHP_IMAGES below pins that image by its digest, and `docker pull` of the pinned name is what gets it.
-Moving a pin: the new version, the address and the digest of its file here, then scripts/security-tools and scripts/security-check, which shows what the new version finds (docs/security-checks.md).
-Needs the network; the standard library only, so that it runs before there is a venv."""
+Each file is kept only if its SHA-256 is the pin. The cache is $NEOAPRS_BUILD_CACHE (default
+~/.cache/neoaprs-build); nothing is installed or put on the PATH. Linux x86_64 only."""
 import argparse
 import hashlib
 import http.client
@@ -29,20 +24,22 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO
 
-HOSTS = frozenset({"github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"})       # the release page and where GitHub keeps the files it redirects to
+# The release page and where GitHub keeps the files it redirects to.
+HOSTS = frozenset({"github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"})
 USER_AGENT = "neoaprs-security-tools"
 TIMEOUT_SEC = 60.0
-MAX_DOWNLOAD = 200_000_000                  # the biggest file taken (Psalm's is 70 MB)
-SYSTEM = ("linux", "x86_64")                # what the files below are built for
+MAX_DOWNLOAD = 200_000_000                  # Psalm's file is 70 MB
+SYSTEM = ("linux", "x86_64")                # what the files are built for
 
 
 @dataclass(frozen=True)
 class Tool:
     version: str
     url: str
-    sha256: str                             # of the file at the address
-    program: str                            # the file's name in the cache
-    member: str = ""                        # the program's path inside a tar archive; empty when the file is the program itself
+    sha256: str
+    program: str                            # name in the cache
+    # Path inside a tar archive; empty when the file is the program itself.
+    member: str = ""
 
 
 TOOLS: dict[str, Tool] = {
@@ -59,9 +56,8 @@ TOOLS: dict[str, Tool] = {
 }
 
 
-# The official php image Psalm runs in where the system's php lacks its extensions (the image has them), by php's minor version: the name with the digest of the tag `<minor>-cli`, which is what
-# `docker pull php:<minor>-cli` prints as `Digest:`. A minor version without an entry has no image: the check then fails and says so. An entry reads
-#     "8.4": "php@sha256:<the 64 digits>",
+# The php image Psalm runs in where the system's php lacks its extensions, by minor version: the
+# digest of the tag `<minor>-cli`, as `docker pull` prints it. No entry means no image.
 PHP_IMAGES: dict[str, str] = {"8.4": "php@sha256:d63e8b80cd4c6cfd01cfa7c910522e299cdc7ca1a2b6d6563db48df3c17e6c55"}
 
 
@@ -105,9 +101,9 @@ class _GitHubOnly(urllib.request.HTTPRedirectHandler):
 
 
 def transfer(url: str, target: Path) -> str:
-    """One GET of the address written to `target`: the SHA-256 of what came. A transfer that ends before the size the server said is an OSError, so that it is tried again and not taken for another file."""
+    """GET the address into `target` and return its SHA-256; a short transfer raises OSError."""
     digest, size = hashlib.sha256(), 0
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})  # noqa: S310  (`download` has just said yes to the address with `allowed`, which says it again for every redirect: https on one of GitHub's hosts)
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})  # noqa: S310  (address allowed by `allowed` (https, GitHub hosts), also on redirects)
     with urllib.request.build_opener(_GitHubOnly()).open(request, timeout=TIMEOUT_SEC) as reply, target.open("wb") as out:
         said = reply.headers.get("Content-Length", "")
         while chunk := reply.read(1 << 16):
@@ -122,7 +118,9 @@ def transfer(url: str, target: Path) -> str:
 
 
 def download(url: str, target: Path, sha256: str, pause_sec: float = 2.0) -> None:
-    """The file at the address, written to `target`, if its digest is the pinned one; else FetchError, and what came is thrown away. A transfer that fails is tried three times."""
+    """Write the file at the address to `target` if its digest is the pin; else raise FetchError.
+
+    A failed transfer is tried three times."""
     if not allowed(url):
         raise FetchError(f"{url} is not one of GitHub's addresses for release files")
     found, last = "", None
@@ -130,7 +128,8 @@ def download(url: str, target: Path, sha256: str, pause_sec: float = 2.0) -> Non
         try:
             found, last = transfer(url, target), None
             break
-        except urllib.error.HTTPError as error:                             # (the server's answer is its answer: asking again changes nothing)
+        # The server's answer is final: asking again changes nothing.
+        except urllib.error.HTTPError as error:
             raise FetchError(f"{url}: the server answered {error.code} {error.reason}") from None
         except (OSError, ValueError, http.client.HTTPException) as error:
             last = error
@@ -142,7 +141,7 @@ def download(url: str, target: Path, sha256: str, pause_sec: float = 2.0) -> Non
 
 
 def unpack(archive: Path, member: str, target: Path) -> None:
-    """The one file `member` of the tar archive, written to `target`: the names inside the archive decide nothing but which file it is."""
+    """Write the file `member` of the tar archive to `target`."""
     try:
         with tarfile.open(archive) as tar:
             source = tar.extractfile(tar.getmember(member))
@@ -155,7 +154,8 @@ def unpack(archive: Path, member: str, target: Path) -> None:
 
 
 def fetch(name: str) -> Path:
-    """The tool's program in the cache, downloaded and checked when it is not there. The folder appears whole or not at all: it is made beside its place and renamed."""
+    """Return the tool's program from the cache, downloading it if needed; the folder appears
+    whole."""
     tool, target = TOOLS[name], tool_path(name)
     if target.is_file():
         return target

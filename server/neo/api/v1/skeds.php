@@ -1,32 +1,47 @@
 <?php
-/* The sked board of NeoAPRS, served at neo.oh2gba.eu/api/v1/skeds.php: when someone will be on the air, and on which dial. The Skeds tab of the program posts here, only when the operator presses Post or Delete.
+/* The sked board of NeoAPRS, served at neo.oh2gba.eu/api/v1/skeds.php: when someone will be on the air and
+ * on which dial. The program's Skeds tab posts here only when the operator presses Post or Delete.
  *
- * Reading is not done here: every accepted change writes the board to skeds.json in the root of the site (BOARD below, beside frequencies.json), which Apache serves as a static file and the program, its page and
- * the project page read. The board is {"v": 1, "written": TIME, "closed": false, "skeds": [{"id", "call", "from", "to", "dial", "note"}, ...]}, sorted by `from`, at most 100 rows, never a token or its hash.
+ * Reading is not done here: every accepted change writes the board to skeds.json in the site root (BOARD),
+ * which Apache serves as a static file. The board is {"v": 1, "written": TIME, "closed": false,
+ * "skeds": [{"id", "call", "from", "to", "dial", "note"}, ...]}, sorted by `from`, at most 100 rows,
+ * never a token or its hash.
  *
- * Writing is a POST of application/json, at most 2048 bytes, refused from its Content-Length before anything is read:
+ * Writing is a POST of application/json, at most 2048 bytes, refused from its Content-Length before
+ * anything is read:
  *
- *   {"action": "add", "token": "<32 hex>", "call": "OH2GBA", "from": "2026-11-14T18:00:00Z", "to": "2026-11-14T20:00:00Z", "dial": "7.0541 MHz USB", "note": "Mercury, 10 W"}   -> {"ok": true, "id": ID, "board": BOARD}
- *   {"action": "remove", "token": "<32 hex>", "id": "<12 hex>"}                                                                                                                 -> {"ok": true, "board": BOARD}
- *   {"action": "refresh"}                                                                                                                                                       -> {"ok": true, "board": BOARD}
+ *   {"action": "add", "token": "<32 hex>", "call": "OH2GBA", "from": "2026-11-14T18:00:00Z",
+ *    "to": "2026-11-14T20:00:00Z", "dial": "7.0541 MHz USB", "note": "Mercury, 10 W"}  -> {"ok": true, "id": ID, "board": BOARD}
+ *   {"action": "remove", "token": "<32 hex>", "id": "<12 hex>"}  -> {"ok": true, "board": BOARD}
+ *   {"action": "refresh"}                                        -> {"ok": true, "board": BOARD}
  *
- * A refusal is {"ok": false, "reason": CODE} with a status that says it too: 405 method, 413 too_large, 415 bad_request (not application/json), 400 bad_request, 429 rate, 403 closed (the board is closed, or
- * the call is blocked), 403 not_yours, 409 full, 422 past, too_long or too_far, 500 storage.
+ * A refusal is {"ok": false, "reason": CODE} with a matching status: 405 method, 413 too_large,
+ * 415 bad_request (not application/json), 400 bad_request, 429 rate, 403 closed (board closed or call
+ * blocked), 403 not_yours, 409 full, 422 past, too_long or too_far, 500 storage.
  *
- * What is refused: a `to` not after the server's now (past), a `from` more than 30 days ahead (too_far), a sked longer than 24 hours (too_long), a sixth sked to come for one token, an eleventh under one call (any SSID of it)
- * or a hundred and first in all (full). Only the server's clock decides. The call has the form of an amateur call (3 to 6 letters and digits with a digit and a letter, an SSID of 0 to 15), the dial the form the
- * program shows ("7.0541 MHz USB"), the note one line of 80 characters at most with control and invisible characters removed. The same sked posted again under the same token is answered with its id.
+ * What is refused: a `to` not after the server's now (past), a `from` more than 30 days ahead (too_far),
+ * a sked longer than 24 hours (too_long), a sixth sked to come for one token, an eleventh under one call
+ * (any SSID) or a hundred and first in all (full). Only the server's clock decides. The call has the form
+ * of an amateur call (3 to 6 letters and digits with a digit and a letter, SSID 0 to 15), the dial the
+ * form the program shows ("7.0541 MHz USB"), the note one line of at most 80 characters with control and
+ * invisible characters removed. The same sked posted again under the same token is answered with its id.
  *
- * Who may delete: each installation of the program makes a random token once; the hash of the token is kept with the sked (never on the board), so only the installation that posted a sked can remove it. An id
- * that is not on the board any more (it has ended) is answered with the board.
+ * Who may delete: each installation makes a random token once; the hash of the token is kept with the
+ * sked (never on the board), so only the installation that posted a sked can remove it. An id that is no
+ * longer on the board (it has ended) is answered with the board.
  *
- * What is kept: one file per sked, ID.json, in private/skeds/ of this site (Apache refuses to serve private/), written to a .part and renamed, under one lock (the file `lock`); ended skeds, and the skeds of a
- * blocked call, are removed at every write. The sender's address is never written down: it is hashed under a salt that only this folder knows, for the rate limit (10 adds an hour from one address, 60 an hour
- * in all; an add is counted once it is well formed and within the times, and so is a remove with a wrong token or of an id that is gone; a remove with the right token is not, nor a refresh, so that a flood
- * cannot keep the moderator from making the board again), and the hash is forgotten after the hour. A refresh writes the board only when what it says has changed.
+ * What is kept: one file per sked, ID.json, in private/skeds/ (Apache refuses to serve private/),
+ * written to a .part and renamed under one lock (the file `lock`); ended skeds and those of a blocked
+ * call are removed at every write. The sender's address is never written down: it is hashed under a salt
+ * only this folder knows, for the rate limit (10 adds an hour from one address, 60 an hour in all; an
+ * add counts once it is well formed and within the times, and so does a remove with a wrong token or of
+ * an id that is gone; a remove with the right token and a refresh do not, so a flood cannot keep the
+ * moderator from remaking the board). The hash is forgotten after the hour. A refresh writes the board
+ * only when what it says has changed.
  *
- * The moderation (server/skeds.sh, over SFTP): a file `closed` in the folder makes every add answer `closed` and the board say "closed": true; `blocked.txt` holds a call on each line whose adds answer `closed`
- * and whose skeds are removed. Removing a file there and posting a refresh makes the board again. */
+ * Moderation (server/skeds.sh, over SFTP): a file `closed` in the folder makes every add answer `closed`
+ * and the board say "closed": true; `blocked.txt` holds a call per line whose adds answer `closed` and
+ * whose skeds are removed. Removing a file there and posting a refresh makes the board again. */
 declare(strict_types=1);
 
 ini_set('display_errors', '0');
@@ -34,7 +49,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
 
-const SITE_ROOT        = __DIR__ . '/../..';                     // neo/ on the host: this file is neo/api/v1/skeds.php
+const SITE_ROOT        = __DIR__ . '/../..';  // neo/ on the host: this file is neo/api/v1/skeds.php
 const BOARD            = SITE_ROOT . '/skeds.json';
 const STORE            = SITE_ROOT . '/private/skeds';
 const MAX_BODY         = 2048;
@@ -47,10 +62,10 @@ const MAX_IN_ALL       = 100;
 const RATE_PER_ADDRESS = 10;
 const RATE_IN_ALL      = 60;
 const RATE_WINDOW_SEC  = 3600;
-const LOG_MAX_BYTES    = 256 * 1024;                              // of the log (oh2gba/SHARED-HOST.md: each application logs under its own private/logs/, each file capped at 256 KB)
+const LOG_MAX_BYTES    = 256 * 1024;  // log cap: each application logs under its own private/logs/, each file at most 256 KB
 const TIME_FORM        = '/\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\z/';
-const DIAL_FORM        = '/\A\d{1,2}\.\d{3,4} MHz (USB|LSB)\z/';    // as neoaprs/versions.py reads a dial and the HF box shows it
-const CALL_FORM        = '/\A(?=[A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z])[A-Z0-9]{3,6}(-([0-9]|1[0-5]))?\z/';      // as neoaprs/callsign.py checks our own call: an amateur call with its SSID
+const DIAL_FORM        = '/\A\d{1,2}\.\d{3,4} MHz (USB|LSB)\z/';  // as neoaprs/versions.py reads a dial and the HF box shows it
+const CALL_FORM        = '/\A(?=[A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z])[A-Z0-9]{3,6}(-([0-9]|1[0-5]))?\z/';  // as neoaprs/callsign.py checks our own call: an amateur call with its SSID
 const PLACEHOLDERS     = ['N0CALL', 'NOCALL', 'MYCALL'];
 const ID_FORM          = '/\A[0-9a-f]{12}\z/';
 const TOKEN_FORM       = '/\A[0-9a-f]{32}\z/';
@@ -69,7 +84,10 @@ function skeds_refuse(int $status, string $reason, array $headers = []): never
     skeds_answer($status, ['ok' => false, 'reason' => $reason], $headers);
 }
 
-/** The folder of the stored skeds, with one more .htaccess of its own (private/ is refused already by its own and by the rule of the site's .htaccess). */
+/**
+ * The folder of the stored skeds, with its own .htaccess (private/ is refused by its own and the
+ * site's rule already).
+ */
 function skeds_store(): string
 {
     $dir = STORE;
@@ -78,7 +96,10 @@ function skeds_store(): string
     return $dir;
 }
 
-/** A line in private/logs/skeds.log; the older half goes when it has grown past 256 KB. No address, no token and no note are written to it. */
+/**
+ * A line in private/logs/skeds.log; the older half goes past 256 KB. No address, token or note is
+ * written.
+ */
 function skeds_log(string $line): void
 {
     $folder = SITE_ROOT . '/private/logs';
@@ -88,7 +109,10 @@ function skeds_log(string $line): void
     @file_put_contents($path, gmdate('Y-m-d\TH:i:s\Z') . "  $line\n", FILE_APPEND | LOCK_EX);
 }
 
-/** The address as it is hashed: an IPv6 address by its first 64 bits (the rest is the household's to choose). */
+/**
+ * The address as it is hashed: an IPv6 address by its first 64 bits (the rest is the household's to
+ * choose).
+ */
 function skeds_address(): string
 {
     $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
@@ -97,7 +121,10 @@ function skeds_address(): string
     return strlen($raw) === 16 ? substr($raw, 0, 8) : $raw;
 }
 
-/** Counts this request against the address and the whole; false when either has used its share of the last hour. Only hashes are kept, and only for the hour. */
+/**
+ * Count this request against the address and the whole; false when either has used its hour's
+ * share. Only hashes are kept.
+ */
 function skeds_allowed(string $dir, string $address, int $now): bool
 {
     $saltFile = "$dir/salt";
@@ -126,7 +153,10 @@ function skeds_allowed(string $dir, string $address, int $now): bool
     return $ok;
 }
 
-/** The one lock every change of the folder and the board is made under; released when the request ends. */
+/**
+ * The one lock every change of the folder and the board is made under; released when the request
+ * ends.
+ */
 function skeds_lock(string $dir): mixed
 {
     $h = @fopen("$dir/lock", 'c');
@@ -135,8 +165,8 @@ function skeds_lock(string $dir): mixed
 }
 
 /**
- * The id of a sked when the value is one (12 lowercase hex digits), else null. What comes out is only those digits, so it can name a file of the folder and nothing outside it: Psalm is told so here, since it
- * cannot follow a pattern.
+ * The id of a sked when the value is one (12 lowercase hex digits), else null. Only those digits come out, so it can
+ * name a file of the folder and nothing outside it: Psalm is told so here, since it cannot follow a pattern.
  *
  * @psalm-taint-escape file
  */
@@ -151,7 +181,10 @@ function skeds_token_hash(mixed $value): ?string
     return is_string($value) && preg_match(TOKEN_FORM, $value) ? hash('sha256', $value) : null;
 }
 
-/** The instant of a time of the form 2026-11-14T18:00:00Z, else null (a day or an hour that does not exist is no time). */
+/**
+ * The instant of a time of the form 2026-11-14T18:00:00Z, else null (a day or hour that does not
+ * exist is no time).
+ */
 function skeds_time(mixed $value): ?int
 {
     if (!is_string($value) || !preg_match(TIME_FORM, $value)) return null;
@@ -181,8 +214,9 @@ function skeds_dial(mixed $value): ?string
     return preg_match(DIAL_FORM, $dial) ? $dial : null;
 }
 
-/** The note: one line of letters, marks, digits, punctuation, the printable ASCII and plain spaces; every other character (a control, a format or invisible one, a symbol beyond ASCII) is removed, every run of
- * spaces and line breaks is one space, and it is cut to 80 characters. Null when it is not text in UTF-8. */
+/** The note: one line of letters, marks, digits, punctuation, printable ASCII and plain spaces;
+ * every other character is removed, runs of spaces and line breaks become one space, cut to 80
+ * characters. Null when not UTF-8 text. */
 function skeds_note(mixed $value): ?string
 {
     if ($value === null) return '';
@@ -201,7 +235,10 @@ function skeds_blocked(string $dir): array
     return $lines === false ? [] : array_values(array_filter(array_map(fn($l) => strtoupper(trim((string) $l)), $lines), fn($l) => $l !== '' && $l[0] !== '#'));
 }
 
-/** The call without its SSID: the limit of skeds under one call and a blocked call hold for every SSID of it. */
+/**
+ * The call without its SSID: the limit of skeds under one call and a blocked call hold for every
+ * SSID.
+ */
 function skeds_base(string $call): string
 {
     return explode('-', $call)[0];
@@ -212,7 +249,10 @@ function skeds_is_blocked(string $call, array $blocked): bool
     return in_array($call, $blocked, true) || in_array(skeds_base($call), $blocked, true);
 }
 
-/** The stored skeds that are still to come, by id; an ended one, one of a blocked call and a file that is not a sked of ours are removed. Under the lock only. */
+/**
+ * The stored skeds still to come, by id; ended ones, ones of a blocked call and files that are no
+ * sked are removed. Under the lock only.
+ */
 function skeds_stored(string $dir, int $now): array
 {
     $blocked = skeds_blocked($dir);
@@ -235,7 +275,10 @@ function skeds_stored(string $dir, int $now): array
     return $found;
 }
 
-/** The rows of the board from the stored skeds: at most a hundred, never a token. Under the lock only. */
+/**
+ * The rows of the board from the stored skeds: at most a hundred, never a token. Under the lock
+ * only.
+ */
 function skeds_rows(string $dir, int $now): array
 {
     $rows = [];
@@ -245,7 +288,10 @@ function skeds_rows(string $dir, int $now): array
     return $rows;
 }
 
-/** Writes the board from the stored skeds, or from `rows` when they are given (a .part, then renamed) and returns it. Under the lock only. */
+/**
+ * Write the board from the stored skeds, or from `rows` when given (a .part, then renamed); return
+ * it. Under the lock only.
+ */
 function skeds_write_board(string $dir, int $now, ?array $rows = null): array
 {
     $rows ??= skeds_rows($dir, $now);
@@ -327,7 +373,7 @@ function skeds_remove(string $dir, array $in, int $now): never
     $stored = skeds_stored($dir, $now);
     $mine = isset($stored[$id]) && hash_equals((string) ($stored[$id]['token'] ?? ''), $hash);
     if (!$mine) {
-        flock($lock, LOCK_UN);                                    // (a wrong token, and an id that is not on the board any more, are counted; the right token is not)
+        flock($lock, LOCK_UN);  // a wrong token or an id that is no longer on the board is counted; the right token is not
         if (!skeds_allowed($dir, skeds_address(), $now)) skeds_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
         if (isset($stored[$id])) skeds_refuse(403, 'not_yours');
         $lock = skeds_lock($dir);
@@ -339,7 +385,10 @@ function skeds_remove(string $dir, array $in, int $now): never
     skeds_answer(200, ['ok' => true, 'board' => $board]);
 }
 
-/** The board made again from the stored skeds; the file is written only when its rows or its `closed` differ from what is served, so a refresh is not counted and costs no write when nothing changed. */
+/**
+ * The board made again from the stored skeds; written only when its rows or `closed` differ from
+ * what is served.
+ */
 function skeds_refresh(string $dir, int $now): never
 {
     $lock = skeds_lock($dir);

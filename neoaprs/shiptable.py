@@ -1,4 +1,7 @@
-"""The ships a layer holds, by their MMSI: the last position of each and what it said of itself, put together as the page's one shape of a thing (layerthing.Thing). Memory only; no I/O."""
+"""The ships a layer holds, by MMSI: last position and what each said of itself.
+
+The shape is layerthing.Thing. Memory only; no I/O.
+"""
 from dataclasses import replace
 from datetime import datetime, timedelta
 
@@ -7,20 +10,23 @@ from .clock import Clock, utcnow
 from .layerthing import Thing
 from .units import KNOT_KMH
 
-STATIC_KEEP = timedelta(hours=24)         # what a ship said of itself is kept this long without a position of it
-UNDER_WAY_KN = 0.5                        # at this speed or more the course is the way the ship points when it gives no heading
+# what a ship said of itself is kept this long without a position of it
+STATIC_KEEP = timedelta(hours=24)
+# at this speed or more the course is the way the ship points when it gives no heading
+UNDER_WAY_KN = 0.5
 
 
 class ShipTable:
     def __init__(self, clock: Clock = utcnow, bound: int | None = None) -> None:
-        """`bound`: what a feed that may flood is held to, the table itself: past twice this many positions (or words) the oldest are dropped down to it."""
+        """`bound` limits a flooding feed: past twice this many entries the oldest are dropped."""
         self._clock = clock
         self._bound = bound
         self._positions: dict[int, AisPosition] = {}
-        self._statics: dict[int, tuple[AisStatic, datetime]] = {}         # mmsi -> (what it said, when we got it)
+        # mmsi -> (what it said, when we got it)
+        self._statics: dict[int, tuple[AisStatic, datetime]] = {}
 
     def position(self, p: AisPosition) -> None:
-        """Keeps the position unless the ship's last one is newer."""
+        """Keep the position unless the ship's last one is newer."""
         last = self._positions.get(p.mmsi)
         if last is None or p.at >= last.at:
             self._positions[p.mmsi] = p
@@ -29,19 +35,22 @@ class ShipTable:
                 self._positions = {held.mmsi: held for held in newest}
 
     def static(self, s: AisStatic) -> None:
-        """Keeps what the ship says of itself; a name, kind or destination that this message leaves empty does not wipe what an earlier one said (a class B ship tells its name and its kind in two messages)."""
+        """Keep what the ship says of itself; fields left empty keep the earlier value (class B)."""
         before = self._statics.get(s.mmsi)
         if before is not None:
             old = before[0]
             s = replace(s, name=s.name or old.name, ship_type=s.ship_type if s.ship_type is not None else old.ship_type, destination=s.destination or old.destination)
-        self._statics.pop(s.mmsi, None)                       # (so that the dict's order is the order of arrival)
+        self._statics.pop(s.mmsi, None)  # so that the dict's order is the order of arrival
         self._statics[s.mmsi] = (s, self._clock())
         if self._bound is not None and len(self._statics) > 2 * self._bound:
             self._statics = dict(list(self._statics.items())[-self._bound:])
 
 
     def things(self, now: datetime, max_age_sec: float) -> list[Thing]:
-        """The ships whose position is at most `max_age_sec` old, as things; the older ones and the words kept without a position for over 24 hours are forgotten."""
+        """Return the ships whose position is at most `max_age_sec` old, as things.
+
+        Older ones, and words kept without a position for over 24 hours, are forgotten.
+        """
         self._positions = {mmsi: p for mmsi, p in self._positions.items() if (now - p.at).total_seconds() <= max_age_sec}
         self._statics = {mmsi: kept for mmsi, kept in self._statics.items() if now - kept[1] <= STATIC_KEEP or mmsi in self._positions}
         return [self._thing(p) for p in self._positions.values()]

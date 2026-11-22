@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""What a download carries, printed, so that a cut in size is a measured number and not a guess. The release workflow runs it on each tree before it is packed and on each finished file.
+"""Print what a download carries, so that a cut in size is a measured number.
 
-  scripts/shipped-size PATH...                     a folder: its size and file count, its size by group (the folders DEPTH deep, 1 by default) and its 30 largest files; a file: its size
-  scripts/shipped-size --depth 2 dist/NeoAPRS      groups two folders deep (_internal/PIL, _internal/neoaprs, ...)
-  scripts/shipped-size --pyi-archive EXE...        the Python archive (PYZ) inside a program of PyInstaller, summed by top package, from `pyi-archive_viewer -l -r` (the recursive listing is the one that
-                                                   goes into PYZ.pyz: the plain one lists only the program's own archive); --viewer names the viewer when it is not beside this Python or on the PATH
-  --modules                                        with --pyi-archive: every module of the archive besides, one line each (`module: NAME`), so that two builds' lists can be compared
-  --absent NAME                                    fails (exit 1) when NAME is there: a path inside a folder given, or a top package in a program's archive given (repeatable)
-  --title TEXT                                     the heading of the printout
+  scripts/shipped-size PATH...                  a folder: size, file count, size by group, 30
+                                                largest files; a file: its size
+  scripts/shipped-size --depth 2 dist/NeoAPRS   groups two folders deep (_internal/PIL, ...)
+  scripts/shipped-size --pyi-archive EXE...     the PYZ archive in a PyInstaller program, by top
+                                                package; --viewer names `pyi-archive_viewer`
+  --modules                                     with --pyi-archive: every module too
+  --absent NAME                                 exit 1 when NAME is there (repeatable)
+  --title TEXT                                  the heading of the printout
 
-Sizes are in MB of 1,000,000 bytes, as the release notes say them. When $GITHUB_STEP_SUMMARY names a file, the same goes into it as Markdown, so that the run's page shows every size. Exit code: 0, 1 when a name
-given to --absent is there, 2 when a path is not there or the viewer's listing cannot be read. Nothing but the Python standard library is used."""
+Sizes are in MB of 1,000,000 bytes. $GITHUB_STEP_SUMMARY, if set, also gets the Markdown.
+Exit code: 0; 1 when a name given to --absent is there; 2 when a path is missing or unreadable."""
 import argparse
 import os
 import re
@@ -22,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 LARGEST = 30
-GROUPS = 40                                            # the groups printed by name; the rest is one line
+GROUPS = 40                                            # groups printed by name; the rest is one line
 MB = 1_000_000
 
 
@@ -44,13 +45,13 @@ class TreeReport:
 
 
 def group_of(relative: Path, depth: int) -> str:
-    """The group a file counts in: its folder `depth` deep, or the file itself when it lies higher up."""
+    """Return the group a file counts in: its folder `depth` deep, or the file itself if higher."""
     parts = relative.parts
     return "/".join(parts[:depth]) if len(parts) > depth else relative.as_posix()
 
 
 def measure_tree(root: Path, depth: int = 1, largest: int = LARGEST) -> TreeReport:
-    """Every file under `root` (links are not followed and count nothing: the file they name is counted where it is)."""
+    """Return every file under `root`; links are not followed and count nothing."""
     report = TreeReport(root)
     sizes: list[tuple[int, str]] = []
     for folder, dirs, names in os.walk(root):
@@ -110,9 +111,9 @@ class ArchiveReport:
 
 
 def parse_listing(text: str, program: str = "") -> ArchiveReport:
-    """The PYZ part of `pyi-archive_viewer -l -r`: under each heading `Contents of 'PYZ.pyz' (PYZ...)`, a line of column names, then one line an entry whose last field is the module's name in quotes.
-    The column called `length` is the entry's size in the archive (compressed). An entry is counted in its top package (`PIL.Image` in `PIL`). A listing with no PYZ part, or one whose columns name no
-    length, is refused: the printout would be a wrong number."""
+    """Return sizes by top package from the PYZ part of `pyi-archive_viewer -l -r`.
+
+    The `length` column is the compressed size; a listing without PYZ or length is refused."""
     report = ArchiveReport(program)
     in_pyz, columns, seen_pyz = False, None, False
     for line in text.splitlines():
@@ -147,7 +148,7 @@ def parse_listing(text: str, program: str = "") -> ArchiveReport:
 
 
 def find_viewer(given: str = "") -> str:
-    """pyi-archive_viewer: the one named, else the one beside this Python (a build environment's Scripts or bin folder), else the PATH's."""
+    """Return pyi-archive_viewer: the one named, else beside this Python, else on the PATH."""
     if given:
         return given
     here = Path(sys.executable).parent
@@ -189,7 +190,7 @@ def archive_markdown(report: ArchiveReport) -> list[str]:
 # ---- the command ----
 
 def present(names: Iterable[str], root: Path | None = None, archive: ArchiveReport | None = None) -> list[str]:
-    """Of the names given to --absent, those that are there: a path under `root`, or a top package of `archive`."""
+    """Return those names of --absent that are there: a path under `root` or a top package."""
     found = []
     for name in names:
         if root is not None and (root / name).exists():

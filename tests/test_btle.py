@@ -1,5 +1,6 @@
-"""The Bluetooth LE KISS port (neoaprs/btle.py) on a fake bleak and a fake device (tests/support/fakeble.py): the address and profile of a `ble://` port, the search of the device's services, reading with the timeout, writing in pieces,
-a link that is lost, the library that is not installed, and the TNC that uses the port. No scan is made and no radio is touched."""
+"""Tests for the Bluetooth LE KISS port (neoaprs/btle.py) on a fake bleak and device
+(tests/support/fakeble.py): address and profile, service search, read, write, loss, missing library.
+"""
 import asyncio
 import sys
 import threading
@@ -41,7 +42,8 @@ def opened(url: str = URL, timeout: float = 0.2) -> BleSerial:
     ("ble://aa:bb:cc:dd:ee:ff/", "AA:BB:CC:DD:EE:FF", None),
     ("  BLE://AA-BB-CC-DD-EE-FF/nus ", "AA:BB:CC:DD:EE:FF", "nus"),
     ("ble://AA:BB:CC:DD:EE:FF/Mobilinkd", "AA:BB:CC:DD:EE:FF", "mobilinkd"),
-    ("ble://6e6c9c1a-0e5d-4a3b-9d6c-0123456789ab", "6E6C9C1A-0E5D-4A3B-9D6C-0123456789AB", None),          # (macOS gives a device a UUID in place of an address)
+    # (macOS gives a device a UUID in place of an address)
+    ("ble://6e6c9c1a-0e5d-4a3b-9d6c-0123456789ab", "6E6C9C1A-0E5D-4A3B-9D6C-0123456789AB", None),
 ])
 def test_the_address_and_the_profile_of_a_port(url: str, address: str, profile: str | None) -> None:
     got_address, got_profile = parse_url(url)
@@ -84,7 +86,8 @@ async def test_the_line_says_it_in_the_same_words(monkeypatch: pytest.MonkeyPatc
 
 
 def test_the_library_that_is_installed_has_what_the_port_asks_of_it(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delitem(sys.modules, "bleak")                     # (the guard's stand-in goes; the real library is only looked at, never scanned with)
+    # (the guard's stand-in goes; the real library is only looked at, never scanned with)
+    monkeypatch.delitem(sys.modules, "bleak")
     bleak = pytest.importorskip("bleak")                          # (the extra `ble`)
     assert callable(bleak.BleakScanner.find_device_by_address) and issubclass(bleak.BleakError, Exception)
     for name in ("connect", "disconnect", "start_notify", "write_gatt_char"):
@@ -139,7 +142,8 @@ def test_a_profile_that_is_named_is_the_only_one_tried(monkeypatch: pytest.Monke
 
 
 def test_a_profile_whose_named_characteristics_cannot_do_their_part_is_used_by_what_they_can_do(monkeypatch: pytest.MonkeyPatch) -> None:
-    ble = FakeBle(monkeypatch, {NUS: [(NUS_WRITE, ["read", "notify"]), (NUS_NOTIFY, ["write", "write-without-response"])]})       # (a CA2RXU LoRa Tracker: the Nordic UART's two the other way round)
+    # (a CA2RXU LoRa Tracker: the Nordic UART's two the other way round)
+    ble = FakeBle(monkeypatch, {NUS: [(NUS_WRITE, ["read", "notify"]), (NUS_NOTIFY, ["write", "write-without-response"])]})
     ser = opened(URL + "/nus")
     try:
         assert ble.notifying == NUS_WRITE, "it listens to the one that notifies"
@@ -157,7 +161,8 @@ def test_a_device_with_no_kiss_service_lists_what_it_has(monkeypatch: pytest.Mon
 
 
 def test_a_service_named_by_its_uuid_is_used_by_what_its_characteristics_can_do(monkeypatch: pytest.MonkeyPatch) -> None:
-    uart = {"0000ffe0-0000-1000-8000-00805f9b34fb": [("0000ffe1-0000-1000-8000-00805f9b34fb", ["read", "write-without-response", "notify"])]}     # (an HM-10 module: one characteristic for both ways)
+    # (an HM-10 module: one characteristic for both ways)
+    uart = {"0000ffe0-0000-1000-8000-00805f9b34fb": [("0000ffe1-0000-1000-8000-00805f9b34fb", ["read", "write-without-response", "notify"])]}
     ble = FakeBle(monkeypatch, uart)
     ser = opened(f"{URL}/ffe0")
     try:
@@ -274,7 +279,8 @@ def test_a_write_is_cut_to_what_the_link_takes_and_is_without_a_response_where_t
         assert ser.write(data) == 45
         assert ble.writes == [(data[:20], False), (data[20:40], False), (data[40:], False)]
         ble.writes.clear()
-        ble.services[0].characteristics[0].max_write_without_response_size = 100            # (the link has settled on a longer MTU)
+        # (the link has settled on a longer MTU)
+        ble.services[0].characteristics[0].max_write_without_response_size = 100
         ser.write(bytes(250))
         assert [len(w) for w, _ in ble.writes] == [100, 100, 50]
     finally:
@@ -400,7 +406,8 @@ async def test_the_tnc_opens_a_ble_port_again_when_the_radio_comes_back(monkeypa
     await tnc.start()
     try:
         assert tnc.state is Source.State.CONNECTED and tnc.stats.opens == 1
-        assert "9600" not in tnc.describe() and tnc.describe().startswith(f"{URL},")                    # (a BLE link has no speed)
+        # (a BLE link has no speed)
+        assert "9600" not in tnc.describe() and tnc.describe().startswith(f"{URL},")
         ble.feed(encode(ax25.encode(ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA-7"), (), info=b"!6010.00N/02456.00E>hi")), port=0))
         await until(lambda: tnc.stats.frames_in == 1)
         ble.seen = False                                                 # switched off
@@ -419,7 +426,8 @@ async def test_the_tnc_opens_a_ble_port_again_when_the_radio_comes_back(monkeypa
     await until(lambda: ble_threads() == [])
 
 
-# ---- the edges: a device that does not let go, a write that is cancelled, the calls of a serial port that a BLE link has nothing to do for
+# ---- the edges: a device that does not let go, a write that is cancelled, the calls of a serial
+# port that a BLE link has nothing to do for
 
 def wait_for(condition: Callable[[], object], seconds: float = 5.0) -> None:
     deadline = time.monotonic() + seconds
@@ -437,7 +445,8 @@ def test_the_library_that_is_there_is_what_the_open_uses(monkeypatch: pytest.Mon
 def test_a_loop_that_is_stopped_twice_says_nothing_and_what_it_still_ran_is_cancelled() -> None:
     loop = btle._Loop("ble test")
     never = loop.submit(asyncio.sleep(3600))
-    loop.call(asyncio.sleep(0), 2.0)                                # (the loop has taken the first coroutine up by the time it runs the second)
+    # (the loop has taken the first coroutine up by the time it runs the second)
+    loop.call(asyncio.sleep(0), 2.0)
     loop.stop()
     loop.stop()
     assert never.cancelled()

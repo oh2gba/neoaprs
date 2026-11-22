@@ -1,6 +1,7 @@
-"""The Tnc on a line whose profile reads text (tncprofile.TNC_TEXT, neoaprs/tnctextreader.py), on a fake radio that types what the plan's sources say real devices type (tests/fixtures/text/): it writes nothing,
-ever (no entry, no keep-alive, no frame, not after a reopen, not in the search), while a profile that can be asked writes at once on the same timings; every form gives packets with the radio's id;
-a device that sends KISS frames after text is read as KISS; the search takes a port that types the Yaesu form, and one that types 7E1 text. Pseudo-terminals for the search, so POSIX only there."""
+"""The Tnc on a line whose profile reads text (tncprofile.TNC_TEXT, neoaprs/tnctextreader.py) on a
+fake radio that types what real devices type (tests/fixtures/text/): it writes nothing, ever, while
+a profile that can be asked writes at once on the same timings.
+"""
 import asyncio
 import json
 import logging

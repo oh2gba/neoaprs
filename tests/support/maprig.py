@@ -1,13 +1,5 @@
-"""MapRig: the map download service (neoaprs/services/mapfetch.py) cutting the made-up planet of tests/support/madepmtiles.py from a range server on the loopback (tests/support/rangeserver.py), with the statuses it
-announced; the base of the Rig of test_mapfetch.py and test_mapstall.py.
-
-    class Rig(MapRig):
-        def __init__(self, data: Path, server: RangeServer) -> None:
-            super().__init__(data, server, lambda: CONFIG)
-    rig.status()                       # the status now
-    await rig.idle()                   # the download or the estimate is over
-    rig.seen                           # the status after every `changed`
-    data_offset(archive)               # where the tile data of an archive begins: a range server that holds from there holds the tiles and lets the directories through
+"""MapRig: the map download service (neoaprs/services/mapfetch.py) cutting the made-up planet of
+tests/support/madepmtiles.py from a range server on the loopback, with the statuses it announced.
 """
 from collections.abc import Callable
 from dataclasses import replace
@@ -24,7 +16,8 @@ from tests.support.madepmtiles import fields_of
 
 
 def own_world(data: Path) -> Path | None:
-    """The world map of the data folder only: the one that ships with the program is not there for the tests that make the world map."""
+    """The world map of the data folder only: the one that ships with the program is not there for
+    the tests that make the world map."""
     return data / WORLD if (data / WORLD).exists() else None
 
 

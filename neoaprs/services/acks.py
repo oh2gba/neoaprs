@@ -1,8 +1,8 @@
-"""The ids and acks of messaging: the message id a message of ours is given (the next after the latest, never one that a message still being sent has) and the ack we send for a message to us, `ackMM`, or the
-number as it came for a message with a reply-ack number (`ackMM}` for `{MM}`, `ackMM}AA` for `{MM}AA`). An ack goes back on the radio the message came on and is built for it (no path and the frame cap over HF, whatever radio the station is otherwise reached on). An ack is not kept for later when the interlock is shut: the sender sends again. An ack the radio cannot take
-at the moment, though it is connected (a frame of ours is on the air, the channel is busy, the TNC settles: the Mercury HF modem decodes a frame while the sender's tail is still on the air, and its busy detector holds
-us for a second or two after it), waits and goes when the radio takes frames again (`flush`, from the ticker of the retries), for at most ACK_HOLD_MAX_SEC; after that the sender has sent again anyway. An ack that
-waits keeps the id of its radio (services/radioset.py's RadioPick gives the radio again when it goes)."""
+"""Message ids and acks: allocate the next message id and send the ack for a message to us.
+
+An ack goes back on the radio the message came on; it is dropped while the interlock is shut and
+waits (`flush`, ACK_HOLD_MAX_SEC) while the radio is briefly unusable.
+"""
 import logging
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -19,7 +19,8 @@ from neoaprs.source import Source
 
 log = logging.getLogger("neoaprs.messaging")
 
-ACK_HOLD_MAX_SEC = 60                   # how long an ack waits for a radio that is held; a sender's first retry comes 32 s after its message, so a longer wait would ack a copy that is on its way already
+# The sender's first retry comes 32 s after its message; waiting longer would ack a copy on its way.
+ACK_HOLD_MAX_SEC = 60
 
 
 @dataclass(frozen=True)
@@ -28,24 +29,24 @@ class Waiting:
     msg_id: str
     reply_ack: str | None
     until: datetime
-    radio: RadioId                          # the id of the radio the message came on, which the ack goes back on
+    radio: RadioId
 
 
 class Acks:
     def __init__(self, radios: Callable[[], RadioPick], interlock: Interlock, frame: Callable[[bytes, str, AirRadio], ax25.Frame], clock: Clock = utcnow) -> None:
-        self._radios = radios                                   # the station's radios as messaging has them now: the one of an ack that waited, by its id
+        self._radios = radios
         self._interlock = interlock
-        self._frame = frame                                     # our frame for an information field to a station on a radio (Messaging._frame): built for the radio the ack goes on, its path rules and its frame cap
+        self._frame = frame
         self._clock = clock
-        self._last_id: str | None = None                        # the id the latest message of ours was given; the next is the one after
-        self.waiting: list[Waiting] = []                        # the acks the radio could not take at the moment, oldest first
+        self._last_id: str | None = None
+        self.waiting: list[Waiting] = []
 
     def resume(self, records: Iterable[MessageRecord]) -> None:
-        """The latest id of ours among the messages held (oldest first) is where the numbering goes on."""
+        """Continue the numbering after the latest outgoing id in `records` (oldest first)."""
         self._last_id = next((r.msg_id for r in reversed(list(records)) if r.direction == "out" and r.msg_id in MSG_IDS), None)
 
     def allocate(self, records: Iterable[MessageRecord]) -> str:
-        """The next message id: not one that a message still being sent has."""
+        """Return the next message id, skipping ids of messages still being sent."""
         ident = next_msg_id(self._last_id, {r.msg_id for r in records if r.state == "sending" and r.msg_id is not None})
         if ident is None:
             raise MessagingError(f"{len(MSG_IDS)} messages are being sent at once: no message id is free", "message.busy", count=len(MSG_IDS))
@@ -53,7 +54,7 @@ class Acks:
         return ident
 
     def send(self, to: str, msg_id: str, reply_ack: str | None = None, radio: AirRadio | None = None) -> None:
-        """Acknowledges message `msg_id` of the station `to` on `radio` (the one the message came on; when none is named, a test's, the first radio that can send): now, or when that radio, connected but held, takes frames again."""
+        """Ack message `msg_id` of `to` on `radio` (default: first sender), now or once usable."""
         if self._interlock.refused("ack"):
             return
         radio = radio or first_sender(self._radios())
@@ -61,14 +62,15 @@ class Acks:
             log.warning("no ack for message %s from %s: %s", msg_id, to, NO_RADIO)
             return
         if radio.state is Source.State.CONNECTED and not radio.usable:
-            if not any(ack.to == to and ack.msg_id == msg_id for ack in self.waiting):           # (a copy of the message that comes while its ack waits gets that one ack)
+            # A copy of the message arriving while its ack waits gets that one ack.
+            if not any(ack.to == to and ack.msg_id == msg_id for ack in self.waiting):
                 self.waiting.append(Waiting(to, msg_id, reply_ack, self._clock() + timedelta(seconds=ACK_HOLD_MAX_SEC), radio.id))
                 log.info("the ack of message %s from %s waits: %s", msg_id, to, radio.why_unusable())
             return
         self._transmit(to, msg_id, reply_ack, radio)
 
     def flush(self) -> None:
-        """Sends the acks that waited for their radio, now that it takes frames; one that has waited longer than ACK_HOLD_MAX_SEC is dropped. An ack whose radio is still held waits on."""
+        """Send waiting acks whose radio is usable again; drop those older than ACK_HOLD_MAX_SEC."""
         if not self.waiting:
             return
         now = self._clock()
@@ -79,10 +81,10 @@ class Acks:
             if now > ack.until:
                 log.info("the ack of message %s from %s waited over %d s for the radio and is dropped: the sender sends again", ack.msg_id, ack.to, ACK_HOLD_MAX_SEC)
             elif radio is None or not radio.usable or not self._transmit(ack.to, ack.msg_id, ack.reply_ack, radio, quiet=True):
-                self.waiting.append(ack)                        # (the radio is held or gone, or was taken by the ack before this one: it waits for the next tick)
+                self.waiting.append(ack)
 
     def _transmit(self, to: str, msg_id: str, reply_ack: str | None, radio: AirRadio, quiet: bool = False) -> bool:
-        """Sends the ack on the radio; False when the TNC would not take it (said in the log unless `quiet`: an ack that waits is told once, when it starts waiting). An ack that cannot be made is told and counts as done."""
+        """Send the ack; return False if the TNC refused it. An unbuildable ack counts as done."""
         try:
             sent = radio.send_frame(self._frame(b":" + format_ack(to, msg_id, reply_ack), to, radio))
         except (MessageError, MessagingError) as e:

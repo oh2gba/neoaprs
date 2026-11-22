@@ -1,5 +1,6 @@
-"""How the refusals name a radio on the wire: a removed radio is said to be removed, by its name, where its id would say nothing to the operator ("there is no radio 3"); a name typed that is what another radio with no
-name of its own is called ("FM", "Mercury 2") is taken already, and one in that form ("FM 3", "LoRa") is refused, since an add, a clear or a remove may make it another radio's; the last radio that is on, switched off by its key, is named by its id. Over the page's socket of a real daemon."""
+"""How refusals name a radio on the wire: a removed radio is said to be removed by its name, and a
+typed name equal to what another unnamed radio is called ("FM", "Mercury 2") is taken or refused.
+"""
 from pathlib import Path
 
 from neoaprs.radiospec import FM_ID
@@ -48,7 +49,8 @@ async def test_a_name_in_the_form_of_a_radio_with_no_name_of_its_own_is_refused_
     two = await added(page, "dummy")
     three = await added(page, "dummy")
     assert [page.topics["radios"][str(id)]["number"] for id in (two, three)] == [2, 3], "the radios added unnamed are FM 2 and FM 3, and no radio is called so by a name typed"
-    for name in ("FM 2X", "FM2", "FMS", "HF", "HF 2", "Home"):       # (the name of a band is no kind's word: a Mercury radio on shortwave may be called HF)
+    # The name of a band is no kind's word: a Mercury radio on shortwave may be called HF
+    for name in ("FM 2X", "FM2", "FMS", "HF", "HF 2", "Home"):
         await page.send({"cmd": "radio_change", "radio": FM_ID, "name": name})
         await page.until(lambda name=name: page.topics["radios"]["1"]["name"] == name)       # type: ignore[misc]
     await page.send({"cmd": "radio_remove", "radio": two})

@@ -1,6 +1,7 @@
-"""Which stations take messages as far as we know: the station book's `can_message` (a message can go out at all: not to an object, an item, ourselves or a station of the internet only) and
-`may_not_message` (the data type identifier of a position says no: `!` and `/`, and Mic-E with the type code `'`; a message or an ack heard from the station says yes), carried on the wire as both, and
-found again at the start from the packet log. The page offers the Message button for `can_message` and says beside the conversation when `may_not_message`."""
+"""Which stations take messages as far as we know: the station book's `can_message` and
+`may_not_message` (a position's data type identifier says no; a message or ack heard from the
+station says yes), as wire booleans.
+"""
 import json
 from datetime import timedelta
 from pathlib import Path
@@ -54,8 +55,10 @@ def test_a_position_says_by_its_identifier(identifier: str, expected: bool) -> N
 
 
 @pytest.mark.parametrize(("identifier", "comment", "expected"), [
-    (b"`", b"", True), (b"'", b"", True), (b"`", b"`hi_%", True), (b"'", b"]hi=", True), (b"`", b">hi&", True),     # (a TM-D700 sends ' and its comment starts with ])
-    (b"`", b"'hi|3", False), (b"'", b"'hi", False),                                                       # the type code ' is a radio without messaging (aprs-deviceid)
+    # A TM-D700 sends ' and its comment starts with ]
+    (b"`", b"", True), (b"'", b"", True), (b"`", b"`hi_%", True), (b"'", b"]hi=", True), (b"`", b">hi&", True),
+    # The type code ' is a radio without messaging (aprs-deviceid)
+    (b"`", b"'hi|3", False), (b"'", b"'hi", False),
 ])
 def test_a_mic_e_station_does_messages_unless_its_type_code_is_the_apostrophe(identifier: bytes, comment: bytes, expected: bool) -> None:
     book = StationBook()
@@ -150,7 +153,8 @@ async def test_the_flag_is_found_again_at_the_start(tmp_path: Path) -> None:
         log.save_station(station)
     expected = {s.call: takes(s) for s in book.stations()}
     assert expected == {"OH2NO": False, "OH2YES": True, "OH2TLK": True, "OH2MIC": True, "OH2NON": True, "FIRE": False}
-    for _ in range(100):                                                  # (more packets than the other things the book starts from read)
+    # More packets than the other things the book starts from read
+    for _ in range(100):
         log.append(heard(">noise", "OH2NSE"))
     assert await log.count() > 100
 

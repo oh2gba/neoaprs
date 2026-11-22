@@ -1,7 +1,6 @@
-"""The iGate inside the whole daemon: the radio a fake TNC, APRS-IS a fake server, both on the loopback. A capture of the radio played into the daemon becomes lines on the server, every packet heard is gated or
-counted, the settings from the page switch it on and off, the page is told by the topic `igate`, what the server sends becomes stations of the internet in the book and the log, and nothing of it ever reaches the radio.
-Without a passcode the daemon only listens: it logs in read-only, gates nothing and sends no position, and the stations of the internet come all the same. The iGate knows a Dummy radio from the settings, as the
-radio's line knows it from its type."""
+"""Tests for the iGate inside the whole daemon with a fake TNC and APRS-IS: a capture becomes server
+lines, settings switch it, the `igate` topic, internet stations, and read-only mode.
+"""
 import re
 from dataclasses import replace
 from pathlib import Path
@@ -17,7 +16,8 @@ from tests.support.fakeaprsis import FakeAprsIs, fake_aprsis
 
 LINE = re.compile(r"^[A-Z0-9-]+>[^,:]+(,[^,:]+)*,qAO,OH2GBA:.+$")
 PASSWORD = "19628"
-FILTER = "r/60.17/24.94/150"                       # (the circle of 150 km round the station of the test, 60.1695 N 24.94 E)
+# (the circle of 150 km round the station of the test, 60.1695 N 24.94 E)
+FILTER = "r/60.17/24.94/150"
 
 
 def igate_settings(server: FakeAprsIs) -> dict[str, str]:
@@ -48,7 +48,8 @@ async def test_a_capture_played_into_the_daemon_is_on_the_server_and_every_packe
     e = await started(tmp_path, server)
     frames = await e.play(CAPTURE)
     igate = e.ctl.igate
-    await until(lambda: len(server.packets) == frames + 1)                            # (the four packets of the capture and our own position)
+    # (the four packets of the capture and our own position)
+    await until(lambda: len(server.packets) == frames + 1)
     assert frames == 4 and igate.gated == 4 and not igate.dropped, "(each packet heard is gated or counted by its reason)"
     gated = [line for line in server.packets if not line.startswith(f"OH2GBA>{TOCALL},")]
     assert gated == [
@@ -58,7 +59,8 @@ async def test_a_capture_played_into_the_daemon_is_on_the_server_and_every_packe
         "OH2PU-9>APOTC1,OH2RCH-2*,qAO,OH2GBA:!/0&m]TbwX>z!GQRV D-STAR 144.650MHz"]
     assert all(LINE.match(line) for line in gated)
     assert server.logins == [f"user OH2GBA pass {PASSWORD} vers {PROGRAM} {VERSION} filter {FILTER}"]
-    await e.play(CAPTURE)                                                             # (the same four again, at once: the duplicates of a minute ago are not sent twice)
+    # (the same four again, at once: the duplicates of a minute ago are not sent twice)
+    await e.play(CAPTURE)
     assert igate.gated == 4 and igate.dropped["duplicate"] == 4
     await e.stop()
 
@@ -76,7 +78,8 @@ async def test_what_the_server_sends_is_stations_of_the_internet_and_nothing_of_
     server = await fake_aprsis()
     e = await started(tmp_path, server)
     await e.play(CAPTURE)
-    await e.heard(1, 0.3)                                                             # (what the daemon wrote to the radio so far, taken out)
+    # (what the daemon wrote to the radio so far, taken out)
+    await e.heard(1, 0.3)
     before_packets, before_heard, before_sent = e.tnc.stats.packets, len(await e.packets()), list(server.packets)
     server.send(b"OH2XYZ>APRS,TCPIP*,qAC,TESTSRV::OH2GBA   :hello from the internet{1}")
     server.send(b"OH2XYZ>APRS,TCPIP*,qAC,TESTSRV:!6010.00N/02456.00E-internet")
@@ -135,7 +138,8 @@ async def test_a_packet_heard_on_the_radio_is_gated_and_nothing_of_it_is_answere
     await e.heard(1, 0.3)
     e.feed(on_air("OH2RDG-7", b"!6010.00N/02456.00E>hello", path="WIDE1-1,WIDE2-1"))
     await until(lambda: "OH2RDG-7>APRS,WIDE1-1,WIDE2-1,qAO,OH2GBA:!6010.00N/02456.00E>hello" in server.packets)
-    e.feed(on_air("OH2RDG-7", message_info("OH7XYZ", "not for us", "3")))              # (a message to somebody else: gated, not answered)
+    # (a message to somebody else: gated, not answered)
+    e.feed(on_air("OH2RDG-7", message_info("OH7XYZ", "not for us", "3")))
     await until(lambda: any(":OH7XYZ   :not for us{3" in line for line in server.packets))
     assert await e.heard(1, 0.3) == b""
     await e.stop()

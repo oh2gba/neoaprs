@@ -1,6 +1,6 @@
-"""The beacon (neoaprs/services/beacon.py) inside the whole daemon, the radio a pseudo-terminal: the timer and a request put a KISS frame on the line, the packet log has it as a packet we sent, the
-station book does not take it as a station we heard, a frame that comes back (the TNC's echo, a digipeater's copy) only moves the time we were last heard, and the controller starts and stops it. Each radio has
-its own beacon, which keeps its last send in the radio's own row, and the frames of the beacon, the status report and the iGate are the station's one maker's (services/beaconframe.py)."""
+"""Tests for the beacon inside the whole daemon on a pseudo-terminal: timer and request put a KISS
+frame on the line, the packet log records it as sent, and echoes only update the last-heard time.
+"""
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -16,9 +16,11 @@ INFO = b"=6010.20N/02456.40E-mobile"
 
 
 async def started(tmp_path: Path, settings: dict[str, str] | None = None, **changes: object) -> Env:
-    """A daemon whose radio is connected and settled (and radio 2 where the rows `settings` name it), with the settings changed as asked and the beacon's timer ticking quickly."""
+    """A daemon whose radio is connected and settled (and radio 2 where the rows `settings` name
+    it), with the settings changed as asked and the beacon's timer ticking quickly."""
     e = await quick_start(tmp_path, beacon=True, settings=settings)
-    assert await e.ctl.save_config(replace(e.ctl.config, station_comment="mobile", **{"beacon_interval_min": 1440, **changes}))      # type: ignore[arg-type]   # on, and not due: the defaults are a beacon that is off
+    # On, and not due: the defaults are a beacon that is off
+    assert await e.ctl.save_config(replace(e.ctl.config, station_comment="mobile", **{"beacon_interval_min": 1440, **changes}))  # type: ignore[arg-type]
     return e
 
 
@@ -86,7 +88,8 @@ async def test_our_own_beacon_coming_back_in_moves_only_the_time_we_were_last_he
     assert me is not None
     sent_at = me.last_heard
     e.now.advance(45)                                                       # type: ignore[attr-defined]
-    e.feed(wire)                                                            # (the TNC echoes what it transmits, or a digipeater repeats it)
+    # (the TNC echoes what it transmits, or a digipeater repeats it)
+    e.feed(wire)
     await until(lambda: e.tnc.stats.packets == 1)
     assert me.last_heard == e.now() > sent_at
     assert (me.lat, me.lon, me.packets, me.last_path, me.track, me.last_comment) == (60.17, 24.94, 0, (), [], "mobile")
@@ -105,7 +108,8 @@ async def test_a_beacon_that_falls_due_with_the_cable_pulled_waits_and_is_sent_w
     assert e.beacon.next_due == started_at + timedelta(seconds=30), "left where it was"
     assert e.beacon.last_sent is None and not e.beacon.send_now() and "not connected" in e.beacon.problem
     await e.plug()
-    await until(lambda: e.beacon.last_sent is not None)                 # (the Tnc refuses the frame while it settles: tried again)
+    # (the Tnc refuses the frame while it settles: tried again)
+    await until(lambda: e.beacon.last_sent is not None)
     assert (await on_the_line(e)).info == INFO and e.beacon.next_due == e.now() + timedelta(minutes=1)
     await e.stop()
 

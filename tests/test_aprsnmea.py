@@ -1,4 +1,5 @@
-"""Raw NMEA sentences: the position, course, speed, altitude and time of GGA, GLL, RMC and WPL, and what is not a position."""
+"""Raw NMEA sentences: the position, course, speed, altitude and time of GGA, GLL, RMC and WPL, and
+what is not a position."""
 from datetime import UTC, datetime
 from functools import reduce
 
@@ -59,7 +60,8 @@ def test_a_sentence_without_a_position_gives_none(info: bytes) -> None:
     try:
         assert parse_nmea(info, "A", "B", NOW) is None
     except NmeaError:
-        pass                                                           # (a sentence that is cut short is damaged, not merely empty)
+        # (a sentence that is cut short is damaged, not merely empty)
+        pass
 
 
 def test_a_wrong_checksum_is_refused_and_a_missing_one_is_not_needed() -> None:
@@ -100,4 +102,5 @@ def test_an_altitude_that_is_not_a_number_is_an_error() -> None:
 
 
 def test_a_long_run_of_blanks_inside_a_sentence_is_not_a_position() -> None:
-    assert parse(b"$GPRMC," + b" " * 50000 + b"x") is None            # (the match is linear in the length; one that tried every end of the blanks took seconds)
+    # (the match is linear in the length; one that tried every end of the blanks took seconds)
+    assert parse(b"$GPRMC," + b" " * 50000 + b"x") is None

@@ -1,5 +1,7 @@
-"""The world map that ships with the program (neoaprs/worldmap.py): where it is on each kind of install (a clone, a wheel, the Windows app's frozen folder, an AppImage, a .deb), that a file that is no PMTiles archive is not taken,
-that the data folder's own world map wins, what the real package holds, and that the daemon serves it when the data folder has none."""
+"""The world map that ships with the program (neoaprs/worldmap.py): where it is on each kind of
+install, that a non-PMTiles file is not taken, that the data folder's own map wins, and that the
+daemon serves it.
+"""
 import re
 import struct
 import sys
@@ -25,11 +27,15 @@ def put(folder: Path, content: bytes = HEADER + b"tiles") -> Path:
 # ---- where it is, on each install
 
 @pytest.mark.parametrize("layout", [
-    "clone/neoaprs",                                                                    # a clone: the package is a folder of it (and the venv has it editable)
-    "venv/lib/python3.13/site-packages/neoaprs",                                         # a wheel installed (uv tool install, pip, the install script)
+    # A clone: the package is a folder of it (and the venv has it editable)
+    "clone/neoaprs",
+    # A wheel installed (uv tool install, pip, the install script)
+    "venv/lib/python3.13/site-packages/neoaprs",
     "venv/Lib/site-packages/neoaprs",                                                    # ... on Windows
-    "mount/usr/lib/python3.13/site-packages/neoaprs",                                    # an AppImage: the wheel in the image's own Python
-    "opt/neoaprs/lib/python3.13/site-packages/neoaprs",                                  # a .deb: the wheel in /opt/neoaprs
+    # An AppImage: the wheel in the image's own Python
+    "mount/usr/lib/python3.13/site-packages/neoaprs",
+    # A .deb: the wheel in /opt/neoaprs
+    "opt/neoaprs/lib/python3.13/site-packages/neoaprs",
 ])
 def test_the_world_map_is_in_the_package_beside_the_code_on_every_kind_of_install(layout: str, tmp_path: Path) -> None:
     package = tmp_path / layout
@@ -45,7 +51,8 @@ def test_the_frozen_windows_app_has_it_in_the_internal_folder_where_pyinstaller_
     # the code is in the bundle's archive, so a module's own folder has no maps/ ...
     folders = search_folders(code_dir=internal / "neoaprs" / "nowhere", frozen=True, bundle=str(internal), executable=str(app / "neoaprs.exe"))
     assert shipped_world(folders) == shipped
-    # ... and with no bundle folder told (a PyInstaller that does not set it), the one beside the executable is found
+    # ... and with no bundle folder told (a PyInstaller that does not set it), the one beside the
+    # executable is found
     folders = search_folders(code_dir=tmp_path / "nowhere", frozen=True, bundle=None, executable=str(app / "neoaprsw.exe"))
     assert internal / "neoaprs" / MAPS_DIR in folders and shipped_world(folders) == shipped
 

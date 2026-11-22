@@ -1,31 +1,38 @@
 #!/usr/bin/env python3
-"""The clean installs of a release, tried here in Docker before a tag: the wheel installed into a fresh environment, the .deb installed with apt in a clean Debian and a clean Ubuntu, the AppImage run on a computer with
-no NeoAPRS, and an upgrade: the last release (or the build named by --update-from) installed and started with both radios, a station and a message, then this build installed over it, and the daemon must come up
-as the new version with everything there, every file of this build in place, and the database brought up to this build's version with both radios in it.
+"""Try the clean installs of a release in Docker before a tag.
 
-  scripts/check-installs                        every check below, one line each with its time; the output of a check that failed follows its line
-  scripts/check-installs --only deb-debian      only the checks named (wheel, deb-debian, deb-ubuntu, appimage, upgrade; several may be given)
-  scripts/check-installs --no-mercury           the packages are built without Mercury (the .deb and the AppImage are the file of a developer who has none): faster, and the Mercury checks are not made
-  scripts/check-installs --work FOLDER          where the files are built and the logs are kept (default build/installs)
-  scripts/check-installs --update-from SOURCE   the upgrade alone, from SOURCE instead of the pinned release: a .deb file, or a commit of this repository (a hash, a tag, a branch), whose .deb is built here
-                                                without Mercury from `git archive` of it (kept in the work folder for the next run); with --only, the upgrade must be among the checks
-  scripts/check-installs --pin VERSION          writes packaging/ci/old-release.json for that release: its .deb is fetched from the project's release page and its SHA-256 is written once it equals the one in the
-                                                release's SHA256SUMS (needs the network; run it after a release, so that the upgrade starts from the newest one)
+The wheel, the .deb (clean Debian and Ubuntu), the AppImage, and an upgrade from the last release
+to this build, each in a container with nothing of NeoAPRS.
 
-The files come from the build scripts the release workflow runs, run here on this tree: `uv build --wheel`, scripts/build-mercury --tar, scripts/build-deb and scripts/build-appimage (the architecture is this
-machine's, amd64: the arm64 package and the macOS and Windows builds are not tried here). Each check runs in a container that has nothing of NeoAPRS and none of this tree: the built files and the scripts that test
-them are mounted read-only, nothing a container makes reaches this machine, and no container is given a device or a port. The wheel and the AppImage are tried in the image of scripts/check-in-container (the
-Ubuntu of GitHub's runner that packaging/ci/runner.json names, 26.04, with the libraries of the Qt web engine, uv and Python 3.13); the .deb in debian:bookworm-slim and in ubuntu:24.04, the older LTS, as the
-release workflow's job `deb` has it on its arm64 runner and pinned by its digest (the Debian one also proves that Mercury needs no library of the system). The upgrade starts from the .deb in packaging/ci/old-release.json, fetched once into the build cache ($NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build) and checked against the SHA-256 that is
-pinned there; an old release that is not pinned is a check that did not run, which is a failure. An old build of the same version number as this one is installed over with --reinstall (apt would leave it as it is),
-and the proof that this build runs is its files and its database, not its version. A Mercury built here with a newer glibc than the system of the container has cannot run there: the .deb checks then say so in one line, as a part skipped (the rest of the check is made, and the run is not called all green); the release workflow's job `deb` builds it on the older system and is the proof of that part. Every daemon is started with NEOAPRS_NO_DEVICES=1 and NEOAPRS_UPDATE_CHECK=0.
+  scripts/check-installs                        every check below, one line each with its time; the
+                                                output of a check that failed follows its line
+  scripts/check-installs --only deb-debian      only the checks named (wheel, deb-debian,
+                                                deb-ubuntu, appimage, upgrade; several may be given)
+  scripts/check-installs --no-mercury           the packages are built without Mercury (the .deb and
+                                                the AppImage are the file of a developer who has
+                                                none): faster, and the Mercury checks are not made
+  scripts/check-installs --work FOLDER          where the files are built and the logs are kept
+                                                (default build/installs)
+  scripts/check-installs --update-from SOURCE   the upgrade alone, from SOURCE instead of the pinned
+                                                release: a .deb file, or a commit of this repository
+                                                (a hash, a tag, a branch), whose .deb is built here
+                                                without Mercury from `git archive` of it (kept in
+                                                the work folder for the next run); with --only, the
+                                                upgrade must be among the checks
+  scripts/check-installs --pin VERSION          writes packaging/ci/old-release.json for that
+                                                release: its .deb is fetched from the project's
+                                                release page and its SHA-256 is written once it
+                                                equals the one in the
+                                                release's SHA256SUMS (needs the network; run it
+                                                after a release, so that the upgrade starts from the
+                                                newest one)
 
-One more check is run only when it is named, `--only appimage-web`: the trial AppImage of the web window (scripts/build-appimage --window web, never a release; aprs-reference/window-plan.md, 9.3), built
-without Mercury from this tree and the gi tarball of `scripts/build-gi --docker`, and started by scripts/smoke-appimage-web in each container of WEB_CASES, as a desktop of that system has it: with WebKitGTK
-4.1 (the window must come), on ubuntu:22.04 with only the 4.0 API its desktop has (the window must come), and with no WebKitGTK at all (the log must name the package, and the app go on with the tray). A run
-of the window also prints what scripts/webkit-probe.py counted there (software GL: the worst case).
+The files come from the build scripts the release workflow runs, on this tree. `--only appimage-web`
+runs the trial AppImage of the web window in each container of WEB_CASES.
 
-Exit code 0 when every check passed, 1 when one failed or could not run, 2 when docker or uv is missing or does not answer, or an argument is wrong. Needs Linux, docker, uv, curl, dpkg-deb, and for Mercury gcc, make and libasound2-dev.
+Exit code 0 when every check passed, 1 when one failed or could not run, 2 when docker or uv is
+missing or does not answer, or an argument is wrong. Needs Linux, docker, uv, curl, dpkg-deb, and
+for Mercury gcc, make and libasound2-dev.
 """
 import argparse
 import hashlib
@@ -48,17 +55,23 @@ CONTAINER = ROOT / "scripts" / "check-in-container"
 PIN = ROOT / "packaging" / "ci" / "old-release.json"
 CHECKS = ("wheel", "deb-debian", "deb-ubuntu", "appimage", "upgrade")
 TRIAL_CHECKS = ("appimage-web",)                                          # run only when named with --only
-DEBIAN, UBUNTU = "debian:bookworm-slim", "ubuntu:24.04@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"          # Ubuntu by its index digest (`docker buildx imagetools inspect ubuntu:24.04`): tag and digest move together
-RELEASES = "https://github.com/oh2gba/neoaprs/releases/download"          # (the same address neoaprs/updateasset.py has)
+# Ubuntu by its index digest; tag and digest move together.
+DEBIAN, UBUNTU = "debian:bookworm-slim", "ubuntu:24.04@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+# The address neoaprs/updateasset.py uses.
+RELEASES = "https://github.com/oh2gba/neoaprs/releases/download"
 MAX_DOWNLOAD = 200_000_000
-SKIPPED = "SKIPPED: "                                                      # what a container says, at the start of a line, of a part of its check that cannot be tried on this system
-TAIL_LINES = 40                                                           # of the log of a check that failed, as many as the report shows
+# A container starts a line with this for a part of its check that cannot be tried on this system.
+SKIPPED = "SKIPPED: "
+# Lines of the log of a failed check shown in the report.
+TAIL_LINES = 40
 ENVIRONMENT = ("--env", "NEOAPRS_UPDATE_CHECK=0", "--env", "NEOAPRS_NO_DEVICES=1")
 FIXTURE = Path("tests") / "fixtures" / "kiss" / "thd7-2026-10-21.bin"
-PROBE_FILES = (Path("scripts") / "smoke.py", Path("scripts") / "install-probe.py", Path("scripts") / "smoke-appimage", Path("neoaprs") / "mercury.py", FIXTURE)      # (what the containers run, in the folder `probe`)
+# What the containers run, in the folder `probe`.
+PROBE_FILES = (Path("scripts") / "smoke.py", Path("scripts") / "install-probe.py", Path("scripts") / "smoke-appimage", Path("neoaprs") / "mercury.py", FIXTURE)
 WEB_PROBE_FILES = (Path("scripts") / "smoke-appimage-web", Path("scripts") / "webkit-probe.py")
 
-# What runs inside a container. {work} is where the built files are mounted, read-only, and VERSION, MERCURY_VERSION and the like arrive as variables. Each ends with `echo` of what it proved, so that a log says it.
+# What runs inside a container: the built files are mounted read-only at /work, and VERSION,
+# MERCURY_VERSION and the like arrive as variables.
 WHEEL = """set -eu
 venv="$(mktemp -d)/venv"
 uv venv --python 3.13 "$venv"
@@ -73,17 +86,18 @@ uv pip install --python "$venv/bin/python" /work/dist/*.whl
 /work/probe/scripts/smoke-appimage /work/dist-appimage/NeoAPRS-*.AppImage --python "$venv/bin/python" $SMOKE_APPIMAGE_ARGS
 """
 
-# The trial of the web window: what a desktop of the system has (GTK 3 with its typelibs, girepository-1.0, an X server, a session bus, Mesa's drivers for the window's GL) and the WebKitGTK of the case, then
-# the smoke test. {install} is the system's own installer; {packages} the case's.
+# The web-window trial: what a desktop has (GTK 3, an X server, a session bus, Mesa) plus the
+# case's WebKitGTK. {install} is the system's installer, {packages} the case's.
 APT = "export DEBIAN_FRONTEND=noninteractive; apt-get update -qq && apt-get install -y -qq --no-install-recommends xvfb xauth dbus curl ca-certificates gir1.2-gtk-3.0 libgirepository-1.0-1 {packages} > /dev/null"
 DNF = "dnf install -y -q xorg-x11-server-Xvfb dbus-daemon dbus-tools curl gtk3 gobject-introspection {packages} > /dev/null"
 WEB_GL = {"apt": "libgl1-mesa-dri", "dnf": "mesa-dri-drivers"}
-# (image, installer, the WebKitGTK packages, what is expected)
+# Image, installer, WebKitGTK packages, expected outcome.
 WEB_CASES = (
     ("debian:bookworm", "apt", "libwebkit2gtk-4.1-0", "window"), ("debian:trixie", "apt", "libwebkit2gtk-4.1-0", "window"),
     ("ubuntu:22.04", "apt", "libwebkit2gtk-4.1-0", "window"), ("ubuntu:24.04", "apt", "libwebkit2gtk-4.1-0", "window"), ("ubuntu:26.04", "apt", "libwebkit2gtk-4.1-0", "window"),
     ("fedora:latest", "dnf", "webkit2gtk4.1", "window"),
-    ("ubuntu:22.04", "apt", "libwebkit2gtk-4.0-37 gir1.2-webkit2-4.0", "window"),          # the 4.0 API only, as Ubuntu 22.04's desktop has it
+    # The 4.0 API only, as Ubuntu 22.04's desktop has it.
+    ("ubuntu:22.04", "apt", "libwebkit2gtk-4.0-37 gir1.2-webkit2-4.0", "window"),
     ("debian:bookworm", "apt", "", "tray"), ("debian:trixie", "apt", "", "tray"), ("ubuntu:22.04", "apt", "", "tray"), ("ubuntu:24.04", "apt", "", "tray"), ("ubuntu:26.04", "apt", "", "tray"),
     ("fedora:latest", "dnf", "", "tray"),
 )
@@ -94,13 +108,13 @@ bash /work/probe/scripts/smoke-appimage-web /work/dist-appimage-web/NeoAPRS-*-we
 
 
 def web_script(installer: str, packages: str, expect: str) -> str:
-    """The script of one case of the trial: the system's packages, then the smoke test (with the probe where the window is expected)."""
+    """Return the script of one trial case: install the packages, then run the smoke test."""
     wanted = " ".join(filter(None, [packages, WEB_GL[installer] if expect == "window" else ""]))
     return WEB.format(install=(APT if installer == "apt" else DNF).format(packages=wanted), expect=expect, probe=" --probe" if expect == "window" else "")
 
 
-# The .deb as the release workflow's job `deb` has it: installed with apt, the command and the Python of the package, the daemon against a fake TNC, Mercury (when the package carries it) and its libraries,
-# a service install with a systemctl that does nothing, an install over itself and the removal that leaves the data of a user.
+# The .deb as the release workflow's job `deb` checks it: install, command and Python, the daemon
+# against a fake TNC, Mercury and its libraries, a service install, a reinstall, and removal.
 DEB = """set -eu
 apt-get update -qq
 apt-get install -y -qq /work/dist-deb/neoaprs_${VERSION}_amd64.deb
@@ -157,8 +171,8 @@ if [ -e /opt/neoaprs ] || [ -e /usr/bin/neoaprs ] || dpkg -s neoaprs 2>/dev/null
 [ "$(cat /tmp/keep/neoaprs.sqlite)" = data ]
 """
 
-# What the database of the upgrade must be once this build's daemon has run on it (argv: the file, the version the old daemon left it at, this build's): this build's version, and the FM radio and the
-# Dummy HF radio of the seed, both enabled. Run by the package's own Python, which has sqlite3.
+# What the upgraded database must be once this build's daemon has run on it (argv: file, old
+# version, this version): this version, with the FM radio and the Dummy HF radio enabled.
 DATABASE_CHECK = """import sqlite3, sys
 path, before, wanted = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 db = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
@@ -171,8 +185,8 @@ if "fm" not in {kind for kind, _ in radios} or ("hf", "dummy-hf") not in radios:
 print(f"the database went from version {before} to {version}, with the radios {', '.join(kind + ' ' + type for kind, type in radios)}")
 """
 
-# The upgrade: the old build installed, its daemon given something to keep (scripts/install-probe.py seed), this build installed over it with apt, and its daemon must have it all and say it is this build; every
-# file of this build's package must be the one installed, and the database this build's version with both radios. OLD_VERSION is empty for a .deb of --update-from: the package's own then.
+# The upgrade: install the old build, seed its daemon (scripts/install-probe.py), install this
+# build over it, and verify. OLD_VERSION is empty for a .deb of --update-from.
 UPGRADE = """set -eu
 apt-get update -qq
 apt-get install -y -qq "/old/$OLD_FILE"
@@ -199,7 +213,7 @@ def say(text: str) -> None:
 
 
 def tree_value(path: str, name: str) -> str:
-    """A pin of the tree, as text: `VERSION = "0.18.2"` of neoaprs/__init__.py or neoaprs/mercury.py."""
+    """Return a pin of the tree as text, e.g. `VERSION` of neoaprs/__init__.py."""
     for line in (ROOT / path).read_text(encoding="utf-8").splitlines():
         if line.startswith(f"{name} = "):
             return line.split('"')[1]
@@ -207,7 +221,7 @@ def tree_value(path: str, name: str) -> str:
 
 
 def tree_schema() -> int:
-    """The version of the database this tree's daemon brings a file to: the number of steps in MIGRATIONS of neoaprs/migrations.py (read as text: this script runs without the program's packages)."""
+    """Return the database version this tree reaches: the steps in MIGRATIONS, read as text."""
     for line in (ROOT / "neoaprs" / "migrations.py").read_text(encoding="utf-8").splitlines():
         if line.startswith("MIGRATIONS:"):
             return len(re.findall(r"\b_v\d+\b", line.split("=", 1)[1]))
@@ -217,7 +231,7 @@ def tree_schema() -> int:
 # ---- the old release ----
 
 class NotPinned(Exception):
-    """Why the old release cannot be used, as the words the user is told."""
+    """The reason, in words for the user, why the old release cannot be used."""
 
 
 def load_pin(pin: Path = PIN) -> dict[str, str]:
@@ -236,13 +250,13 @@ def cache_folder() -> Path:
 
 
 def download(url: str, target: Path) -> str:
-    """Fetches `url` into `target` (https only, at most MAX_DOWNLOAD bytes) and returns its SHA-256."""
+    """Fetch `url` into `target` (https, at most MAX_DOWNLOAD bytes); return its SHA-256."""
     if not url.startswith("https://"):
         raise NotPinned(f"{url} is not an https address")
     digest, size = hashlib.sha256(), 0
     target.parent.mkdir(parents=True, exist_ok=True)
     partial = target.with_name(target.name + ".part")
-    with urllib.request.urlopen(url, timeout=120) as answer, partial.open("wb") as out:       # noqa: S310  (https only: the check above)
+    with urllib.request.urlopen(url, timeout=120) as answer, partial.open("wb") as out:       # noqa: S310  (https only, checked above)
         while chunk := answer.read(1 << 20):
             size += len(chunk)
             if size > MAX_DOWNLOAD:
@@ -254,7 +268,7 @@ def download(url: str, target: Path) -> str:
 
 
 def old_release(pin: dict[str, str]) -> Path:
-    """The old .deb in the build cache: fetched when it is not there, and in any case only when it is the file the pin names."""
+    """Return the old .deb from the build cache, fetching it; it must match the pinned digest."""
     target = cache_folder() / pin["file"]
     if target.is_file() and hashlib.sha256(target.read_bytes()).hexdigest() == pin["sha256"]:
         return target
@@ -270,7 +284,7 @@ def old_release(pin: dict[str, str]) -> Path:
 
 
 def write_pin(version: str) -> int:
-    """Fetches the .deb of a release and its SHA256SUMS, and pins the file by its digest once the two agree."""
+    """Fetch a release's .deb and SHA256SUMS and pin the file once the digests agree."""
     name = f"neoaprs_{version}_amd64.deb"
     url = f"{RELEASES}/v{version}/{name}"
     try:
@@ -290,8 +304,8 @@ def write_pin(version: str) -> int:
 
 
 def old_build(source: str, work: Path) -> Path:
-    """The .deb the upgrade starts from with --update-from: the file named, or the .deb of a commit of this repository, built from `git archive` of it with that commit's own scripts and without Mercury
-    (the old daemon runs the Dummy HF radio), in work/update-from/<commit>/ and used again by the next run."""
+    """Return the .deb for --update-from: the file named, or one built from a commit's `git
+    archive`."""
     if source.endswith(".deb"):
         file = Path(source).expanduser().resolve()
         if not file.is_file():
@@ -329,13 +343,13 @@ def old_build(source: str, work: Path) -> Path:
 
 @dataclass
 class Built:
-    """What the build of the files gave: the folders by name, and why a file could not be made."""
+    """What the build gave: the work folder, and why each file that failed could not be made."""
     work: Path
     failed: dict[str, str]
 
 
 def build_step(work: Path, name: str, command: Sequence[str], cwd: Path = ROOT) -> str | None:
-    """One build command, run in `cwd` (this tree, or the old tree of --update-from), with its output in the log of `name`; None when it passed, else why not."""
+    """Run one build command with its output in the log of `name`; return None or why it failed."""
     log = work / "logs" / f"build-{name}.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     say(f"building {name}: {shlex.join(command)}")
@@ -345,8 +359,9 @@ def build_step(work: Path, name: str, command: Sequence[str], cwd: Path = ROOT) 
 
 
 def build(work: Path, wanted: set[str], with_mercury: bool) -> Built:
-    """The wheel, then Mercury, the .deb and the AppImage that the checks need, each folder made anew. What could not be built, and why, is in `failed` under the name of the file (the wheel, the .deb, the AppImage);
-    a file that needs another that failed has that one's reason."""
+    """Build the wheel, Mercury, the .deb and the AppImage the checks need, each folder anew.
+
+    `failed` names what could not be built; a file needing a failed one gets that reason."""
     built = Built(work, {})
     folders = {name: work / name for name in ("dist", "mercury", "dist-deb", "dist-appimage", "dist-gi", "dist-appimage-web")}
     deb, appimage = bool(wanted & {"deb-debian", "deb-ubuntu", "upgrade"}), "appimage" in wanted
@@ -390,7 +405,8 @@ def build(work: Path, wanted: set[str], with_mercury: bool) -> Built:
 
 
 def make_probe(work: Path, web: bool = False) -> None:
-    """The scripts the containers run, in a folder of their own that has the layout of the tree they expect (smoke.py finds its capture by its place); the trial's too when it is run."""
+    """Copy the scripts the containers run into `probe`, keeping the tree layout smoke.py
+    expects."""
     shutil.rmtree(work / "probe", ignore_errors=True)
     for name in (*PROBE_FILES, *(WEB_PROBE_FILES if web else ())):
         (work / "probe" / name).parent.mkdir(parents=True, exist_ok=True)
@@ -400,7 +416,7 @@ def make_probe(work: Path, web: bool = False) -> None:
 # ---- the containers ----
 
 def docker_run(image: str, script: str, work: Path, mounts: Sequence[tuple[Path, str]] = (), environment: Sequence[tuple[str, str]] = (), shm: bool = False) -> list[str]:
-    """One container that is removed when it ends: the work folder (and the mounts) read-only, the variables of `environment`, no published port and no device, and `script` run by sh."""
+    """Return the `docker run` command: read-only mounts, no port, no device, `script` run by sh."""
     line = ["docker", "run", "--rm", "--init", *ENVIRONMENT, "--volume", f"{work}:/work:ro"]
     for folder, target in mounts:
         line += ["--volume", f"{folder}:{target}:ro"]
@@ -412,7 +428,7 @@ def docker_run(image: str, script: str, work: Path, mounts: Sequence[tuple[Path,
 
 
 def runner_image() -> str:
-    """The image of scripts/check-in-container, built when it is missing."""
+    """Return the image of scripts/check-in-container, building it if missing."""
     done = subprocess.run([sys.executable, str(CONTAINER), "--image-only"], capture_output=True, text=True, check=False)
     if done.returncode != 0:
         raise NotPinned(f"the image of scripts/check-in-container could not be made: {done.stderr.strip().splitlines()[-1:] or ['no message']}")
@@ -420,7 +436,7 @@ def runner_image() -> str:
 
 
 def command_of(name: str, work: Path, with_mercury: bool, update_from: str | None = None) -> list[str]:
-    """The docker command of the check `name`; NotPinned when something it starts from is missing. The upgrade starts from `update_from` (old_build) when it is given, else from the pinned release."""
+    """Return the docker command of the check `name`; NotPinned if its starting point is missing."""
     version, mercury = tree_value("neoaprs/__init__.py", "VERSION"), tree_value("neoaprs/mercury.py", "VERSION")
     deb_environment = [("VERSION", version), ("MERCURY_VERSION", mercury if with_mercury else "")]
     if name == "wheel":
@@ -445,11 +461,12 @@ class Result:
     ok: bool
     seconds: float
     output: str
-    skipped: str = ""          # the part of a passed check that could not be tried here, in one line
+    # The part of a passed check that could not be tried here.
+    skipped: str = ""
 
 
 def run_web(work: Path, built: Built) -> Result:
-    """The trial of the web window: each case of WEB_CASES in a container of its own, one after the other; the log of each is kept, and the output says how each went."""
+    """Run each case of WEB_CASES in its own container, keeping each log."""
     started = time.monotonic()
     if "appimage-web" in built.failed:
         return Result("appimage-web", False, 0.0, built.failed["appimage-web"])

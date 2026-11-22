@@ -1,6 +1,6 @@
-"""The channel-busy detectors (neoaprs/channelbusy.py) on made-up bands: the debounce, Mercury's own detector worked again (what it does with a frame, a step, a carrier: the facts docs/mercury.md builds on), and the detector
-NeoAPRS uses instead while it can read the spectrum (OccupancyBusy): a signal as wide as a frame is busy at any noise level, and a step, a drift, static, a carrier, the slopes of a narrow filter and the quiet are not.
-The channels of the measurement, with real Mercury instances, are scripts/mercury-measure autobusy."""
+"""Tests for the channel-busy detectors (neoaprs/channelbusy.py) on made-up bands: the debounce,
+Mercury's own detector, and the spectrum-based OccupancyBusy that NeoAPRS uses instead.
+"""
 import math
 import random
 from collections.abc import Callable, Sequence
@@ -15,7 +15,8 @@ FRAME = range(6, 10)                     # the four bands a frame fills (1187 to
 
 
 class Air:
-    """The bands a detector is given: noise at a level with the wander of a mean of 19 bins, a few bands lifted, the slopes of a filter."""
+    """The bands a detector is given: noise at a level with the wander of a mean of 19 bins, a few
+    bands lifted, the slopes of a filter."""
 
     def __init__(self, seed: int = 1, level: float = -30.0, skirts: Sequence[float] = ()) -> None:
         self.rng = random.Random(seed)
@@ -30,7 +31,9 @@ class Air:
         return out
 
     def run(self, detector: OccupancyBusy | MercuryBusy, seconds: float, lifted: dict[int, float] | None = None, noise: Callable[[float], float] | None = None) -> list[bool]:
-        """The detector's state after each spectrum of `seconds` of the same air (a spectrum every STEP_SEC); `noise` says how many dB the whole noise is up at the second since the start of this run."""
+        """The detector's state after each spectrum of `seconds` of the same air (a spectrum every
+        STEP_SEC); `noise` says how many dB the whole noise is up at the second since the start of
+        this run."""
         states = []
         for k in range(int(seconds / STEP_SEC)):
             self.t += STEP_SEC
@@ -70,7 +73,8 @@ def test_mercurys_detector_is_quiet_on_noise_busy_on_a_frame_after_the_debounce_
 
 
 def test_mercurys_detector_takes_a_step_of_20_db_in_the_noise_for_a_signal_for_minutes_and_a_step_of_10_db_for_none() -> None:
-    """The facts that cost the channel its 20 s cap (docs/mercury.md): the floor follows a rise of the noise slowly, a minute or two for a big step."""
+    """The facts that cost the channel its 20 s cap (docs/mercury.md): the floor follows a rise of
+    the noise slowly, a minute or two for a big step."""
     air, d = Air(), MercuryBusy()
     air.run(d, 20.0)
     assert not any(air.run(d, 60.0, noise=lambda t: 10.0))

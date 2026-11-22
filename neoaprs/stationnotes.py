@@ -1,5 +1,8 @@
-"""What a packet says about its sender that the station book notes in the station: whether it does messages, the packets of its last hour, the frequency, storm data and sign of a position, the telemetry it reports and defines, and
-whether it is an iGate (the third-party packets it put on the air, a capabilities packet that says so). Pure code; the book (stationbook.py) calls these."""
+"""What a packet says about its sender that the station book records in the station.
+
+That is whether it does messages, its packets of the last hour, frequency, storm data and sign,
+its telemetry and definitions, and whether it is an iGate. Pure code, called by the book.
+"""
 from collections.abc import Callable, Collection, Iterable, Mapping
 from datetime import datetime
 
@@ -13,28 +16,27 @@ from .reach import mark_of, pushed, reach_of
 from .route import route_of, used_path
 from .station import RadioPlace, Station, add_track_point
 
-DEFINITIONS_MAX = 500               # stations whose telemetry definitions are kept (the oldest goes first)
-IGATE = "IGATE"                     # the token of a capabilities packet (`<IGATE,MSG_CNT=2,LOC_CNT=10`) with which a station says it is an iGate
+# stations whose telemetry definitions are kept (the oldest goes first)
+DEFINITIONS_MAX = 500
+# the token of a capabilities packet (`<IGATE,MSG_CNT=2`) that marks an iGate
+IGATE = "IGATE"
 
 
 def every_radio_carries_path(radio: RadioId) -> bool:
-    """Whether the radio's routes are the station's as a whole, where nobody has said which radios may carry a path: every radio may, as stationbook.carries_path says of a radio the settings do not
-    have (the composition root gives the station book the radios' types)."""
+    """Return True: with no knowledge of the radios, every radio may carry a path."""
     return True
 
 
 def came_back(path: tuple[str, ...], ours: Collection[str]) -> bool:
-    """Whether the path shows one of `ours` (the station call and the enabled pairs' calls) used: the packet is our own copy, passed or repeated by us, heard back through another digipeater."""
+    """Return whether the path shows one of `ours` used: our copy heard back via a digipeater."""
     return any(hop.endswith("*") and any(same_call(hop[:-1], call) for call in ours) for hop in used_path(path))
 
 
 def note_heard(station: Station, packet: Packet, route: bool = True, *, carries_path: Callable[[RadioId], bool] = every_radio_carries_path, ours: Collection[str] = ()) -> None:
-    """A packet of the station was received: it is counted, with the time, for the channel it came by (`heard_rf`, `heard_rf_gated`, `heard_is`, `heard_dummy` and the time of the latest of each) and in `packets`, and the station
-    was last heard now. One heard on a radio (a Dummy radio's too) is counted for that radio by its id, with the time and the path it came by (`heard_by`; one made without a radio, a test's, is radio 1's), and, with `route`, for its route
-    on that radio (`Station.routes`, any radio's), and for the station's routes as a whole where the radio may carry a path (`carries_path`: an HF radio's frames are all direct, and they are not the way an
-    FM message reaches the station); one from the internet came by no route and leaves them as they were, and so does our own copy heard back (`came_back` with `ours`): it proves our pass, not how the radio hears the station.
-    One heard direct with a reading of its signal is the station's last reading (`snr`, `rssi`, `signal_at`): a digipeater's copy or an iGate's third-party packet is the signal of another station, and an object or
-    item transmits nothing (the reading of its report is its reporter's)."""
+    """Record a received packet: counts and times per channel, and `last_heard`.
+
+    Counted for the packet's radio (none: radio 1); with `route` also its route.
+    """
     station.packets += 1
     station.last_heard = packet.heard_at
     station.hour.note(packet.heard_at)
@@ -61,8 +63,10 @@ def note_heard(station: Station, packet: Packet, route: bool = True, *, carries_
 
 
 def note_route_mark(station: Station, packet: Packet, place: tuple[float, float] | None = None) -> None:
-    """The route a packet came by joins the two the station keeps for the map (reach.py), with where the station was when it was heard: the position the packet reported, else `place`, else where the station is now;
-    the way of an internet packet is kept for the card."""
+    """Add the packet's route to the two the station keeps for the map, with where it was.
+
+    The place is the packet's position, else `place`, else the station's current one.
+    """
     if place is None:
         place = _reported_place(packet.decoded) or (None if station.lat is None or station.lon is None else (station.lat, station.lon))
     reach = reach_of(packet)
@@ -80,8 +84,7 @@ def _reported_place(decoded: object) -> tuple[float, float] | None:
 
 
 def seed_routes(stations: Mapping[str, Station], packets: Iterable[Packet]) -> None:
-    """The routes of the packets the log kept, oldest first, for the station that sent each and, for an object or item report, for the object or item it names too (the book as it was before them: a station's place is the
-    latest position seen so far in the packets, else where it is now)."""
+    """Record routes from stored packets, oldest first, for the sender and any reported object."""
     places: dict[str, tuple[float, float]] = {}
     for packet in packets:
         if packet.direction != "in":
@@ -100,7 +103,7 @@ def seed_routes(stations: Mapping[str, Station], packets: Iterable[Packet]) -> N
 
 
 def note_messaging(station: Station, packet: Packet) -> None:
-    """A message or an ack from the station (not a bulletin, not a definition of its own telemetry: those are not talk with a station) says it does messages; a position says what its identifier does."""
+    """Note that a station does messages: a message or ack (no bulletin) or its position says so."""
     decoded = packet.decoded
     if isinstance(decoded, Message):
         if board_slot(decoded.addressee) is None and not is_definition(decoded.text):
@@ -111,22 +114,21 @@ def note_messaging(station: Station, packet: Packet) -> None:
 
 
 def note_position(station: Station, position: Position) -> None:
-    """What a position says that the station keeps besides where it is: its data extensions (a position without them keeps the last: a digipeater that puts its PHG in one of its beacon texts and not the others has its
-    range all the time, not now and then), the locator of a Mic-E status text (a position without one keeps the last), and its local data."""
+    """Keep extensions, locator and local data; a digipeater may send its PHG only sometimes."""
     station.extensions = position.extensions or station.extensions
     station.locator = position.locator or station.locator
     note_local(station, position)
 
 
 def note_local(station: Station, position: Position) -> None:
-    """The frequency, the storm data and the sign of a position: a station keeps the frequency it gave last (a beacon with none leaves it), an object or an item has what its latest report says."""
+    """Keep frequency, storm data and sign; an object or item has what its latest report says."""
     if position.frequency is not None or station.kind != "station":
         station.frequency = position.frequency
     station.storm, station.sign = position.storm, position.sign
 
 
 def seed_reported(stations: Mapping[str, Station], packet: Packet) -> None:
-    """The local data of a live object or item that a packet heard reports, for the station of its name when the book has it as reported by the packet's sender (our own objects are not read from the air)."""
+    """Note the local data of a live object or item, if the book has it from the packet's sender."""
     decoded = packet.decoded
     if packet.direction == "in" and isinstance(decoded, (ObjectReport, ItemReport)) and decoded.alive:
         reported = stations.get(decoded.name)
@@ -135,7 +137,7 @@ def seed_reported(stations: Mapping[str, Station], packet: Packet) -> None:
 
 
 def seed_hour(stations: Mapping[str, Station], packets: Iterable[Packet]) -> None:
-    """Counts the packets heard in the last hour that the log kept, oldest first, for the station that sent each (and for the object or item that a live report names), as the book counts a packet it takes."""
+    """Count stored packets of the last hour for the sender and any live object or item named."""
     for packet in packets:
         if packet.direction != "in":
             continue
@@ -153,14 +155,13 @@ def _note_hour(station: Station, packet: Packet) -> None:
 
 
 def expire_hours(stations: Iterable[Station], now: datetime, changed: Callable[[Station], None]) -> None:
-    """Lets the packets that are an hour old at `now` leave the last hour of each station, and tells `changed` of each station whose count became smaller."""
+    """Expire hour-old packets and call `changed` for each station whose count fell."""
     for station in [s for s in stations if s.hour.total and s.hour.expire(now)]:
         changed(station)
 
 
 def note_gate(stations: Mapping[str, Station], gate: str, count: int = 1, changed: Callable[[Station], None] | None = None) -> None:
-    """Counts `count` third-party packets for the iGate that put them on the air (`gate`, the call of the frame we heard; empty for a packet that was none) when the book has it as a station (a gate that
-    is only ever heard wrapping other stations' packets is no row, and is not counted), and tells `changed` of the station. Ours is not counted: it is the settings'."""
+    """Count `count` third-party packets for the iGate `gate`, if the book has it (not ours)."""
     station = stations.get(gate) if gate else None
     if station is not None and not station.is_me and count > 0:
         station.gated += count
@@ -169,14 +170,16 @@ def note_gate(stations: Mapping[str, Station], gate: str, count: int = 1, change
 
 
 def note_igate(station: Station, decoded: object) -> None:
-    """A capabilities packet that holds the token IGATE says the station is an iGate."""
+    """Mark the station as an iGate if a capabilities packet holds the token IGATE."""
     if isinstance(decoded, Other) and decoded.kind == "capabilities" and decoded.items is not None and any(token.upper() == IGATE for token in decoded.items):
         station.igate = True
 
 
 def note_telemetry(stations: Mapping[str, Station], definitions: dict[str, TelemetryDefinition], packet: Packet) -> Station | None:
-    """Keeps a telemetry report (or the base-91 telemetry in the comment of a position) as its sender's latest, or a definition message as its addressee's in `definitions` (at most DEFINITIONS_MAX stations', the
-    oldest goes first); returns the station that gained a definition (to be signalled), if it is in the book."""
+    """Keep a telemetry report as the sender's latest, or a definition message in `definitions`.
+
+    Return the station that gained a definition, if it is in the book.
+    """
     decoded = packet.decoded
     report = decoded.telemetry if isinstance(decoded, Position) else decoded
     if isinstance(report, Telemetry):
@@ -197,10 +200,10 @@ def note_telemetry(stations: Mapping[str, Station], definitions: dict[str, Telem
 
 
 def note_radio_place(station: Station, packet: Packet, position: Position, replay: bool = False) -> None:
-    """A packet is about to give the station its position. A station that is heard from the internet keeps the place the radio gave it apart (`Station.radio`), so that the internet can be hidden: the place the station has
-    is copied when it is the radio's and the first packet from the internet is a position, or the station has been heard from the internet and a packet that is not from it gives a position (every position so far was
-    the radio's, and so is its track), and a packet that is not from the internet moves the radio's place. A station never heard from the internet has none. `replay`: the packets are the log being read again, oldest
-    first, over a station that has its final state already: the place is made from them alone."""
+    """Keep apart the place the radio gave a station that is also heard from the internet.
+
+    The place is copied to `Station.radio` at the first internet packet; later positions move it.
+    """
     place = station.radio
     if (place is None and not replay and station.position_via not in (None, IS) and station.lat is not None and station.lon is not None and station.last_position_at is not None
             and (packet.via == IS or station.heard_is > 0)):
@@ -216,7 +219,7 @@ def note_radio_place(station: Station, packet: Packet, position: Position, repla
 
 
 def seed_radio(stations: Mapping[str, Station], packets: Iterable[Packet]) -> None:
-    """The position packets that were not from the internet, oldest first, noted as the book notes a packet it takes: the place the radio gave each station that has been heard from the internet."""
+    """Replay stored non-internet position packets, oldest first, through `note_radio_place`."""
     for packet in packets:
         decoded = packet.decoded
         if isinstance(decoded, Position):

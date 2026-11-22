@@ -1,6 +1,7 @@
-"""The scope by radio (`radio_scope`, neoaprs/web/scopefeed.py `RadioScopes`): every radio whose type has a scope sends its rows in frames that name it, radio 2 as every other, a
-page may look at several radios at once and each is sent only what it asked for; a radio whose type has none is refused with its name and id, one that is none with `radio.unknown`, and a stop is never refused. Over the
-page's socket of a real daemon, the rows made on each radio's own modem as the modem part makes them."""
+"""The scope by radio (`radio_scope`, neoaprs/web/scopefeed.py `RadioScopes`): a radio whose type
+has a scope sends its rows in frames naming it, a page may watch several radios, and a radio without
+a scope is refused.
+"""
 import asyncio
 from dataclasses import replace
 from pathlib import Path
@@ -90,7 +91,8 @@ async def test_a_radio_whose_type_has_no_scope_is_refused_with_its_name_and_a_st
 
 
 async def test_the_scope_of_a_radio_removed_lets_go_of_its_modem(tmp_path: Path) -> None:
-    """A page looked at a radio's scope and the radio is removed: its feed is no longer connected to that modem's rows (it was kept until a page asked for that radio again)."""
+    """A page looked at a radio's scope and the radio is removed: its feed is disconnected from that
+    modem's rows."""
     e, page = await started(tmp_path, {"hf/enabled": "true", "hf/profile": "mercury"})
     three = await added(page, "mercury")
     modem = e.ctl.radios.get(three).driver.modem                      # type: ignore[union-attr]

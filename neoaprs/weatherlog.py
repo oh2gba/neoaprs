@@ -1,8 +1,8 @@
-"""The weather log: every observation a weather station sent, kept for the trend graphs, and the latest of each station for the station book to start with.
+"""The weather log: every observation a weather station sent, for trend graphs and the station book.
 
-Like the other logs this runs on the database thread (db.py) and says no instead of raising when the database is not open (dblog.py). `take` is an append that nobody waits for, in order with everything else
-the thread was asked; the reads are awaited. The statements are weathersql.py's. `backfill` makes the log from the packets the database already holds: the parser reads
-each one again."""
+Like the other logs it returns a failure value instead of raising when the database is closed.
+`backfill` builds the log from the stored packets by parsing each again.
+"""
 import logging
 from datetime import datetime
 
@@ -19,30 +19,28 @@ from .weathersql import (count_weather, delete_weather, insert_weather, insert_w
 log = logging.getLogger("neoaprs.weatherlog")
 
 Observation = tuple[datetime, Weather]
-_VALUES = ("wind_dir", "wind_kmh", "gust_kmh", "temp_c", "humidity", "pressure_hpa", "rain_1h_mm", "rain_24h_mm", "rain_today_mm", "luminosity")      # the columns after the station and the time, as Weather's fields
+# columns after the station and the time, named as Weather's fields
+_VALUES = ("wind_dir", "wind_kmh", "gust_kmh", "temp_c", "humidity", "pressure_hpa", "rain_1h_mm", "rain_24h_mm", "rain_today_mm", "luminosity")
 
 
 def weather_row(station: str, at: datetime, weather: Weather) -> Row:
-    """The columns of the weather table, in order."""
     return (station, stamp(at), *(getattr(weather, name) for name in _VALUES), weather.raw)
 
 
 def weather_of(row: Row) -> tuple[str, datetime, Weather]:
-    """The station, the time and the observation from a row. Raises ValueError (or TypeError) for a row this program did not write."""
+    """Return the station, time and observation of a row; raise ValueError or TypeError if bad."""
     station, at, *values, raw = row
     return str(station), parse_stamp(str(at)), Weather(**dict(zip(_VALUES, values, strict=True)), raw=str(raw))
 
 
 def report_of(source: str, destination: str, raw: bytes, heard_at: datetime, via: str = "rf") -> tuple[str, Weather] | None:
-    """The weather in a packet that was kept, read again with the parser as it is now: whose it is and what it says; None for a packet that has none. `via` is the packet's channel (a packet from the
-    internet has no AX.25 frame to read the information field from)."""
+    """Parse a stored packet again and return whose weather it holds, or None."""
     info = info_of(raw, via)
     decoded, third_party = parse_packet(info, source, destination, heard_at)
     return Packet(heard_at, "in", raw, source, destination, (), info, decoded, third_party, channel_of(third_party, via == "is", via == "dummy")).weather_report
 
 
 def _kept_report(row: Row) -> tuple[datetime, tuple[str, Weather] | None]:
-    """When a kept weather packet was heard and what it says."""
     source, destination, raw, heard_at, via = row
     at = parse_stamp(str(heard_at))
     return at, report_of(str(source), str(destination), bytes(raw), at, str(via))
@@ -52,39 +50,34 @@ class WeatherLog(DbLog):
     def __init__(self, db: Db | None = None, clock: Clock = utcnow) -> None:
         super().__init__(db, clock, log, "the weather could not be read")
 
-    # ---- appends: nobody waits
     def take(self, packet: Packet) -> bool:
-        """Keeps the observation a packet heard on the air carries (any other packet is left alone); False when there was none or it could not be queued."""
+        """Append the observation in a received packet (nobody waits); False if none or unqueued."""
         report = packet.weather_report if packet.direction == "in" else None
         if report is None:
             return False
         row = weather_row(report[0], packet.heard_at, report[1])
         return self._append(lambda conn: insert_weather(conn, row))
 
-    # ---- reads
     async def series(self, station: str, since: datetime) -> list[Observation]:
-        """The observations of the station made at or after `since`, the oldest first."""
         text = stamp(since)
         rows: list[Row] = await self._read(lambda conn: weather_since(conn, station, text), [])
         return [(at, weather) for _, at, weather in self._decoded(rows, weather_of, "weather")]
 
     async def latest(self, station: str) -> Observation | None:
-        """The newest observation of the station."""
         row: Row | None = await self._read(lambda conn: latest_weather(conn, station), None)
         found = [] if row is None else self._decoded([row], weather_of, "weather")
         return (found[0][1], found[0][2]) if found else None
 
     async def latest_all(self) -> dict[str, Observation]:
-        """The newest observation of each station that has one: what the station book starts with."""
+        """Return the newest observation of each station, for the station book."""
         rows: list[Row] = await self._read(latest_weather_all, [])
         return {station: (at, weather) for station, at, weather in self._decoded(rows, weather_of, "weather")}
 
     async def count(self) -> int:
         return await self._read(count_weather, 0)
 
-    # ---- care
     async def backfill(self, keep_days: int) -> int:
-        """Makes the log from the weather packets of the last `keep_days` days that the packet table holds; how many observations. The caller does this once, for a log that is empty."""
+        """Build the log from stored weather packets of the last `keep_days` days; return count."""
         since = stamp(self.clock() - days(keep_days))
         packets: list[Row] = await self._read(lambda conn: weather_packets(conn, since), [])
         found = self._decoded(packets, _kept_report, "packet")
@@ -92,10 +85,10 @@ class WeatherLog(DbLog):
         return await self._write(lambda conn: insert_weather_many(conn, rows), 0, "the weather could not be made from the packets") if rows else 0
 
     async def prune(self, keep_days: int) -> int:
-        """Deletes the observations made more than `keep_days` days ago; how many."""
+        """Delete observations older than `keep_days` days; return the count."""
         cutoff = stamp(self.clock() - days(keep_days))
         return await self._write(lambda conn: prune_weather_before(conn, cutoff), 0, "the weather could not be pruned")
 
     async def forget_all(self) -> int:
-        """Deletes every observation of every station; how many."""
+        """Delete every observation; return the count."""
         return await self._write(delete_weather, 0, "the weather could not be forgotten")

@@ -1,8 +1,8 @@
-"""`state.json` of the support bundle: what the running daemon knows now, the state that a bundle made from the data folder alone cannot have (neoaprs/cli/supportmake.py). It is the values the page is told, built the same way
-(neoaprs/web/views.py): every radio with its line, its latest lines and its beacon (`radios`, by position), the station's beacon, the GPS, the base map, the update, the radios each object and bulletin of
-ours is set to go out on (`send_on`, by name and by slot), and beside them the serial ports with who holds them and what the process costs.
+"""`state.json` of the support bundle: what the running daemon knows now, beyond the data folder.
 
-`live_state` runs on the loop, where the parts are read; the ports are listed in a thread."""
+The values are built as the page's topics are (views.py), plus the serial ports with their holders
+and the process cost. `live_state` runs on the loop; the ports are listed in a thread.
+"""
 import asyncio
 import logging
 import os
@@ -31,7 +31,6 @@ log = logging.getLogger("neoaprs.web")
 
 
 class LiveHost(Protocol):
-    """What the state of the running daemon is read from: the WebServer."""
     controller: Controller
     api: Api
     address: str
@@ -41,13 +40,15 @@ class LiveHost(Protocol):
 
 
 def ports_with_holders() -> list[dict[str, Any]]:
-    """The serial ports the system lists now, and who has each open (Linux; empty elsewhere). Nothing is opened."""
+    """Return the listed serial ports and who has each open (Linux only). Nothing is opened."""
     return [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid, "held_by": held_by(p.device)} for p in available_ports()]
 
 
 def beacon_state(server: LiveHost) -> dict[str, Any]:
-    """The station's beacon as the summary says it: the settings, and of the radios the beacon goes out on the latest send (with its reason), the soonest next one and the first problem (each radio's
-    own is in its entry of `radios`)."""
+    """Return the beacon settings.
+
+    Also the latest send, the soonest next send and the first problem of the radios.
+    """
     ctl = server.controller
     c, beacons = ctl.config, [radio.beacon for radio in ctl.radios.beaconing()]
     sent = [beacon for beacon in beacons if beacon.last_sent is not None]
@@ -58,7 +59,10 @@ def beacon_state(server: LiveHost) -> dict[str, Any]:
 
 
 def line_state(tnc: Tnc) -> dict[str, Any]:
-    """A radio's line as the report says it: its state and why it is not connected, the port and speed in use, what it counted, what the watchdog did last, and its latest lines."""
+    """Return a radio's line.
+
+    State, problem, port and speed, counters, last watchdog action and latest lines.
+    """
     return {"state": tnc.state.value, "problem": tnc.problem, "last_error": tnc.last_error, "path": tnc.path, "baud": tnc.baud, "dummy": tnc.is_dummy, "modem": modem_state(tnc),
             "readings": list(tnc.profile.readings), "describe": tnc.describe(), "searching": tnc.searching, "silent_since": iso(tnc.silent_since), "stats": stats_row(tnc.stats),
             "last_watchdog_action": tnc.last_watchdog_action, "last_watchdog_at": iso(tnc.last_watchdog_at), "lines": [{"at": iso(at), "text": text} for at, text in tnc.recent_lines(LINES_MAX)]}
@@ -93,8 +97,10 @@ async def live_state(server: LiveHost) -> dict[str, Any]:
 
 
 async def sound_cards(modem: Mercury | DirewolfModem, listed: dict[int, list[dict[str, Any]]]) -> list[dict[str, Any]]:
-    """Every sound card the modem's program lists (name, directions, id), once for a report (`listed`, by the modem); none when they cannot be listed, which is logged: a nice-to-have of the report,
-    the bundle goes without it."""
+    """Return the sound cards the modem lists, once per report (cached in `listed`).
+
+    A failure is logged and gives an empty list.
+    """
     if id(modem) not in listed:
         try:
             cards = await asyncio.to_thread(modem.sound_cards)
@@ -106,8 +112,10 @@ async def sound_cards(modem: Mercury | DirewolfModem, listed: dict[int, list[dic
 
 
 async def radios_state(ctl: Controller, listed: dict[int, list[dict[str, Any]]]) -> list[dict[str, Any]]:
-    """Every radio the daemon runs, by position: its id, kind, type, the name the log gives it, whether it is on, its Tnc as the page is told it and its beacon; for a Mercury modem that is on, the sound
-    cards it lists, so that a report says which device is the radio's even when the setting names one."""
+    """Return every radio by position, with its line and beacon.
+
+    An enabled modem radio also has its sound cards.
+    """
     out: list[dict[str, Any]] = []
     for radio in ctl.radios.all():
         spec, beacon = radio.spec, radio.beacon

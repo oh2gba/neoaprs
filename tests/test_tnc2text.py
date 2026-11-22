@@ -1,6 +1,7 @@
-"""The text a TNC or a radio prints of what it hears (neoaprs/tnc2text.py), on the fixtures of tests/fixtures/text/: each `.txt` or `.bin` with a `.json` of the frames expected, the lines that are rejected
-and whether the line was found to be 7 bits. The same bytes in any pieces give the same frames; a frame printed as its TNC2 text and read back is the packet its KISS frame gives, but for a CR or LF at the
-end of its information; the same text with even or odd parity gives the same frames; noise gives none, and ASCII noise is never taken as 7 bits."""
+"""The text a TNC or radio prints of what it hears (neoaprs/tnc2text.py) on the fixtures of
+tests/fixtures/text/: each `.txt` or `.bin` with a `.json` of the expected frames and rejected
+lines; the same bytes in any pieces give the same frames.
+"""
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,7 +21,8 @@ CALL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 
 def read(data: bytes, *, pieces: int = 0) -> tuple[list[ax25.Frame], list[Rejected], TextReader]:
-    """What a reader makes of the bytes, fed whole or in pieces of `pieces` bytes, and then a quiet line."""
+    """What a reader makes of the bytes, fed whole or in pieces of `pieces` bytes, and then a quiet
+    line."""
     reader = TextReader()
     chunks = [data] if pieces == 0 else [data[i:i + pieces] for i in range(0, len(data), pieces)]
     found = [item for chunk in chunks for item in reader.feed(chunk, 0.0)] + reader.feed(b"", PENDING_SEC + 1.0)
@@ -36,7 +38,8 @@ def as_json(frame: ax25.Frame) -> dict[str, object]:
 
 
 def parity(data: bytes, odd: bool = False) -> bytes:
-    """The bytes as a TNC at 7 bits with a parity bit sends them, read by a line opened at 8N1: bit 7 is the parity bit."""
+    """The bytes as a TNC at 7 bits with a parity bit sends them, read by a line opened at 8N1: bit
+    7 is the parity bit."""
     return bytes((b & 0x7F) | (0x80 if (b & 0x7F).bit_count() % 2 != odd else 0) for b in data)
 
 
@@ -79,7 +82,8 @@ def test_the_mic_e_fixture_read_from_text_is_its_kiss_frame_and_at_7_bits_its_0x
     assert seven.info == kiss_frame.info.replace(b"\x9f", b"\x1f") and b"\x7f\x1c" in seven.info, "0x7F and 0x1C come through 7 bits; 0x9F arrives as 0x1F"
 
 
-MICE_TH_D7 = b"OH2GBA-7>VPQP20,WIDE1-1:`4TD\x1dm?>/>Hello\r"          # tests/fixtures/aprs/cases.json, "Mic-E from a TH-D7": 60.17 N 24.94 E, 135 degrees, 33.336 km/h
+# tests/fixtures/aprs/cases.json, "Mic-E from a TH-D7": 60.17 N 24.94 E, 135 degrees, 33.336 km/h
+MICE_TH_D7 = b"OH2GBA-7>VPQP20,WIDE1-1:`4TD\x1dm?>/>Hello\r"
 
 
 def test_a_mic_e_position_read_from_text_is_the_same_at_8_and_at_7_bits_and_one_whose_control_character_the_tnc_took_out_is_a_packet_and_no_crash() -> None:
@@ -201,8 +205,9 @@ BREAKS = {0x0D, 0x0A, 0x11, 0x13}
 
 @st.composite
 def frames(draw: st.DrawFn, seven: bool = False) -> ax25.Frame:
-    """A UI frame as a TNC prints it whole: its information has no line end and is not empty, the digipeaters it has been through are the first ones, and the information does not begin with what a
-    header may carry after its path (a ` [stamp]`, a ` <mark>`)."""
+    """A UI frame as a TNC prints it whole: its information has no line end and is not empty, the
+    digipeaters it has been through are the first ones, and the information does not begin with what
+    a header may carry after its path (a ` [stamp]`, a ` <mark>`)."""
     path = draw(st.lists(calls, max_size=8))
     used = draw(st.integers(0, len(path)))
     info = draw(st.binary(min_size=1, max_size=200).map(lambda b: bytes(x & 0x7F if seven else x for x in b if (x & 0x7F if seven else x) not in BREAKS)).filter(lambda b: b != b"" and not b.startswith((b" [", b" <", b": <"))))
@@ -224,7 +229,8 @@ def test_any_frame_survives_its_text_whatever_the_pieces(sent: list[ax25.Frame],
 @given(st.lists(frames(seven=True), min_size=2, max_size=5), st.booleans())
 def test_the_same_text_with_even_or_odd_parity_gives_the_same_frames_and_says_7_bits(sent: list[ax25.Frame], odd: bool) -> None:
     text = b"".join(f.tnc2().encode("latin-1") + b"\r" for f in sent)
-    assume(len(text) >= DECIDE_BYTES)                           # (a shorter stream says too little to tell 7 bits from 8: it is read as 8)
+    # A shorter stream says too little to tell 7 bits from 8: it is read as 8
+    assume(len(text) >= DECIDE_BYTES)
     frames_of, _, reader = read(parity(text, odd))
     assert frames_of == read(text)[0] == sent
     assert reader.seven_bit == any((b & 0x7F).bit_count() % 2 != odd for b in text), "7 bits once a byte came with bit 7 set by its parity"

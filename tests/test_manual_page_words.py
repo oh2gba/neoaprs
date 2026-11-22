@@ -1,4 +1,5 @@
-"""The manual's account of the page quotes the page's marks, headings and hover texts in the words the page says them (its English catalogue), so a word changed on the page is not left behind in the manual."""
+"""The manual quotes the page's marks, headings and hover texts in the words of the English
+catalogue."""
 
 import re
 from pathlib import Path

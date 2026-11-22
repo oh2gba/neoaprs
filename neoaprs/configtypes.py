@@ -1,5 +1,7 @@
-"""The types a setting can have (config.py has the table of the settings): each is a function from the text of a value to the value, raising ValueError with the reason, and `over_the_air_problem`, the rule for text that goes
-on the air."""
+"""Setting value types: each parser maps the text of a value to the value, raising ValueError.
+
+Also the rule for text that goes on the air (`over_the_air_refusal`). The table of settings is in
+config.py."""
 import re
 from collections.abc import Callable
 from urllib.parse import urlsplit
@@ -7,7 +9,8 @@ from urllib.parse import urlsplit
 from .coded import CodedError
 from .message import normal_call
 
-TNC_SWITCH_CHARS = "|~"              # the characters a TNC takes for its channel switch: the spec keeps them out of a comment and a status (1129)
+# TNC channel-switch characters; kept out of comments and statuses (spec 1129).
+TNC_SWITCH_CHARS = "|~"
 _TRUE, _FALSE = ("1", "true", "yes", "on"), ("0", "false", "no", "off")
 
 
@@ -24,7 +27,7 @@ def int_in(low: int, high: int) -> Callable[[str], int]:
 
 
 def int_or_off(low: int, high: int) -> Callable[[str], int]:
-    """A whole number from `low` to `high`, or 0 for off."""
+    """Return a parser for an integer from `low` to `high`, or 0 for off."""
     whole = int_in(0, high)
 
     def parse(text: str) -> int:
@@ -36,7 +39,7 @@ def int_or_off(low: int, high: int) -> Callable[[str], int]:
 
 
 def int_among(choices: tuple[int, ...]) -> Callable[[str], int]:
-    """One of a short list of whole numbers (the choices the page offers)."""
+    """Return a parser for one of a short list of integers."""
     listed = ", ".join(str(c) for c in choices)
 
     def parse(text: str) -> int:
@@ -51,7 +54,7 @@ def int_among(choices: tuple[int, ...]) -> Callable[[str], int]:
 
 
 def word_among(words: tuple[str, ...]) -> Callable[[str], str]:
-    """One of a short list of words, in lower case."""
+    """Return a parser for one of a short list of words, in lower case."""
     listed = ", ".join(words)
 
     def parse(text: str) -> str:
@@ -63,7 +66,7 @@ def word_among(words: tuple[str, ...]) -> Callable[[str], str]:
 
 
 def optional_int(low: int, high: int) -> Callable[[str], int | None]:
-    """A whole number, or nothing: an empty text is None."""
+    """Return a parser for an integer, or None for empty text."""
     whole = int_in(low, high)
 
     def parse(text: str) -> int | None:
@@ -77,7 +80,7 @@ def float_in(low: float, high: float) -> Callable[[str], float]:
             value = float(text.strip())
         except ValueError:
             raise CodedError(f"{text!r} is not a number", "setting.not_number", value=text) from None
-        if not low <= value <= high:                         # (also false for NaN)
+        if not low <= value <= high:                         # also false for NaN
             raise CodedError(f"{value:g} is not between {low:g} and {high:g}", "setting.range", value=value, min=low, max=high)
         return value
     return parse
@@ -106,7 +109,8 @@ def text_of(max_length: int = 200, ascii_only: bool = False) -> Callable[[str], 
 
 
 def over_the_air_refusal(text: str) -> CodedError | None:
-    """Why this text may not be sent as a comment or a status: it must be printable ASCII without `|` and `~`. None when it may."""
+    """Return why the text may not be sent as a comment or status (printable ASCII without `|` and
+    `~`), or None."""
     if not text.isprintable() or not text.isascii():
         return CodedError("it has characters that are not printable ASCII", "setting.not_ascii")
     bad = next((c for c in text if c in TNC_SWITCH_CHARS), "")
@@ -114,17 +118,18 @@ def over_the_air_refusal(text: str) -> CodedError | None:
 
 
 def over_the_air_problem(text: str) -> str:
-    """The sentence of over_the_air_refusal; empty when the text may be sent."""
+    """Return the text of over_the_air_refusal, or "" if none."""
     return str(refusal) if (refusal := over_the_air_refusal(text)) else ""
 
 
 def call_or_empty(text: str) -> str:
-    """A call as normal_call writes it, or nothing: an empty text is the empty call, which transmits nothing (can_transmit)."""
+    """Return the call as normal_call writes it; empty text is the empty call (nothing is
+    transmitted)."""
     return "" if text.strip() == "" else normal_call(text)
 
 
 def optional_float(low: float, high: float) -> Callable[[str], float | None]:
-    """A number from `low` to `high`, or nothing: an empty text is None."""
+    """Return a parser for a number from `low` to `high`, or None for empty text."""
     number = float_in(low, high)
 
     def parse(text: str) -> float | None:
@@ -133,7 +138,7 @@ def optional_float(low: float, high: float) -> Callable[[str], float | None]:
 
 
 def web_address(text: str) -> str:
-    """An http or https address with a host and no blanks."""
+    """Return an http or https address with a host and no blanks."""
     value = text.strip()
     parts = urlsplit(value)
     if parts.scheme not in ("http", "https") or not parts.netloc or any(c.isspace() for c in value) or not value.isprintable() or len(value) > 500:
@@ -141,12 +146,13 @@ def web_address(text: str) -> str:
     return value
 
 
-KEY_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz"       # digits and lower case letters without 0, 1, i, l and o, which look alike
+KEY_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz"       # without look-alikes 0, 1, i, l and o
 KEY_GROUPS, KEY_GROUP_SIZE = 3, 4
 
 
 def access_key(text: str) -> str:
-    """The access key a device on the network types (`web/key`) the way it is kept, three groups of four with dashes: capitals, blanks and dashes in what was typed do not matter. Empty for none."""
+    """Return `web/key` as kept: three dash-separated groups of four; case, blanks and dashes are
+    ignored."""
     letters = "".join(c for c in text.lower() if c not in " -")
     if letters == "":
         return ""
@@ -159,13 +165,15 @@ SECRET_WORDS = ("key", "secret", "password", "token")
 
 
 def is_secret(key: str) -> bool:
-    """Is the setting one whose value is a secret (the access key `web/key`, and any key whose name has key, secret, password or token in it as a word of its own: `mercury/keying` is not one)? The log and the
-    support bundle show such a value as `redacted` does."""
+    """Return whether the setting is a secret: a word of its name is key, secret, password or token.
+
+    `mercury/keying` is not one."""
     return any(word in SECRET_WORDS for word in re.split(r"[^a-z0-9]+", key.lower()))
 
 
 def redacted(key: str, value: str) -> str:
-    """The value as the log and the support bundle may show it: as it is, or for a secret only whether it is set and how long it is (`(set, 14 characters)`, `(empty)`)."""
+    """Return the value as the log and support bundle may show it; a secret shows only `(set, N
+    characters)` or `(empty)`."""
     if not is_secret(key):
         return value
     return f"(set, {len(value)} characters)" if value else "(empty)"

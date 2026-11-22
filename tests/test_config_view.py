@@ -1,6 +1,6 @@
-"""The `config` topic tells the station's settings in `values` and every radio's own in `radio_values` (`radio/<id>/<key>`); a key that set a radio's setting without naming the radio (`serial/port`,
-`hf/enabled`: the flat keys of radios 1 and 2, configradios.FLAT_HOMES) is no setting of the wire: `set_config` refuses it with `setting.unknown` and the words that name the radio's own key, and stores
-nothing."""
+"""Tests for the `config` topic: `values` holds the station settings and `radio_values` each radio's
+own; `set_config` refuses a flat radio key with `setting.unknown` and stores nothing.
+"""
 import sqlite3
 from dataclasses import replace
 from pathlib import Path
@@ -47,7 +47,8 @@ async def test_the_config_topic_tells_the_stations_settings_and_each_radios_own_
 async def test_a_flat_key_of_a_radio_is_refused_with_the_radios_own_key_and_nothing_is_stored(tmp_path: Path) -> None:
     e, page = await started(tmp_path, {})
     before = rows_of(tmp_path)
-    # (the station of the Env: radio 1 an FM radio and no HF radio, so the keying names no id; the Enable and the type of a radio are radio_change's)
+    # (the station of the Env: radio 1 an FM radio and no HF radio, so the keying names no id; the
+    # Enable and the type of a radio are radio_change's)
     for key, own in (("serial/port", "radio/1/port"), ("mercury/keying", "radio/<id>/keying"), ("hf/enabled", "radio_change's enabled"), ("tnc/profile", "radio_change's type")):
         await page.send({"cmd": "set_config", "values": {key: "x", "station/comment": "not stored"}})
         error = await page.expect("error")

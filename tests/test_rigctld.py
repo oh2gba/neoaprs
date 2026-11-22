@@ -1,4 +1,6 @@
-"""The rig reading (neoaprs/rigctld.py) on a server that answers badly: a rigctld that hangs up, one that gives no mode, a network that cannot be reached. The good answers and the refusals are in tests/test_rigstatus.py."""
+"""The rig reading (neoaprs/rigctld.py) on a server that answers badly: a hang-up, no mode, an
+unreachable network. Good answers and refusals are in tests/test_rigstatus.py.
+"""
 import asyncio
 import errno
 
@@ -18,7 +20,8 @@ async def server(responder: object = None) -> FakeLineServer:
 
 
 async def hanging_up() -> int:
-    """A server that reads the whole request and closes the connection (an end of the stream, not a reset)."""
+    """A server that reads the whole request and closes the connection (an end of the stream, not a
+    reset)."""
     async def serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         await reader.readexactly(len(b"f\nm\n"))
         writer.close()

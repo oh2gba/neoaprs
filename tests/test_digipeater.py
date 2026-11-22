@@ -1,8 +1,7 @@
-"""The fill-in digipeater (neoaprs/services/digipeater.py) on the station's radios as the registry gives them (services/radioset.py's RadioPick, tests/support/seamshapes.py) over lines that are stubs, and a clock
-the test holds: WIDE1-1 becomes our call as a used hop, our own call in the path is marked used, and nothing else is repeated (WIDE2-1, our own packets, duplicates for 30 seconds, packets from the internet, anything
-while it is off, there is no call or the radio is away); the frame differs from the one heard in its path only. A packet is repeated on the radio that heard it, the duplicate check, the burst limit and the counts
-are that radio's, and every radio whose type may repeat and whose own digipeater is on repeats (the rows "heard on A, sent on A", tests/test_digi_rows.py), none on HF. Then the whole daemon with the radio a
-fake TCP server: a packet on the line comes back with the new path."""
+"""Tests for the fill-in digipeater (neoaprs/services/digipeater.py) on stub radio lines and a test
+clock: WIDE1-1 becomes our call, nothing else is repeated, duplicate and burst limits are per radio.
+The last tests run the whole daemon against a fake TCP server.
+"""
 import logging
 from dataclasses import replace
 from pathlib import Path
@@ -41,8 +40,11 @@ class Line(StubTnc):
 
 
 class Rig(ServiceRig):
-    """The digipeater on the station's radios, each on a line of its own (`line(id)`): radio 1 on the line `tnc` (its counters `stats`), radio 2 on `hf`, any other on a new one (`specs` of a test's own make
-    the radios other ones). As the registry's radios do, the radios have the settings in force: a change of `config` is theirs at once (unless the test gave its own `specs`)."""
+    """The digipeater on the station's radios, each on a line of its own (`line(id)`): radio 1 on
+    the line `tnc` (its counters `stats`), radio 2 on `hf`, any other on a new one (`specs` of a
+    test's own make the radios other ones). As the registry's radios do, the radios have the
+    settings in force: a change of `config` is theirs at once (unless the test gave its own
+    `specs`)."""
 
     def __init__(self, specs: tuple[RadioSpec, ...] | None = None, **changes: object) -> None:
         self.radios = RegistryShape([])
@@ -126,7 +128,8 @@ def test_the_same_packet_is_repeated_again_only_after_thirty_seconds_whatever_th
     rig.clock.advance(DIGI_DUPLICATE_SEC - 1)
     rig.hear(frame("WIDE1-1"))                                           # (a copy by another path)
     assert len(rig.tnc.sent) == 1
-    rig.clock.advance(DIGI_DUPLICATE_SEC + 1)                                 # (more than 30 s after the copy that was heard last)
+    # (more than 30 s after the copy that was heard last)
+    rig.clock.advance(DIGI_DUPLICATE_SEC + 1)
     rig.hear(frame("WIDE1-1"))
     assert len(rig.tnc.sent) == 2 and rig.stats.digipeated == 2
 
@@ -142,9 +145,11 @@ def test_a_packet_that_differs_in_source_destination_or_text_is_another_packet()
 
 def test_a_packet_we_sent_lately_is_a_duplicate_of_one_heard_after_it() -> None:
     rig = Rig()
-    rig.hear(frame("OH2GBA*,WIDE2-1", source="OH2XYZ", info=b">x"), "out")        # (the digipeater's own copy, as the Tnc reports it)
+    # (the digipeater's own copy, as the Tnc reports it)
+    rig.hear(frame("OH2GBA*,WIDE2-1", source="OH2XYZ", info=b">x"), "out")
     rig.clock.advance(5)
-    rig.hear(frame("OH2RCH*,WIDE1-1", source="OH2XYZ", info=b">x"))              # (the same packet heard again by another digipeater)
+    # (the same packet heard again by another digipeater)
+    rig.hear(frame("OH2RCH*,WIDE1-1", source="OH2XYZ", info=b">x"))
     assert rig.tnc.sent == []
 
 
@@ -177,7 +182,8 @@ def test_what_the_hf_radio_hears_takes_nothing_of_the_fm_radios_burst_or_its_tab
 def test_a_second_radio_that_may_repeat_repeats_on_itself_while_its_own_digipeater_is_on(second: str) -> None:
     specs = (RadioSpec(FM_ID, "fm", "kiss", "", True, 1, settings={"digipeat": "true"}), RadioSpec(HF_ID, "fm", "kiss", "", True, 2, settings={"digipeat": second}))
     rig = Rig(specs)
-    rig.hear(frame("WIDE1-1"), radio_id=HF_ID)                                   # (radio 2, here of an FM type that is allowed a digipeater)
+    # (radio 2, here of an FM type that is allowed a digipeater)
+    rig.hear(frame("WIDE1-1"), radio_id=HF_ID)
     assert rig.tnc.sent == [], "what radio 2 hears is never sent on radio 1 (no row from one radio to another)"
     assert len(rig.hf.sent) == (1 if second == "true" else 0), "radio 2 repeats on itself while its own digipeater is on (rule 3.4)"
     assert rig.hf.stats.digipeated == len(rig.hf.sent) and rig.stats.digipeated == 0, "each radio counts its own"     # type: ignore[attr-defined]
@@ -274,7 +280,8 @@ def _address(call: str, ssid: int, flags: int) -> bytes:
 def test_the_address_flag_bits_of_the_destination_and_the_source_go_out_as_they_came() -> None:
     rig = Rig()
     info = b">test"
-    raw = _address("APRS", 0, 0x00) + _address("OH2XYZ", 0, 0x80) + _address("WIDE1", 1, 0x01) + b"\x03\xf0" + info     # (C bits of a response, reserved bits clear)
+    # (C bits of a response, reserved bits clear)
+    raw = _address("APRS", 0, 0x00) + _address("OH2XYZ", 0, 0x80) + _address("WIDE1", 1, 0x01) + b"\x03\xf0" + info
     heard = ax25.decode(raw)
     rig.digi.on_packet(packet_of("in", raw, heard, rig.clock()))
     [out] = rig.tnc.raw
@@ -338,17 +345,21 @@ def test_bytes_that_do_not_decode_as_a_frame_are_not_repeated_and_not_an_error()
     good = rig.hear(frame())
     rig.tnc.sent.clear()
     rig.clock.advance(DIGI_DUPLICATE_SEC + 1)
-    rig.digi.on_packet(replace(good, raw=b"\x01\x02\x03"))                  # (heard on the radio, but the parser of the Tnc and ours do not agree: nothing is sent)
+    # (heard on the radio, but the parser of the Tnc and ours do not agree: nothing is sent)
+    rig.digi.on_packet(replace(good, raw=b"\x01\x02\x03"))
     assert rig.tnc.sent == []
 
 
 def test_the_table_of_what_was_heard_is_cleared_of_the_old_when_it_grows_too_large() -> None:
     rig = Rig()
     rig.digi.seen_on(FM_ID).keep_max = 5
-    for n in range(6):                                                       # (six packets that are not ours to repeat, heard at the same minute)
+    # (six packets that are not ours to repeat, heard at the same minute)
+    for n in range(6):
         rig.hear(frame("WIDE2-1", info=b">%d" % n))
     rig.clock.advance(DIGI_DUPLICATE_SEC + 1)
-    rig.hear(frame("WIDE2-1", info=b">late"))                                # (the seventh: the six old ones are over the window and are dropped)
+    # (the seventh: the six old ones are over the window and are dropped)
+    rig.hear(frame("WIDE2-1", info=b">late"))
     assert len(rig.digi.seen_on(FM_ID)) == 1
-    rig.hear(frame("WIDE1-1", info=b">0"))                                   # (a packet heard long ago is a new one again)
+    # (a packet heard long ago is a new one again)
+    rig.hear(frame("WIDE1-1", info=b">0"))
     assert len(rig.tnc.sent) == 1

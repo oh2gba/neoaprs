@@ -1,5 +1,6 @@
-"""What the process layer does differently on Windows, as far as a Linux run can show it: the one-daemon lock (a fake `msvcrt` stands in for the real one), the files that are synced, the page's path rules
-for a path with backslashes."""
+"""What the process layer does differently on Windows, as far as a Linux run shows: the one-daemon
+lock (a fake `msvcrt`), the synced files and the page's path rules for backslashes.
+"""
 import os
 import sys
 from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
@@ -49,7 +50,8 @@ def test_the_lock_file_is_private_and_not_inherited_by_a_child(tmp_path: Path) -
 
 
 class FakeMsvcrt:
-    """msvcrt.locking as Windows has it: a byte that is locked once, and the error of a lock that is held."""
+    """msvcrt.locking as Windows has it: a byte that is locked once, and the error of a lock that is
+    held."""
     LK_NBLCK, LK_UNLCK = 2, 0
 
     def __init__(self) -> None:

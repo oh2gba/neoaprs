@@ -1,5 +1,7 @@
-"""The path of a program of Windows (neoaprs/childenv.py, `windows_program`): built from the system's own folder, so that the program is the system's and not one of the same name in the folder of the running program or
-the working folder. Nothing here needs Windows: the environment is the test's, and the path is made as a Windows path whatever the system running the test."""
+"""The path of a Windows program (neoaprs/childenv.py, `windows_program`) is built from the system
+folder, so it is the system's and not one of the same name in the program's or working folder. Needs
+no Windows.
+"""
 import pytest
 
 from neoaprs.childenv import windows_program

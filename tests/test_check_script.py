@@ -1,9 +1,7 @@
-"""The runner of scripts/check, the gate, without its stages: NEOAPRS_CHECK_STAGES gives the script a file of stand-ins, each of which writes down when it began and when it ended, so that what is tested is the
-runner: the order of the result lines, which stages run at once and which alone, what a failing stage does to the others and to the exit code, --serial, --stage, --list, ui/node_modules installed once, and a
-run that is interrupted. The stages whose command line is what keeps them apart when they run at once are tried as the script has them, against made-up programs that only write down how they were called: the
-two mypy runs and their cache folders, the three pytest runs (which files, which of them without the cache plugin, how many workers), vitest's workers, the security checks, the page that fails when it has
-nothing to build with, lock (the lock file is compared even under UV_FROZEN) and smoke (the wheel installed in a folder of the run, the smoke test told to open no device).
-The script runs as a copy in a folder of its own, so nothing of this tree is checked, built or installed; in a tree the script refuses the variable, which the first tests hold."""
+"""Tests for the runner of scripts/check without its real stages. NEOAPRS_CHECK_STAGES supplies
+stand-in stages, so the tests cover result order, parallel and serial running, failures, --serial,
+--stage, --list, interruption, and the command line of each real stage against made-up programs. The
+script runs as a copy in its own folder, so nothing of this tree is checked, built or installed."""
 import os
 import re
 import shutil
@@ -19,7 +17,8 @@ import pytest
 from tests.support.files import text_if_readable
 from tests.support.ptyline import SIGHUP, SIGKILL, is_root, posix_only
 
-pytestmark = posix_only      # (a bash script with bash stand-ins: a development check, not the product)
+# (a bash script with bash stand-ins: a development check, not the product)
+pytestmark = posix_only
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "check"
@@ -35,9 +34,12 @@ def listed(name: str) -> list[str]:
 STAGES, EXTRA = listed("STAGES"), listed("EXTRA_STAGES")
 FIRST, LAST = listed("ALONE_FIRST"), listed("ALONE_LAST")
 AT_ONCE = [name for name in STAGES if name not in FIRST + LAST]
-UI = ["ui-types", "ui-lint", "ui-tests", "ui-build", "page", "dup", "dup-py"]    # the stages that run from ui/node_modules, in the order of the list
+# the stages that run from ui/node_modules, in the order of the list
+UI = ["ui-types", "ui-lint", "ui-tests", "ui-build", "page", "dup", "dup-py"]
 
-# What every file of stand-ins begins with. `wait_for LINE` waits until a stage has written that line (half a minute at most): a stage that waits for the start of another passes only when the two run at once.
+# What every file of stand-ins begins with. `wait_for LINE` waits until a stage has written that
+# line (half a minute at most): a stage that waits for the start of another passes only when the two
+# run at once.
 HELPERS = """
 wait_for() {
     local tries=0
@@ -62,7 +64,8 @@ stage_{fn}() {{
 
 
 def as_the_script_has_it(name: str) -> str:
-    """The stage `name` of scripts/check, word for word, to put in the place of its stand-in: its one line, or its lines down to the closing brace."""
+    """The stage `name` of scripts/check, word for word, to put in the place of its stand-in: its
+    one line, or its lines down to the closing brace."""
     lines = SCRIPT.read_text(encoding="utf-8").splitlines()
     first = next(i for i, line in enumerate(lines) if line.startswith(f"stage_{name.replace('-', '_')}() "))
     last = first if not lines[first].endswith("{") else lines.index("}", first)
@@ -70,9 +73,11 @@ def as_the_script_has_it(name: str) -> str:
 
 
 class Gate:
-    """A copy of scripts/check in a folder of its own, with a stand-in for every stage: `bodies` says what the stand-in of a stage does between its start and its end (shell; nothing by default), `left_out` names
-    the stages that get no stand-in, `real` the ones that run as the script has them (against made-up programs: `programs`), and `also` is shell that the file of stand-ins ends with, to replace another
-    function of the script."""
+    """A copy of scripts/check in a folder of its own, with a stand-in for every stage: `bodies`
+    says what the stand-in of a stage does between its start and its end (shell; nothing by
+    default), `left_out` names the stages that get no stand-in, `real` the ones that run as the
+    script has them (against made-up programs: `programs`), and `also` is shell that the file of
+    stand-ins ends with, to replace another function of the script."""
 
     def __init__(self, folder: Path) -> None:
         self.folder = folder
@@ -86,7 +91,9 @@ class Gate:
         self.also = ""
 
     def programs(self, **texts: str) -> dict[str, str]:
-        """Writes made-up programs (name and shell text) into the folder of the copy that is first on the PATH of its stages; the environment that tells them where to write down how they were called."""
+        """Writes made-up programs (name and shell text) into the folder of the copy that is first
+        on the PATH of its stages; the environment that tells them where to write down how they were
+        called."""
         self.bin.mkdir(exist_ok=True)
         for name, text in texts.items():
             (self.bin / name).write_text(text, encoding="utf-8")
@@ -94,15 +101,20 @@ class Gate:
         return {"EVENTS": str(self.events_file)}
 
     def environment(self, **env: str) -> dict[str, str]:
-        """Writes the file of stand-ins and forgets the events of the run before; the environment to run the copy with. uv's cache is a folder of the copy, so that the script makes none in the home of whoever
-        runs the tests."""
+        """Writes the file of stand-ins and forgets the events of the run before; the environment to
+        run the copy with. uv's cache is a folder of the copy, so that the script makes none in the
+        home of whoever runs the tests."""
         stand_ins = self.folder / "stand-ins.sh"
         stages = "".join(STAND_IN.format(fn=name.replace("-", "_"), name=name, body=self.bodies.get(name, ":")) for name in STAGES + EXTRA if name not in self.left_out | self.real)
         real = "".join(as_the_script_has_it(name) for name in sorted(self.real))
-        # The PATH is set in the file and not in the environment: the script puts the node of ~/.nvm before whatever it was given, and the real npx of that folder must never be the one a stage finds.
+        # The PATH is set in the file and not in the environment: the script puts the node of ~/.nvm
+        # before whatever it was given, and the real npx of that folder must never be the one a
+        # stage finds.
         stand_ins.write_text(f'events="{self.events_file}"\nPATH="{self.bin}:$PATH"\n{HELPERS}{stages}{real}{self.also}\n', encoding="utf-8")
         self.events_file.unlink(missing_ok=True)
-        # (a gate that runs this test serially says nothing about the copy; and no setting of uv that the caller has, such as UV_FROZEN, UV_PYTHON or UV_NO_CACHE of the CI's setup-uv: the stages are told what they get)
+        # (a gate that runs this test serially says nothing about the copy; and no setting of uv
+        # that the caller has, such as UV_FROZEN, UV_PYTHON or UV_NO_CACHE of the CI's setup-uv: the
+        # stages are told what they get)
         outside = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_TEST_WORKERS", "NEOAPRS_TEST_WORKERS_MAX") and not k.startswith("UV_")}
         return {**outside, "NEOAPRS_CHECK_STAGES": str(stand_ins), "NEOAPRS_PYTHON": sys.executable, "UV_CACHE_DIR": str(self.folder / "uv-cache"), **env}
 
@@ -123,7 +135,8 @@ def gate(tmp_path: Path) -> Gate:
 
 
 def results(done: subprocess.CompletedProcess[str]) -> list[tuple[str, str]]:
-    """The result lines of a run, each as the word and the name; every one is held to the form `ok    name            0.1s`."""
+    """The result lines of a run, each as the word and the name; every one is held to the form `ok
+    name 0.1s`."""
     found = []
     for line in done.stdout.splitlines():
         if line.startswith(("ok ", "FAIL ")):
@@ -134,14 +147,16 @@ def results(done: subprocess.CompletedProcess[str]) -> list[tuple[str, str]]:
 
 
 def all_begin_before_one_ends(gate: Gate) -> None:
-    """Every stage of the middle step waits for the start of all the others: they end only when they run at once. Each also holds the script to its word that `at_once` is 1 then (a stage reads it to take less
-    of the machine)."""
+    """Every stage of the middle step waits for the start of all the others: they end only when they
+    run at once. Each also holds the script to its word that `at_once` is 1 then (a stage reads it
+    to take less of the machine)."""
     for name in AT_ONCE:
         gate.bodies[name] = '[ "$at_once" = 1 ] && ' + " && ".join(f'wait_for "start {other}"' for other in AT_ONCE)
 
 
 def each_is_told_it_runs_alone(gate: Gate) -> None:
-    """Every stage fails unless the script's `at_once` is 0: one stage at a time is what the script says it does, and what the stage is told."""
+    """Every stage fails unless the script's `at_once` is 0: one stage at a time is what the script
+    says it does, and what the stage is told."""
     for name in STAGES + EXTRA:
         gate.bodies[name] = '[ "$at_once" = 0 ]'
 
@@ -158,8 +173,9 @@ REFUSED = "check: NEOAPRS_CHECK_STAGES is set, which puts stand-ins in the place
 @pytest.mark.parametrize("sign", ["pyproject.toml", "neoaprs"])
 @pytest.mark.parametrize("args", [(), ("--serial",), ("--stage", "ruff"), ("--list",)])
 def test_the_stand_ins_are_refused_where_there_is_something_to_check(gate: Gate, sign: str, args: tuple[str, ...]) -> None:
-    """With stand-ins every stage is green and nothing is checked, so the script takes them only in a folder that is no tree. One of the two signs of a tree beside scripts/ is enough, whatever it is (a file, a
-    folder, a link to nothing), and whatever the script was asked."""
+    """With stand-ins every stage is green and nothing is checked, so the script takes them only in
+    a folder that is no tree. One of the two signs of a tree beside scripts/ is enough, whatever it
+    is (a file, a folder, a link to nothing), and whatever the script was asked."""
     if sign == "neoaprs":
         (gate.folder / sign).symlink_to("nowhere")
     else:
@@ -171,8 +187,10 @@ def test_the_stand_ins_are_refused_where_there_is_something_to_check(gate: Gate,
 
 @pytest.mark.parametrize("args", [(), ("--stage", "ruff")])
 def test_the_script_of_this_tree_stops_when_the_variable_of_its_tests_is_set(gate: Gate, args: tuple[str, ...]) -> None:
-    """The script as scripts/release runs it, the one of this tree and not a copy: a NEOAPRS_CHECK_STAGES left in the shell does not turn the gate green, it stops it (exit code 2, which the release takes as a
-    gate that failed). Nothing runs here either way: without the refusal every stage would be a stand-in that only writes a line down."""
+    """The script as scripts/release runs it, the one of this tree and not a copy: a
+    NEOAPRS_CHECK_STAGES left in the shell does not turn the gate green, it stops it (exit code 2,
+    which the release takes as a gate that failed). Nothing runs here either way: without the
+    refusal every stage would be a stand-in that only writes a line down."""
     done = subprocess.run([str(SCRIPT), *args], cwd=ROOT, env=gate.environment(), capture_output=True, text=True, timeout=120)
     assert done.returncode == 2 and done.stdout == "" and done.stderr.strip() == REFUSED
     assert gate.events() == []
@@ -186,7 +204,9 @@ def test_a_variable_that_is_set_to_nothing_is_no_variable(gate: Gate) -> None:
 
 def test_the_stages_run_at_once_between_lock_and_smoke_and_the_lines_come_in_the_order_of_the_list(gate: Gate) -> None:
     all_begin_before_one_ends(gate)
-    gate.bodies[AT_ONCE[0]] += "".join(f' && wait_for "end {name}"' for name in AT_ONCE[1:])            # the first of the list is the last to end (it waits for each of the others, in whatever order they end): its line is still the first
+    # the first of the list is the last to end (it waits for each of the others, in whatever order
+    # they end): its line is still the first
+    gate.bodies[AT_ONCE[0]] += "".join(f' && wait_for "end {name}"' for name in AT_ONCE[1:])
     done = gate.run()
     assert done.returncode == 0, done.stdout + done.stderr
     assert results(done) == [("ok", name) for name in STAGES]
@@ -217,7 +237,8 @@ def test_a_failing_stage_does_not_stop_the_others_and_its_output_is_under_its_li
 
 
 def test_the_output_of_a_failing_stage_that_does_not_end_its_last_line_leaves_the_next_line_whole(gate: Gate) -> None:
-    """A program that is killed in the middle of a line, or prints its error without a line end: the result line of the next stage, and the last line of the run, still begin a line."""
+    """A program that is killed in the middle of a line, or prints its error without a line end: the
+    result line of the next stage, and the last line of the run, still begin a line."""
     gate.bodies["ruff"] = 'printf "E501 no line end"; return 1'
     gate.bodies["smoke"] = 'printf "one\\ntwo"; return 1'
     done = gate.run()
@@ -229,9 +250,11 @@ def test_the_output_of_a_failing_stage_that_does_not_end_its_last_line_leaves_th
 
 
 def test_a_stage_whose_shell_was_killed_has_failed_though_it_left_no_result_line(gate: Gate) -> None:
-    """The shell that runs a stage and writes its result line is killed from outside (the machine out of memory): the stage has a line all the same, which says FAIL and has no time, with what it wrote until
-    then under it, and the run goes on."""
-    gate.bodies["ruff"] = 'echo "as far as it got"; stage=$BASHPID; kill -KILL $(ps -o ppid= -p "$stage"); exit 0'              # (the parent of the stage's own shell is the one that writes the line)
+    """The shell that runs a stage and writes its result line is killed from outside (the machine
+    out of memory): the stage has a line all the same, which says FAIL and has no time, with what it
+    wrote until then under it, and the run goes on."""
+    # (the parent of the stage's own shell is the one that writes the line)
+    gate.bodies["ruff"] = 'echo "as far as it got"; stage=$BASHPID; kill -KILL $(ps -o ppid= -p "$stage"); exit 0'
     done = gate.run()
     lines = done.stdout.splitlines()
     assert done.returncode == 1 and lines[1:3] == ["FAIL  ruff        ", "      | as far as it got"] and lines[3].startswith("ok    mypy "), done.stdout + done.stderr
@@ -271,7 +294,8 @@ def test_a_named_stage_that_fails_is_exit_code_1_with_its_output(gate: Gate) -> 
 
 
 def test_a_named_stage_shows_its_output_as_it_is_written_and_a_green_one_too(gate: Gate) -> None:
-    """The steps of the CI are named stages: one that hangs must show where, and one that is green shows its output (stderr: stdout is the result lines)."""
+    """The steps of the CI are named stages: one that hangs must show where, and one that is green
+    shows its output (stderr: stdout is the result lines)."""
     gate.bodies["mypy"] = 'echo "checking 2"'
     done = gate.run("--stage", "mypy")
     assert done.returncode == 0 and results(done) == [("ok", "mypy")] and "checking 2" in done.stderr and "checking 2" not in done.stdout
@@ -305,8 +329,10 @@ def test_a_stage_without_a_stand_in_fails_and_the_real_one_does_not_run(gate: Ga
 
 @pytest.mark.parametrize(("sent", "code"), [(signal.SIGTERM, 143), (signal.SIGINT, 130), (SIGHUP, 129)])
 def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_away(gate: Gate, sent: signal.Signals, code: int) -> None:
-    """The signal reaches the script alone, as `kill` sends it, while the stages run at once: the stage that is still busy and the program it started (a daemon of the suite, in the real one) are ended, the stage
-    does not go on, the temporary folder of the run is gone, and the exit code names the signal."""
+    """The signal reaches the script alone, as `kill` sends it, while the stages run at once: the
+    stage that is still busy and the program it started (a daemon of the suite, in the real one) are
+    ended, the stage does not go on, the temporary folder of the run is gone, and the exit code
+    names the signal."""
     pids, temp = gate.folder / "pids", gate.folder / "tmp"
     temp.mkdir()
     gate.bodies["pytest"] = f'sleep 300 & echo "$BASHPID $!" > "{pids}"; wait'
@@ -328,9 +354,12 @@ def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_aw
 
 
 def test_the_runner_has_no_command_substitution_for_a_signal_to_come_in_the_middle_of() -> None:
-    """When a signal comes while bash 5.2 reads a `$(...)`, it cannot read the command of the signal's trap: the run ends with exit code 2 and a syntax error, about one interrupted run in fifty when the result
-    lines were read with `$(cat ...)`. The test above meets that moment too seldom to hold it, so the text of the runner is held: what runs between the stages reads files with `read` and the clock from a
-    variable. (The stages themselves run in shells of their own, which the traps do not reach.)"""
+    """When a signal comes while bash 5.2 reads a `$(...)`, it cannot read the command of the
+    signal's trap: the run ends with exit code 2 and a syntax error, about one interrupted run in
+    fifty when the result lines were read with `$(cat ...)`. The test above meets that moment too
+    seldom to hold it, so the text of the runner is held: what runs between the stages reads files
+    with `read` and the clock from a variable. (The stages themselves run in shells of their own,
+    which the traps do not reach.)"""
     runner = SCRIPT.read_text(encoding="utf-8").split("\n# --- the runner ---", 1)[1]
     found = [line for line in runner.splitlines() if not line.lstrip().startswith("#") and re.search(r"\$\((?!\()", line)]
     assert not found, f"a command substitution in the runner of scripts/check: {found}"
@@ -338,10 +367,13 @@ def test_the_runner_has_no_command_substitution_for_a_signal_to_come_in_the_midd
 
 @pytest.mark.parametrize(("sent", "code"), [(signal.SIGTERM, 143), (signal.SIGINT, 130), (SIGHUP, 129)])
 def test_a_signal_that_comes_while_the_stages_are_being_started_ends_every_one_of_them(gate: Gate, sent: signal.Signals, code: int) -> None:
-    """The signal comes while the script is still starting the stages of the middle step, a moment made wide here: the stage in the middle of the list sends it to the script as the first thing it does, while the
-    script forks the ones after it, and every stage runs until it is ended. What this moment did to the script before: a stage that got the TERM of `finish` the moment it was forked ran `finish` itself, whose
-    bare `wait` then never returned under bash 5.3 (it waits there for jobs that are not its children); a stage forked a command before the script wrote it down, and a program that a stage forked as the TERM
-    came, were left running, under bash 5.2 too."""
+    """The signal comes while the script is still starting the stages of the middle step, a moment
+    made wide here: the stage in the middle of the list sends it to the script as the first thing it
+    does, while the script forks the ones after it, and every stage runs until it is ended. What
+    this moment did to the script before: a stage that got the TERM of `finish` the moment it was
+    forked ran `finish` itself, whose bare `wait` then never returned under bash 5.3 (it waits there
+    for jobs that are not its children); a stage forked a command before the script wrote it down,
+    and a program that a stage forked as the TERM came, were left running, under bash 5.2 too."""
     pids, temp = gate.folder / "pids", gate.folder / "tmp"
     temp.mkdir()
     middle = AT_ONCE[len(AT_ONCE) // 2]
@@ -365,9 +397,13 @@ def test_a_signal_that_comes_while_the_stages_are_being_started_ends_every_one_o
 @pytest.mark.parametrize("where", ["exit", "jobs", "rm"])
 @pytest.mark.parametrize(("sent", "then", "code"), [(signal.SIGTERM, signal.SIGINT, 143), (signal.SIGINT, signal.SIGINT, 130), (SIGHUP, signal.SIGTERM, 129)])
 def test_a_second_signal_while_the_run_finishes_changes_nothing(gate: Gate, where: str, sent: signal.Signals, then: signal.Signals, code: int) -> None:
-    """A second Ctrl+C, or a second signal of another kind, that comes while the run ends what its stages started and takes its folder away: the end is the one of the first. The moment is made certain here:
-    `exit` (of the first signal's trap, before finish), `jobs` (asked for the stages before they are ended) or `rm` (the folder, last) sends the second signal to the script and takes a moment before it does
-    its work. Before, the second signal's trap ran its `exit` in the middle: the stages were left running or the folder in place, and the code named the second signal."""
+    """A second Ctrl+C, or a second signal of another kind, that comes while the run ends what its
+    stages started and takes its folder away: the end is the one of the first. The moment is made
+    certain here: `exit` (of the first signal's trap, before finish), `jobs` (asked for the stages
+    before they are ended) or `rm` (the folder, last) sends the second signal to the script and
+    takes a moment before it does its work. Before, the second signal's trap ran its `exit` in the
+    middle: the stages were left running or the folder in place, and the code named the second
+    signal."""
     pids, temp = gate.folder / "pids", gate.folder / "tmp"
     temp.mkdir()
     gate.bodies["pytest"] = f'sleep 300 & echo "$BASHPID $!" > "{pids}"; wait'
@@ -389,9 +425,11 @@ def test_a_second_signal_while_the_run_finishes_changes_nothing(gate: Gate, wher
 
 
 def test_the_folder_goes_when_what_the_stages_started_has_ended(gate: Gate) -> None:
-    """A program of a stage that takes a moment to end after the TERM and writes into the folder of the run meanwhile (what a stage forked the moment the signal came does too, until a TERM reaches it):
-    when the script has ended, it has ended, and the folder is gone with what it wrote. Before, the script took the folder away as soon as the stages' own shells had gone, while such a program could still
-    write into it (`rm` then failed, and the run ended with 1 and its folder left)."""
+    """A stage program that takes a moment to end after the TERM and writes into the run's folder
+    meanwhile (as a stage forked at the moment of the signal does until a TERM reaches it): when the
+    script has ended, it has ended, and the folder is gone with what it wrote. The script must not
+    remove the folder while such a program can still write into it (`rm` would fail).
+    """
     pids, temp = gate.folder / "pids", gate.folder / "tmp"
     temp.mkdir()
     gate.bodies["pytest"] = f'trap \'sleep 0.5; echo late > "$work/late"; exit 1\' TERM; sleep 300 & echo "$BASHPID $!" > "{pids}"; wait'
@@ -403,7 +441,8 @@ def test_the_folder_goes_when_what_the_stages_started_has_ended(gate: Gate) -> N
         run.send_signal(signal.SIGTERM)
         output, _ = run.communicate(timeout=30)
         assert run.returncode == 143, output
-        until(lambda: not any(alive(pid) for pid in started), "what the stage started is still running")    # (under a full load a program that was just ended is seen for a moment yet)
+        # (under a full load a program that was just ended is seen for a moment yet)
+        until(lambda: not any(alive(pid) for pid in started), "what the stage started is still running")
     finally:
         run.kill()
         end_what_is_left(gate.folder, started)
@@ -412,8 +451,11 @@ def test_the_folder_goes_when_what_the_stages_started_has_ended(gate: Gate) -> N
 
 @pytest.mark.parametrize("how", ["ignored", pytest.param("blocked", marks=pytest.mark.skipif(not Path("/proc/self/status").exists(), reason="the script reads a blocked TERM in /proc"))])
 def test_a_signal_the_parent_ignores_or_blocks_leaves_the_run_going_and_the_others_still_end_everything(gate: Gate, how: str) -> None:
-    """A parent that ignores HUP and TERM (as nohup does HUP) or blocks them: the run goes on through both, as it was asked (bash can neither trap nor reset a signal ignored on entry), and an INT then
-    ends it with everything its stages started, though they have TERM ignored or blocked too. Before, the TERM that ended the stages reached none of them, and the run waited for them for good."""
+    """A parent that ignores HUP and TERM (as nohup does HUP) or blocks them: the run goes on
+    through both, as it was asked (bash can neither trap nor reset a signal ignored on entry), and
+    an INT then ends it with everything its stages started, though they have TERM ignored or blocked
+    too. Before, the TERM that ended the stages reached none of them, and the run waited for them
+    for good."""
     pids, temp = gate.folder / "pids", gate.folder / "tmp"
     temp.mkdir()
     gate.bodies["pytest"] = f'sleep 300 & echo "$BASHPID $!" > "{pids}"; wait'
@@ -452,7 +494,8 @@ def until(true: Callable[[], bool], otherwise: str) -> None:
 
 
 def alive(pid: int) -> bool:
-    """Whether the process still runs (one that has ended and waits for its parent to ask is not running)."""
+    """Whether the process still runs (one that has ended and waits for its parent to ask is not
+    running)."""
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -462,7 +505,8 @@ def alive(pid: int) -> bool:
 
 
 def end_what_is_left(folder: Path, started: list[int]) -> None:
-    """A script that failed a test of an interrupted run leaves nothing behind either: the programs its stages started, and every shell of the copy (one that never ends would keep a core busy)."""
+    """A script that failed a test of an interrupted run leaves nothing behind either: the programs
+    its stages started, and every shell of the copy (one that never ends would keep a core busy)."""
     found = []
     for entry in Path("/proc").glob("[0-9]*") if Path("/proc/self").exists() else []:
         try:
@@ -478,9 +522,11 @@ def end_what_is_left(folder: Path, started: list[int]) -> None:
                 pass
 
 
-# ---- what keeps the stages apart when they run at once: their own command lines, against a python and an npx that only write down how they were called ----
+# what keeps the stages apart when they run at once: their own command lines, against a python and
+# an npx that only write down how they were called
 
-# The made-up python (NEOAPRS_PYTHON) and npx: each writes its arguments down; the python fails when they are exactly FAIL_ON.
+# The made-up python (NEOAPRS_PYTHON) and npx: each writes its arguments down; the python fails when
+# they are exactly FAIL_ON.
 FAKE_PYTHON = """#!/bin/sh
 echo "python $*" >> "$EVENTS"
 [ "$*" != "${FAIL_ON-}" ] || { echo "boom"; exit 1; }
@@ -488,7 +534,8 @@ echo "python $*" >> "$EVENTS"
 FAKE_NPX = """#!/bin/sh
 echo "npx $*" >> "$EVENTS"
 """
-NODE = "\nnode_ok() { return 0; }\n"                                           # (the copy needs no node: nothing of the page runs)
+# (the copy needs no node: nothing of the page runs)
+NODE = "\nnode_ok() { return 0; }\n"
 MYPY, MYPY_WINDOWS = "python -m mypy", "python -m mypy --platform win32 --cache-dir .mypy_cache/win32"
 THE_REST = "--ignore=tests/test_architecture.py --ignore=tests/test_size_ratchet.py --ignore=tests/test_page_build.py"
 ARCHITECTURE = "python -m pytest -q -p no:cacheprovider tests/test_architecture.py tests/test_size_ratchet.py"
@@ -498,7 +545,8 @@ SECURITY = "python scripts/security-check"
 
 
 def with_made_up_programs(gate: Gate, *stages: str, cores: int = 32) -> dict[str, str]:
-    """The named stages as the script has them, in a copy that has ui/node_modules and a machine of `cores` threads; the environment to run the gate with."""
+    """The named stages as the script has them, in a copy that has ui/node_modules and a machine of
+    `cores` threads; the environment to run the gate with."""
     gate.real = set(stages)
     gate.also += f"{NODE}cores() {{ echo {cores}; }}\n"
     (gate.folder / "ui" / "node_modules").mkdir(parents=True, exist_ok=True)
@@ -507,9 +555,11 @@ def with_made_up_programs(gate: Gate, *stages: str, cores: int = 32) -> dict[str
 
 
 def test_the_command_lines_of_the_stages_that_run_at_once_keep_them_apart(gate: Gate) -> None:
-    """What the top of the script promises for the default run, held to the letter: the mypy run for Windows has a cache folder of its own; the suite leaves out the files of the stages architecture and page (so
-    vite builds once for the page test and not in the suite too) and has 12 workers at most; architecture and page run without pytest's cache plugin, so .pytest_cache is the suite's alone; vitest has 8 workers
-    at most; and the security stage is the checks that ask nobody."""
+    """What the top of the script promises for the default run, held to the letter: the mypy run for
+    Windows has a cache folder of its own; the suite leaves out the files of the stages architecture
+    and page (so vite builds once for the page test and not in the suite too) and has 12 workers at
+    most; architecture and page run without pytest's cache plugin, so .pytest_cache is the suite's
+    alone; vitest has 8 workers at most; and the security stage is the checks that ask nobody."""
     env = with_made_up_programs(gate, "mypy", "architecture", "pytest", "ui-tests", "page", "security")
     done = gate.run(**env)
     assert done.returncode == 0 and results(done) == [("ok", name) for name in STAGES], done.stdout + done.stderr
@@ -539,14 +589,16 @@ def test_beside_the_other_stages_vitest_has_eight_workers_at_most_and_no_more_th
     (("--serial",), {}, [MYPY, MYPY_WINDOWS, ARCHITECTURE, SUITE, "npx vitest run", PAGE, SECURITY]),
 ])
 def test_the_command_line_of_a_stage_that_runs_alone(gate: Gate, args: tuple[str, ...], env: dict[str, str], calls: list[str]) -> None:
-    """One stage at a time: the same files and cache folders, the workers as the variables say (a number that is named has no ceiling, 0 is no workers at all), and vitest takes what it likes."""
+    """One stage at a time: the same files and cache folders, the workers as the variables say (a
+    number that is named has no ceiling, 0 is no workers at all), and vitest takes what it likes."""
     done = gate.run(*args, **with_made_up_programs(gate, "mypy", "architecture", "pytest", "ui-tests", "page", "security", "audit", "flaky"), **env)
     assert done.returncode == 0 and gate.calls() == calls, done.stdout + done.stderr
 
 
 @pytest.mark.parametrize("fails", [MYPY, MYPY_WINDOWS])
 def test_the_two_mypy_runs_both_run_beside_the_other_stages_and_either_fails_the_stage(gate: Gate, fails: str) -> None:
-    """At once the two start together, so the one for Linux failing does not keep the one for Windows from running; what the second wrote comes after the first's, under its heading."""
+    """At once the two start together, so the one for Linux failing does not keep the one for
+    Windows from running; what the second wrote comes after the first's, under its heading."""
     done = gate.run(**with_made_up_programs(gate, "mypy"), FAIL_ON=fails.removeprefix("python "))
     assert done.returncode == 1 and results(done) == [("FAIL" if name == "mypy" else "ok", name) for name in STAGES]
     assert sorted(gate.calls()) == sorted([MYPY, MYPY_WINDOWS])
@@ -562,10 +614,13 @@ def test_alone_the_mypy_run_for_windows_follows_the_one_for_linux_when_that_pass
     assert done.returncode == 1 and results(done) == [("FAIL", "mypy")] and gate.calls() == calls
 
 
-# ---- the two stages that go through uv, as the script has them, against a uv that only writes down how it was called ----
+# the two stages that go through uv, as the script has them, against a uv that only writes down how
+# it was called
 
-# The made-up uv: `build` leaves a wheel in the folder it is given, `venv` a folder whose python writes down its arguments and what it was told about devices, the update check and the caller's Python.
-# With NO_CACHE=1 it fails whatever it is asked with --offline, as the real one does when its cache does not have everything.
+# The made-up uv: `build` leaves a wheel in the folder it is given, `venv` a folder whose python
+# writes down its arguments and what it was told about devices, the update check and the caller's
+# Python. With NO_CACHE=1 it fails whatever it is asked with --offline, as the real one does when
+# its cache does not have everything.
 FAKE_UV = r"""#!/bin/sh
 echo "uv $* frozen=${UV_FROZEN-unset}" >> "$EVENTS"
 case " $* " in *" --offline "*) [ -z "${NO_CACHE-}" ] || { echo "error: not in the cache" >&2; exit 2; } ;; esac
@@ -583,13 +638,15 @@ esac
 
 
 def with_fake_uv(gate: Gate, stage: str) -> dict[str, str]:
-    """Puts the made-up uv first on the PATH of the run and the real stage in place of its stand-in; the environment to run the gate with."""
+    """Puts the made-up uv first on the PATH of the run and the real stage in place of its stand-in;
+    the environment to run the gate with."""
     gate.real = {stage}
     return gate.programs(uv=FAKE_UV)
 
 
 def test_the_lock_stage_asks_uv_to_compare_the_lock_file_even_where_the_caller_froze_it(gate: Gate) -> None:
-    """Under UV_FROZEN=1, which the CI and the container set, `uv lock --check` only reads the lock file and passes one that is out of date: the stage takes the variable away."""
+    """Under UV_FROZEN=1, which the CI and the container set, `uv lock --check` only reads the lock
+    file and passes one that is out of date: the stage takes the variable away."""
     done = gate.run("--stage", "lock", UV_FROZEN="1", **with_fake_uv(gate, "lock"))
     assert done.returncode == 0 and results(done) == [("ok", "lock")], done.stdout + done.stderr
     assert gate.events() == ["uv lock --check frozen=unset"]
@@ -597,7 +654,8 @@ def test_the_lock_stage_asks_uv_to_compare_the_lock_file_even_where_the_caller_f
 
 @pytest.mark.skipif(is_root(), reason="root writes to a folder whatever its rights are")
 def test_uv_gets_a_cache_of_its_own_where_the_one_it_was_given_cannot_be_written(gate: Gate, tmp_path: Path) -> None:
-    """A sandbox that keeps uv from ~/.cache/uv would make the stages lock and smoke say something about the cache and not about the tree."""
+    """A sandbox that keeps uv from ~/.cache/uv would make the stages lock and smoke say something
+    about the cache and not about the tree."""
     shut = tmp_path / "shut"
     shut.mkdir()
     shut.chmod(0o500)
@@ -613,13 +671,17 @@ def test_uv_gets_a_cache_of_its_own_where_the_one_it_was_given_cannot_be_written
 
 @pytest.mark.parametrize("cache", ["has everything", "is empty"])
 def test_the_smoke_stage_installs_the_built_wheel_into_a_folder_of_its_own_and_runs_the_smoke_test_with_every_door_shut(gate: Gate, cache: str) -> None:
-    """The wheel is built and installed in the run's temporary folder, from uv's cache first and from the net only when the cache does not have everything; the smoke test runs with the Python of that folder
-    against the command of that folder, is told to open no device and not to ask the version page, and gets nothing of the caller's Python. The folder is gone when the run ends."""
+    """The wheel is built and installed in the run's temporary folder, from uv's cache first and
+    from the net only when the cache does not have everything; the smoke test runs with the Python
+    of that folder against the command of that folder, is told to open no device and not to ask the
+    version page, and gets nothing of the caller's Python. The folder is gone when the run ends."""
     env = with_fake_uv(gate, "smoke")
-    caller = {"PYTHONPATH": "/somewhere/else", "VIRTUAL_ENV": "/a/venv", "NEOAPRS_NO_DEVICES": "0", "NEOAPRS_UPDATE_CHECK": "1"}         # what the stage must not leave as it finds it (nothing real is started here)
+    # what the stage must not leave as it finds it (nothing real is started here)
+    caller = {"PYTHONPATH": "/somewhere/else", "VIRTUAL_ENV": "/a/venv", "NEOAPRS_NO_DEVICES": "0", "NEOAPRS_UPDATE_CHECK": "1"}
     done = gate.run("--stage", "smoke", **caller, **({"NO_CACHE": "1"} if cache == "is empty" else {}), **env)
     assert done.returncode == 0 and results(done) == [("ok", "smoke")], done.stdout + done.stderr
-    found = re.search(r"--out-dir (.+)/smoke/dist", gate.events()[0])            # (the temporary folder of the machine may have a space in its name)
+    # (the temporary folder of the machine may have a space in its name)
+    found = re.search(r"--out-dir (.+)/smoke/dist", gate.events()[0])
     assert found, gate.events()
     work = found.group(1)
     events = [event.replace(work, "WORK").replace(sys.executable, "PYTHON").removesuffix(" frozen=unset") for event in gate.events()]
@@ -637,14 +699,16 @@ NO_NETWORK = '\nnode_ok() { return 0; }\nui_install() { echo "install" >> "$even
 
 
 def page_without_modules(gate: Gate) -> None:
-    """A tree with ui/ and no ui/node_modules; the stand-ins of the page's stages go through the script's own `ui_run`, which installs what is missing."""
+    """A tree with ui/ and no ui/node_modules; the stand-ins of the page's stages go through the
+    script's own `ui_run`, which installs what is missing."""
     (gate.folder / "ui").mkdir()
     for name in UI:
         gate.bodies[name] = "ui_run true"
 
 
 def the_real_page_stage_without_modules(gate: Gate, also: str) -> dict[str, str]:
-    """The same tree with the stage page as the script has it, against the made-up python; the environment to run the gate with."""
+    """The same tree with the stage page as the script has it, against the made-up python; the
+    environment to run the gate with."""
     page_without_modules(gate)
     gate.real, gate.also = {"page"}, also
     return {**gate.programs(python=FAKE_PYTHON), "NEOAPRS_PYTHON": str(gate.bin / "python")}
@@ -675,7 +739,8 @@ def test_an_install_that_fails_is_tried_once_and_fails_the_stages_of_the_page_on
 
 
 def test_the_page_stage_fails_when_the_install_failed_and_does_not_run_a_test_that_would_be_skipped(gate: Gate) -> None:
-    """The page test skips its build where ui/node_modules is missing; a stage that ran it then would say ok with nothing compared."""
+    """The page test skips its build where ui/node_modules is missing; a stage that ran it then
+    would say ok with nothing compared."""
     done = gate.run(**the_real_page_stage_without_modules(gate, NO_NETWORK))
     assert done.returncode == 1 and ("FAIL", "page") in results(done) and gate.calls() == []
     lines = done.stdout.splitlines()
@@ -684,9 +749,11 @@ def test_the_page_stage_fails_when_the_install_failed_and_does_not_run_a_test_th
 
 
 @pytest.mark.parametrize(("also", "word", "events"), [
-    (NODE_IS_THERE, "ok", ["install", PAGE]),                                                     # by name the stage installs what is missing, as the page's other stages do, and then compares
+    # by name the stage installs what is missing, as the page's other stages do, and then compares
+    (NODE_IS_THERE, "ok", ["install", PAGE]),
     (NO_NETWORK, "FAIL", ["install"]),
-    ("\nnode_ok() { return 1; }\n", "FAIL", []),                                                 # without node the test would skip its build too
+    # without node the test would skip its build too
+    ("\nnode_ok() { return 1; }\n", "FAIL", []),
 ])
 def test_the_page_stage_by_name_installs_what_is_missing_first_and_fails_when_it_cannot(gate: Gate, also: str, word: str, events: list[str]) -> None:
     done = gate.run("--stage", "page", **the_real_page_stage_without_modules(gate, also))

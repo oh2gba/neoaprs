@@ -1,6 +1,6 @@
-"""The ships of the map's layer (neoaprs/services/layerships.py): Fintraffic's whole feed asked at its two addresses with the program's header and nothing of the station, cut to the true circle and the 300 nearest,
-ships older than 30 minutes left out, the names from the second address, a refusal that stops it; and the own AIS receiver, a connection the daemon opens and keeps while the source is in force (looked at or not),
-its table told to the pages that look at most every five seconds, a lost connection tried again, nothing cut by distance, and no port listened to."""
+"""Tests for the ship layer (neoaprs/services/layerships.py): Fintraffic requests, cutting to the
+circle and the 300 nearest, age limits, names, refusals, and the own AIS receiver connection.
+"""
 import asyncio
 import json
 import os
@@ -33,7 +33,8 @@ HELSINKI = (60.17, 24.94)
 
 
 async def layers(net: Net, settings: Settings, where: Callable[[], tuple[float, float] | None] = lambda: HOME, environ: dict[str, str] | None = None) -> Layers:
-    """The service started on the loop's skipped time, whose clock reads T0 when it is made (the ships' own times are relative to it)."""
+    """The service started on the loop's skipped time, whose clock reads T0 when it is made (the
+    ships' own times are relative to it)."""
     began = asyncio.get_running_loop().time()
     made = Layers(settings, where, "0.21.0", "linux", fetch=net, clock=lambda: T0 + timedelta(seconds=asyncio.get_running_loop().time() - began),
                   environ={"NEOAPRS_UPDATE_CHECK": "1"} if environ is None else environ)
@@ -166,7 +167,8 @@ async def test_the_real_question_on_the_loopback_is_packed_has_the_header_and_tw
 
 @pytest.fixture
 def no_receiver(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The connection to the receiver is refused (a test that is not about the connection): this computer's own port 10110 is never tried."""
+    """The connection to the receiver is refused (a test that is not about the connection): this
+    computer's own port 10110 is never tried."""
     async def refused(host: str, port: int, timeout_sec: float = 10.0) -> Any:
         raise ConnectionRefusedError
     monkeypatch.setattr(aisfeed, "connect", refused)
@@ -383,7 +385,8 @@ async def test_a_half_line_of_a_lost_connection_does_not_cost_the_first_line_of_
     receiver = await ais_receiver()
     service = await own(receiver.address)
     await receiver.until_connected()
-    receiver.send_raw(b"!AIVDM,1,1,,A,garbage")              # (no line end: the connection is lost in the middle of a line)
+    # (no line end: the connection is lost in the middle of a line)
+    receiver.send_raw(b"!AIVDM,1,1,,A,garbage")
     receiver.drop()
     await until(lambda: receiver.connections >= 2 and bool(receiver.writers))
     receiver.send(*position_lines(230111000, 60.1, 24.9))

@@ -1,6 +1,7 @@
-"""The entry of the frozen app: one script for the three programs of the folder. `neoaprs.exe` has a console (the command line, `neoaprs doctor`, the logs on the screen); `neoaprsw.exe` has none and is the
-daemon (`neoaprsw.exe run`, `open`, `stop`); `neoaprs-app.exe` has none and is the desktop app (the Start menu, the start at sign-in). They are the same program, told apart by their own names.
-The app's role shows its splash (neoaprs/desktop/splash.py) before it imports the app, which is the heavy part of its start; each role imports only its own."""
+"""Entry of the frozen app: one script for neoaprs.exe (console), neoaprsw.exe (daemon, no console)
+and neoaprs-app.exe (desktop app, no console), told apart by the program's name.
+
+The app role shows its splash before importing the heavy app modules."""
 import os
 import sys
 

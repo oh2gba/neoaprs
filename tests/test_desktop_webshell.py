@@ -1,9 +1,8 @@
-"""The web shell against stand-ins for pywebview, pystray and Pillow (`sys.modules` gets them, so this runs on any system and CI). First as it runs on Windows (the rig sets `webshell.SYSTEM`): what the shell
-asks of each toolkit, the closing of the window that hides it, the tray menu made from the data of the actions, the page's script that sends other sites to the browser, and the way on without a window when
-WebView2 cannot start. The Windows tray's image is icon.ico written as it is (no imaging library: there an import of Pillow fails); where the real pystray is installed (the CI's Windows job), its own code
-is read for the one call it makes of the image, and the image goes through it. Then as it runs on Linux and macOS (the trial of NEOAPRS_WINDOW=web), with stand-ins for gi and PyObjCTools too: the engine, the storage and the icon it starts with, the size keeper,
-the window without a tray whose close button quits, the minute's wait for the tray host, the tray's own loop with no window, and gtkenv's rules on a fake /proc and fake folders. What the real toolkits do with
-those calls is what only a desktop of each system can say."""
+"""Tests for the web shell against stand-ins for pywebview, pystray and Pillow (installed in
+`sys.modules`, so it runs anywhere). First the Windows path: toolkit calls, hide on close, the tray
+menu, the external-link script, and the fallback without WebView2. Then the Linux and macOS path
+(NEOAPRS_WINDOW=web) with stand-ins for gi and PyObjCTools too.
+"""
 import ast
 import inspect
 import ctypes
@@ -38,15 +37,19 @@ class Hook:
 
 
 Rect = tuple[int, int, int, int]
-SCREEN, WORK = (0, 0, 1366, 768), (0, 0, 1366, 728)        # the laptop of the report: 1366 x 768 at 100 %, the taskbar at the bottom
-MAXIMIZED_FRAME = (-8, -8, 1374, 736)                       # (a maximized window's frame: its borders off the work area)
+# the laptop of the report: 1366 x 768 at 100 %, the taskbar at the bottom
+SCREEN, WORK = (0, 0, 1366, 768), (0, 0, 1366, 728)
+# (a maximized window's frame: its borders off the work area)
+MAXIMIZED_FRAME = (-8, -8, 1374, 736)
 NORMAL = (100, 60, 1100, 760)
 
 
 class FakeUser32:
-    """Windows' user32 as far as the shell asks it, with the one window: its placement (show state, flags, normal rectangle) and whether it is visible, the placements it was given, and every call. The window's
-    form (pywebview's) shows and hides it; with `form_bug` its Show makes a maximized window a normal one the size of the screen, as the laptop of the report showed it, and with `undo` SetWindowPlacement is
-    answered and changes nothing."""
+    """Windows' user32 as far as the shell asks it, with the one window: its placement (show state,
+    flags, normal rectangle) and whether it is visible, the placements it was given, and every call.
+    The window's form (pywebview's) shows and hides it; with `form_bug` its Show makes a maximized
+    window a normal one the size of the screen, as the laptop of the report showed it, and with
+    `undo` SetWindowPlacement is answered and changes nothing."""
     hwnd = 0x2A0F44
 
     def __init__(self, show_cmd: int = winplace.SW_SHOWNORMAL, flags: int = 0, normal: Rect = NORMAL, visible: bool = True) -> None:
@@ -125,9 +128,12 @@ class FakeWindow:
         self.shown = True
         self.destroyed = threading.Event()
         self.user32 = user32
-        self.frame_at = (0, 0)                                                                                      # where the frame is, title bar and all (GTK's get_position)
-        self.native = types.SimpleNamespace(Handle=types.SimpleNamespace(ToInt64=lambda: FakeUser32.hwnd),      # (pywebview's WinForms Form, with its HWND;
-                                            get_position=lambda: self.frame_at)                                  #  GTK's Window, with the place of its frame)
+        # where the frame is, title bar and all (GTK's get_position)
+        self.frame_at = (0, 0)
+        # (pywebview's WinForms Form, with its HWND;
+        self.native = types.SimpleNamespace(Handle=types.SimpleNamespace(ToInt64=lambda: FakeUser32.hwnd),
+                                            # GTK's Window, with the place of its frame)
+                                            get_position=lambda: self.frame_at)
 
     def hide(self) -> None:
         self.calls.append("hide")
@@ -154,7 +160,8 @@ class FakeWindow:
 
     def load_url(self, url: str) -> None:
         if not self.shown:
-            raise RuntimeError("Main window failed to start")            # (pywebview's load_url, when the window's `shown` does not come in time)
+            # (pywebview's load_url, when the window's `shown` does not come in time)
+            raise RuntimeError("Main window failed to start")
         self.loaded.append(url)
 
 
@@ -189,8 +196,9 @@ class FakeMenu:
 
 class FakeMenuItem:
     def __init__(self, text: str, action: Any, checked: Any = None, default: bool = False) -> None:
-        # pystray 0.19.5 (MenuItem._assert_action) takes an action of 0, 1 or 2 parameters, counting those with a default, and refuses any other with ValueError: the tray menu of every Windows start
-        # failed so from 26 Oct to 4 Nov 2026 (OH2GAX's app log), an action `lambda _icon, _item, key=...` having three.
+        # pystray (MenuItem._assert_action) takes an action of 0, 1 or 2 parameters, counting those
+        # with a default, and refuses any other with ValueError. The stand-in does the same, so that
+        # a three-parameter action such as `lambda _icon, _item, key=...` fails here.
         if callable(action) and action.__code__.co_argcount - (1 if inspect.ismethod(action) else 0) > 2:
             raise ValueError(action)
         self.text, self.action, self.checked, self.default = text, action, checked, default
@@ -219,7 +227,9 @@ class Toolkits:
             monkeypatch.setitem(sys.modules, name, module)
         if system == "win32":
             for name in ("PIL", "PIL.Image"):
-                monkeypatch.setitem(sys.modules, name, None)        # (an import of Pillow fails: the Windows shell must not need it, the app does not ship it)
+                # (an import of Pillow fails: the Windows shell must not need it, the app does not
+                # ship it)
+                monkeypatch.setitem(sys.modules, name, None)
         else:
             pil = types.ModuleType("PIL")
             image = types.ModuleType("PIL.Image")
@@ -249,10 +259,14 @@ class Toolkits:
 class Rig:
     def __init__(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, hidden: bool = False, window: bool = True, start_fails: bool = False, autostart: bool = True, user32: FakeUser32 | None = None,
                  windll: bool = True, system: str = "win32") -> None:
-        """`user32`: the window's Win32 side, which is `ctypes.windll.user32` unless `windll` is False (then the window has it and the shell cannot reach it, as on any system but Windows). Without one the
-        shell has no Win32 at all, on Windows too (CI runs these tests there): the real user32 is never called with a fake window, and no real WebView2 is started. `system`: the system the shell runs as."""
+        """`user32`: the window's Win32 side, which is `ctypes.windll.user32` unless `windll` is
+        False (then the window has it and the shell cannot reach it, as on any system but Windows).
+        Without one the shell has no Win32 at all, on Windows too (CI runs these tests there): the
+        real user32 is never called with a fake window, and no real WebView2 is started. `system`:
+        the system the shell runs as."""
         monkeypatch.setattr(webshell, "SYSTEM", system)
-        self.tray = True                                                    # whether the tray's toolkit loaded (Launch.tray)
+        # whether the tray's toolkit loaded (Launch.tray)
+        self.tray = True
         self.toolkits = Toolkits(monkeypatch, start_fails, user32, system)
         if user32 is not None and windll:
             monkeypatch.setattr(ctypes, "windll", types.SimpleNamespace(user32=user32), raising=False)
@@ -283,7 +297,8 @@ def until(condition: Any, seconds: float = 10.0) -> None:
 
 
 def launch(rig: Rig) -> threading.Thread:
-    """Runs the shell in a thread (it blocks until Quit, as the toolkit's loop does) and returns when the window loop or the tray has started."""
+    """Runs the shell in a thread (it blocks until Quit, as the toolkit's loop does) and returns
+    when the window loop or the tray has started."""
     thread = threading.Thread(target=rig.run, daemon=True)
     thread.start()
     until(lambda: rig.toolkits.started or rig.toolkits.icons and "run_detached" in rig.toolkits.icons[0].calls and rig.ctx.watch is not None)
@@ -310,11 +325,15 @@ def rig(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Rig:
 
 
 def test_a_page_that_the_daemon_serves_at_another_address_is_loaded_there_and_the_links_are_judged_against_it(rig: Rig) -> None:
-    """The daemon started again on another port (Update now on Windows: the installer starts it; the port it had may be taken by then): the watch tells the actions, the window loads the page there."""
+    """The daemon started again on another port (Update now on Windows: the installer starts it; the
+    port it had may be taken by then): the watch tells the actions, the window loads the page there.
+    """
     thread = launch(rig)
     window = rig.toolkits.windows[0]
     assert rig.ctx.watch is not None and rig.ctx.watch.moved is not None
-    until(lambda: window.loaded == [PAGE + "#app"])           # (the window's own first load, which the shell's thread makes: on a busy machine it can come after the watch is there)
+    # (the window's own first load, which the shell's thread makes: on a busy machine it can come
+    # after the watch is there)
+    until(lambda: window.loaded == [PAGE + "#app"])
     rig.ctx.watch.moved("http://127.0.0.1:7310/")
     assert window.loaded == [PAGE + "#app", "http://127.0.0.1:7310/#app"]
     api = window.kwargs["js_api"]
@@ -376,7 +395,9 @@ def test_the_tray_menu_is_made_from_the_data_of_the_actions(rig: Rig) -> None:
     quit_through_the_menu(rig, thread)
 
 
-# ---- the window's placement on Windows: read with GetWindowPlacement, given back with SetWindowPlacement (user32 is a fake: what Windows itself does with the calls only a Windows desktop can say)
+# ---- the window's placement on Windows: read with GetWindowPlacement, given back with
+# SetWindowPlacement (user32 is a fake: what Windows itself does with the calls only a Windows
+# desktop can say)
 
 def kept(maximized: bool, normal: Rect = NORMAL) -> appstate.WindowState:
     """The file as the Windows shell writes it."""
@@ -394,7 +415,8 @@ def handler(hook: Hook) -> Any:
 
 def test_a_window_left_maximized_starts_maximized_on_the_normal_rectangle_it_had_even_when_the_form_shows_it_otherwise(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, "neoaprs.desktop")
-    user32 = FakeUser32(show_cmd=winplace.SW_SHOWMAXIMIZED, normal=(0, 0, 1280, 800), visible=False)     # the form as pywebview makes it: hidden, maximized as it was told, at its own rectangle
+    # the form as pywebview makes it: hidden, maximized as it was told, at its own rectangle
+    user32 = FakeUser32(show_cmd=winplace.SW_SHOWMAXIMIZED, normal=(0, 0, 1280, 800), visible=False)
     rig = Rig(tmp_path, monkeypatch, user32=user32)
     appstate.save_window(rig.data, kept(True))
     thread = launch(rig)
@@ -402,7 +424,8 @@ def test_a_window_left_maximized_starts_maximized_on_the_normal_rectangle_it_had
     assert (window.kwargs["width"], window.kwargs["height"], window.kwargs["x"], window.kwargs["y"], window.kwargs["maximized"]) == (1000, 700, 100, 60, True)
     handler(window.events.before_show)()
     assert user32.placed == [(winplace.SW_HIDE, NORMAL)] and not user32.visible, "before it is shown: the rectangle, and still hidden"
-    user32.form_bug = True                                              # the form shows it as the laptop did: a normal window the size of the screen
+    # the form shows it as the laptop did: a normal window the size of the screen
+    user32.form_bug = True
     user32.form_shows()
     handler(window.events.shown)()
     assert user32.placed[-1] == (winplace.SW_SHOWMAXIMIZED, NORMAL) and (user32.show_cmd, user32.normal) == (winplace.SW_SHOWMAXIMIZED, NORMAL)
@@ -430,7 +453,8 @@ def test_the_close_button_saves_the_placement_before_it_hides_the_window_and_ope
     assert window.calls == ["hide", "show"] and user32.placed == [(winplace.SW_SHOWMAXIMIZED, NORMAL)], "no maximize or restore of pywebview's: the placement"
     assert (user32.show_cmd, user32.normal, user32.visible) == (winplace.SW_SHOWMAXIMIZED, NORMAL, True)
     assert "window: open: the saved placement, maximized=True normal=(100, 60, 1100, 760)" in lines(caplog)
-    user32.show_cmd = winplace.SW_SHOWNORMAL                            # the user restores it and moves it to a corner, and closes it again
+    # the user restores it and moves it to a corner, and closes it again
+    user32.show_cmd = winplace.SW_SHOWNORMAL
     user32.normal = (0, 0, 1000, 700)
     handler(window.events.closing)()
     user32.form_bug = False
@@ -441,7 +465,8 @@ def test_the_close_button_saves_the_placement_before_it_hides_the_window_and_ope
 
 def test_quit_saves_the_placement_and_the_next_start_is_given_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, "neoaprs.desktop")
-    rig = Rig(tmp_path, monkeypatch, user32=FakeUser32(show_cmd=winplace.SW_SHOWMAXIMIZED, normal=(-1700, 100, -900, 700)))     # on a monitor to the left
+    # on a monitor to the left
+    rig = Rig(tmp_path, monkeypatch, user32=FakeUser32(show_cmd=winplace.SW_SHOWMAXIMIZED, normal=(-1700, 100, -900, 700)))
     quit_through_the_menu(rig, launch(rig))
     assert appstate.load_window(rig.data) == kept(True, (-1700, 100, -900, 700))
     user32 = FakeUser32(visible=False)
@@ -474,7 +499,8 @@ def test_a_minimised_window_is_saved_as_what_it_goes_back_to_and_never_brought_b
         user32 = FakeUser32(show_cmd=winplace.SW_SHOWMINIMIZED, flags=flags)
         rig = Rig(tmp_path / str(flags), monkeypatch, user32=user32)
         thread = launch(rig)
-        menu_item(rig, "Open NeoAPRS").action(rig.toolkits.icons[0], menu_item(rig, "Open NeoAPRS"))      # the window is on the taskbar: Open takes it back
+        # the window is on the taskbar: Open takes it back
+        menu_item(rig, "Open NeoAPRS").action(rig.toolkits.icons[0], menu_item(rig, "Open NeoAPRS"))
         assert user32.placed == [(winplace.SW_SHOWMAXIMIZED if maximized else winplace.SW_SHOWNORMAL, NORMAL)]
         user32.show_cmd = winplace.SW_SHOWMINIMIZED
         quit_through_the_menu(rig, thread)
@@ -488,7 +514,8 @@ def test_the_events_only_start_the_timer_and_what_is_saved_is_what_windows_says_
     rig = Rig(tmp_path / "w", monkeypatch, user32=user32)
     thread = launch(rig)
     e = rig.toolkits.windows[0].events
-    handler(e.moved)(-8, -8)                                            # a maximize as pywebview tells it, in any order: the payloads are not used
+    # a maximize as pywebview tells it, in any order: the payloads are not used
+    handler(e.moved)(-8, -8)
     handler(e.resized)(1382, 744)
     handler(e.maximized)()
     user32.show_cmd = winplace.SW_SHOWMAXIMIZED
@@ -503,7 +530,8 @@ def test_a_file_of_an_earlier_version_opens_at_the_default_size_in_the_middle_an
     user32 = FakeUser32(normal=(43, 34, 1323, 834), visible=False)
     for maximized in (False, True):
         rig = Rig(tmp_path / str(maximized), monkeypatch, user32=user32)
-        appstate.save_window(rig.data, appstate.WindowState(1382, 744, 0, 20, maximized))       # (what 0.12.0 wrote on the laptop: the size of the screen, a little down)
+        # A size written by an older version: the size of the screen, a little down.
+        appstate.save_window(rig.data, appstate.WindowState(1382, 744, 0, 20, maximized))
         thread = launch(rig)
         window = rig.toolkits.windows[0]
         assert (window.kwargs["width"], window.kwargs["height"], window.kwargs["maximized"]) == (*appstate.DEFAULT_SIZE, maximized) and "x" not in window.kwargs
@@ -538,7 +566,8 @@ def test_a_window_started_in_the_tray_gets_its_placement_when_it_is_opened(tmp_p
     thread = launch(rig)
     window = rig.toolkits.windows[0]
     handler(window.events.before_show)()
-    handler(window.events.shown)()                                      # (pywebview shows and hides it at once: the shown comes with the window hidden)
+    # (pywebview shows and hides it at once: the shown comes with the window hidden)
+    handler(window.events.shown)()
     assert user32.placed == [(winplace.SW_HIDE, NORMAL)] and "window: start: in the tray, the placement is applied when the window is opened" in lines(caplog)
     menu_item(rig, "Open NeoAPRS").action(rig.toolkits.icons[0], menu_item(rig, "Open NeoAPRS"))
     assert user32.placed[-1] == (winplace.SW_SHOWMAXIMIZED, NORMAL) and user32.visible
@@ -646,7 +675,8 @@ def test_the_menu_item_constants_are_the_keys_the_actions_know() -> None:
     assert (OPEN, AUTOSTART, QUIT) == ("open", "autostart", "quit")
 
 
-# ---- the edges: a frame before it has a window or an icon, a message to the tray, a window that cannot start when the app starts hidden
+# ---- the edges: a frame before it has a window or an icon, a message to the tray, a window that
+# cannot start when the app starts hidden
 
 def test_a_frame_that_has_no_window_and_no_icon_yet_has_nothing_to_show_or_to_refresh_and_a_message_goes_to_the_log(caplog: pytest.LogCaptureFixture) -> None:
     frame = webshell.WebFrame(True)
@@ -696,8 +726,10 @@ def test_the_tray_image_writes_the_bytes_of_icon_ico_as_pystray_asks_for_an_ico(
 
 
 def test_a_missing_icon_file_fails_the_shell_where_it_starts_and_not_later_in_pystrays_thread(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """pystray asks the image for its file in its own thread, when the icon is shown; a failure there is a line in the log and an app without a tray, whose window then hides into nothing. So icon.ico is
-    read when the icon is made, on the thread that starts the shell, whose failure the app answers with the page in the browser."""
+    """pystray asks the image for its file in its own thread, when the icon is shown; a failure
+    there is a line in the log and an app without a tray, whose window then hides into nothing. So
+    icon.ico is read when the icon is made, on the thread that starts the shell, whose failure the
+    app answers with the page in the browser."""
     gone = tmp_path / "icon.ico"
     with pytest.raises(FileNotFoundError):
         webshell.IcoFile(gone)
@@ -716,8 +748,10 @@ def test_a_missing_icon_file_fails_the_shell_where_it_starts_and_not_later_in_py
 
 
 def test_the_real_pystray_asks_the_image_to_write_itself_as_an_ico_and_has_windows_load_that_file() -> None:
-    """pystray 0.19.5 on Windows: `_assert_icon_handle` makes the file with `serialized_image(self.icon, 'ICO')` and loads it with LoadImage; `serialized_image` calls `image.save(f, format=format)`.
-    A pystray whose code says otherwise fails here, on the CI's Windows job, and not in an operator's tray."""
+    """pystray on Windows: `_assert_icon_handle` makes the file with `serialized_image(self.icon,
+    'ICO')` and loads it with LoadImage; `serialized_image` calls `image.save(f, format=format)`. A
+    pystray whose code says otherwise fails here, on the CI's Windows job, not in an operator's
+    tray."""
     if sys.platform != "win32":
         pytest.skip("the real pystray is installed with the extra app on Windows only")
     util = pytest.importorskip("pystray._util")
@@ -730,7 +764,8 @@ def test_the_real_pystray_asks_the_image_to_write_itself_as_an_ico_and_has_windo
         assert Path(path).read_bytes() == webshell.ico_path().read_bytes(), "the file Windows loads is icon.ico"
 
 
-# What the frozen app has on Windows: pystray and its Windows backend with no Pillow at all (the spec excludes PIL). Run in a Python of its own, in which any import of PIL fails.
+# What the frozen app has on Windows: pystray and its Windows backend with no Pillow at all (the
+# spec excludes PIL). Run in a Python of its own, in which any import of PIL fails.
 WITHOUT_PILLOW = """
 import sys
 sys.modules["PIL"] = None
@@ -745,7 +780,8 @@ print("pystray without Pillow")
 
 
 def test_the_real_pystray_and_its_windows_backend_run_without_pillow() -> None:
-    """The CI's Windows job has Pillow (the extra app installs it, as pystray asks), the frozen app has none. A pystray whose Windows modules or shared helpers import PIL fails here, and not in an
+    """The CI's Windows job has Pillow (the extra app installs it, as pystray asks), the frozen app
+    has none. A pystray whose Windows modules or shared helpers import PIL fails here, and not in an
     operator's tray."""
     if sys.platform != "win32":
         pytest.skip("the real pystray is installed with the extra app on Windows only")
@@ -755,10 +791,13 @@ def test_the_real_pystray_and_its_windows_backend_run_without_pillow() -> None:
     done = subprocess.run([sys.executable, "-c", WITHOUT_PILLOW], capture_output=True, text=True, timeout=120, env=env, cwd=Path(__file__).resolve().parents[1])
     assert done.returncode == 0 and "pystray without Pillow" in done.stdout, done.stderr
 
-# ---- Linux and macOS: the web window of the trial (NEOAPRS_WINDOW=web). The tray host, the desktop's scheme and the screens are stood in for here; their own calls of gi further down.
+# ---- Linux and macOS: the web window of the trial (NEOAPRS_WINDOW=web). The tray host, the
+# desktop's scheme and the screens are stood in for here; their own calls of gi further down.
 
 class Desk:
-    """What a Linux desktop answers the shell: whether a tray host is there, whether the remembered place is on a screen, and where the first monitor is (GDK's); GLib's idle calls are made at once."""
+    """What a Linux desktop answers the shell: whether a tray host is there, whether the remembered
+    place is on a screen, and where the first monitor is (GDK's); GLib's idle calls are made at
+    once."""
 
     def __init__(self, monkeypatch: pytest.MonkeyPatch, host: bool = True, on_screen: bool = True, first_monitor: tuple[int, int] = (0, 0)) -> None:
         self.host = host
@@ -798,14 +837,16 @@ def test_on_linux_the_window_is_gtks_with_its_own_store_the_icon_and_the_size_an
     e = window.events
     handler(e.resized)(1100, 750)
     window.frame_at = (50, 60)
-    handler(e.moved)(52, 97)                                            # (what pywebview tells: the inside, below the title bar)
+    # (what pywebview tells: the inside, below the title bar)
+    handler(e.moved)(52, 97)
     until(lambda: appstate.load_window(rig.data) == appstate.WindowState(1100, 750, 50, 60, False))
     quit_through_the_menu(rig, thread)
     assert user32.calls == [], "no Win32 on Linux"
 
 
 def test_on_x11_the_frames_place_is_kept_and_given_back_without_the_first_monitors_corner_which_pywebview_adds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    Desk(monkeypatch, first_monitor=(1920, 0))                          # (a screen to the left of the first one: the desktop's places of the first one start at 1920)
+    # (a screen to the left of the first one: the desktop's places of the first one start at 1920)
+    Desk(monkeypatch, first_monitor=(1920, 0))
     rig = linux_rig(tmp_path, monkeypatch)
     appstate.save_window(rig.data, appstate.WindowState(1000, 700, 2000, 100, False))
     thread = launch(rig)
@@ -825,7 +866,8 @@ def test_a_maximize_keeps_the_size_it_goes_back_to_and_a_minimise_changes_nothin
     thread = launch(rig)
     window = rig.toolkits.windows[0]
     e = window.events
-    handler(e.resized)(1920, 1040)                                      # what GTK says of a maximize, the size before the state
+    # what GTK says of a maximize, the size before the state
+    handler(e.resized)(1920, 1040)
     handler(e.moved)(0, 0)
     handler(e.maximized)()
     until(lambda: appstate.load_window(rig.data) == appstate.WindowState(1000, 700, 40, 30, True))
@@ -842,7 +884,9 @@ def test_a_maximize_keeps_the_size_it_goes_back_to_and_a_minimise_changes_nothin
 
 
 @pytest.mark.parametrize("system, maximized, calls", [
-    ("linux", True, ["show", "restore", "maximize"]),          # GTK: show and maximize leave a minimised window on the taskbar; its restore brings it back and keeps it maximized
+    # GTK: show and maximize leave a minimised window on the taskbar; its restore brings it back and
+    # keeps it maximized
+    ("linux", True, ["show", "restore", "maximize"]),
     ("linux", False, ["show", "restore"]),
     ("darwin", True, ["show", "maximize"]),                    # (Cocoa's restore would make it a normal window)
     ("darwin", False, ["show", "restore"]),
@@ -884,7 +928,8 @@ def test_the_close_button_hides_the_window_while_the_desktop_has_a_tray_and_quit
     window = rig.toolkits.windows[0]
     closing = handler(window.events.closing)
     assert closing() is False and window.calls == ["hide"] and thread.is_alive()
-    desk.host = False                                                   # the tray host went away (GNOME without its extension)
+    # the tray host went away (GNOME without its extension)
+    desk.host = False
     assert closing() is False, "the close is cancelled: the loop runs on until Quit has done its part"
     thread.join(10)
     assert not thread.is_alive() and window.calls[-1] == "destroy" and closing() is True
@@ -897,7 +942,9 @@ def test_a_window_without_a_tray_icon_is_a_window_whose_close_button_quits(tmp_p
     rig.tray = False
     thread = threading.Thread(target=rig.run, daemon=True)
     thread.start()
-    until(lambda: rig.ctx.watch is not None and bool(rig.toolkits.windows) and bool(rig.toolkits.windows[0].loaded))     # (the watch is there a moment before the window has loaded the page: under a full load the test was there first)
+    # (the watch is there a moment before the window has loaded the page: under a full load the test
+    # was there first)
+    until(lambda: rig.ctx.watch is not None and bool(rig.toolkits.windows) and bool(rig.toolkits.windows[0].loaded))
     window = rig.toolkits.windows[0]
     assert rig.toolkits.icons == [] and window.loaded == [PAGE + "#app"]
     assert handler(window.events.closing)() is False
@@ -980,7 +1027,8 @@ def test_started_in_the_tray_with_no_tray_icon_at_all_the_window_is_shown_at_onc
 
 
 class FakeGLib(types.ModuleType):
-    """gi's GLib as far as the tray's own loop asks it: a main loop that runs until it is told to quit, and idle_add, which calls at once."""
+    """gi's GLib as far as the tray's own loop asks it: a main loop that runs until it is told to
+    quit, and idle_add, which calls at once."""
 
     def __init__(self) -> None:
         super().__init__("gi.repository.GLib")
@@ -1016,7 +1064,8 @@ def test_on_linux_without_a_window_the_tray_runs_on_a_glib_loop_of_its_own_until
 
 
 class FakeAppHelper(types.ModuleType):
-    """PyObjCTools.AppHelper: callAfter queues a call to the main thread, here a list the test runs; the event loop runs until stopEventLoop."""
+    """PyObjCTools.AppHelper: callAfter queues a call to the main thread, here a list the test runs;
+    the event loop runs until stopEventLoop."""
 
     def __init__(self) -> None:
         super().__init__("PyObjCTools.AppHelper")
@@ -1070,7 +1119,8 @@ def test_a_window_that_cannot_start_on_macos_goes_on_in_the_menu_bar_on_the_even
     rig.ctx.close()
 
 
-# ---- what the shell asks of gi and pyobjc itself: the tray host on the session bus, the desktop's scheme, the screens, macOS's appearance
+# ---- what the shell asks of gi and pyobjc itself: the tray host on the session bus, the desktop's
+# scheme, the screens, macOS's appearance
 
 class FakeBus:
     def __init__(self, answers: dict[str, Any]) -> None:
@@ -1201,12 +1251,14 @@ def proc(tmp_path: Path, restrict: str | None = "0", max_ns: str | None = "63000
 
 
 def by_path(name: str) -> bool:
-    """A load by a path, not by a name: str(Path) has the system's separator (a backslash where the suite runs on Windows)."""
+    """A load by a path, not by a name: str(Path) has the system's separator (a backslash where the
+    suite runs on Windows)."""
     return "/" in name or os.sep in name
 
 
 class Loader:
-    """The dynamic linker as gtkenv asks it: the names the system can load, and every load, by name or by path."""
+    """The dynamic linker as gtkenv asks it: the names the system can load, and every load, by name
+    or by path."""
 
     def __init__(self, system: set[str]) -> None:
         self.system = system
@@ -1229,7 +1281,8 @@ def never(bwrap: str) -> bool:
 
 def test_a_carried_library_is_loaded_by_its_path_only_where_the_system_has_none_of_that_name(tmp_path: Path) -> None:
     folder = carried(tmp_path)
-    load = Loader({"libdbusmenu-glib.so.4", "libdbusmenu-gtk3.so.4"})          # (Ubuntu's desktop: dbusmenu, not the AppIndicator)
+    # (Ubuntu's desktop: dbusmenu, not the AppIndicator)
+    load = Loader({"libdbusmenu-glib.so.4", "libdbusmenu-gtk3.so.4"})
     assert gtkenv.carry_libraries(folder / "lib", load) == ["libayatana-ido3-0.4.so.0", "libayatana-indicator3.so.7", "libayatana-appindicator3.so.1"]
     assert [n for n in load.loaded if by_path(n)] == [str(folder / "lib" / n) for n in ("libayatana-ido3-0.4.so.0", "libayatana-indicator3.so.7", "libayatana-appindicator3.so.1")], "in the order they need each other"
     assert gtkenv.carry_libraries(tmp_path / "none", Loader(set())) == []
@@ -1290,11 +1343,14 @@ def test_the_try_of_bubblewrap_is_a_fixed_command_and_a_program_that_is_not_ther
 
 
 def test_the_window_calls_the_program_by_its_one_name_in_every_word_it_shows() -> None:
-    """The window's title, the loading page, the tray icon's name and its notices, and the tray's menu: NeoAPRS, never another spelling, the daemon or the server (as the page's catalogue: ui/src/i18n/words.test.ts)."""
+    """The window's title, the loading page, the tray icon's name and its notices, and the tray's
+    menu: NeoAPRS, never another spelling, the daemon or the server (as the page's catalogue:
+    ui/src/i18n/words.test.ts)."""
     tree = ast.parse(Path(webshell.__file__).read_text(encoding="utf-8"))
     shown = [a.value for node in ast.walk(tree) if isinstance(node, ast.Call) and getattr(node.func, "attr", "") in ("create_window", "Icon", "notify")
              for a in node.args if isinstance(a, ast.Constant) and isinstance(a.value, str)]
-    assert shown.count("NeoAPRS") >= 3, shown                                     # (the window's title, the icon's name and its title, the notices' title)
+    # (the window's title, the icon's name and its title, the notices' title)
+    assert shown.count("NeoAPRS") >= 3, shown
     page = re.sub(r"<[^>]+>", " ", loading.HTML.split("</style>", 1)[1])
     assert "<title>NeoAPRS</title>" in loading.HTML and "NeoAPRS" in page
     words = [*shown, page, OPEN_LABEL, KEEPS_RUNNING]

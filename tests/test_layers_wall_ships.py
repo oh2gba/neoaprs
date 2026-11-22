@@ -1,6 +1,6 @@
-"""The wall round the map's layers of traffic, for the ships, held on a whole daemon (the architecture test holds it on the imports): under the no-devices switch, with a fake AIS receiver on the loopback and then
-with a fake Fintraffic on it, and a page that looks at the ships, the ships reach the page, and none of them (their MMSI, their name) is in the station book, the page's packets, the topic `stations`, or any
-table of the database."""
+"""Tests for the wall round the ship layer on a whole daemon, with a fake AIS receiver and then a
+fake Fintraffic: ships reach the page and appear nowhere in the station book, packets or
+database."""
 import json
 import sqlite3
 from pathlib import Path
@@ -18,7 +18,8 @@ from tests.test_layerships import feature, locations, vessels
 
 @pytest.fixture
 def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for every test that does not ask for a fixture of this name)."""
+    """The no-devices switch is on in this test's own process too (tests/conftest.py lifts it for
+    every test that does not ask for a fixture of this name)."""
     monkeypatch.setenv(nodevices.ENV, "1")
 
 
@@ -27,7 +28,8 @@ NAMES = ("AURA", "SEA LARK", "BOTNIA")
 
 
 async def assert_walled(e: Env, tab: Any, tmp_path: Path) -> None:
-    names = {name.lower() for name in (*MMSIS, *NAMES)}                          # (compared case-blind: a leak may well write a name in small letters)
+    # (compared case-blind: a leak may well write a name in small letters)
+    names = {name.lower() for name in (*MMSIS, *NAMES)}
 
     def leaks(text: str) -> bool:
         return any(name in text.lower() for name in names)

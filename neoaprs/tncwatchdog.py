@@ -1,15 +1,9 @@
-"""The TNC's keep-alive: how the Tnc learns that the radio is there. A TH-D7 that is switched off leaves the USB adapter and its port in place, a TNC in KISS mode sends nothing until it hears a packet, and a
-radio that is power-cycled comes back in command mode, so a quiet line is not proof of anything; the radio's absence has to be asked for.
+"""The TNC's keep-alive: how the Tnc learns that the radio is there.
 
-When nothing at all has been heard for `sec` (and a random part of it more, TNC_CHECK_JITTER, so that the checks never keep step with a station that beacons at a fixed rate) the watchdog makes a check (only for a TNC profile that can be asked, tncprofile.py): the profile's KISS exit frame, a pause, a bare carriage return (a TH-D7 that is on answers that with text, "cmd:", within about a second),
-then the profile's entry (KISS ON). Any byte in answer means the radio is there, and the clock starts again from the latest byte; the check costs a few seconds of reception, which is why it runs only after a quiet period. A line that was just opened has not shown yet that the radio is there (the Tnc is not `usable`, `confirmed` is False), so its first check is made at once. No
-byte at all within `answer_sec` of the carriage return and KISS ON makes the radio silent (`Source.went_silent`): then the same sequence is a probe, made every `probe_sec`, and the first byte that comes,
-whatever it is, ends the silence (the Tnc does that, in `_on_data`). Every 5th probe also closes the port and opens it again, for a USB adapter that dropped. Nothing is logged above DEBUG for a check or a probe;
-the Tnc says once when the silence begins and once when it ends. The `Tnc` does each action (its `look_*` methods); this module keeps the clock, the count and the words.
+A quiet line proves nothing, so after a quiet period the watchdog asks the radio; no answer makes
+it silent and it is then probed. `EntryAgain` schedules repeats of the KISS entry.
+"""
 
-`EntryAgain` is the other thing a line can need looking after for: a TNC that goes on typing command-mode text after the entry into KISS has settled (a radio switched on a moment ago misses the first KISS ON
-while it starts). It is sent the entry again, `ENTRY_AGAIN_SEC` after the settle, then after twice as long each time up to `ENTRY_AGAIN_MAX_SEC`, so that a TNC that never takes it (the wrong profile) is not
-restarted every ten seconds for ever; the first repeat is told at INFO, the later ones at DEBUG, and each is a line in the terminal. The Tnc does the entry; this keeps the schedule."""
 import asyncio
 import logging
 import random
@@ -25,19 +19,22 @@ from .tncprofile import Profile
 
 log = logging.getLogger("neoaprs.tnc")
 
-PROMPT = b"\r"                        # a bare carriage return: a TNC in command mode answers "cmd:"
-CHECK_PAUSE_SEC = 0.5                 # between the KISS exit frame and the carriage return
-REPLY_SEC = 1.0                       # how long the carriage return is given to be answered before KISS ON is sent anyway
-ANSWER_SEC = 2.0                      # how long a check waits for any byte after KISS ON before it calls the radio silent
-PROBE_SEC = 30.0                      # how often a silent radio is probed
-REOPEN_EVERY = 5                      # every this many probes the port is closed and opened again
-ENTRY_AGAIN_SEC = 10.0                # a TNC that still types text this long after the entry settled, with no KISS frame since, is sent the entry again
-ENTRY_AGAIN_MAX_SEC = 60.0            # the wait before each later repeat doubles, up to this
+# a bare carriage return: a TNC in command mode answers "cmd:"
+PROMPT = b"\r"
+CHECK_PAUSE_SEC = 0.5  # between the KISS exit frame and the carriage return
+# time the carriage return is given to be answered before KISS ON is sent anyway
+REPLY_SEC = 1.0
+# how long a check waits for any byte after KISS ON before calling the radio silent
+ANSWER_SEC = 2.0
+PROBE_SEC = 30.0  # how often a silent radio is probed
+REOPEN_EVERY = 5  # every this many probes the port is reopened
+ENTRY_AGAIN_SEC = 10.0  # a TNC still typing text this long after entry
+ENTRY_AGAIN_MAX_SEC = 60.0  # later repeats double the wait up to this
 
 
 @dataclass
 class PassCount:
-    """What the pairs passed onto a radio from one other radio: frames sent, when the latest went, and frames held and too long."""
+    """What the pairs passed onto a radio from one other radio."""
     sent: int = 0
     sent_at: datetime | None = None
     held: int = 0
@@ -49,14 +46,15 @@ class TncStats(Stats):
     keepalive_checks: int = 0
     watchdog_probes: int = 0
     port_reopens: int = 0
-    digipeated: int = 0        # frames the digipeater (services/digipeater.py) sent again, the pairs' passed frames (services/passrows.py) among them
-    digipeated_at: datetime | None = None      # when the latest of them went out
-    digipeat_held: int = 0     # frames the fill-in left unsent because the burst limit was reached
-    passed: dict[RadioId, PassCount] = field(default_factory=dict)     # what the pairs passed onto the radio, by the radio the packets were heard on
+    # frames the digipeater sent again, including the pairs' passed frames
+    digipeated: int = 0
+    digipeated_at: datetime | None = None
+    # frames the fill-in left unsent because the burst limit was reached
+    digipeat_held: int = 0
+    passed: dict[RadioId, PassCount] = field(default_factory=dict)  # by radio heard on
 
 
 class Watched(Protocol):
-    """What the watchdog needs of the Tnc."""
     stats: TncStats
     state: Source.State
     confirmed: bool
@@ -74,8 +72,7 @@ class Watched(Protocol):
 
 
 class EntryAgain:
-    """The schedule of the repeats of the KISS entry for a TNC that goes on typing text: `due` says whether the wait since the entry settled is over, `repeat` counts one and gives the words and the level
-    for the log, `reset` starts over (the TNC answered anew, or sent a KISS frame at last)."""
+    """The schedule of KISS entry repeats for a TNC that keeps typing text."""
 
     def __init__(self) -> None:
         self.reset()
@@ -93,21 +90,20 @@ class EntryAgain:
 
 
 def how_long(seconds: float) -> str:
-    """"15 min" from a minute on, else "12 s"."""
     return f"{round(seconds / 60, 1):g} min" if seconds >= 60 else f"{round(seconds, 1):g} s"
 
 
 class Watchdog:
     def __init__(self, tnc: Watched, sec: float, pause_sec: float = CHECK_PAUSE_SEC, reply_sec: float = REPLY_SEC, answer_sec: float = ANSWER_SEC, probe_sec: float = PROBE_SEC) -> None:
         self.tnc = tnc
-        self.sec = sec                         # the quiet period that makes a check; 0: no checks (a silent radio is still probed)
+        # the quiet period that makes a check; 0: no checks (a silent radio is still probed)
+        self.sec = sec
         self.pause_sec, self.reply_sec, self.answer_sec, self.probe_sec = pause_sec, reply_sec, answer_sec, probe_sec
-        self.probes = 0                        # probes since the latest byte
-        self._heard_at = 0.0                   # loop time of the latest byte (or of the open)
-        self._extra = 0.0                      # the random part of this quiet period (TNC_CHECK_JITTER)
+        self.probes = 0
+        self._heard_at = 0.0  # loop time of the latest byte (or of the open)
+        self._extra = 0.0  # random part of the quiet period (TNC_CHECK_JITTER)
 
     def heard(self) -> None:
-        """A byte came: the quiet period starts again."""
         self.probes = 0
         self._restart()
 
@@ -116,7 +112,6 @@ class Watchdog:
 
     @property
     def quiet_sec(self) -> float:
-        """The quiet period now in force: `sec` and its random part."""
         return self.sec + self._extra
 
     def _restart(self) -> None:
@@ -124,8 +119,10 @@ class Watchdog:
         self._extra = random.uniform(0.0, TNC_CHECK_JITTER) * self.sec  # noqa: S311  (the random part of a waiting time, no secret)
 
     async def run(self, alive: Callable[[], bool], check_first: bool = False) -> None:
-        """Waits and looks while `alive()` (the line this was started for is still the Tnc's). `check_first`: a line that was just opened has not shown yet that the radio is there, so the first check is made at once,
-        unless a byte has come by the time this runs. Ends when the checks are off and the radio is not silent."""
+        """Wait and look while `alive()`; `check_first` checks a fresh line at once.
+
+        Return when checks are off and the radio is not silent.
+        """
         loop = asyncio.get_running_loop()
         if check_first and alive() and not self.tnc.confirmed and self.tnc.state is Source.State.CONNECTED:
             await self._look("check", alive)
@@ -162,7 +159,7 @@ class Watchdog:
             await tnc.reopen_port()
 
     async def _find_radio(self, alive: Callable[[], bool]) -> bool:
-        """The check sequence: exit frame, pause, carriage return, KISS ON. True when any byte came meanwhile, or when the line went away (which says nothing about the radio)."""
+        """Run the check sequence; return True if any byte came, or the line went away."""
         tnc = self.tnc
         heard = tnc.stats.bytes_in
         if not tnc.look_begin():

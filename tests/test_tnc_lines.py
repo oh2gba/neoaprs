@@ -1,5 +1,7 @@
-"""What the page is told of the TNC's log (`lines` of a radio's row of the topic `radios`) and of a search (`searching`): every line has the time it was written, in full, and its text without the time of day that `Tnc.lines` shows in front of
-it; the ports of a search are a list and not a sentence. And what the Tnc makes of a frame: every packet, heard or sent, carries the id of the Tnc's radio."""
+"""What the page is told of the TNC's log (`lines` of a radio's row in the `radios` topic) and of a
+search (`searching`): every line has its full time and text without the time of day, ports are a
+list; and the radio id every packet carries.
+"""
 import asyncio
 from datetime import timedelta
 
@@ -50,11 +52,13 @@ def test_a_tnc_that_is_not_searching_lists_no_ports() -> None:
 # ---- the radio of the packets the Tnc makes
 
 async def played(profile: Profile, radio_id: int | None) -> tuple[Tnc, list[Packet]]:
-    """A Tnc of the Dummy profile as the line of the radio `radio_id` (None: no driver set it), what it heard in a made-up quarter of an hour and the one frame it sent."""
+    """A Tnc of the Dummy profile as the line of the radio `radio_id` (None: no driver set it), what
+    it heard in a made-up quarter of an hour and the one frame it sent."""
     clock = FixedClock()
     tnc = Tnc(profile=profile, port=DUMMY_PATH, clock=clock)
     if radio_id is not None:
-        tnc.radio_id = radio_id                                                 # (as its driver sets it: neoaprs/tncdriver.py, mercurydriver.py)
+        # As its driver sets it: neoaprs/tncdriver.py, mercurydriver.py
+        tnc.radio_id = radio_id
     made: list[Packet] = []
     tnc.packet.connect(made.append)
     await tnc.start()

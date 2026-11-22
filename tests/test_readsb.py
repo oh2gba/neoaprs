@@ -1,5 +1,7 @@
-"""readsb's JSON read into the layer's aircraft (neoaprs/readsb.py), on made-up answers in the form of an own receiver's `aircraft.json` and of the services' answers (work/par/layers/raw, read for the form only),
-and the places an own receiver's file is tried in."""
+"""readsb's JSON read into the layer's aircraft (neoaprs/readsb.py) on made-up answers in the form
+of an own receiver's `aircraft.json` and the services' answers, and the places an own receiver's
+file is tried.
+"""
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Any

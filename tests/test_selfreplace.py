@@ -1,6 +1,7 @@
-"""The file operations of Update now for an AppImage (neoaprs/selfreplace.py) where tests/test_selfinstall.py does not look: an old file that cannot be deleted, the descriptors the exec closes (marked on a
-listing of the test's own; for real only in a child process, and not on Windows), the question whether the image was mounted asked while its mount is there, and a new version that cannot be started followed
-by an old one that cannot either."""
+"""The file operations of Update now for an AppImage (neoaprs/selfreplace.py) beyond
+tests/test_selfinstall.py: an undeletable old file, the descriptors the exec closes, the
+was-it-mounted question, and a new version that must start unpacked.
+"""
 import os
 import subprocess
 import sys
@@ -34,11 +35,13 @@ def test_every_descriptor_above_stderr_is_left_open_and_marked_for_the_exec_to_c
     read, write = os.pipe()
     terminal = [os.get_inheritable(fd) for fd in (0, 1, 2)]
     try:
-        os.set_inheritable(read, True)                      # (as the runtime of an AppImage hands the pipe of its mount to the program it starts)
+        # As the runtime of an AppImage hands the pipe of its mount to the program it starts
+        os.set_inheritable(read, True)
         os.set_inheritable(write, True)
         monkeypatch.setattr(selfreplace.sys, "platform", "linux")
         monkeypatch.setattr(os, "closerange", lambda low, high: pytest.fail("closed before the exec"))
-        selfreplace.close_inherited(listing(tmp_path, 0, 1, 2, read, 987654))       # (one that is gone by now, as the listing's own is: passed over)
+        # One that is gone by now, as the listing's own is: passed over
+        selfreplace.close_inherited(listing(tmp_path, 0, 1, 2, read, 987654))
         assert not os.get_inheritable(read) and os.fstat(read), "open, and closed by the exec"
         assert os.get_inheritable(write), "only what the listing names"
         assert [os.get_inheritable(fd) for fd in (0, 1, 2)] == terminal, "the three of the terminal stay as they were"
@@ -59,8 +62,9 @@ def test_where_the_descriptors_cannot_be_listed_they_are_closed_and_on_windows_n
 
 
 def test_a_mounted_appimage_whose_mount_goes_with_its_descriptors_is_executed_again_mounted() -> None:
-    """The mount of an AppImage lives as long as the descriptors its runtime handed the program (neoaprs/selfreplace.py): asked after they are let go, "is it mounted?" is answered no, and the new file was
-    started unpacked (0.20.0 to 0.20.1, 16 Nov 2026). The stand-in mount is there until `close` is called."""
+    """The mount of an AppImage lives as long as the descriptors its runtime handed the program:
+    asked after they are let go, "is it mounted?" is answered no, and the new file is started
+    unpacked. `close` ends the stand-in mount."""
     gone: list[bool] = []
     environ = {"APPIMAGE": "/home/ham/NeoAPRS.AppImage", "APPDIR": "/tmp/.mount_NeoAPRxyz"}
     seen: list[tuple[str | None, bool]] = []
@@ -73,8 +77,10 @@ def test_a_mounted_appimage_whose_mount_goes_with_its_descriptors_is_executed_ag
 
 
 def test_a_daemon_that_left_its_folder_to_the_app_has_its_new_version_remove_the_folder_of_its_own() -> None:
-    """The daemon the app started unpacked leaves the folder it shares with the app to the app's runtime (selfreplace.leave_the_folder). The new file of Update now is unpacked into another folder, which
-    no other run removes: started in the daemon's place, its runtime is to remove it. A NO_CLEANUP the operator set is kept."""
+    """The daemon the app started unpacked leaves the folder it shares with the app to the app's
+    runtime (selfreplace.leave_the_folder). The new file of Update now is unpacked into another
+    folder, which no other run removes: started in the daemon's place, its runtime is to remove it.
+    A NO_CLEANUP the operator set is kept."""
     seen: list[str | None] = []
     ours = {"APPIMAGE": "/home/ham/NeoAPRS.AppImage", "APPDIR": "/tmp/appimage_extracted_0123", "NO_CLEANUP": selfreplace.LEFT_TO_THE_STARTER}
     selfreplace.reexec(["/home/ham/NeoAPRS.AppImage", "run"], lambda path, argv: seen.append(ours.get("NO_CLEANUP")), close=lambda: None, environ=ours, is_mount=lambda path: False)
@@ -84,8 +90,9 @@ def test_a_daemon_that_left_its_folder_to_the_app_has_its_new_version_remove_the
 
 
 def test_the_old_version_put_back_in_the_place_of_a_daemon_that_left_its_folder_to_the_app_leaves_it_again(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """The new file of Update now cannot be started: the old one is put back, and it has the old contents, so its runtime unpacks into the folder the app runs from. It is started with NO_CLEANUP again,
-    or at Quit its runtime would remove the folder under the app."""
+    """The new file of Update now cannot be started: the old one is put back, and it has the old
+    contents, so its runtime unpacks into the folder the app runs from. It is started with
+    NO_CLEANUP again, or at Quit its runtime would remove the folder under the app."""
     image = tmp_path / "NeoAPRS.AppImage"
     image.write_bytes(b"new")
     (tmp_path / "NeoAPRS.AppImage.old").write_bytes(b"old")
@@ -103,8 +110,10 @@ def test_the_old_version_put_back_in_the_place_of_a_daemon_that_left_its_folder_
 
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="the AppImage is Linux's, and so is /proc/self/fd")
 def test_the_program_started_in_the_place_of_the_process_does_not_hold_the_descriptor_of_the_old_mount(tmp_path: Path) -> None:
-    """For real, in a child process: it holds the read end of a pipe it was handed, as the program of a mounted AppImage does, and starts another program in its place. The pipe is open until the exec (the
-    mount is there while the old program runs) and closed in the new program (the mount goes), whose writer then finds no reader."""
+    """For real, in a child process: it holds the read end of a pipe it was handed, as the program
+    of a mounted AppImage does, and starts another program in its place. The pipe is open until the
+    exec (the mount is there while the old program runs) and closed in the new program (the mount
+    goes), whose writer then finds no reader."""
     read, write = os.pipe()
     program = textwrap.dedent("""
         import os, sys

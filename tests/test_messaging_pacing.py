@@ -1,5 +1,6 @@
-"""Several messages written at once (to several stations) go out one after the other: between two attempts on one radio `spacing_sec` pass (neoaprs/services/messaging.py, services/pace.py), and a
-message on another radio does not wait for that pause (plan rule 3.1: the pause is each radio's)."""
+"""Several messages written at once go out one after the other: `spacing_sec` between two attempts
+on one radio (services/pace.py), and a message on another radio does not wait for that pause.
+"""
 from pathlib import Path
 
 import pytest

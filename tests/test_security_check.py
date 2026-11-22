@@ -1,11 +1,8 @@
-"""The security checks (scripts/security-check) and the fetching of their programs (scripts/security-tools), with stand-ins: a made-up tree holds copies of the two scripts, and small fake programs stand where
-the script looks for the real ones (the tools in a build cache of the test's own, php first on the PATH). What is tested is our logic: a finding fails and is printed under its line, the baseline lets a
-known finding pass and nothing beside it, an entry needs its reason, a program that is not there fails with the sentence that says how to get it, and the advisory check runs only when asked; a file or
-folder of access tokens that git tracks fails; the check `tokens`, which is the script's own reading with the real git, finds a made-up access token of the secrets manager in every place a push would
-carry it (a lock file, a picture, a binary file, a commit's message, a merge's resolution, the index) and never prints it; gitleaks is shown the messages and what is changed or staged, and no file git
-does not track; Psalm runs in the pinned php image where php lacks its extensions; a settings file of shellcheck or zizmor is a finding. The real programs are run by `scripts/check --stage security`;
-no test here reaches the network (the downloads go to a fake server on the loopback) or a real docker (a stand-in is first on the PATH), and the git commands name the made-up tree (`git -C`), which no
-folder above it can stand in for."""
+"""The security checks (scripts/security-check) and the fetching of their programs
+(scripts/security-tools) with stand-ins in a made-up tree: findings fail, the baseline passes known
+ones, a missing program fails with its install sentence, access tokens tracked by git fail and are
+never printed. No network, no real docker.
+"""
 import asyncio
 import base64
 import hashlib
@@ -29,17 +26,23 @@ import pytest
 from tests.support.fakehttp import http_server
 from tests.support.ptyline import posix_only
 
-pytestmark = posix_only      # (stand-ins with a shebang for a development check, not the product)
+# stand-ins with a shebang for a development check, not the product
+pytestmark = posix_only
 
 ROOT = Path(__file__).resolve().parent.parent
 OFFLINE = ["secret-files", "tokens", "gitleaks", "php-lint", "psalm", "shellcheck", "zizmor"]
 TOKEN_RULE = "bitwarden-secrets-manager-access-token"
 
-# A stand-in for any program of the checks: it writes down how it was called, prints what the test laid down for it and ends with the code the test chose. php is four programs in one: its list of
-# extensions, its version, its lint, and Psalm (the phar it is given to run). gitleaks is three: over the commits (its own name), over what it is given to read (it keeps that in the file `stdin`) and
-# over a folder (it keeps the names of what lies there in the file `shown`, and what the messages and the staged copies say in the files `messages` and `staged`; `@FOLDER@` in what it is to print stands for that folder).
-# Over the commits it asks the real git what it was told, as the git that the real gitleaks starts would be, and keeps the answers in the file `git-told`.
-# docker is two: whether it can be used, and the container it runs. A program that is handed settings through the environment says so in the file `handed`.
+# A stand-in for any program of the checks: it writes down how it was called, prints what the test
+# laid down for it and ends with the code the test chose. php is four programs in one: its list of
+# extensions, its version, its lint, and Psalm (the phar it is given to run). gitleaks is three:
+# over the commits (its own name), over what it is given to read (it keeps that in the file `stdin`)
+# and over a folder (it keeps the names of what lies there in the file `shown`, and what the
+# messages and the staged copies say in the files `messages` and `staged`; `@FOLDER@` in what it is
+# to print stands for that folder). Over the commits it asks the real git what it was told, as the
+# git that the real gitleaks starts would be, and keeps the answers in the file `git-told`. docker
+# is two: whether it can be used, and the container it runs. A program that is handed settings
+# through the environment says so in the file `handed`.
 STAND_IN = """#!/bin/sh
 name="$(basename "$0")"
 for last; do :; done
@@ -78,14 +81,16 @@ tools = load_tools()
 
 
 class Tree:
-    """The made-up tree, its stand-ins and `check(...)`, which runs the copy of scripts/security-check in it."""
+    """The made-up tree, its stand-ins and `check(...)`, which runs the copy of
+    scripts/security-check in it."""
 
     def __init__(self, tmp: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         self.root, self.fakes, self.bin = tmp / "tree", tmp / "fakes", tmp / "bin"
         monkeypatch.setenv("NEOAPRS_BUILD_CACHE", str(tmp / "cache"))
         monkeypatch.setenv("PATH", f"{self.bin}{os.pathsep}{os.environ['PATH']}")
         self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")} | {"HOME": str(tmp / "home"), "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull, "LC_ALL": "C.UTF-8",
-                                                                                         "GIT_CEILING_DIRECTORIES": str(tmp)}      # (git never looks for a repository above the made-up tree)
+            # Git never looks for a repository above the made-up tree
+                                                                                         "GIT_CEILING_DIRECTORIES": str(tmp)}
         for folder in (self.fakes, self.bin, tmp / "home"):
             folder.mkdir()
         self.write("scripts/deploy", "#!/usr/bin/env bash\necho deploy\n")
@@ -116,7 +121,8 @@ class Tree:
         self.say("zizmor", "[]")
 
     def git(self, *args: str) -> str:
-        """A git command in the made-up tree, which is named to it: where the test happens to stand decides nothing. What it printed."""
+        """A git command in the made-up tree, which is named to it: where the test happens to stand
+        decides nothing. What it printed."""
         done = subprocess.run(["git", "-C", str(self.root), "-c", "user.name=A Test", "-c", "user.email=test@example.invalid", *args], check=True, env=self.env, capture_output=True, text=True)
         return done.stdout.strip()
 
@@ -177,7 +183,8 @@ def shell_finding(file: str = "scripts/deploy", code: int = 2086, line: int = 7)
 
 
 def workflow_finding(action: str = "actions/checkout@v7", rule: str = "unpinned-uses", row: int = 31, path: str = ".github/workflows/ci.yml") -> dict[str, object]:
-    """A finding as zizmor's JSON has it: the step it is in, then the primary place with the text it points at."""
+    """A finding as zizmor's JSON has it: the step it is in, then the primary place with the text it
+    points at."""
     def place(kind: str, feature: str, annotation: str) -> dict[str, object]:
         return {"symbolic": {"key": {"Local": {"verbatim_path": path}}, "annotation": annotation, "kind": kind}, "concrete": {"location": {"start_point": {"row": row, "column": 14}}, "feature": feature}}
     return {"ident": rule, "desc": "unpinned action reference", "determinations": {"confidence": "High", "severity": "High", "persona": "Regular"},
@@ -240,13 +247,15 @@ def test_a_secret_in_the_commits_fails_with_the_place_and_never_with_the_value(t
 
 
 def made_up_token() -> str:
-    """A value of the form of the secrets manager's access token that opens nothing: 0.<a UUID>.<thirty letters and digits>:<sixteen bytes in base64>. Put together from its parts, so that it stands whole in
-    no file (the scan of the commits would find it in this one)."""
+    """A value of the form of the secrets manager's access token that opens nothing: 0.<a
+    UUID>.<thirty letters and digits>:<sixteen bytes in base64>. Put together from its parts, so
+    that it stands whole in no file (the scan of the commits would find it in this one)."""
     return ".".join(["0", str(uuid.UUID(int=0x1234567890ABCDEF1234567890ABCDEF)), "Zx9" * 10]) + ":" + base64.b64encode(b"made up, no key!").decode()
 
 
 def token_rule() -> dict[str, Any]:
-    """The rule for the access token of the secrets manager, out of the .gitleaks.toml the gate uses."""
+    """The rule for the access token of the secrets manager, out of the .gitleaks.toml the gate
+    uses."""
     config = tomllib.loads((ROOT / ".gitleaks.toml").read_text(encoding="utf-8"))
     found: dict[str, Any] = next(rule for rule in config["rules"] if rule["id"] == TOKEN_RULE)
     return found
@@ -725,7 +734,8 @@ def test_a_missing_tool_fails_the_audit_and_the_update_too(tree: Tree) -> None:
 
 def test_without_php_the_two_checks_of_the_server_fail_and_say_what_to_install(tree: Tree, tmp_path: Path) -> None:
     (tree.bin / "php").unlink()
-    for program in ("git", "basename", "cat", "find", "sed", "sort"):             # a PATH that holds what the script and the stand-ins need, and no php
+    # A PATH that holds what the script and the stand-ins need, and no php
+    for program in ("git", "basename", "cat", "find", "sed", "sort"):
         found = shutil.which(program)
         assert found is not None
         os.symlink(found, tree.bin / program)

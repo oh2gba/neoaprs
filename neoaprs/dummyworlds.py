@@ -1,11 +1,8 @@
-"""The line of each Dummy type, by its profile (`dummy_line`): the made-up world it plays and how it reaches the Tnc. The Dummy radio's and the Dummy HF radio's are the KISS lines of dummyline.py (the HF
-one with the modem as the speaker of what we send); the Dummy LoRa radio's is `DummyLoraPort`, a LoRa APRS board of made-up stations (dummylorascene.py) that speaks TNC2 text.
+"""The line of each Dummy type by its profile (`dummy_line`) and the world it plays.
 
-The Dummy LoRa radio's line is what a board does between the air and the computer: each packet of the made-up air is a LoRa packet of text (the header, then `SRC>DST,PATH:information`), the board writes its
-text on the line as a line of TNC2, and the line reads that text into a frame (`tnc2line.LineReader`), whose AX.25 encoding, made by us, the Tnc reads as KISS. The frames the Tnc writes are put on the made-up
-air as the board would put them, in text with the header (`transmitted`, the latest of them; one longer than a LoRa packet is not sent, as a board cannot), and the scene hears them from there. So TNC2 text is
-read and written as on a real board, and the Tnc reads KISS as it does from a board in KISS mode, until it reads text lines of a board itself (lora-plan.md, step L3: then the reading moves into the Tnc's
-reader). Each frame is handed over with the reading the scene makes up for it, as a board says the signal of a packet it heard."""
+The Dummy and Dummy HF radios use the KISS lines of dummyline.py; the Dummy LoRa radio uses
+`DummyLoraPort`, a board of made-up stations that speaks TNC2 text.
+"""
 import asyncio
 from collections import deque
 from collections.abc import Callable
@@ -24,15 +21,16 @@ from .tnc2line import LineReader, Tnc2Error, from_air
 from .tncport import TncPort
 from .tncprofile import DUMMY, DUMMY_HF, DUMMY_LORA, Profile
 
-KEPT_SENT = 50                          # how many of the packets we put on the made-up air are kept to be looked at
+KEPT_SENT = 50  # sent packets kept for inspection
 
 
 class DummyLoraPort(DummyPort):
     def __init__(self, on_data: Callable[[TncPort, bytes], None], on_lost: Callable[[TncPort, str], None], where: Callable[[], tuple[float, float] | None], clock: Clock, tick_sec: float | None = None,
                  seed: int = 1) -> None:
         super().__init__(on_data, on_lost, where, clock, tick_sec, seed, LoraScene)
-        self._lines = LineReader()                                    # what reads the board's text lines into frames
-        self.transmitted: deque[bytes] = deque(maxlen=KEPT_SENT)      # the LoRa packets of ours on the made-up air, header and text, the latest last
+        self._lines = LineReader()  # reads the board's text lines into frames
+        # packets of ours on the made-up air, the latest last
+        self.transmitted: deque[bytes] = deque(maxlen=KEPT_SENT)
 
     async def _play(self, scene: SceneLike) -> None:
         while True:
@@ -46,7 +44,7 @@ class DummyLoraPort(DummyPort):
                         self._reading = NO_READING
 
     def write(self, data: bytes) -> int:
-        """What the Tnc sends, as the board sends it: each KISS data frame put on the made-up air in text with the header, heard there by the scene, and kept in `transmitted`."""
+        """Put each KISS data frame on the made-up air as text, for the scene to hear."""
         if self._task is None or self.scene is None:
             raise SerialError("the dummy LoRa radio: not open")
         for kiss_frame in kiss.KissDecoder().feed(data):
@@ -74,15 +72,17 @@ class LineOwner(Protocol):
 
 @dataclass(frozen=True)
 class World:
-    """A Dummy type's world: its line (a world of its own for each radio, by its id as the seed), what the radio's status line calls it, and the calls it makes its stations up under for a seed (none for the
-    Dummy radio's, whose stations are made round the station and go with the daily prune)."""
+    """A Dummy type's world: its line, its status-line name and the calls it makes up by seed."""
+
     line: Callable[[LineOwner], DummyPort]
     words: str
     calls: Callable[[int], frozenset[str]]
 
 
-_CITY_CALLS = frozenset(station.call for station in CITIES)      # (the Dummy HF radio's stations are the same cities in every world)
-WORLDS: dict[str, World] = {        # the world of each Dummy type, by the key of its profile
+# the Dummy HF radio's stations are the same in every world
+_CITY_CALLS = frozenset(station.call for station in CITIES)
+# the world of each Dummy type, by the key of its profile
+WORLDS: dict[str, World] = {
     DUMMY.key: World(lambda tnc: DummyPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, seed=tnc.radio_id, scene_of=Scene), "dummy radio", lambda _seed: frozenset()),
     DUMMY_HF.key: World(lambda tnc: DummyPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, seed=tnc.radio_id, scene_of=HfScene, speaker=tnc.modem), "dummy Mercury radio", lambda _seed: _CITY_CALLS),
     DUMMY_LORA.key: World(lambda tnc: DummyLoraPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, seed=tnc.radio_id), "dummy LoRa radio", lora_calls),
@@ -90,16 +90,16 @@ WORLDS: dict[str, World] = {        # the world of each Dummy type, by the key o
 
 
 def dummy_line(tnc: LineOwner) -> DummyPort:
-    """The line of the Tnc's Dummy type, not yet open."""
+    """Return the Tnc's Dummy line, not yet open."""
     return WORLDS[tnc.profile.key].line(tnc)
 
 
 def dummy_words(profile: str) -> str:
-    """What the status line of a radio of this Dummy profile calls it: "dummy LoRa radio"."""
+    """Return what the status line calls a radio of this profile: "dummy LoRa radio"."""
     return WORLDS[profile].words
 
 
 def made_up_calls(profile: str, seed: int) -> frozenset[str]:
-    """The calls the world of this profile makes up for the radio of the id `seed`; none for a profile that is no Dummy's."""
+    """Return the calls the world makes up for radio `seed`; none if not a Dummy."""
     world = WORLDS.get(profile)
     return frozenset() if world is None else world.calls(seed)

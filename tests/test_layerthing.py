@@ -1,5 +1,6 @@
-"""What the program knows of the map's layers of traffic (neoaprs/layerthing.py): the sources a station is offered, the one that counts, what a request to a service carries, and how the things are cut;
-and the wire's names of the layers and sources (neoaprs/web/layerwire.py) are the same."""
+"""What the program knows of the map's layers of traffic (neoaprs/layerthing.py): the sources a
+station is offered, the one that counts, what a request to a service carries, and how the things are
+cut; and the wire's names of the layers and sources (neoaprs/web/layerwire.py) are the same."""
 from datetime import timedelta
 from typing import get_args
 
@@ -38,10 +39,12 @@ def test_fintraffic_is_offered_at_helsinki_and_not_at_frankfurt_and_every_aircra
 def test_the_box_is_reached_when_its_nearest_point_is_within_the_radius() -> None:
     south, north, west, east = FINTRAFFIC_BOX
     assert reaches_box((61.0, 25.0), 10), "inside the box"
-    below = (south - 1.0, 25.0)                                 # due south of the box: its nearest point is on the southern edge, straight north
+    # due south of the box: its nearest point is on the southern edge, straight north
+    below = (south - 1.0, 25.0)
     edge_km = distance_km(*below, south, 25.0)
     assert reaches_box(below, int(edge_km) + 1) and not reaches_box(below, int(edge_km) - 1)
-    corner = (north + 0.5, east + 0.5)                          # beyond the north-east corner: the corner is the nearest point
+    # beyond the north-east corner: the corner is the nearest point
+    corner = (north + 0.5, east + 0.5)
     corner_km = distance_km(*corner, north, east)
     assert reaches_box(corner, int(corner_km) + 1) and not reaches_box(corner, int(corner_km) - 1)
     assert not reaches_box(None, 300)

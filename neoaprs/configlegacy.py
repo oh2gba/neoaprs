@@ -1,21 +1,18 @@
-"""Rows of the settings table that are read as another setting while that one has no row of its own, so that a database keeps meaning what it meant. `web/bind` (an address other than the loopback
-means `web/network` is on) is read so at every start: the first save writes the setting itself, and from then on the row is not looked at.
+"""Old settings rows that are read as their current equivalents while the new row is absent.
 
-The two rules of the radios, `tnc/enter_kiss` (true selects the Kenwood TNC-2 type) and `tnc/profile = mercury` with neither tickbox stored (the HF radio on, the FM one off), are applied to a
-database once, by migration 31 (neoaprs/migrationsteps31.py, which has them written into it and deletes the rows). Here they are for the call of `Config.from_data` without stored radios only,
-which reads today's two radios from flat rows as a version before the radios were rows did; they go with that call."""
+`web/bind` is read until the first save writes `web/network`. The radio rules are applied to a
+database by a migration; here they serve only `Config.from_data` without stored radios."""
 from collections.abc import Mapping
 
 from .configtypes import boolean
 
-ENTER_KISS = "tnc/enter_kiss"                                          # the radio is put in KISS with KISS ON and RESTART
-WEB_BIND = "web/bind"                                                  # the address the page listens on
+ENTER_KISS = "tnc/enter_kiss"
+WEB_BIND = "web/bind"
 LOOPBACK_BINDS = ("", "127.0.0.1", "localhost", "::1")
 
 
 def with_profile(rows: Mapping[str, str]) -> Mapping[str, str]:
-    """The rows with the profile that `tnc/enter_kiss` implies: no `tnc/profile` row and a `tnc/enter_kiss` row that says true mean entering KISS with KISS ON and RESTART (the Kenwood TNC-2
-    profile); false, or no row at all, is the default profile, which sends nothing."""
+    """Return the rows with the Kenwood TNC-2 profile if `tnc/enter_kiss` is on and none is set."""
     try:
         entered = "tnc/profile" not in rows and boolean(rows.get(ENTER_KISS, "false"))
     except ValueError:
@@ -24,15 +21,16 @@ def with_profile(rows: Mapping[str, str]) -> Mapping[str, str]:
 
 
 def with_network(rows: Mapping[str, str]) -> Mapping[str, str]:
-    """The rows with `web/network` true when there is none and `web/bind` names anything but the loopback."""
+    """Return the rows with `web/network` true if it has no row and `web/bind` is not loopback."""
     if "web/network" in rows or rows.get(WEB_BIND, "").strip().lower() in LOOPBACK_BINDS:
         return rows
     return {**rows, "web/network": "true"}
 
 
 def with_radios(rows: Mapping[str, str]) -> Mapping[str, str]:
-    """The rows with the radios that a `tnc/profile` row saying `mercury` implies (the build before two radios had the Mercury modem as a type of the one radio): the HF radio on, the FM one off, and the FM type
-    the default. Only when neither tickbox has a row of its own."""
+    """Return the rows with the HF radio on and the FM radio off when `tnc/profile` is `mercury`.
+
+    Applies only when neither `hf/enabled` nor `fm/enabled` has a row."""
     if rows.get("tnc/profile", "").strip() != "mercury" or "hf/enabled" in rows or "fm/enabled" in rows:
         return rows
     return {**{key: value for key, value in rows.items() if key != "tnc/profile"}, "hf/enabled": "true", "fm/enabled": "false"}

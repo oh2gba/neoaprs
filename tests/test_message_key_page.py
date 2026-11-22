@@ -1,5 +1,7 @@
-"""The page's side of the key of encrypted messages (neoaprs/web/handlers.py `message_key_new`, neoaprs/web/api.py `status`): the fingerprint is reported and a new key made only while the daemon was started with
-the encryption flag; a key file left by an earlier run with the flag is nothing to the page without it."""
+"""The page's side of the encrypted-message key (web/handlers.py `message_key_new`, web/api.py
+`status`): the fingerprint is reported and a key made only while the daemon runs with the encryption
+flag.
+"""
 from pathlib import Path
 
 from neoaprs.services.keyring import Keyring
@@ -16,7 +18,8 @@ async def test_the_page_sees_the_fingerprint_and_makes_a_new_key_only_while_encr
     ring.ensure_own()
     first = ring.fingerprint()
     assert first
-    ring.allowed = False                                              # (this run is without it; the key file is still there)
+    # This run is without it; the key file is still there
+    ring.allowed = False
     await page.send({"cmd": "status"})
     assert (await page.expect("status"))["message_key"] == ""
     await page.send({"cmd": "message_key_new"})
@@ -24,7 +27,9 @@ async def test_the_page_sees_the_fingerprint_and_makes_a_new_key_only_while_encr
     assert ring.fingerprint() == first, "no new key was made"
     ring.allowed = True
     await page.send({"cmd": "message_key_new"})
-    await page.until(lambda: any(s["message_key"] not in ("", first) for s in page.of("status")))          # (a status of the ten-second timer, built before the key, may arrive first: the one that carries the new key is waited for)
+    # A status of the ten-second timer, built before the key, may arrive first: the one that carries
+    # the new key is waited for
+    await page.until(lambda: any(s["message_key"] not in ("", first) for s in page.of("status")))
     made = ring.fingerprint()
     assert made and made != first
     await e.stop()

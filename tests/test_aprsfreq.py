@@ -1,4 +1,5 @@
-"""The frequency specification (neoaprs/aprsfreq.py): the frequency at the start of a comment or a status text, its fields, the frequency that is an object's name, and the text of one. The cases of
+"""The frequency specification (neoaprs/aprsfreq.py): the frequency at the start of a comment or a
+status text, its fields, the frequency that is an object's name, and the text of one. The cases of
 the dispatcher that decode whole packets are in tests/fixtures/aprs/cases.json."""
 import pytest
 
@@ -14,7 +15,8 @@ def test_every_field_of_the_specification() -> None:
     rest, f = split_frequency("145.775MHz C107 +060 R25m 430.100rx D-STAR")
     assert rest == "D-STAR" and f == Frequency(145.775, tone_hz=107, tone_both=True, offset_khz=600, range_km=40.2, rx_mhz=430.1)
     assert split_frequency("146.805MHz D023 R25k")[1] == Frequency(146.805, dcs="023", range_km=25.0)
-    assert split_frequency("145.5 MHz")[1] is None                                       # (one decimal is no form of the specification)
+    # (one decimal is no form of the specification)
+    assert split_frequency("145.5 MHz")[1] is None
 
 
 def test_a_lower_case_first_letter_is_narrow_modulation() -> None:

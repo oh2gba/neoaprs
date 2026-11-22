@@ -1,13 +1,7 @@
-"""The sked board: when people will be on the air, as the project's server keeps it (server/neo/api/v1/skeds.php; the board is the static file `SKEDS_URL`, neoaprs/skeds.py says how every row of it is checked). It is shaped like services/frequencies.py and is part of the
-update check's kind of traffic: `NEOAPRS_UPDATE_CHECK=0` in the environment (the tests, the demo) reads and posts nothing and the board is `off`, and a test or a bench that needs a server names one on this computer with `NEOAPRS_SKEDS_URL`.
+"""The sked board: when people will be on the air, as the project's server keeps it.
 
-Reading: the board is fetched a minute after the start, every six hours, and when a page shows the Skeds tab (`wanted`), and never more often than every SKEDS_EVERY_SEC however many pages ask. The GET carries nothing about the station. A board that cannot be fetched or is
-not one leaves the last board as it was and the state `offline`; a 404 is a board nobody has posted to yet. The last board is kept in the settings table (the row SKEDS_ROW) and told at the start before the server is asked, and what has ended by the daemon's own clock is dropped
-every time the rows are told.
-
-Posting is on the operator's press only: the call, the two times, the dial and the note go to the endpoint with this installation's sked token, 16 random bytes made the first time one is needed and kept in a row of its own (SKED_TOKEN: secret, never the installation's number and never
-sent when reading); the server keeps its hash with the sked, so only this installation can delete it. The answer carries the new board, which is taken as read. The ids the server answered are `ours` (kept in the row OURS_ROW). A refusal of the server that the operator can
-do something about (`rate`, `full`, `past`, `too_far`) is an error with a code; one they can do nothing about is told in the log, and the job is done as far as it can be (a closed board, or a call that is blocked, is the state `closed` until the board is read again; a delete of what is not ours is dropped from `ours`)."""
+Read at most every SKEDS_EVERY_SEC, posted to only on the operator's press; the update-check
+switch turns both off. A secret token lets only this installation delete its skeds."""
 import asyncio
 import json
 import logging
@@ -32,15 +26,22 @@ from neoaprs.versions import Frequency, on_this_computer
 log = logging.getLogger("neoaprs.update")
 
 EVERY_SEC = 6 * 3600.0
-SKEDS_EVERY_SEC = 15 * 60.0                     # the least time between two reads of the board, whoever asks
-RETRY_SEC = 60.0                                # the least time after a read or a post that did not reach the server: it is not counted as a read
-EXPIRE_SEC = 30.0                               # how often what has ended is looked for
-MAX_BYTES = 131072                              # a full board is some 30 KB (a hundred rows with notes), and up to twice that with every character escaped
-MAX_AHEAD = timedelta(days=30)                  # how far ahead the server lets a sked begin
-ENV_URL = "NEOAPRS_SKEDS_URL"                   # development and tests: a server on this computer, instead of SKEDS_URL
+# least time between two reads of the board, whoever asks
+SKEDS_EVERY_SEC = 15 * 60.0
+# least wait after a read or post that did not reach the server; not counted as a read
+RETRY_SEC = 60.0
+EXPIRE_SEC = 30.0
+# a full board is about 30 KB, up to twice that with every character escaped
+MAX_BYTES = 131072
+# how far ahead the server lets a sked begin
+MAX_AHEAD = timedelta(days=30)
+# development and tests: a server on this computer, instead of SKEDS_URL
+ENV_URL = "NEOAPRS_SKEDS_URL"
 State = Literal["ok", "offline", "off", "closed"]
-Fetch = Callable[[str, str, str, int], Awaitable[tuple[int, bytes] | None]]      # (address, version, platform, the most bytes wanted) to the status and body
-Post = Callable[[str, bytes, str, str, int], Awaitable[tuple[int, bytes] | None]]    # (address, the JSON body, version, platform, the most bytes wanted) to the status and body
+# (address, version, platform, max bytes) -> (status, body)
+Fetch = Callable[[str, str, str, int], Awaitable[tuple[int, bytes] | None]]
+# (address, JSON body, version, platform, max bytes) -> (status, body)
+Post = Callable[[str, bytes, str, str, int], Awaitable[tuple[int, bytes] | None]]
 
 
 class SkedError(CodedError):
@@ -53,23 +54,29 @@ class Skeds:
                  expire_sec: float = EXPIRE_SEC) -> None:
         self.version, self.platform = version, platform
         self._config = config
-        self._frequencies = frequencies                 # the dials the project suggests for the HF radio, which the tab offers (the topic carries them, so that the tab does not depend on a radio's state)
+        # dials suggested for the HF radio; in the topic so the tab need not depend on a radio
+        self._frequencies = frequencies
         self._fetch, self._post = fetch, post
         self.first_sec, self.every_sec, self.expire_sec = first_sec, every_sec, expire_sec
         self._environ = environ
         self._memory = memory
         self._clock, self._monotonic = clock, monotonic
-        self._board = EMPTY                              # the last board as understood (the kept one until the server has answered), ended skeds and all: `rows` drops them
-        self.fetched_at: datetime | None = None          # when the board was last taken, by the daemon's clock
-        self._reached: bool | None = None                # whether the last try reached the server and understood it; None before the first
-        self._ours: list[str] = []                       # the ids the server answered this installation, the newest first
-        self._shut = ""                                  # the call the server refused with `closed` while the board read just after said open: it is blocked, and the board is closed to it until the next read
-        self._token: str | None = None                   # kept in the row SKED_TOKEN; without a memory (the tests) it lasts as long as this object
-        self._told = 0                                   # how many rows were told last
+        # last board as understood, ended skeds included; `rows` drops them
+        self._board = EMPTY
+        self.fetched_at: datetime | None = None
+        # whether the last try reached and understood the server; None before the first
+        self._reached: bool | None = None
+        self._ours: list[str] = []
+        # call refused as `closed` while the board then read said open: blocked until the next read
+        self._shut = ""
+        # kept in the row SKED_TOKEN; without a memory it lasts as long as this object
+        self._token: str | None = None
+        self._told = 0
         self.changed: Signal[[]] = Signal("skeds.changed")
-        self.asked = 0                                   # how many times the server was asked for the board
-        self._last: float | None = None                  # when it was last asked, by `monotonic`
-        self._busy = asyncio.Lock()                      # one exchange with the server at a time, so that a late read cannot undo a post
+        self.asked = 0
+        self._last: float | None = None
+        # one exchange with the server at a time, so a late read cannot undo a post
+        self._busy = asyncio.Lock()
         self._tasks = TaskSet(log, "skeds")
 
     @property
@@ -78,13 +85,13 @@ class Skeds:
 
     @property
     def url(self) -> str:
-        """The board's address: the project's, or, for development and tests, the one of `NEOAPRS_SKEDS_URL` when it is a server on this computer."""
+        """The board's address: the project's, or `NEOAPRS_SKEDS_URL` if that is on this host."""
         given = self._environ.get(ENV_URL, "").strip()
         return given if on_this_computer(given) else SKEDS_URL
 
     @property
     def state(self) -> State:
-        """`off` while the check is off, `offline` while the server cannot be reached, `closed` while the board is closed to new skeds (by the moderator, or for our call), else `ok`."""
+        """`off` if the check is off, `offline` if unreachable, `closed` if full, else `ok`."""
         if not self.enabled:
             return "off"
         if self._reached is False:
@@ -100,7 +107,7 @@ class Skeds:
         return self._frequencies()
 
     def rows(self) -> list[Sked]:
-        """The skeds to come by the daemon's clock, the nearest first (none while the check is off)."""
+        """Return the skeds still to come by the daemon's clock, nearest first; none if off."""
         return list(to_come(self._board.skeds, self._clock())) if self.enabled else []
 
     async def start(self) -> None:
@@ -116,7 +123,7 @@ class Skeds:
         await every(self.every_sec, self.ask, "the HF test board", first=self.first_sec)
 
     async def _kept(self) -> None:
-        """The board and our ids kept by an earlier run, told before the server is asked (inside the task: the start of the daemon does not wait for the database)."""
+        """Tell the kept board and ids before asking the server."""
         if self._memory is None or self.fetched_at is not None or self._board is not EMPTY:
             return
         found = kept_board(await self._memory.setting(SKEDS_ROW) or "", self._clock())
@@ -135,12 +142,12 @@ class Skeds:
 
     # ---- reading
     def wanted(self) -> None:
-        """A page shows the Skeds tab: the board is read now, unless it was read less than SKEDS_EVERY_SEC ago or the check is off."""
+        """Read the board now, unless it was read within SKEDS_EVERY_SEC or the check is off."""
         if self._begin():
             self._tasks.spawn(self._read(), "skeds-ask")
 
     async def ask(self) -> None:
-        """Reads the board, with the same rule as `wanted`."""
+        """Read the board under the same rule as `wanted`."""
         if self._begin():
             await self._read()
 
@@ -162,7 +169,8 @@ class Skeds:
             self._unreached()
             return
         status, body = answer
-        board = EMPTY if status == 404 else None if status != 200 else self._parsed(body)         # (a 404 is a board that nobody has posted to yet, or one that is away for a moment: our ids are kept)
+        # a 404 is a board nobody has posted to yet, or one briefly away: our ids are kept
+        board = EMPTY if status == 404 else None if status != 200 else self._parsed(body)
         if board is None:
             log.debug("the HF test board at %s is not usable (status %s)", self.url, status)
             self._unreached()
@@ -176,15 +184,14 @@ class Skeds:
             return None
 
     def _unreached(self) -> None:
-        """The server was not reached: the state is `offline`, and the board may be read again after RETRY_SEC, not only after SKEDS_EVERY_SEC."""
+        """Mark the server unreached (`offline`); the board may be read again after RETRY_SEC."""
         self._last = self._monotonic() - SKEDS_EVERY_SEC + RETRY_SEC
         if self._reached is not False:
             self._reached = False
             self._tell()
 
     async def _take(self, board: Board, prune: bool = True) -> None:
-        """The board as the server's answer has it: kept, and told. Our ids that are not on it any more are dropped, unless `prune` is false (the board was a 404). A call the server refused
-        with `closed` is closed to it until a board is taken again: the moderator may have let it in since."""
+        """Keep and tell the server's board; drop our ids no longer on it (not on 404)."""
         self._board, self._reached, self.fetched_at, self._shut = board, True, self._clock(), ""
         if prune:
             on_board = {s.id for s in board.skeds}
@@ -195,14 +202,18 @@ class Skeds:
 
     # ---- posting
     async def post(self, start: datetime, end: datetime, dial: str, note: str) -> None:
-        """Posts a sked of our call. SkedError when the operator can do something about the refusal (`sked.rate`, `sked.full`, `sked.past`, `sked.far`) or the board cannot be reached (`sked.unreachable`); a closed board is no error (the state says it)."""
+        """Post a sked of our call.
+
+        Raise SkedError for a refusal the operator can act on or an unreachable board."""
         call, now = our_call(self._config().station_call), self._clock()
         if not call or end - start > MAX_LENGTH or end <= start:
-            raise ValueError(f"a sked of {call or 'no call'} from {iso(start)} to {iso(end)} cannot be posted")          # (the form cannot make one: the page's problem, the log has it)
+            # the form cannot make one: a page bug, so the log has it
+            raise ValueError(f"a sked of {call or 'no call'} from {iso(start)} to {iso(end)} cannot be posted")
         if end <= now:
             raise SkedError("that test has ended already", "sked.past")
         if start > now + MAX_AHEAD:
-            raise SkedError("that test begins more than 30 days ahead", "sked.far")          # (the page's clock may be ahead of ours, and a row of the board may begin a little later than the server lets one be posted)
+            # the page's clock may be ahead of ours
+            raise SkedError("that test begins more than 30 days ahead", "sked.far")
         fields = {"call": call, "from": iso(start) or "", "to": iso(end) or "", "dial": dial, "note": note}
         async with self._busy:
             data = await self._send("add", fields, call)
@@ -214,7 +225,7 @@ class Skeds:
             await self._answered(data)
 
     async def delete(self, ident: str) -> None:
-        """Deletes a sked of ours. What is not ours (the server says so) is only dropped from our ids: the operator can do nothing about it."""
+        """Delete a sked of ours; one the server says is not ours is only dropped from our ids."""
         async with self._busy:
             data = await self._send("remove", {"id": ident}, "")
             self._ours = [i for i in self._ours if i != ident]
@@ -222,7 +233,7 @@ class Skeds:
                 await self._answered(data)
 
     async def _answered(self, data: dict[str, Any]) -> None:
-        """The board of an answer is taken as read; one that is missing or is not a board is read again."""
+        """Take the answer's board as read; if it is missing or invalid, read the board again."""
         board = board_of(data.get("board"), self._clock())
         if board is None:
             log.warning("the HF test board's answer had no usable board; it is read again")
@@ -232,7 +243,7 @@ class Skeds:
         await self._take(board)
 
     async def _send(self, action: str, fields: dict[str, str], call: str) -> dict[str, Any] | None:
-        """The answer of the endpoint to the request when it says ok; None when the refusal is one nothing is to be said of (the board is closed to the call, a sked that is not ours); SkedError for the others."""
+        """Return the endpoint's answer when it says ok; None for a refusal needing no message."""
         if not self.enabled:
             raise SkedError("the HF test board could not be reached just now; try again later", "sked.unreachable")
         got = await self._post(endpoint_url(self.url), request_body(action, await self._secret(), fields), self.version, self.platform, MAX_BYTES)
@@ -259,7 +270,8 @@ class Skeds:
         if reason == "too_far":
             raise SkedError("that test begins more than 30 days ahead", "sked.far")
         if reason == "closed" and action == "add":
-            await self._get()                                       # (the board says whether it is closed to everyone; when it says open, the call is blocked)
+            # the board says whether it is closed to everyone; if open, only this call is blocked
+            await self._get()
             if self._reached:
                 self._last = self._monotonic()
             if self._reached and not self._board.closed:
@@ -274,7 +286,7 @@ class Skeds:
             raise SkedError("the HF test board could not be reached just now; try again later", "sked.unreachable")
 
     async def _secret(self) -> str:
-        """The sked token: 32 lowercase hex characters from 16 random bytes, made the first time it is needed and kept in the database. A row that is not of that form is made again."""
+        """Return the sked token (32 hex characters), made on first use and kept in the database."""
         if self._token is None:
             kept = None if self._memory is None else await self._memory.setting(SKED_TOKEN)
             if kept is not None and TOKEN.fullmatch(kept):

@@ -1,6 +1,6 @@
-"""NeoAPRS inside an AppImage: the runtime mounts the image at a path that is gone when the program ends, so whatever starts NeoAPRS later (the systemd unit, the daemon `neoaprs open` leaves behind, the
-start at sign-in) has to start the AppImage file named by `$APPIMAGE`. The pieces of the image itself (AppRun, the desktop entry, the build script's pins) are read as files; the image is built by
-scripts/build-appimage in CI and tried by scripts/smoke-appimage."""
+"""Tests for the AppImage packaging: whatever starts NeoAPRS later must start the file named by
+`$APPIMAGE`, not the mount point. AppRun, the desktop entry and the build pins are read as files.
+"""
 import importlib.machinery
 import os
 import re
@@ -21,7 +21,8 @@ from tests.support.ptyline import posix_only
 
 
 class Image:
-    """An AppImage as the runtime leaves it: the file, its mount with the interpreter inside, and the two variables."""
+    """An AppImage as the runtime leaves it: the file, its mount with the interpreter inside, and
+    the two variables."""
 
     def __init__(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str = "NeoAPRS-0.1.0-x86_64.AppImage") -> None:
         self.file = tmp_path / "Apps" / name
@@ -43,7 +44,8 @@ def image(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Image:
 
 def test_the_file_is_known_only_to_an_interpreter_inside_the_mount(image: Image, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     assert servicecmd.appimage_file() == str(image.file)
-    monkeypatch.setattr(sys, "executable", str(tmp_path / "venv" / "bin" / "python"))       # a leftover $APPIMAGE of the shell this is run from
+    # a leftover $APPIMAGE of the shell this is run from
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "venv" / "bin" / "python"))
     assert servicecmd.appimage_file() is None
 
 
@@ -56,7 +58,8 @@ def test_outside_an_appimage_there_is_none(monkeypatch: pytest.MonkeyPatch, tmp_
     assert servicecmd.appimage_file() is None, "a file that is not there is not an AppImage"
 
 
-@posix_only                       # an AppImage is a Linux thing (and Windows spells the temporary folder two ways)
+# an AppImage is a Linux thing (and Windows spells the temporary folder two ways)
+@posix_only
 def test_the_unit_starts_the_appimage_file_and_not_the_interpreter_in_the_mount(image: Image, tmp_path: Path) -> None:
     plan = servicecmd.make_plan(servicecmd.parser().parse_args(["install", "--data", str(tmp_path / "data")]))
     exec_start = next(line for line in servicesystemd.render(plan).splitlines() if line.startswith("ExecStart="))
@@ -68,12 +71,14 @@ def test_a_path_with_a_space_is_quoted_in_the_unit(tmp_path: Path) -> None:
     assert 'ExecStart="/home/u/My Apps/NeoAPRS.AppImage" --data ' in servicesystemd.render(plan)
 
 
-@posix_only                       # an AppImage is a Linux thing (and Windows spells the temporary folder two ways)
+# an AppImage is a Linux thing (and Windows spells the temporary folder two ways)
+@posix_only
 def test_the_detached_daemon_is_a_run_of_the_appimage(image: Image, tmp_path: Path) -> None:
     assert opencmd.daemon_argv(tmp_path / "data") == [str(image.file), "run", "--data", str(tmp_path / "data")]
 
 
-@posix_only                       # an AppImage is a Linux thing (and Windows spells the temporary folder two ways)
+# an AppImage is a Linux thing (and Windows spells the temporary folder two ways)
+@posix_only
 def test_start_at_sign_in_is_the_appimage_in_the_tray(image: Image, tmp_path: Path) -> None:
     assert app_command(default_data_dir(), "linux") == [str(image.file), "app", "--tray"]
     assert app_command(tmp_path / "d", "linux") == [str(image.file), "app", "--tray", "--data", str(tmp_path / "d")]
@@ -214,7 +219,8 @@ def load_weblock() -> types.ModuleType:
     return weblock
 
 
-DIGEST = "ab" * 32                                                     # (a digest of the right shape: the real one is PyPI's, filled in before the first build)
+# (a digest of the right shape: the real one is PyPI's, filled in before the first build)
+DIGEST = "ab" * 32
 
 
 def test_the_web_windows_packages_are_the_locked_ones_with_the_digests_of_the_files_that_run_in_the_image() -> None:
@@ -239,7 +245,9 @@ def test_pillow_comes_as_its_pinned_linux_wheel_never_from_the_locks_windows_whe
     with pytest.raises(SystemExit, match="not pinned yet"):
         weblock.requirements(lock, {"pillow": (weblock.PILLOW_URL, "")})
     with pytest.raises(SystemExit, match="no wheel of pillow 13.0.0 .* for the image"):
-        weblock.requirements(lock, {})                                  # (the lock's own files of Pillow: Windows and iOS wheels and an sdist, none of them for the image)
+        # (the lock's own files of Pillow: Windows and iOS wheels and an sdist, none of them for the
+        # image)
+        weblock.requirements(lock, {})
     with pytest.raises(SystemExit, match="is not pillow 13.0.0"):
         weblock.requirements(lock, {"pillow": (weblock.PILLOW_URL.replace("x86_64", "aarch64"), DIGEST)})
 
@@ -260,7 +268,8 @@ def test_only_proxy_tools_may_come_as_an_sdist_and_every_other_package_is_instal
 # ---- what the build takes out (packaging/appimage/prune.py) on a made-up tree
 
 def needs(*names: str) -> bytes:
-    """A made-up ELF file that names the libraries it loads, as the real ones do in their dynamic section."""
+    """A made-up ELF file that names the libraries it loads, as the real ones do in their dynamic
+    section."""
     return b"\x7fELF" + b"\0".join(name.encode() for name in names) + b"\0"
 
 

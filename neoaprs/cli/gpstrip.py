@@ -1,18 +1,17 @@
-"""A synthetic drive for `neoaprs gps-replay`: a loop of straight legs and corners with a stop in the middle, one position a second, the way a car drives it.
+"""A synthetic drive for `neoaprs gps-replay`: a looped rectangle with corners and one stop.
 
-The car starts standing still, accelerates to its cruising speed, slows for each corner (to `CORNER_MS`), turns, accelerates again, and on the last leg stops for `STOP_SEC` seconds half way along it. The loop is a rectangle, 1200 m north, 800 m
-east, 1200 m south and 800 m west, driven again and again. The geometry is flat (metres east and north of the start, turned into degrees), which is good for the few kilometres of a lap.
-Pure code: `Trip.step()` moves the car one second on and says where it is."""
+The geometry is flat (metres converted to degrees), accurate enough for a lap of a few kilometres.
+`Trip.step()` advances one second and returns the position."""
 import math
 from dataclasses import dataclass
 
-METRES_PER_DEGREE = 111194.9            # a degree of latitude
-ACCEL_MS2 = 1.5                         # how fast the car speeds up
-DECEL_MS2 = 2.0                         # and slows down
-CORNER_MS = 8.0                         # the speed it takes a corner at (29 km/h)
-TURN_DEG_PER_SEC = 45.0                 # how fast it turns
-STOP_SEC = 90                           # the stop in the middle of the last leg
-START_SEC = 10                          # it stands still this long before it sets off
+METRES_PER_DEGREE = 111194.9            # per degree of latitude
+ACCEL_MS2 = 1.5
+DECEL_MS2 = 2.0
+CORNER_MS = 8.0                         # corner speed (29 km/h)
+TURN_DEG_PER_SEC = 45.0
+STOP_SEC = 90                           # stop in the middle of the last leg
+START_SEC = 10                          # standing time before setting off
 ALTITUDE_M = 31.0
 
 
@@ -20,7 +19,7 @@ ALTITUDE_M = 31.0
 class Leg:
     heading_deg: int
     length_m: float
-    stop_at_m: float | None = None      # a stop this far along the leg
+    stop_at_m: float | None = None      # distance along the leg at which to stop
 
 
 LAP = (Leg(0, 1200.0), Leg(90, 800.0), Leg(180, 1200.0), Leg(270, 800.0, stop_at_m=400.0))
@@ -36,7 +35,7 @@ class Sample:
 
 
 def _turned(heading: float, toward: float, step: float) -> float:
-    """The heading after turning at most `step` degrees the short way toward `toward`."""
+    """Return the heading after turning at most `step` degrees the short way toward `toward`."""
     difference = (toward - heading + 180.0) % 360.0 - 180.0
     return (heading + max(-step, min(step, difference))) % 360.0
 
@@ -51,8 +50,8 @@ class Trip:
         self.heading = float(legs[0].heading_deg)
         self.leg = 0
         self.along_m = 0.0
-        self.paused = START_SEC                 # seconds still to stand
-        self.stopped_on_leg = False             # the stop of this leg has been made
+        self.paused = START_SEC                 # seconds of standing left
+        self.stopped_on_leg = False
 
     def sample(self) -> Sample:
         lat = max(-90.0, min(90.0, self.lat0 + self.north_m / METRES_PER_DEGREE))
@@ -62,7 +61,7 @@ class Trip:
         return Sample(lat, lon, self.speed_ms, round(self.heading) % 360, ALTITUDE_M)
 
     def step(self) -> Sample:
-        """The car one second on."""
+        """Advance the car one second and return its position."""
         if self.paused > 0:
             self.paused -= 1
             self.speed_ms = 0.0

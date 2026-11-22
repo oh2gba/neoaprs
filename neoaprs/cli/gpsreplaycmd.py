@@ -1,11 +1,17 @@
-"""`neoaprs gps-replay [--at LAT,LON] [--kmh N] [--port P] [--interval S]`: a gpsd that is not one, on a TCP port of the loopback, which reports a synthetic drive, so that the daemon can beacon as a car would without a car or a receiver:
+"""`neoaprs gps-replay [--at LAT,LON] [--kmh N] [--port P] [--interval S]`: a fake gpsd.
+
+It listens on a TCP port of the loopback and reports a synthetic drive, so that the daemon can
+beacon as a car would without a car or a receiver:
 
     neoaprs gps-replay                                              # prints 127.0.0.1:2948 as its first line
     neoaprs db set gps/source gpsd; neoaprs db set gps/host 127.0.0.1:2948      # or the same on the page's My station tab
 
-The drive (neoaprs/cli/gpstrip.py) starts at `--at` (60.43,24.145 by default) and is a rectangle of straight legs and corners at `--kmh` (50 by default), with a stop in the middle of the last leg, driven round and
-round. A client that sends `?WATCH={"enable":true,"json":true}`, as the daemon does, is sent a TPV report each INTERVAL seconds (a second by default; a smaller number drives faster than real time) and a SKY report every fifth.
-The drive goes on only while a client watches, and from where it stopped. Ctrl-C ends it."""
+The drive (neoaprs/cli/gpstrip.py) starts at `--at` (60.43,24.145 by default). It is a rectangle of
+straight legs and corners at `--kmh` (50 by default), with a stop in the middle of the last leg,
+driven round and round. A client that sends `?WATCH={"enable":true,"json":true}`, as the daemon
+does, gets a TPV report each INTERVAL seconds (a second by default; a smaller number drives faster
+than real time) and a SKY report every fifth. The drive advances only while a client watches, and
+resumes from where it stopped. Ctrl-C ends it."""
 import argparse
 import asyncio
 import json
@@ -19,7 +25,7 @@ from .output import break_as_interrupt, ctrl_break_is_ctrl_c, say
 HOST = "127.0.0.1"
 DEFAULT_PORT = 2948
 DEFAULT_AT = "60.43,24.145"
-SKY_EVERY = 5                           # a SKY report after this many TPV reports
+SKY_EVERY = 5
 SATELLITES = 9
 VERSION = {"class": "VERSION", "release": "3.25", "rev": "neoaprs gps-replay", "proto_major": 3, "proto_minor": 14}
 DEVICES = {"class": "DEVICES", "devices": [{"class": "DEVICE", "path": "/dev/gps-replay", "driver": "NMEA0183", "activated": "2026-01-01T00:00:00.000Z"}]}
@@ -35,11 +41,12 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
-POLE_LAT = 89.9              # the lap is flat: east-west distances stretch without end towards the pole
+# The lap is flat, so east-west distances grow without bound towards the pole.
+POLE_LAT = 89.9
 
 
 def position(text: str) -> tuple[float, float]:
-    """LAT,LON from the command line; ValueError when it is not a place on the earth."""
+    """Parse LAT,LON; raise ValueError if it is not a place on the earth."""
     lat, lon = (float(part) for part in text.split(","))
     if not (-POLE_LAT <= lat <= POLE_LAT and -180.0 <= lon <= 180.0):
         raise ValueError(f"{text!r} is not a place on the earth between latitude -{POLE_LAT:g} and {POLE_LAT:g}")
@@ -47,7 +54,7 @@ def position(text: str) -> tuple[float, float]:
 
 
 def tpv(sample: Sample, now: datetime) -> dict[str, object]:
-    """The TPV report of a gpsd for this sample."""
+    """Return the gpsd TPV report for this sample."""
     return {"class": "TPV", "device": "/dev/gps-replay", "mode": 3, "time": now.strftime("%Y-%m-%dT%H:%M:%S.000Z"), "lat": round(sample.lat, 9), "lon": round(sample.lon, 9),
             "altHAE": round(sample.altitude_m + 20.0, 1), "altMSL": sample.altitude_m, "alt": sample.altitude_m, "track": float(sample.course_deg), "speed": round(sample.speed_ms, 3), "climb": 0.0}
 
@@ -61,7 +68,7 @@ def line(report: Mapping[str, object]) -> bytes:
 
 
 class FakeGpsd:
-    """The server: a client that has asked to watch is sent the drive."""
+    """The server: a client that has asked to watch receives the drive."""
 
     def __init__(self, trip: Trip, interval: float, port: int = DEFAULT_PORT, ready: asyncio.Future[int] | None = None) -> None:
         self.trip, self.interval, self.port, self.ready = trip, interval, port, ready
@@ -76,7 +83,7 @@ class FakeGpsd:
                 self.ready.set_result(self.port)
             while True:
                 await asyncio.sleep(self.interval)
-                if self.watchers:                                    # (the drive waits for somebody to watch it, and goes on from where it was)
+                if self.watchers:
                     await self._report()
         finally:
             server.close()
@@ -112,7 +119,8 @@ class FakeGpsd:
                 client.write(data)
                 await client.drain()
             except OSError:
-                if client in self.watchers:                       # (the client's own task has taken it away if it went while the data was drained)
+                # The client's own task may already have removed it while the data drained.
+                if client in self.watchers:
                     self.watchers.remove(client)
 
 
@@ -134,7 +142,8 @@ def main(argv: list[str]) -> int:
         waiting: set[asyncio.Future[Any]] = {task, ready}
         await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)
         if task.done():
-            task.result()                                           # (the port could not be listened on: the error is raised here)
+            # Raises the error if the port could not be listened on.
+            task.result()
         port = ready.result()
         with break_as_interrupt():
             print(f"{HOST}:{port}", flush=True)

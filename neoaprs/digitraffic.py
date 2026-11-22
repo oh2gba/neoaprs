@@ -1,5 +1,8 @@
-"""Fintraffic's open ship feed (digitraffic.fi, marine AIS) as the program reads it: the positions of every ship (`/locations`, GeoJSON) and what each says of itself (`/vessels`, a list). Pure code: the
-answer arrives as bytes from another module. An answer that is not in the expected form is None (the caller counts it as a failure); a single ship that is not complete is passed over."""
+"""Fintraffic's open ship feed (digitraffic.fi, marine AIS): `/locations` and `/vessels`.
+
+Pure code: the answer arrives as bytes from another module. An answer in an unexpected form is
+None (the caller counts a failure); a single incomplete ship is skipped.
+"""
 import json
 import math
 from typing import Any
@@ -7,7 +10,7 @@ from typing import Any
 from .aisdecode import AisPosition, AisStatic
 from .clock import from_unix
 
-_SOG_NA, _COG_NA, _HEADING_NA = 102.3, 360, 511           # AIS's "not available" for speed, course and heading
+_SOG_NA, _COG_NA, _HEADING_NA = 102.3, 360, 511  # AIS "not available" for speed, course, heading
 
 
 def _json(body: bytes | str) -> Any:
@@ -18,7 +21,7 @@ def _json(body: bytes | str) -> Any:
 
 
 def _number(value: object) -> float | None:
-    """A JSON number (not a boolean) as a finite float, else None (NaN, infinity and an integer too large for a float are not numbers here)."""
+    """Return a JSON number (not a boolean) as a finite float, else None."""
     if not isinstance(value, int | float) or isinstance(value, bool):
         return None
     try:
@@ -57,7 +60,7 @@ def _position(feature: object) -> AisPosition | None:
 
 
 def read_locations(body: bytes | str) -> list[AisPosition] | None:
-    """The ships of `/locations` that have a position and a time; None when the answer is not a GeoJSON collection of features."""
+    """Return the ships of `/locations` with position and time; None if not a feature collection."""
     data = _json(body)
     features = data.get("features") if isinstance(data, dict) else None
     if not isinstance(features, list):
@@ -80,7 +83,7 @@ def _static(entry: object) -> AisStatic | None:
 
 
 def read_vessels(body: bytes | str) -> list[AisStatic] | None:
-    """What the ships of `/vessels` say of themselves; None when the answer is not a list."""
+    """Return what the ships of `/vessels` say of themselves; None if the answer is not a list."""
     data = _json(body)
     if not isinstance(data, list):
         return None

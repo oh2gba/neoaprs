@@ -1,7 +1,7 @@
-"""The lead-in tone for a radio that keys itself on the audio (VOX): the Mercury NeoAPRS builds plays `tx_leadin_ms` milliseconds of a steady tone ahead of every frame's preamble (packaging/mercury/leadin.patch, applied by
-scripts/build-mercury), because a VOX starts to transmit only after it has heard audio for its attack time and the first milliseconds of the preamble, which the far Mercury acquires on, are lost to it. The patch, the
-build script and the document are held to each other; and where the built Mercury is (a checkout after `scripts/build-mercury --install`, the `sim` stage, the release's checks) two real Mercury instances on the simulated
-channel (tests/support/hfchannel.py) show it: a station whose radio loses the first 100 ms of every transmission is not heard without the lead-in and is heard with it. Skipped where Mercury is not built."""
+"""The lead-in tone for a VOX radio: the built Mercury plays `tx_leadin_ms` of steady tone ahead of
+every frame (packaging/mercury/leadin.patch), because a VOX opens only after hearing audio for its
+attack time.
+"""
 import asyncio
 import os
 import re
@@ -18,9 +18,12 @@ from tests.support.realmercury import fifo, start_mercury, stop
 PATCH = ROOT / "packaging" / "mercury" / "leadin.patch"
 SCRIPT = ROOT / "scripts" / "build-mercury"
 DOC = ROOT / "docs" / "mercury.md"
-ATTACK_MS = 100.0                       # what the radio loses: a slow VOX (a quick one needs 20 to 40 ms), more than the preamble's 110 ms less what a frame survives (docs/mercury.md has the table)
+# What the radio loses: a slow VOX (a quick one needs 20 to 40 ms), more than the preamble's 110 ms
+# less what a frame survives (docs/mercury.md has the table)
+ATTACK_MS = 100.0
 FRAMES = 2
-FIRST_PORT = 18900                      # (this test's own ports: four Mercury instances, 10 apart, their control ports 200 above)
+# This test's own ports: four Mercury instances, 10 apart, their control ports 200 above
+FIRST_PORT = 18900
 PAYLOAD = b"OH2A>APNEO1:=6010.20N/02456.40E-a packet for the lead-in"
 
 
@@ -40,7 +43,8 @@ def test_the_document_has_the_table_and_the_lead_in_the_daemon_writes_is_the_one
 
 
 def deliver_ports(case: int) -> tuple[tuple[int, int], tuple[int, int]]:
-    """The two Mercury instances of a case on a pair of ports each: (broadcast, control) of the sender and of the receiver."""
+    """The two Mercury instances of a case on a pair of ports each: (broadcast, control) of the
+    sender and of the receiver."""
     return free_ports(FIRST_PORT + 20 * case, 10), free_ports(FIRST_PORT + 20 * case + 10, 10)
 
 
@@ -60,7 +64,8 @@ async def heard(reader: asyncio.StreamReader, seconds: float) -> bool:
 
 
 async def delivered(program: str, folder: Path, case: int, leadin_ms: int) -> int:
-    """Frames of FRAMES that reach B from A when A's radio loses the first ATTACK_MS of every transmission, with A's Mercury playing a lead-in of `leadin_ms`."""
+    """Frames of FRAMES that reach B from A when A's radio loses the first ATTACK_MS of every
+    transmission, with A's Mercury playing a lead-in of `leadin_ms`."""
     folder.mkdir()
     (sender, receiver) = deliver_ports(case)
     channel = Channel(snr_db=20.0, seed=case)
@@ -83,7 +88,8 @@ async def delivered(program: str, folder: Path, case: int, leadin_ms: int) -> in
             else:
                 pytest.fail(f"Mercury did not open its port {ports[0]}")
         writers = [writer for _, writer in streams]
-        await asyncio.sleep(2.0)                                    # (the receivers take their noise floor from what they hear)
+        # The receivers take their noise floor from what they hear
+        await asyncio.sleep(2.0)
         count = 0
         for _ in range(FRAMES):
             writers[0].write(kiss.encode(PAYLOAD))

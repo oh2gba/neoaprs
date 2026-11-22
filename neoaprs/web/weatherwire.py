@@ -1,5 +1,4 @@
-"""The weather on the wire: the command that asks for the observations of one weather station and the message that answers it. The current observation is a field of the station's row (`neoaprs/web/stationwire.py`).
-Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire models of the weather series command and its answer."""
 from typing import Literal
 
 from pydantic import Field

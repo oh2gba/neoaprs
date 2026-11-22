@@ -1,5 +1,7 @@
-"""The pseudo-terminal mode of `neoaprs replay --pty` (Linux and macOS): the capture is played on a pseudo-terminal, whose path is printed as the first line, for a daemon given `--port /dev/pts/N`.
-Nothing is sent while nobody has the pseudo-terminal open (a port that opens it throws away what was waiting), so the daemon may be started after this and restarted during it."""
+"""The pseudo-terminal mode of `neoaprs replay --pty` (Linux and macOS).
+
+The path is printed first, for a daemon given `--port /dev/pts/N`. Nothing is sent while nobody
+has it open, because opening a port discards pending input."""
 import os
 import select
 import time
@@ -9,7 +11,7 @@ from .output import SETTLE_SEC, say
 
 
 class Line:
-    """The master side of the pseudo-terminal. Somebody has the other side open while poll() does not report a hang-up."""
+    """The master side of the pseudo-terminal; the far side is open while poll() has no hang-up."""
 
     def __init__(self, master: int) -> None:
         self.master = master
@@ -21,7 +23,7 @@ class Line:
         return not any(events & select.POLLHUP for _, events in self.poller.poll(0))  # type: ignore[attr-defined, unused-ignore]
 
     def pause(self, seconds: float) -> None:
-        """Waits `seconds`, showing what the other end writes in the meantime."""
+        """Wait `seconds`, showing what the other end writes meanwhile."""
         end = time.monotonic() + seconds
         while (left := end - time.monotonic()) > 0:
             events = self.poller.poll(min(left, 0.2) * 1000)
@@ -32,10 +34,11 @@ class Line:
                     continue
                 say(f"replay: the daemon wrote {len(data)} bytes: {data[:60]!r}")
             elif events:
-                time.sleep(min(left, 0.1))                   # (hung up: nothing to read, nothing to wait for)
+                # Hung up: nothing to read, so avoid a busy loop.
+                time.sleep(min(left, 0.1))
 
     def wait_for_the_port(self) -> None:
-        """Returns when a port has the pseudo-terminal open; after it opened, a moment is given for its clearing of the input."""
+        """Return once a port has it open, after a pause for the port to clear its input."""
         if self.is_open():
             return
         say("replay: waiting for a port to open the pseudo-terminal")
@@ -59,7 +62,8 @@ def play_on_pty(frames: list[bytes], interval: float, loop: bool) -> int:
     master, slave = os.openpty()  # type: ignore[attr-defined, unused-ignore]
     tty.setraw(slave)  # type: ignore[attr-defined, unused-ignore]
     path = os.ttyname(slave)  # type: ignore[attr-defined, unused-ignore]
-    os.close(slave)                                          # nobody has the slave open now: the master reports a hang-up until a port opens it
+    # With the slave closed the master reports a hang-up until a port opens it.
+    os.close(slave)
     os.set_blocking(master, False)
     print(path, flush=True)
     line = Line(master)

@@ -1,4 +1,4 @@
-"""The settings on the wire: the topic `config` and the command that changes them. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire models of the topic `config` and the command that changes settings."""
 from typing import Literal
 
 from pydantic import Field

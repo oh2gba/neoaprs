@@ -1,5 +1,6 @@
-"""`server/support-fetch.sh` with a stand-in for the secrets manager and one for curl first on the PATH, which serves a made-up folder in the server's place and writes down what it was asked (never the real server): a bundle is
-fetched as its zip and its json, a note that was sent alone (`"file": false` in its json, no zip on the server) as its json only, with no zip asked for; neither is fetched twice, and `--list` shows both and keeps nothing."""
+"""`server/support-fetch.sh` with a secrets manager stand-in and a curl stand-in that serves a
+made-up folder: a bundle is fetched as zip and json, a note sent alone as json only.
+"""
 import json
 import os
 import shutil
@@ -38,7 +39,8 @@ fi
 
 @pytest.fixture
 def served(tmp_path: Path) -> dict[str, Path]:
-    """The script in a folder of its own, the server's folder with a bundle and a note alone, and the stand-ins."""
+    """The script in a folder of its own, the server's folder with a bundle and a note alone, and
+    the stand-ins."""
     script = tmp_path / "checkout" / "server" / "support-fetch.sh"
     script.parent.mkdir(parents=True)
     shutil.copy(ROOT / "server" / "support-fetch.sh", script)

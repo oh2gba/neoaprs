@@ -1,15 +1,8 @@
-"""The detailed base map cut out of a big PMTiles archive (version 3, clustered: the Protomaps daily build of the whole world, read with range requests, or a file), as `pmtiles extract` does it.
+"""Cut the detailed base map out of a big PMTiles v3 archive (URL or file), like `pmtiles extract`.
 
-The cut reads the header and the directories that the box reaches into (neoaprs/pmtilesplan.py; neoaprs/pmtilesformat.py has the format and which tiles a box touches) and writes a clustered archive of the tiles
-of the box down to `maxzoom`: the header (the box and its centre, the zooms, the counts; the compressions, the tile type and the metadata as the source has them), the directories, the metadata and the tile
-data in the order of the tile ids, a content that several tiles share once. The size of the archive is known before a byte of tile data is fetched: `estimate` (the dry run) says it, and a cut that would be
-bigger than `max_bytes` is refused.
-
-The tile data is fetched in few requests: pieces that lie next to each other in the source are one request, and so are pieces with a gap between them as long as all the gaps together are at most `OVERFETCH`
-of the data (the smallest gaps first, as go-pmtiles' overfetch does); a request is at most `MAX_REQUEST` long. `threads` requests run at once (neoaprs/pmtilesrange.py tries a failed one again), each piece
-written to its place in the file as it comes, so that only a piece of each is in memory. The percent told goes by the bytes of the requests that came, and only up; the size told is the part of the archive
-that has come, in the same measure. The header and the directories are read on a thread that a stop does not wait for, so that a server that has not begun its answer holds nothing up. The archive is written to
-a `.part` file beside the target and moved into place when it is whole; a failure or a stop removes it. `stop` ends a cut from another thread at once; `extract` is the cut for the event loop. Nothing here imports Tornado or the settings."""
+Only the header and the directories the box reaches into are read. The size is known before any
+tile data is fetched (`estimate` is the dry run); a cut over `max_bytes` is refused.
+"""
 import asyncio
 import contextlib
 import logging
@@ -27,20 +20,20 @@ from .pmtilesrange import PAUSES_SEC, STOPPED, CutError, Halt, Source, in_parall
 
 log = logging.getLogger("neoaprs.mapfetch")
 
-OVERFETCH = 0.05                            # the gaps fetched with the tiles, at most this part of the tile data
+OVERFETCH = 0.05
 MAX_REQUEST = 32 * 1024 * 1024
-MAX_BYTES = 50 * 1000**3                    # the biggest archive made when the caller names no limit
+MAX_BYTES = 50 * 1000**3
 
 __all__ = ["Cut", "CutError", "Cutting", "extract", "part_of"]
 
 
 def part_of(target: Path) -> Path:
-    """The file the archive is written to until it is whole."""
+    """Return the file the archive is written to until it is whole."""
     return target.with_name(target.name + ".part")
 
 
 class Cutting:
-    """One cut, run in a thread with `estimate()` (the dry run) or `run()`; `stop()` from any other thread ends it at once with CutError("stopped")."""
+    """One cut, run in a thread by `estimate()` or `run()`; `stop()` from another thread ends it."""
 
     def __init__(self, source: str, target: Path, box: Box | None, maxzoom: int, max_bytes: int = MAX_BYTES, threads: int = DOWNLOAD_THREADS,
                  on_percent: Callable[[int], None] | None = None, pauses: tuple[float, ...] = PAUSES_SEC, on_size: Callable[[int], None] | None = None) -> None:
@@ -79,7 +72,7 @@ class Cutting:
         return plan
 
     def estimate(self) -> Cut:
-        """What the archive would be, from its directories alone: no tile data is fetched and nothing is written."""
+        """Return what the archive would be, from the directories alone; nothing is written."""
         reader = self._open()
         try:
             return self._plan(reader).cut
@@ -87,7 +80,7 @@ class Cutting:
             reader.close()
 
     def run(self) -> Cut:
-        """Writes the archive at `target`, whole or not at all."""
+        """Write the archive at `target`, whole or not at all."""
         reader = self._open()
         part = part_of(self.target)
         try:
@@ -130,7 +123,7 @@ def _remove(part: Path) -> None:
 
 
 class _File:
-    """The `.part` file, written at places from several threads; once it is closed a thread that comes late writes nothing."""
+    """The `.part` file, written at offsets by several threads; writes after `close` are dropped."""
 
     def __init__(self, raw: IO[bytes]) -> None:
         self._raw = raw
@@ -144,14 +137,14 @@ class _File:
                 self._raw.write(data)
 
     def close(self) -> int:
-        """Ends the writing; the size of the file."""
+        """Stop accepting writes and return the size of the file."""
         with self._lock:
             self._open = False
             return self._raw.seek(0, 2)
 
 
 class _Download:
-    """The requests of a plan on `threads` threads, each piece written to its place in the file as it comes; the first failure stops the others."""
+    """Run the requests of a plan on several threads; the first failure stops the others."""
 
     def __init__(self, reader: Source, plan: Plan, out: _File, halt: Halt, on_percent: Callable[[int], None], on_size: Callable[[int], None]) -> None:
         self.reader, self.plan, self.out, self.halt, self.on_percent, self.on_size = reader, plan, out, halt, on_percent, on_size
@@ -190,8 +183,7 @@ class _Download:
         self.reader.copy(start, end - start, into)
 
     def _advance(self, count: int) -> None:
-        """More bytes have come: the percent, when it is higher, and the size are told. Told under the lock, so that what two requests report at once reaches the page in the order it was counted
-        (told after the lock was let go, a smaller size could follow a larger one: the suite saw it once, 14 November 2026)."""
+        """Report progress. Callbacks run under the lock so reports arrive in the order counted."""
         with self._lock:
             self._done += count
             if self.halt.is_set():
@@ -210,8 +202,10 @@ class _Download:
                 self.on_percent(percent)
 
 class _Pieces:
-    """Where the bytes of one request go: the pieces it holds, in the order of the source, each to its place in the new tile data; the gaps between them are dropped. A request that is tried again
-    delivers from its start again, and the places start over with it."""
+    """Map the bytes of one request to their places in the new tile data; gaps are dropped.
+
+    A retried request delivers from its start again and the places start over.
+    """
 
     def __init__(self, plan: Plan, first: int, last: int, place: int) -> None:
         self.sources, self.lengths = plan.piece_sources, plan.piece_lengths
@@ -219,7 +213,7 @@ class _Pieces:
         self.index, self.at, self.seen = first, place, -1
 
     def place(self, at: int, data: bytes) -> list[tuple[int, bytes]]:
-        """The parts of the bytes from `at` that are tiles, each with its place in the new tile data."""
+        """Return the parts of the bytes from `at` that are tiles, each with its new place."""
         if at <= self.seen:
             self.index, self.at = self.first, self.start
         self.seen = at
@@ -238,7 +232,10 @@ class _Pieces:
 
 async def extract(source: str, target: Path, box: Box | None, maxzoom: int, dry_run: bool = False, on_percent: Callable[[int], None] | None = None,
                   max_bytes: int = MAX_BYTES, threads: int = DOWNLOAD_THREADS, on_size: Callable[[int], None] | None = None) -> Cut:
-    """The cut on the event loop: `on_percent` and `on_size` are told on the loop, and a task that is cancelled stops the cut and waits for its thread, which ends at once. CutError for a cut that fails."""
+    """Run a cut for the event loop; the callbacks run on the loop. Raise CutError if it fails.
+
+    Cancelling the task stops the cut and waits for its thread.
+    """
     loop = asyncio.get_running_loop()
     told = on_percent or (lambda percent: None)
 
@@ -246,7 +243,7 @@ async def extract(source: str, target: Path, box: Box | None, maxzoom: int, dry_
 
     def from_thread(call: Callable[[int], None]) -> Callable[[int], None]:
         def tell(value: int) -> None:
-            with contextlib.suppress(RuntimeError):                        # (the loop is closed: the program is ending)
+            with contextlib.suppress(RuntimeError):  # the loop is closed: the program is ending
                 loop.call_soon_threadsafe(call, value)
         return tell
 

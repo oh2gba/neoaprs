@@ -1,5 +1,6 @@
-"""`neoaprs support` and the other ways to the support bundle that are not the page's: the Windows Start menu entry, the tray item of the desktop app; and what the daemon writes to its log for a bundle to be read by: the second line of its start
-and the exceptions that nothing caught."""
+"""`neoaprs support` and the other non-page ways to the support bundle (Windows Start menu, desktop
+tray item), and what the daemon logs for a bundle to read: its start line and uncaught exceptions.
+"""
 import argparse
 import asyncio
 import logging
@@ -58,7 +59,8 @@ def test_the_command_makes_the_file_in_the_folder_it_is_given_and_prints_where_a
 
 
 def test_the_journal_is_the_one_the_module_has_when_the_bundle_is_made(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
-    """A stand-in for the journal put in its module's place is the one asked, so that a test's own takes the machine's journalctl out of the bundle."""
+    """A stand-in for the journal put in its module's place is the one asked, so that a test's own
+    takes the machine's journalctl out of the bundle."""
     monkeypatch.setattr(supportmake.gather, "journal_text", lambda *a, **k: "the journal of the test")
     data = fake_folder(tmp_path)
     code, _, _ = run(capsys, "--data", str(data), "--out", str(tmp_path / "out"))
@@ -177,7 +179,8 @@ def test_the_tray_has_an_item_that_makes_the_bundle_in_a_thread_and_says_where_i
     assert actions.support_thread is not None
     actions.support_thread.join(10)
     assert seen == [(Path("somewhere"), "neoaprs-app-support")], "in a thread of its own, for the folder of the session"
-    assert frame.told == [f"Support file saved: {Path('/home/ham/Desktop/neoaprs-support-OH2GBA-1.zip')}"]                # (the path as the system writes it: backslashes on Windows)
+    # The path as the system writes it: backslashes on Windows
+    assert frame.told == [f"Support file saved: {Path('/home/ham/Desktop/neoaprs-support-OH2GBA-1.zip')}"]
 
 
 @pytest.mark.expects_errors
@@ -221,7 +224,9 @@ def test_the_start_has_a_second_line_that_says_where_it_runs(tmp_path: Path) -> 
     second = log[first + 1]
     found = re.fullmatch(r"\S+ \S+Z  INFO  running on .+, \S+, Python \d+\.\d+\.\d+, installed as (source|pip|uv-tool|deb|appimage|windows-installer), pid (\d+)", second)
     assert found, second
-    if sys.platform != "win32":                                     # (on Windows the venv's python.exe is a launcher that starts the real interpreter: another process id)
+    # On Windows the venv's python.exe is a launcher that starts the real interpreter: another
+    # process id
+    if sys.platform != "win32":
         assert int(found.group(2)) == pid
     assert "running on " + system_description() in second
     assert "running on" not in err, "the rest of the INFO lines stay in the log file"

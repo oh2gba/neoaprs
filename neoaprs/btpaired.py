@@ -1,6 +1,8 @@
-"""The Bluetooth devices that are paired with this computer (Linux), for the list of ports. BlueZ keeps them and tells anyone who asks over the system's D-Bus, no root needed; `busctl` (systemd) asks, and where it is not
-there `bluetoothctl` does. Nothing is connected to, scanned for or changed: a device that is paired is listed whether it is near or not. A device is left out that says it has no serial port (a phone's headset, a
-Bluetooth LE sensor): classic serial ports are all that `bt://` opens."""
+"""List the Bluetooth devices paired with this computer (Linux), for the list of ports.
+
+BlueZ answers over the system D-Bus without root: `busctl` first, `bluetoothctl` if it is missing.
+Nothing is connected to or changed; devices with no serial port are left out.
+"""
 import json
 import logging
 import subprocess
@@ -23,7 +25,7 @@ class PairedDevice:
 
 
 def _run(command: list[str]) -> str:
-    """What the command printed, or nothing when it is not installed, fails or does not answer in time."""
+    """Return the command's output, or "" if it is missing, fails or times out."""
     try:
         done = subprocess.run(command, capture_output=True, text=True, timeout=ASK_SEC, check=False, stdin=subprocess.DEVNULL)
     except (OSError, subprocess.SubprocessError) as e:
@@ -37,7 +39,7 @@ def _value(prop: object) -> object:
 
 
 def from_busctl(output: str) -> list[PairedDevice]:
-    """The paired devices in the JSON `busctl` gives for BlueZ's GetManagedObjects (an object path to its interfaces to their properties, each property {"type", "data"})."""
+    """Return the paired devices in the JSON that `busctl` prints for GetManagedObjects."""
     try:
         objects = json.loads(output)["data"][0]
     except (ValueError, KeyError, IndexError, TypeError):
@@ -54,14 +56,15 @@ def from_busctl(output: str) -> list[PairedDevice]:
         if isinstance(uuids, list) and uuids and SERIAL_PORT_UUID not in [str(u).lower() for u in uuids]:
             continue
         name = str(_value(device.get("Alias")) or _value(device.get("Name")) or "")
-        if name == address.replace(":", "-"):                      # (the alias of a device that never gave a name)
+        # BlueZ's alias of a device without a name is its address.
+        if name == address.replace(":", "-"):
             name = ""
         found.setdefault(address.upper(), PairedDevice(address.upper(), name))
     return list(found.values())
 
 
 def from_bluetoothctl(output: str) -> list[PairedDevice]:
-    """The devices in the lines `Device AA:BB:CC:DD:EE:FF Name` of `bluetoothctl devices Paired` (it does not say which have a serial port)."""
+    """Return the devices in `Device AA:BB:CC:DD:EE:FF Name` lines (serial support unknown)."""
     found: list[PairedDevice] = []
     for line in output.splitlines():
         parts = line.strip().split(maxsplit=2)
@@ -71,7 +74,10 @@ def from_bluetoothctl(output: str) -> list[PairedDevice]:
 
 
 def paired_devices(run: Callable[[list[str]], str] | None = None) -> list[PairedDevice]:
-    """The paired devices that may have a serial port, by name. Empty on a system without BlueZ, without D-Bus, or when the question is not answered."""
+    """Return the paired devices that may have a serial port, sorted by name.
+
+    The list is empty if BlueZ gives no answer.
+    """
     if not _on_linux():
         return []
     ask = run or _run
@@ -81,5 +87,5 @@ def paired_devices(run: Callable[[list[str]], str] | None = None) -> list[Paired
 
 
 def _on_linux() -> bool:
-    """(A function, so that mypy checks the rest for every platform instead of calling it unreachable on one.)"""
+    """Return True on Linux; a function so that mypy does not flag code as unreachable."""
     return sys.platform.startswith("linux")

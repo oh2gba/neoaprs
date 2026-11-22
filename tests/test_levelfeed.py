@@ -1,6 +1,6 @@
-"""The feed of a Sound card radio's receive level ten times a second (neoaprs/web/levelfeed.py, `radio_level`): only the pages that ask are sent it, the level now at once and then each change; a page that is
-behind is skipped; a page that stops, or leaves, is sent no more, and the level is let go of once no page looks; a radio whose modem is another one is followed on the new one, one that has none any more is said
-to have no level. On the wire: the daemon's own Sound card radio answers `radio_level`, and refuses it for a radio of a type without a receive level."""
+"""Tests for the receive level feed of a Sound card radio (neoaprs/web/levelfeed.py, `radio_level`):
+only subscribed pages get it, lagging pages are skipped, and modem changes are followed.
+"""
 from pathlib import Path
 from typing import Any
 
@@ -133,8 +133,9 @@ async def test_on_the_wire_a_sound_card_radio_answers_with_its_level_and_a_radio
 
 
 async def test_a_sound_card_radio_that_is_off_is_never_refused_and_one_changed_to_another_type_is_let_go_without_a_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The page asks while the box is in view, whatever the radio does: a radio switched off is answered (no level), never refused with a toast; when its type changes while a page looks, the stop the page
-    sends as the box goes is not refused either, and the old modem is let go."""
+    """The page asks while the box is in view, whatever the radio does: a radio switched off is
+    answered (no level), never refused with a toast; when its type changes while a page looks, the
+    stop the page sends as the box goes is not refused either, and the old modem is let go."""
     monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)
     e, ws = await started(tmp_path)
     try:
@@ -148,7 +149,8 @@ async def test_a_sound_card_radio_that_is_off_is_never_refused_and_one_changed_t
         old = e.ctl.radios.get(id).driver.modem
         await ws.send({"cmd": "radio_change", "radio": id, "type": "kiss"})
         await ws.until(lambda: ws.topics["radios"][str(id)]["type"] == "kiss")
-        await ws.send({"cmd": "radio_level", "radio": id, "on": False})          # (the box of the type before goes, and its row with it)
+        # (the box of the type before goes, and its row with it)
+        await ws.send({"cmd": "radio_level", "radio": id, "on": False})
         await until(lambda: len(old.level_now.changed) == 0)
         assert len(ws.of("error")) == errors and ws.of("radio_level")[-1]["level"] is None
     finally:

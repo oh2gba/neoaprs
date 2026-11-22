@@ -1,7 +1,7 @@
-"""No sentence of the daemon's travels on the wire for the page to show: what the operator reads is the page's, in its catalogue, in every language, and the daemon sends a code (a `Literal`, which PROTOCOL.md and
-the page's types list) and the values that go into the sentence. Every text field of every model of the wire (the commands, the messages, the values of the topics) is declared here as one of the kinds of text that
-may travel: the operator's or a station's own words, a name or a value, the own words of a device or a program, a route (which the page takes apart, lib/routes.ts), and the English of a refusal for the log. A time
-(`Iso`) is a value and needs no word here. A field that is none of these fails: it would put the daemon's English beside the page's words."""
+"""No sentence of the daemon's travels on the wire for the page to show: the daemon sends a code (a
+`Literal`) and the values that go into the sentence, and the page's catalogue holds the words in
+every language.
+"""
 import types
 from typing import Annotated, Any, Literal, Union, get_args, get_origin
 
@@ -13,16 +13,19 @@ from neoaprs.web.wirebase import Iso
 
 ISO = next(m.pattern for m in get_args(Iso)[1].metadata if getattr(m, "pattern", None))
 
-# The operator's own text, a station's (what it sent, as it sent it), the project's (a note of the version page, its release notes) and the page's own (an error it reports).
+# The operator's own text, a station's (what it sent, as it sent it), the project's (a note of the
+# version page, its release notes) and the page's own (an error it reports).
 OWN = {
     "AskQru.text", "BulletinPost.text", "BulletinRow.text", "DecodedMessage.text", "DecodedOther.text", "DecodedPosition.comment", "DecodedStatus.text", "DecodedTelemetry.comment", "DecodedUndecoded.text",
     "DecodedWeather.raw", "MessageRow.text", "NoteSection.text", "ObjectSet.comment", "OwnBulletinRow.text", "OwnObjectRow.comment", "PageError.message", "PageError.stack", "PositionFields.comment",
     "QruAsked.text", "QruServer.sent", "QueryStation.text", "SendMessage.text", "SkedPost.note", "SkedRow.note", "StationRow.last_comment", "StationRow.last_status", "Status.station_status", "TelemetryBit.name",
     "TelemetryChannel.name", "TelemetryChannel.unit", "TelemetryFields.comment", "TelemetryValues.comment", "TelemetryValues.project", "UpdateInfo.message",
 }
-# A name or a value: a call, a path, an id, a port or an address, a version, a setting's key and its text, a symbol, a frequency, a key of a topic's table.
+# A name or a value: a call, a path, an id, a port or an address, a version, a setting's key and its
+# text, a symbol, a frequency, a key of a topic's table.
 NAME = {
-    "LayerThing.origin_place", "LayerThing.destination_place",          # the place of an airport, from the table the program carries
+    # The place of an airport, from the table the program carries
+    "LayerThing.origin_place", "LayerThing.destination_place",
     "AskQru.path", "AttemptRow.internet", "BulletinDelete.sender", "BulletinDelete.slot", "BulletinPost.slot", "BulletinRow.group", "BulletinRow.sender", "BulletinRow.slot", "BulletinUnpost.slot",
     "ClearStationPath.call", "ConfigValues.defaults", "ConfigValues.radio_defaults", "ConfigValues.radio_values", "ConfigValues.urls", "ConfigValues.values", "ConversationDelete.call", "DecodedItem.name",
     "DecodedMessage.ack_id", "DecodedMessage.addressee", "DecodedMessage.msg_id", "DecodedMessage.rej_id", "DecodedObject.name", "DecodedObject.timestamp", "DecodedOther.items", "DecodedOther.timestamp",
@@ -47,15 +50,19 @@ NAME = {
     "TopicValues.station_prefs", "TopicValues.stations", "Unsubscribe.topics", "UpdateInfo.url", "UpdateInfo.version", "UpdateNow.version", "UpdateResultMsg.version", "UpdateState.version",
     "WeatherSeries.call", "WeatherSeriesMsg.call",
 }
-# The own words of a device or a program, as it says them: what the system calls a port or a sound card, the line of a TNC (its TNC2 text and the Terminal's lines), what a station's device is, the first line an
-# alert command wrote.
+# The own words of a device or a program, as it says them: what the system calls a port or a sound
+# card, the line of a TNC (its TNC2 text and the Terminal's lines), what a station's device is, the
+# first line an alert command wrote.
 DEVICE = {
     "AlertResultMsg.line", "PacketRow.tnc2", "PortRow.description", "PortRow.hwid", "SoundCardRow.name", "StationRow.device", "TncLine.text",
-    "LayerThing.destination", "LayerThing.origin", "LayerThing.id", "LayerThing.name", "LayerThing.registration", "LayerThing.type", "LayerThing.category", "LayerThing.designator",          # what an aircraft or a ship says of itself, as its source gave it
+    # What an aircraft or a ship says of itself, as its source gave it
+    "LayerThing.destination", "LayerThing.origin", "LayerThing.id", "LayerThing.name", "LayerThing.registration", "LayerThing.type", "LayerThing.category", "LayerThing.designator",
 }
-# A route as the daemon writes it (`direct`, `via A → B`, `via G (internet)`): the page takes it apart and says it in its words (lib/routes.ts `routeWords`).
+# A route as the daemon writes it (`direct`, `via A → B`, `via G (internet)`): the page takes it
+# apart and says it in its words (lib/routes.ts `routeWords`).
 ROUTE = {"MessageRow.route", "PacketRow.route", "StationRow.best_route", "StationRow.last_route"}
-# The English of a refusal, for the log and the support bundle: the page says a refusal by its `code` (ui/src/i18n/errortext.ts) and never shows this.
+# The English of a refusal, for the log and the support bundle: the page says a refusal by its
+# `code` (ui/src/i18n/errortext.ts) and never shows this.
 LOG = {"Error.text"}
 
 KINDS = {"own": OWN, "name": NAME, "device": DEVICE, "route": ROUTE, "log": LOG}

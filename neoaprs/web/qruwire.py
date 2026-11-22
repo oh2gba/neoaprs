@@ -1,4 +1,4 @@
-"""QRU on the wire: the command to ask for local info and the topic `qru`, the servers that answered. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""Wire models of the QRU local-info command and the topic `qru`."""
 from typing import Literal
 
 from pydantic import Field

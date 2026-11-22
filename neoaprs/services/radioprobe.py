@@ -1,6 +1,7 @@
-"""One try of Find my radio: a port that is open at one speed, and what its TNC says. The line is listened to, then a carriage return is written, which is all the search for the radio (serialprobe.py) writes too:
-a TNC in KISS mode ignores it, one in command mode answers "cmd:". A KISS frame is a KISS TNC (the profile `kiss`). Text is a TNC in command mode, and it is put into KISS the way the profiles that can be asked do it
-(tncprofile.py), one profile after the other, until the carriage return that follows is no longer answered with text. Nothing here is sent to the air: the TNC's commands only change the TNC."""
+"""One try of Find my radio: an open port at one speed, and what its TNC says.
+
+The line is listened to, then a carriage return is written: a TNC in KISS mode ignores it, one in
+command mode answers with text and is put into KISS by each askable profile. Nothing goes on air."""
 import asyncio
 from dataclasses import dataclass
 
@@ -10,23 +11,28 @@ from neoaprs.tncmode import Mode, ModeDetector
 from neoaprs.tncprofile import KISS, PROFILES
 
 CR = b"\r"
-ASKABLE = tuple(p for p in PROFILES if p.can_probe)         # the profiles that put a TNC in command mode into KISS, in the order they are tried
+# profiles that put a TNC in command mode into KISS, in the order tried
+ASKABLE = tuple(p for p in PROFILES if p.can_probe)
 
 
 @dataclass(frozen=True)
 class Timing:
-    listen_sec: float = 1.0          # a line is listened to this long before the carriage return is written
-    answer_sec: float = 1.5          # and this long after each carriage return
-    pace: float = 1.0                # the factor on the pauses of a profile's entry (the tests make them short)
+    # listen this long before the first carriage return
+    listen_sec: float = 1.0
+    # and this long after each carriage return
+    answer_sec: float = 1.5
+    # factor on the pauses of a profile's entry
+    pace: float = 1.0
 
 
 class Ear(SerialPort):
-    """A port that keeps what it hears. Open, it is among the ports the searches of this process have open (serialprobe.LISTENING), so that a radio a save sets to it takes it at once (tncsearch.let_go)."""
+    """A port that keeps what it hears; while open it is in serialprobe.LISTENING so a radio can take it."""
 
     def __init__(self, path: str, baud: int) -> None:
         super().__init__(path, baud)
         self.heard = bytearray()
-        self.given_up = False                    # (let go for a radio whose settings name the port)
+        # set when let go for a radio whose settings name the port
+        self.given_up = False
 
     async def open(self) -> None:
         key = port_key(self.path)
@@ -48,7 +54,9 @@ def mode_of(heard: bytes) -> Mode:
 
 
 async def put_in_kiss(ear: Ear, profile_key: str, timing: Timing) -> bool:
-    """The profile's steps are written with their pauses, and then a carriage return: a TNC that is in KISS now says nothing to it, one that is still in command mode answers with text."""
+    """Write the profile's steps with their pauses, then a carriage return.
+
+    Return True if the TNC stays silent (KISS); one still in command mode answers with text."""
     profile = next(p for p in ASKABLE if p.key == profile_key)
     for data, pause in profile.enter:
         ear.write(data)
@@ -60,8 +68,9 @@ async def put_in_kiss(ear: Ear, profile_key: str, timing: Timing) -> bool:
 
 
 async def try_line(ear: Ear, timing: Timing) -> str | None:
-    """The key of the profile that fits the TNC behind this open line, or None when it says nothing a TNC would. SerialError when the line was let go meanwhile for a radio set to the port: it is that radio's,
-    whatever it said."""
+    """Return the key of the profile that fits the TNC on this line, or None.
+
+    Raise SerialError if the line was let go for a radio set to the port, whatever it said."""
     try:
         found = await _profile_of(ear, timing)
     except SerialError:

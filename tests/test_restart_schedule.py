@@ -1,6 +1,7 @@
-"""The beacon and the status report keep their schedule across a restart (neoaprs/services/memory.py): the rows `beacon/last_sent_at`, `status/last_sent_at` and `status/last_text` of a real Store on a
-temporary database, a clock the test holds, a Tnc that is a stub. A second Beacon or RigStatus on the same Store is the daemon started again. In the whole daemon each radio of the registry has its own
-beacon, which keeps its last send in the radio's own row, `radio/<id>/beacon_last_sent_at`, and nothing under the two rows of before."""
+"""The beacon and status keep their schedule across a restart (neoaprs/services/memory.py): the rows
+`beacon/last_sent_at`, `status/last_sent_at` and `status/last_text` of a real Store; a second
+service is a restart.
+"""
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -21,12 +22,14 @@ from tests.support.env import Env, idle_for, ON_AIR, remember_stop, until
 from tests.support.fakes import FakeRigctld, rigctld
 from tests.support.storedb import store_at
 
-BEACON_ROW, STATUS_ROW, TEXT_ROW = BEACON_SENT, STATUS_SENT, STATUS_TEXT       # (the beacons here are made without the station's maker of frames, and keep beacon/last_sent_at)
+# The beacons here are made without the station's maker of frames, and keep beacon/last_sent_at
+BEACON_ROW, STATUS_ROW, TEXT_ROW = BEACON_SENT, STATUS_SENT, STATUS_TEXT
 HF_BEACON_ROW = HF_BEACON_SENT
 
 
 class Daemon:
-    """One run of the daemon's beacon and status: made again on the same Store and clock after a stop."""
+    """One run of the daemon's beacon and status: made again on the same Store and clock after a
+    stop."""
 
     def __init__(self, store: Store, clock: FixedClock, **changes: object) -> None:
         self.config: Config = replace(ON_AIR, **{"beacon_interval_min": 30, **changes})             # type: ignore[arg-type]   # on: the defaults are a beacon that is off
@@ -60,7 +63,7 @@ async def beacon_sent_ago(store: Store, clock: FixedClock, minutes: float) -> No
     assert await store.put_setting(BEACON_ROW, iso(clock() - timedelta(minutes=minutes)) or "")
 
 
-# ---- the beacon ----------------------------------------------------------------------------------------------------------------------------------
+# ---- the beacon ----------------------------------------------------------------------------------
 
 async def test_the_time_of_each_beacon_is_written_to_the_row_after_the_send(tmp_path: Path) -> None:
     store, clock = await kept(tmp_path)
@@ -108,7 +111,8 @@ async def test_a_start_two_hours_after_a_beacon_or_with_no_stored_time_sends_the
 
 async def test_a_stored_time_that_is_not_a_time_or_is_in_the_future_counts_as_none(tmp_path: Path) -> None:
     store, clock = await kept(tmp_path)
-    for text in ("yesterday", "2026-10-21T13:00:00Z", "2026-10-21T10:00:00"):          # (not a time; ahead of the clock; no zone)
+    # Not a time; ahead of the clock; no zone
+    for text in ("yesterday", "2026-10-21T13:00:00Z", "2026-10-21T10:00:00"):
         assert await store.put_setting(BEACON_ROW, text)
         d = Daemon(store, clock, beacon_interval_min=60)
         await d.beacon.start()
@@ -151,7 +155,7 @@ async def test_a_beacon_with_the_interval_at_zero_stays_off_whatever_is_stored(t
     await d.stop()
 
 
-# ---- the status ----------------------------------------------------------------------------------------------------------------------------------
+# ---- the status ----------------------------------------------------------------------------------
 
 async def first_run(store: Store, clock: FixedClock, **changes: object) -> Daemon:
     """A run that sends its status and is stopped, so that the rows are written."""
@@ -167,7 +171,8 @@ async def test_the_time_and_the_text_of_a_status_are_written_to_the_rows_after_t
     assert await store.setting(STATUS_ROW) is None and await store.setting(TEXT_ROW) is None
     await first_run(store, clock, station_status="QRV 145.500")
     assert await store.setting(STATUS_ROW) == "2026-10-21T12:00:00Z" and await store.setting(TEXT_ROW) == "QRV 145.500"
-    state = {*STATE_KEYS, *STATE_BEFORE_31, *(radio_state_key(id, name) for id in (FM_ID, HF_ID) for name in RADIO_STATE)}       # (the station's, the two of before and each radio's own)
+    # The station's, the two of before and each radio's own
+    state = {*STATE_KEYS, *STATE_BEFORE_31, *(radio_state_key(id, name) for id in (FM_ID, HF_ID) for name in RADIO_STATE)}
     assert not state & set(DEFAULTS.to_data()) and Config.from_data(await store.settings()) == DEFAULTS, "state, not settings: the form does not list them and reading the settings leaves them alone"
 
 
@@ -226,7 +231,7 @@ async def test_a_radio_status_after_a_restart_goes_out_once_the_interval_has_pas
     await moved.stop()
 
 
-# ---- the whole daemon ----------------------------------------------------------------------------------------------------------------------------
+# ---- the whole daemon ----------------------------------------------------------------------------
 
 async def test_a_daemon_started_again_inside_the_interval_plans_its_beacon_from_the_one_before(tmp_path: Path) -> None:
     first = Env(tmp_path)
@@ -245,7 +250,8 @@ async def test_a_daemon_started_again_inside_the_interval_plans_its_beacon_from_
 async def test_each_radios_beacon_keeps_its_last_send_in_its_own_row_and_is_planned_from_it_after_a_restart(tmp_path: Path) -> None:
     settings = {"hf/enabled": "true", "hf/profile": "dummy-hf", "beacon/interval_min": "60"}
     first = Env(tmp_path, settings=settings)
-    first.mercury._finder = lambda: None                          # (no program: the Dummy HF radio works without its speaker)
+    # No program: the Dummy HF radio works without its speaker
+    first.mercury._finder = lambda: None
     await first.start()
     await until(lambda: first.tnc.usable and first.hf.usable)
     fm, hf = first.ctl.radios.all()

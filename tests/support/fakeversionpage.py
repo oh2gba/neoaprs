@@ -1,11 +1,4 @@
-"""A fake version page for the update check, on a free port of the loopback (no test asks the real one; tests/conftest.py switches the check off for every daemon).
-
-    page = await version_page({"version": "0.2.0", "url": "https://example.org/", "message": ""})
-    page.url                                   # http://127.0.0.1:PORT/version.php, what `update/url` is set to
-    page.requests                              # each request as (path with the query, headers lower-cased)
-    page.status, page.body = 503, b""          # what it answers from now on
-    page.answer = {"version": "0.3.0", ...}    # the JSON body
-"""
+"""A fake version page for the update check, on a free loopback port."""
 import asyncio
 import json
 from typing import Any
