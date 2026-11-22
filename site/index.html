@@ -27,7 +27,7 @@
 <meta property="og:image:alt" content="NeoAPRS: a map of APRS stations around Helsinki with their trails, and the Stations table">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"NeoAPRS","url":"https://neo.oh2gba.eu/","description":"NeoAPRS is a free APRS client for Windows, macOS, Linux and the Raspberry Pi: a map, APRS messaging and your beacon, with as many radios as you have side by side: any KISS TNC on VHF, LoRa APRS boards, and the first APRS over HF with the Mercury modem built in.","applicationCategory":"CommunicationApplication","operatingSystem":"Windows, macOS, Linux, Raspberry Pi OS","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"isAccessibleForFree":true,"license":"https://www.gnu.org/licenses/gpl-3.0.html","downloadUrl":"https://github.com/oh2gba/neoaprs/releases/latest","image":"https://neo.oh2gba.eu/shots/og.png","screenshot":["https://neo.oh2gba.eu/shots/messages.png","https://neo.oh2gba.eu/shots/map.png","https://neo.oh2gba.eu/shots/stations-hf.png"],"featureList":["Any number of radios side by side: FM, HF and LoRa APRS","APRS over HF with the Mercury modem","LoRa APRS boards on the network, USB or Bluetooth","Sound-card radios with Direwolf built in","A receive-only radio type for the Yaesu FTM and TNCs without KISS","HF tests: a board of planned tests on HF","APRS map with station trails","APRS messaging with acks, retries and delivery chains","Position beacon with SmartBeaconing","APRS weather graphs","Objects and items","Aircraft and ships on the map, beside the stations","Fill-in digipeater and receive-only iGate","KISS TNC over serial, USB, Bluetooth and TCP"],"inLanguage":["en","de","es","fi","fr","it","ja","nl","pt-BR"],"author":{"@type":"Person","name":"OH2GBA","url":"https://oh2gba.eu/"},"sameAs":["https://github.com/oh2gba/neoaprs"]}</script>
-<link rel="stylesheet" href="style.css?v=32">
+<link rel="stylesheet" href="style.css?v=33">
 <script src="site.js?v=12" defer></script>
 </head>
 <body>
@@ -40,6 +40,7 @@
     <a class="brand" href="#top"><img src="favicon.svg" alt="" width="28" height="28"><span>Neo<b>APRS</b></span></a>
     <nav aria-label="Page">
       <a href="#download">Download</a>
+      <a class="nav-hf" href="#hf">APRS over HF</a>
       <a href="#features">Features</a>
       <a href="#radios">Radios</a>
       <a href="#skeds">HF tests</a>
@@ -137,6 +138,26 @@
   </div>
 </section>
 
+<section class="sec band night" id="hf">
+  <div class="wrap">
+    <p class="flag">New</p>
+    <h2>APRS over HF, with Mercury</h2>
+    <p class="lead-sm">Mercury is a modern HF modem by Rhizomatica. NeoAPRS is the first to put APRS on it.</p>
+    <ul class="merc three">
+      <li><h3>Below the noise</h3><p>In the first test, a message sent at 1 W was decoded 3 dB below the noise.</p></li>
+      <li><h3>Emergency communications</h3><p>Positions, messages and bulletins from station to station, with no internet and no digipeaters.</p></li>
+      <li><h3>Built in</h3><p>An SSB radio and a sound card are enough. Nothing else to install.</p></li>
+    </ul>
+    <div class="newsrow">
+      <p class="newslink"><a href="first-test.html">The first test on the air: 40 km on 10 W &rarr;</a></p>
+      <p class="newslink"><a href="aprs-below-the-noise.html">APRS Below the Noise, the article &rarr;</a></p>
+      <p class="newslink"><a href="aprs-over-hf-one-page.html">On one page &rarr;</a></p>
+      <p class="newslink"><a href="aprs-over-hf-mercury.html">The technical note &rarr;</a></p>
+    </div>
+    <table class="freqs" id="frequencies"><caption>Suggested frequencies</caption><tbody><tr><th scope="row">80 m</th><td>&nbsp;3.5850 MHz USB</td></tr><tr><th scope="row">40 m</th><td>&nbsp;7.0541 MHz USB</td></tr><tr><th scope="row">20 m</th><td>14.1070 MHz USB</td></tr><tr><th scope="row">&nbsp;6 m</th><td>50.6200 MHz USB</td></tr></tbody></table>
+  </div>
+</section>
+
 <section class="sec" id="features">
   <div class="wrap">
     <h2>Features</h2>
@@ -213,21 +234,6 @@
       </dl>
     </div>
     <p class="aside">The <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#which-radio-or-tnc-do-you-have">radio guide</a> has the setup of each.</p>
-  </div>
-</section>
-
-<section class="sec band night" id="hf">
-  <div class="wrap">
-    <p class="flag">New</p>
-    <h2>APRS over HF, with Mercury</h2>
-    <p class="lead-sm">Mercury is a modern HF modem by Rhizomatica, built into NeoAPRS. An SSB radio with a sound card is one more radio of your station.</p>
-    <div class="newsrow">
-      <p class="newslink"><a href="first-test.html">The first test on the air: 40 km on 10 W &rarr;</a></p>
-      <p class="newslink"><a href="aprs-below-the-noise.html">APRS Below the Noise, the article &rarr;</a></p>
-      <p class="newslink"><a href="aprs-over-hf-one-page.html">On one page &rarr;</a></p>
-      <p class="newslink"><a href="aprs-over-hf-mercury.html">The technical note &rarr;</a></p>
-    </div>
-    <table class="freqs" id="frequencies"><caption>Suggested frequencies</caption><tbody><tr><th scope="row">80 m</th><td>&nbsp;3.5850 MHz USB</td></tr><tr><th scope="row">40 m</th><td>&nbsp;7.0541 MHz USB</td></tr><tr><th scope="row">20 m</th><td>14.1070 MHz USB</td></tr><tr><th scope="row">&nbsp;6 m</th><td>50.6200 MHz USB</td></tr></tbody></table>
   </div>
 </section>
 
