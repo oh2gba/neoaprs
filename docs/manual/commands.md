@@ -13,7 +13,7 @@ NeoAPRS is a Python package with one command, `neoaprs`. `neoaprsw` is the same 
 | `--hf-port URL` | the modem of the station's first Mercury radio for this run only: a Mercury that something else runs, such as `socket://127.0.0.1:8100` (its KISS port; its control port is the one 200 above). The daemon then starts no modem of its own and the settings for the sound card and the keying have no effect. It is for trying things on a bench; see [radio.md](radio.md#the-mercury-modem) for the Mercury radio |
 | `--web-port N` | the page's port for this run only; 0 takes a free one |
 | `--debug` | logs more |
-| `--encryption` | allows [encrypted messages](messages.md#encrypted-messages) between two stations that have each other's key, for exceptional circumstances. Without it there is no Key menu, no padlock and nothing locked is sent |
+| `--encryption` | for exceptional circumstances only: allows [encrypted messages](messages.md#encrypted-messages) between two stations that have each other's key. It has an effect only in a build made with `NEOAPRS_ENCRYPTION=1`; the downloads do not include the feature and ignore the flag |
 | `--version` | says the version |
 
 ## The tools

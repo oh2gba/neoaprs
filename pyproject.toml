@@ -73,9 +73,13 @@ path = "neoaprs/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["neoaprs"]
+# Encrypted messages are a switch of the build, and it is off: these modules are in a wheel only when it is built with NEOAPRS_ENCRYPTION=1 (hatch_build.py puts them back).
+exclude = ["neoaprs/cipher.py", "neoaprs/services/keyring.py"]
+
+[tool.hatch.build.targets.wheel.hooks.custom]
 
 [tool.hatch.build.targets.sdist]
-include = ["/neoaprs", "/LICENSE"]
+include = ["/neoaprs", "/LICENSE", "/hatch_build.py"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

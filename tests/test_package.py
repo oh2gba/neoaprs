@@ -86,6 +86,7 @@ def test_the_wheel_holds_the_package_the_page_and_the_unit_and_nothing_of_the_re
     assets = [n for n in names if n.startswith("neoaprs/page/assets/")]
     assert any(n.endswith(".js") for n in assets) and any(n.endswith(".css") for n in assets) and any("maplibre-gl-worker" in n for n in assets)
     assert not [n for n in names if n.split("/")[0] not in ("neoaprs", f"neoaprs-{WHEEL_VERSION}.dist-info")], "only the package and its metadata"
+    assert "neoaprs/services/keys.py" in names and not [n for n in names if n in ("neoaprs/cipher.py", "neoaprs/services/keyring.py")], "encrypted messages are a build switch, and it is off"
     assert not [n for n in names if "__pycache__" in n or n.endswith((".pyc", ".sqlite", ".map")) or (n.endswith(".pmtiles") and n != "neoaprs/maps/basemap-world.pmtiles") or "/tests/" in n or "node_modules" in n]
     html = zipfile.ZipFile(built["wheel"]).read("neoaprs/page/index.html").decode()
     assert "./assets/" in html
@@ -97,6 +98,13 @@ def test_the_wheel_holds_the_package_the_page_and_the_unit_and_nothing_of_the_re
     assert not [line for line in metadata.splitlines() if line.startswith("Requires-Dist:") and "extra ==" not in line and any(n in line.lower() for n in ("pywebview", "pyside6", "pystray", "pillow"))], "the daemon's install stays lean: none of the toolkits is a dependency without the extra"
 
 
+def test_the_wheel_has_encrypted_messages_only_when_the_build_switch_is_on(tmp_path: Path) -> None:
+    uv("build", "--wheel", "--out-dir", str(tmp_path), env=uv_env() | {"NEOAPRS_ENCRYPTION": "1"})
+    [wheel] = tmp_path.glob("*.whl")
+    names = zipfile.ZipFile(wheel).namelist()
+    assert "neoaprs/cipher.py" in names and "neoaprs/services/keyring.py" in names and names.count("neoaprs/cipher.py") == 1
+
+
 def test_the_sdist_is_named_by_the_version_the_wheel_is_named_by(built: dict[str, Path]) -> None:
     assert built["sdist"].name == f"neoaprs-{WHEEL_VERSION}.tar.gz"
 
@@ -104,7 +112,7 @@ def test_the_sdist_is_named_by_the_version_the_wheel_is_named_by(built: dict[str
 def test_the_sdist_is_the_package_and_the_licence(built: dict[str, Path]) -> None:
     with tarfile.open(built["sdist"]) as sdist:
         names = [n.split("/", 1)[1] for n in sdist.getnames() if "/" in n]
-    assert "pyproject.toml" in names and "LICENSE" in names and "neoaprs/page/index.html" in names and "neoaprs/cli/neoaprs.service" in names
+    assert "pyproject.toml" in names and "LICENSE" in names and "hatch_build.py" in names and "neoaprs/cipher.py" in names and "neoaprs/page/index.html" in names and "neoaprs/cli/neoaprs.service" in names
     assert not [n for n in names if n.startswith(("tests/", "ui/", "scripts/", "docs/", "data/"))]
 
 
@@ -121,6 +129,12 @@ def test_the_installed_command_reports_its_version_and_runs_the_doctor(installed
     assert Path(program(installed, "neoaprsw")).exists(), "the script for Windows's start at login is made on every system"
     module = subprocess.run([program(installed, "python"), "-m", "neoaprs", "--version"], cwd=tmp_path, env=env, capture_output=True, text=True, timeout=60)
     assert module.stdout.strip() == f"NeoAPRS {VERSION}"
+
+
+def test_the_installed_package_has_no_encrypted_messages(installed: Path, tmp_path: Path) -> None:
+    code = "import importlib.util as u; from neoaprs.services.keys import built_in; print(built_in(), u.find_spec('neoaprs.cipher'), u.find_spec('neoaprs.services.keyring'))"
+    done = subprocess.run([program(installed, "python"), "-c", code], cwd=tmp_path, env=clean_env(tmp_path), capture_output=True, text=True, timeout=60)
+    assert done.stdout.strip() == "False None None", done.stdout + done.stderr
 
 
 def test_the_installed_replay_plays_the_sample_that_is_in_the_package(installed: Path, tmp_path: Path) -> None:

@@ -39,7 +39,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import replace
 
-from neoaprs import ax25, cipher
+from neoaprs import ax25
 from neoaprs.bulletin import board_slot
 from neoaprs.aprsmessage import MessageError
 from neoaprs.callsign import CallsignError, normal_name
@@ -54,9 +54,9 @@ from neoaprs.radiotype import RadioId
 from neoaprs.services.answers import as_pick, radio_word
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
-from neoaprs.services.inbox import Inbox, shared_with
+from neoaprs.services.inbox import Inbox
 from neoaprs.services.messageradio import MessageRadios, info, last_run, named
-from neoaprs.services.keyring import Keyring
+from neoaprs.services.keys import Keys, NoKeys
 from neoaprs.services.pace import SPACING_SEC, Pace
 from neoaprs.services.radioset import AirRadio, RadioPick, ack_radio, reply_path_on
 from neoaprs.services.retries import Retries
@@ -84,27 +84,13 @@ def _pace_running(pace: Pace, radios: MessageRadios, record: MessageRecord) -> b
     return pace.too_soon(radio.id)
 
 
-def _sealed(keyring: Keyring | None, ours: str, to: str, text: str) -> str:
-    """The text that goes on the air for an encrypted message to the station. Raises MessagingError with the cipher's code: encrypted messages off, no key from the station, a text too long or unprintable."""
-    if keyring is None:
-        raise MessagingError("this daemon has no keys", "failed")
-    keyring.refuse_unless_on()
-    shared = shared_with(keyring, to)
-    if shared is None:
-        raise MessagingError(f"no key from {to}: it has to send its key first", "lock.no_key", call=to)
-    try:
-        return cipher.seal(shared, ours, to, text)
-    except cipher.CipherError as e:
-        raise MessagingError(str(e), e.code, **e.params) from None
-
-
 class Messaging:
     def __init__(self, radios: RadioPick | Radio, config: ConfigSource, messagelog: MessageLog, paths: Callable[[str, int | None, RadioId], tuple[str, ...]], clock: Clock = utcnow, tick_sec: float = TICK_SEC,
                  board: Callable[[Packet, Message], None] | None = None, alert: Callable[[MessageRecord], None] | None = None,
                  spacing_sec: float = SPACING_SEC, qru: Callable[[Packet, Message], bool] | None = None,
-                 qru_answer: Callable[[Packet, Message], bool] | None = None, keyring: Keyring | None = None) -> None:
+                 qru_answer: Callable[[Packet, Message], bool] | None = None, keyring: Keys | None = None) -> None:
         self._given = radios                                    # the station's radios (the registry; which app.py gives; an old shape of a test's: services/answers.py `as_pick`, read at each call)
-        self.keyring = keyring                                  # the keys of encrypted messages (services/keyring.py); None where there are none (some tests)
+        self.keyring: Keys = keyring or NoKeys()                # the keys of encrypted messages (services/keys.py)
         self._config = config
         interlock = Interlock(config)
         self._log = messagelog
@@ -120,7 +106,7 @@ class Messaging:
         self.delivery = Delivery(messagelog)                    # the attempts of every message and the hops heard back (services/delivery.py)
         self.message_radios = MessageRadios(radios, config, lambda number: last_run(self.delivery.attempts_of(number)))     # the radio each message keeps from its first attempt, after a restart its last one's (services/messageradio.py)
         self.asking = Asking(self, clock)                       # the directed queries we send (services/asking.py)
-        self.inbox = Inbox(self, config, messagelog, TaskSet(log, "messaging"), board, alert, qru, qru_answer, keyring)       # what the Tnc hears (services/inbox.py); `board` takes the messages to bulletins and groups, `alert` the first copy of each message to us, `qru` a request to QRU, `qru_answer` whether a message to us is a QRU server's answer (not kept)
+        self.inbox = Inbox(self, config, messagelog, TaskSet(log, "messaging"), board, alert, qru, qru_answer, self.keyring)       # what the Tnc hears (services/inbox.py); `board` takes the messages to bulletins and groups, `alert` the first copy of each message to us, `qru` a request to QRU, `qru_answer` whether a message to us is a QRU server's answer (not kept)
 
     def records(self) -> list[MessageRecord]:
         """The messages held, the oldest first."""
@@ -178,7 +164,7 @@ class Messaging:
         if locked:
             if board is not None or once:
                 raise MessagingError("a bulletin or a query cannot be encrypted", "failed")          # (the page offers no lock for either)
-            return await self._send(ours, to, text, False, "open", _sealed(self.keyring, ours, to, text))
+            return await self._send(ours, to, text, False, "open", self.keyring.sealed(ours, to, text))
         try:
             check_text(text)
         except MessageError as e:
@@ -188,8 +174,6 @@ class Messaging:
     async def send_key(self, to_call: str) -> MessageRecord:
         """Announces our public key to a station as an ordinary message (`key`), so that it can encrypt to us; made when there is none yet. Refused while encrypted messages are switched off (`lock.off`), as `send` refuses."""
         ours = our_call(self._config())
-        if self.keyring is None:
-            raise MessagingError("this daemon has no keys", "failed")
         self.keyring.refuse_unless_on()
         try:
             to = normal_name(to_call)

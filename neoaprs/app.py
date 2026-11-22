@@ -45,7 +45,7 @@ from .services.digipeater import Digipeater
 from .services.generalask import GeneralAsk
 from .services.gps import Gps
 from .services.igate import Igate
-from .services.keyring import Keyring
+from .services.keys import keyring_for
 from .services.layers import Layers
 from .services.mapauto import MapAuto
 from .services.mapfetch import MapFetch
@@ -185,7 +185,7 @@ class Services:
         self.packetlog = PacketLog(clock=clock)                         # every packet and the station cache, in the database
         self.messagelog = MessageLog(clock=clock)                       # every message we sent and every one sent to us, in the database
         self.prefbook = PrefBook(self.messagelog, lambda: self.config, self._deliveries, clock, paths=self.messagelog, gateway=self._gateway_path)  # the path, the timeout and RF only of each station, kept with the messages; read by the controller before messaging starts
-        self.keyring = Keyring(self.data_dir, self.messagelog, clock, allowed=self.encryption)      # the keys of encrypted messages: ours in the data folder, the stations' with the messages; read by the controller before messaging starts
+        self.keyring = keyring_for(self.data_dir, self.messagelog, clock, self.encryption)      # the keys of encrypted messages: ours in the data folder, the stations' with the messages; read by the controller before messaging starts
         self.weatherlog = WeatherLog(clock=clock)                       # every observation of the weather stations, in the database
         self.bulletinlog = BulletinLog(clock=clock)                     # the message board in the database
         self.bulletins = Bulletins(self.bulletinlog, clock)             # bulletins, announcements and group messages, one for each sender and slot; they stay until deleted; started by the controller before the Tnc

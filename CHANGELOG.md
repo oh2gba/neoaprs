@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Changed:** encrypted messages are no longer part of the downloads. They are for exceptional circumstances only and need a build of your own.
+
 ## 0.22.0
 
 Two of your radios can pass packets to each other, when a station asks for it.

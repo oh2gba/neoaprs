@@ -29,6 +29,17 @@ Dependencies are in `pyproject.toml` and `uv.lock` only.
 - **The build backend** is hatchling. `uv build` makes the sdist and the wheel, about 1.3 MB with the page in it. `tests/test_package.py` installs the wheel
   into a fresh venv and runs `neoaprs --version`, `neoaprs doctor` and the daemon from it.
 
+### Encrypted messages are a build switch
+
+Encrypted messages are for exceptional circumstances only, and the released packages do not contain them. The switch is the environment variable `NEOAPRS_ENCRYPTION` at build time, and it is off by default:
+
+```bash
+uv build                         # the released wheel: no neoaprs/cipher.py, no neoaprs/services/keyring.py
+NEOAPRS_ENCRYPTION=1 uv build    # a wheel that includes them
+```
+
+`pyproject.toml` excludes the two modules from every wheel and `hatch_build.py` adds them back when the switch is `1`. Every package (the Windows installer, the AppImage, the .deb, the macOS app) is made from the wheel, so the one switch covers them all. The sdist and a development clone always have the code. At run time `neoaprs/services/keys.py` checks whether the cipher module is present: without it the daemon uses `NoKeys`, treats every message as plain text, and accepts `--encryption` without effect. `tests/test_build_switch.py` and `tests/test_package.py` hold this.
+
 A new `git worktree` is made ready with `scripts/worktree-setup`: `uv sync --frozen --all-extras` and a real `ui/node_modules` from `npm ci` (from the caches
 when they have everything), never a symlink to another checkout.
 
@@ -773,6 +784,7 @@ in `supportgather.py`, a step in `collect` of `supportmake.py` and a line in `FI
 - `packaging/`: what the release is made from besides the package: `windows/`, `appimage/`, `macos/` (the launcher, `Info.plist.in`, the icon maker, the list of what is signed by itself and the microphone sentence in nine languages), `deb/`, `mercury/` (the five patches and the one C file of the Mercury build) and `ci/` (the Dockerfile of the container `scripts/check-in-container` runs the suite in, and `runner.json`, the GitHub runner it and the workflows follow).
 - `systemd/`: the notes on the unit (`systemd/README.md`); the unit itself is the template `neoaprs/cli/neoaprs.service`.
 - `.gitattributes`: LF line ends in every checkout (a Windows checkout would otherwise break the tests), the binary files marked.
+- `hatch_build.py`: the build hook that adds encrypted messages to a wheel when it is built with `NEOAPRS_ENCRYPTION=1` ([above](#encrypted-messages-are-a-build-switch)); off by default.
 - `.gitleaks.toml` and `osv-scanner.toml`: what the security checks set aside, each entry with its reason: the made-up values the secret scan meets in the commits, and the advisories that cannot reach NeoAPRS with the day each entry ends ([`docs/security-checks.md`](security-checks.md)).
 - `LICENSE`: the GNU General Public License, version 3 (`pyproject.toml` says `GPL-3.0-or-later`).
 - `CONVENTIONS.md`, `PROTOCOL.md`, `ROADMAP.md` and `CHANGELOG.md`: how the code is written, the wire protocol (generated), what is planned, and what each

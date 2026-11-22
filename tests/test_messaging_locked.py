@@ -155,7 +155,7 @@ async def test_a_sealed_message_to_us_is_opened_kept_with_the_text_inside_and_ac
 
 
 async def test_a_sealed_message_that_does_not_open_here_is_kept_shut_as_it_came(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
-    caplog.set_level(logging.INFO, logger="neoaprs.messaging")
+    caplog.set_level(logging.INFO, logger="neoaprs.keyring")
     rig.ring.ensure_own()
     stranger = cipher.seal(cipher.shared_key(PEER_PRIVATE, OTHER_PUBLIC), "OH2RDG-7", "OH2GBA", "for somebody else")
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", stranger, "31"))

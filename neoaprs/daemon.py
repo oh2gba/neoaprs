@@ -202,7 +202,6 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
     from .web.server import WebServer
     install = detect_here(data_dir)
     log.info("running on %s, %s, Python %s, installed as %s, pid %d", system_description(), platform.machine(), platform.python_version(), install.kind, os.getpid())
-    log.info("encrypted messages: %s", "allowed (--encryption)" if args.encryption else "off (the daemon was started without --encryption)")      # (a support report says which)
     restore = uncaught.install(log)
     asyncio.get_running_loop().set_exception_handler(uncaught.loop_handler(log))
 
@@ -263,7 +262,7 @@ def build_parser(prog: str = "neoaprs") -> argparse.ArgumentParser:
     parser.add_argument("--hf-port", default="", metavar="URL", help="the first Mercury radio's modem for this run only, one that something else runs (socket://127.0.0.1:8100: its KISS port, the control port 200 above), instead of the one the daemon starts; the benches' way")
     parser.add_argument("--web-port", type=_port, default=None, metavar="N", help="the page's port for this run only (the setting web/port is not changed); 0 is a free port, which the log tells; after Update now the page stays on the port it was on")
     parser.add_argument("--debug", action="store_true", help="log more (also NEOAPRS_DEBUG=1)")
-    parser.add_argument("--encryption", action="store_true", help="allow encrypted messages between two stations that have each other's key (the amateur regulations forbid it in ordinary use: for the circumstances that allow it)")
+    parser.add_argument("--encryption", action="store_true", help="allow encrypted messages between two stations that have each other's key: for exceptional circumstances only, and only in a build made with NEOAPRS_ENCRYPTION=1")
     parser.add_argument("--version", action="version", version=f"{PROGRAM} {VERSION}")
     return parser
 

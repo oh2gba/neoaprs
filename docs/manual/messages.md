@@ -221,7 +221,9 @@ A message keeps the radio of its first attempt for all its retries, after a rest
 
 ## Encrypted messages
 
-A message can be locked so that only one station can read it. This is off unless the daemon is started with `--encryption` ([commands.md](commands.md#the-daemon)), for exceptional circumstances. Without the flag there is no Key menu, no padlock and no **Encrypted messages** group in Settings, and nothing locked is sent. A locked message that arrives is still read when its key is here.
+**For exceptional circumstances only.** The NeoAPRS you download does not include encrypted messages. They exist only in a build made from the source with the build switch `NEOAPRS_ENCRYPTION=1` ([development.md](../development.md#encrypted-messages-are-a-build-switch)), and even then only when the daemon is started with `--encryption` ([commands.md](commands.md#the-daemon)).
+
+In such a build a message can be locked so that only one station can read it. Without the build switch and the flag there is no Key menu, no padlock and no **Encrypted messages** group in Settings, and nothing locked is sent. A download without the feature shows a locked message that arrives as the text it came as.
 
 How it goes:
 

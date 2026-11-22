@@ -145,6 +145,51 @@ class Keyring:
         peer = self.peer_key(call)
         return None if peer is None or self._private is None else cipher.shared_key(self._private, peer)
 
+    def _shared(self, call: str) -> bytes | None:
+        """The key shared with a station, None when there is none to use: no key, a sender that is no call, or a key the exchange cannot use."""
+        try:
+            return self.shared_with(call)
+        except (MessagingError, ValueError):
+            return None
+
+    # ---- what messaging asks
+    def kind(self, text: str) -> Seal:
+        """What a message's text is by its marker alone: a key announcement (`key`), a sealed text (`shut`), else plain."""
+        return "key" if cipher.key_of_message(text) is not None else "shut" if cipher.is_locked(text) else ""
+
+    def opened(self, sender: str, ours: str, text: str) -> tuple[str, Seal, str | None]:
+        """The text of a message to us as it is kept, what it is, and what came on the air when that differs: a key announcement as it came (`key`), a sealed text opened with the key we share with the
+        sender (`open`) or as it came when it does not open (`shut`), anything else as it is."""
+        seal = self.kind(text)
+        if seal != "shut":
+            return text, seal, None
+        shared = self._shared(sender)
+        try:
+            station = normal_name(sender)
+        except CallsignError:
+            station = sender
+        inside = None if shared is None else cipher.open_sealed(shared, station, ours, text)
+        if inside is None:
+            log.info("an encrypted message from %s does not open here (%s)", sender, "no key" if shared is None else "another key, or damaged")
+            return text, "shut", None
+        return inside, "open", text
+
+    def sealed(self, ours: str, to: str, text: str) -> str:
+        """The text that goes on the air for an encrypted message to the station. Raises MessagingError: encrypted messages off, no key from the station, a text too long or unprintable."""
+        self.refuse_unless_on()
+        shared = self._shared(to)
+        if shared is None:
+            raise MessagingError(f"no key from {to}: it has to send its key first", "lock.no_key", call=to)
+        try:
+            return cipher.seal(shared, ours, to, text)
+        except cipher.CipherError as e:
+            raise MessagingError(str(e), e.code, **e.params) from None
+
+    async def taken(self, call: str, text: str, at: datetime) -> Seal:
+        """What a key announcement from a station is once its key was offered to the ring (`take`)."""
+        key = cipher.key_of_message(text)
+        return "key" if key is None else await self.take(call, key, at)
+
     async def take(self, call: str, key: bytes, at: datetime) -> Seal:
         """A station announced a key: kept when it had none (`key`), nothing new when it is the one kept, not taken when another is kept (`key_other`; the operator forgets the old one first). A key no shared key can
         be made with (all zeros, a low-order point) is never kept: the message stays a plain text (""), and the log says so. Raises MessagingError for a call that is none (the inbox asks only for a sender that is one)."""
