@@ -4,7 +4,8 @@ import { t } from "@/i18n";
 import { DIRECT, parsePathSetting } from "@/lib/calls";
 import { untilText } from "@/lib/format";
 import { parseNumber, symbolProblem } from "@/lib/fieldcheck";
-import { degreesText } from "@/lib/setup";
+import { isPrintable } from "@/lib/messages";
+import { degreesText, roundPlace, wrapLongitude } from "@/lib/setup";
 import { LIMITS } from "@/protocol/lists";
 import type { RadioId } from "@/lib/radios";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
@@ -16,6 +17,10 @@ type ObjectCommand = Extract<Command, { cmd: "object_set" }>;
 export const NAME_MAX = LIMITS.object.nameMax;
 const ITEM_NAME_MIN = LIMITS.object.itemNameMin;
 const NAME_FORBIDDEN = LIMITS.object.nameForbidden;
+/** What an object's comment may not hold (the daemon's `ownobject.py`): narrower than a name's, since `!` and `_` are fine in a comment. */
+const COMMENT_FORBIDDEN = "|~";
+
+const holds = (text: string, forbidden: string): boolean => [...forbidden].some((c) => text.includes(c));
 const SPEED_MAX_KMH = LIMITS.object.speedMaxKmh;
 const COURSE_MAX = LIMITS.object.courseMax;
 /** The symbol a new object has: the repeater (the antenna tower), for what objects are mostly used for: a local repeater or frequency, an event, a node or a net. */
@@ -84,7 +89,7 @@ export function draftOf(row: OwnObjectRow): ObjectDraft {
 /** What is wrong with a name, "" when it is fine or empty: 1 to 9 characters (an item 3 to 9) of printable ASCII, none of `! _ | ~`, no blank at either end. */
 export function nameProblem(name: string, kind: Kind): string {
   if (name === "") return "";
-  if (name !== name.trim() || !/^[\x20-\x7e]*$/.test(name) || [...NAME_FORBIDDEN].some((c) => name.includes(c))) return t("objects.problem.name_chars");
+  if (name !== name.trim() || !isPrintable(name) || holds(name, NAME_FORBIDDEN)) return t("objects.problem.name_chars");
   if (name.length > NAME_MAX) return t("objects.problem.at_most", { max: NAME_MAX });
   return kind === "item" && name.length < ITEM_NAME_MIN ? t("objects.problem.item_name", { min: ITEM_NAME_MIN, max: NAME_MAX }) : "";
 }
@@ -132,7 +137,7 @@ export function draftProblems(draft: ObjectDraft): DraftProblems {
   const comment = draft.comment.trim();
   set(
     "comment",
-    !/^[\x20-\x7e]*$/.test(comment) || /[|~]/.test(comment)
+    !isPrintable(comment) || holds(comment, COMMENT_FORBIDDEN)
       ? t("objects.problem.comment_chars")
       : comment.length > commentLimit(draft)
         ? t("objects.problem.at_most", { max: commentLimit(draft) })
@@ -229,7 +234,7 @@ export function moveCommand(row: OwnObjectRow, lat: number, lon: number): Object
     cmd: "object_set",
     name: row.name,
     kind: row.kind,
-    lat: Math.round(lat * 1e5) / 1e5,
+    lat: roundPlace(lat),
     lon: wrapLongitude(lon),
     symbol_table: row.symbol_table,
     symbol_code: row.symbol_code,
@@ -241,11 +246,6 @@ export function moveCommand(row: OwnObjectRow, lat: number, lon: number): Object
     on_request: row.on_request,
     radios: [...row.radios],
   };
-}
-
-/** A longitude brought into -180 to 180, five decimals (a metre). */
-export function wrapLongitude(lon: number): number {
-  return Math.round((((((lon + 180) % 360) + 360) % 360) - 180) * 1e5) / 1e5;
 }
 
 /** "sent once", "sent 5 times", "not sent yet". */

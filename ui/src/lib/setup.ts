@@ -101,6 +101,16 @@ export function degreesText(value: number): string {
   return String(Math.round(value * 1e6) / 1e6);
 }
 
+/** A coordinate to five decimals (a metre), as a place picked on the map or found by the browser is kept. */
+export function roundPlace(degrees: number): number {
+  return Math.round(degrees * 1e5) / 1e5;
+}
+
+/** A longitude brought into -180 to 180, to the metre. */
+export function wrapLongitude(lon: number): number {
+  return roundPlace(((((lon + 180) % 360) + 360) % 360) - 180);
+}
+
 /** Whether the text of a setting is the same position or number as the daemon's, however it is written (`60.170` and `60.17`). */
 function sameNumber(a: string, b: string): boolean {
   const x = parseNumber(a);

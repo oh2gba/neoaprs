@@ -6,6 +6,7 @@
 import { computed, shallowRef, watch, type Ref } from "vue";
 import { useMapLayers } from "@/composables/useMapLayers";
 import type { Connection, Store } from "@/lib/hub";
+import { keepList } from "@/lib/keeplist";
 import type { LayerName, SourceName } from "@/lib/layers/sources";
 import { growTrails, trailKey, type TrailPoint, type Trails } from "@/lib/layers/trail";
 import { liveThings, type LayerTables } from "@/lib/layers/traffic";
@@ -61,8 +62,6 @@ export interface TrafficParts {
   store: LayerTableStore;
 }
 
-const same = (a: readonly LayerName[], b: readonly LayerName[]): boolean => a.length === b.length && a.every((layer, i) => layer === b[i]);
-
 export function useLayerThings(parts: TrafficParts): LayerTraffic {
   const { send, connection, store } = parts;
   const ticks = useMapLayers(parts.map);
@@ -70,7 +69,7 @@ export function useLayerThings(parts: TrafficParts): LayerTraffic {
     const front = parts.visible.value && connection.value === "open" && !parts.replay.value;
     const rows = ticks.rows.value;
     const layers = front ? TRAFFIC_LAYERS.filter((layer) => rows.some((row) => row.id === layer) && ticks.ticked(layer)) : [];
-    return old !== undefined && same(old, layers) ? old : layers;
+    return keepList(old, layers);
   });
   // at once (a socket that is closed says no to nothing: the daemon forgets the page by itself)
   watch(

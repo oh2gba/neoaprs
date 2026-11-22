@@ -4,9 +4,10 @@
 // A hello that matches clears it, so that the next update loads again. A hello that still differs after the load gives `stale`: the page does not run against that daemon, it says so (components/VersionMismatch.vue) and keeps the socket closed.
 // The same code runs in the desktop app's window, which is the page in the system's web engine.
 import { pageBuild } from "@/lib/build";
+import { STORE_PREFIX } from "@/lib/storage";
 import { PROTOCOL } from "@/protocol/lists";
 
-const KEY = "NeoAPRS.reloadedFor";
+const KEY = `${STORE_PREFIX}reloadedFor`;
 
 export interface DaemonHello {
   protocol: number;

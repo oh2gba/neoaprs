@@ -30,6 +30,7 @@ import type { SettingsFormState } from "@/composables/useSettingsForm";
 import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { errorReason } from "@/i18n/errortext";
+import { isPrintable } from "@/lib/messages";
 import { KIND_WORDS, typeOf, type PageRadio } from "@/lib/radios";
 import { FIELDS, type FieldInfo } from "@/lib/settings";
 import { askedOn, boxIds, boxKeys, boxTitle, radioElementId, typeChoices, unnamed, type Asked } from "@/lib/settingsradio";
@@ -162,7 +163,7 @@ const labelLike = (typed: string): boolean => {
 function rename(): void {
   const typed = name.value.trim();
   if (typed === props.radio.row.name || typed === pending.value.name) return void (name.value = typed);
-  if (typed.length > max || !/^[\x20-\x7e]*$/.test(typed)) return void (nameProblem.value = t("error.radio.name_form", { name: typed, max }));
+  if (typed.length > max || !isPrintable(typed)) return void (nameProblem.value = t("error.radio.name_form", { name: typed, max }));
   if (taken(typed)) return void (nameProblem.value = t("error.radio.name_taken", { name: typed }));
   if (labelLike(typed)) return void (nameProblem.value = t("error.radio.name_label", { name: typed }));
   nameProblem.value = "";

@@ -9,6 +9,7 @@ import {
   setupChanges,
   stepOk,
   stepProblems,
+  wrapLongitude,
   type RadioStep,
   type SetupFields,
 } from "@/lib/setup";
@@ -238,5 +239,11 @@ describe("setupChanges", () => {
   it("has nothing of a radio, whatever the settings of the radios are: they were saved as they were changed (plan section 6: the call, the place, the symbol and the beacon still go at Finish)", () => {
     const values = { ...fresh(), "fm/enabled": "false", "hf/enabled": "true", "tnc/profile": "kiss-tcp", "serial/port": "/dev/ttyUSB0" };
     expect(Object.keys(setupChanges(answered(), values))).toEqual(["station/call", "station/lat", "station/lon", "beacon/interval_min"]);
+  });
+
+  it("brings a longitude of a map that was wrapped round into -180 to 180", () => {
+    expect(wrapLongitude(190)).toBe(-170);
+    expect(wrapLongitude(-190)).toBe(170);
+    expect(wrapLongitude(24.5)).toBe(24.5);
   });
 });

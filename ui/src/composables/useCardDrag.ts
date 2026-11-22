@@ -2,13 +2,9 @@
 // and it stays where it was put while it is open. Where the cards stand, and that moving one never moves another, is composables/useCardPlaces.ts.
 import { onBeforeUnmount, watch, type Ref } from "vue";
 import { useCardPlaces, type Places } from "@/composables/useCardPlaces";
-import { DRAG_MIN, keyStep, type Place } from "@/lib/cardmove";
+import { DRAG_MIN, DRAGGING, keyStep, NOT_HEAD, type Place } from "@/lib/cardmove";
 
 export type { Places };
-
-/** What on a card's head is not the head: a click on these is the button's or the link's. */
-const NOT_HEAD = "button, a, input, select, textarea, summary, [role='button']";
-const DRAGGING = "card-dragging";
 
 interface Drag {
   call: string;

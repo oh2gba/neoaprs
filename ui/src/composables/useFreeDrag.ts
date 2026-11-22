@@ -3,12 +3,8 @@
 // changes size. The station cards have their own (composables/useCardDrag.ts: a row of cards, each one placing the others). The card's own place is in the pixels of its parent, the map's box, from its top left corner.
 import { computed, onBeforeUnmount, ref, type Ref } from "vue";
 import { useResized } from "@/composables/useResized";
-import { clampPlace, DRAG_MIN, keyStep, type Place } from "@/lib/cardmove";
+import { clampPlace, DRAG_MIN, DRAGGING, keyStep, NOT_HEAD, type Place } from "@/lib/cardmove";
 import { readStored, writeStored } from "@/lib/storage";
-
-/** What on the head is not the head: a press on these is the button's or the link's. */
-const NOT_HEAD = "button, a, input, select, textarea, summary, [role='button']";
-const DRAGGING = "card-dragging";
 
 interface Drag {
   pointer: number;

@@ -174,6 +174,12 @@ interface HubOptions {
   refused?: () => void;
 }
 
+/** Replaces what a keyed topic's table holds with the rows the daemon told. */
+export function fillTable<T>(into: Map<string, T>, rows: Record<string, T>): void {
+  into.clear();
+  for (const [key, row] of Object.entries(rows)) into.set(key, row);
+}
+
 export function nextDelay(delay: number): number {
   return Math.min(delay * 2, MAX_DELAY_MS);
 }

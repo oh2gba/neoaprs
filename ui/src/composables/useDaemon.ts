@@ -29,7 +29,7 @@ import { useScopeRows } from "@/composables/useScopeRows";
 import { useStationTables } from "@/composables/useStationTables";
 import { usePageErrorReport } from "@/composables/usePageErrorReport";
 import { probe } from "@/lib/access";
-import { Hub, type Connection, type Store } from "@/lib/hub";
+import { fillTable, Hub, type Connection, type Store } from "@/lib/hub";
 import { describeMismatch, reloadForDaemon, type Mismatch } from "@/lib/reload";
 
 /** The page's own socket: beside the page, so that it works from any path. */
@@ -47,8 +47,7 @@ export interface Toast extends Omit<ErrorMessage, "type"> {
 
 /** Replaces what a keyed topic holds with the rows the daemon told; `done` is set once it has. */
 function fill<T>(into: Map<string, T>, rows: Record<string, T>, done?: Ref<boolean>): void {
-  into.clear();
-  for (const [key, row] of Object.entries(rows)) into.set(key, row);
+  fillTable(into, rows);
   if (done) done.value = true;
 }
 

@@ -2,7 +2,19 @@
 // daemon's settings and follow them until the user answers; the position is the latitude and the longitude (the locator of the Location control is only another way to type them). The Radio step has no answers: its radios are
 // changed as in the Settings tab (components/SetupRadio.vue).
 import { computed, reactive, ref, type Ref } from "vue";
-import { degreesText, fieldsFrom, setupChanges, stepOk, stepProblems, STEP_COUNT, type FieldName, type Problems, type SetupFields } from "@/lib/setup";
+import {
+  degreesText,
+  fieldsFrom,
+  roundPlace,
+  setupChanges,
+  stepOk,
+  stepProblems,
+  STEP_COUNT,
+  wrapLongitude,
+  type FieldName,
+  type Problems,
+  type SetupFields,
+} from "@/lib/setup";
 import { onEarth, parseNumber } from "@/lib/fieldcheck";
 
 export function useSetupAnswers(values: Ref<Record<string, string>>) {
@@ -48,9 +60,8 @@ export function useSetupAnswers(values: Ref<Record<string, string>>) {
 
   /** A place from the map or the browser: five decimals (a metre), the longitude brought into -180 to 180. */
   function place(lat: number, lon: number): void {
-    const wrapped = ((((lon + 180) % 360) + 360) % 360) - 180;
-    edit("lat", degreesText(Math.round(lat * 1e5) / 1e5));
-    edit("lon", degreesText(Math.round(wrapped * 1e5) / 1e5));
+    edit("lat", degreesText(roundPlace(lat)));
+    edit("lon", degreesText(wrapLongitude(lon)));
   }
 
   return { fields, errors, touched, changes, valid, problems, pin, fill, reset, clearErrors, edit, place };

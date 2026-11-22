@@ -14,7 +14,6 @@ import {
   steppedSpeed,
   sentText,
   stateText,
-  wrapLongitude,
   type ObjectDraft,
 } from "@/lib/ownobjects";
 import { LIMITS } from "@/protocol/lists";
@@ -213,9 +212,6 @@ describe("moveCommand", () => {
   });
 
   it("brings a longitude of a map that was wrapped round into -180 to 180", () => {
-    expect(wrapLongitude(190)).toBe(-170);
-    expect(wrapLongitude(-190)).toBe(170);
-    expect(wrapLongitude(24.5)).toBe(24.5);
     expect(moveCommand(ownObject("A"), 0, 361).lon).toBe(1);
   });
 });

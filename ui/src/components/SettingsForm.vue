@@ -41,7 +41,7 @@ import { useUpdateCheck } from "@/composables/useUpdateCheck";
 import { useSettingsForm } from "@/composables/useSettingsForm";
 import type { Picked } from "@/composables/usePositionPick";
 import { disabledByValues } from "@/lib/beaconoff";
-import { degreesText } from "@/lib/setup";
+import { degreesText, roundPlace, wrapLongitude } from "@/lib/setup";
 import { portsAsks } from "@/lib/radios";
 import { BEACON_FOLDS, SUBGROUPS, fieldFor, igateOn, shownByValues, storedFor, valueFor, type Scope } from "@/lib/settings";
 import { layerKey } from "@/lib/layersettings";
@@ -123,8 +123,8 @@ watch(
   (at) => {
     if (!at) return;
     settings.change({
-      "station/lat": degreesText(Math.round(at.lat * 1e5) / 1e5),
-      "station/lon": degreesText(Math.round((((((at.lon + 180) % 360) + 360) % 360) - 180) * 1e5) / 1e5),
+      "station/lat": degreesText(roundPlace(at.lat)),
+      "station/lon": degreesText(wrapLongitude(at.lon)),
     });
   },
 );

@@ -3,6 +3,7 @@
 // (`offered`) and the socket is open; asked again when the socket was open anew, since the daemon forgets a page that left. Nobody looking, nothing asked. Each radio is asked for and stopped on its own, at once.
 import { computed, onBeforeUnmount, shallowRef, watch, type Ref } from "vue";
 import type { Connection } from "@/lib/hub";
+import { keepList } from "@/lib/keeplist";
 import type { RadioId } from "@/lib/radios";
 import type { Command } from "@/protocol/protocol";
 
@@ -14,8 +15,6 @@ export interface RadioAsks {
   /** A pane, from its setup on: it looks at `radio` while `looking` is true and stops when it goes. */
   look: (looking: () => boolean, radio: () => RadioId | null) => void;
 }
-
-const same = (a: readonly RadioId[], b: readonly RadioId[]): boolean => a.length === b.length && a.every((id, i) => id === b[i]);
 
 export function useRadioAsks(
   cmd: "radio_scope" | "radio_level",
@@ -29,7 +28,7 @@ export function useRadioAsks(
   const asked = computed<readonly RadioId[]>((old) => {
     const wanted = visible.value && connection.value === "open" ? looking.value.map((pane) => pane()) : [];
     const ids = (offered() ?? [...new Set(wanted)].filter((id): id is RadioId => id !== null).sort((a, b) => a - b)).filter((radio) => wanted.includes(radio));
-    return old !== undefined && same(old, ids) ? old : ids;
+    return keepList(old, ids);
   });
   // at once, not on the next tick: a pane that looks from its first moment asks in that moment (a socket that is closed says no to nothing: the daemon forgets the page by itself)
   watch(

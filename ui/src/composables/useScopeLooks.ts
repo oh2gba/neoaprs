@@ -7,6 +7,7 @@ import { computed, type Ref } from "vue";
 import { usePersistedNumber } from "@/composables/usePersisted";
 import { useRadioAsks } from "@/composables/useRadioAsks";
 import type { Connection } from "@/lib/hub";
+import { keepList } from "@/lib/keeplist";
 import type { RadioId } from "@/lib/radios";
 import type { Command, RadioRow } from "@/protocol/protocol";
 
@@ -58,7 +59,7 @@ export function useScopeLooks(
             .filter(withScope)
             .sort((a, b) => a.position - b.position || a.id - b.id)
             .map((row) => row.id);
-    return old !== undefined && old.length === ids.length && ids.every((id, i) => id === old[i]) ? old : ids;
+    return keepList(old, ids);
   });
   const has = (radio: RadioId): boolean => radios.value.includes(radio);
   const first = (): RadioId | null => radios.value[0] ?? null;

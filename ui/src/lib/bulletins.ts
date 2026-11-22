@@ -3,6 +3,7 @@
 import { t } from "@/i18n";
 import { ageText, untilText } from "@/lib/format";
 import { sentText } from "@/lib/ownobjects";
+import { textRefusal } from "@/lib/recipients";
 import { LIMITS } from "@/protocol/lists";
 import type { BulletinRow, Command, OwnBulletinRow } from "@/protocol/protocol";
 
@@ -129,7 +130,8 @@ export function groupOk(text: string): boolean {
 
 /** Whether the text can be sent as it is: printable ASCII without the characters a message may not hold (`| ~ {`), at most as many characters as a message has. */
 export function textOk(text: string): boolean {
-  return /^[\x20-\x7e]+$/.test(text.trim()) && ![...LIMITS.message.forbidden].some((c) => text.includes(c)) && text.trim().length <= LIMITS.message.textMax;
+  const trimmed = text.trim();
+  return trimmed !== "" && textRefusal(trimmed) === null && trimmed.length <= LIMITS.message.textMax;
 }
 
 /** How many characters more the text may have; negative when it is too long. */

@@ -3,6 +3,7 @@
 // the topic draws again only what shows the counts.
 import { computed, effectScope, inject, type ComputedRef } from "vue";
 import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
+import { keepList } from "@/lib/keeplist";
 import {
   emailRadio,
   enabledRadios,
@@ -69,7 +70,7 @@ function make(context: DaemonContext | null): Radios {
       const was = old?.find((before) => before.id === radio.id);
       return was !== undefined && sameRadio(was, radio) ? was : radio;
     });
-    return old !== undefined && old.length === made.length && made.every((radio, i) => radio === old[i]) ? old : made;
+    return keepList(old, made);
   });
   const enabled = computed(() => enabledRadios(all.value));
   const sending = computed(() => senders(all.value));

@@ -1,7 +1,7 @@
 // The calls of one message to several stations (a group, opened from the map's station cards: composables/useMessagesView.ts `openGroup`): which calls may be recipients, who a text goes to, and whether Send is on. Each recipient gets an ordinary message of its
 // own (its own id, acknowledgement, attempts and conversation); the daemon spaces them on the air.
 import { normalizeCall, validName } from "@/lib/calls";
-import { bytesLeft, isGateway } from "@/lib/messages";
+import { bytesLeft, isGateway, isPrintable } from "@/lib/messages";
 import { LIMITS } from "@/protocol/lists";
 
 /** Whether a call may be added as a recipient: a station's name (a call or a name APRS-IS allows), not the email gateway and not one that is there already. */
@@ -19,7 +19,7 @@ export function recipientsOf(chosen: readonly string[], typed: string): string[]
 export function textRefusal(text: string): { code: string; params: { chars: string } } | null {
   const bad = [...LIMITS.message.forbidden].filter((c) => text.includes(c));
   if (bad.length > 0) return { code: "message.forbidden", params: { chars: bad.join(" ") } };
-  if (/^[\x20-\x7e]*$/.test(text)) return null;
+  if (isPrintable(text)) return null;
   if ([...text].some((c) => c > "\x7f"))
     return { code: "message.not_ascii", params: { chars: [...new Set([...text].filter((c) => c > "\x7f" && !/[\p{C}\p{Z}]/u.test(c)))].join("") } };
   return { code: "message.control", params: { chars: "" } };

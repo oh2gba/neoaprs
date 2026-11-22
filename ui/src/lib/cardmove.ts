@@ -23,6 +23,12 @@ export interface CardSize {
 
 /** A move of the pointer shorter than this (pixels) is a click on the head, not a drag. */
 export const DRAG_MIN = 4;
+
+/** What on a card's head is not the head: a press on these is the button's or the link's. */
+export const NOT_HEAD = "button, a, input, select, textarea, summary, [role='button']";
+/** The class the body has while a card is dragged (it switches off text selection). */
+export const DRAGGING = "card-dragging";
+
 /** How far Alt+arrow moves a card, and with Shift held. */
 export const KEY_STEP = 24;
 export const KEY_STEP_BIG = 96;

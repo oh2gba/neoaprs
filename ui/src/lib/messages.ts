@@ -68,6 +68,11 @@ export function askedNote(row: Pick<MessageRow, "direction" | "msg_id" | "text" 
   return kind === undefined ? t("messages.asked.custom", { text: row.text }) : t(`messages.asked.${kind}`);
 }
 
+/** Whether the text is printable ASCII only (space to tilde): the characters every text the daemon puts on the air is limited to, whatever else its field forbids. */
+export function isPrintable(text: string): boolean {
+  return /^[\x20-\x7e]*$/.test(text);
+}
+
 /** How many bytes the text takes in a message (UTF-8). */
 export function textBytes(text: string): number {
   return encoder.encode(text).length;

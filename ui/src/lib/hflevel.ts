@@ -3,6 +3,8 @@
 import { LIMITS } from "@/protocol/lists";
 
 const { levelMinDbfs, levelMaxDbfs, levelGoodDbfs, peakClipDbfs } = LIMITS.scope;
+/** Where "high" ends and "clip" begins in a receive level: near full scale, where the sound card clips (not the daemon's `peakClipDbfs`, which is the peak of a transmission). */
+const CLIP_FROM_DBFS = -10;
 
 export type Zone = "low" | "good" | "high" | "clip";
 
@@ -10,7 +12,7 @@ export type Zone = "low" | "good" | "high" | "clip";
 export function levelZone(level: number): Zone {
   if (level < levelGoodDbfs[0]) return "low";
   if (level <= levelGoodDbfs[1]) return "good";
-  return level < -10 ? "high" : "clip";
+  return level < CLIP_FROM_DBFS ? "high" : "clip";
 }
 
 /** Where a level is on the bar, 0 to 100 percent. */

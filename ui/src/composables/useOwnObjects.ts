@@ -4,10 +4,10 @@
 // leaves the selection and clears the form. The map moves only for a place the user picks or an object that is selected, never for a blank form. A change from a card opens the Objects tab, wherever it is asked for.
 import { computed, reactive, ref, watch } from "vue";
 import type { Panel } from "@/composables/usePanel";
-import { draftOf, emptyDraft, isObjectOf, moveCommand, objectCommand, wrapLongitude, type ObjectDraft } from "@/lib/ownobjects";
+import { draftOf, emptyDraft, isObjectOf, moveCommand, objectCommand, type ObjectDraft } from "@/lib/ownobjects";
 import { onEarth, parseNumber } from "@/lib/fieldcheck";
 import type { RadioId } from "@/lib/radios";
-import { degreesText } from "@/lib/setup";
+import { degreesText, roundPlace, wrapLongitude } from "@/lib/setup";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
 
 export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, send: (command: Command) => boolean, panel: Panel) {
@@ -53,7 +53,7 @@ export function useOwnObjects(rows: ReadonlyMap<string, OwnObjectRow>, send: (co
 
   /** The place from a click on the map: five decimals (a metre). */
   function place(lat: number, lon: number): void {
-    draft.lat = degreesText(Math.round(lat * 1e5) / 1e5);
+    draft.lat = degreesText(roundPlace(lat));
     draft.lon = degreesText(wrapLongitude(lon));
     placing.value = false;
   }
