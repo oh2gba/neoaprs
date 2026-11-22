@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.23.0
+
 - **New:** a bulletin has a Sent for list: 1 to 12 hours, an announcement 1 to 7 days.
 - **New:** a bulletin takes the next free number or letter by itself.
 - **New:** non-metric units: Settings.
