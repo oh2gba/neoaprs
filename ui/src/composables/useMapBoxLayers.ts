@@ -1,10 +1,12 @@
 // What the map's Layers box switches on: the box's place under the zoom buttons (`listen`,
-// `place`), and the layers drawn under its ticks. `add` makes the locator grid first, so that it
-// lies under everything, then the circles, then the aircraft and ships. `tracks` says whether
+// `place`), and the layers drawn under its ticks. `add` makes the day and night shade and the
+// locator grid first, so that they lie under everything, then the circles, then the aircraft and
+// ships. `tracks` says whether
 // every track is drawn or only the open cards' own.
 import { ref } from "vue";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useMapCircles } from "@/composables/useMapCircles";
+import { useMapDayNight } from "@/composables/useMapDayNight";
 import { useMapGrid } from "@/composables/useMapGrid";
 import { useMapLayers } from "@/composables/useMapLayers";
 import { useMapTraffic } from "@/composables/useMapTraffic";
@@ -13,6 +15,7 @@ import { layersControl } from "@/lib/layers/control";
 
 export function useMapBoxLayers(map: () => MapLibreMap | null, selected: () => string | null) {
   const layers = useMapLayers();
+  const daynight = useMapDayNight(map, () => layers.shown("daynight") && layers.ticked("daynight"));
   const grid = useMapGrid(map, () => layers.ticked("grid"));
   const circles = useMapCircles(map, selected, () => layers.ticked("aloha"));
   const traffic = useMapTraffic(map);
@@ -25,6 +28,7 @@ export function useMapBoxLayers(map: () => MapLibreMap | null, selected: () => s
     credits: traffic.credits,
     shapes: traffic.shapes,
     add: (to: MapLibreMap): void => {
+      daynight.add(to);
       grid.add(to);
       circles.add(to);
       traffic.add(to);

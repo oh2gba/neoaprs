@@ -7,8 +7,8 @@ import { t } from "@/i18n";
 import { MARKS } from "@/lib/layers/marks";
 import { LAYER_TABLE, layerRows } from "@/lib/layers/table";
 import { cssRule, mediaRule } from "@/test/css";
-import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
-import { mapState } from "@/test/fixtures";
+import { fakeDaemon, ofRadios, tell, withDaemon, type FakeDaemon, type Given } from "@/test/context";
+import { mapState, radioRow } from "@/test/fixtures";
 import { mapLayer } from "@/test/layerfixtures";
 import type { MapLayer } from "@/protocol/protocol";
 
@@ -18,8 +18,9 @@ let wrapper: VueWrapper | null = null;
 function mounted(
   layers: MapLayer[] = [mapLayer("aircraft"), mapLayer("ships")],
   counts?: Record<string, number | null>,
+  more: Given = {},
 ): { daemon: FakeDaemon } {
-  const daemon = fakeDaemon({ map: mapState({ layers }) });
+  const daemon = fakeDaemon({ map: mapState({ layers }), ...more });
   wrapper = mount(MapLayers, {
     props: { place, ...(counts ? { counts } : {}) },
     global: withDaemon(daemon),
@@ -142,24 +143,56 @@ describe("the rows of the box", () => {
 
   it("give a Radarcape's aircraft no source word, as any own receiver", () => {
     expect(
-      layerRows([mapLayer("aircraft", { source: "radarcape" }), mapLayer("ships")]).map((one) => one.source),
+      layerRows([mapLayer("aircraft", { source: "radarcape" }), mapLayer("ships")], false).map((one) => one.source),
     ).toEqual([null, null, null, null]);
   });
 
   it("name adsb.lol and Fintraffic by their own names", () => {
     expect(
-      layerRows([mapLayer("aircraft", { source: "adsblol" }), mapLayer("ships", { source: "fintraffic" })]).map(
+      layerRows([mapLayer("aircraft", { source: "adsblol" }), mapLayer("ships", { source: "fintraffic" })], false).map(
         (one) => one.source,
       ),
     ).toEqual([null, null, null, "adsb.lol", "Fintraffic"]);
   });
 
   it("have no Aircraft row with the source none, and no row of things from a daemon that tells no layers", () => {
-    expect(layerRows([mapLayer("aircraft"), mapLayer("ships", { source: "fintraffic" })]).map((one) => one.id)).toEqual(
-      ["tracks", "aloha", "grid", "ships"],
-    );
-    expect(layerRows([]).map((one) => one.id)).toEqual(["tracks", "aloha", "grid"]);
-    expect(layerRows(undefined).map((one) => one.id)).toEqual(["tracks", "aloha", "grid"]);
+    expect(
+      layerRows([mapLayer("aircraft"), mapLayer("ships", { source: "fintraffic" })], false).map((one) => one.id),
+    ).toEqual(["tracks", "aloha", "grid", "ships"]);
+    expect(layerRows([], false).map((one) => one.id)).toEqual(["tracks", "aloha", "grid"]);
+    expect(layerRows(undefined, false).map((one) => one.id)).toEqual(["tracks", "aloha", "grid"]);
+  });
+
+  it("have Day and night after Locator grid only on a station with an enabled HF radio", async () => {
+    const FM = radioRow(1, "kenwood-tnc2");
+    const rowsOf = async (given: Given) => {
+      mounted(undefined, undefined, given);
+      await openBox();
+      const ids = rowIds();
+      wrapper?.unmount();
+      return ids;
+    };
+    expect(await rowsOf(ofRadios(FM))).toEqual(["tracks", "aloha", "grid"]);
+    expect(await rowsOf(ofRadios(FM, radioRow(2, "dummy-hf", { enabled: false })))).toEqual([
+      "tracks",
+      "aloha",
+      "grid",
+    ]);
+    mounted(undefined, undefined, ofRadios(FM, radioRow(2, "dummy-hf")));
+    await openBox();
+    expect(rowIds()).toEqual(["tracks", "aloha", "grid", "daynight"]);
+    expect(row("daynight")?.querySelector(".layers-name")?.textContent).toBe("Day and night");
+    expect(row("daynight")?.querySelector(".layermark path")?.getAttribute("d")).toBe(MARKS.daynight.d);
+    expect(row("daynight")?.querySelector(".layers-source")).toBeNull();
+    expect(row("daynight")?.querySelector(".layers-count")).toBeNull();
+    expect(place.querySelector(".layers-rule")).toBeNull();
+  });
+
+  it("have Day and night before the thin line", async () => {
+    mounted([mapLayer("aircraft", { source: "adsbfi" })], undefined, ofRadios(radioRow(2, "dummy-hf")));
+    await openBox();
+    expect(rowIds()).toEqual(["tracks", "aloha", "grid", "daynight", "aircraft"]);
+    expect(place.querySelector(".layers-rule")?.nextElementSibling).toBe(row("aircraft"));
   });
 
   it("do not come and go while the box is open: they follow the station when it opens again", async () => {
@@ -215,6 +248,16 @@ describe("the ticks", () => {
       false,
       false,
     ]);
+  });
+
+  it("are off for Day and night out of the box, and its tick is this browser's", async () => {
+    mounted(undefined, undefined, ofRadios(radioRow(2, "dummy-hf")));
+    await openBox();
+    expect(tick("daynight")?.checked).toBe(false);
+    tick("daynight")?.click();
+    await nextTick();
+    expect(localStorage.getItem("NeoAPRS.layer.daynight")).toBe("on");
+    expect(tick("daynight")?.checked).toBe(true);
   });
 
   it("are this browser's, and there again after a reload", async () => {

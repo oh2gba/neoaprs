@@ -2377,6 +2377,7 @@ export const fr: Catalogue = {
   "layers.box.tracks": "Traces",
   "layers.box.aloha": "Cercle ALOHA",
   "layers.box.grid": "Grille de locators",
+  "layers.box.daynight": "Jour et nuit",
 
   "layers.card.ship": "Navire",
   "layers.card.mmsi": "MMSI {id}",

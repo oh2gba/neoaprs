@@ -1041,6 +1041,7 @@ export const de: Catalogue = {
   "layers.box.tracks": "Spuren",
   "layers.box.aloha": "ALOHA-Kreis",
   "layers.box.grid": "Locator-Raster",
+  "layers.box.daynight": "Tag und Nacht",
 
   "layers.card.ship": "Schiff",
   "layers.card.mmsi": "MMSI {id}",

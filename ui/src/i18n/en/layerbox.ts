@@ -4,4 +4,5 @@ export const layerbox = {
   "layers.box.tracks": "Tracks",
   "layers.box.aloha": "ALOHA circle",
   "layers.box.grid": "Locator grid",
+  "layers.box.daynight": "Day and night",
 } as const;

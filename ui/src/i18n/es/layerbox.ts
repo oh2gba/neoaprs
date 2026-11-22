@@ -6,4 +6,5 @@ export const layerbox: Readonly<Record<keyof typeof en, Message>> = {
   "layers.box.tracks": "Recorridos",
   "layers.box.aloha": "Círculo ALOHA",
   "layers.box.grid": "Cuadrícula de locators",
+  "layers.box.daynight": "Día y noche",
 };

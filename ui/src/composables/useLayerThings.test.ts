@@ -24,7 +24,7 @@ function make(layers = [mapLayer("aircraft", { source: "receiver" }), mapLayer("
     now: shallowRef(NOW),
     store: useLayerTables(),
   };
-  const run = scope.run(() => ({ traffic: useLayerThings(parts), ticks: useMapLayers(parts.map) }));
+  const run = scope.run(() => ({ traffic: useLayerThings(parts), ticks: useMapLayers(parts.map, () => false) }));
   if (!run) throw new Error("not made");
   return { ...parts, ...run, looks: () => send.mock.calls.map(([command]) => command) };
 }

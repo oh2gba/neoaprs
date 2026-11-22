@@ -5,6 +5,7 @@
 import { computed, effectScope, type ComputedRef, type EffectScope, type Ref, type WritableComputedRef } from "vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { usePersistedFlag } from "@/composables/usePersisted";
+import { useRadios } from "@/composables/useRadios";
 import { LAYER_TABLE, layerRows, type LayerId, type LayerRow } from "@/lib/layers/table";
 import type { MapState } from "@/protocol/protocol";
 
@@ -36,15 +37,21 @@ export function forgetLayerTicks(): void {
 
 export interface MapLayers {
   rows: ComputedRef<LayerRow[]>;
+  /** Whether the row is listed now. */
+  shown: (id: LayerId) => boolean;
   ticked: (id: LayerId) => boolean;
   setTicked: (id: LayerId, on: boolean) => void;
 }
 
-export function useMapLayers(map?: Readonly<Ref<MapState | null>>): MapLayers {
+export function useMapLayers(map?: Readonly<Ref<MapState | null>>, hf?: () => boolean): MapLayers {
   const topic = map ?? useDaemonContext().map;
+  const radios = hf ? null : useRadios();
+  const hasHf = hf ?? (() => radios?.enabled.value.some((radio) => radio.kind === "hf") ?? false);
   const own = pageTicks();
+  const rows = computed(() => layerRows(topic.value?.layers, hasHf()));
   return {
-    rows: computed(() => layerRows(topic.value?.layers)),
+    rows,
+    shown: (id) => rows.value.some((row) => row.id === id),
     ticked: (id) => own[id].value,
     setTicked: (id, on) => (own[id].value = on),
   };
