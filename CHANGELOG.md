@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.23.1
+
 - **New:** RX only is switched at the top right of the page, on every tab. The tick in Settings is gone.
 
 ## 0.23.0
