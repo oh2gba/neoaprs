@@ -159,8 +159,8 @@ describe("the locator grid", () => {
     await mounted();
     const layers = FakeMap.last().layers;
     const at = (id: string) => layers.indexOf(id);
-    expect(at("grid-lines")).toBe(0);
-    expect(at("grid-names")).toBe(1);
+    expect(layers.slice(0, at("grid-lines")).every((id) => id.startsWith("daynight"))).toBe(true);
+    expect(at("grid-names")).toBe(at("grid-lines") + 1);
     for (const id of ["aloha-halo", "tracks-line", "route-casing", "replay-trails"])
       expect(at(id)).toBeGreaterThan(at("grid-names"));
   });
