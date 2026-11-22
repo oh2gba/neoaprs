@@ -81,6 +81,8 @@ code { font-family: var(--mono); font-size: 0.86em; }
 .skip:focus { top: 12px; }
 
 /* ---- the masthead */
+.beta { margin: 0; padding: 8px 16px; background: #dbf93a; color: #0a2a3d; text-align: center; font-size: 0.95rem; }
+.beta a { color: inherit; font-weight: 600; }
 .mast { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 85%, transparent); -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid var(--rule); }
 .mast .wrap { display: flex; align-items: center; gap: 24px; height: 56px; }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-weight: 700; font-size: 1.12rem; }
@@ -291,7 +293,6 @@ footer { margin-top: clamp(56px, 8vw, 96px); padding: 28px 0 44px; border-top: 1
 footer .wrap { display: grid; gap: 10px; }
 footer p { margin: 0; }
 .links { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 0.92rem; }
-.privacy { font-family: var(--mono); font-size: 0.8rem; }
 
 /* ---- why Mercury: the comparison in the HF band */
 .why { width: 100%; margin: 0 0 28px; border-collapse: separate; border-spacing: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-box); overflow: hidden; font-size: 0.97rem; }
@@ -326,6 +327,7 @@ footer p { margin: 0; }
 @media (max-width: 860px) { .pair { grid-template-columns: minmax(0, 1fr); } }
 
 .pair:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+.newsrow { display: flex; flex-wrap: wrap; gap: 0 12px; }
 .vs-title { margin: 8px 0 10px; font-size: 1.2rem; }
 .why.vs { margin-bottom: 8px; }
 .why.vs td:nth-child(2) { color: var(--ink-2); }
