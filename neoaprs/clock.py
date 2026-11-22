@@ -1,5 +1,6 @@
 """Time, always UTC and always aware. A clock is a function so that tests can set the time."""
 
+import sys
 import time as _time
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Callable
@@ -45,10 +46,18 @@ def days(n: int) -> timedelta:
     return timedelta(days=n)
 
 
+def since_boot() -> float:
+    """Return monotonic seconds that count time asleep too, where the system has them (Linux)."""
+    if sys.platform == "linux":
+        return _time.clock_gettime(_time.CLOCK_BOOTTIME)
+    else:
+        return _time.monotonic()
+
+
 def monotonic_of(clock: Clock) -> Callable[[], float]:
     """Return the monotonic seconds that go with `clock`: its own if it keeps them (a test's), else the system's."""
     own = getattr(clock, "monotonic", None)
-    return own if callable(own) else _time.monotonic
+    return own if callable(own) else since_boot
 
 
 class StepWatch:
@@ -57,9 +66,10 @@ class StepWatch:
     def __init__(self) -> None:
         self._last: tuple[datetime, float] | None = None
 
-    def forward(self, clock: Clock, now: datetime) -> timedelta:
+    def forward(self, clock: Clock) -> timedelta:
         """Return the step since the last look, or zero when it is under STEP_SEC (the first look too)."""
-        mono = monotonic_of(clock)()
+        # both read here, together: a time read before a wait would look like a step
+        now, mono = clock(), monotonic_of(clock)()
         last, self._last = self._last, (now, mono)
         if last is None:
             return timedelta(0)

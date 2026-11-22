@@ -2,10 +2,14 @@
 can hold it."""
 
 import random
+import sys
+import time as time_module
 from datetime import UTC, date, datetime, time, timedelta, timezone
 
+import pytest
 
-from neoaprs.clock import at, days, from_unix, iso, to_unix, utc, utcnow
+
+from neoaprs.clock import at, days, from_unix, iso, monotonic_of, since_boot, to_unix, utc, utcnow
 from tests.support.clock import FixedClock
 
 
@@ -64,3 +68,11 @@ def test_the_fixed_clock_stands_still_until_it_is_moved() -> None:
     assert (clock() - first).total_seconds() == 90.0
     clock.set(utc(2030, 1, 1))
     assert clock() == utc(2030, 1, 1)
+
+
+def test_the_system_monotonic_time_of_the_step_watch_counts_time_asleep() -> None:
+    # time.monotonic stands while the machine sleeps on Linux: a night asleep would look like a step
+    if sys.platform != "linux":
+        pytest.skip("CLOCK_BOOTTIME is Linux's")
+    boot = time_module.clock_gettime(time_module.CLOCK_BOOTTIME)
+    assert monotonic_of(utcnow) is since_boot and abs(since_boot() - boot) < 1

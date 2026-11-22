@@ -23,6 +23,7 @@ from neoaprs.controller import Controller
 from neoaprs.dummyscene import Scene, call_of, name_of
 from neoaprs.dummyworlds import made_up_calls
 from neoaprs.packet import Packet
+from neoaprs.radioregistry import LiveRadio
 from neoaprs.radiospec import RadioError, RadioId
 from neoaprs.services.beacon import Beacon
 from neoaprs.services.digipeater import BURST_MAX
@@ -161,6 +162,16 @@ def fm_world(seed: int) -> set[str]:
 # Each beacon's and each of the station's own senders' timer, and the time it last looked at the
 # clock
 TICKED: dict[object, datetime] = {}
+# Each beacon whose timer has seen its radio usable
+SEEN_UP: set[object] = set()
+
+
+def ready(radio: LiveRadio[Beacon]) -> bool:
+    """Whether a radio is usable, its beacon's timer going and has seen it so: the clock may move on.
+
+    A timer that first sees its radio a step late takes it for a radio that came up late (its first
+    slot on a whole minute, which a step of a minute always misses on FM)."""
+    return radio.usable and radio.beacon.running and radio.beacon in SEEN_UP
 
 
 @pytest.fixture
@@ -169,6 +180,7 @@ def quick(monkeypatch: pytest.MonkeyPatch) -> None:
     each step; each radio's pause after a timed beacon is drawn from a seed of its own (its id)."""
     monkeypatch.setattr(dummyline, "TICK_SEC", TICK_SEC)
     TICKED.clear()
+    SEEN_UP.clear()
     made: Callable[[Controller, object], Beacon] = Controller._make_beacon  # type: ignore[assignment]
 
     def beacon(self: Controller, radio: object) -> Beacon:
@@ -181,6 +193,8 @@ def quick(monkeypatch: pytest.MonkeyPatch) -> None:
         def ticked() -> None:
             tick()
             TICKED[b] = b.clock()
+            if b.radio.usable:
+                SEEN_UP.add(b)
 
         b._tick = ticked  # type: ignore[method-assign]
         return b
@@ -331,7 +345,7 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
             await e.ctl.save_radio_settings(id, {"digipeat": "true"})
     # connected, settled and its beacon's timer going while the clock stands: each first beacon 30 s
     # in
-    await until_started(lambda: all(r.usable and r.beacon.running for r in e.ctl.radios.all() if r.id != TEXT))
+    await until_started(lambda: all(ready(r) for r in e.ctl.radios.all() if r.id != TEXT))
     assert [r.id for r in e.ctl.radios.beaconing()] == [
         FM1,
         HF1,
@@ -391,7 +405,7 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
     )
     await day.until(OFF_UNTIL)
     assert await e.ctl.change_radio(OFF, enabled=True)
-    await until_started(lambda: off.usable and off.beacon.running)
+    await until_started(lambda: ready(off))
     await day.until(START + timedelta(days=1))
     stations = e.ctl.stationbook.stations()
     await e.stop()
@@ -516,7 +530,7 @@ async def test_three_hf_radios_a_message_goes_on_the_one_that_heard_the_station_
     await e.start(connected=False)
     for type in ("dummy", "dummy-hf", "dummy-hf", "dummy-lora"):
         await e.ctl.add_radio(type)
-    await until_started(lambda: all(r.usable and r.beacon.running for r in e.ctl.radios.all()))
+    await until_started(lambda: all(ready(r) for r in e.ctl.radios.all()))
     # Each station's radios, in the order they hear it, a minute apart
     stories = {"OH7HFA": (HF2,), "OH7HFB": (HF2, HF3), "OH7HFC": (FM2, HF3)}
     for minute, (call, radios) in enumerate(stories.items()):

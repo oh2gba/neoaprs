@@ -148,6 +148,7 @@ def test_the_usage_prints() -> None:
         assert option in done.stdout
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="the Docker build runs on Linux only")
 def test_the_output_folder_of_the_docker_build_is_given_back_whether_the_build_ends_well_or_not(
     build: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

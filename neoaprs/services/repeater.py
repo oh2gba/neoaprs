@@ -145,7 +145,7 @@ class Repeater[K](ABC):
         if self._started is None:
             self._started = self.clock()
         if not self._tasks:
-            self._steps.forward(self.clock, self.clock())
+            self._steps.forward(self.clock)
             self._tasks.spawn(self._run(), self.kind)
 
     async def stop_ticker(self) -> None:
@@ -157,7 +157,7 @@ class Repeater[K](ABC):
     def tick(self) -> bool:
         """Send what is due, longest overdue first; return whether something went out."""
         now = self.clock()
-        if (step := self._steps.forward(self.clock, now)) and self._started is not None:
+        if (step := self._steps.forward(self.clock)) and self._started is not None:
             self._started += step  # a clock stepped forward: what waits from the start keeps its wait
         due = [(when, key) for key in self._keys() if (when := self._due(key)) is not None and when <= now]
         due.sort(key=lambda pair: pair[0])

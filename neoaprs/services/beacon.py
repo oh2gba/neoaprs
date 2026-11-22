@@ -173,7 +173,7 @@ class Beacon:
         now = self.clock()
         self._earlier = await self._remembered.get_time(self._memory_key, now)
         self._started, self._up = now, False
-        self._steps.forward(self.clock, now)
+        self._steps.forward(self.clock)
         if (spec := self._config().radio(self._radio.id)) is not None:
             ticked(spec, say=True)  # logs an invalid stored Send on once
         self._plan(self.interval_min)
@@ -289,7 +289,7 @@ class Beacon:
         if self.last_sent is not None or self._slot is None or self.next_due is None or self._mobile(self._config()):
             self._up = self._up or usable
             return
-        shift = self._steps.forward(self.clock, now)
+        shift = self._steps.forward(self.clock)
         if usable and not self._up and now > self.next_due + shift:
             shift = now - self._slot
         self._up = self._up or usable

@@ -614,6 +614,19 @@ async def test_a_clock_stepped_forward_keeps_the_first_beacons_pause() -> None:
     assert rig.run(400) == [3600 + 30 + 150], "the start's 30 s and the drawn 150 s, counted on from the step"
 
 
+async def test_time_passing_while_the_beacon_starts_is_no_step_of_the_clock() -> None:
+    rig = BeaconRig()
+    read = rig.beacon._remembered.get_time
+
+    async def slow(key: str, now: datetime) -> datetime | None:
+        rig.clock.advance(10)  # a slow store: the wall and the monotonic time both move on
+        return await read(key, now)
+
+    rig.beacon._remembered.get_time = slow  # type: ignore[method-assign]
+    await rig.started(Draws(0.5))
+    assert rig.run(120) == [30 + 15], "the start's 30 s and the drawn 15 s, not moved on by the time the read took"
+
+
 async def test_a_clock_stepped_forward_keeps_the_first_status_pause() -> None:
     rig = await StatusRig(both=True).watch().started(Draws(0.5))
     rig.run(5)

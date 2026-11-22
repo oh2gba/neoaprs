@@ -118,7 +118,7 @@ class RigStatus:
                 ):
                     self.sent_on[spec.id] = at
         self._started = self.clock()
-        self._steps.forward(self.clock, self._started)
+        self._steps.forward(self.clock)
         self._tasks.spawn(self._run(), "rigstatus")
         self._tasks.spawn(every(self.tick_sec, self._tick, "the status timer"), "rigstatus-tick")
 
@@ -275,7 +275,7 @@ class RigStatus:
             # beacon off means no automatic status; send_now still sends
             return
         now, targets = self.clock(), self._targets(c)
-        if (step := self._steps.forward(self.clock, now)) and self._started is not None:
+        if (step := self._steps.forward(self.clock)) and self._started is not None:
             self._started += step  # a clock stepped forward: what waits from the start keeps its wait
         for gone in self._joined.keys() - {id for id, _, _ in targets}:
             # a radio that left joins again at the next interval, not at once
