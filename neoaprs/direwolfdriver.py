@@ -16,19 +16,19 @@ from .claims import Claim, Claims
 from .clock import Clock, utcnow
 from .config import DEFAULTS, Config
 from .direwolf import PROFILE
-from .direwolfmodem import HOST, DirewolfModem, levels_card, port_chosen
+from .mercury import HOST
+from .direwolfmodem import DirewolfModem, levels_card, port_chosen
 from .mercurydriver import chosen_as_set
 from .mercurymodem import left_out
 from .radiodriver import RunOverrides
 from .radiospec import RadioSpec
 from .soundmixer import Mixer
 from .tnc import Tnc
-from .tncprofile import tcp_url
+from .tncprofile import LINE_SPEED, tcp_url
 
 log = logging.getLogger("neoaprs.controller")        # what the start of a radio says is the controller's, whoever does it
 
 NO_DIREWOLF = "a Sound card radio has no line to a Direwolf: none is started"       # what the no-devices switch says of the radio's port
-SPEED = 9600                                         # the line's speed, which a TCP line does not use
 
 
 class DirewolfSettings(NamedTuple):
@@ -77,7 +77,7 @@ class DirewolfDriver:
     def _point(self) -> None:
         """The line, which is stopped, takes its port: the modem's KISS port as it is now (none under the no-devices switch, nor before the modem has chosen its port for this start)."""
         no_line = (nodevices.refused(NO_DIREWOLF, logging.INFO) if self._spec.enabled else nodevices.on()) or not port_chosen(self._modem)
-        self._line.port, self._line.baud, self._line.profile, self._line.fallback_probe, self._line.skip, self._line.pattern = ("" if no_line else tcp_url(HOST, self._modem.kiss_port)), SPEED, PROFILE, False, (), ""
+        self._line.port, self._line.baud, self._line.profile, self._line.fallback_probe, self._line.skip, self._line.pattern = ("" if no_line else tcp_url(HOST, self._modem.kiss_port)), LINE_SPEED, PROFILE, False, (), ""
 
     def restart_key(self, spec: RadioSpec, station: Config, run: RunOverrides) -> tuple[object, ...]:
         """The sound card and the keying (the transmit level is set live, and so are the card's own levels)."""

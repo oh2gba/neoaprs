@@ -42,9 +42,9 @@ from .source import CHECKING, Backoff, Source, minutes_between, unusable_because
 from .tncentry import KissEntry
 from .tncfollow import AdapterFollow
 from .tnclines import TimedSource
-from .tncmode import Mode, ModeDetector, packet_of, read_frame
+from .tncmode import Mode, ModeDetector, packet_of, printable as _printable, read_frame
 from .tncport import Modem, TncPort
-from .tnctextreader import RX_ONLY, accepts, printable as _printable, reader_for
+from .tnctextreader import RX_ONLY, accepts, reader_for
 from .tnc2line import text_of
 from .tncsearch import PortSearch, hold_port, may_open, release_port, taken
 from .tncprofile import KENWOOD_TNC2, KISS_EXIT as KISS_EXIT, Profile

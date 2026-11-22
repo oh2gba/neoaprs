@@ -7,7 +7,7 @@ from neoaprs.message import MessageRecord
 from neoaprs.policy import DIGI_DUPLICATE_SEC
 
 DUPLICATE_WINDOW_SEC = 30 * 60
-ACK_AGAIN_SEC = 30                                          # a copy of a message is acked again only when it comes at least this long after our last ack of it (digipeaters drop a duplicate for 30 s)
+ACK_AGAIN_SEC = DIGI_DUPLICATE_SEC                          # a copy of a message is acked again only when it comes at least this long after our last ack of it (digipeaters drop a duplicate for 30 s)
 
 
 class Heard:

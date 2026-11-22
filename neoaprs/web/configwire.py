@@ -6,12 +6,15 @@ from pydantic import Field
 from .wirebase import _Command, _Model
 
 
+HttpsReason = Literal["", "no_library", "clock", "certificates", "no_port"]
+
+
 class HttpsState(_Model):
     """The secure connection (`web/https`) as the daemon has it."""
     on: bool = Field(description="the page is served over https right now (`web/https` and `web/network` are on, and it started)")
     port: int = Field(description="the https port; 0 while it is not served")
     fingerprint: str = Field(description="SHA-256 fingerprint of NeoAPRS's certificate authority, `AB:CD:...`, for a person to compare with what the device shows when the certificate is installed; empty while it is not served")
-    reason: Literal["", "no_library", "clock", "certificates", "no_port"] = Field(description="why the secure connection could not start or go on, when it was asked for, as a code the page says in its words (the log has the details): "
+    reason: HttpsReason = Field(description="why the secure connection could not start or go on, when it was asked for, as a code the page says in its words (the log has the details): "
                                                                                    "`no_library` this installation cannot make it; `clock` the clock of this computer is not set; `certificates` the certificates could not be made, read or loaded; "
                                                                                    "`no_port` no port after the page's own was free for it; empty otherwise")
 

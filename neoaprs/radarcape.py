@@ -15,7 +15,8 @@ from urllib.parse import urlsplit
 
 from .clock import from_unix
 from .layerthing import RADARCAPE_PLACE, Thing
-from .readsb import ALTITUDE_M_RANGE, EMERGENCY_SQUAWKS, FEET_M, KNOT_KMH, SEEN_MAX_SEC, SPEED_KMH_RANGE, converted, host_port, is_whole_address, loads, number, text_of, vertical_ms
+from .readsb import ALTITUDE_M_RANGE, EMERGENCY_SQUAWKS, SEEN_MAX_SEC, SPEED_KMH_RANGE, converted, host_port, is_whole_address, loads, number, text_of, vertical_ms
+from .units import FOOT_M, KNOT_KMH
 
 AIRPORT_CODE_LENGTH = 4
 PERMANENT_ALERT = 3                                          # `alr`: a squawk of 7500, 7600 or 7700
@@ -55,7 +56,7 @@ def _thing(row: Any, received_at: datetime) -> Thing | None:
     at = _at(row, received_at)
     if at is None:
         return None
-    metres, speed, track = converted(row.get("alt"), FEET_M, ALTITUDE_M_RANGE), converted(row.get("spd"), KNOT_KMH, SPEED_KMH_RANGE), number(row.get("trk"))
+    metres, speed, track = converted(row.get("alt"), FOOT_M, ALTITUDE_M_RANGE), converted(row.get("spd"), KNOT_KMH, SPEED_KMH_RANGE), number(row.get("trk"))
     designator = text_of(row.get("typ")).upper()
     return Thing(id=id, lat=lat, lon=lon, at=at, heading_deg=None if track is None else int(round(track)) % 360, speed_kmh=None if speed is None else round(speed, 1),
                  name=text_of(row.get("fli")), emergency=number(row.get("alr")) == PERMANENT_ALERT or _squawk(row.get("squ")) in EMERGENCY_SQUAWKS,

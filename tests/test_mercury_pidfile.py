@@ -13,11 +13,12 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import direwolf, direwolfprogram, mercuryhelper, mercurystale
+from neoaprs import childprogram, direwolf, direwolfprogram, mercuryhelper, mercurystale
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercuryclaims import end_left_behind
 from neoaprs.mercuryhelper import Program
-from neoaprs.mercurystale import end_stale, made_in_time, runs_with, same_program
+from neoaprs.childprogram import made_before
+from neoaprs.mercurystale import end_stale, runs_with, same_program
 from neoaprs.mercurymodem import PID_FILE, Mercury
 from neoaprs.source import Backoff
 from tests.support import fakemercury
@@ -69,7 +70,7 @@ def test_a_process_is_this_radios_mercury_by_its_configuration_and_on_windows_by
     assert same_program(SHIPPED.upper(), [SHIPPED]) and same_program(SHIPPED.replace("\\", "/"), [SHIPPED])
     assert not same_program(r"C:\Users\op\mercury\mercury.exe", [SHIPPED]), "the operator's own Mercury is not the radio's"
     assert not same_program(r"C:\Windows\explorer.exe", [SHIPPED]) and not same_program(None, [SHIPPED]) and not same_program("", [SHIPPED])
-    assert made_in_time(100.0, 100.0) and made_in_time(95.0, 100.0) and not made_in_time(100.0 + 3600, 100.0) and not made_in_time(None, 100.0)
+    assert made_before(100.0, 100.0) and made_before(95.0, 100.0) and not made_before(100.0 + 3600, 100.0) and not made_before(None, 100.0)
 
 
 def _no_such_process() -> int:
@@ -102,8 +103,9 @@ def _windows_with(monkeypatch: pytest.MonkeyPatch, image: str | None, made: floa
 
     monkeypatch.setattr(sys, "platform", "win32")
     monkeypatch.setattr(mercurystale, "_running_windows", lambda pid: not kills)
+    monkeypatch.setattr(childprogram, "_running_windows", lambda pid: not kills)
     monkeypatch.setattr(mercurystale, "_windows_image", lambda pid: image)
-    monkeypatch.setattr(mercurystale, "_windows_created", lambda pid: made)
+    monkeypatch.setattr(mercurystale, "windows_created", lambda pid: made)
     monkeypatch.setattr(mercurystale.os, "kill", kill)
     return kills
 
@@ -180,7 +182,7 @@ def test_a_mercury_left_behind_has_ended_when_end_stale_returns(tmp_path: Path) 
         pid_file = tmp_path / "mercury.pid"
         pid_file.write_text(str(slow.pid), encoding="ascii")
         assert end_stale(pid_file, ini, fakemercury.program()) is True
-        assert mercurystale._gone(slow.pid), "ended (a zombie of the test's own child holds nothing), not still dropping its transmitter"
+        assert mercurystale.gone(slow.pid), "ended (a zombie of the test's own child holds nothing), not still dropping its transmitter"
     finally:
         slow.kill()
         slow.wait()

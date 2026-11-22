@@ -191,9 +191,9 @@ async def test_a_mercury_a_killed_daemon_left_for_a_radio_that_is_off_or_gone_no
         e = Env(tmp_path, operator=False)                                   # (the next daemon: its settings have no radio 5)
         await e.start()
         try:
-            assert e.ctl.config.radio(5) is None and mercurystale._gone(orphan) and not (first.home / PID_FILE).exists(), "ended before any radio started, and its file consumed"
+            assert e.ctl.config.radio(5) is None and mercurystale.gone(orphan) and not (first.home / PID_FILE).exists(), "ended before any radio started, and its file consumed"
         finally:
             await e.stop()
     finally:
-        if _alive(orphan) and not mercurystale._gone(orphan):
+        if _alive(orphan) and not mercurystale.gone(orphan):
             os.kill(orphan, signal.SIGTERM)

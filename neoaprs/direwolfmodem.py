@@ -38,7 +38,6 @@ from .tasks import TaskSet
 
 log = logging.getLogger("neoaprs.direwolf")
 
-HOST = "127.0.0.1"
 NOT_INSTALLED = "Direwolf is not in this installation of NeoAPRS (the AppImage, the .deb and the Windows installer carry it)"
 OPEN_TO_NETWORK = "Direwolf listens on the network and is not run: the Direwolf NeoAPRS ships listens on this computer only"
 SOUND_CARD_FAILED = "the sound card could not be opened: choose another one in the Sound card field"

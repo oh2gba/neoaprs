@@ -22,13 +22,13 @@ import re
 from dataclasses import dataclass
 
 from neoaprs import ax25
+from neoaprs.aprsisline import MAX_LINE
 from neoaprs.aprsthirdparty import MARK, header_of
 from neoaprs.callsign import PLACEHOLDER_CALLS, CallsignError, normal_name
 from neoaprs.packet import DuplicateKey, duplicate_key
 from neoaprs.route import INTERNET_MARKERS, NO_GATE_MARKERS, is_q_construct
 
 Q_CONSTRUCT = "qAO"
-MAX_LINE = 512                                       # bytes of a line of APRS-IS with its CR LF
 MAX_UNWRAP = 3                                       # third-party wrappers opened one in another; a deeper one is not a packet
 ALIASES = ("WIDE", "TRACE", "RELAY", "TCP", "NOGATE", "RFONLY", "SERVER", "BEACON")        # sources that are no station: the names of paths and of the internet
 _PATH_ELEMENT = re.compile(r"[A-Za-z0-9]{1,9}(?:-[A-Za-z0-9]{1,2})?\*?")      # an element of a path on the air (stricter than a name on APRS-IS: callsign.PATH_ELEMENT)

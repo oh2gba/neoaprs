@@ -5,9 +5,9 @@ from datetime import datetime, timedelta
 from .aisdecode import AisPosition, AisStatic
 from .clock import Clock, utcnow
 from .layerthing import Thing
+from .units import KNOT_KMH
 
 STATIC_KEEP = timedelta(hours=24)         # what a ship said of itself is kept this long without a position of it
-KN_TO_KMH = 1.852
 UNDER_WAY_KN = 0.5                        # at this speed or more the course is the way the ship points when it gives no heading
 
 
@@ -56,5 +56,5 @@ class ShipTable:
             heading = course
         else:
             heading = None
-        return Thing(id=str(p.mmsi), lat=p.lat, lon=p.lon, at=p.at, heading_deg=heading, speed_kmh=None if p.sog_kn is None else p.sog_kn * KN_TO_KMH,
+        return Thing(id=str(p.mmsi), lat=p.lat, lon=p.lon, at=p.at, heading_deg=heading, speed_kmh=None if p.sog_kn is None else p.sog_kn * KNOT_KMH,
                      name=static.name if static else "", ship_type=static.ship_type if static else None, course_deg=course, destination=static.destination if static else "")

@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Literal
 
 from neoaprs.aprsmessage import MessageError, format_message
-from neoaprs.bulletin import board_slot
+from neoaprs.bulletin import GROUP_MAX, board_slot
 from neoaprs.coded import CodedError
 from neoaprs.decay import ANNOUNCEMENT, BULLETIN, Plan
 from neoaprs.message import check_text
@@ -21,7 +21,6 @@ from neoaprs.ownobject import radio_set
 from neoaprs.radiotype import FM_ID, RadioId
 
 Kind = Literal["bulletin", "announcement", "group"]
-GROUP_MAX = 5
 MAX_POSTED = 36                                  # how many of ours may be on the board at once
 
 

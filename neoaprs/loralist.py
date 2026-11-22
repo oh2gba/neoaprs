@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from .reading import Reading
+from .tncmode import printable
+from .tncprofile import bracketed
 
 PATH = "/received-packets.json"
 PORT = 80                               # the board's web server (CA2RXU's web_utils.cpp): fixed, the same address as its KISS server
@@ -44,7 +46,7 @@ async def _fetch(host: str, port: int) -> list[Heard]:
     except OSError as e:
         raise ListError(f"cannot connect: {e}") from None
     try:
-        writer.write(f"GET {PATH} HTTP/1.0\r\nHost: {f'[{host}]' if ':' in host and not host.startswith('[') else host}\r\nAccept: application/json\r\n\r\n".encode("ascii", "replace"))
+        writer.write(f"GET {PATH} HTTP/1.0\r\nHost: {bracketed(host)}\r\nAccept: application/json\r\n\r\n".encode("ascii", "replace"))
         await writer.drain()
         answer = await reader.read(MAX_BODY)
         while chunk := await reader.read(MAX_BODY):
@@ -65,7 +67,7 @@ def parse(answer: bytes) -> list[Heard]:
     head, _, body = answer.partition(b"\r\n\r\n")
     status = head.split(b"\r\n", 1)[0].split()
     if len(status) < 2 or status[1] != b"200":
-        raise ListError(f"the answer is {''.join(c if c.isprintable() else '?' for c in b' '.join(status[1:]).decode('latin-1')) or 'not HTTP'}")       # (the board's bytes go to the log: no control character with them)
+        raise ListError(f"the answer is {printable(b' '.join(status[1:]).decode('latin-1')) or 'not HTTP'}")       # (the board's bytes go to the log: no control character with them)
     try:
         entries = json.loads(body.decode("utf-8", "replace"))
     except (ValueError, RecursionError) as e:

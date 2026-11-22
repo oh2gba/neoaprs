@@ -18,18 +18,17 @@ from .claims import Claim, Claims
 from .clock import Clock, utcnow
 from .config import DEFAULTS, Config
 from .dummyline import DUMMY_PATH
-from .mercury import BROADCAST_PORT
-from .mercurymodem import HOST, Mercury
+from .mercury import BROADCAST_PORT, HOST
+from .mercurymodem import Mercury
 from .radiodriver import RunOverrides
 from .radiospec import RadioSpec
 from .soundmixer import Mixer
 from .tnc import Tnc
-from .tncprofile import HF_BY_KEY, MERCURY, Profile, tcp_url
+from .tncprofile import HF_BY_KEY, LINE_SPEED, MERCURY, Profile, tcp_url
 
 log = logging.getLogger("neoaprs.controller")        # what the start of a radio says is the controller's, whoever does it
 
 NO_MERCURY = "the Mercury radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)"       # what the no-devices switch says of the HF radio's port (modem_settings)
-SPEED = 9600                                         # the line's speed, which a TCP line and the dummy line do not use
 
 
 class ModemSettings(NamedTuple):
@@ -117,7 +116,7 @@ class MercuryDriver:
     def _point(self) -> None:
         """The line, which is stopped, takes its settings: the modem's port as it is now, none before the modem has chosen its ports for this start."""
         settings = modem_settings(self._spec, self._run, self._modem.broadcast_port, not self._modem.ports_chosen)
-        self._line.port, self._line.baud, self._line.profile, self._line.fallback_probe, self._line.skip, self._line.pattern = settings.port, SPEED, settings.profile, False, (), ""
+        self._line.port, self._line.baud, self._line.profile, self._line.fallback_probe, self._line.skip, self._line.pattern = settings.port, LINE_SPEED, settings.profile, False, (), ""
 
     def restart_key(self, spec: RadioSpec, station: Config, run: RunOverrides) -> tuple[object, ...]:
         """Its line's settings with the sound card and the keying, and the transmit gain while nothing can set it live (the modem then has it from its ini, at a start)."""

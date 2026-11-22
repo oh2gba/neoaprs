@@ -17,7 +17,7 @@ import tornado.web
 
 from neoaprs.controller import Controller
 
-from .headers import origin_is_host
+from .headers import refuse_foreign_origin
 from .pagefiles import HostGate, SecurityHeaders, refuse_foreign_host, refuse_plain, refuse_unless_logged_in
 from .pageerrors import PageErrors
 from .supportstate import LiveHost, live_state
@@ -86,9 +86,7 @@ class SupportBundle(SecurityHeaders):
     def prepare(self) -> None:
         if refuse_foreign_host(self, self.server) or refuse_plain(self, self.server) or refuse_unless_logged_in(self, self.server):
             return
-        origin = self.request.headers.get("Origin")
-        if origin is not None and not origin_is_host(origin, self.request.headers.get("Host", "")):
-            raise tornado.web.HTTPError(403)
+        refuse_foreign_origin(self.request)
         widen = getattr(self.request.connection, "set_max_body_size", None)
         if widen is not None:
             widen(MAX_BODY)

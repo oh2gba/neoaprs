@@ -12,7 +12,7 @@ state (`state`, `keyed`, `attached`, `speaker`, the tasks) and asks it to tell t
 import logging
 import time
 
-from .mercury import UI_OFFSET
+from .mercury import HOST, UI_OFFSET
 from .channelbusy import OccupancyBusy
 from .mercuryscope import KeptRow, RowMeter, ScopeHistory, bands_db, clamp_gain, parse_spectrum, parse_status, scope_clock
 from .mercuryui import MercuryUi
@@ -21,7 +21,6 @@ from .tasks import TaskSet
 
 log = logging.getLogger("neoaprs.mercury")
 
-HOST = "127.0.0.1"
 PEAK_SILENT_DBFS = -100.0              # Mercury's peak is -120 before anything was transmitted
 AFTER_TX_SEC = 0.4                     # the spectrum of a Mercury that has just let go of the radio holds the end of its own frame (a window of 128 ms, and Mercury's own busy detector waits 300 ms: BUSY_TX_HOLDOFF_MS)
 

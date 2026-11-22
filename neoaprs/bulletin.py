@@ -14,7 +14,8 @@ Kind = Literal["announcement", "bulletin", "group", "nws"]
 KINDS: tuple[str, ...] = get_args(Kind)
 
 GROUP_MESSAGES = ("ALL", "CQ", "QST")
-_BULLETIN = re.compile(r"BLN([0-9A-Z])([0-9A-Z-]{0,5})$")
+GROUP_MAX = 5                                        # characters of a bulletin's group name
+_BULLETIN = re.compile(rf"BLN([0-9A-Z])([0-9A-Z-]{{0,{GROUP_MAX}}})$")
 _WEATHER = re.compile(r"(NWS-[0-9A-Z_]{1,5}|(SKY|CWA)[0-9A-Z]{0,3})$")
 
 

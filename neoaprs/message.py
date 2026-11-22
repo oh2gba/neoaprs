@@ -13,6 +13,7 @@ from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT, MessageError
 from neoaprs.ax25 import MAX_PATH
 from neoaprs.coded import CodedError
 from neoaprs.callsign import format_call, normal_name, parse_call
+from neoaprs.policy import DIGI_DUPLICATE_SEC
 from neoaprs.radiotype import RadioId
 from neoaprs.route import DIRECT_ONLY, rf_only_path
 
@@ -29,7 +30,7 @@ RETRYABLE: tuple[State, ...] = ("failed", "unconfirmed", "rejected", "cancelled"
 STATION_ATTEMPTS = 4                            # how many times a message to a station is transmitted before it has failed; fixed, the operator does not choose it
 EMAIL_ATTEMPTS = 2                              # the email gateway's acks rarely reach us (they come back through an iGate), so a mail is sent twice and then left `unconfirmed`
 UNCONFIRMED_MAX = 2                             # a message given this many attempts or fewer is not failed when they are used up with no ack: it is `unconfirmed` (the station is not expected to ack)
-FIRST_WAIT_SEC = 32                             # the wait after the first attempt (not 30, the digipeaters' duplicate window, on whose edge a retry could be dropped); each wait after that is double the one before, up to MAX_WAIT_SEC
+FIRST_WAIT_SEC = int(DIGI_DUPLICATE_SEC) + 2                           # the wait after the first attempt (not 30, the digipeaters' duplicate window, on whose edge a retry could be dropped); each wait after that is double the one before, up to MAX_WAIT_SEC
 MAX_WAIT_SEC = 960
 FINAL_WAIT_SEC = 240                            # how long the answer to the last attempt is waited for before the message has failed
 MESSAGES_HELD_MAX = 10000                       # the daemon holds every message; if the database has more, a start takes the latest of these (and every one still being sent) and says so in the log

@@ -10,6 +10,7 @@ import time
 from collections.abc import Awaitable, Callable, Mapping
 
 from neoaprs.services.memory import Memory
+from neoaprs.services.updatecheck import ENV_SWITCH, FIRST_SEC
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet
 from neoaprs.updatefetch import fetch_url
@@ -17,10 +18,8 @@ from neoaprs.versions import FREQUENCIES_ROW, FREQUENCIES_URL, Frequency, freque
 
 log = logging.getLogger("neoaprs.update")
 
-FIRST_SEC = 60.0
 FREQUENCIES_EVERY_SEC = 15 * 60.0              # the least time between two questions to the server, whoever asks
 MAX_BYTES = 8192                                # the file is a few hundred bytes
-ENV_SWITCH = "NEOAPRS_UPDATE_CHECK"
 ENV_URL = "NEOAPRS_FREQUENCIES_URL"             # development and tests: a server on this computer, instead of FREQUENCIES_URL
 FetchUrl = Callable[[str, str, str, int], Awaitable[bytes | None]]
 

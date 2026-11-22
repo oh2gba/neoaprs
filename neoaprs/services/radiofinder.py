@@ -26,6 +26,7 @@ from neoaprs.radiosearch import Found, Trying
 from neoaprs.serialholders import held_by, port_key
 from neoaprs.serialport import SerialError, is_socket
 from neoaprs.tasks import TaskSet
+from neoaprs.tncprofile import LINE_SPEED
 from neoaprs.tncsearch import WAITING, take_turn, turn_wanted
 
 from .radioprobe import Ear, Timing, try_line
@@ -33,7 +34,6 @@ from .radioprobe import Ear, Timing, try_line
 log = logging.getLogger("neoaprs.tnc")
 
 SPEEDS = (9600, 57600, 19200, 38400, 115200, 4800, 1200)          # the usual speeds of a TNC on a serial line, the likeliest first
-NO_SPEED = 9600                                                      # what a port with no speed is opened at (pyserial wants a number)
 Hold = Callable[[], Awaitable[None]] | Callable[[RadioId], Awaitable[None]]      # the radio's line let go: the whole station's (a finder made without the station's table), or that of the radio `find` is given
 Release = Callable[[], None] | Callable[[RadioId], None]
 
@@ -44,7 +44,7 @@ class RadioSearchError(CodedError):
 
 def speeds_for(path: str, speedless: Collection[str] = ()) -> tuple[int, ...]:
     """The speeds a port is tried at: none to choose for a port that is not a serial line (a socket, a Bluetooth port, a COM port of a Bluetooth device: `speedless` holds their `port_key`)."""
-    return (NO_SPEED,) if is_socket(path) or port_key(path) in speedless else SPEEDS
+    return (LINE_SPEED,) if is_socket(path) or port_key(path) in speedless else SPEEDS
 
 
 def candidates(pattern: str, skip: tuple[str, ...]) -> list[str]:

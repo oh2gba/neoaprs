@@ -242,8 +242,8 @@ def make_tarball(path: Path, **override: bytes | None) -> Path:
 
 def test_bundle_mercury_has_no_pins_of_its_own_and_fetches_nothing() -> None:
     source = (ROOT / "packaging" / "windows" / "bundle_mercury.py").read_text(encoding="utf-8")
-    assert "from neoaprs import mercury" in source and "mercury.SOURCE_SHA256" in source and "mercury.SOURCE_COMMIT" in source and "mercury.VERSION" in source
-    assert "urllib" not in source and "https://" not in source and "http://" not in source and not re.search(r"\b[0-9a-f]{64}\b", source), "the pins are in neoaprs/mercury.py and nowhere else"
+    assert 'bundle_tool.TOOLS["mercury"]' in source, "the checks and the pins are those of bundle_tool.py"
+    assert "urllib" not in source and "https://" not in source and "http://" not in source and not re.search(r"\b[0-9a-f]{64}\b", source)
     assert "WINDOWS_URL" not in source and "WINDOWS_SHA256" not in source
 
 

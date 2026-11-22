@@ -23,7 +23,8 @@ from .serialboards import board_kind, describe
 from .serialholders import held_by, port_key
 from .radiospec import RadioSpec, enabled, live
 from .radiotype import RadioId, RadioTypeError
-from .serialport import SerialError, SerialPort, normalize
+from .serialport import SerialError, SerialPort
+from .tncprofile import names_tcp
 
 log = logging.getLogger("neoaprs.serialport")
 
@@ -67,10 +68,8 @@ class AdapterId:
 
 
 def _adapter_of(port: PortInfo) -> AdapterId | None:
-    if port.vid is None or port.pid is None:
-        return None
     found = re.search(r"\bSER=(\S+)", port.hwid)
-    return AdapterId(port.vid, port.pid, found.group(1) if found else "")
+    return None if port.vid is None or port.pid is None else AdapterId(port.vid, port.pid, found.group(1) if found else "")
 
 
 def identity_of(path: str) -> AdapterId | None:
@@ -124,7 +123,7 @@ def with_links(ports: list[PortInfo], dirs: Collection[str] = LINK_DIRS) -> list
 def claim_value(path: str) -> str | None:
     """The value a claim of this port holds in the station's table (claims.py): the device as `port_key` compares it (a link resolved, a COM port in upper case, a Bluetooth address in lower case), so that two names of
     one device are one claim; None for a KISS TCP address (a connection, not a device: two radios may each have one to one server) and for no port at all."""
-    return None if not path.strip() or normalize(path).lower().startswith("socket://") else port_key(path)
+    return None if not path.strip() or names_tcp(path) else port_key(path)
 
 
 def holder_words(holder: RadioId | None) -> str:

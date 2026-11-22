@@ -30,7 +30,7 @@ from neoaprs.controller import Controller
 from neoaprs.tasks import every
 from neoaprs.worldmap import world_file
 
-from .access import Access, Login, NewKey, new_key, this_computer_target
+from .access import OWN_NAMES, Access, Login, NewKey, new_key, this_computer_target
 from .addresses import as_address, is_loopback, lan_addresses
 from .api import Api
 from .connections import LimitedHTTPServer
@@ -138,7 +138,7 @@ class WebServer:
 
     def _names(self, allowed: Sequence[str]) -> set[str]:
         host = socket.gethostname().lower()
-        return {"localhost", "ip6-localhost", "ip6-loopback", host, f"{host}.local", *(host_name(n) for n in allowed)} - {""}
+        return {*OWN_NAMES, "ip6-localhost", "ip6-loopback", host, f"{host}.local", *(host_name(n) for n in allowed)} - {""}
 
     def url(self) -> str:
         """Where the page is on this computer."""

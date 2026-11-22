@@ -33,13 +33,13 @@ from neoaprs.qrutext import ANSWER_WINDOW_SEC, ARRIVAL_GRACE_SEC, ASK_EVERY_SEC,
 from neoaprs.radiotype import RadioId
 from neoaprs import ax25
 from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Paths, Radio, asked_radios, on_words, our_call, our_frame, send_on, sent_on
+from neoaprs.services.qru import ADDRESSEE
 from neoaprs.services.radioset import AirRadio, RadioPick, path_on
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet
 
 log = logging.getLogger("neoaprs.qru")
 
-ADDRESSEE = "QRU"
 CONTINUE_SEC = 120                      # a list that ends in `+` is continued by the next message of the server within this time
 KEEP_FOR = timedelta(hours=1)           # how long a server and the last request are remembered
 REQUESTS_MAX = 16                       # the requests kept to tell which one an answer is for

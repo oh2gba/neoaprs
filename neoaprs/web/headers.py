@@ -2,6 +2,7 @@
 import re
 
 import tornado.httputil
+import tornado.web
 
 
 def host_name(header: str) -> str:
@@ -36,3 +37,10 @@ def security_headers(host: str) -> dict[str, str]:
 def origin_is_host(origin: str, host: str) -> bool:
     """Does the Origin header of a request name the host it was sent to? The page is served from here, so a request from another origin is another site's script."""
     return bool(host) and origin.split("://", 1)[-1].lower() == host.lower()
+
+
+def refuse_foreign_origin(request: tornado.httputil.HTTPServerRequest) -> None:
+    """Raise a 403 when the request carries an Origin that is not the host it was sent to."""
+    origin = request.headers.get("Origin")
+    if origin is not None and not origin_is_host(origin, request.headers.get("Host", "")):
+        raise tornado.web.HTTPError(403)

@@ -27,7 +27,7 @@ from neoaprs.storesql import read_settings
 from neoaprs.supportsql import file_facts, latest_packets, latest_undecoded, open_readonly, quick_check, table_counts
 
 from . import doctor
-from .logfile import LOG_NAME, START_LINE
+from .logfile import APP_LOG_NAME, LOG_NAME, START_LINE
 from .radiosettings import RADIO_ROWS_FROM, SHOWN_KEYS, in_force, own_fields, shown_settings, stored_own, stored_text_of, value_text
 from .redaction import hides, shown_value
 from .supportbundle import rotated_logs, tail_text
@@ -39,7 +39,6 @@ QUICK_CHECK_MAX_BYTES = 500 * 1024 * 1024
 PROBLEM_SCAN_BYTES = 8 * 1024 * 1024
 JOURNAL_LINES = 3000
 JOURNAL_WAIT_SEC = 5.0
-APP_LOG_NAME = "neoaprs-app.log"
 
 
 @contextlib.contextmanager

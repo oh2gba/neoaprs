@@ -24,6 +24,7 @@ from .btserial import BluetoothSerial, is_bluetooth
 from .configvalues import port_scheme
 from .signal import Signal
 from .source import os_error_text
+from .tncprofile import names_tcp
 
 log = logging.getLogger("neoaprs.serialport")
 
@@ -58,7 +59,7 @@ def is_url(path: str) -> bool:
 
 def is_socket(path: str) -> bool:
     """A TCP KISS port or a Bluetooth one (classic or LE): a stream with no speed, no device file to look for holders of, and no cable to pull."""
-    return normalize(path).lower().startswith("socket://") or is_bluetooth(path) or is_ble(path)
+    return names_tcp(path) or is_bluetooth(path) or is_ble(path)
 
 
 def _on_windows() -> bool:

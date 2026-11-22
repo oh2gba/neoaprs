@@ -46,7 +46,7 @@ class ModeDetector:
     def feed(self, data: bytes) -> Mode:
         if self.mode is Mode.KISS:
             return self.mode
-        if any(self._is_ui(f) for f in self._decoder.feed(data)):
+        if any(is_ui(f) for f in self._decoder.feed(data)):
             self.mode = Mode.KISS
             self._tail.clear()
             return self.mode
@@ -55,15 +55,6 @@ class ModeDetector:
         if self.mode is Mode.UNKNOWN and self._has_text_evidence():
             self.mode = Mode.MONITOR
         return self.mode
-
-    @staticmethod
-    def _is_ui(frame: kiss.KissFrame) -> bool:
-        if frame.command != 0:
-            return False
-        try:
-            return ax25.decode(frame.payload).is_ui
-        except ax25.Ax25Error:
-            return False
 
     def _has_text_evidence(self) -> bool:
         return any(typed_text(segment) for segment in bytes(self._tail).split(b"\xc0"))
@@ -129,6 +120,21 @@ def read_frame(kiss_frame: kiss.KissFrame, now: datetime, dummy: bool = False, r
     except Exception:
         log.exception("tnc: a frame could not be handled")
         return "internal error"
+
+
+def is_ui(frame: kiss.KissFrame) -> bool:
+    """Whether a KISS frame is a data frame that holds an AX.25 UI frame."""
+    if frame.command != 0:
+        return False
+    try:
+        return ax25.decode(frame.payload).is_ui
+    except ax25.Ax25Error:
+        return False
+
+
+def printable(text: str) -> str:
+    """The text with what does not print as "?" (a line of the Terminal)."""
+    return "".join(c if c.isprintable() else "?" for c in text)
 
 
 def looks_valid(heard: bytes, enter_kiss: bool) -> bool:

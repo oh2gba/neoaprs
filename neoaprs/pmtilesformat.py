@@ -16,6 +16,7 @@ from dataclasses import dataclass
 HEADER_LENGTH = 127
 ROOT_SPACE = 16384                          # the header and the root directory are in the first 16 KiB of an archive
 MAGIC = b"PMTiles"
+VERSION = 3
 NONE, GZIP = 1, 2                           # the compressions of the directories that are read and written (brotli and zstd are not in the standard library)
 MAX_ZOOM = 31                               # the deepest zoom a tile id of 64 bits holds
 MAX_ROOT = 1024 * 1024                      # the most the root directory may unpack to (16 KiB of a real archive's root unpack to a few hundred kB)
@@ -55,13 +56,18 @@ class Header:
     center_e7: tuple[int, int]                      # longitude, latitude
 
 
+def unpack_header(data: bytes) -> Header:
+    """The fields of the first HEADER_LENGTH bytes, with no check of any of them."""
+    v = _HEADER.unpack_from(data)
+    return Header(v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], bool(v[13]), v[14], v[15], v[16], v[17], v[18], (v[19], v[20], v[21], v[22]), v[23], (v[24], v[25]))
+
+
 def parse_header(data: bytes) -> Header:
     if len(data) < HEADER_LENGTH or data[:7] != MAGIC:
         raise FormatError("the file is not a PMTiles archive")
-    if data[7] != 3:
-        raise FormatError(f"the archive is of PMTiles version {data[7]}, not 3")
-    v = _HEADER.unpack_from(data)
-    header = Header(v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], bool(v[13]), v[14], v[15], v[16], v[17], v[18], (v[19], v[20], v[21], v[22]), v[23], (v[24], v[25]))
+    if data[7] != VERSION:
+        raise FormatError(f"the archive is of PMTiles version {data[7]}, not {VERSION}")
+    header = unpack_header(data)
     if header.internal_compression not in (NONE, GZIP):
         raise FormatError(f"the directories of the archive are compressed with method {header.internal_compression}, which is not read")
     if not header.min_zoom <= header.max_zoom <= MAX_ZOOM:
@@ -70,7 +76,7 @@ def parse_header(data: bytes) -> Header:
 
 
 def header_bytes(h: Header) -> bytes:
-    return _HEADER.pack(MAGIC, 3, h.root_offset, h.root_length, h.metadata_offset, h.metadata_length, h.leaf_offset, h.leaf_length, h.data_offset, h.data_length, h.addressed_tiles, h.tile_entries,
+    return _HEADER.pack(MAGIC, VERSION, h.root_offset, h.root_length, h.metadata_offset, h.metadata_length, h.leaf_offset, h.leaf_length, h.data_offset, h.data_length, h.addressed_tiles, h.tile_entries,
                         h.tile_contents, int(h.clustered), h.internal_compression, h.tile_compression, h.tile_type, h.min_zoom, h.max_zoom, *h.bounds_e7, h.center_zoom, *h.center_e7)
 
 

@@ -10,14 +10,13 @@ from neoaprs.packet import Message, Packet
 from neoaprs.radiotype import Limits
 from neoaprs.route import INTERNET_MARKERS, is_marker, parse_alias, used_path
 
-ADDRESS_LEN = 7
 REPLY_WIDE = "WIDE2-1"          # the one hop after a gateway's call when the station reached the gateway through a digipeater (M1)
 
 
 def spliced(raw: bytes, heard: ax25.Frame, frame: ax25.Frame) -> bytes:
     """The bytes that were heard (`heard` is what they decode to) with the path of `frame` in place of theirs; everything else is as it arrived."""
-    start = 2 * ADDRESS_LEN
-    return raw[:start] + ax25.encode_path(frame.path) + raw[start + ADDRESS_LEN * len(heard.path):]
+    start = 2 * ax25.ADDRESS_LEN
+    return raw[:start] + ax25.encode_path(frame.path) + raw[start + ax25.ADDRESS_LEN * len(heard.path):]
 
 
 def first_unused(frame: ax25.Frame) -> int | None:

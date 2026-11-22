@@ -20,6 +20,7 @@ from neoaprs.aprsmessage import format_message
 from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
 from neoaprs.message import MessagingError
+from neoaprs.policy import DIGI_DUPLICATE_SEC
 from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.recent import Recent
 from neoaprs.route import rf_only_path
@@ -31,7 +32,7 @@ from neoaprs.tasks import TaskSet
 
 log = logging.getLogger("neoaprs.queries")
 
-ANSWER_AGAIN_SEC = 30.0
+ANSWER_AGAIN_SEC = DIGI_DUPLICATE_SEC
 ANSWER_FRAMES_MAX = 5                                                           # the objects or messages an answer carries at most
 ANSWERS_PER_WINDOW = 2 * ANSWER_FRAMES_MAX                                      # frames of answers the station sends in ANSWER_WINDOW_SEC: two of the longest honest answers; a station that asks under a new call each time cannot get more
 ANSWER_WINDOW_SEC = 60.0

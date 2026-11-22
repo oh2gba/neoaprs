@@ -11,9 +11,11 @@ from neoaprs.coded import CodedError
 from neoaprs.packet import Message, decode_text
 
 _ADDRESSEE_LEN = 9
-_ID = re.compile(r"[A-Za-z0-9]{1,5}")
-_NUMBER = re.compile(r"\{([A-Za-z0-9]{1,5})(\}[A-Za-z0-9]{0,5})?$")      # the message number at the end of a text: "{MM", "{MM}" or "{MM}AA"
-_ACK = re.compile(r"(ack|rej)([A-Za-z0-9]{1,5})(?:\}[A-Za-z0-9]{0,5})?$")
+MAX_ID = 5                                           # characters of a message number
+_ID_CHARS = "[A-Za-z0-9]"
+_ID = re.compile(f"{_ID_CHARS}{{1,{MAX_ID}}}")
+_NUMBER = re.compile(rf"\{{({_ID_CHARS}{{1,{MAX_ID}}})(\}}{_ID_CHARS}{{0,{MAX_ID}}})?$")      # the message number at the end of a text: "{MM", "{MM}" or "{MM}AA"
+_ACK = re.compile(rf"(ack|rej)({_ID_CHARS}{{1,{MAX_ID}}})(?:\}}{_ID_CHARS}{{0,{MAX_ID}}})?$")
 MAX_TEXT = 67                                        # characters of message text the specification allows
 FORBIDDEN = "|~{"
 _TRAILING = " \r\n"                                   # what some senders put after the text or the number: not part of an id or an ack

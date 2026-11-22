@@ -45,6 +45,7 @@ from .packetwire import PacketRow
 from .prefwire import StationAlertMsg, StationPref
 from .qruwire import QruAsked, QruGroup, QruServer, QruState
 from .generalwire import GeneralAsked, GeneralSent, GeneralState
+from .secureside import SecureState
 from .stationwire import StationRow, TelemetryValues, WeatherValues
 from .tncwire import ModemState
 from .wirebase import HISTORY_MAX_HOURS
@@ -215,7 +216,7 @@ def config_values(config: Config, urls: list[str], https: dict[str, Any] | None 
     radio_values = {key: values[key] for key in RADIO_STATION_KEYS} | {f"radio/{spec.id}/{f.key}": spec.settings.get(f.key, f.default) for spec in config.live_radios for f in kind_fields(spec.kind)} | pair_values(config.radios, config.pairs)
     radio_defaults = {key: defaults[key] for key in RADIO_STATION_KEYS} | {f"radio/{spec.id}/{f.key}": f.default for spec in config.live_radios for f in kind_fields(spec.kind)} | pair_defaults(config.radios)
     return {"values": {k: v for k, v in values.items() if k not in RADIO_STATION_KEYS}, "defaults": {k: v for k, v in defaults.items() if k not in RADIO_STATION_KEYS}, "radio_values": radio_values,
-            "radio_defaults": radio_defaults, "urls": urls, "https": https or {"on": False, "port": 0, "fingerprint": "", "reason": ""}}
+            "radio_defaults": radio_defaults, "urls": urls, "https": https or SecureState().wire()}
 
 
 class IgateSource(Protocol):

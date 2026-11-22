@@ -15,7 +15,7 @@ from neoaprs.backupfolder import way_back
 from neoaprs.callsign import call_problem
 from neoaprs.config import Config
 from neoaprs.configradios import radios_from_rows
-from neoaprs.db import Db
+from neoaprs.db import READ_WAIT_MS, Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.instancelock import is_file
 from neoaprs.migrations import SCHEMA_VERSION, schema_version
@@ -32,7 +32,6 @@ from .hostcheck import brltty_installed, firefox_flatpak, modemmanager_installed
 from .radiosettings import RADIO_ROWS_FROM, in_force, radio_tables, reached
 
 MIN_PYTHON = (3, 13)
-READ_WAIT_MS = 3000
 MAP_FILES = ("basemap.pmtiles", "basemap-world.pmtiles")
 
 

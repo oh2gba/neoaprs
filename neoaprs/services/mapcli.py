@@ -10,15 +10,13 @@ import sys
 from pathlib import Path
 
 from neoaprs.config import MAP_MAXZOOM, MAP_RADIUS_KM, Config
-from neoaprs.db import Db
+from neoaprs.db import READ_WAIT_MS, Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.paths import default_data_dir
 from neoaprs.mapstate import MapError
 from neoaprs.pmtilescut import CutError
 from neoaprs.services.mapfetch import MapFetch
 from neoaprs.store import DB_NAME, Store
-
-READ_WAIT_MS = 3000
 
 
 def parse(argv: list[str], prog: str = "mapfetch") -> argparse.Namespace:

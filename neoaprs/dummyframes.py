@@ -6,6 +6,7 @@ from datetime import datetime
 from neoaprs import ax25
 from neoaprs.aprsmessage import format_ack, format_message
 from neoaprs.aprsmiceout import mice_packet
+from neoaprs.aprsparse import MICE_CURRENT_IDS, POSITION_IDS
 from neoaprs.aprsposition import compressed_position, uncompressed_position
 from neoaprs.route import WIDE_PATH
 from neoaprs.units import INCH_MM, KNOT_KMH, MILE_KM
@@ -93,7 +94,7 @@ def ack(to: str, msg_id: str) -> bytes:
 
 def is_position(info: bytes) -> bool:
     """Whether the information field is a position report (a beacon): the identifiers `! = / @` and Mic-E's two."""
-    return info[:1] in (b"!", b"=", b"/", b"@", b"`", b"'")
+    return info[:1] in (*POSITION_IDS, *MICE_CURRENT_IDS)
 
 
 def cosine_day(now: datetime, peak_hour: float) -> float:

@@ -22,22 +22,21 @@ from neoaprs.clock import Clock, iso, utcnow
 from neoaprs.coded import CodedError
 from neoaprs.services.common import ConfigSource
 from neoaprs.services.memory import Memory
+from neoaprs.services.updatecheck import ENV_SWITCH, FIRST_SEC
 from neoaprs.signal import Signal
-from neoaprs.skeds import (EMPTY, MAX_LENGTH, MAX_ROWS, OURS_ROW, SKED_TOKEN, SKEDS_ROW, SKEDS_URL, TOKEN, Board, Sked, board_of, board_text, endpoint_url, ids_text, kept_board, kept_ids, our_call, request_body, to_come)
+from neoaprs.skeds import EMPTY, MAX_LENGTH, MAX_ROWS, OURS_ROW, SKED_TOKEN, SKEDS_ROW, SKEDS_URL, TOKEN, Board, Sked, board_of, board_text, endpoint_url, ids_text, kept_board, kept_ids, our_call, request_body, to_come
 from neoaprs.tasks import TaskSet, every
 from neoaprs.updatefetch import fetch_answer, post_board
 from neoaprs.versions import Frequency, on_this_computer
 
 log = logging.getLogger("neoaprs.update")
 
-FIRST_SEC = 60.0
 EVERY_SEC = 6 * 3600.0
 SKEDS_EVERY_SEC = 15 * 60.0                     # the least time between two reads of the board, whoever asks
 RETRY_SEC = 60.0                                # the least time after a read or a post that did not reach the server: it is not counted as a read
 EXPIRE_SEC = 30.0                               # how often what has ended is looked for
 MAX_BYTES = 131072                              # a full board is some 30 KB (a hundred rows with notes), and up to twice that with every character escaped
 MAX_AHEAD = timedelta(days=30)                  # how far ahead the server lets a sked begin
-ENV_SWITCH = "NEOAPRS_UPDATE_CHECK"
 ENV_URL = "NEOAPRS_SKEDS_URL"                   # development and tests: a server on this computer, instead of SKEDS_URL
 State = Literal["ok", "offline", "off", "closed"]
 Fetch = Callable[[str, str, str, int], Awaitable[tuple[int, bytes] | None]]      # (address, version, platform, the most bytes wanted) to the status and body

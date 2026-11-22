@@ -13,15 +13,12 @@ import time
 from collections.abc import Sequence
 from pathlib import Path
 
-from .childprogram import _running_windows, _windows_image
+from .childprogram import GONE_POLL_SEC, _running_windows, _windows_image, gone, made_before, windows_created
 from .mercuryhelper import STOP_WAIT_SEC
 from .source import os_error_text
 
 log = logging.getLogger("neoaprs.mercury")
 
-MADE_SLACK_SEC = 10.0              # a process made this long after its pid file was written is still the one it names (Windows: the clocks of the file and the process)
-STALE_POLL_SEC = 0.05              # how often a Mercury left behind is looked at while it ends
-FILETIME_1970 = 116444736000000000  # 1970 in Windows' FILETIME, 100 ns since 1601
 PS_TIMEOUT_SEC = 5.0
 
 
@@ -45,7 +42,7 @@ def _is_mercury(pid: int, ini: Path, program: Sequence[str], written: float) -> 
         except OSError:
             return False
     if sys.platform == "win32":
-        return _running_windows(pid) and same_program(_windows_image(pid), program) and made_in_time(_windows_created(pid), written)
+        return _running_windows(pid) and same_program(_windows_image(pid), program) and made_before(windows_created(pid), written)
     else:                                                          # macOS, and any other system without /proc
         command = _ps_command(pid)
         return command is not None and any(f" -C {path} " in f" {command} " for path in {str(ini), os.path.abspath(ini)})
@@ -60,22 +57,6 @@ def _ps_command(pid: int) -> str | None:
     return done.stdout.strip() or None if done.returncode == 0 else None
 
 
-def _windows_created(pid: int) -> float | None:
-    """When the Windows process of this id was made, in seconds since 1970 (GetProcessTimes); None when the process cannot be opened or its times cannot be read."""
-    import ctypes
-    kernel32 = ctypes.windll.kernel32                              # type: ignore[attr-defined, unused-ignore]
-    handle = kernel32.OpenProcess(0x1000, False, pid)              # PROCESS_QUERY_LIMITED_INFORMATION
-    if not handle:
-        return None
-    try:
-        times = [ctypes.c_ulonglong() for _ in range(4)]          # FILETIMEs: made, ended, in the kernel, in user mode
-        if not kernel32.GetProcessTimes(handle, *(ctypes.byref(t) for t in times)):
-            return None
-        return (times[0].value - FILETIME_1970) / 1e7
-    finally:
-        kernel32.CloseHandle(handle)
-
-
 def same_program(image: str | None, program: Sequence[str]) -> bool:
     """Whether the program file at this Windows path (either kind of slash, the case aside) is the program this radio runs (`program`, its first word); no when the path is not known: where that cannot be read,
     nothing is ended."""
@@ -84,33 +65,6 @@ def same_program(image: str | None, program: Sequence[str]) -> bool:
 
 def _windows_path(path: str) -> str:
     return ntpath.normcase(ntpath.abspath(path.replace("/", "\\")))
-
-
-def made_in_time(created: float | None, written: float) -> bool:
-    """Whether a process made at `created` can be the one a file written at `written` names: made before the file was written (MADE_SLACK_SEC for the clocks of the two); no when the time is not known."""
-    return created is not None and created <= written + MADE_SLACK_SEC
-
-
-def _gone(pid: int) -> bool:
-    """Whether the process of this id has ended (a zombie on Linux has: it holds nothing any more)."""
-    if sys.platform == "win32":
-        return not _running_windows(pid)
-    else:
-        return _gone_posix(pid)
-
-
-def _gone_posix(pid: int) -> bool:
-    try:
-        return Path(f"/proc/{pid}/stat").read_text(encoding="ascii", errors="replace").rpartition(")")[2].split()[0] in ("Z", "X")
-    except (OSError, IndexError):
-        pass
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return True
-    except OSError:
-        return False
-    return False
 
 
 def end_stale(pid_file: Path, ini: Path, program: Sequence[str]) -> bool:
@@ -137,6 +91,6 @@ def end_stale(pid_file: Path, ini: Path, program: Sequence[str]) -> bool:
         return False
     log.warning("a Mercury left behind by an earlier run (process %d) was ended", pid)
     deadline = time.monotonic() + STOP_WAIT_SEC
-    while not _gone(pid) and time.monotonic() < deadline:
-        time.sleep(STALE_POLL_SEC)
+    while not gone(pid) and time.monotonic() < deadline:
+        time.sleep(GONE_POLL_SEC)
     return True

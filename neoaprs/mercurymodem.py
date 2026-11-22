@@ -30,7 +30,7 @@ from . import nodevices
 from .claims import Claim, Claims
 from .clock import Clock, utcnow
 from .config import Config
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET, MODE, SUGGESTED, TUNE_OFF, Keying, SerialPort, SoundCard, command, ini_text, keying_of, ports_from, propose_keying, propose_sound_card, speaker_audio
+from .mercury import BROADCAST_PORT, CONTROL_OFFSET, HOST, MODE, SUGGESTED, TUNE_OFF, Keying, SerialPort, SoundCard, command, ini_text, keying_of, ports_from, propose_keying, propose_sound_card, speaker_audio
 from .mercurycontrol import ControlLine
 from .mercurytune import Tuning
 from .mercuryclaims import INI_FILE, PID_FILE, HeldPorts, Holding, keying_claim, take_folder
@@ -51,7 +51,6 @@ from .versions import Frequency
 
 log = logging.getLogger("neoaprs.mercury")
 
-HOST = "127.0.0.1"
 NOT_INSTALLED = "the Mercury program is not in this installation of NeoAPRS (the AppImage, the .deb and the Windows installer carry it)"
 OPEN_TO_NETWORK = "Mercury listens on the network and is not run: the Mercury NeoAPRS ships listens on this computer only"
 SOUND_CARD_FAILED = "the sound card could not be opened: choose another one in the Sound card field"       # Mercury runs on deaf and mute when its sound card fails (seen on a station with two USB sound cards): the program is ended and the operator told where to act

@@ -13,7 +13,7 @@ UI_CONTROL = 0x03
 UI_MASK = 0xEF                         # the poll/final bit (0x10) does not make a frame another kind
 PID_NO_LAYER3 = 0xF0
 MAX_INFO = 256                         # the longest information field AX.25 allows (N1)
-_ADDRESS_LEN = 7
+ADDRESS_LEN = 7
 _RESERVED_BITS = 0x60
 _SSID_MASK = 0x1E
 _FLAG_BIT = 0x80                       # command/response on the destination and source, has-been-repeated on a digipeater
@@ -110,12 +110,12 @@ def _decode_addresses(data: bytes) -> tuple[list[Address], int]:
     addresses: list[Address] = []
     pos = 0
     while True:
-        chunk = data[pos:pos + _ADDRESS_LEN]
-        if len(chunk) < _ADDRESS_LEN:
+        chunk = data[pos:pos + ADDRESS_LEN]
+        if len(chunk) < ADDRESS_LEN:
             raise Ax25Error("the address field never ends: the frame stops before an address has its last-address bit")
         address, last = _decode_address(chunk, len(addresses))
         addresses.append(address)
-        pos += _ADDRESS_LEN
+        pos += ADDRESS_LEN
         if last:
             return addresses, pos
         if len(addresses) == 2 + MAX_PATH:

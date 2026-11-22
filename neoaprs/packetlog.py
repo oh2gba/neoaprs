@@ -19,7 +19,7 @@ from .dblog import DbLog
 from .geo import Point, Thinning
 from .packet import ItemReport, ObjectReport, Packet, Position, via_of
 from .packetcodec import PacketRow, info_of, packet_of, packet_row, parse_stamp, stamp
-from .packetstats import PacketCounts
+from .packetstats import FRESH_SEC, PacketCounts
 from .packetsql import (all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_by_radio, heard_times, insert_packet, located_from, located_since, message_packets, oldest_packet, packets_since,
                         position_packets, prune_packets_slice, radio_position_packets, radio_routes, recent_packets, station_positions, station_readings, station_traffic, upsert_station, window_packets)
 from .radiospec import RadioHeard, RadioId
@@ -33,7 +33,6 @@ DELIVERIES_SEEN = 2000                   # the packets the station book counts t
 TRACKS_SEEN = 5000                       # the position packets the station book makes the tracks from at its start
 THIRD_PARTY_SEEN = 20_000              # the latest packets one station's third-party packets are looked for in (by the ids: the rest of the log is not read for them)
 PRUNE_SLICE = 5_000                      # the packets one transaction of the daily prune deletes: the write-ahead log of one is a few MB, and what waits behind it waits for that one
-HISTORY_FRESH_SEC = 60                   # how long the count of all packets by the hour (the statistics card's graph, asked again each minute by every page that shows it) is kept before it is counted again
 READINGS_SEEN = 1000                     # the most readings of one station's signal its graph is given, the latest: a week of a LoRa station that beacons every ten minutes, three weeks of an HF one
 HISTORY_READ = 1_000_000                # the most position packets the replay of the map is made from, the latest of them: a week of a busy APRS-IS feed is about half of it (they are thinned as they are read)
 
@@ -173,16 +172,16 @@ class PacketLog(DbLog):
     async def heard_by_hour(self, since: datetime, source: str | None = None, internet: bool = True) -> dict[datetime, int]:
         """How many packets were heard (not sent by us) in each hour of the clock at or after `since`, all of them or those whose source is `source` (one station's), by the top of the hour (UTC); hours with
         none are not in it. With `internet` false (Internet stations off) the packets that came from APRS-IS are not counted. The count of all stations scans a day of the log, so it is kept for
-        HISTORY_FRESH_SEC: pages that ask within the minute get the same answer, and the running hour is at most that much behind. Forgetting the heard packets drops it."""
+        FRESH_SEC: pages that ask within the minute get the same answer, and the running hour is at most that much behind. Forgetting the heard packets drops it."""
         key = (since, internet)
         now = self.clock()
-        if source is None and key in self._history and timedelta(0) <= now - self._history[key][0] < timedelta(seconds=HISTORY_FRESH_SEC):
+        if source is None and key in self._history and timedelta(0) <= now - self._history[key][0] < timedelta(seconds=FRESH_SEC):
             return dict(self._history[key][1])
         text = stamp(since)
         rows: list[tuple[str, int]] = await self._read(lambda conn: heard_by_hour(conn, text, source, internet), [])
         counted = {parse_stamp(hour + ":00:00.000000Z"): count for hour, count in rows}
         if source is None:
-            self._history = {k: v for k, v in self._history.items() if now - v[0] < timedelta(seconds=HISTORY_FRESH_SEC)}       # (what is older is not asked for any more: the hour moved on)
+            self._history = {k: v for k, v in self._history.items() if now - v[0] < timedelta(seconds=FRESH_SEC)}       # (what is older is not asked for any more: the hour moved on)
             self._history[key] = (now, counted)
         return dict(counted)
 

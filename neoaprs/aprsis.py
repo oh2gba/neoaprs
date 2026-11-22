@@ -22,7 +22,7 @@ from collections import deque
 from typing import Literal
 
 from . import PROGRAM, VERSION, nodevices
-from .aprsisline import is_comment, parse_is_line
+from .aprsisline import MAX_LINE, is_comment, parse_is_line
 from .callsign import call_problem
 from .clock import Clock, utcnow
 from .packet import Packet
@@ -39,7 +39,6 @@ QUIET_SEC = 120.0                                    # nothing written for this 
 LOST_SEC = 180.0                                     # nothing from the server for this long: the connection is lost
 WRITE_SEC = 30.0                                     # a write the server does not take in this time: the connection is lost
 QUEUE_MAX = 500                                      # lines waiting to be written; the oldest are dropped beyond it
-MAX_LINE = 512                                       # bytes of a line with its CR LF
 READ_LIMIT = 8192                                    # the longest line read from the server
 FILTER_MOVE_KM = 10                                  # the station moves this far and the filter is sent again
 READ_ONLY = "-1"                                     # the passcode of a login that only listens

@@ -17,11 +17,10 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from urllib.parse import urlsplit
 
+from neoaprs import radarcape, readsb
 from neoaprs.clock import Clock, utcnow
 from neoaprs.config import Config
-from neoaprs import radarcape, readsb
-from neoaprs.layerthing import AGE_CHECK_SEC, EVERY_SEC, LAYERS, MAX_PACKED, MAX_UNPACKED, OWN_RECEIVERS, Layer, LayerState, LayerTable, ReceiverState, Source, Thing, in_force, max_age_sec, nearest, newest, \
-    offered, service_url, within
+from neoaprs.layerthing import AGE_CHECK_SEC, EVERY_SEC, LAYERS, MAX_PACKED, MAX_UNPACKED, OWN_RECEIVERS, Layer, LayerState, LayerTable, ReceiverState, Source, Thing, in_force, max_age_sec, nearest, newest, offered, service_url, within
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet
 from neoaprs.updatefetch import fetch_feed
@@ -29,10 +28,10 @@ from neoaprs.versions import on_this_computer
 
 from .layerasked import AskedFeed, AskedSource, FetchFeed, LayerSource, SourceContext
 from .layerships import FintrafficShips, ShipReceiver
+from .updatecheck import ENV_SWITCH
 
 log = logging.getLogger("neoaprs.layers")
 
-ENV_SWITCH = "NEOAPRS_UPDATE_CHECK"
 ENV_URL = "NEOAPRS_LAYERS_URL"                  # development and tests: a server on this computer in the place of every service
 RECEIVER_TIMEOUT_SEC = 4.0                      # of each place tried on an own receiver (a search tries eight)
 RECEIVER_BACKOFF_MAX_SEC = 60.0                 # the longest wait after failures of an own receiver (on the station's own network: it is seen again soon after it is back)

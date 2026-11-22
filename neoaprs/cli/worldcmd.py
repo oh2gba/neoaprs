@@ -6,7 +6,6 @@ map should be refreshed, and commit the two files."""
 import argparse
 import asyncio
 import json
-import sys
 from pathlib import Path
 
 from neoaprs.clock import utcnow
@@ -14,6 +13,8 @@ from neoaprs.mapstate import MapError
 from neoaprs.pmtilesarchive import BUILDS, latest_build
 from neoaprs.pmtilescut import CutError, extract
 from neoaprs.worldmap import MAPS_DIR, SHIPPED_ZOOM, WORLD_FILE
+
+from .output import say
 
 MAX_BYTES = 8_000_000
 
@@ -26,10 +27,6 @@ def parse(argv: list[str]) -> argparse.Namespace:
     where.add_argument("--build", metavar="YYYYMMDD", help="the daily build of build.protomaps.com to cut from (default: the latest)")
     where.add_argument("--source", help="a web address or a PMTiles file to cut from")
     return parser.parse_args(argv)
-
-
-def say(text: str) -> None:
-    print(text, file=sys.stderr, flush=True)
 
 
 async def make(args: argparse.Namespace) -> Path:

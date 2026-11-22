@@ -168,6 +168,22 @@ def names_tcp(path: str) -> bool:
     return path.strip().lower().startswith(("socket://", "tcp://"))
 
 
+LINE_SPEED = 9600                    # what a line with no speed of its own (a TCP or a dummy line) is opened at
+
+
+def bracketed(host: str) -> str:
+    """The host as it stands in a URL or a Host header: an IPv6 address in brackets."""
+    return f"[{host}]" if ":" in host and not host.startswith("[") else host
+
+
 def tcp_url(host: str, port: int) -> str:
     """The `socket://` address the serial layer opens for a TCP KISS server (an IPv6 address in brackets)."""
-    return f"socket://{f'[{host}]' if ':' in host and not host.startswith('[') else host}:{port}"
+    return f"socket://{bracketed(host)}:{port}"
+
+
+def tcp_host(path: str) -> str:
+    """The host of a TCP port setting, without the brackets of an IPv6 address; "" for a setting that is none."""
+    if not names_tcp(path):
+        return ""
+    rest = path.split("://", 1)[1].rsplit(":", 1)[0]
+    return rest[1:-1] if rest.startswith("[") and rest.endswith("]") else rest

@@ -31,6 +31,9 @@ from .single import SingleApp
 
 log = logging.getLogger("neoaprs.desktop")
 
+# How long the tray is looked for when the desktop has none yet (the panel may start after the app at sign-in).
+TRAY_WAIT_SEC = 60.0
+TRAY_POLL_SEC = 2.0
 WEBVIEW2_CLIENT = "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
 WEBVIEW2_KEYS = (("HKEY_LOCAL_MACHINE", r"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients"), ("HKEY_LOCAL_MACHINE", r"SOFTWARE\Microsoft\EdgeUpdate\Clients"), ("HKEY_CURRENT_USER", r"SOFTWARE\Microsoft\EdgeUpdate\Clients"))
 Importer = Callable[[str], Any]

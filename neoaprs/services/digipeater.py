@@ -21,7 +21,6 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 
 from neoaprs import ax25
-from neoaprs.callsign import parse_call
 from neoaprs.clock import Clock, utcnow
 from neoaprs.crossrule import spliced
 from neoaprs.interlock import Interlock
@@ -33,7 +32,7 @@ from neoaprs.recent import Recent
 from neoaprs.route import INTERNET_MARKERS
 from neoaprs.services.common import ConfigSource
 from neoaprs.services.passlimits import BURST_MAX, BURST_WINDOW_SEC, Burst
-from neoaprs.services.passrows import Passer
+from neoaprs.services.passrows import Passer, own_call
 from neoaprs.services.radioset import AirRadio, RadioPick
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet, every
@@ -129,7 +128,7 @@ class Digipeater:
         duplicate = self.seen_on(radio.id).seen(duplicate_key(packet.source, packet.destination, packet.info), now)
         if packet.direction != "in" or duplicate:
             return
-        ours = _own(config.station_call)
+        ours = own_call(config.station_call)
         if ours is None:
             self._interlock.refused("digipeat")
             return
@@ -159,8 +158,3 @@ class Digipeater:
         self.passer.sent_on(radio, frame, raw, packet)              # (a frame sent again whose next hop is a pair's call crosses too: P6)
 
 
-def _own(call: str) -> tuple[str, int] | None:
-    try:
-        return parse_call(call)
-    except ValueError:
-        return None

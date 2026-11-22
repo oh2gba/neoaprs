@@ -31,7 +31,7 @@ from neoaprs.configradios import FLAT_HOMES, FLAT_KINDS, flat_moved, flat_now, r
 from neoaprs.configtypes import boolean
 from neoaprs.radiospec import KIND_WORDS, RadioSpec
 from neoaprs.radiotypes import BY_KEY as TYPES
-from neoaprs.db import Db
+from neoaprs.db import READ_WAIT_MS, Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.dbopen import open_connection
 from neoaprs.pairsetting import call_refusal
@@ -51,7 +51,6 @@ from .dbradios import Radios, add_radio, show_radios, stamp, stored_radios
 from .radiosettings import SHOWN_KEYS, in_force, own_key, port_problem, shown_settings, stored_text_of, value_text
 
 PROG = "neoaprs db"
-READ_WAIT_MS = 3000
 WRITE_WAIT_MS = 5000
 
 

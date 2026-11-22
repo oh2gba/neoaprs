@@ -13,11 +13,11 @@ from pathlib import Path
 
 from neoaprs.instancelock import APP_LOCK_NAME, AlreadyRunning, InstanceLock, is_file
 
+from .splash import PID_NAME, PORT_NAME
+
 log = logging.getLogger("neoaprs.desktop")
 
 LOCK_NAME = APP_LOCK_NAME
-PORT_NAME = "neoaprs-app.port"
-PID_NAME = "neoaprs-app.pid"           # the process id of the app that holds the folder: `--quit` waits for the process itself to be gone, not only for the lock (the window's engine unloads after the lock is let go)
 COMMANDS = ("show", "quit")
 HEAR_SEC = 2.0
 ACCEPT_SEC = 0.25

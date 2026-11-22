@@ -45,6 +45,7 @@ from neoaprs.packet import Message, Packet
 from neoaprs.route import received_text
 from neoaprs.services.common import ConfigSource
 from neoaprs.services.heard import ACK_AGAIN_SEC, Heard
+from neoaprs.services.qru import ADDRESSEE
 from neoaprs.services.keys import Keys, NoKeys
 from neoaprs.tasks import TaskSet
 
@@ -149,7 +150,7 @@ class Inbox:
 
     def _to_qru(self, packet: Packet, message: Message) -> bool:
         """Whether the message is a request to QRU that the QRU server took. A request is a broadcast and is never acked, whatever id it carries: an ack from our call would match nothing at the asker."""
-        return self._qru is not None and message.addressee.strip().upper() == "QRU" and message.ack_id is None and message.rej_id is None and self._qru(packet, message)
+        return self._qru is not None and message.addressee.strip().upper() == ADDRESSEE and message.ack_id is None and message.rej_id is None and self._qru(packet, message)
 
     def _overheard(self, packet: Packet, message: Message) -> None:
         """A message to another station: kept apart from the conversations (once for a repeat or a digipeater's copy). An ack or a reject of other stations is not a message and is not kept."""

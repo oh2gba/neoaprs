@@ -3,17 +3,17 @@ that the Tnc uses, feeds the bytes to the text reader (tnc2text.py) and hands ea
 is only listened to. A device that was left in KISS is still heard: once a KISS UI frame comes on an open, the line is read as KISS from then on (and still never written to).
 
 `reader_for` gives the Tnc the reader its profile needs, `accepts` is what the search for such a radio takes as its port (a line of text that reads as a heard packet, or a KISS UI frame: a quiet FTM is found
-once it hears a packet), and `printable` is the Terminal's text of what came."""
+once it hears a packet)."""
 import asyncio
 import logging
 from datetime import datetime
 from typing import Protocol
 
-from . import ax25, kiss
+from . import ax25
 from .packet import Packet
 from .radiotype import RadioId
 from .tnc2text import Rejected, TextReader, looks_like_text
-from .tncmode import looks_valid, packet_of
+from .tncmode import is_ui, looks_valid, packet_of, printable
 from .tncport import TncPort
 from .tncprofile import Profile
 from .tncreader import Line, Reader
@@ -34,20 +34,6 @@ class TextLine(Line, Protocol):
     def _saw(self, text: str) -> None: ...
     def _reject(self) -> None: ...
     def _take(self, packet: Packet, frame: ax25.Frame) -> None: ...
-
-
-def printable(text: str) -> str:
-    """The text with what does not print as "?" (a line of the Terminal)."""
-    return "".join(c if c.isprintable() else "?" for c in text)
-
-
-def _is_ui(frame: kiss.KissFrame) -> bool:
-    if frame.command != 0:
-        return False
-    try:
-        return ax25.decode(frame.payload).is_ui
-    except ax25.Ax25Error:
-        return False
 
 
 class TextLineReader(Reader):
@@ -74,7 +60,7 @@ class TextLineReader(Reader):
         tnc.confirmed = True
         tnc._hear()
         frames = self.decoder.feed(chunk)                                # (until a KISS frame comes, what the decoder makes of text is passed over)
-        if not self.kiss_seen and any(_is_ui(frame) for frame in frames):
+        if not self.kiss_seen and any(is_ui(frame) for frame in frames):
             self.kiss_seen, self.dropped_seen = True, self.decoder.dropped
             tnc._note("the radio sends KISS frames: they are read as KISS (nothing is sent to it)")
             log.info("%s: the radio sends KISS frames on a line set to read text: they are read as KISS", tnc.label)

@@ -11,6 +11,7 @@ from math import ceil
 from typing import Literal
 
 from .geo import distance_km
+from .units import NAUTICAL_MILE_KM
 
 Layer = Literal["aircraft", "ships"]
 Source = Literal["none", "adsbfi", "adsblol", "fintraffic", "radarcape", "receiver"]
@@ -28,7 +29,6 @@ ADSBLOL_URL = "https://api.adsb.lol/v2/lat/{lat}/lon/{lon}/dist/{nm}"
 FINTRAFFIC_LOCATIONS = "https://meri.digitraffic.fi/api/ais/v1/locations"
 FINTRAFFIC_VESSELS = "https://meri.digitraffic.fi/api/ais/v1/vessels"
 FINTRAFFIC_HEADERS = {"Digitraffic-User": "NeoAPRS"}
-KM_PER_NM = 1.852
 AREA_MARGIN_KM = 8                                             # what a request asks beyond the circle, so that a thing at its edge is not lost to the rounding of our position
 MAX_NM = 250                                                   # the most either aircraft service answers for
 
@@ -141,7 +141,7 @@ def request_point(lat: float, lon: float) -> tuple[str, str]:
 
 def request_nm(radius_km: int) -> int:
     """The radius a request asks for, in whole nautical miles: the circle and AREA_MARGIN_KM, at most MAX_NM."""
-    return min(MAX_NM, ceil((radius_km + AREA_MARGIN_KM) / KM_PER_NM))
+    return min(MAX_NM, ceil((radius_km + AREA_MARGIN_KM) / NAUTICAL_MILE_KM))
 
 
 def service_url(source: Source, lat: float, lon: float, radius_km: int) -> str:

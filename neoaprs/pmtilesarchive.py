@@ -1,9 +1,7 @@
 """The PMTiles archives of the base map outside the format: the zooms and the box of one in a file, moving a file into place, and the latest daily build of build.protomaps.com (the archive the map is cut from,
 neoaprs/pmtilescut.py). Nothing here imports Tornado or the settings."""
 import asyncio
-import http.client
 import os
-import struct
 import time
 import urllib.error
 import urllib.request
@@ -11,14 +9,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import IO
 
 from neoaprs.mapstate import MapError
 from . import nodevices
-from .httpstrust import https_handler
-from .pmtilesformat import HEADER_LENGTH
+from .httpstrust import USER_AGENT, NotDowngraded, https_handler
+from .pmtilesformat import HEADER_LENGTH, MAGIC, VERSION, unpack_header
 
-USER_AGENT = "NeoAPRS (+https://github.com/oh2gba/neoaprs)"
 UNREACHABLE = "the map server could not be reached; is there a connection?"
 REPLACE_TRIES = 8
 DOWNLOAD_THREADS = 8                        # parallel requests of a cut
@@ -26,14 +22,11 @@ BUILDS = "https://build.protomaps.com"
 BUILD_DAYS = 8                              # today's build and the seven before it: a day's build is not always published yet
 
 
-class Redirected(urllib.request.HTTPRedirectHandler):
-    """A redirect may not leave https for http, and under the no-devices switch it may not leave this computer."""
+class Redirected(NotDowngraded):
+    """Under the no-devices switch a redirect may not leave this computer."""
 
-    def redirect_request(self, req: urllib.request.Request, fp: IO[bytes], code: int, msg: str, headers: http.client.HTTPMessage, newurl: str) -> urllib.request.Request | None:
-        if req.full_url.startswith("https://") and not newurl.startswith("https://"):
-            raise urllib.error.HTTPError(req.full_url, code, "redirect from https to http", headers, fp)
+    def check(self, newurl: str) -> None:
         nodevices.check_url(newurl, "the map")
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 @dataclass(frozen=True)
@@ -50,10 +43,11 @@ def read_header(path: Path) -> Header | None:
             data = f.read(HEADER_LENGTH)
     except OSError:
         return None
-    if len(data) < HEADER_LENGTH or data[:7] != b"PMTiles" or data[7] != 3:
+    if len(data) < HEADER_LENGTH or data[:7] != MAGIC or data[7] != VERSION:
         return None
-    low, high, west, south, east, north = struct.unpack_from("<BB4i", data, 100)
-    return Header(low, high, (west / 1e7, south / 1e7, east / 1e7, north / 1e7))
+    fields = unpack_header(data)
+    west, south, east, north = fields.bounds_e7
+    return Header(fields.min_zoom, fields.max_zoom, (west / 1e7, south / 1e7, east / 1e7, north / 1e7))
 
 
 def replace_file(source: Path, target: Path) -> None:

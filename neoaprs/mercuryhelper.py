@@ -26,7 +26,7 @@ from .childprogram import HIDDEN_WINDOW as HIDDEN_WINDOW, LAST_LINES as LAST_LIN
 from .childprogram import Command as Command, _listeners as _listeners, environment as environment, foreign_listeners as foreign_listeners
 from .claims import Claims
 from .radiotype import RadioId
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET, PAIR, PORT_TRIES, UI_OFFSET, WASAPI_CAPTURE, WASAPI_PLAYBACK, Keying, SerialPort, SoundCard, audio_open_error, card_reason, card_with, choose_keying, choose_sound_card, keying_of, parse_sound_cards, unstamped
+from .mercury import BROADCAST_PORT, CONTROL_OFFSET, HOST, PAIR, PORT_TRIES, UI_OFFSET, WASAPI_CAPTURE, WASAPI_PLAYBACK, Keying, SerialPort, SoundCard, audio_open_error, card_reason, card_with, choose_keying, choose_sound_card, keying_of, parse_sound_cards, unstamped
 
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")         # what Mercury itself prints, one line each
@@ -37,7 +37,7 @@ STOP_WAIT_SEC = 5.0                  # how long a terminated Mercury is given to
 
 
 def program_file(system: str | None = None) -> str:
-    return f"{NAME}.exe" if (system or sys.platform).startswith("win") else NAME
+    return childprogram.program_file(NAME, system)
 
 
 def expected_program(tools: Path | None = None) -> Path:
@@ -48,15 +48,13 @@ def expected_program(tools: Path | None = None) -> Path:
 def find(tools: Path | None = None) -> Command | None:
     """The Mercury NeoAPRS ships: `mercury/mercury[.exe]` in the folder of the shipped programs (`tools`, by default this installation's); None when this installation has none (a wheel installed with pip or uv tool: the
     AppImage, the .deb and the Windows installer carry it)."""
-    program = expected_program(tools)
-    return [str(program)] if program.is_file() and os.access(program, os.X_OK) else None
+    return childprogram.found(expected_program(tools))
 
 
 def is_shipped(command: Command, tools: Path | None = None) -> bool:
     """Whether the command is the Mercury NeoAPRS ships, the one file `find` gives (the Windows installer's mercury.exe, the AppImage's, the .deb's, a checkout's build): the log says whether the program is the shipped one
     (not the tests' fake, an interpreter and a module; not a program named by its path elsewhere)."""
-    shipped = (tools if tools is not None else tools_dir()) / NAME / program_file()
-    return len(command) == 1 and Path(command[0]).resolve() == shipped.resolve()
+    return childprogram.runs_shipped(command, expected_program(tools))
 
 
 def _free(port: int) -> bool:
@@ -70,7 +68,7 @@ def _free(port: int) -> bool:
         if sys.platform != "win32":
             probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            probe.bind(("127.0.0.1", port))
+            probe.bind((HOST, port))
         except OSError:
             return False
     return not socket.has_ipv6 or _free_v6(port)

@@ -11,7 +11,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from .mercury import _RADIO_CARD, _RADIO_SERIAL_VID, Keying, SerialPort, SoundCard, choose_sound_card
+from .mercury import _RADIO_CARD, Keying, SerialPort, SoundCard, choose_sound_card, radio_serial_ports
 from .tncprofile import Profile
 
 # The one Direwolf NeoAPRS ships: every release carries this version, built from this source on every system it is offered on (scripts/build-direwolf: natively on Linux, cross-compiled with MinGW-w64 for
@@ -132,7 +132,7 @@ def choose_keying(card_name: str, ports: Sequence[SerialPort], tied: Sequence[st
     cable, or another radio's."""
     if _AIOC.search(card_name or ""):
         return Keying("cm108")
-    usb = [p for p in ports if p.vid is not None and p.vid in _RADIO_SERIAL_VID and not p.device.lower().startswith(("bt://", "ble://"))]
+    usb = radio_serial_ports(ports)
     near = [p for p in usb if p.device in tied] if tied is not None else usb if _RADIO_CARD.search(card_name or "") else []
     return Keying("rts", near[0].device) if len(near) == 1 else Keying("vox")
 

@@ -18,7 +18,6 @@ from .links import open_external, route, window_url
 log = logging.getLogger("neoaprs.desktop")
 
 SAVE_SIZE_MS = 500                       # a resize or a move is remembered when it has stopped for this long
-TITLE_POINT = (64, 16)                   # a point of the title bar, from the top left corner of the frame: where it is on a screen, the window can be taken hold of
 
 
 def make_profile(data: Path, parent: QObject | None = None) -> QWebEngineProfile:
@@ -77,7 +76,7 @@ class AppWindow(QMainWindow):
         self.setWindowIcon(icon)
         state = appstate.load_window(data)
         self.resize(state.width, state.height)
-        if state.x is not None and state.y is not None and QGuiApplication.screenAt(QPoint(state.x + TITLE_POINT[0], state.y + TITLE_POINT[1])) is not None:
+        if state.x is not None and state.y is not None and QGuiApplication.screenAt(QPoint(state.x + appstate.TITLE_POINT[0], state.y + appstate.TITLE_POINT[1])) is not None:
             self.move(state.x, state.y)
         if state.maximized:
             self.setWindowState(Qt.WindowState.WindowMaximized)

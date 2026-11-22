@@ -39,6 +39,7 @@ HEADER_BYTES = 3                       # Mercury's header and length in front of
 MAX_PAYLOAD = FRAME_BYTES - HEADER_BYTES       # the longest AX.25 frame that goes whole: 123 bytes (a 140-byte frame came out of the far Mercury as 123, scripts/mercury-bench)
 FRAME_SEC = 3.8                        # a frame on the air, PTT ON to PTT OFF, whatever the payload's length: measured 3.80 s over six frames (the audio is 3.41 s, 27280 samples; Mercury's modem.c adds 10 ms of TX delay, 100 ms of silence, 110 ms of preamble and postamble, 200 ms of tail and 100 ms more: 3.82 s by the code)
 DELIVERY_SEC = 3.8                     # from the frame handed to Mercury to the packet at the far station: measured 3.68 s on average and 3.78 s at the slowest (0.14 s to PTT ON, and the far side decodes 0.26 s before PTT OFF: the postamble and the tail are still on the air)
+HOST = "127.0.0.1"                    # where the modem programs listen: this computer only
 BROADCAST_PORT = 8100                  # Mercury's defaults (its docs/TNC.md): the KISS port, and the control port 200 below it
 CONTROL_PORT = 8300
 PORT_TRIES = 50                        # how many pairs of ports are tried from the defaults up
@@ -254,11 +255,16 @@ def propose_sound_card(cards: Sequence[SoundCard]) -> str:
     return choose_sound_card(cards) or next((c.id for c in cards if c.default), "") or next((c.id for c in cards if c.playback and c.capture), "") or (cards[0].id if cards else "")
 
 
+def radio_serial_ports(ports: Sequence[SerialPort]) -> list[SerialPort]:
+    """The USB serial adapters of a kind radios and interfaces use, never a Bluetooth port."""
+    return [p for p in ports if p.vid is not None and p.vid in _RADIO_SERIAL_VID and not p.device.lower().startswith(("bt://", "ble://"))]
+
+
 def choose_keying(card_name: str, ports: Sequence[SerialPort]) -> Keying:
     """How the radio is likely keyed: RTS of the one USB serial port of a radio or an interface when the sound card is a USB one (a DigiRig keys on RTS of its CP2102; an IC-7300 or an FT-710 with its USB cable keys on
     RTS when the radio's USB SEND is RTS, which the manuals say to set for digital modes), else VOX, which every radio has and which a SignaLink does by itself. A CM108-class chip could be keyed on its GPIO, but not
     every dongle wires the pin, so the serial line wins where there is one."""
-    usb = [p for p in ports if p.vid is not None and p.vid in _RADIO_SERIAL_VID and not p.device.lower().startswith(("bt://", "ble://"))]
+    usb = radio_serial_ports(ports)
     if _RADIO_CARD.search(card_name or "") and len(usb) == 1:
         return Keying("rts", usb[0].device)
     return Keying("vox")

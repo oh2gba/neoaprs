@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import Field
 
 from neoaprs.config import LATITUDE, LONGITUDE
-from neoaprs.ownbulletin import GROUP_MAX
+from neoaprs.bulletin import GROUP_MAX
 from neoaprs.ownobject import COMMENT_MAX, COURSE_MAX, OBJECT_NAME, QRU_GROUP_MAX, SPEED_MAX_KMH
 
 from .wirebase import Iso, MessageText, PathText, _Command, _Model

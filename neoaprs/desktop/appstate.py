@@ -7,13 +7,18 @@ import logging.handlers
 from dataclasses import dataclass
 from pathlib import Path
 
+from neoaprs.cli.logfile import APP_LOG_NAME
+
 STATE_NAME = "neoaprs-app.json"
-LOG_NAME = "neoaprs-app.log"
+LOG_NAME = APP_LOG_NAME
 PROFILE_NAME = "webview"
 WEBKIT_NAME = "webkit"
 DEFAULT_SIZE = (1280, 800)
 MIN_SIZE = (480, 320)
 MAX_SIZE = (16000, 16000)
+# A point of the title bar, from the top left corner of the frame: a window whose title bar shows
+# on a screen at this point can be taken hold of.
+TITLE_POINT = (64, 16)
 MAX_PLACE = 30_000                              # a place further out than this is nonsense (Windows puts a minimised window at -32000; three 4K monitors side by side end short of this)
 
 

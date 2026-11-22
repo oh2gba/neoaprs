@@ -32,6 +32,21 @@ Command = list[str]                  # how a program is run: its path, or an int
 HIDDEN_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)         # Windows: the program gets no console window of its own; 0 elsewhere
 
 
+def program_file(name: str, system: str | None = None) -> str:
+    """The file name of the program `name` on a system (`sys.platform` by default)."""
+    return f"{name}.exe" if (system or sys.platform).startswith("win") else name
+
+
+def found(program: Path) -> Command | None:
+    """The command that runs the shipped program at this path; None when it is not an executable file."""
+    return [str(program)] if program.is_file() and os.access(program, os.X_OK) else None
+
+
+def runs_shipped(command: Command, program: Path) -> bool:
+    """Whether the command is the one file `program`, not an interpreter and a module that stands in for it."""
+    return len(command) == 1 and Path(command[0]).resolve() == program.resolve()
+
+
 def environment(command: Command) -> dict[str, str]:
     """The environment a program runs with: the daemon's reduced one (childenv.py), and ALSA_CONFIG_PATH pointing at the ALSA configuration shipped beside the program when there is one (Linux: the bundled ALSA library
     would otherwise look for the system's /usr/share/alsa/alsa.conf, which a machine without ALSA installed does not have, and open no sound card)."""

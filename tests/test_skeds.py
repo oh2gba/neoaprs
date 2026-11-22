@@ -16,7 +16,8 @@ from neoaprs.cli.redaction import hides, shown_value
 from neoaprs.cli.supportgather import secrets_of, settings_json
 from neoaprs.clock import iso, utc
 from neoaprs.config import Config
-from neoaprs.services.skeds import ENV_SWITCH, ENV_URL, EVERY_SEC, MAX_BYTES, RETRY_SEC, SKEDS_EVERY_SEC, SkedError, Skeds
+from neoaprs.services.skeds import ENV_URL, EVERY_SEC, MAX_BYTES, RETRY_SEC, SKEDS_EVERY_SEC, SkedError, Skeds
+from neoaprs.services.updatecheck import ENV_SWITCH
 from neoaprs.skeds import MAX_ROWS, OURS_ROW, SKED_TOKEN, SKEDS_ROW, SKEDS_URL, TIME, TOKEN, Board, board_text, clean_note, endpoint_url, kept_board, kept_ids, our_call, parse_board, plain_note, request_body, when
 from neoaprs.updatefetch import fetch_answer, post_board
 from neoaprs.versions import Frequency, is_dial
@@ -571,8 +572,9 @@ def test_the_token_is_a_secret_by_its_name_for_the_log_the_bundle_and_the_listin
 
 
 def test_neoaprs_db_list_does_not_print_the_token(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    from neoaprs.cli.dbcmd import main
     import sqlite3
+
+    from neoaprs.cli.dbcmd import main
     from neoaprs.store import DB_NAME
     assert main(["--data", str(tmp_path), "set", "station/call", "oh2gba"]) == 0
     connection = sqlite3.connect(tmp_path / DB_NAME)

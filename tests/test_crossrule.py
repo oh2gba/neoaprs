@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import pytest
 
 from neoaprs import ax25
-from neoaprs.crossrule import ADDRESS_LEN, back_path, cross, first_unused, message_id, not_to_pass, reply_path, slow_channel, spliced
+from neoaprs.crossrule import back_path, cross, first_unused, message_id, not_to_pass, reply_path, slow_channel, spliced
 from neoaprs.packet import Packet
 from neoaprs.radiotypes import TYPES
 from neoaprs.tncmode import packet_of
@@ -85,7 +85,7 @@ def test_the_bytes_sent_again_are_the_heard_ones_with_only_the_path_changed() ->
     out = cross(heard, PAIR, OURS)
     assert out is not None
     assert spliced(raw, heard, out) == ax25.encode(out)
-    assert spliced(raw, heard, out)[: 2 * ADDRESS_LEN] == raw[: 2 * ADDRESS_LEN]
+    assert spliced(raw, heard, out)[: 2 * ax25.ADDRESS_LEN] == raw[: 2 * ax25.ADDRESS_LEN]
 
 
 def test_a_third_party_packet_is_never_passed_a_dummy_radios_too() -> None:

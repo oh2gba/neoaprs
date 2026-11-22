@@ -92,15 +92,17 @@ def _key(packet: Packet) -> DuplicateKey:
     return duplicate_key(packet.source, packet.destination, packet.info)
 
 
+def own_call(call: str) -> tuple[str, int] | None:
+    """The call as (call, SSID), None when it does not parse."""
+    try:
+        return parse_call(call)
+    except ValueError:
+        return None
+
+
 def _calls(calls: Collection[str]) -> set[tuple[str, int]]:
     """The calls as (call, SSID), those that do not parse left out."""
-    out: set[tuple[str, int]] = set()
-    for call in calls:
-        try:
-            out.add(parse_call(call))
-        except ValueError:
-            pass
-    return out
+    return {parsed for call in calls if (parsed := own_call(call)) is not None}
 
 
 def _answered(packet: Packet) -> str | None:

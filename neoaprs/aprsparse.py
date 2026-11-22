@@ -21,7 +21,9 @@ log = logging.getLogger("neoaprs.aprsparse")
 DAMAGED = "the packet is damaged or not in a form NeoAPRS understands"
 
 _OTHER_KINDS = {b"?": "query", b"}": "third-party", b"{": "user-defined", b"#": "weather", b"*": "weather", b",": "test", b"+": "shelter", b".": "space-weather"}      # the data types that are only named (the decoded ones are in _HANDLERS)
-_MICE = (b"'", b"`", b"\x1c", b"\x1d")
+POSITION_IDS = (b"!", b"=", b"/", b"@")
+MICE_CURRENT_IDS = (b"'", b"`")
+_MICE = (*MICE_CURRENT_IDS, b"\x1c", b"\x1d")
 _OBJECT_HEAD = 9 + 1 + 7                              # name, "*" or "_", timestamp: the position follows
 _ITEM_NAME = range(3, 10)                             # where the "!" or "_" that ends an item's name can be
 _BANG_LIMIT = 40                                      # the "!" of a position may be anywhere up to the 40th character (a digipeater of the X1J kind puts its own text first; deprecated since 2012, still read)
@@ -136,7 +138,7 @@ def _message(info: bytes, source: str, destination: str, now: datetime) -> Decod
 _Handler = Callable[[bytes, str, str, datetime], Decoded]
 # The decoder of each data type identifier that has one; the others are `Other` with the word of `_OTHER_KINDS`.
 _HANDLERS: dict[bytes, _Handler] = {
-    **dict.fromkeys((b"!", b"=", b"/", b"@"), _position), **dict.fromkeys(_MICE, _mice), b":": _message, b";": _object, b")": _item, b">": _status, b"[": _locator_beacon, b"_": _weather_report,
+    **dict.fromkeys(POSITION_IDS, _position), **dict.fromkeys(_MICE, _mice), b":": _message, b";": _object, b")": _item, b">": _status, b"[": _locator_beacon, b"_": _weather_report,
     b"$": _nmea, b"T": _telemetry, b"<": _capabilities, b"%": _agrelo}
 
 

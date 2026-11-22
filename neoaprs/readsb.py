@@ -13,9 +13,8 @@ from typing import Any
 
 from .clock import from_unix
 from .layerthing import AIRCRAFT_HOST, AIRCRAFT_PLACES, AIRCRAFT_PORTS, Thing
+from .units import FOOT_M, KNOT_KMH
 
-FEET_M = 0.3048
-KNOT_KMH = 1.852
 FPM_MS = 0.00508                                             # one foot a minute in metres a second
 EMERGENCY_SQUAWKS = frozenset({"7500", "7600", "7700"})      # unlawful interference, radio failure, emergency
 MILLISECONDS_FROM = 1e11                                     # a `now` above this is in milliseconds (the services), below it in seconds (a receiver's file)
@@ -124,9 +123,9 @@ def _heading(aircraft: dict[str, Any]) -> int | None:
 
 
 def _altitude_m(aircraft: dict[str, Any]) -> int | None:
-    metres = converted(aircraft.get("alt_baro"), FEET_M, ALTITUDE_M_RANGE)
+    metres = converted(aircraft.get("alt_baro"), FOOT_M, ALTITUDE_M_RANGE)
     if metres is None:
-        metres = converted(aircraft.get("alt_geom"), FEET_M, ALTITUDE_M_RANGE)
+        metres = converted(aircraft.get("alt_geom"), FOOT_M, ALTITUDE_M_RANGE)
     return None if metres is None else int(round(metres))
 
 

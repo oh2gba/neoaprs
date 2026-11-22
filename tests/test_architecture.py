@@ -188,7 +188,7 @@ RADIO_WORDS: dict[str, tuple[int, str, str]] = {
     "neoaprs/radioregistry.py": (4, "W3", "the log's words of radios 1 and 2's lines, `tnc` and `hf radio` (id in (FM_ID, HF_ID))"),
     "neoaprs/radiospec.py": (5, "open", "the re-exports of FM_ID and HF_ID, and the kinds' English words by kind (KIND_WORDS, whose place is beside KINDS)"),
     "neoaprs/services/answers.py": (4, "open", "radios 1 and 2 named by their kind in an answer (radio.id in (FM_ID, HF_ID))"),
-    "neoaprs/services/beaconframe.py": (11, "W3", "the line of before (OldLine: a Tnc's kind as its radio's), radio 1's path for a radio of a kind with none"),
+    "neoaprs/services/beaconframe.py": (4, "W3", "the line of before (OldLine: a Tnc's kind as its radio's), radio 1's path for a radio of a kind with none"),
     "neoaprs/services/common.py": (11, "W3", "Radio and RadioSet of before (of('fm'), FM_ALLOWED or HF_ALLOWED by kind, radio 1's path)"),
     "neoaprs/services/digipeater.py": (2, "open", "a packet with no radio counted as radio 1's"),
     "neoaprs/sendonrule.py": (2, "open", "radio 1 as what a new object or bulletin starts with while the station has no radio that sends (FM_ID)"),

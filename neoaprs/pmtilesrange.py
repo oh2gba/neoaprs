@@ -17,9 +17,9 @@ from pathlib import Path
 from typing import Protocol, cast
 
 from . import nodevices
-from .httpstrust import https_handler
+from .httpstrust import USER_AGENT, https_handler
 from .mapstate import Problem
-from .pmtilesarchive import UNREACHABLE, USER_AGENT, Redirected
+from .pmtilesarchive import UNREACHABLE, Redirected
 
 log = logging.getLogger("neoaprs.mapfetch")
 

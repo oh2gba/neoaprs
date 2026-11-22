@@ -9,7 +9,8 @@ import pytest
 
 from neoaprs import mercury
 from neoaprs.mercurymodem import Mercury
-from neoaprs.services.frequencies import ENV_SWITCH, ENV_URL, FREQUENCIES_EVERY_SEC, Frequencies
+from neoaprs.services.frequencies import ENV_URL, FREQUENCIES_EVERY_SEC, Frequencies
+from neoaprs.services.updatecheck import ENV_SWITCH
 from neoaprs.versions import FREQUENCIES_ROW, FREQUENCIES_URL, MAX_FREQUENCIES, Frequency, frequencies_text, on_this_computer, parse_frequencies, suggested
 from tests.support.env import Env, remember_stop, until
 from tests.support.fakemercury import Air

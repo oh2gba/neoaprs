@@ -17,6 +17,7 @@ from .callsign import PATH_ELEMENT, CallsignError, normal_name
 from .packet import IS, Packet
 from .route import IGATE_QS, is_q_construct
 
+MAX_LINE = 512                                       # bytes of a line of APRS-IS with its CR LF
 PATH_MAX = 32                                      # elements between the destination and the colon (a server adds a few to the 8 an AX.25 path may have)
 _IPV6_ELEMENT = re.compile(r"[0-9A-Fa-f]{32}")      # what aprsc puts after the q-construct for a client it knows by an IPv6 address
 

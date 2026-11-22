@@ -9,17 +9,15 @@ import threading
 from collections.abc import Callable
 from typing import Any, Protocol
 
-from . import splash
+from . import appstate, splash
 from .menu import QUIT, AppActions
+from .shell import TRAY_POLL_SEC, TRAY_WAIT_SEC
 from .sizekeep import SizeKeeper
 
 log = logging.getLogger("neoaprs.desktop")
 
-TRAY_WAIT_SEC = 60.0                            # a desktop that starts the app at sign-in may not have its panel up yet: the tray is looked for this long before the window is shown for want of one
-TRAY_POLL_SEC = 2.0
 TRAY_WATCHER = "org.kde.StatusNotifierWatcher"   # the bus name a desktop's tray host owns (KDE, GNOME's AppIndicator extension, Xfce's and others' panels): the same question Qt asks
 BUS_WAIT_MS = 1000
-TITLE_POINT = (64, 16)                          # a point of the title bar, from the top left corner of the frame: where it is on a screen, the window can be taken hold of
 
 
 class WebFrame(Protocol):
@@ -93,7 +91,7 @@ def on_a_screen(system: str, x: int, y: int) -> bool:
         return True
     try:
         gdk = importlib.import_module("gi.repository.Gdk")
-        px, py = x + TITLE_POINT[0], y + TITLE_POINT[1]
+        px, py = x + appstate.TITLE_POINT[0], y + appstate.TITLE_POINT[1]
         area = gdk.Display.get_default().get_monitor_at_point(px, py).get_geometry()
         return bool(area.x <= px < area.x + area.width and area.y <= py < area.y + area.height)
     except Exception:

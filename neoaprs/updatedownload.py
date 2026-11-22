@@ -12,7 +12,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import IO, Any, Protocol
 from . import nodevices
-from .httpstrust import https_handler
+from .httpstrust import USER_AGENT, https_handler
 
 log = logging.getLogger("neoaprs.update")
 
@@ -20,7 +20,6 @@ TIMEOUT_SEC = 30.0
 CHUNK = 256 * 1024
 MAX_SUMS_BYTES = 64 * 1024                 # SHA256SUMS is a few lines
 MAX_FILE_BYTES = 600 * 1024 * 1024         # the AppImage is about 150 MB
-USER_AGENT = "NeoAPRS (+https://github.com/oh2gba/neoaprs)"
 
 Allowed = Callable[[str], bool]
 Progress = Callable[[int, int | None], None]          # (bytes so far, the size the server said or None)

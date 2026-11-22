@@ -12,18 +12,16 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urlsplit
 
 import tornado.web
 
 from neoaprs.updatefetch import post
-from neoaprs.versions import SUPPORT_URL
+from neoaprs.versions import SUPPORT_URL, on_this_computer
 
 from .supporthandler import SupportBundle
 
 log = logging.getLogger("neoaprs.web")
 
-LOOPBACK_HOSTS = ("127.0.0.1", "localhost")
 ENV_URL = "NEOAPRS_SUPPORT_URL"                  # development and tests: the address of a fake server on this computer, instead of SUPPORT_URL
 MAX_NOTE = 2000                                  # characters of what the person writes (the dialog holds the same limit; the server cuts at it too)
 MAX_SEND_BYTES = 10 * 1024 * 1024                # what the server takes in one request; a bundle is a megabyte or two
@@ -41,16 +39,6 @@ class Sent:
 
     def wire(self) -> dict[str, Any]:
         return {"ok": True, "ref": self.ref} if self.ok else {"ok": False, "reason": self.reason}
-
-
-def on_this_computer(text: str) -> bool:
-    """Whether `text` is the address of a server on this computer: http or https, the host 127.0.0.1 or localhost, no user, no space."""
-    try:
-        parts = urlsplit(text)
-        _ = parts.port                                  # (a port that is not a number raises)
-    except ValueError:
-        return False
-    return parts.scheme in ("http", "https") and parts.hostname in LOOPBACK_HOSTS and "@" not in parts.netloc and not any(c.isspace() for c in text)
 
 
 def support_url(environ: Mapping[str, str] = os.environ) -> str:

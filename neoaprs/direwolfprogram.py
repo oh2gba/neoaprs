@@ -30,7 +30,7 @@ STOP_WAIT_SEC = 3.0                  # how long Direwolf is given to end after i
 
 
 def program_file(system: str | None = None) -> str:
-    return f"{NAME}.exe" if (system or sys.platform).startswith("win") else NAME
+    return childprogram.program_file(NAME, system)
 
 
 def expected_program(tools: Path | None = None) -> Path:
@@ -40,13 +40,12 @@ def expected_program(tools: Path | None = None) -> Path:
 
 def find(tools: Path | None = None) -> Command | None:
     """The Direwolf NeoAPRS ships; None when this installation has none (a wheel installed with pip, a Mac: the AppImage, the .deb and the Windows installer carry it)."""
-    program = expected_program(tools)
-    return [str(program)] if program.is_file() and os.access(program, os.X_OK) else None
+    return childprogram.found(expected_program(tools))
 
 
 def is_shipped(command: Command, tools: Path | None = None) -> bool:
     """Whether the command is the Direwolf NeoAPRS ships (not the tests' fake, an interpreter and a module)."""
-    return len(command) == 1 and Path(command[0]).resolve() == expected_program(tools).resolve()
+    return childprogram.runs_shipped(command, expected_program(tools))
 
 
 def working_folder(command: Command, home: Path) -> Path:

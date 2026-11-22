@@ -6,7 +6,7 @@ shortened to what a radio with a fixed frame carries: the Mercury HF modem's 123
 gated by and sent on *its* radio, the one the station is reached on or the one the request came on, never "the radio" of a station that has two."""
 import logging
 from collections.abc import Callable, Sequence
-from typing import Any, Protocol, TypeGuard, cast, runtime_checkable
+from typing import Any, Protocol, TypeIs, runtime_checkable
 
 from neoaprs import ax25
 from neoaprs.beaconrule import send_on_radios
@@ -14,7 +14,7 @@ from neoaprs.coded import CodedError
 from neoaprs.config import Config, can_transmit
 from neoaprs.message import MessagingError
 from neoaprs.packet import Packet
-from neoaprs.radiospec import log_name
+from neoaprs.radiospec import RadioSpec, log_name
 from neoaprs.radiotype import FM_ID, HF_ID, Allowed, Kind, Limits, RadioId, RadioType
 from neoaprs.radiotypes import kind_field
 from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, first_sender
@@ -55,6 +55,17 @@ class RadioSet(Radio, Protocol):
 
 # ---- the old shapes as the new one, for the tests that still give one
 
+def old_id(kind: str) -> RadioId:
+    """The id of the radio an old-shape radio of this kind is: hf 2, anything else fm 1."""
+    return HF_ID if kind == "hf" else FM_ID
+
+
+def old_spec(config: Config, id: RadioId, key: str | None = None) -> RadioSpec | None:
+    """The settings of radio `id`, or radio 1's where it has none (or none with the field `key`)."""
+    spec = config.radio(id)
+    return spec if spec is not None and (key is None or kind_field(spec.kind, key) is not None) else config.radio(FM_ID)
+
+
 class OldAir:
     """An old Radio (a Tnc, the old set as its default radio, a test's stub) as an AirRadio: its id by its type's kind (fm 1, hf 2), its kind, its limits and what it is allowed its type's, its own choices
     from the station's radio of that id (the FM radio's where its kind has no such field: the one beacon/path and digi/enabled of today were the station's), its counters its line's."""
@@ -70,7 +81,7 @@ class OldAir:
 
     @property
     def id(self) -> RadioId:
-        return HF_ID if self.kind == "hf" else FM_ID
+        return old_id(self.kind)
 
     @property
     def kind(self) -> Kind:
@@ -113,10 +124,7 @@ class OldAir:
         return self.radio.send_frame(frame, raw)
 
     def choice(self, key: str) -> Any:
-        config = self._config()
-        spec = config.radio(self.id)
-        if spec is None or kind_field(spec.kind, key) is None:
-            spec = config.radio(FM_ID)
+        spec = old_spec(self._config(), self.id, key)
         return None if spec is None else spec.value(key)
 
 
@@ -163,14 +171,14 @@ class OldRadios:
         return self._of("fm") or next(iter(self.enabled()), None)
 
 
-def is_pick(radios: object) -> TypeGuard[RadioPick]:
+def is_pick(radios: RadioPick | Radio) -> TypeIs[RadioPick]:
     """Whether this is a RadioPick (the registry, a test's), not an old shape: it has the radios by id and the email radio, which no Radio and no old set has."""
     return callable(getattr(radios, "get", None)) and callable(getattr(radios, "email", None))
 
 
 def as_pick(radios: RadioPick | Radio, config: ConfigSource) -> RadioPick:
     """The radios as a RadioPick: the registry as it is, an old shape as OldRadios."""
-    return radios if is_pick(radios) else OldRadios(cast(Radio, radios), config)
+    return radios if is_pick(radios) else OldRadios(radios, config)
 
 
 def send_on(radios: RadioPick | Radio, config: ConfigSource, key: str) -> list[AirRadio]:

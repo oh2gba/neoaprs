@@ -2,11 +2,16 @@
 browser asks for one, so Python, which reads the system's list as it stands, failed with CERTIFICATE_VERIFY_FAILED on GitHub's download servers where the browser of the same computer downloaded the same file (John's
 Windows VM, 3 Nov 2026). Adding a list of roots changes no check: the name, the dates and the chain of the server's certificate are verified as before."""
 import functools
+import http.client
 import logging
 import ssl
+import urllib.error
 import urllib.request
+from typing import IO
 
 log = logging.getLogger("neoaprs.update")
+
+USER_AGENT = "NeoAPRS (+https://github.com/oh2gba/neoaprs)"
 
 
 @functools.cache
@@ -24,3 +29,16 @@ def https_context() -> ssl.SSLContext:
 def https_handler() -> urllib.request.HTTPSHandler:
     """The handler an opener is built with, so that its https requests use `https_context`."""
     return urllib.request.HTTPSHandler(context=https_context())
+
+
+class NotDowngraded(urllib.request.HTTPRedirectHandler):
+    """A redirect may not leave https for http. `check` is called with each address a redirect goes to."""
+
+    def check(self, newurl: str) -> None:
+        """Raise to refuse the address."""
+
+    def redirect_request(self, req: urllib.request.Request, fp: IO[bytes], code: int, msg: str, headers: http.client.HTTPMessage, newurl: str) -> urllib.request.Request | None:
+        if req.full_url.startswith("https://") and not newurl.startswith("https://"):
+            raise urllib.error.HTTPError(req.full_url, code, "redirect from https to http", headers, fp)
+        self.check(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)

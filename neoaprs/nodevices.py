@@ -29,13 +29,13 @@ import urllib.request
 from urllib.parse import urlsplit
 
 from . import direwolf, mercury
+from .tncprofile import names_tcp
 
 log = logging.getLogger("neoaprs.nodevices")
 
 ENV = "NEOAPRS_NO_DEVICES"
 OFF_VALUES = frozenset({"", "0"})                # the values that leave the switch off (a variable that is not set counts as the empty one); every other value sets it
 LOCAL_NAMES = frozenset({"", "localhost"})        # the names that are this computer without a lookup (no host at all is this computer too); any other name is refused unasked
-TCP_PORTS = ("socket://", "tcp://")              # the ports that are a TCP connection (KISS over TCP), which may be one to the loopback
 TOLD_MAX = 500                                   # the doors remembered as told; the memory starts over beyond that
 
 _told: set[str] = set()
@@ -141,7 +141,7 @@ def check_port(path: str, level: int = logging.WARNING) -> None:
     if not on():
         return
     port = path.strip()
-    if port.lower().startswith(TCP_PORTS):
+    if names_tcp(port):
         check_url(port, "a KISS TCP port", level)
         if _tcp_port_refused(port, level):
             raise ConnectionRefusedError(errno.ECONNREFUSED, os.strerror(errno.ECONNREFUSED))

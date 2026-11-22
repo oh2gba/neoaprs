@@ -52,6 +52,9 @@ END_LOOK_SEC = 0.1          # how often a close looks whether the thread has end
 CHECKPOINTS = {"PASSIVE": "PRAGMA wal_checkpoint(PASSIVE)", "FULL": "PRAGMA wal_checkpoint(FULL)", "RESTART": "PRAGMA wal_checkpoint(RESTART)", "TRUNCATE": "PRAGMA wal_checkpoint(TRUNCATE)"}
 
 
+READ_WAIT_MS = 3000          # how long a command that only reads waits for the daemon's write to finish
+
+
 class Db:
     def __init__(self, opener: Callable[[], sqlite3.Connection], *, name: str = "neoaprs-db", tuning: Tuning | None = None) -> None:
         self._opener = opener

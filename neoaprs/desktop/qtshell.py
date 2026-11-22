@@ -17,15 +17,14 @@ from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 from .menu import QUIT, AppActions
 from .session import NoPage
-from .shell import Launch, ShellContext
+from .shell import TRAY_POLL_SEC, TRAY_WAIT_SEC, Launch, ShellContext
 
 if TYPE_CHECKING:
     from .qtwindow import AppWindow
 
 log = logging.getLogger("neoaprs.desktop")
 
-TRAY_WAIT_SEC = 60                              # a desktop that starts the app at sign-in may not have its panel up yet: the tray is looked for this long before the window is shown for want of one
-TRAY_POLL_MS = 2000
+TRAY_POLL_MS = int(TRAY_POLL_SEC * 1000)
 
 
 def icon_path() -> Path:

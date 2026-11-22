@@ -23,7 +23,7 @@ from neoaprs.config import Config
 from neoaprs.configtypes import KEY_ALPHABET, KEY_GROUP_SIZE, KEY_GROUPS, access_key
 
 from .addresses import is_loopback
-from .headers import host_name, origin_is_host
+from .headers import host_name, refuse_foreign_origin
 from .pagefiles import Secured
 
 log = logging.getLogger("neoaprs.web")
@@ -155,9 +155,8 @@ class _Answer(Secured):
         super().prepare()
         if self._finished:
             return
-        origin = self.request.headers.get("Origin")
-        if self.request.method not in ("GET", "HEAD", "OPTIONS") and origin is not None and not origin_is_host(origin, self.request.headers.get("Host", "")):
-            raise tornado.web.HTTPError(403)
+        if self.request.method not in ("GET", "HEAD", "OPTIONS"):
+            refuse_foreign_origin(self.request)
 
     @property
     def server(self) -> Any:

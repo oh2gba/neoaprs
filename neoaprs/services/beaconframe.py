@@ -31,10 +31,10 @@ from neoaprs.config import ANTENNA_DIRECTIONS, SYMBOL_TABLES, Config, can_transm
 from neoaprs.configstatus import MAX_STATUS
 from neoaprs.configtypes import over_the_air_refusal
 from neoaprs.gpsfix import Fix
-from neoaprs.radiospec import FM_ID, HF_ID, RadioId, RadioSpec, log_name
+from neoaprs.radiospec import RadioId, RadioSpec, log_name
 from neoaprs.radiotype import Allowed, Kind, Limits
 from neoaprs.radiotypes import kind_field
-from neoaprs.services.common import ConfigSource, Radio
+from neoaprs.services.common import ConfigSource, Radio, old_id, old_spec
 from neoaprs.services.mobilebeacon import Positions, mobile_info
 from neoaprs.services.radioset import FRAME_ERRORS, AirRadio, fit_frame, fixed_prefix, our_frame, path_on
 from neoaprs.tnc2line import text_of
@@ -88,12 +88,10 @@ class OldLine:
 
     @property
     def id(self) -> RadioId:
-        return HF_ID if self.kind == "hf" else FM_ID
+        return old_id(self.kind)
 
     def _spec(self, key: str | None = None) -> RadioSpec | None:
-        c = self._config()
-        spec = c.radio(self.id)
-        return spec if spec is not None and (key is None or kind_field(spec.kind, key) is not None) else c.radio(FM_ID)
+        return old_spec(self._config(), self.id, key)
 
     @property
     def name(self) -> str:
@@ -269,9 +267,7 @@ def _path_problem(radio: AirRadio, c: Config) -> str:
     replaced by the default path."""
     if not radio.allowed.paths:
         return ""
-    spec = c.radio(radio.id)
-    if spec is None or kind_field(spec.kind, "path") is None:
-        spec = c.radio(FM_ID)                                   # (a radio whose kind has no path of its own goes by radio 1's, as OldLine.choice does)
+    spec = old_spec(c, radio.id, "path")
     found = None if spec is None else kind_field(spec.kind, "path")
     text = None if spec is None else spec.settings.get("path")
     if found is None or text is None:

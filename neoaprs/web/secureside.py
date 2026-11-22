@@ -14,11 +14,12 @@ import ssl
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 from neoaprs.clock import Clock
 
 from .addresses import lan_addresses
+from .configwire import HttpsReason
 from .connections import LimitedHTTPServer
 from .listen import listen_first, ports_near
 
@@ -31,7 +32,6 @@ FOLDER = "tls"                                              # in the data folder
 RECHECK_SEC = 3600.0
 RETRY_SEC = 300.0
 ServerFactory = Callable[[ssl.SSLContext], LimitedHTTPServer]
-HttpsReason = Literal["", "no_library", "clock", "certificates", "no_port"]
 
 
 @dataclass(frozen=True)

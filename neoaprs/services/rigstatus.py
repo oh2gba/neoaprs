@@ -25,7 +25,7 @@ itself; the frames as the one maker, or as a beacon made the old way, whose make
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
-from typing import Literal, TypeIs
+from typing import Literal
 
 from neoaprs import ax25
 from neoaprs.beaconrule import beacon_interval, send_on_radios
@@ -39,7 +39,7 @@ from neoaprs.radiospec import RadioId, live
 from neoaprs.rigctld import Reading, RigError, read_rig
 from neoaprs.services.beacon import Beacon
 from neoaprs.services.beaconframe import BeaconError, BeaconFrames, air_of
-from neoaprs.services.common import ConfigSource, Radio
+from neoaprs.services.common import ConfigSource, Radio, is_pick
 from neoaprs.services.memory import Memory, Remembered, stamp
 from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, first_sender
 from neoaprs.tasks import TaskSet, every
@@ -66,11 +66,6 @@ def freq_text(hz: int) -> str:
 def clipped(text: str, max_length: int = MAX_STATUS) -> str:
     """The text as a status may carry it: only printable ASCII (what the radio names a mode with anything else, and `|` and `~`, becomes `?`), cut to at most `max_length` characters."""
     return "".join(c if over_the_air_problem(c) == "" else "?" for c in text)[:max_length]
-
-
-def is_pick(radios: RadioPick | Radio) -> TypeIs[RadioPick]:
-    """Whether the radios are the registry's choice of a radio (it has `get` and `email`), not a radio of the old shape."""
-    return hasattr(radios, "get") and hasattr(radios, "email")
 
 
 class RigStatus:

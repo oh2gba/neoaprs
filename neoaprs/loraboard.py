@@ -23,8 +23,9 @@ from .lorasignal import console_line, from_internet, list_key, ninth_element, pa
 from .radiotype import ONLY_RECEIVES
 from .reading import LIST_WAIT_SEC, NO_READING, REPORT_WAIT_SEC, Following, Reading
 from .tnc2line import LineReader, TextLine, read_line, text_of
+from .tncmode import printable
 from .tncport import TncPort
-from .tncprofile import Profile, names_tcp
+from .tncprofile import Profile, tcp_host
 from .tncwatchdog import TncStats
 from .coded import Reason
 
@@ -55,20 +56,8 @@ class Owner(Protocol):
     def _spawn(self, coro: Coroutine[Any, Any, None]) -> "asyncio.Task[None]": ...
 
 
-def printable(text: str) -> str:
-    return "".join(c if c.isprintable() else "?" for c in text)
-
-
 def _words(text: bytes) -> str:
     return printable(text.decode("utf-8", "replace"))
-
-
-def host_of(path: str) -> str:
-    """The host of a TCP line's address (`socket://192.168.1.20:8001`, an IPv6 address in brackets); "" for a line that is none."""
-    if not names_tcp(path):
-        return ""
-    rest = path.split("://", 1)[1].rsplit(":", 1)[0]
-    return rest[1:-1] if rest.startswith("[") and rest.endswith("]") else rest
 
 
 class KissText:
@@ -137,7 +126,7 @@ class LoraBoard:
         self.text_since_kiss = False                                   # a packet came as text, and no KISS frame since: nothing is sent
         self._nudged = False
         self._reports = False                                          # esp32_loraprs's command 7 came on this open: its frames wait for theirs
-        self._list = tnc.profile.board_readings and tnc.profile.transport == "tcp" and bool(host_of(tnc.path))     # the iGate's list, on the board on the network: asked for until it fails once
+        self._list = tnc.profile.board_readings and tnc.profile.transport == "tcp" and bool(tcp_host(tnc.path))     # the iGate's list, on the board on the network: asked for until it fails once
         self._asking = self._again = False
         self._used: deque[tuple[str, str, Reading]] = deque(maxlen=KEPT_USED)
         self._start = False                                            # where this open's entries begin in the list is known: what it held at the open is in `_used`
@@ -260,7 +249,7 @@ class LoraBoard:
             self._again = True
             return
         self._asking = True
-        self._tnc._spawn(self._fetch(host_of(self._tnc.path), self._serial))
+        self._tnc._spawn(self._fetch(tcp_host(self._tnc.path), self._serial))
 
     async def _fetch(self, host: str, sent: int) -> None:
         """The list asked once `sent` frames had come on this open: the board put each of them in its list before it handed it on, so the answer holds the entry of each, if the list still has it."""

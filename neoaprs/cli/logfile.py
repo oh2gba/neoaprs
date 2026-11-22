@@ -8,6 +8,7 @@ from pathlib import Path
 from neoaprs.instancelock import is_file
 
 LOG_NAME = "neoaprs.log"
+APP_LOG_NAME = "neoaprs-app.log"
 LAUNCH_NAME = "launch.log"                                  # what a daemon that was started by a command says before it has a log: a traceback
 START_LINE = " starting, data in "
 START_FORMAT = "%s %s" + START_LINE + "%s"                  # program, version, data folder (a logging format)

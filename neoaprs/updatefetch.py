@@ -24,7 +24,7 @@ from urllib.parse import unquote, urlsplit, urlunsplit
 
 from . import nodevices
 from .updatedownload import in_thread
-from .httpstrust import https_handler
+from .httpstrust import NotDowngraded, https_handler
 
 log = logging.getLogger("neoaprs.update")
 
@@ -40,14 +40,9 @@ AUTHORIZATION = "Authorization"
 PACKED = ("gzip", "x-gzip")
 
 
-class _NotDowngraded(urllib.request.HTTPRedirectHandler):
-    """A redirect may not leave https for http."""
-
-    def redirect_request(self, req: urllib.request.Request, fp: IO[bytes], code: int, msg: str, headers: http.client.HTTPMessage, newurl: str) -> urllib.request.Request | None:
-        if req.full_url.startswith("https://") and not newurl.startswith("https://"):
-            raise urllib.error.HTTPError(req.full_url, code, "redirect from https to http", headers, fp)
+class _NotDowngraded(NotDowngraded):
+    def check(self, newurl: str) -> None:
         nodevices.check_url(newurl, level=logging.DEBUG)             # (under the no-devices switch a server of this computer sends nobody on to another one)
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 class _FeedRedirect(_NotDowngraded):
