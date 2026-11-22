@@ -34,6 +34,7 @@ Exit code 0 when every check passed, 1 when one failed or could not run, 2 when 
 missing or does not answer, or an argument is wrong. Needs Linux, docker, uv, curl, dpkg-deb, and
 for Mercury gcc, make and libasound2-dev.
 """
+
 import argparse
 import hashlib
 import json
@@ -54,9 +55,12 @@ ROOT = Path(__file__).resolve().parent.parent
 CONTAINER = ROOT / "scripts" / "check-in-container"
 PIN = ROOT / "packaging" / "ci" / "old-release.json"
 CHECKS = ("wheel", "deb-debian", "deb-ubuntu", "appimage", "upgrade")
-TRIAL_CHECKS = ("appimage-web",)                                          # run only when named with --only
+TRIAL_CHECKS = ("appimage-web",)  # run only when named with --only
 # Ubuntu by its index digest; tag and digest move together.
-DEBIAN, UBUNTU = "debian:bookworm-slim", "ubuntu:24.04@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+DEBIAN, UBUNTU = (
+    "debian:bookworm-slim",
+    "ubuntu:24.04@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5",
+)
 # The address neoaprs/updateasset.py uses.
 RELEASES = "https://github.com/oh2gba/neoaprs/releases/download"
 MAX_DOWNLOAD = 200_000_000
@@ -67,7 +71,13 @@ TAIL_LINES = 40
 ENVIRONMENT = ("--env", "NEOAPRS_UPDATE_CHECK=0", "--env", "NEOAPRS_NO_DEVICES=1")
 FIXTURE = Path("tests") / "fixtures" / "kiss" / "thd7-2026-10-21.bin"
 # What the containers run, in the folder `probe`.
-PROBE_FILES = (Path("scripts") / "smoke.py", Path("scripts") / "install-probe.py", Path("scripts") / "smoke-appimage", Path("neoaprs") / "mercury.py", FIXTURE)
+PROBE_FILES = (
+    Path("scripts") / "smoke.py",
+    Path("scripts") / "install-probe.py",
+    Path("scripts") / "smoke-appimage",
+    Path("neoaprs") / "mercury.py",
+    FIXTURE,
+)
 WEB_PROBE_FILES = (Path("scripts") / "smoke-appimage-web", Path("scripts") / "webkit-probe.py")
 
 # What runs inside a container: the built files are mounted read-only at /work, and VERSION,
@@ -93,12 +103,19 @@ DNF = "dnf install -y -q xorg-x11-server-Xvfb dbus-daemon dbus-tools curl gtk3 g
 WEB_GL = {"apt": "libgl1-mesa-dri", "dnf": "mesa-dri-drivers"}
 # Image, installer, WebKitGTK packages, expected outcome.
 WEB_CASES = (
-    ("debian:bookworm", "apt", "libwebkit2gtk-4.1-0", "window"), ("debian:trixie", "apt", "libwebkit2gtk-4.1-0", "window"),
-    ("ubuntu:22.04", "apt", "libwebkit2gtk-4.1-0", "window"), ("ubuntu:24.04", "apt", "libwebkit2gtk-4.1-0", "window"), ("ubuntu:26.04", "apt", "libwebkit2gtk-4.1-0", "window"),
+    ("debian:bookworm", "apt", "libwebkit2gtk-4.1-0", "window"),
+    ("debian:trixie", "apt", "libwebkit2gtk-4.1-0", "window"),
+    ("ubuntu:22.04", "apt", "libwebkit2gtk-4.1-0", "window"),
+    ("ubuntu:24.04", "apt", "libwebkit2gtk-4.1-0", "window"),
+    ("ubuntu:26.04", "apt", "libwebkit2gtk-4.1-0", "window"),
     ("fedora:latest", "dnf", "webkit2gtk4.1", "window"),
     # The 4.0 API only, as Ubuntu 22.04's desktop has it.
     ("ubuntu:22.04", "apt", "libwebkit2gtk-4.0-37 gir1.2-webkit2-4.0", "window"),
-    ("debian:bookworm", "apt", "", "tray"), ("debian:trixie", "apt", "", "tray"), ("ubuntu:22.04", "apt", "", "tray"), ("ubuntu:24.04", "apt", "", "tray"), ("ubuntu:26.04", "apt", "", "tray"),
+    ("debian:bookworm", "apt", "", "tray"),
+    ("debian:trixie", "apt", "", "tray"),
+    ("ubuntu:22.04", "apt", "", "tray"),
+    ("ubuntu:24.04", "apt", "", "tray"),
+    ("ubuntu:26.04", "apt", "", "tray"),
     ("fedora:latest", "dnf", "", "tray"),
 )
 WEB = """set -eu
@@ -110,7 +127,11 @@ bash /work/probe/scripts/smoke-appimage-web /work/dist-appimage-web/NeoAPRS-*-we
 def web_script(installer: str, packages: str, expect: str) -> str:
     """Return the script of one trial case: install the packages, then run the smoke test."""
     wanted = " ".join(filter(None, [packages, WEB_GL[installer] if expect == "window" else ""]))
-    return WEB.format(install=(APT if installer == "apt" else DNF).format(packages=wanted), expect=expect, probe=" --probe" if expect == "window" else "")
+    return WEB.format(
+        install=(APT if installer == "apt" else DNF).format(packages=wanted),
+        expect=expect,
+        probe=" --probe" if expect == "window" else "",
+    )
 
 
 # The .deb as the release workflow's job `deb` checks it: install, command and Python, the daemon
@@ -187,7 +208,8 @@ print(f"the database went from version {before} to {version}, with the radios {'
 
 # The upgrade: install the old build, seed its daemon (scripts/install-probe.py), install this
 # build over it, and verify. OLD_VERSION is empty for a .deb of --update-from.
-UPGRADE = """set -eu
+UPGRADE = (
+    """set -eu
 apt-get update -qq
 apt-get install -y -qq "/old/$OLD_FILE"
 [ -n "$OLD_VERSION" ] || OLD_VERSION="$(dpkg-deb -f "/old/$OLD_FILE" Version | tr '~' '-')"
@@ -204,8 +226,11 @@ dpkg-deb -e /work/dist-deb/neoaprs_${VERSION}_amd64.deb /tmp/upgrade/control
 echo "every file of this build is the one installed (its documents aside: the image keeps none)"
 /opt/neoaprs/bin/python3 -I /work/probe/scripts/install-probe.py verify --command /usr/bin/neoaprs --data /tmp/upgrade/data --in /tmp/upgrade/seen.json --version "$VERSION"
 /opt/neoaprs/bin/python3 -I - /tmp/upgrade/data/neoaprs.sqlite "$before" "$NEW_SCHEMA" <<'PY'
-""" + DATABASE_CHECK + """PY
 """
+    + DATABASE_CHECK
+    + """PY
+"""
+)
 
 
 def say(text: str) -> None:
@@ -222,13 +247,16 @@ def tree_value(path: str, name: str) -> str:
 
 def tree_schema() -> int:
     """Return the database version this tree reaches: the steps in MIGRATIONS, read as text."""
-    for line in (ROOT / "neoaprs" / "migrations.py").read_text(encoding="utf-8").splitlines():
-        if line.startswith("MIGRATIONS:"):
-            return len(re.findall(r"\b_v\d+\b", line.split("=", 1)[1]))
-    raise SystemExit("check-installs: neoaprs/migrations.py has no MIGRATIONS")
+    text = (ROOT / "neoaprs" / "migrations.py").read_text(encoding="utf-8")
+    # The list may run over many lines; its steps hold no bracket, so the first one closes it
+    found = re.search(r"^MIGRATIONS:[^\n]*?=\s*\[([^\]]*)\]", text, re.M)
+    if found is None:
+        raise SystemExit("check-installs: neoaprs/migrations.py has no MIGRATIONS")
+    return len(re.findall(r"\b_v\d+\b", found.group(1)))
 
 
 # ---- the old release ----
+
 
 class NotPinned(Exception):
     """The reason, in words for the user, why the old release cannot be used."""
@@ -239,9 +267,13 @@ def load_pin(pin: Path = PIN) -> dict[str, str]:
         data = json.loads(pin.read_text(encoding="utf-8"))
         version, url, digest = data["version"], data["amd64"]["url"], data["amd64"]["sha256"]
     except (OSError, ValueError, KeyError, TypeError) as error:
-        raise NotPinned(f"{pin.relative_to(ROOT) if pin.is_relative_to(ROOT) else pin} cannot be read ({error}): scripts/check-installs --pin VERSION writes it") from None
+        raise NotPinned(
+            f"{pin.relative_to(ROOT) if pin.is_relative_to(ROOT) else pin} cannot be read ({error}): scripts/check-installs --pin VERSION writes it"
+        ) from None
     if len(digest) != 64 or any(each not in "0123456789abcdef" for each in digest):
-        raise NotPinned(f"the old release {version} is not pinned by its SHA-256 yet: scripts/check-installs --pin {version} (needs the network) writes the pin")
+        raise NotPinned(
+            f"the old release {version} is not pinned by its SHA-256 yet: scripts/check-installs --pin {version} (needs the network) writes the pin"
+        )
     return {"version": version, "url": url, "sha256": digest, "file": Path(url).name}
 
 
@@ -256,7 +288,7 @@ def download(url: str, target: Path) -> str:
     digest, size = hashlib.sha256(), 0
     target.parent.mkdir(parents=True, exist_ok=True)
     partial = target.with_name(target.name + ".part")
-    with urllib.request.urlopen(url, timeout=120) as answer, partial.open("wb") as out:       # noqa: S310  (https only, checked above)
+    with urllib.request.urlopen(url, timeout=120) as answer, partial.open("wb") as out:  # noqa: S310  (https only, checked above)
         while chunk := answer.read(1 << 20):
             size += len(chunk)
             if size > MAX_DOWNLOAD:
@@ -279,7 +311,9 @@ def old_release(pin: dict[str, str]) -> Path:
         raise NotPinned(f"{pin['url']} could not be fetched ({error})") from None
     if found != pin["sha256"]:
         target.unlink(missing_ok=True)
-        raise NotPinned(f"{pin['file']} has the SHA-256 {found}, not the {pin['sha256']} that is pinned: the file was thrown away")
+        raise NotPinned(
+            f"{pin['file']} has the SHA-256 {found}, not the {pin['sha256']} that is pinned: the file was thrown away"
+        )
     return target
 
 
@@ -294,11 +328,17 @@ def write_pin(version: str) -> int:
     except (OSError, NotPinned) as error:
         say(f"nothing was pinned: {error}")
         return 1
-    listed = {parts[1].lstrip("*"): parts[0] for line in sums.read_text(encoding="utf-8").splitlines() if len(parts := line.split()) == 2}
+    listed = {
+        parts[1].lstrip("*"): parts[0]
+        for line in sums.read_text(encoding="utf-8").splitlines()
+        if len(parts := line.split()) == 2
+    }
     if listed.get(name) != found:
         say(f"nothing was pinned: {name} has the SHA-256 {found}, the release's SHA256SUMS says {listed.get(name)}")
         return 1
-    PIN.write_text(json.dumps({"version": version, "amd64": {"url": url, "sha256": found}}, indent=2) + "\n", encoding="utf-8")
+    PIN.write_text(
+        json.dumps({"version": version, "amd64": {"url": url, "sha256": found}}, indent=2) + "\n", encoding="utf-8"
+    )
     say(f"{PIN.relative_to(ROOT)} pins {name} at {found}")
     return 0
 
@@ -311,7 +351,12 @@ def old_build(source: str, work: Path) -> Path:
         if not file.is_file():
             raise NotPinned(f"--update-from {source}: there is no such file")
         return file
-    found = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--verify", "--quiet", f"{source}^{{commit}}"], capture_output=True, text=True, check=False)
+    found = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", "--verify", "--quiet", f"{source}^{{commit}}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     if found.returncode != 0 or not found.stdout.strip():
         raise NotPinned(f"--update-from {source}: neither a .deb file nor a commit of this repository")
     commit = found.stdout.strip()
@@ -322,16 +367,30 @@ def old_build(source: str, work: Path) -> Path:
     tree = folder / "tree"
     tree.mkdir(parents=True)
     say(f"the tree of {commit[:12]} from git archive")
-    with subprocess.Popen(["git", "-C", str(ROOT), "archive", "--format=tar", commit], stdout=subprocess.PIPE) as archive:
+    with subprocess.Popen(
+        ["git", "-C", str(ROOT), "archive", "--format=tar", commit], stdout=subprocess.PIPE
+    ) as archive:
         assert archive.stdout is not None
         with tarfile.open(fileobj=archive.stdout, mode="r|") as tar:
             tar.extractall(tree, filter="data")
     if archive.returncode != 0:
         raise NotPinned(f"git archive of {commit[:12]} failed (exit {archive.returncode})")
-    for name, command in (("update-from-wheel", ["uv", "build", "--wheel", "--out-dir", str(folder / "dist")]), ("update-from-deb", None)):
+    for name, command in (
+        ("update-from-wheel", ["uv", "build", "--wheel", "--out-dir", str(folder / "dist")]),
+        ("update-from-deb", None),
+    ):
         if command is None:
             wheel = str(next(iter(sorted((folder / "dist").glob("neoaprs-*.whl"))), ""))
-            command = ["scripts/build-deb", "--arch", "amd64", "--wheel", wheel, "--no-mercury", "--out", str(folder / "dist-deb")]
+            command = [
+                "scripts/build-deb",
+                "--arch",
+                "amd64",
+                "--wheel",
+                wheel,
+                "--no-mercury",
+                "--out",
+                str(folder / "dist-deb"),
+            ]
         if (reason := build_step(work, name, command, cwd=tree)) is not None:
             raise NotPinned(reason)
     if debs := sorted((folder / "dist-deb").glob("neoaprs_*_amd64.deb")):
@@ -341,9 +400,11 @@ def old_build(source: str, work: Path) -> Path:
 
 # ---- the files that are tried ----
 
+
 @dataclass
 class Built:
     """What the build gave: the work folder, and why each file that failed could not be made."""
+
     work: Path
     failed: dict[str, str]
 
@@ -363,7 +424,9 @@ def build(work: Path, wanted: set[str], with_mercury: bool) -> Built:
 
     `failed` names what could not be built; a file needing a failed one gets that reason."""
     built = Built(work, {})
-    folders = {name: work / name for name in ("dist", "mercury", "dist-deb", "dist-appimage", "dist-gi", "dist-appimage-web")}
+    folders = {
+        name: work / name for name in ("dist", "mercury", "dist-deb", "dist-appimage", "dist-gi", "dist-appimage-web")
+    }
     deb, appimage = bool(wanted & {"deb-debian", "deb-ubuntu", "upgrade"}), "appimage" in wanted
     for folder in folders.values():
         shutil.rmtree(folder, ignore_errors=True)
@@ -375,7 +438,9 @@ def build(work: Path, wanted: set[str], with_mercury: bool) -> Built:
         return reason is None
 
     if not attempt("wheel", ["uv", "build", "--wheel", "--out-dir", str(folders["dist"])]):
-        built.failed.update({"deb": built.failed["wheel"], "appimage": built.failed["wheel"], "appimage-web": built.failed["wheel"]})
+        built.failed.update(
+            {"deb": built.failed["wheel"], "appimage": built.failed["wheel"], "appimage-web": built.failed["wheel"]}
+        )
         return built
     wheel = str(next(iter(sorted(folders["dist"].glob("neoaprs-*.whl"))), ""))
     mercury = ["--no-mercury"]
@@ -386,17 +451,62 @@ def build(work: Path, wanted: set[str], with_mercury: bool) -> Built:
             if not tars:
                 built.failed["mercury"] = "scripts/build-mercury made no mercury-*-linux-x86_64.tar.gz"
         if "mercury" in built.failed:
-            built.failed.update({"deb": built.failed["mercury"], "appimage": built.failed["mercury"], "appimage-web": built.failed["mercury"]})
+            built.failed.update(
+                {
+                    "deb": built.failed["mercury"],
+                    "appimage": built.failed["mercury"],
+                    "appimage-web": built.failed["mercury"],
+                }
+            )
             return built
     if deb:
-        attempt("deb", ["scripts/build-deb", "--arch", "amd64", "--wheel", wheel, *mercury, "--out", str(folders["dist-deb"]), "--no-direwolf"])
+        attempt(
+            "deb",
+            [
+                "scripts/build-deb",
+                "--arch",
+                "amd64",
+                "--wheel",
+                wheel,
+                *mercury,
+                "--out",
+                str(folders["dist-deb"]),
+                "--no-direwolf",
+            ],
+        )
     if appimage:
-        attempt("appimage", ["scripts/build-appimage", "--wheel", wheel, *mercury, "--out", str(folders["dist-appimage"]), "--no-direwolf"])
+        attempt(
+            "appimage",
+            [
+                "scripts/build-appimage",
+                "--wheel",
+                wheel,
+                *mercury,
+                "--out",
+                str(folders["dist-appimage"]),
+                "--no-direwolf",
+            ],
+        )
     if "appimage-web" in wanted:
         if attempt("gi", ["scripts/build-gi", "--docker", "--out", str(folders["dist-gi"])]):
             tars = sorted(folders["dist-gi"].glob("gi-*-linux-x86_64.tar.gz"))
             if tars:
-                attempt("appimage-web", ["scripts/build-appimage", "--wheel", wheel, "--no-mercury", "--no-direwolf", "--window", "web", "--gi", str(tars[-1]), "--out", str(folders["dist-appimage-web"])])
+                attempt(
+                    "appimage-web",
+                    [
+                        "scripts/build-appimage",
+                        "--wheel",
+                        wheel,
+                        "--no-mercury",
+                        "--no-direwolf",
+                        "--window",
+                        "web",
+                        "--gi",
+                        str(tars[-1]),
+                        "--out",
+                        str(folders["dist-appimage-web"]),
+                    ],
+                )
             else:
                 built.failed["appimage-web"] = "scripts/build-gi made no gi-*-linux-x86_64.tar.gz"
         else:
@@ -415,7 +525,15 @@ def make_probe(work: Path, web: bool = False) -> None:
 
 # ---- the containers ----
 
-def docker_run(image: str, script: str, work: Path, mounts: Sequence[tuple[Path, str]] = (), environment: Sequence[tuple[str, str]] = (), shm: bool = False) -> list[str]:
+
+def docker_run(
+    image: str,
+    script: str,
+    work: Path,
+    mounts: Sequence[tuple[Path, str]] = (),
+    environment: Sequence[tuple[str, str]] = (),
+    shm: bool = False,
+) -> list[str]:
     """Return the `docker run` command: read-only mounts, no port, no device, `script` run by sh."""
     line = ["docker", "run", "--rm", "--init", *ENVIRONMENT, "--volume", f"{work}:/work:ro"]
     for folder, target in mounts:
@@ -431,7 +549,9 @@ def runner_image() -> str:
     """Return the image of scripts/check-in-container, building it if missing."""
     done = subprocess.run([sys.executable, str(CONTAINER), "--image-only"], capture_output=True, text=True, check=False)
     if done.returncode != 0:
-        raise NotPinned(f"the image of scripts/check-in-container could not be made: {done.stderr.strip().splitlines()[-1:] or ['no message']}")
+        raise NotPinned(
+            f"the image of scripts/check-in-container could not be made: {done.stderr.strip().splitlines()[-1:] or ['no message']}"
+        )
     return done.stdout.strip()
 
 
@@ -442,7 +562,13 @@ def command_of(name: str, work: Path, with_mercury: bool, update_from: str | Non
     if name == "wheel":
         return docker_run(runner_image(), WHEEL, work)
     if name == "appimage":
-        return docker_run(runner_image(), APPIMAGE, work, environment=[("SMOKE_APPIMAGE_ARGS", "--no-direwolf" if with_mercury else "--no-mercury --no-direwolf")], shm=True)
+        return docker_run(
+            runner_image(),
+            APPIMAGE,
+            work,
+            environment=[("SMOKE_APPIMAGE_ARGS", "--no-direwolf" if with_mercury else "--no-mercury --no-direwolf")],
+            shm=True,
+        )
     if name == "deb-debian":
         return docker_run(DEBIAN, DEB, work, environment=deb_environment)
     if name == "deb-ubuntu":
@@ -452,7 +578,18 @@ def command_of(name: str, work: Path, with_mercury: bool, update_from: str | Non
     else:
         pin = load_pin()
         old, old_version = old_release(pin), pin["version"]
-    return docker_run(UBUNTU, UPGRADE, work, mounts=[(old.parent, "/old")], environment=[("OLD_FILE", old.name), ("OLD_VERSION", old_version), ("VERSION", version), ("NEW_SCHEMA", str(tree_schema()))])
+    return docker_run(
+        UBUNTU,
+        UPGRADE,
+        work,
+        mounts=[(old.parent, "/old")],
+        environment=[
+            ("OLD_FILE", old.name),
+            ("OLD_VERSION", old_version),
+            ("VERSION", version),
+            ("NEW_SCHEMA", str(tree_schema())),
+        ],
+    )
 
 
 @dataclass
@@ -475,10 +612,22 @@ def run_web(work: Path, built: Built) -> Result:
     for number, (image, installer, packages, expect) in enumerate(WEB_CASES, 1):
         log = work / "logs" / f"appimage-web-{number:02d}.log"
         with log.open("wb") as out:
-            done = subprocess.run(docker_run(image, web_script(installer, packages, expect), work), stdout=out, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False)
+            done = subprocess.run(
+                docker_run(image, web_script(installer, packages, expect), work),
+                stdout=out,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
+                check=False,
+            )
         said = log.read_text(encoding="utf-8", errors="replace").splitlines()
-        lines.append(f"{'ok  ' if done.returncode == 0 else 'FAIL'} {image} {packages or 'no WebKitGTK'}: the {expect} ({log.name})")
-        lines.extend(f"    {line}" for line in said if line.startswith("{") or done.returncode != 0 and line in said[-TAIL_LINES:])
+        lines.append(
+            f"{'ok  ' if done.returncode == 0 else 'FAIL'} {image} {packages or 'no WebKitGTK'}: the {expect} ({log.name})"
+        )
+        lines.extend(
+            f"    {line}"
+            for line in said
+            if line.startswith("{") or done.returncode != 0 and line in said[-TAIL_LINES:]
+        )
         ok = ok and done.returncode == 0
     return Result("appimage-web", ok, time.monotonic() - started, "\n".join(lines))
 
@@ -498,17 +647,38 @@ def run_check(name: str, work: Path, built: Built, with_mercury: bool, update_fr
     with log.open("wb") as out:
         done = subprocess.run(command, stdout=out, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False)
     lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
-    skipped = next((line[len(SKIPPED):] for line in lines if line.startswith(SKIPPED)), "") if done.returncode == 0 else ""
-    return Result(name, done.returncode == 0, time.monotonic() - started, "\n".join(lines[-TAIL_LINES:]) if done.returncode else "", skipped)
+    skipped = (
+        next((line[len(SKIPPED) :] for line in lines if line.startswith(SKIPPED)), "") if done.returncode == 0 else ""
+    )
+    return Result(
+        name,
+        done.returncode == 0,
+        time.monotonic() - started,
+        "\n".join(lines[-TAIL_LINES:]) if done.returncode else "",
+        skipped,
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="check-installs", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--only", action="append", choices=CHECKS + TRIAL_CHECKS, help="one check (may be given several times); appimage-web only when named")
+    parser = argparse.ArgumentParser(
+        prog="check-installs", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--only",
+        action="append",
+        choices=CHECKS + TRIAL_CHECKS,
+        help="one check (may be given several times); appimage-web only when named",
+    )
     parser.add_argument("--no-mercury", action="store_true", help="build the packages without Mercury")
-    parser.add_argument("--work", type=Path, default=ROOT / "build" / "installs", help="the folder of the built files and the logs")
+    parser.add_argument(
+        "--work", type=Path, default=ROOT / "build" / "installs", help="the folder of the built files and the logs"
+    )
     parser.add_argument("--pin", metavar="VERSION", help="write packaging/ci/old-release.json for that release")
-    parser.add_argument("--update-from", metavar="SOURCE", help="the upgrade from a .deb file or a commit of this repository instead of the pinned release")
+    parser.add_argument(
+        "--update-from",
+        metavar="SOURCE",
+        help="the upgrade from a .deb file or a commit of this repository instead of the pinned release",
+    )
     args = parser.parse_args(argv)
     if args.update_from is not None and args.only and "upgrade" not in args.only:
         parser.error("--update-from is where the upgrade starts: add --only upgrade, or leave --only out")
@@ -518,7 +688,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if shutil.which(tool) is None:
             say(f"{tool} is not installed")
             return 2
-    if subprocess.run(["docker", "info"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False).returncode != 0:
+    if (
+        subprocess.run(["docker", "info"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False).returncode
+        != 0
+    ):
         say("docker does not answer (is the daemon running, and may this user use it?): nothing was built")
         return 2
     wanted = set(args.only or (["upgrade"] if args.update_from is not None else CHECKS))
@@ -526,7 +699,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     (work / "logs").mkdir(parents=True, exist_ok=True)
     built = build(work, wanted, not args.no_mercury)
     make_probe(work, "appimage-web" in wanted)
-    results = [run_check(name, work, built, not args.no_mercury, args.update_from) for name in CHECKS + TRIAL_CHECKS if name in wanted]
+    results = [
+        run_check(name, work, built, not args.no_mercury, args.update_from)
+        for name in CHECKS + TRIAL_CHECKS
+        if name in wanted
+    ]
     for result in results:
         print(f"{'ok  ' if result.ok else 'FAIL'}  {result.name:<11} {result.seconds:6.1f}s")
         if result.skipped:
@@ -535,7 +712,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("\n".join(f"      | {line}" for line in result.output.splitlines()))
     failed = [result.name for result in results if not result.ok]
     partly = [result.name for result in results if result.skipped]
-    print(f"failed: {' '.join(failed)}" if failed else "all green" + (f", but a part of {' '.join(partly)} was skipped" if partly else ""))
+    print(
+        f"failed: {' '.join(failed)}"
+        if failed
+        else "all green" + (f", but a part of {' '.join(partly)} was skipped" if partly else "")
+    )
     return 1 if failed else 0
 
 

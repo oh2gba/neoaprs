@@ -3,6 +3,7 @@ stationsql.py) on a real database thread: what goes in comes out equal, the orde
 tables refuse. Each test runs on every database shape the stores know (tests/support/migrated32.py,
 SHAPES).
 """
+
 import asyncio
 import json
 import logging
@@ -53,22 +54,91 @@ def capture(at: object = T0) -> list[Packet]:
     for frame in KissDecoder().feed(fixture_bytes("kiss/thd7-2026-10-21.bin")):
         f = ax25.decode(frame.payload)
         source, destination = str(f.source), str(f.destination)
-        out.append(Packet(at, "in", frame.payload, source, destination, tuple(str(a) for a in f.path), f.info, aprsparse.parse(f.info, source, destination, at)))  # type: ignore[arg-type]
+        out.append(
+            Packet(
+                at,
+                "in",
+                frame.payload,
+                source,
+                destination,
+                tuple(str(a) for a in f.path),
+                f.info,
+                aprsparse.parse(f.info, source, destination, at),
+            )
+        )  # type: ignore[arg-type]
     return out
 
 
 def made(decoded: object, at: object = T0, direction: str = "in") -> Packet:
-    frame = ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2AAA-3"), (ax25.Address.parse("WIDE1-1"),), info=b"!6010.00N/02456.00E>x")
+    frame = ax25.Frame(
+        ax25.Address("APRS"),
+        ax25.Address.parse("OH2AAA-3"),
+        (ax25.Address.parse("WIDE1-1"),),
+        info=b"!6010.00N/02456.00E>x",
+    )
     return Packet(at, direction, ax25.encode(frame), "OH2AAA-3", "APRS", ("WIDE1-1",), frame.info, decoded)  # type: ignore[arg-type]
 
 
-POSITION = Position(60.1, 24.9, "/", ">", comment="åäö", course_deg=12, speed_kmh=3.5, altitude_m=44.0, timestamp=utc(2026, 10, 21, 11, 59, 0), messaging=True, compressed=True, ambiguity=1)
-DETAILED = Position(60.1, 24.9, "\\", "l", "x", timestamp=utc(2026, 10, 21, 11, 59, 0), timestamp_local=True, locator=Locator("IO91sx", 51.97917, -0.45833, "/", "-"),
-                    extensions=Extensions(phg=Phg(25, 6.1, 3, 90, 12.8), range_km=80.5, dfs=Dfs(2, 24.4, 6, None), df_bearing=DfBearing(270, 7, 6.4, 9), area=Area("filled ellipse", "cyan", 1.0, 1.0)))
-LOCAL = Position(60.1, 24.9, "\\", "@", "x", frequency=Frequency(145.775, tone_hz=118, offset_khz=-600, range_km=40.2), storm=Storm("HC", 277.8, 370.4, 980, 166.7, 55.6, 74.1), sign="55")
-DECODED = [POSITION, DETAILED, LOCAL, Status("on air", frequency=Frequency(145.5)), Telemetry(5, [199.0, 0.0, 255.0, 73.0, 123.5], "01101001", "x"), Telemetry(None, [1.0, 2.0, 3.0, 4.0, 5.0], "00000000"),
-           Status("IO91 house", None, Locator("IO91", 51.5, -1.0, "/", "-")), Other("capabilities", "<IGATE,MSG_CNT=2", items={"IGATE": "", "MSG_CNT": "2"}), Other("weather", "_10090556c220", timestamp=utc(2026, 10, 9, 5, 56, 0)), Message("OH2BBB", "hello {7", "7"), Message("OH2BBB", "", ack_id="7"), ObjectReport("FIRE", True, POSITION, utc(2026, 10, 21, 11, 0, 0)), ItemReport("BUOY", False, POSITION),
-           Status("on the road", utc(2026, 10, 21, 11, 0, 0)), Status("no time"), Other("telemetry", "T#001,1,2"), Undecoded("too short", "!60\xe4")]
+POSITION = Position(
+    60.1,
+    24.9,
+    "/",
+    ">",
+    comment="åäö",
+    course_deg=12,
+    speed_kmh=3.5,
+    altitude_m=44.0,
+    timestamp=utc(2026, 10, 21, 11, 59, 0),
+    messaging=True,
+    compressed=True,
+    ambiguity=1,
+)
+DETAILED = Position(
+    60.1,
+    24.9,
+    "\\",
+    "l",
+    "x",
+    timestamp=utc(2026, 10, 21, 11, 59, 0),
+    timestamp_local=True,
+    locator=Locator("IO91sx", 51.97917, -0.45833, "/", "-"),
+    extensions=Extensions(
+        phg=Phg(25, 6.1, 3, 90, 12.8),
+        range_km=80.5,
+        dfs=Dfs(2, 24.4, 6, None),
+        df_bearing=DfBearing(270, 7, 6.4, 9),
+        area=Area("filled ellipse", "cyan", 1.0, 1.0),
+    ),
+)
+LOCAL = Position(
+    60.1,
+    24.9,
+    "\\",
+    "@",
+    "x",
+    frequency=Frequency(145.775, tone_hz=118, offset_khz=-600, range_km=40.2),
+    storm=Storm("HC", 277.8, 370.4, 980, 166.7, 55.6, 74.1),
+    sign="55",
+)
+DECODED = [
+    POSITION,
+    DETAILED,
+    LOCAL,
+    Status("on air", frequency=Frequency(145.5)),
+    Telemetry(5, [199.0, 0.0, 255.0, 73.0, 123.5], "01101001", "x"),
+    Telemetry(None, [1.0, 2.0, 3.0, 4.0, 5.0], "00000000"),
+    Status("IO91 house", None, Locator("IO91", 51.5, -1.0, "/", "-")),
+    Other("capabilities", "<IGATE,MSG_CNT=2", items={"IGATE": "", "MSG_CNT": "2"}),
+    Other("weather", "_10090556c220", timestamp=utc(2026, 10, 9, 5, 56, 0)),
+    Message("OH2BBB", "hello {7", "7"),
+    Message("OH2BBB", "", ack_id="7"),
+    ObjectReport("FIRE", True, POSITION, utc(2026, 10, 21, 11, 0, 0)),
+    ItemReport("BUOY", False, POSITION),
+    Status("on the road", utc(2026, 10, 21, 11, 0, 0)),
+    Status("no time"),
+    Other("telemetry", "T#001,1,2"),
+    Undecoded("too short", "!60\xe4"),
+]
 
 
 @pytest.mark.parametrize("decoded", DECODED, ids=lambda d: type(d).__name__)
@@ -92,14 +162,23 @@ def test_the_capture_decodes_the_same_from_the_json() -> None:
 def test_a_row_kept_before_the_details_were_decoded_is_read_with_their_defaults() -> None:
     """The JSON of a packet kept without the details has none of those fields: they take their
     defaults."""
-    old = decode_decoded('{"type":"position","lat":60.1,"lon":24.9,"symbol_table":"/","symbol_code":">","comment":"x","course_deg":null,"speed_kmh":null,"altitude_m":null,"timestamp":null,"messaging":false,"compressed":false,"ambiguity":0,"weather":null}')
-    assert old == Position(60.1, 24.9, "/", ">", "x") and decode_decoded('{"type":"status","text":"a","timestamp":null}') == Status("a")
+    old = decode_decoded(
+        '{"type":"position","lat":60.1,"lon":24.9,"symbol_table":"/","symbol_code":">","comment":"x","course_deg":null,"speed_kmh":null,"altitude_m":null,"timestamp":null,"messaging":false,"compressed":false,"ambiguity":0,"weather":null}'
+    )
+    assert old == Position(60.1, 24.9, "/", ">", "x") and decode_decoded(
+        '{"type":"status","text":"a","timestamp":null}'
+    ) == Status("a")
     assert decode_decoded('{"type":"other","kind":"weather","text":"_1","weather":null}') == Other("weather", "_1")
 
 
 def test_a_telemetry_report_is_a_packet_of_kind_other_with_a_type_of_its_own() -> None:
     p = made(Telemetry(5, [1.0, 2.0, 3.0, 4.0, 5.0], "01101001"))
-    assert p.kind == "other" and packet_row(p).kind == "other" and json.loads(packet_row(p).decoded)["type"] == "telemetry" and packet_of(packet_row(p)) == p
+    assert (
+        p.kind == "other"
+        and packet_row(p).kind == "other"
+        and json.loads(packet_row(p).decoded)["type"] == "telemetry"
+        and packet_of(packet_row(p)) == p
+    )
 
 
 def test_a_json_that_is_not_ours_is_refused() -> None:
@@ -113,7 +192,11 @@ def test_a_row_gives_the_packet_back_equal_and_a_stamp_sorts_as_the_time_does() 
         assert packet_of(packet_row(p)) == p
     assert packet_row(made(Undecoded("why", "x"))).error == "why" and packet_row(made(POSITION)).error is None
     earlier, later = utc(2026, 10, 21, 9, 0, 0), utc(2026, 10, 21, 10, 0, 0) + timedelta(microseconds=5)
-    assert stamp(earlier) == "2026-10-21T09:00:00.000000Z" and stamp(earlier) < stamp(later) and parse_stamp(stamp(later)) == later
+    assert (
+        stamp(earlier) == "2026-10-21T09:00:00.000000Z"
+        and stamp(earlier) < stamp(later)
+        and parse_stamp(stamp(later)) == later
+    )
     with pytest.raises(ValueError):
         stamp(later.replace(tzinfo=None))
 
@@ -129,16 +212,22 @@ async def test_every_packet_is_kept_and_read_back_the_newest_first(tmp_path: Pat
     log = PacketLog(store.db, FixedClock())
     packets = capture()
     for n, p in enumerate(packets):
-        assert log.append(Packet(T0 + timedelta(seconds=n), p.direction, p.raw, p.source, p.destination, p.path, p.info, p.decoded))
+        assert log.append(
+            Packet(T0 + timedelta(seconds=n), p.direction, p.raw, p.source, p.destination, p.path, p.info, p.decoded)
+        )
     assert log.append(made(POSITION, T0 + timedelta(seconds=9), "out"))
     assert await log.count() == 5
     recent = await log.recent(3)
     assert [(p.source, p.direction) for p in recent] == [("OH2AAA-3", "out"), ("OH2PU-9", "in"), ("OH2RDS", "in")]
     assert recent[0] == made(POSITION, T0 + timedelta(seconds=9), "out")
     everything = await log.recent()
-    assert [p.source for p in everything] == ["OH2AAA-3", "OH2PU-9", "OH2RDS", "OH2RDK-7", "OH2RDG"] and everything[-1].decoded == packets[0].decoded
+    assert [p.source for p in everything] == ["OH2AAA-3", "OH2PU-9", "OH2RDS", "OH2RDK-7", "OH2RDG"] and everything[
+        -1
+    ].decoded == packets[0].decoded
     assert await log.recent(0) == []
-    assert [p.source for p in await log.since(T0 + timedelta(seconds=2))] == ["OH2RDS", "OH2PU-9", "OH2AAA-3"], "the oldest first"
+    assert [p.source for p in await log.since(T0 + timedelta(seconds=2))] == ["OH2RDS", "OH2PU-9", "OH2AAA-3"], (
+        "the oldest first"
+    )
     assert await log.since(T0 + timedelta(days=1)) == []
     assert log.dropped == 0
 
@@ -148,11 +237,15 @@ async def test_packets_of_the_same_second_come_back_in_the_order_they_were_kept(
     log = PacketLog(store.db, FixedClock())
     for n, seconds in enumerate([1, 0, 1, 1]):
         assert log.append(replace(made(POSITION, T0 + timedelta(seconds=seconds)), source=f"OH2A{n}"))
-    assert [p.source for p in await log.since(T0)] == ["OH2A1", "OH2A0", "OH2A2", "OH2A3"], "by the time, and by the order kept for the same time"
+    assert [p.source for p in await log.since(T0)] == ["OH2A1", "OH2A0", "OH2A2", "OH2A3"], (
+        "by the time, and by the order kept for the same time"
+    )
     assert [p.source for p in await log.since(T0 + timedelta(seconds=1))] == ["OH2A0", "OH2A2", "OH2A3"]
 
 
-def test_the_packets_since_a_time_are_found_by_the_index_of_the_times_and_the_table_is_not_read_through(tmp_path: Path) -> None:
+def test_the_packets_since_a_time_are_found_by_the_index_of_the_times_and_the_table_is_not_read_through(
+    tmp_path: Path,
+) -> None:
     s = opened(tmp_path / DB_NAME)
     statements: list[str] = []
     s.db.set_trace_callback(statements.append)
@@ -170,10 +263,26 @@ async def test_the_rows_are_what_the_columns_say(tmp_path: Path) -> None:
     log.append(capture()[3])
     log.append(made(Undecoded("too short", "!60")))
     await log.count()
-    rows = await sql(store, "SELECT heard_at, direction, source, destination, path, kind, summary, error FROM packet ORDER BY id")
-    assert rows[0] == ("2026-10-21T12:00:00.000000Z", "in", "OH2PU-9", "APOTC1", "OH2RCH-2*", "position", capture()[3].summary, None)
+    rows = await sql(
+        store, "SELECT heard_at, direction, source, destination, path, kind, summary, error FROM packet ORDER BY id"
+    )
+    assert rows[0] == (
+        "2026-10-21T12:00:00.000000Z",
+        "in",
+        "OH2PU-9",
+        "APOTC1",
+        "OH2RCH-2*",
+        "position",
+        capture()[3].summary,
+        None,
+    )
     assert rows[1][5:] == ("undecoded", "undecoded (too short): !60", "too short")
-    assert [r[0] for r in await sql(store, "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'packet' ORDER BY name")] == ["packet_heard_at", "packet_source"]
+    assert [
+        r[0]
+        for r in await sql(
+            store, "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'packet' ORDER BY name"
+        )
+    ] == ["packet_heard_at", "packet_source"]
 
 
 async def test_prune_removes_the_packets_older_than_the_days_and_keeps_the_rest(tmp_path: Path) -> None:
@@ -190,10 +299,31 @@ async def test_prune_removes_the_packets_older_than_the_days_and_keeps_the_rest(
 async def test_a_station_is_kept_replaced_and_deleted_and_comes_back_without_its_track(tmp_path: Path) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
-    a = Station("OH2AAA-3", first_heard=T0, last_heard=T0 + timedelta(minutes=5), kind="station", symbol_table="/", symbol_code=">", lat=60.1, lon=24.9, altitude_m=44.0, course_deg=12,
-                speed_kmh=3.5, last_position_at=T0, last_status="QRV", last_comment="åäö", packets=3, heard_rf=3, last_rf_at=T0 + timedelta(minutes=5),
-                heard_by={FM_ID: RadioHeard(3, T0 + timedelta(minutes=5), ("WIDE1-1*", "OH2RCH-2"))}, track=[(T0, 60.1, 24.9)], is_me=True)
-    b = Station("FIRE", first_heard=T0, last_heard=T0 + timedelta(minutes=9), kind="object", reported_by="OH2AAA-3", packets=1)
+    a = Station(
+        "OH2AAA-3",
+        first_heard=T0,
+        last_heard=T0 + timedelta(minutes=5),
+        kind="station",
+        symbol_table="/",
+        symbol_code=">",
+        lat=60.1,
+        lon=24.9,
+        altitude_m=44.0,
+        course_deg=12,
+        speed_kmh=3.5,
+        last_position_at=T0,
+        last_status="QRV",
+        last_comment="åäö",
+        packets=3,
+        heard_rf=3,
+        last_rf_at=T0 + timedelta(minutes=5),
+        heard_by={FM_ID: RadioHeard(3, T0 + timedelta(minutes=5), ("WIDE1-1*", "OH2RCH-2"))},
+        track=[(T0, 60.1, 24.9)],
+        is_me=True,
+    )
+    b = Station(
+        "FIRE", first_heard=T0, last_heard=T0 + timedelta(minutes=9), kind="object", reported_by="OH2AAA-3", packets=1
+    )
     log.save_station(a)
     log.save_station(b)
     a.packets = 4
@@ -201,17 +331,49 @@ async def test_a_station_is_kept_replaced_and_deleted_and_comes_back_without_its
     stations = await log.stations()
     assert [s.call for s in stations] == ["FIRE", "OH2AAA-3"], "the latest heard first"
     back = stations[1]
-    assert back == Station("OH2AAA-3", first_heard=T0, last_heard=T0 + timedelta(minutes=5), symbol_table="/", symbol_code=">", lat=60.1, lon=24.9, altitude_m=44.0, course_deg=12,
-                           speed_kmh=3.5, last_position_at=T0, last_status="QRV", last_comment="åäö", packets=4, heard_rf=3, last_rf_at=T0 + timedelta(minutes=5),
-                           heard_by={FM_ID: RadioHeard(3, T0 + timedelta(minutes=5), ("WIDE1-1*", "OH2RCH-2"))})
-    assert stations[0].kind == "object" and stations[0].reported_by == "OH2AAA-3" and stations[0].lat is None and stations[0].last_path == ()
+    assert back == Station(
+        "OH2AAA-3",
+        first_heard=T0,
+        last_heard=T0 + timedelta(minutes=5),
+        symbol_table="/",
+        symbol_code=">",
+        lat=60.1,
+        lon=24.9,
+        altitude_m=44.0,
+        course_deg=12,
+        speed_kmh=3.5,
+        last_position_at=T0,
+        last_status="QRV",
+        last_comment="åäö",
+        packets=4,
+        heard_rf=3,
+        last_rf_at=T0 + timedelta(minutes=5),
+        heard_by={FM_ID: RadioHeard(3, T0 + timedelta(minutes=5), ("WIDE1-1*", "OH2RCH-2"))},
+    )
+    assert (
+        stations[0].kind == "object"
+        and stations[0].reported_by == "OH2AAA-3"
+        and stations[0].lat is None
+        and stations[0].last_path == ()
+    )
     assert log.delete_station("FIRE") and [s.call for s in await log.stations()] == ["OH2AAA-3"]
 
 
 async def test_a_log_whose_database_is_not_open_says_no_and_reads_nothing(tmp_path: Path) -> None:
     log = PacketLog(None, FixedClock())
-    assert not log.append(made(POSITION)) and not log.save_station(Station("X", first_heard=T0, last_heard=T0)) and not log.delete_station("X") and log.dropped == 3
-    assert await log.recent() == [] and await log.count() == 0 and await log.stations() == [] and await log.prune(30) == 0 and not log.is_open()
+    assert (
+        not log.append(made(POSITION))
+        and not log.save_station(Station("X", first_heard=T0, last_heard=T0))
+        and not log.delete_station("X")
+        and log.dropped == 3
+    )
+    assert (
+        await log.recent() == []
+        and await log.count() == 0
+        and await log.stations() == []
+        and await log.prune(30) == 0
+        and not log.is_open()
+    )
     store = await store_at(shaped(tmp_path / DB_NAME))
     log.use(store.db)  # type: ignore[arg-type]
     assert log.is_open() and log.append(made(POSITION))
@@ -220,45 +382,108 @@ async def test_a_log_whose_database_is_not_open_says_no_and_reads_nothing(tmp_pa
     assert not log.append(made(POSITION)) and await log.recent() == [] and not log.is_open()
 
 
-async def test_a_row_that_is_not_ours_is_left_out_and_told(tmp_path: Path, caplog: pytest.LogCaptureFixture, shape: bool) -> None:
+async def test_a_row_that_is_not_ours_is_left_out_and_told(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, shape: bool
+) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     log.append(made(POSITION))
-    await sql(store, "INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES (?, 'in', x'00', 'OH2X', 'APRS', '', 'other', 's', '{\"kind\":\"weather\"}')", stamp(T0))
-    bad = STATION.format(columns="", values="").format(call="BAD", kind="station", first="yesterday", last="today", packets=1)
+    await sql(
+        store,
+        "INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES (?, 'in', x'00', 'OH2X', 'APRS', '', 'other', 's', '{\"kind\":\"weather\"}')",
+        stamp(T0),
+    )
+    bad = STATION.format(columns="", values="").format(
+        call="BAD", kind="station", first="yesterday", last="today", packets=1
+    )
     await sql(store, as_written(bad, shape))
     caplog.set_level(logging.WARNING, "neoaprs.packetlog")
     assert len(await log.recent()) == 1 and await log.stations() == []
-    assert any("packet table" in r.getMessage() for r in caplog.records) and any("station table" in r.getMessage() for r in caplog.records)
+    assert any("packet table" in r.getMessage() for r in caplog.records) and any(
+        "station table" in r.getMessage() for r in caplog.records
+    )
 
 
 # A row of the station table as a tool would write it, `)#` where the values end: the columns every
 # version has (before 33 the row holds `last_path` too, which the tests add).
-STATION = ("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code{columns}, first_heard, last_heard, last_status, last_comment, packets) "
-           "VALUES ('{{call}}', '{{kind}}', '', '', ''{values}, '{{first}}', '{{last}}', '', '', {{packets}})#")
+STATION = (
+    "INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code{columns}, first_heard, last_heard, last_status, last_comment, packets) "
+    "VALUES ('{{call}}', '{{kind}}', '', '', ''{values}, '{{first}}', '{{last}}', '', '', {{packets}})#"
+)
 
 
 def as_written(statement: str, shape: bool) -> str:
     """A statement of the tests for the shape of the database: before 33 a station's row holds its
     last path too, which has no default."""
-    return statement.replace(")#", ")") if shape else statement.replace("packets)", "packets, last_path)").replace(")#", ", '')")
+    return (
+        statement.replace(")#", ")")
+        if shape
+        else statement.replace("packets)", "packets, last_path)").replace(")#", ", '')")
+    )
 
 
-@pytest.mark.parametrize("statement, name", [
-    ("INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES ('2026-10-21 12:00', 'in', x'00', 'A', 'B', '', 'other', 's', '{}')", "packet_heard_at_form"),
-    ("INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES ('2026-10-21T12:00:00.000000Z', 'sideways', x'00', 'A', 'B', '', 'other', 's', '{}')", "packet_direction"),
-    ("INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES ('2026-10-21T12:00:00.000000Z', 'in', x'00', '', 'B', '', 'other', 's', '{}')", "packet_source_present"),
-    ("INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES ('2026-10-21T12:00:00.000000Z', 'in', x'00', 'A', 'B', '', 'weather', 's', '{}')", "packet_kind"),
-    ("INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES ('2026-10-21T12:00:00.000000Z', 'in', x'00', 'A', 'B', '', 'other', 's', '{broken')", "packet_decoded_json"),
-    ("INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded, error) VALUES ('2026-10-21T12:00:00.000000Z', 'in', x'00', 'A', 'B', '', 'other', 's', '{}', 'e')", "packet_error_when_undecoded"),
-    (STATION.format(columns="", values="").format(call="", kind="station", first="a", last="b", packets=0), "station_call_present"),
-    (STATION.format(columns="", values="").format(call="X", kind="thing", first="a", last="b", packets=0), "station_kind"),
-    (STATION.format(columns=", lat, lon", values=", 91, 0").format(call="X", kind="station", first="a", last="b", packets=0), "station_lat_range"),
-    (STATION.format(columns=", lat, lon", values=", 0, 181").format(call="X", kind="station", first="a", last="b", packets=0), "station_lon_range"),
-    (STATION.format(columns=", lat", values=", 5").format(call="X", kind="station", first="a", last="b", packets=0), "station_position_together"),
-    (STATION.format(columns="", values="").format(call="X", kind="station", first="a", last="b", packets=-1), "station_packets_count"),
-])
-async def test_the_tables_refuse_what_the_program_cannot_produce_and_say_which_check(tmp_path: Path, statement: str, name: str, shape: bool) -> None:
+@pytest.mark.parametrize(
+    "statement, name",
+    [
+        (
+            "INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES ('2026-10-21 12:00', 'in', x'00', 'A', 'B', '', 'other', 's', '{}')",
+            "packet_heard_at_form",
+        ),
+        (
+            "INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES ('2026-10-21T12:00:00.000000Z', 'sideways', x'00', 'A', 'B', '', 'other', 's', '{}')",
+            "packet_direction",
+        ),
+        (
+            "INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES ('2026-10-21T12:00:00.000000Z', 'in', x'00', '', 'B', '', 'other', 's', '{}')",
+            "packet_source_present",
+        ),
+        (
+            "INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES ('2026-10-21T12:00:00.000000Z', 'in', x'00', 'A', 'B', '', 'weather', 's', '{}')",
+            "packet_kind",
+        ),
+        (
+            "INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES ('2026-10-21T12:00:00.000000Z', 'in', x'00', 'A', 'B', '', 'other', 's', '{broken')",
+            "packet_decoded_json",
+        ),
+        (
+            "INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded, error) VALUES ('2026-10-21T12:00:00.000000Z', 'in', x'00', 'A', 'B', '', 'other', 's', '{}', 'e')",
+            "packet_error_when_undecoded",
+        ),
+        (
+            STATION.format(columns="", values="").format(call="", kind="station", first="a", last="b", packets=0),
+            "station_call_present",
+        ),
+        (
+            STATION.format(columns="", values="").format(call="X", kind="thing", first="a", last="b", packets=0),
+            "station_kind",
+        ),
+        (
+            STATION.format(columns=", lat, lon", values=", 91, 0").format(
+                call="X", kind="station", first="a", last="b", packets=0
+            ),
+            "station_lat_range",
+        ),
+        (
+            STATION.format(columns=", lat, lon", values=", 0, 181").format(
+                call="X", kind="station", first="a", last="b", packets=0
+            ),
+            "station_lon_range",
+        ),
+        (
+            STATION.format(columns=", lat", values=", 5").format(
+                call="X", kind="station", first="a", last="b", packets=0
+            ),
+            "station_position_together",
+        ),
+        (
+            STATION.format(columns="", values="").format(call="X", kind="station", first="a", last="b", packets=-1),
+            "station_packets_count",
+        ),
+    ],
+)
+async def test_the_tables_refuse_what_the_program_cannot_produce_and_say_which_check(
+    tmp_path: Path, statement: str, name: str, shape: bool
+) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME))
     with pytest.raises(sqlite3.IntegrityError, match=name):
         await sql(store, as_written(statement, shape))
@@ -266,44 +491,103 @@ async def test_the_tables_refuse_what_the_program_cannot_produce_and_say_which_c
 
 # ---- how the packets reached us
 
+
 def heard(source: str, path: tuple[str, ...], at: object = T0, info: bytes = b"!6010.00N/02456.00E>x") -> Packet:
-    frame = ax25.Frame(ax25.Address("APRS"), ax25.Address.parse(source), tuple(ax25.Address.parse(p) for p in path), info=info)
+    frame = ax25.Frame(
+        ax25.Address("APRS"), ax25.Address.parse(source), tuple(ax25.Address.parse(p) for p in path), info=info
+    )
     return Packet(at, "in", ax25.encode(frame), source, "APRS", path, info, Status("x"))  # type: ignore[arg-type]
 
 
 def test_a_third_party_packet_comes_back_from_its_row_with_its_header_and_what_is_inside() -> None:
     p = aprsthirdparty_packet(b"}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack10")
     again = packet_of(packet_row(p))
-    assert again == p and again.third_party == ThirdParty("OH2DPN", "APJYC1", ("TCPIP", "OH7JHF-1*")) and again.sender == "OH2DPN" and again.gate == "OH7JHF-1"
-    assert packet_row(p).summary == "ack 10 to OH2GBA via OH7JHF-1 (third-party)" and again.decoded == Message("OH2GBA", "", ack_id="10")
+    assert (
+        again == p
+        and again.third_party == ThirdParty("OH2DPN", "APJYC1", ("TCPIP", "OH7JHF-1*"))
+        and again.sender == "OH2DPN"
+        and again.gate == "OH7JHF-1"
+    )
+    assert packet_row(p).summary == "ack 10 to OH2GBA via OH7JHF-1 (third-party)" and again.decoded == Message(
+        "OH2GBA", "", ack_id="10"
+    )
 
 
 def test_a_row_written_before_third_party_packets_were_opened_reads_back_as_the_wrapper_it_was() -> None:
-    old = packet_row(aprsthirdparty_packet(b"}N0CALL>APRS,TCPIP:!4903.50N/07201.75W-"))._replace(decoded=encode_decoded(Other("third-party", "}N0CALL>APRS,TCPIP:!4903.50N/07201.75W-")))
+    old = packet_row(aprsthirdparty_packet(b"}N0CALL>APRS,TCPIP:!4903.50N/07201.75W-"))._replace(
+        decoded=encode_decoded(Other("third-party", "}N0CALL>APRS,TCPIP:!4903.50N/07201.75W-"))
+    )
     again = packet_of(old)
-    assert again.decoded == Other("third-party", "}N0CALL>APRS,TCPIP:!4903.50N/07201.75W-") and again.sender == "N0CALL" and again.gate == "OH7JHF-1"
+    assert (
+        again.decoded == Other("third-party", "}N0CALL>APRS,TCPIP:!4903.50N/07201.75W-")
+        and again.sender == "N0CALL"
+        and again.gate == "OH7JHF-1"
+    )
 
 
 def aprsthirdparty_packet(info: bytes) -> Packet:
-    frame = ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH7JHF-1"), (ax25.Address.parse("OH2RCH-3*"),), info=info)
+    frame = ax25.Frame(
+        ax25.Address("APRS"), ax25.Address.parse("OH7JHF-1"), (ax25.Address.parse("OH2RCH-3*"),), info=info
+    )
     decoded, third = parse_packet(info, "OH7JHF-1", "APRS", T0)
-    return Packet(T0, "in", ax25.encode(frame), "OH7JHF-1", "APRS", ("OH2RCH-3*",), info, decoded, third, "rf-gated" if third else "rf")
+    return Packet(
+        T0,
+        "in",
+        ax25.encode(frame),
+        "OH7JHF-1",
+        "APRS",
+        ("OH2RCH-3*",),
+        info,
+        decoded,
+        third,
+        "rf-gated" if third else "rf",
+    )
 
 
-async def test_the_deliveries_are_the_routes_of_the_latest_packets_heard_by_sender_and_a_third_party_packet_is_its_inner_sender_with_the_gate(tmp_path: Path) -> None:
+async def test_the_deliveries_are_the_routes_of_the_latest_packets_heard_by_sender_and_a_third_party_packet_is_its_inner_sender_with_the_gate(
+    tmp_path: Path,
+) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
-    for n, p in enumerate([heard("OH2AAA", ("OH2RCH-2*",)), heard("OH2AAA", ("OH2RCH-2*",)), heard("OH2BBB", ()), aprsthirdparty_packet(b"}OH2DPN>APRS,TCPIP:>x"), heard("OH2AAA", ("OH2RCH-3*", "TRACE2-1"))]):
-        log.append(Packet(T0 + timedelta(seconds=n), p.direction, p.raw, p.source, p.destination, p.path, p.info, p.decoded, p.third_party, p.via))
+    for n, p in enumerate(
+        [
+            heard("OH2AAA", ("OH2RCH-2*",)),
+            heard("OH2AAA", ("OH2RCH-2*",)),
+            heard("OH2BBB", ()),
+            aprsthirdparty_packet(b"}OH2DPN>APRS,TCPIP:>x"),
+            heard("OH2AAA", ("OH2RCH-3*", "TRACE2-1")),
+        ]
+    ):
+        log.append(
+            Packet(
+                T0 + timedelta(seconds=n),
+                p.direction,
+                p.raw,
+                p.source,
+                p.destination,
+                p.path,
+                p.info,
+                p.decoded,
+                p.third_party,
+                p.via,
+            )
+        )
     log.append(made(POSITION, T0 + timedelta(seconds=9), "out"))
-    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 2, T0 + timedelta(seconds=1), T0, None), ("OH2BBB", (), "", 1, T0 + timedelta(seconds=2), None, None),
-                                      ("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 1, T0 + timedelta(seconds=3), None, None), ("OH2AAA", ("OH2RCH-3*", "TRACE2-1"), "", 1, T0 + timedelta(seconds=4), None, None)], \
-        "with when the latest of each was heard, and the one before it"
-    assert await log.deliveries(2) == [("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 1, T0 + timedelta(seconds=3), None, None), ("OH2AAA", ("OH2RCH-3*", "TRACE2-1"), "", 1, T0 + timedelta(seconds=4), None, None)], "only the latest packets are looked at"
+    assert await log.deliveries() == [
+        ("OH2AAA", ("OH2RCH-2*",), "", 2, T0 + timedelta(seconds=1), T0, None),
+        ("OH2BBB", (), "", 1, T0 + timedelta(seconds=2), None, None),
+        ("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 1, T0 + timedelta(seconds=3), None, None),
+        ("OH2AAA", ("OH2RCH-3*", "TRACE2-1"), "", 1, T0 + timedelta(seconds=4), None, None),
+    ], "with when the latest of each was heard, and the one before it"
+    assert await log.deliveries(2) == [
+        ("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 1, T0 + timedelta(seconds=3), None, None),
+        ("OH2AAA", ("OH2RCH-3*", "TRACE2-1"), "", 1, T0 + timedelta(seconds=4), None, None),
+    ], "only the latest packets are looked at"
     assert await log.deliveries(0) == []
 
 
 # ---- the channel of a packet
+
 
 def from_the_internet(info: bytes = b"=6012.34N/02456.78E-hi", source: str = "OH2AAA", at: object = T0) -> Packet:
     return parse_is_line(f"{source}>APRS,TCPIP*,qAC,T2FINLAND:".encode() + info, at)  # type: ignore[arg-type]
@@ -312,7 +596,13 @@ def from_the_internet(info: bytes = b"=6012.34N/02456.78E-hi", source: str = "OH
 def test_a_packet_from_the_internet_is_a_row_with_its_channel_the_line_as_raw_and_comes_back_equal() -> None:
     packet = from_the_internet()
     row = packet_row(packet)
-    assert (row.via, row.raw, row.path, row.source, row.kind) == ("is", b"OH2AAA>APRS,TCPIP*,qAC,T2FINLAND:=6012.34N/02456.78E-hi", "TCPIP*,qAC,T2FINLAND", "OH2AAA", "position")
+    assert (row.via, row.raw, row.path, row.source, row.kind) == (
+        "is",
+        b"OH2AAA>APRS,TCPIP*,qAC,T2FINLAND:=6012.34N/02456.78E-hi",
+        "TCPIP*,qAC,T2FINLAND",
+        "OH2AAA",
+        "position",
+    )
     assert packet_of(row) == packet and packet_of(row).via == "is" and packet_of(row).info == packet.info
     assert tnc2(packet) == "OH2AAA>APRS,TCPIP*,qAC,T2FINLAND:=6012.34N/02456.78E-hi"
     wrapped = parse_is_line("OH7JHF-1>APRS,TCPIP*,qAC,T2FINLAND:}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack10", T0)
@@ -321,17 +611,25 @@ def test_a_packet_from_the_internet_is_a_row_with_its_channel_the_line_as_raw_an
 
 def test_a_packet_of_the_dummy_radio_is_kept_as_such_and_comes_back_equal() -> None:
     from dataclasses import replace
+
     made_up = replace(heard("QDUMMY-1", ("WIDE1*",)), via="dummy")
     assert packet_row(made_up).via == "dummy" and packet_of(packet_row(made_up)) == made_up
     gated = replace(aprsthirdparty_packet(b"}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack10"), via="dummy")
     assert packet_of(packet_row(gated)).via == "dummy" and packet_of(packet_row(gated)).third_party is not None
 
 
-def test_the_channel_of_a_packet_of_the_radio_is_kept_and_a_row_that_says_otherwise_is_made_right_from_the_frame() -> None:
-    plain, gated = heard("OH2AAA", ("OH2RCH-2*",)), aprsthirdparty_packet(b"}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack10")
+def test_the_channel_of_a_packet_of_the_radio_is_kept_and_a_row_that_says_otherwise_is_made_right_from_the_frame() -> (
+    None
+):
+    plain, gated = (
+        heard("OH2AAA", ("OH2RCH-2*",)),
+        aprsthirdparty_packet(b"}OH2DPN>APJYC1,TCPIP,OH7JHF-1*::OH2GBA   :ack10"),
+    )
     assert (packet_row(plain).via, packet_row(gated).via) == ("rf", "rf-gated")
     assert packet_of(packet_row(plain)).via == "rf" and packet_of(packet_row(gated)).via == "rf-gated"
-    assert packet_of(packet_row(gated)._replace(via="rf")) == gated, "a row from before the channel was kept, or marked by the migration with less care"
+    assert packet_of(packet_row(gated)._replace(via="rf")) == gated, (
+        "a row from before the channel was kept, or marked by the migration with less care"
+    )
     assert packet_of(packet_row(plain)._replace(via="rf-gated")) == plain
     with pytest.raises(ValueError, match="no channel"):
         packet_of(packet_row(plain)._replace(via="tcp"))
@@ -342,22 +640,36 @@ async def test_the_deliveries_keep_what_the_hf_radio_heard_as_its_own(tmp_path: 
     log = PacketLog(store.db, FixedClock())
     log.append(heard("OH2AAA", ("OH2RCH-2*",), T0))
     log.append(replace(heard("OH2AAA", (), T0 + timedelta(seconds=1)), radio_id=HF_ID))
-    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 1, T0, None, None), ("OH2AAA", (), "", 1, T0 + timedelta(seconds=1), None, HF_ID)]
+    assert await log.deliveries() == [
+        ("OH2AAA", ("OH2RCH-2*",), "", 1, T0, None, None),
+        ("OH2AAA", (), "", 1, T0 + timedelta(seconds=1), None, HF_ID),
+    ]
 
 
-async def test_the_log_keeps_packets_from_the_internet_with_the_others_and_the_statements_of_the_radio_leave_them_out(tmp_path: Path) -> None:
+async def test_the_log_keeps_packets_from_the_internet_with_the_others_and_the_statements_of_the_radio_leave_them_out(
+    tmp_path: Path,
+) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     log.append(heard("OH2AAA", ("OH2RCH-2*",), T0))
     log.append(from_the_internet(source="OH2AAA", at=T0 + timedelta(seconds=1)))
     log.append(from_the_internet(source="OH2NET", at=T0 + timedelta(seconds=2)))
     log.append(from_the_internet(b">just a status", "OH2AAA", T0 + timedelta(seconds=3)))
-    assert [(p.source, p.via) for p in await log.recent()] == [("OH2AAA", "is"), ("OH2NET", "is"), ("OH2AAA", "is"), ("OH2AAA", "rf")]
+    assert [(p.source, p.via) for p in await log.recent()] == [
+        ("OH2AAA", "is"),
+        ("OH2NET", "is"),
+        ("OH2AAA", "is"),
+        ("OH2AAA", "rf"),
+    ]
     assert [p.via for p in await log.since(T0)] == ["rf", "is", "is", "is"]
     assert await log.heard_since("OH2AAA", T0) == [T0], "heard on the radio: the internet is not the air (?APRSH)"
     assert await log.heard_since("OH2NET", T0) == []
-    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 1, T0, None, None)], "the routes are those of the radio"
-    assert [w[0] for w in await log.positions(30)] == ["OH2AAA", "OH2NET"], "the tracks take the positions of the internet too"
+    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 1, T0, None, None)], (
+        "the routes are those of the radio"
+    )
+    assert [w[0] for w in await log.positions(30)] == ["OH2AAA", "OH2NET"], (
+        "the tracks take the positions of the internet too"
+    )
     assert await log.count() == 4
     assert (await sql(store, "SELECT via, COUNT(*) FROM packet GROUP BY via ORDER BY via")) == [("is", 3), ("rf", 1)]
 
@@ -365,16 +677,40 @@ async def test_the_log_keeps_packets_from_the_internet_with_the_others_and_the_s
 async def test_a_station_keeps_its_channels_in_the_cache(tmp_path: Path) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
-    station = Station("OH2AAA", first_heard=T0, last_heard=T0 + timedelta(minutes=5), lat=60.1, lon=24.9, packets=6, heard_rf=3, heard_rf_gated=1, heard_is=2, last_rf_at=T0 + timedelta(minutes=1),
-                      last_rf_gated_at=T0 + timedelta(minutes=2), last_is_at=T0 + timedelta(minutes=5), position_via="is", last_position_at=T0)
+    station = Station(
+        "OH2AAA",
+        first_heard=T0,
+        last_heard=T0 + timedelta(minutes=5),
+        lat=60.1,
+        lon=24.9,
+        packets=6,
+        heard_rf=3,
+        heard_rf_gated=1,
+        heard_is=2,
+        last_rf_at=T0 + timedelta(minutes=1),
+        last_rf_gated_at=T0 + timedelta(minutes=2),
+        last_is_at=T0 + timedelta(minutes=5),
+        position_via="is",
+        last_position_at=T0,
+    )
     log.save_station(station)
     log.save_station(Station("OH2NONE", first_heard=T0, last_heard=T0))
     [first, second] = sorted(await log.stations(), key=lambda s: s.call)
     assert first == station
-    assert (second.heard_rf, second.heard_rf_gated, second.heard_is, second.last_rf_at, second.last_rf_gated_at, second.last_is_at, second.position_via) == (0, 0, 0, None, None, None, None)
+    assert (
+        second.heard_rf,
+        second.heard_rf_gated,
+        second.heard_is,
+        second.last_rf_at,
+        second.last_rf_gated_at,
+        second.last_is_at,
+        second.position_via,
+    ) == (0, 0, 0, None, None, None, None)
 
 
-async def test_prune_deletes_in_slices_so_that_what_else_is_asked_is_served_between_them(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_prune_deletes_in_slices_so_that_what_else_is_asked_is_served_between_them(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr("neoaprs.packetlog.PRUNE_SLICE", 3)
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
@@ -383,12 +719,14 @@ async def test_prune_deletes_in_slices_so_that_what_else_is_asked_is_served_betw
     log.append(made(POSITION, T0))
     assert await log.count() == 8
     pruning = asyncio.create_task(log.prune(30))
-    await asyncio.sleep(0)                                  # the first slice is queued
+    await asyncio.sleep(0)  # the first slice is queued
     assert await log.count() == 5, "the read waited for one slice of three, not for the whole delete"
     assert await pruning == 7 and await log.count() == 1
 
 
-async def test_prune_ends_on_a_full_last_slice_and_on_a_log_that_is_not_open(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_prune_ends_on_a_full_last_slice_and_on_a_log_that_is_not_open(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr("neoaprs.packetlog.PRUNE_SLICE", 3)
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
@@ -401,7 +739,10 @@ async def test_prune_ends_on_a_full_last_slice_and_on_a_log_that_is_not_open(tmp
 # ---- what a Raspberry Pi's card is written: station rows once per station per flush, internet
 # packets kept a shorter time
 
-async def test_a_station_saved_many_times_between_two_flushes_is_written_once_as_it_is_then_and_a_read_sees_it(tmp_path: Path) -> None:
+
+async def test_a_station_saved_many_times_between_two_flushes_is_written_once_as_it_is_then_and_a_read_sees_it(
+    tmp_path: Path,
+) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     station = Station("OH2AAA", first_heard=T0, last_heard=T0, packets=1)
@@ -413,9 +754,13 @@ async def test_a_station_saved_many_times_between_two_flushes_is_written_once_as
     assert log.flush_stations() == 0
     station.packets = 12
     log.save_station(station)
-    assert {s.call: s.packets for s in await log.stations()} == {"OH2AAA": 12, "OH2BBB": 0}, "a read writes what changed first and sees the station as it is now"
+    assert {s.call: s.packets for s in await log.stations()} == {"OH2AAA": 12, "OH2BBB": 0}, (
+        "a read writes what changed first and sees the station as it is now"
+    )
     log.save_station(Station("OH2CCC", first_heard=T0, last_heard=T0))
-    assert log.delete_station("OH2CCC") and log.flush_stations() == 0, "a station deleted before the flush is not written"
+    assert log.delete_station("OH2CCC") and log.flush_stations() == 0, (
+        "a station deleted before the flush is not written"
+    )
     assert sorted(s.call for s in await log.stations()) == ["OH2AAA", "OH2BBB"]
 
 
@@ -425,7 +770,9 @@ async def test_forgetting_the_heard_stations_forgets_the_ones_not_yet_written_to
     log.save_station(Station("OH2GBA", first_heard=T0, last_heard=T0, is_me=True))
     log.save_station(Station("OH2AAA", first_heard=T0, last_heard=T0))
     assert await log.forget_heard("OH2GBA") == 0
-    assert [s.call for s in await log.stations()] == ["OH2GBA"], "ours stays, the other does not come back with the next flush"
+    assert [s.call for s in await log.stations()] == ["OH2GBA"], (
+        "ours stays, the other does not come back with the next flush"
+    )
 
 
 async def test_the_internets_packets_are_pruned_by_their_own_shorter_keep(tmp_path: Path) -> None:
@@ -435,11 +782,14 @@ async def test_the_internets_packets_are_pruned_by_their_own_shorter_keep(tmp_pa
     for days_ago, via in ((1, "rf"), (3, "rf"), (1, "is"), (3, "is"), (9, "rf"), (9, "is")):
         log.append(replace(made(POSITION), heard_at=clock() - timedelta(days=days_ago), via=via))
     assert await log.prune(7, 2) == 3, "the two older than 7 days, and the internet's older than 2"
-    assert sorted((clock() - p.heard_at).days for p in await log.recent()) == [1, 1, 3] and [p.via for p in await log.recent() if (clock() - p.heard_at).days == 3] == ["rf"]
+    assert sorted((clock() - p.heard_at).days for p in await log.recent()) == [1, 1, 3] and [
+        p.via for p in await log.recent() if (clock() - p.heard_at).days == 3
+    ] == ["rf"]
     assert await log.prune(7) == 0, "without an internet keep nothing more goes"
 
 
 # ---- a station's row and what each radio heard of it
+
 
 def by_radio(station: Station) -> dict[int, RadioHeard]:
     """What each radio heard of a station, as the log reads it back from the rows of
@@ -449,21 +799,63 @@ def by_radio(station: Station) -> dict[int, RadioHeard]:
 
 def test_a_station_gives_its_row_and_what_each_radio_heard_and_they_give_the_station_back(shape: bool) -> None:
     later = T0 + timedelta(minutes=7)
-    for station in (Station("OH2FM", first_heard=T0, last_heard=later, packets=3, heard_rf=3, last_rf_at=later, heard_by={FM_ID: RadioHeard(3, later, ("OH2RCH-2*", "WIDE2-1"))}),
-                    Station("OH2HF", first_heard=T0, last_heard=later, packets=2, heard_rf=2, last_rf_at=later, heard_by={HF_ID: RadioHeard(2, later)}),
-                    Station("OH2BOTH", first_heard=T0, last_heard=later, packets=5, heard_rf=5, last_rf_at=later, heard_by={FM_ID: RadioHeard(3, T0), HF_ID: RadioHeard(2, later, ("WIDE1-1",))}),
-                    Station("OH2TIE", first_heard=T0, last_heard=T0, packets=2, heard_rf=2, last_rf_at=T0, heard_by={FM_ID: RadioHeard(1, T0, ("WIDE1-1",)), HF_ID: RadioHeard(1, T0)}),
-                    Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4, last_is_at=T0)):
+    for station in (
+        Station(
+            "OH2FM",
+            first_heard=T0,
+            last_heard=later,
+            packets=3,
+            heard_rf=3,
+            last_rf_at=later,
+            heard_by={FM_ID: RadioHeard(3, later, ("OH2RCH-2*", "WIDE2-1"))},
+        ),
+        Station(
+            "OH2HF",
+            first_heard=T0,
+            last_heard=later,
+            packets=2,
+            heard_rf=2,
+            last_rf_at=later,
+            heard_by={HF_ID: RadioHeard(2, later)},
+        ),
+        Station(
+            "OH2BOTH",
+            first_heard=T0,
+            last_heard=later,
+            packets=5,
+            heard_rf=5,
+            last_rf_at=later,
+            heard_by={FM_ID: RadioHeard(3, T0), HF_ID: RadioHeard(2, later, ("WIDE1-1",))},
+        ),
+        Station(
+            "OH2TIE",
+            first_heard=T0,
+            last_heard=T0,
+            packets=2,
+            heard_rf=2,
+            last_rf_at=T0,
+            heard_by={FM_ID: RadioHeard(1, T0, ("WIDE1-1",)), HF_ID: RadioHeard(1, T0)},
+        ),
+        Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4, last_is_at=T0),
+    ):
         row = station_row(station)
         assert len(row) == len(station_columns()) == (28 if shape else 33)
         assert (station_of(row, heard=by_radio(station)) if shape else station_of(row)) == station, station.call
-    both = Station("OH2BOTH", first_heard=T0, last_heard=later, heard_by={FM_ID: RadioHeard(3, T0), HF_ID: RadioHeard(2, later)})
+    both = Station(
+        "OH2BOTH", first_heard=T0, last_heard=later, heard_by={FM_ID: RadioHeard(3, T0), HF_ID: RadioHeard(2, later)}
+    )
     both.last_path = ("WIDE1-1",)
-    assert heard_rows(both) == [("OH2BOTH", 1, 3, stamp(T0), ""), ("OH2BOTH", 2, 2, stamp(later), "WIDE1-1")], "the path is the one of the radio that heard the station last"
-    tie = Station("OH2TIE", first_heard=T0, last_heard=T0, heard_by={FM_ID: RadioHeard(1, T0), HF_ID: RadioHeard(1, T0)})
+    assert heard_rows(both) == [("OH2BOTH", 1, 3, stamp(T0), ""), ("OH2BOTH", 2, 2, stamp(later), "WIDE1-1")], (
+        "the path is the one of the radio that heard the station last"
+    )
+    tie = Station(
+        "OH2TIE", first_heard=T0, last_heard=T0, heard_by={FM_ID: RadioHeard(1, T0), HF_ID: RadioHeard(1, T0)}
+    )
     tie.last_path = ("WIDE1-1",)
     assert [r[4] for r in heard_rows(tie)] == ["WIDE1-1", ""], "the radio 1's when both heard it at the same time"
-    assert heard_rows(Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4)) == [], "a radio that heard nothing has no row"
+    assert heard_rows(Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4)) == [], (
+        "a radio that heard nothing has no row"
+    )
     told = Station("OH2ONE", first_heard=T0, last_heard=T0, heard_by={3: RadioHeard(1, T0, ())})
     told.heard_by[4] = RadioHeard(0, None, ())
     assert heard_rows(told) == [("OH2ONE", 3, 1, stamp(T0), "")], "nor one whose entry was put into heard_by by hand"
@@ -474,48 +866,89 @@ def test_a_station_is_made_from_what_each_radio_heard_and_a_third_radio_is_taken
     row = station_row(Station("OH2AAA", first_heard=T0, last_heard=T0))
     later = T0 + timedelta(minutes=1)
     both = station_of(row, heard={1: RadioHeard(3, T0, ("WIDE1-1",)), 2: RadioHeard(2, later, ("OH2HFD",))})
-    assert (both.heard_on(FM_ID).count, both.heard_on(FM_ID).last_at, both.heard_on(HF_ID).count, both.heard_on(HF_ID).last_at, both.last_path) == (3, T0, 2, later, ("OH2HFD",)), "the path of the radio that heard it last"
-    assert station_of(row, heard={1: RadioHeard(3, later, ("WIDE1-1",)), 2: RadioHeard(2, T0, ("OH2HFD",))}).last_path == ("WIDE1-1",)
-    assert station_of(row, heard={2: RadioHeard(2, T0, ("OH2HFD",))}).last_path == ("OH2HFD",) and station_of(row, heard={1: RadioHeard(1, None, ("WIDE1-1",))}).last_path == ("WIDE1-1",), "the one radio that heard it"
+    assert (
+        both.heard_on(FM_ID).count,
+        both.heard_on(FM_ID).last_at,
+        both.heard_on(HF_ID).count,
+        both.heard_on(HF_ID).last_at,
+        both.last_path,
+    ) == (3, T0, 2, later, ("OH2HFD",)), "the path of the radio that heard it last"
+    assert station_of(
+        row, heard={1: RadioHeard(3, later, ("WIDE1-1",)), 2: RadioHeard(2, T0, ("OH2HFD",))}
+    ).last_path == ("WIDE1-1",)
+    assert station_of(row, heard={2: RadioHeard(2, T0, ("OH2HFD",))}).last_path == ("OH2HFD",) and station_of(
+        row, heard={1: RadioHeard(1, None, ("WIDE1-1",))}
+    ).last_path == ("WIDE1-1",), "the one radio that heard it"
     assert station_of(row).heard_by == {} and station_of(row, heard={}).last_path == ()
     third = {1: RadioHeard(3, T0), 3: RadioHeard(1, later, ("WIDE2-1",))}
     made = station_of(row, heard=third)
-    assert made.heard_by == third and (made.heard_on(FM_ID).count, made.heard_on(HF_ID).count, made.last_path) == (3, 0, ("WIDE2-1",)), "radio 3 by its id, and the path of the radio that heard it last"
+    assert made.heard_by == third and (made.heard_on(FM_ID).count, made.heard_on(HF_ID).count, made.last_path) == (
+        3,
+        0,
+        ("WIDE2-1",),
+    ), "radio 3 by its id, and the path of the radio that heard it last"
     assert by_radio(made) == third, "and its rows give it back"
 
 
 # ---- the shape of migrations 32 and 33: a packet's radio by its id, and what each radio heard of a
 # station in a table of its own
 
+
 @NEW
 async def test_a_packet_names_its_radio_by_the_id_and_one_from_the_internet_names_none(tmp_path: Path) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
-    packets = [replace(heard("OH2FM", ("OH2RCH-2*",), T0), radio_id=FM_ID), replace(heard("OH2HF", (), T0 + timedelta(seconds=1)), radio_id=HF_ID), from_the_internet(source="OH2NET", at=T0 + timedelta(seconds=2)),
-               heard("OH2NO", (), T0 + timedelta(seconds=3))]
+    packets = [
+        replace(heard("OH2FM", ("OH2RCH-2*",), T0), radio_id=FM_ID),
+        replace(heard("OH2HF", (), T0 + timedelta(seconds=1)), radio_id=HF_ID),
+        from_the_internet(source="OH2NET", at=T0 + timedelta(seconds=2)),
+        heard("OH2NO", (), T0 + timedelta(seconds=3)),
+    ]
     for packet in packets:
         assert log.append(packet)
-    assert [(p.source, p.radio_id) for p in reversed(await log.recent())] == [("OH2FM", 1), ("OH2HF", 2), ("OH2NET", None), ("OH2NO", None)]
+    assert [(p.source, p.radio_id) for p in reversed(await log.recent())] == [
+        ("OH2FM", 1),
+        ("OH2HF", 2),
+        ("OH2NET", None),
+        ("OH2NO", None),
+    ]
     assert list(reversed(await log.recent())) == packets
-    assert await sql(store, "SELECT source, radio, typeof(radio) FROM packet ORDER BY id") == [("OH2FM", 1, "integer"), ("OH2HF", 2, "integer"), ("OH2NET", None, "null"), ("OH2NO", None, "null")]
-    assert packet_row(packets[1]).radio == 2 and packet_row(packets[2]).radio is None and packet_of(packet_row(packets[1])) == packets[1]
+    assert await sql(store, "SELECT source, radio, typeof(radio) FROM packet ORDER BY id") == [
+        ("OH2FM", 1, "integer"),
+        ("OH2HF", 2, "integer"),
+        ("OH2NET", None, "null"),
+        ("OH2NO", None, "null"),
+    ]
+    assert (
+        packet_row(packets[1]).radio == 2
+        and packet_row(packets[2]).radio is None
+        and packet_of(packet_row(packets[1])) == packets[1]
+    )
     with pytest.raises(ValueError):
         # The word of a database before migration 32 is no row of this program
         packet_of(packet_row(packets[1])._replace(radio="hf"))
 
 
 @NEW
-async def test_a_packet_of_a_third_radio_is_read_and_written_as_it_is_and_a_row_that_names_no_radio_is_refused(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    store = await store_at(shaped(tmp_path / DB_NAME, radios=((1, "fm", "kiss", 1, 1), (3, "lora", "dummy-lora", 1, 2))))
+async def test_a_packet_of_a_third_radio_is_read_and_written_as_it_is_and_a_row_that_names_no_radio_is_refused(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    store = await store_at(
+        shaped(tmp_path / DB_NAME, radios=((1, "fm", "kiss", 1, 1), (3, "lora", "dummy-lora", 1, 2)))
+    )
     log = PacketLog(store.db, FixedClock())
     log.append(replace(heard("OH2FM", ()), radio_id=FM_ID))
     log.append(replace(heard("OH2LRA", (), T0 + timedelta(seconds=1)), radio_id=3))
     await log.count()
     caplog.set_level(logging.WARNING, "neoaprs.packetlog")
-    assert [(p.source, p.radio_id) for p in reversed(await log.recent())] == [("OH2FM", 1), ("OH2LRA", 3)], "radio 3 by its id"
+    assert [(p.source, p.radio_id) for p in reversed(await log.recent())] == [("OH2FM", 1), ("OH2LRA", 3)], (
+        "radio 3 by its id"
+    )
     assert await sql(store, "SELECT source, radio FROM packet ORDER BY id") == [("OH2FM", 1), ("OH2LRA", 3)]
     await sql(store, "UPDATE packet SET radio = 3 WHERE source = 'OH2FM'")
-    assert [p.radio_id for p in await log.recent()] == [3, 3] and not [r for r in caplog.records if r.name == "neoaprs.packetlog"]
+    assert [p.radio_id for p in await log.recent()] == [3, 3] and not [
+        r for r in caplog.records if r.name == "neoaprs.packetlog"
+    ]
     with pytest.raises(ValueError):
         packet_of(packet_row(heard("OH2FM", ()))._replace(radio="lora"))
     with pytest.raises(ValueError, match="no radio"):
@@ -523,21 +956,42 @@ async def test_a_packet_of_a_third_radio_is_read_and_written_as_it_is_and_a_row_
 
 
 @NEW
-async def test_what_each_radio_heard_of_a_station_is_a_row_of_its_own_and_the_row_of_a_radio_that_heard_it_no_more_goes(tmp_path: Path) -> None:
+async def test_what_each_radio_heard_of_a_station_is_a_row_of_its_own_and_the_row_of_a_radio_that_heard_it_no_more_goes(
+    tmp_path: Path,
+) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     later = T0 + timedelta(minutes=7)
-    station = Station("OH2AAA", first_heard=T0, last_heard=later, packets=5, heard_rf=5, last_rf_at=later, heard_by={FM_ID: RadioHeard(3, T0), HF_ID: RadioHeard(2, later, ("OH2RCH-2*",))})
+    station = Station(
+        "OH2AAA",
+        first_heard=T0,
+        last_heard=later,
+        packets=5,
+        heard_rf=5,
+        last_rf_at=later,
+        heard_by={FM_ID: RadioHeard(3, T0), HF_ID: RadioHeard(2, later, ("OH2RCH-2*",))},
+    )
     log.save_station(station)
     log.save_station(Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4, last_is_at=T0))
-    assert sorted(await log.stations(), key=lambda s: s.call) == [station, Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4, last_is_at=T0)]
-    assert await sql(store, "SELECT call, radio_id, heard, last_at, last_path FROM station_radio ORDER BY call, radio_id") == [("OH2AAA", 1, 3, stamp(T0), ""), ("OH2AAA", 2, 2, stamp(later), "OH2RCH-2*")]
-    assert {c[1] for c in await sql(store, "PRAGMA table_info(station)")} == set(station_columns()), "the station's row is what the code writes: what each radio heard is the table's of its own"
-    assert not {"last_path", "heard_" "fm", "heard_" "hf", "last_" "fm_at", "last_" "hf_at"} & set(station_columns()), "the path and the counts of a radio are station_radio's"
+    assert sorted(await log.stations(), key=lambda s: s.call) == [
+        station,
+        Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4, last_is_at=T0),
+    ]
+    assert await sql(
+        store, "SELECT call, radio_id, heard, last_at, last_path FROM station_radio ORDER BY call, radio_id"
+    ) == [("OH2AAA", 1, 3, stamp(T0), ""), ("OH2AAA", 2, 2, stamp(later), "OH2RCH-2*")]
+    assert {c[1] for c in await sql(store, "PRAGMA table_info(station)")} == set(station_columns()), (
+        "the station's row is what the code writes: what each radio heard is the table's of its own"
+    )
+    assert not {"last_path", "heard_" + "fm", "heard_" + "hf", "last_" + "fm_at", "last_" + "hf_at"} & set(
+        station_columns()
+    ), "the path and the counts of a radio are station_radio's"
     station.heard_by = {FM_ID: RadioHeard(4, later + timedelta(minutes=1), ("WIDE1-1",))}
     log.save_station(station)
     assert [s for s in await log.stations() if s.call == "OH2AAA"] == [station]
-    assert await sql(store, "SELECT call, radio_id, heard, last_at, last_path FROM station_radio") == [("OH2AAA", 1, 4, stamp(later + timedelta(minutes=1)), "WIDE1-1")], "the HF radio's row is gone with its count"
+    assert await sql(store, "SELECT call, radio_id, heard, last_at, last_path FROM station_radio") == [
+        ("OH2AAA", 1, 4, stamp(later + timedelta(minutes=1)), "WIDE1-1")
+    ], "the HF radio's row is gone with its count"
 
 
 @NEW
@@ -548,26 +1002,66 @@ async def test_a_station_that_is_deleted_or_forgotten_takes_what_the_radios_hear
     log = PacketLog(store.db, FixedClock())
     assert await sql(store, "PRAGMA foreign_keys") == [(0,)]
     for call in ("OH2GBA", "OH2AAA", "OH2BBB"):
-        log.save_station(Station(call, first_heard=T0, last_heard=T0, packets=2, heard_rf=2, last_rf_at=T0, heard_by={FM_ID: RadioHeard(1, T0), HF_ID: RadioHeard(1, T0)}))
+        log.save_station(
+            Station(
+                call,
+                first_heard=T0,
+                last_heard=T0,
+                packets=2,
+                heard_rf=2,
+                last_rf_at=T0,
+                heard_by={FM_ID: RadioHeard(1, T0), HF_ID: RadioHeard(1, T0)},
+            )
+        )
     assert len(await log.stations()) == 3 and await sql(store, "SELECT COUNT(*) FROM station_radio") == [(6,)]
     assert log.delete_station("OH2AAA")
     assert sorted(s.call for s in await log.stations()) == ["OH2BBB", "OH2GBA"]
-    assert await sql(store, "SELECT call, radio_id FROM station_radio ORDER BY call, radio_id") == [("OH2BBB", 1), ("OH2BBB", 2), ("OH2GBA", 1), ("OH2GBA", 2)]
+    assert await sql(store, "SELECT call, radio_id FROM station_radio ORDER BY call, radio_id") == [
+        ("OH2BBB", 1),
+        ("OH2BBB", 2),
+        ("OH2GBA", 1),
+        ("OH2GBA", 2),
+    ]
     assert await log.forget_heard("OH2GBA") == 0
-    assert [s.call for s in await log.stations()] == ["OH2GBA"] and await sql(store, "SELECT call, radio_id FROM station_radio ORDER BY radio_id") == [("OH2GBA", 1), ("OH2GBA", 2)], "ours stays, with what the radios heard of it"
+    assert [s.call for s in await log.stations()] == ["OH2GBA"] and await sql(
+        store, "SELECT call, radio_id FROM station_radio ORDER BY radio_id"
+    ) == [("OH2GBA", 1), ("OH2GBA", 2)], "ours stays, with what the radios heard of it"
 
 
 @NEW
-async def test_a_row_of_what_a_radio_heard_that_is_not_ours_is_left_out_and_a_station_a_third_radio_heard_is_read_as_it_is(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    store = await store_at(shaped(tmp_path / DB_NAME, radios=((1, "fm", "kiss", 1, 1), (2, "hf", "mercury", 1, 2), (3, "lora", "dummy-lora", 1, 3))))
+async def test_a_row_of_what_a_radio_heard_that_is_not_ours_is_left_out_and_a_station_a_third_radio_heard_is_read_as_it_is(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    store = await store_at(
+        shaped(
+            tmp_path / DB_NAME,
+            radios=((1, "fm", "kiss", 1, 1), (2, "hf", "mercury", 1, 2), (3, "lora", "dummy-lora", 1, 3)),
+        )
+    )
     log = PacketLog(store.db, FixedClock())
     for call in ("OH2AAA", "OH2BBB"):
-        log.save_station(Station(call, first_heard=T0, last_heard=T0, packets=1, heard_rf=1, last_rf_at=T0, heard_by={FM_ID: RadioHeard(1, T0)}))
+        log.save_station(
+            Station(
+                call,
+                first_heard=T0,
+                last_heard=T0,
+                packets=1,
+                heard_rf=1,
+                last_rf_at=T0,
+                heard_by={FM_ID: RadioHeard(1, T0)},
+            )
+        )
     await log.stations()
-    await sql(store, "INSERT INTO station_radio (call, radio_id, heard, last_at) VALUES ('OH2AAA', 2, 4, 'yesterday'), ('OH2BBB', 3, 1, ?)", stamp(T0))
+    await sql(
+        store,
+        "INSERT INTO station_radio (call, radio_id, heard, last_at) VALUES ('OH2AAA', 2, 4, 'yesterday'), ('OH2BBB', 3, 1, ?)",
+        stamp(T0),
+    )
     caplog.set_level(logging.WARNING, "neoaprs.packetlog")
     found = sorted(await log.stations(), key=lambda s: s.call)
-    assert [(s.call, sorted(s.heard_by)) for s in found] == [("OH2AAA", [1]), ("OH2BBB", [1, 3])], "the row with no time is left out, the row of radio 3 is the station's"
+    assert [(s.call, sorted(s.heard_by)) for s in found] == [("OH2AAA", [1]), ("OH2BBB", [1, 3])], (
+        "the row with no time is left out, the row of radio 3 is the station's"
+    )
     assert found[1].heard_on(3) == RadioHeard(1, T0) and found[1].last_path == ()
     told = [r.getMessage() for r in caplog.records]
     assert any("station_radio table" in line for line in told) and not any("station table" in line for line in told)
@@ -578,11 +1072,28 @@ async def test_the_deliveries_keep_every_radio_by_its_id_and_a_packet_of_no_radi
     """The routes are every radio's, each with its id: two HF radios, a radio of another kind, a
     packet of the air that names no radio or one the table does not have; which of them are the
     station's routes as a whole is the station book's to say (stationbook.carries_path)."""
-    store = await store_at(shaped(tmp_path / DB_NAME, radios=((1, "fm", "kiss", 1, 1), (2, "hf", "mercury", 1, 2), (3, "hf", "dummy-hf", 0, 3), (4, "lora", "dummy-lora", 1, 4))))
+    store = await store_at(
+        shaped(
+            tmp_path / DB_NAME,
+            radios=(
+                (1, "fm", "kiss", 1, 1),
+                (2, "hf", "mercury", 1, 2),
+                (3, "hf", "dummy-hf", 0, 3),
+                (4, "lora", "dummy-lora", 1, 4),
+            ),
+        )
+    )
     log = PacketLog(store.db, FixedClock())
     for n, source in enumerate(("OH2A", "OH2B", "OH2C", "OH2D", "OH2E", "OH2F")):
         log.append(replace(heard(source, ("OH2RCH-2*",), T0 + timedelta(seconds=n)), radio_id=FM_ID))
     await log.count()
     for source, radio in (("OH2B", 2), ("OH2C", 3), ("OH2D", 4), ("OH2E", None), ("OH2F", 9)):
         await sql(store, "UPDATE packet SET radio = ? WHERE source = ?", radio, source)
-    assert [(d[0], d[6]) for d in await log.deliveries()] == [("OH2A", 1), ("OH2B", 2), ("OH2C", 3), ("OH2D", 4), ("OH2E", None), ("OH2F", 9)]
+    assert [(d[0], d[6]) for d in await log.deliveries()] == [
+        ("OH2A", 1),
+        ("OH2B", 2),
+        ("OH2C", 3),
+        ("OH2D", 4),
+        ("OH2E", None),
+        ("OH2F", 9),
+    ]

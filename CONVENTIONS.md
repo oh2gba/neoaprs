@@ -24,8 +24,9 @@ Read this before writing a module. `docs/ARCHITECTURE.md` has the layers, `docs/
 - SQL is written in one place: a statement is a function of a connection in `neoaprs/storesql.py` (and the `*sql.py` modules beside it), run by the database
   thread (`await db.read(fn)`, `await db.write(fn)`, `db.write_nowait(fn)`). No other module imports `sqlite3`, calls `execute` or holds a string that begins
   like a statement (`tests/test_architecture.py`).
-- The layers are in `docs/ARCHITECTURE.md`. The size limits are here, and `tests/test_size_ratchet.py` holds them: a module of `neoaprs/` has at most **400
-  lines**, a class **300**, a function **60**, and a function a cyclomatic complexity of at most **12**.
+- The layers are in `docs/ARCHITECTURE.md`. The size limits are here, and `tests/test_size_ratchet.py` holds them: a module of `neoaprs/` has at most **500
+  lines of code**, a class **400**, a function **80** (blank lines, comments and docstrings do not count), and a function a cyclomatic complexity of at most **12**.
+- The code is formatted by `ruff format` at 120 columns (`pyproject.toml`); the gate checks it. The frozen migration steps and the generated data tables are not reformatted.
 - NeoAPRS is an installable package with one command: `pip install` or `uv tool install` of the wheel gives `neoaprs`, and `neoaprsw` (the same without a
   console window, for Windows) and `neoaprs-app` (the desktop app, with the extra `app`). `python -m neoaprs` is the same command, and in a clone the venv has
   it installed in editable mode.
@@ -34,8 +35,12 @@ Read this before writing a module. `docs/ARCHITECTURE.md` has the layers, `docs/
   (`pyproject.toml` reads it); the build backend is hatchling.
 - Type hints on every function. `mypy --strict` must pass on `neoaprs/` and `tests/support/`; the test files are read by mypy too, for Linux and for `--platform win32`, for what is wrong with their names (no signature is demanded, and the types of a test's doubles are not checked). A name that only POSIX has (`signal.SIGHUP`, `os.mkfifo`, `os.geteuid`) is used in a test file by way of `tests/support/ptyline.py`, never at import without it: Windows collects the file.
 - pytest, `asyncio_mode = auto`: an `async def test_*` just works. Run `.venv/bin/pytest -q tests/test_x.py`.
-- Comments and documents say what a thing is and why, in a sentence or two, in plain sentences. No docstring boilerplate that repeats the name, and no history:
-  no review finding by number, no branch or release as the reason for code, no "was X, now Y".
+- Comments are few and short, in plain, conventional technical English. A comment says why, where the code cannot: a protocol rule with its
+  specification section, a platform quirk, an invariant, a unit, a security reason. It never restates the code and never tells history: no dates,
+  people, callsigns of real stations, releases, reviews, or "was X, now Y". Longer rationale belongs in `docs/design-notes.md`.
+- A module docstring is at most four lines and says what the module is for. Other docstrings are at most three lines (what it returns or does,
+  what it raises) and only where the name and signature do not already say it. A trailing comment is short; a longer one goes on its own line above.
+- A commit message has a short imperative subject ("Add build switch for encrypted messages"), then a body that says what changed and why.
 - Names: modules and functions `snake_case`, classes `CapWords`. Fields in `snake_case`. Enums are `enum.Enum` classes with the names in CAPS: `Source.State.CONNECTED`.
 
 ## Words

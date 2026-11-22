@@ -1,6 +1,8 @@
 """The trust of the https requests (neoaprs/httpstrust.py): certifi's roots are loaded beside the
 system's, every opener of the program that goes out to the internet is built with it, and the
 Windows app carries certifi's list."""
+
+import re
 import ssl
 from pathlib import Path
 
@@ -24,8 +26,10 @@ def test_every_opener_that_goes_out_uses_it() -> None:
     for name in ("updatefetch.py", "updatedownload.py", "pmtilesarchive.py", "pmtilesrange.py"):
         text = (ROOT / "neoaprs" / name).read_text(encoding="utf-8")
         assert "urlopen(" not in text, name
-        assert text.count("build_opener(https_handler()") == text.count("build_opener("), name
+        assert len(re.findall(r"build_opener\(\s*https_handler\(\)", text)) == text.count("build_opener("), name
 
 
 def test_the_windows_app_carries_certifis_list() -> None:
-    assert 'collect_data_files("certifi")' in (ROOT / "packaging" / "windows" / "neoaprs.spec").read_text(encoding="utf-8")
+    assert 'collect_data_files("certifi")' in (ROOT / "packaging" / "windows" / "neoaprs.spec").read_text(
+        encoding="utf-8"
+    )

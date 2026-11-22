@@ -2,6 +2,7 @@
 pyserial's POSIX code runs (lock, abort pipe, device gone) and so does what only Linux can say:
 which program holds a device.
 """
+
 import asyncio
 import errno
 import logging
@@ -32,6 +33,7 @@ async def opened(path: str) -> SerialPort:
 
 # ---- reading and writing a device
 
+
 async def test_chunks_and_writes_go_through_the_threads_on_a_device(ptys: Ptys) -> None:
     master, path = ptys()
     chunks = bytearray()
@@ -55,12 +57,15 @@ async def test_closing_a_device_wakes_the_reader_at_once_and_the_port_opens_agai
     port = await opened(path)
     began = asyncio.get_running_loop().time()
     port.close()
-    assert asyncio.get_running_loop().time() - began < 0.3, "cancel_read woke the reader; it did not wait out its timeout"
+    assert asyncio.get_running_loop().time() - began < 0.3, (
+        "cancel_read woke the reader; it did not wait out its timeout"
+    )
     again = await opened(path)
     again.close()
 
 
 # ---- a line that dies
+
 
 async def test_a_device_that_goes_away_emits_dropped_once_and_closes_the_port(ptys: Ptys) -> None:
     master, path = ptys()
@@ -109,18 +114,23 @@ async def test_a_device_is_opened_by_one_owner_at_a_time_and_the_second_is_told_
     second.close()
 
 
-async def test_another_program_that_locks_the_device_is_refused_while_we_hold_it_and_gets_it_after_the_close(ptys: Ptys) -> None:
+async def test_another_program_that_locks_the_device_is_refused_while_we_hold_it_and_gets_it_after_the_close(
+    ptys: Ptys,
+) -> None:
     _, path = ptys()
     assert lock_status(path) == 0, "nobody holds the port yet"
     port = await opened(path)
     try:
-        assert lock_status(path) == errno.EAGAIN, "the lock pyserial takes is a flock; a program that takes one too is refused"
+        assert lock_status(path) == errno.EAGAIN, (
+            "the lock pyserial takes is a flock; a program that takes one too is refused"
+        )
     finally:
         port.close()
     assert lock_status(path) == 0, "closing the port gives the lock back"
 
 
 # ---- the globs
+
 
 def make_dev(tmp_path: Path) -> Path:
     """A fake /dev: ttyUSB0 and ttyUSB1 (one of them behind a by-id link), ttyACM0, a brainbox link
@@ -138,19 +148,29 @@ def make_dev(tmp_path: Path) -> Path:
 def test_a_device_with_several_names_is_listed_once_under_the_name_of_the_earliest_glob(tmp_path: Path) -> None:
     dev = make_dev(tmp_path)
     pattern = f"{dev}/serial/by-id/* {dev}/ttyUSB* {dev}/ttyACM*"
-    assert candidate_ports(pattern) == [str(dev / "serial/by-id/usb-FTDI_FT232R-if00-port0"), str(dev / "ttyACM0"), str(dev / "ttyUSB1")]
+    assert candidate_ports(pattern) == [
+        str(dev / "serial/by-id/usb-FTDI_FT232R-if00-port0"),
+        str(dev / "ttyACM0"),
+        str(dev / "ttyUSB1"),
+    ]
     assert candidate_ports(f"{dev}/ttyUSB* {dev}/serial/by-id/*") == [str(dev / "ttyUSB0"), str(dev / "ttyUSB1")]
     assert candidate_ports(f"{dev}/brainbox_* {dev}/ttyUSB*") == [str(dev / "brainbox_3"), str(dev / "ttyUSB0")]
 
 
 def test_the_globs_are_separated_by_any_space_and_a_missing_folder_matches_nothing(tmp_path: Path) -> None:
     dev = make_dev(tmp_path)
-    assert candidate_ports(f"  {dev}/ttyACM*\t{dev}/nowhere/* {dev}/ttyS*  ") == [str(dev / "ttyACM0"), str(dev / "ttyS0")]
+    assert candidate_ports(f"  {dev}/ttyACM*\t{dev}/nowhere/* {dev}/ttyS*  ") == [
+        str(dev / "ttyACM0"),
+        str(dev / "ttyS0"),
+    ]
 
 
 # ---- another program has the port
 
-async def test_a_port_held_by_another_program_is_still_skipped_by_the_probe_among_the_resolved_ones(tmp_path: Path, ptys: Ptys) -> None:
+
+async def test_a_port_held_by_another_program_is_still_skipped_by_the_probe_among_the_resolved_ones(
+    tmp_path: Path, ptys: Ptys
+) -> None:
     dev = tmp_path / "dev"
     dev.mkdir()
     held_master, held_path = ptys()
@@ -184,7 +204,7 @@ def is_kiss(data: bytes) -> bool:
 async def test_probe_returns_none_when_nothing_is_valid_and_closes_every_port_it_opened(ptys: Ptys) -> None:
     paths = [ptys()[1] for _ in range(2)]
     assert await probe(paths, 9600, 0.05, lambda data: False) is None
-    for path in paths:                                        # a port left open would still hold the exclusive lock
+    for path in paths:  # a port left open would still hold the exclusive lock
         # Each port is closed as the probe ends: its thread may take a moment
         await open_within(path, 2.0)
 
@@ -211,7 +231,7 @@ async def test_cancelling_the_probe_closes_every_port(ptys: Ptys) -> None:
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
-    for path in paths:                                        # a port left open would still hold the exclusive lock
+    for path in paths:  # a port left open would still hold the exclusive lock
         # An open that was under way when the probe was cancelled is closed by its own thread, a
         # moment later
         await open_within(path, 2.0)
@@ -253,9 +273,11 @@ def test_holders_looks_through_a_link_to_the_device(ptys: Ptys, tmp_path: Path) 
         assert holders(path) == [child.pid] == holders(str(link))
 
 
-_SAME_NUMBER = ("import os, sys, time\nkept = [os.openpty()]\n"
-                "while os.ttyname(kept[-1][1]) != sys.argv[1] and len(kept) < 300:\n    kept.append(os.openpty())\n"
-                "print(os.ttyname(kept[-1][1]), flush=True)\ntime.sleep(60)\n")
+_SAME_NUMBER = (
+    "import os, sys, time\nkept = [os.openpty()]\n"
+    "while os.ttyname(kept[-1][1]) != sys.argv[1] and len(kept) < 300:\n    kept.append(os.openpty())\n"
+    "print(os.ttyname(kept[-1][1]), flush=True)\ntime.sleep(60)\n"
+)
 
 
 def test_a_pseudo_terminal_of_another_devpts_by_the_same_name_is_no_holder(ptys: Ptys) -> None:
@@ -263,7 +285,12 @@ def test_a_pseudo_terminal_of_another_devpts_by_the_same_name_is_no_holder(ptys:
     another terminal than ours of that name: the search must not skip ours for it."""
     _, path = ptys()
     try:
-        other = subprocess.Popen(["bwrap", "--dev-bind", "/", "/", "--dev", "/dev", sys.executable, "-c", _SAME_NUMBER, path], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        other = subprocess.Popen(
+            ["bwrap", "--dev-bind", "/", "/", "--dev", "/dev", sys.executable, "-c", _SAME_NUMBER, path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
     except FileNotFoundError:
         pytest.skip("needs bubblewrap, to give a program a devpts of its own")
     try:
@@ -281,16 +308,23 @@ def test_a_pseudo_terminal_of_another_devpts_by_the_same_name_is_no_holder(ptys:
 def node_of(device: os.stat_result, dev: int, ino: int) -> os.stat_result:
     """What stat says of another node with the device's numbers: on the filesystem `dev`, as its
     inode `ino`."""
-    return os.stat_result((device.st_mode, ino, dev, device.st_nlink, device.st_uid, device.st_gid, device.st_size, 0, 0, 0), {"st_rdev": device.st_rdev})  # type: ignore[attr-defined, unused-ignore]
+    return os.stat_result(
+        (device.st_mode, ino, dev, device.st_nlink, device.st_uid, device.st_gid, device.st_size, 0, 0, 0),
+        {"st_rdev": device.st_rdev},  # type: ignore[attr-defined, unused-ignore]
+    )  # type: ignore[attr-defined, unused-ignore]
 
 
-def stat_saying(link: str, opened: os.stat_result, real: Callable[..., os.stat_result]) -> Callable[..., os.stat_result]:
+def stat_saying(
+    link: str, opened: os.stat_result, real: Callable[..., os.stat_result]
+) -> Callable[..., os.stat_result]:
     """os.stat, but for the descriptor `link` of the stand-in /proc what the kernel would say of the
     file it has open."""
     return lambda path, *args, **kwargs: opened if str(path) == link else real(path, *args, **kwargs)
 
 
-def test_a_descriptor_by_the_name_of_the_device_holds_it_only_when_it_is_the_device(ptys: Ptys, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_descriptor_by_the_name_of_the_device_holds_it_only_when_it_is_the_device(
+    ptys: Ptys, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """What /proc says of a descriptor, stood in for (a /proc of the test's, and the kernel's stat
     of the descriptor): a name is the device only in the process's own /dev. The very node holds it;
     another node with the numbers of a character device holds it too (a container's /dev, made with
@@ -298,13 +332,17 @@ def test_a_descriptor_by_the_name_of_the_device_holds_it_only_when_it_is_the_dev
     not."""
     _, terminal = ptys()
     for target in (terminal, "/dev/null"):
-        fd = tmp_path / target.replace("/", "_") / "9999999" / "fd"          # (a pid above any Linux gives: never ours)
+        fd = tmp_path / target.replace("/", "_") / "9999999" / "fd"  # (a pid above any Linux gives: never ours)
         fd.mkdir(parents=True)
         (fd / "3").symlink_to(target)
         real, mine = os.stat, os.stat(target)
         with monkeypatch.context() as patch:
             patch.setattr("neoaprs.serialholders.PROC", str(fd.parent.parent))
-            for opened, held in ((mine, True), (node_of(mine, mine.st_dev + 1, mine.st_ino), target == "/dev/null"), (node_of(mine, mine.st_dev + 1, mine.st_ino + 1), target == "/dev/null")):
+            for opened, held in (
+                (mine, True),
+                (node_of(mine, mine.st_dev + 1, mine.st_ino), target == "/dev/null"),
+                (node_of(mine, mine.st_dev + 1, mine.st_ino + 1), target == "/dev/null"),
+            ):
                 patch.setattr(os, "stat", stat_saying(str(fd / "3"), opened, real))
                 assert holders(target) == ([9999999] if held else []), (target, opened)
 
@@ -335,15 +373,30 @@ def test_a_process_whose_descriptors_cannot_be_read_is_skipped(ptys: Ptys, monke
         assert holders(path) == []
 
 
-async def test_probe_does_not_touch_a_port_another_program_holds_and_finds_the_radio_on_another(ptys: Ptys, caplog: pytest.LogCaptureFixture) -> None:
+async def test_probe_does_not_touch_a_port_another_program_holds_and_finds_the_radio_on_another(
+    ptys: Ptys, caplog: pytest.LogCaptureFixture
+) -> None:
     rotator_master, rotator = ptys()
     radio_master, radio = ptys()
     feeder = asyncio.get_running_loop().create_task(keep_feeding(radio_master, b"x"))
     told: list[list[str]] = []
     try:
         with held_by_a_program(rotator) as child, caplog.at_level(logging.INFO, logger="neoaprs.serialport"):
-            assert await probe([rotator, radio], 9600, 1.0, lambda data: bool(data), nudge=b"\r", nudge_after_sec=0.05, on_open=told.append) == radio
-            assert [r.getMessage() for r in caplog.records if r.levelno == logging.INFO and "skipping" in r.getMessage()] == [f"probe: skipping {rotator}: held by {comm(child)} (pid {child.pid})"]
+            assert (
+                await probe(
+                    [rotator, radio],
+                    9600,
+                    1.0,
+                    lambda data: bool(data),
+                    nudge=b"\r",
+                    nudge_after_sec=0.05,
+                    on_open=told.append,
+                )
+                == radio
+            )
+            assert [
+                r.getMessage() for r in caplog.records if r.levelno == logging.INFO and "skipping" in r.getMessage()
+            ] == [f"probe: skipping {rotator}: held by {comm(child)} (pid {child.pid})"]
     finally:
         feeder.cancel()
         await asyncio.gather(feeder, return_exceptions=True)
@@ -363,7 +416,9 @@ async def test_probe_opens_a_port_again_once_its_holder_is_gone(ptys: Ptys) -> N
         await asyncio.gather(feeder, return_exceptions=True)
 
 
-async def test_probe_never_touches_a_path_in_skip_whether_it_is_named_by_the_device_or_by_a_link(ptys: Ptys, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_probe_never_touches_a_path_in_skip_whether_it_is_named_by_the_device_or_by_a_link(
+    ptys: Ptys, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     excluded_master, excluded = ptys()
     radio_master, radio = ptys()
     link = tmp_path / "brainbox_2"
@@ -374,7 +429,19 @@ async def test_probe_never_touches_a_path_in_skip_whether_it_is_named_by_the_dev
             told: list[list[str]] = []
             caplog.clear()
             with caplog.at_level(logging.INFO, logger="neoaprs.serialport"):
-                assert await probe([listed, radio], 9600, 1.0, lambda data: bool(data), nudge=b"\r", nudge_after_sec=0.05, on_open=told.append, skip=[skipped]) == radio
+                assert (
+                    await probe(
+                        [listed, radio],
+                        9600,
+                        1.0,
+                        lambda data: bool(data),
+                        nudge=b"\r",
+                        nudge_after_sec=0.05,
+                        on_open=told.append,
+                        skip=[skipped],
+                    )
+                    == radio
+                )
             assert told == [[radio]]
             assert [r.levelno for r in caplog.records if f"skipping {listed}" in r.getMessage()] == [logging.INFO]
     finally:

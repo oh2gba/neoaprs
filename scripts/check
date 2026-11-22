@@ -169,7 +169,7 @@ stage_lock() {
     command -v uv >/dev/null || { echo "uv is not installed"; return 1; }
     env -u UV_FROZEN uv lock --check
 }
-stage_ruff()  { "$python" -m ruff check .; }
+stage_ruff()  { "$python" -m ruff check . && "$python" -m ruff format --check .; }
 # mypy for both systems, as CI does: one tree must type-check for Linux and Windows. The Windows run
 # has a cache folder of its own; beside the other stages the output of the second is printed after
 # the first.

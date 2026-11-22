@@ -1,0 +1,8 @@
+# Commits that only reformat code: `git blame` skips them with
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub reads this file by itself.)
+
+# Format the page at 120 columns
+e95d8051c37ae8adc093356b2a05c8f470935831
+# Format Python at 120 columns with ruff format
+2c6cd47af69d22565f2b886719d5376d217f55f6
