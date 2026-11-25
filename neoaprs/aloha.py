@@ -1,7 +1,8 @@
 """The ALOHA circle: how far out the stations heard on RF would fill a 1200 baud channel.
 
 Method of "The ALOHA Circle" (aprs.org), weights in policy.py: walking outward, each station adds
-its kind's packets in 30 minutes times C (plus one per digipeater); the circle ends at 1800.
+its kind's packets in 30 minutes times C (plus one per digipeater); the circle ends at 1800, or at
+the farthest station while they add up to less.
 """
 
 from dataclasses import dataclass
@@ -87,7 +88,8 @@ def circle(
 ) -> Circle | None:
     """Return the ALOHA circle around `position` for `radio` (every station of the air if None).
 
-    None while the position is unknown or the stations heard do not fill the channel.
+    While the stations heard do not fill the channel it reaches the farthest of them. None while
+    the position is unknown or no station counts.
     """
     if position is None:
         return None
@@ -100,12 +102,16 @@ def circle(
         ),
         key=lambda t: (t[0], t[1]),
     )
-    total, copies = 0, 1
-    for number, (km, _, station) in enumerate(near, 1):
+    if not near:
+        return None
+    total, copies, edge = 0, 1, len(near)
+    for number, (_, _, station) in enumerate(near, 1):
         kind = kind_of(station)
         total += WEIGHTS[kind] * copies
         if kind == "digi":
             copies += 1
         if total >= ALOHA_PACKETS:
-            return Circle(km, number) if km > 0 else None
-    return None
+            edge = number
+            break
+    km = near[edge - 1][0]
+    return Circle(km, edge) if km > 0 else None

@@ -59,9 +59,17 @@ def test_the_circle_ends_at_the_station_where_the_load_reaches_1800_packets() ->
     found = circle(HOME, stations, NOW)
     assert found is not None
     assert found.stations == 900 and found.radius_km == pytest.approx(900.0, abs=0.01)
-    assert circle(HOME, homes(899), NOW) is None  # 1798 packets: the channel is not full
+    short = circle(HOME, homes(899), NOW)  # 1798 packets: the channel is not full
+    assert short is not None and short.stations == 899 and short.radius_km == pytest.approx(899.0, abs=0.01)
     found = circle(HOME, stations + homes(50, 2000.0), NOW)
     assert found is not None and found.stations == 900  # the stations beyond the edge do not move it
+
+
+def test_a_channel_that_is_not_full_has_its_circle_at_the_farthest_station_heard() -> None:
+    found = circle(HOME, [at_km("OH2AAA", 12.0), at_km("OH2BBB", 40.0), at_km("OH2CCC", 7.0)], NOW)
+    assert found is not None and found.stations == 3 and found.radius_km == pytest.approx(40.0, abs=0.01)
+    assert circle(HOME, [], NOW) is None
+    assert circle(HOME, [at_km("OH2AAA", 0.0)], NOW) is None
 
 
 def test_the_stations_are_taken_from_the_nearest_whatever_the_order_they_are_given_in() -> None:
@@ -92,7 +100,8 @@ def test_every_digipeater_makes_the_stations_beyond_it_count_once_more() -> None
     found = circle(HOME, near_digi + others, NOW)
     assert found is not None and found.stations == 1 + 450  # 3 + 449 x 4 = 1799, the 450th home station makes 1803
     assert found.radius_km == pytest.approx(451.0, abs=0.01)
-    assert circle(HOME, near_digi + others[:449], NOW) is None
+    short = circle(HOME, near_digi + others[:449], NOW)  # 1799: the farthest station
+    assert short is not None and short.stations == 450 and short.radius_km == pytest.approx(450.0, abs=0.01)
     two = [at_km("OH2RCH-2", 1.0, code="#"), at_km("OH2RCH-3", 2.0, code="#", table="1")]
     # 3, then 3 x 2, then 6 per home station
     found = circle(HOME, two + [at_km(f"OH2H{n:03d}", 3.0 + n) for n in range(400)], NOW)
@@ -102,7 +111,8 @@ def test_every_digipeater_makes_the_stations_beyond_it_count_once_more() -> None
 def test_the_digipeater_adds_its_own_packets_before_the_count_rises() -> None:
     stations = [at_km("OH2RCH-2", 1.0, code="#"), at_km("OH2H001", 2.0)]
     total_first = 3 * 1 + 2 * 2
-    assert total_first == 7 and circle(HOME, stations, NOW) is None
+    found = circle(HOME, stations, NOW)
+    assert total_first == 7 and found is not None and found.stations == 2
 
 
 def test_the_kinds_by_symbol_and_speed() -> None:
@@ -175,14 +185,15 @@ def test_the_circle_of_a_radio_counts_the_stations_that_radio_heard() -> None:
     fm, hf = heard_on(homes(450), FM_ID), heard_on(homes(450, first_km=451.0), HF_ID)
     found = circle(HOME, fm + hf, NOW)
     assert found is not None and found.stations == 900, "without a radio named: every station of the air, as before"
-    assert circle(HOME, fm + hf, NOW, FM_ID) is None, "the FM radio's channel has half of them: not full"
-    assert circle(HOME, fm + heard_on(homes(450, first_km=451.0), FM_ID, HF_ID), NOW, FM_ID) is not None, (
-        "a station both radios heard is on the FM channel"
-    )
+    half = circle(HOME, fm + hf, NOW, FM_ID)
+    assert half is not None and half.stations == 450, "the FM radio's channel has half of them: its farthest"
+    both = circle(HOME, fm + heard_on(homes(450, first_km=451.0), FM_ID, HF_ID), NOW, FM_ID)
+    assert both is not None and both.stations == 900, "a station both radios heard is on the FM channel"
     late = heard_on(homes(450, first_km=451.0), FM_ID, at=NOW - timedelta(minutes=ALOHA_WINDOW_MIN + 1))
     for station in late:
         station.heard_by[HF_ID] = RadioHeard(1, NOW)
-    assert circle(HOME, fm + late, NOW, FM_ID) is None, "heard on the air lately, but on FM too long ago"
+    lately = circle(HOME, fm + late, NOW, FM_ID)
+    assert lately is not None and lately.stations == 450, "heard on the air lately, but on FM too long ago"
 
 
 def test_the_service_draws_a_circle_for_each_radio_it_is_given_whose_type_shares_a_channel_from_what_that_radio_heard() -> (
