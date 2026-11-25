@@ -1,19 +1,20 @@
 /* The tag (components/TagMark.vue): the one small mark of the page, the same height, font and
-   padding wherever it stands (the count in the header and on a tab, the radio state, a station's
-   channel, Receive only, the hops of a chain); the tone only says what it is. The classes a place
-   adds to it (badge, via, rxswitch...) place it and never change its size. */
+   padding wherever it stands (the count on a tab, the radio state, a station's channel, Receive
+   only, the hops of a chain); the tone only says what it is. The header's marks are larger: it sets
+   the size tokens for all of them. The classes a place adds to it (badge, via, rxswitch...) place
+   it and never change its size. */
 .tag {
   display: inline-block;
   box-sizing: border-box;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 6px;
+  min-width: var(--tag-h);
+  height: var(--tag-h);
+  padding: 0 var(--tag-pad);
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   font: inherit;
-  font-size: 11px;
+  font-size: var(--tag-font);
   font-weight: 600;
-  line-height: 16px;
+  line-height: calc(var(--tag-h) - 2px);
   text-align: center;
   white-space: nowrap;
   vertical-align: middle;

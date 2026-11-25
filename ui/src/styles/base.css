@@ -87,11 +87,15 @@ h4,
   height: 100%;
 }
 .appheader {
+  /* the marks, the count and the RX only switch: as high as a button, in the body's text size */
+  --tag-h: var(--control-h);
+  --tag-font: 14px;
+  --tag-pad: 10px;
   display: flex;
   align-items: center;
   gap: 14px;
-  /* same height with or without the button and the badge */
-  min-height: 34px;
+  /* same height with or without the marks, the button and the badge */
+  min-height: 44px;
   padding: 6px 12px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);

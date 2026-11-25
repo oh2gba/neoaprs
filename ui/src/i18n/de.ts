@@ -31,13 +31,8 @@ export const de: Catalogue = {
   "pill.daemon_connecting_title": "Die Seite baut die Verbindung zu NeoAPRS auf",
   "pill.daemon_offline": "NeoAPRS: offline",
   "pill.daemon_offline_title": "NeoAPRS antwortet nicht. Die Seite verbindet sich von selbst wieder",
-  "pill.radio": "Funkgerät",
-  "pill.radio_title": "Funkgerät verbunden. Einstellungen → Funkgerät",
   "pill.radio_dummy_title": "Dummy-Funkgerät: erfundener Verkehr, nichts geht auf Sendung. Einstellungen → Funkgerät",
-  "pill.radio_silent": "Funkgerät: still",
   "pill.radio_kiss": "Funkgerät: wechselt in KISS…",
-  "pill.radio_searching": "Funkgerät: suche…",
-  "pill.radio_off": "Funkgerät: nicht verbunden",
   "pill.radio_waiting": "Funkgerät: warte…",
   "pill.radio_why_title": "{why}. Einstellungen → Funkgerät",
   "pill.radio_waiting_why": "Noch nichts vom Funkgerät gehört",
@@ -1891,6 +1886,7 @@ export const de: Catalogue = {
 
   // settings, map layers
   "layers.settings.none": "Keine",
+  "layers.settings.source": "Quelle",
   "layers.settings.aircraft_tip_label": "Über Flugzeuge",
   "layers.settings.aircraft_tip1": "Woher die Flugzeuge kommen: ein Dienst im Internet oder ein eigener Empfänger.",
   "layers.settings.aircraft_tip2": "Flugzeuge erscheinen auf der Karte, wenn Flugzeuge im Ebenen-Feld angehakt ist.",
@@ -1921,8 +1917,6 @@ export const de: Catalogue = {
   "layers.receiver.line.aircraft_none": "Empfang, noch kein Flugzeug",
   "layers.receiver.line.ships": { one: "Empfang: {n} Schiff, vor {span}", other: "Empfang: {n} Schiffe, vor {span}" },
   "layers.receiver.line.ships_none": "Verbunden, noch kein Schiff gehört",
-
-  "settings.map.layers": "Ebenen",
   "settings.map.step.build": "Suche den neuesten Stand",
   "settings.map.step.world": "Weltkarte",
   "settings.map.step.area": "Karte des Gebiets",

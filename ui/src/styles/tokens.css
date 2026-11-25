@@ -119,6 +119,10 @@
   --radius-pill: 999px; /* the tag, a grip: round ends whatever the height */
   --control-h: 32px; /* every text button, input and select of a form or a toolbar */
   --control-h-small: 24px; /* .btn.small: compact button in a list row, bubble or line of text */
+  /* The tag (styles/tag.css): its height, font size and side padding; the header sets its own. */
+  --tag-h: 18px;
+  --tag-font: 11px;
+  --tag-pad: 6px;
   /* Least width of a row's action button (Beacon now, Test sound, Check now, Choose on map); a
      button after a field (Test, Download map) is as wide as its words. */
   --action-w: 11em;

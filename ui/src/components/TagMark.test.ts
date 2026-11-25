@@ -45,12 +45,22 @@ describe("TagMark", () => {
       expect(rule).not.toMatch(/height|padding|font-size|border-width/);
   });
 
-  it("has its size in one rule, the blue count's: 18 px high, 11 px, 6 px at each side, round", () => {
+  it("has its size in one rule, the blue count's: 18 px high, 11 px, 6 px at each side, round, from the size tokens that only the header sets larger", () => {
     const rule = cssRule(".tag");
-    expect(rule).toMatch(/height:\s*18px/);
-    expect(rule).toMatch(/font-size:\s*11px/);
-    expect(rule).toMatch(/padding:\s*0 6px/);
+    expect(rule).toMatch(/height:\s*var\(--tag-h\)/);
+    expect(rule).toMatch(/font-size:\s*var\(--tag-font\)/);
+    expect(rule).toMatch(/padding:\s*0 var\(--tag-pad\)/);
     expect(rule).toMatch(/border-radius:\s*var\(--radius-pill\)/);
+    const root = cssRule(":root");
+    expect([/--tag-h:\s*18px/, /--tag-font:\s*11px/, /--tag-pad:\s*6px/].every((token) => token.test(root))).toBe(true);
+    const sets = (selector: string) => /--tag-(h|font|pad):/.test(cssRule(selector));
+    expect([".appheader", ".badge", ".rxswitch", ".headpill", ".headpills"].map(sets)).toEqual([
+      true,
+      false,
+      false,
+      false,
+      false,
+    ]);
   });
 
   it.each([

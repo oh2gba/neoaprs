@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { t } from "@/i18n";
-import { headerPills, type HeaderPill, type Link } from "@/lib/pills";
+import { foldAway, headerPills, type HeaderPill, type Link } from "@/lib/pills";
 import { inApp } from "@/lib/shell";
 import type { MapState } from "@/protocol/protocol";
 import { pageRadios } from "@/lib/radios";
@@ -18,7 +18,7 @@ const link = (extra: Partial<Link> = {}): Link => ({
 });
 const marks = (extra: Partial<Link> = {}, values: Record<string, string> = {}): HeaderPill[] =>
   headerPills(values, null, null, null, link(extra));
-const words = (pills: HeaderPill[]) => pills.map((p) => t(p.text));
+const words = (pills: HeaderPill[]) => pills.map((p) => t(p.text, p.textValues));
 const radio = (row: Partial<RadioRow>, extra: Partial<Link> = {}) =>
   marks({ radios: radiosOf(fmRow(row)), ...extra }).find((p) => p.id === "radio");
 const problem = (code: NonNullable<RadioRow["problem"]>["code"], params: Record<string, string> = {}) => ({
@@ -76,25 +76,29 @@ describe("the Daemon mark", () => {
   });
 });
 
-describe("the Radio mark", () => {
-  it("is always there, in the app too, and says the state in the colour of the palette: connected ok, the rest warn", () => {
-    expect(words(marks({ inApp: true }))).toEqual(["Radio"]);
+describe("the mark of the one radio", () => {
+  it("is always there, in the app too, under the radio's name, and says the state in the colour of the palette: connected ok, the rest warn", () => {
+    expect(words(marks({ inApp: true }))).toEqual(["FM"]);
+    expect(words([radio({ name: "Kenwood" })!])).toEqual(["Kenwood"]);
     expect(radio({})?.tone).toBe("ok");
     for (const state of ["connecting", "waiting", "stopped", "silent"] as const)
       expect(radio({ state })?.tone, state).toBe("warn");
   });
 
-  it("says what the radio is doing in words, as the footer used to: searching, not connected, silent", () => {
-    expect(words([radio({ state: "connecting", problem: problem("radio.searching") })!])).toEqual([
-      "Radio: searching…",
+  it("says what the radio is doing in words after its name, as a mark of two radios does: searching, not connected, silent", () => {
+    const kenwood = { name: "Kenwood" };
+    expect(words([radio({ ...kenwood, state: "connecting", problem: problem("radio.searching") })!])).toEqual([
+      "Kenwood: searching…",
     ]);
-    expect(words([radio({ state: "waiting", problem: problem("radio.not_connected") })!])).toEqual([
-      "Radio: not connected",
+    expect(words([radio({ ...kenwood, state: "waiting", problem: problem("radio.not_connected") })!])).toEqual([
+      "Kenwood: not connected",
     ]);
-    expect(words([radio({ state: "stopped", problem: null })!])).toEqual(["Radio: not connected"]);
+    expect(words([radio({ state: "stopped", problem: null })!])).toEqual(["FM: not connected"]);
     expect(
-      words([radio({ state: "silent", problem: problem("radio.silent", { since: ago(5 * 3600 + 120) }) })!]),
-    ).toEqual(["Radio: silent"]);
+      words([
+        radio({ ...kenwood, state: "silent", problem: problem("radio.silent", { since: ago(5 * 3600 + 120) }) })!,
+      ]),
+    ).toEqual(["Kenwood: silent"]);
   });
 
   it("has the reason as the hover title, with where it leads: the problem in the page's words, or since when it is silent", () => {
@@ -104,7 +108,8 @@ describe("the Radio mark", () => {
     );
     const silent = radio({ state: "silent", problem: problem("radio.silent", { since: ago(5 * 3600 + 120) }) })!;
     expect(t(silent.title, silent.titleValues)).toMatch(/^nothing heard since \d\d:\d\d \(5 h\)\. Settings → Radio$/);
-    expect(t(radio({})!.title)).toBe("Radio connected. Settings → Radio");
+    const up = radio({ name: "Kenwood" })!;
+    expect(t(up.title, up.titleValues)).toBe("Kenwood: connected. Settings → Radio");
   });
 
   // (no internals on the page: while the line is being opened the title says the state in the
@@ -121,18 +126,18 @@ describe("the Radio mark", () => {
   });
 
   it("is the Dummy's own tone while its line is open, and it is still the radio mark", () => {
-    const dummy = marks({ radios: radiosOf(radioRow(1, "dummy")) }).find((p) => p.id === "radio");
-    expect([dummy?.tone, dummy && t(dummy.text)]).toEqual(["dummy", "Radio"]);
+    const dummy = marks({ radios: radiosOf(radioRow(1, "dummy", { name: "Kenwood" })) }).find((p) => p.id === "radio");
+    expect([dummy?.tone, dummy && t(dummy.text, dummy.textValues)]).toEqual(["dummy", "Kenwood"]);
   });
 
-  it("is waiting while the daemon has not told the radios, and while the page's socket is not open, whatever the radio was, titled then as the Daemon mark is", () => {
+  it("is waiting while the daemon has not told the radios, with no name while no radio is known, and under the radio's name while the page's socket is not open, titled then as the Daemon mark is", () => {
     const early = marks({ radios: [], told: false }).find((p) => p.id === "radio")!;
     expect([t(early.text), early.tone, early.focus]).toEqual(["Radio: waiting…", "warn", "set-radio-add"]);
     for (const connection of ["connecting", "closed"] as const) {
-      const mark = radio({}, { connection })!;
+      const mark = radio({ name: "Kenwood" }, { connection })!;
       const daemon = marks({ connection }).find((p) => p.id === "daemon")!;
-      expect([t(mark.text), mark.tone, t(mark.title, mark.titleValues)]).toEqual([
-        "Radio: waiting…",
+      expect([t(mark.text, mark.textValues), mark.tone, t(mark.title, mark.titleValues)]).toEqual([
+        "Kenwood: waiting…",
         "warn",
         t(daemon.title),
       ]);
@@ -159,14 +164,14 @@ describe("the radio marks with the Mercury radio", () => {
   const HF_OFF = hfRow({ enabled: false, state: "stopped" });
   const FM_OFF = fmRow({ enabled: false, state: "stopped" });
 
-  it("is the one Radio mark, as it always was, while only the FM radio is on", () => {
+  it("is the one mark under the FM radio's name while only the FM radio is on", () => {
     expect(radios([fmRow(), HF_OFF]).map((p) => [p.id, said(p), p.focus])).toEqual([
-      ["radio", "Radio", "set-radio-1-enabled"],
+      ["radio", "FM", "set-radio-1-enabled"],
     ]);
     expect(radios([fmRow()]).map((p) => p.id)).toEqual(["radio"]);
   });
 
-  it("is the one Radio mark too for a station with the Mercury radio alone, in the state of the Mercury radio and leading to its box", () => {
+  it("is the one mark too for a station with the Mercury radio alone, under its name, in the state of the Mercury radio and leading to its box", () => {
     const hfDown = radios([
       FM_OFF,
       hfRow(
@@ -175,12 +180,12 @@ describe("the radio marks with the Mercury radio", () => {
       ),
     ]);
     expect(hfDown.map((p) => [p.id, said(p), String(p.tone), p.focus])).toEqual([
-      ["radio", "Radio: not connected", "warn", "set-radio-2-enabled"],
+      ["radio", "Mercury: not connected", "warn", "set-radio-2-enabled"],
     ]);
     expect(hfDown.map((p) => t(p.title, p.titleValues))).toEqual([
       "This installation does not carry this radio's modem. Settings → Radio",
     ]);
-    expect(radios([FM_OFF, hfRow()]).map((p) => [said(p), String(p.tone)])).toEqual([["Radio", "ok"]]);
+    expect(radios([FM_OFF, hfRow()]).map((p) => [said(p), String(p.tone)])).toEqual([["Mercury", "ok"]]);
   });
 
   // The short name is the label everywhere.
@@ -340,7 +345,7 @@ describe("the radio marks with any number of radios", () => {
     expect(ofRadios([...dummies, radioRow(4, "kiss", { number: 3 })]).map((p) => String(p.tone))).toEqual(["ok"]);
   });
 
-  it("counts only the radios that are on: two on are two marks, one on is the Radio mark of today, whatever is removed or off", () => {
+  it("counts only the radios that are on: two on are two marks, one on is one mark under its name, whatever is removed or off", () => {
     const off = (row: RadioRow): RadioRow => ({ ...row, enabled: false, state: "stopped" });
     const two = [SIX[0], SIX[1], off(SIX[2]), { ...off(SIX[3]), removed: true }];
     expect(ofRadios(two).map((p) => [p.id, said(p)])).toEqual([
@@ -354,12 +359,12 @@ describe("the radio marks with any number of radios", () => {
     ]);
     const one = [off(SIX[0]), SIX[2]];
     expect(ofRadios(one).map((p) => [p.id, said(p), String(p.tone), p.focus])).toEqual([
-      ["radio", "Radio", "ok", "set-radio-3-enabled"],
+      ["radio", "Shack", "ok", "set-radio-3-enabled"],
     ]);
     const oneDown = [off(SIX[0]), { ...SIX[2], ...down(3, { code: "modem.not_installed", params: {} }) }];
     const [mark] = ofRadios(oneDown);
     expect([mark && said(mark), mark && t(mark.title, mark.titleValues)]).toEqual([
-      "Radio: not connected",
+      "Shack: not connected",
       "This installation does not carry this radio's modem. Settings → Radio",
     ]);
   });
@@ -377,7 +382,7 @@ describe("the radio marks with any number of radios", () => {
 });
 
 describe("the order of the marks", () => {
-  it("is Update, Daemon, Radio, Beacon off, GPS, Internet: the last folds first on a narrow screen, so the daemon and the radio stay longest after the update", () => {
+  it("is Update, Daemon, Radio, Beacon off, GPS, Internet, in every state", () => {
     const all = headerPills(
       { "station/transmit": "false", "gps/source": "gpsd" },
       gpsState({ state: "fix" }),
@@ -388,6 +393,22 @@ describe("the order of the marks", () => {
     expect(all.map((p) => p.id)).toEqual(["update", "daemon", "radio", "gps", "internet"]);
     const quiet = headerPills({ "beacon/interval_min": "0" }, null, null, null, link({ inApp: true }));
     expect(quiet.map((p) => p.id)).toEqual(["radio", "beacon_off"]);
+  });
+
+  it("stay in that order whatever the states: the socket, the GPS's fix, a radio in trouble", () => {
+    const ids = (connection: Link["connection"], gps: "fix" | "no_fix", second: Partial<RadioRow>) =>
+      headerPills(
+        { "gps/source": "gpsd", "beacon/interval_min": "0" },
+        gpsState({ state: gps }),
+        igateState(),
+        { version: "9.9.9", message: "", url: "" },
+        link({ connection, radios: radiosOf(fmRow(), hfRow(second)) }),
+      ).map((p) => p.id);
+    const silent = { state: "silent", problem: problem("radio.silent", { since: ago(60) }) } as const;
+    const all = ["update", "daemon", "radio-1", "radio-2", "beacon_off", "gps", "internet"];
+    for (const connection of ["open", "connecting", "closed"] as const)
+      for (const gps of ["fix", "no_fix"] as const)
+        for (const second of [{}, silent]) expect(ids(connection, gps, second)).toEqual(all);
   });
 
   it("are the same whether transmitting is on or off: RX only is the switch after the count", () => {
@@ -423,5 +444,51 @@ describe("the Map mark", () => {
     expect(mark(mapState({ state: "estimating" }))).toBeUndefined();
     expect(mark(mapState({ state: "ready" }))).toBeUndefined();
     expect(mark(null)).toBeUndefined();
+  });
+});
+
+describe("the marks a narrow row hides", () => {
+  type Tone = "ok" | "warn" | "bad" | "neutral" | "info";
+  const mark = (id: HeaderPill["id"], tone: Tone) => ({ id, tone });
+  const hidden = (marks: { id: HeaderPill["id"]; tone: Tone }[], room: number) =>
+    [
+      ...foldAway(
+        marks,
+        marks.map(() => 80),
+        room,
+        8,
+      ),
+    ].sort();
+
+  it("are none while every mark fits", () => {
+    expect(hidden([mark("daemon", "ok"), mark("radio", "ok"), mark("gps", "warn")], 3 * 80 + 2 * 8)).toEqual([]);
+  });
+
+  it("are the connected Daemon mark first, so that one radio keeps its name beside it", () => {
+    expect(hidden([mark("daemon", "ok"), mark("radio", "ok")], 100)).toEqual(["daemon"]);
+  });
+
+  it("keep the Daemon mark that is not connected, and hide a mark that is well before it", () => {
+    expect(hidden([mark("daemon", "bad"), mark("radio", "ok")], 100)).toEqual(["radio"]);
+    expect(hidden([mark("daemon", "warn"), mark("radio", "ok")], 100)).toEqual(["radio"]);
+  });
+
+  it("hide the marks that are well before the marks in trouble, and among equals the last in the row first", () => {
+    const row = [
+      mark("daemon", "ok"),
+      mark("radio-1", "ok"),
+      mark("radio-2", "warn"),
+      mark("beacon_off", "neutral"),
+      mark("gps", "warn"),
+      mark("internet", "info"),
+    ];
+    expect(hidden(row, 2 * 80 + 8)).toEqual(["beacon_off", "daemon", "internet", "radio-1"]);
+    expect(hidden(row, 3 * 80 + 2 * 8)).toEqual(["beacon_off", "daemon", "internet"]);
+    expect(hidden(row, 80)).toEqual(["beacon_off", "daemon", "gps", "internet", "radio-1"]);
+  });
+
+  it("always leave one mark, which the row shortens", () => {
+    expect(hidden([mark("daemon", "ok"), mark("radio", "warn")], 10)).toEqual(["daemon"]);
+    expect(hidden([mark("radio", "ok")], 10)).toEqual([]);
   });
 });

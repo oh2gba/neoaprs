@@ -198,19 +198,19 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
         "where the map is cut from: empty is the latest daily build of build.protomaps.com; or a web address (`https://...`) or the path of a PMTiles file, such as a planet file of your own",
     ),
     "map/aircraft": (
-        "Settings tab, Map (Aircraft)",
+        "Settings tab, Map, Aircraft (Source)",
         "where the map's aircraft come from: `none` (no aircraft on the map), `adsbfi` or `adsblol` (a service on the internet, asked for the map's circle round your position while a page shows the aircraft), `radarcape` (your own jetvision Radarcape, `map/aircraft_host`) or `receiver` (your own ADS-B receiver whose `aircraft.json` tar1090, dump1090 or readsb serves, `map/aircraft_host`). While it is not `none` the map's Layers box has the row Aircraft",
     ),
     "map/aircraft_host": (
-        "Settings tab, Map (Receiver's address, with Radarcape or My own receiver)",
+        "Settings tab, Map, Aircraft (Receiver's address, with Radarcape or My own receiver)",
         "your own aircraft receiver: a name or address (`192.168.1.20`, `pi.local`, `[fe80::1]`), the same with `:port`, or a whole `http://` or `https://` address, which is used as typed. With `receiver` a name is looked for on ports {aircraft_ports} where tar1090, dump1090 and SkyAware keep their aircraft, and empty is this computer; with `radarcape` the Radarcape's own list of aircraft is asked at that name (port 80 unless one is given), and empty asks nothing",
     ),
     "map/ships": (
-        "Settings tab, Map (Ships)",
+        "Settings tab, Map, Ships (Source)",
         "where the map's ships come from: `none` (no ships on the map), `fintraffic` (Fintraffic's AIS feed, offered where the map's circle reaches its waters, {fintraffic_box}), or `receiver` (your own AIS receiver, `map/ships_host`). A stored `fintraffic` that the station is not offered counts as `none`",
     ),
     "map/ships_host": (
-        "Settings tab, Map (Receiver's address, with My own receiver)",
+        "Settings tab, Map, Ships (Receiver's address, with My own receiver)",
         "your own AIS receiver: `host` or `host:port` of the TCP server that sends its AIS sentences (port {ais_port} when none is given); empty is this computer. The daemon connects to it, while `map/ships` is `receiver`, and listens on no port of its own",
     ),
     "update/url": (

@@ -9,7 +9,7 @@ EN = ROOT / "ui" / "src" / "i18n" / "en"
 PAGE = ROOT / "docs" / "manual" / "page.md"
 
 # The ids whose English the manual quotes as a mark or a heading, in bold.
-IN_BOLD = ("pill.daemon", "pill.radio_waiting", "pill.radio_searching", "pill.radio_kiss", "stats.section.radio")
+IN_BOLD = ("pill.daemon", "pill.radio_waiting", "stats.section.radio")
 # The ids whose English the manual quotes inside a sentence, from a small letter.
 IN_A_SENTENCE = ("stats.frames", "pill.radio_waiting_why")
 

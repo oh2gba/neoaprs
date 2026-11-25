@@ -1,8 +1,9 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { nextTick } from "vue";
 import AppHeader from "@/components/AppHeader.vue";
 import { t } from "@/i18n";
-import { headerPills } from "@/lib/pills";
+import { headerPills, type HeaderPill } from "@/lib/pills";
 import { cssRule, mediaRule } from "@/test/css";
 import { pageRadios } from "@/lib/radios";
 import { NOW, gpsState, igateState, radioRow, radiosTopic } from "@/test/fixtures";
@@ -155,7 +156,7 @@ describe("AppHeader", () => {
     expect(cssRule(".headpills")).toMatch(/overflow:\s*hidden/);
     expect(cssRule(".headpills")).toMatch(/min-width:\s*0/);
     expect(cssRule(".headpills")).toMatch(/flex-wrap:\s*wrap/);
-    expect(cssRule(".headpills")).toMatch(/height:\s*18px/);
+    expect(cssRule(".headpills")).toMatch(/height:\s*var\(--tag-h\)/);
     expect(cssRule(".headpill")).toMatch(/flex:\s*none/);
     expect(cssRule(".headmail")).toMatch(/flex:\s*none/);
   });
@@ -196,7 +197,18 @@ describe("AppHeader", () => {
   });
 
   it("is as high with a badge and a button as without them", () => {
-    expect(cssRule(".appheader")).toMatch(/min-height:\s*34px/);
+    expect(cssRule(".appheader")).toMatch(/min-height:\s*44px/);
+  });
+
+  it("draws its marks, the count and the switch larger than the page's other tags: as high as a button, in the body's text size, by the tag's size tokens", () => {
+    expect(cssRule(".tag")).toMatch(/height:\s*var\(--tag-h\)/);
+    expect(cssRule(".tag")).toMatch(/font-size:\s*var\(--tag-font\)/);
+    expect(cssRule(".tag")).toMatch(/padding:\s*0 var\(--tag-pad\)/);
+    expect(cssRule(":root")).toMatch(/--tag-h:\s*18px/);
+    expect(cssRule(":root")).toMatch(/--tag-font:\s*11px/);
+    expect(cssRule(".appheader")).toMatch(/--tag-h:\s*var\(--control-h\)/);
+    expect(cssRule(".appheader")).toMatch(/--tag-font:\s*14px/);
+    expect(cssRule("body")).toMatch(/font:\s*14px/);
   });
 });
 
@@ -238,7 +250,7 @@ describe("the header with any number of radios", () => {
     expect(wrapper.emitted("open")).toEqual([["settings", "set-radio-4-enabled"]]);
   });
 
-  it("has two marks by name for two radios, and the one Radio mark of today for one", () => {
+  it("has two marks by name for two radios, and one by name for one", () => {
     const two = header({ pills: marksOf(SIX.slice(0, 2)) });
     expect(two.findAll(".headpill").map((mark) => mark.text())).toEqual(["FM", "Mercury"]);
     const named = header({ pills: marksOf([SIX[2], SIX[4]]) });
@@ -247,6 +259,66 @@ describe("the header with any number of radios", () => {
       ["Portable", "Portable: connected. Settings → Radio"],
     ]); // a typed name stands before a colon, never inside a sentence
     const one = header({ pills: marksOf([SIX[0]]) });
-    expect(one.findAll(".headpill").map((mark) => mark.text())).toEqual(["Radio"]);
+    expect(one.findAll(".headpill").map((mark) => mark.text())).toEqual(["FM"]);
+    const shack = header({ pills: marksOf([SIX[2]]) });
+    expect(shack.findAll(".headpill").map((mark) => [mark.text(), mark.attributes("title")])).toEqual([
+      ["Shack", "Shack: connected. Settings → Radio"],
+    ]);
+  });
+});
+
+describe("the marks on a narrow row", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  /** Every mark 80 px wide and the row `room` px, as a browser would measure them. */
+  function measured(room: number): void {
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const width = this.classList.contains("headpills") ? room : this.classList.contains("tag") ? 80 : 0;
+      return { width, height: 32, top: 0, left: 0, right: width, bottom: 32, x: 0, y: 0, toJSON: () => ({}) };
+    });
+  }
+  const mark = (id: HeaderPill["id"], tone: "ok" | "warn" | "bad" | "info", text: HeaderPill["text"]): HeaderPill => ({
+    id,
+    text,
+    title: "pill.daemon_title",
+    tone,
+    target: null,
+    focus: "",
+  });
+  const shown = (wrapper: ReturnType<typeof header>) => wrapper.findAll(".headpills .headpill").map((m) => m.text());
+  const DAEMON = mark("daemon", "ok", "pill.daemon");
+  const OFFLINE = mark("daemon", "bad", "pill.daemon_offline");
+  const GPS_OK = mark("gps", "ok", "pill.gps");
+  const GPS_LOST = mark("gps", "warn", "pill.gps");
+  const INTERNET = mark("internet", "info", "pill.internet");
+
+  it("hide the connected NeoAPRS mark first, and keep it while it is offline", async () => {
+    measured(100);
+    const wrapper = header({ pills: [DAEMON, GPS_OK] });
+    await nextTick();
+    expect(shown(wrapper)).toEqual(["GPS"]);
+    await wrapper.setProps({ pills: [OFFLINE, GPS_OK] });
+    expect(shown(wrapper)).toEqual(["NeoAPRS: offline"]);
+  });
+
+  it("keep the marks in their order when a state changes, and hide those that are well before those in trouble", async () => {
+    measured(2 * 80 + 8);
+    const wrapper = header({ pills: [DAEMON, GPS_OK, INTERNET] });
+    await nextTick();
+    expect(shown(wrapper)).toEqual(["GPS", "Internet"]);
+    await wrapper.setProps({ pills: [OFFLINE, GPS_LOST, INTERNET] });
+    expect(shown(wrapper)).toEqual(["NeoAPRS: offline", "GPS"]);
+    measured(3 * 80 + 2 * 8);
+    await wrapper.setProps({ pills: [DAEMON, GPS_LOST, INTERNET] });
+    expect(shown(wrapper)).toEqual(["NeoAPRS", "GPS", "Internet"]);
+  });
+
+  it("measure the marks in a copy that is hidden from the eye and from a screen reader", () => {
+    const wrapper = header({ pills: [DAEMON, GPS_OK] });
+    const copy = wrapper.find(".headpills-copy");
+    expect(copy.attributes("aria-hidden")).toBe("true");
+    expect(copy.findAll(".tag").map((m) => m.text())).toEqual(["NeoAPRS", "GPS"]);
+    expect(cssRule(".headpills-copy")).toMatch(/visibility:\s*hidden/);
+    expect(cssRule(".headpills-copy")).toMatch(/position:\s*fixed/);
   });
 });

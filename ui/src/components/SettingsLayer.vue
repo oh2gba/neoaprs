@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// A Map row for a layer: the list of sources of Aircraft or Ships (`layer.offered`, in the daemon's
-// order; a stored source not among them shows as None), or the receiver's address, shown only while
-// the choice is an own receiver, with the receiver's state under it (lib/receiverstatus.ts). A
-// receiver that has not answered yet is looking, so the room is reserved from the first moment.
+// A row of a layer's box in Settings, Map: the Source list of Aircraft or Ships (`layer.offered`,
+// in the daemon's order; a stored source not among them shows as None), or the receiver's address,
+// shown only while the choice is an own receiver, with the receiver's state under it
+// (lib/receiverstatus.ts). A receiver that has not answered yet is looking, so the room is reserved
+// from the first moment.
 import { computed } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import StatusLine from "@/components/StatusLine.vue";

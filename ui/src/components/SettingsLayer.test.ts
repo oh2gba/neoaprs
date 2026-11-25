@@ -26,14 +26,20 @@ const options = (wrapper: ReturnType<typeof make>["wrapper"], id: string) =>
   wrapper.findAll(`${id} option`).map((o) => o.text());
 
 describe("Settings, Map: aircraft and ships", () => {
-  it("has the rows Aircraft and Ships, each at None out of the box, with no address field", () => {
+  it("has the Source rows of Aircraft and Ships, each in the box of its layer and at None out of the box, with no address field", () => {
     const { wrapper } = make();
     expect(wrapper.find<HTMLSelectElement>("#set-map-aircraft").element.value).toBe("none");
     expect(wrapper.find<HTMLSelectElement>("#set-map-ships").element.value).toBe("none");
     expect(wrapper.find("#set-map-aircraft_host").exists()).toBe(false);
     expect(wrapper.find("#set-map-ships_host").exists()).toBe(false);
-    expect(wrapper.find('label[for="set-map-aircraft"]').text()).toBe("Aircraft");
-    expect(wrapper.find('label[for="set-map-ships"]').text()).toBe("Ships");
+    expect(wrapper.find('label[for="set-map-aircraft"]').text()).toBe("Source");
+    expect(wrapper.find('label[for="set-map-ships"]').text()).toBe("Source");
+    expect(wrapper.find("#set-map-aircraft").element.closest("fieldset")?.querySelector("legend")?.textContent).toBe(
+      "Aircraft ",
+    );
+    expect(wrapper.find("#set-map-ships").element.closest("fieldset")?.querySelector("legend")?.textContent).toBe(
+      "Ships ",
+    );
   });
 
   it("lists the sources the daemon offers, in its order, by the services' own names", () => {

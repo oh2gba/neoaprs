@@ -25,22 +25,22 @@ const say = async (socket: FakeSocket, rev: number, values: Record<string, strin
 const switchFlashed = () => document.getElementById("rx-switch")?.classList.contains("attend");
 
 describe("the Daemon mark", () => {
-  it("is in a browser, between Update and Radio", async () => {
+  it("is in a browser, between Update and the radio", async () => {
     const { wrapper } = await open();
-    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["NeoAPRS", "Radio"]);
+    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["NeoAPRS", "FM"]);
   });
 
-  it("is not in the desktop app, whose window loads the page with the fragment #app; the Radio mark is", async () => {
+  it("is not in the desktop app, whose window loads the page with the fragment #app; the radio's mark is", async () => {
     history.replaceState(null, "", "#app");
     const { wrapper, socket } = await open();
     expect(wrapper.find(".appheader .pill-daemon").exists()).toBe(false);
-    expect(wrapper.find(".appheader .pill-radio").text()).toBe("Radio");
+    expect(wrapper.find(".appheader .pill-radio").text()).toBe("FM");
     vi.useFakeTimers();
     socket.hangUp();
     await flushPromises();
     vi.useRealTimers();
     expect(wrapper.find(".appheader .pill-daemon").exists()).toBe(false);
-    expect(wrapper.find(".appheader .pill-radio").text()).toBe("Radio: waiting…");
+    expect(wrapper.find(".appheader .pill-radio").text()).toBe("FM: waiting…");
   });
 
   it("keeps the count of messages after the marks, however many there are", async () => {

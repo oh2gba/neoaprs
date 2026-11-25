@@ -57,7 +57,7 @@ It checks:
 
 Start with `neoaprs doctor`, then look at the status line of each radio's box in the Radio group of the Settings tab, and at the log.
 
-- **The log** is `neoaprs.log` in the data folder (`neoaprs service logs` prints its end; `--debug` logs more). It names the port, what was sent to the TNC and what came back. The radio mark of the header says what is wrong whenever a radio is not ok, by its name when there are several ([page.md](page.md#the-header)).
+- **The log** is `neoaprs.log` in the data folder (`neoaprs service logs` prints its end; `--debug` logs more). It names the port, what was sent to the TNC and what came back. The radio mark of the header says what is wrong whenever a radio is not ok, by its name ([page.md](page.md#the-header)).
 - **"Permission denied" on the port** (Linux): join the group that owns serial devices, `sudo usermod -aG dialout $USER`, then log out and in.
 - **The port vanishes a moment after plugging in:** brltty. **The port is held:** ModemManager. `doctor` says how to remove or stop them; so does [`docs/RADIOS.md`](../RADIOS.md#permissions-on-linux).
 - **The radio is silent:** the line is open and the radio does not answer. Check the cable, the speed and that the radio is on. A radio switched on again is found within a minute ([radio.md](radio.md#is-the-radio-there)).

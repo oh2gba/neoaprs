@@ -62,7 +62,7 @@ export interface TrafficParts {
 
 export function useLayerThings(parts: TrafficParts): LayerTraffic {
   const { send, connection, store } = parts;
-  const ticks = useMapLayers(parts.map, () => false);
+  const ticks = useMapLayers(parts.map);
   const looked = computed<readonly LayerName[]>((old) => {
     const front = parts.visible.value && connection.value === "open" && !parts.replay.value;
     const rows = ticks.rows.value;

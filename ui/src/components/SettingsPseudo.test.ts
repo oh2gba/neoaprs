@@ -146,9 +146,9 @@ describe("the settings area in the pseudo-locale", () => {
     mounted.push(wrapper);
     setLocale("en-XA");
     await flushPromises();
-    // the nine groups, the two boxes of Notifications, the Layers box of Map and the radio's box of
-    // the Radio group
-    expect(wrapper.findAll("legend").map((l) => l.text())).toHaveLength(13);
+    // the nine groups, the two boxes of Notifications, the Aircraft and Ships boxes of Map and the
+    // radio's box of the Radio group
+    expect(wrapper.findAll("legend").map((l) => l.text())).toHaveLength(14);
     expect(wrapper.findAll("legend").every((l) => l.text().startsWith("[!! "))).toBe(true);
     expect(wrapper.find("#set-web-key").exists()).toBe(true);
     expect(wrapper.find(".radiostatus").exists()).toBe(true);

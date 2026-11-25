@@ -111,7 +111,7 @@ export const errors: Record<keyof typeof source, Message> = {
     "caminho longo demais para só RF: {count} digipeaters e RFONLY são mais que os {max} que um caminho pode ter",
   "error.query.not_capable": "{call} não recebe mensagens: não há ninguém para consultar",
   "error.transmit.call": "nada é enviado: {reason}",
-  "error.transmit.off": "Somente RX: nada é enviado",
+  "error.transmit.off": "Só RX: nada é enviado",
   "error.query.too_soon": "{call} acabou de receber a mesma pergunta: aguarde {seconds} s",
   "error.query.form": "uma consulta começa com ? e diz depois o que pergunta",
   "error.qru.too_soon": "cedo demais para outro pedido de info local: aguarde {seconds} s",

@@ -3,6 +3,7 @@ import type { Message } from "@/i18n/message";
 
 export const layersettings: Readonly<Record<keyof typeof en, Message>> = {
   "layers.settings.none": "Nenhuma",
+  "layers.settings.source": "Fonte",
   "layers.settings.aircraft_tip_label": "Sobre as aeronaves",
   "layers.settings.aircraft_tip1": "De onde vêm as aeronaves: um serviço na internet ou um receptor seu.",
   "layers.settings.aircraft_tip2": "As aeronaves aparecem no mapa quando Aeronaves está marcado na caixa Camadas.",

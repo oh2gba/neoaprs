@@ -7,7 +7,7 @@ export const fr: Catalogue = {
   "common.dismiss": "Masquer",
 
   "header.project_title": "La page du projet NeoAPRS",
-  "pill.rx": "RX uniquement",
+  "pill.rx": "RX seul",
   "pill.rx_title_radios": "Rien n'est envoyé. Réglages → Radio",
   "header.rx.tx": "RX + TX",
   "header.rx.sure": "sûr ?",
@@ -31,13 +31,8 @@ export const fr: Catalogue = {
   "pill.daemon_connecting_title": "La page ouvre sa connexion à NeoAPRS",
   "pill.daemon_offline": "NeoAPRS : hors ligne",
   "pill.daemon_offline_title": "NeoAPRS ne répond pas. La page se reconnecte d'elle-même",
-  "pill.radio": "Radio",
-  "pill.radio_title": "Radio connectée. Réglages → Radio",
   "pill.radio_dummy_title": "Radio factice : trafic inventé, rien n'est émis. Réglages → Radio",
-  "pill.radio_silent": "Radio : silencieuse",
   "pill.radio_kiss": "Radio : passage en KISS…",
-  "pill.radio_searching": "Radio : recherche…",
-  "pill.radio_off": "Radio : non connectée",
   "pill.radio_waiting": "Radio : en attente…",
   "pill.radio_why_title": "{why}. Réglages → Radio",
   "pill.radio_waiting_why": "Aucune nouvelle de la radio pour l'instant",
@@ -229,7 +224,7 @@ export const fr: Catalogue = {
     "chemin trop long pour radio seulement : {count} digipeaters et RFONLY font plus que les {max} qu'un chemin peut avoir",
   "error.query.not_capable": "{call} ne reçoit pas de messages : il n'y a personne à interroger",
   "error.transmit.call": "rien n'est envoyé : {reason}",
-  "error.transmit.off": "RX uniquement : rien n'est envoyé",
+  "error.transmit.off": "RX seul : rien n'est envoyé",
   "error.query.too_soon": "La même question vient d'être posée à {call} : attendez {seconds} s",
   "error.query.form": "une requête commence par « ? » et dit ensuite ce qu'elle demande",
   "error.qru.too_soon": "trop tôt pour une autre demande d'infos locales : attendez {seconds} s",
@@ -1357,11 +1352,11 @@ export const fr: Catalogue = {
   "radio.type.mercury": "Modem Mercury (carte son)",
   "radio.type.dummy": "Radio FM factice",
   "radio.type.dummy_hf": "Radio Mercury factice",
-  "radio.type.tnc_text": "Yaesu FTM, TNC en moniteur (RX uniquement)",
+  "radio.type.tnc_text": "Yaesu FTM, TNC en moniteur (RX seul)",
   "radio.type.dummy_lora": "Radio LoRa factice",
   "radio.type.lora_tcp": "Carte LoRa APRS sur le réseau",
   "radio.type.lora_serial": "Carte LoRa APRS sur USB ou Bluetooth",
-  "radio.type.lora_console": "iGate LoRa APRS sur USB (RX uniquement)",
+  "radio.type.lora_console": "iGate LoRa APRS sur USB (RX seul)",
 
   // settings
   "settings.none": "aucun",
@@ -1789,7 +1784,7 @@ export const fr: Catalogue = {
     one: "{n} paquet relayé · dernier il y a {span}",
     other: "{n} paquets relayés · dernier il y a {span}",
   },
-  "settings.digi.line.rx_only": "RX uniquement : rien n'est relayé",
+  "settings.digi.line.rx_only": "RX seul : rien n'est relayé",
   "settings.digi.fold.since": "Compté depuis {when}",
   "settings.digi.fold.held": {
     one: "{n} trame retenue : trop de trames d'un coup",
@@ -1838,8 +1833,6 @@ export const fr: Catalogue = {
   "settings.find.trying_port": "Recherche de la radio : {port} ({number} sur {total})",
   "settings.find.already": "La radio est sur {port}, comme réglé",
   "settings.find.cancelled": "Recherche annulée",
-
-  "settings.map.layers": "Couches",
   "settings.map.step.build": "Recherche de la dernière version",
   "settings.map.step.world": "Carte du monde",
   "settings.map.step.area": "Carte de la zone",
@@ -2402,6 +2395,8 @@ export const fr: Catalogue = {
   "layers.kind.other": "Autre",
 
   "layers.settings.none": "Aucune",
+
+  "layers.settings.source": "Source",
   "layers.settings.aircraft_tip_label": "À propos des avions",
   "layers.settings.aircraft_tip1": "D'où viennent les avions : un service sur Internet ou un récepteur à vous.",
   "layers.settings.aircraft_tip2": "Les avions s'affichent sur la carte quand Avions est coché dans la boîte Couches.",

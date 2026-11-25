@@ -109,6 +109,9 @@ The corners are three tokens, the site's: `--radius` for a control, `--radius-bo
 | `--radius-pill` | `999px` | `999px` | the site's tag | the round ends of the tag and of a grip |
 | `--control-h` | `32px` | `32px` | the page's own | the height of every text button, input and select of a form or a toolbar |
 | `--control-h-small` | `24px` | `24px` | the page's own | the compact button inside a list row, a bubble or a line of text |
+| `--tag-h` | `18px` | `18px` | the page's own | the height of the tag; the header's marks, count and RX only switch are `--control-h` high |
+| `--tag-font` | `11px` | `11px` | the page's own | the text size of the tag; 14 px, the body's, in the header |
+| `--tag-pad` | `6px` | `6px` | the page's own | the side padding of the tag; 10 px in the header |
 | `--action-w` | `11em` | `11em` | the page's own | the least width of the button that is the action of a row |
 | `--font` | `system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Ubuntu, Cantarell, sans-serif` | `system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Ubuntu, Cantarell, sans-serif` | the site's | the page's text: the site's stack |
 | `--mono` | `ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace` | `ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace` | the page's own | figures, calls and packets: the page's own stack (every column of figures is measured in it) |

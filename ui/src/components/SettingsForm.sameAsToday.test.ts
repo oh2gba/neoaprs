@@ -72,9 +72,9 @@ const SETTINGS_TAB = {
   Digipeater: only("Digipeater", ["set-radio-1-digipeat"]),
   "Web page": only("Web page", ["set-web-network"]),
   Notifications: NOTIFICATIONS,
-  // the radius, and in the box Layers the layers' sources: the receivers' addresses are there with
-  // My own receiver
-  Map: box(["set-map-radius_km", "set-map-aircraft", "set-map-ships"], 3, ["Map", "Layers"]),
+  // the radius, and in a box for each layer its source: the receiver's address is there with My own
+  // receiver
+  Map: box(["set-map-radius_km", "set-map-aircraft", "set-map-ships"], 3, ["Map", "Aircraft", "Ships"]),
   "Update check": only("Update check", ["set-update-now"]),
   Help: box(["set-help-send"], 1, ["Help"]),
   About: box(["set-help-logs"], 0, ["About"]),
@@ -178,10 +178,10 @@ describe("the header with the FM radio alone", () => {
   };
   const open: Link = { connection: "open", radios: pageRadiosOf(fmRow()), now: NOW, inApp: false, told: true };
 
-  it("is the Server mark and the one Radio mark, mint while connected, whether the Mercury radio's topic is there or not", () => {
+  it("is the Server mark and the radio's mark by its name, mint while connected, whether the Mercury radio's topic is there or not", () => {
     const today = [
       ["SPAN", "NeoAPRS", "The page is connected to NeoAPRS", "tag-ok pill-daemon"],
-      ["BUTTON", "Radio", "Radio connected. Settings → Radio", "tag-ok pill-radio"],
+      ["BUTTON", "FM", "FM: connected. Settings → Radio", "tag-ok pill-radio"],
     ];
     expect(marks(open)).toEqual(today);
     expect(marks({ ...open, radios: pageRadiosOf(fmRow(), hfRow({ enabled: false, state: "stopped" })) })).toEqual(
@@ -189,7 +189,7 @@ describe("the header with the FM radio alone", () => {
     );
   });
 
-  it("is the Radio mark on the warn plate with the state in words, as it was: waiting, silent, not connected, searching", () => {
+  it("is the radio's mark on the warn plate with the state in words after its name: waiting, silent, not connected, searching", () => {
     const radio = (row: Parameters<typeof fmRow>[0] | null) =>
       marks({ ...open, radios: row === null ? [] : pageRadiosOf(fmRow(row)), told: row !== null })[1];
     expect(radio(null)).toEqual([
@@ -201,25 +201,25 @@ describe("the header with the FM radio alone", () => {
     // the title says the state in the page's words; "entering KISS" is no state of a radio's row
     expect(radio({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM" } } })).toEqual([
       "BUTTON",
-      "Radio: not connected",
+      "FM: not connected",
       "Not connected. Settings → Radio",
       "tag-warn pill-radio",
     ]);
     expect(radio({ state: "connecting", problem: { code: "radio.searching", params: {} } })?.[1]).toBe(
-      "Radio: searching…",
+      "FM: searching…",
     );
     expect(marks({ ...open, radios: pageRadiosOf(radioRow(1, "dummy")) })[1]).toEqual([
       "BUTTON",
-      "Radio",
+      "FM",
       "Dummy radio: made-up traffic, nothing goes on the air. Settings → Radio",
       "tag-dummy pill-radio",
     ]);
   });
 
-  it("keeps the other marks of the station where they were, after the Radio mark, and none for RX only", () => {
+  it("keeps the other marks of the station where they were, after the radio's mark, and none for RX only", () => {
     const rx = marks(open, { "station/transmit": "false" }).map((m) => m[1]);
-    expect(rx).toEqual(["NeoAPRS", "Radio"]);
+    expect(rx).toEqual(["NeoAPRS", "FM"]);
     const beaconOff = marks(open, { "beacon/interval_min": "0" }).map((m) => m[1]);
-    expect(beaconOff).toEqual(["NeoAPRS", "Radio", "Beacon off"]);
+    expect(beaconOff).toEqual(["NeoAPRS", "FM", "Beacon off"]);
   });
 });

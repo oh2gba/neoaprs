@@ -72,7 +72,7 @@ describe("the corners of the page", () => {
 
   it("give the tag round ends: the pill", () => {
     const tag = cssRule(".tag");
-    expect(tag).toMatch(/height:\s*18px/);
+    expect(tag).toMatch(/height:\s*var\(--tag-h\)/);
     expect(tag).toMatch(/border-radius:\s*var\(--radius-pill\)/);
   });
 

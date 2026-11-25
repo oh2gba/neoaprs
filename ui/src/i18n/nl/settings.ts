@@ -478,8 +478,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.find.trying_port": "Radio zoeken: {port} ({number} van {total})",
   "settings.find.already": "De radio zit op {port}, zoals ingesteld",
   "settings.find.cancelled": "Zoeken geannuleerd",
-
-  "settings.map.layers": "Lagen",
   "settings.map.step.build": "Nieuwste versie zoeken",
   "settings.map.step.world": "Wereldkaart",
   "settings.map.step.area": "Kaart van de omgeving",

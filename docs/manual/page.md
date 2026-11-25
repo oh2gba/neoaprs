@@ -168,9 +168,9 @@ The **Layers** button is in the map's top left corner, under + and −. It opens
 | **Tracks** | the lines that fade with age, behind the stations that moved. Off, only the tracks of the stations whose card is open stay | yes |
 | **ALOHA circle** | the dashed circles above | yes |
 | **Locator grid** | the Maidenhead grid, below | no |
+| **Day and night** | the night and the twilight, below | no |
 | **Aircraft** | the aircraft, below | no |
 | **Ships** | the ships, below | no |
-| **Day and night** | the night and the twilight, below; only on a station with an HF radio | no |
 
 ### The locator grid
 
@@ -180,7 +180,7 @@ At most 400 cells are named at a time; when more would be in view the grid uses 
 
 ### Day and night
 
-A station with an HF radio has the row **Day and night**. Ticked, the night is a soft shade over the map, with a lighter band for the twilight, where the sun is up to 6 degrees below the horizon. It moves with the sun and is redrawn every minute. It shows only while the map is zoomed out, to zoom 6; closer in, it is gone.
+With **Day and night** ticked, the night is a soft shade over the map, with a lighter band for the twilight, where the sun is up to 6 degrees below the horizon. It moves with the sun and is redrawn every minute. It shows only while the map is zoomed out, to zoom 6; closer in, it is gone.
 
 ### Aircraft and ships
 
@@ -330,11 +330,11 @@ The **header** is one calm line. It holds the title **NeoAPRS**, a link to the p
 
 While no call is set a lime **no call set** button is beside the title, which opens the setup guide.
 
-At the right, before the count of messages, are small marks that say how things stand. Each has a hover text, and all but **NeoAPRS** open the place where they are set:
+At the right, before the count of messages, are marks that say how things stand. Each has a hover text, and all but **NeoAPRS** open the place where they are set:
 
 - **Update** (blue) while a newer version is out;
 - **NeoAPRS** (mint, lime while the page connects, orange when NeoAPRS does not answer), in a browser only. In the desktop app page and daemon are one, so it is not there. The page connects again by itself;
-- **Radio**, with one radio on: mint while it is connected, grey and dashed for a Dummy radio, lime with the state in words otherwise. It opens Settings → Radio;
+- the radio, by its name (**Kenwood**, or **FM** for an FM radio you have not named), with one radio on: mint while it is connected, grey and dashed for a Dummy radio, lime with the state in words otherwise. It opens Settings → Radio;
 - with two radios on, a mark for each in its place, by its name (**FM**, **Mercury**), with the same colours and words, each leading to its own box;
 - with three or more, one mark **Radios**: mint while all are connected, lime naming the radio in trouble ("20 m: not connected") or the count when several are ("Radios: 2 not connected"). Its hover text lists each radio that is on with its state, and it leads to the first radio in trouble, else to the first box. It is dashed only while every radio is a Dummy;
 - **Beacon off** (grey) while the Beacon choice is Off, whether the station is RX only or not ([beacon.md](beacon.md#beacon-off));
@@ -343,14 +343,14 @@ At the right, before the count of messages, are small marks that say how things 
 
 After the count is the switch **RX + TX** / **RX only** ([beacon.md](beacon.md#rx-only)), on every tab. It is lime and reads **RX only** while the station sends nothing, and **sure?** after the first press back. While the page is not connected to NeoAPRS it does not react.
 
-On a narrow screen the marks give way, the last first, and the count and the switch stay. Your call is not in the header; it is in the Settings tab and in every message you send.
+The marks keep their places whatever they say. On a narrow screen the ones that do not fit are left out, and the count and the switch stay: first **NeoAPRS** while the page is connected, then the others, the marks in trouble last, and among those alike the last in the row first. On a phone with one radio, the radio's name stays. Your call is not in the header; it is in the Settings tab and in every message you send.
 
-The state of the radio in words, when it is not connected (with two radios on the mark is the radio's name: "FM: searching…", "Mercury: not connected"):
+The state of the radio in words after its name, when it is not connected (here for a radio named FM):
 
-- **Radio: searching…** while it looks for the port, and **Radio: entering KISS…** while the TNC is put into KISS.
-- **Radio: not connected** while it waits between two tries or is stopped. The hover text says why.
-- **Radio: waiting…** while there is no word from the radio yet, or the page is not connected to NeoAPRS.
-- **Radio: silent** while the line is open and the radio does not answer. The hover text says "nothing heard since 18:43 (5 h)" in the browser's time.
+- **FM: searching…** while it looks for the port.
+- **FM: not connected** while it waits between two tries or is stopped. The hover text says why.
+- **FM: waiting…** while there is no word from the radio yet, or the page is not connected to NeoAPRS. Before NeoAPRS has said which radios there are, the mark reads **Radio: waiting…**.
+- **FM: silent** while the line is open and the radio does not answer. The hover text says "nothing heard since 18:43 (5 h)" in the browser's time.
 
 NeoAPRS finds the radio again by itself: there is nothing to press. The port and when a packet was last heard are in the radio status of the radio's box, in the Radio group of the Settings tab.
 

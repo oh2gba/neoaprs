@@ -10,7 +10,7 @@ import { STATION_HOURS_KEY } from "@/lib/aging";
 import { ANTENNA, beaconOff } from "@/lib/beaconoff";
 import type { PictureName } from "@/help/names";
 import { isMoving } from "@/lib/gpsstatus";
-import { LAYER_SPECS, layerShown } from "@/lib/layersettings";
+import { LAYER_BOXES, LAYER_SPECS, layerShown } from "@/lib/layersettings";
 import { lazyText } from "@/lib/lazytext";
 import { alertLegend } from "@/lib/alertlegend";
 import { GROUP_ORDER, rank } from "@/lib/settingsorder";
@@ -422,7 +422,7 @@ export const SUBGROUPS: Record<
   }
 > = {
   "messages/alert": alertLegend,
-  "map/aircraft": lazyText({ title: "", tipLabel: "", tip: [] }, { text: () => t("settings.map.layers") }),
+  ...LAYER_BOXES,
 };
 
 /**

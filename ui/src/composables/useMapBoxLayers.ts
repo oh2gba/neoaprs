@@ -15,7 +15,7 @@ import { layersControl } from "@/lib/layers/control";
 
 export function useMapBoxLayers(map: () => MapLibreMap | null, selected: () => string | null) {
   const layers = useMapLayers();
-  const daynight = useMapDayNight(map, () => layers.shown("daynight") && layers.ticked("daynight"));
+  const daynight = useMapDayNight(map, () => layers.ticked("daynight"));
   const grid = useMapGrid(map, () => layers.ticked("grid"));
   const circles = useMapCircles(map, selected, () => layers.ticked("aloha"));
   const traffic = useMapTraffic(map);

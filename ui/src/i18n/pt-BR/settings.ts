@@ -420,7 +420,7 @@ export const settings: Record<keyof typeof source, Message> = {
     one: "{n} pacote repetido · último há {span}",
     other: "{n} pacotes repetidos · último há {span}",
   },
-  "settings.digi.line.rx_only": "Somente RX: nada é repetido",
+  "settings.digi.line.rx_only": "Só RX: nada é repetido",
   "settings.digi.fold.since": "Contado desde {when}",
   "settings.digi.fold.held": {
     one: "{n} quadro retido: muitos de uma vez",
@@ -469,8 +469,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.find.trying_port": "Procurando o rádio: {port} ({number} de {total})",
   "settings.find.already": "O rádio já está em {port}, como configurado",
   "settings.find.cancelled": "Busca cancelada",
-
-  "settings.map.layers": "Camadas",
   "settings.map.step.build": "Procurando a versão mais recente",
   "settings.map.step.world": "Mapa-múndi",
   "settings.map.step.area": "Mapa da região",

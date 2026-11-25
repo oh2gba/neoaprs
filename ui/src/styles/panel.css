@@ -42,20 +42,29 @@
 .headmail.badge {
   margin: 0 0 0 auto;
 }
-/* the marks before the count (lib/pills.ts): pushed right with the count; when the row is too
-   narrow they fold as whole marks, never half of one and never the count: the row is one mark
-   high and wraps, so what does not fit goes to a clipped line. The last mark folds first
-   (Internet, then GPS); Beacon off stays longest. A single mark wider than the row is
-   shortened with an ellipsis. */
+/* the marks before the count (lib/pills.ts): the row takes the room left beside the count and
+   keeps them at its right end; the marks that do not fit are not drawn (components/AppHeader.vue
+   picks them, never half of one and never the count). The row is one mark high and wraps, so
+   nothing can stand outside it. A single mark wider than the row is shortened with an ellipsis. */
 .headpills {
   display: flex;
+  flex: 1 1 0;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
-  height: 18px;
-  margin-left: auto;
+  height: var(--tag-h);
   overflow: hidden;
+}
+/* the copy of the marks the header measures: their whole widths, never seen or read */
+.headpills-copy {
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: flex;
+  gap: 8px;
+  visibility: hidden;
+  pointer-events: none;
 }
 .headpill {
   flex: none;

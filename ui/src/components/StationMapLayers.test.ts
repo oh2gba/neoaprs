@@ -154,6 +154,18 @@ describe("the ALOHA circle", () => {
   });
 });
 
+describe("the day and night shade", () => {
+  it("is drawn when ticked on a station with no HF radio, and not out of the box", async () => {
+    await mounted();
+    const source = () => FakeMap.last().getSource("daynight");
+    const features = () =>
+      ((source()?.setData.mock.calls.at(-1)?.[0] ?? source()?.data) as { features: unknown[] }).features;
+    expect(features()).toEqual([]);
+    await setTick("daynight", true);
+    expect(features().length).toBeGreaterThan(0);
+  });
+});
+
 describe("the locator grid", () => {
   it("lies under everything else the page draws: the circles, the tracks, the route and the replay", async () => {
     await mounted();

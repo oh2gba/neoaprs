@@ -150,14 +150,17 @@ describe("groupKeys", () => {
   });
   it("heads the daemon's own alert in the Notifications group with a line that says where it runs", () => {
     expect(SUBGROUPS["messages/alert"]?.text).toBe("On the NeoAPRS computer");
-    expect(Object.keys(SUBGROUPS)).toEqual(["messages/alert", "map/aircraft"]);
+    expect(Object.keys(SUBGROUPS)).toEqual(["messages/alert", "map/aircraft", "map/ships"]);
     expect([FIELDS["messages/alert"]?.label, FIELDS["messages/alert_command"]?.label]).toEqual([
       "Notify me",
       "Command",
     ]);
   });
-  it("heads the map's layers with the word Layers, no (i) and no hover text", () => {
-    expect(SUBGROUPS["map/aircraft"]).toMatchObject({ text: "Layers", title: "", tipLabel: "", tip: [] });
+  it("heads each of the map's layers with its own box, named as the layer, with no (i) and no hover text", () => {
+    expect(SUBGROUPS["map/aircraft"]).toMatchObject({ text: "Aircraft", title: "", tipLabel: "", tip: [] });
+    expect(SUBGROUPS["map/ships"]).toMatchObject({ text: "Ships", title: "", tipLabel: "", tip: [] });
+    expect([FIELDS["map/aircraft"]?.label, FIELDS["map/ships"]?.label]).toEqual(["Source", "Source"]);
+    expect([FIELDS["map/aircraft"]?.name, FIELDS["map/ships"]?.name]).toEqual(["Aircraft", "Ships"]);
   });
   it("names the NeoAPRS computer in the (i) of the daemon's alert in a browser and this computer, alone, in the app's own window, after a reload too; the (i) of Notify me names neither", () => {
     const tips = () => [...(SUBGROUPS["messages/alert"]?.tip ?? []), ...(FIELDS["messages/alert"]?.tip ?? [])];

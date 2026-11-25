@@ -481,7 +481,7 @@ describe("the header marks and no footer under the panel", () => {
     }
   });
 
-  it("has the Radio mark on a phone, which opens the Settings tab with the radio group flashed", async () => {
+  it("has the radio's mark on a phone, which opens the Settings tab with the radio group flashed", async () => {
     const { wrapper, socket } = await open(390, 844);
     await wrapper.find("#tab-stations").trigger("click");
     socket.say({
@@ -492,7 +492,7 @@ describe("the header marks and no footer under the panel", () => {
     });
     await flushPromises();
     const mark = wrapper.find(".appheader .pill-radio");
-    expect(mark.text()).toBe("Radio: silent");
+    expect(mark.text()).toBe("FM: silent");
     expect(mark.attributes("title")).toMatch(/^nothing heard since \d\d:\d\d \(10 min\)\. Settings → Radio$/);
     await mark.trigger("click");
     expect(panelOn(wrapper)).toEqual(["pane-settings"]);

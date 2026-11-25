@@ -71,7 +71,8 @@ describe("SettingsForm", () => {
       "On the NeoAPRS computer i",
       "In this browser",
       "Map",
-      "Layers",
+      "Aircraft",
+      "Ships",
       "Update check",
       "Help",
       "About",
@@ -1537,37 +1538,51 @@ describe("SettingsForm", () => {
           .find("fieldset:has(#set-map-radius_km)")
           .findAll(".field label")
           .map((l) => l.text()),
-      ).toEqual(["Radius", "Detailed map", "Aircraft", "Ships"]);
+      ).toEqual(["Radius", "Detailed map", "Source", "Source"]);
     });
 
-    it("has Aircraft and Ships, with their lines, in one box headed Layers that ends the group, and Radius and Detailed map outside it", () => {
+    it("has a box for each layer, Aircraft and Ships, each with its Source, that end the group, and Radius and Detailed map outside them", () => {
       const { wrapper } = mount_();
       const group = wrapper.find("fieldset:has(#set-map-radius_km)");
       const boxes = group.findAll("fieldset.subbox");
-      expect(boxes.map((b) => b.find("legend").text())).toEqual(["Layers"]);
-      expect(boxes[0]?.find("legend").attributes("title")).toBeUndefined();
-      expect(boxes[0]?.find("legend .info-toggle").exists()).toBe(false);
-      expect(boxes[0]?.findAll(".field label").map((l) => l.text())).toEqual(["Aircraft", "Ships"]);
-      expect(boxes[0]?.find("#set-map-radius_km").exists()).toBe(false);
-      expect(boxes[0]?.find(".mapfetch-button").exists()).toBe(false);
-      expect(boxes[0]?.element.nextElementSibling).toBeNull();
+      expect(boxes.map((b) => b.find("legend").text())).toEqual(["Aircraft", "Ships"]);
+      for (const box of boxes) {
+        expect(box.find("legend").attributes("title")).toBeUndefined();
+        expect(box.find("legend .info-toggle").exists()).toBe(false);
+        expect(box.findAll(".field label").map((l) => l.text())).toEqual(["Source"]);
+        expect(box.find("#set-map-radius_km").exists()).toBe(false);
+        expect(box.find(".mapfetch-button").exists()).toBe(false);
+      }
+      expect(boxes[0]?.find("#set-map-aircraft").exists()).toBe(true);
+      expect(boxes[1]?.find("#set-map-ships").exists()).toBe(true);
+      expect(boxes[1]?.element.nextElementSibling).toBeNull();
     });
 
-    it("keeps the receiver's address row of a layer inside the Layers box", () => {
-      const { wrapper } = mount_(mapState(), { "map/aircraft": "receiver", "map/aircraft_host": "192.168.1.5" });
-      const box = wrapper.find("fieldset:has(#set-map-radius_km) fieldset.subbox");
-      expect(box.find("#set-map-aircraft_host").exists()).toBe(true);
+    it("keeps the receiver's address row and state of a layer inside that layer's box", () => {
+      const { wrapper } = mount_(mapState(), {
+        "map/aircraft": "receiver",
+        "map/aircraft_host": "192.168.1.5",
+        "map/ships": "receiver",
+      });
+      const boxes = wrapper.findAll("fieldset:has(#set-map-radius_km) fieldset.subbox");
+      expect(boxes.map((box) => box.findAll(".field label").map((l) => l.text()))).toEqual([
+        ["Source", "Receiver's address"],
+        ["Source", "Receiver's address"],
+      ]);
+      expect(boxes[0]?.find("#set-map-aircraft_host").exists()).toBe(true);
+      expect(boxes[1]?.find("#set-map-ships_host").exists()).toBe(true);
+      expect(boxes.map((box) => box.findAll(".receiverstatus").length)).toEqual([1, 1]);
       expect(wrapper.findAll("#set-map-aircraft_host")).toHaveLength(1);
     });
 
-    it("writes the legend of the Layers box in the language the page has", async () => {
+    it("writes the legends of the layers' boxes in the language the page has", async () => {
       try {
         const { wrapper } = mount_();
         const find = () => wrapper.find("fieldset:has(#set-map-radius_km) fieldset.subbox legend").text();
-        expect(find()).toBe("Layers");
+        expect(find()).toBe("Aircraft");
         setLocale("en-XA");
         await wrapper.vm.$nextTick();
-        expect(find()).not.toBe("Layers");
+        expect(find()).not.toBe("Aircraft");
         expect(find()).not.toBe("");
       } finally {
         setLocale("en");

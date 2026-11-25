@@ -3,6 +3,7 @@ import type { Message } from "@/i18n/message";
 
 export const layersettings: Readonly<Record<keyof typeof en, Message>> = {
   "layers.settings.none": "Nessuno",
+  "layers.settings.source": "Fonte",
   "layers.settings.aircraft_tip_label": "Informazioni sugli aerei",
   "layers.settings.aircraft_tip1": "Da dove vengono gli aerei: un servizio su internet o un ricevitore tuo.",
   "layers.settings.aircraft_tip2": "Gli aerei compaiono sulla mappa quando Aerei è spuntato nel riquadro Livelli.",

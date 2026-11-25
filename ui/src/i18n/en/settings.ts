@@ -465,8 +465,6 @@ export const settings = {
   "settings.find.trying_port": "Looking for the radio: {port} ({number} of {total})",
   "settings.find.already": "The radio is on {port}, as it is set",
   "settings.find.cancelled": "Search cancelled",
-
-  "settings.map.layers": "Layers",
   "settings.map.step.build": "Finding the latest build",
   "settings.map.step.world": "World map",
   "settings.map.step.area": "Map of the area",

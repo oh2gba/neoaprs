@@ -473,8 +473,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.find.trying_port": "Ricerca della radio: {port} ({number} di {total})",
   "settings.find.already": "La radio è già su {port}, come impostato",
   "settings.find.cancelled": "Ricerca annullata",
-
-  "settings.map.layers": "Livelli",
   "settings.map.step.build": "Ricerca dell’ultima versione",
   "settings.map.step.world": "Mappa del mondo",
   "settings.map.step.area": "Mappa della zona",

@@ -4,6 +4,7 @@ import type { Message } from "@/i18n/message";
 
 export const layersettings: Record<keyof typeof source, Message> = {
   "layers.settings.none": "なし",
+  "layers.settings.source": "情報源",
   "layers.settings.aircraft_tip_label": "航空機について",
   "layers.settings.aircraft_tip1": "航空機の情報源です。インターネット上のサービスか、自分の受信機です。",
   "layers.settings.aircraft_tip2": "レイヤーの箱で航空機にチェックを入れると、地図に航空機が表示されます。",

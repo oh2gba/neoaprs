@@ -4,6 +4,7 @@ import type { Message } from "@/i18n/message";
 
 export const layersettings: Record<keyof typeof source, Message> = {
   "layers.settings.none": "Geen",
+  "layers.settings.source": "Bron",
   "layers.settings.aircraft_tip_label": "Over vliegtuigen",
   "layers.settings.aircraft_tip1": "Waar de vliegtuigen vandaan komen: een dienst op internet, of een eigen ontvanger.",
   "layers.settings.aircraft_tip2": "Vliegtuigen staan op de kaart als Vliegtuigen is aangevinkt in het vak Lagen.",

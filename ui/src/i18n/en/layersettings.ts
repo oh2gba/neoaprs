@@ -1,6 +1,7 @@
-// Settings, Map: the rows Aircraft and Ships, their sources and an own receiver's address and state (components/SettingsLayer.vue). The rows' names are layers.aircraft and layers.ships (en/layers.ts).
+// Settings, Map: a box for each layer, its source and an own receiver's address and state (components/SettingsLayer.vue). The boxes' names are layers.aircraft and layers.ships (en/layers.ts).
 export const layersettings = {
   "layers.settings.none": "None",
+  "layers.settings.source": "Source",
   "layers.settings.aircraft_tip_label": "About aircraft",
   "layers.settings.aircraft_tip1":
     "Where the aircraft come from: a service on the internet, or a receiver of your own.",

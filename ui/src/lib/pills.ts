@@ -1,8 +1,8 @@
 // The marks at the top right of the header, before the message count. Each has a short hover title
-// and the place where it is set. The order is also the fold order on a narrow screen (the last
-// folds first): Update, Daemon (browser only), radios, Beacon off, GPS, Internet, Map. The RX only
-// switch after the count is lib/rxswitch.ts. They are plain functions of the settings, the radios
-// and the states the daemon has reported.
+// and the place where it is set. They stand in one order, whatever their states: Update, Daemon
+// (browser only), radios, Beacon off, GPS, Internet, Map. On a narrow screen the header hides the
+// ones that do not fit (`foldAway`). The RX only switch after the count is lib/rxswitch.ts. They
+// are plain functions of the settings, the radios and the states the daemon has reported.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import type { Params } from "@/i18n/message";
@@ -116,8 +116,12 @@ export function radioFocus(radio: Pick<PageRadio, "id"> | undefined): string {
 const whyTitle = (text: string) =>
   ({ title: "pill.radio_why_title", titleValues: { why: text.replace(/[.…。]+$/u, "") } }) as const;
 
+/** The words of a mark that names its radio; `name` also fills the shared words ("{name}: not connected"). */
+const named = (text: MessageId, name: string) => ({ text, textValues: { radio: name, name } }) as const;
+
 /**
- * The mark of a radio in the state of its line. `name` is its short name when several marks show.
+ * The mark of a radio in the state of its line, under its name; `name` is null only while the page
+ * knows of no radio yet.
  */
 function radioPill(
   link: Link,
@@ -127,46 +131,35 @@ function radioPill(
   name: string | null,
 ): HeaderPill {
   const base = { id, target: "settings", focus } as const;
-  // `name` also fills the shared words, e.g. "{name}: not connected"
-  const values = name === null ? undefined : { radio: name, name };
-  const word = (plain: MessageId, withName: MessageId) =>
-    ({ text: name === null ? plain : withName, textValues: values }) as const;
-  if (line === null) {
+  if (line === null || name === null) {
     // socket away: use the Daemon mark's words
     const title =
       link.connection === "open"
         ? whyTitle(t("pill.radio_waiting_why"))
         : { title: DAEMON_STATES[link.connection].title };
-    return { ...base, ...word("pill.radio_waiting", "pill.radio_named_waiting"), tone: "warn", ...title };
+    const text = name === null ? ({ text: "pill.radio_waiting" } as const) : named("pill.radio_named_waiting", name);
+    return { ...base, ...text, tone: "warn", ...title };
   }
   if (line.state === "connected") {
     if (line.dummy)
-      return { ...base, ...word("pill.radio", "pill.radio_named"), title: "pill.radio_dummy_title", tone: "dummy" };
-    return name === null
-      ? { ...base, text: "pill.radio", title: "pill.radio_title", tone: "ok" }
-      : {
-          ...base,
-          text: "pill.radio_named",
-          textValues: values,
-          tone: "ok",
-          ...whyTitle(t("radio.line", { name, line: t("settings.tnc.state.connected") })),
-        };
+      return { ...base, ...named("pill.radio_named", name), title: "pill.radio_dummy_title", tone: "dummy" };
+    return {
+      ...base,
+      ...named("pill.radio_named", name),
+      tone: "ok",
+      ...whyTitle(t("radio.line", { name, line: t("settings.tnc.state.connected") })),
+    };
   }
   if (line.state === "silent")
     return {
       ...base,
-      ...word("pill.radio_silent", "pill.radio_named_silent"),
+      ...named("pill.radio_named_silent", name),
       tone: "warn",
       ...whyTitle(silentText(line.since, link.now)),
     };
   if (line.state === "connecting")
-    return {
-      ...base,
-      ...word("pill.radio_searching", "pill.radio_named_searching"),
-      tone: "warn",
-      ...whyTitle(line.why),
-    };
-  return { ...base, ...word("pill.radio_off", "radio.not_connected"), tone: "warn", ...whyTitle(line.why) };
+    return { ...base, ...named("pill.radio_named_searching", name), tone: "warn", ...whyTitle(line.why) };
+  return { ...base, ...named("radio.not_connected", name), tone: "warn", ...whyTitle(line.why) };
 }
 
 /**
@@ -217,8 +210,8 @@ function radiosPill(link: Link, on: readonly PageRadio[], first: PageRadio | und
 }
 
 /**
- * The radio marks: one radio gives the Radio mark; two give a mark each with its name; three or
- * more give one Radios mark. None when the daemon has reported that the station has no radio.
+ * The radio marks: one or two radios give a mark each with its name; three or more give one Radios
+ * mark. None when the daemon has reported that the station has no radio.
  */
 function radioPills(link: Link): HeaderPill[] {
   const radios = link.radios;
@@ -235,7 +228,7 @@ function radioPills(link: Link): HeaderPill[] {
   if (on.length === 2)
     return on.map((radio) => radioPill(link, lineOf(link, radio), `radio-${radio.id}`, radioFocus(radio), radio.name));
   const one = on[0] ?? radios[0];
-  return [radioPill(link, lineOf(link, one), "radio", radioFocus(one), null)];
+  return [radioPill(link, lineOf(link, one), "radio", radioFocus(one), one?.name ?? null)];
 }
 
 /** The Update mark, while a newer version is known. */
@@ -334,4 +327,32 @@ export function headerPills(
     mapPill(map),
   ];
   return marks.filter((mark): mark is HeaderPill => mark !== null);
+}
+
+const TROUBLE: ReadonlySet<TagTone> = new Set(["warn", "bad"]);
+
+/** How long a mark stays on a narrow screen: the connected Daemon mark goes first, a mark in trouble last. */
+const keep = (mark: Pick<HeaderPill, "id" | "tone">): number =>
+  mark.id === "daemon" && mark.tone === "ok" ? 0 : TROUBLE.has(mark.tone) ? 2 : 1;
+
+/**
+ * The marks to hide so that the rest fit in `room` px (`widths` in the marks' order, `gap` between
+ * two): the connected Daemon mark first, then the others, the marks in trouble last, and among
+ * equals the last in the row first. One mark always stays; it is shortened if it is still too wide.
+ */
+export function foldAway(
+  marks: readonly Pick<HeaderPill, "id" | "tone">[],
+  widths: readonly number[],
+  room: number,
+  gap: number,
+): Set<HeaderPill["id"]> {
+  const order = marks.map((mark, at) => ({ mark, at })).sort((a, b) => keep(a.mark) - keep(b.mark) || b.at - a.at);
+  const hidden = new Set<HeaderPill["id"]>();
+  let used = widths.reduce((sum, width) => sum + width, 0) + gap * Math.max(0, marks.length - 1);
+  for (const { mark, at } of order.slice(0, -1)) {
+    if (used <= room) break;
+    hidden.add(mark.id);
+    used -= (widths[at] ?? 0) + gap;
+  }
+  return hidden;
 }

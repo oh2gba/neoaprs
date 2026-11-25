@@ -1,29 +1,49 @@
-// Settings, Map: the Aircraft and Ships rows and each one's receiver address
-// (components/SettingsLayer.vue). The four keys and what each says of itself. The offered sources
-// come from the daemon (`map.layers[i].offered`); a stored source not among them shows as None. The
-// address field shows only while the row's choice is an own receiver.
+// Settings, Map: a box for each layer (Aircraft, Ships) with its source and its receiver's address
+// (components/SettingsLayer.vue). The keys and what each says of itself. The offered sources come
+// from the daemon (`map.layers[i].offered`); a stored source not among them shows as None. The
+// address field shows only while the choice is an own receiver.
 import type { Choice } from "@/lib/settingchoices";
 import type { FieldInfo, FieldSpec } from "@/lib/settings";
-import { RADARCAPE_NAME, SOURCE_NAMES, isOwn, isService, type LayerName, type SourceName } from "@/lib/layers/sources";
+import {
+  LAYER_NAMES,
+  RADARCAPE_NAME,
+  SOURCE_NAMES,
+  isOwn,
+  isService,
+  type LayerName,
+  type SourceName,
+} from "@/lib/layers/sources";
+import { lazyText } from "@/lib/lazytext";
 import { t } from "@/i18n";
 import { AIRCRAFT_SOURCES, SHIP_SOURCES } from "@/protocol/lists";
 import type { MapLayer } from "@/protocol/protocol";
 
+const LAYERS = Object.keys(LAYER_NAMES) as LayerName[];
+
+const sourceKey = (layer: LayerName): string => `map/${layer}`;
+
 /**
- * The four keys: the layer each belongs to, and whether it chooses the source or holds an own
- * receiver's address.
+ * The keys of each layer: the layer each belongs to, and whether it chooses the source or holds an
+ * own receiver's address.
  */
-const KEYS: Readonly<Record<string, { layer: LayerName; role: "source" | "address" }>> = {
-  "map/aircraft": { layer: "aircraft", role: "source" },
-  "map/aircraft_host": { layer: "aircraft", role: "address" },
-  "map/ships": { layer: "ships", role: "source" },
-  "map/ships_host": { layer: "ships", role: "address" },
-};
+type LayerKey = { layer: LayerName; role: "source" | "address" };
+const KEYS: Readonly<Record<string, LayerKey>> = Object.fromEntries(
+  LAYERS.flatMap((layer): [string, LayerKey][] => [
+    [sourceKey(layer), { layer, role: "source" }],
+    [`${sourceKey(layer)}_host`, { layer, role: "address" }],
+  ]),
+);
 
 /** The layer a key belongs to and its role, or null for any other key. */
-export const layerKey = (key: string): { layer: LayerName; role: "source" | "address" } | null => KEYS[key] ?? null;
+export const layerKey = (key: string): LayerKey | null => KEYS[key] ?? null;
 
-const sourceKey = (layer: LayerName): string => (layer === "aircraft" ? "map/aircraft" : "map/ships");
+/** The legend of each layer's box, at its source key (`SUBGROUPS` of lib/settings.ts): the layer's name. */
+export const LAYER_BOXES = Object.fromEntries(
+  LAYERS.map((layer) => [
+    sourceKey(layer),
+    lazyText({ title: "", tipLabel: "", tip: [] as readonly string[] }, { text: () => t(LAYER_NAMES[layer]) }),
+  ]),
+);
 
 /**
  * The words of one source in the list: None, a service or the Radarcape by name, or My own
@@ -52,13 +72,13 @@ export function shownSource(stored: string, offered: readonly SourceName[] | und
 }
 
 /**
- * What the four fields say of themselves (FIELDS of lib/settings.ts); source rows list all of the
- * layer's choices here.
+ * What the fields say of themselves (FIELDS of lib/settings.ts); source rows list all of the
+ * layer's choices here. The box has the layer's name, so the source row is Source.
  */
 export const LAYER_SPECS: Record<string, FieldSpec> = {
   "map/aircraft": {
     name: "layers.aircraft",
-    label: "layers.aircraft",
+    label: "layers.settings.source",
     kind: "choice",
     choices: () => sourceChoices("aircraft"),
     tipLabel: "layers.settings.aircraft_tip_label",
@@ -66,7 +86,7 @@ export const LAYER_SPECS: Record<string, FieldSpec> = {
   },
   "map/ships": {
     name: "layers.ships",
-    label: "layers.ships",
+    label: "layers.settings.source",
     kind: "choice",
     choices: () => sourceChoices("ships"),
     tipLabel: "layers.settings.ships_tip_label",
