@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.23.2
+
 - **New:** day and night on the map for every station.
 - **Changed:** the marks at the top right are larger.
 - **Changed:** a single radio's mark at the top right shows the radio's name.
