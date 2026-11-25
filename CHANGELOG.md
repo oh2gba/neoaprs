@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.23.3
+
 - **Fixed:** the ALOHA circle is drawn: it reaches the farthest station heard while the channel is not full.
 
 ## 0.23.2
