@@ -211,6 +211,6 @@ async def radios_state(ctl: Controller, listed: dict[int, list[dict[str, Any]]])
         if spec.enabled and modem is not None and radio.rtype.transport == "modem":
             entry["sound_cards"] = await sound_cards(modem, listed)
         if spec.enabled and isinstance(modem, Mercury):
-            entry["mercury"] = mercury_state(modem, radio.line)
+            entry["mercury"] = {**mercury_state(modem, radio.line), **ctl.pskreporter.state(radio.id)}
         out.append(entry)
     return out

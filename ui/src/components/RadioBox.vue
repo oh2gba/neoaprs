@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // The box of one radio in the Radio group (also in the setup guide), folding by its arrow.
 // It holds, in order: Enable, Name and Remove (when the station has several radios), the status
-// line, and behind the arrow the type, its fields and what the type can do.
+// line, and behind the arrow the type, its fields and what the type can do (a Mercury radio's
+// reports to PSK Reporter after its suggested frequencies).
 // Settings are the radio's own (`radio/3/port`); `radio_change` sends Enable, type and name.
 // The daemon's refusal appears under the field it is about, in the box that asked last.
 // Ids and fold state come from lib/settingsradio.ts BOX_IDS.
@@ -11,6 +12,7 @@ import HfFrequencies from "@/components/HfFrequencies.vue";
 import HfLevelRow from "@/components/HfLevelRow.vue";
 import HfScope from "@/components/HfScope.vue";
 import HfTuneRow from "@/components/HfTuneRow.vue";
+import PskReportRows from "@/components/PskReportRows.vue";
 import RadioStatus from "@/components/RadioStatus.vue";
 import SoundCardLevel from "@/components/SoundCardLevel.vue";
 import SettingsBox from "@/components/SettingsBox.vue";
@@ -72,6 +74,8 @@ const type = computed(() => pending.value.type ?? props.radio.type);
 const connected = computed(() => props.radio.row.state === "connected");
 const fields = computed(() => boxKeys({ ...props.radio, type: type.value }));
 const can = computed(() => props.radio.row.can);
+/** A type that reports to PSK Reporter (the Mercury radio) has the tick and the dial. */
+const reports = computed(() => typeOf({ type: type.value })?.fields.some((f) => f.key === "psk_report") ?? false);
 /** Find my radio is offered for a radio with a serial line. */
 const findable = computed(() => can.value.find);
 
@@ -282,6 +286,7 @@ const hasGain = computed(() => can.value.tx_gain && gainKey.value in props.setti
       />
       <SettingsRadioFields :keys="fields" :settings="settings" :form="form" :defaults="defaults" :radio="radio" />
       <HfFrequencies v-if="can.frequencies && radio.row.modem" :radio="radio" />
+      <PskReportRows v-if="reports" :radio="radio" :settings="settings" :form="form" />
       <FindRadioRow v-if="findable" :id="ids(radioElementId(radio, 'find'))" />
       <template v-if="tools">
         <HfTuneRow v-if="can.tune" :id="ids(radioElementId(radio, 'tune'))" :radio="radio" />

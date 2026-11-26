@@ -86,6 +86,7 @@ from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
 from neoaprs.qrutext import ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX  # noqa: E402
 from neoaprs import layerthing  # noqa: E402
 from neoaprs.radiospec import MAX_NAME  # noqa: E402
+from neoaprs.configvalues import DIAL_MIN_MHZ  # noqa: E402
 from neoaprs.radiotype import HF_BEACON_MIN_MIN, KINDS, RadioType  # noqa: E402
 from neoaprs.radiotypes import DEFAULT_TYPE, type_of, types_of  # noqa: E402
 from neoaprs.versions import MAX_FREQUENCIES  # noqa: E402
@@ -477,7 +478,7 @@ def limits() -> dict[str, Any]:
             "peakClipDbfs": mercuryscope.PEAK_CLIP_DBFS,
             "historySec": mercuryscope.HISTORY_SEC,
         },
-        "radio": {"nameMax": MAX_NAME, "frequenciesMax": MAX_FREQUENCIES},
+        "radio": {"nameMax": MAX_NAME, "frequenciesMax": MAX_FREQUENCIES, "dialMinMhz": DIAL_MIN_MHZ},
         "support": {"emailMax": MAX_EMAIL},
         "mercury": {
             "version": mercury.VERSION,

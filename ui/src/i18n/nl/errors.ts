@@ -135,6 +135,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_hostport": "‘{value}’ is geen host:poort (4532 is de poort van rigctld)",
   "error.setting.not_receiver": "‘{value}’ is niet het adres van een ontvanger",
   "error.setting.not_server": "‘{value}’ is geen host:poort (14580 is de gangbare poort van een APRS-IS-server)",
+  "error.setting.not_dial": "‘{value}’ is geen dial zoals 28.1800 MHz USB",
   "error.setting.not_passcode": "de passcode van je roepnaam is een getal van 0 tot {max}",
   "error.setting.passcode_read_only":
     "-1 is de passcode om alleen te lezen; een iGate heeft de passcode van zijn roepnaam nodig",

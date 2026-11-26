@@ -20,6 +20,7 @@ from tests.test_delivery import Chain
 from tests.test_digipeater import INFO, Rig as DigiRig, frame
 from tests.test_messaging import started_rig
 from tests.test_ownobjects import reported, rig_at
+from tests.test_pskreporter import Rig as PskRig
 from tests.test_qru import Rig as QruRig
 from tests.test_queries import Rig as QueryRig
 
@@ -144,3 +145,14 @@ async def test_an_object_of_ours_reported_by_a_station_on_the_internet_is_not_ta
     assert taken == [] and [o.name for o in rig.objects.records()] == ["LEADER"]
     rig.objects.on_packet(reported("LEADER", rig.clock()))
     assert taken == ["LEADER"], "reported on the radio by another station it is dropped"
+
+
+def test_psk_reporter_reports_a_station_heard_on_the_mercury_radio_and_not_the_same_packet_from_the_internet() -> None:
+    rig = PskRig()
+    heard = rig.hear("OH2ABC>APRS:!6010.20N/02456.40E-")
+    rig.service.queue.clear()
+    rig.service._reported.clear()
+    rig.service.on_packet(internet(heard))
+    assert rig.queued() == []
+    rig.service.on_packet(heard)
+    assert [r.call for r in rig.queued()] == ["OH2ABC"]

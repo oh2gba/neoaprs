@@ -128,8 +128,9 @@ class Controller(Services):
         self.start_tnc()  # last: the source starts after its consumers
         await self._start_web()
         await self.mapauto.start()
-        for asks in (self.updatecheck, self.frequencies, self.skeds, self.layers):
+        for asks in (self.updatecheck, self.frequencies, self.skeds, self.layers, self.pskreporter):
             await asks.start()
+        self.pskreporter.settings_changed(self.config)
         self.tasks.spawn(self._prune_daily(), "prune")
         self.tasks.spawn(self._sweep_backup(), "backup-sweep")
         self.tasks.spawn(self._recount_minutely(), "recount")
@@ -181,6 +182,7 @@ class Controller(Services):
             ("the update check", self.updatecheck.stop),
             ("the suggested frequencies", self.frequencies.stop),
             ("the HF test board", self.skeds.stop),
+            ("PSK Reporter", self.pskreporter.stop),
             ("the ALOHA circle", self.aloha.stop),
             ("Update now", self.selfupdate.stop),
             ("the automatic map", self.mapauto.stop),

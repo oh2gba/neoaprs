@@ -428,6 +428,14 @@ RADIO_DESCRIPTIONS: dict[str, tuple[str, str]] = {
         "Settings tab, Radio (Receive level)",
         "the sound card's own capture level in percent, 0 to 100 (its ALSA Capture or Mic control, the recording device's volume on Windows). Empty: never set. Set with the slider of the Receive level row, beside the bar, which is there only where the card has such a control; set and put back as `tx_card`. A switch of the card (its Auto Gain Control, a mute) is never touched",
     ),
+    "psk_report": (
+        "Settings tab, Radio (Report to PSK Reporter)",
+        "`true`: every station this radio hears directly (no digipeater between, not passed on from the internet) is reported to pskreporter.info, where it shows on the map under the mode NEOAPRS, once every five minutes at most and only while `psk_dial` is set and the station has a position ([radio.md](radio.md#psk-reporter))",
+    ),
+    "psk_dial": (
+        "Settings tab, Radio (Frequency)",
+        "the dial the radio is tuned to, written as `28.1800 MHz USB` (USB, at least 0.1 MHz): one of the suggested frequencies, or Other and the number typed; Other with no number yet, or one that is no dial, is empty. Empty: nothing is reported. Greyed while `psk_report` is `false`",
+    ),
 }
 
 

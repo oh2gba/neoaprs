@@ -37,6 +37,18 @@ def grid_centre(grid: str) -> tuple[float, float]:
     return lat + _SQUARE / 4, lon + _SQUARE / 2
 
 
+def grid_of(lat: float, lon: float) -> str:
+    """Return the 6-character locator of a position, the subsquare in lower case (`KP20le`)."""
+    lon = min(max(lon + 180.0, 0.0), 360.0 - 1e-9)
+    lat = min(max(lat + 90.0, 0.0), 180.0 - 1e-9)
+    field_lon, field_lat = int(lon // _FIELD), int(lat // (_FIELD / 2))
+    lon, lat = lon - field_lon * _FIELD, lat - field_lat * _FIELD / 2
+    square_lon, square_lat = int(lon // _SQUARE), int(lat // (_SQUARE / 2))
+    lon, lat = lon - square_lon * _SQUARE, lat - square_lat * _SQUARE / 2
+    sub_lon, sub_lat = min(int(lon // _SUB), 23), min(int(lat // (_SUB / 2)), 23)
+    return f"{chr(65 + field_lon)}{chr(65 + field_lat)}{square_lon}{square_lat}{chr(97 + sub_lon)}{chr(97 + sub_lat)}"
+
+
 def split_locator(text: str) -> tuple[Locator | None, str]:
     """Split the locator at the start of `text` from the rest (leading space dropped); else None."""
     found = _LOCATOR.match(text)

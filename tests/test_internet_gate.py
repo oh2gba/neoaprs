@@ -114,6 +114,7 @@ TAKERS = {
     "generalask": {"on_packet"},
     "ownobjects": {"on_packet"},
     "igate": {"on_packet"},
+    "pskreporter": {"on_packet"},
     "digipeater": {"on_packet"},
     # (the rows between two radios, handed the packet by the digipeater)
     "digipeater.passer": {"on_packet", "sent_on"},

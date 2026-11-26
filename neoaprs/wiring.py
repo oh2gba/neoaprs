@@ -29,7 +29,7 @@ packets_log = logging.getLogger("neoaprs.packets")
 # signals to these two lists. The log, station book and weather trends take any channel.
 SEEN_BY_ALL = ("packetlog", "stationbook", "weatherlog")
 # What answers, acknowledges, repeats or sends: only what was on the radio.
-ON_AIR_ONLY = ("messaging", "queries", "qruask", "generalask", "ownobjects", "igate", "digipeater")
+ON_AIR_ONLY = ("messaging", "queries", "qruask", "generalask", "ownobjects", "igate", "pskreporter", "digipeater")
 start_log = logging.getLogger("neoaprs.controller")
 
 
@@ -66,6 +66,7 @@ def wire(parts: Services) -> None:
         parts.generalask.on_packet,
         parts.ownobjects.on_packet,
         parts.igate.on_packet,
+        parts.pskreporter.on_packet,
         parts.digipeater.on_packet,
     ):
         # The digipeater is last: what was heard is logged and handled before the copy is sent.
@@ -100,6 +101,7 @@ def wire(parts: Services) -> None:
     parts.gps.moved.connect(parts.aloha.refresh)
     parts.mapfetch.changed.connect(parts.mapauto.fetch_changed)
     parts.config_changed.connect(parts.layers.config_changed)
+    parts.config_changed.connect(parts.pskreporter.settings_changed)
     parts.gps.moved.connect(parts.layers.moved)
 
 

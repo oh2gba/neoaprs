@@ -26,6 +26,9 @@ os.environ["NEOAPRS_SERIAL_PATTERN"] = "/dev/neoaprs-test-no-such-port*"
 # No test may ask the version page on the internet: the daily update check (services/updatecheck.py)
 # is off in every daemon. A test of the check gives its own address and environment.
 os.environ["NEOAPRS_UPDATE_CHECK"] = "0"
+# Nor PSK Reporter (services/pskreporter.py): with the check off and no stand-in nothing is reported,
+# so a developer's own NEOAPRS_PSKREPORTER is taken away. A test of the reports gives its own.
+os.environ.pop("NEOAPRS_PSKREPORTER", None)
 
 
 # No test may read the machine's sound cards (neoaprs/mercuryhelper.py, alsa_card_names): the card

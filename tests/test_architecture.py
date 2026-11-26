@@ -69,6 +69,7 @@ LAYERS: dict[str, list[str]] = {
         "aprsfreq",
         "aprsstorm",
         "aprslocator",
+        "pskreport",
         "aprstelemetry",
         "aprsnmea",
         "gpsfix",

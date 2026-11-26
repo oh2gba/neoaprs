@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **New:** a Mercury radio can report the stations it hears to PSK Reporter, where they show on the map under the mode NEOAPRS.
+
 ## 0.23.4
 
 - **New:** 10 m among the suggested Mercury frequencies: 28.1800 MHz USB.

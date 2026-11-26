@@ -36,6 +36,20 @@ export function dialOfNumber(text: string): string | null {
   return found === null ? null : `${found[1] ?? ""}.${(found[2] ?? "").padEnd(4, "0")} MHz USB`;
 }
 
+/** The number of a dial, as the Other field shows it: `28.1800` for `28.1800 MHz USB`. */
+export function numberOfDial(dial: string): string {
+  return dial.split(" ")[0] ?? "";
+}
+
+/** The dial of a typed number that is at least `least` MHz; null if it is none. */
+export function dialAtLeast(text: string, least: number): string | null {
+  const dial = dialOfNumber(text);
+  return dial !== null && Number(numberOfDial(dial)) >= least ? dial : null;
+}
+
+/** The Frequency choice that brings the field for a typed number (components/DialChoice.vue). */
+export const OTHER_DIAL = "other";
+
 /** An instant as the wire writes it: UTC, whole seconds, `2026-11-14T18:00:00Z`. */
 function wire(ms: number): string {
   return `${new Date(ms).toISOString().slice(0, 19)}Z`;
@@ -91,7 +105,7 @@ export function instants(draft: SkedDraft): { from: number; to: number } | null 
 }
 
 /** The dial the draft names, in the board's form; null when it is not one. */
-export function draftDial(draft: SkedDraft): string | null {
+function draftDial(draft: SkedDraft): string | null {
   if (draft.typed) return dialOfNumber(draft.dial);
   return DIAL.test(draft.dial) ? draft.dial : null;
 }

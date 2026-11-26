@@ -134,6 +134,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_hostport": "'{value}' ei ole muotoa palvelin:portti (4532 on rigctld:n portti)",
   "error.setting.not_receiver": "'{value}' ei ole vastaanottimen osoite",
   "error.setting.not_server": "'{value}' ei ole muotoa palvelin:portti (14580 on APRS-IS-palvelimen tavallinen portti)",
+  "error.setting.not_dial": "'{value}' ei ole dial muotoa 28.1800 MHz USB",
   "error.setting.not_passcode": "kutsusi pääsykoodi on luku väliltä 0–{max}",
   "error.setting.passcode_read_only": "-1 on pelkän lukemisen pääsykoodi; iGate tarvitsee kutsunsa pääsykoodin",
   "error.setting.not_map_source": "'{value}' ei ole verkko-osoite eikä PMTiles-tiedoston polku",

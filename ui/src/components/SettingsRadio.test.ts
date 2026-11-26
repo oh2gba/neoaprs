@@ -151,7 +151,7 @@ describe("the Radio group of the Settings tab", () => {
     expect(
       group.findAll<HTMLInputElement>("#set-radio-1-enabled, #set-radio-2-enabled").map((e) => e.element.disabled),
     ).toEqual([false, false]);
-    expect(group.findAll(".field.disabled")).toHaveLength(0);
+    expect(group.findAll(".field.disabled #set-radio-1-enabled, .field.disabled #set-radio-2-enabled")).toHaveLength(0);
   });
 
   it("shows the state and the status line of the FM radio, and keeps its fields and the Terminal behind a fold that is closed while the radio is connected", () => {
@@ -567,5 +567,94 @@ describe("the Mercury radio's type, Tune and the keying test", () => {
     const heard = make({}, running("", {}, { snr: 3.4 }));
     expect(hfFold(heard.group).find(".tncstatus").text()).toBe("DATAC3 · Listening · Last packet 30 s ago · SNR 3 dB");
     expect(hf(heard.group).text()).not.toContain("127.0.0.1");
+  });
+});
+
+describe("a Mercury radio's reports to PSK Reporter", () => {
+  const sets = (send: ReturnType<typeof make>["send"]) =>
+    send.mock.calls.filter(([c]) => c.cmd === "set_config").map(([c]) => (c as { values: unknown }).values);
+  const tick = (group: ReturnType<typeof make>["group"]) =>
+    hfFold(group).find<HTMLInputElement>("#set-radio-2-psk_report");
+  const dial = (group: ReturnType<typeof make>["group"]) =>
+    hfFold(group).find<HTMLSelectElement>("#set-radio-2-psk_dial");
+  const number = (group: ReturnType<typeof make>["group"]) =>
+    hfFold(group).find<HTMLInputElement>("#set-radio-2-psk_dial-number");
+  const reporting = (more: Record<string, string> = {}) =>
+    hfValues({ "radio/2/psk_report": "true", "radio/2/psk_dial": "", ...more });
+
+  it("is a tick of its own name with no (i) and the HF tests form's Frequency, after the suggested frequencies", () => {
+    const { group } = make({}, BOTH, hfValues({ "radio/2/psk_report": "false", "radio/2/psk_dial": "" }));
+    const row = tick(group).element.closest(".field");
+    expect(row?.querySelector("label")?.textContent).toBe("Report to PSK Reporter");
+    expect(row?.querySelector(".info, button")).toBeNull();
+    expect(dial(group).element.closest(".field")?.querySelector("label")?.textContent).toBe("Frequency");
+    expect(
+      dial(group)
+        .findAll("option")
+        .map((o) => o.text()),
+    ).toEqual([
+      "",
+      "3.5850 MHz USB (80 m)",
+      "7.0541 MHz USB (40 m)",
+      "14.1070 MHz USB (20 m)",
+      "28.1800 MHz USB (10 m)",
+      "50.6200 MHz USB (6 m)",
+      "Other",
+    ]);
+    const ids = hfFold(group)
+      .findAll("[id]")
+      .map((e) => e.attributes("id"));
+    expect(ids.indexOf("hf-frequencies-2")).toBeLessThan(ids.indexOf("set-radio-2-psk_report"));
+    expect(fm(group).find("[id$='psk_report']").exists()).toBe(false);
+    expect(
+      make({}, [fmRow(), radioRow(2, "dummy-hf")])
+        .group.find("[id$='psk_report']")
+        .exists(),
+    ).toBe(false);
+  });
+
+  it("greys the frequency while the tick is off and keeps its place, and stores the tick at once", async () => {
+    const { group, send } = make({}, BOTH, hfValues({ "radio/2/psk_report": "false", "radio/2/psk_dial": "" }));
+    expect(dial(group).element.disabled).toBe(true);
+    expect(dial(group).element.closest(".field")?.classList.contains("disabled")).toBe(true);
+    await tick(group).setValue(true);
+    expect(sets(send)).toEqual([{ "radio/2/psk_report": "true" }]);
+    expect(dial(group).element.disabled).toBe(false);
+  });
+
+  it("stores a suggested dial when it is chosen", async () => {
+    const { group, send } = make({}, BOTH, reporting());
+    await dial(group).setValue("28.1800 MHz USB");
+    expect(sets(send)).toEqual([{ "radio/2/psk_dial": "28.1800 MHz USB" }]);
+  });
+
+  it("stores what it shows: Other with no number is an empty dial, a number a dial once finished, a wrong one empty", async () => {
+    const ten = reporting({ "radio/2/psk_dial": "28.1800 MHz USB" });
+    const { group, send, daemon } = make({}, BOTH, ten);
+    const answer = (dial: string) => tell(daemon, { config: configValues({}, { ...ten, "radio/2/psk_dial": dial }) });
+    expect(number(group).exists()).toBe(false);
+    await dial(group).setValue("other");
+    expect(sets(send)).toEqual([{ "radio/2/psk_dial": "" }]);
+    await answer("");
+    expect(dial(group).element.value).toBe("other");
+    expect(number(group).element.nextElementSibling?.outerHTML).toBe('<span class="unit muted">MHz USB</span>');
+    await number(group).setValue("28,2");
+    await number(group).trigger("keydown", { key: "Enter" });
+    expect(sets(send).at(-1)).toEqual({ "radio/2/psk_dial": "28.2000 MHz USB" });
+    await answer("28.2000 MHz USB");
+    expect(number(group).element.value).toBe("28.2000");
+    for (const wrong of ["2a8", "0"]) {
+      await number(group).setValue(wrong);
+      await number(group).trigger("blur");
+      expect(number(group).classes(), wrong).toContain("invalid");
+      expect(number(group).exists() && dial(group).element.value, "the row stays").toBe("other");
+    }
+    expect(sets(send).at(-1)).toEqual({ "radio/2/psk_dial": "" });
+  });
+
+  it("shows a stored dial the list does not have as Other with its number", () => {
+    const { group } = make({}, BOTH, reporting({ "radio/2/psk_dial": "21.1000 MHz USB" }));
+    expect(dial(group).element.value).toBe("other");
+    expect(number(group).element.value).toBe("21.1000");
   });
 });

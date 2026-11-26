@@ -14,8 +14,10 @@ from .mercury import keying_of
 from .message import path_choice
 from .route import DIRECT_ONLY
 from .tncprofile import hf_profile_of, profile_of
+from .versions import is_dial
 
 MAX_SERIAL_PATTERN = 500
+DIAL_MIN_MHZ = 0.1  # the lowest dial a radio reports on
 MAX_MAP_SOURCE = 500
 MAX_PASSCODE = 32767  # an APRS-IS passcode has 15 bits
 SYMBOL_TABLES = "/\\" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -138,6 +140,14 @@ def hf_profile(text: str) -> str:
 def mercury_keying(text: str) -> str:
     """Return how the modem keys the radio (`vox`, `cm108`, `rts:PORT`, `dtr:PORT`); empty: auto."""
     return keying_of(text).text if text.strip() else ""
+
+
+def dial_or_empty(text: str) -> str:
+    """Return a USB dial as the sked board writes it (`28.1800 MHz USB`) of at least DIAL_MIN_MHZ, or empty."""
+    value = text.strip()
+    if value and not (is_dial(value) and value.endswith(" USB") and float(value.split()[0]) >= DIAL_MIN_MHZ):
+        raise CodedError(f"{value!r} is not a dial such as 28.1800 MHz USB", "setting.not_dial", value=value)
+    return value
 
 
 def aprsis_server(text: str) -> str:

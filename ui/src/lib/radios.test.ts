@@ -147,7 +147,19 @@ describe("what the page calls a radio", () => {
     ).toEqual([
       "hf",
       true,
-      ["ask", "beacon", "keying", "local_info", "rx_card", "sound_card", "status", "tx_card", "tx_gain_db"],
+      [
+        "ask",
+        "beacon",
+        "keying",
+        "local_info",
+        "psk_dial",
+        "psk_report",
+        "rx_card",
+        "sound_card",
+        "status",
+        "tx_card",
+        "tx_gain_db",
+      ],
     ]);
     expect(typeOf({ type: "nonesuch" })).toBeUndefined();
   });

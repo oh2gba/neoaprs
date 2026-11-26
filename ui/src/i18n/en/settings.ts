@@ -163,6 +163,7 @@ export const settings = {
   "settings.keying.dtr": "DTR on {port}",
   "settings.keying.test": "Test",
   "settings.hf_frequencies.label": "Suggested frequencies",
+  "settings.psk_report.label": "Report to PSK Reporter",
   "settings.scope.title": "Spectrum",
   "settings.scope.aria":
     "The radio's audio from 300 to 2700 Hz as a waterfall, the newest at the top, with the stations heard written where their signal is, and its spectrum under it.",

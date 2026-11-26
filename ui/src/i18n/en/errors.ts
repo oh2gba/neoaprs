@@ -133,6 +133,7 @@ export const errors = {
   "error.setting.not_hostport": "'{value}' is not host:port (4532 is rigctld's port)",
   "error.setting.not_receiver": "'{value}' is not the address of a receiver",
   "error.setting.not_server": "'{value}' is not host:port (14580 is the usual port of an APRS-IS server)",
+  "error.setting.not_dial": "'{value}' is not a dial such as 28.1800 MHz USB",
   "error.setting.not_passcode": "the passcode of your call is a number from 0 to {max}",
   "error.setting.passcode_read_only": "-1 is the passcode for reading only; an iGate needs the passcode of its call",
   "error.setting.not_map_source": "'{value}' is not a web address or the path of a PMTiles file",

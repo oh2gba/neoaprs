@@ -31,6 +31,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/design-notes.md` | for developers: why parts of the code are built the way they are (measured numbers, protocol choices, hardware and system quirks), by module |
 | `docs/direwolf.md` | for developers: every number NeoAPRS fixes for the Sound card type and its Direwolf, where each comes from, and how the program is built, started and checked |
 | `docs/mercury.md` | for developers: every number NeoAPRS fixes for the Mercury modem, where each comes from and what was measured |
+| `docs/pskreporter.md` | for developers: what a Mercury radio reports to PSK Reporter, the templates, the pace and where each rule comes from |
 | `docs/palette.md` | the palette of the page: every colour token with its light and dark value and what it is for, held to `tokens.css` by a test |
 | `docs/ARCHITECTURE.md` | the layers and their import rules, the composition root, the database actor, the size and duplication ratchets |
 | `docs/MAINTAINING.md` | what to keep up to date after a change, the download names, the steps of a release |

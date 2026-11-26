@@ -253,6 +253,16 @@ When Mercury hears nothing because its receive side has stalled (it records soun
 - A beacon's comment is cut to the modem's frame (123 bytes) when it would not fit; the longest message always fits.
 - On macOS the system asks once whether NeoAPRS may use the microphone, which is what a sound input is to it. Allow it, or the radio hears nothing.
 
+### PSK Reporter
+
+Tick **Report to PSK Reporter** in the Mercury radio's box and choose the **Frequency** the radio is tuned to: one of the suggested dials, or *Other* and the number in MHz (always USB). From then on every station the radio hears shows on the map of [pskreporter.info](https://pskreporter.info/pskmap) as heard by you, under the mode *NEOAPRS*, with "Using: NeoAPRS <version>".
+
+- Only a station heard directly is reported: not one that came through a digipeater, a gateway or the internet, and never your own call.
+- The station is placed where its packet says, or where your radio heard it last; your own place is your station's position. Without a position of your own nothing is reported.
+- A station is reported once every five minutes at most on a band, and the reports go out together every five minutes or so.
+- It works while the station is RX only, and without the Internet stations or the iGate.
+- Untick it, or leave the frequency empty, and nothing is reported.
+
 ## The TNC type
 
 The type of an FM radio (its key in brackets, as `neoaprs db radios` shows it) says what, if anything, is written to the TNC to put it in KISS, whether the TNC is asked if it is there, and how it is reached. You choose it when you add the radio: in the setup guide, in the Settings tab (Radio), or with `neoaprs db radios add TYPE`. A device that needs nothing is sent nothing.

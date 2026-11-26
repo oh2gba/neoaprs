@@ -1070,6 +1070,7 @@ def test_the_demo_daemon_runs_the_checkouts_daemon_under_the_switch_and_never_on
 
     monkeypatch.setenv("NEOAPRS_DATA_DIR", str(tmp_path / "elsewhere"))
     monkeypatch.setenv("NEOAPRS_DEBUG", "1")
+    monkeypatch.setenv("NEOAPRS_PSKREPORTER", "report.pskreporter.info:4739")
     assert demo.main(["--data", str(tmp_path / "demo")], run) == 0
     [(command, cwd, env)] = started
     assert (
@@ -1080,6 +1081,7 @@ def test_the_demo_daemon_runs_the_checkouts_daemon_under_the_switch_and_never_on
     assert (env["NEOAPRS_NO_DEVICES"], env["NEOAPRS_UPDATE_CHECK"]) == ("1", "0") and not list(
         Path("/").glob(env["NEOAPRS_SERIAL_PATTERN"].lstrip("/"))
     )
+    assert "NEOAPRS_PSKREPORTER" not in env, "with the update check off and no stand-in it reports nothing"
     assert "NEOAPRS_DATA_DIR" not in env and "NEOAPRS_DEBUG" not in env and env["PATH"] == os.environ["PATH"], (
         "none of the variables of whoever runs it but the three"
     )

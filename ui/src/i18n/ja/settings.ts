@@ -159,6 +159,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.dtr": "{port}のDTR",
   "settings.keying.test": "テスト",
   "settings.hf_frequencies.label": "推奨周波数",
+  "settings.psk_report.label": "PSK Reporterに報告",
   "settings.scope.title": "スペクトラム",
   "settings.scope.aria":
     "無線機の音声の300〜2700 Hzのウォーターフォール。新しいものが上で、受信した局は信号の位置に書かれ、下にスペクトラムがあります。",

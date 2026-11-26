@@ -110,6 +110,7 @@
  "setting.not_among": {"params": ["choices", "value"], "text": ["'{value}' is not one of {choices}", "{value} is not one of {choices}"]},
  "setting.not_ascii": {"params": [], "text": ["it has characters that are not printable ASCII"]},
  "setting.not_boolean": {"params": ["value"], "text": ["'{value}' is not true or false"]},
+ "setting.not_dial": {"params": ["value"], "text": ["'{value}' is not a dial such as 28.1800 MHz USB"]},
  "setting.not_direction": {"params": ["value"], "text": ["'{value}' is not omni or one of N NE E SE S SW W NW"]},
  "setting.not_globs": {"params": ["value"], "text": ["'{value}' is not one or more absolute patterns separated by spaces, such as /dev/ttyUSB*"]},
  "setting.not_hf_profile": {"params": ["value"], "text": ["'{value}' is not a type of a Mercury radio (the types are {*})"]},
