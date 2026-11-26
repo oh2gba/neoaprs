@@ -752,3 +752,34 @@ async def test_stop_ends_the_timer_and_start_again_counts_from_the_new_start() -
         assert rig.beacon.next_due == rig.clock() + timedelta(seconds=30)
     finally:
         await rig.beacon.stop()
+
+
+async def test_the_problem_of_a_beacon_goes_when_its_cause_goes_and_not_only_at_the_next_beacon() -> None:
+    rig = Rig(station_transmit=False)
+    assert not rig.beacon.send_now() and rig.beacon.problem == RECEIVE_ONLY
+    rig.set(station_transmit=True)
+    rig.beacon.settings_changed()
+    assert rig.beacon.problem == "", "transmit is on again"
+    rig.tnc.state = Source.State.WAITING
+    assert not rig.beacon.send_now() and "not connected" in rig.beacon.problem
+    await rig.beacon.start()
+    try:
+        assert rig.beacon.problem == "", "a start looks afresh"
+        assert not rig.beacon.send_now() and "not connected" in rig.beacon.problem
+        rig.tnc.state = Source.State.CONNECTED
+        await until(lambda: rig.beacon.problem == "")
+        assert rig.tnc.sent == [], "the radio came back, long before the beacon is due"
+    finally:
+        await rig.beacon.stop()
+
+
+def test_a_problem_whose_cause_is_still_there_or_that_only_a_send_ends_stays_at_a_save_of_the_settings() -> None:
+    rig = Rig(station_transmit=False)
+    assert not rig.beacon.send_now()
+    rig.beacon.settings_changed()
+    assert rig.beacon.problem == RECEIVE_ONLY
+    rig = Rig()
+    rig.tnc.takes = False
+    assert not rig.beacon.send_now() and "did not take" in rig.beacon.problem
+    rig.beacon.settings_changed()
+    assert "did not take" in rig.beacon.problem
