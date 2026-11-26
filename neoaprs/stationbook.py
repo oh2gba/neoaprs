@@ -4,6 +4,7 @@ A name is one entry; a transmitting station wins it over an object or item of th
 another station's report of an object named like ours takes it over (the spec's "Replacement").
 """
 
+from collections import deque
 from collections.abc import Callable, Collection, Iterable, Mapping
 from datetime import datetime
 
@@ -14,6 +15,7 @@ from .aprsweather import Weather
 from .clock import Clock, utcnow
 from .device import packet_device
 from .geo import bearing_deg, distance_km
+from .message import same_call
 from .ownobject import OwnObject
 from .packet import IS, ItemReport, ObjectReport, Other, Packet, Position, Status
 from .radiospec import FM_ID, RadioId, RadioSpec
@@ -89,6 +91,9 @@ def route_groups(rows: Iterable[tuple[str, str, bytes, datetime, RadioId | None]
     ]
 
 
+SENT_KEPT = 50
+
+
 class StationBook:
     def __init__(
         self,
@@ -110,6 +115,8 @@ class StationBook:
         self.cleared: Signal[[]] = Signal("stationbook.cleared")
         self._stations: dict[str, Station] = {}
         self._me = ""
+        # the information fields of our latest frames, to know a copy of ours when it comes back
+        self._sent: deque[bytes] = deque(maxlen=SENT_KEPT)
         self._me_position: tuple[float, float] | None = None
         self._definitions: dict[str, TelemetryDefinition] = {}
 
@@ -354,10 +361,11 @@ class StationBook:
     def take(self, packet: Packet) -> Station | None:
         """Apply a received packet; return the sender or the object it names, or None."""
         if packet.direction != "in":
+            if same_call(packet.sender, self._me):
+                self._sent.append(packet.inner_info)
             return None
-        if packet.sender == self._me:
-            # Our own call over the internet does not prove the radio was heard.
-            return None if packet.via == IS else self._heard_ourselves(packet)
+        if same_call(packet.sender, self._me):
+            return self._heard_ourselves(packet) if self._ours_back(packet) else None
         if (held := self._stations.get(packet.sender)) is not None and held.own:
             # A station named like one of our objects does not take the entry.
             return None
@@ -382,6 +390,13 @@ class StationBook:
         if isinstance(decoded, (ObjectReport, ItemReport)):
             about = self._named(packet, decoded)
         return about
+
+    def _ours_back(self, packet: Packet) -> bool:
+        """Return whether the packet is a frame we sent, heard after a digipeater or a gate.
+
+        Not one from the internet, the TNC's echo, or another device that uses our call."""
+        relayed = packet.third_party is not None or any(hop.endswith("*") for hop in packet.path)
+        return packet.via != IS and relayed and packet.inner_info in self._sent
 
     def _heard_ourselves(self, packet: Packet) -> Station | None:
         """Handle our own call heard on the air: only the last-heard time changes."""

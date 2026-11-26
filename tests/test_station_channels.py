@@ -4,6 +4,7 @@ the radio's, third-party and internet packet counts and latest times, and the po
 """
 
 import json
+from dataclasses import replace
 from datetime import datetime, timedelta
 
 import pytest
@@ -215,6 +216,7 @@ def test_our_own_call_over_the_internet_is_not_proof_that_the_radio_is_heard_and
         and me.heard_is == 0
         and me.lat == 60.2
     )
+    book.take(replace(on_air(POS_A, source="OH2GBA"), direction="out", path=()))
     assert (
         book.take(on_air(POS_A, source="OH2GBA", at=T0 + 2 * MIN)) is me
         and me.last_heard == T0 + 2 * MIN
