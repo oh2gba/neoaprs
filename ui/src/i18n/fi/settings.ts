@@ -447,6 +447,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.text_lines": "Kortti lähettää tekstirivejä: aseta se KISS-tilaan",
   "settings.tnc.incoming_port": "{port} on tietokoneen saapuva Bluetooth-portti: valitse laitteen toinen portti",
   "settings.tnc.write_timeout": "Portti ei ota vastaan dataa: {seconds} sekunnissa ei mennyt mitään läpi",
+  "settings.tnc.hf.receive_deaf": "Mercury ei kuule mitään (vastaanotto on jumissa): se käynnistetään pian uudelleen",
   "settings.tnc.hf.receive_stalled":
     "Mercury ei kuule mitään uudelleenkäynnistystenkään jälkeen: kytke radio pois ja takaisin päälle",
   "settings.tnc.hf.not_installed": "Tämä asennus ei sisällä tämän radion modeemia",

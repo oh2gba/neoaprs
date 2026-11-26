@@ -446,6 +446,7 @@ export const settings = {
   "settings.tnc.text_lines": "The board sends text lines: set it to KISS",
   "settings.tnc.incoming_port": "{port} is the computer's incoming Bluetooth port: choose the device's other port",
   "settings.tnc.write_timeout": "The port takes no data: nothing went through in {seconds} s",
+  "settings.tnc.hf.receive_deaf": "Mercury hears nothing (its receive side stalled): it is started again shortly",
   "settings.tnc.hf.receive_stalled": "Mercury hears nothing, even after restarts: switch the radio off and on again",
   "settings.tnc.hf.not_installed": "This installation does not carry this radio's modem",
   "settings.tnc.hf.stopped": "Not running",

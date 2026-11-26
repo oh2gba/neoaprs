@@ -6,6 +6,7 @@ stopped with the Tnc. While Mercury keys the radio or hears a signal no frame is
 
 import asyncio
 import logging
+import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
@@ -51,7 +52,7 @@ from .mercurychannel import CHANNEL_BUSY, TRANSMITTING, Channel
 from .mercuryscoping import Scoping
 from .mercuryscope import clamp_gain
 from .mercurystale import end_stale
-from .mercurystall import STALL_SEC, StallWatch
+from .mercurystall import GAP_SEC, STALL_SEC, StallWatch
 from .mercuryspeaker import CAPTURE_FIFO, PLAYBACK_FIFO, SpeakerAudio, SpeakerLine
 from .radiotype import HF_ID, RadioId
 from .radiotypes import kind_field
@@ -184,6 +185,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
         self.stall = StallWatch()
         self._audio_failed = False
         self._control: ControlLine | None = None
+        self._dropped: set[ControlLine] = set()  # lines of an ended run, still being stopped
         self.speaker_line = SpeakerLine(HOST, lambda: self.broadcast_port, lambda: self._program.running)
         self._audio = SpeakerAudio(self.home)
         self._test_task: asyncio.Task[None] | None = None
@@ -227,8 +229,9 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
             self._write(TUNE_OFF)
         await self._tasks.cancel_all()
         control, self._control = self._control, None
-        if control is not None:
-            await control.stop()
+        for line in [*self._dropped, *([control] if control is not None else [])]:
+            await line.stop()
+        self._dropped.clear()
         self.speaker_line.close()
         await asyncio.to_thread(self._audio.stop)
         await self._stop_ui()
@@ -399,14 +402,17 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
         """Called on the loop, at most once a second, while Mercury's capture buffer is full."""
         if self.state == "stopped":
             return
-        if self.keyed or self.test:
+        # a PTT ON without its PTT OFF is not believed for long: a missed one must not blind the watch
+        if self.keyed_now(now) or self.test:
             self.stall.pause()
             return
         if self.stall.seen(now, self.clock()):
             log.warning(
                 "Mercury hears nothing: its capture buffer has been full for %g s (its receive side stalled)", STALL_SEC
             )
-        action = self.stall.action(now, self.keyed or bool(self.test))
+            self.changed.emit()
+            self._tasks.spawn(self._while_deaf(), "mercury-deaf")
+        action = self.stall.action(now, False)
         if action == "restart":
             self.stall.restarted(now, self.clock())
             log.warning("Mercury is started again because it hears nothing (restart %d)", self.stall.restarts)
@@ -416,11 +422,28 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
             log.warning("Mercury is not started again: %s", RECEIVE_STALLED)
             self._tasks.spawn(self._end_for_good(RECEIVE_STALLED, "receive_stalled"), "mercury-stall-end")
 
+    async def _drop(self, control: ControlLine) -> None:
+        await control.stop()
+        self._dropped.discard(control)
+
+    @property
+    def deaf(self) -> bool:
+        """Whether Mercury runs and hears nothing (stalled), waiting for its restart."""
+        return self.state == "running" and self.stall.deaf(time.monotonic())
+
+    async def _while_deaf(self) -> None:
+        """Tell the page when the stall is over (the warning stopped) without a restart."""
+        while self.deaf:
+            await asyncio.sleep(GAP_SEC)
+        self.changed.emit()
+
     def _gone(self, problem: str, reason: str) -> None:
         """The program is gone: close the control line and speaker, and schedule a start."""
         control, self._control = self._control, None
         if control is not None:
-            self._tasks.spawn(control.stop(), "mercury-control-stop")
+            # a stop() meanwhile cancels this task, so it stops the line itself too
+            self._dropped.add(control)
+            self._tasks.spawn(self._drop(control), "mercury-control-stop")
         self.speaker_line.close()
         self._clear_channel()
         self._forget_test()
@@ -526,6 +549,8 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
             if held == TRANSMITTING
             else "channel busy"
             if held == CHANNEL_BUSY
+            else "hearing nothing"
+            if self.deaf
             else "listening"
         )
         snr = f", SNR {self.snr:.0f} dB" if self.snr is not None else ""

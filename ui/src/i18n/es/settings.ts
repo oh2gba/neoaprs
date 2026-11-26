@@ -455,6 +455,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.tnc.incoming_port":
     "{port} es el puerto Bluetooth entrante del ordenador: elige el otro puerto del dispositivo",
   "settings.tnc.write_timeout": "El puerto no acepta datos: nada pasó en {seconds} s",
+  "settings.tnc.hf.receive_deaf": "Mercury no oye nada (su recepción se ha bloqueado): se reinicia en breve",
   "settings.tnc.hf.receive_stalled": "Mercury no oye nada, ni tras reiniciarlo: apaga la radio y vuelve a encenderla",
   "settings.tnc.hf.not_installed": "Esta instalación no incluye el módem de esta radio",
   "settings.tnc.hf.stopped": "No está en marcha",

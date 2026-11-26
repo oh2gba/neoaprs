@@ -4,12 +4,14 @@ powers of ten, the modem restarted, then given up on with a problem the page sho
 """
 
 import logging
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
-from neoaprs import childprogram, mercuryhelper
+from neoaprs import childprogram, mercuryhelper, mercurymodem, mercurystall
+from neoaprs.mercurychannel import KEYED_MAX_SEC
 from neoaprs.mercury import CAPTURE_FULL, SOURCE_COMMIT, capture_full
 from neoaprs.mercurymodem import RECEIVE_STALLED
 from neoaprs.mercurystall import GAP_SEC, RESTART_EVERY_SEC, STALL_SEC, StallWatch
@@ -170,12 +172,13 @@ async def test_warnings_while_keyed_or_testing_count_for_nothing_and_a_run_start
         starts = m.starts
         for s in range(10):
             m._capture_full(float(s))
-        m.keyed = True
-        for s in range(10, 200):
+        m._on_ptt(True, 10.0)
+        for s in range(10, 20):
             m._capture_full(float(s))
-        m.keyed = False
+        m._on_ptt(False, 20.0)
         m.test = "tune"
-        m._capture_full(200.0)
+        for s in range(20, 200):
+            m._capture_full(float(s))
         m.test = ""
         for s in range(201, 201 + int(STALL_SEC) - 1):
             m._capture_full(float(s))
@@ -198,3 +201,56 @@ def test_no_closing_line_repeats_a_count_already_logged(caplog: pytest.LogCaptur
     said = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
     assert not any("ten: came" in line for line in said), "the 10th time was said with its count"
     assert any(line.startswith("[WRN] [audio] eleven: came 11 times") for line in said)
+
+
+async def test_a_ptt_on_without_its_ptt_off_does_not_blind_the_watch_for_longer_than_a_frame_is_believed(
+    tmp_path: Path,
+) -> None:
+    m = modem(tmp_path)
+    await m.start(HF)
+    try:
+        await until_started(lambda: m.state == "running")
+        m._on_ptt(True, 0.0)  # and no PTT OFF ever
+        for s in range(int(KEYED_MAX_SEC) + 1):
+            m._capture_full(float(s))
+        assert m.stall.stalls == 0, "while a frame may be on the air the warnings count for nothing"
+        start = int(KEYED_MAX_SEC) + 1
+        for s in range(start, start + int(STALL_SEC) + 1):
+            m._capture_full(float(s))
+        assert m.stall.stalls == 1, "a PTT ON that is not believed any more pauses nothing"
+    finally:
+        await stopped(m)
+
+
+async def test_a_stalled_mercury_says_it_hears_nothing_until_the_warning_stops_or_it_is_restarted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mercurystall, "GAP_SEC", 0.5)
+    monkeypatch.setattr(mercurymodem, "GAP_SEC", 0.05)
+    m = modem(tmp_path)
+    await m.start(HF)
+    try:
+        await until_started(lambda: m.state == "running")
+        changes: list[bool] = []
+        m.changed.connect(lambda: changes.append(m.deaf))
+        # the warning for STALL_SEC up to now, a tenth of a second apart (the clock is the real one)
+        end = time.monotonic()
+        m.stall._restarted.append(end)  # (restarted just now: the next restart waits ten minutes)
+        steps = int(STALL_SEC * 10) + 1
+        for n in range(steps):
+            m._capture_full(end - STALL_SEC - 0.1 + n / 10)
+        assert m.deaf and m.stall.stalls == 1 and m.starts == 1 and m.describe() == "Mercury DATAC3, hearing nothing"
+        assert changes[-1] is True, "the page is told"
+        await until_started(lambda: changes[-1] is False)  # the warning stopped: it hears again
+        assert not m.deaf and m.describe() == "Mercury DATAC3, listening"
+    finally:
+        await stopped(m)
+
+
+def test_the_watch_is_deaf_only_while_the_warning_comes_and_not_once_given_up() -> None:
+    watch = StallWatch()
+    for s in range(int(STALL_SEC) + 1):
+        watch.seen(float(s), T0)
+    assert watch.deaf(STALL_SEC + 1) and not watch.deaf(STALL_SEC + GAP_SEC + 1)
+    watch.given_up = True
+    assert not watch.deaf(STALL_SEC + 1)

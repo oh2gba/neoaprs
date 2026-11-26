@@ -459,6 +459,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.incoming_port":
     "{port} is de inkomende Bluetooth-poort van de computer: kies de andere poort van het apparaat",
   "settings.tnc.write_timeout": "De poort neemt geen data aan: in {seconds} s ging er niets door",
+  "settings.tnc.hf.receive_deaf": "Mercury hoort niets (de ontvangst hangt): het wordt zo opnieuw gestart",
   "settings.tnc.hf.receive_stalled": "Mercury hoort niets, ook niet na herstarten: zet de radio uit en weer aan",
   "settings.tnc.hf.not_installed": "Deze installatie bevat het modem van deze radio niet",
   "settings.tnc.hf.stopped": "Draait niet",
