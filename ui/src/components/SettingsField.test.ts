@@ -34,6 +34,18 @@ function field(value = "", count: TextLimit | null = COMMENT) {
   return { wrapper, input, type, counter: () => wrapper.find(".compose-left") };
 }
 
+describe("SettingsField on Enter", () => {
+  it("commits on Enter, and not on the Enter that ends an IME composition", async () => {
+    const { wrapper, input } = field("NeoAPRS");
+    await input.trigger("keydown", { key: "Enter", isComposing: true });
+    await input.trigger("keydown", { key: "Enter", keyCode: 229 });
+    expect(wrapper.emitted("commit")).toBeUndefined();
+    await input.trigger("keydown", { key: "Enter" });
+    expect(wrapper.emitted("commit")).toHaveLength(1);
+    wrapper.unmount();
+  });
+});
+
 describe("SettingsField with a limit", () => {
   it("has the counter right of the field, before the (i), as the box to write a message in has it", () => {
     const { wrapper, counter } = field("NeoAPRS");

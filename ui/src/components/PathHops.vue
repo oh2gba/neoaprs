@@ -7,6 +7,7 @@ import { computed, ref } from "vue";
 import PathDrawing from "@/components/PathDrawing.vue";
 import TagMark from "@/components/TagMark.vue";
 import { t } from "@/i18n";
+import { confirms } from "@/lib/ime";
 import { pathOf, typedHops } from "@/lib/pathbuilder";
 import type { PathMeaning } from "@/lib/pathreach";
 import { LIMITS } from "@/protocol/lists";
@@ -21,6 +22,12 @@ const addable = computed(() => found.value !== null && found.value.length <= roo
 const tone = computed(() =>
   props.meaning.level === "bad" ? "bad" : props.meaning.level === "many" ? "warn" : "neutral",
 );
+
+function addOnEnter(event: KeyboardEvent): void {
+  if (!confirms(event)) return;
+  event.preventDefault();
+  add();
+}
 
 function add(): void {
   if (!addable.value || found.value === null) return;
@@ -52,7 +59,7 @@ function add(): void {
         :aria-label="t('pathbuilder.type_label')"
         autocomplete="off"
         spellcheck="false"
-        @keydown.enter.prevent="add"
+        @keydown.enter="addOnEnter"
       />
       <button type="button" class="btn" :disabled="!addable" @click="add">{{ t("pathbuilder.add") }}</button>
     </div>

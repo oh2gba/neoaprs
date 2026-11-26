@@ -6,6 +6,7 @@
 import { computed, ref, watch } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import { t } from "@/i18n";
+import { confirms } from "@/lib/ime";
 import { PORT_OTHER, portOptions, type HolderOf } from "@/lib/portchoice";
 import type { FieldInfo } from "@/lib/settings";
 import type { PortsMessage } from "@/protocol/protocol";
@@ -53,6 +54,12 @@ function leave(event: FocusEvent): void {
   typing.value = false;
 }
 
+function enter(event: KeyboardEvent): void {
+  if (!confirms(event)) return;
+  event.preventDefault();
+  emit("commit", null);
+}
+
 function escape(event: KeyboardEvent): void {
   event.stopPropagation();
   emit("cancel");
@@ -97,7 +104,7 @@ watch(
         :aria-label="t('settings.port.path_label')"
         @input="type"
         @blur="leave"
-        @keydown.enter.prevent="emit('commit', null)"
+        @keydown.enter="enter"
         @keydown.esc="escape"
       />
       <button type="button" class="btn" @click="emit('refresh')">{{ t("settings.port.refresh") }}</button>

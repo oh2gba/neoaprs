@@ -9,6 +9,7 @@ import InfoTip from "@/components/InfoTip.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import { t } from "@/i18n";
 import SymbolPicker from "@/components/SymbolPicker.vue";
+import { confirms } from "@/lib/ime";
 import { overlayOf, symbolName, tableWithOverlay, takesOverlay } from "@/lib/symbolpicker";
 
 const props = withDefaults(
@@ -20,6 +21,10 @@ const props = withDefaults(
   },
 );
 const emit = defineEmits<{ "update:symbol": [value: string]; commit: [] }>();
+
+function enter(event: KeyboardEvent): void {
+  if (confirms(event)) emit("commit");
+}
 
 const table = computed(() => props.symbol.slice(0, 1));
 const code = computed(() => props.symbol.slice(1, 2));
@@ -96,7 +101,7 @@ function typed(event: Event): void {
           spellcheck="false"
           @input="typed"
           @change="emit('commit')"
-          @keydown.enter="emit('commit')"
+          @keydown.enter="enter"
         />
       </label>
     </div>

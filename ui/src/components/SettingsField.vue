@@ -10,6 +10,7 @@ import InfoTip from "@/components/InfoTip.vue";
 import LeftCounter from "@/components/LeftCounter.vue";
 import { t } from "@/i18n";
 import { leftTitle } from "@/lib/compose";
+import { confirms } from "@/lib/ime";
 import type { Choice } from "@/lib/settingchoices";
 import type { FieldInfo } from "@/lib/settings";
 import { leftOf, type TextLimit, typedInto } from "@/lib/textlimit";
@@ -91,7 +92,7 @@ function onInput(event: Event): void {
 }
 
 function onEnter(event: KeyboardEvent): void {
-  if (!props.apply) return;
+  if (!props.apply || !confirms(event)) return;
   event.preventDefault();
   emit("commit", null);
 }

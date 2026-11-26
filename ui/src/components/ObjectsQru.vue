@@ -25,6 +25,7 @@ import { t } from "@/i18n";
 import { errorReason } from "@/i18n/errortext";
 import { attend } from "@/lib/attention";
 import { radioTone } from "@/lib/channels";
+import { confirms } from "@/lib/ime";
 import { effectivePath } from "@/lib/messages";
 import { askWait, kmWrong, qruLook, requestText, sentLine } from "@/lib/qru";
 import { categoryLabel, groupName } from "@/lib/qrucategories";
@@ -132,6 +133,10 @@ function command(text: string, to: readonly PageRadio[], one: PageRadio | null):
 
 /** Send the INFO request with the field's distance on Send on's radios, unless held (RX only,
  * radios, path, wait). */
+function askOnEnter(event: KeyboardEvent): void {
+  if (confirms(event)) ask();
+}
+
 function ask(): void {
   const text = requestText("INFO", km.value);
   if (text === null || why.value !== undefined) return;
@@ -196,7 +201,7 @@ function inStations(names: readonly string[]): void {
         :maxlength="String(LIMITS.qru.kmMax).length"
         :placeholder="t('objects.qru_km')"
         :aria-label="t('objects.qru_km_label')"
-        @keydown.enter="ask"
+        @keydown.enter="askOnEnter"
       />
       <InfoTip :label="t('settings.about', { label: t('objects.qru_km_label') })">{{
         t("objects.qru_km_tip")
