@@ -132,6 +132,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_hostport": "'{value}' não é host:porta (4532 é a porta do rigctld)",
   "error.setting.not_receiver": "'{value}' não é o endereço de um receptor",
   "error.setting.not_server": "'{value}' não é host:porta (14580 é a porta usual de um servidor APRS-IS)",
+  "error.setting.not_dial": "'{value}' não é um dial como 28.1800 MHz USB",
   "error.setting.not_passcode": "o código do seu indicativo é um número de 0 a {max}",
   "error.setting.passcode_read_only": "-1 é o código somente de leitura; um iGate precisa do código do seu indicativo",
   "error.setting.not_map_source": "'{value}' não é um endereço web nem o caminho de um arquivo PMTiles",

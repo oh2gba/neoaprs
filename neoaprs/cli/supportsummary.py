@@ -221,6 +221,7 @@ def _radio(f: Facts, spec: RadioSpec) -> list[tuple[str, str]]:
         rows.append(("Sound cards listed", "none"))
     if isinstance(mercury := entry.get("mercury"), dict):
         rows += _mercury(mercury)
+        rows += _psk_reporter(spec, mercury) if spec.type == "mercury" else []
     return rows
 
 
@@ -263,6 +264,14 @@ def _mercury(m: dict[str, Any]) -> list[tuple[str, str]]:
         ),
     ]
     return rows + [("Mercury said", str(line)) for line in m.get("device_lines") or []]
+
+
+def _psk_reporter(spec: RadioSpec, m: dict[str, Any]) -> list[tuple[str, str]]:
+    """Return whether the radio reports to PSK Reporter, on which dial, and the reports sent."""
+    if not spec.value("psk_report"):
+        return [("PSK Reporter", "off")]
+    sent = f"{m.get('psk_reports_sent', 0)} reports sent, the last {m.get('psk_last_sent') or 'never'}"
+    return [("PSK Reporter", f"on, {spec.value('psk_dial') or 'no dial'}, {sent}")]
 
 
 def _layers(f: Facts) -> list[tuple[str, str]]:

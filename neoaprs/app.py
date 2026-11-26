@@ -53,6 +53,7 @@ from .services.messaging import Messaging
 from .services.ownbulletins import OwnBulletins
 from .services.ownobjects import OwnObjects
 from .services.prefbook import PrefBook
+from .services.pskreporter import PskReporter
 from .services.answers import AnswerBudget
 from .services.qru import Qru
 from .services.qruask import QruAsk
@@ -166,6 +167,10 @@ class Services:
         self._make_messaging(clock)
         self._make_map_and_update(data_dir, install, auto_map, clock)
         self.digipeater = Digipeater(self.radios, lambda: self.config, clock)
+        # The stations a Mercury radio hears directly, to PSK Reporter's map.
+        self.pskreporter = PskReporter(
+            lambda: self.config, lambda: self.stationbook.me_position, self.stationbook.get, clock
+        )
         self.internet_packet: Signal[[Packet]] = Signal("internet.packet")
         # A Dummy radio makes up its traffic, so nothing goes to APRS-IS while one is on.
         self.igate.made_up = lambda: any(radio.line.is_dummy for radio in self.radios.enabled())

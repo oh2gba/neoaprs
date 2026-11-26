@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The form to post a sked at the bottom of the Skeds tab: Day (next 30 UTC days), time From and To
-// in half hours (UTC; a To not after From is the next day), Frequency (a suggested dial, or Other
-// which brings a field for the number alone, `7.0541`, with MHz USB fixed beside it) and a one-line Note with a counter. Post is on
+// in half hours (UTC; a To not after From is the next day), Frequency (DialChoice: a suggested dial,
+// or Other and the number alone) and a one-line Note with a counter. Post is on
 // when there is a call, the board can be reached and the form is valid (lib/skeds.ts); RX only does
 // not matter. A sked that has ended marks the To. The note clears when the daemon has the sked; a
 // refused post stays. The dials are the project's list: when the Frequency row comes on show (at
@@ -9,6 +9,7 @@
 // socket opened asks when it opens.
 import { computed, reactive, ref, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
+import DialChoice from "@/components/DialChoice.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useCommandInFlight } from "@/composables/useInFlight";
 import { useWhenShown } from "@/composables/useWhenShown";
@@ -17,8 +18,8 @@ import { leftTitle } from "@/lib/compose";
 import {
   TIMES,
   NOTE_MAX,
+  OTHER_DIAL,
   dayChoices,
-  draftDial,
   draftOk,
   ended,
   mayPostAs,
@@ -32,16 +33,13 @@ const { skeds, call, now, send, connection } = useDaemonContext();
 const frequencies = computed(() => skeds.value?.frequencies ?? []);
 const draft = reactive(startDraft(now.value, frequencies.value));
 const days = computed(() => dayChoices(now.value));
-const OTHER = "other";
-/** The Frequency choice: a suggested dial (when it is the draft's), else Other. */
-const choice = computed(() => (draft.typed ? OTHER : draft.dial));
 /** The characters of the note; the field takes no more (lib/textlimit.ts). */
 const limit: TextLimit = { max: NOTE_MAX, measure: trimmedCharacters, kind: "characters" };
 const left = computed(() => leftOf(draft.note, limit));
 const over = computed(() => ended(draft, now.value));
-const typedWrong = computed(() => draft.typed && draft.dial.trim() !== "" && draftDial(draft) === null);
 const ready = computed(() => skeds.value?.state === "ok" && mayPostAs(call.value) && draftOk(draft, now.value));
-const frequencyRow = ref<HTMLElement | null>(null);
+const dialChoice = ref<InstanceType<typeof DialChoice> | null>(null);
+const frequencyRow = computed(() => dialChoice.value?.row ?? null);
 // the row came on show before the socket was open: ask when it opens
 let missed = false;
 const ask = (): void => void (connection.value === "open" ? send({ cmd: "frequencies" }) : (missed = true));
@@ -69,8 +67,8 @@ watch(frequencies, (list) => {
 
 function choose(value: string): void {
   chosen = true;
-  draft.typed = value === OTHER;
-  draft.dial = value === OTHER ? "" : value;
+  draft.typed = value === OTHER_DIAL;
+  draft.dial = value === OTHER_DIAL ? "" : value;
 }
 
 // what was posted, until the daemon has it
@@ -136,36 +134,16 @@ function submit(): void {
         </select>
       </div>
     </div>
-    <div ref="frequencyRow" class="field">
-      <label for="sked-frequency">{{ t("skeds.frequency") }}</label>
-      <div class="field-control">
-        <select
-          id="sked-frequency"
-          class="input"
-          :value="choice"
-          @change="choose(($event.target as HTMLSelectElement).value)"
-        >
-          <option v-for="f in frequencies" :key="f.band" :value="f.dial">{{ `${f.dial} (${f.band})` }}</option>
-          <option :value="OTHER">{{ t("skeds.frequency_other") }}</option>
-        </select>
-      </div>
-    </div>
-    <div v-if="draft.typed" class="field" :class="{ invalid: typedWrong }">
-      <label for="sked-dial">{{ t("skeds.dial") }}</label>
-      <div class="field-control">
-        <input
-          id="sked-dial"
-          v-model="draft.dial"
-          class="input mono"
-          :class="{ invalid: typedWrong }"
-          type="text"
-          inputmode="decimal"
-          autocomplete="off"
-          spellcheck="false"
-        />
-        <span class="unit muted">MHz USB</span>
-      </div>
-    </div>
+    <DialChoice
+      id="sked-frequency"
+      ref="dialChoice"
+      dial-id="sked-dial"
+      :frequencies="frequencies"
+      :typed="draft.typed"
+      :dial="draft.dial"
+      @choose="choose"
+      @update:dial="draft.dial = $event"
+    />
     <div class="field">
       <label for="sked-note">{{ t("skeds.note") }}</label>
       <div class="field-control">

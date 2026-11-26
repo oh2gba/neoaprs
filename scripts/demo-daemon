@@ -32,7 +32,7 @@ def environment(base: Mapping[str, str]) -> dict[str, str]:
     """Return the caller's environment without NEOAPRS_ variables, plus the demo switches."""
     env = {key: value for key, value in base.items() if not key.startswith("NEOAPRS_")}
     env["NEOAPRS_NO_DEVICES"] = "1"
-    env["NEOAPRS_UPDATE_CHECK"] = "0"
+    env["NEOAPRS_UPDATE_CHECK"] = "0"  # (and with no NEOAPRS_PSKREPORTER nothing goes to PSK Reporter)
     env["NEOAPRS_SERIAL_PATTERN"] = NO_PORT
     return env
 

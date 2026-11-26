@@ -14,6 +14,7 @@ from .mercury import keying_of
 from .message import path_choice
 from .route import DIRECT_ONLY
 from .tncprofile import hf_profile_of, profile_of
+from .versions import is_dial
 
 MAX_SERIAL_PATTERN = 500
 MAX_MAP_SOURCE = 500
@@ -138,6 +139,14 @@ def hf_profile(text: str) -> str:
 def mercury_keying(text: str) -> str:
     """Return how the modem keys the radio (`vox`, `cm108`, `rts:PORT`, `dtr:PORT`); empty: auto."""
     return keying_of(text).text if text.strip() else ""
+
+
+def dial_or_empty(text: str) -> str:
+    """Return a dial as the sked board writes it (`28.1800 MHz USB`), or empty."""
+    value = text.strip()
+    if value and not is_dial(value):
+        raise CodedError(f"{value!r} is not a dial such as 28.1800 MHz USB", "setting.not_dial", value=value)
+    return value
 
 
 def aprsis_server(text: str) -> str:

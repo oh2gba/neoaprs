@@ -368,6 +368,7 @@ def test_a_virtual_mixers_combinations_are_folded_the_chosen_card_first_and_a_de
     assert re.search(r"Frames heard:\s+0, the last never", text)
     assert re.search(r"Hears nothing:\s+2 times, the last 2026-11-26T06:26:48Z", text)
     assert re.search(r"Restarted for it:\s+1 times, the last 2026-11-26T06:26:48Z", text)
+    assert re.search(r"PSK Reporter:\s+off$", text, re.MULTILINE)
     assert "PTT method: serial RTS (device COM10)" in text and "'Altavoces (USB Audio CODEC )')" in text
     layers = section(summary, "Map layers")
     assert re.search(r"Ships:\s+receiver, no_ais since 2026-11-25T21:45:10Z, last data never", layers)

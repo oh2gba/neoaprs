@@ -77,8 +77,8 @@ export const flatKeyOf = (field: string, kind?: PageRadio["kind"]): string | nul
 /** The per-radio "Send on" ticks: beacon, status, ask and local info. */
 const SEND_ON = ["beacon", "status", "ask", "local_info"];
 
-/** Radio fields shown outside the status box: Send on ticks, path, digipeater and levels. */
-const ELSEWHERE = [...SEND_ON, "path", "digipeat", "tx_gain_db", "tx_card", "rx_card"];
+/** Radio fields not drawn as fields of the box: Send on ticks, path, digipeater, levels and PSK Reporter. */
+const ELSEWHERE = [...SEND_ON, "path", "digipeat", "tx_gain_db", "tx_card", "rx_card", "psk_report", "psk_dial"];
 
 /** The keys of the fields shown in a radio's status box. */
 export function boxKeys(radio: Pick<PageRadio, "id" | "type">): string[] {

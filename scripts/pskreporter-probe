@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""Send one PSK Reporter datagram made by neoaprs/pskreport.py to a host and port, and print its bytes.
+
+scripts/pskreporter-probe HOST:PORT --call CALL --locator LOC --dial "28.1800 MHz USB" --heard CALL[/LOC][/SNR] ...
+scripts/pskreporter-probe ... --dry-run     print the bytes, send nothing
+For the proofs of docs/pskreporter.md: PSK Reporter's test listener is pskreporter.info:14739."""
+
+import argparse
+import random
+import socket
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from neoaprs.pskreport import AUTOMATIC, TEMPLATES, Receiver, Report, datagram  # noqa: E402  (this checkout's)
+from neoaprs.services.pskreporter import SOFTWARE, dial_hz  # noqa: E402
+
+
+def heard(text: str, hz: int, at: int) -> Report:
+    """`OH2ABC`, `OH2ABC/KP20le` or `OH2ABC/KP20le/-7`: a call, its locator, its SNR."""
+    call, locator, snr = (text.split("/") + ["", ""])[:3]
+    return Report(call.upper(), hz, at, locator or None, int(snr) if snr else None)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="send one PSK Reporter datagram of this checkout and print it")
+    parser.add_argument("target", help="host:port, e.g. pskreporter.info:14739 (the test listener)")
+    parser.add_argument("--call", required=True, help="the receiver's call without SSID")
+    parser.add_argument("--locator", required=True, help="the receiver's 6-character locator")
+    parser.add_argument("--dial", required=True, help='the dial, as "28.1800 MHz USB"')
+    parser.add_argument("--heard", action="append", default=[], help="a station heard: CALL[/LOCATOR][/SNR]")
+    parser.add_argument("--source", type=int, default=AUTOMATIC, help="informationSource (1; 0x80 marks a test)")
+    parser.add_argument("--dry-run", action="store_true", help="print the bytes and send nothing")
+    args = parser.parse_args(argv)
+    host, _, port = args.target.rpartition(":")
+    hz = dial_hz(args.dial)
+    if not host or not port.isdigit() or hz is None:
+        parser.error("give the target as host:port and the dial as 28.1800 MHz USB")
+    now = int(time.time())
+    reports = [heard(text, hz, now) for text in args.heard]
+    reports = [Report(r.call, r.frequency_hz, r.heard_at, r.locator, r.snr, source=args.source) for r in reports]
+    data = datagram(
+        now,
+        0,
+        random.getrandbits(32),  # noqa: S311  (a session id, no secret)
+        Receiver(args.call.upper(), args.locator, SOFTWARE),
+        reports,
+        TEMPLATES,
+    )
+    for at in range(0, len(data), 16):
+        print(" ".join(f"{b:02X}" for b in data[at : at + 16]))
+    print(f"{len(data)} bytes, {len(reports)} reports, {'not sent' if args.dry_run else f'to {host} port {port}'}")
+    if not args.dry_run:
+        address = socket.getaddrinfo(host.strip("[]"), int(port), type=socket.SOCK_DGRAM)[0]
+        with socket.socket(address[0], socket.SOCK_DGRAM) as sock:
+            sock.sendto(data, address[4])
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

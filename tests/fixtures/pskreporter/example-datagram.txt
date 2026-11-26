@@ -1,0 +1,14 @@
+# The complete example datagram of https://pskreporter.info/pskdev.html, section "Data" (fetched 26 Nov 2026):
+# receiver N1DQ FN42hn "Homebrew v5.6" hears N1DQ (14070567 Hz, 1200960084) and KB1MBX (14070987 Hz, 1200960104)
+# in the mode PSK, informationSource 1, sent at 1200960114 with sequence number 1 and the random id 0.
+00 0A 00 AC 47 95 32 72 00 00 00 01 00 00 00 00
+
+00 03 00 24  99 92 00 03 00 01  80 02 FF FF 00 00 76 8F  80 04 FF FF 00 00 76 8F  80 08 FF FF 00 00 76 8F  00 00
+
+00 02 00 2C  99 93 00 05  80 01 FF FF 00 00 76 8F  80 05 00 04 00 00 76 8F  80 0A FF FF 00 00 76 8F  80 0B 00 01 00 00 76 8F  00 96 00 04
+
+99 92 00 20  04 4E 31 44 51  06 46 4E 34 32 68 6E  0D 48 6F 6D 65 62 72 65 77 20 76 35 2E 36  00 00
+
+99 93 00 2C  04 4E 31 44 51  00 D6 B3 27  03 50 53 4B  01  47 95 32 54
+             06 4B 42 31 4D 42 58  00 D6 B4 CB  03 50 53 4B  01  47 95 32 68
+             00 00

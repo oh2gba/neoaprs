@@ -136,6 +136,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_receiver": "「{value}」は受信機のアドレスではありません",
   "error.setting.not_hostport": "「{value}」は ホスト:ポート ではありません(rigctldのポートは4532です)",
   "error.setting.not_server": "「{value}」は ホスト:ポート ではありません(APRS-ISサーバーの一般的なポートは14580です)",
+  "error.setting.not_dial": "「{value}」は 28.1800 MHz USB のようなダイヤルではありません",
   "error.setting.not_passcode": "コールサインのパスコードは0〜{max}の数字です",
   "error.setting.passcode_read_only": "-1は読み取り専用のパスコードです。iGateにはコールサインのパスコードが必要です",
   "error.setting.not_map_source": "「{value}」はWebアドレスでもPMTilesファイルのパスでもありません",

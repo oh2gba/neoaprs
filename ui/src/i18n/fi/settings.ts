@@ -163,6 +163,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.dtr": "DTR portissa {port}",
   "settings.keying.test": "Testaa",
   "settings.hf_frequencies.label": "Ehdotetut taajuudet",
+  "settings.psk_report.label": "Ilmoita PSK Reporteriin",
   "settings.scope.title": "Spektri",
   "settings.scope.aria":
     "Radion ääni 300–2700 Hz vesiputouksena, uusin ylimpänä, kuullut asemat merkittyinä signaalinsa kohdalle, ja alla sen spektri.",

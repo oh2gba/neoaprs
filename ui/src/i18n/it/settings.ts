@@ -165,6 +165,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.keying.dtr": "DTR su {port}",
   "settings.keying.test": "Prova",
   "settings.hf_frequencies.label": "Frequenze suggerite",
+  "settings.psk_report.label": "Segnala a PSK Reporter",
   "settings.scope.title": "Spettro",
   "settings.scope.aria":
     "L’audio della radio da 300 a 2700 Hz a cascata, il più recente in alto, con le stazioni ascoltate scritte dove si trova il loro segnale, e sotto il suo spettro.",
