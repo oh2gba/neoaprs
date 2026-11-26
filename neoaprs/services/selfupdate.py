@@ -32,6 +32,7 @@ TELL_SEC = 0.5
 NOT_THERE = 404
 State = Literal["idle", "downloading", "verifying", "installing", "restarting", "error"]
 Problem = Literal["", "download", "unverified", "checksum", "install", "no_restart"]
+UNEXPECTED = "the update stopped on an unexpected error; the log says why"
 FetchSums = Callable[[str, Allowed], bytes]
 FetchFile = Callable[[str, Path, Allowed, Progress, threading.Event], str]
 
@@ -159,6 +160,9 @@ class SelfUpdate:
             self._fail("install", str(e))
         except OSError as e:
             self._fail("download", f"{part.name} could not be written: {e}")
+        except Exception:
+            log.exception("Update now: the update to %s stopped on an unexpected error", version)
+            self._fail("install" if self._job.state in ("installing", "restarting") else "download", UNEXPECTED)
         finally:
             try:
                 part.unlink(missing_ok=True)
