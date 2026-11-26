@@ -9,6 +9,7 @@ from .clock import Clock, utcnow
 from .dberror import Connection, StoreError
 from .dbfile import DEFAULT_BUSY_MS
 from .migrations import open_database
+from .walcare import make_returnable
 
 
 def open_connection(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock = utcnow) -> Connection:
@@ -16,4 +17,5 @@ def open_connection(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clo
     db, why = open_database(path, busy_ms, clock)
     if db is None:
         raise StoreError(why)
+    make_returnable(db, path)
     return db

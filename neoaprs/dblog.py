@@ -9,6 +9,7 @@ from collections.abc import Callable, Iterable
 from .clock import Clock
 from .db import Db
 from .dberror import Connection, DbClosed, SqlError
+from .walcare import release
 
 
 class DbLog:
@@ -55,6 +56,14 @@ class DbLog:
         except (SqlError, DbClosed) as e:
             self._logger.error("%s: %s", what, e)
             return failed
+
+    async def give_back_room(self) -> None:
+        """Shorten the file by the free pages that deleting left, a slice at a time."""
+        left = -1
+        while (now := await self._write(release, 0, "the database could not be shortened")) > 0 and (
+            left < 0 or now < left
+        ):
+            left = now
 
     async def _done(self, fn: Callable[[Connection], object], what: str) -> bool:
         """Return whether the write was done."""

@@ -514,7 +514,7 @@ SQL_HOMES: dict[str, str] = {
     "neoaprs/ownsql.py": "the statements of the tables of our own objects and bulletins (what we send of our own accord): functions of a connection that the thread runs",
     "neoaprs/weathersql.py": "the statements of the weather table (every observation of every weather station) and the read of the packets it is made from: functions of a connection that the thread runs",
     "neoaprs/supportsql.py": "the statements of the support bundle: functions of a read-only connection that the bundle's own thread runs (the file's version and sizes, the rows of each table, the latest packets)",
-    "neoaprs/walcare.py": "the limits of the write-ahead log (journal_size_limit and the automatic checkpoint): a function of the connection, run by the thread",
+    "neoaprs/walcare.py": "the limits of the write-ahead log (journal_size_limit and the automatic checkpoint) and the pages the file gives back (auto_vacuum, incremental_vacuum): functions of the connection, run by the thread",
     "neoaprs/migrationsteps12to21.py": "the migrations 12 to 21, frozen beside migrations.py: migration code",
     "neoaprs/migrationsteps22on.py": "the migrations from 22 on, frozen beside migrations.py: migration code",
     "neoaprs/migrationsteps35.py": "migration 35, the map's radius at most 300 km, frozen: migration code",

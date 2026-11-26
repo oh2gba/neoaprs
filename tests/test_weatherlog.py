@@ -218,3 +218,24 @@ async def test_an_observation_from_the_internet_is_taken_kept_and_made_again_fro
         "CW1234",
         (await log.series("CW1234", T0 - timedelta(days=100)))[0][1],
     )
+
+
+async def test_a_station_that_says_the_same_again_within_a_minute_is_kept_once(tmp_path: Path) -> None:
+    log, _ = await opened(tmp_path)
+    assert log.take(report(at=T0)) is True
+    assert log.take(report(at=T0 + timedelta(seconds=30))) is False, "the same, 30 s after the one kept"
+    assert log.take(report(at=T0 + timedelta(seconds=45), source="OH2NJR")) is True, "another station"
+    assert log.take(report(REAL.replace("t050", "t051"), at=T0 + timedelta(seconds=40))) is True, "other values"
+    assert log.take(report(at=T0 + timedelta(seconds=100))) is True, "a minute after the last one kept (t051 stands)"
+    assert log.take(report(at=T0 + timedelta(seconds=130))) is False
+    assert log.take(report(at=T0 + timedelta(seconds=161))) is True, "over a minute after the one kept"
+    await settled(log)
+    assert await log.count() == 5
+
+
+async def test_what_was_forgotten_is_kept_again_at_once(tmp_path: Path) -> None:
+    log, _ = await opened(tmp_path)
+    assert log.take(report()) is True
+    await settled(log)
+    await log.forget_all()
+    assert log.take(report(at=T0 + timedelta(seconds=5))) is True
