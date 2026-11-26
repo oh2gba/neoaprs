@@ -209,9 +209,7 @@ function skeds_call(mixed $value): ?string
 
 function skeds_dial(mixed $value): ?string
 {
-    if (!is_string($value)) return null;
-    $dial = trim($value);
-    return preg_match(DIAL_FORM, $dial) ? $dial : null;
+    return is_string($value) && preg_match(DIAL_FORM, $value) ? $value : null;
 }
 
 /** The note: one line of letters, marks, digits, punctuation, printable ASCII and plain spaces;
@@ -221,7 +219,7 @@ function skeds_note(mixed $value): ?string
 {
     if ($value === null) return '';
     if (!is_string($value) || !preg_match('//u', $value)) return null;
-    $spaced = (string) preg_replace('/[\s\x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}]+/u', ' ', $value);
+    $spaced = (string) preg_replace('/[\x{0009}-\x{000D}\x{0020}\x{0085}\x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}]+/u', ' ', $value);
     $kept = (string) preg_replace('/[^\x{0020}-\x{007E}\p{L}\p{M}\p{N}\p{P}]/u', '', $spaced);
     $kept = trim((string) preg_replace('/ {2,}/', ' ', $kept));
     $chars = preg_split('//u', $kept, MAX_NOTE + 1, PREG_SPLIT_NO_EMPTY);

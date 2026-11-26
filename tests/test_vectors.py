@@ -123,6 +123,22 @@ def test_an_address_for_a_reply_has_one_at_with_words_on_each_side_and_no_blank_
     )
 
 
+def test_the_rules_of_a_sked_are_the_servers_and_the_stricter_note_is_the_rule() -> None:
+    v = vectors()
+    calls = {c["input"]: c["call"] for c in v["sked_calls"]}
+    assert calls[" oh2gba "] == calls["OH2GBA-0"] == "OH2GBA" and calls["OH2GBA-15"] == "OH2GBA-15"
+    assert not any(calls[c] for c in ("OH2GBA-16", "OH2GBA-07", "N0CALL", "\u00a0OH2GBA", "OH2GBA/P", ""))
+    assert {c["input"]: c["ok"] for c in v["sked_dials"]}["7.0541 MHz LSB"]
+    assert not any(c["ok"] for c in v["sked_dials"] if c["input"] != c["input"].strip() or "." not in c["input"])
+    times = {c["input"]: c["ok"] for c in v["sked_times"]}
+    assert times["2028-02-29T12:00:00Z"] and not times["2026-02-29T12:00:00Z"] and not times["2026-11-14T24:00:00Z"]
+    notes = {c["input"]: (c["note"], c["plain"]) for c in v["sked_notes"]}
+    assert notes["Mercury, 10 W"] == ("Mercury, 10 W", True)
+    assert notes["5\u00b0 up \u20ac \U0001f642 x"][0] == "5 up x", "a symbol outside printable ASCII is dropped"
+    assert notes["caf\u00e9 7 MHz $+^`|~<=>"][1], "the symbols of printable ASCII stay"
+    assert notes["x" * 81] == ("x" * 80, False) and notes["x" * 79 + " y"][0] == "x" * 79
+
+
 def test_every_category_has_cases_and_the_phg_and_the_positions_are_the_daemons_figures() -> None:
     v = vectors()
     assert all(v[name] for name in v)
@@ -141,6 +157,10 @@ def test_every_category_has_cases_and_the_phg_and_the_positions_are_the_daemons_
         "positions",
         "beacons",
         "reply_addresses",
+        "sked_calls",
+        "sked_dials",
+        "sked_times",
+        "sked_notes",
     } <= v.keys()
     assert {(c["power"], c["height"], c["gain"], c["direction"]): c["text"] for c in v["phg"]}[
         (5, 10, 3, "NE")

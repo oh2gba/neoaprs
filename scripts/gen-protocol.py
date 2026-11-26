@@ -117,7 +117,8 @@ from neoaprs.aprsposition import uncompressed_position  # noqa: E402
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text  # noqa: E402
 from neoaprs.symbols import IGATE_OVERLAYS, MOBILE_CODES, SYMBOL_NAMES  # noqa: E402
 from neoaprs.tncprofile import HF_PROFILES, PROFILES  # noqa: E402
-from neoaprs.versions import compare_versions  # noqa: E402
+from neoaprs.skeds import clean_note, our_call, plain_note, when  # noqa: E402
+from neoaprs.versions import compare_versions, is_dial  # noqa: E402
 from neoaprs.web.hubwire import PROTOCOL  # noqa: E402
 from neoaprs.web.views import CONFIG_KEYS  # noqa: E402
 from neoaprs.web.replaywire import GLIDE_MAX_MIN, SPAN_DAYS  # noqa: E402
@@ -1097,6 +1098,105 @@ REPLY_ADDRESSES = [
     "h" * 244 + "@example.o",
     "h" * 245 + "@example.o",
 ]
+SKED_CALLS = [
+    "OH2GBA",
+    "oh2gba",
+    " oh2gba ",
+    "\tOH2GBA\r\n",
+    "\u00a0OH2GBA",
+    "OH2GBA\u00a0",
+    "OH2GBA-0",
+    "OH2GBA-7",
+    "OH2GBA-15",
+    "OH2GBA-16",
+    "OH2GBA-07",
+    "OH2GBA-00",
+    "OH2GBA-",
+    "OH2GBA/P",
+    "OH2G BA",
+    "OH2GBA\n-7",
+    "N0CALL",
+    "nocall-3",
+    "MYCALL-1",
+    "W1AW",
+    "A1B",
+    "AB1",
+    "ABC",
+    "ABCDEF",
+    "ABCDE1",
+    "OH2GBAA",
+    "\u00df1A",
+    "\u00d6H2GBA",
+    "",
+    "123456",
+]
+SKED_DIALS = [
+    "7.0541 MHz USB",
+    "7.0541 MHz LSB",
+    "3.585 MHz USB",
+    "14.1070 MHz USB",
+    "28.18 MHz USB",
+    "7.0541 MHz",
+    "7.0541 MHZ USB",
+    "7.0541 MHz CW",
+    "7,0541 MHz USB",
+    "100.0541 MHz USB",
+    "7.05412 MHz USB",
+    "7.0541 MHz USB\n",
+    " 7.0541 MHz USB",
+    "7.0541 MHz USB ",
+    "\uff17.0541 MHz USB",
+    "7.0541\u00a0MHz USB",
+    "",
+]
+SKED_TIMES = [
+    "2026-11-14T18:00:00Z",
+    "1970-01-01T00:00:00Z",
+    "2028-02-29T12:00:00Z",
+    "2026-02-29T12:00:00Z",
+    "2026-02-30T10:00:00Z",
+    "2026-11-14T24:00:00Z",
+    "2026-11-14T23:59:60Z",
+    "2026-13-01T00:00:00Z",
+    "2026-11-14T18:00:00",
+    "2026-11-14 18:00:00Z",
+    "2026-11-14T18:00:00z",
+    "2026-11-14T18:00:00+00:00",
+    "2026-1-14T18:00:00Z",
+    "2026-11-14T18:00:00ZZ",
+    "2026-11-14T18:00:00Z\n",
+    "\u0662\u0660\u0662\u0666-11-14T18:00:00Z",
+    "",
+]
+SKED_NOTES = [
+    "",
+    "Mercury, 10 W",
+    "5\u00b0 up \u20ac \U0001f642 x",
+    "caf\u00e9 7 MHz \u2713",
+    "caf\u00e9 7 MHz $+^`|~<=>",
+    "a\tb\n c",
+    "  lead and trail  ",
+    "a\u200bb",
+    "a\u00a0b",
+    "a\u2028b",
+    "a\x85b",
+    "a\x00b",
+    "a\x7fb",
+    "\ufeffq",
+    "\u202eevil\u202c",
+    "a  b   c",
+    "x" * 80,
+    "x" * 81,
+    "\u00e9" * 100,
+    "x" * 79 + "\u20acy",
+    "x" * 79 + " y",
+    "<b>&</b>",
+    "Subject: x\r\nBcc: y",
+    "\u3042\u3044",
+    "\u2460\u2461",
+    "\u20ac",
+    "\U0001f4fb",
+]
 STATUS_TEMPLATES = [
     "QRV {freq} {mode}",
     "",
@@ -1440,6 +1540,10 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "beacons": [_beacon_vector(changes) for changes in BEACONS],
         "status_templates": [_template_vector(t) for t in STATUS_TEMPLATES],
         "reply_addresses": [{"input": t, "ok": reply_address(t) != ""} for t in REPLY_ADDRESSES],
+        "sked_calls": [{"input": t, "call": our_call(t)} for t in SKED_CALLS],
+        "sked_dials": [{"input": t, "ok": is_dial(t)} for t in SKED_DIALS],
+        "sked_times": [{"input": t, "ok": when(t) is not None} for t in SKED_TIMES],
+        "sked_notes": [{"input": t, "note": clean_note(t), "plain": plain_note(t)} for t in SKED_NOTES],
     }
 
 
