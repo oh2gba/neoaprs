@@ -9,6 +9,7 @@ import time
 from typing import Any
 
 from .signal import Signal
+from .source import Backoff
 from .tasks import TaskSet
 
 # a refused connection is no fault until the program has had this long to start
@@ -56,6 +57,28 @@ class ModemLife(ModemState):
 
     _program: Any  # a childprogram.Program
     _tasks: TaskSet
+    backoff: Backoff
+    _generation: int
+    _waits: int
+
+    async def _launch(self) -> None:
+        raise NotImplementedError
+
+    def _relaunch_later(self) -> None:
+        """Schedule a start after the back-off for this wait only; a later wait voids it."""
+        self._waits += 1
+        self._tasks.spawn(
+            self._relaunch_after(self.backoff.next_delay_sec(), self._generation, self._waits),
+            f"{self.PROGRAM.lower()}-restart",
+        )
+
+    async def _relaunch_after(self, delay_sec: float, generation: int, wait: int) -> None:
+        self.LOG.info("%s is started again in %g s", self.PROGRAM, delay_sec)
+        await asyncio.sleep(delay_sec)
+        await self._run_ended()
+        if generation == self._generation and wait == self._waits and self.state == "waiting":
+            await self._launch()
+
     _run_stopping: "asyncio.Task[None] | None" = None
 
     def _stop_run_later(self, name: str) -> None:

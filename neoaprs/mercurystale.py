@@ -9,13 +9,13 @@ import os
 import signal
 import subprocess
 import sys
-import time
 from collections.abc import Sequence
 from pathlib import Path
 
-from .childprogram import GONE_POLL_SEC, _running_windows, _windows_image, gone, made_before, windows_created
+from . import childprogram
+from .childprogram import _running_windows, _windows_image, made_before, windows_created
+from .childprogram import gone as gone
 from .mercuryhelper import STOP_WAIT_SEC
-from .source import os_error_text
 
 log = logging.getLogger("neoaprs.mercury")
 
@@ -82,27 +82,10 @@ def end_stale(pid_file: Path, ini: Path, program: Sequence[str]) -> bool:
     """End this radio's Mercury left running by an earlier daemon; return whether one was ended.
 
     Waits up to STOP_WAIT_SEC for it to go. The pid file is always consumed."""
-    try:
-        text, written = pid_file.read_text(encoding="ascii"), pid_file.stat().st_mtime
-    except OSError:
-        return False
-    try:
-        pid_file.unlink(missing_ok=True)
-    # e.g. held by a virus scanner or read-only; the check goes on
-    except OSError as e:
-        log.warning("the file of a Mercury left behind, %s, could not be removed: %s", pid_file, os_error_text(e))
-    try:
-        pid = int(text.strip())
-    except ValueError:
-        return False
-    if pid == os.getpid() or pid <= 0 or not _is_mercury(pid, ini, program, written):
-        return False
-    try:
-        os.kill(pid, signal.SIGTERM)
-    except OSError:
-        return False
-    log.warning("a Mercury left behind by an earlier run (process %d) was ended", pid)
-    deadline = time.monotonic() + STOP_WAIT_SEC
-    while not gone(pid) and time.monotonic() < deadline:
-        time.sleep(GONE_POLL_SEC)
-    return True
+    return childprogram.end_stale(
+        pid_file,
+        lambda pid, written: _is_mercury(pid, ini, program, written),
+        "Mercury",
+        signal.SIGTERM,
+        STOP_WAIT_SEC,
+    )

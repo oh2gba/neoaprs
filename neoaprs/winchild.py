@@ -177,7 +177,9 @@ def drop_line(keying: str, k: Any = None) -> bool:
     if way not in ("rts", "dtr") or match is None:
         return False
     k = k if k is not None else kernel32()
-    handle = k.CreateFileW(f"\\\\.\\{match.group(1).upper()}", GENERIC_READ | GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None)
+    handle = k.CreateFileW(
+        f"\\\\.\\{match.group(1).upper()}", GENERIC_READ | GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None
+    )
     if not handle or handle in (INVALID_HANDLE, ctypes.c_void_p(INVALID_HANDLE).value):
         log.info("the keying line %s could not be opened to lower it", keying)
         return False

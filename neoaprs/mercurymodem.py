@@ -456,20 +456,6 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
         self._set("waiting", problem, reason)
         self._relaunch_later()
 
-    def _relaunch_later(self) -> None:
-        """Schedule a start after the back-off for this wait only; a later wait voids it."""
-        self._waits += 1
-        self._tasks.spawn(
-            self._relaunch_after(self.backoff.next_delay_sec(), self._generation, self._waits), "mercury-restart"
-        )
-
-    async def _relaunch_after(self, delay_sec: float, generation: int, wait: int) -> None:
-        log.info("Mercury is started again in %g s", delay_sec)
-        await asyncio.sleep(delay_sec)
-        await self._run_ended()
-        if generation == self._generation and wait == self._waits and self.state == "waiting":
-            await self._launch()
-
     # ---- the control port
     def _start_control(self) -> None:
         self._control = ControlLine(
