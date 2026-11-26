@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import { defineComponent, h } from "vue";
-import { useVisible } from "@/composables/useVisible";
+import { pageVisible, useVisible } from "@/composables/useVisible";
 
 function show(state: "visible" | "hidden"): void {
   Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
@@ -22,6 +22,18 @@ function host() {
   );
   return { wrapper, visible: () => visible?.value };
 }
+
+describe("pageVisible", () => {
+  it("is one value for every caller, kept by one listener", () => {
+    const first = pageVisible();
+    const second = pageVisible();
+    expect(second).toBe(first);
+    show("hidden");
+    expect(first.value).toBe(false);
+    show("visible");
+    expect(second.value).toBe(true);
+  });
+});
 
 describe("useVisible", () => {
   it("follows document.visibilityState", () => {

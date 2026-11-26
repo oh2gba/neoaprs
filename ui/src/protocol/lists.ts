@@ -40,6 +40,7 @@ export const MESSAGE_TYPES = [
   "radio_level",
   "radio_search",
   "release_notes",
+  "saved",
   "signal_series",
   "speed_series",
   "state",
@@ -1401,7 +1402,7 @@ export const LIMITS = {
   scope: { loHz: 300, hiHz: 2700, signalLoHz: 1200, signalHiHz: 1800, rowBins: 307, rowFirstBin: 39, rowSpectra: 2, rowOffsetDb: -110.0, rowStepDb: 0.5, modemBins: 512, modemRate: 8000, levelMinDbfs: -90, levelMaxDbfs: 0, levelGoodDbfs: [-55, -25], peakClipDbfs: 0.0, historySec: 120 },
   radio: { nameMax: 8, frequenciesMax: 5 },
   support: { emailMax: 254 },
-  mercury: { version: "1.9.25", mode: "DATAC3", maxFrame: 123, frameSec: 3.8, pttKinds: ["vox", "cm108", "rts", "dtr"], frequencies: [[80, "3.5850"], [40, "7.0541"], [30, "10.1462"], [20, "14.1070"], [10, "28.1800"], [6, "50.6200"]] },
+  mercury: { version: "1.9.25", mode: "DATAC3", maxFrame: 123, frameSec: 3.8, pttKinds: ["vox", "cm108", "rts", "dtr"] },
   soundCard: { version: "1.8.1", levelMax: 200, levelLow: 5, levelHigh: 110, levelGood: [30, 70], txGainMinDb: -20, txGainMaxDb: 0 },
   layers: { aircraftReceiverAgeSec: 60, aircraftServiceAgeSec: 90, shipsAgeSec: 1800, aisPort: 10110 },
 } as const;

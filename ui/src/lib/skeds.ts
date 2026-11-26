@@ -113,11 +113,6 @@ function noteOk(note: string): boolean {
   return [...note.trim()].length <= NOTE_MAX;
 }
 
-/** How many characters more the note may have; negative when it is too long. */
-export function noteLeft(note: string): number {
-  return NOTE_MAX - [...note.trim()].length;
-}
-
 /** Whether the form is valid: day and times from the choices, not ended, not too far, a dial and a
  * note that fits. */
 export function draftOk(draft: SkedDraft, nowMs: number): boolean {

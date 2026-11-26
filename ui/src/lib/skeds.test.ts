@@ -16,7 +16,6 @@ import {
   localText,
   mayPostAs,
   newCount,
-  noteLeft,
   noteOf,
   postCommand,
   startDraft,
@@ -179,11 +178,13 @@ describe("the dial", () => {
 describe("the note", () => {
   it("fits at 80 characters once trimmed, counted as characters", () => {
     expect(NOTE_MAX).toBe(80);
-    expect(noteLeft("")).toBe(80);
-    expect(noteLeft("  Mercury, 10 W ")).toBe(80 - 13);
-    expect(noteLeft("x".repeat(81))).toBe(-1);
-    expect(noteLeft("é".repeat(80))).toBe(0);
-    expect(noteLeft("😀".repeat(80))).toBe(0);
+    const fits = (note: string) => draftOk(draft({ note }), NOW);
+    expect(fits("")).toBe(true);
+    expect(fits(`  ${"x".repeat(80)} `)).toBe(true);
+    expect(fits("x".repeat(81))).toBe(false);
+    expect(fits("é".repeat(80))).toBe(true);
+    expect(fits("😀".repeat(80))).toBe(true);
+    expect(fits("😀".repeat(81))).toBe(false);
   });
 });
 

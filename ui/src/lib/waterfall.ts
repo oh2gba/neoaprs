@@ -2,6 +2,7 @@
 // layout, ruler ticks, label text and placement, and the curve. The floor is in waterfallfloor.ts
 // and the canvas painter in waterfallpainter.ts. Passband and spectrum rates come from the daemon
 // via LIMITS.
+import { timeOfDay } from "@/lib/format";
 import { LIMITS } from "@/protocol/lists";
 
 const { loHz, hiHz, signalLoHz, signalHiHz, modemRate, modemBins, rowFirstBin, rowBins, rowSpectra, historySec } =
@@ -26,9 +27,6 @@ export const ROWS_PER_LINE = 2;
 export const LINES_PER_SECOND = ROWS_PER_SECOND / ROWS_PER_LINE;
 /** Lines that fit the two minutes the daemon keeps rows for (LIMITS.scope.historySec). */
 export const keptLines = (lineMs: number): number => (historySec * 1000) / lineMs;
-/** Two minutes of lines are kept, so a resized box can be redrawn whole. */
-export const KEPT_LINES = keptLines(1000 / LINES_PER_SECOND);
-
 /** Speeds of the monitor card's waterfall; the box in Settings is always Normal. */
 export type Speed = "slow" | "normal" | "fast";
 export const SPEEDS: readonly Speed[] = ["slow", "normal", "fast"];
@@ -261,8 +259,7 @@ export function rulerTicks(width: number, room: number): Tick[] {
 
 /** hh:mm:ss in the viewer's time, as clockText of lib/format.ts writes a packet's time. */
 export function timeText(at: number): string {
-  const time = new Date(at);
-  return [time.getHours(), time.getMinutes(), time.getSeconds()].map((n) => String(n).padStart(2, "0")).join(":");
+  return timeOfDay(new Date(at));
 }
 
 /** SNR as written beside a call: whole dB with a real minus sign ("−3"). */
