@@ -485,7 +485,6 @@ def limits() -> dict[str, Any]:
             "maxFrame": mercury.MAX_PAYLOAD,
             "frameSec": mercury.FRAME_SEC,
             "pttKinds": list(mercury.PTT_KINDS),
-            "frequencies": [[band, dial] for band, dial in mercury.FREQUENCIES],
         },
         "soundCard": {
             "version": direwolf.VERSION,
@@ -1463,9 +1462,53 @@ def errors_text() -> str:
     )
 
 
+FREQUENCIES = ROOT / "site" / "frequencies.json"
+FREQUENCY_LIST = ROOT / "neoaprs" / "frequencylist.py"
+INDEX = ROOT / "site" / "index.html"
+TABLE = re.compile(r'<table class="freqs" id="frequencies">.*?</table>', re.DOTALL)
+
+
+def suggested_frequencies() -> list[tuple[str, str]]:
+    """Return (band, dial) of site/frequencies.json, the one source of the suggested dials, by frequency."""
+    found = [
+        (item["band"], item["dial"]) for item in json.loads(FREQUENCIES.read_text(encoding="utf-8"))["frequencies"]
+    ]
+    return sorted(found, key=lambda pair: float(pair[1].split()[0]))
+
+
+def frequency_list_text() -> str:
+    rows = "".join(f'    ("{band}", "{dial}"),\n' for band, dial in suggested_frequencies())
+    return (
+        '"""The suggested HF dials, written by scripts/gen-protocol.py from site/frequencies.json: do not edit."""\n\n'
+        f"SUGGESTED: tuple[tuple[str, str], ...] = (\n{rows})\n"
+    )
+
+
+def frequency_table_text() -> str:
+    """Return the table of the project's page; band and MHz are padded with no-break spaces to line up."""
+    found = suggested_frequencies()
+    band_width = max(len(band) for band, _ in found)
+    mhz_width = max(len(dial.split(".")[0]) for _, dial in found)
+    nbsp = "&nbsp;"
+    rows = "".join(
+        f'<tr><th scope="row">{nbsp * (band_width - len(band))}{band}</th>'
+        f"<td>{nbsp * (mhz_width - len(dial.split('.')[0]))}{dial}</td></tr>"
+        for band, dial in found
+    )
+    return (
+        f'<table class="freqs" id="frequencies"><caption>Suggested frequencies</caption><tbody>{rows}</tbody></table>'
+    )
+
+
+def index_text() -> str:
+    return TABLE.sub(lambda _: frequency_table_text(), INDEX.read_text(encoding="utf-8"), count=1)
+
+
 def render() -> dict[Path, str]:
     schema = build_schema()
     return {
+        FREQUENCY_LIST: frequency_list_text(),
+        INDEX: index_text(),
         SCHEMA: json.dumps(schema, indent=2) + "\n",
         TYPES: types_text(schema),
         LISTS: lists_text(),

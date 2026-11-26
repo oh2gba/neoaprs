@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from .coded import CodedError
+from .frequencylist import SUGGESTED
 
 # re-exported
 from .mercurycards import (
@@ -60,25 +61,9 @@ def modem_gain(gain_db: float) -> float:
     return max(-MODEM_GAIN_LIMIT_DB, min(MODEM_GAIN_LIMIT_DB, gain_db + TX_GAIN_TRIM_DB))
 
 
-# (band in metres, dial in MHz), USB; proposals in the IARU Region 1 digimode segments
-FREQUENCIES: tuple[tuple[int, str], ...] = (
-    (80, "3.5850"),
-    (40, "7.0541"),
-    (30, "10.1462"),
-    (20, "14.1070"),
-    (10, "28.1800"),
-    (6, "50.6200"),
-)
+# the suggested dials, in the IARU Region 1 digimode segments, are site/frequencies.json
 DIAL_BAND = 40  # the band the page shows
-DIAL_TEXT = f"{dict(FREQUENCIES)[DIAL_BAND]} MHz USB"
-
-SUGGESTED: tuple[tuple[str, str], ...] = (
-    ("80 m", "3.5850 MHz USB"),
-    ("40 m", "7.0541 MHz USB"),
-    ("20 m", "14.1070 MHz USB"),
-    ("10 m", "28.1800 MHz USB"),
-    ("6 m", "50.6200 MHz USB"),
-)
+DIAL_TEXT = dict(SUGGESTED)[f"{DIAL_BAND} m"]
 
 PTT_KINDS = ("vox", "cm108", "rts", "dtr")
 # these name a port after a colon: `rts:/dev/ttyUSB0`
