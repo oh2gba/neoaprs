@@ -26,7 +26,7 @@ export const skeds: Record<keyof typeof source, Message> = {
   "skeds.until": "até",
   "skeds.frequency": "Frequência",
   "skeds.frequency_other": "Outra",
-  "skeds.dial": "Dial",
+  "skeds.dial": "Frequência do dial",
   "skeds.note": "Nota",
   "skeds.post": "Publicar em neo.oh2gba.eu",
 } as const;

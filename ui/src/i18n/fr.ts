@@ -246,7 +246,7 @@ export const fr: Catalogue = {
   "error.setting.not_hostport": "« {value} » n'est pas hôte:port (4532 est le port de rigctld)",
   "error.setting.not_receiver": "« {value} » n'est pas l'adresse d'un récepteur",
   "error.setting.not_server": "« {value} » n'est pas hôte:port (14580 est le port habituel d'un serveur APRS-IS)",
-  "error.setting.not_dial": "« {value} » n'est pas un dial comme 28.1800 MHz USB",
+  "error.setting.not_dial": "« {value} » n'est pas une fréquence affichée comme 28.1800 MHz USB",
   "error.setting.not_passcode": "le code de votre indicatif est un nombre de 0 à {max}",
   "error.setting.passcode_read_only": "-1 est le code en lecture seule ; un iGate a besoin du code de son indicatif",
   "error.setting.not_map_source": "« {value} » n'est ni une adresse web ni le chemin d'un fichier PMTiles",
@@ -606,7 +606,7 @@ export const fr: Catalogue = {
   "skeds.until": "à",
   "skeds.frequency": "Fréquence",
   "skeds.frequency_other": "Autre",
-  "skeds.dial": "Dial",
+  "skeds.dial": "Fréquence affichée",
   "skeds.note": "Note",
   "skeds.post": "Publier sur neo.oh2gba.eu",
 

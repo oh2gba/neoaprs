@@ -245,7 +245,7 @@ export const de: Catalogue = {
   "error.setting.not_hostport": "„{value}“ ist nicht Host:Port (4532 ist der Port von rigctld)",
   "error.setting.not_receiver": "„{value}“ ist nicht die Adresse eines Empfängers",
   "error.setting.not_server": "„{value}“ ist nicht Host:Port (14580 ist der übliche Port eines APRS-IS-Servers)",
-  "error.setting.not_dial": "„{value}“ ist kein Dial wie 28.1800 MHz USB",
+  "error.setting.not_dial": "„{value}“ ist keine Dial-Frequenz wie 28.1800 MHz USB",
   "error.setting.not_passcode": "der Passcode deines Rufzeichens ist eine Zahl von 0 bis {max}",
   "error.setting.passcode_read_only":
     "-1 ist der Passcode nur zum Lesen; ein iGate braucht den Passcode seines Rufzeichens",
@@ -609,7 +609,7 @@ export const de: Catalogue = {
   "skeds.until": "bis",
   "skeds.frequency": "Frequenz",
   "skeds.frequency_other": "Andere",
-  "skeds.dial": "Dial",
+  "skeds.dial": "Dial-Frequenz",
   "skeds.note": "Notiz",
   "skeds.post": "Auf neo.oh2gba.eu eintragen",
 

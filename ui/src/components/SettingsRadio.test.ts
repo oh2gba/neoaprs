@@ -617,9 +617,11 @@ describe("a Mercury radio's reports to PSK Reporter", () => {
     const { group, send } = make({}, BOTH, hfValues({ "radio/2/psk_report": "false", "radio/2/psk_dial": "" }));
     expect(dial(group).element.disabled).toBe(true);
     expect(dial(group).element.closest(".field")?.classList.contains("disabled")).toBe(true);
+    expect(number(group).element.disabled).toBe(true);
     await tick(group).setValue(true);
     expect(sets(send)).toEqual([{ "radio/2/psk_report": "true" }]);
     expect(dial(group).element.disabled).toBe(false);
+    expect(number(group).element.disabled, "a dial of the list is no number to type").toBe(true);
   });
 
   it("stores a suggested dial when it is chosen", async () => {
@@ -632,8 +634,13 @@ describe("a Mercury radio's reports to PSK Reporter", () => {
     const ten = reporting({ "radio/2/psk_dial": "28.1800 MHz USB" });
     const { group, send, daemon } = make({}, BOTH, ten);
     const answer = (dial: string) => tell(daemon, { config: configValues({}, { ...ten, "radio/2/psk_dial": dial }) });
-    expect(number(group).exists()).toBe(false);
+    const rows = () => hfFold(group).findAll(".field").length;
+    const before = rows();
+    expect(number(group).element.disabled).toBe(true);
+    expect(number(group).element.value).toBe("28.1800");
     await dial(group).setValue("other");
+    expect(rows()).toBe(before);
+    expect(number(group).element.disabled).toBe(false);
     expect(sets(send)).toEqual([{ "radio/2/psk_dial": "" }]);
     await answer("");
     expect(dial(group).element.value).toBe("other");
@@ -650,6 +657,7 @@ describe("a Mercury radio's reports to PSK Reporter", () => {
       expect(number(group).exists() && dial(group).element.value, "the row stays").toBe("other");
     }
     expect(sets(send).at(-1)).toEqual({ "radio/2/psk_dial": "" });
+    expect(rows()).toBe(before);
   });
 
   it("shows a stored dial the list does not have as Other with its number", () => {

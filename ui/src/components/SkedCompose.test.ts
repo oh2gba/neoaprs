@@ -25,16 +25,16 @@ describe("SkedCompose", () => {
   it("is a group box with the day, the time with its label saying UTC, the frequency and the note, and a button that says where it posts", () => {
     const wrapper = form();
     expect(wrapper.find("legend").text()).toBe("Plan a test");
-    expect(wrapper.findAll("label").map((l) => l.text())).toEqual(["Day", "Time (UTC)", "Frequency", "Note"]);
+    expect(wrapper.findAll("label").map((l) => l.text())).toEqual(["Day", "Time (UTC)", "Frequency", "Dial", "Note"]);
     expect(post(wrapper).text()).toBe("Post on neo.oh2gba.eu");
     expect(wrapper.find("#sked-from").attributes("aria-label")).toBe("From");
     expect(wrapper.find("#sked-to").attributes("aria-label")).toBe("To");
   });
 
-  it("is built of selects and one line for the note: no date or time field", () => {
+  it("is built of selects, the dial's number and one line for the note: no date or time field", () => {
     const wrapper = form();
     expect(wrapper.findAll("select")).toHaveLength(4);
-    expect(wrapper.findAll("input")).toHaveLength(1);
+    expect(wrapper.findAll("input").map((i) => i.attributes("id"))).toEqual(["sked-dial", "sked-note"]);
     expect(wrapper.find("input[type='date'], input[type='time'], input[type='datetime-local']").exists()).toBe(false);
   });
 
@@ -121,20 +121,31 @@ describe("SkedCompose", () => {
   });
 
   describe("the frequency", () => {
-    it("brings a row to type one with Other, in the form of the page, and takes it back with a dial of the list", async () => {
+    it("keeps the row of the number in every state: greyed with the dial's number, open and empty with Other", async () => {
       const wrapper = form();
-      expect(wrapper.find("#sked-dial").exists()).toBe(false);
+      const number = () => wrapper.find<HTMLInputElement>("#sked-dial");
+      const rows = () => wrapper.findAll(".field").length;
+      const before = rows();
+      expect(number().element.disabled).toBe(true);
+      expect(number().element.value).toBe("3.5850");
+      expect(number().element.closest(".field")?.classList.contains("disabled")).toBe(true);
       await select(wrapper, "sked-frequency").setValue("other");
-      expect(wrapper.find("#sked-dial").exists()).toBe(true);
-      expect(wrapper.find<HTMLInputElement>("#sked-dial").attributes("placeholder")).toBeUndefined();
+      expect(rows()).toBe(before);
+      expect(number().element.disabled).toBe(false);
+      expect(number().element.value).toBe("");
+      expect(number().attributes("placeholder")).toBeUndefined();
       expect(wrapper.find("#sked-dial").element.nextElementSibling?.outerHTML).toBe(
         '<span class="unit muted">MHz USB</span>',
       );
       expect(post(wrapper).attributes("disabled")).toBeDefined(); // (nothing typed yet)
       expect(wrapper.find("#sked-dial").classes()).not.toContain("invalid");
       await select(wrapper, "sked-frequency").setValue("14.1070 MHz USB");
-      expect(wrapper.find("#sked-dial").exists()).toBe(false);
+      expect(rows()).toBe(before);
+      expect(number().element.disabled).toBe(true);
+      expect(number().element.value).toBe("14.1070");
       expect(post(wrapper).attributes("disabled")).toBeUndefined();
+      await wrapper.find("form").trigger("submit");
+      expect(sent("sked_post")).toMatchObject([{ dial: "14.1070 MHz USB" }]);
     });
 
     it.each([

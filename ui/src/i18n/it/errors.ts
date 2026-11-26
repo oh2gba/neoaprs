@@ -138,7 +138,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.setting.not_hostport": "“{value}” non è host:porta (4532 è la porta di rigctld)",
   "error.setting.not_receiver": "“{value}” non è l’indirizzo di un ricevitore",
   "error.setting.not_server": "“{value}” non è host:porta (14580 è la porta abituale di un server APRS-IS)",
-  "error.setting.not_dial": "“{value}” non è un dial come 28.1800 MHz USB",
+  "error.setting.not_dial": "“{value}” non è una frequenza di sintonia come 28.1800 MHz USB",
   "error.setting.not_passcode": "il codice del tuo nominativo è un numero da 0 a {max}",
   "error.setting.passcode_read_only":
     "-1 è il codice di sola lettura; un iGate ha bisogno del codice del suo nominativo",

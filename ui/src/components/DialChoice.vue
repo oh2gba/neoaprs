@@ -1,14 +1,16 @@
 <script setup lang="ts">
 // A dial chosen as the HF tests form and a Mercury radio's box choose it: Frequency, a select of the
-// suggested dials and Other, which brings a row for the number alone (`7.0541`, a comma too) with MHz
-// USB fixed beside it (lib/skeds.ts dialOfNumber). The parent holds `typed` and `dial` (a dial of the
-// list, or the number typed while `typed`); `choose` is a choice of the select (a dial or
-// OTHER_DIAL), `commit` the typed number finished on leaving the field or, with `apply`, on Enter.
-// `blank` offers an empty choice while the dial is empty; `least` is the lowest number in MHz that is
-// no wrong one. Disabled, both rows keep their place.
+// suggested dials and Other, and under it the row of the number alone (`7.0541`, a comma too) with MHz
+// USB fixed beside it (lib/skeds.ts dialOfNumber). The number row is always there, so that nothing
+// moves: greyed with the chosen dial's number while a dial of the list is chosen, open for typing
+// (from empty) once Other is. The parent holds `typed` and `dial` (a dial of the list, or the number
+// typed while `typed`); `choose` is a choice of the select (a dial or OTHER_DIAL), `commit` the typed
+// number finished on leaving the field or, with `apply`, on Enter. `blank` offers an empty choice
+// while the dial is empty; `least` is the lowest number in MHz that is no wrong one. `disabled`
+// greys both rows.
 import { computed, ref } from "vue";
 import { t } from "@/i18n";
-import { OTHER_DIAL, dialAtLeast } from "@/lib/skeds";
+import { OTHER_DIAL, dialAtLeast, numberOfDial } from "@/lib/skeds";
 import type { SkedFrequency } from "@/protocol/protocol";
 
 const props = withDefaults(
@@ -31,6 +33,8 @@ const choice = computed(() => (props.typed ? OTHER_DIAL : props.dial));
 const typedWrong = computed(
   () => props.typed && props.dial.trim() !== "" && dialAtLeast(props.dial, props.least) === null,
 );
+/** What the number field shows: the typed text, else the number of the chosen dial. */
+const number = computed(() => (props.typed ? props.dial : numberOfDial(props.dial)));
 /** The row of the select, for a parent that asks for the dials when it comes on show. */
 const row = ref<HTMLElement | null>(null);
 defineExpose({ row });
@@ -59,19 +63,19 @@ function enter(event: KeyboardEvent): void {
       </select>
     </div>
   </div>
-  <div v-if="typed" class="field" :class="{ invalid: typedWrong, disabled }">
+  <div class="field" :class="{ invalid: typedWrong, disabled: disabled || !typed }">
     <label :for="dialId">{{ t("skeds.dial") }}</label>
     <div class="field-control">
       <input
         :id="dialId"
-        :value="dial"
+        :value="number"
         class="input mono"
         :class="{ invalid: typedWrong }"
         type="text"
         inputmode="decimal"
         autocomplete="off"
         spellcheck="false"
-        :disabled="disabled"
+        :disabled="disabled || !typed"
         @input="emit('update:dial', ($event.target as HTMLInputElement).value)"
         @blur="emit('commit')"
         @keydown.enter="enter"
