@@ -82,7 +82,9 @@ card and the listening ports. A port that is already listened on is not free for
 every foreign listener found after the program started belongs to the program. A repeated warning is
 logged at INFO only the 1st, 10th, 100th, 1000th... time because a stuck sound device repeats
 one line millions of times; one more line when
-it has stopped for a minute says how many times it came, so that its end is in the log too. The bundled ALSA library needs ALSA_CONFIG_PATH when a shipped
+it has stopped for a minute says how many times it came, so that its end is in the log too. What a run said and the
+callbacks of its reader belong to that run: a callback that reaches the loop after a new run started is
+dropped, and a relaunch waits until a run ended in a thread is gone, since it holds the sound card. The bundled ALSA library needs ALSA_CONFIG_PATH when a shipped
 alsa.conf exists, because a machine without ALSA lacks /usr/share/alsa/alsa.conf.
 
 ## neoaprs/claims.py

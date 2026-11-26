@@ -3,7 +3,6 @@
 Only the shipped Mercury is used, never one from the PATH.
 """
 
-import asyncio
 import errno
 import logging
 import os
@@ -298,16 +297,16 @@ class Program(childprogram.Program):
         self.device_lines: deque[str] = deque(maxlen=DEVICE_LINES)
         self.keying = ""  # the run's keying, `rts:COM3`: lowered after a Windows end
 
-    def _heard(self, line: str, loop: asyncio.AbstractEventLoop) -> None:
+    def _heard(self, line: str, post: childprogram.Post) -> None:
         if self._on_audio_error is not None and (audio_open_error(line) or audio_lost(line)):
-            loop.call_soon_threadsafe(self._on_audio_error, line)
+            post(self._on_audio_error, line)
         if _DEVICE_LINE.search(line):
             self.device_lines.append(unstamped(line))
         if self._on_capture_full is not None and capture_full(line):
             now = time.monotonic()
             if now - self._full_told >= 1.0:
                 self._full_told = now
-                loop.call_soon_threadsafe(self._on_capture_full, now)
+                post(self._on_capture_full, now)
 
     def _warning(self, line: str) -> str | None:
         """Return a [WRN] or [ERR] line without its timestamp, so that repeats compare equal."""

@@ -57,7 +57,7 @@ from .mercuryspeaker import CAPTURE_FIFO, PLAYBACK_FIFO, SpeakerAudio, SpeakerLi
 from .radiotype import HF_ID, RadioId
 from .radiotypes import kind_field
 from .serialprobe import PortInfo, claim_value, holder_words, named_ports, offered_ports
-from .modemstate import ModemState
+from .modemstate import ModemLife
 from .signal import Signal
 from .source import Backoff, os_error_text
 from .tasks import TaskSet
@@ -143,8 +143,9 @@ def _address(url: str) -> tuple[str, int]:
     return host.strip("[]") or HOST, int(port)
 
 
-class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
+class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
     PROGRAM, LOG = "Mercury", log
+    _program: Program
 
     def __init__(
         self,
@@ -395,7 +396,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
             line,
         )
         self._audio_failed = True
-        self._tasks.spawn(asyncio.to_thread(self._program.stop), "mercury-audio-stop")
+        self._stop_run_later("mercury-audio-stop")
         self._gone(SOUND_CARD_FAILED, "sound_card")
 
     def _capture_full(self, now: float) -> None:
@@ -416,7 +417,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
         if action == "restart":
             self.stall.restarted(now, self.clock())
             log.warning("Mercury is started again because it hears nothing (restart %d)", self.stall.restarts)
-            self._tasks.spawn(asyncio.to_thread(self._program.stop), "mercury-stall-stop")
+            self._stop_run_later("mercury-stall-stop")
             self._gone(RECEIVE_RESTART, "stopped")
         elif action == "give_up":
             log.warning("Mercury is not started again: %s", RECEIVE_STALLED)
@@ -460,6 +461,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
     async def _relaunch_after(self, delay_sec: float, generation: int, wait: int) -> None:
         log.info("Mercury is started again in %g s", delay_sec)
         await asyncio.sleep(delay_sec)
+        await self._run_ended()
         if generation == self._generation and wait == self._waits and self.state == "waiting":
             await self._launch()
 
@@ -520,7 +522,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
     def _end_run(self, problem: str) -> bool:
         if not self._program.running:
             return False
-        self._tasks.spawn(asyncio.to_thread(self._program.stop), "mercury-tune-stop")
+        self._stop_run_later("mercury-tune-stop")
         self._gone(problem, "stopped")
         return True
 

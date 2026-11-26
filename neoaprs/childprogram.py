@@ -5,6 +5,7 @@ Subclasses supply the name, the warnings, the handling of a line and how it is a
 """
 
 import asyncio
+import contextlib
 import logging
 import os
 import signal
@@ -274,6 +275,23 @@ def _unlink_own(pid_file: Path, pid: int) -> None:
         pass
 
 
+# Post(callback, *args): call it on the loop, if the run that heard the line is still the current one.
+Post = Callable[..., None]
+
+
+class Run:
+    """What one run of a program has said: its last lines and its repeated warnings (per run, so that
+    an old run's reader still draining never shares them with the new one)."""
+
+    def __init__(self) -> None:
+        self.last_lines: deque[str] = deque(maxlen=LAST_LINES)
+        # Per distinct warning: [count, monotonic time of the latest, its wall time] (a stuck sound
+        # device repeats one line endlessly).
+        self.said: dict[str, list[Any]] = {}
+        self.looked_at = 0.0  # monotonic time of the latest look for warnings that stopped
+        self.lines_read = 0
+
+
 class Program:
     """One run of a program; a subclass sets `name` and implements `_heard` and `_end`."""
 
@@ -293,13 +311,16 @@ class Program:
         self._process: subprocess.Popen[str] | None = None
         self._stopping: subprocess.Popen[str] | None = None
         self._pid_file: Path | None = None
-        self.last_lines: deque[str] = deque(maxlen=LAST_LINES)
-        # Per distinct warning: [count, monotonic time of the latest, its wall time] (a stuck sound
-        # device repeats one line endlessly).
-        self._said: dict[str, list[Any]] = {}
-        self._looked_at = 0.0  # monotonic time of the latest look for warnings that stopped
+        self._run = Run()  # the current run's; written by its reader thread only
         self.clock: Clock = utcnow
-        self.lines_read = 0  # written by the reader thread only
+
+    @property
+    def last_lines(self) -> deque[str]:
+        return self._run.last_lines
+
+    @property
+    def lines_read(self) -> int:
+        return self._run.lines_read
 
     @property
     def running(self) -> bool:
@@ -337,7 +358,7 @@ class Program:
         if sys.platform == "win32" and not winchild.tie_to_daemon(self._process.pid):
             self._log.info("%s (process %d) is not tied to the daemon's life", self.name, self._process.pid)
         self._pid_file = pid_file
-        self.lines_read = 0
+        self._run = run = Run()
         if pid_file is not None:
             try:
                 pid_file.write_text(str(self._process.pid), encoding="ascii")
@@ -345,30 +366,55 @@ class Program:
                 self._log.debug("the %s pid file could not be written: %s", self.name, e)
         self._log.info("%s started (process %d): %s", self.name, self._process.pid, " ".join(argv))
         threading.Thread(
-            target=self._read, args=(self._process, loop, pid_file), name=f"{self.name.lower()}-output", daemon=True
+            target=self._read,
+            args=(self._process, loop, pid_file, run),
+            name=f"{self.name.lower()}-output",
+            daemon=True,
         ).start()
 
     def _read(
-        self, process: subprocess.Popen[str], loop: asyncio.AbstractEventLoop, pid_file: Path | None = None
+        self,
+        process: subprocess.Popen[str],
+        loop: asyncio.AbstractEventLoop,
+        pid_file: Path | None = None,
+        run: Run | None = None,
     ) -> None:
+        run = run if run is not None else self._run
         assert process.stdout is not None
+
+        def post(callback: Callable[..., None], *args: Any) -> None:
+            with contextlib.suppress(RuntimeError):  # the loop is closed: the daemon ends
+                loop.call_soon_threadsafe(self._if_current, process, callback, args)
+
+        failed = False
         for raw in process.stdout:
             line = raw.rstrip()
-            if line:
+            if not line:
+                continue
+            # a fault here must not end the reader: the program would block on a full pipe
+            try:
                 if not self._unlogged(line):
-                    self.last_lines.append(line)
-                    self._tell(line)
+                    run.last_lines.append(line)
+                    self._tell(line, run)
                 if self._process is process:
-                    self._heard(line, loop)
-        self._stopped_warnings(None)
+                    self._heard(line, post)
+            except Exception:
+                if not failed:
+                    failed = True
+                    self._log.exception("%s: a line of its output could not be handled: %r", self.name, line)
+        self._stopped_warnings(None, run)
         code = process.wait()
         if pid_file is not None:
             _unlink_own(pid_file, process.pid)
-        if self._process is process:
-            loop.call_soon_threadsafe(self._on_ended, code, list(self.last_lines))
+        post(self._on_ended, code, list(run.last_lines))
 
-    def _heard(self, line: str, loop: asyncio.AbstractEventLoop) -> None:
-        """Handle a line on the reader thread; reach the loop with `call_soon_threadsafe`."""
+    def _if_current(self, process: subprocess.Popen[str], callback: Callable[..., None], args: tuple[Any, ...]) -> None:
+        """On the loop: call back only for the run that is current now (a late one of an old run is dropped)."""
+        if self._process is process:
+            callback(*args)
+
+    def _heard(self, line: str, post: Post) -> None:
+        """Handle a line on the reader thread; reach the loop with `post`."""
 
     def _unlogged(self, line: str) -> bool:
         """Return whether the line is kept out of the log and the last lines."""
@@ -378,36 +424,38 @@ class Program:
         """Return the key a warning line is counted by, or None."""
         return None
 
-    def _tell(self, line: str) -> None:
+    def _tell(self, line: str, run: Run | None = None) -> None:
         """Log a line: INFO for the first STARTUP_LINES, then DEBUG; a repeated warning is thinned.
 
         A warning is logged the 1st, 10th, 100th, 1000th... time, and once more when it stops."""
-        self.lines_read += 1
+        run = run if run is not None else self._run
+        run.lines_read += 1
         now = time.monotonic()
-        if now - self._looked_at >= 1.0:
-            self._stopped_warnings(now)
+        if now - run.looked_at >= 1.0:
+            self._stopped_warnings(now, run)
         said = self._warning(line)
         if said is None:
-            self._program_log.log(logging.INFO if self.lines_read <= STARTUP_LINES else logging.DEBUG, "%s", line)
+            self._program_log.log(logging.INFO if run.lines_read <= STARTUP_LINES else logging.DEBUG, "%s", line)
             return
-        entry = self._said.get(said)
+        entry = run.said.get(said)
         if entry is None:
-            if len(self._said) >= SAID_MAX:
-                self._stopped_warnings(None)
-            entry = self._said[said] = [0, now, None]
+            if len(run.said) >= SAID_MAX:
+                self._stopped_warnings(None, run)
+            entry = run.said[said] = [0, now, None]
         entry[0] += 1
         entry[1], entry[2] = now, self.clock()
         count = entry[0]
         if count == 10 ** (len(str(count)) - 1):
             self._program_log.info("%s%s", line, f" (the {count}th time)" if count > 1 else "")
 
-    def _stopped_warnings(self, now: float | None) -> None:
+    def _stopped_warnings(self, now: float | None, run: Run | None = None) -> None:
         """Log once each repeated warning not seen for QUIET_SEC (all when `now` is None) and forget it."""
+        run = run if run is not None else self._run
         if now is not None:
-            self._looked_at = now
-        for key, (count, last, at) in list(self._said.items()):
+            run.looked_at = now
+        for key, (count, last, at) in list(run.said.items()):
             if now is None or now - last >= QUIET_SEC:
-                del self._said[key]
+                run.said.pop(key, None)
                 if count != 10 ** (len(str(count)) - 1):  # (a power of ten was logged with its count)
                     self._program_log.info("%s: came %d times, the last at %s", key, count, f"{at:%Y-%m-%d %H:%M:%S}Z")
 

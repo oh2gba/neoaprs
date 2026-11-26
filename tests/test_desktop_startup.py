@@ -418,9 +418,8 @@ def test_a_window_engine_that_never_comes_up_leaves_the_tray_with_the_page_in_th
     open_item = next(i for i in rig.toolkits.icons[0].menu.items() if i != FakeMenu.SEPARATOR and i.text == OPEN_LABEL)  # type: ignore[attr-defined]
     open_item.action(rig.toolkits.icons[0], open_item)
     assert rig.browser == [PAGE, PAGE], "Open is the browser now"
-    quit_item = next(
-        i for i in rig.toolkits.icons[0].menu.items() if i != FakeMenu.SEPARATOR and i.text.startswith("Quit")
-    )  # type: ignore[attr-defined]
+    items = rig.toolkits.icons[0].menu.items()  # type: ignore[attr-defined]
+    quit_item = next(i for i in items if i != FakeMenu.SEPARATOR and i.text.startswith("Quit"))
     quit_item.action(rig.toolkits.icons[0], quit_item)
     until(lambda: ended == [0])
     thread.join(30)

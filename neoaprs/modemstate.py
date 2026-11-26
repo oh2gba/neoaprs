@@ -3,10 +3,13 @@
 `_set` changes state, `problem` (for the log) and `reason` (a code for the page) in one place.
 """
 
+import asyncio
 import logging
 import time
+from typing import Any
 
 from .signal import Signal
+from .tasks import TaskSet
 
 # a refused connection is no fault until the program has had this long to start
 START_SEC = 10.0
@@ -46,3 +49,20 @@ class ModemState:
                 f": {problem}" if problem else "",
             )
         self.changed.emit()
+
+
+class ModemLife(ModemState):
+    """A modem whose program run is ended in a thread while the loop goes on; a relaunch waits for that end."""
+
+    _program: Any  # a childprogram.Program
+    _tasks: TaskSet
+    _run_stopping: "asyncio.Task[None] | None" = None
+
+    def _stop_run_later(self, name: str) -> None:
+        self._run_stopping = self._tasks.spawn(asyncio.to_thread(self._program.stop), name)
+
+    async def _run_ended(self) -> None:
+        """Wait until a run ended by `_stop_run_later` is gone: a new one would find its sound card held."""
+        task = self._run_stopping
+        if task is not None and not task.done():
+            await asyncio.wait([task])
