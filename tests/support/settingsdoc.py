@@ -434,7 +434,7 @@ RADIO_DESCRIPTIONS: dict[str, tuple[str, str]] = {
     ),
     "psk_dial": (
         "Settings tab, Radio (Frequency)",
-        "the dial the radio is tuned to, written as `28.1800 MHz USB`: one of the suggested frequencies, or Other and the number typed. Empty: nothing is reported. Greyed while `psk_report` is `false`",
+        "the dial the radio is tuned to, written as `28.1800 MHz USB` (USB, at least 0.1 MHz): one of the suggested frequencies, or Other and the number typed; Other with no number yet, or one that is no dial, is empty. Empty: nothing is reported. Greyed while `psk_report` is `false`",
     ),
 }
 

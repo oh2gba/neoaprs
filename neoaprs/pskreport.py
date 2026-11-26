@@ -48,13 +48,15 @@ class Template:
     options: bool = False  # an options template: the receiver's, with one scope field
 
 
-# The receiver template and the first two sender templates are pskdev.html's; the page's templates with
-# an SNR also carry iMD, which no modem of ours measures, so those two are our own.
+# The receiver template is pskdev.html's, with its id. Its sender options are alternatives that share
+# one id (0x9993); a session of ours uses four at once, so each has an id of its own away from the
+# page's. The first two have the fields of the page's first two; the page's with an SNR also carry
+# iMD, which no modem of ours measures, so ours with an SNR have none.
 RECEIVER = Template(0x9992, (RECEIVER_CALL, RECEIVER_LOCATOR, SOFTWARE), options=True)
-SENDER = Template(0x9993, (SENDER_CALL, FREQUENCY, MODE_FIELD, SOURCE, FLOW_START))
-SENDER_WITH_LOCATOR = Template(0x9994, (SENDER_CALL, FREQUENCY, MODE_FIELD, SOURCE, SENDER_LOCATOR, FLOW_START))
-SENDER_WITH_SNR = Template(0x9995, (SENDER_CALL, FREQUENCY, SNR, MODE_FIELD, SOURCE, FLOW_START))
-SENDER_WITH_BOTH = Template(0x9996, (SENDER_CALL, FREQUENCY, SNR, MODE_FIELD, SOURCE, SENDER_LOCATOR, FLOW_START))
+SENDER = Template(0x9A01, (SENDER_CALL, FREQUENCY, MODE_FIELD, SOURCE, FLOW_START))
+SENDER_WITH_LOCATOR = Template(0x9A02, (SENDER_CALL, FREQUENCY, MODE_FIELD, SOURCE, SENDER_LOCATOR, FLOW_START))
+SENDER_WITH_SNR = Template(0x9A03, (SENDER_CALL, FREQUENCY, SNR, MODE_FIELD, SOURCE, FLOW_START))
+SENDER_WITH_BOTH = Template(0x9A04, (SENDER_CALL, FREQUENCY, SNR, MODE_FIELD, SOURCE, SENDER_LOCATOR, FLOW_START))
 TEMPLATES: tuple[Template, ...] = (RECEIVER, SENDER, SENDER_WITH_LOCATOR, SENDER_WITH_SNR, SENDER_WITH_BOTH)
 
 
@@ -146,12 +148,14 @@ def datagram(
     receiver: Receiver,
     reports: Sequence[Report],
     templates: Sequence[Template] = (),
+    senders: Sequence[Template] = TEMPLATES[1:],
 ) -> bytes:
-    """Return one datagram: the header, `templates`, the receiver record and the sender records by template."""
+    """Return one datagram: the header, `templates`, the receiver record and the sender records by template
+    (`senders` are the ids they go under)."""
     parts = [template_set(t) for t in templates]
     parts.append(receiver_set(receiver))
-    for template in TEMPLATES[1:]:
-        mine = [record(r) for r in reports if template_for(r) == template]
+    for template in senders:
+        mine = [record(r) for r in reports if template_for(r).fields == template.fields]
         if mine:
             parts.append(_data_set(template.id, mine))
     body = b"".join(parts)

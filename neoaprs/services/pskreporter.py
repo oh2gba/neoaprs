@@ -6,6 +6,7 @@ datagrams are pskdev.html's (docs/pskreporter.md). Nothing raises into the radio
 
 import asyncio
 import logging
+import math
 import os
 import random
 import socket
@@ -116,8 +117,13 @@ class Waiting:
 
 
 class _Socket(asyncio.DatagramProtocol):
+    """The session's socket; an error the network reports makes it anew at the next round."""
+
+    def __init__(self, failed: Callable[[Exception], None]) -> None:
+        self.failed = failed
+
     def error_received(self, exc: Exception) -> None:
-        log.debug("PSK Reporter: the network says %s", exc)
+        self.failed(exc)
 
 
 class PskReporter:
@@ -146,6 +152,7 @@ class PskReporter:
         self.last_sent: dict[RadioId, datetime] = {}
         self._transport: asyncio.DatagramTransport | None = None
         self._family: int | None = None
+        self._renew = False
         self._state = ""
         self._no_position_at: datetime | None = None
         self._reporting = False
@@ -158,9 +165,7 @@ class PskReporter:
 
     async def stop(self) -> None:
         await self._tasks.cancel_all()
-        if self._transport is not None:
-            self._transport.close()
-            self._transport = None
+        self._close()
 
     def state(self, radio: RadioId) -> dict[str, Any]:
         """Return the radio's reports sent and the last time, for the support file."""
@@ -171,12 +176,28 @@ class PskReporter:
         }
 
     def settings_changed(self, config: Config) -> None:
-        """Note a radio switched on to report while the station has no position."""
+        """Drop what may no longer be reported; note a radio switched on while the station has no position."""
         reporting = any(reporting_dial(spec) is not None for spec in config.radios)
         if reporting and not self._reporting:
             self._no_position_at = None
             self._has_position(self._clock())
         self._reporting = reporting
+        self._keep_allowed(config)
+
+    def _keep_allowed(self, config: Config) -> None:
+        """Keep the waiting reports whose radio still reports on their dial, while the station has a call
+        and a position; drop the others at once."""
+        if base_of(config.station_call) is None:
+            if self.queue:
+                self._note("no_call", "PSK Reporter: the station has no call to report under, so nothing is reported")
+            self.queue.clear()
+        elif self._position() is None:
+            self.queue.clear()
+        kept = [w for w in self.queue if reporting_dial(config.radio(w.radio)) == w.report.frequency_hz]
+        if len(kept) != len(self.queue):
+            self.queue = deque(kept)
+        if not self.queue:
+            self._due = None
 
     def on_packet(self, packet: Packet) -> None:
         """Queue a report of the station heard, if the radio reports and the station may be reported."""
@@ -195,13 +216,13 @@ class PskReporter:
         call, ours = base_of(packet.source), base_of(config.station_call)
         if call is None or ours is None or call == ours or not self._has_position(packet.heard_at):
             return
+        snr = None if packet.snr is None or not math.isfinite(packet.snr) else round(packet.snr)
         key = (call, band_of(hz))
         before = self._reported.get(key)
         if before is not None and packet.heard_at - before < timedelta(seconds=CALL_EVERY_SEC):
             return
         self._reported[key] = packet.heard_at
         self._forget_old(packet.heard_at)
-        snr = None if packet.snr is None else round(packet.snr)
         grid = sender_grid(packet, self._station(packet.source))
         assert packet.radio_id is not None
         self._queue(Waiting(packet.radio_id, Report(call, hz, int(packet.heard_at.timestamp()), grid, snr)))
@@ -214,7 +235,7 @@ class PskReporter:
             self._dropping = True
         self.queue.append(waiting)
         if self._due is None:
-            first = self._clock() + timedelta(seconds=SEND_EVERY_SEC + self._rng.uniform(0, JITTER_SEC))
+            first = self._next(self._clock())
             earliest = None if self._last_sent is None else self._last_sent + timedelta(seconds=SEND_EVERY_SEC)
             self._due = first if earliest is None else max(first, earliest)
 
@@ -235,31 +256,48 @@ class PskReporter:
         while True:
             await asyncio.sleep(self.tick_sec)
             now = self._clock()
-            if self._due is not None and now >= self._due:
-                self._due = None
+            if self._due is None or now < self._due:
+                continue
+            self._due = None
+            try:
                 await self._send_all(now)
+            except Exception as e:
+                self._note("broken", f"PSK Reporter: a round of reports failed ({e!r}); the next round tries again")
+                log.debug("PSK Reporter: the failed round", exc_info=True)
+            if self.queue and self._due is None:
+                self._due = self._next(now)
+
+    def _next(self, now: datetime) -> datetime:
+        return now + timedelta(seconds=SEND_EVERY_SEC + self._rng.uniform(0, JITTER_SEC))
 
     async def _send_all(self, now: datetime) -> None:
-        """Send what waits, a full datagram after the other; what could not be sent waits again."""
+        """Send what waits: the first datagram, and more at once only while each is full; the rest and
+        what could not be sent wait for the next round."""
+        self._keep_allowed(self._config())
         position, call, target = self._position(), base_of(self._config().station_call), self._target()
         if position is None or call is None or target is None:
-            self.queue.clear()  # (nothing of it can go: the log said why)
+            self.queue.clear()  # (nothing of it can go: the call, the position and the target say why in the log)
             return
         receiver = Receiver(call, grid_of(*position), SOFTWARE)
+        first = True
         while self.queue:
             templates = self._templates_due(now)
             waiting = list(self.queue)
             count = max(1, fitting(receiver, [w.report for w in waiting], templates))
+            if not first and count >= len(waiting):
+                self._due = self._next(now)  # pskdev.html: sooner only "if the packet becomes full"
+                return
             batch = waiting[:count]
             data = datagram(
                 int(now.timestamp()), self.sequence, self.session, receiver, [w.report for w in batch], templates
             )
             if not await self._send(data, target):
-                self._due = now + timedelta(seconds=SEND_EVERY_SEC + self._rng.uniform(0, JITTER_SEC))
+                self._due = self._next(now)
                 return
             for _ in batch:
                 self.queue.popleft()
             self._sent(now, batch, bool(templates))
+            first = False
 
     def _templates_due(self, now: datetime) -> tuple[Template, ...]:
         hourly = self._templates_at is not None and now - self._templates_at >= timedelta(seconds=TEMPLATES_EVERY_SEC)
@@ -293,8 +331,20 @@ class PskReporter:
             host, port = host.strip("[]"), int(number)
         return None if nodevices.host_refused(host, "PSK Reporter", logging.INFO) else (host, port)
 
+    def _failed(self, error: Exception) -> None:
+        """The network refused a datagram: the socket is made anew, its family looked up again, next round."""
+        self._note("failed", f"PSK Reporter: the network refused a datagram ({error}); the socket is made anew")
+        self._renew = True
+
+    def _close(self) -> None:
+        if self._transport is not None:
+            self._transport.close()
+        self._transport, self._family, self._renew = None, None, False
+
     async def _send(self, data: bytes, target: tuple[str, int]) -> bool:
         """Send one datagram on the session's socket; return whether it went."""
+        if self._renew or (self._transport is not None and self._transport.is_closing()):
+            self._close()
         loop = asyncio.get_running_loop()
         try:
             found = await loop.getaddrinfo(*target, type=socket.SOCK_DGRAM)
@@ -307,12 +357,16 @@ class PskReporter:
                 raise OSError(f"{target[0]} has no address of the family of the session's socket")
             if self._transport is None:
                 family = next(info[0] for info in found if info[4] == address)
-                local = ("::", 0) if family == socket.AF_INET6 else ("0.0.0.0", 0)  # noqa: S104  (a client socket: it sends)
-                self._transport, _ = await loop.create_datagram_endpoint(_Socket, local_addr=local, family=family)
+                # a client socket: it sends
+                local = ("::", 0) if family == socket.AF_INET6 else ("0.0.0.0", 0)  # noqa: S104
+                self._transport, _ = await loop.create_datagram_endpoint(
+                    lambda: _Socket(self._failed), local_addr=local, family=family
+                )
                 self._family = family
             self._transport.sendto(data, address)
         except OSError as e:
             self._note("failed", f"PSK Reporter: a datagram could not be sent to {target[0]} ({e}); the reports wait")
+            self._close()
             return False
         self._note("sent", f"PSK Reporter: reports go to {target[0]} port {target[1]}")
         return True

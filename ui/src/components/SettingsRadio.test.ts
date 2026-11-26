@@ -628,19 +628,28 @@ describe("a Mercury radio's reports to PSK Reporter", () => {
     expect(sets(send)).toEqual([{ "radio/2/psk_dial": "28.1800 MHz USB" }]);
   });
 
-  it("brings the number field with Other and stores the number as a dial once it is finished, never a wrong one", async () => {
-    const { group, send } = make({}, BOTH, reporting());
+  it("stores what it shows: Other with no number is an empty dial, a number a dial once finished, a wrong one empty", async () => {
+    const ten = reporting({ "radio/2/psk_dial": "28.1800 MHz USB" });
+    const { group, send, daemon } = make({}, BOTH, ten);
+    const answer = (dial: string) => tell(daemon, { config: configValues({}, { ...ten, "radio/2/psk_dial": dial }) });
     expect(number(group).exists()).toBe(false);
     await dial(group).setValue("other");
+    expect(sets(send)).toEqual([{ "radio/2/psk_dial": "" }]);
+    await answer("");
+    expect(dial(group).element.value).toBe("other");
     expect(number(group).element.nextElementSibling?.outerHTML).toBe('<span class="unit muted">MHz USB</span>');
     await number(group).setValue("28,2");
     await number(group).trigger("keydown", { key: "Enter" });
-    expect(sets(send)).toEqual([{ "radio/2/psk_dial": "28.2000 MHz USB" }]);
-    await dial(group).setValue("other");
-    await number(group).setValue("2a8");
-    await number(group).trigger("blur");
-    expect(number(group).classes()).toContain("invalid");
-    expect(sets(send)).toHaveLength(1);
+    expect(sets(send).at(-1)).toEqual({ "radio/2/psk_dial": "28.2000 MHz USB" });
+    await answer("28.2000 MHz USB");
+    expect(number(group).element.value).toBe("28.2000");
+    for (const wrong of ["2a8", "0"]) {
+      await number(group).setValue(wrong);
+      await number(group).trigger("blur");
+      expect(number(group).classes(), wrong).toContain("invalid");
+      expect(number(group).exists() && dial(group).element.value, "the row stays").toBe("other");
+    }
+    expect(sets(send).at(-1)).toEqual({ "radio/2/psk_dial": "" });
   });
 
   it("shows a stored dial the list does not have as Other with its number", () => {

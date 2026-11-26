@@ -2,8 +2,10 @@
 // A Mercury radio's reports to PSK Reporter in its box: the tick (`radio/<id>/psk_report`) and the
 // dial the radio is tuned to (`radio/<id>/psk_dial`), chosen as the HF tests form chooses one
 // (DialChoice: a suggested dial of the box, or Other and the number). Empty until one is chosen;
-// while the tick is off the dial is greyed and keeps its place. A choice is stored at once, a typed
-// number when it is finished and is a dial; a stored dial the list no longer has shows as typed.
+// while the tick is off the dial is greyed and keeps its place. What the box shows is what is stored:
+// a choice at once, Other with no number yet or a number that is no dial (below LIMITS.radio.dialMinMhz
+// too) as an empty dial, a number that is one when it is finished. A stored dial the list no longer
+// has shows as Other with its number.
 import { computed, ref } from "vue";
 import DialChoice from "@/components/DialChoice.vue";
 import SettingsField from "@/components/SettingsField.vue";
@@ -13,7 +15,8 @@ import { t } from "@/i18n";
 import type { PageRadio } from "@/lib/radios";
 import type { FieldInfo } from "@/lib/settings";
 import { boxIds, inputId } from "@/lib/settingsradio";
-import { OTHER_DIAL, dialOfNumber, numberOfDial } from "@/lib/skeds";
+import { OTHER_DIAL, dialAtLeast, numberOfDial } from "@/lib/skeds";
+import { LIMITS } from "@/protocol/lists";
 
 const props = defineProps<{ radio: PageRadio; settings: Settings; form: SettingsFormState }>();
 const ids = boxIds();
@@ -30,16 +33,24 @@ const typed = computed(
 const dial = computed(() => typing.value ?? (typed.value ? numberOfDial(stored.value) : stored.value));
 const tickInfo = computed<FieldInfo>(() => ({ label: t("settings.psk_report.label"), kind: "bool" }));
 
-function choose(value: string): void {
-  if (value === OTHER_DIAL) return void (typing.value = typed.value ? dial.value : "");
-  typing.value = null;
-  props.form.choose({ [dialKey.value]: value });
+const least = LIMITS.radio.dialMinMhz;
+function store(value: string): void {
+  if (value !== stored.value) props.form.choose({ [dialKey.value]: value });
 }
+function choose(value: string): void {
+  if (value !== OTHER_DIAL) {
+    typing.value = null;
+    return store(value);
+  }
+  typing.value = typed.value ? dial.value : "";
+  store(dialAtLeast(typing.value, least) ?? "");
+}
+/** The number is finished: stored if it is a dial, else the dial is emptied; the field keeps its row. */
 function finish(): void {
-  const found = typing.value === null ? null : dialOfNumber(typing.value);
-  if (found === null) return;
-  typing.value = null;
-  if (found !== stored.value) props.form.choose({ [dialKey.value]: found });
+  if (typing.value === null) return;
+  const found = dialAtLeast(typing.value, least);
+  if (found !== null) typing.value = numberOfDial(found);
+  store(found ?? "");
 }
 </script>
 
@@ -63,6 +74,7 @@ function finish(): void {
     :disabled="!on"
     :apply="true"
     :blank="true"
+    :least="least"
     @choose="choose"
     @update:dial="typing = $event"
     @commit="finish"

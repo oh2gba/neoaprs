@@ -4,10 +4,11 @@
 // USB fixed beside it (lib/skeds.ts dialOfNumber). The parent holds `typed` and `dial` (a dial of the
 // list, or the number typed while `typed`); `choose` is a choice of the select (a dial or
 // OTHER_DIAL), `commit` the typed number finished on leaving the field or, with `apply`, on Enter.
-// `blank` offers an empty choice while the dial is empty. Disabled, both rows keep their place.
+// `blank` offers an empty choice while the dial is empty; `least` is the lowest number in MHz that is
+// no wrong one. Disabled, both rows keep their place.
 import { computed, ref } from "vue";
 import { t } from "@/i18n";
-import { OTHER_DIAL, dialOfNumber } from "@/lib/skeds";
+import { OTHER_DIAL, dialAtLeast } from "@/lib/skeds";
 import type { SkedFrequency } from "@/protocol/protocol";
 
 const props = withDefaults(
@@ -20,13 +21,16 @@ const props = withDefaults(
     disabled?: boolean;
     apply?: boolean;
     blank?: boolean;
+    least?: number;
   }>(),
-  { disabled: false, apply: false, blank: false },
+  { disabled: false, apply: false, blank: false, least: 0 },
 );
 const emit = defineEmits<{ choose: [value: string]; "update:dial": [text: string]; commit: [] }>();
 
 const choice = computed(() => (props.typed ? OTHER_DIAL : props.dial));
-const typedWrong = computed(() => props.typed && props.dial.trim() !== "" && dialOfNumber(props.dial) === null);
+const typedWrong = computed(
+  () => props.typed && props.dial.trim() !== "" && dialAtLeast(props.dial, props.least) === null,
+);
 /** The row of the select, for a parent that asks for the dials when it comes on show. */
 const row = ref<HTMLElement | null>(null);
 defineExpose({ row });

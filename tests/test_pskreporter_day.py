@@ -31,7 +31,12 @@ async def hear(e: Env, radio: FakeMercury, source: str, info: bytes, path: str =
 
 async def set_radio(page: WsClient, e: Env, **values: str) -> None:
     await page.send({"cmd": "set_config", "values": {f"radio/{HF_ID}/{k}": v for k, v in values.items()}})
-    await until(lambda: all(e.ctl.config.radio(HF_ID).settings.get(k) == v for k, v in values.items()))  # type: ignore[union-attr]
+
+    def stored() -> bool:
+        spec = e.ctl.config.radio(HF_ID)
+        return spec is not None and all(spec.settings.get(k) == v for k, v in values.items())
+
+    await until(stored)
 
 
 async def test_a_mercury_radio_reports_the_stations_it_hears_directly_once_each_and_a_changed_dial_on_its_band(
@@ -93,7 +98,8 @@ async def test_a_mercury_radio_reports_the_stations_it_hears_directly_once_each_
         ]
         assert first.templates == [t.id for t in pskreport.TEMPLATES] and first.sequence == 0
 
-        # ---- 3. the dial changed to 40 m: the same call within five minutes is reported on 40 m
+        # ---- 3. the dial changed to 40 m: the 10 m report that waits goes with the old dial, and the
+        # same call within five minutes is reported on 40 m
         await hear(e, radio, "OH2ABC-7", b"!6010.20N/02456.40E-on 10 m again")
         await hear(e, radio, "OH2ABC-7", b"!6010.20N/02456.40E-twice on 10 m")
         await set_radio(page, e, psk_dial=FORTY)
@@ -102,19 +108,21 @@ async def test_a_mercury_radio_reports_the_stations_it_hears_directly_once_each_
         await until(lambda: len(standin.datagrams) == 2, 10.0)
         second = standin.datagrams[1]
         assert [(s["senderCallsign"], s["frequency"]) for s in second.senders] == [
-            ("OH2ABC", 28180000),
             ("OH2ABC", 7054100),
         ]
         assert second.templates and second.sequence == 2 and second.session == first.session
         assert len({address for _, address in standin.raw}) == 1, "one socket for the session"
 
-        # ---- 4. the tick off again: nothing more
+        # ---- 4. heard, then the tick off before the round: nothing of it goes, and nothing after
+        await hear(e, radio, "OH2UVW", b"!6010.20N/02456.40E-before the tick goes off")
+        assert e.ctl.pskreporter.queue
         await set_radio(page, e, psk_report="false")
+        await until(lambda: not e.ctl.pskreporter.queue)
         await hear(e, radio, "OH2XYZ", b"!6010.20N/02456.40E-after the tick")
         e.now.advance(331)  # type: ignore[attr-defined]
         await idle_for(QUIET_SEC)
         assert len(standin.datagrams) == 2
-        assert e.ctl.pskreporter.state(HF_ID)["psk_reports_sent"] == 4
+        assert e.ctl.pskreporter.state(HF_ID)["psk_reports_sent"] == 3
     finally:
         await e.stop()
         standin.close()

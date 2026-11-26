@@ -9,12 +9,15 @@ import socket
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import replace
+from typing import Any
 
 import pytest
 
 from neoaprs import VERSION, ax25, nodevices, pskreport
 from neoaprs.cli.supportsummary import _psk_reporter
+from neoaprs.coded import CodedError
 from neoaprs.config import DEFAULTS, Config
+from neoaprs.configvalues import dial_or_empty
 from neoaprs.packet import IS, Packet
 from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.reading import Reading
@@ -25,11 +28,13 @@ from neoaprs.tnc2line import frame_of
 from neoaprs.tncmode import packet_of
 from tests.support.clock import FixedClock
 from tests.support.env import idle_for, until
+from tests.support.pskdecode import Datagram
 from tests.support.pskstandin import PskStandIn
 from tests.support.radioconfig import with_radio
 
 HOME = (60.17, 24.94)  # KP20le
 DIAL = "28.1800 MHz USB"
+QUIET_SEC = 0.1  # the reporter looks every 5 ms here: twenty of its looks
 STARTED = int(FixedClock().now.timestamp())
 
 
@@ -223,17 +228,133 @@ async def test_the_descriptors_go_in_the_first_three_datagrams_then_hourly_and_t
     assert all(b.sent_at - a.sent_at >= 300 for a, b in zip(standin.datagrams, standin.datagrams[1:], strict=False))
 
 
-async def test_a_queue_over_one_datagram_goes_out_in_several_at_once_each_within_1200_bytes(
-    standin: PskStandIn,
-) -> None:
+async def test_full_datagrams_go_at_once_and_the_rest_waits_for_the_next_round(standin: PskStandIn) -> None:
     async with running(Rig(standin)) as rig:
         for i in range(80):
             rig.hear(f"OH{i % 10}A{i:02d}>APRS:!6010.20N/02456.40E-")
         rig.advance(331)
+        await until(lambda: len(standin.datagrams) >= 2)
+        await idle_for(QUIET_SEC)
+        first_round = list(standin.datagrams)
+        left = len(rig.queued())
+        assert len({d.sent_at for d in first_round}) == 1 and 0 < left < 80
+        assert pskreport.fitting(receiver_of(first_round[0]), rig.queued()) == left, "what waits is not a full one"
+        due = rig.service._due
+        assert due is not None and (due - rig.clock()).total_seconds() >= 300
+        rig.advance(331)
         await until(lambda: len(standin.senders) == 80)
-    assert len(standin.datagrams) > 2 and all(len(data) <= pskreport.MAX_DATAGRAM for data, _ in standin.raw)
-    assert len({d.sent_at for d in standin.datagrams}) == 1, "all in the same round"
+    assert len(standin.datagrams) == len(first_round) + 1
+    assert standin.datagrams[-1].sent_at - first_round[0].sent_at >= 300
+    assert all(len(data) <= pskreport.MAX_DATAGRAM for data, _ in standin.raw)
     assert standin.datagrams[1].sequence == len(standin.datagrams[0].senders)
+
+
+def receiver_of(datagram: Datagram) -> pskreport.Receiver:
+    found = datagram.receivers[0]
+    return pskreport.Receiver(found["receiverCallsign"], found["receiverLocator"], found["decodingSoftware"])
+
+
+@pytest.mark.parametrize(
+    ("after", "told"),
+    [
+        (settings(report=False), True),
+        (settings(dial=""), True),
+        (settings(dial="7.0541 MHz USB"), True),
+        (with_radio(settings(), HF_ID, enabled=False), True),
+        (settings(report=False), False),
+        (settings(dial="7.0541 MHz USB"), False),
+    ],
+)
+async def test_a_report_waiting_goes_with_the_permission_of_its_radio_and_dial(
+    standin: PskStandIn, after: Config, told: bool
+) -> None:
+    """Told: the settings are saved (settings_changed); not told: the send checks again by itself."""
+    async with running(Rig(standin)) as rig:
+        rig.hear("OH2ABC>APRS:!6010.20N/02456.40E-")
+        rig.config = after
+        if told:
+            rig.service.settings_changed(after)
+            assert rig.queued() == [] and rig.service._due is None
+        rig.advance(331)
+        await idle_for(QUIET_SEC)
+    assert standin.datagrams == [], "sent on neither the old dial nor the new one"
+
+
+def test_a_station_without_a_call_drops_what_waits_and_says_so_once(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.pskreporter")
+    rig = Rig()
+    rig.hear("OH2ABC>APRS:>heard")
+    rig.config = settings(call="")
+    for _ in range(2):
+        rig.service.settings_changed(rig.config)
+    assert rig.queued() == []
+    assert len([r for r in caplog.records if "no call" in r.getMessage()]) == 1
+
+
+@pytest.mark.parametrize("snr", [float("nan"), float("inf"), float("-inf")])
+def test_an_snr_that_is_no_number_is_an_unknown_one(snr: float) -> None:
+    rig = Rig()
+    rig.hear("OH2ABC>APRS:>heard", snr=snr)
+    assert [(r.call, r.snr) for r in rig.queued()] == [("OH2ABC", None)]
+
+
+async def test_a_round_that_fails_ends_nothing_and_the_next_one_sends(
+    standin: PskStandIn, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.pskreporter")
+    made = pskreporter.datagram
+    calls: list[int] = []
+
+    def breaks_once(*args: Any, **kwargs: Any) -> bytes:
+        calls.append(1)
+        if len(calls) == 1:
+            raise ValueError("a value no datagram takes")
+        return made(*args, **kwargs)
+
+    monkeypatch.setattr(pskreporter, "datagram", breaks_once)
+    async with running(Rig(standin)) as rig:
+        rig.hear("OH2ABC>APRS:>heard")
+        rig.advance(331)
+        await until(lambda: calls and rig.service._due is not None)
+        assert standin.datagrams == [] and len(rig.queued()) == 1
+        rig.advance(331)
+        await until(lambda: standin.datagrams)
+    assert len([r for r in caplog.records if "a round of reports failed" in r.getMessage()]) == 1
+
+
+async def test_a_socket_the_network_refuses_is_made_anew_and_a_failed_send_counts_nothing(
+    standin: PskStandIn, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.pskreporter")
+    async with running(Rig(standin)) as rig:
+        rig.hear("OH2ABC>APRS:>heard")
+        rig.advance(331)
+        await until(lambda: standin.datagrams)
+        transport = rig.service._transport
+        assert transport is not None
+
+        def refused(data: bytes, address: Any = None) -> None:
+            raise OSError("Network is unreachable")
+
+        transport.sendto = refused  # type: ignore[method-assign]
+        rig.hear("OH2DEF>APRS:>heard")
+        rig.advance(331)
+        await until(lambda: rig.service._transport is None and rig.service._due is not None)
+        assert len(rig.queued()) == 1 and rig.service.state(HF_ID)["psk_reports_sent"] == 1
+        rig.service._failed(OSError("Connection refused"))
+        rig.advance(331)
+        await until(lambda: len(standin.datagrams) == 2)
+        assert rig.service.state(HF_ID)["psk_reports_sent"] == 2
+    assert len({address for _, address in standin.raw}) == 2, "a new socket after the failure"
+    assert len([r for r in caplog.records if "could not be sent" in r.getMessage()]) == 1
+
+
+@pytest.mark.parametrize("dial", ["0.0000 MHz USB", "0.0999 MHz USB", "7.0541 MHz LSB", "7.0541"])
+def test_a_dial_to_report_on_is_usb_and_above_zero(dial: str) -> None:
+    with pytest.raises(CodedError) as refused:
+        dial_or_empty(dial)
+    assert refused.value.code == "setting.not_dial"
+    assert dial_or_empty("0.1000 MHz USB") == "0.1000 MHz USB" and dial_or_empty(" ") == ""
 
 
 def test_the_queue_keeps_the_newest_500_and_says_it_dropped_the_oldest_once(caplog: pytest.LogCaptureFixture) -> None:

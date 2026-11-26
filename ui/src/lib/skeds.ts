@@ -41,6 +41,12 @@ export function numberOfDial(dial: string): string {
   return dial.split(" ")[0] ?? "";
 }
 
+/** The dial of a typed number that is at least `least` MHz; null if it is none. */
+export function dialAtLeast(text: string, least: number): string | null {
+  const dial = dialOfNumber(text);
+  return dial !== null && Number(numberOfDial(dial)) >= least ? dial : null;
+}
+
 /** The Frequency choice that brings the field for a typed number (components/DialChoice.vue). */
 export const OTHER_DIAL = "other";
 

@@ -7,7 +7,7 @@ import pytest
 
 from neoaprs import pskreport
 from neoaprs.aprslocator import grid_centre, grid_of
-from neoaprs.pskreport import Receiver, Report
+from neoaprs.pskreport import Receiver, Report, Template
 from tests.support.files import fixture_text
 from tests.support.pskdecode import Collector
 from tests.test_scripts import load_script
@@ -24,7 +24,8 @@ def test_the_example_datagram_of_pskdev_is_made_byte_for_byte() -> None:
         Report("N1DQ", 14070567, 1200960084, mode="PSK"),
         Report("KB1MBX", 14070987, 1200960104, mode="PSK"),
     ]
-    made = pskreport.datagram(1200960114, 1, 0, receiver, reports, (pskreport.RECEIVER, pskreport.SENDER))
+    page = Template(0x9993, pskreport.SENDER.fields)  # (the page's first sender option, under its id)
+    made = pskreport.datagram(1200960114, 1, 0, receiver, reports, (pskreport.RECEIVER, page), (page,))
     assert made == example() and len(made) == 172
 
 
@@ -33,7 +34,7 @@ def test_the_four_sender_templates_by_what_a_report_carries() -> None:
     assert pskreport.template_for(Report("OH2A", 1, 0, locator="KP20le")) is pskreport.SENDER_WITH_LOCATOR
     assert pskreport.template_for(Report("OH2A", 1, 0, snr=-3)) is pskreport.SENDER_WITH_SNR
     assert pskreport.template_for(Report("OH2A", 1, 0, locator="KP20le", snr=4)) is pskreport.SENDER_WITH_BOTH
-    assert len({t.id for t in pskreport.TEMPLATES}) == 5 and all(256 <= t.id <= 65535 for t in pskreport.TEMPLATES)
+    assert [t.id for t in pskreport.TEMPLATES] == [0x9992, 0x9A01, 0x9A02, 0x9A03, 0x9A04]
 
 
 def test_the_templates_of_pskdev_are_its_bytes() -> None:
@@ -41,15 +42,15 @@ def test_the_templates_of_pskdev_are_its_bytes() -> None:
         "00 03 00 24 99 92 00 03 00 01 80 02 FF FF 00 00 76 8F 80 04 FF FF 00 00 76 8F 80 08 FF FF 00 00 76 8F 00 00"
     )
     with_locator = (
-        "00 02 00 34 99 94 00 06 80 01 FF FF 00 00 76 8F 80 05 00 04 00 00 76 8F 80 0A FF FF 00 00 76 8F"
+        "00 02 00 34 9A 02 00 06 80 01 FF FF 00 00 76 8F 80 05 00 04 00 00 76 8F 80 0A FF FF 00 00 76 8F"
         " 80 0B 00 01 00 00 76 8F 80 03 FF FF 00 00 76 8F 00 96 00 04"
     )
     assert pskreport.template_set(pskreport.RECEIVER) == bytes.fromhex(receiver)
-    # (the page's second sender descriptor, under an id of its own)
+    # (the page's second sender option, under an id of its own)
     assert pskreport.template_set(pskreport.SENDER_WITH_LOCATOR) == bytes.fromhex(with_locator)
     # the page's sNR templates without its iMD
     assert pskreport.template_set(pskreport.SENDER_WITH_BOTH) == bytes.fromhex(
-        "00 02 00 3C 99 96 00 07 80 01 FF FF 00 00 76 8F 80 05 00 04 00 00 76 8F 80 06 00 01 00 00 76 8F"
+        "00 02 00 3C 9A 04 00 07 80 01 FF FF 00 00 76 8F 80 05 00 04 00 00 76 8F 80 06 00 01 00 00 76 8F"
         " 80 0A FF FF 00 00 76 8F 80 0B 00 01 00 00 76 8F 80 03 FF FF 00 00 76 8F 00 96 00 04"
     )
 

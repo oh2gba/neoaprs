@@ -27,9 +27,11 @@ and not our own base call. A packet a pair passes on is sent, not heard, so it n
 
 ## The templates
 
-The receiver template (0x9992) and the two sender templates without an SNR (0x9993 without the locator, 0x9994 with it) are
-pskdev.html's, byte for byte. Its templates with an SNR also carry iMD, which Mercury does not measure, so the two with an SNR are
-our own, the page's without iMD (0x9995 without the locator, 0x9996 with it). Every datagram that carries descriptors carries all five.
+The receiver template (0x9992) is pskdev.html's, byte for byte. The page's sender options share one id (0x9993) because a
+program picks one of them; a session of ours uses four at once, so each has an id of its own, away from the page's: 0x9A01 and
+0x9A02 have the fields of the page's first two (without and with the locator); the page's options with an SNR also carry iMD,
+which Mercury does not measure, so 0x9A03 and 0x9A04 are those without iMD (without and with the locator). Every datagram that
+carries descriptors carries all five.
 
 ## The pace
 
@@ -38,14 +40,18 @@ our own, the page's without iMD (0x9995 without the locator, 0x9996 with it). Ev
 | a datagram at most every | 5 minutes (`SEND_EVERY_SEC`) | "no more than one every five minutes (unless the packet becomes full)" |
 | the first send after the first waiting report | 5 minutes plus 0 to 30 s at random (`JITTER_SEC`) | timed sends "must not be synchronized to the system clock" |
 | a call on a band at most every | 5 minutes (`CALL_EVERY_SEC`); a later frame in that time is dropped, not put in the place of the first | each callsign "no more than once per five minute period" |
-| the size of a datagram | at most 1200 bytes (`MAX_DATAGRAM`); more goes into the next datagram at once | chosen: below the path MTU of any network, so never fragmented; pskdev.html allows more "unless the packet becomes full" |
+| the size of a datagram | at most 1200 bytes (`MAX_DATAGRAM`); while the queue holds more than one datagram's worth, the full ones go at once and the rest waits for the next round | chosen: below the path MTU of any network, so never fragmented; pskdev.html allows more "unless the packet becomes full" |
 | the descriptors | in the first three datagrams of a session, then hourly | "send them in the first three datagrams sent on application startup, and then once per hour" |
 | the session | one random id and one UDP socket (one source port) for the run of the daemon | the server keeps the descriptors by source address and port |
 | the sequence number | the reports sent before the datagram | "the sequence number is the count of reports and not the count of packets" |
 | the queue | 500 reports (`QUEUE_MAX`); when the network is down the oldest go, logged once | chosen |
 
-A send that fails (no name, no network) leaves the reports waiting for the next round; the state is logged once until it changes.
-Nothing is sent while nothing was heard. Reporting is no transmission, so it goes on while the station is RX only.
+A send that fails (no name, no network) leaves the reports waiting for the next round and counts none of them as sent; the
+socket is closed and made anew, its address looked up again, at the next round, as it is when the network reports an error for a
+datagram. Anything else that goes wrong in a round is logged and the next round tries again. Each of these states is logged once
+until it changes. A report waits only while it may go: when its radio's tick goes off, its dial is emptied or changed, the radio
+is switched off or removed, or the station loses its call or its position, the reports waiting for it are dropped at once, and
+each round checks again before it sends. Nothing is sent while nothing was heard. Reporting is no transmission, so it goes on while the station is RX only.
 
 ## Where the datagrams go
 
