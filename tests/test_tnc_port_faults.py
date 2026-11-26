@@ -151,6 +151,25 @@ async def test_a_byte_that_comes_ends_the_write_problem_too(monkeypatch: pytest.
         await tnc.stop()
 
 
+async def test_a_quiet_radio_that_writes_nothing_after_the_reopen_is_shown_connected_after_a_probes_interval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ser = StuckSer()
+    monkeypatch.setattr(serialport, "_build", lambda path, baud: ser)
+    tnc = Tnc("COM8", profile=KISS, backoff=Backoff([0.05]), check_sec=0, probe_sec=0.5)
+    try:
+        await tnc.start()
+        tnc.send_frame(frame())
+        await until(lambda: tnc.write_stuck is not None and tnc.state is Source.State.CONNECTED)
+        opens = tnc.stats.opens
+        assert row_of(tnc)[0] == "waiting"
+        await until(lambda: tnc.write_stuck is None, 10.0)
+        assert row_of(tnc) == ("connected", None) and tnc.stats.opens == opens, "nothing was written, nothing lost"
+        assert any("open for 0.5 s and no write failed" in line for line in tnc.lines)
+    finally:
+        await tnc.stop()
+
+
 def test_the_start_line_of_a_radio_with_no_port_says_what_is_true_where_ports_are_not_searched(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

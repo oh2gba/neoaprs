@@ -285,6 +285,14 @@ class Tnc(TimedSource):
         if heard and self.profile.detect_command_mode and ModeDetector().feed(heard) is Mode.MONITOR:
             self._reader.enter_kiss(port, "the search found the TNC in command mode")
         self._start_watchdog()
+        if self.write_stuck is not None:
+            self._spawn(self._unstuck_after(port))
+
+    async def _unstuck_after(self, port: TncPort | DummyPort) -> None:
+        """A line open for a probe's interval with no failed write takes data again (a quiet radio writes nothing)."""
+        await asyncio.sleep(self.watchdog.probe_sec)
+        if port is self._port and self.write_stuck is not None:
+            self._took_data(f"open for {self.watchdog.probe_sec:g} s and no write failed")
 
     def _wait(self, problem: str, again: bool = True) -> None:
         """Go WAITING and retry after the back-off; with `again` False, only new settings retry."""
