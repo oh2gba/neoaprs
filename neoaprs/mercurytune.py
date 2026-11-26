@@ -15,6 +15,8 @@ from .tasks import TaskSet, cancel_all
 log = logging.getLogger("neoaprs.mercury")
 
 NOT_RUNNING = "the Mercury radio is not running"
+# TUNE has no length: a TUNE OFF that is not written keeps the radio keyed until Mercury's own minute.
+OFF_UNSENT = "the tone could not be ended on Mercury's control port, so Mercury is started again"
 
 
 class Tuning:
@@ -28,9 +30,15 @@ class Tuning:
     _tasks: TaskSet
     _generation: int
     _test_task: asyncio.Task[None] | None
+    # a TUNE OFF is owed to Mercury: the tone may still key the radio
+    _off_owed: bool
 
     @property
     def running(self) -> bool:
+        raise NotImplementedError
+
+    def _end_run(self, problem: str) -> bool:
+        """End the program and start it again; return False when there is no program to end."""
         raise NotImplementedError
 
     def hold(self) -> str:
@@ -97,23 +105,45 @@ class Tuning:
         await self._begin("key", key_test_level(self.keying.kind), KEY_TEST_SEC)
 
     async def tune_stop(self) -> None:
-        """End the tone or the test early; do nothing when none is on."""
-        if not self.test:
+        """End the tone or the test early; do nothing when none is on or owed.
+
+        Without the control port the program is ended, which drops the keying.
+        """
+        if not self.test and not self._off_owed:
             return
         await self._cancel_test()
-        self._end()
+        if not self._end() and self._end_run(OFF_UNSENT):
+            log.warning("Mercury: %s", OFF_UNSENT)
 
     async def _cancel_test(self) -> None:
         task, self._test_task = self._test_task, None
         if task is not None and task is not asyncio.current_task():
             await cancel_all([task])
 
-    def _end(self) -> None:
-        self._write(TUNE_OFF)
+    def _end(self) -> bool:
+        """Write TUNE OFF and end the test; return False when it could not be written.
+
+        The test then stays on and TUNE OFF is owed until the control port is back.
+        """
+        if not self._write(TUNE_OFF):
+            self._off_owed = True
+            log.info("Mercury: TUNE OFF waits for the control port")
+            return False
+        self._off_owed = False
         if self.test:
             log.info("Mercury: %s ended", "the tune tone" if self.test == "tune" else "the keying test")
         self.test = ""
         self.changed.emit()
+        return True
+
+    def _pay_off(self) -> None:
+        """Write an owed TUNE OFF; the control port is up again."""
+        if self._off_owed:
+            self._end()
+
+    def _forget_test(self) -> None:
+        """The program is gone, and its tone with it."""
+        self.test, self._off_owed = "", False
 
     async def _end_after(self, seconds: float, generation: int) -> None:
         await asyncio.sleep(seconds)

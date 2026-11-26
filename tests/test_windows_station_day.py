@@ -17,7 +17,7 @@ from typing import Any
 import pytest
 import serial  # type: ignore[import-untyped]
 
-from neoaprs import mercurymodem, mercurystall, serialport, serialprobe
+from neoaprs import mercurychannel, mercurymodem, mercurystall, serialport, serialprobe
 from neoaprs.cli import doctor
 from neoaprs.mercury import CAPTURE_FULL
 from neoaprs.serialprobe import PortInfo
@@ -317,9 +317,11 @@ async def test_a_day_of_a_windows_station_with_four_faults(
         await until(lambda: modem.pid is not None, LONG)
         first = modem.pid
         await until(lambda: modem.stall.restarts >= 1, LONG)
-        # keyed from the restart on (a stand-in: the flag the modem's PTT events set): what comes
-        # meanwhile counts for nothing, for long enough that the run reaches its 1000th line
-        modem.keyed = True
+        # keyed from the restart on (a stand-in for the modem's PTT ON, believed as long as the test
+        # needs): what comes meanwhile counts for nothing, for long enough that the run reaches its
+        # 1000th line
+        monkeypatch.setattr(mercurychannel, "KEYED_MAX_SEC", float("inf"))
+        modem._on_ptt(True, time.monotonic())
         stalls = modem.stall.stalls
         await until(lambda: modem.pid not in (None, first) and modem.state == "running", LONG)
         await until(lambda: len(said(caplog, "(the 1000th time)")) == 1, LONG)

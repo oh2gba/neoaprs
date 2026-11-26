@@ -255,6 +255,8 @@ INI_FILE_FLAG = "-C"
 # What Mercury prints, after the stamp, when it cannot open the sound card (it runs on all the
 # same).
 AUDIO_ERROR_LINE = "[ERR] [audio-play] error in audio->open(): 1: snd_pcm_hw_params_set_access: (-22) Invalid argument"
+# What Mercury 1.9.25 on Windows printed once the radio's USB sound card was gone while it ran
+AUDIO_LOST_LINE = "[ERR] [audio-cap] the capture device delivers no audio: 2 reopens in a row brought nothing (unplugged, or its USB codec reset?) -- still trying it"
 
 
 def stamp(seconds: float, ran_sec: float, utc: bool = False) -> str:
@@ -284,7 +286,9 @@ def of_radio(data_dir: Path, holder: RadioId = HF_ID, claims: Claims | None = No
     }
 
 
-def program(die_after_sec: float | None = None, audio_error: bool = False, no_ui: bool = False) -> list[str]:
+def program(
+    die_after_sec: float | None = None, audio_error: bool = False, no_ui: bool = False, audio_lost: bool = False
+) -> list[str]:
     """The command that runs this module as the Mercury program, whatever the working directory (the
     daemon starts Mercury in the data folder): what the modem part's finder gives in a test. With
     `die_after_sec` it dies by itself; with `audio_error` it prints, once its ports listen, the line
@@ -296,7 +300,12 @@ def program(die_after_sec: float | None = None, audio_error: bool = False, no_ui
     ]
     if die_after_sec is not None:
         command += ["--die-after", str(die_after_sec)]
-    return [*command, *(["--audio-error"] if audio_error else []), *(["--no-ui"] if no_ui else [])]
+    return [
+        *command,
+        *(["--audio-error"] if audio_error else []),
+        *(["--audio-lost"] if audio_lost else []),
+        *(["--no-ui"] if no_ui else []),
+    ]
 
 
 def _arguments(argv: list[str]) -> dict[str, str]:
@@ -332,6 +341,7 @@ async def _serve(
     audio_error: bool = False,
     ini: str = "",
     no_ui: bool = False,
+    audio_lost: bool = False,
 ) -> int:
     """Listens on both ports as Mercury would (nothing is echoed: there is no other station) until
     SIGTERM, or dies after `die_after` seconds."""
@@ -383,6 +393,9 @@ async def _serve(
         # "running", as it did on the station
         await asyncio.sleep(0.3)
         say(AUDIO_ERROR_LINE)
+    if audio_lost:
+        await asyncio.sleep(0.3)
+        say(AUDIO_LOST_LINE)
     try:
         await asyncio.wait_for(stop.wait(), die_after)
     except TimeoutError:
@@ -428,6 +441,7 @@ def main(argv: list[str] | None = None, out: Callable[[str], None] = print) -> i
             "--audio-error" in args,
             args.get(INI_FILE_FLAG, ""),
             "--no-ui" in args,
+            "--audio-lost" in args,
         )
     )
     out(f"ran {time.monotonic() - started:.1f} s")

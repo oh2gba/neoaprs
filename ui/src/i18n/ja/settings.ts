@@ -429,6 +429,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.incoming_port":
     "{port} はコンピューターの受信用Bluetoothポートです: 機器のもう一方のポートを選んでください",
   "settings.tnc.write_timeout": "ポートがデータを受け付けません: {seconds} 秒で何も送れませんでした",
+  "settings.tnc.hf.receive_deaf": "Mercuryは何も受信していません（受信が止まっています）: まもなく再起動します",
   "settings.tnc.hf.receive_stalled":
     "Mercuryは再起動後も何も受信しません: 無線機をいったんオフにしてオンにしてください",
   "settings.tnc.hf.not_installed": "このインストールにはこの無線機のモデムが含まれていません",

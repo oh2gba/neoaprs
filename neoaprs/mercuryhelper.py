@@ -3,7 +3,6 @@
 Only the shipped Mercury is used, never one from the PATH.
 """
 
-import asyncio
 import errno
 import logging
 import os
@@ -17,7 +16,7 @@ from collections import deque
 from collections.abc import Callable, Collection, Sequence
 from pathlib import Path
 
-from . import childprogram
+from . import childprogram, nodevices, winchild
 from .bundled import tools_dir
 from .childprogram import (
     HIDDEN_WINDOW as HIDDEN_WINDOW,
@@ -61,6 +60,25 @@ from .mercury import (
 DEVICE_LINES = 6
 # Mercury's start-up lines that name its sound devices and its keying
 _DEVICE_LINE = re.compile(r"\[(?:audio-play|audio-cap)\] I/O |\[radio-io\] (?:Initializing PTT|PTT method)")
+
+# What Mercury's audioio.c writes once a sound card it ran on is gone (unplugged, or its USB codec
+# reset), as Mercury 1.9.25 on Windows wrote them; it keeps trying the card, deaf and mute meanwhile.
+CAPTURE_LOST = "[audio-cap] the capture device delivers no audio:"
+PLAYBACK_LOST = "[audio-play] the playback device takes no audio:"
+CARD_UNLISTED = "is no longer listed: unplugged?"
+DEVICE_INVALIDATED = "AUDCLNT_E_DEVICE_INVALIDATED"
+_REOPEN_FAILED = re.compile(r"\[audio-(?:cap|play)\] (?:capture|playback) reopen failed \(attempt \d+\)")
+
+
+def audio_lost(line: str) -> bool:
+    """Return whether the line says the sound card Mercury ran on is gone."""
+    return (
+        CAPTURE_LOST in line
+        or PLAYBACK_LOST in line
+        or ("[audio-cap]" in line and CARD_UNLISTED in line)
+        or (_REOPEN_FAILED.search(line) is not None and DEVICE_INVALIDATED in line)
+    )
+
 
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")
@@ -277,17 +295,18 @@ class Program(childprogram.Program):
         self._full_told = -1.0  # reader thread only
         # what the run said of its sound devices and keying, for the support file
         self.device_lines: deque[str] = deque(maxlen=DEVICE_LINES)
+        self.keying = ""  # the run's keying, `rts:COM3`: lowered after a Windows end
 
-    def _heard(self, line: str, loop: asyncio.AbstractEventLoop) -> None:
-        if self._on_audio_error is not None and audio_open_error(line):
-            loop.call_soon_threadsafe(self._on_audio_error, line)
+    def _heard(self, line: str, post: childprogram.Post) -> None:
+        if self._on_audio_error is not None and (audio_open_error(line) or audio_lost(line)):
+            post(self._on_audio_error, line)
         if _DEVICE_LINE.search(line):
             self.device_lines.append(unstamped(line))
         if self._on_capture_full is not None and capture_full(line):
             now = time.monotonic()
             if now - self._full_told >= 1.0:
                 self._full_told = now
-                loop.call_soon_threadsafe(self._on_capture_full, now)
+                post(self._on_capture_full, now)
 
     def _warning(self, line: str) -> str | None:
         """Return a [WRN] or [ERR] line without its timestamp, so that repeats compare equal."""
@@ -296,11 +315,18 @@ class Program(childprogram.Program):
     def _end(self, process: subprocess.Popen[str]) -> None:
         """Ask to end, ask again after STOP_WAIT_SEC, kill after another.
 
-        A kill could leave a radio keyed; Windows has only the hard end.
+        A kill could leave a radio keyed. Windows: Ctrl-C, the hard end after STOP_WAIT_SEC, the keying line lowered.
         """
         if sys.platform == "win32":
-            _end_tree(process)
+            self._end_windows(process)
         elif not self.ask(process, signal.SIGTERM, STOP_WAIT_SEC) and not self.ask(
             process, signal.SIGTERM, STOP_WAIT_SEC
         ):
             self.kill(process)
+
+    def _end_windows(self, process: subprocess.Popen[str], k: object = None) -> None:
+        # Mercury's second request on Windows exits with the keying as it stands, so only one is sent
+        if not (winchild.ask_to_end(process.pid, k) and childprogram.waited(process, STOP_WAIT_SEC)):
+            _end_tree(process)
+        if self.keying and not nodevices.refused("the keying line is not opened to lower it"):
+            winchild.drop_line(self.keying, k)

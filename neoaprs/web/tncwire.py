@@ -181,6 +181,7 @@ RadioProblemCode = Literal[
     "modem.sound_card",
     "modem.keying",
     "modem.receive_stalled",
+    "modem.receive_deaf",
     "transmit.off",
     "beacon.not_sent",
 ]
@@ -192,7 +193,7 @@ class RadioProblem(_Model):
     code: RadioProblemCode = Field(
         description="`radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: "
         "when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.incoming_port` its port is the computer's incoming Bluetooth port (Windows), which reaches no device (`port`); `radio.write_timeout` the last write to its port timed out (`seconds`): shown until a write goes through or a byte comes; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, "
-        "`GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, "
+        "`GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; `modem.receive_deaf` its Mercury modem runs and hears nothing (its receive side stalled) and is started again soon; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, "
         "and that reason's values)"
     )
     params: dict[str, str | int | float] = Field(

@@ -1870,6 +1870,7 @@ export const de: Catalogue = {
   "settings.tnc.incoming_port":
     "{port} ist der eingehende Bluetooth-Port des Computers: den anderen Port des Geräts wählen",
   "settings.tnc.write_timeout": "Der Port nimmt keine Daten an: in {seconds} s ging nichts durch",
+  "settings.tnc.hf.receive_deaf": "Mercury hört nichts (sein Empfang hängt): es wird gleich neu gestartet",
   "settings.tnc.hf.receive_stalled":
     "Mercury hört nichts, auch nach Neustarts: das Funkgerät aus- und wieder einschalten",
   "settings.tnc.hf.not_installed": "Diese Installation enthält das Modem dieses Funkgeräts nicht",

@@ -34,7 +34,7 @@ from neoaprs.serialprobe import PortInfo, available_ports, bluetooth_address
 from neoaprs.stopfile import migrating
 from neoaprs.store import DB_NAME, Store
 
-from . import servicecmd
+from . import installkind, servicecmd
 from .daemonstate import describe
 from .hostcheck import brltty_installed, firefox_flatpak, modemmanager_installed, serial_group_check
 from .radiosettings import RADIO_ROWS_FROM, in_force, radio_tables, reached
@@ -342,12 +342,20 @@ def check_map(data: Path) -> Finding:
     return Finding("ok", f"base map: {text}")
 
 
-def check_service(data: Path) -> Finding:
+# The installer's app starts at sign-in by its own entry (the tray's Start at sign-in), which a
+# daemon-only service would replace.
+APP_START_FIX = "tick Start at sign-in in the menu of NeoAPRS's icon in the notification area"
+
+
+def check_service(data: Path, kind: str | None = None) -> Finding:
     is_set, what = servicecmd.backend_for(sys.platform).installed(servicecmd.Plan(sys.executable, data))
     if is_set:
         return Finding("ok", f"service set up: {what}")
+    kind = kind if kind is not None else installkind.detect_here(data).kind
     return Finding(
-        "warn", f"the service is not set up ({what}): NeoAPRS runs only while you run it", "neoaprs service install"
+        "warn",
+        f"the service is not set up ({what}): NeoAPRS runs only while you run it",
+        APP_START_FIX if kind == "windows-installer" else "neoaprs service install",
     )
 
 

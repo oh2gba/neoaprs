@@ -48,7 +48,7 @@ from .mercurymodem import system_serial_ports
 from .radiotype import RadioId
 from .reading import NO_READING, Reading
 from .serialprobe import PortInfo, claim_value, holder_words
-from .modemstate import ModemState
+from .modemstate import ModemLife
 from .signal import Signal
 from .source import Backoff, os_error_text
 from .tasks import TaskSet
@@ -73,7 +73,7 @@ STATES = ("stopped", "starting", "running", "waiting")
 REASONS = ("", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card", "keying")
 
 
-class DirewolfModem(Tuning, ModemState):
+class DirewolfModem(Tuning, ModemLife):
     PROGRAM, LOG, STARTING = "Direwolf", log, ("starting", "running")
 
     def __init__(
@@ -363,7 +363,7 @@ class DirewolfModem(Tuning, ModemState):
         if found := foreign_listeners([port]):
             log.warning("Direwolf listens on the network (%s): it is ended and not run", ", ".join(found))
             self._generation += 1
-            self._tasks.spawn(asyncio.to_thread(self._program.stop), "direwolf-refuse")
+            self._stop_run_later("direwolf-refuse")
             self._clear()
             self._set("waiting", OPEN_TO_NETWORK, "network")
             return
@@ -379,7 +379,7 @@ class DirewolfModem(Tuning, ModemState):
             return
         self._ending = reason
         log.warning("Direwolf: %s (it said: %s)", problem, line)
-        self._tasks.spawn(asyncio.to_thread(self._program.stop), "direwolf-end")
+        self._stop_run_later("direwolf-end")
         self._gone(problem, reason)
 
     def _ended(self, code: int | None, lines: list[str]) -> None:
@@ -404,18 +404,6 @@ class DirewolfModem(Tuning, ModemState):
         self.test = ""
         self._set("waiting", problem, reason)
         self._relaunch_later()
-
-    def _relaunch_later(self) -> None:
-        self._waits += 1
-        self._tasks.spawn(
-            self._relaunch_after(self.backoff.next_delay_sec(), self._generation, self._waits), "direwolf-restart"
-        )
-
-    async def _relaunch_after(self, delay_sec: float, generation: int, wait: int) -> None:
-        log.info("Direwolf is started again in %g s", delay_sec)
-        await asyncio.sleep(delay_sec)
-        if generation == self._generation and wait == self._waits and self.state == "waiting":
-            await self._launch()
 
     # ---- what the Tnc and the page ask
     def take_reading(self) -> Reading:

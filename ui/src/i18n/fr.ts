@@ -1820,6 +1820,7 @@ export const fr: Catalogue = {
   "settings.tnc.incoming_port":
     "{port} est le port Bluetooth entrant de l'ordinateur : choisissez l'autre port de l'appareil",
   "settings.tnc.write_timeout": "Le port n'accepte pas de données : rien n'est passé en {seconds} s",
+  "settings.tnc.hf.receive_deaf": "Mercury n'entend rien (sa réception est bloquée) : il est bientôt redémarré",
   "settings.tnc.hf.receive_stalled":
     "Mercury n'entend rien, même après des redémarrages : éteignez puis rallumez la radio",
   "settings.tnc.hf.not_installed": "Cette installation ne contient pas le modem de cette radio",

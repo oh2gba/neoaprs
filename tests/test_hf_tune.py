@@ -207,3 +207,88 @@ async def test_the_page_asks_for_tune_and_the_keying_test_and_is_refused_while_r
     await e.stop()
     await asyncio.sleep(0)
     await air.aclose()
+
+
+async def attached(tmp_path: Path, air: Air, reconnect_sec: float) -> tuple[Mercury, FakeMercury]:
+    """A Mercury run elsewhere whose control line comes back `reconnect_sec` after it is lost."""
+    station = air.station()
+    await air.start()
+    m = Mercury(tmp_path, backoff=Backoff([0.1]), control_backoff=Backoff([reconnect_sec]), **of_radio(tmp_path))
+    m.ports = lambda: []
+    await m.start(HF, attach=station.url)
+    await until_started(lambda: m.state == "running" and station.control_connections == 1)
+    return m, station
+
+
+async def test_a_tone_that_ends_while_the_control_line_is_down_is_ended_when_the_line_is_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """TUNE has no length: an unwritten TUNE OFF would leave the radio keyed with no Stop on the page."""
+    monkeypatch.setattr(mercurytune, "TUNE_SEC", 0.2)
+    air = Air(frame_sec=0.2)
+    m, station = await attached(tmp_path, air, reconnect_sec=3.0)
+    try:
+        await m.tune()
+        await until_started(lambda: station.tuned == ["TUNE -15"])
+        station.drop_control()
+        await until_started(lambda: m.state == "starting")
+        assert m.test == "tune" and m.hold() == TRANSMITTING, "the tone may still be on: the page keeps its Stop"
+        await until_started(lambda: station.tuned == ["TUNE -15", "TUNE OFF"] and m.test == "")
+        assert station.control_connections == 2 and m.state == "running"
+    finally:
+        await m.stop()
+        await air.aclose()
+
+
+async def test_stop_while_the_control_line_is_down_is_written_when_it_is_back(tmp_path: Path) -> None:
+    air = Air(frame_sec=0.2)
+    m, station = await attached(tmp_path, air, reconnect_sec=3.0)
+    try:
+        await m.tune()
+        await until_started(lambda: station.tuned == ["TUNE -15"])
+        station.drop_control()
+        await until_started(lambda: m.state == "starting")
+        await m.tune_stop()
+        assert m.test == "tune", "nothing told Mercury yet"
+        await until_started(lambda: station.tuned == ["TUNE -15", "TUNE OFF"] and m.test == "")
+    finally:
+        await m.stop()
+        await air.aclose()
+
+
+async def test_a_stop_without_the_control_line_ends_the_program_which_drops_the_keying(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class Run:
+        running = True
+        stopped = 0
+
+        def stop(self) -> None:
+            self.running = False
+            self.stopped += 1
+
+    m = Mercury(tmp_path, backoff=Backoff([60.0]), **of_radio(tmp_path))
+    run = Run()
+    monkeypatch.setattr(m, "_program", run)
+    m._config, m.state, m.test = HF, "starting", "tune"
+    try:
+        await m.tune_stop()
+        assert m.state == "waiting" and m.problem == mercurytune.OFF_UNSENT and m.test == ""
+        await until_started(lambda: run.stopped == 1)
+    finally:
+        await m.stop()
+
+
+async def test_the_radios_stop_writes_an_owed_tune_off(tmp_path: Path) -> None:
+    air = Air(frame_sec=0.2)
+    m, station = await attached(tmp_path, air, reconnect_sec=3.0)
+    try:
+        await m.tune()
+        await until_started(lambda: station.tuned == ["TUNE -15"])
+        m._off_owed, m.test = True, ""
+        await m.stop()
+        await until_started(lambda: station.tuned == ["TUNE -15", "TUNE OFF"])
+        assert m.test == "" and not m._off_owed
+    finally:
+        await m.stop()
+        await air.aclose()
