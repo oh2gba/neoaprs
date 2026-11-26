@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.24.0
+
 - **New:** a Mercury radio can report the stations it hears to PSK Reporter, where they show on the map under the mode NEOAPRS.
 
 ## 0.23.4
