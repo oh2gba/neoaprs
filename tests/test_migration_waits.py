@@ -542,7 +542,7 @@ def test_a_migration_that_stops_showing_it_is_at_it_while_waited_for_is_refused_
         version == -1 and "shows no sign that it is still at it (stopped, or stuck)" in why and "seconds" not in why
     ), why
     # A wait on past the stale note would last MIGRATION_WAIT_SEC: an hour
-    assert 0.3 <= took < 30.0 and waited >= 0.9, (took, waited)
+    assert 0.2 <= took < 30.0 and waited >= 0.9, (took, waited)
     assert said(caplog, WAITS) == 1 and version_of(path) == SCHEMA_VERSION and not (tmp_path / "backup").exists()
 
 

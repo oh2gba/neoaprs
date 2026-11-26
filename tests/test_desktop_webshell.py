@@ -1074,10 +1074,8 @@ def test_on_linux_the_window_is_gtks_with_its_own_store_the_icon_and_the_size_an
     assert (rig.data / "webkit").is_dir() and not (rig.data / "webview").exists(), (
         "a store of its own: the Qt window's stays as it was"
     )
-    assert rig.toolkits.settings["ALLOW_DOWNLOADS"] is True and rig.toolkits.icons[0].calls == [
-        "run_detached",
-        "update_menu",
-    ]
+    until(lambda: rig.toolkits.icons[0].calls == ["run_detached", "update_menu"])
+    assert rig.toolkits.settings["ALLOW_DOWNLOADS"] is True
     assert rig.toolkits.icons[0].image == ("image", str(webshell.icon_path())), (
         "on Linux the tray's image is Pillow's of icon.png (pystray's appindicator writes it as a PNG)"
     )
