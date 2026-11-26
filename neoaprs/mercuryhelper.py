@@ -62,6 +62,25 @@ DEVICE_LINES = 6
 # Mercury's start-up lines that name its sound devices and its keying
 _DEVICE_LINE = re.compile(r"\[(?:audio-play|audio-cap)\] I/O |\[radio-io\] (?:Initializing PTT|PTT method)")
 
+# What Mercury's audioio.c writes once a sound card it ran on is gone (unplugged, or its USB codec
+# reset), as Mercury 1.9.25 on Windows wrote them; it keeps trying the card, deaf and mute meanwhile.
+CAPTURE_LOST = "[audio-cap] the capture device delivers no audio:"
+PLAYBACK_LOST = "[audio-play] the playback device takes no audio:"
+CARD_UNLISTED = "is no longer listed: unplugged?"
+DEVICE_INVALIDATED = "AUDCLNT_E_DEVICE_INVALIDATED"
+_REOPEN_FAILED = re.compile(r"\[audio-(?:cap|play)\] (?:capture|playback) reopen failed \(attempt \d+\)")
+
+
+def audio_lost(line: str) -> bool:
+    """Return whether the line says the sound card Mercury ran on is gone."""
+    return (
+        CAPTURE_LOST in line
+        or PLAYBACK_LOST in line
+        or ("[audio-cap]" in line and CARD_UNLISTED in line)
+        or (_REOPEN_FAILED.search(line) is not None and DEVICE_INVALIDATED in line)
+    )
+
+
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")
 
@@ -280,7 +299,7 @@ class Program(childprogram.Program):
         self.keying = ""  # the run's keying, `rts:COM3`: lowered after a Windows end
 
     def _heard(self, line: str, loop: asyncio.AbstractEventLoop) -> None:
-        if self._on_audio_error is not None and audio_open_error(line):
+        if self._on_audio_error is not None and (audio_open_error(line) or audio_lost(line)):
             loop.call_soon_threadsafe(self._on_audio_error, line)
         if _DEVICE_LINE.search(line):
             self.device_lines.append(unstamped(line))

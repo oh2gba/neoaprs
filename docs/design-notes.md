@@ -385,7 +385,9 @@ With one radio the system default device is right if the radio is the only sound
 Mercury output. Mercury prefixes each log line with a time and run time (common/hermes_log.c):
 `HH:MM:SS.mmm [+s] `, preceded by a date from 1.9.22 and followed by `Z` when `log_utc` is set;
 older versions and the test fake print none. When the sound card cannot be opened Mercury keeps
-running, deaf and mute, so the daemon ends it. Another station's program may send a station message
+running, deaf and mute, so the daemon ends it. A card that goes while it runs (unplugged, a USB codec that reset) is the
+same: Mercury tries it for ever, deaf and mute, so its lines saying so (mercuryhelper.py) end the run
+and the radio waits for the card through the back-off of a start. Another station's program may send a station message
 besides APRS (Mercury 1.9.23 and later, modem/framer.h PACKET_TYPE_STATION), handed to the broadcast
 client whole under KISS command 0x03 instead of 0x00; it is not a packet and is passed over.
 

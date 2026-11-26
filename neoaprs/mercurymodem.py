@@ -37,6 +37,7 @@ from .mercuryclaims import INI_FILE, PID_FILE, HeldPorts, Holding, keying_claim,
 from .mercuryhelper import (
     Command,
     Program,
+    audio_lost,
     choose_setup,
     expected_program,
     find,
@@ -381,10 +382,15 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
         self._gone(f"Mercury stopped (exit {code}); the log says why", "stopped")
 
     def _audio_error(self, line: str) -> None:
-        """Called from the reader thread when the sound card cannot be opened: end and retry later."""
+        """Called from the reader thread when the sound card cannot be opened or is gone: end and retry later."""
         if self.state == "stopped" or self._audio_failed:
             return
-        log.warning("Mercury could not open its sound card %r: %s", self.sound_card or "the system's default", line)
+        log.warning(
+            "Mercury %s its sound card %r: %s",
+            "lost" if audio_lost(line) else "could not open",
+            self.sound_card or "the system's default",
+            line,
+        )
         self._audio_failed = True
         self._tasks.spawn(asyncio.to_thread(self._program.stop), "mercury-audio-stop")
         self._gone(SOUND_CARD_FAILED, "sound_card")
