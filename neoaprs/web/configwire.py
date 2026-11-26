@@ -53,7 +53,7 @@ class ConfigValues(_Model):
 
 class SetConfig(_Command):
     """Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is
-    left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `station/*` move our own station on the
+    left out keeps its value. The answer to a request that carries an `id` is `saved` with that `id`, once the settings are in force (the `config` topic is told again too, to every page), or an `error` that carries it; a request without an `id` is answered by the topic alone. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `station/*` move our own station on the
     map. A radio's own setting is `radio/<id>/<key>` (a key of `radio_values`): it is checked by the field of its kind, stored with the rest in one write and restarts that radio
     alone where its driver says so; a radio that is none or removed is refused with `radio.unknown` (a removed one with its `name` and `removed` 1), a key its kind has not with `radio.no_setting` (its `name` and id,
     `radio`), `email/radio` changed to name no radio with `radio.unknown`, a device another radio holds or is set to, or the GPS receiver holds, with `radio.resource_held` (`resource`, `holder`, and the holder's
@@ -64,4 +64,10 @@ class SetConfig(_Command):
     values: dict[str, str] = Field(
         max_length=64,
         description="key to the new text of the value; the text is checked and written the way the daemon writes it (`oh2gba` becomes `OH2GBA`)",
+    )
+    id: int | None = Field(
+        default=None,
+        ge=0,
+        le=2**31,
+        description="the page's own number for this request, which the answer (`saved`, or an `error`) carries back; left out, the page is answered by the topic `config` alone",
     )

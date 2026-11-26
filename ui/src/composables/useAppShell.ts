@@ -79,7 +79,7 @@ function openGuideOnce(config: Readonly<Ref<ConfigValues | null>>, guide: SetupG
 function useDerived(daemon: ReturnType<typeof useDaemon>) {
   const { config, status, lastError, send } = daemon;
   const radios = useShellRadios(daemon);
-  const settings = useSettings(config, lastError, send, {
+  const settings = useSettings(config, lastError, send, daemon, {
     byId: (id: number) => radios.all.value.find((radio) => radio.id === id),
   });
   const prefs = useStationPrefs(daemon.stationPrefs, send);

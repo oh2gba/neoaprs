@@ -201,6 +201,13 @@ class Pong(_Message):
     now: Iso = Field(description="the daemon's clock")
 
 
+class Saved(_Message):
+    """The answer to a `set_config` that carried an `id`, sent to the page that asked once the settings are in force."""
+
+    type: Literal["saved"]
+    id: int = Field(description="the `id` of the `set_config` this answers")
+
+
 class Error(_Message):
     """A command that could not be done. A frame the daemon could not understand is answered the same way, naming the command, the field and the problem; nothing was changed. A page goes by `cmd`, `key`
     and `code` (with the sentence of `why` for a refusal that passes another's on); `text` is the English sentence for the log, which the page never shows: a code it has no sentence for is said with its plain
@@ -221,4 +228,8 @@ class Error(_Message):
     )
     text: str = Field(
         description="what could not be done and why, in a sentence in English: the command, then the setting if there is one, then the reason (`set_config: station/lat: 95 is not between -90 and 90`)"
+    )
+    id: int | None = Field(
+        default=None,
+        description="the `id` of the request this answers, when the command carried one (`set_config`); the field is left out otherwise",
     )
