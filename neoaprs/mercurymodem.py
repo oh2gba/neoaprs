@@ -339,6 +339,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
             )
         argv = command(program, str(ini), self.sound_card, keying, self.broadcast_port, self.control_port, audio)
         self._program.device_lines.clear()
+        self._program.keying = keying.text if keying.kind in ("rts", "dtr") else ""
         try:
             self._program.start(argv, self.home, pid_file)
         except OSError as e:

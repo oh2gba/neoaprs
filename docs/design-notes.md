@@ -409,7 +409,7 @@ The control port serves one host at a time. Newer Mercury versions close a secon
 
 ## neoaprs/mercuryhelper.py
 
-The shipped Mercury listens on 127.0.0.1 only (a patch to its sources). Its ports have no password, so a listener on every interface would let any host on the LAN key the radio; `foreign_listeners` checks this. The port probe binds with SO_REUSEADDR as Mercury does, so a port in TIME_WAIT counts as free and a restarted modem finds its old pair; on Windows that option would also take a port another program listens on, so it is not set there. A port listened on in IPv6 alone is not free. Adjacent port pairs share a port (the ARQ data port of one is the control port of the next), so the claims table hands out pairs whose four ports do not overlap. A Mercury left behind by a daemon crash keeps the sound card; its process id is written beside the configuration and ended at the next start. Mercury is asked to end twice before it is killed: the second request makes it drop the transmitter at once, while a kill could leave a radio keyed through a GPIO pin or serial line.
+The shipped Mercury listens on 127.0.0.1 only (a patch to its sources). Its ports have no password, so a listener on every interface would let any host on the LAN key the radio; `foreign_listeners` checks this. The port probe binds with SO_REUSEADDR as Mercury does, so a port in TIME_WAIT counts as free and a restarted modem finds its old pair; on Windows that option would also take a port another program listens on, so it is not set there. A port listened on in IPv6 alone is not free. Adjacent port pairs share a port (the ARQ data port of one is the control port of the next), so the claims table hands out pairs whose four ports do not overlap. A Mercury left behind by a daemon crash keeps the sound card; its process id is written beside the configuration and ended at the next start. Mercury is asked to end twice before it is killed: the second request makes it drop the transmitter at once, while a kill could leave a radio keyed through a GPIO pin or serial line. On Windows Mercury's second request exits with the keying as it stands, so it is asked once, by a Ctrl-C to its hidden console, then ended with taskkill, and NeoAPRS itself lowers a serial keying line afterwards, since some drivers keep a line where an ended program left it. The Ctrl-C needs a daemon without a console of its own (the installed one); a daemon run in a console window ends Mercury at once.
 
 ## neoaprs/mercurymodem.py
 
@@ -1569,6 +1569,14 @@ resent whole, at most every 30 seconds while the GPS moves; our own row follows 
 Rate limits of topics: radios, map and update at most four times a second; gps and igate once a
 second. Two messages are no topic: `station_alert`, sent to every open page, and `layer_things`,
 sent to the pages looking at that layer.
+
+## neoaprs/winchild.py
+
+On Windows every child program is put into one job object of the daemon, made with kill-on-close, so
+that a daemon that dies however it dies takes its Mercury and Direwolf with it instead of leaving them
+holding the sound card, the ports and the install folder's files. The daemon swallows the Ctrl-C it
+sends to a child's console with a handler, not with the ignore flag, which every program started later
+would inherit.
 
 ## neoaprs/winmm.py
 

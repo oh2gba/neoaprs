@@ -17,6 +17,7 @@ from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
+from . import winchild
 from .childenv import child_environment, windows_program
 from .clock import Clock, utcnow
 from .source import os_error_text
@@ -333,6 +334,8 @@ class Program:
             env=environment(argv),
             creationflags=HIDDEN_WINDOW,
         )
+        if sys.platform == "win32" and not winchild.tie_to_daemon(self._process.pid):
+            self._log.info("%s (process %d) is not tied to the daemon's life", self.name, self._process.pid)
         self._pid_file = pid_file
         self.lines_read = 0
         if pid_file is not None:

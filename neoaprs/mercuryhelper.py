@@ -17,7 +17,7 @@ from collections import deque
 from collections.abc import Callable, Collection, Sequence
 from pathlib import Path
 
-from . import childprogram
+from . import childprogram, nodevices, winchild
 from .bundled import tools_dir
 from .childprogram import (
     HIDDEN_WINDOW as HIDDEN_WINDOW,
@@ -277,6 +277,7 @@ class Program(childprogram.Program):
         self._full_told = -1.0  # reader thread only
         # what the run said of its sound devices and keying, for the support file
         self.device_lines: deque[str] = deque(maxlen=DEVICE_LINES)
+        self.keying = ""  # the run's keying, `rts:COM3`: lowered after a Windows end
 
     def _heard(self, line: str, loop: asyncio.AbstractEventLoop) -> None:
         if self._on_audio_error is not None and audio_open_error(line):
@@ -296,11 +297,18 @@ class Program(childprogram.Program):
     def _end(self, process: subprocess.Popen[str]) -> None:
         """Ask to end, ask again after STOP_WAIT_SEC, kill after another.
 
-        A kill could leave a radio keyed; Windows has only the hard end.
+        A kill could leave a radio keyed. Windows: Ctrl-C, the hard end after STOP_WAIT_SEC, the keying line lowered.
         """
         if sys.platform == "win32":
-            _end_tree(process)
+            self._end_windows(process)
         elif not self.ask(process, signal.SIGTERM, STOP_WAIT_SEC) and not self.ask(
             process, signal.SIGTERM, STOP_WAIT_SEC
         ):
             self.kill(process)
+
+    def _end_windows(self, process: subprocess.Popen[str], k: object = None) -> None:
+        # Mercury's second request on Windows exits with the keying as it stands, so only one is sent
+        if not (winchild.ask_to_end(process.pid, k) and childprogram.waited(process, STOP_WAIT_SEC)):
+            _end_tree(process)
+        if self.keying and not nodevices.refused("the keying line is not opened to lower it"):
+            winchild.drop_line(self.keying, k)
