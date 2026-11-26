@@ -135,6 +135,27 @@ async def test_after_a_write_timed_out_the_radio_is_not_shown_connected_until_da
         await tnc.stop()
 
 
+async def test_a_line_lost_once_is_one_warning_and_it_names_the_radio(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    ser = StuckSer()
+    monkeypatch.setattr(serialport, "_build", lambda path, baud: ser)
+    tnc = Tnc("COM8", profile=KISS, backoff=Backoff([0.05]), check_sec=0)
+    tnc.radio_name = "LoRa 2 (radio 9)"
+    try:
+        await tnc.start()
+        with caplog.at_level(logging.INFO, "neoaprs"):
+            tnc.send_frame(frame())
+            await until(lambda: tnc.write_stuck is not None and tnc.state is Source.State.CONNECTED)
+        told = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+        assert not any(r.name == "neoaprs.serialport" and r.levelno >= logging.INFO for r in caplog.records)
+        assert told == [
+            "LoRa 2 (radio 9): COM8: a write timed out: the device did not take the data within 2 s; trying again in 0.05 s"
+        ], "the port's own lines are for debugging"
+    finally:
+        await tnc.stop()
+
+
 async def test_a_byte_that_comes_ends_the_write_problem_too(monkeypatch: pytest.MonkeyPatch) -> None:
     ser = StuckSer()
     monkeypatch.setattr(serialport, "_build", lambda path, baud: ser)

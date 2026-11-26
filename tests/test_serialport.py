@@ -537,7 +537,7 @@ async def test_a_read_or_a_write_that_fails_reports_the_line_lost_once(
     assert ("write failed" in reasons[0]) == (which == "write")
 
 
-async def test_a_write_that_times_out_says_so_with_its_own_code_at_warning_and_not_that_the_line_is_gone(
+async def test_a_write_that_times_out_says_so_with_its_own_code_at_debug_and_not_that_the_line_is_gone(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     """pyserial's own words on Windows, for a Bluetooth port that reaches nothing: `Write timeout`."""
@@ -549,7 +549,7 @@ async def test_a_write_that_times_out_says_so_with_its_own_code_at_warning_and_n
     port._written = lambda: written.append(1)  # type: ignore[method-assign]
     port.dropped.connect(reasons.append)
     await port.open()
-    with caplog.at_level(logging.INFO, "neoaprs.serialport"):
+    with caplog.at_level(logging.DEBUG, "neoaprs.serialport"):
         port.write(b"x")
         port.write(b"y")
         await until(lambda: reasons)
@@ -560,8 +560,8 @@ async def test_a_write_that_times_out_says_so_with_its_own_code_at_warning_and_n
         {"seconds": serialport.WRITE_TIMEOUT_SEC},
     )
     assert [(r.levelno, r.getMessage()) for r in caplog.records] == [
-        (logging.WARNING, "serial port COM8 write timed out: the device did not take the data within 2 s")
-    ]
+        (logging.DEBUG, "COM8 write timed out: the device did not take the data within 2 s")
+    ], "the owner's line, with its radio's name, is the warning"
     assert "the line is gone" not in caplog.text and "SerialTimeoutException" not in caplog.text
 
 

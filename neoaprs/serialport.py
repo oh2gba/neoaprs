@@ -92,7 +92,7 @@ def _lost_words(e: BaseException) -> str:
     """Return why a line that was open went away; pyserial's own prose goes to the log."""
     if isinstance(e, OSError) and (e.errno or e.strerror):
         return os_error_text(e)
-    log.info("the line was lost: %s: %s", type(e).__name__, e)
+    log.debug("the line was lost: %s: %s", type(e).__name__, e)
     return LOST
 
 
@@ -404,6 +404,7 @@ class SerialPort:
 
     def _lost(self, reason: str) -> None:
         timed_out = getattr(reason, "code", "") == "radio.write_timeout"
-        log.warning("serial port %s %s: %s", self.path, "write timed out" if timed_out else "lost", reason)
+        # the owner's own line, with its name, is the warning
+        log.debug("%s %s: %s", self.path, "write timed out" if timed_out else "lost", reason)
         self.close()
         self.dropped.emit(reason)
