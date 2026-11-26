@@ -106,7 +106,7 @@ class Thing:
 
 @dataclass(frozen=True)
 class ReceiverState:
-    state: Literal["looking", "receiving", "no_answer"]
+    state: Literal["looking", "connected", "receiving", "no_answer", "no_ais"]
     things: int
     heard_at: datetime | None
 

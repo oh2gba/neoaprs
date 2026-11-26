@@ -17,6 +17,7 @@ from typing import TypedDict, Unpack
 import serial.tools.list_ports  # type: ignore[import-untyped]
 
 from . import nodevices
+from .coded import Reason
 from .btpaired import paired_devices
 from .claims import PORT_KINDS, Claim
 from .config import DEFAULT_SERIAL_PATTERN, Config
@@ -193,6 +194,46 @@ def is_bluetooth_com(port: PortInfo) -> bool:
     return port.hwid.upper().startswith("BTHENUM") or "bluetooth" in port.description.lower()
 
 
+# Windows: the device's address ends a BTHENUM hwid, `..&0&000CBF18376C_C00000000`
+_BT_ADDRESS = re.compile(r"&([0-9A-F]{12})_[0-9A-F]+$")
+
+
+def bluetooth_address(port: PortInfo) -> str | None:
+    """Return the device address of a Windows Bluetooth COM port, "000000000000" for the incoming one."""
+    found = _BT_ADDRESS.search(port.hwid.upper()) if port.hwid.upper().startswith("BTHENUM") else None
+    return found.group(1) if found else None
+
+
+def is_incoming_bluetooth(port: PortInfo) -> bool:
+    """Return whether this is the computer's incoming Bluetooth port, which reaches no device."""
+    return bluetooth_address(port) == "000000000000"
+
+
+def offered_ports() -> list[PortInfo]:
+    """Return the listed ports a radio may use: all but the incoming Bluetooth port."""
+    return [p for p in available_ports() if not is_incoming_bluetooth(p)]
+
+
+def _on_windows() -> bool:
+    return sys.platform == "win32"
+
+
+def incoming_bluetooth(path: str) -> bool:
+    """Return whether `path` is the incoming Bluetooth port as Windows lists it (only Windows makes one)."""
+    if not _on_windows() or "://" in path:
+        return False
+    key = port_key(path)
+    return any(port_key(p.device) == key and is_incoming_bluetooth(p) for p in available_ports())
+
+
+def incoming_port_reason(path: str) -> Reason:
+    return Reason(
+        f"{path} is the computer's incoming Bluetooth port: choose the device's other port",
+        "radio.incoming_port",
+        port=path,
+    )
+
+
 def _usb_first(port: PortInfo) -> int:
     """Return the order Find my radio tries ports in: USB, other serial, then Bluetooth."""
     return 2 if is_bluetooth_com(port) else 0 if port.vid is not None or port.hwid.upper().startswith("USB") else 1
@@ -202,7 +243,7 @@ def system_ports() -> list[PortInfo]:
     """Return the ports Find my radio tries, USB first, without development boards."""
     if nodevices.refused(NOT_LISTED, logging.INFO):
         return []
-    ports = available_ports()
+    ports = offered_ports()
     if sys.platform == "darwin":
         listed = {p.device for p in ports}
         ports += [

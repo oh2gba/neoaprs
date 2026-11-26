@@ -86,6 +86,8 @@ const PROBLEM_WORDS: Partial<Record<RadioProblem["code"], MessageId>> = {
   "radio.searching": "settings.tnc.searching",
   "radio.silent": "settings.tnc.state.silent",
   "radio.text_lines": "settings.tnc.text_lines",
+  "radio.incoming_port": "settings.tnc.incoming_port",
+  "radio.write_timeout": "settings.tnc.write_timeout",
   "modem.not_installed": "settings.tnc.hf.not_installed",
   "modem.stopped": "settings.tnc.hf.stopped",
   "modem.network": "settings.tnc.hf.network",
@@ -93,6 +95,7 @@ const PROBLEM_WORDS: Partial<Record<RadioProblem["code"], MessageId>> = {
   "modem.not_started": "settings.tnc.hf.not_started",
   "modem.sound_card": "settings.tnc.hf.sound_card",
   "modem.keying": "settings.tnc.hf.keying",
+  "modem.receive_stalled": "settings.tnc.hf.receive_stalled",
 };
 
 /**

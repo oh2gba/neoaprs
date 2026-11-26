@@ -1,13 +1,14 @@
 <script setup lang="ts">
 // The dialog of Send feedback / logs (opened by SettingsHelp), with useDialogFocus keys: one text
-// of up to NOTE_MAX characters, the logs file shown as an attachment, Send and Cancel. Send hands
-// the words and whether the file goes to the group, which does the sending, and closes the dialog.
-// The dialog starts from the group's `draft` and `attached` and reports every change so that unsent
-// text returns at the next opening. The file's name downloads it (useSupportLogs.collect); the
+// of up to NOTE_MAX characters, an optional address for a reply, the logs file shown as an attachment,
+// Send and Cancel. Send hands the words, the address and whether the file goes to the group, which
+// does the sending, and closes the dialog. The dialog starts from the group's `draft`, `email` and
+// `attached` and reports every change so that what was not sent returns at the next opening. The file's name downloads it (useSupportLogs.collect); the
 // group holds that download so that Send names the very file the person looked at. The × takes the
 // file off (it stays in place, dimmed, and the × becomes Attach); both faces are in the page
-// (TwoWords), so nothing moves. Send is off until there are words and while the download runs. The
-// line under the file says what the download did.
+// (TwoWords), so nothing moves. Send is off until there are words, while the download runs and while
+// the address is not one (the field's border says so). The line under the file says what the
+// download did.
 import { computed, ref, useId, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import TwoWords from "@/components/TwoWords.vue";
@@ -15,7 +16,7 @@ import { useDialogFocus } from "@/composables/useDialogFocus";
 import type { SupportLogs } from "@/composables/useSupportLogs";
 import { t } from "@/i18n";
 import { openTip } from "@/lib/infotip";
-import { NOTE_MAX } from "@/lib/support";
+import { EMAIL_MAX, NOTE_MAX, replyAddressOk } from "@/lib/support";
 
 const props = withDefaults(
   defineProps<{
@@ -30,29 +31,39 @@ const props = withDefaults(
     call?: string | null;
     /** the words written at an earlier opening and not sent */
     draft?: string;
+    /** the address for a reply typed at an earlier opening and not sent */
+    email?: string;
     /** whether the file goes with the words: false when an earlier opening took it off */
     attached?: boolean;
   }>(),
-  { call: null, draft: "", attached: true },
+  { call: null, draft: "", email: "", attached: true },
 );
 const emit = defineEmits<{
-  send: [note: string, file: boolean];
+  send: [note: string, file: boolean, email: string];
   draft: [text: string];
+  email: [text: string];
   attached: [on: boolean];
   close: [];
 }>();
 
 const titleId = useId();
 const noteId = useId();
+const emailId = useId();
 const dialog = ref<HTMLElement | null>(null);
 /** The words written, from the group's draft; the group keeps them until sent. */
 const note = ref(props.draft);
 watch(note, (text) => emit("draft", text), { flush: "sync" });
+const email = ref(props.email);
+watch(email, (text) => emit("email", text), { flush: "sync" });
+const address = computed(() => email.value.trim());
+const addressBad = computed(() => address.value !== "" && !replyAddressOk(address.value));
 /** The name the file is shown by. */
 const name = computed(() => `neoaprs-support-${props.call || "nocall"}.zip`);
 const on = ref(props.attached);
 watch(on, (now) => emit("attached", now), { flush: "sync" });
-const sendable = computed(() => !props.download.running.value && (on.value || note.value.trim() !== ""));
+const sendable = computed(
+  () => !props.download.running.value && !addressBad.value && (on.value || note.value.trim() !== ""),
+);
 const keys = useDialogFocus(dialog, () => emit("close"), {
   first: () => dialog.value?.querySelector<HTMLElement>("textarea") ?? null,
   back: () => props.opener,
@@ -75,6 +86,18 @@ function press(event: PointerEvent): void {
       </header>
       <label :for="noteId" class="logsdialog-label">{{ t("settings.help.dialog.label") }}</label>
       <textarea :id="noteId" v-model="note" class="input area" rows="5" :maxlength="NOTE_MAX"></textarea>
+      <label :for="emailId" class="logsdialog-label">{{ t("settings.help.dialog.email") }}</label>
+      <input
+        :id="emailId"
+        v-model="email"
+        class="input"
+        :class="{ invalid: addressBad }"
+        type="email"
+        autocomplete="email"
+        spellcheck="false"
+        :maxlength="EMAIL_MAX"
+        :aria-invalid="addressBad"
+      />
       <div
         class="logsdialog-attached"
         :class="{ off: !on }"
@@ -123,7 +146,7 @@ function press(event: PointerEvent): void {
         <span v-else-if="download.problem.value" class="field-error">{{ download.problem.value }}</span>
       </p>
       <footer class="logsdialog-foot">
-        <button type="button" class="btn primary" :disabled="!sendable" @click="emit('send', note.trim(), on)">
+        <button type="button" class="btn primary" :disabled="!sendable" @click="emit('send', note.trim(), on, address)">
           {{ t("settings.help.dialog.send") }}
         </button>
         <button type="button" class="btn" @click="emit('close')">{{ t("settings.help.dialog.cancel") }}</button>

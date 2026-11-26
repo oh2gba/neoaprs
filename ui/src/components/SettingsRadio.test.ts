@@ -411,6 +411,7 @@ describe("the Mercury radio's box in the Radio group", () => {
       "80 m 3.5850 MHz USB",
       "40 m 7.0541 MHz USB",
       "20 m 14.1070 MHz USB",
+      "10 m 28.1800 MHz USB",
       "6 m 50.6200 MHz USB",
     ]);
     expect(row.element.tagName).toBe("OUTPUT"); // (text to read, not an input box that takes no typing)

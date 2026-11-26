@@ -13,8 +13,8 @@ SourceName = Literal["none", "adsbfi", "adsblol", "fintraffic", "radarcape", "re
 class LayerReceiver(_Model):
     """The own receiver's state, for its line in Settings. It says nothing of addresses or ports."""
 
-    state: Literal["looking", "receiving", "no_answer"] = Field(
-        description="`looking` until its first answer or connection; `receiving` after an answer in the expected form (AIS: while connected); `no_answer` after a failure, a wrong answer or a lost connection"
+    state: Literal["looking", "connected", "receiving", "no_answer", "no_ais"] = Field(
+        description="`looking` until its first answer or connection; `receiving` after an answer in the expected form (AIS: from the first AIS sentence of a connection); `no_answer` after a failure, a wrong answer or a lost connection; `connected` (AIS only) the connection is made and nothing has come yet (a receiver with no ship in range is silent); `no_ais` (AIS only) the source sent something that is not AIS first, or ended the connection without an AIS sentence"
     )
     things: int = Field(
         ge=0, description="what it gave with a position at its last answer (aircraft), or the ships held now (AIS)"

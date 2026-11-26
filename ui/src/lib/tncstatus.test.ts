@@ -38,6 +38,10 @@ describe("the line of a radio's row", () => {
     expect(down("radio.not_connected", {}, "connecting")).toBe("Connecting…");
     expect(down("radio.silent", { since: ago(600) }, "silent")).toMatch(/^nothing heard since /);
     expect(down("modem.sound_card")).toBe("Sound card could not be opened: choose another");
+    expect(down("radio.incoming_port", { port: "COM8" })).toBe(
+      "COM8 is the computer's incoming Bluetooth port: choose the device's other port",
+    );
+    expect(down("radio.write_timeout", { seconds: "2" })).toBe("The port takes no data: nothing went through in 2 s");
     expect(rowStatus(row("kiss", { state: "waiting", problem: null }), NOW)).toBe("Not connected");
     expect(rowStatus(fmRow({ state: "stopped", problem: null }), NOW)).toBe("Not connected");
   });
@@ -127,6 +131,9 @@ describe("the Mercury radio's line", () => {
     expect(down("no_port")).toBe("Not running: no free port");
     expect(down("not_started")).toBe("The modem could not be started");
     expect(down("sound_card")).toBe("Sound card could not be opened: choose another");
+    expect(down("receive_stalled")).toBe(
+      "Mercury hears nothing, even after restarts: switch the radio off and on again",
+    );
     expect(down("")).toBe("Not connected");
   });
 

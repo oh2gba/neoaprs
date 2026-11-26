@@ -66,6 +66,7 @@ FREQUENCIES: tuple[tuple[int, str], ...] = (
     (40, "7.0541"),
     (30, "10.1462"),
     (20, "14.1070"),
+    (10, "28.1800"),
     (6, "50.6200"),
 )
 DIAL_BAND = 40  # the band the page shows
@@ -75,6 +76,7 @@ SUGGESTED: tuple[tuple[str, str], ...] = (
     ("80 m", "3.5850 MHz USB"),
     ("40 m", "7.0541 MHz USB"),
     ("20 m", "14.1070 MHz USB"),
+    ("10 m", "28.1800 MHz USB"),
     ("6 m", "50.6200 MHz USB"),
 )
 
@@ -303,6 +305,14 @@ _AUDIO_OPEN_ERROR = re.compile(r"\[ERR\] \[audio-(?:play|playback|cap|capture)\]
 def audio_open_error(line: str) -> bool:
     """Return whether the line says the sound card could not be opened."""
     return _AUDIO_OPEN_ERROR.search(line) is not None
+
+
+# Mercury's audioio.c writes this while the audio it records is not taken by its demodulator.
+CAPTURE_FULL = "[WRN] [audio-cap] Buffer full in capture buffer!"
+
+
+def capture_full(line: str) -> bool:
+    return CAPTURE_FULL in line
 
 
 _STAMP = re.compile(r"^(?:\d{4}-\d{2}-\d{2} )?\d{2}:\d{2}:\d{2}\.\d{3}Z? \[\+\d+\.\d{3}s\] ")

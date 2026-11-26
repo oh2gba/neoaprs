@@ -18,6 +18,7 @@ KEEPALIVE_IDLE_SEC = 30
 KEEPALIVE_INTERVAL_SEC = 10
 KEEPALIVE_PROBES = 3
 CHUNK = 16384
+FIRST_MAX = 60  # characters of what a source sent first, for the log
 
 log = logging.getLogger("neoaprs.aisfeed")
 
@@ -32,9 +33,12 @@ class Lines:
         self._second = -1
         self._count = 0
         self.passed_over = 0
+        self.first = b""  # the start of what came, for the log
 
     def feed(self, data: bytes, now: float) -> list[str]:
         """Return the lines `data` completes; `now` is seconds on any steady clock."""
+        if len(self.first) < FIRST_MAX:
+            self.first += data[: FIRST_MAX - len(self.first)]
         pieces = (self._rest + data).split(b"\n")
         self._rest = pieces.pop()
         if self._skipping and pieces:
@@ -60,6 +64,13 @@ class Lines:
             self._second, self._count = int(now), 0
         self._count += 1
         return self._count <= self.per_sec
+
+
+def first_words(data: bytes) -> str:
+    """Return the first line of `data` as printable ASCII, at most FIRST_MAX characters; "nothing" if empty."""
+    line = data.strip().replace(b"\r", b"\n").split(b"\n")[0]
+    text = "".join(chr(b) if 0x20 <= b < 0x7F else "?" for b in line[:FIRST_MAX]).strip()
+    return repr(text) if text else "nothing"
 
 
 async def connect(

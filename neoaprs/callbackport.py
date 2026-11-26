@@ -13,6 +13,8 @@ from .serialport import SerialPort
 class CallbackPort(SerialPort):
     _on_data: Callable[[Self, bytes], None]
     _on_lost: Callable[[Self, str], None]
+    # told when the first write of an open went through
+    on_written: Callable[[Self], None] | None = None
 
     def __init__(
         self, path: str, baud: int, on_data: Callable[[Self, bytes], None], on_lost: Callable[[Self, str], None]
@@ -27,3 +29,7 @@ class CallbackPort(SerialPort):
     def _lost(self, reason: str) -> None:
         super()._lost(reason)
         self._on_lost(cast(Self, self), reason)
+
+    def _written(self) -> None:
+        if self.on_written is not None:
+            self.on_written(cast(Self, self))

@@ -122,6 +122,7 @@ from neoaprs.web.hubwire import PROTOCOL  # noqa: E402
 from neoaprs.web.views import CONFIG_KEYS  # noqa: E402
 from neoaprs.web.replaywire import GLIDE_MAX_MIN, SPAN_DAYS  # noqa: E402
 from neoaprs.web.wirebase import HISTORY_MAX_HOURS  # noqa: E402
+from neoaprs.web.supportsend import MAX_EMAIL, reply_address  # noqa: E402
 
 SCHEMA = ROOT / "ui" / "src" / "protocol" / "schema.json"
 TYPES = ROOT / "ui" / "src" / "protocol" / "protocol.ts"
@@ -477,6 +478,7 @@ def limits() -> dict[str, Any]:
             "historySec": mercuryscope.HISTORY_SEC,
         },
         "radio": {"nameMax": MAX_NAME, "frequenciesMax": MAX_FREQUENCIES},
+        "support": {"emailMax": MAX_EMAIL},
         "mercury": {
             "version": mercury.VERSION,
             "mode": mercury.MODE,
@@ -685,7 +687,7 @@ files of `assets/` `public, max-age=31536000, immutable`.
 settings with the access key left out, the state of the running parts, the doctor's checks, the database's, the latest packets and what the page reported (`page_error`). It is behind the same login as the socket (`401` without the
 session, `403` for a Host name that is not ours or an `Origin` that is not the `Host`), one at a time (`429` while another is being made, with `Retry-After`) and `400` for a body that is not a JSON object with a `page` object.
 
-`POST /support/send` with `{"page": {...}, "note": "...", "file": ...}` (at most 256 KB; the note is text of at most 2000 characters, optional with a file) is Send feedback / logs: the daemon makes the same bundle and posts it with the note, the call, the version and the platform to the project's server. `file` says which file goes: left out or `true`, a bundle made now; the name of the bundle the page just downloaded from `/support/bundle`, that very file (the daemon keeps the latest one for an hour; a new one is made when it is gone); `false`, none, and the note, which must then have words, goes alone. It answers `200` with `{"ok": true, "ref": "NEO-YYYYmmdd-HHMM-XXXX"}`, the reference the person can quote, or `{"ok": false, "reason": CODE}` with `offline` (the server could not be reached), `rate` (too many from this connection in the last hour), `too_large` or `refused`. It is behind the same login and gates as `/support/bundle`, shares its one-at-a-time (`429`) and answers `400` for a body that is not as described (a `file` that is neither, and no file with no words, too).
+`POST /support/send` with `{"page": {...}, "note": "...", "file": ..., "email": "..."}` (at most 256 KB; the note is text of at most 2000 characters, optional with a file) is Send feedback / logs: the daemon makes the same bundle and posts it with the note, the address for a reply, the call, the version and the platform to the project's server. `email` is optional: an address of at most 254 characters with one `@` and something on each side of it, and no blank or control character (`reply_addresses` of the vectors); one that is not, or none, goes as empty, and the report is sent all the same. It is not written into the bundle or the log. `file` says which file goes: left out or `true`, a bundle made now; the name of the bundle the page just downloaded from `/support/bundle`, that very file (the daemon keeps the latest one for an hour; a new one is made when it is gone); `false`, none, and the note, which must then have words, goes alone. It answers `200` with `{"ok": true, "ref": "NEO-YYYYmmdd-HHMM-XXXX"}`, the reference the person can quote, or `{"ok": false, "reason": CODE}` with `offline` (the server could not be reached), `rate` (too many from this connection in the last hour), `too_large` or `refused`. It is behind the same login and gates as `/support/bundle`, shares its one-at-a-time (`429`) and answers `400` for a body that is not as described (a `file` that is neither, and no file with no words, too).
 
 At most 256 connections are open at once (32 from one address that is not the loopback). A message from the page is at most 64 KiB (a bigger one closes the socket with 1009). A page whose socket
 holds more than 4 MiB it has not read is sent no patches and is sent the topic whole when it has read down; one that holds 32 MiB is cut off. The socket is compressed when the browser offers
@@ -1071,6 +1073,31 @@ POSITIONS = [
     (-0.00001, -0.00001),
     (0.0083333, 100.0),
 ]
+REPLY_ADDRESSES = [
+    "ham@example.org",
+    "oh2xyz+aprs@mail.example.fi",
+    "pää@esimerkki.fi",
+    "a@b",
+    "",
+    "@example.org",
+    "ham@",
+    "ham@@example.org",
+    "ham@example@org",
+    "no address",
+    "ham @example.org",
+    "ham@example.org ",
+    "ham@exa\tmple.org",
+    "ham@example.org\n",
+    "ham@exam\u00a0ple.org",
+    "ham@exam\u2028ple.org",
+    "ham@exam\ufeffple.org",
+    "ham@exam\x7fple.org",
+    "ham@exam\x85ple.org",
+    "ham@\U0001f4e1.example",
+    "ham@exam\ud800ple.org",
+    "h" * 244 + "@example.o",
+    "h" * 245 + "@example.o",
+]
 STATUS_TEMPLATES = [
     "QRV {freq} {mode}",
     "",
@@ -1413,6 +1440,7 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         ],
         "beacons": [_beacon_vector(changes) for changes in BEACONS],
         "status_templates": [_template_vector(t) for t in STATUS_TEMPLATES],
+        "reply_addresses": [{"input": t, "ok": reply_address(t) != ""} for t in REPLY_ADDRESSES],
     }
 
 

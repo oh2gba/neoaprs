@@ -27,12 +27,13 @@ from tests.support.fakemercury import Air
 from tests.support.storedb import store_at
 
 ROOT = Path(__file__).resolve().parent.parent
-FILE = b'{"frequencies": [{"band": "80 m", "dial": "3.5850 MHz USB"}, {"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}, {"band": "6 m", "dial": "50.6200 MHz USB"}]}'
-# (the name is older than 6 m and 80 m: the project's list as shipped)
+FILE = b'{"frequencies": [{"band": "80 m", "dial": "3.5850 MHz USB"}, {"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}, {"band": "6 m", "dial": "50.6200 MHz USB"}, {"band": "10 m", "dial": "28.1800 MHz USB"}]}'
+# (the name is older than 6 m and 80 m: the project's list as shipped, by band)
 TWO = [
     Frequency("80 m", "3.5850 MHz USB"),
     Frequency("40 m", "7.0541 MHz USB"),
     Frequency("20 m", "14.1070 MHz USB"),
+    Frequency("10 m", "28.1800 MHz USB"),
     Frequency("6 m", "50.6200 MHz USB"),
 ]
 BUILT_IN = [Frequency(band, dial) for band, dial in mercury.SUGGESTED]
@@ -84,11 +85,15 @@ def test_the_file_of_the_site_is_a_list_the_daemon_understands_and_the_site_chec
     body = (ROOT / "site" / "frequencies.json").read_bytes()
     assert parse_frequencies(body) == TWO
     assert [(int(f.band.split()[0]), f.dial.split()[0]) for f in TWO] == [
-        (b, dict(mercury.FREQUENCIES)[b]) for b in (80, 40, 20, 6)
+        (b, dict(mercury.FREQUENCIES)[b]) for b in (80, 40, 20, 10, 6)
     ], "the file ships the dials of FREQUENCIES"
+    entries = json.loads(body)["frequencies"]
+    assert [e["band"] for e in entries[:4]] == ["80 m", "40 m", "20 m", "6 m"] and entries[4]["band"] == "10 m", (
+        "a copy that reads four entries at most still gets 6 m: a new band goes at the end"
+    )
 
 
-def test_every_entry_is_checked_and_a_bad_one_is_dropped_a_band_once_and_four_at_most() -> None:
+def test_every_entry_is_checked_and_a_bad_one_is_dropped_a_band_once_and_five_at_most_sorted_by_band() -> None:
     good = {"band": "30 m", "dial": "10.1462 MHz USB"}
     assert parse_frequencies(json.dumps({"frequencies": [good]})) == [Frequency("30 m", "10.1462 MHz USB")]
     for bad in (
@@ -120,6 +125,7 @@ def test_every_entry_is_checked_and_a_bad_one_is_dropped_a_band_once_and_four_at
                     entry(" 20 m ", " 14.1070 MHz USB "),
                     entry("30 m", "10.1462 MHz USB"),
                     entry("17 m", "18.1000 MHz USB"),
+                    entry("6 m", "50.6200 MHz USB"),
                     entry("80 m", "3.5850 MHz USB"),
                 ]
             }
@@ -127,11 +133,14 @@ def test_every_entry_is_checked_and_a_bad_one_is_dropped_a_band_once_and_four_at
     )
     assert found == [
         Frequency("40 m", "7.0541 MHz USB"),
-        Frequency("20 m", "14.1070 MHz USB"),
         Frequency("30 m", "10.1462 MHz USB"),
+        Frequency("20 m", "14.1070 MHz USB"),
         Frequency("17 m", "18.1000 MHz USB"),
-    ], "a band once, spaces cut, four at most (MAX_FREQUENCIES: the room of the HF box)"
-    assert MAX_FREQUENCIES == 4
+        Frequency("6 m", "50.6200 MHz USB"),
+    ], (
+        "a band once, spaces cut, the first five of the file (MAX_FREQUENCIES: the room of the HF box), the longest band first"
+    )
+    assert MAX_FREQUENCIES == 5
 
 
 def test_a_file_that_is_no_list_or_has_no_good_entry_is_none() -> None:
@@ -148,13 +157,13 @@ def test_a_file_that_is_no_list_or_has_no_good_entry_is_none() -> None:
         assert parse_frequencies(body) is None, body
 
 
-def test_the_box_shows_the_projects_list_else_the_version_pages_dial_else_the_built_in_four() -> None:
+def test_the_box_shows_the_projects_list_else_the_version_pages_dial_else_the_built_in_five() -> None:
     assert suggested(TWO, "7.0443 MHz USB", BUILT_IN, "40 m") == TWO
     assert suggested([], "7.0443 MHz USB", BUILT_IN, "40 m") == [Frequency("40 m", "7.0443 MHz USB")]
     assert suggested([], "", BUILT_IN, "40 m") == BUILT_IN == TWO
     assert [dict(mercury.FREQUENCIES)[int(band.split()[0])] + " MHz USB" for band, _ in mercury.SUGGESTED] == [
         dial for _, dial in mercury.SUGGESTED
-    ], "the built-in four are dials of FREQUENCIES"
+    ], "the built-in five are dials of FREQUENCIES"
 
 
 def test_the_list_is_kept_as_the_file_has_it_and_comes_back_the_same() -> None:
@@ -199,7 +208,7 @@ async def test_the_server_is_asked_a_minute_after_the_start_and_the_list_is_told
         await until(lambda: made.listed == TWO)
     assert told == [TWO] and server.asked == [(FREQUENCIES_URL, "0.17.0", "linux", 8192)] and made.asked == 1
     assert any(
-        "the project suggests the frequencies 80 m 3.5850 MHz USB, 40 m 7.0541 MHz USB, 20 m 14.1070 MHz USB, 6 m 50.6200 MHz USB (was none)"
+        "the project suggests the frequencies 80 m 3.5850 MHz USB, 40 m 7.0541 MHz USB, 20 m 14.1070 MHz USB, 10 m 28.1800 MHz USB, 6 m 50.6200 MHz USB (was none)"
         in r.getMessage()
         for r in caplog.records
     ), "a change of the list is a line at INFO"
@@ -312,8 +321,9 @@ async def test_the_modem_of_the_hf_radio_has_the_list_and_a_page_that_shows_the_
         {"band": "80 m", "dial": "3.5850 MHz USB"},
         {"band": "40 m", "dial": "7.0541 MHz USB"},
         {"band": "20 m", "dial": "14.1070 MHz USB"},
+        {"band": "10 m", "dial": "28.1800 MHz USB"},
         {"band": "6 m", "dial": "50.6200 MHz USB"},
-    ], "the built-in four until something better is known"
+    ], "the built-in five until something better is known"
     assert "dial" not in modem()
     server.answers = [json.dumps({"frequencies": [{"band": "30 m", "dial": "10.1462 MHz USB"}]}).encode()]
     await page.send({"cmd": "frequencies"})
@@ -326,35 +336,36 @@ async def test_the_modem_of_the_hf_radio_has_the_list_and_a_page_that_shows_the_
     await air.aclose()
 
 
-async def test_four_frequencies_go_through_the_topics_radios_and_skeds_as_the_wire_says_one_to_four(
+async def test_five_frequencies_go_through_the_topics_radios_and_skeds_as_the_wire_says_one_to_five(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """versions.MAX_FREQUENCIES is four (the box keeps room for four lines): the wire's lists take
-    four, and every message that leaves is checked against the models (NEOAPRS_VALIDATE_OUT=1)."""
+    """versions.MAX_FREQUENCIES is five (the box keeps room for five lines): the wire's lists take
+    five, and every message that leaves is checked against the models (NEOAPRS_VALIDATE_OUT=1)."""
     monkeypatch.setenv("NEOAPRS_VALIDATE_OUT", "1")
-    # (not the built-in four: the change is seen)
-    four = [
+    # (not the built-in five: the change is seen)
+    five = [
         {"band": "80 m", "dial": "3.5850 MHz USB"},
         {"band": "40 m", "dial": "7.0541 MHz USB"},
         {"band": "30 m", "dial": "10.1462 MHz USB"},
         {"band": "20 m", "dial": "14.1070 MHz USB"},
+        {"band": "10 m", "dial": "28.1800 MHz USB"},
     ]
-    assert MAX_FREQUENCIES == 4 and parse_frequencies(json.dumps({"frequencies": four}).encode()) == [
-        Frequency(f["band"], f["dial"]) for f in four
+    assert MAX_FREQUENCIES == 5 and parse_frequencies(json.dumps({"frequencies": five}).encode()) == [
+        Frequency(f["band"], f["dial"]) for f in five
     ]
     air = Air(frame_sec=0.2)
     station = air.station()
     e = Env(tmp_path, radio=station, web=True)
     await e.start()
-    server = Server(json.dumps({"frequencies": four}).encode())
+    server = Server(json.dumps({"frequencies": five}).encode())
     e.ctl.frequencies._fetch = server
     e.ctl.frequencies._environ = {}
     page = await e.ws()
     await page.until(lambda: (page.topics.get("radios", {}).get("2", {}).get("modem") or {}).get("state") == "running")
     await page.send({"cmd": "frequencies"})
-    await page.until(lambda: page.topics["radios"]["2"]["modem"]["frequencies"] == four)
+    await page.until(lambda: page.topics["radios"]["2"]["modem"]["frequencies"] == five)
     await page.until(
-        lambda: [{"band": f["band"], "dial": f["dial"]} for f in page.topics["skeds"]["frequencies"]] == four
+        lambda: [{"band": f["band"], "dial": f["dial"]} for f in page.topics["skeds"]["frequencies"]] == five
     )
     assert len(server.asked) == 1 and not page.of("error")
     await e.stop()

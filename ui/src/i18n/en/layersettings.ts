@@ -26,6 +26,8 @@ export const layersettings = {
   "layers.receiver.state.no_answer": "no answer",
   "layers.receiver.line.looking": "Looking for the receiver",
   "layers.receiver.line.no_answer": "No answer from the receiver",
+  "layers.receiver.state.no_ais": "no AIS",
+  "layers.receiver.line.no_ais": "Connected, but no AIS comes from it",
   "layers.receiver.line.aircraft": {
     one: "Receiving: {n} aircraft, {span} ago",
     other: "Receiving: {n} aircraft, {span} ago",

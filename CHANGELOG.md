@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **New:** 10 m among the suggested Mercury frequencies: 28.1800 MHz USB.
+- **New:** Send logs takes an e-mail address for a reply, if you give one.
+- **Fixed:** on Windows the computer's incoming Bluetooth port is no longer offered as a radio's port.
+- **Fixed:** a radio whose port takes no data is no longer shown as connected.
+- **Fixed:** the ships layer says when its receiver sends no AIS.
+- **Fixed:** a Mercury modem that stops receiving is restarted.
+- **Changed:** HF tests: the dial is typed as a number only; MHz and USB are fixed.
+- Thanks to EA8EE, whose reports led to these fixes and to the 10 m frequency and the e-mail field.
+
 ## 0.23.3
 
 - **Fixed:** the ALOHA circle is drawn: it reaches the farthest station heard while the channel is not full.

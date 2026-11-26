@@ -25,7 +25,7 @@ The box has a row for each field:
 
 - the **day**, one of the next 30 UTC days, written in the language of the page;
 - the **time**, from and to, in half hours. The label says UTC. A "to" that is not after the "from" is the next day, so a test is never longer than 24 hours;
-- the **frequency**: one of the dials the project suggests, or **Other**, which brings a row to type one in the form `7.0541 MHz USB` (or `LSB`);
+- the **frequency**: one of the dials the project suggests, or **Other**, which brings a row to type the dial as a number alone, `28.140` or `28,14`: MHz and USB are fixed;
 - the **note**, one line of at most 80 characters, with the characters it has left. Say there what you will try, such as your power or your antenna.
 
 The button reads **Post on neo.oh2gba.eu**. It is on when there is a call, the board can be reached and the form is right. A test that has ended already marks its "to" and cannot be posted. RX only does not matter: nothing here is sent by radio.

@@ -2,8 +2,8 @@
 // this page knows (`pageInfo`), the request (`requestBundle`: `POST support/bundle`, same
 // cookie as the page), the file name from the answer, saving it as a download, and the e-mail
 // that goes with it. Also Send logs: the same bundle posted to the project by the daemon with a
-// few words from the person (`requestSend`: `POST support/send`, answered with a reference to
-// quote), or the words alone when the person removed the file (`SentFile`). The daemon makes
+// few words from the person and an address for a reply if given (`requestSend`: `POST support/send`,
+// answered with a reference to quote), or the words alone when the person removed the file (`SentFile`). The daemon makes
 // the zip (log, settings without the access key, packets); the page adds page.json and
 // page-errors.json via `page`.
 import { endpoint } from "@/lib/access";
@@ -12,6 +12,7 @@ import { pad2 } from "@/lib/format";
 import { sizeOf, type SizeClass } from "@/lib/layout";
 import type { Connection } from "@/lib/hub";
 import type { PageErrorEntry } from "@/lib/pageerrors";
+import { LIMITS } from "@/protocol/lists";
 
 /**
  * The daemon takes a body of 256 KB at most; the page stays under it by cutting errors, not
@@ -22,6 +23,33 @@ export const BODY_MAX_BYTES = 240_000;
  * The longest Send logs note; the daemon and the server cut at the same number of characters.
  */
 export const NOTE_MAX = 2000;
+
+export const EMAIL_MAX = LIMITS.support.emailMax;
+const WHITE_SPACE = new Set([0x1680, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xfeff]);
+
+/** Blanks and controls, Unicode white space and lone surrogates (reply_address of neoaprs/web/supportsend.py). */
+function notInAddress(code: number): boolean {
+  return (
+    code <= 0x20 ||
+    (code >= 0x7f && code <= 0xa0) ||
+    (code >= 0x2000 && code <= 0x200a) ||
+    (code >= 0xd800 && code <= 0xdfff) ||
+    WHITE_SPACE.has(code)
+  );
+}
+
+/** Whether the text is an address for a reply: one "@" with something on each side, no blank, at most EMAIL_MAX characters. */
+export function replyAddressOk(text: string): boolean {
+  const chars = [...text];
+  const at = text.indexOf("@");
+  return (
+    chars.length <= EMAIL_MAX &&
+    !chars.some((c) => notInAddress(c.codePointAt(0) ?? 0)) &&
+    at > 0 &&
+    at < text.length - 1 &&
+    !text.includes("@", at + 1)
+  );
+}
 
 /**
  * The file that goes with Send feedback / logs: `true` one the daemon makes at the send, the
@@ -96,13 +124,17 @@ export function pageInfo(given: InfoGiven, host: InfoHost = window, now: number 
 
 /**
  * The request body: over the daemon's limit the error stacks are cut short, then the oldest
- * errors go. The Send logs note goes beside the page, and `file` when it is not a new one (the
- * daemon's default).
+ * errors go. The Send logs note goes beside the page, `file` when it is not a new one (the
+ * daemon's default), and `email` when there is one.
  */
-export function bodyOf(info: PageInfo, note?: string, file: SentFile = true): string {
+export function bodyOf(info: PageInfo, note?: string, file: SentFile = true, email = ""): string {
   const size = (text: string): number => new TextEncoder().encode(text).length;
   const body = (page: PageInfo): string =>
-    JSON.stringify(note === undefined ? { page } : file === true ? { page, note } : { page, note, file });
+    JSON.stringify(
+      note === undefined
+        ? { page }
+        : { page, note, ...(file === true ? {} : { file }), ...(email === "" ? {} : { email }) },
+    );
   let text = body(info);
   if (size(text) <= BODY_MAX_BYTES) return text;
   let errors = info.errors.map((entry) => ({ ...entry, stack: entry.stack.slice(0, 500) }));
@@ -183,7 +215,7 @@ const SERVER_REASONS: ReadonlySet<string> = new Set(["offline", "rate", "too_lar
 
 /**
  * Ask the daemon to send the person's note to the project, with the support file unless `file`
- * is false. The daemon answers 200 with `{ ok, ref }` or `{ ok: false, reason }` (no internet
+ * is false, and the address for a reply unless it is empty. The daemon answers 200 with `{ ok, ref }` or `{ ok: false, reason }` (no internet
  * connection, too many sends, too large, refused); 401 and 403 mean no access, 429 another file
  * is being made.
  */
@@ -192,13 +224,14 @@ export async function requestSend(
   note: string,
   file: SentFile,
   fetcher: typeof fetch = fetch,
+  email = "",
 ): Promise<Sent> {
   let response: Response;
   try {
     response = await fetcher(endpoint("support/send"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: bodyOf(info, note.slice(0, NOTE_MAX), file),
+      body: bodyOf(info, note.slice(0, NOTE_MAX), file, email),
       credentials: "same-origin",
       cache: "no-store",
     });
@@ -210,18 +243,20 @@ export async function requestSend(
   if (response.status === 429) return { ok: false, problem: "busy", status: 429 };
   if (!response.ok) return { ok: false, problem: "failed", status: response.status };
   try {
-    const said: unknown = await response.json();
-    const answer =
-      typeof said === "object" && said !== null ? (said as { ok?: unknown; ref?: unknown; reason?: unknown }) : {};
-    if (answer.ok === true && typeof answer.ref === "string" && answer.ref !== "") return { ok: true, ref: answer.ref };
-    const reason =
-      typeof answer.reason === "string" && SERVER_REASONS.has(answer.reason)
-        ? (answer.reason as SendProblem)
-        : "refused";
-    return { ok: false, problem: reason, status: 200 };
+    return sentOf(await response.json());
   } catch {
     return { ok: false, problem: "failed", status: 200 };
   }
+}
+
+/** The daemon's answer of 200: the reference, or the reason the page has words for (else `refused`). */
+function sentOf(said: unknown): Sent {
+  const answer =
+    typeof said === "object" && said !== null ? (said as { ok?: unknown; ref?: unknown; reason?: unknown }) : {};
+  if (answer.ok === true && typeof answer.ref === "string" && answer.ref !== "") return { ok: true, ref: answer.ref };
+  const reason =
+    typeof answer.reason === "string" && SERVER_REASONS.has(answer.reason) ? (answer.reason as SendProblem) : "refused";
+  return { ok: false, problem: reason, status: 200 };
 }
 
 /**

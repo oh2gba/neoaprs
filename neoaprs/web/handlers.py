@@ -24,7 +24,7 @@ from neoaprs.claims import PORT_KINDS, Claims
 from neoaprs.radiospec import FM_ID
 from neoaprs.radiotype import ResourceKind
 from neoaprs.radiosearch import Trying
-from neoaprs.serialprobe import available_ports, can_find, can_search, claim_value, paired_bluetooth_ports, with_links
+from neoaprs.serialprobe import can_find, can_search, claim_value, offered_ports, paired_bluetooth_ports, with_links
 from neoaprs.usbtie import together
 
 from .beaconwire import BeaconNow, StatusNow
@@ -149,7 +149,7 @@ async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
     radio, claims = None if cmd.radio is None else named_radio(ctx, cmd.cmd, cmd.radio), ctx.ctl.radios.claims
     modem = None if radio is None else radio.driver.modem
     # Read in a thread (files, registry, BlueZ): by-id names, user links, paired Bluetooth devices.
-    ports = await asyncio.to_thread(lambda: with_links(available_ports()) + paired_bluetooth_ports())
+    ports = await asyncio.to_thread(lambda: with_links(offered_ports()) + paired_bluetooth_ports())
     # Runs the modem program; only for a sound-card modem.
     cards = await asyncio.to_thread(modem.sound_cards) if modem is not None else []
     # sysfs: which sit on one radio's USB hub; the page orders the keying by it.

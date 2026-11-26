@@ -133,6 +133,11 @@ def _decode(bits: _Bits, at: datetime) -> AisPosition | AisStatic | None:
     return None
 
 
+def is_ais(line: str) -> bool:
+    """Return whether the line is an AIS sentence (VDM or VDO) with a correct checksum."""
+    return _checked(line.strip()) is not None
+
+
 class AisDecoder:
     """Read NMEA lines one at a time and join the sentences of a multi-part message."""
 

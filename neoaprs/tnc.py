@@ -34,7 +34,7 @@ from .tnc2line import text_of
 from .tncsearch import PortSearch, hold_port, may_open, release_port, taken
 from .tncprofile import KENWOOD_TNC2, KISS_EXIT as KISS_EXIT, Profile
 from .tncwatchdog import ANSWER_SEC, CHECK_PAUSE_SEC, PROBE_SEC, PROMPT, REPLY_SEC, TncStats, Watchdog
-from .coded import Reason
+from .coded import Reason, code_of
 
 log = logging.getLogger("neoaprs.tnc")
 
@@ -52,6 +52,8 @@ async def open_port(tnc: "Tnc", path: str) -> TncPort | DummyPort:
     port: TncPort | DummyPort = dummy_line(tnc) if tnc.is_dummy else TncPort(path, tnc.baud, tnc._on_data, tnc._on_lost)
     if isinstance(port, DummyPort):
         port.label = tnc.label
+    else:
+        port.on_written = tnc._on_written
     await port.open()
     return port
 
@@ -154,6 +156,8 @@ class Tnc(TimedSource):
         self.last_watchdog_action = ""
         self.last_watchdog_at: datetime | None = None
         self._reader = reader_for(self)
+        # why the last line was lost when a write timed out; None once a write went through or a byte came
+        self.write_stuck: Reason | None = None
         self._open_reset()
 
     def _open_reset(self) -> None:
@@ -165,6 +169,7 @@ class Tnc(TimedSource):
         if self.state is not Source.State.STOPPED:
             await self.stop()
         self._probe_next = False
+        self.write_stuck = None
         self.backoff.reset()  # a start is a fresh try
         await self._connect()
 
@@ -189,8 +194,10 @@ class Tnc(TimedSource):
         try:
             found = await self._find_line(reopen, named, generation)
         except SerialError as e:
+            self.write_stuck = None  # the open failed: that is the problem now
             self._probe_next = named and self.fallback_probe and self._search.possible and not isinstance(e, HeldError)
-            self._wait(str(e), again=not isinstance(e, NotChosenError))
+            said = e.args[0] if e.args and isinstance(e.args[0], Reason) else str(e)
+            self._wait(said, again=not isinstance(e, NotChosenError))
             return
         except Exception:
             log.exception("%s: connecting failed", self.label)
@@ -234,6 +241,8 @@ class Tnc(TimedSource):
         )
         if generation != self._generation:
             return None
+        if named and not self.is_dummy and await asyncio.to_thread(serialprobe.incoming_bluetooth, path):
+            raise NotChosenError(serialprobe.incoming_port_reason(path))
         if named and not self.is_dummy:
             await may_open(self.claims, self.radio_id, path, self.remembered and not reopen)
         asked = path
@@ -309,7 +318,17 @@ class Tnc(TimedSource):
             return
         self._port = None
         self._drop_tasks()
-        self._wait(f"{port.path} lost: {reason}")
+        text = f"{port.path} lost: {reason}"
+        self.write_stuck = (
+            Reason.of(reason, f"{port.path}: a write timed out: {reason}")
+            if code_of(reason)[0] == "radio.write_timeout"
+            else None
+        )
+        self._wait(self.write_stuck or text)
+
+    def _on_written(self, port: TncPort) -> None:
+        if port is self._port and self.write_stuck is not None:
+            self._took_data("a write went through")
 
     def _drop_tasks(self) -> None:
         watchdog, self._watchdog_task = self._watchdog_task, None
@@ -318,7 +337,16 @@ class Tnc(TimedSource):
 
     def _on_data(self, port: TncPort, chunk: bytes) -> None:
         if port is self._port:
+            if self.write_stuck is not None:
+                self._took_data("a byte came")
             self._reader.read(port, chunk)
+
+    def _took_data(self, how: str) -> None:
+        """The line works again after a write timed out: the radio is shown connected."""
+        self.write_stuck = None
+        log.info("%s: the port takes data again: %s", self.label, how)
+        self._note(f"the port takes data again: {how}")
+        self.changed.emit()
 
     def _handle(self, kiss_frame: kiss.KissFrame) -> None:
         if self.rtype.kind == "hf" and station_message(kiss_frame.command, kiss_frame.payload):

@@ -1228,7 +1228,7 @@ async def test_the_shipped_program_is_started_with_no_question_asked_of_the_syst
     await stopped(m)
 
 
-def test_a_warning_the_program_repeats_is_in_the_log_the_first_tenth_and_every_hundredth_time(
+def test_a_warning_the_program_repeats_is_in_the_log_the_first_tenth_and_hundredth_time(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     caplog.set_level(logging.DEBUG, "neoaprs.mercury.program")
@@ -1244,10 +1244,10 @@ def test_a_warning_the_program_repeats_is_in_the_log_the_first_tenth_and_every_h
         program._tell(stamp + "[WRN] [audio] snd_pcm_readi: Input/output error")
     program._tell("[INF] [engine] Mercury engine initialised")
     said = [r for r in caplog.records if r.name == "neoaprs.mercury.program"]
-    assert [r.levelno for r in said if "snd_pcm" in r.getMessage()] == [logging.INFO] * 4, (
-        "the 1st, the 10th, the 100th and the 200th"
+    assert [r.levelno for r in said if "snd_pcm" in r.getMessage()] == [logging.INFO] * 3, (
+        "the 1st, the 10th and the 100th; the 1000th would be next"
     )
-    assert "(the 200th time)" in said[3].getMessage() and said[-1].levelno == logging.DEBUG
+    assert "(the 100th time)" in said[2].getMessage() and said[-1].levelno == logging.DEBUG
 
 
 async def test_a_line_refused_while_mercury_is_starting_says_nothing_in_the_terminal_or_the_log_above_debug_and_is_said_once_the_start_time_is_over(
@@ -1278,3 +1278,12 @@ async def test_a_line_refused_while_mercury_is_starting_says_nothing_in_the_term
         ), "a modem that is still not there after its start time is a fault"
     finally:
         await tnc.stop()
+
+
+def test_the_sound_cards_mercury_lists_are_read_as_utf_8_whatever_the_locale() -> None:
+    """Windows' locale (cp1252) made 'MicrÃ³fono (Logi C525 HD WebCam)' of a support report."""
+    script = (
+        "import sys; sys.stdout.buffer.write(\"capture devices:\\ndevice: name: 'Micrófono (Logi C525 HD WebCam)'"
+        "  id: '{0.0.1.00000000}.{b97fd3c9}'\\n\".encode('utf-8'))"
+    )
+    assert [c.name for c in list_sound_cards([sys.executable, "-c", script])] == ["Micrófono (Logi C525 HD WebCam)"]

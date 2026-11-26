@@ -105,6 +105,7 @@ LAYERS: dict[str, list[str]] = {
         "igaterules",
         "cipher",
         "mercury",
+        "mercurystall",
         "mercurycards",
         "mercuryscope",
         "channelbusy",

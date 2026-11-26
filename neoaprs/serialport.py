@@ -21,6 +21,7 @@ import serial  # type: ignore[import-untyped]
 from . import nodevices
 from .btle import BleSerial, is_ble
 from .btserial import BluetoothSerial, is_bluetooth
+from .coded import Reason
 from .configvalues import port_scheme
 from .signal import Signal
 from .source import os_error_text
@@ -77,6 +78,14 @@ def _words(path: str, e: BaseException) -> str:
 
 
 LOST = "the line is gone (unplugged, or the other end closed it)"
+
+
+def write_timed_out() -> Reason:
+    return Reason(
+        f"the device did not take the data within {WRITE_TIMEOUT_SEC:g} s",
+        "radio.write_timeout",
+        seconds=WRITE_TIMEOUT_SEC,
+    )
 
 
 def _lost_words(e: BaseException) -> str:
@@ -208,8 +217,10 @@ class _Line:
         name: str,
         on_data: Callable[["_Line", bytes], None],
         on_lost: Callable[["_Line", str], None],
+        on_written: Callable[["_Line"], None] | None = None,
     ) -> None:
         self.ser, self._loop, self._on_data, self._on_lost = ser, loop, on_data, on_lost
+        self._on_written = on_written
         self._stop = threading.Event()
         self.outbox: queue.SimpleQueue[bytes | None] = queue.SimpleQueue()
         self._reader = threading.Thread(target=self._read, name=f"serial-read {name}", daemon=True)
@@ -240,13 +251,21 @@ class _Line:
                 self._post(self._on_data, bytes(chunk))
 
     def _write(self) -> None:
+        told = False  # the first write that went through is told, once
         while (data := self.outbox.get()) is not None:
             try:
                 self.ser.write(data)
+            except serial.SerialTimeoutException:
+                if not self._stop.is_set():
+                    self._post(self._on_lost, write_timed_out())
+                return
             except Exception as e:
                 if not self._stop.is_set():
                     self._post(self._on_lost, f"write failed: {_lost_words(e)}")
                 return
+            if not told and self._on_written is not None:
+                told = True
+                self._post(self._on_written)
 
     def end(self) -> None:
         """Stop both threads: wake the reader, let the writer flush, cut it short if slow."""
@@ -313,7 +332,9 @@ class SerialPort:
         if self._closed_while_opening:
             self._close_line_of(ser)
             raise SerialError(f"{self.path}: closed while it was being opened")
-        self._line = line = _Line(ser, asyncio.get_running_loop(), self.path, self._line_data, self._line_lost)
+        self._line = line = _Line(
+            ser, asyncio.get_running_loop(), self.path, self._line_data, self._line_lost, self._line_written
+        )
         line.start()
 
     def _open_blocking(self, hand: _Handover) -> Any:
@@ -371,10 +392,18 @@ class SerialPort:
         if line is self._line:
             self._lost(reason)
 
+    def _line_written(self, line: _Line) -> None:
+        if line is self._line:
+            self._written()
+
+    def _written(self) -> None:
+        """A write of this open went through (told once an open)."""
+
     def _deliver(self, chunk: bytes) -> None:
         self.data.emit(chunk)
 
     def _lost(self, reason: str) -> None:
-        log.warning("serial port %s lost: %s", self.path, reason)
+        timed_out = getattr(reason, "code", "") == "radio.write_timeout"
+        log.warning("serial port %s %s: %s", self.path, "write timed out" if timed_out else "lost", reason)
         self.close()
         self.dropped.emit(reason)

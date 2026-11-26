@@ -628,3 +628,33 @@ def test_radios_that_cannot_be_read_are_a_failure_with_the_way_back_and_no_made_
         "the defaults of the flat keys are not this station's radios"
     )
     assert "ok    call OH2GBA" in out and "ok    database " in out, "the settings and the file are read as they are"
+
+
+def test_a_bluetooth_port_of_windows_says_whether_it_reaches_the_device_or_is_the_incoming_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from neoaprs.serialprobe import PortInfo
+
+    ports = [
+        PortInfo(
+            "COM7",
+            "Serie estándar sobre el vínculo Bluetooth (COM7)",
+            "BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&000B\\8&C3F3ED0&0&000CBF18376C_C00000000",
+            None,
+            None,
+        ),
+        PortInfo(
+            "COM8",
+            "Serie estándar sobre el vínculo Bluetooth (COM8)",
+            "BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0000\\8&C3F3ED0&0&000000000000_00000000",
+            None,
+            None,
+        ),
+    ]
+    monkeypatch.setattr(doctor, "available_ports", lambda: ports)
+    monkeypatch.setattr(doctor, "held_by", lambda path: "held by putty (pid 42)" if path == "COM7" else "")
+    lines = doctor.check_ports().text.splitlines()
+    assert lines[1].endswith("(Bluetooth: the port that reaches the device 000CBF18376C)  held by putty (pid 42)")
+    assert lines[2].endswith(
+        "(the computer's incoming Bluetooth port: it reaches no device, and NeoAPRS does not offer it)"
+    )

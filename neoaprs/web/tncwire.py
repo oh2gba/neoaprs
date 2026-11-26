@@ -84,10 +84,10 @@ class ModemState(_Model):
     state: Literal["stopped", "starting", "running", "waiting"] = Field(
         description="`starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `reason` says why"
     )
-    reason: Literal["", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card", "keying"] = (
-        Field(
-            description="why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (the log has the English): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; empty unless the state is `waiting`"
-        )
+    reason: Literal[
+        "", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card", "keying", "receive_stalled"
+    ] = Field(
+        description="why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (the log has the English): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; `receive_stalled` the program heard nothing (its receive side stalled) again after three restarts in an hour and is not started again until the radio is; empty unless the state is `waiting`"
     )
     mode: str = Field(
         description="the modem's mode, the same for every station of the type: `DATAC3` (Mercury), `AFSK1200` (Direwolf)"
@@ -114,8 +114,8 @@ class ModemState(_Model):
     )
     frequencies: list[FrequencyRow] = Field(
         max_length=MAX_FREQUENCIES,
-        description="the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies`), else the dial the version page names, else the built-in "
-        'four; the page shows them in the Mercury radio\'s box as they are, with the words "suggested": they are not read from the radio',
+        description="the frequencies the project suggests, one to five, by band, the longest first: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies`), else the dial the version page names, else the built-in "
+        'five; the page shows them in the Mercury radio\'s box as they are, with the words "suggested": they are not read from the radio',
     )
     keying: str = Field(
         description="how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`"
@@ -170,6 +170,8 @@ RadioProblemCode = Literal[
     "radio.searching",
     "radio.silent",
     "radio.text_lines",
+    "radio.incoming_port",
+    "radio.write_timeout",
     "radio.resource_held",
     "modem.not_installed",
     "modem.stopped",
@@ -178,6 +180,7 @@ RadioProblemCode = Literal[
     "modem.not_started",
     "modem.sound_card",
     "modem.keying",
+    "modem.receive_stalled",
     "transmit.off",
     "beacon.not_sent",
 ]
@@ -188,7 +191,7 @@ class RadioProblem(_Model):
 
     code: RadioProblemCode = Field(
         description="`radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: "
-        "when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, "
+        "when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.incoming_port` its port is the computer's incoming Bluetooth port (Windows), which reaches no device (`port`); `radio.write_timeout` the last write to its port timed out (`seconds`): shown until a write goes through or a byte comes; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, "
         "`GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, "
         "and that reason's values)"
     )
@@ -338,7 +341,7 @@ class RadioRow(_Model):
         description="its type is a Dummy radio: the traffic is made up and nothing goes on the air; its tag is dashed"
     )
     state: Literal["stopped", "connecting", "connected", "waiting", "silent"] = Field(
-        description="its line: `waiting` is between two attempts to open it, `silent` the line is open and the radio does not answer (a check of the keep-alive got no byte at all in answer), nothing is sent until it does; `stopped` for a radio that is off or removed"
+        description="its line: `waiting` is between two attempts to open it, or its line is open again after a write timed out and nothing has gone through or come since, `silent` the line is open and the radio does not answer (a check of the keep-alive got no byte at all in answer), nothing is sent until it does; `stopped` for a radio that is off or removed"
     )
     problem: RadioProblem | None = Field(
         description="why it is not connected, while it is enabled and not connected; null otherwise"

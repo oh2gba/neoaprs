@@ -115,6 +115,14 @@ def test_the_beacon_the_settings_make_is_null_where_the_daemon_would_send_none()
     assert any(b["values"]["beacon/path"] == "BAD CALL" and b["text"] is None for b in beacons)
 
 
+def test_an_address_for_a_reply_has_one_at_with_words_on_each_side_and_no_blank_in_254_characters() -> None:
+    ok = {v["input"]: v["ok"] for v in vectors()["reply_addresses"]}
+    assert ok["ham@example.org"] and ok["a@b"] and ok["pää@esimerkki.fi"] and ok["h" * 244 + "@example.o"]
+    assert not any(
+        ok[t] for t in ("", "@example.org", "ham@", "ham@example@org", "ham @example.org", "h" * 245 + "@example.o")
+    )
+
+
 def test_every_category_has_cases_and_the_phg_and_the_positions_are_the_daemons_figures() -> None:
     v = vectors()
     assert all(v[name] for name in v)
@@ -132,6 +140,7 @@ def test_every_category_has_cases_and_the_phg_and_the_positions_are_the_daemons_
         "phg",
         "positions",
         "beacons",
+        "reply_addresses",
     } <= v.keys()
     assert {(c["power"], c["height"], c["gain"], c["direction"]): c["text"] for c in v["phg"]}[
         (5, 10, 3, "NE")

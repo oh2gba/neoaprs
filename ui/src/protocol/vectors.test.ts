@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { bytesLeft } from "@/lib/messages";
 import { canPost, freeSlot, textOk, type PostDraft, type PostKind } from "@/lib/bulletins";
 import { isAlias, isMarker } from "@/lib/chain";
+import { replyAddressOk } from "@/lib/support";
 import { parsePath, validCall, validName } from "@/lib/calls";
 import { compareVersions } from "@/lib/releasenotes";
 import { callOk, problemOf } from "@/lib/fieldcheck";
@@ -16,6 +17,10 @@ import { ownBulletin } from "@/test/fixtures";
 describe("the vectors of the daemon", () => {
   it("say which calls a station may transmit under", () => {
     for (const { input, ok } of vectors.calls) expect(callOk(input), JSON.stringify(input)).toBe(ok);
+  });
+
+  it("say which addresses for a reply Send logs takes", () => {
+    for (const { input, ok } of vectors.reply_addresses) expect(replyAddressOk(input), JSON.stringify(input)).toBe(ok);
   });
 
   it("say which calls parse (a path, an addressee), SSID and all", () => {

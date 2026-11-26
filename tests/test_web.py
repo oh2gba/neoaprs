@@ -291,7 +291,7 @@ async def test_list_ports_is_answered_with_the_ports_of_the_machine_and_whether_
 
     monkeypatch.setattr(
         web_handlers,
-        "available_ports",
+        "offered_ports",
         lambda: [
             PortInfo("COM3", "USB Serial Port (COM3)", "USB VID:PID=0403:6001", 0x0403, 0x6001),
             PortInfo("COM4", "Bluetooth", "BTHENUM", None, None),
@@ -331,7 +331,7 @@ async def test_list_ports_is_answered_with_the_ports_of_the_machine_and_whether_
         "keying": "",
         "radio": None,
     }
-    monkeypatch.setattr(web_handlers, "available_ports", lambda: [])
+    monkeypatch.setattr(web_handlers, "offered_ports", lambda: [])
     await page.send({"cmd": "list_ports"})
     await page.until(lambda: len(page.of("ports")) == 2)
     assert page.of("ports")[-1]["ports"] == []
@@ -344,7 +344,7 @@ async def test_list_ports_says_which_ports_sit_together_on_one_usb_device_by_a_t
 
     monkeypatch.setattr(
         web_handlers,
-        "available_ports",
+        "offered_ports",
         lambda: [
             PortInfo("/dev/ttyUSB0", "CP2105", "USB VID:PID=10C4:EA70", 0x10C4, 0xEA70),
             PortInfo("/dev/ttyS0", "ttyS0", "n/a", None, None),
@@ -376,7 +376,7 @@ async def test_list_ports_ends_with_the_paired_bluetooth_devices(
 
     monkeypatch.setattr(
         web_handlers,
-        "available_ports",
+        "offered_ports",
         lambda: [PortInfo("/dev/ttyUSB0", "CP2102", "USB VID:PID=10C4:EA60", 0x10C4, 0xEA60)],
     )
     monkeypatch.setattr(

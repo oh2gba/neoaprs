@@ -7,11 +7,12 @@ import asyncio
 import logging
 import os
 from collections.abc import Callable, Mapping
+from typing import Any
 from datetime import datetime
 from urllib.parse import urlsplit
 
 from neoaprs import radarcape, readsb
-from neoaprs.clock import Clock, utcnow
+from neoaprs.clock import Clock, iso, utcnow
 from neoaprs.config import Config
 from neoaprs.layerthing import (
     AGE_CHECK_SEC,
@@ -139,6 +140,7 @@ class AircraftReceiver(AskedSource):
         self.host = (urlsplit(self.urls[0]).hostname or "?") if self.urls else ""
         self.found: str | None = None
         self.state: ReceiverState = ReceiverState("looking", 0, None)
+        self.since: datetime | None = None  # when the state last changed
 
     def receiver(self) -> ReceiverState:
         return self.state
@@ -170,6 +172,7 @@ class AircraftReceiver(AskedSource):
 
     def _state(self, state: ReceiverState) -> None:
         if state.state != self.state.state:
+            self.since = self.ctx.clock()
             log.info(
                 "%s %s: %s",
                 self.name,
@@ -264,6 +267,24 @@ class Layers:
                 )
             )
         return found
+
+    def support_rows(self) -> list[dict[str, Any]]:
+        """Return each layer's source and, for an own receiver, its state and since when."""
+        rows = []
+        for state in self.states():
+            held = self._held.get(state.layer)
+            made = held[1] if held is not None else None
+            receiver = state.receiver
+            rows.append(
+                {
+                    "layer": state.layer,
+                    "source": state.source,
+                    "state": None if receiver is None else receiver.state,
+                    "since": iso(getattr(made, "since", None)) if receiver is not None else None,
+                    "heard_at": None if receiver is None else iso(receiver.heard_at),
+                }
+            )
+        return rows
 
     def table(self, layer: Layer) -> LayerTable:
         """Return the layer's table: the things of its source within the age limit."""

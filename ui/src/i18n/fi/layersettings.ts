@@ -28,6 +28,8 @@ export const layersettings: Record<keyof typeof source, Message> = {
   "layers.receiver.state.no_answer": "ei vastausta",
   "layers.receiver.line.looking": "Etsitään vastaanotinta",
   "layers.receiver.line.no_answer": "Vastaanotin ei vastaa",
+  "layers.receiver.state.no_ais": "ei AIS:ää",
+  "layers.receiver.line.no_ais": "Yhdistetty, mutta sieltä ei tule AIS:ää",
   "layers.receiver.line.aircraft": {
     one: "Vastaanotetaan: {n} ilma-alus, {span} sitten",
     other: "Vastaanotetaan: {n} ilma-alusta, {span} sitten",

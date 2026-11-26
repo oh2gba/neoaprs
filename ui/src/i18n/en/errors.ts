@@ -172,6 +172,8 @@ export const errors = {
   "error.radio.transmitting": "the radio is transmitting",
   "error.radio.text_lines": "the board sends text lines: set it to KISS",
   "error.radio.silent": "the radio is silent",
+  "error.radio.incoming_port": "{port} is the computer's incoming Bluetooth port: choose the device's other port",
+  "error.radio.write_timeout": "the device did not take the data within {seconds} s",
   "error.radio.settling": "the TNC is restarting into KISS mode",
   "error.radio.not_taken": "the TNC did not take the frame",
   "error.radio.command_mode": "the TNC is in command mode (KISS ON is sent again)",

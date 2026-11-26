@@ -62,6 +62,7 @@ const MODEM_WAITING: Record<ModemState["reason"], MessageId> = {
   not_started: "settings.tnc.hf.not_started",
   sound_card: "settings.tnc.hf.sound_card",
   keying: "settings.tnc.hf.keying",
+  receive_stalled: "settings.tnc.hf.receive_stalled",
 };
 
 /** The hover title's addition: how much has come in and gone out. */

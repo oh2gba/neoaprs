@@ -28,6 +28,8 @@ export const layersettings: Record<keyof typeof source, Message> = {
   "layers.receiver.state.no_answer": "応答なし",
   "layers.receiver.line.looking": "受信機を探しています",
   "layers.receiver.line.no_answer": "受信機から応答がありません",
+  "layers.receiver.state.no_ais": "AISなし",
+  "layers.receiver.line.no_ais": "接続済みですが、AISが届きません",
   "layers.receiver.line.aircraft": { other: "受信中: 航空機 {n} 機、{span}前" },
   "layers.receiver.line.aircraft_none": "受信中、航空機はまだありません",
   "layers.receiver.line.ships": { other: "受信中: 船舶 {n} 隻、{span}前" },

@@ -80,8 +80,9 @@ loop with `call_soon_threadsafe`. The process id is kept in a file beside the co
 the next start can end a stale run left by a crashed daemon, which would otherwise hold the sound
 card and the listening ports. A port that is already listened on is not free for the program, so
 every foreign listener found after the program started belongs to the program. A repeated warning is
-logged at INFO only the first, tenth and every hundredth time because a stuck sound device repeats
-one line thousands of times. The bundled ALSA library needs ALSA_CONFIG_PATH when a shipped
+logged at INFO only the 1st, 10th, 100th, 1000th... time because a stuck sound device repeats
+one line millions of times; one more line when
+it has stopped for a minute says how many times it came, so that its end is in the log too. The bundled ALSA library needs ALSA_CONFIG_PATH when a shipped
 alsa.conf exists, because a machine without ALSA lacks /usr/share/alsa/alsa.conf.
 
 ## neoaprs/claims.py
@@ -411,6 +412,13 @@ The control port serves one host at a time. Newer Mercury versions close a secon
 The shipped Mercury listens on 127.0.0.1 only (a patch to its sources). Its ports have no password, so a listener on every interface would let any host on the LAN key the radio; `foreign_listeners` checks this. The port probe binds with SO_REUSEADDR as Mercury does, so a port in TIME_WAIT counts as free and a restarted modem finds its old pair; on Windows that option would also take a port another program listens on, so it is not set there. A port listened on in IPv6 alone is not free. Adjacent port pairs share a port (the ARQ data port of one is the control port of the next), so the claims table hands out pairs whose four ports do not overlap. A Mercury left behind by a daemon crash keeps the sound card; its process id is written beside the configuration and ended at the next start. Mercury is asked to end twice before it is killed: the second request makes it drop the transmitter at once, while a kill could leave a radio keyed through a GPIO pin or serial line.
 
 ## neoaprs/mercurymodem.py
+
+Mercury says "Buffer full in capture buffer!" while its demodulator does not take what it records:
+it then hears nothing and nothing else tells. A run of the warning without a gap of 5 s for 30 s is
+a stall, so that a burst during a busy moment is none; the modem is started again through the
+restart of a program that ended, never while it keys the radio, at most every 10 minutes. A stall
+right after three restarts in an hour is not cured by restarting, so the program is ended with a
+reason the page shows: a deaf modem would also send over others, its busy detector hearing nothing.
 
 The hold is the carrier sense this plane lacks. While Mercury keys the radio (`PTT ON` until
 `PTT OFF`) no frame is handed to it, so frames go one at a time and the services' pace counts from a
@@ -801,6 +809,11 @@ gone in two minutes. pyserial opens a file for a `spy://` address, so the settin
 repeated before it is handed over.
 
 ## neoaprs/serialprobe.py
+
+Windows makes two COM ports for a paired Bluetooth device: the device's own, whose BTHENUM hwid
+ends in the device's address, and the computer's incoming one, whose address is twelve zeros. The
+incoming one reaches no device and takes no data, so it is not offered and a radio set to it waits
+with `radio.incoming_port` until its settings change, as `MAC_LEFT_OUT` does on a Mac.
 
 The search writes to the ports it listens to (a carriage return, to wake a TNC in command mode),
 and a port that is not a TNC may be a GPS, a rotator or an interface that keys a transmitter. The
@@ -1363,6 +1376,12 @@ the desktop app) wait while it is fresh; one left by a kill goes stale by itself
 `neoaprs.migrate.lock` (released by the system whenever its process ends), so a second NeoAPRS waits to migrate the same file.
 
 ## neoaprs/tnc.py
+
+A write that times out (pyserial's SerialTimeoutException: the device took no data within the
+write timeout, as the incoming Bluetooth port of Windows does) is its own reason. The line is opened
+again with the usual back-off, but the row says `waiting` with `radio.write_timeout` until a write
+goes through or a byte comes: a bare reopen proves nothing. Frames still go to the port meanwhile,
+since only a write that goes through can show that it works, and a quiet channel is no evidence.
 
 A Kenwood TH-D7 TNC starts in command mode: it prints heard packets as TNC2 text and answers a carriage return with "cmd:".
 `ModeDetector` tells that from a KISS stream, and the Tnc switches the radio to KISS ("KISS ON", "RESTART") once per answer it

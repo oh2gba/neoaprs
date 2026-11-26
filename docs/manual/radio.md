@@ -192,7 +192,7 @@ A radio on a serial line has one choice, **Port**, behind the arrow of its statu
 The Port choice offers *find automatically* on Linux (*not set* on Windows and macOS, and for a LoRa board), the ports the system lists, on Linux the paired Bluetooth devices that have a serial port (by name), and *Other...* for a path or a `socket://` or `ble://` address typed (a Bluetooth LE device is not listed: it is typed). **Refresh** asks again. Beside an automatic port it says `found: PORT` when NeoAPRS has found the radio before. A port another radio of the station is set to is refused, with that radio's name.
 
 - **A port on the network** (`socket://`, or a type that takes an Address and a Port) has no speed and is never searched for. Nothing is sent to it that is not a KISS frame, so there is no keep-alive check. A connection that closes is a line that dropped, and it is opened again after the back-off.
-- **A Bluetooth port** has no speed and is never searched for or opened to list it. A link that drops (the radio is switched off or out of range) is opened again like any other. On Windows the paired device's COM port is the way, on macOS its `/dev/cu.*` port ([`docs/RADIOS.md`](../RADIOS.md#bluetooth)).
+- **A Bluetooth port** has no speed and is never searched for or opened to list it. A link that drops (the radio is switched off or out of range) is opened again like any other. On Windows the paired device's COM port is the way, on macOS its `/dev/cu.*` port ([`docs/RADIOS.md`](../RADIOS.md#bluetooth)). Windows makes two COM ports for a paired device; the one that reaches no device, the computer's incoming port, is not in the list, and a radio set to it says to choose the device's other port.
 - **A Bluetooth LE port** is not paired the way a classic device is: NeoAPRS looks for the device by its address when the port is opened and uses the KISS service it finds. A device that another program or a phone is connected to cannot be reached: LE allows one connection at a time.
 - **A serial port** has a speed in baud, 8N1. Empty means the type's own, which is 9600 for every serial type. The NinoTNC needs 57600; the Mobilinkd and the TH-D74/D75 ignore it.
 - **The control lines** DTR and RTS are set low as soon as the port is open, because a sound-card interface keys the transmitter on RTS.
@@ -226,6 +226,7 @@ Each box of a radio that is on has one line, the radio status, with an arrow in 
 
 - The state is a coloured word: connected, waiting, silent, and so on.
 - One plain line follows: "Last packet 2 min ago", "Searching for the radio…" with the ports it listens to behind **Ports**, "Not connected" with the reason, or for a silent radio since when it said nothing. The packet and byte counts are its hover text.
+- A port that takes no data (a write to it waits more than 2 seconds) shows the radio as waiting, with "The port takes no data", until something goes through or comes from the radio. Frames are still handed to it meanwhile.
 - **Reconnect**, small, at the end of the line, opens the line again.
 - **Terminal**, behind the arrow and closed until you open it, shows the latest 100 lines of what the TNC saw and did, in your browser's time.
 - When the radio's digipeater is on and has repeated something, the status says "digipeated N".
@@ -244,6 +245,8 @@ The box of a Mercury radio has, behind the arrow of its status line, no port, sp
 - Test and Tune are off while the station is RX only and while the modem is not running.
 
 The status line says what you can act on: the mode, *Listening*, *Transmitting…*, *Channel busy, waiting* while another station's signal is on the channel, *Tuning…* or *Keyed*, the SNR of the latest frame and the last packet. When the modem cannot open the sound card, it says *Sound card could not be opened: choose another*, and the modem is tried again after a while with the card chosen then.
+
+When Mercury hears nothing because its receive side has stalled (it records sound it does not take), NeoAPRS starts it again, never while it transmits and at most every 10 minutes; after three restarts in an hour the line says *Mercury hears nothing, even after restarts: switch the radio off and on again*.
 
 - A Mercury radio sends its frames direct: no digipeater repeats them, so no path is sent, except that a message or an ack to a station heard through a gateway goes with the gateway's call ([how](beacon.md#passing-a-packet-between-two-radios)). Where a path is chosen beside a Mercury radio (Route, Ask around, Local info, an object), it is greyed, its value kept.
 - The beacon of a Mercury radio goes every 30 minutes at the most often, each timed send with a random pause of up to five minutes, and is a timed one: SmartBeaconing is for the radios that allow it, and a moving station's Mercury beacon says where it is now.

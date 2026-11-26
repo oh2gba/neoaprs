@@ -59,7 +59,7 @@ class SkedsState(_Model):
     )
     frequencies: list[SkedFrequency] = Field(
         max_length=MAX_FREQUENCIES,
-        description="the dials the project suggests for a Mercury radio, one to four, the same as `modem.frequencies` of a Mercury radio's row (the tab does not depend on a radio's state)",
+        description="the dials the project suggests for a Mercury radio, one to five, the same as `modem.frequencies` of a Mercury radio's row (the tab does not depend on a radio's state)",
     )
     rows: list[SkedRow] = Field(
         max_length=100,

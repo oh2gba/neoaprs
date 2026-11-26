@@ -425,6 +425,11 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.not_connected": "未接続",
   "settings.tnc.not_connected_why": "未接続: {why}",
   "settings.tnc.text_lines": "ボードがテキスト行を送っています: KISSに設定してください",
+  "settings.tnc.incoming_port":
+    "{port} はコンピューターの受信用Bluetoothポートです: 機器のもう一方のポートを選んでください",
+  "settings.tnc.write_timeout": "ポートがデータを受け付けません: {seconds} 秒で何も送れませんでした",
+  "settings.tnc.hf.receive_stalled":
+    "Mercuryは再起動後も何も受信しません: 無線機をいったんオフにしてオンにしてください",
   "settings.tnc.hf.not_installed": "このインストールにはこの無線機のモデムが含まれていません",
   "settings.tnc.hf.stopped": "停止中",
   "settings.tnc.hf.network": "未起動: モデムがネットワークに開かれてしまいます",
@@ -535,6 +540,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.problem.too_large": "送信できませんでした。ログが大きすぎます。",
   "settings.help.dialog.title": "フィードバック / ログを送信",
   "settings.help.dialog.label": "メッセージ",
+  "settings.help.dialog.email": "返信用のメール",
   "settings.help.dialog.attached": "添付",
   "settings.help.dialog.download": "{file} をダウンロード",
   "settings.help.dialog.remove": "{file}を外す",

@@ -625,5 +625,30 @@
   {"template": "QRV {freq} xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "length": 56, "ok": false},
   {"template": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "length": 55, "ok": true},
   {"template": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "length": 56, "ok": false}
+ ],
+ "reply_addresses": [
+  {"input": "ham@example.org", "ok": true},
+  {"input": "oh2xyz+aprs@mail.example.fi", "ok": true},
+  {"input": "p\u00e4\u00e4@esimerkki.fi", "ok": true},
+  {"input": "a@b", "ok": true},
+  {"input": "", "ok": false},
+  {"input": "@example.org", "ok": false},
+  {"input": "ham@", "ok": false},
+  {"input": "ham@@example.org", "ok": false},
+  {"input": "ham@example@org", "ok": false},
+  {"input": "no address", "ok": false},
+  {"input": "ham @example.org", "ok": false},
+  {"input": "ham@example.org ", "ok": false},
+  {"input": "ham@exa\tmple.org", "ok": false},
+  {"input": "ham@example.org\n", "ok": false},
+  {"input": "ham@exam\u00a0ple.org", "ok": false},
+  {"input": "ham@exam\u2028ple.org", "ok": false},
+  {"input": "ham@exam\ufeffple.org", "ok": false},
+  {"input": "ham@exam\u007fple.org", "ok": false},
+  {"input": "ham@exam\u0085ple.org", "ok": false},
+  {"input": "ham@\ud83d\udce1.example", "ok": true},
+  {"input": "ham@exam\ud800ple.org", "ok": false},
+  {"input": "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh@example.o", "ok": true},
+  {"input": "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh@example.o", "ok": false}
  ]
 }

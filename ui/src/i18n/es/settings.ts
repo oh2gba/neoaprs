@@ -452,6 +452,10 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.tnc.not_connected": "Sin conexión",
   "settings.tnc.not_connected_why": "Sin conexión: {why}",
   "settings.tnc.text_lines": "La placa envía líneas de texto: ponla en KISS",
+  "settings.tnc.incoming_port":
+    "{port} es el puerto Bluetooth entrante del ordenador: elige el otro puerto del dispositivo",
+  "settings.tnc.write_timeout": "El puerto no acepta datos: nada pasó en {seconds} s",
+  "settings.tnc.hf.receive_stalled": "Mercury no oye nada, ni tras reiniciarlo: apaga la radio y vuelve a encenderla",
   "settings.tnc.hf.not_installed": "Esta instalación no incluye el módem de esta radio",
   "settings.tnc.hf.stopped": "No está en marcha",
   "settings.tnc.hf.network": "No iniciado: el módem estaría abierto a la red",
@@ -565,6 +569,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.help.problem.too_large": "No enviado: los registros son demasiado grandes.",
   "settings.help.dialog.title": "Enviar comentarios / registros",
   "settings.help.dialog.label": "Tu mensaje",
+  "settings.help.dialog.email": "Correo para una respuesta",
   "settings.help.dialog.attached": "Adjunto",
   "settings.help.dialog.download": "Descargar {file}",
   "settings.help.dialog.remove": "Quitar {file}",

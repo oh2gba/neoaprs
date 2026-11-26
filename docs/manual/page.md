@@ -209,6 +209,7 @@ What each source is asked, in the form of [the update check](install.md#the-upda
 - **Your own aircraft receiver (My own receiver)** is asked for its `aircraft.json` (tar1090, dump1090 and SkyAware keep it) every 5 seconds, on the address given in Settings. That is a computer of yours, not the internet.
 - **Your Radarcape** is asked for its own list of aircraft, `aircraftlist.json`, every 5 seconds, on the address given in Settings. That is a device of yours, not the internet.
 - **Your own AIS receiver** is not asked: NeoAPRS opens a connection to the TCP port that sends its AIS sentences (the lines in which ships' transmitters report where they are) and keeps it for as long as My own receiver is the source of Ships, whether the tick is on or not. A lost connection is tried again after 5 seconds, then after longer, up to 5 minutes. NeoAPRS itself listens on no port for it.
+- **The AIS receiver's state** is *connected* while the connection is open and nothing has come (a receiver with no ship in range is quiet), *receiving* from the first AIS sentence, and *no AIS* when the source sends something else or closes without one (for instance a web page's address typed in place of the receiver's).
 
 ## Replay
 

@@ -1,7 +1,7 @@
 """`POST /support/send`: send feedback and logs to the project's server.
 
-The body is `{"page", "note", "file"}`; `file` is true (new bundle), a kept bundle's name, or
-false (note only). The answer is `{"ok": true, "ref"}` or `{"ok": false, "reason"}`.
+The body is `{"page", "note", "file", "email"}`; `file` is true (new bundle), a kept bundle's name,
+or false (note only); `email` is an optional address for a reply. The answer is `{"ok": true, "ref"}` or `{"ok": false, "reason"}`.
 """
 
 import json
@@ -25,6 +25,11 @@ log = logging.getLogger("neoaprs.web")
 ENV_URL = "NEOAPRS_SUPPORT_URL"
 MAX_NOTE = 2000  # characters; the dialog applies the same limit
 MAX_SEND_BYTES = 10 * 1024 * 1024  # what the server takes in one request
+MAX_EMAIL = 254  # characters, the longest address RFC 5321 lets through
+# blanks and controls, Unicode white space and lone surrogates; send.php and the page refuse the same
+_NOT_IN_ADDRESS = re.compile(
+    r"[\x00-\x20\x7f-\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff\ud800-\udfff]"
+)
 REFERENCE = re.compile(r"^NEO-\d{8}-\d{4}-[0-9A-F]{4,8}$")
 # Reasons the page has words for; any other refusal is `refused`.
 REASONS = ("rate", "too_large")
@@ -39,6 +44,14 @@ class Sent:
 
     def wire(self) -> dict[str, Any]:
         return {"ok": True, "ref": self.ref} if self.ok else {"ok": False, "reason": self.reason}
+
+
+def reply_address(value: object) -> str:
+    """Return the address for a reply, or "" for none or one that is not an address."""
+    if not isinstance(value, str) or len(value) > MAX_EMAIL or _NOT_IN_ADDRESS.search(value):
+        return ""
+    local, at, domain = value.partition("@")
+    return value if at and local and domain and "@" not in domain else ""
 
 
 def support_url(environ: Mapping[str, str] = os.environ) -> str:
@@ -82,14 +95,14 @@ def told(sent: Sent, bundle: tuple[str, bytes] | None, chars: int) -> None:
 
 
 async def send_bundle(
-    url: str, bundle: tuple[str, bytes] | None, note: str, call: str, version: str, platform: str
+    url: str, bundle: tuple[str, bytes] | None, note: str, email: str, call: str, version: str, platform: str
 ) -> Sent:
     """Post the note and the bundle (unless the note goes alone); `offline` if unreachable."""
     if bundle is not None and len(bundle[1]) > MAX_SEND_BYTES:
         return Sent(False, reason="too_large", detail="over the limit, not sent")
     got = await post(
         url,
-        {"note": note, "call": call, "version": version, "platform": platform},
+        {"note": note, "email": email, "call": call, "version": version, "platform": platform},
         {} if bundle is None else {"bundle": bundle},
         version,
         platform,
@@ -139,7 +152,13 @@ class SupportSend(SupportBundle):
                 else await self.made(body["page"])
             )
             sent = await send_bundle(
-                support_url(), bundle, note, ctl.config.station_call, ctl.updatecheck.version, ctl.updatecheck.platform
+                support_url(),
+                bundle,
+                note,
+                reply_address(body.get("email")),
+                ctl.config.station_call,
+                ctl.updatecheck.version,
+                ctl.updatecheck.platform,
             )
         finally:
             bundler.sending = False

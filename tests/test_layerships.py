@@ -24,8 +24,8 @@ from neoaprs.services import layerships
 from neoaprs.services.layers import Layers
 from neoaprs.updatefetch import FeedAnswer
 from tests.support import aissentences as ais
-from tests.support.env import remember_stop, until
-from tests.support.fakeais import ais_receiver
+from tests.support.env import idle_for, remember_stop, until
+from tests.support.fakeais import FakeAis, ais_receiver
 from tests.support.fakelayers import layers_server
 from tests.support.virtualtime import virtual_time
 from tests.test_layers import HOME, T0, Net, Settings, tables
@@ -283,8 +283,10 @@ async def test_the_connection_is_there_with_no_page_open_and_the_pages_are_told_
     service = await own(receiver.address)
     told = tables(service)
     await receiver.until_connected()
-    await until(lambda: ships_state(service).state == "receiving")
+    await idle_for(0.1)
+    assert ships_state(service).state == "connected", "a connection alone is not receiving: an AIS line is"
     receiver.send(*position_lines(230111000, 60.1, 24.9), *position_lines(230222000, 60.2, 25.0))
+    await until(lambda: ships_state(service).state == "receiving")
     await until(lambda: ships_state(service).things == 2)
     assert told == [] and ships_state(service).heard_at is not None, "nobody looks: the table is told to nobody"
     service.watch("ships", True)
@@ -347,12 +349,14 @@ async def test_a_lost_connection_is_no_answer_with_the_ships_kept_and_it_is_open
     with caplog.at_level("INFO", "neoaprs.layers"):
         receiver.drop()
         await until(lambda: ships_state(service).state == "no_answer" or receiver.connections >= 2)
-        await until(lambda: receiver.connections >= 2 and ships_state(service).state == "receiving")
+        await until(lambda: receiver.connections >= 2 and bool(receiver.writers))
+        receiver.send(*position_lines(230111000, 60.1, 24.9))
+        await until(lambda: ships_state(service).state == "receiving")
     assert any(t.away and len(t.things) == 1 for t in told), "while it was lost the table said away and kept its ship"
     words = [
         r.getMessage().rsplit(": ", 1)[1] for r in caplog.records if "the AIS receiver at 127.0.0.1" in r.getMessage()
     ]
-    assert words[:2] == ["no answer", "receiving"], "one line when the state changes, no more"
+    assert words[:3] == ["no answer", "connected", "receiving"], "one line when the state changes, no more"
     assert receiver.connections >= 2
 
 
@@ -550,3 +554,56 @@ async def test_the_daemon_opens_no_listening_socket_for_the_receiver() -> None:
     receiver.send(*position_lines(1001, 60.1, 24.9))
     await until(lambda: ships_state(service).things == 1)
     assert listening() == before
+
+
+class WebServer(FakeAis):
+    """What a web server (OpenWebRX on 8073) does with a line that is no HTTP request: one answer and the end."""
+
+    async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        self.connections += 1
+        writer.write(b"HTTP/1.1 400 Bad Request\r\nContent-Type: text/html\r\n\r\n<html>\x00\x1b[31m</html>\r\n")
+        await writer.drain()
+        writer.close()
+
+
+async def test_a_source_that_answers_but_sends_no_ais_is_said_once_with_what_it_sent_and_never_receiving(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(layerships, "AIS_RETRY_SEC", (0.02, 0.05))
+    server = await WebServer().start()
+    remember_stop(server.stop)
+    with caplog.at_level("INFO", "neoaprs.layers"):
+        service = await own(server.address)
+        await until(lambda: server.connections >= 4)
+    assert ships_state(service).state == "no_ais"
+    said = [r.getMessage() for r in caplog.records if "the AIS receiver at" in r.getMessage()]
+    assert said == [
+        "the AIS receiver at 127.0.0.1: connected",
+        "the AIS receiver at 127.0.0.1: connected, but no AIS comes from it; it sent 'HTTP/1.1 400 Bad Request'",
+    ], "the finding is logged once for the source, not at every reconnect, and a connect is not receiving"
+
+
+async def test_a_silent_source_is_connected_one_that_sends_other_lines_is_no_ais_and_the_first_ais_line_is_receiving(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A receiver with no ship in range is silent for minutes: silence claims nothing."""
+    receiver = await ais_receiver()
+    with caplog.at_level("INFO", "neoaprs.layers"):
+        service = await own(receiver.address)
+        await receiver.until_connected()
+        await until(lambda: ships_state(service).state == "connected")
+        await idle_for(0.3)
+        assert ships_state(service).state == "connected"
+        receiver.send("not AIS at all", "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")
+        await until(lambda: ships_state(service).state == "no_ais")
+        receiver.send(*position_lines(230111000, 60.1, 24.9))
+        await until(lambda: ships_state(service).state == "receiving")
+    said = [r.getMessage().split(": ", 1)[1] for r in caplog.records if "the AIS receiver at" in r.getMessage()]
+    assert said == ["connected", "connected, but no AIS comes from it; it sent 'not AIS at all'", "receiving"]
+
+
+def test_what_a_source_sent_first_is_told_as_printable_ascii_of_at_most_60_characters() -> None:
+    assert aisfeed.first_words(b"") == "nothing"
+    assert aisfeed.first_words(b"\r\nHTTP/1.1 400 Bad Request\r\nServer: x") == "'HTTP/1.1 400 Bad Request'"
+    assert aisfeed.first_words(b"\x00\x1bA\xffB") == "'??A?B'"
+    assert aisfeed.first_words(b"x" * 100) == repr("x" * 60)

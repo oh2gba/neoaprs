@@ -338,6 +338,7 @@ def test_a_note_alone_is_kept_as_a_json_without_a_zip_and_the_mail_says_that_no_
         "file": False,
         "size": 0,
         "note": "Thanks for the HF mode.",
+        "email": "",
     }
     (mail,) = endpoint.mail_sent()
     assert mail["subject"] == f"NeoAPRS message {ref} from OH2GBA"
@@ -346,6 +347,42 @@ def test_a_note_alone_is_kept_as_a_json_without_a_zip_and_the_mail_says_that_no_
         lines[0] == "A NeoAPRS message was sent, without the support file." and lines[-1] == "Thanks for the HF mode."
     )
     assert "Size:" not in mail["body"] and "support-fetch" not in mail["body"] and f"Reference: {ref}" in mail["body"]
+
+
+def test_an_address_for_a_reply_is_kept_in_the_json_and_named_in_the_mail_with_a_file_and_with_a_note_alone(
+    endpoint: Endpoint, bundle: bytes
+) -> None:
+    endpoint.start()
+    with_file = str(endpoint.post(good(bundle, email="oh2xyz@example.org"), {"bundle": ("a.zip", bundle)})[1]["ref"])
+    alone = str(endpoint.post({"note": "Write back.", "email": "oh2xyz@example.org", "call": "OH2XYZ"})[1]["ref"])
+    for ref in (with_file, alone):
+        assert (
+            json.loads((endpoint.stored / f"{ref}.json").read_text(encoding="utf-8"))["email"] == "oh2xyz@example.org"
+        )
+    mails = endpoint.mail_sent()
+    assert all("Email:     oh2xyz@example.org" in m["body"] and "oh2xyz@" not in m["subject"] for m in mails)
+    assert len(mails) == 2
+
+
+def test_a_form_without_an_address_is_taken_as_before_and_one_that_is_not_an_address_is_kept_empty(
+    endpoint: Endpoint, bundle: bytes
+) -> None:
+    """An older copy sends no email field; the rule is the daemon's (the vectors of the page)."""
+    endpoint.start()
+    ref = str(endpoint.post(good(bundle), {"bundle": ("a.zip", bundle)})[1]["ref"])
+    assert json.loads((endpoint.stored / f"{ref}.json").read_text(encoding="utf-8"))["email"] == ""
+    assert "Email:     -" in endpoint.mail_sent()[0]["body"]
+    cases = json.loads((ROOT / "ui" / "src" / "protocol" / "vectors.json").read_text(encoding="utf-8"))
+    for case in cases["reply_addresses"]:
+        try:
+            case["input"].encode("utf-8")
+        except UnicodeEncodeError:
+            continue  # a lone surrogate cannot be posted at all
+        (endpoint.stored / "rate.json").unlink()
+        code, answer = endpoint.post({"note": "x", "email": case["input"]})
+        assert code == 200, (case, answer)
+        meta = json.loads((endpoint.stored / f"{answer['ref']}.json").read_text(encoding="utf-8"))
+        assert meta["email"] == (case["input"] if case["ok"] else ""), case
 
 
 def test_a_bundle_says_in_its_json_that_a_file_came(endpoint: Endpoint, bundle: bytes) -> None:

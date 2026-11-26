@@ -29,7 +29,8 @@ from neoaprs.migrations import SCHEMA_VERSION, schema_version
 from neoaprs.paths import default_data_dir
 from neoaprs.radiospec import RadioSpec, log_name
 from neoaprs.serialboards import board_kind
-from neoaprs.serialprobe import available_ports
+from neoaprs.serialholders import held_by
+from neoaprs.serialprobe import PortInfo, available_ports, bluetooth_address
 from neoaprs.stopfile import migrating
 from neoaprs.store import DB_NAME, Store
 
@@ -235,6 +236,16 @@ def check_radios(
     return found
 
 
+def _bluetooth_words(port: PortInfo) -> str:
+    """Say which of a Windows Bluetooth device's two ports this is."""
+    address = bluetooth_address(port)
+    if address is None:
+        return ""
+    if address == "000000000000":
+        return "  (the computer's incoming Bluetooth port: it reaches no device, and NeoAPRS does not offer it)"
+    return f"  (Bluetooth: the port that reaches the device {address})"
+
+
 def check_ports() -> Finding:
     ports = available_ports()
     if not ports:
@@ -247,9 +258,12 @@ def check_ports() -> Finding:
     for p in ports:
         ids = f"{p.vid:04x}:{p.pid:04x}" if p.vid is not None and p.pid is not None else "-"
         board = board_kind(p.vid, p.pid)
+        holder = held_by(p.device)
         lines.append(
             f"    {p.device}  {p.description or '-'}  VID:PID {ids}"
             + (f"  ({board}: the search leaves it alone; name the port to use it)" if board else "")
+            + _bluetooth_words(p)
+            + (f"  {holder}" if holder else "")
         )
     return Finding(
         "ok", f"{len(ports)} serial port{'s' if len(ports) != 1 else ''} listed by the system:\n" + "\n".join(lines)

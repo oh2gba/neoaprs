@@ -607,8 +607,8 @@ export interface LayerLookCommand {
 
 /** The own receiver's state, for its line in Settings. It says nothing of addresses or ports. */
 export interface LayerReceiver {
-  /** `looking` until its first answer or connection; `receiving` after an answer in the expected form (AIS: while connected); `no_answer` after a failure, a wrong answer or a lost connection */
-  state: "looking" | "receiving" | "no_answer";
+  /** `looking` until its first answer or connection; `receiving` after an answer in the expected form (AIS: from the first AIS sentence of a connection); `no_answer` after a failure, a wrong answer or a lost connection; `connected` (AIS only) the connection is made and nothing has come yet (a receiver with no ship in range is silent); `no_ais` (AIS only) the source sent something that is not AIS first, or ended the connection without an AIS sentence */
+  state: "looking" | "connected" | "receiving" | "no_answer" | "no_ais";
   /** what it gave with a position at its last answer (aircraft), or the ships held now (AIS) */
   things: number;
   /** its last answer in the expected form (AIS: the last sentence decoded); null before one */
@@ -863,8 +863,8 @@ export interface MessageRow {
 export interface ModemState {
   /** `starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `reason` says why */
   state: "stopped" | "starting" | "running" | "waiting";
-  /** why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (the log has the English): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; empty unless the state is `waiting` */
-  reason: "" | "not_installed" | "stopped" | "network" | "no_port" | "not_started" | "sound_card" | "keying";
+  /** why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (the log has the English): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; `receive_stalled` the program heard nothing (its receive side stalled) again after three restarts in an hour and is not started again until the radio is; empty unless the state is `waiting` */
+  reason: "" | "not_installed" | "stopped" | "network" | "no_port" | "not_started" | "sound_card" | "keying" | "receive_stalled";
   /** the modem's mode, the same for every station of the type: `DATAC3` (Mercury), `AFSK1200` (Direwolf) */
   mode: string;
   /** the modem keys the radio now: a frame is on the air (about four seconds), or the tune tone or the keying test is on */
@@ -881,7 +881,7 @@ export interface ModemState {
   max_frame: number | null;
   /** the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device */
   sound_card: string;
-  /** the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies`), else the dial the version page names, else the built-in four; the page shows them in the Mercury radio's box as they are, with the words "suggested": they are not read from the radio */
+  /** the frequencies the project suggests, one to five, by band, the longest first: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies`), else the dial the version page names, else the built-in five; the page shows them in the Mercury radio's box as they are, with the words "suggested": they are not read from the radio */
   frequencies: FrequencyRow[];
   /** how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT` */
   keying: string;
@@ -1438,8 +1438,8 @@ export interface RadioLimits {
 
 /** Why a radio, or its beacon, does not do what it is set to, as a code the page puts in its own words, with the values its sentence is made of (the English of the log is not told). */
 export interface RadioProblem {
-  /** `radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, and that reason's values) */
-  code: "radio.not_connected" | "radio.searching" | "radio.silent" | "radio.text_lines" | "radio.resource_held" | "modem.not_installed" | "modem.stopped" | "modem.network" | "modem.no_port" | "modem.not_started" | "modem.sound_card" | "modem.keying" | "transmit.off" | "beacon.not_sent";
+  /** `radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.incoming_port` its port is the computer's incoming Bluetooth port (Windows), which reaches no device (`port`); `radio.write_timeout` the last write to its port timed out (`seconds`): shown until a write goes through or a byte comes; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`why`: the code of the reason, whose sentence the page has as the refusal `error.<why>`, and that reason's values) */
+  code: "radio.not_connected" | "radio.searching" | "radio.silent" | "radio.text_lines" | "radio.incoming_port" | "radio.write_timeout" | "radio.resource_held" | "modem.not_installed" | "modem.stopped" | "modem.network" | "modem.no_port" | "modem.not_started" | "modem.sound_card" | "modem.keying" | "modem.receive_stalled" | "transmit.off" | "beacon.not_sent";
   /** the values of the sentence, by name; empty for a code that has none */
   params: { [key: string]: string | number };
 }
@@ -1471,7 +1471,7 @@ export interface RadioRow {
   removed: boolean;
   /** its type is a Dummy radio: the traffic is made up and nothing goes on the air; its tag is dashed */
   dummy: boolean;
-  /** its line: `waiting` is between two attempts to open it, `silent` the line is open and the radio does not answer (a check of the keep-alive got no byte at all in answer), nothing is sent until it does; `stopped` for a radio that is off or removed */
+  /** its line: `waiting` is between two attempts to open it, or its line is open again after a write timed out and nothing has gone through or come since, `silent` the line is open and the radio does not answer (a check of the keep-alive got no byte at all in answer), nothing is sent until it does; `stopped` for a radio that is off or removed */
   state: "stopped" | "connecting" | "connected" | "waiting" | "silent";
   /** why it is not connected, while it is enabled and not connected; null otherwise */
   problem: RadioProblem | null;
@@ -1737,7 +1737,7 @@ export interface SkedsState {
   state: "ok" | "offline" | "off" | "closed";
   /** when the board was last read from the server (or when the one kept from the last run was); null before the first */
   fetched_at: string | null;
-  /** the dials the project suggests for a Mercury radio, one to four, the same as `modem.frequencies` of a Mercury radio's row (the tab does not depend on a radio's state) */
+  /** the dials the project suggests for a Mercury radio, one to five, the same as `modem.frequencies` of a Mercury radio's row (the tab does not depend on a radio's state) */
   frequencies: SkedFrequency[];
   /** the skeds to come by the daemon's clock, the nearest start first; empty when there are none */
   rows: SkedRow[];

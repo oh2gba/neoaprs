@@ -21,7 +21,7 @@ MAX_MESSAGE = 200
 # an HF dial as the page names it: "7.0541 MHz USB"
 _DIAL = re.compile(r"^\d{1,2}\.\d{3,4} MHz (USB|LSB)$", re.ASCII)
 _BAND = re.compile(r"^\d{1,3} m$", re.ASCII)
-MAX_FREQUENCIES = 4
+MAX_FREQUENCIES = 5
 _VERSION = re.compile(r"^\d+(\.\d+){0,3}([-+][0-9A-Za-z.]+)?$", re.ASCII)
 # a run of digits or of anything else but separators ("rc10" is "rc" and 10)
 _PART = re.compile(r"\d+|[^\d.\-+]+", re.ASCII)
@@ -143,7 +143,8 @@ def is_dial(text: str) -> bool:
 
 
 def parse_frequencies(body: bytes | str) -> list[Frequency] | None:
-    """Parse the frequencies file; bad entries are dropped, None if no good entry remains."""
+    """Parse the frequencies file, sorted by band, the longest first; bad entries are dropped, None if
+    no good entry remains."""
     try:
         data: Any = json.loads(body)
     except ValueError:
@@ -164,7 +165,8 @@ def parse_frequencies(body: bytes | str) -> list[Frequency] | None:
             and len(found) < MAX_FREQUENCIES
         ):
             found.append(Frequency(band, dial))
-    return found or None
+    # the file adds a band at its end, where an older copy's limit leaves it out
+    return sorted(found, key=lambda f: -int(f.band.split()[0])) or None
 
 
 def frequencies_text(frequencies: list[Frequency]) -> str:

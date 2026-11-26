@@ -290,6 +290,9 @@ export const de: Catalogue = {
   "error.radio.transmitting": "das Funkgerät sendet gerade",
   "error.radio.text_lines": "das Board sendet Textzeilen: auf KISS umstellen",
   "error.radio.silent": "das Funkgerät ist still",
+  "error.radio.incoming_port":
+    "{port} ist der eingehende Bluetooth-Port des Computers: den anderen Port des Geräts wählen",
+  "error.radio.write_timeout": "das Gerät hat die Daten nicht binnen {seconds} s angenommen",
   "error.radio.settling": "der TNC startet neu in den KISS-Modus",
   "error.radio.not_taken": "der TNC hat den Rahmen nicht angenommen",
   "error.radio.command_mode": "der TNC ist im Befehlsmodus (KISS ON wird erneut gesendet)",
@@ -1862,6 +1865,11 @@ export const de: Catalogue = {
   "settings.tnc.not_connected": "Nicht verbunden",
   "settings.tnc.not_connected_why": "Nicht verbunden: {why}",
   "settings.tnc.text_lines": "Das Board sendet Textzeilen: auf KISS umstellen",
+  "settings.tnc.incoming_port":
+    "{port} ist der eingehende Bluetooth-Port des Computers: den anderen Port des Geräts wählen",
+  "settings.tnc.write_timeout": "Der Port nimmt keine Daten an: in {seconds} s ging nichts durch",
+  "settings.tnc.hf.receive_stalled":
+    "Mercury hört nichts, auch nach Neustarts: das Funkgerät aus- und wieder einschalten",
   "settings.tnc.hf.not_installed": "Diese Installation enthält das Modem dieses Funkgeräts nicht",
   "settings.tnc.hf.stopped": "Läuft nicht",
   "settings.tnc.hf.network": "Nicht gestartet: Das Modem wäre für das Netzwerk offen",
@@ -1910,6 +1918,8 @@ export const de: Catalogue = {
   "layers.receiver.state.no_answer": "keine Antwort",
   "layers.receiver.line.looking": "Suche den Empfänger",
   "layers.receiver.line.no_answer": "Keine Antwort vom Empfänger",
+  "layers.receiver.state.no_ais": "kein AIS",
+  "layers.receiver.line.no_ais": "Verbunden, aber von dort kommt kein AIS",
   "layers.receiver.line.aircraft": {
     one: "Empfang: {n} Flugzeug, vor {span}",
     other: "Empfang: {n} Flugzeuge, vor {span}",
@@ -2009,6 +2019,7 @@ export const de: Catalogue = {
   "settings.help.problem.too_large": "Nicht gesendet: Die Protokolle sind zu groß.",
   "settings.help.dialog.title": "Feedback / Protokolle senden",
   "settings.help.dialog.label": "Deine Nachricht",
+  "settings.help.dialog.email": "E-Mail für eine Antwort",
   "settings.help.dialog.attached": "Angehängt",
   "settings.help.dialog.download": "{file} herunterladen",
   "settings.help.dialog.remove": "{file} entfernen",

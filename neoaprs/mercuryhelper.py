@@ -7,10 +7,13 @@ import asyncio
 import errno
 import logging
 import os
+import re
 import signal
 import socket
 import subprocess
 import sys
+import time
+from collections import deque
 from collections.abc import Callable, Collection, Sequence
 from pathlib import Path
 
@@ -45,6 +48,7 @@ from .mercury import (
     SerialPort,
     SoundCard,
     audio_open_error,
+    capture_full,
     card_reason,
     card_with,
     choose_keying,
@@ -53,6 +57,10 @@ from .mercury import (
     parse_sound_cards,
     unstamped,
 )
+
+DEVICE_LINES = 6
+# Mercury's start-up lines that name its sound devices and its keying
+_DEVICE_LINE = re.compile(r"\[(?:audio-play|audio-cap)\] I/O |\[radio-io\] (?:Initializing PTT|PTT method)")
 
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")
@@ -223,6 +231,8 @@ def list_sound_cards(command: Command, timeout_sec: float = LIST_TIMEOUT_SEC) ->
             [*command, "-z"],
             capture_output=True,
             text=True,
+            # Mercury writes UTF-8 on every system, as its running output (childprogram.py)
+            encoding="utf-8",
             errors="replace",
             timeout=timeout_sec,
             env=environment(command),
@@ -250,19 +260,34 @@ def _end_tree(process: subprocess.Popen[str]) -> None:
 
 
 class Program(childprogram.Program):
-    """One run of Mercury; `on_audio_error` gets the line saying the sound card did not open."""
+    """One run of Mercury; `on_audio_error` gets the line saying the sound card did not open,
+    `on_capture_full` the monotonic time of a full capture buffer, at most once a second."""
 
     name = "Mercury"
 
     def __init__(
-        self, on_ended: Callable[[int | None, list[str]], None], on_audio_error: Callable[[str], None] | None = None
+        self,
+        on_ended: Callable[[int | None, list[str]], None],
+        on_audio_error: Callable[[str], None] | None = None,
+        on_capture_full: Callable[[float], None] | None = None,
     ) -> None:
         super().__init__(on_ended, log, mercury_log)
         self._on_audio_error = on_audio_error
+        self._on_capture_full = on_capture_full
+        self._full_told = -1.0  # reader thread only
+        # what the run said of its sound devices and keying, for the support file
+        self.device_lines: deque[str] = deque(maxlen=DEVICE_LINES)
 
     def _heard(self, line: str, loop: asyncio.AbstractEventLoop) -> None:
         if self._on_audio_error is not None and audio_open_error(line):
             loop.call_soon_threadsafe(self._on_audio_error, line)
+        if _DEVICE_LINE.search(line):
+            self.device_lines.append(unstamped(line))
+        if self._on_capture_full is not None and capture_full(line):
+            now = time.monotonic()
+            if now - self._full_told >= 1.0:
+                self._full_told = now
+                loop.call_soon_threadsafe(self._on_capture_full, now)
 
     def _warning(self, line: str) -> str | None:
         """Return a [WRN] or [ERR] line without its timestamp, so that repeats compare equal."""

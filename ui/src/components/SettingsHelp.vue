@@ -2,8 +2,8 @@
 // The Help group: Send feedback / logs as the group's primary button. It opens SendLogsDialog with
 // the logs file attached; Send has the daemon send the words and the file (or the words alone) to
 // the project, which answers with a reference (useSupportLogs). The outcome shows in one quiet
-// line. The group keeps what the dialog holds until a send worked: the words and whether the file
-// is on. The downloaded file is kept from the download to the Send of that opening, and for a retry
+// line. The group keeps what the dialog holds until a send worked: the words, the address for a
+// reply and whether the file is on. The downloaded file is kept from the download to the Send of that opening, and for a retry
 // after a failed send; a dialog closed without sending forgets it, so a later Send uses fresh logs.
 import { computed, ref, watch } from "vue";
 import { t } from "@/i18n";
@@ -24,8 +24,9 @@ const logs = useSupportLogs(given);
 const download = useSupportLogs(given);
 const sendLabel = computed(() => (logs.sending.value ? t("settings.help.sending") : t("settings.help.send")));
 const asking = ref(false);
-/** The words of the dialog, kept until sent: a failed send does not clear them. */
+/** The words and the address for a reply of the dialog, kept until sent: a failed send does not clear them. */
 const draft = ref("");
+const email = ref("");
 /** Whether the file goes with the words: off when the person removed it, kept with the words. */
 const attached = ref(true);
 /**
@@ -60,11 +61,12 @@ function close(): void {
   made.value = null;
 }
 
-async function send(note: string, withFile: boolean): Promise<void> {
+async function send(note: string, withFile: boolean, address: string): Promise<void> {
   asking.value = false;
-  await logs.send(note, withFile ? (made.value ?? true) : false);
+  await logs.send(note, withFile ? (made.value ?? true) : false, address);
   if (logs.sentRef.value === null) return;
   draft.value = "";
+  email.value = "";
   attached.value = true;
   made.value = null;
   download.clear();
@@ -109,11 +111,13 @@ async function send(note: string, withFile: boolean): Promise<void> {
     <Teleport v-if="asking" to="body">
       <SendLogsDialog
         :draft="draft"
+        :email="email"
         :attached="attached"
         :download="download"
         :call="call"
         :opener="sendButton"
         @draft="draft = $event"
+        @email="email = $event"
         @attached="attached = $event"
         @send="send"
         @close="close"

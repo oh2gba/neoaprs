@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 
 from neoaprs import aisfeed
-from neoaprs.aisdecode import AisDecoder, AisPosition, AisStatic
+from neoaprs.aisdecode import AisDecoder, AisPosition, AisStatic, is_ais
 from neoaprs.configlayers import ais_host_port
 from neoaprs.digitraffic import read_locations, read_vessels
 from neoaprs.layerthing import (
@@ -35,6 +35,8 @@ from .layerasked import AskedFeed, AskedSource, SourceContext
 log = logging.getLogger("neoaprs.layers")
 
 FEED_TIMEOUT_SEC = 30.0  # the feed is hundreds of kilobytes; allow a slow line
+# AIS for this long over one connection makes a later finding of no AIS worth logging again
+AIS_A_WHILE_SEC = 60.0
 
 
 class FintrafficShips(AskedSource):
@@ -137,6 +139,10 @@ class ShipReceiver:
         self._timer: asyncio.TimerHandle | None = None
         self._task: asyncio.Task[None] | None = None
         self._writer: asyncio.StreamWriter | None = None
+        self._ais_seen = False  # an AIS line came over this connection
+        self._ais_from: float | None = None  # loop time of this connection's first AIS line
+        self._no_ais_told = False  # the log said that this source sends no AIS
+        self.since: datetime | None = None  # when the state last changed
 
     # ---- what the service reads
     @property
@@ -172,14 +178,15 @@ class ShipReceiver:
     async def _run(self) -> None:
         wait = float(AIS_RETRY_SEC[0])
         while True:
-            heard = False
+            heard, failed = False, True
             try:
-                heard = await self._connection()
+                heard, failed = await self._connection(), False
             except (OSError, TimeoutError) as e:
                 log.debug("the AIS receiver at %s: %r", self.host, e)
             except Exception:
                 log.exception("the AIS receiver at %s failed", self.host)
-            self._set(ReceiverState("no_answer", self.state.things, self.state.heard_at))
+            if failed or self.state.state != "no_ais":
+                self._set(ReceiverState("no_answer", self.state.things, self.state.heard_at))
             if heard:
                 wait = float(AIS_RETRY_SEC[0])
             await asyncio.sleep(wait)
@@ -187,23 +194,47 @@ class ShipReceiver:
                 wait = min(wait * 2, float(AIS_RETRY_SEC[1]))
 
     async def _connection(self) -> bool:
-        """Run one connection to its end; return whether any line came over it."""
+        """Run one connection to its end; return whether a ship came over it.
+
+        Connected and silent is `connected`; it is `receiving` from its first AIS line and `no_ais`
+        when it sent something else first, or ended without an AIS line."""
         reader, writer = await aisfeed.connect(self.host, self.port)
         self._writer = writer
         # Fresh per connection, so a partial line of a lost one is dropped.
         lines = aisfeed.Lines()
-        before = self._heard
+        before, self._ais_seen, self._ais_from = self._heard, False, None
+        if self.state.state != "no_ais":  # (a source known to send no AIS stays so until it does)
+            self._set(ReceiverState("connected", self.state.things, self.state.heard_at))
+        loop = asyncio.get_running_loop()
         try:
-            self._set(ReceiverState("receiving", self.state.things, self.state.heard_at))
-            await aisfeed.read(reader, lines, self._handle, lambda: asyncio.get_running_loop().time())
+            await aisfeed.read(reader, lines, lambda batch: self._handle(batch, lines), loop.time)
         finally:
             writer.close()
             self._writer = None
+        self._no_ais(lines)
         return self._heard != before
 
-    def _handle(self, batch: list[str]) -> None:
+    def _no_ais(self, lines: aisfeed.Lines) -> None:
+        """Say that the source sends no AIS, with what it sent first; logged once for the source
+        until it has given AIS for AIS_A_WHILE_SEC."""
+        if self._ais_seen:
+            return
+        if not self._no_ais_told:
+            self._no_ais_told = True
+            log.info(
+                "the AIS receiver at %s: connected, but no AIS comes from it; it sent %s",
+                self.host,
+                aisfeed.first_words(lines.first),
+            )
+        self._set(ReceiverState("no_ais", self.state.things, self.state.heard_at))
+
+    def _handle(self, batch: list[str], lines: aisfeed.Lines | None = None) -> None:
         now = self.ctx.clock()
         for line in batch:
+            if is_ais(line):
+                self._ais_line()
+            elif not self._ais_seen and lines is not None:
+                self._no_ais(lines)
             try:
                 found = self.decoder.feed(line, now)
             except Exception:  # a bad line is skipped
@@ -216,6 +247,14 @@ class ShipReceiver:
             if found is not None:
                 self._heard, self._dirty = now, True
         self._schedule()
+
+    def _ais_line(self) -> None:
+        now = asyncio.get_running_loop().time()
+        if not self._ais_seen:
+            self._ais_seen, self._ais_from = True, now
+            self._set(ReceiverState("receiving", self.state.things, self.state.heard_at))
+        elif self._ais_from is not None and now - self._ais_from >= AIS_A_WHILE_SEC:
+            self._no_ais_told = False
 
     # ---- telling the pages, at most every TELL_EVERY_SEC
     def _schedule(self) -> None:
@@ -239,10 +278,14 @@ class ShipReceiver:
         The table is told if `tell` is set or the away state changed."""
         before = self.state
         if state.state != before.state:
+            self.since = self.ctx.clock()
+        if state.state != before.state and state.state != "no_ais":  # (_no_ais logs its own)
             log.info(
                 "the AIS receiver at %s: %s",
                 self.host,
-                {"receiving": "receiving", "no_answer": "no answer", "looking": "looking"}[state.state],
+                {"receiving": "receiving", "no_answer": "no answer", "looking": "looking", "connected": "connected"}[
+                    state.state
+                ],
             )
         if state != before:
             self.state = state

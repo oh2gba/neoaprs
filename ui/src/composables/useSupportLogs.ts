@@ -75,11 +75,11 @@ export function useSupportLogs(given: SupportGiven, fetcher: typeof fetch = (...
     }
   }
 
-  async function send(note: string, file: SentFile = true): Promise<void> {
+  async function send(note: string, file: SentFile = true, email = ""): Promise<void> {
     if (!begin()) return;
     sending.value = true;
     try {
-      const sent = await requestSend(info(), note, file, fetcher);
+      const sent = await requestSend(info(), note, file, fetcher, email);
       if (sent.ok) sentRef.value = sent.ref;
       else problem.value = t(PROBLEMS[sent.problem], { status: sent.status });
     } catch {

@@ -15,7 +15,7 @@ from .dummyline import DUMMY_PATH
 from .radiodriver import RunOverrides
 from .radiospec import FM_ID, RadioId, RadioSpec
 from .radiotypes import kind_field
-from .serialprobe import claim_value, named_ports, search_pattern
+from .serialprobe import can_search, claim_value, named_ports, search_pattern
 from .source import Source
 from .tnc import Tnc
 from .tncprofile import EVERY_BY_KEY, Profile, names_tcp, tcp_url
@@ -91,9 +91,12 @@ def remembered(spec: RadioSpec, station: Config, run: RunOverrides) -> bool:
 
 def radio_words(settings: TncSettings) -> str:
     """Return a radio's settings for the log: what it is and where it is reached."""
+    searched = settings.profile.search and settings.profile.transport == "serial"
     where = settings.port or (
         f"the first port that matches {settings.pattern} and {'prints heard packets' if settings.profile.framing == 'text' else 'talks KISS'}"
-        if settings.profile.search and settings.profile.transport == "serial"
+        if searched and can_search()
+        else "no port chosen yet: this system's ports are not searched"
+        if searched
         else "no port chosen yet"
     )
     return f"{settings.profile.name},{where}{'' if settings.profile.transport != 'serial' else f' at {settings.baud} baud'}"

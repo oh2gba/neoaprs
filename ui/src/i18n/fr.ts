@@ -289,6 +289,9 @@ export const fr: Catalogue = {
   "error.radio.transmitting": "la radio est en émission",
   "error.radio.text_lines": "la carte envoie des lignes de texte : réglez-la sur KISS",
   "error.radio.silent": "la radio est silencieuse",
+  "error.radio.incoming_port":
+    "{port} est le port Bluetooth entrant de l'ordinateur : choisissez l'autre port de l'appareil",
+  "error.radio.write_timeout": "l'appareil n'a pas accepté les données en {seconds} s",
   "error.radio.settling": "le TNC redémarre en mode KISS",
   "error.radio.not_taken": "le TNC n'a pas pris la trame",
   "error.radio.command_mode": "le TNC est en mode commande (KISS ON est renvoyé)",
@@ -1812,6 +1815,11 @@ export const fr: Catalogue = {
   "settings.tnc.not_connected": "Non connecté",
   "settings.tnc.not_connected_why": "Non connecté : {why}",
   "settings.tnc.text_lines": "La carte envoie des lignes de texte : réglez-la sur KISS",
+  "settings.tnc.incoming_port":
+    "{port} est le port Bluetooth entrant de l'ordinateur : choisissez l'autre port de l'appareil",
+  "settings.tnc.write_timeout": "Le port n'accepte pas de données : rien n'est passé en {seconds} s",
+  "settings.tnc.hf.receive_stalled":
+    "Mercury n'entend rien, même après des redémarrages : éteignez puis rallumez la radio",
   "settings.tnc.hf.not_installed": "Cette installation ne contient pas le modem de cette radio",
   "settings.tnc.hf.stopped": "À l'arrêt",
   "settings.tnc.hf.network": "Non lancé : le modem serait ouvert au réseau",
@@ -1925,6 +1933,7 @@ export const fr: Catalogue = {
   "settings.help.problem.too_large": "Non envoyé : les journaux sont trop volumineux.",
   "settings.help.dialog.title": "Envoyer un retour / les journaux",
   "settings.help.dialog.label": "Votre message",
+  "settings.help.dialog.email": "E-mail pour une réponse",
   "settings.help.dialog.attached": "Pièce jointe",
   "settings.help.dialog.download": "Télécharger {file}",
   "settings.help.dialog.remove": "Retirer {file}",
@@ -2420,6 +2429,8 @@ export const fr: Catalogue = {
   "layers.receiver.state.no_answer": "pas de réponse",
   "layers.receiver.line.looking": "Recherche du récepteur",
   "layers.receiver.line.no_answer": "Pas de réponse du récepteur",
+  "layers.receiver.state.no_ais": "pas d'AIS",
+  "layers.receiver.line.no_ais": "Connecté, mais aucun AIS n'en vient",
   "layers.receiver.line.aircraft": {
     one: "Réception : {n} avion, il y a {span}",
     other: "Réception : {n} avions, il y a {span}",

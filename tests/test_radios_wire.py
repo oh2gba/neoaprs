@@ -304,7 +304,7 @@ async def test_a_device_another_radio_holds_is_refused_with_the_holders_name_and
     )
     monkeypatch.setattr(
         web_handlers,
-        "available_ports",
+        "offered_ports",
         lambda: [
             PortInfo("COM7", "USB Serial Port (COM7)", "USB VID:PID=0403:6001", 0x0403, 0x6001),
             PortInfo("COM8", "Bluetooth", "BTHENUM", None, None),
@@ -958,7 +958,15 @@ def test_a_radio_that_is_not_connected_says_why_by_a_code(monkeypatch: pytest.Mo
 
     def line(state: Source.State, searching: bool = False) -> Any:
         # A line that takes frames when it is connected
-        return SimpleNamespace(state=state, searching=searching, silent_since=None, modem=None, why_unusable=lambda: "")
+        return SimpleNamespace(
+            state=state,
+            searching=searching,
+            silent_since=None,
+            modem=None,
+            why_unusable=lambda: "",
+            write_stuck=None,
+            problem="",
+        )
 
     claims = Claims()
     assert radio_problem(radio, (radio,), line(Source.State.CONNECTED), claims) is None

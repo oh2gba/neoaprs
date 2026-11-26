@@ -173,6 +173,9 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.transmitting": "o rádio está transmitindo",
   "error.radio.text_lines": "a placa envia linhas de texto: configure-a para KISS",
   "error.radio.silent": "o rádio está em silêncio",
+  "error.radio.incoming_port":
+    "{port} é a porta Bluetooth de entrada do computador: escolha a outra porta do dispositivo",
+  "error.radio.write_timeout": "o dispositivo não aceitou os dados em {seconds} s",
   "error.radio.settling": "o TNC está reiniciando no modo KISS",
   "error.radio.not_taken": "o TNC não aceitou o quadro",
   "error.radio.command_mode": "o TNC está no modo de comando (o KISS ON é enviado de novo)",

@@ -23,6 +23,7 @@ import serial  # type: ignore[import-untyped]
 from serial.tools.list_ports_common import ListPortInfo  # type: ignore[import-untyped]
 
 from neoaprs import serialholders, serialport, serialprobe, tncsearch
+from neoaprs.coded import code_of
 from neoaprs.kiss import KissDecoder, encode
 from neoaprs.serialholders import held_by, holders, port_key
 from neoaprs.serialport import SerialError, SerialPort, is_socket, normalize
@@ -498,7 +499,23 @@ class FailingSer(SlowSer):
         return b""
 
     def write(self, data: bytes) -> int:
-        raise serial.SerialTimeoutException("Write timeout")
+        raise serial.SerialException(
+            "WriteFile failed (PermissionError(13, 'The device does not recognize the command.', None, 22))"
+        )
+
+
+class TimeoutSer(FailingSer):
+    """A port that takes no data: pyserial's write gives up after its write timeout."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.taken = 0
+
+    def write(self, data: bytes) -> int:
+        if self.taken:
+            raise serial.SerialTimeoutException("Write timeout")
+        self.taken += 1
+        return len(data)
 
 
 @pytest.mark.parametrize("which", ["read", "write"])
@@ -518,6 +535,34 @@ async def test_a_read_or_a_write_that_fails_reports_the_line_lost_once(
     await idle_for(0.1)
     assert len(reasons) == 1 and not port.is_open and ser.closed.is_set()
     assert ("write failed" in reasons[0]) == (which == "write")
+
+
+async def test_a_write_that_times_out_says_so_with_its_own_code_at_warning_and_not_that_the_line_is_gone(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """pyserial's own words on Windows, for a Bluetooth port that reaches nothing: `Write timeout`."""
+    ser = TimeoutSer()
+    monkeypatch.setattr(serialport, "_build", lambda path, baud: ser)
+    reasons: list[str] = []
+    written: list[int] = []
+    port = SerialPort("COM8")
+    port._written = lambda: written.append(1)  # type: ignore[method-assign]
+    port.dropped.connect(reasons.append)
+    await port.open()
+    with caplog.at_level(logging.INFO, "neoaprs.serialport"):
+        port.write(b"x")
+        port.write(b"y")
+        await until(lambda: reasons)
+    (reason,) = reasons
+    assert written == [1], "the first write went through and is told once"
+    assert reason == "the device did not take the data within 2 s" and code_of(reason) == (
+        "radio.write_timeout",
+        {"seconds": serialport.WRITE_TIMEOUT_SEC},
+    )
+    assert [(r.levelno, r.getMessage()) for r in caplog.records] == [
+        (logging.WARNING, "serial port COM8 write timed out: the device did not take the data within 2 s")
+    ]
+    assert "the line is gone" not in caplog.text and "SerialTimeoutException" not in caplog.text
 
 
 class StuckSer(SlowSer):
@@ -1094,3 +1139,40 @@ def test_on_macos_the_call_in_and_the_call_out_node_of_a_port_are_one_device(mon
         == port_key("/dev/cu.usbserial-A50285BI")
         == os.path.realpath("/dev/cu.usbserial-A50285BI")
     )
+
+
+# ---- Windows makes two COM ports for a paired Bluetooth device (a support report's exact hwids)
+
+BT_DEVICE = PortInfo(
+    "COM7",
+    "Serie estándar sobre el vínculo Bluetooth (COM7)",
+    "BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&000B\\8&C3F3ED0&0&000CBF18376C_C00000000",
+    None,
+    None,
+)
+BT_INCOMING = PortInfo(
+    "COM8",
+    "Serie estándar sobre el vínculo Bluetooth (COM8)",
+    "BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0000\\8&C3F3ED0&0&000000000000_00000000",
+    None,
+    None,
+)
+USB_COM = PortInfo("COM3", "USB Serial Port (COM3)", "USB VID:PID=0403:6015 SER=DN05ABCD", 0x0403, 0x6015)
+
+
+def test_the_incoming_bluetooth_port_of_windows_is_told_from_the_devices_by_its_address_of_zeros() -> None:
+    assert serialprobe.bluetooth_address(BT_DEVICE) == "000CBF18376C"
+    assert serialprobe.bluetooth_address(BT_INCOMING) == "000000000000"
+    assert serialprobe.bluetooth_address(USB_COM) is None
+    assert [serialprobe.is_incoming_bluetooth(p) for p in (BT_DEVICE, BT_INCOMING, USB_COM)] == [False, True, False]
+
+
+def test_the_incoming_bluetooth_port_is_not_offered_nor_tried_by_find_my_radio(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(serialprobe, "available_ports", lambda: [USB_COM, BT_DEVICE, BT_INCOMING])
+    assert [p.device for p in serialprobe.offered_ports()] == ["COM3", "COM7"]
+    assert "COM8" not in [p.device for p in serialprobe.system_ports()]
+    monkeypatch.setattr(serialprobe, "_on_windows", lambda: True)
+    assert serialprobe.incoming_bluetooth("COM8")
+    assert not serialprobe.incoming_bluetooth("COM7") and not serialprobe.incoming_bluetooth("socket://h:8001")
+    monkeypatch.setattr(serialprobe, "_on_windows", lambda: False)
+    assert not serialprobe.incoming_bluetooth("COM8"), "only Windows makes one; elsewhere nothing is listed for it"

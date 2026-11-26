@@ -69,6 +69,7 @@ def served(tmp_path: Path) -> dict[str, Path]:
                 "ref": NOTE,
                 "time": "2026-11-16T10:20:00Z",
                 "call": "OH2GAX",
+                "email": "oh2gax@example.org",
                 "version": "0.20.1",
                 "platform": "win32",
                 "file": False,
@@ -131,6 +132,15 @@ def test_a_bundle_comes_as_its_zip_and_json_and_a_note_alone_as_its_json_with_no
         and "      Thanks for the HF mode." in lines
     )
     assert lines[-1] == "2 new, 2 on the server in all"
+
+
+def test_the_address_for_a_reply_stands_after_the_call_when_there_is_one(served: dict[str, Path]) -> None:
+    done, _ = run(served)
+    assert done.returncode == 0, done.stderr
+    (note,) = [line for line in done.stdout.splitlines() if NOTE in line]
+    (bundle,) = [line for line in done.stdout.splitlines() if BUNDLE in line]
+    assert note.split()[2:5] == ["OH2GAX", "oh2gax@example.org", "0.20.1"]
+    assert "@" not in bundle and bundle.split()[2:4] == ["OH2GBA", "0.20.1"], "a json of before, or with no address"
 
 
 def test_neither_is_fetched_twice(served: dict[str, Path]) -> None:

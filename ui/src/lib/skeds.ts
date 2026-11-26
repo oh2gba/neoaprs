@@ -3,7 +3,8 @@
 // same times and dial are one row listing their calls), counts unseen ones, and holds the form to
 // the server's rules: the day is one of the next 30 UTC days, From and To are half hours, a To not
 // after From means the next day (a sked is at most 24 hours long), the dial is written
-// `7.0541 MHz USB`, and the note is one line of at most 80 characters.
+// `7.0541 MHz USB` (typed as the number alone, always USB), and the note is one line of at most 80
+// characters.
 import { t, dayText } from "@/i18n";
 import { untilText } from "@/lib/format";
 import { joinCall, mayTransmitAs, splitCall } from "@/lib/calls";
@@ -24,13 +25,15 @@ export const TIMES: readonly string[] = Array.from(
   (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 === 0 ? "00" : "30"}`,
 );
 
-/** A dial as the page names it: `7.0541 MHz USB`. */
-const DIAL = /^(\d{1,2}\.\d{3,4}) ?MHz (USB|LSB)$/i;
+/** A dial as the board writes it: `7.0541 MHz USB` (the wire's form, neoaprs/versions.py `is_dial`). */
+export const DIAL = /^\d{1,2}\.\d{3,4} MHz (USB|LSB)$/;
+/** A typed dial: the number of MHz, a point or a comma and at most four decimals. */
+const TYPED_DIAL = /^(\d{1,2})(?:[.,](\d{1,4}))?$/;
 
-/** A dial in the board's form from typed text (`7.0541mhz usb`); null if it is none. */
-export function dialOf(text: string): string | null {
-  const found = DIAL.exec(text.trim().replace(/\s+/g, " "));
-  return found === null ? null : `${found[1] ?? ""} MHz ${(found[2] ?? "").toUpperCase()}`;
+/** The board's dial for a typed number (`28,14` is `28.1400 MHz USB`); null if it is none. */
+export function dialOfNumber(text: string): string | null {
+  const found = TYPED_DIAL.exec(text.trim());
+  return found === null ? null : `${found[1] ?? ""}.${(found[2] ?? "").padEnd(4, "0")} MHz USB`;
 }
 
 /** An instant as the wire writes it: UTC, whole seconds, `2026-11-14T18:00:00Z`. */
@@ -89,7 +92,8 @@ export function instants(draft: SkedDraft): { from: number; to: number } | null 
 
 /** The dial the draft names, in the board's form; null when it is not one. */
 export function draftDial(draft: SkedDraft): string | null {
-  return dialOf(draft.dial);
+  if (draft.typed) return dialOfNumber(draft.dial);
+  return DIAL.test(draft.dial) ? draft.dial : null;
 }
 
 /** Whether the sked has already ended (or the draft is not one): Post is off. */

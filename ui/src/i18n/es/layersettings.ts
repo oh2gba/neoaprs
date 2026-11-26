@@ -27,6 +27,8 @@ export const layersettings: Readonly<Record<keyof typeof en, Message>> = {
   "layers.receiver.state.no_answer": "sin respuesta",
   "layers.receiver.line.looking": "Buscando el receptor",
   "layers.receiver.line.no_answer": "Sin respuesta del receptor",
+  "layers.receiver.state.no_ais": "sin AIS",
+  "layers.receiver.line.no_ais": "Conectado, pero no llega AIS",
   "layers.receiver.line.aircraft": {
     one: "Recibiendo: {n} avión, hace {span}",
     other: "Recibiendo: {n} aviones, hace {span}",

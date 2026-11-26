@@ -456,6 +456,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.not_connected": "Niet verbonden",
   "settings.tnc.not_connected_why": "Niet verbonden: {why}",
   "settings.tnc.text_lines": "Het board stuurt tekstregels: zet het op KISS",
+  "settings.tnc.incoming_port":
+    "{port} is de inkomende Bluetooth-poort van de computer: kies de andere poort van het apparaat",
+  "settings.tnc.write_timeout": "De poort neemt geen data aan: in {seconds} s ging er niets door",
+  "settings.tnc.hf.receive_stalled": "Mercury hoort niets, ook niet na herstarten: zet de radio uit en weer aan",
   "settings.tnc.hf.not_installed": "Deze installatie bevat het modem van deze radio niet",
   "settings.tnc.hf.stopped": "Draait niet",
   "settings.tnc.hf.network": "Niet gestart: het modem zou openstaan voor het netwerk",
@@ -572,6 +576,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.problem.too_large": "Niet verzonden: de logs zijn te groot.",
   "settings.help.dialog.title": "Feedback / logs verzenden",
   "settings.help.dialog.label": "Je bericht",
+  "settings.help.dialog.email": "E-mail voor een antwoord",
   "settings.help.dialog.attached": "Bijgevoegd",
   "settings.help.dialog.download": "{file} downloaden",
   "settings.help.dialog.remove": "{file} verwijderen",

@@ -178,6 +178,9 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.transmitting": "無線機が送信中です",
   "error.radio.text_lines": "ボードがテキスト行を送っています: KISSに設定してください",
   "error.radio.silent": "無線機から受信がありません",
+  "error.radio.incoming_port":
+    "{port} はコンピューターの受信用Bluetoothポートです: 機器のもう一方のポートを選んでください",
+  "error.radio.write_timeout": "機器が {seconds} 秒以内にデータを受け付けませんでした",
   "error.radio.settling": "TNCがKISSモードで再起動中です",
   "error.radio.not_taken": "TNCがフレームを受け付けませんでした",
   "error.radio.command_mode": "TNCがコマンドモードです(KISS ONを再送します)",

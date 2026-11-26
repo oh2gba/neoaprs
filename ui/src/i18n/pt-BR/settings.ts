@@ -448,6 +448,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.not_connected": "Não conectado",
   "settings.tnc.not_connected_why": "Não conectado: {why}",
   "settings.tnc.text_lines": "A placa envia linhas de texto: configure-a para KISS",
+  "settings.tnc.incoming_port":
+    "{port} é a porta Bluetooth de entrada do computador: escolha a outra porta do dispositivo",
+  "settings.tnc.write_timeout": "A porta não aceita dados: nada passou em {seconds} s",
+  "settings.tnc.hf.receive_stalled": "O Mercury não ouve nada, mesmo após reinícios: desligue o rádio e ligue de novo",
   "settings.tnc.hf.not_installed": "Esta instalação não inclui o modem deste rádio",
   "settings.tnc.hf.stopped": "Não está em execução",
   "settings.tnc.hf.network": "Não iniciado: o modem ficaria aberto à rede",
@@ -558,6 +562,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.problem.too_large": "Não enviado: os logs são grandes demais.",
   "settings.help.dialog.title": "Enviar feedback / logs",
   "settings.help.dialog.label": "Sua mensagem",
+  "settings.help.dialog.email": "E-mail para resposta",
   "settings.help.dialog.attached": "Anexo",
   "settings.help.dialog.download": "Baixar {file}",
   "settings.help.dialog.remove": "Remover {file}",

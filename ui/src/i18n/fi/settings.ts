@@ -445,6 +445,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.not_connected": "Ei yhteyttä",
   "settings.tnc.not_connected_why": "Ei yhteyttä: {why}",
   "settings.tnc.text_lines": "Kortti lähettää tekstirivejä: aseta se KISS-tilaan",
+  "settings.tnc.incoming_port": "{port} on tietokoneen saapuva Bluetooth-portti: valitse laitteen toinen portti",
+  "settings.tnc.write_timeout": "Portti ei ota vastaan dataa: {seconds} sekunnissa ei mennyt mitään läpi",
+  "settings.tnc.hf.receive_stalled":
+    "Mercury ei kuule mitään uudelleenkäynnistystenkään jälkeen: kytke radio pois ja takaisin päälle",
   "settings.tnc.hf.not_installed": "Tämä asennus ei sisällä tämän radion modeemia",
   "settings.tnc.hf.stopped": "Ei käynnissä",
   "settings.tnc.hf.network": "Ei käynnistetty: modeemi olisi avoin verkkoon",
@@ -558,6 +562,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.help.problem.too_large": "Ei lähetetty: lokit ovat liian suuret.",
   "settings.help.dialog.title": "Lähetä palaute / lokit",
   "settings.help.dialog.label": "Viestisi",
+  "settings.help.dialog.email": "Sähköposti vastausta varten",
   "settings.help.dialog.attached": "Liitteenä",
   "settings.help.dialog.download": "Lataa {file}",
   "settings.help.dialog.remove": "Poista {file}",

@@ -50,10 +50,11 @@ from .mercurychannel import CHANNEL_BUSY, TRANSMITTING, Channel
 from .mercuryscoping import Scoping
 from .mercuryscope import clamp_gain
 from .mercurystale import end_stale
+from .mercurystall import STALL_SEC, StallWatch
 from .mercuryspeaker import CAPTURE_FIFO, PLAYBACK_FIFO, SpeakerAudio, SpeakerLine
 from .radiotype import HF_ID, RadioId
 from .radiotypes import kind_field
-from .serialprobe import PortInfo, available_ports, claim_value, holder_words, named_ports
+from .serialprobe import PortInfo, claim_value, holder_words, named_ports, offered_ports
 from .modemstate import ModemState
 from .signal import Signal
 from .source import Backoff, os_error_text
@@ -68,15 +69,19 @@ OPEN_TO_NETWORK = (
 )
 # Mercury runs deaf and mute when its sound card fails, so the program is ended.
 SOUND_CARD_FAILED = "the sound card could not be opened: choose another one in the Sound card field"
+RECEIVE_RESTART = "Mercury heard nothing (its receive side stalled) and is started again"
+RECEIVE_STALLED = (
+    "Mercury hears nothing: its receive side stalled again after three restarts in an hour; restart the radio"
+)
 STATES = ("stopped", "starting", "running", "waiting")
 # Why the state is `waiting`, as a code for the page.
-REASONS = ("", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card")
+REASONS = ("", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card", "receive_stalled")
 TESTS = ("", "tune", "key")
 
 
 def system_serial_ports() -> list[SerialPort]:
     """Return the machine's serial ports. For a thread."""
-    return [SerialPort(p.device, p.vid, p.pid) for p in available_ports()]
+    return [SerialPort(p.device, p.vid, p.pid) for p in offered_ports()]
 
 
 def left_out(config: Config, but: RadioId) -> tuple[str, ...]:
@@ -173,7 +178,8 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
         self.keying = Keying("vox")
         self.frames_keyed = 0
         self.starts = 0
-        self._program = Program(self._ended, self._audio_error)
+        self._program = Program(self._ended, self._audio_error, self._capture_full)
+        self.stall = StallWatch()
         self._audio_failed = False
         self._control: ControlLine | None = None
         self.speaker_line = SpeakerLine(HOST, lambda: self.broadcast_port, lambda: self._program.running)
@@ -194,6 +200,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
         _, keying, gain = own_choice(config, self.holder)
         self.tx_gain_db = clamp_gain(gain)
         self.backoff.reset()
+        self.stall = StallWatch()
         self._held.forget()
         if not speaker and attach:
             self.attached = attach
@@ -330,6 +337,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
                 f"Mercury's configuration could not be written in the data folder: {os_error_text(e)}", "not_started"
             )
         argv = command(program, str(ini), self.sound_card, keying, self.broadcast_port, self.control_port, audio)
+        self._program.device_lines.clear()
         try:
             self._program.start(argv, self.home, pid_file)
         except OSError as e:
@@ -378,6 +386,27 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
         self._audio_failed = True
         self._tasks.spawn(asyncio.to_thread(self._program.stop), "mercury-audio-stop")
         self._gone(SOUND_CARD_FAILED, "sound_card")
+
+    def _capture_full(self, now: float) -> None:
+        """Called on the loop, at most once a second, while Mercury's capture buffer is full."""
+        if self.state == "stopped":
+            return
+        if self.keyed or self.test:
+            self.stall.pause()
+            return
+        if self.stall.seen(now, self.clock()):
+            log.warning(
+                "Mercury hears nothing: its capture buffer has been full for %g s (its receive side stalled)", STALL_SEC
+            )
+        action = self.stall.action(now, self.keyed or bool(self.test))
+        if action == "restart":
+            self.stall.restarted(now, self.clock())
+            log.warning("Mercury is started again because it hears nothing (restart %d)", self.stall.restarts)
+            self._tasks.spawn(asyncio.to_thread(self._program.stop), "mercury-stall-stop")
+            self._gone(RECEIVE_RESTART, "stopped")
+        elif action == "give_up":
+            log.warning("Mercury is not started again: %s", RECEIVE_STALLED)
+            self._tasks.spawn(self._end_for_good(RECEIVE_STALLED, "receive_stalled"), "mercury-stall-end")
 
     def _gone(self, problem: str, reason: str) -> None:
         """The program is gone: close the control line and speaker, and schedule a start."""
@@ -443,13 +472,17 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
         Its ports take a TUNE or KISS frame from anyone.
         """
         log.warning("Mercury listens on the network (%s): it is ended and not run", ", ".join(found))
+        await self._end_for_good(OPEN_TO_NETWORK, "network")
+
+    async def _end_for_good(self, problem: str, reason: str) -> None:
+        """End the program and do not start it again until the radio is started anew."""
         self._generation += 1
         control, self._control = self._control, None
         if control is not None:
             await control.stop()
         await asyncio.to_thread(self._program.stop)
         self._clear_channel()
-        self._set("waiting", OPEN_TO_NETWORK, "network")
+        self._set("waiting", problem, reason)
 
     def _write(self, line: str) -> bool:
         return self._control is not None and self._control.write(line)
@@ -460,6 +493,10 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
         self.speaker_line.play(data)
 
     # ---- what the Tnc and the page ask
+    @property
+    def device_lines(self) -> list[str]:
+        return list(self._program.device_lines)
+
     def describe(self) -> str:
         """Return the modem in a few words, e.g. "Mercury DATAC3, listening, SNR 3 dB"."""
         if self.state == "waiting":

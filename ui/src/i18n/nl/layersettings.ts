@@ -28,6 +28,8 @@ export const layersettings: Record<keyof typeof source, Message> = {
   "layers.receiver.state.no_answer": "geen antwoord",
   "layers.receiver.line.looking": "De ontvanger zoeken",
   "layers.receiver.line.no_answer": "Geen antwoord van de ontvanger",
+  "layers.receiver.state.no_ais": "geen AIS",
+  "layers.receiver.line.no_ais": "Verbonden, maar er komt geen AIS van",
   "layers.receiver.line.aircraft": {
     one: "Ontvangt: {n} vliegtuig, {span} geleden",
     other: "Ontvangt: {n} vliegtuigen, {span} geleden",

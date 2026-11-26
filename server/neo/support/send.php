@@ -2,8 +2,8 @@
 /* Send logs of NeoAPRS, served at neo.oh2gba.eu/support/send.php. The Help group of the program's Settings
  * posts here only when the person presses Send in its dialog:
  *
- *   multipart/form-data: bundle (the support zip), note (what the person wrote), call, version,
- *   platform
+ *   multipart/form-data: bundle (the support zip), note (what the person wrote), email (an address
+ *   for a reply, optional), call, version, platform
  *
  * A form with no file and no `bundle` is the note alone (the person took the file off): the note must have
  * words then, REF.json is kept without a zip (`"file": false`, size 0), and the mail says in its first line
@@ -12,12 +12,13 @@
  *
  * The answer is JSON, {"ok": true, "ref": "NEO-20261103-1015-7F3A"} or {"ok": false, "reason": CODE} with a
  * matching status (405 method, 413 too_large, 429 rate, 400 bad_request or not_a_bundle, 500 storage). The
- * file is kept in private/support/ (see PRIVATE) as REF.zip with REF.json beside it (time, call, version,
- * platform, size, note), and one plain e-mail with the reference, call, version, platform, size and note goes
- * to the project; the zip itself is not mailed. server/support-fetch.sh brings new ones to the developer.
+ * file is kept in private/support/ (see PRIVATE) as REF.zip with REF.json beside it (time, call, email,
+ * version, platform, size, note), and one plain e-mail with the reference, call, email, version, platform, size
+ * and note goes to the project; the zip itself is not mailed. server/support-fetch.sh brings new ones to the developer.
  *
- * What is kept: the zip, and the call, version, platform and note as cleaned here (a call is letters,
- * digits and dashes, 12 at most; the note is text, 2000 characters at most). The sender's address is never
+ * What is kept: the zip, and the call, email, version, platform and note as cleaned here (a call is letters,
+ * digits and dashes, 12 at most; the note is text, 2000 characters at most; an email that is not an address,
+ * as neoaprs/web/supportsend.py reply_address reads one, is kept empty and the report is taken all the same). The sender's address is never
  * written down: it is hashed under a salt only this folder knows, for the rate limits, and the hash is
  * forgotten after the hour. Only a request that stores a file counts against the shared limit (5 files an
  * hour from one address, 60 an hour in all, a note alone counting as a file); a request refused as no
@@ -51,6 +52,7 @@ const FOLDER_MAX_BYTES = 200 * 1024 * 1024;                       // of the stor
 const FOLDER_MAX_FILES = 300;                                     // references: a bundle with its json, or the json of a note alone
 const KEEP_DAYS        = 30;
 const MAX_NOTE         = 2000;
+const MAX_EMAIL        = 254;                                     // characters
 const MAX_MEMBERS      = 40;                                      // a bundle has the dozen fixed names, a few error files and the log with its rotated copies
 const MAX_UNPACKED     = 50 * 1024 * 1024;                        // the members' sizes once unpacked, together
 const MAX_DIRECTORY    = 256 * 1024;                              // of the zip's list of members
@@ -332,6 +334,19 @@ function support_note(mixed $value): string
     return trim(implode('', array_slice($chars === false ? [] : $chars, 0, MAX_NOTE)));
 }
 
+/**
+ * The address for a reply: one "@" with something on each side, no blank or control character, at
+ * most 254 characters; anything else, invalid UTF-8 too, is ''.
+ */
+function support_email(mixed $value): string
+{
+    if (!is_string($value) || $value === '' || strlen($value) > 4 * MAX_EMAIL) return '';
+    if (preg_match('/[\x{0000}-\x{0020}\x{007F}-\x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]/u', $value) !== 0) return '';
+    if (preg_match_all('/./su', $value) > MAX_EMAIL) return '';
+    $parts = explode('@', $value);
+    return count($parts) === 2 && $parts[0] !== '' && $parts[1] !== '' ? $value : '';
+}
+
 /** NEO-20261103-1015-7F3A, not yet in use in `$dir`. */
 function support_reference(string $dir, int $now): string
 {
@@ -406,13 +421,14 @@ function support_receive(): never
     $call     = support_clean($_POST['call'] ?? '', 'A-Za-z0-9-', 12);
     $version  = support_clean($_POST['version'] ?? '', '0-9A-Za-z._+-', 20);
     $platform = support_clean($_POST['platform'] ?? '', '0-9A-Za-z._-', 40);
+    $email    = support_email($_POST['email'] ?? '');
 
     $ref = support_reference($dir, $now);
     if (!$alone) {
         if (!@move_uploaded_file($file['tmp_name'], "$dir/$ref.zip")) support_refuse(500, 'storage');
         @chmod("$dir/$ref.zip", 0600);
     }
-    $meta = ['ref' => $ref, 'time' => gmdate('Y-m-d\TH:i:s\Z', $now), 'call' => $call, 'version' => $version, 'platform' => $platform, 'file' => !$alone, 'size' => $size, 'note' => $note];
+    $meta = ['ref' => $ref, 'time' => gmdate('Y-m-d\TH:i:s\Z', $now), 'call' => $call, 'email' => $email, 'version' => $version, 'platform' => $platform, 'file' => !$alone, 'size' => $size, 'note' => $note];
     $json = json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE);
     if ($json === false || @file_put_contents("$dir/$ref.json.part", $json . "\n") === false || !@rename("$dir/$ref.json.part", "$dir/$ref.json")) {
         if (!$alone) @unlink("$dir/$ref.zip");
@@ -424,7 +440,7 @@ function support_receive(): never
 
     $subject = ($alone ? 'NeoAPRS message ' : 'NeoAPRS logs ') . $ref . ($call !== '' ? ' from ' . $call : '');
     $body = ($alone ? "A NeoAPRS message was sent, without the support file.\n\n" : "A NeoAPRS support file was sent.\n\n")
-          . "Reference: $ref\nCall:      " . ($call ?: '-') . "\nVersion:   " . ($version ?: '-') . "\nPlatform:  " . ($platform ?: '-') . "\n"
+          . "Reference: $ref\nCall:      " . ($call ?: '-') . "\nEmail:     " . ($email ?: '-') . "\nVersion:   " . ($version ?: '-') . "\nPlatform:  " . ($platform ?: '-') . "\n"
           . ($alone ? '' : 'Size:      ' . max(1, intdiv($size, 1024)) . " KB\n") . 'Time:      ' . gmdate('Y-m-d H:i', $now) . " UTC\n\n"
           . "Note:\n" . ($note !== '' ? $note : '(none)') . "\n"
           . ($alone ? '' : "\nThe file is on the server; server/support-fetch.sh brings it.\n");

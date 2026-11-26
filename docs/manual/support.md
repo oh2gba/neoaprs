@@ -11,9 +11,11 @@ It helps most to say:
 
 ## Send feedback / logs
 
-Open the **Settings** tab and scroll down to the group **Help**, above About. Press **Send feedback / logs**. A small window opens with one text, **Your message**, and under it the logs file that goes with your words, by its name. Press the name to download the file and look inside: while the window stays open, what you downloaded is what **Send** sends (for an hour). The **×** beside the name takes the file off, so that only your message goes (write something first); **Attach** puts it back. The (i) beside the button says what the file holds.
+Open the **Settings** tab and scroll down to the group **Help**, above About. Press **Send feedback / logs**. A small window opens with one text, **Your message**, the field **Email for a reply**, and under them the logs file that goes with your words, by its name. Give your email address there if you want an answer, or leave it empty.
 
-**Send** sends your words, and the file unless you took it off, with your call, the version and the kind of system, over a secure connection to the project's server. The server keeps them for the developer and tells him that something has come; it does not keep your network address. **Cancel** closes the window and keeps what you wrote for the next time.
+Press the name to download the file and look inside: while the window stays open, what you downloaded is what **Send** sends (for an hour). The **×** beside the name takes the file off, so that only your message goes (write something first); **Attach** puts it back. The (i) beside the button says what the file holds.
+
+**Send** sends your words, and the file unless you took it off, with the email address if you gave one, your call, the version and the kind of system, over a secure connection to the project's server. The server keeps them for the developer and tells him that something has come; it does not keep your network address. **Cancel** closes the window and keeps what you wrote for the next time.
 
 While it is sent the button reads "Sending…". Then the page says "Sent" with a short reference such as NEO-20261103-1015-7F3A; quote it if you write about the problem. If it could not be sent, the page says why: there is no internet connection, the server refused it, or too many came from your connection in the last hour (five at most, with or without the file). Saving the file and e-mailing it still works then.
 
@@ -46,7 +48,7 @@ The zip holds plain text files. `README.txt` inside it says the same as here. Op
 | file | what it has |
 |---|---|
 | `README.txt` | what the file is and what to do with it |
-| `summary.txt` | one screen: the version, the system, the station, every radio, the GPS, the web page, the database, and the warnings and errors of the log, each message once with how many times and when last |
+| `summary.txt` | one screen: the version, the system, the station, every radio (with a Mercury radio's frames, its stalls and restarts and what it said of its sound devices; the sound cards with the chosen one first, many combinations of one virtual mixer as one line), the GPS, the map layers' sources, the web page, the database, and the warnings and errors of the log, each message once with how many times and when last |
 | `logs/` | the log of the program, the rotated ones too, the log of the desktop app when there is one, and on Linux what the system's journal has of the service |
 | `settings.json` | every setting with its value, every radio and every pair of radios (its call, and whether its radios may pair now); the access key is only said to be set |
 | `state.json` | what the running daemon knows now: every radio, the GPS, the beacon, the base map, the update, the serial ports and who holds them |

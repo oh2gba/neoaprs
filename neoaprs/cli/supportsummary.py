@@ -29,6 +29,7 @@ OPTIONAL_FILE_REQUEST = re.compile(
 ADDRESS = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b|\[[0-9a-fA-F:]{3,}\](?::\d+)?")
 NUMBER = re.compile(r"0x[0-9a-fA-F]+|\d+(?:\.\d+)*")
 MAX_CHECKS = 8
+MAX_CARDS = 12  # more are folded by device name (a virtual mixer lists every pair of its ends)
 NO_DAEMON = "not known: the daemon was not asked (see the log below)"
 
 
@@ -213,20 +214,67 @@ def _radio(f: Facts, spec: RadioSpec) -> list[tuple[str, str]]:
             ),
         ]
     rows += _state_rows(tnc)
-    cards = entry.get("sound_cards")
-    for card in cards or []:
-        ways = (
-            " and ".join(w for w, on in (("records", card.get("records")), ("plays", card.get("plays"))) if on)
-            or "neither"
-        )
-        rows.append(
-            (
-                "Sound card listed",
-                f"{card.get('name')!r}: {ways}{', the system default' if card.get('default') else ''}; {card.get('id')}",
-            )
-        )
+    cards = entry.get("sound_cards") or []
+    modem = tnc.get("modem")
+    rows += _cards(cards, str(modem.get("sound_card") or "") if isinstance(modem, dict) else "")
     if is_mercury(spec) and not cards:
         rows.append(("Sound cards listed", "none"))
+    if isinstance(mercury := entry.get("mercury"), dict):
+        rows += _mercury(mercury)
+    return rows
+
+
+def _card_words(card: dict[str, Any], chosen: str) -> str:
+    ways = " and ".join(w for w, on in (("records", card.get("records")), ("plays", card.get("plays"))) if on)
+    marks = ", the system default" if card.get("default") else ""
+    marks += ", the chosen one" if chosen and card.get("id") == chosen else ""
+    return f"{card.get('name')!r}: {ways or 'neither'}{marks}; {card.get('id')}"
+
+
+def _cards(cards: list[dict[str, Any]], chosen: str) -> list[tuple[str, str]]:
+    """Return the chosen card and the default first, then the others; over MAX_CARDS the others are
+    folded by the device name before " (", with their count (state.json has them all)."""
+    first = [c for c in cards if (chosen and c.get("id") == chosen) or c.get("default")]
+    others = [c for c in cards if c not in first]
+    rows = [("Sound card listed", _card_words(c, chosen)) for c in first]
+    if len(cards) <= MAX_CARDS:
+        return rows + [("Sound card listed", _card_words(c, chosen)) for c in others]
+    folded: dict[str, list[dict[str, Any]]] = {}
+    for card in others:
+        folded.setdefault(str(card.get("name")).split(" (")[0], []).append(card)
+    for name, alike in folded.items():
+        if len(alike) == 1:
+            rows.append(("Sound card listed", _card_words(alike[0], chosen)))
+        else:
+            rows.append(("Sound cards listed", f"{name!r}: {len(alike)} of its combinations (state.json lists them)"))
+    return rows
+
+
+def _mercury(m: dict[str, Any]) -> list[tuple[str, str]]:
+    """Return what tells a Mercury that hears nothing: frames, stalls, restarts and its devices."""
+    snr = m.get("snr")
+    rows = [
+        ("Frames heard", f"{m.get('frames_in', 0)}, the last {m.get('last_frame') or 'never'}"),
+        ("Last SNR", "none yet" if snr is None else f"{snr} dB"),
+        ("Hears nothing", f"{m.get('capture_stalls', 0)} times, the last {m.get('last_stall_at') or 'never'}"),
+        (
+            "Restarted for it",
+            f"{m.get('restarts_for_stalls', 0)} times, the last {m.get('last_restart_at') or 'never'}",
+        ),
+    ]
+    return rows + [("Mercury said", str(line)) for line in m.get("device_lines") or []]
+
+
+def _layers(f: Facts) -> list[tuple[str, str]]:
+    rows = []
+    for layer in (f.live or {}).get("layers") or []:
+        if not isinstance(layer, dict):
+            continue
+        text = str(layer.get("source"))
+        if layer.get("state"):
+            text += f", {layer['state']} since {layer.get('since') or 'the start'}"
+            text += f", last data {layer.get('heard_at') or 'never'}"
+        rows.append((str(layer.get("layer")).capitalize(), text))
     return rows
 
 
@@ -308,6 +356,8 @@ def sections(f: Facts) -> list[Section]:
         elif not f.radios_problem:
             out.append(("Send on", _send_on(f, c)))
         out.append(("GPS", _gps(f, c)))
+        if layers := _layers(f):
+            out.append(("Map layers", layers))
         out.append(("Web page", [("Listens", _web(f, c))]))
     out.append(("Database", [("File", _database(f.database))]))
     if f.checks:

@@ -1,6 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it } from "vitest";
 import SkedCompose from "@/components/SkedCompose.vue";
+import { DIAL } from "@/lib/skeds";
 import type { SkedsState } from "@/protocol/protocol";
 import { configValues } from "@/test/fixtures";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
@@ -71,6 +72,7 @@ describe("SkedCompose", () => {
       "3.5850 MHz USB (80 m)",
       "7.0541 MHz USB (40 m)",
       "14.1070 MHz USB (20 m)",
+      "28.1800 MHz USB (10 m)",
       "50.6200 MHz USB (6 m)",
       "Other",
     ]);
@@ -124,7 +126,10 @@ describe("SkedCompose", () => {
       expect(wrapper.find("#sked-dial").exists()).toBe(false);
       await select(wrapper, "sked-frequency").setValue("other");
       expect(wrapper.find("#sked-dial").exists()).toBe(true);
-      expect(wrapper.find<HTMLInputElement>("#sked-dial").attributes("placeholder")).toBe("3.5850 MHz USB");
+      expect(wrapper.find<HTMLInputElement>("#sked-dial").attributes("placeholder")).toBeUndefined();
+      expect(wrapper.find("#sked-dial").element.nextElementSibling?.outerHTML).toBe(
+        '<span class="unit muted">MHz USB</span>',
+      );
       expect(post(wrapper).attributes("disabled")).toBeDefined(); // (nothing typed yet)
       expect(wrapper.find("#sked-dial").classes()).not.toContain("invalid");
       await select(wrapper, "sked-frequency").setValue("14.1070 MHz USB");
@@ -132,16 +137,48 @@ describe("SkedCompose", () => {
       expect(post(wrapper).attributes("disabled")).toBeUndefined();
     });
 
-    it("posts a typed dial in the form of the board, and marks one that is not of the form and keeps Post off", async () => {
+    it.each([
+      ["28.140", "28.1400 MHz USB"],
+      ["28.14", "28.1400 MHz USB"],
+      ["28,140", "28.1400 MHz USB"],
+      ["7.0541", "7.0541 MHz USB"],
+    ])("posts the number typed (%s) as the board's dial, always USB", async (typed, dial) => {
       const wrapper = form();
       await select(wrapper, "sked-frequency").setValue("other");
-      await wrapper.find("#sked-dial").setValue("7.1");
-      expect(wrapper.find("#sked-dial").classes()).toContain("invalid");
-      expect(post(wrapper).attributes("disabled")).toBeDefined();
-      await wrapper.find("#sked-dial").setValue("3.6150 mhz lsb");
+      await wrapper.find("#sked-dial").setValue(typed);
       expect(wrapper.find("#sked-dial").classes()).not.toContain("invalid");
       await wrapper.find("form").trigger("submit");
-      expect(sent("sked_post")).toMatchObject([{ dial: "3.6150 MHz LSB" }]);
+      expect(sent("sked_post")).toMatchObject([{ dial }]);
+      expect((sent("sked_post")[0] as { dial: string }).dial).toMatch(DIAL);
+    });
+
+    it.each(["7.05412", "28.14a", "abc", "7.0541 MHz USB"])(
+      "marks %j, which is not a number of MHz with at most four decimals, and keeps Post off; the row keeps its shape",
+      async (typed) => {
+        const wrapper = form();
+        await select(wrapper, "sked-frequency").setValue("other");
+        const row = () =>
+          wrapper
+            .find("#sked-dial")
+            .element.closest(".field")
+            ?.innerHTML.replace(/ ?invalid/g, "");
+        await wrapper.find("#sked-dial").setValue("28.140");
+        const shape = row()?.replace(/value="[^"]*"/, "");
+        await wrapper.find("#sked-dial").setValue(typed);
+        expect(wrapper.find("#sked-dial").classes()).toContain("invalid");
+        expect(post(wrapper).attributes("disabled")).toBeDefined();
+        expect(row()?.replace(/value="[^"]*"/, "")).toBe(shape);
+        await wrapper.find("form").trigger("submit");
+        expect(sent("sked_post")).toEqual([]);
+      },
+    );
+
+    it("leaves an empty dial unmarked and Post off", async () => {
+      const wrapper = form();
+      await select(wrapper, "sked-frequency").setValue("other");
+      await wrapper.find("#sked-dial").setValue("");
+      expect(wrapper.find("#sked-dial").classes()).not.toContain("invalid");
+      expect(post(wrapper).attributes("disabled")).toBeDefined();
     });
 
     it("types the dial where the project suggests none", async () => {
@@ -152,7 +189,7 @@ describe("SkedCompose", () => {
           .findAll("option")
           .map((o) => o.text()),
       ).toEqual(["Other"]);
-      await wrapper.find("#sked-dial").setValue("7.0541 MHz USB");
+      await wrapper.find("#sked-dial").setValue("7.0541");
       expect(post(wrapper).attributes("disabled")).toBeUndefined();
     });
 

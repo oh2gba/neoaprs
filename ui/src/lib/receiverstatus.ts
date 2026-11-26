@@ -10,8 +10,11 @@ import type { LayerReceiver } from "@/protocol/protocol";
 /** The pill's word and colour (the radio's connection colours: found is green, others warn). */
 const PILLS: Record<LayerReceiver["state"], { text: MessageId; tone: string }> = {
   looking: { text: "layers.receiver.state.looking", tone: "tnc-connecting" },
+  // (AIS: connected, nothing yet; a receiver with no ship in range is silent)
+  connected: { text: "settings.tnc.state.connected", tone: "tnc-connecting" },
   receiving: { text: "layers.receiver.state.receiving", tone: "tnc-connected" },
   no_answer: { text: "layers.receiver.state.no_answer", tone: "tnc-waiting" },
+  no_ais: { text: "layers.receiver.state.no_ais", tone: "tnc-waiting" },
 };
 
 /** What a receiver that has not reported yet is: looking. */
@@ -30,6 +33,9 @@ export interface ReceiverLook {
 function lineOf(layer: LayerName, receiver: LayerReceiver, nowMs: number): string {
   if (receiver.state === "looking") return t("layers.receiver.line.looking");
   if (receiver.state === "no_answer") return t("layers.receiver.line.no_answer");
+  if (receiver.state === "no_ais") return t("layers.receiver.line.no_ais");
+  if (receiver.state === "connected")
+    return t(layer === "ships" ? "layers.receiver.line.ships_none" : "layers.receiver.line.aircraft_none");
   if (receiver.heard_at === null)
     return t(layer === "ships" ? "layers.receiver.line.ships_none" : "layers.receiver.line.aircraft_none");
   const values = { n: receiver.things, span: ageText(receiver.heard_at, nowMs) };

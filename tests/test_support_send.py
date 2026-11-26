@@ -20,7 +20,7 @@ from neoaprs.updatefetch import multipart, post_form
 from neoaprs.versions import SUPPORT_URL
 from neoaprs.web import access as web_access
 from neoaprs.web import supportsend
-from neoaprs.web.supportsend import MAX_NOTE, answer_of, support_url
+from neoaprs.web.supportsend import MAX_EMAIL, MAX_NOTE, answer_of, reply_address, support_url
 from tests.support.env import Env, until
 from tests.support.fakesupportserver import FakeSupportServer, parse_form, support_server
 from tests.support.supportdata import KEY
@@ -147,6 +147,7 @@ async def test_the_bundle_goes_with_the_note_the_call_the_version_and_the_platfo
     )
     assert got.fields == {
         "note": "It stopped beaconing after the update.",
+        "email": "",
         "call": "OH2GBA",
         "version": VERSION,
         "platform": e.ctl.updatecheck.platform,
@@ -185,6 +186,64 @@ async def test_no_note_is_an_empty_one_and_a_long_one_is_cut_and_the_blanks_roun
     assert (await send(e, "  \n spaced \n "))[0] == 200
     assert (await send(e, "x" * 3000))[0] == 200
     assert [r.fields["note"] for r in fake.requests] == ["", "spaced", "x" * MAX_NOTE]
+
+
+def test_an_address_for_a_reply_has_one_at_with_something_on_each_side_and_no_blank_in_254_characters() -> None:
+    assert MAX_EMAIL == 254
+    for good in ("ham@example.org", "a@b", "pää@esimerkki.fi", "h" * 244 + "@example.o"):
+        assert reply_address(good) == good, good
+    for bad in (
+        "",
+        "@b",
+        "a@",
+        "a@@b",
+        "a@b@c",
+        "a b@c",
+        " a@b",
+        "a@b\n",
+        "a@\x7fb",
+        "a@\u00a0b",
+        "a@\ud800",
+        "h" * 245 + "@example.o",
+    ):
+        assert reply_address(bad) == "", bad
+    for not_text in (None, 5, ["a@b"], {"a": "b"}):
+        assert reply_address(not_text) == "", not_text
+
+
+async def test_the_address_for_a_reply_goes_with_the_note_and_the_file_and_never_into_the_file_or_the_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    e, fake = await served(tmp_path, monkeypatch)
+    with caplog.at_level(logging.DEBUG):
+        assert await send(e, body=json.dumps({"page": PAGE, "note": "Write back.", "email": "oh2xyz@example.org"})) == (
+            200,
+            {"ok": True, "ref": REF},
+        )
+        assert (
+            await send(
+                e, body=json.dumps({"page": PAGE, "note": "Alone.", "file": False, "email": "oh2xyz@example.org"})
+            )
+        )[0] == 200
+    first, alone = fake.requests
+    assert first.fields["email"] == "oh2xyz@example.org" and first.fields["note"] == "Write back."
+    assert alone.files == {} and alone.fields["email"] == "oh2xyz@example.org"
+    with zipfile.ZipFile(io.BytesIO(first.files["bundle"][1])) as z:
+        assert not any(b"oh2xyz" in z.read(n) for n in z.namelist()), "not in the bundle"
+    assert not any("oh2xyz" in r.getMessage() for r in caplog.records), "not in the log"
+    assert "oh2xyz" not in json.dumps(await e.ctl.store.settings()), "not in the settings"
+
+
+@pytest.mark.parametrize("email", ["not an address", "a@b@c", "a@b\nBcc: x@y", "x" * 300 + "@b.c", 5, None, ["a@b"]])
+async def test_an_address_that_is_not_one_goes_as_empty_and_the_report_is_sent_all_the_same(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, email: object
+) -> None:
+    e, fake = await served(tmp_path, monkeypatch)
+    assert await send(e, body=json.dumps({"page": PAGE, "note": "x", "email": email})) == (
+        200,
+        {"ok": True, "ref": REF},
+    )
+    assert fake.requests[0].fields["email"] == ""
 
 
 @pytest.mark.parametrize("note", [5, None, ["a"], {"a": 1}])
@@ -389,6 +448,7 @@ async def test_a_note_alone_goes_without_a_file_and_no_bundle_is_made(
     (got,) = fake.requests
     assert got.files == {} and got.fields == {
         "note": "Thanks for the HF mode.",
+        "email": "",
         "call": "OH2GBA",
         "version": VERSION,
         "platform": e.ctl.updatecheck.platform,

@@ -84,7 +84,7 @@ may settle at another level from there; not proven on the FTX-1).
 
 ## Running it
 
-- **The lines.** Direwolf's lines carry no severity: the first 30 of a run go to the log at INFO, the error texts the driver reads at INFO counted the first, the tenth and every hundredth time, the rest at DEBUG. The
+- **The lines.** Direwolf's lines carry no severity: the first 30 of a run go to the log at INFO, the error texts the driver reads at INFO counted the 1st, 10th, 100th, 1000th... time and once more when they stop, the rest at DEBUG. The
   frames of `-d n` and the level of `-R` are read and never logged, nor counted among the first lines of a run or kept among its last.
 - **Running** once it says "Ready to accept KISS TCP client application 0 on port N" (`kissnet.c:606`). Then the kernel's table must show the port on 127.0.0.1 alone, or it is ended and not run again.
 - **Its port taken** ("Bind failed", "Some other application is probably already using port N", `kissnet.c:567-574`): it runs on with no KISS, so it is ended and started on another port, and the line follows it.

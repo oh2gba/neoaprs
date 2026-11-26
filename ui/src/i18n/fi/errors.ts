@@ -175,6 +175,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.transmitting": "radio lähettää",
   "error.radio.text_lines": "kortti lähettää tekstirivejä: aseta se KISS-tilaan",
   "error.radio.silent": "radio on hiljaa",
+  "error.radio.incoming_port": "{port} on tietokoneen saapuva Bluetooth-portti: valitse laitteen toinen portti",
+  "error.radio.write_timeout": "laite ei ottanut dataa vastaan {seconds} sekunnissa",
   "error.radio.settling": "TNC käynnistyy uudelleen KISS-tilaan",
   "error.radio.not_taken": "TNC ei ottanut kehystä vastaan",
   "error.radio.command_mode": "TNC on komentotilassa (KISS ON lähetetään uudelleen)",

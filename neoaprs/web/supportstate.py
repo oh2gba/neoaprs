@@ -136,6 +136,7 @@ async def live_state(server: LiveHost) -> dict[str, Any]:
         "beacon": beacon_state(server),
         "rig": {"state": rig.rig_state, "last_text": rig.last_text, "last_sent": iso(rig.last_sent_at)},
         "map": map_state(ctl.mapfetch.status(), ctl.aloha.radii),
+        "layers": ctl.layers.support_rows(),
         "send_on": {
             "objects": {name: list(radios) for name, radios in ctl.ownobjects.radio_sets().items()},
             "bulletins": {slot: list(radios) for slot, radios in ctl.ownbulletins.radio_sets().items()},
@@ -169,6 +170,21 @@ async def sound_cards(modem: Mercury | DirewolfModem, listed: dict[int, list[dic
     return listed[id(modem)]
 
 
+def mercury_state(modem: Mercury, line: Tnc) -> dict[str, Any]:
+    """Return what tells a deaf modem: frames heard, its stalls and restarts, its device lines."""
+    stall = modem.stall
+    return {
+        "frames_in": line.stats.packets,
+        "last_frame": iso(line.stats.last_packet),
+        "snr": modem.snr,
+        "capture_stalls": stall.stalls,
+        "last_stall_at": iso(stall.last_stall_at),
+        "restarts_for_stalls": stall.restarts,
+        "last_restart_at": iso(stall.last_restart_at),
+        "device_lines": modem.device_lines,
+    }
+
+
 async def radios_state(ctl: Controller, listed: dict[int, list[dict[str, Any]]]) -> list[dict[str, Any]]:
     """Return every radio by position, with its line and beacon.
 
@@ -194,5 +210,7 @@ async def radios_state(ctl: Controller, listed: dict[int, list[dict[str, Any]]])
         modem = radio.driver.modem
         if spec.enabled and modem is not None and radio.rtype.transport == "modem":
             entry["sound_cards"] = await sound_cards(modem, listed)
+        if spec.enabled and isinstance(modem, Mercury):
+            entry["mercury"] = mercury_state(modem, radio.line)
         out.append(entry)
     return out

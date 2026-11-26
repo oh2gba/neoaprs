@@ -1335,6 +1335,7 @@ def test_the_firewall_of_windows_is_no_part_of_the_protocol_any_more() -> None:
         "not_started",
         "sound_card",
         "keying",
+        "receive_stalled",
     }
     assert "lets_in" not in reasons and "allowing" not in reasons
 

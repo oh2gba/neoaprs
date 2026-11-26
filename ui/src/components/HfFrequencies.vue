@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The suggested frequencies in an HF radio's box (`modem.frequencies`: the project's list, else
-// the version page's dial, else the built-in four), one plain-text line each. Room for four
+// the version page's dial, else the built-in five), one plain-text line each. Room for five
 // lines (MAX_FREQUENCIES) is kept so that nothing moves. When the row comes into view the daemon
 // is asked to refresh the list (`frequencies`; at most every fifteen minutes); a row that
 // appeared before the socket opened asks when it opens.
@@ -43,7 +43,7 @@ watch(connection, (now) => {
 <style scoped>
 .freqs {
   display: block;
-  min-height: 6em;
+  min-height: 7.5em;
   line-height: 1.5;
 }
 .freq {
@@ -53,7 +53,7 @@ watch(connection, (now) => {
 }
 .band {
   display: inline-block;
-  min-width: 3.5ch;
+  min-width: 4.5ch;
   color: var(--muted);
 }
 </style>

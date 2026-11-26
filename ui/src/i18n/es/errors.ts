@@ -177,6 +177,9 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.radio.transmitting": "la radio está transmitiendo",
   "error.radio.text_lines": "la placa envía líneas de texto: ponla en KISS",
   "error.radio.silent": "la radio está en silencio",
+  "error.radio.incoming_port":
+    "{port} es el puerto Bluetooth entrante del ordenador: elige el otro puerto del dispositivo",
+  "error.radio.write_timeout": "el dispositivo no aceptó los datos en {seconds} s",
   "error.radio.settling": "el TNC se está reiniciando en modo KISS",
   "error.radio.not_taken": "el TNC no aceptó la trama",
   "error.radio.command_mode": "el TNC está en modo de comandos (se vuelve a enviar KISS ON)",

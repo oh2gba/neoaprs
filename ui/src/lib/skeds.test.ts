@@ -6,7 +6,8 @@ import {
   TIMES,
   callsOf,
   dayChoices,
-  dialOf,
+  DIAL,
+  dialOfNumber,
   draftOk,
   ended,
   groups,
@@ -140,28 +141,38 @@ describe("the form as it opens", () => {
 });
 
 describe("the dial", () => {
-  it("is written 7.0541 MHz USB, and what is typed in another way of writing it is put in that", () => {
-    expect(dialOf("7.0541 MHz USB")).toBe("7.0541 MHz USB");
-    expect(dialOf("  14.107 mhz usb ")).toBe("14.107 MHz USB");
-    expect(dialOf("7.0541MHz lsb")).toBe("7.0541 MHz LSB");
-    expect(dialOf("7.0541   MHz   USB")).toBe("7.0541 MHz USB");
+  it("is typed as the number of MHz alone, with a point or a comma, and goes as the board writes it, always USB", () => {
+    expect(dialOfNumber("28.140")).toBe("28.1400 MHz USB");
+    expect(dialOfNumber("28.14")).toBe("28.1400 MHz USB");
+    expect(dialOfNumber("28,140")).toBe("28.1400 MHz USB");
+    expect(dialOfNumber(" 7.0541 ")).toBe("7.0541 MHz USB");
+    expect(dialOfNumber("7")).toBe("7.0000 MHz USB");
+    for (const text of ["28.140", "28.14", "28,140", "7.0541", "7"])
+      expect(dialOfNumber(text) ?? "", text).toMatch(DIAL);
   });
 
-  it("is none for text that is not one", () => {
+  it("is none for too many decimals, letters, a unit typed, three digits or nothing", () => {
     for (const text of [
       "",
-      "7.0541",
-      "7.0541 MHz",
-      "7.0541 MHz FM",
-      "7 MHz USB",
-      "7.05 MHz USB",
-      "7.05412 MHz USB",
-      "107.0541 MHz USB",
-      "7,0541 MHz USB",
-      "7.0541 kHz USB",
+      " ",
+      "7.05412",
+      "28.14a",
+      "abc",
+      "7.0541 MHz USB",
+      "7.0541 MHz LSB",
+      "107.0541",
+      "7.",
+      ".5",
+      "7..1",
     ]) {
-      expect(dialOf(text), text).toBeNull();
+      expect(dialOfNumber(text), text).toBeNull();
     }
+  });
+
+  it("matches the form the daemon and the server take", () => {
+    expect("7.0541 MHz USB").toMatch(DIAL);
+    expect("3.6150 MHz LSB").toMatch(DIAL);
+    expect("7.05 MHz USB").not.toMatch(DIAL);
   });
 });
 
@@ -198,8 +209,9 @@ describe("whether the form is right", () => {
 
   it("is not right with a dial that is not of the form, a typed one included, or a note over 80", () => {
     expect(draftOk(draft({ dial: "" }), NOW)).toBe(false);
-    expect(draftOk(draft({ typed: true, dial: "7.0541" }), NOW)).toBe(false);
-    expect(draftOk(draft({ typed: true, dial: "7.0541 mhz usb" }), NOW)).toBe(true);
+    expect(draftOk(draft({ typed: true, dial: "7.0541 MHz USB" }), NOW)).toBe(false);
+    expect(draftOk(draft({ typed: true, dial: "7.0541" }), NOW)).toBe(true);
+    expect(draftOk(draft({ typed: true, dial: "7.05412" }), NOW)).toBe(false);
     expect(draftOk(draft({ note: "x".repeat(81) }), NOW)).toBe(false);
     expect(draftOk(draft({ note: "x".repeat(80) }), NOW)).toBe(true);
   });
@@ -211,7 +223,7 @@ describe("whether the form is right", () => {
 
 describe("the command that posts", () => {
   it("has the two instants in UTC to the second, the dial in the form of the board and the trimmed note, and never the call", () => {
-    expect(postCommand(draft({ typed: true, dial: "7.0541 mhz usb", note: "  Mercury, 10 W " }), NOW)).toEqual({
+    expect(postCommand(draft({ typed: true, dial: "7,0541", note: "  Mercury, 10 W " }), NOW)).toEqual({
       cmd: "sked_post",
       from: "2026-10-22T18:00:00Z",
       to: "2026-10-22T20:00:00Z",

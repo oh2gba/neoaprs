@@ -5,8 +5,9 @@
 // logs does, its × takes the file off so that the words go alone (Send is then off without words),
 // Attach puts it back, and nothing in the dialog moves. The group keeps what the dialog holds until
 // a send worked; the downloaded file is named by the Send of that opening and by a retry after a
-// failure, and forgotten when the dialog is closed with nothing sent. The row's words exist in nine
-// languages; no line explains.
+// failure, and forgotten when the dialog is closed with nothing sent. An optional address for a reply
+// under the text goes beside the note, and one that is not an address keeps Send off. The row's
+// words exist in nine languages; no line explains.
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ref, shallowRef } from "vue";
@@ -61,6 +62,7 @@ function asked(call: [RequestInfo | URL, RequestInit?] | undefined) {
     page: Record<string, unknown>;
     note?: string;
     file?: unknown;
+    email?: string;
   };
   return {
     url: address(url),
@@ -192,6 +194,8 @@ describe("the dialog", () => {
       "header",
       "label",
       "textarea",
+      "label",
+      "input",
       "div",
       "p",
       "footer",
@@ -250,7 +254,7 @@ describe("the dialog", () => {
     const standalone = mount(SendLogsDialog, { props: { opener: null, download }, attachTo: document.body });
     await standalone.get("textarea").setValue("  It stopped.\nTwo lines.  \n");
     await standalone.get(".btn.primary").trigger("click");
-    expect(standalone.emitted("send")).toEqual([["It stopped.\nTwo lines.", true]]);
+    expect(standalone.emitted("send")).toEqual([["It stopped.\nTwo lines.", true, ""]]);
     expect(standalone.emitted("attached")).toBeUndefined();
     expect(download.collect).not.toHaveBeenCalled();
     standalone.unmount();
@@ -355,6 +359,134 @@ describe("sending", () => {
     await open();
     expect(area().value).toBe("");
   });
+});
+
+describe("the address for a reply", () => {
+  const field = (): HTMLInputElement =>
+    document.body.querySelector<HTMLInputElement>(".logsdialog input") as HTMLInputElement;
+
+  async function typeAddress(text: string) {
+    field().value = text;
+    field().dispatchEvent(new Event("input", { bubbles: true }));
+    await flushPromises();
+  }
+
+  it("is one field after the text, labelled Email for a reply, for an address of at most 254 characters, empty, with no hint", async () => {
+    make();
+    await open();
+    const box = dialog() as HTMLElement;
+    const labels = [...box.querySelectorAll("label")];
+    expect(labels.map((label) => label.textContent)).toEqual(["Your message", "Email for a reply"]);
+    expect(labels[1]?.getAttribute("for")).toBe(field().id);
+    expect(area().nextElementSibling).toBe(labels[1]);
+    expect(box.querySelectorAll("input")).toHaveLength(1);
+    expect(field().classList.contains("input")).toBe(true);
+    expect(field().type).toBe("email");
+    expect(field().getAttribute("autocomplete")).toBe("email");
+    expect(field().getAttribute("maxlength")).toBe("254");
+    expect(field().getAttribute("aria-invalid")).toBe("false");
+    expect(field().hasAttribute("placeholder")).toBe(false);
+    expect(field().hasAttribute("aria-describedby")).toBe(false);
+    expect(field().value).toBe("");
+  });
+
+  it("goes to the daemon beside the note when one is given, with the file or without it, and not at all when it is empty", async () => {
+    const fetcher = daemonSays(() => json({ ok: true, ref: REF }));
+    make();
+    await open();
+    await typeAddress("oh2xyz@example.org");
+    await typeAndSend("Please write back.");
+    expect(asked(fetcher.mock.calls[0]).body).toMatchObject({
+      note: "Please write back.",
+      email: "oh2xyz@example.org",
+    });
+    expect(asked(fetcher.mock.calls[0]).body.page).toBeDefined();
+    expect(JSON.stringify(asked(fetcher.mock.calls[0]).body.page)).not.toContain("oh2xyz@example.org");
+    await open();
+    await typeAddress("oh2xyz@example.org");
+    await write("Words alone.");
+    await press(toggle());
+    await press(button("Send"));
+    expect(asked(fetcher.mock.calls[1]).body).toMatchObject({
+      note: "Words alone.",
+      file: false,
+      email: "oh2xyz@example.org",
+    });
+    await open();
+    await typeAndSend("No address.");
+    expect(Object.keys(asked(fetcher.mock.calls[2]).body).sort()).toEqual(["note", "page"]);
+  });
+
+  it.each(["no address", "@example.org", "ham@", "ham@@example.org", "ham@exa mple.org", "ham@exam\u00a0ple.org"])(
+    "keeps Send off and marks the field while it holds what is not an address (%j), and takes it back when emptied",
+    async (text) => {
+      const fetcher = daemonSays(() => json({ ok: true, ref: REF }));
+      make();
+      await open();
+      await write("words");
+      await typeAddress(text);
+      expect(field().getAttribute("aria-invalid")).toBe("true");
+      expect(field().classList.contains("invalid")).toBe(true);
+      expect(button("Send").disabled).toBe(true);
+      button("Send").click();
+      await flushPromises();
+      expect(fetcher).not.toHaveBeenCalled();
+      await typeAddress("");
+      expect(field().getAttribute("aria-invalid")).toBe("false");
+      expect(button("Send").disabled).toBe(false);
+    },
+  );
+
+  it("marks a wrong address with the colour of the border alone, so that nothing moves", async () => {
+    const sizes =
+      /(^|;)\s*(display|width|min-width|height|min-height|padding[a-z-]*|margin[a-z-]*|border(-width|-style)?|font[a-z-]*|line-height|gap|outline[a-z-]*)\s*:/;
+    expect(cssRule(".input.invalid")).toMatch(/border-color:/);
+    expect(cssRule(".input.invalid")).not.toMatch(sizes);
+    make();
+    await open();
+    const parts = () => [...(dialog()?.children ?? [])].map((part) => part.tagName);
+    const before = parts();
+    await typeAddress("not one");
+    expect(parts()).toEqual(before);
+  });
+
+  it("is kept with the words when they were not sent, and forgotten once they were", async () => {
+    daemonSays(() => json({ ok: false, reason: "offline" }));
+    make();
+    await open();
+    await typeAddress("oh2xyz@example.org");
+    await typeAndSend("x");
+    await open();
+    expect(field().value).toBe("oh2xyz@example.org");
+    daemonSays(() => json({ ok: true, ref: REF }));
+    button("Send").click();
+    await flushPromises();
+    await open();
+    expect(field().value).toBe("");
+  });
+
+  it("is emitted with the blanks round it taken off", async () => {
+    const download = {
+      running: ref(false),
+      saved: shallowRef<string | null>(null),
+      problem: ref(""),
+      collect: vi.fn(() => Promise.resolve()),
+    };
+    const standalone = mount(SendLogsDialog, { props: { opener: null, download }, attachTo: document.body });
+    await standalone.get("input").setValue(" oh2xyz@example.org ");
+    await standalone.get(".btn.primary").trigger("click");
+    expect(standalone.emitted("send")).toEqual([["", true, "oh2xyz@example.org"]]);
+    standalone.unmount();
+  });
+
+  for (const locale of LOCALES) {
+    it(`${locale.name}: has its label`, () => {
+      const messages = locale.messages as Record<string, unknown>;
+      expect(typeof messages["settings.help.dialog.email"]).toBe("string");
+      expect(messages["settings.help.dialog.email"]).not.toBe("");
+      expect(messages["settings.help.dialog.email"]).not.toBe(messages["settings.help.dialog.label"]);
+    });
+  }
 });
 
 describe("the file's row", () => {

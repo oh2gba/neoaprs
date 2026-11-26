@@ -280,6 +280,100 @@ def test_the_hf_radio_and_every_sound_card_mercury_lists_are_in_the_summary_by_n
     ), "a Mercury radio that is off is there, off"
 
 
+def test_a_virtual_mixers_combinations_are_folded_the_chosen_card_first_and_a_deaf_mercury_is_told(
+    tmp_path: Path,
+) -> None:
+    """A Windows station with Voicemeeter: 64 combinations of its ends, then the real cards."""
+    from tests.support.supportdata import SETTINGS
+
+    chosen = "{0.0.1.00000000}.{37ef7499}|{0.0.0.00000000}.{708d9480}"
+    data = fake_folder(tmp_path, settings={**SETTINGS, "hf/enabled": "true", "hf/profile": "mercury"})
+    mixer = [
+        {
+            "name": f"VB-Audio Voicemeeter VAIO (Voicemeeter Out {out}, Voicemeeter In {n})",
+            "id": f"{{0.0.1.00000000}}.{{{out}}}|{{0.0.0.00000000}}.{{{n}}}",
+            "records": True,
+            "plays": True,
+            "default": False,
+        }
+        for out in ("A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3")
+        for n in range(8)
+    ]
+    cards = [
+        *mixer,
+        {
+            "name": "High Definition Audio Device",
+            "id": "{0.0.1.00000000}.{d6ea}",
+            "records": True,
+            "plays": True,
+            "default": True,
+        },
+        {"name": "USB Audio CODEC ", "id": chosen, "records": True, "plays": True, "default": False},
+        {
+            "name": "Micrófono (Logi C525 HD WebCam)",
+            "id": "{0.0.1.00000000}.{b97f}",
+            "records": True,
+            "plays": False,
+            "default": False,
+        },
+    ]
+    mercury = {
+        "frames_in": 0,
+        "last_frame": None,
+        "snr": None,
+        "capture_stalls": 2,
+        "last_stall_at": "2026-11-26T06:26:48Z",
+        "restarts_for_stalls": 1,
+        "last_restart_at": "2026-11-26T06:26:48Z",
+        "device_lines": [
+            "[INF] [audio-play] I/O playback ({0.0.0.00000000}.{708d9480} 'Altavoces (USB Audio CODEC )') int32 / 48000Hz / 2ch / 40ms buffer",
+            "[INF] [radio-io] PTT method: serial RTS (device COM10)",
+        ],
+    }
+    live = {
+        "daemon": {"uptime_sec": 60, "started_at": "2026-10-26T11:59:00Z"},
+        "radios": [
+            radio(
+                2,
+                {"state": "connected", "problem": "", "modem": {"sound_card": chosen}},
+                sound_cards=cards,
+                mercury=mercury,
+            )
+        ],
+        "layers": [
+            {"layer": "aircraft", "source": "none", "state": None, "since": None, "heard_at": None},
+            {
+                "layer": "ships",
+                "source": "receiver",
+                "state": "no_ais",
+                "since": "2026-11-25T21:45:10Z",
+                "heard_at": None,
+            },
+        ],
+    }
+    summary = made(tmp_path, data, running=True, live=live, by="the running daemon")[1]["summary.txt"]
+    hf = section(summary, "Radio 2: Mercury").splitlines()
+    listed = [
+        line.split(":", 1)[1].strip()
+        for line in hf
+        if line.strip().startswith(("Sound card listed", "Sound cards listed"))
+    ]
+    assert listed[0].startswith("'High Definition Audio Device': records and plays, the system default;")
+    assert listed[1] == f"'USB Audio CODEC ': records and plays, the chosen one; {chosen}"
+    assert listed[2:] == [
+        "'VB-Audio Voicemeeter VAIO': 64 of its combinations (state.json lists them)",
+        "'Micrófono (Logi C525 HD WebCam)': records; {0.0.1.00000000}.{b97f}",
+    ]
+    text = "\n".join(hf)
+    assert re.search(r"Frames heard:\s+0, the last never", text)
+    assert re.search(r"Hears nothing:\s+2 times, the last 2026-11-26T06:26:48Z", text)
+    assert re.search(r"Restarted for it:\s+1 times, the last 2026-11-26T06:26:48Z", text)
+    assert "PTT method: serial RTS (device COM10)" in text and "'Altavoces (USB Audio CODEC )')" in text
+    layers = section(summary, "Map layers")
+    assert re.search(r"Ships:\s+receiver, no_ais since 2026-11-25T21:45:10Z, last data never", layers)
+    assert re.search(r"Aircraft:\s+none$", layers, re.MULTILINE)
+
+
 def test_a_connected_radio_has_no_problem_and_its_old_error_stands_on_a_line_of_its_own(tmp_path: Path) -> None:
     from tests.support.supportdata import SETTINGS
 

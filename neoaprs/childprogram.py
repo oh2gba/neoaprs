@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from .childenv import child_environment, windows_program
+from .clock import Clock, utcnow
 from .source import os_error_text
 
 log = logging.getLogger("neoaprs.childprogram")
@@ -26,6 +27,7 @@ STOP_WAIT_SEC = 5.0
 LAST_LINES = 8  # kept for the log line written at the end
 STARTUP_LINES = 30  # the first lines of a run are always logged
 SAID_MAX = 1000  # distinct warnings counted at once
+QUIET_SEC = 60.0  # a repeated warning not seen for this long has stopped
 
 Command = list[str]
 HIDDEN_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: no console window; 0 elsewhere
@@ -291,8 +293,11 @@ class Program:
         self._stopping: subprocess.Popen[str] | None = None
         self._pid_file: Path | None = None
         self.last_lines: deque[str] = deque(maxlen=LAST_LINES)
-        # Count per distinct warning (a stuck sound device repeats one line endlessly).
-        self._said: dict[str, int] = {}
+        # Per distinct warning: [count, monotonic time of the latest, its wall time] (a stuck sound
+        # device repeats one line endlessly).
+        self._said: dict[str, list[Any]] = {}
+        self._looked_at = 0.0  # monotonic time of the latest look for warnings that stopped
+        self.clock: Clock = utcnow
         self.lines_read = 0  # written by the reader thread only
 
     @property
@@ -352,6 +357,7 @@ class Program:
                     self._tell(line)
                 if self._process is process:
                     self._heard(line, loop)
+        self._stopped_warnings(None)
         code = process.wait()
         if pid_file is not None:
             _unlink_own(pid_file, process.pid)
@@ -370,17 +376,37 @@ class Program:
         return None
 
     def _tell(self, line: str) -> None:
-        """Log a line: INFO for the first STARTUP_LINES, then DEBUG; a repeated warning is thinned."""
+        """Log a line: INFO for the first STARTUP_LINES, then DEBUG; a repeated warning is thinned.
+
+        A warning is logged the 1st, 10th, 100th, 1000th... time, and once more when it stops."""
         self.lines_read += 1
+        now = time.monotonic()
+        if now - self._looked_at >= 1.0:
+            self._stopped_warnings(now)
         said = self._warning(line)
         if said is None:
             self._program_log.log(logging.INFO if self.lines_read <= STARTUP_LINES else logging.DEBUG, "%s", line)
             return
-        if len(self._said) >= SAID_MAX:
-            self._said.clear()
-        count = self._said[said] = self._said.get(said, 0) + 1
-        if count in (1, 10) or count % 100 == 0:
+        entry = self._said.get(said)
+        if entry is None:
+            if len(self._said) >= SAID_MAX:
+                self._stopped_warnings(None)
+            entry = self._said[said] = [0, now, None]
+        entry[0] += 1
+        entry[1], entry[2] = now, self.clock()
+        count = entry[0]
+        if count == 10 ** (len(str(count)) - 1):
             self._program_log.info("%s%s", line, f" (the {count}th time)" if count > 1 else "")
+
+    def _stopped_warnings(self, now: float | None) -> None:
+        """Log once each repeated warning not seen for QUIET_SEC (all when `now` is None) and forget it."""
+        if now is not None:
+            self._looked_at = now
+        for key, (count, last, at) in list(self._said.items()):
+            if now is None or now - last >= QUIET_SEC:
+                del self._said[key]
+                if count != 10 ** (len(str(count)) - 1):  # (a power of ten was logged with its count)
+                    self._program_log.info("%s: came %d times, the last at %s", key, count, f"{at:%Y-%m-%d %H:%M:%S}Z")
 
     def _end(self, process: subprocess.Popen[str]) -> None:
         """End the process in the program's own way, blocking."""

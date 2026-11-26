@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The form to post a sked at the bottom of the Skeds tab: Day (next 30 UTC days), time From and To
 // in half hours (UTC; a To not after From is the next day), Frequency (a suggested dial, or Other
-// which brings a field for e.g. `7.0541 MHz USB`) and a one-line Note with a counter. Post is on
+// which brings a field for the number alone, `7.0541`, with MHz USB fixed beside it) and a one-line Note with a counter. Post is on
 // when there is a call, the board can be reached and the form is valid (lib/skeds.ts); RX only does
 // not matter. A sked that has ended marks the To. The note clears when the daemon has the sked; a
 // refused post stays. The dials are the project's list: when the Frequency row comes on show (at
@@ -35,7 +35,6 @@ const days = computed(() => dayChoices(now.value));
 const OTHER = "other";
 /** The Frequency choice: a suggested dial (when it is the draft's), else Other. */
 const choice = computed(() => (draft.typed ? OTHER : draft.dial));
-const placeholder = computed(() => frequencies.value[0]?.dial ?? "7.0541 MHz USB");
 /** The characters of the note; the field takes no more (lib/textlimit.ts). */
 const limit: TextLimit = { max: NOTE_MAX, measure: trimmedCharacters, kind: "characters" };
 const left = computed(() => leftOf(draft.note, limit));
@@ -160,10 +159,11 @@ function submit(): void {
           class="input mono"
           :class="{ invalid: typedWrong }"
           type="text"
-          :placeholder="placeholder"
+          inputmode="decimal"
           autocomplete="off"
           spellcheck="false"
         />
+        <span class="unit muted">MHz USB</span>
       </div>
     </div>
     <div class="field">

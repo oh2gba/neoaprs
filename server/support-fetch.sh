@@ -9,7 +9,7 @@
 #                                    nothing
 #
 # The server keeps each file as NEO-YYYYmmdd-HHMM-XXXX.zip with NEO-...json beside it (time, call,
-# version, platform, size, note). They are fetched into server/support/ (not in git), zip and json
+# email, version, platform, size, note). They are fetched into server/support/ (not in git), zip and json
 # together, and a file already there is never fetched again. A note sent alone (the person took the
 # file off) is its json only, which says `"file": false`: no zip is asked for it. The server removes
 # a file 30 days after it was sent (at the next upload it accepts): fetch before. To read one: unzip
@@ -52,15 +52,17 @@ refs=$(fcurl -sS --max-time 60 "sftp://$FH$REMOTE/" | awk '{print $NF}' | grep -
 # Whether the json at $1 says a file came with the note (a note alone has "file": false and no zip).
 has_file() { python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1], encoding="utf-8")).get("file", True) else 1)' "$1"; }
 
-# One line for a file from its json: the reference, time, call, version, platform and size ("no
-# file" for a note alone), and under it the note.
+# One line for a file from its json: the reference, time, call, the address for a reply when there
+# is one, version, platform and size ("no file" for a note alone), and under it the note.
 show() {
   python3 -c '
 import json, sys
 m = json.load(open(sys.argv[1], encoding="utf-8"))
 note = " ".join(str(m.get("note", "")).split())
 size = "%d KB" % (int(m.get("size", 0)) // 1024) if m.get("file", True) else "no file"
-print("  %s  %s  %-12s %-10s %-14s %s" % (m.get("ref", "?"), m.get("time", "?"), m.get("call") or "-", m.get("version") or "-", m.get("platform") or "-", size))
+email = " ".join(str(m.get("email") or "").split())
+who = "%-12s %s " % (m.get("call") or "-", email) if email else "%-12s" % (m.get("call") or "-")
+print("  %s  %s  %s %-10s %-14s %s" % (m.get("ref", "?"), m.get("time", "?"), who, m.get("version") or "-", m.get("platform") or "-", size))
 if note:
     print("      " + note[:300] + ("..." if len(note) > 300 else ""))
 ' "$LOCAL/$1.json"

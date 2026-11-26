@@ -1,5 +1,5 @@
 // The suggested frequencies row of the HF radio's box (HfFrequencies.vue): plain-text entries
-// one to a line, the room of four lines kept, the list following what the daemon says, and the
+// one to a line, the room of five lines kept, the list following what the daemon says, and the
 // daemon asked to refresh the project's file when the row comes into view, at most once a minute
 // from one page.
 import { readFileSync } from "node:fs";
@@ -16,7 +16,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const asked = (send: { mock: { calls: unknown[][] } }) =>
   send.mock.calls.map(([c]) => c).filter((c) => (c as { cmd: string }).cmd === "frequencies");
 
-/** Radio 2, the Mercury modem, with this list (the fixtures' four where none is given). */
+/** Radio 2, the Mercury modem, with this list (the fixtures' five where none is given). */
 const radioWith = (frequencies?: { band: string; dial: string }[]) =>
   pageRadio(hfRow({}, frequencies === undefined ? {} : { frequencies }));
 
@@ -33,15 +33,16 @@ describe("the suggested frequencies row", () => {
       "80 m 3.5850 MHz USB",
       "40 m 7.0541 MHz USB",
       "20 m 14.1070 MHz USB",
+      "10 m 28.1800 MHz USB",
       "6 m 50.6200 MHz USB",
     ]);
     expect(lines.map((line) => line.find(".dial").classes())).toEqual(
-      Array.from({ length: 4 }, (): unknown => expect.arrayContaining(["mono"])),
+      Array.from({ length: 5 }, (): unknown => expect.arrayContaining(["mono"])),
     );
-    expect(lines.map((line) => line.find(".band").text())).toEqual(["80 m", "40 m", "20 m", "6 m"]);
+    expect(lines.map((line) => line.find(".band").text())).toEqual(["80 m", "40 m", "20 m", "10 m", "6 m"]);
   });
 
-  it("follows the list the daemon says: one entry, four, none", async () => {
+  it("follows the list the daemon says: one entry, five, none", async () => {
     const daemon = fakeDaemon();
     const wrapper = mount(HfFrequencies, {
       props: { radio: radioWith([{ band: "30 m", dial: "10.1462 MHz USB" }]) },
@@ -53,18 +54,19 @@ describe("the suggested frequencies row", () => {
         { band: "40 m", dial: "7.0541 MHz USB" },
         { band: "20 m", dial: "14.1070 MHz USB" },
         { band: "17 m", dial: "18.1000 MHz USB" },
+        { band: "10 m", dial: "28.1800 MHz USB" },
         { band: "80 m", dial: "3.5850 MHz USB" },
       ]),
     });
-    expect(wrapper.findAll(".freq")).toHaveLength(4);
+    expect(wrapper.findAll(".freq")).toHaveLength(5);
     await wrapper.setProps({ radio: radioWith([]) });
     expect(wrapper.findAll(".freq")).toHaveLength(0);
     expect(wrapper.find("#hf-frequencies-2").exists()).toBe(true);
   });
 
-  it("keeps the room of four lines, the most the list has, so that nothing moves when it changes", () => {
+  it("keeps the room of five lines, the most the list has, so that nothing moves when it changes", () => {
     const source = readFileSync(join(HERE, "HfFrequencies.vue"), "utf-8");
-    expect(source).toMatch(/\.freqs \{[^}]*display: block;[^}]*min-height: 6em;[^}]*line-height: 1\.5;/);
+    expect(source).toMatch(/\.freqs \{[^}]*display: block;[^}]*min-height: 7\.5em;[^}]*line-height: 1\.5;/);
     expect(source).toMatch(/\.freq \{\s*display: block;\s*height: 1\.5em;[^}]*white-space: nowrap;/);
   });
 });

@@ -112,6 +112,9 @@ def radio_state(line: Tnc | None) -> str:
         return Source.State.STOPPED.value
     if line.state is Source.State.CONNECTED and line.entering_kiss and not line.usable:
         return Source.State.CONNECTING.value
+    # the last line was lost when a write timed out: not shown connected until data goes through
+    if line.state is Source.State.CONNECTED and line.write_stuck is not None:
+        return Source.State.WAITING.value
     return line.state.value
 
 
@@ -169,6 +172,10 @@ def radio_problem(
     """
     if line is None or spec.removed or not spec.enabled:
         return None
+    # the write timeout is the problem while the line is open again, or waits after that very loss
+    stuck = line.write_stuck
+    if stuck is not None and line.state is Source.State.CONNECTED:
+        return _problem("radio.write_timeout", **code_of(stuck)[1])
     if line.state is Source.State.CONNECTED:
         return _problem("radio.text_lines") if line.why_unusable() == TEXT_LINES else None
     if (held := _held_elsewhere(spec, specs, spec.rtype, claims)) is not None:
@@ -181,6 +188,10 @@ def radio_problem(
         return _problem(f"modem.{modem['reason']}")
     if line.state is Source.State.SILENT:
         return _problem("radio.silent", since=iso(line.silent_since) or "")
+    if stuck is not None and line.state is Source.State.WAITING and code_of(line.problem)[0] == "radio.write_timeout":
+        return _problem("radio.write_timeout", **code_of(stuck)[1])
+    if (why := code_of(line.problem))[0] == "radio.incoming_port":
+        return _problem(why[0], **why[1])
     if line.searching:
         return _problem("radio.searching")
     return _problem("radio.not_connected", name=log_name(spec, specs))

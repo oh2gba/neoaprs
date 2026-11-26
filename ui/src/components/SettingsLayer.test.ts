@@ -183,6 +183,22 @@ describe("the state of an own receiver in words", () => {
     });
   });
 
+  it("says a connected receiver that has sent nothing yet without claiming it works or not", () => {
+    expect(receiverLook("ships", { state: "connected", things: 0, heard_at: null }, NOW)).toEqual({
+      state: "connected",
+      tone: "tnc-connecting",
+      line: "Connected, no ship heard yet",
+    });
+  });
+
+  it("says a source that answers but sends no AIS in a state of its own, a warning", () => {
+    expect(receiverLook("ships", { state: "no_ais", things: 0, heard_at: null }, NOW)).toEqual({
+      state: "no AIS",
+      tone: "tnc-waiting",
+      line: "Connected, but no AIS comes from it",
+    });
+  });
+
   it("counts ships in the singular and the plural, and tells a connection that has heard none", () => {
     expect(receiverLook("ships", receiving(1), NOW).line).toBe("Receiving: 1 ship, 3 s ago");
     expect(receiverLook("ships", receiving(12), NOW).line).toBe("Receiving: 12 ships, 3 s ago");
@@ -192,7 +208,7 @@ describe("the state of an own receiver in words", () => {
 
   it("names no address and no port", () => {
     for (const layer of ["aircraft", "ships"] as const)
-      for (const state of ["looking", "receiving", "no_answer"] as const)
+      for (const state of ["looking", "connected", "receiving", "no_answer", "no_ais"] as const)
         expect(
           JSON.stringify(receiverLook(layer, { state, things: 2, heard_at: "2026-10-21T12:00:00Z" }, NOW)),
         ).not.toMatch(/:\d|\d\.\d+\.\d|\//);

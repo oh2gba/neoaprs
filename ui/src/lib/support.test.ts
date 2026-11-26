@@ -3,10 +3,12 @@ import type { PageErrorEntry } from "@/lib/pageerrors";
 import {
   BODY_MAX_BYTES,
   bodyOf,
+  EMAIL_MAX,
   filenameOf,
   madeName,
   NOTE_MAX,
   pageInfo,
+  replyAddressOk,
   requestBundle,
   requestSend,
   saveFile,
@@ -234,6 +236,27 @@ describe("requestSend", () => {
     expect(JSON.parse(bodyOf(info, undefined, false))).toEqual({ page: JSON.parse(JSON.stringify(info)) as unknown });
   });
 
+  it("sends the address for a reply as its own field beside the note, with a file or without, and none when it is empty", async () => {
+    const fetcher = says(200, { ok: true, ref: "r" });
+    await requestSend(info, "x", true, fetcher, "oh2xyz@example.org");
+    await requestSend(info, "x", false, fetcher, "oh2xyz@example.org");
+    await requestSend(info, "x", true, fetcher, "");
+    await requestSend(info, "x", true, fetcher);
+    const bodies = fetcher.mock.calls.map(
+      (call) => JSON.parse(typeof call[1]?.body === "string" ? call[1].body : "") as Record<string, unknown>,
+    );
+    expect(bodies.map((body) => [Object.keys(body).sort(), body.email])).toEqual([
+      [["email", "note", "page"], "oh2xyz@example.org"],
+      [["email", "file", "note", "page"], "oh2xyz@example.org"],
+      [["note", "page"], undefined],
+      [["note", "page"], undefined],
+    ]);
+    expect(JSON.stringify(bodies[0]?.page)).not.toContain("oh2xyz");
+    expect(JSON.parse(bodyOf(info, undefined, true, "oh2xyz@example.org"))).toEqual({
+      page: JSON.parse(JSON.stringify(info)) as unknown,
+    });
+  });
+
   it("cuts a note to the limit", async () => {
     const fetcher = says(200, { ok: true, ref: "r" });
     await requestSend(info, "x".repeat(NOTE_MAX + 50), true, fetcher);
@@ -304,5 +327,32 @@ describe("saveFile", () => {
     vi.advanceTimersByTime(1000);
     expect(urls.revokeObjectURL).toHaveBeenCalledWith("blob:abc");
     click.mockRestore();
+  });
+});
+
+describe("replyAddressOk", () => {
+  it("takes one @ with something on each side, no blank or control character, at most the daemon's 254 characters", () => {
+    expect(EMAIL_MAX).toBe(254);
+    for (const good of [
+      "ham@example.org",
+      "a@b",
+      "pää@esimerkki.fi",
+      "ham@\u{1f4e1}.example",
+      "h".repeat(244) + "@example.o",
+    ])
+      expect(replyAddressOk(good), good).toBe(true);
+    for (const bad of [
+      "",
+      "@b",
+      "a@",
+      "a@@b",
+      "a@b@c",
+      "a b@c",
+      "a@b\n",
+      "a@b\u00a0",
+      "a@\ud800",
+      "h".repeat(245) + "@example.o",
+    ])
+      expect(replyAddressOk(bad), JSON.stringify(bad)).toBe(false);
   });
 });
