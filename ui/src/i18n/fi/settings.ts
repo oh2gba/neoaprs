@@ -128,7 +128,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.port.other": "Muu...",
   "settings.port.held": "{holder}: {port}",
   "settings.port.path_label": "Portin polku",
-  "settings.port.found": "löytyi: {port}",
   "settings.port.refresh": "Päivitä",
 
   "settings.baud.name": "Nopeus",
@@ -141,7 +140,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tcp_host.tip1": "Tietokone, jossa oma Direwolf tai soundmodem toimii: 127.0.0.1 on tämä tietokone.",
   "settings.tcp_port.label": "Portti",
   "settings.tcp_port.tip1": "Direwolf kuuntelee porttia 8001 ja soundmodem porttia 8100, ellet ole muuttanut sitä.",
-  "settings.tcp_port.title": "Direwolf 8001, soundmodem 8100",
   "settings.board_host.tip1": "Kortin osoite verkossasi sellaisena kuin sen oma verkkosivu sen näyttää.",
   "settings.board_port.tip1": "Kortin KISS-portti: 8001, ellet ole muuttanut sitä kortilla.",
   "settings.board_host.label": "Osoite",

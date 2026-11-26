@@ -50,7 +50,7 @@ def hostport(text: str) -> str:
         or any(c.isspace() for c in value)
         or not value.isprintable()
     ):
-        raise CodedError(f"{text!r} is not host:port (4532 is rigctld's port)", "setting.not_hostport", value=text)
+        raise CodedError(f"{text!r} is not host:port", "setting.not_hostport", value=text)
     return value
 
 

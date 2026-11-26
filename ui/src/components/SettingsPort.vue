@@ -100,9 +100,6 @@ watch(
         @keydown.enter.prevent="emit('commit', null)"
         @keydown.esc="escape"
       />
-      <span v-else-if="modelValue === '' && found !== ''" class="muted port-found">{{
-        t("settings.port.found", { port: found })
-      }}</span>
       <button type="button" class="btn" @click="emit('refresh')">{{ t("settings.port.refresh") }}</button>
     </template>
   </SettingsField>

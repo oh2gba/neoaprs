@@ -123,7 +123,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.port.other": "その他…",
   "settings.port.held": "{holder}: {port}",
   "settings.port.path_label": "ポートのパス",
-  "settings.port.found": "検出: {port}",
   "settings.port.refresh": "更新",
 
   "settings.baud.name": "通信速度",
@@ -137,7 +136,6 @@ export const settings: Record<keyof typeof source, Message> = {
     "自分の Direwolf や soundmodem が動いているコンピューターです。127.0.0.1 はこのコンピューター自身です。",
   "settings.tcp_port.label": "ポート",
   "settings.tcp_port.tip1": "Direwolf は 8001、soundmodem は 8100 で待ち受けます(変更していなければ)。",
-  "settings.tcp_port.title": "Direwolf 8001、soundmodem 8100",
   "settings.board_host.tip1": "ボードのネットワーク上のアドレスです。ボード自身のWebページに表示されます。",
   "settings.board_port.tip1": "ボードのKISSポートです。ボードで変更していなければ8001です。",
   "settings.board_host.label": "アドレス",

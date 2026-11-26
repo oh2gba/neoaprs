@@ -355,7 +355,6 @@ describe("the Mercury radio's box in the Radio group", () => {
     expect(card.element.value).toBe("plughw:1,0");
     const keying = group.find<HTMLSelectElement>("#set-radio-2-keying");
     expect([...card.element.options, ...keying.element.options].map((o) => o.text)).not.toContain("find automatically");
-    expect(hf(group).findAll(".port-found")).toHaveLength(0);
     expect(
       hf(group)
         .findAll("button")

@@ -240,12 +240,11 @@ export const fr: Catalogue = {
   "error.setting.not_keying": "« {value} » n'est pas une façon de commuter la radio : vox, cm108, rts:PORT ou dtr:PORT",
   "error.setting.not_among": "{value} n'est pas l'une des valeurs {choices}",
   "error.setting.not_direction": "« {value} » n'est ni omni ni l'un de N NE E SE S SW W NW",
-  "error.setting.not_globs":
-    "« {value} » n'est pas un ou plusieurs motifs absolus séparés par des espaces, comme /dev/ttyUSB*",
+  "error.setting.not_globs": "« {value} » n'est pas un ou plusieurs motifs absolus séparés par des espaces",
   "error.setting.not_host": "« {value} » n'est ni une adresse ni un nom",
-  "error.setting.not_hostport": "« {value} » n'est pas hôte:port (4532 est le port de rigctld)",
+  "error.setting.not_hostport": "« {value} » n'est pas hôte:port",
   "error.setting.not_receiver": "« {value} » n'est pas l'adresse d'un récepteur",
-  "error.setting.not_server": "« {value} » n'est pas hôte:port (14580 est le port habituel d'un serveur APRS-IS)",
+  "error.setting.not_server": "« {value} » n'est pas hôte:port",
   "error.setting.not_passcode": "le code de votre indicatif est un nombre de 0 à {max}",
   "error.setting.passcode_read_only": "-1 est le code en lecture seule ; un iGate a besoin du code de son indicatif",
   "error.setting.not_map_source": "« {value} » n'est ni une adresse web ni le chemin d'un fichier PMTiles",
@@ -263,7 +262,7 @@ export const fr: Catalogue = {
   "error.setting.profile_port":
     "{profile} se connecte par TCP (tcp/host et tcp/port), pas au port série {port} : videz serial/port ou choisissez un TNC série",
   "error.setting.range": "{value} n'est pas compris entre {min} et {max}",
-  "error.setting.status_needs_rigctld": "la radio exige status/rigctld (hôte:port d'un rigctld, 127.0.0.1:4532)",
+  "error.setting.status_needs_rigctld": "la radio exige status/rigctld (hôte:port d'un rigctld)",
   "error.setting.status_source":
     "« {value} » n'est ni off, ni text, ni rig (vide : comme le disent status/rigctld et station/status)",
   "error.setting.template_field": "{{{field}}} n'est pas un champ du modèle (les champs sont {{freq}} et {{mode}})",
@@ -1492,7 +1491,6 @@ export const fr: Catalogue = {
   "settings.port.other": "Autre…",
   "settings.port.held": "{holder} : {port}",
   "settings.port.path_label": "Chemin du port",
-  "settings.port.found": "trouvé : {port}",
   "settings.port.refresh": "Actualiser",
 
   "settings.baud.name": "Vitesse",
@@ -1505,7 +1503,6 @@ export const fr: Catalogue = {
   "settings.tcp_host.tip1": "L'ordinateur où tourne votre Direwolf ou soundmodem : 127.0.0.1 est cet ordinateur.",
   "settings.tcp_port.label": "Port",
   "settings.tcp_port.tip1": "Direwolf écoute sur 8001 et soundmodem sur 8100, sauf si vous l'avez changé.",
-  "settings.tcp_port.title": "Direwolf 8001, soundmodem 8100",
   "settings.board_host.tip1": "L'adresse de la carte sur votre réseau, telle que l'affiche sa propre page web.",
   "settings.board_port.tip1": "Le port KISS de la carte : 8001, sauf si vous l'avez changé sur la carte.",
   "settings.board_host.label": "Adresse",

@@ -222,7 +222,6 @@ describe("SettingsForm", () => {
           ["\u0000other", "Other..."],
         ]);
         expect(wrapper.find<HTMLSelectElement>("#set-gps-device").element.value).toBe("");
-        expect(group(wrapper, "Station")?.find(".port-found").exists()).toBe(false);
         expect(group(wrapper, "Station")?.text()).not.toContain("find automatically");
       });
 
@@ -747,7 +746,6 @@ describe("SettingsForm", () => {
         .map((o) => o.text());
     const radio = (wrapper: Wrapper) => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Radio");
     const headings = (wrapper: Wrapper) => radio(wrapper)?.findAll(".subgroup");
-    const found = (wrapper: Wrapper) => wrapper.find(".port-found");
     /** The labels of the FM radio's box: its fields, without its Enable tickbox. */
     const labels = (wrapper: Wrapper) =>
       radio(wrapper)
@@ -771,17 +769,12 @@ describe("SettingsForm", () => {
       expect(select(wrapper).element.value).toBe("");
     });
 
-    it("tells the port found last beside an automatic port, as a note and not a field", () => {
+    it("does not print the port found last beside an automatic port, nor make a field of it", () => {
       const { wrapper } = withPorts({ "radio/1/port": "", "serial/last_port": "/dev/brainbox_3" });
-      expect(found(wrapper).text()).toBe("found: /dev/brainbox_3");
+      expect(radio(wrapper)?.text()).not.toContain("found:");
       expect(wrapper.find("#set-serial-last_port").exists()).toBe(false);
       expect(wrapper.findAll("input[readonly]")).toHaveLength(0);
       expect(labels(wrapper)).not.toContain("Last port found");
-    });
-
-    it("says nothing of it before the radio was found, or while a port is named", () => {
-      expect(found(withPorts({ "radio/1/port": "", "serial/last_port": "" }).wrapper).exists()).toBe(false);
-      expect(found(withPorts(OWNER).wrapper).exists()).toBe(false);
     });
 
     it("shows a named port that the system does not list as chosen, once", () => {
@@ -811,7 +804,6 @@ describe("SettingsForm", () => {
       expect(labels(wrapper)).toEqual(["Radio type", "Address", "Port"]);
       expect(wrapper.find("#set-radio-1-port").exists()).toBe(false);
       expect(headings(wrapper)).toHaveLength(0);
-      expect(wrapper.find(".port-found").exists()).toBe(false);
     });
 
     it("calls a LoRa board on the network by its address and port", () => {
@@ -882,12 +874,6 @@ describe("SettingsForm", () => {
       ]);
       await tell(daemon, { config: cfg({ "radio/1/port": "", "radio/1/baud": "19200" }) });
       expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "map/radius_km": "200" } });
-    });
-
-    it("follows the daemon when it finds the radio on another port", async () => {
-      const { wrapper, daemon } = withPorts({ "radio/1/port": "", "serial/last_port": "/dev/ttyUSB0" });
-      await tell(daemon, { config: cfg({ "radio/1/port": "", "serial/last_port": "/dev/ttyACM0" }) });
-      expect(found(wrapper).text()).toBe("found: /dev/ttyACM0");
     });
 
     it("does not ask the daemon for the ports by itself (the page does, once connected), only with Refresh", async () => {

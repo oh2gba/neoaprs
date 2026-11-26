@@ -29,7 +29,7 @@ def device_globs(text: str) -> str:
     parts = text.split()
     if not parts or any(not part.startswith("/") for part in parts):
         raise CodedError(
-            f"{text!r} is not one or more absolute patterns separated by spaces, such as /dev/ttyUSB*",
+            f"{text!r} is not one or more absolute patterns separated by spaces",
             "setting.not_globs",
             value=text,
         )
@@ -145,7 +145,7 @@ def aprsis_server(text: str) -> str:
         return hostport(text)
     except CodedError:
         raise CodedError(
-            f"{text!r} is not host:port (14580 is the usual port of an APRS-IS server)",
+            f"{text!r} is not host:port",
             "setting.not_server",
             value=text,
         ) from None

@@ -239,12 +239,11 @@ export const de: Catalogue = {
   "error.setting.not_keying": "„{value}“ ist keine Art, das Funkgerät zu tasten: vox, cm108, rts:PORT oder dtr:PORT",
   "error.setting.not_among": "{value} ist keiner der Werte {choices}",
   "error.setting.not_direction": "„{value}“ ist weder omni noch eines von N NE E SE S SW W NW",
-  "error.setting.not_globs":
-    "„{value}“ ist nicht ein oder mehrere absolute Muster, durch Leerzeichen getrennt, etwa /dev/ttyUSB*",
+  "error.setting.not_globs": "„{value}“ ist nicht ein oder mehrere absolute Muster, durch Leerzeichen getrennt",
   "error.setting.not_host": "„{value}“ ist weder eine Adresse noch ein Name",
-  "error.setting.not_hostport": "„{value}“ ist nicht Host:Port (4532 ist der Port von rigctld)",
+  "error.setting.not_hostport": "„{value}“ ist nicht Host:Port",
   "error.setting.not_receiver": "„{value}“ ist nicht die Adresse eines Empfängers",
-  "error.setting.not_server": "„{value}“ ist nicht Host:Port (14580 ist der übliche Port eines APRS-IS-Servers)",
+  "error.setting.not_server": "„{value}“ ist nicht Host:Port",
   "error.setting.not_passcode": "der Passcode deines Rufzeichens ist eine Zahl von 0 bis {max}",
   "error.setting.passcode_read_only":
     "-1 ist der Passcode nur zum Lesen; ein iGate braucht den Passcode seines Rufzeichens",
@@ -263,8 +262,7 @@ export const de: Catalogue = {
   "error.setting.profile_port":
     "{profile} verbindet über TCP (tcp/host und tcp/port), nicht mit dem seriellen Port {port}: serial/port leeren oder ein serielles TNC wählen",
   "error.setting.range": "{value} liegt nicht zwischen {min} und {max}",
-  "error.setting.status_needs_rigctld":
-    "das Funkgerät braucht status/rigctld (Host:Port eines rigctld, 127.0.0.1:4532)",
+  "error.setting.status_needs_rigctld": "das Funkgerät braucht status/rigctld (Host:Port eines rigctld)",
   "error.setting.status_source":
     "„{value}“ ist weder off noch text noch rig (leer: wie status/rigctld und station/status es sagen)",
   "error.setting.template_field": "{{{field}}} ist kein Feld der Vorlage (die Felder sind {{freq}} und {{mode}})",
@@ -1542,7 +1540,6 @@ export const de: Catalogue = {
   "settings.port.other": "Anderer…",
   "settings.port.held": "{holder}: {port}",
   "settings.port.path_label": "Pfad des Ports",
-  "settings.port.found": "gefunden: {port}",
   "settings.port.refresh": "Aktualisieren",
 
   "settings.baud.name": "Geschwindigkeit",
@@ -1556,7 +1553,6 @@ export const de: Catalogue = {
   "settings.tcp_host.tip1": "Der Computer, auf dem dein Direwolf oder soundmodem läuft: 127.0.0.1 ist dieser Computer.",
   "settings.tcp_port.label": "Port",
   "settings.tcp_port.tip1": "Direwolf lauscht auf 8001 und soundmodem auf 8100, wenn du es nicht geändert hast.",
-  "settings.tcp_port.title": "Direwolf 8001, soundmodem 8100",
   "settings.board_host.tip1": "Die Adresse des Boards in deinem Netzwerk, wie seine eigene Webseite sie zeigt.",
   "settings.board_port.tip1": "Der KISS-Port des Boards: 8001, wenn du ihn dort nicht geändert hast.",
   "settings.board_host.label": "Adresse",

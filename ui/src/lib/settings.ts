@@ -221,7 +221,7 @@ const SPECS: Record<string, FieldSpec> = {
     tip: ["settings.baud.tip1", "settings.baud.tip2"],
   },
   "tcp/host": { label: "settings.tcp_host.label", tip: ["settings.tcp_host.tip1"] },
-  "tcp/port": { label: "settings.tcp_port.label", title: "settings.tcp_port.title", tip: ["settings.tcp_port.tip1"] },
+  "tcp/port": { label: "settings.tcp_port.label", tip: ["settings.tcp_port.tip1"] },
   "lora/host": { label: "settings.board_host.label", empty: plain(""), tip: ["settings.board_host.tip1"] },
   "lora/port": { label: "settings.board_port.label", tip: ["settings.board_port.tip1"] },
   "mercury/sound_card": {

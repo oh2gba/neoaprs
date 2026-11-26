@@ -104,7 +104,7 @@ describe("settinglinks", () => {
       refusalFor(errorOf("set_config: status/source: needs it", "setting.status_needs_rigctld"), ["status/rigctld"]),
     ).toEqual({
       key: "status/rigctld",
-      reason: "the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)",
+      reason: "the radio needs status/rigctld (host:port of a rigctld)",
     });
     expect(
       refusalFor(errorOf("set_config: the settings could not be stored", "setting.not_stored"), ["digi/enabled"]),

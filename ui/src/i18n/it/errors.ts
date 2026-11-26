@@ -133,11 +133,11 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.setting.not_keying": "'{value}' non è un modo di commutare la radio: vox, cm108, rts:PORTA o dtr:PORTA",
   "error.setting.not_among": "{value} non è uno tra {choices}",
   "error.setting.not_direction": "“{value}” non è omni né uno tra N NE E SE S SW W NW",
-  "error.setting.not_globs": "“{value}” non è uno o più modelli assoluti separati da spazi, come /dev/ttyUSB*",
+  "error.setting.not_globs": "“{value}” non è uno o più modelli assoluti separati da spazi",
   "error.setting.not_host": "“{value}” non è un indirizzo né un nome",
-  "error.setting.not_hostport": "“{value}” non è host:porta (4532 è la porta di rigctld)",
+  "error.setting.not_hostport": "“{value}” non è host:porta",
   "error.setting.not_receiver": "“{value}” non è l’indirizzo di un ricevitore",
-  "error.setting.not_server": "“{value}” non è host:porta (14580 è la porta abituale di un server APRS-IS)",
+  "error.setting.not_server": "“{value}” non è host:porta",
   "error.setting.not_passcode": "il codice del tuo nominativo è un numero da 0 a {max}",
   "error.setting.passcode_read_only":
     "-1 è il codice di sola lettura; un iGate ha bisogno del codice del suo nominativo",
@@ -156,7 +156,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.setting.profile_port":
     "{profile} si connette via TCP (tcp/host e tcp/port), non alla porta seriale {port}: svuota serial/port o scegli un TNC seriale",
   "error.setting.range": "{value} non è compreso tra {min} e {max}",
-  "error.setting.status_needs_rigctld": "la radio richiede status/rigctld (host:porta di un rigctld, 127.0.0.1:4532)",
+  "error.setting.status_needs_rigctld": "la radio richiede status/rigctld (host:porta di un rigctld)",
   "error.setting.status_source":
     "“{value}” non è off, text né rig (vuoto: come indicano status/rigctld e station/status)",
   "error.setting.template_field": "{{{field}}} non è un campo del modello (i campi sono {{freq}} e {{mode}})",
