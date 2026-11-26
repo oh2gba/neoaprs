@@ -182,7 +182,12 @@ async def test_a_sound_card_radio_puts_its_levels_on_the_card_and_a_change_of_th
     await driver.start()
     await running(driver.modem)
     assert mixer.writes[0] == (CARD, 70, None)
-    row = radio_row(radio, (radio,), SimpleNamespace(line=driver.line, beacon=None, driver=driver), Claims())
+    row = radio_row(
+        radio,
+        (radio,),
+        SimpleNamespace(line=driver.line, beacon=None, driver=driver, driver_key=radio.rtype.driver),
+        Claims(),
+    )
     assert row is not None and row["card"] == {"tx": 70, "rx": 50, "read": True}, (
         "the row says the card's levels: the page draws both sliders"
     )
@@ -304,7 +309,12 @@ async def test_a_mixer_that_fails_starts_the_radio_without_sliders_and_says_it_o
         await until(lambda: mixer.calls >= 4)
         said = [r for r in caplog.records if r.name == "neoaprs.soundmixer" and "could not be had" in r.getMessage()]
         assert len(said) == 1 and said[0].levelno == logging.INFO, "said once for the card, never as an error"
-        row = radio_row(radio, (radio,), SimpleNamespace(line=driver.line, beacon=None, driver=driver), Claims())
+        row = radio_row(
+            radio,
+            (radio,),
+            SimpleNamespace(line=driver.line, beacon=None, driver=driver, driver_key=radio.rtype.driver),
+            Claims(),
+        )
         assert row is not None and row["card"] == {"tx": None, "rx": None, "read": True}, (
             "no sliders: the row has the modem's - and +"
         )
@@ -399,7 +409,12 @@ async def test_a_mercury_radio_on_the_systems_default_device_keeps_its_transmit_
     await driver.card.start(None, None)
     try:
         await asyncio.sleep(0.2)
-        row = radio_row(hf, (hf,), SimpleNamespace(line=driver.line, beacon=None, driver=driver), Claims())
+        row = radio_row(
+            hf,
+            (hf,),
+            SimpleNamespace(line=driver.line, beacon=None, driver=driver, driver_key=hf.rtype.driver),
+            Claims(),
+        )
         assert row is not None and row["card"] == {"tx": None, "rx": None, "read": True}, (
             "the row has the modem's - and +"
         )

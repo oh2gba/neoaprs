@@ -162,6 +162,7 @@ LAYERS: dict[str, list[str]] = {
         "btpaired",
         "tnc",
         "tncport",
+        "tnchealth",
         "callbackport",
         "dummyline",
         "dummyworlds",
@@ -258,7 +259,7 @@ LAYERS: dict[str, list[str]] = {
         "migrationsteps36",
     ],
     "services": [],
-    "app": ["controller", "app", "wiring", "radioregistry", "radioedits", "radioflows"],
+    "app": ["controller", "app", "wiring", "radioregistry", "radioedits", "radioflows", "radiohealth"],
     "delivery": ["__main__", "daemon"],
 }
 # The modules that are placed before they are written (the map's layers:
@@ -288,6 +289,7 @@ ADAPTER_SIBLINGS: set[tuple[str, str]] = {
     ("neoaprs.tnc", "neoaprs.serialholders"),
     ("neoaprs.tnc", "neoaprs.tncsearch"),
     ("neoaprs.tnc", "neoaprs.tncwatchdog"),
+    ("neoaprs.tnchealth", "neoaprs.tncport"),
     ("neoaprs.tnc", "neoaprs.tncentry"),
     ("neoaprs.tnc", "neoaprs.tncreader"),
     ("neoaprs.tnc", "neoaprs.tnctextreader"),

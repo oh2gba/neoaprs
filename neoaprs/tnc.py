@@ -300,6 +300,11 @@ class Tnc(TimedSource):
     def _modem(self) -> Modem | None:
         return self.modem if self.profile.transport == "modem" else None
 
+    @property
+    def modem_in_use(self) -> Modem | None:
+        """The modem program behind the line, for a type that has one."""
+        return self._modem()
+
     def _held(self) -> str:
         """Return why the modem wants no frame now (transmitting, channel busy), else ""."""
         modem = self._modem()

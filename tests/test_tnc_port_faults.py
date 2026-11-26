@@ -71,6 +71,7 @@ def row_of(tnc: Tnc) -> tuple[str, object]:
         line=tnc,
         beacon=SimpleNamespace(last_sent=None, next_due=None, interval_min=0, problem=""),
         driver=SimpleNamespace(card=None),
+        driver_key="tnc",
     )
     row = radio_row(spec, [spec], at_work, Claims())
     return row["state"], row["problem"]

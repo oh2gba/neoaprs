@@ -549,6 +549,7 @@ class FakeRadio:
     line: Tnc
     beacon: FakeBeacon
     driver: NoCard = field(default_factory=NoCard)
+    driver_key: str = "tnc"
 
 
 RADIOS = (
@@ -572,7 +573,7 @@ def radio_rows(views: Any) -> list[dict[str, Any]]:
     waiting.state = Source.State.WAITING
     at_work = {
         1: FakeRadio(tnc(), FakeBeacon(T0, T0 + timedelta(minutes=30), 30)),
-        2: FakeRadio(tnc_dummy_hf(), FakeBeacon(problem=RECEIVE_ONLY)),
+        2: FakeRadio(tnc_dummy_hf(), FakeBeacon(problem=RECEIVE_ONLY), driver_key="mercury"),
         3: FakeRadio(waiting, FakeBeacon(problem=coded.Reason("set your position first", "beacon.no_position"))),
     }
     at_work[1].line.state = Source.State.CONNECTED
