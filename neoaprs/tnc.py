@@ -23,13 +23,15 @@ from .reading import NO_READING, Reading
 from .policy import TNC_CHECK_SEC
 from .serialport import HeldError, NotChosenError, SerialError, is_socket
 from .signal import Signal
-from .source import CHECKING, Backoff, Source, minutes_between, unusable_because
+from .source import Backoff, Source, minutes_between
 from .tncentry import KissEntry
 from .tncfollow import AdapterFollow
 from .tnclines import TimedSource
 from .tncmode import Mode, ModeDetector, packet_of, printable as _printable, read_frame
 from .tncport import Modem, TncPort
-from .tnctextreader import RX_ONLY, accepts, reader_for
+from .tnctextreader import accepts, reader_for
+from .tnchealth import COMMAND_MODE as COMMAND_MODE
+from .tnchealth import takes_frames, why_unusable
 from .tnc2line import text_of
 from .tncsearch import PortSearch, hold_port, may_open, release_port, taken
 from .tncprofile import KENWOOD_TNC2, KISS_EXIT as KISS_EXIT, Profile
@@ -38,7 +40,6 @@ from .coded import Reason, code_of
 
 log = logging.getLogger("neoaprs.tnc")
 
-COMMAND_MODE = Reason("the TNC is in command mode (KISS ON is sent again)", "radio.command_mode")
 ENTER_KISS = KENWOOD_TNC2.enter[0][0]  # the default profile's entry, for the tests
 
 
@@ -77,18 +78,6 @@ def _describe(tnc: "Tnc") -> str:
         else ("entering KISS" if tnc.entering_kiss else "listening")
     )
     return f"{tnc.path}{_speed(tnc.path, tnc.baud)}, {mode}, {tnc.stats.packets} packets"
-
-
-def _why_unusable(tnc: "Tnc") -> str:
-    if tnc.profile.framing == "text":
-        return RX_ONLY
-    if tnc.state is Source.State.CONNECTED and not tnc.confirmed:
-        return CHECKING
-    if tnc.state is Source.State.CONNECTED and tnc._reader.command_mode_unanswered():
-        return COMMAND_MODE
-    if tnc.state is Source.State.CONNECTED and (quiet := tnc._reader.board_quiet() or tnc._held()):
-        return quiet
-    return unusable_because(tnc.state)
 
 
 def _until_settings_change(tnc: "Tnc", problem: str) -> None:
@@ -413,18 +402,9 @@ class Tnc(TimedSource):
 
     @property
     def usable(self) -> bool:
-        return (
-            not self.profile.writes_nothing
-            and self.state is Source.State.CONNECTED
-            and self.confirmed
-            and not self._reader.looking
-            and not self._reader.command_mode_unanswered()
-            and asyncio.get_running_loop().time() >= self._reader.settle_until
-            and not self._held()
-            and not self._reader.board_quiet()
-        )
+        return takes_frames(self)
 
-    describe, why_unusable = _describe, _why_unusable
+    describe, why_unusable = _describe, why_unusable
     _looking, _entered = property(lambda self: self._reader.looking), property(lambda self: self._reader.entered)
     entering_kiss = property(
         lambda self: self._port is not None and self._reader.entered and not self._reader.kiss_seen
