@@ -554,3 +554,24 @@ async def test_a_position_too_long_for_a_line_of_aprs_is_is_not_sent_and_not_cou
     assert server.packets == [] and w.igate._position_sent is None
     w.igate.beacon_sent(frame_of(source="OH2GBA-10", destination=TOCALL, info=b"=/5L!!<*e7>7P["))
     await until(lambda: len(server.packets) == 1)
+
+
+async def test_a_clock_that_is_stepped_neither_sends_the_position_early_nor_stops_sending_it() -> None:
+    server = await fake_aprsis()
+    w = await iworld(server)
+    await until(lambda: server.packets == [OWN_LINE])
+    w.clock.advance(60)
+    w.igate.tick()
+    w.clock.step(3600)  # the network time sets the clock an hour forward
+    w.igate.tick()
+    await idle_for(0.1)
+    assert server.packets == [OWN_LINE], "(the position is not due: only a minute has passed)"
+    w.clock.step(-7200)  # and back two hours
+    w.igate.tick()
+    w.clock.advance(28 * 60)
+    w.igate.tick()
+    await idle_for(0.1)
+    assert server.packets == [OWN_LINE]
+    w.clock.advance(61)
+    w.igate.tick()
+    await until(lambda: len(server.packets) == 2)

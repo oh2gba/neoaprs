@@ -61,17 +61,22 @@ def monotonic_of(clock: Clock) -> Callable[[], float]:
 
 
 class StepWatch:
-    """Tells how far the clock was stepped forward between two looks, beyond the monotonic time."""
+    """Tells how far the clock was stepped between two looks, beyond the monotonic time."""
 
     def __init__(self) -> None:
         self._last: tuple[datetime, float] | None = None
 
-    def forward(self, clock: Clock) -> timedelta:
-        """Return the step since the last look, or zero when it is under STEP_SEC (the first look too)."""
+    def moved(self, clock: Clock) -> timedelta:
+        """Return the step since the last look, forward or back, or zero when it is under STEP_SEC (the first look too)."""
         # both read here, together: a time read before a wait would look like a step
         now, mono = clock(), monotonic_of(clock)()
         last, self._last = self._last, (now, mono)
         if last is None:
             return timedelta(0)
         step = now - last[0] - timedelta(seconds=mono - last[1])
-        return step if step > timedelta(seconds=STEP_SEC) else timedelta(0)
+        return step if abs(step) > timedelta(seconds=STEP_SEC) else timedelta(0)
+
+    def forward(self, clock: Clock) -> timedelta:
+        """Return the step forward since the last look, or zero."""
+        step = self.moved(clock)
+        return step if step > timedelta(0) else timedelta(0)
