@@ -4,12 +4,17 @@
 // window with a new store.
 import { computed, ref, watch, type Ref } from "vue";
 import { seenAtStart } from "@/lib/firststart";
-import { conversations, newestIncomingByCall, newestIncomingId, threadOf, unreadTotal } from "@/lib/messages";
-import { readStoredNumber, writeStored } from "@/lib/storage";
+import { conversations, newestIncomingByCall, newestIncomingId, peerOf, threadOf, unreadTotal } from "@/lib/messages";
+import { readStoredNumber, removeStored, storedKeys, writeStored } from "@/lib/storage";
 import type { MessageRow } from "@/protocol/protocol";
 
 const key = (call: string): string => `read.${call}`;
 const stored = (call: string): number => readStoredNumber(key(call), 0, 0, Number.MAX_SAFE_INTEGER);
+
+/** Forget the seen mark of a station that has no message left: its key would stay for good. */
+function forgetMarksOf(gone: (call: string) => boolean): void {
+  for (const stored of storedKeys("read.")) if (gone(stored.slice("read.".length))) removeStored(stored);
+}
 
 /**
  * What the user has seen, by call. Another window may have marked further: a mark is compared with
@@ -69,6 +74,16 @@ export function useConversations(
   const marks = useReadMarks();
   if (loaded)
     seenAtStart(loaded, () => newestIncomingByCall(messages.values()).forEach((id, call) => marks.mark(call, id)));
+  if (loaded)
+    watch(
+      loaded,
+      (done) => {
+        if (!done) return;
+        const known = new Set([...messages.values()].map(peerOf));
+        forgetMarksOf((call) => !known.has(call));
+      },
+      { immediate: true },
+    );
   const selected = ref<string | null>(null);
   const list = computed(() => conversations(messages.values(), marks.readUpTo, showOverheard.value));
   const unread = computed(() => unreadTotal(list.value));

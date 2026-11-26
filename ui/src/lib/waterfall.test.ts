@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BINS,
   BIN_HZ,
-  KEPT_LINES,
   LINES_PER_SECOND,
   PACE,
   ROWS_PER_LINE,
@@ -38,6 +37,9 @@ import {
   type Speed,
   type Tick,
 } from "@/lib/waterfall";
+
+/** Two minutes of lines at the normal pace. */
+const KEPT_LINES = keptLines(1000 / LINES_PER_SECOND);
 import { LIMITS } from "@/protocol/lists";
 import { Waterfall } from "@/lib/waterfallpainter";
 

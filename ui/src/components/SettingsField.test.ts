@@ -34,6 +34,44 @@ function field(value = "", count: TextLimit | null = COMMENT) {
   return { wrapper, input, type, counter: () => wrapper.find(".compose-left") };
 }
 
+describe("SettingsField that can be wrong", () => {
+  it("says aria-invalid on a tickbox and a choice as on a typed field, while a refusal is under it", () => {
+    for (const kind of ["bool", "choice", undefined] as const) {
+      const make = (error: string) =>
+        mount(SettingsField, {
+          props: {
+            id: "set-x",
+            info: { label: "X", kind, choices: ["a", "b"] },
+            modelValue: kind === "bool" ? "false" : "a",
+            fallback: "",
+            error,
+            changed: false,
+            apply: true,
+          },
+          attachTo: document.body,
+        });
+      const refused = make("not allowed");
+      expect(refused.find("#set-x").attributes("aria-invalid"), String(kind)).toBe("true");
+      refused.unmount();
+      const fine = make("");
+      expect(fine.find("#set-x").attributes("aria-invalid"), String(kind)).toBe("false");
+      fine.unmount();
+    }
+  });
+});
+
+describe("SettingsField on Enter", () => {
+  it("commits on Enter, and not on the Enter that ends an IME composition", async () => {
+    const { wrapper, input } = field("NeoAPRS");
+    await input.trigger("keydown", { key: "Enter", isComposing: true });
+    await input.trigger("keydown", { key: "Enter", keyCode: 229 });
+    expect(wrapper.emitted("commit")).toBeUndefined();
+    await input.trigger("keydown", { key: "Enter" });
+    expect(wrapper.emitted("commit")).toHaveLength(1);
+    wrapper.unmount();
+  });
+});
+
 describe("SettingsField with a limit", () => {
   it("has the counter right of the field, before the (i), as the box to write a message in has it", () => {
     const { wrapper, counter } = field("NeoAPRS");

@@ -37,7 +37,7 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.kind.station": "asema",
   "station.kind.object": "kohde",
-  "station.kind.item": "item",
+  "station.kind.item": "esine",
   "station.kind_reported": "{kind}, ilmoittanut {by}",
   "station.from_us_value": "{distance}, {bearing}",
   "station.speed_course": "{speed}, suunta {course}",
@@ -119,7 +119,7 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.freq.no_tone": "ei sävyä",
   "station.freq.burst": "1750 Hz sävykutsu",
   "station.freq.narrow": "kapea FM",
-  "station.freq.simplex": "simplex",
+  "station.freq.simplex": "simpleksi",
   "station.freq.offset": "{khz} kHz",
   "station.freq.range": "kantama {distance}",
   "station.freq.receive": "vastaanotto {mhz} MHz",

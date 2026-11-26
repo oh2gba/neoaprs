@@ -3,6 +3,7 @@ import { shallowRef } from "vue";
 import type { Store } from "@/lib/hub";
 import type {
   AlertResultMessage,
+  SavedMessage,
   PacketHistoryMessage,
   PacketStatsMessage,
   PortsMessage,
@@ -26,6 +27,7 @@ type AnswerHandlers = Pick<
   | "stationTraffic"
   | "positionHistory"
   | "alertResult"
+  | "saved"
   | "ports"
   | "radioSearch"
   | "updateResult"
@@ -43,6 +45,7 @@ export function useAnswers() {
   const stationTrafficByCall = shallowRef<ReadonlyMap<string, StationTrafficMessage>>(new Map());
   const positionHistory = shallowRef<PositionHistoryMessage | null>(null);
   const alertResult = shallowRef<AlertResultMessage | null>(null);
+  const saved = shallowRef<SavedMessage | null>(null);
   const ports = shallowRef<PortsMessage | null>(null);
   const portsByRadio = shallowRef<ReadonlyMap<number, PortsMessage>>(new Map());
   const updateResult = shallowRef<UpdateResultMessage | null>(null);
@@ -65,6 +68,7 @@ export function useAnswers() {
       (stationTrafficByCall.value = new Map(stationTrafficByCall.value).set(message.call, message)),
     positionHistory: (message) => (positionHistory.value = message),
     alertResult: (message) => (alertResult.value = message),
+    saved: (message) => (saved.value = message),
     ports: (message) => {
       ports.value = message;
       if (message.radio !== null) portsByRadio.value = new Map(portsByRadio.value).set(message.radio, message);
@@ -84,6 +88,7 @@ export function useAnswers() {
     stationTrafficByCall,
     positionHistory,
     alertResult,
+    saved,
     ports,
     portsByRadio,
     updateResult,

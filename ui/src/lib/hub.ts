@@ -5,6 +5,7 @@
 // `subscribe`.
 import type {
   AlertResultMessage,
+  SavedMessage,
   BulletinRow,
   Command,
   ErrorMessage,
@@ -58,6 +59,7 @@ const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
   station_traffic: "stationTraffic",
   position_history: "positionHistory",
   alert_result: "alertResult",
+  saved: "saved",
   update_result: "updateResult",
   release_notes: "releaseNotes",
   ports: "ports",
@@ -84,6 +86,8 @@ export interface Store {
   stationTraffic(message: StationTrafficMessage): void;
   positionHistory(message: PositionHistoryMessage): void;
   alertResult(message: AlertResultMessage): void;
+  /** The daemon has put a `set_config` that carried an id in force. */
+  saved(message: SavedMessage): void;
   updateResult(message: UpdateResultMessage): void;
   releaseNotes(message: ReleaseNotesMessage): void;
   ports(message: PortsMessage): void;

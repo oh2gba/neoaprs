@@ -176,7 +176,8 @@ export function useDaemon(url: () => string = socketUrl) {
     connection: (state) => (connection.value = state),
     hello: said.hello,
     status: (message) => (status.value = message),
-    error: ({ cmd, key, code, params, text }) => (lastError.value = { cmd, key, code, params, text, n: ++toasts }),
+    error: ({ cmd, key, code, params, text, id }) =>
+      (lastError.value = { cmd, key, code, params, text, id, n: ++toasts }),
     stationAlert: (message) => (stationAlert.value = message),
     replaceStations: (rows) => fill(stations, rows, stationsLoaded),
     replacePackets: (rows) => fill(packets, rows),

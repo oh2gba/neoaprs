@@ -273,7 +273,9 @@ def test_the_notes_form_the_calls_form_and_the_dials_form() -> None:
     assert (
         plain_note("")
         and plain_note("Mercury, 10 W")
-        and plain_note("café 7 MHz ✓")
+        and plain_note("café 7 MHz $+")
+        and not plain_note("café 7 MHz ✓")
+        and not plain_note("5° up")
         and plain_note("x" * 80)
         and not plain_note("x" * 81)
         and not plain_note("a\nb")
@@ -281,7 +283,8 @@ def test_the_notes_form_the_calls_form_and_the_dials_form() -> None:
     )
     assert (
         clean_note("  Mercury,\t10 W \n today ") == "Mercury, 10 W today"
-        and clean_note("a‮b​c") == "a b c"
+        and clean_note("a‮b​c") == "abc"
+        and clean_note("5° up € x") == "5 up x"
         and len(clean_note("x" * 200)) == 80
         and clean_note("\x00\x01") == ""
     )

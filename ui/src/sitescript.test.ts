@@ -24,7 +24,7 @@ const row = (call: string, extra: Record<string, unknown> = {}) => ({
 });
 
 async function run(body: unknown, status = 200): Promise<HTMLElement> {
-  document.body.innerHTML = `<section id="skeds"><table><tbody><tr><td>No tests planned.</td></tr></tbody></table></section>`;
+  document.body.innerHTML = `<section id="skeds"><table id="sked-board"><tbody><tr><td>No tests planned.</td></tr></tbody></table></section>`;
   const asked: string[] = [];
   vi.stubGlobal("fetch", (url: string) => {
     asked.push(url);
@@ -111,7 +111,7 @@ describe("the sked board on the project page", () => {
     const own = (section: HTMLElement | null) => section?.querySelector("tbody")?.textContent;
     expect(own(await run({ v: 1, skeds: [row("OH2GBA")] }, 404))).toBe("No tests planned.");
     expect(own(await run(new Error("not json")))).toBe("No tests planned.");
-    document.body.innerHTML = `<section id="skeds"><table><tbody><tr><td>No tests planned.</td></tr></tbody></table></section>`;
+    document.body.innerHTML = `<section id="skeds"><table id="sked-board"><tbody><tr><td>No tests planned.</td></tr></tbody></table></section>`;
     vi.stubGlobal("fetch", () => Promise.reject(new Error("offline")));
     runInThisContext(SCRIPT);
     await flushPromises();

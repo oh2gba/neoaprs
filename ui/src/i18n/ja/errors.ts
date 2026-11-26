@@ -130,12 +130,11 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_keying": "'{value}'は無線機の送信切替の方法ではありません：vox、cm108、rts:PORT、dtr:PORT",
   "error.setting.not_among": "{value} は {choices} のいずれでもありません",
   "error.setting.not_direction": "「{value}」は omni でも N NE E SE S SW W NW のいずれでもありません",
-  "error.setting.not_globs":
-    "「{value}」は、スペースで区切った1つ以上の絶対パスのパターン(例: /dev/ttyUSB*)ではありません",
+  "error.setting.not_globs": "「{value}」は、スペースで区切った1つ以上の絶対パスのパターンではありません",
   "error.setting.not_host": "「{value}」はアドレスでも名前でもありません",
   "error.setting.not_receiver": "「{value}」は受信機のアドレスではありません",
-  "error.setting.not_hostport": "「{value}」は ホスト:ポート ではありません(rigctldのポートは4532です)",
-  "error.setting.not_server": "「{value}」は ホスト:ポート ではありません(APRS-ISサーバーの一般的なポートは14580です)",
+  "error.setting.not_hostport": "「{value}」は ホスト:ポート ではありません",
+  "error.setting.not_server": "「{value}」は ホスト:ポート ではありません",
   "error.setting.not_dial": "「{value}」は 28.1800 MHz USB のようなダイヤルではありません",
   "error.setting.not_passcode": "コールサインのパスコードは0〜{max}の数字です",
   "error.setting.passcode_read_only": "-1は読み取り専用のパスコードです。iGateにはコールサインのパスコードが必要です",
@@ -153,8 +152,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.profile_port":
     "{profile} はTCP(tcp/host と tcp/port)で接続し、シリアルポート{port}は使いません。serial/port を空にするか、シリアルTNCを選んでください",
   "error.setting.range": "{value} は {min}〜{max} の範囲外です",
-  "error.setting.status_needs_rigctld":
-    "無線機のステータスには status/rigctld(rigctldの ホスト:ポート、127.0.0.1:4532)が必要です",
+  "error.setting.status_needs_rigctld": "無線機のステータスには status/rigctld(rigctldの ホスト:ポート)が必要です",
   "error.setting.status_source":
     "「{value}」は off でも text でも rig でもありません(空の場合は status/rigctld と station/status に従います)",
   "error.setting.template_field":

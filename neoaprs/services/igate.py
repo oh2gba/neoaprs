@@ -13,7 +13,7 @@ from typing import Literal, NamedTuple
 
 from neoaprs import TOCALL, ax25
 from neoaprs.aprsis import FILTER_MOVE_KM, UNVERIFIED, AprsIs, range_filter
-from neoaprs.clock import Clock, utcnow
+from neoaprs.clock import Clock, StepWatch, utcnow
 from neoaprs.config import Config
 from neoaprs.geo import distance_km
 from neoaprs.hourcount import HourCount
@@ -98,6 +98,7 @@ class Igate:
         self.made_up: Callable[[], bool] = lambda: dummy_on(self._config())
         self._position_due: datetime | None = None
         self._position_sent: datetime | None = None
+        self._steps = StepWatch()
         self._was_verified = False
         self._applied: Wanted | None = None
         self._apply_task: asyncio.Task[None] | None = None
@@ -108,6 +109,7 @@ class Igate:
         if self._tasks:
             return
         self._summary_due = self.clock() + timedelta(seconds=self.summary_sec)
+        self._steps.moved(self.clock)
         self.apply()
         self._tasks.spawn(self._run(), "igate-tick")
 
@@ -164,6 +166,11 @@ class Igate:
 
     def tick(self) -> None:
         """Do what is due: refresh the filter, send our position, log the hourly summary."""
+        if step := self._steps.moved(self.clock):
+            # a clock stepped: what waits keeps its wait
+            self._summary_due, self._position_due, self._position_sent = (
+                None if t is None else t + step for t in (self._summary_due, self._position_due, self._position_sent)
+            )
         now = self.clock()
         if self._config().igate_enabled:
             self._refresh_filter()

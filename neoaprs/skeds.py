@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urljoin
 
-from neoaprs.callsign import CallsignError, call_problem, format_call, parse_call
+from neoaprs.callsign import call_problem
 from neoaprs.clock import iso
 from neoaprs.versions import is_dial
 
@@ -35,8 +35,13 @@ MAX_ENTRIES = 1000
 TIME = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", re.ASCII)
 ID = re.compile(r"^[0-9a-f]{12}$")
 TOKEN = re.compile(r"^[0-9a-f]{32}$")
-# Unicode category letters a note may hold, besides the plain space
-NOTE_KINDS = frozenset("LMNPS")
+# A note holds printable ASCII, and letters, marks, numbers and punctuation of any script, as the server's
+# does (server/neo/api/v1/skeds.php); the white space of Unicode, control and other characters become a
+# space or are dropped.
+NOTE_KINDS = frozenset("LMNP")
+NOTE_SPACE = re.compile("[\t-\r \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+")
+CALL_TRIM = " \t\n\r\0\x0b"  # what the server trims off a call
+CALL_FORM = re.compile(r"(?=[A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z])[A-Z0-9]{3,6}(-([0-9]|1[0-5]))?")
 
 
 @dataclass(frozen=True)
@@ -74,26 +79,29 @@ def when(text: object) -> datetime | None:
         return None
 
 
+def _kept(c: str) -> bool:
+    return " " <= c <= "~" or unicodedata.category(c)[0] in NOTE_KINDS
+
+
 def plain_note(text: object) -> bool:
-    return (
-        isinstance(text, str)
-        and len(text) <= MAX_NOTE
-        and all(c == " " or unicodedata.category(c)[0] in NOTE_KINDS for c in text)
-    )
+    return isinstance(text, str) and len(text) <= MAX_NOTE and all(_kept(c) for c in text)
 
 
 def clean_note(text: str) -> str:
-    """Make the operator's text fit the board: odd characters become spaces, runs collapse."""
-    kept = "".join(c if unicodedata.category(c)[0] in NOTE_KINDS else " " for c in text)
-    return " ".join(kept.split())[:MAX_NOTE].strip()
+    """Make the operator's text fit the board: white space becomes one space, other odd characters go."""
+    kept = "".join(c for c in NOTE_SPACE.sub(" ", text) if _kept(c))
+    return re.sub(" {2,}", " ", kept).strip(" ")[:MAX_NOTE].strip(" ")
 
 
 def our_call(text: str) -> str:
-    """Return the call as posted (upper case, no `-0`), or '' if it is not a usable amateur call."""
-    try:
-        call = format_call(*parse_call(text.strip()))
-    except CallsignError:
+    """Return the call as posted (upper case, no `-0`), or '' if it is not a usable amateur call.
+
+    The form is the server's (server/neo/api/v1/skeds.php): 3 to 6 letters and digits with both, an SSID of 0 to 15.
+    """
+    call = text.strip(CALL_TRIM)
+    if not call.isascii() or CALL_FORM.fullmatch(call := call.upper()) is None:
         return ""
+    call = call.removesuffix("-0")
     return "" if call_problem(call) else call
 
 

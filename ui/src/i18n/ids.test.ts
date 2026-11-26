@@ -23,13 +23,7 @@ const code = sources(SRC)
   .map((file) => ({ name: relative(SRC, file).replaceAll("\\", "/"), text: readFileSync(file, "utf-8") }));
 
 /** The texts of "entering KISS" that the radio round left without a reader: kept until the owner says whether that place comes back (W3 finding 5); the list goes when they do, or come back into use. */
-const KEPT_FOR_THE_OWNER = [
-  "pill.radio_kiss",
-  "pill.radio_named_kiss",
-  "settings.tnc.connecting_to",
-  "settings.tnc.not_connected_why",
-  "settings.tnc.ports",
-];
+const KEPT_FOR_THE_OWNER = ["settings.tnc.connecting_to", "settings.tnc.not_connected_why", "settings.tnc.ports"];
 
 describe("the ids of the catalogue", () => {
   it("are all there where the code asks for them with a literal id", () => {

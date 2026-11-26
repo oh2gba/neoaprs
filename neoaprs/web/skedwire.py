@@ -9,11 +9,10 @@ from typing import Literal
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from neoaprs.skeds import ID, MAX_NOTE, MAX_LENGTH, when
-from neoaprs.versions import MAX_FREQUENCIES, is_dial
+from neoaprs.versions import DIAL_PATTERN, MAX_FREQUENCIES, is_dial
 
 from .wirebase import Iso, _Command, _Model
 
-DIAL_PATTERN = r"^\d{1,2}\.\d{3,4} MHz (USB|LSB)$"
 ID_PATTERN = ID.pattern
 
 

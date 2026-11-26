@@ -661,3 +661,45 @@ def test_the_moderation_script_refuses_what_is_no_id_or_call_before_it_asks_for_
         [str(script), "rm", "0123456789ab"], env=environment, capture_output=True, text=True, timeout=30
     )
     assert done.returncode == 1 and "no .secrets file" in done.stderr, "a good id goes on to the login"
+
+
+def vectors() -> dict[str, list[dict[str, Any]]]:
+    """The conformance vectors of the sked rules, made by the daemon and held by the page."""
+    loaded: dict[str, list[dict[str, Any]]] = json.loads(
+        (ROOT / "ui" / "src" / "protocol" / "vectors.json").read_text(encoding="utf-8")
+    )
+    return loaded
+
+
+def alone(endpoint: Endpoint, **over: object) -> tuple[int, dict[str, Any]]:
+    """An add on a board with nothing on it and an address that has asked nothing, so that no limit is met."""
+    for kept in endpoint.stored.glob("*.json"):
+        kept.unlink()
+    return endpoint.add(token(), **over)
+
+
+def test_the_calls_the_daemon_posts_are_the_calls_the_server_takes(endpoint: Endpoint) -> None:
+    endpoint.start()
+    for case in vectors()["sked_calls"]:
+        code, answer = alone(endpoint, call=case["input"])
+        if case["call"]:
+            assert code == 200 and answer["board"]["skeds"][0]["call"] == case["call"], case
+        else:
+            assert code == 400, case
+
+
+def test_the_dials_and_the_times_the_daemon_takes_are_the_ones_the_server_takes(endpoint: Endpoint) -> None:
+    endpoint.start()
+    for case in vectors()["sked_dials"]:
+        assert alone(endpoint, dial=case["input"])[0] == (200 if case["ok"] else 400), case
+    for case in vectors()["sked_times"]:
+        # a well formed time that is far from now is refused for that (422), never as a bad request
+        code = alone(endpoint, **{"from": case["input"], "to": "2999-01-01T00:00:00Z"})[0]
+        assert code == (422 if case["ok"] else 400), case
+
+
+def test_the_note_the_daemon_makes_is_the_note_the_server_makes(endpoint: Endpoint) -> None:
+    endpoint.start()
+    for case in vectors()["sked_notes"]:
+        code, answer = alone(endpoint, note=case["input"])
+        assert code == 200 and answer["board"]["skeds"][0]["note"] == case["note"], case

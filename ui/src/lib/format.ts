@@ -63,10 +63,15 @@ export function ageSeconds(iso: string | null, nowMs: number): number {
 /** A number of at least two digits, with a leading zero: 7 is "07". */
 export const pad2 = (n: number): string => String(n).padStart(2, "0");
 
+/** HH:MM:SS of a moment in the viewer's time. */
+export function timeOfDay(d: Date): string {
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
 /** HH:MM:SS in the viewer's time. */
 export function clockText(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? NONE : `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  return Number.isNaN(d.getTime()) ? NONE : timeOfDay(d);
 }
 
 /** HH:MM in the viewer's time. */

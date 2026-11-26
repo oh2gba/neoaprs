@@ -368,15 +368,6 @@ describe("a radio other than those of before, in its box", () => {
     expect(box("Mobile").find(".box-body").attributes("style") ?? "").not.toContain("display: none");
   });
 
-  it("does not say radio 1's found port beside another radio's automatic port", () => {
-    const { box } = make({
-      config: sixSettings({ "serial/port": "", "serial/last_port": "/dev/ttyUSB0" }, { "radio/3/port": "" }),
-    });
-    expect(box("FM radio").find(".port-found").exists()).toBe(true);
-    expect(box("Mobile").find("#set-radio-3-port").exists()).toBe(true);
-    expect(box("Mobile").find(".port-found").exists()).toBe(false);
-  });
-
   it("checks a name of more than eight letters itself, with the daemon's words, and puts the name back with Esc", async () => {
     const { box, send } = make();
     const name = box("Mobile").find<HTMLInputElement>("#set-radio-3-name");

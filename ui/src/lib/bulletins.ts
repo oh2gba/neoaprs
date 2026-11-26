@@ -166,11 +166,6 @@ export function textOk(text: string): boolean {
   return trimmed !== "" && textRefusal(trimmed) === null && trimmed.length <= LIMITS.message.textMax;
 }
 
-/** How many characters more the text may have; negative when too long. */
-export function charsLeft(text: string): number {
-  return LIMITS.message.textMax - text.trim().length;
-}
-
 /**
  * Whether Post is enabled: a fitting text, for a group bulletin a group, and a free slot of the kind
  * among our posts (`own`), which are fewer than the daemon takes.

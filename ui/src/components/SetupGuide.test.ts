@@ -13,7 +13,15 @@ import { useSetupGuide } from "@/composables/useSetupGuide";
 import { SYMBOL_CHOICES } from "@/lib/setup";
 import { addTypeChoices, typeChoices } from "@/lib/settingsradio";
 import { RADIO_TYPES } from "@/protocol/lists";
-import type { Command, ConfigValues, MapState, PortsMessage, RadioRow, RadioSearchMessage } from "@/protocol/protocol";
+import type {
+  Command,
+  ConfigValues,
+  MapState,
+  PortsMessage,
+  RadioRow,
+  RadioSearchMessage,
+  SavedMessage,
+} from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
 import { configValues, mapFile, mapState, toastOf, portRow, radioRow, radioSearch, radiosTopic } from "@/test/fixtures";
 
@@ -62,7 +70,19 @@ function make(opts: Made = {}) {
   const guide = useSetupGuide(config, lastError, send);
   guide.show();
   const map = opts.map === undefined ? mapState() : opts.map;
-  const settings = useSettings(config, lastError, send);
+  // The settings' own saves are read without their number, which `answer` gives back as `saved`.
+  const saved = shallowRef<SavedMessage | null>(null);
+  const out: number[] = [];
+  const settings = useSettings(
+    config,
+    lastError,
+    (command) => {
+      if (command.cmd !== "set_config") return send(command);
+      if (command.id != null) out.push(command.id);
+      return send({ cmd: command.cmd, values: command.values });
+    },
+    { saved, connection: shallowRef("open" as const) },
+  );
   const radioSearch = shallowRef<RadioSearchMessage | null>(null);
   const findRadio = useFindRadio(
     radioSearch,
@@ -110,6 +130,9 @@ function make(opts: Made = {}) {
         radio_values: { ...config.value.radio_values, ...own(true) },
       };
     }
+    await flushPromises();
+    const id = out.shift();
+    if (id !== undefined) saved.value = { type: "saved", id };
     await flushPromises();
   };
   /**

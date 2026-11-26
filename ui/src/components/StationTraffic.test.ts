@@ -54,6 +54,18 @@ describe("the traffic of a station", () => {
     expect(wrapper.find("td.empty").text()).toBe("No packets of this station yet.");
   });
 
+  it("asks again when the socket opens after it was away, and not while it stays open", async () => {
+    make();
+    const asked = () => daemon.send.mock.calls.filter(([command]) => command.cmd === "station_traffic").length;
+    expect(asked()).toBe(1);
+    daemon.connection.value = "closed";
+    await nextTick();
+    expect(asked()).toBe(1);
+    daemon.connection.value = "open";
+    await nextTick();
+    expect(asked()).toBe(2);
+  });
+
   it("is laid out as the Packets tab's lines: the same table, head and cells, line for line", async () => {
     const row = position(1, -60);
     make([row]);

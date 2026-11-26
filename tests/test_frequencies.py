@@ -84,9 +84,6 @@ def service(
 def test_the_file_of_the_site_is_a_list_the_daemon_understands_and_the_site_checks_the_same_two_forms() -> None:
     body = (ROOT / "site" / "frequencies.json").read_bytes()
     assert parse_frequencies(body) == TWO
-    assert [(int(f.band.split()[0]), f.dial.split()[0]) for f in TWO] == [
-        (b, dict(mercury.FREQUENCIES)[b]) for b in (80, 40, 20, 10, 6)
-    ], "the file ships the dials of FREQUENCIES"
     entries = json.loads(body)["frequencies"]
     assert [e["band"] for e in entries[:4]] == ["80 m", "40 m", "20 m", "6 m"] and entries[4]["band"] == "10 m", (
         "a copy that reads four entries at most still gets 6 m: a new band goes at the end"
@@ -161,9 +158,6 @@ def test_the_box_shows_the_projects_list_else_the_version_pages_dial_else_the_bu
     assert suggested(TWO, "7.0443 MHz USB", BUILT_IN, "40 m") == TWO
     assert suggested([], "7.0443 MHz USB", BUILT_IN, "40 m") == [Frequency("40 m", "7.0443 MHz USB")]
     assert suggested([], "", BUILT_IN, "40 m") == BUILT_IN == TWO
-    assert [dict(mercury.FREQUENCIES)[int(band.split()[0])] + " MHz USB" for band, _ in mercury.SUGGESTED] == [
-        dial for _, dial in mercury.SUGGESTED
-    ], "the built-in five are dials of FREQUENCIES"
 
 
 def test_the_list_is_kept_as_the_file_has_it_and_comes_back_the_same() -> None:

@@ -33,6 +33,7 @@ from .hostwire import (
     Pong,
     ReleaseNotes,
     ReleaseNotesMsg,
+    Saved,
     Status,
     UpdateResultMsg,
 )
@@ -239,6 +240,7 @@ AnyMessage = Union[
     Status,
     Pong,
     Error,
+    Saved,
     PortsMsg,
     StateMsg,
     PatchMsg,

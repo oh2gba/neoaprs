@@ -131,11 +131,11 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.setting.not_keying": "'{value}' no es una forma de conmutar la radio: vox, cm108, rts:PUERTO o dtr:PUERTO",
   "error.setting.not_among": "{value} no es ninguno de {choices}",
   "error.setting.not_direction": "“{value}” no es omni ni uno de N NE E SE S SW W NW",
-  "error.setting.not_globs": "“{value}” no es uno o más patrones absolutos separados por espacios, como /dev/ttyUSB*",
+  "error.setting.not_globs": "“{value}” no es uno o más patrones absolutos separados por espacios",
   "error.setting.not_host": "“{value}” no es una dirección ni un nombre",
-  "error.setting.not_hostport": "“{value}” no es host:puerto (4532 es el puerto de rigctld)",
+  "error.setting.not_hostport": "“{value}” no es host:puerto",
   "error.setting.not_receiver": "“{value}” no es la dirección de un receptor",
-  "error.setting.not_server": "“{value}” no es host:puerto (14580 es el puerto habitual de un servidor APRS-IS)",
+  "error.setting.not_server": "“{value}” no es host:puerto",
   "error.setting.not_dial": "“{value}” no es un dial como 28.1800 MHz USB",
   "error.setting.not_passcode": "el código de tu indicativo es un número de 0 a {max}",
   "error.setting.passcode_read_only": "-1 es el código de solo lectura; un iGate necesita el código de su indicativo",
@@ -154,7 +154,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.setting.profile_port":
     "{profile} se conecta por TCP (tcp/host y tcp/port), no al puerto serie {port}: vacía serial/port o elige un TNC serie",
   "error.setting.range": "{value} no está entre {min} y {max}",
-  "error.setting.status_needs_rigctld": "la radio necesita status/rigctld (host:puerto de un rigctld, 127.0.0.1:4532)",
+  "error.setting.status_needs_rigctld": "la radio necesita status/rigctld (host:puerto de un rigctld)",
   "error.setting.status_source": "“{value}” no es off, text ni rig (vacío: como dicen status/rigctld y station/status)",
   "error.setting.template_field": "{{{field}}} no es un campo de la plantilla (los campos son {{freq}} y {{mode}})",
   "error.setting.template_long":

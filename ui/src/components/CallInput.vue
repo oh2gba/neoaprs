@@ -6,6 +6,7 @@
 import { computed, ref, watch } from "vue";
 import { t } from "@/i18n";
 import { callInput, joinCall, splitCall } from "@/lib/calls";
+import { confirms } from "@/lib/ime";
 import { ssidChoices } from "@/lib/settingchoices";
 
 const props = defineProps<{
@@ -66,6 +67,7 @@ function onBlur(event: FocusEvent): void {
 }
 
 function onEnter(event: KeyboardEvent): void {
+  if (!confirms(event)) return;
   settle(event.target);
   emit("enter", event);
 }

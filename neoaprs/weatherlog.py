@@ -30,6 +30,9 @@ from .weathersql import (
 log = logging.getLogger("neoaprs.weatherlog")
 
 Observation = tuple[datetime, Weather]
+# a station that sends the same values again within this many seconds of the one kept is not kept twice
+SAME_WITHIN_SEC = 60
+FORGET_AT = 4096  # stations remembered before the old ones are let go
 # columns after the station and the time, named as Weather's fields
 _VALUES = (
     "wind_dir",
@@ -84,6 +87,7 @@ def _kept_report(row: Row) -> tuple[datetime, tuple[str, Weather] | None]:
 class WeatherLog(DbLog):
     def __init__(self, db: Db | None = None, clock: Clock = utcnow) -> None:
         super().__init__(db, clock, log, "the weather could not be read")
+        self._kept: dict[str, tuple[datetime, tuple[object, ...]]] = {}  # each station's last kept observation
 
     def take(self, packet: Packet) -> bool:
         """Append the observation in a received packet (nobody waits); False if none or unqueued."""
@@ -91,7 +95,19 @@ class WeatherLog(DbLog):
         if report is None:
             return False
         row = weather_row(report[0], packet.heard_at, report[1])
-        return self._append(lambda conn: insert_weather(conn, row))
+        if self._repeated(report[0], packet.heard_at, row[2:-1]):
+            return False
+        queued = self._append(lambda conn: insert_weather(conn, row))
+        if queued:
+            self._kept[report[0]] = (packet.heard_at, row[2:-1])
+        return queued
+
+    def _repeated(self, station: str, at: datetime, values: tuple[object, ...]) -> bool:
+        """Return whether the station's last kept observation is under SAME_WITHIN_SEC old and says the same."""
+        if len(self._kept) > FORGET_AT:
+            self._kept = {s: k for s, k in self._kept.items() if abs((at - k[0]).total_seconds()) < SAME_WITHIN_SEC}
+        last = self._kept.get(station)
+        return last is not None and last[1] == values and 0 <= (at - last[0]).total_seconds() < SAME_WITHIN_SEC
 
     async def series(self, station: str, since: datetime) -> list[Observation]:
         text = stamp(since)
@@ -128,8 +144,13 @@ class WeatherLog(DbLog):
     async def prune(self, keep_days: int) -> int:
         """Delete observations older than `keep_days` days; return the count."""
         cutoff = stamp(self.clock() - days(keep_days))
-        return await self._write(lambda conn: prune_weather_before(conn, cutoff), 0, "the weather could not be pruned")
+        gone = await self._write(lambda conn: prune_weather_before(conn, cutoff), 0, "the weather could not be pruned")
+        await self.give_back_room()
+        return gone
 
     async def forget_all(self) -> int:
         """Delete every observation; return the count."""
-        return await self._write(delete_weather, 0, "the weather could not be forgotten")
+        self._kept.clear()
+        gone = await self._write(delete_weather, 0, "the weather could not be forgotten")
+        await self.give_back_room()
+        return gone

@@ -39,14 +39,6 @@ export function sunAt(ms: number): Sun {
   return { lat, lon: wrap(rightAscension - gmst) };
 }
 
-/** The sun's altitude above the horizon at a place. */
-export function sunAltitude(sun: Sun, lat: number, lon: number): number {
-  const phi = lat * RAD;
-  const delta = sun.lat * RAD;
-  const sinAlt = Math.sin(phi) * Math.sin(delta) + Math.cos(phi) * Math.cos(delta) * Math.cos((lon - sun.lon) * RAD);
-  return Math.asin(Math.max(-1, Math.min(1, sinAlt))) * DEG;
-}
-
 /**
  * The latitudes on a meridian where the sun is below `below`: one span or none. With
  * sin(alt) = R sin(lat + psi) on a meridian, the dark part is a single arc of that sine.

@@ -213,7 +213,6 @@ NeoAPRS can send and receive its normal APRS packets over HF with the [Mercury](
 |---|---|
 | 80 m | 3.5850 MHz |
 | 40 m | 7.0541 MHz |
-| 30 m | 10.1462 MHz |
 | 20 m | 14.1070 MHz |
 | 10 m | 28.1800 MHz |
 | 6 m | 50.6200 MHz |
@@ -222,7 +221,7 @@ NeoAPRS can send and receive its normal APRS packets over HF with the [Mercury](
 
 **The rules to keep**
 
-- **Stay in the right part of the band.** These frequencies follow the IARU Region 1 band plan. The signal is about 500 Hz wide: on 40 m and 20 m it belongs in the digital segments of 2700 Hz (7050-7060 kHz, 14101-14112 kHz); on 80 m it belongs in 3580-3590 kHz, on 30 m in 10130-10150 kHz, the only digital part there, and on 10 m in 28070-28190 kHz, all three for signals of 500 Hz at most, so measure the signal's width on a spectrum display before settling on 80 m, 30 m or 10 m. Outside Region 1, use your own band plan.
+- **Stay in the right part of the band.** These frequencies follow the IARU Region 1 band plan. The signal is about 500 Hz wide: on 40 m and 20 m it belongs in the digital segments of 2700 Hz (7050-7060 kHz, 14101-14112 kHz); on 80 m it belongs in 3580-3590 kHz and on 10 m in 28070-28190 kHz, both for signals of 500 Hz at most, so measure the signal's width on a spectrum display before settling on 80 m or 10 m. Outside Region 1, use your own band plan.
 - **Listen first.** NeoAPRS holds its frames while a signal as wide as a frame is on the channel, which is no substitute for a look at the waterfall. A signal narrower than about 450 Hz (RTTY, PSK31, FT8) is not seen, and a station on one of those can be talked over. A Mercury you run yourself (`--hf-port`) uses Mercury's own detector: it wants the radio's normal SSB filter (1.8 kHz or wider), and a step in the band noise holds the frames for up to 20 seconds.
 - **Use little power.** The signal is continuous, like a carrier. Set the drive so the radio's ALC does not move, turn off speech processing and noise reduction, and run far below the radio's rated power.
 - **Your call sign.** Every packet carries it. Make sure the call in Settings is your own.

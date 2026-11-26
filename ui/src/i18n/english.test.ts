@@ -56,6 +56,24 @@ const ALLOWED: Record<string, Record<string, string>> = {
   },
 };
 
+/** One word a text of a language says as the English does, because the language says it so too (a loan or a cognate), by language: a new such word is looked at before it is let in. */
+const SAME_WORD: Record<string, string> = {
+  de: `app bits bulletin bulletins bus code details dial digipeater eyeball feedback filter gateway hotel igates item jogger km laptop locator mac monitor name
+  normal omni pause port ports position radius rate restaurant rover signal skywarn station status symbol tanker terminal test text tornado update wind yacht`,
+  es: "bits dial digipeater digipeaters dir hospital hotel igates jeep km locator mac monitor normal omni radio radios rover skywarn terminal tornado",
+  fi: "dial km mac radio rover skywarn tornado",
+  fr: `altitude ambulance bits bulletin bulletins bus code conversations cyan deg destination dial digipeater digipeaters direct eyeball igates item items jeep km
+  latitude locator longitude mac message messages note notification notifications omni parking pause police port portable ports position positions radio radios
+  restaurant rover satellite signal simplex skywarn source station stations stop terminal test triangle type via violet yacht`,
+  it: "antenna app area beacon dial digipeater dir email feedback fix gateway item km locator mac monitor omni radio rover satellite simplex skywarn stop tornado via yacht",
+  ja: "km mac skywarn",
+  nl: `ambulance app bits bulletin bulletins bus code details dial digipeater digipeaters direct eyeball feedback filter fix gateway help hops hotel igates in item items
+  jeep km laptop locator mac monitor node object omni radio restaurant route rover school simplex skywarn spectrum station stations status storm tanker terminal timer
+  tornado type update via violet wind`,
+  "pt-BR": `altitude beacon beacons bits dial digipeater digipeaters dir eyeball feedback gateway hospital hotel igates item km latitude locator longitude mac monitor
+  normal omni rover simplex skywarn status terminal tornado van via`,
+};
+
 const PLACEHOLDER = /\{\{|\}\}|\{\w+\}/g;
 const ADDRESS = /https?:\/\/\S+|\S+\/\S+|\S+\.(py|md|ts|json|exe)\b/g;
 const TOKEN = /[\p{L}\p{N}_'’.-]+|,|\S/gu;
@@ -136,6 +154,20 @@ for (const locale of LOCALES.filter((l) => l.code !== SOURCE)) {
         (id) => all(messages[id]).flatMap((t) => englishRuns(t, own)).length === 0,
       );
       expect(stale).toEqual([]);
+    });
+
+    it("have no text that is one English word, unless the language says it so too", () => {
+      const same = new Set((SAME_WORD[locale.code] ?? "").split(/\s+/).filter(Boolean));
+      const english = Object.entries(messages).flatMap(([id, m]) => {
+        const text = all(m)[0] ?? "";
+        const wholly = all(source[id])[0] === text && ASCII_WORD.test(text);
+        const shape = /^x+(-x+)*$/.test(text); // the shape of an access key, which no language words
+        return wholly && !shape && !isName(text) && !same.has(low(text)) ? [`${id}: ${text}`] : [];
+      });
+      expect(
+        english,
+        "an English word left as a text: translate it, or add the word to SAME_WORD if the language says it so",
+      ).toEqual([]);
     });
 
     it("name the Dir column's values in the Packets info line by the column's own words", () => {

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { bytesLeft } from "@/lib/messages";
 import { canPost, freeSlot, textOk, type PostDraft, type PostKind } from "@/lib/bulletins";
 import { isAlias, isMarker } from "@/lib/chain";
+import { DIAL } from "@/lib/skeds";
 import { replyAddressOk } from "@/lib/support";
 import { parsePath, validCall, validName } from "@/lib/calls";
 import { compareVersions } from "@/lib/releasenotes";
@@ -21,6 +22,10 @@ describe("the vectors of the daemon", () => {
 
   it("say which addresses for a reply Send logs takes", () => {
     for (const { input, ok } of vectors.reply_addresses) expect(replyAddressOk(input), JSON.stringify(input)).toBe(ok);
+  });
+
+  it("say which dials a sked takes", () => {
+    for (const { input, ok } of vectors.sked_dials) expect(DIAL.test(input), JSON.stringify(input)).toBe(ok);
   });
 
   it("say which calls parse (a path, an addressee), SSID and all", () => {

@@ -269,3 +269,24 @@ async def test_a_second_update_while_one_runs_is_refused(tmp_path: Path) -> None
     gate.set()
     await until(lambda: job.status().state == "restarting")
     await job.stop()
+
+
+@pytest.mark.expects_errors
+async def test_an_unexpected_error_ends_in_the_error_state_not_in_a_running_one(tmp_path: Path) -> None:
+    release = FakeRelease()
+
+    def broken(url: str, allowed: Allowed) -> bytes:
+        raise ValueError("not a checksum list")
+
+    release.fetch_sums = broken  # type: ignore[method-assign]
+    job, _ = service(tmp_path, release)
+    job.begin("0.7.0")
+    await until(lambda: job.status().state == "error")
+    assert job.status().problem == "download" and "unexpected" in job.status().detail
+    installer = FakeInstaller(tmp_path)
+    installer.install = lambda *a: (_ for _ in ()).throw(KeyError("x"))  # type: ignore[method-assign]
+    job, _ = service(tmp_path, FakeRelease(), installer)
+    job.begin("0.7.0")
+    await until(lambda: job.status().state == "error")
+    assert job.status().problem == "install"
+    job.begin("0.7.0")  # and it can be tried again: nothing stays busy

@@ -118,7 +118,8 @@ from neoaprs.aprsposition import uncompressed_position  # noqa: E402
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text  # noqa: E402
 from neoaprs.symbols import IGATE_OVERLAYS, MOBILE_CODES, SYMBOL_NAMES  # noqa: E402
 from neoaprs.tncprofile import HF_PROFILES, PROFILES  # noqa: E402
-from neoaprs.versions import compare_versions  # noqa: E402
+from neoaprs.skeds import clean_note, our_call, plain_note, when  # noqa: E402
+from neoaprs.versions import compare_versions, is_dial  # noqa: E402
 from neoaprs.web.hubwire import PROTOCOL  # noqa: E402
 from neoaprs.web.views import CONFIG_KEYS  # noqa: E402
 from neoaprs.web.replaywire import GLIDE_MAX_MIN, SPAN_DAYS  # noqa: E402
@@ -486,7 +487,6 @@ def limits() -> dict[str, Any]:
             "maxFrame": mercury.MAX_PAYLOAD,
             "frameSec": mercury.FRAME_SEC,
             "pttKinds": list(mercury.PTT_KINDS),
-            "frequencies": [[band, dial] for band, dial in mercury.FREQUENCIES],
         },
         "soundCard": {
             "version": direwolf.VERSION,
@@ -1099,6 +1099,105 @@ REPLY_ADDRESSES = [
     "h" * 244 + "@example.o",
     "h" * 245 + "@example.o",
 ]
+SKED_CALLS = [
+    "OH2GBA",
+    "oh2gba",
+    " oh2gba ",
+    "\tOH2GBA\r\n",
+    "\u00a0OH2GBA",
+    "OH2GBA\u00a0",
+    "OH2GBA-0",
+    "OH2GBA-7",
+    "OH2GBA-15",
+    "OH2GBA-16",
+    "OH2GBA-07",
+    "OH2GBA-00",
+    "OH2GBA-",
+    "OH2GBA/P",
+    "OH2G BA",
+    "OH2GBA\n-7",
+    "N0CALL",
+    "nocall-3",
+    "MYCALL-1",
+    "W1AW",
+    "A1B",
+    "AB1",
+    "ABC",
+    "ABCDEF",
+    "ABCDE1",
+    "OH2GBAA",
+    "\u00df1A",
+    "\u00d6H2GBA",
+    "",
+    "123456",
+]
+SKED_DIALS = [
+    "7.0541 MHz USB",
+    "7.0541 MHz LSB",
+    "3.585 MHz USB",
+    "14.1070 MHz USB",
+    "28.18 MHz USB",
+    "7.0541 MHz",
+    "7.0541 MHZ USB",
+    "7.0541 MHz CW",
+    "7,0541 MHz USB",
+    "100.0541 MHz USB",
+    "7.05412 MHz USB",
+    "7.0541 MHz USB\n",
+    " 7.0541 MHz USB",
+    "7.0541 MHz USB ",
+    "\uff17.0541 MHz USB",
+    "7.0541\u00a0MHz USB",
+    "",
+]
+SKED_TIMES = [
+    "2026-11-14T18:00:00Z",
+    "1970-01-01T00:00:00Z",
+    "2028-02-29T12:00:00Z",
+    "2026-02-29T12:00:00Z",
+    "2026-02-30T10:00:00Z",
+    "2026-11-14T24:00:00Z",
+    "2026-11-14T23:59:60Z",
+    "2026-13-01T00:00:00Z",
+    "2026-11-14T18:00:00",
+    "2026-11-14 18:00:00Z",
+    "2026-11-14T18:00:00z",
+    "2026-11-14T18:00:00+00:00",
+    "2026-1-14T18:00:00Z",
+    "2026-11-14T18:00:00ZZ",
+    "2026-11-14T18:00:00Z\n",
+    "\u0662\u0660\u0662\u0666-11-14T18:00:00Z",
+    "",
+]
+SKED_NOTES = [
+    "",
+    "Mercury, 10 W",
+    "5\u00b0 up \u20ac \U0001f642 x",
+    "caf\u00e9 7 MHz \u2713",
+    "caf\u00e9 7 MHz $+^`|~<=>",
+    "a\tb\n c",
+    "  lead and trail  ",
+    "a\u200bb",
+    "a\u00a0b",
+    "a\u2028b",
+    "a\x85b",
+    "a\x00b",
+    "a\x7fb",
+    "\ufeffq",
+    "\u202eevil\u202c",
+    "a  b   c",
+    "x" * 80,
+    "x" * 81,
+    "\u00e9" * 100,
+    "x" * 79 + "\u20acy",
+    "x" * 79 + " y",
+    "<b>&</b>",
+    "Subject: x\r\nBcc: y",
+    "\u3042\u3044",
+    "\u2460\u2461",
+    "\u20ac",
+    "\U0001f4fb",
+]
 STATUS_TEMPLATES = [
     "QRV {freq} {mode}",
     "",
@@ -1442,6 +1541,10 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "beacons": [_beacon_vector(changes) for changes in BEACONS],
         "status_templates": [_template_vector(t) for t in STATUS_TEMPLATES],
         "reply_addresses": [{"input": t, "ok": reply_address(t) != ""} for t in REPLY_ADDRESSES],
+        "sked_calls": [{"input": t, "call": our_call(t)} for t in SKED_CALLS],
+        "sked_dials": [{"input": t, "ok": is_dial(t)} for t in SKED_DIALS],
+        "sked_times": [{"input": t, "ok": when(t) is not None} for t in SKED_TIMES],
+        "sked_notes": [{"input": t, "note": clean_note(t), "plain": plain_note(t)} for t in SKED_NOTES],
     }
 
 
@@ -1464,9 +1567,53 @@ def errors_text() -> str:
     )
 
 
+FREQUENCIES = ROOT / "site" / "frequencies.json"
+FREQUENCY_LIST = ROOT / "neoaprs" / "frequencylist.py"
+INDEX = ROOT / "site" / "index.html"
+TABLE = re.compile(r'<table class="freqs" id="frequencies">.*?</table>', re.DOTALL)
+
+
+def suggested_frequencies() -> list[tuple[str, str]]:
+    """Return (band, dial) of site/frequencies.json, the one source of the suggested dials, by frequency."""
+    found = [
+        (item["band"], item["dial"]) for item in json.loads(FREQUENCIES.read_text(encoding="utf-8"))["frequencies"]
+    ]
+    return sorted(found, key=lambda pair: float(pair[1].split()[0]))
+
+
+def frequency_list_text() -> str:
+    rows = "".join(f'    ("{band}", "{dial}"),\n' for band, dial in suggested_frequencies())
+    return (
+        '"""The suggested HF dials, written by scripts/gen-protocol.py from site/frequencies.json: do not edit."""\n\n'
+        f"SUGGESTED: tuple[tuple[str, str], ...] = (\n{rows})\n"
+    )
+
+
+def frequency_table_text() -> str:
+    """Return the table of the project's page; band and MHz are padded with no-break spaces to line up."""
+    found = suggested_frequencies()
+    band_width = max(len(band) for band, _ in found)
+    mhz_width = max(len(dial.split(".")[0]) for _, dial in found)
+    nbsp = "&nbsp;"
+    rows = "".join(
+        f'<tr><th scope="row">{nbsp * (band_width - len(band))}{band}</th>'
+        f"<td>{nbsp * (mhz_width - len(dial.split('.')[0]))}{dial}</td></tr>"
+        for band, dial in found
+    )
+    return (
+        f'<table class="freqs" id="frequencies"><caption>Suggested frequencies</caption><tbody>{rows}</tbody></table>'
+    )
+
+
+def index_text() -> str:
+    return TABLE.sub(lambda _: frequency_table_text(), INDEX.read_text(encoding="utf-8"), count=1)
+
+
 def render() -> dict[Path, str]:
     schema = build_schema()
     return {
+        FREQUENCY_LIST: frequency_list_text(),
+        INDEX: index_text(),
         SCHEMA: json.dumps(schema, indent=2) + "\n",
         TYPES: types_text(schema),
         LISTS: lists_text(),

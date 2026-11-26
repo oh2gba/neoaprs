@@ -129,7 +129,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.port.other": "Outra...",
   "settings.port.held": "{holder}: {port}",
   "settings.port.path_label": "Caminho da porta",
-  "settings.port.found": "encontrada: {port}",
   "settings.port.refresh": "Atualizar",
 
   "settings.baud.name": "Velocidade",
@@ -142,7 +141,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tcp_host.tip1": "O computador onde roda o seu Direwolf ou soundmodem: 127.0.0.1 é este computador.",
   "settings.tcp_port.label": "Porta",
   "settings.tcp_port.tip1": "O Direwolf escuta na 8001 e o soundmodem na 8100, a menos que você tenha mudado.",
-  "settings.tcp_port.title": "Direwolf 8001, soundmodem 8100",
   "settings.board_host.tip1": "O endereço da placa na sua rede, como a página web dela o mostra.",
   "settings.board_port.tip1": "A porta KISS da placa: 8001, a menos que você a tenha mudado nela.",
   "settings.board_host.label": "Endereço",

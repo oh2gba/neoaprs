@@ -246,6 +246,14 @@ describe("useDaemon", () => {
     expect(daemon.alertResult.value).toEqual({ type: "alert_result", ok: true, text: "ran" });
   });
 
+  it("keeps the number of a saved request, and of the request an error answers", () => {
+    const { daemon, socket } = setUp();
+    socket.say({ type: "saved", id: 4 });
+    expect(daemon.saved.value).toEqual({ type: "saved", id: 4 });
+    socket.say({ type: "error", cmd: "set_config", key: null, code: "failed", params: {}, text: "x", id: 5 });
+    expect(daemon.lastError.value?.id).toBe(5);
+  });
+
   it("keeps the latest answer to radio_add, the id of the radio this page made", () => {
     const { daemon, socket } = setUp();
     expect(daemon.radioAdded.value).toBeNull();
