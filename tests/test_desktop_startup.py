@@ -4,6 +4,7 @@ Run with a scripted shell on a slow daemon in virtual time."""
 
 import re
 import subprocess
+import sys
 import threading
 import types
 from collections.abc import Callable, Iterator
@@ -270,10 +271,10 @@ def test_the_windows_window_shows_the_loading_page_before_the_daemon_answers_and
     thread = go()
     (window,) = rig.toolkits.windows
     assert window.kwargs["html"] == loading.HTML and window.loaded == [] and not launch.opening.done()
-    assert texts(rig) == [OPEN_LABEL] and rig.toolkits.icons[0].calls == ["run_detached"], (
-        "the tray is there, with Open alone"
+    assert texts(rig) == [OPEN_LABEL, FakeMenu.SEPARATOR, "Quit"] and rig.toolkits.icons[0].calls == ["run_detached"], (
+        "the tray is there, with Open and a Quit that does not wait for the window"
     )
-    (opening,) = rig.toolkits.icons[0].menu.items()  # type: ignore[attr-defined]
+    opening = rig.toolkits.icons[0].menu.items()[0]  # type: ignore[attr-defined]
     opening.action(rig.toolkits.icons[0], opening)
     assert window.calls == ["show", "restore"], "Open shows the window that waits"
     gate.open.set()
@@ -331,3 +332,97 @@ def test_the_dark_scheme_of_windows_is_read_where_its_settings_keep_it() -> None
         and webshell.dark_scheme(registry(1)) is False
         and webshell.dark_scheme(registry(None)) is False
     )
+
+
+# ---- the app can always be ended: the tray and the second app's commands do not wait for the window
+
+
+class OwnedGate(Gate):
+    def __call__(self) -> Session:
+        assert self.open.wait(30)
+        return Session(self.data, PAGE, owned=True)
+
+
+def test_quit_in_the_tray_before_the_page_stops_the_daemon_the_app_started_once_it_is_up_and_ends(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rig = Rig(tmp_path, monkeypatch)
+    gate = OwnedGate(rig.data)
+    assert rig.single.acquire()
+    launch = Launch(rig.data, Opening(rig.data, gate).start(), False, True, rig.auto, rig.single, rig.daemon)
+    codes: list[int] = []
+    thread = threading.Thread(target=lambda: codes.append(webshell.run(launch)), daemon=True)
+    thread.start()
+    until(lambda: rig.toolkits.started)
+    quit_item = rig.toolkits.icons[0].menu.items()[-1]  # type: ignore[attr-defined]
+    assert quit_item.text == "Quit"
+    quit_item.action(rig.toolkits.icons[0], quit_item)
+    gate.open.set()
+    thread.join(30)
+    assert not thread.is_alive() and codes == [0]
+    assert rig.daemon.stopped == [rig.data], "the daemon it started is not left running"
+    assert launch.ctx is None or launch.ctx.watch is None, "the session was not attached after the Quit"
+    launch.close()
+
+
+def test_a_second_apps_quit_ends_an_app_whose_window_engine_never_came_up(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The installer's and the uninstaller's `neoaprs-app --quit`."""
+    monkeypatch.setattr(webshell, "LEAVE_SEC", 0.3)
+    rig = Rig(tmp_path, monkeypatch)
+    gate = Gate(rig.data)
+    assert rig.single.acquire()
+    launch = Launch(rig.data, Opening(rig.data, gate).start(), False, True, rig.auto, rig.single, rig.daemon)
+    hung = threading.Event()
+    ended: list[int] = []
+
+    def never(func: Any = None, **kwargs: Any) -> None:
+        rig.toolkits.started.append(kwargs)
+        assert hung.wait(30)
+
+    monkeypatch.setattr(sys.modules["webview"], "start", never)
+    monkeypatch.setattr(webshell, "HARD_EXIT", lambda code: ended.append(code) or hung.set())
+    thread = threading.Thread(target=lambda: webshell.run(launch), daemon=True)
+    thread.start()
+    until(lambda: rig.toolkits.started)
+    assert SingleApp(rig.data).tell_the_other("quit")
+    gate.open.set()
+    until(lambda: ended == [0])
+    thread.join(30)
+    assert not thread.is_alive()
+
+
+def test_a_window_engine_that_never_comes_up_leaves_the_tray_with_the_page_in_the_browser_and_quit_ends_the_app(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(webshell, "ENGINE_WAIT_SEC", 0.3)
+    monkeypatch.setattr(webshell, "LEAVE_SEC", 0.3)
+    rig = Rig(tmp_path, monkeypatch)
+    hung = threading.Event()
+    ended: list[int] = []
+
+    def never(func: Any = None, **kwargs: Any) -> None:
+        rig.toolkits.started.append(kwargs)
+        assert hung.wait(30), "the engine hangs until the app ends the process"
+
+    def hard_exit(code: int) -> None:
+        ended.append(code)
+        hung.set()
+
+    monkeypatch.setattr(sys.modules["webview"], "start", never)
+    monkeypatch.setattr(webshell, "HARD_EXIT", hard_exit)
+    thread = threading.Thread(target=rig.run, daemon=True)
+    thread.start()
+    until(lambda: rig.browser == [PAGE] and rig.ctx.watch is not None)
+    open_item = next(i for i in rig.toolkits.icons[0].menu.items() if i != FakeMenu.SEPARATOR and i.text == OPEN_LABEL)  # type: ignore[attr-defined]
+    open_item.action(rig.toolkits.icons[0], open_item)
+    assert rig.browser == [PAGE, PAGE], "Open is the browser now"
+    quit_item = next(
+        i for i in rig.toolkits.icons[0].menu.items() if i != FakeMenu.SEPARATOR and i.text.startswith("Quit")
+    )  # type: ignore[attr-defined]
+    quit_item.action(rig.toolkits.icons[0], quit_item)
+    until(lambda: ended == [0])
+    thread.join(30)
+    assert not thread.is_alive() and "destroy" not in rig.toolkits.windows[0].calls
+    assert not SingleApp(rig.data).running(), "the app let go of the folder before it ended"

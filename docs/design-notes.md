@@ -233,6 +233,13 @@ On Linux, GTK's show does not raise a minimised or covered window and maximize d
 back from the taskbar, whereas pywebview's restore does and keeps a maximized window maximized.
 Restore alone would un-maximize a maximized window on Windows and macOS.
 
+Nothing that ends or controls the app waits for the window engine: the session is attached in a
+thread of its own, the tray has a Quit and a second app's `show` and `quit` are answered before the
+page is there, since WebView2 can take half a minute to start or fail without a word. An engine not
+up after a minute leaves the app in the tray with the page in the browser. A Quit before the page
+stops the daemon the app started once it is up. After Quit the process ends even if pywebview's loop
+never returns.
+
 ## neoaprs/desktop/winplace.py
 
 pywebview delivers each window event on its own thread, so a `resized` to full-screen size can

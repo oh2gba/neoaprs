@@ -487,8 +487,12 @@ def lines(caplog: pytest.LogCaptureFixture, level: int = logging.INFO) -> list[s
 
 
 def handler(hook: Hook) -> Any:
-    (only,) = hook.handlers
-    return only
+    """The event as pywebview fires it: every handler in turn; the first one's answer."""
+
+    def fire(*args: Any) -> Any:
+        return [each(*args) for each in list(hook.handlers)][0]
+
+    return fire
 
 
 def test_a_window_left_maximized_starts_maximized_on_the_normal_rectangle_it_had_even_when_the_form_shows_it_otherwise(
