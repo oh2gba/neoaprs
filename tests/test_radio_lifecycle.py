@@ -170,7 +170,7 @@ async def test_a_radios_own_settings_are_checked_stored_and_restart_that_radio_a
 
 
 async def test_remove_takes_the_radio_out_of_the_sets_the_choices_the_paths_and_its_rows_and_stops_it_for_good(
-    tmp_path: Path,
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     e = Env(tmp_path, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
     # No program: the Dummy HF radio works without its speaker
@@ -191,7 +191,10 @@ async def test_remove_takes_the_radio_out_of_the_sets_the_choices_the_paths_and_
 
     await until_async(hf_sent_kept)
     beacon_2, hf = e.beacon_2, e.ctl.radios.get(HF_ID)
-    assert await e.ctl.remove_radio(HF_ID)
+    with caplog.at_level(logging.INFO, "neoaprs.controller"):
+        assert await e.ctl.remove_radio(HF_ID)
+    told = [r.getMessage() for r in caplog.records if "removed" in r.getMessage() or "restarted" in r.getMessage()]
+    assert told == ["the Mercury radio (radio 2) is removed"], "once, with the name it had"
     assert e.ctl.ownobjects.get("SKED").radios == (FM_ID,), "and out of the object in memory"  # type: ignore[union-attr]
     assert e.ctl.radios.get(HF_ID) is None and e.ctl.config.radio(HF_ID).removed and not e.ctl.config.hf_enabled  # type: ignore[union-attr]
     assert (e.ctl.radios.choice("OH2GAX-2"), e.ctl.radios.choice("OH2GBA")) == (None, FM_ID)

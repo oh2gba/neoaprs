@@ -76,8 +76,8 @@ def test_a_radio_is_made_for_every_radio_of_the_settings_that_is_not_removed_wit
         (name, s.kind, s, rig.drivers[s.id], rig.beacons[s.id], s.id)
         for name, s in zip(("FM", "Mercury", "FM 2"), THREE, strict=True)
     ]
-    assert [r.line.radio_name for r in radios] == ["", "", "FM 2"], (
-        "the line of radio 1 and of radio 2 says today's words in its own log lines (`tnc`, `hf radio`: Tnc.label by its kind), any other its radio's name"
+    assert [r.line.radio_name for r in radios] == ["FM (radio 1)", "Mercury (radio 2)", "FM 2 (radio 3)"], (
+        "every line's own log lines begin with its radio's name and id, radios 1 and 2 too"
     )
     assert rig.made == [(1, "kiss"), (2, "mercury"), (3, "kiss")] and rig.wired == [1, 2, 3], (
         "one driver for each, and each handed to the wiring once"
@@ -132,7 +132,7 @@ def test_the_radios_are_in_the_order_of_their_positions_and_a_radio_reads_the_se
         third.choice("path"),
         third.choice("digipeat"),
         third.choice("beacon"),
-    ) == ("Shack", "Shack", "WIDE2-2", True, True), (
+    ) == ("Shack", "Shack (radio 3)", "WIDE2-2", True, True), (
         "a name, a place and a choice restart nothing and are in force at once"
     )
     assert (
@@ -215,7 +215,7 @@ async def test_a_restart_stops_the_radio_gives_it_the_settings_and_starts_it_whi
         "the settings in force: its own, the station's, the run's"
     )
     said = lambda: [r.getMessage() for r in caplog.records if r.name == "neoaprs.controller"]  # noqa: E731
-    assert said() == ["the FM 2 radio is started: a fake kiss on /dev/ttyUSB3"]
+    assert said() == ["the FM 2 radio (radio 3) is started: a fake kiss on /dev/ttyUSB3"]
     third, first = rig.registry.get(3), rig.registry.get(1)
     assert (
         third is not None
@@ -228,7 +228,7 @@ async def test_a_restart_stops_the_radio_gives_it_the_settings_and_starts_it_whi
     assert rig.calls() == {1: [], 2: ["stop", "configure"], 3: []}, (
         "a radio whose tickbox is off takes the settings and stays stopped"
     )
-    assert said()[-1] == "the Mercury radio is off in the settings"
+    assert said()[-1] == "the Mercury radio (radio 2) is off in the settings"
     await rig.registry.restart(1)
     assert rig.put(with_radios(ON_AIR, three(enabled=False))) == [3]
     await rig.registry.restart(3)
@@ -650,9 +650,12 @@ async def test_the_daemons_two_radios_are_the_registrys_with_their_drivers_and_t
     ), (
         "Find my radio lets go of the radio it searches for alone and passes over what the others and the GPS receiver hold"
     )
-    assert (fm.line.radio_id, fm.line.label, hf.line.radio_id, hf.line.label) == (FM_ID, "tnc", HF_ID, "hf radio"), (
-        "the lines' own log lines begin as they did"
-    )
+    assert (fm.line.radio_id, fm.line.label, hf.line.radio_id, hf.line.label) == (
+        FM_ID,
+        "FM (radio 1)",
+        HF_ID,
+        "Mercury (radio 2)",
+    ), "the lines' own log lines begin with the radio's name and id"
     assert fm.line.interlock is hf.line.interlock is not None and ctl.radios.enabled() == [fm] and not hf.rtype.dummy, (
         "the defaults until the settings are read"
     )
@@ -802,8 +805,8 @@ async def test_a_third_radio_in_the_daemon_is_started_heard_by_the_parts_and_sto
     )
     await until(lambda: third.state is Source.State.CONNECTED and third.beacon.running)
     assert (
-        "the FM 2 radio is restarted because its settings changed: it is new" in caplog.text
-        and f"the FM 2 radio is started: Your own Direwolf or soundmodem,{other.url}" in caplog.text
+        "it is new" not in caplog.text
+        and f"the FM 2 radio (radio 3) is started: Your own Direwolf or soundmodem,{other.url}" in caplog.text
     )
     assert (
         e.tnc.state is Source.State.CONNECTED

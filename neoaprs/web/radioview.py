@@ -1,7 +1,7 @@
 """The row of the topic `radios`, from a radio's settings, live state and the resource table.
 
-Also the devices a radio's settings name, used to refuse a save that names a device another radio
-holds.
+The state and problem are radiohealth.py's decision, only formatted here; the devices a radio's
+settings name are passed on from there to the handlers that refuse a save naming a held one.
 """
 
 from collections.abc import Sequence
@@ -9,15 +9,21 @@ from datetime import datetime
 from typing import Any, Protocol
 
 from neoaprs.cardlevels import CardLevels
-from neoaprs.claims import PORT_KINDS, Claims
+from neoaprs.claims import Claims
 from neoaprs.clock import iso
 from neoaprs.coded import Param, code_of
-from neoaprs.loraboard import TEXT_LINES
-from neoaprs.radiospec import RadioSpec, log_name, number_in_kind
-from neoaprs.radiotype import RadioId, RadioType, RadioTypeError, ResourceKind
-from neoaprs.serialprobe import claim_value, keying_device
-from neoaprs.source import Source
+from neoaprs.radiohealth import claimed_value as claimed_value
+from neoaprs.radiohealth import devices as devices
+from neoaprs.radiohealth import held_elsewhere as held_elsewhere
+from neoaprs.radiohealth import holder_id as holder_id
+from neoaprs.radiohealth import holder_name as holder_name
+from neoaprs.radiohealth import line_of, radio_health
+from neoaprs.radiohealth import one_device as one_device
+from neoaprs.radiohealth import removed_name as removed_name
+from neoaprs.radiospec import RadioSpec, number_in_kind
+from neoaprs.radiotype import RadioId, RadioType, RadioTypeError
 from neoaprs.tnc import Tnc
+from neoaprs.tnchealth import RadioHealth
 from neoaprs.tncwatchdog import TncStats as LineStats
 
 from .tncwire import RadioProblem, RadioRow, stats_row
@@ -49,6 +55,8 @@ class RadioAtWork(Protocol):
     @property
     def line(self) -> Tnc: ...
     @property
+    def driver_key(self) -> str: ...
+    @property
     def beacon(self) -> RadioBeacon: ...
     @property
     def driver(self) -> RadioCard: ...
@@ -69,7 +77,8 @@ def radio_row(
         rtype = spec.rtype
     except RadioTypeError:
         return None
-    line = None if radio is None or spec.removed else radio.line
+    line = line_of(spec, radio)
+    health = radio_health(spec, specs, radio, claims)
     lines = [] if line is None else [{"at": iso(at), "text": text} for at, text in line.recent_lines(LINES_MAX)]
     card = None if line is None or radio is None else radio.driver.card
     return RadioRow.row(
@@ -78,8 +87,8 @@ def radio_row(
         number=number_in_kind(spec, specs),
         removed=spec.removed,
         dummy=rtype.dummy,
-        state=radio_state(line),
-        problem=radio_problem(spec, specs, line, claims),
+        state=health.state.value,
+        problem=problem_row(health),
         stats=stats_row(LineStats() if line is None else line.stats),
         lines=lines,
         limits={"max_frame": rtype.limits.max_frame, "beacon_min_min": rtype.limits.beacon_min_min},
@@ -101,21 +110,6 @@ def _card(card: CardLevels | None) -> dict[str, Any]:
         if card is None
         else {"tx": card.levels.tx, "rx": card.levels.rx, "read": card.known}
     )
-
-
-def radio_state(line: Tnc | None) -> str:
-    """Return the row's state: the line's, `connecting` in KISS entry, `stopped` if not run.
-
-    A TNC is silent in KISS mode until it hears a packet, so usable counts as `connected` early.
-    """
-    if line is None:
-        return Source.State.STOPPED.value
-    if line.state is Source.State.CONNECTED and line.entering_kiss and not line.usable:
-        return Source.State.CONNECTING.value
-    # the last line was lost when a write timed out: not shown connected until data goes through
-    if line.state is Source.State.CONNECTED and line.write_stuck is not None:
-        return Source.State.WAITING.value
-    return line.state.value
 
 
 def _choices(spec: RadioSpec, rtype: RadioType) -> dict[str, Any]:
@@ -163,101 +157,6 @@ def _problem(what: str, **params: Param) -> dict[str, Any]:
     return RadioProblem.row(None, code=what, params=params)
 
 
-def radio_problem(
-    spec: RadioSpec, specs: Sequence[RadioSpec], line: Tnc | None, claims: Claims
-) -> dict[str, Any] | None:
-    """Return why an enabled radio is not connected, as a RadioProblem code, or None.
-
-    A connected LoRa board that sends text lines is a problem (`radio.text_lines`).
-    """
-    if line is None or spec.removed or not spec.enabled:
-        return None
-    # the write timeout is the problem while the line is open again, or waits after that very loss
-    stuck = line.write_stuck
-    if stuck is not None and line.state is Source.State.CONNECTED:
-        return _problem("radio.write_timeout", **code_of(stuck)[1])
-    if line.state is Source.State.CONNECTED:
-        return _problem("radio.text_lines") if line.why_unusable() == TEXT_LINES else None
-    if (held := _held_elsewhere(spec, specs, spec.rtype, claims)) is not None:
-        return held
-    modem = modem_state(line)
-    if modem is not None and modem.get("test"):
-        # Tune or the keying test has the radio; the line is down meanwhile.
-        return None
-    if modem is not None and modem["state"] == "waiting" and modem["reason"]:
-        return _problem(f"modem.{modem['reason']}")
-    if line.state is Source.State.SILENT:
-        return _problem("radio.silent", since=iso(line.silent_since) or "")
-    if stuck is not None and line.state is Source.State.WAITING and code_of(line.problem)[0] == "radio.write_timeout":
-        return _problem("radio.write_timeout", **code_of(stuck)[1])
-    if (why := code_of(line.problem))[0] == "radio.incoming_port":
-        return _problem(why[0], **why[1])
-    if line.searching:
-        return _problem("radio.searching")
-    return _problem("radio.not_connected", name=log_name(spec, specs))
-
-
-def claimed_value(kind: str, text: str) -> str:
-    """Return the value a setting holds in the resource table (claims.py); "" for none."""
-    return (
-        (claim_value(keying_device(text) if kind == "keying" else text) or "") if kind in PORT_KINDS else text.strip()
-    )
-
-
-def devices(spec: RadioSpec) -> list[tuple[str, ResourceKind, str]]:
-    """Return (field key, device kind, value) for each non-empty device the settings name."""
-    try:
-        fields = spec.rtype.fields
-    except RadioTypeError:
-        return []
-    found = (
-        (f.key, f.claims, claimed_value(f.claims, spec.settings.get(f.key, f.default))) for f in fields if f.claims
-    )
-    return [(key, kind, value) for key, kind, value in found if kind is not None and value]
-
-
-def one_device(a: ResourceKind, b: ResourceKind) -> bool:
-    """Return True if the two kinds name one device (any serial port use counts as one)."""
-    return a == b or (a in PORT_KINDS and b in PORT_KINDS)
-
-
-def removed_name(id: RadioId, specs: Sequence[RadioSpec]) -> str | None:
-    """Return the log name of a removed radio, or None if it is not removed or unknown."""
-    spec = next((s for s in specs if s.id == id), None)
-    return None if spec is None or not spec.removed else log_name(spec, specs)
-
-
-def holder_id(holder: RadioId | None, specs: Sequence[RadioSpec]) -> RadioId:
-    """Return the holder's radio id for the ports' `held_by`.
-
-    0 for the GPS receiver or an unknown holder.
-    """
-    return holder if holder is not None and any(s.id == holder for s in specs) else 0
-
-
-def holder_name(holder: RadioId | None, specs: Sequence[RadioSpec]) -> str:
-    """Return the holder's log name, or `GPS` for the receiver or an unknown holder."""
-    named = next((s for s in specs if s.id == holder), None)
-    return "GPS" if named is None else log_name(named, specs)
-
-
-def held_elsewhere(spec: RadioSpec, specs: Sequence[RadioSpec], claims: Claims) -> tuple[str, str, str, RadioId] | None:
-    """Return (field key, device kind, holder name, holder id) for the first device another holds.
-
-    Return None if there is none.
-    """
-    for key, kind, value in devices(spec):
-        holder = next(
-            (c for c in claims.all() if c.holder != spec.id and c.value == value and one_device(c.kind, kind)), None
-        )
-        if holder is not None:
-            return key, kind, holder_name(holder.holder, specs), holder_id(holder.holder, specs)
-    return None
-
-
-def _held_elsewhere(
-    spec: RadioSpec, specs: Sequence[RadioSpec], rtype: RadioType, claims: Claims
-) -> dict[str, Any] | None:
-    """Return a `radio.resource_held` problem for the first device held by another, else None."""
-    held = held_elsewhere(spec, specs, claims)
-    return None if held is None else _problem("radio.resource_held", resource=held[1], holder=held[2], held_by=held[3])
+def problem_row(health: RadioHealth) -> dict[str, Any] | None:
+    """Return the row's problem: the decision's code and parameters, or None."""
+    return None if health.code is None else _problem(health.code, **health.params)

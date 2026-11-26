@@ -4,6 +4,7 @@ KISS ON is ever sent and a board on USB without a port only waits.
 """
 
 import functools
+from types import SimpleNamespace
 import socket
 from collections.abc import Awaitable, Callable
 
@@ -18,7 +19,8 @@ from neoaprs.tnc2line import frame_of, text_of
 from neoaprs.tncprofile import LORA_NUDGE, LORA_SERIAL, LORA_TCP, Profile
 from neoaprs.claims import Claims
 from neoaprs.radiospec import RadioSpec
-from neoaprs.web.radioview import radio_problem
+from neoaprs.radiohealth import radio_health
+from neoaprs.web.radioview import problem_row
 from tests.support.env import until
 from tests.support.fakelora import HEADER, Board, BoardOnTcp, board_on_ble
 
@@ -178,9 +180,10 @@ async def test_the_igate_left_in_tnc2_text_is_received_and_sends_nothing_until_i
     assert not line.tnc.usable and line.tnc.why_unusable() == TEXT_LINES and line.tnc.problem == TEXT_LINES
     assert not line.tnc.send_frame(OURS) and board.transmitted == []
     spec = RadioSpec(3, "lora", LORA_TCP.key, "", True, 3)
-    assert radio_problem(spec, (spec,), line.tnc, Claims()) == {"code": "radio.text_lines", "params": {}}, (
-        "the radio's row says it in the page's words: set the board to KISS"
-    )
+    assert problem_row(radio_health(spec, (spec,), SimpleNamespace(line=line.tnc, driver_key="tnc"), Claims())) == {
+        "code": "radio.text_lines",
+        "params": {},
+    }, "the radio's row says it in the page's words: set the board to KISS"
     assert any(f"not sent: {TEXT_LINES}" in text for text in line.tnc.lines)
     assert board.writes == [LORA_NUDGE], "the nudge alone, once: the iGate in TNC2 reads it as no line"
     board.air(HEARD.replace(b"tracker", b"again"))
@@ -192,7 +195,7 @@ async def test_the_igate_left_in_tnc2_text_is_received_and_sends_nothing_until_i
     end.drop()
     await until(lambda: line.tnc.stats.opens == 2 and line.tnc.state is Source.State.CONNECTED and end.clients == 1)
     assert line.tnc.usable and line.tnc.problem == "", "a fresh open: the text of the last one holds nothing back"
-    assert radio_problem(spec, (spec,), line.tnc, Claims()) is None
+    assert problem_row(radio_health(spec, (spec,), SimpleNamespace(line=line.tnc, driver_key="tnc"), Claims())) is None
     board.air(HEARD)
     await until(lambda: len(line.heard) == 3 and line.tnc.usable)
     assert line.tnc.problem == "" and line.tnc.send_frame(OURS)

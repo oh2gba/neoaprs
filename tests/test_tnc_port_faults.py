@@ -71,6 +71,7 @@ def row_of(tnc: Tnc) -> tuple[str, object]:
         line=tnc,
         beacon=SimpleNamespace(last_sent=None, next_due=None, interval_min=0, problem=""),
         driver=SimpleNamespace(card=None),
+        driver_key="tnc",
     )
     row = radio_row(spec, [spec], at_work, Claims())
     return row["state"], row["problem"]
@@ -134,6 +135,27 @@ async def test_after_a_write_timed_out_the_radio_is_not_shown_connected_until_da
         await tnc.stop()
 
 
+async def test_a_line_lost_once_is_one_warning_and_it_names_the_radio(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    ser = StuckSer()
+    monkeypatch.setattr(serialport, "_build", lambda path, baud: ser)
+    tnc = Tnc("COM8", profile=KISS, backoff=Backoff([0.05]), check_sec=0)
+    tnc.radio_name = "LoRa 2 (radio 9)"
+    try:
+        await tnc.start()
+        with caplog.at_level(logging.INFO, "neoaprs"):
+            tnc.send_frame(frame())
+            await until(lambda: tnc.write_stuck is not None and tnc.state is Source.State.CONNECTED)
+        told = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+        assert not any(r.name == "neoaprs.serialport" and r.levelno >= logging.INFO for r in caplog.records)
+        assert told == [
+            "LoRa 2 (radio 9): COM8: a write timed out: the device did not take the data within 2 s; trying again in 0.05 s"
+        ], "the port's own lines are for debugging"
+    finally:
+        await tnc.stop()
+
+
 async def test_a_byte_that_comes_ends_the_write_problem_too(monkeypatch: pytest.MonkeyPatch) -> None:
     ser = StuckSer()
     monkeypatch.setattr(serialport, "_build", lambda path, baud: ser)
@@ -146,6 +168,25 @@ async def test_a_byte_that_comes_ends_the_write_problem_too(monkeypatch: pytest.
             ser.incoming = b"\xc0"
         await until(lambda: tnc.write_stuck is None)
         assert row_of(tnc) == ("connected", None)
+    finally:
+        await tnc.stop()
+
+
+async def test_a_quiet_radio_that_writes_nothing_after_the_reopen_is_shown_connected_after_a_probes_interval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ser = StuckSer()
+    monkeypatch.setattr(serialport, "_build", lambda path, baud: ser)
+    tnc = Tnc("COM8", profile=KISS, backoff=Backoff([0.05]), check_sec=0, probe_sec=0.5)
+    try:
+        await tnc.start()
+        tnc.send_frame(frame())
+        await until(lambda: tnc.write_stuck is not None and tnc.state is Source.State.CONNECTED)
+        opens = tnc.stats.opens
+        assert row_of(tnc)[0] == "waiting"
+        await until(lambda: tnc.write_stuck is None, 10.0)
+        assert row_of(tnc) == ("connected", None) and tnc.stats.opens == opens, "nothing was written, nothing lost"
+        assert any("open for 0.5 s and no write failed" in line for line in tnc.lines)
     finally:
         await tnc.stop()
 

@@ -129,8 +129,9 @@ async def test_our_own_beacon_coming_back_in_moves_only_the_time_we_were_last_he
     assert me is not None
     sent_at = me.last_heard
     e.now.advance(45)  # type: ignore[attr-defined]
-    # (the TNC echoes what it transmits, or a digipeater repeats it)
-    e.feed(wire)
+    sent = ax25.decode(next(iter(kiss.KissDecoder().feed(wire))).payload)
+    # (a digipeater repeats it)
+    e.feed(kiss.encode(ax25.encode(replace(sent, path=(ax25.Address("OH2RCH", 2, True), *sent.path[1:])))))
     await until(lambda: e.tnc.stats.packets == 1)
     assert me.last_heard == e.now() > sent_at
     assert (me.lat, me.lon, me.packets, me.last_path, me.track, me.last_comment) == (60.17, 24.94, 0, (), [], "mobile")

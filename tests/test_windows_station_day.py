@@ -286,9 +286,9 @@ async def test_a_day_of_a_windows_station_with_four_faults(
         line = e.ctl.radios.get(lora).line  # type: ignore[union-attr]
         await page.until(lambda: line.stats.opens >= 2 and row(page, lora).get("problem") == timeout, LONG)
         assert row(page, lora).get("state") == "waiting", "the bare reopen is not connected"
-        assert said(caplog, "serial port COM7 write timed out: the device did not take the data within 2 s") == [
-            "serial port COM7 write timed out: the device did not take the data within 2 s"
-        ]
+        told = said(caplog, "COM7: a write timed out: the device did not take the data within 2 s")
+        assert told and all(text.startswith(f"X1C5Plus (radio {lora}): COM7: ") for text in told), "with its name"
+        assert not said(caplog, "serial port COM7"), "the port's own line is for debugging"
         assert not said(caplog, "the line is gone") and not said(caplog, "SerialTimeoutException")
         stuck.takes = True
         await page.send({"cmd": "beacon_now"})

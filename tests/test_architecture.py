@@ -163,6 +163,7 @@ LAYERS: dict[str, list[str]] = {
         "btpaired",
         "tnc",
         "tncport",
+        "tnchealth",
         "callbackport",
         "dummyline",
         "dummyworlds",
@@ -259,7 +260,7 @@ LAYERS: dict[str, list[str]] = {
         "migrationsteps36",
     ],
     "services": [],
-    "app": ["controller", "app", "wiring", "radioregistry", "radioedits"],
+    "app": ["controller", "app", "wiring", "radioregistry", "radioedits", "radioflows", "radiohealth"],
     "delivery": ["__main__", "daemon"],
 }
 # The modules that are placed before they are written (the map's layers:
@@ -289,6 +290,10 @@ ADAPTER_SIBLINGS: set[tuple[str, str]] = {
     ("neoaprs.tnc", "neoaprs.serialholders"),
     ("neoaprs.tnc", "neoaprs.tncsearch"),
     ("neoaprs.tnc", "neoaprs.tncwatchdog"),
+    ("neoaprs.tnchealth", "neoaprs.tncport"),
+    ("neoaprs.tnchealth", "neoaprs.tncreader"),
+    ("neoaprs.tnchealth", "neoaprs.tnctextreader"),
+    ("neoaprs.tnc", "neoaprs.tnchealth"),
     ("neoaprs.tnc", "neoaprs.tncentry"),
     ("neoaprs.tnc", "neoaprs.tncreader"),
     ("neoaprs.tnc", "neoaprs.tnctextreader"),
@@ -815,20 +820,10 @@ RADIO_WORDS: dict[str, tuple[int, str, str]] = {
         "open",
         "the run's ports (--port radio 1's, --hf-port), which the start's log tells of",
     ),
-    "neoaprs/radioregistry.py": (
-        4,
-        "W3",
-        "the log's words of radios 1 and 2's lines, `tnc` and `hf radio` (id in (FM_ID, HF_ID))",
-    ),
     "neoaprs/radiospec.py": (
         5,
         "open",
         "the re-exports of FM_ID and HF_ID, and the kinds' English words by kind (KIND_WORDS, whose place is beside KINDS)",
-    ),
-    "neoaprs/services/answers.py": (
-        4,
-        "open",
-        "radios 1 and 2 named by their kind in an answer (radio.id in (FM_ID, HF_ID))",
     ),
     "neoaprs/services/beaconframe.py": (
         4,

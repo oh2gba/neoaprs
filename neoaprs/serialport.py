@@ -32,6 +32,8 @@ log = logging.getLogger("neoaprs.serialport")
 READ_TIMEOUT_SEC = 0.1
 WRITE_TIMEOUT_SEC = 2.0
 JOIN_SEC = 0.5
+# the longest an open waits for the close of the same port before it
+CLOSE_WAIT_SEC = 10.0
 MAX_CHUNK_BYTES = 4096
 MAX_QUEUED_WRITES = 256
 
@@ -92,7 +94,7 @@ def _lost_words(e: BaseException) -> str:
     """Return why a line that was open went away; pyserial's own prose goes to the log."""
     if isinstance(e, OSError) and (e.errno or e.strerror):
         return os_error_text(e)
-    log.info("the line was lost: %s: %s", type(e).__name__, e)
+    log.debug("the line was lost: %s: %s", type(e).__name__, e)
     return LOST
 
 
@@ -198,6 +200,10 @@ class _Handover:
             ser, self._ser = self._ser, None
         if ser is not None:
             _close_quietly(ser)
+
+
+# the thread that closes each port last closed, by path
+_closing: dict[str, threading.Thread] = {}
 
 
 def _close_quietly(ser: Any) -> None:
@@ -338,6 +344,8 @@ class SerialPort:
         line.start()
 
     def _open_blocking(self, hand: _Handover) -> Any:
+        if (closing := _closing.get(self.path)) is not None:
+            closing.join(CLOSE_WAIT_SEC)  # a device is opened again only once its last close is done
         try:
             nodevices.check_port(self.path)
             ser = _build(self.path, self.baud)
@@ -360,15 +368,20 @@ class SerialPort:
         if line is None:
             self._closed_while_opening = self._opening
             return
-        line.end()
-        self._close_line_of(line.ser)
+        self._off_the_loop(line.end, line.ser)
 
     def _close_line_of(self, ser: Any) -> None:
-        # a socket close sleeps, so do it off the loop
-        if self.is_socket:
-            threading.Thread(target=_close_quietly, args=(ser,), name=f"serial-close {self.path}", daemon=True).start()
-        else:
+        self._off_the_loop(lambda: None, ser)
+
+    def _off_the_loop(self, end: Callable[[], None], ser: Any) -> None:
+        # a socket close sleeps, and a USB adapter whose write timed out can block a close for seconds
+        def close() -> None:
+            end()
             _close_quietly(ser)
+
+        thread = threading.Thread(target=close, name=f"serial-close {self.path}", daemon=True)
+        _closing[self.path] = thread
+        thread.start()
 
     def let_go(self) -> None:
         """Close for a radio whose settings name the port (tncsearch.let_go)."""
@@ -404,6 +417,7 @@ class SerialPort:
 
     def _lost(self, reason: str) -> None:
         timed_out = getattr(reason, "code", "") == "radio.write_timeout"
-        log.warning("serial port %s %s: %s", self.path, "write timed out" if timed_out else "lost", reason)
+        # the owner's own line, with its name, is the warning
+        log.debug("%s %s: %s", self.path, "write timed out" if timed_out else "lost", reason)
         self.close()
         self.dropped.emit(reason)

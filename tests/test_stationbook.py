@@ -56,6 +56,9 @@ def packet(
     )  # type: ignore[arg-type]
 
 
+OURS = b"=6010.20N/02456.40E-NeoAPRS"
+
+
 def capture() -> list[Packet]:
     out = []
     for frame in KissDecoder().feed(fixture_bytes("kiss/thd7-2026-10-21.bin")):
@@ -329,8 +332,9 @@ def test_a_packet_from_our_own_call_heard_on_the_air_moves_only_the_time_we_were
     me = book.set_me("OH2GBA", 60.17, 24.94, "/", "-", "NeoAPRS")
     del heard.changed[:]
     later = T0 + timedelta(minutes=5)
-    # An echo of the TNC or a digipeater's copy, with another position
-    taken = book.take(packet(position(61.0, 25.0), source="OH2GBA", path=("OH2RCH-2*",), at=later))
+    assert book.take(replace(packet(position(), source="OH2GBA", direction="out"), info=OURS)) is None
+    # A digipeater's copy of what we sent, read with another position
+    taken = book.take(replace(packet(position(61.0, 25.0), source="oh2gba", path=("OH2RCH-2*",), at=later), info=OURS))
     assert taken is me and me.last_heard == later
     assert (me.lat, me.lon, me.symbol_table, me.symbol_code, me.last_comment, me.packets, me.last_path, me.track) == (
         60.17,
@@ -344,6 +348,18 @@ def test_a_packet_from_our_own_call_heard_on_the_air_moves_only_the_time_we_were
     )
     assert heard.changed == [("OH2GBA", 0)]
     assert book.take(packet(position(), source="OH2GBA", direction="out")) is None, "what we send is not heard"
+
+
+def test_our_call_in_a_frame_we_did_not_send_or_heard_direct_is_not_us_heard() -> None:
+    book = StationBook(lambda: T0)
+    me = book.set_me("OH2GBA", 60.17, 24.94, "/", "-", "NeoAPRS")
+    book.take(replace(packet(position(), source="OH2GBA", direction="out"), info=OURS))
+    later = T0 + timedelta(minutes=5)
+    other = replace(packet(position(61.0, 25.0), source="OH2GBA", path=("OH2RCH-2*", "WIDE2-1"), at=later), info=b"!x")
+    assert book.take(other) is None and me.last_heard == T0, "another device that uses our call, digipeated"
+    echo = replace(packet(position(), source="OH2GBA", path=("WIDE1-1", "WIDE2-1"), at=later), info=OURS)
+    assert book.take(echo) is None and me.last_heard == T0, "the TNC's echo, or a copy heard direct"
+    assert book.get("OH2GBA") is me and me.packets == 0
 
 
 def test_forget_removes_a_station_and_tells_but_not_ours() -> None:
@@ -604,6 +620,7 @@ def test_our_own_packet_gated_back_to_us_moves_only_our_last_heard() -> None:
     book = StationBook()
     me = book.set_me("OH2GBA", 60.0, 24.0)
     before = me.last_heard
+    book.take(packet(position(), source="OH2GBA", direction="out"))  # (its information field is the gated one's)
     book.take(gated(position(61.0, 25.0), inner="OH2GBA", at=T0 + timedelta(hours=1)))
     assert (
         (me.lat, me.lon, me.packets, me.last_heard) == (60.0, 24.0, 0, T0 + timedelta(hours=1))

@@ -947,49 +947,40 @@ async def test_with_no_radio_that_sends_a_command_that_names_none_is_refused_wit
     await e.stop()
 
 
-def test_a_radio_that_is_not_connected_says_why_by_a_code(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_radio_that_is_not_connected_says_why_by_a_code() -> None:
     from types import SimpleNamespace
     from neoaprs.claims import Claims
+    from neoaprs.radiohealth import claimed_value, radio_health
     from neoaprs.source import Source
-    from neoaprs.web import radioview
-    from neoaprs.web.radioview import radio_problem
+    from neoaprs.web.radioview import problem_row
 
     radio = RadioSpec(1, "fm", "kiss", "Mobile", True, 1, settings={"port": "/dev/ttyUSB0"})
 
-    def line(state: Source.State, searching: bool = False) -> Any:
+    def problem(spec: RadioSpec, state: Source.State, searching: bool = False, modem: Any = None) -> Any:
         # A line that takes frames when it is connected
-        return SimpleNamespace(
+        line = SimpleNamespace(
             state=state,
             searching=searching,
             silent_since=None,
-            modem=None,
+            modem_in_use=modem,
             why_unusable=lambda: "",
             write_stuck=None,
             problem="",
+            entering_kiss=False,
+            usable=state is Source.State.CONNECTED,
         )
+        return problem_row(radio_health(spec, (radio,), SimpleNamespace(line=line, driver_key="tnc"), claims))
 
     claims = Claims()
-    assert radio_problem(radio, (radio,), line(Source.State.CONNECTED), claims) is None
-    assert radio_problem(replace(radio, enabled=False), (radio,), line(Source.State.STOPPED), claims) is None
-    assert radio_problem(radio, (radio,), line(Source.State.WAITING), claims) == {
-        "code": "radio.not_connected",
-        "params": {"name": "Mobile"},
-    }
-    assert radio_problem(radio, (radio,), line(Source.State.WAITING, searching=True), claims) == {
-        "code": "radio.searching",
-        "params": {},
-    }
-    assert radio_problem(radio, (radio,), line(Source.State.SILENT), claims) == {
-        "code": "radio.silent",
-        "params": {"since": ""},
-    }
-    monkeypatch.setattr(radioview, "modem_state", lambda tnc: {"state": "waiting", "reason": "not_installed"})
-    assert radio_problem(radio, (radio,), line(Source.State.WAITING), claims) == {
-        "code": "modem.not_installed",
-        "params": {},
-    }
-    claims.hold(Claim("gps", radioview.claimed_value("gps", "/dev/ttyUSB0"), None))
-    assert radio_problem(radio, (radio,), line(Source.State.WAITING), claims) == {
+    assert problem(radio, Source.State.CONNECTED) is None
+    assert problem(replace(radio, enabled=False), Source.State.STOPPED) is None
+    assert problem(radio, Source.State.WAITING) == {"code": "radio.not_connected", "params": {"name": "Mobile"}}
+    assert problem(radio, Source.State.WAITING, searching=True) == {"code": "radio.searching", "params": {}}
+    assert problem(radio, Source.State.SILENT) == {"code": "radio.silent", "params": {"since": ""}}
+    not_installed = SimpleNamespace(state="waiting", reason="not_installed", test="")
+    assert problem(radio, Source.State.WAITING, modem=not_installed) == {"code": "modem.not_installed", "params": {}}
+    claims.hold(Claim("gps", claimed_value("gps", "/dev/ttyUSB0"), None))
+    assert problem(radio, Source.State.WAITING) == {
         "code": "radio.resource_held",
         "params": {"resource": "serial", "holder": "GPS", "held_by": 0},
     }, "the device first"

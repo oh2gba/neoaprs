@@ -226,6 +226,7 @@ async def test_the_row_of_a_tnc_being_put_into_kiss_says_it_is_connecting_until_
         line=r.tnc,
         beacon=SimpleNamespace(last_sent=None, next_due=None, interval_min=0, problem=""),
         driver=SimpleNamespace(card=None),
+        driver_key="tnc",
     )
     status = lambda: (lambda row: (row["state"], row["problem"]))(radio_row(spec, [spec], at_work, Claims()))  # noqa: E731
     assert not r.tnc.entering_kiss and status() == ("connected", None), "an open line that has said nothing yet"
