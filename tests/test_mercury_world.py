@@ -101,7 +101,7 @@ async def test_two_stations_that_key_at_the_same_moment_lose_both_frames_and_the
 async def test_our_frames_wait_while_a_frame_is_on_the_air_and_while_the_channel_is_busy_and_go_one_at_a_time(
     tmp_path: Path,
 ) -> None:
-    w = World(tmp_path, frame_sec=0.3)
+    w = World(tmp_path, frame_sec=1.0)
     a, b = await w.add("OH2A"), await w.add("OH2B", lat=61.5, lon=23.8)
     await w.start()
     # B is on the air: A's modem hears BUSY ON
