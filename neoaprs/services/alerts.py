@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 from neoaprs import nodevices
-from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND
+from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND, POWERSHELL_RUN, SCRIPT_VARIABLE
 from neoaprs.childenv import child_environment, windows_program
 from neoaprs.clock import Clock, iso, utcnow
 from neoaprs.coded import CodedError
@@ -218,9 +218,10 @@ class Alerts:
 
     def _run_powershell(self, command: str, env: dict[str, str], running: "_Running") -> "Outcome":
         # one line, since PowerShell runs what it reads line by line
-        script = (
-            POWERSHELL_PRELUDE + command.replace("\r", " ").replace("\n", " ") + POWERSHELL_POSTLUDE + "\n"
-        ).encode("utf-8")
+        env = env | {
+            SCRIPT_VARIABLE: POWERSHELL_PRELUDE + command.replace("\r", " ").replace("\n", " ") + POWERSHELL_POSTLUDE
+        }
+        script = POWERSHELL_RUN.encode("ascii")
         try:
             creation = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
             proc = subprocess.Popen(

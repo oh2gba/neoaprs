@@ -12,6 +12,7 @@ import pytest
 
 from neoaprs.childenv import windows_program
 from neoaprs.services import alerts as alerts_module
+from neoaprs.alertcommand import POWERSHELL_RUN, SCRIPT_VARIABLE
 from neoaprs.services.alerts import (
     POWERSHELL_ARGS,
     POWERSHELL_POSTLUDE,
@@ -115,7 +116,8 @@ async def test_the_windows_run_gives_powershell_the_line_on_standard_input_and_t
         "-",
     ]
     assert not {"-EncodedCommand", "-ExecutionPolicy", "Bypass"} & set(argv)
-    assert proc.inputs == [(POWERSHELL_PRELUDE + "Write-Host hi" + POWERSHELL_POSTLUDE + "\n").encode("utf-8")]
+    assert proc.inputs == [POWERSHELL_RUN.encode("ascii")]
+    assert kwargs["env"][SCRIPT_VARIABLE] == POWERSHELL_PRELUDE + "Write-Host hi" + POWERSHELL_POSTLUDE
     assert kwargs["env"]["NEOAPRS_FROM"] == "NEOAPRS" and kwargs["stdin"] == subprocess.PIPE
     assert proc.timeouts == [7.0] and proc.killed == 0 and fake.taskkills == [], "a run that ended is not killed"
 
