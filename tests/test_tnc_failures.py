@@ -184,6 +184,29 @@ async def test_a_stop_while_the_start_is_opening_the_line_leaves_no_port_open(po
     assert tnc.state is Source.State.STOPPED and not ports.port.is_open and tnc._port is None
 
 
+@pytest.mark.parametrize("error", [SerialError("boom"), RuntimeError("the driver is confused")])
+async def test_an_open_that_fails_after_a_stop_leaves_the_radio_stopped_with_no_retry(
+    ports: FakePorts, error: BaseException
+) -> None:
+    opening, release = asyncio.Event(), asyncio.Event()
+
+    async def failing() -> None:
+        opening.set()
+        await release.wait()
+        raise error
+
+    ports.open_gate = failing
+    tnc = Tnc(PATH, check_sec=0.0, backoff=Backoff([0.0]))
+    starting = asyncio.create_task(tnc.start())  # as a repoint does: not one of the Tnc's tasks
+    await until(opening.is_set)
+    await tnc.stop()
+    release.set()
+    await starting
+    assert tnc.state is Source.State.STOPPED and tnc.problem == ""
+    assert not tnc._tasks._tasks, "no retry was scheduled"
+    assert len(ports.opened) == 1
+
+
 async def test_the_scan_for_a_program_that_holds_the_port_is_not_made_on_the_loop(
     ports: FakePorts, monkeypatch: pytest.MonkeyPatch
 ) -> None:

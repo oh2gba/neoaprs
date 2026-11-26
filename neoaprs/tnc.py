@@ -194,12 +194,16 @@ class Tnc(TimedSource):
         try:
             found = await self._find_line(reopen, named, generation)
         except SerialError as e:
+            if generation != self._generation:
+                return  # stopped meanwhile: no retry
             self.write_stuck = None  # the open failed: that is the problem now
             self._probe_next = named and self.fallback_probe and self._search.possible and not isinstance(e, HeldError)
             said = e.args[0] if e.args and isinstance(e.args[0], Reason) else str(e)
             self._wait(said, again=not isinstance(e, NotChosenError))
             return
         except Exception:
+            if generation != self._generation:
+                return
             log.exception("%s: connecting failed", self.label)
             self._wait("the radio could not be opened; the log says why")
             return
