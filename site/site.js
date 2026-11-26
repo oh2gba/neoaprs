@@ -103,7 +103,7 @@
 
   // The sked board under the HF band: the stations that said when they will be on the air, from the file the board of NeoAPRS writes (skeds.json beside this page). The page's own table has one row that says no test is planned, and it stays when no sked to come was
   // read; else the rows are: the call, the time (now, for one that has begun) and the dial of each, never the note (free text from strangers does not go on this page). Every value is checked again here and written as text, never as HTML; skeds with the same times and dial are one row.
-  const board = document.getElementById("skeds");
+  const board = document.getElementById("sked-board");
   if (board && window.fetch) {
     fetch("skeds.json", { cache: "no-cache" })
       .then((r) => (r.ok ? r.json() : null))

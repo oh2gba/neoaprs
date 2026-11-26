@@ -10,6 +10,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import PacketLines from "@/components/PacketLines.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useElementWidth } from "@/composables/useElementWidth";
+import { onReopen } from "@/composables/useReopened";
 import { t } from "@/i18n";
 import { PACKETS_TABLE } from "@/lib/layout";
 import { readingText } from "@/lib/signal";
@@ -18,7 +19,7 @@ import { isTrafficOf, mergeTraffic, nextDeadline, queryState, trafficKey, type Q
 import type { PacketRow } from "@/protocol/protocol";
 
 const props = defineProps<{ call: string }>();
-const { send, packets, stationTrafficByCall, config } = useDaemonContext();
+const { send, packets, stationTrafficByCall, config, connection } = useDaemonContext();
 
 const root = ref<HTMLElement | null>(null);
 const width = useElementWidth(root);
@@ -35,6 +36,7 @@ watch(
   },
   { immediate: true },
 );
+onReopen(connection, () => send({ cmd: "station_traffic", call: props.call }));
 watch(
   () => [...packets.values()].filter((row) => isTrafficOf(row, props.call)),
   (rows) => {

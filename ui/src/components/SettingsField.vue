@@ -115,6 +115,7 @@ function onEscape(event: KeyboardEvent): void {
         type="checkbox"
         :checked="modelValue === 'true'"
         :disabled="disabled"
+        :aria-invalid="error !== ''"
         :aria-describedby="describedBy"
         @change="onInput"
       />
@@ -124,6 +125,7 @@ function onEscape(event: KeyboardEvent): void {
         class="input"
         :value="modelValue"
         :disabled="disabled"
+        :aria-invalid="error !== ''"
         :aria-describedby="describedBy"
         @change="onInput"
       >
