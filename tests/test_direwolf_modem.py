@@ -238,7 +238,8 @@ async def test_the_level_now_comes_ten_times_a_second_apart_from_the_row_and_nev
             assert not any("RXLEVEL" in line for line in m._program.last_lines)
         finally:
             await m.stop()
-    assert heard == [23, None] and m.level_now.value is None
+    await until(lambda: heard == [23, None])
+    assert m.level_now.value is None
     assert not [record for record in caplog.records if "RXLEVEL" in record.getMessage()]
 
 
