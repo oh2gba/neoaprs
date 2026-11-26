@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.23.4
+
 - **New:** 10 m among the suggested Mercury frequencies: 28.1800 MHz USB.
 - **New:** Send logs takes an e-mail address for a reply, if you give one.
 - **Fixed:** on Windows the computer's incoming Bluetooth port is no longer offered as a radio's port.
