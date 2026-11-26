@@ -173,6 +173,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
         self._init_channel()
         self._init_scoping()
         self.test = ""
+        self._off_owed = False
         self.ports: Callable[[], list[SerialPort]] = system_serial_ports
         self.sound_card = ""  # "": the system's default device
         self.keying = Keying("vox")
@@ -221,9 +222,8 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
 
     async def stop(self) -> None:
         self._generation += 1
-        if self.test:
+        if self.test or self._off_owed:
             self._write(TUNE_OFF)
-            self.test = ""
         await self._tasks.cancel_all()
         control, self._control = self._control, None
         if control is not None:
@@ -232,6 +232,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
         await asyncio.to_thread(self._audio.stop)
         await self._stop_ui()
         await asyncio.to_thread(self._program.stop)
+        self._forget_test()
         self._release_claims()
         self.attached = ""
         self.speaker = False
@@ -415,7 +416,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
             self._tasks.spawn(control.stop(), "mercury-control-stop")
         self.speaker_line.close()
         self._clear_channel()
-        self.test = ""
+        self._forget_test()
         self._set("waiting", problem, reason)
         self._relaunch_later()
 
@@ -445,6 +446,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
 
     def _control_state(self, up: bool, why: str) -> None:
         if up:
+            self._pay_off()
             if not self.attached and (
                 found := foreign_listeners(
                     (
@@ -460,8 +462,8 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
             self.backoff.connected()
             self._set("running", "")
         else:
+            # a test under way stays on: its TUNE OFF is written when the port is back
             self._clear_channel()
-            self.test = ""
             if self.state == "running":
                 log.info("Mercury's control port: %s", why)
                 self._set("starting", "")
@@ -482,7 +484,15 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemState):
             await control.stop()
         await asyncio.to_thread(self._program.stop)
         self._clear_channel()
+        self._forget_test()
         self._set("waiting", problem, reason)
+
+    def _end_run(self, problem: str) -> bool:
+        if not self._program.running:
+            return False
+        self._tasks.spawn(asyncio.to_thread(self._program.stop), "mercury-tune-stop")
+        self._gone(problem, "stopped")
+        return True
 
     def _write(self, line: str) -> bool:
         return self._control is not None and self._control.write(line)

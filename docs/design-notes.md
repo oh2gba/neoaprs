@@ -502,6 +502,9 @@ progress"), so following a gain change means ending the tone and beginning it ag
 silence in which the radio unkeys and keys again. The hold stays on throughout. Mercury unkeys by
 itself after a minute. The keying test sends almost no audio where keying is a line (RTS, DTR, CM108)
 and the tune tone where the radio keys on audio (VOX; a silent test would leave it in receive).
+TUNE has no length, so a TUNE OFF that cannot be written while the control port is down is owed: the
+test stays on the page with its Stop, and the owed TUNE OFF is the first line written when the port is
+back and at the radio's stop. Stop pressed while the port is down ends the program, which drops the keying.
 
 ## neoaprs/mercuryui.py
 
