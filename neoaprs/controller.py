@@ -23,7 +23,7 @@ from .db import Db
 from .dbfile import DEFAULT_BUSY_MS
 from .dbopen import open_connection
 from .packetlog import STATION_FLUSH_SEC
-from .radioregistry import is_dummy
+from .radioregistry import NEW, REMOVED, is_dummy
 from .radioflows import RadioFlows
 from .radiospec import FM_ID, HF_ID, KIND_WORDS, RadioId, RadioSpec, enabled
 from .sendonrule import Kept
@@ -227,7 +227,7 @@ class Controller(Services):
     def start_radio(self, id: RadioId) -> None:
         """(Re)start one radio and its modem in a task: finding a port can take 20 s per port."""
         if id in self.flows.held:
-            log.info("the %s radio is started once Find my radio lets go of it", self.radios.name_of(id))
+            log.info("%s is started once Find my radio lets go of it", self.radios.told_of(id))
             return
         self.flows.begin(id, "restart", lambda: self._restart(id), TASK_NAMES.get(id, f"radio-{id}"))
 
@@ -325,6 +325,7 @@ class Controller(Services):
 
     def _in_force(self, config: Config) -> None:
         """Put stored settings in force: restart the changed radios, tell the parts."""
+        names = {radio.id: radio.told for radio in self.radios.all()}
         restart = self.radios.sync(config)
         previous, self.config = self.config, config
         now_dummy = {spec.id for spec in enabled(config.radios) if is_dummy(spec)}
@@ -334,11 +335,7 @@ class Controller(Services):
             radio.beacon.settings_changed()
         self.igate.settings_changed()
         for id in restart:
-            log.info(
-                "the %s radio is restarted because its settings changed: %s",
-                self.radios.name_of(id),
-                self.radios.why[id],
-            )
+            self._tell_restart(names.get(id) or self.radios.told_of(id), self.radios.why[id])
             self.start_radio(id)
         for was in enabled(previous.radios):
             if is_dummy(was) and was.id not in now_dummy:
@@ -347,6 +344,14 @@ class Controller(Services):
         self.mapauto.settings_changed(previous)
         if self.web is not None:
             self.web.settings_changed(config)
+
+    @staticmethod
+    def _tell_restart(told: str, why: str) -> None:
+        """Log why the radio is started again: removed, new (its start says it) or its settings."""
+        if why == REMOVED:
+            log.info("%s is removed", told)
+        elif why != NEW:
+            log.info("%s is restarted because its settings changed: %s", told, why)
 
     # ---- the radios the operator adds, changes and removes
     async def add_radio(self, type: str, name: str = "", *, enabled: bool = True) -> RadioId | None:
@@ -391,7 +396,6 @@ class Controller(Services):
             spec = radioedits.removable(self.config, id)
             if not await self.store.remove_radio(id):
                 return False
-            log.info("the %s radio (radio %d) is removed", self.radios.name_of(id), id)
             self.forget_radio(id)
             self._in_force(radioedits.removed(self.config, spec, self.clock()))
             await self.prefbook.load()

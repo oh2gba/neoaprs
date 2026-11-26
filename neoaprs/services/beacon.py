@@ -334,7 +334,11 @@ class Beacon:
             # a connected radio that is unusable is settling after KISS ON: wait quietly
             if not self._skip_told and self._radio.state is not Source.State.CONNECTED:
                 self._skip_told = True
-                log.warning("the beacon is due and %s: it goes out when the radio is back", self._radio.why_unusable())
+                log.warning(
+                    "the beacon of %s is due and the radio takes no frame (%s): it goes out when the radio is back",
+                    f"the {self._radio.name} radio" if self._radio.name else "this radio",
+                    self._radio.why_unusable(),
+                )
             return
         if self._retry_at is not None and now < self._retry_at:
             return

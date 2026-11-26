@@ -550,7 +550,11 @@ async def test_a_beacon_due_while_the_tnc_is_not_connected_goes_out_when_it_is_b
         rig.tnc.state = Source.State.CONNECTED
         await until(lambda: len(rig.tnc.sent) == 2)
         told = [r for r in caplog.records if "it goes out when the radio is back" in r.getMessage()]
-        assert len(told) == 2 and all("the TNC is not connected" in r.getMessage() for r in told)
+        assert len(told) == 2 and all(
+            r.getMessage().startswith("the beacon of the FM radio is due and the radio takes no frame (")
+            and "not connected" in r.getMessage()
+            for r in told
+        ), "the line names its radio"
     finally:
         await rig.beacon.stop()
 

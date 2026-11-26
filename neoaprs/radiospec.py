@@ -123,6 +123,11 @@ def log_name(spec: RadioSpec, specs: Iterable[RadioSpec]) -> str:
     return KIND_WORDS[spec.kind] + (f" {number}" if number > 1 else "")
 
 
+def log_label(spec: RadioSpec, specs: Iterable[RadioSpec]) -> str:
+    """Return the radio's name with its id ("LoRa 2 (radio 9)"): the id never shifts, the number may."""
+    return f"{log_name(spec, specs)} (radio {spec.id})"
+
+
 def unheard_radio(specs: Iterable[RadioSpec]) -> RadioId | None:
     """Return the first radio that can send, for what no fact names; None if none can."""
     on = senders(specs)

@@ -129,12 +129,12 @@ async def test_a_save_that_changes_both_radios_restarts_each_once_and_the_log_na
     await w.until(lambda: a.tnc.usable and a.hf.usable and a.tnc._generation > fm_line and a.hf._generation > hf_line)
     said = [r.getMessage() for r in caplog.records if r.name == "neoaprs.controller"]
     assert [line for line in said if "is restarted because" in line] == [
-        "the FM radio is restarted because its settings changed: baud 9600 -> 19200",
-        "the Mercury radio is restarted because its settings changed: keying default -> cm108",
+        "the FM radio (radio 1) is restarted because its settings changed: baud 9600 -> 19200",
+        "the Mercury radio (radio 2) is restarted because its settings changed: keying default -> cm108",
     ]
     assert (
-        len([line for line in said if line.startswith("the FM radio is started: ")])
-        == len([line for line in said if line.startswith("the Mercury radio is started: ")])
+        len([line for line in said if line.startswith("the FM radio (radio 1) is started: ")])
+        == len([line for line in said if line.startswith("the Mercury radio (radio 2) is started: ")])
         == 1
     )
 
@@ -147,29 +147,39 @@ async def test_the_log_says_which_radio_is_restarted_and_what_changed_in_its_set
     caplog.set_level(logging.INFO, "neoaprs.controller")
     caplog.clear()
     assert await a.ctl.save_config(replace(a.ctl.config, mercury_sound_card="plughw:9,0"))
-    await w.until(lambda: any(r.getMessage().startswith("the Mercury radio is started") for r in caplog.records))
+    await w.until(
+        lambda: any(r.getMessage().startswith("the Mercury radio (radio 2) is started") for r in caplog.records)
+    )
     said = [r.getMessage() for r in caplog.records if r.name == "neoaprs.controller"]
-    [why] = [line for line in said if line.startswith("the Mercury radio is restarted because its settings changed")]
+    [why] = [
+        line
+        for line in said
+        if line.startswith("the Mercury radio (radio 2) is restarted because its settings changed")
+    ]
     assert why.endswith("sound card default -> plughw:9,0")
-    assert not any(line.startswith("the FM radio is restarted") for line in said), "the FM radio was not touched"
-    assert any(line.startswith("the Mercury radio is started: the Mercury modem") for line in said)
+    assert not any(line.startswith("the FM radio (radio 1) is restarted") for line in said), (
+        "the FM radio was not touched"
+    )
+    assert any(line.startswith("the Mercury radio (radio 2) is started: the Mercury modem") for line in said)
     caplog.clear()
     assert await a.ctl.save_config(replace(a.ctl.config, serial_baud=19200))
     await w.until(lambda: a.tnc.usable)
     [why] = [
         r.getMessage()
         for r in caplog.records
-        if r.getMessage().startswith("the FM radio is restarted because its settings changed")
+        if r.getMessage().startswith("the FM radio (radio 1) is restarted because its settings changed")
     ]
     assert "baud 9600 -> 19200" in why
     assert await a.ctl.save_config(replace(a.ctl.config, hf_enabled=False))
     # The line comes after the modem is stopped too, which on Windows takes longer than the radio's
     # STOPPED
-    await w.until(lambda: any(r.getMessage() == "the Mercury radio is off in the settings" for r in caplog.records))
+    await w.until(
+        lambda: any(r.getMessage() == "the Mercury radio (radio 2) is off in the settings" for r in caplog.records)
+    )
     assert a.hf.state is Source.State.STOPPED
     assert any(
         r.getMessage().startswith(
-            "the Mercury radio is restarted because its settings changed: switched on or off: on -> off"
+            "the Mercury radio (radio 2) is restarted because its settings changed: switched on or off: on -> off"
         )
         for r in caplog.records
     )
