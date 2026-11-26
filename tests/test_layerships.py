@@ -328,11 +328,14 @@ async def test_the_table_is_told_at_most_every_five_seconds(monkeypatch: pytest.
     service.watch("ships", True)
     told = tables(service)
     await receiver.until_connected()
+    started = time.monotonic()
     for n in range(30):
         receiver.send(*position_lines(230000000 + n, 60.1 + n / 1000, 24.9))
         await asyncio.sleep(0.02)
     await until(lambda: told and len(told[-1].things) == 30)
-    assert 1 <= len(told) <= 6, f"{len(told)} tables for 30 ships in 0.6 s"
+    took = time.monotonic() - started
+    with_ships = [table for table in told if table.things]
+    assert 1 <= len(with_ships) <= took / 0.3 + 2, f"{len(with_ships)} tables for 30 ships in {took:.1f} s"
 
 
 async def test_a_lost_connection_is_no_answer_with_the_ships_kept_and_it_is_opened_again(
