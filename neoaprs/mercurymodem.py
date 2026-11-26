@@ -6,6 +6,7 @@ stopped with the Tnc. While Mercury keys the radio or hears a signal no frame is
 
 import asyncio
 import logging
+import sys
 import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -79,6 +80,7 @@ STATES = ("stopped", "starting", "running", "waiting")
 # Why the state is `waiting`, as a code for the page.
 REASONS = ("", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card", "receive_stalled")
 TESTS = ("", "tune", "key")
+ENGINE_LOG = "mercury_engine.log"  # Mercury rotates it itself
 
 
 def system_serial_ports() -> list[SerialPort]:
@@ -343,6 +345,9 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
                 f"Mercury's configuration could not be written in the data folder: {os_error_text(e)}", "not_started"
             )
         argv = command(program, str(ini), self.sound_card, keying, self.broadcast_port, self.control_port, audio)
+        if sys.platform == "win32":
+            # without -L it logs into the install folder, which an install for all users cannot write
+            argv += ["-L", str(self.home / ENGINE_LOG)]
         self._program.device_lines.clear()
         self._program.keying = keying.text if keying.kind in ("rts", "dtr") else ""
         try:

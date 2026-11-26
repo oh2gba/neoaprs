@@ -444,6 +444,8 @@ Mercury listens on this computer only. A Mercury that something else runs is onl
 control port 200 above its KISS port; `serial/port` is never the sign of one. As the speaker of the
 Dummy radio the program keys nothing and plays through the system's player; the Tnc is not connected
 to it.
+On Windows Mercury writes a log file of its own beside its program unless `-L` names one, and an
+install for all users cannot write there, so it is given the radio's folder; Mercury rotates the file.
 
 ## neoaprs/mercuryscope.py
 

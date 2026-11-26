@@ -11,6 +11,7 @@ import signal
 import socket
 import subprocess
 import sys
+import types
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -1346,3 +1347,19 @@ def test_the_sound_cards_mercury_lists_are_read_as_utf_8_whatever_the_locale() -
         "  id: '{0.0.1.00000000}.{b97fd3c9}'\\n\".encode('utf-8'))"
     )
     assert [c.name for c in list_sound_cards([sys.executable, "-c", script])] == ["Micrófono (Logi C525 HD WebCam)"]
+
+
+async def test_on_windows_mercurys_own_log_goes_into_the_radios_folder_not_the_install_folder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An install for all users cannot write its own folder, where Mercury logs without -L."""
+    m = modem(tmp_path)
+    started: list[list[str]] = []
+    monkeypatch.setattr(mercurymodem, "sys", types.SimpleNamespace(platform="win32"))
+    monkeypatch.setattr(m._program, "start", lambda argv, cwd, pid_file=None: started.append(argv))
+    try:
+        await m.start(HF)
+        await until_started(lambda: started)
+        assert started[0][-2:] == ["-L", str(m.home / mercurymodem.ENGINE_LOG)]
+    finally:
+        await stopped(m)
