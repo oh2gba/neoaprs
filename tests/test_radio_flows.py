@@ -4,7 +4,10 @@ a restart, a repoint and a hold of one radio never run beside each other."""
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from pathlib import Path
+
+import pytest
 
 from neoaprs.radioflows import RadioFlows
 from neoaprs.radiospec import FM_ID
@@ -130,3 +133,29 @@ async def test_the_controller_ends_a_repoint_under_way_before_find_my_radio_hold
     line.start = start  # type: ignore[method-assign]
     ctl.release_radio(FM_ID)
     await until(lambda: line.usable, 15.0)
+
+
+@pytest.mark.expects_errors
+async def test_a_part_that_cannot_take_new_settings_leaves_the_others_told_and_the_save_true(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    e = Env(tmp_path)
+    await e.start()
+    ctl, told = e.ctl, []
+
+    def broken() -> None:
+        raise RuntimeError("an odd value")
+
+    def broken_sync(config: object) -> list[int]:
+        raise RuntimeError("the registry is confused")
+
+    ctl.igate.settings_changed = broken  # type: ignore[method-assign]
+    ctl.config_changed.connect(lambda config: told.append("config"))
+    ctl.mapauto.settings_changed = lambda previous: told.append("map")  # type: ignore[method-assign]
+    assert await ctl.save_config(replace(ctl.config, station_comment="changed"))
+    assert told == ["config", "map"] and ctl.config.station_comment == "changed"
+    assert "the settings are stored and in force, but the iGate could not take them" in caplog.text
+    ctl.radios.sync = broken_sync  # type: ignore[method-assign]
+    assert await ctl.save_config(replace(ctl.config, station_comment="again"))
+    assert ctl.config.station_comment == "again", "the settings in force are the stored ones"
+    assert "but the radios could not take them" in caplog.text

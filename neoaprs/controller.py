@@ -8,6 +8,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import replace
+from functools import partial
 from pathlib import Path
 
 from . import nodevices, pairsetting, radioedits, wiring
@@ -324,26 +325,38 @@ class Controller(Services):
         return True
 
     def _in_force(self, config: Config) -> None:
-        """Put stored settings in force: restart the changed radios, tell the parts."""
+        """Put stored settings in force: restart the changed radios, tell the parts.
+
+        A part that fails is logged with its name and the others are told all the same: the
+        settings are stored, so they are the ones in force.
+        """
         names = {radio.id: radio.told for radio in self.radios.all()}
-        restart = self.radios.sync(config)
+        restart: list[RadioId] = []
+        self._tell("the radios", lambda: restart.extend(self.radios.sync(config)))
         previous, self.config = self.config, config
         now_dummy = {spec.id for spec in enabled(config.radios) if is_dummy(spec)}
-        wiring.place_me(self)
-        self.gps.settings_changed()
+        self._tell("our station in the book", lambda: wiring.place_me(self))
+        self._tell("the GPS", self.gps.settings_changed)
         for radio in self.radios.all():
-            radio.beacon.settings_changed()
-        self.igate.settings_changed()
+            self._tell(f"the beacon of {radio.told}", radio.beacon.settings_changed)
+        self._tell("the iGate", self.igate.settings_changed)
         for id in restart:
             self._tell_restart(names.get(id) or self.radios.told_of(id), self.radios.why[id])
             self.start_radio(id)
         for was in enabled(previous.radios):
             if is_dummy(was) and was.id not in now_dummy:
-                self._leave_dummy(was)
+                self._tell("the made-up stations", partial(self._leave_dummy, was))
         self.config_changed.emit(config)
-        self.mapauto.settings_changed(previous)
-        if self.web is not None:
-            self.web.settings_changed(config)
+        self._tell("the automatic map", lambda: self.mapauto.settings_changed(previous))
+        if (web := self.web) is not None:
+            self._tell("the page", lambda: web.settings_changed(config))
+
+    @staticmethod
+    def _tell(part: str, fn: Callable[[], object]) -> None:
+        try:
+            fn()
+        except Exception:
+            log.exception("the settings are stored and in force, but %s could not take them", part)
 
     @staticmethod
     def _tell_restart(told: str, why: str) -> None:
