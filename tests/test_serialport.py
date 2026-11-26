@@ -596,11 +596,48 @@ async def test_a_line_that_takes_no_more_writes_refuses_them_and_a_stuck_write_i
             port.write(b"x")
     began = time.monotonic()
     port.close()
-    assert time.monotonic() - began < 60.0 and ser.cancelled and ser.closed.is_set(), (
-        "(the stuck write waits two minutes for its release: the close cuts it short)"
-    )
+    assert time.monotonic() - began < 0.5 and not port.is_open, "the close is not made on the loop"
+    await until(lambda: ser.closed.is_set(), 60.0)
+    assert ser.cancelled, "(the stuck write waits two minutes for its release: the close cuts it short)"
     await idle_for(0.1)
     assert lost == [], "a write cut short by our own close is not a lost line"
+
+
+class SlowCloseSer(SlowSer):
+    """A USB adapter whose close blocks until it is let go, as after a write timed out on Windows."""
+
+    def __init__(self) -> None:
+        super().__init__(0.0)
+        self.let_go = threading.Event()
+        self.opens = 0
+
+    def open(self) -> None:
+        self.opens += 1
+
+    def close(self) -> None:
+        self.let_go.wait(30.0)
+        self.closed.set()
+
+
+async def test_a_serial_port_is_closed_off_the_loop_and_opened_again_only_once_the_close_is_done(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ser = SlowCloseSer()
+    monkeypatch.setattr(serialport, "_build", lambda path, baud: ser)
+    port = SerialPort("COM9")
+    await port.open()
+    began = time.monotonic()
+    port.close()
+    assert time.monotonic() - began < 0.5 and not port.is_open, "the loop goes on while the device closes"
+    again = asyncio.create_task(port.open())
+    await idle_for(0.2)
+    assert ser.opens == 1 and not again.done(), "the device is not opened while its close is under way"
+    ser.let_go.set()
+    await again
+    assert ser.opens == 2 and ser.closed.is_set() and port.is_open
+    ser.closed.clear()
+    port.close()
+    await until(ser.closed.is_set)
 
 
 # ---- the list of ports
