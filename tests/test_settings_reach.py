@@ -189,6 +189,7 @@ OWN_OTHER = frozenset(
         "sound_card",
         "keying",
         "path",  # calls
+        "psk_dial",  # only a dial such as `28.1800 MHz USB` (configvalues.dial_or_empty)
     }
 )
 FREE_KINDS = ("text", "port", "path")  # the kinds of field whose value is free text

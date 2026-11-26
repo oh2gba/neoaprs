@@ -206,6 +206,7 @@ extend-include = [
     "scripts/mercury-measure",
     "scripts/mercury-sim",
     "scripts/migration-size",
+    "scripts/pskreporter-probe",
     "scripts/release",
     "scripts/runner-facts",
     "scripts/security-check",
