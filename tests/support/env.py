@@ -33,6 +33,7 @@ from neoaprs.source import Backoff, Source
 from neoaprs.station import Station
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import MERCURY
+from tests.support.webports import next_web_port
 from tests.support.clock import FixedClock
 from tests.support.files import fixture_bytes
 from tests.support.fakemercury import FakeMercury
@@ -331,7 +332,8 @@ class Env:
             _quiet(made)
 
     def _page(self, ctl: Controller, config: Config) -> WebServer:
-        self.server = WebServer(ctl, replace(config, web_port=0))  # a free port: the tests run side by side
+        # a port of this worker's own block: the tests run side by side
+        self.server = WebServer(ctl, replace(config, web_port=next_web_port()))
         return self.server
 
     # ---- the radio

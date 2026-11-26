@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import socket
+import sys
 import ssl
 from pathlib import Path
 
@@ -461,8 +462,10 @@ async def test_if_no_port_after_the_plain_one_is_free_the_plain_page_goes_on_and
         # One that cannot be taken here is skipped: another test may free it meanwhile
         for port in range(e.port + 1, e.port + 1 + PORT_TRIES):
             blocker = socket.socket()
-            # As Tornado binds: a port that only has connections on it is free
-            blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # As Tornado binds: a port that only has connections on it is free. Not on Windows, where
+            # the option would share the port with a listener on it
+            if sys.platform != "win32":
+                blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 blocker.bind(("", port))
                 blocker.listen()
