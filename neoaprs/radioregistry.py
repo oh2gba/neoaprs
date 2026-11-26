@@ -413,12 +413,16 @@ class RadioRegistry(StationChoices, Generic[B]):
             radio.driver, radio.driver_key = self._make_driver(radio.spec), driver_key(radio.spec)
             self.wire(radio)
 
-    async def repoint(self, id: RadioId) -> None:
-        """Restart only the line, after its modem restarted on other ports."""
+    async def repoint(self, id: RadioId, *, unless_connected: bool = False) -> None:
+        """Restart only the line, after its modem restarted on other ports; an unticked radio's stays."""
         radio = self._radios.get(id)
-        if radio is None:
+        if radio is None or not radio.spec.enabled:
+            return
+        if unless_connected and radio.line.state is Source.State.CONNECTED:
             return
         await radio.line.stop()
+        if self._radios.get(id) is not radio or not radio.spec.enabled:
+            return
         radio.driver.configure(radio.spec, self._config(), self._run())
         await radio.line.start()
 

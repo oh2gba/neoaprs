@@ -258,7 +258,7 @@ LAYERS: dict[str, list[str]] = {
         "migrationsteps36",
     ],
     "services": [],
-    "app": ["controller", "app", "wiring", "radioregistry", "radioedits"],
+    "app": ["controller", "app", "wiring", "radioregistry", "radioedits", "radioflows"],
     "delivery": ["__main__", "daemon"],
 }
 # The modules that are placed before they are written (the map's layers:

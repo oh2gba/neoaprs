@@ -24,10 +24,11 @@ from .dbfile import DEFAULT_BUSY_MS
 from .dbopen import open_connection
 from .packetlog import STATION_FLUSH_SEC
 from .radioregistry import is_dummy
+from .radioflows import RadioFlows
 from .radiospec import FM_ID, HF_ID, KIND_WORDS, RadioId, RadioSpec, enabled
 from .sendonrule import Kept
 from .store import DB_NAME, Store
-from .tasks import cancel_all, every
+from .tasks import every
 from .tnc import Tnc
 from .versions import PLAIN_INSTALL, InstallInfo
 
@@ -80,8 +81,7 @@ class Controller(Services):
         self._web_factory = web
         self.check_sec = check_sec
         self.busy_ms = busy_ms
-        self._starts: dict[RadioId, asyncio.Task[None]] = {}
-        self._held: set[RadioId] = set()  # radios Find my radio holds: none is started meanwhile
+        self.flows = RadioFlows(self.tasks.spawn)
         self._implied: set[str] = set()  # settings implied by an older row, stored at the first save
         wiring.wire(self)
 
@@ -226,15 +226,15 @@ class Controller(Services):
 
     def start_radio(self, id: RadioId) -> None:
         """(Re)start one radio and its modem in a task: finding a port can take 20 s per port."""
-        if id in self._held:
+        if id in self.flows.held:
             log.info("the %s radio is started once Find my radio lets go of it", self.radios.name_of(id))
             return
-        self._starts[id] = self.tasks.spawn(self._restart(id, self._starts.get(id)), TASK_NAMES.get(id, f"radio-{id}"))
+        self.flows.begin(id, "restart", lambda: self._restart(id), TASK_NAMES.get(id, f"radio-{id}"))
 
-    async def _restart(self, id: RadioId, previous: "asyncio.Task[None] | None") -> None:
-        if previous is not None:
-            await cancel_all([previous])
+    async def _restart(self, id: RadioId) -> None:
         await self.radios.restart(id)
+        if self.flows.take_owed(id):
+            await self.radios.repoint(id, unless_connected=True)
         if self.running:
             await self.radios.beacons_as_set()
 
@@ -267,28 +267,29 @@ class Controller(Services):
     def repoint(self, radio: RadioId) -> None:
         """Point the radio's line at the ports its modem was restarted on, in a task."""
         found = self.radios.get(radio)
-        if self.running and found is not None and found.spec.enabled:
-            self.tasks.spawn(self.radios.repoint(radio), "hf-tnc" if radio == HF_ID else f"repoint-{radio}")
+        if not self.running or found is None or not found.spec.enabled or radio in self.flows.held:
+            return
+        if not self.flows.owe_repoint(radio):
+            name = "hf-tnc" if radio == HF_ID else f"repoint-{radio}"
+            self.flows.begin(radio, "repoint", lambda: self.radios.repoint(radio), name)
 
     async def hold_radio(self, id: RadioId) -> None:
         """Stop one radio so a search can open the ports; it stays stopped until `release_radio`."""
-        self._held.add(id)
-        start = self._starts.pop(id, None)
-        if start is not None:
-            await cancel_all([start])
+        await self.flows.hold(id, lambda: self._stop_one(id), f"hold-{id}")
+
+    async def _stop_one(self, id: RadioId) -> None:
         radio = self.radios.get(id)
         if radio is not None:
             await radio.driver.stop()
 
     def release_radio(self, id: RadioId) -> None:
         """Restart the radio, if the daemon runs, with the settings as they are now."""
-        self._held.discard(id)
+        self.flows.release(id)
         if self.running:
             self.start_radio(id)
 
     async def _stop_radios(self) -> None:
-        tasks, self._starts = list(self._starts.values()), {}
-        await cancel_all(tasks)
+        await self.flows.end_all()
         await self.radios.stop_all()
 
     # ---- the settings
