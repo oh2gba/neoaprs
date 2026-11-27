@@ -2159,6 +2159,19 @@ A dial the project suggests for the HF radio.
 | `band` | string |  | the band, `40 m` |
 | `dial` | string |  | the dial with its mode, `7.0541 MHz USB` |
 
+### SkedPast
+
+A test that has ended, as the board had it: one row for each call that was on it. Checked again by the daemon as a row of the board is; it can no longer be joined or deleted.
+
+| field | type | | description |
+|---|---|---|---|
+| `id` | string |  | the sked's id, 12 lowercase hex characters |
+| `call` | string |  | the call that was on the air, upper case without an SSID of 0 |
+| `from` | time |  | when it began (the field is called `from` on the wire) |
+| `to` | time |  | when it ended, after `from` by 24 hours at most: the planned end, or when its poster deleted it while it ran |
+| `dial` | string |  | the dial with its mode, `7.0541 MHz USB` |
+| `note` | string |  | the short note, may be empty; the page shows it as text (max 80 chars) |
+
 ### SkedRow
 
 A sked on the board: a call on the air at a dial from one instant to another. Every row was checked again by the daemon; the note is one line of at most 80 characters of letters, digits, punctuation and plain spaces.
@@ -2183,6 +2196,7 @@ The sked board: where it stands, the dials the project suggests, and the skeds t
 | `fetched_at` | time \| null |  | when the board was last read from the server (or when the one kept from the last run was); null before the first |
 | `frequencies` | SkedFrequency[] |  | the dials the project suggests for a Mercury radio, one to five, the same as `modem.frequencies` of a Mercury radio's row (the tab does not depend on a radio's state) (max 5 items) |
 | `rows` | SkedRow[] |  | the skeds to come by the daemon's clock, the nearest start first; empty when there are none (max 100 items) |
+| `past` | SkedPast[] | optional | the tests that have ended in the last 30 days: those the server lists (`skeds-past.json` beside the board) and the board's own that have ended by the daemon's clock since. Rows with the same `from`, `to` and `dial` are one test; the 20 newest tests by their end come first, then by their start and dial, each test's rows by id. Kept in memory only, so empty after a start until the board is read; empty when the check is off (max 100 items) |
 
 ### SoundCardRow
 

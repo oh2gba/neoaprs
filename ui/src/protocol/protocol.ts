@@ -1712,6 +1712,22 @@ export interface SkedFrequency {
   dial: string;
 }
 
+/** A test that has ended, as the board had it: one row for each call that was on it. Checked again by the daemon as a row of the board is; it can no longer be joined or deleted. */
+export interface SkedPast {
+  /** the sked's id, 12 lowercase hex characters */
+  id: string;
+  /** the call that was on the air, upper case without an SSID of 0 */
+  call: string;
+  /** when it began (the field is called `from` on the wire) */
+  from: string;
+  /** when it ended, after `from` by 24 hours at most: the planned end, or when its poster deleted it while it ran */
+  to: string;
+  /** the dial with its mode, `7.0541 MHz USB` */
+  dial: string;
+  /** the short note, may be empty; the page shows it as text */
+  note: string;
+}
+
 /** Posts a sked of ours on the board of the project's server: our call (the setting `station/call`), `from` and `to` in UTC (`to` after `from` by 24 hours at most, not past, `from` not more than 30 days ahead), a `dial` in the form of the HF box and a `note` of at most 80 characters (control and invisible characters are made spaces). It goes only on this command, and carries the call, the two times, the dial, the note and this installation's secret token. Answered by the topic `skeds`, whose rows then have it with `ours` true. An `error` when no call is set (the interlock's reason; RX only does not matter, nothing is sent by radio), the sked has ended (`sked.past`) or begins more than 30 days ahead by the daemon's or the server's clock (`sked.far`), too many were posted from here lately (`sked.rate`), the board has no room (`sked.full`), or the project's server could not be reached or would not take it (`sked.unreachable`). A board that is closed to the call is no error: the state of the topic says `closed`. */
 export interface SkedPostCommand {
   cmd: "sked_post";
@@ -1752,6 +1768,8 @@ export interface SkedsState {
   frequencies: SkedFrequency[];
   /** the skeds to come by the daemon's clock, the nearest start first; empty when there are none */
   rows: SkedRow[];
+  /** the tests that have ended in the last 30 days: those the server lists (`skeds-past.json` beside the board) and the board's own that have ended by the daemon's clock since. Rows with the same `from`, `to` and `dial` are one test; the 20 newest tests by their end come first, then by their start and dial, each test's rows by id. Kept in memory only, so empty after a start until the board is read; empty when the check is off */
+  past?: SkedPast[];
 }
 
 /** The page shows the HF tests tab (and while it stays visible): the daemon reads the board now, unless it read it less than 15 minutes ago or the update check is off (`NEOAPRS_UPDATE_CHECK=0`). Nothing is answered; the topic `skeds` tells what came. */

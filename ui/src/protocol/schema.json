@@ -6789,6 +6789,51 @@
       "title": "SkedFrequency",
       "type": "object"
     },
+    "SkedPast": {
+      "additionalProperties": false,
+      "description": "A test that has ended, as the board had it: one row for each call that was on it. Checked again by the daemon as a row of the board is; it can no longer be joined or deleted.",
+      "properties": {
+        "id": {
+          "description": "the sked's id, 12 lowercase hex characters",
+          "pattern": "^[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "call": {
+          "description": "the call that was on the air, upper case without an SSID of 0",
+          "type": "string"
+        },
+        "from": {
+          "description": "when it began (the field is called `from` on the wire)",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "to": {
+          "description": "when it ended, after `from` by 24 hours at most: the planned end, or when its poster deleted it while it ran",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "dial": {
+          "description": "the dial with its mode, `7.0541 MHz USB`",
+          "pattern": "^\\d{1,2}\\.\\d{3,4} MHz (USB|LSB)$",
+          "type": "string"
+        },
+        "note": {
+          "description": "the short note, may be empty; the page shows it as text",
+          "maxLength": 80,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "call",
+        "from",
+        "to",
+        "dial",
+        "note"
+      ],
+      "title": "SkedPast",
+      "type": "object"
+    },
     "SkedPost": {
       "additionalProperties": false,
       "description": "Posts a sked of ours on the board of the project's server: our call (the setting `station/call`), `from` and `to` in UTC (`to` after `from` by 24 hours at most, not past, `from` not more than 30 days ahead), a `dial` in the form of the HF\nbox and a `note` of at most 80 characters (control and invisible characters are made spaces). It goes only on this command, and carries the call, the two times, the dial, the note and this installation's secret token. Answered by the topic `skeds`, whose\nrows then have it with `ours` true. An `error` when no call is set (the interlock's reason; RX only does not matter, nothing is sent by radio), the sked has ended (`sked.past`) or begins more than 30 days ahead by the daemon's or the server's clock (`sked.far`), too many were posted from here lately (`sked.rate`), the board has no\nroom (`sked.full`), or the project's server could not be reached or would not take it (`sked.unreachable`). A board that is closed to the call is no error: the state of the topic says `closed`.",
@@ -6916,6 +6961,14 @@
           "description": "the skeds to come by the daemon's clock, the nearest start first; empty when there are none",
           "items": {
             "$ref": "#/$defs/SkedRow"
+          },
+          "maxItems": 100,
+          "type": "array"
+        },
+        "past": {
+          "description": "the tests that have ended in the last 30 days: those the server lists (`skeds-past.json` beside the board) and the board's own that have ended by the daemon's clock since. Rows with the same `from`, `to` and `dial` are one test; the 20 newest tests by their end come first, then by their start and dial, each test's rows by id. Kept in memory only, so empty after a start until the board is read; empty when the check is off",
+          "items": {
+            "$ref": "#/$defs/SkedPast"
           },
           "maxItems": 100,
           "type": "array"
