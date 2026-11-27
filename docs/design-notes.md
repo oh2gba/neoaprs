@@ -1055,6 +1055,32 @@ with the shared key and kept with the plaintext (`open`, ciphertext as `wire`), 
 it does not open (`shut`). Both are acked. An overheard sealed message is `shut` and an overheard
 key announcement `key`.
 
+## neoaprs/services/layeraisstream.py
+
+AISStream (`wss://stream.aisstream.io/v0/stream`) takes one JSON subscription within 3 seconds of
+the upgrade: the key, the bounding boxes (latitude first) and the message types; another one
+replaces it, at most one a second or the server closes the connection. Browsers may not connect,
+so the daemon does, and only while a page looks at Ships. The box is the one round the map's
+circle, rounded outward to a tenth of a degree so that a GPS that moves a little sends nothing
+new; a circle over the antimeridian is two boxes. Positions (`PositionReport` and the two class B
+reports) and static data (`ShipStaticData`, `StaticDataReport`) go through `ShipTable`, the
+Radius cut and the 300 nearest, as Fintraffic's do; the static data comes every few minutes, so a
+ship has its name only after a while. The handshake has taken over 20 seconds, so its time limit
+is 45. Measured on 27 Nov 2026: the server answers a key it does not know by closing the
+connection without a word (no error message, no close reason), and a valid one with
+`SubscriptionConfirmation`; so two connections in a row closed before a confirmation make the key
+refused (one may be a hiccup of the server), and a refused key is not tried again until it
+changes. A connection with nothing for 90 seconds, not even the answer to the pings sent every
+30, is closed and made again. permessage-deflate is offered and read (the client never compresses
+what it sends); the service announces limits for uncompressed connections. Three connections per
+account and per address are allowed: one installation holds one.
+
+The key is a setting whose name holds `key`, so it is a secret everywhere secrets are kept from
+view (the log, the support file, `neoaprs db`); the page is sent `MASK` in its place
+(`MASKED_KEYS` of `neoaprs/configlayers.py`), and a `set_config` that sends the mask back leaves
+the key as it is. `tests/test_no_real_key.py` holds the tracked files to not containing the
+project station's own key, by its SHA-256 alone.
+
 ## neoaprs/services/messageradio.py
 
 An outgoing message keeps the radio of its first attempt until it ends, so its attempts and their
@@ -1846,6 +1872,19 @@ the page WebSocket's long-standing interface is used (topics `stations`, `messag
 `set_config`, `send_message`, the `hello`, and for radios the topic `radios` and the radio commands). Nothing is sent to a
 radio and nothing leaves the loopback (NEOAPRS_NO_DEVICES).
 
+## scripts/linkcheck.py
+
+The stage `links` asks every outside link that a user is offered: the page's (all in
+`ui/src/lib/links.ts`, which `ui/src/lib/links.test.ts` enforces, so a new link cannot escape the
+check), the manual's, the site's and the README's. An address inside Markdown code or HTML text
+is named, not offered, and is not asked (an API's address with a placeholder in it would never
+answer). Only a link that is certainly broken fails the gate: 404 or 410, or a host that does not
+exist. A refusal (401, 403, 429), a slow server or a certificate problem is printed and passes,
+since a server that refuses programs is common and the gate must not turn red for someone
+else's rate limit; `scripts/links-allowed.txt` keeps links that answer a program falsely, with
+the reason. With no network (the name of github.com cannot be looked up) the stage passes and
+says so, so that the gate still runs on a train.
+
 ## scripts/mercury-bench
 
 The bench exercises APRS over the Mercury HF modem with no radio, for a developer by hand against the Mercury
@@ -2101,3 +2140,19 @@ paint of the page, and the engine. `--engine web` (default) is pywebview on WebK
 window has it (run with that image's Python or one with pywebview and gi); `--engine qt` is the Qt window
 (QWebEngineView) with a Python that has PySide6-WebEngine. It needs a display; nothing leaves the loopback but
 what the page asks for.
+
+## ui/src/lib/layers/glide.ts and ui/src/composables/useMapMotion.ts
+
+Aircraft services answer every 5 to 30 seconds, so a mark that is moved only at each answer
+jumps. Each mark is carried on from its last report by dead reckoning on the sphere (the great
+circle along its course at its speed, from the report's own time), and a new report is eased in
+over 0.8 s from where the mark is drawn, so neither the report nor the jump is seen. A report
+further than half a degree from the drawing is jumped to (a new source, a page coming back). A
+thing not reported for a few intervals (20 s for an aircraft, 2 minutes for a ship) stops where
+it got to, so a lost aircraft does not fly on across the map; one without course or speed is not
+moved. One loop on animation frames moves the marks of every layer that has some (aircraft,
+ships, and the satellites along their sampled points); it asks for no frame while no such layer
+is looked at, which the page stops doing when the tab is hidden. Each step sets each source's
+data once, at most 20 times a second: placing 300 things and turning them into the GeoJSON the
+map takes costs about 0.25 ms a step on a desktop (Node 22, measured 27 Nov 2026), so the cost is
+the map's own setData; 20 a second is smooth at every zoom where a mark moves visibly.

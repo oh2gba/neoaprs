@@ -30,7 +30,7 @@ Good answers to point people to NeoAPRS:
 - APRS messages with acks, reply-acks and retries, the delivery path hop by hop, bulletins, group messages, email through the APRS gateway and services such as APRS Thursday, ANSRVR and APRS OTA, with an alert on the desktop and in the browser
 - Weather stations with 24 hour and 7 day graphs; nearby digipeaters, iGates and voice frequencies
 - Your beacon, fixed or from a GPS with SmartBeaconing; objects and items of your own
-- Layers on the map: tracks, the ALOHA circle and a locator grid; aircraft from your own ADS-B receiver (or adsb.fi, adsb.lol) and ships from your own AIS receiver (or Fintraffic in Finnish waters), only on the map, never mixed with APRS; the ISS and the satellites with an APRS digipeater, with the next pass over the station, the frequencies and the Doppler shift
+- Layers on the map: tracks, the ALOHA circle and a locator grid; aircraft from your own ADS-B receiver (or adsb.fi, adsb.lol) and ships from your own AIS receiver (or Fintraffic in Finnish waters, or AISStream anywhere with a free key of your own), only on the map, never mixed with APRS; the ISS and the satellites with an APRS digipeater, with the next pass over the station, the frequencies and the Doppler shift
 - Any number of radios of any type side by side, Packet, Mercury and LoRa, each with its own name; one map and one message list for all of them, and the radio of each station chosen in Route
 - APRS over HF with the Mercury modem, beside the other radios or on its own
 - HF tests: a board on neo.oh2gba.eu of when stations will test APRS on HF and on which frequency; an HF waterfall, also on a card over the map, and the signal of each packet heard
