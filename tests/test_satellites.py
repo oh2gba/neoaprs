@@ -185,6 +185,25 @@ def test_a_bad_row_is_left_out_alone_and_a_body_that_is_no_such_file_is_none() -
     assert odd is not None and odd.satellites[0].mode is None and odd.satellites[0].path == ""
 
 
+@pytest.mark.parametrize(
+    "satellites",
+    [
+        [{"id": 25544, "name": "ISS", "downlink": ["x"]}],
+        [{"id": 25544, "name": "ISS", "downlink": [1, None, [2]]}],
+        [{"id": 25544, "name": "ISS", "mode": ["afsk1200"], "path": 7, "elements": {"EPOCH": []}}],
+        [3, None, "ISS", []],
+        [{"id": 25544, "name": "ISS", "uplink": {"mhz": 145.99}}],
+    ],
+)
+def test_a_malformed_entry_never_raises_and_costs_only_its_own_value(satellites: list[Any]) -> None:
+    read = read_file(json.dumps({"v": 1, "satellites": satellites}).encode())
+    assert read is not None and all(one.downlinks_hz == () for one in read.satellites)
+
+
+def test_a_file_nested_too_deep_for_the_reader_is_none() -> None:
+    assert read_file(b"[" * 100000 + b"]" * 100000) is None
+
+
 def test_a_satellite_whose_elements_are_older_than_fourteen_days_is_not_shown() -> None:
     read = read_file(json.dumps(served()).encode())
     assert read is not None

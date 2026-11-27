@@ -4,6 +4,7 @@ A value the list does not mark sure is dropped here, so nothing unconfirmed reac
 satellite whose elements are older than MAX_ELEMENTS_AGE is not shown."""
 
 import json
+import logging
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -11,6 +12,8 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 from .satellites import Orbit, orbit_of
+
+log = logging.getLogger("neoaprs.satellites")
 
 SATELLITES_URL = "https://neo.oh2gba.eu/api/v1/satellites.php"
 FILE_NAME = "satellites.json"
@@ -53,7 +56,9 @@ def _time(value: object) -> datetime | None:
 def _sure_hz(value: object) -> tuple[int, ...]:
     found: list[int] = []
     for one in value if isinstance(value, list) else []:
-        mhz = one.get("mhz") if isinstance(one, dict) else None
+        if not isinstance(one, dict):
+            continue
+        mhz = one.get("mhz")
         if one.get("sure") is True and isinstance(mhz, int | float) and 1 < mhz < 12000:
             hz = round(mhz * 1e6)
             if hz not in found:
@@ -88,10 +93,23 @@ def _satellite(row: Mapping[str, object]) -> Satellite | None:
 
 
 def read_file(body: bytes) -> SatelliteFile | None:
-    """Return the file's satellites (a bad row is left out alone); None if the body is not such a file."""
+    """Return the file's satellites (a bad row is left out alone); None if the body is not such a file. Never raises."""
+    try:
+        return _read_file(body)
+    except Exception as e:  # a file of the network or the data folder: anything in it costs the file, never the layer
+        log.info("the satellites file is not one that can be read: %r", e)
+        return None
+
+
+def usable(file: SatelliteFile, now: datetime) -> int:
+    """Return how many of the file's satellites can be drawn now."""
+    return sum(1 for one in file.satellites if shown(one, now) is not None)
+
+
+def _read_file(body: bytes) -> SatelliteFile | None:
     try:
         data = json.loads(body)
-    except (ValueError, UnicodeDecodeError):
+    except (ValueError, UnicodeDecodeError, RecursionError):
         return None
     if not isinstance(data, dict) or data.get("v") != 1 or not isinstance(data.get("satellites"), list):
         return None
