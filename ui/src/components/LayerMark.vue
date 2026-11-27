@@ -3,11 +3,16 @@
 // the Layers box is the map's legend; an aircraft's kind in its card's head. The row's name
 // serves screen readers.
 import { computed } from "vue";
-import { MARKS, MARK_SIZE, markBox, type MarkName } from "@/lib/layers/marks";
+import { MARKS, MARK_SIZE, edgeWidth, markBox, type MarkName } from "@/lib/layers/marks";
 
 const props = defineProps<{ name: MarkName }>();
 const mark = computed(() => MARKS[props.name]);
 const ink = computed(() => `var(${mark.value.token})`);
+const stroke = computed(() => {
+  const { fill, edge } = mark.value;
+  if (edge) return { stroke: `var(${edge})`, width: edgeWidth(mark.value) };
+  return fill ? { stroke: "none", width: undefined } : { stroke: ink.value, width: 1.5 };
+});
 </script>
 
 <template>
@@ -22,8 +27,9 @@ const ink = computed(() => `var(${mark.value.token})`);
     <path
       :d="mark.d"
       :fill="mark.fill ? ink : 'none'"
-      :stroke="mark.fill ? 'none' : ink"
-      :stroke-width="mark.fill ? undefined : 1.5"
+      :stroke="stroke.stroke"
+      :stroke-width="stroke.width"
+      paint-order="stroke"
       :stroke-dasharray="mark.dash"
       stroke-linecap="round"
       stroke-linejoin="round"

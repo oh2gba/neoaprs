@@ -17,6 +17,8 @@ export interface Mark {
   readonly dash?: string;
   /** The colour token it is drawn in (styles/tokens.css). */
   readonly token: string;
+  /** The token of a dark outline round a filled mark (an aircraft's). */
+  readonly edge?: string;
   /** The box the path is drawn on, where it is not the 16 square. */
   readonly viewBox?: string;
 }
@@ -59,14 +61,20 @@ export const MARKS: Readonly<Record<MarkName, Mark>> = {
   ...aircraftMarks(),
 };
 
-/** The aircraft's shapes as marks, filled in the layers' colour. */
+/** The aircraft's shapes as marks, filled in the aircraft's colour with its dark outline. */
 function aircraftMarks(): Record<AircraftShape, Mark> {
   const entries = Object.entries(AIRCRAFT_SHAPES).map(([name, shape]) => [
     name,
-    { d: shape.d, viewBox: shape.viewBox, fill: true, token: "--map-layer" },
+    { d: shape.d, viewBox: shape.viewBox, fill: true, token: "--map-aircraft", edge: "--map-aircraft-edge" },
   ]);
   return Object.fromEntries(entries) as Record<AircraftShape, Mark>;
 }
 
 /** The box a mark's path is drawn on, as `viewBox`. */
 export const markBox = (mark: Mark): string => mark.viewBox ?? `0 0 ${MARK_SIZE} ${MARK_SIZE}`;
+
+/** The width of an outline that shows 1 px round a mark drawn 16 px wide (half of it under the fill). */
+export function edgeWidth(mark: Mark): number {
+  const [, , width, height] = markBox(mark).split(" ").map(Number) as [number, number, number, number];
+  return (2 * Math.max(width, height)) / MARK_SIZE;
+}

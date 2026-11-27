@@ -11,7 +11,7 @@ import type { Glide } from "@/lib/layers/glide";
 import type { HoverCard, HoverContent } from "@/lib/hovercard";
 import { hoverRows, thingSub, thingTitle } from "@/lib/layers/card";
 import { isService, type LayerName, type ServiceName } from "@/lib/layers/sources";
-import { MARKS, MARK_SIZE, markBox } from "@/lib/layers/marks";
+import { MARKS, MARK_SIZE, edgeWidth, markBox } from "@/lib/layers/marks";
 import {
   NO_TRAFFIC,
   glidedFeatures,
@@ -99,7 +99,7 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
       title: thingTitle(layer, thing),
       sub: thingSub(layer),
       rows: hoverRows(layer, thing, page.now.value),
-      mark: { d: mark.d, viewBox: markBox(mark), bad: thing.emergency },
+      mark: { d: mark.d, viewBox: markBox(mark), bad: thing.emergency, edge: mark.edge ? edgeWidth(mark) : undefined },
     };
   }
 

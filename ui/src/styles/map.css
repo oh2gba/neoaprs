@@ -183,6 +183,10 @@
   align-self: center;
   fill: var(--map-layer);
 }
+.hc-mark.aircraft {
+  fill: var(--map-aircraft);
+  stroke: var(--map-aircraft-edge);
+}
 .hc-mark.emergency {
   fill: var(--bad);
 }

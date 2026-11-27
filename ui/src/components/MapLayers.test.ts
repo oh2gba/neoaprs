@@ -143,6 +143,19 @@ describe("the rows of the box", () => {
     expect(row("ships")?.querySelector(".layermark path")?.getAttribute("d")).toBe(MARKS.hull.d);
   });
 
+  it("mark aircraft in their own yellow with a dark outline, ships in the layers' colour, as the map draws them", async () => {
+    mounted([mapLayer("aircraft", { source: "adsbfi" }), mapLayer("ships", { source: "receiver" })]);
+    await openBox();
+    const plane = row("aircraft")?.querySelector(".layermark path");
+    expect(plane?.getAttribute("fill")).toBe("var(--map-aircraft)");
+    expect(plane?.getAttribute("stroke")).toBe("var(--map-aircraft-edge)");
+    expect(Number(plane?.getAttribute("stroke-width"))).toBeGreaterThan(0);
+    const hull = row("ships")?.querySelector(".layermark path");
+    expect(hull?.getAttribute("fill")).toBe("var(--map-layer)");
+    expect(hull?.getAttribute("stroke")).toBe("none");
+    expect(row("satellites")?.querySelector(".layermark path")?.getAttribute("fill")).toBe("var(--map-satellite)");
+  });
+
   it("give a Radarcape's aircraft no source word, as any own receiver", () => {
     expect(
       layerRows([mapLayer("aircraft", { source: "radarcape" }), mapLayer("ships")]).map((one) => one.source),

@@ -71,6 +71,8 @@ interface HoverMark {
   d: string;
   viewBox: string;
   bad: boolean;
+  /** The width of its dark outline (an aircraft's), or none. */
+  edge?: number;
 }
 
 /** What the card says: a two-part head (with a mark for an aircraft or ship) and its rows. */
@@ -86,13 +88,17 @@ const SVG = "http://www.w3.org/2000/svg";
 /** The head mark: 16 px, hidden from screen readers (the title says it). */
 function markElement(mark: HoverMark): SVGSVGElement {
   const svg = document.createElementNS(SVG, "svg");
-  svg.setAttribute("class", mark.bad ? "hc-mark emergency" : "hc-mark");
+  svg.setAttribute("class", `hc-mark${mark.edge ? " aircraft" : ""}${mark.bad ? " emergency" : ""}`);
   svg.setAttribute("width", "16");
   svg.setAttribute("height", "16");
   svg.setAttribute("viewBox", mark.viewBox);
   svg.setAttribute("aria-hidden", "true");
   const path = document.createElementNS(SVG, "path");
   path.setAttribute("d", mark.d);
+  if (mark.edge) {
+    path.setAttribute("stroke-width", String(mark.edge));
+    path.setAttribute("paint-order", "stroke");
+  }
   svg.append(path);
   return svg;
 }

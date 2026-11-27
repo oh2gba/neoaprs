@@ -80,7 +80,9 @@ Every tone that stands as a small word (`--text`, `--muted`, `--accent`, `--ok`,
 | `--map-select-wash` | `rgba(255, 109, 0, 0.18)` | `rgba(255, 109, 0, 0.18)` | as it was | the map: the wash of the selected station |
 | `--map-plate` | `rgba(255, 255, 255, 0.88)` | `rgba(255, 255, 255, 0.88)` | as it was | the map: the plate under a symbol in the dark theme |
 | `--map-track` | `#2f80ed` | `#2f80ed` | as it was | the map: a track |
-| `--map-layer` | `#8e24aa` | `#ce93d8` | the map's own | the map: an aircraft or a ship, and its mark in the Layers box |
+| `--map-layer` | `#8e24aa` | `#ce93d8` | the map's own | the map: a ship, and its mark in the Layers box |
+| `--map-aircraft` | `#f0aa1e` | `#f0aa1e` | the map's own: the yellow of the flight-tracking maps, turned toward amber so that it is not the signpost's `--map-sign-bg` | the map: an aircraft, its trail, and its mark in the Layers box |
+| `--map-aircraft-edge` | `#3a3000` | `#3a3000` | the map's own | the map: the dark outline of an aircraft, so that it reads on the light and the dark map |
 | `--map-satellite` | `#00796b` | `#4db6ac` | the map's own | the map: a satellite, its track ahead and its footprint, and its mark in the Layers box |
 | `--map-twilight` | `rgba(11, 26, 58, 0.1)` | `rgba(0, 6, 30, 0.25)` | the map's own | the map: the shade where the sun is down |
 | `--map-night` | `rgba(11, 26, 58, 0.14)` | `rgba(0, 6, 30, 0.45)` | the map's own | the map: the shade added where the sun is more than 6° down |

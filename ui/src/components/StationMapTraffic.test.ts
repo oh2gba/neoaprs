@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import { forgetLayerTicks } from "@/composables/useMapLayers";
 import { AIRCRAFT_SHAPES } from "@/lib/layers/aircraftshapes";
-import { THING_SHAPES, type TrafficCollection } from "@/lib/layers/traffic";
+import { LAYER_SHAPES, THING_SHAPES, type TrafficCollection } from "@/lib/layers/traffic";
 import { FakeMap, resetFakes } from "@/test/fakemap";
 import { tell, type FakeDaemon } from "@/test/context";
 import { mountStationMap } from "@/test/stationmap";
@@ -121,18 +121,25 @@ describe("the aircraft and ships on the map", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(context as unknown as CanvasRenderingContext2D);
     await mounted();
     expect([...FakeMap.last().images.keys()].sort()).toEqual(
-      [...THING_SHAPES.flatMap((shape) => [`traffic-${shape}`, `traffic-${shape}-bad`]), "satellite-mark"].sort(),
+      [
+        ...(Object.keys(LAYER_SHAPES) as (keyof typeof LAYER_SHAPES)[]).flatMap((layer) =>
+          LAYER_SHAPES[layer].flatMap((shape) => [`traffic-${layer}-${shape}`, `traffic-${layer}-${shape}-bad`]),
+        ),
+        "satellite-mark",
+      ].sort(),
     );
     expect(THING_SHAPES).toHaveLength(13);
-    expect(FakeMap.last().images.get("traffic-diamond")).toMatchObject({ width: 32, height: 32 });
-    expect(FakeMap.last().images.get("traffic-heavy4")).toMatchObject({
+    expect(FakeMap.last().images.get("traffic-ships-diamond")).toMatchObject({ width: 32, height: 32 });
+    expect(FakeMap.last().images.get("traffic-aircraft-heavy4")).toMatchObject({
       width: 2 * AIRCRAFT_SHAPES.heavy4.size,
       height: 2 * AIRCRAFT_SHAPES.heavy4.size,
     });
-    expect(FakeMap.last().images.get("traffic-balloon")).toMatchObject({ width: 2 * AIRCRAFT_SHAPES.balloon.size });
+    expect(FakeMap.last().images.get("traffic-aircraft-balloon")).toMatchObject({
+      width: 2 * AIRCRAFT_SHAPES.balloon.size,
+    });
     const before = drawnWith.length;
     FakeMap.last().fire("style.load");
-    expect(drawnWith.length).toBe(before + 26 + 1); // and the satellites' mark
+    expect(drawnWith.length).toBe(before + 2 * (LAYER_SHAPES.aircraft.length + LAYER_SHAPES.ships.length) + 1); // and the satellites' mark
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -147,7 +154,10 @@ describe("the aircraft and ships on the map", () => {
       layerThings("aircraft", [aircraft({ id: "a" }), aircraft({ id: "b", heading_deg: null })], { source: "adsbfi" }),
     );
     expect(drawnIds()).toEqual(["a", "b"]);
-    expect(drawn().features.map((feature) => feature.properties.icon)).toEqual(["traffic-airliner", "traffic-diamond"]);
+    expect(drawn().features.map((feature) => feature.properties.icon)).toEqual([
+      "traffic-aircraft-airliner",
+      "traffic-aircraft-diamond",
+    ]);
     await setTick("aircraft", false);
     expect(daemon.send).toHaveBeenCalledWith({ cmd: "layer_look", layer: "aircraft", on: false });
     expect(drawnIds()).toEqual([]);

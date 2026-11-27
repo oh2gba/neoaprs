@@ -1,5 +1,6 @@
-// The map's layer of aircraft and ships (lib/layers/traffic.ts): each a flat mark in the layer
-// colour (`--map-layer`, `--bad` for an emergency) with a thin halo, so it shows on any ground.
+// The map's layer of aircraft and ships (lib/layers/traffic.ts): each a flat mark in its layer's
+// colour (`--map-aircraft` with a dark outline, `--map-layer` for a ship with a thin light halo,
+// `--bad` for an emergency), so it shows on any ground.
 // An aircraft has the shape of its kind (lib/layers/aircraftshapes.ts), a ship a hull and a
 // diamond; marks turn to the heading and fade with age. From zoom 10 the name shows under the
 // mark, giving way to the base map's names and to each other. The marks are images given to the
@@ -12,7 +13,9 @@ import { FONT_REGULAR } from "@/lib/basemapstyle";
 import { MARKS, markBox, type MarkName } from "@/lib/layers/marks";
 import { NO_TRAIL } from "@/lib/layers/trail";
 import type { TrackCollection } from "@/lib/tracks";
+import type { LayerName } from "@/lib/layers/sources";
 import {
+  LAYER_SHAPES,
   NO_TRAFFIC,
   THING_SHAPES,
   imageName,
@@ -86,16 +89,27 @@ export function drawMark(name: MarkName, side: number, fill: string, halo: strin
  * Give the map the marks in the colours of the scheme that is on (existing images are redrawn).
  */
 function addTrafficImages(map: MapLibreMap): void {
-  const halo = paletteColor("--map-halo", "rgba(255, 255, 255, 0.9)");
-  const colours = { plain: paletteColor("--map-layer", "#8e24aa"), bad: paletteColor("--bad", "#b9401d") };
+  const bad = paletteColor("--bad", "#b9401d");
+  const inks: Record<LayerName, { fill: string; halo: string }> = {
+    aircraft: {
+      fill: paletteColor("--map-aircraft", "#f0aa1e"),
+      halo: paletteColor("--map-aircraft-edge", "#3a3000"),
+    },
+    ships: {
+      fill: paletteColor("--map-layer", "#8e24aa"),
+      halo: paletteColor("--map-halo", "rgba(255, 255, 255, 0.9)"),
+    },
+  };
   const ratio = pixelRatio();
-  for (const shape of THING_SHAPES) {
-    for (const emergency of [false, true]) {
-      const image = drawShape(shape, emergency ? colours.bad : colours.plain, halo, ratio);
-      if (!image) return;
-      const name = imageName(shape, emergency);
-      if (map.hasImage(name)) map.removeImage(name); // an image keeps the ratio it was added with
-      map.addImage(name, image, { pixelRatio: ratio });
+  for (const layer of Object.keys(LAYER_SHAPES) as LayerName[]) {
+    for (const shape of LAYER_SHAPES[layer]) {
+      for (const emergency of [false, true]) {
+        const image = drawShape(shape, emergency ? bad : inks[layer].fill, inks[layer].halo, ratio);
+        if (!image) return;
+        const name = imageName(layer, shape, emergency);
+        if (map.hasImage(name)) map.removeImage(name); // an image keeps the ratio it was added with
+        map.addImage(name, image, { pixelRatio: ratio });
+      }
     }
   }
 }
@@ -129,7 +143,12 @@ export function addTrafficLayers(
     source: TRAIL_SOURCE,
     layout: { "line-cap": "butt", "line-join": "round" },
     paint: {
-      "line-color": paletteColor("--map-layer", "#8e24aa"),
+      "line-color": [
+        "case",
+        ["in", "aircraft:", ["get", "call"]],
+        paletteColor("--map-aircraft", "#f0aa1e"),
+        paletteColor("--map-layer", "#8e24aa"),
+      ],
       "line-width": 2,
       "line-opacity": ["get", "opacity"],
     },

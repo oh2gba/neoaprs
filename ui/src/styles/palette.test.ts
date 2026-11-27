@@ -285,6 +285,23 @@ describe("the palette", () => {
     expect(local).toEqual([]);
   });
 
+  it("draws aircraft in a yellow of their own, outlined dark, that is not the signpost's yellow nor the selection's orange", () => {
+    const hue = (hex: string): number => {
+      const [r, g, b] = [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16) / 255) as [number, number, number];
+      const max = Math.max(r, g, b);
+      const span = max - Math.min(r, g, b);
+      const h = max === r ? ((g - b) / span) % 6 : max === g ? (b - r) / span + 2 : (r - g) / span + 4;
+      return (h * 60 + 360) % 360;
+    };
+    for (const [theme, set] of THEMES) {
+      const plane = set["--map-aircraft"] ?? "";
+      expect(contrast(plane, set["--map-aircraft-edge"] ?? ""), theme).toBeGreaterThanOrEqual(4.5);
+      expect(Math.abs(hue(plane) - hue(set["--map-sign-bg"] ?? "")), theme).toBeGreaterThanOrEqual(8);
+      expect(Math.abs(hue(plane) - hue(set["--map-select"] ?? "")), theme).toBeGreaterThanOrEqual(8);
+      expect(plane).not.toBe(set["--map-satellite"]);
+    }
+  });
+
   it("is written in docs/palette.md with the light and the dark value of every token", () => {
     const doc = readFileSync(join(ROOT, "docs", "palette.md"), "utf-8");
     expect(Object.keys(light).length).toBeGreaterThan(60);

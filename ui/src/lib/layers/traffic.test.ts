@@ -72,16 +72,16 @@ describe("traffic: the map's features", () => {
     );
     const byId = new Map(data.features.map((feature) => [feature.properties.id, feature.properties]));
     expect(byId.get("a")).toMatchObject({
-      icon: "traffic-airliner",
+      icon: "traffic-aircraft-airliner",
       rotate: 225,
       layer: "aircraft",
       key: "aircraft:a",
       rank: 0,
     });
-    expect(byId.get("b")).toMatchObject({ icon: "traffic-diamond", rotate: 0 });
-    expect(byId.get("c")).toMatchObject({ icon: "traffic-airliner-bad", rank: 1 });
-    expect(byId.get("s")).toMatchObject({ icon: "traffic-hull", rotate: 182, layer: "ships", key: "ships:s" });
-    expect(byId.get("t")).toMatchObject({ icon: "traffic-diamond" });
+    expect(byId.get("b")).toMatchObject({ icon: "traffic-aircraft-diamond", rotate: 0 });
+    expect(byId.get("c")).toMatchObject({ icon: "traffic-aircraft-airliner-bad", rank: 1 });
+    expect(byId.get("s")).toMatchObject({ icon: "traffic-ships-hull", rotate: 182, layer: "ships", key: "ships:s" });
+    expect(byId.get("t")).toMatchObject({ icon: "traffic-ships-diamond" });
     expect([...byId.values()].map((one) => one.side)).toEqual([26, 16, 26, 16, 16]);
     expect(data.features.find((feature) => feature.properties.id === "a")?.geometry.coordinates).toEqual([
       24.9633, 60.3172,
@@ -103,10 +103,10 @@ describe("traffic: the map's features", () => {
     expect(
       data.features.map((feature) => [feature.properties.id, feature.properties.icon, feature.properties.rotate]),
     ).toEqual([
-      ["h", "traffic-helicopter", 90],
-      ["g", "traffic-glider", 10],
-      ["4", "traffic-heavy4", 300],
-      ["u", "traffic-unknown", 45],
+      ["h", "traffic-aircraft-helicopter", 90],
+      ["g", "traffic-aircraft-glider", 10],
+      ["4", "traffic-aircraft-heavy4", 300],
+      ["u", "traffic-aircraft-unknown", 45],
     ]);
   });
 
@@ -124,9 +124,9 @@ describe("traffic: the map's features", () => {
     expect(
       data.features.map((feature) => [feature.properties.id, feature.properties.icon, feature.properties.rotate]),
     ).toEqual([
-      ["b", "traffic-balloon", 0],
-      ["still", "traffic-balloon", 0],
-      ["h", "traffic-diamond", 0],
+      ["b", "traffic-aircraft-balloon", 0],
+      ["still", "traffic-aircraft-balloon", 0],
+      ["h", "traffic-aircraft-diamond", 0],
     ]);
   });
 

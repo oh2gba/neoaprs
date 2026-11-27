@@ -65,9 +65,15 @@ export function thingShape(layer: LayerName, thing: LayerThing): ThingShape {
   return thing.heading_deg === null && turns(kind) ? "diamond" : kind;
 }
 
-/** The map image name of a shape, in the layer colour or the bad colour for an emergency. */
-export const imageName = (shape: ThingShape, emergency: boolean): string =>
-  `traffic-${shape}${emergency ? "-bad" : ""}`;
+/** The shapes each layer draws with: an aircraft's kinds or a ship's hull, and the diamond. */
+export const LAYER_SHAPES: Readonly<Record<LayerName, readonly ThingShape[]>> = {
+  aircraft: [...(Object.keys(AIRCRAFT_SHAPES) as AircraftShape[]), "diamond"],
+  ships: ["hull", "diamond"],
+};
+
+/** The map image name of a layer's shape, in the layer's colour or the bad colour for an emergency. */
+export const imageName = (layer: LayerName, shape: ThingShape, emergency: boolean): string =>
+  `traffic-${layer}-${shape}${emergency ? "-bad" : ""}`;
 
 /** The key of a thing: its layer and id. */
 export const thingKey = (layer: LayerName, id: string): string => `${layer}:${id}`;
@@ -113,7 +119,7 @@ export function trafficFeatures(tables: Iterable<LayerThingsMessage>, nowMs: num
           key: thingKey(table.layer, thing.id),
           layer: table.layer,
           id: thing.id,
-          icon: imageName(shape, thing.emergency),
+          icon: imageName(table.layer, shape, thing.emergency),
           side: sideOf(shape),
           rotate: turns(shape) ? (thing.heading_deg ?? 0) : 0,
           opacity: fadeOpacity(ageSeconds(thing.at, nowMs), max),
