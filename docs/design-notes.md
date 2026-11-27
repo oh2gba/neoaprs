@@ -420,7 +420,7 @@ The control port serves one host at a time. Newer Mercury versions close a secon
 
 ## neoaprs/mercuryhelper.py
 
-The shipped Mercury listens on 127.0.0.1 only (a patch to its sources). Its ports have no password, so a listener on every interface would let any host on the LAN key the radio; `foreign_listeners` checks this. The port probe binds with SO_REUSEADDR as Mercury does, so a port in TIME_WAIT counts as free and a restarted modem finds its old pair; on Windows that option would also take a port another program listens on, so it is not set there. A port listened on in IPv6 alone is not free. Adjacent port pairs share a port (the ARQ data port of one is the control port of the next), so the claims table hands out pairs whose four ports do not overlap. A Mercury left behind by a daemon crash keeps the sound card; its process id is written beside the configuration and ended at the next start. Mercury is asked to end twice before it is killed: the second request makes it drop the transmitter at once, while a kill could leave a radio keyed through a GPIO pin or serial line. On Windows Mercury's second request exits with the keying as it stands, so it is asked once, by a Ctrl-Break to its own process group (winchild.py says why not Ctrl-C), then ended with taskkill after STOP_WAIT_SEC; only after that hard end NeoAPRS lowers a serial keying line itself, opened with both lines low, since some drivers keep a line where a killed program left it. A daemon in a terminal that shows ends Mercury at once.
+The shipped Mercury listens on 127.0.0.1 only (a patch to its sources). Its ports have no password, so a listener on every interface would let any host on the LAN key the radio; `foreign_listeners` checks this. The port probe binds with SO_REUSEADDR as Mercury does, so a port in TIME_WAIT counts as free and a restarted modem finds its old pair; on Windows that option would also take a port another program listens on, so it is not set there. A port listened on in IPv6 alone is not free. Adjacent port pairs share a port (the ARQ data port of one is the control port of the next), so the claims table hands out pairs whose four ports do not overlap. A Mercury left behind by a daemon crash keeps the sound card; its process id is written beside the configuration and ended at the next start. Mercury is asked to end twice before it is killed: the second request makes it drop the transmitter at once, while a kill could leave a radio keyed through a GPIO pin or serial line. On Windows Mercury's second request exits with the keying as it stands, so it is asked once, by a Ctrl-Break to its own process group (winchild.py says why not Ctrl-C), then ended with taskkill after STOP_WAIT_SEC; only after that hard end NeoAPRS lowers a serial keying line itself, opened with both lines low, since some drivers keep a line where a killed program left it.
 
 ## neoaprs/mercurymodem.py
 
@@ -1597,10 +1597,11 @@ Mercury is asked to end with Ctrl-Break, never Ctrl-C. A Ctrl-C does not reach a
 the attribute before starting Mercury made the asking process take the Ctrl-C itself and end: on a Windows
 machine the ask must never end the daemon. Ctrl-Break to the child's own process group (it is started with
 CREATE_NEW_PROCESS_GROUP and a hidden console) reached the child every time; sigbreak.patch gives it
-Mercury's unkeying handler. To send it the daemon attaches to the child's console, letting go first of a
-hidden console of its own (one it is alone on and that does not show); one that shows or is shared is
-kept, and Mercury is then ended at once. A handler takes the echo of the ask, never the ignore flag, which
-every program started later would inherit.
+Mercury's unkeying handler. The daemon never touches a console of its own: a runner's session and a
+console program started by a double click are alone on a console that shows, and letting go of it would
+take the window from the person looking at it. A disposable asker does it (neoaprs/winask.py: the program
+itself with `--winask` or `-m neoaprs.winask` and the child's id, started hidden): it lets go of its own
+console, attaches to the child's, sends the Ctrl-Break and exits with a code that says what happened.
 
 ## neoaprs/winmm.py
 

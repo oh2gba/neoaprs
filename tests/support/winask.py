@@ -1,17 +1,17 @@
-"""Windows: a stand-in for a daemon without a console (run DETACHED_PROCESS by a test, one process for each
-way of asking, so that the ways cannot disturb each other). It starts a console program, asks it to end
-the way its first argument names, and writes to the JSON file of its second argument the program's
-creation flags, every call with its result and GetLastError, what the program heard, the console events
-the asker's own handler was given, and that the asker itself is still alive afterwards.
+"""Windows: a stand-in for the daemon (run DETACHED_PROCESS by a test, one process for each way of asking,
+so that the ways cannot disturb each other). It starts a console program, asks it to end the way its first
+argument names, and writes to the JSON file of its second argument the program's creation flags, the calls
+with their results and GetLastError, what the program heard, and that the asker is still alive afterwards.
 
-    break_group       a CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP child, Ctrl-Break to its group on its own
-                      console: how the daemon asks Mercury (winchild.ask_to_end)
-    break_shared      a CREATE_NEW_PROCESS_GROUP child on this process's console, Ctrl-Break to its group
+    break_group       a CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP child, asked the daemon's way: winchild.ask_to_end,
+                      which starts the disposable asker (neoaprs/winask.py)
+    break_shared      a CREATE_NEW_PROCESS_GROUP child on this process's console, Ctrl-Break to its group from here
     ctrl_c_inherited  a CREATE_NO_WINDOW child, Ctrl-C to its console: the control, a child that inherits
                       "ignore Ctrl-C" does not hear it
 """
 
 import json
+import logging
 import subprocess
 import sys
 import time
@@ -39,26 +39,24 @@ NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 NEW_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
 WAYS = ("break_group", "break_shared", "ctrl_c_inherited")
 FLAGS = {"break_group": NO_WINDOW | NEW_GROUP, "break_shared": NEW_GROUP, "ctrl_c_inherited": NO_WINDOW}
-ALIVE_SEC = 2.0  # how long the asker waits after the ask: an echo that ended it would have done so
+ALIVE_SEC = 2.0  # how long the asker waits after the ask: an event that ended it would have done so
 
 
-def _ctrl_c(pid: int, k: Any, steps: winchild.Steps) -> bool:
-    """The control: Ctrl-C to the child's console, the way that is not used."""
-    with winchild._console:
-        if not winchild._swallow_ctrl_c(k, steps) or not winchild._onto(pid, k, steps):
-            return False
-        try:
-            winchild._note_ask()
-            return bool(winchild._step(steps, k, "GenerateConsoleCtrlEvent", winchild.CTRL_C_EVENT, 0))
-        finally:
-            winchild._leave(k, steps)
+class Lines(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(logging.DEBUG)
+        self.lines: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.lines.append(record.getMessage())
 
 
 def ask(way: str, folder: Path) -> dict[str, Any]:
     said = folder / f"{way}.child"
+    lines = Lines()
+    logging.getLogger("neoaprs.childprogram").addHandler(lines)
+    logging.getLogger("neoaprs.childprogram").setLevel(logging.DEBUG)
     k = winchild.kernel32()
-    before: winchild.Steps = []
-    sharing, visible = winchild.console_of_own(k, before)
     child = subprocess.Popen([sys.executable, "-c", CHILD, str(said)], creationflags=FLAGS[way])
     deadline = time.monotonic() + WAIT_SEC
     while time.monotonic() < deadline and not (said.exists() and said.read_text() == "up"):
@@ -66,11 +64,13 @@ def ask(way: str, folder: Path) -> dict[str, Any]:
     steps: winchild.Steps = []
     try:
         if way == "break_group":
-            sent = winchild.ask_to_end(child.pid, k, steps)
+            sent = winchild.ask_to_end(child.pid)
         elif way == "break_shared":
-            sent = winchild.break_group(child.pid, False, k, steps)
+            sent = bool(winchild._step(steps, k, "GenerateConsoleCtrlEvent", winchild.CTRL_BREAK_EVENT, child.pid))
         else:
-            sent = _ctrl_c(child.pid, k, steps)
+            # this disposable process takes no Ctrl-C itself (the child, started before, does not inherit that)
+            winchild._step(steps, k, "SetConsoleCtrlHandler", None, True)
+            sent = winchild.send_event(child.pid, 0, 0, k, steps) == winchild.SENT
     except Exception as e:  # what went wrong is the finding
         sent, steps = False, [*steps, {"exception": repr(e)}]
     try:
@@ -82,12 +82,11 @@ def ask(way: str, folder: Path) -> dict[str, Any]:
     time.sleep(ALIVE_SEC)
     return {
         "child_flags": hex(FLAGS[way]),
-        "asker_console_before": {"processes": sharing, "visible": visible, "steps": before},
         "sent": sent,
         "code": code,
         "child": said.read_text() if said.exists() else "",
         "steps": steps,
-        "events_the_asker_saw": list(winchild.events_seen),
+        "log": lines.lines,
         "asker_alive": True,
     }
 

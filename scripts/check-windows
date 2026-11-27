@@ -1231,6 +1231,11 @@ def install_steps(
             )
         ),
         '"support file: $($zips[0].Name), $($names.Count) files"',
+        # the frozen programs start the daemon's asker of a modem on --winask (winchild.asker_argv); an id
+        # that is no number is its exit 2, so the asker runs and asks nothing
+        "$asker = Start-Process -FilePath (Join-Path $app 'neoaprsw.exe') -ArgumentList '--winask','none' -Wait -PassThru -WindowStyle Hidden",
+        fail_unless("$asker.ExitCode -eq 2", "neoaprsw.exe --winask did not start the asker (exit $($asker.ExitCode))"),
+        '"neoaprsw.exe --winask: the asker answers"',
     )
     app = install_script(
         "app",

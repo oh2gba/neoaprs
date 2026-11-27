@@ -326,10 +326,10 @@ class Program(childprogram.Program):
         ):
             self.kill(process)
 
-    def _end_windows(self, process: subprocess.Popen[str], k: object = None, port: Any = None) -> None:
+    def _end_windows(self, process: subprocess.Popen[str], run: Any = None, port: Any = None) -> None:
         # Mercury's second request on Windows exits with the keying as it stands, so only one is sent.
         # Asked and gone, it unkeyed itself; only a killed one may leave its keying line up.
-        if winchild.ask_to_end(process.pid, k) and childprogram.waited(process, STOP_WAIT_SEC):
+        if winchild.ask_to_end(process.pid, run) and childprogram.waited(process, STOP_WAIT_SEC):
             self._log.info("%s ended when asked (process %d)", self.name, process.pid)
             return
         self._log.info("%s did not end when asked: it is ended (process %d)", self.name, process.pid)

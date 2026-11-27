@@ -6,6 +6,8 @@ The app role shows its splash before importing the heavy app modules."""
 import os
 import sys
 
+ASKER_FLAG = "--winask"  # neoaprs/winchild.py: ASKER_FLAG
+
 
 def role(executable: str) -> str:
     """ "app", "daemon" or "cli", by the program's own name."""
@@ -16,6 +18,10 @@ def role(executable: str) -> str:
 
 
 def run(which: str, argv: list[str]) -> int:
+    if argv[:1] == [ASKER_FLAG]:  # the daemon's asker (neoaprs/winask.py), whatever the program's name
+        from neoaprs import winask
+
+        return winask.main(argv[1:])
     if which == "app":
         from neoaprs.desktop import splash
 

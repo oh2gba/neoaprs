@@ -21,9 +21,9 @@ class Kernel:
 
     def __init__(self, **answers: Any) -> None:
         self.calls: list[tuple[Any, ...]] = []
-        self.answers = {"AttachConsole": 1, "SetConsoleCtrlHandler": 1, "GenerateConsoleCtrlEvent": 1}
+        self.answers = {"AttachConsole": 1, "GenerateConsoleCtrlEvent": 1}
         self.answers |= {"CreateJobObjectW": 7, "SetInformationJobObject": 1, "OpenProcess": 9}
-        self.answers |= {"AssignProcessToJobObject": 1, "GetConsoleProcessList": 1, "GetConsoleWindow": 4}
+        self.answers |= {"AssignProcessToJobObject": 1}
         self.answers |= answers
         self.flags: list[int] = []
 
@@ -40,76 +40,66 @@ class Kernel:
         return [c[0] for c in self.calls]
 
 
-class User:
-    """user32 as far as winchild asks it: whether the console's window shows."""
-
-    def __init__(self) -> None:
-        self.visible = 0
-        self.asked: list[int] = []
-
-    def IsWindowVisible(self, window: int) -> int:
-        self.asked.append(window)
-        return self.visible
-
-
 @pytest.fixture(autouse=True)
-def user(monkeypatch: pytest.MonkeyPatch) -> User:
-    monkeypatch.setattr(winchild, "_handler", None)
+def _fresh(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(winchild, "_job", None)
-    user = User()
-    monkeypatch.setattr(winchild, "user32", lambda: user)
-    return user
 
 
-ASK = ["GetConsoleProcessList", "GetConsoleWindow", "FreeConsole", "AttachConsole", "GenerateConsoleCtrlEvent"]
-LEAVE = ["FreeConsole", "GetConsoleProcessList"]
+class Asker:
+    """subprocess.run as ask_to_end starts the asker: what it was given, and the exit it answers with."""
+
+    def __init__(self, code: int = winchild.SENT, hangs: bool = False) -> None:
+        self.code, self.hangs = code, hangs
+        self.argv: list[str] = []
+        self.options: dict[str, Any] = {}
+
+    def __call__(self, argv: list[str], **options: Any) -> Any:
+        self.argv, self.options = argv, options
+        if self.hangs:
+            raise subprocess.TimeoutExpired(argv, options["timeout"])
+        return subprocess.CompletedProcess(argv, self.code, stdout=b"[]")
 
 
-def test_the_ctrl_break_goes_to_the_programs_group_after_this_process_lets_go_of_its_hidden_console() -> None:
-    """A program started from a launcher (a venv's python.exe) has a hidden console of its own, and
-    AttachConsole refuses a process that has one (ERROR_ACCESS_DENIED)."""
+def test_the_daemon_asks_through_a_disposable_hidden_asker_and_never_touches_a_console() -> None:
+    """A daemon alone on a console that shows (a runner's session, a console program started by a
+    double click) may not let go of it; the asker's console is its own."""
+    asker = Asker()
+    assert winchild.ask_to_end(4321, asker)
+    assert asker.argv[-3:] == ["-m", "neoaprs.winask", "4321"] or asker.argv[-2:] == [winchild.ASKER_FLAG, "4321"]
+    assert asker.options["timeout"] == winchild.ASKER_SEC and asker.options["stdin"] == subprocess.DEVNULL
+    assert asker.options["creationflags"] == getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    assert not winchild.ask_to_end(4321, Asker(winchild.ATTACH_FAILED)), "not sent: the hard end follows"
+    assert not winchild.ask_to_end(4321, Asker(hangs=True)), "an asker that does not answer is no ask"
+
+
+def test_the_frozen_build_starts_its_own_program_with_the_asker_flag() -> None:
+    assert winchild.asker_argv(55, frozen=True, executable="C:/NeoAPRS/neoaprsw.exe") == [
+        "C:/NeoAPRS/neoaprsw.exe",
+        "--winask",
+        "55",
+    ]
+    assert winchild.asker_argv(55, frozen=False, executable="python") == ["python", "-m", "neoaprs.winask", "55"]
+
+
+def test_the_asker_lets_go_of_its_own_console_attaches_and_sends_ctrl_break_to_the_group() -> None:
     k = Kernel()
-    assert winchild.ask_to_end(1234, k)
-    assert k.names() == ["SetConsoleCtrlHandler", *ASK, *LEAVE]
-    assert ("AttachConsole", 1234) in k.calls and ("GenerateConsoleCtrlEvent", 1, 1234) in k.calls
-    assert k.calls[0][2] is True, "a handler, not the ignore flag that children inherit"
-    k = Kernel(GetConsoleProcessList=0)
-    assert winchild.ask_to_end(1234, k) and k.names()[:2] == ["GetConsoleProcessList", "AttachConsole"], (
-        "no console of its own (the installed daemon): nothing to let go of; the handler is set once"
-    )
+    steps: winchild.Steps = []
+    assert winchild.send_event(77, winchild.CTRL_BREAK_EVENT, 77, k, steps) == winchild.SENT
+    assert k.names() == ["FreeConsole", "AttachConsole", "GenerateConsoleCtrlEvent", "FreeConsole"]
+    assert ("GenerateConsoleCtrlEvent", 1, 77) in k.calls and [s["call"] for s in steps] == k.names()
+    assert winchild.send_event(77, 1, 77, Kernel(AttachConsole=0)) == winchild.ATTACH_FAILED
+    assert winchild.send_event(77, 1, 77, Kernel(GenerateConsoleCtrlEvent=0)) == winchild.EVENT_FAILED
 
 
-def test_no_ctrl_c_is_sent_from_a_console_that_shows_or_is_shared_or_without_the_handler(
-    monkeypatch: pytest.MonkeyPatch, user: User
+def test_the_asker_says_a_bad_argument_and_prints_its_calls(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """A hidden console still has a window handle: whether it shows, and who else is on it, tell."""
-    k = Kernel()
-    user.visible = 1
-    assert not winchild.ask_to_end(1234, k) and user.asked == [4]
-    assert "FreeConsole" not in k.names() and "AttachConsole" not in k.names(), (
-        "the terminal someone looks at is kept: the hard end follows"
-    )
-    user.visible = 0
-    k = Kernel(GetConsoleProcessList=2)
-    assert not winchild.ask_to_end(1234, k) and "FreeConsole" not in k.names(), "shared with a shell: kept"
-    k = Kernel(AttachConsole=0)
-    assert not winchild.ask_to_end(1234, k) and "GenerateConsoleCtrlEvent" not in k.names()
-    monkeypatch.setattr(winchild, "_handler", None)
-    k = Kernel(SetConsoleCtrlHandler=0)
-    assert not winchild.ask_to_end(1234, k) and k.names() == ["SetConsoleCtrlHandler"], (
-        "the Ctrl-C would end the daemon too"
-    )
+    from neoaprs import winask
 
-
-def test_only_the_echo_of_an_ask_is_taken_and_every_other_event_goes_on_to_pythons_own_handler(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(winchild, "_asked_at", 100.0)
-    assert winchild.ours(winchild.CTRL_C_EVENT, 101.0) and winchild.ours(winchild.CTRL_BREAK_EVENT, 105.0)
-    assert not winchild.ours(winchild.CTRL_C_EVENT, 100.0 + winchild.ECHO_SEC + 1), (
-        "a Ctrl-C of the daemon's own terminal later stops it as before"
-    )
-    assert not winchild.ours(2, 101.0), "a close event is never taken"
+    assert winask.main([]) == winchild.BAD_ARGUMENT and winask.main(["x"]) == winchild.BAD_ARGUMENT
+    monkeypatch.setattr(winchild, "kernel32", lambda: Kernel())
+    assert winask.main(["77"]) == winchild.SENT
+    assert '"call": "GenerateConsoleCtrlEvent"' in capsys.readouterr().out
 
 
 def test_each_child_goes_into_one_job_that_kills_on_close() -> None:
@@ -192,15 +182,12 @@ def test_mercury_on_windows_that_ends_when_asked_has_no_port_opened_and_a_killed
     program = Program(lambda code, lines: None)
     program.keying = "rts:COM10"
     port = FakePort()
-    k = Kernel()
-    program._end_windows(Process(ends=True), k, lambda: port)  # type: ignore[arg-type]
-    assert ended == [] and "GenerateConsoleCtrlEvent" in k.names() and port.opened_with == [], (
-        "it unkeyed itself: opening the port could only key it"
-    )
-    program._end_windows(Process(ends=False), Kernel(), lambda: port)  # type: ignore[arg-type]
+    program._end_windows(Process(ends=True), Asker(), lambda: port)  # type: ignore[arg-type]
+    assert ended == [] and port.opened_with == [], "it unkeyed itself: opening the port could only key it"
+    program._end_windows(Process(ends=False), Asker(), lambda: port)  # type: ignore[arg-type]
     assert ended == [77] and port.opened_with == [("COM10", False, False)], "asked, not gone: killed, then the line"
-    program._end_windows(Process(ends=True), Kernel(AttachConsole=0), lambda: port)  # type: ignore[arg-type]
-    assert ended == [77, 77] and len(port.opened_with) == 2, "no console to ask through: the hard end at once"
+    program._end_windows(Process(ends=True), Asker(winchild.ATTACH_FAILED), lambda: port)  # type: ignore[arg-type]
+    assert ended == [77, 77] and len(port.opened_with) == 2, "not asked: the hard end at once"
 
 
 def test_under_the_no_devices_switch_the_keying_line_is_not_opened(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -209,33 +196,8 @@ def test_under_the_no_devices_switch_the_keying_line_is_not_opened(monkeypatch: 
     program = Program(lambda code, lines: None)
     program.keying = "rts:COM10"
     port = FakePort()
-    program._end_windows(Process(ends=False), Kernel(), lambda: port)  # type: ignore[arg-type]
+    program._end_windows(Process(ends=False), Asker(), lambda: port)  # type: ignore[arg-type]
     assert port.opened_with == []
-
-
-def test_each_call_of_the_ask_is_written_down_with_its_result() -> None:
-    """One run on a Windows machine then tells which call stops the ask."""
-    steps: winchild.Steps = []
-    assert not winchild.ask_to_end(1234, Kernel(GenerateConsoleCtrlEvent=0), steps)
-    calls = [(s["call"], s["result"]) for s in steps if "call" in s]
-    assert calls[:7] == [
-        ("SetConsoleCtrlHandler", 1),
-        ("GetConsoleProcessList", 1),
-        ("GetConsoleWindow", 4),
-        ("IsWindowVisible", 0),
-        ("FreeConsole", 1),
-        ("AttachConsole", 1),
-        ("GenerateConsoleCtrlEvent", 0),
-    ] and all("error" in s for s in steps if "call" in s)
-    assert steps[-1] == {"note": "after: attached to a console: True"}, "the state it is left in"
-
-
-def test_ctrl_break_goes_to_the_group_on_its_console_or_on_this_ones() -> None:
-    k = Kernel()
-    assert winchild.break_group(55, attach=True, k=k)
-    assert k.names() == ["SetConsoleCtrlHandler", *ASK, *LEAVE] and ("GenerateConsoleCtrlEvent", 1, 55) in k.calls
-    k = Kernel()
-    assert winchild.break_group(55, attach=False, k=k) and k.names() == ["GenerateConsoleCtrlEvent"]
 
 
 def test_mercury_is_started_in_a_group_of_its_own_to_be_asked_and_direwolf_keeps_its_stop() -> None:
