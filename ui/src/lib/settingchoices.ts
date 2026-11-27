@@ -11,7 +11,7 @@ export interface Choice {
   /** Offered greyed: a device another radio holds (lib/portchoice.ts). */
   disabled?: boolean;
   /**
-   * The heading of the group the option stands under (Add radio's FM, HF, LoRa, Without a radio); a
+   * The heading of the group the option stands under (Add radio's Packet, Mercury, LoRa, Without a radio); a
    * group's options are adjacent.
    */
   group?: string;

@@ -135,7 +135,7 @@ function stationLines(rows: readonly StationRow[], aging: Aging, now: number): S
 }
 
 /**
- * The radius of each ALOHA circle ("37 km"); with several radios each is named, "FM: 37 km · FM
+ * The radius of each ALOHA circle ("37 km"); with several radios each is named, "Packet: 37 km · Packet
  * 2: 12 km"; null for none.
  */
 function alohaText(map: MapState | null, radios: readonly PageRadio[]): string | null {

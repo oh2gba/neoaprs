@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The fields of one radio, each worked as in the form: a typed field is sent when left or on Enter,
-// a choice at once. FM radios have TNC type, port, speed or TCP host and port; HF radios have type,
+// a choice at once. Packet radios have TNC type, port, speed or TCP host and port; HF radios have type,
 // sound card and keying with a Test button (useHfTests).
 // The daemon's proposal for the sound card and keying (`pick`, `keying`) is preselected and stored
 // while the setting is empty. Keys are the radio's own (`radio/3/port`). Sound cards and proposals

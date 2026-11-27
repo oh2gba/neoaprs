@@ -133,7 +133,7 @@ const moving = computed(() => {
     : t("station.speed_course", { speed: speedText(speed), course: bearingText(course) });
 });
 /**
- * When it was last heard per radio and channel: "FM 3 min ago · Internet 40 s ago"; the plain age
+ * When it was last heard per radio and channel: "Packet 3 min ago · Internet 40 s ago"; the plain age
  * for a row nothing was counted for.
  */
 const heardOn = computed(

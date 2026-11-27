@@ -59,7 +59,7 @@ const name = (channel: Worded): string => t(`channel.${channel}`);
 /** What a channel means, for its hover title. */
 const meaning = (channel: Worded): string => t(`channel.title.${channel}`);
 
-/** Parts joined with a middle dot: "FM · HF". */
+/** Parts joined with a middle dot: "Packet · Mercury". */
 function joined(parts: readonly string[]): string {
   return parts.length === 0 ? "" : parts.reduce((all, part) => t("channel.join", { first: all, second: part }));
 }
@@ -165,7 +165,7 @@ export function heardParts(row: Heard & Times, radios: readonly PageRadio[]): He
   ];
 }
 
-/** A part with its time: "FM 3 min ago", or "20 m: 3 min ago" beside a typed name or number. */
+/** A part with its time: "Packet 3 min ago", or "20 m: 3 min ago" beside a typed name or number. */
 function timed(part: HeardPart, nowMs: number, colon: boolean): string {
   const when = agoWords(part.at, nowMs);
   return colon ? t("radio.line", { name: part.label, line: when }) : t("channel.ago", { channel: part.label, when });
@@ -212,7 +212,7 @@ export function heardTags(
   return [...shown.map(tag), ...more, ...parts.filter((part) => !part.radio).map(tag)];
 }
 
-/** When the station was last heard, every way: "FM 3 min ago · Internet 40 s ago". */
+/** When the station was last heard, every way: "Packet 3 min ago · Internet 40 s ago". */
 export function heardTimes(row: Heard & Times, radios: readonly PageRadio[], nowMs: number): string {
   const parts = heardParts(row, radios);
   const colon = parts.some((part) => !part.plain);

@@ -250,7 +250,7 @@ const BOX_WORDS: Record<PageRadio["kind"], MessageId> = {
 
 /**
  * The legend of a radio's box: the operator's name if `named` (several radios), else the kind's
- * word with its number from the second on ("FM radio", "HF radio 2").
+ * word with its number from the second on ("Packet radio", "Mercury radio 2").
  */
 export function boxTitle(radio: Pick<PageRadio, "row">, named: boolean): string {
   const { name, kind, number } = radio.row;

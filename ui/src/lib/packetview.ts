@@ -170,7 +170,7 @@ export function summaryText(row: PacketRow): string {
 
 /**
  * The facts of a packet in telling order: from, kind, content, how it travelled ("Came by": its tag
- * and meaning, "FM - heard on radio FM"), when. `radios` is every radio in box order.
+ * and meaning, "Packet - heard on radio Packet"), when. `radios` is every radio in box order.
  */
 export function packetFacts(row: PacketRow, radios: readonly PageRadio[] = []): Fact[] {
   const known = radios;

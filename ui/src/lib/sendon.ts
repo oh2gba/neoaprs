@@ -10,7 +10,7 @@ import type { PageRadio, RadioId } from "@/lib/radios";
 
 /**
  * Why nothing may go on these radios: none is connected (one radio: said as every button says it;
- * several: a line for each, "FM: not connected"), or there is none. Undefined while one is
+ * several: a line for each, "Packet: not connected"), or there is none. Undefined while one is
  * connected, and while `told` is false (before the daemon has told its radios).
  */
 export function radiosBlockedReason(
@@ -24,7 +24,7 @@ export function radiosBlockedReason(
 }
 
 /**
- * The names of the radios something went on, for the front of its line ("FM and Mercury"): those
+ * The names of the radios something went on, for the front of its line ("Packet and Mercury"): those
  * that are named (several radios on, or a radio that is off); "" while none is.
  */
 export function radiosNamed(

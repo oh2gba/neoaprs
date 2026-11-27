@@ -38,7 +38,7 @@ export interface PageRadio {
   /** Display name: the typed name, else the kind's word and its number ("HF 2"). */
   name: string;
   /**
-   * The name is the kind's word alone ("FM", "HF"); a field of its own so that tags do not read
+   * The name is the kind's word alone ("Packet", "Mercury"); a field of its own so that tags do not read
    * `row`.
    */
   plain: boolean;
