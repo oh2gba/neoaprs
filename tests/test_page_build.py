@@ -1,6 +1,6 @@
 """The built page: neoaprs/page/ is what ui/ builds and nothing else, with no NeoAPRS version in it.
-The first tests look at page/ alone; the last builds ui/ into a temporary folder and compares, and
-is skipped without node.
+The first tests look at page/ alone; the last two build ui/ into a temporary folder, without and
+with encrypted messages, and are skipped without node.
 """
 
 import hashlib
@@ -9,9 +9,13 @@ import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+
+from neoaprs.web import server as web_server
+from tests.support.env import Env
 
 ROOT = Path(__file__).resolve().parent.parent
 UI = ROOT / "ui"
@@ -151,22 +155,74 @@ def test_nothing_of_the_page_reads_the_version_of_neoaprs() -> None:
         )
 
 
-@pytest.mark.skipif(
-    node_dir() is None, reason="no node 22.12 or newer (on the PATH or in ~/.nvm): the page is not rebuilt to compare"
+# What only the page's code for encrypted messages has (the Key menu, the padlock, the key in the
+# Settings tab, its commands); their words stay in the catalogues.
+ENCRYPTION_MARKS = (
+    "message_key_new",
+    "forget_station_key",
+    "routemenu keymenu",
+    "set-message-key",
+    "M3.8 5.4V3.9",
+    "M5 7V5a3",
 )
-@pytest.mark.skipif(
-    not VITE.exists(), reason="ui/node_modules is not installed (cd ui && npm ci): the page is not rebuilt to compare"
-)
-def test_the_page_is_what_the_source_builds(tmp_path: Path) -> None:
-    fresh_dir = tmp_path / "fresh"
-    env = {**os.environ, "PATH": f"{node_dir()}{os.pathsep}{os.environ['PATH']}", "NEOAPRS_OUT": str(fresh_dir)}
+
+
+def page_scripts(folder: Path) -> str:
+    return "".join(p.read_text(encoding="utf-8") for p in sorted((folder / "assets").glob("*.js")))
+
+
+def test_the_committed_page_has_no_code_of_encrypted_messages() -> None:
+    """Encrypted messages are a switch of the build (NEOAPRS_ENCRYPTION=1, ui/vite.config.ts) and
+    every release is built without it, the page as well as the wheel."""
+    scripts = page_scripts(PAGE)
+    assert [mark for mark in ENCRYPTION_MARKS if mark in scripts] == [], f"page/ was built with the switch: {HINT}"
+
+
+def needs_vite[F: Callable[..., object]](test: F) -> F:
+    no_node = pytest.mark.skipif(
+        node_dir() is None, reason="no node 22.12 or newer (on the PATH or in ~/.nvm): the page is not rebuilt"
+    )
+    no_modules = pytest.mark.skipif(
+        not VITE.exists(), reason="ui/node_modules is not installed (cd ui && npm ci): the page is not rebuilt"
+    )
+    return no_node(no_modules(test))
+
+
+def build(out: Path, encryption: bool = False) -> None:
+    env = {k: v for k, v in os.environ.items() if k != "NEOAPRS_ENCRYPTION"}
+    env |= {"PATH": f"{node_dir()}{os.pathsep}{os.environ['PATH']}", "NEOAPRS_OUT": str(out)}
+    if encryption:
+        env["NEOAPRS_ENCRYPTION"] = "1"
     r = subprocess.run(
         [str(VITE), "build", "--logLevel", "error"], cwd=UI, env=env, capture_output=True, text=True, timeout=300
     )
     assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
+
+
+@needs_vite
+def test_the_page_is_what_the_source_builds(tmp_path: Path) -> None:
+    fresh_dir = tmp_path / "fresh"
+    build(fresh_dir)
     fresh, kept = tree(fresh_dir), tree(PAGE)
     assert sorted(fresh) == sorted(kept), (
         f"page/ and a fresh build have different files: only built {sorted(set(fresh) - set(kept))}, only in page/ {sorted(set(kept) - set(fresh))}; {HINT}"
     )
     stale = [name for name in fresh if fresh[name] != kept[name]]
     assert not stale, f"page/ is out of date ({', '.join(stale)}): {HINT}"
+
+
+@needs_vite
+async def test_a_page_built_with_the_switch_has_the_keys_and_the_padlock_and_the_daemon_serves_them(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    page = tmp_path / "page"
+    build(page, encryption=True)
+    assert [mark for mark in ENCRYPTION_MARKS if mark not in page_scripts(page)] == []
+    monkeypatch.setattr(web_server, "PAGE_DIR", page)
+    e = Env(tmp_path / "data", web=True)
+    await e.start()
+    served = ""
+    for name in re.findall(r'src="\./(assets/[^"]+\.js)"', (await e.fetch("/")).body.decode()):
+        served += (await e.fetch(f"/{name}")).body.decode()
+    await e.stop()
+    assert served and [mark for mark in ENCRYPTION_MARKS if mark not in served] == []

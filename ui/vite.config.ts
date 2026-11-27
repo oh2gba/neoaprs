@@ -35,9 +35,25 @@ function serviceWorker(): Plugin {
   };
 }
 
+/** Encrypted messages are a switch of the build, as for the wheel (NEOAPRS_ENCRYPTION=1, hatch_build.py): `__ENCRYPTION__` in the page's source becomes `true` or `false` before anything is compiled, so that the gates in the components are constants and a page built without the switch carries none of their code. The tests run with it on. */
+function encryptionSwitch(on: boolean): Plugin {
+  return {
+    name: "neoaprs-encryption-switch",
+    enforce: "pre",
+    transform(code, id) {
+      if (!id.includes("/src/") || !code.includes("__ENCRYPTION__")) return null;
+      return { code: code.replaceAll("__ENCRYPTION__", String(on)), map: null };
+    },
+  };
+}
+
 // The page is built into ../neoaprs/page (scripts/build-page sets NEOAPRS_OUT to it), package data that the daemon serves as it is and the wheel carries; the built files are kept in git, so the machine that runs NeoAPRS needs no node.
 export default defineConfig({
-  plugins: [vue(), serviceWorker()],
+  plugins: [
+    encryptionSwitch(process.env.NEOAPRS_ENCRYPTION === "1" || process.env.VITEST !== undefined),
+    vue(),
+    serviceWorker(),
+  ],
   base: "./",
   resolve: {
     alias: {

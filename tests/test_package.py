@@ -186,8 +186,17 @@ def test_the_wheel_holds_the_package_the_page_and_the_unit_and_nothing_of_the_re
 
 
 def test_the_wheel_has_encrypted_messages_only_when_the_build_switch_is_on(tmp_path: Path) -> None:
-    uv("build", "--wheel", "--out-dir", str(tmp_path), env=uv_env() | {"NEOAPRS_ENCRYPTION": "1"})
-    [wheel] = tmp_path.glob("*.whl")
+    """Built from a copy whose page stands for one built with the switch (tests/test_page_build.py
+    builds that), since the committed page is not."""
+    tree = tmp_path / "tree"
+    shutil.copytree(ROOT / "neoaprs", tree / "neoaprs", ignore=shutil.ignore_patterns("__pycache__"))
+    for name in ("pyproject.toml", "hatch_build.py", "LICENSE"):
+        shutil.copy2(ROOT / name, tree / name)
+    with next((tree / "neoaprs" / "page" / "assets").glob("index-*.js")).open("a", encoding="utf-8") as script:
+        script.write(';send({cmd:"message_key_new"})')
+    out = tmp_path / "dist"
+    uv("build", "--wheel", "--out-dir", str(out), env=uv_env() | {"NEOAPRS_ENCRYPTION": "1"}, cwd=tree)
+    [wheel] = out.glob("*.whl")
     names = zipfile.ZipFile(wheel).namelist()
     assert (
         "neoaprs/cipher.py" in names

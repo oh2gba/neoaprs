@@ -3,8 +3,11 @@ modules the switch leaves out are imported by nothing else, and a daemon without
 message as plain, seals nothing and shows no key."""
 
 import ast
+import importlib.util
+import sys
 import tomllib
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -36,6 +39,44 @@ def test_the_wheel_leaves_out_exactly_the_modules_the_hook_puts_back() -> None:
     assert sorted(wheel["exclude"]) == sorted(ENCRYPTION)
     assert {path[:-3].replace("/", ".") for path in ENCRYPTION} == MODULES
     assert all((ROOT / path).is_file() for path in ENCRYPTION), "the code stays in the repository"
+
+
+def _hook(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    """hatch_build.py, imported with a stand-in for the build backend's one class it uses."""
+    for name in ("hatchling", "hatchling.builders", "hatchling.builders.hooks", "hatchling.builders.hooks.plugin"):
+        monkeypatch.setitem(sys.modules, name, ModuleType(name))
+    interface = ModuleType("hatchling.builders.hooks.plugin.interface")
+    interface.BuildHookInterface = type("BuildHookInterface", (), {})  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, interface.__name__, interface)
+    spec = importlib.util.spec_from_file_location("hatch_build_under_test", HOOK)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_a_switched_on_wheel_needs_the_page_built_with_the_switch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    hook = _hook(monkeypatch)
+    assert not hook.page_has_encryption(ROOT / "neoaprs" / "page"), "the committed page is built without it"
+    (tmp_path / "neoaprs" / "page" / "assets").mkdir(parents=True)
+    script = tmp_path / "neoaprs" / "page" / "assets" / "index-abcd1234.js"
+    script.write_text('send({cmd:"status"})')
+    switch = hook.EncryptionSwitch()
+    switch.root = str(tmp_path)
+    monkeypatch.setenv("NEOAPRS_ENCRYPTION", "1")
+    build_data: dict[str, dict[str, str]] = {"force_include": {}}
+    with pytest.raises(RuntimeError, match="scripts/build-page"):
+        switch.initialize("standard", build_data)
+    script.write_text('send({cmd:"message_key_new"})')
+    switch.initialize("standard", build_data)
+    assert sorted(build_data["force_include"].values()) == sorted(ENCRYPTION)
+    monkeypatch.delenv("NEOAPRS_ENCRYPTION")
+    script.write_text("")
+    off: dict[str, dict[str, str]] = {"force_include": {}}
+    switch.initialize("standard", off)
+    assert off == {"force_include": {}}
 
 
 def _imports(tree: ast.AST) -> set[str]:

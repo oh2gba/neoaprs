@@ -44,7 +44,10 @@ const log = ref<HTMLElement | null>(null);
 const cameOn = useCameOn();
 /** Each message with the note of its query if it is one, its mark (padlock, key) and its radio
  * tag where radios are named. */
-const items = computed(() => props.thread.map((m) => ({ m, asked: askedNote(m), seal: sealMarkOf(m), on: cameOn(m) })));
+const encryption = __ENCRYPTION__;
+const items = computed(() =>
+  props.thread.map((m) => ({ m, asked: askedNote(m), seal: encryption ? sealMarkOf(m) : null, on: cameOn(m) })),
+);
 
 /** What the radio measured of an incoming message ("SNR −3 dB"); null for ours or when it gave
  * none. */
@@ -84,7 +87,7 @@ const copy = useCopyMenu((bubble) => {
         <p class="bubble-text" :class="{ sealed: m.seal !== '' && m.seal !== 'open' }">{{ shownText(m) }}</p>
         <p class="bubble-meta muted">
           <span :title="dateTimeText(m.at)">{{ clockText(m.at) }}</span>
-          <LockGlyph v-if="seal" :kind="seal.kind" :title="seal.title" />
+          <LockGlyph v-if="encryption && seal" :kind="seal.kind" :title="seal.title" />
           <MessageMark :row="m" />
           <span v-if="m.direction === 'out'" class="msg-state" :class="`state-${m.state}`">{{ stateText(m) }}</span>
           <button

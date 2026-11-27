@@ -95,6 +95,7 @@ const {
 } = useDaemonContext();
 // New key asks twice: stations holding the old key must be sent the new one.
 const newMessageKey = useSure<string>();
+const encryption = __ENCRYPTION__;
 const { draft, errors } = settings;
 const form = useSettingsForm(config, settings, props.scope);
 const { groups, question, defaults } = form;
@@ -420,7 +421,7 @@ function typed(key: string, text: string): void {
       <BrowserAlerts v-if="group.id === 'notifications'" :alerts="alerts" :https="config.https" :say="say" />
     </SettingsGroup>
     <SettingsGroup
-      v-if="scope === 'settings' && keys.on.value"
+      v-if="encryption && scope === 'settings' && keys.on.value"
       id="encrypt"
       class="encrypt"
       :title="t('settings.group.encrypt')"

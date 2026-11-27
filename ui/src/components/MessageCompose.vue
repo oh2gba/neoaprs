@@ -38,6 +38,7 @@ const input = ref<HTMLInputElement | null>(null);
 /** The padlock is pressed: the message is encrypted. It releases when the station can no longer
  * be written to that way. */
 const locked = ref(false);
+const encryption = __ENCRYPTION__;
 watch(
   () => props.lockable,
   (can) => {
@@ -106,7 +107,7 @@ function submit(): void {
     />
     <template #buttons>
       <IconButton
-        v-if="lockable"
+        v-if="encryption && lockable"
         kind="lock"
         class="compose-lock"
         :pressed="locked"

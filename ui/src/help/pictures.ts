@@ -54,7 +54,7 @@ export const PICTURES: Record<PictureName, Component> = {
   dummy: DummyPicture,
   notifications: NotificationsPicture,
   qru: QruPicture,
-  encrypt: EncryptPicture,
+  encrypt: __ENCRYPTION__ ? EncryptPicture : () => null,
   mercury: MercuryPicture,
   scope: ScopePicture,
   tworadios: TwoRadiosPicture,

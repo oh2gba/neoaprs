@@ -77,6 +77,7 @@ const heard = computed(() => isOverheard(props.selected));
 /** The station's key for the Key menu, and whether a message to it can be locked. */
 const theirs = computed(() => keys.of(replyTo(props.selected)));
 const lockable = computed(() => keys.canLock(replyTo(props.selected)));
+const encryption = __ENCRYPTION__;
 /** The copy menu of the title: the call, or both calls of an overheard pair. */
 const copy = useCopyMenu(() =>
   (overheardPair(props.selected) ?? [props.selected]).map((text) => ({ kind: "call" as const, text })),
@@ -145,7 +146,7 @@ onMounted(() => {
         @radio="choose"
       />
       <KeyMenu
-        v-if="!heard && keys.on.value"
+        v-if="encryption && !heard && keys.on.value"
         :key="`key-${selected}`"
         :call="replyTo(selected)"
         :theirs="theirs"

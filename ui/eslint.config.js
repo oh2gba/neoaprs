@@ -64,7 +64,8 @@ export default tseslint.config(
 
   {
     languageOptions: {
-      globals: globals.browser,
+      // __ENCRYPTION__ is a constant of the build (vite.config.ts)
+      globals: { ...globals.browser, __ENCRYPTION__: "readonly" },
       parserOptions: {
         projectService: true,
         tsconfigRootDir: fileURLToPath(new URL(".", import.meta.url)),

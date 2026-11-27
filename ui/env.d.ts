@@ -4,3 +4,5 @@ declare module "*.vue" {
   const component: DefineComponent<object, object, unknown>;
   export default component;
 }
+/** Whether the page is built with encrypted messages: a constant of the build (vite.config.ts). */
+declare const __ENCRYPTION__: boolean;

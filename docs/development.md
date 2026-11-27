@@ -34,11 +34,12 @@ Dependencies are in `pyproject.toml` and `uv.lock` only.
 Encrypted messages are for exceptional circumstances only, and the released packages do not contain them. The switch is the environment variable `NEOAPRS_ENCRYPTION` at build time, and it is off by default:
 
 ```bash
-uv build                         # the released wheel: no neoaprs/cipher.py, no neoaprs/services/keyring.py
-NEOAPRS_ENCRYPTION=1 uv build    # a wheel that includes them
+uv build                                    # the released wheel: no neoaprs/cipher.py, no neoaprs/services/keyring.py
+NEOAPRS_ENCRYPTION=1 scripts/build-page     # in a clone: the page with the Key menu and the padlock
+NEOAPRS_ENCRYPTION=1 uv build               # a wheel that includes them
 ```
 
-`pyproject.toml` excludes the two modules from every wheel and `hatch_build.py` adds them back when the switch is `1`. Every package (the Windows installer, the AppImage, the .deb, the macOS app) is made from the wheel, so the one switch covers them all. The sdist and a development clone always have the code. At run time `neoaprs/services/keys.py` checks whether the cipher module is present: without it the daemon uses `NoKeys`, treats every message as plain text, and accepts `--encryption` without effect. `tests/test_build_switch.py` and `tests/test_package.py` hold this.
+`pyproject.toml` excludes the two modules from every wheel and `hatch_build.py` adds them back when the switch is `1`. The page follows the same switch: `ui/vite.config.ts` turns `__ENCRYPTION__` in the page's source into `true` or `false` before anything is compiled, so the gates in the components are constants and a page built without the switch has none of their code (the words stay in the catalogues). The committed page is built without it; `hatch_build.py` refuses a switched-on wheel whose page was, and `tests/test_page_build.py` holds both pages. The page's tests run with the switch on. Every package (the Windows installer, the AppImage, the .deb, the macOS app) is made from the wheel, so the one switch covers them all. The sdist and a development clone always have the code. At run time `neoaprs/services/keys.py` checks whether the cipher module is present: without it the daemon uses `NoKeys`, treats every message as plain text, and accepts `--encryption` without effect. `tests/test_build_switch.py` and `tests/test_package.py` hold this.
 
 A new `git worktree` is made ready with `scripts/worktree-setup`: `uv sync --frozen --all-extras` and a real `ui/node_modules` from `npm ci` (from the caches
 when they have everything), never a symlink to another checkout.

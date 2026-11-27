@@ -17,6 +17,9 @@
 # tests/test_page_build.py fails when neoaprs/page/ is not what ui/ builds. Needs node 22.12 or
 # newer (on the PATH, else the newest in ~/.nvm).
 #
+# NEOAPRS_ENCRYPTION=1 builds the page with encrypted messages (the Key menu, the padlock), for a
+# wheel built with the same switch; the committed page is built without it.
+#
 # ui/node_modules is installed from the lockfile (npm ci, which deletes it first) only when it is
 # missing or is not what ui/package-lock.json says. When it is a symlink (to another checkout's) it
 # is only checked, and the script says so; it stops if it is not current (scripts/worktree-setup
@@ -52,4 +55,6 @@ NEOAPRS_OUT="$new" npx vite build
 [ -f "$new/index.html" ] || { echo "build-page: the build made no index.html: neoaprs/page/ is left as it was"; exit 1; }
 if [ -e "$ROOT/neoaprs/page" ]; then mv "$ROOT/neoaprs/page" "$old"; fi
 mv "$new" "$ROOT/neoaprs/page"
-echo "build-page: neoaprs/page/ is made from ui/ ($(find "$ROOT/neoaprs/page" -type f | wc -l) files)"
+with=""
+[ "${NEOAPRS_ENCRYPTION:-}" = 1 ] && with=", with encrypted messages: not for a commit"
+echo "build-page: neoaprs/page/ is made from ui/ ($(find "$ROOT/neoaprs/page" -type f | wc -l) files$with)"

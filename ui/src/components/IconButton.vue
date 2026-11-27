@@ -21,6 +21,7 @@ withDefaults(
     pressed: false,
   },
 );
+const encryption = __ENCRYPTION__;
 </script>
 
 <template>
@@ -76,7 +77,7 @@ withDefaults(
         <path d="M5.5 2.5h5M6.5 2.5v4.2L4.5 9.2h7L9.5 6.7V2.5" :fill="pressed ? 'currentColor' : 'none'" />
         <path d="M8 9.2v4.3" />
       </template>
-      <template v-else-if="kind === 'lock'">
+      <template v-else-if="encryption && kind === 'lock'">
         <rect x="3" y="7" width="10" height="7" rx="1.5" :fill="pressed ? 'currentColor' : 'none'" />
         <path d="M5 7V5a3 3 0 0 1 6 0v2" />
       </template>
