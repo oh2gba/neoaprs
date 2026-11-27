@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it } from "vitest";
 import SkedsPane from "@/components/SkedsPane.vue";
-import type { SkedRow, SkedsState } from "@/protocol/protocol";
+import type { SkedPast, SkedRow, SkedsState } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
 import { NOW, sked, skedsState } from "@/test/fixtures";
 
@@ -15,7 +15,8 @@ function pane(rows: SkedRow[] = [], extra: Partial<SkedsState> = {}) {
   daemon.skeds.value = skedsState(rows, extra);
   return mount(SkedsPane, { global: withDaemon(daemon), attachTo: document.body });
 }
-const rows = (wrapper: ReturnType<typeof pane>) => wrapper.findAll(".sked");
+const rows = (wrapper: ReturnType<typeof pane>) => wrapper.findAll(".boardpane > .board > .sked");
+const pastRows = (wrapper: ReturnType<typeof pane>) => wrapper.findAll(".sked-past .sked");
 
 // The fixtures' time is Wednesday 21 October 2026, 12:00 UTC; a sked() starts in 2 hours and lasts
 // 2.
@@ -164,6 +165,66 @@ describe("SkedsPane", () => {
         sked("c", { call: "OH2GBA", from: at(7), to: at(8) }),
       ]);
       expect(wrapper.findAll(".sked .sked-actions")).toHaveLength(3);
+    });
+  });
+
+  describe("the past tests", () => {
+    const gone = (id: string, extra: Partial<SkedPast> = {}): SkedPast => ({
+      id,
+      call: "OH2XYZ",
+      from: at(-5),
+      to: at(-3),
+      dial: "7.0541 MHz USB",
+      note: "",
+      ...extra,
+    });
+
+    it("are a section under the board, the last of the pane, that says so when there are none", () => {
+      const wrapper = pane([sked("a")]);
+      const section = wrapper.find("fieldset.sked-past");
+      expect(section.find("legend").text()).toBe("Past tests");
+      expect(section.find(".empty").text()).toBe("No past tests.");
+      expect(wrapper.find(".boardpane").element.lastElementChild).toBe(section.element);
+    });
+
+    it("show a test in the board's own row: the time in UTC with the viewer's own in the title, the dial, every call and the note, with no Join or Delete", () => {
+      const wrapper = pane([], {
+        past: [gone("a", { call: "OH2GBA", note: "Mercury, 10 W" }), gone("b", { call: "OH3ABC" })],
+      });
+      const [row] = pastRows(wrapper);
+      expect(pastRows(wrapper)).toHaveLength(1);
+      expect(row?.find(".sked-when strong").text()).toBe("Wed 21 Oct 07:00 to 09:00 UTC");
+      expect(row?.find(".sked-when .muted").exists()).toBe(false);
+      expect(row?.find(".sked-when").attributes("title")).toMatch(/^Your time: /);
+      expect(row?.find(".sked-dial").text()).toBe("7.0541 MHz USB");
+      expect(row?.findAll(".sked-call").map((c) => c.text())).toEqual(["OH2GBA", "OH3ABC"]);
+      expect(row?.find(".sked-note").text()).toBe("OH2GBA: Mercury, 10 W");
+      expect(row?.find(".sked-actions").exists()).toBe(true);
+      expect(row?.find(".sked-actions").element.children).toHaveLength(0);
+      expect(row?.find(".tag").exists()).toBe(false);
+    });
+
+    it("list the newest first, twenty at most", () => {
+      const many = Array.from({ length: 21 }, (_, n) => gone(`p${n}`, { from: at(-2 * n - 3), to: at(-2 * n - 1) }));
+      const wrapper = pane([], { past: [...many].reverse() });
+      expect(pastRows(wrapper)).toHaveLength(20);
+      expect(pastRows(wrapper)[0]?.find(".sked-when strong").text()).toBe("Wed 21 Oct 09:00 to 11:00 UTC");
+    });
+
+    it("take a test that ends by the page's clock off the board at once", async () => {
+      const wrapper = pane([sked("run", { from: at(-1), to: at(1) }), sked("b", { from: at(5), to: at(6) })]);
+      expect(pastRows(wrapper)).toHaveLength(0);
+      await tell(daemon, { now: NOW + 2 * 3_600_000 });
+      expect(rows(wrapper)).toHaveLength(1);
+      expect(pastRows(wrapper)).toHaveLength(1);
+      expect(pastRows(wrapper)[0]?.find(".sked-when strong").text()).toBe("Wed 21 Oct 11:00 to 13:00 UTC");
+    });
+
+    it("stay while the board cannot be reached, and are not there while it is off or not told", () => {
+      expect(pastRows(pane([], { state: "offline", past: [gone("a")] }))).toHaveLength(1);
+      expect(pane([], { state: "offline" }).find(".sked-past").exists()).toBe(false);
+      expect(pane([], { state: "off" }).find(".sked-past").exists()).toBe(false);
+      expect(pane([], { state: "closed" }).find(".sked-past .empty").exists()).toBe(true);
     });
   });
 

@@ -9,6 +9,8 @@ export const skeds: Record<keyof typeof source, Message> = {
   "skeds.about2": "掲示板は公開で、neo.oh2gba.eu にあります。無線では送信されません。",
 
   "skeds.empty": "予定のテストはありません。",
+  "skeds.past_title": "過去のテスト",
+  "skeds.past_empty": "過去のテストはありません。",
   "skeds.when": "{from}〜{to} UTC",
   "skeds.local": "現地時間: {from}〜{to}",
   "skeds.ours": "自局",

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { bytesLeft } from "@/lib/messages";
 import { canPost, freeSlot, textOk, type PostDraft, type PostKind } from "@/lib/bulletins";
 import { isAlias, isMarker } from "@/lib/chain";
-import { DIAL } from "@/lib/skeds";
+import { DIAL, pastGroups } from "@/lib/skeds";
 import { replyAddressOk } from "@/lib/support";
 import { parsePath, validCall, validName } from "@/lib/calls";
 import { compareVersions } from "@/lib/releasenotes";
@@ -26,6 +26,33 @@ describe("the vectors of the daemon", () => {
 
   it("say which dials a sked takes", () => {
     for (const { input, ok } of vectors.sked_dials) expect(DIAL.test(input), JSON.stringify(input)).toBe(ok);
+  });
+
+  it("say which skeds are past tests and in which order", () => {
+    const now = Date.parse("2026-11-14T12:00:00Z");
+    const at = (hours: number) => new Date(now + hours * 3_600_000).toISOString().slice(0, 19) + "Z";
+    for (const { skeds, listed } of vectors.sked_past) {
+      const rows = skeds.map(([id, call, from, to, dial]) => ({
+        id: String(id),
+        call: String(call),
+        from: at(Number(from)),
+        to: at(Number(to)),
+        dial: String(dial),
+        note: "",
+        ours: false,
+      }));
+      const ids = (found: ReturnType<typeof pastGroups>) => found.flatMap((g) => g.rows.map((r) => r.id));
+      expect(ids(pastGroups([], rows, now)), JSON.stringify(skeds)).toEqual(listed);
+      expect(
+        ids(
+          pastGroups(
+            rows.filter((r) => Date.parse(r.to) <= now),
+            [],
+            now,
+          ),
+        ),
+      ).toEqual(listed);
+    }
   });
 
   it("say which calls parse (a path, an addressee), SSID and all", () => {

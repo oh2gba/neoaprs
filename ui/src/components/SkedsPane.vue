@@ -1,26 +1,27 @@
 <script setup lang="ts">
 // The Skeds tab: the board of when stations will be on the air (the project's board, read by the
-// daemon: topic `skeds`), nearest first. Skeds with the same times and dial are one row
-// (lib/skeds.ts). Times are UTC with the time until it ("in 3 h", "now"); the viewer's own time is
-// the title; the note is one line with the whole text in the title. A row with a sked of ours has
-// Delete (two presses); other rows have Join, which posts a sked with the same times and dial. That
-// column keeps its width and Join is off, not gone, while a post is not possible. An unreachable
-// board shows the skeds last read; a closed board shows the skeds without the form. The form is
-// fixed at the bottom (SkedCompose).
+// daemon: topic `skeds`), nearest first, and under it the past tests, newest first, in a section of
+// the Bulletins tab's kind. Skeds with the same times and dial are one row (lib/skeds.ts, SkedItem).
+// A row with a sked of ours has Delete (two presses); other rows have Join, which posts a sked with
+// the same times and dial. That column keeps its width and Join is off, not gone, while a post is not
+// possible; a past test has neither. The past tests are the last thing of the scrolling pane, so
+// nothing moves when they come or change. An unreachable board shows the skeds and past tests last
+// read; a closed board shows them without the form. The form is fixed at the bottom (SkedCompose).
 import { computed } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import SkedCompose from "@/components/SkedCompose.vue";
+import SkedItem from "@/components/SkedItem.vue";
 import TabHelp from "@/components/TabHelp.vue";
-import TagMark from "@/components/TagMark.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useCommandInFlight } from "@/composables/useInFlight";
 import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
-import { groups, hasCall, inText, localText, mayPostAs, noteOf, whenText, type SkedGroup } from "@/lib/skeds";
+import { groups, hasCall, mayPostAs, pastGroups, whenText, type SkedGroup } from "@/lib/skeds";
 
 const { skeds, call, now, send } = useDaemonContext();
 const sure = useSure<string>();
 const shown = computed(() => groups(skeds.value?.rows ?? [], now.value));
+const past = computed(() => pastGroups(skeds.value?.past ?? [], skeds.value?.rows ?? [], now.value));
 const state = computed(() => skeds.value?.state ?? null);
 /**
  * The empty board is said only where the board was read or is closed: an unreachable board is not
@@ -43,45 +44,37 @@ const join = (g: SkedGroup): boolean =>
     <div class="boardpane">
       <p v-if="shown.length === 0 && listed" class="empty">{{ t("skeds.empty") }}</p>
       <ul v-if="shown.length > 0" class="board">
-        <li v-for="g in shown" :key="g.key" class="sked" :class="{ mine: g.ours.length > 0 }">
-          <div class="sked-main">
-            <p class="sked-when" :title="localText(g.from, g.to)">
-              <strong>{{ whenText(g.from, g.to) }}</strong> <span class="muted">{{ inText(g.from, now) }}</span>
-            </p>
-            <p class="sked-line">
-              <span class="mono sked-dial">{{ g.dial }}</span>
-              <span v-for="r in g.rows" :key="r.id" class="sked-call">
-                <strong class="mono">{{ r.call }}</strong>
-                <TagMark v-if="r.ours" tone="outline">{{ t("skeds.ours") }}</TagMark>
-              </span>
-            </p>
-            <p v-if="noteOf(g) !== ''" class="sked-note muted" :title="noteOf(g)">{{ noteOf(g) }}</p>
-          </div>
-          <div class="sked-actions">
-            <IconButton
-              v-if="g.ours.length > 0"
-              kind="delete"
-              :title="t('skeds.delete_title')"
-              :armed="sure.armed.value === g.key"
-              :label="t('skeds.delete_label', { when: whenText(g.from, g.to) })"
-              @click="sure.press(g.key, () => remove(g))"
-            />
-            <button
-              v-else-if="state !== 'closed' && !hasCall(g, call)"
-              type="button"
-              class="btn small"
-              :disabled="!canPost || joining.busy.value"
-              :title="t('skeds.join_title')"
-              :aria-label="
-                t('skeds.join_label', { calls: g.rows.map((r) => r.call).join(', '), when: whenText(g.from, g.to) })
-              "
-              @click="join(g)"
-            >
-              {{ t("skeds.join") }}
-            </button>
-          </div>
-        </li>
+        <SkedItem v-for="g in shown" :key="g.key" :group="g" :now="now">
+          <IconButton
+            v-if="g.ours.length > 0"
+            kind="delete"
+            :title="t('skeds.delete_title')"
+            :armed="sure.armed.value === g.key"
+            :label="t('skeds.delete_label', { when: whenText(g.from, g.to) })"
+            @click="sure.press(g.key, () => remove(g))"
+          />
+          <button
+            v-else-if="state !== 'closed' && !hasCall(g, call)"
+            type="button"
+            class="btn small"
+            :disabled="!canPost || joining.busy.value"
+            :title="t('skeds.join_title')"
+            :aria-label="
+              t('skeds.join_label', { calls: g.rows.map((r) => r.call).join(', '), when: whenText(g.from, g.to) })
+            "
+            @click="join(g)"
+          >
+            {{ t("skeds.join") }}
+          </button>
+        </SkedItem>
       </ul>
+      <fieldset v-if="listed || past.length > 0" class="board-section sked-past" :aria-label="t('skeds.past_title')">
+        <legend class="board-title">{{ t("skeds.past_title") }}</legend>
+        <p v-if="past.length === 0" class="empty">{{ t("skeds.past_empty") }}</p>
+        <ul v-else class="board">
+          <SkedItem v-for="g in past" :key="g.key" :group="g" />
+        </ul>
+      </fieldset>
     </div>
     <SkedCompose v-if="state !== 'closed'" />
   </div>

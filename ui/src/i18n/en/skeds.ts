@@ -6,6 +6,8 @@ export const skeds = {
   "skeds.about2": "The board is public, on neo.oh2gba.eu. It is not sent by radio.",
 
   "skeds.empty": "No tests planned.",
+  "skeds.past_title": "Past tests",
+  "skeds.past_empty": "No past tests.",
   "skeds.when": "{from} to {to} UTC",
   "skeds.local": "Your time: {from} to {to}",
   "skeds.ours": "ours",

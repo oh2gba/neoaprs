@@ -587,6 +587,8 @@ export const fr: Catalogue = {
   "skeds.about2": "Le tableau est public, sur neo.oh2gba.eu. Il n'est pas envoyé par radio.",
 
   "skeds.empty": "Aucun essai prévu.",
+  "skeds.past_title": "Essais passés",
+  "skeds.past_empty": "Aucun essai passé.",
   "skeds.when": "{from} à {to} UTC",
   "skeds.local": "Votre heure : {from} à {to}",
   "skeds.ours": "le nôtre",

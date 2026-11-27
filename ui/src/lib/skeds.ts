@@ -1,6 +1,6 @@
 // The sked board as the Skeds tab shows it and the form posts it. The daemon decides what a sked is
-// and drops ended ones (neoaprs/skeds.py); this module arranges and words the rows (skeds with the
-// same times and dial are one row listing their calls), counts unseen ones, and holds the form to
+// and moves ended ones to the past tests (neoaprs/skeds.py); this module arranges and words the rows
+// (skeds with the same times and dial are one row listing their calls), counts unseen ones, and holds the form to
 // the server's rules: the day is one of the next 30 UTC days, From and To are half hours, a To not
 // after From means the next day (a sked is at most 24 hours long), the dial is written
 // `7.0541 MHz USB` (typed as the number alone, always USB), and the note is one line of at most 80
@@ -8,7 +8,8 @@
 import { t, dayText } from "@/i18n";
 import { untilText } from "@/lib/format";
 import { joinCall, mayTransmitAs, splitCall } from "@/lib/calls";
-import type { Command, SkedFrequency, SkedRow } from "@/protocol/protocol";
+import { LIMITS } from "@/protocol/lists";
+import type { Command, SkedFrequency, SkedPast, SkedRow } from "@/protocol/protocol";
 
 /** The longest note, in characters, as on the board. */
 export const NOTE_MAX = 80;
@@ -176,6 +177,50 @@ export function groups(rows: Iterable<SkedRow>, nowMs: number): SkedGroup[] {
     (a, b) =>
       Date.parse(a.from) - Date.parse(b.from) || Date.parse(a.to) - Date.parse(b.to) || a.dial.localeCompare(b.dial),
   );
+}
+
+/**
+ * The past tests in rows, newest first: those the daemon told and the board's that have ended by the
+ * page's clock (the daemon moves them too, but not at the second), as neoaprs/skeds.py `past_tests`
+ * orders them: by the end, then the start, both latest first, then the dial; each row's calls by id.
+ */
+export function pastGroups(past: Iterable<SkedPast>, board: Iterable<SkedRow>, nowMs: number): SkedGroup[] {
+  const found = new Map<string, SkedPast>();
+  for (const row of past) if (!found.has(row.id)) found.set(row.id, row);
+  for (const row of board) if (Date.parse(row.to) <= nowMs && !found.has(row.id)) found.set(row.id, row);
+  const oldest = nowMs - LIMITS.skedPast.keepDays * DAY_MS;
+  const tests = new Map<string, SkedGroup>();
+  for (const row of found.values()) {
+    if (!(Date.parse(row.to) > oldest)) continue;
+    const key = `${row.from}|${row.to}|${row.dial}`;
+    const test = tests.get(key) ?? { key, from: row.from, to: row.to, dial: row.dial, rows: [], ours: [] };
+    test.rows.push({
+      id: row.id,
+      call: row.call,
+      from: row.from,
+      to: row.to,
+      dial: row.dial,
+      note: row.note,
+      ours: false,
+    });
+    tests.set(key, test);
+  }
+  const byId = (a: SkedRow, b: SkedRow): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  let left = LIMITS.skedPast.maxRows;
+  return [...tests.values()]
+    .sort(
+      (a, b) =>
+        Date.parse(b.to) - Date.parse(a.to) ||
+        Date.parse(b.from) - Date.parse(a.from) ||
+        (a.dial < b.dial ? -1 : a.dial > b.dial ? 1 : 0),
+    )
+    .slice(0, LIMITS.skedPast.maxTests)
+    .map((test) => {
+      const rows = test.rows.sort(byId).slice(0, Math.max(0, left));
+      left -= rows.length;
+      return { ...test, rows };
+    })
+    .filter((test) => test.rows.length > 0);
 }
 
 /** Whether a call is on the row already (a row of our call posted elsewhere counts: Join would

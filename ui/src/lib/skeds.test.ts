@@ -11,6 +11,7 @@ import {
   draftOk,
   ended,
   groups,
+  pastGroups,
   hasCall,
   instants,
   localText,
@@ -342,5 +343,28 @@ describe("the skeds not seen", () => {
     expect(newCount(rows, new Set())).toBe(2);
     expect(newCount(rows, new Set(["a"]))).toBe(1);
     expect(newCount(rows, new Set(["a", "b"]))).toBe(0);
+  });
+});
+
+describe("the past tests", () => {
+  const at = (hours: number) => new Date(NOW + hours * 3_600_000).toISOString().slice(0, 19) + "Z";
+  const told = (id: string, from: number, to: number) => {
+    const { ours: _ours, ...row } = sked(id, { from: at(from), to: at(to) });
+    return row;
+  };
+
+  it("are what the daemon told and what has ended on the board by the page's clock, each once and none ours", () => {
+    const board = [
+      sked("a", { from: at(-2), to: at(-1), ours: true }),
+      sked("b"),
+      sked("c", { from: at(-3), to: at(-1) }),
+    ];
+    const found = pastGroups([told("c", -3, -1), told("d", -9, -8)], board, NOW);
+    expect(found.map((g) => g.rows.map((r) => r.id))).toEqual([["a"], ["c"], ["d"]]);
+    expect(found.every((g) => g.ours.length === 0 && g.rows.every((r) => !r.ours))).toBe(true);
+  });
+
+  it("are kept 30 days after their end", () => {
+    expect(pastGroups([told("a", -721, -720), told("b", -720, -719)], [], NOW).map((g) => g.key)).toHaveLength(1);
   });
 });

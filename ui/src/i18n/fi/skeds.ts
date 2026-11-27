@@ -9,6 +9,8 @@ export const skeds: Record<keyof typeof source, Message> = {
   "skeds.about2": "Taulu on julkinen, osoitteessa neo.oh2gba.eu. Sitä ei lähetetä radiolla.",
 
   "skeds.empty": "Ei suunniteltuja testejä.",
+  "skeds.past_title": "Menneet testit",
+  "skeds.past_empty": "Ei menneitä testejä.",
   "skeds.when": "{from} – {to} UTC",
   "skeds.local": "Paikallinen aikasi: {from} – {to}",
   "skeds.ours": "omamme",

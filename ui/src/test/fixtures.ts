@@ -347,6 +347,7 @@ export function skedsState(rows: SkedRow[] = [], extra: Partial<SkedsState> = {}
       { band: "6 m", dial: "50.6200 MHz USB" },
     ],
     rows,
+    past: [],
     ...extra,
   };
 }

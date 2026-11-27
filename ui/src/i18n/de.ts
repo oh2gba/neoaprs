@@ -589,6 +589,8 @@ export const de: Catalogue = {
   "skeds.about2": "Die Tafel ist öffentlich, auf neo.oh2gba.eu. Sie wird nicht über Funk gesendet.",
 
   "skeds.empty": "Keine Tests geplant.",
+  "skeds.past_title": "Vergangene Tests",
+  "skeds.past_empty": "Keine vergangenen Tests.",
   "skeds.when": "{from} bis {to} UTC",
   "skeds.local": "Deine Zeit: {from} bis {to}",
   "skeds.ours": "unser",
