@@ -5,6 +5,7 @@ checkpoint are made by the same thread, between the other operations; the commit
 disk; the queue wait, the run time and the stall of the loop are numbers."""
 
 import asyncio
+import logging
 import os
 import re
 import shutil
@@ -402,11 +403,17 @@ async def test_an_operation_that_runs_long_is_told_in_the_log(tmp_path: Path, ca
 async def test_a_planned_long_maintenance_is_not_warned_of_and_an_unplanned_one_is(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
+    def maintenances() -> list[logging.LogRecord]:
+        # A slow disk may make the start's own write long too: only a maintenance's warning counts here.
+        return [r for r in caplog.records if "ran for" in r.getMessage() and r.args and r.args[0] == "maint"]
+
     db = await started(tmp_path / "x.sqlite", tuning=Tuning(tick=0.01, slow_sec=0.05))
     try:
+        slow = db.stats()["slow"]
         await db.maintain_own(lambda conn: time.sleep(0.2), planned=True)
-        assert not [r for r in caplog.records if "ran for" in r.getMessage()], "it says its own start and end"
+        assert not maintenances() and db.stats()["slow"] == slow, "it says its own start and end"
         await db.maintain_own(lambda conn: time.sleep(0.2))
-        assert [r for r in caplog.records if "ran for" in r.getMessage()]
+        # counted always; logged only at the first, the tenth and every hundredth (dbthread.often)
+        assert db.stats()["slow"] == slow + 1
     finally:
         await db.close()
