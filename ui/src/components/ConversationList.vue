@@ -1,11 +1,13 @@
 <script setup lang="ts">
 // The Messages tab's conversation list, newest first: call (or overheard pair), age, last text
 // and unseen count. The trash button deletes the whole conversation after "sure?"; a single
-// message has no button. Right-click copies the call (CopyMenu).
+// message has no button. Right-click copies the call (CopyMenu). The head has Show overheard and
+// Services (MessageServices).
 import TagMark from "@/components/TagMark.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
 import InfoTip from "@/components/InfoTip.vue";
+import MessageServices from "@/components/MessageServices.vue";
 import TabHelp from "@/components/TabHelp.vue";
 import { t } from "@/i18n";
 import { useCopyMenu } from "@/composables/useCopyMenu";
@@ -22,6 +24,8 @@ const emit = defineEmits<{
   deleteConversation: [call: string];
   /** every overheard message of the pair: who sent it, who it was for */
   deleteOverheard: [from: string, to: string];
+  /** a ready-made message to a service (MessageServices): its addressee and the start of its text */
+  write: [to: string, text: string];
 }>();
 
 const sure = useSure<string>();
@@ -66,6 +70,7 @@ function remove(call: string): void {
         >
         <InfoTip :label="t('messages.overheard_help_label')">{{ t("messages.overheard_help") }}</InfoTip>
       </div>
+      <MessageServices @write="(to, text) => emit('write', to, text)" />
     </div>
     <ul class="convs">
       <li v-for="c in conversations" :key="c.call" class="conv-item" :class="{ open: c.call === selected }">

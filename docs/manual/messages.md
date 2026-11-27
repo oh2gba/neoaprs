@@ -90,6 +90,20 @@ Resize the panel and the layout follows, with the same conversation open.
 - The open conversation is the filled row. A conversation with messages not seen that is not the open one has its text in bold and a bar at its left. A row is a button, so Tab walks the list.
 - There is no New message button. A chat starts from a station: the **Message** button of its card on the map or in the Stations table opens the conversation, or creates it. In the Stations tab you can also type a call that was never heard into the filter, and **Message OH2XYZ** writes to it all the same.
 - **Show overheard** (with an (i)) at the top of the list is off by default and remembered.
+- **Services** under it starts a message to a service station without remembering its format ([below](#messages-to-services)).
+
+### Messages to services
+
+Pick a service in **Services** at the top of the list and press **Write**: the conversation with the service's station opens with the fixed start of the text in the box, and you complete it and press Send. It is an ordinary message, acked like any other. The choice is remembered.
+
+| entry | to | the text starts with | what you add |
+|---|---|---|---|
+| APRS Thursday | `ANSRVR` | `CQ HOTG ` | your greeting; it counts on a Thursday (UTC) and must reach the internet through an iGate |
+| ANSRVR | `ANSRVR` | `CQ ` | the group, then your text: everyone in the group gets it, and you join it |
+| APRS OTA, Who is on the air | `OTA` | `CQ` | nothing: the answer lists the stations hosting an op |
+| APRS OTA, Chase an op | `OTA` | `CHASE ` | the host's call and a short text; then send your position within 5 minutes |
+| APRS OTA, Host an op | `OTA` | `HOST ` | a short description of your op; then send your position over the radio within 5 minutes |
+
 - A message counts as seen only while its conversation is open and visible: the Messages tab is the tab on show, the panel is not folded, the page is visible (a page in a background browser tab keeps counting), and on a narrow tab the conversation is shown and not the list. What was seen is kept in the browser.
 - The count of messages not seen is a badge on the Messages tab, on the handle of the folded panel, in the header (a click opens the newest conversation with something new) and in the title of the browser tab (`(2) NeoAPRS`).
 

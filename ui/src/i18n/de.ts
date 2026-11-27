@@ -327,6 +327,12 @@ export const de: Catalogue = {
   "messages.about1": "Eine Nachricht ist ein kurzer Text an eine Station, die den Empfang quittiert.",
   "messages.about2": "Starte eine mit Nachricht auf der Karte einer Station oder im Reiter Stationen.",
   "messages.show_overheard": "Mitgehörte zeigen",
+  "messages.services": "Dienste",
+  "messages.service_write": "Schreiben",
+  "messages.service_title": "An {to}: {text}",
+  "messages.service.ota_cq": "Wer ist auf Sendung",
+  "messages.service.ota_chase": "Aktivierung jagen",
+  "messages.service.ota_host": "Aktivieren",
   "messages.overheard_help_label": "Was „mitgehört“ heißt",
   "messages.overheard_help":
     "Nachrichten, die andere Stationen einander gesendet haben und die wir über Funk gehört haben.",

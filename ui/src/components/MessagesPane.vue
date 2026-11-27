@@ -86,6 +86,18 @@ function onEsc(event: KeyboardEvent): void {
   else if (props.selected !== null) void back();
 }
 
+/** A ready-made message to a service: its conversation opens with the start of the text in the
+ * box and the cursor after it. */
+async function write(to: string, text: string): Promise<void> {
+  emit("update:group", null);
+  emit("select", to);
+  draft.value = text;
+  await nextTick();
+  const box = root.value?.querySelector<HTMLInputElement>("#msg-text");
+  box?.focus();
+  box?.setSelectionRange(text.length, text.length);
+}
+
 /** A text sent from the group compose goes out and the view closes; no conversation is opened. */
 function sent(send: () => void): void {
   send();
@@ -106,6 +118,7 @@ function sent(send: () => void): void {
       @update:show-overheard="emit('update:showOverheard', $event)"
       @delete-conversation="emit('deleteConversation', $event)"
       @delete-overheard="(from, to) => emit('deleteOverheard', from, to)"
+      @write="write"
     />
     <GroupCompose
       v-if="group !== null && selected === null"

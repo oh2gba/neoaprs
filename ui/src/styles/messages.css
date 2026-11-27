@@ -37,6 +37,20 @@
   color: var(--muted);
   font-size: 12px;
 }
+.convlist-services {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.convlist-services label {
+  color: var(--muted);
+  font-size: 12px;
+}
+.convlist-services select {
+  flex: 1;
+  min-width: 0;
+}
 .convs {
   flex: 1;
   min-height: 0;

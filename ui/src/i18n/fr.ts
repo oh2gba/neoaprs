@@ -327,6 +327,12 @@ export const fr: Catalogue = {
   "messages.about1": "Un message est un court texte pour une station, qui en accuse réception.",
   "messages.about2": "Démarrez-en un avec Message sur la fiche d'une station ou dans l'onglet Stations.",
   "messages.show_overheard": "Afficher les messages captés",
+  "messages.services": "Services",
+  "messages.service_write": "Écrire",
+  "messages.service_title": "À {to} : {text}",
+  "messages.service.ota_cq": "Qui émet",
+  "messages.service.ota_chase": "Chasser une activation",
+  "messages.service.ota_host": "Activer",
   "messages.overheard_help_label": "Ce que « captés » veut dire",
   "messages.overheard_help":
     "Des messages que d'autres stations se sont envoyés entre elles et que nous avons entendus en radio.",

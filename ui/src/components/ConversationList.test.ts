@@ -39,10 +39,11 @@ describe("ConversationList", () => {
     expect(items[1]?.find(".badge").exists()).toBe(true);
   });
 
-  it("has no New message button: a chat starts from a station, and the (i) of Show overheard is the only thing at the top", () => {
+  it("has no New message button: a chat starts from a station or a service, and the top has Show overheard with its (i) and Services", () => {
     const wrapper = list();
     expect(wrapper.text()).not.toContain("New message");
-    expect(wrapper.findAll(".convlist-head button").map((b) => b.classes())).toEqual([["info-toggle"]]);
+    expect(wrapper.findAll(".convlist-head button").map((b) => b.classes())).toEqual([["info-toggle"], ["btn"]]);
+    expect(wrapper.find(".convlist-head .convlist-services button").text()).toBe("Write");
     expect(wrapper.find(".convlist-head .info-toggle").exists()).toBe(true);
   });
 

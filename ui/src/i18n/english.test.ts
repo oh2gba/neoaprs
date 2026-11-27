@@ -64,7 +64,7 @@ const SAME_WORD: Record<string, string> = {
   fi: "km mac radio rover skywarn tornado",
   fr: `altitude ambulance bits bulletin bulletins bus code conversations cyan deg destination digipeater digipeaters direct eyeball igates item items jeep km
   latitude locator longitude mac message messages note notification notifications omni parking pause police port portable ports position positions radio radios
-  restaurant rover satellite signal simplex skywarn source station stations stop terminal test triangle type via violet yacht`,
+  restaurant rover satellite services signal simplex skywarn source station stations stop terminal test triangle type via violet yacht`,
   it: "antenna app area beacon digipeater dir email feedback fix gateway item km locator mac monitor omni radio rover satellite simplex skywarn stop tornado via yacht",
   ja: "km mac skywarn",
   nl: `ambulance app bits bulletin bulletins bus code details digipeater digipeaters direct eyeball feedback filter fix gateway help hops hotel igates in item items

@@ -7,6 +7,12 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "messages.about1": "Un messaggio è un breve testo per una stazione, che lo conferma.",
   "messages.about2": "Inizia con Messaggio sulla scheda di una stazione o nella scheda Stazioni.",
   "messages.show_overheard": "Mostra ascoltati",
+  "messages.services": "Servizi",
+  "messages.service_write": "Scrivi",
+  "messages.service_title": "A {to}: {text}",
+  "messages.service.ota_cq": "Chi è in onda",
+  "messages.service.ota_chase": "Caccia a un’attivazione",
+  "messages.service.ota_host": "Attiva",
   "messages.overheard_help_label": "Cosa significa ascoltati",
   "messages.overheard_help":
     "Messaggi che altre stazioni si sono scambiate tra loro e che abbiamo ascoltato via radio.",
