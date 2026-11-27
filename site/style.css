@@ -313,13 +313,19 @@ footer p { margin: 0; }
 .compare td:nth-child(2) { color: var(--ink); font-weight: 650; }
 .compare thead th:last-child { color: var(--muted); }
 .compare thead th:nth-child(2) { color: var(--blue); }
+/* on a phone each row is a card: its first cell on top, the others under it at the card's full width; a
+   table whose columns need naming there names them itself (.vs and .compare below), the sked board none */
 @media (max-width: 720px) {
   .why thead { display: none; }
   .why, .why tbody, .why tr, .why th, .why td { display: block; width: auto; }
+  .why tbody th, .why td:nth-child(n) { width: auto; }
   .why tbody th { padding-bottom: 2px; }
   .why td { border-top: 0; padding-top: 2px; }
-  .why td:nth-child(2)::before { content: "Old HF packet: "; }
-  .why td:nth-child(3)::before { content: "Mercury: "; color: var(--hf); }
+  .why.compare td:nth-child(2)::before { content: "NeoAPRS: "; color: var(--blue); }
+  .why.compare td:nth-child(3)::before { content: "Xastir: "; }
+  .why.compare td:nth-child(4)::before { content: "YAAC: "; }
+  .why.compare td:nth-child(5)::before { content: "APRSIS32: "; }
+  .why.compare td:nth-child(6)::before { content: "PinPoint APRS: "; }
 }
 
 /* ---- preparedness and VARA: two notes side by side under the comparison */
@@ -340,6 +346,7 @@ footer p { margin: 0; }
 .why.vs td:nth-child(2) { color: var(--ink-2); }
 @media (max-width: 720px) {
   .why.vs td:nth-child(2)::before { content: "VARA: "; }
+  .why.vs td:nth-child(3)::before { content: "Mercury: "; color: var(--hf); }
 }
 
 /* an article (first-test.html): the text in a readable column, its tables and list as on the front page */
