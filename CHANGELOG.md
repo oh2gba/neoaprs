@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.24.1
+
 - **Fixed:** a tune tone or keying test on a Mercury radio can always be stopped.
 - **Fixed:** a radio that is switched off stays off.
 - **Fixed:** a Mercury radio whose sound card is lost while running shows it and recovers by itself.
