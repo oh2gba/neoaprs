@@ -2,7 +2,7 @@
 // The station cards over the map. On a tablet and desktop they form a row at the left of the map,
 // oldest at the left. Weather cards share the same value axes. A card has a cross; two or more
 // cards add Close all and Message these N. A row wider than the map closes its oldest card
-// (`overflow`). Cards can be dragged by the head or moved with Alt and the arrows (useCardDrag) and
+// (`overflow`), a satellite's first while two or more are open. Cards can be dragged by the head or moved with Alt and the arrows (useCardDrag) and
 // keep their places (`places`) for the session. Moving a card never moves another: the first move
 // pins every open card where it stands, a closing card leaves the others, and an opened card takes
 // the first free slot. On a phone the one card is a bottom sheet; a swipe down on the folded sheet
@@ -108,9 +108,20 @@ const ranges = computed(() => {
       );
 });
 
-// a row wider than the map is not squeezed: the oldest card closes (the page does that on
-// `overflow`) a moved card is out of the row and takes no room in it
+// a row wider than the map is not squeezed: the oldest card closes, the oldest satellite's while
+// two or more are open, else the oldest station's (the page does that on `overflow`); a moved card
+// is out of the row and takes no room in it
 const stack = ref<HTMLElement | null>(null);
+// (one card closes at a time: the row is measured again once it is drawn without it)
+let closing = false;
+function overflow(): void {
+  if (closing) return;
+  closing = true;
+  void nextTick(() => (closing = false));
+  const oldest = orbiting.value.length > 1 ? orbiting.value[0] : undefined;
+  if (oldest) satellites.closeCard(oldest.id);
+  else emit("overflow");
+}
 function fit(): void {
   const el = stack.value;
   if (!el || props.size === "phone") return;
@@ -118,7 +129,7 @@ function fit(): void {
   if (cards.length < 2) return;
   const room = el.clientWidth - CARDS_FREE_SIDE;
   const total = cards.reduce((sum, card) => sum + card.offsetWidth, 0) + CARD_GAP * (cards.length - 1);
-  if (el.clientWidth > 0 && total > room) emit("overflow");
+  if (el.clientWidth > 0 && total > room) overflow();
 }
 
 // Where the moved cards stand (tablet and desktop only; kept by the page for the session and used

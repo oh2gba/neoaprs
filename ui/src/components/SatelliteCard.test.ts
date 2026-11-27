@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import StationCards from "@/components/StationCards.vue";
 import { forgetLayerTicks } from "@/composables/useMapLayers";
@@ -30,6 +30,7 @@ function make(rows: ReturnType<typeof station>[] = [], size: SizeClass = "deskto
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   document.body.innerHTML = "";
   localStorage.clear();
   forgetLayerTicks();
@@ -74,5 +75,20 @@ describe("SatelliteCard in the cards' row", () => {
     page.layer.open(59112);
     await nextTick();
     expect(page.layer.opened.value).toEqual([59112]);
+  });
+
+  it("closes the oldest satellite card when the row is wider than the map, as the station cards do", async () => {
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(340);
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains("cardstack") ? 520 : 0;
+    });
+    const page = make();
+    page.layer.open(25544);
+    page.layer.open(59112);
+    await page.tell(25544, 59112);
+    await nextTick();
+    await nextTick();
+    expect(page.layer.opened.value).toEqual([59112]);
+    expect(page.wrapper.emitted("overflow")).toBeUndefined();
   });
 });
