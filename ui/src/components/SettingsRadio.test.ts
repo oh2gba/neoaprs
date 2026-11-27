@@ -647,9 +647,7 @@ describe("a Mercury radio's reports to PSK Reporter", () => {
     await number(group).setValue("28,2");
     await number(group).trigger("keydown", { key: "Enter", isComposing: true });
     await number(group).trigger("keydown", { key: "Enter", keyCode: 229 });
-    expect(sets(send), "the Enter that ends an IME composition commits nothing").toEqual([
-      { "radio/2/psk_dial": "" },
-    ]);
+    expect(sets(send), "the Enter that ends an IME composition commits nothing").toEqual([{ "radio/2/psk_dial": "" }]);
     await number(group).trigger("keydown", { key: "Enter" });
     expect(sets(send).at(-1)).toEqual({ "radio/2/psk_dial": "28.2000 MHz USB" });
     await answer("28.2000 MHz USB");

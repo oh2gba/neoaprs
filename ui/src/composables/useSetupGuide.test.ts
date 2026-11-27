@@ -415,7 +415,12 @@ describe("useSetupGuide: Finish", () => {
     fill();
     guide.go(3);
     guide.next();
-    await fail("set_config: station/lat: 95 is not between -90 and 90", "setting.range", { value: 95, min: -90, max: 90 }, outId());
+    await fail(
+      "set_config: station/lat: 95 is not between -90 and 90",
+      "setting.range",
+      { value: 95, min: -90, max: 90 },
+      outId(),
+    );
     expect(guide.saving).toBe(false);
     expect(guide.step).toBe(1);
     expect(guide.problems.lat).toBe("95 is not between -90 and 90");
