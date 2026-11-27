@@ -257,7 +257,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.show_label": "Näytä Internet-asemat",
   "settings.igate.gate_label": "Lähetä kuulemani",
   "settings.igate.gate_tip_label": "Tietoa: Lähetä kuulemani",
-  "settings.igate.gate_tip1": "Vie radioidesi kuuleman APRS-IS:ään: asemasi on silloin radioidensa iGate.",
+  "settings.igate.gate_tip1": "Vie sen, mitä radiosi kuulevat, APRS-IS:ään: asemasi on silloin radioidesi iGate.",
   "settings.igate.gate_tip2": "Näin radiossa kuultu viesti esimerkiksi EMAIL-2-palvelulle päätyy perille.",
   "settings.igate.line.off": "Pois",
   "settings.igate.line.connecting": "Yhdistetään: {server}…",

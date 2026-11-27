@@ -1062,7 +1062,7 @@ export const de: Catalogue = {
   "layers.sat.set": "Untergang",
   "layers.sat.highest": "Höchster Stand",
   "layers.sat.duration": "Dauer",
-  "layers.sat.left": "Verbleibend",
+  "layers.sat.left": "Restzeit",
   "layers.sat.elevation": "Elevation",
   "layers.sat.doppler": "Doppler",
   "layers.sat.doppler_n": "Doppler {n}",
@@ -1713,7 +1713,7 @@ export const de: Catalogue = {
   "settings.igate.tip1": "Zeigt APRS-IS-Stationen im Radius deiner Karte.",
   "settings.igate.show_label": "Internet-Stationen zeigen",
   "settings.igate.gate_label": "Gehörtes weiterleiten",
-  "settings.igate.gate_tip_label": "Zu Gehörtes weiterleiten",
+  "settings.igate.gate_tip_label": "Über „Gehörtes weiterleiten“",
   "settings.igate.gate_tip1":
     "Stellt ins APRS-IS, was deine Funkgeräte hören: deine Station ist dann ein iGate für ihre Funkgeräte.",
   "settings.igate.gate_tip2": "So erreicht eine im Funk gehörte Nachricht an einen Dienst wie EMAIL-2 diesen Dienst.",

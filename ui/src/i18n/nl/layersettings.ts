@@ -27,7 +27,7 @@ export const layersettings: Record<keyof typeof source, Message> = {
   "layers.aisstream.get_key": "Sleutel aanvragen",
   "layers.aisstream.key_tip_label": "Over de sleutel",
   "layers.aisstream.key_tip": "De sleutel is van jezelf, en AISStream geeft hem gratis.",
-  "layers.aisstream.refused": "AISStream heeft deze sleutel niet aanvaard.",
+  "layers.aisstream.refused": "AISStream heeft deze sleutel niet geaccepteerd.",
   "layers.receiver.state.looking": "zoeken",
   "layers.receiver.state.receiving": "ontvangt",
   "layers.receiver.state.no_answer": "geen antwoord",

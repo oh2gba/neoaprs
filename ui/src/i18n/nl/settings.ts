@@ -277,7 +277,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.igate.line.offline": "Niet verbonden: de naam van de server is niet op te zoeken; is er een verbinding?",
   "settings.igate.line.not_server": "Niet verbonden: de server antwoordde niet als een APRS-IS-server",
   "settings.igate.line.lost": "Niet verbonden: de verbinding is verbroken",
-  "settings.igate.line.refused": "Niets doorgestuurd: de server heeft de aanmelding niet aanvaard",
+  "settings.igate.line.refused": "Niets doorgestuurd: de server heeft de aanmelding niet geaccepteerd",
   "settings.igate.line.sending": {
     one: "{server} · {n} pakket doorgestuurd",
     other: "{server} · {n} pakketten doorgestuurd",
