@@ -6,7 +6,6 @@ import re
 import subprocess
 import sys
 import threading
-import time
 import types
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -496,13 +495,16 @@ def daemon_ends(rig: Rig) -> None:
     rig.ctx.actions.daemon_gone()
 
 
-def test_the_daemon_ends_while_webview2_starts_and_the_app_ends_in_seconds_without_destroying_it(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_end_of_the_test_process: list[int]
+def test_the_daemon_ends_while_webview2_starts_and_the_app_ends_after_the_short_grace_without_destroying_it(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    _no_end_of_the_test_process: list[int],
 ) -> None:
     """The order of an install proof's log: quit (the window hidden), then the window's `shown`, then
-    WebView2's E_ABORT, and pywebview's loop never returns."""
+    WebView2's E_ABORT, and pywebview's loop never returns. The end comes after the short grace of a Quit
+    before the engine was up, not after the long wait (60 s here, which the bound below never reaches)."""
     monkeypatch.setattr(webshell, "QUIT_GRACE_SEC", 1.0)
-    monkeypatch.setattr(webshell, "LEAVE_SEC", 5.0)
     rig = Rig(tmp_path, monkeypatch)
     up = threading.Event()
 
@@ -520,9 +522,9 @@ def test_the_daemon_ends_while_webview2_starts_and_the_app_ends_in_seconds_witho
     thread.start()
     daemon_ends(rig)
     up.set()
-    started = time.monotonic()
-    until(lambda: _no_end_of_the_test_process == [0], 10.0)
-    assert time.monotonic() - started < webshell.LEAVE_SEC, "within seconds, not after the long wait"
+    until(lambda: _no_end_of_the_test_process == [0], 45.0)
+    assert any("its engine was not up" in r.getMessage() for r in caplog.records), "the short grace's end"
+    assert not any("did not end in" in r.getMessage() for r in caplog.records), "not the long wait's"
     assert "destroy" not in rig.toolkits.windows[0].calls, "a WebView2 in its start is not destroyed"
     assert not SingleApp(rig.data).running(), "the app let go of the folder before it ended"
 
@@ -574,7 +576,10 @@ def test_the_daemon_ends_after_the_window_is_up_and_the_app_ends_the_normal_way(
 
 
 def test_a_tray_icon_that_does_not_stop_cannot_keep_the_process(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_end_of_the_test_process: list[int]
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    _no_end_of_the_test_process: list[int],
 ) -> None:
     monkeypatch.setattr(webshell, "QUIT_GRACE_SEC", 1.0)
     rig = Rig(tmp_path, monkeypatch)
@@ -590,8 +595,9 @@ def test_a_tray_icon_that_does_not_stop_cannot_keep_the_process(
     until(lambda: rig.toolkits.icons and rig.toolkits.started)
     monkeypatch.setattr(rig.toolkits.icons[0], "stop", lambda: up.wait(30))  # pystray's stop that blocks
     daemon_ends(rig)
-    until(lambda: _no_end_of_the_test_process == [0], 10.0)
+    until(lambda: _no_end_of_the_test_process == [0], 45.0)
     up.set()
+    assert any("its engine was not up" in r.getMessage() for r in caplog.records), "the short grace's end"
 
 
 def test_quit_pressed_twice_before_the_page_stops_the_daemon_once(
