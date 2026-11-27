@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **New:** classic APRS on HF at 300 baud with a sound card: the radio type Sound card, 300 (HF).
+- **New:** a KISS TNC or your own Direwolf on HF has an On HF tick: it then sends as sparingly as Mercury.
+- **New:** Services in the Messages tab start a message to APRS Thursday, an ANSRVR group or APRS OTA for you.
+- **Changed:** the kind of radio that was called FM is called Packet, beside Mercury and LoRa.
+- **Changed:** Add radio lists the types in groups: Packet, Mercury, LoRa and Without a radio.
+- **Fixed:** on a Mac, a NeoAPRS service that refuses to start stays stopped, and `neoaprs service status` says why.
+
 ## 0.24.2
 
 - **New:** HF tests that are over stay listed as past tests, in the app and on the website.
