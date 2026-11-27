@@ -170,6 +170,8 @@ describe("the dialog", () => {
     expect(Number(area().getAttribute("rows"))).toBeGreaterThanOrEqual(4);
     expect(area().getAttribute("maxlength")).toBe("2000");
     expect(area().value).toBe("");
+    expect(area().getAttribute("placeholder")).toBe("Write in any language");
+    expect(label?.textContent, "the label stays: the grey text is no label").toBe("Your message");
     expect(document.activeElement).toBe(area());
     expect(box?.parentElement?.parentElement).toBe(document.body);
   });
@@ -371,12 +373,12 @@ describe("the address for a reply", () => {
     await flushPromises();
   }
 
-  it("is one field after the text, labelled Email for a reply, for an address of at most 254 characters, empty, with no hint", async () => {
+  it("is one field after the text, labelled Email for a reply (optional), for an address of at most 254 characters, empty, with no hint", async () => {
     make();
     await open();
     const box = dialog() as HTMLElement;
     const labels = [...box.querySelectorAll("label")];
-    expect(labels.map((label) => label.textContent)).toEqual(["Your message", "Email for a reply"]);
+    expect(labels.map((label) => label.textContent)).toEqual(["Your message", "Email for a reply (optional)"]);
     expect(labels[1]?.getAttribute("for")).toBe(field().id);
     expect(area().nextElementSibling).toBe(labels[1]);
     expect(box.querySelectorAll("input")).toHaveLength(1);

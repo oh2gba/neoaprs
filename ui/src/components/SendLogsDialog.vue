@@ -85,7 +85,14 @@ function press(event: PointerEvent): void {
         <IconButton kind="close" :label="t('settings.help.dialog.cancel')" @click="emit('close')" />
       </header>
       <label :for="noteId" class="logsdialog-label">{{ t("settings.help.dialog.label") }}</label>
-      <textarea :id="noteId" v-model="note" class="input area" rows="5" :maxlength="NOTE_MAX"></textarea>
+      <textarea
+        :id="noteId"
+        v-model="note"
+        class="input area"
+        rows="5"
+        :maxlength="NOTE_MAX"
+        :placeholder="t('settings.help.dialog.placeholder')"
+      ></textarea>
       <label :for="emailId" class="logsdialog-label">{{ t("settings.help.dialog.email") }}</label>
       <input
         :id="emailId"

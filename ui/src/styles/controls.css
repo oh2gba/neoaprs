@@ -9,6 +9,11 @@
   font: inherit;
   min-width: 0;
 }
+/* the grey text of an empty field (placeholder) in the muted word colour, readable on the field in both themes */
+.input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
 /* the text area of a dialog (Send logs): a few lines, a fixed size the person cannot drag, so
    nothing round it moves */
 .input.area {
