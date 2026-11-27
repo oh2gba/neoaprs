@@ -1,7 +1,8 @@
 // The one clock that moves the map's marks: aircraft and ships gliding between their reports
 // (lib/layers/glide.ts) and satellites between the points the daemon sent. It runs on animation
-// frames while any mover is active (its layer looked at, which needs the page in front) and asks
-// for no frame otherwise; each source's data is set once per step, at most every FRAME_MS.
+// frames while the map is in sight and a mover is active (its layer looked at, which needs the page
+// in front) and has marks that still move; it asks for no frame otherwise, until a mover is told
+// something new or the map comes back in sight. Each mover's data is set at most every FRAME_MS.
 import { getCurrentScope, onScopeDispose, watch } from "vue";
 
 /** At most this often a step moves the marks: 20 a second. */
@@ -13,8 +14,10 @@ export const motionNow = (): number => performance.now();
 export interface Mover {
   /** Whether it has marks to move now (read in a watcher). */
   active: () => boolean;
-  /** Set its marks where they are at `nowMs`, on the motion's clock. */
-  draw: (nowMs: number) => void;
+  /** What its marks are drawn from (read in a watcher): a change starts the motion again. */
+  told: () => unknown;
+  /** Set its marks where they are at `nowMs`, on the motion's clock; false when none moved. */
+  draw: (nowMs: number) => boolean;
 }
 
 export interface Frames {
@@ -29,26 +32,33 @@ const browserFrames: Frames = {
   now: motionNow,
 };
 
-export function useMapMotion(movers: readonly Mover[], frames: Frames = browserFrames) {
+export function useMapMotion(
+  movers: readonly Mover[],
+  frames: Frames = browserFrames,
+  inSight: () => boolean = () => true,
+) {
   let id: number | null = null;
   let last = -Infinity;
   const step = (): void => {
+    id = null;
     const now = frames.now();
+    let moved = true;
     if (now - last >= FRAME_MS) {
       last = now;
-      for (const mover of movers) if (mover.active()) mover.draw(now);
+      moved = false;
+      for (const mover of movers) if (mover.active() && mover.draw(now)) moved = true;
     }
-    id = frames.request(step);
+    if (moved) id = frames.request(step);
   };
   const stop = (): void => {
     if (id !== null) frames.cancel(id);
     id = null;
   };
   watch(
-    () => movers.some((mover) => mover.active()),
-    (on) => {
+    () => [inSight(), ...movers.map((mover) => (mover.active() ? mover.told() : null))],
+    () => {
       stop();
-      if (on) {
+      if (inSight() && movers.some((mover) => mover.active())) {
         last = -Infinity;
         id = frames.request(step);
       }

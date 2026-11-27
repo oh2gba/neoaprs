@@ -26,9 +26,18 @@ function fakeFrames() {
 
 function mover(on = false) {
   const active = ref(on);
+  const told = ref(0);
+  const moving = ref(true);
   const drawn: number[] = [];
-  const it: Mover = { active: () => active.value, draw: (now) => void drawn.push(now) };
-  return { active, drawn, it };
+  const it: Mover = {
+    active: () => active.value,
+    told: () => told.value,
+    draw: (now) => {
+      drawn.push(now);
+      return moving.value;
+    },
+  };
+  return { active, told, moving, drawn, it };
 }
 
 describe("useMapMotion", () => {
@@ -85,5 +94,35 @@ describe("useMapMotion", () => {
     expect(fake.pending()).toBe(1);
     scope.stop();
     expect(fake.pending()).toBe(0);
+  });
+
+  it("asks for no frame once a step moved nothing, and starts again when the mover is told something", async () => {
+    const fake = fakeFrames();
+    const one = mover(true);
+    one.moving.value = false;
+    effectScope().run(() => useMapMotion([one.it], fake.frames));
+    fake.run(FRAME_MS);
+    expect(one.drawn).toHaveLength(1);
+    expect(fake.pending()).toBe(0);
+    for (let i = 0; i < 100; i++) fake.run(FRAME_MS);
+    expect(one.drawn).toHaveLength(1);
+    one.told.value++;
+    await nextTick();
+    fake.run(FRAME_MS);
+    expect(one.drawn).toHaveLength(2);
+  });
+
+  it("moves nothing while the map is out of sight, and goes on when it is back", async () => {
+    const fake = fakeFrames();
+    const one = mover(true);
+    const sight = ref(false);
+    effectScope().run(() => useMapMotion([one.it], fake.frames, () => sight.value));
+    for (let i = 0; i < 10; i++) fake.run(FRAME_MS);
+    expect(one.drawn).toHaveLength(0);
+    expect(fake.pending()).toBe(0);
+    sight.value = true;
+    await nextTick();
+    fake.run(FRAME_MS);
+    expect(one.drawn).toHaveLength(1);
   });
 });

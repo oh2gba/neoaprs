@@ -5,6 +5,7 @@
 // every track is drawn or only the open cards' own. One motion moves the things' and the satellites' marks.
 import { ref } from "vue";
 import type { Map as MapLibreMap } from "maplibre-gl";
+import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useMapCircles } from "@/composables/useMapCircles";
 import { useMapDayNight } from "@/composables/useMapDayNight";
 import { useMapGrid } from "@/composables/useMapGrid";
@@ -22,7 +23,9 @@ export function useMapBoxLayers(map: () => MapLibreMap | null, selected: () => s
   const circles = useMapCircles(map, selected, () => layers.ticked("aloha"));
   const traffic = useMapTraffic(map);
   const satellites = useMapSatellites(map);
-  useMapMotion([traffic.mover, satellites.mover]);
+  // A phone's panel over the map hides it: nothing is moved then.
+  const page = useDaemonContext();
+  useMapMotion([traffic.mover, satellites.mover], undefined, () => page.panel.phoneShowsPanel.value !== true);
   const place = ref<HTMLElement | null>(null);
   return {
     place,

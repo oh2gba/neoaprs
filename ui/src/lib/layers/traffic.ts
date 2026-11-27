@@ -217,3 +217,26 @@ export function glidedFeatures(
     }),
   };
 }
+
+const sameProperties = (a: ThingProperties, b: ThingProperties): boolean =>
+  a === b ||
+  (a.key === b.key &&
+    a.icon === b.icon &&
+    a.side === b.side &&
+    a.rotate === b.rotate &&
+    a.opacity === b.opacity &&
+    a.name === b.name &&
+    a.rank === b.rank);
+
+/** Whether two drawings have the same things with the same marks in the same places. */
+export function samePlaces(a: TrafficCollection, b: TrafficCollection): boolean {
+  if (a.features.length !== b.features.length) return false;
+  return a.features.every((one, i) => {
+    const other = b.features[i];
+    return (
+      sameProperties(one.properties, other.properties) &&
+      one.geometry.coordinates[0] === other.geometry.coordinates[0] &&
+      one.geometry.coordinates[1] === other.geometry.coordinates[1]
+    );
+  });
+}

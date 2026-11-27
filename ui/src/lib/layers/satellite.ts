@@ -169,6 +169,20 @@ export function satelliteMarks(
   return { type: "FeatureCollection", features };
 }
 
+/** Whether two drawings of the marks have the same satellites in the same places. */
+export function sameMarks(a: SatelliteFeatures["marks"], b: SatelliteFeatures["marks"]): boolean {
+  if (a.features.length !== b.features.length) return false;
+  return a.features.every((one, i) => {
+    const other = b.features[i];
+    return (
+      one.properties.id === other.properties.id &&
+      one.properties.open === other.properties.open &&
+      one.geometry.coordinates[0] === other.geometry.coordinates[0] &&
+      one.geometry.coordinates[1] === other.geometry.coordinates[1]
+    );
+  });
+}
+
 /** What the map draws now: every mark, and the track and footprint of each open card. */
 export function satelliteFeatures(
   marks: readonly SatelliteMark[],

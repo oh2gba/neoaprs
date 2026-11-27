@@ -3,6 +3,7 @@ import { flushPromises } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import { forgetLayerTicks } from "@/composables/useMapLayers";
+import { FRAME_MS } from "@/composables/useMapMotion";
 import { AIRCRAFT_SHAPES } from "@/lib/layers/aircraftshapes";
 import { LAYER_SHAPES, THING_SHAPES, type TrafficCollection } from "@/lib/layers/traffic";
 import { FakeMap, resetFakes } from "@/test/fakemap";
@@ -439,5 +440,45 @@ describe("the credits of a service", () => {
     expect(credits().map((line) => line.textContent)).toEqual(["AISStream"]);
     const link = credits()[0]?.querySelector("a");
     expect([link?.getAttribute("href"), link?.target]).toEqual(["https://aisstream.io/", "_blank"]);
+  });
+});
+
+describe("the motion of the aircraft", () => {
+  const many = (moving: boolean) =>
+    Array.from({ length: 300 }, (_, i) =>
+      aircraft({
+        id: `a${i}`,
+        lat: 60 + i / 1000,
+        at: new Date(NOW).toISOString(),
+        course_deg: moving ? 90 : null,
+        speed_kmh: moving ? 800 : null,
+      }),
+    );
+  const setDataCalls = () => FakeMap.last().getSource("traffic")?.setData.mock.calls.length ?? 0;
+
+  it("sets nothing on the map in 100 steps while nothing glides", async () => {
+    vi.useFakeTimers({ now: NOW });
+    const { daemon } = await mounted();
+    await setTick("aircraft", true);
+    await told(daemon, layerThings("aircraft", many(false), { source: "adsbfi" }));
+    vi.advanceTimersByTime(1000);
+    const before = setDataCalls();
+    vi.advanceTimersByTime(100 * FRAME_MS);
+    expect(setDataCalls()).toBe(before);
+  });
+
+  it("moves nothing while a phone's panel covers the map, and moves again when the map is shown", async () => {
+    vi.useFakeTimers({ now: NOW });
+    const { daemon } = await mounted();
+    await setTick("aircraft", true);
+    daemon.panel.phoneShowsPanel.value = true;
+    await told(daemon, layerThings("aircraft", many(true), { source: "adsbfi" }));
+    const before = setDataCalls();
+    vi.advanceTimersByTime(20 * FRAME_MS);
+    expect(setDataCalls()).toBe(before);
+    daemon.panel.phoneShowsPanel.value = false;
+    await nextTick();
+    vi.advanceTimersByTime(20 * FRAME_MS);
+    expect(setDataCalls()).toBeGreaterThan(before + 10);
   });
 });

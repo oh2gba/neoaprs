@@ -18,6 +18,7 @@ import {
   kindShape,
   liveThings,
   nextGlides,
+  samePlaces,
   sideOf,
   thingKey,
   thingShape,
@@ -83,18 +84,28 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
     { flush: "sync", immediate: true },
   );
   const placed = (nowMs: number): TrafficCollection => glidedFeatures(drawn, glides, nowMs);
+  // What the map was last given, so that a step that moves nothing sets nothing.
+  let shown: TrafficCollection = NO_TRAFFIC;
+  const show = (to: MapLibreMap, nowMs: number): boolean => {
+    const next = placed(nowMs);
+    if (samePlaces(shown, next)) return false;
+    shown = next;
+    setTrafficData(to, next);
+    return true;
+  };
   const draw = (): void => {
     drawn = trafficFeatures(traffic.tables.value.values(), page.now.value);
     const to = map();
-    if (to) setTrafficData(to, placed(motionNow()));
+    if (to) show(to, motionNow());
   };
   watch([traffic.tables, page.now], draw);
   const trail = useOpenTrail(map);
   const mover: Mover = {
     active: () => traffic.looked.value.length > 0,
+    told: () => traffic.tables.value,
     draw: (nowMs) => {
       const to = map();
-      if (to && drawn.features.length > 0) setTrafficData(to, placed(nowMs));
+      return to !== null && show(to, nowMs);
     },
   };
 
@@ -160,7 +171,8 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
   return {
     add: (to: MapLibreMap): void => {
       drawn = trafficFeatures(traffic.tables.value.values(), page.now.value);
-      addTrafficLayers(to, placed(motionNow()), trail());
+      shown = placed(motionNow());
+      addTrafficLayers(to, shown, trail());
     },
     mover,
     listen,
