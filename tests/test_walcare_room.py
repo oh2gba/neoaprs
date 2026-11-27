@@ -194,3 +194,24 @@ def test_a_short_disk_skips_the_rewrite_with_one_line_and_a_later_start_does_it(
         assert walcare.make_returnable(db, path)
     assert [r.levelno for r in caplog.records] == [logging.INFO, logging.INFO], "one line at the start, one at the end"
     db.close()
+
+
+async def test_the_daemon_asks_for_the_rewrite_as_a_planned_maintenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from neoaprs.db import Db
+    from tests.support.env import Env, until
+
+    asked: list[bool] = []
+    real = Db.maintain_own
+
+    async def maintain_own(self: Db, fn: object, planned: bool = False) -> object:
+        asked.append(planned)
+        return await real(self, fn, planned)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(Db, "maintain_own", maintain_own)
+    e = Env(tmp_path / "data")
+    await e.start()
+    await until(lambda: asked, 15.0)
+    assert asked[0] is True
+    await e.stop()

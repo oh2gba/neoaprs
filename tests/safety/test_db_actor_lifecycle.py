@@ -397,3 +397,16 @@ async def test_an_operation_that_runs_long_is_told_in_the_log(tmp_path: Path, ca
         assert told and max(told) >= 0.15 and db.stats()["slow"] >= 1, (told, db.stats()["slow"])
     finally:
         await db.close()
+
+
+async def test_a_planned_long_maintenance_is_not_warned_of_and_an_unplanned_one_is(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    db = await started(tmp_path / "x.sqlite", tuning=Tuning(tick=0.01, slow_sec=0.05))
+    try:
+        await db.maintain_own(lambda conn: time.sleep(0.2), planned=True)
+        assert not [r for r in caplog.records if "ran for" in r.getMessage()], "it says its own start and end"
+        await db.maintain_own(lambda conn: time.sleep(0.2))
+        assert [r for r in caplog.records if "ran for" in r.getMessage()]
+    finally:
+        await db.close()

@@ -448,7 +448,7 @@ class Controller(Services):
         self._rewrite_tried = True
         path = self.data_dir / DB_NAME
         try:
-            await self.db.maintain_own(lambda conn: make_returnable(conn, path))
+            await self.db.maintain_own(lambda conn: make_returnable(conn, path), planned=True)
         except (SqlError, DbClosed) as e:
             log.warning("the database could not be rewritten to give room back: %s", e)
 

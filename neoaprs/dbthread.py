@@ -55,6 +55,8 @@ class Op:
     loop: asyncio.AbstractEventLoop | None = None
     # a maintenance function whose statements begin a transaction of their own (VACUUM)
     own: bool = False
+    # a long operation that says so in the log itself: never warned of as one that ran long
+    planned: bool = False
 
 
 # Result codes (low byte of `sqlite_errorcode`) that come from the environment, not the statement:
@@ -227,7 +229,8 @@ class DbThread(threading.Thread):
             error = e
         ran = time.perf_counter() - started
         self.stats.done(op.kind.value, started - op.queued, ran, error is not None)
-        self._slow(op.kind, ran)
+        if not op.planned:
+            self._slow(op.kind, ran)
         self._reply(op, result, error)
 
     def _execute(self, conn: sqlite3.Connection, op: Op) -> Any:

@@ -107,9 +107,10 @@ class Db:
         """Run fn(conn) outside a transaction (backup, checkpoint)."""
         return await self._ask(Kind.MAINT, fn)
 
-    async def maintain_own(self, fn: Fn[T]) -> T:
-        """`maintain` for a function whose statements begin a transaction of their own (VACUUM)."""
-        return await self._ask(Kind.MAINT, fn, own=True)
+    async def maintain_own(self, fn: Fn[T], planned: bool = False) -> T:
+        """`maintain` for a function whose statements begin a transaction of their own (VACUUM);
+        `planned`: a long one that logs its own start and end, not warned of as slow."""
+        return await self._ask(Kind.MAINT, fn, own=True, planned=planned)
 
     def write_nowait(self, fn: Fn[Any]) -> bool:
         """Queue an append and return True; False if dropped (queue full or Db closed)."""
@@ -123,13 +124,13 @@ class Db:
             self._stats.count("dropped")
             return False
 
-    async def _ask(self, kind: Kind, fn: Fn[T], own: bool = False) -> T:
+    async def _ask(self, kind: Kind, fn: Fn[T], own: bool = False, planned: bool = False) -> T:
         thread = self._thread
         if thread is None or self._state != OPEN:
             raise DbClosed
         loop = asyncio.get_running_loop()
         future: asyncio.Future[T] = loop.create_future()
-        thread.submit(Op(kind, fn, time.perf_counter(), future, loop, own))
+        thread.submit(Op(kind, fn, time.perf_counter(), future, loop, own, planned))
         if kind is not Kind.WRITE:
             return await future
         try:
