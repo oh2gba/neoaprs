@@ -1870,10 +1870,6 @@ export const de: Catalogue = {
     one: "Auf {radio} höchstens {n} Paket in {min} Minuten.",
     other: "Auf {radio} höchstens {n} Pakete in {min} Minuten.",
   },
-  "settings.pair.tip_label": "Zum Weiterleiten zwischen zwei Funkgeräten",
-  "settings.pair.tip1":
-    "Sendet ein gehörtes Paket einmal auf dem anderen Funkgerät aus, wenn sein Pfad dieses Rufzeichen nennt. Gib es Stationen, die hinüber wollen.",
-  "settings.pair.tip2": "Ein WIDE-Pfad allein geht nie hinüber.",
   "settings.pair.fold.each_way": "{n} auf {first} · {m} auf {second}",
   "settings.pair.fold.held": {
     one: "{n} Frame zurückgehalten: zu viele für {radio}",

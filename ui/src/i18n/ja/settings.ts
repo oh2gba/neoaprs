@@ -432,10 +432,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.pair.explain.line3":
     "パスに{call}がなければ何も中継されず、あなた宛てのメッセージはあなたのところに留まります。",
   "settings.pair.explain.slow": { other: "{radio}へは{min}分間に最大{n}パケットまでです。" },
-  "settings.pair.tip_label": "2台の無線機の間の中継について",
-  "settings.pair.tip1":
-    "一方の無線機で受信したパケットを、パスにこのコールサインがあるとき、もう一方の無線機から一度だけ送信します。相手の無線機に届かせたい局に、このコールサインを伝えてください。",
-  "settings.pair.tip2": "WIDEのパスだけでは中継されません。",
   "settings.pair.fold.each_way": "{first}へ{n} · {second}へ{m}",
   "settings.pair.fold.held": { other: "{n}フレームを保留: {radio}には多すぎます" },
   "settings.pair.fold.too_long": { other: "{n}フレームが{radio}には長すぎます" },

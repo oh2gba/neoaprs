@@ -455,10 +455,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
     one: "Hacia {radio}, como mucho {n} paquete en {min} minutos.",
     other: "Hacia {radio}, como mucho {n} paquetes en {min} minutos.",
   },
-  "settings.pair.tip_label": "Sobre el paso entre dos radios",
-  "settings.pair.tip1":
-    "Pasa a la otra radio un paquete oído en una de las dos, si su ruta nombra este indicativo. Dáselo a quien quiera llegar a la otra radio.",
-  "settings.pair.tip2": "Una ruta WIDE sola nunca pasa.",
   "settings.pair.fold.each_way": "{n} a {first} · {m} a {second}",
   "settings.pair.fold.held": {
     one: "{n} trama retenida: demasiadas para {radio}",

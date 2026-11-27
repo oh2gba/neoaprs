@@ -1223,7 +1223,7 @@ describe("SettingsForm", () => {
           ?.findAll("fieldset.subbox")
           .find((f) => f.find("legend").text() === "FM radio and Mercury radio i");
 
-      it("is a box of its own after the radios' own, named by both radios, with an Enable and the pair's (i)", async () => {
+      it("is a box of its own after the radios' own, named by both radios, with an Enable without a note and the pair's (i) in the legend", () => {
         const { wrapper } = make(OFF, "settings", BOTH);
         expect(
           group(wrapper)
@@ -1235,8 +1235,8 @@ describe("SettingsForm", () => {
         expect(wrapper.find<HTMLInputElement>("#set-pair-1-2-enabled").element.checked).toBe(false);
         expect(wrapper.find("#set-pair-1-2-ssid").exists()).toBe(false);
         expect(box(wrapper)?.find(".statusfold").exists()).toBe(false);
-        await box(wrapper)?.find(".field .info-toggle").trigger("click");
-        expect(box(wrapper)?.find(".info-text").text()).toContain("A WIDE path alone never goes across.");
+        expect(box(wrapper)?.find(".field .info-toggle").exists()).toBe(false);
+        expect(box(wrapper)?.findAll(".info-toggle")).toHaveLength(1);
       });
 
       it("has an (i) in its legend that opens what the pair does with its call and the two radios, outside the box", async () => {

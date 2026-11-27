@@ -82,7 +82,7 @@ export function pairCall(key: string, values: Readonly<Record<string, string>>):
 }
 
 /**
- * A pair field's description: Enable is a tickbox with an (i), Call a choice of free calls;
+ * A pair field's description: Enable is a tickbox (the box's legend has the (i), PairInfo), Call a choice of free calls;
  * undefined for other keys.
  */
 export function pairField(key: string, values: Readonly<Record<string, string>>): FieldInfo | undefined {
@@ -94,7 +94,5 @@ export function pairField(key: string, values: Readonly<Record<string, string>>)
     label: t("settings.enable.label"),
     name: t("settings.pair.name"),
     kind: "bool",
-    tipLabel: t("settings.pair.tip_label"),
-    tip: [t("settings.pair.tip1"), t("settings.pair.tip2")],
   };
 }

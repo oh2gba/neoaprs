@@ -451,10 +451,6 @@ export const settings: Record<keyof typeof source, Message> = {
     one: "Em {radio}, no máximo {n} pacote em {min} minutos.",
     other: "Em {radio}, no máximo {n} pacotes em {min} minutos.",
   },
-  "settings.pair.tip_label": "Sobre a passagem entre dois rádios",
-  "settings.pair.tip1":
-    "Passa para o outro rádio um pacote ouvido em um dos dois, quando o caminho cita este indicativo. Dê-o a quem quer alcançar o outro rádio.",
-  "settings.pair.tip2": "Um caminho só com WIDE nunca passa.",
   "settings.pair.fold.each_way": "{n} para {first} · {m} para {second}",
   "settings.pair.fold.held": {
     one: "{n} quadro retido: muitos para {radio}",

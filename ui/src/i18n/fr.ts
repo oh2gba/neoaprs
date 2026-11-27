@@ -1818,10 +1818,6 @@ export const fr: Catalogue = {
     one: "Vers {radio}, au plus {n} paquet en {min} minutes.",
     other: "Vers {radio}, au plus {n} paquets en {min} minutes.",
   },
-  "settings.pair.tip_label": "À propos du passage d'une radio à l'autre",
-  "settings.pair.tip1":
-    "Envoie une fois sur l'autre radio un paquet entendu sur l'une, si son chemin nomme cet indicatif. Donnez-le à qui veut joindre l'autre radio.",
-  "settings.pair.tip2": "Un chemin WIDE seul ne passe jamais.",
   "settings.pair.fold.each_way": "{n} vers {first} · {m} vers {second}",
   "settings.pair.fold.held": {
     one: "{n} trame retenue : trop de trames pour {radio}",

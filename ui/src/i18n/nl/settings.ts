@@ -462,10 +462,6 @@ export const settings: Record<keyof typeof source, Message> = {
     one: "Naar {radio} hoogstens {n} pakket in {min} minuten.",
     other: "Naar {radio} hoogstens {n} pakketten in {min} minuten.",
   },
-  "settings.pair.tip_label": "Over doorgeven tussen twee radio's",
-  "settings.pair.tip1":
-    "Zendt een pakket van de ene radio één keer uit op de andere, als het pad deze roepnaam noemt. Geef de roepnaam aan wie de andere radio zoekt.",
-  "settings.pair.tip2": "Een WIDE-pad alleen gaat nooit over.",
   "settings.pair.fold.each_way": "{n} naar {first} · {m} naar {second}",
   "settings.pair.fold.held": {
     one: "{n} frame tegengehouden: te veel voor {radio}",

@@ -28,17 +28,8 @@ describe("pairFieldOf", () => {
 });
 
 describe("pairField", () => {
-  it("makes the Enable a tickbox with the pair's (i)", () => {
-    expect(pairField("pair/1/2/enabled", {})).toEqual({
-      label: "Enable",
-      name: "Pair of radios",
-      kind: "bool",
-      tipLabel: "About passing between two radios",
-      tip: [
-        "A packet heard on one of the two radios goes out once on the other when its path names this call. Give the call to stations that want to cross.",
-        "A WIDE path alone never goes across.",
-      ],
-    });
+  it("makes the Enable a tickbox with no note of its own: the (i) of the box's legend explains the pair", () => {
+    expect(pairField("pair/1/2/enabled", {})).toEqual({ label: "Enable", name: "Pair of radios", kind: "bool" });
   });
 
   it("makes the Call a choice of the calls on the station's base call, 15 down to 1", () => {

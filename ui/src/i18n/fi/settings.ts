@@ -449,10 +449,6 @@ export const settings: Record<keyof typeof source, Message> = {
     one: "Radiolle {radio} enintään {n} paketti {min} minuutissa.",
     other: "Radiolle {radio} enintään {n} pakettia {min} minuutissa.",
   },
-  "settings.pair.tip_label": "Tietoa: toisto kahden radion välillä",
-  "settings.pair.tip1":
-    "Lähettää toisella radiolla kuullun paketin kerran toisella, kun sen polussa on tämä kutsu. Anna kutsu asemille, jotka haluavat toiselle radiolle.",
-  "settings.pair.tip2": "Pelkkä WIDE-polku ei koskaan mene yli.",
   "settings.pair.fold.each_way": "{n} radiolle {first} · {m} radiolle {second}",
   "settings.pair.fold.held": {
     one: "{n} kehys pidätetty: liian monta radiolle {radio}",

@@ -456,10 +456,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
     one: "Verso {radio}, al massimo {n} pacchetto in {min} minuti.",
     other: "Verso {radio}, al massimo {n} pacchetti in {min} minuti.",
   },
-  "settings.pair.tip_label": "Informazioni sul passaggio tra due radio",
-  "settings.pair.tip1":
-    "Passa una volta sull’altra radio un pacchetto sentito su una delle due, se il percorso nomina questo nominativo. Dallo a chi vuole raggiungerla.",
-  "settings.pair.tip2": "Un percorso WIDE da solo non passa mai.",
   "settings.pair.fold.each_way": "{n} su {first} · {m} su {second}",
   "settings.pair.fold.held": {
     one: "{n} frame trattenuto: troppi per {radio}",
