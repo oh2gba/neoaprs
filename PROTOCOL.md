@@ -1068,11 +1068,12 @@ when the source in force changes (then with the new `source` and no things).
 
 | field | type | | description |
 |---|---|---|---|
+| `at` | time |  | the daemon's time when the table was sent; the age of each thing's `at` is told by it, not by the page's clock |
 | `layer` | "aircraft" \| "ships" |  |  |
 | `source` | "none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "aisstream" \| "radarcape" \| "receiver" |  | the source in force that the things are from |
 | `away` | boolean |  | true when the last question failed or was not in the expected form, the connection is down, or there is no position to ask for; `things` keeps the last things then |
 | `things` | LayerThing[] |  |  |
-| `trails` | LayerTrail[] |  | only in the first table a page gets on `layer_look`, else empty: the way each thing went in the last 30 minutes while the source was asked (it is asked on for 2 minutes after the last page stopped looking), at most 400 points a thing for at most 300 things, oldest first |
+| `trails` | LayerTrail[] |  | only in the first table a page gets on `layer_look`, else empty: the way each thing of `things` went in the last 30 minutes while the source was asked (it is asked on for 2 minutes after the last page stopped looking), oldest first: the last minute whole, older points at most one a minute and only where the way bends by more than 50 m |
 
 ### `satellites`
 
@@ -1744,7 +1745,7 @@ An aircraft or a ship, as its source tells it. Every field is always there; one 
 | `category` | string |  | an aircraft's emitter category as the source gives it, upper case (`A3`, `A7`, `B1`); empty when not known |
 | `designator` | string |  | an aircraft's ICAO type designator, upper case (`A321`, `EC35`); empty when not known |
 | `ship_type` | integer \| null |  | a ship's AIS type of ship and cargo; null when not known (>= 1, <= 99) |
-| `course_deg` | integer \| null |  | a ship's course over ground (>= 0, <= 359) |
+| `course_deg` | integer \| null |  | a ship's course over ground, an aircraft's ground track; null when not told (a heading is not a course) (>= 0, <= 359) |
 | `destination` | string |  | a ship's destination as it gave it; an aircraft's: the ICAO code of the airport it is going to, upper case; empty when not known |
 | `origin` | string |  | an aircraft's departure: the ICAO code of the airport it left, upper case; empty when not known |
 | `origin_place` | string |  | the place of the airport `origin` names, from the table the program carries; empty when `origin` is empty or not in the table |
@@ -1795,7 +1796,7 @@ One layer of traffic in the topic `map`: where its things come from now and what
 | `source` | "none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "aisstream" \| "radarcape" \| "receiver" |  | the source in force: the one chosen in Settings while it is offered, else `none` (nothing is asked, and the Layers box has no row) |
 | `offered` | ("none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "aisstream" \| "radarcape" \| "receiver")[] |  | the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters; `aisstream` (with the operator's own key, `map/ships_key`) everywhere |
 | `receiver` | LayerReceiver \| null |  | the own receiver's state while `source` is an own receiver (`radarcape` or `receiver`); else null |
-| `problem` | "" \| "key_refused" |  | why the service in force gives nothing, where the operator can mend it: `key_refused` AISStream did not take the key of `map/ships_key` (it is not asked again until the key changes); empty otherwise |
+| `problem` | "" \| "key_refused" |  | why the service in force gives nothing, where the operator can mend it: `key_refused` AISStream did not take the key of `map/ships_key` (asked again after a longer wait, and at once when the key is saved; cleared by a connection that is taken); empty otherwise |
 
 ### MapProblem
 

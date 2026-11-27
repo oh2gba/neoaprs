@@ -649,7 +649,7 @@ export interface LayerThing {
   designator: string;
   /** a ship's AIS type of ship and cargo; null when not known */
   ship_type: number | null;
-  /** a ship's course over ground */
+  /** a ship's course over ground, an aircraft's ground track; null when not told (a heading is not a course) */
   course_deg: number | null;
   /** a ship's destination as it gave it; an aircraft's: the ICAO code of the airport it is going to, upper case; empty when not known */
   destination: string;
@@ -664,13 +664,15 @@ export interface LayerThing {
 /** A layer's whole table, to each page that looks at it and is not behind: at once on `layer_look`, after every answer of the source, at most every 5 s for an AIS receiver, when things grow too old, and when the source in force changes (then with the new `source` and no things). */
 export interface LayerThingsMessage {
   type: "layer_things";
+  /** the daemon's time when the table was sent; the age of each thing's `at` is told by it, not by the page's clock */
+  at: string;
   layer: "aircraft" | "ships";
   /** the source in force that the things are from */
   source: "none" | "adsbfi" | "adsblol" | "fintraffic" | "aisstream" | "radarcape" | "receiver";
   /** true when the last question failed or was not in the expected form, the connection is down, or there is no position to ask for; `things` keeps the last things then */
   away: boolean;
   things: LayerThing[];
-  /** only in the first table a page gets on `layer_look`, else empty: the way each thing went in the last 30 minutes while the source was asked (it is asked on for 2 minutes after the last page stopped looking), at most 400 points a thing for at most 300 things, oldest first */
+  /** only in the first table a page gets on `layer_look`, else empty: the way each thing of `things` went in the last 30 minutes while the source was asked (it is asked on for 2 minutes after the last page stopped looking), oldest first: the last minute whole, older points at most one a minute and only where the way bends by more than 50 m */
   trails: LayerTrail[];
 }
 
@@ -737,7 +739,7 @@ export interface MapLayer {
   offered: ("none" | "adsbfi" | "adsblol" | "fintraffic" | "aisstream" | "radarcape" | "receiver")[];
   /** the own receiver's state while `source` is an own receiver (`radarcape` or `receiver`); else null */
   receiver: LayerReceiver | null;
-  /** why the service in force gives nothing, where the operator can mend it: `key_refused` AISStream did not take the key of `map/ships_key` (it is not asked again until the key changes); empty otherwise */
+  /** why the service in force gives nothing, where the operator can mend it: `key_refused` AISStream did not take the key of `map/ships_key` (asked again after a longer wait, and at once when the key is saved; cleared by a connection that is taken); empty otherwise */
   problem: "" | "key_refused";
 }
 
