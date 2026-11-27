@@ -666,10 +666,18 @@ export interface LayerThingsMessage {
   type: "layer_things";
   layer: "aircraft" | "ships";
   /** the source in force that the things are from */
-  source: "none" | "adsbfi" | "adsblol" | "fintraffic" | "radarcape" | "receiver";
+  source: "none" | "adsbfi" | "adsblol" | "fintraffic" | "aisstream" | "radarcape" | "receiver";
   /** true when the last question failed or was not in the expected form, the connection is down, or there is no position to ask for; `things` keeps the last things then */
   away: boolean;
   things: LayerThing[];
+  /** only in the first table a page gets on `layer_look`, else empty: the way each thing went in the last 30 minutes while the source was asked (it is asked on for 2 minutes after the last page stopped looking), at most 400 points a thing for at most 300 things, oldest first */
+  trails: LayerTrail[];
+}
+
+/** The way one thing went: its id, and its places as [lon, lat, time], oldest first. */
+export interface LayerTrail {
+  id: string;
+  points: [number, number, string][];
 }
 
 /** Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. With `radio`, also the sound cards its modem lists while that radio's type has a modem on a sound card (Mercury, Sound card), and the proposals leave out what the other radios and the GPS receiver hold; each row says who holds it (`held_by`). An `error` for a `radio` that is none (`radio.unknown`). */
@@ -724,11 +732,13 @@ export interface MapFileInfo {
 export interface MapLayer {
   layer: "aircraft" | "ships";
   /** the source in force: the one chosen in Settings while it is offered, else `none` (nothing is asked, and the Layers box has no row) */
-  source: "none" | "adsbfi" | "adsblol" | "fintraffic" | "radarcape" | "receiver";
-  /** the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters */
-  offered: ("none" | "adsbfi" | "adsblol" | "fintraffic" | "radarcape" | "receiver")[];
+  source: "none" | "adsbfi" | "adsblol" | "fintraffic" | "aisstream" | "radarcape" | "receiver";
+  /** the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters; `aisstream` (with the operator's own key, `map/ships_key`) everywhere */
+  offered: ("none" | "adsbfi" | "adsblol" | "fintraffic" | "aisstream" | "radarcape" | "receiver")[];
   /** the own receiver's state while `source` is an own receiver (`radarcape` or `receiver`); else null */
   receiver: LayerReceiver | null;
+  /** why the service in force gives nothing, where the operator can mend it: `key_refused` AISStream did not take the key of `map/ships_key` (it is not asked again until the key changes); empty otherwise */
+  problem: "" | "key_refused";
 }
 
 /** Why a map job failed, as a code the page says in its words, with the values of its sentence (the log has the details). */

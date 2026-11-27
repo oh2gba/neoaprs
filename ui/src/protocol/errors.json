@@ -116,6 +116,7 @@
  "setting.not_hf_profile": {"params": ["value"], "text": ["'{value}' is not a type of a Mercury radio (the types are {*})"]},
  "setting.not_host": {"params": ["value"], "text": ["'{value}' is not a list of addresses or names", "'{value}' is not an address or a name", "{*} is not an address or a name"]},
  "setting.not_hostport": {"params": ["value"], "text": ["'{value}' is not host:port"]},
+ "setting.not_key": {"params": [], "text": ["That is not a key the service gives"]},
  "setting.not_keying": {"params": ["value"], "text": ["'{value}' is not a way of keying the radio: vox, cm108, rts:PORT or dtr:PORT"]},
  "setting.not_map_source": {"params": ["value"], "text": ["'{value}' is not a web address or the path of a PMTiles file"]},
  "setting.not_number": {"params": ["value"], "text": ["'{value}' is not a number"]},

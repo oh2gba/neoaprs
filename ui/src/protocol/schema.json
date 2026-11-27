@@ -2690,6 +2690,7 @@
             "adsbfi",
             "adsblol",
             "fintraffic",
+            "aisstream",
             "radarcape",
             "receiver"
           ],
@@ -2704,6 +2705,13 @@
             "$ref": "#/$defs/LayerThing"
           },
           "type": "array"
+        },
+        "trails": {
+          "description": "only in the first table a page gets on `layer_look`, else empty: the way each thing went in the last 30 minutes while the source was asked (it is asked on for 2 minutes after the last page stopped looking), at most 400 points a thing for at most 300 things, oldest first",
+          "items": {
+            "$ref": "#/$defs/LayerTrail"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -2711,9 +2719,46 @@
         "layer",
         "source",
         "away",
-        "things"
+        "things",
+        "trails"
       ],
       "title": "LayerThingsMessage",
+      "type": "object"
+    },
+    "LayerTrail": {
+      "additionalProperties": false,
+      "description": "The way one thing went: its id, and its places as [lon, lat, time], oldest first.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "description": "UTC, ISO 8601 with a Z",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "points"
+      ],
+      "title": "LayerTrail",
       "type": "object"
     },
     "ListPorts": {
@@ -2909,19 +2954,21 @@
             "adsbfi",
             "adsblol",
             "fintraffic",
+            "aisstream",
             "radarcape",
             "receiver"
           ],
           "type": "string"
         },
         "offered": {
-          "description": "the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters",
+          "description": "the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters; `aisstream` (with the operator's own key, `map/ships_key`) everywhere",
           "items": {
             "enum": [
               "none",
               "adsbfi",
               "adsblol",
               "fintraffic",
+              "aisstream",
               "radarcape",
               "receiver"
             ],
@@ -2939,13 +2986,22 @@
             }
           ],
           "description": "the own receiver's state while `source` is an own receiver (`radarcape` or `receiver`); else null"
+        },
+        "problem": {
+          "description": "why the service in force gives nothing, where the operator can mend it: `key_refused` AISStream did not take the key of `map/ships_key` (it is not asked again until the key changes); empty otherwise",
+          "enum": [
+            "",
+            "key_refused"
+          ],
+          "type": "string"
         }
       },
       "required": [
         "layer",
         "source",
         "offered",
-        "receiver"
+        "receiver",
+        "problem"
       ],
       "title": "MapLayer",
       "type": "object"

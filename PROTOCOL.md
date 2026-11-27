@@ -1069,9 +1069,10 @@ when the source in force changes (then with the new `source` and no things).
 | field | type | | description |
 |---|---|---|---|
 | `layer` | "aircraft" \| "ships" |  |  |
-| `source` | "none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "radarcape" \| "receiver" |  | the source in force that the things are from |
+| `source` | "none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "aisstream" \| "radarcape" \| "receiver" |  | the source in force that the things are from |
 | `away` | boolean |  | true when the last question failed or was not in the expected form, the connection is down, or there is no position to ask for; `things` keeps the last things then |
 | `things` | LayerThing[] |  |  |
+| `trails` | LayerTrail[] |  | only in the first table a page gets on `layer_look`, else empty: the way each thing went in the last 30 minutes while the source was asked (it is asked on for 2 minutes after the last page stopped looking), at most 400 points a thing for at most 300 things, oldest first |
 
 ### `satellites`
 
@@ -1749,6 +1750,15 @@ An aircraft or a ship, as its source tells it. Every field is always there; one 
 | `origin_place` | string |  | the place of the airport `origin` names, from the table the program carries; empty when `origin` is empty or not in the table |
 | `destination_place` | string |  | the place of the airport `destination` names, from the table the program carries; empty for a ship, and when `destination` is empty or not in the table |
 
+### LayerTrail
+
+The way one thing went: its id, and its places as [lon, lat, time], oldest first.
+
+| field | type | | description |
+|---|---|---|---|
+| `id` | string |  |  |
+| `points` | [number, number, time][] |  |  |
+
 ### LocatorValues
 
 A Maidenhead locator (grid square) with the symbol that came with it, in a status report or in the status text of a Mic-E packet; the position is the centre of the square.
@@ -1782,9 +1792,10 @@ One layer of traffic in the topic `map`: where its things come from now and what
 | field | type | | description |
 |---|---|---|---|
 | `layer` | "aircraft" \| "ships" |  |  |
-| `source` | "none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "radarcape" \| "receiver" |  | the source in force: the one chosen in Settings while it is offered, else `none` (nothing is asked, and the Layers box has no row) |
-| `offered` | ("none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "radarcape" \| "receiver")[] |  | the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters |
+| `source` | "none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "aisstream" \| "radarcape" \| "receiver" |  | the source in force: the one chosen in Settings while it is offered, else `none` (nothing is asked, and the Layers box has no row) |
+| `offered` | ("none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "aisstream" \| "radarcape" \| "receiver")[] |  | the sources the Settings list holds, `none` first: `fintraffic` only where the map's circle reaches its waters; `aisstream` (with the operator's own key, `map/ships_key`) everywhere |
 | `receiver` | LayerReceiver \| null |  | the own receiver's state while `source` is an own receiver (`radarcape` or `receiver`); else null |
+| `problem` | "" \| "key_refused" |  | why the service in force gives nothing, where the operator can mend it: `key_refused` AISStream did not take the key of `map/ships_key` (it is not asked again until the key changes); empty otherwise |
 
 ### MapProblem
 

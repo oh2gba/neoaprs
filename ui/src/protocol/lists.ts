@@ -90,6 +90,7 @@ export const CONFIG_KEYS = [
   "map/aircraft_host",
   "map/ships",
   "map/ships_host",
+  "map/ships_key",
   "update/url",
   "igate/enabled",
   "igate/gate",
@@ -110,7 +111,7 @@ export const RADIO_STATION_KEYS = ["email/radio"] as const;
 export const AIRCRAFT_SOURCES = ["none", "adsbfi", "adsblol", "radarcape", "receiver"] as const;
 
 /** Where the map's ships may come from (SHIP_SOURCES of neoaprs/layerthing.py); `fintraffic` is offered only where the map's circle reaches its waters (`map.layers`). */
-export const SHIP_SOURCES = ["none", "fintraffic", "receiver"] as const;
+export const SHIP_SOURCES = ["none", "fintraffic", "aisstream", "receiver"] as const;
 
 /** The Packet types of the flat list of before, in the order Find my radio tries those it can ask (PROFILES of neoaprs/tncprofile.py; the page lists the types in the order of RADIO_TYPES): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */
 export const TNC_PROFILES = [
