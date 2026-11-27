@@ -1041,6 +1041,19 @@ def test_the_link_preview_names_the_systems_the_site_names() -> None:
     ) == ["toolongword", "x"]
 
 
+def test_every_page_of_the_site_asks_for_the_same_stylesheet_and_script() -> None:
+    """The ?v= numbers that make a browser fetch site.js and style.css again are one pair on every
+    page, so that no page is left with an old script or stylesheet."""
+    found = {
+        page.name: tuple(
+            re.findall(r'(?:href|src)="((?:style\.css|site\.js)\?v=\d+)"', page.read_text(encoding="utf-8"))
+        )
+        for page in sorted((ROOT / "site").glob("*.html"))
+    }
+    asked = {refs for refs in found.values() if refs}
+    assert len(asked) == 1 and len(next(iter(asked))) == 2, found
+
+
 def test_the_scripts_that_run_a_daemon_in_their_process_reach_its_radios_by_id_and_name_an_objects_radios() -> None:
     """The day of the screenshots (demoscene) and its folder (screenshots) reach the daemon's radio
     through the registry, by id (the controller names no radio of its own); an object of the day is
