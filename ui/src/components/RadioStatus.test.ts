@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import RadioStatus from "@/components/RadioStatus.vue";
 import { clockText } from "@/lib/format";
-import { NOW, ago, fmRow, radioRow } from "@/test/fixtures";
+import { NOW, ago, fmRow, hfRow, radioRow } from "@/test/fixtures";
 
 const lines = (...texts: string[]) =>
   texts.map((text, i) => ({ at: new Date(NOW - (texts.length - i) * 1000).toISOString(), text }));
@@ -52,6 +52,18 @@ describe("RadioStatus", () => {
     );
     expect(wrapper.find(".statetext").classes()).toContain("tnc-waiting");
     expect(wrapper.find(".tncstatus").text()).not.toBe("");
+    expect(wrapper.find(".problem").exists()).toBe(false);
+  });
+
+  it("says a deaf modem's problem in its line while the radio is connected, not Listening, and keeps one line", () => {
+    const wrapper = radio(
+      hfRow({ state: "connected", problem: { code: "modem.receive_deaf", params: {} } }, { state: "running" }),
+    );
+    expect(wrapper.find(".statetext").text()).toBe("connected");
+    expect(wrapper.find(".tncstatus").text()).toBe(
+      "Mercury hears nothing (its receive side stalled): it is started again shortly",
+    );
+    expect(wrapper.text()).not.toContain("Listening");
     expect(wrapper.find(".problem").exists()).toBe(false);
   });
 

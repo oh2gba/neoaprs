@@ -112,6 +112,22 @@ describe("the mark of the one radio", () => {
     expect(t(up.title, up.titleValues)).toBe("Kenwood: connected. Settings → Radio");
   });
 
+  it("takes its trouble look while the line is open and the radio carries a problem, and stays ok without one", () => {
+    const ok = radio({ name: "Kenwood" })!;
+    expect([ok.tone, t(ok.text, ok.textValues)]).toEqual(["ok", "Kenwood"]);
+    for (const [code, words] of [
+      ["modem.receive_deaf", "Mercury hears nothing (its receive side stalled): it is started again shortly"],
+      ["modem.receive_stalled", "Mercury hears nothing, even after restarts: switch the radio off and on again"],
+    ] as const) {
+      const mark = radio({ name: "Kenwood", state: "connected", problem: problem(code) })!;
+      expect([mark.tone, t(mark.text, mark.textValues), t(mark.title, mark.titleValues)]).toEqual([
+        "warn",
+        "Kenwood: not connected",
+        `${words}. Settings → Radio`,
+      ]);
+    }
+  });
+
   // (no internals on the page: while the line is being opened the title says the state in the
   // page's words, the log has the rest)
   it("says searching in its title while the line is being opened, never the port or the device the daemon tries", () => {

@@ -93,10 +93,11 @@ export const rowPillClass = (row: RadioRow): string => (dummyRow(row) ? "tnc-dum
  * The parts of a connected radio's line, each on a fixed line so nothing below moves while the
  * radio receives and sends (components/StatusLine.vue `parts`): the modem's two, or the last
  * packet alone.
- * Null for every other line, which is one sentence that wraps and does not change per packet.
+ * Null for a line with a problem and every other line: one sentence that wraps and does not change
+ * per packet.
  */
 export function rowParts(row: RadioRow, nowMs: number): readonly string[] | null {
-  if (dummyRow(row) || row.state !== "connected" || row.problem?.code === "radio.text_lines") return null;
+  if (dummyRow(row) || row.state !== "connected" || row.problem !== null) return null;
   return row.modem ? modemParts(row, row.modem, nowMs) : [lastPacketText(row, nowMs)];
 }
 
@@ -108,8 +109,8 @@ export function rowStatus(row: RadioRow, nowMs: number, radios?: RadioNames): st
       row.problem?.code === "radio.silent" ? String(row.problem.params["since"] ?? "") || null : null,
       nowMs,
     );
-  // A LoRa board sending text lines: its link is open, but nothing goes until it is set to KISS.
-  if (row.state === "connected" && row.problem?.code === "radio.text_lines") return problemText(row.problem, t, radios);
+  // The link is open and the radio has a problem (a deaf modem, a LoRa board sending text lines): say it.
+  if (row.state === "connected" && row.problem !== null) return problemText(row.problem, t, radios);
   const parts = rowParts(row, nowMs);
   if (parts !== null) return parts.join(" · ");
   return rowDownText(row, radios);

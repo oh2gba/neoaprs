@@ -119,3 +119,11 @@ def test_a_test_tone_hides_the_modems_problem_and_a_deaf_modem_shows_only_while_
     assert code(Source.State.CONNECTED, deaf=True) == "modem.receive_deaf"
     assert code(Source.State.CONNECTED, deaf=True, test="tune") is None
     assert code(Source.State.WAITING, state="waiting", reason="sound_card", test="tune") is None
+
+
+def test_the_wire_row_of_a_connected_line_with_a_deaf_modem_carries_the_problem_the_page_reads() -> None:
+    line = connected(MERCURY)
+    line.modem = SimpleNamespace(state="running", reason="", test="", deaf=True, hold=lambda: "")  # type: ignore[assignment]
+    row = radio_row(HF, (HF,), at_work(line, "mercury"), Claims())
+    assert row is not None
+    assert (row["state"], row["problem"]) == ("connected", {"code": "modem.receive_deaf", "params": {}})

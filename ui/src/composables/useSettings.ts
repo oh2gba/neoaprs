@@ -6,8 +6,9 @@
 // was typed. The Settings and My station tabs share one instance, so there is one queue; each
 // tab's keys are `useSettingsForm`. Radio settings (`radio/3/port`, `email/radio`) from
 // `config.radio_values` are saved, held and refused like the rest.
-import { computed, getCurrentScope, onScopeDispose, reactive, type Ref } from "vue";
+import { computed, getCurrentScope, onScopeDispose, reactive, watch, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
+import { t } from "@/i18n";
 import type { RadioNames } from "@/i18n/errortext";
 import { useSettingsAnswers, type SettingsLink } from "@/composables/useSettingsAnswers";
 import { useSettingsFeedback } from "@/composables/useSettingsFeedback";
@@ -29,8 +30,13 @@ export function useSettings(
   const whole = computed<ConfigValues | null>(() => (config.value === null ? null : withRadios(config.value)));
   const values = computed(() => whole.value?.values ?? {});
 
+  // The value a "Not sent" line stands for, by key: the daemon may have stored it all the same.
+  const unsent = new Map<string, string>();
+
   function refuse(request: Request, reason: string, key = request.keys[0] ?? ""): void {
     errors[key] = reason;
+    if (reason === t("settings.not_sent")) unsent.set(key, request.values[key] ?? "");
+    else unsent.delete(key);
     for (const k of request.revert) if (!queue.waiting(k)) draft[k] = values.value[k] ?? "";
   }
   const queue = useSettingsQueue(send, () => values.value, refuse);
@@ -96,6 +102,17 @@ export function useSettings(
     (request, reason, key) => refuse(request, reason, key),
     radios,
   );
+
+  // A "Not sent" line goes when the daemon's settings hold the very text the field holds: it is stored.
+  watch(values, (now) => {
+    for (const [key, text] of unsent) {
+      if (errors[key] !== t("settings.not_sent")) unsent.delete(key);
+      else if (now[key] === text && draft[key] === text) {
+        delete errors[key];
+        unsent.delete(key);
+      }
+    }
+  });
 
   return {
     draft,

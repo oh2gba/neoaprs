@@ -538,6 +538,34 @@ describe("useSettings: the answer of a request is the one that carries its numbe
     expect(settings.draft["station/comment"]).toBe("Hello A");
   });
 
+  it("drops the Not sent line when the settings after the reconnect hold the very text of the field", async () => {
+    const { settings, connection, config } = setUp();
+    settings.edit("station/comment", "Hello A");
+    settings.commit(["station/comment"]);
+    connection.value = "closed";
+    await nextTick();
+    expect(settings.errors["station/comment"]).toContain("no connection");
+    connection.value = "open";
+    config.value = configValues({ ...config.value?.values, "station/comment": "Hello A" });
+    await nextTick();
+    expect(settings.errors["station/comment"]).toBeUndefined();
+    expect(settings.draft["station/comment"]).toBe("Hello A");
+    expect(settings.announcement.value.text).toBe("");
+  });
+
+  it("keeps the Not sent line and the typed text when the settings after the reconnect hold another value", async () => {
+    const { settings, connection, config } = setUp();
+    settings.edit("station/comment", "Hello A");
+    settings.commit(["station/comment"]);
+    connection.value = "closed";
+    await nextTick();
+    connection.value = "open";
+    config.value = configValues({ ...config.value?.values, "station/comment": "Hello B" });
+    await nextTick();
+    expect(settings.errors["station/comment"]).toContain("no connection");
+    expect(settings.draft["station/comment"]).toBe("Hello A");
+  });
+
   it("does not paint the old value over the typed text when the socket comes back with the settings", async () => {
     const { settings, connection, config } = setUp();
     settings.edit("station/comment", "Hello A");

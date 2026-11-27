@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
 import { LOCALES } from "@/i18n/locales";
 import { clockText } from "@/lib/format";
-import { lineText, rowPillClass, rowPillText, rowStatus, statsCounts } from "@/lib/tncstatus";
+import { lineText, rowParts, rowPillClass, rowPillText, rowStatus, statsCounts } from "@/lib/tncstatus";
 import type { ModemState, RadioProblem, RadioRow } from "@/protocol/protocol";
 import { NOW, ago, fmRow, hfRow, lineStats, radioRow } from "@/test/fixtures";
 
@@ -116,6 +116,20 @@ describe("the Mercury radio's line", () => {
     expect(rowStatus(hf({}, { stats: lineStats({ last_packet: null }) }), NOW)).toBe(
       "DATAC3 · Listening · No packet yet",
     );
+  });
+
+  it("says the modem's problem instead of listening while the line is open, and the usual line without one", () => {
+    const deaf = { code: "modem.receive_deaf", params: {} } as const;
+    const stalled = { code: "modem.receive_stalled", params: {} } as const;
+    expect(rowStatus(hf({}, { state: "connected", problem: deaf }), NOW)).toBe(
+      "Mercury hears nothing (its receive side stalled): it is started again shortly",
+    );
+    expect(rowStatus(hf({}, { state: "connected", problem: stalled }), NOW)).toBe(
+      "Mercury hears nothing, even after restarts: switch the radio off and on again",
+    );
+    expect(rowParts(hf({}, { problem: deaf }), NOW)).toBeNull();
+    expect(rowStatus(hf({}, { problem: null }), NOW)).toBe("DATAC3 · Listening · Last packet 30 s ago");
+    expect(rowParts(hf(), NOW)).toEqual(["DATAC3 · Listening", "Last packet 30 s ago"]);
   });
 
   it("never shows the address the modem is reached on: Connecting… while the line opens", () => {

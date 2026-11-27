@@ -70,7 +70,12 @@ interface Line {
   dummy: boolean;
   since: string | null;
   why: string;
+  /** The line is open and the radio carries a problem (a deaf modem, a board sending text lines). */
+  trouble: boolean;
 }
+
+/** The line is open and nothing is wrong with the radio. */
+const up = (line: Line | null): boolean => line?.state === "connected" && !line.trouble;
 
 /**
  * Why a radio is not connected: its coded problem (lib/radios.ts `problemText`), searching while
@@ -93,6 +98,7 @@ function lineOfRow(radio: PageRadio, radios: readonly PageRadio[]): Line {
     dummy: radio.dummy,
     since: since === "" ? null : since,
     why: whyOf(radio.state, radio, radios),
+    trouble: radio.state === "connected" && !radio.dummy && radio.problem !== null,
   };
 }
 
@@ -140,7 +146,7 @@ function radioPill(
     const text = name === null ? ({ text: "pill.radio_waiting" } as const) : named("pill.radio_named_waiting", name);
     return { ...base, ...text, tone: "warn", ...title };
   }
-  if (line.state === "connected") {
+  if (line.state === "connected" && !line.trouble) {
     if (line.dummy)
       return { ...base, ...named("pill.radio_named", name), title: "pill.radio_dummy_title", tone: "dummy" };
     return {
@@ -171,14 +177,13 @@ function radioPill(
 function radiosPill(link: Link, on: readonly PageRadio[], first: PageRadio | undefined): HeaderPill {
   const lines = on.map((radio) => ({ radio, line: lineOf(link, radio) }));
   const said = lines.map(({ radio, line }) => {
-    if (line?.state === "connected")
-      return t("radio.line", { name: radio.name, line: t("settings.tnc.state.connected") });
+    if (up(line)) return t("radio.line", { name: radio.name, line: t("settings.tnc.state.connected") });
     // the words its own mark would use: "Portable: searching…"
     const mark = radioPill(link, line, "radios", "", radio.name);
     return t(mark.text, mark.textValues);
   });
   const title = whyTitle(said.reduce((all, one) => t("channel.title_join", { first: all, second: one })));
-  const trouble = lines.filter(({ line }) => line?.state !== "connected");
+  const trouble = lines.filter(({ line }) => !up(line));
   const base = { id: "radios", target: "settings" } as const;
   if (link.connection !== "open")
     return {
