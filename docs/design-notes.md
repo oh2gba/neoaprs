@@ -1366,6 +1366,14 @@ distinct from the installation number and never sent when reading); the server k
 installation can delete it. A refusal the operator can act on (rate, full, past, too_far) is an error with a code; others are
 logged and the job completes as far as possible (a closed board or blocked call is state `closed` until the next read).
 
+The tests that have ended are in a file of their own beside the board, `skeds-past.json`, not in a new key of `skeds.json`: an
+older copy of NeoAPRS and a cached script of the project page read `skeds.json` and the answers to their posts, and those stay byte
+for byte as they were; a post asks for the past tests with `"past": true`. The server writes both files at every change, so the
+past file lags until the next write: a reader also takes the board's own rows that have ended by its clock, and the two together,
+grouped and ordered by one rule (the `sked_past` vectors, held by the daemon, the page and the server), are the past tests. A test
+deleted before it began is gone; one deleted while it runs ends at that moment and stays as a past test, since it did happen and
+others may have joined it. The past tests are never written into the station's database: after a start they come with the next read.
+
 ## neoaprs/soundmixer.py
 
 Only volume controls are touched, never a switch, so mute and Auto Gain Control stay as the system has them. The first of

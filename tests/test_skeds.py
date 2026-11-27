@@ -27,6 +27,7 @@ from neoaprs.skeds import (
     TIME,
     TOKEN,
     Board,
+    Sked,
     board_text,
     clean_note,
     endpoint_url,
@@ -35,6 +36,9 @@ from neoaprs.skeds import (
     our_call,
     parse_board,
     plain_note,
+    past_of,
+    past_tests,
+    past_url,
     request_body,
     when,
 )
@@ -324,6 +328,7 @@ def test_the_request_is_json_of_the_servers_own_form_and_the_address_is_on_the_s
     assert body == {
         "action": "add",
         "token": "a" * 32,
+        "past": True,
         "call": CALL,
         "from": at(1),
         "to": at(2),
@@ -333,6 +338,10 @@ def test_the_request_is_json_of_the_servers_own_form_and_the_address_is_on_the_s
     assert (
         endpoint_url(SKEDS_URL) == "https://neo.oh2gba.eu/api/v1/skeds.php"
         and endpoint_url("http://127.0.0.1:8123/skeds.json") == "http://127.0.0.1:8123/api/v1/skeds.php"
+    )
+    assert (
+        past_url(SKEDS_URL) == "https://neo.oh2gba.eu/skeds-past.json"
+        and past_url("http://127.0.0.1:8123/skeds.json") == "http://127.0.0.1:8123/skeds-past.json"
     )
 
 
@@ -350,8 +359,15 @@ class Net:
         self.post_calls: list[tuple[str, dict[str, Any], str, str]] = []
         self.post_limits: list[int] = []
         self.last_read: tuple[int, bytes] | None = (200, board())
+        # the past tests beside the board: asked after each board that was read; a server without them by default
+        self.past_reads: list[tuple[int, bytes] | None] = []
+        self.past_read: tuple[int, bytes] | None = (404, b"")
+        self.past_calls: list[tuple[str, int]] = []
 
     async def fetch(self, url: str, version: str, platform: str, max_bytes: int) -> tuple[int, bytes] | None:
+        if url.endswith("/skeds-past.json"):
+            self.past_calls.append((url, max_bytes))
+            return self.past_reads.pop(0) if self.past_reads else self.past_read
         self.read_calls.append((url, version, platform, max_bytes))
         return self.reads.pop(0) if self.reads else self.last_read
 
@@ -646,8 +662,9 @@ async def test_a_post_sends_the_call_the_times_the_dial_the_note_and_the_token_a
     ((url, body, version, platform),) = net.post_calls
     assert url == "https://neo.oh2gba.eu/api/v1/skeds.php" and (version, platform) == ("0.18.2", "linux")
     assert (
-        set(body) == {"action", "token", "call", "from", "to", "dial", "note"}
+        set(body) == {"action", "token", "past", "call", "from", "to", "dial", "note"}
         and body["action"] == "add"
+        and body["past"] is True
         and TOKEN.fullmatch(body["token"])
     )
     assert (body["call"], body["from"], body["to"], body["dial"], body["note"]) == (
@@ -1095,3 +1112,131 @@ async def test_under_the_no_devices_switch_nothing_is_read_from_or_posted_to_a_s
         updatefetch.post_json("ftp://127.0.0.1/skeds.php", b"{}", "0.18.2", "linux") is None
         and updatefetch.get_answer("file:///etc/passwd", "0.18.2", "linux") is None
     )
+
+
+# ---- the past tests ------------------------------------------------------------------------------
+
+
+def past_board(*rows: Any) -> bytes:
+    return json.dumps({"v": 1, "written": at(0), "past": list(rows)}).encode()
+
+
+def test_the_past_tests_are_rows_of_the_boards_form_that_ended_within_thirty_days_and_a_bad_one_is_dropped_alone() -> (
+    None
+):
+    found = past_of(
+        json.loads(
+            past_board(
+                row("aaaaaaaaaaaa", start=-3, end=-1),
+                row("bbbbbbbbbbbb", start=-24 * 30 - 2, end=-24 * 30 - 1),
+                {**row("cccccccccccc", start=-3, end=-1), "call": "<b>"},
+                row("dddddddddddd", start=-3, end=-1, call="OH2GBA"),
+                row("eeeeeeeeeeee", start=-30, end=-1),
+            )
+        ),
+        NOW,
+    )
+    assert found is not None and [s.id for s in found] == ["aaaaaaaaaaaa", "dddddddddddd"], (
+        "past 30 days, a bad call and a test longer than a day are left out; one test, its rows by id"
+    )
+    for broken in ({"v": 2, "past": []}, {"v": True, "past": []}, {"v": 1}, {"v": 1, "past": {}}, [], "x"):
+        assert past_of(broken, NOW) is None, broken
+    assert past_of({"v": 1, "past": []}, NOW) == ()
+
+
+def test_the_past_tests_are_listed_as_the_vectors_say() -> None:
+    vectors = json.loads(
+        (Path(__file__).parent.parent / "ui" / "src" / "protocol" / "vectors.json").read_text(encoding="utf-8")
+    )
+    for case in vectors["sked_past"]:
+        rows = [
+            Sked(i, c, NOW + timedelta(hours=a), NOW + timedelta(hours=b), d, "") for i, c, a, b, d in case["skeds"]
+        ]
+        assert [s.id for s in past_tests(rows, (), NOW)] == case["listed"], case
+
+
+async def test_the_past_tests_are_read_beside_the_board_and_told_newest_first_and_a_row_the_server_calls_past_leaves_the_board() -> (
+    None
+):
+    net = Net(good(row("aaaaaaaaaaaa", start=-1, end=1), GOOD))
+    net.past_read = (
+        200,
+        past_board(
+            row("bbbbbbbbbbbb", start=-5, end=-3),
+            row("cccccccccccc", start=-4, end=-2),
+            row("aaaaaaaaaaaa", start=-1, end=1),
+        ),
+    )
+    s = Setup(net)
+    await s.service.ask()
+    assert net.past_calls == [("https://neo.oh2gba.eu/skeds-past.json", MAX_BYTES)]
+    assert [r.id for r in s.service.rows()] == ["7f3a9c21d4e0"], "the server's clock said the first one is over"
+    assert [p.id for p in s.service.past()] == ["aaaaaaaaaaaa", "cccccccccccc", "bbbbbbbbbbbb"]
+    assert s.service.state == "ok"
+
+
+async def test_a_past_list_that_is_not_there_is_none_and_one_that_cannot_be_read_leaves_the_last_and_the_board_online() -> (
+    None
+):
+    net = Net(good(GOOD))
+    net.past_reads = [(200, past_board(row("bbbbbbbbbbbb", start=-5, end=-3))), None, (500, b""), (200, b"<html>")]
+    s = Setup(net)
+    for _ in range(4):
+        await s.service.ask()
+        assert [p.id for p in s.service.past()] == ["bbbbbbbbbbbb"] and s.service.state == "ok"
+        s.mono.now += SKEDS_EVERY_SEC + 1
+    await s.service.ask()
+    assert s.service.past() == [] and s.service.state == "ok", "a server without past tests has none"
+
+
+async def test_a_sked_that_ends_leaves_the_rows_for_the_past_tests_by_the_daemons_own_clock_and_is_told() -> None:
+    net = Net(good(row("aaaaaaaaaaaa", start=-1, end=1), row("bbbbbbbbbbbb", start=2, end=3)))
+    s = Setup(net)
+    pasts: list[list[str]] = []
+    s.service.changed.connect(lambda: pasts.append([p.id for p in s.service.past()]))
+    await s.service.start()
+    await until(lambda: s.told)
+    assert s.service.past() == []
+    s.clock.now = NOW + timedelta(hours=1, minutes=1)
+    await until(lambda: s.told[-1] == ["bbbbbbbbbbbb"])
+    assert pasts[-1] == ["aaaaaaaaaaaa"]
+    s.clock.now = NOW + timedelta(days=30, hours=1, minutes=1)
+    await until(lambda: pasts[-1] == ["bbbbbbbbbbbb"])
+    s.clock.now = NOW + timedelta(days=30, hours=3, minutes=1)
+    await until(lambda: pasts[-1] == [])
+
+
+async def test_a_posts_answer_brings_the_past_tests_and_an_answer_without_them_leaves_the_last() -> None:
+    gone = row("bbbbbbbbbbbb", start=-5, end=-3)
+    first = {**added()[1], "past": json.loads(past_board(gone))}
+    net = Net(posts=[(200, first), added("cccccccccccc")])
+    s = Setup(net)
+    await post_one(s)
+    assert [p.id for p in s.service.past()] == ["bbbbbbbbbbbb"] and net.post_calls[0][1]["past"] is True
+    await post_one(s, note="again")
+    assert [p.id for p in s.service.past()] == ["bbbbbbbbbbbb"], "an older server's answer has no past tests"
+
+
+async def test_nothing_of_the_past_tests_is_kept_in_the_database(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / "neoaprs.sqlite")
+    net = Net(good(row("aaaaaaaaaaaa", start=-1, end=1)))
+    net.past_read = (200, past_board(row("bbbbbbbbbbbb", start=-5, end=-3)))
+    s = Setup(net, memory=store)
+    await s.service.ask()
+    assert [p.id for p in s.service.past()] == ["bbbbbbbbbbbb"]
+    s.clock.now = NOW + timedelta(hours=2)
+    assert [p.id for p in s.service.past()] == ["aaaaaaaaaaaa", "bbbbbbbbbbbb"]
+    assert "bbbbbbbbbbbb" not in (await store.setting(SKEDS_ROW) or ""), "the server's past tests are in memory only"
+    again = Setup(Net(None), memory=store)
+    again.service.first_sec = 3600.0
+    await again.service.start()
+    await until(lambda: again.told)
+    assert again.service.past() == [], "after a start, none until the board is read"
+
+
+async def test_while_the_update_check_is_off_there_are_no_past_tests() -> None:
+    net = Net(good(GOOD))
+    net.past_read = (200, past_board(row("bbbbbbbbbbbb", start=-5, end=-3)))
+    s = Setup(net, environ={ENV_SWITCH: "0"})
+    await s.service.ask()
+    assert s.service.past() == [] and net.past_calls == []

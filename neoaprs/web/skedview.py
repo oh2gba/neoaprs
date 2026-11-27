@@ -17,6 +17,7 @@ class SkedSource(Protocol):
     def ours(self) -> frozenset[str]: ...
 
     def rows(self) -> list[Sked]: ...
+    def past(self) -> list[Sked]: ...
     def frequencies(self) -> list[Frequency]: ...
 
 
@@ -38,5 +39,9 @@ def skeds_state(skeds: SkedSource) -> dict[str, Any]:
                 "ours": s.id in ours,
             }
             for s in skeds.rows()
+        ],
+        "past": [
+            {"id": s.id, "call": s.call, "from": iso(s.start), "to": iso(s.end), "dial": s.dial, "note": s.note}
+            for s in skeds.past()
         ],
     }

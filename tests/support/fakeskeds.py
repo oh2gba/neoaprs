@@ -11,6 +11,8 @@ from tests.support.loopbackserver import LoopbackServer
 class FakeSkeds(LoopbackServer):
     def __init__(self) -> None:
         self.rows: list[dict[str, str]] | None = None  # None: no board yet
+        self.past: list[dict[str, str]] | None = None  # None: a server without past tests (skeds-past.json)
+        self.past_gets = 0
         self.closed = False
         self.raw: bytes | None = None
         self.refuse: tuple[str, int] | None = None
@@ -25,6 +27,13 @@ class FakeSkeds(LoopbackServer):
 
     def board(self) -> dict[str, Any]:
         return {"v": 1, "written": "2026-11-13T17:02:11Z", "closed": self.closed, "skeds": self.rows or []}
+
+    def past_board(self) -> dict[str, Any]:
+        return {"v": 1, "written": "2026-11-13T17:02:11Z", "past": self.past or []}
+
+    def _done(self, body: dict[str, Any], head: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        extra = {"past": self.past_board()} if body.get("past") is True and self.past is not None else {}
+        return 200, {**head, "board": self.board(), **extra}
 
     def _answer(self, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         self.posts.append(body)
@@ -46,13 +55,13 @@ class FakeSkeds(LoopbackServer):
             )
             self.owners[ident] = body["token"]
             self.rows = sorted(rows, key=lambda r: (r["from"], r["id"]))
-            return 200, {"ok": True, "id": ident, "board": self.board()}
+            return self._done(body, {"ok": True, "id": ident})
         if body.get("action") == "remove":
             # A row nobody here posted is nobody's: the moderator's
             if any(r["id"] == body["id"] for r in rows) and self.owners.get(body["id"]) != body["token"]:
                 return 403, {"ok": False, "reason": "not_yours"}
             self.rows = [r for r in rows if r["id"] != body["id"]]
-            return 200, {"ok": True, "board": self.board()}
+            return self._done(body, {"ok": True})
         return 400, {"ok": False, "reason": "bad_request"}
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
@@ -64,6 +73,10 @@ class FakeSkeds(LoopbackServer):
             if method == "POST":
                 status, data = self._answer(json.loads(body))
                 sent = json.dumps(data).encode()
+            elif path.endswith("/skeds-past.json"):
+                self.past_gets += 1
+                status = 404 if self.past is None else 200
+                sent = json.dumps(self.past_board()).encode()
             else:
                 self.gets.append((head[0], headers))
                 status = 404 if self.rows is None else 200

@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
-from neoaprs.skeds import ID, MAX_NOTE, MAX_LENGTH, when
+from neoaprs.skeds import ID, MAX_LENGTH, MAX_NOTE, MAX_PAST_ROWS, when
 from neoaprs.versions import DIAL_PATTERN, MAX_FREQUENCIES, is_dial
 
 from .wirebase import Iso, _Command, _Model
@@ -46,6 +46,20 @@ class SkedRow(_Model):
     )
 
 
+class SkedPast(_Model):
+    """A test that has ended, as the board had it: one row for each call that was on it. Checked again by the daemon as a row of the board is; it can no longer be joined or deleted."""
+
+    model_config = ConfigDict(serialize_by_alias=True)
+    id: str = Field(pattern=ID_PATTERN, description="the sked's id, 12 lowercase hex characters")
+    call: str = Field(description="the call that was on the air, upper case without an SSID of 0")
+    from_: Iso = Field(alias="from", description="when it began (the field is called `from` on the wire)")
+    to: Iso = Field(
+        description="when it ended, after `from` by 24 hours at most: the planned end, or when its poster deleted it while it ran"
+    )
+    dial: str = Field(pattern=DIAL_PATTERN, description="the dial with its mode, `7.0541 MHz USB`")
+    note: str = Field(max_length=MAX_NOTE, description="the short note, may be empty; the page shows it as text")
+
+
 class SkedsState(_Model):
     """The sked board: where it stands, the dials the project suggests, and the skeds to come, the nearest first. The value of the topic `skeds`, told whole as it changes (a read of the board, a post, a delete, a sked that ends)."""
 
@@ -63,6 +77,12 @@ class SkedsState(_Model):
     rows: list[SkedRow] = Field(
         max_length=100,
         description="the skeds to come by the daemon's clock, the nearest start first; empty when there are none",
+    )
+    past: list[SkedPast] = Field(
+        default_factory=list,
+        max_length=MAX_PAST_ROWS,
+        description="the tests that have ended in the last 30 days: those the server lists (`skeds-past.json` beside the board) and the board's own that have ended by the daemon's clock since. Rows with the same `from`, `to` and `dial` are one test; the 20 newest tests by their end come first, then by their start and dial, each test's rows by id. "
+        "Kept in memory only, so empty after a start until the board is read; empty when the check is off",
     )
 
 

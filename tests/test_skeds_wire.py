@@ -56,7 +56,7 @@ async def test_the_topic_is_off_while_the_update_check_is_off_and_has_the_dials_
 ) -> None:
     e = await started(tmp_path)
     page, value = await topic(e)
-    assert value == {"state": "off", "fetched_at": None, "frequencies": BUILT_IN, "rows": []}
+    assert value == {"state": "off", "fetched_at": None, "frequencies": BUILT_IN, "rows": [], "past": []}
     await page.send({"cmd": "skeds_wanted"})
     await page.quiet(0.2)
     assert e.ctl.skeds.asked == 0
@@ -155,6 +155,58 @@ async def test_a_sked_that_has_ended_by_the_daemons_clock_leaves_the_topic_and_a
     await e.ctl.skeds.start()
     e.ctl.skeds._clock = lambda: utcnow() + timedelta(hours=2)
     await page.until(lambda: page.topics["skeds"]["rows"] == [])
+    await e.stop()
+
+
+async def test_a_test_that_ends_while_the_page_is_open_moves_from_the_board_to_the_past_tests_with_the_servers_own(
+    tmp_path: Path,
+) -> None:
+    server = await skeds_server()
+    server.rows = [
+        {
+            "id": "7f3a9c21d4e0",
+            "call": "OH2XYZ",
+            "from": when(-1),
+            "to": when(1),
+            "dial": "14.1070 MHz USB",
+            "note": "",
+        },
+        {
+            "id": "7f3a9c21d4e1",
+            "call": "OH3ABC",
+            "from": when(-1),
+            "to": when(1),
+            "dial": "14.1070 MHz USB",
+            "note": "x",
+        },
+    ]
+    server.past = [
+        {
+            "id": "0123456789ab",
+            "call": "OH2GBA",
+            "from": when(-30),
+            "to": when(-29),
+            "dial": "7.0541 MHz USB",
+            "note": "",
+        }
+    ]
+    e = await started(tmp_path, server)
+    e.ctl.skeds.expire_sec = 0.05
+    page, _ = await topic(e)
+    await page.send({"cmd": "skeds_wanted"})
+    await page.until(lambda: len(page.topics["skeds"]["rows"]) == 2)
+    assert [p["id"] for p in page.topics["skeds"]["past"]] == ["0123456789ab"] and server.past_gets == 1
+    assert set(page.topics["skeds"]["past"][0]) == {"id", "call", "from", "to", "dial", "note"}
+    await e.ctl.skeds.start()
+    e.ctl.skeds._clock = lambda: utcnow() + timedelta(hours=2)
+    await page.until(lambda: page.topics["skeds"]["rows"] == [])
+    past = page.topics["skeds"]["past"]
+    assert [(p["id"], p["call"], p["note"]) for p in past] == [
+        ("7f3a9c21d4e0", "OH2XYZ", ""),
+        ("7f3a9c21d4e1", "OH3ABC", "x"),
+        ("0123456789ab", "OH2GBA", ""),
+    ], "the test that just ended, with the call that joined it, newest first"
+    assert len(server.gets) == 1, "no new read of the board was needed"
     await e.stop()
 
 

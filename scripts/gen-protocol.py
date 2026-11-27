@@ -35,7 +35,7 @@ same).
 import json
 import re
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from pathlib import Path
 from typing import Any
@@ -118,7 +118,17 @@ from neoaprs.aprsposition import uncompressed_position  # noqa: E402
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text  # noqa: E402
 from neoaprs.symbols import IGATE_OVERLAYS, MOBILE_CODES, SYMBOL_NAMES  # noqa: E402
 from neoaprs.tncprofile import HF_PROFILES, PROFILES  # noqa: E402
-from neoaprs.skeds import clean_note, our_call, plain_note, when  # noqa: E402
+from neoaprs.skeds import (  # noqa: E402
+    KEEP_PAST,
+    MAX_PAST_ROWS,
+    MAX_PAST_TESTS,
+    Sked,
+    clean_note,
+    our_call,
+    past_tests,
+    plain_note,
+    when,
+)
 from neoaprs.versions import compare_versions, is_dial  # noqa: E402
 from neoaprs.web.hubwire import PROTOCOL  # noqa: E402
 from neoaprs.web.views import CONFIG_KEYS  # noqa: E402
@@ -460,6 +470,11 @@ def limits() -> dict[str, Any]:
             "queries": dict(generalask.QUERIES),
         },
         "station": {"hours": list(STATION_HOURS), "defaultHours": DEFAULT_STATION_HOURS},
+        "skedPast": {
+            "keepDays": KEEP_PAST.days,
+            "maxTests": MAX_PAST_TESTS,
+            "maxRows": MAX_PAST_ROWS,
+        },
         "replay": {"days": list(SPAN_DAYS), "glideMaxMin": GLIDE_MAX_MIN},
         "scope": {
             "loHz": mercuryscope.SCOPE_LO_HZ,
@@ -1171,6 +1186,26 @@ SKED_TIMES = [
     "\u0662\u0660\u0662\u0666-11-14T18:00:00Z",
     "",
 ]
+# Skeds as [id, call, start, end, dial] with the start and end in hours from now: which are past tests, in
+# which order (neoaprs/skeds.py past_tests, server/neo/api/v1/skeds.php skeds_past_rows, ui/src/lib/skeds.ts).
+SKED_40 = "7.0541 MHz USB"
+SKED_20 = "14.1070 MHz USB"
+SKED_PAST = [
+    [["aaaaaaaaaaa1", "OH2GBA", -3, -1, SKED_40], ["aaaaaaaaaaa2", "OH2XYZ", 1, 2, SKED_40]],
+    [
+        ["bbbbbbbbbbb3", "OH2XYZ", -5, -3, SKED_40],
+        ["bbbbbbbbbbb1", "OH2GBA", -5, -3, SKED_40],
+        ["bbbbbbbbbbb2", "OH3ABC", -5, -3, SKED_20],
+        ["bbbbbbbbbbb4", "OH5DEF", -9, -2, SKED_40],
+    ],
+    [
+        ["ccccccccccc1", "OH2GBA", -6, -2, SKED_40],
+        ["ccccccccccc2", "OH2XYZ", -4, -2, SKED_40],
+        ["ccccccccccc3", "OH3ABC", -4, -2, SKED_20],
+    ],
+    [["ddddddddddd1", "OH2GBA", -722, -721, SKED_40], ["ddddddddddd2", "OH2XYZ", -720, -719, SKED_40]],
+    [[f"eeeeeeeee{n:03d}", "OH2GBA", -2 * n - 2, -2 * n - 1, SKED_40] for n in range(21)],
+]
 SKED_NOTES = [
     "",
     "Mercury, 10 W",
@@ -1509,6 +1544,13 @@ def _template_vector(template: str) -> dict[str, Any]:
     return {"template": template, "length": len(fill_template(template, LONGEST_FREQ, LONGEST_MODE)), "ok": ok}
 
 
+def _sked_past_vector(rows: list[list[Any]]) -> dict[str, Any]:
+    """The ids of the past tests a board of these skeds lists, in their order."""
+    now = datetime(2026, 11, 14, 12, 0, tzinfo=UTC)
+    skeds = [Sked(i, c, now + timedelta(hours=a), now + timedelta(hours=b), d, "") for i, c, a, b, d in rows]
+    return {"skeds": rows, "listed": [s.id for s in past_tests(skeds, (), now)]}
+
+
 def vectors() -> dict[str, list[dict[str, Any]]]:
     return {
         "calls": [_call_vector(t) for t in CALLS],
@@ -1547,6 +1589,7 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "sked_dials": [{"input": t, "ok": is_dial(t)} for t in SKED_DIALS],
         "sked_times": [{"input": t, "ok": when(t) is not None} for t in SKED_TIMES],
         "sked_notes": [{"input": t, "note": clean_note(t), "plain": plain_note(t)} for t in SKED_NOTES],
+        "sked_past": [_sked_past_vector(rows) for rows in SKED_PAST],
     }
 
 

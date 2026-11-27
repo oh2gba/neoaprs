@@ -37,6 +37,9 @@ from neoaprs.skeds import (
     kept_board,
     kept_ids,
     our_call,
+    past_of,
+    past_tests,
+    past_url,
     request_body,
     to_come,
 )
@@ -95,8 +98,10 @@ class Skeds:
         self._environ = environ
         self._memory = memory
         self._clock, self._monotonic = clock, monotonic
-        # last board as understood, ended skeds included; `rows` drops them
+        # last board as understood, ended skeds included; `rows` drops them and `past` takes them
         self._board = EMPTY
+        # the past tests the server last told; never stored
+        self._past: tuple[Sked, ...] = ()
         self.fetched_at: datetime | None = None
         # whether the last try reached and understood the server; None before the first
         self._reached: bool | None = None
@@ -105,7 +110,7 @@ class Skeds:
         self._shut = ""
         # kept in the row SKED_TOKEN; without a memory it lasts as long as this object
         self._token: str | None = None
-        self._told = 0
+        self._told = (0, 0)
         self.changed: Signal[[]] = Signal("skeds.changed")
         self.asked = 0
         self._last: float | None = None
@@ -142,7 +147,14 @@ class Skeds:
 
     def rows(self) -> list[Sked]:
         """Return the skeds still to come by the daemon's clock, nearest first; none if off."""
-        return list(to_come(self._board.skeds, self._clock())) if self.enabled else []
+        if not self.enabled:
+            return []
+        ended = {s.id for s in self._past}
+        return [s for s in to_come(self._board.skeds, self._clock()) if s.id not in ended]
+
+    def past(self) -> list[Sked]:
+        """Return the past tests, newest first (`past_tests`); none if off."""
+        return list(past_tests(self._board.skeds, self._past, self._clock())) if self.enabled else []
 
     async def start(self) -> None:
         if not self._tasks and self.enabled:
@@ -167,11 +179,11 @@ class Skeds:
         self._tell()
 
     def _tell(self) -> None:
-        self._told = len(self.rows())
+        self._told = (len(self.rows()), len(self.past()))
         self.changed.emit()
 
     def _expire(self) -> None:
-        if len(self.rows()) != self._told:
+        if (len(self.rows()), len(self.past())) != self._told:
             self._tell()
 
     # ---- reading
@@ -208,8 +220,28 @@ class Skeds:
         if board is None:
             log.debug("the HF test board at %s is not usable (status %s)", self.url, status)
             self._unreached()
+            return
+        await self._read_past()
+        await self._take(board, prune=status == 200)
+
+    async def _read_past(self) -> None:
+        """Take the server's past tests; a 404 is none (a server without them), any other failure keeps the last."""
+        address = past_url(self.url)
+        answer = await self._fetch(address, self.version, self.platform, MAX_BYTES)
+        if answer is not None and answer[0] == 404:
+            self._past = ()
+            return
+        found = self._parsed_past(answer[1]) if answer is not None and answer[0] == 200 else None
+        if found is None:
+            log.debug("the past HF tests at %s could not be read; the last ones stand", address)
         else:
-            await self._take(board, prune=status == 200)
+            self._past = found
+
+    def _parsed_past(self, body: bytes) -> tuple[Sked, ...] | None:
+        try:
+            return past_of(json.loads(body), self._clock())
+        except (ValueError, RecursionError):
+            return None
 
     def _parsed(self, body: bytes) -> Board | None:
         try:
@@ -269,12 +301,16 @@ class Skeds:
                 await self._answered(data)
 
     async def _answered(self, data: dict[str, Any]) -> None:
-        """Take the answer's board as read; if it is missing or invalid, read the board again."""
+        """Take the answer's board as read, and its past tests when it has them (an older server's has none);
+        if the board is missing or invalid, read the board again."""
         board = board_of(data.get("board"), self._clock())
         if board is None:
             log.warning("the HF test board's answer had no usable board; it is read again")
             await self._get()
             return
+        past = past_of(data["past"], self._clock()) if "past" in data else None
+        if past is not None:
+            self._past = past
         self._last = self._monotonic()
         await self._take(board)
 
