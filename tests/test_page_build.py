@@ -156,7 +156,7 @@ def test_nothing_of_the_page_reads_the_version_of_neoaprs() -> None:
 
 
 # What only the page's code for encrypted messages has (the Key menu, the padlock, the key in the
-# Settings tab, its commands); their words stay in the catalogues.
+# Settings tab, its commands).
 ENCRYPTION_MARKS = (
     "message_key_new",
     "forget_station_key",
@@ -176,6 +176,19 @@ def test_the_committed_page_has_no_code_of_encrypted_messages() -> None:
     every release is built without it, the page as well as the wheel."""
     scripts = page_scripts(PAGE)
     assert [mark for mark in ENCRYPTION_MARKS if mark in scripts] == [], f"page/ was built with the switch: {HINT}"
+
+
+# The words of encrypted messages: the catalogues are one for both builds, so a page built without
+# the switch still holds them.
+ENCRYPTION_WORDS = ("Send my key", "Forget key", "Encrypted messages")
+
+
+def test_the_marks_are_code_and_the_words_of_encrypted_messages_stay_in_the_committed_page() -> None:
+    catalogues = "".join(p.read_text(encoding="utf-8") for p in sorted((UI / "src" / "i18n").rglob("*.ts")))
+    assert [mark for mark in ENCRYPTION_MARKS if mark in catalogues] == []
+    assert [word for word in ENCRYPTION_WORDS if word not in catalogues] == []
+    scripts = page_scripts(PAGE)
+    assert [word for word in ENCRYPTION_WORDS if word not in scripts] == []
 
 
 def needs_vite[F: Callable[..., object]](test: F) -> F:
