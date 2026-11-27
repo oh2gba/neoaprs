@@ -10,6 +10,7 @@
 // greys both rows.
 import { computed, ref } from "vue";
 import { t } from "@/i18n";
+import { confirms } from "@/lib/ime";
 import { OTHER_DIAL, dialAtLeast, numberOfDial } from "@/lib/skeds";
 import type { SkedFrequency } from "@/protocol/protocol";
 
@@ -40,7 +41,7 @@ const row = ref<HTMLElement | null>(null);
 defineExpose({ row });
 
 function enter(event: KeyboardEvent): void {
-  if (!props.apply) return;
+  if (!props.apply || !confirms(event)) return;
   event.preventDefault();
   emit("commit");
 }
