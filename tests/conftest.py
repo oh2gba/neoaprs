@@ -126,6 +126,14 @@ def no_watchdog_of_the_test_process(monkeypatch: pytest.MonkeyPatch) -> "list[fl
     return asked
 
 
+@pytest.fixture(autouse=True)
+def no_look_grace(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A map layer stops being asked as soon as its last page stops looking, as the tests of the
+    layers expect; the tests of the grace itself ask for the fixture `look_grace`."""
+    if "look_grace" not in request.fixturenames:
+        monkeypatch.setattr("neoaprs.services.layers.LOOK_GRACE_SEC", 0.0)
+
+
 def reorder_files(items: "list[pytest.Item]", order: str) -> None:
     """NEOAPRS_TEST_ORDER=reverse|shuffle[:SEED] runs the test files in another order (the tests of
     a file keep theirs), to expose a test that depends on what an earlier file left

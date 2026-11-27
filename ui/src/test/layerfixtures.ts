@@ -73,5 +73,5 @@ export function layerThings(
   things: LayerThing[],
   extra: Partial<LayerThingsMessage> = {},
 ): LayerThingsMessage {
-  return { type: "layer_things", layer, source: "receiver", away: false, things, ...extra };
+  return { type: "layer_things", layer, source: "receiver", away: false, things, trails: [], ...extra };
 }

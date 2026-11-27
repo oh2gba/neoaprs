@@ -16,7 +16,7 @@ from .session import Connection
 
 class Watched(Protocol):
     def watch(self, layer: Layer, on: bool) -> None: ...
-    def table(self, layer: Layer) -> LayerTable: ...
+    def table(self, layer: Layer, trails: bool = False) -> LayerTable: ...
 
 
 def thing_row(thing: Thing, layer: Layer) -> dict[str, Any]:
@@ -52,6 +52,10 @@ def table_message(table: LayerTable) -> dict[str, Any]:
         "source": table.source,
         "away": table.away,
         "things": [thing_row(thing, table.layer) for thing in table.things],
+        "trails": [
+            {"id": trail.id, "points": [[round(lon, 6), round(lat, 6), iso(at)] for lon, lat, at in trail.points]}
+            for trail in table.trails
+        ],
     }
 
 
@@ -72,7 +76,7 @@ class LayerLooks:
         pages.add(conn)
         if first:
             self._service.watch(layer, True)
-        self._send(conn, table_message(self._service.table(layer)))
+        self._send(conn, table_message(self._service.table(layer, trails=True)))
 
     def _leave(self, conn: Connection, layer: Layer) -> None:
         pages = self._pages[layer]

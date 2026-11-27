@@ -5,15 +5,16 @@
 // forgets a page that left. The tables are the daemon's `layer_things`, the latest of each layer
 // (`useLayerTables`); only those of the layers looked at count. The card of a thing open over the
 // map is here too: one at a time, closed by its cross, Close all, Esc, a click on the map, or when
-// its thing leaves the table. The way each thing has gone is kept as the tables bring it
-// (lib/layers/trail.ts, begun with the look at the layer); the card's thing has its trail drawn.
+// its thing leaves the table. The way each thing has gone is kept as the tables bring it, the first
+// table of a look with what the daemon kept (lib/layers/trail.ts); it stays while the page is
+// hidden and goes when the operator switches the layer off. The card's thing has its trail drawn.
 // None of it reaches the stations, packets, statistics or the replay.
 import { computed, shallowRef, watch, type Ref } from "vue";
 import { useMapLayers } from "@/composables/useMapLayers";
 import type { Connection, Store } from "@/lib/hub";
 import { keepList } from "@/lib/keeplist";
 import type { LayerName, SourceName } from "@/lib/layers/sources";
-import { growTrails, trailKey, type TrailPoint, type Trails } from "@/lib/layers/trail";
+import { forgetTrails, growTrails, trailKey, type TrailPoint, type Trails } from "@/lib/layers/trail";
 import { liveThings, type LayerTables } from "@/lib/layers/traffic";
 import type { Command, LayerThing, MapState } from "@/protocol/protocol";
 
@@ -63,13 +64,17 @@ export interface TrafficParts {
 export function useLayerThings(parts: TrafficParts): LayerTraffic {
   const { send, connection, store } = parts;
   const ticks = useMapLayers(parts.map);
+  /** The layers the operator has on: a row in the Layers box, ticked. */
+  const wanted = computed<readonly LayerName[]>((old) => {
+    const rows = ticks.rows.value;
+    return keepList(
+      old,
+      TRAFFIC_LAYERS.filter((layer) => rows.some((row) => row.id === layer) && ticks.ticked(layer)),
+    );
+  });
   const looked = computed<readonly LayerName[]>((old) => {
     const front = parts.visible.value && connection.value === "open" && !parts.replay.value;
-    const rows = ticks.rows.value;
-    const layers = front
-      ? TRAFFIC_LAYERS.filter((layer) => rows.some((row) => row.id === layer) && ticks.ticked(layer))
-      : [];
-    return keepList(old, layers);
+    return keepList(old, front ? wanted.value : []);
   });
   // A closed socket says no to nothing: the daemon forgets the page by itself.
   watch(
@@ -108,6 +113,14 @@ export function useLayerThings(parts: TrafficParts): LayerTraffic {
   // the look.
   const trails: Trails = new Map();
   const grown = shallowRef(0);
+  watch(
+    wanted,
+    (now, was = []) => {
+      for (const layer of was.filter((one) => !now.includes(one))) forgetTrails(trails, layer);
+      grown.value++;
+    },
+    { flush: "sync" },
+  );
   watch(
     tables,
     (now) => {

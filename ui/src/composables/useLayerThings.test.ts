@@ -228,7 +228,7 @@ describe("useLayerThings: the trail of the thing whose card is open", () => {
     expect(page.traffic.trail.value.map((point) => point[1])).toEqual([60.5, 60.6]);
   });
 
-  it("is forgotten when the thing leaves its table, and a thing that comes back begins a new trail", () => {
+  it("is kept when the thing leaves its table for a while, and goes on when it comes back", () => {
     const page = make();
     page.ticks.setTicked("aircraft", true);
     seen(page, "a", 60.1, ago(5));
@@ -236,10 +236,42 @@ describe("useLayerThings: the trail of the thing whose card is open", () => {
     page.store.handlers.layerThings(layerThings("aircraft", [aircraft({ id: "b", lat: 60.2, at: ago(2) })]));
     seen(page, "a", 60.4, ago(1));
     page.traffic.open("aircraft", "a");
-    expect(page.traffic.trail.value.map((point) => point[1])).toEqual([60.4]);
+    expect(page.traffic.trail.value.map((point) => point[1])).toEqual([60.1, 60.4]);
   });
 
-  it("is forgotten with the look at its layer, and begins anew when the look does", () => {
+  it("survives the page going behind another tab, its tables emptied, and goes on when it is back", () => {
+    const page = make();
+    page.ticks.setTicked("aircraft", true);
+    seen(page, "a", 60.1, ago(8));
+    page.visible.value = false;
+    expect(page.traffic.tables.value.size).toBe(0);
+    page.visible.value = true;
+    seen(page, "a", 60.2, ago(2));
+    page.traffic.open("aircraft", "a");
+    expect(page.traffic.trail.value.map((point) => point[1])).toEqual([60.1, 60.2]);
+  });
+
+  it("starts with what the daemon kept while the page was away", () => {
+    const page = make();
+    page.ticks.setTicked("aircraft", true);
+    page.store.handlers.layerThings(
+      layerThings("aircraft", [aircraft({ id: "a", lat: 60.3, lon: 24.9, at: ago(1) })], {
+        trails: [
+          {
+            id: "a",
+            points: [
+              [24.9, 60.1, ago(90)],
+              [24.9, 60.2, ago(30)],
+            ],
+          },
+        ],
+      }),
+    );
+    page.traffic.open("aircraft", "a");
+    expect(page.traffic.trail.value.map((point) => point[1])).toEqual([60.1, 60.2, 60.3]);
+  });
+
+  it("is forgotten when the operator switches the layer off, and begins anew when it is on again", () => {
     const page = make();
     page.ticks.setTicked("aircraft", true);
     seen(page, "a", 60.1, ago(8));

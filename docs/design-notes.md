@@ -1081,6 +1081,17 @@ view (the log, the support file, `neoaprs db`); the page is sent `MASK` in its p
 the key as it is. `tests/test_no_real_key.py` holds the tracked files to not containing the
 project station's own key, by its SHA-256 alone.
 
+## neoaprs/services/layers.py
+
+A layer is asked on for `LOOK_GRACE_SEC` (2 minutes) after its last page stopped looking: a page
+stops looking whenever its tab is hidden, and a reload is a stop and a start, so without the grace
+every glance at another tab would be a gap in the trails and a new connection to AISStream. While
+the source is asked the daemon keeps the way each thing went (`TrailBook` of
+`neoaprs/layerthing.py`: the last 30 minutes, 400 points a thing, the newest 300 things, memory
+only) and sends it in the first table a page gets, so a page that comes back, a reload or a second
+device starts with the trail; after the grace the book is dropped with the look. The tests run
+without the grace (`tests/conftest.py`), but those of the grace.
+
 ## neoaprs/services/messageradio.py
 
 An outgoing message keeps the radio of its first attempt until it ends, so its attempts and their

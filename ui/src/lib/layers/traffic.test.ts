@@ -231,4 +231,18 @@ describe("traffic: the things glide between their reports", () => {
     expect(now[1]).toBeCloseTo(before[1], 9);
     expect(nextGlides(after, [layerThings("aircraft", [])], NOW + 6000).size).toBe(0);
   });
+
+  it("starts from the newest report when the tab comes back, the tables having been emptied while it was hidden", () => {
+    const old = [layerThings("aircraft", [aircraft({ at, lon: 24.9, heading_deg: 90, speed_kmh: 720 })])];
+    const hidden = nextGlides(nextGlides(new Map(), old, NOW), [], NOW + 1000);
+    expect(hidden.size).toBe(0);
+    const later = NOW + 600_000;
+    const back = [
+      layerThings("aircraft", [
+        aircraft({ at: new Date(later).toISOString(), lon: 25.4, heading_deg: 90, speed_kmh: 720 }),
+      ]),
+    ];
+    const [drawn] = coordinates(back, nextGlides(hidden, back, later), later);
+    expect(drawn[0]).toBeCloseTo(25.4, 9);
+  });
 });

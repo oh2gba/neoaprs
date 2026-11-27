@@ -94,6 +94,13 @@ class LayerLook(_Command):
     on: bool
 
 
+class LayerTrail(_Model):
+    """The way one thing went: its id, and its places as [lon, lat, time], oldest first."""
+
+    id: str
+    points: list[tuple[float, float, Iso]]
+
+
 class LayerThingsMsg(_Message):
     """A layer's whole table, to each page that looks at it and is not behind: at once on `layer_look`, after every answer of the source, at most every 5 s for an AIS receiver, when things grow too old, and
     when the source in force changes (then with the new `source` and no things)."""
@@ -105,3 +112,6 @@ class LayerThingsMsg(_Message):
         description="true when the last question failed or was not in the expected form, the connection is down, or there is no position to ask for; `things` keeps the last things then"
     )
     things: list[LayerThing]
+    trails: list[LayerTrail] = Field(
+        description="only in the first table a page gets on `layer_look`, else empty: the way each thing went in the last 30 minutes while the source was asked (it is asked on for 2 minutes after the last page stopped looking), at most 400 points a thing for at most 300 things, oldest first"
+    )

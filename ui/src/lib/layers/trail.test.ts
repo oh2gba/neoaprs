@@ -3,6 +3,7 @@ import {
   TRAIL_GAP_SEC,
   TRAIL_MAX_AGE_SEC,
   TRAIL_MAX_POINTS,
+  forgetTrails,
   growTrails,
   trailKey,
   trailLines,
@@ -61,20 +62,47 @@ describe("growTrails", () => {
     expect(points.at(-1)?.[1]).toBeCloseTo(60 + (TRAIL_MAX_POINTS + 24) / 1000);
   });
 
-  it("forgets a thing that is not in its table any more, and every thing of a layer that has no table", () => {
+  it("keeps a trail through tables that are empty for a while (the tab hidden), and forgets it only by age", () => {
+    const trails: Trails = new Map();
+    growTrails(trails, [layerThings("aircraft", [aircraft({ id: "a", lon: 24.1, at: ago(60) })])], NOW);
+    growTrails(trails, [layerThings("aircraft", [])], NOW + 1000);
+    growTrails(trails, [], NOW + 2000);
+    expect(trails.get(KEY)).toHaveLength(1);
+    growTrails(trails, [layerThings("aircraft", [aircraft({ id: "a", lon: 24.2, at: ago(-600) })])], NOW + 600_000);
+    expect(trails.get(KEY)?.map((point) => point[0])).toEqual([24.1, 24.2]);
+    growTrails(trails, [], NOW + (TRAIL_MAX_AGE_SEC + 61) * 1000);
+    expect(trails.get(KEY)?.map((point) => point[0])).toEqual([24.2]);
+    growTrails(trails, [], NOW + (TRAIL_MAX_AGE_SEC + 700) * 1000);
+    expect(trails.size).toBe(0);
+  });
+
+  it("takes the points the daemon kept, before the table's own, without a point twice", () => {
+    const trails: Trails = new Map();
+    const kept = layerThings("aircraft", [aircraft({ id: "a", lon: 24.3, lat: 60.3, at: ago(1) })], {
+      trails: [
+        {
+          id: "a",
+          points: [
+            [24.1, 60.3, ago(120)],
+            [24.2, 60.3, ago(60)],
+            [24.3, 60.3, ago(1)],
+          ],
+        },
+      ],
+    });
+    growTrails(trails, [kept], NOW);
+    expect(trails.get(KEY)?.map((point) => point[0])).toEqual([24.1, 24.2, 24.3]);
+  });
+
+  it("forgets every trail of a layer the operator switched off", () => {
     const trails: Trails = new Map();
     growTrails(
       trails,
-      [
-        layerThings("aircraft", [aircraft({ id: "a", at: ago(1) }), aircraft({ id: "b", at: ago(1) })]),
-        layerThings("ships", [ship({ at: ago(1) })]),
-      ],
+      [layerThings("aircraft", [aircraft({ id: "a", at: ago(1) })]), layerThings("ships", [ship({ at: ago(1) })])],
       NOW,
     );
-    growTrails(trails, [layerThings("aircraft", [aircraft({ id: "b", at: ago(1) })])], NOW);
-    expect([...trails.keys()]).toEqual(["aircraft:b"]);
-    growTrails(trails, [], NOW);
-    expect(trails.size).toBe(0);
+    forgetTrails(trails, "aircraft");
+    expect([...trails.keys()]).toEqual(["ships:230123456"]);
   });
 });
 

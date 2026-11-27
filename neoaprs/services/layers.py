@@ -29,6 +29,7 @@ from neoaprs.layerthing import (
     ReceiverState,
     Source,
     Thing,
+    TrailBook,
     in_force,
     max_age_sec,
     nearest,
@@ -55,6 +56,9 @@ RECEIVER_TIMEOUT_SEC = 4.0  # per place tried
 RECEIVER_BACKOFF_MAX_SEC = 60.0  # short, as a receiver on the local network returns soon
 SERVICE_NAMES = {"adsbfi": "adsb.fi", "adsblol": "adsb.lol", "fintraffic": "Fintraffic", "aisstream": "AISStream"}
 NO_WAIT_SEC = 1.0  # pause when another asker took the feed first
+# A layer is asked on for this long after its last page stopped looking, so that a page that comes
+# back from another tab or a reload finds the source going and its trails whole.
+LOOK_GRACE_SEC = 120.0
 ASK_RETRY_SEC = 30.0  # pause after a round of asking that raised
 
 
@@ -257,6 +261,8 @@ class Layers:
         self.told: Signal[[LayerTable]] = Signal("layers.told")
         self._held: dict[Layer, tuple[Key, LayerSource | None]] = {}
         self._watched: set[Layer] = set()
+        self._grace: dict[Layer, asyncio.TimerHandle] = {}
+        self._trails: dict[Layer, TrailBook] = {layer: TrailBook() for layer in LAYERS}
         self._runners: dict[Layer, asyncio.Task[None]] = {}
         self._feeds: dict[str, AskedFeed] = {}
         # Things last told per layer; ageing tells again when it drops some.
@@ -306,8 +312,9 @@ class Layers:
             )
         return rows
 
-    def table(self, layer: Layer) -> LayerTable:
-        """Return the layer's table: the things of its source within the age limit."""
+    def table(self, layer: Layer, trails: bool = False) -> LayerTable:
+        """Return the layer's table: the things of its source within the age limit, and with `trails`
+        the way they went while the source was asked."""
         held = self._held.get(layer)
         if held is None:
             return LayerTable(layer, "none", False, ())
@@ -320,16 +327,28 @@ class Layers:
             source,
             made.away,
             tuple(thing for thing in made.things() if (now - thing.at).total_seconds() <= limit),
+            self._trails[layer].trails() if trails else (),
         )
 
     def watch(self, layer: Layer, on: bool) -> None:
-        """Start or stop asking the layer's source as a page begins or ends looking at it."""
+        """Start asking the layer's source as a page begins looking at it; stop LOOK_GRACE_SEC after
+        the last one ended."""
+        grace = self._grace.pop(layer, None)
+        if grace is not None:
+            grace.cancel()
         if on:
             self._watched.add(layer)
             self._run(layer)
+        elif self.running and layer in self._watched and LOOK_GRACE_SEC > 0:
+            self._grace[layer] = asyncio.get_running_loop().call_later(LOOK_GRACE_SEC, self._end_look, layer)
         else:
-            self._watched.discard(layer)
-            self._stop_runner(layer)
+            self._end_look(layer)
+
+    def _end_look(self, layer: Layer) -> None:
+        self._grace.pop(layer, None)
+        self._watched.discard(layer)
+        self._stop_runner(layer)
+        self._trails[layer].clear()
 
     # ---- the settings and our position
     def config_changed(self, config: Config) -> None:
@@ -357,6 +376,7 @@ class Layers:
     def _replace(self, layer: Layer, key: Key, held: tuple[Key, LayerSource | None] | None) -> None:
         """Stop the old source, start the new one and tell the pages its empty table."""
         self._stop_runner(layer)
+        self._trails[layer].clear()
         # When not running the old source was never started, or the daemon's stop stops it.
         if held is not None and held[1] is not None and self.running:
             self._retired.append(held[1])
@@ -449,6 +469,7 @@ class Layers:
         if layer in self._watched:
             table = self.table(layer)
             self._counts[layer] = len(table.things)
+            self._trails[layer].grow(table.things, self._clock())
             self.told.emit(table)
 
     def _maybe_changed(self) -> None:
@@ -476,6 +497,9 @@ class Layers:
 
     async def stop(self) -> None:
         self.running = False
+        for grace in self._grace.values():
+            grace.cancel()
+        self._grace.clear()
         held = [made for _, made in self._held.values() if made is not None] + self._retired
         self._runners.clear()
         await self._tasks.cancel_all()

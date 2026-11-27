@@ -125,12 +125,56 @@ class LayerState:
     problem: Problem = ""
 
 
+# The way the things went while the source was asked, kept for a page that starts to look:
+# points of the last half hour, at most 400 a thing, for at most LIMIT things.
+TRAIL_MAX_AGE_SEC = 1800
+TRAIL_MAX_POINTS = 400
+
+TrailPoint = tuple[float, float, datetime]  # lon, lat, when
+
+
+@dataclass(frozen=True)
+class ThingTrail:
+    id: str
+    points: tuple[TrailPoint, ...]
+
+
 @dataclass(frozen=True)
 class LayerTable:
     layer: Layer
     source: Source
     away: bool
     things: tuple[Thing, ...]
+    trails: tuple[ThingTrail, ...] = ()
+
+
+class TrailBook:
+    """The trails of one layer's things, grown from each table told; memory only."""
+
+    def __init__(self) -> None:
+        self._trails: dict[str, list[TrailPoint]] = {}
+
+    def grow(self, things: Iterable[Thing], now: datetime) -> None:
+        for thing in things:
+            points = self._trails.setdefault(thing.id, [])
+            last = points[-1] if points else None
+            if last is None or (thing.at >= last[2] and (last[0], last[1]) != (thing.lon, thing.lat)):
+                points.append((thing.lon, thing.lat, thing.at))
+        for key, points in list(self._trails.items()):
+            fresh = [p for p in points if (now - p[2]).total_seconds() <= TRAIL_MAX_AGE_SEC][-TRAIL_MAX_POINTS:]
+            if fresh:
+                self._trails[key] = fresh
+            else:
+                del self._trails[key]
+        if len(self._trails) > LIMIT:
+            newest = heapq.nlargest(LIMIT, self._trails.items(), key=lambda item: item[1][-1][2])
+            self._trails = dict(newest)
+
+    def trails(self) -> tuple[ThingTrail, ...]:
+        return tuple(ThingTrail(key, tuple(points)) for key, points in self._trails.items())
+
+    def clear(self) -> None:
+        self._trails.clear()
 
 
 def reaches_box(

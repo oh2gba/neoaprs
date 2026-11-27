@@ -28,7 +28,7 @@ class Service:
     def watch(self, layer: Layer, on: bool) -> None:
         self.watched.append((layer, on))
 
-    def table(self, layer: Layer) -> LayerTable:
+    def table(self, layer: Layer, trails: bool = False) -> LayerTable:
         return LayerTable(layer, "receiver", False, self.things if layer == "aircraft" else ())
 
 
@@ -71,6 +71,7 @@ def test_a_page_that_looks_is_sent_the_table_at_once_and_every_table_after_it() 
                     "destination_place": "",
                 }
             ],
+            "trails": [],
         }
     ]
     looks.told(LayerTable("aircraft", "receiver", True, ()))
@@ -116,6 +117,7 @@ def test_the_message_of_an_empty_table_has_its_source_and_no_things() -> None:
         "source": "none",
         "away": False,
         "things": [],
+        "trails": [],
     }
 
 

@@ -272,6 +272,7 @@ DEVICE = {
     "LayerThing.destination",
     "LayerThing.origin",
     "LayerThing.id",
+    "LayerTrail.id",
     "LayerThing.name",
     "LayerThing.registration",
     "LayerThing.type",
