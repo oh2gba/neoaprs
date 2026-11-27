@@ -1,9 +1,9 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PacketStatsCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand | RadioAddCommand | RadioRemoveCommand | RadioChangeCommand | RadioTuneCommand | RadioKeyTestCommand | RadioScopeCommand | RadioLevelCommand | StationRadioCommand | FrequenciesCommand | StationTrackCommand | LayerLookCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PacketStatsCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand | RadioAddCommand | RadioRemoveCommand | RadioChangeCommand | RadioTuneCommand | RadioKeyTestCommand | RadioScopeCommand | RadioLevelCommand | StationRadioCommand | FrequenciesCommand | StationTrackCommand | LayerLookCommand | SatelliteLookCommand;
 
-export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | SavedMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PacketStatsMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | RadioAddedMessage | StationTrackMessage | RadioLevelMessage | LayerThingsMessage;
+export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | SavedMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PacketStatsMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | RadioAddedMessage | StationTrackMessage | RadioLevelMessage | LayerThingsMessage | SatellitesMessage;
 
 /** The answer to `alert_test`, when the command has ended or run out of its 20 s. */
 export interface AlertResultMessage {
@@ -571,11 +571,13 @@ export interface HttpsState {
   reason: "" | "no_library" | "clock" | "certificates" | "no_port";
 }
 
-/** The iGate (neoaprs/services/igate.py): what the radio hears is put on APRS-IS, and nothing from APRS-IS is ever sent on the air. Whether it is connected, to which server, and what it has done since the daemon started. Told whole as it changes, at most once a second. */
+/** The login to APRS-IS (neoaprs/services/igate.py): it shows the internet's stations (`igate/enabled`), puts what the radios hear on APRS-IS (`igate/gate`, the iGate), or both, and nothing from APRS-IS is ever sent on the air. Whether it is connected, to which server, and what it has done since the daemon started. Told whole as it changes, at most once a second. */
 export interface IgateState {
-  /** `igate/enabled` as in force */
+  /** `igate/enabled` (Show Internet stations) as in force */
   enabled: boolean;
-  /** `off`: the switch is off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `reason` says is missing); `connected`: logged in and verified, packets are gated; `listening`: logged in without a passcode, so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated (the connection reads, as `listening` does) and the login is not tried again with another until the settings change */
+  /** `igate/gate` (Send what I hear) as in force: what the radios hear is put on APRS-IS while `state` is `connected` */
+  gate: boolean;
+  /** `off`: both ticks are off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `reason` says is missing); `connected`: logged in and verified, packets are gated; `listening`: logged in without a passcode (`gate` is off), so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated (the connection reads, as `listening` does) and the login is not tried again with another until the settings change */
   state: "off" | "connecting" | "connected" | "listening" | "unverified";
   /** the name the server gave at the login (`T2FINLAND`); empty until it has answered */
   server: string;
@@ -1081,7 +1083,7 @@ export interface PacketStatsMessage {
   frames: number;
   /** the copies the digipeater sent in the last 60 minutes */
   repeated_hour: number;
-  /** the packets the iGate put on APRS-IS in the last 60 minutes; null while `igate/enabled` is off */
+  /** the packets the iGate put on APRS-IS in the last 60 minutes; null while `igate/gate` (Send what I hear) is off */
   gated_hour: number | null;
 }
 
@@ -1615,6 +1617,96 @@ export interface RouteMarkValues {
   /** where the station was when the packet was heard (the position it reported, else the one it had before); null when that is not known: the map takes its position now */
   lat: number | null;
   lon: number | null;
+}
+
+/** A satellite whose card the page has open. A frequency, mode or path is there only where the project's list marks it sure. */
+export interface SatelliteCard {
+  id: number;
+  name: string;
+  downlinks: SatelliteTune[];
+  uplinks: SatelliteTune[];
+  mode: "afsk1200" | "gmsk9600" | null;
+  /** the digipeater path to put in a packet (`ARISS`); empty when the list has none it is sure of */
+  path: string;
+  alt_km: number;
+  /** the radius on the ground of the circle from which it is above the horizon */
+  footprint_km: number;
+  /** the points under it for one orbit ahead, every minute */
+  track: SatellitePoint[];
+  /** null without the station's position or with no pass within a day */
+  next_pass: SatellitePass | null;
+  /** empty unless it is up now */
+  looks: SatelliteLookNow[];
+}
+
+/** With `on`, this page shows the satellites layer (its tick is on, the page is in front and the replay is closed: the page decides) and has the cards of `cards` open; sent again whenever the cards change. With `on` false, or when the page closes, no more. While a page looks, the daemon tells it `satellites` every 30 s and at once on this command. */
+export interface SatelliteLookCommand {
+  cmd: "satellite_look";
+  on: boolean;
+  cards: number[];
+}
+
+/** While the satellite is up: its elevation and the Doppler at a time, every 5 s for 90 s; the page tells now between them. */
+export interface SatelliteLookNow {
+  /** UTC, ISO 8601 with a Z */
+  at: string;
+  el_deg: number;
+  /** the shift heard on each downlink, in their order */
+  down_hz: number[];
+  /** the offset to send by on each uplink, in their order */
+  up_hz: number[];
+}
+
+/** A satellite on the map: the points under it from 30 s ago to 5 minutes ahead, every 30 s; the page moves the mark between them. */
+export interface SatelliteMark {
+  /** its catalogue (NORAD) number */
+  id: number;
+  /** its name as the project's list has it (`ISS`, `SONATE-2`) */
+  name: string;
+  points: SatellitePoint[];
+}
+
+/** The pass under way or the next one whose highest point is 10 degrees or more, within a day. */
+export interface SatellitePass {
+  /** UTC, ISO 8601 with a Z */
+  rise: string;
+  /** UTC, ISO 8601 with a Z */
+  set: string;
+  /** UTC, ISO 8601 with a Z */
+  max_at: string;
+  max_el_deg: number;
+  rise_az_deg: number;
+  set_az_deg: number;
+}
+
+/** Where the point under the satellite is at a time. */
+export interface SatellitePoint {
+  /** UTC, ISO 8601 with a Z */
+  at: string;
+  lat: number;
+  lon: number;
+}
+
+/** A frequency of the list, and where to tune at the next pass: a downlink to hear, an uplink to send on. */
+export interface SatelliteTune {
+  hz: number;
+  /** at the rise; null without a pass */
+  rise_hz: number | null;
+  /** at the highest point; null without a pass */
+  max_hz: number | null;
+  /** at the set; null without a pass */
+  set_hz: number | null;
+}
+
+/** The satellites layer of now, to each page that looks: every satellite shown (elements no older than 14 days) and the cards that page has open. Empty before the project's file has come. */
+export interface SatellitesMessage {
+  type: "satellites";
+  /** UTC, ISO 8601 with a Z */
+  at: string;
+  /** when the project's server took the orbital elements; null before a file */
+  elements_at: string | null;
+  satellites: SatelliteMark[];
+  cards: SatelliteCard[];
 }
 
 /** The answer to a `set_config` that carried an `id`, sent to the page that asked once the settings are in force. */

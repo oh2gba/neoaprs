@@ -2325,14 +2325,18 @@
     },
     "IgateState": {
       "additionalProperties": false,
-      "description": "The iGate (neoaprs/services/igate.py): what the radio hears is put on APRS-IS, and nothing from APRS-IS is ever sent on the air. Whether it is connected, to which server, and what it has done since the daemon\nstarted. Told whole as it changes, at most once a second.",
+      "description": "The login to APRS-IS (neoaprs/services/igate.py): it shows the internet's stations (`igate/enabled`), puts what the radios hear on APRS-IS (`igate/gate`, the iGate), or both, and nothing from APRS-IS is\never sent on the air. Whether it is connected, to which server, and what it has done since the daemon started. Told whole as it changes, at most once a second.",
       "properties": {
         "enabled": {
-          "description": "`igate/enabled` as in force",
+          "description": "`igate/enabled` (Show Internet stations) as in force",
+          "type": "boolean"
+        },
+        "gate": {
+          "description": "`igate/gate` (Send what I hear) as in force: what the radios hear is put on APRS-IS while `state` is `connected`",
           "type": "boolean"
         },
         "state": {
-          "description": "`off`: the switch is off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `reason` says is missing); `connected`: logged in and verified, packets are gated; `listening`: logged in without a passcode, so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated (the connection reads, as `listening` does) and the login is not tried again with another until the settings change",
+          "description": "`off`: both ticks are off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `reason` says is missing); `connected`: logged in and verified, packets are gated; `listening`: logged in without a passcode (`gate` is off), so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated (the connection reads, as `listening` does) and the login is not tried again with another until the settings change",
           "enum": [
             "off",
             "connecting",
@@ -2388,6 +2392,7 @@
       },
       "required": [
         "enabled",
+        "gate",
         "state",
         "server",
         "reason",
@@ -4415,7 +4420,7 @@
               "type": "null"
             }
           ],
-          "description": "the packets the iGate put on APRS-IS in the last 60 minutes; null while `igate/enabled` is off"
+          "description": "the packets the iGate put on APRS-IS in the last 60 minutes; null while `igate/gate` (Send what I hear) is off"
         }
       },
       "required": [
@@ -6421,6 +6426,365 @@
         "lon"
       ],
       "title": "RouteMarkValues",
+      "type": "object"
+    },
+    "SatelliteCard": {
+      "additionalProperties": false,
+      "description": "A satellite whose card the page has open. A frequency, mode or path is there only where the project's list marks it sure.",
+      "properties": {
+        "id": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "downlinks": {
+          "items": {
+            "$ref": "#/$defs/SatelliteTune"
+          },
+          "type": "array"
+        },
+        "uplinks": {
+          "items": {
+            "$ref": "#/$defs/SatelliteTune"
+          },
+          "type": "array"
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "afsk1200",
+                "gmsk9600"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "path": {
+          "description": "the digipeater path to put in a packet (`ARISS`); empty when the list has none it is sure of",
+          "type": "string"
+        },
+        "alt_km": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "footprint_km": {
+          "description": "the radius on the ground of the circle from which it is above the horizon",
+          "minimum": 0,
+          "type": "number"
+        },
+        "track": {
+          "description": "the points under it for one orbit ahead, every minute",
+          "items": {
+            "$ref": "#/$defs/SatellitePoint"
+          },
+          "type": "array"
+        },
+        "next_pass": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SatellitePass"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null without the station's position or with no pass within a day"
+        },
+        "looks": {
+          "description": "empty unless it is up now",
+          "items": {
+            "$ref": "#/$defs/SatelliteLookNow"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "downlinks",
+        "uplinks",
+        "mode",
+        "path",
+        "alt_km",
+        "footprint_km",
+        "track",
+        "next_pass",
+        "looks"
+      ],
+      "title": "SatelliteCard",
+      "type": "object"
+    },
+    "SatelliteLook": {
+      "additionalProperties": false,
+      "description": "With `on`, this page shows the satellites layer (its tick is on, the page is in front and the replay is closed: the page decides) and has the cards of `cards` open; sent again whenever the cards change.\nWith `on` false, or when the page closes, no more. While a page looks, the daemon tells it `satellites` every 30 s and at once on this command.",
+      "properties": {
+        "cmd": {
+          "const": "satellite_look",
+          "type": "string"
+        },
+        "on": {
+          "type": "boolean"
+        },
+        "cards": {
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 64,
+          "type": "array"
+        }
+      },
+      "required": [
+        "cmd",
+        "on",
+        "cards"
+      ],
+      "title": "SatelliteLookCommand",
+      "type": "object"
+    },
+    "SatelliteLookNow": {
+      "additionalProperties": false,
+      "description": "While the satellite is up: its elevation and the Doppler at a time, every 5 s for 90 s; the page tells now between them.",
+      "properties": {
+        "at": {
+          "description": "UTC, ISO 8601 with a Z",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "el_deg": {
+          "maximum": 90,
+          "minimum": -90,
+          "type": "number"
+        },
+        "down_hz": {
+          "description": "the shift heard on each downlink, in their order",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "up_hz": {
+          "description": "the offset to send by on each uplink, in their order",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "at",
+        "el_deg",
+        "down_hz",
+        "up_hz"
+      ],
+      "title": "SatelliteLookNow",
+      "type": "object"
+    },
+    "SatelliteMark": {
+      "additionalProperties": false,
+      "description": "A satellite on the map: the points under it from 30 s ago to 5 minutes ahead, every 30 s; the page moves the mark between them.",
+      "properties": {
+        "id": {
+          "description": "its catalogue (NORAD) number",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "name": {
+          "description": "its name as the project's list has it (`ISS`, `SONATE-2`)",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/SatellitePoint"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "points"
+      ],
+      "title": "SatelliteMark",
+      "type": "object"
+    },
+    "SatellitePass": {
+      "additionalProperties": false,
+      "description": "The pass under way or the next one whose highest point is 10 degrees or more, within a day.",
+      "properties": {
+        "rise": {
+          "description": "UTC, ISO 8601 with a Z",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "set": {
+          "description": "UTC, ISO 8601 with a Z",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "max_at": {
+          "description": "UTC, ISO 8601 with a Z",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "max_el_deg": {
+          "maximum": 90,
+          "minimum": 0,
+          "type": "number"
+        },
+        "rise_az_deg": {
+          "exclusiveMaximum": 360,
+          "minimum": 0,
+          "type": "number"
+        },
+        "set_az_deg": {
+          "exclusiveMaximum": 360,
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "rise",
+        "set",
+        "max_at",
+        "max_el_deg",
+        "rise_az_deg",
+        "set_az_deg"
+      ],
+      "title": "SatellitePass",
+      "type": "object"
+    },
+    "SatellitePoint": {
+      "additionalProperties": false,
+      "description": "Where the point under the satellite is at a time.",
+      "properties": {
+        "at": {
+          "description": "UTC, ISO 8601 with a Z",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "type": "number"
+        }
+      },
+      "required": [
+        "at",
+        "lat",
+        "lon"
+      ],
+      "title": "SatellitePoint",
+      "type": "object"
+    },
+    "SatelliteTune": {
+      "additionalProperties": false,
+      "description": "A frequency of the list, and where to tune at the next pass: a downlink to hear, an uplink to send on.",
+      "properties": {
+        "hz": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "rise_hz": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "at the rise; null without a pass"
+        },
+        "max_hz": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "at the highest point; null without a pass"
+        },
+        "set_hz": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "at the set; null without a pass"
+        }
+      },
+      "required": [
+        "hz",
+        "rise_hz",
+        "max_hz",
+        "set_hz"
+      ],
+      "title": "SatelliteTune",
+      "type": "object"
+    },
+    "SatellitesMsg": {
+      "additionalProperties": false,
+      "description": "The satellites layer of now, to each page that looks: every satellite shown (elements no older than 14 days) and the cards that page has open. Empty before the project's file has come.",
+      "properties": {
+        "type": {
+          "const": "satellites",
+          "type": "string"
+        },
+        "at": {
+          "description": "UTC, ISO 8601 with a Z",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "elements_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the project's server took the orbital elements; null before a file"
+        },
+        "satellites": {
+          "items": {
+            "$ref": "#/$defs/SatelliteMark"
+          },
+          "type": "array"
+        },
+        "cards": {
+          "items": {
+            "$ref": "#/$defs/SatelliteCard"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "at",
+        "elements_at",
+        "satellites",
+        "cards"
+      ],
+      "title": "SatellitesMessage",
       "type": "object"
     },
     "Saved": {
@@ -9337,6 +9701,7 @@
           "radio_scope": "#/$defs/RadioScope",
           "radio_tune": "#/$defs/RadioTune",
           "release_notes": "#/$defs/ReleaseNotes",
+          "satellite_look": "#/$defs/SatelliteLook",
           "send_key": "#/$defs/SendKey",
           "send_message": "#/$defs/SendMessage",
           "set_config": "#/$defs/SetConfig",
@@ -9554,6 +9919,9 @@
         },
         {
           "$ref": "#/$defs/LayerLook"
+        },
+        {
+          "$ref": "#/$defs/SatelliteLook"
         }
       ],
       "title": "Command"
@@ -9575,6 +9943,7 @@
           "radio_level": "#/$defs/RadioLevelMsg",
           "radio_search": "#/$defs/RadioSearchMsg",
           "release_notes": "#/$defs/ReleaseNotesMsg",
+          "satellites": "#/$defs/SatellitesMsg",
           "saved": "#/$defs/Saved",
           "signal_series": "#/$defs/SignalSeriesMsg",
           "speed_series": "#/$defs/SpeedSeriesMsg",
@@ -9660,6 +10029,9 @@
         },
         {
           "$ref": "#/$defs/LayerThingsMsg"
+        },
+        {
+          "$ref": "#/$defs/SatellitesMsg"
         }
       ],
       "title": "Message"

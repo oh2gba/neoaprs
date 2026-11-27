@@ -151,7 +151,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-64 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+65 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -767,9 +767,19 @@ asks the layer's source and sends the page `layer_things`. Never refused: a look
 | `layer` | "aircraft" \| "ships" |  |  |
 | `on` | boolean |  |  |
 
+### `satellite_look`
+
+With `on`, this page shows the satellites layer (its tick is on, the page is in front and the replay is closed: the page decides) and has the cards of `cards` open; sent again whenever the cards change.
+With `on` false, or when the page closes, no more. While a page looks, the daemon tells it `satellites` every 30 s and at once on this command.
+
+| field | type | | description |
+|---|---|---|---|
+| `on` | boolean |  |  |
+| `cards` | integer[] |  | (max 64 items) |
+
 ## Server to client
 
-24 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+25 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -917,7 +927,7 @@ are over are counted once; the answer is at most a minute behind.
 | `packets` | integer |  | the packets the radios heard in the last 24 hours, a packet heard by several ways counted once (the same source, destination and information field within a minute of the clock) (>= 0) |
 | `frames` | integer |  | the frames those packets came in: `frames` less `packets` is how many came again by another way (>= 0) |
 | `repeated_hour` | integer |  | the copies the digipeater sent in the last 60 minutes (>= 0) |
-| `gated_hour` | integer \| null |  | the packets the iGate put on APRS-IS in the last 60 minutes; null while `igate/enabled` is off |
+| `gated_hour` | integer \| null |  | the packets the iGate put on APRS-IS in the last 60 minutes; null while `igate/gate` (Send what I hear) is off |
 
 ### `position_history`
 
@@ -1062,6 +1072,17 @@ when the source in force changes (then with the new `source` and no things).
 | `source` | "none" \| "adsbfi" \| "adsblol" \| "fintraffic" \| "radarcape" \| "receiver" |  | the source in force that the things are from |
 | `away` | boolean |  | true when the last question failed or was not in the expected form, the connection is down, or there is no position to ask for; `things` keeps the last things then |
 | `things` | LayerThing[] |  |  |
+
+### `satellites`
+
+The satellites layer of now, to each page that looks: every satellite shown (elements no older than 14 days) and the cards that page has open. Empty before the project's file has come.
+
+| field | type | | description |
+|---|---|---|---|
+| `at` | time |  | UTC, ISO 8601 with a Z |
+| `elements_at` | time \| null |  | when the project's server took the orbital elements; null before a file |
+| `satellites` | SatelliteMark[] |  |  |
+| `cards` | SatelliteCard[] |  |  |
 
 ## Topics
 
@@ -1666,13 +1687,14 @@ The secure connection (`web/https`) as the daemon has it.
 
 ### IgateState
 
-The iGate (neoaprs/services/igate.py): what the radio hears is put on APRS-IS, and nothing from APRS-IS is ever sent on the air. Whether it is connected, to which server, and what it has done since the daemon
-started. Told whole as it changes, at most once a second.
+The login to APRS-IS (neoaprs/services/igate.py): it shows the internet's stations (`igate/enabled`), puts what the radios hear on APRS-IS (`igate/gate`, the iGate), or both, and nothing from APRS-IS is
+ever sent on the air. Whether it is connected, to which server, and what it has done since the daemon started. Told whole as it changes, at most once a second.
 
 | field | type | | description |
 |---|---|---|---|
-| `enabled` | boolean |  | `igate/enabled` as in force |
-| `state` | "off" \| "connecting" \| "connected" \| "listening" \| "unverified" |  | `off`: the switch is off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `reason` says is missing); `connected`: logged in and verified, packets are gated; `listening`: logged in without a passcode, so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated (the connection reads, as `listening` does) and the login is not tried again with another until the settings change |
+| `enabled` | boolean |  | `igate/enabled` (Show Internet stations) as in force |
+| `gate` | boolean |  | `igate/gate` (Send what I hear) as in force: what the radios hear is put on APRS-IS while `state` is `connected` |
+| `state` | "off" \| "connecting" \| "connected" \| "listening" \| "unverified" |  | `off`: both ticks are off; `connecting`: not logged in (yet, or again after a loss, or waiting for what `reason` says is missing); `connected`: logged in and verified, packets are gated; `listening`: logged in without a passcode (`gate` is off), so that nothing is gated and the stations of the internet are read only; `unverified`: the server did not accept the passcode, nothing is gated (the connection reads, as `listening` does) and the login is not tried again with another until the settings change |
 | `server` | string |  | the name the server gave at the login (`T2FINLAND`); empty until it has answered |
 | `reason` | "" \| "no_server" \| "no_call" \| "unreachable" \| "offline" \| "not_server" \| "lost" \| "unverified" |  | why it is not connected, as a code the page says in its words (the log has the connection's own): `no_server` no server is set; `no_call` our call is not set or is none; `unreachable` the server cannot be reached; `offline` the server's name cannot be looked up (no connection); `not_server` it answered as no APRS-IS server, or not in time; `lost` the connection ended; `unverified` the server did not accept the password; empty while `connected`, `listening` and `off` |
 | `gated` | integer |  | packets put on APRS-IS since the daemon started (>= 0) |
@@ -2150,6 +2172,79 @@ One route a packet of a station came by, which the map draws (a line, or none fo
 | `at` | time |  | when the packet was heard |
 | `lat` | number \| null |  | where the station was when the packet was heard (the position it reported, else the one it had before); null when that is not known: the map takes its position now |
 | `lon` | number \| null |  |  |
+
+### SatelliteCard
+
+A satellite whose card the page has open. A frequency, mode or path is there only where the project's list marks it sure.
+
+| field | type | | description |
+|---|---|---|---|
+| `id` | integer |  | (>= 1) |
+| `name` | string |  |  |
+| `downlinks` | SatelliteTune[] |  |  |
+| `uplinks` | SatelliteTune[] |  |  |
+| `mode` | "afsk1200" \| "gmsk9600" \| null |  |  |
+| `path` | string |  | the digipeater path to put in a packet (`ARISS`); empty when the list has none it is sure of |
+| `alt_km` | number |  | (>= 0) |
+| `footprint_km` | number |  | the radius on the ground of the circle from which it is above the horizon (>= 0) |
+| `track` | SatellitePoint[] |  | the points under it for one orbit ahead, every minute |
+| `next_pass` | SatellitePass \| null |  | null without the station's position or with no pass within a day |
+| `looks` | SatelliteLookNow[] |  | empty unless it is up now |
+
+### SatelliteLookNow
+
+While the satellite is up: its elevation and the Doppler at a time, every 5 s for 90 s; the page tells now between them.
+
+| field | type | | description |
+|---|---|---|---|
+| `at` | time |  | UTC, ISO 8601 with a Z |
+| `el_deg` | number |  | (>= -90, <= 90) |
+| `down_hz` | integer[] |  | the shift heard on each downlink, in their order |
+| `up_hz` | integer[] |  | the offset to send by on each uplink, in their order |
+
+### SatelliteMark
+
+A satellite on the map: the points under it from 30 s ago to 5 minutes ahead, every 30 s; the page moves the mark between them.
+
+| field | type | | description |
+|---|---|---|---|
+| `id` | integer |  | its catalogue (NORAD) number (>= 1) |
+| `name` | string |  | its name as the project's list has it (`ISS`, `SONATE-2`) |
+| `points` | SatellitePoint[] |  |  |
+
+### SatellitePass
+
+The pass under way or the next one whose highest point is 10 degrees or more, within a day.
+
+| field | type | | description |
+|---|---|---|---|
+| `rise` | time |  | UTC, ISO 8601 with a Z |
+| `set` | time |  | UTC, ISO 8601 with a Z |
+| `max_at` | time |  | UTC, ISO 8601 with a Z |
+| `max_el_deg` | number |  | (>= 0, <= 90) |
+| `rise_az_deg` | number |  | (>= 0, < 360) |
+| `set_az_deg` | number |  | (>= 0, < 360) |
+
+### SatellitePoint
+
+Where the point under the satellite is at a time.
+
+| field | type | | description |
+|---|---|---|---|
+| `at` | time |  | UTC, ISO 8601 with a Z |
+| `lat` | number |  | (>= -90, <= 90) |
+| `lon` | number |  | (>= -180, <= 180) |
+
+### SatelliteTune
+
+A frequency of the list, and where to tune at the next pass: a downlink to hear, an uplink to send on.
+
+| field | type | | description |
+|---|---|---|---|
+| `hz` | integer |  | (> 0) |
+| `rise_hz` | integer \| null |  | at the rise; null without a pass |
+| `max_hz` | integer \| null |  | at the highest point; null without a pass |
+| `set_hz` | integer \| null |  | at the set; null without a pass |
 
 ### SkedFrequency
 
