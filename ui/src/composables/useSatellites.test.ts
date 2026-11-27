@@ -101,4 +101,17 @@ describe("useSatellites: the cards", () => {
     page.layer.open(25544, true);
     expect(page.layer.opened.value).toEqual([25544]);
   });
+
+  it("keeps its open cards through a hidden page, and shows them again when the daemon tells again", () => {
+    const page = make();
+    page.ticks.setTicked("satellites", true);
+    page.layer.open(25544);
+    page.store.handlers.satellites(satellitesMessage({ cards: [satelliteCard()] }));
+    page.visible.value = false;
+    expect(page.layer.cards.value).toEqual([]);
+    page.visible.value = true;
+    expect(page.looks().at(-1)).toEqual({ cmd: "satellite_look", on: true, cards: [25544] });
+    page.store.handlers.satellites(satellitesMessage({ cards: [satelliteCard()] }));
+    expect(page.layer.cards.value.map((card) => card.id)).toEqual([25544]);
+  });
 });

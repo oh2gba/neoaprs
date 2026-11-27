@@ -96,6 +96,32 @@ describe("App: the aircraft and ships on the map", () => {
     wrapper.unmount();
   });
 
+  it("keeps the open card and its trail through a hidden tab, and closes it when the thing is gone after", async () => {
+    const show = (state: "visible" | "hidden") => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
+      document.dispatchEvent(new Event("visibilitychange"));
+    };
+    const { wrapper, socket } = await withTraffic();
+    socket.say(layerThings("aircraft", [{ ...PLANE, lat: PLANE.lat + 0.01 }]));
+    await flushPromises();
+    await clickThing("aircraft", "4ca1fe");
+    show("hidden");
+    await flushPromises();
+    show("visible");
+    await flushPromises();
+    expect(socket.sent.at(-1)).toMatchObject({ cmd: "layer_look", on: true });
+    socket.say(layerThings("aircraft", [{ ...PLANE, lat: PLANE.lat + 0.02 }]));
+    await flushPromises();
+    expect(document.querySelector(".layercard .card-call")?.textContent?.trim()).toBe("WALL123");
+    const trail = FakeMap.last().getSource("traffic-trail")?.setData.mock.calls.at(-1)?.[0] as
+      { features: unknown[] } | undefined;
+    expect(trail?.features.length).toBeGreaterThan(0);
+    socket.say(layerThings("aircraft", []));
+    await flushPromises();
+    expect(document.querySelector(".layercard")).toBeNull();
+    wrapper.unmount();
+  });
+
   it("stops looking while the replay is open, and the things go from the map", async () => {
     const { wrapper, socket } = await withTraffic();
     FakeMap.last().fire("contextmenu", {

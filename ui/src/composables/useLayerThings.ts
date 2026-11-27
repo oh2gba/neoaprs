@@ -5,11 +5,11 @@
 // forgets a page that left. The tables are the daemon's `layer_things`, the latest of each layer
 // (`useLayerTables`), their times moved onto the page's clock; only those of the layers looked at
 // count. The card of a thing open over the map is here too: one at a time, closed by its cross,
-// Close all, Esc, a click on the map, or when its thing leaves the table. The way each thing has
-// gone is kept as the tables bring it, the first table of a look with what the daemon kept
-// (lib/layers/trail.ts); it stays while the page is hidden and goes when the operator switches the
-// layer off. The card's thing has its trail drawn.
-// None of it reaches the stations, packets, statistics or the replay.
+// Close all, Esc, a click on the map, or when its thing leaves the table; it is kept while the
+// table is away. The way each thing has gone is kept as the tables bring it, the first table of a
+// look with what the daemon kept (lib/layers/trail.ts); it stays while the page is hidden and goes
+// when the operator switches the layer off. The card's thing has its trail drawn. None of it
+// reaches the stations, packets, statistics or the replay.
 import { computed, shallowRef, watch, type Ref } from "vue";
 import { useMapLayers } from "@/composables/useMapLayers";
 import type { Connection, Store } from "@/lib/hub";
@@ -103,10 +103,18 @@ export function useLayerThings(parts: TrafficParts): LayerTraffic {
     return table && thing ? { layer, thing, source: table.source } : null;
   };
   const card = computed(() => (opened.value ? find(opened.value.layer, opened.value.id) : null));
+  // The open thing is kept while its table is away (the page behind, the replay open, the table
+  // not come again yet); it closes when its layer is switched off or its table has it no more.
+  const gone = computed(() => {
+    const open = opened.value;
+    if (open === null) return false;
+    if (!wanted.value.includes(open.layer)) return true;
+    return tables.value.has(open.layer) && card.value === null;
+  });
   watch(
-    card,
+    gone,
     (now) => {
-      if (now === null) opened.value = null;
+      if (now) opened.value = null;
     },
     { flush: "sync" },
   );
