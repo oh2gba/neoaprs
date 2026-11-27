@@ -1,10 +1,12 @@
-"""Windows: a stand-in for a daemon without a console (run DETACHED_PROCESS by a test). For each way of
-asking a program to end, it starts a fresh console program hidden, asks, and writes to the JSON file named
-by its one argument what each call returned (and GetLastError) and what the program heard.
+"""Windows: a stand-in for a daemon without a console (run DETACHED_PROCESS by a test, one process for each
+way of asking, so that the ways cannot disturb each other). It starts a console program, asks it to end
+the way its first argument names, and writes to the JSON file of its second argument the program's
+creation flags, every call with its result and GetLastError, what the program heard, and that the asker
+itself is still alive afterwards.
 
-    "ctrl_c": Ctrl-C to the console of a CREATE_NO_WINDOW child, as the daemon asks Mercury
-    "break_attached": Ctrl-Break to the group of a CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP child, attached
-    "break_detached": the same Ctrl-Break without attaching to any console
+    ctrl_c          a CREATE_NO_WINDOW child, Ctrl-C to its console, as the daemon asks Mercury
+    break_attached  a CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP child, Ctrl-Break to its group on its console
+    break_shared    a CREATE_NEW_PROCESS_GROUP child on this process's console (if it has one), Ctrl-Break to its group
 """
 
 import json
@@ -33,22 +35,26 @@ CHILD = (
 WAIT_SEC = 30.0
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 NEW_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-WAYS = ("ctrl_c", "break_attached", "break_detached")
+WAYS = ("ctrl_c", "break_attached", "break_shared")
+FLAGS = {"ctrl_c": NO_WINDOW, "break_attached": NO_WINDOW | NEW_GROUP, "break_shared": NEW_GROUP}
+ALIVE_SEC = 2.0  # how long the asker waits after the ask: an echo that ended it would have done so
 
 
-def _try(way: str, folder: Path) -> dict[str, Any]:
+def ask(way: str, folder: Path) -> dict[str, Any]:
     said = folder / f"{way}.child"
-    flags = NO_WINDOW if way == "ctrl_c" else NO_WINDOW | NEW_GROUP
-    child = subprocess.Popen([sys.executable, "-c", CHILD, str(said)], creationflags=flags)
+    k = winchild.kernel32()
+    before: winchild.Steps = []
+    attached, window = winchild.console_of_own(k, before)
+    child = subprocess.Popen([sys.executable, "-c", CHILD, str(said)], creationflags=FLAGS[way])
     deadline = time.monotonic() + WAIT_SEC
     while time.monotonic() < deadline and not (said.exists() and said.read_text() == "up"):
         time.sleep(0.05)
     steps: winchild.Steps = []
     try:
         if way == "ctrl_c":
-            sent = winchild.ask_to_end(child.pid, steps=steps)
+            sent = winchild.ask_to_end(child.pid, k, steps)
         else:
-            sent = winchild.break_group(child.pid, attach=way == "break_attached", steps=steps)
+            sent = winchild.break_group(child.pid, way == "break_attached", k, steps)
     except Exception as e:  # what went wrong is the finding
         sent, steps = False, [*steps, {"exception": repr(e)}]
     try:
@@ -57,12 +63,21 @@ def _try(way: str, folder: Path) -> dict[str, Any]:
         child.kill()
         child.wait()
         code = None
-    return {"sent": sent, "code": code, "child": said.read_text() if said.exists() else "", "steps": steps}
+    time.sleep(ALIVE_SEC)
+    return {
+        "child_flags": hex(FLAGS[way]),
+        "asker_console_before": {"attached": attached, "window": window},
+        "sent": sent,
+        "code": code,
+        "child": said.read_text() if said.exists() else "",
+        "steps": steps,
+        "asker_alive": True,
+    }
 
 
-def main(out: Path) -> None:
-    out.write_text(json.dumps({way: _try(way, out.parent) for way in WAYS}, indent=1))
+def main(way: str, out: Path) -> None:
+    out.write_text(json.dumps(ask(way, out.parent), indent=1))
 
 
 if __name__ == "__main__":
-    main(Path(sys.argv[1]))
+    main(sys.argv[1], Path(sys.argv[2]))
