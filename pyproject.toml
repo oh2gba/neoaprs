@@ -214,6 +214,7 @@ extend-include = [
     "scripts/mercury-sim",
     "scripts/migration-size",
     "scripts/pskreporter-probe",
+    "scripts/aisstream-probe",
     "scripts/release",
     "scripts/runner-facts",
     "scripts/security-check",

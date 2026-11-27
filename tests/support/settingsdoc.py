@@ -207,11 +207,15 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
     ),
     "map/ships": (
         "Settings tab, Map, Ships (Source)",
-        "where the map's ships come from: `none` (no ships on the map), `fintraffic` (Fintraffic's AIS feed, offered where the map's circle reaches its waters, {fintraffic_box}), or `receiver` (your own AIS receiver, `map/ships_host`). A stored `fintraffic` that the station is not offered counts as `none`",
+        "where the map's ships come from: `none` (no ships on the map), `fintraffic` (Fintraffic's AIS feed, offered where the map's circle reaches its waters, {fintraffic_box}), `aisstream` (AISStream, offered everywhere, with your own key, `map/ships_key`), or `receiver` (your own AIS receiver, `map/ships_host`). A stored `fintraffic` that the station is not offered counts as `none`",
     ),
     "map/ships_host": (
         "Settings tab, Map, Ships (Receiver's address, with My own receiver)",
         "your own AIS receiver: `host` or `host:port` of the TCP server that sends its AIS sentences (port {ais_port} when none is given); empty is this computer. The daemon connects to it, while `map/ships` is `receiver`, and listens on no port of its own",
+    ),
+    "map/ships_key": (
+        "Settings tab, Map, Ships (Key, with AISStream)",
+        "your own key of AISStream, made on its page after signing in with GitHub (Get a key beside the field): the daemon sends it in its subscription while `map/ships` is `aisstream` and a page shows Ships. A secret: the page is sent a mask in its place, and the log, the support file and `neoaprs db` show only its length",
     ),
     "update/url": (
         DB_ONLY,

@@ -1,0 +1,2 @@
+# Links the stage links (scripts/linkcheck.py) never fails on: each line is a link, a blank and why
+# it is known to refuse a program that asks it while it opens in a browser.

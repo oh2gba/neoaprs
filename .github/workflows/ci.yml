@@ -150,6 +150,8 @@ jobs:
       # The page's own test (tests/test_page_build.py), which the stage pytest of the Linux job
       # leaves out.
       - run: scripts/check --stage page
+      # Every outside link the page, the manual, the site and the README offer (scripts/linkcheck.py).
+      - run: scripts/check --stage links
       # build-page installs nothing: ui/node_modules is current since the first step.
       - name: The committed page is what ui/ builds
         run: |
