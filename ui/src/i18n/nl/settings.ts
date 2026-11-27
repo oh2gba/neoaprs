@@ -168,7 +168,13 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.dtr": "DTR op {port}",
   "settings.keying.test": "Testen",
   "settings.hf_frequencies.label": "Voorgestelde frequenties",
-  "settings.psk_report.label": "Melden aan PSK Reporter",
+  "settings.hf_frequencies.show": "Tonen",
+  "settings.hf_frequencies.what":
+    "Frequenties die het project voorstelt voor APRS via Mercury. Stem de radio af op een ervan, bovenste zijband (USB).",
+  "settings.psk_report.box": "PSK Reporter",
+  "settings.psk_report.tip_label": "Over PSK Reporter",
+  "settings.psk_report.tip1":
+    "De stations die deze radio hoort, worden gemeld aan pskreporter.info en staan daar op de kaart onder de mode NEOAPRS, gehoord door jouw station.",
   "settings.scope.title": "Spectrum",
   "settings.scope.aria":
     "Het geluid van de radio van 300 tot 2700 Hz als waterval, het nieuwste bovenaan, met de gehoorde stations bij hun signaal, en daaronder het spectrum.",

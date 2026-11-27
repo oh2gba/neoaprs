@@ -1526,7 +1526,13 @@ export const fr: Catalogue = {
   "settings.keying.dtr": "DTR sur {port}",
   "settings.keying.test": "Test",
   "settings.hf_frequencies.label": "Fréquences suggérées",
-  "settings.psk_report.label": "Signaler à PSK Reporter",
+  "settings.hf_frequencies.show": "Afficher",
+  "settings.hf_frequencies.what":
+    "Fréquences que le projet suggère pour l'APRS par Mercury. Accordez la radio sur l'une d'elles, bande latérale supérieure (USB).",
+  "settings.psk_report.box": "PSK Reporter",
+  "settings.psk_report.tip_label": "À propos de PSK Reporter",
+  "settings.psk_report.tip1":
+    "Les stations que cette radio entend sont signalées à pskreporter.info et figurent sur sa carte sous le mode NEOAPRS, entendues par votre station.",
   "settings.scope.title": "Spectre",
   "settings.scope.aria":
     "L'audio de la radio de 300 à 2 700 Hz en chute d'eau, le plus récent en haut, les stations entendues écrites là où est leur signal, et son spectre en dessous.",

@@ -161,7 +161,13 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.dtr": "DTR portissa {port}",
   "settings.keying.test": "Testaa",
   "settings.hf_frequencies.label": "Ehdotetut taajuudet",
-  "settings.psk_report.label": "Ilmoita PSK Reporteriin",
+  "settings.hf_frequencies.show": "Näytä",
+  "settings.hf_frequencies.what":
+    "Projektin ehdottamat taajuudet APRS:lle Mercuryn kautta. Viritä radio yhdelle niistä, yläsivukaista (USB).",
+  "settings.psk_report.box": "PSK Reporter",
+  "settings.psk_report.tip_label": "Tietoa: PSK Reporter",
+  "settings.psk_report.tip1":
+    "Tämän radion kuulemat asemat ilmoitetaan pskreporter.info-palveluun, ja ne näkyvät sen kartalla moodilla NEOAPRS asemasi kuulemina.",
   "settings.scope.title": "Spektri",
   "settings.scope.aria":
     "Radion ääni 300–2700 Hz vesiputouksena, uusin ylimpänä, kuullut asemat merkittyinä signaalinsa kohdalle, ja alla sen spektri.",

@@ -161,7 +161,13 @@ export const settings = {
   "settings.keying.dtr": "DTR on {port}",
   "settings.keying.test": "Test",
   "settings.hf_frequencies.label": "Suggested frequencies",
-  "settings.psk_report.label": "Report to PSK Reporter",
+  "settings.hf_frequencies.show": "Show",
+  "settings.hf_frequencies.what":
+    "Frequencies the project suggests for APRS over Mercury. Tune the radio to one, upper sideband (USB).",
+  "settings.psk_report.box": "PSK Reporter",
+  "settings.psk_report.tip_label": "About PSK Reporter",
+  "settings.psk_report.tip1":
+    "The stations this radio hears are reported to pskreporter.info and show on its map under the mode NEOAPRS, heard by your station.",
   "settings.scope.title": "Spectrum",
   "settings.scope.aria":
     "The radio's audio from 300 to 2700 Hz as a waterfall, the newest at the top, with the stations heard written where their signal is, and its spectrum under it.",

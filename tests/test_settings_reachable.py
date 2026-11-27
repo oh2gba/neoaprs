@@ -82,7 +82,7 @@ NOT_YET_ON_THE_PAGE = {
     "ask": "a radio's own tick of Ask around's Send on (Nearby, with no flat key): unticked by default, the query goes on the radios ticked",
     "local_info": "a radio's own tick of Local info's Send on (Objects, with no flat key): unticked by default, the request goes on the radios ticked",
     "tx_card": "the sound card's own playback level, the Transmit level row's slider where the card has that control (with no flat key): empty by default, the card stays as the system has it",
-    "psk_report": "a Mercury radio's own tick of Report to PSK Reporter, in its box (with no flat key): unticked by default, nothing is reported",
+    "psk_report": "a Mercury radio's own Enable of PSK Reporter, in its box of PSK Reporter (with no flat key): unticked by default, nothing is reported",
     "psk_dial": "a Mercury radio's own dial for PSK Reporter, in its box (with no flat key): empty by default, nothing is reported",
     "rx_card": "the sound card's own capture level, the Receive level row's slider where the card has that control (with no flat key): empty by default, the card stays as the system has it",
 }

@@ -78,7 +78,10 @@ describe("the Radio group of the Settings tab", () => {
   it("has the FM radio and the Mercury radio in a box each, each beginning with its Enable tickbox, and no RX only row", () => {
     const { group } = make({}, BOTH);
     expect(group.find("#set-station-transmit").exists()).toBe(false);
-    expect(group.findAll("fieldset.subbox legend").map((l) => l.text())).toEqual(["FM radio", "Mercury radio"]);
+    expect(group.findAll("fieldset.subbox:not(.pskbox) > legend").map((l) => l.text())).toEqual([
+      "FM radio",
+      "Mercury radio",
+    ]);
     for (const [box, id] of [
       [fm(group), "set-radio-1-enabled"],
       [hf(group), "set-radio-2-enabled"],
@@ -403,18 +406,22 @@ describe("the Mercury radio's box in the Radio group", () => {
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "radio/2/keying": "rts:/dev/ttyUSB0" } });
   });
 
-  it("has the suggested frequencies the daemon says as a row to read, in the Mercury box of the Mercury modem only", () => {
+  it("has the suggested frequencies as one row whose button opens them, in the Mercury box of the Mercury modem only", async () => {
     const { group } = make({ ports: cards() }, BOTH, on);
-    const row = hfFold(group).find("#hf-frequencies-2");
-    expect(row.findAll(".freq").map((line) => line.text())).toEqual([
+    const button = hfFold(group).find("#hf-frequencies-2");
+    expect(button.element.tagName).toBe("BUTTON");
+    expect(button.text()).toBe("Show");
+    expect(button.element.closest(".field")?.querySelector("label")?.textContent).toBe("Suggested frequencies");
+    await button.trigger("click");
+    const shown = document.querySelector("[role='dialog']");
+    expect([...(shown?.querySelectorAll(".freq") ?? [])].map((line) => line.textContent?.trim())).toEqual([
       "80 m 3.5850 MHz USB",
       "40 m 7.0541 MHz USB",
       "20 m 14.1070 MHz USB",
       "10 m 28.1800 MHz USB",
       "6 m 50.6200 MHz USB",
     ]);
-    expect(row.element.tagName).toBe("OUTPUT"); // (text to read, not an input box that takes no typing)
-    expect(row.element.closest(".field")?.querySelector("label")?.textContent).toBe("Suggested frequencies");
+    shown?.querySelector<HTMLButtonElement>(".xbtn")?.click();
     expect(fm(group).find("[id^='hf-frequencies']").exists()).toBe(false);
     expect(
       make({ ports: cards() }, [fmRow(), radioRow(2, "dummy-hf")], on)
@@ -581,11 +588,26 @@ describe("a Mercury radio's reports to PSK Reporter", () => {
   const reporting = (more: Record<string, string> = {}) =>
     hfValues({ "radio/2/psk_report": "true", "radio/2/psk_dial": "", ...more });
 
-  it("is a tick of its own name with no (i) and the HF tests form's Frequency, after the suggested frequencies", () => {
+  it("has its Enable's (i), with no hover text", async () => {
     const { group } = make({}, BOTH, hfValues({ "radio/2/psk_report": "false", "radio/2/psk_dial": "" }));
+    const row = tick(group).element.closest(".field") as HTMLElement;
+    const info = row.querySelector<HTMLButtonElement>("button.info-toggle") as HTMLButtonElement;
+    expect(info.getAttribute("aria-label")).toBe("About PSK Reporter");
+    expect(info.hasAttribute("title")).toBe(false);
+    info.click();
+    await flush();
+    expect(row.querySelector(".info-text")?.textContent).toBe(
+      "The stations this radio hears are reported to pskreporter.info and show on its map under the mode NEOAPRS, heard by your station.",
+    );
+  });
+
+  it("is a box of its own, last in the radio's box: Enable and the HF tests form's Frequency, after the suggested frequencies", () => {
+    const { group } = make({}, BOTH, hfValues({ "radio/2/psk_report": "false", "radio/2/psk_dial": "" }));
+    const box = tick(group).element.closest("fieldset.subbox");
+    expect(box?.querySelector("legend")?.textContent?.trim()).toBe("PSK Reporter");
+    expect(box?.contains([...hfFold(group).element.querySelectorAll(".field")].at(-1) ?? null)).toBe(true);
     const row = tick(group).element.closest(".field");
-    expect(row?.querySelector("label")?.textContent).toBe("Report to PSK Reporter");
-    expect(row?.querySelector(".info, button")).toBeNull();
+    expect(row?.querySelector("label")?.textContent).toBe("Enable");
     expect(dial(group).element.closest(".field")?.querySelector("label")?.textContent).toBe("Frequency");
     expect(
       dial(group)

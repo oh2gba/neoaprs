@@ -163,7 +163,13 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.keying.dtr": "DTR su {port}",
   "settings.keying.test": "Prova",
   "settings.hf_frequencies.label": "Frequenze suggerite",
-  "settings.psk_report.label": "Segnala a PSK Reporter",
+  "settings.hf_frequencies.show": "Mostra",
+  "settings.hf_frequencies.what":
+    "Frequenze che il progetto suggerisce per APRS su Mercury. Sintonizza la radio su una di esse, banda laterale superiore (USB).",
+  "settings.psk_report.box": "PSK Reporter",
+  "settings.psk_report.tip_label": "Informazioni su PSK Reporter",
+  "settings.psk_report.tip1":
+    "Le stazioni che questa radio sente sono segnalate a pskreporter.info e compaiono sulla sua mappa con il modo NEOAPRS, sentite dalla tua stazione.",
   "settings.scope.title": "Spettro",
   "settings.scope.aria":
     "L’audio della radio da 300 a 2700 Hz a cascata, il più recente in alto, con le stazioni ascoltate scritte dove si trova il loro segnale, e sotto il suo spettro.",

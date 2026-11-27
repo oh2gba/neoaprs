@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // The box of one radio in the Radio group (also in the setup guide), folding by its arrow.
 // It holds, in order: Enable, Name and Remove (when the station has several radios), the status
-// line, and behind the arrow the type, its fields and what the type can do (a Mercury radio's
-// reports to PSK Reporter after its suggested frequencies).
+// line, and behind the arrow the type, its fields (the sound card and the keying first), Find,
+// the tools (Tune, the levels, the scope), then a Mercury radio's suggested frequencies (a row that
+// opens them) and its box of PSK Reporter last.
 // Settings are the radio's own (`radio/3/port`); `radio_change` sends Enable, type and name.
 // The daemon's refusal appears under the field it is about, in the box that asked last.
 // Ids and fold state come from lib/settingsradio.ts BOX_IDS.
@@ -285,8 +286,6 @@ const hasGain = computed(() => can.value.tx_gain && gainKey.value in props.setti
         @choose="choose"
       />
       <SettingsRadioFields :keys="fields" :settings="settings" :form="form" :defaults="defaults" :radio="radio" />
-      <HfFrequencies v-if="can.frequencies && radio.row.modem" :radio="radio" />
-      <PskReportRows v-if="reports" :radio="radio" :settings="settings" :form="form" />
       <FindRadioRow v-if="findable" :id="ids(radioElementId(radio, 'find'))" />
       <template v-if="tools">
         <HfTuneRow v-if="can.tune" :id="ids(radioElementId(radio, 'tune'))" :radio="radio" />
@@ -301,6 +300,8 @@ const hasGain = computed(() => can.value.tx_gain && gainKey.value in props.setti
         />
         <HfScope v-if="can.scope" :radio="radio.id" :card="{ radio, form }" />
       </template>
+      <HfFrequencies v-if="can.frequencies && radio.row.modem" :radio="radio" />
+      <PskReportRows v-if="reports" :radio="radio" :settings="settings" :form="form" />
     </RadioStatus>
   </SettingsBox>
 </template>

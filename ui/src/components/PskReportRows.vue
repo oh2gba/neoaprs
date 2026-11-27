@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// A Mercury radio's reports to PSK Reporter in its box: the tick (`radio/<id>/psk_report`) and the
+// A Mercury radio's reports to PSK Reporter, a box of its own (SettingsBox) at the end of its box: Enable (`radio/<id>/psk_report`) and the
 // dial the radio is tuned to (`radio/<id>/psk_dial`), chosen as the HF tests form chooses one
 // (DialChoice: a suggested dial of the box, or Other and the number). Empty until one is chosen;
 // while the tick is off the dial is greyed and keeps its place. What the box shows is what is stored:
@@ -8,6 +8,7 @@
 // has shows as Other with its number.
 import { computed, ref } from "vue";
 import DialChoice from "@/components/DialChoice.vue";
+import SettingsBox from "@/components/SettingsBox.vue";
 import SettingsField from "@/components/SettingsField.vue";
 import type { Settings } from "@/composables/useSettings";
 import type { SettingsFormState } from "@/composables/useSettingsForm";
@@ -31,7 +32,13 @@ const typed = computed(
   () => typing.value !== null || (stored.value !== "" && !frequencies.value.some((f) => f.dial === stored.value)),
 );
 const dial = computed(() => typing.value ?? (typed.value ? numberOfDial(stored.value) : stored.value));
-const tickInfo = computed<FieldInfo>(() => ({ label: t("settings.psk_report.label"), kind: "bool" }));
+const tickInfo = computed<FieldInfo>(() => ({
+  label: t("settings.enable.label"),
+  name: t("settings.psk_report.box"),
+  kind: "bool",
+  tipLabel: t("settings.psk_report.tip_label"),
+  tip: [t("settings.psk_report.tip1")],
+}));
 
 const least = LIMITS.radio.dialMinMhz;
 function store(value: string): void {
@@ -55,28 +62,30 @@ function finish(): void {
 </script>
 
 <template>
-  <SettingsField
-    :id="ids(inputId(tickKey))"
-    :info="tickInfo"
-    :model-value="String(on)"
-    fallback=""
-    :error="settings.errors[tickKey] ?? ''"
-    :changed="form.changed(tickKey)"
-    :apply="true"
-    @choose="form.choose({ [tickKey]: $event })"
-  />
-  <DialChoice
-    :id="ids(inputId(dialKey))"
-    :dial-id="ids(`${inputId(dialKey)}-number`)"
-    :frequencies="frequencies"
-    :typed="typed"
-    :dial="dial"
-    :disabled="!on"
-    :apply="true"
-    :blank="true"
-    :least="least"
-    @choose="choose"
-    @update:dial="typing = $event"
-    @commit="finish"
-  />
+  <SettingsBox class="pskbox" :title="t('settings.psk_report.box')">
+    <SettingsField
+      :id="ids(inputId(tickKey))"
+      :info="tickInfo"
+      :model-value="String(on)"
+      fallback=""
+      :error="settings.errors[tickKey] ?? ''"
+      :changed="form.changed(tickKey)"
+      :apply="true"
+      @choose="form.choose({ [tickKey]: $event })"
+    />
+    <DialChoice
+      :id="ids(inputId(dialKey))"
+      :dial-id="ids(`${inputId(dialKey)}-number`)"
+      :frequencies="frequencies"
+      :typed="typed"
+      :dial="dial"
+      :disabled="!on"
+      :apply="true"
+      :blank="true"
+      :least="least"
+      @choose="choose"
+      @update:dial="typing = $event"
+      @commit="finish"
+    />
+  </SettingsBox>
 </template>

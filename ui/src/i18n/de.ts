@@ -1576,7 +1576,13 @@ export const de: Catalogue = {
   "settings.keying.dtr": "DTR an {port}",
   "settings.keying.test": "Test",
   "settings.hf_frequencies.label": "Vorgeschlagene Frequenzen",
-  "settings.psk_report.label": "An PSK Reporter melden",
+  "settings.hf_frequencies.show": "Anzeigen",
+  "settings.hf_frequencies.what":
+    "Frequenzen, die das Projekt für APRS über Mercury vorschlägt. Stimme das Funkgerät auf eine davon ab, oberes Seitenband (USB).",
+  "settings.psk_report.box": "PSK Reporter",
+  "settings.psk_report.tip_label": "Zu PSK Reporter",
+  "settings.psk_report.tip1":
+    "Die von diesem Funkgerät gehörten Stationen gehen an pskreporter.info und stehen dort auf der Karte unter der Betriebsart NEOAPRS.",
   "settings.scope.title": "Spektrum",
   "settings.scope.aria":
     "Das Funkaudio von 300 bis 2700 Hz als Wasserfall, das Neueste oben, die gehörten Stationen dort beschriftet, wo ihr Signal ist, und darunter das Spektrum.",

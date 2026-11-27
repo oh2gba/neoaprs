@@ -167,7 +167,8 @@ function make(opts: Made = {}) {
 }
 
 /** The boxes of the Radio step, by their legends. */
-const legends = (wrapper: VueWrapper) => wrapper.findAll(".setup-body fieldset.subbox > legend").map((l) => l.text());
+const legends = (wrapper: VueWrapper) =>
+  wrapper.findAll(".setup-body fieldset.subbox:not(.pskbox) > legend").map((l) => l.text());
 const boxOf = (wrapper: VueWrapper, legend: string) => {
   const found = wrapper.findAll(".setup-body fieldset.subbox").find((f) => f.find("legend").text() === legend);
   if (!found) throw new Error(`no box ${legend}`);
@@ -731,7 +732,7 @@ describe("SetupGuide: the radio, on a station of an FM and a Mercury radio", () 
       "setup-radio-2-keying-test",
     ])
       expect(hf.find(`#${id}`).exists(), id).toBe(true);
-    expect(hf.find(".freqs").exists()).toBe(true);
+    expect(hf.find("#setup-hf-frequencies-2").text()).toBe("Show");
     expect(hf.find("#setup-radio-2-tune").exists()).toBe(false);
     expect(hf.find("#setup-radio-2-txlevel").exists()).toBe(false);
     expect(hf.find(".hf-scope").exists()).toBe(false);
