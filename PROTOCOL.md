@@ -2062,6 +2062,7 @@ What the radio's type cannot do (neoaprs/radiotype.py `Limits`): constants of th
 |---|---|---|---|
 | `max_frame` | integer \| null |  | the longest AX.25 frame the radio carries whole, in bytes (Mercury: 123); null for AX.25's own |
 | `beacon_min_min` | integer |  | the shortest beacon interval the radio takes, in minutes (FM 20, Mercury 30): the station's interval is raised to it on this radio (>= 1) |
+| `slow` | boolean |  | a frame holds the shared channel for seconds (HF, LoRa): what the pairs pass onto the radio is limited (`LIMITS.pass` of the page) |
 
 ### RadioProblem
 

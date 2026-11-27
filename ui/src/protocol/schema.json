@@ -5776,11 +5776,16 @@
           "description": "the shortest beacon interval the radio takes, in minutes (FM 20, Mercury 30): the station's interval is raised to it on this radio",
           "minimum": 1,
           "type": "integer"
+        },
+        "slow": {
+          "description": "a frame holds the shared channel for seconds (HF, LoRa): what the pairs pass onto the radio is limited (`LIMITS.pass` of the page)",
+          "type": "boolean"
         }
       },
       "required": [
         "max_frame",
-        "beacon_min_min"
+        "beacon_min_min",
+        "slow"
       ],
       "title": "RadioLimits",
       "type": "object"

@@ -1437,6 +1437,8 @@ export interface RadioLimits {
   max_frame: number | null;
   /** the shortest beacon interval the radio takes, in minutes (FM 20, Mercury 30): the station's interval is raised to it on this radio */
   beacon_min_min: number;
+  /** a frame holds the shared channel for seconds (HF, LoRa): what the pairs pass onto the radio is limited (`LIMITS.pass` of the page) */
+  slow: boolean;
 }
 
 /** Why a radio, or its beacon, does not do what it is set to, as a code the page puts in its own words, with the values its sentence is made of (the English of the log is not told). */
