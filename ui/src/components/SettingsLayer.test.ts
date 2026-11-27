@@ -9,6 +9,8 @@ import { configValues, mapState, toastOf } from "@/test/fixtures";
 import { AISSTREAM_KEY_URL } from "@/lib/links";
 import { mapLayer } from "@/test/layerfixtures";
 import type { LayerReceiver } from "@/protocol/protocol";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const NOW = Date.parse("2026-10-21T12:00:03Z");
 const receiving = (things: number, heard_at: string | null = "2026-10-21T12:00:00Z"): LayerReceiver => ({
@@ -270,6 +272,17 @@ describe("the state of an own receiver in words", () => {
       }
       expect([layer, [...seen]]).toEqual([layer, ["field field status"]]);
     }
+  });
+
+  it("gives the second row of a layer's box, the address or the key, the same room whatever its label's length", async () => {
+    const { wrapper } = make();
+    const second = (id: string) => wrapper.find(`#set-map-${id}`).element.closest(".field");
+    expect(second("ships_key")?.classList.contains("layerslot")).toBe(true);
+    await wrapper.find("#set-map-ships").setValue("receiver");
+    expect(second("ships_host")?.classList.contains("layerslot")).toBe(true);
+    expect(second("ships")?.classList.contains("layerslot")).toBe(false);
+    const css = readFileSync(resolve(__dirname, "../styles/settings.css"), "utf8");
+    expect(css).toMatch(/\.field\.layerslot\s*\{\s*min-height:\s*2\.8em;/);
   });
 
   describe("the AISStream key", () => {

@@ -68,7 +68,7 @@ const typed = (text: string): void => {
 <template>
   <SettingsField
     :id="id"
-    :class="{ 'field-room': keyOff }"
+    :class="{ 'field-room': keyOff, layerslot: !isSource }"
     :info="info"
     :model-value="shown"
     fallback=""

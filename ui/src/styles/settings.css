@@ -70,6 +70,11 @@ fieldset.composebox > legend {
 .statusfold.field-room {
   visibility: hidden;
 }
+/* a layer's second row (the receiver's address or the AISStream key) is two label lines high, so a
+   label that wraps on a phone moves nothing when the source changes */
+.field.layerslot {
+  min-height: 2.8em;
+}
 /* a link beside a field (Get a key): on one line, the field giving way to it on a narrow screen */
 .field-link {
   flex: none;
