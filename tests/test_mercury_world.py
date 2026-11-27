@@ -257,6 +257,8 @@ async def test_an_ack_lost_on_its_way_back_is_sent_again_for_the_retry_and_the_m
     w.pass_time(FIRST_WAIT_SEC + HF.retry_jitter_sec + 1)  # (past the longest pause of a retry on HF)
     await w.until(lambda: a.ctl.messaging.get(record.id).state == "acked", 15.0)  # type: ignore[union-attr]
     assert a.ctl.messaging.get(record.id).attempts == 2 and b.mercury.frames_keyed == 2, "the copy was acked again"  # type: ignore[union-attr]
+    # (B keeps a message a moment after its ack is made)
+    await w.until(lambda: any(m.direction == "in" for m in b.ctl.messaging.records()))
     assert [m.text for m in b.ctl.messaging.records() if m.direction == "in"] == ["lost ack"], "kept once"
     assert w.air.collisions == 0
 
