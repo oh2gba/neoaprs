@@ -14,7 +14,7 @@ from neoaprs import paths
 from neoaprs.desktop import cmd, loading, single, splash
 from neoaprs.desktop.shell import Choice
 from tests.test_desktop_cmd import World
-from tests.test_desktop_webshell import Rig, handler, launch, quit_through_the_menu
+from tests.test_desktop_webshell import Rig, handler, launch, quit_through_the_menu, until
 
 ROOT = Path(__file__).resolve().parent.parent
 HEAVY = (
@@ -324,7 +324,7 @@ def test_the_windows_shell_takes_it_away_when_there_is_no_window_to_wait_for(
 ) -> None:
     rig = Rig(tmp_path, monkeypatch, window=False)
     thread = launch(rig)
-    assert counted == ["done"]
+    until(lambda: counted == ["done"])
     quit_through_the_menu(rig, thread)
 
 
@@ -334,7 +334,7 @@ def test_the_windows_shell_takes_it_away_when_the_web_engine_cannot_start(
 ) -> None:
     rig = Rig(tmp_path, monkeypatch, start_fails=True)
     thread = launch(rig)
-    assert counted == ["done"]
+    until(lambda: counted == ["done"])
     quit_through_the_menu(rig, thread)
 
 

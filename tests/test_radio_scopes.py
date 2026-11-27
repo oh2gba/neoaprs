@@ -70,6 +70,7 @@ async def test_each_radio_with_a_scope_sends_its_rows_named_radio_2_too(tmp_path
         "a page that looks at two radios has both, each by its radio"
     )
     assert all(frame[0] == RADIO_KIND for frame in both.binary + alone.binary)
+    await page.frames(3)
     assert len(page.binary) == 3 and parse_row(named(page.binary[2])[1]) == replace(ROW, level=-30)
 
     await both.send({"cmd": "radio_scope", "radio": three, "on": False})
