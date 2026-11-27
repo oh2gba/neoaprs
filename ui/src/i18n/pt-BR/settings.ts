@@ -448,8 +448,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.pair.explain.line2": "Qualquer pacote passa: uma posição, um status, uma mensagem, uma confirmação.",
   "settings.pair.explain.line3": "Sem {call} no caminho nada passa, e uma mensagem endereçada a você fica com você.",
   "settings.pair.explain.slow": {
-    one: "Para {radio}, no máximo {n} pacote em {min} minutos.",
-    other: "Para {radio}, no máximo {n} pacotes em {min} minutos.",
+    one: "Em {radio}, no máximo {n} pacote em {min} minutos.",
+    other: "Em {radio}, no máximo {n} pacotes em {min} minutos.",
   },
   "settings.pair.tip_label": "Sobre a passagem entre dois rádios",
   "settings.pair.tip1":

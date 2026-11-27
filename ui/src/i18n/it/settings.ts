@@ -449,7 +449,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.pair.explain.picture_stop": "Senza {call} nel percorso, un pacchetto si ferma alla tua stazione.",
   "settings.pair.explain.line1":
     "Se una stazione mette {call} nel suo percorso, il suo pacchetto viene inviato una volta sull’altra radio. Funziona nei due sensi.",
-  "settings.pair.explain.line2": "Passa qualsiasi pacchetto: una posizione, uno stato, un messaggio, una conferma.",
+  "settings.pair.explain.line2": "Passa qualsiasi pacchetto: una posizione, uno stato, un messaggio, un ack.",
   "settings.pair.explain.line3":
     "Senza {call} nel percorso non passa nulla, e un messaggio indirizzato a te resta a te.",
   "settings.pair.explain.slow": {

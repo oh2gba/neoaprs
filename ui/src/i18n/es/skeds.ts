@@ -9,8 +9,8 @@ export const skeds: Record<keyof typeof source, Message> = {
   "skeds.about2": "El tablón es público, en neo.oh2gba.eu. No se envía por radio.",
 
   "skeds.empty": "No hay pruebas programadas.",
-  "skeds.past_title": "Pruebas pasadas",
-  "skeds.past_empty": "No hay pruebas pasadas.",
+  "skeds.past_title": "Pruebas anteriores",
+  "skeds.past_empty": "No hay pruebas anteriores.",
   "skeds.when": "{from} a {to} UTC",
   "skeds.local": "Tu hora: {from} a {to}",
   "skeds.ours": "nuestra",
