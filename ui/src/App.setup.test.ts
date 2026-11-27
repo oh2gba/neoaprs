@@ -173,6 +173,17 @@ describe("App: the first-run guide", () => {
     expect(configs()).toHaveLength(2);
     // At once, as from the Settings tab.
     expect(configs()[1]).toEqual({ cmd: "set_config", values: { "radio/1/port": "/dev/ttyUSB0" } });
+    // The daemon tells the settings with the port, and answers that save.
+    socket.say({
+      type: "state",
+      topic: "config",
+      rev: 3,
+      value: configValues(
+        { "beacon/interval_min": "0", "station/call": "", "station/lat": "60.17", "station/lon": "24.94" },
+        { "radio/1/port": "/dev/ttyUSB0" },
+      ),
+    });
+    await flushPromises();
     await next();
     expect(configs()[2]).toEqual({
       cmd: "set_config",
@@ -186,7 +197,7 @@ describe("App: the first-run guide", () => {
     socket.say({
       type: "state",
       topic: "config",
-      rev: 3,
+      rev: 4,
       value: configValues(
         { "station/call": "OH2ABC-9", "station/lat": "60.17", "station/lon": "24.94", "station/symbol_code": ">" },
         { "radio/1/port": "/dev/ttyUSB0" },
