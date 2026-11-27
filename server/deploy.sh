@@ -8,12 +8,14 @@
 #   server/deploy.sh --site   # the same, and the project page (site/ as it is, and server/neo/ as
 #                             it is: the .htaccess, the page-view endpoint, the Send logs endpoint
 #                             support/send.php with its .user.ini, the sked board's endpoint
-#                             api/v1/skeds.php, and private/.htaccess) to neo.oh2gba.eu
+#                             api/v1/skeds.php, the satellites' endpoint api/v1/satellites.php
+#                             with its list private/satellites-list.json, and private/.htaccess)
+#                             to neo.oh2gba.eu
 #   server/deploy.sh --list   # show what would be uploaded, don't touch the network
 #
 # Only these files, and of the folders only what git tracks (`git ls-files`): an untracked or
 # ignored file is never uploaded, and the skipped ones are named. message.txt, the logs, the stored
-# support files and skeds, and the sked board skeds.json with its past tests skeds-past.json live on
+# support files and skeds, the satellites' elements (private/satellites/), and the sked board skeds.json with its past tests skeds-past.json live on
 # the server only and are never uploaded or removed (either in site/ would overwrite the live one, so
 # the upload refuses to start while there is one). Credentials come from Bitwarden Secrets Manager
 # (ftp_server/ftp_login/ftp_pw). The machine-account token is the first line of a .secrets file:

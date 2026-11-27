@@ -1,0 +1,2 @@
+amateur.csv: https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=csv
+fetched 2026-11-27 17:59 UTC (gzip, 200, one request); only its line ends made LF
