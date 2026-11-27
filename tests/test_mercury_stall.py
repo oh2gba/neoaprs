@@ -4,7 +4,6 @@ powers of ten, the modem restarted, then given up on with a problem the page sho
 """
 
 import logging
-import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -232,23 +231,23 @@ async def test_a_ptt_on_without_its_ptt_off_does_not_blind_the_watch_for_longer_
 async def test_a_stalled_mercury_says_it_hears_nothing_until_the_warning_stops_or_it_is_restarted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(mercurystall, "GAP_SEC", 0.5)
-    monkeypatch.setattr(mercurymodem, "GAP_SEC", 0.05)
+    monkeypatch.setattr(mercurymodem, "GAP_SEC", 0.05)  # (how often the end of it is looked for)
     m = modem(tmp_path)
+    now = [1000.0]
+    m.monotonic = lambda: now[0]  # the watch's clock, driven here: no margin of real time
     await m.start(HF)
     try:
         await until_started(lambda: m.state == "running")
         changes: list[bool] = []
         m.changed.connect(lambda: changes.append(m.deaf))
-        # the warning for STALL_SEC up to now, a tenth of a second apart (the clock is the real one)
-        end = time.monotonic()
-        m.stall._restarted.append(end)  # (restarted just now: the next restart waits ten minutes)
-        steps = int(STALL_SEC * 10) + 1
-        for n in range(steps):
-            m._capture_full(end - STALL_SEC - 0.1 + n / 10)
+        m.stall._restarted.append(now[0])  # (restarted just now: the next restart waits ten minutes)
+        for step in range(int(STALL_SEC) + 1):
+            now[0] = 1000.0 + step
+            m._capture_full(now[0])
         assert m.deaf and m.stall.stalls == 1 and m.starts == 1 and m.describe() == "Mercury DATAC3, hearing nothing"
         assert changes[-1] is True, "the page is told"
-        await until_started(lambda: changes[-1] is False)  # the warning stopped: it hears again
+        now[0] += mercurystall.GAP_SEC + 1  # the warning stopped: it hears again
+        await until_started(lambda: changes[-1] is False)
         assert not m.deaf and m.describe() == "Mercury DATAC3, listening"
     finally:
         await stopped(m)
@@ -257,9 +256,9 @@ async def test_a_stalled_mercury_says_it_hears_nothing_until_the_warning_stops_o
 async def test_the_row_of_a_connected_radio_whose_mercury_hears_nothing_has_the_code_on_the_wire(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(mercurystall, "GAP_SEC", 0.5)
-    monkeypatch.setattr(mercurymodem, "GAP_SEC", 0.05)
     m = modem(tmp_path)
+    now = [1000.0]
+    m.monotonic = lambda: now[0]  # the watch's clock, driven here
     line = Tnc("127.0.0.1:1", profile=MERCURY)
     line.modem = m
     line.state = Source.State.CONNECTED
@@ -268,12 +267,13 @@ async def test_the_row_of_a_connected_radio_whose_mercury_hears_nothing_has_the_
     try:
         await until_started(lambda: m.state == "running")
         assert row()["problem"] is None
-        end = time.monotonic()
-        m.stall._restarted.append(end)  # (restarted just now: no restart while the test looks)
-        for n in range(int(STALL_SEC * 10) + 1):
-            m._capture_full(end - STALL_SEC - 0.1 + n / 10)
+        m.stall._restarted.append(now[0])  # (restarted just now: no restart while the test looks)
+        for step in range(int(STALL_SEC) + 1):
+            now[0] = 1000.0 + step
+            m._capture_full(now[0])
         assert (row()["state"], row()["problem"]) == ("connected", {"code": "modem.receive_deaf", "params": {}})
-        await until_started(lambda: not m.deaf)  # the warning stopped: it hears again
+        now[0] += mercurystall.GAP_SEC + 1  # the warning stopped: it hears again
+        assert not m.deaf
         assert row()["problem"] is None
     finally:
         await stopped(m)

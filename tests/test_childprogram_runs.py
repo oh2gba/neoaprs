@@ -4,6 +4,7 @@ end its reader, each run counts its own warnings, and a relaunch waits until the
 """
 
 import asyncio
+from collections import deque
 import io
 import logging
 import threading
@@ -122,7 +123,7 @@ def test_each_run_counts_its_own_warnings_and_a_new_start_has_a_new_count(tmp_pa
 async def test_a_start_gives_the_run_its_own_count(tmp_path: Path) -> None:
     program = Heard([])
     first = program._run
-    program.start([childprogram.sys.executable, "-c", "print('x')"], tmp_path)
+    program.start([childprogram.sys.executable, "-u", "-c", "print('x')"], tmp_path)
     try:
         assert program._run is not first
     finally:
@@ -152,3 +153,29 @@ async def test_a_relaunch_waits_until_the_old_run_is_gone(tmp_path: Path) -> Non
         gone.set()
         m._program.stop = lambda: None  # type: ignore[method-assign]
         await stopped(m)
+
+
+async def test_the_last_lines_of_a_run_that_crashed_are_kept_after_the_relaunch(tmp_path: Path) -> None:
+    """The support file tells why the program ended, though a new run is on."""
+    ended: list[Any] = []
+    program = Heard(ended)
+    script = "import sys; print('starting'); print('fatal: the sound card went'); sys.exit(3)"
+    program.start([childprogram.sys.executable, "-u", "-c", script], tmp_path)
+    await until_started(lambda: ended)
+    at, lines = program.crash()
+    assert at is not None and lines == ["starting", "fatal: the sound card went"]
+    program.start([childprogram.sys.executable, "-u", "-c", "import time; print('again'); time.sleep(60)"], tmp_path)
+    try:
+        await until_started(lambda: program.last_lines == deque(["again"]))
+        assert program.crash() == (at, lines), "the run before, which the relaunch replaced"
+    finally:
+        await asyncio.to_thread(program.stop)
+    assert program.crash() == (at, lines), "a stopped run is no crash"
+
+
+async def test_a_run_that_was_stopped_is_no_crash(tmp_path: Path) -> None:
+    program = Heard([])
+    program.start([childprogram.sys.executable, "-u", "-c", "import time; print('up'); time.sleep(60)"], tmp_path)
+    await until_started(lambda: program.lines_read == 1)
+    await asyncio.to_thread(program.stop)
+    assert program.crash() == (None, [])

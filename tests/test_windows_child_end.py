@@ -29,7 +29,12 @@ def test_a_hidden_program_is_asked_to_end_by_a_daemon_without_a_console(tmp_path
         check=True,
     )
     told = json.loads(out.read_text())
-    assert told == {"sent": True, "code": 0, "child": "asked"}, "it ended by its own Ctrl-C handler, not killed"
+    # every way is tried and written down whatever happens: the file says which call stopped it
+    print(json.dumps(told, indent=1))
+    ctrl_c = told["ctrl_c"]
+    assert (ctrl_c["sent"], ctrl_c["code"], ctrl_c["child"]) == (True, 0, "SIGINT"), (
+        f"the program ends by its own Ctrl-C handler, as Mercury does, not killed: {json.dumps(told)}"
+    )
 
 
 def test_a_program_in_the_daemons_job_ends_when_the_job_is_closed() -> None:
@@ -57,7 +62,3 @@ def test_the_daemons_own_children_are_put_into_its_job() -> None:
     finally:
         child.kill()
         child.wait()
-
-
-def test_a_keying_line_that_is_not_there_is_not_lowered() -> None:
-    assert not winchild.drop_line("rts:COM255")

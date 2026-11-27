@@ -9,6 +9,7 @@ import logging
 import sys
 import time
 from collections.abc import Callable, Sequence
+from datetime import datetime
 from pathlib import Path
 
 from . import nodevices
@@ -165,6 +166,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
         self.claims, self.holder, self.folder = claims, holder, folder
         self._finder = finder or find
         self.backoff = backoff or Backoff()
+        self.monotonic: Callable[[], float] = time.monotonic  # the clock of the stall watch's times
         self._control_backoff = control_backoff
         self.changed: Signal[[]] = Signal("mercury.changed")
         self.frequencies: list[Frequency] = [Frequency(band, dial) for band, dial in SUGGESTED]
@@ -435,7 +437,7 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
     @property
     def deaf(self) -> bool:
         """Whether Mercury runs and hears nothing (stalled), waiting for its restart."""
-        return self.state == "running" and self.stall.deaf(time.monotonic())
+        return self.state == "running" and self.stall.deaf(self.monotonic())
 
     async def _while_deaf(self) -> None:
         """Tell the page when the stall is over (the warning stopped) without a restart."""
@@ -529,6 +531,10 @@ class Mercury(Channel, Tuning, Scoping, Holding, ModemLife):
     @property
     def device_lines(self) -> list[str]:
         return list(self._program.device_lines)
+
+    def crash(self) -> tuple[datetime | None, list[str]]:
+        """When the program last ended by itself and its last lines, for the support file."""
+        return self._program.crash()
 
     def describe(self) -> str:
         """Return the modem in a few words, e.g. "Mercury DATAC3, listening, SNR 3 dB"."""

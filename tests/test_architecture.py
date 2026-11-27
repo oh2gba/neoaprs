@@ -676,6 +676,10 @@ REACHES_OUT: dict[str, tuple[str, str]] = {
         "exec",
         "Update now for an AppImage: the new file, whose checksum was checked, is started in the place of this process with the arguments the daemon had, and the desktop app that owned that daemon after it, with its own (neoaprs/desktop/renew.py)",
     ),
+    "neoaprs/winchild.py": (
+        "serial",
+        "Windows, after Mercury had to be killed: the radio's own keying port from its setting (only COM and a number), opened with RTS and DTR low and closed, to lower a line the driver may have left up",
+    ),
     "neoaprs/serialport.py": (
         "serial",
         "the one place a port is made: the address of the radio's or the GPS's port goes to pyserial here and nowhere else",

@@ -263,7 +263,11 @@ def _mercury(m: dict[str, Any]) -> list[tuple[str, str]]:
             f"{m.get('restarts_for_stalls', 0)} times, the last {m.get('last_restart_at') or 'never'}",
         ),
     ]
-    return rows + [("Mercury said", str(line)) for line in m.get("device_lines") or []]
+    rows += [("Mercury said", str(line)) for line in m.get("device_lines") or []]
+    if m.get("crashed_at"):
+        rows.append(("Mercury ended by itself", str(m["crashed_at"])))
+        rows += [("Its last lines", str(line)) for line in m.get("crash_lines") or []]
+    return rows
 
 
 def _psk_reporter(spec: RadioSpec, m: dict[str, Any]) -> list[tuple[str, str]]:

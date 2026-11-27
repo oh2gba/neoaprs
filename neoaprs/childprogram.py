@@ -15,6 +15,7 @@ import threading
 import time
 from collections import deque
 from collections.abc import Callable, Iterable, Sequence
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -290,6 +291,8 @@ class Run:
         self.said: dict[str, list[Any]] = {}
         self.looked_at = 0.0  # monotonic time of the latest look for warnings that stopped
         self.lines_read = 0
+        # the run ended by itself (it was not stopped), at this UTC time; None while it runs or was stopped
+        self.crashed_at: datetime | None = None
 
 
 class Program:
@@ -312,6 +315,7 @@ class Program:
         self._stopping: subprocess.Popen[str] | None = None
         self._pid_file: Path | None = None
         self._run = Run()  # the current run's; written by its reader thread only
+        self._previous: Run | None = None  # the run before, for the support file once a relaunch is on
         self.clock: Clock = utcnow
 
     @property
@@ -321,6 +325,15 @@ class Program:
     @property
     def lines_read(self) -> int:
         return self._run.lines_read
+
+    def crash(self) -> tuple[datetime | None, list[str]]:
+        """Return when the latest run that ended by itself did, and its last lines; (None, []) if none did.
+
+        The current run counts once it has ended; otherwise the run before it, which a relaunch replaced."""
+        for run in (self._run, self._previous):
+            if run is not None and run.crashed_at is not None:
+                return run.crashed_at, list(run.last_lines)
+        return None, []
 
     @property
     def running(self) -> bool:
@@ -358,7 +371,7 @@ class Program:
         if sys.platform == "win32" and not winchild.tie_to_daemon(self._process.pid):
             self._log.info("%s (process %d) is not tied to the daemon's life", self.name, self._process.pid)
         self._pid_file = pid_file
-        self._run = run = Run()
+        self._previous, self._run = self._run, (run := Run())
         if pid_file is not None:
             try:
                 pid_file.write_text(str(self._process.pid), encoding="ascii")
@@ -406,6 +419,8 @@ class Program:
         code = process.wait()
         if pid_file is not None:
             _unlink_own(pid_file, process.pid)
+        if self._process is process:
+            run.crashed_at = self.clock()
         post(self._on_ended, code, list(run.last_lines))
 
     def _if_current(self, process: subprocess.Popen[str], callback: Callable[..., None], args: tuple[Any, ...]) -> None:

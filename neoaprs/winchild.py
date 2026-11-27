@@ -1,5 +1,5 @@
 """Windows calls for the child programs: a console Ctrl-C to ask one to end, a job that ends them with
-the daemon, and a serial keying line dropped after a program that held it is gone.
+the daemon, and a serial keying line lowered after a program that held it had to be killed.
 
 Each function takes kernel32 as an argument, so that the logic is tested with a fake elsewhere.
 """
@@ -8,17 +8,17 @@ import ctypes
 import logging
 import re
 import threading
+from collections.abc import Callable
 from typing import Any
 
 log = logging.getLogger("neoaprs.childprogram")
 
-CTRL_C_EVENT = 0
+CTRL_C_EVENT, CTRL_BREAK_EVENT = 0, 1
 PROCESS_TERMINATE, PROCESS_SET_QUOTA = 0x0001, 0x0100
 JOB_OBJECT_EXTENDED_LIMIT_INFORMATION = 9
 JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000
-GENERIC_READ, GENERIC_WRITE, OPEN_EXISTING = 0x80000000, 0x40000000, 3
-INVALID_HANDLE = -1
-CLRRTS, CLRDTR = 4, 6
+# The whole lowering of a keying line; a Bluetooth port can take many seconds to open.
+DROP_SEC = 2.0
 # A serial keying line on Windows: COM3, or COM12
 COM_PORT = re.compile(r"^(?:\\\\\.\\)?(COM\d+)$", re.IGNORECASE)
 
@@ -66,8 +66,6 @@ CALLS: dict[str, tuple[list[Any], Any]] = {
     "AssignProcessToJobObject": ([_HANDLE, _HANDLE], _BOOL),
     "OpenProcess": ([_DWORD, _BOOL, _DWORD], _HANDLE),
     "CloseHandle": ([_HANDLE], _BOOL),
-    "CreateFileW": ([ctypes.c_wchar_p, _DWORD, _DWORD, ctypes.c_void_p, _DWORD, _DWORD, _HANDLE], _HANDLE),
-    "EscapeCommFunction": ([_HANDLE, _DWORD], _BOOL),
 }
 
 
@@ -94,7 +92,7 @@ def _handler_routine() -> Any:
     return kind(ctypes.c_int, ctypes.c_uint32)(lambda event: 1)
 
 
-def _swallow_ctrl_c(k: Any) -> bool:
+def _swallow_ctrl_c(k: Any, steps: "Steps | None" = None) -> bool:
     """Make this process take no Ctrl-C of a console it attaches to; return whether it is so.
 
     A handler and not the ignore flag, which every program started later would inherit.
@@ -102,26 +100,65 @@ def _swallow_ctrl_c(k: Any) -> bool:
     global _handler
     if _handler is None:
         handler = _handler_routine()
-        if not k.SetConsoleCtrlHandler(handler, True):
+        if not _step(steps, k, "SetConsoleCtrlHandler", handler, True):
             return False
         _handler = handler
     return True
 
 
-def ask_to_end(pid: int, k: Any = None) -> bool:
+Steps = list[dict[str, Any]]
+
+
+def _last_error() -> int:
+    return int(getattr(ctypes, "get_last_error", lambda: 0)())
+
+
+def _step(steps: Steps | None, k: Any, name: str, *args: Any) -> Any:
+    """Call kernel32's `name`; note the call, its result and GetLastError in `steps` and the log."""
+    result = getattr(k, name)(*args)
+    error = _last_error() if not result else 0
+    log.debug("console ask: %s%s returned %s (error %d)", name, args, result, error)
+    if steps is not None:
+        steps.append(
+            {
+                "call": name,
+                "args": [a if isinstance(a, int) else str(a) for a in args],
+                "result": result,
+                "error": error,
+            }
+        )
+    return result
+
+
+def ask_to_end(pid: int, k: Any = None, steps: Steps | None = None) -> bool:
     """Send Ctrl-C to the console of the program `pid` (its own hidden one); return whether it was sent.
 
-    False when this process has a console of its own: it cannot attach to another.
+    False when this process has a console of its own: it cannot attach to another. Each call is noted in `steps`.
+    Ctrl-C, not Ctrl-Break: Mercury's Windows build handles SIGINT (it unkeys and ends) but not SIGBREAK.
     """
     k = k if k is not None else kernel32()
     with _console:
-        if not k.AttachConsole(pid):
+        if not _step(steps, k, "AttachConsole", pid):
             return False
         try:
             # without the handler the Ctrl-C would end this process too
-            return _swallow_ctrl_c(k) and bool(k.GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0))
+            return _swallow_ctrl_c(k, steps) and bool(_step(steps, k, "GenerateConsoleCtrlEvent", CTRL_C_EVENT, 0))
         finally:
-            k.FreeConsole()
+            _step(steps, k, "FreeConsole")
+
+
+def break_group(group: int, attach: bool, k: Any = None, steps: Steps | None = None) -> bool:
+    """Send Ctrl-Break to the process group `group`, attached to its console or not; for the Windows tests
+    that find which way reaches a child (a program does not unkey on it)."""
+    k = k if k is not None else kernel32()
+    with _console:
+        if attach and not _step(steps, k, "AttachConsole", group):
+            return False
+        try:
+            return bool(_step(steps, k, "GenerateConsoleCtrlEvent", CTRL_BREAK_EVENT, group))
+        finally:
+            if attach:
+                _step(steps, k, "FreeConsole")
 
 
 # ---- the children's lives tied to the daemon's
@@ -167,23 +204,39 @@ def tie_to_daemon(pid: int, k: Any = None) -> bool:
 # ---- the keying line
 
 
-def drop_line(keying: str, k: Any = None) -> bool:
-    """Lower the serial keying line `rts:COM3` or `dtr:COM3`; return whether it was lowered.
+def _unopened_port() -> Any:
+    import serial  # type: ignore[import-untyped]
 
-    Some serial drivers keep a line where a program that ended left it.
+    return serial.Serial()
+
+
+def drop_line(keying: str, port: Callable[[], Any] | None = None, wait_sec: float = DROP_SEC) -> bool:
+    """Lower the serial keying line of `rts:COM3` or `dtr:COM3`; return whether it was done in `wait_sec`.
+
+    For a program that was killed: some drivers keep a line where it left it. Blocks up to `wait_sec`.
     """
     way, _, device = keying.partition(":")
     match = COM_PORT.match(device.strip())
     if way not in ("rts", "dtr") or match is None:
         return False
-    k = k if k is not None else kernel32()
-    handle = k.CreateFileW(
-        f"\\\\.\\{match.group(1).upper()}", GENERIC_READ | GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None
-    )
-    if not handle or handle in (INVALID_HANDLE, ctypes.c_void_p(INVALID_HANDLE).value):
-        log.info("the keying line %s could not be opened to lower it", keying)
-        return False
-    try:
-        return bool(k.EscapeCommFunction(handle, CLRRTS if way == "rts" else CLRDTR))
-    finally:
-        k.CloseHandle(handle)
+    done, lowered = threading.Event(), [False]
+
+    def lower() -> None:
+        try:
+            # pyserial sets the lines of a port that is not open yet at its open (SetCommState with
+            # RTS_CONTROL_DISABLE and DTR_CONTROL_DISABLE), so the port is opened with both low
+            ser = (port or _unopened_port)()
+            ser.rts, ser.dtr = False, False
+            ser.port = match.group(1).upper()
+            ser.open()
+            ser.close()
+            lowered[0] = True
+        except Exception as e:  # the port is gone, held or refuses: nothing more can be done
+            log.info("the keying line %s could not be lowered: %s", keying, e)
+        finally:
+            done.set()
+
+    threading.Thread(target=lower, name="neoaprs-keying-line", daemon=True).start()
+    if not done.wait(wait_sec):
+        log.info("the keying line %s did not open in %g s: it is left as the driver has it", keying, wait_sec)
+    return lowered[0]

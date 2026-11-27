@@ -6,6 +6,8 @@ makes the real calls.
 
 import ctypes
 import subprocess
+import threading
+import time
 from typing import Any
 
 import pytest
@@ -21,7 +23,7 @@ class Kernel:
         self.calls: list[tuple[Any, ...]] = []
         self.answers = {"AttachConsole": 1, "SetConsoleCtrlHandler": 1, "GenerateConsoleCtrlEvent": 1}
         self.answers |= {"CreateJobObjectW": 7, "SetInformationJobObject": 1, "OpenProcess": 9}
-        self.answers |= {"AssignProcessToJobObject": 1, "CreateFileW": 11, "EscapeCommFunction": 1} | answers
+        self.answers |= {"AssignProcessToJobObject": 1} | answers
         self.flags: list[int] = []
 
     def __getattr__(self, name: str) -> Any:
@@ -79,24 +81,47 @@ def test_a_child_is_not_tied_when_the_job_cannot_be_made_or_the_process_opened()
     assert not winchild.tie_to_daemon(41, Kernel(OpenProcess=0))
 
 
-@pytest.mark.parametrize("keying, line", [("rts:COM10", winchild.CLRRTS), ("dtr:com3", winchild.CLRDTR)])
-def test_the_keying_line_of_the_setting_is_lowered(keying: str, line: int) -> None:
-    k = Kernel()
-    assert winchild.drop_line(keying, k)
-    port = keying.split(":")[1].upper()
-    assert k.calls[0][:2] == ("CreateFileW", f"\\\\.\\{port}") and k.calls[1] == ("EscapeCommFunction", 11, line)
-    assert k.calls[2] == ("CloseHandle", 11)
+class FakePort:
+    """pyserial's Serial as drop_line uses it: what the lines were at the moment of the open."""
+
+    def __init__(self, hangs: threading.Event | None = None) -> None:
+        self.rts = self.dtr = True  # pyserial's own defaults
+        self.port: str | None = None
+        self.opened_with: list[tuple[str | None, bool, bool]] = []
+        self.closed = False
+        self.hangs = hangs
+
+    def open(self) -> None:
+        self.opened_with.append((self.port, self.rts, self.dtr))
+        if self.hangs is not None:
+            self.hangs.wait(30)
+
+    def close(self) -> None:
+        self.closed = True
+
+
+@pytest.mark.parametrize("keying", ["rts:COM10", "dtr:com3"])
+def test_the_keying_line_is_opened_with_both_lines_low_from_the_first_moment(keying: str) -> None:
+    port = FakePort()
+    assert winchild.drop_line(keying, lambda: port)
+    assert port.opened_with == [(keying.split(":")[1].upper(), False, False)] and port.closed
 
 
 @pytest.mark.parametrize("keying", ["vox", "cm108", "rts:/dev/ttyUSB0", "rts:COM3 x"])
 def test_no_port_is_opened_for_a_keying_that_is_no_com_line(keying: str) -> None:
-    k = Kernel()
-    assert not winchild.drop_line(keying, k) and k.calls == []
+    port = FakePort()
+    assert not winchild.drop_line(keying, lambda: port) and port.opened_with == []
 
 
-def test_a_port_that_cannot_be_opened_is_not_lowered() -> None:
-    k = Kernel(CreateFileW=ctypes.c_void_p(-1).value)
-    assert not winchild.drop_line("rts:COM10", k) and k.names() == ["CreateFileW"]
+def test_a_port_whose_open_hangs_does_not_hold_the_stop() -> None:
+    hangs = threading.Event()
+    port = FakePort(hangs)
+    started = time.monotonic()
+    try:
+        assert not winchild.drop_line("rts:COM10", lambda: port, wait_sec=0.2)
+        assert time.monotonic() - started < 10.0
+    finally:
+        hangs.set()
 
 
 class Process:
@@ -111,21 +136,24 @@ class Process:
         return 0
 
 
-def test_mercury_on_windows_is_asked_then_ended_and_its_keying_line_lowered(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_mercury_on_windows_that_ends_when_asked_has_no_port_opened_and_a_killed_one_has_its_line_lowered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     ended: list[int] = []
     monkeypatch.setattr(mercuryhelper, "_end_tree", lambda process: ended.append(process.pid))
     monkeypatch.setattr(mercuryhelper.nodevices, "on", lambda: False)
     program = Program(lambda code, lines: None)
     program.keying = "rts:COM10"
+    port = FakePort()
     k = Kernel()
-    program._end_windows(Process(ends=True), k)  # type: ignore[arg-type]
-    assert ended == [] and "GenerateConsoleCtrlEvent" in k.names() and ("EscapeCommFunction", 11, 4) in k.calls
-    k = Kernel()
-    program._end_windows(Process(ends=False), k)  # type: ignore[arg-type]
-    assert ended == [77] and ("EscapeCommFunction", 11, 4) in k.calls, "asked, not gone: the hard end, then the line"
-    k = Kernel(AttachConsole=0)
-    program._end_windows(Process(ends=True), k)  # type: ignore[arg-type]
-    assert ended == [77, 77], "no console to ask through: the hard end at once"
+    program._end_windows(Process(ends=True), k, lambda: port)  # type: ignore[arg-type]
+    assert ended == [] and "GenerateConsoleCtrlEvent" in k.names() and port.opened_with == [], (
+        "it unkeyed itself: opening the port could only key it"
+    )
+    program._end_windows(Process(ends=False), Kernel(), lambda: port)  # type: ignore[arg-type]
+    assert ended == [77] and port.opened_with == [("COM10", False, False)], "asked, not gone: killed, then the line"
+    program._end_windows(Process(ends=True), Kernel(AttachConsole=0), lambda: port)  # type: ignore[arg-type]
+    assert ended == [77, 77] and len(port.opened_with) == 2, "no console to ask through: the hard end at once"
 
 
 def test_under_the_no_devices_switch_the_keying_line_is_not_opened(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -133,6 +161,26 @@ def test_under_the_no_devices_switch_the_keying_line_is_not_opened(monkeypatch: 
     monkeypatch.setattr(mercuryhelper.nodevices, "on", lambda: True)
     program = Program(lambda code, lines: None)
     program.keying = "rts:COM10"
+    port = FakePort()
+    program._end_windows(Process(ends=False), Kernel(), lambda: port)  # type: ignore[arg-type]
+    assert port.opened_with == []
+
+
+def test_each_call_of_the_ask_is_written_down_with_its_result() -> None:
+    """One run on a Windows machine then tells which call stops the ask."""
+    steps: winchild.Steps = []
+    assert not winchild.ask_to_end(1234, Kernel(GenerateConsoleCtrlEvent=0), steps)
+    assert [(s["call"], s["result"]) for s in steps] == [
+        ("AttachConsole", 1),
+        ("SetConsoleCtrlHandler", 1),
+        ("GenerateConsoleCtrlEvent", 0),
+        ("FreeConsole", 1),
+    ] and all("error" in s for s in steps)
+
+
+def test_ctrl_break_goes_to_the_group_with_or_without_its_console() -> None:
     k = Kernel()
-    program._end_windows(Process(ends=True), k)  # type: ignore[arg-type]
-    assert "CreateFileW" not in k.names()
+    assert winchild.break_group(55, attach=True, k=k)
+    assert k.names() == ["AttachConsole", "GenerateConsoleCtrlEvent", "FreeConsole"] and k.calls[1][1:] == (1, 55)
+    k = Kernel()
+    assert winchild.break_group(55, attach=False, k=k) and k.names() == ["GenerateConsoleCtrlEvent"]
