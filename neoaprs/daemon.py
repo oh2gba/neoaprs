@@ -177,6 +177,13 @@ def _take_the_data_folder(data_dir: Path) -> InstanceLock | None:
     return lock
 
 
+def _refused(data_dir: Path, code: int, reason: str) -> int:
+    """The exit code of a refusal to start (the service of macOS keeps the reason instead)."""
+    from .cli.servicelaunchd import refused
+
+    return refused(data_dir, code, reason)
+
+
 async def run(args: argparse.Namespace, after: list[list[str]] | None = None) -> int:
     """Run the daemon until stopped; a command to run afterwards (Update now) goes in `after`."""
     data_dir = Path(args.data).expanduser().resolve()
@@ -184,10 +191,10 @@ async def run(args: argparse.Namespace, after: list[list[str]] | None = None) ->
         data_dir.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         print(f"neoaprs: the data folder {data_dir} cannot be made or used: {e.strerror or e}", file=sys.stderr)
-        return FOLDER_UNUSABLE
+        return _refused(data_dir, FOLDER_UNUSABLE, "the data folder cannot be made or used")
     lock = _take_the_data_folder(data_dir)
     if lock is None:
-        return DATABASE_UNUSABLE
+        return _refused(data_dir, DATABASE_UNUSABLE, "another NeoAPRS is running on this data folder")
     try:
         return await _run_locked(args, data_dir, [] if after is None else after)
     finally:
@@ -266,7 +273,7 @@ async def _serve(controller: "Controller", stop: asyncio.Event, log: logging.Log
     except (StoreError, SqlError) as e:
         log.error("the database could not be used: %s", e)
         await controller.stop()
-        return DATABASE_UNUSABLE
+        return _refused(controller.data_dir, DATABASE_UNUSABLE, "the database cannot be used (the log says why)")
     except BaseException:
         # Release the port, the page's listener and the database thread whatever failed.
         await controller.stop()
@@ -274,7 +281,9 @@ async def _serve(controller: "Controller", stop: asyncio.Event, log: logging.Log
     log.info("%s is running", PROGRAM)
     stopfile.clear_restart(controller.data_dir)
     from .cli.servicecmd import appimage_file
+    from .cli.servicelaunchd import started
 
+    started(controller.data_dir)
     selfreplace.remove_old(appimage_file())
     await stop.wait()
     log.info("%s is closing", PROGRAM)

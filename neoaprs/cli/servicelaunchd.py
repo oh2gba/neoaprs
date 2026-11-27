@@ -1,7 +1,7 @@
 """The service on macOS: a per-user launchd agent, ~/Library/LaunchAgents/eu.oh2gba.neoaprs.plist.
 
-It starts at login and restarts after a failure. A plist at that path that is not this agent's
-is never touched."""
+It starts at login and restarts after a crash; after a refusal to start it stays stopped, with the
+reason kept for `status`. A plist at that path that is not this agent's is never touched."""
 
 import os
 import plistlib
@@ -15,6 +15,10 @@ from .servicecmd import Plan
 LABEL = "eu.oh2gba.neoaprs"
 RESTART_AFTER_SEC = 30
 LOG_HINT = ""
+# In the agent's environment: the daemon runs under launchd.
+UNDER_LAUNCHD = "NEOAPRS_LAUNCHD"
+# In the data folder: why the daemon last refused to start under launchd.
+REFUSAL_NAME = "launchd.refused"
 
 
 def plist_path() -> Path:
@@ -39,9 +43,39 @@ def render(plan: Plan) -> bytes:
             "StandardOutPath": str(plan.data / "launchd.log"),
             "StandardErrorPath": str(plan.data / "launchd.log"),
             "WorkingDirectory": str(plan.clone or plan.data),
-            "EnvironmentVariables": {"PYTHONUNBUFFERED": "1"},
+            "EnvironmentVariables": {"PYTHONUNBUFFERED": "1", UNDER_LAUNCHD: "1"},
         }
     )
+
+
+def refused(data_dir: Path, code: int, reason: str) -> int:
+    """Return the exit code of a refusal to start: under launchd a success with the reason kept,
+    since launchd cannot tell exit codes apart and would restart it every 30 s."""
+    if os.environ.get(UNDER_LAUNCHD) != "1":
+        return code
+    try:
+        (data_dir / REFUSAL_NAME).write_text(reason + "\n", encoding="utf-8")
+    except OSError:
+        pass  # a data folder that cannot be written: the reason is on stderr, which is launchd.log
+    return 0
+
+
+def started(data_dir: Path) -> None:
+    """The daemon runs: a refusal from before no longer says why the service is stopped."""
+    try:
+        (data_dir / REFUSAL_NAME).unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def refusal(data_dir: Path) -> str | None:
+    """Return why the service is stopped after a refusal, or None."""
+    if not os.access(data_dir, os.W_OK):
+        return "the data folder cannot be made or used"
+    try:
+        return (data_dir / REFUSAL_NAME).read_text(encoding="utf-8").strip() or None
+    except OSError:
+        return None
 
 
 def ours(path: Path) -> bool:
@@ -121,6 +155,9 @@ def status(plan: Plan) -> int:
         print("launchd: " + ("loaded" if is_loaded else "not loaded"))
     running, line = describe(plan.data)
     print(f"daemon: {line}")
+    why = refusal(plan.data) if is_set else None
+    if why is not None:
+        print(f"the service is stopped because {why}; start it again with: neoaprs service install")
     if not is_set:
         print("set it up with: neoaprs service install")
-    return 0 if is_loaded and running else 1
+    return 0 if is_loaded and running and why is None else 1
