@@ -1985,6 +1985,22 @@ def radio_scripts(script: ModuleType, old_version: str = "0.20.0") -> dict[str, 
     }
 
 
+def test_every_proof_script_switches_the_update_check_off_before_it_starts_anything(script: ModuleType) -> None:
+    paths = script.windows_paths("John", "RUN-20261115T101010")
+    install = script.install_steps(
+        paths, "NeoAPRS-Setup-0.20.0.exe", "0.20.0", "6.6.1", "Dire Wolf Release 1.8.1, November 2025"
+    )
+    texts = [(name, text) for name, text, _ in install]
+    for scripts in (upgrade_scripts(script), radio_scripts(script)):
+        texts += [(name, text) for name, parts in scripts.items() for text in parts]
+    started = re.compile(r"Start-Process|& \$exe|& \(Join-Path \$app|neoaprs(w|-app)?\.exe'\) ")
+    for name, text in texts:
+        switch = text.find("$env:NEOAPRS_UPDATE_CHECK = '0'")
+        first = started.search(text)
+        assert 0 < switch and (first is None or switch < first.start()), f"{name}: something starts before it"
+        assert text.count("NEOAPRS_UPDATE_CHECK") == 1, name
+
+
 TAKEN_AWAY = (
     "; if the new release takes it away on purpose, name it in DROPPED beside same_settings in scripts/check-windows"
 )

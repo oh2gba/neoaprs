@@ -57,6 +57,9 @@ uninstall. The data folder is the run's own (data-upgrade), never the default on
 OLD's file name decides how the station is made and what is held afterwards (RADIOS_FROM): before
 0.20.0 a radio's settings are flat keys; from 0.20.0 on there are radios and no flat key of one.
 
+Every step script of both proofs starts with NEOAPRS_UPDATE_CHECK=0, so nothing it starts (the
+installer, the app, its daemon) asks the version page.
+
 What only a person can see (the wizard, the tray, Update now) is in docs/development.md.
 
 Exit code: 0 all steps passed, 1 a step failed, 2 not set up (a variable, a file, a program, a tree
@@ -1012,14 +1015,16 @@ def pack_kit(root: Path, out: Path) -> None:
             tar.add(root / name, arcname=name, recursive=False)
 
 
-def install_script(name: str, *lines: str) -> str:
-    """Return the start of a step script: its name line, no developer variable, the app's folder in
-    $app."""
+def install_script(name: str, *lines: str, no_devices: bool = False) -> str:
+    """Return a step script: its name line, the update check off for everything it starts (the
+    installer, the app, its daemon), the no-devices switch only when asked, the app's folder in $app."""
     return "\n".join(
         [
             f"# step: {name}",
             "$ErrorActionPreference = 'Continue'",
             "$ProgressPreference = 'SilentlyContinue'",
+            "$env:NEOAPRS_UPDATE_CHECK = '0'",
+            *(["$env:NEOAPRS_NO_DEVICES = '1'"] if no_devices else []),
             APP_FOLDER,
             *lines,
             "exit 0",
@@ -1309,7 +1314,7 @@ def install_steps(
         *(
             f"$env:{name} = {ps_quote(value)}"
             for name, value in STEP_ENVIRONMENT.items()
-            if name != "NEOAPRS_NO_DEVICES"
+            if name not in ("NEOAPRS_NO_DEVICES", "NEOAPRS_UPDATE_CHECK")
         ),
         f"Set-Location -LiteralPath {ps_quote(ip.kit)}",
     ]
@@ -1567,13 +1572,12 @@ def radio_lines(added: Sequence[Added]) -> list[str]:
     return [*adds, *sets]
 
 
-def daemon_lines(no_devices: bool) -> list[str]:
-    """Run the installed daemon on the station's folder for RUN_SEC with the update check off.
+def daemon_lines() -> list[str]:
+    """Run the installed daemon on the station's folder for RUN_SEC (the step's script has the
+    update check off).
 
     Its page must answer; `neoaprs.exe stop` then ends it. Its log lines are in $new."""
     return [
-        "$env:NEOAPRS_UPDATE_CHECK = '0'",
-        *(["$env:NEOAPRS_NO_DEVICES = '1'"] if no_devices else []),
         "$log = Join-Path $data 'neoaprs.log'",
         "$skip = if (Test-Path -LiteralPath $log) { @(Get-Content -LiteralPath $log).Count } else { 0 }",
         "$clock = [Diagnostics.Stopwatch]::StartNew()",
@@ -1643,7 +1647,7 @@ def upgrade_steps(
     if with_radios:
         station = (
             install_script("station", *station_folder, *set_lines(STATION_OWN), *radio_lines(RADIOS)),
-            install_script("station", *station_folder, *daemon_lines(no_devices=True)),
+            install_script("station", *station_folder, *daemon_lines(), no_devices=True),
             install_script(
                 "station",
                 *station_folder,
@@ -1657,7 +1661,7 @@ def upgrade_steps(
         )
     else:
         station = (
-            install_script("station", *station_folder, *set_lines(STATION), *daemon_lines(no_devices=False)),
+            install_script("station", *station_folder, *set_lines(STATION), *daemon_lines()),
             install_script("station", *station_folder, *listed),
         )
     moved = f"$moved = @($new | Where-Object {{ $_ -match {ps_quote(MIGRATED)} }})"
@@ -1693,7 +1697,7 @@ def upgrade_steps(
         ),
     )
     migrate = install_script(
-        "migrate", *station_folder, *daemon_lines(no_devices=True), *clean_log_lines(), moved, *migration
+        "migrate", *station_folder, *daemon_lines(), *clean_log_lines(), moved, *migration, no_devices=True
     )
     data = install_script(
         "data",
@@ -1707,12 +1711,13 @@ def upgrade_steps(
     daemon = install_script(
         "daemon",
         *station_folder,
-        *daemon_lines(no_devices=True),
+        *daemon_lines(),
         *clean_log_lines(),
         *HEARD_LINES,
         moved,
         fail_unless("$moved.Count -eq 0", "the second start of the new release migrated again", "$moved"),
         "'the second start migrated nothing'",
+        no_devices=True,
     )
     times = {"old": 600.0, "update": 600.0, "uninstall": 600.0}
     scripts = dict(
