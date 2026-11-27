@@ -12,7 +12,9 @@
 - **Changed:** choosing a source for aircraft or ships switches that layer on in the browser you chose it in.
 - **Changed:** HF tests are always shown, with or without an HF radio.
 - **Changed:** a station that gated with a passcode set by hand goes on gating.
-- **Fixed:** the trails of aircraft and ships stay when you come back to the page from another tab or program.
+- **Fixed:** an open aircraft or ship card and the trails stay when you come back to the page from another tab or program.
+- **Fixed:** Esc closes one card or window at a time, the newest first.
+- **Fixed:** `neoaprs db list` and `get` show a passcode or a service's key only by its length.
 
 ## 0.25.0
 
