@@ -565,6 +565,7 @@ export function configValues(extra: Record<string, string> = {}, radios: Record<
     "map/aircraft_host": "",
     "map/ships": "none",
     "map/ships_host": "",
+    "map/ships_key": "",
     "update/url": "https://oh2gba.eu/neoaprs/version.php",
     "igate/enabled": "false",
     "igate/gate": "false",

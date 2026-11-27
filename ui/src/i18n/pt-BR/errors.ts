@@ -132,6 +132,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_host": "'{value}' não é um endereço nem um nome",
   "error.setting.not_hostport": "'{value}' não é host:porta",
   "error.setting.not_receiver": "'{value}' não é o endereço de um receptor",
+  "error.setting.not_key": "Isso não é uma chave que o serviço dá",
   "error.setting.not_server": "'{value}' não é host:porta",
   "error.setting.not_dial": "'{value}' não é um dial como 28.1800 MHz USB",
   "error.setting.not_passcode": "o código do seu indicativo é um número de 0 a {max}",

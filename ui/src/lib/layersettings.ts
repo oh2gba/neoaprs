@@ -1,7 +1,8 @@
 // Settings, Map: a box for each layer (Aircraft, Ships) with its source and its receiver's address
-// (components/SettingsLayer.vue). The keys and what each says of itself. The offered sources come
-// from the daemon (`map.layers[i].offered`); a stored source not among them shows as None. The
-// address field shows only while the choice is an own receiver.
+// (components/SettingsLayer.vue), and the Ships box's AISStream key. The keys and what each says of
+// itself. The offered sources come from the daemon (`map.layers[i].offered`); a stored source not
+// among them shows as None. The address field shows only while the choice is an own receiver; the
+// key's row keeps its room while it is not, and shows its field while the choice is AISStream.
 import type { Choice } from "@/lib/settingchoices";
 import type { FieldInfo, FieldSpec } from "@/lib/settings";
 import {
@@ -26,13 +27,18 @@ const sourceKey = (layer: LayerName): string => `map/${layer}`;
  * The keys of each layer: the layer each belongs to, and whether it chooses the source or holds an
  * own receiver's address.
  */
-type LayerKey = { layer: LayerName; role: "source" | "address" };
-const KEYS: Readonly<Record<string, LayerKey>> = Object.fromEntries(
-  LAYERS.flatMap((layer): [string, LayerKey][] => [
-    [sourceKey(layer), { layer, role: "source" }],
-    [`${sourceKey(layer)}_host`, { layer, role: "address" }],
-  ]),
-);
+type LayerKey = { layer: LayerName; role: "source" | "address" | "key" };
+/** The Ships box's key of AISStream. */
+export const AISSTREAM_KEY = "map/ships_key";
+const KEYS: Readonly<Record<string, LayerKey>> = {
+  ...Object.fromEntries(
+    LAYERS.flatMap((layer): [string, LayerKey][] => [
+      [sourceKey(layer), { layer, role: "source" }],
+      [`${sourceKey(layer)}_host`, { layer, role: "address" }],
+    ]),
+  ),
+  [AISSTREAM_KEY]: { layer: "ships", role: "key" },
+};
 
 /** The layer a key belongs to and its role, or null for any other key. */
 export const layerKey = (key: string): LayerKey | null => KEYS[key] ?? null;
@@ -104,13 +110,29 @@ export const LAYER_SPECS: Record<string, FieldSpec> = {
     tipLabel: "layers.receiver.ships_tip_label",
     tip: ["layers.receiver.ships_tip1", "layers.receiver.ships_tip2"],
   },
+  [AISSTREAM_KEY]: {
+    label: "layers.aisstream.key",
+    empty: () => "",
+    kind: "password",
+    tipLabel: "layers.aisstream.key_tip_label",
+    tip: ["layers.aisstream.key_tip"],
+  },
 };
 
-/** Whether an address field is shown: while the row's choice is an own receiver. */
+/**
+ * Whether a row is there: an address while the choice is an own receiver; the key's row (its room
+ * kept, its field shown by `keyShown`) while it is not.
+ */
 export function layerShown(key: string, values: Readonly<Record<string, string>>): boolean {
   const own = layerKey(key);
-  return own === null || own.role === "source" || isOwn(values[sourceKey(own.layer)] ?? "");
+  if (own === null || own.role === "source") return true;
+  const mine = isOwn(values[sourceKey(own.layer)] ?? "");
+  return own.role === "address" ? mine : !mine;
 }
+
+/** Whether the key's field is shown in its room: while the choice is AISStream. */
+export const keyShown = (values: Readonly<Record<string, string>>): boolean =>
+  values[sourceKey("ships")] === "aisstream";
 
 /** The layer's row of the topic `map`, if the daemon has sent it. */
 export const layerOf = (layers: readonly MapLayer[] | undefined, layer: LayerName): MapLayer | null =>

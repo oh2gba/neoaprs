@@ -133,6 +133,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_host": "'{value}' ei ole osoite eikä nimi",
   "error.setting.not_hostport": "'{value}' ei ole muotoa palvelin:portti",
   "error.setting.not_receiver": "'{value}' ei ole vastaanottimen osoite",
+  "error.setting.not_key": "Tämä ei ole palvelun antama avain",
   "error.setting.not_server": "'{value}' ei ole muotoa palvelin:portti",
   "error.setting.not_dial": "'{value}' ei ole viritystaajuus muotoa 28.1800 MHz USB",
   "error.setting.not_passcode": "kutsusi pääsykoodi on luku väliltä 0–{max}",

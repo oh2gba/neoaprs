@@ -4,6 +4,7 @@
 // comma-separated list of calls, which is how a path is written. The daemon checks all of it again,
 // and ui/src/protocol/vectors.json holds the two to the same answers; the page only stops the user
 // sending what it would refuse.
+import { QRZ_DB_URL } from "@/lib/links";
 import { LIMITS } from "@/protocol/lists";
 
 const CALL = new RegExp(`^[A-Z0-9]{1,${LIMITS.call.baseMax}}(-[0-9]{1,2})?$`);
@@ -94,7 +95,7 @@ export function mayTransmitAs(text: string): boolean {
  * that is no call. */
 export function qrzUrl(text: string): string | null {
   const call = normalizeCall(text);
-  return validCall(call) ? `https://www.qrz.com/db/${call.split("-")[0]}` : null;
+  return validCall(call) ? `${QRZ_DB_URL}${call.split("-")[0]}` : null;
 }
 
 /** The pieces of a comma-separated list, each as a call is typed (capitals, no blanks); empty ones

@@ -431,4 +431,13 @@ describe("the credits of a service", () => {
       "https://opendatacommons.org/licenses/odbl/1-0/",
     ]);
   });
+
+  it("name AISStream with its link, as they name Fintraffic", async () => {
+    await mounted([mapLayer("aircraft"), mapLayer("ships", { source: "aisstream" })]);
+    await openCredits();
+    await setTick("ships", true);
+    expect(credits().map((line) => line.textContent)).toEqual(["AISStream"]);
+    const link = credits()[0]?.querySelector("a");
+    expect([link?.getAttribute("href"), link?.target]).toEqual(["https://aisstream.io/", "_blank"]);
+  });
 });

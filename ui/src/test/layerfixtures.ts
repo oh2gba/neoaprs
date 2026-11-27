@@ -11,6 +11,7 @@ export function mapLayer(layer: MapLayer["layer"], extra: Partial<MapLayer> = {}
     source: "none",
     offered: [...(layer === "aircraft" ? AIRCRAFT_SOURCES : SHIP_SOURCES)],
     receiver: null,
+    problem: "",
     ...extra,
   };
 }

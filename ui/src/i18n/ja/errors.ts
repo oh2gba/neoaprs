@@ -134,6 +134,7 @@ export const errors: Record<keyof typeof source, Message> = {
     "「{value}」は、スペースで区切った1つ以上のデバイスのパターンではありません。各パターンは / で始まり、末尾に * を付けることもできます（後ろは何でも一致）",
   "error.setting.not_host": "「{value}」はアドレスでも名前でもありません",
   "error.setting.not_receiver": "「{value}」は受信機のアドレスではありません",
+  "error.setting.not_key": "サービスが発行するキーではありません",
   "error.setting.not_hostport": "「{value}」は ホスト:ポート ではありません",
   "error.setting.not_server": "「{value}」は ホスト:ポート ではありません",
   "error.setting.not_dial": "「{value}」は 28.1800 MHz USB のようなダイヤルではありません",

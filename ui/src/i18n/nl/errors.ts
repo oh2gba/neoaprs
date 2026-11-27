@@ -134,6 +134,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_host": "‘{value}’ is geen adres of naam",
   "error.setting.not_hostport": "‘{value}’ is geen host:poort",
   "error.setting.not_receiver": "‘{value}’ is niet het adres van een ontvanger",
+  "error.setting.not_key": "Dat is geen sleutel die de dienst uitgeeft",
   "error.setting.not_server": "‘{value}’ is geen host:poort",
   "error.setting.not_dial": "‘{value}’ is geen afstemfrequentie zoals 28.1800 MHz USB",
   "error.setting.not_passcode": "de passcode van je roepnaam is een getal van 0 tot {max}",

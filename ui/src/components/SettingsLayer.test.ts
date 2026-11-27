@@ -6,6 +6,7 @@ import { forgetLayerTicks, useMapLayers } from "@/composables/useMapLayers";
 import { receiverLook } from "@/lib/receiverstatus";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
 import { configValues, mapState, toastOf } from "@/test/fixtures";
+import { AISSTREAM_KEY_URL } from "@/lib/links";
 import { mapLayer } from "@/test/layerfixtures";
 import type { LayerReceiver } from "@/protocol/protocol";
 
@@ -61,7 +62,7 @@ describe("Settings, Map: aircraft and ships", () => {
       "Radarcape",
       "My own receiver",
     ]);
-    expect(options(wrapper, "#set-map-ships")).toEqual(["None", "Fintraffic", "My own receiver"]);
+    expect(options(wrapper, "#set-map-ships")).toEqual(["None", "Fintraffic", "AISStream", "My own receiver"]);
   });
 
   it("has no Fintraffic in the Ships list where the daemon does not offer it", () => {
@@ -252,5 +253,74 @@ describe("the state of an own receiver in words", () => {
     await tell(daemon, { config: configValues({ "map/aircraft": "adsbfi" }) });
     expect(ticks().ticked("aircraft")).toBe(false);
     expect(localStorage.getItem("NeoAPRS.layer.aircraft")).toBeNull();
+  });
+
+  describe("the AISStream key", () => {
+    const MASK = "********";
+    const keyRow = (wrapper: ReturnType<typeof make>["wrapper"]) =>
+      wrapper.find("#set-map-ships_key").element.closest<HTMLElement>(".field");
+
+    it("keeps the key's room while another source is chosen, so nothing moves when AISStream is chosen", async () => {
+      const { wrapper } = make();
+      const row = keyRow(wrapper);
+      expect(row?.classList.contains("field-room")).toBe(true);
+      expect(row?.hasAttribute("inert")).toBe(true);
+      await wrapper.find("#set-map-ships").setValue("aisstream");
+      expect(keyRow(wrapper)).toBe(row);
+      expect(row?.classList.contains("field-room")).toBe(false);
+      expect(row?.hasAttribute("inert")).toBe(false);
+    });
+
+    it("has a masked field, a link to the page where a key is made, opened in a new tab, and an (i) of one line", async () => {
+      const { wrapper } = make({ "map/ships": "aisstream", "map/ships_key": MASK }, [
+        mapLayer("aircraft"),
+        mapLayer("ships", { source: "aisstream" }),
+      ]);
+      const input = wrapper.find<HTMLInputElement>("#set-map-ships_key");
+      expect(input.attributes("type")).toBe("password");
+      expect(input.element.value).toBe(MASK);
+      expect(wrapper.find('label[for="set-map-ships_key"]').text()).toBe("Key");
+      const link = keyRow(wrapper)?.querySelector("a.field-link");
+      expect(link?.textContent).toBe("Get a key");
+      expect(link?.getAttribute("href")).toBe(AISSTREAM_KEY_URL);
+      expect(link?.getAttribute("target")).toBe("_blank");
+      expect(link?.getAttribute("rel")).toContain("noopener");
+      keyRow(wrapper)?.querySelector<HTMLElement>(".info-toggle")?.click();
+      await wrapper.vm.$nextTick();
+      expect([...(keyRow(wrapper)?.querySelectorAll(".info-line") ?? [])].map((l) => l.textContent)).toEqual([
+        "The key is your own, and AISStream gives it for free.",
+      ]);
+      expect(keyRow(wrapper)?.querySelector(".info-toggle")?.hasAttribute("title")).toBe(false);
+    });
+
+    it("saves a typed key when the field is left", async () => {
+      const { wrapper, send } = make({ "map/ships": "aisstream" }, [
+        mapLayer("aircraft"),
+        mapLayer("ships", { source: "aisstream" }),
+      ]);
+      await wrapper.find("#set-map-ships_key").setValue("0123456789abcdef0123456789abcdef01234567");
+      await wrapper.find("#set-map-ships_key").trigger("blur");
+      expect(send).toHaveBeenLastCalledWith({
+        cmd: "set_config",
+        values: { "map/ships_key": "0123456789abcdef0123456789abcdef01234567" },
+      });
+    });
+
+    it("says under the field that AISStream did not accept the key", () => {
+      const { wrapper } = make({ "map/ships": "aisstream", "map/ships_key": MASK }, [
+        mapLayer("aircraft"),
+        mapLayer("ships", { source: "aisstream", problem: "key_refused" }),
+      ]);
+      expect(keyRow(wrapper)?.querySelector(".field-error")?.textContent).toBe("AISStream did not accept this key.");
+    });
+
+    it("gives the key's place to the receiver's address while My own receiver is chosen", () => {
+      const { wrapper } = make({ "map/ships": "receiver" }, [
+        mapLayer("aircraft"),
+        mapLayer("ships", { source: "receiver" }),
+      ]);
+      expect(wrapper.find("#set-map-ships_key").exists()).toBe(false);
+      expect(wrapper.find("#set-map-ships_host").exists()).toBe(true);
+    });
   });
 });

@@ -5,9 +5,10 @@
 // the supported installs are.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
+import { RELEASES_URL } from "@/lib/links";
 import type { InstallInfo, UpdateState } from "@/protocol/protocol";
 
-const RELEASES = "https://github.com/oh2gba/neoaprs/releases";
+const RELEASES = RELEASES_URL;
 
 export interface Step {
   text: string;

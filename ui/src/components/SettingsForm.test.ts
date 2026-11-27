@@ -1558,7 +1558,7 @@ describe("SettingsForm", () => {
           .find("fieldset:has(#set-map-radius_km)")
           .findAll(".field label")
           .map((l) => l.text()),
-      ).toEqual(["Radius", "Detailed map", "Source", "Source"]);
+      ).toEqual(["Radius", "Detailed map", "Source", "Source", "Key"]);
     });
 
     it("has a box for each layer, Aircraft and Ships, each with its Source, that end the group, and Radius and Detailed map outside them", () => {
@@ -1566,10 +1566,14 @@ describe("SettingsForm", () => {
       const group = wrapper.find("fieldset:has(#set-map-radius_km)");
       const boxes = group.findAll("fieldset.subbox");
       expect(boxes.map((b) => b.find("legend").text())).toEqual(["Aircraft", "Ships"]);
+      expect(boxes.map((box) => box.findAll(".field label").map((l) => l.text()))).toEqual([
+        ["Source"],
+        ["Source", "Key"],
+      ]);
+      expect(boxes[1]?.find(".field:has(#set-map-ships_key)").classes()).toContain("field-room");
       for (const box of boxes) {
         expect(box.find("legend").attributes("title")).toBeUndefined();
         expect(box.find("legend .info-toggle").exists()).toBe(false);
-        expect(box.findAll(".field label").map((l) => l.text())).toEqual(["Source"]);
         expect(box.find("#set-map-radius_km").exists()).toBe(false);
         expect(box.find(".mapfetch-button").exists()).toBe(false);
       }

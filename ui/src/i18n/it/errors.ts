@@ -138,6 +138,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.setting.not_host": "“{value}” non è un indirizzo né un nome",
   "error.setting.not_hostport": "“{value}” non è host:porta",
   "error.setting.not_receiver": "“{value}” non è l’indirizzo di un ricevitore",
+  "error.setting.not_key": "Questa non è una chiave che il servizio dà",
   "error.setting.not_server": "“{value}” non è host:porta",
   "error.setting.not_dial": "“{value}” non è una frequenza di sintonia come 28.1800 MHz USB",
   "error.setting.not_passcode": "il codice del tuo nominativo è un numero da 0 a {max}",

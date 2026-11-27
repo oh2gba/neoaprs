@@ -73,8 +73,12 @@ const SETTINGS_TAB = {
   "Web page": only("Web page", ["set-web-network"]),
   Notifications: NOTIFICATIONS,
   // the radius, and in a box for each layer its source: the receiver's address is there with My own
-  // receiver
-  Map: box(["set-map-radius_km", "set-map-aircraft", "set-map-ships"], 3, ["Map", "Aircraft", "Ships"]),
+  // receiver; the room of AISStream's key is kept in the Ships box
+  Map: box(["set-map-radius_km", "set-map-aircraft", "set-map-ships", "set-map-ships_key"], 4, [
+    "Map",
+    "Aircraft",
+    "Ships",
+  ]),
   "Update check": only("Update check", ["set-update-now"]),
   Help: box(["set-help-send"], 1, ["Help"]),
   About: box(["set-help-logs"], 0, ["About"]),

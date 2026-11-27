@@ -3,6 +3,7 @@
 // every language, and the credit each service is owed while its layer is on the map. The sources a
 // station is offered come from the daemon (`map.layers`, AIRCRAFT_SOURCES and SHIP_SOURCES).
 import type { MessageId } from "@/i18n/catalogue";
+import { ADSBFI_URL, ADSBLOL_URL, AISSTREAM_URL, CC_BY_URL, DIGITRAFFIC_URL, ODBL_URL } from "@/lib/links";
 import type { MapLayer } from "@/protocol/protocol";
 
 /** A layer of traffic. */
@@ -28,6 +29,7 @@ export const SOURCE_NAMES: Readonly<Record<ServiceName, string>> = {
   adsbfi: "adsb.fi",
   adsblol: "adsb.lol",
   fintraffic: "Fintraffic",
+  aisstream: "AISStream",
 };
 
 /** A piece of a credit: its text, and the address it links to where it is a link. */
@@ -39,18 +41,15 @@ export interface CreditPart {
 /** The credit of each service, in pieces: the text is the pieces joined, and a piece with an
  * address links to it (opened in a new tab). Own receivers are owed none. */
 export const CREDITS: Readonly<Record<ServiceName, readonly CreditPart[]>> = {
-  adsbfi: [{ text: "adsb.fi", href: "https://adsb.fi/" }],
-  adsblol: [
-    { text: "adsb.lol", href: "https://www.adsb.lol/" },
-    { text: ", " },
-    { text: "ODbL 1.0", href: "https://opendatacommons.org/licenses/odbl/1-0/" },
-  ],
+  adsbfi: [{ text: "adsb.fi", href: ADSBFI_URL }],
+  adsblol: [{ text: "adsb.lol", href: ADSBLOL_URL }, { text: ", " }, { text: "ODbL 1.0", href: ODBL_URL }],
   fintraffic: [
     { text: "Source: " },
-    { text: "Fintraffic / digitraffic.fi", href: "https://www.digitraffic.fi/" },
+    { text: "Fintraffic / digitraffic.fi", href: DIGITRAFFIC_URL },
     { text: ", license " },
-    { text: "CC 4.0 BY", href: "https://creativecommons.org/licenses/by/4.0/" },
+    { text: "CC 4.0 BY", href: CC_BY_URL },
   ],
+  aisstream: [{ text: "AISStream", href: AISSTREAM_URL }],
 };
 
 /** Whether a source is a device of the station's own (a Radarcape, an aircraft receiver or an AIS

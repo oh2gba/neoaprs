@@ -92,7 +92,7 @@ def service_key(text: str) -> str:
     """Return a service's key (`map/ships_key`): empty, or printable characters with no blank."""
     value = text.strip()
     if len(value) > MAX_KEY or not value.isprintable() or any(c.isspace() for c in value):
-        raise CodedError("that is not a key the service gives", "setting.not_key")
+        raise CodedError("That is not a key the service gives", "setting.not_key")
     return value
 
 

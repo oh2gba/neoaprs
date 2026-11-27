@@ -64,6 +64,18 @@ fieldset.composebox > legend {
 .field-control .input {
   flex: 1;
 }
+/* a row whose field is not there now keeps its room, so nothing moves when it comes (the AISStream key) */
+.field.field-room {
+  visibility: hidden;
+}
+/* a link beside a field (Get a key): on one line, the field giving way to it on a narrow screen */
+.field-link {
+  flex: none;
+  white-space: nowrap;
+}
+.field-control:has(.field-link) .input {
+  min-width: 0;
+}
 /* the call field: the call (at most six characters, so a width of its own) and the dropdown of its
    SSID, side by side where there is room and one under the other where not (a phone), the
    dropdown with the rest of its line */

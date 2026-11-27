@@ -4,6 +4,7 @@
 // which never folds. The call and the version are shown in Settings, not here. The marks keep their
 // order; when the row is too narrow the ones `foldAway` names are not drawn. Their widths come from
 // a hidden copy of the row, measured whenever it or the room changes, before the frame is painted.
+import { PROJECT_URL } from "@/lib/links";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import TagMark from "@/components/TagMark.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
@@ -28,8 +29,6 @@ const emit = defineEmits<{
   open: [target: PillTarget, focus: string];
   transmit: [on: boolean];
 }>();
-
-const PROJECT_URL = "https://neo.oh2gba.eu/";
 
 const row = ref<HTMLElement | null>(null);
 const copy = ref<HTMLElement | null>(null);

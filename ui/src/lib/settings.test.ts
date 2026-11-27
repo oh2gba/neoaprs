@@ -54,6 +54,7 @@ describe("groupKeys", () => {
       "map/aircraft_host",
       "map/ships",
       "map/ships_host",
+      "map/ships_key",
     ]);
   });
   it("gives the My station tab the station keys first (the call, the place, the symbol), then how often and what the beacon says, the antenna and the path, and the status keys", () => {

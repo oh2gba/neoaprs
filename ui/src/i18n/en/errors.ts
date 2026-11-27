@@ -133,6 +133,7 @@ export const errors = {
   "error.setting.not_host": "'{value}' is not an address or a name",
   "error.setting.not_hostport": "'{value}' is not host:port",
   "error.setting.not_receiver": "'{value}' is not the address of a receiver",
+  "error.setting.not_key": "That is not a key the service gives",
   "error.setting.not_server": "'{value}' is not host:port",
   "error.setting.not_dial": "'{value}' is not a dial such as 28.1800 MHz USB",
   "error.setting.not_passcode": "the passcode of your call is a number from 0 to {max}",
