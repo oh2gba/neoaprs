@@ -354,6 +354,13 @@ class Layers:
     def config_changed(self, config: Config) -> None:
         self._refresh()
 
+    def key_saved(self) -> None:
+        """Make a refused AISStream source again when a key is saved, also the same one."""
+        held = self._held.get("ships")
+        if held is not None and getattr(held[1], "problem", "") == "key_refused":
+            self._replace("ships", held[0], held)
+            self._maybe_changed()
+
     def moved(self) -> None:
         """Re-evaluate the ships offer and any service that had no position."""
         self._refresh()

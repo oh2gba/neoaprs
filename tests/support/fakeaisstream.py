@@ -3,12 +3,14 @@ client offers it) that keeps every subscription with the seconds it came after t
 a key that is not the one it was given (as the real server did on 27 Nov 2026: it closes the
 connection without a word; `refusal` sends that message first), closes a connection whose first
 subscription is later than 3 s, sends the test's reports to every subscribed connection, and can
-drop or stall them."""
+drop or stall them, or reset each connection at its subscription (an outage, not a refusal)."""
 
 import asyncio
 import contextlib
 import json
+import socket
 import struct
+import sys
 import time
 import zlib
 from dataclasses import dataclass, field
@@ -46,6 +48,7 @@ class FakeAisStream(LoopbackServer):
     compressed: bool = False  # the last connection asked for permessage-deflate
     stalled: bool = False  # while true nothing is sent, pings are not answered
     refusal: dict[str, Any] | None = None  # sent before a wrong key's connection is closed
+    reset: bool = False  # while true a subscription is answered by a reset of its connection
     _clients: list[_Client] = field(default_factory=list)
 
     @property
@@ -134,6 +137,11 @@ class FakeAisStream(LoopbackServer):
     def _subscribe(self, client: _Client, data: bytes, upgraded: float) -> bool:
         """Keep the subscription; False when the connection is to end (a wrong key)."""
         message = json.loads(data)
+        if self.reset:
+            sock = client.writer.get_extra_info("socket")
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("HH" if sys.platform == "win32" else "ii", 1, 0))
+            client.writer.transport.abort()
+            return False
         self.subscriptions.append(
             Subscription(
                 message.get("APIKey", ""),

@@ -4,6 +4,7 @@ Pure code: the text arrives from another module. A message in an unexpected form
 
 import json
 import math
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -129,6 +130,21 @@ def _static(mmsi: int, kind: str, body: dict[str, Any]) -> AisStatic | None:
     return AisStatic(mmsi, name, ship_type, "") if name or ship_type is not None else None
 
 
+_KEY = re.compile(r"\b(api[ _-]?)?key\b")
+_REFUSAL = ("invalid", "not valid", "unknown", "not found", "missing", "expired", "revoked", "unauthori", "wrong")
+_OUTAGE = ("connection", "limit", "too many", "rate", "busy", "try again", "temporar", "unavailable", "timeout")
+
+
+def refuses_key(words: str) -> bool:
+    """Return whether the server's error says the key itself is not good, not a limit or an outage."""
+    lower = words.lower()
+    return (
+        _KEY.search(lower) is not None
+        and any(word in lower for word in _REFUSAL)
+        and not any(word in lower for word in _OUTAGE)
+    )
+
+
 def read_message(text: bytes | str, now: datetime) -> Read:
     """Return what one message of the stream says, or None for anything else."""
     try:
@@ -139,7 +155,7 @@ def read_message(text: bytes | str, now: datetime) -> Read:
         return None
     if "error" in data:
         words = str(data.get("error"))[:120]
-        return Refused("key" in words.lower(), words)
+        return Refused(refuses_key(words), words)
     kind = data.get("MessageType")
     if kind == "SubscriptionConfirmation":
         return Confirmed()

@@ -4,8 +4,10 @@ and what a message of the stream says."""
 import json
 from datetime import UTC, datetime
 
+import pytest
+
 from neoaprs.aisdecode import AisPosition, AisStatic
-from neoaprs.aisstream import MESSAGE_TYPES, Confirmed, Refused, boxes, read_message, subscription
+from neoaprs.aisstream import MESSAGE_TYPES, Confirmed, Refused, boxes, read_message, refuses_key, subscription
 from neoaprs.geo import distance_km
 from tests.support.fakeaisstream import KEY, position, static
 
@@ -86,6 +88,24 @@ def test_the_confirmation_and_a_refused_key_are_told_apart_from_other_errors() -
     assert read_message(b'{"MessageType": "SubscriptionConfirmation", "Message": {}}', NOW) == Confirmed()
     assert read_message(b'{"error": "Api Key Is Not Valid"}', NOW) == Refused(True, "Api Key Is Not Valid")
     assert read_message(b'{"error": "Too many connections"}', NOW) == Refused(False, "Too many connections")
+
+
+@pytest.mark.parametrize(
+    ("words", "refused"),
+    [
+        ("Api Key Is Not Valid", True),
+        ("invalid API key", True),
+        ("missing apikey", True),
+        ("Too many connections for this API key", False),
+        ("API key rate limit exceeded", False),
+        ("concurrent connection limit reached for key", False),
+        ("the keyboard is not valid", False),
+        ("monkey business: invalid frame", False),
+        ("server busy, try again", False),
+    ],
+)
+def test_only_words_that_say_the_key_itself_is_not_good_are_a_refused_key(words: str, refused: bool) -> None:
+    assert refuses_key(words) is refused
 
 
 def test_anything_else_is_skipped() -> None:

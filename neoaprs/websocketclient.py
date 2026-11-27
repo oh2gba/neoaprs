@@ -57,10 +57,13 @@ class Inflater:
         self._inflate = zlib.decompressobj(-zlib.MAX_WBITS)
 
     def message(self, data: bytes) -> bytes | None:
-        """Return the message, or None when it is larger than MAX_MESSAGE."""
+        """Return the message, or None when it is larger than MAX_MESSAGE; raise WebSocketError when corrupt."""
         if self._fresh:
             self._inflate = zlib.decompressobj(-zlib.MAX_WBITS)
-        out = self._inflate.decompress(data + DEFLATE_TAIL, MAX_MESSAGE + 1)
+        try:
+            out = self._inflate.decompress(data + DEFLATE_TAIL, MAX_MESSAGE + 1)
+        except zlib.error as e:
+            raise WebSocketError(f"a compressed message that does not inflate: {e}") from None
         if len(out) > MAX_MESSAGE or self._inflate.unconsumed_tail:
             self._inflate = zlib.decompressobj(-zlib.MAX_WBITS)  # the rest of its window is lost with it
             return None
@@ -75,6 +78,7 @@ class WebSocketClient:
         self.closed = False
         self.close_reason = ""  # the server's words in its close frame
         self.heard_data = False  # a message came
+        self.lost = False  # the connection broke (a reset), not a close by the server
         self.heard = asyncio.get_running_loop().time()  # loop time of the last frame read
 
     @classmethod
@@ -145,8 +149,11 @@ class WebSocketClient:
         while True:
             try:
                 opcode, final, payload, rsv1 = await self._frame()
-            except (asyncio.IncompleteReadError, ConnectionError):
+            except asyncio.IncompleteReadError:
                 self.closed = True
+                return None
+            except ConnectionError:
+                self.closed = self.lost = True
                 return None
             if opcode == PING:
                 self._writer.write(frame(PONG, payload, os.urandom(4)))

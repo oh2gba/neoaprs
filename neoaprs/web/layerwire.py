@@ -38,7 +38,7 @@ class MapLayer(_Model):
         description="the own receiver's state while `source` is an own receiver (`radarcape` or `receiver`); else null"
     )
     problem: Literal["", "key_refused"] = Field(
-        description="why the service in force gives nothing, where the operator can mend it: `key_refused` AISStream did not take the key of `map/ships_key` (it is not asked again until the key changes); empty otherwise"
+        description="why the service in force gives nothing, where the operator can mend it: `key_refused` AISStream did not take the key of `map/ships_key` (asked again after a longer wait, and at once when the key is saved; cleared by a connection that is taken); empty otherwise"
     )
 
 
