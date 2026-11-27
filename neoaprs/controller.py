@@ -35,7 +35,7 @@ from .versions import PLAIN_INSTALL, InstallInfo
 
 log = logging.getLogger("neoaprs.controller")
 
-PRUNE_EVERY_SEC = 24 * 3600.0
+PRUNE_EVERY_SEC = 6 * 3600.0
 # Sweep backup/ again after the start: a copy killed just before leaves a temporary file.
 BACKUP_SWEEP_FIRST_SEC = LITTER_AGE_SEC + 60.0
 RECOUNT_EVERY_SEC = 60.0  # the station book's hour of packets advances by minutes
@@ -132,7 +132,7 @@ class Controller(Services):
         for asks in (self.updatecheck, self.frequencies, self.skeds, self.layers, self.pskreporter):
             await asks.start()
         self.pskreporter.settings_changed(self.config)
-        self.tasks.spawn(self._prune_daily(), "prune")
+        self.tasks.spawn(self._prune_often(), "prune")
         self.tasks.spawn(self._sweep_backup(), "backup-sweep")
         self.tasks.spawn(self._recount_minutely(), "recount")
         self.tasks.spawn(self._flush_stations(), "station-flush")
@@ -438,8 +438,8 @@ class Controller(Services):
         log.info("forgot %d stations with the packets heard", count)
         return count
 
-    async def _prune_daily(self) -> None:
-        await every(PRUNE_EVERY_SEC, self.prune, "the daily care of the database", at_start=True)
+    async def _prune_often(self) -> None:
+        await every(PRUNE_EVERY_SEC, self.prune, "the care of the database", at_start=True)
 
     async def _sweep_backup(self) -> None:
         await every(

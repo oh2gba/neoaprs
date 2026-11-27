@@ -54,7 +54,7 @@ async def test_the_igate_timer_goes_on_after_a_round_that_fails(caplog: pytest.L
 
 
 @pytest.mark.expects_errors
-async def test_the_daily_care_of_the_database_and_the_recount_go_on_after_a_round_that_fails(
+async def test_the_care_of_the_database_and_the_recount_go_on_after_a_round_that_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     monkeypatch.setattr(controller, "PRUNE_EVERY_SEC", 0.01)
@@ -64,7 +64,7 @@ async def test_the_daily_care_of_the_database_and_the_recount_go_on_after_a_roun
     ctl.prune = prunes  # type: ignore[method-assign,assignment]
     ctl.stationbook.recount = recounts  # type: ignore[method-assign]
     tasks = [
-        asyncio.get_running_loop().create_task(ctl._prune_daily()),
+        asyncio.get_running_loop().create_task(ctl._prune_often()),
         asyncio.get_running_loop().create_task(ctl._recount_minutely()),
     ]
     try:
@@ -73,6 +73,10 @@ async def test_the_daily_care_of_the_database_and_the_recount_go_on_after_a_roun
         for task in tasks:
             task.cancel()
     assert (
-        "the daily care of the database failed" in caplog.text
+        "the care of the database failed" in caplog.text
         and "the recount of the station book failed" in caplog.text
     )
+
+
+def test_the_database_is_cared_for_every_six_hours_so_that_its_file_gives_room_back_within_the_day() -> None:
+    assert controller.PRUNE_EVERY_SEC == 6 * 3600
