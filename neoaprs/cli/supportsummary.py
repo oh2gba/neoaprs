@@ -198,6 +198,7 @@ def _radio(f: Facts, spec: RadioSpec) -> list[tuple[str, str]]:
     now = {"Port": tnc.get("path"), "Speed": f"{tnc['baud']} baud" if tnc.get("baud") else None}
     rows = [
         ("Type", type_words(spec)),
+        *([("On HF", "yes")] if spec.on_hf else []),
         ("On", "yes" if spec.enabled else "no"),
         *((label, now.get(label) or words) for label, words in reached(spec)),
     ]

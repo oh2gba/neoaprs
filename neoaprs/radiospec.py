@@ -48,15 +48,22 @@ class RadioSpec:
     @property
     def rtype(self) -> RadioType:
         """Return its type in force, slowed if ticked On HF (RadioTypeError if unknown)."""
-        found = type_of(self.type)
-        field = found.field("on_hf")
-        if field is None:
-            return found
+        return in_force(type_of(self.type), self.on_hf)
+
+    @property
+    def on_hf(self) -> bool:
+        """Whether its type has the tick On HF and it is ticked; a bad stored value is unticked (it is
+        reported once, where the stored settings are read: configradios._checked)."""
         try:
-            on_hf = bool(field.parse(self.settings.get("on_hf", field.default)))
-        except ValueError:  # reported once, where the stored settings are read (configradios._checked)
-            on_hf = False
-        return in_force(found, on_hf)
+            field = type_of(self.type).field("on_hf")
+        except RadioTypeError:
+            return False
+        if field is None:
+            return False
+        try:
+            return bool(field.parse(self.settings.get("on_hf", field.default)))
+        except ValueError:
+            return False
 
     @property
     def removed(self) -> bool:

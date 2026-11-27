@@ -4,14 +4,17 @@ of tests/support/fakedirewolf.py says the modem it was configured with.
 """
 
 import logging
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
 from neoaprs import direwolfmodem
 from neoaprs.beaconrule import beacon_interval, floor_of
 from neoaprs.claims import Claims
+from neoaprs.cli.supportsummary import Facts, _radio
 from neoaprs.clock import utcnow
 from neoaprs.config import DEFAULTS
 from neoaprs.crossrule import slow_channel
@@ -92,6 +95,12 @@ def test_a_bad_stored_on_hf_is_read_as_unticked_without_a_warning_on_each_readin
     with caplog.at_level(logging.WARNING):
         assert [radio.rtype.limits for _ in range(3)] == [FM_LIMITS] * 3
     assert caplog.records == []
+
+
+def test_the_support_summary_says_on_hf_for_a_radio_ticked_so_and_for_no_other() -> None:
+    facts = cast(Facts, SimpleNamespace(live=None))
+    rows = [dict(_radio(facts, replace(radio, enabled=False))) for radio in (tnc(on_hf="true"), tnc(), sound_card())]
+    assert [row.get("On HF") for row in rows] == ["yes", None, None]
 
 
 def test_a_radio_row_tells_the_page_the_limits_and_rules_in_force() -> None:
