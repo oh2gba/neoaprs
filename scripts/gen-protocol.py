@@ -1136,6 +1136,8 @@ SKED_DIALS = [
     "7.0541 MHz LSB",
     "3.585 MHz USB",
     "14.1070 MHz USB",
+    "28.1400 MHz USB",  # the HF tests form's dial for a typed 28,14 (ui/src/lib/skeds.ts dialOfNumber)
+    "0.1000 MHz USB",  # the lowest dial a radio reports on (configvalues.DIAL_MIN_MHZ)
     "28.18 MHz USB",
     "7.0541 MHz",
     "7.0541 MHZ USB",
