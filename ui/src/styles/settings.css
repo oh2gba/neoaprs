@@ -462,15 +462,20 @@ fieldset.composebox > legend {
 /* a radio's status row (RadioStatus.vue) is two lines high in every state, its words from the top,
    so nothing under it moves when the radio's line changes: connected, silent, Connecting…, a
    modem that stops and starts (a reason longer than two lines is read whole: it does not change
-   with every packet); the Internet group's row likewise, whose line wraps on a phone */
+   with every packet); the Internet group's row and a layer's receiver or key row likewise, whose
+   lines wrap on a phone */
 .radiostatus > .statushead,
 .statusflat.radiostatus,
+.statusflat.receiverstatus,
+.statusflat.keystatus,
 .igatestatus > .statushead {
   align-items: flex-start;
   min-height: calc(2.8em + 4px);
 }
 .radiostatus > .statushead::before,
 .statusflat.radiostatus::before,
+.statusflat.receiverstatus::before,
+.statusflat.keystatus::before,
 .igatestatus > .statushead::before {
   margin-top: calc(0.7em - 5px);
 }

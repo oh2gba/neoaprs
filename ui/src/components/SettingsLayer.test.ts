@@ -255,6 +255,23 @@ describe("the state of an own receiver in words", () => {
     expect(localStorage.getItem("NeoAPRS.layer.aircraft")).toBeNull();
   });
 
+  it("has the same rows in the Ships box whatever its source, the status rows two lines high, so choosing one moves nothing below", async () => {
+    const { wrapper } = make();
+    const box = (id: string) => wrapper.find(`#set-map-${id}`).element.closest("fieldset");
+    const rows = (id: string) =>
+      [...(box(id)?.querySelectorAll(":scope .field, :scope .statusflat") ?? [])].map((row) =>
+        row.classList.contains("field") ? "field" : "status",
+      );
+    for (const [layer, sources] of [["ships", ["none", "fintraffic", "aisstream", "receiver", "none"]]] as const) {
+      const seen = new Set<string>();
+      for (const source of sources) {
+        await wrapper.find(`#set-map-${layer}`).setValue(source);
+        seen.add(rows(layer).join(" "));
+      }
+      expect([layer, [...seen]]).toEqual([layer, ["field field status"]]);
+    }
+  });
+
   describe("the AISStream key", () => {
     const MASK = "********";
     const keyRow = (wrapper: ReturnType<typeof make>["wrapper"]) =>
