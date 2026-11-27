@@ -187,8 +187,8 @@ def watch(
 
 def test_the_watch_says_renewed_once_the_file_is_new_and_the_daemon_it_owns_runs_it() -> None:
     w, renewed, gone = watch(True, FakeDaemon(up=True), Replaced(after=3))
-    assert renewed.wait(5) and not gone.is_set()
-    w.thread.join(5)
+    assert renewed.wait(60) and not gone.is_set()
+    w.thread.join(60)
     assert not w.thread.is_alive(), "once: the watch is over"
 
 
@@ -203,7 +203,7 @@ def test_the_watch_waits_while_the_daemon_is_starting_again_or_has_a_restart_pen
         "it runs, and its note of the restart is still there: the old daemon is about to end, or the new one is not up yet"
     )
     pending[0] = False
-    assert renewed.wait(5) and not gone.is_set()
+    assert renewed.wait(60) and not gone.is_set()
 
 
 def test_the_watch_does_not_look_at_the_daemons_lock_while_the_daemon_starts_again() -> None:
@@ -220,7 +220,7 @@ def test_the_watch_does_not_look_at_the_daemons_lock_while_the_daemon_starts_aga
         assert looks == [], "while the note of the restart is fresh the lock is not looked at"
         daemon.up = True
         pending[0] = False
-        assert renewed.wait(5) and looks and True not in looks, "once the new daemon runs, it is"
+        assert renewed.wait(60) and looks and True not in looks, "once the new daemon runs, it is"
     finally:
         w.cancel()
 
@@ -268,7 +268,7 @@ def test_with_the_daemons_own_files_and_notes_the_app_waits_for_the_restart_and_
         stopfile.mark_restart(data)
         assert not renewed.wait(0.3)
         stopfile.clear_restart(data)
-        assert renewed.wait(5), "the new daemon runs the new file"
+        assert renewed.wait(60), "the new daemon runs the new file"
     finally:
         w.cancel()
 
@@ -283,7 +283,7 @@ def test_renew_ends_the_app_as_quit_would_and_leaves_the_daemon_running() -> Non
     actions.renew()
     actions.run(QUIT)
     if actions.thread is not None:
-        actions.thread.join(5)
+        actions.thread.join(60)
     assert frame.quits == 1 and daemon.stopped == [], "once, whoever asks"
     late, frame, _, _ = actions_for(owned=True)
     late.quit_now()

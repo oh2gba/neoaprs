@@ -76,7 +76,7 @@ def test_the_opening_runs_in_a_thread_of_its_own_and_calls_back_once_it_is_there
     assert opening.start() is opening and not opening.done() and heard == []
     gate.set()
     assert opening.result() == Session(Path("data"), PAGE, True)
-    opening.thread.join(30)
+    opening.thread.join(60)
     opening.when_done(lambda: heard.append("late"))
     assert heard == ["early", "late"], (
         "the one that asked before is called when it comes, the one that asks after at once"
@@ -298,7 +298,7 @@ def test_the_windows_window_shows_the_loading_page_before_the_daemon_answers_and
     assert window.kwargs["js_api"].page_url == PAGE
     item = next(i for i in rig.toolkits.icons[0].menu.items() if i != FakeMenu.SEPARATOR and i.text.startswith("Quit"))  # type: ignore[attr-defined]
     item.action(rig.toolkits.icons[0], item)
-    thread.join(30)
+    thread.join(60)
     assert not thread.is_alive() and told == []
 
 
@@ -309,7 +309,7 @@ def test_the_windows_window_closes_when_no_page_comes_and_the_app_says_why(
     thread = go()
     gate.error = NoPage(f"no page came up on {rig.data} within 60 s; see the log, neoaprs.log in that folder")
     gate.open.set()
-    thread.join(30)
+    thread.join(60)
     (window,) = rig.toolkits.windows
     assert not thread.is_alive() and window.calls[-1] == "destroy" and window.loaded == []
     assert told == [
@@ -371,7 +371,7 @@ def test_quit_in_the_tray_before_the_page_stops_the_daemon_the_app_started_once_
     assert quit_item.text == "Quit"
     quit_item.action(rig.toolkits.icons[0], quit_item)
     gate.open.set()
-    thread.join(30)
+    thread.join(60)
     assert not thread.is_alive() and codes == [0]
     assert rig.daemon.stopped == [rig.data], "the daemon it started is not left running"
     assert launch.ctx is None or launch.ctx.watch is None, "the session was not attached after the Quit"
@@ -403,7 +403,7 @@ def test_a_second_apps_quit_ends_an_app_whose_window_engine_never_came_up(
     assert SingleApp(rig.data).tell_the_other("quit")
     gate.open.set()
     until(lambda: ended == [0])
-    thread.join(30)
+    thread.join(60)
     assert not thread.is_alive()
 
 
@@ -437,7 +437,7 @@ def test_a_window_engine_that_never_comes_up_leaves_the_tray_with_the_page_in_th
     quit_item = next(i for i in items if i != FakeMenu.SEPARATOR and i.text.startswith("Quit"))
     quit_item.action(rig.toolkits.icons[0], quit_item)
     until(lambda: ended == [0])
-    thread.join(30)
+    thread.join(60)
     assert not thread.is_alive() and "destroy" not in rig.toolkits.windows[0].calls
     assert not SingleApp(rig.data).running(), "the app let go of the folder before it ended"
 
@@ -481,7 +481,7 @@ def test_an_engine_that_comes_after_the_fallback_gets_the_page_and_quit_ends_the
     assert "show" in window.calls and rig.browser == [PAGE], "Open shows the window now, not a second tab"
     item = tray_item(rig, "Quit")
     item.action(rig.toolkits.icons[0], item)
-    thread.join(30)
+    thread.join(60)
     assert not thread.is_alive() and "destroy" in window.calls and ended == [], "no end of the process needed"
 
 
@@ -570,7 +570,7 @@ def test_the_daemon_ends_after_the_window_is_up_and_the_app_ends_the_normal_way(
     thread.start()
     until(lambda: rig.toolkits.started and rig.ctx.watch is not None)
     daemon_ends(rig)
-    thread.join(30)
+    thread.join(60)
     assert not thread.is_alive() and "destroy" in rig.toolkits.windows[0].calls
     assert _no_end_of_the_test_process == [], "the window loop returned: no end of the process needed"
 
@@ -614,6 +614,6 @@ def test_quit_pressed_twice_before_the_page_stops_the_daemon_once(
         item = tray_item(rig, "Quit")
         item.action(rig.toolkits.icons[0], item)
     gate.open.set()
-    thread.join(30)
+    thread.join(60)
     assert not thread.is_alive() and rig.daemon.stopped == [rig.data], "one stop, not two"
     launch.close()

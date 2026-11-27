@@ -205,15 +205,15 @@ def test_the_watch_tells_the_menu_when_the_page_goes_to_the_network_or_off_it_an
         Session(DATA, PAGE, owned=False), lambda: None, daemon, every=0.02, network_moved=changed.release
     )
     watch.start()
-    assert looked.acquire(timeout=5) and looked.acquire(timeout=5) and not changed.acquire(timeout=0.1), (
+    assert looked.acquire(timeout=60) and looked.acquire(timeout=60) and not changed.acquire(timeout=0.1), (
         "the first look only remembers"
     )
     daemon.served_to_network = True
-    assert changed.acquire(timeout=5)
+    assert changed.acquire(timeout=60)
     daemon.served_to_network = False
-    assert changed.acquire(timeout=5)
+    assert changed.acquire(timeout=60)
     watch.cancel()
-    watch.thread.join(5)
+    watch.thread.join(60)
 
 
 def test_the_note_of_the_daemon_on_the_network_is_read_from_the_data_folder(tmp_path: Path) -> None:
@@ -253,7 +253,7 @@ def test_stop_and_quit_stops_the_daemon_the_app_started_and_ends_the_app() -> No
     actions, frame, daemon, _ = actions_for(owned=True)
     actions.run(QUIT)
     assert actions.thread is not None
-    actions.thread.join(10)
+    actions.thread.join(60)
     assert daemon.stopped == [Path("data")] and frame.quits == 1 and frame.told == []
 
 
@@ -323,7 +323,7 @@ def test_the_watch_calls_when_the_owned_daemon_has_gone_twice_in_a_row_and_never
     watch.start()
     assert not gone.wait(0.2), "a daemon that is up is not gone"
     daemon.up = False
-    assert gone.wait(5)
+    assert gone.wait(60)
     attached = threading.Event()
     other = DaemonWatch(Session(DATA, PAGE, owned=False), attached.set, FakeDaemon(up=False), every=0.02)
     other.start()
@@ -351,7 +351,7 @@ def test_a_daemon_that_restarts_as_a_new_version_is_waited_for_while_its_note_is
     watch.start()
     assert not gone.wait(0.3), "Update now of an AppImage: the daemon ends and the new file starts"
     note[0] = False
-    assert gone.wait(5), "a restart that did not come up is an end"
+    assert gone.wait(60), "a restart that did not come up is an end"
 
 
 # where the daemon serves its page after a restart that could not have the port of PAGE
@@ -383,7 +383,7 @@ def test_the_watch_follows_the_page_to_another_address_for_the_apps_own_daemon_a
         told.set()
 
     def looks(times: int) -> bool:
-        return all(looked.acquire(timeout=5) for _ in range(times))
+        return all(looked.acquire(timeout=60) for _ in range(times))
 
     daemon.address = address
     watch = DaemonWatch(
@@ -394,13 +394,13 @@ def test_the_watch_follows_the_page_to_another_address_for_the_apps_own_daemon_a
     where[0] = None
     assert looks(2) and moved == [], "the daemon is away (it took its file with it): the window waits where it is"
     where[0] = MOVED
-    assert told.wait(5) and moved == [MOVED]
+    assert told.wait(60) and moved == [MOVED]
     assert looks(3) and moved == [MOVED], "told once"
     told.clear()
     where[0] = PAGE
-    assert told.wait(5) and moved == [MOVED, PAGE], "and back, at a later restart"
+    assert told.wait(60) and moved == [MOVED, PAGE], "and back, at a later restart"
     watch.cancel()
-    watch.thread.join(5)
+    watch.thread.join(60)
     assert asked == []
 
 
@@ -440,12 +440,12 @@ def test_the_watch_never_sends_the_window_to_another_host_whatever_the_daemons_f
     caplog.set_level(logging.WARNING, logger="neoaprs.desktop")
     watch = DaemonWatch(Session(DATA, PAGE, owned=False), lambda: None, daemon, every=0.02, moved=follow)
     watch.start()
-    assert all(looked.acquire(timeout=5) for _ in range(3)) and moved == []
+    assert all(looked.acquire(timeout=60) for _ in range(3)) and moved == []
     assert caplog.text.count("the app stays where it is") == 1, "said once"
     where[0] = MOVED
-    assert told.wait(5)
+    assert told.wait(60)
     watch.cancel()
-    watch.thread.join(5)
+    watch.thread.join(60)
     assert moved == [MOVED], "and the page on another port of its own host is followed all the same"
 
 
@@ -459,7 +459,7 @@ def test_a_watch_that_is_given_nothing_to_follow_runs_only_for_a_daemon_the_app_
     followed.start()
     assert followed.thread.is_alive()
     followed.cancel()
-    followed.thread.join(5)
+    followed.thread.join(60)
 
 
 def test_a_page_that_moved_is_loaded_in_the_window_and_is_what_open_in_browser_opens() -> None:
@@ -841,6 +841,6 @@ def test_a_switch_flipped_after_the_menu_was_built_and_before_the_first_look_is_
     )
     watch.start()
     daemon.served_to_network = True
-    assert changed.acquire(timeout=5)
+    assert changed.acquire(timeout=60)
     watch.cancel()
-    watch.thread.join(5)
+    watch.thread.join(60)

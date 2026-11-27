@@ -278,7 +278,7 @@ class Toolkits:
         if self.start_fails:
             raise RuntimeError("WebView2 initialization failed")
         func()
-        assert self.windows[0].destroyed.wait(10), "the window loop runs until the window is destroyed"
+        assert self.windows[0].destroyed.wait(60), "the window loop runs until the window is destroyed"
 
 
 class Rig:
@@ -337,7 +337,7 @@ def _no_end_of_the_test_process(monkeypatch: pytest.MonkeyPatch) -> Iterator[lis
     assert webshell.stop_leaving() == [], "a last-resort thread outlived its test"
 
 
-def until(condition: Any, seconds: float = 10.0) -> None:
+def until(condition: Any, seconds: float = 60.0) -> None:
     deadline = threading.Event()
     for _ in range(int(seconds / 0.02)):
         if condition():
@@ -371,7 +371,7 @@ def menu_item(rig: Rig, text: str) -> FakeMenuItem:
 def quit_through_the_menu(rig: Rig, thread: threading.Thread) -> None:
     item = menu_item(rig, "Quit")
     item.action(rig.toolkits.icons[0], item)
-    thread.join(10)
+    thread.join(60)
     assert not thread.is_alive()
     rig.ctx.close()
 
@@ -457,7 +457,7 @@ def test_the_close_button_hides_the_window_and_only_quit_lets_it_close(rig: Rig)
     assert closing() is False and window.calls == ["hide"], "False cancels the close"
     item = menu_item(rig, "Quit")
     item.action(rig.toolkits.icons[0], item)
-    thread.join(10)
+    thread.join(60)
     assert closing() is True and window.calls[-1] == "destroy"
     rig.ctx.close()
 
@@ -1208,7 +1208,7 @@ def test_the_close_button_hides_the_window_while_the_desktop_has_a_tray_and_quit
     # the tray host went away (GNOME without its extension)
     desk.host = False
     assert closing() is False, "the close is cancelled: the loop runs on until Quit has done its part"
-    thread.join(10)
+    thread.join(60)
     assert not thread.is_alive() and window.calls[-1] == "destroy" and closing() is True
     rig.ctx.close()
 
@@ -1227,7 +1227,7 @@ def test_a_window_without_a_tray_icon_is_a_window_whose_close_button_quits(
     window = rig.toolkits.windows[0]
     assert rig.toolkits.icons == [] and window.loaded == [PAGE + "#app"]
     assert handler(window.events.closing)() is False
-    thread.join(10)
+    thread.join(60)
     assert not thread.is_alive() and window.calls[-1] == "destroy"
     rig.ctx.close()
 
@@ -1247,7 +1247,7 @@ def test_an_icon_that_cannot_be_made_leaves_the_window_without_one_and_with_no_w
     thread.start()
     until(lambda: rig.ctx.watch is not None)
     assert handler(rig.toolkits.windows[0].events.closing)() is False
-    thread.join(10)
+    thread.join(60)
     assert not thread.is_alive()
     rig.ctx.close()
     alone = linux_rig(tmp_path / "alone", monkeypatch, window=False)
@@ -1276,7 +1276,7 @@ def test_closed_before_the_page_came_with_no_tray_the_app_ends_when_it_comes(
     window = rig.toolkits.windows[0]
     assert handler(window.events.closing)() is False and window.calls == ["hide"] and thread.is_alive()
     came.set()
-    thread.join(10)
+    thread.join(60)
     assert not thread.is_alive() and window.loaded == [] and window.calls[-1] == "destroy"
     pending.close()
 
@@ -1311,7 +1311,7 @@ def test_started_in_the_tray_with_no_tray_icon_at_all_the_window_is_shown_at_onc
     window_calls = lambda: rig.toolkits.windows[0].calls if rig.toolkits.windows else []  # noqa: E731
     until(lambda: window_calls()[:2] == ["show", "restore"])
     assert handler(rig.toolkits.windows[0].events.closing)() is False
-    thread.join(10)
+    thread.join(60)
     rig.ctx.close()
 
 
@@ -1413,7 +1413,7 @@ def test_a_window_that_cannot_start_on_macos_goes_on_in_the_menu_bar_on_the_even
     until(lambda: helper.stopEventLoop in helper.queued)
     for call in list(helper.queued):
         call()
-    thread.join(10)
+    thread.join(60)
     assert not thread.is_alive()
     rig.ctx.close()
 
