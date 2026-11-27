@@ -84,7 +84,7 @@ export function formatNumber(n: number, digits?: number): string {
   return numberText(n, tag(), digits);
 }
 
-/** Names in a row as the language lists them: "FM and HF", "FM、HF". */
+/** Names in a row as the language lists them: "Packet and Mercury", "Packet、Mercury". */
 export function listText(names: readonly string[]): string {
   return new Intl.ListFormat(tag(), { type: "conjunction" }).format(names);
 }

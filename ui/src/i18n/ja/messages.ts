@@ -10,7 +10,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "messages.show_overheard": "傍受を表示",
   "messages.services": "サービス",
   "messages.service_write": "書く",
-  "messages.service_title": "{to} へ: {text}",
+  "messages.service_title": "{to}宛て: {text}",
   "messages.service.ota_cq": "運用中の局",
   "messages.service.ota_chase": "アクティベーションを追う",
   "messages.service.ota_host": "アクティベーションを行う",

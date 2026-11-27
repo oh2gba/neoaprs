@@ -330,7 +330,7 @@ export const de: Catalogue = {
   "messages.services": "Dienste",
   "messages.service_write": "Schreiben",
   "messages.service_title": "An {to}: {text}",
-  "messages.service.ota_cq": "Wer ist auf Sendung",
+  "messages.service.ota_cq": "Wer ist QRV",
   "messages.service.ota_chase": "Aktivierung jagen",
   "messages.service.ota_host": "Aktivieren",
   "messages.overheard_help_label": "Was „mitgehört“ heißt",
@@ -1570,7 +1570,7 @@ export const de: Catalogue = {
   "settings.tcp_port.label": "Port",
   "settings.tcp_port.tip1": "Direwolf lauscht auf 8001 und soundmodem auf 8100, wenn du es nicht geändert hast.",
   "settings.on_hf.label": "Auf KW",
-  "settings.on_hf.tip_label": "Über Auf KW",
+  "settings.on_hf.tip_label": "Über „Auf KW“",
   "settings.on_hf.tip1":
     "Ankreuzen für einen TNC an einem KW-Funkgerät: NeoAPRS sendet darauf dann seltener, wie bei Mercury.",
   "settings.board_host.tip1": "Die Adresse des Boards in deinem Netzwerk, wie seine eigene Webseite sie zeigt.",

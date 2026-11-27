@@ -10,7 +10,7 @@ export const radio: Readonly<Record<keyof typeof en, Message>> = {
   "radio.add.group.lora": "LoRa",
   "radio.kind_type.fm": "Packet、{type}",
   "radio.kind_type.hf": "Mercury、{type}",
-  "radio.kind_type.lora": "LoRa {type}",
+  "radio.kind_type.lora": "LoRa、{type}",
   "radio.band.vhf_uhf": "VHF/UHF",
   "radio.band.hf": "HF",
   "radio.listed_band": "{type}({band})",

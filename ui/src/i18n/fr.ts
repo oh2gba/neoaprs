@@ -330,7 +330,7 @@ export const fr: Catalogue = {
   "messages.services": "Services",
   "messages.service_write": "Écrire",
   "messages.service_title": "À {to} : {text}",
-  "messages.service.ota_cq": "Qui émet",
+  "messages.service.ota_cq": "Qui est sur l'air",
   "messages.service.ota_chase": "Chasser une activation",
   "messages.service.ota_host": "Activer",
   "messages.overheard_help_label": "Ce que « captés » veut dire",
@@ -1520,7 +1520,7 @@ export const fr: Catalogue = {
   "settings.tcp_port.label": "Port",
   "settings.tcp_port.tip1": "Direwolf écoute sur 8001 et soundmodem sur 8100, sauf si vous l'avez changé.",
   "settings.on_hf.label": "En HF",
-  "settings.on_hf.tip_label": "À propos de En HF",
+  "settings.on_hf.tip_label": "À propos de « En HF »",
   "settings.on_hf.tip1":
     "Cochez-la pour un TNC sur une radio HF : NeoAPRS y émet alors moins souvent, comme avec Mercury.",
   "settings.board_host.tip1": "L'adresse de la carte sur votre réseau, telle que l'affiche sa propre page web.",
