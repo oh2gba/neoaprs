@@ -99,6 +99,7 @@ class Beacon:
         self._memory_key = BEACON_SENT if self._old else memory_key_of(self._radio.id)
         self._planned_min = 0
         self._planned_mobile = False
+        self._planned_jitter = 0.0
         self.mobile = MobilePlan()
         self.jitter: pause.Draw = pause.draw
         self.sent: Signal[[ax25.Frame]] = Signal("beacon.sent")
@@ -195,10 +196,13 @@ class Beacon:
         self._started, self.next_due = None, None
 
     def settings_changed(self) -> None:
-        """Replan at once if the interval or fixed/mobile mode changed; else keep the schedule."""
+        """Replan at once if the interval, fixed/mobile mode or the radio's longest pause changed; else
+        keep the schedule."""
         self._recheck()
         if self._started is not None and (
-            self.interval_min != self._planned_min or self._mobile(self._config()) != self._planned_mobile
+            self.interval_min != self._planned_min
+            or self._mobile(self._config()) != self._planned_mobile
+            or self._radio.limits.beacon_jitter_sec != self._planned_jitter
         ):
             self._plan(self.interval_min)
 
@@ -263,6 +267,7 @@ class Beacon:
             )
         mobile = self._mobile(c)
         self._planned_min, self._planned_mobile = interval_min, mobile
+        self._planned_jitter = self._radio.limits.beacon_jitter_sec
         self._refused, self._retry_at = 0, None
         if self._started is None or interval_min == 0 or mobile:
             self.next_due = self._slot = None

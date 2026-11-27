@@ -215,6 +215,32 @@ async def test_the_raise_is_said_once_in_the_log_for_the_radio_it_raises(caplog:
     ], "once, for the Mercury radio alone, and not again when it restarts"
 
 
+async def test_ticking_on_hf_redraws_the_pause_of_the_next_beacon_when_the_interval_stays() -> None:
+    clock = FixedClock()
+    tnc = spec(1, type="kiss")
+    config = station(60, tnc)
+    radio = radio_of(config, FM_ID)
+    beacon = Beacon(radio, lambda: config, clock, frames=BeaconFrames(lambda: config, None, clock))
+    beacon.jitter = lambda most: most
+    await beacon.start()
+    try:
+        fast = radio.limits.beacon_jitter_sec
+        assert beacon.next_due is not None
+        slot = beacon.next_due - timedelta(seconds=fast)
+        radio.spec = replace(tnc, settings={**tnc.settings, "on_hf": "true"})
+        config = with_radios(config, [radio.spec])
+        beacon.settings_changed()
+        slow = radio.limits.beacon_jitter_sec
+        assert beacon.interval_min == 60 and slow > fast
+        assert beacon.next_due == slot + timedelta(seconds=slow)
+        radio.spec = tnc
+        config = with_radios(config, [tnc])
+        beacon.settings_changed()
+        assert beacon.next_due == slot + timedelta(seconds=fast)
+    finally:
+        await beacon.stop()
+
+
 async def test_a_stored_send_on_that_is_not_true_or_false_is_said_once_and_not_at_every_tick(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
