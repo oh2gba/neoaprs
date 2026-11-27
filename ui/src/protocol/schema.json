@@ -1605,7 +1605,7 @@
             }
           ],
           "default": null,
-          "description": "the radio the search is for (its id); left out: radio 1, the FM radio of before"
+          "description": "the radio the search is for (its id); left out: radio 1, the packet radio of before"
         }
       },
       "required": [
@@ -3189,7 +3189,7 @@
           "type": "boolean"
         },
         "aloha": {
-          "description": "the ALOHA circles round our position, one for each radio that is on whose type shares a 1200 baud channel (FM) and whose stations heard fill it, in the order of the boxes; none without a position",
+          "description": "the ALOHA circles round our position, one for each radio that is on whose type shares a 1200 baud channel (Packet) and whose stations heard fill it, in the order of the boxes; none without a position",
           "items": {
             "$ref": "#/$defs/AlohaCircle"
           },
@@ -5773,7 +5773,7 @@
           "description": "the longest AX.25 frame the radio carries whole, in bytes (Mercury: 123); null for AX.25's own"
         },
         "beacon_min_min": {
-          "description": "the shortest beacon interval the radio takes, in minutes (FM 20, Mercury 30): the station's interval is raised to it on this radio",
+          "description": "the shortest beacon interval the radio takes, in minutes (Packet 20, Mercury 30): the station's interval is raised to it on this radio",
           "minimum": 1,
           "type": "integer"
         },
@@ -5887,7 +5887,7 @@
           "type": "string"
         },
         "name": {
-          "description": "the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`FM`, `Mercury 2`) in its own words",
+          "description": "the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`Packet`, `Mercury 2`) in its own words",
           "type": "string"
         },
         "number": {
@@ -6097,7 +6097,7 @@
           "description": "the radio the search is for (its id); null for a search that named none (radio 1)"
         },
         "radio_type": {
-          "description": "for `found`, the radio type that fits the TNC (a `key` of `RADIO_TYPES`, the same as `profile` for every FM type: 1.11's `type`, which the message's own tag takes); empty otherwise",
+          "description": "for `found`, the radio type that fits the TNC (a `key` of `RADIO_TYPES`, the same as `profile` for every Packet type: 1.11's `type`, which the message's own tag takes); empty otherwise",
           "type": "string"
         }
       },
@@ -7850,7 +7850,7 @@
               "type": "null"
             }
           ],
-          "description": "the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (FM, LoRa) before Mercury, else the radio that heard it last, else the first radio that can send, in the order of the boxes; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own (`radio_now` of its row). The page shows Route, the path and the radio's state of this radio"
+          "description": "the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (Packet, LoRa) before Mercury, else the radio that heard it last, else the first radio that can send, in the order of the boxes; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own (`radio_now` of its row). The page shows Route, the path and the radio's state of this radio"
         },
         "replies": {
           "additionalProperties": {

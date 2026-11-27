@@ -225,7 +225,7 @@ let go (radio 1's when `radio` is left out), the ports another radio or the GPS 
 
 | field | type | | description |
 |---|---|---|---|
-| `radio` | integer \| null | optional | the radio the search is for (its id); left out: radio 1, the FM radio of before (default `null`; >= 1) |
+| `radio` | integer \| null | optional | the radio the search is for (its id); left out: radio 1, the packet radio of before (default `null`; >= 1) |
 
 ### `find_radio_cancel`
 
@@ -1012,7 +1012,7 @@ How `find_radio` goes, to the page that asked.
 | `number` | integer |  | the try that is under way, from 1; 0 for `found` and `cancelled` (>= 0) |
 | `total` | integer |  | how many tries there are if nothing answers; 0 for `found` and `cancelled` (>= 0) |
 | `radio` | integer \| null |  | the radio the search is for (its id); null for a search that named none (radio 1) |
-| `radio_type` | string |  | for `found`, the radio type that fits the TNC (a `key` of `RADIO_TYPES`, the same as `profile` for every FM type: 1.11's `type`, which the message's own tag takes); empty otherwise |
+| `radio_type` | string |  | for `found`, the radio type that fits the TNC (a `key` of `RADIO_TYPES`, the same as `profile` for every Packet type: 1.11's `type`, which the message's own tag takes); empty otherwise |
 
 ### `station_alert`
 
@@ -1160,7 +1160,7 @@ row has a new distance and bearing, and the topic is told whole again.
 | `can_message` | boolean |  | a message can go to the station, and the card has a Message button: false for an object or an item, for our own station and for a station known only from the internet (`heard_is` > 0 and nothing on the radio: a message goes out by radio only); true for every other station, also one whose position says it takes none (`may_not_message`) |
 | `may_not_message` | boolean |  | the station's latest position says it takes no messages (it began with `!` or `/`, or was a Mic-E one whose comment begins with the type code `'`) and it never sent a message or an ack: the conversation says a message may not be read there |
 | `radio_choice` | integer \| null |  | the radio the operator chose for messages to the station (`station_radio`), its id, while that radio is enabled; null for the daemon's choice (plan rule 3.2), and while the radio chosen is off |
-| `radio_now` | integer \| null |  | the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (FM, LoRa) before Mercury, else the radio that heard it last, else the first radio that can send, in the order of the boxes; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own (`radio_now` of its row). The page shows Route, the path and the radio's state of this radio |
+| `radio_now` | integer \| null |  | the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (Packet, LoRa) before Mercury, else the radio that heard it last, else the first radio that can send, in the order of the boxes; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own (`radio_now` of its row). The page shows Route, the path and the radio's state of this radio |
 | `replies` | { [key: string]: string } |  | the path a message or an ack of ours to the station goes by on each radio that carries no path (Mercury), by the radio's id as text: the gateway its latest packet there came by, then WIDE2-1 when a digipeater stood before the gateway, calls separated by commas, without RFONLY; a radio that carries a path, and one on which they go direct, has no entry |
 | `paths` | { [key: string]: string } |  | the path the operator set for the station on each radio (`set_station_path` with `radio`), by the radio's id as text: calls separated by commas, empty for direct; a radio with none set has no entry (radio 1's is `path` of the topic `station_prefs` too) |
 | `track` | [time, number, number][] |  | the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed (max 50 items) |
@@ -1815,7 +1815,7 @@ The base map: the files, the area and detail the settings ask for, the size esti
 | `detail` | MapFileInfo \| null |  | `basemap.pmtiles`; null if it is not there |
 | `world` | MapFileInfo \| null |  | `basemap-world.pmtiles`: the data folder's own when it has one, else the one that ships with the program; null if there is neither (a base map the page cannot draw) |
 | `later` | boolean |  | the detailed map was begun without being asked for (a place was set, or the setup guide said the map is wanted) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there |
-| `aloha` | AlohaCircle[] |  | the ALOHA circles round our position, one for each radio that is on whose type shares a 1200 baud channel (FM) and whose stations heard fill it, in the order of the boxes; none without a position |
+| `aloha` | AlohaCircle[] |  | the ALOHA circles round our position, one for each radio that is on whose type shares a 1200 baud channel (Packet) and whose stations heard fill it, in the order of the boxes; none without a position |
 | `layers` | MapLayer[] |  | the layers of traffic, the aircraft and then the ships: where each one's things come from now, what Settings offers, and an own receiver's state |
 
 ### ModemState
@@ -2061,7 +2061,7 @@ What the radio's type cannot do (neoaprs/radiotype.py `Limits`): constants of th
 | field | type | | description |
 |---|---|---|---|
 | `max_frame` | integer \| null |  | the longest AX.25 frame the radio carries whole, in bytes (Mercury: 123); null for AX.25's own |
-| `beacon_min_min` | integer |  | the shortest beacon interval the radio takes, in minutes (FM 20, Mercury 30): the station's interval is raised to it on this radio (>= 1) |
+| `beacon_min_min` | integer |  | the shortest beacon interval the radio takes, in minutes (Packet 20, Mercury 30): the station's interval is raised to it on this radio (>= 1) |
 | `slow` | boolean |  | a frame holds the shared channel for seconds (HF, LoRa): what the pairs pass onto the radio is limited (`LIMITS.pass` of the page) |
 
 ### RadioProblem
@@ -2084,7 +2084,7 @@ times a second; a change of the settings tells the topic whole.
 | `id` | integer |  | the radio's id (an integer the database gave it, never given again): what every other row and command names it by (>= 1) |
 | `kind` | "fm" \| "hf" \| "lora" |  | the kind of radio, fixed when it was added: its tag's colour and the defaults follow it |
 | `type` | string |  | its type, a `key` of `RADIO_TYPES` (ui/src/protocol/lists.ts), of its kind; it may change within the kind (`radio_change`) |
-| `name` | string |  | the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`FM`, `Mercury 2`) in its own words |
+| `name` | string |  | the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`Packet`, `Mercury 2`) in its own words |
 | `number` | integer |  | its number within its kind: 1 for the first of the kind by id among the radios not removed (`Mercury 2` is 2); a removed radio keeps its own (>= 1) |
 | `enabled` | boolean |  | its Enable is ticked (`radio_change` with `enabled`); false for a removed radio |
 | `position` | integer |  | its place in the list of boxes (and of the radio a call no radio heard takes: the first that can send): the lowest first, then by id (>= 1) |

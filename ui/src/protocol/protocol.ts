@@ -388,7 +388,7 @@ export interface FindRadioCancelCommand {
 /** Find my radio: tries the serial ports and the paired Bluetooth devices that the search for the radio looks at (not a KISS TCP address), one after the other and each at the usual speeds, until a TNC answers in KISS or can be put into KISS the way a TNC profile does. The radio's own line is closed while it runs and opened again after it. It writes nothing but a carriage return and, to a TNC that answers with text, the steps of the TNC profiles that put it into KISS; nothing is sent to the air. Told to the page that asked with `radio_search` messages (`trying` before each try, then `found` or `cancelled`); the page puts the answer in the settings. An `error` when a search is running (`radio.busy`), when there is no port to try (`radio.no_ports`), when none answered (`radio.not_found`), for a `radio` that is none (`radio.unknown`) and for one of a type that has no serial line (`radio.no_line`). Only that radio's line is let go (radio 1's when `radio` is left out), the ports another radio or the GPS receiver holds are passed over, and the messages name it. */
 export interface FindRadioCommand {
   cmd: "find_radio";
-  /** the radio the search is for (its id); left out: radio 1, the FM radio of before */
+  /** the radio the search is for (its id); left out: radio 1, the packet radio of before */
   radio?: number | null;
 }
 
@@ -790,7 +790,7 @@ export interface MapState {
   world: MapFileInfo | null;
   /** the detailed map was begun without being asked for (a place was set, or the setup guide said the map is wanted) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there */
   later: boolean;
-  /** the ALOHA circles round our position, one for each radio that is on whose type shares a 1200 baud channel (FM) and whose stations heard fill it, in the order of the boxes; none without a position */
+  /** the ALOHA circles round our position, one for each radio that is on whose type shares a 1200 baud channel (Packet) and whose stations heard fill it, in the order of the boxes; none without a position */
   aloha: AlohaCircle[];
   /** the layers of traffic, the aircraft and then the ships: where each one's things come from now, what Settings offers, and an own receiver's state */
   layers: MapLayer[];
@@ -1435,7 +1435,7 @@ export interface RadioLevelMessage {
 export interface RadioLimits {
   /** the longest AX.25 frame the radio carries whole, in bytes (Mercury: 123); null for AX.25's own */
   max_frame: number | null;
-  /** the shortest beacon interval the radio takes, in minutes (FM 20, Mercury 30): the station's interval is raised to it on this radio */
+  /** the shortest beacon interval the radio takes, in minutes (Packet 20, Mercury 30): the station's interval is raised to it on this radio */
   beacon_min_min: number;
   /** a frame holds the shared channel for seconds (HF, LoRa): what the pairs pass onto the radio is limited (`LIMITS.pass` of the page) */
   slow: boolean;
@@ -1464,7 +1464,7 @@ export interface RadioRow {
   id: number;
   /** the kind of radio, fixed when it was added: its tag's colour and the defaults follow it */
   kind: "fm" | "hf" | "lora";
-  /** the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`FM`, `Mercury 2`) in its own words */
+  /** the name the operator typed (at most 8 characters); empty for none: the page calls it by its kind and `number` (`Packet`, `Mercury 2`) in its own words */
   name: string;
   /** its number within its kind: 1 for the first of the kind by id among the radios not removed (`Mercury 2` is 2); a removed radio keeps its own */
   number: number;
@@ -1523,7 +1523,7 @@ export interface RadioSearchMessage {
   total: number;
   /** the radio the search is for (its id); null for a search that named none (radio 1) */
   radio: number | null;
-  /** for `found`, the radio type that fits the TNC (a `key` of `RADIO_TYPES`, the same as `profile` for every FM type: 1.11's `type`, which the message's own tag takes); empty otherwise */
+  /** for `found`, the radio type that fits the TNC (a `key` of `RADIO_TYPES`, the same as `profile` for every Packet type: 1.11's `type`, which the message's own tag takes); empty otherwise */
   radio_type: string;
 }
 
@@ -1984,7 +1984,7 @@ export interface StationRow {
   may_not_message: boolean;
   /** the radio the operator chose for messages to the station (`station_radio`), its id, while that radio is enabled; null for the daemon's choice (plan rule 3.2), and while the radio chosen is off */
   radio_choice: number | null;
-  /** the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (FM, LoRa) before Mercury, else the radio that heard it last, else the first radio that can send, in the order of the boxes; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own (`radio_now` of its row). The page shows Route, the path and the radio's state of this radio */
+  /** the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (Packet, LoRa) before Mercury, else the radio that heard it last, else the first radio that can send, in the order of the boxes; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own (`radio_now` of its row). The page shows Route, the path and the radio's state of this radio */
   radio_now: number | null;
   /** the path a message or an ack of ours to the station goes by on each radio that carries no path (Mercury), by the radio's id as text: the gateway its latest packet there came by, then WIDE2-1 when a digipeater stood before the gateway, calls separated by commas, without RFONLY; a radio that carries a path, and one on which they go direct, has no entry */
   replies: { [key: string]: string };

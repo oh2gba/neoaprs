@@ -110,7 +110,7 @@ export const AIRCRAFT_SOURCES = ["none", "adsbfi", "adsblol", "radarcape", "rece
 /** Where the map's ships may come from (SHIP_SOURCES of neoaprs/layerthing.py); `fintraffic` is offered only where the map's circle reaches its waters (`map.layers`). */
 export const SHIP_SOURCES = ["none", "fintraffic", "receiver"] as const;
 
-/** The FM types of the flat list of before, in the order Find my radio tries those it can ask (PROFILES of neoaprs/tncprofile.py; the page lists the types in the order of RADIO_TYPES): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */
+/** The Packet types of the flat list of before, in the order Find my radio tries those it can ask (PROFILES of neoaprs/tncprofile.py; the page lists the types in the order of RADIO_TYPES): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */
 export const TNC_PROFILES = [
   {"key": "kenwood-tnc2", "name": "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2", "transport": "serial", "baud": 9600, "probe": true},
   {"key": "kenwood-d710", "name": "Kenwood TM-D710 / TH-D72", "transport": "serial", "baud": 9600, "probe": true},
