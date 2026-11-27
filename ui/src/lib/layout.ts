@@ -20,11 +20,6 @@ export const TAB_IDS = [
 ] as const;
 export type TabId = (typeof TAB_IDS)[number];
 
-/** The tabs offered, in TAB_IDS order: every one, HF tests too with or without an HF radio. */
-export function offeredTabs(): TabId[] {
-  return [...TAB_IDS];
-}
-
 export function tabTitle(id: TabId): string {
   return t(`tab.${id}`);
 }

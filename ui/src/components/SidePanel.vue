@@ -18,7 +18,6 @@ import { t } from "@/i18n";
 import {
   PANEL_MIN,
   TAB_IDS,
-  offeredTabs,
   tabTitle,
   clampWidth,
   panelMax,
@@ -58,17 +57,6 @@ const onResize = (): void => {
 onMounted(() => window.addEventListener("resize", onResize));
 onBeforeUnmount(() => window.removeEventListener("resize", onResize));
 
-/** The tabs of this station: every one. A remembered or requested tab that is none gives way to the first. */
-const offered = computed(() => offeredTabs());
-watch(
-  [offered, () => props.tab],
-  ([tabs, tab]) => {
-    const [first] = tabs;
-    if (!tabs.includes(tab) && first !== undefined) emit("update:tab", first);
-  },
-  { immediate: true },
-);
-
 const phone = computed(() => props.size === "phone");
 /**
  * A phone has no folded panel; a tablet's panel width comes from CSS (responsive.css), a desktop's
@@ -101,14 +89,14 @@ const { split, measure } = useTabsFit(
   () => (mapButton.value === null ? 0 : mapButton.value.offsetWidth + MAP_MARGIN),
   () => props.tab,
   () => props.badges,
-  () => offered.value,
+  () => TAB_IDS,
 );
 /**
- * What the More button counts, measured with the right number of digits: all offered tabs' badges
+ * What the More button counts, measured with the right number of digits: all tabs' badges
  * added.
  */
 const countDigits = computed(() =>
-  "8".repeat(String(offered.value.reduce((sum, id) => sum + (props.badges[id] ?? 0), 0)).length),
+  "8".repeat(String(TAB_IDS.reduce((sum, id) => sum + (props.badges[id] ?? 0), 0)).length),
 );
 /** The room of the tab names changes with a badge (more digits). */
 watch(

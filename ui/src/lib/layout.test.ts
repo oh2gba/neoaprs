@@ -4,11 +4,9 @@ import {
   PANEL_DEFAULT,
   PANEL_DEFAULT_WIDE,
   PANEL_MIN,
-  TAB_IDS,
   cardCapacity,
   clampWidth,
   defaultPanelWidth,
-  offeredTabs,
   panelMax,
   sizeOf,
 } from "@/lib/layout";
@@ -85,8 +83,3 @@ describe("defaultPanelWidth", () => {
   });
 });
 
-describe("offeredTabs", () => {
-  it("offers HF tests only while a radio of the kind Mercury is on, and every other tab always, in their order", () => {
-    expect(offeredTabs()).toEqual([...TAB_IDS]);
-  });
-});
