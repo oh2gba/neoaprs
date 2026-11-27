@@ -66,7 +66,8 @@ fieldset.composebox > legend {
 }
 /* a row whose field or state is not there now keeps its room, so nothing moves when it comes (the AISStream key) */
 .field.field-room,
-.statusflat.field-room {
+.statusflat.field-room,
+.statusfold.field-room {
   visibility: hidden;
 }
 /* a link beside a field (Get a key): on one line, the field giving way to it on a narrow screen */
@@ -461,17 +462,20 @@ fieldset.composebox > legend {
 /* a radio's status row (RadioStatus.vue) is two lines high in every state, its words from the top,
    so nothing under it moves when the radio's line changes: connected, silent, Connecting…, a
    modem that stops and starts (a reason longer than two lines is read whole: it does not change
-   with every packet) */
+   with every packet); the Internet group's row likewise, whose line wraps on a phone */
 .radiostatus > .statushead,
-.statusflat.radiostatus {
+.statusflat.radiostatus,
+.igatestatus > .statushead {
   align-items: flex-start;
   min-height: calc(2.8em + 4px);
 }
 .radiostatus > .statushead::before,
-.statusflat.radiostatus::before {
+.statusflat.radiostatus::before,
+.igatestatus > .statushead::before {
   margin-top: calc(0.7em - 5px);
 }
-.radiostatus[open] > .statushead::before {
+.radiostatus[open] > .statushead::before,
+.igatestatus[open] > .statushead::before {
   margin-top: calc(0.7em - 4px);
 }
 /* a line in parts (StatusLine.vue `parts`, a connected radio's): its two lines are the row's, the
