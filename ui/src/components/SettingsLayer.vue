@@ -4,8 +4,9 @@
 // shown only while the choice is an own receiver, with the receiver's state under it
 // (lib/receiverstatus.ts). A receiver that has not answered yet is looking, so the room is reserved
 // from the first moment. Or the Ships box's AISStream key: a masked field with a link beside it to
-// the page where a key is made, its room kept while another source is chosen, AISStream's refusal
-// of the key under it. Choosing a source switches the layer on in this browser's Layers box.
+// the page where a key is made, and under it a status row that says AISStream's refusal of the key,
+// the room of both kept while there is nothing to say. Choosing a source switches the layer on in
+// this browser's Layers box.
 import { computed } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import StatusLine from "@/components/StatusLine.vue";
@@ -35,11 +36,9 @@ const isSource = computed(() => own.value?.role === "source");
 const isKey = computed(() => own.value?.role === "key");
 /** The key's field is there while AISStream is chosen; else only its room. */
 const keyOff = computed(() => isKey.value && !keyShown(draft));
-const error = computed(() => {
-  const own = errors[props.fieldKey] ?? "";
-  if (own || !isKey.value || keyOff.value) return own;
-  return layer.value?.problem === "key_refused" ? t("layers.aisstream.refused") : "";
-});
+const error = computed(() => errors[props.fieldKey] ?? "");
+/** AISStream did not take the key: said in the status row under it, whose room is always kept. */
+const refused = computed(() => isKey.value && !keyOff.value && layer.value?.problem === "key_refused");
 /** The field: a source row has the sources offered; the address row its own words. */
 const info = computed<FieldInfo>(() => {
   const base = fieldFor(props.fieldKey);
@@ -91,5 +90,14 @@ const typed = (text: string): void => {
   </SettingsField>
   <div v-if="!isSource && !isKey && look" class="receiverstatus statusfold statushead statusflat">
     <StatusLine :state="look.state" :tone="look.tone" :line="look.line" />
+  </div>
+  <div
+    v-if="isKey"
+    class="keystatus statusfold statushead statusflat"
+    :class="{ 'field-room': !refused }"
+    :inert="!refused || undefined"
+    :aria-hidden="!refused || undefined"
+  >
+    <StatusLine :state="t('settings.tnc.state.waiting')" tone="tnc-waiting" :line="t('layers.aisstream.refused')" />
   </div>
 </template>

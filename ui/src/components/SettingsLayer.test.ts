@@ -306,12 +306,29 @@ describe("the state of an own receiver in words", () => {
       });
     });
 
-    it("says under the field that AISStream did not accept the key", () => {
-      const { wrapper } = make({ "map/ships": "aisstream", "map/ships_key": MASK }, [
+    it("says in a status row under the field that AISStream did not accept the key, its room kept before", async () => {
+      const layers = (problem: "" | "key_refused") => [
         mapLayer("aircraft"),
-        mapLayer("ships", { source: "aisstream", problem: "key_refused" }),
-      ]);
-      expect(keyRow(wrapper)?.querySelector(".field-error")?.textContent).toBe("AISStream did not accept this key.");
+        mapLayer("ships", { source: "aisstream", problem }),
+      ];
+      const { wrapper, daemon } = make({ "map/ships": "aisstream", "map/ships_key": MASK }, layers(""));
+      const row = () => wrapper.find(".keystatus");
+      expect(row().exists()).toBe(true);
+      expect(row().classes()).toContain("field-room");
+      expect(row().attributes("aria-hidden")).toBe("true");
+      const room = row().html();
+      daemon.map.value = mapState({ layers: layers("key_refused") });
+      await wrapper.vm.$nextTick();
+      expect(row().classes()).not.toContain("field-room");
+      expect(row().attributes("aria-hidden")).toBeUndefined();
+      expect(row().find(".statetext").text()).toBe("waiting");
+      expect(row().find(".tncstatus").text()).toBe("AISStream did not accept this key.");
+      expect(
+        row()
+          .html()
+          .replace(/ class="[^"]*"| aria-hidden="true"| inert=""/g, ""),
+      ).toBe(room.replace(/ class="[^"]*"| aria-hidden="true"| inert=""/g, ""));
+      expect(keyRow(wrapper)?.querySelector(".field-error")).toBeNull();
     });
 
     it("gives the key's place to the receiver's address while My own receiver is chosen", () => {
