@@ -101,41 +101,61 @@
       .catch(() => {});
   }
 
-  // The sked board under the HF band: the stations that said when they will be on the air, from the file the board of NeoAPRS writes (skeds.json beside this page). The page's own table has one row that says no test is planned, and it stays when no sked to come was
-  // read; else the rows are: the call, the time (now, for one that has begun) and the dial of each, never the note (free text from strangers does not go on this page). Every value is checked again here and written as text, never as HTML; skeds with the same times and dial are one row.
+  // The sked board under the HF band: the stations that said when they will be on the air, from the file the board of NeoAPRS writes (skeds.json beside this page), and under it the past tests (skeds-past.json, and the board's own that have ended since it was written),
+  // newest first, as NeoAPRS lists them: the 20 newest by their end, kept 30 days. Each of the page's own tables has one row that says there is none, and it stays when nothing was read; else the rows are: the calls, the time (now, for one that has begun) and the dial of each,
+  // never the note (free text from strangers does not go on this page). Every value is checked again here and written as text, never as HTML; skeds with the same times and dial are one row.
   const board = document.getElementById("sked-board");
+  const pastBoard = document.getElementById("sked-past");
   if (board && window.fetch) {
-    fetch("skeds.json", { cache: "no-cache" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        const body = board.querySelector("tbody");
-        const instant = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
-        const now = Date.now();
-        const good = (data && data.v === 1 && Array.isArray(data.skeds) ? data.skeds : [])
-          .filter(
-            (s) =>
-              s &&
-              typeof s.call === "string" && /^[A-Z0-9]{3,6}(-\d{1,2})?$/.test(s.call) &&
-              typeof s.from === "string" && instant.test(s.from) &&
-              typeof s.to === "string" && instant.test(s.to) &&
-              Date.parse(s.to) > now && Date.parse(s.to) > Date.parse(s.from) &&
-              typeof s.dial === "string" && /^\d{1,2}\.\d{3,4} MHz (USB|LSB)$/.test(s.dial),
-          )
-          .sort((a, b) => Date.parse(a.from) - Date.parse(b.from) || Date.parse(a.to) - Date.parse(b.to));
+    const read = (name) =>
+      fetch(name, { cache: "no-cache" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+    Promise.all([read("skeds.json"), read("skeds-past.json")]).then(([data, gone]) => {
+      const instant = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+      const now = Date.now();
+      const oldest = now - 30 * 86400000;
+      const valid = (list) =>
+        (Array.isArray(list) ? list : []).filter(
+          (s) =>
+            s &&
+            typeof s.id === "string" && /^[0-9a-f]{12}$/.test(s.id) &&
+            typeof s.call === "string" && /^[A-Z0-9]{3,6}(-\d{1,2})?$/.test(s.call) &&
+            typeof s.from === "string" && instant.test(s.from) &&
+            typeof s.to === "string" && instant.test(s.to) &&
+            Date.parse(s.to) > Date.parse(s.from) && Date.parse(s.to) - Date.parse(s.from) <= 86400000 &&
+            typeof s.dial === "string" && /^\d{1,2}\.\d{3,4} MHz (USB|LSB)$/.test(s.dial),
+        );
+      const listed = valid(data && data.v === 1 ? data.skeds : []);
+      const ended = new Map();
+      for (const s of [...valid(gone && gone.v === 1 ? gone.past : []), ...listed.filter((s) => Date.parse(s.to) <= now)])
+        if (!ended.has(s.id) && Date.parse(s.to) > oldest) ended.set(s.id, s);
+      const tests = (skeds) => {
         const rows = new Map();
-        for (const s of good) {
+        for (const s of skeds) {
           const key = `${s.from}|${s.to}|${s.dial}`;
           if (!rows.has(key)) rows.set(key, { from: s.from, to: s.to, dial: s.dial, calls: [] });
           const row = rows.get(key);
           if (!row.calls.includes(s.call)) row.calls.push(s.call);
         }
-        const shown = [...rows.values()].slice(0, 12);
+        return [...rows.values()];
+      };
+      const coming = tests(
+        listed
+          .filter((s) => Date.parse(s.to) > now && !ended.has(s.id))
+          .sort((a, b) => Date.parse(a.from) - Date.parse(b.from) || Date.parse(a.to) - Date.parse(b.to)),
+      ).slice(0, 12);
+      const past = tests([...ended.values()].sort((a, b) => (a.id < b.id ? -1 : 1)))
+        .sort((a, b) => Date.parse(b.to) - Date.parse(a.to) || Date.parse(b.from) - Date.parse(a.from) || (a.dial < b.dial ? -1 : a.dial > b.dial ? 1 : 0))
+        .slice(0, 20);
+      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const two = (n) => String(n).padStart(2, "0");
+      const day = (d) => `${days[d.getUTCDay()]} ${d.getUTCDate()} ${months[d.getUTCMonth()]}`;
+      const clock = (d) => `${two(d.getUTCHours())}:${two(d.getUTCMinutes())}`;
+      const fill = (table, shown) => {
+        const body = table && table.querySelector("tbody");
         if (!shown.length || !body) return;
-        const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        const two = (n) => String(n).padStart(2, "0");
-        const day = (d) => `${days[d.getUTCDay()]} ${d.getUTCDate()} ${months[d.getUTCMonth()]}`;
-        const clock = (d) => `${two(d.getUTCHours())}:${two(d.getUTCMinutes())}`;
         body.replaceChildren(...shown.map((row) => {
           const start = new Date(row.from);
           const end = new Date(row.to);
@@ -144,7 +164,7 @@
           call.scope = "row";
           call.textContent = row.calls.join(", ");
           const when = document.createElement("td");
-          const running = start.getTime() <= now; // a test that has begun is on the air now: the row says so in place of its start
+          const running = start.getTime() <= now && end.getTime() > now; // a test that has begun is on the air now: the row says so in place of its start
           const until = ` to ${day(running ? new Date(now) : start) === day(end) ? "" : day(end) + " "}${clock(end)}`;
           if (running) {
             const mark = document.createElement("strong");
@@ -157,9 +177,10 @@
           tr.append(call, when, dial);
           return tr;
         }));
-        board.hidden = false;
-      })
-      .catch(() => {});
+      };
+      fill(board, coming);
+      fill(pastBoard, past);
+    });
   }
 
   const box = document.getElementById("lightbox");

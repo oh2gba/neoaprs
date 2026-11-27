@@ -1,7 +1,7 @@
-// The project page's script (site/site.js) as far as it shows the board of HF tests: the page's
-// table says no test is planned, and when a sked to come was read its rows are the call, the time
-// (now, for one that has begun) and the dial, each written as text. The script is run on a made-up
-// page with its own fetch.
+// The project page's script (site/site.js) as far as it shows the board of HF tests and the past
+// tests under it: the page's tables say no test is planned and none is past, and when skeds were read
+// their rows are the calls, the time (now, for one that has begun) and the dial, each written as
+// text. The script is run on a made-up page with its own fetch.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,14 +23,18 @@ const row = (call: string, extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
-async function run(body: unknown, status = 200): Promise<HTMLElement> {
-  document.body.innerHTML = `<section id="skeds"><table id="sked-board"><tbody><tr><td>No tests planned.</td></tr></tbody></table></section>`;
+const PAGE = `<section id="skeds"><table id="sked-board"><tbody><tr><td>No tests planned.</td></tr></tbody></table><table id="sked-past"><tbody><tr><td>No past tests.</td></tr></tbody></table></section>`;
+
+/** The section after the script has read `body` as skeds.json and `past` as skeds-past.json (not found when left out). */
+async function run(body: unknown, status = 200, past?: unknown): Promise<HTMLElement> {
+  document.body.innerHTML = PAGE;
   const asked: string[] = [];
   vi.stubGlobal("fetch", (url: string) => {
     asked.push(url);
+    const sent = url === "skeds-past.json" ? past : body;
     return Promise.resolve({
-      ok: status === 200,
-      json: () => (body instanceof Error ? Promise.reject(body) : Promise.resolve(body)),
+      ok: url === "skeds-past.json" ? past !== undefined : status === 200,
+      json: () => (sent instanceof Error ? Promise.reject(sent) : Promise.resolve(sent)),
     });
   });
   runInThisContext(SCRIPT);
@@ -40,8 +44,9 @@ async function run(body: unknown, status = 200): Promise<HTMLElement> {
   if (section === null) throw new Error("no section");
   return section;
 }
-const cells = (section: HTMLElement) =>
-  [...section.querySelectorAll("tbody tr")].map((tr) => [...tr.children].map((c) => c.textContent));
+const cells = (section: HTMLElement, table = "sked-board") =>
+  [...section.querySelectorAll(`#${table} tbody tr`)].map((tr) => [...tr.children].map((c) => c.textContent));
+const pastCells = (section: HTMLElement) => cells(section, "sked-past");
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -103,25 +108,28 @@ describe("the sked board on the project page", () => {
     ]) {
       const section = await run(body);
       expect(section.hidden, JSON.stringify(body)).toBe(false);
-      expect(section.querySelector("tbody")?.textContent, JSON.stringify(body)).toBe("No tests planned.");
+      expect(section.querySelector("#sked-board tbody")?.textContent, JSON.stringify(body)).toBe("No tests planned.");
     }
   });
 
   it("keeps the page's own row when the file cannot be read: not found, not JSON, no network", async () => {
-    const own = (section: HTMLElement | null) => section?.querySelector("tbody")?.textContent;
+    const own = (section: HTMLElement | null) => section?.querySelector("#sked-board tbody")?.textContent;
     expect(own(await run({ v: 1, skeds: [row("OH2GBA")] }, 404))).toBe("No tests planned.");
     expect(own(await run(new Error("not json")))).toBe("No tests planned.");
-    document.body.innerHTML = `<section id="skeds"><table id="sked-board"><tbody><tr><td>No tests planned.</td></tr></tbody></table></section>`;
+    document.body.innerHTML = PAGE;
     vi.stubGlobal("fetch", () => Promise.reject(new Error("offline")));
     runInThisContext(SCRIPT);
     await flushPromises();
     expect(own(document.getElementById("skeds"))).toBe("No tests planned.");
+    expect(document.querySelector("#sked-past tbody")?.textContent).toBe("No past tests.");
   });
 
   it("is the page's own section: shown without the script, with the row that says no test is planned, and reached from the menu of every page", () => {
     const page = readFileSync(join(SITE, "index.html"), "utf-8");
     expect(page).toContain('<section class="sec" id="skeds">');
     expect(page).toContain('<tbody><tr><td colspan="3">No tests planned.</td></tr></tbody>');
+    expect(page).toContain('<table class="why skeds" id="sked-past">');
+    expect(page).toContain('<tbody><tr><td colspan="3">No past tests.</td></tr></tbody>');
     expect(page).toContain('<a href="#skeds">HF tests</a>');
     for (const other of [
       "faq.html",
@@ -159,6 +167,50 @@ describe("the sked board on the project page", () => {
       row(`OH2A${String(i).padStart(2, "0")}`, { from: hours(2 + i), to: hours(3 + i) }),
     );
     expect(cells(await run({ v: 1, skeds })).length).toBe(12);
+  });
+
+  it("lists the past tests under the board, newest first, from the file beside it and the board's own that have ended, never the note", async () => {
+    const section = await run(
+      {
+        v: 1,
+        skeds: [
+          row("OH2GBA", { id: "aaaaaaaaaaa1", from: hours(-3), to: hours(-1) }),
+          row("OH2XYZ", { id: "aaaaaaaaaaa2", from: hours(-3), to: hours(-1) }),
+          row("OH2LAT", { id: "aaaaaaaaaaa3" }),
+        ],
+      },
+      200,
+      {
+        v: 1,
+        past: [
+          row("OH3ABC", { id: "bbbbbbbbbbb1", from: hours(-9), to: hours(-8), dial: "14.1070 MHz USB" }),
+          row("OH3OLD", { id: "bbbbbbbbbbb2", from: hours(-722), to: hours(-721) }),
+          row("<b>x</b>", { id: "bbbbbbbbbbb3", from: hours(-9), to: hours(-8) }),
+          row("OH2GBA", { id: "aaaaaaaaaaa1", from: hours(-3), to: hours(-1) }),
+        ],
+      },
+    );
+    expect(cells(section)).toEqual([["OH2LAT", "Wed 21 Oct 14:00 to 16:00", "7.0541 MHz USB"]]);
+    expect(pastCells(section)).toEqual([
+      ["OH2GBA, OH2XYZ", "Wed 21 Oct 09:00 to 11:00", "7.0541 MHz USB"],
+      ["OH3ABC", "Wed 21 Oct 03:00 to 04:00", "14.1070 MHz USB"],
+    ]);
+    expect(section.textContent).not.toContain("Mercury");
+    expect(section.querySelector("b")).toBeNull();
+  });
+
+  it("shows twenty past tests at the most, and the page's own row when none was read", async () => {
+    const past = Array.from({ length: 25 }, (_, i) =>
+      row(`OH2A${String(i).padStart(2, "0")}`, {
+        id: `cccccccccc${String(i).padStart(2, "0")}`,
+        from: hours(-3 - 2 * i),
+        to: hours(-2 - 2 * i),
+      }),
+    );
+    expect(pastCells(await run({ v: 1, skeds: [] }, 200, { v: 1, past }))).toHaveLength(20);
+    expect(pastCells(await run({ v: 1, skeds: [] }, 200, { v: 1, past }))[0]?.[0]).toBe("OH2A00");
+    for (const gone of [undefined, { v: 2, past }, { v: 1, past: "x" }, null, new Error("not json")])
+      expect(pastCells(await run({ v: 1, skeds: [] }, 200, gone)), JSON.stringify(gone)).toEqual([["No past tests."]]);
   });
 
   it("builds the rows with text nodes, not with markup", () => {

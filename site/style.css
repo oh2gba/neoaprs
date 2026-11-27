@@ -237,6 +237,7 @@ h3 { margin: 0 0 4px; font-size: 1.12rem; }
 .hfshots { display: grid; gap: 16px; }
 /* the sked board under the HF band: a table of the stations that will be on the air (site.js shows the section when it read one) */
 table.skeds { margin-bottom: 0; }
+h3.skeds-past { margin: 28px 0 10px; }
 table.skeds tbody th { width: auto; font: 700 1rem/1.3 var(--mono); white-space: nowrap; }
 table.skeds td { white-space: nowrap; }
 table.skeds td.dial { font-family: var(--mono); font-weight: 650; }
