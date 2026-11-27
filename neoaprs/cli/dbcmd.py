@@ -155,9 +155,17 @@ def kept_note(key: str) -> str:
     )
 
 
-# The one secret `get` prints: the station's own access key, read on a computer with no screen to log
-# a device in. Every other secret (a service's key, a passcode) shows only its length, as in `list`.
+# The settings `list` and `get` show only by their length: the secrets, named one by one. The page's access
+# key is printed by `get`, which is how a computer with no screen is read for it to log a device in.
+MASKED_SETTINGS = frozenset({"map/ships_key", "igate/password", "web/key"})
 PRINTED_BY_GET = frozenset({"web/key"})
+
+
+def printed(key: str, value: str, by_get: bool = False) -> str:
+    """Return a setting's value as `list` (or `get`) prints it."""
+    if key not in MASKED_SETTINGS or not value or (by_get and key in PRINTED_BY_GET):
+        return value
+    return f"(set, {len(value)} characters)"
 
 
 async def show_settings(store: Any, only: str | None) -> int:
@@ -168,7 +176,7 @@ async def show_settings(store: Any, only: str | None) -> int:
     shown = shown_settings(config)
     width = max(len(k) for k in shown)
     for key in shown:
-        value = shown_value(key, shown[key])
+        value = printed(key, shown[key])
         print(f"{key:<{width}}  {value:<18}  {'default' if stored_text_of(key, rows) is None else 'stored'}")
     for key in sorted(set(rows) - set(shown)):
         print(f"{key:<{width}}  {shown_value(key, rows[key]):<18}  {before_note(key, config) or kept_note(key)}")
@@ -224,7 +232,7 @@ def show_one(rows: dict[str, str], radios: Radios, only: str) -> int:
         return no_setting_now(only, specs, rows)
     if only in SHOWN_KEYS:
         value = shown_settings(in_force(rows, specs))[only]
-        print(value if only in PRINTED_BY_GET else shown_value(only, value))
+        print(printed(only, value, by_get=True))
         if note := stored_note(only, stored_text_of(only, rows), lambda t: Config.check(only, t)):
             say(f"{PROG}: {note}")
         return 0

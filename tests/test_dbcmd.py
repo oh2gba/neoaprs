@@ -879,3 +879,26 @@ def test_list_and_get_show_a_services_key_and_a_passcode_only_by_their_length_an
         assert secret not in out and "characters)" in out
     assert db("get", "web/key", data=data) == 0
     assert capsys.readouterr().out.strip() == "k7m2-x9pq-4hrt", "read on a computer with no screen to log a device in"
+
+
+def test_only_the_named_secrets_are_masked_and_update_url_and_ordinary_settings_are_printed_as_they_are(
+    data: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert dbcmd.MASKED_SETTINGS == {"map/ships_key", "igate/password", "web/key"}
+    plain = {
+        "update/url": "http://127.0.0.1:8123/version.php",
+        "messages/alert_command": "notify-send hello",
+        "station/comment": "a comment",
+        "web/port": "7310",
+    }
+    for key, value in plain.items():
+        assert db("set", key, value, data=data) == 0
+    capsys.readouterr()
+    for key, value in plain.items():
+        assert db("get", key, data=data) == 0
+        assert capsys.readouterr().out.strip() == value, key
+    assert db("list", data=data) == 0
+    listed = capsys.readouterr().out
+    assert all(value in listed for value in plain.values())
+    assert db("get", "igate/password", data=data) == 0
+    assert capsys.readouterr().out.strip() == "", "an empty secret is printed empty, as before"
