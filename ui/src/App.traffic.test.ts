@@ -74,6 +74,28 @@ describe("App: the aircraft and ships on the map", () => {
     wrapper.unmount();
   });
 
+  it("closes one thing at each Esc: the statistics card first, then the thing's card", async () => {
+    const { wrapper } = await withTraffic();
+    await clickThing("aircraft", "4ca1fe");
+    FakeMap.last().fire("contextmenu", {
+      lngLat: { lat: 60.1, lng: 24.9 },
+      point: { x: 10, y: 10 },
+      originalEvent: new MouseEvent("contextmenu", { clientX: 300, clientY: 200 }),
+    });
+    await flushPromises();
+    document.querySelector<HTMLElement>(".mapmenu [role='menuitem'][data-item='stats']")?.click();
+    await flushPromises();
+    expect(document.querySelector(".statscard")).not.toBeNull();
+    esc();
+    await flushPromises();
+    expect(document.querySelector(".statscard")).toBeNull();
+    expect(document.querySelector(".layercard")).not.toBeNull();
+    esc();
+    await flushPromises();
+    expect(document.querySelector(".layercard")).toBeNull();
+    wrapper.unmount();
+  });
+
   it("stops looking while the replay is open, and the things go from the map", async () => {
     const { wrapper, socket } = await withTraffic();
     FakeMap.last().fire("contextmenu", {

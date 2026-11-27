@@ -342,8 +342,13 @@ export function useAppShell() {
     replay: overlays.replayOpen,
     store: daemon.satelliteStore,
   });
-  const cards = useStationCards(derived.stations, send, layout, escBlocked, daemon.stationsLoaded, () =>
-    [overlays.closeOverlays(), traffic.close(), satellites.close()].some(Boolean),
+  const cards = useStationCards(
+    derived.stations,
+    send,
+    layout,
+    escBlocked,
+    daemon.stationsLoaded,
+    () => overlays.closeOverlays() || traffic.close() || satellites.close(),
   );
   // The notices, what a Stations table row's menu sends or copies, and the station alerts that
   // fire.

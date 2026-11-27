@@ -1,7 +1,7 @@
 // The station cards: the open stations (useSelection, as many as the window has room for), Esc
 // closing them all, and the clicks of the map and table. A click on a marker or row opens its
 // card alone, or with Ctrl (Cmd) adds it; the map itself lets go of all. A phone shows the map
-// with the card. Esc also closes the statistics card and the map replay (`alsoClose`). A pinned
+// with the card. Once none is open, Esc closes the next thing over the map (`alsoClose`). A pinned
 // card is kept by none of that: it stays until its cross is clicked and is kept in the browser
 // (lib/pinned.ts).
 import { computed, ref, watch, type Ref } from "vue";
@@ -34,7 +34,7 @@ export function useStationCards(
     ready,
   });
   watch([pinned, places], () => savePinned(pinned.value, places.value), { deep: true });
-  useCardEsc(() => [cards.closeAll(), alsoClose()].some(Boolean), blocked);
+  useCardEsc(() => cards.closeAll() || alsoClose(), blocked);
 
   function onMarker(call: string | null, multi = false): void {
     if (call === null) cards.closeAll();
