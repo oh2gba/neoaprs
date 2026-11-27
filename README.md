@@ -20,7 +20,7 @@ NeoAPRS is in beta. We are looking for more users and testers: try it and [tell 
 
 Each carries its own Python and the Mercury modem, and on Windows and Linux Direwolf for a packet radio on a sound card: nothing else to install.
 
-Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four steps (call, position, symbol, radio) starts. Nothing is transmitted until a call is set. No radio yet? A Dummy radio makes up the traffic of a station near you (FM, Mercury or LoRa), to try NeoAPRS with. Installing, updating and removing: [the manual](docs/manual/install.md).
+Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four steps (call, position, symbol, radio) starts. Nothing is transmitted until a call is set. No radio yet? A Dummy radio makes up the traffic of a station near you (Packet, Mercury or LoRa), to try NeoAPRS with. Installing, updating and removing: [the manual](docs/manual/install.md).
 
 ## What it does
 

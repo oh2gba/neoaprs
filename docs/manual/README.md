@@ -18,7 +18,7 @@ This is the manual for the person who runs it. How NeoAPRS is built and released
 | [`desktop.md`](desktop.md) | the desktop app: a window and a tray icon |
 | [`radio.md`](radio.md) | the radios: adding, naming and removing them, what goes on which radio, what each radio does; each type (a sound card, a TNC on a serial port, your own Direwolf or soundmodem, the Mercury modem, a LoRa APRS board, a Yaesu FTM that only receives, the Dummy radios); the port, finding the radio, the TNC types, the keep-alive and a silent radio |
 | [`beacon.md`](beacon.md) | the My station tab: the beacon status, where the position comes from (fixed, or a GPS), the Beacon choice and Off, the beacon on several radios (Send on), RX only, mobile operation with SmartBeaconing, the location and the symbol, the status, answers to queries (and the QRU server), the fill-in digipeater, passing a packet between two radios |
-| [`messages.md`](messages.md) | the Messages tab: sending, acks and retries, the path each message chooses, the radio of a message and Route, encrypted messages, deleting |
+| [`messages.md`](messages.md) | the Messages tab: sending, acks and retries, the path each message chooses, the radio of a message and Route, services (APRS Thursday, ANSRVR, APRS OTA), encrypted messages, deleting |
 | [`igate.md`](igate.md) | stations from the internet on the map: the tickbox, the radius, the server, and advanced use as an iGate |
 | [`email.md`](email.md) | email through the APRS gateway |
 | [`bulletins.md`](bulletins.md) | the message board and posting to it |

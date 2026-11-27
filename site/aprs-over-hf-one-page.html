@@ -91,7 +91,7 @@
   <li><b>Listens before it talks.</b> Own frames wait while a signal as wide as a frame is on the channel (read from the modem’s spectrum, 20 times a second), for at most 20 s.</li>
   <li><b>Acks after the channel clears.</b> A message and its ack take about 10 s. Retries come at 32, 64 and 128 s, plus a random 0–20 s on HF so that two colliding stations do not collide again.</li>
   <li><b>Calm beacons.</b> At least 30 min between beacons, status reports and repeats of objects and bulletins, each after a random 0–300 s, so that fixed stations do not stay in step. Beacon loss stays at 1–3 % with two to five stations.</li>
-  <li><b>Any number of radios, one map.</b> FM, LoRa and Mercury radios share one map and one message list. A message goes on the radio that heard the station in the last six hours, FM or LoRa before Mercury; you can choose another.</li>
+  <li><b>Any number of radios, one map.</b> Packet, LoRa and Mercury radios share one map and one message list. A message goes on the radio that heard the station in the last six hours, Packet or LoRa before Mercury; you can choose another.</li>
   <li><b>Gateways.</b> Two of your radios can pass packets whose path names the pair’s own call, for example 2 m to 40 m, at most 4 frames in 5 minutes onto HF.</li>
 </ul>
 

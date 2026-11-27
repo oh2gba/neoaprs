@@ -1,6 +1,6 @@
 # The Mercury numbers: where each one comes from
 
-NeoAPRS decides a good deal for the operator of a Mercury radio (a radio of the type *Mercury modem (sound card)*, most often an SSB radio on HF): the mode, the frame, the ports, the sound card and the keying, how long a frame holds the radio, how long the
+NeoAPRS decides a good deal for the operator of a Mercury radio (a radio of the type *Sound card* under *Mercury (DATAC3)*, most often an SSB radio on HF): the mode, the frame, the ports, the sound card and the keying, how long a frame holds the radio, how long the
 channel's busy signal is believed, the pace and the retries of messages, the beacon's floor and its random pause, and the frequencies the manual names. This page says, for every one of these values,
 what it is, where it comes from, and whether it was measured or chosen. The constants live in `neoaprs/mercury.py`, `neoaprs/mercurymodem.py`, `neoaprs/radiotype.py` and the services; the simulators
 that measured them are in `tests/support/hfchannel.py` and `scripts/mercury-measure`, and every measurement here can be made again with the command given. Mercury is Rhizomatica's program, version 1.9.25,
