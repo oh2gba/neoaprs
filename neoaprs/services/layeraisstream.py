@@ -1,7 +1,8 @@
 """Ships from AISStream with the operator's own key (`map/ships_key`).
 
 One WebSocket while a page looks at the layer, for the box round the map's circle; a changed box is
-subscribed again, at most once a second. Reconnects back off with jitter; a refused key stops it."""
+subscribed again, at most once a second. Reconnects back off with jitter; a refused key stops it.
+The server closes the connection without a word for a key it does not know."""
 
 import asyncio
 import logging
@@ -29,6 +30,9 @@ PING_SEC = 30.0
 STALL_SEC = 90.0
 # a table of ships this large is cut to the newest (the box is larger than the circle)
 BOUND = 4 * LIMIT
+# Connections in a row closed before the subscription was confirmed that make the key refused (one
+# may be a server's hiccup).
+SILENT_CLOSES = 2
 
 
 class AisStreamShips:
@@ -41,6 +45,7 @@ class AisStreamShips:
         self.receiving = False
         self.connections = 0
         self._failures = 0
+        self._silent = 0
         self._not_before = 0.0
         self._sent: tuple[Box, ...] | None = None
         self._subscribed_at = -FOLLOW_SEC
@@ -109,7 +114,7 @@ class AisStreamShips:
         )
         self.connections += 1
         tasks = TaskSet(log, NAME)
-        heard = False
+        heard = confirmed = False
         try:
             areas = self._areas()
             if areas is None:
@@ -123,6 +128,7 @@ class AisStreamShips:
                     return heard
                 if isinstance(found, Confirmed):
                     log.info("%s: subscribed", NAME)
+                    confirmed, self._silent = True, 0
                     self._set_receiving(True)
                 elif isinstance(found, AisPosition):
                     self.table.position(found)
@@ -131,6 +137,11 @@ class AisStreamShips:
                     self._tell_soon()
                 elif isinstance(found, AisStatic):
                     self.table.static(found)
+            if not confirmed and not heard and not ws.heard_data:
+                self._silent += 1
+                if self._silent >= SILENT_CLOSES:
+                    self._refused(Refused(True, "the connection was closed before the subscription was taken"))
+                    return heard
             log.info("%s: the server closed the connection", NAME)
             return heard
         finally:

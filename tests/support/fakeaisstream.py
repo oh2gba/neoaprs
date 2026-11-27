@@ -1,7 +1,9 @@
 """A stand-in for AISStream on a free loopback port: a WebSocket server (permessage-deflate when the
 client offers it) that keeps every subscription with the seconds it came after the upgrade, refuses
-a key that is not the one it was given, closes a connection whose first subscription is later than
-3 s, sends the test's reports to every subscribed connection, and can drop or stall them."""
+a key that is not the one it was given (as the real server did on 27 Nov 2026: it closes the
+connection without a word; `refusal` sends that message first), closes a connection whose first
+subscription is later than 3 s, sends the test's reports to every subscribed connection, and can
+drop or stall them."""
 
 import asyncio
 import contextlib
@@ -17,7 +19,6 @@ from tests.support.env import remember_stop
 from tests.support.loopbackserver import LoopbackServer
 
 KEY = "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c"  # made up
-REFUSAL = {"error": "Api Key Is Not Valid"}
 FIRST_SUBSCRIPTION_SEC = 3.0
 
 
@@ -44,6 +45,7 @@ class FakeAisStream(LoopbackServer):
     closed: int = 0  # connections ended, by either side
     compressed: bool = False  # the last connection asked for permessage-deflate
     stalled: bool = False  # while true nothing is sent, pings are not answered
+    refusal: dict[str, Any] | None = None  # sent before a wrong key's connection is closed
     _clients: list[_Client] = field(default_factory=list)
 
     @property
@@ -141,7 +143,8 @@ class FakeAisStream(LoopbackServer):
             )
         )
         if message.get("APIKey") != self.key:
-            self._write(client, BINARY, json.dumps(REFUSAL).encode())
+            if self.refusal is not None:
+                self._write(client, BINARY, json.dumps(self.refusal).encode())
             return False
         if not client.subscribed:
             client.subscribed = True

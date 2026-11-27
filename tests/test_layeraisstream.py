@@ -2,8 +2,10 @@
 the subscription, ships on the wire, a refused key, the layer switched off, a new Radius, a lost
 or stalled connection, and the key kept from the page, the log and the support file."""
 
+import asyncio
 import json
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +17,7 @@ from neoaprs.configlayers import MASK
 from neoaprs.services import layeraisstream
 from tests.support.env import Env, until
 from tests.support.fakeaisstream import KEY, FakeAisStream, aisstream, position, static
+from tests.test_scripts import load_script
 
 WRONG_KEY = "ffffeeeeddddccccbbbbaaaa9999888877776666"  # made up as well
 
@@ -77,17 +80,31 @@ async def test_a_wrong_key_shows_the_refused_state_and_is_not_tried_again(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, under_the_switch: None, caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level(logging.DEBUG)
+    monkeypatch.setattr(layeraisstream, "AIS_RETRY_SEC", (0.2, 1.0))
     e, tab, server = await started(tmp_path, monkeypatch, key=WRONG_KEY)
     await tab.send({"cmd": "layer_look", "layer": "ships", "on": True})
     await tab.until(lambda: tab.topics["map"]["layers"][1]["problem"] == "key_refused", 15.0)
     await tab.until(lambda: any(m["type"] == "layer_things" and m["away"] for m in tab.messages), 5.0)
-    await tab.quiet(1.0)
-    assert server.connections == 1
+    await tab.quiet(1.5)
+    assert server.connections == layeraisstream.SILENT_CLOSES, "closed without a word twice, then not again"
     assert WRONG_KEY not in caplog.text
     await tab.send({"cmd": "set_config", "values": {"map/ships_key": KEY}})
     await tab.until(lambda: tab.topics["map"]["layers"][1]["problem"] == "", 10.0)
-    await until(lambda: server.connections == 2 and server.subscriptions[-1].key == KEY, 15.0)
+    await until(
+        lambda: server.connections == layeraisstream.SILENT_CLOSES + 1 and server.subscriptions[-1].key == KEY, 15.0
+    )
     assert KEY not in caplog.text
+    await e.stop()
+
+
+async def test_a_refusal_in_words_is_taken_at_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, under_the_switch: None
+) -> None:
+    e, tab, server = await started(tmp_path, monkeypatch, key=WRONG_KEY)
+    server.refusal = {"error": "Api Key Is Not Valid"}
+    await tab.send({"cmd": "layer_look", "layer": "ships", "on": True})
+    await tab.until(lambda: tab.topics["map"]["layers"][1]["problem"] == "key_refused", 15.0)
+    assert server.connections == 1
     await e.stop()
 
 
@@ -162,3 +179,24 @@ async def test_without_a_local_stand_in_nothing_goes_to_aisstream(
     assert e.ctl.layers.stream == "" and not e.ctl.layers.stream_on
     assert all(m["away"] for m in tab.messages if m["type"] == "layer_things")
     await e.stop()
+
+
+async def test_the_probe_runs_the_product_source_and_never_prints_the_key(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    server = await aisstream()
+    probe = load_script("aisstream-probe")
+
+    async def feed() -> None:
+        await until(lambda: server.subscriptions and server.open, 10.0)
+        server.send(
+            static(230111000, "AURA", 70, "ROSTOCK", "2026-11-27 12:00:00"),
+            position(230111000, 60.1, 24.9, datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")),
+        )
+
+    feeding = asyncio.create_task(feed())
+    assert await probe.probe(KEY, 60.17, 24.94, 100, 2.0, server.url) == 0
+    await feeding
+    out = capsys.readouterr().out
+    assert "position reports: 1" in out and "230111000 AURA" in out and "key refused: no" in out
+    assert KEY not in out

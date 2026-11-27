@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""Run this checkout's AISStream source for a while round a position and print what it got.
+
+scripts/aisstream-probe --key-file FILE --lat 60.17 --lon 24.94 --radius 300 --seconds 60
+The key comes from --key-file or AISSTREAM_KEY and is never printed. One connection, which ends
+after --seconds (another follows a lost one, as in the daemon); --url replaces the service's address (a stand-in)."""
+
+import argparse
+import asyncio
+import os
+import sys
+from dataclasses import replace
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from neoaprs import VERSION  # noqa: E402  (this checkout's)
+from neoaprs.aisdecode import AisPosition  # noqa: E402
+from neoaprs.clock import utcnow  # noqa: E402
+from neoaprs.config import DEFAULTS  # noqa: E402
+from neoaprs.layerthing import AISSTREAM_URL, SHIPS_AGE_SEC  # noqa: E402
+from neoaprs.services.layerasked import AskedFeed, SourceContext  # noqa: E402
+from neoaprs.services.layeraisstream import AisStreamShips  # noqa: E402
+
+
+async def probe(key: str, lat: float, lon: float, radius: int, seconds: float, url: str) -> int:
+    loop = asyncio.get_running_loop()
+    config = replace(DEFAULTS, map_radius_km=radius)
+
+    async def no_fetch(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    ctx = SourceContext(
+        "ships",
+        "aisstream",
+        lambda: config,
+        lambda: (lat, lon),
+        no_fetch,
+        VERSION,
+        sys.platform,
+        utcnow,
+        loop.time,
+        True,
+        "",
+        lambda name, every, stops: AskedFeed(name, every, loop.time, stops),
+        lambda: None,
+        lambda: None,
+        url,
+    )
+    source = AisStreamShips(ctx, key, url)
+    reports = 0
+    keep = source.table.position
+
+    def counted(position: AisPosition) -> None:
+        nonlocal reports
+        reports += 1
+        keep(position)
+
+    source.table.position = counted  # type: ignore[method-assign]
+
+    async def asking() -> None:
+        # as the daemon asks: one connection at a time, again after its wait, until the key is refused
+        while (wait := source.wait_sec()) is not None:
+            await asyncio.sleep(wait)
+            await source.ask()
+
+    try:
+        await asyncio.wait_for(asking(), seconds)
+    except TimeoutError:
+        pass
+    held = source.table.things(utcnow(), SHIPS_AGE_SEC)
+    inside = source.things()
+    print(f"{seconds:.0f} s round {lat}, {lon} within {radius} km, {source.connections} connection(s)")
+    print(
+        f"  key refused: {'yes' if source.refused else 'no'}; subscribed: {'yes' if source.receiving or reports else 'no'}"
+    )
+    print(
+        f"  position reports: {reports}; ships in the box: {len(held)}; within the Radius (300 nearest): {len(inside)}"
+    )
+    print(
+        f"  with a name: {sum(1 for t in inside if t.name)}; with course and speed: {sum(1 for t in inside if t.course_deg is not None and t.speed_kmh)}"
+    )
+    for thing in inside[:3]:
+        speed = "-" if thing.speed_kmh is None else f"{thing.speed_kmh:.1f} km/h"
+        print(
+            f"  {thing.id} {thing.name or '(no name)'}: {thing.lat:.4f}, {thing.lon:.4f} at {thing.at:%H:%M:%S}, "
+            f"course {thing.course_deg}, heading {thing.heading_deg}, {speed}, type {thing.ship_type}, "
+            f"to {thing.destination or '-'}"
+        )
+    return 1 if source.refused else 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="run this checkout's AISStream source for a while and print it")
+    parser.add_argument("--key-file", type=Path, help="a file that holds the key (else AISSTREAM_KEY)")
+    parser.add_argument("--lat", type=float, required=True)
+    parser.add_argument("--lon", type=float, required=True)
+    parser.add_argument("--radius", type=int, default=300, help="km, as the map's Radius (at most 300)")
+    parser.add_argument("--seconds", type=float, default=60.0)
+    parser.add_argument("--url", default=AISSTREAM_URL, help="the service's address")
+    args = parser.parse_args(argv)
+    key = args.key_file.read_text(encoding="utf-8").strip() if args.key_file else os.environ.get("AISSTREAM_KEY", "")
+    if not key:
+        parser.error("give the key with --key-file or AISSTREAM_KEY")
+    return asyncio.run(probe(key, args.lat, args.lon, min(args.radius, 300), args.seconds, args.url))
+
+
+if __name__ == "__main__":
+    sys.exit(main())

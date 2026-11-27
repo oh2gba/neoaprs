@@ -73,6 +73,8 @@ class WebSocketClient:
     ) -> None:
         self._reader, self._writer, self._inflater = reader, writer, inflater
         self.closed = False
+        self.close_reason = ""  # the server's words in its close frame
+        self.heard_data = False  # a message came
         self.heard = asyncio.get_running_loop().time()  # loop time of the last frame read
 
     @classmethod
@@ -153,6 +155,7 @@ class WebSocketClient:
                 continue
             if opcode == CLOSE:
                 self.closed = True
+                self.close_reason = payload[2:].decode("utf-8", "replace")
                 self._writer.write(frame(CLOSE, payload[:2], os.urandom(4)))
                 return None
             if opcode in (TEXT, BINARY):
@@ -170,6 +173,7 @@ class WebSocketClient:
                 if message is None:
                     parts, size, skipping = [], 0, False
                     continue
+                self.heard_data = True
                 return kind == TEXT, message
 
     async def _frame(self) -> tuple[int, bool, bytes, bool]:
