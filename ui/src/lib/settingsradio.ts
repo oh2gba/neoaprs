@@ -174,7 +174,7 @@ const BAND_WORDS: Record<Exclude<RadioType["band"], "">, MessageId> = {
  * The text with a capital first letter, as a line of a list starts; a word whose second letter is
  * a capital already ("iGate") keeps its own.
  */
-export function capitalFirst(text: string): string {
+function capitalFirst(text: string): string {
   const [first, second] = [...text];
   if (first === undefined || (second !== undefined && second !== second.toLowerCase())) return text;
   return first.toUpperCase() + text.slice(first.length);

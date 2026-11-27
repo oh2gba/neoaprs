@@ -387,7 +387,9 @@ async def test_an_adapter_is_not_followed_to_a_port_another_radio_holds_or_is_se
     follow = AdapterFollow(lambda: "Packet 2")
     await follow.remember("COM5", "COM5")
     with pytest.raises(SerialError, match="COM5: not there"):
-        await follow.open("COM5", True, opener, lambda text: None, lambda path: "held by Packet" if path == "COM7" else "")
+        await follow.open(
+            "COM5", True, opener, lambda text: None, lambda path: "held by Packet" if path == "COM7" else ""
+        )
     assert (
         opened == ["COM5"]
         and "Packet 2: COM5 is gone; an adapter like it is on COM7, which is left alone: held by Packet" in caplog.text

@@ -392,7 +392,9 @@ def test_a_type_whose_program_this_installation_does_not_carry_is_not_offered_bu
     monkeypatch.setattr("neoaprs.direwolfprogram.find", lambda tools=None: ["direwolf"])
     assert radioregistry.unavailable_types() == ()
     monkeypatch.setattr(radiotypes, "sys", SimpleNamespace(platform="darwin"))
-    assert radioregistry.unavailable_types() == ("direwolf", "direwolf-300"), "nor on a system whose installations carry none"
+    assert radioregistry.unavailable_types() == ("direwolf", "direwolf-300"), (
+        "nor on a system whose installations carry none"
+    )
     monkeypatch.setattr(radiotypes, "sys", SimpleNamespace(platform="linux"))
     monkeypatch.setattr("neoaprs.direwolfprogram.find", lambda tools=None: None)
     monkeypatch.setattr("neoaprs.nodevices.on", lambda: True)
