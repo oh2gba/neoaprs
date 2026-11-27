@@ -239,8 +239,10 @@ Nothing that ends or controls the app waits for the window engine: the session i
 thread of its own, the tray has a Quit and a second app's `show` and `quit` are answered before the
 page is there, since WebView2 can take half a minute to start or fail without a word. An engine not
 up after a minute leaves the app in the tray with the page in the browser. A Quit before the page
-stops the daemon the app started once it is up. After Quit the process ends even if pywebview's loop
-never returns.
+stops the daemon the app started once it is up. A window whose engine is not up when Quit comes (or the
+daemon ends) is never destroyed, since destroying WebView2 in its start aborts it and pywebview's loop then
+never returns: the process ends a second later, each step of its cleanup bounded. After any other Quit it
+ends after five seconds if the loop has not returned.
 
 ## neoaprs/desktop/winplace.py
 
