@@ -52,9 +52,21 @@ function sats_store(): ?string
     return STORE;
 }
 
-/** The elements' CSV, or null: one request, compressed, no redirect followed. */
+/** The elements' CSV, or null: one request, compressed, no redirect followed; curl where the host has it, else the stream wrapper (as latest.php asks GitHub). */
 function sats_download(string $url): ?string
 {
+    if (function_exists('curl_init')) {
+        $c = curl_init($url);
+        curl_setopt_array($c, [
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20, CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_FOLLOWLOCATION => false, CURLOPT_ENCODING => 'gzip', CURLOPT_MAXFILESIZE => MAX_RAW,
+            CURLOPT_HTTPHEADER => ['User-Agent: neoaprs-satellites'],
+        ]);
+        $body = curl_exec($c);
+        $ok = is_string($body) && curl_getinfo($c, CURLINFO_RESPONSE_CODE) === 200;
+        curl_close($c);
+        return $ok && str_starts_with($body, 'OBJECT_NAME,') ? $body : null;
+    }
     $context = stream_context_create(['http' => [
         'timeout' => 20, 'ignore_errors' => true, 'follow_location' => 0,
         'header' => "Accept-Encoding: gzip\r\nUser-Agent: neoaprs-satellites\r\n",
