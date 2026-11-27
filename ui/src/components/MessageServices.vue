@@ -18,6 +18,8 @@ const chosen = usePersisted(
 );
 const service = computed(() => SERVICES.find((s) => s.id === chosen.value) ?? first);
 const groups = serviceGroups();
+/** What Write writes: the addressee and the start of the text. */
+const what = computed(() => t("messages.service_title", { to: service.value.to, text: service.value.text.trim() }));
 </script>
 
 <template>
@@ -33,12 +35,7 @@ const groups = serviceGroups();
         </template>
       </template>
     </select>
-    <button
-      type="button"
-      class="btn"
-      :title="t('messages.service_title', { to: service.to, text: service.text.trim() })"
-      @click="emit('write', service.to, service.text)"
-    >
+    <button type="button" class="btn" :title="what" :aria-label="what" @click="emit('write', service.to, service.text)">
       {{ t("messages.service_write") }}
     </button>
   </div>
