@@ -149,11 +149,8 @@ class WebSocketClient:
         while True:
             try:
                 opcode, final, payload, rsv1 = await self._frame()
-            except asyncio.IncompleteReadError:
-                self.closed = True
-                return None
-            except ConnectionError:
-                self.closed = self.lost = True
+            except (asyncio.IncompleteReadError, ConnectionError) as e:
+                self.closed, self.lost = True, isinstance(e, ConnectionError)
                 return None
             if opcode == PING:
                 self._writer.write(frame(PONG, payload, os.urandom(4)))

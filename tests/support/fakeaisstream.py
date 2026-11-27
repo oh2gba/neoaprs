@@ -139,7 +139,9 @@ class FakeAisStream(LoopbackServer):
         message = json.loads(data)
         if self.reset:
             sock = client.writer.get_extra_info("socket")
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("HH" if sys.platform == "win32" else "ii", 1, 0))
+            sock.setsockopt(
+                socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("HH" if sys.platform == "win32" else "ii", 1, 0)
+            )
             client.writer.transport.abort()
             return False
         self.subscriptions.append(
