@@ -66,7 +66,7 @@ async def test_with_the_layer_off_nothing_is_asked_or_sent_and_switching_it_off_
     await tab.send({"cmd": "satellite_look", "on": True, "cards": []})
     await tab.until(lambda: len(told(tab.messages)) >= 1, 10.0)
     await tab.send({"cmd": "satellite_look", "on": False, "cards": []})
-    await tab.until(lambda: e.ctl.satellites.view is not None and not e.server.api.topics.satellites.pages(), 10.0)
+    await tab.until(lambda: e.ctl.satellites.view is None and not e.server.api.topics.satellites.pages(), 10.0)
     sent = len(told(tab.messages))
     assert e.server is not None
     await tab.quiet(0.5)

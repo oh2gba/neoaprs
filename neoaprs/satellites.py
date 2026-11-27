@@ -196,7 +196,12 @@ def look(orbit: Orbit, station: Station, t: datetime) -> Look | None:
     north = -math.sin(lat) * math.cos(lon) * d[0] - math.sin(lat) * math.sin(lon) * d[1] + math.cos(lat) * d[2]
     up = math.cos(lat) * math.cos(lon) * d[0] + math.cos(lat) * math.sin(lon) * d[1] + math.sin(lat) * d[2]
     rate = (d[0] * v[0] + d[1] * v[1] + d[2] * v[2]) / distance
-    return Look(math.degrees(math.atan2(east, north)) % 360.0, math.degrees(math.asin(up / distance)), distance, rate)
+    return Look(
+        math.degrees(math.atan2(east, north)) % 360.0,
+        math.degrees(math.asin(max(-1.0, min(1.0, up / distance)))),
+        distance,
+        rate,
+    )
 
 
 def footprint_km(alt_km: float, lowest_deg: float = 0.0) -> float:

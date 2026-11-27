@@ -7,9 +7,12 @@ import asyncio
 from datetime import timedelta
 from pathlib import Path
 
+import pytest
+
 from neoaprs.clock import utc
 from neoaprs.satelliteview import View
 from neoaprs.services.satellites import ENV_URL, FETCH_EVERY_SEC, RETRY_SEC, SATELLITES_URL, Satellites
+from neoaprs.services import satellites as satellites_service
 from neoaprs.services.updatecheck import ENV_SWITCH
 from tests.support.clock import FixedClock
 from tests.support.fakelayers import satellites_file
@@ -153,3 +156,75 @@ def test_the_iss_moves_along_its_points_by_a_few_degrees_a_minute() -> None:
     assert got is not None and len(got.points) == 12
     assert got.points[1][0] == DURING_PASS and got.points[0][0] == DURING_PASS - timedelta(seconds=30)
     assert all(0.5 < b[2] - a[2] < 3.0 for a, b in zip(got.points, got.points[1:], strict=False))
+
+
+async def test_a_file_that_raises_in_reading_costs_a_failed_fetch_not_a_fetch_every_round(tmp_path: Path) -> None:
+    server = Server(body=b'{"v": 1, "satellites": [{"id": 25544, "name": "ISS", "downlink": ["x"]}]}')
+    clock = FixedClock(DURING_PASS)
+    service = made(tmp_path, server, clock)
+    await service.round()
+    clock.advance(60)
+    await service.round()
+    assert len(server.asked) == 1, "the server is not asked every round"
+
+
+async def test_an_answer_with_too_few_satellites_to_draw_never_replaces_a_good_kept_file_and_is_asked_again_soon(
+    tmp_path: Path,
+) -> None:
+    kept = satellites_file(made="2026-11-26T10:00:00Z")
+    (tmp_path / "satellites.json").write_bytes(kept)
+    server, clock = (
+        Server(body=satellites_file(made="2026-11-28T11:00:00Z", only=(25544, 7530))),
+        FixedClock(DURING_PASS),
+    )
+    service = made(tmp_path, server, clock)
+    await service.round()
+    assert len(server.asked) == 1 and (tmp_path / "satellites.json").read_bytes() == kept
+    assert service.view is not None and len(service.view.marks) == 10
+    clock.advance(RETRY_SEC + 1)
+    server.body = satellites_file(made="2026-11-28T12:00:00Z")
+    await service.round()
+    assert len(server.asked) == 2 and (tmp_path / "satellites.json").read_bytes() == server.body
+
+
+async def test_with_no_file_kept_a_thin_answer_is_used_and_asked_for_again_after_the_pause(tmp_path: Path) -> None:
+    server, clock = Server(body=satellites_file(made="2026-11-28T11:00:00Z", only=(25544,))), FixedClock(DURING_PASS)
+    service = made(tmp_path, server, clock)
+    await service.round()
+    assert service.view is not None and len(service.view.marks) == 1
+    clock.advance(RETRY_SEC + 1)
+    await service.round()
+    assert len(server.asked) == 2, "a thin file is not kept for a day"
+
+
+async def test_a_page_that_comes_back_is_not_handed_the_view_of_the_last_look(tmp_path: Path) -> None:
+    server, clock = Server(), FixedClock(DURING_PASS)
+    service = made(tmp_path, server, clock)
+    service.look(True, frozenset())
+    await service.round()
+    assert service.view is not None
+    service.look(False, frozenset())
+    assert service.view is None
+
+
+async def test_a_satellite_that_never_rises_is_not_searched_again_every_round(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    searched: list[int] = []
+
+    def none(*args: object) -> list[object]:
+        searched.append(1)
+        return []
+
+    monkeypatch.setattr(satellites_service, "passes", none)
+    server, clock = Server(), FixedClock(DURING_PASS)
+    moving = [60.17, 24.94]
+    service = Satellites(
+        tmp_path, lambda: (moving[0], moving[1]), "0.26.0", "linux", server, clock, {}, clock.monotonic
+    )
+    service.look(True, frozenset({25544}))
+    for _ in range(4):
+        await service.round()
+        clock.advance(30)
+        moving[0] += 0.001  # a GPS that drifts a little
+    assert len(searched) == 1

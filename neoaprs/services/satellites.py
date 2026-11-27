@@ -2,7 +2,7 @@
 pages that look are told every ROUND_SEC (marks, and the cards they have open).
 
 Nothing is fetched or computed while no page looks. The file is fetched while one looks and it is
-missing or a day old, at most once a day; NEOAPRS_UPDATE_CHECK=0 fetches nothing unless
+missing or a day old, at most once a day (after a failed or thin answer, hourly); NEOAPRS_UPDATE_CHECK=0 fetches nothing unless
 NEOAPRS_SATELLITES_URL names a server on this computer."""
 
 import asyncio
@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from neoaprs.clock import Clock, utcnow
-from neoaprs.satellitelist import FILE_NAME, MAX_BYTES, SATELLITES_URL, SatelliteFile, read_file, shown
+from neoaprs.satellitelist import FILE_NAME, MAX_BYTES, SATELLITES_URL, SatelliteFile, read_file, shown, usable
 from neoaprs.satellites import Orbit, Pass, Station, passes
 from neoaprs.satelliteview import Card, Mark, View, card, mark
 from neoaprs.signal import Signal
@@ -29,7 +29,10 @@ ENV_URL = "NEOAPRS_SATELLITES_URL"
 ROUND_SEC = 30.0
 FILE_AGE = timedelta(days=1)  # a file made longer ago is fetched again
 FETCH_EVERY_SEC = 86400.0
-RETRY_SEC = 3600.0  # after a fetch that failed
+RETRY_SEC = 3600.0  # after a fetch that failed, or one that gave too few satellites to draw
+# A file with fewer satellites that can be drawn is no good answer: it never replaces a kept file
+# that has more, and is asked for again after RETRY_SEC.
+MIN_USABLE = 5
 PASSES_FOR = timedelta(hours=6)  # how long the passes found are used before they are searched again
 # (address, version, platform, max bytes) -> (status, body)
 Fetch = Callable[[str, str, str, int], Awaitable[tuple[int, bytes] | None]]
@@ -41,6 +44,14 @@ def _read(path: Path) -> SatelliteFile | None:
         return read_file(path.read_bytes())
     except OSError:
         return None
+
+
+def _why(answer: tuple[int, bytes] | None, unread: bool, drawn: int, kept: int) -> str:
+    if answer is None:
+        return "no answer"
+    if answer[0] != 200:
+        return f"answer {answer[0]}"
+    return "not such a file" if unread else f"{drawn} satellites to draw against {kept}"
 
 
 def _write(path: Path, body: bytes) -> None:
@@ -78,6 +89,7 @@ class Satellites:
         self._cards: frozenset[int] = frozenset()
         self._fetched_at: float | None = None
         self._failed_at: float | None = None
+        self._thin = False  # the file in use has fewer than MIN_USABLE satellites to draw
         self._passes: dict[int, tuple[PassKey, datetime, list[Pass]]] = {}
         self._wake: asyncio.Event | None = None
         self._runner: asyncio.Task[None] | None = None
@@ -91,6 +103,7 @@ class Satellites:
             if self._runner is not None:
                 self._runner.cancel()
                 self._runner = None
+            self.view = None  # a page that comes back waits for a round of its own time
             return
         if self._wake is not None:
             self._wake.set()
@@ -120,6 +133,7 @@ class Satellites:
         if not self._loaded:
             self._loaded = True
             self.file = await asyncio.to_thread(_read, self.path)
+            self._thin = self.file is not None and usable(self.file, self._clock()) < MIN_USABLE
         if self._due():
             await self._fetch_file()
         position = self._where()
@@ -132,7 +146,7 @@ class Satellites:
         made = None if self.file is None else self.file.made
         return (
             self.fetching
-            and (made is None or self._clock() - made >= FILE_AGE)
+            and (made is None or self._clock() - made >= FILE_AGE or self._thin)
             and (self._fetched_at is None or now - self._fetched_at >= FETCH_EVERY_SEC)
             and (self._failed_at is None or now - self._failed_at >= RETRY_SEC)
         )
@@ -141,11 +155,14 @@ class Satellites:
         self.asked += 1
         answer = await self._fetch(self.url, self.version, self.platform, MAX_BYTES)
         read = read_file(answer[1]) if answer is not None and answer[0] == 200 else None
-        if read is None:
+        now = self._clock()
+        drawn = 0 if read is None else usable(read, now)
+        kept = 0 if self.file is None else usable(self.file, now)
+        if read is None or (drawn < MIN_USABLE and drawn < kept):
             if self._failed_at is None:
                 log.info(
                     "the satellites file could not be fetched (%s); %s",
-                    "no answer" if answer is None else f"answer {answer[0]}" if answer[0] != 200 else "not such a file",
+                    _why(answer, read is None, drawn, kept),
                     "the last one is used" if self.file is not None else "the layer is empty until it comes",
                 )
             self._failed_at = self._monotonic()
@@ -153,12 +170,21 @@ class Satellites:
         assert answer is not None
         await asyncio.to_thread(_write, self.path, answer[1])
         self.file, self._fetched_at, self._failed_at = read, self._monotonic(), None
-        log.info("the satellites file came: %d satellites", len(read.satellites))
+        self._thin = drawn < MIN_USABLE
+        if self._thin:
+            self._fetched_at, self._failed_at = None, self._monotonic()
+        log.info("the satellites file came: %d satellites, %d to draw", len(read.satellites), drawn)
 
     def _passes_of(self, satellite_id: int, orbit: Orbit, station: Station, now: datetime) -> list[Pass]:
-        key = (station, orbit.epoch)
+        # A station that moves a little (a GPS) keeps its passes; none found is kept as well.
+        key = (Station(round(station.lat, 2), round(station.lon, 2), station.alt_m), orbit.epoch)
         held = self._passes.get(satellite_id)
-        if held is not None and held[0] == key and now - held[1] < PASSES_FOR and any(one.set > now for one in held[2]):
+        if (
+            held is not None
+            and held[0] == key
+            and now - held[1] < PASSES_FOR
+            and (not held[2] or any(one.set > now for one in held[2]))
+        ):
             return held[2]
         found = passes(orbit, station, now)
         self._passes[satellite_id] = (key, now, found)
