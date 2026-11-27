@@ -14,7 +14,7 @@ const JUMP_DEG = 0.5;
 /** Below this speed a thing is drawn where it was reported. */
 const STILL_KMH = 1;
 
-/** A thing's report: where and when, and how it moves (null: not told). */
+/** A thing's report: where and when (on the motion's clock), and how it moves (null: not told). */
 export interface Report {
   lon: number;
   lat: number;

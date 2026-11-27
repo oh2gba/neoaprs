@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { footprintRings, positionAt, satelliteFeatures, splitLine, wrapLon } from "@/lib/layers/satellite";
-import { DURING, satelliteCard, satelliteMark } from "@/test/satellitefixtures";
+import {
+  footprintRings,
+  positionAt,
+  satelliteFeatures,
+  satellitesInPageClock,
+  splitLine,
+  wrapLon,
+} from "@/lib/layers/satellite";
+import { DURING, satelliteCard, satelliteMark, satellitesMessage } from "@/test/satellitefixtures";
 
 const at = (iso: string) => Date.parse(iso);
 
@@ -117,5 +124,17 @@ describe("satelliteFeatures: what the map draws", () => {
     const drawn = satelliteFeatures([satelliteMark()], [satelliteCard()], DURING + 3600000);
     expect(drawn.marks.features).toEqual([]);
     expect(drawn.tracks.features).toEqual([]);
+  });
+});
+
+describe("satellitesInPageClock: the daemon's times on the page's clock", () => {
+  it("puts the mark where the daemon has it when the page's clock is a minute ahead", () => {
+    const told = satellitesMessage({ cards: [satelliteCard()] });
+    const ahead = DURING + 60_000;
+    const held = satellitesInPageClock(told, ahead);
+    expect(positionAt(held.satellites[0].points, ahead)).toEqual(positionAt(told.satellites[0].points, DURING));
+    expect(Date.parse(held.cards[0].next_pass?.set ?? "")).toBe(Date.parse("2026-11-28T12:13:06Z") + 60_000);
+    expect(held.cards[0].looks[0].at).toBe(new Date(DURING + 60_000).toISOString());
+    expect(satellitesInPageClock({ ...told, at: "not a time" }, ahead)).toEqual({ ...told, at: "not a time" });
   });
 });

@@ -7,10 +7,13 @@ import { getCurrentScope, onScopeDispose, watch } from "vue";
 /** At most this often a step moves the marks: 20 a second. */
 export const FRAME_MS = 50;
 
+/** The motion's own clock, in milliseconds: it does not step when the device's clock is set. */
+export const motionNow = (): number => performance.now();
+
 export interface Mover {
   /** Whether it has marks to move now (read in a watcher). */
   active: () => boolean;
-  /** Set its marks where they are at `nowMs`. */
+  /** Set its marks where they are at `nowMs`, on the motion's clock. */
   draw: (nowMs: number) => void;
 }
 
@@ -23,7 +26,7 @@ export interface Frames {
 const browserFrames: Frames = {
   request: (step) => requestAnimationFrame(step),
   cancel: (id) => cancelAnimationFrame(id),
-  now: () => Date.now(),
+  now: motionNow,
 };
 
 export function useMapMotion(movers: readonly Mover[], frames: Frames = browserFrames) {

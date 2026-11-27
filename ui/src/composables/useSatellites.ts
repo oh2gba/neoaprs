@@ -2,20 +2,24 @@
 // open cards) while the tick of Satellites is on, the page is in front, the socket is open and the
 // map's replay is closed, and says so again whenever a card opens or closes; when any of these goes
 // it says off and forgets what it was told, and it looks again when the socket was opened anew,
-// since the daemon forgets a page that left. Any number of cards may be open, oldest first; a card
-// closes by its cross, Close all or Esc (the newest first), when the tick goes off, or when its
-// satellite is no longer shown. While the page looks a clock of its own moves every second for the
-// time left, the Doppler and the open cards' drawings; the map's motion moves the marks between.
+// since the daemon forgets a page that left; what it is told has its times moved onto the page's
+// clock. Any number of cards may be open, oldest first; a card closes by its cross, Close all or
+// Esc (the newest first), when the tick goes off, or when its satellite is no longer shown. While
+// the page looks a clock of its own moves every second for the time left, the Doppler and the open
+// cards' drawings; the map's motion moves the marks between.
 import { computed, getCurrentScope, onScopeDispose, ref, shallowRef, watch, type Ref } from "vue";
 import { useMapLayers } from "@/composables/useMapLayers";
 import type { Connection, Store } from "@/lib/hub";
+import { satellitesInPageClock } from "@/lib/layers/satellite";
 import type { Command, MapState, SatelliteCard, SatellitesMessage } from "@/protocol/protocol";
 
 const TICK_MS = 1000;
 
-export function useSatelliteStore() {
+export function useSatelliteStore(clock: () => number = Date.now) {
   const told = shallowRef<SatellitesMessage | null>(null);
-  const handlers: Pick<Store, "satellites"> = { satellites: (message) => (told.value = message) };
+  const handlers: Pick<Store, "satellites"> = {
+    satellites: (message) => (told.value = satellitesInPageClock(message, clock())),
+  };
   return { told, forget: () => void (told.value = null), handlers };
 }
 

@@ -35,10 +35,10 @@ export function useMapSatellites(map: () => MapLibreMap | null) {
 
   const mover: Mover = {
     active: () => satellites.told.value !== null,
-    draw: (nowMs) => {
+    draw: () => {
       const to = map();
       const told = satellites.told.value;
-      if (to && told) setSatelliteMarks(to, satelliteMarks(told.satellites, satellites.cards.value, nowMs));
+      if (to && told) setSatelliteMarks(to, satelliteMarks(told.satellites, satellites.cards.value, Date.now()));
     },
   };
 

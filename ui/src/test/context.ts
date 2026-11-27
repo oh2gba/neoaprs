@@ -62,7 +62,7 @@ type RadioTopic = ReadonlyMap<string, RadioRow> | null;
  * The aircraft and ships: the one a test gave, else the page's own with the tables a test sends.
  */
 function trafficOf(over: Given, parts: Pick<TrafficParts, "send" | "connection" | "map" | "now">) {
-  const layerTables = useLayerTables();
+  const layerTables = useLayerTables(() => parts.now.value);
   const replayOpen = shallowRef(false);
   const traffic =
     over.traffic ?? useLayerThings({ ...parts, visible: pageVisible(), replay: replayOpen, store: layerTables });

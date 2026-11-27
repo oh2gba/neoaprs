@@ -3,6 +3,7 @@ import {
   FADE_OPACITY,
   GLIDE_STOP_SEC,
   glidedFeatures,
+  inPageClock,
   nextGlides,
   reportOf,
   THING_SHAPES,
@@ -194,14 +195,54 @@ describe("traffic: the things glide between their reports", () => {
     ms: number,
   ) => glidedFeatures(trafficFeatures(tables, NOW), glides, ms).features.map((one) => one.geometry.coordinates);
 
-  it("moves an aircraft along its track and a ship along its course over ground, not its heading", () => {
-    expect(reportOf("aircraft", aircraft({ heading_deg: 225 })).courseDeg).toBe(225);
-    expect(reportOf("ships", ship({ heading_deg: 182, course_deg: 170 })).courseDeg).toBe(170);
-    expect(reportOf("ships", ship({ course_deg: null })).courseDeg).toBeNull();
+  const course = (layer: "aircraft" | "ships", thing: ReturnType<typeof aircraft>) =>
+    reportOf(layer, thing, layerThings(layer, [thing]), 0).courseDeg;
+
+  it("moves an aircraft along its track and a ship along its course over ground, never its heading", () => {
+    expect(course("aircraft", aircraft({ heading_deg: 225, course_deg: 231 }))).toBe(231);
+    expect(course("aircraft", aircraft({ heading_deg: 225, course_deg: null }))).toBeNull();
+    expect(course("ships", ship({ heading_deg: 182, course_deg: 170 }))).toBe(170);
+    expect(course("ships", ship({ course_deg: null }))).toBeNull();
+  });
+
+  it("tells a thing's age by the daemon's clock, and goes on by the motion's own clock", () => {
+    const thing = aircraft({ at: new Date(NOW - 5000).toISOString(), course_deg: 0, speed_kmh: 360 });
+    const table = layerThings("aircraft", [thing], { at: new Date(NOW).toISOString() });
+    const glides = nextGlides(new Map(), [table], 1000, () => 1000);
+    const [atReceipt] = coordinates([table], glides, 1000);
+    const [later] = coordinates([table], glides, 3000);
+    expect(atReceipt[1] - thing.lat).toBeCloseTo(0.5 / 111.195, 4);
+    expect(later[1] - thing.lat).toBeCloseTo(0.7 / 111.195, 4);
+  });
+
+  it("does not move a thing whose time or whose table's time is no time, or is well after the table's", () => {
+    const iso = (ms: number) => new Date(ms).toISOString();
+    const report = (at: string, tableAt: string) => {
+      const thing = aircraft({ at, course_deg: 0, speed_kmh: 360 });
+      return reportOf("aircraft", thing, layerThings("aircraft", [thing], { at: tableAt }), 1000);
+    };
+    expect(report(iso(NOW - 3000), iso(NOW))).toMatchObject({ atMs: -2000, courseDeg: 0 });
+    expect(report("not a time", iso(NOW))).toMatchObject({ atMs: 1000, courseDeg: null });
+    expect(report(iso(NOW), "not a time")).toMatchObject({ atMs: 1000, courseDeg: null });
+    expect(report(iso(NOW + 3_600_000), iso(NOW))).toMatchObject({ atMs: 1000, courseDeg: null });
+  });
+
+  it("puts a table's times on the page's clock when the page's clock is a minute ahead", () => {
+    const table = layerThings("aircraft", [aircraft({ at: new Date(NOW - 5000).toISOString() })], {
+      at: new Date(NOW).toISOString(),
+      trails: [{ id: "461f2a", points: [[24.9, 60.3, new Date(NOW - 65_000).toISOString()]] }],
+    });
+    const ahead = NOW + 60_000;
+    const held = inPageClock(table, ahead);
+    expect(held.at).toBe(new Date(ahead).toISOString());
+    expect(held.things[0].at).toBe(new Date(ahead - 5000).toISOString());
+    expect(held.trails[0].points[0][2]).toBe(new Date(ahead - 65_000).toISOString());
+    expect(liveThings(held, ahead)).toHaveLength(1);
+    expect(inPageClock({ ...table, at: "not a time" }, ahead)).toEqual({ ...table, at: "not a time" });
   });
 
   it("carries an aircraft on from its report and stops it after a few report intervals", () => {
-    const tables = [layerThings("aircraft", [aircraft({ at, heading_deg: 0, speed_kmh: 360 })])];
+    const tables = [layerThings("aircraft", [aircraft({ at, course_deg: 0, speed_kmh: 360 })])];
     const glides = nextGlides(new Map(), tables, NOW);
     const [start] = coordinates(tables, glides, NOW);
     const [later] = coordinates(tables, glides, NOW + 10_000);
@@ -217,13 +258,15 @@ describe("traffic: the things glide between their reports", () => {
   });
 
   it("goes on from where it is drawn when the next report comes, and forgets a thing that left", () => {
-    const first = [layerThings("aircraft", [aircraft({ at, heading_deg: 90, speed_kmh: 720 })])];
+    const first = [layerThings("aircraft", [aircraft({ at, course_deg: 90, speed_kmh: 720 })])];
     const glides = nextGlides(new Map(), first, NOW);
     const [before] = coordinates(first, glides, NOW + 5000);
     const next = [
-      layerThings("aircraft", [
-        aircraft({ at: new Date(NOW + 4000).toISOString(), lon: 24.99, heading_deg: 90, speed_kmh: 720 }),
-      ]),
+      layerThings(
+        "aircraft",
+        [aircraft({ at: new Date(NOW + 4000).toISOString(), lon: 24.99, course_deg: 90, speed_kmh: 720 })],
+        { at: new Date(NOW + 5000).toISOString() },
+      ),
     ];
     const after = nextGlides(glides, next, NOW + 5000);
     const [now] = coordinates(next, after, NOW + 5000);
@@ -233,14 +276,16 @@ describe("traffic: the things glide between their reports", () => {
   });
 
   it("starts from the newest report when the tab comes back, the tables having been emptied while it was hidden", () => {
-    const old = [layerThings("aircraft", [aircraft({ at, lon: 24.9, heading_deg: 90, speed_kmh: 720 })])];
+    const old = [layerThings("aircraft", [aircraft({ at, lon: 24.9, course_deg: 90, speed_kmh: 720 })])];
     const hidden = nextGlides(nextGlides(new Map(), old, NOW), [], NOW + 1000);
     expect(hidden.size).toBe(0);
     const later = NOW + 600_000;
     const back = [
-      layerThings("aircraft", [
-        aircraft({ at: new Date(later).toISOString(), lon: 25.4, heading_deg: 90, speed_kmh: 720 }),
-      ]),
+      layerThings(
+        "aircraft",
+        [aircraft({ at: new Date(later).toISOString(), lon: 25.4, course_deg: 90, speed_kmh: 720 })],
+        { at: new Date(later).toISOString() },
+      ),
     ];
     const [drawn] = coordinates(back, nextGlides(hidden, back, later), later);
     expect(drawn[0]).toBeCloseTo(25.4, 9);

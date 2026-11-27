@@ -15,14 +15,15 @@ let scope: EffectScope;
  */
 function make(layers = [mapLayer("aircraft", { source: "receiver" }), mapLayer("ships", { source: "fintraffic" })]) {
   const send = vi.fn((_command: Command) => true);
+  const now = shallowRef(NOW);
   const parts = {
     send,
     connection: shallowRef<Connection>("open"),
     visible: shallowRef(true),
     replay: shallowRef(false),
     map: shallowRef<MapState | null>(mapState({ layers })),
-    now: shallowRef(NOW),
-    store: useLayerTables(),
+    now,
+    store: useLayerTables(() => now.value),
   };
   const run = scope.run(() => ({ traffic: useLayerThings(parts), ticks: useMapLayers(parts.map) }));
   if (!run) throw new Error("not made");

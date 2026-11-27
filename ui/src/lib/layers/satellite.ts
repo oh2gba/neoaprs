@@ -2,7 +2,8 @@
 // moved between the points the daemon sent; for every open card its track ahead, split where it
 // crosses the antimeridian, and its footprint (the circle on the ground from which it is above the
 // horizon), drawn as polygons inside -180..180 that close over a pole they cover.
-import type { SatelliteCard, SatelliteMark, SatellitePoint } from "@/protocol/protocol";
+import { clockShift, shiftedTime } from "@/lib/pageclock";
+import type { SatelliteCard, SatelliteMark, SatellitePoint, SatellitesMessage } from "@/protocol/protocol";
 
 type Position = [lon: number, lat: number];
 const EARTH_KM = 6371.0088;
@@ -201,5 +202,30 @@ export function satelliteFeatures(
     marks: drawn,
     tracks: { type: "FeatureCollection", features: tracks },
     footprints: { type: "FeatureCollection", features: footprints },
+  };
+}
+
+/** The message with its times on the page's clock (lib/pageclock.ts); one whose `at` is no time is left as it is. */
+export function satellitesInPageClock(message: SatellitesMessage, nowMs: number): SatellitesMessage {
+  const shift = clockShift(message.at, nowMs);
+  if (shift === null || shift === 0) return message;
+  const move = (iso: string): string => shiftedTime(iso, shift);
+  const points = (list: readonly SatellitePoint[]): SatellitePoint[] =>
+    list.map((one) => ({ ...one, at: move(one.at) }));
+  return {
+    ...message,
+    at: move(message.at),
+    satellites: message.satellites.map((one) => ({ ...one, points: points(one.points) })),
+    cards: message.cards.map((card) => ({
+      ...card,
+      track: points(card.track),
+      next_pass: card.next_pass && {
+        ...card.next_pass,
+        rise: move(card.next_pass.rise),
+        set: move(card.next_pass.set),
+        max_at: move(card.next_pass.max_at),
+      },
+      looks: card.looks.map((one) => ({ ...one, at: move(one.at) })),
+    })),
   };
 }

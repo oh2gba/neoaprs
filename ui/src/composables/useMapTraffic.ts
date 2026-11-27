@@ -6,7 +6,7 @@
 import { computed, watch } from "vue";
 import type { MapGeoJSONFeature, MapLayerMouseEvent, Map as MapLibreMap } from "maplibre-gl";
 import { useDaemonContext } from "@/composables/useDaemonContext";
-import type { Mover } from "@/composables/useMapMotion";
+import { motionNow, type Mover } from "@/composables/useMapMotion";
 import type { Glide } from "@/lib/layers/glide";
 import type { HoverCard, HoverContent } from "@/lib/hovercard";
 import { hoverRows, thingSub, thingTitle } from "@/lib/layers/card";
@@ -27,6 +27,7 @@ import {
 } from "@/lib/layers/traffic";
 import { NO_TRAIL, trailKey, trailLines } from "@/lib/layers/trail";
 import type { TrackCollection } from "@/lib/tracks";
+import type { LayerThingsMessage } from "@/protocol/protocol";
 import { TRAFFIC_LAYER, addTrafficLayers, setTrafficData, setTrailData } from "@/lib/layers/trafficlayers";
 
 // Pixels each way round a click or tap; the topmost mark found is the one meant.
@@ -70,15 +71,22 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
   const traffic = page.traffic;
   let glides = new Map<string, Glide>();
   let drawn: TrafficCollection = NO_TRAFFIC;
-  watch(traffic.tables, (tables) => void (glides = nextGlides(glides, tables.values(), Date.now())), {
-    flush: "sync",
-    immediate: true,
-  });
+  // When each table came, on the motion's clock.
+  const received = new WeakMap<LayerThingsMessage, number>();
+  watch(
+    traffic.tables,
+    (tables) => {
+      const now = motionNow();
+      for (const table of tables.values()) if (!received.has(table)) received.set(table, now);
+      glides = nextGlides(glides, tables.values(), now, (table) => received.get(table) ?? now);
+    },
+    { flush: "sync", immediate: true },
+  );
   const placed = (nowMs: number): TrafficCollection => glidedFeatures(drawn, glides, nowMs);
   const draw = (): void => {
     drawn = trafficFeatures(traffic.tables.value.values(), page.now.value);
     const to = map();
-    if (to) setTrafficData(to, placed(Date.now()));
+    if (to) setTrafficData(to, placed(motionNow()));
   };
   watch([traffic.tables, page.now], draw);
   const trail = useOpenTrail(map);
@@ -107,7 +115,7 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
     const thing = traffic.tables.value.get(layer)?.things.find((one) => one.id === id);
     const frame = to.getContainer().getBoundingClientRect();
     const key = thingKey(layer, id);
-    const here = placed(Date.now()).features.find((one) => one.properties.key === key)?.geometry.coordinates;
+    const here = placed(motionNow()).features.find((one) => one.properties.key === key)?.geometry.coordinates;
     const at = here ? to.project(here) : { x: 0, y: 0 };
     const side = thing ? sideOf(thingShape(layer, thing)) : MARK_SIZE;
     return new DOMRect(frame.left + at.x - side / 2, frame.top + at.y - side / 2, side, side);
@@ -152,7 +160,7 @@ export function useMapTraffic(map: () => MapLibreMap | null) {
   return {
     add: (to: MapLibreMap): void => {
       drawn = trafficFeatures(traffic.tables.value.values(), page.now.value);
-      addTrafficLayers(to, placed(Date.now()), trail());
+      addTrafficLayers(to, placed(motionNow()), trail());
     },
     mover,
     listen,
