@@ -432,6 +432,23 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.pair.legend": "{first} y {second}",
   "settings.pair.name": "Pareja de radios",
   "settings.pair.call": "Indicativo",
+  "settings.explain.close": "Cerrar",
+  "settings.pair.explain.label": "Cómo funciona el paso entre {first} y {second}",
+  "settings.pair.explain.title": "Entre {first} y {second}",
+  "settings.pair.explain.station": "una estación",
+  "settings.pair.explain.you": "tu estación",
+  "settings.pair.explain.stations": "estaciones",
+  "settings.pair.explain.picture":
+    "Una estación en {first} pone {call} en su ruta, y tu estación envía el paquete una vez en {second}, con {call} marcado como usado.",
+  "settings.pair.explain.picture_stop": "Sin {call} en su ruta, un paquete se detiene en tu estación.",
+  "settings.pair.explain.line1":
+    "Si una estación pone {call} en su ruta, su paquete se envía una vez en la otra radio. Funciona en ambos sentidos.",
+  "settings.pair.explain.line2": "Cruza cualquier paquete: una posición, un estado, un mensaje, un acuse.",
+  "settings.pair.explain.line3": "Sin {call} en la ruta no cruza nada, y un mensaje dirigido a ti se queda contigo.",
+  "settings.pair.explain.slow": {
+    one: "Hacia {radio}, como mucho {n} paquete en {min} minutos.",
+    other: "Hacia {radio}, como mucho {n} paquetes en {min} minutos.",
+  },
   "settings.pair.tip_label": "Sobre el paso entre dos radios",
   "settings.pair.tip1":
     "Pasa a la otra radio un paquete oído en una de las dos, si su ruta nombra este indicativo. Dáselo a quien quiera llegar a la otra radio.",

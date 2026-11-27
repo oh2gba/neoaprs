@@ -439,6 +439,23 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.pair.legend": "{first} en {second}",
   "settings.pair.name": "Radiopaar",
   "settings.pair.call": "Roepnaam",
+  "settings.explain.close": "Sluiten",
+  "settings.pair.explain.label": "Hoe doorgeven tussen {first} en {second} werkt",
+  "settings.pair.explain.title": "Tussen {first} en {second}",
+  "settings.pair.explain.station": "een station",
+  "settings.pair.explain.you": "jouw station",
+  "settings.pair.explain.stations": "stations",
+  "settings.pair.explain.picture":
+    "Een station op {first} zet {call} in zijn pad, en jouw station zendt het pakket één keer uit op {second}, met {call} als gebruikt gemarkeerd.",
+  "settings.pair.explain.picture_stop": "Zonder {call} in het pad stopt een pakket bij jouw station.",
+  "settings.pair.explain.line1":
+    "Zet een station {call} in zijn pad, dan gaat zijn pakket één keer uit op de andere radio. Dat werkt in beide richtingen.",
+  "settings.pair.explain.line2": "Elk pakket gaat over: een positie, een status, een bericht, een ack.",
+  "settings.pair.explain.line3": "Zonder {call} in het pad gaat er niets over, en een bericht aan jou blijft bij jou.",
+  "settings.pair.explain.slow": {
+    one: "Naar {radio} hoogstens {n} pakket in {min} minuten.",
+    other: "Naar {radio} hoogstens {n} pakketten in {min} minuten.",
+  },
   "settings.pair.tip_label": "Over doorgeven tussen twee radio's",
   "settings.pair.tip1":
     "Zendt een pakket van de ene radio één keer uit op de andere, als het pad deze roepnaam noemt. Geef de roepnaam aan wie de andere radio zoekt.",

@@ -53,7 +53,8 @@
    (UpdateSteps); on a phone it is the whole screen (responsive.css) */
 .updatedialog-backdrop,
 .pathbuild-backdrop,
-.logsdialog-backdrop {
+.logsdialog-backdrop,
+.explaindialog-backdrop {
   position: fixed;
   inset: 0;
   z-index: 40;
@@ -65,7 +66,8 @@
 }
 .updatedialog,
 .pathbuild,
-.logsdialog {
+.logsdialog,
+.explaindialog {
   width: min(540px, 100%);
   max-height: min(88vh, 100%);
   overflow: auto;
@@ -78,7 +80,8 @@
 }
 .updatedialog:focus,
 .pathbuild:focus,
-.logsdialog:focus {
+.logsdialog:focus,
+.explaindialog:focus {
   outline: none;
 }
 .updatedialog-head {
@@ -95,7 +98,19 @@
   gap: 8px;
   width: min(460px, 100%);
 }
-.logsdialog-title {
+/* a dialog that explains one thing (ExplainDialog): the frame of Send logs', its pictures as wide
+   as the dialog and scaled down with it, its lines short */
+.explaindialog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(460px, 100%);
+}
+.explaindialog p {
+  margin: 0;
+}
+.logsdialog-title,
+.explaindialog-title {
   flex: 1;
   min-width: 0;
   margin: 4px 0 0;

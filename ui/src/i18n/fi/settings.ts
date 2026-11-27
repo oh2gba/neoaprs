@@ -425,6 +425,24 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.pair.legend": "{first} ja {second}",
   "settings.pair.name": "Radioparin toisto",
   "settings.pair.call": "Kutsu",
+  "settings.explain.close": "Sulje",
+  "settings.pair.explain.label": "Miten toisto radioiden {first} ja {second} välillä toimii",
+  "settings.pair.explain.title": "Radioiden {first} ja {second} välillä",
+  "settings.pair.explain.station": "asema",
+  "settings.pair.explain.you": "oma asemasi",
+  "settings.pair.explain.stations": "asemat",
+  "settings.pair.explain.picture":
+    "Asema radiolla {first} laittaa kutsun {call} polkuunsa, ja asemasi lähettää paketin kerran radiolla {second}, kutsu {call} käytetyksi merkittynä.",
+  "settings.pair.explain.picture_stop": "Ilman kutsua {call} polussa paketti pysähtyy asemallesi.",
+  "settings.pair.explain.line1":
+    "Kun asema laittaa kutsun {call} polkuunsa, paketti lähetetään kerran toisella radiolla. Se toimii kumpaankin suuntaan.",
+  "settings.pair.explain.line2": "Mikä tahansa paketti menee yli: sijainti, tila, viesti, kuittaus.",
+  "settings.pair.explain.line3":
+    "Ilman kutsua {call} polussa mikään ei mene yli, ja sinulle osoitettu viesti jää sinulle.",
+  "settings.pair.explain.slow": {
+    one: "Radiolle {radio} enintään {n} paketti {min} minuutissa.",
+    other: "Radiolle {radio} enintään {n} pakettia {min} minuutissa.",
+  },
   "settings.pair.tip_label": "Tietoa: toisto kahden radion välillä",
   "settings.pair.tip1":
     "Lähettää toisella radiolla kuullun paketin kerran toisella, kun sen polussa on tämä kutsu. Anna kutsu asemille, jotka haluavat toiselle radiolle.",

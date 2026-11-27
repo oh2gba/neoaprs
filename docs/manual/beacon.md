@@ -332,7 +332,7 @@ Each one is a line in the log (`digipeated OH2XYZ>APRS: the path WIDE1-1,WIDE2-1
 
 ## Passing a packet between two radios
 
-Two radios of the station that both send, and are both real radios or both Dummy radios, can be set as a **pair** in the Settings tab, group Digipeater: each pair has its own box, named after its two radios, with an **Enable** and, once it is ticked, the **Call** of the pair. A station with three radios has three pairs, one with four has six. The pair is off until you tick it.
+Two radios of the station that both send, and are both real radios or both Dummy radios, can be set as a **pair** in the Settings tab, group Digipeater: each pair has its own box, named after its two radios, with an **Enable** and, once it is ticked, the **Call** of the pair. A station with three radios has three pairs, one with four has six. The pair is off until you tick it. The (i) beside the box's title opens a short explanation with pictures, with the pair's own call and radios.
 
 The Call is your call with an SSID of its own, `OH2GBA-12`. On Enable NeoAPRS takes the highest SSID from 15 down that is neither your station's nor another pair's, and the list of the Call offers only the free ones. You tell the call yourself to the stations that want to reach the other radio. A packet whose path does not name the call is not passed.
 

@@ -432,6 +432,24 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.pair.legend": "{first} e {second}",
   "settings.pair.name": "Coppia di radio",
   "settings.pair.call": "Nominativo",
+  "settings.explain.close": "Chiudi",
+  "settings.pair.explain.label": "Come funziona il passaggio tra {first} e {second}",
+  "settings.pair.explain.title": "Tra {first} e {second}",
+  "settings.pair.explain.station": "una stazione",
+  "settings.pair.explain.you": "la tua stazione",
+  "settings.pair.explain.stations": "stazioni",
+  "settings.pair.explain.picture":
+    "Una stazione su {first} mette {call} nel suo percorso, e la tua stazione invia il pacchetto una volta su {second}, con {call} segnato come usato.",
+  "settings.pair.explain.picture_stop": "Senza {call} nel percorso, un pacchetto si ferma alla tua stazione.",
+  "settings.pair.explain.line1":
+    "Se una stazione mette {call} nel suo percorso, il suo pacchetto viene inviato una volta sull’altra radio. Funziona nei due sensi.",
+  "settings.pair.explain.line2": "Passa qualsiasi pacchetto: una posizione, uno stato, un messaggio, una conferma.",
+  "settings.pair.explain.line3":
+    "Senza {call} nel percorso non passa nulla, e un messaggio indirizzato a te resta a te.",
+  "settings.pair.explain.slow": {
+    one: "Verso {radio}, al massimo {n} pacchetto in {min} minuti.",
+    other: "Verso {radio}, al massimo {n} pacchetti in {min} minuti.",
+  },
   "settings.pair.tip_label": "Informazioni sul passaggio tra due radio",
   "settings.pair.tip1":
     "Passa una volta sull’altra radio un pacchetto sentito su una delle due, se il percorso nomina questo nominativo. Dallo a chi vuole raggiungerla.",

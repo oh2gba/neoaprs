@@ -78,3 +78,14 @@
 .hp-on-accent {
   fill: var(--accent-text);
 }
+/* the words of a pop-up's picture (PairPicture), in the page's own font; a radio's name is cut
+   to fit its box */
+.hp-word {
+  fill: currentColor;
+  stroke: none;
+  font: 10px var(--font);
+  text-anchor: middle;
+}
+.hp-word-strong {
+  font-weight: 600;
+}

@@ -46,6 +46,16 @@ const callChoices = (key: string, values: Readonly<Record<string, string>>): Cho
 };
 
 /**
+ * The pair's call as stations put it in their path: its SSID's, or the first free one before the
+ * daemon sets it.
+ */
+export function pairCall(key: string, values: Readonly<Record<string, string>>): string {
+  const own = values[key] ?? "";
+  const ssid = own !== "" && own !== "0" ? own : String(freeSsids(key, values)[0] ?? "");
+  return `${splitCall(values["station/call"] ?? "").base}-${ssid}`;
+}
+
+/**
  * A pair field's description: Enable is a tickbox with an (i), Call a choice of free calls;
  * undefined for other keys.
  */

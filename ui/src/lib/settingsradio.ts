@@ -14,6 +14,7 @@ import {
   type PageRadio,
   type RadioType,
 } from "@/lib/radios";
+import { pairCall } from "@/lib/settingspair";
 import type { Choice } from "@/lib/settingchoices";
 import type { PortsMessage, RadioRow } from "@/protocol/protocol";
 import { RADIO_STATION_KEYS, RADIO_TYPES } from "@/protocol/lists";
@@ -303,5 +304,16 @@ export function digiPlaces(radios: readonly PageRadio[], values: Readonly<Record
         { pair: { first: pairEnd(pair.first), second: pairEnd(pair.second) } },
       ]),
   ]);
-  return { keys, boxes, status };
+  const explain = Object.fromEntries(
+    offered.map((pair) => [
+      pair.enabled,
+      {
+        first: boxTitle(pair.first, true),
+        second: boxTitle(pair.second, true),
+        call: pairCall(pair.ssid, values),
+        slow: [pair.first, pair.second].filter((r) => typeOf(r.row)?.limits.slow).map((r) => boxTitle(r, true)),
+      },
+    ]),
+  );
+  return { keys, boxes, status, explain };
 }

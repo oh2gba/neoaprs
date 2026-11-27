@@ -427,6 +427,24 @@ export const settings = {
   "settings.pair.legend": "{first} and {second}",
   "settings.pair.name": "Pair of radios",
   "settings.pair.call": "Call",
+  "settings.explain.close": "Close",
+  "settings.pair.explain.label": "How passing between {first} and {second} works",
+  "settings.pair.explain.title": "Between {first} and {second}",
+  "settings.pair.explain.station": "a station",
+  "settings.pair.explain.you": "your station",
+  "settings.pair.explain.stations": "stations",
+  "settings.pair.explain.picture":
+    "A station on {first} puts {call} in its path, and your station sends the packet on once on {second} with {call} marked used.",
+  "settings.pair.explain.picture_stop": "Without {call} in its path, a packet stops at your station.",
+  "settings.pair.explain.line1":
+    "A station that puts {call} in its path is sent on once on the other radio. It works both ways.",
+  "settings.pair.explain.line2": "Any packet crosses: a position, a status, a message, an ack.",
+  "settings.pair.explain.line3":
+    "Nothing crosses without {call} in the path, and a message addressed to you stays with you.",
+  "settings.pair.explain.slow": {
+    one: "Onto {radio}, at most {n} packet in {min} minutes.",
+    other: "Onto {radio}, at most {n} packets in {min} minutes.",
+  },
   "settings.pair.tip_label": "About passing between two radios",
   "settings.pair.tip1":
     "A packet heard on one of the two radios goes out once on the other when its path names this call. Give the call to stations that want to cross.",

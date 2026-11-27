@@ -27,6 +27,7 @@ import LanguageField from "@/components/LanguageField.vue";
 import SettingsField from "@/components/SettingsField.vue";
 import SettingsFold from "@/components/SettingsFold.vue";
 import SettingsLocation from "@/components/SettingsLocation.vue";
+import PairInfo from "@/components/PairInfo.vue";
 import SettingsBox from "@/components/SettingsBox.vue";
 import SettingsAbout from "@/components/SettingsAbout.vue";
 import SettingsGroup from "@/components/SettingsGroup.vue";
@@ -279,10 +280,11 @@ function typed(key: string, text: string): void {
         :title="box.sub?.text"
         :hover="box.sub?.title"
       >
-        <template v-if="box.sub && box.sub.tip.length > 0" #legend>
-          <InfoTip :label="box.sub.tipLabel" :picture="box.sub.picture">
+        <template v-if="(box.sub && box.sub.tip.length > 0) || box.id in digi.explain" #legend>
+          <InfoTip v-if="box.sub && box.sub.tip.length > 0" :label="box.sub.tipLabel" :picture="box.sub.picture">
             <span v-for="line in box.sub.tip" :key="line" class="info-line">{{ line }}</span>
           </InfoTip>
+          <PairInfo v-else-if="digi.explain[box.id]" v-bind="digi.explain[box.id]" />
         </template>
         <template v-for="key in box.keys" :key="key">
           <SettingsLocation

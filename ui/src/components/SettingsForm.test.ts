@@ -1221,7 +1221,7 @@ describe("SettingsForm", () => {
       const box = (wrapper: ReturnType<typeof make>["wrapper"]) =>
         group(wrapper)
           ?.findAll("fieldset.subbox")
-          .find((f) => f.find("legend").text() === "FM radio and Mercury radio");
+          .find((f) => f.find("legend").text() === "FM radio and Mercury radio i");
 
       it("is a box of its own after the radios' own, named by both radios, with an Enable and the pair's (i)", async () => {
         const { wrapper } = make(OFF, "settings", BOTH);
@@ -1229,14 +1229,27 @@ describe("SettingsForm", () => {
           group(wrapper)
             ?.findAll("fieldset.subbox legend")
             .map((l) => l.text()),
-        ).toEqual(["FM radio", "FM radio and Mercury radio"]);
+        ).toEqual(["FM radio", "FM radio and Mercury radio i"]);
         expect(box(wrapper)?.findAll(".field")).toHaveLength(1);
         expect(wrapper.find("label[for='set-pair-1-2-enabled']").text()).toBe("Enable");
         expect(wrapper.find<HTMLInputElement>("#set-pair-1-2-enabled").element.checked).toBe(false);
         expect(wrapper.find("#set-pair-1-2-ssid").exists()).toBe(false);
         expect(box(wrapper)?.find(".statusfold").exists()).toBe(false);
-        await box(wrapper)?.find(".info-toggle").trigger("click");
+        await box(wrapper)?.find(".field .info-toggle").trigger("click");
         expect(box(wrapper)?.find(".info-text").text()).toContain("A WIDE path alone never goes across.");
+      });
+
+      it("has an (i) in its legend that opens what the pair does with its call and the two radios, outside the box", async () => {
+        const { wrapper } = make({ ...ON, "station/call": "OH2GBA" }, "settings", BOTH);
+        const before = box(wrapper)?.findAll(".field, p").length;
+        await box(wrapper)?.find("legend .info-toggle").trigger("click");
+        const shown = document.querySelector("[role='dialog']");
+        expect(shown?.textContent).toContain("Between FM radio and Mercury radio");
+        expect(shown?.textContent).toContain("OH2GBA-12,WIDE2-2");
+        expect(shown?.textContent).toContain("Onto Mercury radio, at most 4 packets in 5 minutes.");
+        expect(box(wrapper)?.element.contains(shown)).toBe(false);
+        expect(box(wrapper)?.findAll(".field, p").length).toBe(before);
+        shown?.querySelector<HTMLButtonElement>(".xbtn")?.click();
       });
 
       it("sends the tick alone when it is switched on: the daemon chooses the call", async () => {

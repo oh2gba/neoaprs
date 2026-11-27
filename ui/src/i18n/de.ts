@@ -1848,6 +1848,24 @@ export const de: Catalogue = {
   "settings.pair.legend": "{first} und {second}",
   "settings.pair.name": "Funkgerätepaar",
   "settings.pair.call": "Rufzeichen",
+  "settings.explain.close": "Schließen",
+  "settings.pair.explain.label": "Wie das Weiterleiten zwischen {first} und {second} geht",
+  "settings.pair.explain.title": "Zwischen {first} und {second}",
+  "settings.pair.explain.station": "eine Station",
+  "settings.pair.explain.you": "deine Station",
+  "settings.pair.explain.stations": "Stationen",
+  "settings.pair.explain.picture":
+    "Eine Station auf {first} setzt {call} in ihren Pfad, und deine Station sendet das Paket einmal auf {second} weiter, mit {call} als benutzt markiert.",
+  "settings.pair.explain.picture_stop": "Ohne {call} im Pfad endet ein Paket bei deiner Station.",
+  "settings.pair.explain.line1":
+    "Setzt eine Station {call} in ihren Pfad, wird ihr Paket einmal auf dem anderen Funkgerät weitergesendet. Das geht in beide Richtungen.",
+  "settings.pair.explain.line2":
+    "Jedes Paket geht hinüber: eine Position, ein Status, eine Nachricht, eine Bestätigung.",
+  "settings.pair.explain.line3": "Ohne {call} im Pfad geht nichts hinüber, und eine Nachricht an dich bleibt bei dir.",
+  "settings.pair.explain.slow": {
+    one: "Auf {radio} höchstens {n} Paket in {min} Minuten.",
+    other: "Auf {radio} höchstens {n} Pakete in {min} Minuten.",
+  },
   "settings.pair.tip_label": "Zum Weiterleiten zwischen zwei Funkgeräten",
   "settings.pair.tip1":
     "Sendet ein gehörtes Paket einmal auf dem anderen Funkgerät aus, wenn sein Pfad dieses Rufzeichen nennt. Gib es Stationen, die hinüber wollen.",

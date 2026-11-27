@@ -411,6 +411,21 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.pair.legend": "{first}と{second}",
   "settings.pair.name": "2台の無線機の中継",
   "settings.pair.call": "コールサイン",
+  "settings.explain.close": "閉じる",
+  "settings.pair.explain.label": "{first}と{second}の間の中継のしくみ",
+  "settings.pair.explain.title": "{first}と{second}の間",
+  "settings.pair.explain.station": "送信局",
+  "settings.pair.explain.you": "あなたの局",
+  "settings.pair.explain.stations": "各局",
+  "settings.pair.explain.picture":
+    "{first}の局がパスに{call}を入れると、あなたの局はそのパケットを{call}を使用済みにして{second}から一度だけ送信します。",
+  "settings.pair.explain.picture_stop": "パスに{call}がないパケットは、あなたの局で止まります。",
+  "settings.pair.explain.line1":
+    "パスに{call}を入れた局のパケットは、もう一方の無線機から一度だけ送信されます。どちらの向きでも同じです。",
+  "settings.pair.explain.line2": "どのパケットも中継されます: 位置、ステータス、メッセージ、ACK。",
+  "settings.pair.explain.line3":
+    "パスに{call}がなければ何も中継されず、あなた宛てのメッセージはあなたのところに留まります。",
+  "settings.pair.explain.slow": { other: "{radio}へは{min}分間に最大{n}パケットまでです。" },
   "settings.pair.tip_label": "2台の無線機の間の中継について",
   "settings.pair.tip1":
     "一方の無線機で受信したパケットを、パスにこのコールサインがあるとき、もう一方の無線機から一度だけ送信します。相手の無線機に届かせたい局に、このコールサインを伝えてください。",

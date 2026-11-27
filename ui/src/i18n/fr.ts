@@ -1796,6 +1796,24 @@ export const fr: Catalogue = {
   "settings.pair.legend": "{first} et {second}",
   "settings.pair.name": "Paire de radios",
   "settings.pair.call": "Indicatif",
+  "settings.explain.close": "Fermer",
+  "settings.pair.explain.label": "Comment fonctionne le passage entre {first} et {second}",
+  "settings.pair.explain.title": "Entre {first} et {second}",
+  "settings.pair.explain.station": "une station",
+  "settings.pair.explain.you": "votre station",
+  "settings.pair.explain.stations": "stations",
+  "settings.pair.explain.picture":
+    "Une station sur {first} met {call} dans son chemin, et votre station envoie le paquet une fois sur {second}, avec {call} marqué comme utilisé.",
+  "settings.pair.explain.picture_stop": "Sans {call} dans son chemin, un paquet s'arrête à votre station.",
+  "settings.pair.explain.line1":
+    "Le paquet d'une station qui met {call} dans son chemin est envoyé une fois sur l'autre radio. Cela marche dans les deux sens.",
+  "settings.pair.explain.line2": "Tout paquet passe : une position, un statut, un message, un accusé.",
+  "settings.pair.explain.line3":
+    "Rien ne passe sans {call} dans le chemin, et un message qui vous est adressé reste chez vous.",
+  "settings.pair.explain.slow": {
+    one: "Vers {radio}, au plus {n} paquet en {min} minutes.",
+    other: "Vers {radio}, au plus {n} paquets en {min} minutes.",
+  },
   "settings.pair.tip_label": "À propos du passage d'une radio à l'autre",
   "settings.pair.tip1":
     "Envoie une fois sur l'autre radio un paquet entendu sur l'une, si son chemin nomme cet indicatif. Donnez-le à qui veut joindre l'autre radio.",

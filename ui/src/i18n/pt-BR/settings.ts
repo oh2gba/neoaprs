@@ -428,6 +428,23 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.pair.legend": "{first} e {second}",
   "settings.pair.name": "Par de rádios",
   "settings.pair.call": "Indicativo",
+  "settings.explain.close": "Fechar",
+  "settings.pair.explain.label": "Como funciona a passagem entre {first} e {second}",
+  "settings.pair.explain.title": "Entre {first} e {second}",
+  "settings.pair.explain.station": "uma estação",
+  "settings.pair.explain.you": "sua estação",
+  "settings.pair.explain.stations": "estações",
+  "settings.pair.explain.picture":
+    "Uma estação em {first} põe {call} no caminho, e sua estação envia o pacote uma vez em {second}, com {call} marcado como usado.",
+  "settings.pair.explain.picture_stop": "Sem {call} no caminho, um pacote para na sua estação.",
+  "settings.pair.explain.line1":
+    "Quando uma estação põe {call} no caminho, o pacote dela é enviado uma vez no outro rádio. Funciona nos dois sentidos.",
+  "settings.pair.explain.line2": "Qualquer pacote passa: uma posição, um status, uma mensagem, uma confirmação.",
+  "settings.pair.explain.line3": "Sem {call} no caminho nada passa, e uma mensagem endereçada a você fica com você.",
+  "settings.pair.explain.slow": {
+    one: "Para {radio}, no máximo {n} pacote em {min} minutos.",
+    other: "Para {radio}, no máximo {n} pacotes em {min} minutos.",
+  },
   "settings.pair.tip_label": "Sobre a passagem entre dois rádios",
   "settings.pair.tip1":
     "Passa para o outro rádio um pacote ouvido em um dos dois, quando o caminho cita este indicativo. Dê-o a quem quer alcançar o outro rádio.",
