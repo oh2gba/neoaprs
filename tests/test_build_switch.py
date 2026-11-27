@@ -55,7 +55,7 @@ def _hook(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     return module
 
 
-def test_a_switched_on_wheel_needs_the_page_built_with_the_switch(
+def test_a_wheel_needs_the_page_built_with_the_switch_as_it_is_itself(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     hook = _hook(monkeypatch)
@@ -73,6 +73,9 @@ def test_a_switched_on_wheel_needs_the_page_built_with_the_switch(
     switch.initialize("standard", build_data)
     assert sorted(build_data["force_include"].values()) == sorted(ENCRYPTION)
     monkeypatch.delenv("NEOAPRS_ENCRYPTION")
+    with pytest.raises(RuntimeError, match="without NEOAPRS_ENCRYPTION"):
+        switch.initialize("standard", {"force_include": {}})
+    switch.initialize("editable", {"force_include": {}})
     script.write_text("")
     off: dict[str, dict[str, str]] = {"force_include": {}}
     switch.initialize("standard", off)

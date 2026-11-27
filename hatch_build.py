@@ -1,7 +1,8 @@
 """Build hook: a wheel has the encrypted-message modules only if built with NEOAPRS_ENCRYPTION=1.
 
 pyproject.toml excludes ENCRYPTION from every wheel; the sdist always has them. A switched-on wheel
-also needs the page built with the switch (ui/vite.config.ts), which the committed page is not."""
+needs the page built with the switch (ui/vite.config.ts), which the committed page is not, and a
+wheel without it a page built without it."""
 
 import os
 from pathlib import Path
@@ -26,9 +27,17 @@ def page_has_encryption(page: Path) -> bool:
 
 class EncryptionSwitch(BuildHookInterface):  # type: ignore[type-arg]
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
-        if not switched_on() or version == "editable":
+        if version == "editable":
             return
-        if not page_has_encryption(Path(self.root) / "neoaprs" / "page"):
+        built_with_it = page_has_encryption(Path(self.root) / "neoaprs" / "page")
+        if not switched_on():
+            if built_with_it:
+                raise RuntimeError(
+                    f"neoaprs/page/ was built with encrypted messages, but {SWITCH} is not 1: "
+                    f"run scripts/build-page without {SWITCH}, or build the wheel with {SWITCH}=1"
+                )
+            return
+        if not built_with_it:
             raise RuntimeError(
                 f"{SWITCH}=1, but neoaprs/page/ was built without encrypted messages: "
                 f"run {SWITCH}=1 scripts/build-page in a clone of the repository, then build the wheel there"
