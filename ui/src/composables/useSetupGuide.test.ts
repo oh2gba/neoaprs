@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { nextTick, ref, shallowRef } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import type { Connection } from "@/lib/hub";
+import { ANSWER_MS } from "@/composables/useInFlight";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import type { Command, ConfigValues, PortsMessage, SavedMessage } from "@/protocol/protocol";
 import { configValues, toastOf } from "@/test/fixtures";
@@ -373,7 +374,7 @@ describe("useSetupGuide: Finish", () => {
     guide.go(3);
     guide.next();
     await fail("Not connected to the daemon.");
-    expect(guide.saving).toBe(false);
+    expect(guide.saving).toBe(true); // (an error of no command of the guide's is not its answer)
     expect(Object.keys(guide.problems)).toEqual([]);
   });
 
@@ -509,6 +510,40 @@ describe("useSetupGuide: the map is asked for as the Position step is left", () 
     guide.back();
     await nextTick();
     expect(sent).toEqual([{ cmd: "map_wanted" }]); // (the step forward from the Position step, not the step back)
+  });
+});
+
+describe("useSetupGuide: Finish waits for its own answer", () => {
+  it("is not ended by the error of another command: its `saved` still closes the guide", async () => {
+    const { guide, fail, told, fill } = setUp();
+    guide.show();
+    fill();
+    guide.go(3);
+    guide.next();
+    expect(guide.saving).toBe(true);
+    await fail("radio_remove: no radio 7", "radio.unknown", {}, 7); // a radio's number, not Finish's
+    await fail("Something else failed.");
+    expect(guide.saving).toBe(true);
+    await told();
+    expect(guide.saving).toBe(false);
+    expect(guide.open).toBe(false);
+  });
+
+  it("stops waiting when no answer comes at all", () => {
+    vi.useFakeTimers();
+    try {
+      const { guide, fill } = setUp();
+      guide.show();
+      fill();
+      guide.go(3);
+      guide.next();
+      expect(guide.saving).toBe(true);
+      vi.advanceTimersByTime(ANSWER_MS + 1);
+      expect(guide.saving).toBe(false);
+      expect(guide.open).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

@@ -412,7 +412,7 @@ The weather is `Weather` of `neoaprs/aprsweather.py`: metric values, each `None`
 
 **The table `weather`** (migration 8; `station`, `at`, `wind_dir`, `wind_kmh`, `gust_kmh`, `temp_c`, `humidity`, `pressure_hpa`, `rain_1h_mm`, `rain_24h_mm`,
 `rain_today_mm`, `luminosity`, `raw`; STRICT with named checks, an index on station and time) is appended without waiting (`neoaprs/weatherlog.py`). `at` is
-when the packet was heard. A station that sends the same values again within a minute of its last kept observation is kept once. Rows are pruned after 7 days; the pruning of packets and weather gives the file the room the deleted rows leave (`neoaprs/walcare.py`: the file is rewritten once, at an open, with `auto_vacuum` incremental, when the disk has the room for it, and later slices of free pages are taken off its end).
+when the packet was heard. A station that sends the same values again within a minute of its last kept observation is kept once. Rows are pruned after 7 days; the pruning of packets and weather gives the file the room the deleted rows leave (`neoaprs/walcare.py`: the file is rewritten once, in the first prune after the page is up, with `auto_vacuum` incremental, when the disk has the room for it (the database thread does nothing else meanwhile; what is heard waits in its queue and is written after), and later slices of free pages are taken off its end).
 
 **At the start.** When the weather table is empty, the weather packets of the last 7 days are read from the packet table (found by what the parser decoded: a
 weather packet, or a position, object or item with the weather symbol; a third-party packet is the sender inside it), decoded and written in one transaction,

@@ -231,5 +231,5 @@ class Error(_Message):
     )
     id: int | None = Field(
         default=None,
-        description="the `id` of the request this answers, when the command carried one (`set_config`); the field is left out otherwise",
+        description="the `id` of the request this answers, when the command carried one (only `set_config` does: the `id` of another command is a radio's, a message's or a packet's number and is never echoed); the field is left out otherwise",
     )

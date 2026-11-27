@@ -836,7 +836,7 @@ words of a failure.
 | `code` | string |  | a stable word for what is wrong, such as `setting.range`, `call.ssid` or `message.too_long`; `failed` for one the operator can do nothing about; `other` for an error that has no code |
 | `params` | { [key: string]: string \| integer \| number } |  | the values the sentence is made of, by name, such as `value`, `min` and `max` of `setting.range`, and `why`, the code of the reason, for a refusal that passes another's on (`status.not_sent`, `beacon.not_sent`, `transmit.call`); empty when there are none |
 | `text` | string |  | what could not be done and why, in a sentence in English: the command, then the setting if there is one, then the reason (`set_config: station/lat: 95 is not between -90 and 90`) |
-| `id` | integer \| null | optional | the `id` of the request this answers, when the command carried one (`set_config`); the field is left out otherwise (default `null`) |
+| `id` | integer \| null | optional | the `id` of the request this answers, when the command carried one (only `set_config` does: the `id` of another command is a radio's, a message's or a packet's number and is never echoed); the field is left out otherwise (default `null`) |
 
 ### `saved`
 

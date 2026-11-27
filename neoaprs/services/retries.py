@@ -15,8 +15,9 @@ from neoaprs.clock import Clock
 from neoaprs.config import can_transmit
 from neoaprs.interlock import Interlock
 from neoaprs.message import UNCONFIRMED_MAX, MessageRecord, State, due_at, retry_pause
+from neoaprs.radiospec import told
 from neoaprs.radiotype import RadioId
-from neoaprs.services.answers import air_of, as_pick, radio_word
+from neoaprs.services.answers import air_of, as_pick
 from neoaprs.services.common import ConfigSource, Radio
 from neoaprs.services.radioset import AirRadio, RadioPick, first_sender
 from neoaprs.tasks import every
@@ -164,8 +165,8 @@ class Retries:
             moved = self._move_on(span[1] - span[0], key)
             log.log(
                 logging.INFO if moved else logging.DEBUG,
-                "the %s radio takes frames again after %d s: the waits of the messages on it are moved on by that time",
-                radio_word(radio),
+                "%s takes frames again after %d s: the waits of the messages on it are moved on by that time",
+                told(radio.name, radio.id),
                 (span[1] - span[0]).total_seconds(),
             )
 

@@ -128,7 +128,8 @@ export const errors = {
   "error.setting.not_keying": "'{value}' is not a way of keying the radio: vox, cm108, rts:PORT or dtr:PORT",
   "error.setting.not_among": "{value} is not one of {choices}",
   "error.setting.not_direction": "'{value}' is not omni or one of N NE E SE S SW W NW",
-  "error.setting.not_globs": "'{value}' is not one or more absolute patterns separated by spaces",
+  "error.setting.not_globs":
+    "'{value}' is not one or more device patterns separated by spaces; each starts with / and may end in * to match any ending",
   "error.setting.not_host": "'{value}' is not an address or a name",
   "error.setting.not_hostport": "'{value}' is not host:port",
   "error.setting.not_receiver": "'{value}' is not the address of a receiver",

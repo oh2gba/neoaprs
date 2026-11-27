@@ -275,7 +275,7 @@ The homes of SQL (`SQL_HOMES` in the test): every file that imports `sqlite3` or
 | `neoaprs/stationsql.py` | the statements of what each radio heard of a station and of a station's path on a radio: functions of a connection that the thread runs |
 | `neoaprs/storesql.py` | the statements of the settings: functions of a connection that the thread runs |
 | `neoaprs/supportsql.py` | the statements of the support bundle: functions of a read-only connection that the bundle's own thread runs (the file's version and sizes, the rows of each table, the latest packets) |
-| `neoaprs/walcare.py` | the limits of the write-ahead log (journal_size_limit and the automatic checkpoint) and the pages the file gives back (auto_vacuum, incremental_vacuum): functions of the connection, run by the thread |
+| `neoaprs/walcare.py` | the limits of the write-ahead log (journal_size_limit and the automatic checkpoint) and the pages the file gives back (auto_vacuum, incremental_vacuum): functions of the connection, run by the thread (the one rewrite by the controller's first prune) |
 | `neoaprs/weathersql.py` | the statements of the weather table (every observation of every weather station) and the read of the packets it is made from: functions of a connection that the thread runs |
 <!-- /doc-arch -->
 

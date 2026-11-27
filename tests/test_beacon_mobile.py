@@ -179,6 +179,16 @@ def test_a_mobile_beacon_without_any_gps_service_is_no_beacon() -> None:
     assert rig.tnc.asked == 0
 
 
+def test_a_send_now_without_a_fix_says_so_until_the_gps_has_one_and_not_until_the_next_beacon() -> None:
+    rig = Rig(fix=False)
+    assert not rig.beacon.send_now() and rig.beacon.problem.startswith("no beacon")
+    rig.beacon.settings_changed()
+    assert rig.beacon.problem, "still no fix"
+    rig.move()
+    rig.beacon.settings_changed()
+    assert rig.beacon.problem == "" and rig.tnc.sent == [], "the fix is there: the problem goes with no beacon sent"
+
+
 def test_when_the_fix_comes_back_the_beacon_follows_it_and_the_problem_is_gone(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

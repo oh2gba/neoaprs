@@ -164,9 +164,38 @@ async def test_every_runs_the_function_each_time_the_wait_is_over_and_goes_on_af
     await until(lambda: len(rounds) >= 4)
     ticker.cancel()
     assert [(r.levelno, r.getMessage()) for r in caplog.records if r.name == "neoaprs.tasks"] == [
-        (logging.ERROR, "the test timer failed")
+        (logging.ERROR, "the test timer failed: ValueError: boom")
     ]
     assert caplog.records[-1].exc_info is not None
+
+
+async def test_every_logs_a_failure_that_repeats_once_and_one_that_changes_or_comes_back_again(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.tasks")
+    words = ["a", "a", "a", "b", "b", None, "b", "b"]
+    rounds: list[int] = []
+
+    def tick() -> None:
+        rounds.append(len(rounds))
+        say = words[len(rounds) - 1] if len(rounds) <= len(words) else None
+        if say is not None:
+            raise ValueError(say)
+
+    ticker = asyncio.ensure_future(every(0.005, tick, "the timer"))
+    await until(lambda: len(rounds) > len(words))
+    ticker.cancel()
+    logged = [(r.levelno, r.getMessage()) for r in caplog.records if r.name == "neoaprs.tasks"]
+    assert logged == [(logging.ERROR, f"the timer failed: ValueError: {w}") for w in ("a", "b", "b")]
+    assert all(r.exc_info is not None for r in caplog.records if r.name == "neoaprs.tasks")
+
+
+async def test_every_does_not_swallow_a_cancellation_inside_a_round() -> None:
+    def tick() -> None:
+        raise asyncio.CancelledError
+
+    with pytest.raises(asyncio.CancelledError):
+        await every(0.001, tick, "the timer", at_start=True)
 
 
 async def test_every_awaits_a_function_that_is_async_asks_for_the_wait_each_time_and_can_begin_at_once() -> None:

@@ -114,7 +114,9 @@ class Dispatcher:
                 params={"name": name[:40]},
             )
             return
-        asked = raw.get("id")
+        # Only set_config's id is a request's number; the id of another command is a radio's, a message's or a
+        # packet's, and must not come back as the answer to a request.
+        asked = raw.get("id") if name == "set_config" else None
         request = asked if type(asked) is int else None
         try:
             cmd = COMMANDS.validate_python(raw)

@@ -8,6 +8,8 @@ import logging
 import os
 import shutil
 import sqlite3
+import tempfile
+import time
 from pathlib import Path
 
 log = logging.getLogger("neoaprs.db")
@@ -28,41 +30,75 @@ SLICE_PAGES = 5000  # pages one `release` takes off the file (20 MB), each in a 
 SPARE_BYTES = 32 * 1024 * 1024  # disk to be left over after the rewrite
 
 
-def make_returnable(db: sqlite3.Connection, path: str | Path) -> None:
+def _quoted(folder: str | Path) -> str:
+    return "'" + str(folder).replace("'", "''") + "'"
+
+
+def _temp_setting(db: sqlite3.Connection) -> str:
+    row = db.execute("PRAGMA temp_store_directory").fetchone()
+    return str(row[0]) if row else ""
+
+
+def _temp_folder(db: sqlite3.Connection, folder: Path) -> Path:
+    """Point SQLite's temporary files at `folder` and return where they will go.
+
+    The pragma is the one way that works on every platform (SQLITE_TMPDIR is ignored on Windows); it is
+    process wide, so the caller restores it. If SQLite does not take it, they go to the system's own place.
+    """
+    db.execute("PRAGMA temp_store=FILE")
+    try:
+        db.execute(f"PRAGMA temp_store_directory={_quoted(folder)}")
+        if _temp_setting(db):
+            return folder
+    except sqlite3.Error:
+        pass
+    return Path(tempfile.gettempdir())
+
+
+def _room_for(size: int, folder: Path, temp: Path) -> bool:
+    """Whether the copy (in `temp`) and its way into the file (in `folder`) both fit, with SPARE_BYTES left."""
+    if temp == folder:
+        return shutil.disk_usage(folder).free >= size * 2 + SPARE_BYTES
+    return shutil.disk_usage(folder).free >= size + SPARE_BYTES and shutil.disk_usage(temp).free >= size + SPARE_BYTES
+
+
+def make_returnable(db: sqlite3.Connection, path: str | Path) -> bool:
     """Rewrite the file once so that `release` can shorten it; a file already made so is left alone.
 
-    Needs the size of the file free on its disk; without it, or when another program holds the file,
-    nothing is done and the next start tries again.
+    Return whether it was rewritten. It runs in the database thread, after the page is up. Needs room for
+    a second copy where SQLite builds it (beside the file); without it, or when another program holds the
+    file, nothing is done and the next start tries again. A stop at any moment leaves the file as it was:
+    the copy is built in a temporary file and enters the database as one transaction of the log.
     """
     if str(path) == ":memory:" or db.execute("PRAGMA auto_vacuum").fetchone()[0] == INCREMENTAL:
-        return
+        return False
     folder = Path(path).absolute().parent
     size = os.path.getsize(path)
+    began = time.monotonic()
+    before = _temp_setting(db)
     try:
-        if shutil.disk_usage(folder).free < size * 2 + SPARE_BYTES:
+        if not _room_for(size, folder, _temp_folder(db, folder)):
             log.warning("the database is not rewritten to give room back: the disk has too little left")
-            return
+            return False
+        log.info("the database (%d MB) is rewritten once so that it can give room back; this takes a while", size >> 20)
         db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         db.execute(f"PRAGMA auto_vacuum={INCREMENTAL}")
-        # SQLite builds the new file in its temporary folder, which may be a RAM disk: keep it beside the file
-        kept = os.environ.get("SQLITE_TMPDIR")
-        os.environ["SQLITE_TMPDIR"] = str(folder)
-        try:
-            db.execute("VACUUM")
-        finally:
-            if kept is None:
-                os.environ.pop("SQLITE_TMPDIR", None)
-            else:
-                os.environ["SQLITE_TMPDIR"] = kept
+        db.execute("VACUUM")
         db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     except (sqlite3.Error, OSError) as e:
         log.warning("the database could not be rewritten to give room back (it is as it was): %s", e)
-        return
+        return False
+    finally:
+        try:
+            db.execute(f"PRAGMA temp_store_directory={_quoted(before)}")
+        except sqlite3.Error:
+            pass
     log.info(
-        "the database was rewritten so that it can give room back: %d MB to %d MB",
-        size >> 20,
-        os.path.getsize(path) >> 20,
+        "the database is rewritten: %d s, %d MB given back",
+        round(time.monotonic() - began),
+        max(0, size - os.path.getsize(path)) >> 20,
     )
+    return True
 
 
 def release(db: sqlite3.Connection) -> int:

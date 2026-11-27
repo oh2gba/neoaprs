@@ -13,6 +13,7 @@ import re
 import socket
 import sys
 import threading
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -181,7 +182,8 @@ def _keep_alive_times(sock: socket.socket) -> None:
 class _Handover:
     """The pyserial object an open made in its thread; if cancelled the thread closes it."""
 
-    def __init__(self) -> None:
+    def __init__(self, path: str) -> None:
+        self.path = path
         self._lock = threading.Lock()
         self._ser: Any = None
         self._abandoned = False
@@ -199,11 +201,32 @@ class _Handover:
             self._abandoned = True
             ser, self._ser = self._ser, None
         if ser is not None:
-            _close_quietly(ser)
+            _close_off_the_loop(self.path, lambda: _close_quietly(ser))
 
 
-# the thread that closes each port last closed, by path
-_closing: dict[str, threading.Thread] = {}
+# the threads closing a port, by path, while they run
+_closing: dict[str, list[threading.Thread]] = {}
+
+
+def _close_off_the_loop(path: str, close: Callable[[], None]) -> None:
+    """Run `close` in a thread of its own, kept with the other closes of the path still under way."""
+    thread = threading.Thread(target=close, name=f"serial-close {path}", daemon=True)
+    _closing[path] = [t for t in _closing.get(path, []) if t.is_alive()] + [thread]
+    thread.start()
+
+
+def _wait_for_closes(path: str) -> None:
+    """Wait at most CLOSE_WAIT_SEC for every close of the path under way; log one that hangs, once."""
+    deadline = time.monotonic() + CLOSE_WAIT_SEC
+    for thread in _closing.get(path, []):
+        thread.join(max(0.0, deadline - time.monotonic()))
+    if any(t.is_alive() for t in _closing.get(path, [])) and path not in _hung:
+        _hung.add(path)
+        log.warning("the port %s is still being closed after %g s: it is opened all the same", path, CLOSE_WAIT_SEC)
+
+
+# the paths whose hung close was logged
+_hung: set[str] = set()
 
 
 def _close_quietly(ser: Any) -> None:
@@ -300,6 +323,9 @@ class _Line:
 
 
 class SerialPort:
+    # True for a port whose owner logs the loss itself (the radio's line, the GPS receiver's)
+    OWNER_TELLS_LOSS = False
+
     def __init__(self, path: str, baud: int = 9600) -> None:
         self.path = path
         self.baud = baud
@@ -327,7 +353,7 @@ class SerialPort:
         if self._line is not None or self._opening:
             raise SerialError(f"{self.path}: already open")
         self._opening, self._closed_while_opening = True, False
-        hand = _Handover()
+        hand = _Handover(self.path)
         try:
             ser = await asyncio.to_thread(self._open_blocking, hand)
         except BaseException:
@@ -344,8 +370,7 @@ class SerialPort:
         line.start()
 
     def _open_blocking(self, hand: _Handover) -> Any:
-        if (closing := _closing.get(self.path)) is not None:
-            closing.join(CLOSE_WAIT_SEC)  # a device is opened again only once its last close is done
+        _wait_for_closes(self.path)  # a device is opened again only once its closes are done
         try:
             nodevices.check_port(self.path)
             ser = _build(self.path, self.baud)
@@ -379,9 +404,7 @@ class SerialPort:
             end()
             _close_quietly(ser)
 
-        thread = threading.Thread(target=close, name=f"serial-close {self.path}", daemon=True)
-        _closing[self.path] = thread
-        thread.start()
+        _close_off_the_loop(self.path, close)
 
     def let_go(self) -> None:
         """Close for a radio whose settings name the port (tncsearch.let_go)."""
@@ -417,7 +440,13 @@ class SerialPort:
 
     def _lost(self, reason: str) -> None:
         timed_out = getattr(reason, "code", "") == "radio.write_timeout"
-        # the owner's own line, with its name, is the warning
-        log.debug("%s %s: %s", self.path, "write timed out" if timed_out else "lost", reason)
+        # an owner that logs its own loss, with its name, has the one warning
+        log.log(
+            logging.DEBUG if self.OWNER_TELLS_LOSS else logging.WARNING,
+            "the port %s %s: %s",
+            self.path,
+            "timed out a write" if timed_out else "is lost",
+            reason,
+        )
         self.close()
         self.dropped.emit(reason)

@@ -129,7 +129,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_keying": "‘{value}’ is geen manier om de PTT te bedienen: vox, cm108, rts:POORT of dtr:POORT",
   "error.setting.not_among": "{value} hoort niet bij {choices}",
   "error.setting.not_direction": "‘{value}’ is niet omni of een van N NE E SE S SW W NW",
-  "error.setting.not_globs": "‘{value}’ bestaat niet uit een of meer absolute patronen, gescheiden door spaties",
+  "error.setting.not_globs":
+    "‘{value}’ bestaat niet uit een of meer apparaatpatronen, gescheiden door spaties; elk begint met / en mag eindigen op * (elk vervolg)",
   "error.setting.not_host": "‘{value}’ is geen adres of naam",
   "error.setting.not_hostport": "‘{value}’ is geen host:poort",
   "error.setting.not_receiver": "‘{value}’ is niet het adres van een ontvanger",

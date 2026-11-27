@@ -537,7 +537,7 @@ async def test_a_read_or_a_write_that_fails_reports_the_line_lost_once(
     assert ("write failed" in reasons[0]) == (which == "write")
 
 
-async def test_a_write_that_times_out_says_so_with_its_own_code_at_debug_and_not_that_the_line_is_gone(
+async def test_a_write_that_times_out_says_so_with_its_own_code_at_warning_and_not_that_the_line_is_gone(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     """pyserial's own words on Windows, for a Bluetooth port that reaches nothing: `Write timeout`."""
@@ -560,8 +560,8 @@ async def test_a_write_that_times_out_says_so_with_its_own_code_at_debug_and_not
         {"seconds": serialport.WRITE_TIMEOUT_SEC},
     )
     assert [(r.levelno, r.getMessage()) for r in caplog.records] == [
-        (logging.DEBUG, "COM8 write timed out: the device did not take the data within 2 s")
-    ], "the owner's line, with its radio's name, is the warning"
+        (logging.WARNING, "the port COM8 timed out a write: the device did not take the data within 2 s")
+    ], "a port whose owner says nothing of its loss (a probe, the capture) warns itself"
     assert "the line is gone" not in caplog.text and "SerialTimeoutException" not in caplog.text
 
 
@@ -638,6 +638,32 @@ async def test_a_serial_port_is_closed_off_the_loop_and_opened_again_only_once_t
     ser.closed.clear()
     port.close()
     await until(ser.closed.is_set)
+
+
+async def test_an_earlier_close_that_hangs_is_waited_for_after_a_later_one_of_the_port_but_only_so_long(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    hung, quick = SlowCloseSer(), SlowCloseSer()
+    quick.let_go.set()
+    made = iter([hung, quick, SlowSer(0.0)])
+    monkeypatch.setattr(serialport, "_build", lambda path, baud: next(made))
+    monkeypatch.setattr(serialport, "CLOSE_WAIT_SEC", 0.5)
+    first, second, third = SerialPort("COM9"), SerialPort("COM9"), SerialPort("COM9")
+    await first.open()
+    first.close()  # (it hangs)
+    await second.open()
+    second.close()
+    await until(quick.closed.is_set)
+    with caplog.at_level(logging.WARNING, "neoaprs.serialport"):
+        began = time.monotonic()
+        await third.open()
+    assert time.monotonic() - began >= 0.4, "the hung close of the first was waited for, not only the later one"
+    assert [r.getMessage() for r in caplog.records] == [
+        "the port COM9 is still being closed after 0.5 s: it is opened all the same"
+    ]
+    third.close()
+    hung.let_go.set()
+    await until(hung.closed.is_set)
 
 
 # ---- the list of ports

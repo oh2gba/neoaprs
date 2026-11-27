@@ -14,7 +14,7 @@ from neoaprs.clock import Clock, StepWatch, utcnow
 from neoaprs.config import BEACON_SENT, Config, can_transmit, radio_state_key
 from neoaprs.gpsfix import Fix
 from neoaprs.interlock import Interlock
-from neoaprs.radiospec import RadioId, transmits
+from neoaprs.radiospec import RadioId, told, transmits
 from neoaprs.radiotype import ONLY_RECEIVES as ONLY_RECEIVES  # re-export
 from neoaprs.services.beaconframe import (
     BeaconError as BeaconError,
@@ -89,7 +89,7 @@ class Beacon:
         self._slot: datetime | None = None
         self._anchor: datetime | None = None
         self.problem = ""
-        # what makes `problem` go when it is gone: "interlock", "send_on", "radio", or "" (the next send)
+        # what makes `problem` go when it is gone: "interlock", "send_on", "radio", "fix", or "" (the next send)
         self._cause = ""
         self._started: datetime | None = None
         self._steps = StepWatch()
@@ -146,7 +146,7 @@ class Beacon:
         try:
             frame, fix = self._frames.position_and_fix(self._radio)
         except NoFix as e:
-            return self._failed(no_fix(str(e)))
+            return self._failed(no_fix(str(e)), cause="fix")
         except BeaconError as e:
             return self._failed(coded.Reason.of(e, f"the settings make no beacon: {e}"), warn=True)
         if not self._radio.usable:
@@ -203,12 +203,14 @@ class Beacon:
             self._plan(self.interval_min)
 
     def _recheck(self) -> None:
-        """Drop the problem when its cause is gone: transmit is allowed, Send on is ticked, the radio takes frames."""
-        cause = self._cause
+        """Drop the problem when its cause is gone: transmit is allowed, Send on is ticked, the radio takes
+        frames, the GPS has a fix."""
+        cause, gps = self._cause, self._frames.gps
         if (
             (cause == "interlock" and can_transmit(self._config()) is None)
             or (cause == "send_on" and self.goes_out)
             or (cause == "radio" and self._radio.usable)
+            or (cause == "fix" and gps is not None and gps.current() is not None)
         ):
             self.problem, self._cause = "", ""
 
@@ -251,7 +253,7 @@ class Beacon:
         """Plan `next_due`: an interval after the last send, else the earlier run's, else start."""
         c = self._config()
         if interval_min > c.beacon_interval_min and interval_min != self._planned_min:
-            where = f"the {self._radio.name} radio" if self._radio.name else "this radio"
+            where = told(self._radio.name, self._radio.id)
             log.info(
                 "the beacon interval %d min is raised to %d on %s: %d minutes is the shortest its type takes",
                 c.beacon_interval_min,
@@ -336,7 +338,7 @@ class Beacon:
                 self._skip_told = True
                 log.warning(
                     "the beacon of %s is due and the radio takes no frame (%s): it goes out when the radio is back",
-                    f"the {self._radio.name} radio" if self._radio.name else "this radio",
+                    told(self._radio.name, self._radio.id),
                     self._radio.why_unusable(),
                 )
             return

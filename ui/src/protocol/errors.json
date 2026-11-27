@@ -112,7 +112,7 @@
  "setting.not_boolean": {"params": ["value"], "text": ["'{value}' is not true or false"]},
  "setting.not_dial": {"params": ["value"], "text": ["'{value}' is not a dial such as 28.1800 MHz USB"]},
  "setting.not_direction": {"params": ["value"], "text": ["'{value}' is not omni or one of N NE E SE S SW W NW"]},
- "setting.not_globs": {"params": ["value"], "text": ["'{value}' is not one or more absolute patterns separated by spaces"]},
+ "setting.not_globs": {"params": ["value"], "text": ["'{value}' is not one or more device patterns separated by spaces; each starts with / and may end in * to match any ending"]},
  "setting.not_hf_profile": {"params": ["value"], "text": ["'{value}' is not a type of a Mercury radio (the types are {*})"]},
  "setting.not_host": {"params": ["value"], "text": ["'{value}' is not a list of addresses or names", "'{value}' is not an address or a name", "{*} is not an address or a name"]},
  "setting.not_hostport": {"params": ["value"], "text": ["'{value}' is not host:port"]},

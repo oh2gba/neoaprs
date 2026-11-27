@@ -127,7 +127,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_keying": "'{value}' não é um modo de chavear o rádio: vox, cm108, rts:PORTA ou dtr:PORTA",
   "error.setting.not_among": "{value} não é um de {choices}",
   "error.setting.not_direction": "'{value}' não é omni nem um de N NE E SE S SW W NW",
-  "error.setting.not_globs": "'{value}' não é um ou mais padrões absolutos separados por espaços",
+  "error.setting.not_globs":
+    "'{value}' não é um ou mais padrões de dispositivo separados por espaços; cada um começa com / e pode terminar com * (qualquer final)",
   "error.setting.not_host": "'{value}' não é um endereço nem um nome",
   "error.setting.not_hostport": "'{value}' não é host:porta",
   "error.setting.not_receiver": "'{value}' não é o endereço de um receptor",

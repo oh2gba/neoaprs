@@ -237,7 +237,8 @@ export const de: Catalogue = {
   "error.setting.not_keying": "„{value}“ ist keine Art, das Funkgerät zu tasten: vox, cm108, rts:PORT oder dtr:PORT",
   "error.setting.not_among": "{value} ist keiner der Werte {choices}",
   "error.setting.not_direction": "„{value}“ ist weder omni noch eines von N NE E SE S SW W NW",
-  "error.setting.not_globs": "„{value}“ ist nicht ein oder mehrere absolute Muster, durch Leerzeichen getrennt",
+  "error.setting.not_globs":
+    "„{value}“ ist nicht ein oder mehrere Geräte-Muster, durch Leerzeichen getrennt; jedes beginnt mit / und darf auf * enden (beliebige Fortsetzung)",
   "error.setting.not_host": "„{value}“ ist weder eine Adresse noch ein Name",
   "error.setting.not_hostport": "„{value}“ ist nicht Host:Port",
   "error.setting.not_receiver": "„{value}“ ist nicht die Adresse eines Empfängers",

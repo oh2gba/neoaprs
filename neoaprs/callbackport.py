@@ -11,6 +11,7 @@ from .serialport import SerialPort
 
 
 class CallbackPort(SerialPort):
+    OWNER_TELLS_LOSS = True  # its owner goes WAITING with the reason, a warning with its name
     _on_data: Callable[[Self, bytes], None]
     _on_lost: Callable[[Self, str], None]
     # told when the first write of an open went through

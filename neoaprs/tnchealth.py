@@ -22,6 +22,11 @@ from .tnctextreader import RX_ONLY
 COMMAND_MODE = Reason("the TNC is in command mode (KISS ON is sent again)", "radio.command_mode")
 
 
+# The reasons of a waiting modem shown while the line is connected: the radio looks connected and hears
+# nothing. Any other reason shows only once the line is down too (a modem that ended takes its line with it).
+DEAF_REASONS = frozenset({"receive_stalled"})
+
+
 @dataclass(frozen=True)
 class RadioHealth:
     state: Source.State
@@ -80,14 +85,17 @@ def _problem(line: Line) -> tuple[str | None, Mapping[str, Param]]:
         or (state is Source.State.WAITING and code_of(line.problem)[0] == "radio.write_timeout")
     ):
         return "radio.write_timeout", code_of(stuck)[1]
+    if state is Source.State.CONNECTED:
+        if modem is not None and not modem.test:
+            if modem.state == "waiting" and modem.reason in DEAF_REASONS:
+                return f"modem.{modem.reason}", {}
+            if modem.deaf:
+                return "modem.receive_deaf", {}
+        return ("radio.text_lines", {}) if code_of(line.why_unusable())[0] == "radio.text_lines" else (None, {})
     if modem is not None and modem.test:
-        return None, {}  # Tune or the keying test has the radio; the line may be down meanwhile
+        return None, {}  # Tune or the keying test has the radio; the line is down meanwhile
     if modem is not None and modem.state == "waiting" and modem.reason:
         return f"modem.{modem.reason}", {}
-    if state is Source.State.CONNECTED and modem is not None and modem.deaf:
-        return "modem.receive_deaf", {}
-    if state is Source.State.CONNECTED:
-        return ("radio.text_lines", {}) if code_of(line.why_unusable())[0] == "radio.text_lines" else (None, {})
     if state is Source.State.SILENT:
         return "radio.silent", {"since": iso(line.silent_since) or ""}
     if (why := code_of(line.problem))[0] == "radio.incoming_port":

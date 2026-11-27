@@ -31,7 +31,7 @@ def device_globs(text: str) -> str:
     parts = text.split()
     if not parts or any(not part.startswith("/") for part in parts):
         raise CodedError(
-            f"{text!r} is not one or more absolute patterns separated by spaces",
+            f"{text!r} is not one or more device patterns separated by spaces; each starts with / and may end in * to match any ending",
             "setting.not_globs",
             value=text,
         )

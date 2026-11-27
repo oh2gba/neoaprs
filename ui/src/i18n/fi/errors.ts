@@ -128,7 +128,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_keying": "'{value}' ei ole tapa avaintaa radiota: vox, cm108, rts:PORTTI tai dtr:PORTTI",
   "error.setting.not_among": "{value} ei ole mikään näistä: {choices}",
   "error.setting.not_direction": "'{value}' ei ole omni eikä mikään näistä: N NE E SE S SW W NW",
-  "error.setting.not_globs": "'{value}' ei ole yksi tai useampi välilyönnein erotettu absoluuttinen kuvio",
+  "error.setting.not_globs":
+    "'{value}' ei ole yksi tai useampi välilyönnein erotettu laitekuvio; jokainen alkaa merkillä / ja voi päättyä merkkiin * (mikä tahansa jatko)",
   "error.setting.not_host": "'{value}' ei ole osoite eikä nimi",
   "error.setting.not_hostport": "'{value}' ei ole muotoa palvelin:portti",
   "error.setting.not_receiver": "'{value}' ei ole vastaanottimen osoite",

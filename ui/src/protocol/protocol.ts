@@ -364,7 +364,7 @@ export interface ErrorMessage {
   params: { [key: string]: string | number };
   /** what could not be done and why, in a sentence in English: the command, then the setting if there is one, then the reason (`set_config: station/lat: 95 is not between -90 and 90`) */
   text: string;
-  /** the `id` of the request this answers, when the command carried one (`set_config`); the field is left out otherwise */
+  /** the `id` of the request this answers, when the command carried one (only `set_config` does: the `id` of another command is a radio's, a message's or a packet's number and is never echoed); the field is left out otherwise */
   id?: number | null;
 }
 

@@ -41,26 +41,30 @@ Round = Callable[[], Awaitable[object] | object]
 async def every(
     sec: float | Callable[[], float], fn: Round, what: str, first: float | None = None, at_start: bool = False
 ) -> None:
-    """Wait `sec` seconds (or the function's result), run `fn`, repeat; exceptions are logged.
+    """Wait `sec` seconds (or the function's result), run `fn`, repeat; a failed round is logged
+    (with its traceback once per change of the failure, see `Failures`).
 
     `first` is the wait before the first round; `at_start` runs it at once.
     """
+    failures = Failures(what)
     if at_start:
-        await _round(fn, what)
+        await _round(fn, failures)
     wait = first
     while True:
         await asyncio.sleep(wait if wait is not None else sec() if callable(sec) else sec)
         wait = None
-        await _round(fn, what)
+        await _round(fn, failures)
 
 
-async def _round(fn: Round, what: str) -> None:
+async def _round(fn: Round, failures: "Failures") -> None:
     try:
         result = fn()
         if inspect.isawaitable(result):
             await result
-    except Exception:
-        log.exception("%s failed", what)
+    except Exception as e:
+        failures.failed(e)
+    else:
+        failures.worked()
 
 
 class Failures:

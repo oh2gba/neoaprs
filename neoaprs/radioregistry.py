@@ -21,7 +21,7 @@ from .mercurydriver import MercuryDriver
 from .mercurymodem import Mercury
 from .packet import Packet
 from .radiodriver import RadioDriver, RunOverrides
-from .radiospec import RadioId, RadioSpec, live, log_label, log_name, transmits
+from .radiospec import RadioId, RadioSpec, live, log_label, log_name, told, transmits
 from .radiotype import Allowed, Kind, Limits, RadioType, RadioTypeError
 from .signal import Signal
 from .source import Source
@@ -222,7 +222,7 @@ class LiveRadio(Generic[B]):
     @property
     def told(self) -> str:
         """The radio as the log's lines of its life say it: "the LoRa 2 radio (radio 9)"."""
-        return f"the {self.name} radio (radio {self.id})"
+        return told(self.name, self.id)
 
     # ---- what its line says
     @property

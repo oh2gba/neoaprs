@@ -130,7 +130,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.not_keying": "'{value}'は無線機の送信切替の方法ではありません：vox、cm108、rts:PORT、dtr:PORT",
   "error.setting.not_among": "{value} は {choices} のいずれでもありません",
   "error.setting.not_direction": "「{value}」は omni でも N NE E SE S SW W NW のいずれでもありません",
-  "error.setting.not_globs": "「{value}」は、スペースで区切った1つ以上の絶対パスのパターンではありません",
+  "error.setting.not_globs":
+    "「{value}」は、スペースで区切った1つ以上のデバイスのパターンではありません。各パターンは / で始まり、末尾に * を付けることもできます（後ろは何でも一致）",
   "error.setting.not_host": "「{value}」はアドレスでも名前でもありません",
   "error.setting.not_receiver": "「{value}」は受信機のアドレスではありません",
   "error.setting.not_hostport": "「{value}」は ホスト:ポート ではありません",

@@ -1089,6 +1089,7 @@ async def test_message_cancel_and_message_retry_change_the_row_and_say_why_when_
     await page.send({"cmd": "message_retry", "id": 99})
     await page.until(lambda: len(page.of("error")) == 3)
     assert "no message 99" in page.of("error")[-1]["text"]
+    assert "id" not in page.of("error")[-1], "a message's number is not a request's number"
 
 
 async def test_message_delete_removes_the_row_from_the_database_and_every_page_and_says_why_when_it_cannot(

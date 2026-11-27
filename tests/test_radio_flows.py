@@ -198,6 +198,12 @@ async def test_a_part_that_cannot_take_new_settings_leaves_the_others_told_and_t
     assert told == ["config", "map"] and ctl.config.station_comment == "changed"
     assert "the settings are stored and in force, but the iGate could not take them" in caplog.text
     ctl.radios.sync = broken_sync  # type: ignore[method-assign]
-    assert await ctl.save_config(replace(ctl.config, station_comment="again"))
+    started: list[int] = []
+    ctl.start_radio = started.append  # type: ignore[method-assign]
+    told.clear()
+    with pytest.raises(RuntimeError, match="the registry is confused"):
+        await ctl.save_config(replace(ctl.config, station_comment="again"))
     assert ctl.config.station_comment == "again", "the settings in force are the stored ones"
+    assert told == ["config", "map"], "the other parts are told first"
+    assert started == [radio.id for radio in ctl.radios.all()], "no radio keeps half-made settings: each starts again"
     assert "but the radios could not take them" in caplog.text

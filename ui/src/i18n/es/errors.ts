@@ -131,7 +131,8 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.setting.not_keying": "'{value}' no es una forma de conmutar la radio: vox, cm108, rts:PUERTO o dtr:PUERTO",
   "error.setting.not_among": "{value} no es ninguno de {choices}",
   "error.setting.not_direction": "“{value}” no es omni ni uno de N NE E SE S SW W NW",
-  "error.setting.not_globs": "“{value}” no es uno o más patrones absolutos separados por espacios",
+  "error.setting.not_globs":
+    "“{value}” no es uno o más patrones de dispositivo separados por espacios; cada uno empieza por / y puede terminar en * (cualquier final)",
   "error.setting.not_host": "“{value}” no es una dirección ni un nombre",
   "error.setting.not_hostport": "“{value}” no es host:puerto",
   "error.setting.not_receiver": "“{value}” no es la dirección de un receptor",

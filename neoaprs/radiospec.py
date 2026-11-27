@@ -123,6 +123,11 @@ def log_name(spec: RadioSpec, specs: Iterable[RadioSpec]) -> str:
     return KIND_WORDS[spec.kind] + (f" {number}" if number > 1 else "")
 
 
+def told(name: str, id: RadioId) -> str:
+    """Return the radio as a log line says it: "the LoRa 2 radio (radio 9)"; "radio 9" with no name."""
+    return f"the {name} radio (radio {id})" if name else f"radio {id}"
+
+
 def log_label(spec: RadioSpec, specs: Iterable[RadioSpec]) -> str:
     """Return the radio's name with its id ("LoRa 2 (radio 9)"): the id never shifts, the number may."""
     return f"{log_name(spec, specs)} (radio {spec.id})"

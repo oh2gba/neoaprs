@@ -31,8 +31,9 @@ from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, our_call, our_frame
 from neoaprs.services.acks import Acks
+from neoaprs.radiospec import told
 from neoaprs.radiotype import RadioId
-from neoaprs.services.answers import as_pick, radio_word
+from neoaprs.services.answers import as_pick
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
 from neoaprs.services.inbox import Inbox
@@ -244,12 +245,12 @@ class Messaging:
             raise MessagingError("the message could not be kept: the database is not open", "failed")
         self.put(record)
         log.info(
-            "message %d to %s is kept: %d characters, at most %d attempts, on the %s radio",
+            "message %d to %s is kept: %d characters, at most %d attempts, on %s",
             record.id,
             to,
             len(text),
             record.attempts_max,
-            radio_word(radio),
+            told(radio.name, radio.id),
         )
         return self.attempt(record)
 
@@ -460,10 +461,10 @@ class Messaging:
         if record.msg_id is None:
             record = replace(record, state="unconfirmed")  # sent once; nobody acks it
         log.info(
-            "message %d to %s sent on the %s radio (attempt %d of %d): %s",
+            "message %d to %s sent on %s (attempt %d of %d): %s",
             record.id,
             record.to_call,
-            radio_word(radio),
+            told(radio.name, radio.id),
             record.attempts,
             record.attempts_max,
             record.text if record.wire is None else record.wire,

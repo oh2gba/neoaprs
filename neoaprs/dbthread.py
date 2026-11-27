@@ -53,6 +53,8 @@ class Op:
     queued: float
     future: "asyncio.Future[Any] | None" = None
     loop: asyncio.AbstractEventLoop | None = None
+    # a maintenance function whose statements begin a transaction of their own (VACUUM)
+    own: bool = False
 
 
 # Result codes (low byte of `sqlite_errorcode`) that come from the environment, not the statement:
@@ -232,7 +234,11 @@ class DbThread(threading.Thread):
         assert op.fn is not None
         if op.kind is Kind.MAINT:
             self._set_query_only(conn, False)
-            return op.fn(conn)
+            self._own = op.own
+            try:
+                return op.fn(conn)
+            finally:
+                self._own = False
         reading = op.kind is Kind.READ
         self._set_query_only(conn, reading)
         return self._transaction(conn, op.fn, BEGIN_READ if reading else BEGIN_WRITE)

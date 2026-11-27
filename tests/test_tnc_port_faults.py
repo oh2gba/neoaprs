@@ -21,6 +21,7 @@ from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import KISS
 from neoaprs.web.radioview import radio_row
+from tests.support.clock import FixedClock
 from tests.support.env import idle_for, until
 
 INCOMING = PortInfo(
@@ -172,21 +173,30 @@ async def test_a_byte_that_comes_ends_the_write_problem_too(monkeypatch: pytest.
         await tnc.stop()
 
 
-async def test_a_quiet_radio_that_writes_nothing_after_the_reopen_is_shown_connected_after_a_probes_interval(
+async def test_a_port_whose_every_write_times_out_is_never_shown_connected_between_two_beacons_half_an_hour_apart(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """The station of the report: an incoming Bluetooth port takes no write, and only a beacon writes.
+    Quiet time on the open line proves nothing (the watchdog's probe interval is short here, so a
+    bound by time would have cleared the problem)."""
     ser = StuckSer()
     monkeypatch.setattr(serialport, "_build", lambda path, baud: ser)
-    tnc = Tnc("COM8", profile=KISS, backoff=Backoff([0.05]), check_sec=0, probe_sec=0.5)
+    clock = FixedClock()
+    tnc = Tnc("COM8", profile=KISS, backoff=Backoff([0.05]), check_sec=0, probe_sec=0.1, clock=clock)
+    timeout = {"code": "radio.write_timeout", "params": {"seconds": serialport.WRITE_TIMEOUT_SEC}}
     try:
         await tnc.start()
-        tnc.send_frame(frame())
-        await until(lambda: tnc.write_stuck is not None and tnc.state is Source.State.CONNECTED)
-        opens = tnc.stats.opens
-        assert row_of(tnc)[0] == "waiting"
-        await until(lambda: tnc.write_stuck is None, 10.0)
-        assert row_of(tnc) == ("connected", None) and tnc.stats.opens == opens, "nothing was written, nothing lost"
-        assert any("open for 0.5 s and no write failed" in line for line in tnc.lines)
+        for beacon in range(3):
+            opens = tnc.stats.opens
+            assert tnc.send_frame(frame())
+            await until(lambda was=opens: tnc.stats.opens > was and tnc.state is Source.State.CONNECTED)
+            clock.advance(30 * 60)  # (until the next beacon)
+            await idle_for(0.5)
+            assert row_of(tnc) == ("waiting", timeout), f"after beacon {beacon + 1}: nothing went through"
+        ser.takes = True
+        assert tnc.send_frame(frame())
+        await until(lambda: tnc.write_stuck is None)
+        assert row_of(tnc) == ("connected", None), "a write that goes through ends it"
     finally:
         await tnc.stop()
 

@@ -207,7 +207,7 @@ async def test_the_raise_is_said_once_in_the_log_for_the_radio_it_raises(caplog:
         await b.stop()
     raised = [r.getMessage() for r in caplog.records if "raised" in r.getMessage()]
     assert raised == [
-        "the beacon interval 20 min is raised to 30 on the Mercury radio: 30 minutes is the shortest its type takes"
+        "the beacon interval 20 min is raised to 30 on the Mercury radio (radio 2): 30 minutes is the shortest its type takes"
     ], "once, for the Mercury radio alone, and not again when it restarts"
 
 

@@ -14,7 +14,7 @@ from neoaprs.coded import CodedError
 from neoaprs.config import Config, can_transmit
 from neoaprs.message import MessagingError
 from neoaprs.packet import Packet
-from neoaprs.radiospec import RadioSpec, log_name
+from neoaprs.radiospec import RadioSpec, log_name, told
 from neoaprs.radiotype import FM_ID, HF_ID, Allowed, Kind, Limits, RadioId, RadioType
 from neoaprs.radiotypes import kind_field
 from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, first_sender
@@ -246,7 +246,7 @@ def sent_on(frames: Sequence[tuple[AirRadio, ax25.Frame]], what: str) -> list[tu
         if radio.send_frame(frame):
             went.append((radio, frame))
         else:
-            log.warning("%s: the %s radio did not take the frame", what, radio.name or radio.id)
+            log.warning("%s: %s did not take the frame", what, told(radio.name, radio.id))
     if not went:
         raise MessagingError("the TNC did not take the frame", "radio.not_taken")
     return went

@@ -238,7 +238,8 @@ export const fr: Catalogue = {
   "error.setting.not_keying": "« {value} » n'est pas une façon de commuter la radio : vox, cm108, rts:PORT ou dtr:PORT",
   "error.setting.not_among": "{value} n'est pas l'une des valeurs {choices}",
   "error.setting.not_direction": "« {value} » n'est ni omni ni l'un de N NE E SE S SW W NW",
-  "error.setting.not_globs": "« {value} » n'est pas un ou plusieurs motifs absolus séparés par des espaces",
+  "error.setting.not_globs":
+    "« {value} » n'est pas un ou plusieurs motifs de périphérique séparés par des espaces ; chacun commence par / et peut finir par * (n'importe quelle suite)",
   "error.setting.not_host": "« {value} » n'est ni une adresse ni un nom",
   "error.setting.not_hostport": "« {value} » n'est pas hôte:port",
   "error.setting.not_receiver": "« {value} » n'est pas l'adresse d'un récepteur",

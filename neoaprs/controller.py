@@ -22,7 +22,9 @@ from .policy import INTERNET_KEEP_DAYS, LOG_KEEP_DAYS, TNC_CHECK_SEC
 from .dummyworlds import made_up_calls
 from .db import Db
 from .dbfile import DEFAULT_BUSY_MS
+from .dberror import DbClosed, SqlError
 from .dbopen import open_connection
+from .walcare import make_returnable
 from .packetlog import STATION_FLUSH_SEC
 from .radioregistry import NEW, REMOVED, is_dummy
 from .radioflows import RadioFlows
@@ -83,6 +85,7 @@ class Controller(Services):
         self.check_sec = check_sec
         self.busy_ms = busy_ms
         self.flows = RadioFlows(self.tasks.spawn)
+        self._rewrite_tried = False
         self._implied: set[str] = set()  # settings implied by an older row, stored at the first save
         wiring.wire(self)
 
@@ -330,11 +333,16 @@ class Controller(Services):
         """Put stored settings in force: restart the changed radios, tell the parts.
 
         A part that fails is logged with its name and the others are told all the same: the
-        settings are stored, so they are the ones in force.
+        settings are stored, so they are the ones in force. A failed sync of the radios may leave
+        them half made: every radio is started again from the settings, and the error is raised
+        once the parts are told, so the save is answered as failed.
         """
         names = {radio.id: radio.told for radio in self.radios.all()}
-        restart: list[RadioId] = []
-        self._tell("the radios", lambda: restart.extend(self.radios.sync(config)))
+        try:
+            restart, failed = self.radios.sync(config), None
+        except Exception as e:
+            log.exception("the settings are stored, but the radios could not take them: each is started again")
+            restart, failed = [radio.id for radio in self.radios.all()], e
         previous, self.config = self.config, config
         now_dummy = {spec.id for spec in enabled(config.radios) if is_dummy(spec)}
         self._tell("our station in the book", lambda: wiring.place_me(self))
@@ -343,7 +351,8 @@ class Controller(Services):
             self._tell(f"the beacon of {radio.told}", radio.beacon.settings_changed)
         self._tell("the iGate", self.igate.settings_changed)
         for id in restart:
-            self._tell_restart(names.get(id) or self.radios.told_of(id), self.radios.why[id])
+            if failed is None:
+                self._tell_restart(names.get(id) or self.radios.told_of(id), self.radios.why[id])
             self.start_radio(id)
         for was in enabled(previous.radios):
             if is_dummy(was) and was.id not in now_dummy:
@@ -352,6 +361,8 @@ class Controller(Services):
         self._tell("the automatic map", lambda: self.mapauto.settings_changed(previous))
         if (web := self.web) is not None:
             self._tell("the page", lambda: web.settings_changed(config))
+        if failed is not None:
+            raise failed
 
     @staticmethod
     def _tell(part: str, fn: Callable[[], object]) -> None:
@@ -424,9 +435,21 @@ class Controller(Services):
         self.messaging.forget_heard(keep)
         await self.weatherlog.prune(keep)
         stations = self.stationbook.prune(self.clock() - days(keep))
+        await self._make_returnable()
         if packets or stations:
             log.info("pruned %d packets and %d stations older than %d days", packets, len(stations), keep)
         return packets, stations
+
+    async def _make_returnable(self) -> None:
+        """The one rewrite of the file, once per start, in the database thread (everything else waits)."""
+        if self.db is None or self._rewrite_tried:
+            return
+        self._rewrite_tried = True
+        path = self.data_dir / DB_NAME
+        try:
+            await self.db.maintain_own(lambda conn: make_returnable(conn, path))
+        except (SqlError, DbClosed) as e:
+            log.warning("the database could not be rewritten to give room back: %s", e)
 
     async def forget_stations(self) -> int:
         """Forget every station but ours with its packets and weather; return the count."""

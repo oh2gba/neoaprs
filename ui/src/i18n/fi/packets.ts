@@ -27,7 +27,7 @@ export const packets: Record<keyof typeof source, Message> = {
   "packets.kind.position": "Sijaintiraportti",
   "packets.kind.message": "Viesti",
   "packets.kind.object": "Kohde",
-  "packets.kind.item": "Esine",
+  "packets.kind.item": "Itemi",
   "packets.kind.status": "Tilaviesti",
   "packets.kind.other": "Muu paketti",
   "packets.kind.undecoded": "Ei voitu lukea",

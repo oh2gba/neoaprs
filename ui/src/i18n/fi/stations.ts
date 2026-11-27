@@ -37,7 +37,7 @@ export const stations: Record<keyof typeof source, Message> = {
 
   "station.kind.station": "asema",
   "station.kind.object": "kohde",
-  "station.kind.item": "esine",
+  "station.kind.item": "itemi",
   "station.kind_reported": "{kind}, ilmoittanut {by}",
   "station.from_us_value": "{distance}, {bearing}",
   "station.speed_course": "{speed}, suunta {course}",
