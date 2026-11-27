@@ -32,6 +32,16 @@ class Subscription:
     after_sec: float  # since the upgrade of its connection
 
 
+def reset(writer: asyncio.StreamWriter) -> None:
+    """End the connection with a TCP reset, the same on every system: the socket itself is closed with
+    a zero linger, since the proactor loop of Windows would shut it down (a clean close) on an abort."""
+    sock = writer.get_extra_info("socket")
+    raw: socket.socket = getattr(sock, "_sock", sock)  # asyncio's TransportSocket holds the socket
+    raw.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("HH" if sys.platform == "win32" else "ii", 1, 0))
+    raw.close()
+    writer.transport.abort()
+
+
 @dataclass
 class _Client:
     writer: asyncio.StreamWriter
@@ -138,11 +148,7 @@ class FakeAisStream(LoopbackServer):
         """Keep the subscription; False when the connection is to end (a wrong key)."""
         message = json.loads(data)
         if self.reset:
-            sock = client.writer.get_extra_info("socket")
-            sock.setsockopt(
-                socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("HH" if sys.platform == "win32" else "ii", 1, 0)
-            )
-            client.writer.transport.abort()
+            reset(client.writer)
             return False
         self.subscriptions.append(
             Subscription(
