@@ -25,18 +25,24 @@ END_CODE = 0x4E45
 END_SEC = 8.0
 # how often the watchdog on POSIX looks whether its parent has ended
 POLL_SEC = 0.1
-SYNCHRONIZE, PROCESS_TERMINATE = 0x00100000, 0x0001
+SYNCHRONIZE, PROCESS_TERMINATE, PROCESS_QUERY_LIMITED_INFORMATION = 0x00100000, 0x0001, 0x1000
 WAIT_OBJECT_0, WAIT_TIMEOUT = 0, 0x102
+ERROR_INVALID_PARAMETER = 87
 
 _started = threading.Lock()  # one watchdog for a process, however often Quit is decided
 
 
 def argv_for(pid: int, seconds: float, frozen: bool | None = None, executable: str | None = None) -> list[str]:
-    """Return the watchdog's command line for the process `pid`: a frozen build's own program takes FLAG first."""
+    """Return the watchdog's command line for the process `pid`: a frozen build's own program takes FLAG first.
+
+    From a checkout it is this file run isolated by the base interpreter, never a venv's python.exe: on Windows
+    that is a launcher, and the watchdog would be the launcher's child, not this process's."""
     frozen = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
-    program = executable or sys.executable
     tail = [str(pid), f"{seconds:g}"]
-    return [program, FLAG, *tail] if frozen else [program, "-m", "neoaprs.desktop.endafter", *tail]
+    if frozen:
+        return [executable or sys.executable, FLAG, *tail]
+    base = executable or getattr(sys, "_base_executable", "") or sys.executable
+    return [base, "-I", os.path.abspath(__file__), *tail]
 
 
 def watch(seconds: float, popen: Callable[..., Any] = subprocess.Popen) -> bool:
@@ -73,7 +79,15 @@ def _kernel32() -> Any:
     k.TerminateProcess.argtypes = (ctypes.c_void_p, ctypes.c_uint32)
     k.CloseHandle.argtypes = (ctypes.c_void_p,)
     k.GetCurrentProcess.restype = ctypes.c_void_p
+    k.GetProcessTimes.argtypes = (ctypes.c_void_p, *([ctypes.POINTER(ctypes.c_uint64)] * 4))
     return k
+
+
+def _started_at(k: Any, handle: Any) -> int:
+    """When the process of `handle` started, in 100 ns since 1601; 0 if it cannot be told."""
+    created, other = ctypes.c_uint64(), ctypes.c_uint64()
+    ok = k.GetProcessTimes(handle, ctypes.byref(created), ctypes.byref(other), ctypes.byref(other), ctypes.byref(other))
+    return created.value if ok else 0
 
 
 def end_now(code: int) -> None:
@@ -87,10 +101,12 @@ def end_now(code: int) -> None:
 
 def _windows_end(pid: int, seconds: float) -> int:
     k = _kernel32()
-    handle = k.OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, 0, pid)
-    if not handle:
-        return CANNOT_OPEN
+    handle = k.OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid)
+    if not handle:  # ERROR_INVALID_PARAMETER: no such process, it has ended already
+        return ENDED if ctypes.get_last_error() == ERROR_INVALID_PARAMETER else CANNOT_OPEN  # type: ignore[attr-defined,unused-ignore]
     try:
+        if _started_at(k, handle) > _started_at(k, k.GetCurrentProcess()):
+            return ENDED  # a newer process under the ended parent's id: it is never touched
         if k.WaitForSingleObject(handle, int(seconds * 1000)) != WAIT_TIMEOUT:
             return ENDED
         k.TerminateProcess(handle, END_CODE)
@@ -109,8 +125,26 @@ def _posix_end(pid: int, seconds: float, clock: Callable[[], float] = time.monot
     return ENDED
 
 
+OUTCOMES = {
+    ENDED: "it ended by itself",
+    ENDED_BY_US: "it did not end: ended it",
+    BAD_ARGUMENT: "refused: the arguments are not PID SECONDS",
+    NOT_PARENT: "refused: that process is not this one's parent",
+    CANNOT_OPEN: "the process could not be opened",
+}
+
+
 def main(argv: list[str]) -> int:
-    """`PID SECONDS`: wait up to SECONDS for the process PID, this process's parent, to end, else end it."""
+    """`PID SECONDS`: wait up to SECONDS for the process PID, this process's parent, to end, else end it.
+
+    Says what came of it on one line of stderr (nowhere when the app started it, a test reads it)."""
+    code = _watch(argv)
+    if sys.stderr is not None:
+        print(f"end-after {' '.join(argv)}: {OUTCOMES.get(code, '?')} (exit {code})", file=sys.stderr, flush=True)
+    return code
+
+
+def _watch(argv: list[str]) -> int:
     try:
         pid, seconds = int(argv[0]), float(argv[1])
     except (IndexError, ValueError):
@@ -118,8 +152,20 @@ def main(argv: list[str]) -> int:
     if len(argv) != 2 or pid <= 0 or not 0 <= seconds <= 3600:
         return BAD_ARGUMENT
     if os.getppid() != pid:
-        return NOT_PARENT  # only the program that started it: the watchdog cannot be pointed at another
+        # only the program that started it: the watchdog cannot be pointed at another. On POSIX a parent that
+        # has ended already leaves its children to another, so a pid that is no process is one that ended.
+        return ENDED if sys.platform != "win32" and not _exists(pid) else NOT_PARENT
     return _windows_end(pid, seconds) if sys.platform == "win32" else _posix_end(pid, seconds)
+
+
+def _exists(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True
+    return True
 
 
 if __name__ == "__main__":

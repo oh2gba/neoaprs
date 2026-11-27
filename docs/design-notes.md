@@ -251,7 +251,10 @@ thread of the app gets to run. So at the moment Quit is decided the app also sta
 itself (`endafter.py`, its own program with `--end-after PID SECONDS`, hidden), which waits for the app's
 process and ends it (TerminateProcess, or SIGKILL on POSIX) if it is still there eight seconds later. It
 takes only its own parent's process id, so the option cannot end another program, and it ends at once
-with an app that ended by itself. The Qt shell starts it too.
+with an app that ended by itself (on Windows also with a newer process under the ended app's id). From a
+checkout it is `endafter.py` run isolated by the base interpreter (`sys._base_executable`): a venv's
+python.exe on Windows is a launcher, and a watchdog started through it would be the launcher's child,
+refuse the app's id and never end it. The Qt shell starts it too.
 
 ## neoaprs/desktop/winplace.py
 
