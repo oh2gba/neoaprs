@@ -3,6 +3,7 @@ Disallow: /version.php
 Disallow: /latest.php
 Disallow: /api/
 Disallow: /skeds.json
+Disallow: /skeds-past.json
 Disallow: /log/
 
 Sitemap: https://neo.oh2gba.eu/sitemap.xml

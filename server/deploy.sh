@@ -13,9 +13,9 @@
 #
 # Only these files, and of the folders only what git tracks (`git ls-files`): an untracked or
 # ignored file is never uploaded, and the skipped ones are named. message.txt, the logs, the stored
-# support files and skeds, and the sked board skeds.json live on the server only and are never
-# uploaded or removed (a skeds.json in site/ would overwrite the live board, so the upload refuses
-# to start while there is one). Credentials come from Bitwarden Secrets Manager
+# support files and skeds, and the sked board skeds.json with its past tests skeds-past.json live on
+# the server only and are never uploaded or removed (either in site/ would overwrite the live one, so
+# the upload refuses to start while there is one). Credentials come from Bitwarden Secrets Manager
 # (ftp_server/ftp_login/ftp_pw). The machine-account token is the first line of a .secrets file:
 # SECRETS_FILE, else the first one found searching upwards, else ../../oh2gba/.secrets. Nothing
 # secret is stored in this repository or printed.
@@ -79,7 +79,9 @@ case "${1:-}" in
   "") ;;
   *) echo "deploy.sh: unknown option $1" >&2; exit 2 ;;
 esac
-[ ! -e "$SITE/skeds.json" ] || { echo "deploy.sh: site/skeds.json would be uploaded over the live sked board; remove it" >&2; exit 1; }
+for board in skeds.json skeds-past.json; do
+  [ ! -e "$SITE/$board" ] || { echo "deploy.sh: site/$board would be uploaded over the live sked board; remove it" >&2; exit 1; }
+done
 
 ENVFILE="${SECRETS_FILE:-$(d="$ROOT"; until [ -f "$d/.secrets" ] || [ "$d" = / ]; do d="$(dirname "$d")"; done; echo "${d%/}/.secrets")}"
 [ -f "$ENVFILE" ] || [ -n "${SECRETS_FILE:-}" ] || ENVFILE="$ROOT/../../oh2gba/.secrets"  # a named file that is missing is never replaced by another one

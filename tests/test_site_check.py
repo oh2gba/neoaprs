@@ -95,6 +95,7 @@ class Host:
                     "/.user.ini",
                     "/support/.user.ini",
                     "/skeds.json.part",
+                    "/skeds-past.json.part",
                 )
                 code = 200 if path in host.files else 403 if private else 404
             body = host.files.get(path, b"") if code == 200 else b""
@@ -205,6 +206,7 @@ def test_the_places_of_the_sked_board_are_asked_too(repo: Path, host: tuple[Host
         "/private/skeds/lock",
         "/private/logs/skeds.log",
         "/skeds.json.part",
+        "/skeds-past.json.part",
     ):
         assert place in module().private_places(repo, datetime.now(UTC)), place
     served.files["/skeds.json.part"] = b"{}"

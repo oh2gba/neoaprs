@@ -4,8 +4,13 @@
  *
  * Reading is not done here: every accepted change writes the board to skeds.json in the site root (BOARD),
  * which Apache serves as a static file. The board is {"v": 1, "written": TIME, "closed": false,
- * "skeds": [{"id", "call", "from", "to", "dial", "note"}, ...]}, sorted by `from`, at most 100 rows,
- * never a token or its hash.
+ * "skeds": [{"id", "call", "from", "to", "dial", "note"}, ...]}, the skeds still to come sorted by `from`,
+ * at most 100 rows, never a token or its hash. The same write makes skeds-past.json beside it (PAST),
+ * {"v": 1, "written": TIME, "past": [ROW, ...]}: rows of the same form whose end has passed, the 20 newest
+ * tests (rows with the same times and dial are one test) by their end, newest first, at most 100 rows.
+ * The past tests are a file of their own so that skeds.json, and every answer to a request an older
+ * reader makes, stay byte for byte what they were: only a request with "past": true has the key `past`
+ * (PAST's value) added to its answer.
  *
  * Writing is a POST of application/json, at most 2048 bytes, refused from its Content-Length before
  * anything is read:
@@ -27,21 +32,25 @@
  * invisible characters removed. The same sked posted again under the same token is answered with its id.
  *
  * Who may delete: each installation makes a random token once; the hash of the token is kept with the
- * sked (never on the board), so only the installation that posted a sked can remove it. An id that is no
- * longer on the board (it has ended) is answered with the board.
+ * sked (never on the board), so only the installation that posted a sked can remove it. A sked removed
+ * before it began is gone; one removed while it runs ends then and stays as a past test. An id that is no
+ * longer on the board (it has ended) is answered with the board: a past test is never removed or changed
+ * by a request.
  *
  * What is kept: one file per sked, ID.json, in private/skeds/ (Apache refuses to serve private/),
- * written to a .part and renamed under one lock (the file `lock`); ended skeds and those of a blocked
- * call are removed at every write. The sender's address is never written down: it is hashed under a salt
+ * written to a .part and renamed under one lock (the file `lock`); skeds that ended more than 30 days
+ * ago, the oldest past ones beyond 1000, and those of a blocked call are removed at every write. The
+ * sender's address is never written down: it is hashed under a salt
  * only this folder knows, for the rate limit (10 adds an hour from one address, 60 an hour in all; an
  * add counts once it is well formed and within the times, and so does a remove with a wrong token or of
  * an id that is gone; a remove with the right token and a refresh do not, so a flood cannot keep the
- * moderator from remaking the board). The hash is forgotten after the hour. A refresh writes the board
+ * moderator from remaking the board). The hash is forgotten after the hour. A refresh writes each file
  * only when what it says has changed.
  *
  * Moderation (server/skeds.sh, over SFTP): a file `closed` in the folder makes every add answer `closed`
  * and the board say "closed": true; `blocked.txt` holds a call per line whose adds answer `closed` and
- * whose skeds are removed. Removing a file there and posting a refresh makes the board again. */
+ * whose skeds, past ones too, are removed. Removing a file there and posting a refresh makes the board
+ * again. */
 declare(strict_types=1);
 
 ini_set('display_errors', '0');
@@ -51,6 +60,7 @@ header('X-Content-Type-Options: nosniff');
 
 const SITE_ROOT        = __DIR__ . '/../..';  // neo/ on the host: this file is neo/api/v1/skeds.php
 const BOARD            = SITE_ROOT . '/skeds.json';
+const PAST             = SITE_ROOT . '/skeds-past.json';
 const STORE            = SITE_ROOT . '/private/skeds';
 const MAX_BODY         = 2048;
 const MAX_NOTE         = 80;
@@ -59,6 +69,10 @@ const MAX_LENGTH_SEC   = 24 * 3600;
 const MAX_PER_TOKEN    = 5;
 const MAX_PER_CALL     = 10;
 const MAX_IN_ALL       = 100;
+const KEEP_PAST_SEC    = 30 * 86400;
+const MAX_PAST_TESTS   = 20;
+const MAX_PAST_ROWS    = 100;
+const MAX_PAST_KEPT    = 1000;
 const RATE_PER_ADDRESS = 10;
 const RATE_IN_ALL      = 60;
 const RATE_WINDOW_SEC  = 3600;
@@ -248,8 +262,9 @@ function skeds_is_blocked(string $call, array $blocked): bool
 }
 
 /**
- * The stored skeds still to come, by id; ended ones, ones of a blocked call and files that are no
- * sked are removed. Under the lock only.
+ * The stored skeds by id, to come and past, in the order of their start; ones that ended more than
+ * KEEP_PAST_SEC ago, the oldest past ones beyond MAX_PAST_KEPT, ones of a blocked call and files that
+ * are no sked are removed. Under the lock only.
  */
 function skeds_stored(string $dir, int $now): array
 {
@@ -262,45 +277,101 @@ function skeds_stored(string $dir, int $now): array
         $from = is_array($row) ? skeds_time($row['from'] ?? null) : null;
         $to = is_array($row) ? skeds_time($row['to'] ?? null) : null;
         $call = is_array($row) ? skeds_call($row['call'] ?? null) : null;
-        $good = $from !== null && $to !== null && $call !== null && ($row['id'] ?? null) === $id && skeds_dial($row['dial'] ?? null) !== null && is_string($row['note'] ?? '');
-        if (!$good || $to <= $now || skeds_is_blocked($call, $blocked)) {
+        $good = $from !== null && $to !== null && $from < $to && $call !== null && ($row['id'] ?? null) === $id && skeds_dial($row['dial'] ?? null) !== null && is_string($row['note'] ?? '');
+        if (!$good || $to <= $now - KEEP_PAST_SEC || skeds_is_blocked($call, $blocked)) {
             @unlink("$dir/$name");
             continue;
         }
-        $found[$id] = ['at' => $from] + $row;
+        $found[$id] = ['at' => $from, 'end' => $to] + $row;
+    }
+    $past = array_filter($found, fn($row) => $row['end'] <= $now);
+    if (count($past) > MAX_PAST_KEPT) {
+        uasort($past, fn($a, $b) => [$b['end'], $a['id']] <=> [$a['end'], $b['id']]);
+        foreach (array_slice($past, MAX_PAST_KEPT, null, true) as $id => $row) {
+            @unlink("$dir/$id.json");
+            unset($found[$id]);
+        }
     }
     uasort($found, fn($a, $b) => [$a['at'], $a['id']] <=> [$b['at'], $b['id']]);
     return $found;
 }
 
-/**
- * The rows of the board from the stored skeds: at most a hundred, never a token. Under the lock
- * only.
- */
-function skeds_rows(string $dir, int $now): array
+/** The stored skeds still to come, by id, in the order of their start. */
+function skeds_coming(array $stored, int $now): array
 {
-    $rows = [];
-    foreach (array_slice(skeds_stored($dir, $now), 0, MAX_IN_ALL) as $row) {
-        $rows[] = ['id' => (string) $row['id'], 'call' => (string) $row['call'], 'from' => (string) $row['from'], 'to' => (string) $row['to'], 'dial' => (string) $row['dial'], 'note' => (string) ($row['note'] ?? '')];
-    }
-    return $rows;
+    return array_filter($stored, fn($row) => $row['end'] > $now);
+}
+
+/** A sked as the board and the past tests show it: never a token. */
+function skeds_row(array $row): array
+{
+    return ['id' => (string) $row['id'], 'call' => (string) $row['call'], 'from' => (string) $row['from'], 'to' => (string) $row['to'], 'dial' => (string) $row['dial'], 'note' => (string) ($row['note'] ?? '')];
+}
+
+/** The rows of the board: the skeds to come, at most a hundred. */
+function skeds_rows(array $stored, int $now): array
+{
+    return array_map('skeds_row', array_values(array_slice(skeds_coming($stored, $now), 0, MAX_IN_ALL)));
 }
 
 /**
- * Write the board from the stored skeds, or from `rows` when given (a .part, then renamed); return
- * it. Under the lock only.
+ * The rows of the past tests: the MAX_PAST_TESTS newest tests by their end (then their start, then the
+ * dial), each test's rows by id, at most MAX_PAST_ROWS rows.
  */
-function skeds_write_board(string $dir, int $now, ?array $rows = null): array
+function skeds_past_rows(array $stored, int $now): array
 {
-    $rows ??= skeds_rows($dir, $now);
-    $board = ['v' => 1, 'written' => skeds_iso($now), 'closed' => is_file("$dir/closed"), 'skeds' => $rows];
-    $json = json_encode($board, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP);
-    $part = BOARD . '.part';
-    if ($json === false || @file_put_contents($part, $json . "\n") === false || !@rename($part, BOARD)) {
+    $tests = [];
+    foreach ($stored as $row) {
+        if ($row['end'] > $now) continue;
+        $tests[$row['from'] . '|' . $row['to'] . '|' . $row['dial']][] = $row;
+    }
+    uasort($tests, fn($a, $b) => [$b[0]['end'], $b[0]['at'], $a[0]['dial']] <=> [$a[0]['end'], $a[0]['at'], $b[0]['dial']]);
+    $rows = [];
+    foreach (array_slice($tests, 0, MAX_PAST_TESTS) as $test) {
+        usort($test, fn($a, $b) => $a['id'] <=> $b['id']);
+        foreach ($test as $row) $rows[] = skeds_row($row);
+    }
+    return array_slice($rows, 0, MAX_PAST_ROWS);
+}
+
+/** The board (BOARD's value) and the past tests (PAST's value) of the stored skeds. */
+function skeds_lists(string $dir, int $now): array
+{
+    $stored = skeds_stored($dir, $now);
+    return [
+        ['v' => 1, 'written' => skeds_iso($now), 'closed' => is_file("$dir/closed"), 'skeds' => skeds_rows($stored, $now)],
+        ['v' => 1, 'written' => skeds_iso($now), 'past' => skeds_past_rows($stored, $now)],
+    ];
+}
+
+/** Writes one of the served files (a .part, then renamed). */
+function skeds_publish(string $path, array $value): void
+{
+    $json = json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP);
+    $part = $path . '.part';
+    if ($json === false || @file_put_contents($part, $json . "\n") === false || !@rename($part, $path)) {
         @unlink($part);
         skeds_refuse(500, 'storage');
     }
-    return $board;
+}
+
+/** Writes the board and the past tests from the stored skeds; returns both. Under the lock only. */
+function skeds_write_board(string $dir, int $now): array
+{
+    [$board, $past] = skeds_lists($dir, $now);
+    skeds_publish(BOARD, $board);
+    skeds_publish(PAST, $past);
+    return [$board, $past];
+}
+
+/**
+ * The answer to an accepted request: `head` (ok, and the id of an add), the board, and the past tests
+ * only when the request asked for them with "past": true.
+ */
+function skeds_done(array $in, array $head, array $board, array $past, mixed $lock): never
+{
+    flock($lock, LOCK_UN);
+    skeds_answer(200, $head + ['board' => $board] + (($in['past'] ?? null) === true ? ['past' => $past] : []));
 }
 
 /** Writes one sked's file (a .part, then renamed). */
@@ -341,61 +412,75 @@ function skeds_add(string $dir, array $in, int $now): never
 
     $lock = skeds_lock($dir);
     $stored = skeds_stored($dir, $now);
+    $coming = skeds_coming($stored, $now);
     $fromIso = skeds_iso($from);
     $toIso = skeds_iso($to);
     $mine = 0;
     $ofCall = 0;
-    foreach ($stored as $id => $row) {
+    foreach ($coming as $id => $row) {
         if (($row['token'] ?? '') === $hash) {
             if ($row['call'] === $call && $row['from'] === $fromIso && $row['to'] === $toIso && $row['dial'] === $dial && ($row['note'] ?? '') === $note) {
-                skeds_answer(200, ['ok' => true, 'id' => (string) $id, 'board' => skeds_write_board($dir, $now)]);
+                [$board, $past] = skeds_write_board($dir, $now);
+                skeds_done($in, ['ok' => true, 'id' => (string) $id], $board, $past, $lock);
             }
             $mine++;
         }
         if (skeds_base($row['call']) === skeds_base($call)) $ofCall++;
     }
-    if ($mine >= MAX_PER_TOKEN || $ofCall >= MAX_PER_CALL || count($stored) >= MAX_IN_ALL) skeds_refuse(409, 'full');
+    if ($mine >= MAX_PER_TOKEN || $ofCall >= MAX_PER_CALL || count($coming) >= MAX_IN_ALL) skeds_refuse(409, 'full');
     $id = skeds_new_id($stored);
     skeds_keep($dir, $id, ['id' => $id, 'call' => $call, 'from' => $fromIso, 'to' => $toIso, 'dial' => $dial, 'note' => $note, 'token' => $hash, 'posted' => skeds_iso($now)]);
-    $board = skeds_write_board($dir, $now);
-    flock($lock, LOCK_UN);
-    skeds_answer(200, ['ok' => true, 'id' => $id, 'board' => $board]);
+    [$board, $past] = skeds_write_board($dir, $now);
+    skeds_done($in, ['ok' => true, 'id' => $id], $board, $past, $lock);
 }
 
+/** A sked of the token's: gone when it has not begun, else ended now and kept as a past test. */
 function skeds_remove(string $dir, array $in, int $now): never
 {
     $hash = skeds_token_hash($in['token'] ?? null);
     $id = skeds_id($in['id'] ?? null);
     if ($hash === null || $id === null) skeds_refuse(400, 'bad_request');
     $lock = skeds_lock($dir);
-    $stored = skeds_stored($dir, $now);
-    $mine = isset($stored[$id]) && hash_equals((string) ($stored[$id]['token'] ?? ''), $hash);
+    $coming = skeds_coming(skeds_stored($dir, $now), $now);
+    $mine = isset($coming[$id]) && hash_equals((string) ($coming[$id]['token'] ?? ''), $hash);
     if (!$mine) {
         flock($lock, LOCK_UN);  // a wrong token or an id that is no longer on the board is counted; the right token is not
         if (!skeds_allowed($dir, skeds_address(), $now)) skeds_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
-        if (isset($stored[$id])) skeds_refuse(403, 'not_yours');
+        if (isset($coming[$id])) skeds_refuse(403, 'not_yours');
         $lock = skeds_lock($dir);
+    } elseif ($coming[$id]['at'] < $now) {
+        $row = $coming[$id];
+        unset($row['at'], $row['end']);
+        skeds_keep($dir, $id, ['to' => skeds_iso($now)] + $row);
     } elseif (!@unlink("$dir/$id.json")) {
         skeds_refuse(500, 'storage');
     }
-    $board = skeds_write_board($dir, $now);
-    flock($lock, LOCK_UN);
-    skeds_answer(200, ['ok' => true, 'board' => $board]);
+    [$board, $past] = skeds_write_board($dir, $now);
+    skeds_done($in, ['ok' => true], $board, $past, $lock);
+}
+
+/** Whether a served file holds `value` already, whenever it was written. */
+function skeds_serves(string $path, array $value): bool
+{
+    $served = json_decode((string) @file_get_contents($path), true);
+    if (!is_array($served) || !is_string($served['written'] ?? null)) return false;
+    $served['written'] = $value['written'];
+    return $served === $value;
 }
 
 /**
- * The board made again from the stored skeds; written only when its rows or `closed` differ from
- * what is served.
+ * The board and the past tests made again from the stored skeds; each is written only when what it
+ * says differs from what is served.
  */
-function skeds_refresh(string $dir, int $now): never
+function skeds_refresh(string $dir, array $in, int $now): never
 {
     $lock = skeds_lock($dir);
-    $served = json_decode((string) @file_get_contents(BOARD), true);
-    $rows = skeds_rows($dir, $now);
-    $same = is_array($served) && ($served['v'] ?? null) === 1 && is_string($served['written'] ?? null) && ($served['closed'] ?? null) === is_file("$dir/closed") && ($served['skeds'] ?? null) === $rows;
-    $board = $same ? $served : skeds_write_board($dir, $now, $rows);
-    flock($lock, LOCK_UN);
-    skeds_answer(200, ['ok' => true, 'board' => $board]);
+    [$board, $past] = skeds_lists($dir, $now);
+    if (skeds_serves(BOARD, $board)) $board = json_decode((string) file_get_contents(BOARD), true);
+    else skeds_publish(BOARD, $board);
+    if (skeds_serves(PAST, $past)) $past = json_decode((string) file_get_contents(PAST), true);
+    else skeds_publish(PAST, $past);
+    skeds_done($in, ['ok' => true], $board, $past, $lock);
 }
 
 function skeds_receive(): never
@@ -413,7 +498,7 @@ function skeds_receive(): never
     $dir = skeds_store();
     $action = $in['action'] ?? null;
     if ($action === 'remove') skeds_remove($dir, $in, $now);
-    if ($action === 'refresh') skeds_refresh($dir, $now);
+    if ($action === 'refresh') skeds_refresh($dir, $in, $now);
     if ($action !== 'add') skeds_refuse(400, 'bad_request');
     skeds_add($dir, $in, $now);
 }

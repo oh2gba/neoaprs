@@ -6,13 +6,14 @@ RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
 # The page-view endpoint, at the path the page's script posts to. The file behind it, version.php,
 # support/send.php (Send logs of the program: the support file, stored in private/) and
-# api/v1/skeds.php (the sked board: each sked stored in private/, the board written to skeds.json in
-# this folder, which Apache serves as it serves frequencies.json) are the only PHP on this site.
+# api/v1/skeds.php (the sked board: each sked stored in private/, the board written to skeds.json and
+# its past tests to skeds-past.json in this folder, which Apache serves as it serves frequencies.json)
+# are the only PHP on this site.
 RewriteRule ^api/v1/view$ /api/v1/view.php [L]
 
 # The stored support files and skeds are in private/ (and refused there by its own .htaccess too),
 # and PHP's settings for the support endpoint in .user.ini; neither is ever served. Nor is a board
-# half written (skeds.json.part, renamed over skeds.json once it is whole).
+# half written (skeds.json.part, renamed over skeds.json once it is whole; skeds-past.json.part too).
 RewriteRule ^private(/|$) - [F,L]
 <FilesMatch "^\.user\.ini$">
   Require all denied
@@ -26,8 +27,8 @@ Options -Indexes
 AddType image/webp .webp
 
 # What every response carries (oh2gba/SHARED-HOST.md). The page's own Content-Security-Policy is the
-# same as the meta tag in index.html: own files only (frequencies.json and skeds.json among them),
-# and a POST to its own host for the view.
+# same as the meta tag in index.html: own files only (frequencies.json, skeds.json and skeds-past.json
+# among them), and a POST to its own host for the view.
 <IfModule mod_headers.c>
   Header always set Strict-Transport-Security "max-age=86400"
   Header always set X-Content-Type-Options "nosniff"

@@ -35,6 +35,7 @@ PRIVATE = (
     "/private/skeds/lock",
     "/private/logs/skeds.log",
     "/skeds.json.part",
+    "/skeds-past.json.part",
     "/.htaccess",
     "/.user.ini",
     "/support/.user.ini",

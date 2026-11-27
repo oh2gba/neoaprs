@@ -127,10 +127,24 @@ class Endpoint:
     def refresh(self) -> tuple[int, dict[str, Any]]:
         return self.post({"action": "refresh"})
 
-    def served(self) -> dict[str, Any]:
-        """The board as a reader gets it: the static file, not PHP."""
-        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/skeds.json", timeout=10) as response:
+    def served(self, name: str = "skeds.json") -> dict[str, Any]:
+        """The board (or the past tests, skeds-past.json) as a reader gets it: the static file, not PHP."""
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/{name}", timeout=10) as response:
             return dict(json.loads(response.read()))
+
+    def raw(self, body: object) -> bytes:
+        """The bytes of an accepted request's answer."""
+        request = urllib.request.Request(
+            self.url, data=json.dumps(body).encode(), method="POST", headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return bytes(response.read())
+
+    def past(self) -> list[str]:
+        """The ids of the past tests a refresh that asks for them is answered with."""
+        code, answer = self.post({"action": "refresh", "past": True})
+        assert code == 200 and answer["past"] == self.served("skeds-past.json")
+        return [row["id"] for row in answer["past"]["past"]]
 
     def files(self) -> list[str]:
         return sorted(p.name for p in self.stored.glob("*.json") if p.name != "rate.json")
@@ -371,21 +385,136 @@ def test_the_board_is_sorted_by_its_start_and_holds_a_hundred_rows(endpoint: End
     assert rows[0]["id"] == f"{104:012x}"
 
 
-def test_an_ended_sked_is_removed_at_the_next_write(endpoint: Endpoint) -> None:
+def test_an_ended_sked_leaves_the_board_at_the_next_write_and_is_a_past_test_with_the_calls_that_joined(
+    endpoint: Endpoint,
+) -> None:
     endpoint.start()
     key = token()
     ended, running = (
         str(endpoint.add(key)[1]["id"]),
         str(endpoint.add(key, **{"from": at(-HOUR), "to": at(HOUR)})[1]["id"]),
     )
-    path = endpoint.stored / f"{ended}.json"
-    row = json.loads(path.read_text(encoding="utf-8"))
-    path.write_text(
-        json.dumps(row | {"from": at(-3 * HOUR), "to": at(-datetime.timedelta(minutes=1))}), encoding="utf-8"
-    )
+    joined = str(endpoint.add(token(), call="OH2XYZ", note="")[1]["id"])
+    for sked in (ended, joined):
+        path = endpoint.stored / f"{sked}.json"
+        row = json.loads(path.read_text(encoding="utf-8"))
+        path.write_text(
+            json.dumps(row | {"from": at(-3 * HOUR), "to": at(-datetime.timedelta(minutes=1))}), encoding="utf-8"
+        )
     code, answer = endpoint.refresh()
-    assert code == 200 and [row["id"] for row in answer["board"]["skeds"]] == [running]
-    assert endpoint.files() == [f"{running}.json"] and [row["id"] for row in endpoint.served()["skeds"]] == [running]
+    assert code == 200 and [row["id"] for row in answer["board"]["skeds"]] == [running] and "past" not in answer
+    assert [row["id"] for row in endpoint.served()["skeds"]] == [running]
+    past = endpoint.served("skeds-past.json")
+    assert set(past) == {"v", "written", "past"} and past["v"] == 1
+    assert sorted((row["id"], row["call"], row["note"]) for row in past["past"]) == sorted(
+        [(ended, "OH2GBA", "Mercury, 10 W"), (joined, "OH2XYZ", "")]
+    ), "one test: who posted it and who joined, with the note"
+    assert all(set(row) == {"id", "call", "from", "to", "dial", "note"} for row in past["past"])
+    assert endpoint.files() == sorted(f"{s}.json" for s in (ended, running, joined)), "kept for 30 days"
+    for text in (json.dumps(past), (endpoint.site / "skeds-past.json").read_text(encoding="utf-8")):
+        assert key not in text and "token" not in text and "posted" not in text
+
+
+def test_an_old_readers_board_and_answers_are_byte_for_byte_what_they_were(endpoint: Endpoint) -> None:
+    endpoint.start()
+    key = token()
+    endpoint.keep("0000000000a1", call="OH2XYZ", start=at(-3 * HOUR), end=at(-HOUR))
+    sked = str(endpoint.add(key)[1]["id"])
+    start, end = at(HOUR), at(3 * HOUR)
+    board = endpoint.board.read_bytes()
+    written = json.loads(board)["written"]
+    rows = f'[{{"id":"{sked}","call":"OH2GBA","from":"{start}","to":"{end}","dial":"{DIAL}","note":"Mercury, 10 W"}}]'
+    assert board == f'{{"v":1,"written":"{written}","closed":false,"skeds":{rows}}}\n'.encode()
+    for request in ({"action": "refresh"}, {"action": "remove", "token": token(), "id": "0000000000a1"}):
+        answer = endpoint.raw(request)
+        board = endpoint.board.read_bytes()
+        assert answer == b'{"ok":true,"board":' + board.rstrip(b"\n") + b"}\n", request
+    again = endpoint.raw(
+        {
+            "action": "add",
+            "token": key,
+            "call": "OH2GBA",
+            "from": start,
+            "to": end,
+            "dial": DIAL,
+            "note": "Mercury, 10 W",
+        }
+    )
+    assert again == f'{{"ok":true,"id":"{sked}","board":'.encode() + endpoint.board.read_bytes().rstrip(b"\n") + b"}\n"
+    for other in (False, 1, "true", None):
+        assert "past" not in endpoint.post({"action": "refresh", "past": other})[1], other
+    assert endpoint.past() == ["0000000000a1"]
+
+
+def test_a_past_test_goes_thirty_days_after_its_end(endpoint: Endpoint) -> None:
+    endpoint.start()
+    day = datetime.timedelta(days=30)
+    endpoint.keep("0000000000b1", start=at(-day - 2 * HOUR), end=at(-day - datetime.timedelta(minutes=1)))
+    endpoint.keep("0000000000b2", start=at(-day + HOUR), end=at(-day + 2 * HOUR))
+    assert endpoint.past() == ["0000000000b2"] and endpoint.files() == ["0000000000b2.json"]
+
+
+def test_twenty_one_past_tests_are_listed_as_the_twenty_newest_by_their_end(endpoint: Endpoint) -> None:
+    endpoint.start()
+    for n in range(21):
+        endpoint.keep(
+            f"{n:012x}", call=f"OH{n % 10}A{n:02d}", start=at(-(2 * n + 3) * HOUR), end=at(-(2 * n + 1) * HOUR)
+        )
+    assert endpoint.past() == [f"{n:012x}" for n in range(20)]
+    assert len(endpoint.files()) == 21, "the 21st is kept, only not listed"
+
+
+def test_the_past_tests_are_the_ones_and_in_the_order_the_daemon_lists(endpoint: Endpoint) -> None:
+    endpoint.start()
+    for case in vectors()["sked_past"]:
+        for kept in endpoint.stored.glob("*.json"):
+            if kept.name != "rate.json":
+                kept.unlink()
+        for ident, call, start, end, dial in case["skeds"]:
+            endpoint.keep(ident, call=call, start=at(start * HOUR), end=at(end * HOUR))
+            path = endpoint.stored / f"{ident}.json"
+            path.write_text(json.dumps(json.loads(path.read_text(encoding="utf-8")) | {"dial": dial}), encoding="utf-8")
+        assert endpoint.past() == case["listed"], case
+
+
+def test_a_sked_withdrawn_before_it_began_is_gone_and_one_withdrawn_while_it_ran_ends_then_as_a_past_test(
+    endpoint: Endpoint,
+) -> None:
+    endpoint.start()
+    key = token()
+    planned = str(endpoint.add(key)[1]["id"])
+    running = str(endpoint.add(key, **{"from": at(-HOUR), "to": at(HOUR)})[1]["id"])
+    assert endpoint.remove(key, planned)[0] == 200 and endpoint.past() == []
+    assert f"{planned}.json" not in endpoint.files()
+    before = time.time()
+    code, answer = endpoint.post({"action": "remove", "token": key, "id": running, "past": True})
+    assert code == 200 and answer["board"]["skeds"] == []
+    (row,) = answer["past"]["past"]
+    ended = datetime.datetime.strptime(row["to"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.UTC).timestamp()
+    assert row["id"] == running and row["from"] == at(-HOUR) and before - 2 <= ended <= time.time() + 1
+
+
+def test_a_past_test_cannot_be_withdrawn_and_a_blocked_calls_past_tests_go(endpoint: Endpoint) -> None:
+    endpoint.start()
+    key = token()
+    endpoint.keep("0000000000c1", start=at(-3 * HOUR), end=at(-HOUR), key=key)
+    endpoint.keep("0000000000c2", call="OH2XYZ", start=at(-3 * HOUR), end=at(-HOUR))
+    code, answer = endpoint.remove(key, "0000000000c1")
+    assert code == 200 and answer["board"]["skeds"] == [] and endpoint.past() == ["0000000000c1", "0000000000c2"]
+    (endpoint.stored / "blocked.txt").write_text("OH2XYZ\n", encoding="utf-8")
+    assert endpoint.past() == ["0000000000c1"] and endpoint.files() == ["0000000000c1.json"]
+
+
+def test_past_tests_beyond_a_thousand_are_removed_oldest_first(endpoint: Endpoint) -> None:
+    endpoint.start()
+    for n in range(1003):
+        endpoint.keep(
+            f"{n:012x}",
+            start=at(-(n + 2) * datetime.timedelta(minutes=10)),
+            end=at(-(n + 1) * datetime.timedelta(minutes=10)),
+        )
+    assert len(endpoint.past()) == 20
+    assert endpoint.files() == [f"{n:012x}.json" for n in range(1000)]
 
 
 def test_a_stored_file_that_is_not_a_sked_of_ours_is_dropped(endpoint: Endpoint) -> None:
@@ -620,10 +749,11 @@ def test_only_a_post_is_answered(endpoint: Endpoint) -> None:
 
 
 def test_the_board_and_the_stored_skeds_are_where_the_site_wants_them() -> None:
-    assert not (ROOT / "site" / "skeds.json").exists(), "a board in site/ would be uploaded over the live one"
+    for name in ("skeds.json", "skeds-past.json"):
+        assert not (ROOT / "site" / name).exists(), "a board in site/ would be uploaded over the live one"
+        assert f"Disallow: /{name}" in (ROOT / "site" / "robots.txt").read_text(encoding="utf-8").splitlines()
     deploy = (ROOT / "server" / "deploy.sh").read_text(encoding="utf-8")
-    assert "skeds.json" in deploy
-    assert "Disallow: /skeds.json" in (ROOT / "site" / "robots.txt").read_text(encoding="utf-8").splitlines()
+    assert "for board in skeds.json skeds-past.json; do" in deploy
     site = (ROOT / "server" / "neo" / ".htaccess").read_text(encoding="utf-8")
     assert (
         r"RewriteRule ^private(/|$) - [F,L]" in site
@@ -631,7 +761,7 @@ def test_the_board_and_the_stored_skeds_are_where_the_site_wants_them() -> None:
         and r'<FilesMatch "\.part$">' in site
     )
     endpoint = (ROOT / "server" / "neo" / "api" / "v1" / "skeds.php").read_text(encoding="utf-8")
-    assert "SITE_ROOT . '/skeds.json'" in endpoint and "SITE_ROOT . '/private/skeds'" in endpoint
+    assert all(f"SITE_ROOT . '/{name}'" in endpoint for name in ("skeds.json", "skeds-past.json", "private/skeds"))
 
 
 def test_the_moderation_script_refuses_what_is_no_id_or_call_before_it_asks_for_any_login(tmp_path: Path) -> None:
