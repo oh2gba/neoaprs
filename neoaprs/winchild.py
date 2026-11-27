@@ -201,6 +201,18 @@ def _leave(k: Any, steps: Steps | None) -> None:
         steps.append({"note": f"after: attached to a console: {bool(count)}"})
 
 
+def let_children_take_ctrl_c(k: Any = None, steps: Steps | None = None) -> bool:
+    """Clear this process's "ignore Ctrl-C" attribute, which every program it starts inherits; return
+    whether it is clear. Call it before starting a program that is to be asked by Ctrl-C.
+
+    A daemon started in a new process group (the Run entry) or from a shell that ignores Ctrl-C has it
+    set, and Mercury's SIGINT handler would never run. The daemon itself does not need the attribute:
+    no console is shared with it but while it asks, and its handler takes that echo.
+    """
+    k = k if k is not None else kernel32()
+    return bool(_step(steps, k, "SetConsoleCtrlHandler", None, False))
+
+
 def ask_to_end(pid: int, k: Any = None, steps: Steps | None = None, u: Any = None) -> bool:
     """Send Ctrl-C to the console of the program `pid` (its own hidden one); return whether it was sent.
 

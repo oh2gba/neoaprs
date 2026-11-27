@@ -4,7 +4,9 @@ the way its first argument names, and writes to the JSON file of its second argu
 creation flags, every call with its result and GetLastError, what the program heard, and that the asker
 itself is still alive afterwards.
 
-    ctrl_c          a CREATE_NO_WINDOW child, Ctrl-C to its console, as the daemon asks Mercury
+    ctrl_c          a CREATE_NO_WINDOW child started with "ignore Ctrl-C" cleared, Ctrl-C to its console,
+                    as the daemon starts and asks Mercury
+    ctrl_c_inherited  the same without clearing it: the control, the child keeps what it inherits
     break_attached  a CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP child, Ctrl-Break to its group on its console
     break_shared    a CREATE_NEW_PROCESS_GROUP child on this process's console (if it has one), Ctrl-Break to its group
 """
@@ -35,8 +37,13 @@ CHILD = (
 WAIT_SEC = 30.0
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 NEW_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-WAYS = ("ctrl_c", "break_attached", "break_shared")
-FLAGS = {"ctrl_c": NO_WINDOW, "break_attached": NO_WINDOW | NEW_GROUP, "break_shared": NEW_GROUP}
+WAYS = ("ctrl_c", "ctrl_c_inherited", "break_attached", "break_shared")
+FLAGS = {
+    "ctrl_c": NO_WINDOW,
+    "ctrl_c_inherited": NO_WINDOW,
+    "break_attached": NO_WINDOW | NEW_GROUP,
+    "break_shared": NEW_GROUP,
+}
 ALIVE_SEC = 2.0  # how long the asker waits after the ask: an echo that ended it would have done so
 
 
@@ -45,13 +52,16 @@ def ask(way: str, folder: Path) -> dict[str, Any]:
     k = winchild.kernel32()
     before: winchild.Steps = []
     sharing, visible = winchild.console_of_own(k, before)
+    cleared: winchild.Steps = []
+    if way == "ctrl_c":  # as childprogram starts the modem; the control way leaves what was inherited
+        winchild.let_children_take_ctrl_c(k, cleared)
     child = subprocess.Popen([sys.executable, "-c", CHILD, str(said)], creationflags=FLAGS[way])
     deadline = time.monotonic() + WAIT_SEC
     while time.monotonic() < deadline and not (said.exists() and said.read_text() == "up"):
         time.sleep(0.05)
     steps: winchild.Steps = []
     try:
-        if way == "ctrl_c":
+        if way.startswith("ctrl_c"):
             sent = winchild.ask_to_end(child.pid, k, steps)
         else:
             sent = winchild.break_group(child.pid, way == "break_attached", k, steps)
@@ -67,6 +77,7 @@ def ask(way: str, folder: Path) -> dict[str, Any]:
     return {
         "child_flags": hex(FLAGS[way]),
         "asker_console_before": {"processes": sharing, "visible": visible, "steps": before},
+        "ctrl_c_cleared_for_the_child": cleared,
         "sent": sent,
         "code": code,
         "child": said.read_text() if said.exists() else "",

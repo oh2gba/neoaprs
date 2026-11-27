@@ -236,3 +236,10 @@ def test_ctrl_break_goes_to_the_group_on_its_console_or_on_this_ones() -> None:
     assert k.names() == ["SetConsoleCtrlHandler", *ASK, *LEAVE] and ("GenerateConsoleCtrlEvent", 1, 55) in k.calls
     k = Kernel()
     assert winchild.break_group(55, attach=False, k=k) and k.names() == ["GenerateConsoleCtrlEvent"]
+
+
+def test_the_attribute_that_children_inherit_is_cleared_with_the_null_handler() -> None:
+    k = Kernel()
+    steps: winchild.Steps = []
+    assert winchild.let_children_take_ctrl_c(k, steps)
+    assert k.calls == [("SetConsoleCtrlHandler", None, False)] and steps[0]["result"] == 1
