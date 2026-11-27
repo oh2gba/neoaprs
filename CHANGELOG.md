@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.24.2
+
 - **New:** HF tests that are over stay listed as past tests, in the app and on the website.
 - **New:** each pair of radios has an (i) that shows, with a picture, how a packet is passed between them.
 - **New:** PSK Reporter has a box of its own in a Mercury radio's settings.
