@@ -35,6 +35,7 @@ same).
 import json
 import re
 import sys
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from pathlib import Path
@@ -119,6 +120,7 @@ from neoaprs.services.beacon import Beacon, BeaconError, phg_text  # noqa: E402
 from neoaprs.symbols import IGATE_OVERLAYS, MOBILE_CODES, SYMBOL_NAMES  # noqa: E402
 from neoaprs.tncprofile import HF_PROFILES, PROFILES  # noqa: E402
 from neoaprs.crossrule import slow_channel  # noqa: E402
+from neoaprs.pairsetting import PairSpec, _fill as fill_pairs  # noqa: E402
 from neoaprs.services.passlimits import SLOW_PASS_MAX, SLOW_PASS_WINDOW_SEC  # noqa: E402
 from neoaprs.skeds import (  # noqa: E402
     KEEP_PAST,
@@ -1553,6 +1555,30 @@ def _template_vector(template: str) -> dict[str, Any]:
     return {"template": template, "length": len(fill_template(template, LONGEST_FREQ, LONGEST_MODE)), "ok": ok}
 
 
+# A pair's call before its Enable: the station's call, the stored pairs as [low, high, enabled, ssid], the
+# pair; the SSID Enable gives it (neoaprs/pairsetting.py, ui/src/lib/settingspair.ts pairCall).
+PAIR_CALLS: list[tuple[str, list[list[Any]], list[int]]] = [
+    ("OH2GBA", [], [1, 2]),
+    ("OH2GBA-15", [], [1, 2]),
+    ("OH2GBA", [[1, 3, True, 15]], [1, 2]),
+    ("OH2GBA", [[1, 3, False, 15]], [1, 2]),
+    ("OH2GBA", [[1, 3, False, 15], [2, 3, True, 14]], [1, 2]),
+    ("OH2GBA", [[1, 2, False, 9]], [1, 2]),
+    ("OH2GBA", [[1, 2, False, 9], [1, 3, True, 9]], [1, 2]),
+    ("OH2GBA-9", [[1, 2, False, 9]], [1, 2]),
+    ("OH2GBA", [[1, 3, False, 15], *([1, 10 + n, True, n] for n in range(1, 15))], [1, 2]),
+]
+
+
+def _pair_call_vector(call: str, rows: list[list[Any]], pair: list[int]) -> dict[str, Any]:
+    """The SSID the pair gets when its Enable is ticked."""
+    found = {(lo, hi): PairSpec(lo, hi, on, ssid) for lo, hi, on, ssid in rows}
+    low, high = pair
+    found[(low, high)] = replace(found.get((low, high), PairSpec(low, high)), enabled=True)
+    fill_pairs(call, found, {(low, high)})
+    return {"station": call, "pairs": rows, "pair": pair, "ssid": found[(low, high)].ssid}
+
+
 def _sked_past_vector(rows: list[list[Any]]) -> dict[str, Any]:
     """The ids of the past tests a board of these skeds lists, in their order."""
     now = datetime(2026, 11, 14, 12, 0, tzinfo=UTC)
@@ -1599,6 +1625,7 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "sked_times": [{"input": t, "ok": when(t) is not None} for t in SKED_TIMES],
         "sked_notes": [{"input": t, "note": clean_note(t), "plain": plain_note(t)} for t in SKED_NOTES],
         "sked_past": [_sked_past_vector(rows) for rows in SKED_PAST],
+        "pair_calls": [_pair_call_vector(*case) for case in PAIR_CALLS],
     }
 
 

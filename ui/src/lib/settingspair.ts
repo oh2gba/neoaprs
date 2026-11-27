@@ -45,14 +45,40 @@ const callChoices = (key: string, values: Readonly<Record<string, string>>): Cho
   return freeSsids(key, values).map((ssid) => ({ value: String(ssid), label: `${base}-${ssid}` }));
 };
 
+/** The SSID a pair's key stores, or null for none. */
+const storedSsid = (text: string | undefined): number | null => {
+  const ssid = Number(text ?? "");
+  return Number.isInteger(ssid) && ssid >= 1 && ssid <= LIMITS.call.maxSsid ? ssid : null;
+};
+
 /**
- * The pair's call as stations put it in their path: its SSID's, or the first free one before the
- * daemon sets it.
+ * The SSID a pair has once its Enable is ticked, as the daemon gives it (neoaprs/pairsetting.py
+ * `_fill`, held to the vectors `pair_calls`): its stored one while no enabled pair or the station
+ * has it, else the highest free one that no disabled pair keeps, else the highest free one.
  */
+function ssidOnEnable(key: string, values: Readonly<Record<string, string>>): number | null {
+  const own = storedSsid(values[key]);
+  const taken = new Set([Number(splitCall(values["station/call"] ?? "").ssid || "0")]);
+  const kept = new Set<number>();
+  for (const other of Object.keys(values)) {
+    const pair = pairFieldOf(other);
+    const ssidKey = pair === null ? "" : `pair/${pair.low}/${pair.high}/ssid`;
+    if (pair?.field !== "ssid" || ssidKey === key) continue;
+    const ssid = storedSsid(values[other]);
+    if (ssid === null) continue;
+    (values[`pair/${pair.low}/${pair.high}/enabled`] === "true" ? taken : kept).add(ssid);
+  }
+  if (own !== null && !taken.has(own)) return own;
+  const free = Array.from({ length: LIMITS.call.maxSsid }, (_, i) => LIMITS.call.maxSsid - i).filter(
+    (ssid) => !taken.has(ssid),
+  );
+  return free.find((ssid) => !kept.has(ssid)) ?? free[0] ?? null;
+}
+
+/** The pair's call as stations put it in their path: the one it has, or the one its Enable gives it. */
 export function pairCall(key: string, values: Readonly<Record<string, string>>): string {
-  const own = values[key] ?? "";
-  const ssid = own !== "" && own !== "0" ? own : String(freeSsids(key, values)[0] ?? "");
-  return `${splitCall(values["station/call"] ?? "").base}-${ssid}`;
+  const ssid = ssidOnEnable(key, values);
+  return `${splitCall(values["station/call"] ?? "").base}-${ssid ?? ""}`;
 }
 
 /**

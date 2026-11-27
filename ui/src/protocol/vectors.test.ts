@@ -7,6 +7,7 @@ import { bytesLeft } from "@/lib/messages";
 import { canPost, freeSlot, textOk, type PostDraft, type PostKind } from "@/lib/bulletins";
 import { isAlias, isMarker } from "@/lib/chain";
 import { DIAL, pastGroups } from "@/lib/skeds";
+import { pairCall } from "@/lib/settingspair";
 import { replyAddressOk } from "@/lib/support";
 import { parsePath, validCall, validName } from "@/lib/calls";
 import { compareVersions } from "@/lib/releasenotes";
@@ -26,6 +27,18 @@ describe("the vectors of the daemon", () => {
 
   it("say which dials a sked takes", () => {
     for (const { input, ok } of vectors.sked_dials) expect(DIAL.test(input), JSON.stringify(input)).toBe(ok);
+  });
+
+  it("say which call a pair of radios gets when its Enable is ticked", () => {
+    for (const { station, pairs, pair, ssid } of vectors.pair_calls) {
+      const values: Record<string, string> = { "station/call": station };
+      for (const [low, high, enabled, stored] of pairs) {
+        values[`pair/${String(low)}/${String(high)}/enabled`] = String(enabled);
+        values[`pair/${String(low)}/${String(high)}/ssid`] = stored === null ? "" : String(stored);
+      }
+      const key = `pair/${String(pair[0])}/${String(pair[1])}/ssid`;
+      expect(pairCall(key, values), JSON.stringify({ station, pairs })).toBe(`OH2GBA-${String(ssid)}`);
+    }
   });
 
   it("say which skeds are past tests and in which order", () => {
