@@ -29,7 +29,7 @@ const sourceKey = (layer: LayerName): string => `map/${layer}`;
  */
 type LayerKey = { layer: LayerName; role: "source" | "address" | "key" };
 /** The Ships box's key of AISStream. */
-export const AISSTREAM_KEY = "map/ships_key";
+const AISSTREAM_KEY = "map/ships_key";
 const KEYS: Readonly<Record<string, LayerKey>> = {
   ...Object.fromEntries(
     LAYERS.flatMap((layer): [string, LayerKey][] => [

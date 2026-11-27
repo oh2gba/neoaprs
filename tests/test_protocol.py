@@ -851,9 +851,16 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
         {"type": "radio_level", "radio": 3, "level": None},
     ],
     "layer_things": [
-        {"type": "layer_things", "layer": "aircraft", "source": "adsbfi", "away": False, "things": [AIRCRAFT]},
-        {"type": "layer_things", "layer": "ships", "source": "receiver", "away": True, "things": [SHIP]},
-        {"type": "layer_things", "layer": "ships", "source": "none", "away": False, "things": []},
+        {
+            "type": "layer_things",
+            "layer": "aircraft",
+            "source": "adsbfi",
+            "away": False,
+            "things": [AIRCRAFT],
+            "trails": [{"id": AIRCRAFT["id"], "points": [[24.71, 60.22, "2026-10-21T11:58:00Z"]]}],
+        },
+        {"type": "layer_things", "layer": "ships", "source": "receiver", "away": True, "things": [SHIP], "trails": []},
+        {"type": "layer_things", "layer": "ships", "source": "none", "away": False, "things": [], "trails": []},
     ],
     "satellites": [
         {

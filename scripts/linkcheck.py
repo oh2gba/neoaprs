@@ -124,7 +124,7 @@ def allowed(path: Path = ALLOWED) -> dict[str, str]:
 
 
 def _ask(url: str, method: str, timeout: float) -> int:
-    request = urllib.request.Request(url, method=method, headers={"User-Agent": AGENT, "Accept": "*/*"})
+    request = urllib.request.Request(url, method=method, headers={"User-Agent": AGENT, "Accept": "*/*"})  # noqa: S310
     try:
         with urllib.request.urlopen(request, timeout=timeout) as answer:  # noqa: S310 (http and https only)
             if method == "GET":

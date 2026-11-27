@@ -15,7 +15,7 @@ export const TRAIL_MAX_AGE_SEC = 30 * 60;
 /** How many points a thing keeps. */
 export const TRAIL_MAX_POINTS = 400;
 /** How many things keep a trail; past this the ones seen longest ago go. */
-export const TRAIL_MAX_THINGS = 2000;
+const TRAIL_MAX_THINGS = 2000;
 /** Two points further apart in time than this, in seconds, have no line between them. */
 export const TRAIL_GAP_SEC = 5 * 60;
 

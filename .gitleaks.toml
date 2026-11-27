@@ -43,3 +43,15 @@ regexes = ['''^dGhlIHNhbXBsZSBub25jZQ==$''']
 [[allowlists]]
 description = "the key of a bulletin on the wire, which is the sender's call and the bulletin's name (OH2XYZ/BLN3HAMS): what a station sent in the clear, not a secret"
 regexes = ['''^[A-Z0-9]{3,7}(-[0-9]{1,2})?/BLN[0-9A-Z]{1,6}$''']
+
+[[allowlists]]
+description = "the made-up AISStream keys of the tests and their stand-in (tests/support/fakeaisstream.py, tests/test_layeraisstream.py, tests/test_configlayers.py, tests/test_migration_settings_reset.py, SettingsLayer.test.ts): forty hexadecimal characters that no account has"
+regexes = ['''^(0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c|ffffeeeeddddccccbbbbaaaa9999888877776666|0123456789abcdef0123456789abcdef01234567)$''']
+
+[[allowlists]]
+description = "the SHA-256 of the project station's own AISStream key, which tests/test_no_real_key.py holds every tracked file to: a digest, from which the key cannot be had"
+regexes = ['''^65427a5b7261c7e535bf7f2fefe46b3088b8110dc11435a397bb5db9bac7619b$''']
+
+[[allowlists]]
+description = "the SHA-256 of the text of the frozen migration step 37 (igate/password's row) in tests/test_migrations.py, which holds the step unchanged: a digest of code, not a passcode"
+regexes = ['''^a5616e5c99582b60bd9e6205d12482e33229dc6e850e65390ba334b28cfb4cf7$''']
