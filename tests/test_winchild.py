@@ -23,7 +23,7 @@ class Kernel:
         self.calls: list[tuple[Any, ...]] = []
         self.answers = {"AttachConsole": 1, "SetConsoleCtrlHandler": 1, "GenerateConsoleCtrlEvent": 1}
         self.answers |= {"CreateJobObjectW": 7, "SetInformationJobObject": 1, "OpenProcess": 9}
-        self.answers |= {"AssignProcessToJobObject": 1, "GetConsoleProcessList": 1, "GetConsoleWindow": 0}
+        self.answers |= {"AssignProcessToJobObject": 1, "GetConsoleProcessList": 1, "GetConsoleWindow": 4}
         self.answers |= answers
         self.flags: list[int] = []
 
@@ -40,14 +40,29 @@ class Kernel:
         return [c[0] for c in self.calls]
 
 
+class User:
+    """user32 as far as winchild asks it: whether the console's window shows."""
+
+    def __init__(self) -> None:
+        self.visible = 0
+        self.asked: list[int] = []
+
+    def IsWindowVisible(self, window: int) -> int:
+        self.asked.append(window)
+        return self.visible
+
+
 @pytest.fixture(autouse=True)
-def _fresh(monkeypatch: pytest.MonkeyPatch) -> None:
+def user(monkeypatch: pytest.MonkeyPatch) -> User:
     monkeypatch.setattr(winchild, "_handler", None)
     monkeypatch.setattr(winchild, "_job", None)
+    user = User()
+    monkeypatch.setattr(winchild, "user32", lambda: user)
+    return user
 
 
 ASK = ["GetConsoleProcessList", "GetConsoleWindow", "FreeConsole", "AttachConsole", "GenerateConsoleCtrlEvent"]
-LEAVE = ["FreeConsole", "GetConsoleProcessList", "GetConsoleWindow"]
+LEAVE = ["FreeConsole", "GetConsoleProcessList"]
 
 
 def test_the_ctrl_c_goes_to_the_programs_console_after_this_process_lets_go_of_its_hidden_one() -> None:
@@ -64,14 +79,19 @@ def test_the_ctrl_c_goes_to_the_programs_console_after_this_process_lets_go_of_i
     )
 
 
-def test_no_ctrl_c_is_sent_from_a_console_with_a_window_or_without_the_handler(
-    monkeypatch: pytest.MonkeyPatch,
+def test_no_ctrl_c_is_sent_from_a_console_that_shows_or_is_shared_or_without_the_handler(
+    monkeypatch: pytest.MonkeyPatch, user: User
 ) -> None:
-    k = Kernel(GetConsoleWindow=5)
-    assert not winchild.ask_to_end(1234, k)
+    """A hidden console still has a window handle: whether it shows, and who else is on it, tell."""
+    k = Kernel()
+    user.visible = 1
+    assert not winchild.ask_to_end(1234, k) and user.asked == [4]
     assert "FreeConsole" not in k.names() and "AttachConsole" not in k.names(), (
         "the terminal someone looks at is kept: the hard end follows"
     )
+    user.visible = 0
+    k = Kernel(GetConsoleProcessList=2)
+    assert not winchild.ask_to_end(1234, k) and "FreeConsole" not in k.names(), "shared with a shell: kept"
     k = Kernel(AttachConsole=0)
     assert not winchild.ask_to_end(1234, k) and "GenerateConsoleCtrlEvent" not in k.names()
     monkeypatch.setattr(winchild, "_handler", None)
@@ -198,10 +218,11 @@ def test_each_call_of_the_ask_is_written_down_with_its_result() -> None:
     steps: winchild.Steps = []
     assert not winchild.ask_to_end(1234, Kernel(GenerateConsoleCtrlEvent=0), steps)
     calls = [(s["call"], s["result"]) for s in steps if "call" in s]
-    assert calls[:6] == [
+    assert calls[:7] == [
         ("SetConsoleCtrlHandler", 1),
         ("GetConsoleProcessList", 1),
-        ("GetConsoleWindow", 0),
+        ("GetConsoleWindow", 4),
+        ("IsWindowVisible", 0),
         ("FreeConsole", 1),
         ("AttachConsole", 1),
         ("GenerateConsoleCtrlEvent", 0),

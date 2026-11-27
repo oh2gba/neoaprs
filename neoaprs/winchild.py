@@ -72,6 +72,15 @@ CALLS: dict[str, tuple[list[Any], Any]] = {
 }
 
 
+def user32() -> Any:
+    """Return user32 with IsWindowVisible typed; raise OSError where there is none."""
+    if not hasattr(ctypes, "WinDLL"):
+        raise OSError("user32 is Windows only")
+    u = ctypes.WinDLL("user32", use_last_error=True)
+    u.IsWindowVisible.argtypes, u.IsWindowVisible.restype = [_HANDLE], _BOOL
+    return u
+
+
 def kernel32() -> Any:
     """Return kernel32 with the argument types of CALLS; raise OSError where there is none."""
     if not hasattr(ctypes, "WinDLL"):
@@ -145,25 +154,34 @@ def _step(steps: Steps | None, k: Any, name: str, *args: Any) -> Any:
     return result
 
 
-def console_of_own(k: Any, steps: Steps | None = None) -> tuple[bool, bool]:
-    """Return whether this process is attached to a console, and whether that console has a window."""
-    count = _step(steps, k, "GetConsoleProcessList", (ctypes.c_uint32 * 1)(), 1)
-    window = _step(steps, k, "GetConsoleWindow") if count else None
-    return bool(count), bool(window)
+PROCESSES_LOOKED_AT = 8  # (GetConsoleProcessList gives the whole count however many fit)
 
 
-def _onto(pid: int, k: Any, steps: Steps | None) -> bool:
+def console_of_own(k: Any, steps: Steps | None = None, u: Any = None) -> tuple[int, bool]:
+    """Return how many processes share this process's console (0: it has none) and whether its window shows."""
+    count = int(
+        _step(steps, k, "GetConsoleProcessList", (ctypes.c_uint32 * PROCESSES_LOOKED_AT)(), PROCESSES_LOOKED_AT)
+    )
+    if not count:
+        return 0, False
+    window = _step(steps, k, "GetConsoleWindow")
+    return count, bool(window) and bool(_step(steps, u if u is not None else user32(), "IsWindowVisible", window))
+
+
+def _onto(pid: int, k: Any, steps: Steps | None, u: Any = None) -> bool:
     """Attach to the console of `pid`, letting go of this process's own hidden one first.
 
-    A console with a window is a terminal someone looks at: it is not given up, and no ask is sent.
+    Only a console this process is alone on and whose window does not show is its own (a launcher such as
+    a venv's python.exe gives one); one shared with a shell or a terminal, or one that shows, is kept.
     """
-    attached, window = console_of_own(k, steps)
-    if window:
+    count, visible = console_of_own(k, steps, u)
+    if count > 1 or visible:
         if steps is not None:
-            steps.append({"note": "this process has a console window of its own: it is kept, the program is ended"})
+            steps.append(
+                {"note": f"a console shared by {count} processes, visible: {visible}: it is kept, the program is ended"}
+            )
         return False
-    # (a program started from a launcher, a venv's python.exe, gets a hidden console of its own)
-    if attached and not _step(steps, k, "FreeConsole"):
+    if count and not _step(steps, k, "FreeConsole"):
         return False
     return bool(_step(steps, k, "AttachConsole", pid))
 
@@ -176,12 +194,14 @@ def _note_ask() -> None:
 def _leave(k: Any, steps: Steps | None) -> None:
     """Let go of the program's console; the daemon goes on without one (it needs none)."""
     _step(steps, k, "FreeConsole")
-    attached, _window = console_of_own(k, steps)
+    count = int(
+        _step(steps, k, "GetConsoleProcessList", (ctypes.c_uint32 * PROCESSES_LOOKED_AT)(), PROCESSES_LOOKED_AT)
+    )
     if steps is not None:
-        steps.append({"note": f"after: attached to a console: {attached}"})
+        steps.append({"note": f"after: attached to a console: {bool(count)}"})
 
 
-def ask_to_end(pid: int, k: Any = None, steps: Steps | None = None) -> bool:
+def ask_to_end(pid: int, k: Any = None, steps: Steps | None = None, u: Any = None) -> bool:
     """Send Ctrl-C to the console of the program `pid` (its own hidden one); return whether it was sent.
 
     Each call is noted in `steps` and the log. Ctrl-C, not Ctrl-Break: Mercury's Windows build handles
@@ -192,7 +212,7 @@ def ask_to_end(pid: int, k: Any = None, steps: Steps | None = None) -> bool:
     with _console:
         if not _swallow_ctrl_c(k, steps):
             return False
-        if not _onto(pid, k, steps):
+        if not _onto(pid, k, steps, u):
             return False
         try:
             _note_ask()
@@ -201,14 +221,14 @@ def ask_to_end(pid: int, k: Any = None, steps: Steps | None = None) -> bool:
             _leave(k, steps)
 
 
-def break_group(group: int, attach: bool, k: Any = None, steps: Steps | None = None) -> bool:
+def break_group(group: int, attach: bool, k: Any = None, steps: Steps | None = None, u: Any = None) -> bool:
     """Send Ctrl-Break to the process group `group` (a child started with CREATE_NEW_PROCESS_GROUP), on its
     console or this process's own; for the Windows tests that find which way reaches a child."""
     k = k if k is not None else kernel32()
     with _console:
         if not _swallow_ctrl_c(k, steps):
             return False
-        if attach and not _onto(group, k, steps):
+        if attach and not _onto(group, k, steps, u):
             return False
         try:
             _note_ask()
