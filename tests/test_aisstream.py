@@ -2,6 +2,7 @@
 and what a message of the stream says."""
 
 import json
+import math
 from datetime import UTC, datetime
 
 import pytest
@@ -115,3 +116,20 @@ def test_anything_else_is_skipped() -> None:
     assert read_message(json.dumps(bad), NOW) is None
     no_mmsi = position(0, 60.1, 24.9, AT)
     assert read_message(json.dumps(no_mmsi), NOW) is None
+
+
+@pytest.mark.parametrize("lat", [78.2, 85.0, 86.5])
+def test_far_north_the_box_still_holds_the_whole_circle(lat: float) -> None:
+    found = boxes(lat, 15.6, 300)
+    for bearing in range(0, 360, 2):
+        b = math.radians(bearing)
+        d = 300 / 6371.0
+        la = math.asin(
+            math.sin(math.radians(lat)) * math.cos(d) + math.cos(math.radians(lat)) * math.sin(d) * math.cos(b)
+        )
+        lo = math.radians(15.6) + math.atan2(
+            math.sin(b) * math.sin(d) * math.cos(math.radians(lat)),
+            math.cos(d) - math.sin(math.radians(lat)) * math.sin(la),
+        )
+        edge_lat, edge_lon = math.degrees(la), (math.degrees(lo) + 180) % 360 - 180
+        assert any(s <= edge_lat <= n and w <= edge_lon <= e for (s, w), (n, e) in found), (bearing, edge_lat, edge_lon)

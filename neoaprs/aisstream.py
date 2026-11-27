@@ -32,7 +32,9 @@ def boxes(lat: float, lon: float, radius_km: float) -> tuple[Box, ...]:
     """Return the boxes round the circle, rounded outward; two where it crosses the antimeridian."""
     down = math.floor
     reach_lat = radius_km / KM_PER_DEG
-    reach_lon = min(180.0, radius_km / (KM_PER_DEG * max(math.cos(math.radians(lat)), 1e-6)))
+    # The circle's widest east-west reach on the sphere; a pole inside it takes every longitude.
+    spread = math.sin(math.radians(reach_lat)) / max(math.cos(math.radians(lat)), 1e-9)
+    reach_lon = 180.0 if abs(lat) + reach_lat >= 90.0 or spread >= 1.0 else math.degrees(math.asin(spread))
     step = BOX_STEP_DEG
     south = max(-90.0, round(down((lat - reach_lat) / step) * step, 1))
     north = min(90.0, round(math.ceil((lat + reach_lat) / step) * step, 1))
