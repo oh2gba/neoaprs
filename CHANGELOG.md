@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **Fixed:** a tune tone or keying test on a Mercury radio can always be stopped.
+- **Fixed:** a radio that is switched off stays off.
+- **Fixed:** a Mercury radio whose sound card is lost while running shows it and recovers by itself.
+- **Fixed:** a Mercury radio that hears nothing says so until it is restarted.
+- **Fixed:** on Windows no modem keeps running after NeoAPRS ends, and stopping a Mercury radio lets it unkey first.
+- **Fixed:** the app can always be quit from the tray, also while its window is still starting.
+- **Fixed:** a setting is shown as saved only when your own save went through.
+- **Fixed:** an update no longer stays on "downloading" or "installing" after an error.
+- **Fixed:** a beacon's or a radio's problem line goes when its cause is gone.
+- **Fixed:** alert commands on Windows keep accented letters.
+- **Changed:** a weather station repeating the same values within a minute is stored once, and the database gives room back.
+- **Changed:** the log names each radio the same way throughout.
+- **Changed:** error texts of settings no longer name ports or paths.
+
 ## 0.24.0
 
 - **New:** a Mercury radio can report the stations it hears to PSK Reporter, where they show on the map under the mode NEOAPRS.
