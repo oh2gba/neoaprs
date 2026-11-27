@@ -356,6 +356,9 @@ class Program:
                 self.pid,
             )
             self.stop()
+        if sys.platform == "win32":
+            # a program that inherits "ignore Ctrl-C" could not be asked to end (Mercury unkeys on Ctrl-C)
+            winchild.let_children_take_ctrl_c()
         self._process = subprocess.Popen(
             argv,
             cwd=str(cwd),
