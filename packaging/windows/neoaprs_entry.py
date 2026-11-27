@@ -7,6 +7,7 @@ import os
 import sys
 
 ASKER_FLAG = "--winask"  # neoaprs/winchild.py: ASKER_FLAG
+END_FLAG = "--end-after"  # neoaprs/desktop/endafter.py: FLAG
 
 
 def role(executable: str) -> str:
@@ -22,6 +23,10 @@ def run(which: str, argv: list[str]) -> int:
         from neoaprs import winask
 
         return winask.main(argv[1:])
+    if argv[:1] == [END_FLAG]:  # the app's watchdog of its own end (neoaprs/desktop/endafter.py), before anything else
+        from neoaprs.desktop import endafter
+
+        return endafter.main(argv[1:])
     if which == "app":
         from neoaprs.desktop import splash
 

@@ -633,6 +633,10 @@ REACHES_OUT: dict[str, tuple[str, str]] = {
         "browser",
         "the app where no window can be made: the daemon's page, a loopback address, in the system's browser",
     ),
+    "neoaprs/desktop/endafter.py": (
+        "program",
+        "at Quit the app starts its own program (or this module) hidden, with its own process id and a bound written in the module, as the watchdog that ends it if it has not ended by itself",
+    ),
     "neoaprs/desktop/gtkenv.py": (
         "program",
         "the web window on Linux tries bubblewrap once, a fixed command of the module, to see whether WebKit's sandbox can start here",

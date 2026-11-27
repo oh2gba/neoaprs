@@ -241,8 +241,17 @@ page is there, since WebView2 can take half a minute to start or fail without a 
 up after a minute leaves the app in the tray with the page in the browser. A Quit before the page
 stops the daemon the app started once it is up. A window whose engine is not up when Quit comes (or the
 daemon ends) is never destroyed, since destroying WebView2 in its start aborts it and pywebview's loop then
-never returns: the process ends a second later, each step of its cleanup bounded. After any other Quit it
-ends after five seconds if the loop has not returned.
+never returns: the process ends a second later. After any other Quit it ends after five seconds if the loop
+has not returned. That end is one step after its warning, with nothing that can block before it, and on
+Windows it is TerminateProcess of the process itself, not ExitProcess (os._exit), which runs the
+libraries' detach under the loader lock that a WebView2 or .NET thread in its start may hold.
+
+It can still not come: while pythonnet runs WebView2's start the main thread holds the GIL, and no Python
+thread of the app gets to run. So at the moment Quit is decided the app also starts a watchdog outside
+itself (`endafter.py`, its own program with `--end-after PID SECONDS`, hidden), which waits for the app's
+process and ends it (TerminateProcess, or SIGKILL on POSIX) if it is still there eight seconds later. It
+takes only its own parent's process id, so the option cannot end another program, and it ends at once
+with an app that ended by itself. The Qt shell starts it too.
 
 ## neoaprs/desktop/winplace.py
 

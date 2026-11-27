@@ -117,6 +117,15 @@ def devices_are_fakes(request: pytest.FixtureRequest, monkeypatch: pytest.Monkey
         monkeypatch.setattr("neoaprs.nodevices.on", lambda: False)
 
 
+@pytest.fixture(autouse=True)
+def no_watchdog_of_the_test_process(monkeypatch: pytest.MonkeyPatch) -> "list[float]":
+    """The app's watchdog of its own end (neoaprs/desktop/endafter.py) would end this test process: a
+    Quit only records the bound it would have given. A test of the watchdog starts it for a child of its own."""
+    asked: list[float] = []
+    monkeypatch.setattr("neoaprs.desktop.endafter.watch", lambda seconds, *a, **k: asked.append(seconds) or True)
+    return asked
+
+
 def reorder_files(items: "list[pytest.Item]", order: str) -> None:
     """NEOAPRS_TEST_ORDER=reverse|shuffle[:SEED] runs the test files in another order (the tests of
     a file keep theirs), to expose a test that depends on what an earlier file left

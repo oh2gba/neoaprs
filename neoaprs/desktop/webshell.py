@@ -7,7 +7,6 @@ pywebview owns the main thread; the toolkits are imported inside functions (test
 import contextlib
 import importlib
 import logging
-import os
 import sys
 import threading
 import webbrowser
@@ -16,7 +15,7 @@ from pathlib import Path
 from collections.abc import Callable
 from typing import Any
 
-from . import appstate, loading, splash, webdesk
+from . import appstate, endafter, loading, splash, webdesk
 from .links import LINK_SCRIPT, LinkApi, window_url
 from .sizekeep import SizeKeeper
 from .winplace import WindowKeeper
@@ -34,10 +33,8 @@ ENGINE_WAIT_SEC = 60.0
 LEAVE_SEC = 5.0
 # A Quit before the engine was up leaves no loop that could end: only this long for `run` to return.
 QUIT_GRACE_SEC = 1.0
-# Each step of the last-resort end (the tray icon, the data folder, the log) gets this long.
-CLEAN_STEP_SEC = 1.0
 QUIT_LABEL = "Quit"
-HARD_EXIT: Callable[[int], object] = os._exit
+HARD_EXIT: Callable[[int], object] = endafter.end_now
 # The last-resort thread of each run, its frame and the event set when the run returned (stop_leaving).
 _LEAVING: list[tuple[threading.Thread, "WebFrame", threading.Event]] = []
 
@@ -128,6 +125,8 @@ class WebFrame:
         return self.icon is not None and webdesk.tray_host(SYSTEM)
 
     def quit(self) -> None:
+        if not self.quitting.is_set():
+            endafter.watch(endafter.END_SEC)
         self.quitting.set()
         self.done.set()
         self.settled.set()
@@ -528,20 +527,10 @@ def _leave_after_quit(frame: WebFrame, launch: Launch, failed: list[NoPage], ret
         "the window loop %s after Quit: the app ends without it",
         "is not ended, its engine was not up" if frame.before_engine else f"did not end in {LEAVE_SEC:g} s",
     )
-    code = launch.no_page(failed[0]) if failed else 0
-    icon = frame.icon
-    for step in ((icon.stop if icon is not None else None), launch.close, logging.shutdown):
-        if step is not None:
-            # each in a thread of its own and bounded: a toolkit call that blocks may not keep the process
-            done = threading.Thread(target=_quietly, args=(step,), name="neoaprs-app-leave-step", daemon=True)
-            done.start()
-            done.join(CLEAN_STEP_SEC)
-    HARD_EXIT(code)
-
-
-def _quietly(step: Callable[[], object]) -> None:
-    with contextlib.suppress(Exception):
-        step()
+    if failed:
+        log.warning("the app did not come up: %s", failed[0])
+    # nothing that can block comes first: the end of the process lets go of the data folder and the pipe
+    HARD_EXIT(1 if failed else 0)
 
 
 def run(launch: Launch) -> int:

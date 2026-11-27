@@ -1236,6 +1236,14 @@ def install_steps(
         "$asker = Start-Process -FilePath (Join-Path $app 'neoaprsw.exe') -ArgumentList '--winask','none' -Wait -PassThru -WindowStyle Hidden",
         fail_unless("$asker.ExitCode -eq 2", "neoaprsw.exe --winask did not start the asker (exit $($asker.ExitCode))"),
         '"neoaprsw.exe --winask: the asker answers"',
+        # the app's watchdog of its own end (neoaprs/desktop/endafter.py), in the installed build: a hidden
+        # PowerShell that blocks starts it on itself with 2 s and is ended by it (exit 0x4E45)
+        "$exe = Join-Path $app 'neoaprs-app.exe'",
+        "$inner = \"Start-Process '$exe' '--end-after',`$PID,'2' -WindowStyle Hidden; Start-Sleep 120\"",
+        "$stuck = Start-Process powershell.exe '-NoProfile','-Command',$inner -PassThru -WindowStyle Hidden",
+        fail_unless("$stuck.WaitForExit(60000)", "the watchdog did not end it", "$stuck.Kill()"),
+        fail_unless("$stuck.ExitCode -eq 20037", "exit $($stuck.ExitCode), not the watchdog's"),
+        '"--end-after: the watchdog works"',
     )
     app = install_script(
         "app",

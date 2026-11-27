@@ -14,6 +14,7 @@ from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
+from . import endafter
 from .menu import QUIT, AppActions
 from .session import NoPage
 from .shell import TRAY_POLL_SEC, TRAY_WAIT_SEC, Launch, ShellContext
@@ -55,6 +56,7 @@ class QtFrame(QObject):
         self.show_requested.emit()
 
     def quit(self) -> None:
+        endafter.watch(endafter.END_SEC)  # a Qt loop that does not end cannot keep the process
         self.quit_requested.emit()
 
     def refresh(self) -> None:
