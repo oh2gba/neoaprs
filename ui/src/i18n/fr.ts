@@ -1811,7 +1811,7 @@ export const fr: Catalogue = {
   "settings.pair.explain.picture_stop": "Sans {call} dans son chemin, un paquet s'arrête à votre station.",
   "settings.pair.explain.line1":
     "Le paquet d'une station qui met {call} dans son chemin est envoyé une fois sur l'autre radio. Cela marche dans les deux sens.",
-  "settings.pair.explain.line2": "Tout paquet passe : une position, un statut, un message, un accusé.",
+  "settings.pair.explain.line2": "Une position, un statut, un message ou un accusé passe.",
   "settings.pair.explain.line3":
     "Rien ne passe sans {call} dans le chemin, et un message qui vous est adressé reste chez vous.",
   "settings.pair.explain.slow": {

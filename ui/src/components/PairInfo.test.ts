@@ -52,7 +52,7 @@ describe("PairInfo", () => {
     const lines = [...(dialog() as HTMLElement).querySelectorAll("p")].map((p) => p.textContent);
     expect(lines).toEqual([
       "A station that puts OH2GBA-15 in its path is sent on once on the other radio. It works both ways.",
-      "Any packet crosses: a position, a status, a message, an ack.",
+      "A position, a status, a message or an ack crosses.",
       "Nothing crosses without OH2GBA-15 in the path, and a message addressed to you stays with you.",
     ]);
   });

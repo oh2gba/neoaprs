@@ -449,7 +449,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.pair.explain.picture_stop": "Sin {call} en su ruta, un paquete se detiene en tu estación.",
   "settings.pair.explain.line1":
     "Si una estación pone {call} en su ruta, su paquete se envía una vez en la otra radio. Funciona en ambos sentidos.",
-  "settings.pair.explain.line2": "Cruza cualquier paquete: una posición, un estado, un mensaje, un acuse.",
+  "settings.pair.explain.line2": "Cruza una posición, un estado, un mensaje o un acuse.",
   "settings.pair.explain.line3": "Sin {call} en la ruta no cruza nada, y un mensaje dirigido a ti se queda contigo.",
   "settings.pair.explain.slow": {
     one: "Hacia {radio}, como mucho {n} paquete en {min} minutos.",

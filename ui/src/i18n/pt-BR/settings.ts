@@ -445,7 +445,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.pair.explain.picture_stop": "Sem {call} no caminho, um pacote para na sua estação.",
   "settings.pair.explain.line1":
     "Quando uma estação põe {call} no caminho, o pacote dela é enviado uma vez no outro rádio. Funciona nos dois sentidos.",
-  "settings.pair.explain.line2": "Qualquer pacote passa: uma posição, um status, uma mensagem, uma confirmação.",
+  "settings.pair.explain.line2": "Uma posição, um status, uma mensagem ou uma confirmação passa.",
   "settings.pair.explain.line3": "Sem {call} no caminho nada passa, e uma mensagem endereçada a você fica com você.",
   "settings.pair.explain.slow": {
     one: "Em {radio}, no máximo {n} pacote em {min} minutos.",

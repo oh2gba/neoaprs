@@ -428,7 +428,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.pair.explain.picture_stop": "パスに{call}がないパケットは、あなたの局で止まります。",
   "settings.pair.explain.line1":
     "パスに{call}を入れた局のパケットは、もう一方の無線機から一度だけ送信されます。どちらの向きでも同じです。",
-  "settings.pair.explain.line2": "どのパケットも中継されます: 位置、ステータス、メッセージ、ACK。",
+  "settings.pair.explain.line2": "位置、ステータス、メッセージ、ACKが中継されます。",
   "settings.pair.explain.line3":
     "パスに{call}がなければ何も中継されず、あなた宛てのメッセージはあなたのところに留まります。",
   "settings.pair.explain.slow": { other: "{radio}へは{min}分間に最大{n}パケットまでです。" },

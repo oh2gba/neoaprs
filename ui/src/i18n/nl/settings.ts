@@ -456,7 +456,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.pair.explain.picture_stop": "Zonder {call} in het pad stopt een pakket bij jouw station.",
   "settings.pair.explain.line1":
     "Zet een station {call} in zijn pad, dan gaat zijn pakket één keer uit op de andere radio. Dat werkt in beide richtingen.",
-  "settings.pair.explain.line2": "Elk pakket gaat over: een positie, een status, een bericht, een ack.",
+  "settings.pair.explain.line2": "Een positie, een status, een bericht of een ack gaat over.",
   "settings.pair.explain.line3": "Zonder {call} in het pad gaat er niets over, en een bericht aan jou blijft bij jou.",
   "settings.pair.explain.slow": {
     one: "Naar {radio} hoogstens {n} pakket in {min} minuten.",

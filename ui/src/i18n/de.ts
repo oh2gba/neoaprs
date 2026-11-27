@@ -1863,8 +1863,7 @@ export const de: Catalogue = {
   "settings.pair.explain.picture_stop": "Ohne {call} im Pfad endet ein Paket bei deiner Station.",
   "settings.pair.explain.line1":
     "Setzt eine Station {call} in ihren Pfad, wird ihr Paket einmal auf dem anderen Funkgerät weitergesendet. Das geht in beide Richtungen.",
-  "settings.pair.explain.line2":
-    "Jedes Paket geht hinüber: eine Position, ein Status, eine Nachricht, eine Bestätigung.",
+  "settings.pair.explain.line2": "Eine Position, ein Status, eine Nachricht oder eine Bestätigung geht hinüber.",
   "settings.pair.explain.line3": "Ohne {call} im Pfad geht nichts hinüber, und eine Nachricht an dich bleibt bei dir.",
   "settings.pair.explain.slow": {
     one: "Auf {radio} höchstens {n} Paket in {min} Minuten.",

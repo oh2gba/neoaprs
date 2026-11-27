@@ -444,7 +444,7 @@ export const settings = {
   "settings.pair.explain.picture_stop": "Without {call} in its path, a packet stops at your station.",
   "settings.pair.explain.line1":
     "A station that puts {call} in its path is sent on once on the other radio. It works both ways.",
-  "settings.pair.explain.line2": "Any packet crosses: a position, a status, a message, an ack.",
+  "settings.pair.explain.line2": "A position, a status, a message or an ack crosses.",
   "settings.pair.explain.line3":
     "Nothing crosses without {call} in the path, and a message addressed to you stays with you.",
   "settings.pair.explain.slow": {

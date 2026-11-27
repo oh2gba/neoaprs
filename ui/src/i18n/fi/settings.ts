@@ -442,7 +442,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.pair.explain.picture_stop": "Ilman kutsua {call} polussa paketti pysähtyy asemallesi.",
   "settings.pair.explain.line1":
     "Kun asema laittaa kutsun {call} polkuunsa, paketti lähetetään kerran toisella radiolla. Se toimii kumpaankin suuntaan.",
-  "settings.pair.explain.line2": "Mikä tahansa paketti menee yli: sijainti, tila, viesti, kuittaus.",
+  "settings.pair.explain.line2": "Sijainti, tila, viesti tai kuittaus menee yli.",
   "settings.pair.explain.line3":
     "Ilman kutsua {call} polussa mikään ei mene yli, ja sinulle osoitettu viesti jää sinulle.",
   "settings.pair.explain.slow": {
