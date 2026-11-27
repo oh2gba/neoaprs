@@ -801,7 +801,7 @@ describe("SetupGuide: the radio, on a station of six radios, on a phone (375 px)
     expect(css("setup.css")).toMatch(/\.setup \.subbox legend\s*\{[^}]*overflow-wrap:\s*anywhere/);
     expect(css("responsive.css")).toMatch(/\.size-phone \.setup\s*\{[^}]*left:\s*0;[^}]*width:\s*auto/);
     expect(css("settings.css")).toMatch(
-      /\.radioname \.field-control,\s*\.radioadd \.field-control\s*\{[^}]*flex-wrap:\s*wrap/,
+      /\.radioname \.field-control,\s*\.radioadd \.field-control,\s*\.pathfield \.field-control\s*\{[^}]*flex-wrap:\s*wrap/,
     );
   });
 

@@ -191,7 +191,9 @@ describe("the Radio group of a station of six radios", () => {
 
   it("has the rules of settings.css that keep a Name of eight letters whole, wrap Remove and Add under their field where the row is narrow, and never cut a legend", () => {
     const css = readFileSync(STYLES, "utf-8");
-    expect(css).toMatch(/\.radioname \.field-control,\s*\.radioadd \.field-control \{\s*flex-wrap: wrap;\s*\}/);
+    expect(css).toMatch(
+      /\.radioname \.field-control,\s*\.radioadd \.field-control,\s*\.pathfield \.field-control \{\s*flex-wrap: wrap;\s*\}/,
+    );
     expect(css).toMatch(/\.radioname \.field-control \.input \{\s*flex: 1 1 9em;\s*\}/);
     expect(css).not.toMatch(/\.subbox legend[^{]*\{[^}]*(text-overflow|white-space: nowrap|overflow: hidden)/);
     const { box } = make();
