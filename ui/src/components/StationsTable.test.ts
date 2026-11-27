@@ -307,4 +307,8 @@ describe("StationsTable in the non-metric units", () => {
     expect(heads()).toContain("km");
     expect(wrapper.findAll("tbody tr td.num").map((td) => td.text())).toEqual(expect.arrayContaining(["16", "25"]));
   });
+
+  it("lets a column head take two lines on a phone, so that the table is no wider than the screen", () => {
+    expect(cssRule(".size-phone .grid.stations th")).toMatch(/white-space:\s*normal/);
+  });
 });

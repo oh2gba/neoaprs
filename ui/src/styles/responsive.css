@@ -167,6 +167,9 @@ button,
   padding-right: 4px;
   padding-left: 4px;
 }
+.size-phone .grid.stations th {
+  white-space: normal;
+}
 .size-phone .grid.stations td.actions {
   padding-right: 0;
 }
