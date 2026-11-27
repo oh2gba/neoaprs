@@ -40,7 +40,11 @@ A row of another station has **Join**. It posts a test of yours with the same ti
 
 A row with a test of yours has a trash can, which asks twice ("sure?") and then takes the test off the board for everybody. The column of Join and the trash can is as wide in every row, so nothing moves.
 
-A test is on the board until it ends. There is no change: to change a test, delete it and plan it again.
+A test is on the board until it ends. There is no change: to change a test, delete it and plan it again. A test you delete while it runs ends then, and goes to the past tests.
+
+## Past tests
+
+Under the board, **Past tests** lists the tests that have ended, the newest first: the time, the dial, the calls that were there and the note, in the same rows as the board. A test leaves the board for this list when it ends, while the tab is open. A past test cannot be joined or deleted. The list shows the 20 newest, and each stays for 30 days after its end.
 
 ## What is public
 
@@ -62,6 +66,6 @@ The project can close the board. The tab then shows the tests without the box.
 
 ## On the project page
 
-The project page shows the same tests under the HF band when there are any to come: the call, the time in UTC and the dial of each, never the note. The section is not there while the board is empty.
+The project page shows the same tests under the HF band, and the past tests under them: the calls, the time in UTC and the dial of each, never the note.
 
 Not in this version: a test that repeats ("every Saturday": enter the weeks to come one by one), a reminder before a test, and tests on the map.
