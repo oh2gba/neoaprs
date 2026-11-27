@@ -118,8 +118,8 @@ describe("the line of a connected radio", () => {
 
 describe("the rules that keep a radio's box still", () => {
   it("keep a radio's status row two lines high in every state, its words from the top", () => {
-    const row = rule(SETTINGS, ".statusflat.radiostatus");
-    expect(SETTINGS).toContain(".radiostatus > .statushead,\n.statusflat.radiostatus {");
+    const row = rule(SETTINGS, ".igatestatus > .statushead"); // (the last of the rows that share the rule)
+    expect(SETTINGS).toMatch(/\.radiostatus > \.statushead,\n\.statusflat\.radiostatus[,\s][^{]*\{/);
     expect(row).toMatch(/min-height: calc\(2\.8em \+ 4px\)/);
     expect(row).toMatch(/align-items: flex-start/);
   });
