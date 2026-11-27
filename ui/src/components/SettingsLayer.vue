@@ -3,11 +3,12 @@
 // in the daemon's order; a stored source not among them shows as None), or the receiver's address,
 // shown only while the choice is an own receiver, with the receiver's state under it
 // (lib/receiverstatus.ts). A receiver that has not answered yet is looking, so the room is reserved
-// from the first moment.
+// from the first moment. Choosing a source switches the layer on in this browser's Layers box.
 import { computed } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import StatusLine from "@/components/StatusLine.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useMapLayers } from "@/composables/useMapLayers";
 import type { SettingsFormState } from "@/composables/useSettingsForm";
 import { addressField, layerKey, layerOf, shownSource, sourceChoices } from "@/lib/layersettings";
 import { receiverLook } from "@/lib/receiverstatus";
@@ -41,6 +42,12 @@ const shown = computed(() =>
 const look = computed(() =>
   own.value ? receiverLook(own.value.layer, layer.value?.receiver ?? null, now.value) : null,
 );
+const ticks = useMapLayers(map);
+const choose = (value: string): void => {
+  const layerId = own.value?.layer;
+  if (isSource.value && layerId && value !== "none" && value !== shown.value) ticks.setTicked(layerId, true);
+  props.form.choose({ [props.fieldKey]: value });
+};
 /** A typed address follows the typing; a choice is made by `choose`. */
 const typed = (text: string): void => {
   if (!isSource.value) settings.edit(props.fieldKey, text);
@@ -57,7 +64,7 @@ const typed = (text: string): void => {
     :changed="form.changed(fieldKey)"
     :apply="true"
     @update:model-value="typed"
-    @choose="form.choose({ [fieldKey]: $event })"
+    @choose="choose"
     @commit="form.finish(fieldKey, $event)"
     @cancel="settings.cancel(fieldKey)"
   />

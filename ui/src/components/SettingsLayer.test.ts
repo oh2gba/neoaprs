@@ -1,6 +1,8 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { ref } from "vue";
 import SettingsForm from "@/components/SettingsForm.vue";
+import { forgetLayerTicks, useMapLayers } from "@/composables/useMapLayers";
 import { receiverLook } from "@/lib/receiverstatus";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
 import { configValues, mapState, toastOf } from "@/test/fixtures";
@@ -24,6 +26,14 @@ function make(extra: Record<string, string> = {}, layers = [mapLayer("aircraft")
 }
 const options = (wrapper: ReturnType<typeof make>["wrapper"], id: string) =>
   wrapper.findAll(`${id} option`).map((o) => o.text());
+
+/** This browser's ticks of the Layers box. */
+const ticks = () => useMapLayers(ref(null));
+
+beforeEach(() => {
+  localStorage.clear();
+  forgetLayerTicks();
+});
 
 describe("Settings, Map: aircraft and ships", () => {
   it("has the Source rows of Aircraft and Ships, each in the box of its layer and at None out of the box, with no address field", () => {
@@ -212,5 +222,35 @@ describe("the state of an own receiver in words", () => {
         expect(
           JSON.stringify(receiverLook(layer, { state, things: 2, heard_at: "2026-10-21T12:00:00Z" }, NOW)),
         ).not.toMatch(/:\d|\d\.\d+\.\d|\//);
+  });
+
+  it("switches the layer on in this browser when a source is chosen, and leaves it as it is for None", async () => {
+    const { wrapper } = make();
+    await wrapper.find("#set-map-aircraft").setValue("adsbfi");
+    expect(ticks().ticked("aircraft")).toBe(true);
+    expect(localStorage.getItem("NeoAPRS.layer.aircraft")).toBe("on");
+    expect(ticks().ticked("ships")).toBe(false);
+    await wrapper.find("#set-map-ships").setValue("fintraffic");
+    expect(ticks().ticked("ships")).toBe(true);
+    ticks().setTicked("ships", false);
+    await wrapper.find("#set-map-ships").setValue("none");
+    expect(ticks().ticked("ships")).toBe(false);
+  });
+
+  it("switches the layer on again when the source is changed to another", async () => {
+    const { wrapper } = make({ "map/aircraft": "adsblol" }, [
+      mapLayer("aircraft", { source: "adsblol" }),
+      mapLayer("ships"),
+    ]);
+    expect(ticks().ticked("aircraft")).toBe(false);
+    await wrapper.find("#set-map-aircraft").setValue("adsbfi");
+    expect(ticks().ticked("aircraft")).toBe(true);
+  });
+
+  it("does not switch the layer on where the source was chosen in another browser", async () => {
+    const { daemon } = make();
+    await tell(daemon, { config: configValues({ "map/aircraft": "adsbfi" }) });
+    expect(ticks().ticked("aircraft")).toBe(false);
+    expect(localStorage.getItem("NeoAPRS.layer.aircraft")).toBeNull();
   });
 });
