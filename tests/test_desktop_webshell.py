@@ -7,6 +7,7 @@ menu, the external-link script, and the fallback without WebView2. Then the Linu
 import ast
 import inspect
 import ctypes
+from collections.abc import Iterator
 import logging
 import os
 import re
@@ -324,11 +325,16 @@ class Rig:
 
 
 @pytest.fixture(autouse=True)
-def _no_end_of_the_test_process(monkeypatch: pytest.MonkeyPatch) -> list[int]:
-    """The app's last-resort end of the process, recorded instead (a test that expects it sets its own)."""
+def _no_end_of_the_test_process(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[int]]:
+    """The app's last-resort end of the process, recorded instead; its waits long and the log's end a no-op, so
+    that it does not come by itself under load (a test about it sets its own times); ended with the test."""
     ended: list[int] = []
     monkeypatch.setattr(webshell, "HARD_EXIT", ended.append)
-    return ended
+    monkeypatch.setattr(webshell, "QUIT_GRACE_SEC", 60.0)
+    monkeypatch.setattr(webshell, "LEAVE_SEC", 60.0)
+    monkeypatch.setattr(webshell.logging, "shutdown", lambda: None)
+    yield ended
+    assert webshell.stop_leaving() == [], "a last-resort thread outlived its test"
 
 
 def until(condition: Any, seconds: float = 10.0) -> None:

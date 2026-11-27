@@ -38,6 +38,23 @@ QUIT_GRACE_SEC = 1.0
 CLEAN_STEP_SEC = 1.0
 QUIT_LABEL = "Quit"
 HARD_EXIT: Callable[[int], object] = os._exit
+# The last-resort thread of each run, its frame and the event set when the run returned (stop_leaving).
+_LEAVING: list[tuple[threading.Thread, "WebFrame", threading.Event]] = []
+
+
+def stop_leaving(timeout: float = 10.0) -> list[threading.Thread]:
+    """End the last-resort threads of the runs so far as if each run had returned; return any still alive.
+
+    For a process that runs `run` more than once (the tests), so that no such thread outlives its run."""
+    left = []
+    while _LEAVING:
+        thread, frame, returned = _LEAVING.pop()
+        returned.set()
+        frame.done.set()
+        thread.join(timeout)
+        if thread.is_alive():
+            left.append(thread)
+    return left
 
 
 def icon_path() -> Path:
@@ -537,9 +554,11 @@ def run(launch: Launch) -> int:
     if launch.ctx is None:
         launch.single.handle(lambda command: early_command(frame, launch, command))
     returned = threading.Event()
-    threading.Thread(
+    leaving = threading.Thread(
         target=_leave_after_quit, args=(frame, launch, failed, returned), name="neoaprs-app-leave", daemon=True
-    ).start()
+    )
+    _LEAVING.append((leaving, frame, returned))
+    leaving.start()
     try:
         if launch.window and not frame.quitting.is_set():
             make_window(frame, launch)

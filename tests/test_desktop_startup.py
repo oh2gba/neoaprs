@@ -31,11 +31,16 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture(autouse=True)
-def _no_end_of_the_test_process(monkeypatch: pytest.MonkeyPatch) -> list[int]:
-    """The app's last-resort end of the process, recorded instead (a test that expects it sets its own)."""
+def _no_end_of_the_test_process(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[int]]:
+    """The app's last-resort end of the process, recorded instead; its waits long and the log's end a no-op, so
+    that it does not come by itself under load (a test about it sets its own times); ended with the test."""
     ended: list[int] = []
     monkeypatch.setattr(webshell, "HARD_EXIT", ended.append)
-    return ended
+    monkeypatch.setattr(webshell, "QUIT_GRACE_SEC", 60.0)
+    monkeypatch.setattr(webshell, "LEAVE_SEC", 60.0)
+    monkeypatch.setattr(webshell.logging, "shutdown", lambda: None)
+    yield ended
+    assert webshell.stop_leaving() == [], "a last-resort thread outlived its test"
 
 
 def tokens(scheme: str) -> dict[str, str]:
@@ -379,6 +384,7 @@ def test_a_second_apps_quit_ends_an_app_whose_window_engine_never_came_up(
 ) -> None:
     """The installer's and the uninstaller's `neoaprs-app --quit`."""
     monkeypatch.setattr(webshell, "LEAVE_SEC", 0.3)
+    monkeypatch.setattr(webshell, "QUIT_GRACE_SEC", 0.3)
     rig = Rig(tmp_path, monkeypatch)
     gate = Gate(rig.data)
     assert rig.single.acquire()
@@ -407,6 +413,7 @@ def test_a_window_engine_that_never_comes_up_leaves_the_tray_with_the_page_in_th
 ) -> None:
     monkeypatch.setattr(webshell, "ENGINE_WAIT_SEC", 0.3)
     monkeypatch.setattr(webshell, "LEAVE_SEC", 0.3)
+    monkeypatch.setattr(webshell, "QUIT_GRACE_SEC", 0.3)
     rig = Rig(tmp_path, monkeypatch)
     hung = threading.Event()
     ended: list[int] = []
@@ -494,6 +501,8 @@ def test_the_daemon_ends_while_webview2_starts_and_the_app_ends_in_seconds_witho
 ) -> None:
     """The order of an install proof's log: quit (the window hidden), then the window's `shown`, then
     WebView2's E_ABORT, and pywebview's loop never returns."""
+    monkeypatch.setattr(webshell, "QUIT_GRACE_SEC", 1.0)
+    monkeypatch.setattr(webshell, "LEAVE_SEC", 5.0)
     rig = Rig(tmp_path, monkeypatch)
     up = threading.Event()
 
@@ -567,6 +576,7 @@ def test_the_daemon_ends_after_the_window_is_up_and_the_app_ends_the_normal_way(
 def test_a_tray_icon_that_does_not_stop_cannot_keep_the_process(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_end_of_the_test_process: list[int]
 ) -> None:
+    monkeypatch.setattr(webshell, "QUIT_GRACE_SEC", 1.0)
     rig = Rig(tmp_path, monkeypatch)
     up = threading.Event()
 
