@@ -420,7 +420,7 @@ The control port serves one host at a time. Newer Mercury versions close a secon
 
 ## neoaprs/mercuryhelper.py
 
-The shipped Mercury listens on 127.0.0.1 only (a patch to its sources). Its ports have no password, so a listener on every interface would let any host on the LAN key the radio; `foreign_listeners` checks this. The port probe binds with SO_REUSEADDR as Mercury does, so a port in TIME_WAIT counts as free and a restarted modem finds its old pair; on Windows that option would also take a port another program listens on, so it is not set there. A port listened on in IPv6 alone is not free. Adjacent port pairs share a port (the ARQ data port of one is the control port of the next), so the claims table hands out pairs whose four ports do not overlap. A Mercury left behind by a daemon crash keeps the sound card; its process id is written beside the configuration and ended at the next start. Mercury is asked to end twice before it is killed: the second request makes it drop the transmitter at once, while a kill could leave a radio keyed through a GPIO pin or serial line. On Windows Mercury's second request exits with the keying as it stands, so it is asked once, by a Ctrl-C to its hidden console, then ended with taskkill, and NeoAPRS itself lowers a serial keying line afterwards, since some drivers keep a line where an ended program left it. The Ctrl-C needs a daemon without a console of its own (the installed one); a daemon run in a console window ends Mercury at once.
+The shipped Mercury listens on 127.0.0.1 only (a patch to its sources). Its ports have no password, so a listener on every interface would let any host on the LAN key the radio; `foreign_listeners` checks this. The port probe binds with SO_REUSEADDR as Mercury does, so a port in TIME_WAIT counts as free and a restarted modem finds its old pair; on Windows that option would also take a port another program listens on, so it is not set there. A port listened on in IPv6 alone is not free. Adjacent port pairs share a port (the ARQ data port of one is the control port of the next), so the claims table hands out pairs whose four ports do not overlap. A Mercury left behind by a daemon crash keeps the sound card; its process id is written beside the configuration and ended at the next start. Mercury is asked to end twice before it is killed: the second request makes it drop the transmitter at once, while a kill could leave a radio keyed through a GPIO pin or serial line. On Windows Mercury's second request exits with the keying as it stands, so it is asked once, by a Ctrl-Break to its own process group (winchild.py says why not Ctrl-C), then ended with taskkill after STOP_WAIT_SEC; only after that hard end NeoAPRS lowers a serial keying line itself, opened with both lines low, since some drivers keep a line where a killed program left it. A daemon in a terminal that shows ends Mercury at once.
 
 ## neoaprs/mercurymodem.py
 
@@ -1590,9 +1590,17 @@ sent to the pages looking at that layer.
 
 On Windows every child program is put into one job object of the daemon, made with kill-on-close, so
 that a daemon that dies however it dies takes its Mercury and Direwolf with it instead of leaving them
-holding the sound card, the ports and the install folder's files. The daemon swallows the Ctrl-C it
-sends to a child's console with a handler, not with the ignore flag, which every program started later
-would inherit.
+holding the sound card, the ports and the install folder's files.
+
+Mercury is asked to end with Ctrl-Break, never Ctrl-C. A Ctrl-C does not reach a program that inherited
+"ignore Ctrl-C", which the daemon has when its Run entry starts it in a new process group, and clearing
+the attribute before starting Mercury made the asking process take the Ctrl-C itself and end: on a Windows
+machine the ask must never end the daemon. Ctrl-Break to the child's own process group (it is started with
+CREATE_NEW_PROCESS_GROUP and a hidden console) reached the child every time; sigbreak.patch gives it
+Mercury's unkeying handler. To send it the daemon attaches to the child's console, letting go first of a
+hidden console of its own (one it is alone on and that does not show); one that shows or is shared is
+kept, and Mercury is then ended at once. A handler takes the echo of the ask, never the ignore flag, which
+every program started later would inherit.
 
 ## neoaprs/winmm.py
 
@@ -1682,7 +1690,8 @@ build and not an operator: loopback.patch binds the two TCP listeners and the UI
 load dsound.dll on first use so the program starts on a Windows without the Media Feature Pack; flush.patch
 flushes stderr after each log line (Windows buffers a pipe); ffcpu.patch defines `_ffcpu_features`, which the
 audio library declares and leaves to the program, so it links with a compiler whose default machine has
-SSE4.2. On Linux `pulse_stub.c` replaces the PulseAudio backend: ALSA is the one sound system of the bundle,
+SSE4.2; sigbreak.patch gives Ctrl-Break the handler of Ctrl-C on Windows, the event NeoAPRS asks Mercury
+to end by. On Linux `pulse_stub.c` replaces the PulseAudio backend: ALSA is the one sound system of the bundle,
 and both PulseAudio and PipeWire offer an ALSA device.
 
 The link is checked with ldd (only libasound, glibc and its helpers). The last step starts the program as the

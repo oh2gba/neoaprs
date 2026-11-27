@@ -1,0 +1,18 @@
+Ctrl-Break taken as Ctrl-C is, on Windows. NeoAPRS asks a Mercury it started to end with Ctrl-Break to the program's own process group (neoaprs/winchild.py: break_group): a Ctrl-C does not
+arrive where the daemon was started with "ignore Ctrl-C", which the Run entry's new process group sets and every child inherits, and clearing that attribute made the asking process take the Ctrl-C
+itself and end (four runs on a Windows 11 machine, 27 November 2026). Mercury's Windows build handles SIGINT and SIGTERM only, so the C runtime's default for SIGBREAK ended it at once with the
+transmitter as it stood, as a kill does. This gives SIGBREAK the same handler: the first one starts the orderly shutdown, which ends the frame in flight and unkeys.
+
+scripts/build-mercury applies this file after ffcpu.patch (`patch -p1`) on every system and checks that the source holds the handler; made from the source of the pinned commit (neoaprs/mercury.py:
+SOURCE_COMMIT), so a new pin that moves these lines fails the build loudly, which is right.
+
+--- a/main.c
++++ b/main.c
+@@ -227,6 +227,7 @@
+ #else
+     signal(SIGINT, handle_termination_signal);
+     signal(SIGTERM, handle_termination_signal);
++    signal(SIGBREAK, handle_termination_signal);
+ #endif
+ }
+ 

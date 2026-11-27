@@ -283,6 +283,7 @@ class Program(childprogram.Program):
     `on_capture_full` the monotonic time of a full capture buffer, at most once a second."""
 
     name = "Mercury"
+    asked_by_break = True  # sigbreak.patch: Ctrl-Break unkeys and ends it, as Ctrl-C does
 
     def __init__(
         self,
@@ -329,7 +330,9 @@ class Program(childprogram.Program):
         # Mercury's second request on Windows exits with the keying as it stands, so only one is sent.
         # Asked and gone, it unkeyed itself; only a killed one may leave its keying line up.
         if winchild.ask_to_end(process.pid, k) and childprogram.waited(process, STOP_WAIT_SEC):
+            self._log.info("%s ended when asked (process %d)", self.name, process.pid)
             return
+        self._log.info("%s did not end when asked: it is ended (process %d)", self.name, process.pid)
         _end_tree(process)
         if self.keying and not nodevices.refused("the keying line is not opened to lower it"):
             winchild.drop_line(self.keying, port)

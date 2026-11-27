@@ -193,6 +193,24 @@ def test_the_ffcpu_patch_defines_the_name_the_link_needs_and_the_build_checks_fo
     assert build.FFCPU_FILE == "audioio/audioio.c" and build.FFCPU_NAME == "int _ffcpu_features;"
 
 
+def test_the_sigbreak_patch_gives_ctrl_break_the_handler_of_ctrl_c_and_the_build_checks_for_it(
+    build: types.ModuleType,
+) -> None:
+    """NeoAPRS asks Mercury to end with Ctrl-Break; without a handler Mercury ends at once, keyed or not."""
+    text = (ROOT / "packaging" / "mercury" / "sigbreak.patch").read_text(encoding="utf-8")
+    added = [line for line in text.splitlines() if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
+    assert "--- a/main.c" in text and added == ["+    signal(SIGBREAK, handle_termination_signal);"], (
+        "one line, nothing taken away, in the Windows branch beside SIGINT and SIGTERM"
+    )
+    assert "     signal(SIGTERM, handle_termination_signal);\n+    signal(SIGBREAK" in text
+    script = SCRIPT.read_text(encoding="utf-8")
+    assert "apply_patch(tree, SIGBREAK_PATCH)" in script and "SIGBREAK_HANDLER not in" in script, (
+        "the build applies it on every system and looks for the handler after it"
+    )
+    assert "sigbreak.patch of NeoAPRS" in script, "SOURCE.txt says so"
+    assert (build.SIGBREAK_FILE, build.SIGBREAK_HANDLER) == ("main.c", "signal(SIGBREAK, handle_termination_signal);")
+
+
 def test_the_flush_patch_flushes_each_log_line_and_the_build_checks_for_it(build: types.ModuleType) -> None:
     """On Windows Mercury's stderr lines come only when the program ends (the C runtime buffers a
     pipe)."""

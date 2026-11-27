@@ -1,14 +1,14 @@
 """Windows: a stand-in for a daemon without a console (run DETACHED_PROCESS by a test, one process for each
 way of asking, so that the ways cannot disturb each other). It starts a console program, asks it to end
 the way its first argument names, and writes to the JSON file of its second argument the program's
-creation flags, every call with its result and GetLastError, what the program heard, and that the asker
-itself is still alive afterwards.
+creation flags, every call with its result and GetLastError, what the program heard, the console events
+the asker's own handler was given, and that the asker itself is still alive afterwards.
 
-    ctrl_c          a CREATE_NO_WINDOW child started with "ignore Ctrl-C" cleared, Ctrl-C to its console,
-                    as the daemon starts and asks Mercury
-    ctrl_c_inherited  the same without clearing it: the control, the child keeps what it inherits
-    break_attached  a CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP child, Ctrl-Break to its group on its console
-    break_shared    a CREATE_NEW_PROCESS_GROUP child on this process's console (if it has one), Ctrl-Break to its group
+    break_group       a CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP child, Ctrl-Break to its group on its own
+                      console: how the daemon asks Mercury (winchild.ask_to_end)
+    break_shared      a CREATE_NEW_PROCESS_GROUP child on this process's console, Ctrl-Break to its group
+    ctrl_c_inherited  a CREATE_NO_WINDOW child, Ctrl-C to its console: the control, a child that inherits
+                      "ignore Ctrl-C" does not hear it
 """
 
 import json
@@ -37,14 +37,21 @@ CHILD = (
 WAIT_SEC = 30.0
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 NEW_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-WAYS = ("ctrl_c", "ctrl_c_inherited", "break_attached", "break_shared")
-FLAGS = {
-    "ctrl_c": NO_WINDOW,
-    "ctrl_c_inherited": NO_WINDOW,
-    "break_attached": NO_WINDOW | NEW_GROUP,
-    "break_shared": NEW_GROUP,
-}
+WAYS = ("break_group", "break_shared", "ctrl_c_inherited")
+FLAGS = {"break_group": NO_WINDOW | NEW_GROUP, "break_shared": NEW_GROUP, "ctrl_c_inherited": NO_WINDOW}
 ALIVE_SEC = 2.0  # how long the asker waits after the ask: an echo that ended it would have done so
+
+
+def _ctrl_c(pid: int, k: Any, steps: winchild.Steps) -> bool:
+    """The control: Ctrl-C to the child's console, the way that is not used."""
+    with winchild._console:
+        if not winchild._swallow_ctrl_c(k, steps) or not winchild._onto(pid, k, steps):
+            return False
+        try:
+            winchild._note_ask()
+            return bool(winchild._step(steps, k, "GenerateConsoleCtrlEvent", winchild.CTRL_C_EVENT, 0))
+        finally:
+            winchild._leave(k, steps)
 
 
 def ask(way: str, folder: Path) -> dict[str, Any]:
@@ -52,19 +59,18 @@ def ask(way: str, folder: Path) -> dict[str, Any]:
     k = winchild.kernel32()
     before: winchild.Steps = []
     sharing, visible = winchild.console_of_own(k, before)
-    cleared: winchild.Steps = []
-    if way == "ctrl_c":  # as childprogram starts the modem; the control way leaves what was inherited
-        winchild.let_children_take_ctrl_c(k, cleared)
     child = subprocess.Popen([sys.executable, "-c", CHILD, str(said)], creationflags=FLAGS[way])
     deadline = time.monotonic() + WAIT_SEC
     while time.monotonic() < deadline and not (said.exists() and said.read_text() == "up"):
         time.sleep(0.05)
     steps: winchild.Steps = []
     try:
-        if way.startswith("ctrl_c"):
+        if way == "break_group":
             sent = winchild.ask_to_end(child.pid, k, steps)
+        elif way == "break_shared":
+            sent = winchild.break_group(child.pid, False, k, steps)
         else:
-            sent = winchild.break_group(child.pid, way == "break_attached", k, steps)
+            sent = _ctrl_c(child.pid, k, steps)
     except Exception as e:  # what went wrong is the finding
         sent, steps = False, [*steps, {"exception": repr(e)}]
     try:
@@ -77,11 +83,11 @@ def ask(way: str, folder: Path) -> dict[str, Any]:
     return {
         "child_flags": hex(FLAGS[way]),
         "asker_console_before": {"processes": sharing, "visible": visible, "steps": before},
-        "ctrl_c_cleared_for_the_child": cleared,
         "sent": sent,
         "code": code,
         "child": said.read_text() if said.exists() else "",
         "steps": steps,
+        "events_the_asker_saw": list(winchild.events_seen),
         "asker_alive": True,
     }
 

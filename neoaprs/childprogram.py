@@ -34,6 +34,7 @@ QUIET_SEC = 60.0  # a repeated warning not seen for this long has stopped
 
 Command = list[str]
 HIDDEN_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: no console window; 0 elsewhere
+OWN_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)  # Windows: a process group of its own
 
 
 def program_file(name: str, system: str | None = None) -> str:
@@ -299,6 +300,8 @@ class Program:
     """One run of a program; a subclass sets `name` and implements `_heard` and `_end`."""
 
     name = "program"
+    # Windows: the program is asked to end by Ctrl-Break to its own process group
+    asked_by_break = False
 
     def __init__(
         self,
@@ -356,9 +359,6 @@ class Program:
                 self.pid,
             )
             self.stop()
-        if sys.platform == "win32":
-            # a program that inherits "ignore Ctrl-C" could not be asked to end (Mercury unkeys on Ctrl-C)
-            winchild.let_children_take_ctrl_c()
         self._process = subprocess.Popen(
             argv,
             cwd=str(cwd),
@@ -369,7 +369,8 @@ class Program:
             encoding="utf-8",
             errors="replace",
             env=environment(argv),
-            creationflags=HIDDEN_WINDOW,
+            # its own group: Ctrl-Break to the group asks it alone to end (winchild.ask_to_end)
+            creationflags=HIDDEN_WINDOW | (OWN_GROUP if self.asked_by_break else 0),
         )
         if sys.platform == "win32" and not winchild.tie_to_daemon(self._process.pid):
             self._log.info("%s (process %d) is not tied to the daemon's life", self.name, self._process.pid)
