@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.25.0
+
 - **New:** classic APRS on HF at 300 baud with a sound card: the radio type Sound card, 300 (HF).
 - **New:** a KISS TNC or your own Direwolf on HF has an On HF tick: it then sends as sparingly as Mercury.
 - **New:** Services in the Messages tab start a message to APRS Thursday, an ANSRVR group or APRS OTA for you.
