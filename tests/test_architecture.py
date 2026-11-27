@@ -125,6 +125,9 @@ LAYERS: dict[str, list[str]] = {
         "aisdecode",
         "digitraffic",
         "shiptable",
+        "satellites",
+        "satellitelist",
+        "satelliteview",
     ],
     "domain": [
         "alertcommand",
@@ -480,6 +483,7 @@ PYDANTIC_HOMES: set[str] = {
     "neoaprs.web.supportwire",
     "neoaprs.web.radiowire",
     "neoaprs.web.layerwire",
+    "neoaprs.web.satellitewire",
     "neoaprs.web.protocol",
     "neoaprs.web.dispatch",
     "neoaprs.web.outbound",
@@ -704,7 +708,7 @@ REACHES_OUT: dict[str, tuple[str, str]] = {
     ),
     "neoaprs/updatefetch.py": (
         "url",
-        "the update check, the changelog, the suggested frequencies, the sked board, Send logs and the map's layers of traffic (the aircraft and ships services, an own aircraft receiver): http or https only, to the project's server, to the address of update/url, to the services' addresses written in neoaprs/layerthing.py or to the receiver's address of map/aircraft_host",
+        "the update check, the changelog, the suggested frequencies, the sked board, the satellites file, Send logs and the map's layers of traffic (the aircraft and ships services, an own aircraft receiver): http or https only, to the project's server, to the address of update/url, to the services' addresses written in neoaprs/layerthing.py or to the receiver's address of map/aircraft_host",
     ),
 }
 # the places a shell is given a line to run, with how many: the alert command and nothing else, ever
@@ -728,6 +732,13 @@ LAYER_MODULES = frozenset(
         "neoaprs.shiptable",
         "neoaprs.aisfeed",
         "neoaprs.services.layerships",
+        "neoaprs.satellites",
+        "neoaprs.satellitelist",
+        "neoaprs.satelliteview",
+        "neoaprs.services.satellites",
+        "neoaprs.web.satellitewire",
+        "neoaprs.web.satellitefeed",
+        "neoaprs.web.satellitehandlers",
     }
 )
 WALLED = (

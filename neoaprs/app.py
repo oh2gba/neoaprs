@@ -47,6 +47,7 @@ from .services.gps import Gps
 from .services.igate import Igate
 from .services.keys import keyring_for
 from .services.layers import Layers
+from .services.satellites import Satellites
 from .services.mapauto import MapAuto
 from .services.mapfetch import MapFetch
 from .services.messaging import Messaging
@@ -331,6 +332,13 @@ class Services:
         )
         self.layers = Layers(
             lambda: self.config,
+            lambda: self.stationbook.me_position,
+            VERSION,
+            platform_name(sys.platform, platform.machine(), install.kind == "appimage"),
+            clock=clock,
+        )
+        self.satellites = Satellites(
+            data_dir,
             lambda: self.stationbook.me_position,
             VERSION,
             platform_name(sys.platform, platform.machine(), install.kind == "appimage"),

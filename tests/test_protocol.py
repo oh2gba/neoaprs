@@ -855,6 +855,46 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
         {"type": "layer_things", "layer": "ships", "source": "receiver", "away": True, "things": [SHIP]},
         {"type": "layer_things", "layer": "ships", "source": "none", "away": False, "things": []},
     ],
+    "satellites": [
+        {
+            "type": "satellites",
+            "at": "2026-11-28T12:05:00Z",
+            "elements_at": "2026-11-27T17:59:00Z",
+            "satellites": [
+                {
+                    "id": 25544,
+                    "name": "ISS",
+                    "points": [
+                        {"at": "2026-11-28T12:04:30Z", "lat": 52.1, "lon": 31.2},
+                        {"at": "2026-11-28T12:05:00Z", "lat": 51.6, "lon": 33.4},
+                    ],
+                }
+            ],
+            "cards": [
+                {
+                    "id": 25544,
+                    "name": "ISS",
+                    "downlinks": [{"hz": 437825000, "rise_hz": 437833777, "max_hz": 437825004, "set_hz": 437816223}],
+                    "uplinks": [{"hz": 437825000, "rise_hz": 437816223, "max_hz": 437824996, "set_hz": 437833777}],
+                    "mode": "afsk1200",
+                    "path": "",
+                    "alt_km": 419.9,
+                    "footprint_km": 2252.3,
+                    "track": [{"at": "2026-11-28T12:05:00Z", "lat": 51.6, "lon": 33.4}],
+                    "next_pass": {
+                        "rise": "2026-11-28T12:03:44Z",
+                        "set": "2026-11-28T12:13:06Z",
+                        "max_at": "2026-11-28T12:08:25Z",
+                        "max_el_deg": 14.7,
+                        "rise_az_deg": 242.3,
+                        "set_az_deg": 115.9,
+                    },
+                    "looks": [{"at": "2026-11-28T12:05:00Z", "el_deg": 4.5, "down_hz": [8410], "up_hz": [-8410]}],
+                }
+            ],
+        },
+        {"type": "satellites", "at": "2026-11-28T12:05:00Z", "elements_at": None, "satellites": [], "cards": []},
+    ],
     "station_track": [
         {
             "type": "station_track",
@@ -1147,6 +1187,7 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     },
     "bulletin_unpost": {"cmd": "bulletin_unpost", "slot": "BLN3HAMS"},
     "layer_look": {"cmd": "layer_look", "layer": "ships", "on": True},
+    "satellite_look": {"cmd": "satellite_look", "on": True, "cards": [25544]},
     "map_estimate": {"cmd": "map_estimate"},
     "map_fetch": {"cmd": "map_fetch"},
     "map_wanted": {"cmd": "map_wanted"},

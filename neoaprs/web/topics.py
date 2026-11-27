@@ -29,6 +29,7 @@ from neoaprs.stationbook import carries_path
 
 from .hub import StateHub, Topic
 from .layerfeed import LayerLooks
+from .satellitefeed import SatelliteLooks
 from .levelfeed import LevelFeed, Leveled, RadioLevels
 from .mapview import map_state
 from .packetwindow import PACKETS_KEPT, PacketWindow
@@ -100,6 +101,7 @@ class Topics:
         self.scopes = RadioScopes(self._wire_scope)
         self.levels = RadioLevels(self._wire_level)
         self.layers = LayerLooks(ctl.layers)
+        self.satellites = SatelliteLooks(ctl.satellites)
         # monotonic time stations were last told whole because we moved
         self._distances_at = float("-inf")
         self._config = ctl.config  # the settings the stations were last told with
@@ -319,6 +321,7 @@ class Topics:
             (ctl.aloha.changed, self._map_changed),
             (ctl.layers.changed, self._map_changed),
             (ctl.layers.told, self.layers.told),
+            (ctl.satellites.told, self.satellites.told),
             (ctl.selfupdate.changed, self._update_changed),
             (ctl.stationalerts.fired, self._station_alert),
         ]

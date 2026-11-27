@@ -132,7 +132,7 @@ class Controller(Services):
         self.start_tnc()  # last: the source starts after its consumers
         await self._start_web()
         await self.mapauto.start()
-        for asks in (self.updatecheck, self.frequencies, self.skeds, self.layers, self.pskreporter):
+        for asks in (self.updatecheck, self.frequencies, self.skeds, self.layers, self.satellites, self.pskreporter):
             await asks.start()
         self.pskreporter.settings_changed(self.config)
         self.tasks.spawn(self._prune_often(), "prune")
@@ -181,6 +181,7 @@ class Controller(Services):
         return [
             ("the page", self._stop_web),
             ("the map's layers", self.layers.stop),
+            ("the map's satellites", self.satellites.stop),
             ("Find my radio", self.radiofinder.stop),
             ("the Tnc", self._stop_radios),
             ("the update check", self.updatecheck.stop),

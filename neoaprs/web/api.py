@@ -17,7 +17,7 @@ from neoaprs.controller import Controller
 from neoaprs.radioregistry import unavailable_types
 from neoaprs.tasks import TaskSet, every
 
-from . import handlers, layerhandlers  # noqa: F401  (importing the modules registers the handlers)
+from . import handlers, layerhandlers, satellitehandlers  # noqa: F401  (importing the modules registers the handlers)
 from .dispatch import Dispatcher
 from .hub import StateHub
 from .hubwire import PROTOCOL
@@ -60,6 +60,7 @@ class Api:
             scopes=self.topics.scopes,
             levels=self.topics.levels,
             layers=self.topics.layers,
+            satellites=self.topics.satellites,
         )
         self.started_at = controller.clock()
         self.meter = ProcessMeter()
@@ -158,6 +159,7 @@ class Api:
             self.topics.scopes.forget(conn)
             self.topics.levels.forget(conn)
             self.topics.layers.forget(conn)
+            self.topics.satellites.forget(conn)
         self.out.close(client)
 
     # commands

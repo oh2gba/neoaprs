@@ -1,16 +1,42 @@
-"""A fake map layers server on a free loopback port: an aircraft receiver, or a service address
-through NEOAPRS_LAYERS_URL. Each request is kept with its headers; each path answers what the test
-laid down.
+"""A fake map layers server on a free loopback port: an aircraft receiver, a service address
+through NEOAPRS_LAYERS_URL, or the project's satellites file through NEOAPRS_SATELLITES_URL. Each
+request is kept with its headers; each path answers what the test laid down.
 """
 
 import asyncio
 import base64
+import csv
 import gzip
-from collections.abc import Callable
+import io
+import json
+from collections.abc import Callable, Collection
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
 
 from tests.support.env import remember_stop
+from tests.support.files import fixture_text
 from tests.support.loopbackserver import LoopbackServer
+
+SATELLITES_PATH = "/api/v1/satellites.php"
+SATELLITE_LIST = Path(__file__).resolve().parents[2] / "server" / "neo" / "private" / "satellites-list.json"
+
+
+def satellites_file(made: str = "2026-11-27T18:00:00Z", only: Collection[int] = (), **over: Any) -> bytes:
+    """The file the project's server serves: its list merged with the elements of the fixture
+    (CelesTrak's, 27 Nov 2026), as server/neo/api/v1/satellites.php merges them; `only` keeps those."""
+    rows = {
+        int(row["NORAD_CAT_ID"]): row for row in csv.DictReader(io.StringIO(fixture_text("satellites/amateur.csv")))
+    }
+    listed = json.loads(SATELLITE_LIST.read_text(encoding="utf-8"))["satellites"]
+    satellites = [
+        {**{k: v for k, v in one.items() if k != "source"}, "elements": rows.get(one["id"])}
+        for one in listed
+        if not only or one["id"] in only
+    ]
+    return json.dumps(
+        {"v": 1, "made": made, "elements_at": "2026-11-27T17:59:24Z", "satellites": satellites, **over}
+    ).encode()
 
 
 @dataclass

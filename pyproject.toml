@@ -16,13 +16,15 @@ requires-python = ">=3.13"
 # certificates of the secure connection (neoaprs/web/tls.py), and certifi, Mozilla's list of root
 # certificates, trusted beside the system's for every https request NeoAPRS makes
 # (neoaprs/httpstrust.py): a fresh Windows fetches a missing root only when a browser asks for it,
-# so its own list may lack GitHub's.
+# so its own list may lack GitHub's. sgp4 (MIT, no dependencies) is the orbit model of the map's
+# satellites layer (neoaprs/satellites.py).
 dependencies = [
     "tornado==6.6.1",
     "pydantic==2.14.0",
     "pyserial==3.5",
     "cryptography==50.0.2",
     "certifi==2026.10.23",
+    "sgp4==2.27",
 ]
 
 # The desktop app (`neoaprs app`, `neoaprs-app`; neoaprs/desktop/) is an extra, so that `uv tool
@@ -181,6 +183,11 @@ enable_error_code = ["arg-type", "union-attr", "comparison-overlap", "func-retur
 [[tool.mypy.overrides]]
 module = "neoaprs.*"
 implicit_reexport = true
+
+# sgp4 ships no types: its few calls are typed where neoaprs/satellites.py makes them.
+[[tool.mypy.overrides]]
+module = ["sgp4", "sgp4.*"]
+ignore_missing_imports = true
 
 [tool.ruff]
 target-version = "py313"

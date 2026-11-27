@@ -39,6 +39,7 @@ from .hostwire import (
 )
 from .hubwire import PatchMsg, StateMsg, Subscribe, Unsubscribe
 from .layerwire import LayerLook, LayerThingsMsg
+from .satellitewire import SatelliteLook, SatellitesMsg
 from .mapwire import MapCancel, MapEstimate, MapFetch, MapState, MapWanted
 from .messagewire import (
     AlertResultMsg,
@@ -149,6 +150,7 @@ AnyCommand = Union[
     Frequencies,
     StationTrack,
     LayerLook,
+    SatelliteLook,
 ]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
@@ -260,6 +262,7 @@ AnyMessage = Union[
     StationTrackMsg,
     RadioLevelMsg,
     LayerThingsMsg,
+    SatellitesMsg,
 ]
 Message = Annotated[AnyMessage, Field(discriminator="type")]
 """Every message the daemon sends."""
