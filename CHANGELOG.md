@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.26.0
+
 - **New:** a Satellites layer on the map: the ISS and the APRS satellites, with the next pass and the Doppler.
 - **New:** each open satellite card draws its footprint and its track ahead on the map.
 - **New:** Settings, Internet (APRS-IS) has two ticks: Show Internet stations, and Send what I hear.
