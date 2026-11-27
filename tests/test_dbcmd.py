@@ -859,3 +859,23 @@ def test_set_refuses_the_rows_the_daemon_keeps_each_radios_own_and_the_two_of_be
     assert db("set", "serial/last_port", "/dev/ttyUSB9", data=stored) == 0, (
         "the setting of the port found is still set, in radio 1's own row"
     )
+
+
+def test_list_and_get_show_a_services_key_and_a_passcode_only_by_their_length_and_get_prints_the_access_key(
+    data: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ships_key = "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c"  # made up
+    assert db("set", "map/ships_key", ships_key, data=data) == 0
+    assert db("set", "igate/password", "12345", data=data) == 0
+    assert db("set", "web/key", "k7m2-x9pq-4hrt", data=data) == 0
+    capsys.readouterr()
+    assert db("list", data=data) == 0
+    listed = capsys.readouterr().out
+    assert ships_key not in listed and "12345" not in listed and "k7m2-x9pq-4hrt" not in listed
+    assert "(set, 40 characters)" in listed and "(set, 5 characters)" in listed
+    for key, secret in (("map/ships_key", ships_key), ("igate/password", "12345")):
+        assert db("get", key, data=data) == 0
+        out = capsys.readouterr().out
+        assert secret not in out and "characters)" in out
+    assert db("get", "web/key", data=data) == 0
+    assert capsys.readouterr().out.strip() == "k7m2-x9pq-4hrt", "read on a computer with no screen to log a device in"

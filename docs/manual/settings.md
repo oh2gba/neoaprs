@@ -3,7 +3,7 @@
 The settings are rows of the database, read at the start. Most are on the page, in the My station tab and the Settings tab, and apply as you change them ([start.md](start.md#how-settings-apply)). The rest are changed with the command line:
 
 - `neoaprs db list` shows every setting.
-- `neoaprs db get KEY` shows one.
+- `neoaprs db get KEY` shows one. A key of a service and a passcode show only their length, in the list too; the access key `web/key` is printed by `get` in full.
 - `neoaprs db set KEY VALUE` changes one. The value is checked as the daemon checks it, and the daemon takes it at its next start.
 
 The daemon may be running while you use them. `db set` refuses a key that is not a setting, except `update/not_counted`; `db get` also shows a row of the state below, such as `update/install_id`, the number of this installation.
