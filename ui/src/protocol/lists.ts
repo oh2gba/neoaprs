@@ -115,18 +115,18 @@ export const TNC_PROFILES = [
   {"key": "kenwood-tnc2", "name": "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2", "transport": "serial", "baud": 9600, "probe": true},
   {"key": "kenwood-d710", "name": "Kenwood TM-D710 / TH-D72", "transport": "serial", "baud": 9600, "probe": true},
   {"key": "kantronics", "name": "Kantronics KPC-3+", "transport": "serial", "baud": 9600, "probe": true},
-  {"key": "kiss", "name": "KISS TNC (Kenwood TH-D74/D75, Mobilinkd\u2026)", "transport": "serial", "baud": 9600, "probe": false},
-  {"key": "kiss-tcp", "name": "Your own Direwolf or soundmodem", "transport": "tcp", "baud": null, "probe": false},
+  {"key": "kiss", "name": "KISS TNC", "transport": "serial", "baud": 9600, "probe": false},
+  {"key": "kiss-tcp", "name": "Direwolf", "transport": "tcp", "baud": null, "probe": false},
   {"key": "tnc-text", "name": "Yaesu FTM, TNC in monitor mode (RX only)", "transport": "serial", "baud": 9600, "probe": false},
-  {"key": "dummy", "name": "Dummy FM radio", "transport": "dummy", "baud": null, "probe": false},
+  {"key": "dummy", "name": "Dummy packet radio", "transport": "dummy", "baud": null, "probe": false},
 ] as const;
 /** A Mercury radio's types (HF_PROFILES of neoaprs/tncprofile.py, the setting hf/profile): the Mercury modem (`modem`) and the Dummy Mercury radio (`dummy`). */
 export const HF_PROFILES = [
-  {"key": "mercury", "name": "Mercury modem (sound card)", "transport": "modem"},
+  {"key": "mercury", "name": "sound card", "transport": "modem"},
   {"key": "dummy-hf", "name": "Dummy Mercury radio", "transport": "dummy"},
 ] as const;
 
-/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, how it is reached (`transport`), whether it is a Dummy, which reaches no radio and makes its traffic up (`dummy`: Add radio lists these apart, for trying the program out), its catalogue id (`text`: the key's '-' as '_'), what its box offers (`can`), what we decided it may do (`allowed`), its limits (`slow`: a frame holds the shared channel for seconds, HF and LoRa, so what the pairs pass onto it is limited), the path of our frames on a radio of it whose own path is empty (`recommended_path`: LoRa WIDE1-1; empty: the recommended path of the station's symbol), and its own settings (`fields`, each `radio/<id>/<key>` of `config.radio_values`: its kind, its range or choices, its default as text, the fields sent together, its catalogue id). */
+/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, how it is reached (`transport`), whether it is a Dummy, which reaches no radio and makes its traffic up (`dummy`: Add radio lists these apart, for trying the program out), its catalogue id (`text`: the key's '-' as '_'), what its box offers (`can`), what we decided it may do (`allowed`), its limits (`slow`: a frame holds the shared channel for seconds, HF and LoRa, so what the pairs pass onto it is limited), the path of our frames on a radio of it whose own path is empty (`recommended_path`: LoRa WIDE1-1; empty: the recommended path of the station's symbol), the band Add radio names after it (`band`: `vhf_uhf`, `hf`, or empty for none), and its own settings (`fields`, each `radio/<id>/<key>` of `config.radio_values`: its kind, its range or choices, its default as text, the fields sent together, its catalogue id). */
 export const RADIO_TYPES = [
   {
     "key": "direwolf",
@@ -138,6 +138,7 @@ export const RADIO_TYPES = [
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
+    "band": "vhf_uhf",
     "fields": [
       {
         "key": "sound_card",
@@ -241,6 +242,110 @@ export const RADIO_TYPES = [
     ],
   },
   {
+    "key": "direwolf-300",
+    "kind": "fm",
+    "transport": "modem",
+    "dummy": false,
+    "text": "radio.type.direwolf_300",
+    "can": {"find": false, "terminal": true, "tune": true, "key_test": true, "scope": false, "tx_gain": true, "frequencies": false, "transmit": true, "rx_level": true},
+    "allowed": {"paths": true, "digipeat": false, "smart_beacon": false, "gateway_heard": true, "shared_channel": false},
+    "limits": {"max_frame": null, "beacon_min_min": 30, "slow": true},
+    "recommended_path": "",
+    "band": "hf",
+    "fields": [
+      {
+        "key": "sound_card",
+        "kind": "text",
+        "range": null,
+        "choices": [],
+        "default": "",
+        "together": "",
+        "text": "radio.field.sound_card",
+      },
+      {
+        "key": "keying",
+        "kind": "text",
+        "range": null,
+        "choices": [],
+        "default": "",
+        "together": "",
+        "text": "radio.field.keying",
+      },
+      {
+        "key": "tx_gain_db",
+        "kind": "int",
+        "range": [-20, 0],
+        "choices": [],
+        "default": "0",
+        "together": "",
+        "text": "radio.field.tx_gain_db",
+      },
+      {
+        "key": "tx_card",
+        "kind": "int",
+        "range": [0, 100],
+        "choices": [],
+        "default": "",
+        "together": "",
+        "text": "radio.field.tx_card",
+      },
+      {
+        "key": "rx_card",
+        "kind": "int",
+        "range": [0, 100],
+        "choices": [],
+        "default": "",
+        "together": "",
+        "text": "radio.field.rx_card",
+      },
+      {
+        "key": "beacon",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "true",
+        "together": "",
+        "text": "radio.field.beacon",
+      },
+      {
+        "key": "status",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.status",
+      },
+      {
+        "key": "ask",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.ask",
+      },
+      {
+        "key": "local_info",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.local_info",
+      },
+      {
+        "key": "path",
+        "kind": "path",
+        "range": null,
+        "choices": [],
+        "default": "",
+        "together": "",
+        "text": "radio.field.path",
+      },
+    ],
+  },
+  {
     "key": "kiss",
     "kind": "fm",
     "transport": "serial",
@@ -250,6 +355,7 @@ export const RADIO_TYPES = [
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
+    "band": "",
     "fields": [
       {
         "key": "port",
@@ -268,6 +374,15 @@ export const RADIO_TYPES = [
         "default": "",
         "together": "",
         "text": "radio.field.baud",
+      },
+      {
+        "key": "on_hf",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.on_hf",
       },
       {
         "key": "beacon",
@@ -335,6 +450,7 @@ export const RADIO_TYPES = [
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
+    "band": "",
     "fields": [
       {
         "key": "port",
@@ -353,6 +469,15 @@ export const RADIO_TYPES = [
         "default": "",
         "together": "",
         "text": "radio.field.baud",
+      },
+      {
+        "key": "on_hf",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.on_hf",
       },
       {
         "key": "beacon",
@@ -420,6 +545,7 @@ export const RADIO_TYPES = [
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
+    "band": "",
     "fields": [
       {
         "key": "port",
@@ -438,6 +564,15 @@ export const RADIO_TYPES = [
         "default": "",
         "together": "",
         "text": "radio.field.baud",
+      },
+      {
+        "key": "on_hf",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.on_hf",
       },
       {
         "key": "beacon",
@@ -505,6 +640,7 @@ export const RADIO_TYPES = [
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
+    "band": "",
     "fields": [
       {
         "key": "port",
@@ -523,6 +659,15 @@ export const RADIO_TYPES = [
         "default": "",
         "together": "",
         "text": "radio.field.baud",
+      },
+      {
+        "key": "on_hf",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.on_hf",
       },
       {
         "key": "beacon",
@@ -590,6 +735,7 @@ export const RADIO_TYPES = [
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
+    "band": "",
     "fields": [
       {
         "key": "port",
@@ -617,6 +763,15 @@ export const RADIO_TYPES = [
         "default": "8001",
         "together": "tcp",
         "text": "radio.field.tcp_port",
+      },
+      {
+        "key": "on_hf",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.on_hf",
       },
       {
         "key": "beacon",
@@ -684,6 +839,7 @@ export const RADIO_TYPES = [
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
     "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
+    "band": "",
     "fields": [
       {
         "key": "port",
@@ -715,6 +871,7 @@ export const RADIO_TYPES = [
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20, "slow": false},
     "recommended_path": "",
+    "band": "",
     "fields": [
       {
         "key": "beacon",
@@ -782,6 +939,7 @@ export const RADIO_TYPES = [
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
     "limits": {"max_frame": 123, "beacon_min_min": 30, "slow": true},
     "recommended_path": "",
+    "band": "",
     "fields": [
       {
         "key": "sound_card",
@@ -894,6 +1052,7 @@ export const RADIO_TYPES = [
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
     "limits": {"max_frame": 123, "beacon_min_min": 30, "slow": true},
     "recommended_path": "",
+    "band": "",
     "fields": [
       {
         "key": "beacon",
@@ -943,6 +1102,7 @@ export const RADIO_TYPES = [
     "allowed": {"paths": true, "digipeat": false, "smart_beacon": true, "gateway_heard": true, "shared_channel": false},
     "limits": {"max_frame": 250, "beacon_min_min": 30, "slow": true},
     "recommended_path": "WIDE1-1",
+    "band": "",
     "fields": [
       {
         "key": "tcp_host",
@@ -1019,6 +1179,7 @@ export const RADIO_TYPES = [
     "allowed": {"paths": true, "digipeat": false, "smart_beacon": true, "gateway_heard": true, "shared_channel": false},
     "limits": {"max_frame": 250, "beacon_min_min": 30, "slow": true},
     "recommended_path": "WIDE1-1",
+    "band": "",
     "fields": [
       {
         "key": "port",
@@ -1095,6 +1256,7 @@ export const RADIO_TYPES = [
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
     "limits": {"max_frame": 250, "beacon_min_min": 30, "slow": true},
     "recommended_path": "WIDE1-1",
+    "band": "",
     "fields": [
       {
         "key": "port",
@@ -1126,6 +1288,7 @@ export const RADIO_TYPES = [
     "allowed": {"paths": true, "digipeat": false, "smart_beacon": true, "gateway_heard": true, "shared_channel": false},
     "limits": {"max_frame": 250, "beacon_min_min": 30, "slow": true},
     "recommended_path": "WIDE1-1",
+    "band": "",
     "fields": [
       {
         "key": "beacon",
