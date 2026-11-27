@@ -28,6 +28,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
         elif path == "/gone":
             self.send_response(410)
+        elif path == "/H%C3%A4meenlinna":
+            self.send_response(200)
+        elif path == "/loop":
+            self.send_response(302)
+            self.send_header("Location", "/loop")
         elif path == "/robots-no":
             self.send_response(403)
         elif path == "/slow":
@@ -154,3 +159,41 @@ def test_the_allow_list_gives_each_link_its_reason(tmp_path: Path) -> None:
     with pytest.raises(SystemExit):
         linkcheck.allowed(listed)
     assert isinstance(linkcheck.allowed(), dict)
+
+
+def test_a_link_with_letters_outside_ascii_is_asked_encoded(site: str) -> None:
+    assert linkcheck.check(site + "/Hämeenlinna", 5.0).word == "ok"
+
+
+def test_a_link_with_a_control_character_is_asked_encoded_and_one_that_cannot_be_asked_is_reported(site: str) -> None:
+    assert linkcheck.check(site + "/a\x01b c", 5.0).word == "not found (404)"
+    broken = "http://127.0.0.1:99999/x"
+    outcome = linkcheck.check(broken, 5.0)
+    assert outcome.reported and not outcome.fails and outcome.word.startswith("not reached")
+    said: list[str] = []
+    assert linkcheck.run({broken: ["x.md"], site + "/": ["y.md"]}, {}, is_online=lambda: True, out=said.append) == 0
+
+
+def test_a_redirect_loop_is_not_ok(site: str) -> None:
+    outcome = linkcheck.check(site + "/loop", 5.0)
+    assert outcome.reported and outcome.word.startswith("redirects in a loop")
+
+
+def test_every_address_the_site_offers_is_collected_meta_tags_and_structured_data_too(tmp_path: Path) -> None:
+    (tmp_path / "site").mkdir()
+    (tmp_path / "site" / "index.html").write_text(
+        '<meta property="og:image" content="https://a.org/og.png">'
+        '<script type="application/ld+json">{"url": "https://b.org/", "logo": "https://c.org/l.png"}</script>'
+        '<pre>https://d.org/</pre><!-- https://e.org/ --><svg xmlns="http://www.w3.org/2000/svg"></svg>'
+    )
+    (tmp_path / "site" / "sitemap.xml").write_text(
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://f.org/</loc></url></urlset>'
+    )
+    (tmp_path / "site" / "site.js").write_text('fetch("https://g.org/api");\n')
+    assert sorted(linkcheck.collect(tmp_path)) == [
+        "https://a.org/og.png",
+        "https://b.org/",
+        "https://c.org/l.png",
+        "https://f.org/",
+        "https://g.org/api",
+    ]

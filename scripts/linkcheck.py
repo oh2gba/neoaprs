@@ -4,7 +4,7 @@
 scripts/linkcheck.py             collect the links, ask each, print the ones that did not answer well
 scripts/linkcheck.py --list      print the links it would ask, and where each was found
 A link that is not found (404, 410) or whose host does not exist fails the run; one that refuses
-robots, is slow or answers otherwise is reported only. scripts/links-allowed.txt lists links known to
+robots, is slow, redirects in a loop, cannot be asked or answers otherwise is reported only. scripts/links-allowed.txt lists links known to
 refuse robots, each with its reason: never a failure. With no network it says so and passes."""
 
 import argparse
@@ -18,7 +18,7 @@ import urllib.request
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit, urlunsplit
 
 ROOT = Path(__file__).resolve().parent.parent
 LINKS_MODULE = ROOT / "ui" / "src" / "lib" / "links.ts"
@@ -54,7 +54,12 @@ def _clean(url: str) -> str:
 
 
 _CODE_SPAN = re.compile(r"```.*?```|`[^`\n]*`", re.S)
-_HTML_LINK = re.compile(r"""\b(?:href|src)\s*=\s*["']([^"']+)["']""", re.I)
+# What HTML and XML name without offering it: code, preformatted text, comments, namespaces.
+_HTML_NAMED = re.compile(
+    r"<(code|pre|samp|kbd)\b.*?</\1\s*>|<!--.*?-->|\bxmlns(:\w+)?\s*=\s*[\"'][^\"']*[\"']", re.S | re.I
+)
+# The site's files read whole: every address in them is offered (a sitemap, a script, a style sheet).
+SITE_SUFFIXES = (".html", ".md", ".txt", ".xml", ".json", ".js", ".css")
 
 
 def _private(host: str) -> bool:
@@ -68,11 +73,12 @@ def _private(host: str) -> bool:
 def links_in(text: str, kind: str = "") -> list[str]:
     """Return the outside addresses a text offers, in order, without trailing punctuation.
 
-    Markdown (`kind` "md") offers none inside code, which names an address; HTML only its links."""
+    Markdown (`kind` "md") offers none inside code, which names an address; HTML none inside code,
+    preformatted text or a comment, and every other one (links, meta tags, structured data)."""
     if kind == "md":
         text = _CODE_SPAN.sub(" ", text)
-    elif kind == "html":
-        text = "\n".join(_HTML_LINK.findall(text))
+    elif kind in ("html", "xml"):
+        text = _HTML_NAMED.sub(" ", text)
     found = []
     for match in _ADDRESS.finditer(text):
         url = _clean(match.group(0))
@@ -85,7 +91,7 @@ def links_in(text: str, kind: str = "") -> list[str]:
 
 def sources(root: Path = ROOT) -> list[Path]:
     """The files whose links are offered: the page's link module, the manual, the site, the README."""
-    site = [p for p in sorted((root / "site").rglob("*")) if p.is_file() and p.suffix in (".html", ".md", ".txt")]
+    site = [p for p in sorted((root / "site").rglob("*")) if p.is_file() and p.suffix in SITE_SUFFIXES]
     return [
         root / "ui" / "src" / "lib" / "links.ts",
         *sorted((root / "docs" / "manual").glob("*.md")),
@@ -123,8 +129,19 @@ def allowed(path: Path = ALLOWED) -> dict[str, str]:
     return listed
 
 
+def asked_form(url: str) -> str:
+    """Return the link as it is asked: the host in IDNA, the rest percent-encoded (an IRI as a URI)."""
+    parts = urlsplit(url)
+    host = (parts.hostname or "").encode("idna").decode("ascii")
+    netloc = host + (f":{parts.port}" if parts.port else "")
+    keep = "/%:@!$&'()*+,;=-._~"
+    return urlunsplit(
+        (parts.scheme, netloc, quote(parts.path, keep), quote(parts.query, keep + "?"), quote(parts.fragment, keep))
+    )
+
+
 def _ask(url: str, method: str, timeout: float) -> int:
-    request = urllib.request.Request(url, method=method, headers={"User-Agent": AGENT, "Accept": "*/*"})  # noqa: S310
+    request = urllib.request.Request(asked_form(url), method=method, headers={"User-Agent": AGENT, "Accept": "*/*"})  # noqa: S310
     try:
         with urllib.request.urlopen(request, timeout=timeout) as answer:  # noqa: S310 (http and https only)
             if method == "GET":
@@ -150,8 +167,12 @@ def check(url: str, timeout: float = TIMEOUT_SEC) -> Outcome:
         return Outcome(url, f"no answer in {timeout:.0f} s", False, True)
     except OSError as e:
         return Outcome(url, f"not reached ({e})", False, True)
+    except Exception as e:  # a link that cannot be asked (a bad address, a broken answer) is reported, not a crash
+        return Outcome(url, f"not reached ({type(e).__name__}: {e})", False, True)
     if status in NOT_FOUND:
         return Outcome(url, f"not found ({status})", True, True)
+    if 300 <= status < 400:
+        return Outcome(url, f"redirects in a loop ({status})", False, True)
     if status >= 400:
         return Outcome(
             url, f"answered {status}" + (" (refuses robots)" if status in REFUSES_ROBOTS else ""), False, True
