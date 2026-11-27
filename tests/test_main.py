@@ -408,7 +408,7 @@ def test_the_daemon_serves_the_page_on_a_free_port_it_tells_in_the_log(tmp_path:
 def taken_ports(count: int) -> Iterator[int]:
     """`count` neighbouring ports on the loopback, bound and listening; the first of them."""
     for _ in range(50):
-        base = random.randrange(20000, 60000)
+        base = random.randrange(10000, 11900)  # below the tests' page and modem ports and every system's outgoing range
         held: list[socket.socket] = []
         try:
             for port in range(base, base + count):
