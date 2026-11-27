@@ -149,17 +149,23 @@ function trackAhead(card: SatelliteCard, here: Position, nowMs: number): Positio
   return [here, ...ahead];
 }
 
+/** Moves a mark from where its points put it (lib/layers/satelliteease.ts); none by default. */
+export type Placer = (id: number, at: Position) => Position;
+const asIs: Placer = (_id, at) => at;
+
 /** Every satellite's mark where it is at `nowMs`, between its points. */
 export function satelliteMarks(
   marks: readonly SatelliteMark[],
   cards: readonly SatelliteCard[],
   nowMs: number,
+  place: Placer = asIs,
 ): SatelliteFeatures["marks"] {
   const open = new Set(cards.map((card) => card.id));
   const features: SatelliteFeatures["marks"]["features"] = [];
   for (const mark of marks) {
-    const at = positionAt(mark.points, nowMs);
-    if (!at) continue;
+    const by = positionAt(mark.points, nowMs);
+    if (!by) continue;
+    const at = place(mark.id, by);
     features.push({
       type: "Feature",
       geometry: { type: "Point", coordinates: at },
@@ -188,8 +194,9 @@ export function satelliteFeatures(
   marks: readonly SatelliteMark[],
   cards: readonly SatelliteCard[],
   nowMs: number,
+  place: Placer = asIs,
 ): SatelliteFeatures {
-  const drawn = satelliteMarks(marks, cards, nowMs);
+  const drawn = satelliteMarks(marks, cards, nowMs, place);
   const here = new Map<number, Position>(
     drawn.features.map((feature) => [feature.properties.id, feature.geometry.coordinates]),
   );

@@ -51,4 +51,36 @@ describe("the satellites on the map", () => {
       expect(track).toEqual(mark);
     }
   });
+
+  it("does not hop when a new message's points put the mark a little off the last ones'", async () => {
+    vi.useFakeTimers({ now: DURING });
+    localStorage.setItem("NeoAPRS.layer.satellites", "on");
+    const made = mountStationMap({
+      stations: table(station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94 })),
+      selected: null,
+      focus: null,
+      home: { lat: 60.17, lon: 24.94 },
+      now: DURING,
+      dark: false,
+      aging: { defaultMin: 0 },
+    });
+    await flushPromises();
+    FakeMap.last().fire("style.load");
+    await tell(made.daemon, { map: mapState() });
+    made.daemon.satelliteStore.handlers.satellites(satellitesMessage());
+    await nextTick();
+    vi.advanceTimersByTime(3 * FRAME_MS);
+    const mark = () => last<SatelliteFeatures["marks"]>("satellites")?.features[0].geometry.coordinates ?? [0, 0];
+    const before = mark();
+    const off = satellitesMessage({
+      at: new Date(Date.now()).toISOString(),
+      satellites: satellitesMessage().satellites.map((one) => ({
+        ...one,
+        points: one.points.map((point) => ({ ...point, lat: point.lat + 0.006 })),
+      })),
+    });
+    made.daemon.satelliteStore.handlers.satellites(off);
+    await nextTick();
+    expect(Math.abs(mark()[1] - before[1])).toBeLessThan(0.001);
+  });
 });

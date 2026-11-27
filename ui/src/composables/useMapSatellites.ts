@@ -13,6 +13,7 @@ import {
   satelliteMarks,
   type SatelliteFeatures,
 } from "@/lib/layers/satellite";
+import { easedAt, nextEases, type MarkEase } from "@/lib/layers/satelliteease";
 import { SATELLITE_LAYER, addSatelliteLayers, setSatelliteData, setSatelliteMarks } from "@/lib/layers/satellitelayers";
 
 // Pixels each way round a click or tap.
@@ -27,15 +28,27 @@ export function useMapSatellites(map: () => MapLibreMap | null) {
   const { satellites } = useDaemonContext();
   // The marks the map was last given, so that a step that moves none sets nothing.
   let shown: SatelliteFeatures["marks"] = NO_SATELLITES.marks;
+  let eases = new Map<number, MarkEase>();
+  watch(
+    satellites.told,
+    (now, was) => void (eases = nextEases(was?.satellites ?? [], eases, now?.satellites ?? [], Date.now())),
+    { flush: "sync" },
+  );
+  const place =
+    (nowMs: number) =>
+    (id: number, at: [number, number]): [number, number] =>
+      easedAt(at, eases.get(id), nowMs);
   const features = (nowMs: number): SatelliteFeatures => {
     const told = satellites.told.value;
-    return told === null ? NO_SATELLITES : satelliteFeatures(told.satellites, satellites.cards.value, nowMs);
+    return told === null
+      ? NO_SATELLITES
+      : satelliteFeatures(told.satellites, satellites.cards.value, nowMs, place(nowMs));
   };
   /** Draws the marks at `nowMs`, and the open cards' tracks and footprints from the same places. */
   const show = (to: MapLibreMap, nowMs: number, always: boolean): boolean => {
     const told = satellites.told.value;
     const cards = satellites.cards.value;
-    const marks = told === null ? NO_SATELLITES.marks : satelliteMarks(told.satellites, cards, nowMs);
+    const marks = told === null ? NO_SATELLITES.marks : satelliteMarks(told.satellites, cards, nowMs, place(nowMs));
     if (!always && sameMarks(shown, marks)) return false;
     shown = marks;
     if (always || cards.length > 0) setSatelliteData(to, features(nowMs));
