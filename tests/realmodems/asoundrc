@@ -1,0 +1,23 @@
+# The four ends of the two virtual cables of tests/realmodems/cables, as ALSA devices of PipeWire's
+# plugin (Mercury needs mmap access, which it offers): each plays into a null sink of its own and
+# records a source that is the other end's sink's monitor, so a station hears the other, never itself.
+pcm.vhf_a {
+    type asym
+    playback.pcm { type pipewire playback_node "vhf_a_out" }
+    capture.pcm { type pipewire capture_node "vhf_g_in" }
+}
+pcm.vhf_g {
+    type asym
+    playback.pcm { type pipewire playback_node "vhf_g_out" }
+    capture.pcm { type pipewire capture_node "vhf_a_in" }
+}
+pcm.hf_g {
+    type asym
+    playback.pcm { type pipewire playback_node "hf_g_out" }
+    capture.pcm { type pipewire capture_node "hf_b_in" }
+}
+pcm.hf_b {
+    type asym
+    playback.pcm { type pipewire playback_node "hf_b_out" }
+    capture.pcm { type pipewire capture_node "hf_g_in" }
+}

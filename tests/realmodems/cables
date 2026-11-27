@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# The two virtual cables of tests/realmodems on a GitHub runner, whose kernel has no sound: PipeWire
+# with a null sink for what each end plays and a source remapping it for the other end to record,
+# and tests/realmodems/asoundrc as ~/.asoundrc. For .github/workflows/realmodems.yml only: the
+# servers it starts run until the job ends, and the variables they need go to $GITHUB_ENV.
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+[ -n "${GITHUB_ENV:-}" ] && [ -n "${RUNNER_TEMP:-}" ] || { echo "cables: for the workflow's runner only"; exit 2; }
+if [ -e /proc/asound/cards ] && grep -q '^ *[0-9]' /proc/asound/cards; then
+    echo "cables: this computer has a sound card"; exit 1
+fi
+
+export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg"
+mkdir -p -m 700 "$XDG_RUNTIME_DIR"
+export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+dbus-daemon --session --fork --address="$DBUS_SESSION_BUS_ADDRESS"
+logs="$RUNNER_TEMP/realmodems-sound"
+mkdir -p "$logs"
+nohup pipewire >"$logs/pipewire.log" 2>&1 &
+nohup wireplumber >"$logs/wireplumber.log" 2>&1 &
+nohup pipewire-pulse >"$logs/pipewire-pulse.log" 2>&1 &
+for _ in $(seq 100); do pactl info >/dev/null 2>&1 && break; sleep 0.1; done
+pactl info
+
+for end in vhf_a vhf_g hf_g hf_b; do
+    pactl load-module module-null-sink sink_name="${end}_out" rate=48000 channels=1 channel_map=mono
+    pactl load-module module-remap-source master="${end}_out.monitor" source_name="${end}_in" channels=1 channel_map=mono
+done
+cp "$here/asoundrc" ~/.asoundrc
+{
+    echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
+    echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS"
+} >>"$GITHUB_ENV"
+pactl list short sinks
+pactl list short sources

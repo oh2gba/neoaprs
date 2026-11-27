@@ -1,0 +1,101 @@
+# Three NeoAPRS daemons with the real Direwolf and the real Mercury on two virtual sound cables
+# (PipeWire null sinks), and a gateway's pair proven through them: messages and acks cross between a
+# station on VHF and one on HF, a WIDE path alone and a message to the gateway stay off HF, a beacon by
+# way of the pair's call is heard on HF (tests/realmodems, docs/realmodems.md). Keying is VOX into a
+# null sink, so nothing is keyed. By hand only, before a release among other times; no secrets.
+name: realmodems
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NEOAPRS_UPDATE_CHECK: "0"
+  UV_FROZEN: "1"
+
+concurrency:
+  group: realmodems-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  realmodems:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false  # no later step uses git with the job's token
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.11.26"
+          python-version: "3.13"
+          enable-cache: true
+      # The runners' kernels have no sound (no snd-aloop), so the cables are PipeWire null sinks and
+      # the ALSA devices of tests/realmodems/asoundrc (docs/realmodems.md); a tone played into one
+      # end of the HF cable must be heard at the other.
+      - name: The virtual sound cables
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pipewire pipewire-pulse pipewire-alsa wireplumber pulseaudio-utils alsa-utils dbus
+          tests/realmodems/cables
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg"  # what the script gave $GITHUB_ENV for the later steps
+          python3 -c "import math, struct, sys; sys.stdout.buffer.write(b''.join(struct.pack('<h', int(8000 * math.sin(i / 8))) for i in range(48000)))" > "$RUNNER_TEMP/tone.raw"
+          arecord -M -D hf_b -t raw -f S16_LE -r 48000 -c 1 -d 3 "$RUNNER_TEMP/heard.raw" &
+          aplay -M -D hf_g -t raw -f S16_LE -r 48000 -c 1 "$RUNNER_TEMP/tone.raw"
+          wait
+          python3 -c "import struct, sys; d = open(sys.argv[1], 'rb').read(); peak = max(abs(v) for (v,) in struct.iter_unpack('<h', d)); print('frames', len(d) // 2, 'peak', peak); sys.exit(peak < 1000)" "$RUNNER_TEMP/heard.raw"
+      - name: The tools of the modem builds
+        run: sudo apt-get install -y --no-install-recommends build-essential cmake pkg-config libasound2-dev libasound2-data libudev-dev
+      - run: uv sync --frozen
+      # The modems are built by the scripts the release builds them with, into the venv, and kept as
+      # soon as they are built. Mercury's key is the one of ci.yml's job sim, so either job finds the
+      # other's build.
+      - name: The image of the runner, for the keys of the caches
+        id: image
+        run: echo "name=${ImageOS:-unknown}-${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
+      - name: The Mercury built before
+        id: mercury
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .venv/tools/mercury
+          key: mercury-sim-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.name }}-${{ hashFiles('scripts/build-mercury', 'neoaprs/mercury.py', 'packaging/mercury/**') }}
+      - name: Build the pinned Mercury into the venv (scripts/build-mercury --install)
+        if: steps.mercury.outputs.cache-hit != 'true'
+        run: uv run scripts/build-mercury --install
+      - if: steps.mercury.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .venv/tools/mercury
+          key: ${{ steps.mercury.outputs.cache-primary-key }}
+      - name: The Direwolf built before
+        id: direwolf
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .venv/tools/direwolf
+          key: direwolf-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.name }}-${{ hashFiles('scripts/build-direwolf', 'scripts/buildtool.py', 'neoaprs/direwolf.py', 'packaging/direwolf/**') }}
+      - name: Build the pinned Direwolf into the venv (scripts/build-direwolf --install)
+        if: steps.direwolf.outputs.cache-hit != 'true'
+        run: uv run scripts/build-direwolf --install
+      - if: steps.direwolf.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .venv/tools/direwolf
+          key: ${{ steps.direwolf.outputs.cache-primary-key }}
+      - name: The three stations and the scenarios
+        env:
+          NEOAPRS_REAL_MODEMS: "1"
+        run: >-
+          uv run pytest -v -p no:cacheprovider --confcutdir tests/realmodems
+          -o faulthandler_timeout=0 -o tmp_path_retention_policy=all
+          --basetemp "$RUNNER_TEMP/realmodems" tests/realmodems
+      - name: The stations' folders (each daemon's log and output, the modems' configurations)
+        if: always()
+        run: tar czf realmodems-stations.tar.gz -C "$RUNNER_TEMP" realmodems || echo "no folder"
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: realmodems-stations
+          path: realmodems-stations.tar.gz
+          if-no-files-found: ignore
